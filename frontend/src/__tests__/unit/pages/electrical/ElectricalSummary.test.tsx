@@ -39,18 +39,38 @@ const systems: ElectricalSystemSummaries = {
 };
 
 describe('ElectricalSummary', () => {
-  it('shows all cable systems in one compact table without legacy summary titles', () => {
+  it('shows four summary cards (mockup layout)', () => {
     render(<ElectricalSummary systems={systems} />);
 
-    expect(screen.getByText('Итоги по кабелю')).toBeInTheDocument();
-    expect(screen.queryByText(/Саммари/i)).not.toBeInTheDocument();
-    expect(screen.getByRole('table')).toBeInTheDocument();
-    expect(screen.getAllByRole('row')).toHaveLength(5);
+    expect(screen.getByTestId('elec-summary-table')).toBeInTheDocument();
+    expect(screen.getByText('Саммари Самрег')).toBeInTheDocument();
+    expect(screen.getByText('Саммари Резистив')).toBeInTheDocument();
+    expect(screen.getByText('Саммари Скин')).toBeInTheDocument();
+    expect(screen.getByText('Саммари Итого')).toBeInTheDocument();
 
-    expect(screen.getByTestId('elec-summary-self_regulating')).toHaveTextContent('Самрег');
-    expect(screen.getByTestId('elec-summary-resistive')).toHaveTextContent('Резистив');
-    expect(screen.getByTestId('elec-summary-skin')).toHaveTextContent('Скин');
-    expect(screen.getByTestId('elec-summary-total')).toHaveTextContent('Итого');
-    expect(screen.getByTestId('elec-summary-skin')).toHaveTextContent('—');
+    // Objects
+    expect(screen.getByTestId('elec-summary-self_regulating-objects')).toHaveTextContent('2');
+    expect(screen.getByTestId('elec-summary-resistive-objects')).toHaveTextContent('1');
+    expect(screen.getByTestId('elec-summary-skin-objects')).toHaveTextContent('0');
+    expect(screen.getByTestId('elec-summary-total-objects')).toHaveTextContent('3');
+
+    // Length
+    expect(screen.getByTestId('elec-summary-self_regulating-length')).toHaveTextContent('115');
+    expect(screen.getByTestId('elec-summary-resistive-length')).toHaveTextContent('24');
+    expect(screen.getByTestId('elec-summary-total-length')).toHaveTextContent('139');
+
+    // Sections
+    expect(screen.getByTestId('elec-summary-self_regulating-sections')).toHaveTextContent('3');
+    expect(screen.getByTestId('elec-summary-skin-sections')).toHaveTextContent('—');
+    expect(screen.getByTestId('elec-summary-total-sections')).toHaveTextContent('4');
+
+    // Power kW
+    expect(screen.getByTestId('elec-summary-self_regulating-power')).toHaveTextContent('2,4');
+    expect(screen.getByTestId('elec-summary-total-power')).toHaveTextContent('3,2');
+
+    // Currents
+    expect(screen.getByTestId('elec-summary-self_regulating-start-current')).toHaveTextContent('15,2');
+    expect(screen.getByTestId('elec-summary-self_regulating-working-current')).toHaveTextContent('10,4');
+    expect(screen.getByTestId('elec-summary-total-start-current')).toHaveTextContent('19,4');
   });
 });

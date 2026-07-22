@@ -456,13 +456,132 @@ html, body, #root {
   min-width: 0;
 }
 
-.specification-page-layout {
+/* ── Specification page (mockup-aligned layout) ── */
+
+.specification-page {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
-.specification-page-sidebar,
-.specification-page-main {
-  min-width: 0;
+.specification-toolbar {
+  margin-bottom: 4px;
+}
+
+.specification-er-tabs.ant-tabs {
+  margin-bottom: 0;
+}
+
+.specification-er-tabs .ant-tabs-nav {
+  margin-bottom: 0;
+}
+
+.specification-er-tabs .ant-tabs-nav::before {
+  border-bottom-color: #e8eef5;
+}
+
+.specification-er-tabs .ant-tabs-tab {
+  padding: 6px 14px !important;
+  font-size: 13px;
+}
+
+.specification-er-tabs .ant-tabs-tab-active {
+  font-weight: 500;
+}
+
+.specification-toolbar-actions {
+  padding-left: 12px;
+  flex-shrink: 0;
+}
+
+.specification-status-strip {
+  padding: 6px 2px 10px;
+}
+
+.specification-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #eef2f6;
+  flex-wrap: wrap;
+}
+
+.specification-footer-meta {
+  font-size: 12px;
+}
+
+.specification-settings-section {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.specification-settings-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+/* SpecTable collapsible sections */
+.spec-section-collapse.ant-collapse {
+  background: transparent;
+}
+
+.spec-section-collapse > .ant-collapse-item {
+  border-bottom: none !important;
+  margin-bottom: 8px;
+}
+
+.spec-section-collapse > .ant-collapse-item > .ant-collapse-header {
+  padding: 8px 4px !important;
+  align-items: center;
+  color: #1a5276;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.spec-section-collapse > .ant-collapse-item > .ant-collapse-header .ant-collapse-arrow {
+  color: #1a5276;
+  font-size: 11px;
+}
+
+.spec-section-collapse .ant-collapse-content-box {
+  padding: 0 0 8px !important;
+}
+
+.spec-section-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.spec-section-meta {
+  font-weight: 400;
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.spec-section-empty {
+  margin: 0 0 4px;
+}
+
+.spec-table .ant-table {
+  font-size: 13px;
+}
+
+.spec-table .ant-table-thead > tr > th {
+  background: #f5f8fb !important;
+  color: #4a5568;
+  font-weight: 500;
+  font-size: 12px;
+}
+
+.spec-table .ant-table-tbody > tr > td {
+  padding: 8px 12px !important;
 }
 
 .specification-empty-alert {
@@ -482,14 +601,12 @@ html, body, #root {
 }
 
 @media (max-width: 900px) {
-  .projects-page-layout,
-  .specification-page-layout {
+  .projects-page-layout {
     flex-direction: column;
     row-gap: 8px;
   }
 
-  .projects-page-layout > .ant-col,
-  .specification-page-layout > .ant-col {
+  .projects-page-layout > .ant-col {
     flex: 1 1 100% !important;
     max-width: 100%;
     width: 100%;
@@ -497,6 +614,15 @@ html, body, #root {
 
   .projects-page-card-actions {
     justify-content: flex-start;
+  }
+
+  .specification-toolbar-actions {
+    padding-left: 0;
+    padding-top: 8px;
+  }
+
+  .specification-er-tabs .ant-tabs-nav {
+    flex-wrap: wrap;
   }
 
   .specification-empty-alert {
@@ -507,6 +633,11 @@ html, body, #root {
     margin-inline-start: 0;
     margin-top: 8px;
     flex: 1 1 100%;
+  }
+
+  .specification-footer {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 
@@ -537,7 +668,7 @@ html, body, #root {
 
 .elec-summary-table {
   width: 100%;
-  min-width: 740px;
+  min-width: 620px;
   border-collapse: collapse;
   font-size: 12px;
   line-height: 1.3;
@@ -569,9 +700,8 @@ html, body, #root {
   text-align: right;
 }
 
-.elec-summary-table tbody tr:last-child th,
-.elec-summary-table tbody tr:last-child td {
-  border-bottom: 0;
+.elec-summary-table thead th:last-child,
+.elec-summary-table tbody td:last-child {
   background: #f6fbff;
 }
 
@@ -1706,27 +1836,433 @@ html, body, #root {
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
+  /*
+   * Карточка облегает контент (поля + таблица изоляции ≈ max-content), а не
+   * растягивается на всю ширину колонки. Когда панель кабеля уходит вниз
+   * (≤1400px, dual-forms становится одноколоночным 1fr), это убирает пустой
+   * правый «хвост» ~475px внутри светло-голубой шапки «Расчёт теплопотерь».
+   * В режиме side-by-side (≥1440px) heat-колонка и так max-content — без изменений.
+   */
+  width: fit-content;
+  max-width: 100%;
 }
 
-/* SC-03: compact engineering workspace — inputs, conditions and insulation. */
+/* Dual form layout: left = heat, right = cable algorithm (type reference). */
+.heatcalc-dual-forms {
+  display: grid;
+  gap: 8px 12px;
+  min-width: 0;
+  width: 100%;
+  align-items: start;
+}
+
+.heatcalc-dual-forms--wide {
+  /* Heat hugs content (max-content); cable keeps a usable min width */
+  grid-template-columns: minmax(0, max-content) minmax(300px, 1fr);
+}
+
+.heatcalc-dual-forms--side {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.heatcalc-dual-forms__heat,
+.heatcalc-dual-forms__cable {
+  min-width: 0;
+}
+
+/*
+ * Dual-form SHELL only (layout chrome).
+ * Form typography/layout live in CSS islands:
+ *   heat-object-fields.css | cable-algorithm-panel.css | insulation-layers-table.css
+ * See frontend/src/components/wizard/WIZARD-CSS-ISLANDS.md
+ */
+.heatcalc-dual-forms {
+  --dual-form-banner-size: 9px;
+  --cable-banner-size: var(--dual-form-banner-size);
+}
+
+.object-wizard-cable-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* RIGHT banner */
+.object-wizard-cable-panel .inline-form-section-banner {
+  min-height: 20px;
+  padding: 3px 8px;
+  font-size: var(--cable-banner-size);
+  font-weight: 650;
+  letter-spacing: 0.03em;
+  line-height: 1.2;
+}
+
+.inline-form-section-banner--cable {
+  background: #fff6f0;
+  border-color: #f0c9b0;
+  color: #8a3d12;
+}
+
+/* LEFT heat banner — same compact metrics as right */
+.heatcalc-dual-forms__heat .inline-form-section-banner,
+.heatcalc-dual-forms__heat .side-form-section-banner {
+  min-height: 20px !important;
+  padding: 3px 8px !important;
+  font-size: var(--cable-banner-size) !important;
+  font-weight: 650 !important;
+  letter-spacing: 0.03em !important;
+  line-height: 1.2 !important;
+}
+
+/*
+ * Cable panel: HARD RULE horizontal label | control rows (эталон).
+ * Heat object fields: same horizontal pattern under .heat-object-fields--wide
+ * + CONTENT-SIZED control column. EXCLUDE layers table.
+ */
+.object-wizard-cable-panel .ant-form-item {
+  --dual-field-label-width: 148px;
+  min-width: 0;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.object-wizard-cable-panel .ant-form-item-row {
+  display: grid !important;
+  grid-template-columns: minmax(var(--dual-field-label-width), 42%) minmax(0, 1fr) !important;
+  column-gap: 10px !important;
+  row-gap: 0 !important;
+  align-items: center !important;
+  width: 100% !important;
+  min-height: var(--cable-control-height);
+}
+
+/* Cable panel labels only — heat fields use 2-line FieldLabel under .heat-object-fields */
+.object-wizard-cable-panel .ant-form-item-label {
+  width: auto !important;
+  max-width: 100%;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden;
+  white-space: nowrap !important;
+  text-align: left !important;
+  align-self: center;
+}
+
+.object-wizard-cable-panel .ant-form-item-label > label {
+  display: block !important;
+  min-height: 0 !important;
+  height: auto !important;
+  max-width: 100%;
+  margin: 0 !important;
+  padding: 0 !important;
+  color: var(--cable-label-color) !important;
+  font-size: var(--cable-label-size, 8.5px) !important;
+  font-weight: 600 !important;
+  line-height: var(--cable-label-line-height, 1.0) !important;
+  white-space: nowrap !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.object-wizard-cable-panel .ant-form-item-label * {
+  font-size: var(--cable-label-size, 8.5px) !important;
+  line-height: var(--cable-label-line-height, 1.0) !important;
+}
+
+/* Cable panel: single-line FieldLabel (horizontal rows). Heat fields use 2-line below. */
+.object-wizard-cable-panel .field-label-two-line {
+  display: block !important;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap !important;
+}
+
+.object-wizard-cable-panel .field-label-two-line > span {
+  display: inline !important;
+  font-size: var(--cable-label-size) !important;
+  font-weight: 600 !important;
+  white-space: nowrap !important;
+}
+
+.object-wizard-cable-panel .field-label-two-line > span + span::before {
+  content: ' ';
+}
+
+/* Control fills remaining cell width (override max-content numeric shrink) */
+.object-wizard-cable-panel .ant-form-item-control,
+.object-wizard-cable-panel .ant-form-item-control-input,
+.object-wizard-cable-panel .ant-form-item-control-input-content,
+.heat-object-fields--wide .heat-object-fields__geometry .ant-form-item-control,
+.heat-object-fields--wide .heat-object-fields__geometry .ant-form-item-control-input,
+.heat-object-fields--wide .heat-object-fields__geometry .ant-form-item-control-input-content,
+.heat-object-fields--wide .heat-object-fields__climate .ant-form-item-control,
+.heat-object-fields--wide .heat-object-fields__climate .ant-form-item-control-input,
+.heat-object-fields--wide .heat-object-fields__climate .ant-form-item-control-input-content,
+.heat-object-fields .insulation-settings-row .ant-form-item-control,
+.heat-object-fields .insulation-settings-row .ant-form-item-control-input,
+.heat-object-fields .insulation-settings-row .ant-form-item-control-input-content {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+.object-wizard-cable-panel .ant-input,
+.object-wizard-cable-panel .ant-input-number,
+.object-wizard-cable-panel .ant-input-number-group-wrapper,
+.object-wizard-cable-panel .ant-select,
+.object-wizard-cable-panel .tlt-select,
+.object-wizard-cable-panel .tlt-select__trigger,
+.object-wizard-cable-panel .reference-picker-control,
+.object-wizard-cable-panel .field-control-with-help,
+.heat-object-fields--wide .heat-object-fields__geometry .ant-input,
+.heat-object-fields--wide .heat-object-fields__geometry .ant-input-number,
+.heat-object-fields--wide .heat-object-fields__geometry .ant-input-number-group-wrapper,
+.heat-object-fields--wide .heat-object-fields__geometry .ant-select,
+.heat-object-fields--wide .heat-object-fields__geometry .tlt-select,
+.heat-object-fields--wide .heat-object-fields__geometry .tlt-select__trigger,
+.heat-object-fields--wide .heat-object-fields__geometry .reference-picker-control,
+.heat-object-fields--wide .heat-object-fields__geometry .field-control-with-help,
+.heat-object-fields--wide .heat-object-fields__climate .ant-input,
+.heat-object-fields--wide .heat-object-fields__climate .ant-input-number,
+.heat-object-fields--wide .heat-object-fields__climate .ant-input-number-group-wrapper,
+.heat-object-fields--wide .heat-object-fields__climate .ant-select,
+.heat-object-fields--wide .heat-object-fields__climate .tlt-select,
+.heat-object-fields--wide .heat-object-fields__climate .tlt-select__trigger,
+.heat-object-fields--wide .heat-object-fields__climate .reference-picker-control,
+.heat-object-fields--wide .heat-object-fields__climate .field-control-with-help,
+.heat-object-fields .insulation-settings-row .ant-input,
+.heat-object-fields .insulation-settings-row .ant-select,
+.heat-object-fields .insulation-settings-row .tlt-select,
+.heat-object-fields .insulation-settings-row .tlt-select__trigger,
+.heat-object-fields .insulation-settings-row .field-control-with-help {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  min-height: var(--cable-control-height) !important;
+  font-size: var(--cable-control-font) !important;
+  line-height: 1.2;
+  box-sizing: border-box;
+}
+
+.object-wizard-cable-panel .ant-input-number-input,
+.heat-object-fields--wide .heat-object-fields__geometry .ant-input-number-input,
+.heat-object-fields--wide .heat-object-fields__climate .ant-input-number-input {
+  height: var(--cable-control-height) !important;
+  font-size: var(--cable-control-font) !important;
+}
+
+.object-wizard-cable-panel .tlt-select__trigger,
+.object-wizard-cable-panel .reference-picker-control,
+.heat-object-fields--wide .heat-object-fields__geometry .tlt-select__trigger,
+.heat-object-fields--wide .heat-object-fields__geometry .reference-picker-control,
+.heat-object-fields--wide .heat-object-fields__climate .tlt-select__trigger,
+.heat-object-fields--wide .heat-object-fields__climate .reference-picker-control,
+.heat-object-fields .insulation-settings-row .tlt-select__trigger {
+  display: flex;
+  align-items: center;
+  height: var(--cable-control-height);
+  box-sizing: border-box;
+}
+
+/* Short number fields outside layers table only */
+.heat-object-fields--wide .heat-object-fields__geometry .short-number-form-item .ant-input-number-group-wrapper,
+.heat-object-fields--wide .heat-object-fields__climate .short-number-form-item .ant-input-number-group-wrapper,
+.heat-object-fields--wide .heat-object-fields__geometry .outer-diameter-form-item .ant-input-number-group-wrapper,
+.heat-object-fields--wide .heat-object-fields__geometry .pipe-length-form-item .ant-input-number-group-wrapper,
+.heat-object-fields--wide .heat-object-fields__geometry .wall-thickness-form-item .ant-input-number-group-wrapper,
+.heat-object-fields--wide .heat-object-fields__geometry .local-elements-count-form-item .ant-input-number-group-wrapper,
+.heat-object-fields--wide .heat-object-fields__climate .ambient-temperature-form-item .ant-input-number-group-wrapper,
+.heat-object-fields--wide .heat-object-fields__climate .process-temperature-form-item .ant-input-number-group-wrapper,
+.heat-object-fields--wide .heat-object-fields__climate .wind-speed-form-item .ant-input-number-group-wrapper {
+  width: 100% !important;
+}
+
+/* Explicit shield: dual-form never restyles layers table cells/controls */
+
+.cable-algorithm-grid {
+  display: grid;
+  /* One field per row: full-width [label | input] like the live right panel */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px 0;
+  padding: 8px 10px 10px;
+  background: #fff;
+  border: 1px solid #f0c9b0;
+  border-top: 0;
+  border-radius: 0 0 7px 7px;
+  align-items: start;
+}
+
+.cable-algorithm-grid > .ant-form-item,
+.cable-algorithm-grid > .cable-algorithm-field {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.cable-algorithm-field--mirror {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.cable-algorithm-field--mirror .ant-form-item-label {
+  padding: 0;
+}
+
+.cable-algorithm-field--mirror .ant-form-item-label > label,
+.cable-algorithm-field--mirror .ant-form-item-label * {
+  height: auto;
+  color: var(--cable-label-color) !important;
+  font-size: var(--cable-label-size, 8.5px) !important;
+  font-weight: 600 !important;
+  line-height: var(--cable-label-line-height, 1.0) !important;
+}
+
+.cable-algorithm-mirror-value {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: var(--cable-control-height);
+  padding: 2px 8px;
+  border: 1px dashed #e0c4b0;
+  border-radius: 6px;
+  background: #fffaf6;
+  color: #5a3a28;
+  font-size: var(--cable-control-font);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.cable-algorithm-mirror-unit {
+  color: #8a6a58;
+  font-size: var(--cable-label-size);
+  font-weight: 500;
+}
+
+.cable-algorithm-number {
+  width: 100%;
+}
+
+.cable-algorithm-hint {
+  margin: 6px 2px 0;
+  font-size: var(--cable-hint-size);
+  line-height: 1.35;
+  color: #6b7c8f;
+}
+
+@media (max-width: 1400px) {
+  .heatcalc-dual-forms--wide {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .cable-algorithm-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/*
+ * Structured heat card (dual-form wide):
+ *   row1: heat-object-fields zone (dense 3-col fields)
+ *   row2: insulation-layers-table zone (full width)
+ * Must beat .form-grid-srs--pdf-three "heat|spec / cable" template.
+ */
+.form-grid-srs--heat-structured,
+.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--heat-structured,
+.heatcalc-dual-forms__heat .form-grid-srs--heat-structured,
+.heatcalc-dual-forms__heat .form-grid-srs--pdf-three.form-grid-srs--heat-structured,
+.inline-object-form--wide .object-wizard-wide-panel .form-grid-srs--heat-structured {
+  display: grid !important;
+  grid-template-columns: max-content !important;
+  grid-template-rows: auto auto !important;
+  grid-template-areas:
+    "fields"
+    "layers" !important;
+  gap: 8px !important;
+  align-items: start !important;
+  justify-items: start !important;
+  padding: 8px 10px 10px !important;
+  width: max-content !important;
+  max-width: 100% !important;
+}
+
+.form-grid-srs--heat-structured > .heat-object-fields,
+.form-grid-srs--heat-structured > .heat-wizard-zone--fields,
+.heatcalc-dual-forms__heat .form-grid-srs--heat-structured > .heat-wizard-zone--fields {
+  grid-area: fields !important;
+  min-width: 0 !important;
+  width: max-content !important;
+  max-width: 100% !important;
+}
+
+.heat-wizard-zone--fields {
+  grid-area: fields;
+  min-width: 0;
+  width: max-content;
+  max-width: 100%;
+}
+
+.heat-wizard-zone--layers {
+  min-width: 0;
+  /* stretch to fields column width (card is max-content of fields) */
+  width: 100%;
+  max-width: 100%;
+}
+
+.form-grid-srs--heat-structured > .form-col-srs--insulation,
+.form-grid-srs--heat-structured > .heat-wizard-zone--layers,
+.heatcalc-dual-forms__heat .form-grid-srs--heat-structured > .form-col-srs--insulation,
+.heatcalc-dual-forms__heat .form-grid-srs--heat-structured > .heat-wizard-zone--layers {
+  grid-area: layers !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px 0 !important;
+  overflow: visible !important;
+  /*
+   * contain: inline-size — ширина блока таблицы НЕ зависит от её контента,
+   * поэтому max-content-сетка карточки (fit-content) считается только по блоку
+   * полей. Таблица следует его ширине, а длинное имя материала переносится на
+   * 2 строки внутри столбца вместо расширения таблицы.
+   */
+  contain: inline-size;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  justify-self: stretch !important;
+}
+
+/* MOVED → components/wizard/heat-object-fields.css (CSS island)
+ * Do not re-add .heat-object-fields rules here.
+ */
+
+/* SC-03: single card under «Расчёт теплопотерь» — geometry | conditions, insulation below. */
 .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs,
 .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
   grid-template-rows: auto auto;
   grid-template-areas:
     "heat spec"
     "cable cable";
-  gap: 8px;
+  gap: 6px 10px;
   flex: 1 1 auto;
   height: auto;
   min-height: 0;
   max-height: none;
-  align-items: stretch;
+  align-items: start;
   overflow: visible;
-  padding: 0;
-  background: transparent;
-  border: none;
+  /* Match right cable card padding/type density */
+  padding: 8px 10px 10px;
+  background: #fff;
+  border: 1px solid #dbe6f2;
+  border-top: 0;
+  border-radius: 0 0 7px 7px;
 }
 
 .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs > .form-col-srs,
@@ -1749,12 +2285,6 @@ html, body, #root {
 
 .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three > .form-col-srs--climate {
   grid-area: spec;
-}
-
-.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three {
-  background: transparent;
-  border: 0;
-  border-radius: 0;
 }
 
 .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three .pdf-form-column {
@@ -1786,11 +2316,83 @@ html, body, #root {
   display: none !important;
 }
 
+/* ── Electrical summary: four cards (mockup) ── */
 .elec-summary-four-cards {
-  margin: 0 0 10px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 0 12px;
 }
 
-/* ER tabs + actions on one toolbar row (no Card title). */
+.elec-summary-card.ant-card {
+  border-radius: 10px;
+  border-color: #e6edf5;
+  box-shadow: none;
+}
+
+.elec-summary-card .ant-card-head {
+  min-height: 36px;
+  padding: 0 14px;
+  border-bottom: 1px solid #eef2f6;
+  text-align: center;
+}
+
+.elec-summary-card .ant-card-head-title {
+  padding: 8px 0;
+  justify-content: center;
+}
+
+.elec-summary-card__title {
+  font-size: 13px !important;
+  color: #334155;
+}
+
+.elec-summary-card .ant-card-body {
+  padding: 8px 14px 10px;
+}
+
+.elec-summary-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.elec-summary-card__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 5px 0;
+  border-bottom: 1px solid #f0f3f7;
+  font-size: 12px;
+}
+
+.elec-summary-card__row:last-child {
+  border-bottom: none;
+}
+
+.elec-summary-card__label {
+  color: #64748b;
+  min-width: 0;
+}
+
+.elec-summary-card__value {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #0f172a;
+  white-space: nowrap;
+}
+
+.elec-summary-card--total {
+  background: #f8fbff;
+  border-color: #d6e6f5;
+}
+
+/* ER tabs + actions on one toolbar row (mockup). */
+.electrical-variant-tabs {
+  margin-bottom: 4px;
+}
+
 .electrical-variant-tabs__row {
   display: flex;
   flex-wrap: wrap;
@@ -1799,8 +2401,89 @@ html, body, #root {
   width: 100%;
 }
 
-.electrical-variant-tabs .ant-card-head {
-  display: none;
+.electrical-variant-tabs__scroller {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid #e6edf5;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 3px;
+}
+
+.electrical-variant-tab {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  line-height: 1.3;
+}
+
+.electrical-variant-tab:hover {
+  color: #1677ff;
+  background: #fff;
+}
+
+.electrical-variant-tab--active {
+  background: #fff;
+  color: #1677ff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.electrical-variant-tabs__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.electrical-variant-tabs__rename {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.electrical-variant-action--create,
+.electrical-variant-action--copy {
+  color: #0f766e !important;
+  border-color: #99f6e4 !important;
+  background: #f0fdfa !important;
+}
+
+.electrical-variant-action--create:hover,
+.electrical-variant-action--copy:hover {
+  color: #0f766e !important;
+  border-color: #5eead4 !important;
+  background: #ccfbf1 !important;
+}
+
+.electrical-variant-action--delete {
+  border-color: #fecaca !important;
+}
+
+.electrical-variant-action--spec {
+  color: #0f766e !important;
+  border-color: #99f6e4 !important;
+  background: #f0fdfa !important;
+}
+
+.electrical-variant-action--spec:hover {
+  color: #0f766e !important;
+  border-color: #5eead4 !important;
+  background: #ccfbf1 !important;
 }
 
 .electrical-system-scope {
@@ -1818,12 +2501,75 @@ html, body, #root {
   margin-bottom: 6px;
 }
 
+.electrical-system-scope__tabs-row {
+  margin-bottom: 4px;
+}
+
+.electrical-system-scope__tabs.ant-tabs {
+  margin-bottom: 0;
+}
+
+.electrical-system-scope__tabs .ant-tabs-nav {
+  margin-bottom: 8px;
+}
+
+.electrical-system-scope__actions {
+  padding-left: 8px;
+}
+
+.electrical-system-tab-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.electrical-system-tab-count {
+  margin-left: 0;
+  padding: 0 6px;
+  border-radius: 10px;
+  font-size: 11px;
+  background: #1677ff;
+  color: #fff;
+  line-height: 1.5;
+}
+
 .electrical-system-scope__toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   margin: 8px 0 4px;
+}
+
+.electrical-system-scope__note {
+  display: block;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.electrical-table-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 4px 4px;
+  flex-wrap: wrap;
+}
+
+.electrical-table-footer__selection {
+  font-size: 12px;
+}
+
+@media (max-width: 1100px) {
+  .elec-summary-four-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .elec-summary-four-cards {
+    grid-template-columns: 1fr;
+  }
 }
 
 .assignment-drop-zones {
@@ -2157,9 +2903,9 @@ tr[draggable='true']:active {
   display: block;
   height: auto;
   color: #53667b;
-  font-size: 11px;
+  font-size: var(--form-label-size, 8.5px);
   font-weight: 600;
-  line-height: 1.15;
+  line-height: var(--form-label-line-height, 1.0);
   white-space: normal;
 }
 
@@ -2185,10 +2931,19 @@ tr[draggable='true']:active {
   gap: 8px 10px;
 }
 
+.inline-object-form--side .side-compact-insulation .insulation-layers-table {
+  --ins-col-index: 36px;
+  --ins-col-material: minmax(120px, 1.8fr);
+  --ins-col-thickness: minmax(60px, 0.5fr);
+  --ins-col-lambda: minmax(56px, 0.45fr);
+  --ins-col-range: minmax(72px, 0.6fr);
+  --ins-cols: var(--ins-col-index) var(--ins-col-material) var(--ins-col-thickness) var(--ins-col-lambda) var(--ins-col-range);
+}
+
 .inline-object-form--side .side-compact-insulation .insulation-layers-header,
 .inline-object-form--side .side-compact-insulation .insulation-layer-group {
   display: grid;
-  grid-template-columns: 38px minmax(0, 1.55fr) minmax(66px, 0.72fr) minmax(66px, 0.72fr) minmax(84px, 0.95fr);
+  grid-template-columns: var(--ins-cols, 36px minmax(120px, 1.8fr) minmax(60px, 0.5fr) minmax(56px, 0.45fr) minmax(72px, 0.6fr));
   column-gap: 0;
 }
 
@@ -2597,13 +3352,20 @@ tr[draggable='true']:active {
   min-width: 0;
 }
 
-/* ── Лейбл ────────────────────────────────────────────────────── */
+/* ── Лейбл (HARD RULE 2: compact labels — all forms) ─────────── */
+.inline-object-form {
+  --form-label-size: 8.5px;
+  --form-label-line-height: 1.0;
+  --dual-form-label-size: var(--form-label-size);
+  --dual-form-label-line-height: var(--form-label-line-height);
+}
+
 .inline-object-form .ant-form-item-label {
   padding: 0;
   width: auto;
   min-width: 0;
   overflow: visible;
-  line-height: 1.15;
+  line-height: var(--form-label-line-height);
   grid-column: 1;
   text-align: left;
   white-space: nowrap;
@@ -2616,8 +3378,8 @@ tr[draggable='true']:active {
   min-height: 20px;
   height: auto;
   color: #4a5b6c;
-  font-size: 9px;
-  line-height: 1.15;
+  font-size: var(--form-label-size);
+  line-height: var(--form-label-line-height);
   margin-bottom: 0;
   padding-top: 4px;
   overflow: visible;
@@ -2706,7 +3468,7 @@ tr[draggable='true']:active {
 .inline-object-form .field-label-two-line {
   display: block !important;
   gap: 0;
-  line-height: 1.15;
+  line-height: var(--form-label-line-height, 1.0);
   max-width: 100%;
 }
 
@@ -3142,6 +3904,20 @@ tr[draggable='true']:active {
   vertical-align: top;
 }
 
+/* В стеснённой ширине (форсированный min font size браузера, узкие треки)
+   сжимается ввод, а не юнит: «шт»/«мм» всегда остаются внутри рамки.
+   Селекторы с .inline-object-form перебивают min-width из блока ниже. */
+.unit-input-number .tlt-number-field__input,
+.inline-object-form .unit-input-number .tlt-number-field__input {
+  flex: 1 1 auto;
+  min-width: 0 !important;
+}
+
+.tlt-number-field__unit,
+.unit-input-number__addon {
+  flex: 0 0 auto;
+}
+
 .unit-input-number .ant-input-number {
   border-start-end-radius: 0;
   border-end-end-radius: 0;
@@ -3504,18 +4280,40 @@ tr[draggable='true']:active {
   padding: 0;
 }
 
-.inline-object-form .insulation-layer-group .fixed-select-form-item,
-.inline-object-form .insulation-layer-group .medium-select-form-item,
-.inline-object-form .insulation-layer-group .layer-material-form-item {
+/*
+ * Legacy flex-table placement — ONLY outside island root.
+ * Under .insulation-layers-table the 5-col grid lives in insulation-layers-table.css.
+ */
+.inline-object-form .insulation-layer-group:not(.insulation-layers-table .insulation-layer-group) .fixed-select-form-item,
+.inline-object-form .insulation-layer-group:not(.insulation-layers-table .insulation-layer-group) .medium-select-form-item,
+.inline-object-form .insulation-layer-group:not(.insulation-layers-table .insulation-layer-group) .layer-material-form-item {
   grid-column: 1 / -1;
   flex: 0 0 100%;
   max-width: 100%;
+}
+
+/* NOTE: :not(.insulation-layers-table .…) is invalid for complex selectors in some engines —
+ * hard-disable full-span material when island is ancestor via override below. */
+
+.inline-object-form .insulation-layers-table .insulation-layer-group .layer-material-form-item,
+.inline-object-form .insulation-layers-table .insulation-layer-group .fixed-select-form-item,
+.inline-object-form .insulation-layers-table .insulation-layer-group .medium-select-form-item,
+.inline-object-form .insulation-layers-table .insulation-layer-group .reduced-select-form-item {
+  grid-column: 2 !important;
+  flex: none !important;
+  width: 100% !important;
+  max-width: none !important;
 }
 
 .inline-object-form .insulation-layer-group > .layer-material-form-item {
   width: 100% !important;
   max-width: none;
   justify-self: stretch;
+}
+
+.inline-object-form .insulation-layers-table .insulation-layer-group > .layer-material-form-item {
+  grid-column: 2 !important;
+  flex: none !important;
 }
 
 .inline-object-form .insulation-layer-group > .reduced-select-form-item {
@@ -3531,14 +4329,31 @@ tr[draggable='true']:active {
   flex: 0 0 auto;
 }
 
+.inline-object-form .insulation-layers-table .insulation-layer-group .short-number-form-item,
+.inline-object-form .insulation-layers-table .insulation-layer-group .second-layer-thickness-form-item,
+.inline-object-form .insulation-layers-table .insulation-layer-group .third-layer-thickness-form-item {
+  grid-column: 3 !important;
+  flex: none !important;
+}
+
 .inline-object-form .insulation-layer-group .coefficient-form-item {
   grid-column: 2;
   flex: 0 0 auto;
 }
 
+.inline-object-form .insulation-layers-table .insulation-layer-group .coefficient-form-item {
+  grid-column: 4 !important;
+  flex: none !important;
+}
+
 .inline-object-form .insulation-layer-group .insulation-temperature-range-form-item {
   grid-column: 3;
   flex: 0 0 auto;
+}
+
+.inline-object-form .insulation-layers-table .insulation-layer-group .insulation-temperature-range-form-item {
+  grid-column: 5 !important;
+  flex: none !important;
 }
 
 .inline-object-form .insulation-layer-group .insulation-temperature-range-form-item--editable {
@@ -3719,14 +4534,26 @@ tr[draggable='true']:active {
   width: 52px;
 }
 
-/* New SC-03 panels keep labels above controls; wide top/bottom labels stay one-line. */
-.inline-object-form--wide .object-wizard-wide-panel .ant-form-item-row,
+/* Side panel only: labels above controls. Wide heat fields use horizontal rows. */
 .inline-object-form--side .object-wizard-side-panel .ant-form-item-row {
   grid-template-columns: minmax(0, 1fr) !important;
   row-gap: 2px;
   column-gap: 0;
   align-items: stretch;
 }
+
+/*
+ * Heat object fields: HARD RULE horizontal [label | control].
+ * Do NOT apply inside insulation-layer-group (layers table freeze).
+ */
+.heat-object-fields--wide .ant-form-item-row {
+  grid-template-columns: var(--hof-label-w) var(--hof-ctrl) !important;
+  column-gap: var(--hof-row-gap) !important;
+  row-gap: 0 !important;
+  align-items: center !important;
+}
+
+/* HARD FREEZE: layers table uses base cascade only — no dual-form overrides */
 
 .inline-object-form--wide .object-wizard-wide-panel .form-col-srs,
 .inline-object-form--side .object-wizard-side-panel .side-form-section {
@@ -3738,7 +4565,7 @@ tr[draggable='true']:active {
 }
 
 .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary {
-  gap: 3px 10px;
+  gap: 6px 10px;
 }
 
 .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary,
@@ -3749,6 +4576,9 @@ tr[draggable='true']:active {
   grid-auto-rows: min-content;
   align-content: start;
   align-items: start;
+  justify-items: stretch;
+  column-gap: 10px;
+  row-gap: 6px;
 }
 
 .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > h4,
@@ -3765,60 +4595,50 @@ tr[draggable='true']:active {
   margin: 0;
 }
 
+/* Pipe geometry: readable cells (labels 11px need ≥2 cols each). */
 .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .name-form-item {
-  grid-column: 1 / 8;
+  grid-column: 1 / 5;
   grid-row: 2;
 }
 
 .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .outer-diameter-form-item {
-  grid-column: 8 / 11;
+  grid-column: 5 / 7;
   grid-row: 2;
 }
 
 .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .pipe-length-form-item {
-  grid-column: 1 / 3;
-  grid-row: 3;
+  grid-column: 7 / 9;
+  grid-row: 2;
 }
 
 .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .wall-thickness-form-item {
-  grid-column: 3 / 5;
-  grid-row: 3;
+  grid-column: 9 / 11;
+  grid-row: 2;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .local-elements-count-form-item {
+  grid-column: 11 / 13;
+  grid-row: 2;
 }
 
 .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .pipe-material-form-item {
-  grid-column: 5 / 10;
+  grid-column: 1 / 8;
   grid-row: 3;
 }
 
 .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .pipe-lambda-manual-form-item {
-  grid-column: 10 / 13;
+  grid-column: 8 / 13;
   grid-row: 3;
 }
 
-.inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .local-elements-count-form-item {
-  grid-column: 1 / 5;
-  grid-row: 4;
+/* Tank geometry: name + shape on row 1; dimensions on row 2. */
+.inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary:has(.tank-shape-form-item) > .name-form-item {
+  grid-column: 1 / 7;
+  grid-row: 2;
 }
 
-/* On wide pipe forms, align geometry and insulation to the same inner guide
-   and bring operating conditions slightly toward the centre. */
-@media (min-width: 1501px) {
-  .inline-object-form--wide:has(.pipe-length-form-item) .object-wizard-wide-panel .form-col-srs--primary {
-    transform: translateX(clamp(16px, 1.2vw, 24px));
-  }
-
-  .inline-object-form--wide:has(.pipe-length-form-item) .object-wizard-wide-panel .form-col-srs--insulation {
-    margin-left: clamp(16px, 1.2vw, 24px);
-  }
-
-  .inline-object-form--wide:has(.pipe-length-form-item) .object-wizard-wide-panel .form-col-srs--climate > .ant-form-item:not(.ant-form-item-hidden) {
-    transform: translateX(clamp(-84px, -4.2vw, -36px));
-  }
-}
-
-/* Tank geometry has its own grid map; pipe field placement above remains unchanged. */
 .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .tank-shape-form-item {
-  grid-column: 8 / 13;
+  grid-column: 7 / 13;
   grid-row: 2;
 }
 
@@ -3863,34 +4683,17 @@ tr[draggable='true']:active {
 }
 
 .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate {
-  gap: 3px 10px;
+  gap: 6px 10px;
 }
 
+/* Operating conditions: placement + temps on row 1, climate + wind on row 2. */
 .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .placement-form-item {
+  grid-column: 1 / 5;
   grid-row: 2;
 }
 
-.inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .climate-form-item,
-.inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .ambient-temperature-form-item,
-.inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .climate-basis-form-item {
-  grid-row: 3;
-}
-
-.inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .placement-form-item {
-  grid-column: 1 / 6;
-}
-
-.inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .climate-form-item {
-  grid-column: 1 / 5;
-}
-
-.inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .climate-basis-form-item {
-  grid-column: 1 / 5;
-  grid-row: 4;
-}
-
 .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .ambient-temperature-form-item {
-  grid-column: 6 / 9;
+  grid-column: 5 / 9;
   grid-row: 2;
 }
 
@@ -3899,24 +4702,34 @@ tr[draggable='true']:active {
   grid-row: 2;
 }
 
-.inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .burial-depth-form-item {
-  grid-column: 9 / 11;
+.inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .climate-form-item {
+  grid-column: 1 / 6;
   grid-row: 3;
 }
 
 .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .wind-speed-form-item {
-  grid-column: 9 / 13;
+  grid-column: 6 / 10;
   grid-row: 3;
 }
 
-.inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .ground-conductivity-form-item {
-  grid-column: 11 / 13;
+.inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .climate-basis-form-item {
+  grid-column: 10 / 13;
   grid-row: 3;
 }
 
 .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .ground-type-form-item {
-  grid-column: 5 / 9;
-  grid-row: 3;
+  grid-column: 1 / 5;
+  grid-row: 4;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .burial-depth-form-item {
+  grid-column: 5 / 8;
+  grid-row: 4;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .ground-conductivity-form-item {
+  grid-column: 8 / 13;
+  grid-row: 4;
 }
 
 .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .short-number-form-item,
@@ -3962,11 +4775,21 @@ tr[draggable='true']:active {
   width: 100%;
 }
 
+/* Shell flex for loose form-items ONLY — never inside CSS islands */
 .inline-object-form--wide .object-wizard-wide-panel .ant-form-item,
 .inline-object-form--side .object-wizard-side-panel .ant-form-item {
   flex: 1 1 calc(50% - 8px);
   min-height: 33px;
   padding: 2px 2px 3px;
+}
+
+/* CSS islands own their form-items completely */
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields .ant-form-item,
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layers-table .ant-form-item,
+.inline-object-form--side .object-wizard-side-panel .insulation-layers-table .ant-form-item {
+  flex: none !important;
+  min-height: 0 !important;
+  padding: 0 !important;
 }
 
 .inline-object-form--wide .object-wizard-wide-panel .ant-form-item {
@@ -3977,42 +4800,27 @@ tr[draggable='true']:active {
 
 .inline-object-form--wide .object-wizard-wide-panel .name-form-item,
 .inline-object-form--wide .object-wizard-wide-panel .wide-select-form-item,
-.inline-object-form--wide .object-wizard-wide-panel .layer-material-form-item,
 .inline-object-form--side .object-wizard-side-panel .name-form-item,
 .inline-object-form--side .object-wizard-side-panel .fixed-select-form-item,
 .inline-object-form--side .object-wizard-side-panel .pipe-material-form-item,
 .inline-object-form--side .object-wizard-side-panel .wide-select-form-item,
-.inline-object-form--side .object-wizard-side-panel .layer-material-form-item,
 .inline-object-form--side .object-wizard-side-panel .insulation-layer-count-form-item,
 .inline-object-form--side .object-wizard-side-panel .insulation-temperature-basis-form-item {
   flex-basis: 100%;
 }
 
-/* Wide workspace: the grid owns field width; controls remain content-sized inside each cell. */
-.inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .name-form-item {
-  width: 100%;
-  max-width: none;
-}
+/* ⛔ layer-material lives only inside InsulationLayersTable — do NOT flex-basis:100%
+ * on wide panel globally (breaks 5-col grid material cell). */
 
-.inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .pipe-material-form-item {
-  width: 100%;
-  max-width: 430px;
-  justify-self: start;
-}
-
-.inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .fixed-select-form-item {
-  width: 100%;
-  max-width: none;
-}
-
-.inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .fixed-select-form-item {
-  width: 100%;
-  max-width: none;
-}
-
+/* Wide workspace: fields fill their grid cells; no artificial max-width gaps. */
+.inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .name-form-item,
+.inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .pipe-material-form-item,
+.inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .fixed-select-form-item,
+.inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .fixed-select-form-item,
 .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .placement-form-item {
-  max-width: 390px;
-  justify-self: start;
+  width: 100%;
+  max-width: none;
+  justify-self: stretch;
 }
 
 .inline-object-form--wide .object-wizard-wide-panel .insulation-layer-count-form-item {
@@ -4034,14 +4842,32 @@ tr[draggable='true']:active {
   overflow: hidden;
 }
 
-.inline-object-form--wide .object-wizard-wide-panel .insulation-settings-row {
+/*
+ * Legacy 2-up settings row — ONLY outside heat-object-fields island.
+ * Inside .heat-object-fields, settings stack vertically (heat-object-fields.css).
+ */
+.inline-object-form--wide .object-wizard-wide-panel .insulation-settings-row:not(.heat-object-fields .insulation-settings-row) {
   display: grid;
-  grid-template-columns: 180px minmax(340px, 440px);
+  grid-template-columns: minmax(140px, 180px) minmax(220px, 360px);
   flex: 0 0 100%;
   width: 100%;
   min-width: 0;
-  gap: 6px;
+  gap: 6px 10px;
   justify-content: start;
+}
+
+/*
+ * HARD RULE 4 reflow: settings wrapper must not be a grid item.
+ * display:contents so tm field joins the flat max-5 column stream
+ * (same as geometry/climate slots in heat-object-fields.css).
+ */
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields .insulation-settings-row {
+  display: contents !important;
+  flex-direction: unset !important;
+  grid-template-columns: none !important;
+  width: auto !important;
+  max-width: none !important;
+  gap: 0 !important;
 }
 
 .inline-object-form--wide .object-wizard-wide-panel .insulation-layer-count-form-item .ant-select,
@@ -4054,6 +4880,10 @@ tr[draggable='true']:active {
   width: 100%;
   min-width: 0;
   margin: 0;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields .insulation-settings-row > .ant-form-item {
+  width: max-content !important;
 }
 
 .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid {
@@ -4073,9 +4903,46 @@ tr[draggable='true']:active {
   grid-template-columns: minmax(0, 1fr);
 }
 
+/* SOURCE OF TRUTH moved to components/wizard/insulation-layers-table.css
+ * Legacy rules below kept for side-panel / older paths; wide table uses island.
+ * Prefer editing the island file, not this block.
+ *
+ * ⛔ PROTECTED CSS — InsulationLayersTable (legacy mirror)
+ * Классы .insulation-layers-header / .insulation-layers-grid / .insulation-layer-group
+ * менять ТОЛЬКО по прямому запросу. Компонент: InsulationLayersTable.tsx.
+ * Не править «заодно» при dual-form / densify / typography heat-полей.
+ *
+ * Column template (Слой | Материал | Толщина | λ | Диапазон):
+ *  - Материал — главная, шире (fr), shrink first on narrow viewports
+ *  - Толщина / λ / Диапазон — компактные fixed-ish minmax
+ */
+.insulation-layers-table {
+  --ins-col-index: 56px;
+  --ins-col-material: minmax(200px, 1.8fr);
+  --ins-col-thickness: minmax(96px, 0.55fr);
+  --ins-col-lambda: minmax(88px, 0.5fr);
+  --ins-col-range: minmax(120px, 0.7fr);
+  --ins-cols: var(--ins-col-index) var(--ins-col-material) var(--ins-col-thickness) var(--ins-col-lambda) var(--ins-col-range);
+
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  flex: 0 0 100%;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layers-table {
+  --ins-col-index: 56px;
+  --ins-col-material: minmax(200px, 1.8fr);
+  --ins-col-thickness: minmax(96px, 0.55fr);
+  --ins-col-lambda: minmax(88px, 0.5fr);
+  --ins-col-range: minmax(120px, 0.7fr);
+  --ins-cols: var(--ins-col-index) var(--ins-col-material) var(--ins-col-thickness) var(--ins-col-lambda) var(--ins-col-range);
+}
+
 .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-header {
   display: grid;
-  grid-template-columns: 64px minmax(280px, 1.55fr) minmax(150px, 0.8fr) minmax(150px, 0.8fr) minmax(220px, 1.25fr);
+  grid-template-columns: var(--ins-cols);
   flex: 0 0 100%;
   width: 100%;
   min-width: 0;
@@ -4083,7 +4950,7 @@ tr[draggable='true']:active {
   background: #f4f7fa;
   border: 1px solid #d1dce8;
   border-radius: 5px 5px 0 0;
-  font-size: 11px;
+  font-size: var(--ins-font, 12px);
   font-weight: 650;
 }
 
@@ -4095,6 +4962,8 @@ tr[draggable='true']:active {
   padding: 3px 10px;
   border-left: 1px solid #dce5ee;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-header > span:first-child {
@@ -4127,21 +4996,21 @@ tr[draggable='true']:active {
 
 .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid--2 .layer-material-form-item .reference-picker-control,
 .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid--3 .layer-material-form-item .reference-picker-control {
-  max-width: 400px;
+  max-width: none;
 }
 
 .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid > .insulation-layer-group {
   display: grid;
-  grid-template-columns: 64px minmax(280px, 1.55fr) minmax(150px, 0.8fr) minmax(150px, 0.8fr) minmax(220px, 1.25fr);
+  grid-template-columns: var(--ins-cols);
   align-items: stretch;
   column-gap: 0;
 }
 
+/* Cell chrome only — column indices come from insulation-layers-table.css (2/3/4/5) */
 .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid > .insulation-layer-group > .layer-material-form-item,
 .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid > .insulation-layer-group > .short-number-form-item,
 .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid > .insulation-layer-group > .coefficient-form-item,
 .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid > .insulation-layer-group > .insulation-temperature-range-form-item {
-  grid-column: auto;
   width: 100% !important;
   min-height: 42px;
   margin: 0;
@@ -4157,7 +5026,7 @@ tr[draggable='true']:active {
   grid-row: 1;
   min-width: 0;
   color: #214c78;
-  font-size: 12px;
+  font-size: var(--ins-font, 12px);
   font-weight: 700;
 }
 
@@ -4168,7 +5037,8 @@ tr[draggable='true']:active {
 .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid .layer-material-form-item .field-control-with-help,
 .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid .layer-material-form-item .reference-picker-control {
   width: 100%;
-  max-width: 440px;
+  max-width: none;
+  min-width: 0;
 }
 
 .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid > .insulation-layer-group > .short-number-form-item {
@@ -4199,17 +5069,7 @@ tr[draggable='true']:active {
   min-height: 33px;
 }
 
-.inline-object-form--wide .object-wizard-wide-panel .insulation-layer-group .short-number-form-item,
-.inline-object-form--wide .object-wizard-wide-panel .insulation-layer-group .coefficient-form-item,
-.inline-object-form--wide .object-wizard-wide-panel .insulation-layer-group .insulation-temperature-range-form-item {
-  flex: 1 1 150px;
-  width: auto;
-  min-width: 0;
-}
-
-.inline-object-form--wide .object-wizard-wide-panel .insulation-layer-group .insulation-temperature-range-form-item {
-  flex-basis: 190px;
-}
+/* Do NOT flex-basis numeric cells — breaks 5-col grid (island owns layout). */
 
 .inline-object-form--wide .object-wizard-wide-panel .insulation-layer-group .ant-form-item-label > label > span,
 .inline-object-form--wide .object-wizard-wide-panel .insulation-layer-group .field-label-two-line,
@@ -4235,35 +5095,75 @@ tr[draggable='true']:active {
 @media (max-width: 1500px) {
   .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs,
   .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
     grid-template-areas:
       "heat spec"
       "cable cable";
   }
 
+  /* Dual-form + heat-structured: keep fields/layers stack (do NOT force heat|spec). */
+  .heatcalc-dual-forms__heat .form-grid-srs--pdf-three.form-grid-srs--heat-structured {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-areas:
+      "fields"
+      "layers" !important;
+  }
+
+  .heatcalc-dual-forms__heat .form-grid-srs--heat-structured > .form-col-srs--insulation {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+  }
+
+  /* Material shrinks first; numeric keep compact mins */
+  .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-table {
+    /* «Слой +» needs ~56px; header «Толщина, мм» fits from 88px */
+    --ins-col-index: 56px;
+    --ins-col-material: minmax(160px, 1.4fr);
+    --ins-col-thickness: minmax(88px, 0.5fr);
+    --ins-col-lambda: minmax(80px, 0.45fr);
+    --ins-col-range: minmax(110px, 0.6fr);
+  }
+
   .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-header,
   .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid > .insulation-layer-group {
-    grid-template-columns: 54px minmax(260px, 1.4fr) minmax(140px, 0.8fr) minmax(140px, 0.8fr) minmax(200px, 1fr);
+    grid-template-columns: var(--ins-cols);
+  }
+
+  /* Slightly wider short fields when viewport is medium. */
+  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .name-form-item {
+    grid-column: 1 / 5;
+    grid-row: 2;
+  }
+
+  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .outer-diameter-form-item {
+    grid-column: 5 / 7;
+    grid-row: 2;
   }
 
   .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .pipe-length-form-item {
-    grid-column: 1 / 4;
-    grid-row: 3;
+    grid-column: 7 / 9;
+    grid-row: 2;
   }
 
   .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .wall-thickness-form-item {
-    grid-column: 4 / 7;
-    grid-row: 3;
+    grid-column: 9 / 11;
+    grid-row: 2;
+  }
+
+  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .local-elements-count-form-item {
+    grid-column: 11 / 13;
+    grid-row: 2;
   }
 
   .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .pipe-material-form-item {
-    grid-column: 7 / 13;
+    grid-column: 1 / 9;
     grid-row: 3;
   }
 
   .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .pipe-lambda-manual-form-item {
-    grid-column: 7 / 10;
-    grid-row: 4;
+    grid-column: 9 / 13;
+    grid-row: 3;
   }
 
   .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary:has(.tank-shape-form-item) > .name-form-item {
@@ -4374,6 +5274,21 @@ tr[draggable='true']:active {
   }
 }
 
+@media (max-width: 1200px) {
+  .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-table {
+    --ins-col-index: 52px;
+    --ins-col-material: minmax(140px, 1.2fr);
+    --ins-col-thickness: minmax(80px, 0.45fr);
+    --ins-col-lambda: minmax(72px, 0.4fr);
+    --ins-col-range: minmax(100px, 0.55fr);
+  }
+
+  .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-header,
+  .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid > .insulation-layer-group {
+    grid-template-columns: var(--ins-cols);
+  }
+}
+
 .inline-object-form--wide .object-wizard-wide-panel .ant-form-item-label,
 .inline-object-form--side .object-wizard-side-panel .ant-form-item-label {
   grid-column: 1;
@@ -4392,38 +5307,53 @@ tr[draggable='true']:active {
   line-height: 1.05;
 }
 
-.inline-object-form--wide .object-wizard-wide-panel .ant-form-item-label > label {
-  color: #53667b;
-  font-size: 11px;
+/*
+ * UNIFIED dual-form type scale — ONLY heat fields + cable panel.
+ * ⛔ NEVER apply to .insulation-layers-table (protected).
+ */
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide .ant-form-item-label > label,
+.object-wizard-cable-panel .ant-form-item-label > label {
+  color: var(--dual-form-label-color, #53667b);
+  font-size: var(--dual-form-label-size, 8.5px);
+  line-height: var(--dual-form-label-line-height, 1.0);
   font-weight: 600;
 }
 
-.inline-object-form--wide .object-wizard-wide-panel input,
-.inline-object-form--wide .object-wizard-wide-panel button,
-.inline-object-form--wide .object-wizard-wide-panel .tlt-select__trigger {
-  font-size: 12px;
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide input,
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide button,
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide .tlt-select__trigger,
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide .ant-input,
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide .ant-input-number-input,
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide .reference-picker-control,
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide .ant-select-selector,
+.object-wizard-cable-panel input,
+.object-wizard-cable-panel button,
+.object-wizard-cable-panel .tlt-select__trigger,
+.object-wizard-cable-panel .ant-input,
+.object-wizard-cable-panel .ant-input-number-input,
+.object-wizard-cable-panel .ant-select-selector {
+  font-size: var(--dual-form-control-font, 12px);
 }
 
-.inline-object-form--wide .object-wizard-wide-panel .ant-form-item-control,
-.inline-object-form--side .object-wizard-side-panel .ant-form-item-control,
-.inline-object-form--wide .object-wizard-wide-panel .field-control-with-help,
-.inline-object-form--side .object-wizard-side-panel .field-control-with-help,
-.inline-object-form--wide .object-wizard-wide-panel .ant-form-item-explain,
-.inline-object-form--side .object-wizard-side-panel .ant-form-item-explain,
-.inline-object-form--wide .object-wizard-wide-panel .ant-form-item-extra,
-.inline-object-form--side .object-wizard-side-panel .ant-form-item-extra {
-  grid-column: 1;
+/* grid-column for heat/side ONLY — not insulation-layer-group cells */
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide .ant-form-item-control,
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide .field-control-with-help,
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide .ant-form-item-explain,
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide .ant-form-item-extra,
+.inline-object-form--side .object-wizard-side-panel .side-compact-form > .ant-form-item .ant-form-item-control,
+.inline-object-form--side .object-wizard-side-panel .side-compact-form > .ant-form-item .field-control-with-help {
+  grid-column: auto;
 }
 
-.inline-object-form--wide .object-wizard-wide-panel .ant-form-item-label > label > span {
-  overflow: visible;
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide .ant-form-item-label > label > span {
+  overflow: hidden;
   hyphens: none;
   overflow-wrap: normal;
   word-break: normal;
-  white-space: nowrap;
 }
 
-.inline-object-form--wide .object-wizard-wide-panel .field-label-two-line {
+/* FieldLabel single-line join: cable only (heat uses 2-line under .heat-object-fields) */
+.object-wizard-cable-panel .field-label-two-line {
   display: inline-flex !important;
   flex-direction: row;
   gap: 3px;
@@ -4431,7 +5361,7 @@ tr[draggable='true']:active {
   white-space: nowrap;
 }
 
-.inline-object-form--wide .object-wizard-wide-panel .field-label-two-line > span {
+.object-wizard-cable-panel .field-label-two-line > span {
   display: inline;
   max-width: none;
   hyphens: none;
@@ -4485,13 +5415,14 @@ tr[draggable='true']:active {
     white-space: normal;
   }
 
-  .inline-object-form--wide .object-wizard-wide-panel .field-label-two-line {
+  /* Island-scoped only — never .object-wizard-wide-panel .field-label-two-line globally */
+  .inline-object-form--wide .object-wizard-wide-panel .heat-object-fields .field-label-two-line {
     display: block !important;
     max-width: 100%;
     white-space: normal;
   }
 
-  .inline-object-form--wide .object-wizard-wide-panel .field-label-two-line > span {
+  .inline-object-form--wide .object-wizard-wide-panel .heat-object-fields .field-label-two-line > span {
     display: block;
     max-width: 100%;
     overflow-wrap: normal;
@@ -4500,17 +5431,18 @@ tr[draggable='true']:active {
   }
 }
 
-.inline-object-form--wide .object-wizard-wide-panel .helped-form-item .ant-form-item-control,
-.inline-object-form--side .object-wizard-side-panel .helped-form-item .ant-form-item-control {
+/* helped control: heat/side fields only — NOT insulation-layer-group (table cells) */
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide .helped-form-item .ant-form-item-control,
+.inline-object-form--side .object-wizard-side-panel .side-compact-form > .helped-form-item .ant-form-item-control {
   display: block;
   width: 100%;
   min-width: 0;
 }
 
-.inline-object-form--wide .object-wizard-wide-panel .helped-form-item .ant-form-item-control-input,
-.inline-object-form--side .object-wizard-side-panel .helped-form-item .ant-form-item-control-input,
-.inline-object-form--wide .object-wizard-wide-panel .helped-form-item .ant-form-item-control-input-content,
-.inline-object-form--side .object-wizard-side-panel .helped-form-item .ant-form-item-control-input-content {
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide .helped-form-item .ant-form-item-control-input,
+.inline-object-form--side .object-wizard-side-panel .side-compact-form > .helped-form-item .ant-form-item-control-input,
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide .helped-form-item .ant-form-item-control-input-content,
+.inline-object-form--side .object-wizard-side-panel .side-compact-form > .helped-form-item .ant-form-item-control-input-content {
   display: flex;
   width: 100%;
   min-width: 0;
@@ -6208,3 +7140,11 @@ tr[draggable='true']:active {
     overflow: visible !important;
   }
 }
+
+/* MOVED → heat-object-fields.css island (cascade shield obsolete).
+ */
+
+/* Residual dual-form isolation rules removed — use CSS islands:
+ *   heat-object-fields.css | cable-algorithm-panel.css | insulation-layers-table.css
+ * See WIZARD-CSS-ISLANDS.md
+ */

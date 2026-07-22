@@ -1,4 +1,4 @@
-import { Button, Space, Table, Tag } from 'antd';
+import { Alert, Button, Collapse, Space, Table, Tag } from 'antd';
 import { DeleteOutlined } from '@ant-design/icons';
 import type { SpecificationItem } from '@/types/specification';
 
@@ -12,15 +12,23 @@ interface Props {
   onDelete?: (index: number) => void;
   canDelete?: boolean;
   isStale?: boolean;
+  /**
+   * When true (default for object_section), always render pipe/tank/common
+   * sections even if empty — matches mockup layout.
+   */
+  alwaysShowSections?: boolean;
 }
 
 type Row = SpecificationItem & { __index: number; __section: string };
 
+/** Mockup §Прил.4: Трубы · Бочки · Общие материалы */
 const SECTION_LABELS: Record<string, string> = {
-  pipe: 'Трубопроводы',
-  tank: 'Ёмкости',
+  pipe: 'Трубы',
+  tank: 'Бочки',
   common: 'Общие материалы',
 };
+
+const SECTION_ORDER = ['pipe', 'tank', 'common'] as const;
 
 function bomSectionOf(item: SpecificationItem): string {
   const raw = String(
@@ -28,8 +36,19 @@ function bomSectionOf(item: SpecificationItem): string {
       || (item.params as { object_type?: string } | undefined)?.object_type
       || 'common',
   ).toLowerCase();
-  if (raw === 'pipe' || raw === 'трубопровод' || raw === 'трубопроводы') return 'pipe';
-  if (raw === 'tank' || raw === 'ёмкость' || raw === 'емкость' || raw === 'ёмкости') return 'tank';
+  if (raw === 'pipe' || raw === 'трубопровод' || raw === 'трубопроводы' || raw === 'трубы') {
+    return 'pipe';
+  }
+  if (
+    raw === 'tank'
+    || raw === 'ёмкость'
+    || raw === 'емкость'
+    || raw === 'ёмкости'
+    || raw === 'бочки'
+    || raw === 'бочка'
+  ) {
+    return 'tank';
+  }
   return 'common';
 }
 
@@ -65,28 +84,8 @@ function EmptyCell() {
   return <span style={{ color: '#bbb' }}>—</span>;
 }
 
-export default function SpecTable({
-  items,
-  groupBy = 'object_section',
-  mergeIdentical = false,
-  onDelete,
-  canDelete = false,
-  isStale = false,
-}: Props) {
-  let rows: Row[] = items.map((it, idx) => ({
-    ...it,
-    __index: idx,
-    __section: bomSectionOf(it),
-  }));
-  if (mergeIdentical) {
-    rows = mergeRows(rows);
-  }
-
-  // PDF §7.1 / UI-PDF-05: № · Наименование · Марка · Код · Поставщик · Ед. поставки · Кол-во
-  // «Категория» — только вне группировки по разделам object_section.
-  const showCategory = groupBy !== 'object_section';
-
-  const baseColumns = [
+function buildBaseColumns(showCategory: boolean) {
+  return [
     {
       title: '№',
       key: 'row_num',
@@ -192,6 +191,30 @@ export default function SpecTable({
       ),
     },
   ];
+}
+
+export default function SpecTable({
+  items,
+  groupBy = 'object_section',
+  mergeIdentical = false,
+  onDelete,
+  canDelete = false,
+  isStale = false,
+  alwaysShowSections = true,
+}: Props) {
+  let rows: Row[] = items.map((it, idx) => ({
+    ...it,
+    __index: idx,
+    __section: bomSectionOf(it),
+  }));
+  if (mergeIdentical) {
+    rows = mergeRows(rows);
+  }
+
+  // PDF §7.1 / UI-PDF-05: № · Наименование · Марка · Код · Поставщик · Ед. поставки · Кол-во
+  // «Категория» — только вне группировки по разделам object_section.
+  const showCategory = groupBy !== 'object_section';
+  const baseColumns = buildBaseColumns(showCategory);
 
   const actionColumn = canDelete
     ? [
@@ -215,6 +238,7 @@ export default function SpecTable({
   if (groupBy === 'none') {
     return (
       <Table<Row>
+        className="spec-table"
         rowKey={(r) => `${r.__index}-${r.category}-${r.name}`}
         dataSource={rows}
         pagination={false}
@@ -240,11 +264,17 @@ export default function SpecTable({
     groups.set(key, list);
   }
 
-  const order = groupBy === 'object_section' ? ['pipe', 'tank', 'common'] : undefined;
+  if (groupBy === 'object_section' && alwaysShowSections) {
+    for (const key of SECTION_ORDER) {
+      if (!groups.has(key)) groups.set(key, []);
+    }
+  }
+
+  const order = groupBy === 'object_section' ? [...SECTION_ORDER] : undefined;
   const entries = [...groups.entries()].sort(([a], [b]) => {
     if (order) {
-      const ia = order.indexOf(a);
-      const ib = order.indexOf(b);
+      const ia = order.indexOf(a as (typeof SECTION_ORDER)[number]);
+      const ib = order.indexOf(b as (typeof SECTION_ORDER)[number]);
       if (ia !== -1 || ib !== -1) return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
     }
     return a.localeCompare(b);
@@ -268,43 +298,58 @@ export default function SpecTable({
         ? baseColumns.filter((c) => !('dataIndex' in c && c.dataIndex === 'unit'))
         : baseColumns;
 
+  const defaultOpen = grouped.map((g) => g.key);
+
   return (
-    <div data-testid="spec-table-grouped">
-      {grouped.map((g) => (
-        <div key={g.key} style={{ marginBottom: 14 }} data-spec-section={g.key}>
-          <div
-            style={{
-              padding: '7px 12px',
-              background: '#f5f8fb',
-              borderLeft: '3px solid #1a5276',
-              borderRadius: '0 6px 6px 0',
-              marginBottom: 6,
-              fontSize: 13,
-            }}
-          >
-            <strong>
+    <div data-testid="spec-table-grouped" className="spec-table-grouped">
+      <Collapse
+        ghost
+        bordered={false}
+        defaultActiveKey={defaultOpen}
+        className="spec-section-collapse"
+        items={grouped.map((g) => ({
+          key: g.key,
+          label: (
+            <span className="spec-section-title">
               {groupBy === 'object_section'
                 ? g.label
                 : groupBy === 'category'
                   ? `Категория: ${g.groupValue}`
                   : `Ед.: ${g.groupValue}`}
-            </strong>
-            <span style={{ color: '#888', marginLeft: 8 }}>
-              позиций: {g.items.length}
-              {groupBy === 'category' ? '' : ` · всего: ${g.total}`}
+              {g.items.length > 0 && (
+                <span className="spec-section-meta">
+                  {g.items.length}
+                  {groupBy === 'category' ? '' : ''}
+                </span>
+              )}
             </span>
-          </div>
-          <Table<Row>
-            rowKey={(r) => `${r.__index}-${r.category}-${r.name}`}
-            dataSource={g.items}
-            pagination={false}
-            size="small"
-            showHeader
-            rowClassName={isStale ? 'specification-stale-row' : undefined}
-            columns={[...innerColumns, ...actionColumn]}
-          />
-        </div>
-      ))}
+          ),
+          forceRender: true,
+          children: (
+            <div data-spec-section={g.key}>
+              {g.items.length === 0 ? (
+                <Alert
+                  type="info"
+                  showIcon
+                  className="spec-section-empty"
+                  message="Расчёт спецификации для данного типа объекта пока недоступен."
+                />
+              ) : (
+                <Table<Row>
+                  className="spec-table"
+                  rowKey={(r) => `${r.__index}-${r.category}-${r.name}`}
+                  dataSource={g.items}
+                  pagination={false}
+                  size="small"
+                  showHeader
+                  rowClassName={isStale ? 'specification-stale-row' : undefined}
+                  columns={[...innerColumns, ...actionColumn]}
+                />
+              )}
+            </div>
+          ),
+        }))}
+      />
     </div>
   );
 }

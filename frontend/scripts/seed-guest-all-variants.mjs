@@ -1133,11 +1133,6 @@ const expectedVisibleUiRows = {
 const electricalVariants = [
   {
     variant_number: 1,
-    cable_type: 'self_regulating',
-    params: { supply_voltage: 220, winding_coefficient: 1, heating_height: 3, laying_step: 0.1 },
-  },
-  {
-    variant_number: 2,
     cable_type: 'self_regulating_tt',
     params: {
       supply_voltage: 220,
@@ -1146,28 +1141,6 @@ const electricalVariants = [
       laying_step: 0.1,
       vapor_temperature: 120,
       aggressive_product: true,
-    },
-  },
-  {
-    variant_number: 3,
-    cable_type: 'single_core',
-    params: {
-      supply_voltage: 220,
-      connection_type: 'line_1ph',
-      winding_coefficient: 1,
-      heating_height: 3,
-      laying_step: 0.1,
-    },
-  },
-  {
-    variant_number: 4,
-    cable_type: 'three_core',
-    params: {
-      supply_voltage: 380,
-      connection_type: 'star_3x3',
-      winding_coefficient: 1,
-      heating_height: 3,
-      laying_step: 0.1,
     },
   },
 ];
@@ -1357,7 +1330,7 @@ async function main() {
     await apiFetch(api, 'PUT', `/projects/${project.id}`, {
       name: 'Playwright · все варианты · гостевой режим',
       description: [
-        'Автозаполнение через Playwright: трубы/резервуары, размещения, слои, стенки, грунт, электрорасчёты СО1-СО4.',
+        'Автозаполнение через Playwright: трубы/резервуары, размещения, слои, стенки, грунт, электрорасчёт ТТ.',
         `Объекты: ${expectedUiRows.pipe} трубопроводов и ${expectedUiRows.tank} резервуаров.`,
       ].join(' '),
       task_number: 'PW-GUEST-ALL',

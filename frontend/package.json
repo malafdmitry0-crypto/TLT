@@ -16,6 +16,8 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:unit": "vitest run src/__tests__/unit",
+    "test:wizard-isolation": "vitest run src/__tests__/unit/wizard/wizardIsolation.architecture.test.ts",
+    "test:architecture": "vitest run src/__tests__/unit/architecture src/__tests__/unit/wizard/wizardIsolation.architecture.test.ts",
     "test:integration": "vitest run src/__tests__/integration",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",

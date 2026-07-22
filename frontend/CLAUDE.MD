@@ -1,6 +1,13 @@
-# 2. Frontend `CLAUDE.md`
+# Frontend `CLAUDE.md`
 
-````markdown
+> **Для AI-агентов:** начни с [`../AGENTS.md`](../AGENTS.md) → [`AGENTS.md`](./AGENTS.md).
+> Архитектура и границы: `docs/architecture/frontend-agent-architecture.md`.
+> Домены: `docs/domains/`. Локальные правила: `src/pages/electrical/AGENTS.md`,
+> `src/pages/heatcalc/AGENTS.md`, `src/components/wizard/AGENTS.md`.
+>
+> Этот файл — расширенная карта; при расхождении с кодом побеждают код + тесты
+> + `AGENTS.md`. Часть списков ниже может отставать от `pages/electrical|heatcalc`.
+
 # CLAUDE.md — Frontend (React)
 
 ## Стек
@@ -423,5 +430,3 @@ API-функции: camelCase (getProjects, createProject)
 Props: interface XxxProps {}
 
 Каждый файл с тестом зеркалит исходный файл по пути
-
-````

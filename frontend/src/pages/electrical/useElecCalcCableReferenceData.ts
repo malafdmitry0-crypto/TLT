@@ -32,13 +32,13 @@ export function useElecCalcCableReferenceData({
   const { data: cables = [] } = useQuery({
     queryKey: referenceQueryKeys.cables(effectiveSource, 'self_regulating'),
     queryFn: () => listCables(effectiveSource, 'self_regulating'),
-    enabled: projectSelected,
+    enabled: projectSelected && availableCableTypes.has('self_regulating'),
     ...referenceQueryOptions,
   });
   const { data: builtinCables = [] } = useQuery({
     queryKey: referenceQueryKeys.cables('builtin', 'self_regulating'),
     queryFn: () => listCables('builtin', 'self_regulating'),
-    enabled: projectSelected,
+    enabled: projectSelected && availableCableTypes.has('self_regulating'),
     ...referenceQueryOptions,
   });
   const { data: ttCables = [] } = useQuery({

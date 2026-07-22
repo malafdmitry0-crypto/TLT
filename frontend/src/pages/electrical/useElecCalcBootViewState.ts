@@ -19,8 +19,10 @@ type UseElecCalcBootViewStateOptions = {
 export function useElecCalcBootViewState({
   location,
 }: UseElecCalcBootViewStateOptions) {
-  // Набор расчётных типов кабеля больше не гейтится коммерческим фича-флагом:
-  // все рассчитываемые типы (ТЛТ, ТТН/ТТВ/ТТХ, ТТ Р1, ТТ Р3) доступны всегда.
+  // Набор расчётных типов кабеля больше не гейтится коммерческим фича-флагом.
+  // ТЛТ намеренно исключён из FULL_FEATURE_CABLE_TYPES, пока не подтверждён
+  // его технический каталог; реализация и справочник ТЛТ сохранены в коде.
+  // ТТН/ТТВ/ТТХ и ТТ Р1/ТТ Р3 доступны всегда.
   // Коммерческие функции (внешняя БД, цены, ранжирование) гейтятся отдельно.
   const availableCableTypeKeys = FULL_FEATURE_CABLE_TYPES;
   const availableCableTypes = useMemo(

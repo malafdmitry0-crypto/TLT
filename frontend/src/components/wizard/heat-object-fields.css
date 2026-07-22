@@ -1,0 +1,351 @@
+/**
+ * ============================================================================
+ * CSS ISLAND — HeatCalcObjectFieldsPanel ONLY
+ * Root: .heat-object-fields / .heat-object-fields--wide
+ * ============================================================================
+ * HARD RULE 4 — COLUMN CAP + REFLOW:
+ *   • В одном столбце ≤ 5 видимых полей (.ant-form-item)
+ *   • 6-е и далее → следующий столбец (grid-auto-flow: column)
+ *   • Слоты geometry/climate/settings = display:contents (плоский поток полей)
+ * Columns = max-content (no 1fr holes). Each field = label | control.
+ * ⛔ Never style .insulation-layers-table from here.
+ * ============================================================================
+ */
+
+.heat-object-fields--wide {
+  --dual-form-banner-size: 9px;
+  /* HARD RULE 2: labels compact — all dual-form panels */
+  --dual-form-label-size: 8.5px;
+  --dual-form-label-line-height: 1.0;
+  --dual-form-label-color: #53667b;
+  --dual-form-control-height: 26px;
+  --dual-form-control-font: 12px;
+  --dual-form-hint-size: 10px;
+
+  --hof-label-size: var(--dual-form-label-size);
+  --hof-label-line-height: var(--dual-form-label-line-height);
+  --hof-control-font: var(--dual-form-control-font);
+  --hof-control-h: var(--dual-form-control-height);
+  /* Dense section: label track fits 2-line FieldLabel (e.g. «локальных элементов»)
+     и однословный «Наименование» (~95px при браузерном min font 12px) без обрезки.
+     Ужато со 112px, чтобы инпут стоял ближе к тексту лейбла. */
+  --hof-label-w: 98px;
+  --hof-row-gap: 4px;
+  --hof-row-min-h: 28px;
+  /* HARD RULE 4: max visible fields per column before reflow */
+  --hof-max-fields-per-column: 5;
+
+  /*
+   * Content-sized controls — densified to hug realistic values.
+   * Ширины сгруппированы так, чтобы поля, стоящие в одной колонке друг под
+   * другом, имели одинаковый правый край (ровные инпуты):
+   *   • все числовые (включая счётчики) → --hof-num
+   *   • name / material / tank-shape    → --hof-name
+   *   • placement / climate / basis     → --hof-climate
+   *   • tm / ground                     → --hof-tm
+   */
+  --hof-num: 5.25rem;
+  --hof-count: var(--hof-num);
+  --hof-name: 7.5rem;
+  --hof-material: var(--hof-name);
+  --hof-tank-shape: var(--hof-name);
+  /* Климат чуть уже (город и так усекается ellipsis'ом); placement/tm имеют
+     запас (контент ~90–98px), поэтому сужаем — так у́же вся карточка (таблица
+     следует за полями через contain: inline-size). */
+  --hof-climate: 8.75rem;
+  --hof-placement: var(--hof-climate);
+  --hof-basis: var(--hof-climate);
+  --hof-tm: 8rem;
+  --hof-ground: var(--hof-tm);
+  --hof-layers-ctrl: 5rem;
+  --hof-ctrl: var(--hof-num);
+
+  --field-input-min-width: 0px;
+  --inline-control-height: var(--hof-control-h);
+
+  isolation: isolate;
+  /*
+   * Column reflow: fill down 5 rows, then next column.
+   * Slots use display:contents so every .ant-form-item is a grid item.
+   * width:max-content — section hugs 3 dense columns (no empty right).
+   */
+  display: grid;
+  grid-template-rows: repeat(var(--hof-max-fields-per-column), auto);
+  grid-auto-flow: column;
+  grid-auto-columns: max-content;
+  column-gap: 10px;
+  row-gap: 4px;
+  justify-content: start;
+  justify-items: start;
+  align-items: start;
+  width: max-content;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+/* Flatten composition slots → fields participate in parent grid */
+.heat-object-fields--wide .heat-object-fields__geometry,
+.heat-object-fields--wide .heat-object-fields__climate,
+.heat-object-fields--wide .heat-object-fields__settings,
+.heat-object-fields--wide .insulation-settings-row {
+  display: contents !important;
+}
+
+/* Hidden form fields must not occupy a grid cell (column cap) */
+.heat-object-fields--wide .ant-form-item-hidden,
+.heat-object-fields--wide .ant-form-item[hidden],
+.heat-object-fields--wide .ant-form-item:has(input[type='hidden']:only-child) {
+  display: none !important;
+}
+
+/* Source tag («из климата»/«вручную»): compact, no 24px reserve under control.
+   TSX passes extra only when the tag is visible; keep the row near --hof-row-min-h. */
+.heat-object-fields--wide .ant-form-item-extra {
+  grid-column: 2 !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  font-size: 9px !important;
+  line-height: 1.1 !important;
+}
+
+.heat-object-fields--wide .field-source-tag {
+  height: auto !important;
+  margin: 0 !important;
+  padding: 0 4px !important;
+  font-size: 8.5px !important;
+  line-height: 1.3 !important;
+}
+
+/* ── Field row: [ label | control ] content-sized ── */
+.heat-object-fields--wide .ant-form-item {
+  --hof-ctrl: var(--hof-num);
+  /*
+   * HARD RULE 4: neutralize legacy `.inline-object-form .ant-form-item { grid-column: 1 / -1 }`
+   * and explicit form-col-srs placements. Without this, auto-flow:column packs wrong.
+   */
+  grid-column: auto !important;
+  grid-row: auto !important;
+  width: max-content !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  flex: 0 0 auto !important;
+  min-width: 0 !important;
+  min-height: var(--hof-row-min-h) !important;
+  /* each field is one cell in the reflow grid */
+  break-inside: avoid;
+}
+
+.heat-object-fields--wide .ant-form-item-row {
+  display: grid !important;
+  /* fixed label track + fixed control track — no 1fr hole */
+  grid-template-columns: var(--hof-label-w) var(--hof-ctrl) !important;
+  grid-template-rows: auto !important;
+  column-gap: var(--hof-row-gap) !important;
+  row-gap: 0 !important;
+  align-items: center !important;
+  width: max-content !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  min-height: var(--hof-control-h);
+}
+
+.heat-object-fields--wide .ant-form-item-label {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+  width: var(--hof-label-w) !important;
+  max-width: var(--hof-label-w) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  text-align: left !important;
+  align-self: center !important;
+  overflow: hidden;
+}
+
+.heat-object-fields--wide .ant-form-item-control,
+.heat-object-fields--wide .field-control-with-help {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  width: var(--hof-ctrl) !important;
+  max-width: var(--hof-ctrl) !important;
+  min-width: 0 !important;
+  justify-self: start;
+}
+
+.heat-object-fields--wide .ant-form-item-control-input,
+.heat-object-fields--wide .ant-form-item-control-input-content {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+.heat-object-fields--wide .helped-form-item .ant-form-item-control,
+.heat-object-fields--wide .helped-form-item .ant-form-item-control-input,
+.heat-object-fields--wide .helped-form-item .ant-form-item-control-input-content {
+  display: contents;
+}
+
+.heat-object-fields--wide .ant-form-item-label > label {
+  display: block !important;
+  height: auto !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  color: var(--dual-form-label-color) !important;
+  font-size: var(--hof-label-size) !important;
+  font-weight: 600 !important;
+  line-height: var(--hof-label-line-height) !important;
+  white-space: normal !important;
+  overflow: hidden !important;
+  max-width: 100%;
+}
+
+.heat-object-fields--wide .field-label-two-line {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 0 !important;
+  max-width: 100%;
+  white-space: normal !important;
+  overflow: hidden !important;
+  line-height: var(--hof-label-line-height) !important;
+}
+
+.heat-object-fields--wide .field-label-two-line > span {
+  display: block !important;
+  max-width: 100%;
+  color: var(--dual-form-label-color) !important;
+  font-size: var(--hof-label-size) !important;
+  font-weight: 600 !important;
+  line-height: var(--hof-label-line-height) !important;
+  /* wrap, не clip: при браузерном min font size строки лейбла
+     переносятся, а не режутся ellipsis'ом (при 8.5px переносов нет) */
+  white-space: normal !important;
+  overflow-wrap: break-word;
+}
+
+.heat-object-fields--wide .field-label-two-line > span + span::before {
+  content: none !important;
+}
+
+.heat-object-fields--wide .ant-input,
+.heat-object-fields--wide .ant-input-number,
+.heat-object-fields--wide .ant-input-number-group-wrapper,
+.heat-object-fields--wide .ant-select,
+.heat-object-fields--wide .tlt-select,
+.heat-object-fields--wide .tlt-select__trigger,
+.heat-object-fields--wide .reference-picker-control,
+.heat-object-fields--wide .field-control-with-help {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  flex: none !important;
+  box-sizing: border-box !important;
+  min-height: var(--hof-control-h) !important;
+  height: auto !important;
+  font-size: var(--hof-control-font) !important;
+  line-height: 1.2 !important;
+}
+
+.heat-object-fields--wide .ant-input-number-input,
+.heat-object-fields--wide .ant-input {
+  height: var(--hof-control-h) !important;
+  font-size: var(--hof-control-font) !important;
+}
+
+/*
+ * Числовое поле с юнитом заполняет весь трек-контрол, а не max-content:
+ * инпут растягивается (flex:1), юнит (мм/м/°C/м/с) прижат к правому краю.
+ * Так правый край всех числовых полей в колонке совпадает с треком (ровные
+ * края независимо от длины юнита) — вместо «плавающего» max-content.
+ */
+.heat-object-fields--wide .unit-input-number,
+.heat-object-fields--wide .tlt-number-field {
+  display: flex !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+.heat-object-fields--wide .unit-input-number .tlt-number-field__input {
+  flex: 1 1 auto !important;
+  width: auto !important;
+  min-width: 0 !important;
+}
+
+.heat-object-fields--wide .unit-input-number .tlt-number-field__unit,
+.heat-object-fields--wide .unit-input-number__addon {
+  flex: 0 0 auto !important;
+}
+
+.heat-object-fields--wide .tlt-select__trigger,
+.heat-object-fields--wide .reference-picker-control {
+  display: flex !important;
+  align-items: center !important;
+  height: var(--hof-control-h) !important;
+}
+
+/* ── Per-field control widths ── */
+.heat-object-fields--wide .name-form-item { --hof-ctrl: var(--hof-name); }
+.heat-object-fields--wide .pipe-material-form-item { --hof-ctrl: var(--hof-material); }
+.heat-object-fields--wide .outer-diameter-form-item,
+.heat-object-fields--wide .pipe-length-form-item,
+.heat-object-fields--wide .wall-thickness-form-item,
+.heat-object-fields--wide .pipe-lambda-manual-form-item,
+.heat-object-fields--wide .wind-speed-form-item,
+.heat-object-fields--wide .burial-depth-form-item,
+.heat-object-fields--wide .ground-conductivity-form-item,
+.heat-object-fields--wide .ambient-temperature-form-item,
+.heat-object-fields--wide .process-temperature-form-item,
+.heat-object-fields--wide .tank-diameter-form-item,
+.heat-object-fields--wide .tank-length-form-item,
+.heat-object-fields--wide .tank-height-form-item,
+.heat-object-fields--wide .tank-width-form-item,
+.heat-object-fields--wide .tank-wall-thickness-form-item,
+.heat-object-fields--wide .tank-wall-lambda-form-item,
+.heat-object-fields--wide .tank-size-form-item { --hof-ctrl: var(--hof-num); }
+
+.heat-object-fields--wide .local-elements-count-form-item,
+.heat-object-fields--wide .tank-additional-heat-loss-form-item { --hof-ctrl: var(--hof-count); }
+.heat-object-fields--wide .tank-shape-form-item { --hof-ctrl: var(--hof-tank-shape); }
+.heat-object-fields--wide .placement-form-item { --hof-ctrl: var(--hof-placement); }
+.heat-object-fields--wide .ground-type-form-item { --hof-ctrl: var(--hof-ground); }
+.heat-object-fields--wide .climate-form-item { --hof-ctrl: var(--hof-climate); }
+.heat-object-fields--wide .climate-basis-form-item { --hof-ctrl: var(--hof-basis); }
+.heat-object-fields--wide .insulation-layer-count-form-item { --hof-ctrl: var(--hof-layers-ctrl); }
+.heat-object-fields--wide .insulation-temperature-basis-form-item { --hof-ctrl: var(--hof-tm); }
+
+.heat-object-fields--wide .climate-basis-form-item .ant-input {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+/* Climate/placement/material/name: control fills its fixed track */
+.heat-object-fields--wide .name-form-item .ant-form-item-control,
+.heat-object-fields--wide .name-form-item .field-control-with-help,
+.heat-object-fields--wide .pipe-material-form-item .ant-form-item-control,
+.heat-object-fields--wide .pipe-material-form-item .field-control-with-help,
+.heat-object-fields--wide .pipe-material-form-item .reference-picker-control,
+.heat-object-fields--wide .placement-form-item .ant-form-item-control,
+.heat-object-fields--wide .climate-form-item .ant-form-item-control,
+.heat-object-fields--wide .climate-form-item .reference-picker-control,
+.heat-object-fields--wide .climate-basis-form-item .ant-form-item-control,
+.heat-object-fields--wide .insulation-temperature-basis-form-item .ant-form-item-control {
+  width: var(--hof-ctrl) !important;
+  max-width: var(--hof-ctrl) !important;
+}
+
+/* Still reflow by 5; fewer auto-columns on narrow screens is automatic */
+@media (max-width: 720px) {
+  .heat-object-fields--wide {
+    /* keep reflow rule; slightly tighter gaps */
+    column-gap: 12px;
+  }
+}
+
+.heat-object-fields--side { display: contents; }
+.heat-object-fields--side > .heat-object-fields__geometry,
+.heat-object-fields--side > .heat-object-fields__climate,
+.heat-object-fields--side > .heat-object-fields__settings { display: contents; }

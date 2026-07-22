@@ -104,34 +104,38 @@ describe('ObjectWizard dependencies', () => {
     renderWizard({ layoutVariant: 'wide' });
 
     expect(await screen.findByTestId('object-name-input')).toBeInTheDocument();
-    expect(screen.queryByText('Расчёт теплопотерь')).not.toBeInTheDocument();
+    expect(screen.getByText('Расчёт теплопотерь')).toBeInTheDocument();
+    expect(screen.getByText('Алгоритм выбора кабеля')).toBeInTheDocument();
     expect(document.querySelector('.inline-object-form--wide .object-wizard-wide-panel[data-panel="wide"]')).toBeInTheDocument();
     expect(document.querySelector('.inline-object-form--wide .object-wizard-side-panel')).not.toBeInTheDocument();
     expect(document.querySelector('.inline-object-form--wide .form-grid-srs')).toBeInTheDocument();
     expect(document.querySelector('.inline-object-form--wide .side-form-grid-srs')).not.toBeInTheDocument();
-    // SC-03: three semantic columns from SRS 5.3.
-    expect(document.querySelectorAll('.inline-object-form--wide .form-col-srs')).toHaveLength(3);
+    // Structured heat: protected fields panel + protected layers table + cable panel.
+    expect(document.querySelector('[data-testid="heat-object-fields"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-testid="insulation-layers-table"]')).toBeInTheDocument();
+    expect(document.querySelectorAll('.inline-object-form--wide .form-col-srs')).toHaveLength(1);
     expect(document.querySelector('[data-testid="heat-pdf-three-column-form"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-testid="heat-cable-algorithm-form"]')).toBeInTheDocument();
     expect(document.querySelectorAll('.inline-object-form--wide .form-col-resize-handle')).toHaveLength(0);
-    expect([...document.querySelectorAll('.inline-object-form--wide .form-col-srs > h4')].map((title) =>
+    expect([...document.querySelectorAll('.inline-object-form--wide .inline-form-section-banner')].map((title) =>
       title.textContent?.replace(/\s+/g, ' ').trim(),
-    )).toEqual([
-      'Параметры трубопровода',
-      'Условия эксплуатации',
-      'Теплоизоляция',
-    ]);
+    )).toEqual(['Расчёт теплопотерь', 'Алгоритм выбора кабеля']);
+    expect(document.querySelector('.heat-object-fields[data-protected="heat-object-fields"]')).toBeInTheDocument();
+    expect(document.querySelector('.insulation-layers-table[data-protected="insulation-layers-table"]')).toBeInTheDocument();
 
     cleanup();
     await mockReferences();
     renderWizard({ layoutVariant: 'side' });
 
     expect(await screen.findByText('Расчёт теплопотерь')).toBeInTheDocument();
+    expect(screen.getByText('Алгоритм выбора кабеля')).toBeInTheDocument();
     expect(document.querySelector('.inline-object-form--side .object-wizard-side-panel[data-panel="side"]')).toBeInTheDocument();
     expect(document.querySelector('.inline-object-form--side .object-wizard-wide-panel')).not.toBeInTheDocument();
     expect(document.querySelector('.inline-object-form--side .side-form-grid-srs')).toBeInTheDocument();
     expect(document.querySelector('.inline-object-form--side .form-grid-srs')).not.toBeInTheDocument();
     expect(document.querySelectorAll('.inline-object-form--side .form-col-resize-handle')).toHaveLength(0);
     expect(screen.getByTestId('heat-side-compact-form')).toBeInTheDocument();
+    expect(screen.getByTestId('heat-cable-algorithm-form')).toBeInTheDocument();
     expect(document.querySelectorAll('.inline-object-form--side .side-form-section')).toHaveLength(0);
     expect(screen.queryByText('Геометрия и размещение трубы')).not.toBeInTheDocument();
     expect(screen.queryByText('Климат и температуры')).not.toBeInTheDocument();
@@ -142,7 +146,8 @@ describe('ObjectWizard dependencies', () => {
 
     expect(await screen.findByTestId('wall-thickness-input')).toHaveValue('');
     expect(screen.getByTestId('min-switch-temperature-input')).toHaveValue('');
-    expect(screen.queryByTestId('safety-factor-input')).not.toBeInTheDocument();
+    expect(screen.getByTestId('safety-factor-input')).toBeInTheDocument();
+    expect(screen.getByTestId('heat-cable-algorithm-form')).toBeInTheDocument();
     expect(screen.getByTestId('local-elements-count-input')).toHaveValue('');
     expect(screen.queryByTestId('valve-count-input')).not.toBeInTheDocument();
     expect(screen.queryByTestId('flange-count-input')).not.toBeInTheDocument();
@@ -150,14 +155,16 @@ describe('ObjectWizard dependencies', () => {
     expect(screen.queryByTestId('local-element-equiv-length-input')).not.toBeInTheDocument();
     expect(screen.queryByTestId('pipe-lambda-mode-select')).not.toBeInTheDocument();
     expect(screen.getByTestId('placement-select')).toHaveTextContent('На открытом воздухе');
-    expect(screen.getByTestId('insulation-layer-count-select')).toHaveTextContent('1 слой');
+    expect(screen.getByTestId('insulation-layer-count-value')).toHaveValue('1');
+    expect(screen.getByTestId('insulation-layer-add')).toBeInTheDocument();
+    expect(screen.queryByTestId('insulation-layer-count-select')).not.toBeInTheDocument();
     expect(screen.getByTestId('insulation-cover-material-select')).toHaveTextContent('Не указано');
     expect(screen.getByTestId('insulation-temperature-basis-select')).toHaveTextContent('Открытый воздух, зима');
     expect(screen.getByTestId('environment-select')).toHaveTextContent('Нормальная');
-    expect(screen.getByTestId('zone-classification-select')).toHaveTextContent('Безопасная');
     expect(screen.getByTestId('temperature-group-select')).toHaveTextContent('T1');
     expect(screen.getByTestId('supply-voltage-select')).toHaveTextContent('220');
-    expect(screen.getByTestId('steam-tracing-select')).toHaveTextContent('Нет');
+    expect(screen.getByTestId('winding-coefficient-input')).toBeInTheDocument();
+    expect(screen.getByTestId('connection-type-select')).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByTestId('pipe-material-select')).toHaveTextContent('Сталь углеродистая');
     });
@@ -549,7 +556,7 @@ describe('ObjectWizard dependencies', () => {
     expect(screen.getByTestId('tank-height-input').closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
   });
 
-  it('показывает расчётную климатическую обеспеченность и источники, когда выбран климат', async () => {
+  it('показывает источники климата и скрывает обеспеченность, когда выбран климат', async () => {
     renderWizard({
       initialParams: {
         ...basePipeParams,
@@ -562,8 +569,9 @@ describe('ObjectWizard dependencies', () => {
       },
     });
 
-    expect(await screen.findByTestId('climate-basis-display')).toHaveDisplayValue(/0,92/);
-    expect(screen.getByTestId('wind-speed-input')).toBeVisible();
+    expect(screen.queryByTestId('climate-basis-display')).not.toBeInTheDocument();
+    expect(screen.queryByText('Обеспеченность климата')).not.toBeInTheDocument();
+    expect(await screen.findByTestId('wind-speed-input')).toBeVisible();
     expect(screen.queryByTestId('alpha-vnesh-input')).not.toBeInTheDocument();
     expect(screen.getAllByText('из климата').length).toBeGreaterThanOrEqual(1);
     expect(spinValue('ambient-temperature-input')).toHaveDisplayValue(/^-25(?:\.0)?$/);
@@ -571,7 +579,7 @@ describe('ObjectWizard dependencies', () => {
     expect(screen.queryByText('Грунт')).not.toBeInTheDocument();
   });
 
-  it('сохраняет климатическую обеспеченность как расчётное значение по алгоритму', async () => {
+  it('сохраняет климатическую обеспеченность как расчётное hidden-значение по алгоритму', async () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
     renderWizard({
@@ -584,7 +592,8 @@ describe('ObjectWizard dependencies', () => {
       },
     });
 
-    expect(await screen.findByTestId('climate-basis-display')).toHaveDisplayValue(/0,92/);
+    expect(screen.queryByTestId('climate-basis-display')).not.toBeInTheDocument();
+    await screen.findByTestId('climate-select');
 
     await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
@@ -593,7 +602,7 @@ describe('ObjectWizard dependencies', () => {
     expect(payload.climate_temperature_basis).toBe('t_0_92');
   });
 
-  it('скрывает Kзап из формы и сохраняет существующее значение для downstream-расчёта', async () => {
+  it('показывает Kзап в алгоритме выбора кабеля и сохраняет значение до ручного изменения', async () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
     renderWizard({
@@ -606,7 +615,9 @@ describe('ObjectWizard dependencies', () => {
     });
 
     await screen.findByTestId('placement-select');
-    expect(screen.queryByTestId('safety-factor-input')).not.toBeInTheDocument();
+    const safetyInput = screen.getByTestId('safety-factor-input');
+    expect(safetyInput).toBeInTheDocument();
+    expect(safetyInput).toHaveValue('1.12');
     await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));

@@ -23,12 +23,13 @@ import re
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from app.core.database import AsyncSessionLocal
 from app.core.dependencies import CurrentPrincipal
 from app.core.security import hash_password
-from app.formulas.electrical.self_regulating import calc_self_regulating
+from app.formulas.electrical.sections import compute_section_plan, section_plan_to_result_fields
+from app.formulas.electrical.self_regulating import calc_self_regulating_tt
 from app.formulas.heat_loss.pipe import calc_pipe_heat_loss
 from app.formulas.heat_loss.tank import calc_tank_heat_loss
 from app.formulas.specification.builder import build_basic_specification
@@ -36,6 +37,7 @@ from app.models.accessory import AccessoryExtended
 from app.models.cable import CableExtended
 from app.models.coefficient import CorrectionCoefficient
 from app.models.electrical_calculation import ElectricalCalculation
+from app.models.electrical_variant import ElectricalVariantObject
 from app.models.insulation_material import InsulationMaterial
 from app.models.project import Project
 from app.models.project_object import ProjectObject
@@ -44,13 +46,12 @@ from app.models.user import User
 from app.reference_data.loader import (
     list_insulation_materials,
     list_resistive_cables,
-    list_tlt_cables,
 )
 from app.schemas.calculation import (
     RESISTIVE_DEFAULT_MIN_ADJUSTED_VOLTAGE,
     RESISTIVE_DEFAULT_VOLTAGE_STEP,
     PipeHeatLossParams,
-    SelfRegulatingParams,
+    SelfRegulatingTTParams,
     TankHeatLossParams,
 )
 from app.services.electrical_variant_service import ElectricalVariantService
@@ -82,6 +83,9 @@ _DEMO_COMMERCIAL_SOURCES = {None, "seed", "demo_seed", "test", "e2e"}
 _REFERENCE_SEED_SOURCES = {None, "builtin_json", "seed", "demo_seed", "test"}
 _SELF_REG_ACCESSORY_COST_PER_CIRCUIT = 2400.0
 _RESISTIVE_ACCESSORY_COST_PER_CIRCUIT = 3200.0
+_LEGACY_TLT_SEED_BRANDS = ("ТЛТ", "ВНШ-СР")
+_LEGACY_TLT_SEED_SOURCES = ("seed", "demo_seed", "test", "e2e")
+_UNSUPPORTED_MVP_CABLE_TYPES = ("single_core", "three_core", "mineral", "skin")
 
 
 def _article(model: str) -> str:
@@ -182,45 +186,6 @@ async def _upsert_demo_cable(db, data: dict[str, object]) -> None:
         return
     _apply_demo_commercial(existing, data)
     logger.info("  ~ demo cable commercial %s %s", data["brand"], data["model"])
-
-
-def _tlt_demo_cable(cable: dict[str, object], index: int, now: datetime) -> dict[str, object]:
-    power = float(cable["power_per_meter"])
-    price_per_meter = 260.0 + power * 8.5
-    stock_quantity_m = max(180.0, 1600.0 - index * 115.0)
-    return {
-        "cable_type": "self_regulating",
-        "brand": str(cable.get("brand") or "ТЛТ"),
-        "model": str(cable["model"]),
-        "power_per_meter": power,
-        "max_temperature": float(cable["max_temperature"]),
-        "min_temperature": float(cable["min_temperature"]),
-        "resistance_per_meter": None,
-        "supplier_name": "Demo ТЛТ Supply",
-        "article": _article(str(cable["model"])),
-        "currency": "RUB",
-        "price_per_meter": round(price_per_meter, 2),
-        "stock_quantity_m": round(stock_quantity_m, 2),
-        "stock_status": _stock_status(stock_quantity_m),
-        "lead_time_days": 2 + index // 3,
-        "supplier_priority": 10 + index,
-        "is_preferred": index == 0,
-        "order_multiple_m": 1.0,
-        "min_order_quantity_m": 0.0,
-        "is_discontinued": False,
-        "replacement_group": "ТЛТ",
-        "price_updated_at": now,
-        "stock_updated_at": now,
-        "commercial_data_source": "demo_seed",
-        "params": _with_commercial_params(
-            {
-                "voltage": cable.get("voltage", 220),
-                "protection": "IP67",
-            },
-            accessory_cost_per_circuit=_SELF_REG_ACCESSORY_COST_PER_CIRCUIT,
-        ),
-        "is_active": True,
-    }
 
 
 def _resistive_demo_cable(
@@ -333,16 +298,13 @@ def _insulation_seed_row(entry: dict[str, object]) -> dict[str, object]:
 
 
 async def seed_demo_commercial_catalog(db) -> None:
-    """Заполняет DB commercial projection для встроенных ТЛТ/ТТ Р1/ТТ Р3 справочников.
+    """Заполняет DB commercial projection для встроенных ТТ Р1/ТТ Р3 справочников.
 
     Значения намеренно помечены `commercial_data_source=demo_seed`: это тестовые
     цены/остатки для dev/e2e. Production должен заменить их реальным импортом
     или ручным вводом, а повторный seed не перезапишет строки с другим source.
     """
     now = datetime.now(UTC)
-    for index, cable in enumerate(list_tlt_cables()):
-        await _upsert_demo_cable(db, _tlt_demo_cable(cable, index, now))
-
     resistive_catalog = list_resistive_cables()
     for index, cable in enumerate(resistive_catalog.get("single_core", [])):
         await _upsert_demo_cable(
@@ -354,6 +316,35 @@ async def seed_demo_commercial_catalog(db) -> None:
             db,
             _resistive_demo_cable(cable, cable_type="three_core", index=index, now=now),
         )
+
+
+async def purge_legacy_tlt_seed_cables(db) -> int:
+    """Удаляет только старые demo/test-строки ТЛТ перед повторным seed."""
+    result = await db.execute(
+        delete(CableExtended).where(
+            CableExtended.cable_type == "self_regulating",
+            CableExtended.brand.in_(_LEGACY_TLT_SEED_BRANDS),
+            CableExtended.commercial_data_source.in_(_LEGACY_TLT_SEED_SOURCES),
+        )
+    )
+    deleted = int(result.rowcount or 0)
+    if deleted:
+        logger.info("  - removed %d legacy TLT seed cable rows", deleted)
+    return deleted
+
+
+async def purge_unsupported_mvp_seed_cables(db) -> int:
+    """Remove only demo/seed cable rows outside the current TT-only MVP."""
+    result = await db.execute(
+        delete(CableExtended).where(
+            CableExtended.cable_type.in_(_UNSUPPORTED_MVP_CABLE_TYPES),
+            CableExtended.commercial_data_source.in_(_LEGACY_TLT_SEED_SOURCES),
+        )
+    )
+    deleted = int(result.rowcount or 0)
+    if deleted:
+        logger.info("  - removed %d unsupported MVP demo cable rows", deleted)
+    return deleted
 
 
 # ---------------------------------------------------------------------------
@@ -601,7 +592,7 @@ def _commercial(
     is_preferred: bool = False,
     order_multiple_m: float = 1.0,
     min_order_quantity_m: float = 0.0,
-    supplier_name: str = "ТЛТ",
+    supplier_name: str = "Demo Cable Supply",
     currency: str = "RUB",
 ) -> dict[str, object]:
     now = datetime.now(UTC)
@@ -635,128 +626,21 @@ def _accessory_params(base: dict[str, object], *, price_rub: float) -> dict[str,
 
 
 async def seed_cables(db) -> None:
+    """Keep the database free of synthetic cable catalog rows.
+
+    The active TT technical passport lives in ``cables_tt.json`` and
+    ``section_catalog.json``; their source is the supplied TNP workbooks.
+    Commercial prices/stock have not been supplied, so no fake DB projection
+    is created.  The legacy seed body below is intentionally unreachable until
+    real commercial data is provided, and is retained temporarily only to keep
+    the historical migration diff reviewable.
+    """
+    await purge_legacy_tlt_seed_cables(db)
+    await purge_unsupported_mvp_seed_cables(db)
+    await db.flush()
+    return
+
     cables_data = [
-        # self_regulating — саморегулирующиеся
-        dict(
-            cable_type="self_regulating",
-            brand="ТЛТ",
-            model="ТЛТ-10",
-            power_per_meter=10.0,
-            max_temperature=65.0,
-            min_temperature=-60.0,
-            resistance_per_meter=None,
-            params={"voltage": 230, "protection": "IP67"},
-            **_commercial(
-                price_per_meter=320.0,
-                stock_quantity_m=1200.0,
-                lead_time_days=2,
-                supplier_priority=10,
-                is_preferred=True,
-                order_multiple_m=1.0,
-            ),
-        ),
-        dict(
-            cable_type="self_regulating",
-            brand="ТЛТ",
-            model="ТЛТ-15",
-            power_per_meter=15.0,
-            max_temperature=65.0,
-            min_temperature=-60.0,
-            resistance_per_meter=None,
-            params={"voltage": 230, "protection": "IP67"},
-            **_commercial(
-                price_per_meter=380.0,
-                stock_quantity_m=900.0,
-                lead_time_days=3,
-                supplier_priority=15,
-                order_multiple_m=1.0,
-            ),
-        ),
-        dict(
-            cable_type="self_regulating",
-            brand="ТЛТ",
-            model="ТЛТ-25",
-            power_per_meter=25.0,
-            max_temperature=65.0,
-            min_temperature=-60.0,
-            resistance_per_meter=None,
-            params={"voltage": 230, "protection": "IP67"},
-            **_commercial(
-                price_per_meter=460.0,
-                stock_quantity_m=750.0,
-                lead_time_days=3,
-                supplier_priority=20,
-                order_multiple_m=1.0,
-            ),
-        ),
-        # external-only self_regulating — уникальные внешние позиции для UX/source-тестов
-        dict(
-            cable_type="self_regulating",
-            brand="ВНШ-СР",
-            model="ВНШ-СР-18",
-            power_per_meter=18.0,
-            max_temperature=90.0,
-            min_temperature=-55.0,
-            resistance_per_meter=None,
-            params={
-                "voltage": 220,
-                "protection": "IP68",
-                "external_seed_kind": "unique_technical",
-            },
-            **_commercial(
-                price_per_meter=515.0,
-                stock_quantity_m=640.0,
-                lead_time_days=4,
-                supplier_priority=18,
-                order_multiple_m=1.0,
-                supplier_name="Demo External Cable Supply",
-            ),
-        ),
-        dict(
-            cable_type="self_regulating",
-            brand="ВНШ-СР",
-            model="ВНШ-СР-33",
-            power_per_meter=33.0,
-            max_temperature=110.0,
-            min_temperature=-55.0,
-            resistance_per_meter=None,
-            params={
-                "voltage": 220,
-                "protection": "IP68",
-                "external_seed_kind": "unique_technical",
-            },
-            **_commercial(
-                price_per_meter=690.0,
-                stock_quantity_m=520.0,
-                lead_time_days=5,
-                supplier_priority=19,
-                order_multiple_m=1.0,
-                supplier_name="Demo External Cable Supply",
-            ),
-        ),
-        dict(
-            cable_type="self_regulating",
-            brand="ВНШ-СР",
-            model="ВНШ-СР-125HT",
-            power_per_meter=125.0,
-            max_temperature=180.0,
-            min_temperature=-60.0,
-            resistance_per_meter=None,
-            params={
-                "voltage": 220,
-                "protection": "IP68",
-                "external_seed_kind": "unique_technical",
-                "max_pipe_temp": 160,
-            },
-            **_commercial(
-                price_per_meter=1480.0,
-                stock_quantity_m=260.0,
-                lead_time_days=9,
-                supplier_priority=24,
-                order_multiple_m=1.0,
-                supplier_name="Demo External Cable Supply",
-            ),
-        ),
         # single_core — одножильные резистивные
         dict(
             cable_type="single_core",
@@ -1145,6 +1029,11 @@ async def seed_cables(db) -> None:
             ):
                 if getattr(existing, key, None) is None:
                     setattr(existing, key, data[key])
+            if (
+                existing.commercial_data_source in {"seed", "demo_seed"}
+                and existing.supplier_name == "ТЛТ"
+            ):
+                existing.supplier_name = str(data["supplier_name"])
     await seed_demo_commercial_catalog(db)
     await db.flush()
 
@@ -1595,23 +1484,51 @@ async def seed_objects_and_calculations(
         )
         pipe_objects = list(pipe_objects_result.scalars().all())
 
+        # Демо-объекты должны отражать готовый сценарий MVP из 1-го кейса:
+        # объект назначен на саморегулирующую систему, а его расчёт и секции
+        # построены по актуальному паспортному каталогу ТТ.
+        assignment_result = await db.execute(
+            select(ElectricalVariantObject).where(
+                ElectricalVariantObject.project_id == project.id,
+                ElectricalVariantObject.electrical_variant_id == electrical_variant.id,
+                ElectricalVariantObject.object_id.in_([obj.id for obj in pipe_objects]),
+            )
+        )
+        assignments_by_object_id = {
+            assignment.object_id: assignment
+            for assignment in assignment_result.scalars().all()
+        }
+
         for pipe_obj in pipe_objects:
-            # Пропускаем если уже есть расчёт
+            assignment = assignments_by_object_id.get(pipe_obj.id)
+            if assignment is None:
+                raise RuntimeError(
+                    f"Seed assignment is missing for pipe object {pipe_obj.id}"
+                )
+            assignment.system_type = "self_regulating"
+            assignment.assignment_state = "ready"
+            assignment.requested_cable_type = "self_regulating_tt"
+            assignment.object_version_snapshot = pipe_obj.version
+            assignment.diagnostics = {}
+
+            # Сид всегда отражает текущую формулу и паспортный каталог. Поэтому
+            # прежний результат демо-объекта заменяется независимо от типа.
             existing_calc = await db.execute(
                 select(ElectricalCalculation).where(
                     ElectricalCalculation.object_id == pipe_obj.id,
                     ElectricalCalculation.variant_number == 1,
                 )
             )
-            if existing_calc.scalar_one_or_none() is not None:
-                continue
+            existing = existing_calc.scalar_one_or_none()
+            if existing is not None:
+                await db.delete(existing)
+                await db.flush()
 
             # Берём heat_loss_per_meter из результатов объекта
             heat_loss_per_meter = (
                 pipe_obj.results.get("heat_loss_per_meter", 0) if pipe_obj.results else 0
             )
             pipe_length = pipe_obj.params.get("pipe_length", 100.0)
-            ambient_temperature = pipe_obj.params.get("ambient_temperature", -30.0)
             process_temperature = pipe_obj.params.get("process_temperature", 80.0)
 
             if heat_loss_per_meter <= 0:
@@ -1619,18 +1536,37 @@ async def seed_objects_and_calculations(
                 continue
 
             try:
-                elec_params = SelfRegulatingParams(
+                elec_params = SelfRegulatingTTParams(
                     required_power_per_meter=heat_loss_per_meter,
-                    cable_mark=None,  # автоподбор
-                    supply_voltage=220.0,
-                    ambient_temperature=ambient_temperature,
                     process_temperature=process_temperature,
+                    maintain_temperature=process_temperature,
                     pipe_length=pipe_length,
+                    supply_voltage=220.0,
+                    winding_coefficient=1.0,
                     safety_factor=1.0,  # коэффициент уже применён в теплопотерях
                 )
-                elec_result = calc_self_regulating(elec_params)
+                elec_result = calc_self_regulating_tt(elec_params)
                 elec_results_dict = elec_result.model_dump()
-                cable_mark = elec_result.selected_cable
+                cable_mark = elec_result.cable_mark
+                cold_start_temperature = float(
+                    pipe_obj.params.get("min_switch_temperature")
+                    or pipe_obj.params.get("ambient_temperature")
+                    or -20.0
+                )
+                section_plan = compute_section_plan(
+                    mark=elec_result.cable_model or cable_mark,
+                    installed_cable_length_m=elec_result.installed_cable_length,
+                    power_per_meter_w=elec_result.power_per_meter,
+                    working_current_total_a=elec_result.current,
+                    voltage_v=elec_result.voltage,
+                    cold_start_temp_c=cold_start_temperature,
+                )
+                if section_plan is None:
+                    raise RuntimeError(
+                        f"TT section passport row is missing for {cable_mark} at "
+                        f"{cold_start_temperature:g}°C"
+                    )
+                elec_results_dict.update(section_plan_to_result_fields(section_plan))
                 logger.info(
                     "  + elec_calc '%s' → кабель %s, длина %.1f м",
                     pipe_obj.params.get("outer_diameter", "?"),
@@ -1646,13 +1582,17 @@ async def seed_objects_and_calculations(
                 object_id=pipe_obj.id,
                 variant_number=1,
                 electrical_variant_id=electrical_variant.id,
-                cable_type="self_regulating",
+                cable_type="self_regulating_tt",
                 cable_mark=cable_mark,
                 params={
                     "required_power_per_meter": heat_loss_per_meter,
                     "pipe_length": pipe_length,
-                    "ambient_temperature": ambient_temperature,
+                    "maintain_temperature": process_temperature,
+                    "vapor_temperature": None,
+                    "aggressive_product": False,
                     "supply_voltage": 220.0,
+                    "winding_coefficient": 1.0,
+                    "min_switch_temperature": cold_start_temperature,
                     "safety_factor": 1.0,
                 },
                 results=elec_results_dict,

@@ -28,15 +28,11 @@ describe('useElecCalcBootViewState', () => {
   it('exposes the full cable type set regardless of commercial feature flag', () => {
     const { result } = renderBootViewState();
 
-    expect(result.current.availableCableTypeKeys).toEqual([
-      'self_regulating',
-      'self_regulating_tt',
-      'single_core',
-      'three_core',
-    ]);
+    expect(result.current.availableCableTypeKeys).toEqual(['self_regulating_tt']);
+    expect(result.current.availableCableTypes.has('self_regulating')).toBe(false);
     expect(result.current.availableCableTypes.has('self_regulating_tt')).toBe(true);
-    expect(result.current.availableCableTypes.has('single_core')).toBe(true);
-    expect(result.current.availableCableTypes.has('three_core')).toBe(true);
+    expect(result.current.availableCableTypes.has('single_core')).toBe(false);
+    expect(result.current.availableCableTypes.has('three_core')).toBe(false);
   });
 
   it('resolves main table engine, glide flag and navigation active job from route state', () => {

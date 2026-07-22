@@ -147,15 +147,14 @@ describe('ElectricalAssignmentPanel (system scope chrome)', () => {
   it('shows system tabs with counts and no second object table', async () => {
     renderPanel({ selectedObjectIds: [] });
 
-    expect(await screen.findByText(/Система обогрева · Пятый ЭР/)).toBeInTheDocument();
+    expect(await screen.findByTestId('electrical-assignment-panel')).toBeInTheDocument();
     await waitFor(() => {
       const tabs = screen.getAllByRole('tab');
       expect(tabs.map((tab) => tab.textContent?.replace(/\s+/gu, ' ').trim())).toEqual([
-        'Нераспределённые1',
+        'Нераспределённые объекты1',
         'Самрег2',
         'Резистив2',
-        'Скин0',
-        'Минеральный0',
+        'Скин',
       ]);
       expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
     });
@@ -165,7 +164,9 @@ describe('ElectricalAssignmentPanel (system scope chrome)', () => {
       .toHaveAttribute('data-disabled', 'true');
     // No dual assignment object grid
     expect(screen.queryByRole('columnheader', { name: 'Диагностика' })).not.toBeInTheDocument();
-    expect(screen.getByText(/Одна таблица ниже фильтруется вкладкой/iu)).toBeInTheDocument();
+    expect(screen.getByText(/Саморегулирующийся/iu)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Применить правило к группе' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Выбрать тип' })).toBeInTheDocument();
   });
 
   it('assigns selected objects from unified table selection', async () => {
@@ -174,7 +175,7 @@ describe('ElectricalAssignmentPanel (system scope chrome)', () => {
     const onAssignedNeedCalc = vi.fn();
     renderPanel({ onAssignmentsChanged, onAssignedNeedCalc });
 
-    await screen.findByText(/Система обогрева/);
+    await screen.findByTestId('electrical-assignment-panel');
     await user.click(screen.getByRole('button', { name: 'Назначить: Самрег' }));
 
     await waitFor(() => {
@@ -192,7 +193,7 @@ describe('ElectricalAssignmentPanel (system scope chrome)', () => {
   it('HTML5 drop onto Самрег assigns dragged ids', async () => {
     const { fireEvent } = await import('@testing-library/react');
     renderPanel({ selectedObjectIds: [] });
-    await screen.findByText(/Система обогрева/);
+    await screen.findByTestId('electrical-assignment-panel');
 
     const zone = screen.getByTestId('assignment-drop-zone-self_regulating');
     const payload = JSON.stringify(['object-1']);
@@ -222,7 +223,7 @@ describe('ElectricalAssignmentPanel (system scope chrome)', () => {
   it('confirms unassign when system tab is active', async () => {
     const user = userEvent.setup();
     renderPanel({ initialView: 'self_regulating' });
-    await screen.findByText(/Система обогрева/);
+    await screen.findByTestId('electrical-assignment-panel');
 
     expect(screen.getByTestId('assignment-drop-zone-self_regulating'))
       .toHaveAttribute('data-disabled', 'true');

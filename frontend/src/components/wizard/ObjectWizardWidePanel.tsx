@@ -1,58 +1,71 @@
-import type { ObjectWizardWidePanelProps } from './ObjectWizardPanelTypes';
+import type { ReactNode, RefCallback } from 'react';
+import HeatCalcObjectFieldsPanel from './HeatCalcObjectFieldsPanel';
+import WizardZoneBoundary from './isolation/WizardZoneBoundary';
 
-/** SC-03: flat engineering workspace with four always-visible semantic regions. */
+export interface ObjectWizardWidePanelProps {
+  geometryTitle: string;
+  formGridRef: RefCallback<HTMLDivElement>;
+  geometry: ReactNode;
+  climate: ReactNode;
+  insulationSettings: ReactNode;
+  insulationTable: ReactNode;
+}
+
+/**
+ * Wide heat card shell (layout only — no form-item styles).
+ *
+ * Isolated React zones (see isolation/ + WIZARD-ISLANDS.md):
+ *   1) WizardZoneBoundary heat-object-fields  → HeatCalcObjectFieldsPanel
+ *   2) WizardZoneBoundary insulation-layers  → InsulationLayersTable
+ *
+ * Shell must not import island internals beyond the public panel components.
+ * CSS for controls lives in co-located island CSS files only.
+ */
 export default function ObjectWizardWidePanel({
-  geometryTitle,
   formGridRef,
-  renderGeometrySection,
-  renderFittingsSection,
-  renderInsulationSection,
-  renderTemperatureSection,
+  geometry,
+  climate,
+  insulationSettings,
+  insulationTable,
 }: ObjectWizardWidePanelProps) {
   return (
     <div
       className="object-wizard-wide-panel"
       data-panel="wide"
       data-testid="heat-pdf-three-column-form"
+      data-wizard-shell="heat-wide"
     >
+      <h4 className="inline-form-section-banner">
+        <span>Расчёт теплопотерь</span>
+      </h4>
       <div
-        className="form-grid-srs form-grid-srs--merged form-grid-srs--pdf-three"
+        className="form-grid-srs form-grid-srs--merged form-grid-srs--pdf-three form-grid-srs--heat-structured"
         ref={formGridRef}
         data-layout="wide-engineering-workspace"
       >
-        <section
-          className="form-col-srs form-col-srs--primary pdf-form-column"
-          data-form-column="geometry"
-          aria-labelledby="form-col-geometry-title"
+        <WizardZoneBoundary
+          islandId="heat-object-fields"
+          className="heat-wizard-zone heat-wizard-zone--fields"
+          data-testid="wizard-zone-heat-object-fields"
         >
-          <h4 id="form-col-geometry-title" className="pdf-form-column-title" data-step="1">
-            <span>{geometryTitle}</span>
-          </h4>
-          {renderGeometrySection()}
-          {renderFittingsSection()}
-        </section>
+          <HeatCalcObjectFieldsPanel
+            layout="wide"
+            geometry={geometry}
+            climate={climate}
+            insulationSettings={insulationSettings}
+          />
+        </WizardZoneBoundary>
 
-        <section
-          className="form-col-srs form-col-srs--climate pdf-form-column"
-          data-form-column="environment"
-          aria-labelledby="form-col-environment-title"
-        >
-          <h4 id="form-col-environment-title" className="pdf-form-column-title" data-step="2">
-            <span>Условия эксплуатации</span>
-          </h4>
-          {renderTemperatureSection()}
-        </section>
-
-        <section
-          className="form-col-srs form-col-srs--insulation pdf-form-column"
+        <WizardZoneBoundary
+          islandId="insulation-layers-table"
+          as="section"
+          className="form-col-srs form-col-srs--insulation pdf-form-column heat-wizard-zone heat-wizard-zone--layers"
           data-form-column="insulation"
-          aria-labelledby="form-col-insulation-title"
+          data-testid="wizard-zone-insulation-layers"
+          aria-label="Таблица слоёв изоляции"
         >
-          <h4 id="form-col-insulation-title" className="pdf-form-column-title" data-step="4">
-            <span>Теплоизоляция</span>
-          </h4>
-          {renderInsulationSection()}
-        </section>
+          {insulationTable}
+        </WizardZoneBoundary>
       </div>
     </div>
   );

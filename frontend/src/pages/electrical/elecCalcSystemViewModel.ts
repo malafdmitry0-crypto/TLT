@@ -13,7 +13,7 @@ export const ELECTRICAL_SYSTEM_VIEWS: Array<{
   label: string;
 }> = [
   { key: 'all', label: 'Все' },
-  { key: 'unassigned', label: 'Нераспределённые' },
+  { key: 'unassigned', label: 'Нераспределённые объекты' },
   { key: 'self_regulating', label: 'Самрег' },
   { key: 'resistive', label: 'Резистив' },
   { key: 'skin', label: 'Скин' },

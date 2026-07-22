@@ -102,23 +102,19 @@ describe('HeatCalcPage basics', () => {
 
       const typeToolbar = screen.getByRole('toolbar', { name: 'Тип объекта и блок параметров' });
       expect(await screen.findByTestId('object-name-input')).toBeInTheDocument();
-      // Пустая секция «алгоритм выбора кабеля» удалена из SC-03 (2026-06-10).
-      expect(screen.queryByText('алгоритм выбора кабеля')).not.toBeInTheDocument();
+      // Правая форма «Алгоритм выбора кабеля» (ТНП orange block) рядом с теплорасчётом.
+      expect(screen.getByText('Алгоритм выбора кабеля')).toBeInTheDocument();
+      expect(document.querySelector('[data-testid="heat-cable-algorithm-form"]')).toBeInTheDocument();
       expect(screen.queryByText('Электропараметры и арматура')).not.toBeInTheDocument();
-      // SC-03: wide form follows the three semantic SRS columns.
+      // Structured heat: protected object-fields + layers table + cable panel.
       expect(document.querySelector('.object-wizard-wide-panel[data-panel="wide"]')).toBeInTheDocument();
       expect(document.querySelector('[data-testid="heat-pdf-three-column-form"]')).toBeInTheDocument();
       expect(document.querySelector('.object-wizard-side-panel')).not.toBeInTheDocument();
-      expect([...document.querySelectorAll('.form-grid-srs .form-col-srs > h4')].map((title) =>
-        title.textContent?.replace(/\s+/g, ' ').trim(),
-      )).toEqual([
-        'Параметры трубопровода',
-        'Условия эксплуатации',
-        'Теплоизоляция',
-      ]);
+      expect(document.querySelector('[data-testid="heat-object-fields"]')).toBeInTheDocument();
+      expect(document.querySelector('[data-testid="insulation-layers-table"]')).toBeInTheDocument();
       expect([...document.querySelectorAll('.inline-form-section-banner')].map((title) =>
         title.textContent?.replace(/\s+/g, ' ').trim(),
-      )).toEqual([]);
+      )).toEqual(['Расчёт теплопотерь', 'Алгоритм выбора кабеля']);
       expect(within(typeToolbar).getByText('Режим: добавление')).toBeInTheDocument();
       await user.click(await within(typeToolbar).findByRole('button', { name: /Резервуар:/ }));
       expect(within(typeToolbar).getByRole('button', { name: /Резервуар:/ })).toHaveAttribute('aria-pressed', 'true');
@@ -141,12 +137,12 @@ describe('HeatCalcPage basics', () => {
       expect(screen.queryByText('L, м')).not.toBeInTheDocument();
       expect(screen.queryByText('Зад.')).not.toBeInTheDocument();
       expect(document.body.textContent).toMatch(/3\s*000.*2\s*000.*1\s*500 мм/);
-      expect(screen.queryByText('алгоритм выбора кабеля')).not.toBeInTheDocument();
+      expect(screen.getByText('Алгоритм выбора кабеля')).toBeInTheDocument();
       expect(screen.getByTestId('tank-shape-select')).toBeInTheDocument();
       expect(screen.queryByText('Электропараметры и арматура')).not.toBeInTheDocument();
       expect([...document.querySelectorAll('.inline-form-section-banner')].map((title) =>
         title.textContent?.replace(/\s+/g, ' ').trim(),
-      )).toEqual([]);
+      )).toEqual(['Расчёт теплопотерь', 'Алгоритм выбора кабеля']);
 
       await user.click(screen.getByText('Резервуар прямоугольный'));
       await waitFor(() => {

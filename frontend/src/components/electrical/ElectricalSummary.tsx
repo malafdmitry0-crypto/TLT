@@ -42,51 +42,59 @@ const EMPTY: SystemSummaryBucket = {
 };
 
 function formatPowerKw(powerW: number): string {
-  return (powerW / 1000).toFixed(1);
+  return (powerW / 1000).toFixed(1).replace('.', ',');
 }
 
 function formatLength(m: number): string {
   if (!Number.isFinite(m) || m === 0) return '0';
-  return m >= 100 ? m.toLocaleString('ru-RU', { maximumFractionDigits: 0 }) : m.toFixed(1);
+  return m >= 100
+    ? m.toLocaleString('ru-RU', { maximumFractionDigits: 0 })
+    : m.toFixed(1).replace('.', ',');
 }
 
 function formatCurrent(a: number): string {
-  return Number.isFinite(a) ? a.toFixed(1) : '0';
+  if (!Number.isFinite(a)) return '0';
+  return a.toFixed(1).replace('.', ',');
 }
 
-function formatSections(bucket: SystemSummaryBucket) {
-  const sections =
-    bucket.sectionCount === null || bucket.sectionCount === undefined
-      ? '—'
-      : String(bucket.sectionCount);
-  return sections;
+function formatSections(bucket: SystemSummaryBucket): string {
+  if (bucket.sectionCount === null || bucket.sectionCount === undefined) return '—';
+  return String(bucket.sectionCount);
 }
 
-function SummaryTableRow({
-  title,
-  bucket,
+type SummaryCardDef = {
+  key: keyof ElectricalSystemSummaries;
+  title: string;
+  testId: string;
+};
+
+const SUMMARY_CARDS: readonly SummaryCardDef[] = [
+  { key: 'self_regulating', title: 'Саммари Самрег', testId: 'elec-summary-card-self_regulating' },
+  { key: 'resistive', title: 'Саммари Резистив', testId: 'elec-summary-card-resistive' },
+  { key: 'skin', title: 'Саммари Скин', testId: 'elec-summary-card-skin' },
+  { key: 'total', title: 'Саммари Итого', testId: 'elec-summary-card-total' },
+] as const;
+
+function MetricRow({
+  label,
+  value,
   testId,
 }: {
-  title: string;
-  bucket: SystemSummaryBucket;
+  label: string;
+  value: string | number;
   testId: string;
 }) {
   return (
-    <tr data-testid={testId}>
-      <th scope="row">{title}</th>
-      <td>{bucket.objectCount}</td>
-      <td>{formatLength(bucket.cableLengthM)}</td>
-      <td>{formatSections(bucket)}</td>
-      <td>{formatPowerKw(bucket.powerW)}</td>
-      <td>{formatCurrent(bucket.workingCurrentA)}</td>
-      <td>{formatCurrent(bucket.startCurrentA)}</td>
-    </tr>
+    <div className="elec-summary-card__row" data-testid={testId}>
+      <span className="elec-summary-card__label">{label}</span>
+      <span className="elec-summary-card__value">{value}</span>
+    </div>
   );
 }
 
 /**
- * One compact system summary table (Самрег / Резистив / Скин / Итого).
- * Success-only totals, without duplicating the system tabs below.
+ * Four system-summary cards (mockup / PDF §6.2).
+ * Success-only totals; does not replace the system-scope tabs below.
  */
 export default function ElectricalSummary({
   totalCableLength = 0,
@@ -110,33 +118,59 @@ export default function ElectricalSummary({
   };
 
   return (
-    <Card
-      size="small"
-      className="elec-summary-table-card"
-      title={<Text strong style={{ fontSize: 13 }}>Итоги по кабелю</Text>}
+    <div
+      className="elec-summary-four-cards"
       data-testid="elec-summary-table"
+      role="region"
+      aria-label="Саммари по типам кабеля"
     >
-      <div className="elec-summary-table-scroll">
-        <table className="elec-summary-table">
-          <thead>
-            <tr>
-              <th scope="col">Тип кабеля</th>
-              <th scope="col">Объекты</th>
-              <th scope="col">Длина, м</th>
-              <th scope="col">Секции</th>
-              <th scope="col">Мощность, кВт</th>
-              <th scope="col">Рабочий ток, А</th>
-              <th scope="col">Пусковой ток, А</th>
-            </tr>
-          </thead>
-          <tbody>
-            <SummaryTableRow title="Самрег" bucket={resolved.self_regulating} testId="elec-summary-self_regulating" />
-            <SummaryTableRow title="Резистив" bucket={resolved.resistive} testId="elec-summary-resistive" />
-            <SummaryTableRow title="Скин" bucket={resolved.skin} testId="elec-summary-skin" />
-            <SummaryTableRow title="Итого" bucket={resolved.total} testId="elec-summary-total" />
-          </tbody>
-        </table>
-      </div>
-    </Card>
+      {SUMMARY_CARDS.map((card) => {
+        const bucket = resolved[card.key];
+        const prefix = `elec-summary-${card.key}`;
+        return (
+          <Card
+            key={card.key}
+            size="small"
+            className={`elec-summary-card${card.key === 'total' ? ' elec-summary-card--total' : ''}`}
+            data-testid={card.testId}
+            title={<Text strong className="elec-summary-card__title">{card.title}</Text>}
+          >
+            <div className="elec-summary-card__body">
+              <MetricRow
+                label="Объектов"
+                value={bucket.objectCount}
+                testId={`${prefix}-objects`}
+              />
+              <MetricRow
+                label="Суммарная длина кабеля, м"
+                value={formatLength(bucket.cableLengthM)}
+                testId={`${prefix}-length`}
+              />
+              <MetricRow
+                label="Количество секций"
+                value={formatSections(bucket)}
+                testId={`${prefix}-sections`}
+              />
+              <MetricRow
+                label="Общая мощность, кВт"
+                value={formatPowerKw(bucket.powerW)}
+                testId={`${prefix}-power`}
+              />
+              <MetricRow
+                label="Суммарный стартовый ток, А"
+                value={formatCurrent(bucket.startCurrentA)}
+                testId={`${prefix}-start-current`}
+              />
+              {/* Working current kept for PDF completeness, compact secondary row */}
+              <MetricRow
+                label="Рабочий ток, А"
+                value={formatCurrent(bucket.workingCurrentA)}
+                testId={`${prefix}-working-current`}
+              />
+            </div>
+          </Card>
+        );
+      })}
+    </div>
   );
 }

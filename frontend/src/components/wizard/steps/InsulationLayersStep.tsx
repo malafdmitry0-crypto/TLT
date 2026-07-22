@@ -1,44 +1,16 @@
-import type { ReactElement } from 'react';
 import { Form } from 'antd';
-import UnitInputNumber from '@/components/common/UnitInputNumber';
 import { TltSelect } from '@/components/form-controls';
-import {
-  heatCalcCustomControlRequiredProps,
-  heatCalcFormFieldRules,
-  heatCalcNumberInputProps,
-  heatCalcSelectInputProps,
-  heatCalcSelectOptions,
-} from '@/utils/heatCalcWizardFieldRules';
+import { heatCalcSelectOptions } from '@/utils/heatCalcWizardFieldRules';
 import type { HeatCalcFieldInputSettings } from '@/utils/heatCalcFieldInputSettings';
 import type { HeatCalcObjectType } from '@/types/project';
 import type { InsulationEntry } from '@/types/reference';
-import {
-  getHeatCalcFieldDescription,
-  getHeatCalcFieldLabel,
-} from '@/domain/heatCalcFields';
-import HelpedControl from '../HelpedControl';
-import FieldLabel from '../FieldLabel';
-import InsulationConductivityField from '../InsulationConductivityField';
-import InsulationTemperatureRangeField from '../InsulationTemperatureRangeField';
-import ReferencePicker, { type ReferencePickerOption } from '../ReferencePicker';
-import ThermalStep from './ThermalStep';
-
-function withHelp(control: ReactElement, hint: string) {
-  return <HelpedControl hint={hint}>{control}</HelpedControl>;
-}
-
-function fieldLabel(fieldId: string, objectType: HeatCalcObjectType) {
-  return <FieldLabel text={getHeatCalcFieldLabel(fieldId, { context: 'form', objectType })} />;
-}
-
-function fieldHelp(fieldId: string, objectType: HeatCalcObjectType, mode?: string) {
-  return getHeatCalcFieldDescription(fieldId, { objectType, mode });
-}
+import InsulationLayersTable from '../InsulationLayersTable';
+import InsulationSettingsRow from '../InsulationSettingsRow';
+import type { ReferencePickerOption } from '../ReferencePicker';
 
 interface Props {
   objectType: HeatCalcObjectType;
   fieldInputSettings?: HeatCalcFieldInputSettings;
-  /** Наблюдаемые значения формы — для динамических опций режима tm. */
   watchedValues?: Record<string, unknown>;
   layerCount: number;
   insulationMaterials: InsulationEntry[];
@@ -50,8 +22,17 @@ interface Props {
   selectedSecondInsulation?: InsulationEntry;
   selectedThirdInsulation?: InsulationEntry;
   onProgrammaticValuesChange: (changedValues: Record<string, unknown>) => void;
+  /**
+   * true (default side): settings-row + table.
+   * false (wide dual): только table — settings уже в HeatCalcObjectFieldsPanel.
+   */
+  includeSettingsRow?: boolean;
 }
 
+/**
+ * Изоляция: optional settings-row + protected InsulationLayersTable.
+ * Wide dual-form: settings в HeatCalcObjectFieldsPanel, здесь только table.
+ */
 export default function InsulationLayersStep({
   objectType,
   fieldInputSettings,
@@ -66,203 +47,34 @@ export default function InsulationLayersStep({
   selectedSecondInsulation,
   selectedThirdInsulation,
   onProgrammaticValuesChange,
+  includeSettingsRow = true,
 }: Props) {
-  const form = Form.useFormInstance();
-  const numberInputProps = (fieldId: string) =>
-    heatCalcNumberInputProps(objectType, fieldId, { fieldInputSettings, form });
-  const selectInputProps = (fieldId: string) =>
-    heatCalcSelectInputProps(objectType, fieldId, { form });
-
   return (
     <>
-      <div className="insulation-settings-row">
-        <Form.Item
-        className="layer-count-form-item insulation-layer-count-form-item helped-form-item"
-        label={fieldLabel('insulation_layer_count', objectType)}
-        name="insulation_layer_count"
-        rules={heatCalcFormFieldRules(form, objectType, 'insulation_layer_count')}
-      >
-        {withHelp(
-          <TltSelect
-            data-testid="insulation-layer-count-select"
-            {...selectInputProps('insulation_layer_count')}
-            options={heatCalcSelectOptions(objectType, 'insulation_layer_count')}
-            placeholder="Выберите"
-          />,
-          fieldHelp('insulation_layer_count', objectType),
-        )}
-        </Form.Item>
-        <Form.Item
-        className="fixed-select-form-item insulation-temperature-basis-form-item helped-form-item"
-        label={fieldLabel('insulation_temperature_basis', objectType)}
-        name="insulation_temperature_basis"
-        rules={heatCalcFormFieldRules(form, objectType, 'insulation_temperature_basis')}
-      >
-        {withHelp(
-          <TltSelect
-            data-testid="insulation-temperature-basis-select"
-            {...selectInputProps('insulation_temperature_basis')}
-            placeholder="Выберите режим tm"
-            options={heatCalcSelectOptions(
-              objectType,
-              'insulation_temperature_basis',
-              watchedValues,
-            )}
-          />,
-          fieldHelp('insulation_temperature_basis', objectType),
-        )}
-        </Form.Item>
-      </div>
-      <div className="insulation-layers-header" aria-hidden="true">
-        <span>Слой</span>
-        <span>Материал изоляции</span>
-        <span>Толщина изоляции</span>
-        <span>λ слоя</span>
-        <span>Диапазон температур</span>
-      </div>
-      <div className={`insulation-layers-grid insulation-layers-grid--${layerCount}`}>
-        <div className="insulation-layer-group">
-          <span className="insulation-layer-index" aria-hidden="true">1</span>
-          <ThermalStep
-            objectType={objectType}
-            fieldInputSettings={fieldInputSettings}
-            insulationMaterials={insulationMaterials}
-            onProgrammaticValuesChange={onProgrammaticValuesChange}
-            insulationMaterialOptions={insulationMaterialOptions}
-            insulationMaterialsError={insulationMaterialsError}
-            isInsulationMaterialsFetching={isInsulationMaterialsFetching}
-          />
-        </div>
-        {layerCount >= 2 && (
-          <div className="insulation-layer-group">
-          <span className="insulation-layer-index" aria-hidden="true">2</span>
-          <Form.Item
-            className="medium-select-form-item layer-material-form-item second-layer-material-form-item helped-form-item"
-            label={fieldLabel('second_insulation_material', objectType)}
-            name="second_insulation_material"
-            preserve={false}
-            rules={heatCalcFormFieldRules(form, objectType, 'second_insulation_material')}
-          >
-            {withHelp(
-              <ReferencePicker
-                data-testid="second-insulation-material-select"
-                options={insulationMaterialOptions}
-                placeholder="Выберите материал"
-                modalTitle="Материал 2-го слоя"
-                searchPlaceholder="Поиск материала"
-                loading={isInsulationMaterialsFetching}
-                notFoundContent={insulationMaterialsError ? 'Не удалось загрузить справочник' : 'Нет материалов'}
-                {...heatCalcCustomControlRequiredProps(form, objectType, 'second_insulation_material')}
-              />,
-              fieldHelp('second_insulation_material', objectType),
-            )}
-          </Form.Item>
-          <Form.Item
-            className="numeric-form-item short-number-form-item second-layer-thickness-form-item helped-form-item"
-            label={fieldLabel('second_insulation_thickness_mm', objectType)}
-            name="second_insulation_thickness_mm"
-            preserve={false}
-            rules={heatCalcFormFieldRules(form, objectType, 'second_insulation_thickness_mm')}
-          >
-            {withHelp(
-              <UnitInputNumber
-                data-testid="second-insulation-thickness-input"
-                {...numberInputProps('second_insulation_thickness_mm')}
-                unit="мм"
-              />,
-              fieldHelp('second_insulation_thickness_mm', objectType),
-            )}
-          </Form.Item>
-          <InsulationConductivityField
-            material={secondInsulationMaterial}
-            selectedMaterial={selectedSecondInsulation}
-            name="second_insulation_lambda"
-            dataTestIdPrefix="second-insulation"
-            objectType={objectType}
-            fieldInputSettings={fieldInputSettings}
-            labelFieldId="second_insulation_lambda"
-          />
-          <InsulationTemperatureRangeField
-            material={secondInsulationMaterial}
-            selectedMaterial={selectedSecondInsulation}
-            minName="second_insulation_temperature_min"
-            maxName="second_insulation_temperature_max"
-            dataTestIdPrefix="second-insulation"
-            objectType={objectType}
-            labelFieldId="second_insulation_temperature_range"
-            hint={fieldHelp('second_insulation_temperature_range', objectType)}
-            required={heatCalcCustomControlRequiredProps(form, objectType, 'second_insulation_temperature_range').required}
-            onRangeChange={onProgrammaticValuesChange}
-          />
-          </div>
-        )}
-        {layerCount >= 3 && (
-          <div className="insulation-layer-group">
-          <span className="insulation-layer-index" aria-hidden="true">3</span>
-          <Form.Item
-            className="medium-select-form-item layer-material-form-item third-layer-material-form-item helped-form-item"
-            label={fieldLabel('third_insulation_material', objectType)}
-            name="third_insulation_material"
-            preserve={false}
-            rules={heatCalcFormFieldRules(form, objectType, 'third_insulation_material')}
-          >
-            {withHelp(
-              <ReferencePicker
-                data-testid="third-insulation-material-select"
-                options={insulationMaterialOptions}
-                placeholder="Выберите материал"
-                modalTitle="Материал 3-го слоя"
-                searchPlaceholder="Поиск материала"
-                loading={isInsulationMaterialsFetching}
-                notFoundContent={insulationMaterialsError ? 'Не удалось загрузить справочник' : 'Нет материалов'}
-                {...heatCalcCustomControlRequiredProps(form, objectType, 'third_insulation_material')}
-              />,
-              fieldHelp('third_insulation_material', objectType),
-            )}
-          </Form.Item>
-          <Form.Item
-            className="numeric-form-item short-number-form-item third-layer-thickness-form-item helped-form-item"
-            label={fieldLabel('third_insulation_thickness_mm', objectType)}
-            name="third_insulation_thickness_mm"
-            preserve={false}
-            rules={heatCalcFormFieldRules(form, objectType, 'third_insulation_thickness_mm')}
-          >
-            {withHelp(
-              <UnitInputNumber
-                data-testid="third-insulation-thickness-input"
-                {...numberInputProps('third_insulation_thickness_mm')}
-                unit="мм"
-              />,
-              fieldHelp('third_insulation_thickness_mm', objectType),
-            )}
-          </Form.Item>
-          <InsulationConductivityField
-            material={thirdInsulationMaterial}
-            selectedMaterial={selectedThirdInsulation}
-            name="third_insulation_lambda"
-            dataTestIdPrefix="third-insulation"
-            objectType={objectType}
-            fieldInputSettings={fieldInputSettings}
-            labelFieldId="third_insulation_lambda"
-          />
-          <InsulationTemperatureRangeField
-            material={thirdInsulationMaterial}
-            selectedMaterial={selectedThirdInsulation}
-            minName="third_insulation_temperature_min"
-            maxName="third_insulation_temperature_max"
-            dataTestIdPrefix="third-insulation"
-            objectType={objectType}
-            labelFieldId="third_insulation_temperature_range"
-            hint={fieldHelp('third_insulation_temperature_range', objectType)}
-            required={heatCalcCustomControlRequiredProps(form, objectType, 'third_insulation_temperature_range').required}
-            onRangeChange={onProgrammaticValuesChange}
-          />
-          </div>
-        )}
-      </div>
-      {/* Материал покрытия изоляции отсутствует в ТНП «Список переменных» и
-          в формуле теплопотерь не участвует — скрыт (round-trip метаданные).
-          См. docs/analysis/sc03-heat-form-cleanup-2026-06-10.md. */}
+      {includeSettingsRow ? (
+        <InsulationSettingsRow
+          objectType={objectType}
+          fieldInputSettings={fieldInputSettings}
+          watchedValues={watchedValues}
+        />
+      ) : null}
+
+      {/* ⛔ PROTECTED: InsulationLayersTable — менять только по прямому запросу */}
+      <InsulationLayersTable
+        objectType={objectType}
+        fieldInputSettings={fieldInputSettings}
+        layerCount={layerCount}
+        insulationMaterials={insulationMaterials}
+        insulationMaterialOptions={insulationMaterialOptions}
+        insulationMaterialsError={insulationMaterialsError}
+        isInsulationMaterialsFetching={isInsulationMaterialsFetching}
+        secondInsulationMaterial={secondInsulationMaterial}
+        thirdInsulationMaterial={thirdInsulationMaterial}
+        selectedSecondInsulation={selectedSecondInsulation}
+        selectedThirdInsulation={selectedThirdInsulation}
+        onProgrammaticValuesChange={onProgrammaticValuesChange}
+      />
+
       <Form.Item name="insulation_cover_material" hidden>
         <TltSelect
           data-testid="insulation-cover-material-select"

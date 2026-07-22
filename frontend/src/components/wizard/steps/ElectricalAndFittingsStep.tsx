@@ -1,11 +1,9 @@
 import { Form } from 'antd';
 import type { ReactElement } from 'react';
 import UnitInputNumber from '@/components/common/UnitInputNumber';
-import { TltSelect } from '@/components/form-controls';
 import {
   heatCalcFormFieldRules,
   heatCalcNumberInputProps,
-  heatCalcSelectOptions,
 } from '@/utils/heatCalcWizardFieldRules';
 import type { HeatCalcFieldInputSettings } from '@/utils/heatCalcFieldInputSettings';
 import type { HeatCalcObjectType } from '@/types/project';
@@ -33,6 +31,12 @@ interface Props {
   fieldInputSettings?: HeatCalcFieldInputSettings;
 }
 
+/**
+ * Локальные элементы трубы + q_доп резервуара.
+ * Электропараметры алгоритма выбора кабеля вынесены в CableAlgorithmPanel
+ * (правая форма HeatCalc). Hidden round-trip больше не нужен — те же Form.Item
+ * живут в CableAlgorithmPanel внутри того же Form.
+ */
 export default function ElectricalAndFittingsStep({
   objectType,
   fieldInputSettings,
@@ -49,21 +53,6 @@ export default function ElectricalAndFittingsStep({
 
   return (
     <>
-      {/* Электрические параметры (supply_voltage, min_switch_temperature,
-          steam_tracing, vapor_temperature) не относятся к теплорасчёту и
-          вводятся на странице «Электрорасчёт» (recalc-контролы). Здесь они
-          держатся скрытыми только для сохранения значения при редактировании
-          объекта (round-trip) — видимый ввод из SC-03 намеренно убран.
-          См. docs/analysis/sc03-heat-form-cleanup-2026-06-10.md. */}
-      <Form.Item name="min_switch_temperature" hidden>
-        <UnitInputNumber data-testid="min-switch-temperature-input" unit="°C" />
-      </Form.Item>
-      <Form.Item name="supply_voltage" hidden>
-        <TltSelect
-          data-testid="supply-voltage-select"
-          options={heatCalcSelectOptions(objectType, 'supply_voltage')}
-        />
-      </Form.Item>
       {objectType === 'tank' && (
         <Form.Item
           className="numeric-form-item coefficient-form-item tank-additional-heat-loss-form-item helped-form-item"
@@ -82,19 +71,10 @@ export default function ElectricalAndFittingsStep({
           )}
         </Form.Item>
       )}
-      <Form.Item name="steam_tracing" hidden>
-        <TltSelect
-          data-testid="steam-tracing-select"
-          options={heatCalcSelectOptions(objectType, 'steam_tracing')}
-        />
-      </Form.Item>
-      <Form.Item name="vapor_temperature" hidden>
-        <UnitInputNumber data-testid="vapor-temperature-input" unit="°C" />
-      </Form.Item>
       {objectType === 'pipe' && (
         <Form.Item
           className="numeric-form-item fitting-count-form-item local-elements-count-form-item helped-form-item"
-          label={<span>Количество локальных элементов</span>}
+          label={<FieldLabel text="Количество локальных элементов" />}
           name="num_local_elements"
         >
           {withHelp(

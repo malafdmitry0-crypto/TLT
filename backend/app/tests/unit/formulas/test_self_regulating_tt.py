@@ -56,7 +56,7 @@ class TestSeriesSelection:
 
 class TestCableSelection:
     def test_autoselect_uses_multiple_threads_before_escalating_series(self):
-        """T=50°C, q=18 Вт/м: 2 нитки 33ТТН2 закрывают 19.8 Вт/м."""
+        """T=50°C, q=18 Вт/м: 2 нитки 31ТТН2 закрывают 19.8 Вт/м."""
         r = calc_self_regulating_tt(
             _params(
                 process_temperature=50.0,
@@ -64,7 +64,7 @@ class TestCableSelection:
                 safety_factor=1.1,
             )
         )
-        assert "33ТТН2" in r.selected_cable
+        assert "31ТТН2" in r.selected_cable
         assert r.series == "ТТН"
         assert r.num_circuits == 2
         assert r.power_per_meter == pytest.approx(-0.491 * 50 + 37.5, rel=1e-3)
@@ -80,8 +80,8 @@ class TestCableSelection:
             )
         )
         assert r.series == "ТТН"
-        assert r.selected_cable == "15ТТН2"
-        assert r.cable_mark == "15ТТН2-СТ"
+        assert r.selected_cable == "17ТТН2"
+        assert r.cable_mark == "17ТТН2-СТ"
         assert r.num_circuits == 1
         assert r.power_per_meter * r.num_circuits >= 5.0 * 1.1
 
@@ -89,7 +89,7 @@ class TestCableSelection:
         """T1 выбирает серию, но q_б считается от T3."""
         r = calc_self_regulating_tt(
             _params(
-                cable_mark="33ТТН2",
+                cable_mark="31ТТН2",
                 process_temperature=60.0,
                 maintain_temperature=40.0,
                 required_power_per_meter=5.0,
@@ -103,7 +103,7 @@ class TestCableSelection:
         """Для совместимости старых запросов отсутствие T3 означает T3=T1."""
         r = calc_self_regulating_tt(
             _params(
-                cable_mark="33ТТН2",
+                cable_mark="31ТТН2",
                 process_temperature=40.0,
                 maintain_temperature=None,
                 required_power_per_meter=5.0,
@@ -335,7 +335,7 @@ class TestManualMark:
         with pytest.raises(ValueError, match="превышает"):
             calc_self_regulating_tt(
                 _params(
-                    cable_mark="33ТТН2",
+                    cable_mark="31ТТН2",
                     process_temperature=70.0,
                     required_power_per_meter=1.0,
                     safety_factor=1.0,
@@ -346,7 +346,7 @@ class TestManualMark:
         with pytest.raises(ValueError, match="пропар"):
             calc_self_regulating_tt(
                 _params(
-                    cable_mark="33ТТН2",
+                    cable_mark="31ТТН2",
                     process_temperature=50.0,
                     vapor_temperature=100.0,
                     required_power_per_meter=1.0,

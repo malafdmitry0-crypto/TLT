@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import { Form, Input, Tag } from 'antd';
+import { Form, Tag } from 'antd';
 import UnitInputNumber from '@/components/common/UnitInputNumber';
 import { TltSelect } from '@/components/form-controls';
 import {
@@ -35,26 +35,12 @@ function sourceTag(source: unknown) {
   return null;
 }
 
-function FieldSourceTag({
-  name,
-  fallback,
-}: {
-  name: string;
-  fallback?: unknown;
-}) {
-  const form = Form.useFormInstance();
-  const source = Form.useWatch(name, form);
-  return sourceTag(source ?? fallback);
-}
-
 interface Props {
   objectType: HeatCalcObjectType;
   fieldInputSettings?: HeatCalcFieldInputSettings;
   climateOptions: ReferencePickerOption[];
   isClimateFetching: boolean;
   onClimatePickerOpen?: () => void;
-  hasClimate: boolean;
-  climateBasisDisplay: string;
   showWindField: boolean;
   ambientTemperatureSourceFallback?: unknown;
   windSpeedSourceFallback?: unknown;
@@ -66,8 +52,6 @@ export default function TemperatureEnvironmentStep({
   climateOptions,
   isClimateFetching,
   onClimatePickerOpen,
-  hasClimate,
-  climateBasisDisplay,
   showWindField,
   ambientTemperatureSourceFallback,
   windSpeedSourceFallback,
@@ -75,6 +59,12 @@ export default function TemperatureEnvironmentStep({
   const form = Form.useFormInstance();
   const numberInputProps = (fieldId: string) =>
     heatCalcNumberInputProps(objectType, fieldId, { fieldInputSettings, form });
+  // extra только при видимом теге: пустой .ant-form-item-extra резервирует ~24px
+  // и ломает единый ритм строк [label | control] (HARD RULE 1 heat-object-fields)
+  const ambientSource = Form.useWatch('ambient_temperature_source', form);
+  const windSource = Form.useWatch('wind_speed_source', form);
+  const ambientSourceTag = sourceTag(ambientSource ?? ambientTemperatureSourceFallback);
+  const windSourceTag = sourceTag(windSource ?? windSpeedSourceFallback);
 
   return (
     <>
@@ -98,31 +88,11 @@ export default function TemperatureEnvironmentStep({
           fieldHelp('climate_key', objectType),
         )}
       </Form.Item>
-      {hasClimate && (
-        <Form.Item
-          className="compact-select-form-item climate-basis-form-item helped-form-item"
-          label={fieldLabel('climate_temperature_basis', objectType)}
-        >
-          {withHelp(
-            <Input
-              data-testid="climate-basis-display"
-              readOnly
-              value={climateBasisDisplay}
-            />,
-            `${fieldHelp('climate_temperature_basis', objectType)} Значение применяется автоматически по алгоритму климата.`,
-          )}
-        </Form.Item>
-      )}
       <Form.Item
         className="numeric-form-item temperature-number-form-item ambient-temperature-form-item helped-form-item"
         label={fieldLabel('ambient_temperature', objectType)}
         name="ambient_temperature"
-        extra={
-          <FieldSourceTag
-            name="ambient_temperature_source"
-            fallback={ambientTemperatureSourceFallback}
-          />
-        }
+        extra={ambientSourceTag ?? undefined}
         rules={heatCalcFormFieldRules(form, objectType, 'ambient_temperature')}
       >
         {withHelp(
@@ -156,12 +126,7 @@ export default function TemperatureEnvironmentStep({
           label={fieldLabel('wind_speed', objectType)}
           name="wind_speed"
           preserve={false}
-          extra={
-            <FieldSourceTag
-              name="wind_speed_source"
-              fallback={windSpeedSourceFallback}
-            />
-          }
+          extra={windSourceTag ?? undefined}
           rules={[
             ...heatCalcFormFieldRules(form, objectType, 'wind_speed'),
           ]}
@@ -176,32 +141,18 @@ export default function TemperatureEnvironmentStep({
           )}
         </Form.Item>
       )}
-      {/* Поля ниже не участвуют в формуле теплопотерь (по ТНП «Список
-          переменных» это входы алгоритма выбора кабеля / спецификации) и
-          скрыты из формы SC-03. Хранятся для round-trip значения в params;
-          куда они должны переехать — docs/analysis/sc03-heat-form-cleanup-2026-06-10.md. */}
+      {/* max_* и zone — не входы теплопотерь; round-trip в params.
+          environment / temperature_group / электро-поля — в CableAlgorithmPanel. */}
       <Form.Item name="max_ambient_temperature" hidden>
         <UnitInputNumber data-testid="max-ambient-temperature-input" unit="°C" />
       </Form.Item>
       <Form.Item name="max_process_temperature" hidden>
         <UnitInputNumber data-testid="max-process-temperature-input" unit="°C" />
       </Form.Item>
-      <Form.Item name="environment" hidden>
-        <TltSelect
-          data-testid="environment-select"
-          options={heatCalcSelectOptions(objectType, 'environment')}
-        />
-      </Form.Item>
       <Form.Item name="zone_classification" hidden>
         <TltSelect
           data-testid="zone-classification-select"
           options={heatCalcSelectOptions(objectType, 'zone_classification')}
-        />
-      </Form.Item>
-      <Form.Item name="temperature_group" hidden>
-        <TltSelect
-          data-testid="temperature-group-select"
-          options={heatCalcSelectOptions(objectType, 'temperature_group')}
         />
       </Form.Item>
     </>

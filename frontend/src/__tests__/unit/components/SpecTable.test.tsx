@@ -55,7 +55,8 @@ describe('SpecTable', () => {
       />,
     );
 
-    expect(screen.getByText('Трубопроводы')).toBeInTheDocument();
+    expect(screen.getByText('Трубы')).toBeInTheDocument();
+    expect(screen.getByText('Бочки')).toBeInTheDocument();
     expect(screen.getByText('Общие материалы')).toBeInTheDocument();
     expect(screen.queryByText('Категория')).not.toBeInTheDocument();
     expect(screen.getAllByText('Поставщик').length).toBeGreaterThan(0);
@@ -64,7 +65,12 @@ describe('SpecTable', () => {
     expect(screen.getByText('TLT.HTL30-2CR')).toBeInTheDocument();
     expect(screen.getAllByText('Теплолюкс').length).toBe(2);
 
-    const pipeSection = screen.getByText('Трубопроводы').closest('[data-spec-section]')!;
+    const pipeSection = document.querySelector('[data-spec-section="pipe"]')!;
     expect(within(pipeSection as HTMLElement).getByText('Саморегулирующийся кабель')).toBeInTheDocument();
+
+    // Empty tank section shows mockup-style placeholder
+    expect(
+      screen.getByText(/Расчёт спецификации для данного типа объекта пока недоступен/i),
+    ).toBeInTheDocument();
   });
 });

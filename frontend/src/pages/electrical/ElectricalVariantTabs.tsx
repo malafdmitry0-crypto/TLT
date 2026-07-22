@@ -11,7 +11,10 @@ import {
   Tooltip,
   Typography,
 } from 'antd';
+import { FileTextOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import { extractApiErrorMessage } from '@/api/client';
+import { ROUTES } from '@/routes/routes';
 import type {
   ElectricalVariantPendingOperation,
   ElectricalVariantSelectionController,
@@ -194,6 +197,7 @@ export default function ElectricalVariantTabs({
   controller,
   canMutate = true,
 }: ElectricalVariantTabsProps) {
+  const navigate = useNavigate();
   const [editingVariantId, setEditingVariantId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [renameValidationError, setRenameValidationError] = useState<string | null>(null);
@@ -387,11 +391,10 @@ export default function ElectricalVariantTabs({
   };
 
   return (
-    <Card
-      size="small"
+    <div
       className="electrical-variant-tabs"
-      styles={{ body: { padding: '8px 12px' } }}
       aria-busy={controller.isFetching || controller.isMutating}
+      data-testid="electrical-variant-tabs"
     >
       <Space direction="vertical" size={8} style={{ width: '100%' }}>
         <MutationStatus operation={controller.pendingOperation} />
@@ -424,23 +427,13 @@ export default function ElectricalVariantTabs({
           />
         )}
 
-        {/* One row: ER tabs + lifecycle actions (no page title). */}
+        {/* One row: ER tabs + lifecycle actions (mockup toolbar). */}
         <div className="electrical-variant-tabs__row">
           <div
             ref={tablistRef}
             className="electrical-variant-tabs__scroller"
             role="tablist"
             aria-label="Варианты ЭР"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              flex: '1 1 auto',
-              minWidth: 0,
-              overflowX: 'auto',
-              overflowY: 'hidden',
-              WebkitOverflowScrolling: 'touch',
-            }}
           >
             {controller.variants.map((variant, index) => {
               const isSelected = variant.id === selected.id;
@@ -451,28 +444,22 @@ export default function ElectricalVariantTabs({
                     key={variant.id}
                     className="electrical-variant-tabs__rename"
                     role="presentation"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      flex: '0 0 auto',
-                    }}
                   >
-                    <Button
+                    <button
+                      type="button"
                       id={electricalVariantTabId(variant.id)}
                       role="tab"
+                      className={`electrical-variant-tab${isSelected ? ' electrical-variant-tab--active' : ''}`}
                       aria-selected={isSelected}
                       aria-controls={electricalVariantPanelId(variant.id)}
                       aria-label={variant.name}
                       tabIndex={-1}
-                      type={isSelected ? 'primary' : 'default'}
-                      size="small"
                       data-electrical-variant-id={variant.id}
                       title={variant.name}
                       onKeyDown={(event) => handleTabKeyDown(index, event)}
                     >
                       {variant.name}
-                    </Button>
+                    </button>
                     <Input
                       ref={renameInputRef}
                       size="small"
@@ -508,16 +495,16 @@ export default function ElectricalVariantTabs({
               }
 
               return (
-                <Button
+                <button
                   key={variant.id}
+                  type="button"
                   id={electricalVariantTabId(variant.id)}
                   role="tab"
+                  className={`electrical-variant-tab${isSelected ? ' electrical-variant-tab--active' : ''}`}
                   aria-selected={isSelected}
                   aria-controls={electricalVariantPanelId(variant.id)}
                   aria-label={variant.name}
                   tabIndex={isSelected ? 0 : -1}
-                  type={isSelected ? 'primary' : 'default'}
-                  size="small"
                   data-electrical-variant-id={variant.id}
                   title={variant.name}
                   onClick={() => {
@@ -530,25 +517,17 @@ export default function ElectricalVariantTabs({
                   onKeyDown={(event) => handleTabKeyDown(index, event)}
                 >
                   {variant.name}
-                </Button>
+                </button>
               );
             })}
           </div>
 
-          <div
-            className="electrical-variant-tabs__actions"
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              alignItems: 'center',
-              gap: 8,
-              flex: '0 0 auto',
-            }}
-          >
+          <div className="electrical-variant-tabs__actions">
             <Tooltip title={reachedLimit ? 'В проекте уже создано 5 ЭР' : undefined}>
               <span>
                 <Button
                   size="small"
+                  className="electrical-variant-action electrical-variant-action--create"
                   loading={controller.pendingOperation === 'create'}
                   disabled={!canMutate || reachedLimit || lifecycleWriteLocked}
                   aria-label={
@@ -558,7 +537,7 @@ export default function ElectricalVariantTabs({
                   }
                   onClick={() => ignoreHandledError(controller.createVariant())}
                 >
-                  Добавить пустой ЭР
+                  Добавить новый расчёт
                 </Button>
               </span>
             </Tooltip>
@@ -567,6 +546,7 @@ export default function ElectricalVariantTabs({
               <span>
                 <Button
                   size="small"
+                  className="electrical-variant-action electrical-variant-action--copy"
                   loading={controller.pendingOperation === 'copy'}
                   disabled={!canMutate || reachedLimit || lifecycleWriteLocked}
                   aria-label={
@@ -576,13 +556,14 @@ export default function ElectricalVariantTabs({
                   }
                   onClick={() => ignoreHandledError(controller.copySelectedVariant())}
                 >
-                  Создать копию
+                  Добавить новый расчёт на основании ЭР
                 </Button>
               </span>
             </Tooltip>
 
             <Button
               size="small"
+              type="link"
               loading={controller.pendingOperation === 'rename'}
               disabled={!canMutate || lifecycleWriteLocked}
               aria-label={`Переименовать ЭР «${selected.name}»`}
@@ -603,6 +584,7 @@ export default function ElectricalVariantTabs({
               <Button
                 size="small"
                 danger
+                className="electrical-variant-action electrical-variant-action--delete"
                 loading={controller.pendingOperation === 'delete'}
                 disabled={!canMutate || isLastVariant || lifecycleWriteLocked}
                 aria-label={
@@ -611,12 +593,22 @@ export default function ElectricalVariantTabs({
                     : `Удалить ЭР «${selected.name}»`
                 }
               >
-                Удалить
+                Удалить текущий расчёт
               </Button>
             </Popconfirm>
+
+            <Button
+              size="small"
+              className="electrical-variant-action electrical-variant-action--spec"
+              icon={<FileTextOutlined />}
+              onClick={() => navigate(ROUTES.specification)}
+              aria-label="Сформировать спецификацию"
+            >
+              Сформировать спецификацию
+            </Button>
           </div>
         </div>
       </Space>
-    </Card>
+    </div>
   );
 }

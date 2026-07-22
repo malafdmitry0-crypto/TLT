@@ -1,0 +1,230 @@
+/**
+ * ============================================================================
+ * CSS ISLAND — CableAlgorithmPanel ONLY
+ * Root: .object-wizard-cable-panel
+ * ============================================================================
+ * Isolation contract:
+ *   ✅ All selectors MUST start with .object-wizard-cable-panel
+ *   ⛔ NEVER select .heat-object-fields / .insulation-layers-table
+ * Эталон horizontal field row + type scale for dual-form.
+ * ============================================================================
+ */
+
+.object-wizard-cable-panel {
+  --dual-form-banner-size: 9px;
+  /* HARD RULE 2: labels compact — same as heat dual-form */
+  --dual-form-label-size: 8.5px;
+  --dual-form-label-line-height: 1.0;
+  --dual-form-label-color: #53667b;
+  --dual-form-control-height: 26px;
+  --dual-form-control-font: 12px;
+  --dual-form-hint-size: 10px;
+  --cable-banner-size: var(--dual-form-banner-size);
+  --cable-label-size: var(--dual-form-label-size);
+  --cable-label-line-height: var(--dual-form-label-line-height);
+  --cable-label-color: var(--dual-form-label-color);
+  --cable-control-height: var(--dual-form-control-height);
+  --cable-control-font: var(--dual-form-control-font);
+  --cable-hint-size: var(--dual-form-hint-size);
+  --inline-control-height: var(--dual-form-control-height);
+  --dual-field-label-width: 148px;
+
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.object-wizard-cable-panel .inline-form-section-banner {
+  min-height: 20px;
+  padding: 3px 8px;
+  font-size: var(--cable-banner-size);
+  font-weight: 650;
+  letter-spacing: 0.03em;
+  line-height: 1.2;
+}
+
+.object-wizard-cable-panel .inline-form-section-banner--cable {
+  background: #fff6f0;
+  border-color: #f0c9b0;
+  color: #8a3d12;
+}
+
+.object-wizard-cable-panel .ant-form-item {
+  min-width: 0;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.object-wizard-cable-panel .ant-form-item-row {
+  display: grid !important;
+  grid-template-columns: minmax(var(--dual-field-label-width), 42%) minmax(0, 1fr) !important;
+  column-gap: 10px !important;
+  row-gap: 0 !important;
+  align-items: center !important;
+  width: 100% !important;
+  min-height: var(--cable-control-height);
+}
+
+.object-wizard-cable-panel .ant-form-item-label {
+  width: auto !important;
+  max-width: 100%;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden;
+  white-space: nowrap !important;
+  text-align: left !important;
+  align-self: center;
+}
+
+.object-wizard-cable-panel .ant-form-item-label > label {
+  display: block !important;
+  min-height: 0 !important;
+  height: auto !important;
+  max-width: 100%;
+  margin: 0 !important;
+  padding: 0 !important;
+  color: var(--cable-label-color) !important;
+  font-size: var(--cable-label-size) !important;
+  font-weight: 600 !important;
+  line-height: var(--cable-label-line-height) !important;
+  white-space: nowrap !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.object-wizard-cable-panel .ant-form-item-label * {
+  font-size: var(--cable-label-size) !important;
+  line-height: var(--cable-label-line-height) !important;
+}
+
+.object-wizard-cable-panel .field-label-two-line {
+  display: block !important;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap !important;
+}
+
+.object-wizard-cable-panel .field-label-two-line > span {
+  display: inline !important;
+  font-size: var(--cable-label-size) !important;
+  font-weight: 600 !important;
+  white-space: nowrap !important;
+}
+
+.object-wizard-cable-panel .field-label-two-line > span + span::before {
+  content: ' ';
+}
+
+.object-wizard-cable-panel .ant-form-item-control,
+.object-wizard-cable-panel .ant-form-item-control-input,
+.object-wizard-cable-panel .ant-form-item-control-input-content,
+.object-wizard-cable-panel .field-control-with-help {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+.object-wizard-cable-panel .ant-input,
+.object-wizard-cable-panel .ant-input-number,
+.object-wizard-cable-panel .ant-input-number-group-wrapper,
+.object-wizard-cable-panel .ant-select,
+.object-wizard-cable-panel .tlt-select,
+.object-wizard-cable-panel .tlt-select__trigger,
+.object-wizard-cable-panel .reference-picker-control {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  min-height: var(--cable-control-height) !important;
+  font-size: var(--cable-control-font) !important;
+  line-height: 1.2;
+  box-sizing: border-box;
+}
+
+.object-wizard-cable-panel .ant-input-number-input {
+  height: var(--cable-control-height) !important;
+  font-size: var(--cable-control-font) !important;
+}
+
+.object-wizard-cable-panel .tlt-select__trigger,
+.object-wizard-cable-panel .reference-picker-control {
+  display: flex;
+  align-items: center;
+  height: var(--cable-control-height);
+  box-sizing: border-box;
+}
+
+.object-wizard-cable-panel .cable-algorithm-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px 0;
+  padding: 8px 10px 10px;
+  background: #fff;
+  border: 1px solid #f0c9b0;
+  border-top: 0;
+  border-radius: 0 0 7px 7px;
+  align-items: start;
+}
+
+.object-wizard-cable-panel .cable-algorithm-grid > .ant-form-item,
+.object-wizard-cable-panel .cable-algorithm-grid > .cable-algorithm-field {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.object-wizard-cable-panel .cable-algorithm-field--mirror {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.object-wizard-cable-panel .cable-algorithm-field--mirror .ant-form-item-label {
+  padding: 0;
+}
+
+.object-wizard-cable-panel .cable-algorithm-field--mirror .ant-form-item-label > label,
+.object-wizard-cable-panel .cable-algorithm-field--mirror .ant-form-item-label * {
+  height: auto;
+  color: var(--cable-label-color) !important;
+  font-size: var(--cable-label-size) !important;
+  font-weight: 600 !important;
+  line-height: var(--cable-label-line-height) !important;
+}
+
+.object-wizard-cable-panel .cable-algorithm-mirror-value {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: var(--cable-control-height);
+  padding: 2px 8px;
+  border: 1px dashed #e0c4b0;
+  border-radius: 6px;
+  background: #fffaf6;
+  color: #5a3a28;
+  font-size: var(--cable-control-font);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.object-wizard-cable-panel .cable-algorithm-mirror-unit {
+  color: #8a6a58;
+  font-size: var(--cable-label-size);
+  font-weight: 500;
+}
+
+.object-wizard-cable-panel .cable-algorithm-number {
+  width: 100%;
+}
+
+.object-wizard-cable-panel .cable-algorithm-hint {
+  margin: 6px 10px 8px;
+  color: #8a6a58;
+  font-size: var(--cable-hint-size);
+  line-height: 1.35;
+}

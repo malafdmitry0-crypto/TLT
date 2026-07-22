@@ -45,6 +45,11 @@ interface Props {
   insulationMaterialsError?: boolean;
   isInsulationMaterialsFetching?: boolean;
   onProgrammaticValuesChange?: (changedValues: Record<string, unknown>) => void;
+  /**
+   * When true (InsulationLayersTable), wrap each field in .insulation-layer-cell--*
+   * so 5-col grid is structural and immune to legacy form-item grid-column rules.
+   */
+  tableCells?: boolean;
 }
 
 export default function ThermalStep({
@@ -55,6 +60,7 @@ export default function ThermalStep({
   insulationMaterialsError,
   isInsulationMaterialsFetching,
   onProgrammaticValuesChange,
+  tableCells = false,
 }: Props) {
   const form = Form.useFormInstance();
   const numberInputProps = (fieldId: string) =>
@@ -80,67 +86,91 @@ export default function ThermalStep({
   const effectiveInsulationMaterialsFetching = isInsulationMaterialsFetching ?? isFetching;
   const selectedMaterial = materials.find((m) => m.material === insulationMaterial);
 
+  const materialField = (
+    <Form.Item
+      className="fixed-select-form-item reduced-select-form-item layer-material-form-item first-layer-material-form-item helped-form-item"
+      label={fieldLabel('insulation_material', objectType)}
+      name="insulation_material"
+      rules={heatCalcFormFieldRules(form, objectType, 'insulation_material')}
+    >
+      {withHelp(
+        <ReferencePicker
+          data-testid="insulation-material-select"
+          options={effectiveMaterialOptions}
+          placeholder="Выберите материал"
+          modalTitle="Материал изоляции"
+          searchPlaceholder="Поиск материала"
+          loading={effectiveInsulationMaterialsFetching}
+          notFoundContent={effectiveInsulationMaterialsError ? 'Не удалось загрузить справочник' : 'Нет материалов'}
+          {...heatCalcCustomControlRequiredProps(form, objectType, 'insulation_material')}
+        />,
+        fieldHelp('insulation_material', objectType),
+      )}
+    </Form.Item>
+  );
+
+  const thicknessField = (
+    <Form.Item
+      className="numeric-form-item short-number-form-item helped-form-item"
+      label={fieldLabel('insulation_thickness_mm', objectType)}
+      name="insulation_thickness_mm"
+      rules={heatCalcFormFieldRules(form, objectType, 'insulation_thickness_mm')}
+    >
+      {withHelp(
+        <UnitInputNumber
+          data-testid="insulation-thickness-input"
+          {...numberInputProps('insulation_thickness_mm')}
+          unit="мм"
+        />,
+        fieldHelp('insulation_thickness_mm', objectType),
+      )}
+    </Form.Item>
+  );
+
+  const lambdaField = (
+    <InsulationConductivityField
+      material={typeof insulationMaterial === 'string' ? insulationMaterial : undefined}
+      selectedMaterial={selectedMaterial}
+      name="first_insulation_lambda"
+      dataTestIdPrefix="first-insulation"
+      objectType={objectType}
+      fieldInputSettings={fieldInputSettings}
+      labelFieldId="first_insulation_lambda"
+    />
+  );
+
+  const rangeField = (
+    <InsulationTemperatureRangeField
+      material={typeof insulationMaterial === 'string' ? insulationMaterial : undefined}
+      selectedMaterial={selectedMaterial}
+      minName="first_insulation_temperature_min"
+      maxName="first_insulation_temperature_max"
+      dataTestIdPrefix="first-insulation"
+      objectType={objectType}
+      labelFieldId="first_insulation_temperature_range"
+      hint={fieldHelp('first_insulation_temperature_range', objectType)}
+      required={heatCalcCustomControlRequiredProps(form, objectType, 'first_insulation_temperature_range').required}
+      onRangeChange={onProgrammaticValuesChange}
+    />
+  );
+
+  if (!tableCells) {
+    return (
+      <>
+        {materialField}
+        {thicknessField}
+        {lambdaField}
+        {rangeField}
+      </>
+    );
+  }
+
   return (
     <>
-      <Form.Item
-        className="fixed-select-form-item reduced-select-form-item layer-material-form-item first-layer-material-form-item helped-form-item"
-        label={fieldLabel('insulation_material', objectType)}
-        name="insulation_material"
-        rules={heatCalcFormFieldRules(form, objectType, 'insulation_material')}
-      >
-        {withHelp(
-          <ReferencePicker
-            data-testid="insulation-material-select"
-            options={effectiveMaterialOptions}
-            placeholder="Выберите материал"
-            modalTitle="Материал изоляции"
-            searchPlaceholder="Поиск материала"
-            loading={effectiveInsulationMaterialsFetching}
-            notFoundContent={effectiveInsulationMaterialsError ? 'Не удалось загрузить справочник' : 'Нет материалов'}
-            {...heatCalcCustomControlRequiredProps(form, objectType, 'insulation_material')}
-          />,
-          fieldHelp('insulation_material', objectType),
-        )}
-      </Form.Item>
-
-      <Form.Item
-        className="numeric-form-item short-number-form-item helped-form-item"
-        label={fieldLabel('insulation_thickness_mm', objectType)}
-        name="insulation_thickness_mm"
-        rules={heatCalcFormFieldRules(form, objectType, 'insulation_thickness_mm')}
-      >
-        {withHelp(
-          <UnitInputNumber
-            data-testid="insulation-thickness-input"
-            {...numberInputProps('insulation_thickness_mm')}
-                    unit="мм"
-          />,
-          fieldHelp('insulation_thickness_mm', objectType),
-        )}
-      </Form.Item>
-
-      <InsulationConductivityField
-        material={typeof insulationMaterial === 'string' ? insulationMaterial : undefined}
-        selectedMaterial={selectedMaterial}
-        name="first_insulation_lambda"
-        dataTestIdPrefix="first-insulation"
-        objectType={objectType}
-        fieldInputSettings={fieldInputSettings}
-        labelFieldId="first_insulation_lambda"
-      />
-
-      <InsulationTemperatureRangeField
-        material={typeof insulationMaterial === 'string' ? insulationMaterial : undefined}
-        selectedMaterial={selectedMaterial}
-        minName="first_insulation_temperature_min"
-        maxName="first_insulation_temperature_max"
-        dataTestIdPrefix="first-insulation"
-        objectType={objectType}
-        labelFieldId="first_insulation_temperature_range"
-        hint={fieldHelp('first_insulation_temperature_range', objectType)}
-        required={heatCalcCustomControlRequiredProps(form, objectType, 'first_insulation_temperature_range').required}
-        onRangeChange={onProgrammaticValuesChange}
-      />
+      <div className="insulation-layer-cell insulation-layer-cell--material">{materialField}</div>
+      <div className="insulation-layer-cell insulation-layer-cell--thickness">{thicknessField}</div>
+      <div className="insulation-layer-cell insulation-layer-cell--lambda">{lambdaField}</div>
+      <div className="insulation-layer-cell insulation-layer-cell--range">{rangeField}</div>
     </>
   );
 }

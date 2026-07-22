@@ -1,12 +1,15 @@
 import type { CableTypeKey } from '@/pages/electrical/elecCalcMainTableModel';
 
-export const DEFAULT_CABLE_TYPE: CableTypeKey = 'self_regulating';
+// ТЛТ временно скрыт из приложения до подтверждения паспортной линейки.
+// Для возврата достаточно снова включить его в FULL_FEATURE_CABLE_TYPES
+// и при необходимости сделать типом по умолчанию.
+export const DEFAULT_CABLE_TYPE: CableTypeKey = 'self_regulating_tt';
 export const MVP_CABLE_TYPES: readonly CableTypeKey[] = [DEFAULT_CABLE_TYPE];
 export const FULL_FEATURE_CABLE_TYPES: readonly CableTypeKey[] = [
-  'self_regulating',
+  // 'self_regulating', // ТЛТ временно отключён: нет подтверждённого технического каталога.
   'self_regulating_tt',
-  'single_core',
-  'three_core',
+  // 'single_core', // Резистив — будущее расширение по 1_Кейс.
+  // 'three_core', // Резистив — будущее расширение по 1_Кейс.
 ];
 
 export const isResistiveCableType = (type: CableTypeKey) =>

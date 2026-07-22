@@ -63,6 +63,7 @@ export const COMMON_OBJECT_FORM_DEFAULTS: ObjectWizardFormValues = {
   temperature_group: 'T1',
   supply_voltage: 220,
   steam_tracing: 'no',
+  winding_coefficient: 1,
 };
 
 export const PIPE_OBJECT_FORM_DEFAULTS: ObjectWizardFormValues = {
@@ -250,6 +251,10 @@ export interface PipeFormValues {
   safety_factor_source?: SafetyFactorSource;
   steam_tracing?: 'yes' | 'no';
   vapor_temperature?: number;
+  /** Коэффициент навива w (алгоритм выбора кабеля, ТНП). */
+  winding_coefficient?: number;
+  /** Схема соединения (алгоритм выбора кабеля, ТНП). */
+  connection_type?: string;
   valve_count?: number;
   flange_count?: number;
   support_count?: number;
@@ -308,6 +313,10 @@ export interface TankFormValues {
   safety_factor_source?: SafetyFactorSource;
   steam_tracing?: 'yes' | 'no';
   vapor_temperature?: number;
+  /** Коэффициент навива w (алгоритм выбора кабеля, ТНП). */
+  winding_coefficient?: number;
+  /** Схема соединения (алгоритм выбора кабеля, ТНП). */
+  connection_type?: string;
   q_additional?: number;
 }
 
@@ -512,6 +521,8 @@ function applyCommonObjectParams(params: Record<string, unknown>, v: PipeFormVal
   if (v.safety_factor_source) params.safety_factor_source = v.safety_factor_source;
   if (v.steam_tracing) params.steam_tracing = v.steam_tracing;
   if (v.vapor_temperature != null) params.vapor_temperature = v.vapor_temperature;
+  if (v.winding_coefficient != null) params.winding_coefficient = v.winding_coefficient;
+  if (v.connection_type) params.connection_type = v.connection_type;
 }
 
 function applyInsulationLayers(params: Record<string, unknown>, v: LayeredFormValues) {
@@ -641,6 +652,8 @@ export function pipeApiParamsToForm(p: Record<string, unknown>): Partial<PipeFor
     safety_factor_source: p.safety_factor_source as SafetyFactorSource | undefined,
     steam_tracing: p.steam_tracing as PipeFormValues['steam_tracing'],
     vapor_temperature: p.vapor_temperature as number | undefined,
+    winding_coefficient: p.winding_coefficient as number | undefined,
+    connection_type: p.connection_type as string | undefined,
     valve_count: p.valve_count as number | undefined,
     flange_count: p.flange_count as number | undefined,
     support_count: p.support_count as number | undefined,
@@ -736,6 +749,8 @@ export function tankApiParamsToForm(p: Record<string, unknown>): Partial<TankFor
     safety_factor_source: p.safety_factor_source as SafetyFactorSource | undefined,
     steam_tracing: p.steam_tracing as TankFormValues['steam_tracing'],
     vapor_temperature: p.vapor_temperature as number | undefined,
+    winding_coefficient: p.winding_coefficient as number | undefined,
+    connection_type: p.connection_type as string | undefined,
     q_additional: p.q_additional as number | undefined,
     name: p.name as string | undefined,
   };

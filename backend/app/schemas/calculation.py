@@ -620,6 +620,14 @@ class SelfRegulatingTTParams(BaseModel):
         ),
     )
     supply_voltage: float = Field(default=220.0, gt=0, description="U — напряжение питания, В")
+    max_start_current_per_section: float | None = Field(
+        default=None,
+        gt=0,
+        description=(
+            "Iдоп — допустимый стартовый ток одной нагревательной секции, А; "
+            "при отсутствии применяется паспортное Lмакс"
+        ),
+    )
     vapor_temperature: float | None = Field(
         default=None,
         description="T2 — температура пропарки для выбора серии ТТН/ТТВ/ТТХ, °C",

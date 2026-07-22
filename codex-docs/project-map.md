@@ -1,5 +1,9 @@
 # Карта Проекта
 
+> Точка входа для AI-агентов: корневой [`AGENTS.md`](../AGENTS.md).
+> Frontend agent map: [`frontend/AGENTS.md`](../frontend/AGENTS.md),
+> `docs/architecture/frontend-agent-architecture.md`, `docs/domains/`.
+
 ## Коротко
 
 HeatCalc / ТЛТ - веб-приложение для расчёта тепловых потерь, подбора

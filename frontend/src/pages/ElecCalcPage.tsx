@@ -1785,16 +1785,20 @@ function ElecCalcWorkspace({
             />
           )}
 
-          {/* Legend + CTA */}
-          <div className="legend-row-srs">
-            <span>
-              ⓘ Таблица фильтруется вкладкой системы. Перетащите строку на зону назначения
-              или используйте кнопки. Расчёт — для объектов в совместимой системе ЭР.
-            </span>
+          {/* Selection footer (mockup) */}
+          <div className="electrical-table-footer">
+            <Text type="secondary" className="electrical-table-footer__selection">
+              Выбрано:{' '}
+              {(systemView === 'unassigned' ? selectedRowKeys : compatibleSelectedRowKeys).length}
+              {' '}
+              из
+              {' '}
+              {scopedObjects.length}
+            </Text>
             {calculatedCount > 0 && (
               <Button
                 size="small"
-                type="primary"
+                type="link"
                 icon={<ThunderboltOutlined />}
                 onClick={() => navigate(ROUTES.specification)}
               >

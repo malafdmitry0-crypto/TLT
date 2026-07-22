@@ -1,7 +1,8 @@
-"""Heating section algorithm (PDF §6.14 / PDL-ER-15…24).
+"""Heating section algorithm (PDF §6.14).
 
-Uses registered provisional catalog (SEEDS-01). Official manufacturer table
-should replace section_catalog.json without changing this API.
+Uses the registered ``Параметры Кабеля.xlsx`` table for the ТТН/ТТВ/ТТХ
+product line.  The passport table defines ``Lмакс`` and the specific start
+current; an optional upstream breaker limit can further reduce ``Lогр``.
 """
 
 from __future__ import annotations
@@ -20,7 +21,7 @@ class SectionCatalogRow:
     voltage_v: float
     cold_start_temp_c: float
     l_max_m: float
-    i_dop_a: float
+    i_dop_a: float | None
     i_st_ud_a_per_m: float
 
 
@@ -29,11 +30,11 @@ class SectionPlan:
     section_count: int
     section_length_m: float
     l_max_m: float
-    l_tok_m: float
+    l_tok_m: float | None
     l_ogr_m: float
     l_required_m: float
     l_fact_m: float
-    i_dop_a: float
+    i_dop_a: float | None
     i_st_ud_a_per_m: float
     start_current_a: float
     working_current_a: float
@@ -91,7 +92,11 @@ def _parse_rows() -> list[SectionCatalogRow]:
                     voltage_v=float(item["voltage_v"]),
                     cold_start_temp_c=float(item["cold_start_temp_c"]),
                     l_max_m=float(item["l_max_m"]),
-                    i_dop_a=float(item["i_dop_a"]),
+                    i_dop_a=(
+                        float(item["i_dop_a"])
+                        if item.get("i_dop_a") is not None
+                        else None
+                    ),
                     i_st_ud_a_per_m=float(item["i_st_ud_a_per_m"]),
                 )
             )
@@ -101,18 +106,9 @@ def _parse_rows() -> list[SectionCatalogRow]:
 
 
 def _mark_lookup_keys(mark: str) -> list[str]:
-    """Catalog keys for a result mark without inventing new Lmax numbers.
-
-    TLT marks match as-is. TT-series order marks (25ТТН2-СТ) fall back to the
-    same power band ТЛТ-{n} row already registered in provisional catalog.
-    """
+    """Return exact TT model keys, accepting only its commercial suffix."""
     raw = mark.strip()
     keys = [raw]
-    # 25ТТН2 / 30ТТВ2-СТ → ТЛТ-25 / ТЛТ-30 (power proxy, existing TLT rows only)
-    import re
-    m = re.match(r"^(\d{1,3})\s*ТТ", raw, flags=re.IGNORECASE)
-    if m:
-        keys.append(f"ТЛТ-{int(m.group(1))}")
     # Strip commercial suffix if present
     for suffix in ("-СТ", "-СР"):
         if raw.endswith(suffix):
@@ -161,6 +157,7 @@ def compute_section_plan(
     working_current_total_a: float,
     voltage_v: float = 220.0,
     cold_start_temp_c: float = -20.0,
+    max_start_current_per_section_a: float | None = None,
 ) -> SectionPlan | None:
     """PDF §6.14: Lток, Lогр, N=ceil, equal sections.
 
@@ -176,9 +173,17 @@ def compute_section_plan(
     if row is None or row.i_st_ud_a_per_m <= 0 or row.l_max_m <= 0:
         return None
 
-    l_tok = row.i_dop_a / row.i_st_ud_a_per_m
+    current_limit = max_start_current_per_section_a
+    if current_limit is None:
+        current_limit = row.i_dop_a
+    l_tok = (
+        current_limit / row.i_st_ud_a_per_m
+        if current_limit is not None and current_limit > 0
+        else None
+    )
     # PDL-ER-24: floor for Lогр per catalog rounding=floor_l_ogr
-    l_ogr = math.floor(min(row.l_max_m, l_tok) * 1000.0) / 1000.0
+    l_ogr_limit = min(row.l_max_m, l_tok) if l_tok is not None else row.l_max_m
+    l_ogr = math.floor(l_ogr_limit * 1000.0) / 1000.0
     if l_ogr <= 0:
         return None
 
@@ -196,7 +201,7 @@ def compute_section_plan(
         section_count=n,
         section_length_m=round(l_sec, 3),
         l_max_m=row.l_max_m,
-        l_tok_m=round(l_tok, 3),
+        l_tok_m=round(l_tok, 3) if l_tok is not None else None,
         l_ogr_m=round(l_ogr, 3),
         l_required_m=round(l_req, 3),
         l_fact_m=round(l_fact, 3),

@@ -13,7 +13,7 @@
 | Целевые требования | `ТЗ/README.md`, `ТЗ/`, первичные материалы `docs/tnp/`, подтверждённые product decisions | Что продукт должен делать |
 | Текущий функциональный контракт | `docs/business-logic-contract.md`, `docs/api.md`, `docs/db_schema.md`, профильные SRS/QA-документы | Какое поведение заявлено реализованным сейчас |
 | Реализация и evidence | backend/frontend-код, миграции, unit/integration/e2e, `codex-docs/business-formula-contracts.json` | Доказательство фактического поведения |
-| Навигация и статус | `codex-docs/project-map.md`, `codex-docs/requirements-map.md`, `TO_DO.md`, `CLAUDE.MD` | Куда идти за деталями; не самостоятельный нормативный источник |
+| Навигация и статус | `AGENTS.md` (вход для AI), `frontend/AGENTS.md`, `docs/domains/`, `codex-docs/project-map.md`, `codex-docs/requirements-map.md`, `TO_DO.md`, `CLAUDE.MD` | Куда идти за деталями; не самостоятельный нормативный источник |
 | История | датированные аудиты, proposal/status-документы и сохранённые evidence-снимки | Почему принималось решение; не использовать как текущий контракт без повторной проверки |
 
 Если целевое требование и реализация расходятся, это implementation gap. Код не

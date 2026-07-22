@@ -12,14 +12,9 @@ import {
 
 describe('elecCalcCableTypeModel', () => {
   it('keeps default and available cable type lists stable', () => {
-    expect(DEFAULT_CABLE_TYPE).toBe('self_regulating');
-    expect(MVP_CABLE_TYPES).toEqual(['self_regulating']);
-    expect(FULL_FEATURE_CABLE_TYPES).toEqual([
-      'self_regulating',
-      'self_regulating_tt',
-      'single_core',
-      'three_core',
-    ]);
+    expect(DEFAULT_CABLE_TYPE).toBe('self_regulating_tt');
+    expect(MVP_CABLE_TYPES).toEqual(['self_regulating_tt']);
+    expect(FULL_FEATURE_CABLE_TYPES).toEqual(['self_regulating_tt']);
   });
 
   it('marks only resistive cable types as resistive', () => {
@@ -34,8 +29,8 @@ describe('elecCalcCableTypeModel', () => {
   it('normalizes unavailable cable types to the MVP default', () => {
     const available = new Set(MVP_CABLE_TYPES);
 
-    expect(normalizeCableTypeForAvailableTypes('self_regulating', available)).toBe('self_regulating');
-    expect(normalizeCableTypeForAvailableTypes('single_core', available)).toBe(DEFAULT_CABLE_TYPE);
+    expect(normalizeCableTypeForAvailableTypes('self_regulating_tt', available)).toBe('self_regulating_tt');
+    expect(normalizeCableTypeForAvailableTypes('self_regulating', available)).toBe(DEFAULT_CABLE_TYPE);
     expect(normalizeCableTypeForAvailableTypes(null, available)).toBe(DEFAULT_CABLE_TYPE);
   });
 
@@ -51,13 +46,13 @@ describe('elecCalcCableTypeModel', () => {
     expect(buildCableTypeObjectOverrides(
       ['obj-1', 'obj-2', 'obj-3'],
       {
-        'obj-1': 'self_regulating',
+        'obj-1': 'self_regulating_tt',
         'obj-2': 'single_core',
       },
       available,
     )).toEqual([
-      { object_id: 'obj-1', cable_type: 'self_regulating' },
-      { object_id: 'obj-2', cable_type: 'self_regulating' },
+      { object_id: 'obj-1', cable_type: 'self_regulating_tt' },
+      { object_id: 'obj-2', cable_type: 'self_regulating_tt' },
     ]);
   });
 });

@@ -137,6 +137,16 @@ describe('useElecCalcCableReferenceData', () => {
     expect(getResistiveCables).not.toHaveBeenCalled();
   });
 
+  it('does not request the hidden TLT catalog', () => {
+    renderReferenceData({
+      availableCableTypes: new Set<CableTypeKey>(['self_regulating_tt', 'single_core']),
+      visibleCableTypeControl: 'self_regulating_tt',
+      cableSizingEffectiveCableType: 'self_regulating_tt',
+    });
+
+    expect(listCables).not.toHaveBeenCalled();
+  });
+
   it('enables TT and resistive reference queries only for selected commercial projects', async () => {
     renderReferenceData({
       projectSelected: true,

@@ -1,8 +1,27 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import ElectricalVariantTabs from '@/pages/electrical/ElectricalVariantTabs';
 import type { ElectricalVariantSelectionController } from '@/pages/electrical/useElectricalVariantSelection';
 import type { ElectricalReadinessResponse, ElectricalVariant } from '@/types/electricalVariant';
+
+function tabsTree(
+  ctrl: ElectricalVariantSelectionController,
+  canMutate = true,
+) {
+  return (
+    <MemoryRouter>
+      <ElectricalVariantTabs controller={ctrl} canMutate={canMutate} />
+    </MemoryRouter>
+  );
+}
+
+function renderTabs(
+  ctrl: ElectricalVariantSelectionController,
+  canMutate = true,
+) {
+  return render(tabsTree(ctrl, canMutate));
+}
 
 const PROJECT_ID = 'project-a';
 const ER_1_ID = '11111111-1111-4111-8111-111111111111';
@@ -71,7 +90,7 @@ function controller(
 
 describe('ElectricalVariantTabs', () => {
   it('renders ER names; current tab is selected (no separate ★ active UX)', () => {
-    render(<ElectricalVariantTabs controller={controller()} />);
+    renderTabs(controller());
 
     const tablist = screen.getByRole('tablist', { name: 'Варианты ЭР' });
     expect(screen.queryByText('Электротехнические решения')).not.toBeInTheDocument();
@@ -92,7 +111,7 @@ describe('ElectricalVariantTabs', () => {
 
   it('supports keyboard tab navigation via selectAndActivate', () => {
     const model = controller({ selectedVariant: ER_1 });
-    render(<ElectricalVariantTabs controller={model} canMutate />);
+    renderTabs(model, true);
     const tabs = screen.getAllByRole('tab');
 
     fireEvent.keyDown(tabs[0], { key: 'ArrowRight' });
@@ -106,7 +125,7 @@ describe('ElectricalVariantTabs', () => {
     HTMLElement.prototype.scrollIntoView = scrollIntoView;
 
     try {
-      render(<ElectricalVariantTabs controller={controller()} />);
+      renderTabs(controller());
 
       expect(scrollIntoView).toHaveBeenCalledWith({
         block: 'nearest',
@@ -120,7 +139,7 @@ describe('ElectricalVariantTabs', () => {
   it('creates an empty ER and copies the exact selected ER', async () => {
     const user = userEvent.setup();
     const model = controller();
-    render(<ElectricalVariantTabs controller={model} />);
+    renderTabs(model);
 
     await user.click(screen.getByRole('button', { name: 'Добавить пустой ЭР' }));
     await user.click(screen.getByRole('button', { name: /Создать копию.*Альтернатива Ω/i }));
@@ -132,7 +151,7 @@ describe('ElectricalVariantTabs', () => {
   it('saves inline rename on Enter and on blur', async () => {
     const user = userEvent.setup();
     const model = controller();
-    render(<ElectricalVariantTabs controller={model} />);
+    renderTabs(model);
 
     await user.click(screen.getByRole('button', { name: /Переименовать.*Альтернатива Ω/i }));
     let input = screen.getByRole('textbox', { name: /Новое название ЭР/i });
@@ -156,7 +175,7 @@ describe('ElectricalVariantTabs', () => {
   it('cancels inline rename on Escape and never sends an empty name', async () => {
     const user = userEvent.setup();
     const model = controller();
-    render(<ElectricalVariantTabs controller={model} />);
+    renderTabs(model);
 
     await user.click(screen.getByRole('button', { name: /Переименовать.*Альтернатива Ω/i }));
     let input = screen.getByRole('textbox', { name: /Новое название ЭР/i });
@@ -178,7 +197,7 @@ describe('ElectricalVariantTabs', () => {
   it('allows the full backend contract of 128 characters for an ER name', async () => {
     const user = userEvent.setup();
     const model = controller();
-    render(<ElectricalVariantTabs controller={model} />);
+    renderTabs(model);
 
     await user.click(screen.getByRole('button', { name: /Переименовать.*Альтернатива Ω/i }));
     const input = screen.getByRole('textbox', { name: /Новое название ЭР/i });
@@ -196,7 +215,7 @@ describe('ElectricalVariantTabs', () => {
     const renameVariant = vi.fn()
       .mockRejectedValueOnce(new Error('ЭР с таким названием уже существует'))
       .mockResolvedValueOnce(ER_2);
-    render(<ElectricalVariantTabs controller={controller({ renameVariant })} />);
+    renderTabs(controller({ renameVariant }));
 
     await user.click(screen.getByRole('button', { name: /Переименовать.*Альтернатива Ω/i }));
     const input = screen.getByRole('textbox', { name: /Новое название ЭР/i });
@@ -223,37 +242,29 @@ describe('ElectricalVariantTabs', () => {
       rejectRename = reject;
     }));
     const initialModel = controller({ renameVariant });
-    const { rerender } = render(<ElectricalVariantTabs controller={initialModel} />);
+    const { rerender } = renderTabs(initialModel);
 
     await user.click(screen.getByRole('button', { name: /Переименовать.*Альтернатива Ω/i }));
     const input = screen.getByRole('textbox', { name: /Новое название ЭР/i });
     await user.clear(input);
     await user.type(input, 'Конфликт{Enter}');
-    rerender(
-      <ElectricalVariantTabs
-        controller={controller({
-          renameVariant,
-          isMutating: true,
-          pendingOperation: 'rename',
-        })}
-      />,
-    );
+    rerender(tabsTree(controller({
+      renameVariant,
+      isMutating: true,
+      pendingOperation: 'rename',
+    })));
     expect(input).toHaveFocus();
     expect(input).toHaveAttribute('readonly');
 
     rejectRename(new Error('ЭР с таким названием уже существует'));
-    rerender(
-      <ElectricalVariantTabs
-        controller={controller({
-          renameVariant,
-          isMutating: true,
-          pendingOperation: 'reconcile',
-        })}
-      />,
-    );
+    rerender(tabsTree(controller({
+      renameVariant,
+      isMutating: true,
+      pendingOperation: 'reconcile',
+    })));
     expect(input).toHaveFocus();
 
-    rerender(<ElectricalVariantTabs controller={controller({ renameVariant })} />);
+    rerender(tabsTree(controller({ renameVariant })));
     expect(await screen.findByText('ЭР с таким названием уже существует')).toBeInTheDocument();
     expect(input).toHaveFocus();
   });
@@ -261,7 +272,7 @@ describe('ElectricalVariantTabs', () => {
   it('locks every other lifecycle write while an inline rename is open', async () => {
     const user = userEvent.setup();
     const model = controller();
-    render(<ElectricalVariantTabs controller={model} />);
+    renderTabs(model);
 
     await user.click(screen.getByRole('button', { name: /Переименовать.*Альтернатива Ω/i }));
 
@@ -279,10 +290,10 @@ describe('ElectricalVariantTabs', () => {
     }));
     const initialModel = controller({ renameVariant });
     const { rerender } = render(
-      <>
+      <MemoryRouter>
         <ElectricalVariantTabs controller={initialModel} />
         <button type="button">Внешнее действие</button>
-      </>,
+      </MemoryRouter>,
     );
 
     await user.click(screen.getByRole('button', { name: /Переименовать.*Альтернатива Ω/i }));
@@ -290,12 +301,12 @@ describe('ElectricalVariantTabs', () => {
     await user.clear(input);
     await user.type(input, 'Имя после blur');
     rerender(
-      <>
+      <MemoryRouter>
         <ElectricalVariantTabs
           controller={controller({ selectedVariant: ER_1, renameVariant })}
         />
         <button type="button">Внешнее действие</button>
-      </>,
+      </MemoryRouter>,
     );
 
     expect(screen.getAllByRole('tab').filter((tab) =>
@@ -314,7 +325,7 @@ describe('ElectricalVariantTabs', () => {
   it('requires explicit delete confirmation and disables deletion of the last ER', async () => {
     const user = userEvent.setup();
     const model = controller();
-    const { rerender } = render(<ElectricalVariantTabs controller={model} />);
+    const { rerender } = renderTabs(model);
 
     await user.click(screen.getByRole('button', { name: /Удалить.*Альтернатива Ω/i }));
     expect(await screen.findByText(/назначения объектов, электрические расчёты и выбранные кабели, кандидаты и их папки, а также спецификация/i)).toBeInTheDocument();
@@ -322,7 +333,7 @@ describe('ElectricalVariantTabs', () => {
     expect(model.deleteVariant).toHaveBeenCalledWith(ER_2_ID);
 
     const oneVariantModel = controller({ variants: [ER_1], selectedVariant: ER_1 });
-    rerender(<ElectricalVariantTabs controller={oneVariantModel} />);
+    rerender(tabsTree(oneVariantModel));
     expect(screen.getByRole('button', { name: /Нельзя удалить последний ЭР/i })).toBeDisabled();
   });
 
@@ -332,20 +343,16 @@ describe('ElectricalVariantTabs', () => {
       new Error('Нельзя удалить ЭР, пока выполняются связанные фоновые задачи'),
     );
     const model = controller({ deleteVariant });
-    const { rerender } = render(<ElectricalVariantTabs controller={model} />);
+    const { rerender } = renderTabs(model);
 
     await user.click(screen.getByRole('button', { name: /Удалить.*Альтернатива Ω/i }));
     await user.click(screen.getByRole('button', { name: 'Удалить' }));
     await waitFor(() => expect(deleteVariant).toHaveBeenCalledWith(ER_2_ID));
 
-    rerender(
-      <ElectricalVariantTabs
-        controller={controller({
-          deleteVariant,
-          mutationError: new Error('Нельзя удалить ЭР, пока выполняются связанные фоновые задачи'),
-        })}
-      />,
-    );
+    rerender(tabsTree(controller({
+      deleteVariant,
+      mutationError: new Error('Нельзя удалить ЭР, пока выполняются связанные фоновые задачи'),
+    })));
     expect(screen.getByText(/пока выполняются связанные фоновые задачи/i)).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /Альтернатива Ω/i }))
       .toHaveAttribute('aria-selected', 'true');
@@ -356,35 +363,23 @@ describe('ElectricalVariantTabs', () => {
     const variants = Array.from({ length: 5 }, (_, index) =>
       variant(`${index + 1}`.repeat(8) + '-1111-4111-8111-111111111111', `ЭР ${index + 1}`, index, index === 0),
     );
-    render(
-      <ElectricalVariantTabs
-        controller={controller({ variants, selectedVariant: variants[0] })}
-      />,
-    );
+    renderTabs(controller({ variants, selectedVariant: variants[0] }));
 
     expect(screen.getByRole('button', { name: /Добавить пустой ЭР.*лимит 5/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /Создать копию.*лимит 5/i })).toBeDisabled();
   });
 
   it('announces the exact pending lifecycle operation', () => {
-    render(
-      <ElectricalVariantTabs
-        controller={controller({ isMutating: true, pendingOperation: 'copy' })}
-      />,
-    );
+    renderTabs(controller({ isMutating: true, pendingOperation: 'copy' }));
 
     expect(screen.getByRole('status')).toHaveTextContent('Копируем выбранный ЭР…');
     expect(screen.getByRole('button', { name: /Создать копию выбранного ЭР/i })).toBeDisabled();
   });
 
   it('shows reconciled success without claiming that the operation failed', () => {
-    render(
-      <ElectricalVariantTabs
-        controller={controller({
+    renderTabs(controller({
           mutationNotice: 'ЭР удалён; результат подтверждён после сверки с сервером.',
-        })}
-      />,
-    );
+        }));
 
     expect(screen.getByText('Результат операции подтверждён')).toBeInTheDocument();
     expect(screen.getByText(/ЭР удалён.*сверки с сервером/i)).toBeInTheDocument();
@@ -392,7 +387,7 @@ describe('ElectricalVariantTabs', () => {
   });
 
   it('keeps lifecycle controls read-only for a non-owner', () => {
-    render(<ElectricalVariantTabs controller={controller()} canMutate={false} />);
+    renderTabs(controller(), false);
 
     expect(screen.getByText('Режим просмотра')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Добавить пустой ЭР' })).toBeDisabled();
@@ -405,33 +400,23 @@ describe('ElectricalVariantTabs', () => {
   it('renders loading, retryable list error and mutation error without a fabricated ER1', async () => {
     const user = userEvent.setup();
     const retryList = vi.fn().mockResolvedValue(undefined);
-    const { rerender } = render(
-      <ElectricalVariantTabs controller={controller({ isLoading: true, variants: [], selectedVariant: null })} />,
-    );
+    const { rerender } = renderTabs(controller({ isLoading: true, variants: [], selectedVariant: null }));
     expect(screen.getByText('Загружаем список ЭР…')).toBeInTheDocument();
     expect(screen.queryByText('ЭР1')).not.toBeInTheDocument();
 
-    rerender(
-      <ElectricalVariantTabs
-        controller={controller({
+    rerender(tabsTree(controller({
           isLoading: false,
           isError: true,
           listError: new Error('Список недоступен'),
           variants: [],
           selectedVariant: null,
           retryList,
-        })}
-      />,
-    );
+        })));
     expect(screen.getByText('Список недоступен')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Повторить загрузку ЭР' }));
     expect(retryList).toHaveBeenCalled();
 
-    rerender(
-      <ElectricalVariantTabs
-        controller={controller({ mutationError: new Error('Имя уже занято') })}
-      />,
-    );
+    rerender(tabsTree(controller({ mutationError: new Error('Имя уже занято') })));
     expect(screen.getByText('Имя уже занято')).toBeInTheDocument();
   });
 
@@ -449,40 +434,30 @@ describe('ElectricalVariantTabs', () => {
         details: {},
       }],
     };
-    const { rerender } = render(
-      <ElectricalVariantTabs
-        controller={controller({
+    const { rerender } = renderTabs(controller({
           variants: [],
           selectedVariant: null,
           isEmpty: true,
           readiness: blockedReadiness,
-        })}
-      />,
-    );
+        }));
 
     expect(screen.getByText('Пересчитайте теплопотери ёмкости')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Создать ЭР1/i })).toBeDisabled();
 
     const initializeVariant = vi.fn().mockResolvedValue(ER_1);
-    rerender(
-      <ElectricalVariantTabs
-        controller={controller({
+    rerender(tabsTree(controller({
           variants: [],
           selectedVariant: null,
           isEmpty: true,
           readiness: { ...blockedReadiness, ready: true, ready_objects: 2, issues: [] },
           initializeVariant,
-        })}
-      />,
-    );
+        })));
     await user.click(screen.getByRole('button', { name: /Создать ЭР1/i }));
     expect(initializeVariant).toHaveBeenCalled();
   });
 
   it('keeps initialize disabled while authoritative readiness is refetching', () => {
-    render(
-      <ElectricalVariantTabs
-        controller={controller({
+    renderTabs(controller({
           variants: [],
           selectedVariant: null,
           isEmpty: true,
@@ -494,9 +469,7 @@ describe('ElectricalVariantTabs', () => {
             ready_objects: 1,
             issues: [],
           },
-        })}
-      />,
-    );
+        }));
 
     expect(screen.getByRole('button', { name: 'Создать ЭР1' })).toBeDisabled();
   });
@@ -504,17 +477,13 @@ describe('ElectricalVariantTabs', () => {
   it('shows a retryable readiness error for an empty project', async () => {
     const user = userEvent.setup();
     const retryReadiness = vi.fn().mockResolvedValue(undefined);
-    render(
-      <ElectricalVariantTabs
-        controller={controller({
+    renderTabs(controller({
           variants: [],
           selectedVariant: null,
           isEmpty: true,
           readinessError: new Error('Readiness API недоступен'),
           retryReadiness,
-        })}
-      />,
-    );
+        }));
 
     expect(screen.getByText('Readiness API недоступен')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Повторить проверку готовности ЭР' }));
@@ -522,23 +491,18 @@ describe('ElectricalVariantTabs', () => {
   });
 
   it('does not allow a read-only user to initialize the first ER', () => {
-    render(
-      <ElectricalVariantTabs
-        controller={controller({
-          variants: [],
-          selectedVariant: null,
-          isEmpty: true,
-          readiness: {
-            project_id: PROJECT_ID,
-            ready: true,
-            total_objects: 1,
-            ready_objects: 1,
-            issues: [],
-          },
-        })}
-        canMutate={false}
-      />,
-    );
+    renderTabs(controller({
+      variants: [],
+      selectedVariant: null,
+      isEmpty: true,
+      readiness: {
+        project_id: PROJECT_ID,
+        ready: true,
+        total_objects: 1,
+        ready_objects: 1,
+        issues: [],
+      },
+    }), false);
 
     expect(screen.getByText('Режим просмотра')).toBeInTheDocument();
     expect(screen.getByText(/Создать первый ЭР может только владелец/i)).toBeInTheDocument();

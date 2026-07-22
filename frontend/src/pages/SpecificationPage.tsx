@@ -4,20 +4,22 @@ import {
   Button,
   Card,
   Checkbox,
-  Col,
+  Drawer,
   InputNumber,
   Modal,
-  Row,
   Segmented,
   Select,
   Skeleton,
   Space,
+  Tabs,
   Typography,
   message,
 } from 'antd';
 import {
+  DownloadOutlined,
   PlusOutlined,
   ReloadOutlined,
+  SettingOutlined,
   ThunderboltOutlined,
   UnorderedListOutlined,
 } from '@ant-design/icons';
@@ -66,6 +68,19 @@ type GenerateSpecificationVariables = SpecificationMutationScope & {
 type SaveSpecificationVariables = SpecificationMutationScope & {
   items: SpecificationItem[];
 };
+
+function formatSpecTimestamp(iso: string | undefined | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
 
 export default function SpecificationPage() {
   const project = useProjectStore((s) => s.currentProject);
@@ -118,12 +133,12 @@ export default function SpecificationPage() {
   const [minLengthK2i, setMinLengthK2i] = useState<number>(0);
   /** PDL-ER-44: PDF §7.10 sections per connector kit (1→КСН-1, 2→КСН-2). */
   const [connectorKitSectionsPerKit, setConnectorKitSectionsPerKit] = useState<1 | 2>(1);
-  // Блок заполнения параметров (аналог SC-03) — только для сотрудника
-  const [paramsPanelVisible, setParamsPanelVisible] = useState<boolean>(
-    () => readStorageJson(SPEC_PARAMS_PANEL_STORAGE_KEY) !== false,
+  /** Блок настроек (параметры генерации) — Drawer, как «Настройки» в макете. */
+  const [settingsOpen, setSettingsOpen] = useState<boolean>(
+    () => readStorageJson(SPEC_PARAMS_PANEL_STORAGE_KEY) === true,
   );
-  const toggleParamsPanel = (visible: boolean) => {
-    setParamsPanelVisible(visible);
+  const toggleSettings = (visible: boolean) => {
+    setSettingsOpen(visible);
     try {
       localStorage.setItem(SPEC_PARAMS_PANEL_STORAGE_KEY, JSON.stringify(visible));
     } catch {
@@ -507,70 +522,229 @@ export default function SpecificationPage() {
   };
 
   const categoriesCount = new Set(items.map((i) => i.category)).size;
-
   const fullModeActive = true;
+  const formedAt = formatSpecTimestamp(spec?.updated_at ?? spec?.created_at);
+  const generateButtonLabel = hasItems ? 'Обновить' : 'Сформировать';
+  const scopeSwitchDisabled = mut.isPending || saveMut.isPending;
+
+  const erTabItems = variantContext.variants.map((item) => ({
+    key: item.id,
+    label: item.legacy_variant_number != null
+      ? `Спецификация ${item.name}`
+      : item.name,
+    disabled: item.legacy_variant_number == null || scopeSwitchDisabled,
+  }));
 
   return (
-    <>
+    <div className="specification-page" data-testid="specification-page">
       {!canMutateProject && (
         <Alert
           type="info"
           showIcon
           message="Режим просмотра"
           description="Изменять или пересчитывать спецификацию может только владелец проекта или администратор."
-          style={{ marginBottom: 8 }}
+          style={{ marginBottom: 12 }}
         />
       )}
 
-      {canMutateProject && (
-        <div
-          className="common-data-banner"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 8,
-            marginBottom: 5,
+      {/* Toolbar: ER tabs + Обновить + Настройки */}
+      <div className="specification-toolbar">
+        <Tabs
+          className="specification-er-tabs"
+          type="card"
+          size="small"
+          activeKey={selectedElectricalVariant.id}
+          onChange={(id) => {
+            if (!scopeSwitchDisabled) variantContext.selectVariant(id);
           }}
-        >
-          <span>
-            <span className="label">
-              {selectedElectricalVariant.name}
-              {' · '}
-              {isSpecStale
-                ? 'устарела'
-                : isSpecPartial
-                  ? 'НЕПОЛНАЯ'
-                  : hasItems
-                    ? 'полная'
-                    : 'не сформирована'}
-              {' · '}
-            </span>
+          items={erTabItems}
+          tabBarExtraContent={(
+            <Space size={8} className="specification-toolbar-actions">
+              <Button
+                icon={<ReloadOutlined />}
+                loading={mut.isPending}
+                disabled={!canMutateProject}
+                onClick={() => runGenerate(false)}
+                aria-label={generateButtonLabel}
+              >
+                {generateButtonLabel}
+              </Button>
+              <Button
+                icon={<SettingOutlined />}
+                onClick={() => toggleSettings(true)}
+                aria-label="Настройки"
+              >
+                Настройки
+              </Button>
+            </Space>
+          )}
+        />
+      </div>
+
+      {/* Compact status strip */}
+      {canMutateProject && (
+        <div className="specification-status-strip">
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {selectedElectricalVariant.name}
+            {' · '}
+            {isSpecStale
+              ? 'устарела'
+              : isSpecPartial
+                ? 'НЕПОЛНАЯ'
+                : hasItems
+                  ? 'полная'
+                  : 'не сформирована'}
+            {' · '}
             позиций: {items.length}
-          </span>
-          <Checkbox
-            className="actionbar-form-toggle"
-            checked={paramsPanelVisible}
-            onChange={(event) => toggleParamsPanel(event.target.checked)}
-          >
-            Показать блок заполнения параметров
-          </Checkbox>
+            {isEmployee && hasItems && (
+              <>
+                {' · '}
+                ручных: {items.filter((i) => i.source === 'manual').length}
+              </>
+            )}
+          </Text>
         </div>
       )}
 
-      {canMutateProject && paramsPanelVisible && (
-        <div
-          className="form-grid-srs workflow-params-panel"
-          data-testid="spec-params-panel"
-          style={{ marginBottom: 5 }}
+      {isSpecStale && (
+        <Alert
+          className="specification-empty-alert specification-stale-banner"
+          type="error"
+          showIcon
+          message="Спецификация устарела — не для закупки / печати / отчёта"
+          description="Snapshot только для просмотра. Итоги, печать, отчёт и export не используют эти количества. Сформируйте спецификацию заново."
+          style={{ marginBottom: 12 }}
+          action={
+            <Button
+              size="small"
+              type="primary"
+              icon={<ReloadOutlined />}
+              loading={mut.isPending}
+              disabled={!canMutateProject}
+              onClick={() => runGenerate(false)}
+            >
+              Сформировать заново
+            </Button>
+          }
+        />
+      )}
+
+      {!isSpecStale && isSpecPartial && hasItems && (
+        <Alert
+          className="specification-partial-banner"
+          type="warning"
+          showIcon
+          message="Неполная спецификация — не использовать как полный закупочный комплект"
+          description={
+            excludedGroups.length
+              ? (
+                  <ul style={{ margin: '8px 0 0', paddingLeft: 18 }}>
+                    {excludedGroups.map((g) => (
+                      <li key={String(g.error_code || g.group || g.message)}>
+                        <strong>{g.error_code || g.group}</strong>
+                        {g.message ? ` — ${g.message}` : ''}
+                      </li>
+                    ))}
+                  </ul>
+                )
+              : 'Часть групп BOM исключена (секции, коробки или недоказанные методики).'
+          }
+          style={{ marginBottom: 12 }}
+        />
+      )}
+
+      {specError && !spec ? (
+        <QueryError
+          error={specErrorObj}
+          title="Не удалось загрузить спецификацию"
+          onRetry={() => refetch()}
+          retrying={specFetching}
+        />
+      ) : specLoading ? (
+        <div aria-busy="true" aria-label="Загрузка спецификации">
+          <Skeleton active title={false} paragraph={{ rows: 6 }} />
+        </div>
+      ) : (
+        <>
+          {!hasItems && (
+            <Alert
+              className="specification-empty-alert"
+              type="warning"
+              showIcon
+              message="Спецификация не сформирована"
+              description="Убедитесь, что для всех объектов выполнен электрорасчёт (шаг 2), затем нажмите «Сформировать»."
+              style={{ marginBottom: 12 }}
+              action={
+                <Space>
+                  <Button
+                    size="small"
+                    type="primary"
+                    icon={<ReloadOutlined />}
+                    loading={mut.isPending}
+                    disabled={!canMutateProject}
+                    onClick={() => runGenerate(false)}
+                  >
+                    Сформировать
+                  </Button>
+                  <Button
+                    size="small"
+                    icon={<ThunderboltOutlined />}
+                    onClick={() => navigate(ROUTES.elecCalc)}
+                  >
+                    К электрорасчёту
+                  </Button>
+                </Space>
+              }
+            />
+          )}
+
+          <div className={isSpecStale ? 'spec-table-print-exclude' : undefined}>
+            <SpecTable
+              items={items}
+              groupBy={groupBy}
+              mergeIdentical={mergeIdentical}
+              canDelete={canManuallyEdit && hasItems && !isSpecStale}
+              isStale={isSpecStale}
+              onDelete={handleDelete}
+            />
+          </div>
+        </>
+      )}
+
+      {/* Footer: timestamp + report */}
+      <div className="specification-footer">
+        <Text type="secondary" className="specification-footer-meta">
+          {hasItems && formedAt
+            ? `Спецификация сформирована: ${formedAt}`
+            : hasItems
+              ? 'Спецификация сформирована'
+              : 'Спецификация ещё не сформирована'}
+        </Text>
+        <Button
+          icon={<DownloadOutlined />}
+          onClick={() => navigate(ROUTES.report)}
+          disabled={!hasItems || isSpecStale}
         >
-          <div className="form-col-srs">
-            <h4 data-step={1}><span>ЭР и резерв R,гр</span></h4>
-            <div className="workflow-params-row">
-              <Text className="workflow-params-hint">
-                Канонический режим: полный data-driven BOM (PDL-ER-29). Режим «базовая» снят.
-              </Text>
-            </div>
+          Сформировать отчёт
+        </Button>
+      </div>
+
+      {/* Settings drawer — параметры генерации и группировки */}
+      <Drawer
+        title="Настройки спецификации"
+        placement="right"
+        width={400}
+        open={settingsOpen}
+        onClose={() => toggleSettings(false)}
+        destroyOnClose={false}
+        className="specification-settings-drawer"
+      >
+        <div className="specification-settings-body" data-testid="spec-params-panel">
+          <section className="specification-settings-section">
+            <Text strong>ЭР и резерв R,гр</Text>
+            <Text type="secondary" style={{ display: 'block', fontSize: 12, margin: '6px 0 10px' }}>
+              Канонический режим: полный data-driven BOM (PDL-ER-29).
+            </Text>
             <div className="workflow-params-row">
               <Text className="workflow-params-label">ЭР для генерации</Text>
               <Select
@@ -588,7 +762,7 @@ export default function SpecificationPage() {
                 aria-label="Выбор ЭР для генерации спецификации"
               />
             </div>
-            <div className="workflow-params-row">
+            <div className="workflow-params-row" style={{ marginTop: 8 }}>
               <Button
                 size="small"
                 onClick={() => setSelectedGenerateErIds(availableGenerateVariants.map((item) => item.id))}
@@ -597,7 +771,7 @@ export default function SpecificationPage() {
                 Выбрать все
               </Button>
             </div>
-            <div className="workflow-params-row">
+            <div className="workflow-params-row" style={{ marginTop: 12 }}>
               <Text className="workflow-params-label">Коэффициент горячего резервирования R,гр (1–3)</Text>
               <InputNumber
                 aria-label="Резерв R,гр"
@@ -608,10 +782,10 @@ export default function SpecificationPage() {
                 disabled={!canMutateProject || !fullModeActive}
                 value={reserveCoeff}
                 onChange={(v) => setReserveCoeff(Number(v ?? 1))}
-                className="workflow-params-input"
+                style={{ width: '100%' }}
               />
             </div>
-            <div className="workflow-params-row">
+            <div className="workflow-params-row" style={{ marginTop: 12 }}>
               <Text className="workflow-params-label">
                 Соединительный комплект: секций на 1 шт. (PDF §7.10)
               </Text>
@@ -628,93 +802,126 @@ export default function SpecificationPage() {
                 aria-label="Секций на соединительный комплект"
               />
             </div>
-            <Text className="workflow-params-hint">
-              Полный BOM: кабель, коробки СКВ, комплекты, вводы, крепёж, ленты (ТНП). Комплект — один на группу (PDL-ER-44).
-            </Text>
-          </div>
-          <div className="form-col-srs">
-            <h4 data-step={2}><span>Требования ТНП (Ex и индикация)</span></h4>
-            <div className="workflow-params-row">
+          </section>
+
+          <section className="specification-settings-section">
+            <Text strong>Требования ТНП (Ex и индикация)</Text>
+            <Space direction="vertical" size={6} style={{ marginTop: 10, width: '100%' }}>
               <Checkbox
                 disabled={!canMutateProject || !fullModeActive}
                 checked={exZone}
                 onChange={(e) => setExZone(e.target.checked)}
               >
-                <span style={{ fontSize: 12 }}>Взрывоопасная зона (Ex)</span>
+                Взрывоопасная зона (Ex)
               </Checkbox>
-            </div>
-            <div className="workflow-params-row">
               <Checkbox
                 disabled={!canMutateProject || !fullModeActive}
                 checked={indicationOnBoxes}
                 onChange={(e) => setIndicationOnBoxes(e.target.checked)}
               >
-                <span style={{ fontSize: 12 }}>Индикация питания на коробках (К1i)</span>
+                Индикация питания на коробках (К1i)
               </Checkbox>
-            </div>
-            <div className="workflow-params-row">
               <Checkbox
                 disabled={!canMutateProject || !fullModeActive}
                 checked={endSectionIndication}
                 onChange={(e) => setEndSectionIndication(e.target.checked)}
               >
-                <span style={{ fontSize: 12 }}>Индикация в конце нагревательной секции (К2i)</span>
+                Индикация в конце нагревательной секции (К2i)
               </Checkbox>
-            </div>
-            <div className="workflow-params-row">
               <Checkbox
                 disabled={!canMutateProject || !fullModeActive}
                 checked={topIndication}
                 onChange={(e) => setTopIndication(e.target.checked)}
               >
-                <span style={{ fontSize: 12 }}>Индикация сверху коробки (Кiu)</span>
+                Индикация сверху коробки (Кiu)
+              </Checkbox>
+              {fullModeActive && endSectionIndication && (
+                <div>
+                  <Text className="workflow-params-label">
+                    Мин. длина секции для К2i (L,К2i), м
+                  </Text>
+                  <InputNumber
+                    aria-label="Мин. длина секции для К2i"
+                    min={0}
+                    step={10}
+                    size="small"
+                    disabled={!canMutateProject}
+                    value={minLengthK2i}
+                    onChange={(v) => setMinLengthK2i(Number(v ?? 0))}
+                    style={{ width: '100%', marginTop: 4 }}
+                  />
+                </div>
+              )}
+            </Space>
+          </section>
+
+          <section className="specification-settings-section">
+            <Text strong>Отображение</Text>
+            <div style={{ marginTop: 10 }}>
+              <Text style={{ fontSize: 12, color: '#888' }}>Группировка</Text>
+              <Segmented<GroupBy>
+                block
+                size="small"
+                value={groupBy}
+                onChange={setGroupBy}
+                options={[
+                  { label: 'Тип', value: 'object_section' },
+                  { label: 'Кат.', value: 'category' },
+                  { label: 'Ед.', value: 'unit' },
+                  { label: 'Нет', value: 'none' },
+                ]}
+                style={{ marginTop: 4 }}
+              />
+              <Checkbox
+                checked={mergeIdentical}
+                onChange={(e) => setMergeIdentical(e.target.checked)}
+                style={{ fontSize: 12, marginTop: 10 }}
+              >
+                Объединить одинаковые (base+код)
               </Checkbox>
             </div>
-            {fullModeActive && endSectionIndication && (
-              <div className="workflow-params-row">
-                <Text className="workflow-params-label">Минимальная длина нагревательной секции для К2i (L,К2i), м</Text>
-                <InputNumber
-                  aria-label="Мин. длина секции для К2i"
-                  min={0}
-                  step={10}
-                  size="small"
-                  disabled={!canMutateProject}
-                  value={minLengthK2i}
-                  onChange={(v) => setMinLengthK2i(Number(v ?? 0))}
-                  className="workflow-params-input"
-                />
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      <Row className="specification-page-layout" gutter={12} align="top">
-        <Col className="specification-page-sidebar" flex="0 0 240px">
-          <Card size="small" style={{ height: '100%' }}>
-            <div style={{ marginBottom: 10 }}>
-              <Text strong style={{ fontSize: 13 }}>
-                <UnorderedListOutlined style={{ marginRight: 5, color: '#1a5276' }} />
-                Спецификация
+            <div
+              style={{
+                marginTop: 12,
+                padding: '8px 10px',
+                background: '#f6f8fa',
+                borderRadius: 6,
+                border: '1px solid #e8e8e8',
+              }}
+            >
+              <Text style={{ fontSize: 12, display: 'block' }}>
+                Позиций: <strong>{items.length}</strong>
+                {' · '}
+                категорий: <strong>{categoriesCount}</strong>
               </Text>
+              {projectSettings?.version != null && (
+                <Text style={{ fontSize: 11, color: '#888', display: 'block', marginTop: 4 }}>
+                  Project defaults v{projectSettings.version}
+                  {typeof spec?.generation_options?.settings_version === 'number'
+                    ? ` · snapshot v${spec.generation_options.settings_version as number}`
+                    : ''}
+                </Text>
+              )}
             </div>
+          </section>
 
+          <section className="specification-settings-section">
             <Space direction="vertical" style={{ width: '100%' }} size={8}>
               <Button
                 type="primary"
                 icon={<ReloadOutlined />}
                 block
-                size="small"
                 loading={mut.isPending}
                 disabled={!canMutateProject}
-                onClick={() => runGenerate(false)}
+                onClick={() => {
+                  runGenerate(false);
+                  toggleSettings(false);
+                }}
               >
                 {hasItems ? 'Пересчитать' : 'Сформировать'}
               </Button>
-
               <Button
                 block
-                size="small"
                 loading={saveDefaultsMut.isPending}
                 disabled={!canMutateProject}
                 onClick={() => saveDefaultsMut.mutate()}
@@ -722,218 +929,23 @@ export default function SpecificationPage() {
               >
                 Сохранить defaults
               </Button>
-              {projectSettings?.version != null && (
-                <Text style={{ fontSize: 11, color: '#888' }}>
-                  Project defaults v{projectSettings.version}
-                  {typeof spec?.generation_options?.settings_version === 'number'
-                    ? ` · snapshot v${spec.generation_options.settings_version as number}`
-                    : ''}
-                </Text>
-              )}
-
-              {/* Режим и параметры полного BOM — в блоке заполнения параметров
-                  над таблицей (workflow-params-panel), как на SC-03. */}
-
               {canManuallyEdit && (
                 <Button
                   icon={<PlusOutlined />}
                   block
-                  size="small"
                   disabled={!hasItems || isSpecStale}
-                  onClick={() => setAddOpen(true)}
+                  onClick={() => {
+                    toggleSettings(false);
+                    setAddOpen(true);
+                  }}
                 >
                   Добавить из БД
                 </Button>
               )}
-
-              <div>
-                <Text style={{ fontSize: 11, color: '#888' }}>Группировка</Text>
-                <Segmented<GroupBy>
-                  block
-                  size="small"
-                  value={groupBy}
-                  onChange={setGroupBy}
-                  options={[
-                    { label: 'Тип', value: 'object_section' },
-                    { label: 'Кат.', value: 'category' },
-                    { label: 'Ед.', value: 'unit' },
-                    { label: 'Нет', value: 'none' },
-                  ]}
-                  style={{ marginTop: 4 }}
-                />
-                <Checkbox
-                  checked={mergeIdentical}
-                  onChange={(e) => setMergeIdentical(e.target.checked)}
-                  style={{ fontSize: 12, marginTop: 6 }}
-                >
-                  Объединить одинаковые (base+код)
-                </Checkbox>
-
-              </div>
-
-              <div
-                style={{
-                  marginTop: 6,
-                  padding: '6px 8px',
-                  background: '#f6f8fa',
-                  borderRadius: 6,
-                  border: '1px solid #e8e8e8',
-                }}
-              >
-                <Text style={{ fontSize: 11, display: 'block' }}>
-                  Позиций: <strong>{items.length}</strong>
-                </Text>
-                {isSpecStale && (
-                  <Text style={{ fontSize: 11, color: '#d46b08', display: 'block' }}>
-                    Статус: <strong>устарела</strong>
-                  </Text>
-                )}
-                <Text style={{ fontSize: 11, display: 'block' }}>
-                  Категорий: <strong>{categoriesCount}</strong>
-                </Text>
-                {isEmployee && (
-                  <Text style={{ fontSize: 11, color: '#722ed1' }}>
-                    Ручных: <strong>
-                      {items.filter((i) => i.source === 'manual').length}
-                    </strong>
-                  </Text>
-                )}
-              </div>
             </Space>
-          </Card>
-        </Col>
-
-        <Col className="specification-page-main" flex="1" style={{ minWidth: 0 }}>
-          <Card
-            size="small"
-            title={<Text strong>Окно спецификаций</Text>}
-            styles={{ body: { paddingTop: 8 } }}
-          >
-            {isSpecStale && (
-              <Alert
-                className="specification-empty-alert specification-stale-banner"
-                type="error"
-                showIcon
-                message="Спецификация устарела — не для закупки / печати / отчёта"
-                description="Snapshot только для просмотра. Итоги, печать, отчёт и export не используют эти количества. Сформируйте спецификацию заново."
-                style={{ marginBottom: 16 }}
-                action={
-                  <Button
-                    size="small"
-                    type="primary"
-                    icon={<ReloadOutlined />}
-                    loading={mut.isPending}
-                    disabled={!canMutateProject}
-                    onClick={() => runGenerate(false)}
-                  >
-                    Сформировать заново
-                  </Button>
-                }
-              />
-            )}
-
-            {!isSpecStale && isSpecPartial && hasItems && (
-              <Alert
-                className="specification-partial-banner"
-                type="warning"
-                showIcon
-                message="Неполная спецификация — не использовать как полный закупочный комплект"
-                description={
-                  excludedGroups.length
-                    ? (
-                        <ul style={{ margin: '8px 0 0', paddingLeft: 18 }}>
-                          {excludedGroups.map((g) => (
-                            <li key={String(g.error_code || g.group || g.message)}>
-                              <strong>{g.error_code || g.group}</strong>
-                              {g.message ? ` — ${g.message}` : ''}
-                            </li>
-                          ))}
-                        </ul>
-                      )
-                    : 'Часть групп BOM исключена (секции, коробки или недоказанные методики).'
-                }
-                style={{ marginBottom: 16 }}
-              />
-            )}
-
-            {specError && !spec ? (
-              <QueryError
-                error={specErrorObj}
-                title="Не удалось загрузить спецификацию"
-                onRetry={() => refetch()}
-                retrying={specFetching}
-              />
-            ) : specLoading ? (
-              <div aria-busy="true" aria-label="Загрузка спецификации">
-                <Skeleton active title={false} paragraph={{ rows: 6 }} />
-              </div>
-            ) : (
-              <>
-                {!hasItems && (
-                  <Alert
-                    className="specification-empty-alert"
-                    type="warning"
-                    showIcon
-                    message="Спецификация не сформирована"
-                    description="Убедитесь, что для всех объектов выполнен электрорасчёт (шаг 2), затем нажмите «Сформировать»."
-                    style={{ marginBottom: 16 }}
-                    action={
-                      <Button
-                        size="small"
-                        icon={<ThunderboltOutlined />}
-                        onClick={() => navigate(ROUTES.elecCalc)}
-                      >
-                        К электрорасчёту
-                      </Button>
-                    }
-                  />
-                )}
-
-                <div className={isSpecStale ? 'spec-table-print-exclude' : undefined}>
-                  <SpecTable
-                    items={items}
-                    groupBy={groupBy}
-                    mergeIdentical={mergeIdentical}
-                    canDelete={canManuallyEdit && hasItems && !isSpecStale}
-                    isStale={isSpecStale}
-                    onDelete={handleDelete}
-                  />
-                </div>
-              </>
-            )}
-
-            {/* Переключатель вариантов системы (по эскизу Прил. 4 Рис. 3) */}
-            <div
-              style={{
-                marginTop: 12,
-                paddingTop: 10,
-                borderTop: '1px solid #e8e8e8',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-              }}
-            >
-              <Text style={{ fontSize: 11, color: '#888' }}>ЭР:</Text>
-              <div style={{ maxWidth: '100%', overflowX: 'auto', paddingBottom: 4 }}>
-                <Segmented<string>
-                  value={selectedElectricalVariant.id}
-                  onChange={variantContext.selectVariant}
-                  disabled={mut.isPending || saveMut.isPending}
-                  size="small"
-                  options={variantContext.variants.map((item) => ({
-                    label: item.name,
-                    value: item.id,
-                    disabled: item.legacy_variant_number == null,
-                  }))}
-                />
-              </div>
-              <Text type="secondary" style={{ fontSize: 11 }}>
-                Спецификация и расчёт сохраняются отдельно для каждого варианта.
-              </Text>
-            </div>
-          </Card>
-        </Col>
-      </Row>
+          </section>
+        </div>
+      </Drawer>
 
       <Modal
         title="Добавить позицию из расширенной БД"
@@ -988,7 +1000,6 @@ export default function SpecificationPage() {
           {preflightSummary}
         </pre>
       </Modal>
-
-    </>
+    </div>
   );
 }

@@ -15,12 +15,17 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
   Button,
+  Dropdown,
   Modal,
   Space,
   Tabs,
   Typography,
   message,
 } from 'antd';
+import {
+  ApartmentOutlined,
+  AppstoreOutlined,
+} from '@ant-design/icons';
 
 import {
   assignElectricalVariantObjects,
@@ -117,21 +122,16 @@ function parseDragIds(event: ReactDragEvent): string[] {
 
 function tabLabel(label: string, count: number): ReactNode {
   return (
-    <span>
+    <span className="electrical-system-tab-label">
       {label}
-      <span
-        aria-label={`${count} объектов`}
-        style={{
-          marginLeft: 6,
-          padding: '0 6px',
-          borderRadius: 10,
-          fontSize: 11,
-          background: '#1677ff',
-          color: '#fff',
-        }}
-      >
-        {count}
-      </span>
+      {count > 0 && (
+        <span
+          className="electrical-system-tab-count"
+          aria-label={`${count} объектов`}
+        >
+          {count}
+        </span>
+      )}
     </span>
   );
 }
@@ -434,6 +434,44 @@ export default function ElectricalAssignmentPanel({
     [lastCounts?.total],
   );
 
+  const typeMenuItems = [
+    {
+      key: 'self_regulating',
+      label: 'Саморегулирующийся (Самрег)',
+      disabled: assignDisabled,
+      onClick: () => runAssign('self_regulating', selectedObjectIds),
+    },
+    {
+      key: 'resistive',
+      label: 'Резистивный',
+      disabled: assignDisabled,
+      onClick: () => runAssign('resistive', selectedObjectIds),
+    },
+    {
+      key: 'skin',
+      label: 'Скин (скоро)',
+      disabled: true,
+    },
+    {
+      type: 'divider' as const,
+    },
+    {
+      key: 'unassign',
+      label: 'Вернуть в нераспределённые',
+      danger: true,
+      disabled: actionsDisabled || systemView === 'unassigned',
+      onClick: () => confirmUnassign(),
+    },
+  ];
+
+  // System tabs shown in mockup (hide mineral / all from default chrome).
+  const visibleTabs = ELECTRICAL_SYSTEM_VIEWS.filter(
+    (tab) => tab.key === 'unassigned'
+      || tab.key === 'self_regulating'
+      || tab.key === 'resistive'
+      || tab.key === 'skin',
+  );
+
   return (
     <div
       data-testid="electrical-assignment-panel"
@@ -442,13 +480,6 @@ export default function ElectricalAssignmentPanel({
     >
       {messageContextHolder}
       {modalContextHolder}
-
-      <div className="electrical-system-scope__header">
-        <Typography.Text strong>
-          Система обогрева · {electricalVariant.name}
-        </Typography.Text>
-        <Typography.Text type="secondary">Всего объектов: {totalLabel}</Typography.Text>
-      </div>
 
       {!canMutate && (
         <Alert
@@ -503,23 +534,61 @@ export default function ElectricalAssignmentPanel({
         />
       )}
 
-      <Tabs
-        activeKey={systemView}
-        onChange={(nextKey) => {
-          if (busy) return;
-          onSystemViewChange(nextKey as ElectricalSystemView);
-          onSelectedObjectIdsChange?.([]);
-          setConflictNotice(null);
-          setCleanupRequiredIds(null);
-          mutation.reset();
-        }}
-        items={ELECTRICAL_SYSTEM_VIEWS.filter((tab) => tab.key !== 'all').map((tab) => ({
-          key: tab.key,
-          label: tabLabel(tab.label, countForView(counts, totalLabel, tab.key)),
-          disabled: busy,
-        }))}
-      />
+      {/* Mockup toolbar: system tabs left · group actions right */}
+      <div className="electrical-system-scope__tabs-row">
+        <Tabs
+          className="electrical-system-scope__tabs"
+          type="card"
+          size="small"
+          activeKey={systemView === 'all' || systemView === 'mineral' ? 'unassigned' : systemView}
+          onChange={(nextKey) => {
+            if (busy) return;
+            onSystemViewChange(nextKey as ElectricalSystemView);
+            onSelectedObjectIdsChange?.([]);
+            setConflictNotice(null);
+            setCleanupRequiredIds(null);
+            mutation.reset();
+          }}
+          items={visibleTabs.map((tab) => ({
+            key: tab.key,
+            label: tabLabel(tab.label, countForView(counts, totalLabel, tab.key)),
+            disabled: busy || (tab.key === 'skin' && false),
+          }))}
+          tabBarExtraContent={canMutate ? (
+            <Space size={8} className="electrical-system-scope__actions" wrap>
+              <Button
+                size="small"
+                icon={<ApartmentOutlined />}
+                disabled={assignDisabled}
+                loading={busy && mutation.variables?.kind === 'assign'
+                  && mutation.variables.systemType === 'self_regulating'}
+                onClick={() => runAssign('self_regulating', selectedObjectIds)}
+                aria-label="Применить правило к группе"
+              >
+                Применить правило к группе
+              </Button>
+              <Dropdown
+                menu={{ items: typeMenuItems }}
+                disabled={actionsDisabled && systemView === 'unassigned' && selectedCount === 0}
+                trigger={['click']}
+              >
+                <Button
+                  size="small"
+                  icon={<AppstoreOutlined />}
+                  disabled={actionsDisabled && selectedCount === 0}
+                  loading={busy && mutation.variables?.kind === 'assign'
+                    && mutation.variables.systemType === 'resistive'}
+                  aria-label="Выбрать тип"
+                >
+                  Выбрать тип
+                </Button>
+              </Dropdown>
+            </Space>
+          ) : undefined}
+        />
+      </div>
 
+      {/* DnD zones (visible always when mutable; highlighted while dragging) */}
       {canMutate && (
         <div
           className={`assignment-drop-zones${tableDragging ? ' assignment-drop-zones--active' : ''}`}
@@ -530,7 +599,7 @@ export default function ElectricalAssignmentPanel({
           <DropZone
             id="self_regulating"
             label="↓ В Самрег"
-            hint={canDropAssign ? 'Отпустите строку таблицы' : 'Вкладка «Нераспределённые» / «Все»'}
+            hint={canDropAssign ? 'Отпустите строку таблицы' : 'Вкладка «Нераспределённые объекты»'}
             disabled={!canDropAssign}
             isOver={overZone === 'self_regulating'}
             onDragEnter={setOverZone}
@@ -541,7 +610,7 @@ export default function ElectricalAssignmentPanel({
           <DropZone
             id="resistive"
             label="↓ В Резистив"
-            hint={canDropAssign ? 'Отпустите строку таблицы' : 'Вкладка «Нераспределённые» / «Все»'}
+            hint={canDropAssign ? 'Отпустите строку таблицы' : 'Вкладка «Нераспределённые объекты»'}
             disabled={!canDropAssign}
             isOver={overZone === 'resistive'}
             onDragEnter={setOverZone}
@@ -552,7 +621,7 @@ export default function ElectricalAssignmentPanel({
           <DropZone
             id="unassigned"
             label="↓ В нераспределённые"
-            hint={canDropUnassign ? 'Отпустите строку таблицы' : 'Вкладка системы / «Все»'}
+            hint={canDropUnassign ? 'Отпустите строку таблицы' : 'Вкладка системы'}
             kind="unassign"
             disabled={!canDropUnassign}
             isOver={overZone === 'unassigned'}
@@ -564,6 +633,7 @@ export default function ElectricalAssignmentPanel({
         </div>
       )}
 
+      {/* Secondary assign actions (also used by unit tests / keyboard) */}
       <div
         role="toolbar"
         aria-label="Действия с назначениями"
@@ -597,8 +667,8 @@ export default function ElectricalAssignmentPanel({
         </Button>
       </div>
 
-      <Typography.Text type="secondary" id="unsupported-electrical-systems-note" style={{ fontSize: 12 }}>
-        Одна таблица ниже фильтруется вкладкой. Скин / Минеральный — только просмотр и возврат.
+      <Typography.Text type="secondary" id="unsupported-electrical-systems-note" className="electrical-system-scope__note">
+        В текущей версии активен тип «Саморегулирующийся». «Резистив» и «Скин» — для будущего расширения.
       </Typography.Text>
     </div>
   );

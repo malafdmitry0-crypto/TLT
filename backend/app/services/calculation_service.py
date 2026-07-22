@@ -1518,7 +1518,7 @@ class CalculationService:
         result_dict: dict[str, Any],
         cable_mark: str | None,
     ) -> None:
-        """Attach Phase-4 section metrics when SEEDS-01 catalog is registered."""
+        """Attach section metrics from the registered TT cable passport table."""
         if request.cable_type not in {"self_regulating", "self_regulating_tt"}:
             return
         if not cable_mark or not isinstance(result_dict, dict):
@@ -1545,6 +1545,13 @@ class CalculationService:
             voltage = float(result_dict.get("voltage") or data.get("supply_voltage") or 220)
         except (TypeError, ValueError):
             voltage = 220.0
+        try:
+            start_current_limit = data.get("max_start_current_per_section")
+            start_current_limit_f = (
+                float(start_current_limit) if start_current_limit is not None else None
+            )
+        except (TypeError, ValueError):
+            start_current_limit_f = None
         plan = compute_section_plan(
             mark=str(
                 result_dict.get("cable_model")
@@ -1560,6 +1567,7 @@ class CalculationService:
             working_current_total_a=float(result_dict.get("current") or 0),
             voltage_v=voltage,
             cold_start_temp_c=cold_f,
+            max_start_current_per_section_a=start_current_limit_f,
         )
         if plan is None:
             return

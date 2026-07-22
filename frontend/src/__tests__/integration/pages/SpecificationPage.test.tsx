@@ -33,6 +33,8 @@ vi.mock('@/api/specifications', () => ({
   generateSpecification: vi.fn(),
   saveSpecificationItems: vi.fn(),
   listAccessoriesExtended: vi.fn().mockResolvedValue([]),
+  getSpecificationSettings: vi.fn().mockResolvedValue({ version: 1, settings: {} }),
+  updateSpecificationSettings: vi.fn(),
 }));
 
 const mockProject: Project = {
@@ -129,7 +131,7 @@ describe('SpecificationPage (integration)', () => {
     await waitFor(() => {
       expect(screen.getByText(/Спецификация не сформирована/i)).toBeInTheDocument();
     });
-    // Кнопка «Сформировать» в левой панели управления (рядом с иконкой ReloadOutlined)
+    // Кнопка «Сформировать» в тулбаре (и в empty-alert)
     const buttons = screen.getAllByRole('button');
     expect(
       buttons.some((b) => b.textContent?.trim() === 'Сформировать')
@@ -169,8 +171,10 @@ describe('SpecificationPage (integration)', () => {
       expect(screen.getByText('ТЛТ-30')).toBeInTheDocument();
       expect(screen.getByText('Концевой набор')).toBeInTheDocument();
     });
-    // При наличии items — кнопка «Пересчитать»
-    expect(screen.getByRole('button', { name: /Пересчитать/i })).toBeInTheDocument();
+    // При наличии items — кнопка «Обновить» в тулбаре (макет)
+    expect(screen.getByRole('button', { name: /Обновить/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Настройки/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Сформировать отчёт/i })).toBeInTheDocument();
   });
 
   it('показывает предупреждение для устаревшей спецификации', async () => {
@@ -359,7 +363,7 @@ describe('SpecificationPage (integration)', () => {
     useProjectStore.getState().setCurrentProject(mockProject);
     renderPage();
 
-    await user.click(await screen.findByRole('button', { name: /Сформировать/ }));
+    await user.click(await screen.findByRole('button', { name: 'Сформировать' }));
     expect(generateSpecification).toHaveBeenCalledWith(
       mockProject.id,
       1,
@@ -372,14 +376,11 @@ describe('SpecificationPage (integration)', () => {
       [firstVariant.id],
       false,
     );
-    const scopeGroup = screen.getAllByRole('radiogroup').find((group) =>
-      group.textContent?.includes(firstVariant.name)
-      && group.textContent.includes(secondVariant.name));
-    const [firstScopeInput, secondScopeInput] = Array.from(
-      scopeGroup?.querySelectorAll<HTMLInputElement>('input') ?? [],
-    );
-    expect(firstScopeInput).toBeDisabled();
-    expect(secondScopeInput).toBeDisabled();
+    // ER tabs are disabled while generation is in flight
+    const er1Tab = screen.getByRole('tab', { name: /Спецификация ЭР1/i });
+    const er2Tab = screen.getByRole('tab', { name: /Спецификация ЭР2/i });
+    expect(er1Tab).toHaveAttribute('aria-disabled', 'true');
+    expect(er2Tab).toHaveAttribute('aria-disabled', 'true');
 
     resolveGeneration({
       project_id: mockProject.id,
@@ -387,7 +388,9 @@ describe('SpecificationPage (integration)', () => {
       mode: 'full',
       skipped_objects: 0,
     });
-    await waitFor(() => expect(firstScopeInput).not.toBeDisabled());
+    await waitFor(() => {
+      expect(er1Tab).not.toHaveAttribute('aria-disabled', 'true');
+    });
   });
 
   it('не показывает write-actions сотруднику, который только читает чужой проект', async () => {
@@ -431,10 +434,11 @@ describe('SpecificationPage (integration)', () => {
 
     expect(await screen.findByText('Режим просмотра')).toBeInTheDocument();
     expect(await screen.findByText('Чужая позиция')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Сформировать|Пересчитать/ }))
+    expect(screen.getByRole('button', { name: 'Обновить' }))
       .toBeDisabled();
     expect(screen.queryByRole('button', { name: 'Удалить Чужая позиция' }))
       .not.toBeInTheDocument();
+    // «Добавить из БД» живёт в drawer настроек и недоступна read-only
     expect(screen.queryByRole('button', { name: 'Добавить из БД' }))
       .not.toBeInTheDocument();
   });

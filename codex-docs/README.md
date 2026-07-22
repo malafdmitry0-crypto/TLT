@@ -15,6 +15,8 @@
    [application-improvement-checklist.md](application-improvement-checklist.md).
 7. Для проверки точности функционала по цепочке "документы -> код -> тесты"
    смотреть [functional-accuracy-agent.md](functional-accuracy-agent.md).
+8. Для предложений по архитектуре и навигации, понятной AI-агентам, смотреть
+   [agent-readable-architecture.md](agent-readable-architecture.md).
 
 ## Источники правды
 
@@ -29,6 +31,7 @@
 | Текущие пробелы | `TO_DO.md`, `docs/analysis/current-status-and-missing-info.md` | [backlog-and-risks.md](backlog-and-risks.md) |
 | Технический аудит приложения | код frontend/backend, тесты, текущие замечания | [application-improvement-checklist.md](application-improvement-checklist.md) |
 | Функциональная точность | SRS/QA/API/код/тесты | [functional-accuracy-agent.md](functional-accuracy-agent.md) |
+| Понятность архитектуры для AI-агента | Код, карты проекта, контракты и проверки | [agent-readable-architecture.md](agent-readable-architecture.md) |
 
 ## Правило актуализации
 
