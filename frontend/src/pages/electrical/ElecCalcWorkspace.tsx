@@ -12,13 +12,10 @@ import {
 import {
   Alert,
   Button,
-  Card,
   Checkbox,
   Input,
   Modal,
   Space,
-  Table,
-  Typography,
 } from 'antd';
 import {
   ThunderboltOutlined,
@@ -45,7 +42,6 @@ import ElectricalAssignmentPanel, {
   ASSIGNMENT_DND_MIME,
 } from '@/pages/electrical/ElectricalAssignmentPanel';
 import {
-  systemViewLabel,
   type ElectricalSystemView,
 } from '@/pages/electrical/elecCalcSystemViewModel';
 import ElecCalcCableMarkModal from '@/pages/electrical/ElecCalcCableMarkModal';
@@ -54,8 +50,6 @@ import ElecCalcElectricalTypeControls from '@/pages/electrical/ElecCalcElectrica
 import ElecCalcErrorSummary from '@/pages/electrical/ElecCalcErrorSummary';
 import ElecCalcParamsPanel from '@/pages/electrical/ElecCalcParamsPanel';
 import ElecCalcRecalculationSettings from '@/pages/electrical/ElecCalcRecalculationSettings';
-import { ROUTES } from '@/routes/routes';
-import type { ProjectObject } from '@/types/project';
 import type { ElectricalVariant } from '@/types/electricalVariant';
 import type {
   ElectricalCandidateFolder,
@@ -69,18 +63,14 @@ import {
   buildElectricalQueryRequest,
   updateElectricalQueryPageCalculation,
 } from '@/pages/electrical/elecCalcQueryModel';
-import {
-  electricalAssignmentCompatibilityReason,
-} from '@/pages/electrical/elecCalcAssignmentScopeModel';
 import { useElecCalcErrorSummaryState } from '@/pages/electrical/useElecCalcErrorSummaryState';
-import { ElectricalSectionHierarchy } from '@/pages/electrical/ElectricalSectionHierarchy';
 import { useElecCalcBatchRecalcActions } from '@/pages/electrical/useElecCalcBatchRecalcActions';
+import { ElectricalUnifiedTableCard } from '@/pages/electrical/ElectricalUnifiedTableCard';
 import { useElecCalcAssignmentSelectionState } from '@/pages/electrical/useElecCalcAssignmentSelectionState';
 import {
   buildElecCalcSummaryViewModel,
 } from '@/pages/electrical/elecCalcSummaryModel';
 import {
-  objectDisplayName,
   type CableTypeKey,
 } from '@/domain/electrical/elecCalcMainTableModel';
 import { useElecCalcObjectActionModals } from '@/pages/electrical/useElecCalcObjectActionModals';
@@ -129,7 +119,6 @@ import {
   type RegisterElectricalBatchJob,
   type TrackedElectricalBatchJob,
 } from '@/pages/electrical/useElectricalBatchJobTracker';
-const { Text } = Typography;
 const ElectricalGlideGrid = lazy(() => import('@/components/electrical/ElectricalGlideGrid'));
 const ElectricalCandidateColumnSettingsModal = lazy(
   () => import('@/components/electrical/ElectricalCandidateColumnSettingsModal'),
@@ -1174,160 +1163,52 @@ export function ElecCalcWorkspace({
           />
         )}
 
-        {/* Table: single list filtered by systemView */}
-        <Card size="small" className="workspace-table-card srs-table-wrap" data-testid="electrical-unified-table">
-          {electricalPage && totalObjects === 0 ? (
-            <Alert
-              type="warning"
-              showIcon
-              message="Нет объектов"
-              description="Добавьте объекты на шаге «Теплопотери»."
-              style={{ margin: 12 }}
-            />
-          ) : electricalGlideEnabled ? (
-            <Suspense fallback={null}>
-              <ElectricalGlideGrid
-                rows={scopedObjects}
-                gridColumns={electricalGlideColumns}
-                tableScrollX={electricalTableScrollX}
-                tableScrollY={electricalTableScrollY}
-                fontSizeKey={resolvedTableFontSize.key}
-                activeRowId={activeRowId}
-                selectedRowKeys={systemView === 'unassigned'
-                  ? selectedRowKeys
-                  : compatibleSelectedRowKeys}
-                tableViewState={tableViewState}
-                pagination={electricalPagination}
-                infiniteLoading={electricalInfiniteLoading}
-                emptyContent={
-                  scopedObjects.length === 0 && totalObjects > 0 ? (
-                    <div className="table-filter-empty">
-                      <Text type="secondary">
-                        В разделе «{systemViewLabel(systemView)}» объектов нет
-                      </Text>
-                    </div>
-                  ) : currentTableViewActive && totalObjects > 0 ? (
-                  <div className="table-filter-empty">
-                    <Text type="secondary">Нет строк по текущим фильтрам</Text>
-                    <Button size="small" onClick={resetCurrentTableViewState}>
-                      Сбросить фильтры
-                    </Button>
-                  </div>
-                ) : undefined}
-                rowClassName={electricalRowClassName}
-                getCellState={getElectricalGlideCellState}
-                onOpenRow={openElectricalRow}
-                onSelectedRowKeysChange={handleAssignmentAwareSelectionChange}
-                onSetColumnFilter={setColumnFilter}
-                onResetColumnFilter={resetColumnFilter}
-                onSetSort={setElectricalTableSort}
-                onColumnResize={applyElectricalGlideColumnDraftWidth}
-                onColumnResizeEnd={commitElectricalGlideColumnWidth}
-                onPageChange={handleElectricalGlidePageChange}
-                onLoadMore={handleElectricalGlideLoadMore}
-                onCellAction={handleElectricalGlideCellAction}
-                onStartCellEdit={handleElectricalGlideStartCellEdit}
-                onCommitCell={handleElectricalGlideCommitCell}
-              />
-            </Suspense>
-          ) : (
-            <Table<ProjectObject>
-              className={`calc-spreadsheet calc-spreadsheet--${resolvedTableFontSize.key} electrical-spreadsheet`}
-              rowKey="id"
-              size="small"
-              loading={isElectricalPageFetching}
-              pagination={electricalPagination}
-              dataSource={scopedObjects}
-              onChange={handleElectricalTableChange}
-              scroll={{ x: electricalTableScrollX }}
-              rowClassName={electricalRowClassName}
-              onRow={(obj) => ({
-                draggable: canMutate,
-                onDragStart: (event) => handleTableRowDragStart(event, obj.id),
-                onDragEnd: handleTableRowDragEnd,
-                onClick: (event) => {
-                  if ((event.target as HTMLElement).closest('.ant-table-selection-column')) return;
-                  activateRowId(obj.id);
-                },
-                style: canMutate ? { cursor: 'grab' } : undefined,
-                'data-testid': `electrical-object-row-${obj.id}`,
-              })}
-              rowSelection={{
-                type: 'checkbox',
-                selectedRowKeys: systemView === 'unassigned'
-                  ? selectedRowKeys
-                  : compatibleSelectedRowKeys,
-                onChange: (keys) => handleAssignmentAwareSelectionChange(keys as string[]),
-                getCheckboxProps: (obj) => {
-                  // Unassigned tab: select for assign; other tabs: calc-compatible only.
-                  if (systemView === 'unassigned') {
-                    return {
-                      disabled: !canMutate,
-                      'aria-label': `Выбрать ${objectDisplayName(obj)} для назначения`,
-                    };
-                  }
-                  const reason = electricalAssignmentCompatibilityReason(
-                    assignmentByObjectId.get(obj.id),
-                    cableTypes.cableTypeForRecalculation,
-                  );
-                  return {
-                    disabled: reason != null,
-                    title: reason ?? undefined,
-                    'aria-label': reason
-                      ? `${objectDisplayName(obj)}: ${reason}`
-                      : `Выбрать ${objectDisplayName(obj)} для пересчёта`,
-                  };
-                },
-                columnWidth: 36,
-              }}
-              columns={electricalColumns}
-              expandable={{
-                expandedRowRender: (obj) => (
-                  <ElectricalSectionHierarchy calc={stats.calcByObjectId[obj.id]} />
-                ),
-                rowExpandable: () => systemView !== 'unassigned',
-              }}
-              locale={{
-                emptyText: scopedObjects.length === 0 && totalObjects > 0 ? (
-                  <div className="table-filter-empty">
-                    <Text type="secondary">
-                      В разделе «{systemViewLabel(systemView)}» объектов нет
-                    </Text>
-                  </div>
-                ) : currentTableViewActive && totalObjects > 0 ? (
-                  <div className="table-filter-empty">
-                    <Text type="secondary">Нет строк по текущим фильтрам</Text>
-                    <Button size="small" onClick={resetCurrentTableViewState}>
-                      Сбросить фильтры
-                    </Button>
-                  </div>
-                ) : undefined,
-              }}
-            />
-          )}
-
-          {/* Selection footer (mockup) */}
-          <div className="electrical-table-footer">
-            <Text type="secondary" className="electrical-table-footer__selection">
-              Выбрано:{' '}
-              {(systemView === 'unassigned' ? selectedRowKeys : compatibleSelectedRowKeys).length}
-              {' '}
-              из
-              {' '}
-              {scopedObjects.length}
-            </Text>
-            {calculatedCount > 0 && (
-              <Button
-                size="small"
-                type="link"
-                icon={<ThunderboltOutlined />}
-                onClick={() => navigate(ROUTES.specification)}
-              >
-                Спецификация →
-              </Button>
-            )}
-          </div>
-        </Card>
+        <ElectricalUnifiedTableCard
+          electricalPageLoaded={Boolean(electricalPage)}
+          totalObjects={totalObjects}
+          electricalGlideEnabled={electricalGlideEnabled}
+          scopedObjects={scopedObjects}
+          electricalGlideColumns={electricalGlideColumns}
+          electricalTableScrollX={electricalTableScrollX}
+          electricalTableScrollY={electricalTableScrollY}
+          fontSizeKey={resolvedTableFontSize.key}
+          activeRowId={activeRowId}
+          systemView={systemView}
+          selectedRowKeys={selectedRowKeys}
+          compatibleSelectedRowKeys={compatibleSelectedRowKeys}
+          tableViewState={tableViewState}
+          electricalPagination={electricalPagination}
+          electricalInfiniteLoading={electricalInfiniteLoading}
+          currentTableViewActive={currentTableViewActive}
+          electricalRowClassName={electricalRowClassName}
+          getElectricalGlideCellState={getElectricalGlideCellState as never}
+          openElectricalRow={openElectricalRow}
+          handleAssignmentAwareSelectionChange={handleAssignmentAwareSelectionChange}
+          setColumnFilter={setColumnFilter as never}
+          resetColumnFilter={resetColumnFilter as never}
+          setElectricalTableSort={setElectricalTableSort as never}
+          applyElectricalGlideColumnDraftWidth={applyElectricalGlideColumnDraftWidth as never}
+          commitElectricalGlideColumnWidth={commitElectricalGlideColumnWidth as never}
+          handleElectricalGlidePageChange={handleElectricalGlidePageChange as never}
+          handleElectricalGlideLoadMore={handleElectricalGlideLoadMore as never}
+          handleElectricalGlideCellAction={handleElectricalGlideCellAction as never}
+          handleElectricalGlideStartCellEdit={handleElectricalGlideStartCellEdit as never}
+          handleElectricalGlideCommitCell={handleElectricalGlideCommitCell as never}
+          isElectricalPageFetching={isElectricalPageFetching}
+          handleElectricalTableChange={handleElectricalTableChange}
+          canMutate={canMutate}
+          handleTableRowDragStart={handleTableRowDragStart}
+          handleTableRowDragEnd={handleTableRowDragEnd}
+          activateRowId={activateRowId}
+          assignmentByObjectId={assignmentByObjectId}
+          cableTypeForRecalculation={cableTypes.cableTypeForRecalculation}
+          electricalColumns={electricalColumns}
+          calcByObjectId={stats.calcByObjectId}
+          calculatedCount={calculatedCount}
+          resetCurrentTableViewState={resetCurrentTableViewState}
+          navigate={navigate}
+          ElectricalGlideGrid={ElectricalGlideGrid as never}
+        />
 
         </Space>
       </div>
