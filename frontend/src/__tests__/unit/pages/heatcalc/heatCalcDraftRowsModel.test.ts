@@ -1,7 +1,22 @@
 import { describe, expect, it } from 'vitest';
 
 import { changedDraftRowIds } from '@/pages/heatcalc/heatCalcDraftRowsModel';
-import type { DraftRowsById } from '@/utils/heatCalcInlineEdit';
+import type { DraftRowState, DraftRowsById } from '@/utils/heatCalcInlineEdit';
+
+/** Minimal typed draft row for identity-only comparisons in changedDraftRowIds. */
+function draftRow(objectId: string): DraftRowState {
+  return {
+    objectId,
+    objectType: 'pipe',
+    baseVersion: 1,
+    baseFormValues: {},
+    draftFormValues: {},
+    dirtyFields: {},
+    errors: {},
+    saving: false,
+    sourceParams: {},
+  };
+}
 
 describe('changedDraftRowIds', () => {
   it('returns empty when maps are empty', () => {
@@ -9,9 +24,9 @@ describe('changedDraftRowIds', () => {
   });
 
   it('detects added, removed and replaced row drafts by reference', () => {
-    const rowA = { id: 'a' } as DraftRowsById[string];
-    const rowA2 = { id: 'a' } as DraftRowsById[string];
-    const rowB = { id: 'b' } as DraftRowsById[string];
+    const rowA = draftRow('a');
+    const rowA2 = draftRow('a');
+    const rowB = draftRow('b');
     const previous: DraftRowsById = { a: rowA, b: rowB };
     const next: DraftRowsById = { a: rowA2, c: rowB };
 
@@ -20,7 +35,8 @@ describe('changedDraftRowIds', () => {
   });
 
   it('ignores unchanged identity', () => {
-    const rowA = { id: 'a' } as DraftRowsById[string];
+    const rowA = draftRow('a');
     expect(changedDraftRowIds({ a: rowA }, { a: rowA })).toEqual([]);
   });
 });
+

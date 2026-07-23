@@ -41,6 +41,7 @@ function emptyBucket() {
     sectionCount: null as number | null,
     powerW: 0,
     startCurrentA: 0,
+    workingCurrentA: 0,
   };
 }
 
