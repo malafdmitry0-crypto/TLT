@@ -15,6 +15,7 @@ architecture ratchets и agent gates существуют. Следующая ц
 | [Стандарт разработки](./agent-development-standard.md) | Постоянные правила, DoD и hard stops |
 | [Мастер-промпт](./agent-refactor-prompt.md) | Полный исполняемый prompt одного refactoring slice |
 | [Актуальный backlog](./refactor-backlog.md) | Единственный источник `pending` |
+| [Цель agent-friendly 9/10](./agent-friendly-9-plan.md) | Явная инициатива: чеклист, exit criteria и task prompts |
 | [PR budget](./pr-budget.md) | Краткая памятка по размеру slice |
 
 Если пользователь задаёт конкретную цель, она определяет slice. Если цель не
@@ -53,18 +54,19 @@ architecture ratchets и agent gates существуют. Следующая ц
 ```bash
 cd frontend
 
-# Быстрый обязательный architecture/type/lint gate
+# Fast gate: typecheck + lint + architecture/CSS
 npm run test:agent-gates
 
-# Полный static + test + build proof
-npm run test:unit
-npm run test:integration
-npm run build
+# Full DoD (канон готовности frontend): fast gate + unit + integration + build
+npm run test:agent-dod
 
 # Узкие наборы
 npm run test:architecture
 npm run css:architecture
 npm run test:ui-kit
+npm run test:unit
+npm run test:integration
+npm run build
 ```
 
 Для видимого UI используй релевантный Playwright spec из `e2e/tests/`. Например:

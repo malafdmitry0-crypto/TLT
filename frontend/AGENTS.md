@@ -35,11 +35,16 @@
 
 ```bash
 cd frontend
+
+# Fast gate: typecheck + lint + architecture/CSS ratchets (локальный feedback)
 npm run test:agent-gates
-npm run test:unit
-npm run test:integration
-npm run build
+
+# Full DoD: fast gate + unit + integration + production build (source of truth)
+npm run test:agent-dod
 ```
+
+`test:agent-gates` может быть зелёным при красном полном DoD — перед commit
+используй `test:agent-dod`, если slice затрагивает runtime/tests.
 
 Дополнительно запускай focused-тесты и релевантный Playwright-сценарий. Полная
 матрица и stop conditions описаны в стандарте.
