@@ -2,7 +2,7 @@
 
 **Актуально на:** 2026-07-23  
 **Статус:** исполняемый hardening backlog после закрытия thin shells и CSS strangler  
-**Текущий pending:** **G2** (G1 done — `npm run test:agent-gates`)
+**Текущий pending:** **G3** (G1–G2 done — complexity ratchet)
 **Цель:** агент должен быстро находить владельца поведения, получать зелёную и
 однозначную обратную связь и не иметь возможности незаметно вернуть god-файлы,
 глобальный CSS или обратные зависимости.
@@ -30,7 +30,7 @@
 | весь CSS | ~9150 LOC | размер не KPI; один владелец на правило |
 | `heatcalc-workspace.css` | 2561 LOC | ≤ 900 LOC на один coherent CSS owner |
 | `!important` | 475 | немедленный ratchet; hardening DoD ≤ 150, long-term ≤ 75 |
-| production TS/TSX > 500 LOC | 22 | не растёт; target hotspots ниже |
+| production TS/TSX > 500 LOC | 22 (G2 baseline) | не растёт; target hotspots ниже |
 | production TS/TSX > 800 LOC | 5 | 0 |
 | `useElecCalcWorkspaceModel` | 1086 LOC | ≤ 650 / ≤ 30 imports |
 | `useHeatCalcPageModel` | 830 LOC | ≤ 500 |
@@ -129,7 +129,7 @@ P0 выполняется раньше любых новых архитекту�
 | ID | Scope | Результат | Зависит |
 |---|---|---|---|
 | **G1** | `done` | `npm run test:agent-gates` = typecheck && lint && test:s0-gates | B9 |
-| **G2** | complexity ratchet | LOC/import/effect caps и baseline hotspot allowlist | B9 |
+| **G2** | `done` | complexity ratchet (`complexityRatchet` + baseline 22 hotspots >500) | B9 |
 | **G3** | dependency/cycle ratchet | все запрещённые направления + cycles | B9 |
 | **G4** | CSS architecture ratchet | `styles.css`, `!important`, root, size, specificity | B9 |
 | **G5** | coverage ratchet | текущий coverage становится floor, не «80% из воздуха» | G1 |

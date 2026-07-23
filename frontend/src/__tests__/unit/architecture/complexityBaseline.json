@@ -1,0 +1,162 @@
+{
+  "version": 1,
+  "slice": "G2",
+  "description": "Complexity ratchet: new production TS/TSX files LOC<=500. Hotspots in baseline cannot grow on loc/imports/useEffect/useState/useCallback. Decrease always OK.",
+  "newFileLocCap": 500,
+  "files": {
+    "src/api/calculations.ts": {
+      "loc": 548,
+      "imports": 2,
+      "useEffect": 0,
+      "useState": 0,
+      "useCallback": 0
+    },
+    "src/components/electrical/CablePickerCharacteristics.tsx": {
+      "loc": 569,
+      "imports": 5,
+      "useEffect": 0,
+      "useState": 0,
+      "useCallback": 0
+    },
+    "src/components/electrical/ElectricalCandidateGlideGrid.tsx": {
+      "loc": 588,
+      "imports": 10,
+      "useEffect": 2,
+      "useState": 3,
+      "useCallback": 10
+    },
+    "src/components/electrical/ElectricalColumnSettingsModal.tsx": {
+      "loc": 632,
+      "imports": 8,
+      "useEffect": 2,
+      "useState": 1,
+      "useCallback": 0
+    },
+    "src/components/heatcalc/ColumnSettingsModal.tsx": {
+      "loc": 695,
+      "imports": 11,
+      "useEffect": 1,
+      "useState": 2,
+      "useCallback": 0
+    },
+    "src/components/heatcalc/HeatCalcNormalGlideGrid.tsx": {
+      "loc": 1192,
+      "imports": 10,
+      "useEffect": 6,
+      "useState": 5,
+      "useCallback": 20
+    },
+    "src/components/wizard/ObjectWizard.tsx": {
+      "loc": 777,
+      "imports": 33,
+      "useEffect": 7,
+      "useState": 2,
+      "useCallback": 2
+    },
+    "src/hooks/useHeatCalcTableColumns.tsx": {
+      "loc": 536,
+      "imports": 16,
+      "useEffect": 0,
+      "useState": 0,
+      "useCallback": 0
+    },
+    "src/pages/ProjectsPage.tsx": {
+      "loc": 639,
+      "imports": 13,
+      "useEffect": 0,
+      "useState": 11,
+      "useCallback": 0
+    },
+    "src/pages/UIKitPage.tsx": {
+      "loc": 844,
+      "imports": 13,
+      "useEffect": 0,
+      "useState": 11,
+      "useCallback": 0
+    },
+    "src/pages/admin/DatabasePage.tsx": {
+      "loc": 531,
+      "imports": 5,
+      "useEffect": 0,
+      "useState": 4,
+      "useCallback": 0
+    },
+    "src/pages/admin/FormulasPage.tsx": {
+      "loc": 846,
+      "imports": 9,
+      "useEffect": 0,
+      "useState": 3,
+      "useCallback": 0
+    },
+    "src/pages/electrical/ElectricalAssignmentPanel.tsx": {
+      "loc": 676,
+      "imports": 9,
+      "useEffect": 1,
+      "useState": 4,
+      "useCallback": 0
+    },
+    "src/pages/electrical/ElectricalVariantTabs.tsx": {
+      "loc": 615,
+      "imports": 8,
+      "useEffect": 4,
+      "useState": 3,
+      "useCallback": 0
+    },
+    "src/pages/electrical/useElecCalcWorkspaceModel.tsx": {
+      "loc": 1087,
+      "imports": 59,
+      "useEffect": 1,
+      "useState": 5,
+      "useCallback": 3
+    },
+    "src/pages/electrical/useElectricalVariantSelection.ts": {
+      "loc": 730,
+      "imports": 8,
+      "useEffect": 3,
+      "useState": 4,
+      "useCallback": 17
+    },
+    "src/pages/heatcalc/useHeatCalcPageModel.ts": {
+      "loc": 831,
+      "imports": 39,
+      "useEffect": 2,
+      "useState": 4,
+      "useCallback": 2
+    },
+    "src/pages/specification/useSpecificationPageModel.ts": {
+      "loc": 518,
+      "imports": 14,
+      "useEffect": 2,
+      "useState": 16,
+      "useCallback": 0
+    },
+    "src/utils/electricalCandidateTableColumns.ts": {
+      "loc": 503,
+      "imports": 4,
+      "useEffect": 0,
+      "useState": 0,
+      "useCallback": 0
+    },
+    "src/utils/heatCalcExcelMode.ts": {
+      "loc": 558,
+      "imports": 3,
+      "useEffect": 0,
+      "useState": 0,
+      "useCallback": 0
+    },
+    "src/utils/heatCalcTableColumns.ts": {
+      "loc": 574,
+      "imports": 4,
+      "useEffect": 0,
+      "useState": 0,
+      "useCallback": 0
+    },
+    "src/utils/objectWizardUtils.ts": {
+      "loc": 758,
+      "imports": 0,
+      "useEffect": 0,
+      "useState": 0,
+      "useCallback": 0
+    }
+  }
+}
