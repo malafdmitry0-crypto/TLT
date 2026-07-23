@@ -7,8 +7,8 @@ import type { DraftRowsById } from '@/utils/heatCalcInlineEdit';
 describe('useHeatCalcNormalGridDraftInvalidation', () => {
   it('registers invalidator and fires on draft identity change', () => {
     const invalidate = vi.fn();
-    const rowA = { id: 'a' } as DraftRowsById[string];
-    const rowA2 = { id: 'a' } as DraftRowsById[string];
+    const rowA = { id: 'a' } as unknown as DraftRowsById[string];
+    const rowA2 = { id: 'a' } as unknown as DraftRowsById[string];
 
     const { result, rerender } = renderHook(
       ({ drafts, excel }) => useHeatCalcNormalGridDraftInvalidation(drafts, excel),
@@ -25,8 +25,8 @@ describe('useHeatCalcNormalGridDraftInvalidation', () => {
 
   it('skips invalidation in excel mode', () => {
     const invalidate = vi.fn();
-    const rowA = { id: 'a' } as DraftRowsById[string];
-    const rowA2 = { id: 'a' } as DraftRowsById[string];
+    const rowA = { id: 'a' } as unknown as DraftRowsById[string];
+    const rowA2 = { id: 'a' } as unknown as DraftRowsById[string];
 
     const { result, rerender } = renderHook(
       ({ drafts, excel }) => useHeatCalcNormalGridDraftInvalidation(drafts, excel),
@@ -39,3 +39,4 @@ describe('useHeatCalcNormalGridDraftInvalidation', () => {
     expect(invalidate).not.toHaveBeenCalled();
   });
 });
+

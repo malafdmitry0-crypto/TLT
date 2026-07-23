@@ -1,6 +1,4 @@
 import {
-  lazy,
-  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -14,7 +12,6 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 
-import HeatCalcExcelContextMenu from '@/components/heatcalc/HeatCalcExcelContextMenu';
 import HeatCalcObjectsTableCard from '@/components/heatcalc/HeatCalcObjectsTableCard';
 import { areCommercialFeaturesEnabled } from '@/config/featureFlags';
 import { useAuthStore } from '@/store/authStore';
@@ -56,7 +53,6 @@ import HeatCalcAssumptionsPanel from '@/pages/heatcalc/HeatCalcAssumptionsPanel'
 import HeatCalcSelectedRowErrorsOverlay from '@/pages/heatcalc/HeatCalcSelectedRowErrorsOverlay';
 import { useHeatCalcResizeModel } from '@/pages/heatcalc/useHeatCalcResizeModel';
 import { useHeatCalcDraftSaveModel } from '@/pages/heatcalc/useHeatCalcDraftSaveModel';
-import HeatCalcUnsavedChangesModals from '@/pages/heatcalc/HeatCalcUnsavedChangesModals';
 import {
   useHeatCalcExcelInteractionModel,
   useHeatCalcExcelInteractionState,
@@ -83,8 +79,7 @@ import { buildHeatCalcToolbarSavePresentation } from '@/pages/heatcalc/heatCalcT
 import { buildHeatCalcLayoutPresentation } from '@/pages/heatcalc/heatCalcLayoutModel';
 import { HeatCalcWorkspaceLayout } from '@/pages/heatcalc/HeatCalcWorkspaceLayout';
 import { useHeatCalcNormalGridDraftInvalidation } from '@/pages/heatcalc/useHeatCalcNormalGridDraftInvalidation';
-
-const ColumnSettingsModal = lazy(() => import('@/components/heatcalc/ColumnSettingsModal'));
+import { HeatCalcPageOverlays } from '@/pages/heatcalc/HeatCalcPageOverlays';
 
 type TableEditingMode = HeatCalcToolbarEditingMode;
 const COMMERCIAL_FEATURES_DISABLED_TABLE_VIEW_STATE = createEmptyTableViewState();
@@ -890,54 +885,24 @@ export default function HeatCalcPage() {
         onSideResizeMouseDown={startSideFormMouseResize}
       />
 
-      <HeatCalcExcelContextMenu
+      <HeatCalcPageOverlays
         excelModeEnabled={excelModeEnabled}
-        contextMenu={excelContextMenu}
-        selectionRange={excelSelectionRange}
-        activeCell={activeExcelCellPosition}
-        selectedRows={selectedExcelRows}
+        excelContextMenu={excelContextMenu}
+        excelSelectionRange={excelSelectionRange}
+        activeExcelCellPosition={activeExcelCellPosition}
+        selectedExcelRows={selectedExcelRows}
         draftRowsById={draftRowsById}
         isSavableDraftRow={isSavableDraftRow}
-        closeContextMenu={closeExcelContextMenu}
-        copySelection={copyExcelSelection}
-        cutSelection={cutExcelSelection}
-        pasteFromClipboard={pasteExcelFromClipboard}
-        clearSelection={clearExcelSelection}
-        addRowsBelowSelection={addExcelRowsBelowSelection}
-        removeSelectedRows={removeSelectedObjects}
-        resetSelectedRows={resetSelectedExcelRows}
-      />
-
-      {columnSettingsDialog.isOpen && (
-        <Suspense fallback={null}>
-          <ColumnSettingsModal
-            open={columnSettingsDialog.isOpen}
-            activeType={columnSettingsDialog.activeType}
-            draftColumnSettings={columnSettingsDialog.draftColumnSettings}
-            draftViewSettings={columnSettingsDialog.draftViewSettings}
-            draftCalculationDetailsSettings={columnSettingsDialog.draftCalculationDetailsSettings}
-            confirmLoading={preferenceSavePending}
-            onTypeChange={columnSettingsDialog.setActiveType}
-            onOk={columnSettingsDialog.apply}
-            onCancel={columnSettingsDialog.close}
-            onSelectAllColumns={columnSettingsDialog.selectAllDraftColumns}
-            onResetColumns={columnSettingsDialog.resetDraftColumns}
-            onVisibleChange={columnSettingsDialog.updateDraftColumn}
-            onOrderChange={columnSettingsDialog.updateDraftColumnOrder}
-            onWidthChange={columnSettingsDialog.updateDraftColumnWidth}
-            onResetWidth={columnSettingsDialog.resetDraftColumnWidth}
-            onColumnReorder={columnSettingsDialog.reorderDraftColumn}
-            onTableLabelFormatChange={columnSettingsDialog.updateDraftTableLabelFormat}
-            onSettingsLabelFormatChange={columnSettingsDialog.updateDraftSettingsLabelFormat}
-            onFormPlacementChange={columnSettingsDialog.updateDraftFormPlacement}
-            onResetLabelFormats={columnSettingsDialog.resetDraftLabelFormats}
-            onCalculationDetailsPresetChange={columnSettingsDialog.updateDraftCalculationDetailsPreset}
-            onCalculationDetailMetricsChange={columnSettingsDialog.updateDraftCalculationDetailMetrics}
-            onResetCalculationDetails={columnSettingsDialog.resetDraftCalculationDetails}
-          />
-        </Suspense>
-      )}
-      <HeatCalcUnsavedChangesModals
+        closeExcelContextMenu={closeExcelContextMenu}
+        copyExcelSelection={copyExcelSelection}
+        cutExcelSelection={cutExcelSelection}
+        pasteExcelFromClipboard={pasteExcelFromClipboard}
+        clearExcelSelection={clearExcelSelection}
+        addExcelRowsBelowSelection={addExcelRowsBelowSelection}
+        removeSelectedObjects={removeSelectedObjects}
+        resetSelectedExcelRows={resetSelectedExcelRows}
+        columnSettingsDialog={columnSettingsDialog}
+        preferenceSavePending={preferenceSavePending}
         pendingWizardObject={pendingWizardObject}
         inlineDraftSaving={inlineDraftSaving}
         discardDraftRows={discardDraftRows}

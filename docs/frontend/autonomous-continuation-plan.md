@@ -145,8 +145,8 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | **H8** | `done` | layout presentation pure | side form placement | unit | `85d93b1` |
 | **H9** | `done` | (merged into H10) | type/actions stay thin wrappers | — | — |
 | **H10** | `done` | `HeatCalcWorkspaceLayout.tsx` | placement shell slots | basics tests | `4a3b929` Heat **969** |
-| **H11** | `in_progress` | draft invalidation + overlays | residual thin | unit | **▶ current** |
-| **H12** | `pending` | residual → ≤700 then ≤500 | large chunks only | unit | until ≤700 |
+| **H11** | `done` | draft invalidation + overlays | residual thin | unit | `c755d3d` + overlays |
+| **H12** | `in_progress` | residual → ≤700 | large chunks only | unit | **▶ current** Heat **915** |
 
 **Анти-паттерн Heat:** extract, который **увеличивает** shell LOC (named-args pure call без выгоды) — `skipped`, не делать.
 
