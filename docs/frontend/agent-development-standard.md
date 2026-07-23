@@ -152,7 +152,9 @@ Redesign, copy-editing и архитектурный рефакторинг — 
 - рост allowlist/baseline внутри feature-slice;
 - compensating CSS override вместо устранения владельца конфликта.
 
-Обоснованное повышение baseline выполняется отдельным architecture-slice.
+Обоснованное изменение не-absolute baseline выполняется отдельным
+architecture-slice. Это не относится к `!important`: его baseline `0` не
+повышается.
 
 ## 6. UI и CSS
 
@@ -162,10 +164,30 @@ Redesign, copy-editing и архитектурный рефакторинг — 
   `tokens → base → app-shell → vendor-overrides → styles.css freeze-stub`.
 - Ant theme принадлежит `src/theme/appTheme.ts`; `main.tsx` только подключает его.
 - `src/styles.css` — freeze-stub: новый feature CSS запрещён.
-- Новый bare `.ant-*` и новый `!important` запрещены по умолчанию.
+- Новый bare `.ant-*` запрещён; `!important` запрещён без исключений и остаётся
+  на абсолютном baseline `0`.
+- Статические presentation styles через JSX `style={{...}}` и Ant
+  `styles={{...}}` запрещены. Допустимы только runtime geometry, CSS custom
+  properties и документированное требование third-party API; статическая часть
+  всё равно выносится в owner class.
+- Новое визуальное значение получает semantic token. `--c-*` и `--a-*` —
+  legacy palette: существующие ссылки уменьшаются, новые feature-ссылки
+  запрещены.
+- Новый селектор использует минимальную специфичность. ID selectors, повтор
+  классов для усиления, длинная DOM-цепочка и `:has()` вместо явного state class
+  запрещены.
+- Новые responsive rules используют `480/768/1200/1400`, `print` или
+  `prefers-reduced-motion`; остальные существующие значения не распространяются
+  за пределы текущего owner.
 - Плотность общих полей задаётся `--tlt-field-*` tokens.
 - UI-kit владеет поведением контрола; feature владеет размещением.
 - Accessibility-семантика — публичный интерфейс для пользователя и Playwright.
+
+Часть правил пока проверяется review, а не общим architecture gate. Фактическая
+граница автоматизации перечислена в
+[CSS-стратегии](./css-strategy.md#что-проверяется-автоматически). Красный
+действующий LOC/media ratchet остаётся hard stop, даже если его изменение
+предлагается отдельной architecture-задачей.
 
 Видимый UI-slice проверяет минимум:
 
@@ -262,6 +284,8 @@ Push выполняется только по явному запросу пол
 - целевой файл уже изменён чужим WIP;
 - изменение не помещается в budget;
 - требуется повысить baseline или ослабить тест;
+- CSS-решение требует `!important`, нового статического inline-style,
+  неканонического breakpoint или не имеет одного owner root;
 - полный gate красный;
 - обязательный browser proof недоступен или показывает регрессию;
 - одна причина не устранена после трёх содержательных попыток.

@@ -29,6 +29,9 @@ Feature-owner: `heat`, `electrical`, `specification`, `reports`, `projects`,
   allowlist;
 - domain logic внутри UI-kit;
 - feature CSS в `src/styles.css`;
+- `!important`, bare `.ant-*` и статические JSX `style`/`styles`;
+- новые feature-ссылки на legacy palette `--c-*`/`--a-*`;
+- CSS без owner root, рост специфичности и неканонические breakpoints;
 - рост architecture baseline/allowlist внутри feature-slice;
 - изменение UX/API/query/routes/units/formulas/UUID semantics вне явного scope;
 - ослабление тестов или типизации.

@@ -78,7 +78,14 @@ UI_STATES:
 - Presentational UI: props-in/events-out.
 - UI импортируй через @/components/ui-kit.
 - Не создавай Heat↔Electrical↔Specification deep imports.
-- Не добавляй feature CSS в src/styles.css, bare .ant-* или !important.
+- Не добавляй feature CSS в src/styles.css, bare .ant-* или !important;
+  baseline !important остаётся абсолютным нулём.
+- Не добавляй статические JSX style/styles и прямые feature-ссылки на legacy
+  palette --c-*/--a-*; runtime style оставляй только для вычисляемой геометрии,
+  CSS custom properties или документированного third-party API.
+- Каждый новый селектор держи под owner root с минимальной специфичностью; не
+  добавляй ID, длинные DOM-цепочки, :has() вместо state class и breakpoint вне
+  480/768/1200/1400, print, prefers-reduced-motion.
 - Не используй any, @ts-ignore, as unknown as и broad casts.
 - Удали только заменённый код или доказанный дубль.
 - Не выполняй соседний cleanup.
@@ -110,7 +117,12 @@ npm run build
 
 Не повышай complexity/CSS/dependency baseline и не расширяй allowlist внутри
 feature-slice. Если исключение действительно нужно, STOP и предложи отдельный
-architecture-slice.
+architecture-slice. Это не разрешает повысить абсолютный baseline !important=0.
+
+Не считай manual CSS policy автоматически проверенной. Сверь раздел «Что
+проверяется автоматически» в docs/frontend/css-strategy.md и перечисли ручную
+проверку ownership, inline styles, specificity, semantic tokens и breakpoints в
+отчёте, если они затронуты.
 
 ## Hard stops
 

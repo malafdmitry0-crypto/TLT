@@ -22,6 +22,10 @@
 - Не обходи ограничения через `any`, `@ts-ignore`, широкие casts, ослабление
   assertions или повышение architecture baseline.
 - Не добавляй feature CSS в `src/styles.css`.
+- Не добавляй `!important`, bare `.ant-*`, статические JSX `style`/`styles` или
+  прямые feature-ссылки на legacy palette `--c-*`/`--a-*`.
+- Новый CSS имеет один owner root, минимальную специфичность и использует только
+  canonical breakpoints из [CSS-стратегии](../docs/frontend/css-strategy.md).
 - Не создавай новые Heat ↔ Electrical ↔ Specification deep imports.
 - UI-kit не знает о feature/domain; feature UI импортирует kit только через
   `@/components/ui-kit`.

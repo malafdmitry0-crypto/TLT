@@ -1,45 +1,54 @@
-# CSS-стратегия TLT: ownership, strangler и контроль регрессий
+# CSS-стратегия TLT: ownership, cascade и контроль качества
 
 **Актуально на:** 2026-07-23  
-**Статус:** рабочий регламент для нового CSS и постепенного разбора legacy.
+**Статус:** рабочий регламент для нового CSS и безопасного уменьшения
+существующего долга.
 
 > Тематический справочник. Обязательные workflow, budget, proof и hard stops:
 > [agent-development-standard.md](./agent-development-standard.md).
 
-## Решение
+## Текущее состояние
 
-Используем гибрид:
+Основной CSS-strangler завершён:
+
+- `src/styles.css` — freeze-stub без селекторов;
+- `!important` в `frontend/src` — `0`;
+- raw color literals в `.css` вне `styles/tokens.css` — `0`;
+- глобальные слои и Ant theme имеют явных владельцев;
+- architecture ratchets подключены к обязательным agent gates.
+
+Это не означает, что весь CSS уже качественный. В коде остаются крупные
+owner-файлы, технические palette tokens, сложные селекторы и статические inline
+styles, включая JSX color literals. Они считаются существующим долгом, а не
+разрешённым шаблоном для нового кода. Актуальные числа всегда пересчитываются из
+runtime-кода и baseline; старые снимки из документации не являются источником
+истины.
+
+## Основной контракт
 
 ```text
-Общее поведение и визуальные контракты → tokens / UI kit
-Уникальный layout и chrome             → рядом с feature-компонентом
-App shell                              → styles/app-shell.css
-Vendor overrides                       → styles/vendor-overrides.css
-Legacy                                 → styles.css, только удаление и перенос
+Общие визуальные контракты → semantic tokens / UI kit
+Уникальный layout и chrome  → CSS рядом с feature-компонентом
+App shell                   → styles/app-shell.css
+Vendor overrides            → theme API, затем styles/vendor-overrides.css
+Legacy                      → только уменьшение, локализация или удаление
 ```
 
-Новый feature CSS в `frontend/src/styles.css` запрещён. Миграция идёт
-небольшими срезами с удалением исходных правил и проверкой поведения в том же PR.
+Цель — не минимальное число CSS-файлов и не минимальный LOC любой ценой. У
+каждого правила должен быть один владелец, а изменение одного feature не должно
+требовать компенсирующего override в другом слое.
 
-## Цели
-
-1. У каждого правила есть один понятный владелец.
-2. Изменение одного поля или feature не требует правок глобального CSS.
-3. UI kit задаёт единый контракт полей; feature задаёт только размещение.
-4. Перенос CSS не меняет поведение, пока это не заявлено отдельной задачей.
-5. Архитектура обеспечивается тестами и CI, а не только договорённостью.
-
-## Четыре слоя
+## Слои и ownership
 
 | Слой | Целевое место | Отвечает за | Не отвечает за |
 |---|---|---|---|
-| Tokens | `styles/tokens.css` | семантические цвета, размеры, density и layout tokens | селекторы компонентов |
+| Tokens | `styles/tokens.css` | semantic colors, размеры, density и layout tokens | селекторы компонентов |
 | Base | `styles/base.css` | document root и общие utility states | feature layout и vendor overrides |
 | Design system | `components/ui-kit/*.css` | `.tlt-*`, CompactField, primitives и состояния контролов | layout конкретного экрана |
-| Feature / island | `Foo.css` рядом с `Foo.tsx` | toolbar, page chrome, таблица, modal и feature-layout | чужие feature и app shell |
-| App shell | `styles/app-shell.css` | общий layout application chrome | layout Heat/Elec/Spec |
-| Vendor | `styles/vendor-overrides.css` | оставшиеся app-wide Ant overrides | feature-specific Ant overrides |
-| Legacy | `styles.css` | временно оставшийся глобальный код | новые правила |
+| Feature / island | CSS рядом с owner-компонентом | toolbar, page chrome, таблица, modal и feature layout | чужие feature и app shell |
+| App shell | `styles/app-shell.css` | общий application chrome | layout Heat/Elec/Spec |
+| Vendor | `styles/vendor-overrides.css` | неизбежные app-wide third-party overrides | feature-specific overrides |
+| Freeze stub | `styles.css` | точка совместимости импорта | любые новые правила |
 
 Допустимое направление зависимостей:
 
@@ -47,25 +56,28 @@ Legacy                                 → styles.css, только удален
 tokens ← base / app-shell / vendor-overrides
 tokens ← ui-kit ← feature
 
-feature не импортирует legacy
 ui-kit не знает о heat / electrical / specification
 feature A не стилизует feature B
+feature не импортирует CSS другого независимого feature
 ```
 
 ## Куда помещать новое правило
 
-1. Значение повторяется в нескольких независимых компонентах?  
-   Добавить семантический token, но не селектор.
-2. Это визуальное поведение переиспользуемого Tlt-компонента?  
-   Добавить в UI kit.
-3. Это app header/sidebar/page frame?  
-   Добавить в `styles/app-shell.css` или существующий app-header owner.
-4. Это неизбежный app-wide override Ant Design?
-   Сначала проверить `theme/appTheme.ts`, затем `vendor-overrides.css`.
-5. Всё остальное?
-   Добавить рядом с компонентом под его root namespace.
+1. Поведение относится к Ant component/theme token?
 
-Формат feature:
+   Настроить `theme/appTheme.ts`.
+2. Это переиспользуемый визуальный контракт TLT-компонента?
+
+   Добавить его в UI kit.
+3. Это app header/sidebar/page frame?
+
+   Использовать существующего app-shell owner.
+4. Это значение с устойчивым смыслом в нескольких местах?
+
+   Добавить semantic token, но не глобальный селектор.
+5. Всё остальное?
+
+   Добавить рядом с компонентом под его стабильным root namespace.
 
 ```text
 Foo.tsx
@@ -76,13 +88,14 @@ root    → className="feature-foo"
 CSS     → .feature-foo ... / .feature-foo__part / .feature-foo--state
 ```
 
-Plain CSS с root namespace/BEM — основной подход. CSS Modules допустимы для
-полностью принадлежащих приложению компонентов, если они реально уменьшают риск.
-Массовое внедрение Modules, Tailwind или CSS-in-JS не является целью.
+Plain CSS с owner root/BEM — основной подход. CSS Modules допустимы для
+полностью принадлежащих приложению компонентов, если они действительно уменьшают
+риск. Массовое внедрение CSS Modules, Tailwind, CSS-in-JS или Cascade Layers не
+является текущей целью.
 
-## Cascade и импорты
+## Cascade и специфичность
 
-Глобальные файлы подключаются один раз в `main.tsx` в явном порядке:
+Глобальные файлы подключаются один раз в `main.tsx` в зафиксированном порядке:
 
 ```ts
 import './styles/tokens.css';
@@ -93,55 +106,102 @@ import './styles.css'; // freeze-stub
 // затем только явно зарегистрированные shared global owners
 ```
 
-`styles/app-base.css` — legacy pointer на эту раскладку, новые правила туда не
-добавляются. Feature CSS импортирует компонент-владелец. Новый feature CSS не должен
-побеждать legacy только за счёт порядка импорта:
+Feature CSS импортирует компонент-владелец. Новый селектор использует минимальную
+специфичность, обычно `owner root + target + state`.
 
-- исходное legacy-правило удаляется в том же PR;
-- каждый feature-селектор содержит root class;
-- намеренные cross-file overrides запрещены;
-- рост специфичности для обхода legacy не считается миграцией.
+Запрещено:
 
-Cascade Layers пока не вводим: сначала уменьшаем legacy и проверяем взаимодействие
-с Ant CSS-in-JS на отдельном прототипе.
+- ID selectors, кроме существующего document-root контракта;
+- повторять root/class только для повышения специфичности;
+- привязывать стиль к длинной DOM-цепочке, если можно добавить owner class;
+- использовать `:has()` как замену явному state/modifier class;
+- побеждать соседний файл порядком импорта или компенсирующим override;
+- копировать селектор в другой owner вместо исправления источника конфликта.
+
+Сложный селектор допустим только при неизбежной привязке к third-party DOM и
+требует комментария причины, focused browser proof и проверки после обновления
+библиотеки. Существующая сложность не оправдывает её рост.
+
+## Inline styles
+
+Новые статические presentation styles в JSX запрещены:
+
+```tsx
+// запрещено
+<Card style={{ marginBottom: 16, color: '#595959' }} />
+<Card styles={{ body: { padding: 16 } }} />
+
+// ожидается
+<Card className="report-card" />
+```
+
+Это правило относится и к Ant `styles={{ ... }}`. Разрешены только:
+
+- runtime geometry/position, реально вычисляемые из данных;
+- CSS custom properties, через которые компонент передаёт динамическое значение
+  в принадлежащий ему CSS;
+- style API third-party компонента, если у него нет `className`, theme token или
+  другого поддерживаемого механизма.
+
+Даже в разрешённом inline-style статические части выносятся в owner class.
+Third-party исключение фиксируется рядом с использованием: почему class/theme API
+недоступны, какой компонент владеет исключением и каким proof оно покрыто.
 
 ## Tokens и Ant Design
 
-Разделяем ответственность:
-
 | Контракт | Источник |
 |---|---|
-| CSS semantic tokens (`--tlt-*`, `--layout-*`) | `styles/tokens.css` |
+| CSS semantic tokens (`--tlt-*`, `--layout-*`, owner-semantic names) | `styles/tokens.css` |
 | Ant component/theme tokens | `theme/appTheme.ts`, передаваемый в `ConfigProvider` |
-| Значения, которые должны совпадать | parity-тест |
-
-Одинаковый literal в `tokens.css`, `main.tsx` и feature CSS недопустим.
-`theme/appTheme.ts` — единственный TypeScript owner конфигурации
-`ConfigProvider`; `main.tsx` только подключает его.
+| Значения, которые должны совпадать | parity test |
 
 Токен получает имя по назначению, а не по значению:
 
 ```css
 /* хорошо */
 --tlt-field-control-height: 26px;
---layout-toolbar-border: #d9e1e6;
+--layout-toolbar-border: var(--color-border);
 
-/* плохо */
+/* запрещено для нового публичного контракта */
 --height-26: 26px;
 --gray-217: #d9d9d9;
 ```
 
-CSS custom properties не используются как значения media query. Новые числовые
-breakpoints разрешены только из принятого allowlist; добавление нового значения
-требует отдельного обоснования.
+Существующие `--c-*` и `--a-*` — legacy compatibility palette. Их определения
+остаются единым raw-color source of truth, но новый feature CSS не обращается к
+ним напрямую. Новый визуальный смысл получает semantic alias в `tokens.css`;
+alias временно может ссылаться на существующий palette token без добавления
+нового raw literal.
 
-## Ant Design overrides
+Одинаковый literal в `tokens.css`, TypeScript и feature CSS недопустим.
+`theme/appTheme.ts` — единственный TypeScript owner конфигурации
+`ConfigProvider`; `main.tsx` только подключает её.
 
-Порядок выбора решения:
+## Breakpoints
 
-1. `ConfigProvider` theme/component token.
-2. Собственный Tlt-компонент.
-3. Scoped override под стабильным feature root.
+Для нового и изменяемого responsive CSS используются:
+
+```text
+max-width: 480px
+max-width: 768px
+max-width: 1200px
+max-width: 1400px
+print
+prefers-reduced-motion: reduce
+```
+
+Остальные существующие значения — локальный legacy. Их нельзя копировать в
+новый файл или распространять на другого owner. Замена legacy breakpoint может
+менять layout, поэтому выполняется отдельным визуальным slice с geometry proof.
+CSS custom properties не используются внутри media query.
+
+## Ant Design overrides и `!important`
+
+Порядок решения конфликта:
+
+1. `ConfigProvider` theme/component token или поддерживаемый component API.
+2. Собственный TLT-компонент.
+3. Scoped override под стабильным owner root.
 
 ```css
 /* допустимо */
@@ -149,184 +209,120 @@ breakpoints разрешены только из принятого allowlist; �
   margin-block-end: 0;
 }
 
-/* запрещено в новом коде */
+/* запрещено */
 .ant-form-item {
   margin-block-end: 0;
 }
 ```
 
-Новый `!important` запрещён по умолчанию. Исключение возможно только для
-неустранимого third-party/inline-style конфликта, с комментарием причины и тестом.
-Общее количество `!important` в PR не должно расти.
+`!important` запрещён без исключений; текущий baseline равен нулю и не
+повышается. Это относится и к third-party/inline-style конфликтам. Если конфликт
+невозможно решить через theme/component API, owner root или изменение интеграции,
+feature-slice останавливается с `FILE / EVIDENCE / DECISION NEEDED`. Отдельная
+architecture-задача может изменить механизм интеграции, но не легализует
+`!important`.
 
 ## Freeze `styles.css`
 
-Допустимо:
+В `src/styles.css` допустимы только удаление или обслуживание comment-only
+freeze-stub. Новые base, shell, vendor и feature rules туда не добавляются.
 
-- удалить правило;
-- переместить правило владельцу и удалить оригинал;
-- исправить критическую регрессию с отдельным proof;
-- временно исправить base/shell только с явно указанным последующим переносом.
+Запрещено:
 
-Недопустимо:
+- новое feature-правило или bare `.ant-*`;
+- копия существующего селектора;
+- временный компенсирующий override;
+- удержание LOC-метрики удалением комментариев вместо правил.
 
-- новое feature-правило;
-- новый bare `.ant-*`;
-- новая копия существующего селектора;
-- «компенсирующий» override вместо удаления конфликтующего legacy;
-- формально удержать LOC за счёт удаления комментариев.
+## Что проверяется автоматически
 
-`net LOC ≤ 0` остаётся budget-ограничением, но не считается достаточным gate.
+Текущий `css:architecture` и связанные architecture tests проверяют:
 
-## Автоматические gates
+- freeze `styles.css` и `styles/app-base.css`;
+- shrink-only baseline для CSS LOC, bare Ant selectors и количества media rules;
+- абсолютный нулевой baseline `!important`;
+- raw color literals в CSS вне `tokens.css`;
+- порядок глобальных CSS imports;
+- orphan CSS и специальные import-owner контракты;
+- foreign feature markers для зарегистрированных feature-зон;
+- root isolation для отдельных wizard islands.
 
-`css:architecture` уже хранит shrink-only baseline и проверяет:
+Следующие правила пока обязательны на review, но не покрыты общим
+автоматическим gate:
 
-1. `styles.css` не растёт по LOC, rules и declarations.
-2. Количество `!important` не растёт.
-3. В новом CSS нет bare `.ant-*`.
-4. Все селекторы island-файла находятся под root class.
-5. Нет точного overlap селекторов между `styles.css` и вынесенным island.
-6. Нет CSS imports между независимыми feature/islands.
-7. CSS-файл импортируется своим компонентом и не является orphan.
-8. Новые цвета и размеры контролов используют tokens.
-9. Число уникальных breakpoint-значений не растёт.
+- статические JSX `style`/`styles`;
+- прямые новые ссылки на legacy `--c-*`/`--a-*`;
+- специфичность и глубина всех селекторов;
+- owner-root isolation каждого CSS-файла;
+- значения breakpoint allowlist;
+- полный запрет cross-feature CSS imports и semantic duplicates.
 
-За основу берётся существующий wizard isolation architecture test. Проверки
-расширяются через registry владельцев, а не набор несвязанных regex-скриптов.
+Документ не выдаёт manual policy за существующий CI gate. Пока исполняемый
+LOC/media ratchet строже этого регламента, его красный результат остаётся hard
+stop. Изменение baseline или логики gate выполняется отдельным
+architecture-slice, а не внутри feature-задачи.
 
-CI gate:
-
-```text
-test:architecture
-css:architecture
-focused unit/integration
-focused e2e по proof matrix
-```
-
-## Протокол одного extraction
-
-Один PR переносит один визуальный контракт одного домена.
+## Протокол CSS-slice
 
 ### До изменения
 
 1. Назначить owner и root class.
-2. Найти все селекторы, JSX class names, динамические модификаторы и media/print rules.
-3. Зафиксировать characterization: screenshot, geometry assertion или computed style.
-4. Записать состояния, которые реально затрагивает перенос.
+2. Найти селекторы, JSX class names, inline styles, modifiers и media/print rules.
+3. Проверить theme/UI-kit/semantic-token путь до добавления feature override.
+4. Зафиксировать текущую геометрию, computed styles и затронутые состояния.
+5. Записать allowed scope, invariants и неавтоматизированные review-проверки.
 
 ### Изменение
 
-1. Создать или использовать `Foo.css`.
-2. Scope каждого правила под root.
-3. Перенести правила без визуального redesign.
-4. Подключить CSS только в компоненте-владельце.
-5. Удалить legacy-правила в том же PR.
+1. Изменить только CSS владельца и его компонент.
+2. Использовать semantic tokens и минимальную специфичность.
+3. Удалить заменённый inline-style, селектор или дубль в том же slice.
+4. Не оставлять второй равноправный источник визуального контракта.
 
 ### После изменения
 
-1. Exact selector overlap с legacy равен нулю.
-2. `!important`, bare Ant selectors и breakpoint count не выросли.
-3. Focused tests и выбранные UI-состояния прошли.
-4. Console errors, overflow и print behavior не ухудшились.
-5. PR содержит список удалённых legacy-блоков и явный `Out of scope`.
-
-Если удалить legacy в том же PR нельзя, перенос делится на меньший срез.
-Длительное сосуществование двух источников истины запрещено.
+1. `!important` остаётся `0`.
+2. Не появились bare Ant, raw colors, новые legacy palette references или
+   нестандартные breakpoints.
+3. Owner, cascade и specificity проверены вручную там, где нет общего gate.
+4. Focused tests и релевантные browser states прошли.
+5. Console errors, overflow, keyboard/focus и print behavior не ухудшились.
 
 ## Proof matrix
-
-Проверяется только релевантная часть матрицы, но автор PR обязан явно отметить
-непроверенные состояния.
 
 | Изменение | Минимальный proof |
 |---|---|
 | Token/UI kit | unit + `/ui-kit` + computed-style parity |
-| Heat form/layout | 1280 и 1440; top + используемое side placement; empty + populated; validation |
-| Table/Glide chrome | populated rows; horizontal/vertical scroll; selection; error row |
+| Heat form/layout | 1280 и 1440; используемые placements; empty + populated; validation |
+| Table/Glide chrome | populated rows; scroll; selection; error row |
 | Modal/settings | open/close; long content; keyboard focus; 1280 |
 | Specification | populated + stale; screen + print |
-| Electrical | focused unit/integration + основной e2e сценарий |
+| Electrical | focused unit/integration + основной e2e scenario |
 | App shell | 1280, 1440, 1920; navigation; overflow |
 | Responsive component | 390 и 768 дополнительно |
 
 HeatCalc ниже официальной минимальной ширины не является release blocker, если
-задача не про responsive. UI kit и явно responsive-компоненты всё равно проверяются
-на 390/768. Reduced motion, focus-visible и print проверяются при затрагивании
-соответствующего поведения.
+задача не про responsive. UI kit и явно responsive-компоненты всё равно
+проверяются на 390/768. Reduced motion, focus-visible и print проверяются при
+затрагивании соответствующего поведения.
 
-## Порядок миграции по ROI
+## Definition of Done
 
-0. Baseline + CI gates + `tokens.css`; без визуальных изменений.
-1. Точные legacy/island дубли и form-density overlaps. Текущая миграция формы
-   считается частичной, пока остаются `.inline-object-form` overrides и рост
-   специфичности.
-2. Heat toolbar и table chrome.
-3. Specification layout вместе с print-контрактом.
-4. Electrical chrome небольшими независимыми срезами.
-5. Projects/admin.
-6. Header/sidebar → `layout.css`.
-
-Insulation table не меняется «заодно»: для неё нужен отдельный PR, owner,
-characterization и полный isolation proof.
-
-## Метрики
-
-LOC измеряет прогресс удаления legacy, но не качество сам по себе.
-
-| Метрика | На каждый PR | 6–8 недель | 4–6 месяцев |
-|---|---:|---:|---:|
-| `styles.css` LOC | не растёт | `< 5000` | `< 2500` |
-| Feature selectors в `styles.css` | не растут | заметно уменьшаются | `0` |
-| Exact legacy/island overlaps | `0` для затронутого island | `0` вынесенных блоков | `0` |
-| `!important` | не растёт | `-20%` от baseline | только documented exceptions |
-| Bare `.ant-*` | не растут | уменьшаются | только approved base rules |
-| Уникальные HEX вне tokens/theme | не растут | уменьшаются | documented exceptions |
-| Уникальные breakpoints | не растут | allowlist | allowlist |
-| UI Kit form coverage | растёт при миграции форм | Heat | Heat + выбранные panels |
-
-Количество CSS-файлов не является KPI. Цель — один владелец и отсутствие дублей,
-а не максимальное дробление.
-
-Baseline снимается автоматически и хранится рядом с architecture gate; числа в
-документации не используются как источник истины.
-
-## План первых двух недель
-
-### Неделя 1 — сделать правила исполнимыми
-
-- добавить `tokens.css`, `base.css`, `layout.css` и явный порядок импортов;
-- вынести Ant theme из `main.tsx` в `appTheme.ts`;
-- добавить baseline и `css:architecture`;
-- подключить gate к `test:architecture`;
-- удалить один набор точных legacy/island дублей с focused proof.
-
-### Неделя 2 — доказать процесс
-
-- вынести один Heat chrome-блок;
-- вынести Specification CSS вместе с print characterization;
-- измерить время одного extraction и скорректировать PR budget;
-- обновить baseline только после подтверждённого уменьшения legacy.
-
-Не выполнять больше двух production extractions одного домена в одном PR.
-
-## Definition of Done миграции CSS
-
-- `styles.css` содержит только reset/base/shell, которые ещё не вынесены;
-- feature-селекторов в нём нет;
-- tokens и Ant theme имеют явных владельцев и parity;
-- каждый feature CSS scoped и импортируется owner-компонентом;
-- legacy/island overlaps равны нулю;
-- `!important` остались только как документированные исключения;
-- breakpoint и color allowlists соблюдаются;
-- architecture gates и focused UI proof обязательны в CI.
+- правило находится у одного owner и импортируется им;
+- глобальный слой не получил feature-знание;
+- `!important` равен нулю;
+- нет нового статического inline-style;
+- новый визуальный смысл выражен semantic token;
+- специфичность и DOM coupling не выросли;
+- breakpoint взят из canonical policy;
+- automatic gates зелёные, manual checks явно перечислены;
+- видимое изменение имеет focused browser proof.
 
 ## Не делать
 
-- rewrite `styles.css` одним большим PR;
-- визуальный redesign одновременно с extraction;
-- Tailwind/CSS Modules migration всего приложения;
-- универсальный layout kit без подтверждённого повторения;
-- удаление `.inline-object-form` или insulation CSS без characterization;
+- массовый CSS rewrite или redesign одновременно с extraction;
+- Tailwind/CSS Modules/CSS-in-JS migration всего приложения;
+- новый глобальный layout kit без доказанного повторения;
 - перенос, после которого старый и новый селектор остаются активными;
-- объявлять успех только по уменьшению LOC.
+- объявлять качество только по уменьшению LOC;
+- повышать baseline, чтобы feature-slice стал зелёным.

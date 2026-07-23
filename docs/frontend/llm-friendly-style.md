@@ -115,10 +115,19 @@ View не ходит в store/query/api сам.
 
 ### H. CSS
 
-- 1 feature root class (`.heat-object-fields`)
-- стили рядом с компонентом
-- плотность только через `--tlt-field-*`
-- поля только через ui-kit
+- 1 feature root class (`.heat-object-fields`);
+- стили рядом с компонентом;
+- `!important` остаётся на абсолютном нуле;
+- статический `style`/`styles` заменяется owner class;
+- новый визуальный смысл получает semantic token, а не прямой `--c-*`/`--a-*`;
+- минимальная специфичность без ID и длинной DOM-цепочки;
+- плотность только через `--tlt-field-*`;
+- поля только через ui-kit.
+
+Runtime inline-style допустим для вычисляемой геометрии или CSS custom property.
+Статические свойства всё равно остаются в CSS владельца. Полный контракт,
+canonical breakpoints и граница автоматических gates описаны в
+[CSS-стратегии](./css-strategy.md).
 
 ### I. Public barrel
 
@@ -158,7 +167,9 @@ Deep imports внутренних hooks снаружи запрещены.
 - Barrel `utils/index` re-export всего  
 - Shared hook Heat+Elec  
 - 5 React contexts без явного flow  
-- CSS без root scope  
+- CSS без root scope
+- `!important`, статический inline-style и selector specificity race
+- прямой feature-доступ к legacy palette `--c-*`/`--a-*`
 - HOC/render props 4 уровня  
 
 ## Метрики
