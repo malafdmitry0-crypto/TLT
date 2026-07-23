@@ -411,16 +411,16 @@
 .inline-object-form .ant-select-single {
   height: var(--inline-control-height);
 }
-.inline-object-form .ant-select-single .ant-select-selector {
-  height: var(--inline-control-height) !important;
+.inline-object-form.inline-object-form .ant-select-single .ant-select-selector {
+  height: var(--inline-control-height);
   padding: 0 4px;
   border-radius: 2px;
   box-sizing: border-box;
 }
-.inline-object-form .ant-select-selection-item,
-.inline-object-form .ant-select-selection-placeholder {
+.inline-object-form.inline-object-form .ant-select-selection-item,
+.inline-object-form.inline-object-form .ant-select-selection-placeholder {
   font-size: 9px;
-  line-height: calc(var(--inline-control-height) - 2px) !important;
+  line-height: calc(var(--inline-control-height) - 2px);
 }
 .inline-object-form .ant-select-single.ant-select-show-arrow .ant-select-selection-item,
 .inline-object-form .ant-select-single.ant-select-show-arrow .ant-select-selection-placeholder {
@@ -448,8 +448,8 @@
 .inline-object-form .ant-select-disabled .ant-select-arrow {
   color: #c7cfd6;
 }
-.inline-object-form .ant-select-single .ant-select-selector .ant-select-selection-search-input {
-  height: calc(var(--inline-control-height) - 2px) !important;
+.inline-object-form.inline-object-form .ant-select-single .ant-select-selector .ant-select-selection-search-input {
+  height: calc(var(--inline-control-height) - 2px);
 }
 .inline-object-form .tlt-select__trigger {
   height: var(--inline-control-height);

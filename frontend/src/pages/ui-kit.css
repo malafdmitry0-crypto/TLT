@@ -948,12 +948,12 @@
 }
 
 /* Keep ant Input (climate picker mock) on the same 26px / 12px contract */
+/* Showcase Ant Input density: height+font locks only (min-height redundant) */
 .uikit-form-grid .ant-input,
 .uikit-form-grid .ant-input-affix-wrapper,
 .uikit-heatcalc-form .ant-input,
 .uikit-heatcalc-form .ant-input-affix-wrapper {
   height: var(--tlt-field-control-height) !important;
-  min-height: var(--tlt-field-control-height) !important;
   padding: 0 var(--tlt-field-control-padding-inline, 3px);
   font-size: var(--tlt-field-control-font-size) !important;
   line-height: calc(var(--tlt-field-control-height) - 2px) !important;
@@ -963,7 +963,6 @@
 .uikit-form-grid .ant-input-affix-wrapper .ant-input,
 .uikit-heatcalc-form .ant-input-affix-wrapper .ant-input {
   height: calc(var(--tlt-field-control-height) - 2px) !important;
-  min-height: calc(var(--tlt-field-control-height) - 2px) !important;
   font-size: var(--tlt-field-control-font-size) !important;
 }
 

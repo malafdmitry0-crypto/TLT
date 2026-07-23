@@ -197,9 +197,9 @@
 .object-wizard-cable-panel .cable-algorithm-field--mirror .ant-form-item-label * {
   height: auto;
   color: var(--cable-label-color);
-  font-size: var(--cable-label-size) !important;
+  font-size: var(--cable-label-size);
   font-weight: 600;
-  line-height: var(--cable-label-line-height) !important;
+  line-height: var(--cable-label-line-height);
 }
 
 .object-wizard-cable-panel .cable-algorithm-mirror-value {
