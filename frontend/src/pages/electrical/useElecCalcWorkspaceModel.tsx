@@ -9,7 +9,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type ReactNode,
 } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -41,18 +40,12 @@ import {
   buildElectricalQueryRequest,
   updateElectricalQueryPageCalculation,
 } from '@/pages/electrical/elecCalcQueryModel';
-import { useElecCalcErrorSummaryState } from '@/pages/electrical/useElecCalcErrorSummaryState';
-import { useElecCalcBatchRecalcActions } from '@/pages/electrical/useElecCalcBatchRecalcActions';
 import { useElecCalcAssignmentSelectionState } from '@/pages/electrical/useElecCalcAssignmentSelectionState';
-import {
-  buildElecCalcSummaryViewModel,
-} from '@/pages/electrical/elecCalcSummaryModel';
 import { useElecCalcObjectActionModals } from '@/pages/electrical/useElecCalcObjectActionModals';
 import { useElecCalcGlideLayoutCommit } from '@/pages/electrical/useElecCalcGlideLayoutCommit';
 import { useElecCalcCableTypeOptions } from '@/pages/electrical/useElecCalcCableTypeOptions';
 import { useElecCalcParamsPanelState } from '@/pages/electrical/useElecCalcParamsPanelState';
 import { useElecCalcCableMarkPresentation } from '@/pages/electrical/useElecCalcCableMarkPresentation';
-import { ElecCalcManualOverwriteControl } from '@/pages/electrical/ElecCalcManualOverwriteControl';
 import type { LegacyElectricalVariantTarget } from '@/pages/electrical/elecCalcVariantModel';
 import { useElecCalcAntTableHandlers } from '@/pages/electrical/useElecCalcAntTableHandlers';
 import { useElecCalcBootViewState } from '@/pages/electrical/useElecCalcBootViewState';
@@ -82,6 +75,7 @@ import {
   buildElecCalcWorkspaceModalPresentation,
   buildElecCalcWorkspaceModalProps,
 } from '@/pages/electrical/elecCalcWorkspaceModalPropsModel';
+import { useElecCalcWorkspaceSummaryChrome } from '@/pages/electrical/useElecCalcWorkspaceSummaryChrome';
 import { useElecCalcPreferenceSettings } from '@/pages/electrical/useElecCalcPreferenceSettings';
 import { useElecCalcRecalculationParams } from '@/pages/electrical/useElecCalcRecalculationParams';
 import { useElecCalcRowClassName } from '@/pages/electrical/useElecCalcRowClassName';
@@ -752,7 +746,49 @@ export function useElecCalcWorkspaceModel({
     calcByObjectId: stats.calcByObjectId,
   });
 
-  const totalObjects = pageSummary?.total_objects ?? objects.length;
+  const {
+    totalObjects,
+    validObjectsCount,
+    selectedValidObjectsCount,
+    selectedHeatLossFailedCount,
+    calculatedCount,
+    failedCount,
+    totalCableLength,
+    totalCurrent,
+    manualCableCount,
+    selectedManualCableCount,
+    isJobActive,
+    selectedRecalcDisabled,
+    selectedRecalcTooltip,
+    selectedRecalcCountLabel,
+    jobProgressLabel,
+    renderManualOverwriteControl,
+    activeElectricalErrorItem,
+    activeElectricalErrorGuidance,
+    onRecalculateSelected,
+    onRecalculateAll,
+    onCancelJob,
+    cableTypeControlLabel,
+  } = useElecCalcWorkspaceSummaryChrome({
+    pageSummary,
+    objects,
+    elecCalcsCount: elecCalcs.length,
+    compatibleSelectedRowKeys,
+    stats,
+    activeJob,
+    activeJobId,
+    canMutate,
+    overwriteManualChoices,
+    setOverwriteManualChoices,
+    electricalDisplayOffset,
+    activeRowId,
+    selectedRowKeys,
+    assignmentByObjectId,
+    cableTypeForRecalculation: cableTypes.cableTypeForRecalculation,
+    mutateBatch: (args) => batchMut.mutate(args),
+    cancelJob: () => cancelJobMut.mutate(),
+    calcByObjectId: stats.calcByObjectId,
+  });
   const {
     electricalPagination,
     electricalInfiniteLoading,
@@ -771,72 +807,6 @@ export function useElecCalcWorkspaceModel({
     setTablePage,
     loadNextElectricalGlidePage,
   });
-  const activeJobStatus = activeJob?.status ?? (activeJobId ? 'queued' : null);
-  const {
-    validObjectsCount,
-    selectedValidObjectsCount,
-    selectedHeatLossFailedCount,
-    calculatedCount,
-    failedCount,
-    totalCableLength,
-    totalCurrent,
-    manualCableCount,
-    selectedManualCableCount,
-    isJobActive,
-    selectedRecalcDisabled,
-    selectedRecalcTooltip,
-    selectedRecalcCountLabel,
-    jobProgressLabel,
-  } = useMemo(
-    () => buildElecCalcSummaryViewModel({
-      pageSummary,
-      objects,
-      elecCalcsCount: elecCalcs.length,
-      selectedRowKeys: compatibleSelectedRowKeys,
-      stats,
-      activeJobStatus,
-      jobProgress: activeJob?.progress,
-    }),
-    [
-      activeJob?.progress,
-      activeJobStatus,
-      elecCalcs.length,
-      objects,
-      pageSummary,
-      compatibleSelectedRowKeys,
-      stats,
-    ],
-  );
-  const renderManualOverwriteControl = useCallback((manualCount: number): ReactNode => (
-    <ElecCalcManualOverwriteControl
-      manualCount={manualCount}
-      canMutate={canMutate}
-      overwriteManualChoices={overwriteManualChoices}
-      onOverwriteChange={setOverwriteManualChoices}
-    />
-  ), [canMutate, overwriteManualChoices]);
-  const {
-    activeElectricalErrorItem,
-    activeElectricalErrorGuidance,
-  } = useElecCalcErrorSummaryState({
-    objects,
-    calcByObjectId: stats.calcByObjectId,
-    electricalDisplayOffset,
-    activeRowId,
-  });
-  const {
-    onRecalculateSelected,
-    onRecalculateAll,
-    onCancelJob,
-  } = useElecCalcBatchRecalcActions({
-    canMutate,
-    selectedRowKeys,
-    assignmentByObjectId,
-    cableTypeForRecalculation: cableTypes.cableTypeForRecalculation,
-    mutateBatch: (args) => batchMut.mutate(args),
-    cancelJob: () => cancelJobMut.mutate(),
-  });
-  const cableTypeControlLabel = 'Тип для пересчёта:';
   const {
     getElectricalCandidateGlideCellActions,
     handleElectricalCandidateGlideCellAction,

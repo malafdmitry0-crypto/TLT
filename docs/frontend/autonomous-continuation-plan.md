@@ -84,7 +84,7 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | `specification/SpecificationPage.tsx` | **398** | ≤500 ✅ |
 | `styles.css` | **14** | ≤3000 (M4) ✅ · freeze stub only |
 | inverted `components→pages` | **0** | 0 ✅ |
-| thick models (Heat/Elec/Spec) | 830 / 1116 / 511 | optional deeper thin (E18/H13 pure extracts) |
+| thick models (Heat/Elec/Spec) | 830 / 1086 / 511 | optional deeper thin (E18–E19 / H13) |
 
 **Shell DoD (view) — закрыт.** Следующий фокус: **Track C CSS strangler**.
 
@@ -129,9 +129,12 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | **E16** | `done` | table/modals/chrome/ui helpers | workspace ≤1200 | unit+smoke | `4a125cf` **1194** |
 | **E17** | `done` | useElecCalcWorkspaceModel | workspace view 191 ≤500 | smoke | model ~1112 |
 | **E18** | `done` | modal presentation pure | scrollX + assignment reasons + modal presentation | unit 7 | candidate scroll + workspace modal models |
+| **E19** | `done` | summary/batch chrome hook | `useElecCalcWorkspaceSummaryChrome` + pure job/total helpers | unit 6 + BatchActionBar | model **1116→1086** |
 
 **Метрика shell:** `ElecCalcPage` = **30**. `ElecCalcWorkspace` = **192** (M1/M3 ✅).  
-**Текущий пункт:** model-thin residual (Elec/Heat models) — Track C + U1/U2 + S4 closed.
+**Текущий пункт:** model-thin residual (Elec ~1086 / Heat ~830).
+
+Also fix baseline thick models line if present.
 
 ### Track H — Heat
 
