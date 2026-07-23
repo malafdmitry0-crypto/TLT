@@ -82,7 +82,7 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | `ElecCalcWorkspace.tsx` | **192** | ≤500 ✅ |
 | `HeatCalcPage.tsx` | **280** | ≤500 ✅ |
 | `specification/SpecificationPage.tsx` | **398** | ≤500 ✅ |
-| `styles.css` | **868** | ≤3000 (M4) ✅ · residual ≈ insulation page-scope |
+| `styles.css` | **14** | ≤3000 (M4) ✅ · freeze stub only |
 | inverted `components→pages` | **0** | 0 ✅ |
 | thick models (Heat/Elec/Spec) | 829 / 1112 / 511 | optional deeper thin |
 
@@ -130,7 +130,7 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | **E17** | `done` | useElecCalcWorkspaceModel | workspace view 191 ≤500 | smoke | model ~1112 |
 
 **Метрика shell:** `ElecCalcPage` = **30**. `ElecCalcWorkspace` = **1194** (M1 workspace ✅).  
-**Текущий пункт:** **C23+** insulation page-scope residual only (kill-list careful)
+**Текущий пункт:** optional model-thin / U-kit / C24 dead-comment cleanup (Track C residual closed)
 
 ### Track H — Heat
 
@@ -199,7 +199,7 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | **M4** | `done` | `styles.css` ≤3000 | **2788→1974** | arch suite | from 6777 peak / 6263 post-C4 |
 | **C21** | `done` | tlt controls + side shell + misc chrome + field geom maps | `tlt-form-controls.css`, heatcalc-workspace, table-chrome | arch+wizard+FormControls | **styles 2788→1974 (−814)**; no geom into heat-object-fields island |
 | **C22** | `done` | dual-form field chrome + app-base tokens | heatcalc-workspace + `app-base.css` | arch+wizard+FormControls 53 | **styles 1974→868 (−1106)**; residual mainly insulation page-scope |
-| **C23+** | `pending` | insulation page-scope residual in styles | only with explicit SoT / no island rewrite | arch+wizard | kill-list InsulationLayersTable |
+| **C23** | `done` | insulation page-scope residual → heat workspace | whole residual block → `heatcalc-workspace.css`; styles freeze stub | arch+wizard 47 | **styles 868→14**; island SoT untouched; no InsulationLayersTable edit |
 
 Budget CSS: **только** delete/move; `styles.css` net LOC ≤ 0.
 
