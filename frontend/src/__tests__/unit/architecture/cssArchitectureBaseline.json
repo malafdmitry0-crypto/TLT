@@ -1,12 +1,12 @@
 {
   "version": 2,
-  "slice": "CSS-shell-imp-burn",
-  "description": "After app-header→app-shell merge and !important 55",
+  "slice": "CSS-IMP-02",
+  "description": "compact-fields tlt vs ant split for !important burn-down",
   "stylesCssMaxLoc": 30,
   "newFileLocCap": 400,
   "files": {
     "src/components/ui-kit/compact-fields.css": {
-      "loc": 503,
+      "loc": 555,
       "bareAnt": 0,
       "media": 2
     },
@@ -157,7 +157,7 @@
     }
   },
   "totals": {
-    "loc": 9275,
+    "loc": 9327,
     "bareAnt": 18,
     "media": 40
   },
