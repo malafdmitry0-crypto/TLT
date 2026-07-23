@@ -84,7 +84,7 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | `specification/SpecificationPage.tsx` | **398** | ≤500 ✅ |
 | `styles.css` | **14** | ≤3000 (M4) ✅ · freeze stub only |
 | inverted `components→pages` | **0** | 0 ✅ |
-| thick models (Heat/Elec/Spec) | 829 / 1112 / 511 | optional deeper thin |
+| thick models (Heat/Elec/Spec) | 830 / 1116 / 511 | optional deeper thin (E18/H13 pure extracts) |
 
 **Shell DoD (view) — закрыт.** Следующий фокус: **Track C CSS strangler**.
 
@@ -128,9 +128,9 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | **E15** | `done` | error summary + section hierarchy | expandable sections | unit | `31acebc` |
 | **E16** | `done` | table/modals/chrome/ui helpers | workspace ≤1200 | unit+smoke | `4a125cf` **1194** |
 | **E17** | `done` | useElecCalcWorkspaceModel | workspace view 191 ≤500 | smoke | model ~1112 |
+| **E18** | `done` | modal presentation pure | scrollX + assignment reasons + modal presentation | unit 7 | candidate scroll + workspace modal models |
 
-**Метрика shell:** `ElecCalcPage` = **30**. `ElecCalcWorkspace` = **1194** (M1 workspace ✅).  
-**Текущий пункт:** optional model-thin / U-kit / C24 dead-comment cleanup (Track C residual closed)
+**Метрика shell:** `ElecCalcPage` = **30**. `ElecCalcWorkspace` = **192** (M1/M3 ✅).
 
 ### Track H — Heat
 
@@ -143,6 +143,7 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | **H10** | `done` | `HeatCalcWorkspaceLayout.tsx` | placement shell slots | basics tests | `4a3b929` Heat **969** |
 | **H11** | `done` | draft invalidation + overlays | residual thin | unit | `c755d3d` + overlays |
 | **H12** | `done` | `useHeatCalcPageModel` orchestration | page thin shell | unit 23 | **Heat 280 ≤700** |
+| **H13** | `done` | visible selection pure | `filterVisibleRowsBySelectedKeys` | unit 2 | model still ~830 |
 
 **Анти-паттерн Heat:** extract, который **увеличивает** shell LOC (named-args pure call без выгоды) — `skipped`, не делать.
 
@@ -155,7 +156,7 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | **S1** | `done` | namespace `pages/specification/` | page + format/params extracts | unit+integration 14 | re-export stub |
 | **S2** | `done` | generate options pure | buildSpecGenerateOptions + partial | unit | 06704b6 |
 | **S3** | `done` | model + SpecPageChrome | page 398 ≤500 | unit+integration 17 |
-| **S4** | `pending` | Report thin if >400 | preview/export wiring | unit |
+| **S4** | `skipped` | Report thin if >400 | `ReportPage.tsx` **330 ≤400** | — | no shell work needed |
 
 ### Track C — CSS strangler (первый класс после thin shells)
 

@@ -71,6 +71,7 @@ import { buildHeatCalcTableCounts } from '@/pages/heatcalc/heatCalcTableCountsMo
 import { buildHeatCalcToolbarSavePresentation } from '@/pages/heatcalc/heatCalcToolbarSavePresentation';
 import { buildHeatCalcLayoutPresentation } from '@/pages/heatcalc/heatCalcLayoutModel';
 import { useHeatCalcNormalGridDraftInvalidation } from '@/pages/heatcalc/useHeatCalcNormalGridDraftInvalidation';
+import { filterVisibleRowsBySelectedKeys } from '@/pages/heatcalc/heatCalcVisibleSelectionModel';
 
 type TableEditingMode = HeatCalcToolbarEditingMode;
 const COMMERCIAL_FEATURES_DISABLED_TABLE_VIEW_STATE = createEmptyTableViewState();
@@ -359,7 +360,7 @@ export function useHeatCalcPageModel() {
     applyWizardDraftValuesChange,
   });
   const selectedVisibleRows = useMemo(
-    () => visibleTableRows.filter(({ record }) => selectedRowKeys.includes(record.id)),
+    () => filterVisibleRowsBySelectedKeys(visibleTableRows, selectedRowKeys),
     [selectedRowKeys, visibleTableRows],
   );
   const currentTableViewActive = tableFindabilityAvailable && hasActiveTableViewState(effectiveActiveTableViewState);

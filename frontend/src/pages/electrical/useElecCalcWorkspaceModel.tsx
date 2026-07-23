@@ -78,6 +78,10 @@ import { useElecCalcGlideColumnModel } from '@/pages/electrical/useElecCalcGlide
 import { useElecCalcGlideCellState } from '@/pages/electrical/useElecCalcGlideCellState';
 import { useElecCalcPageScopeEffects } from '@/pages/electrical/useElecCalcPageScopeEffects';
 import { useElecCalcPaginationState } from '@/pages/electrical/useElecCalcPaginationState';
+import {
+  buildElecCalcWorkspaceModalPresentation,
+  buildElecCalcWorkspaceModalProps,
+} from '@/pages/electrical/elecCalcWorkspaceModalPropsModel';
 import { useElecCalcPreferenceSettings } from '@/pages/electrical/useElecCalcPreferenceSettings';
 import { useElecCalcRecalculationParams } from '@/pages/electrical/useElecCalcRecalculationParams';
 import { useElecCalcRowClassName } from '@/pages/electrical/useElecCalcRowClassName';
@@ -875,27 +879,28 @@ export function useElecCalcWorkspaceModel({
     getSavedCableTypeForObject: cableTypes.getSavedCableTypeForObject,
     resetConnectionType: () => setRecalc.connectionType('line_1ph'),
   });
-  const cableMarkModalCableTypeOptions = useMemo(
-    () => cableTypeOptionsForObject(cableMarkModalObject?.id),
-    [cableMarkModalObject?.id, cableTypeOptionsForObject],
+  const {
+    cableMarkModalCableTypeOptions,
+    cableSizingModalCableTypeOptions,
+    cableMarkModalAssignmentReason,
+    cableSizingModalAssignmentReason,
+    cableSizingCandidateTableScrollX,
+  } = useMemo(
+    () => buildElecCalcWorkspaceModalPresentation({
+      cableMarkModalObject,
+      cableSizingModalObject: cableSizingModal.object,
+      cableTypeOptionsForObject,
+      getObjectActionDisabledReason,
+      visibleCandidateColumnMetas,
+    }),
+    [
+      cableMarkModalObject,
+      cableSizingModal.object,
+      cableTypeOptionsForObject,
+      getObjectActionDisabledReason,
+      visibleCandidateColumnMetas,
+    ],
   );
-  const cableSizingModalCableTypeOptions = useMemo(
-    () => cableTypeOptionsForObject(cableSizingModal.object?.id),
-    [cableSizingModal.object?.id, cableTypeOptionsForObject],
-  );
-  const cableMarkModalAssignmentReason = cableMarkModalObject
-    ? getObjectActionDisabledReason(cableMarkModalObject)
-    : null;
-  const cableSizingModalAssignmentReason = cableSizingModal.object
-    ? getObjectActionDisabledReason(cableSizingModal.object)
-    : null;
-  const cableSizingCandidateTableScrollX = useMemo(() => Math.max(
-    920,
-    visibleCandidateColumnMetas.reduce(
-      (sum, column) => sum + Math.max(column.width, column.minWidthPx),
-      0,
-    ),
-  ), [visibleCandidateColumnMetas]);
 
   const {
     defaultElectricalTypeControls,
@@ -924,8 +929,7 @@ export function useElecCalcWorkspaceModel({
     setTableDragging,
   });
 
-
-  const workspaceModalProps = {
+  const workspaceModalProps = buildElecCalcWorkspaceModalProps({
     cableMarkModalObject,
     cableMarkModalSelectedCable,
     cableMarkModalCableType,
@@ -1012,7 +1016,7 @@ export function useElecCalcWorkspaceModel({
     resetDraftTableFontSize,
     resetDraftLabelFormats,
     renderRecalculationSettings,
-  };
+  });
 
   return {
     project,
