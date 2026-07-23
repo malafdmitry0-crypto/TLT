@@ -6,15 +6,10 @@ import {
   useMemo,
   useRef,
   useState,
-  Suspense,
   type ReactNode,
 } from 'react';
 import {
   Alert,
-  Button,
-  Checkbox,
-  Input,
-  Modal,
   Space,
 } from 'antd';
 import {
@@ -38,21 +33,14 @@ import { useFocusableTableScrollRegions } from '@/hooks/useFocusableTableScrollR
 import EmptyProjectState from '@/components/common/EmptyProjectState';
 import ElectricalSummary from '@/components/electrical/ElectricalSummary';
 import ElectricalBatchActionBar from '@/pages/electrical/ElectricalBatchActionBar';
-import ElectricalAssignmentPanel, {
-  ASSIGNMENT_DND_MIME,
-} from '@/pages/electrical/ElectricalAssignmentPanel';
+import ElectricalAssignmentPanel from '@/pages/electrical/ElectricalAssignmentPanel';
 import {
   type ElectricalSystemView,
 } from '@/pages/electrical/elecCalcSystemViewModel';
-import ElecCalcCableMarkModal from '@/pages/electrical/ElecCalcCableMarkModal';
-import ElecCalcCableSizingModal from '@/pages/electrical/ElecCalcCableSizingModal';
-import ElecCalcElectricalTypeControls from '@/pages/electrical/ElecCalcElectricalTypeControls';
-import ElecCalcErrorSummary from '@/pages/electrical/ElecCalcErrorSummary';
-import ElecCalcParamsPanel from '@/pages/electrical/ElecCalcParamsPanel';
-import ElecCalcRecalculationSettings from '@/pages/electrical/ElecCalcRecalculationSettings';
+import { useElecCalcWorkspaceUiHelpers } from '@/pages/electrical/useElecCalcWorkspaceUiHelpers';
+import { ElecCalcWorkspaceParamsChrome } from '@/pages/electrical/ElecCalcWorkspaceParamsChrome';
 import type { ElectricalVariant } from '@/types/electricalVariant';
 import type {
-  ElectricalCandidateFolder,
   ElectricalCalcSummary,
   ElectricalQueryResponse,
 } from '@/types/calculation';
@@ -66,13 +54,11 @@ import {
 import { useElecCalcErrorSummaryState } from '@/pages/electrical/useElecCalcErrorSummaryState';
 import { useElecCalcBatchRecalcActions } from '@/pages/electrical/useElecCalcBatchRecalcActions';
 import { ElectricalUnifiedTableCard } from '@/pages/electrical/ElectricalUnifiedTableCard';
+import { ElecCalcWorkspaceModals } from '@/pages/electrical/ElecCalcWorkspaceModals';
 import { useElecCalcAssignmentSelectionState } from '@/pages/electrical/useElecCalcAssignmentSelectionState';
 import {
   buildElecCalcSummaryViewModel,
 } from '@/pages/electrical/elecCalcSummaryModel';
-import {
-  type CableTypeKey,
-} from '@/domain/electrical/elecCalcMainTableModel';
 import { useElecCalcObjectActionModals } from '@/pages/electrical/useElecCalcObjectActionModals';
 import { useElecCalcGlideLayoutCommit } from '@/pages/electrical/useElecCalcGlideLayoutCommit';
 import { useElecCalcCableTypeOptions } from '@/pages/electrical/useElecCalcCableTypeOptions';
@@ -119,13 +105,8 @@ import {
   type RegisterElectricalBatchJob,
   type TrackedElectricalBatchJob,
 } from '@/pages/electrical/useElectricalBatchJobTracker';
+
 const ElectricalGlideGrid = lazy(() => import('@/components/electrical/ElectricalGlideGrid'));
-const ElectricalCandidateColumnSettingsModal = lazy(
-  () => import('@/components/electrical/ElectricalCandidateColumnSettingsModal'),
-);
-const ElectricalColumnSettingsModal = lazy(
-  () => import('@/components/electrical/ElectricalColumnSettingsModal'),
-);
 
 type ElecCalcWorkspaceProps = {
   projectId: string;
@@ -921,14 +902,6 @@ export function ElecCalcWorkspace({
   const cableSizingModalAssignmentReason = cableSizingModal.object
     ? getObjectActionDisabledReason(cableSizingModal.object)
     : null;
-  const defaultElectricalTypeControls = useMemo(() => (
-    <ElecCalcElectricalTypeControls
-      disabled={!canMutate}
-      cableType={cableTypes.visibleCableTypeControl}
-      recalc={recalc}
-      setRecalc={setRecalc}
-    />
-  ), [cableTypes.visibleCableTypeControl, canMutate, recalc, setRecalc]);
   const cableSizingCandidateTableScrollX = useMemo(() => Math.max(
     920,
     visibleCandidateColumnMetas.reduce(
@@ -936,6 +909,33 @@ export function ElecCalcWorkspace({
       0,
     ),
   ), [visibleCandidateColumnMetas]);
+
+  const {
+    defaultElectricalTypeControls,
+    renderElectricalTypeControls,
+    renderRecalculationSettings,
+    showDeleteCandidateFolderConfirm,
+    candidateFolderEmptyText,
+    handleTableRowDragStart,
+    handleTableRowDragEnd,
+  } = useElecCalcWorkspaceUiHelpers({
+    canMutate,
+    visibleCableTypeControl: cableTypes.visibleCableTypeControl,
+    recalc: recalc as never,
+    setRecalc: setRecalc as never,
+    commercialFeaturesAvailable,
+    isEmployee,
+    calculationCableSource: draftTableViewSettings.calculationCableSource,
+    cableSourceOptions,
+    commercialDataStatus,
+    technicalDataStatus,
+    updateDraftCalculationCableSource,
+    deleteCandidateFolder: (id) => deleteCandidateFolderMut.mutate(id),
+    activeCandidateFolderKey,
+    hasActiveCustomFolder: Boolean(activeCustomCandidateFolder),
+    selectedRowKeys,
+    setTableDragging,
+  });
 
   if (!project) {
     return (
@@ -947,74 +947,93 @@ export function ElecCalcWorkspace({
     );
   }
 
-  function renderElectricalTypeControls(
-    cableType: CableTypeKey | null = cableTypes.visibleCableTypeControl,
-    options: { block?: boolean } = {},
-  ) {
-    return (
-      <ElecCalcElectricalTypeControls
-        cableType={cableType}
-        block={options.block}
-        recalc={recalc}
-        setRecalc={setRecalc}
-      />
-    );
-  }
-
-  function renderRecalculationSettings() {
-    return (
-      <ElecCalcRecalculationSettings
-        commercialFeaturesAvailable={commercialFeaturesAvailable}
-        isEmployee={isEmployee}
-        calculationCableSource={draftTableViewSettings.calculationCableSource}
-        cableSourceOptions={cableSourceOptions}
-        selectionPolicy={recalc.selectionPolicy}
-        commercialDataStatus={commercialDataStatus}
-        technicalDataStatus={technicalDataStatus}
-        onCalculationCableSourceChange={updateDraftCalculationCableSource}
-        onSelectionPolicyChange={setRecalc.selectionPolicy}
-      />
-    );
-  }
-
-  function showDeleteCandidateFolderConfirm(folder: ElectricalCandidateFolder) {
-    if (!canMutate) return;
-    Modal.confirm({
-      title: `Удалить папку «${folder.name}»?`,
-      content: 'Варианты останутся в списке. Удалится только фильтр-папка.',
-      okText: 'Удалить',
-      okType: 'danger',
-      cancelText: 'Отмена',
-      onOk: () => deleteCandidateFolderMut.mutate(folder.id),
-    });
-  }
-
-  function candidateFolderEmptyText() {
-    if (activeCandidateFolderKey === 'favorite') return 'В избранном пока нет вариантов';
-    if (activeCustomCandidateFolder) return 'В этой папке пока нет вариантов';
-    return 'Вариантов пока нет. Запустите авторасчёт или ручной расчёт.';
-  }
-
-  const handleTableRowDragStart = (
-    event: React.DragEvent,
-    objectId: string,
-  ) => {
-    if (!canMutate) {
-      event.preventDefault();
-      return;
-    }
-    const ids = selectedRowKeys.includes(objectId) && selectedRowKeys.length > 0
-      ? selectedRowKeys
-      : [objectId];
-    const payload = JSON.stringify(ids);
-    event.dataTransfer.setData(ASSIGNMENT_DND_MIME, payload);
-    event.dataTransfer.setData('text/plain', payload);
-    event.dataTransfer.effectAllowed = 'move';
-    setTableDragging(true);
-  };
-
-  const handleTableRowDragEnd = () => {
-    setTableDragging(false);
+  const workspaceModalProps = {
+    cableMarkModalObject,
+    cableMarkModalSelectedCable,
+    cableMarkModalCableType,
+    cableMarkModalCableTypeOptions,
+    commercialFeaturesAvailable,
+    project,
+    canMutate,
+    cableMarkModalAssignmentReason,
+    isCableMarkPending,
+    cableMarkModalValue,
+    cableMarkModalOptions,
+    cableMarkModalTargetVariants,
+    cableMarkModalTargetVariantOptions,
+    renderElectricalTypeControls,
+    changeCableMarkModalCableType,
+    setCableMarkModalValue,
+    setCableMarkModalTargetVariantsFromValues,
+    applyCableMarkModal,
+    closeCableMarkModal,
+    cableSizingModalAssignmentReason,
+    cableSizingModal,
+    candidate,
+    cableSizingModalSelectedCable,
+    cableSizingModalCableTypeOptions,
+    cableSizingManualOptions,
+    cableSizingCandidateTableScrollX,
+    resolvedTableFontSize,
+    electricalCandidateGlideColumns,
+    candidateTableViewState,
+    candidateTableViewActive,
+    cableTypes,
+    closeCableSizingModal,
+    setRecalc,
+    openCandidateColumnSettings,
+    resetCandidateTableViewState,
+    candidateFolderEmptyText,
+    showDeleteCandidateFolderConfirm,
+    getElectricalCandidateGlideCellState,
+    handleElectricalCandidateGlideCellAction,
+    getElectricalCandidateGlideActionMenuItems,
+    setCandidateColumnFilter,
+    resetCandidateColumnFilter,
+    setCandidateTableSort,
+    applyElectricalCandidateGlideColumnDraftWidth,
+    commitElectricalCandidateGlideColumnWidth,
+    candidateFolderModalOpen,
+    candidateFolderModalMode,
+    createCandidateFolderMut,
+    updateCandidateFolderMut,
+    candidateFolderName,
+    submitCandidateFolderModal,
+    closeCandidateFolderModal,
+    setCandidateFolderName,
+    candidateColumnSettingsOpen,
+    setCandidateColumnSettingsOpen,
+    draftCandidateTableColumnSettings,
+    normalizedTableViewSettings,
+    updateCandidateTableColumnPreference,
+    applyCandidateColumnSettings,
+    selectAllDraftCandidateColumns,
+    resetDraftCandidateColumns,
+    updateDraftCandidateColumn,
+    updateDraftCandidateColumnOrder,
+    reorderDraftCandidateColumn,
+    updateDraftCandidateColumnWidth,
+    resetDraftCandidateColumnWidth,
+    columnSettingsOpen,
+    setColumnSettingsOpen,
+    draftTableColumnSettings,
+    draftTableViewSettings,
+    updateTableColumnPreference,
+    updateTableSettingsPreference,
+    applyColumnSettings,
+    selectAllDraftColumns,
+    resetDraftColumns,
+    updateDraftColumn,
+    updateDraftColumnOrder,
+    reorderDraftColumn,
+    updateDraftColumnWidth,
+    resetDraftColumnWidth,
+    updateDraftTableFontSize,
+    updateDraftTableLabelFormat,
+    updateDraftSettingsLabelFormat,
+    resetDraftTableFontSize,
+    resetDraftLabelFormats,
+    renderRecalculationSettings,
   };
 
   return (
@@ -1059,69 +1078,26 @@ export function ElecCalcWorkspace({
           tableDragging={tableDragging}
         />
 
-        {/* Optional advanced params (default off). */}
-        <div
-          className="elec-workspace-chrome"
-          data-testid="elec-workspace-chrome"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'flex-end',
-            gap: 8,
-            minHeight: 28,
-          }}
-        >
-          <Checkbox
-            className="actionbar-form-toggle"
-            checked={paramsPanelVisible}
-            onChange={(event) => toggleParamsPanel(event.target.checked)}
-          >
-            Расширенные параметры
-          </Checkbox>
-        </div>
-
-        {paramsPanelVisible && (
-          <ElecCalcParamsPanel
-            disabled={!canMutate}
-            cableType={cableTypes.visibleCableTypeControl}
-            cableTypeOptions={cableTypeOptions}
-            onCableTypeChange={handleCableTypeControlChange}
-            recalc={recalc}
-            setRecalc={setRecalc}
-          />
-        )}
-        <ElecCalcErrorSummary
+        <ElecCalcWorkspaceParamsChrome
+          canMutate={canMutate}
+          paramsPanelVisible={paramsPanelVisible}
+          toggleParamsPanel={toggleParamsPanel}
+          visibleCableTypeControl={cableTypes.visibleCableTypeControl}
+          cableTypeOptions={cableTypeOptions}
+          onCableTypeChange={handleCableTypeControlChange}
+          recalc={recalc}
+          setRecalc={setRecalc}
           failedCount={failedCount}
           activeRowId={activeRowId}
-          item={activeElectricalErrorItem}
-          guidance={activeElectricalErrorGuidance}
+          activeElectricalErrorItem={activeElectricalErrorItem}
+          activeElectricalErrorGuidance={activeElectricalErrorGuidance}
+          isElectricalCapabilitiesError={isElectricalCapabilitiesError}
+          isElectricalPageError={isElectricalPageError}
+          electricalPageError={electricalPageError}
+          electricalCapabilitiesError={electricalCapabilitiesError}
+          retryElectricalCapabilities={retryElectricalCapabilities}
+          retryElectricalPage={retryElectricalPage}
         />
-
-        {(isElectricalCapabilitiesError || isElectricalPageError) && (
-          <Alert
-            type="error"
-            showIcon
-            message="Не удалось загрузить данные выбранного ЭР"
-            description={(
-              electricalPageError instanceof Error
-                ? electricalPageError.message
-                : electricalCapabilitiesError instanceof Error
-                  ? electricalCapabilitiesError.message
-                  : 'Повторите запрос.'
-            )}
-            action={(
-              <Button
-                size="small"
-                onClick={() => {
-                  if (isElectricalCapabilitiesError) void retryElectricalCapabilities();
-                  if (isElectricalPageError) void retryElectricalPage();
-                }}
-              >
-                Повторить
-              </Button>
-            )}
-          />
-        )}
 
         <ElectricalBatchActionBar
           canMutate={canMutate}
@@ -1212,127 +1188,7 @@ export function ElecCalcWorkspace({
 
         </Space>
       </div>
-      <ElecCalcCableMarkModal
-        object={cableMarkModalObject}
-        selectedCable={cableMarkModalSelectedCable}
-        cableType={cableMarkModalCableType}
-        cableTypeOptions={cableMarkModalCableTypeOptions}
-        commercialFeaturesAvailable={commercialFeaturesAvailable}
-        projectSelected={
-          Boolean(project)
-          && canMutate
-          && cableMarkModalAssignmentReason == null
-        }
-        pending={isCableMarkPending}
-        value={cableMarkModalValue}
-        markOptions={cableMarkModalOptions}
-        targetVariants={cableMarkModalTargetVariants}
-        targetVariantOptions={cableMarkModalTargetVariantOptions}
-        renderTypeControls={(nextCableType) =>
-          renderElectricalTypeControls(nextCableType, { block: true })}
-        onCableTypeChange={changeCableMarkModalCableType}
-        onMarkChange={setCableMarkModalValue}
-        onTargetVariantsChange={setCableMarkModalTargetVariantsFromValues}
-        onApply={applyCableMarkModal}
-        onCancel={closeCableMarkModal}
-      />
-      <ElecCalcCableSizingModal
-        canMutate={canMutate && cableSizingModalAssignmentReason == null}
-        cableSizingModal={cableSizingModal}
-        candidate={candidate}
-        selectedCable={cableSizingModalSelectedCable}
-        commercialFeaturesAvailable={commercialFeaturesAvailable}
-        cableTypeOptions={cableSizingModalCableTypeOptions}
-        cableSizingManualOptions={cableSizingManualOptions}
-        candidateTableScrollX={cableSizingCandidateTableScrollX}
-        candidateFontSizeKey={resolvedTableFontSize.key}
-        electricalCandidateGlideColumns={electricalCandidateGlideColumns}
-        candidateTableViewState={candidateTableViewState}
-        candidateTableViewActive={candidateTableViewActive}
-        normalizeAvailableCableType={cableTypes.normalizeAvailableCableType}
-        onClose={closeCableSizingModal}
-        onResetConnectionType={() => setRecalc.connectionType('line_1ph')}
-        onOpenCandidateColumnSettings={openCandidateColumnSettings}
-        onResetCandidateTableViewState={resetCandidateTableViewState}
-        renderTypeControls={renderElectricalTypeControls}
-        candidateFolderEmptyText={candidateFolderEmptyText}
-        onDeleteCandidateFolder={showDeleteCandidateFolderConfirm}
-        getCandidateCellState={getElectricalCandidateGlideCellState}
-        onCandidateCellAction={handleElectricalCandidateGlideCellAction}
-        getCandidateActionMenuItems={getElectricalCandidateGlideActionMenuItems}
-        onSetCandidateColumnFilter={setCandidateColumnFilter}
-        onResetCandidateColumnFilter={resetCandidateColumnFilter}
-        onSetCandidateSort={setCandidateTableSort}
-        onCandidateColumnResize={applyElectricalCandidateGlideColumnDraftWidth}
-        onCandidateColumnResizeEnd={commitElectricalCandidateGlideColumnWidth}
-      />
-      <Modal
-        open={candidateFolderModalOpen}
-        title={candidateFolderModalMode === 'rename' ? 'Переименовать папку' : 'Новая папка'}
-        okText={candidateFolderModalMode === 'rename' ? 'Сохранить' : 'Создать'}
-        cancelText="Отмена"
-        confirmLoading={createCandidateFolderMut.isPending || updateCandidateFolderMut.isPending}
-        okButtonProps={{ disabled: !canMutate || candidateFolderName.trim().length === 0 }}
-        onOk={submitCandidateFolderModal}
-        onCancel={closeCandidateFolderModal}
-      >
-        <Input
-          autoFocus
-          maxLength={64}
-          value={candidateFolderName}
-          placeholder="Название папки"
-          aria-label="Название папки вариантов"
-          disabled={!canMutate}
-          onChange={(event) => setCandidateFolderName(event.target.value)}
-          onPressEnter={submitCandidateFolderModal}
-        />
-      </Modal>
-      {candidateColumnSettingsOpen && (
-        <Suspense fallback={null}>
-          <ElectricalCandidateColumnSettingsModal
-            open={candidateColumnSettingsOpen}
-            settings={draftCandidateTableColumnSettings}
-            settingsLabelFormat={normalizedTableViewSettings.settingsLabelFormat}
-            confirmLoading={updateCandidateTableColumnPreference.isPending}
-            onOk={applyCandidateColumnSettings}
-            onCancel={() => setCandidateColumnSettingsOpen(false)}
-            onSelectAllColumns={selectAllDraftCandidateColumns}
-            onResetColumns={resetDraftCandidateColumns}
-            onVisibleChange={updateDraftCandidateColumn}
-            onOrderChange={updateDraftCandidateColumnOrder}
-            onColumnReorder={reorderDraftCandidateColumn}
-            onWidthChange={updateDraftCandidateColumnWidth}
-            onResetWidth={resetDraftCandidateColumnWidth}
-          />
-        </Suspense>
-      )}
-      {columnSettingsOpen && (
-        <Suspense fallback={null}>
-          <ElectricalColumnSettingsModal
-            open={columnSettingsOpen}
-            settings={draftTableColumnSettings}
-            viewSettings={draftTableViewSettings}
-            confirmLoading={
-              updateTableColumnPreference.isPending || updateTableSettingsPreference.isPending
-            }
-            onOk={applyColumnSettings}
-            onCancel={() => setColumnSettingsOpen(false)}
-            onSelectAllColumns={selectAllDraftColumns}
-            onResetColumns={resetDraftColumns}
-            onVisibleChange={updateDraftColumn}
-            onOrderChange={updateDraftColumnOrder}
-            onColumnReorder={reorderDraftColumn}
-            onWidthChange={updateDraftColumnWidth}
-            onResetWidth={resetDraftColumnWidth}
-            onFontSizeChange={updateDraftTableFontSize}
-            onTableLabelFormatChange={updateDraftTableLabelFormat}
-            onSettingsLabelFormatChange={updateDraftSettingsLabelFormat}
-            onResetFontSize={resetDraftTableFontSize}
-            onResetLabelFormats={resetDraftLabelFormats}
-            recalculationSettings={renderRecalculationSettings()}
-          />
-        </Suspense>
-      )}
+      <ElecCalcWorkspaceModals {...workspaceModalProps} />
     </>
   );
 }
