@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "slice": "CSS-RAW-01",
-  "description": "Expand shared color tokens; burn-down calc-spreadsheet raw hex",
+  "slice": "CSS-RAW-02",
+  "description": "Burn-down tlt-form-controls raw hex via shared color tokens",
   "stylesCssMaxLoc": 30,
   "newFileLocCap": 400,
   "files": {
@@ -183,8 +183,8 @@
     "src/styles/form-grid-srs.css": 13,
     "src/styles/print.css": 2,
     "src/styles/table-chrome.css": 66,
-    "src/styles/tlt-form-controls.css": 36,
+    "src/styles/tlt-form-controls.css": 23,
     "src/styles/tokens.css": 22
   },
-  "rawColorsTotal": 583
+  "rawColorsTotal": 570
 }
