@@ -16,10 +16,13 @@ export function resolveObjectActionDisabledReasonOrNull<T>(
   return object ? getReason(object) : null;
 }
 
-export type ElecCalcWorkspaceModalPresentationInput<TObject extends { id: string }> = {
+export type ElecCalcWorkspaceModalPresentationInput<
+  TObject extends { id: string },
+  TCableTypeOption = unknown,
+> = {
   cableMarkModalObject: TObject | null | undefined;
   cableSizingModalObject: TObject | null | undefined;
-  cableTypeOptionsForObject: (objectId: string | undefined) => unknown[];
+  cableTypeOptionsForObject: (objectId: string | undefined) => TCableTypeOption[];
   getObjectActionDisabledReason: (object: TObject) => string | null;
   visibleCandidateColumnMetas: readonly CandidateColumnWidthMeta[];
 };
@@ -28,8 +31,11 @@ export type ElecCalcWorkspaceModalPresentationInput<TObject extends { id: string
  * Resolves cable-type options, assignment disable reasons, and candidate table scrollX
  * for mark/sizing modals.
  */
-export function buildElecCalcWorkspaceModalPresentation<TObject extends { id: string }>(
-  input: ElecCalcWorkspaceModalPresentationInput<TObject>,
+export function buildElecCalcWorkspaceModalPresentation<
+  TObject extends { id: string },
+  TCableTypeOption = unknown,
+>(
+  input: ElecCalcWorkspaceModalPresentationInput<TObject, TCableTypeOption>,
 ) {
   const {
     cableMarkModalObject,

@@ -2,11 +2,30 @@
  * @module electrical/workspace-modals
  * @owner electrical
  */
-import { lazy, Suspense, type ReactNode } from 'react';
+import { lazy, Suspense, type ComponentProps, type ReactNode } from 'react';
 import { Input, Modal } from 'antd';
 
 import ElecCalcCableMarkModal from '@/pages/electrical/ElecCalcCableMarkModal';
 import ElecCalcCableSizingModal from '@/pages/electrical/ElecCalcCableSizingModal';
+import type { ProjectObject } from '@/types/project';
+import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
+import type { CableMarkSelectOption } from '@/pages/electrical/elecCalcCableOptionModel';
+import type { CableStatusRow } from '@/pages/electrical/elecCalcCableCatalogModel';
+import type { CableTypeSelectOption } from '@/pages/electrical/elecCalcCableTypeOptionsModel';
+import type { ElectricalVariantTargetOption } from '@/pages/electrical/elecCalcVariantModel';
+import type {
+  ElectricalCandidateColumnKey,
+  ElectricalCandidateTableColumnSettings,
+} from '@/utils/electricalCandidateTableColumns';
+import type {
+  ElectricalColumnKey,
+  ElectricalTableColumnSettings,
+} from '@/utils/electricalTableColumns';
+import type {
+  ElectricalTableFontSize,
+  ElectricalTableLabelFormat,
+  ElectricalTableViewSettings,
+} from '@/utils/electricalTableViewSettings';
 
 const ElectricalCandidateColumnSettingsModal = lazy(
   () => import('@/components/electrical/ElectricalCandidateColumnSettingsModal'),
@@ -15,8 +34,126 @@ const ElectricalColumnSettingsModal = lazy(
   () => import('@/components/electrical/ElectricalColumnSettingsModal'),
 );
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type ElecCalcWorkspaceModalsProps = Record<string, any>;
+type PendingMutation = {
+  isPending: boolean;
+};
+
+type CableSizingModalProps = ComponentProps<typeof ElecCalcCableSizingModal>;
+
+/**
+ * Explicit modal lifecycle + selection contract (AF9-TYPE-ELEC-MODALS-01).
+ * Props-in / events-out; no Record&lt;string, any&gt; shell.
+ */
+export type ElecCalcWorkspaceModalsProps = {
+  cableMarkModalObject: ProjectObject | null;
+  cableMarkModalSelectedCable: CableStatusRow | null;
+  cableMarkModalCableType: CableTypeKey | null;
+  cableMarkModalCableTypeOptions: CableTypeSelectOption[];
+  commercialFeaturesAvailable: boolean;
+  project: { id: string } | null | undefined;
+  canMutate: boolean;
+  cableMarkModalAssignmentReason: string | null;
+  isCableMarkPending: boolean;
+  cableMarkModalValue: string | null;
+  cableMarkModalOptions: CableMarkSelectOption[];
+  cableMarkModalTargetVariants: string[];
+  cableMarkModalTargetVariantOptions: ElectricalVariantTargetOption[];
+  renderElectricalTypeControls: (
+    cableType: CableTypeKey | null,
+    options?: { block?: boolean },
+  ) => ReactNode;
+  changeCableMarkModalCableType: (nextType: CableTypeKey) => void;
+  setCableMarkModalValue: (nextValue: string) => void;
+  setCableMarkModalTargetVariantsFromValues: (values: readonly unknown[]) => void;
+  applyCableMarkModal: () => void;
+  closeCableMarkModal: () => void;
+  cableSizingModalAssignmentReason: string | null;
+  cableSizingModal: CableSizingModalProps['cableSizingModal'];
+  candidate: CableSizingModalProps['candidate'];
+  cableSizingModalSelectedCable: CableStatusRow | null;
+  cableSizingModalCableTypeOptions: CableTypeSelectOption[];
+  cableSizingManualOptions: CableSizingModalProps['cableSizingManualOptions'];
+  cableSizingCandidateTableScrollX: number;
+  resolvedTableFontSize: { key: string };
+  electricalCandidateGlideColumns: CableSizingModalProps['electricalCandidateGlideColumns'];
+  candidateTableViewState: CableSizingModalProps['candidateTableViewState'];
+  candidateTableViewActive: boolean;
+  cableTypes: {
+    normalizeAvailableCableType: (type: CableTypeKey) => CableTypeKey;
+  };
+  closeCableSizingModal: () => void;
+  setRecalc: {
+    connectionType: (value: string) => void;
+  };
+  openCandidateColumnSettings: () => void;
+  resetCandidateTableViewState: () => void;
+  candidateFolderEmptyText: CableSizingModalProps['candidateFolderEmptyText'];
+  showDeleteCandidateFolderConfirm: CableSizingModalProps['onDeleteCandidateFolder'];
+  getElectricalCandidateGlideCellState: CableSizingModalProps['getCandidateCellState'];
+  handleElectricalCandidateGlideCellAction: CableSizingModalProps['onCandidateCellAction'];
+  getElectricalCandidateGlideActionMenuItems: CableSizingModalProps['getCandidateActionMenuItems'];
+  setCandidateColumnFilter: CableSizingModalProps['onSetCandidateColumnFilter'];
+  resetCandidateColumnFilter: CableSizingModalProps['onResetCandidateColumnFilter'];
+  setCandidateTableSort: CableSizingModalProps['onSetCandidateSort'];
+  applyElectricalCandidateGlideColumnDraftWidth: CableSizingModalProps['onCandidateColumnResize'];
+  commitElectricalCandidateGlideColumnWidth: CableSizingModalProps['onCandidateColumnResizeEnd'];
+  candidateFolderModalOpen: boolean;
+  candidateFolderModalMode: 'create' | 'rename' | string;
+  createCandidateFolderMut: PendingMutation;
+  updateCandidateFolderMut: PendingMutation;
+  candidateFolderName: string;
+  submitCandidateFolderModal: () => void;
+  closeCandidateFolderModal: () => void;
+  setCandidateFolderName: (name: string) => void;
+  candidateColumnSettingsOpen: boolean;
+  setCandidateColumnSettingsOpen: (open: boolean) => void;
+  draftCandidateTableColumnSettings: ElectricalCandidateTableColumnSettings;
+  normalizedTableViewSettings: { settingsLabelFormat: ElectricalTableLabelFormat };
+  updateCandidateTableColumnPreference: PendingMutation;
+  applyCandidateColumnSettings: () => void;
+  selectAllDraftCandidateColumns: () => void;
+  resetDraftCandidateColumns: () => void;
+  updateDraftCandidateColumn: (
+    key: ElectricalCandidateColumnKey,
+    checked: boolean,
+  ) => void;
+  updateDraftCandidateColumnOrder: (
+    key: ElectricalCandidateColumnKey,
+    order: number,
+  ) => void;
+  reorderDraftCandidateColumn: (
+    activeKey: ElectricalCandidateColumnKey,
+    overKey: ElectricalCandidateColumnKey,
+  ) => void;
+  updateDraftCandidateColumnWidth: (
+    key: ElectricalCandidateColumnKey,
+    widthPct: number,
+  ) => void;
+  resetDraftCandidateColumnWidth: (key: ElectricalCandidateColumnKey) => void;
+  columnSettingsOpen: boolean;
+  setColumnSettingsOpen: (open: boolean) => void;
+  draftTableColumnSettings: ElectricalTableColumnSettings;
+  draftTableViewSettings: ElectricalTableViewSettings;
+  updateTableColumnPreference: PendingMutation;
+  updateTableSettingsPreference: PendingMutation;
+  applyColumnSettings: () => void;
+  selectAllDraftColumns: () => void;
+  resetDraftColumns: () => void;
+  updateDraftColumn: (key: ElectricalColumnKey, checked: boolean) => void;
+  updateDraftColumnOrder: (key: ElectricalColumnKey, order: number) => void;
+  reorderDraftColumn: (
+    activeKey: ElectricalColumnKey,
+    overKey: ElectricalColumnKey,
+  ) => void;
+  updateDraftColumnWidth: (key: ElectricalColumnKey, widthPct: number) => void;
+  resetDraftColumnWidth: (key: ElectricalColumnKey) => void;
+  updateDraftTableFontSize: (size: ElectricalTableFontSize) => void;
+  updateDraftTableLabelFormat: (format: ElectricalTableLabelFormat) => void;
+  updateDraftSettingsLabelFormat: (format: ElectricalTableLabelFormat) => void;
+  resetDraftTableFontSize: () => void;
+  resetDraftLabelFormats: () => void;
+  renderRecalculationSettings: () => ReactNode;
+};
 
 export function ElecCalcWorkspaceModals(p: ElecCalcWorkspaceModalsProps): ReactNode {
   const {

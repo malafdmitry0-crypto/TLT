@@ -25,12 +25,80 @@ import {
   TltSelect,
 } from '@/components/ui-kit';
 import type { SpecGroupBy as GroupBy } from '@/pages/specification/specFormatModel';
+import type {
+  AccessoryExtendedInfo,
+  SpecificationSettings,
+} from '@/api/specifications';
+import type { Specification, SpecificationItem } from '@/types/specification';
 import '../workflow-params.css';
 
 const { Text } = Typography;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type SpecPageChromeProps = Record<string, any>;
+type PendingMutation = {
+  isPending: boolean;
+};
+
+type MutateMutation = PendingMutation & {
+  mutate: () => void;
+};
+
+/** Explicit props-in / events-out for Spec chrome (AF9-TYPE-SPEC-CHROME-01). */
+export type SpecPageChromeProps = {
+  settingsOpen: boolean;
+  toggleSettings: (open: boolean) => void;
+  canMutateProject: boolean;
+  fullModeActive: boolean;
+  selectedGenerateErIds: string[];
+  setSelectedGenerateErIds: (ids: string[]) => void;
+  availableGenerateVariants: Array<{ id: string; name: string }>;
+  reserveCoeff: number;
+  setReserveCoeff: (value: number) => void;
+  connectorKitSectionsPerKit: 1 | 2;
+  setConnectorKitSectionsPerKit: (value: 1 | 2) => void;
+  exZone: boolean;
+  setExZone: (value: boolean) => void;
+  indicationOnBoxes: boolean;
+  setIndicationOnBoxes: (value: boolean) => void;
+  endSectionIndication: boolean;
+  setEndSectionIndication: (value: boolean) => void;
+  topIndication: boolean;
+  setTopIndication: (value: boolean) => void;
+  minLengthK2i: number;
+  setMinLengthK2i: (value: number) => void;
+  groupBy: GroupBy;
+  setGroupBy: (value: GroupBy) => void;
+  mergeIdentical: boolean;
+  setMergeIdentical: (value: boolean) => void;
+  items: SpecificationItem[];
+  categoriesCount: number;
+  projectSettings: SpecificationSettings | null | undefined;
+  spec: Specification | null | undefined;
+  mut: PendingMutation;
+  saveDefaultsMut: MutateMutation;
+  runGenerate: (partial?: boolean) => void;
+  canManuallyEdit: boolean;
+  hasItems: boolean;
+  isSpecStale: boolean;
+  setAddOpen: (open: boolean) => void;
+  addOpen: boolean;
+  handleAdd: () => void;
+  saveMut: PendingMutation;
+  selectedAccessoryId: string | null;
+  setSelectedAccessoryId: (id: string | null) => void;
+  qty: number;
+  setQty: (value: number) => void;
+  accessories: AccessoryExtendedInfo[];
+  preflightOpen: boolean;
+  setPreflightOpen: (open: boolean) => void;
+  setPendingGenerate: (
+    value: {
+      generateVariantIds: string[];
+      options?: import('@/api/specifications').SpecificationOptions;
+    } | null,
+  ) => void;
+  confirmPartialGenerate: () => void;
+  preflightSummary: string | null;
+};
 
 export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
   const {
@@ -78,7 +146,7 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
                 placeholder="Выберите ЭР"
                 value={selectedGenerateErIds}
                 onChange={(ids: string[]) => setSelectedGenerateErIds(ids)}
-                options={availableGenerateVariants.map((item: { id: string; name: string }) => ({
+                options={availableGenerateVariants.map((item) => ({
                   value: item.id,
                   label: item.name,
                 }))}
@@ -90,7 +158,7 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
                 type="button"
                 size="compact"
                 variant="secondary"
-                onClick={() => setSelectedGenerateErIds(availableGenerateVariants.map((item: { id: string }) => item.id))}
+                onClick={() => setSelectedGenerateErIds(availableGenerateVariants.map((item) => item.id))}
                 disabled={availableGenerateVariants.length === 0}
               >
                 Выбрать все
@@ -295,7 +363,7 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
             onChange={setSelectedAccessoryId}
             style={{ width: '100%' }}
             optionFilterProp="label"
-            options={accessories.map((a: { id: string; category: string; name: string; article?: string }) => ({
+            options={accessories.map((a) => ({
               value: a.id,
               label: `${a.category} · ${a.name}${a.article ? ` (${a.article})` : ''}`,
             }))}

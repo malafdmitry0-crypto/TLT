@@ -25,7 +25,7 @@ function renderChrome(overrides: Record<string, unknown> = {}) {
     setTopIndication: vi.fn(),
     minLengthK2i: 100,
     setMinLengthK2i: vi.fn(),
-    groupBy: 'object_section',
+    groupBy: 'object_section' as const,
     setGroupBy: vi.fn(),
     mergeIdentical: false,
     setMergeIdentical: vi.fn(),

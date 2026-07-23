@@ -5,13 +5,112 @@
  */
 import { lazy, Suspense, type ReactNode } from 'react';
 
-import HeatCalcExcelContextMenu from '@/components/heatcalc/HeatCalcExcelContextMenu';
+import HeatCalcExcelContextMenu, {
+  type HeatCalcExcelContextMenuState,
+} from '@/components/heatcalc/HeatCalcExcelContextMenu';
 import HeatCalcUnsavedChangesModals from '@/pages/heatcalc/HeatCalcUnsavedChangesModals';
+import type { ProjectObject } from '@/types/project';
+import type {
+  ExcelCellPosition,
+  ExcelSelectionRange,
+} from '@/utils/heatCalcExcelMode';
+import type { DraftRowsById, DraftRowState } from '@/utils/heatCalcInlineEdit';
+import type { HeatCalcIndexedTableRow } from '@/utils/heatCalcTableFindability';
+import type {
+  HeatCalcColumnKey,
+  HeatCalcTableColumnSettings,
+  HeatCalcTableColumnScope,
+} from '@/utils/heatCalcTableColumns';
+import type {
+  HeatCalcFormPlacement,
+  HeatCalcTableLabelFormat,
+  HeatCalcTableViewSettings,
+} from '@/utils/heatCalcTableViewSettings';
+import type {
+  HeatCalcCalculationDetailMetric,
+  HeatCalcCalculationDetailPreset,
+  HeatCalcCalculationDetailsSettings,
+} from '@/utils/heatCalcCalculationDetailsSettings';
 
 const ColumnSettingsModal = lazy(() => import('@/components/heatcalc/ColumnSettingsModal'));
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type HeatCalcPageOverlaysProps = Record<string, any>;
+type SaveDraftRowsResult = {
+  ok: boolean;
+  saved: ProjectObject[];
+};
+
+/** Explicit modal state + events for Heat overlays (AF9-TYPE-HEAT-OVERLAYS-01). */
+export type HeatCalcPageOverlaysProps = {
+  excelModeEnabled: boolean;
+  excelContextMenu: HeatCalcExcelContextMenuState;
+  excelSelectionRange: ExcelSelectionRange | null;
+  activeExcelCellPosition: ExcelCellPosition | null;
+  selectedExcelRows: HeatCalcIndexedTableRow<ProjectObject>[];
+  draftRowsById: DraftRowsById;
+  isSavableDraftRow: (draftRow: DraftRowState | undefined) => boolean;
+  closeExcelContextMenu: () => void;
+  copyExcelSelection: () => unknown | Promise<unknown>;
+  cutExcelSelection: () => unknown | Promise<unknown>;
+  pasteExcelFromClipboard: () => unknown | Promise<unknown>;
+  clearExcelSelection: () => unknown | Promise<unknown>;
+  addExcelRowsBelowSelection: (count: number) => unknown | Promise<unknown>;
+  removeSelectedObjects: () => unknown | Promise<unknown>;
+  resetSelectedExcelRows: () => unknown | Promise<unknown>;
+  columnSettingsDialog: {
+    isOpen: boolean;
+    activeType: HeatCalcTableColumnScope;
+    draftColumnSettings: HeatCalcTableColumnSettings;
+    draftViewSettings: HeatCalcTableViewSettings;
+    draftCalculationDetailsSettings: HeatCalcCalculationDetailsSettings;
+    setActiveType: (type: HeatCalcTableColumnScope) => void;
+    apply: () => void;
+    close: () => void;
+    selectAllDraftColumns: (type: HeatCalcTableColumnScope) => void;
+    resetDraftColumns: (type: HeatCalcTableColumnScope) => void;
+    updateDraftColumn: (
+      type: HeatCalcTableColumnScope,
+      key: HeatCalcColumnKey,
+      visible: boolean,
+    ) => void;
+    updateDraftColumnOrder: (
+      type: HeatCalcTableColumnScope,
+      key: HeatCalcColumnKey,
+      order: number,
+    ) => void;
+    updateDraftColumnWidth: (
+      type: HeatCalcTableColumnScope,
+      key: HeatCalcColumnKey,
+      widthPct: number,
+    ) => void;
+    resetDraftColumnWidth: (
+      type: HeatCalcTableColumnScope,
+      key: HeatCalcColumnKey,
+    ) => void;
+    reorderDraftColumn: (
+      type: HeatCalcTableColumnScope,
+      activeKey: HeatCalcColumnKey,
+      overKey: HeatCalcColumnKey,
+    ) => void;
+    updateDraftTableLabelFormat: (format: HeatCalcTableLabelFormat) => void;
+    updateDraftSettingsLabelFormat: (format: HeatCalcTableLabelFormat) => void;
+    updateDraftFormPlacement: (placement: HeatCalcFormPlacement) => void;
+    resetDraftLabelFormats: () => void;
+    updateDraftCalculationDetailsPreset: (
+      preset: HeatCalcCalculationDetailPreset,
+    ) => void;
+    updateDraftCalculationDetailMetrics: (
+      metrics: HeatCalcCalculationDetailMetric[],
+    ) => void;
+    resetDraftCalculationDetails: () => void;
+  };
+  preferenceSavePending: boolean;
+  pendingWizardObject: ProjectObject | null;
+  inlineDraftSaving: boolean;
+  discardDraftRows: (rowIds?: string[]) => void;
+  saveDraftRows: (rowIds?: string[]) => Promise<SaveDraftRowsResult>;
+  setPendingWizardObject: (object: ProjectObject | null) => void;
+  forceOpenEditWizard: (object: ProjectObject) => void;
+};
 
 export function HeatCalcPageOverlays(p: HeatCalcPageOverlaysProps): ReactNode {
   const {

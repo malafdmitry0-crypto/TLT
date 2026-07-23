@@ -14,7 +14,7 @@ const shared = {
 
 const coverage = {
   provider: 'v8' as const,
-  reporter: ['text', 'html', 'json-summary'] as const,
+  reporter: ['text', 'html', 'json-summary'] as Array<'text' | 'html' | 'json-summary'>,
   exclude: ['node_modules/', 'src/__tests__/'],
   thresholds: {
     statements: 70,

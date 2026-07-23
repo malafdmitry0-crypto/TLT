@@ -11,13 +11,69 @@ import {
   HeatCalcTypeToolbar,
   type HeatCalcToolbarEditingMode,
 } from '@/pages/heatcalc/HeatCalcToolbar';
+import type { ActiveObjectScope } from '@/pages/heatcalc/useHeatCalcTableState';
 import {
   PipeTypeIcon,
   TankTypeIcon,
 } from '@/components/shared/ObjectTypeIcons';
+import type { Role } from '@/constants/roles';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type HeatCalcPageToolbarsProps = Record<string, any>;
+/** Explicit data/events contract for Heat page toolbars (AF9-TYPE-HEAT-TOOLBARS-01). */
+export type HeatCalcPageToolbarsProps = {
+  activeObjectScope: ActiveObjectScope;
+  pipeButtonCountText: string;
+  tankButtonCountText: string;
+  allButtonCountText: string;
+  formBlockVisible: boolean;
+  formCaptionMode: string;
+  formCaptionModeLabel: string;
+  handleObjectScopeChange: (scope: ActiveObjectScope) => void;
+  handleFormBlockVisibilityChange: (checked: boolean) => void;
+  handleContinueToElectrical?: () => void;
+  continueToElectricalDisabled?: boolean;
+  continueToElectricalTooltip?: string;
+  toolbarSaveTooltip: string;
+  toolbarSaveDisabled: boolean;
+  toolbarSaveLoading: boolean;
+  deleteTargetCount: number;
+  removeIsPending: boolean;
+  openAddWizard: () => void;
+  handleToolbarSave: () => void;
+  removeSelectedObjects: () => void;
+  tableEditingMode: HeatCalcToolbarEditingMode;
+  commercialFeaturesAvailable: boolean;
+  tableFindabilityAvailable: boolean;
+  heatLossRecalcTooltip: string;
+  heatLossRecalcAriaLabel: string;
+  heatLossBatchPending: boolean;
+  isHeatLossJobActive: boolean;
+  heatLossScopedRecalcDisabled: boolean;
+  heatLossRecalcAllTooltip: string;
+  heatLossRecalcDisabled: boolean;
+  activeHeatLossJobId: string | null;
+  cancelHeatLossJobPending: boolean;
+  currentTableViewActive: boolean;
+  draftControlsVisible: boolean;
+  dirtyDraftRowCount: number;
+  saveTargetCount: number;
+  inlineDraftSaving: boolean;
+  draftDiscardLabel: string;
+  selectedObjectCount: number;
+  addIsPending: boolean;
+  handleTableEditingModeChange: (value: string | number) => void;
+  recalcHeatLossScoped: () => void;
+  recalcHeatLossAll: () => void;
+  cancelHeatLossJob: () => void;
+  openColumnSettings: () => void;
+  resetCurrentTableViewState: () => void;
+  discardDraftRows: (rowIds?: string[]) => void;
+  saveTargetIds: string[];
+  duplicateSelectedObjects: () => void;
+  projectId: string;
+  projectName: string;
+  projectObjectCount: number;
+  role: Role | null;
+};
 
 export function buildHeatCalcTypeBar(p: HeatCalcPageToolbarsProps): ReactNode {
   return (
@@ -55,7 +111,7 @@ export function buildHeatCalcActionsBar(p: HeatCalcPageToolbarsProps): ReactNode
         onDeleteSelected: p.removeSelectedObjects,
       }}
       tableActions={{
-        editingMode: p.tableEditingMode as HeatCalcToolbarEditingMode,
+        editingMode: p.tableEditingMode,
         commercialFeaturesAvailable: p.commercialFeaturesAvailable,
         tableFindabilityAvailable: p.tableFindabilityAvailable,
         recalcTooltip: p.heatLossRecalcTooltip,
