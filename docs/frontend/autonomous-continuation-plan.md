@@ -130,7 +130,8 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | **E17** | `done` | useElecCalcWorkspaceModel | workspace view 191 ≤500 | smoke | model ~1112 |
 | **E18** | `done` | modal presentation pure | scrollX + assignment reasons + modal presentation | unit 7 | candidate scroll + workspace modal models |
 
-**Метрика shell:** `ElecCalcPage` = **30**. `ElecCalcWorkspace` = **192** (M1/M3 ✅).
+**Метрика shell:** `ElecCalcPage` = **30**. `ElecCalcWorkspace` = **192** (M1/M3 ✅).  
+**Текущий пункт:** model-thin residual (Elec/Heat models) — Track C + U1/U2 + S4 closed.
 
 ### Track H — Heat
 
@@ -208,8 +209,8 @@ Budget CSS: **только** delete/move; `styles.css` net LOC ≤ 0.
 
 | ID | Статус | Scope | Что | Proof |
 |---|---|---|---|---|
-| **U1** | `pending` | next Heat form section on CompactField | только если shell не горит | parity e2e + architecture |
-| **U2** | `pending` | Spec params → kit | after S1 | parity/smoke |
+| **U1** | `done` | Heat form sections on CompactFieldGrid | geometry/climate/settings already on kit in `HeatCalcObjectFieldsPanel` | architecture | no further shell work; protected component |
+| **U2** | `done` | Spec params → kit | CompactField + TltNumber/Select/Button in SpecPageChrome settings | unit kit + Spec integration 11 | multi ER Select remains Ant Design |
 
 ---
 

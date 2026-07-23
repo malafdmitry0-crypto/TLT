@@ -18,6 +18,12 @@ import {
   PlusOutlined,
   ReloadOutlined,
 } from '@ant-design/icons';
+import {
+  CompactField,
+  TltButton,
+  TltNumberField,
+  TltSelect,
+} from '@/components/ui-kit';
 import type { SpecGroupBy as GroupBy } from '@/pages/specification/specFormatModel';
 import '../workflow-params.css';
 
@@ -57,8 +63,13 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
             <Text type="secondary" style={{ display: 'block', fontSize: 12, margin: '6px 0 10px' }}>
               Канонический режим: полный data-driven BOM (PDL-ER-29).
             </Text>
-            <div className="workflow-params-row">
-              <Text className="workflow-params-label">ЭР для генерации</Text>
+            {/* Multi-select remains Ant Design — TltSelect is single-value only. */}
+            <CompactField
+              className="specification-settings-field"
+              layout="vertical"
+              label="ЭР для генерации"
+              controlWidth="100%"
+            >
               <Select
                 mode="multiple"
                 size="small"
@@ -73,47 +84,52 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
                 }))}
                 aria-label="Выбор ЭР для генерации спецификации"
               />
-            </div>
-            <div className="workflow-params-row" style={{ marginTop: 8 }}>
-              <Button
-                size="small"
+            </CompactField>
+            <div style={{ marginTop: 8 }}>
+              <TltButton
+                type="button"
+                size="compact"
+                variant="secondary"
                 onClick={() => setSelectedGenerateErIds(availableGenerateVariants.map((item: { id: string }) => item.id))}
                 disabled={availableGenerateVariants.length === 0}
               >
                 Выбрать все
-              </Button>
+              </TltButton>
             </div>
-            <div className="workflow-params-row" style={{ marginTop: 12 }}>
-              <Text className="workflow-params-label">Коэффициент горячего резервирования R,гр (1–3)</Text>
-              <InputNumber
+            <CompactField
+              className="specification-settings-field"
+              layout="vertical"
+              label="Коэффициент горячего резервирования R,гр (1–3)"
+              controlWidth="100%"
+            >
+              <TltNumberField
                 aria-label="Резерв R,гр"
                 min={1}
                 max={3}
                 step={0.1}
-                size="small"
                 disabled={!canMutateProject || !fullModeActive}
                 value={reserveCoeff}
                 onChange={(v) => setReserveCoeff(Number(v ?? 1))}
                 style={{ width: '100%' }}
               />
-            </div>
-            <div className="workflow-params-row" style={{ marginTop: 12 }}>
-              <Text className="workflow-params-label">
-                Соединительный комплект: секций на 1 шт. (PDF §7.10)
-              </Text>
-              <Select
-                size="small"
-                style={{ width: '100%' }}
+            </CompactField>
+            <CompactField
+              className="specification-settings-field"
+              layout="vertical"
+              label="Соединительный комплект: секций на 1 шт. (PDF §7.10)"
+              controlWidth="100%"
+            >
+              <TltSelect
                 disabled={!canMutateProject || !fullModeActive}
                 value={connectorKitSectionsPerKit}
-                onChange={(v: 1 | 2) => setConnectorKitSectionsPerKit(v)}
+                onChange={(v) => setConnectorKitSectionsPerKit(v === 2 || v === '2' ? 2 : 1)}
                 options={[
                   { value: 1, label: '1 — КСН-1 / КСВ-1 (по умолчанию)' },
                   { value: 2, label: '2 — КСН-2 / КСВ-2' },
                 ]}
                 aria-label="Секций на соединительный комплект"
               />
-            </div>
+            </CompactField>
           </section>
 
           <section className="specification-settings-section">
@@ -148,21 +164,23 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
                 Индикация сверху коробки (Кiu)
               </Checkbox>
               {fullModeActive && endSectionIndication && (
-                <div>
-                  <Text className="workflow-params-label">
-                    Мин. длина секции для К2i (L,К2i), м
-                  </Text>
-                  <InputNumber
+                <CompactField
+                  className="specification-settings-field"
+                  layout="vertical"
+                  label="Мин. длина секции для К2i (L,К2i), м"
+                  controlWidth="100%"
+                >
+                  <TltNumberField
                     aria-label="Мин. длина секции для К2i"
                     min={0}
                     step={10}
-                    size="small"
                     disabled={!canMutateProject}
                     value={minLengthK2i}
                     onChange={(v) => setMinLengthK2i(Number(v ?? 0))}
-                    style={{ width: '100%', marginTop: 4 }}
+                    style={{ width: '100%' }}
+                    unit="м"
                   />
-                </div>
+                </CompactField>
               )}
             </Space>
           </section>
