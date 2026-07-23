@@ -1,0 +1,211 @@
+{
+  "version": 1,
+  "files": {
+    "src/pages/heatcalc/HeatCalcPageToolbars.tsx": [
+      "Alert"
+    ],
+    "src/pages/heatcalc/HeatCalcToolbar.tsx": [
+      "Button",
+      "Tag"
+    ],
+    "src/pages/heatcalc/HeatCalcUnsavedChangesModals.tsx": [
+      "Button"
+    ],
+    "src/pages/heatcalc/HeatCalcWorkspaceLayout.tsx": [
+      "Space"
+    ],
+    "src/pages/heatcalc/heatCalcColumnRenderers.tsx": [
+      "Tag"
+    ],
+    "src/pages/electrical/ElecCalcCableMarkModal.tsx": [
+      "Select",
+      "Space"
+    ],
+    "src/pages/electrical/ElecCalcCableSizingModal.tsx": [
+      "Button",
+      "Select"
+    ],
+    "src/pages/electrical/ElecCalcCandidateCompareBar.tsx": [
+      "Button"
+    ],
+    "src/pages/electrical/ElecCalcCandidateFolderTabs.tsx": [
+      "Button"
+    ],
+    "src/pages/electrical/ElecCalcCandidateTablePanel.tsx": [
+      "Input"
+    ],
+    "src/pages/electrical/ElecCalcElectricalTypeControls.tsx": [
+      "InputNumber",
+      "Select"
+    ],
+    "src/pages/electrical/ElecCalcErrorSummary.tsx": [
+      "Tag"
+    ],
+    "src/pages/electrical/ElecCalcParamsPanel.tsx": [
+      "InputNumber",
+      "Select"
+    ],
+    "src/pages/electrical/ElecCalcProject.tsx": [
+      "Alert",
+      "Space"
+    ],
+    "src/pages/electrical/ElecCalcRecalculationSettings.tsx": [
+      "Select",
+      "Tag"
+    ],
+    "src/pages/electrical/ElecCalcSelectedCableSummary.tsx": [
+      "Tag"
+    ],
+    "src/pages/electrical/ElecCalcWorkspace.tsx": [
+      "Alert",
+      "Space"
+    ],
+    "src/pages/electrical/ElecCalcWorkspaceModals.tsx": [
+      "Input"
+    ],
+    "src/pages/electrical/ElecCalcWorkspaceParamsChrome.tsx": [
+      "Alert",
+      "Button"
+    ],
+    "src/pages/electrical/ElectricalAssignmentPanel.tsx": [
+      "Alert",
+      "Button",
+      "Space"
+    ],
+    "src/pages/electrical/ElectricalBatchActionBar.tsx": [
+      "Button",
+      "Select",
+      "Space"
+    ],
+    "src/pages/electrical/ElectricalUnifiedTableCard.tsx": [
+      "Alert",
+      "Button",
+      "Card"
+    ],
+    "src/pages/electrical/ElectricalVariantTabs.tsx": [
+      "Alert",
+      "Button",
+      "Card",
+      "Input",
+      "Space"
+    ],
+    "src/pages/electrical/useElecCalcCableMarkOptions.tsx": [
+      "Space",
+      "Tag"
+    ],
+    "src/pages/electrical/useElecCalcElectricalColumnRenderers.tsx": [
+      "Button",
+      "Space",
+      "Tag"
+    ],
+    "src/pages/specification/SpecPageChrome.tsx": [
+      "Button",
+      "InputNumber",
+      "Select",
+      "Space"
+    ],
+    "src/pages/specification/SpecificationPage.tsx": [
+      "Alert",
+      "Button",
+      "Card",
+      "Space"
+    ],
+    "src/components/heatcalc/ColumnSettingsModal.tsx": [
+      "Button",
+      "InputNumber",
+      "Space",
+      "Tag"
+    ],
+    "src/components/heatcalc/EditableTableCell.tsx": [
+      "Input",
+      "InputNumber",
+      "Select"
+    ],
+    "src/components/heatcalc/HeatCalcColumnFilterDropdown.tsx": [
+      "Button",
+      "Input",
+      "InputNumber",
+      "Select"
+    ],
+    "src/components/heatcalc/HeatCalcObjectsTableCard.tsx": [
+      "Button",
+      "Card"
+    ],
+    "src/components/electrical/CableSelector.tsx": [
+      "Select",
+      "Space",
+      "Tag"
+    ],
+    "src/components/electrical/ElectricalCandidateColumnSettingsModal.tsx": [
+      "Button",
+      "InputNumber",
+      "Space",
+      "Tag"
+    ],
+    "src/components/electrical/ElectricalCandidateFieldRenderer.tsx": [
+      "Space",
+      "Tag"
+    ],
+    "src/components/electrical/ElectricalColumnFilterDropdown.tsx": [
+      "Button",
+      "Input",
+      "InputNumber",
+      "Select",
+      "Space"
+    ],
+    "src/components/electrical/ElectricalColumnSettingsModal.tsx": [
+      "Button",
+      "InputNumber",
+      "Space",
+      "Tag"
+    ],
+    "src/components/electrical/ElectricalGlideColumnFilterDropdown.tsx": [
+      "Button",
+      "Input",
+      "InputNumber",
+      "Select",
+      "Space"
+    ],
+    "src/components/electrical/ElectricalSummary.tsx": [
+      "Card"
+    ],
+    "src/components/electrical/ObjectCalcCard.tsx": [
+      "Alert",
+      "Button",
+      "Card",
+      "Space",
+      "Tag"
+    ],
+    "src/components/specification/SpecBuilder.tsx": [
+      "Button"
+    ],
+    "src/components/specification/SpecTable.tsx": [
+      "Alert",
+      "Button",
+      "Space",
+      "Tag"
+    ],
+    "src/components/wizard/CableAlgorithmPanel.tsx": [
+      "Input",
+      "InputNumber"
+    ],
+    "src/components/wizard/InsulationTemperatureRangeField.tsx": [
+      "Input"
+    ],
+    "src/components/wizard/ObjectWizard.tsx": [
+      "Button",
+      "Input"
+    ],
+    "src/components/wizard/ReferencePicker.tsx": [
+      "Input",
+      "Select"
+    ],
+    "src/components/wizard/steps/ConfirmStep.tsx": [
+      "Alert",
+      "Input"
+    ],
+    "src/components/wizard/steps/TemperatureEnvironmentStep.tsx": [
+      "Tag"
+    ]
+  }
+}

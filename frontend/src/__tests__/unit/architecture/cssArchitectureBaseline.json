@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "slice": "CSS-OWN-03",
+  "slice": "AF9-CLOSE",
   "description": "Heat multi-file ownership: insulation chrome in island only; workspace-table placement only",
   "stylesCssMaxLoc": 30,
   "newFileLocCap": 400,
@@ -30,20 +30,30 @@
       "bareAnt": 0,
       "media": 2
     },
-    "src/pages/electrical/elec-workspace.css": {
-      "loc": 1002,
+    "src/pages/electrical/elec-workspace-summary.css": {
+      "loc": 401,
       "bareAnt": 0,
-      "media": 8
+      "media": 2
+    },
+    "src/pages/electrical/elec-workspace.css": {
+      "loc": 604,
+      "bareAnt": 0,
+      "media": 6
     },
     "src/pages/heatcalc/heatcalc-dual-form-shell.css": {
       "loc": 256,
       "bareAnt": 0,
       "media": 3
     },
-    "src/pages/heatcalc/heatcalc-field-chrome.css": {
-      "loc": 822,
+    "src/pages/heatcalc/heatcalc-field-chrome-core.css": {
+      "loc": 500,
       "bareAnt": 0,
-      "media": 3
+      "media": 2
+    },
+    "src/pages/heatcalc/heatcalc-field-chrome.css": {
+      "loc": 325,
+      "bareAnt": 0,
+      "media": 1
     },
     "src/pages/heatcalc/heatcalc-insulation-page.css": {
       "loc": 99,
@@ -157,7 +167,7 @@
     }
   },
   "totals": {
-    "loc": 9048,
+    "loc": 9054,
     "bareAnt": 18,
     "media": 41
   },

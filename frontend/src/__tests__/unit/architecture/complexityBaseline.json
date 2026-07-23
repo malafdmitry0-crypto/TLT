@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "slice": "AF9-ARCH-01",
-  "description": "Truthful shrink-only complexity baseline: only files >newFileLocCap; metrics = current HEAD",
+  "slice": "AF9-CLOSE",
+  "description": "Truthful shrink-only complexity baseline after AF9 CMP/UI/CSS close",
   "newFileLocCap": 500,
   "files": {
     "src/api/calculations.ts": {
@@ -86,20 +86,6 @@
       "imports": 8,
       "useEffect": 4,
       "useState": 3,
-      "useCallback": 0
-    },
-    "src/pages/electrical/useElecCalcWorkspaceModel.tsx": {
-      "loc": 546,
-      "imports": 31,
-      "useEffect": 1,
-      "useState": 5,
-      "useCallback": 0
-    },
-    "src/pages/specification/useSpecificationPageModel.ts": {
-      "loc": 518,
-      "imports": 14,
-      "useEffect": 2,
-      "useState": 16,
       "useCallback": 0
     },
     "src/utils/electricalCandidateTableColumns.ts": {

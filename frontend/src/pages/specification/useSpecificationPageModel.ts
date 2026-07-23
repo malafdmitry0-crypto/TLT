@@ -3,7 +3,7 @@
  * @owner specification
  * Orchestration for SpecificationPage (queries, mutations, generate options).
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { message } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -21,8 +21,9 @@ import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useLegacyElectricalVariantContext } from '@/hooks/useLegacyElectricalVariantContext';
 import type { SpecificationItem } from '@/types/specification';
-import { formatSpecTimestamp, type SpecGroupBy as GroupBy } from '@/pages/specification/specFormatModel';
+import { formatSpecTimestamp } from '@/pages/specification/specFormatModel';
 import { useSpecParamsPanelState } from '@/pages/specification/useSpecParamsPanelState';
+import { useSpecPageFormState } from '@/pages/specification/useSpecPageFormState';
 import {
   buildSpecGenerateOptions,
   isSpecificationPartial,
@@ -74,30 +75,7 @@ export function useSpecificationPageModel() {
     variant,
   ] as const;
 
-  const [groupBy, setGroupBy] = useState<GroupBy>('object_section');
-  const [mergeIdentical, setMergeIdentical] = useState(false);
-  const [addOpen, setAddOpen] = useState(false);
-  const [selectedAccessoryId, setSelectedAccessoryId] = useState<string | null>(null);
-  const [qty, setQty] = useState<number>(1);
-  // PDL-ER-29: canonical product mode is always full data-driven BOM.
-  // Manual item CRUD remains employee/admin only (PDL-ER-04).
-  // PDL-ER-01: explicit multi-ЭР selection for generation; never implicit all-on-open.
-  const [selectedGenerateErIds, setSelectedGenerateErIds] = useState<string[]>([]);
-  const [preflightOpen, setPreflightOpen] = useState(false);
-  const [preflightSummary, setPreflightSummary] = useState<string>('');
-  const [pendingGenerate, setPendingGenerate] = useState<{
-    generateVariantIds: string[];
-    options?: Parameters<typeof generateSpecification>[4];
-  } | null>(null);
-  const [exZone, setExZone] = useState(false);
-  const [reserveCoeff, setReserveCoeff] = useState<number>(1);
-  // Опции индикации ТНП: К1i / К2i / Кiu / L,К2i
-  const [indicationOnBoxes, setIndicationOnBoxes] = useState(false);
-  const [endSectionIndication, setEndSectionIndication] = useState(false);
-  const [topIndication, setTopIndication] = useState(false);
-  const [minLengthK2i, setMinLengthK2i] = useState<number>(0);
-  /** PDL-ER-44: PDF §7.10 sections per connector kit (1→КСН-1, 2→КСН-2). */
-  const [connectorKitSectionsPerKit, setConnectorKitSectionsPerKit] = useState<1 | 2>(1);
+  const form = useSpecPageFormState();
   /** Блок настроек (параметры генерации) — Drawer, как «Настройки» в макете. */
   const { settingsOpen, toggleSettings } = useSpecParamsPanelState();
 
@@ -139,19 +117,21 @@ export function useSpecificationPageModel() {
       ?? (projectSettings?.settings as Record<string, unknown> | undefined);
     if (!opts) return;
     const snapshot = buildSpecSettingsFormSnapshot(opts);
-    setExZone(snapshot.exZone);
-    setReserveCoeff(snapshot.reserveCoeff);
-    setIndicationOnBoxes(snapshot.indicationOnBoxes);
-    setEndSectionIndication(snapshot.endSectionIndication);
-    setTopIndication(snapshot.topIndication);
-    setMinLengthK2i(snapshot.minLengthK2i);
-    setConnectorKitSectionsPerKit(snapshot.connectorKitSectionsPerKit);
+    form.setExZone(snapshot.exZone);
+    form.setReserveCoeff(snapshot.reserveCoeff);
+    form.setIndicationOnBoxes(snapshot.indicationOnBoxes);
+    form.setEndSectionIndication(snapshot.endSectionIndication);
+    form.setTopIndication(snapshot.topIndication);
+    form.setMinLengthK2i(snapshot.minLengthK2i);
+    form.setConnectorKitSectionsPerKit(snapshot.connectorKitSectionsPerKit);
     if (typeof snapshot.mergeIdentical === 'boolean') {
-      setMergeIdentical(snapshot.mergeIdentical);
+      form.setMergeIdentical(snapshot.mergeIdentical);
     }
     if (snapshot.groupBy) {
-      setGroupBy(snapshot.groupBy);
+      form.setGroupBy(snapshot.groupBy);
     }
+    // form setters are stable (useState); omit form object to avoid effect loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- form.* setters only
   }, [
     spec?.id,
     spec?.generation_mode,
@@ -168,7 +148,7 @@ export function useSpecificationPageModel() {
   );
   useEffect(() => {
     if (!selectedElectricalVariant?.id) return;
-    setSelectedGenerateErIds((prev) => {
+    form.setSelectedGenerateErIds((prev) => {
       if (prev.length === 0) return [selectedElectricalVariant.id];
       const stillValid = prev.filter((id) =>
         availableGenerateVariants.some((item) => item.id === id),
@@ -178,6 +158,7 @@ export function useSpecificationPageModel() {
         ? [selectedElectricalVariant.id]
         : [];
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- form.setSelectedGenerateErIds stable
   }, [selectedElectricalVariant?.id, selectedElectricalVariant?.legacy_variant_number, availableGenerateVariants]);
   const snapshotMutationScope = (): SpecificationMutationScope => {
     if (!project || !selectedElectricalVariant || variantContext.legacyVariantNumber == null) {
@@ -223,8 +204,8 @@ export function useSpecificationPageModel() {
       );
     },
     onSuccess: (result, variables) => {
-      setPreflightOpen(false);
-      setPendingGenerate(null);
+      form.setPreflightOpen(false);
+      form.setPendingGenerate(null);
       const generatedCount = result.results?.length ?? 1;
       if (result.partial) {
         message.warning(
@@ -275,14 +256,14 @@ export function useSpecificationPageModel() {
             (v) =>
               `«${v.electrical_variant_name || 'ЭР'}»: исключено объектов ${v.skipped_objects}`,
           );
-        setPreflightSummary(
+        form.setPreflightSummary(
           [
             `Всего исключений: ${pf?.total_skipped_objects ?? 0}.`,
             'После подтверждения partial generation выполнится атомарно (PDL-ER-36).',
             ...lines,
           ].join('\n'),
         );
-        setPreflightOpen(true);
+        form.setPreflightOpen(true);
         return;
       }
       message.error(e.message);
@@ -320,15 +301,15 @@ export function useSpecificationPageModel() {
   const isSpecPartial = isSpecificationPartial(spec);
   const excludedGroups = resolveSpecificationExcludedGroups(spec);
   const buildGenerateOptions = () => buildSpecGenerateOptions({
-    exZone,
-    reserveCoeff,
-    indicationOnBoxes,
-    endSectionIndication,
-    topIndication,
-    minLengthK2i,
-    connectorKitSectionsPerKit,
-    groupBy,
-    mergeIdentical,
+    exZone: form.exZone,
+    reserveCoeff: form.reserveCoeff,
+    indicationOnBoxes: form.indicationOnBoxes,
+    endSectionIndication: form.endSectionIndication,
+    topIndication: form.topIndication,
+    minLengthK2i: form.minLengthK2i,
+    connectorKitSectionsPerKit: form.connectorKitSectionsPerKit,
+    groupBy: form.groupBy,
+    mergeIdentical: form.mergeIdentical,
   });
 
   const saveDefaultsMut = useMutation({
@@ -350,12 +331,12 @@ export function useSpecificationPageModel() {
 
   const runGenerate = (confirmPartial = false) => {
     const scope = snapshotMutationScope();
-    const generateVariantIds = selectedGenerateErIds.length > 0
-      ? selectedGenerateErIds
+    const generateVariantIds = form.selectedGenerateErIds.length > 0
+      ? form.selectedGenerateErIds
       : [scope.electricalVariantId];
     const options = buildGenerateOptions();
     if (!confirmPartial) {
-      setPendingGenerate({ generateVariantIds, options });
+      form.setPendingGenerate({ generateVariantIds, options });
     }
     mut.mutate({
       ...scope,
@@ -367,16 +348,16 @@ export function useSpecificationPageModel() {
   };
 
   const confirmPartialGenerate = () => {
-    if (!pendingGenerate) {
+    if (!form.pendingGenerate) {
       runGenerate(true);
       return;
     }
     const scope = snapshotMutationScope();
     mut.mutate({
       ...scope,
-      generateVariantIds: pendingGenerate.generateVariantIds,
+      generateVariantIds: form.pendingGenerate.generateVariantIds,
       mode: effectiveMode,
-      options: pendingGenerate.options,
+      options: form.pendingGenerate.options,
       confirmPartial: true,
     });
   };
@@ -385,14 +366,14 @@ export function useSpecificationPageModel() {
 
   const handleAdd = () => {
     if (!canManuallyEdit) return;
-    const acc = accessories.find((a) => a.id === selectedAccessoryId);
-    if (!acc || !qty || qty <= 0) return;
+    const acc = accessories.find((a) => a.id === form.selectedAccessoryId);
+    if (!acc || !form.qty || form.qty <= 0) return;
     const newItem: SpecificationItem = {
       category: acc.category,
       name: acc.name,
       article: acc.article,
       unit: 'шт.',
-      quantity: qty,
+      quantity: form.qty,
       params: { source_id: acc.id },
       source: 'manual',
     };
@@ -402,9 +383,9 @@ export function useSpecificationPageModel() {
     }, {
       onSuccess: () => {
         message.success('Позиция добавлена');
-        setAddOpen(false);
-        setSelectedAccessoryId(null);
-        setQty(1);
+        form.setAddOpen(false);
+        form.setSelectedAccessoryId(null);
+        form.setQty(1);
       },
     });
   };
@@ -449,38 +430,38 @@ export function useSpecificationPageModel() {
     variant,
     legacyDataPlaneEnabled,
     specificationQueryKey,
-    groupBy,
-    setGroupBy,
-    mergeIdentical,
-    setMergeIdentical,
-    addOpen,
-    setAddOpen,
-    selectedAccessoryId,
-    setSelectedAccessoryId,
-    qty,
-    setQty,
-    selectedGenerateErIds,
-    setSelectedGenerateErIds,
-    preflightOpen,
-    setPreflightOpen,
-    preflightSummary,
-    setPreflightSummary,
-    pendingGenerate,
-    setPendingGenerate,
-    exZone,
-    setExZone,
-    reserveCoeff,
-    setReserveCoeff,
-    indicationOnBoxes,
-    setIndicationOnBoxes,
-    endSectionIndication,
-    setEndSectionIndication,
-    topIndication,
-    setTopIndication,
-    minLengthK2i,
-    setMinLengthK2i,
-    connectorKitSectionsPerKit,
-    setConnectorKitSectionsPerKit,
+    groupBy: form.groupBy,
+    setGroupBy: form.setGroupBy,
+    mergeIdentical: form.mergeIdentical,
+    setMergeIdentical: form.setMergeIdentical,
+    addOpen: form.addOpen,
+    setAddOpen: form.setAddOpen,
+    selectedAccessoryId: form.selectedAccessoryId,
+    setSelectedAccessoryId: form.setSelectedAccessoryId,
+    qty: form.qty,
+    setQty: form.setQty,
+    selectedGenerateErIds: form.selectedGenerateErIds,
+    setSelectedGenerateErIds: form.setSelectedGenerateErIds,
+    preflightOpen: form.preflightOpen,
+    setPreflightOpen: form.setPreflightOpen,
+    preflightSummary: form.preflightSummary,
+    setPreflightSummary: form.setPreflightSummary,
+    pendingGenerate: form.pendingGenerate,
+    setPendingGenerate: form.setPendingGenerate,
+    exZone: form.exZone,
+    setExZone: form.setExZone,
+    reserveCoeff: form.reserveCoeff,
+    setReserveCoeff: form.setReserveCoeff,
+    indicationOnBoxes: form.indicationOnBoxes,
+    setIndicationOnBoxes: form.setIndicationOnBoxes,
+    endSectionIndication: form.endSectionIndication,
+    setEndSectionIndication: form.setEndSectionIndication,
+    topIndication: form.topIndication,
+    setTopIndication: form.setTopIndication,
+    minLengthK2i: form.minLengthK2i,
+    setMinLengthK2i: form.setMinLengthK2i,
+    connectorKitSectionsPerKit: form.connectorKitSectionsPerKit,
+    setConnectorKitSectionsPerKit: form.setConnectorKitSectionsPerKit,
     settingsOpen,
     toggleSettings,
     spec,
