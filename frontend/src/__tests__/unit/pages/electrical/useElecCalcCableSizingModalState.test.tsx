@@ -5,7 +5,7 @@ import {
   type ElecCalcCableSizingParams,
   useElecCalcCableSizingModalState,
 } from '@/pages/electrical/useElecCalcCableSizingModalState';
-import type { CableTypeKey } from '@/pages/electrical/elecCalcMainTableModel';
+import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
 import type { ElectricalCalcSummary } from '@/types/calculation';
 import type { ProjectObject } from '@/types/project';
 

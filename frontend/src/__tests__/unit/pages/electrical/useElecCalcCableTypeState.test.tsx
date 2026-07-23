@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { useElecCalcCableTypeState } from '@/pages/electrical/useElecCalcCableTypeState';
-import type { CableTypeKey } from '@/pages/electrical/elecCalcMainTableModel';
+import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
 import type { ElectricalCalcSummary } from '@/types/calculation';
 
 function calc(cableType: string): ElectricalCalcSummary {

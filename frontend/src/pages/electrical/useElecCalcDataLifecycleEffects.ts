@@ -2,7 +2,7 @@ import { useEffect, type Dispatch, type SetStateAction } from 'react';
 
 import type { ElectricalQueryResponse } from '@/types/calculation';
 import type { ProjectObjectsPageCursor } from '@/types/project';
-import type { CableTypeKey } from '@/pages/electrical/elecCalcMainTableModel';
+import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
 
 type RememberElectricalPage = (options: {
   electricalGlideEnabled: boolean;

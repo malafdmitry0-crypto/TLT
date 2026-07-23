@@ -1,7 +1,7 @@
 import type { ElectricalCalcSummary } from '@/types/calculation';
 import type { ProjectObject } from '@/types/project';
 
-import { getCableMarkSource } from '@/pages/electrical/elecCalcResultValueModel';
+import { getCableMarkSource } from '@/domain/electrical/elecCalcResultValueModel';
 
 export function filterVisibleSelectedRowKeys(
   selectedRowKeys: readonly string[],

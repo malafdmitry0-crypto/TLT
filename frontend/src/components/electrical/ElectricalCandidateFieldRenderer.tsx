@@ -6,20 +6,20 @@ import {
   candidateOrderCableLengthValue,
   candidatePowerPerMeterValue,
   candidateThreadSource,
-} from '@/pages/electrical/elecCalcCandidateCompareModel';
+} from '@/domain/electrical/elecCalcCandidateCompareModel';
 import {
   CABLE_TYPE_LABEL,
   CONNECTION_TYPE_LABEL,
   STOCK_STATUS_LABEL,
   type CableTypeKey,
-} from '@/pages/electrical/elecCalcMainTableModel';
+} from '@/domain/electrical/elecCalcMainTableModel';
 import {
   numberText,
   powerText,
   selectionPolicyText,
   threadSourceTag,
   valueText,
-} from '@/pages/electrical/elecCalcResultValueModel';
+} from '@/domain/electrical/elecCalcResultValueModel';
 import type { ElectricalCandidate } from '@/types/calculation';
 import type { ElectricalColumnKey } from '@/utils/electricalTableColumns';
 

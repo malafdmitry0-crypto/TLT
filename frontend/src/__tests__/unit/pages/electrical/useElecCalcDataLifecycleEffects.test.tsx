@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { ElectricalQueryResponse } from '@/types/calculation';
 import type { ProjectObjectsPageCursor } from '@/types/project';
-import type { CableTypeKey } from '@/pages/electrical/elecCalcMainTableModel';
+import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
 import { useElecCalcDataLifecycleEffects } from '@/pages/electrical/useElecCalcDataLifecycleEffects';
 
 type HookProps = {

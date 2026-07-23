@@ -7,7 +7,7 @@ import ResizableColumnTitle from '@/components/heatcalc/ResizableColumnTitle';
 import type { ElectricalColumnRenderSpec } from '@/pages/electrical/elecCalcPageModel';
 import {
   filterKindForElectricalColumn,
-} from '@/pages/electrical/elecCalcTableFilterModel';
+} from '@/domain/electrical/elecCalcTableFilterModel';
 import type { ObjectQueryFieldCapability } from '@/types/project';
 import type { ProjectObject } from '@/types/project';
 import type {

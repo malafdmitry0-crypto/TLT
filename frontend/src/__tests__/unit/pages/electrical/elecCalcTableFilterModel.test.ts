@@ -12,7 +12,7 @@ import {
   toInputNumberValue,
   updateTableViewColumnFilter,
   updateTableViewSort,
-} from '@/pages/electrical/elecCalcTableFilterModel';
+} from '@/domain/electrical/elecCalcTableFilterModel';
 import type { ElectricalCandidate } from '@/types/calculation';
 import type { ObjectQueryFieldCapability, ObjectQueryFilterOp } from '@/types/project';
 import type {

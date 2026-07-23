@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import type { CableInfo } from '@/api/calculations';
 import { AUTO_CABLE_MARK_VALUE } from '@/pages/electrical/elecCalcCableOptionModel';
 import { useElecCalcCableMarkOptions } from '@/pages/electrical/useElecCalcCableMarkOptions';
-import type { CableTypeKey } from '@/pages/electrical/elecCalcMainTableModel';
+import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
 import type { ElectricalCalcSummary } from '@/types/calculation';
 import type { CableTtEntry, ResistiveCablesReference } from '@/types/reference';
 

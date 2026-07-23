@@ -25,7 +25,7 @@ import {
   STOCK_STATUS_LABEL,
   cableSnapshotStatusTag,
   type CableTypeKey,
-} from '@/pages/electrical/elecCalcMainTableModel';
+} from '@/domain/electrical/elecCalcMainTableModel';
 import type { ElectricalColumnRenderSpec } from '@/pages/electrical/elecCalcPageModel';
 import {
   calcLayoutValues,
@@ -44,7 +44,7 @@ import {
   selectionPolicyText,
   threadSourceTag,
   valueText,
-} from '@/pages/electrical/elecCalcResultValueModel';
+} from '@/domain/electrical/elecCalcResultValueModel';
 
 const { Text } = Typography;
 

@@ -14,7 +14,7 @@ import {
   candidateThreadSource,
   isCandidateCompareColumn,
   normalizeCandidateCompareText,
-} from '@/pages/electrical/elecCalcCandidateCompareModel';
+} from '@/domain/electrical/elecCalcCandidateCompareModel';
 import type { ElectricalCandidate } from '@/types/calculation';
 
 function candidate(overrides: Partial<ElectricalCandidate> = {}): ElectricalCandidate {

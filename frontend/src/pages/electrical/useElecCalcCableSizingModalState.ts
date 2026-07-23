@@ -9,11 +9,11 @@ import {
   DEFAULT_CABLE_TYPE,
   isResistiveCableType,
 } from '@/pages/electrical/elecCalcCableTypeModel';
-import type { CableTypeKey } from '@/pages/electrical/elecCalcMainTableModel';
+import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
 import {
   currentElectricalCalc,
   getCableMark,
-} from '@/pages/electrical/elecCalcResultValueModel';
+} from '@/domain/electrical/elecCalcResultValueModel';
 
 type CableSizingMode = 'auto' | 'manual';
 

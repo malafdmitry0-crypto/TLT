@@ -8,7 +8,7 @@ import {
   buildCandidateEnumOptionsByColumn,
   buildElectricalEnumOptionsByColumn,
   buildFieldCapabilityByKey,
-} from '@/pages/electrical/elecCalcTableFilterModel';
+} from '@/domain/electrical/elecCalcTableFilterModel';
 
 type UseElecCalcFilterOptionsOptions = {
   electricalFields?: readonly ObjectQueryFieldCapability[] | null;

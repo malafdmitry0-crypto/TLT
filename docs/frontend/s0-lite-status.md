@@ -40,6 +40,17 @@ cd e2e && E2E_BASE_URL=http://127.0.0.1:3003 npm run test:ui-kit-parity:chrome
 - ElecCalc shell extract
 - CSS mass extract from styles.css
 
+## First refactor slice (after S0) — 2026-07-23
+
+| Item | Status |
+|---|---|
+| Parity e2e label height (kit 26px → natural) | ✅ compact-fields label min-height fixed |
+| Pure elec models → `domain/electrical/` | ✅ 5 models + re-export stubs in pages/ |
+| inverted components→pages | **3 → 1** (only Sidebar left) |
+| Proof: s0-gates, model units, parity e2e | ✅ |
+
 ## Next
 
-Use [agent-prompt-ui-kit-strangler.md](./agent-prompt-ui-kit-strangler.md) with target **A: Heat geometry**.
+1. Extract/move `useLegacyElectricalVariantContext` (Sidebar invert → 0)
+2. Thin HeatCalcPage shell extract **or** next form section on kit
+3. One ElecCalcPage orchestration extract (not full rewrite)

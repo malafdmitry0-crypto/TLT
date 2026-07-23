@@ -6,7 +6,7 @@ import {
   resolveCableRowsForType,
   type CableStatusRow,
 } from '@/pages/electrical/elecCalcCableCatalogModel';
-import type { CableTypeKey } from '@/pages/electrical/elecCalcMainTableModel';
+import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
 
 type UseElecCalcCableCatalogViewOptions = {
   availableCableTypes: ReadonlySet<CableTypeKey>;

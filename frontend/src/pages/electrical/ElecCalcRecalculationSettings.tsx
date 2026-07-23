@@ -10,7 +10,7 @@ import type { SelectionPolicy } from '@/api/calculations';
 import type { ElectricalCalculationCableSource } from '@/utils/electricalTableViewSettings';
 import type { CatalogStatus } from '@/pages/electrical/elecCalcCableCatalogModel';
 import { SHOW_COMMERCIAL_CABLE_BASE_UI } from '@/pages/electrical/elecCalcPageModel';
-import { SELECTION_POLICY_OPTIONS } from '@/pages/electrical/elecCalcSelectionPolicyModel';
+import { SELECTION_POLICY_OPTIONS } from '@/domain/electrical/elecCalcSelectionPolicyModel';
 
 const { Text } = Typography;
 

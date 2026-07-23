@@ -5,7 +5,7 @@ import type { ElectricalColumnKey } from '@/utils/electricalTableColumns';
 import {
   mainElectricalColumnCopyValue,
   type MainElectricalColumnCopyContext,
-} from '@/pages/electrical/elecCalcMainTableModel';
+} from '@/domain/electrical/elecCalcMainTableModel';
 
 type UseElecCalcElectricalColumnCopyValueOptions = MainElectricalColumnCopyContext;
 

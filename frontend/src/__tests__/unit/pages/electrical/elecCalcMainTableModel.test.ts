@@ -6,7 +6,7 @@ import {
   mainElectricalColumnCopyValue,
   objectDisplayName,
   type MainElectricalColumnCopyContext,
-} from '@/pages/electrical/elecCalcMainTableModel';
+} from '@/domain/electrical/elecCalcMainTableModel';
 import type { ElectricalCalcSummary } from '@/types/calculation';
 import type { ProjectObject } from '@/types/project';
 

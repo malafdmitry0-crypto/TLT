@@ -1,18 +1,18 @@
 import { Tag, Typography } from 'antd';
 
 import type { ElectricalCalcSummary, ElectricalCandidate } from '@/types/calculation';
-import { candidateOrderCableLengthValue } from '@/pages/electrical/elecCalcCandidateCompareModel';
+import { candidateOrderCableLengthValue } from '@/domain/electrical/elecCalcCandidateCompareModel';
 import {
   CABLE_TYPE_LABEL,
   type CableTypeKey,
-} from '@/pages/electrical/elecCalcMainTableModel';
+} from '@/domain/electrical/elecCalcMainTableModel';
 import {
   getCableMark,
   numberText,
   orderCableLengthValue,
   powerText,
   valueText,
-} from '@/pages/electrical/elecCalcResultValueModel';
+} from '@/domain/electrical/elecCalcResultValueModel';
 
 const { Text } = Typography;
 

@@ -4,7 +4,7 @@ import type { CableCatalogRow } from '@/utils/cableCatalogSourceLabels';
 import { visibleCableRowsForSource } from '@/utils/cableCatalogSourceLabels';
 import { isRecord } from '@/utils/typeGuards';
 import { normalizeCableSource } from '@/pages/electrical/elecCalcCableOptionModel';
-import type { CableTypeKey } from '@/pages/electrical/elecCalcMainTableModel';
+import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
 
 export type CatalogStatusColor = 'default' | 'success' | 'warning' | 'error';
 export type CatalogStatus = { label: string; color: CatalogStatusColor };

@@ -4,7 +4,7 @@ import {
   SELECTION_POLICY_LABEL,
   SELECTION_POLICY_OPTIONS,
   selectionPolicyText,
-} from '@/pages/electrical/elecCalcSelectionPolicyModel';
+} from '@/domain/electrical/elecCalcSelectionPolicyModel';
 
 describe('elecCalcSelectionPolicyModel', () => {
   it('keeps selection policy labels stable', () => {

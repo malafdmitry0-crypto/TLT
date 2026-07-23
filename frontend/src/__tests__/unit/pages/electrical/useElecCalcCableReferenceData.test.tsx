@@ -8,7 +8,7 @@ import {
   type CableInfo,
 } from '@/api/calculations';
 import { getCablesTt, getResistiveCables } from '@/api/references';
-import type { CableTypeKey } from '@/pages/electrical/elecCalcMainTableModel';
+import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
 import { useElecCalcCableReferenceData } from '@/pages/electrical/useElecCalcCableReferenceData';
 import type {
   CableTtEntry,

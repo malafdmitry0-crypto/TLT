@@ -4,7 +4,7 @@ import { Button, Checkbox, Input, InputNumber, Select, Space, Typography } from 
 import {
   toInputNumberValue,
   type ElectricalFilterKind,
-} from '@/pages/electrical/elecCalcTableFilterModel';
+} from '@/domain/electrical/elecCalcTableFilterModel';
 import type { HeatCalcColumnFilter } from '@/utils/heatCalcTableFindability';
 
 const { Text } = Typography;

@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 
 import { FULL_FEATURE_CABLE_TYPES } from '@/pages/electrical/elecCalcCableTypeModel';
-import type { CableTypeKey } from '@/pages/electrical/elecCalcMainTableModel';
+import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
 import type { ElectricalNavigationState } from '@/pages/electrical/elecCalcPageModel';
 import {
   resolveElectricalTableEngine,

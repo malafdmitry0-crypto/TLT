@@ -4,7 +4,7 @@ import type { ElectricalCalcSummary } from '@/types/calculation';
 import {
   CABLE_TYPE_LABEL,
   type CableTypeKey,
-} from '@/pages/electrical/elecCalcMainTableModel';
+} from '@/domain/electrical/elecCalcMainTableModel';
 import {
   DEFAULT_CABLE_TYPE,
   buildCableTypeObjectOverrides,

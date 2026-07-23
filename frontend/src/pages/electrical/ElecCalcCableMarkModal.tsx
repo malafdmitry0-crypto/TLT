@@ -17,7 +17,7 @@ import type { CableStatusRow } from '@/pages/electrical/elecCalcCableCatalogMode
 import {
   objectDisplayName,
   type CableTypeKey,
-} from '@/pages/electrical/elecCalcMainTableModel';
+} from '@/domain/electrical/elecCalcMainTableModel';
 import type { ElectricalVariantTargetOption } from '@/pages/electrical/elecCalcVariantModel';
 
 const { Text } = Typography;

@@ -7,7 +7,7 @@ import ElecCalcCandidateCompareBar from '@/pages/electrical/ElecCalcCandidateCom
 import ElecCalcCandidateFolderTabs from '@/pages/electrical/ElecCalcCandidateFolderTabs';
 import ElecCalcCandidateTablePanel from '@/pages/electrical/ElecCalcCandidateTablePanel';
 import ElecCalcSelectedCableSummary from '@/pages/electrical/ElecCalcSelectedCableSummary';
-import { objectDisplayName, type CableTypeKey } from '@/pages/electrical/elecCalcMainTableModel';
+import { objectDisplayName, type CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
 import type { CableStatusRow } from '@/pages/electrical/elecCalcCableCatalogModel';
 import type { useElecCalcCableReferenceData } from '@/pages/electrical/useElecCalcCableReferenceData';
 import type { useElecCalcCableSizingModalState } from '@/pages/electrical/useElecCalcCableSizingModalState';

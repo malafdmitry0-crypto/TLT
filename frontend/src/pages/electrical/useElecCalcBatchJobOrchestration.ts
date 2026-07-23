@@ -15,7 +15,7 @@ import {
 import type { ElecCalcCableSizingParams } from '@/pages/electrical/useElecCalcCableSizingModalState';
 import { isBatchElectricalResponse } from '@/pages/electrical/elecCalcApiResponseGuards';
 import { isResistiveCableType } from '@/pages/electrical/elecCalcCableTypeModel';
-import type { CableTypeKey } from '@/pages/electrical/elecCalcMainTableModel';
+import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
 import type {
   ElectricalBatchMutationArgs,
 } from '@/pages/electrical/elecCalcPageModel';

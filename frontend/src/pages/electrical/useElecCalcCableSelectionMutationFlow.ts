@@ -15,7 +15,7 @@ import {
   type CableMarkSelectOption,
 } from '@/pages/electrical/elecCalcCableOptionModel';
 import { isResistiveCableType } from '@/pages/electrical/elecCalcCableTypeModel';
-import type { CableTypeKey } from '@/pages/electrical/elecCalcMainTableModel';
+import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
 import {
   electricalVariantNamesLabel,
   type LegacyElectricalVariantTarget,

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { useElecCalcCableMarkModalState } from '@/pages/electrical/useElecCalcCableMarkModalState';
 import { AUTO_CABLE_MARK_VALUE } from '@/pages/electrical/elecCalcCableOptionModel';
-import type { CableTypeKey } from '@/pages/electrical/elecCalcMainTableModel';
+import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
 import type { ElectricalCalcSummary } from '@/types/calculation';
 import type { ElectricalVariant } from '@/types/electricalVariant';
 import type { ProjectObject } from '@/types/project';

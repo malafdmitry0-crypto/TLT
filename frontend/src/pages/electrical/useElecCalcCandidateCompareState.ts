@@ -6,7 +6,7 @@ import type { HeatCalcTableViewState } from '@/utils/heatCalcTableFindability';
 import {
   buildCandidateCompareDiffColumnKeys,
   buildCandidateColumnValueAccessors,
-} from '@/pages/electrical/elecCalcCandidateCompareModel';
+} from '@/domain/electrical/elecCalcCandidateCompareModel';
 import {
   buildDisplayedCandidateRows,
   filterMarkedCandidateRows,

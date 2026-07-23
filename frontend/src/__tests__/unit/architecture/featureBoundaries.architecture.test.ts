@@ -21,8 +21,7 @@ const SRC_ROOT = path.resolve(
 
 /** Legacy inverted deps: components → pages (documented; shrink over time). */
 const COMPONENTS_TO_PAGES_ALLOWLIST = new Set([
-  'components/electrical/ElectricalCandidateFieldRenderer.tsx',
-  'components/electrical/ElectricalColumnFilterDropdown.tsx',
+  // Remaining after pure models moved to domain/electrical (2026-07-23 slice)
   'components/layout/Sidebar.tsx',
 ]);
 

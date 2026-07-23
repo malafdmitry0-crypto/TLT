@@ -71,8 +71,12 @@
   justify-content: center;
   width: var(--tlt-compact-label-width, 98px);
   max-width: var(--tlt-compact-label-width, 98px);
-  /* 1–2-line labels center against the control; longer labels hang below */
-  min-height: var(--tlt-field-control-height, 26px);
+  /*
+   * HeatCalc dual-form: single-line labels compute ~8.5px height (font-size),
+   * two-line ~17px. Do NOT force control-height (26px) — that breaks parity e2e
+   * and makes short labels look oversized vs SC-03.
+   */
+  min-height: 0;
   color: var(--tlt-field-label-color);
   font-size: var(--tlt-field-label-font-size);
   font-weight: 600;

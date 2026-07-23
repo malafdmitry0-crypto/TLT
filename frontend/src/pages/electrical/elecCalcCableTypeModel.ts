@@ -1,4 +1,4 @@
-import type { CableTypeKey } from '@/pages/electrical/elecCalcMainTableModel';
+import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
 
 // ТЛТ временно скрыт из приложения до подтверждения паспортной линейки.
 // Для возврата достаточно снова включить его в FULL_FEATURE_CABLE_TYPES

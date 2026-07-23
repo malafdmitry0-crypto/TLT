@@ -18,7 +18,7 @@ import type {
 import type { HeatCalcGlideGridColumn } from '@/utils/heatCalcGlideGrid';
 import {
   filterKindForCandidateColumn,
-} from '@/pages/electrical/elecCalcTableFilterModel';
+} from '@/domain/electrical/elecCalcTableFilterModel';
 
 type ElecCalcGlideEnumOptionsByColumn = Record<string, Array<{ value: string; label: string }>>;
 

@@ -3,7 +3,7 @@ import type {
   ElectricalQueryResponse,
 } from '@/types/calculation';
 import type { ElectricalSupportedSystemType } from '@/types/electricalVariant';
-import type { CableTypeKey } from '@/pages/electrical/elecCalcMainTableModel';
+import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
 
 const SYSTEM_LABEL: Record<ElectricalSupportedSystemType, string> = {
   self_regulating: 'Самрег',

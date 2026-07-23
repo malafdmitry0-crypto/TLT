@@ -25,7 +25,7 @@ import {
   candidateCustomFolderKey,
   type CandidateFolderKey,
 } from '@/pages/electrical/elecCalcCandidateFolderModel';
-import type { CableTypeKey } from '@/pages/electrical/elecCalcMainTableModel';
+import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
 import type { CandidateFolderModalMode } from '@/pages/electrical/elecCalcPageModel';
 
 type CandidateCreateArgs = {

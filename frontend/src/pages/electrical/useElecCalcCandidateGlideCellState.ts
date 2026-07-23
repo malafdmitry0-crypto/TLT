@@ -7,7 +7,7 @@ import type {
 } from '@/utils/heatCalcGlideGrid';
 import {
   candidateCompareDisplayValue,
-} from '@/pages/electrical/elecCalcCandidateCompareModel';
+} from '@/domain/electrical/elecCalcCandidateCompareModel';
 
 type UseElecCalcCandidateGlideCellStateOptions = {
   markedCandidateSet: ReadonlySet<string>;

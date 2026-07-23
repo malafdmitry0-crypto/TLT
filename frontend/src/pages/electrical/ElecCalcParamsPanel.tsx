@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { Checkbox, InputNumber, Select, Typography } from 'antd';
 
-import type { CableTypeKey } from '@/pages/electrical/elecCalcMainTableModel';
+import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
 import {
   SINGLE_CORE_CONNECTION_OPTIONS,
   THREE_CORE_CONNECTION_OPTIONS,

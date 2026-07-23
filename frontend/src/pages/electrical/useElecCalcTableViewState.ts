@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   updateTableViewColumnFilter,
   updateTableViewSort,
-} from '@/pages/electrical/elecCalcTableFilterModel';
+} from '@/domain/electrical/elecCalcTableFilterModel';
 import type { ElectricalCandidateColumnKey } from '@/utils/electricalCandidateTableColumns';
 import type { ElectricalColumnKey } from '@/utils/electricalTableColumns';
 import {

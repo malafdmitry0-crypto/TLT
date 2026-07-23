@@ -6,7 +6,7 @@ import {
 } from '@/api/calculations';
 import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
 import { getCablesTt, getResistiveCables } from '@/api/references';
-import type { CableTypeKey } from '@/pages/electrical/elecCalcMainTableModel';
+import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
 import { useElecCalcCableCatalogView } from '@/pages/electrical/useElecCalcCableCatalogView';
 import { useElecCalcCableMarkOptions } from '@/pages/electrical/useElecCalcCableMarkOptions';
 

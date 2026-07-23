@@ -20,10 +20,10 @@ export type ElectricalBatchMutationArgs = {
   objectIds?: string[];
   skipManual?: boolean;
   /** Override default recalculation cable type for this job. */
-  cableType?: import('@/pages/electrical/elecCalcMainTableModel').CableTypeKey;
+  cableType?: import('@/domain/electrical/elecCalcMainTableModel').CableTypeKey;
   objectOverrides?: Array<{
     object_id: string;
-    cable_type?: import('@/pages/electrical/elecCalcMainTableModel').CableTypeKey | null;
+    cable_type?: import('@/domain/electrical/elecCalcMainTableModel').CableTypeKey | null;
   }>;
 };
 

@@ -10,7 +10,7 @@ import type {
 import {
   calcLayoutValues,
   currentElectricalCalc,
-} from '@/pages/electrical/elecCalcResultValueModel';
+} from '@/domain/electrical/elecCalcResultValueModel';
 
 type UseElecCalcGlideCellStateOptions = {
   calcByObjectId: Record<string, ElectricalCalcSummary | undefined>;

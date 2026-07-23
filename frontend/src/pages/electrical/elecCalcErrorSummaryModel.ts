@@ -12,7 +12,7 @@ import {
   getElectricalErrorGuidance,
   type ElectricalErrorGuidance,
 } from '@/utils/electricalErrorGuidance';
-import { objectDisplayName } from '@/pages/electrical/elecCalcMainTableModel';
+import { objectDisplayName } from '@/domain/electrical/elecCalcMainTableModel';
 
 export type ElectricalErrorSummaryItem = {
   objectId: string;

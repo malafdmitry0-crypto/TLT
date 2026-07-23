@@ -15,13 +15,13 @@ import {
 import {
   currentElectricalCalc,
   getCableMark,
-} from '@/pages/electrical/elecCalcResultValueModel';
+} from '@/domain/electrical/elecCalcResultValueModel';
 import {
   electricalVariantTargetOptions,
   legacyElectricalVariantTargetsForIds,
   normalizeElectricalVariantIdList,
 } from '@/pages/electrical/elecCalcVariantModel';
-import type { CableTypeKey } from '@/pages/electrical/elecCalcMainTableModel';
+import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
 
 type UseElecCalcCableMarkModalStateOptions = {
   objects: readonly ProjectObject[];

@@ -18,7 +18,7 @@ import {
   selectionPolicyText,
   threadSourceTag,
   valueText,
-} from '@/pages/electrical/elecCalcResultValueModel';
+} from '@/domain/electrical/elecCalcResultValueModel';
 import type { ElectricalCalcSummary } from '@/types/calculation';
 import type { ProjectObject } from '@/types/project';
 

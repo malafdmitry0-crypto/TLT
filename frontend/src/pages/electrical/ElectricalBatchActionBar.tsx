@@ -18,7 +18,7 @@ import {
 import {
   CABLE_TYPE_LABEL,
   type CableTypeKey,
-} from '@/pages/electrical/elecCalcMainTableModel';
+} from '@/domain/electrical/elecCalcMainTableModel';
 
 const { Text } = Typography;
 

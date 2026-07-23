@@ -14,7 +14,7 @@ import {
   type CableMarkSelectOption,
 } from '@/pages/electrical/elecCalcCableOptionModel';
 import type { CableStatusRow } from '@/pages/electrical/elecCalcCableCatalogModel';
-import type { CableTypeKey } from '@/pages/electrical/elecCalcMainTableModel';
+import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
 import type { ElectricalCalcSummary } from '@/types/calculation';
 import type { CableTtEntry, ResistiveCablesReference } from '@/types/reference';
 import {

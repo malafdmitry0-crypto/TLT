@@ -114,12 +114,12 @@ import {
   CABLE_TYPE_LABEL,
   objectDisplayName,
   type CableTypeKey,
-} from '@/pages/electrical/elecCalcMainTableModel';
+} from '@/domain/electrical/elecCalcMainTableModel';
 import type { ElectricalNavigationState } from '@/pages/electrical/elecCalcPageModel';
 import {
   getCableMark,
   getCableMarkSource,
-} from '@/pages/electrical/elecCalcResultValueModel';
+} from '@/domain/electrical/elecCalcResultValueModel';
 import type { LegacyElectricalVariantTarget } from '@/pages/electrical/elecCalcVariantModel';
 import { useElecCalcAntTableHandlers } from '@/pages/electrical/useElecCalcAntTableHandlers';
 import { useElecCalcBootViewState } from '@/pages/electrical/useElecCalcBootViewState';

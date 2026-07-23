@@ -6,7 +6,7 @@ import {
   resolveCableCatalogStatuses,
   resolveCableRowsForType,
 } from '@/pages/electrical/elecCalcCableCatalogModel';
-import type { CableTypeKey } from '@/pages/electrical/elecCalcMainTableModel';
+import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
 import { useElecCalcCableCatalogView } from '@/pages/electrical/useElecCalcCableCatalogView';
 
 function row(model: string, source: string, extra: Partial<CableStatusRow> = {}): CableStatusRow {

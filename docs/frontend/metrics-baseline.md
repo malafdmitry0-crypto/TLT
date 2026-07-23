@@ -1,17 +1,17 @@
 # Frontend metrics baseline
 
-**Дата:** 2026-07-23  
-**Источник:** `wc -l` + `grep` после S0-lite factory setup.  
+**Дата:** 2026-07-23 (updated after first refactor slice)  
+**Источник:** `wc -l` + `grep`.  
 **Обновлять:** после заметных shell/CSS slices (или weekly).
 
 ## Shell / CSS LOC
 
-| Path | LOC |
-|---|---:|
-| `frontend/src/pages/ElecCalcPage.tsx` | 1936 |
-| `frontend/src/pages/HeatCalcPage.tsx` | 1046 |
-| `frontend/src/pages/SpecificationPage.tsx` | 1005 |
-| `frontend/src/styles.css` | 6777 |
+| Path | LOC | Notes |
+|---|---:|---|
+| `frontend/src/pages/ElecCalcPage.tsx` | 1936 | shell still thick |
+| `frontend/src/pages/HeatCalcPage.tsx` | 1046 | geometry already on CompactFieldGrid |
+| `frontend/src/pages/SpecificationPage.tsx` | 1005 | — |
+| `frontend/src/styles.css` | 6777 | freeze |
 
 ```bash
 wc -l frontend/src/pages/ElecCalcPage.tsx \
@@ -22,13 +22,13 @@ wc -l frontend/src/pages/ElecCalcPage.tsx \
 
 ## Inverted deps: `components` → `pages`
 
-**Count: 3 files** (allowlisted in architecture test)
+**Count: 1 file** (was 3; pure models moved to `domain/electrical/` 2026-07-23)
 
-| File |
-|---|
-| `components/electrical/ElectricalCandidateFieldRenderer.tsx` |
-| `components/electrical/ElectricalColumnFilterDropdown.tsx` |
-| `components/layout/Sidebar.tsx` |
+| File | Status |
+|---|---|
+| `components/layout/Sidebar.tsx` | still allowlisted (`useLegacyElectricalVariantContext`) |
+| ~~ElectricalCandidateFieldRenderer~~ | ✅ now imports `@/domain/electrical/*` |
+| ~~ElectricalColumnFilterDropdown~~ | ✅ now imports `@/domain/electrical/*` |
 
 ```bash
 grep -rn "from '@/pages/" frontend/src/components --include='*.ts' --include='*.tsx' \

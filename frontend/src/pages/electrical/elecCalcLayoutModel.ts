@@ -5,7 +5,7 @@ import {
   currentElectricalCalc,
   getCableMark,
   getThreadSource,
-} from '@/pages/electrical/elecCalcResultValueModel';
+} from '@/domain/electrical/elecCalcResultValueModel';
 
 export type ElectricalLayoutCableType =
   | 'self_regulating'
