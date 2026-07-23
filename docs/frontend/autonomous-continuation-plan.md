@@ -82,7 +82,7 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | `ElecCalcWorkspace.tsx` | **192** | ≤500 ✅ |
 | `HeatCalcPage.tsx` | **280** | ≤500 ✅ |
 | `specification/SpecificationPage.tsx` | **398** | ≤500 ✅ |
-| `styles.css` | **4750** | ≤3000 (M4) |
+| `styles.css` | **4071** | ≤3000 (M4) |
 | inverted `components→pages` | **0** | 0 ✅ |
 | thick models (Heat/Elec/Spec) | 829 / 1112 / 511 | optional deeper thin |
 
@@ -130,7 +130,7 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | **E17** | `done` | useElecCalcWorkspaceModel | workspace view 191 ≤500 | smoke | model ~1112 |
 
 **Метрика shell:** `ElecCalcPage` = **30**. `ElecCalcWorkspace` = **1194** (M1 workspace ✅).  
-**Текущий пункт:** **C13+** dual-form / actionbar residual (после C12)
+**Текущий пункт:** **C16+** dual-form / form-control residual (после C15)
 
 ### Track H — Heat
 
@@ -188,7 +188,10 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | **C10** | `done` | projects page CSS → owner | `projects-page.css` + ProjectsPage import | arch+Projects int 9 | styles −46 |
 | **C11** | `done` | workflow-params shared CSS | `pages/workflow-params.css`; import Spec+Elec panels | arch+Spec int | styles −58; shared Elec/Spec SoT |
 | **C12** | `done` | calc-spreadsheet shared CSS | `styles/calc-spreadsheet.css` + main import; dirty/error cascade parity | arch+wizard+EditableTableCell+Glide 48 | styles **5110→4750** (−360); residual: excel-virtual/editor chrome |
-| **C13+** | `pending` | dual-form / actionbar / excel residual | move-to-owner or delete dead | until styles ≤3000 | next: actionbar-srs, heatcalc dual-form shell, excel-virtual |
+| **C13** | `done` | actionbar-srs shared | `styles/actionbar-srs.css` + main | arch+BatchActionBar | styles −214 |
+| **C14** | `done` | excel virtual + context menu | → `calc-spreadsheet.css` | EditableTableCell | styles −104 |
+| **C15** | `done` | app header / primary nav / project-menu | `styles/app-header.css` + main | ProjectMenu+arch | styles −269; print `.heatcalc-header` residual |
+| **C16+** | `pending` | dual-form / form controls residual | move-to-owner or delete dead | until styles ≤3000 | next: inline-object-form dump, dual-forms shell, tlt controls → kit |
 
 Budget CSS: **только** delete/move; `styles.css` net LOC ≤ 0.
 
