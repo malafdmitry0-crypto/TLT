@@ -82,7 +82,7 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | `ElecCalcWorkspace.tsx` | **192** | ≤500 ✅ |
 | `HeatCalcPage.tsx` | **280** | ≤500 ✅ |
 | `specification/SpecificationPage.tsx` | **398** | ≤500 ✅ |
-| `styles.css` | **5923** | ≤3000 (M4) |
+| `styles.css` | **5666** | ≤3000 (M4) |
 | inverted `components→pages` | **0** | 0 ✅ |
 | thick models (Heat/Elec/Spec) | 829 / 1112 / 511 | optional deeper thin |
 
@@ -130,7 +130,7 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | **E17** | `done` | useElecCalcWorkspaceModel | workspace view 191 ≤500 | smoke | model ~1112 |
 
 **Метрика shell:** `ElecCalcPage` = **30**. `ElecCalcWorkspace` = **1194** (M1 workspace ✅).  
-**Текущий пункт:** **C5** insulation island overlap (после C7)
+**Текущий пункт:** **C9+** largest remaining legacy (после C8; C5 skipped)
 
 ### Track H — Heat
 
@@ -180,10 +180,11 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | **C2** | `done` | elec table footer move | → `elec-workspace.css` | smoke | 635034c |
 | **C3** | `done` | **CableAlgorithmPanel exact duplicates** | удалить pure + strip mixed cable selectors; residual: hint + @media 720 | architecture + wizard isolation + ObjectWizard | **▶ styles 6559→6351 (−208)** |
 | **C4** | `done` | heat control-fill → island | move SoT to heat-object-fields.css; styles −82 | arch+wizard+heat 59 | residual: page-scoped insulation-settings-row |
-| **C5** | `pending` | Insulation layers island overlap | exact dups for `insulation-layers-table.css` | arch + wizard | protected / non-exact → skip if no exact dups |
+| **C5** | `skipped` | Insulation layers island overlap | exact dups for `insulation-layers-table.css` | arch + wizard | **0 exact dups**; page-scoped residuals only; InsulationLayersTable kill-list |
 | **C6** | `pending` | residual cable (hint / media) | only after island absorbs equivalent | arch + browser | — |
 | **C7** | `done` | Spec page + elec summary/ER tabs → owners | `specification-page.css` + `elec-workspace.css`; styles −340 | arch+wizard+Spec int 27 + elec hierarchy | styles **6263→5923**; print banners residual in styles |
-| **C8+** | `pending` | largest remaining legacy blocks | move-to-owner or delete dead | until styles ≤3000 | next: electrical-system-scope / workflow-params / dead |
+| **C8** | `done` | elec chrome blocks → `elec-workspace.css` | summary-table, error-summary, system-scope, assignment zones, section-hierarchy + strip mixed @media | arch+wizard+assignment/summary/hierarchy 18 | styles **5923→5666** (−257) |
+| **C9+** | `pending` | largest remaining legacy blocks | move-to-owner or delete dead | until styles ≤3000 | next: electrical-actionbar / cable-sizing / workflow-params / projects-page |
 
 Budget CSS: **только** delete/move; `styles.css` net LOC ≤ 0.
 

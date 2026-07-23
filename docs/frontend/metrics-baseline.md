@@ -15,7 +15,7 @@
 | `frontend/src/pages/SpecificationPage.tsx` | 1 | re-export |
 | `frontend/src/pages/specification/SpecificationPage.tsx` | 398 | thin shell S3 |
 | `frontend/src/pages/specification/useSpecificationPageModel.ts` | 511 | orchestration |
-| `frontend/src/styles.css` | 5923 | freeze; C7 Spec+elec summary (−340 from 6263) |
+| `frontend/src/styles.css` | 5666 | freeze; C8 elec chrome (−257 from 5923; −597 from 6263) |
 
 ```bash
 wc -l frontend/src/pages/ElecCalcPage.tsx \
