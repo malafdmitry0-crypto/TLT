@@ -2,7 +2,7 @@
 
 **Актуально на:** 2026-07-23  
 **Статус:** исполняемый hardening backlog после закрытия thin shells и CSS strangler  
-**Текущий pending:** **G1** (P0 B1–B9 done — baseline green)
+**Текущий pending:** **G2** (G1 done — `npm run test:agent-gates`)
 **Цель:** агент должен быстро находить владельца поведения, получать зелёную и
 однозначную обратную связь и не иметь возможности незаметно вернуть god-файлы,
 глобальный CSS или обратные зависимости.
@@ -128,7 +128,7 @@ P0 выполняется раньше любых новых архитекту�
 
 | ID | Scope | Результат | Зависит |
 |---|---|---|---|
-| **G1** | единая команда | `test:agent-gates` с понятным порядком проверок | B9 |
+| **G1** | `done` | `npm run test:agent-gates` = typecheck && lint && test:s0-gates | B9 |
 | **G2** | complexity ratchet | LOC/import/effect caps и baseline hotspot allowlist | B9 |
 | **G3** | dependency/cycle ratchet | все запрещённые направления + cycles | B9 |
 | **G4** | CSS architecture ratchet | `styles.css`, `!important`, root, size, specificity | B9 |

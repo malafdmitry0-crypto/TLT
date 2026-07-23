@@ -55,10 +55,10 @@ Full strangler prompt: [agent-prompt-ui-kit-strangler.md](./agent-prompt-ui-kit-
 ## Next recommended slice
 
 **Не угадывать.** Брать первый `pending` из  
-[autonomous-continuation-plan.md](./autonomous-continuation-plan.md) §3–§4.
+[agent-hardening-plan.md](./agent-hardening-plan.md).
 
-Сейчас: Track C M4 closed (`styles.css` freeze stub). Next: optional model-thin / U-kit / residual dead code.  
-CSS rules: [agent-prompt-css-strangler.md](./agent-prompt-css-strangler.md).
+Сейчас: **G2** complexity ratchet (after G1 `test:agent-gates`).  
+Shells + CSS M4 closed. Proof: `cd frontend && npm run test:agent-gates`.
 
 ## Anti-goals
 

@@ -8,6 +8,7 @@
 
 | Gate | Command / file |
 |---|---|
+| **Agent gates (G1)** | `cd frontend && npm run test:agent-gates` |
 | Architecture + wizard | `cd frontend && npm run test:architecture` |
 | S0 gates bundle | `cd frontend && npm run test:s0-gates` |
 | UI kit unit+integration | `cd frontend && npm run test:ui-kit` |
@@ -15,26 +16,28 @@
 | PR budget | [pr-budget.md](./pr-budget.md) |
 | Metrics baseline | [metrics-baseline.md](./metrics-baseline.md) |
 
-**styles.css freeze:** no new feature rules; net LOC ≤ 0 unless moving CSS out.
+**styles.css freeze:** stub only — no feature rules; net LOC ≤ 0 unless moving CSS out.
 
 ## Что делать дальше (агент: не спрашивать)
 
-**Источник правды:** [autonomous-continuation-plan.md](./autonomous-continuation-plan.md)
+**Источник правды (post-M4 hardening):** [agent-hardening-plan.md](./agent-hardening-plan.md)  
+История thin-shell / CSS strangler: [autonomous-continuation-plan.md](./autonomous-continuation-plan.md)
 
 | Команда | Поведение |
 |---|---|
-| «продолжай» / «дальше» / «continue» | до **3** pending slice по очереди плана |
+| «продолжай» / «дальше» / «continue» | до **3** pending slice по hardening-плану |
 | «один slice» | ровно 1 |
 | «стой» | stop |
 
-**Сейчас (после thin shells):** Track **C** CSS strangler — см. очередь C4+ в плане.  
-Промпт CSS-агента: [agent-prompt-css-strangler.md](./agent-prompt-css-strangler.md).
+**Сейчас:** Phase **P1** agent gates — pending **G2** (после G1).  
+Shells + CSS M4 закрыты; model-thin только после B9/G*.
 
 ## Содержание
 
 | Документ | О чём |
 |---|---|
 | **[autonomous-continuation-plan.md](./autonomous-continuation-plan.md)** | **Очередь slice, автономия, stop rules** |
+| **[agent-hardening-plan.md](./agent-hardening-plan.md)** | **Закрытие красного baseline, agent gates, hotspots и готовые task-промпты** |
 | [pr-budget.md](./pr-budget.md) | Budget PR + proof commands |
 | [s0-lite-status.md](./s0-lite-status.md) | Журнал выполненных slices |
 | [metrics-baseline.md](./metrics-baseline.md) | LOC / inverted deps baseline |
@@ -51,12 +54,12 @@
 
 ## Быстрый старт для агента / разработчика
 
-1. **Прочитать `autonomous-continuation-plan.md`** (очередь + «не спрашивать»).
+1. **Прочитать `agent-hardening-plan.md`** (текущая очередь + task-промпты).
 2. `pr-budget.md`, при необходимости `llm-friendly-style.md`.
 3. Не big-bang: budget PR (1 shell + 2 extract + 2 tests).
 4. UI полей — только `@/components/ui-kit`.
-5. `styles.css` — freeze (только delete/move).
-6. Proof: unit на extract; `test:architecture` / `test:s0-gates` по типу изменения.
+5. `styles.css` — freeze stub (только delete/move).
+6. Proof: `npm run test:agent-gates` (+ focused suite slice).
 
 ## Ключевые пути в коде
 
@@ -68,7 +71,8 @@ frontend/src/pages/HeatCalcPage.tsx
 frontend/src/pages/ElecCalcPage.tsx
 frontend/src/pages/heatcalc/
 frontend/src/pages/electrical/
-frontend/src/styles.css            # legacy dump (~7k LOC) — ужимать
+frontend/src/styles.css            # FREEZE stub (feature CSS in styles/* + islands)
+frontend/src/styles/*.css          # app-base, calc-spreadsheet, actionbar, …
 e2e/tests/ui-kit-heatcalc-parity.spec.ts
 ```
 

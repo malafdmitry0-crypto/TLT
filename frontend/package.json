@@ -20,6 +20,7 @@
     "test:architecture": "vitest run src/__tests__/unit/architecture src/__tests__/unit/wizard/wizardIsolation.architecture.test.ts",
     "test:ui-kit": "vitest run src/__tests__/unit/components/UIKitLibrary.test.tsx src/__tests__/integration/pages/UIKitPage.test.tsx",
     "test:s0-gates": "vitest run src/__tests__/unit/architecture src/__tests__/unit/wizard/wizardIsolation.architecture.test.ts src/__tests__/unit/components/UIKitLibrary.test.tsx",
+    "test:agent-gates": "npm run typecheck && npm run lint && npm run test:s0-gates",
     "test:integration": "vitest run src/__tests__/integration",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
