@@ -2,23 +2,15 @@
   "version": 1,
   "slice": "IMP0",
   "description": "Per-file !important ratchet. Growth of total or any file fails. Decrease is always OK without baseline edit. New CSS files with !important must be added via intentional baseline shrink elsewhere first (net total non-increase).",
-  "total": 475,
+  "total": 78,
   "files": {
-    "src/components/ui-kit/compact-fields.css": 115,
-    "src/components/ui-kit/primitives.css": 1,
-    "src/components/wizard/cable-algorithm-panel.css": 45,
-    "src/components/wizard/heat-object-fields.css": 28,
-    "src/components/wizard/insulation-layers-table.css": 88,
-    "src/pages/electrical/elec-workspace.css": 17,
-    "src/pages/heatcalc/heatcalc-workspace.css": 106,
-    "src/pages/projects-page.css": 1,
-    "src/pages/specification/specification-page.css": 7,
-    "src/pages/ui-kit.css": 15,
-    "src/pages/workflow-params.css": 2,
-    "src/styles/app-base.css": 5,
-    "src/styles/calc-spreadsheet.css": 27,
-    "src/styles/form-grid-srs.css": 7,
-    "src/styles/print.css": 9,
-    "src/styles/table-chrome.css": 2
+    "src/components/ui-kit/compact-fields.css": 27,
+    "src/components/wizard/cable-algorithm-panel.css": 12,
+    "src/components/wizard/heat-object-fields.css": 6,
+    "src/components/wizard/insulation-layers-table.css": 12,
+    "src/pages/heatcalc/heatcalc-workspace.css": 9,
+    "src/pages/specification/specification-page.css": 1,
+    "src/pages/ui-kit.css": 8,
+    "src/styles/calc-spreadsheet.css": 3
   }
 }

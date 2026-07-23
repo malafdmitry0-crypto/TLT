@@ -52,44 +52,44 @@
 
 .object-wizard-cable-panel .ant-form-item {
   min-width: 0;
-  margin: 0 !important;
-  padding: 0 !important;
+  margin: 0;
+  padding: 0;
   overflow: hidden;
 }
 
 .object-wizard-cable-panel .ant-form-item-row {
-  display: grid !important;
-  grid-template-columns: minmax(var(--dual-field-label-width), 42%) minmax(0, 1fr) !important;
-  column-gap: 10px !important;
-  row-gap: 0 !important;
-  align-items: center !important;
-  width: 100% !important;
+  display: grid;
+  grid-template-columns: minmax(var(--dual-field-label-width), 42%) minmax(0, 1fr);
+  column-gap: 10px;
+  row-gap: 0;
+  align-items: center;
+  width: 100%;
   min-height: var(--cable-control-height);
 }
 
 .object-wizard-cable-panel .ant-form-item-label {
-  width: auto !important;
+  width: auto;
   max-width: 100%;
-  margin: 0 !important;
-  padding: 0 !important;
+  margin: 0;
+  padding: 0;
   overflow: hidden;
-  white-space: nowrap !important;
-  text-align: left !important;
+  white-space: nowrap;
+  text-align: left;
   align-self: center;
 }
 
 .object-wizard-cable-panel .ant-form-item-label > label {
-  display: block !important;
+  display: block;
   min-height: 0 !important;
   height: auto !important;
   max-width: 100%;
-  margin: 0 !important;
-  padding: 0 !important;
-  color: var(--cable-label-color) !important;
+  margin: 0;
+  padding: 0;
+  color: var(--cable-label-color);
   font-size: var(--cable-label-size) !important;
-  font-weight: 600 !important;
+  font-weight: 600;
   line-height: var(--cable-label-line-height) !important;
-  white-space: nowrap !important;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -100,18 +100,18 @@
 }
 
 .object-wizard-cable-panel .field-label-two-line {
-  display: block !important;
+  display: block;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap !important;
+  white-space: nowrap;
 }
 
 .object-wizard-cable-panel .field-label-two-line > span {
-  display: inline !important;
-  font-size: var(--cable-label-size) !important;
-  font-weight: 600 !important;
-  white-space: nowrap !important;
+  display: inline;
+  font-size: var(--cable-label-size);
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .object-wizard-cable-panel .field-label-two-line > span + span::before {
@@ -122,9 +122,9 @@
 .object-wizard-cable-panel .ant-form-item-control-input,
 .object-wizard-cable-panel .ant-form-item-control-input-content,
 .object-wizard-cable-panel .field-control-with-help {
-  width: 100% !important;
-  max-width: 100% !important;
-  min-width: 0 !important;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .object-wizard-cable-panel .ant-input,
@@ -134,9 +134,9 @@
 .object-wizard-cable-panel .tlt-select,
 .object-wizard-cable-panel .tlt-select__trigger,
 .object-wizard-cable-panel .reference-picker-control {
-  width: 100% !important;
-  max-width: 100% !important;
-  min-width: 0 !important;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   min-height: var(--cable-control-height) !important;
   font-size: var(--cable-control-font) !important;
   line-height: 1.2;
@@ -191,9 +191,9 @@
 .object-wizard-cable-panel .cable-algorithm-field--mirror .ant-form-item-label > label,
 .object-wizard-cable-panel .cable-algorithm-field--mirror .ant-form-item-label * {
   height: auto;
-  color: var(--cable-label-color) !important;
+  color: var(--cable-label-color);
   font-size: var(--cable-label-size) !important;
-  font-weight: 600 !important;
+  font-weight: 600;
   line-height: var(--cable-label-line-height) !important;
 }
 

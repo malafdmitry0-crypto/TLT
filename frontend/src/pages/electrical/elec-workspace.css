@@ -40,7 +40,7 @@
 }
 
 .elec-summary-card__title {
-  font-size: 13px !important;
+  font-size: 13px;
   color: #334155;
 }
 
@@ -155,32 +155,32 @@
 
 .electrical-variant-action--create,
 .electrical-variant-action--copy {
-  color: #0f766e !important;
-  border-color: #99f6e4 !important;
-  background: #f0fdfa !important;
+  color: #0f766e;
+  border-color: #99f6e4;
+  background: #f0fdfa;
 }
 
 .electrical-variant-action--create:hover,
 .electrical-variant-action--copy:hover {
-  color: #0f766e !important;
-  border-color: #5eead4 !important;
-  background: #ccfbf1 !important;
+  color: #0f766e;
+  border-color: #5eead4;
+  background: #ccfbf1;
 }
 
 .electrical-variant-action--delete {
-  border-color: #fecaca !important;
+  border-color: #fecaca;
 }
 
 .electrical-variant-action--spec {
-  color: #0f766e !important;
-  border-color: #99f6e4 !important;
-  background: #f0fdfa !important;
+  color: #0f766e;
+  border-color: #99f6e4;
+  background: #f0fdfa;
 }
 
 .electrical-variant-action--spec:hover {
-  color: #0f766e !important;
-  border-color: #5eead4 !important;
-  background: #ccfbf1 !important;
+  color: #0f766e;
+  border-color: #5eead4;
+  background: #ccfbf1;
 }
 
 @media (max-width: 1100px) {
@@ -799,8 +799,8 @@
 }
 
 .electrical-cable-sizing-table .ant-space {
-  column-gap: 3px !important;
-  row-gap: 2px !important;
+  column-gap: 3px;
+  row-gap: 2px;
 }
 
 .electrical-cable-sizing-table .ant-btn-sm {
@@ -901,7 +901,7 @@
 }
 
 .electrical-spreadsheet .electrical-row-active.row-invalid > td {
-  background: #fff1f0 !important;
+  background: #fff1f0;
 }
 
 @media (max-width: 900px) {

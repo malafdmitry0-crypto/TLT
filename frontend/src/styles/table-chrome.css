@@ -357,7 +357,7 @@
 
 .heatcalc-form-section-resizing,
 .heatcalc-form-section-resizing * {
-  cursor: col-resize !important;
+  cursor: col-resize;
   user-select: none;
 }
 .field-help-floating-tooltip {
@@ -416,7 +416,7 @@
   outline: none;
 }
 .import-actions-compact {
-  gap: 2px !important;
+  gap: 2px;
 }
 .import-actions-compact .ant-btn {
   margin: 0;

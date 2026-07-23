@@ -44,23 +44,23 @@ html, body, #root {
   font-family: var(--font-family-app);
 }
 .ant-typography-secondary {
-  color: #595959 !important;
+  color: #595959;
 }
 .ant-empty-description,
 .ant-tag {
-  color: #595959 !important;
+  color: #595959;
 }
 .ant-tag-green {
-  color: #135200 !important;
+  color: #135200;
 }
 .ant-btn-link:not(:disabled) {
   color: #1a5276;
 }
 .ant-table-expanded-row-fixed {
-  color: #595959 !important;
+  color: #595959;
 }
 .cell-invalid {
-  border: 2px solid #d9363e !important;
+  border: 2px solid #d9363e;
   background-color: #fff1f0;
 }
 .heatcalc-main-layout {

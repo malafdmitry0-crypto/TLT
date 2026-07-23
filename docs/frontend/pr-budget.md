@@ -57,8 +57,8 @@ Full strangler prompt: [agent-prompt-ui-kit-strangler.md](./agent-prompt-ui-kit-
 **Не угадывать.** Брать первый `pending` из  
 [agent-hardening-plan.md](./agent-hardening-plan.md).
 
-Сейчас: **IMP2** `!important` burn-down in compact-fields.css (after G5 coverage floor).  
-Shells + CSS M4 closed. Proof: `cd frontend && npm run test:agent-gates`.
+Сейчас: **CSS1** Heat CSS inventory, then CSS2–4 move-only / P2 model-thin.  
+`!important` 475→78 (DoD ≤150). Proof: `cd frontend && npm run test:agent-gates`.
 
 ## Anti-goals
 

@@ -5,22 +5,22 @@
 /* C16: table row/cell/editor residual from styles.css */
 
 .row-invalid > td {
-  background-color: #fff1f0 !important;
+  background-color: #fff1f0;
 }
 .row-invalid:hover > td {
-  background-color: #ffe7e6 !important;
+  background-color: #ffe7e6;
 }
 .row-dirty > td {
-  background-color: #fffbe6 !important;
+  background-color: #fffbe6;
 }
 .row-dirty:hover > td {
-  background-color: #fff4bf !important;
+  background-color: #fff4bf;
 }
 .row-excel-new:not(.row-dirty):not(.row-excel-dirty) > td {
-  background-color: #f8fafc !important;
+  background-color: #f8fafc;
 }
 .row-excel-new:not(.row-dirty):not(.row-excel-dirty):hover > td {
-  background-color: #eef6ff !important;
+  background-color: #eef6ff;
 }
 .editable-cell-display {
   width: 100%;
@@ -89,7 +89,7 @@
 .editable-cell-editor.error .ant-input,
 .editable-cell-editor.error .ant-select-selector,
 .editable-cell-editor-wrap .editable-cell-editor.error {
-  border-color: #d9363e !important;
+  border-color: #d9363e;
 }
 .editable-cell-error {
   position: absolute;
@@ -108,16 +108,16 @@
   box-shadow: 0 4px 12px rgb(0 0 0 / 10%);
 }
 .row-selected > td {
-  background: #d6e9f5 !important;
+  background: #d6e9f5;
 }
 .row-selected > td:first-child {
   border-left: 3px solid var(--color-primary);
 }
 .row-selected.row-dirty > td {
-  background-color: #fffbe6 !important;
+  background-color: #fffbe6;
 }
 .row-selected.row-dirty:hover > td {
-  background-color: #fff4bf !important;
+  background-color: #fff4bf;
 }
 
 .calc-spreadsheet--excel-mode .row-excel-dirty .excel-row-header-button {
@@ -185,34 +185,34 @@
 .calc-spreadsheet .ant-table table {
   border-collapse: separate;
   border-spacing: 0;
-  table-layout: fixed !important;
+  table-layout: fixed;
 }
 .calc-spreadsheet .ant-table-thead > tr > th {
-  background: var(--heatcalc-table-header-background) !important;
-  border-color: var(--heatcalc-table-grid-border) !important;
+  background: var(--heatcalc-table-header-background);
+  border-color: var(--heatcalc-table-grid-border);
   color: #262626;
   font-weight: 600;
   font-size: var(--heatcalc-table-font-size);
   line-height: var(--heatcalc-table-line-height);
   height: var(--heatcalc-table-header-min-height);
-  padding: var(--heatcalc-table-header-padding-y) 6px !important;
+  padding: var(--heatcalc-table-header-padding-y) 6px;
   vertical-align: top;
   box-sizing: border-box;
 }
 .calc-spreadsheet .ant-table-tbody > tr > td {
-  border-color: var(--heatcalc-table-grid-border) !important;
+  border-color: var(--heatcalc-table-grid-border);
   font-size: var(--heatcalc-table-font-size);
   line-height: var(--heatcalc-table-line-height);
-  padding: var(--heatcalc-table-cell-padding-y) 6px !important;
+  padding: var(--heatcalc-table-cell-padding-y) 6px;
   background: #fff;
   box-sizing: border-box;
 }
 .calc-spreadsheet .ant-table-tbody > tr:hover > td {
-  background: #f0f7ff !important;
+  background: #f0f7ff;
   cursor: pointer;
 }
 .calc-spreadsheet .editable-cell-host {
-  padding: 0 !important;
+  padding: 0;
 }
 .calc-spreadsheet .editable-cell-enabled .editable-cell-display {
   background: #f3f4f6;
@@ -257,7 +257,7 @@
   pointer-events: none;
 }
 .calc-spreadsheet--excel-mode .excel-row-header-cell {
-  padding: 0 !important;
+  padding: 0;
   background: #f8fafc;
 }
 .calc-spreadsheet--virtual .ant-table {
@@ -447,7 +447,7 @@
 .excel-virtual-table-body table {
   border-collapse: separate;
   border-spacing: 0;
-  table-layout: fixed !important;
+  table-layout: fixed;
 }
 .excel-virtual-table-body .ant-table-thead > tr > th {
   position: sticky;
@@ -473,13 +473,13 @@
   white-space: nowrap;
 }
 .excel-virtual-table-body .ant-table-tbody > tr:hover > td {
-  background: #f0f7ff !important;
+  background: #f0f7ff;
   cursor: pointer;
 }
 .excel-virtual-spacer > td {
-  padding: 0 !important;
-  border: 0 !important;
-  background: transparent !important;
+  padding: 0;
+  border: 0;
+  background: transparent;
   pointer-events: none;
 }
 .excel-virtual-empty {

@@ -755,8 +755,8 @@
 }
 
 .uikit-table__empty {
-  height: 70px !important;
-  color: #6d7f93 !important;
+  height: 70px;
+  color: #6d7f93;
   text-align: center;
   cursor: default;
 }
@@ -954,7 +954,7 @@
 .uikit-heatcalc-form .ant-input-affix-wrapper {
   height: var(--tlt-field-control-height) !important;
   min-height: var(--tlt-field-control-height) !important;
-  padding: 0 var(--tlt-field-control-padding-inline, 3px) !important;
+  padding: 0 var(--tlt-field-control-padding-inline, 3px);
   font-size: var(--tlt-field-control-font-size) !important;
   line-height: calc(var(--tlt-field-control-height) - 2px) !important;
   border-radius: var(--tlt-field-radius) !important;
@@ -1041,7 +1041,7 @@
 }
 
 .uikit-heatcalc-table .ant-table-content {
-  overflow-x: auto !important;
+  overflow-x: auto;
 }
 
 .uikit-heatcalc-table code {
@@ -1343,8 +1343,8 @@
   .uikit-page *,
   .uikit-page *::before,
   .uikit-page *::after {
-    scroll-behavior: auto !important;
-    animation-duration: .01ms !important;
-    animation-iteration-count: 1 !important;
+    scroll-behavior: auto;
+    animation-duration: .01ms;
+    animation-iteration-count: 1;
   }
 }

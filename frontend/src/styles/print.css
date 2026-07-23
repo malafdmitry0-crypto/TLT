@@ -3,8 +3,8 @@
 @media print {
   .specification-stale-banner,
   .specification-partial-banner {
-    color: #9a3412 !important;
-    border: 2px solid #9a3412 !important;
+    color: #9a3412;
+    border: 2px solid #9a3412;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -17,21 +17,21 @@
   .report-page-er-selector,
   .ant-card-extra,
   .ant-btn {
-    display: none !important;
+    display: none;
   }
 
   .ant-layout,
   .ant-layout-content,
   .ant-card,
   .ant-card-body {
-    margin: 0 !important;
-    padding: 0 !important;
-    box-shadow: none !important;
-    border: none !important;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+    border: none;
   }
 
   .report-preview {
-    width: 100% !important;
-    overflow: visible !important;
+    width: 100%;
+    overflow: visible;
   }
 }

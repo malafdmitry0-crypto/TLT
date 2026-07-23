@@ -59,24 +59,24 @@
 .heat-object-fields--wide .heat-object-fields__climate,
 .heat-object-fields--wide .heat-object-fields__settings,
 .heat-object-fields--wide .insulation-settings-row {
-  display: contents !important;
+  display: contents;
 }
 
 /* Hidden form fields must not occupy a grid cell (column cap) */
 .heat-object-fields--wide .ant-form-item-hidden,
 .heat-object-fields--wide .ant-form-item[hidden],
 .heat-object-fields--wide .ant-form-item:has(input[type='hidden']:only-child) {
-  display: none !important;
+  display: none;
 }
 
 /* Source tag («из климата»/«вручную»): compact, no 24px reserve under control.
    TSX passes extra only when the tag is visible; keep the row near control height. */
 .heat-object-fields--wide .field-source-tag {
-  height: auto !important;
-  margin: 0 !important;
-  padding: 0 4px !important;
-  font-size: 8.5px !important;
-  line-height: 1.3 !important;
+  height: auto;
+  margin: 0;
+  padding: 0 4px;
+  font-size: 8.5px;
+  line-height: 1.3;
 }
 
 /*
@@ -124,12 +124,12 @@
 .heat-object-fields--side > .heat-object-fields__geometry,
 .heat-object-fields--side > .heat-object-fields__climate,
 .heat-object-fields--side > .heat-object-fields__settings,
-.heat-object-fields--side .insulation-settings-row { display: contents !important; }
+.heat-object-fields--side .insulation-settings-row { display: contents; }
 
 .heat-object-fields--side .ant-form-item-hidden,
 .heat-object-fields--side .ant-form-item[hidden],
 .heat-object-fields--side .ant-form-item:has(input[type='hidden']:only-child) {
-  display: none !important;
+  display: none;
 }
 
 /* Числовые поля — 4 в ряд; half-селекты — 2 в ряд; пикеры/tm — во всю ширину */
@@ -162,9 +162,9 @@
 .heat-object-fields--wide .insulation-settings-row .ant-form-item-control,
 .heat-object-fields--wide .insulation-settings-row .ant-form-item-control-input,
 .heat-object-fields--wide .insulation-settings-row .ant-form-item-control-input-content {
-  width: 100% !important;
-  max-width: 100% !important;
-  min-width: 0 !important;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .heat-object-fields--wide .heat-object-fields__geometry .ant-input,
@@ -188,9 +188,9 @@
 .heat-object-fields--wide .insulation-settings-row .tlt-select,
 .heat-object-fields--wide .insulation-settings-row .tlt-select__trigger,
 .heat-object-fields--wide .insulation-settings-row .field-control-with-help {
-  width: 100% !important;
-  max-width: 100% !important;
-  min-width: 0 !important;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   min-height: var(--dual-form-control-height) !important;
   font-size: var(--dual-form-control-font) !important;
   line-height: 1.2;
@@ -223,16 +223,16 @@
 .heat-object-fields--wide .heat-object-fields__climate .ambient-temperature-form-item .ant-input-number-group-wrapper,
 .heat-object-fields--wide .heat-object-fields__climate .process-temperature-form-item .ant-input-number-group-wrapper,
 .heat-object-fields--wide .heat-object-fields__climate .wind-speed-form-item .ant-input-number-group-wrapper {
-  width: 100% !important;
+  width: 100%;
 }
 
 /* Non-wide insulation settings row controls (legacy path) */
 .heat-object-fields .insulation-settings-row .ant-form-item-control,
 .heat-object-fields .insulation-settings-row .ant-form-item-control-input,
 .heat-object-fields .insulation-settings-row .ant-form-item-control-input-content {
-  width: 100% !important;
-  max-width: 100% !important;
-  min-width: 0 !important;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .heat-object-fields .insulation-settings-row .ant-input,
@@ -240,9 +240,9 @@
 .heat-object-fields .insulation-settings-row .tlt-select,
 .heat-object-fields .insulation-settings-row .tlt-select__trigger,
 .heat-object-fields .insulation-settings-row .field-control-with-help {
-  width: 100% !important;
-  max-width: 100% !important;
-  min-width: 0 !important;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   min-height: var(--dual-form-control-height, var(--tlt-field-control-height, 26px)) !important;
   font-size: var(--dual-form-control-font, var(--tlt-field-control-font-size, 12px)) !important;
   line-height: 1.2;

@@ -25,7 +25,7 @@
 }
 
 .specification-er-tabs .ant-tabs-tab {
-  padding: 6px 14px !important;
+  padding: 6px 14px;
   font-size: 13px;
 }
 
@@ -80,7 +80,7 @@
 }
 
 .spec-section-collapse > .ant-collapse-item > .ant-collapse-header {
-  padding: 8px 4px !important;
+  padding: 8px 4px;
   align-items: center;
   color: #1a5276;
   font-weight: 600;
@@ -93,7 +93,7 @@
 }
 
 .spec-section-collapse .ant-collapse-content-box {
-  padding: 0 0 8px !important;
+  padding: 0 0 8px;
 }
 
 .spec-section-title {
@@ -117,14 +117,14 @@
 }
 
 .spec-table .ant-table-thead > tr > th {
-  background: #f5f8fb !important;
+  background: #f5f8fb;
   color: #4a5568;
   font-weight: 500;
   font-size: 12px;
 }
 
 .spec-table .ant-table-tbody > tr > td {
-  padding: 8px 12px !important;
+  padding: 8px 12px;
 }
 
 .specification-empty-alert {
@@ -140,7 +140,7 @@
 }
 
 .specification-stale-row td {
-  background: #fff7e6 !important;
+  background: #fff7e6;
 }
 
 @media (max-width: 900px) {

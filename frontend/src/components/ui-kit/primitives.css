@@ -463,7 +463,7 @@
 
 .tlt-ui-table__empty {
   height: 70px;
-  color: var(--tlt-ui-muted) !important;
+  color: var(--tlt-ui-muted);
   text-align: center;
 }
 

@@ -67,19 +67,19 @@
   position: absolute;
   top: 0;
   left: 0;
-  width: 1px !important;
-  height: 1px !important;
-  min-height: 0 !important;
-  line-height: 1px !important;
-  padding: 0 !important;
-  margin: -1px !important;
+  width: 1px;
+  height: 1px;
+  min-height: 0;
+  line-height: 1px;
+  padding: 0;
+  margin: -1px;
   overflow: hidden;
   clip: rect(0 0 0 0);
   clip-path: inset(50%);
   white-space: nowrap;
 }
 .pdf-form-column-title::before {
-  display: none !important;
+  display: none;
 }
 .form-col-resize-handle {
   flex: 0 0 4px;

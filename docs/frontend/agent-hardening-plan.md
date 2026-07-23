@@ -2,7 +2,7 @@
 
 **Актуально на:** 2026-07-23  
 **Статус:** исполняемый hardening backlog после закрытия thin shells и CSS strangler  
-**Текущий pending:** **IMP2** (G1–G5 done — coverage floor; next !important burn-down)
+**Текущий pending:** **CSS1** (IMP2–IMP7 done — !important 475→78; next Heat CSS inventory)
 **Цель:** агент должен быстро находить владельца поведения, получать зелёную и
 однозначную обратную связь и не иметь возможности незаметно вернуть god-файлы,
 глобальный CSS или обратные зависимости.
@@ -29,7 +29,7 @@
 | `styles.css` | 14 LOC ✅ | freeze-stub, без feature rules |
 | весь CSS | ~9150 LOC | размер не KPI; один владелец на правило |
 | `heatcalc-workspace.css` | 2561 LOC | ≤ 900 LOC на один coherent CSS owner |
-| `!important` | 475 | немедленный ratchet; hardening DoD ≤ 150, long-term ≤ 75 |
+| `!important` | 78 (was 475) | hardening DoD ≤ 150 ✅; long-term ≤ 75 almost |
 | production TS/TSX > 500 LOC | 22 (G2 baseline) | не растёт; target hotspots ниже |
 | production TS/TSX > 800 LOC | 5 | 0 |
 | `useElecCalcWorkspaceModel` | 1086 LOC | ≤ 650 / ≤ 30 imports |
@@ -141,12 +141,12 @@ UI-kit expansion. Один PR удаляет `!important` только из од
 
 | ID | Owner | Сейчас | Hardening target | Зависит |
 |---|---|---:|---:|---|
-| **IMP2** | `compact-fields.css` | 115 | ≤ 40 | B3, G4 |
-| **IMP3** | Heat workspace owner files | 106 | ≤ 35 суммарно | CSS1–CSS4, G4 |
-| **IMP4** | `insulation-layers-table.css` | 88 | ≤ 25 | G4, kill-list proof |
-| **IMP5** | `cable-algorithm-panel.css` | 45 | ≤ 15 | B3, G4 |
-| **IMP6** | `heat-object-fields.css` | 28 | ≤ 10 | G4 |
-| **IMP7** | остальные CSS-файлы | 93 | ≤ 25 суммарно | IMP2–IMP6 |
+| **IMP2** | `done` compact-fields | 115→27 | ≤ 40 | B3, G4 |
+| **IMP3** | `done` Heat workspace | 106→9 | ≤ 35 суммарно | G4 |
+| **IMP4** | `done` insulation-layers-table CSS-only | 88→12 | ≤ 25 | G4 |
+| **IMP5** | `done` cable-algorithm-panel | 45→12 | ≤ 15 | B3, G4 |
+| **IMP6** | `done` heat-object-fields | 28→6 | ≤ 10 | G4 |
+| **IMP7** | `done` rest | 93→12 | ≤ 25 суммарно | IMP2–IMP6 |
 
 Milestones:
 
