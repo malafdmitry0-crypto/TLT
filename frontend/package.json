@@ -23,7 +23,7 @@
     "test:s0-gates": "vitest run src/__tests__/unit/architecture src/__tests__/unit/wizard/wizardIsolation.architecture.test.ts src/__tests__/unit/components/UIKitLibrary.test.tsx",
     "test:agent-gates": "npm run typecheck && npm run lint && npm run test:s0-gates && npm run css:architecture",
     "test:agent-dod": "npm run test:agent-gates && npm run test:unit && npm run test:integration && npm run build",
-    "test:integration": "vitest run src/__tests__/integration",
+    "test:integration": "vitest run --project integration --project elec-integration",
     "test:coverage": "vitest run --coverage src/__tests__/unit",
     "typecheck": "tsc --noEmit",
     "perf:frontend": "node scripts/frontend-perf.mjs",

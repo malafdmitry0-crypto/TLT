@@ -3,13 +3,35 @@ import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
 
-export default defineConfig({
+const shared = {
   plugins: [react()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
   },
+};
+
+const coverage = {
+  provider: 'v8' as const,
+  reporter: ['text', 'html', 'json-summary'] as const,
+  exclude: ['node_modules/', 'src/__tests__/'],
+  thresholds: {
+    statements: 70,
+    branches: 62,
+    functions: 70,
+    lines: 72,
+    'src/domain/**': {
+      statements: 85,
+      branches: 75,
+      functions: 90,
+      lines: 85,
+    },
+  },
+};
+
+export default defineConfig({
+  ...shared,
   server: {
     port: 3000,
     host: true,
@@ -34,29 +56,67 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: './src/__tests__/setup.ts',
     css: true,
     testTimeout: 60_000,
     hookTimeout: 60_000,
-    coverage: {
-      provider: 'v8',
-      reporter: ['text', 'html', 'json-summary'],
-      exclude: ['node_modules/', 'src/__tests__/'],
-      // G5: floor from unit suite on clean HEAD (2026-07-23):
-      // All files ~74.5/66.6/74/76.8 — set slightly below; do not claim arbitrary 80%.
-      // src/domain threshold-check reports ~88/83/97/90 — keep a buffer under that.
-      thresholds: {
-        statements: 70,
-        branches: 62,
-        functions: 70,
-        lines: 72,
-        'src/domain/**': {
-          statements: 85,
-          branches: 75,
-          functions: 90,
-          lines: 85,
+    coverage,
+    // Split Electrical integration so vi.mock env is setup-scoped (AF9-TEST-SPLIT-01)
+    projects: [
+      {
+        ...shared,
+        test: {
+          name: 'unit',
+          globals: true,
+          environment: 'jsdom',
+          css: true,
+          testTimeout: 60_000,
+          hookTimeout: 60_000,
+          sequence: { groupOrder: 0 },
+          setupFiles: ['./src/__tests__/setup.ts'],
+          include: ['src/__tests__/unit/**/*.{test,spec}.{ts,tsx}'],
         },
       },
-    },
+      {
+        ...shared,
+        test: {
+          name: 'integration',
+          globals: true,
+          environment: 'jsdom',
+          css: true,
+          testTimeout: 60_000,
+          hookTimeout: 60_000,
+          sequence: { groupOrder: 1 },
+          setupFiles: ['./src/__tests__/setup.ts'],
+          include: ['src/__tests__/integration/**/*.{test,spec}.{ts,tsx}'],
+          exclude: [
+            'src/__tests__/integration/pages/electrical/ElecCalcPage.*.test.tsx',
+          ],
+        },
+      },
+      {
+        ...shared,
+        test: {
+          name: 'elec-integration',
+          globals: true,
+          environment: 'jsdom',
+          css: true,
+          testTimeout: 60_000,
+          hookTimeout: 60_000,
+          sequence: { groupOrder: 2 },
+          // Per-file process isolation: setupFiles vi.hoisted mocks must not race
+          // across workers (shared module state) or parallel files in one worker.
+          pool: 'forks',
+          isolate: true,
+          fileParallelism: true,
+          setupFiles: [
+            './src/__tests__/setup.ts',
+            './src/__tests__/integration/pages/electrical/elecCalcPageTestEnv.tsx',
+          ],
+          include: [
+            'src/__tests__/integration/pages/electrical/ElecCalcPage.*.test.tsx',
+          ],
+        },
+      },
+    ],
   },
 });
