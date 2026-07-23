@@ -5,6 +5,7 @@ import {
   electricalAssignmentAvailabilityReason,
   electricalAssignmentCompatibilityReason,
   electricalAssignmentProjectionMap,
+  electricalAssignmentVersionsMap,
   electricalSystemForCableType,
   preferredCableTypeForElectricalAssignment,
 } from '@/pages/electrical/elecCalcAssignmentScopeModel';
@@ -88,4 +89,13 @@ describe('elecCalcAssignmentScopeModel', () => {
     expect(projection.get('two')?.version).toBe(7);
     expect(projection.has('foreign-er-object')).toBe(false);
   });
+
+  it('builds version map only for finite assignment versions', () => {
+    const byObject = new Map([
+      ['a', assignment('a', 'resistive', 'ready', 3)],
+      ['b', assignment('b', 'self_regulating', 'ready', Number.NaN)],
+    ]);
+    expect([...electricalAssignmentVersionsMap(byObject).entries()]).toEqual([['a', 3]]);
+  });
 });
+

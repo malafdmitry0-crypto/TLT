@@ -34,6 +34,20 @@ export function electricalAssignmentProjectionMap(
   return result;
 }
 
+/** Optimistic concurrency tokens for assignment mutations (finite versions only). */
+export function electricalAssignmentVersionsMap(
+  assignmentByObjectId: ReadonlyMap<string, ElectricalQueryAssignment>,
+): Map<string, number> {
+  const map = new Map<string, number>();
+  assignmentByObjectId.forEach((assignment, objectId) => {
+    if (Number.isFinite(assignment.version)) map.set(objectId, assignment.version);
+  });
+  return map;
+}
+
+export const ELECTRICAL_ASSIGNMENT_SELECTION_INCOMPATIBLE_WARNING =
+  'Можно выбрать только объекты, назначенные в совместимую систему текущего ЭР.';
+
 export function electricalAssignmentCompatibilityReason(
   assignment: ElectricalQueryAssignment | undefined,
   cableType: CableTypeKey | null | undefined,

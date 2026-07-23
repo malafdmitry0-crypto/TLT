@@ -52,7 +52,6 @@ import ElectricalVariantTabs, {
   electricalVariantTabId,
 } from '@/pages/electrical/ElectricalVariantTabs';
 import {
-  filterObjectsBySystemView,
   systemViewLabel,
   type ElectricalSystemView,
 } from '@/pages/electrical/elecCalcSystemViewModel';
@@ -97,12 +96,10 @@ import {
 } from '@/pages/electrical/elecCalcErrorSummaryModel';
 import {
   compatibleAssignedObjectIds,
-  electricalAssignmentAvailabilityReason,
   electricalAssignmentCompatibilityReason,
-  electricalAssignmentProjectionMap,
   electricalSystemForCableType,
-  preferredCableTypeForElectricalAssignment,
 } from '@/pages/electrical/elecCalcAssignmentScopeModel';
+import { useElecCalcAssignmentSelectionState } from '@/pages/electrical/useElecCalcAssignmentSelectionState';
 import {
   buildElecCalcSummaryViewModel,
 } from '@/pages/electrical/elecCalcSummaryModel';
@@ -527,80 +524,26 @@ function ElecCalcWorkspace({
     projectId: project?.id,
     variant: electricalVariantId,
   });
-  const assignmentByObjectId = useMemo(
-    () => electricalAssignmentProjectionMap(electricalLoadedPages),
-    [electricalLoadedPages],
-  );
-  const versionByObjectId = useMemo(() => {
-    const map = new Map<string, number>();
-    assignmentByObjectId.forEach((assignment, objectId) => {
-      if (Number.isFinite(assignment.version)) map.set(objectId, assignment.version);
-    });
-    return map;
-  }, [assignmentByObjectId]);
-
-  /** Single object list: filtered by shared systemView (no second assignment table). */
-  const scopedObjects = useMemo(
-    () => filterObjectsBySystemView(objects, assignmentByObjectId, systemView),
-    [assignmentByObjectId, objects, systemView],
-  );
-  useEffect(() => {
-    // Drop selection that is no longer visible after tab change / reassignment.
-    setSelectedRowKeys((prev) => {
-      const visible = new Set(scopedObjects.map((obj) => obj.id));
-      const next = prev.filter((id) => visible.has(id));
-      return next.length === prev.length ? prev : next;
-    });
-  }, [scopedObjects, setSelectedRowKeys]);
   const batchCableType = cableTypes.cableTypeForRecalculation;
-  const compatibleSelectedRowKeys = useMemo(
-    () => compatibleAssignedObjectIds(
-      selectedRowKeys,
-      assignmentByObjectId,
-      batchCableType,
-    ),
-    [assignmentByObjectId, batchCableType, selectedRowKeys],
-  );
-  const handleAssignmentAwareSelectionChange = useCallback((keys: string[]) => {
-    // Unassigned tab: select freely for assign/DnD.
-    if (systemView === 'unassigned') {
-      setSelectedRowKeys(keys);
-      return;
-    }
-    // «Все» and system tabs: only calc-compatible selection (fail-closed batch).
-    const compatible = compatibleAssignedObjectIds(
-      keys,
-      assignmentByObjectId,
-      batchCableType,
-    );
-    if (compatible.length !== keys.length) {
-      message.warning(
-        'Можно выбрать только объекты, назначенные в совместимую систему текущего ЭР.',
-      );
-    }
-    setSelectedRowKeys(compatible);
-  }, [assignmentByObjectId, batchCableType, setSelectedRowKeys, systemView]);
-  useEffect(() => {
-    if (systemView === 'unassigned') return;
-    if (compatibleSelectedRowKeys.length === selectedRowKeys.length) return;
-    setSelectedRowKeys(compatibleSelectedRowKeys);
-  }, [compatibleSelectedRowKeys, selectedRowKeys.length, setSelectedRowKeys, systemView]);
   const objectActionCableType = cableTypes.getSavedCableTypeForObject;
-  const getObjectActionDisabledReason = useCallback((obj: ProjectObject) => (
-    electricalAssignmentAvailabilityReason(assignmentByObjectId.get(obj.id))
-  ), [assignmentByObjectId]);
-  const getObjectCalculationDisabledReason = useCallback((obj: ProjectObject) => (
-    electricalAssignmentCompatibilityReason(
-      assignmentByObjectId.get(obj.id),
-      objectActionCableType(obj.id),
-    )
-  ), [assignmentByObjectId, objectActionCableType]);
-  const preferredObjectActionCableType = useCallback((obj: ProjectObject) => (
-    preferredCableTypeForElectricalAssignment(
-      assignmentByObjectId.get(obj.id),
-      objectActionCableType(obj.id),
-    )
-  ), [assignmentByObjectId, objectActionCableType]);
+  const {
+    assignmentByObjectId,
+    versionByObjectId,
+    scopedObjects,
+    compatibleSelectedRowKeys,
+    handleAssignmentAwareSelectionChange,
+    getObjectActionDisabledReason,
+    getObjectCalculationDisabledReason,
+    preferredObjectActionCableType,
+  } = useElecCalcAssignmentSelectionState({
+    electricalLoadedPages,
+    objects,
+    systemView,
+    selectedRowKeys,
+    setSelectedRowKeys,
+    batchCableType,
+    getSavedCableTypeForObject: objectActionCableType,
+  });
   const {
     activeJob,
     activeJobId,

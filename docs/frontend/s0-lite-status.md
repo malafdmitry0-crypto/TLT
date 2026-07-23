@@ -20,7 +20,7 @@
 
 | Metric | Value |
 |---|---:|
-| ElecCalcPage LOC | 1936 |
+| ElecCalcPage LOC | 1936 → **1879** (slice 6) |
 | HeatCalcPage LOC | 1046 → **993** (slices 3–5; pure presentation) |
 | SpecificationPage LOC | 1005 |
 | styles.css LOC | 6777 |
@@ -88,7 +88,16 @@ cd e2e && E2E_BASE_URL=http://127.0.0.1:3003 npm run test:ui-kit-parity:chrome
 | unit tests (8) | ✅ |
 | HeatCalcPage LOC | **986 → 993** (named pure args; logic moved out) |
 
+## Slice 6 — Elec assignment/selection orchestration — 2026-07-23
+
+| Item | Status |
+|---|---|
+| `electricalAssignmentVersionsMap` + warning constant | ✅ scope model |
+| `useElecCalcAssignmentSelectionState` | ✅ projection, scope, selection effects |
+| unit tests (9) | ✅ |
+| ElecCalcPage LOC | **1936 → 1879** (−57) |
+
 ## Next
 
-1. One ElecCalcPage orchestration extract (not full rewrite) **or** more Heat shell
+1. Continue ElecCalcPage shell thin (modals / glide commit / params panel)
 2. CSS extract one block from styles.css
