@@ -1,41 +1,11 @@
-// @ts-nocheck — integration split files share a wide import surface (AF9-TEST-SPLIT-01)
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { QueryClient } from '@tanstack/react-query';
-import type { ReactNode } from 'react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { useAuthStore } from '@/store/authStore';
 import { useCalculationVariantStore } from '@/store/calculationVariantStore';
 import { useProjectStore } from '@/store/projectStore';
-import type {
-  ElectricalCalcSummary,
-  ElectricalCandidate,
-} from '@/types/calculation';
-import type { ProjectObject } from '@/types/project';
-import { getCalcJobRefetchInterval } from '@/utils/calcJobPolling';
-import { ELECTRICAL_GUEST_TABLE_COLUMN_STORAGE_KEY } from '@/utils/electricalTableColumns';
-import { ELECTRICAL_GUEST_CANDIDATE_TABLE_COLUMN_STORAGE_KEY } from '@/utils/electricalCandidateTableColumns';
-import {
-  ELECTRICAL_GUEST_TABLE_VIEW_STORAGE_KEY,
-} from '@/utils/electricalTableViewSettings';
-import {
-  ELECTRICAL_TABLE_ENGINE_STORAGE_KEY,
-} from '@/utils/electricalTableEngine';
-import { electricalDataQueryKeys } from '@/api/electricalQueryKeys';
-import {
-  mockProject,
-  makeObject,
-  makeElectricalPage,
-  makeCalcTask,
-  renderPage,
-  openElectricalTableSettingsOtherTab,
-} from '@/__tests__/integration/pages/electrical/elecCalcPageHarness';
-import {
-  apiMocks,
-  electricalVariantApiMocks,
-  defaultElectricalVariantListImplementation,
-  electricalGlideGridMock,
-  electricalAssignmentPanelMock,
-} from '@/__tests__/integration/pages/electrical/elecCalcPageTestEnv';
+import { ELECTRICAL_TABLE_ENGINE_STORAGE_KEY } from '@/utils/electricalTableEngine';
+import { mockProject, makeObject, makeElectricalPage, renderPage, openElectricalTableSettingsOtherTab } from '@/__tests__/integration/pages/electrical/elecCalcPageHarness';
+import { electricalVariantApiMocks, defaultElectricalVariantListImplementation, electricalGlideGridMock, electricalAssignmentPanelMock } from '@/__tests__/integration/pages/electrical/elecCalcPageTestEnv';
 import '@/__tests__/integration/pages/electrical/elecCalcPageTestEnv';
 
 describe('ElecCalcPage cable metadata / source / inline', () => {

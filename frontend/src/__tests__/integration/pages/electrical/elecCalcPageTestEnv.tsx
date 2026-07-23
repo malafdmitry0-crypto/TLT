@@ -1,9 +1,9 @@
-// @ts-nocheck — integration split files share a wide import surface (AF9-TEST-SPLIT-01)
 /**
  * AF9-TEST-SPLIT-01 — shared vi.mock environment for Electrical integration.
  */
 import { vi } from 'vitest';
-import React from 'react';
+import type { ReactNode } from 'react';
+import type { ElectricalCandidate } from '@/types/calculation';
 
 const apiMocks = vi.hoisted(() => {
   const field = (
