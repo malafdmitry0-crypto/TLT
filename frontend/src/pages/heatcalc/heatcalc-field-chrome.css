@@ -13,7 +13,12 @@
 }
 .inline-object-form {
   margin-top: 0;
+  /* Density SoT for this form — Tlt/Ant controls read these tokens (no per-control height re-declare) */
   --inline-control-height: 24px;
+  --tlt-field-control-height: 24px;
+  --tlt-field-number-font-size: 10px;
+  --tlt-field-select-font-size: 9px;
+  --tlt-field-unit-font-size: 9px;
 }
 .inline-object-form .inline-form-section-banner {
   display: flex;
@@ -451,14 +456,9 @@
 .inline-object-form.inline-object-form .ant-select-single .ant-select-selector .ant-select-selection-search-input {
   height: calc(var(--inline-control-height) - 2px);
 }
+/* Tlt density comes from --tlt-field-* on .inline-object-form; only layout deltas here */
 .inline-object-form .tlt-select__trigger {
-  height: var(--inline-control-height);
   padding: 0 4px;
-  border-radius: 2px;
-}
-.inline-object-form .tlt-select__value {
-  font-size: 9px;
-  line-height: calc(var(--inline-control-height) - 2px);
 }
 .inline-object-form .tlt-select__arrow {
   margin-inline-start: 4px;
@@ -488,12 +488,10 @@
 }
 .inline-object-form .unit-input-number .tlt-number-field__input,
 .inline-object-form .tlt-number-field__input {
-  height: var(--inline-control-height);
+  /* height/font from --tlt-field-control-height / --tlt-field-number-font-size */
   width: calc(var(--numeric-value-width, 6ch) + 22px);
   min-width: calc(var(--numeric-value-width, 6ch) + 22px);
   padding: 0 3px;
-  font-size: 10px;
-  line-height: calc(var(--inline-control-height) - 2px);
 }
 .inline-object-form .ant-input-number-input-wrap {
   height: calc(var(--inline-control-height) - 2px);

@@ -27,6 +27,9 @@
   --cable-control-font: var(--dual-form-control-font);
   --cable-hint-size: var(--dual-form-hint-size);
   --inline-control-height: var(--dual-form-control-height);
+  /* Bridge to Tlt control tokens (tlt-form-controls.css) */
+  --tlt-field-control-height: var(--cable-control-height);
+  --tlt-field-control-font-size: var(--cable-control-font);
   --dual-field-label-width: 148px;
 
   isolation: isolate;
@@ -123,15 +126,13 @@
   min-width: 0;
 }
 
+/* Tlt width fill only — density via --cable-control-height → --tlt-field-* if set on panel */
 .object-wizard-cable-panel .tlt-select,
 .object-wizard-cable-panel .tlt-select__trigger,
 .object-wizard-cable-panel .reference-picker-control {
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  min-height: var(--cable-control-height);
-  font-size: var(--cable-control-font);
-  line-height: 1.2;
   box-sizing: border-box;
 }
 
@@ -157,7 +158,6 @@
 .object-wizard-cable-panel .reference-picker-control {
   display: flex;
   align-items: center;
-  height: var(--cable-control-height);
   box-sizing: border-box;
 }
 

@@ -22,7 +22,7 @@
   --dual-form-banner-size: 9px;
   --dual-form-label-size: var(--tlt-field-label-font-size, 8.5px);
   --dual-form-label-line-height: var(--tlt-field-label-line-height, 1);
-  --dual-form-label-color: var(--tlt-field-label-color, var(--tlt-field-label-color));
+  --dual-form-label-color: var(--tlt-field-label-color);
   --dual-form-control-height: var(--tlt-field-control-height, 26px);
   --dual-form-control-font: var(--tlt-field-control-font-size, 12px);
   --dual-form-hint-size: 10px;
@@ -167,7 +167,7 @@
   min-width: 0;
 }
 
-/* Tlt/reference: owner specificity, no */
+/* Tlt/reference: width fill only — density from tokens / tlt-form-controls */
 .heat-object-fields--wide .heat-object-fields__geometry .tlt-select,
 .heat-object-fields--wide .heat-object-fields__geometry .tlt-select__trigger,
 .heat-object-fields--wide .heat-object-fields__geometry .reference-picker-control,
@@ -182,9 +182,6 @@
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  min-height: var(--dual-form-control-height);
-  font-size: var(--dual-form-control-font);
-  line-height: 1.2;
   box-sizing: border-box;
 }
 
@@ -221,7 +218,6 @@
 .heat-object-fields--wide .insulation-settings-row .tlt-select__trigger {
   display: flex;
   align-items: center;
-  height: var(--dual-form-control-height);
   box-sizing: border-box;
 }
 
@@ -252,9 +248,6 @@
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  min-height: var(--dual-form-control-height, var(--tlt-field-control-height, 26px));
-  font-size: var(--dual-form-control-font, var(--tlt-field-control-font-size, 12px));
-  line-height: 1.2;
   box-sizing: border-box;
 }
 
@@ -272,6 +265,5 @@
 .heat-object-fields .insulation-settings-row .tlt-select__trigger {
   display: flex;
   align-items: center;
-  height: var(--dual-form-control-height, var(--tlt-field-control-height, 26px));
   box-sizing: border-box;
 }

@@ -1,7 +1,7 @@
 {
   "version": 3,
-  "slice": "CSS-OWN-01",
-  "description": "Insulation dual-owner: page host tokens only",
+  "slice": "CSS-OWN-02",
+  "description": "Density cascade: form root tokens; Tlt controls no duplicate height/font",
   "stylesCssMaxLoc": 30,
   "newFileLocCap": 400,
   "files": {
@@ -21,7 +21,7 @@
       "media": 0
     },
     "src/components/wizard/heat-object-fields.css": {
-      "loc": 278,
+      "loc": 270,
       "bareAnt": 0,
       "media": 1
     },
@@ -41,7 +41,7 @@
       "media": 3
     },
     "src/pages/heatcalc/heatcalc-field-chrome.css": {
-      "loc": 821,
+      "loc": 819,
       "bareAnt": 0,
       "media": 3
     },
@@ -157,7 +157,7 @@
     }
   },
   "totals": {
-    "loc": 9419,
+    "loc": 9409,
     "bareAnt": 18,
     "media": 40
   },
