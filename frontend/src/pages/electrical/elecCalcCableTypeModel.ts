@@ -24,7 +24,12 @@ export function normalizeCableTypeForAvailableTypes(
   type: CableTypeKey | null | undefined,
   availableCableTypes: ReadonlySet<CableTypeKey>,
 ): CableTypeKey {
-  return type && availableCableTypes.has(type) ? type : DEFAULT_CABLE_TYPE;
+  if (type && availableCableTypes.has(type)) return type;
+  // Product default when it is offered in the current catalog.
+  if (availableCableTypes.has(DEFAULT_CABLE_TYPE)) return DEFAULT_CABLE_TYPE;
+  // Catalog subset / test fixtures may omit DEFAULT — fall back to first available.
+  const firstAvailable = availableCableTypes.values().next().value as CableTypeKey | undefined;
+  return firstAvailable ?? DEFAULT_CABLE_TYPE;
 }
 
 export function resolveUniformCableType(types: CableTypeKey[]): CableTypeKey | null {

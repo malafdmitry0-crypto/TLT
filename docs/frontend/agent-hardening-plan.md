@@ -2,7 +2,7 @@
 
 **Актуально на:** 2026-07-23  
 **Статус:** исполняемый hardening backlog после закрытия thin shells и CSS strangler  
-**Текущий pending:** **B5** (IMP0/IMP1/B1–B4 done)
+**Текущий pending:** **B6** (IMP0/IMP1/B1–B5 done)
 **Цель:** агент должен быстро находить владельца поведения, получать зелёную и
 однозначную обратную связь и не иметь возможности незаметно вернуть god-файлы,
 глобальный CSS или обратные зависимости.
@@ -117,7 +117,7 @@ P0 выполняется раньше любых новых архитекту�
 | **B2** | test fixture drift | elec summary + heat draft fixtures типобезопасны | — |
 | **B3** | `done` | TltSelect.allowClear + clear control | form-control + CableAlgorithm | B1 |
 | **B4** | `done` | ObjectWizard wide props | dead `geometryTitle` removed (banner fixed «Расчёт теплопотерь») | — |
-| **B5** | Electrical variant/nullability | 3 TS errors + failing cable-type test закрыты | — |
+| **B5** | `done` | Electrical variant recoveryNotice null + cable type normalize fallback | — |
 | **B6** | Report cleanup | unused code + Report focused tests green | — |
 | **B7** | Specification effect contract | exhaustive-deps warning закрыт тестом | — |
 | **B8** | test lint cleanup | оставшиеся test-only lint errors закрыты | B1–B7 |

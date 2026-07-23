@@ -461,7 +461,8 @@ export function useElectricalVariantSelection({
       recovered: boolean;
       value: T;
     }) | null,
-    recoveryNotice: string,
+    /** Null = silent recovery (no mutation notice). */
+    recoveryNotice: string | null,
   ): Promise<T> => {
     setMutationError(null);
     setMutationNotice(null);
@@ -482,7 +483,9 @@ export function useElectricalVariantSelection({
           }));
           const recovered = recover?.(authoritative);
           if (recovered?.recovered) {
-            setMutationNotice(recoveryNotice);
+            if (recoveryNotice) {
+              setMutationNotice(recoveryNotice);
+            }
             return recovered.value;
           }
         } catch {
