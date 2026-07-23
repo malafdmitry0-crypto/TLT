@@ -1,6 +1,6 @@
 # Frontend TLT: план достижения agent-friendly 9/10
 
-**Статус:** IN PROGRESS — P2 closed, P3/P4 remaining
+**Статус:** IN PROGRESS — P3 closed, P4 remaining
 
 **Актуально на:** 2026-07-24
 
@@ -186,57 +186,57 @@ baseline для повышения лимитов.
 
 ### P3 — сделать UI и layout policy исполняемой
 
-- [ ] **AF9-INLINE-01 — классифицировать JSX inline styling.**
+- [x] **AF9-INLINE-01 — классифицировать JSX inline styling.**
 
   Все текущие 491 occurrences распределить без mass rewrite:
   `runtime geometry`, `third-party adapter`, `static debt`. Результат —
   reviewable machine-readable baseline с owner и reason, а не ещё один prose
   allowlist.
 
-- [ ] **AF9-INLINE-02 — включить shrink-only AST gate.**
+- [x] **AF9-INLINE-02 — включить shrink-only AST gate.**
 
   Новый статический `style`/`styles` в production запрещён. Разрешены
   документированные runtime geometry и CSS custom properties; stale entries
   удаляются, общий baseline не растёт.
 
-- [ ] **AF9-INLINE-03 — убрать первый static inline island из `FormulasPage`.**
+- [x] **AF9-INLINE-03 — убрать первый static inline island из `FormulasPage`.**
 
   Один owner, без redesign: перенести только классифицированные static styles в
   component-owned CSS и удалить соответствующие baseline entries в том же
   slice.
 
-- [ ] **AF9-LAYOUT-01 — классифицировать coordinate-based layout.**
+- [x] **AF9-LAYOUT-01 — классифицировать coordinate-based layout.**
 
   Разобрать 84 occurrences по owner и назначению: structural shell,
   third-party grid adapter или domain-field placement. Не объявлять всё debt
   только по совпадению строки.
 
-- [ ] **AF9-LAYOUT-02 — запретить новые координаты доменных полей.**
+- [x] **AF9-LAYOUT-02 — запретить новые координаты доменных полей.**
 
   PostCSS/architecture gate отклоняет новые `grid-row`, `grid-column`, `order`,
   layout-dependent `:has()` и child-index selectors для form fields.
   Structural shell и зарегистрированный vendor adapter проверяются отдельными
   узкими правилами.
 
-- [ ] **AF9-LAYOUT-03 — мигрировать одну Heat form section.**
+- [x] **AF9-LAYOUT-03 — мигрировать одну Heat form section.**
 
   Один independently testable section переходит на semantic flow и
   form-layout primitives; старые координаты удаляются в том же slice.
   Проверяется также узкий container/resizable pane, а не только viewport.
 
-- [ ] **AF9-UI-02 — мигрировать Heat unsaved-change actions на UI-kit.**
+- [x] **AF9-UI-02 — мигрировать Heat unsaved-change actions на UI-kit.**
 
   Только `HeatCalcUnsavedChangesModals` и ближайший test: прямой Ant `Button`
   заменяется существующим public UI-kit API. Accessible names, loading,
   disabled, focus и modal geometry сохраняются; primitive baseline уменьшается.
 
-- [ ] **AF9-UI-03 — мигрировать Electrical compare actions на UI-kit.**
+- [x] **AF9-UI-03 — мигрировать Electrical compare actions на UI-kit.**
 
   Только `ElecCalcCandidateCompareBar` и ближайший test; выполнять после
   `AF9-ELEC-REG-01`. Сохранить keyboard/focus и candidate behavior, уменьшить
   primitive baseline, не добавлять feature props в UI-kit.
 
-- [ ] **AF9-VIEWPORT-01 — закрепить глобальную layout regression matrix.**
+- [x] **AF9-VIEWPORT-01 — закрепить глобальную layout regression matrix.**
 
   App shell и затронутые Heat/Electrical/Specification workflows проверяются
   при `1000×768`, `1280×800`, `1440×900`, `1920×1080` CSS px. `390×844` и
