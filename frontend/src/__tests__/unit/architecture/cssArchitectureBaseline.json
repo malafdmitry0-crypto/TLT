@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "slice": "CSS-IMP-02",
-  "description": "compact-fields tlt vs ant split for !important burn-down",
+  "slice": "CSS-IMP-03",
+  "description": "cable+heat-object important burn",
   "stylesCssMaxLoc": 30,
   "newFileLocCap": 400,
   "files": {
@@ -16,12 +16,12 @@
       "media": 2
     },
     "src/components/wizard/cable-algorithm-panel.css": {
-      "loc": 231,
+      "loc": 236,
       "bareAnt": 0,
       "media": 0
     },
     "src/components/wizard/heat-object-fields.css": {
-      "loc": 258,
+      "loc": 278,
       "bareAnt": 0,
       "media": 1
     },
@@ -157,7 +157,7 @@
     }
   },
   "totals": {
-    "loc": 9327,
+    "loc": 9352,
     "bareAnt": 18,
     "media": 40
   },
