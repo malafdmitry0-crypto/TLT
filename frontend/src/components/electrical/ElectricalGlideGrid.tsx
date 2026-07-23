@@ -1,8 +1,8 @@
 import { memo, useCallback, type ReactNode } from 'react';
 import type { TableProps } from 'antd';
 
-import HeatCalcNormalGlideGrid from '@/components/heatcalc/HeatCalcNormalGlideGrid';
-import type { HeatCalcNormalInfiniteLoading } from '@/components/heatcalc/HeatCalcNormalGlideGrid';
+import HeatCalcNormalGlideGrid from '@/components/shared/NormalGlideGrid';
+import type { HeatCalcNormalInfiniteLoading } from '@/components/shared/NormalGlideGrid';
 import ElectricalGlideColumnFilterDropdown from '@/components/electrical/ElectricalGlideColumnFilterDropdown';
 import type { ProjectObject } from '@/types/project';
 import type {

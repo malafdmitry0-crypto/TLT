@@ -6,42 +6,16 @@
       "from": "src/hooks/useLegacyElectricalVariantContext.ts",
       "to": "src/pages/electrical/useElectricalVariantSelection.ts",
       "import": "@/pages/electrical/useElectricalVariantSelection",
-      "shrink": "Extract UUID-first variant selection core from pages/electrical into hooks/ or domain/electrical (VAR1); remove hooks→pages edge."
+      "shrink": "Extract UUID-first variant selection core from pages/electrical into hooks/ or domain/electrical; remove hooks→pages edge."
     }
   ],
-  "crossFeatureAllowlist": [
-    {
-      "from": "src/components/electrical/ElectricalGlideGrid.tsx",
-      "to": "src/components/heatcalc/HeatCalcNormalGlideGrid.tsx",
-      "import": "@/components/heatcalc/HeatCalcNormalGlideGrid",
-      "shrink": "Move shared normal-grid host to components/shared or grid/ (GRID1); ElectricalGlideGrid must not depend on heatcalc."
-    },
-    {
-      "from": "src/pages/electrical/useElecCalcElectricalColumns.tsx",
-      "to": "src/components/heatcalc/ResizableColumnTitle.tsx",
-      "import": "@/components/heatcalc/ResizableColumnTitle",
-      "shrink": "Promote ResizableColumnTitle to components/shared or ui-kit; electrical must not import heatcalc."
-    },
-    {
-      "from": "src/pages/electrical/useElecCalcTableNavigation.ts",
-      "to": "src/components/heatcalc/HeatCalcNormalGlideGrid.tsx",
-      "import": "@/components/heatcalc/HeatCalcNormalGlideGrid",
-      "shrink": "Extract shared infinite-loading types to domain/ or components/shared; drop heatcalc type import from electrical."
-    }
-  ],
+  "crossFeatureAllowlist": [],
   "featurePagesOutsiderAllowlist": [
     {
       "from": "src/hooks/useLegacyElectricalVariantContext.ts",
       "to": "src/pages/electrical/useElectricalVariantSelection.ts",
       "import": "@/pages/electrical/useElectricalVariantSelection",
       "shrink": "Same as layer exception — selection core leaves pages/electrical."
-    },
-    {
-      "from": "src/pages/UIKitPage.tsx",
-      "to": "src/pages/heatcalc/HeatCalcObjectTypeIcons.tsx",
-      "import": "@/pages/heatcalc/HeatCalcObjectTypeIcons",
-      "shrink": "Move demo icons to ui-kit samples or components/shared; UIKitPage must not deep-import heatcalc pages."
     }
   ]
 }
-

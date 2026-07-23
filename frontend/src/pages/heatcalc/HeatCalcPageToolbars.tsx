@@ -14,7 +14,7 @@ import {
 import {
   PipeTypeIcon,
   TankTypeIcon,
-} from '@/pages/heatcalc/HeatCalcObjectTypeIcons';
+} from '@/components/shared/ObjectTypeIcons';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type HeatCalcPageToolbarsProps = Record<string, any>;

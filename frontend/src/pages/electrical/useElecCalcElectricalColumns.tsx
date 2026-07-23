@@ -3,7 +3,7 @@ import { FilterFilled } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 
 import ElectricalColumnFilterDropdown from '@/components/electrical/ElectricalColumnFilterDropdown';
-import ResizableColumnTitle from '@/components/heatcalc/ResizableColumnTitle';
+import ResizableColumnTitle from '@/components/shared/ResizableColumnTitle';
 import type { ElectricalColumnRenderSpec } from '@/pages/electrical/elecCalcPageModel';
 import {
   filterKindForElectricalColumn,

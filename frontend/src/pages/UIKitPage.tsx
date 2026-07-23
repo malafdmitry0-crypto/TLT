@@ -63,7 +63,7 @@ import {
 } from '@/components/ui-kit/CompactUi';
 import CableAlgorithmPanel from '@/components/wizard/CableAlgorithmPanel';
 import ReferencePicker from '@/components/wizard/ReferencePicker';
-import { PipeTypeIcon, TankTypeIcon } from '@/pages/heatcalc/HeatCalcObjectTypeIcons';
+import { PipeTypeIcon, TankTypeIcon } from '@/components/shared/ObjectTypeIcons';
 import '@/components/wizard/insulation-layers-table.css';
 import './ui-kit.css';
 

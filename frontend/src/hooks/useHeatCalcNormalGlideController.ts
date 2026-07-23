@@ -47,15 +47,12 @@ import {
   useHeatCalcNormalGlideCellModel,
   type HeatCalcNormalGlideDraftInvalidator,
 } from '@/hooks/useHeatCalcNormalGlideCellModel';
+import type { NormalGlideInfiniteLoading } from '@/components/shared/normalGlideTypes';
 
 export type { HeatCalcNormalGlideDraftInvalidator } from '@/hooks/useHeatCalcNormalGlideCellModel';
 
-export interface HeatCalcNormalInfiniteLoading {
-  loaded: number;
-  total: number;
-  hasNextPage: boolean;
-  loading?: boolean;
-}
+/** @deprecated Prefer NormalGlideInfiniteLoading from shared. */
+export type HeatCalcNormalInfiniteLoading = NormalGlideInfiniteLoading;
 
 interface FilterPopupState {
   columnIndex: number;

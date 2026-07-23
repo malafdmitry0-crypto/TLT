@@ -9,7 +9,7 @@ import { FilterFilled } from '@ant-design/icons';
 import type { ColumnType } from 'antd/es/table';
 
 import EditableTableCell from '@/components/heatcalc/EditableTableCell';
-import ResizableColumnTitle from '@/components/heatcalc/ResizableColumnTitle';
+import ResizableColumnTitle from '@/components/shared/ResizableColumnTitle';
 import type { ProjectObject, ObjectQueryFieldCapability } from '@/types/project';
 import { heatCalcSelectOptions } from '@/utils/heatCalcWizardFieldRules';
 import {

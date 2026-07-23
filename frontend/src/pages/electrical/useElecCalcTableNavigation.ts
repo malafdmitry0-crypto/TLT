@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import type { TableProps } from 'antd';
 
-import type { HeatCalcNormalInfiniteLoading } from '@/components/heatcalc/HeatCalcNormalGlideGrid';
+import type { HeatCalcNormalInfiniteLoading } from '@/components/shared/normalGlideTypes';
 import type { ProjectObject, ProjectObjectsPageCursor } from '@/types/project';
 
 type LoadNextElectricalGlidePage = (options: {
