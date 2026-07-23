@@ -17,7 +17,7 @@
 | Метрика | Текущее значение |
 |---|---:|
 | `src/styles.css` | freeze-stub |
-| `!important` baseline | **55** (≤75 ✅) |
+| `!important` baseline | **52** (≤75 ✅) |
 | Global layers | tokens → base → **app-shell** (incl. header) → vendor |
 | G3 allowlists | all **0** |
 | `useElecCalcWorkspaceModel.tsx` | 545 LOC |
@@ -28,7 +28,7 @@
 
 | ID | Status | Domain | Goal | Allowed scope | Invariants | Focused proof | Depends |
 |---|---|---|---|---|---|---|---|
-| **CSS-IMP-02** | `pending` | css/ui | Burn-down compact-fields height/font-size !important family with characterization of focus/error/disabled | `compact-fields.css`; important baseline; FormControls/UIKit tests | Visual density SC-03; no new important | FormControls + UIKit + css:architecture; browser if stack available | — |
+| **CSS-IMP-02** | `done` | css/ui | Split Tlt vs Ant !important in compact-fields | compact-fields + baselines | density SC-03 | FormControls + UIKit + css:architecture | — |
 | **CSS-IMP-03** | `pending` | css/wizard | Burn-down cable-algorithm-panel + heat-object-fields !important locks | those CSS files; baseline; wizard unit | Cable panel density | wizard unit + architecture | CSS-IMP-02 |
 | **CSS-IMP-04** | `pending` | css/wizard | Burn-down insulation-layers-table !important (CSS-only; no TSX/formulas) | insulation-layers-table.css; baseline; isolation tests | Island isolation | wizardIsolation + architecture | CSS-IMP-03 |
 
@@ -41,6 +41,7 @@
 | **FDEP-08** | ER selection hooks leave pages | layer/outsider **0** | `3ab4ead` |
 | **CSS-SHELL-01** | app-header folded into app-shell layer | main import −1 file | `cfa1bf7` |
 | **CSS-IMP-01** | safe !important burn-down (radius/padding/borders) | **67→55** | `cfa1bf7` |
+| **CSS-IMP-02** | Tlt vs Ant split in compact-fields | **55→52**; compact 18→15 | `cccc6c4` |
 
 ## Promotion rules
 
