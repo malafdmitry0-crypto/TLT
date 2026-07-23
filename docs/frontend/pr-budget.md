@@ -57,8 +57,9 @@ Full strangler prompt: [agent-prompt-ui-kit-strangler.md](./agent-prompt-ui-kit-
 **Не угадывать.** Брать первый `pending` из  
 [agent-hardening-plan.md](./agent-hardening-plan.md).
 
-Сейчас: **ELEC1/HEAT1 residual** model thin (VAR1+GRID1 pure extracts landed).  
-Gates G1–G5 + IMP + CSS1–4 done. Proof: `cd frontend && npm run test:agent-gates`.
+Сейчас: **ELEC3** residual (workspace presentation assembly; parent ~960 LOC).  
+Hardening gates G1–G5, IMP2–7 (78 !important), CSS1–4, HEAT/WIZ/VAR thin done.  
+Proof: `cd frontend && npm run test:agent-gates`.
 
 ## Anti-goals
 

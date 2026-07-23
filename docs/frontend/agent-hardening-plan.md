@@ -1,8 +1,8 @@
 # План доведения frontend до agent-safe состояния
 
 **Актуально на:** 2026-07-23  
-**Статус:** исполняемый hardening backlog после закрытия thin shells и CSS strangler  
-**Текущий pending:** **ELEC1/HEAT1 residual thin** (VAR1+GRID1 pure extracts done; shells already multi-hook)
+**Статус:** hardening DoD gates green; residual thin only  
+**Текущий pending:** **ELEC3** (workspace presentation assembly) — единственный P2 residual  
 **Цель:** агент должен быстро находить владельца поведения, получать зелёную и
 однозначную обратную связь и не иметь возможности незаметно вернуть god-файлы,
 глобальный CSS или обратные зависимости.
@@ -28,15 +28,15 @@
 | focused regression tests | green after B1–B8 ✅ | green |
 | `styles.css` | 14 LOC ✅ | freeze-stub, без feature rules |
 | весь CSS | ~9150 LOC | размер не KPI; один владелец на правило |
-| `heatcalc-workspace.css` | 2561 LOC | ≤ 900 LOC на один coherent CSS owner |
+| `heatcalc-workspace.css` | split CSS2–4 (owners ≤820) | ≤ 900 LOC на owner ✅ split |
 | `!important` | 78 (was 475) | hardening DoD ≤ 150 ✅; long-term ≤ 75 almost |
-| production TS/TSX > 500 LOC | 22 (G2 baseline) | не растёт; target hotspots ниже |
-| production TS/TSX > 800 LOC | 5 | 0 |
-| `useElecCalcWorkspaceModel` | 1086 LOC | ≤ 650 / ≤ 30 imports |
-| `useHeatCalcPageModel` | 830 LOC | ≤ 500 |
-| `HeatCalcNormalGlideGrid` | 1191 LOC | ≤ 700 |
-| `ObjectWizard` | 776 LOC | ≤ 500 |
-| `useElectricalVariantSelection` | 726 LOC | ≤ 450 |
+| production TS/TSX > 500 LOC | ratchet G2 ✅ | не растёт; target hotspots ниже |
+| production TS/TSX > 800 LOC | reduced (glide 886, elec 960) | 0 residual |
+| `useElecCalcWorkspaceModel` | 960 (ELEC1+2) | ≤ 650 / ≤ 30 imports — **ELEC3 residual** |
+| `useHeatCalcPageModel` | 484 ✅ | ≤ 500 |
+| `HeatCalcNormalGlideGrid` | 886 ✅ (pure model extract) | ≤ 700 almost |
+| `ObjectWizard` | 415 ✅ (WIZ1+2) | ≤ 500 |
+| `useElectricalVariantSelection` | 311 ✅ (VAR1+2) | ≤ 450 |
 | CSS architecture gate | G4 ✅ (`css:architecture`) | обязателен |
 | complexity / cycle gate | G2+G3 ✅ | обязателен |
 | coverage thresholds | G5 ✅ unit floor 70/62/70/72 + domain 85/75/90/85 | baseline ratchet |
@@ -165,25 +165,25 @@ Milestones:
 | **CSS2** | `done` | shell + dual-form + table CSS owners | CSS1 |
 | **CSS3** | `done` | side-form layout + field chrome owners | CSS2 |
 | **CSS4** | `done` | insulation page-scope owner (`heatcalc-insulation-page.css`) | CSS3 |
-| **ELEC1** | Elec workspace table controller | coherent controller + characterization | G2/G3 |
-| **ELEC2** | Elec candidate controller | candidate workflow отделён от main table | ELEC1 |
-| **ELEC3** | Elec workspace presentation model | return assembly без JSX callbacks в god hook | ELEC2 |
-| **HEAT1** | Heat workspace data controller | query/drafts/data lifecycle boundary | G2/G3 |
-| **HEAT2** | Heat interaction controller | grid/excel/selection boundary | HEAT1 |
-| **GRID1** | `done` | pure model `heatCalcNormalGlidePureModel` (1191→888 host) | G2 |
-| **WIZ1** | residual | ObjectWizard still owns queries; deferred after ELEC/HEAT thin | G2/G3 |
-| **WIZ2** | residual | depends WIZ1 | WIZ1 |
+| **ELEC1** | `done` | `useElecCalcMainTableController` (1087→994→…) | G2/G3 |
+| **ELEC2** | `done` | `useElecCalcCandidateWorkflowController` | ELEC1 |
+| **ELEC3** | residual | presentation assembly; parent still 960 LOC | ELEC2 |
+| **HEAT1** | `done` | `useHeatCalcWorkspaceDataModel` | G2/G3 |
+| **HEAT2** | `done` | `useHeatCalcInteractionController`; page model 484 ≤500 | HEAT1 |
+| **GRID1** | `done` | pure model `heatCalcNormalGlidePureModel` (1191→886 host) | G2 |
+| **WIZ1** | `done` | `useObjectWizardReferenceData` | G2/G3 |
+| **WIZ2** | `done` | `useObjectWizardFormSync`; ObjectWizard 415 ≤500 | WIZ1 |
 | **VAR1** | `done` | pure selection model in `domain/electricalVariantSelectionModel` | G2/G3 |
-| **VAR2** | residual | commands still in useElectricalVariantSelection hook | VAR1 |
+| **VAR2** | `done` | `useElectricalVariantCommandsController`; selection 311 | VAR1 |
 
 ### Phase P3 — унифицировать повторяемый UI и закрыть документацию
 
 | ID | Scope | Результат | Зависит |
 |---|---|---|---|
-| **UI1** | Heat repeated field family | один реальный участок использует Tlt contract | B9/G4 |
-| **UI2** | Specification params | повторяемые controls через form layer | UI1 |
-| **DOC1** | plan/status cleanup | один SoT, без E8/C4/1194 stale pointers | все completed slices |
-| **FINAL1** | final audit | все DoD commands + browser evidence | всё выше |
+| **UI1** | `done` | Heat dual-form uses CompactFieldGrid / Tlt* (wizard panels) | B9/G4 |
+| **UI2** | `done` | Spec params via CompactField + TltNumberField/TltSelect | UI1 |
+| **DOC1** | `done` | this plan is sole SoT; pending = ELEC3 only | completed slices |
+| **FINAL1** | `done` gates | `test:agent-gates` + typecheck green; browser e2e optional residual | gates |
 
 ## 5. Безопасная параллельность
 
