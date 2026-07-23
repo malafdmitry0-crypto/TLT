@@ -109,7 +109,7 @@ baseline для повышения лимитов.
 
 ### P1 — сделать тестовый feedback локальным и быстрым
 
-- [ ] **AF9-TEST-HARNESS-01 — выделить общий Electrical integration harness.**
+- [x] **AF9-TEST-HARNESS-01 — выделить общий Electrical integration harness.**
 
   Test-only slice: общие render/setup, query/store reset, API fixtures и
   user helpers получают именованные контракты. Каждый helper/fixture файл
