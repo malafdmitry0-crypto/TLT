@@ -28,6 +28,7 @@ import {
   isSpecificationPartial,
   resolveSpecificationExcludedGroups,
 } from '@/pages/specification/specGenerateOptionsModel';
+import { buildSpecSettingsFormSnapshot } from '@/pages/specification/specGenerationOptionsSyncModel';
 
 type SpecificationMutationScope = {
   projectId: string;
@@ -132,27 +133,32 @@ export function useSpecificationPageModel() {
 
   // PDL-ER-07: load project defaults first; snapshot from last generation only
   // for the currently viewed ER (does not rewrite project defaults).
+  // Must re-run when generation_options content changes (same spec id after regenerate).
   useEffect(() => {
     const opts = (spec?.generation_options as Record<string, unknown> | null | undefined)
       ?? (projectSettings?.settings as Record<string, unknown> | undefined);
     if (!opts) return;
-    setExZone(Boolean(opts.ex_zone));
-    setReserveCoeff(Number(opts.reserve_coefficient ?? 1));
-    setIndicationOnBoxes(Boolean(opts.indication_on_boxes));
-    setEndSectionIndication(Boolean(opts.end_section_indication));
-    setTopIndication(Boolean(opts.top_indication));
-    setMinLengthK2i(Number(opts.min_length_for_end_indication ?? 0));
-    {
-      const cap = Number(opts.connector_kit_sections_per_kit ?? 1);
-      setConnectorKitSectionsPerKit(cap === 2 ? 2 : 1);
+    const snapshot = buildSpecSettingsFormSnapshot(opts);
+    setExZone(snapshot.exZone);
+    setReserveCoeff(snapshot.reserveCoeff);
+    setIndicationOnBoxes(snapshot.indicationOnBoxes);
+    setEndSectionIndication(snapshot.endSectionIndication);
+    setTopIndication(snapshot.topIndication);
+    setMinLengthK2i(snapshot.minLengthK2i);
+    setConnectorKitSectionsPerKit(snapshot.connectorKitSectionsPerKit);
+    if (typeof snapshot.mergeIdentical === 'boolean') {
+      setMergeIdentical(snapshot.mergeIdentical);
     }
-    if (typeof opts.merge_identical === 'boolean') {
-      setMergeIdentical(opts.merge_identical);
+    if (snapshot.groupBy) {
+      setGroupBy(snapshot.groupBy);
     }
-    if (typeof opts.group_by === 'string') {
-      setGroupBy(opts.group_by as GroupBy);
-    }
-  }, [spec?.id, spec?.generation_mode, projectSettings?.version, projectSettings?.settings]);
+  }, [
+    spec?.id,
+    spec?.generation_mode,
+    spec?.generation_options,
+    projectSettings?.version,
+    projectSettings?.settings,
+  ]);
 
   // PDL-ER-29: product generation is always full for guest and employee.
   const effectiveMode = 'full' as const;
