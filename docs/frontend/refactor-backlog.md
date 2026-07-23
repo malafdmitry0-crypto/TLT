@@ -17,35 +17,30 @@
 | Метрика | Текущее значение |
 |---|---:|
 | `src/styles.css` | freeze-stub |
-| `!important` baseline | 67 (≤75 long-term ✅) |
+| `!important` baseline | **55** (≤75 ✅) |
+| Global layers | tokens → base → **app-shell** (incl. header) → vendor |
+| G3 allowlists | all **0** |
 | `useElecCalcWorkspaceModel.tsx` | 545 LOC |
 | `useHeatCalcPageModel.ts` | 484 LOC |
 | Shared `NormalGlideGrid` | ~330 LOC |
-| Layer→pages allowlist | **0** |
-| Cross-feature allowlist | **0** |
-| Feature-pages outsider allowlist | **0** |
 
 ## Queue
 
 | ID | Status | Domain | Goal | Allowed scope | Invariants | Focused proof | Depends |
 |---|---|---|---|---|---|---|---|
-| — | — | — | Queue empty. Ask user for next goal or promote a new pending. | — | — | — | — |
+| **CSS-IMP-02** | `pending` | css/ui | Burn-down compact-fields height/font-size !important family with characterization of focus/error/disabled | `compact-fields.css`; important baseline; FormControls/UIKit tests | Visual density SC-03; no new important | FormControls + UIKit + css:architecture; browser if stack available | — |
+| **CSS-IMP-03** | `pending` | css/wizard | Burn-down cable-algorithm-panel + heat-object-fields !important locks | those CSS files; baseline; wizard unit | Cable panel density | wizard unit + architecture | CSS-IMP-02 |
+| **CSS-IMP-04** | `pending` | css/wizard | Burn-down insulation-layers-table !important (CSS-only; no TSX/formulas) | insulation-layers-table.css; baseline; isolation tests | Island isolation | wizardIsolation + architecture | CSS-IMP-03 |
 
 ## Completed
 
 | ID | Result | Before → after | Production commit |
 |---|---|---|---|
-| **FDEP-01** | ReportPage public hook bridge | outsider 6→5 | `2df9bc4` |
-| **FDEP-02** | ReportWizardPage public hook bridge | outsider 5→4 | `2df9bc4` |
-| **FDEP-03** | WorkspacePage public hook bridge | outsider 4→3 | `2df9bc4` |
-| **FDEP-04** | Specification model public hook bridge | outsider 3→2; cross 4→3 | `2df9bc4` |
-| **FDEP-05** | ObjectTypeIcons → `components/shared` | outsider −UIKit edge | `11f4f80` |
-| **FDEP-06** | ResizableColumnTitle → `components/shared` | cross −1 | `11f4f80` |
-| **FDEP-07** | NormalGlideGrid + types → shared | cross **0** | `11f4f80` |
-| **FDEP-08** | ER selection + commands → `hooks/` | layer/outsider **0** | `3ab4ead` |
-
-G3 dependency allowlists are empty. Optional next themes (not queued): further
-`!important` family burn-down, raw-color burn-down, app-header→app-shell migration.
+| **FDEP-01…04** | public hook bridge for Report/Workspace/Spec | outsider 6→2 | `2df9bc4` |
+| **FDEP-05…07** | shared icons / ResizableColumnTitle / NormalGlide | cross **0** | `11f4f80` |
+| **FDEP-08** | ER selection hooks leave pages | layer/outsider **0** | `3ab4ead` |
+| **CSS-SHELL-01** | app-header folded into app-shell layer | main import −1 file | `cfa1bf7` |
+| **CSS-IMP-01** | safe !important burn-down (radius/padding/borders) | **67→55** | `cfa1bf7` |
 
 ## Promotion rules
 
