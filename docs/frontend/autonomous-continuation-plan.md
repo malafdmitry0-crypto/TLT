@@ -80,7 +80,7 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 |---|---:|---:|---:|
 | `ElecCalcPage.tsx` | **30** (entry) | — | ≤ 80 |
 | `ElecCalcWorkspace.tsx` | **~1459** | ≤ 1200 | ≤ 500 |
-| `HeatCalcPage.tsx` | **993** | ≤ 700 | ≤ 500 |
+| `HeatCalcPage.tsx` | **280** | ≤ 700 ✅ | ≤ 500 |
 | `SpecificationPage.tsx` | **1005** | namespace + ≤ 800 | ≤ 500 |
 | `styles.css` | **6777** | ≤ 6777 freeze → ≤ 5500 | ≤ 3000 |
 | inverted `components→pages` | **0** | 0 | 0 |
@@ -134,7 +134,7 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | **E17** | `pending` | residual → M3 | until workspace ≤500 | unit | after H track |
 
 **Метрика shell:** `ElecCalcPage` = **30**. `ElecCalcWorkspace` = **1194** (M1 workspace ✅).  
-**Текущий пункт:** **H8** (Heat thin, 993 → ≤700).
+**Текущий пункт:** **S1** (Specification namespace)
 
 ### Track H — Heat
 
@@ -146,7 +146,7 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | **H9** | `done` | (merged into H10) | type/actions stay thin wrappers | — | — |
 | **H10** | `done` | `HeatCalcWorkspaceLayout.tsx` | placement shell slots | basics tests | `4a3b929` Heat **969** |
 | **H11** | `done` | draft invalidation + overlays | residual thin | unit | `c755d3d` + overlays |
-| **H12** | `in_progress` | residual → ≤700 | large chunks only | unit | **▶ current** Heat **915** |
+| **H12** | `done` | `useHeatCalcPageModel` orchestration | page thin shell | unit 23 | **Heat 280 ≤700** |
 
 **Анти-паттерн Heat:** extract, который **увеличивает** shell LOC (named-args pure call без выгоды) — `skipped`, не делать.
 
