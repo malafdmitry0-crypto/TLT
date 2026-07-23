@@ -15,8 +15,9 @@ import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const FRONTEND_ROOT = path.resolve(HERE, '../../..');
-const SRC_ROOT = path.join(FRONTEND_ROOT, 'src');
+// architecture/ → unit → __tests__ → src (SRC_ROOT); one more level → frontend package root
+const SRC_ROOT = path.resolve(HERE, '../../..');
+const FRONTEND_ROOT = path.resolve(HERE, '../../../..');
 const BASELINE_PATH = path.join(HERE, 'complexityBaseline.json');
 
 type FileMetrics = {

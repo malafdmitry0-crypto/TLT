@@ -57,7 +57,7 @@ Full strangler prompt: [agent-prompt-ui-kit-strangler.md](./agent-prompt-ui-kit-
 **Не угадывать.** Брать первый `pending` из  
 [agent-hardening-plan.md](./agent-hardening-plan.md).
 
-Сейчас: **G3** dependency/cycle ratchet (after G2 complexity).  
+Сейчас: **G4** CSS architecture ratchet (after G3 dependency/cycle).  
 Shells + CSS M4 closed. Proof: `cd frontend && npm run test:agent-gates`.
 
 ## Anti-goals
