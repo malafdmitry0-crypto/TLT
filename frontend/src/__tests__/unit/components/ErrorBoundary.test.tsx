@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
@@ -14,17 +14,17 @@ function Boom(): JSX.Element {
   throw new Error('render exploded');
 }
 
-describe('ErrorBoundary', () => {
-  let consoleError: ReturnType<typeof vi.spyOn>;
+/**
+ * AF9-TEST-NOISE-01: silence expected React ErrorBoundary console noise only
+ * inside intentional throw tests. Not installed globally in setup or describe.
+ */
+function silenceExpectedErrorBoundaryNoise() {
+  return vi.spyOn(console, 'error').mockImplementation(() => {});
+}
 
+describe('ErrorBoundary', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // React логирует пойманную ошибку в console.error — глушим шум в тесте.
-    consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    consoleError.mockRestore();
   });
 
   it('renders children when there is no error', () => {
@@ -37,50 +37,65 @@ describe('ErrorBoundary', () => {
   });
 
   it('shows fallback and reports telemetry when a child throws', () => {
-    render(
-      <ErrorBoundary boundaryName="unit">
-        <Boom />
-      </ErrorBoundary>,
-    );
-    expect(screen.getByText('Что-то пошло не так')).toBeInTheDocument();
-    expect(recordClientAuditEvent).toHaveBeenCalledWith(
-      'frontend.render.error_boundary',
-      expect.objectContaining({ boundary: 'unit' }),
-      expect.objectContaining({ severity: 'critical', error_code: 'render_error' }),
-    );
+    const consoleError = silenceExpectedErrorBoundaryNoise();
+    try {
+      render(
+        <ErrorBoundary boundaryName="unit">
+          <Boom />
+        </ErrorBoundary>,
+      );
+      expect(screen.getByText('Что-то пошло не так')).toBeInTheDocument();
+      expect(recordClientAuditEvent).toHaveBeenCalledWith(
+        'frontend.render.error_boundary',
+        expect.objectContaining({ boundary: 'unit' }),
+        expect.objectContaining({ severity: 'critical', error_code: 'render_error' }),
+      );
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 
   it('recovers via "Попробовать снова" when the child stops throwing', async () => {
-    function Toggle(): JSX.Element {
-      const [crash, setCrash] = useState(true);
-      return (
-        <ErrorBoundary fallback={(_e, reset) => (
-          <button onClick={() => { setCrash(false); reset(); }}>retry</button>
-        )}
-        >
-          {crash ? <Boom /> : <span>recovered</span>}
-        </ErrorBoundary>
-      );
+    const consoleError = silenceExpectedErrorBoundaryNoise();
+    try {
+      function Toggle(): JSX.Element {
+        const [crash, setCrash] = useState(true);
+        return (
+          <ErrorBoundary fallback={(_e, reset) => (
+            <button onClick={() => { setCrash(false); reset(); }}>retry</button>
+          )}
+          >
+            {crash ? <Boom /> : <span>recovered</span>}
+          </ErrorBoundary>
+        );
+      }
+      render(<Toggle />);
+      await userEvent.click(screen.getByText('retry'));
+      expect(screen.getByText('recovered')).toBeInTheDocument();
+    } finally {
+      consoleError.mockRestore();
     }
-    render(<Toggle />);
-    await userEvent.click(screen.getByText('retry'));
-    expect(screen.getByText('recovered')).toBeInTheDocument();
   });
 
   it('RouteErrorBoundary clears the error after navigation', async () => {
-    render(
-      <MemoryRouter initialEntries={['/boom']}>
-        <RouteErrorBoundary>
-          <Routes>
-            <Route path="/boom" element={<Boom />} />
-            <Route path="/safe" element={<span>safe page</span>} />
-          </Routes>
-        </RouteErrorBoundary>
-        <Link to="/safe">go safe</Link>
-      </MemoryRouter>,
-    );
-    expect(screen.getByText('Что-то пошло не так')).toBeInTheDocument();
-    await userEvent.click(screen.getByText('go safe'));
-    expect(screen.getByText('safe page')).toBeInTheDocument();
+    const consoleError = silenceExpectedErrorBoundaryNoise();
+    try {
+      render(
+        <MemoryRouter initialEntries={['/boom']}>
+          <RouteErrorBoundary>
+            <Routes>
+              <Route path="/boom" element={<Boom />} />
+              <Route path="/safe" element={<span>safe page</span>} />
+            </Routes>
+          </RouteErrorBoundary>
+          <Link to="/safe">go safe</Link>
+        </MemoryRouter>,
+      );
+      expect(screen.getByText('Что-то пошло не так')).toBeInTheDocument();
+      await userEvent.click(screen.getByText('go safe'));
+      expect(screen.getByText('safe page')).toBeInTheDocument();
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 });
