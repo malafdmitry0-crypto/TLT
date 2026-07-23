@@ -17,31 +17,30 @@
 | Метрика | Текущее значение |
 |---|---:|
 | `src/styles.css` | freeze-stub |
-| `!important` baseline | **44** (≤75 ✅) |
-| Global layers | tokens → base → **app-shell** (incl. header) → vendor |
+| `!important` baseline | **37** (≤75 ✅; was 475) |
+| Global layers | tokens → base → app-shell (header) → vendor |
 | G3 allowlists | all **0** |
-| `useElecCalcWorkspaceModel.tsx` | 545 LOC |
-| `useHeatCalcPageModel.ts` | 484 LOC |
-| Shared `NormalGlideGrid` | ~330 LOC |
+| Hotspots | Elec 545 · Heat 484 · Glide shared ~330 · Wizard 415 |
 
 ## Queue
 
 | ID | Status | Domain | Goal | Allowed scope | Invariants | Focused proof | Depends |
 |---|---|---|---|---|---|---|---|
-| — | — | — | Queue empty. Optional next: ui-kit.css showcase locks, heatcalc-field-chrome, raw-color burn-down. | — | — | — | — |
+| — | — | — | Queue empty. Optional next: compact-fields Ant locks (15), heat-object Ant locks (6), raw-color burn-down. | — | — | — | — |
 
 ## Completed
 
 | ID | Result | Before → after | Production commit |
 |---|---|---|---|
-| **FDEP-01…04** | public hook bridge for Report/Workspace/Spec | outsider 6→2 | `2df9bc4` |
+| **FDEP-01…04** | public hook bridge Report/Workspace/Spec | outsider 6→2 | `2df9bc4` |
 | **FDEP-05…07** | shared icons / ResizableColumnTitle / NormalGlide | cross **0** | `11f4f80` |
 | **FDEP-08** | ER selection hooks leave pages | layer/outsider **0** | `3ab4ead` |
-| **CSS-SHELL-01** | app-header folded into app-shell layer | main import −1 file | `cfa1bf7` |
-| **CSS-IMP-01** | safe !important burn-down (radius/padding/borders) | **67→55** | `cfa1bf7` |
-| **CSS-IMP-02** | Tlt vs Ant split in compact-fields | **55→52**; compact 18→15 | `cccc6c4` |
-| **CSS-IMP-03** | cable/heat-object !important shrink | **52→50** | `c2e68f1` |
-| **CSS-IMP-04** | insulation-layers-table !important burn-down | **50→44**; ins 10→4 | `777f1d7` |
+| **CSS-SHELL-01** | app-header → app-shell | main import −1 | `cfa1bf7` |
+| **CSS-IMP-01** | safe radius/padding/border burn-down | 67→55 | `cfa1bf7` |
+| **CSS-IMP-02** | compact-fields Tlt vs Ant split | 55→52 | `cccc6c4` |
+| **CSS-IMP-03** | cable/heat-object shrink | 52→50 | `c2e68f1` |
+| **CSS-IMP-04** | insulation table BEM/Tlt burn-down | 50→44 | `777f1d7` |
+| **CSS-IMP-05** | ui-kit + field-chrome + cable mirror | **44→37** | c8cc942 |
 
 ## Promotion rules
 
