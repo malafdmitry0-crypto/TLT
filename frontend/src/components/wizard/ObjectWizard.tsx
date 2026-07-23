@@ -3,13 +3,10 @@ import {
   useEffect,
   useMemo,
   useRef,
-  useState,
   type ReactElement,
 } from 'react';
 import { Button, Form, Input, type FormInstance } from 'antd';
-import { useQuery } from '@tanstack/react-query';
 import type { ObjectType } from '@/constants/objectTypes';
-import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
 import ElectricalAndFittingsStep from './steps/ElectricalAndFittingsStep';
 import InsulationLayersStep from './steps/InsulationLayersStep';
 import PlacementGroundStep from './steps/PlacementGroundStep';
@@ -19,7 +16,6 @@ import TankGeometryStep from './steps/TankGeometryStep';
 import TemperatureEnvironmentStep from './steps/TemperatureEnvironmentStep';
 import HelpedControl from './HelpedControl';
 import FieldLabel from './FieldLabel';
-import { getClimate, getInsulation, getPipeMaterials, getSoilConductivity } from '@/api/references';
 import {
   generatePipeName,
   generateTankName,
@@ -45,16 +41,10 @@ import {
   isHeatCalcFieldRequired,
   isHeatCalcFieldVisible,
 } from '@/domain/heatCalcFieldRules';
-import {
-  buildInsulationReferenceOptions,
-  buildPipeMaterialReferenceOptions,
-  buildSoilReferenceOptions,
-} from '@/utils/referenceOptions';
 import type { HeatCalcFieldInputSettings } from '@/utils/heatCalcFieldInputSettings';
 import type { HeatCalcFormSectionWeights } from '@/utils/heatCalcTableViewSettings';
 import type { HeatCalcObjectType, ProjectObject } from '@/types/project';
 import {
-  climateKey,
   climatePolicyBasisForObject,
   climateTemperature,
   climateWind,
@@ -78,6 +68,7 @@ import WizardZoneBoundary from './isolation/WizardZoneBoundary';
 import ObjectWizardSidePanel from './ObjectWizardSidePanel';
 import type { ObjectWizardLayoutVariant } from './ObjectWizardPanelTypes';
 import ObjectWizardWidePanel from './ObjectWizardWidePanel';
+import { useObjectWizardReferenceData } from './useObjectWizardReferenceData';
 import { useObjectWizardSectionResize } from './useObjectWizardSectionResize';
 
 interface Props {
@@ -241,81 +232,27 @@ export default function ObjectWizard({
   const layerCount = Math.min(Math.max(Number(insulationLayerCount || '1') || 1, 1), 3);
   const isUnderground = placement === 'underground';
   const showWindField = placement === 'outdoor' || (objectType === 'tank' && isUnderground);
-  const [climateReferenceRequested, setClimateReferenceRequested] = useState(false);
-  const [soilReferenceRequested, setSoilReferenceRequested] = useState(false);
-  const { data: insulationMaterials = [], isError: insulationMaterialsError, isFetching: isInsulationMaterialsFetching } = useQuery({
-    queryKey: referenceQueryKeys.insulation,
-    queryFn: getInsulation,
-    ...referenceQueryOptions,
+  const {
+    insulationMaterials,
+    insulationMaterialsError,
+    isInsulationMaterialsFetching,
+    insulationMaterialOptions,
+    pipeMaterialOptions,
+    climateOptions,
+    isClimateFetching,
+    selectedClimate,
+    soilOptions,
+    isSoilFetching,
+    selectedSecondInsulation,
+    selectedThirdInsulation,
+    requestClimateReference,
+    requestSoilReference,
+  } = useObjectWizardReferenceData({
+    selectedClimateKey,
+    selectedGroundType,
+    secondInsulationMaterial,
+    thirdInsulationMaterial,
   });
-  const { data: pipeMaterials = [] } = useQuery({
-    queryKey: referenceQueryKeys.pipeMaterials,
-    queryFn: getPipeMaterials,
-    ...referenceQueryOptions,
-  });
-  const { data: climateEntries = [], isFetching: isClimateFetching } = useQuery({
-    queryKey: referenceQueryKeys.climate,
-    queryFn: getClimate,
-    enabled: climateReferenceRequested || selectedClimateKey.length > 0,
-    ...referenceQueryOptions,
-  });
-  const { data: soilEntries = [], isFetching: isSoilFetching } = useQuery({
-    queryKey: referenceQueryKeys.soilConductivity,
-    queryFn: getSoilConductivity,
-    enabled: soilReferenceRequested || selectedGroundType.length > 0,
-    ...referenceQueryOptions,
-  });
-  const insulationMaterialOptions = useMemo(
-    () => [
-      ...buildInsulationReferenceOptions(insulationMaterials),
-      { value: 'other', label: 'Другое' },
-    ],
-    [insulationMaterials],
-  );
-  const pipeMaterialOptions = useMemo(
-    () => [
-      ...(pipeMaterials.length > 0
-        ? buildPipeMaterialReferenceOptions(pipeMaterials)
-        : [{ value: 'carbon_steel', label: 'Углеродистая сталь' }]),
-      { value: 'other', label: 'Другой материал' },
-    ],
-    [pipeMaterials],
-  );
-  const climateOptions = useMemo(
-    () => climateEntries.map((entry) => ({
-      value: climateKey(entry),
-      label: `${entry.city ?? entry.region} · ${entry.region}`,
-      group: entry.region,
-    })),
-    [climateEntries],
-  );
-  // Lookup-таблица вместо линейного .find по 539 городам на каждый рендер формы.
-  const climateByKey = useMemo(() => {
-    const map = new Map<string, (typeof climateEntries)[number]>();
-    for (const entry of climateEntries) map.set(climateKey(entry), entry);
-    return map;
-  }, [climateEntries]);
-  const selectedClimate = useMemo(
-    () => (selectedClimateKey ? climateByKey.get(selectedClimateKey) : undefined),
-    [climateByKey, selectedClimateKey],
-  );
-  const soilOptions = useMemo(
-    () => buildSoilReferenceOptions(soilEntries),
-    [soilEntries],
-  );
-  const insulationByMaterial = useMemo(() => {
-    const map = new Map<string, (typeof insulationMaterials)[number]>();
-    for (const material of insulationMaterials) map.set(material.material, material);
-    return map;
-  }, [insulationMaterials]);
-  const selectedSecondInsulation = useMemo(
-    () => (secondInsulationMaterial ? insulationByMaterial.get(secondInsulationMaterial) : undefined),
-    [insulationByMaterial, secondInsulationMaterial],
-  );
-  const selectedThirdInsulation = useMemo(
-    () => (thirdInsulationMaterial ? insulationByMaterial.get(thirdInsulationMaterial) : undefined),
-    [insulationByMaterial, thirdInsulationMaterial],
-  );
 
   useEffect(() => {
     if (!formAlreadyHasValues(form, formInitialValues as Record<string, unknown>)) {
@@ -619,7 +556,7 @@ export default function ObjectWizard({
           objectType={heatCalcObjectType}
           fieldInputSettings={fieldInputSettings}
           isSoilFetching={isSoilFetching}
-          onSoilPickerOpen={() => setSoilReferenceRequested(true)}
+          onSoilPickerOpen={requestSoilReference}
           soilOptions={soilOptions}
         />
       )}
@@ -637,7 +574,7 @@ export default function ObjectWizard({
           objectType={heatCalcObjectType}
           fieldInputSettings={fieldInputSettings}
           isSoilFetching={isSoilFetching}
-          onSoilPickerOpen={() => setSoilReferenceRequested(true)}
+          onSoilPickerOpen={requestSoilReference}
           soilOptions={soilOptions}
         />
       )}
@@ -646,7 +583,7 @@ export default function ObjectWizard({
         fieldInputSettings={fieldInputSettings}
         climateOptions={climateOptions}
         isClimateFetching={isClimateFetching}
-        onClimatePickerOpen={() => setClimateReferenceRequested(true)}
+        onClimatePickerOpen={requestClimateReference}
         showWindField={showWindField}
         ambientTemperatureSourceFallback={watchedValue('ambient_temperature_source')}
         windSpeedSourceFallback={watchedValue('wind_speed_source')}
