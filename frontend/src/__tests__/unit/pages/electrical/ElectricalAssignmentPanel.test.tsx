@@ -7,7 +7,6 @@ import { useState } from 'react';
 
 import ElectricalAssignmentPanel from '@/pages/electrical/ElectricalAssignmentPanel';
 import type {
-  ElectricalAssignmentListParams,
   ElectricalAssignmentListResponse,
   ElectricalVariant,
 } from '@/types/electricalVariant';
@@ -121,11 +120,7 @@ function renderPanel(
 describe('ElectricalAssignmentPanel (system scope chrome)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    apiMocks.list.mockImplementation(async (
-      _projectId: string,
-      _variantId: string,
-      _params: ElectricalAssignmentListParams,
-    ) => assignmentResponse());
+    apiMocks.list.mockImplementation(async () => assignmentResponse());
     apiMocks.assign.mockResolvedValue({
       project_id: 'project-1',
       electrical_variant_id: ER_ID,

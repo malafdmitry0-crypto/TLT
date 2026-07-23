@@ -46,7 +46,9 @@ describe('projectStore', () => {
     });
 
     it('drops a stale snapshot missing newer fields (e.g. object_types)', () => {
-      const { object_types: _omit, ...stale } = validProject;
+      const stale = Object.fromEntries(
+        Object.entries(validProject).filter(([key]) => key !== 'object_types'),
+      );
       const result = migrate({ currentProject: stale }, 0) as { currentProject: unknown };
       expect(result.currentProject).toBeNull();
     });
