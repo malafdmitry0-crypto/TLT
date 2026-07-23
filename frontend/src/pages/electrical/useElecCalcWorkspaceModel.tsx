@@ -34,20 +34,15 @@ import type {
   ElectricalQueryResponse,
 } from '@/types/calculation';
 import {
-  type ElectricalColumnKey,
-} from '@/utils/electricalTableColumns';
-import {
   buildElectricalQueryRequest,
   updateElectricalQueryPageCalculation,
 } from '@/pages/electrical/elecCalcQueryModel';
 import { useElecCalcAssignmentSelectionState } from '@/pages/electrical/useElecCalcAssignmentSelectionState';
 import { useElecCalcObjectActionModals } from '@/pages/electrical/useElecCalcObjectActionModals';
-import { useElecCalcGlideLayoutCommit } from '@/pages/electrical/useElecCalcGlideLayoutCommit';
 import { useElecCalcCableTypeOptions } from '@/pages/electrical/useElecCalcCableTypeOptions';
 import { useElecCalcParamsPanelState } from '@/pages/electrical/useElecCalcParamsPanelState';
 import { useElecCalcCableMarkPresentation } from '@/pages/electrical/useElecCalcCableMarkPresentation';
 import type { LegacyElectricalVariantTarget } from '@/pages/electrical/elecCalcVariantModel';
-import { useElecCalcAntTableHandlers } from '@/pages/electrical/useElecCalcAntTableHandlers';
 import { useElecCalcBootViewState } from '@/pages/electrical/useElecCalcBootViewState';
 import { useElecCalcCableReferenceData } from '@/pages/electrical/useElecCalcCableReferenceData';
 import { useElecCalcCableMarkModalState } from '@/pages/electrical/useElecCalcCableMarkModalState';
@@ -61,14 +56,9 @@ import { useElecCalcColumnPersistence } from '@/pages/electrical/useElecCalcColu
 import { useElecCalcColumnSettingsDraftState } from '@/pages/electrical/useElecCalcColumnSettingsDraftState';
 import { useElecCalcColumnViewModel } from '@/pages/electrical/useElecCalcColumnViewModel';
 import { useElecCalcDataLifecycleEffects } from '@/pages/electrical/useElecCalcDataLifecycleEffects';
-import { useElecCalcElectricalColumns } from '@/pages/electrical/useElecCalcElectricalColumns';
-import { useElecCalcElectricalColumnCopyValue } from '@/pages/electrical/useElecCalcElectricalColumnCopyValue';
-import { useElecCalcElectricalColumnRenderers } from '@/pages/electrical/useElecCalcElectricalColumnRenderers';
 import { useElecCalcFilterOptions } from '@/pages/electrical/useElecCalcFilterOptions';
 import { useElecCalcCandidateGlideCellState } from '@/pages/electrical/useElecCalcCandidateGlideCellState';
-import { useElecCalcGlideActions } from '@/pages/electrical/useElecCalcGlideActions';
-import { useElecCalcGlideColumnModel } from '@/pages/electrical/useElecCalcGlideColumnModel';
-import { useElecCalcGlideCellState } from '@/pages/electrical/useElecCalcGlideCellState';
+import { useElecCalcMainTableController } from '@/pages/electrical/useElecCalcMainTableController';
 import { useElecCalcPageScopeEffects } from '@/pages/electrical/useElecCalcPageScopeEffects';
 import { useElecCalcPaginationState } from '@/pages/electrical/useElecCalcPaginationState';
 import {
@@ -78,12 +68,8 @@ import {
 import { useElecCalcWorkspaceSummaryChrome } from '@/pages/electrical/useElecCalcWorkspaceSummaryChrome';
 import { useElecCalcPreferenceSettings } from '@/pages/electrical/useElecCalcPreferenceSettings';
 import { useElecCalcRecalculationParams } from '@/pages/electrical/useElecCalcRecalculationParams';
-import { useElecCalcRowClassName } from '@/pages/electrical/useElecCalcRowClassName';
 import { useElecCalcRowSelectionState } from '@/pages/electrical/useElecCalcRowSelectionState';
-import { useElecCalcSelectedRowsClipboardEffect } from '@/pages/electrical/useElecCalcSelectedRowsClipboardEffect';
 import { useElecCalcTableProjection } from '@/pages/electrical/useElecCalcTableProjection';
-import { useElecCalcTableDimensions } from '@/pages/electrical/useElecCalcTableDimensions';
-import { useElecCalcTableNavigation } from '@/pages/electrical/useElecCalcTableNavigation';
 import { useElecCalcTableViewState } from '@/pages/electrical/useElecCalcTableViewState';
 import {
   type ElectricalBatchJobCompletion,
@@ -565,28 +551,6 @@ export function useElecCalcWorkspaceModel({
   });
 
   const {
-    handleElectricalTableChange,
-  } = useElecCalcAntTableHandlers({
-    setTablePage,
-    setTablePageSize,
-    setTableViewState,
-  });
-
-  const electricalColumnRenderers = useElecCalcElectricalColumnRenderers({
-    activeRowId,
-    calcByObjectId: stats.calcByObjectId,
-    electricalDisplayOffset,
-    getCalculatedCableTypeForObject: cableTypes.getCalculatedCableTypeForObject,
-    isCableMarkPending,
-    projectSelected: Boolean(project),
-    canMutate,
-    recalc,
-    getObjectActionDisabledReason,
-    openCableMarkModal,
-    openCableSizingModal,
-  });
-
-  const {
     persistCandidateTableColumnSettings,
     persistTableSettings,
     applyElectricalGlideColumnDraftWidth,
@@ -648,102 +612,63 @@ export function useElecCalcWorkspaceModel({
     persistCandidateTableColumnSettings,
   });
 
-  const electricalColumns = useElecCalcElectricalColumns({
-    visibleElectricalColumnMetas,
-    electricalColumnRenderers,
-    fieldCapabilityByKey,
-    enumOptionsByColumn,
-    tableViewState,
-    onColumnResizeStart: startColumnResize,
-    onSetColumnFilter: setColumnFilter,
-    onResetColumnFilter: resetColumnFilter,
-  });
-
-  const getElectricalGlideColumnAlign = useCallback(
-    (key: ElectricalColumnKey) => electricalColumnRenderers[key]?.align,
-    [electricalColumnRenderers],
-  );
   const {
-    electricalGlideColumns,
     candidateGlideColumnMetaByKey,
     electricalCandidateGlideColumns,
-  } = useElecCalcGlideColumnModel({
-    visibleElectricalColumnMetas,
-    fieldCapabilityByKey,
-    enumOptionsByColumn,
-    getElectricalColumnAlign: getElectricalGlideColumnAlign,
-    visibleCandidateColumnMetas,
-    candidateEnumOptionsByColumn,
-  });
-
-  const electricalColumnCopyValue = useElecCalcElectricalColumnCopyValue({
-    calcByObjectId: stats.calcByObjectId,
-    electricalDisplayOffset,
-    getCableTypeForObject: cableTypes.getCalculatedCableTypeForObject,
-    layingStep: recalc.layingStep,
-    heatingHeight: recalc.heatingHeight,
-    connectionType: recalc.connectionType,
-    supplyVoltage: recalc.supplyVoltage,
-    windingCoefficient: recalc.windingCoefficient,
-    vaporTemperature: recalc.vaporTemperature,
-    maintainTemperature: recalc.maintainTemperature,
-    aggressiveProduct: recalc.aggressiveProduct,
-  });
-
-  const {
-    isElectricalLayoutCellEditable,
-    handleElectricalGlideStartCellEdit,
-    handleElectricalGlideCommitCell,
-  } = useElecCalcGlideLayoutCommit({
-    canMutate,
-    projectSelected: Boolean(project),
-    effectiveSource,
-    calcByObjectId: stats.calcByObjectId,
-    getCableTypeForObject: cableTypes.getSavedCableTypeForObject,
-    getObjectCalculationDisabledReason,
-    isCableMarkPending,
-    electricalLayoutMutate,
-    activateRowId,
-  });
-
-  const {
-    getElectricalGlideCellActions,
-    handleElectricalGlideCellAction,
-  } = useElecCalcGlideActions({
-    activeRowId,
-    projectSelected: Boolean(project),
-    canMutate,
-    isCableMarkPending,
-    getObjectActionDisabledReason,
-    onOpenCableMarkModal: openCableMarkModal,
-    onOpenCableSizingModal: openCableSizingModal,
-  });
-
-  const getElectricalGlideCellState = useElecCalcGlideCellState({
-    calcByObjectId: stats.calcByObjectId,
-    electricalColumnCopyValue,
-    isElectricalLayoutCellEditable,
-    getColumnAlign: getElectricalGlideColumnAlign,
-    getCellActions: getElectricalGlideCellActions,
-  });
-
-  useElecCalcSelectedRowsClipboardEffect({
-    electricalColumnCopyValue,
-    objects,
-    selectedRowKeys: compatibleSelectedRowKeys,
-    visibleElectricalColumnMetas,
-  });
-
-  const {
+    electricalColumns,
+    electricalGlideColumns,
+    electricalInfiniteLoading,
+    electricalPagination,
+    electricalRowClassName,
     electricalTableScrollX,
     electricalTableScrollY,
-  } = useElecCalcTableDimensions({
-    visibleElectricalColumnMetas,
-  });
-
-  const electricalRowClassName = useElecCalcRowClassName({
+    getElectricalGlideCellState,
+    handleElectricalGlideCellAction,
+    handleElectricalGlideCommitCell,
+    handleElectricalGlideLoadMore,
+    handleElectricalGlidePageChange,
+    handleElectricalGlideStartCellEdit,
+    handleElectricalTableChange,
+  } = useElecCalcMainTableController({
     activeRowId,
+    activateRowId,
+    canMutate,
     calcByObjectId: stats.calcByObjectId,
+    candidateEnumOptionsByColumn,
+    effectiveSource,
+    electricalDisplayOffset,
+    electricalGlideEnabled,
+    electricalLayoutMutate,
+    enumOptionsByColumn,
+    fieldCapabilityByKey,
+    filteredCount: electricalPage?.counts?.filtered,
+    getCalculatedCableTypeForObject: cableTypes.getCalculatedCableTypeForObject,
+    getObjectActionDisabledReason,
+    getObjectCalculationDisabledReason,
+    getSavedCableTypeForObject: cableTypes.getSavedCableTypeForObject,
+    hasNextPage: Boolean(pageInfo?.has_next_page),
+    isCableMarkPending,
+    isElectricalPageFetching,
+    loadNextElectricalGlidePage,
+    nextElectricalPageCursor,
+    objects,
+    openCableMarkModal,
+    openCableSizingModal,
+    pageSummary,
+    projectSelected: Boolean(project),
+    recalc,
+    selectedRowKeys: compatibleSelectedRowKeys,
+    setColumnFilter,
+    setTablePage,
+    setTablePageSize,
+    setTableViewState,
+    startColumnResize,
+    resetColumnFilter,
+    tablePage,
+    tablePageSize,
+    tableViewState,
+    visibleCandidateColumnMetas,
+    visibleElectricalColumnMetas,
   });
 
   const {
@@ -788,24 +713,6 @@ export function useElecCalcWorkspaceModel({
     mutateBatch: (args) => batchMut.mutate(args),
     cancelJob: () => cancelJobMut.mutate(),
     calcByObjectId: stats.calcByObjectId,
-  });
-  const {
-    electricalPagination,
-    electricalInfiniteLoading,
-    handleElectricalGlidePageChange,
-    handleElectricalGlideLoadMore,
-  } = useElecCalcTableNavigation({
-    tablePage,
-    tablePageSize,
-    totalObjects,
-    filteredCount: electricalPage?.counts?.filtered,
-    electricalGlideEnabled,
-    loadedObjectsCount: objects.length,
-    hasNextPage: Boolean(pageInfo?.has_next_page),
-    nextElectricalPageCursor,
-    isElectricalPageFetching,
-    setTablePage,
-    loadNextElectricalGlidePage,
   });
   const {
     getElectricalCandidateGlideCellActions,
