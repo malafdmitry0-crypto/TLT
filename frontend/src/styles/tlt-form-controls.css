@@ -1,0 +1,203 @@
+/* Tlt / unit form controls — moved from styles.css (C21) */
+
+.tlt-number-field,
+.tlt-text-field,
+.tlt-select {
+  display: inline-flex;
+  align-items: stretch;
+  min-width: 0;
+  max-width: 100%;
+  vertical-align: top;
+}
+.tlt-number-field__input,
+.tlt-text-field__input,
+.tlt-select__trigger {
+  box-sizing: border-box;
+  height: var(--tlt-field-control-height);
+  min-height: var(--tlt-field-control-height);
+  min-width: 0;
+  padding: 0 var(--tlt-field-control-padding-inline, 3px);
+  color: #1f1f1f;
+  font-size: var(--tlt-field-control-font-size);
+  line-height: calc(var(--tlt-field-control-height) - 2px);
+  background: #fff;
+  border: 1px solid #d9d9d9;
+  border-radius: var(--tlt-field-radius);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+.tlt-number-field__input {
+  font-size: var(--tlt-field-number-font-size, 10px);
+}
+.tlt-number-field__input:hover,
+.tlt-text-field__input:hover,
+.tlt-select__trigger:hover {
+  border-color: #4096ff;
+}
+.tlt-number-field__input:focus,
+.tlt-text-field__input:focus,
+.tlt-select__trigger:focus {
+  border-color: #1f4e69;
+  box-shadow: 0 0 0 2px rgba(31, 78, 105, 0.16);
+}
+.tlt-number-field[data-disabled] .tlt-number-field__input,
+.tlt-text-field[data-disabled] .tlt-text-field__input,
+.tlt-select[data-disabled] .tlt-select__trigger,
+.tlt-number-field__input:disabled,
+.tlt-text-field__input:disabled,
+.tlt-select__trigger:disabled {
+  color: rgba(0, 0, 0, 0.25);
+  background: #f5f5f5;
+  cursor: not-allowed;
+}
+.tlt-number-field[data-required] .tlt-number-field__input,
+.tlt-text-field[data-required] .tlt-text-field__input,
+.tlt-select[data-required] .tlt-select__trigger {
+  box-shadow: inset 2px 0 0 #d48806;
+  background-color: #fffdf6;
+}
+.tlt-number-field[data-invalid] .tlt-number-field__input,
+.tlt-text-field[data-invalid] .tlt-text-field__input,
+.tlt-select[data-invalid] .tlt-select__trigger {
+  border-color: #ff4d4f;
+  background-color: #fff1f0;
+}
+.tlt-number-field__unit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 0;
+  /* Full control height like HeatCalc unit addon (border box matches 26px track) */
+  height: var(--tlt-field-control-height);
+  padding: 0 var(--tlt-field-control-padding-inline, 3px);
+  color: rgba(0, 0, 0, 0.88);
+  font-size: var(--tlt-field-unit-font-size, 9px);
+  line-height: calc(var(--tlt-field-control-height) - 2px);
+  white-space: nowrap;
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid #d9d9d9;
+  border-inline-start: 0;
+  border-radius: 0 var(--tlt-field-radius) var(--tlt-field-radius) 0;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.tlt-number-field[data-disabled] .tlt-number-field__unit {
+  color: #5f6b76;
+  background: rgba(0, 0, 0, 0.04);
+}
+.tlt-select {
+  width: 100%;
+  flex: 1;
+}
+.tlt-select__trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  cursor: pointer;
+  text-align: start;
+}
+.tlt-select__value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--tlt-field-select-font-size);
+  line-height: calc(var(--tlt-field-control-height) - 2px);
+}
+.tlt-select__value[data-placeholder] {
+  color: #595959;
+}
+.tlt-select__arrow {
+  flex: 0 0 auto;
+  width: 0;
+  height: 0;
+  margin-inline-start: 6px;
+  border-inline-start: 4px solid transparent;
+  border-inline-end: 4px solid transparent;
+  border-block-start: 5px solid #9aa8b5;
+}
+.tlt-select__popover {
+  z-index: 1070;
+  min-width: var(--trigger-width);
+  max-height: 260px;
+  overflow: auto;
+  background: #fff;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+.tlt-select__listbox {
+  display: grid;
+  gap: 1px;
+  max-height: inherit;
+  padding: 4px;
+  outline: none;
+}
+.tlt-select__option {
+  min-height: 26px;
+  padding: 4px 8px;
+  color: #1f1f1f;
+  font-size: 13px;
+  line-height: 18px;
+  border-radius: 3px;
+  cursor: pointer;
+  outline: none;
+}
+.tlt-select__option[data-focused],
+.tlt-select__option[data-hovered] {
+  background: #e6f4ff;
+}
+.tlt-select__option[data-selected] {
+  color: #1f4e69;
+  font-weight: 600;
+  background: #edf6fb;
+}
+.tlt-select__option[data-disabled] {
+  color: rgba(0, 0, 0, 0.25);
+  cursor: not-allowed;
+}
+.unit-input-number {
+  display: inline-flex;
+  width: max-content;
+  min-width: 0;
+  vertical-align: top;
+}
+.tlt-number-field__unit,
+.unit-input-number__addon {
+  flex: 0 0 auto;
+}
+.unit-input-number .ant-input-number {
+  border-start-end-radius: 0;
+  border-end-end-radius: 0;
+}
+.unit-input-number .tlt-number-field__input {
+  border-start-end-radius: 0;
+  border-end-end-radius: 0;
+}
+.unit-input-number__addon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 0;
+  height: 32px;
+  padding: 0 11px;
+  color: rgba(0, 0, 0, 0.88);
+  font-size: 14px;
+  line-height: 1;
+  white-space: nowrap;
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid #d9d9d9;
+  border-inline-start: 0;
+  border-radius: 0 6px 6px 0;
+  transition: all 0.2s;
+}
+.unit-input-number .ant-input-number-disabled + .unit-input-number__addon,
+.unit-input-number .ant-input-number[disabled] + .unit-input-number__addon {
+  color: #5f6b76;
+  background: rgba(0, 0, 0, 0.04);
+}
+.ant-form-item-has-error .unit-input-number__addon {
+  border-color: #ff4d4f;
+}

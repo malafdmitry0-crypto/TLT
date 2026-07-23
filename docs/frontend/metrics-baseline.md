@@ -15,7 +15,7 @@
 | `frontend/src/pages/SpecificationPage.tsx` | 1 | re-export |
 | `frontend/src/pages/specification/SpecificationPage.tsx` | 398 | thin shell S3 |
 | `frontend/src/pages/specification/useSpecificationPageModel.ts` | 511 | orchestration |
-| `frontend/src/styles.css` | 2788 | **M4 ✅** ≤3000; C19–C20+C6 (−518 from 3306; −3475 from 6263) |
+| `frontend/src/styles.css` | 1974 | **M4 ✅**; C21 tlt/side/geom (−814 from 2788; −4289 from 6263) |
 
 ```bash
 wc -l frontend/src/pages/ElecCalcPage.tsx \
