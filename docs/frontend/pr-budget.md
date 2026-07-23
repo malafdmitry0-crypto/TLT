@@ -57,7 +57,8 @@ Full strangler prompt: [agent-prompt-ui-kit-strangler.md](./agent-prompt-ui-kit-
 **Не угадывать.** Брать первый `pending` из  
 [autonomous-continuation-plan.md](./autonomous-continuation-plan.md) §3–§4.
 
-Сейчас (2026-07-23): **E8** — Elec cable type options extract (пока Elec > 1200).
+Сейчас: **Track C CSS** (C4 heat-object-fields exact dups) по  
+[agent-prompt-css-strangler.md](./agent-prompt-css-strangler.md).
 
 ## Anti-goals
 

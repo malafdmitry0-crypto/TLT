@@ -27,8 +27,8 @@
 | «один slice» | ровно 1 |
 | «стой» | stop |
 
-Сейчас первый pending: **E8** (Elec cable type options extract).  
-Пока `ElecCalcPage` > 1200 — приоритет Track E.
+**Сейчас (после thin shells):** Track **C** CSS strangler — см. очередь C4+ в плане.  
+Промпт CSS-агента: [agent-prompt-css-strangler.md](./agent-prompt-css-strangler.md).
 
 ## Содержание
 

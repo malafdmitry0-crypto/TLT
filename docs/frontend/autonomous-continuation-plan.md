@@ -76,21 +76,17 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 
 ## 1. Baseline (где мы сейчас)
 
-| Метрика | Значение (2026-07-23) | Цель milestone M2 | Цель M3 (DoD shell) |
-|---|---:|---:|---:|
-| `ElecCalcPage.tsx` | **30** (entry) | — | ≤ 80 |
-| `ElecCalcWorkspace.tsx` | **~1459** | ≤ 1200 | ≤ 500 |
-| `HeatCalcPage.tsx` | **280** | ≤ 700 ✅ | ≤ 500 |
-| `SpecificationPage.tsx` | **1005** | namespace + ≤ 800 | ≤ 500 |
-| `styles.css` | **6777** | ≤ 6777 freeze → ≤ 5500 | ≤ 3000 |
-| inverted `components→pages` | **0** | 0 | 0 |
+| Метрика | Значение (после shell+CSS) | Цель |
+|---|---:|---:|
+| `ElecCalcPage.tsx` | **30** | ≤500 ✅ |
+| `ElecCalcWorkspace.tsx` | **192** | ≤500 ✅ |
+| `HeatCalcPage.tsx` | **280** | ≤500 ✅ |
+| `specification/SpecificationPage.tsx` | **398** | ≤500 ✅ |
+| `styles.css` | **6351** | ≤3000 (M4) |
+| inverted `components→pages` | **0** | 0 ✅ |
+| thick models (Heat/Elec/Spec) | 829 / 1112 / 511 | optional deeper thin |
 
-Уже сделано (не повторять):
-
-- S0 gates, UI kit, parity scripts;
-- domain pure elec models + invert → 0;
-- Heat: reorder, continue→elec, toolbar save, table counts;
-- Elec: assignment selection, object action modals, Glide layout commit.
+**Shell DoD (view) — закрыт.** Следующий фокус: **Track C CSS strangler**.
 
 История slices: [s0-lite-status.md](./s0-lite-status.md).
 
@@ -161,18 +157,34 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | **S3** | `done` | model + SpecPageChrome | page 398 ≤500 | unit+integration 17 |
 | **S4** | `pending` | Report thin if >400 | preview/export wiring | unit |
 
-### Track C — CSS strangler (параллельный, низкий риск)
+### Track C — CSS strangler (первый класс после thin shells)
 
-Можно **1 CSS slice** после каждых **2** shell slices, если styles.css не растёт.
+**Полный промпт/регламент slice:** [agent-prompt-css-strangler.md](./agent-prompt-css-strangler.md)  
+**Стратегия ownership:** [css-strategy.md](./css-strategy.md)
 
-| ID | Статус | Scope | Что | Proof |
-|---|---|---|---|---|
-| **C1** | `done` | heat workspace chrome CSS | styles.css 6777→6583 (−194) | heat basics | heatcalc-workspace.css |
-| **C2** | `done` | elec table footer CSS | styles −25 | smoke | elec-workspace.css |
-| **C3** | `pending` | tokens already? consolidate `--tlt-*` | no new tokens without use | architecture |
-| **C4+** | `pending` | repeat largest blocks | net LOC styles.css < 0 each time | until ≤3000 |
+#### Правила Track C (из agent-prompt)
 
-Budget CSS: **только** move/delete; `styles.css` net ≤ 0.
+1. **Один CSS-slice за раз** — только `styles.css` (delete/split), island/feature CSS только как SoT для сравнения.
+2. Удалять legacy **только** при **доказанном дубле** (все 6 пунктов из agent-prompt §«Что считается доказанным дублем»).
+3. **Mixed selector lists** (Cable + Heat): удалить **только** cable-часть, heat оставить.
+4. Конфликт declarations island vs legacy → **residual**, не трогать.
+5. **Не** redesign; не добавлять `!important` / colors / breakpoints; `styles.css` net LOC **&lt; 0**.
+6. Proof: `test:architecture` + wizard isolation + (желательно) ObjectWizard / UIKit / Heat basics.
+7. Browser proof (kontur/playwright) — по agent-prompt, когда stack доступен; иначе unit/arch + residual note.
+
+#### Очередь CSS slices
+
+| ID | Статус | Scope | Что | Proof | Note |
+|---|---|---|---|---|---|
+| **C1** | `done` | heat workspace move | → `heatcalc-workspace.css` | heat basics | f5e860f |
+| **C2** | `done` | elec table footer move | → `elec-workspace.css` | smoke | 635034c |
+| **C3** | `done` | **CableAlgorithmPanel exact duplicates** | удалить pure + strip mixed cable selectors; residual: hint + @media 720 | architecture + wizard isolation + ObjectWizard | **▶ styles 6559→6351 (−208)** |
+| **C4** | `pending` | Heat dual-form island overlap | exact dups for `heat-object-fields.css` only | arch + heat form | next CSS |
+| **C5** | `pending` | Insulation layers island overlap | exact dups for `insulation-layers-table.css` | arch + wizard | — |
+| **C6** | `pending` | residual cable (hint / media) | only after island absorbs equivalent | arch + browser | — |
+| **C7+** | `pending` | largest remaining legacy blocks | move-to-owner or delete dead | until styles ≤3000 | M4 |
+
+Budget CSS: **только** delete/move; `styles.css` net LOC ≤ 0.
 
 ### Track U — UI kit (не блокирует shell)
 
@@ -187,27 +199,26 @@ Budget CSS: **только** move/delete; `styles.css` net ≤ 0.
 
 ```text
 function nextSlice():
-  if ElecCalcPage.LOC > 1200:
-    return first pending in Track E (E8…E17)
-  if HeatCalcPage.LOC > 700:
-    return first pending in Track H (H8…H12)
-  if Specification not namespaced:
-    return S1
-  if styles.css > 5500 and (shellSlicesSinceLastCss >= 2):
-    return first pending Track C
-  if any pending Track E with Elec > 500:
+  // Shell targets already met (2026-07-23): Heat/Elec/Spec views ≤500.
+  // Default priority after M3 shells: Track C CSS strangler.
+  if styles.css > 3000 and any pending C3..C7:
+    return first pending Track C  // agent-prompt-css-strangler.md
+  if any pending model-thin (Elec model >600, Heat model >600, Spec model >400):
+    return next model-thin slice (optional parallel track)
+  if any pending S4/U*:
     return that
-  if any pending Track H with Heat > 500:
-    return that
-  return first pending S* then C* then U*
+  return first pending Track C residual
 ```
 
 **Исключения (только явная команда пользователя):**
 
-- «делай CSS» → Track C;
-- «делай Heat» → Track H;
+- «делай CSS» / «css strangler» → Track C по [agent-prompt-css-strangler.md](./agent-prompt-css-strangler.md);
+- «делай Heat» → Track H / heat models;
 - «делай Spec» → Track S;
+- «делай Elec» → elec models;
 - «kit» → Track U.
+
+**После thin shells (текущее состояние):** «продолжай» = **Track C** (C4…), до 3 slice/ход.
 
 ---
 
