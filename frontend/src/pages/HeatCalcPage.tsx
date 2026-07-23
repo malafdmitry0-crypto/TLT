@@ -9,7 +9,6 @@ import {
 } from 'react';
 import {
   Alert,
-  Space,
   message as antdMessage,
 } from 'antd';
 import { useQueryClient } from '@tanstack/react-query';
@@ -86,6 +85,7 @@ import { useHeatCalcContinueToElectrical } from '@/pages/heatcalc/useHeatCalcCon
 import { buildHeatCalcTableCounts } from '@/pages/heatcalc/heatCalcTableCountsModel';
 import { buildHeatCalcToolbarSavePresentation } from '@/pages/heatcalc/heatCalcToolbarSavePresentation';
 import { buildHeatCalcLayoutPresentation } from '@/pages/heatcalc/heatCalcLayoutModel';
+import { HeatCalcWorkspaceLayout } from '@/pages/heatcalc/HeatCalcWorkspaceLayout';
 
 const ColumnSettingsModal = lazy(() => import('@/components/heatcalc/ColumnSettingsModal'));
 
@@ -790,21 +790,6 @@ export default function HeatCalcPage() {
     workspaceLayoutStyle,
   } = buildHeatCalcLayoutPresentation(formPlacement, formBlockVisible, sideFormWidthPct);
 
-  function renderSideResizeHandle() {
-    if (!sideResizeVisible) return null;
-    return (
-      <div
-        className="heatcalc-side-resize-handle"
-        role="separator"
-        aria-label="Изменить ширину областей"
-        aria-orientation="vertical"
-        tabIndex={0}
-        onPointerDown={startSideFormResize}
-        onMouseDown={startSideFormMouseResize}
-      />
-    );
-  }
-
   const {
     handleNormalLoadMore,
     handleNormalTablePageChange,
@@ -857,81 +842,72 @@ export default function HeatCalcPage() {
     return <HeatCalcEmptyProjectState />;
   }
 
+  const tablePane = (
+    <>
+      <HeatCalcAssumptionsPanel
+        selectedObject={selectedObject}
+        calculationDetailsSettings={calculationDetailsSettings}
+      />
+      <HeatCalcObjectsTableCard
+        activeObjectScope={activeObjectScope}
+        activeTypeTotalCount={activeTypeTotalCount}
+        columns={tableColumns}
+        currentTableViewActive={currentTableViewActive}
+        dataSource={visibleTableObjects}
+        excelModeEnabled={excelModeEnabled}
+        excelSelectionRange={excelSelectionRange}
+        fontSizeKey={resolvedTableFontSize.key}
+        glideColumns={glideGridColumns}
+        normalInfiniteLoading={normalInfiniteLoading}
+        normalPagination={normalTablePagination}
+        activeTableViewState={effectiveActiveTableViewState}
+        selectedExcelPosition={selectedExcelPosition}
+        selectedExcelRowIndex={selectedExcelPosition?.rowIndex ?? null}
+        selectedRowKeys={selectedRowKeys}
+        tableScrollX={tableScrollX}
+        tableScrollY={tableScrollY}
+        activeRowId={selectedRowId ?? null}
+        onExcelRowSecondaryAction={openExcelRecordContextMenu}
+        onExcelReachScrollEnd={extendExcelInputRowsOnScroll}
+        onExcelSetRangeSelection={setExcelRangeSelection}
+        onGlideCellCommit={commitInlineCell}
+        onGlideCellState={getGlideGridCellState}
+        onGlideCellStartEdit={startInlineCellEdit}
+        onGlideColumnResize={handleGlideColumnResize}
+        onGlideColumnResizeEnd={handleGlideColumnResizeEnd}
+        onNormalGlideCellState={getNormalGlideGridCellState}
+        onNormalSetColumnFilter={setColumnFilter}
+        onNormalResetColumnFilter={resetColumnFilter}
+        onNormalSetSort={handleNormalTableSortChange}
+        onNormalLoadMore={handleNormalLoadMore}
+        onNormalPageChange={handleNormalTablePageChange}
+        onRegisterNormalDraftInvalidator={registerNormalGridDraftInvalidator}
+        onOpenEditWizard={openEditWizard}
+        onResetCurrentTableViewState={resetCurrentTableViewState}
+        onSelectedRowKeysChange={setSelectedRowKeys}
+        onRowMoved={excelModeEnabled ? undefined : handleObjectsRowMoved}
+        rowClassName={tableRowClassName}
+      />
+    </>
+  );
+
   return (
     <>
-      <div className="heatcalc-workspace-shell">
-        <HeatCalcSelectedRowErrorsOverlay messages={selectedRowErrorMessages} />
-        <Space direction="vertical" size={5} style={{ width: '100%' }}>
-          {!isSideFormPlacement && renderTypeBar()}
-
-          {formPlacement === 'top' && formPanel}
-
-          {!isSideFormPlacement && renderActionsBar()}
-          {!isSideFormPlacement && renderHeatLossJobAlert()}
-
-          <div
-            ref={sideWorkspaceRef}
-            className={`heatcalc-workspace-layout heatcalc-workspace-layout--${formPlacement}`}
-            style={workspaceLayoutStyle}
-          >
-            {formPlacement === 'left' && formPanel}
-            {formPlacement === 'left' && renderSideResizeHandle()}
-            <div className="heatcalc-table-pane">
-              {isSideFormPlacement && renderTypeBar()}
-              {isSideFormPlacement && renderActionsBar()}
-              {isSideFormPlacement && renderHeatLossJobAlert()}
-              <HeatCalcAssumptionsPanel
-                selectedObject={selectedObject}
-                calculationDetailsSettings={calculationDetailsSettings}
-              />
-
-              <HeatCalcObjectsTableCard
-                activeObjectScope={activeObjectScope}
-                activeTypeTotalCount={activeTypeTotalCount}
-                columns={tableColumns}
-                currentTableViewActive={currentTableViewActive}
-                dataSource={visibleTableObjects}
-                excelModeEnabled={excelModeEnabled}
-                excelSelectionRange={excelSelectionRange}
-                fontSizeKey={resolvedTableFontSize.key}
-                glideColumns={glideGridColumns}
-                normalInfiniteLoading={normalInfiniteLoading}
-                normalPagination={normalTablePagination}
-                activeTableViewState={effectiveActiveTableViewState}
-                selectedExcelPosition={selectedExcelPosition}
-                selectedExcelRowIndex={selectedExcelPosition?.rowIndex ?? null}
-                selectedRowKeys={selectedRowKeys}
-                tableScrollX={tableScrollX}
-                tableScrollY={tableScrollY}
-                activeRowId={selectedRowId ?? null}
-                onExcelRowSecondaryAction={openExcelRecordContextMenu}
-                onExcelReachScrollEnd={extendExcelInputRowsOnScroll}
-                onExcelSetRangeSelection={setExcelRangeSelection}
-                onGlideCellCommit={commitInlineCell}
-                onGlideCellState={getGlideGridCellState}
-                onGlideCellStartEdit={startInlineCellEdit}
-                onGlideColumnResize={handleGlideColumnResize}
-                onGlideColumnResizeEnd={handleGlideColumnResizeEnd}
-                onNormalGlideCellState={getNormalGlideGridCellState}
-                onNormalSetColumnFilter={setColumnFilter}
-                onNormalResetColumnFilter={resetColumnFilter}
-                onNormalSetSort={handleNormalTableSortChange}
-                onNormalLoadMore={handleNormalLoadMore}
-                onNormalPageChange={handleNormalTablePageChange}
-                onRegisterNormalDraftInvalidator={registerNormalGridDraftInvalidator}
-                onOpenEditWizard={openEditWizard}
-                onResetCurrentTableViewState={resetCurrentTableViewState}
-                onSelectedRowKeysChange={setSelectedRowKeys}
-                onRowMoved={excelModeEnabled ? undefined : handleObjectsRowMoved}
-                rowClassName={tableRowClassName}
-              />
-            </div>
-            {formPlacement === 'right' && renderSideResizeHandle()}
-            {formPlacement === 'right' && formPanel}
-          </div>
-          {formPlacement === 'bottom' && formPanel}
-        </Space>
-      </div>
+      <HeatCalcWorkspaceLayout
+        formPlacement={formPlacement}
+        isSideFormPlacement={isSideFormPlacement}
+        sideResizeVisible={sideResizeVisible}
+        workspaceLayoutStyle={workspaceLayoutStyle}
+        sideWorkspaceRef={sideWorkspaceRef}
+        typeBar={renderTypeBar()}
+        actionsBar={renderActionsBar()}
+        jobAlert={renderHeatLossJobAlert()}
+        formPanel={formPanel}
+        tablePane={tablePane}
+        errorsOverlay={<HeatCalcSelectedRowErrorsOverlay messages={selectedRowErrorMessages} />}
+        onSideResizePointerDown={startSideFormResize}
+        onSideResizeMouseDown={startSideFormMouseResize}
+      />
 
       <HeatCalcExcelContextMenu
         excelModeEnabled={excelModeEnabled}
