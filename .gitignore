@@ -82,3 +82,4 @@ playwright/.cache/
 
 # QA agent generated reports
 qa-agent/reports/
+frontend/storybook-static/

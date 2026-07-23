@@ -6,6 +6,19 @@ uses it as the reference showcase. The HeatCalc wide dual-form
 `CompactFieldGrid` + `antFormAdapter`; its island CSS keeps only the column
 reflow and per-field `--tlt-compact-control-width` overrides.
 
+## Storybook
+
+Каталог public primitives без feature/API:
+
+```bash
+cd frontend
+npm run storybook          # http://127.0.0.1:6006
+npm run build-storybook    # static → storybook-static/
+```
+
+Preview mirrors app runtime: `tokens.css` + `StyleProvider hashPriority="low"` +
+`ConfigProvider`/`appTheme`. Stories live in `*.stories.tsx` next to kit components.
+
 ## Public API
 
 Import components only from the barrel:

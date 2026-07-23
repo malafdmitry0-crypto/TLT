@@ -19,7 +19,19 @@ frontend/src/components/ui-kit/
   primitives.css
   index.ts          # public API
   README.md
+  *.stories.tsx     # Storybook (UI-kit only)
 ```
+
+### Storybook
+
+```bash
+cd frontend
+npm run storybook          # http://127.0.0.1:6006
+npm run build-storybook    # → storybook-static/
+```
+
+Preview: `tokens.css` + `StyleProvider hashPriority="low"` + `ConfigProvider`/`appTheme`.
+Только public kit; feature Heat/Elec/Spec stories — отдельные slices.
 
 ### Public API (import only from barrel)
 

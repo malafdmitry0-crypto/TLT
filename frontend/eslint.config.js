@@ -24,6 +24,8 @@ export default [
       'eslint.config.js',
       'scripts/**',
       'public/**',
+      'storybook-static/**',
+      '.storybook/**',
     ],
   },
   js.configs.recommended,
