@@ -137,7 +137,7 @@
 }
 
 .tlt-compact-field__message {
-  color: #ff4d4f;
+  color: var(--color-danger);
 }
 
 .tlt-compact-field__control > *,
@@ -273,8 +273,8 @@
 .tlt-compact-field--error .ant-input-number,
 .tlt-compact-field--error .ant-select-selector,
 .tlt-compact-field--error .reference-picker-control {
-  border-color: #ff4d4f;
-  background-color: #fff1f0;
+  border-color: var(--color-danger);
+  background-color: var(--color-danger-bg);
 }
 
 /* Ant Form adapter: makes existing feature forms follow CompactField. */

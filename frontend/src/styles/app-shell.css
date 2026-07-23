@@ -12,7 +12,7 @@
 /* App header / primary nav shell — moved from styles.css (C15) */
 
 .heatcalc-header {
-  background: #fff;
+  background: var(--color-surface);
   color: #213244;
   height: auto;
   line-height: 1;
@@ -224,7 +224,7 @@
 .heatcalc-content {
   flex: 1;
   padding: 16px;
-  background: #ffffff;
+  background: var(--color-surface);
 }
 .heatcalc-content {
   padding: 2px 6px 8px;

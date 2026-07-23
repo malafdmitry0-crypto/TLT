@@ -108,7 +108,7 @@
   grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 6px 10px;
   padding-top: 8px;
-  border-top: 1px solid #dbe6f2;
+  border-top: 1px solid var(--heatcalc-panel-border);
 }
 
 .inline-object-form--side .side-compact-insulation .insulation-settings-row,
@@ -144,7 +144,7 @@
 .inline-object-form--side .side-compact-insulation .insulation-layers-header {
   border: 1px solid #d8e4f1;
   background: #f5f8fc;
-  color: #53667b;
+  color: var(--tlt-field-label-color);
   font-size: 11px;
   font-weight: 650;
 }
@@ -352,7 +352,7 @@
   max-width: 100%;
   min-width: 0;
   padding: 4px 5px 5px;
-  border: 1px solid #dbe6f2;
+  border: 1px solid var(--heatcalc-panel-border);
   border-radius: 5px;
   background: #fbfdff;
   box-sizing: border-box;

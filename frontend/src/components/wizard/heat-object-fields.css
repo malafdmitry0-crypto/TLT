@@ -22,7 +22,7 @@
   --dual-form-banner-size: 9px;
   --dual-form-label-size: var(--tlt-field-label-font-size, 8.5px);
   --dual-form-label-line-height: var(--tlt-field-label-line-height, 1);
-  --dual-form-label-color: var(--tlt-field-label-color, #53667b);
+  --dual-form-label-color: var(--tlt-field-label-color, var(--tlt-field-label-color));
   --dual-form-control-height: var(--tlt-field-control-height, 26px);
   --dual-form-control-font: var(--tlt-field-control-font-size, 12px);
   --dual-form-hint-size: 10px;

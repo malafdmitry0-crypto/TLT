@@ -20,7 +20,7 @@
   box-sizing: border-box;
   padding: 5px 10px;
   border: 1px solid #ffccc7;
-  border-left: 4px solid #ff4d4f;
+  border-left: 4px solid var(--color-danger);
   border-radius: 6px;
   background: rgb(255 241 240 / 96%);
   box-shadow: 0 8px 20px rgb(92 0 17 / 12%);

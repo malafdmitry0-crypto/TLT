@@ -15,7 +15,7 @@
   /* HARD RULE 2: labels compact — same as heat dual-form */
   --dual-form-label-size: 8.5px;
   --dual-form-label-line-height: 1.0;
-  --dual-form-label-color: #53667b;
+  --dual-form-label-color: var(--tlt-field-label-color);
   --dual-form-control-height: 26px;
   --dual-form-control-font: 12px;
   --dual-form-hint-size: 10px;
@@ -166,7 +166,7 @@
   grid-template-columns: minmax(0, 1fr);
   gap: 8px 0;
   padding: 8px 10px 10px;
-  background: #fff;
+  background: var(--color-surface);
   border: 1px solid #f0c9b0;
   border-top: 0;
   border-radius: 0 0 7px 7px;

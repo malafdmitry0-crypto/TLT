@@ -109,7 +109,7 @@
   -webkit-overflow-scrolling: touch;
   border: 1px solid #e6edf5;
   border-radius: 8px;
-  background: #f8fafc;
+  background: var(--color-surface-soft);
   padding: 3px;
 }
 
@@ -129,11 +129,11 @@
 
 .electrical-variant-tab:hover {
   color: #1677ff;
-  background: #fff;
+  background: var(--color-surface);
 }
 
 .electrical-variant-tab--active {
-  background: #fff;
+  background: var(--color-surface);
   color: #1677ff;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
 }
@@ -304,7 +304,7 @@
 
 .electrical-system-scope {
   padding: 10px 12px 12px;
-  background: #fff;
+  background: var(--color-surface);
   border: 1px solid #e6edf5;
   border-radius: 10px;
 }
@@ -337,7 +337,7 @@
   border-radius: 10px;
   font-size: 11px;
   background: #1677ff;
-  color: #fff;
+  color: var(--color-surface);
   line-height: 1.5;
 }
 
@@ -406,7 +406,7 @@
 }
 
 .assignment-drop-zone[data-disabled='true'] .assignment-drop-zone__hint {
-  color: #bfbfbf;
+  color: var(--heatcalc-table-outer-border);
 }
 
 .assignment-drop-zone[data-over='true'] {
@@ -776,7 +776,7 @@
 
 .electrical-cable-sizing-table .ant-table-tbody > tr.electrical-cable-sizing-table__row--error > td,
 .electrical-cable-sizing-table .ant-table-tbody > tr.electrical-cable-sizing-table__row--error:hover > td {
-  background: #fff1f0;
+  background: var(--color-danger-bg);
 }
 
 .electrical-cable-sizing-table .ant-table-tbody > tr.electrical-cable-sizing-table__row--compared > td {
@@ -842,7 +842,7 @@
 }
 
 .electrical-cable-sizing-table .ant-table-cell-fix-left {
-  background: #fff;
+  background: var(--color-surface);
 }
 
 .electrical-candidate-spreadsheet--glide {
@@ -869,8 +869,8 @@
 .electrical-candidate-glide-action-menu {
   position: absolute;
   min-width: 160px;
-  background: #fff;
-  border: 1px solid #d9d9d9;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.14);
   z-index: 8;
 }
@@ -901,7 +901,7 @@
 }
 
 .electrical-spreadsheet .electrical-row-active.row-invalid > td {
-  background: #fff1f0;
+  background: var(--color-danger-bg);
 }
 
 @media (max-width: 900px) {

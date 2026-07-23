@@ -46,7 +46,7 @@
   grid-template-columns: var(--ins-cols);
   width: 100%;
   min-width: 0;
-  color: #53667b;
+  color: var(--tlt-field-label-color);
   background: #f4f7fa;
   border: 1px solid #d1dce8;
   border-radius: 5px 5px 0 0;
@@ -93,7 +93,7 @@
   padding: 0;
   border: 1px solid #c5d4e4;
   border-radius: 3px;
-  background: #fff;
+  background: var(--color-surface);
   color: #214c78;
   font-size: 10px;
   line-height: 1;
@@ -116,13 +116,13 @@
 
 .insulation-layers-table .insulation-layer-remove-btn {
   border-color: #f0c9c9;
-  color: #a8071a;
+  color: var(--color-danger-text);
 }
 
 .insulation-layers-table .insulation-layer-remove-btn:hover:not(:disabled) {
-  border-color: #ff4d4f;
+  border-color: var(--color-danger);
   color: #cf1322;
-  background: #fff1f0;
+  background: var(--color-danger-bg);
 }
 
 .insulation-layers-table .insulation-layer-index-wrap {
@@ -167,7 +167,7 @@
   gap: 0;
   flex: none;
   flex-wrap: nowrap;
-  background: #fff;
+  background: var(--color-surface);
   border: 1px solid #d1dce8;
   border-top: 0;
   border-radius: 0;

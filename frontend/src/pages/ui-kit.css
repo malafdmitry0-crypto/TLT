@@ -1,18 +1,18 @@
 .uikit-page {
   --ui-ink: #213244;
-  --ui-ink-muted: #53667b;
+  --ui-ink-muted: var(--tlt-field-label-color);
   /* Акценты = палитра приложения: --color-primary / --color-primary-light,
      семантические цвета тегов HeatCalc */
-  --ui-blue: #1a5276;
-  --ui-blue-strong: #2e86c1;
-  --ui-blue-soft: #eef7ff;
-  --ui-panel: #fff;
+  --ui-blue: var(--color-primary);
+  --ui-blue-strong: var(--color-primary-light);
+  --ui-blue-soft: var(--color-info-soft);
+  --ui-panel: var(--color-surface);
   --ui-shell: #f8fbfd;
-  --ui-border: #dbe6f2;
-  --ui-border-strong: #c4d2db;
+  --ui-border: var(--heatcalc-panel-border);
+  --ui-border-strong: var(--heatcalc-toolbar-divider);
   --ui-success: #1f6f3e;
   --ui-warning: #d46b08;
-  --ui-danger: #d9363e;
+  --ui-danger: var(--color-danger-border);
   --ui-control: var(--tlt-field-control-height);
   min-height: 100vh;
   background: var(--ui-shell);
@@ -57,7 +57,7 @@
   justify-content: space-between;
   gap: 12px;
   padding: 7px 10px;
-  background: #fff;
+  background: var(--color-surface);
   color: var(--ui-ink);
   border-bottom: 1px solid #dfe7f1;
   box-shadow: 0 1px 5px rgb(20 42 68 / 7%);
@@ -78,7 +78,7 @@
   height: 28px;
   border: 1px solid #bcd8f1;
   border-radius: 5px;
-  background: #eef7ff;
+  background: var(--color-info-soft);
   color: var(--ui-blue-strong);
   font-size: 14px;
 }
@@ -113,7 +113,7 @@
 }
 
 .uikit-header .ant-btn {
-  border-color: #c4d2db;
+  border-color: var(--heatcalc-toolbar-divider);
   color: #213244;
   box-shadow: none;
 }
@@ -132,7 +132,7 @@
   min-height: calc(100vh - 44px);
   padding: 18px 10px;
   border-right: 1px solid var(--ui-border);
-  background: #fff;
+  background: var(--color-surface);
 }
 
 .uikit-nav__label {
@@ -189,7 +189,7 @@
   padding: 10px 12px;
   border: 1px solid var(--ui-border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--color-surface);
 }
 
 .uikit-kicker {
@@ -278,7 +278,7 @@
   padding: 4px 8px 4px 4px;
   border: 1px solid var(--ui-border);
   border-radius: 6px;
-  background: #fff;
+  background: var(--color-surface);
   color: var(--ui-ink);
   text-align: left;
   cursor: pointer;
@@ -302,7 +302,7 @@
 
 .uikit-swatch__color--primary { background: var(--ui-blue); }
 .uikit-swatch__color--link { background: var(--ui-blue-strong); }
-.uikit-swatch__color--label { background: #53667b; }
+.uikit-swatch__color--label { background: var(--tlt-field-label-color); }
 .uikit-swatch__color--green { background: var(--ui-success); }
 .uikit-swatch__color--amber { background: var(--ui-warning); }
 .uikit-swatch__color--red { background: var(--ui-danger); }
@@ -342,7 +342,7 @@
 .uikit-empty {
   border: 1px solid var(--ui-border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--color-surface);
 }
 
 .uikit-specimen,
@@ -531,7 +531,7 @@
   --tlt-field-gap: 4px;
   border: 1px solid var(--ui-border);
   border-radius: 2px;
-  background: #fff;
+  background: var(--color-surface);
   width: max-content;
   max-width: 100%;
 }
@@ -585,7 +585,7 @@
 .uikit-status--info {
   border-color: #bcd8f1;
   background: var(--ui-blue-soft);
-  color: #1a5276;
+  color: var(--color-primary);
 }
 
 .uikit-status--info::before { background: var(--ui-blue-strong); }
@@ -610,8 +610,8 @@
 
 .uikit-status--danger {
   border-color: #ffa39e;
-  background: #fff1f0;
-  color: #d9363e;
+  background: var(--color-danger-bg);
+  color: var(--color-danger-border);
 }
 
 .uikit-status--danger::before { background: var(--ui-danger); }
@@ -651,7 +651,7 @@
   border: 1px solid var(--ui-border);
   border-bottom: 0;
   border-radius: 8px 8px 0 0;
-  background: #fff;
+  background: var(--color-surface);
   overflow: hidden;
 }
 
@@ -695,7 +695,7 @@
   overflow-x: auto;
   border: 1px solid var(--ui-border);
   border-radius: 0 0 8px 8px;
-  background: #fff;
+  background: var(--color-surface);
 }
 
 .uikit-table {
@@ -708,7 +708,7 @@
 .uikit-table th {
   padding: 6px 8px;
   border-bottom: 1px solid var(--ui-border);
-  background: #f4f8fa;
+  background: var(--heatcalc-toolbar-background);
   color: #52667b;
   font-size: 9px;
   font-weight: 700;
@@ -822,7 +822,7 @@
   padding: 16px;
   border: 1px solid var(--ui-border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--color-surface);
 }
 
 .uikit-loading span {
@@ -888,7 +888,7 @@
   padding: 6px;
   border: 1px solid var(--heatcalc-panel-border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--color-surface);
   box-shadow: 0 1px 4px rgb(20 42 68 / 5%);
 }
 
@@ -984,10 +984,10 @@
   align-items: center;
   gap: 3px;
   padding: 0 4px;
-  border: 1px solid #d9d9d9;
+  border: 1px solid var(--color-border);
   border-radius: var(--tlt-field-radius);
-  background: #fff;
-  color: #1f1f1f;
+  background: var(--color-surface);
+  color: var(--color-text);
   box-sizing: border-box;
   cursor: pointer;
   outline: none;
@@ -1014,7 +1014,7 @@
 }
 
 .uikit-page .reference-picker-placeholder {
-  color: #595959;
+  color: var(--color-text-secondary);
 }
 
 .uikit-page .reference-picker-icon,
@@ -1155,7 +1155,7 @@
     overflow-x: auto;
     border-right: 0;
     border-bottom: 1px solid var(--ui-border);
-    background: #fff;
+    background: var(--color-surface);
   }
 
   .uikit-nav__label,

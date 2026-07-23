@@ -1,13 +1,13 @@
 :root {
-  --tlt-ui-primary: var(--color-primary, #1a5276);
-  --tlt-ui-primary-strong: var(--color-primary-light, #2e86c1);
+  --tlt-ui-primary: var(--color-primary);
+  --tlt-ui-primary-strong: var(--color-primary-light);
   --tlt-ui-ink: #213244;
   --tlt-ui-muted: #63758b;
-  --tlt-ui-border: #dbe6f2;
-  --tlt-ui-border-strong: #c4d2db;
-  --tlt-ui-surface: #fff;
-  --tlt-ui-surface-soft: #f4f8fa;
-  --tlt-ui-info: #2e86c1;
+  --tlt-ui-border: var(--heatcalc-panel-border);
+  --tlt-ui-border-strong: var(--heatcalc-toolbar-divider);
+  --tlt-ui-surface: var(--color-surface);
+  --tlt-ui-surface-soft: var(--heatcalc-toolbar-background);
+  --tlt-ui-info: var(--color-primary-light);
   --tlt-ui-success: #1f6f3e;
   --tlt-ui-warning: #b76e00;
   --tlt-ui-danger: #c53030;
@@ -73,7 +73,7 @@
 .tlt-ui-button--primary {
   border-color: var(--tlt-ui-primary);
   background: var(--tlt-ui-primary);
-  color: #fff;
+  color: var(--color-surface);
 }
 
 .tlt-ui-button--primary:hover:not(:disabled) {
@@ -97,19 +97,19 @@
 }
 
 .tlt-ui-button--ghost:hover:not(:disabled) {
-  background: #eef7ff;
+  background: var(--color-info-soft);
   box-shadow: none;
 }
 
 .tlt-ui-button--danger {
   border-color: #e58b8b;
-  background: #fff;
+  background: var(--color-surface);
   color: var(--tlt-ui-danger);
 }
 
 .tlt-ui-button--danger:hover:not(:disabled) {
   border-color: var(--tlt-ui-danger);
-  background: #fff1f0;
+  background: var(--color-danger-bg);
 }
 
 .tlt-ui-button--link {
@@ -191,8 +191,8 @@
 
 .tlt-ui-badge--info {
   border-color: #bcd8f1;
-  background: #eef7ff;
-  color: #1a5276;
+  background: var(--color-info-soft);
+  color: var(--color-primary);
 }
 
 .tlt-ui-badge--info::before { background: var(--tlt-ui-info); }
@@ -215,7 +215,7 @@
 
 .tlt-ui-badge--danger {
   border-color: #ffa39e;
-  background: #fff1f0;
+  background: var(--color-danger-bg);
   color: var(--tlt-ui-danger);
 }
 
@@ -288,8 +288,8 @@
   padding: 8px 10px;
   border: 1px solid #bcd8f1;
   border-radius: var(--tlt-ui-radius);
-  background: #eef7ff;
-  color: #1a5276;
+  background: var(--color-info-soft);
+  color: var(--color-primary);
   font-size: 10px;
   line-height: 1.35;
 }
@@ -308,8 +308,8 @@
 
 .tlt-ui-alert--danger {
   border-color: #ffa39e;
-  background: #fff1f0;
-  color: #a8071a;
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text);
 }
 
 .tlt-ui-alert__marker {
@@ -457,7 +457,7 @@
 }
 
 .tlt-ui-table tbody tr.tlt-ui-table__row--selected {
-  background: #eef7ff;
+  background: var(--color-info-soft);
   box-shadow: inset 3px 0 var(--tlt-ui-primary-strong);
 }
 

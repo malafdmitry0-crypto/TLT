@@ -82,13 +82,13 @@
 .spec-section-collapse > .ant-collapse-item > .ant-collapse-header {
   padding: 8px 4px;
   align-items: center;
-  color: #1a5276;
+  color: var(--color-primary);
   font-weight: 600;
   font-size: 13px;
 }
 
 .spec-section-collapse > .ant-collapse-item > .ant-collapse-header .ant-collapse-arrow {
-  color: #1a5276;
+  color: var(--color-primary);
   font-size: 11px;
 }
 

@@ -1,7 +1,7 @@
 /* Shared form-grid / inline-form shell — used by Heat, Elec params, UIKit (C18) */
 
 .inline-form-srs {
-  background: #fff;
+  background: var(--color-surface);
   border: 1px solid var(--heatcalc-panel-border);
   border-radius: 7px;
   box-shadow: 0 1px 4px rgb(20 42 68 / 5%);
@@ -19,9 +19,9 @@
   gap: 2px;
 }
 .form-grid-srs--merged {
-  border: 1px solid #dbe6f2;
+  border: 1px solid var(--heatcalc-panel-border);
   border-radius: 0 0 7px 7px;
-  background: #fff;
+  background: var(--color-surface);
 }
 .form-grid-srs--merged .form-col-srs {
   border: 0;
@@ -42,9 +42,9 @@
   gap: 2px 4px;
   min-width: var(--field-pair-min-width);
   overflow: hidden;
-  border: 1px solid #dbe6f2;
+  border: 1px solid var(--heatcalc-panel-border);
   border-radius: 7px;
-  background: #fff;
+  background: var(--color-surface);
   padding: 3px 3px 2px;
   flex: none;
 }
@@ -122,7 +122,7 @@
   letter-spacing: 0;
   padding: 2px 6px;
   background: #f8fbff;
-  border-bottom: 1px solid #dbe6f2;
+  border-bottom: 1px solid var(--heatcalc-panel-border);
 }
 .form-col-srs h4::before {
   content: attr(data-step);
@@ -134,7 +134,7 @@
   height: 14px;
   border-radius: 999px;
   background: #2457d6;
-  color: #fff;
+  color: var(--color-surface);
   font-size: 8px;
   font-weight: 700;
   line-height: 1;

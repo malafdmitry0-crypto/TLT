@@ -126,7 +126,7 @@
   font-weight: 600;
 }
 .actionbar-srs .action-secondary-button {
-  background: #fff;
+  background: var(--color-surface);
 }
 .actionbar-srs .action-save-button .ant-btn-icon,
 .actionbar-srs .action-add-button .ant-btn-icon,
@@ -148,7 +148,7 @@
 .actionbar-srs .action-icon-button.save:not(:disabled),
 .actionbar-srs .action-save-button.save:not(:disabled) {
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-surface);
   border-color: var(--color-primary);
 }
 .actionbar-srs .action-icon-button.save:not(:disabled),
@@ -165,13 +165,13 @@
 .actionbar-srs .action-icon-button:focus-visible,
 .actionbar-srs .action-add-button:focus-visible,
 .actionbar-srs .action-secondary-button:focus-visible {
-  outline: 2px solid #2e86c1;
+  outline: 2px solid var(--color-primary-light);
   outline-offset: 1px;
 }
 .actionbar-srs .sep {
   width: 1px;
   height: 18px;
-  background: #c4d2db;
+  background: var(--heatcalc-toolbar-divider);
   margin: 0 3px;
 }
 .actionbar-mode-tag {

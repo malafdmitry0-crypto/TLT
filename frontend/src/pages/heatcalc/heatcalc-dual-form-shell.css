@@ -168,8 +168,8 @@
   overflow: visible;
   /* Match right cable card padding/type density */
   padding: 8px 10px 10px;
-  background: #fff;
-  border: 1px solid #dbe6f2;
+  background: var(--color-surface);
+  border: 1px solid var(--heatcalc-panel-border);
   border-top: 0;
   border-radius: 0 0 7px 7px;
 }
