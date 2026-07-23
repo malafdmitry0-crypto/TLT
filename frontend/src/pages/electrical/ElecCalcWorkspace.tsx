@@ -17,6 +17,7 @@ import {
   useElecCalcWorkspaceModel,
   type ElecCalcWorkspaceProps,
 } from '@/pages/electrical/useElecCalcWorkspaceModel';
+import './elec-workspace.css';
 
 const ElectricalGlideGrid = lazy(() => import('@/components/electrical/ElectricalGlideGrid'));
 

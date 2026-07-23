@@ -134,7 +134,7 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | **E17** | `done` | useElecCalcWorkspaceModel | workspace view 191 ≤500 | smoke | model ~1112 |
 
 **Метрика shell:** `ElecCalcPage` = **30**. `ElecCalcWorkspace` = **1194** (M1 workspace ✅).  
-**Текущий пункт:** **C2** elec CSS / residual
+**Текущий пункт:** residual C3+/S4/models deeper thin
 
 ### Track H — Heat
 
@@ -168,7 +168,7 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | ID | Статус | Scope | Что | Proof |
 |---|---|---|---|---|
 | **C1** | `done` | heat workspace chrome CSS | styles.css 6777→6583 (−194) | heat basics | heatcalc-workspace.css |
-| **C2** | `pending` | move elec workspace chrome | `elec-*.css` | smoke |
+| **C2** | `done` | elec table footer CSS | styles −25 | smoke | elec-workspace.css |
 | **C3** | `pending` | tokens already? consolidate `--tlt-*` | no new tokens without use | architecture |
 | **C4+** | `pending` | repeat largest blocks | net LOC styles.css < 0 each time | until ≤3000 |
 

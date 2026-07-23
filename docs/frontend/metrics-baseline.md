@@ -15,7 +15,7 @@
 | `frontend/src/pages/SpecificationPage.tsx` | 1 | re-export |
 | `frontend/src/pages/specification/SpecificationPage.tsx` | 398 | thin shell S3 |
 | `frontend/src/pages/specification/useSpecificationPageModel.ts` | 511 | orchestration |
-| `frontend/src/styles.css` | 6583 | freeze; heat workspace extracted |
+| `frontend/src/styles.css` | 6559 | freeze; heat+elec CSS extracted |
 
 ```bash
 wc -l frontend/src/pages/ElecCalcPage.tsx \
