@@ -3,6 +3,7 @@
  * @owner heat
  * Orchestration bag for HeatCalcPage shell (hooks + derived state).
  * Workspace query/drafts/data lifecycle: useHeatCalcWorkspaceDataModel (HEAT1).
+ * Grid/excel/selection interaction: useHeatCalcInteractionController (HEAT2).
  */
 import {
   useCallback,
@@ -11,52 +12,35 @@ import {
   useRef,
   useState,
 } from 'react';
-import {
-  message as antdMessage,
-} from 'antd';
+import { message as antdMessage } from 'antd';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 
 import { areCommercialFeaturesEnabled } from '@/config/featureFlags';
+import { useFocusableTableScrollRegions } from '@/hooks/useFocusableTableScrollRegions';
+import { useHeatCalcBulkActions } from '@/pages/heatcalc/useHeatCalcBulkActions';
+import { useHeatCalcColumnSettingsDialog } from '@/pages/heatcalc/useHeatCalcColumnSettingsDialog';
+import { useHeatCalcContinueToElectrical } from '@/pages/heatcalc/useHeatCalcContinueToElectrical';
+import {
+  useHeatCalcExcelInteractionState,
+} from '@/pages/heatcalc/useHeatCalcExcelInteractionModel';
+import { useHeatCalcHeatLossJob } from '@/pages/heatcalc/useHeatCalcHeatLossJob';
+import { useHeatCalcInteractionController } from '@/pages/heatcalc/useHeatCalcInteractionController';
+import { useHeatCalcObjectEditor } from '@/pages/heatcalc/useHeatCalcObjectEditor';
+import { useHeatCalcPreferences } from '@/pages/heatcalc/useHeatCalcPreferences';
+import { useHeatCalcRouteActionsModel } from '@/pages/heatcalc/useHeatCalcRouteActionsModel';
+import { useHeatCalcRouteShellEffects } from '@/pages/heatcalc/useHeatCalcRouteShellEffects';
+import { useHeatCalcTableState } from '@/pages/heatcalc/useHeatCalcTableState';
+import { useHeatCalcWizardFormShellModel } from '@/pages/heatcalc/useHeatCalcWizardFormShellModel';
+import { useHeatCalcWorkspaceDataModel } from '@/pages/heatcalc/useHeatCalcWorkspaceDataModel';
+import { buildHeatCalcLayoutPresentation } from '@/pages/heatcalc/heatCalcLayoutModel';
+import { buildHeatCalcToolbarSavePresentation } from '@/pages/heatcalc/heatCalcToolbarSavePresentation';
+import type { HeatCalcToolbarEditingMode } from '@/pages/heatcalc/HeatCalcToolbar';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useWorkspaceHeaderStore } from '@/store/workspaceHeaderStore';
-import { useFocusableTableScrollRegions } from '@/hooks/useFocusableTableScrollRegions';
-import {
-  useHeatCalcObjectEditor,
-} from '@/pages/heatcalc/useHeatCalcObjectEditor';
-import { useHeatCalcPreferences } from '@/pages/heatcalc/useHeatCalcPreferences';
-import {
-  useHeatCalcTableColumns,
-} from '@/hooks/useHeatCalcTableColumns';
 import type { ProjectObject } from '@/types/project';
-import {
-  getDefaultFieldInputSettings,
-} from '@/utils/heatCalcFieldInputSettings';
-import {
-  type HeatCalcToolbarEditingMode,
-} from '@/pages/heatcalc/HeatCalcToolbar';
-import {
-  useHeatCalcTableState,
-} from '@/pages/heatcalc/useHeatCalcTableState';
-import { useHeatCalcColumnSettingsDialog } from '@/pages/heatcalc/useHeatCalcColumnSettingsDialog';
-import { useHeatCalcGridModel } from '@/pages/heatcalc/useHeatCalcGridModel';
-import { useHeatCalcBulkActions } from '@/pages/heatcalc/useHeatCalcBulkActions';
-import { useHeatCalcHeatLossJob } from '@/pages/heatcalc/useHeatCalcHeatLossJob';
-import { useHeatCalcResizeModel } from '@/pages/heatcalc/useHeatCalcResizeModel';
-import {
-  useHeatCalcExcelInteractionModel,
-  useHeatCalcExcelInteractionState,
-} from '@/pages/heatcalc/useHeatCalcExcelInteractionModel';
-import { useHeatCalcNormalTableInteractionModel } from '@/pages/heatcalc/useHeatCalcNormalTableInteractionModel';
-import { useHeatCalcWizardFormShellModel } from '@/pages/heatcalc/useHeatCalcWizardFormShellModel';
-import { useHeatCalcPageEffectsModel } from '@/pages/heatcalc/useHeatCalcPageEffectsModel';
-import { useHeatCalcRouteActionsModel } from '@/pages/heatcalc/useHeatCalcRouteActionsModel';
-import { useHeatCalcRouteShellEffects } from '@/pages/heatcalc/useHeatCalcRouteShellEffects';
-import { useHeatCalcContinueToElectrical } from '@/pages/heatcalc/useHeatCalcContinueToElectrical';
-import { buildHeatCalcToolbarSavePresentation } from '@/pages/heatcalc/heatCalcToolbarSavePresentation';
-import { buildHeatCalcLayoutPresentation } from '@/pages/heatcalc/heatCalcLayoutModel';
-import { useHeatCalcWorkspaceDataModel } from '@/pages/heatcalc/useHeatCalcWorkspaceDataModel';
+import { getDefaultFieldInputSettings } from '@/utils/heatCalcFieldInputSettings';
 
 type TableEditingMode = HeatCalcToolbarEditingMode;
 
@@ -68,36 +52,15 @@ export function useHeatCalcPageModel() {
   const registeredUserId = useAuthStore((s) => s.user?.id ?? null);
   const isRegisteredUser = role === 'employee' || role === 'admin';
   const [formBlockVisible, setFormBlockVisible] = useState(true);
+  const tableState = useHeatCalcTableState({ projectId: project?.id });
   const {
-    activeObjectScope,
-    activeObjectQueryCursor,
-    activeTableColumnScope,
-    activeTableObjectType,
-    activeTablePage,
-    activeTableViewState,
-    allTableViewState,
-    changeNormalTablePage,
-    cleanHiddenColumnState,
-    cleanHiddenColumnStateForSettings,
-    clearSelectedRows,
-    handleNormalTableSortChange,
-    isAllObjectScope,
-    loadNextNormalPage,
-    mergeNormalLoadedRows,
-    normalLoadedRowsByType,
-    pruneSelectedRows,
-    rememberObjectQueryCursor,
-    removeNormalLoadedRows,
-    resetColumnFilter,
-    resetCurrentTableViewState,
-    resetNormalLoadMoreRequest,
-    selectedRowKeys,
-    selectObjectScope,
-    setColumnFilter,
-    setSelectedRowKeys,
-    setTablePage,
-    upsertNormalLoadedRow,
-  } = useHeatCalcTableState({ projectId: project?.id });
+    activeObjectScope, activeObjectQueryCursor, activeTableColumnScope, activeTableObjectType,
+    activeTablePage, activeTableViewState, allTableViewState, cleanHiddenColumnStateForSettings,
+    clearSelectedRows, handleNormalTableSortChange, isAllObjectScope, mergeNormalLoadedRows,
+    normalLoadedRowsByType, rememberObjectQueryCursor, removeNormalLoadedRows, resetColumnFilter,
+    resetCurrentTableViewState, resetNormalLoadMoreRequest, selectedRowKeys, selectObjectScope,
+    setColumnFilter, setSelectedRowKeys, setTablePage, upsertNormalLoadedRow,
+  } = tableState;
   const [tableEditingMode, setTableEditingMode] = useState<TableEditingMode>('normal');
   const commercialFeaturesAvailable = areCommercialFeaturesEnabled();
   const tableFindabilityAvailable = true;
@@ -105,6 +68,11 @@ export function useHeatCalcPageModel() {
   const closeColumnSettings = useCallback(() => {
     closeColumnSettingsRef.current?.();
   }, []);
+  const preferences = useHeatCalcPreferences({
+    isRegisteredUser,
+    registeredUserId,
+    onCloseSettingsModal: closeColumnSettings,
+  });
   const {
     tableColumnSettings,
     tableColumnSettingsRef,
@@ -119,11 +87,7 @@ export function useHeatCalcPageModel() {
     applySideFormWidthPct,
     applyFormSectionWeights,
     commitFormSectionWeights,
-  } = useHeatCalcPreferences({
-    isRegisteredUser,
-    registeredUserId,
-    onCloseSettingsModal: closeColumnSettings,
-  });
+  } = preferences;
   const fieldInputSettings = useMemo(() => getDefaultFieldInputSettings(), []);
   const sideWorkspaceRef = useRef<HTMLDivElement | null>(null);
   useFocusableTableScrollRegions(sideWorkspaceRef, 'Таблица расчёта теплопотерь', Boolean(project));
@@ -144,7 +108,7 @@ export function useHeatCalcPageModel() {
     setWorkspaceHeaderContext,
   });
 
-  const workspaceData = useHeatCalcWorkspaceDataModel({
+  const workspace = useHeatCalcWorkspaceDataModel({
     project,
     queryClient,
     commercialFeaturesAvailable,
@@ -172,85 +136,12 @@ export function useHeatCalcPageModel() {
   });
 
   const {
-    effectiveActiveTableViewState,
-    excelModeEnabled,
-    normalGlideEnabled,
-    tableCellEditingEnabled,
-    currentTableViewActive,
-    isSavableDraftRow,
-    formPlacement,
-    sideFormWidthPct,
-    allFilteredSortedTableRows,
-    allProjectObjects,
-    columnRenderers,
-    editableExcelColumnKeys,
-    enumOptionsByColumn,
-    fieldCapabilityByKey,
-    objectQueryFetching,
-    objectQueryResult,
-    pipeCount,
-    projectObjectCount,
-    resolvedTableFontSize,
-    sourceColumnMetas,
-    tankCount,
-    visibleTableColumnKeys,
-    activeInlineCell,
-    setActiveInlineCell,
-    draftRowsById,
-    setDraftRowsById,
-    excelLocalRows,
-    setExcelLocalRows,
-    appendExcelLocalRows,
-    extendExcelInputRowsOnScroll,
-    discardDraftRows,
-    commitInlineCell,
-    applyWizardDraftValuesChange,
-    excelRowIds,
-    activeExcelCellPosition,
-    selectedExcelRows,
-    registerNormalGridDraftInvalidator,
-    visibleTableObjects,
-    visibleTableRows,
-    visibleSourceIndexById,
-    selectedVisibleRows,
-    handleObjectsRowMoved,
-    activeTypeTotalCount,
-    filteredTableCount,
-    dirtyDraftRowCount,
-    draftControlsVisible,
-    draftDiscardLabel,
-    inlineDraftSaving,
-    saveDraftRows,
-    saveTargetCount,
-    saveTargetIds,
-    selectedDirtyTarget,
-  } = workspaceData;
-
-  const {
-    handleGlideColumnResize,
-    handleGlideColumnResizeEnd,
-    startColumnResize,
-    startSideFormMouseResize,
-    startSideFormResize,
-  } = useHeatCalcResizeModel({
-    activeTableColumnScope,
-    applySideFormWidthPct,
-    formPlacement,
-    persistTableColumnSettings,
-    persistTableViewOnly,
-    sideWorkspaceRef,
-    tableColumnSettingsRef,
-    tableViewSettingsRef,
-    updateTableColumnSettingsDraft,
-  });
-
-  const {
     handleContinueToElectrical,
     continueToElectricalDisabled,
     continueToElectricalTooltip,
   } = useHeatCalcContinueToElectrical({
     projectId: project?.id,
-    objects: allProjectObjects,
+    objects: workspace.allProjectObjects,
     navigate,
   });
 
@@ -280,11 +171,11 @@ export function useHeatCalcPageModel() {
     activeObjectScope,
     activeTableObjectType,
     formBlockVisible,
-    excelModeEnabled,
-    projectObjectCount,
-    draftRowsById,
-    setDraftRowsById,
-    setExcelLocalRows,
+    excelModeEnabled: workspace.excelModeEnabled,
+    projectObjectCount: workspace.projectObjectCount,
+    draftRowsById: workspace.draftRowsById,
+    setDraftRowsById: workspace.setDraftRowsById,
+    setExcelLocalRows: workspace.setExcelLocalRows,
     onScopeChanged: clearSelectedRows,
     onDirtyEditBlocked: setPendingWizardObject,
   });
@@ -295,11 +186,11 @@ export function useHeatCalcPageModel() {
     wizardDraftFieldErrors,
     handleWizardDraftValuesChange,
   } = useHeatCalcWizardFormShellModel({
-    allProjectObjects,
-    draftRowsById,
-    visibleTableObjects,
+    allProjectObjects: workspace.allProjectObjects,
+    draftRowsById: workspace.draftRowsById,
+    visibleTableObjects: workspace.visibleTableObjects,
     wizardState,
-    applyWizardDraftValuesChange,
+    applyWizardDraftValuesChange: workspace.applyWizardDraftValuesChange,
   });
 
   const notifyBulkActionSuccess = useCallback((message: string) => {
@@ -312,22 +203,22 @@ export function useHeatCalcPageModel() {
     removeSelectedObjects,
   } = useHeatCalcBulkActions({
     activeObjectScope,
-    activeTypeTotalCount,
-    allFilteredSortedTableRowCount: allFilteredSortedTableRows.length,
+    activeTypeTotalCount: workspace.activeTypeTotalCount,
+    allFilteredSortedTableRowCount: workspace.allFilteredSortedTableRows.length,
     clearSelectedRows,
-    draftRowsById,
-    excelLocalRows,
-    excelModeEnabled,
-    objectQueryFilteredCount: objectQueryResult?.counts.filtered,
-    objectQueryPageSize: objectQueryResult?.page_info.page_size,
+    draftRowsById: workspace.draftRowsById,
+    excelLocalRows: workspace.excelLocalRows,
+    excelModeEnabled: workspace.excelModeEnabled,
+    objectQueryFilteredCount: workspace.objectQueryResult?.counts.filtered,
+    objectQueryPageSize: workspace.objectQueryResult?.page_info.page_size,
     openEditWizard,
-    projectObjectCount,
+    projectObjectCount: workspace.projectObjectCount,
     removeNormalLoadedRows,
-    selectedExcelRows,
-    selectedVisibleRows,
-    setActiveInlineCell,
-    setDraftRowsById,
-    setExcelLocalRows,
+    selectedExcelRows: workspace.selectedExcelRows,
+    selectedVisibleRows: workspace.selectedVisibleRows,
+    setActiveInlineCell: workspace.setActiveInlineCell,
+    setDraftRowsById: workspace.setDraftRowsById,
+    setExcelLocalRows: workspace.setExcelLocalRows,
     setExcelSelectionRange,
     setPendingTableFocusObject,
     setSelectedExcelCell,
@@ -366,12 +257,13 @@ export function useHeatCalcPageModel() {
     toolbarSaveLoading,
     toolbarSaveTooltip,
   } = buildHeatCalcToolbarSavePresentation({
-    saveTargetCount,
+    saveTargetCount: workspace.saveTargetCount,
     hasWizard,
-    selectedDirtyTarget,
-    inlineDraftSaving,
+    selectedDirtyTarget: workspace.selectedDirtyTarget,
+    inlineDraftSaving: workspace.inlineDraftSaving,
     submittingObject,
   });
+
   const {
     activeHeatLossJobId,
     isHeatLossJobActive,
@@ -387,106 +279,60 @@ export function useHeatCalcPageModel() {
     recalcAll: recalcHeatLossAll,
     cancelJob: cancelHeatLossJob,
   } = useHeatCalcHeatLossJob({
-    dirtyDraftRowCount,
+    dirtyDraftRowCount: workspace.dirtyDraftRowCount,
     projectId: project?.id,
-    projectObjectCount,
+    projectObjectCount: workspace.projectObjectCount,
     selectedRowId,
-    selectedVisibleRows,
+    selectedVisibleRows: workspace.selectedVisibleRows,
     submittingObject,
   });
 
-  const {
-    selectedRowErrorMessages,
-    excelCellDisplayValue,
-    glideGridColumns,
-    getGlideGridCellState,
-    getNormalGlideGridCellState,
-  } = useHeatCalcGridModel({
-    activeTableObjectType,
-    sourceColumnMetas,
-    fieldCapabilityByKey,
-    enumOptionsByColumn,
-    columnRenderers,
-    draftRowsById,
-    editableExcelColumnKeys,
-    excelModeEnabled,
-    fieldInputSettings,
-    isAllObjectScope,
-    isSavableDraftRow,
-    tableFindabilityEnabled: tableFindabilityAvailable,
-    tableCellEditingEnabled,
-    visibleTableRows,
-    visibleSourceIndexById,
-    wizardBaseObject,
-    wizardFormObject,
-  });
-
-  const {
-    excelContextMenu,
-    selectedExcelPosition,
-    clearExcelSelectionState,
-    selectExcelCellByPosition,
-    setExcelRangeSelection,
-    selectAllExcelCells,
-    beginExcelCellSelection,
-    extendExcelCellSelection,
-    beginExcelRowSelection,
-    extendExcelRowSelection,
-    beginExcelColumnSelection,
-    extendExcelColumnSelection,
-    openExcelCellContextMenu,
-    openExcelRowContextMenu,
-    openExcelRecordContextMenu,
-    closeExcelContextMenu,
-    copyExcelSelection,
-    clearExcelSelection,
-    cutExcelSelection,
-    pasteExcelFromClipboard,
-    addExcelRowsBelowSelection,
-    resetSelectedExcelRows,
-    startInlineCellEdit,
-  } = useHeatCalcExcelInteractionModel({
-    ...excelInteractionState,
-    activeExcelCellPosition,
-    appendExcelLocalRows,
-    draftRowsById,
-    editableExcelColumnKeys,
-    excelCellDisplayValue,
-    excelLocalRows,
-    excelModeEnabled,
-    excelRowIds,
-    selectedExcelRows,
-    selectedRowId: selectedRowId ?? null,
-    setActiveInlineCell,
-    setDraftRowsById,
-    setExcelLocalRows,
-    sourceColumnMetas,
-    syncWizardWithRecord,
-    tableCellEditingEnabled,
-    visibleTableObjects,
-  });
-
-  useHeatCalcPageEffectsModel({
-    activeObjectScope,
-    activeTableObjectType,
-    clearExcelSelectionState,
-    clearLastSavedObject,
-    cleanHiddenColumnState,
-    currentTableViewActive,
-    dirtyDraftRowCount,
-    isAllObjectScope,
-    lastSavedObject,
-    pendingTableFocusObject,
-    pruneSelectedRows,
-    selectObjectScope,
-    setPendingTableFocusObject,
-    setTableEditingMode,
-    tableCellEditingEnabled,
-    tableEditingMode,
-    visibleTableColumnKeys,
-    visibleTableObjects,
+  const interaction = useHeatCalcInteractionController({
+    table: {
+      activeObjectScope,
+      activeTableColumnScope,
+      activeTableObjectType,
+      activeTablePage,
+      changeNormalTablePage: tableState.changeNormalTablePage,
+      cleanHiddenColumnState: tableState.cleanHiddenColumnState,
+      isAllObjectScope,
+      loadNextNormalPage: tableState.loadNextNormalPage,
+      pruneSelectedRows: tableState.pruneSelectedRows,
+      resetColumnFilter,
+      selectObjectScope,
+      selectedRowKeys,
+      setColumnFilter,
+    },
+    excelInteractionState,
+    workspace,
+    editor: {
+      clearLastSavedObject,
+      lastSavedObject,
+      selectedRowId: selectedRowId ?? null,
+      syncWizardWithRecord,
+      wizardBaseObject,
+      wizardFormObject,
+    },
+    focus: {
+      pendingTableFocusObject,
+      setPendingTableFocusObject,
+      setTableEditingMode,
+      tableEditingMode,
+    },
+    resize: {
+      applySideFormWidthPct,
+      fieldInputSettings,
+      persistTableColumnSettings,
+      persistTableViewOnly,
+      sideWorkspaceRef,
+      tableColumnSettingsRef,
+      tableFindabilityAvailable,
+      tableViewSettingsRef,
+      updateTableColumnSettingsDraft,
+    },
     notifyInfo: antdMessage.info,
   });
+  const { clearExcelSelectionState, ...tableInteraction } = interaction;
 
   const {
     allButtonCountText,
@@ -499,119 +345,53 @@ export function useHeatCalcPageModel() {
   } = useHeatCalcRouteActionsModel({
     activeObjectScope,
     activeTableObjectType,
-    activeTypeTotalCount,
-    allCount: projectObjectCount,
+    activeTypeTotalCount: workspace.activeTypeTotalCount,
+    allCount: workspace.projectObjectCount,
     clearExcelSelectionState,
     clearSelectedRows,
     clearWizard,
-    closeExcelContextMenu,
-    currentTableViewActive,
+    closeExcelContextMenu: interaction.closeExcelContextMenu,
+    currentTableViewActive: workspace.currentTableViewActive,
     commercialFeaturesAvailable,
-    filteredTableCount,
+    filteredTableCount: workspace.filteredTableCount,
     formBlockVisible,
-    pipeCount,
+    pipeCount: workspace.pipeCount,
     resetNewWizard,
-    saveDraftRows,
-    saveTargetCount,
-    saveTargetIds,
+    saveDraftRows: workspace.saveDraftRows,
+    saveTargetCount: workspace.saveTargetCount,
+    saveTargetIds: workspace.saveTargetIds,
     selectedObjectCount,
     selectObjectScope,
     setFormBlockVisible,
     setTableEditingMode,
-    tankCount,
+    tankCount: workspace.tankCount,
     wizardStateType: wizardState?.type,
     notifyInfo: antdMessage.info,
-  });
-
-  const { tableColumns, tableScrollX, tableScrollY } = useHeatCalcTableColumns({
-    activeTableColumnScope,
-    activeTableObjectType,
-    activeTableViewState: effectiveActiveTableViewState,
-    activeInlineCell,
-    activeExcelCellPosition,
-    beginExcelCellSelection,
-    beginExcelColumnSelection,
-    beginExcelRowSelection,
-    buildTableColumns: excelModeEnabled,
-    columnRenderers,
-    commitInlineCell,
-    draftRowsById,
-    enumOptionsByColumn,
-    excelCellDisplayValue,
-    editableExcelColumnKeys,
-    excelModeEnabled,
-    excelRowIds,
-    excelSelectionRange,
-    extendExcelCellSelection,
-    extendExcelColumnSelection,
-    extendExcelRowSelection,
-    fieldCapabilityByKey,
-    fieldInputSettings,
-    formPlacement,
-    isAllObjectScope,
-    isSavableDraftRow,
-    openExcelCellContextMenu,
-    openExcelRowContextMenu,
-    resetColumnFilter,
-    selectAllExcelCells,
-    selectExcelCellByPosition,
-    selectedExcelPosition,
-    setActiveInlineCell,
-    setColumnFilter,
-    sourceColumnMetas,
-    startColumnResize,
-    startInlineCellEdit,
-    tableFindabilityEnabled: tableFindabilityAvailable,
-    tableCellEditingEnabled,
-    visibleTableObjectsLength: visibleTableObjects.length,
-    visibleTableRows,
   });
 
   const {
     isSideFormPlacement,
     sideResizeVisible,
     workspaceLayoutStyle,
-  } = buildHeatCalcLayoutPresentation(formPlacement, formBlockVisible, sideFormWidthPct);
-
-  const {
-    handleNormalLoadMore,
-    handleNormalTablePageChange,
-    normalInfiniteLoading,
-    normalTablePagination,
-    tableRowClassName,
-  } = useHeatCalcNormalTableInteractionModel({
-    activeTablePage,
-    changeNormalTablePage,
-    columnRenderers,
-    draftRowsById,
-    excelModeEnabled,
-    filteredTableCount,
-    isAllObjectScope,
-    isSavableDraftRow,
-    loadNextNormalPage,
-    normalGlideEnabled,
-    objectQueryFetching,
-    objectQueryResult,
-    selectedRowId: selectedRowId ?? null,
-    selectedRowKeys,
-    sourceColumnMetas,
-    visibleTableObjectsLength: visibleTableObjects.length,
-    visibleTableRows,
-  });
+  } = buildHeatCalcLayoutPresentation(
+    workspace.formPlacement,
+    formBlockVisible,
+    workspace.sideFormWidthPct,
+  );
 
   return {
     project,
     formBlockVisible,
-    formPlacement,
+    formPlacement: workspace.formPlacement,
     wizardState,
     newWizardRevision,
     closeWizard,
     handleWizardSubmit,
     submittingObject,
-    excelModeEnabled,
+    excelModeEnabled: workspace.excelModeEnabled,
     wizardBaseObject,
     wizardFormObject,
-    draftRowsById,
+    draftRowsById: workspace.draftRowsById,
     wizardDraftFieldErrors,
     fieldInputSettings,
     tableViewSettings,
@@ -649,12 +429,12 @@ export function useHeatCalcPageModel() {
     heatLossRecalcDisabled,
     activeHeatLossJobId,
     cancelHeatLossJobPending,
-    currentTableViewActive,
-    draftControlsVisible,
-    dirtyDraftRowCount,
-    saveTargetCount,
-    inlineDraftSaving,
-    draftDiscardLabel,
+    currentTableViewActive: workspace.currentTableViewActive,
+    draftControlsVisible: workspace.draftControlsVisible,
+    dirtyDraftRowCount: workspace.dirtyDraftRowCount,
+    saveTargetCount: workspace.saveTargetCount,
+    inlineDraftSaving: workspace.inlineDraftSaving,
+    draftDiscardLabel: workspace.draftDiscardLabel,
     selectedObjectCount,
     add,
     handleTableEditingModeChange,
@@ -663,11 +443,11 @@ export function useHeatCalcPageModel() {
     cancelHeatLossJob,
     columnSettingsDialog,
     resetCurrentTableViewState,
-    discardDraftRows,
-    saveTargetIds,
+    discardDraftRows: workspace.discardDraftRows,
+    saveTargetIds: workspace.saveTargetIds,
     duplicateSelectedObjects,
     role,
-    projectObjectCount,
+    projectObjectCount: workspace.projectObjectCount,
     isSideFormPlacement,
     sideResizeVisible,
     workspaceLayoutStyle,
@@ -675,57 +455,30 @@ export function useHeatCalcPageModel() {
     heatLossJobProgressLabel,
     selectedObject,
     calculationDetailsSettings,
-    activeTypeTotalCount,
-    tableColumns,
-    visibleTableObjects,
+    activeTypeTotalCount: workspace.activeTypeTotalCount,
+    visibleTableObjects: workspace.visibleTableObjects,
     excelSelectionRange,
-    resolvedTableFontSize,
-    glideGridColumns,
-    normalInfiniteLoading,
-    normalTablePagination,
-    effectiveActiveTableViewState,
-    selectedExcelPosition,
+    resolvedTableFontSize: workspace.resolvedTableFontSize,
+    effectiveActiveTableViewState: workspace.effectiveActiveTableViewState,
     selectedRowKeys,
-    tableScrollX,
-    tableScrollY,
     selectedRowId,
-    openExcelRecordContextMenu,
-    extendExcelInputRowsOnScroll,
-    setExcelRangeSelection,
-    commitInlineCell,
-    getGlideGridCellState,
-    startInlineCellEdit,
-    handleGlideColumnResize,
-    handleGlideColumnResizeEnd,
-    getNormalGlideGridCellState,
+    extendExcelInputRowsOnScroll: workspace.extendExcelInputRowsOnScroll,
+    commitInlineCell: workspace.commitInlineCell,
     setColumnFilter,
     resetColumnFilter,
     handleNormalTableSortChange,
-    handleNormalLoadMore,
-    handleNormalTablePageChange,
-    registerNormalGridDraftInvalidator,
+    registerNormalGridDraftInvalidator: workspace.registerNormalGridDraftInvalidator,
     openEditWizard,
     setSelectedRowKeys,
-    handleObjectsRowMoved,
-    tableRowClassName,
-    selectedRowErrorMessages,
-    startSideFormResize,
-    startSideFormMouseResize,
-    excelContextMenu,
-    activeExcelCellPosition,
-    selectedExcelRows,
-    isSavableDraftRow,
-    closeExcelContextMenu,
-    copyExcelSelection,
-    cutExcelSelection,
-    pasteExcelFromClipboard,
-    clearExcelSelection,
-    addExcelRowsBelowSelection,
-    resetSelectedExcelRows,
+    handleObjectsRowMoved: workspace.handleObjectsRowMoved,
+    activeExcelCellPosition: workspace.activeExcelCellPosition,
+    selectedExcelRows: workspace.selectedExcelRows,
+    isSavableDraftRow: workspace.isSavableDraftRow,
     preferenceSavePending,
     pendingWizardObject,
-    saveDraftRows,
+    saveDraftRows: workspace.saveDraftRows,
     setPendingWizardObject,
     forceOpenEditWizard,
+    ...tableInteraction,
   };
 }

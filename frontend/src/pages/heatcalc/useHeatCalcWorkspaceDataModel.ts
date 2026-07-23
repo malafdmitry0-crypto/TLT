@@ -5,7 +5,7 @@
  * @does-not electrical, InsulationLayersTable, formulas
  *
  * HEAT1: query / drafts / visible-rows / draft-save lifecycle boundary for Heat workspace.
- * Interaction (grid/excel/selection chrome) stays in the page model (HEAT2).
+ * Interaction (grid/excel/selection chrome): useHeatCalcInteractionController (HEAT2).
  */
 import { useMemo } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
