@@ -40,7 +40,8 @@
 | **CSS-SHELL-01** | app-header folded into app-shell layer | main import −1 file | `cfa1bf7` |
 | **CSS-IMP-01** | safe !important burn-down (radius/padding/borders) | **67→55** | `cfa1bf7` |
 | **CSS-IMP-02** | Tlt vs Ant split in compact-fields | **55→52**; compact 18→15 | `cccc6c4` |
-| **CSS-IMP-03** | cable/heat-object !important shrink | **52→50** | c2e68f1 |
+| **CSS-IMP-03** | cable/heat-object !important shrink | **52→50** | `c2e68f1` |
+| **CSS-IMP-04** | insulation-layers-table !important burn-down | **50→44**; ins 10→4 | `777f1d7` |
 
 ## Promotion rules
 
