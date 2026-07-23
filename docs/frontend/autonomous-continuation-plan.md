@@ -82,7 +82,7 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | `ElecCalcWorkspace.tsx` | **192** | ≤500 ✅ |
 | `HeatCalcPage.tsx` | **280** | ≤500 ✅ |
 | `specification/SpecificationPage.tsx` | **398** | ≤500 ✅ |
-| `styles.css` | **6351** | ≤3000 (M4) |
+| `styles.css` | **6263** | ≤3000 (M4) |
 | inverted `components→pages` | **0** | 0 ✅ |
 | thick models (Heat/Elec/Spec) | 829 / 1112 / 511 | optional deeper thin |
 
@@ -130,7 +130,7 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | **E17** | `done` | useElecCalcWorkspaceModel | workspace view 191 ≤500 | smoke | model ~1112 |
 
 **Метрика shell:** `ElecCalcPage` = **30**. `ElecCalcWorkspace` = **1194** (M1 workspace ✅).  
-**Текущий пункт:** residual C3+/S4/models deeper thin
+**Текущий пункт:** **C5** insulation island overlap
 
 ### Track H — Heat
 
@@ -179,7 +179,7 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | **C1** | `done` | heat workspace move | → `heatcalc-workspace.css` | heat basics | f5e860f |
 | **C2** | `done` | elec table footer move | → `elec-workspace.css` | smoke | 635034c |
 | **C3** | `done` | **CableAlgorithmPanel exact duplicates** | удалить pure + strip mixed cable selectors; residual: hint + @media 720 | architecture + wizard isolation + ObjectWizard | **▶ styles 6559→6351 (−208)** |
-| **C4** | `pending` | Heat dual-form island overlap | exact dups for `heat-object-fields.css` only | arch + heat form | next CSS |
+| **C4** | `done` | heat control-fill → island | move SoT to heat-object-fields.css; styles −82 | arch+wizard+heat 59 | residual: page-scoped insulation-settings-row |
 | **C5** | `pending` | Insulation layers island overlap | exact dups for `insulation-layers-table.css` | arch + wizard | — |
 | **C6** | `pending` | residual cable (hint / media) | only after island absorbs equivalent | arch + browser | — |
 | **C7+** | `pending` | largest remaining legacy blocks | move-to-owner or delete dead | until styles ≤3000 | M4 |

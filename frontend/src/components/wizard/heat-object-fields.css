@@ -148,3 +148,111 @@
  * таблица слоёв (order:1 в page CSS) → климат/температуры/ветер.
  */
 .heat-object-fields--side .heat-object-fields__climate .ant-form-item { order: 2; }
+
+/*
+ * Control fills remaining cell (legacy dual-form fill, moved from styles.css C4).
+ * Uses dual-form tokens already defined on .heat-object-fields--wide.
+ */
+.heat-object-fields--wide .heat-object-fields__geometry .ant-form-item-control,
+.heat-object-fields--wide .heat-object-fields__geometry .ant-form-item-control-input,
+.heat-object-fields--wide .heat-object-fields__geometry .ant-form-item-control-input-content,
+.heat-object-fields--wide .heat-object-fields__climate .ant-form-item-control,
+.heat-object-fields--wide .heat-object-fields__climate .ant-form-item-control-input,
+.heat-object-fields--wide .heat-object-fields__climate .ant-form-item-control-input-content,
+.heat-object-fields--wide .insulation-settings-row .ant-form-item-control,
+.heat-object-fields--wide .insulation-settings-row .ant-form-item-control-input,
+.heat-object-fields--wide .insulation-settings-row .ant-form-item-control-input-content {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+.heat-object-fields--wide .heat-object-fields__geometry .ant-input,
+.heat-object-fields--wide .heat-object-fields__geometry .ant-input-number,
+.heat-object-fields--wide .heat-object-fields__geometry .ant-input-number-group-wrapper,
+.heat-object-fields--wide .heat-object-fields__geometry .ant-select,
+.heat-object-fields--wide .heat-object-fields__geometry .tlt-select,
+.heat-object-fields--wide .heat-object-fields__geometry .tlt-select__trigger,
+.heat-object-fields--wide .heat-object-fields__geometry .reference-picker-control,
+.heat-object-fields--wide .heat-object-fields__geometry .field-control-with-help,
+.heat-object-fields--wide .heat-object-fields__climate .ant-input,
+.heat-object-fields--wide .heat-object-fields__climate .ant-input-number,
+.heat-object-fields--wide .heat-object-fields__climate .ant-input-number-group-wrapper,
+.heat-object-fields--wide .heat-object-fields__climate .ant-select,
+.heat-object-fields--wide .heat-object-fields__climate .tlt-select,
+.heat-object-fields--wide .heat-object-fields__climate .tlt-select__trigger,
+.heat-object-fields--wide .heat-object-fields__climate .reference-picker-control,
+.heat-object-fields--wide .heat-object-fields__climate .field-control-with-help,
+.heat-object-fields--wide .insulation-settings-row .ant-input,
+.heat-object-fields--wide .insulation-settings-row .ant-select,
+.heat-object-fields--wide .insulation-settings-row .tlt-select,
+.heat-object-fields--wide .insulation-settings-row .tlt-select__trigger,
+.heat-object-fields--wide .insulation-settings-row .field-control-with-help {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  min-height: var(--dual-form-control-height) !important;
+  font-size: var(--dual-form-control-font) !important;
+  line-height: 1.2;
+  box-sizing: border-box;
+}
+
+.heat-object-fields--wide .heat-object-fields__geometry .ant-input-number-input,
+.heat-object-fields--wide .heat-object-fields__climate .ant-input-number-input {
+  height: var(--dual-form-control-height) !important;
+  font-size: var(--dual-form-control-font) !important;
+}
+
+.heat-object-fields--wide .heat-object-fields__geometry .tlt-select__trigger,
+.heat-object-fields--wide .heat-object-fields__geometry .reference-picker-control,
+.heat-object-fields--wide .heat-object-fields__climate .tlt-select__trigger,
+.heat-object-fields--wide .heat-object-fields__climate .reference-picker-control,
+.heat-object-fields--wide .insulation-settings-row .tlt-select__trigger {
+  display: flex;
+  align-items: center;
+  height: var(--dual-form-control-height);
+  box-sizing: border-box;
+}
+
+.heat-object-fields--wide .heat-object-fields__geometry .short-number-form-item .ant-input-number-group-wrapper,
+.heat-object-fields--wide .heat-object-fields__climate .short-number-form-item .ant-input-number-group-wrapper,
+.heat-object-fields--wide .heat-object-fields__geometry .outer-diameter-form-item .ant-input-number-group-wrapper,
+.heat-object-fields--wide .heat-object-fields__geometry .pipe-length-form-item .ant-input-number-group-wrapper,
+.heat-object-fields--wide .heat-object-fields__geometry .wall-thickness-form-item .ant-input-number-group-wrapper,
+.heat-object-fields--wide .heat-object-fields__geometry .local-elements-count-form-item .ant-input-number-group-wrapper,
+.heat-object-fields--wide .heat-object-fields__climate .ambient-temperature-form-item .ant-input-number-group-wrapper,
+.heat-object-fields--wide .heat-object-fields__climate .process-temperature-form-item .ant-input-number-group-wrapper,
+.heat-object-fields--wide .heat-object-fields__climate .wind-speed-form-item .ant-input-number-group-wrapper {
+  width: 100% !important;
+}
+
+/* Non-wide insulation settings row controls (legacy path) */
+.heat-object-fields .insulation-settings-row .ant-form-item-control,
+.heat-object-fields .insulation-settings-row .ant-form-item-control-input,
+.heat-object-fields .insulation-settings-row .ant-form-item-control-input-content {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+.heat-object-fields .insulation-settings-row .ant-input,
+.heat-object-fields .insulation-settings-row .ant-select,
+.heat-object-fields .insulation-settings-row .tlt-select,
+.heat-object-fields .insulation-settings-row .tlt-select__trigger,
+.heat-object-fields .insulation-settings-row .field-control-with-help {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  min-height: var(--dual-form-control-height, var(--tlt-field-control-height, 26px)) !important;
+  font-size: var(--dual-form-control-font, var(--tlt-field-control-font-size, 12px)) !important;
+  line-height: 1.2;
+  box-sizing: border-box;
+}
+
+.heat-object-fields .insulation-settings-row .tlt-select__trigger {
+  display: flex;
+  align-items: center;
+  height: var(--dual-form-control-height, var(--tlt-field-control-height, 26px));
+  box-sizing: border-box;
+}
+

@@ -1533,87 +1533,6 @@ html, body, #root {
   line-height: 1.2 !important;
 }
 
-/*
- * Cable panel: HARD RULE horizontal label | control rows (эталон).
- * Heat object fields: same horizontal pattern under .heat-object-fields--wide
- * + CONTENT-SIZED control column. EXCLUDE layers table.
- */
-
-/* Control fills remaining cell width (override max-content numeric shrink) */
-.heat-object-fields--wide .heat-object-fields__geometry .ant-form-item-control,
-.heat-object-fields--wide .heat-object-fields__geometry .ant-form-item-control-input,
-.heat-object-fields--wide .heat-object-fields__geometry .ant-form-item-control-input-content,
-.heat-object-fields--wide .heat-object-fields__climate .ant-form-item-control,
-.heat-object-fields--wide .heat-object-fields__climate .ant-form-item-control-input,
-.heat-object-fields--wide .heat-object-fields__climate .ant-form-item-control-input-content,
-.heat-object-fields .insulation-settings-row .ant-form-item-control,
-.heat-object-fields .insulation-settings-row .ant-form-item-control-input,
-.heat-object-fields .insulation-settings-row .ant-form-item-control-input-content {
-  width: 100% !important;
-  max-width: 100% !important;
-  min-width: 0 !important;
-}
-
-.heat-object-fields--wide .heat-object-fields__geometry .ant-input,
-.heat-object-fields--wide .heat-object-fields__geometry .ant-input-number,
-.heat-object-fields--wide .heat-object-fields__geometry .ant-input-number-group-wrapper,
-.heat-object-fields--wide .heat-object-fields__geometry .ant-select,
-.heat-object-fields--wide .heat-object-fields__geometry .tlt-select,
-.heat-object-fields--wide .heat-object-fields__geometry .tlt-select__trigger,
-.heat-object-fields--wide .heat-object-fields__geometry .reference-picker-control,
-.heat-object-fields--wide .heat-object-fields__geometry .field-control-with-help,
-.heat-object-fields--wide .heat-object-fields__climate .ant-input,
-.heat-object-fields--wide .heat-object-fields__climate .ant-input-number,
-.heat-object-fields--wide .heat-object-fields__climate .ant-input-number-group-wrapper,
-.heat-object-fields--wide .heat-object-fields__climate .ant-select,
-.heat-object-fields--wide .heat-object-fields__climate .tlt-select,
-.heat-object-fields--wide .heat-object-fields__climate .tlt-select__trigger,
-.heat-object-fields--wide .heat-object-fields__climate .reference-picker-control,
-.heat-object-fields--wide .heat-object-fields__climate .field-control-with-help,
-.heat-object-fields .insulation-settings-row .ant-input,
-.heat-object-fields .insulation-settings-row .ant-select,
-.heat-object-fields .insulation-settings-row .tlt-select,
-.heat-object-fields .insulation-settings-row .tlt-select__trigger,
-.heat-object-fields .insulation-settings-row .field-control-with-help {
-  width: 100% !important;
-  max-width: 100% !important;
-  min-width: 0 !important;
-  min-height: var(--cable-control-height) !important;
-  font-size: var(--cable-control-font) !important;
-  line-height: 1.2;
-  box-sizing: border-box;
-}
-
-.heat-object-fields--wide .heat-object-fields__geometry .ant-input-number-input,
-.heat-object-fields--wide .heat-object-fields__climate .ant-input-number-input {
-  height: var(--cable-control-height) !important;
-  font-size: var(--cable-control-font) !important;
-}
-
-.heat-object-fields--wide .heat-object-fields__geometry .tlt-select__trigger,
-.heat-object-fields--wide .heat-object-fields__geometry .reference-picker-control,
-.heat-object-fields--wide .heat-object-fields__climate .tlt-select__trigger,
-.heat-object-fields--wide .heat-object-fields__climate .reference-picker-control,
-.heat-object-fields .insulation-settings-row .tlt-select__trigger {
-  display: flex;
-  align-items: center;
-  height: var(--cable-control-height);
-  box-sizing: border-box;
-}
-
-/* Short number fields outside layers table only */
-.heat-object-fields--wide .heat-object-fields__geometry .short-number-form-item .ant-input-number-group-wrapper,
-.heat-object-fields--wide .heat-object-fields__climate .short-number-form-item .ant-input-number-group-wrapper,
-.heat-object-fields--wide .heat-object-fields__geometry .outer-diameter-form-item .ant-input-number-group-wrapper,
-.heat-object-fields--wide .heat-object-fields__geometry .pipe-length-form-item .ant-input-number-group-wrapper,
-.heat-object-fields--wide .heat-object-fields__geometry .wall-thickness-form-item .ant-input-number-group-wrapper,
-.heat-object-fields--wide .heat-object-fields__geometry .local-elements-count-form-item .ant-input-number-group-wrapper,
-.heat-object-fields--wide .heat-object-fields__climate .ambient-temperature-form-item .ant-input-number-group-wrapper,
-.heat-object-fields--wide .heat-object-fields__climate .process-temperature-form-item .ant-input-number-group-wrapper,
-.heat-object-fields--wide .heat-object-fields__climate .wind-speed-form-item .ant-input-number-group-wrapper {
-  width: 100% !important;
-}
-
 /* Explicit shield: dual-form never restyles layers table cells/controls */
 
 .cable-algorithm-hint {
@@ -1704,10 +1623,6 @@ html, body, #root {
   min-width: 0 !important;
   justify-self: stretch !important;
 }
-
-/* MOVED → components/wizard/heat-object-fields.css (CSS island)
- * Do not re-add .heat-object-fields rules here.
- */
 
 /* SC-03: single card under «Расчёт теплопотерь» — geometry | conditions, insulation below. */
 .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs,
@@ -6341,9 +6256,6 @@ tr[draggable='true']:active {
     overflow: visible !important;
   }
 }
-
-/* MOVED → heat-object-fields.css island (cascade shield obsolete).
- */
 
 /* Residual dual-form isolation rules removed — use CSS islands:
  *   heat-object-fields.css | cable-algorithm-panel.css | insulation-layers-table.css

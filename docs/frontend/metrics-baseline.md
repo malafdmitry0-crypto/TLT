@@ -15,7 +15,7 @@
 | `frontend/src/pages/SpecificationPage.tsx` | 1 | re-export |
 | `frontend/src/pages/specification/SpecificationPage.tsx` | 398 | thin shell S3 |
 | `frontend/src/pages/specification/useSpecificationPageModel.ts` | 511 | orchestration |
-| `frontend/src/styles.css` | 6351 | freeze; C3 cable island dups removed |
+| `frontend/src/styles.css` | 6263 | freeze; C3 cable + C4 heat control-fill |
 
 ```bash
 wc -l frontend/src/pages/ElecCalcPage.tsx \
