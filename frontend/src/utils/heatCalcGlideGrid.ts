@@ -199,3 +199,5 @@ export function heatCalcGlideSelectionToExcelRange({
     active: mapGridCellToExcelCell(rows, columnKeys, current.cell[1], current.cell[0]),
   };
 }
+
+export * from '@/utils/heatCalcNormalGlidePureModel';

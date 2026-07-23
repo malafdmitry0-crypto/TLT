@@ -170,3 +170,5 @@ export async function unassignElectricalVariantObjects(
 
 export const getElectricalReadiness = getElectricalVariantReadiness;
 export const createElectricalVariant = createEmptyElectricalVariant;
+
+export { createIdempotencyKey } from '@/api/client';

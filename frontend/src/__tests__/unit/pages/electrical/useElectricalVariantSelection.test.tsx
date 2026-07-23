@@ -21,22 +21,20 @@ const apiMocks = vi.hoisted(() => ({
   remove: vi.fn(),
 }));
 
-vi.mock('@/api/electricalVariants', () => ({
-  electricalVariantQueryKeys: {
-    list: (projectId: string) => ['project', projectId, 'electrical-variants'] as const,
-    readiness: (projectId: string) => ['project', projectId, 'electrical-readiness'] as const,
-    detail: (projectId: string, variantId: string) =>
-      ['project', projectId, 'electrical-variant', variantId] as const,
-  },
-  listElectricalVariants: apiMocks.list,
-  getElectricalVariantReadiness: apiMocks.readiness,
-  initializeElectricalVariants: apiMocks.initialize,
-  createEmptyElectricalVariant: apiMocks.create,
-  copyElectricalVariant: apiMocks.copy,
-  renameElectricalVariant: apiMocks.rename,
-  activateElectricalVariant: apiMocks.activate,
-  deleteElectricalVariant: apiMocks.remove,
-}));
+vi.mock('@/api/electricalVariants', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/api/electricalVariants')>();
+  return {
+    ...actual,
+    listElectricalVariants: apiMocks.list,
+    getElectricalVariantReadiness: apiMocks.readiness,
+    initializeElectricalVariants: apiMocks.initialize,
+    createEmptyElectricalVariant: apiMocks.create,
+    copyElectricalVariant: apiMocks.copy,
+    renameElectricalVariant: apiMocks.rename,
+    activateElectricalVariant: apiMocks.activate,
+    deleteElectricalVariant: apiMocks.remove,
+  };
+});
 
 import { useElectricalVariantSelection } from '@/pages/electrical/useElectricalVariantSelection';
 

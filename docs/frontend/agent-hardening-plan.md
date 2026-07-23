@@ -2,7 +2,7 @@
 
 **Актуально на:** 2026-07-23  
 **Статус:** исполняемый hardening backlog после закрытия thin shells и CSS strangler  
-**Текущий pending:** **ELEC1** (CSS1–CSS4 done — heat CSS move-only split; next model-thin)
+**Текущий pending:** **ELEC1/HEAT1 residual thin** (VAR1+GRID1 pure extracts done; shells already multi-hook)
 **Цель:** агент должен быстро находить владельца поведения, получать зелёную и
 однозначную обратную связь и не иметь возможности незаметно вернуть god-файлы,
 глобальный CSS или обратные зависимости.
@@ -170,11 +170,11 @@ Milestones:
 | **ELEC3** | Elec workspace presentation model | return assembly без JSX callbacks в god hook | ELEC2 |
 | **HEAT1** | Heat workspace data controller | query/drafts/data lifecycle boundary | G2/G3 |
 | **HEAT2** | Heat interaction controller | grid/excel/selection boundary | HEAT1 |
-| **GRID1** | Normal Glide pure model | drawing/math/hit-testing вне React component | G2 |
-| **WIZ1** | ObjectWizard reference data | queries/options вынесены в один owner hook | G2/G3 |
-| **WIZ2** | ObjectWizard form sync | required-field/name sync в отдельном hook | WIZ1 |
-| **VAR1** | variant reconciliation | route/store/query selection отделены от commands | G2/G3 |
-| **VAR2** | variant commands | create/copy/rename/activate/delete controller | VAR1 |
+| **GRID1** | `done` | pure model `heatCalcNormalGlidePureModel` (1191→888 host) | G2 |
+| **WIZ1** | residual | ObjectWizard still owns queries; deferred after ELEC/HEAT thin | G2/G3 |
+| **WIZ2** | residual | depends WIZ1 | WIZ1 |
+| **VAR1** | `done` | pure selection model in `domain/electricalVariantSelectionModel` | G2/G3 |
+| **VAR2** | residual | commands still in useElectricalVariantSelection hook | VAR1 |
 
 ### Phase P3 — унифицировать повторяемый UI и закрыть документацию
 
