@@ -134,7 +134,7 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | **E17** | `pending` | residual → M3 | until workspace ≤500 | unit | after H track |
 
 **Метрика shell:** `ElecCalcPage` = **30**. `ElecCalcWorkspace` = **1194** (M1 workspace ✅).  
-**Текущий пункт:** **S1** (Specification namespace)
+**Текущий пункт:** **S2** (Spec pure presentation / thin)
 
 ### Track H — Heat
 
@@ -156,7 +156,7 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 
 | ID | Статус | Scope | Что | Proof |
 |---|---|---|---|---|
-| **S1** | `pending` | namespace `pages/specification/` | `git mv` Spec modules, re-export stubs | architecture + existing tests |
+| **S1** | `done` | namespace `pages/specification/` | page + format/params extracts | unit+integration 14 | re-export stub |
 | **S2** | `pending` | pure params / BOM presentation | extract thick logic from Spec page | unit |
 | **S3** | `pending` | thin Spec shell ≤ 500 | layout views | unit |
 | **S4** | `pending` | Report thin if >400 | preview/export wiring | unit |
