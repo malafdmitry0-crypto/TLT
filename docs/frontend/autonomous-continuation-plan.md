@@ -134,7 +134,7 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | **E17** | `pending` | residual → M3 | until workspace ≤500 | unit | after H track |
 
 **Метрика shell:** `ElecCalcPage` = **30**. `ElecCalcWorkspace` = **1194** (M1 workspace ✅).  
-**Текущий пункт:** residual S3/E17/C2 as next
+**Текущий пункт:** **E17** / **C2**
 
 ### Track H — Heat
 
@@ -158,7 +158,7 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 |---|---|---|---|---|
 | **S1** | `done` | namespace `pages/specification/` | page + format/params extracts | unit+integration 14 | re-export stub |
 | **S2** | `done` | generate options pure | buildSpecGenerateOptions + partial | unit | 06704b6 |
-| **S3** | `pending` | thin Spec shell ≤ 500 | layout views | unit |
+| **S3** | `done` | model + SpecPageChrome | page 398 ≤500 | unit+integration 17 |
 | **S4** | `pending` | Report thin if >400 | preview/export wiring | unit |
 
 ### Track C — CSS strangler (параллельный, низкий риск)

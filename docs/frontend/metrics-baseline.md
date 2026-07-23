@@ -11,7 +11,9 @@
 | `frontend/src/pages/ElecCalcPage.tsx` | 30 | thin entry |
 | `frontend/src/pages/electrical/ElecCalcWorkspace.tsx` | 1194 | M1 shell ≤1200 |
 | `frontend/src/pages/HeatCalcPage.tsx` | 280 | orchestration in useHeatCalcPageModel |
-| `frontend/src/pages/SpecificationPage.tsx` | 1005 | — |
+| `frontend/src/pages/SpecificationPage.tsx` | 1 | re-export |
+| `frontend/src/pages/specification/SpecificationPage.tsx` | 398 | thin shell S3 |
+| `frontend/src/pages/specification/useSpecificationPageModel.ts` | 511 | orchestration |
 | `frontend/src/styles.css` | 6583 | freeze; heat workspace extracted |
 
 ```bash
