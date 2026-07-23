@@ -7,6 +7,7 @@ import EditableTableCell, {
 } from '@/components/heatcalc/EditableTableCell';
 import type { HeatCalcFieldDefinition } from '@/domain/heatCalcFields';
 import '@/styles.css';
+import '@/styles/calc-spreadsheet.css';
 
 const numericField: HeatCalcFieldDefinition = {
   id: 'outer_diameter_mm',

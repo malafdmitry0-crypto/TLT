@@ -82,7 +82,7 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | `ElecCalcWorkspace.tsx` | **192** | ≤500 ✅ |
 | `HeatCalcPage.tsx` | **280** | ≤500 ✅ |
 | `specification/SpecificationPage.tsx` | **398** | ≤500 ✅ |
-| `styles.css` | **5110** | ≤3000 (M4) |
+| `styles.css` | **4750** | ≤3000 (M4) |
 | inverted `components→pages` | **0** | 0 ✅ |
 | thick models (Heat/Elec/Spec) | 829 / 1112 / 511 | optional deeper thin |
 
@@ -130,7 +130,7 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | **E17** | `done` | useElecCalcWorkspaceModel | workspace view 191 ≤500 | smoke | model ~1112 |
 
 **Метрика shell:** `ElecCalcPage` = **30**. `ElecCalcWorkspace` = **1194** (M1 workspace ✅).  
-**Текущий пункт:** **C12** calc-spreadsheet move (после C10–C11)
+**Текущий пункт:** **C13+** dual-form / actionbar residual (после C12)
 
 ### Track H — Heat
 
@@ -187,7 +187,8 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | **C9** | `done` | elec actionbar/dialogs/sizing/spreadsheet → island | + strip mixed @media actionbar; heatloss status left in styles | arch+wizard+elec 24 | styles **5666→5214** (−452); **0** `.electrical-*` left in styles |
 | **C10** | `done` | projects page CSS → owner | `projects-page.css` + ProjectsPage import | arch+Projects int 9 | styles −46 |
 | **C11** | `done` | workflow-params shared CSS | `pages/workflow-params.css`; import Spec+Elec panels | arch+Spec int | styles −58; shared Elec/Spec SoT |
-| **C12+** | `pending` | calc-spreadsheet / dual-form residual | move-to-owner or delete dead | until styles ≤3000 | next: calc-spreadsheet shared island |
+| **C12** | `done` | calc-spreadsheet shared CSS | `styles/calc-spreadsheet.css` + main import; dirty/error cascade parity | arch+wizard+EditableTableCell+Glide 48 | styles **5110→4750** (−360); residual: excel-virtual/editor chrome |
+| **C13+** | `pending` | dual-form / actionbar / excel residual | move-to-owner or delete dead | until styles ≤3000 | next: actionbar-srs, heatcalc dual-form shell, excel-virtual |
 
 Budget CSS: **только** delete/move; `styles.css` net LOC ≤ 0.
 

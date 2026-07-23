@@ -15,7 +15,7 @@
 | `frontend/src/pages/SpecificationPage.tsx` | 1 | re-export |
 | `frontend/src/pages/specification/SpecificationPage.tsx` | 398 | thin shell S3 |
 | `frontend/src/pages/specification/useSpecificationPageModel.ts` | 511 | orchestration |
-| `frontend/src/styles.css` | 5110 | freeze; C10–C11 projects+workflow (−104 from 5214; −1153 from 6263) |
+| `frontend/src/styles.css` | 4750 | freeze; C12 calc-spreadsheet (−360 from 5110; −1513 from 6263) |
 
 ```bash
 wc -l frontend/src/pages/ElecCalcPage.tsx \

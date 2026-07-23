@@ -1,0 +1,322 @@
+/* Calc spreadsheet table — moved from styles.css (C12)
+ * Shared by Heat + Electrical tables (class calc-spreadsheet).
+ */
+
+.calc-spreadsheet--excel-mode .row-excel-dirty .excel-row-header-button {
+  border-left: 3px solid #d97706;
+  background: #fff7d6;
+  color: #7a4b00;
+  font-weight: 700;
+}
+.calc-spreadsheet--excel-mode .row-excel-error .excel-row-header-button {
+  border-left: 3px solid #d9363e;
+  background: #fff1f0;
+  color: #a8071a;
+  font-weight: 700;
+}
+.calc-spreadsheet {
+  --heatcalc-table-font-size: 12px;
+  --heatcalc-table-line-height: 1.22;
+  --heatcalc-table-cell-padding-y: 2px;
+  --heatcalc-table-header-padding-y: 3px;
+  --heatcalc-table-header-min-height: 38px;
+  --heatcalc-table-header-content-min-height: 32px;
+}
+.calc-spreadsheet--compact {
+  --heatcalc-table-font-size: 11px;
+  --heatcalc-table-line-height: 1.18;
+  --heatcalc-table-cell-padding-y: 1px;
+  --heatcalc-table-header-padding-y: 2px;
+  --heatcalc-table-header-min-height: 36px;
+  --heatcalc-table-header-content-min-height: 32px;
+}
+.calc-spreadsheet--comfortable {
+  --heatcalc-table-font-size: 13px;
+  --heatcalc-table-line-height: 1.28;
+  --heatcalc-table-cell-padding-y: 3px;
+  --heatcalc-table-header-padding-y: 4px;
+  --heatcalc-table-header-min-height: 41px;
+  --heatcalc-table-header-content-min-height: 33px;
+}
+.calc-spreadsheet--large {
+  --heatcalc-table-font-size: 14px;
+  --heatcalc-table-line-height: 1.32;
+  --heatcalc-table-cell-padding-y: 4px;
+  --heatcalc-table-header-padding-y: 5px;
+  --heatcalc-table-header-min-height: 44px;
+  --heatcalc-table-header-content-min-height: 34px;
+}
+.heatcalc-spreadsheet {
+  --heatcalc-table-font-size: 11px;
+}
+.heatcalc-spreadsheet.calc-spreadsheet--compact {
+  --heatcalc-table-font-size: 10px;
+}
+.heatcalc-spreadsheet.calc-spreadsheet--comfortable {
+  --heatcalc-table-font-size: 12px;
+}
+.heatcalc-spreadsheet.calc-spreadsheet--large {
+  --heatcalc-table-font-size: 13px;
+}
+.calc-spreadsheet .ant-table {
+  border: 1px solid var(--heatcalc-table-outer-border);
+  font-size: var(--heatcalc-table-font-size);
+  line-height: var(--heatcalc-table-line-height);
+  font-variant-numeric: tabular-nums;
+}
+.calc-spreadsheet .ant-table table {
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed !important;
+}
+.calc-spreadsheet .ant-table-thead > tr > th {
+  background: var(--heatcalc-table-header-background) !important;
+  border-color: var(--heatcalc-table-grid-border) !important;
+  color: #262626;
+  font-weight: 600;
+  font-size: var(--heatcalc-table-font-size);
+  line-height: var(--heatcalc-table-line-height);
+  height: var(--heatcalc-table-header-min-height);
+  padding: var(--heatcalc-table-header-padding-y) 6px !important;
+  vertical-align: top;
+  box-sizing: border-box;
+}
+.calc-spreadsheet .ant-table-tbody > tr > td {
+  border-color: var(--heatcalc-table-grid-border) !important;
+  font-size: var(--heatcalc-table-font-size);
+  line-height: var(--heatcalc-table-line-height);
+  padding: var(--heatcalc-table-cell-padding-y) 6px !important;
+  background: #fff;
+  box-sizing: border-box;
+}
+.calc-spreadsheet .ant-table-tbody > tr:hover > td {
+  background: #f0f7ff !important;
+  cursor: pointer;
+}
+.calc-spreadsheet .editable-cell-host {
+  padding: 0 !important;
+}
+.calc-spreadsheet .editable-cell-enabled .editable-cell-display {
+  background: #f3f4f6;
+  box-shadow: inset 0 0 0 1px rgb(15 23 42 / 8%);
+}
+.calc-spreadsheet--excel-mode .editable-cell-display {
+  position: relative;
+  cursor: cell;
+  display: block;
+  overflow: hidden;
+  min-height: 24px;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  text-overflow: ellipsis;
+  user-select: none;
+  -webkit-user-select: none;
+  white-space: nowrap;
+}
+.calc-spreadsheet--excel-mode .editable-cell-enabled .editable-cell-display {
+  background: transparent;
+  box-shadow: none;
+}
+.calc-spreadsheet--excel-mode .editable-cell-display.selected {
+  border-color: transparent;
+  background: #eef7ff;
+  box-shadow: none;
+  outline: none;
+}
+.calc-spreadsheet--excel-mode .editable-cell-display.active-selection {
+  border-color: transparent;
+  box-shadow: none;
+  outline: none;
+}
+.calc-spreadsheet--excel-mode .editable-cell-display.active-selection::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  box-sizing: border-box;
+  border: 2px solid #1a5276;
+  pointer-events: none;
+}
+.calc-spreadsheet--excel-mode .excel-row-header-cell {
+  padding: 0 !important;
+  background: #f8fafc;
+}
+.calc-spreadsheet--virtual .ant-table {
+  border: 1px solid var(--heatcalc-table-outer-border);
+  overflow: hidden;
+}
+.calc-spreadsheet--glide {
+  position: relative;
+  border: 1px solid var(--heatcalc-table-outer-border);
+  background: #fff;
+  font-size: var(--heatcalc-table-font-size);
+  line-height: var(--heatcalc-table-line-height);
+  font-variant-numeric: tabular-nums;
+}
+.calc-spreadsheet .row-selected > .editable-cell-enabled .editable-cell-display {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px rgb(26 82 118 / 24%);
+}
+.calc-spreadsheet .row-dirty > .editable-cell-enabled .editable-cell-display {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px rgb(217 119 6 / 20%);
+}
+.calc-spreadsheet .row-dirty > .editable-cell-enabled .editable-cell-display:hover,
+.calc-spreadsheet .row-dirty > .editable-cell-enabled .editable-cell-display:focus-visible {
+  background: #fff4bf;
+}
+.calc-spreadsheet--excel-mode .editable-cell-display.selected:not(.error) {
+  background: #eef7ff;
+  box-shadow: none;
+}
+.calc-spreadsheet--excel-mode .editable-cell-display.selected.dirty:not(.error) {
+  background: linear-gradient(135deg, #fff7d6 0 18%, #eef7ff 18% 100%);
+  box-shadow: none;
+}
+.calc-spreadsheet--excel-mode .editable-cell-display.selected.error {
+  border-color: #d9363e;
+  background: #fff1f0;
+  box-shadow: none;
+}
+.calc-spreadsheet--excel-mode .editable-cell-display.active-selection {
+  border-color: transparent;
+  box-shadow: none;
+}
+.calc-spreadsheet--excel-mode .row-selected > .editable-cell-enabled .editable-cell-display.selected,
+.calc-spreadsheet--excel-mode .row-dirty > .editable-cell-enabled .editable-cell-display.selected {
+  box-shadow: none;
+}
+.calc-spreadsheet .ant-table-cell {
+  box-sizing: border-box;
+  border-right: 1px solid var(--heatcalc-table-grid-border) !important;
+}
+.calc-spreadsheet .ant-table-cell .ant-typography,
+.calc-spreadsheet .ant-select,
+.calc-spreadsheet .ant-input-number,
+.calc-spreadsheet .ant-tag {
+  font-size: var(--heatcalc-table-font-size);
+}
+.calc-spreadsheet .ant-table-column-sorters {
+  position: relative;
+  display: block;
+  min-height: var(--heatcalc-table-header-content-min-height);
+  overflow: visible;
+  padding: 0;
+}
+.calc-spreadsheet .ant-table-filter-column {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 16px;
+  grid-template-rows: minmax(var(--heatcalc-table-header-content-min-height), auto);
+  align-items: center;
+  column-gap: 2px;
+  min-height: var(--heatcalc-table-header-content-min-height);
+  overflow: visible;
+}
+.calc-spreadsheet .ant-table-column-title {
+  min-width: 0;
+  overflow: hidden;
+}
+.calc-spreadsheet .ant-table-column-sorters .ant-table-column-title {
+  display: block;
+}
+.calc-spreadsheet .ant-table-column-sorter {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  width: 14px;
+  height: 14px;
+  margin-inline-start: 0;
+  line-height: 1;
+  overflow: visible;
+  transform: translateY(-50%);
+}
+.calc-spreadsheet .ant-table-column-sorter-inner {
+  height: 14px;
+  line-height: 1;
+  overflow: visible;
+}
+.calc-spreadsheet .ant-table-filter-column .ant-table-column-sorters {
+  grid-column: 1;
+  grid-row: 1;
+  min-height: var(--heatcalc-table-header-content-min-height);
+  padding: 0;
+}
+.calc-spreadsheet .ant-table-filter-column .ant-table-column-title {
+  display: block;
+}
+.calc-spreadsheet .ant-table-filter-column .ant-table-filter-trigger {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+  justify-self: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  min-width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  z-index: 1;
+}
+.calc-spreadsheet .ant-table-column-sorter-inner .anticon {
+  display: block;
+  font-size: 9px;
+  line-height: 7px;
+}
+.calc-spreadsheet .heatcalc-table-header-actions-cell .ant-table-column-sorter,
+.calc-spreadsheet .heatcalc-table-header-actions-cell .ant-table-filter-trigger {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 120ms ease, visibility 120ms ease;
+}
+.calc-spreadsheet .heatcalc-table-header-actions-cell:hover .ant-table-column-sorter,
+.calc-spreadsheet .heatcalc-table-header-actions-cell:hover .ant-table-filter-trigger,
+.calc-spreadsheet .heatcalc-table-header-actions-cell:focus-within .ant-table-column-sorter,
+.calc-spreadsheet .heatcalc-table-header-actions-cell:focus-within .ant-table-filter-trigger,
+.calc-spreadsheet .heatcalc-table-header-actions-cell--sort-active .ant-table-column-sorter,
+.calc-spreadsheet .heatcalc-table-header-actions-cell--filter-active .ant-table-filter-trigger {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+.calc-spreadsheet .table-filter-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.calc-spreadsheet .resizable-column-title-text {
+  display: -webkit-box;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.calc-spreadsheet .heatloss-status-icon-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  padding: 0;
+  border-radius: 999px;
+  line-height: 1;
+}
+.calc-spreadsheet .heatloss-status-icon-tag .anticon {
+  margin: 0;
+  font-size: 12px;
+}
+
+/* editable cell dirty/error (after sheet chrome for cascade parity) */
+.editable-cell-display.dirty {
+  background: #fff1b8;
+  box-shadow: inset 0 0 0 1px rgb(217 119 6 / 28%);
+}
+
+.editable-cell-display.error {
+  border-color: #d9363e;
+  background: #fff1f0;
+  box-shadow: inset 0 0 0 1px rgb(217 54 62 / 24%);
+}
