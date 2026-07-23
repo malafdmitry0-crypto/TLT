@@ -15,8 +15,6 @@ import {
 } from 'antd';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { ROUTES } from '@/routes/routes';
-import { initializeElectricalVariants } from '@/api/electricalVariants';
 
 import HeatCalcExcelContextMenu from '@/components/heatcalc/HeatCalcExcelContextMenu';
 import HeatCalcObjectsTableCard from '@/components/heatcalc/HeatCalcObjectsTableCard';
@@ -85,6 +83,7 @@ import {
 import { useHeatCalcRouteShellEffects } from '@/pages/heatcalc/useHeatCalcRouteShellEffects';
 import { changedDraftRowIds } from '@/pages/heatcalc/heatCalcDraftRowsModel';
 import { useHeatCalcObjectReorder } from '@/pages/heatcalc/useHeatCalcObjectReorder';
+import { useHeatCalcContinueToElectrical } from '@/pages/heatcalc/useHeatCalcContinueToElectrical';
 
 const ColumnSettingsModal = lazy(() => import('@/components/heatcalc/ColumnSettingsModal'));
 
@@ -330,6 +329,16 @@ export default function HeatCalcPage() {
     excelModeEnabled,
     visibleTableObjects,
     queryClient,
+  });
+
+  const {
+    handleContinueToElectrical,
+    continueToElectricalDisabled,
+    continueToElectricalTooltip,
+  } = useHeatCalcContinueToElectrical({
+    projectId: project?.id,
+    objects: allProjectObjects,
+    navigate,
   });
 
   const {
@@ -682,8 +691,6 @@ export default function HeatCalcPage() {
   });
 
   function renderTypeBar() {
-    const invalidCount = allProjectObjects.filter((obj) => !obj.is_valid).length;
-    const readyForElectrical = allProjectObjects.length > 0 && invalidCount === 0;
     return (
       <HeatCalcTypeToolbar
         activeObjectScope={activeObjectScope}
@@ -697,37 +704,9 @@ export default function HeatCalcPage() {
         formCaptionModeLabel={formCaptionModeLabel}
         onObjectScopeChange={handleObjectScopeChange}
         onFormBlockVisibilityChange={handleFormBlockVisibilityChange}
-        onContinueToElectrical={() => {
-          if (!readyForElectrical) {
-            if (allProjectObjects.length === 0) {
-              antdMessage.warning('Добавьте хотя бы один объект перед электрорасчётом');
-              return;
-            }
-            antdMessage.error(
-              `Нельзя перейти: объектов с ошибками — ${invalidCount}. Исправьте исходные данные.`,
-            );
-            return;
-          }
-          // PDF-HEAT-10: first transition creates ЭР1 with objects unassigned.
-          void (async () => {
-            if (project?.id) {
-              try {
-                await initializeElectricalVariants(project.id);
-              } catch {
-                // Already initialized or not ready — still open electrical page.
-              }
-            }
-            navigate(ROUTES.elecCalc);
-          })();
-        }}
-        continueToElectricalDisabled={allProjectObjects.length === 0}
-        continueToElectricalTooltip={
-          allProjectObjects.length === 0
-            ? 'Добавьте объекты'
-            : invalidCount > 0
-              ? `Есть ${invalidCount} объект(ов) с ошибками — исправьте перед переходом`
-              : 'Далее → Электротехнический расчёт (PDF §5.13)'
-        }
+        onContinueToElectrical={handleContinueToElectrical}
+        continueToElectricalDisabled={continueToElectricalDisabled}
+        continueToElectricalTooltip={continueToElectricalTooltip}
       />
     );
   }

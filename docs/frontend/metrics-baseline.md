@@ -9,7 +9,7 @@
 | Path | LOC | Notes |
 |---|---:|---|
 | `frontend/src/pages/ElecCalcPage.tsx` | 1936 | shell still thick |
-| `frontend/src/pages/HeatCalcPage.tsx` | 1007 | reorder + draft-id helpers extracted |
+| `frontend/src/pages/HeatCalcPage.tsx` | 986 | reorder, draft-id, continue→elec extracted |
 | `frontend/src/pages/SpecificationPage.tsx` | 1005 | — |
 | `frontend/src/styles.css` | 6777 | freeze |
 
@@ -58,7 +58,7 @@ Script added in S0-lite. Re-run after any form density / kit / heat dual-form CS
 | Metric | Baseline | S1-ish | S2-ish | S3 DoD |
 |---|---:|---:|---:|---:|
 | ElecCalcPage | 1936 | — | &lt;1200 | ≤500 |
-| HeatCalcPage | 1007 | −200…350 | ≤600 | ≤500 |
+| HeatCalcPage | 986 | −200…350 | ≤600 | ≤500 |
 | SpecPage | 1005 | — | namespace | ≤500 |
 | styles.css | 6777 | ≤6777 (freeze) | &lt;5000 | &lt;2500–3000 |
 | inverted files | 0 | 0 | 0 | 0 |
