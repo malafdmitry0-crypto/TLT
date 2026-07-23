@@ -4,7 +4,7 @@
   cursor: cell;
 }
 .resizable-column-title.excel-column-title.selected .resizable-column-title-text {
-  color: #1a5276;
+  color: var(--color-primary);
   font-weight: 700;
 }
 .resizable-column-title.excel-column-title.active-selection .resizable-column-title-text {
@@ -36,7 +36,7 @@
   gap: 4px 10px;
   min-height: 24px;
   padding: 3px 8px;
-  border: 1px solid #d9e1e6;
+  border: 1px solid var(--heatcalc-toolbar-border);
   background: #fbfcfd;
   color: #4a5b6c;
   font-size: 11px;
@@ -126,13 +126,13 @@
   padding: 3px 6px;
   border: 1px solid #e1e8ee;
   border-radius: 4px;
-  background: #fff;
+  background: var(--color-surface);
   color: #2e3640;
   font-size: 12px;
 }
 .column-layout-row.hidden {
   border-color: #e8edf2;
-  background: #f8fafc;
+  background: var(--color-surface-soft);
   color: #657382;
 }
 .column-layout-row.dragging {
@@ -219,7 +219,7 @@
 }
 .column-layout-computed-tag--specific {
   border-color: #9fc7ec;
-  background: #eef7ff;
+  background: var(--color-info-soft);
   color: #24527a;
 }
 .column-layout-computed-tag--applied {
@@ -326,7 +326,7 @@
   padding: 6px 8px;
   border: 1px solid #dce5ec;
   border-radius: 4px;
-  background: #f8fafc;
+  background: var(--color-surface-soft);
 }
 .calculation-details-settings-panel {
   align-items: stretch;
@@ -369,7 +369,7 @@
   border-radius: 3px;
   background: rgba(35, 40, 48, 0.97);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
-  color: #fff;
+  color: var(--color-surface);
   font-size: 12px;
   font-weight: 400;
   line-height: 1.35;
@@ -424,7 +424,7 @@
 .import-actions-compact .template-download-button {
   height: 20px;
   padding: 0 3px;
-  color: #1a5276;
+  color: var(--color-primary);
   font-size: 11px;
 }
 .reference-picker-search {
@@ -446,8 +446,8 @@
   padding: 7px 9px;
   border: 1px solid #d9e3ec;
   border-radius: 4px;
-  background: #fff;
-  color: #1f1f1f;
+  background: var(--color-surface);
+  color: var(--color-text);
   text-align: left;
   cursor: pointer;
 }
@@ -459,7 +459,7 @@
 }
 .reference-picker-option--selected {
   border-color: var(--color-primary);
-  background: #eef7ff;
+  background: var(--color-info-soft);
 }
 .reference-picker-option-title {
   min-width: 0;
