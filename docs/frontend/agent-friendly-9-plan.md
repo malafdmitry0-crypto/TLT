@@ -115,7 +115,7 @@ baseline для повышения лимитов.
   user helpers получают именованные контракты. Каждый helper/fixture файл
   ≤500 LOC; production не меняется; все 57 tests сохраняют прежние assertions.
 
-- [ ] **AF9-TEST-SPLIT-01 — разделить `ElecCalcPage.test.tsx` по use cases.**
+- [x] **AF9-TEST-SPLIT-01 — разделить `ElecCalcPage.test.tsx` по use cases.** (`46c24ca`)
 
   Только после harness. Семь owners:
 
@@ -131,7 +131,7 @@ baseline для повышения лимитов.
   каждый spec ≤700 LOC, любой focused spec ≤30 s, все Electrical integration
   specs ≤90 s на текущем QA host в двух последовательных запусках.
 
-- [ ] **AF9-TEST-NOISE-01 — локализовать ожидаемый ErrorBoundary noise.**
+- [x] **AF9-TEST-NOISE-01 — локализовать ожидаемый ErrorBoundary noise.** (`7a50a4b`)
 
   Ожидаемый `console.error` подавляется только внутри тестов, которые намеренно
   проверяют error boundary. Глобальный mock console и фильтрация неизвестных
