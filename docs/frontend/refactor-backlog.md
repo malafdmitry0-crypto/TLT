@@ -41,6 +41,9 @@
 | **CSS-RAW-01…03** | token map slices | 610→559 | `513c6cb`…`ecd12b0` |
 | **CSS-RAW-CLOSE** | bulk known tokens | 559→449 | `1f4beb8` |
 | **CSS-RESIDUAL-CLOSE** | all raw → tokens; !important → 0 | raw outside **0**; important **0** | `481ada9` |
+| **CSS-OWN-01** | insulation dual-owner → host tokens only | page chrome stripped | `c867fa2` |
+| **CSS-OWN-02** | density via form root `--tlt-field-*` | Tlt height/font de-duped | `b7083e2` |
+| **CSS-OWN-03** | heat multi-file ownership banners + insulation out of workspace-table | multi-class 29→22; table **615→192** LOC | `8ec1e6d` |
 
 ## Promotion rules
 
