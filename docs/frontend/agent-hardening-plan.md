@@ -2,7 +2,7 @@
 
 **Актуально на:** 2026-07-23  
 **Статус:** исполняемый hardening backlog после закрытия thin shells и CSS strangler  
-**Текущий pending:** **B9** (IMP0/IMP1/B1–B8 done; typecheck green)
+**Текущий pending:** **G1** (P0 B1–B9 done — baseline green)
 **Цель:** агент должен быстро находить владельца поведения, получать зелёную и
 однозначную обратную связь и не иметь возможности незаметно вернуть god-файлы,
 глобальный CSS или обратные зависимости.
@@ -21,10 +21,11 @@
 
 | Проверка / метрика | Текущее состояние | Финальная цель |
 |---|---:|---:|
-| `npm run test:s0-gates` | 15/15 ✅ | green |
-| `npm run typecheck` | 17 ошибок ❌ | green |
-| `npm run lint` | 6 errors, 13 warnings ❌ | 0 errors; warnings только с обоснованием |
-| focused regression tests | 1 failing ❌ | green |
+| `npm run test:s0-gates` | 17/17 ✅ (incl. IMP0) | green |
+| `npm run typecheck` | green ✅ (B1–B6) | green |
+| `npm run lint` | 0 errors, 15 warnings (fs/security + refresh) ✅ | 0 errors; warnings only justified |
+| `npm run build` | green ✅ (styles stub comment fixed) | green |
+| focused regression tests | green after B1–B8 ✅ | green |
 | `styles.css` | 14 LOC ✅ | freeze-stub, без feature rules |
 | весь CSS | ~9150 LOC | размер не KPI; один владелец на правило |
 | `heatcalc-workspace.css` | 2561 LOC | ≤ 900 LOC на один coherent CSS owner |
@@ -121,7 +122,7 @@ P0 выполняется раньше любых новых архитекту�
 | **B6** | `done` | Report cleanup unused Segmented/firstSupportedVariant | typecheck green | — |
 | **B7** | Specification effect contract | exhaustive-deps warning закрыт тестом | — |
 | **B8** | test lint cleanup | оставшиеся test-only lint errors закрыты | B1–B7 |
-| **B9** | baseline integration | lint/typecheck/build/focused suites green | B1–B8 |
+| **B9** | `done` | baseline integration green (lint 0 err, typecheck, build, s0-gates 17) | B1–B8 |
 
 ### Phase P1 — добавить автоматические agent gates
 

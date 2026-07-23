@@ -4,7 +4,7 @@
  * Feature CSS lives in:
  *   styles/app-base.css, calc-spreadsheet.css, actionbar-srs.css, app-header.css,
  *   table-chrome.css, form-grid-srs.css, print.css, tlt-form-controls.css
- *   pages/*/feature CSS, components/wizard/*-island.css
+ *   pages feature CSS modules, components/wizard island CSS files
  *
  * Dual-form page-scoped residual (incl. insulation placement chrome) moved to:
  *   pages/heatcalc/heatcalc-workspace.css
