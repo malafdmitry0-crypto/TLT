@@ -1,14 +1,11 @@
 /* ============================================================================
- * LEGACY styles.css — FREEZE (C23)
+ * LEGACY styles.css — FREEZE
  * ---------------------------------------------------------------------------
- * Feature CSS lives in:
- *   styles/app-base.css, calc-spreadsheet.css, actionbar-srs.css, app-header.css,
- *   table-chrome.css, form-grid-srs.css, print.css, tlt-form-controls.css
- *   pages feature CSS modules, components/wizard island CSS files
- *
- * Dual-form page-scoped residual (incl. insulation placement chrome) moved to:
- *   pages/heatcalc/heatcalc-workspace.css
- * InsulationLayersTable island SoT remains:
- *   components/wizard/insulation-layers-table.css
+ * Global layers (import order SoT: main.tsx):
+ *   styles/tokens.css → base.css → app-shell.css → vendor-overrides.css
+ * Shared chrome: calc-spreadsheet, actionbar-srs, app-header, table-chrome,
+ *   form-grid-srs, print
+ * tlt-form-controls.css: owned by components/form-controls (not global)
+ * Feature CSS: pages/* and components/wizard/* owners
  * ===========================================================================
  */

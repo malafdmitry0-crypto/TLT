@@ -227,7 +227,7 @@
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  min-height: 0 !important;
+  min-height: 0;
   margin: 0;
   padding: 0;
   border: 0;
@@ -281,7 +281,7 @@
   max-width: 100%;
   min-width: 0;
   /* высота растёт под 2 строки длинного имени материала, а не фиксирована */
-  height: auto !important;
+  height: auto;
   min-height: var(--ins-control-h) !important;
   padding-top: 2px !important;
   padding-bottom: 2px !important;

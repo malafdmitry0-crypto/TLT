@@ -2,10 +2,20 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ConfigProvider, theme } from 'antd';
+import { ConfigProvider } from 'antd';
 import ruRU from 'antd/locale/ru_RU';
 import App from './App';
-import './styles/app-base.css';
+/**
+ * Global CSS import order (architecture contract — enforced by cssArchitectureRatchet):
+ * 1 tokens → 2 base → 3 app-shell → 4 vendor-overrides
+ * 5 styles.css freeze stub
+ * 6 shared feature globals (spreadsheet / chrome / print)
+ * tlt-form-controls.css is NOT global — owned by form-controls / ui-kit entry.
+ */
+import './styles/tokens.css';
+import './styles/base.css';
+import './styles/app-shell.css';
+import './styles/vendor-overrides.css';
 import './styles.css';
 import './styles/calc-spreadsheet.css';
 import './styles/actionbar-srs.css';
@@ -13,10 +23,9 @@ import './styles/app-header.css';
 import './styles/table-chrome.css';
 import './styles/form-grid-srs.css';
 import './styles/print.css';
-import './styles/tlt-form-controls.css';
+import { appTheme } from '@/theme/appTheme';
 import { installClientAudit } from '@/utils/clientAudit';
 
-const BUTTON_SCALE = 0.7;
 installClientAudit();
 
 const queryClient = new QueryClient({
@@ -28,31 +37,7 @@ const queryClient = new QueryClient({
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <ConfigProvider
-        locale={ruRU}
-        theme={{
-          token: {
-            colorPrimary: '#1a5276',
-            colorLink: '#2e86c1',
-            borderRadius: 4,
-          },
-          components: {
-            Button: {
-              controlHeight: 32 * BUTTON_SCALE,
-              controlHeightSM: 24 * BUTTON_SCALE,
-              controlHeightLG: 40 * BUTTON_SCALE,
-              contentFontSize: 14 * BUTTON_SCALE,
-              contentFontSizeSM: 14 * BUTTON_SCALE,
-              contentFontSizeLG: 16 * BUTTON_SCALE,
-              iconGap: 8 * BUTTON_SCALE,
-              paddingInline: 15 * BUTTON_SCALE,
-              paddingInlineSM: 7 * BUTTON_SCALE,
-              paddingInlineLG: 15 * BUTTON_SCALE,
-            },
-          },
-          algorithm: theme.defaultAlgorithm,
-        }}
-      >
+      <ConfigProvider locale={ruRU} theme={appTheme}>
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <App />
         </BrowserRouter>

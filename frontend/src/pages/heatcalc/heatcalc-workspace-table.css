@@ -529,7 +529,7 @@
 .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-table .ant-form-item,
 .inline-object-form--side .object-wizard-side-panel .insulation-layers-table .ant-form-item {
   flex: none;
-  min-height: 0 !important;
+  min-height: 0;
   padding: 0;
 }
 

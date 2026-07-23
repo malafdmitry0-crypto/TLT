@@ -1,0 +1,15 @@
+/**
+ * Base document + shared utility classes (no Ant vendor selectors).
+ * Layer 2 of global CSS import order.
+ */
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  font-family: var(--font-family-app);
+}
+
+.cell-invalid {
+  border: 2px solid var(--color-danger-border);
+  background-color: var(--color-danger-bg);
+}

@@ -1,68 +1,10 @@
-/* App base tokens + global ant overrides — moved from styles.css (C22) */
-
-:root {
-  --color-primary: #1a5276;
-  --color-primary-light: #2e86c1;
-  --font-family-app: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-  --font-family-data: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  /* HeatCalc dual-form contract (SC-03) — shared by UI Kit / Tlt* controls */
-  --tlt-field-control-height: 26px;
-  --tlt-field-control-font-size: 12px;
-  --tlt-field-label-font-size: 8.5px;
-  --tlt-field-label-line-height: 1;
-  --tlt-field-label-color: #53667b;
-  --tlt-field-message-font-size: 9px;
-  --tlt-field-select-font-size: 9px;
-  --tlt-field-unit-font-size: 9px;
-  /* Shared track for short numeric units (мм/м/°C/шт/м·с) in compact grids */
-  --tlt-field-unit-width: 1.75rem;
-  /* numeric body — HeatCalc dual-form computed 12px (unit stays 9px) */
-  --tlt-field-number-font-size: 12px;
-  --tlt-field-control-padding-inline: 3px;
-  --tlt-field-gap: 4px;
-  --tlt-field-column-gap: 10px;
-  --tlt-field-row-gap: 4px;
-  --tlt-field-radius: 2px;
-  --tlt-field-label-width: 98px;
-  --tlt-field-row-min-h: 28px;
-  --tlt-field-ctrl-num: 4rem;
-  --tlt-field-ctrl-name: 7.5rem;
-  --tlt-field-ctrl-climate: 8.75rem;
-  --tlt-field-ctrl-tm: 8rem;
-  --tlt-field-ctrl-layers: 5rem;
-  --heatcalc-toolbar-background: #f4f8fa;
-  --heatcalc-toolbar-border: #d9e1e6;
-  --heatcalc-toolbar-divider: #c4d2db;
-  --heatcalc-panel-border: #dbe6f2;
-  --heatcalc-table-header-background: #f3f6f4;
-  --heatcalc-table-outer-border: #bfbfbf;
-  --heatcalc-table-grid-border: #d9d9d9;
-}
-html, body, #root {
-  height: 100%;
-  margin: 0;
-  font-family: var(--font-family-app);
-}
-.ant-typography-secondary {
-  color: #595959;
-}
-.ant-empty-description,
-.ant-tag {
-  color: #595959;
-}
-.ant-tag-green {
-  color: #135200;
-}
-.ant-btn-link:not(:disabled) {
-  color: #1a5276;
-}
-.ant-table-expanded-row-fixed {
-  color: #595959;
-}
-.cell-invalid {
-  border: 2px solid #d9363e;
-  background-color: #fff1f0;
-}
-.heatcalc-main-layout {
-  min-width: 0;
-}
+/**
+ * LEGACY entry name — freeze pointer to layered globals.
+ * Do not add rules here. Import order SoT: main.tsx + cssArchitectureRatchet GLOBAL_CSS_IMPORT_ORDER.
+ *
+ * Layers:
+ *   1. tokens.css
+ *   2. base.css
+ *   3. app-shell.css
+ *   4. vendor-overrides.css
+ */

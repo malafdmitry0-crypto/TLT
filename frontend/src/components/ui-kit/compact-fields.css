@@ -268,7 +268,7 @@
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  min-height: 0 !important;
+  min-height: 0;
   margin: 0;
   padding: 0;
   break-inside: avoid;
@@ -303,8 +303,8 @@
 .tlt-compact-field-grid--ant-form .field-label-two-line,
 .tlt-compact-field-grid--ant-form .field-label-two-line > span {
   width: 100%;
-  height: auto !important;
-  min-height: 0 !important;
+  height: auto;
+  min-height: 0;
   max-width: 100%;
   margin: 0;
   padding: 0;
@@ -358,7 +358,7 @@
 .tlt-compact-field-grid--ant-form .ant-form-item-extra,
 .tlt-compact-field-grid--ant-form .ant-form-item-explain {
   grid-column: 2;
-  min-height: 0 !important;
+  min-height: 0;
   margin: 0;
   font-size: var(--tlt-field-message-font-size) !important;
   line-height: 1.3 !important;
@@ -431,7 +431,7 @@
   grid-column: span var(--tlt-field-span, 12);
   width: 100%;
   max-width: 100%;
-  min-height: 0 !important;
+  min-height: 0;
 }
 
 .tlt-compact-field-grid--ant-form.tlt-compact-field-grid--labels-top .ant-form-item-row {
@@ -446,7 +446,7 @@
   grid-column: 1;
   width: 100%;
   max-width: 100%;
-  min-height: 0 !important;
+  min-height: 0;
   justify-content: flex-end;
 }
 

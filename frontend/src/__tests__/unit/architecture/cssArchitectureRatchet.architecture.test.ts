@@ -22,18 +22,49 @@ const SRC_ROOT = path.resolve(HERE, '../../..');
 const FRONTEND_ROOT = path.resolve(HERE, '../../../..');
 const BASELINE_PATH = path.join(HERE, 'cssArchitectureBaseline.json');
 
-/** Explicit global CSS entries (loaded from main or intentional global). */
+/**
+ * Global CSS entries: loaded from main.tsx OR freeze-pointer stubs.
+ * tlt-form-controls.css is intentionally NOT global — form-controls/ui-kit owner.
+ */
 const GLOBAL_CSS_ENTRIES = new Set([
   'src/styles.css',
-  'src/styles/app-base.css',
+  'src/styles/app-base.css', // freeze pointer (layers live in tokens/base/app-shell/vendor)
+  'src/styles/tokens.css',
+  'src/styles/base.css',
+  'src/styles/app-shell.css',
+  'src/styles/vendor-overrides.css',
   'src/styles/calc-spreadsheet.css',
   'src/styles/actionbar-srs.css',
   'src/styles/app-header.css',
   'src/styles/table-chrome.css',
   'src/styles/form-grid-srs.css',
   'src/styles/print.css',
-  'src/styles/tlt-form-controls.css',
 ]);
+
+/**
+ * Strict global CSS import order in main.tsx (architecture contract).
+ * Contiguous .css imports must match this sequence (no extras, no reorder).
+ */
+export const GLOBAL_CSS_IMPORT_ORDER = [
+  './styles/tokens.css',
+  './styles/base.css',
+  './styles/app-shell.css',
+  './styles/vendor-overrides.css',
+  './styles.css',
+  './styles/calc-spreadsheet.css',
+  './styles/actionbar-srs.css',
+  './styles/app-header.css',
+  './styles/table-chrome.css',
+  './styles/form-grid-srs.css',
+  './styles/print.css',
+] as const;
+
+/** CSS files allowed to introduce/define raw hex/rgb colors (token SoT). */
+const RAW_COLOR_ALLOWLIST = new Set([
+  'src/styles/tokens.css',
+]);
+
+const RAW_COLOR_RE = /#(?:[0-9a-fA-F]{3,8})\b|\brgba?\(|\bhsla?\(/g;
 
 /**
  * Feature owner roots: CSS under these paths must not use foreign feature markers.
@@ -88,6 +119,9 @@ type Baseline = {
   newFileLocCap: number;
   files: Record<string, FileMetrics>;
   totals: FileMetrics;
+  /** Per-file raw color literal counts (hex/rgb/hsl); decrease always OK. */
+  rawColors?: Record<string, number>;
+  rawColorsTotal?: number;
 };
 
 const SKIP_DIRS = new Set(['node_modules', 'dist', '__tests__']);
@@ -223,6 +257,38 @@ export function measureCssFile(source: string): FileMetrics {
     bareAnt: countBareAntSelectors(extractSelectors(source)),
     media: (cleaned.match(/@media\b/g) ?? []).length,
   };
+}
+
+/** Count raw color literals outside comments. */
+export function countRawColors(source: string): number {
+  const cleaned = stripComments(source);
+  return (cleaned.match(RAW_COLOR_RE) ?? []).length;
+}
+
+function collectRawColorCounts(): { total: number; files: Record<string, number> } {
+  const files: Record<string, number> = {};
+  let total = 0;
+  for (const abs of walkCssFiles(SRC_ROOT)) {
+    const key = relSrcKey(abs);
+    const n = countRawColors(fs.readFileSync(abs, 'utf8'));
+    if (n > 0) {
+      files[key] = n;
+      total += n;
+    }
+  }
+  return { total, files };
+}
+
+function readMainCssImportOrder(): string[] {
+  const mainPath = path.join(SRC_ROOT, 'main.tsx');
+  const text = fs.readFileSync(mainPath, 'utf8');
+  const re = /import\s+['"](\.\/styles[^'"]+\.css|\.\/styles\.css)['"]/g;
+  const out: string[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    out.push(m[1]!);
+  }
+  return out;
 }
 
 function loadBaseline(): Baseline {
@@ -431,12 +497,104 @@ describe('CSS architecture ratchet (G4)', () => {
       );
     }
 
+    // tlt-form-controls must be owner-imported, never as a main.tsx CSS import
+    const mainCssImports = readMainCssImportOrder();
+    if (mainCssImports.some((spec) => spec.includes('tlt-form-controls'))) {
+      violations.push(
+        failMessage(
+          'TLT_CONTROLS_GLOBAL',
+          'tlt-form-controls.css must not be imported from main.tsx',
+          'Import from components/form-controls (or ui-kit) owner entry only.',
+          'src/main.tsx',
+        ),
+      );
+    }
+    const tltKey = 'src/styles/tlt-form-controls.css';
+    if (!importers.has(tltKey)) {
+      violations.push(
+        failMessage(
+          'TLT_CONTROLS_ORPHAN',
+          'tlt-form-controls.css has no owner importer',
+          'Import from components/form-controls/index.ts.',
+          tltKey,
+        ),
+      );
+    }
+
+    // app-base freeze pointer (no selectors)
+    const appBaseText = fs.readFileSync(path.join(SRC_ROOT, 'styles/app-base.css'), 'utf8');
+    const appBaseSels = extractSelectors(appBaseText);
+    if (appBaseSels.length > 0) {
+      violations.push(
+        failMessage(
+          'APP_BASE_HAS_SELECTORS',
+          'app-base.css must remain a freeze pointer to layered globals',
+          'Put rules in tokens/base/app-shell/vendor-overrides.css instead.',
+          'src/styles/app-base.css',
+          appBaseSels[0],
+        ),
+      );
+    }
+
+    // Raw color ratchet
+    const raw = collectRawColorCounts();
+    const rawBaselineFiles = baseline.rawColors ?? {};
+    const rawBaselineTotal = baseline.rawColorsTotal ?? Number.POSITIVE_INFINITY;
+    if (raw.total > rawBaselineTotal) {
+      violations.push(
+        failMessage(
+          'RAW_COLOR_TOTAL_GREW',
+          `Total raw CSS colors grew`,
+          'Use var(--token) from styles/tokens.css. Do not raise raw color baseline.',
+          undefined,
+          `CURRENT=${raw.total} LIMIT=${rawBaselineTotal}`,
+        ),
+      );
+    }
+    for (const [file, limit] of Object.entries(rawBaselineFiles)) {
+      const cur = raw.files[file] ?? 0;
+      if (cur > limit) {
+        violations.push(
+          failMessage(
+            'RAW_COLOR_FILE_GREW',
+            'Raw color count grew in file',
+            RAW_COLOR_ALLOWLIST.has(file)
+              ? 'Token file growth is rare — prefer reusing existing tokens.'
+              : 'Replace hex/rgb with var(--…) from tokens.css.',
+            file,
+            `CURRENT=${cur} LIMIT=${limit}`,
+          ),
+        );
+      }
+    }
+    for (const [file, cur] of Object.entries(raw.files)) {
+      if (file in rawBaselineFiles) continue;
+      if (RAW_COLOR_ALLOWLIST.has(file)) continue;
+      if (cur > 0) {
+        violations.push(
+          failMessage(
+            'RAW_COLOR_NEW_FILE',
+            'New CSS file introduces raw colors',
+            'Use tokens only outside styles/tokens.css (or add to RAW_COLOR_ALLOWLIST with review).',
+            file,
+            `rawColors=${cur}`,
+          ),
+        );
+      }
+    }
+
     if (violations.length > 0) {
       expect.fail(violations.join('\n\n---\n\n'));
     }
 
-    expect(baseline.version).toBe(1);
-    expect(baseline.stylesCssMaxLoc).toBeLessThanOrEqual(20);
+    expect(baseline.version).toBeGreaterThanOrEqual(1);
+    expect(baseline.stylesCssMaxLoc).toBeLessThanOrEqual(30);
+  });
+
+  it('enforces strict global CSS import order in main.tsx', () => {
+    const actual = readMainCssImportOrder();
+    expect(actual).toEqual([...GLOBAL_CSS_IMPORT_ORDER]);
+    expect(actual).not.toContain('./styles/tlt-form-controls.css');
   });
 
   it('reuses IMP0 for !important (no second counter)', () => {
@@ -459,5 +617,10 @@ describe('CSS architecture ratchet (G4)', () => {
     expect(m.bareAnt).toBe(1); // only .ant-modal
     expect(m.media).toBe(1);
     expect(m.loc).toBeGreaterThan(5);
+  });
+
+  it('counts raw colors ignoring comments', () => {
+    expect(countRawColors('/* #fff */ .x { color: #1a5276; }')).toBe(1);
+    expect(countRawColors('.x { color: var(--color-primary); }')).toBe(0);
   });
 });

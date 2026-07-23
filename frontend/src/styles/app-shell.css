@@ -1,0 +1,9 @@
+/**
+ * App shell layout hooks (main layout chrome).
+ * Layer 3 of global CSS import order.
+ * Feature shells (Heat workspace, Elec) live under pages/* owners.
+ */
+
+.heatcalc-main-layout {
+  min-width: 0;
+}

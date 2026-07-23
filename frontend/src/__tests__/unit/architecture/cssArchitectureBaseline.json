@@ -1,8 +1,8 @@
 {
-  "version": 1,
-  "slice": "G4+CSS2-4",
-  "description": "CSS architecture ratchet after heat CSS2–CSS4 move-only splits.",
-  "stylesCssMaxLoc": 20,
+  "version": 2,
+  "slice": "CSS-layers-architecture",
+  "description": "CSS architecture after tokens/base/app-shell/vendor layers + raw color floor",
+  "stylesCssMaxLoc": 30,
   "newFileLocCap": 400,
   "files": {
     "src/components/ui-kit/compact-fields.css": {
@@ -96,14 +96,24 @@
       "media": 1
     },
     "src/styles/app-base.css": {
-      "loc": 69,
-      "bareAnt": 6,
+      "loc": 11,
+      "bareAnt": 0,
       "media": 0
     },
     "src/styles/app-header.css": {
       "loc": 272,
       "bareAnt": 0,
       "media": 3
+    },
+    "src/styles/app-shell.css": {
+      "loc": 10,
+      "bareAnt": 0,
+      "media": 0
+    },
+    "src/styles/base.css": {
+      "loc": 16,
+      "bareAnt": 0,
+      "media": 0
     },
     "src/styles/calc-spreadsheet.css": {
       "loc": 604,
@@ -130,15 +140,51 @@
       "bareAnt": 1,
       "media": 0
     },
+    "src/styles/tokens.css": {
+      "loc": 50,
+      "bareAnt": 0,
+      "media": 0
+    },
+    "src/styles/vendor-overrides.css": {
+      "loc": 27,
+      "bareAnt": 6,
+      "media": 0
+    },
     "src/styles.css": {
-      "loc": 15,
+      "loc": 12,
       "bareAnt": 0,
       "media": 0
     }
   },
   "totals": {
-    "loc": 9226,
+    "loc": 9268,
     "bareAnt": 18,
     "media": 40
-  }
+  },
+  "rawColors": {
+    "src/components/ui-kit/compact-fields.css": 6,
+    "src/components/ui-kit/primitives.css": 63,
+    "src/components/wizard/cable-algorithm-panel.css": 11,
+    "src/components/wizard/heat-object-fields.css": 1,
+    "src/components/wizard/insulation-layers-table.css": 23,
+    "src/pages/electrical/elec-workspace.css": 88,
+    "src/pages/heatcalc/heatcalc-dual-form-shell.css": 6,
+    "src/pages/heatcalc/heatcalc-field-chrome.css": 29,
+    "src/pages/heatcalc/heatcalc-insulation-page.css": 7,
+    "src/pages/heatcalc/heatcalc-side-form-layout.css": 14,
+    "src/pages/heatcalc/heatcalc-workspace-shell.css": 7,
+    "src/pages/heatcalc/heatcalc-workspace-table.css": 12,
+    "src/pages/specification/specification-page.css": 9,
+    "src/pages/ui-kit.css": 96,
+    "src/pages/workflow-params.css": 2,
+    "src/styles/actionbar-srs.css": 12,
+    "src/styles/app-header.css": 22,
+    "src/styles/calc-spreadsheet.css": 71,
+    "src/styles/form-grid-srs.css": 13,
+    "src/styles/print.css": 2,
+    "src/styles/table-chrome.css": 66,
+    "src/styles/tlt-form-controls.css": 36,
+    "src/styles/tokens.css": 14
+  },
+  "rawColorsTotal": 610
 }

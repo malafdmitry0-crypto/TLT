@@ -1,0 +1,26 @@
+/**
+ * Third-party (Ant Design) bare-root overrides that cannot live under a feature owner yet.
+ * Layer 4 of global CSS import order.
+ * Prefer tokens; do not add feature-specific rules here.
+ */
+
+.ant-typography-secondary {
+  color: var(--color-text-secondary);
+}
+
+.ant-empty-description,
+.ant-tag {
+  color: var(--color-text-secondary);
+}
+
+.ant-tag-green {
+  color: var(--color-text-success-strong);
+}
+
+.ant-btn-link:not(:disabled) {
+  color: var(--color-primary);
+}
+
+.ant-table-expanded-row-fixed {
+  color: var(--color-text-secondary);
+}
