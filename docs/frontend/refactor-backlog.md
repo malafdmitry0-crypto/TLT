@@ -17,7 +17,7 @@
 | Метрика | Текущее значение |
 |---|---:|
 | `src/styles.css` | freeze-stub |
-| `!important` baseline | **50** (≤75 ✅) |
+| `!important` baseline | **44** (≤75 ✅) |
 | Global layers | tokens → base → **app-shell** (incl. header) → vendor |
 | G3 allowlists | all **0** |
 | `useElecCalcWorkspaceModel.tsx` | 545 LOC |
@@ -28,9 +28,7 @@
 
 | ID | Status | Domain | Goal | Allowed scope | Invariants | Focused proof | Depends |
 |---|---|---|---|---|---|---|---|
-| **CSS-IMP-02** | `done` | css/ui | Split Tlt vs Ant !important in compact-fields | compact-fields + baselines | density SC-03 | FormControls + UIKit + css:architecture | — |
-| **CSS-IMP-03** | `done` | css/wizard | cable + heat-object Tlt/Ant split + drop cable * lock | cable/heat-object CSS | density | architecture | CSS-IMP-02 |
-| **CSS-IMP-04** | `pending` | css/wizard | Burn-down insulation-layers-table !important (CSS-only; no TSX/formulas) | insulation-layers-table.css; baseline; isolation tests | Island isolation | wizardIsolation + architecture | CSS-IMP-03 |
+| — | — | — | Queue empty. Optional next: ui-kit.css showcase locks, heatcalc-field-chrome, raw-color burn-down. | — | — | — | — |
 
 ## Completed
 
