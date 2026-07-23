@@ -43,6 +43,7 @@ architecture ratchets и agent gates существуют. Следующая ц
 | [LLM-friendly стиль](./llm-friendly-style.md) | Колокация, pure models, явные зависимости |
 | [UI-kit](./ui-kit.md) | Публичный UI API и границы design system |
 | [CSS-стратегия](./css-strategy.md) | Ownership, tokens, feature roots и freeze `styles.css` |
+| [Desktop viewport policy](./viewport-policy.md) | `1000` functional, `1280` full workspace, `1440` primary QA |
 | [`components/ui-kit/README`](../../frontend/src/components/ui-kit/README.md) | Runtime-контракт UI-компонентов |
 | [Архив](./archive/README.md) | Завершённые планы, prompts и snapshots |
 

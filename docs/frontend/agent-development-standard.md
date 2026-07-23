@@ -179,6 +179,10 @@ architecture-slice. Это не относится к `!important`: его basel
 - Новые responsive rules используют `480/768/1200/1400`, `print` или
   `prefers-reduced-motion`; остальные существующие значения не распространяются
   за пределы текущего owner.
+- Desktop width contract: `1000 px` — functional boundary, `1280 px` — full
+  engineering workspace, `1440×900` — primary QA, `1920 px` — wide proof.
+  Полная матрица находится в [viewport-policy.md](./viewport-policy.md);
+  viewports не являются разрешением добавить одноимённый breakpoint.
 - Плотность общих полей задаётся `--tlt-field-*` tokens.
 - UI-kit владеет поведением контрола; feature владеет размещением.
 - Accessibility-семантика — публичный интерфейс для пользователя и Playwright.
@@ -191,8 +195,11 @@ architecture-slice. Это не относится к `!important`: его basel
 
 Видимый UI-slice проверяет минимум:
 
-- целевой desktop viewport;
-- narrow/mobile viewport;
+- primary desktop `1440×900`;
+- один релевантный крайний профиль из viewport policy;
+- для app shell/overflow — `1000×768` и `1920×1080`;
+- для плотного engineering layout — `1000×768` constrained и `1280×800` full;
+- `390×844`/`768×1024`, только если затронут responsive/mobile contract;
 - loading/empty/error/disabled/permission states, если затронуты;
 - keyboard navigation и видимый focus;
 - text overflow, clipping и пересечения;

@@ -195,6 +195,10 @@ prefers-reduced-motion: reduce
 менять layout, поэтому выполняется отдельным визуальным slice с geometry proof.
 CSS custom properties не используются внутри media query.
 
+Тестовые desktop widths не являются breakpoints. Functional/full/primary/wide
+контракт и точные размеры browser proof заданы в
+[viewport-policy.md](./viewport-policy.md).
+
 ## Ant Design overrides и `!important`
 
 Порядок решения конфликта:
@@ -293,18 +297,21 @@ architecture-slice, а не внутри feature-задачи.
 | Изменение | Минимальный proof |
 |---|---|
 | Token/UI kit | unit + `/ui-kit` + computed-style parity |
-| Heat form/layout | 1280 и 1440; используемые placements; empty + populated; validation |
-| Table/Glide chrome | populated rows; scroll; selection; error row |
-| Modal/settings | open/close; long content; keyboard focus; 1280 |
+| Heat form/layout | 1000 constrained; 1280 full; 1440 primary; используемые placements и validation |
+| Table/Glide chrome | 1000/1440; populated rows; local scroll; selection; error row |
+| Modal/settings | open/close; long content; keyboard focus; 1000 и 1440 |
 | Specification | populated + stale; screen + print |
-| Electrical | focused unit/integration + основной e2e scenario |
-| App shell | 1280, 1440, 1920; navigation; overflow |
+| Electrical | 1000 constrained; 1280 full; 1440 primary + focused e2e |
+| App shell | 1000, 1440, 1920; navigation; overflow |
 | Responsive component | 390 и 768 дополнительно |
 
-HeatCalc ниже официальной минимальной ширины не является release blocker, если
-задача не про responsive. UI kit и явно responsive-компоненты всё равно
-проверяются на 390/768. Reduced motion, focus-visible и print проверяются при
-затрагивании соответствующего поведения.
+`1000 px` — functional desktop boundary для всего приложения. Для плотных
+Heat/Electrical/Specification workflows полный workspace начинается с `1280 px`;
+между `1000` и `1279` допустимы documented warning, stacked/collapsed placement и
+локальный table scroll, но не недоступные ключевые действия или page-level
+overflow. `1440×900` остаётся primary QA. UI kit и явно
+responsive-компоненты дополнительно проверяются на 390/768. Reduced motion,
+focus-visible и print проверяются при затрагивании соответствующего поведения.
 
 ## Definition of Done
 

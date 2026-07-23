@@ -26,6 +26,9 @@
   прямые feature-ссылки на legacy palette `--c-*`/`--a-*`.
 - Новый CSS имеет один owner root, минимальную специфичность и использует только
   canonical breakpoints из [CSS-стратегии](../docs/frontend/css-strategy.md).
+- Видимый desktop UI проверяется по
+  [viewport policy](../docs/frontend/viewport-policy.md): `1000` functional,
+  `1280` full workspace, `1440×900` primary QA.
 - Не создавай новые Heat ↔ Electrical ↔ Specification deep imports.
 - UI-kit не знает о feature/domain; feature UI импортирует kit только через
   `@/components/ui-kit`.

@@ -101,8 +101,11 @@ npm run test:integration
 npm run build
 
 Для DOM/CSS/interaction изменений browser proof обязателен:
-- целевой desktop viewport;
-- narrow/mobile viewport;
+- primary desktop 1440x900;
+- один релевантный крайний профиль из docs/frontend/viewport-policy.md;
+- 1000x768 constrained + 1280x800 full для плотного engineering layout;
+- 1000x768 + 1920x1080 для app shell/overflow;
+- 390x844/768x1024 только для responsive/mobile contract;
 - затронутые loading/empty/error/disabled/permission states;
 - keyboard/focus;
 - overflow и geometry;

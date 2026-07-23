@@ -44,7 +44,7 @@ Feature-owner: `heat`, `electrical`, `specification`, `reports`, `projects`,
 | Workflow/hook | Unit + ближайший integration wiring test |
 | Dependency edge | Focused integration + `npm run test:architecture` |
 | UI-kit/form density | UI-kit tests + parity Playwright |
-| Feature layout/CSS | Focused UI test + desktop/narrow browser proof |
+| Feature layout/CSS | Focused UI test + primary/edge proof по `viewport-policy.md` |
 | Route/query wiring | Relevant integration + e2e user flow |
 
 После focused proof всегда:
