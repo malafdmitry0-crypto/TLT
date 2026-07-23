@@ -5,7 +5,9 @@
  * ============================================================================
  * STRUCTURAL 5-col grid via .insulation-layer-cell--* (React cells).
  * Form.Item grid-column is ignored — cells own the columns.
- * All selectors under .insulation-layers-table only.
+ * All structural/chrome selectors under .insulation-layers-table only.
+ * Host layout may override --ins-col-* from pages/heatcalc/heatcalc-insulation-page.css
+ * (CSS variables only — no header/grid/cell chrome outside this file).
  * ============================================================================
  */
 

@@ -1,7 +1,7 @@
 {
   "version": 3,
-  "slice": "CSS-RESIDUAL-CLOSE",
-  "description": "All raw colors in tokens only; zero !important via StyleProvider hashPriority=low",
+  "slice": "CSS-OWN-01",
+  "description": "Insulation dual-owner: page host tokens only",
   "stylesCssMaxLoc": 30,
   "newFileLocCap": 400,
   "files": {
@@ -26,7 +26,7 @@
       "media": 1
     },
     "src/components/wizard/insulation-layers-table.css": {
-      "loc": 357,
+      "loc": 359,
       "bareAnt": 0,
       "media": 1
     },
@@ -46,7 +46,7 @@
       "media": 3
     },
     "src/pages/heatcalc/heatcalc-insulation-page.css": {
-      "loc": 273,
+      "loc": 90,
       "bareAnt": 0,
       "media": 4
     },
@@ -157,7 +157,7 @@
     }
   },
   "totals": {
-    "loc": 9600,
+    "loc": 9419,
     "bareAnt": 18,
     "media": 40
   },
