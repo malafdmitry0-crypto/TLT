@@ -132,7 +132,7 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | **E19** | `done` | summary/batch chrome hook | `useElecCalcWorkspaceSummaryChrome` + pure job/total helpers | unit 6 + BatchActionBar | model **1116→1086** |
 
 **Метрика shell:** `ElecCalcPage` = **30**. `ElecCalcWorkspace` = **192** (M1/M3 ✅).  
-**Текущий пункт:** model-thin residual (Elec ~1086 / Heat ~830).
+**Текущий пункт:** hardening SoT → [agent-hardening-plan.md](./agent-hardening-plan.md) (**B1** next; model-thin только после B9/G*).
 
 Also fix baseline thick models line if present.
 
