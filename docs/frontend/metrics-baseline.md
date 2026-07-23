@@ -22,20 +22,20 @@ wc -l frontend/src/pages/ElecCalcPage.tsx \
 
 ## Inverted deps: `components` → `pages`
 
-**Count: 1 file** (was 3; pure models moved to `domain/electrical/` 2026-07-23)
+**Count: 0** ✅ (target met 2026-07-23)
 
-| File | Status |
+| Slice | Change |
 |---|---|
-| `components/layout/Sidebar.tsx` | still allowlisted (`useLegacyElectricalVariantContext`) |
-| ~~ElectricalCandidateFieldRenderer~~ | ✅ now imports `@/domain/electrical/*` |
-| ~~ElectricalColumnFilterDropdown~~ | ✅ now imports `@/domain/electrical/*` |
+| models | pure elec models → `domain/electrical/` |
+| Sidebar | `useLegacyElectricalVariantContext` → `hooks/` |
 
 ```bash
 grep -rn "from '@/pages/" frontend/src/components --include='*.ts' --include='*.tsx' \
   | sed 's/:.*//' | sort -u
+# expect: empty
 ```
 
-**Goal:** → 0 (shrink allowlist; do not grow).
+**Goal:** keep at 0 — architecture test allowlist is empty.
 
 ## Architecture gate
 

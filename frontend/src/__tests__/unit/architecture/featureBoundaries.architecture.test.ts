@@ -19,11 +19,12 @@ const SRC_ROOT = path.resolve(
   '../../..',
 );
 
-/** Legacy inverted deps: components → pages (documented; shrink over time). */
-const COMPONENTS_TO_PAGES_ALLOWLIST = new Set([
-  // Remaining after pure models moved to domain/electrical (2026-07-23 slice)
-  'components/layout/Sidebar.tsx',
-]);
+/**
+ * Legacy inverted deps: components → pages.
+ * Target: empty set. Do not grow; shrink on each electrical/layout slice.
+ * 2026-07-23: pure models → domain/electrical; Sidebar → hooks/useLegacyElectricalVariantContext.
+ */
+const COMPONENTS_TO_PAGES_ALLOWLIST = new Set<string>([]);
 
 function walkTsFiles(dir: string): string[] {
   if (!fs.existsSync(dir)) return [];

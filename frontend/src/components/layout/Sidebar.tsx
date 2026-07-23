@@ -11,7 +11,7 @@ import { ROUTES } from '@/routes/routes';
 import { useProjectStore } from '@/store/projectStore';
 import { useQuery } from '@tanstack/react-query';
 import { getObjectsSummary } from '@/api/projects';
-import { useLegacyElectricalVariantContext } from '@/pages/electrical/useLegacyElectricalVariantContext';
+import { useLegacyElectricalVariantContext } from '@/hooks/useLegacyElectricalVariantContext';
 
 function StepLabel({
   text,

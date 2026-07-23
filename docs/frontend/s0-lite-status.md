@@ -49,8 +49,18 @@ cd e2e && E2E_BASE_URL=http://127.0.0.1:3003 npm run test:ui-kit-parity:chrome
 | inverted components→pages | **3 → 1** (only Sidebar left) |
 | Proof: s0-gates, model units, parity e2e | ✅ |
 
+## Slice 2 — Sidebar invert → 0 (2026-07-23)
+
+| Item | Status |
+|---|---|
+| `useLegacyElectricalVariantContext` → `hooks/` | ✅ |
+| Sidebar imports hooks (not pages) | ✅ |
+| re-export stub under pages/electrical | ✅ |
+| architecture allowlist | **empty** |
+| inverted components→pages | **0** |
+
 ## Next
 
-1. Extract/move `useLegacyElectricalVariantContext` (Sidebar invert → 0)
-2. Thin HeatCalcPage shell extract **or** next form section on kit
-3. One ElecCalcPage orchestration extract (not full rewrite)
+1. Thin HeatCalcPage shell extract **or** next form section on kit
+2. One ElecCalcPage orchestration extract (not full rewrite)
+3. CSS extract one block from styles.css

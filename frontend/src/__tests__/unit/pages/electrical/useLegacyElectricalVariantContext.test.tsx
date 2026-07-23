@@ -25,7 +25,7 @@ vi.mock('@/api/electricalVariants', () => ({
   deleteElectricalVariant: vi.fn(),
 }));
 
-import { useLegacyElectricalVariantContext } from '@/pages/electrical/useLegacyElectricalVariantContext';
+import { useLegacyElectricalVariantContext } from '@/hooks/useLegacyElectricalVariantContext';
 
 const projectId = 'project-1';
 const first: ElectricalVariant = {
