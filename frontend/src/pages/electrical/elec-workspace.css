@@ -910,3 +910,92 @@
     overflow-x: auto;
   }
 }
+
+/* C20: cable picker characteristics */
+
+.cable-picker-characteristics {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  max-width: 100%;
+}
+.cable-picker-characteristics--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+.cable-picker-characteristics-section {
+  min-width: 0;
+}
+.cable-picker-characteristics-title {
+  margin: 0 0 3px;
+  color: #536577;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.cable-picker-characteristics-columns {
+  display: grid;
+  grid-template-columns: repeat(var(--cable-picker-characteristics-column-count, 2), minmax(0, 1fr));
+  gap: 0 8px;
+  min-width: 0;
+}
+.cable-picker-characteristics-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+.cable-picker-characteristics-row {
+  display: grid;
+  grid-template-columns: minmax(72px, 45%) minmax(0, 1fr);
+  gap: 3px;
+  min-width: 0;
+  padding: 0;
+  border-bottom: 1px solid #e8eef3;
+}
+.cable-picker-characteristics-row:last-child {
+  border-bottom: 0;
+}
+.cable-picker-characteristics-label {
+  display: inline-flex;
+  min-width: 0;
+  gap: 0;
+  color: #6a7c8f;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.08;
+}
+.cable-picker-characteristics-value {
+  min-width: 0;
+  margin: 0;
+  color: #1f2933;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.08;
+  overflow-wrap: anywhere;
+}
+
+/* C20 residual media */
+
+@media (max-width: 760px) {
+  .cable-picker-characteristics {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 980px) {
+  .cable-picker-characteristics-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .cable-picker-characteristics {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 980px) {
+  .cable-picker-characteristics-columns {
+    grid-template-columns: 1fr;
+  }
+}

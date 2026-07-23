@@ -285,3 +285,163 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* C19: heat-structured dual-form shell / SC-03 form pane from styles.css */
+
+.form-grid-srs--heat-structured,
+.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--heat-structured,
+.heatcalc-dual-forms__heat .form-grid-srs--heat-structured,
+.heatcalc-dual-forms__heat .form-grid-srs--pdf-three.form-grid-srs--heat-structured,
+.inline-object-form--wide .object-wizard-wide-panel .form-grid-srs--heat-structured {
+  display: grid !important;
+  grid-template-columns: max-content !important;
+  grid-template-rows: auto auto !important;
+  grid-template-areas:
+    "fields"
+    "layers" !important;
+  gap: 8px !important;
+  align-items: start !important;
+  justify-items: start !important;
+  padding: 8px 10px 10px !important;
+  width: max-content !important;
+  max-width: 100% !important;
+}
+.form-grid-srs--heat-structured > .heat-object-fields,
+.form-grid-srs--heat-structured > .heat-wizard-zone--fields,
+.heatcalc-dual-forms__heat .form-grid-srs--heat-structured > .heat-wizard-zone--fields {
+  grid-area: fields !important;
+  min-width: 0 !important;
+  width: max-content !important;
+  max-width: 100% !important;
+}
+.heat-wizard-zone--fields {
+  grid-area: fields;
+  min-width: 0;
+  width: max-content;
+  max-width: 100%;
+}
+.heat-wizard-zone--layers {
+  min-width: 0;
+  /* stretch to fields column width (card is max-content of fields) */
+  width: 100%;
+  max-width: 100%;
+}
+.form-grid-srs--heat-structured > .form-col-srs--insulation,
+.form-grid-srs--heat-structured > .heat-wizard-zone--layers,
+.heatcalc-dual-forms__heat .form-grid-srs--heat-structured > .form-col-srs--insulation,
+.heatcalc-dual-forms__heat .form-grid-srs--heat-structured > .heat-wizard-zone--layers {
+  grid-area: layers !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px 0 !important;
+  overflow: visible !important;
+  /*
+   * contain: inline-size — ширина блока таблицы НЕ зависит от её контента,
+   * поэтому max-content-сетка карточки (fit-content) считается только по блоку
+   * полей. Таблица следует его ширине, а длинное имя материала переносится на
+   * 2 строки внутри столбца вместо расширения таблицы.
+   */
+  contain: inline-size;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  justify-self: stretch !important;
+}
+.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs,
+.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  grid-template-areas:
+    "heat spec"
+    "cable cable";
+  gap: 6px 10px;
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  align-items: start;
+  overflow: visible;
+  /* Match right cable card padding/type density */
+  padding: 8px 10px 10px;
+  background: #fff;
+  border: 1px solid #dbe6f2;
+  border-top: 0;
+  border-radius: 0 0 7px 7px;
+}
+.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs > .form-col-srs,
+.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three > .form-col-srs {
+  flex: none;
+  width: auto;
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+  scrollbar-gutter: auto;
+}
+.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three > .form-col-srs--primary {
+  grid-area: heat;
+}
+.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three > .form-col-srs--insulation {
+  grid-area: cable;
+}
+.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three > .form-col-srs--climate {
+  grid-area: spec;
+}
+.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three .pdf-form-column {
+  position: relative;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* C19 residual media */
+
+@media (max-width: 1500px) {
+.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs,
+  .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "heat spec"
+      "cable cable";
+  }
+
+/* Dual-form + heat-structured: keep fields/layers stack (do NOT force heat|spec). */
+  .heatcalc-dual-forms__heat .form-grid-srs--pdf-three.form-grid-srs--heat-structured {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-areas:
+      "fields"
+      "layers" !important;
+  }
+
+.heatcalc-dual-forms__heat .form-grid-srs--heat-structured > .form-col-srs--insulation {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+  }
+}
+
+@media (max-width: 1500px) {
+  .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs,
+  .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "heat spec"
+      "cable cable";
+  }
+
+  /* Dual-form + heat-structured: keep fields/layers stack (do NOT force heat|spec). */
+  .heatcalc-dual-forms__heat .form-grid-srs--pdf-three.form-grid-srs--heat-structured {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-areas:
+      "fields"
+      "layers" !important;
+  }
+
+  .heatcalc-dual-forms__heat .form-grid-srs--heat-structured > .form-col-srs--insulation {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+  }
+}

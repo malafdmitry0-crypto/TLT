@@ -82,7 +82,7 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | `ElecCalcWorkspace.tsx` | **192** | ≤500 ✅ |
 | `HeatCalcPage.tsx` | **280** | ≤500 ✅ |
 | `specification/SpecificationPage.tsx` | **398** | ≤500 ✅ |
-| `styles.css` | **3306** | ≤3000 (M4) |
+| `styles.css` | **2788** | ≤3000 (M4) ✅ |
 | inverted `components→pages` | **0** | 0 ✅ |
 | thick models (Heat/Elec/Spec) | 829 / 1112 / 511 | optional deeper thin |
 
@@ -130,7 +130,7 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | **E17** | `done` | useElecCalcWorkspaceModel | workspace view 191 ≤500 | smoke | model ~1112 |
 
 **Метрика shell:** `ElecCalcPage` = **30**. `ElecCalcWorkspace` = **1194** (M1 workspace ✅).  
-**Текущий пункт:** **C19+** inline-object-form residual (после C18; M4 почти)
+**Текущий пункт:** **C21+** inline-object-form residual (M4 ✅; deepen strangler)
 
 ### Track H — Heat
 
@@ -181,7 +181,7 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | **C3** | `done` | **CableAlgorithmPanel exact duplicates** | удалить pure + strip mixed cable selectors; residual: hint + @media 720 | architecture + wizard isolation + ObjectWizard | **▶ styles 6559→6351 (−208)** |
 | **C4** | `done` | heat control-fill → island | move SoT to heat-object-fields.css; styles −82 | arch+wizard+heat 59 | residual: page-scoped insulation-settings-row |
 | **C5** | `skipped` | Insulation layers island overlap | exact dups for `insulation-layers-table.css` | arch + wizard | **0 exact dups**; page-scoped residuals only; InsulationLayersTable kill-list |
-| **C6** | `pending` | residual cable (hint / media) | only after island absorbs equivalent | arch + browser | — |
+| **C6** | `done` | residual cable (hint / media) | delete dead unscoped residual; island already SoT single-col grid + hint | arch + wizard isolation | no behavior change |
 | **C7** | `done` | Spec page + elec summary/ER tabs → owners | `specification-page.css` + `elec-workspace.css`; styles −340 | arch+wizard+Spec int 27 + elec hierarchy | styles **6263→5923**; print banners residual in styles |
 | **C8** | `done` | elec chrome blocks → `elec-workspace.css` | summary-table, error-summary, system-scope, assignment zones, section-hierarchy + strip mixed @media | arch+wizard+assignment/summary/hierarchy 18 | styles **5923→5666** (−257) |
 | **C9** | `done` | elec actionbar/dialogs/sizing/spreadsheet → island | + strip mixed @media actionbar; heatloss status left in styles | arch+wizard+elec 24 | styles **5666→5214** (−452); **0** `.electrical-*` left in styles |
@@ -194,7 +194,10 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | **C16** | `done` | table row/cell/editor residual | → `calc-spreadsheet.css` (cascade order fixed) | EditableTableCell | styles −115 |
 | **C17** | `done` | table chrome (filters, column layout/settings, assumptions) | `styles/table-chrome.css` + main | arch | styles −349 |
 | **C18** | `done` | form-grid shared + dual-forms heat shell | `form-grid-srs.css` + heatcalc-workspace | arch+glide | styles −188+; dual-forms structured residual |
-| **C19+** | `pending` | inline-object-form dump / tlt controls | move carefully; avoid InsulationLayers | until styles ≤3000 | **M4 gap ~306 LOC** |
+| **C19** | `done` | heat-structured dual-form / SC-03 form pane | → heatcalc-workspace (+ @media 1500 split) | arch+wizard | — |
+| **C20** | `done` | glide, form-col h4, print, cable-picker, select dropdown | calc-spreadsheet / form-grid / print / elec | arch+wizard+glide | — |
+| **M4** | `done` | `styles.css` ≤3000 | **2788** | arch suite | from 6777 peak / 6263 post-C4 |
+| **C21+** | `pending` | inline-object-form dump / tlt controls | careful; InsulationLayers kill-list | until further shrink | residual ~2.8k still dual-form heavy |
 
 Budget CSS: **только** delete/move; `styles.css` net LOC ≤ 0.
 

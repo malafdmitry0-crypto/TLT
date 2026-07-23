@@ -11,6 +11,7 @@ import './styles/actionbar-srs.css';
 import './styles/app-header.css';
 import './styles/table-chrome.css';
 import './styles/form-grid-srs.css';
+import './styles/print.css';
 import { installClientAudit } from '@/utils/clientAudit';
 
 const BUTTON_SCALE = 0.7;

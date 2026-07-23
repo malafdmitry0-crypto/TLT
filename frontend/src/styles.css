@@ -94,59 +94,6 @@ html, body, #root {
 }
 
 
-.heatcalc-glide-editor {
-  width: 100%;
-}
-
-.heatcalc-normal-glide-pagination {
-  display: flex;
-  justify-content: flex-end;
-  padding: 8px 12px;
-  border-top: 1px solid var(--heatcalc-table-outer-border);
-  background: #fff;
-}
-
-.heatcalc-normal-glide-filter-popup {
-  position: fixed;
-  z-index: 1100;
-  border: 1px solid #d9d9d9;
-  border-radius: 4px;
-  background: #fff;
-  box-shadow: 0 6px 16px rgb(0 0 0 / 12%);
-}
-
-.heatcalc-glide-engine-badge {
-  position: absolute;
-  right: 8px;
-  bottom: 6px;
-  z-index: 2;
-  padding: 2px 6px;
-  border: 1px solid #d9d9d9;
-  border-radius: 4px;
-  background: rgb(255 255 255 / 86%);
-  color: #595959;
-  font-size: 11px;
-  line-height: 1.2;
-  pointer-events: none;
-}
-
-.heatcalc-glide-cell-editor {
-  position: fixed;
-  z-index: 1000;
-  box-sizing: border-box;
-  padding: 0 6px;
-  border: 2px solid #1a5276;
-  border-radius: 0;
-  background: #fff;
-  color: #1f1f1f;
-  font: inherit;
-  font-size: var(--heatcalc-table-font-size);
-  line-height: 1.2;
-  outline: none;
-  box-shadow: none;
-}
-
-
 /* ── Единая секция SC-03 «Расчёт теплопотерь» ────────────────────
    Один заголовок-баннер над сеткой вместо трёх заголовков колонок;
    колонки сохраняют свою логику, но визуально сливаются в один блок. */
@@ -288,18 +235,6 @@ html, body, #root {
 
 /* Explicit shield: dual-form never restyles layers table cells/controls */
 
-.cable-algorithm-hint {
-  margin: 6px 2px 0;
-  font-size: var(--cable-hint-size);
-  line-height: 1.35;
-  color: #6b7c8f;
-}
-
-@media (max-width: 720px) {
-  .cable-algorithm-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
 
 /*
  * Structured heat card (dual-form wide):
@@ -307,134 +242,13 @@ html, body, #root {
  *   row2: insulation-layers-table zone (full width)
  * Must beat .form-grid-srs--pdf-three "heat|spec / cable" template.
  */
-.form-grid-srs--heat-structured,
-.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--heat-structured,
-.heatcalc-dual-forms__heat .form-grid-srs--heat-structured,
-.heatcalc-dual-forms__heat .form-grid-srs--pdf-three.form-grid-srs--heat-structured,
-.inline-object-form--wide .object-wizard-wide-panel .form-grid-srs--heat-structured {
-  display: grid !important;
-  grid-template-columns: max-content !important;
-  grid-template-rows: auto auto !important;
-  grid-template-areas:
-    "fields"
-    "layers" !important;
-  gap: 8px !important;
-  align-items: start !important;
-  justify-items: start !important;
-  padding: 8px 10px 10px !important;
-  width: max-content !important;
-  max-width: 100% !important;
-}
 
-.form-grid-srs--heat-structured > .heat-object-fields,
-.form-grid-srs--heat-structured > .heat-wizard-zone--fields,
-.heatcalc-dual-forms__heat .form-grid-srs--heat-structured > .heat-wizard-zone--fields {
-  grid-area: fields !important;
-  min-width: 0 !important;
-  width: max-content !important;
-  max-width: 100% !important;
-}
-
-.heat-wizard-zone--fields {
-  grid-area: fields;
-  min-width: 0;
-  width: max-content;
-  max-width: 100%;
-}
-
-.heat-wizard-zone--layers {
-  min-width: 0;
-  /* stretch to fields column width (card is max-content of fields) */
-  width: 100%;
-  max-width: 100%;
-}
-
-.form-grid-srs--heat-structured > .form-col-srs--insulation,
-.form-grid-srs--heat-structured > .heat-wizard-zone--layers,
-.heatcalc-dual-forms__heat .form-grid-srs--heat-structured > .form-col-srs--insulation,
-.heatcalc-dual-forms__heat .form-grid-srs--heat-structured > .heat-wizard-zone--layers {
-  grid-area: layers !important;
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 4px 0 !important;
-  overflow: visible !important;
-  /*
-   * contain: inline-size — ширина блока таблицы НЕ зависит от её контента,
-   * поэтому max-content-сетка карточки (fit-content) считается только по блоку
-   * полей. Таблица следует его ширине, а длинное имя материала переносится на
-   * 2 строки внутри столбца вместо расширения таблицы.
-   */
-  contain: inline-size;
-  width: 100% !important;
-  max-width: 100% !important;
-  min-width: 0 !important;
-  justify-self: stretch !important;
-}
 
 /* SC-03: single card under «Расчёт теплопотерь» — geometry | conditions, insulation below. */
-.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs,
-.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three {
-  display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
-  grid-template-rows: auto auto;
-  grid-template-areas:
-    "heat spec"
-    "cable cable";
-  gap: 6px 10px;
-  flex: 1 1 auto;
-  height: auto;
-  min-height: 0;
-  max-height: none;
-  align-items: start;
-  overflow: visible;
-  /* Match right cable card padding/type density */
-  padding: 8px 10px 10px;
-  background: #fff;
-  border: 1px solid #dbe6f2;
-  border-top: 0;
-  border-radius: 0 0 7px 7px;
-}
-
-.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs > .form-col-srs,
-.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three > .form-col-srs {
-  flex: none;
-  width: auto;
-  height: auto;
-  min-height: 0;
-  overflow: visible;
-  scrollbar-gutter: auto;
-}
-
-.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three > .form-col-srs--primary {
-  grid-area: heat;
-}
-
-.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three > .form-col-srs--insulation {
-  grid-area: cable;
-}
-
-.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three > .form-col-srs--climate {
-  grid-area: spec;
-}
-
-.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three .pdf-form-column {
-  position: relative;
-  padding: 0;
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-}
 
 
 /* While dragging a row, make table rows look grabby */
-tr[draggable='true'] {
-  cursor: grab;
-}
 
-tr[draggable='true']:active {
-  cursor: grabbing;
-}
 
 .inline-object-form--side {
   display: flex;
@@ -938,45 +752,6 @@ tr[draggable='true']:active {
   user-select: none;
 }
 
-.form-col-srs h4 {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  grid-column: 1 / -1;
-  min-height: 18px;
-  margin: -3px -3px 3px;
-  font-size: 8px;
-  color: #2f3d4f;
-  text-transform: uppercase;
-  letter-spacing: 0;
-  padding: 2px 6px;
-  background: #f8fbff;
-  border-bottom: 1px solid #dbe6f2;
-}
-
-.form-col-srs h4::before {
-  content: attr(data-step);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  width: 14px;
-  height: 14px;
-  border-radius: 999px;
-  background: #2457d6;
-  color: #fff;
-  font-size: 8px;
-  font-weight: 700;
-  line-height: 1;
-  box-shadow: 0 3px 8px rgb(36 87 214 / 16%);
-}
-
-.form-col-srs h4 span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 /* ── Обёртка поля ─────────────────────────────────────────────── */
 .inline-object-form .ant-form-item {
@@ -2687,28 +2462,6 @@ tr[draggable='true']:active {
 }
 
 @media (max-width: 1500px) {
-  .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs,
-  .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three {
-    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
-    grid-template-areas:
-      "heat spec"
-      "cable cable";
-  }
-
-  /* Dual-form + heat-structured: keep fields/layers stack (do NOT force heat|spec). */
-  .heatcalc-dual-forms__heat .form-grid-srs--pdf-three.form-grid-srs--heat-structured {
-    grid-template-columns: minmax(0, 1fr) !important;
-    grid-template-areas:
-      "fields"
-      "layers" !important;
-  }
-
-  .heatcalc-dual-forms__heat .form-grid-srs--heat-structured > .form-col-srs--insulation {
-    display: flex !important;
-    flex-direction: column !important;
-    width: 100% !important;
-  }
-
   /* Material shrinks first; numeric keep compact mins */
   .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-table {
     /* «Слой +» needs ~56px; header «Толщина, мм» fits from 88px */
@@ -2723,144 +2476,8 @@ tr[draggable='true']:active {
   .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid > .insulation-layer-group {
     grid-template-columns: var(--ins-cols);
   }
-
-  /* Slightly wider short fields when viewport is medium. */
-  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .name-form-item {
-    grid-column: 1 / 5;
-    grid-row: 2;
-  }
-
-  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .outer-diameter-form-item {
-    grid-column: 5 / 7;
-    grid-row: 2;
-  }
-
-  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .pipe-length-form-item {
-    grid-column: 7 / 9;
-    grid-row: 2;
-  }
-
-  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .wall-thickness-form-item {
-    grid-column: 9 / 11;
-    grid-row: 2;
-  }
-
-  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .local-elements-count-form-item {
-    grid-column: 11 / 13;
-    grid-row: 2;
-  }
-
-  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .pipe-material-form-item {
-    grid-column: 1 / 9;
-    grid-row: 3;
-  }
-
-  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .pipe-lambda-manual-form-item {
-    grid-column: 9 / 13;
-    grid-row: 3;
-  }
-
-  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary:has(.tank-shape-form-item) > .name-form-item {
-    grid-column: 1 / 7;
-  }
-
-  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .tank-shape-form-item {
-    grid-column: 7 / 13;
-  }
-
-  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .tank-diameter-form-item,
-  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .tank-length-form-item {
-    grid-column: 1 / 5;
-    grid-row: 3;
-  }
-
-  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .tank-height-form-item,
-  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .tank-width-form-item {
-    grid-column: 5 / 9;
-    grid-row: 3;
-  }
-
-  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .tank-wall-thickness-form-item {
-    grid-column: 9 / 13;
-    grid-row: 3;
-  }
-
-  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .tank-wall-lambda-form-item {
-    grid-column: 1 / 5;
-    grid-row: 4;
-  }
-
-  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary:has(.tank-length-form-item) > .tank-height-form-item {
-    grid-column: 9 / 13;
-  }
-
-  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary:has(.tank-length-form-item) > .tank-wall-thickness-form-item {
-    grid-column: 1 / 5;
-    grid-row: 4;
-  }
-
-  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary:has(.tank-length-form-item) > .tank-wall-lambda-form-item {
-    grid-column: 5 / 9;
-    grid-row: 4;
-  }
-
-  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .tank-additional-heat-loss-form-item {
-    grid-column: 5 / 9;
-    grid-row: 4;
-  }
-
-  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary:has(.tank-length-form-item) > .tank-additional-heat-loss-form-item {
-    grid-column: 9 / 13;
-  }
-
-  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .placement-form-item {
-    grid-row: 2;
-  }
-
-  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .placement-form-item,
-  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .climate-form-item {
-    grid-column: 1 / 7;
-  }
-
-  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .ambient-temperature-form-item {
-    grid-column: 7 / 13;
-  }
-
-  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .climate-form-item {
-    grid-row: 3;
-  }
-
-  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .ambient-temperature-form-item {
-    grid-column: 7 / 13;
-    grid-row: 2;
-  }
-
-  
-  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .process-temperature-form-item {
-    grid-column: 9 / 13;
-    grid-row: 4;
-  }
-
-  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .burial-depth-form-item {
-    grid-column: 1 / 5;
-    grid-row: 4;
-  }
-
-  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .wind-speed-form-item {
-    grid-column: 5 / 8;
-    grid-row: 4;
-  }
-
-  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .ground-conductivity-form-item {
-    grid-column: 5 / 9;
-    grid-row: 4;
-  }
-
-  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .ground-type-form-item {
-    grid-column: 7 / 13;
-    grid-row: 3;
-  }
 }
+
 
 @media (max-width: 1200px) {
   .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-table {
@@ -3026,89 +2643,6 @@ tr[draggable='true']:active {
 }
 
 
-.cable-picker-characteristics {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  align-items: start;
-  gap: 12px;
-  max-width: 100%;
-}
-
-.cable-picker-characteristics--single {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.cable-picker-characteristics-section {
-  min-width: 0;
-}
-
-.cable-picker-characteristics-title {
-  margin: 0 0 3px;
-  color: #536577;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.1;
-}
-
-.cable-picker-characteristics-columns {
-  display: grid;
-  grid-template-columns: repeat(var(--cable-picker-characteristics-column-count, 2), minmax(0, 1fr));
-  gap: 0 8px;
-  min-width: 0;
-}
-
-.cable-picker-characteristics-list {
-  display: grid;
-  gap: 0;
-  margin: 0;
-}
-
-.cable-picker-characteristics-row {
-  display: grid;
-  grid-template-columns: minmax(72px, 45%) minmax(0, 1fr);
-  gap: 3px;
-  min-width: 0;
-  padding: 0;
-  border-bottom: 1px solid #e8eef3;
-}
-
-.cable-picker-characteristics-row:last-child {
-  border-bottom: 0;
-}
-
-.cable-picker-characteristics-label {
-  display: inline-flex;
-  min-width: 0;
-  gap: 0;
-  color: #6a7c8f;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.08;
-}
-
-.cable-picker-characteristics-value {
-  min-width: 0;
-  margin: 0;
-  color: #1f2933;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.08;
-  overflow-wrap: anywhere;
-}
-
-@media (max-width: 760px) {
-  .cable-picker-characteristics {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 980px) {
-  .cable-picker-characteristics-columns {
-    grid-template-columns: 1fr;
-  }
-}
-
-
 .column-resize-handle {
   position: absolute;
   top: -3px;
@@ -3243,62 +2777,10 @@ tr[draggable='true']:active {
 
 
 /* Компактный dropdown для всех Select в приложении */
-.ant-select-dropdown .ant-select-item {
-  font-size: 10px;
-  min-height: 22px;
-  line-height: 18px;
-  padding: 2px 8px;
-}
 
-.ant-select-dropdown .ant-select-item-option-content {
-  font-size: 10px;
-  line-height: 18px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.ant-select-dropdown .ant-select-item-option-selected .ant-select-item-option-content {
-  font-weight: 600;
-}
 
 /* PDL-ER-37: stale specification quantities are read-only on screen and hidden from print. */
 /* PDL-ER-05: guest browser print — hide chrome, keep diagnostics. */
-@media print {
-  .specification-stale-banner,
-  .specification-partial-banner {
-    color: #9a3412 !important;
-    border: 2px solid #9a3412 !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-  
-
-  .heatcalc-header,
-  .ant-layout-sider,
-  .ant-layout-footer,
-  .report-page-actions-hint,
-  .report-page-er-selector,
-  .ant-card-extra,
-  .ant-btn {
-    display: none !important;
-  }
-
-  .ant-layout,
-  .ant-layout-content,
-  .ant-card,
-  .ant-card-body {
-    margin: 0 !important;
-    padding: 0 !important;
-    box-shadow: none !important;
-    border: none !important;
-  }
-
-  .report-preview {
-    width: 100% !important;
-    overflow: visible !important;
-  }
-}
 
 /* Residual dual-form isolation rules removed — use CSS islands:
  *   heat-object-fields.css | cable-algorithm-panel.css | insulation-layers-table.css

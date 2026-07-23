@@ -106,3 +106,59 @@
 .heatcalc-form-section-resizing .form-col-resize-handle::before {
   background: var(--color-primary);
 }
+
+/* C20: form-col titles + compact select dropdown */
+
+.form-col-srs h4 {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  grid-column: 1 / -1;
+  min-height: 18px;
+  margin: -3px -3px 3px;
+  font-size: 8px;
+  color: #2f3d4f;
+  text-transform: uppercase;
+  letter-spacing: 0;
+  padding: 2px 6px;
+  background: #f8fbff;
+  border-bottom: 1px solid #dbe6f2;
+}
+.form-col-srs h4::before {
+  content: attr(data-step);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #2457d6;
+  color: #fff;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: 0 3px 8px rgb(36 87 214 / 16%);
+}
+.form-col-srs h4 span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ant-select-dropdown .ant-select-item {
+  font-size: 10px;
+  min-height: 22px;
+  line-height: 18px;
+  padding: 2px 8px;
+}
+.ant-select-dropdown .ant-select-item-option-content {
+  font-size: 10px;
+  line-height: 18px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ant-select-dropdown .ant-select-item-option-selected .ant-select-item-option-content {
+  font-weight: 600;
+}
