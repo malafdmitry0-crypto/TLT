@@ -13,7 +13,7 @@ import { useProjectStore } from '@/store/projectStore';
 import { getObjectsSummary } from '@/api/projects';
 import { getSpecification } from '@/api/specifications';
 import { ROUTES } from '@/routes/routes';
-import { useLegacyElectricalVariantContext } from '@/pages/electrical/useLegacyElectricalVariantContext';
+import { useLegacyElectricalVariantContext } from '@/hooks/useLegacyElectricalVariantContext';
 
 const { Title, Paragraph } = Typography;
 

@@ -27,12 +27,6 @@
       "to": "src/components/heatcalc/HeatCalcNormalGlideGrid.tsx",
       "import": "@/components/heatcalc/HeatCalcNormalGlideGrid",
       "shrink": "Extract shared infinite-loading types to domain/ or components/shared; drop heatcalc type import from electrical."
-    },
-    {
-      "from": "src/pages/specification/useSpecificationPageModel.ts",
-      "to": "src/pages/electrical/useLegacyElectricalVariantContext.ts",
-      "import": "@/pages/electrical/useLegacyElectricalVariantContext",
-      "shrink": "Import @/hooks/useLegacyElectricalVariantContext (public bridge); delete pages/electrical re-export consumers."
     }
   ],
   "featurePagesOutsiderAllowlist": [
@@ -43,30 +37,6 @@
       "shrink": "Same as layer exception — selection core leaves pages/electrical."
     },
     {
-      "from": "src/pages/ReportPage.tsx",
-      "to": "src/pages/electrical/useLegacyElectricalVariantContext.ts",
-      "import": "@/pages/electrical/useLegacyElectricalVariantContext",
-      "shrink": "Switch to @/hooks/useLegacyElectricalVariantContext; remove pages re-export usage."
-    },
-    {
-      "from": "src/pages/ReportWizardPage.tsx",
-      "to": "src/pages/electrical/useLegacyElectricalVariantContext.ts",
-      "import": "@/pages/electrical/useLegacyElectricalVariantContext",
-      "shrink": "Switch to @/hooks/useLegacyElectricalVariantContext; remove pages re-export usage."
-    },
-    {
-      "from": "src/pages/WorkspacePage.tsx",
-      "to": "src/pages/electrical/useLegacyElectricalVariantContext.ts",
-      "import": "@/pages/electrical/useLegacyElectricalVariantContext",
-      "shrink": "Switch to @/hooks/useLegacyElectricalVariantContext; remove pages re-export usage."
-    },
-    {
-      "from": "src/pages/specification/useSpecificationPageModel.ts",
-      "to": "src/pages/electrical/useLegacyElectricalVariantContext.ts",
-      "import": "@/pages/electrical/useLegacyElectricalVariantContext",
-      "shrink": "Switch to @/hooks/useLegacyElectricalVariantContext; remove pages re-export usage."
-    },
-    {
       "from": "src/pages/UIKitPage.tsx",
       "to": "src/pages/heatcalc/HeatCalcObjectTypeIcons.tsx",
       "import": "@/pages/heatcalc/HeatCalcObjectTypeIcons",
@@ -74,3 +44,4 @@
     }
   ]
 }
+

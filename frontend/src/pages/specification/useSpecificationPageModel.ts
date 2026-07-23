@@ -19,7 +19,7 @@ import {
 import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
-import { useLegacyElectricalVariantContext } from '@/pages/electrical/useLegacyElectricalVariantContext';
+import { useLegacyElectricalVariantContext } from '@/hooks/useLegacyElectricalVariantContext';
 import type { SpecificationItem } from '@/types/specification';
 import { formatSpecTimestamp, type SpecGroupBy as GroupBy } from '@/pages/specification/specFormatModel';
 import { useSpecParamsPanelState } from '@/pages/specification/useSpecParamsPanelState';

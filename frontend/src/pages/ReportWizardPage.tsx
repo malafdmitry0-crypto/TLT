@@ -31,7 +31,7 @@ import {
 } from '@/api/reports';
 import { useProjectStore } from '@/store/projectStore';
 import { useAuthStore } from '@/store/authStore';
-import { useLegacyElectricalVariantContext } from '@/pages/electrical/useLegacyElectricalVariantContext';
+import { useLegacyElectricalVariantContext } from '@/hooks/useLegacyElectricalVariantContext';
 import ReportPreview from '@/components/reports/ReportPreview';
 import QueryError from '@/components/common/QueryError';
 
