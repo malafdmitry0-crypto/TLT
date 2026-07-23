@@ -49,15 +49,13 @@ import { useElecCalcCableMarkModalState } from '@/pages/electrical/useElecCalcCa
 import { useElecCalcCableSizingModalState } from '@/pages/electrical/useElecCalcCableSizingModalState';
 import { useElecCalcCableTypeState } from '@/pages/electrical/useElecCalcCableTypeState';
 import { useElecCalcBatchJobOrchestration } from '@/pages/electrical/useElecCalcBatchJobOrchestration';
-import { useElecCalcCandidateGlideActions } from '@/pages/electrical/useElecCalcCandidateGlideActions';
-import { useElecCalcCandidateState } from '@/pages/electrical/useElecCalcCandidateState';
+import { useElecCalcCandidateWorkflowController } from '@/pages/electrical/useElecCalcCandidateWorkflowController';
 import { useElecCalcCableSelectionMutationFlow } from '@/pages/electrical/useElecCalcCableSelectionMutationFlow';
 import { useElecCalcColumnPersistence } from '@/pages/electrical/useElecCalcColumnPersistence';
 import { useElecCalcColumnSettingsDraftState } from '@/pages/electrical/useElecCalcColumnSettingsDraftState';
 import { useElecCalcColumnViewModel } from '@/pages/electrical/useElecCalcColumnViewModel';
 import { useElecCalcDataLifecycleEffects } from '@/pages/electrical/useElecCalcDataLifecycleEffects';
 import { useElecCalcFilterOptions } from '@/pages/electrical/useElecCalcFilterOptions';
-import { useElecCalcCandidateGlideCellState } from '@/pages/electrical/useElecCalcCandidateGlideCellState';
 import { useElecCalcMainTableController } from '@/pages/electrical/useElecCalcMainTableController';
 import { useElecCalcPageScopeEffects } from '@/pages/electrical/useElecCalcPageScopeEffects';
 import { useElecCalcPaginationState } from '@/pages/electrical/useElecCalcPaginationState';
@@ -415,7 +413,13 @@ export function useElecCalcWorkspaceModel({
       },
     );
   }, [electricalVariantId, project?.id, qc, variant]);
-  const candidate = useElecCalcCandidateState({
+  const {
+    candidate,
+    electricalCandidateGlideColumns,
+    getElectricalCandidateGlideCellState,
+    handleElectricalCandidateGlideCellAction,
+    getElectricalCandidateGlideActionMenuItems,
+  } = useElecCalcCandidateWorkflowController({
     projectId: project?.id,
     electricalVariantId,
     canMutate,
@@ -434,21 +438,14 @@ export function useElecCalcWorkspaceModel({
     candidateFolderName,
     setCandidateFolderName,
     closeCandidateFolderModal,
-    updateCandidateMut,
     createCandidateFolderMut,
     updateCandidateFolderMut,
     deleteCandidateFolderMut,
-    toggleCandidateFolderItemMut,
-    applyCandidateMut,
     submitCandidateFolderModal,
     cableSizingCandidates,
-    cableSizingCandidateFolders,
     activeCustomCandidateFolder,
-    markedCableSizingCandidateSet,
     candidateColumnValueAccessors,
     resetMarkedCableSizingCandidates,
-    cableSizingCandidateCompareActive,
-    candidateCompareDiffColumnKeys,
   } = candidate;
 
   const {
@@ -542,7 +539,6 @@ export function useElecCalcWorkspaceModel({
   const {
     fieldCapabilityByKey,
     enumOptionsByColumn,
-    candidateEnumOptionsByColumn,
   } = useElecCalcFilterOptions({
     electricalFields: electricalQueryCapabilities?.fields,
     cableSizingCandidates,
@@ -613,8 +609,6 @@ export function useElecCalcWorkspaceModel({
   });
 
   const {
-    candidateGlideColumnMetaByKey,
-    electricalCandidateGlideColumns,
     electricalColumns,
     electricalGlideColumns,
     electricalInfiniteLoading,
@@ -634,7 +628,6 @@ export function useElecCalcWorkspaceModel({
     activateRowId,
     canMutate,
     calcByObjectId: stats.calcByObjectId,
-    candidateEnumOptionsByColumn,
     effectiveSource,
     electricalDisplayOffset,
     electricalGlideEnabled,
@@ -667,7 +660,6 @@ export function useElecCalcWorkspaceModel({
     tablePage,
     tablePageSize,
     tableViewState,
-    visibleCandidateColumnMetas,
     visibleElectricalColumnMetas,
   });
 
@@ -713,31 +705,6 @@ export function useElecCalcWorkspaceModel({
     mutateBatch: (args) => batchMut.mutate(args),
     cancelJob: () => cancelJobMut.mutate(),
     calcByObjectId: stats.calcByObjectId,
-  });
-  const {
-    getElectricalCandidateGlideCellActions,
-    handleElectricalCandidateGlideCellAction,
-    getElectricalCandidateGlideActionMenuItems,
-  } = useElecCalcCandidateGlideActions({
-    candidateFolders: cableSizingCandidateFolders,
-    canMutate,
-    applyCandidatePending: applyCandidateMut.isPending,
-    updateCandidatePending: updateCandidateMut.isPending,
-    toggleCandidateFolderItemPending: toggleCandidateFolderItemMut.isPending,
-    onApplyCandidate: applyCandidateMut.mutate,
-    onUpdateCandidate: updateCandidateMut.mutate,
-    onToggleCandidateFolderItem: toggleCandidateFolderItemMut.mutate,
-  });
-  const getElectricalCandidateGlideColumnAlign = useCallback(
-    (columnKey: string) => candidateGlideColumnMetaByKey.get(columnKey)?.align,
-    [candidateGlideColumnMetaByKey],
-  );
-  const getElectricalCandidateGlideCellState = useElecCalcCandidateGlideCellState({
-    markedCandidateSet: markedCableSizingCandidateSet,
-    candidateCompareActive: cableSizingCandidateCompareActive,
-    diffColumnKeys: candidateCompareDiffColumnKeys,
-    getColumnAlign: getElectricalCandidateGlideColumnAlign,
-    getCellActions: getElectricalCandidateGlideCellActions,
   });
   const {
     cableTypeOptions,

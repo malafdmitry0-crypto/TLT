@@ -5,9 +5,7 @@
  *   class, dimensions, selected-row clipboard, pagination/infinite-load nav.
  * Writes: none (no local React state). Side-effect: clipboard keydown listener.
  * Does-not: queries, batch jobs, mark/sizing modals, candidate workflow
- *   mutations, column preference persistence, summary chrome.
- * Note: candidate Glide column artifacts are a temporary byproduct of the shared
- *   glide-column model until ELEC2 owns the candidate table surface.
+ *   (folders/compare/Glide surface), column preference persistence, summary chrome.
  */
 import { useCallback, type Dispatch, type PointerEvent as ReactPointerEvent, type SetStateAction } from 'react';
 
@@ -31,7 +29,6 @@ import { useElecCalcTableDimensions } from '@/pages/electrical/useElecCalcTableD
 import { useElecCalcTableNavigation } from '@/pages/electrical/useElecCalcTableNavigation';
 import type { ElectricalCalcSummary, ElectricalPageSummary } from '@/types/calculation';
 import type { ObjectQueryFieldCapability, ProjectObject, ProjectObjectsPageCursor } from '@/types/project';
-import type { ElectricalCandidateResolvedColumnMeta } from '@/utils/electricalCandidateTableColumns';
 import type { ElectricalColumnKey, ElectricalResolvedColumnMeta } from '@/utils/electricalTableColumns';
 import type { HeatCalcColumnFilter, HeatCalcTableViewState } from '@/utils/heatCalcTableFindability';
 
@@ -57,7 +54,6 @@ export type UseElecCalcMainTableControllerArgs = {
   activateRowId: (objectId: string) => void;
   canMutate: boolean;
   calcByObjectId: Record<string, ElectricalCalcSummary | undefined>;
-  candidateEnumOptionsByColumn: Record<string, EnumOpts>;
   effectiveSource: CableSource;
   electricalDisplayOffset: number;
   electricalGlideEnabled: boolean;
@@ -93,13 +89,12 @@ export type UseElecCalcMainTableControllerArgs = {
   tablePage: number;
   tablePageSize: number;
   tableViewState: HeatCalcTableViewState;
-  visibleCandidateColumnMetas: readonly ElectricalCandidateResolvedColumnMeta[];
   visibleElectricalColumnMetas: readonly ElectricalResolvedColumnMeta[];
 };
 
 export function useElecCalcMainTableController(args: UseElecCalcMainTableControllerArgs) {
   const {
-    activeRowId, activateRowId, canMutate, calcByObjectId, candidateEnumOptionsByColumn,
+    activeRowId, activateRowId, canMutate, calcByObjectId,
     effectiveSource, electricalDisplayOffset, electricalGlideEnabled, electricalLayoutMutate,
     enumOptionsByColumn, fieldCapabilityByKey, filteredCount, getCalculatedCableTypeForObject,
     getObjectActionDisabledReason, getObjectCalculationDisabledReason, getSavedCableTypeForObject,
@@ -107,7 +102,7 @@ export function useElecCalcMainTableController(args: UseElecCalcMainTableControl
     nextElectricalPageCursor, objects, openCableMarkModal, openCableSizingModal, pageSummary,
     projectSelected, recalc, selectedRowKeys, setColumnFilter, setTablePage, setTablePageSize,
     setTableViewState, startColumnResize, resetColumnFilter, tablePage, tablePageSize,
-    tableViewState, visibleCandidateColumnMetas, visibleElectricalColumnMetas,
+    tableViewState, visibleElectricalColumnMetas,
   } = args;
 
   const { handleElectricalTableChange } = useElecCalcAntTableHandlers({
@@ -131,14 +126,14 @@ export function useElecCalcMainTableController(args: UseElecCalcMainTableControl
     [electricalColumnRenderers],
   );
 
-  const {
-    electricalGlideColumns,
-    candidateGlideColumnMetaByKey,
-    electricalCandidateGlideColumns,
-  } = useElecCalcGlideColumnModel({
-    visibleElectricalColumnMetas, fieldCapabilityByKey, enumOptionsByColumn,
-    getElectricalColumnAlign: getElectricalGlideColumnAlign, visibleCandidateColumnMetas,
-    candidateEnumOptionsByColumn,
+  const { electricalGlideColumns } = useElecCalcGlideColumnModel({
+    visibleElectricalColumnMetas,
+    fieldCapabilityByKey,
+    enumOptionsByColumn,
+    getElectricalColumnAlign: getElectricalGlideColumnAlign,
+    // Candidate Glide columns live in useElecCalcCandidateWorkflowController (ELEC2).
+    visibleCandidateColumnMetas: [],
+    candidateEnumOptionsByColumn: {},
   });
 
   const electricalColumnCopyValue = useElecCalcElectricalColumnCopyValue({
@@ -195,8 +190,6 @@ export function useElecCalcMainTableController(args: UseElecCalcMainTableControl
   });
 
   return {
-    candidateGlideColumnMetaByKey,
-    electricalCandidateGlideColumns,
     electricalColumns,
     electricalGlideColumns,
     electricalInfiniteLoading,

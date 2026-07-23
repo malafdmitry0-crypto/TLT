@@ -46,8 +46,8 @@ vi.mock('@/pages/electrical/useElecCalcElectricalColumns', () => ({
 vi.mock('@/pages/electrical/useElecCalcGlideColumnModel', () => ({
   useElecCalcGlideColumnModel: () => ({
     electricalGlideColumns: [{ id: 'name', title: 'Name', width: 100 }],
-    candidateGlideColumnMetaByKey: new Map([['mark', { key: 'mark', align: 'left' }]]),
-    electricalCandidateGlideColumns: [{ id: 'mark', title: 'Mark', width: 80 }],
+    candidateGlideColumnMetaByKey: new Map(),
+    electricalCandidateGlideColumns: [],
   }),
 }));
 vi.mock('@/pages/electrical/useElecCalcElectricalColumnCopyValue', () => ({
@@ -98,8 +98,6 @@ vi.mock('@/pages/electrical/useElecCalcTableNavigation', async () => {
 });
 
 const MAIN_TABLE_RETURN_KEYS = [
-  'candidateGlideColumnMetaByKey',
-  'electricalCandidateGlideColumns',
   'electricalColumns',
   'electricalGlideColumns',
   'electricalInfiniteLoading',
@@ -124,7 +122,6 @@ function baseArgs(
     activateRowId: vi.fn(),
     canMutate: true,
     calcByObjectId: {},
-    candidateEnumOptionsByColumn: {},
     effectiveSource: 'builtin',
     electricalDisplayOffset: 0,
     electricalGlideEnabled: true,
@@ -185,7 +182,6 @@ function baseArgs(
       filters: {},
       sort: undefined,
     },
-    visibleCandidateColumnMetas: [],
     visibleElectricalColumnMetas: [],
     ...overrides,
   };
