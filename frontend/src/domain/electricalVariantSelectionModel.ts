@@ -2,7 +2,7 @@
  * @module electrical/variant-selection-model
  * @owner electrical
  * Pure helpers for UUID-first ER selection / list cache reconciliation (VAR1).
- * Hook stays in useElectricalVariantSelection; commands stay in the hook until VAR2.
+ * Selection host: useElectricalVariantSelection; commands: useElectricalVariantCommandsController (VAR2).
  */
 import type { ApiError } from '@/api/client';
 import { normalizeElectricalVariantId } from '@/store/calculationVariantStore';
