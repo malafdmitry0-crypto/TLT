@@ -41,9 +41,17 @@
   --heatcalc-table-header-background: #f3f6f4;
   --heatcalc-table-outer-border: #bfbfbf;
   --heatcalc-table-grid-border: #d9d9d9;
-  /* Shared neutral text used by vendor overrides (avoid raw hex outside tokens) */
+  /* Shared neutrals / status (prefer var(--…) outside this file) */
+  --color-surface: #ffffff;
+  --color-surface-soft: #f8fafc;
+  --color-border: #d9d9d9;
+  --color-text: #1f1f1f;
+  --color-text-heading: #262626;
   --color-text-secondary: #595959;
   --color-text-success-strong: #135200;
+  --color-info-soft: #eef7ff;
+  --color-danger: #ff4d4f;
   --color-danger-border: #d9363e;
   --color-danger-bg: #fff1f0;
+  --color-danger-text: #a8071a;
 }

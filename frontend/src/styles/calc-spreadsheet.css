@@ -5,7 +5,7 @@
 /* C16: table row/cell/editor residual from styles.css */
 
 .row-invalid > td {
-  background-color: #fff1f0;
+  background-color: var(--color-danger-bg);
 }
 .row-invalid:hover > td {
   background-color: #ffe7e6;
@@ -17,7 +17,7 @@
   background-color: #fff4bf;
 }
 .row-excel-new:not(.row-dirty):not(.row-excel-dirty) > td {
-  background-color: #f8fafc;
+  background-color: var(--color-surface-soft);
 }
 .row-excel-new:not(.row-dirty):not(.row-excel-dirty):hover > td {
   background-color: #eef6ff;
@@ -49,7 +49,7 @@
   padding: 0 4px;
   border: 0;
   border-right: 1px solid #d8e2ec;
-  background: #f8fafc;
+  background: var(--color-surface-soft);
   color: #64748b;
   font: inherit;
   font-size: 11px;
@@ -57,11 +57,11 @@
 }
 .excel-row-header-button.selected {
   background: #dceeff;
-  color: #1a5276;
+  color: var(--color-primary);
   font-weight: 700;
 }
 .excel-row-header-button.active-selection {
-  box-shadow: inset 0 0 0 2px #1a5276;
+  box-shadow: inset 0 0 0 2px var(--color-primary);
 }
 .editable-cell-editor-wrap {
   position: relative;
@@ -89,7 +89,7 @@
 .editable-cell-editor.error .ant-input,
 .editable-cell-editor.error .ant-select-selector,
 .editable-cell-editor-wrap .editable-cell-editor.error {
-  border-color: #d9363e;
+  border-color: var(--color-danger-border);
 }
 .editable-cell-error {
   position: absolute;
@@ -100,8 +100,8 @@
   padding: 3px 6px;
   border: 1px solid #ffa39e;
   border-radius: 4px;
-  background: #fff1f0;
-  color: #a8071a;
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text);
   font-size: 11px;
   line-height: 1.2;
   white-space: normal;
@@ -127,9 +127,9 @@
   font-weight: 700;
 }
 .calc-spreadsheet--excel-mode .row-excel-error .excel-row-header-button {
-  border-left: 3px solid #d9363e;
-  background: #fff1f0;
-  color: #a8071a;
+  border-left: 3px solid var(--color-danger-border);
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text);
   font-weight: 700;
 }
 .calc-spreadsheet {
@@ -190,7 +190,7 @@
 .calc-spreadsheet .ant-table-thead > tr > th {
   background: var(--heatcalc-table-header-background);
   border-color: var(--heatcalc-table-grid-border);
-  color: #262626;
+  color: var(--color-text-heading);
   font-weight: 600;
   font-size: var(--heatcalc-table-font-size);
   line-height: var(--heatcalc-table-line-height);
@@ -204,7 +204,7 @@
   font-size: var(--heatcalc-table-font-size);
   line-height: var(--heatcalc-table-line-height);
   padding: var(--heatcalc-table-cell-padding-y) 6px;
-  background: #fff;
+  background: var(--color-surface);
   box-sizing: border-box;
 }
 .calc-spreadsheet .ant-table-tbody > tr:hover > td {
@@ -238,7 +238,7 @@
 }
 .calc-spreadsheet--excel-mode .editable-cell-display.selected {
   border-color: transparent;
-  background: #eef7ff;
+  background: var(--color-info-soft);
   box-shadow: none;
   outline: none;
 }
@@ -253,12 +253,12 @@
   inset: 0;
   z-index: 1;
   box-sizing: border-box;
-  border: 2px solid #1a5276;
+  border: 2px solid var(--color-primary);
   pointer-events: none;
 }
 .calc-spreadsheet--excel-mode .excel-row-header-cell {
   padding: 0;
-  background: #f8fafc;
+  background: var(--color-surface-soft);
 }
 .calc-spreadsheet--virtual .ant-table {
   border: 1px solid var(--heatcalc-table-outer-border);
@@ -267,7 +267,7 @@
 .calc-spreadsheet--glide {
   position: relative;
   border: 1px solid var(--heatcalc-table-outer-border);
-  background: #fff;
+  background: var(--color-surface);
   font-size: var(--heatcalc-table-font-size);
   line-height: var(--heatcalc-table-line-height);
   font-variant-numeric: tabular-nums;
@@ -285,16 +285,16 @@
   background: #fff4bf;
 }
 .calc-spreadsheet--excel-mode .editable-cell-display.selected:not(.error) {
-  background: #eef7ff;
+  background: var(--color-info-soft);
   box-shadow: none;
 }
 .calc-spreadsheet--excel-mode .editable-cell-display.selected.dirty:not(.error) {
-  background: linear-gradient(135deg, #fff7d6 0 18%, #eef7ff 18% 100%);
+  background: linear-gradient(135deg, #fff7d6 0 18%, var(--color-info-soft) 18% 100%);
   box-shadow: none;
 }
 .calc-spreadsheet--excel-mode .editable-cell-display.selected.error {
-  border-color: #d9363e;
-  background: #fff1f0;
+  border-color: var(--color-danger-border);
+  background: var(--color-danger-bg);
   box-shadow: none;
 }
 .calc-spreadsheet--excel-mode .editable-cell-display.active-selection {
@@ -434,8 +434,8 @@
 }
 
 .editable-cell-display.error {
-  border-color: #d9363e;
-  background: #fff1f0;
+  border-color: var(--color-danger-border);
+  background: var(--color-danger-bg);
   box-shadow: inset 0 0 0 1px rgb(217 54 62 / 24%);
 }
 
@@ -489,7 +489,7 @@
   justify-content: center;
   min-height: 160px;
   border: 1px solid var(--heatcalc-table-outer-border);
-  background: #fff;
+  background: var(--color-surface);
 }
 .excel-context-menu {
   position: fixed;
@@ -499,7 +499,7 @@
   padding: 5px;
   border: 1px solid #d8e2ec;
   border-radius: 6px;
-  background: #fff;
+  background: var(--color-surface);
   box-shadow: 0 10px 28px rgb(15 23 42 / 18%);
 }
 .excel-context-menu-item {
@@ -521,8 +521,8 @@
 }
 .excel-context-menu-item:hover,
 .excel-context-menu-item:focus-visible {
-  background: #eef7ff;
-  color: #1a5276;
+  background: var(--color-info-soft);
+  color: var(--color-primary);
   outline: none;
 }
 .excel-context-menu-item:disabled {
@@ -556,14 +556,14 @@
   justify-content: flex-end;
   padding: 8px 12px;
   border-top: 1px solid var(--heatcalc-table-outer-border);
-  background: #fff;
+  background: var(--color-surface);
 }
 .heatcalc-normal-glide-filter-popup {
   position: fixed;
   z-index: 1100;
-  border: 1px solid #d9d9d9;
+  border: 1px solid var(--color-border);
   border-radius: 4px;
-  background: #fff;
+  background: var(--color-surface);
   box-shadow: 0 6px 16px rgb(0 0 0 / 12%);
 }
 .heatcalc-glide-engine-badge {
@@ -572,10 +572,10 @@
   bottom: 6px;
   z-index: 2;
   padding: 2px 6px;
-  border: 1px solid #d9d9d9;
+  border: 1px solid var(--color-border);
   border-radius: 4px;
   background: rgb(255 255 255 / 86%);
-  color: #595959;
+  color: var(--color-text-secondary);
   font-size: 11px;
   line-height: 1.2;
   pointer-events: none;
@@ -585,10 +585,10 @@
   z-index: 1000;
   box-sizing: border-box;
   padding: 0 6px;
-  border: 2px solid #1a5276;
+  border: 2px solid var(--color-primary);
   border-radius: 0;
-  background: #fff;
-  color: #1f1f1f;
+  background: var(--color-surface);
+  color: var(--color-text);
   font: inherit;
   font-size: var(--heatcalc-table-font-size);
   line-height: 1.2;

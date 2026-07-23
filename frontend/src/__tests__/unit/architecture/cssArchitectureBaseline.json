@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "slice": "CSS-IMP-05",
-  "description": "ui-kit+field-chrome+cable mirror important burn",
+  "slice": "CSS-RAW-01",
+  "description": "Expand shared color tokens; burn-down calc-spreadsheet raw hex",
   "stylesCssMaxLoc": 30,
   "newFileLocCap": 400,
   "files": {
@@ -141,7 +141,7 @@
       "media": 0
     },
     "src/styles/tokens.css": {
-      "loc": 50,
+      "loc": 58,
       "bareAnt": 0,
       "media": 0
     },
@@ -157,7 +157,7 @@
     }
   },
   "totals": {
-    "loc": 9356,
+    "loc": 9364,
     "bareAnt": 18,
     "media": 40
   },
@@ -179,12 +179,12 @@
     "src/pages/workflow-params.css": 2,
     "src/styles/actionbar-srs.css": 12,
     "src/styles/app-shell.css": 22,
-    "src/styles/calc-spreadsheet.css": 71,
+    "src/styles/calc-spreadsheet.css": 36,
     "src/styles/form-grid-srs.css": 13,
     "src/styles/print.css": 2,
     "src/styles/table-chrome.css": 66,
     "src/styles/tlt-form-controls.css": 36,
-    "src/styles/tokens.css": 14
+    "src/styles/tokens.css": 22
   },
-  "rawColorsTotal": 610
+  "rawColorsTotal": 583
 }
