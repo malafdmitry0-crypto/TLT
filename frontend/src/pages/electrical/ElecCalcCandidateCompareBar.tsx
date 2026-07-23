@@ -1,4 +1,6 @@
-import { Button, Typography } from 'antd';
+import { Typography } from 'antd';
+
+import { TltButton } from '@/components/ui-kit';
 
 const { Text } = Typography;
 
@@ -30,12 +32,13 @@ export default function ElecCalcCandidateCompareBar({
           ? `Отличий в видимых колонках: ${diffCount}`
           : 'В видимых колонках отличий нет'}
       </Text>
-      <Button
-        size="small"
+      <TltButton
+        size="compact"
+        variant="secondary"
         onClick={onReset}
       >
         Сбросить сравнение
-      </Button>
+      </TltButton>
     </div>
   );
 }

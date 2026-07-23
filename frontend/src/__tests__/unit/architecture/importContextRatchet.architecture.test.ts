@@ -16,7 +16,6 @@ import ts from 'typescript';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SRC_ROOT = path.resolve(HERE, '../../..');
-const FRONTEND_ROOT = path.resolve(HERE, '../../../..');
 const BASELINE_PATH = path.join(HERE, 'importContextBaseline.json');
 const SKIP_DIRS = new Set(['node_modules', 'dist', '__tests__']);
 

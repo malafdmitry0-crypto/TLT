@@ -33,27 +33,22 @@
   background: var(--c-f8fafb);
 }
 .inline-object-form .fit-label-form-item {
-  grid-column: auto;
   width: 100%;
   min-width: 0;
 }
 .inline-object-form .numeric-form-item {
-  grid-column: auto;
   width: 100%;
   min-width: 0;
 }
 .inline-object-form .compact-select-form-item {
-  grid-column: auto;
   width: 100%;
   min-width: 0;
 }
 .inline-object-form .medium-select-form-item {
-  grid-column: auto;
   width: 100%;
   min-width: 0;
 }
 .inline-object-form .layer-count-form-item {
-  grid-column: auto;
   width: 100%;
   min-width: 0;
 }
@@ -185,7 +180,6 @@
   grid-template-columns: minmax(var(--field-label-width, 104px), 1fr) minmax(var(--field-input-min-width, 160px), 1.2fr);
 }
 .inline-object-form .temperature-group-form-item {
-  grid-column: auto;
   width: 100%;
   min-width: 0;
 }
@@ -321,4 +315,3 @@
 .reference-picker-empty {
   padding: 28px 0;
 }
-

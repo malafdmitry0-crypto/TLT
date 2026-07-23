@@ -1,5 +1,6 @@
-import { Button, Modal, Typography } from 'antd';
+import { Modal, Typography } from 'antd';
 
+import { TltButton } from '@/components/ui-kit';
 import type { ProjectObject } from '@/types/project';
 
 const { Text } = Typography;
@@ -58,24 +59,32 @@ export default function HeatCalcUnsavedChangesModals({
         title="Открыть форму объекта?"
         onCancel={() => setPendingWizardObject(null)}
         footer={[
-          <Button key="cancel" onClick={() => setPendingWizardObject(null)}>
+          <TltButton
+            key="cancel"
+            variant="secondary"
+            size="compact"
+            onClick={() => setPendingWizardObject(null)}
+          >
             Cancel
-          </Button>,
-          <Button
+          </TltButton>,
+          <TltButton
             key="discard"
+            variant="ghost"
+            size="compact"
             disabled={inlineDraftSaving}
             onClick={discardPendingWizardDraft}
           >
             Discard
-          </Button>,
-          <Button
+          </TltButton>,
+          <TltButton
             key="save"
-            type="primary"
+            variant="primary"
+            size="compact"
             loading={inlineDraftSaving}
             onClick={savePendingWizardDraft}
           >
             Save
-          </Button>,
+          </TltButton>,
         ]}
       >
         <Text>

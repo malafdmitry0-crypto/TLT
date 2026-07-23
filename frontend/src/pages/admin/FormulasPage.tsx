@@ -27,7 +27,7 @@ import {
   TTFormulaDisplay,
 } from '@/components/admin/formulas/FormulaDisplays';
 
-const { Text } = Typography;
+const { Text, Title } = Typography;
 
 type FormulaType =
   | 'pipe'
@@ -129,7 +129,7 @@ function PipeTab() {
         <PipeFormulaDisplay />
       </Col>
       <Col xs={24} lg={12}>
-        <div style={{ fontWeight: 600, marginBottom: 10, color: '#333' }}>Проверить расчёт</div>
+        <Title level={5}>Проверить расчёт</Title>
         <Form form={form} name="pipe_formula_check" layout="vertical" initialValues={{ location: 'outdoor', insulation_temperature_basis: 'outdoor_winter', insulation_material_1: 'mineral_wool_boards_120' }}>
           <Row gutter={12}>
             <Col span={12}>
@@ -328,7 +328,7 @@ function TankTab() {
         <TankFormulaDisplay />
       </Col>
       <Col xs={24} lg={12}>
-        <div style={{ fontWeight: 600, marginBottom: 10, color: '#333' }}>Проверить расчёт</div>
+        <Title level={5}>Проверить расчёт</Title>
         <Form form={form} name="tank_formula_check" layout="vertical" initialValues={{ shape: 'cylindrical', location: 'outdoor', insulation_temperature_basis: 'outdoor_winter', insulation_material_1: 'mineral_wool_boards_120' }}>
           <Row gutter={12}>
             <Col span={8}>
@@ -622,7 +622,7 @@ function TTTab() {
     <Row gutter={40}>
       <Col xs={24} lg={12}><TTFormulaDisplay /></Col>
       <Col xs={24} lg={12}>
-        <div style={{ fontWeight: 600, marginBottom: 10, color: '#333' }}>Проверить расчёт ТТ</div>
+        <Title level={5}>Проверить расчёт ТТ</Title>
         <Form form={form} name="tt_formula_check" layout="vertical" initialValues={{ supply_voltage: 220, aggressive_product: false, winding_coefficient: 1.1, safety_factor: 1.1 }}>
           <Row gutter={12}>
             <Col span={12}><Form.Item name="required_power_per_meter" label="Требуемая мощность, Вт/м" rules={[{ required: true }]}><InputNumber min={0.1} style={{ width: '100%' }} placeholder="30" /></Form.Item></Col>
