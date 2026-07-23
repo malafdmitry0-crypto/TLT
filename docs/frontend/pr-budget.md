@@ -57,7 +57,7 @@ Full strangler prompt: [agent-prompt-ui-kit-strangler.md](./agent-prompt-ui-kit-
 **Не угадывать.** Брать первый `pending` из  
 [autonomous-continuation-plan.md](./autonomous-continuation-plan.md) §3–§4.
 
-Сейчас: **Track C CSS** (C4 heat-object-fields exact dups) по  
+Сейчас: **Track C CSS** (C5 insulation exact dups or C8 largest legacy move) по  
 [agent-prompt-css-strangler.md](./agent-prompt-css-strangler.md).
 
 ## Anti-goals

@@ -20,6 +20,7 @@ import EmptyProjectState from '@/components/common/EmptyProjectState';
 import { ROUTES } from '@/routes/routes';
 import { useSpecificationPageModel } from '@/pages/specification/useSpecificationPageModel';
 import { SpecPageChrome } from '@/pages/specification/SpecPageChrome';
+import './specification-page.css';
 
 const { Text } = Typography;
 
