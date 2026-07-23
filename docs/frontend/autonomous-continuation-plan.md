@@ -134,7 +134,7 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | **E17** | `pending` | residual → M3 | until workspace ≤500 | unit | after H track |
 
 **Метрика shell:** `ElecCalcPage` = **30**. `ElecCalcWorkspace` = **1194** (M1 workspace ✅).  
-**Текущий пункт:** **S2** (Spec pure presentation / thin)
+**Текущий пункт:** residual S3/E17/C2 as next
 
 ### Track H — Heat
 
@@ -157,7 +157,7 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | ID | Статус | Scope | Что | Proof |
 |---|---|---|---|---|
 | **S1** | `done` | namespace `pages/specification/` | page + format/params extracts | unit+integration 14 | re-export stub |
-| **S2** | `pending` | pure params / BOM presentation | extract thick logic from Spec page | unit |
+| **S2** | `done` | generate options pure | buildSpecGenerateOptions + partial | unit | 06704b6 |
 | **S3** | `pending` | thin Spec shell ≤ 500 | layout views | unit |
 | **S4** | `pending` | Report thin if >400 | preview/export wiring | unit |
 
@@ -167,7 +167,7 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 
 | ID | Статус | Scope | Что | Proof |
 |---|---|---|---|---|
-| **C1** | `pending` | move heat workspace chrome rules | `styles.css` → `pages/heatcalc/heatcalc-workspace.css` (import once) | visual smoke / parity if forms |
+| **C1** | `done` | heat workspace chrome CSS | styles.css 6777→6583 (−194) | heat basics | heatcalc-workspace.css |
 | **C2** | `pending` | move elec workspace chrome | `elec-*.css` | smoke |
 | **C3** | `pending` | tokens already? consolidate `--tlt-*` | no new tokens without use | architecture |
 | **C4+** | `pending` | repeat largest blocks | net LOC styles.css < 0 each time | until ≤3000 |

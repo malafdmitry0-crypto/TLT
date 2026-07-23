@@ -46,6 +46,7 @@
 | [css-strategy.md](./css-strategy.md) | Глобально vs в компоненте; упрощение CSS |
 | [refactoring-effectiveness.md](./refactoring-effectiveness.md) | Как сделать рефакторинг эффективным |
 | [agent-prompt-ui-kit-strangler.md](./agent-prompt-ui-kit-strangler.md) | Промпт для агента (миграция на kit) |
+| [agent-prompt-css-strangler.md](./agent-prompt-css-strangler.md) | Промпт отдельного CSS-агента: безопасное удаление legacy-дублей |
 | [ai-frontend-argument.md](./ai-frontend-argument.md) | Аргументы: ИИ и фронт при наличии системы |
 
 ## Быстрый старт для агента / разработчика

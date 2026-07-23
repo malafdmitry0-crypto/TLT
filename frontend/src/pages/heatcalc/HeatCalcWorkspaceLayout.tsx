@@ -10,6 +10,7 @@ import type { CSSProperties, ReactNode, Ref } from 'react';
 import { Space } from 'antd';
 
 import type { HeatCalcFormPlacement } from '@/pages/heatcalc/heatCalcLayoutModel';
+import './heatcalc-workspace.css';
 
 export type HeatCalcWorkspaceLayoutProps = {
   formPlacement: HeatCalcFormPlacement;

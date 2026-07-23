@@ -12,7 +12,7 @@
 | `frontend/src/pages/electrical/ElecCalcWorkspace.tsx` | 1194 | M1 shell ≤1200 |
 | `frontend/src/pages/HeatCalcPage.tsx` | 280 | orchestration in useHeatCalcPageModel |
 | `frontend/src/pages/SpecificationPage.tsx` | 1005 | — |
-| `frontend/src/styles.css` | 6777 | freeze |
+| `frontend/src/styles.css` | 6583 | freeze; heat workspace extracted |
 
 ```bash
 wc -l frontend/src/pages/ElecCalcPage.tsx \
