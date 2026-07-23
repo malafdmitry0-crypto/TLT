@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "slice": "G4",
-  "description": "CSS architecture ratchet: styles.css freeze, per-file/total LOC+bareAnt+media caps. !important stays in cssImportantBaseline (IMP0). Decrease always OK.",
+  "slice": "G4+CSS2-4",
+  "description": "CSS architecture ratchet after heat CSS2–CSS4 move-only splits.",
   "stylesCssMaxLoc": 20,
   "newFileLocCap": 400,
   "files": {
@@ -35,10 +35,40 @@
       "bareAnt": 0,
       "media": 8
     },
-    "src/pages/heatcalc/heatcalc-workspace.css": {
-      "loc": 2562,
+    "src/pages/heatcalc/heatcalc-dual-form-shell.css": {
+      "loc": 253,
       "bareAnt": 0,
-      "media": 15
+      "media": 3
+    },
+    "src/pages/heatcalc/heatcalc-field-chrome.css": {
+      "loc": 821,
+      "bareAnt": 0,
+      "media": 3
+    },
+    "src/pages/heatcalc/heatcalc-insulation-page.css": {
+      "loc": 273,
+      "bareAnt": 0,
+      "media": 4
+    },
+    "src/pages/heatcalc/heatcalc-side-form-layout.css": {
+      "loc": 411,
+      "bareAnt": 0,
+      "media": 1
+    },
+    "src/pages/heatcalc/heatcalc-workspace-shell.css": {
+      "loc": 199,
+      "bareAnt": 0,
+      "media": 1
+    },
+    "src/pages/heatcalc/heatcalc-workspace-table.css": {
+      "loc": 616,
+      "bareAnt": 0,
+      "media": 3
+    },
+    "src/pages/heatcalc/heatcalc-workspace.css": {
+      "loc": 6,
+      "bareAnt": 0,
+      "media": 0
     },
     "src/pages/projects-page.css": {
       "loc": 48,
@@ -107,7 +137,7 @@
     }
   },
   "totals": {
-    "loc": 9209,
+    "loc": 9226,
     "bareAnt": 18,
     "media": 40
   }

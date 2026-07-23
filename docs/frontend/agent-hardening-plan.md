@@ -2,7 +2,7 @@
 
 **Актуально на:** 2026-07-23  
 **Статус:** исполняемый hardening backlog после закрытия thin shells и CSS strangler  
-**Текущий pending:** **CSS1** (IMP2–IMP7 done — !important 475→78; next Heat CSS inventory)
+**Текущий pending:** **ELEC1** (CSS1–CSS4 done — heat CSS move-only split; next model-thin)
 **Цель:** агент должен быстро находить владельца поведения, получать зелёную и
 однозначную обратную связь и не иметь возможности незаметно вернуть god-файлы,
 глобальный CSS или обратные зависимости.
@@ -161,10 +161,10 @@ Milestones:
 
 | ID | Scope | Результат | Зависит |
 |---|---|---|---|
-| **CSS1** | Heat CSS inventory | карта секций и owners, без изменения CSS | G4 |
-| **CSS2** | Heat workspace shell CSS | layout/chrome вынесен move-only | CSS1 |
-| **CSS3** | Heat wizard-form CSS | dual-form/form chrome у владельца | CSS2 |
-| **CSS4** | Heat insulation page CSS | page-scope insulation rules у владельца | CSS3 |
+| **CSS1** | `done` | inventory `heat-css-inventory.md` | G4 |
+| **CSS2** | `done` | shell + dual-form + table CSS owners | CSS1 |
+| **CSS3** | `done` | side-form layout + field chrome owners | CSS2 |
+| **CSS4** | `done` | insulation page-scope owner (`heatcalc-insulation-page.css`) | CSS3 |
 | **ELEC1** | Elec workspace table controller | coherent controller + characterization | G2/G3 |
 | **ELEC2** | Elec candidate controller | candidate workflow отделён от main table | ELEC1 |
 | **ELEC3** | Elec workspace presentation model | return assembly без JSX callbacks в god hook | ELEC2 |

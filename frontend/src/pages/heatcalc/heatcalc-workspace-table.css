@@ -1,0 +1,615 @@
+/* CSS2 residual: SC-03 table/banner/errors */
+/* C22b: remaining dual-form layout (non table-insulation) */
+
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layer-index {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+  color: #214c78;
+  font-size: var(--ins-font, 12px);
+  font-weight: 700;
+}
+
+/* ==========================================================================
+ * C23: page-scoped dual-form residual from styles.css
+ * Includes insulation placement chrome under .inline-object-form / side-compact.
+ * Does NOT replace island SoT (insulation-layers-table.css). No redesign.
+ * ==========================================================================
+ */
+
+/* ── Единая секция SC-03 «Расчёт теплопотерь» ────────────────────
+   Один заголовок-баннер над сеткой вместо трёх заголовков колонок;
+   колонки сохраняют свою логику, но визуально сливаются в один блок. */
+
+
+.heatcalc-form-pane--wide .inline-object-form--wide:has(.insulation-layers-grid--3) {
+  height: auto;
+  min-height: 0;
+  max-height: none;
+}
+
+@media (max-width: 1400px) {
+  .heatcalc-form-pane--wide .inline-object-form--wide {
+    height: auto;
+    min-height: 0;
+    max-height: none;
+  }
+
+  .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three {
+    grid-template-rows: auto;
+  }
+
+  .heatcalc-form-pane--wide .inline-object-form--wide:has(.insulation-layers-grid--3) {
+    height: auto;
+    min-height: 0;
+    max-height: none;
+  }
+
+  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .compact-select-form-item .field-label-two-line,
+  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .compact-select-form-item .field-label-two-line > span,
+  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--fittings .field-label-two-line,
+  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--fittings .field-label-two-line > span,
+  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--fittings .ant-form-item-label > label > span {
+    display: block;
+    max-width: 100%;
+    overflow-wrap: normal;
+    word-break: normal;
+    white-space: normal;
+  }
+
+  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate .ant-form-item-label > label > span,
+  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate .field-label-two-line,
+  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate .field-label-two-line > span {
+    display: block;
+    max-width: 100%;
+    overflow-wrap: normal;
+    white-space: normal;
+  }
+}
+
+
+/* While dragging a row, make table rows look grabby */
+
+
+.inline-object-form--side .side-form-section > .name-form-item,
+.inline-object-form--side .side-form-section > .fixed-select-form-item,
+.inline-object-form--side .side-form-section > .pipe-material-form-item,
+.inline-object-form--side .side-form-section > .layer-material-form-item,
+.inline-object-form--side .side-form-section > .insulation-layer-count-form-item,
+.inline-object-form--side .side-form-section > .insulation-temperature-basis-form-item,
+.inline-object-form--side .side-form-section > .insulation-layer-group {
+  grid-column: 1 / -1;
+}
+
+
+/*
+ * Side field anatomy (label над контролом) и span'ы полей живут в UI kit
+ * (`.tlt-compact-field-grid--labels-top`) и острове heat-object-fields.css.
+ * Здесь — только сетка контейнера и таблица слоёв.
+ */
+.inline-object-form--side .side-compact-insulation .ant-form-item {
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.inline-object-form--side .side-compact-insulation {
+  grid-column: 1 / -1;
+  order: 1;
+}
+
+.inline-object-form--side .side-compact-insulation {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 6px 10px;
+  padding-top: 8px;
+  border-top: 1px solid #dbe6f2;
+}
+
+.inline-object-form--side .side-compact-insulation .insulation-settings-row,
+.inline-object-form--side .side-compact-insulation .insulation-layers-header,
+.inline-object-form--side .side-compact-insulation .insulation-layers-grid {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
+}
+
+.inline-object-form--side .side-compact-insulation .insulation-settings-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 200px) minmax(0, 1fr);
+  gap: 8px 10px;
+}
+
+.inline-object-form--side .side-compact-insulation .insulation-layers-table {
+  --ins-col-index: 36px;
+  --ins-col-material: minmax(120px, 1.8fr);
+  --ins-col-thickness: minmax(60px, 0.5fr);
+  --ins-col-lambda: minmax(56px, 0.45fr);
+  --ins-col-range: minmax(72px, 0.6fr);
+  --ins-cols: var(--ins-col-index) var(--ins-col-material) var(--ins-col-thickness) var(--ins-col-lambda) var(--ins-col-range);
+}
+
+.inline-object-form--side .side-compact-insulation .insulation-layers-header,
+.inline-object-form--side .side-compact-insulation .insulation-layer-group {
+  display: grid;
+  grid-template-columns: var(--ins-cols, 36px minmax(120px, 1.8fr) minmax(60px, 0.5fr) minmax(56px, 0.45fr) minmax(72px, 0.6fr));
+  column-gap: 0;
+}
+
+.inline-object-form--side .side-compact-insulation .insulation-layers-header {
+  border: 1px solid #d8e4f1;
+  background: #f5f8fc;
+  color: #53667b;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.inline-object-form--side .side-compact-insulation .insulation-layers-header > span,
+.inline-object-form--side .side-compact-insulation .insulation-layer-group > * {
+  min-width: 0;
+  padding: 6px 8px;
+  border-left: 1px solid #d8e4f1;
+}
+
+.inline-object-form--side .side-compact-insulation .insulation-layers-header > span:first-child,
+.inline-object-form--side .side-compact-insulation .insulation-layer-index {
+  border-left: 0;
+}
+
+.inline-object-form--side .side-compact-insulation .insulation-layers-header > span:first-child,
+.inline-object-form--side .side-compact-insulation .insulation-layer-index {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.inline-object-form--side .side-compact-insulation .insulation-layers-grid {
+  display: grid;
+  gap: 0;
+  border: 1px solid #d8e4f1;
+  border-top: 0;
+}
+
+.inline-object-form--side .side-compact-insulation .insulation-layer-group {
+  min-width: 0;
+}
+
+.inline-object-form--side .side-compact-insulation .insulation-layer-group + .insulation-layer-group {
+  border-top: 1px solid #d8e4f1;
+}
+
+.inline-object-form--side .side-compact-insulation .insulation-layer-group .ant-form-item-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.inline-object-form--side .side-compact-insulation .insulation-layer-group .field-control-with-help,
+.inline-object-form--side .side-compact-insulation .insulation-layer-group .reference-picker-control {
+  width: 100%;
+  max-width: none;
+}
+
+.inline-object-form--side .side-compact-insulation .insulation-layer-group > .layer-material-form-item {
+  grid-column: 2;
+}
+
+.inline-object-form--side .side-compact-insulation .insulation-layer-group > .short-number-form-item {
+  grid-column: 3;
+}
+
+.inline-object-form--side .side-compact-insulation .insulation-layer-group > .coefficient-form-item {
+  grid-column: 4;
+}
+
+.inline-object-form--side .side-compact-insulation .insulation-layer-group > .insulation-temperature-range-form-item {
+  grid-column: 5;
+}
+
+@media (max-width: 720px) {
+  .inline-object-form--side .side-compact-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .inline-object-form--side .side-compact-insulation {
+    grid-column: 1;
+  }
+
+  .inline-object-form--side .side-compact-insulation .insulation-settings-row,
+  .inline-object-form--side .side-compact-insulation .insulation-layers-header,
+  .inline-object-form--side .side-compact-insulation .insulation-layer-group {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .inline-object-form--side .side-compact-insulation .insulation-layers-header {
+    display: none;
+  }
+
+  .inline-object-form--side .side-compact-insulation .insulation-layer-group > * {
+    border-left: 0;
+    border-top: 1px solid #d8e4f1;
+  }
+
+  .inline-object-form--side .side-compact-insulation .insulation-layer-group > :first-child {
+    border-top: 0;
+  }
+
+  .inline-object-form--side .side-compact-insulation .insulation-layer-index {
+    justify-content: flex-start;
+  }
+
+  .inline-object-form--side .side-compact-insulation .insulation-layer-index::before {
+    content: "Слой ";
+    margin-right: 4px;
+  }
+
+  .inline-object-form--side .side-compact-insulation .insulation-layer-group .ant-form-item-label {
+    position: static;
+    width: 100%;
+    height: auto;
+    margin-bottom: 2px;
+    overflow: visible;
+    clip: auto;
+    clip-path: none;
+    white-space: normal;
+  }
+}
+
+
+@media (max-width: 900px) {
+  .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "heat"
+      "spec"
+      "cable";
+  }
+
+  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--fittings {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--fittings > .ant-form-item:nth-of-type(odd) {
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-header {
+    display: none;
+  }
+
+  .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid {
+    gap: 8px;
+  }
+
+  .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid > .insulation-layer-group {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 10px;
+    border-top: 1px solid #d1dce8;
+    border-radius: 6px;
+  }
+
+  .inline-object-form--wide .object-wizard-wide-panel .insulation-layer-index,
+  .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid > .insulation-layer-group > .ant-form-item {
+    grid-column: 1;
+  }
+
+  .inline-object-form--wide .object-wizard-wide-panel .insulation-layer-index {
+    justify-content: flex-start;
+    min-height: 24px;
+  }
+
+  .inline-object-form--wide .object-wizard-wide-panel .insulation-layer-index::before {
+    content: "Слой ";
+    margin-right: 4px;
+  }
+
+  .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid > .insulation-layer-group > .ant-form-item {
+    padding: 4px 0;
+    border-left: 0;
+  }
+
+  .inline-object-form--wide .object-wizard-wide-panel .insulation-layer-group .ant-form-item-label {
+    position: static;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+    clip-path: none;
+  }
+}
+
+
+/* ── Ошибки / подсказки ───────────────────────────────────────── */
+
+
+.inline-object-form .insulation-layer-count-form-item {
+  grid-column: 1 / -1;
+}
+
+.insulation-layer-group {
+  --field-label-width: 76px;
+  --compact-field-label-width: 76px;
+  --field-input-min-width: 112px;
+  display: flex;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
+  gap: 2px 6px;
+  align-items: start;
+  justify-self: stretch;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding: 4px 5px 5px;
+  border: 1px solid #dbe6f2;
+  border-radius: 5px;
+  background: #fbfdff;
+  box-sizing: border-box;
+}
+
+.inline-object-form .insulation-layer-group .ant-form-item {
+  grid-column: auto;
+  flex: 0 1 auto;
+  width: auto;
+  min-height: 22px;
+  padding: 0;
+}
+
+/*
+ * Legacy flex-table placement — ONLY outside island root.
+ * Under .insulation-layers-table the 5-col grid lives in insulation-layers-table.css.
+ */
+.inline-object-form .insulation-layer-group:not(.insulation-layers-table .insulation-layer-group) .fixed-select-form-item,
+.inline-object-form .insulation-layer-group:not(.insulation-layers-table .insulation-layer-group) .medium-select-form-item,
+.inline-object-form .insulation-layer-group:not(.insulation-layers-table .insulation-layer-group) .layer-material-form-item {
+  grid-column: 1 / -1;
+  flex: 0 0 100%;
+  max-width: 100%;
+}
+
+/* NOTE: :not(.insulation-layers-table .…) is invalid for complex selectors in some engines —
+ * hard-disable full-span material when island is ancestor via override below. */
+
+.inline-object-form .insulation-layers-table .insulation-layer-group .layer-material-form-item,
+.inline-object-form .insulation-layers-table .insulation-layer-group .fixed-select-form-item,
+.inline-object-form .insulation-layers-table .insulation-layer-group .medium-select-form-item,
+.inline-object-form .insulation-layers-table .insulation-layer-group .reduced-select-form-item {
+  grid-column: 2;
+  flex: none;
+  width: 100%;
+  max-width: none;
+}
+
+.inline-object-form .insulation-layer-group > .layer-material-form-item {
+  width: 100%;
+  max-width: none;
+  justify-self: stretch;
+}
+
+.inline-object-form .insulation-layers-table .insulation-layer-group > .layer-material-form-item {
+  grid-column: 2;
+  flex: none;
+}
+
+.inline-object-form .insulation-layer-group > .reduced-select-form-item {
+  width: 100%;
+  max-width: none;
+  justify-self: stretch;
+}
+
+.inline-object-form .insulation-layer-group .short-number-form-item,
+.inline-object-form .insulation-layer-group .second-layer-thickness-form-item,
+.inline-object-form .insulation-layer-group .third-layer-thickness-form-item {
+  grid-column: 1;
+  flex: 0 0 auto;
+}
+
+.inline-object-form .insulation-layers-table .insulation-layer-group .short-number-form-item,
+.inline-object-form .insulation-layers-table .insulation-layer-group .second-layer-thickness-form-item,
+.inline-object-form .insulation-layers-table .insulation-layer-group .third-layer-thickness-form-item {
+  grid-column: 3;
+  flex: none;
+}
+
+.inline-object-form .insulation-layer-group .coefficient-form-item {
+  grid-column: 2;
+  flex: 0 0 auto;
+}
+
+.inline-object-form .insulation-layers-table .insulation-layer-group .coefficient-form-item {
+  grid-column: 4;
+  flex: none;
+}
+
+.inline-object-form .insulation-layer-group .insulation-temperature-range-form-item {
+  grid-column: 3;
+  flex: 0 0 auto;
+}
+
+.inline-object-form .insulation-layers-table .insulation-layer-group .insulation-temperature-range-form-item {
+  grid-column: 5;
+  flex: none;
+}
+
+.inline-object-form .insulation-layer-group .ant-form-item-row,
+.inline-object-form .insulation-layer-group .fixed-select-form-item .ant-form-item-row,
+.inline-object-form .insulation-layer-group .medium-select-form-item .ant-form-item-row,
+.inline-object-form .insulation-layer-group .layer-material-form-item .ant-form-item-row,
+.inline-object-form .insulation-layer-group .numeric-form-item .ant-form-item-row {
+  grid-template-columns: var(--compact-field-label-width, 76px) minmax(0, 1fr);
+}
+
+.inline-object-form .insulation-layer-group .ant-form-item-label,
+.inline-object-form .insulation-layer-group .fixed-select-form-item .ant-form-item-label,
+.inline-object-form .insulation-layer-group .medium-select-form-item .ant-form-item-label,
+.inline-object-form .insulation-layer-group .layer-material-form-item .ant-form-item-label,
+.inline-object-form .insulation-layer-group .numeric-form-item .ant-form-item-label {
+  width: var(--compact-field-label-width, 76px);
+}
+
+.inline-object-form .insulation-layer-group .short-number-form-item .ant-form-item-row,
+.inline-object-form .insulation-layer-group .coefficient-form-item .ant-form-item-row,
+.inline-object-form .insulation-layer-group .insulation-temperature-range-form-item .ant-form-item-row {
+  grid-template-columns: max-content max-content;
+}
+
+.inline-object-form .insulation-layer-group .short-number-form-item .ant-form-item-label,
+.inline-object-form .insulation-layer-group .coefficient-form-item .ant-form-item-label,
+.inline-object-form .insulation-layer-group .insulation-temperature-range-form-item .ant-form-item-label {
+  width: auto;
+  white-space: nowrap;
+}
+
+.inline-object-form .insulation-layer-group .short-number-form-item .field-label-two-line,
+.inline-object-form .insulation-layer-group .coefficient-form-item .field-label-two-line,
+.inline-object-form .insulation-layer-group .insulation-temperature-range-form-item .field-label-two-line {
+  display: inline-flex;
+  flex-direction: row;
+  gap: 3px;
+}
+
+.inline-object-form .insulation-layer-group .short-number-form-item .field-label-two-line > span,
+.inline-object-form .insulation-layer-group .coefficient-form-item .field-label-two-line > span,
+.inline-object-form .insulation-layer-group .insulation-temperature-range-form-item .field-label-two-line > span {
+  display: inline;
+}
+
+.inline-object-form .insulation-layer-group .ant-select,
+.inline-object-form .insulation-layer-group .fixed-select-form-item .ant-select,
+.inline-object-form .insulation-layer-group .fixed-select-form-item .tlt-select,
+.inline-object-form .insulation-layer-group .fixed-select-form-item .reference-picker-control,
+.inline-object-form .insulation-layer-group .medium-select-form-item .ant-select,
+.inline-object-form .insulation-layer-group .medium-select-form-item .tlt-select,
+.inline-object-form .insulation-layer-group .medium-select-form-item .reference-picker-control,
+.inline-object-form .insulation-layer-group .layer-material-form-item .ant-select,
+.inline-object-form .insulation-layer-group .layer-material-form-item .tlt-select {
+  width: 100%;
+  min-width: var(--field-input-min-width, 112px);
+}
+
+.inline-object-form .insulation-layer-group .layer-material-form-item .reference-picker-control {
+  width: 100%;
+  min-width: 0;
+}
+
+.inline-object-form .insulation-layer-group .reduced-select-form-item .reference-picker-control {
+  width: 100%;
+  min-width: 0;
+}
+
+.inline-object-form .insulation-layer-group > .layer-material-form-item .field-control-with-help {
+  width: 100%;
+  max-width: 100%;
+}
+
+.inline-object-form .insulation-layer-group > .layer-material-form-item .ant-form-item-row {
+  width: 100%;
+  grid-template-columns: var(--compact-field-label-width, 76px) minmax(0, 1fr);
+}
+
+.inline-object-form .insulation-layer-group .ant-form-item-explain,
+.inline-object-form .insulation-layer-group .ant-form-item-extra {
+  grid-column: 2;
+}
+
+
+/* CSS islands own their form-items completely */
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields .ant-form-item,
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layers-table .ant-form-item,
+.inline-object-form--side .object-wizard-side-panel .insulation-layers-table .ant-form-item {
+  flex: none;
+  min-height: 0 !important;
+  padding: 0;
+}
+
+
+.inline-object-form--wide .object-wizard-wide-panel .name-form-item,
+.inline-object-form--side .object-wizard-side-panel .name-form-item,
+.inline-object-form--side .object-wizard-side-panel .fixed-select-form-item,
+.inline-object-form--side .object-wizard-side-panel .pipe-material-form-item,
+.inline-object-form--side .object-wizard-side-panel .insulation-layer-count-form-item,
+.inline-object-form--side .object-wizard-side-panel .insulation-temperature-basis-form-item {
+  flex-basis: 100%;
+}
+
+
+/* Wide workspace: fields fill their grid cells; no artificial max-width gaps. */
+
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layer-count-form-item {
+  flex: 0 0 220px;
+  min-width: 0;
+}
+
+
+/*
+ * Legacy 2-up settings row — ONLY outside heat-object-fields island.
+ * Inside .heat-object-fields, settings stack vertically (heat-object-fields.css).
+ */
+.inline-object-form--wide .object-wizard-wide-panel .insulation-settings-row:not(.heat-object-fields .insulation-settings-row) {
+  display: grid;
+  grid-template-columns: minmax(140px, 180px) minmax(220px, 360px);
+  flex: 0 0 100%;
+  width: 100%;
+  min-width: 0;
+  gap: 6px 10px;
+  justify-content: start;
+}
+
+/*
+ * HARD RULE 4 reflow: settings wrapper must not be a grid item.
+ * display:contents so tm field joins the flat max-5 column stream
+ * (same as geometry/climate slots in heat-object-fields.css).
+ */
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields .insulation-settings-row {
+  display: contents;
+  flex-direction: unset;
+  grid-template-columns: none;
+  width: auto;
+  max-width: none;
+  gap: 0;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layer-count-form-item .ant-select,
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layer-count-form-item .tlt-select {
+  max-width: 96px;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .insulation-settings-row > .ant-form-item {
+  grid-column: auto;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields .insulation-settings-row > .ant-form-item {
+  width: max-content;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid {
+  display: grid;
+  flex: 0 0 100%;
+  width: 100%;
+  min-width: 0;
+  gap: 0;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid--1,
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid--2 {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid--3 {
+  grid-template-columns: minmax(0, 1fr);
+}
+

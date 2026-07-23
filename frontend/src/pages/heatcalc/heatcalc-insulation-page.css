@@ -1,0 +1,272 @@
+/* CSS4: insulation page-scope residual */
+/* SOURCE OF TRUTH moved to components/wizard/insulation-layers-table.css
+ * Legacy rules below kept for side-panel / older paths; wide table uses island.
+ * Prefer editing the island file, not this block.
+ *
+ * ⛔ PROTECTED CSS — InsulationLayersTable (legacy mirror)
+ * Классы .insulation-layers-header / .insulation-layers-grid / .insulation-layer-group
+ * менять ТОЛЬКО по прямому запросу. Компонент: InsulationLayersTable.tsx.
+ * Не править «заодно» при dual-form / densify / typography heat-полей.
+ *
+ * Column template (Слой | Материал | Толщина | λ | Диапазон):
+ *  - Материал — главная, шире (fr), shrink first on narrow viewports
+ *  - Толщина / λ / Диапазон — компактные fixed-ish minmax
+ */
+.insulation-layers-table {
+  --ins-col-index: 56px;
+  --ins-col-material: minmax(200px, 1.8fr);
+  --ins-col-thickness: minmax(96px, 0.55fr);
+  --ins-col-lambda: minmax(88px, 0.5fr);
+  --ins-col-range: minmax(120px, 0.7fr);
+  --ins-cols: var(--ins-col-index) var(--ins-col-material) var(--ins-col-thickness) var(--ins-col-lambda) var(--ins-col-range);
+
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  flex: 0 0 100%;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layers-table {
+  --ins-col-index: 56px;
+  --ins-col-material: minmax(200px, 1.8fr);
+  --ins-col-thickness: minmax(96px, 0.55fr);
+  --ins-col-lambda: minmax(88px, 0.5fr);
+  --ins-col-range: minmax(120px, 0.7fr);
+  --ins-cols: var(--ins-col-index) var(--ins-col-material) var(--ins-col-thickness) var(--ins-col-lambda) var(--ins-col-range);
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layers-header {
+  display: grid;
+  grid-template-columns: var(--ins-cols);
+  flex: 0 0 100%;
+  width: 100%;
+  min-width: 0;
+  color: #53667b;
+  background: #f4f7fa;
+  border: 1px solid #d1dce8;
+  border-radius: 5px 5px 0 0;
+  font-size: var(--ins-font, 12px);
+  font-weight: 650;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layers-header > span {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 26px;
+  padding: 3px 10px;
+  border-left: 1px solid #dce5ee;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layers-header > span:first-child {
+  justify-content: center;
+  border-left: 0;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layer-group,
+.inline-object-form--side .object-wizard-side-panel .insulation-layer-group {
+  flex: 0 0 100%;
+  gap: 6px 8px;
+  padding-top: 6px;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layer-group {
+  flex: none;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0;
+  background: #fff;
+  border: 1px solid #d1dce8;
+  border-top: 0;
+  border-radius: 0;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid > .insulation-layer-group {
+  grid-column: auto;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid--2 .layer-material-form-item .reference-picker-control,
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid--3 .layer-material-form-item .reference-picker-control {
+  max-width: none;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid > .insulation-layer-group {
+  display: grid;
+  grid-template-columns: var(--ins-cols);
+  align-items: stretch;
+  column-gap: 0;
+}
+
+/* Cell chrome only — column indices come from insulation-layers-table.css (2/3/4/5) */
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid > .insulation-layer-group > .layer-material-form-item,
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid > .insulation-layer-group > .short-number-form-item,
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid > .insulation-layer-group > .coefficient-form-item,
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid > .insulation-layer-group > .insulation-temperature-range-form-item {
+  width: 100%;
+  min-height: 42px;
+  margin: 0;
+  padding: 7px 12px;
+  border-left: 1px solid #e0e7ef;
+}
+
+
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid > .insulation-layer-group > .layer-material-form-item {
+  grid-column: 2;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid .layer-material-form-item .field-control-with-help,
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid .layer-material-form-item .reference-picker-control {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid > .insulation-layer-group > .short-number-form-item {
+  grid-column: 3;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid > .insulation-layer-group > .coefficient-form-item {
+  grid-column: 4;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid > .insulation-layer-group > .insulation-temperature-range-form-item {
+  grid-column: 5;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layer-group .ant-form-item-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layer-group .ant-form-item,
+.inline-object-form--side .object-wizard-side-panel .insulation-layer-group .ant-form-item {
+  min-height: 33px;
+}
+
+/* Do NOT flex-basis numeric cells — breaks 5-col grid (island owns layout). */
+
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layer-group .ant-form-item-label > label > span,
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layer-group .field-label-two-line,
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layer-group .field-label-two-line > span {
+  max-width: 100%;
+  overflow-wrap: normal;
+  word-break: normal;
+  white-space: normal;
+}
+
+
+@media (max-width: 1500px) {
+  /* Material shrinks first; numeric keep compact mins */
+  .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-table {
+    --ins-col-index: 56px;
+    --ins-col-material: minmax(160px, 1.4fr);
+    --ins-col-thickness: minmax(88px, 0.5fr);
+    --ins-col-lambda: minmax(80px, 0.45fr);
+    --ins-col-range: minmax(110px, 0.6fr);
+  }
+
+  .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-header,
+  .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid > .insulation-layer-group {
+    grid-template-columns: var(--ins-cols);
+  }
+}
+
+
+@media (max-width: 1200px) {
+  .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-table {
+    --ins-col-index: 52px;
+    --ins-col-material: minmax(140px, 1.2fr);
+    --ins-col-thickness: minmax(80px, 0.45fr);
+    --ins-col-lambda: minmax(72px, 0.4fr);
+    --ins-col-range: minmax(100px, 0.55fr);
+  }
+
+  .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-header,
+  .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid > .insulation-layer-group {
+    grid-template-columns: var(--ins-cols);
+  }
+}
+
+
+/*
+ * UNIFIED dual-form type scale — ONLY heat fields + cable panel.
+ * ⛔ NEVER apply to .insulation-layers-table (protected).
+ */
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide .ant-form-item-label > label,
+
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide input,
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide button,
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide .tlt-select__trigger,
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide .ant-input,
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide .ant-input-number-input,
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide .reference-picker-control,
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide .ant-select-selector,
+
+/* grid-column for heat/side ONLY — not insulation-layer-group cells */
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide .ant-form-item-control,
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide .field-control-with-help,
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide .ant-form-item-explain,
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide .ant-form-item-extra,
+.inline-object-form--side .object-wizard-side-panel .side-compact-form > .ant-form-item .ant-form-item-control,
+.inline-object-form--side .object-wizard-side-panel .side-compact-form > .ant-form-item .field-control-with-help {
+  grid-column: auto;
+}
+
+
+@media (max-width: 720px) {
+  .inline-object-form--wide .object-wizard-wide-panel .insulation-layer-count-form-item,
+  .inline-object-form--wide .object-wizard-wide-panel .insulation-temperature-basis-form-item {
+    flex: 0 0 100%;
+  }
+
+  .inline-object-form--wide .object-wizard-wide-panel .insulation-layer-group {
+    flex: 0 0 100%;
+    max-width: none;
+  }
+
+  .inline-object-form--wide .object-wizard-wide-panel .ant-form-item-label > label > span {
+    overflow-wrap: normal;
+    word-break: normal;
+    white-space: normal;
+  }
+
+  /* Island-scoped only — never .object-wizard-wide-panel .field-label-two-line globally */
+  .inline-object-form--wide .object-wizard-wide-panel .heat-object-fields .field-label-two-line {
+    display: block;
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  .inline-object-form--wide .object-wizard-wide-panel .heat-object-fields .field-label-two-line > span {
+    display: block;
+    max-width: 100%;
+    overflow-wrap: normal;
+    word-break: normal;
+    white-space: normal;
+  }
+}
+
+/* helped control: heat/side fields only — NOT insulation-layer-group (table cells) */
+
+
+@media (max-width: 640px) {
+  .reference-picker-filter-row {
+    flex-direction: column;
+  }
+
+  .reference-picker-group-filter {
+    flex-basis: auto;
+    width: 100%;
+  }
+}

@@ -57,8 +57,8 @@ Full strangler prompt: [agent-prompt-ui-kit-strangler.md](./agent-prompt-ui-kit-
 **Не угадывать.** Брать первый `pending` из  
 [agent-hardening-plan.md](./agent-hardening-plan.md).
 
-Сейчас: **CSS1** Heat CSS inventory, then CSS2–4 move-only / P2 model-thin.  
-`!important` 475→78 (DoD ≤150). Proof: `cd frontend && npm run test:agent-gates`.
+Сейчас: **ELEC1** Elec workspace table controller extract (P2 model-thin).  
+Heat CSS split + `!important` 78. Proof: `cd frontend && npm run test:agent-gates`.
 
 ## Anti-goals
 

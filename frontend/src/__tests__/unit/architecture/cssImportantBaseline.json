@@ -8,7 +8,9 @@
     "src/components/wizard/cable-algorithm-panel.css": 12,
     "src/components/wizard/heat-object-fields.css": 6,
     "src/components/wizard/insulation-layers-table.css": 12,
-    "src/pages/heatcalc/heatcalc-workspace.css": 9,
+    "src/pages/heatcalc/heatcalc-dual-form-shell.css": 4,
+    "src/pages/heatcalc/heatcalc-field-chrome.css": 4,
+    "src/pages/heatcalc/heatcalc-workspace-table.css": 1,
     "src/pages/specification/specification-page.css": 1,
     "src/pages/ui-kit.css": 8,
     "src/styles/calc-spreadsheet.css": 3

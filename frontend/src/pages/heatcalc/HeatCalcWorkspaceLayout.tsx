@@ -11,6 +11,12 @@ import { Space } from 'antd';
 
 import type { HeatCalcFormPlacement } from '@/pages/heatcalc/heatCalcLayoutModel';
 import './heatcalc-workspace.css';
+import './heatcalc-workspace-shell.css';
+import './heatcalc-dual-form-shell.css';
+import './heatcalc-side-form-layout.css';
+import './heatcalc-field-chrome.css';
+import './heatcalc-workspace-table.css';
+import './heatcalc-insulation-page.css';
 
 export type HeatCalcWorkspaceLayoutProps = {
   formPlacement: HeatCalcFormPlacement;
