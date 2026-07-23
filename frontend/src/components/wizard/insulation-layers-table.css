@@ -356,3 +356,45 @@
     --ins-col-range: 92px;
   }
 }
+
+/* Narrow: stack rows (owned here — not in heatcalc page CSS) */
+@media (max-width: 900px) {
+  .insulation-layers-table .insulation-layers-header {
+    display: none;
+  }
+
+  .insulation-layers-table .insulation-layer-group {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 10px;
+    border-radius: 6px;
+  }
+
+  .insulation-layers-table .insulation-layer-cell {
+    grid-column: 1;
+    border-left: 0;
+    border-top: 1px solid var(--c-e0e7ef);
+  }
+
+  .insulation-layers-table .insulation-layer-cell:first-child {
+    border-top: 0;
+  }
+
+  .insulation-layers-table .insulation-layer-index {
+    justify-content: flex-start;
+  }
+
+  .insulation-layers-table .insulation-layer-index::before {
+    content: "Слой ";
+    margin-right: 4px;
+  }
+
+  .insulation-layers-table .ant-form-item-label {
+    position: static;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+    clip: auto;
+    clip-path: none;
+    white-space: normal;
+  }
+}

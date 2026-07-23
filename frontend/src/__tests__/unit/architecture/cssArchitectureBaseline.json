@@ -1,7 +1,7 @@
 {
   "version": 3,
-  "slice": "CSS-OWN-02",
-  "description": "Density cascade: form root tokens; Tlt controls no duplicate height/font",
+  "slice": "CSS-OWN-03",
+  "description": "Heat multi-file ownership: insulation chrome in island only; workspace-table placement only",
   "stylesCssMaxLoc": 30,
   "newFileLocCap": 400,
   "files": {
@@ -26,9 +26,9 @@
       "media": 1
     },
     "src/components/wizard/insulation-layers-table.css": {
-      "loc": 359,
+      "loc": 401,
       "bareAnt": 0,
-      "media": 1
+      "media": 2
     },
     "src/pages/electrical/elec-workspace.css": {
       "loc": 1002,
@@ -36,32 +36,32 @@
       "media": 8
     },
     "src/pages/heatcalc/heatcalc-dual-form-shell.css": {
-      "loc": 253,
+      "loc": 256,
       "bareAnt": 0,
       "media": 3
     },
     "src/pages/heatcalc/heatcalc-field-chrome.css": {
-      "loc": 819,
+      "loc": 822,
       "bareAnt": 0,
       "media": 3
     },
     "src/pages/heatcalc/heatcalc-insulation-page.css": {
-      "loc": 90,
+      "loc": 99,
       "bareAnt": 0,
       "media": 4
     },
     "src/pages/heatcalc/heatcalc-side-form-layout.css": {
-      "loc": 411,
+      "loc": 414,
       "bareAnt": 0,
       "media": 1
     },
     "src/pages/heatcalc/heatcalc-workspace-shell.css": {
-      "loc": 199,
+      "loc": 202,
       "bareAnt": 0,
       "media": 1
     },
     "src/pages/heatcalc/heatcalc-workspace-table.css": {
-      "loc": 616,
+      "loc": 192,
       "bareAnt": 0,
       "media": 3
     },
@@ -157,9 +157,9 @@
     }
   },
   "totals": {
-    "loc": 9409,
+    "loc": 9048,
     "bareAnt": 18,
-    "media": 40
+    "media": 41
   },
   "rawColors": {
     "src/styles/tokens.css": 257

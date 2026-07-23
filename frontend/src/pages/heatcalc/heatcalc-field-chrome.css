@@ -1,5 +1,8 @@
+/**
+ * OWNER: dual-form field chrome (labels, Ant controls, form-item chrome).
+ * Density tokens: --tlt-field-* on .inline-object-form. No insulation table chrome.
+ */
 /* CSS3: dual-form field chrome */
-/* C22: dual-form field chrome (non-insulation) from styles.css */
 
 .heatcalc-context-row {
   display: flex;

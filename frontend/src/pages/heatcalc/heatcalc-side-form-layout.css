@@ -1,5 +1,8 @@
+/**
+ * OWNER: side/wide form column placement maps (which field sits where).
+ * Not insulation table structure; not global Tlt density.
+ */
 /* CSS3: side-form + placement maps */
-/* C21: side-form shell (non-insulation) from styles.css */
 
 .inline-object-form--side {
   display: flex;

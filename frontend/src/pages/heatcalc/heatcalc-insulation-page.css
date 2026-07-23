@@ -15,6 +15,15 @@
   --ins-col-range: minmax(120px, 0.7fr);
 }
 
+/* Side-compact host: denser tracks (tokens only) */
+.inline-object-form--side .side-compact-insulation .insulation-layers-table {
+  --ins-col-index: 36px;
+  --ins-col-material: minmax(120px, 1.8fr);
+  --ins-col-thickness: minmax(60px, 0.5fr);
+  --ins-col-lambda: minmax(56px, 0.45fr);
+  --ins-col-range: minmax(72px, 0.6fr);
+}
+
 @media (max-width: 1500px) {
   .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-table {
     --ins-col-index: 56px;

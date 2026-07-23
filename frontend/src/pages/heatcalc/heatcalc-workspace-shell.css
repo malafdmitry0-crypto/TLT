@@ -1,5 +1,8 @@
+/**
+ * OWNER: heat workspace outer shell (resize, panes, page frame).
+ * Not form fields or insulation island.
+ */
 /* CSS2: workspace shell/layout/resize */
-/* Extracted from styles.css — heat workspace shell/layout (C1) */
 .heatcalc-workspace-shell {
   position: relative;
   min-width: 0;

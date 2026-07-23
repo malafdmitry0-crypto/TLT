@@ -1,5 +1,8 @@
+/**
+ * OWNER: dual-forms shell + heat-structured grid areas.
+ * Placement of panes only — not field density (field-chrome) or insulation island.
+ */
 /* CSS2: dual-forms + heat-structured shell */
-/* C18 heat-only dual-forms / diagnostics / workspace table card */
 
 .workspace-table-card .ant-card-body {
   padding: 0 10px 10px;
