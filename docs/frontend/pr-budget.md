@@ -57,8 +57,8 @@ Full strangler prompt: [agent-prompt-ui-kit-strangler.md](./agent-prompt-ui-kit-
 **Не угадывать.** Брать первый `pending` из  
 [agent-hardening-plan.md](./agent-hardening-plan.md).
 
-Сейчас: **ELEC3** residual (workspace presentation assembly; parent ~960 LOC).  
-Hardening gates G1–G5, IMP2–7 (78 !important), CSS1–4, HEAT/WIZ/VAR thin done.  
+Сейчас: optional residual (ELEC workspace ≤650, Glide ≤700, !important ≤75).  
+Hardening plan P0–P3 closed including ELEC3 presentation.  
 Proof: `cd frontend && npm run test:agent-gates`.
 
 ## Anti-goals

@@ -2,7 +2,7 @@
 
 **Актуально на:** 2026-07-23  
 **Статус:** hardening DoD gates green; residual thin only  
-**Текущий pending:** **ELEC3** (workspace presentation assembly) — единственный P2 residual  
+**Текущий pending:** optional residual thin (ELEC3 presentation done; workspace model ~899 → target ≤650 later)  
 **Цель:** агент должен быстро находить владельца поведения, получать зелёную и
 однозначную обратную связь и не иметь возможности незаметно вернуть god-файлы,
 глобальный CSS или обратные зависимости.
@@ -32,7 +32,7 @@
 | `!important` | 78 (was 475) | hardening DoD ≤ 150 ✅; long-term ≤ 75 almost |
 | production TS/TSX > 500 LOC | ratchet G2 ✅ | не растёт; target hotspots ниже |
 | production TS/TSX > 800 LOC | reduced (glide 886, elec 960) | 0 residual |
-| `useElecCalcWorkspaceModel` | 960 (ELEC1+2) | ≤ 650 / ≤ 30 imports — **ELEC3 residual** |
+| `useElecCalcWorkspaceModel` | 899 (ELEC1–3) | ≤ 650 — optional further data-plane thin |
 | `useHeatCalcPageModel` | 484 ✅ | ≤ 500 |
 | `HeatCalcNormalGlideGrid` | 886 ✅ (pure model extract) | ≤ 700 almost |
 | `ObjectWizard` | 415 ✅ (WIZ1+2) | ≤ 500 |
@@ -167,7 +167,7 @@ Milestones:
 | **CSS4** | `done` | insulation page-scope owner (`heatcalc-insulation-page.css`) | CSS3 |
 | **ELEC1** | `done` | `useElecCalcMainTableController` (1087→994→…) | G2/G3 |
 | **ELEC2** | `done` | `useElecCalcCandidateWorkflowController` | ELEC1 |
-| **ELEC3** | residual | presentation assembly; parent still 960 LOC | ELEC2 |
+| **ELEC3** | `done` | presentation assembly + 93-key view contract; parent 960→899 | ELEC2 |
 | **HEAT1** | `done` | `useHeatCalcWorkspaceDataModel` | G2/G3 |
 | **HEAT2** | `done` | `useHeatCalcInteractionController`; page model 484 ≤500 | HEAT1 |
 | **GRID1** | `done` | pure model `heatCalcNormalGlidePureModel` (1191→886 host) | G2 |
