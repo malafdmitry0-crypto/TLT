@@ -131,10 +131,10 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | **E14** | `done` | assign auto-calc model | PDF-ER-08 payload | unit | `fbff7d1` |
 | **E15** | `done` | error summary + section hierarchy | expandable sections | unit | `31acebc` |
 | **E16** | `done` | table/modals/chrome/ui helpers | workspace ≤1200 | unit+smoke | `4a125cf` **1194** |
-| **E17** | `pending` | residual → M3 | until workspace ≤500 | unit | after H track |
+| **E17** | `done` | useElecCalcWorkspaceModel | workspace view 191 ≤500 | smoke | model ~1112 |
 
 **Метрика shell:** `ElecCalcPage` = **30**. `ElecCalcWorkspace` = **1194** (M1 workspace ✅).  
-**Текущий пункт:** **E17** / **C2**
+**Текущий пункт:** **C2** elec CSS / residual
 
 ### Track H — Heat
 
