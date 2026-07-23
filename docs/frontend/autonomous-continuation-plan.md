@@ -82,7 +82,7 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | `ElecCalcWorkspace.tsx` | **192** | ≤500 ✅ |
 | `HeatCalcPage.tsx` | **280** | ≤500 ✅ |
 | `specification/SpecificationPage.tsx` | **398** | ≤500 ✅ |
-| `styles.css` | **4071** | ≤3000 (M4) |
+| `styles.css` | **3306** | ≤3000 (M4) |
 | inverted `components→pages` | **0** | 0 ✅ |
 | thick models (Heat/Elec/Spec) | 829 / 1112 / 511 | optional deeper thin |
 
@@ -130,7 +130,7 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | **E17** | `done` | useElecCalcWorkspaceModel | workspace view 191 ≤500 | smoke | model ~1112 |
 
 **Метрика shell:** `ElecCalcPage` = **30**. `ElecCalcWorkspace` = **1194** (M1 workspace ✅).  
-**Текущий пункт:** **C16+** dual-form / form-control residual (после C15)
+**Текущий пункт:** **C19+** inline-object-form residual (после C18; M4 почти)
 
 ### Track H — Heat
 
@@ -191,7 +191,10 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | **C13** | `done` | actionbar-srs shared | `styles/actionbar-srs.css` + main | arch+BatchActionBar | styles −214 |
 | **C14** | `done` | excel virtual + context menu | → `calc-spreadsheet.css` | EditableTableCell | styles −104 |
 | **C15** | `done` | app header / primary nav / project-menu | `styles/app-header.css` + main | ProjectMenu+arch | styles −269; print `.heatcalc-header` residual |
-| **C16+** | `pending` | dual-form / form controls residual | move-to-owner or delete dead | until styles ≤3000 | next: inline-object-form dump, dual-forms shell, tlt controls → kit |
+| **C16** | `done` | table row/cell/editor residual | → `calc-spreadsheet.css` (cascade order fixed) | EditableTableCell | styles −115 |
+| **C17** | `done` | table chrome (filters, column layout/settings, assumptions) | `styles/table-chrome.css` + main | arch | styles −349 |
+| **C18** | `done` | form-grid shared + dual-forms heat shell | `form-grid-srs.css` + heatcalc-workspace | arch+glide | styles −188+; dual-forms structured residual |
+| **C19+** | `pending` | inline-object-form dump / tlt controls | move carefully; avoid InsulationLayers | until styles ≤3000 | **M4 gap ~306 LOC** |
 
 Budget CSS: **только** delete/move; `styles.css` net LOC ≤ 0.
 

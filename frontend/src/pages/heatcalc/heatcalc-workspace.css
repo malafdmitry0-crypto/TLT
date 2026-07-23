@@ -194,3 +194,94 @@
     gap: 2px;
   }
 }
+
+/* C18 heat-only dual-forms / diagnostics / workspace table card */
+
+.workspace-table-card .ant-card-body {
+  padding: 0 10px 10px;
+}
+.heatcalc-object-diagnostic {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0 0 2px;
+  padding: 3px 6px;
+  border: 1px solid #ffd591;
+  border-radius: 5px;
+  background: #fff7e6;
+  color: #5c3b00;
+  font-size: 10px;
+  line-height: 1.25;
+}
+.heatcalc-object-diagnostic strong {
+  flex: 0 0 auto;
+  color: #8a5600;
+}
+.heatcalc-object-diagnostic span {
+  min-width: 0;
+}
+.inline-form-shell[hidden],
+.heatcalc-form-pane[hidden] {
+  display: none !important;
+}
+.heatcalc-form-pane--wide .inline-form-srs {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+.heatcalc-form-pane--wide .inline-object-form--wide {
+  display: flex;
+  flex-direction: column;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+}
+.heatcalc-dual-forms {
+  display: grid;
+  gap: 8px 12px;
+  min-width: 0;
+  width: 100%;
+  align-items: start;
+}
+.heatcalc-dual-forms--wide {
+  /* Heat hugs content (max-content); cable keeps a usable min width */
+  grid-template-columns: minmax(0, max-content) minmax(300px, 1fr);
+}
+.heatcalc-dual-forms--side {
+  grid-template-columns: minmax(0, 1fr);
+}
+.heatcalc-dual-forms__heat,
+.heatcalc-dual-forms__cable {
+  min-width: 0;
+}
+.heatcalc-dual-forms {
+  --dual-form-banner-size: 9px;
+  --cable-banner-size: var(--dual-form-banner-size);
+}
+.heatcalc-dual-forms__heat .inline-form-section-banner,
+.heatcalc-dual-forms__heat .side-form-section-banner {
+  min-height: 20px !important;
+  padding: 3px 8px !important;
+  font-size: var(--cable-banner-size) !important;
+  font-weight: 650 !important;
+  letter-spacing: 0.03em !important;
+  line-height: 1.2 !important;
+}
+.inline-object-form--side .form-col-resize-handle {
+  display: none;
+}
+.workspace-table-card .ant-table-thead > tr > th {
+  padding-top: var(--heatcalc-table-header-padding-y, 2px) !important;
+  padding-bottom: var(--heatcalc-table-header-padding-y, 2px) !important;
+}
+.workspace-table-card .ant-table-tbody > tr > td {
+  padding-top: var(--heatcalc-table-cell-padding-y, 1px) !important;
+  padding-bottom: var(--heatcalc-table-cell-padding-y, 1px) !important;
+}
+
+@media (max-width: 1400px) {
+  .heatcalc-dual-forms--wide {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

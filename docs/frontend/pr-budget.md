@@ -57,7 +57,7 @@ Full strangler prompt: [agent-prompt-ui-kit-strangler.md](./agent-prompt-ui-kit-
 **Не угадывать.** Брать первый `pending` из  
 [autonomous-continuation-plan.md](./autonomous-continuation-plan.md) §3–§4.
 
-Сейчас: **Track C CSS** (C16 dual-form / form-control residual → owners) по  
+Сейчас: **Track C CSS** (C19 inline-object-form residual → heat owners; M4 ≤3000 close) по  
 [agent-prompt-css-strangler.md](./agent-prompt-css-strangler.md).
 
 ## Anti-goals

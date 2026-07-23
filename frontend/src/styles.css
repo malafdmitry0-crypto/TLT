@@ -70,28 +70,6 @@ html, body, #root {
 }
 
 /* Подсветка строки таблицы с невалидным расчётом (BR-UI-03) */
-.row-invalid > td {
-  background-color: #fff1f0 !important;
-}
-.row-invalid:hover > td {
-  background-color: #ffe7e6 !important;
-}
-
-.row-dirty > td {
-  background-color: #fffbe6 !important;
-}
-
-.row-dirty:hover > td {
-  background-color: #fff4bf !important;
-}
-
-.row-excel-new:not(.row-dirty):not(.row-excel-dirty) > td {
-  background-color: #f8fafc !important;
-}
-
-.row-excel-new:not(.row-dirty):not(.row-excel-dirty):hover > td {
-  background-color: #eef6ff !important;
-}
 
 
 .heatcalc-main-layout {
@@ -110,62 +88,9 @@ html, body, #root {
 }
 
 
-.workspace-table-card .ant-card-body {
-  padding: 0 10px 10px;
-}
-
 .inline-object-form {
   margin-top: 0;
   --inline-control-height: 24px;
-}
-
-.heatcalc-object-diagnostic {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  margin: 0 0 2px;
-  padding: 3px 6px;
-  border: 1px solid #ffd591;
-  border-radius: 5px;
-  background: #fff7e6;
-  color: #5c3b00;
-  font-size: 10px;
-  line-height: 1.25;
-}
-
-.heatcalc-object-diagnostic strong {
-  flex: 0 0 auto;
-  color: #8a5600;
-}
-
-.heatcalc-object-diagnostic span {
-  min-width: 0;
-}
-
-
-.editable-cell-display {
-  width: 100%;
-  min-height: 22px;
-  box-sizing: border-box;
-  padding: var(--heatcalc-table-cell-padding-y, 2px) 6px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  text-align: inherit;
-  cursor: text;
-}
-
-
-.editable-cell-display--select {
-  cursor: pointer;
-}
-
-.editable-cell-display:hover,
-.editable-cell-display:focus-visible {
-  border-color: #91caff;
-  background: #f0f7ff;
-  outline: none;
 }
 
 
@@ -221,119 +146,6 @@ html, body, #root {
   box-shadow: none;
 }
 
-.excel-row-header-button {
-  width: 100%;
-  min-height: 24px;
-  padding: 0 4px;
-  border: 0;
-  border-right: 1px solid #d8e2ec;
-  background: #f8fafc;
-  color: #64748b;
-  font: inherit;
-  font-size: 11px;
-  cursor: cell;
-}
-
-.excel-row-header-button.selected {
-  background: #dceeff;
-  color: #1a5276;
-  font-weight: 700;
-}
-
-.excel-row-header-button.active-selection {
-  box-shadow: inset 0 0 0 2px #1a5276;
-}
-
-.resizable-column-title.excel-column-title {
-  cursor: cell;
-}
-
-.resizable-column-title.excel-column-title.selected .resizable-column-title-text {
-  color: #1a5276;
-  font-weight: 700;
-}
-
-.resizable-column-title.excel-column-title.active-selection .resizable-column-title-text {
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 3px;
-}
-
-
-.editable-cell-editor-wrap {
-  position: relative;
-  display: block;
-  width: 100%;
-  min-width: 0;
-  max-width: 100%;
-  box-sizing: border-box;
-  padding: 1px;
-}
-
-.editable-cell-editor {
-  width: 100%;
-  min-width: 0;
-  max-width: 100%;
-  box-sizing: border-box;
-}
-
-.editable-cell-editor.ant-input,
-.editable-cell-editor.ant-input-number,
-.editable-cell-editor.ant-select {
-  width: 100%;
-  min-width: 0;
-  max-width: 100%;
-}
-
-.editable-cell-editor.error .ant-input-number,
-.editable-cell-editor.error .ant-input,
-.editable-cell-editor.error .ant-select-selector,
-.editable-cell-editor-wrap .editable-cell-editor.error {
-  border-color: #d9363e !important;
-}
-
-.editable-cell-error {
-  position: absolute;
-  z-index: 4;
-  top: calc(100% + 2px);
-  left: 0;
-  max-width: 260px;
-  padding: 3px 6px;
-  border: 1px solid #ffa39e;
-  border-radius: 4px;
-  background: #fff1f0;
-  color: #a8071a;
-  font-size: 11px;
-  line-height: 1.2;
-  white-space: normal;
-  box-shadow: 0 4px 12px rgb(0 0 0 / 10%);
-}
-
-.inline-form-srs {
-  background: #fff;
-  border: 1px solid var(--heatcalc-panel-border);
-  border-radius: 7px;
-  box-shadow: 0 1px 4px rgb(20 42 68 / 5%);
-  padding: 2px;
-}
-
-.inline-form-shell {
-  min-width: 0;
-  position: relative;
-}
-
-.inline-form-shell[hidden],
-.heatcalc-form-pane[hidden] {
-  display: none !important;
-}
-
-.form-grid-srs {
-  display: flex;
-  align-items: stretch;
-  width: 100%;
-  overflow: hidden;
-  gap: 2px;
-}
 
 /* ── Единая секция SC-03 «Расчёт теплопотерь» ────────────────────
    Один заголовок-баннер над сеткой вместо трёх заголовков колонок;
@@ -362,55 +174,6 @@ html, body, #root {
   white-space: nowrap;
 }
 
-.form-grid-srs--merged {
-  border: 1px solid #dbe6f2;
-  border-radius: 0 0 7px 7px;
-  background: #fff;
-}
-
-.form-grid-srs--merged .form-col-srs {
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-}
-
-.form-grid-srs .form-col-srs {
-  display: grid;
-  --field-pair-min-width: 260px;
-  --field-label-width: 84px;
-  --compact-field-label-width: 84px;
-  --field-input-min-width: 160px;
-  --numeric-value-width: 6ch;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, max(var(--field-pair-min-width), calc((100% - 4px) / 2))), 1fr));
-  align-content: start;
-  align-items: start;
-  justify-content: start;
-  gap: 2px 4px;
-  min-width: var(--field-pair-min-width);
-  overflow: hidden;
-  border: 1px solid #dbe6f2;
-  border-radius: 7px;
-  background: #fff;
-  padding: 3px 3px 2px;
-  flex: none;
-}
-
-.form-grid-srs .form-col-srs--primary {
-  --field-label-width: 82px;
-  --compact-field-label-width: 74px;
-  --field-input-min-width: 128px;
-  display: flex;
-  flex-wrap: wrap;
-  align-content: flex-start;
-  align-items: flex-start;
-  justify-content: flex-start;
-  gap: 2px 8px;
-}
-
-.form-grid-srs .form-col-srs--primary > h4 {
-  flex: 0 0 calc(100% + 6px);
-  width: calc(100% + 6px);
-}
 
 .inline-object-form .form-col-srs--primary > .ant-form-item {
   flex: 0 0 auto;
@@ -448,20 +211,6 @@ html, body, #root {
   grid-template-columns: minmax(var(--compact-field-label-width, 74px), 1fr) max-content;
 }
 
-.heatcalc-form-pane--wide .inline-form-srs {
-  padding: 0;
-  background: transparent;
-  border: 0;
-  box-shadow: none;
-}
-
-.heatcalc-form-pane--wide .inline-object-form--wide {
-  display: flex;
-  flex-direction: column;
-  height: auto;
-  min-height: 0;
-  max-height: none;
-}
 
 .heatcalc-form-pane--wide .inline-object-form--wide:has(.insulation-layers-grid--3) {
   height: auto;
@@ -526,27 +275,7 @@ html, body, #root {
 }
 
 /* Dual form layout: left = heat, right = cable algorithm (type reference). */
-.heatcalc-dual-forms {
-  display: grid;
-  gap: 8px 12px;
-  min-width: 0;
-  width: 100%;
-  align-items: start;
-}
 
-.heatcalc-dual-forms--wide {
-  /* Heat hugs content (max-content); cable keeps a usable min width */
-  grid-template-columns: minmax(0, max-content) minmax(300px, 1fr);
-}
-
-.heatcalc-dual-forms--side {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.heatcalc-dual-forms__heat,
-.heatcalc-dual-forms__cable {
-  min-width: 0;
-}
 
 /*
  * Dual-form SHELL only (layout chrome).
@@ -554,21 +283,8 @@ html, body, #root {
  *   heat-object-fields.css | cable-algorithm-panel.css | insulation-layers-table.css
  * See frontend/src/components/wizard/WIZARD-CSS-ISLANDS.md
  */
-.heatcalc-dual-forms {
-  --dual-form-banner-size: 9px;
-  --cable-banner-size: var(--dual-form-banner-size);
-}
 
 /* LEFT heat banner — same compact metrics as right */
-.heatcalc-dual-forms__heat .inline-form-section-banner,
-.heatcalc-dual-forms__heat .side-form-section-banner {
-  min-height: 20px !important;
-  padding: 3px 8px !important;
-  font-size: var(--cable-banner-size) !important;
-  font-weight: 650 !important;
-  letter-spacing: 0.03em !important;
-  line-height: 1.2 !important;
-}
 
 /* Explicit shield: dual-form never restyles layers table cells/controls */
 
@@ -577,12 +293,6 @@ html, body, #root {
   font-size: var(--cable-hint-size);
   line-height: 1.35;
   color: #6b7c8f;
-}
-
-@media (max-width: 1400px) {
-  .heatcalc-dual-forms--wide {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 
 @media (max-width: 720px) {
@@ -716,25 +426,6 @@ html, body, #root {
   box-shadow: none;
 }
 
-.pdf-form-column-title {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 1px !important;
-  height: 1px !important;
-  min-height: 0 !important;
-  line-height: 1px !important;
-  padding: 0 !important;
-  margin: -1px !important;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
-.pdf-form-column-title::before {
-  display: none !important;
-}
 
 /* While dragging a row, make table rows look grabby */
 tr[draggable='true'] {
@@ -869,9 +560,6 @@ tr[draggable='true']:active {
   width: 100%;
 }
 
-.inline-object-form--side .form-col-resize-handle {
-  display: none;
-}
 
 /* Side panel keeps the vertical workflow, but uses the same compact field and
    insulation-table vocabulary as the wide form.  It deliberately has no
@@ -1243,33 +931,6 @@ tr[draggable='true']:active {
   }
 }
 
-.form-col-resize-handle {
-  flex: 0 0 4px;
-  align-self: stretch;
-  position: relative;
-  width: 4px;
-  cursor: col-resize;
-  touch-action: none;
-  outline: none;
-  background: transparent;
-}
-
-.form-col-resize-handle::before {
-  content: "";
-  position: absolute;
-  top: 4px;
-  bottom: 4px;
-  left: 1px;
-  width: 2px;
-  border-radius: 999px;
-  background: #d8e6f3;
-}
-
-.form-col-resize-handle:hover::before,
-.form-col-resize-handle:focus-visible::before,
-.heatcalc-form-section-resizing .form-col-resize-handle::before {
-  background: var(--color-primary);
-}
 
 .heatcalc-form-section-resizing,
 .heatcalc-form-section-resizing * {
@@ -2462,23 +2123,6 @@ tr[draggable='true']:active {
   max-width: 96px;
 }
 
-.temperature-range-modal-form {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.temperature-range-modal-form .ant-form-item {
-  margin-bottom: 0;
-}
-
-.temperature-range-modal-form .ant-input-number-group-wrapper {
-  width: 100%;
-}
-
-.temperature-range-modal-form .ant-input-number {
-  width: 100%;
-}
 
 .inline-object-form .tank-size-form-item {
   --numeric-value-width: 5ch;
@@ -3382,117 +3026,6 @@ tr[draggable='true']:active {
 }
 
 
-.srs-table-wrap .ant-card-body {
-  padding: 0;
-}
-
-.row-selected > td {
-  background: #d6e9f5 !important;
-}
-
-.row-selected > td:first-child {
-  border-left: 3px solid var(--color-primary);
-}
-
-.row-selected.row-dirty > td {
-  background-color: #fffbe6 !important;
-}
-
-.row-selected.row-dirty:hover > td {
-  background-color: #fff4bf !important;
-}
-
-.calc-assumptions-panel {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 4px 10px;
-  min-height: 24px;
-  padding: 3px 8px;
-  border: 1px solid #d9e1e6;
-  background: #fbfcfd;
-  color: #4a5b6c;
-  font-size: 11px;
-}
-
-.calc-assumptions-panel strong {
-  color: #2f4f66;
-  margin-right: 2px;
-}
-
-.calc-assumptions-panel span {
-  white-space: nowrap;
-}
-
-.column-settings-modal {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.column-settings-tabs .ant-tabs-nav {
-  margin-bottom: 10px;
-}
-
-.column-settings-tabs .ant-tabs-tab {
-  padding: 6px 0;
-}
-
-.column-settings-tabs .ant-tabs-content-holder {
-  min-width: 0;
-}
-
-.column-settings-modal--other {
-  max-width: 760px;
-}
-
-.column-settings-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.table-view-settings-panel {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 32px;
-  padding: 6px 8px;
-  border: 1px solid #dce5ec;
-  border-radius: 4px;
-  background: #f8fafc;
-}
-
-.calculation-details-settings-panel {
-  align-items: stretch;
-  flex-direction: column;
-}
-
-.calculation-details-settings-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.calculation-details-metrics {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
-  gap: 6px 10px;
-}
-
-.inline-draft-status-tag {
-  margin-inline-end: 0;
-  font-variant-numeric: tabular-nums;
-}
-
-.table-view-settings-label {
-  color: #536577;
-  font-size: 12px;
-  font-weight: 600;
-}
-
 .cable-picker-characteristics {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -3575,241 +3108,6 @@ tr[draggable='true']:active {
   }
 }
 
-.column-settings-list {
-  max-height: min(62vh, 620px);
-  overflow: auto;
-  padding-right: 4px;
-}
-
-.column-layout-list {
-  display: grid;
-  gap: 3px;
-  min-width: 920px;
-}
-
-.column-layout-list--heatcalc {
-  min-width: 760px;
-}
-
-.column-layout-list--electrical {
-  min-width: 760px;
-}
-
-.column-layout-header,
-.column-layout-row {
-  display: grid;
-  grid-template-columns: 28px 42px 58px minmax(180px, 1fr) 78px 46px 34px 78px 20px 34px;
-  align-items: center;
-  gap: 6px;
-}
-
-.column-layout-header--heatcalc,
-.column-layout-row--heatcalc {
-  grid-template-columns: 28px 42px 58px minmax(240px, 1fr) 78px 20px 34px;
-}
-
-.column-layout-header--electrical,
-.column-layout-row--electrical {
-  grid-template-columns: 28px 42px 58px minmax(240px, 1fr) 78px 20px 34px;
-}
-
-.column-layout-list--candidate {
-  min-width: 840px;
-}
-
-.column-layout-header--candidate,
-.column-layout-row--candidate {
-  grid-template-columns: 28px 42px 64px minmax(240px, 1fr) 96px 20px 34px;
-}
-
-.column-layout-header {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  padding: 3px 6px;
-  border: 1px solid #dce5ec;
-  background: #eef3f6;
-  color: #607184;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.column-layout-row {
-  min-width: 0;
-  padding: 3px 6px;
-  border: 1px solid #e1e8ee;
-  border-radius: 4px;
-  background: #fff;
-  color: #2e3640;
-  font-size: 12px;
-}
-
-.column-layout-row.hidden {
-  border-color: #e8edf2;
-  background: #f8fafc;
-  color: #657382;
-}
-
-.column-layout-row.dragging {
-  z-index: 10;
-  border-color: #83acd0;
-  box-shadow: 0 4px 12px rgb(30 70 110 / 14%);
-}
-
-.column-layout-drag {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border: 0;
-  border-radius: 4px;
-  background: transparent;
-  color: #6d7d8d;
-  cursor: grab;
-}
-
-.column-layout-drag:active {
-  cursor: grabbing;
-}
-
-.column-layout-drag:disabled {
-  color: #b4c0ca;
-  cursor: default;
-}
-
-.column-layout-section {
-  grid-column: 1 / -1;
-  padding: 8px 6px 2px;
-  color: #6c7b89;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0;
-  text-transform: uppercase;
-}
-
-.column-layout-label {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  line-height: 1.2;
-}
-
-.column-layout-title-row {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-.column-layout-title,
-.column-layout-meta {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.column-layout-title {
-  color: #233241;
-  font-weight: 600;
-}
-
-.column-layout-meta {
-  color: #7a8794;
-  font-size: 11px;
-}
-
-.column-layout-nature-tag,
-.column-layout-computed-tag {
-  flex: 0 0 auto;
-  margin-inline-end: 0;
-  font-size: 10px;
-  line-height: 16px;
-}
-
-.column-layout-nature-tag--input {
-  border-color: #b6c7d6;
-  background: #f5f8fb;
-  color: #34485b;
-}
-
-.column-layout-nature-tag--computed {
-  border-color: #90bddf;
-  background: #edf6ff;
-  color: #214f73;
-}
-
-.column-layout-computed-tag--result {
-  border-color: #8fc7a8;
-  background: #eefaf3;
-  color: #216444;
-}
-
-.column-layout-computed-tag--specific {
-  border-color: #9fc7ec;
-  background: #eef7ff;
-  color: #24527a;
-}
-
-.column-layout-computed-tag--applied {
-  border-color: #b7c9ef;
-  background: #f2f6ff;
-  color: #2c4e92;
-}
-
-.column-layout-computed-tag--geometry {
-  border-color: #c8b9e8;
-  background: #f7f2ff;
-  color: #5a3f8f;
-}
-
-.column-layout-computed-tag--resistance {
-  border-color: #d6bf9e;
-  background: #fff7ed;
-  color: #755121;
-}
-
-.column-layout-computed-tag--derived {
-  border-color: #c7d0da;
-  background: #f4f7fa;
-  color: #485868;
-}
-
-.column-layout-empty {
-  color: #9aa8b5;
-  font-size: 12px;
-  text-align: center;
-}
-
-.column-layout-row .ant-input-number {
-  width: 100%;
-}
-
-.column-layout-unit {
-  color: #6b7885;
-  font-size: 12px;
-}
-
-.resizable-column-title {
-  position: relative;
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  width: 100%;
-  padding-right: 7px;
-}
-
-.resizable-column-title-text {
-  display: block;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  overflow-wrap: normal;
-  word-break: normal;
-  hyphens: none;
-}
 
 .column-resize-handle {
   position: absolute;
@@ -3853,61 +3151,6 @@ tr[draggable='true']:active {
   font-size: 11px;
 }
 
-.workspace-table-card .ant-table-thead > tr > th {
-  padding-top: var(--heatcalc-table-header-padding-y, 2px) !important;
-  padding-bottom: var(--heatcalc-table-header-padding-y, 2px) !important;
-}
-
-.workspace-table-card .ant-table-tbody > tr > td {
-  padding-top: var(--heatcalc-table-cell-padding-y, 1px) !important;
-  padding-bottom: var(--heatcalc-table-cell-padding-y, 1px) !important;
-}
-
-
-.table-filter-icon {
-  color: #7a8b99;
-  font-size: 11px;
-}
-
-.table-filter-icon.active {
-  color: var(--color-primary);
-}
-
-.table-filter-dropdown {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  width: 220px;
-  padding: 8px;
-}
-
-.table-filter-title {
-  color: #536577;
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1.2;
-}
-
-.table-filter-number-range {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-}
-
-.table-filter-number-range .ant-typography {
-  grid-column: 1 / -1;
-  font-size: 11px;
-}
-
-.table-filter-dropdown .ant-select {
-  width: 100%;
-}
-
-.table-filter-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 6px;
-}
 
 .reference-picker-modal .ant-modal-body {
   padding-top: 8px;
@@ -3996,14 +3239,6 @@ tr[draggable='true']:active {
     flex-basis: auto;
     width: 100%;
   }
-}
-
-.table-filter-empty {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 0;
 }
 
 

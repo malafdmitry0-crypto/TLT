@@ -2,6 +2,124 @@
  * Shared by Heat + Electrical tables (class calc-spreadsheet).
  */
 
+/* C16: table row/cell/editor residual from styles.css */
+
+.row-invalid > td {
+  background-color: #fff1f0 !important;
+}
+.row-invalid:hover > td {
+  background-color: #ffe7e6 !important;
+}
+.row-dirty > td {
+  background-color: #fffbe6 !important;
+}
+.row-dirty:hover > td {
+  background-color: #fff4bf !important;
+}
+.row-excel-new:not(.row-dirty):not(.row-excel-dirty) > td {
+  background-color: #f8fafc !important;
+}
+.row-excel-new:not(.row-dirty):not(.row-excel-dirty):hover > td {
+  background-color: #eef6ff !important;
+}
+.editable-cell-display {
+  width: 100%;
+  min-height: 22px;
+  box-sizing: border-box;
+  padding: var(--heatcalc-table-cell-padding-y, 2px) 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  cursor: text;
+}
+.editable-cell-display--select {
+  cursor: pointer;
+}
+.editable-cell-display:hover,
+.editable-cell-display:focus-visible {
+  border-color: #91caff;
+  background: #f0f7ff;
+  outline: none;
+}
+.excel-row-header-button {
+  width: 100%;
+  min-height: 24px;
+  padding: 0 4px;
+  border: 0;
+  border-right: 1px solid #d8e2ec;
+  background: #f8fafc;
+  color: #64748b;
+  font: inherit;
+  font-size: 11px;
+  cursor: cell;
+}
+.excel-row-header-button.selected {
+  background: #dceeff;
+  color: #1a5276;
+  font-weight: 700;
+}
+.excel-row-header-button.active-selection {
+  box-shadow: inset 0 0 0 2px #1a5276;
+}
+.editable-cell-editor-wrap {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 1px;
+}
+.editable-cell-editor {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.editable-cell-editor.ant-input,
+.editable-cell-editor.ant-input-number,
+.editable-cell-editor.ant-select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+.editable-cell-editor.error .ant-input-number,
+.editable-cell-editor.error .ant-input,
+.editable-cell-editor.error .ant-select-selector,
+.editable-cell-editor-wrap .editable-cell-editor.error {
+  border-color: #d9363e !important;
+}
+.editable-cell-error {
+  position: absolute;
+  z-index: 4;
+  top: calc(100% + 2px);
+  left: 0;
+  max-width: 260px;
+  padding: 3px 6px;
+  border: 1px solid #ffa39e;
+  border-radius: 4px;
+  background: #fff1f0;
+  color: #a8071a;
+  font-size: 11px;
+  line-height: 1.2;
+  white-space: normal;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 10%);
+}
+.row-selected > td {
+  background: #d6e9f5 !important;
+}
+.row-selected > td:first-child {
+  border-left: 3px solid var(--color-primary);
+}
+.row-selected.row-dirty > td {
+  background-color: #fffbe6 !important;
+}
+.row-selected.row-dirty:hover > td {
+  background-color: #fff4bf !important;
+}
+
 .calc-spreadsheet--excel-mode .row-excel-dirty .excel-row-header-button {
   border-left: 3px solid #d97706;
   background: #fff7d6;

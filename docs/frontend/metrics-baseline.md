@@ -15,7 +15,7 @@
 | `frontend/src/pages/SpecificationPage.tsx` | 1 | re-export |
 | `frontend/src/pages/specification/SpecificationPage.tsx` | 398 | thin shell S3 |
 | `frontend/src/pages/specification/useSpecificationPageModel.ts` | 511 | orchestration |
-| `frontend/src/styles.css` | 4071 | freeze; C13–C15 actionbar/excel/header (−679 from 4750; −2192 from 6263) |
+| `frontend/src/styles.css` | 3306 | freeze; C16–C18 table/form-grid/dual-forms (−765 from 4071; −2957 from 6263) |
 
 ```bash
 wc -l frontend/src/pages/ElecCalcPage.tsx \
