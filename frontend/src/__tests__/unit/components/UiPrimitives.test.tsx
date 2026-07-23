@@ -68,17 +68,18 @@ describe('CSS-first UI primitives', () => {
   it('renders a selected row and an honest empty state', async () => {
     const user = userEvent.setup();
     const onRowSelect = vi.fn();
+    // Public contract: readonly column tuples are valid input (no cast required).
     const columns = [
       { key: 'id', header: 'Код' },
       { key: 'name', header: 'Название' },
-    ] as const;
-    const rows = [{ id: 'T-101', name: 'Подающий трубопровод' }];
+    ] as const satisfies readonly { key: string; header: string }[];
+    const rows = [{ id: 'T-101', name: 'Подающий трубопровод' }] as const;
 
     const { rerender } = render(
       <TltTable
         aria-label="Объекты"
         columns={columns}
-        rows={rows}
+        rows={[...rows]}
         rowKey="id"
         selectedRowKey="T-101"
         onRowSelect={onRowSelect}
@@ -95,7 +96,7 @@ describe('CSS-first UI primitives', () => {
       <TltTable
         aria-label="Объекты"
         columns={columns}
-        rows={[]}
+        rows={[] as const}
         rowKey="id"
         emptyState={<TltEmptyState title="Нет объектов" description="Создайте первый объект." />}
       />,

@@ -2,7 +2,7 @@
 
 **Актуально на:** 2026-07-23  
 **Статус:** исполняемый hardening backlog после закрытия thin shells и CSS strangler  
-**Текущий pending:** **B1** (после IMP0 done)  
+**Текущий pending:** **B2** (IMP0/IMP1/B1 done) 
 **Цель:** агент должен быстро находить владельца поведения, получать зелёную и
 однозначную обратную связь и не иметь возможности незаметно вернуть god-файлы,
 глобальный CSS или обратные зависимости.
@@ -105,7 +105,7 @@ git status --short           empty
 | ID | Scope | Результат | Зависит |
 |---|---|---|---|
 | **IMP0** | `done` | per-file ratchet `cssImportantRatchet.architecture.test.ts` + baseline 475 | — |
-| **IMP1** | `pending` | inventory/classification | все 475 случаев имеют owner и категорию | IMP0 |
+| **IMP1** | `done` | inventory `css-important-inventory.md` | top-5 owners ~80%; sum=475 matches IMP0 | IMP0 |
 
 ### Phase P0 — восстановить доверие к baseline
 
@@ -113,7 +113,7 @@ P0 выполняется раньше любых новых архитекту�
 
 | ID | Scope | Результат | Зависит |
 |---|---|---|---|
-| **B1** | UI primitives readonly contract | убрать 2 TS errors без cast | — |
+| **B1** | `done` | UI primitives readonly TltTable columns/rows | readonly contract | — |
 | **B2** | test fixture drift | elec summary + heat draft fixtures типобезопасны | — |
 | **B3** | `TltSelect.allowClear` contract | UI-kit/form-control и wizard согласованы | B1 предпочтительно |
 | **B4** | ObjectWizard wide props | `geometryTitle` явно передан/удалён по контракту | — |

@@ -321,8 +321,9 @@ export interface TltTableColumn<Row> {
 }
 
 export interface TltTableProps<Row> extends Omit<HTMLAttributes<HTMLDivElement>, 'children'> {
-  columns: TltTableColumn<Row>[];
-  rows: Row[];
+  /** Readonly columns are a supported public input (component never mutates the array). */
+  columns: readonly TltTableColumn<Row>[];
+  rows: readonly Row[];
   rowKey: keyof Row | ((row: Row, index: number) => string | number);
   selectedRowKey?: string | number | null;
   onRowSelect?: (row: Row, key: string | number) => void;
