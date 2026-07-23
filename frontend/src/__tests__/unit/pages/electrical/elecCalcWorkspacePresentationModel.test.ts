@@ -1,9 +1,14 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 import {
   ELEC_CALC_WORKSPACE_VIEW_KEYS,
   assembleElecCalcWorkspaceViewModel,
   listMissingElecCalcWorkspaceViewKeys,
 } from '@/pages/electrical/elecCalcWorkspacePresentationModel';
+import {
+  mapWorkspaceToPresentation,
+  type WorkspacePresentationSource,
+} from '@/pages/electrical/elecCalcWorkspacePresentationMap';
+import type { ProjectObject } from '@/types/project';
 
 describe('elecCalcWorkspacePresentationModel (ELEC3)', () => {
   it('documents the stable public view key contract (93 keys)', () => {
@@ -26,5 +31,14 @@ describe('elecCalcWorkspacePresentationModel (ELEC3)', () => {
     expect(listMissingElecCalcWorkspaceViewKeys(
       Object.fromEntries(ELEC_CALC_WORKSPACE_VIEW_KEYS.map((k) => [k, true])),
     )).toEqual([]);
+  });
+
+  it('keeps mapper input complete and preserves object/callback bindings', () => {
+    expectTypeOf<Parameters<typeof mapWorkspaceToPresentation>[0]>()
+      .toEqualTypeOf<WorkspacePresentationSource>();
+    expectTypeOf<ReturnType<typeof mapWorkspaceToPresentation>['scopedObjects']>()
+      .toEqualTypeOf<ProjectObject[]>();
+    expectTypeOf<ReturnType<typeof mapWorkspaceToPresentation>['onAssignmentsChanged']>()
+      .toEqualTypeOf<(() => void) | undefined>();
   });
 });

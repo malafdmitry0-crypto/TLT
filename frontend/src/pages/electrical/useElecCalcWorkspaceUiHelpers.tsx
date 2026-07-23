@@ -7,12 +7,21 @@
 import { useCallback, useMemo, type ReactNode } from 'react';
 import { Modal } from 'antd';
 
+import type { SelectionPolicy } from '@/api/calculations';
 import type { ElectricalCandidateFolder } from '@/types/calculation';
 import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
 import { ASSIGNMENT_DND_MIME } from '@/pages/electrical/ElectricalAssignmentPanel';
 import ElecCalcElectricalTypeControls from '@/pages/electrical/ElecCalcElectricalTypeControls';
 import ElecCalcRecalculationSettings from '@/pages/electrical/ElecCalcRecalculationSettings';
+import type { CatalogStatus } from '@/pages/electrical/elecCalcCableCatalogModel';
 import type { CableSourceSelectOption } from '@/pages/electrical/elecCalcCableTypeOptionsModel';
+import type {
+  ElecCalcTypeControlSetters,
+  ElecCalcTypeControlValues,
+} from '@/pages/electrical/elecCalcTypeControlModel';
+import type {
+  ElectricalCalculationCableSource,
+} from '@/utils/electricalTableViewSettings';
 
 export function candidateFolderEmptyText(
   activeCandidateFolderKey: string,
@@ -26,22 +35,17 @@ export function candidateFolderEmptyText(
 export type UseElecCalcWorkspaceUiHelpersArgs = {
   canMutate: boolean;
   visibleCableTypeControl: CableTypeKey | null;
-  recalc: {
-    selectionPolicy: string;
-    [key: string]: unknown;
-  };
-  setRecalc: {
-    connectionType: (v: string) => void;
-    selectionPolicy: (v: string) => void;
-    [key: string]: unknown;
+  recalc: ElecCalcTypeControlValues & { selectionPolicy: SelectionPolicy };
+  setRecalc: ElecCalcTypeControlSetters & {
+    selectionPolicy: (value: SelectionPolicy) => void;
   };
   commercialFeaturesAvailable: boolean;
   isEmployee: boolean;
-  calculationCableSource: unknown;
+  calculationCableSource: ElectricalCalculationCableSource;
   cableSourceOptions: CableSourceSelectOption[];
-  commercialDataStatus: unknown;
-  technicalDataStatus: unknown;
-  updateDraftCalculationCableSource: (...args: never[]) => void;
+  commercialDataStatus: CatalogStatus;
+  technicalDataStatus: CatalogStatus;
+  updateDraftCalculationCableSource: (value: ElectricalCalculationCableSource) => void;
   deleteCandidateFolder: (id: string) => void;
   activeCandidateFolderKey: string;
   hasActiveCustomFolder: boolean;
@@ -71,8 +75,8 @@ export function useElecCalcWorkspaceUiHelpers({
     <ElecCalcElectricalTypeControls
       disabled={!canMutate}
       cableType={visibleCableTypeControl}
-      recalc={recalc as never}
-      setRecalc={setRecalc as never}
+      recalc={recalc}
+      setRecalc={setRecalc}
     />
   ), [visibleCableTypeControl, canMutate, recalc, setRecalc]);
 
@@ -83,8 +87,8 @@ export function useElecCalcWorkspaceUiHelpers({
     <ElecCalcElectricalTypeControls
       cableType={cableType}
       block={options.block}
-      recalc={recalc as never}
-      setRecalc={setRecalc as never}
+      recalc={recalc}
+      setRecalc={setRecalc}
     />
   ), [visibleCableTypeControl, recalc, setRecalc]);
 
@@ -92,13 +96,13 @@ export function useElecCalcWorkspaceUiHelpers({
     <ElecCalcRecalculationSettings
       commercialFeaturesAvailable={commercialFeaturesAvailable}
       isEmployee={isEmployee}
-      calculationCableSource={calculationCableSource as never}
+      calculationCableSource={calculationCableSource}
       cableSourceOptions={cableSourceOptions}
-      selectionPolicy={recalc.selectionPolicy as never}
-      commercialDataStatus={commercialDataStatus as never}
-      technicalDataStatus={technicalDataStatus as never}
-      onCalculationCableSourceChange={updateDraftCalculationCableSource as never}
-      onSelectionPolicyChange={setRecalc.selectionPolicy as never}
+      selectionPolicy={recalc.selectionPolicy}
+      commercialDataStatus={commercialDataStatus}
+      technicalDataStatus={technicalDataStatus}
+      onCalculationCableSourceChange={updateDraftCalculationCableSource}
+      onSelectionPolicyChange={setRecalc.selectionPolicy}
     />
   ), [
     calculationCableSource,

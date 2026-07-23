@@ -5,9 +5,99 @@
  * Return type is inferred from the object literal so the generic assembly
  * keeps exact field types (do not annotate as Parameters<typeof assembly>).
  */
+import type { Dispatch, RefObject, SetStateAction } from 'react';
+import type { NavigateFunction } from 'react-router-dom';
+
+import type { Project } from '@/types/project';
+import type { ElectricalVariant } from '@/types/electricalVariant';
+import type { ElectricalSystemView } from '@/pages/electrical/elecCalcSystemViewModel';
+import type { useElecCalcCableMarkModalState } from '@/pages/electrical/useElecCalcCableMarkModalState';
+import type { useElecCalcCableMarkPresentation } from '@/pages/electrical/useElecCalcCableMarkPresentation';
+import type { useElecCalcCableSelectionMutationFlow } from '@/pages/electrical/useElecCalcCableSelectionMutationFlow';
+import type { useElecCalcCableTypeOptions } from '@/pages/electrical/useElecCalcCableTypeOptions';
+import type { useElecCalcCandidateWorkflowController } from '@/pages/electrical/useElecCalcCandidateWorkflowController';
+import type { useElecCalcColumnPersistence } from '@/pages/electrical/useElecCalcColumnPersistence';
+import type { useElecCalcColumnSettingsDraftState } from '@/pages/electrical/useElecCalcColumnSettingsDraftState';
+import type { useElecCalcColumnViewModel } from '@/pages/electrical/useElecCalcColumnViewModel';
+import type { useElecCalcMainTableController } from '@/pages/electrical/useElecCalcMainTableController';
+import type { useElecCalcObjectActionModals } from '@/pages/electrical/useElecCalcObjectActionModals';
+import type { useElecCalcParamsPanelState } from '@/pages/electrical/useElecCalcParamsPanelState';
+import type { useElecCalcPreferenceSettings } from '@/pages/electrical/useElecCalcPreferenceSettings';
+import type { useElecCalcRecalculationParams } from '@/pages/electrical/useElecCalcRecalculationParams';
+import type { useElecCalcTableViewState } from '@/pages/electrical/useElecCalcTableViewState';
+import type { useElecCalcWorkspaceDataPlane } from '@/pages/electrical/useElecCalcWorkspaceDataPlane';
+import type { useElecCalcWorkspaceSummaryChrome } from '@/pages/electrical/useElecCalcWorkspaceSummaryChrome';
+
+type DataPlane = ReturnType<typeof useElecCalcWorkspaceDataPlane>;
+type CandidateWorkflow = ReturnType<typeof useElecCalcCandidateWorkflowController>;
+type ColumnViewModel = ReturnType<typeof useElecCalcColumnViewModel>;
+type PreferenceSettings = ReturnType<typeof useElecCalcPreferenceSettings>;
+type RecalculationParams = ReturnType<typeof useElecCalcRecalculationParams>;
+type TableView = ReturnType<typeof useElecCalcTableViewState>;
+
+export type WorkspacePresentationSource = {
+  data: DataPlane;
+  project: Project | null;
+  canMutate: boolean;
+  projectId: string;
+  electricalVariant: ElectricalVariant;
+  onAssignmentsChanged?: () => void;
+  activateRowId: DataPlane['activateRowId'];
+  summary: ReturnType<typeof useElecCalcWorkspaceSummaryChrome>;
+  columnPersistence: ReturnType<typeof useElecCalcColumnPersistence>;
+  cableTypeOptionsState: ReturnType<typeof useElecCalcCableTypeOptions>;
+  mainTable: ReturnType<typeof useElecCalcMainTableController>;
+  electricalGlideEnabled: boolean;
+  electricalVariantName: string;
+  navigate: NavigateFunction;
+  columnDraft: ReturnType<typeof useElecCalcColumnSettingsDraftState>;
+  overwriteManualChoices: boolean;
+  paramsPanelVisible: boolean;
+  recalc: RecalculationParams['values'];
+  setRecalc: RecalculationParams['setters'];
+  resetColumnFilter: TableView['resetColumnFilter'];
+  resetCurrentTableViewState: TableView['resetCurrentTableViewState'];
+  resolvedTableFontSize: ColumnViewModel['resolvedTableFontSize'];
+  setColumnFilter: TableView['setColumnFilter'];
+  setElectricalTableSort: TableView['setElectricalTableSort'];
+  setOverwriteManualChoices: Dispatch<SetStateAction<boolean>>;
+  setSystemView: Dispatch<SetStateAction<ElectricalSystemView>>;
+  systemView: ElectricalSystemView;
+  tableDragging: boolean;
+  setTableDragging: Dispatch<SetStateAction<boolean>>;
+  tableScrollRegionsRef: RefObject<HTMLDivElement>;
+  tableViewState: TableView['tableViewState'];
+  toggleParamsPanel: ReturnType<typeof useElecCalcParamsPanelState>['toggleParamsPanel'];
+  cableMarkModal: ReturnType<typeof useElecCalcCableMarkModalState>;
+  cableSizingModal: DataPlane['cableSizingModal'];
+  candidate: CandidateWorkflow['candidate'];
+  cableMarkPresentation: ReturnType<typeof useElecCalcCableMarkPresentation>;
+  candidateWorkflow: CandidateWorkflow;
+  candidateTableViewState: TableView['candidateTableViewState'];
+  candidateTableViewActive: TableView['candidateTableViewActive'];
+  objectActionModals: ReturnType<typeof useElecCalcObjectActionModals>;
+  resetCandidateTableViewState: TableView['resetCandidateTableViewState'];
+  setCandidateColumnFilter: TableView['setCandidateColumnFilter'];
+  resetCandidateColumnFilter: TableView['resetCandidateColumnFilter'];
+  setCandidateTableSort: TableView['setCandidateTableSort'];
+  candidateColumnSettingsOpen: boolean;
+  setCandidateColumnSettingsOpen: Dispatch<SetStateAction<boolean>>;
+  normalizedTableViewSettings: ColumnViewModel['normalizedTableViewSettings'];
+  updateCandidateTableColumnPreference:
+    PreferenceSettings['updateCandidateTableColumnPreference'];
+  columnSettingsOpen: boolean;
+  setColumnSettingsOpen: Dispatch<SetStateAction<boolean>>;
+  updateTableColumnPreference: PreferenceSettings['updateTableColumnPreference'];
+  updateTableSettingsPreference: PreferenceSettings['updateTableSettingsPreference'];
+  currentTableViewActive: TableView['currentTableViewActive'];
+  cableSelection: ReturnType<typeof useElecCalcCableSelectionMutationFlow>;
+  commercialFeaturesAvailable: boolean;
+  isEmployee: boolean;
+  visibleCandidateColumnMetas: ColumnViewModel['visibleCandidateColumnMetas'];
+};
+
 /** Maps orchestrated workspace pieces into presentation-assembly props. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function mapWorkspaceToPresentation(p: any) {
+export function mapWorkspaceToPresentation(p: WorkspacePresentationSource) {
   return {
     ...p.data.presentationBindings,
     project: p.project,
@@ -81,7 +171,7 @@ export function mapWorkspaceToPresentation(p: any) {
     cableMarkModalObject: p.cableMarkModal.object,
     cableSizingModalObject: p.cableSizingModal.object,
     cableTypeOptionsForObject: p.cableTypeOptionsState.cableTypeOptionsForObject,
-    getObjectActionDisabledReason: p.data.getObjectActionDisabledReason as never,
+    getObjectActionDisabledReason: p.data.getObjectActionDisabledReason,
     visibleCandidateColumnMetas: p.visibleCandidateColumnMetas,
     commercialFeaturesAvailable: p.commercialFeaturesAvailable,
     isEmployee: p.isEmployee,

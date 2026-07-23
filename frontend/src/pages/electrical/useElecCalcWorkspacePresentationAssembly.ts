@@ -19,35 +19,13 @@ import {
 } from '@/pages/electrical/elecCalcWorkspaceModalPropsModel';
 import { assembleElecCalcWorkspaceViewModel } from '@/pages/electrical/elecCalcWorkspacePresentationModel';
 import { useElecCalcWorkspaceUiHelpers } from '@/pages/electrical/useElecCalcWorkspaceUiHelpers';
+import type { mapWorkspaceToPresentation } from '@/pages/electrical/elecCalcWorkspacePresentationMap';
 
 /**
- * Generic presentation assembly — `T` is inferred from the host object literal
- * so field types stay exact (no unknown widening on the consumer side).
+ * The mapper return type is the compile-time workspace presentation contract.
  */
-export function useElecCalcWorkspacePresentationAssembly<T extends Record<string, unknown>>(
-  input: T & {
-    canMutate: boolean;
-    selectedRowKeys: string[];
-    setTableDragging: (value: boolean) => void;
-    commercialFeaturesAvailable: boolean;
-    isEmployee: boolean;
-    cableTypes: { visibleCableTypeControl: unknown };
-    recalc: unknown;
-    setRecalc: unknown;
-    draftTableViewSettings: { calculationCableSource: unknown };
-    cableSourceOptions: unknown;
-    commercialDataStatus: unknown;
-    technicalDataStatus: unknown;
-    updateDraftCalculationCableSource: unknown;
-    deleteCandidateFolderMut: { mutate: (id: string) => void };
-    activeCandidateFolderKey: unknown;
-    activeCustomCandidateFolder: unknown;
-    cableMarkModalObject: { id: string } | null | undefined;
-    cableSizingModalObject: { id: string } | null | undefined;
-    cableTypeOptionsForObject: (objectId: string | undefined) => unknown[];
-    getObjectActionDisabledReason: (object: { id: string }) => string | null;
-    visibleCandidateColumnMetas: readonly { key: string }[];
-  },
+export function useElecCalcWorkspacePresentationAssembly(
+  input: ReturnType<typeof mapWorkspaceToPresentation>,
 ) {
   const {
     cableMarkModalCableTypeOptions,
@@ -61,7 +39,7 @@ export function useElecCalcWorkspacePresentationAssembly<T extends Record<string
       cableSizingModalObject: input.cableSizingModalObject,
       cableTypeOptionsForObject: input.cableTypeOptionsForObject,
       getObjectActionDisabledReason: input.getObjectActionDisabledReason,
-      visibleCandidateColumnMetas: input.visibleCandidateColumnMetas as never,
+      visibleCandidateColumnMetas: input.visibleCandidateColumnMetas,
     }),
     [
       input.cableMarkModalObject,
@@ -82,18 +60,18 @@ export function useElecCalcWorkspacePresentationAssembly<T extends Record<string
     handleTableRowDragEnd,
   } = useElecCalcWorkspaceUiHelpers({
     canMutate: input.canMutate,
-    visibleCableTypeControl: input.cableTypes.visibleCableTypeControl as never,
-    recalc: input.recalc as never,
-    setRecalc: input.setRecalc as never,
+    visibleCableTypeControl: input.cableTypes.visibleCableTypeControl,
+    recalc: input.recalc,
+    setRecalc: input.setRecalc,
     commercialFeaturesAvailable: input.commercialFeaturesAvailable,
     isEmployee: input.isEmployee,
-    calculationCableSource: input.draftTableViewSettings.calculationCableSource as never,
-    cableSourceOptions: input.cableSourceOptions as never,
-    commercialDataStatus: input.commercialDataStatus as never,
-    technicalDataStatus: input.technicalDataStatus as never,
-    updateDraftCalculationCableSource: input.updateDraftCalculationCableSource as never,
+    calculationCableSource: input.draftTableViewSettings.calculationCableSource,
+    cableSourceOptions: input.cableSourceOptions,
+    commercialDataStatus: input.commercialDataStatus,
+    technicalDataStatus: input.technicalDataStatus,
+    updateDraftCalculationCableSource: input.updateDraftCalculationCableSource,
     deleteCandidateFolder: (id) => input.deleteCandidateFolderMut.mutate(id),
-    activeCandidateFolderKey: input.activeCandidateFolderKey as never,
+    activeCandidateFolderKey: input.activeCandidateFolderKey,
     hasActiveCustomFolder: Boolean(input.activeCustomCandidateFolder),
     selectedRowKeys: input.selectedRowKeys,
     setTableDragging: input.setTableDragging,

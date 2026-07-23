@@ -161,7 +161,7 @@ export function useElecCalcWorkspaceModel({
   const effectiveSource: CableSource = commercialFeaturesAvailable ? cableSource : 'builtin';
   const [overwriteManualChoices, setOverwriteManualChoices] = useState(false);
   const { paramsPanelVisible, toggleParamsPanel } = useElecCalcParamsPanelState();
-  const tableScrollRegionsRef = useRef<HTMLDivElement | null>(null);
+  const tableScrollRegionsRef = useRef<HTMLDivElement>(null);
   useFocusableTableScrollRegions(
     tableScrollRegionsRef,
     'Таблица электротехнического расчёта',

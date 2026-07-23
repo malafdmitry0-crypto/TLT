@@ -207,6 +207,7 @@ vi.mock('@/api/electricalVariants', () => ({
   getElectricalVariantReadiness: electricalVariantApiMocks.readiness,
   initializeElectricalVariants: electricalVariantApiMocks.initialize,
   createEmptyElectricalVariant: electricalVariantApiMocks.create,
+  createIdempotencyKey: vi.fn(() => 'test-idempotency-key'),
   copyElectricalVariant: electricalVariantApiMocks.copy,
   renameElectricalVariant: electricalVariantApiMocks.rename,
   activateElectricalVariant: electricalVariantApiMocks.activate,
@@ -230,6 +231,7 @@ const electricalGlideGridMock = vi.hoisted(() => ({
 }));
 
 const electricalAssignmentPanelMock = vi.hoisted(() => ({
+  initialSystemView: 'self_regulating' as string | null,
   props: null as null | {
     projectId: string;
     electricalVariant: { id: string; name: string; legacy_variant_number: number | null };
@@ -243,15 +245,26 @@ const electricalAssignmentPanelMock = vi.hoisted(() => ({
 
 vi.mock('@/pages/electrical/ElectricalAssignmentPanel', async () => {
   const React = await vi.importActual<typeof import('react')>('react');
+  function MockElectricalAssignmentPanel(
+    props: NonNullable<typeof electricalAssignmentPanelMock.props>,
+  ) {
+    electricalAssignmentPanelMock.props = props;
+    const { onSystemViewChange, systemView } = props;
+    React.useEffect(() => {
+      const initialSystemView = electricalAssignmentPanelMock.initialSystemView;
+      if (initialSystemView && systemView !== initialSystemView) {
+        onSystemViewChange?.(initialSystemView);
+      }
+    }, [onSystemViewChange, systemView]);
+    return React.createElement(
+      'div',
+      { 'data-testid': 'electrical-assignment-panel' },
+      `Система обогрева · ${props.electricalVariant.name}`,
+    );
+  }
+
   return {
-    default: (props: NonNullable<typeof electricalAssignmentPanelMock.props>) => {
-      electricalAssignmentPanelMock.props = props;
-      return React.createElement(
-        'div',
-        { 'data-testid': 'electrical-assignment-panel' },
-        `Система обогрева · ${props.electricalVariant.name}`,
-      );
-    },
+    default: MockElectricalAssignmentPanel,
   };
 });
 
@@ -803,6 +816,10 @@ describe('ElecCalcPage (integration)', () => {
     vi.stubEnv('VITE_COMMERCIAL_FEATURES_ENABLED', 'true');
     electricalGlideGridMock.props = null;
     electricalAssignmentPanelMock.props = null;
+    // Most scenarios exercise calculation behavior for already assigned
+    // self-regulating objects. The real page starts on "unassigned", so the
+    // harness explicitly performs the same tab change a user would.
+    electricalAssignmentPanelMock.initialSystemView = 'self_regulating';
     localStorage.clear();
     // Main table uses AntD DOM here; candidate table is mocked through its Glide props.
     localStorage.setItem(ELECTRICAL_TABLE_ENGINE_STORAGE_KEY, 'table');
@@ -967,12 +984,23 @@ describe('ElecCalcPage (integration)', () => {
     });
   });
 
-  it('при наличии объекта показывает кнопки пересчёта', async () => {
+  it('на старте показывает только неназначенные объекты, затем открывает расчётную систему', async () => {
     const { getElectricalPage } = await import('@/api/calculations');
     (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage([makeObject()]));
+    electricalAssignmentPanelMock.initialSystemView = 'unassigned';
     useProjectStore.getState().setCurrentProject(mockProject);
     renderPage();
+
     await waitFor(() => {
+      expect(electricalAssignmentPanelMock.props?.systemView).toBe('unassigned');
+    });
+    expect(screen.queryByText('Труба-1')).not.toBeInTheDocument();
+
+    electricalAssignmentPanelMock.initialSystemView = null;
+    act(() => electricalAssignmentPanelMock.props?.onSystemViewChange?.('self_regulating'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Труба-1')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /Пересчитать выбранные \(0\)/i })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /Пересчитать все · ЭР1/i })).toBeInTheDocument();
     });
@@ -1314,7 +1342,7 @@ describe('ElecCalcPage (integration)', () => {
     });
   });
 
-  it('ставит batch ТЛТ в очередь с electrical params, а не пустым набором', async () => {
+  it('ставит batch ТТ в очередь с electrical params, а не пустым набором', async () => {
     const { enqueueElectricalBatchJob, getElectricalPage } = await import('@/api/calculations');
     (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage([makeObject()]));
     (enqueueElectricalBatchJob as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -1351,7 +1379,7 @@ describe('ElecCalcPage (integration)', () => {
         'p-1',
         'builtin',
         1,
-        'self_regulating',
+        'self_regulating_tt',
         expect.objectContaining({
           supplyVoltage: 220,
           windingCoefficient: 1,
@@ -1365,7 +1393,7 @@ describe('ElecCalcPage (integration)', () => {
       'p-1',
       '11111111-1111-4111-8111-111111111111',
       'builtin',
-      'self_regulating',
+      'self_regulating_tt',
       expect.any(Object),
     );
     const options = (enqueueElectricalBatchJob as ReturnType<typeof vi.fn>).mock.calls[0][4];
@@ -1454,48 +1482,29 @@ describe('ElecCalcPage (integration)', () => {
     renderPage();
 
     const compatibleRow = await screen.findByRole('row', { name: /Совместимый объект/ });
-    const unassignedRow = screen.getByRole('row', { name: /Нераспределённый объект/ });
-    const otherSystemRow = screen.getByRole('row', { name: /Объект другой системы/ });
-    const threeCoreRow = screen.getByRole('row', { name: /Трёхжильный объект/ });
     const compatibleCheckbox = within(compatibleRow).getByRole('checkbox');
-    const unassignedCheckbox = within(unassignedRow).getByRole('checkbox');
-    const otherSystemCheckbox = within(otherSystemRow).getByRole('checkbox');
-
     expect(compatibleCheckbox).toBeEnabled();
-    expect(unassignedCheckbox).toBeDisabled();
-    expect(unassignedCheckbox).toHaveAccessibleName(/Сначала назначьте объект/i);
-    expect(otherSystemCheckbox).toBeDisabled();
-    expect(otherSystemCheckbox).toHaveAccessibleName(/Резистив.*совместимый тип/i);
+    expect(screen.queryByText('Нераспределённый объект')).not.toBeInTheDocument();
+    expect(screen.queryByText('Объект другой системы')).not.toBeInTheDocument();
 
+    electricalAssignmentPanelMock.initialSystemView = null;
+    act(() => electricalAssignmentPanelMock.props?.onSystemViewChange?.('unassigned'));
+    const unassignedRow = await screen.findByRole('row', { name: /Нераспределённый объект/ });
+    expect(within(unassignedRow).getByRole('checkbox')).toBeEnabled();
     await user.click(within(unassignedRow).getByText('Нераспределённый объект'));
     expect(within(unassignedRow).getByRole('button', { name: 'Выбор' })).toBeDisabled();
     expect(within(unassignedRow).getByRole('button', { name: 'Подбор' })).toBeDisabled();
 
-    await user.click(within(threeCoreRow).getByText('Трёхжильный объект'));
-    await user.click(within(threeCoreRow).getByRole('button', { name: 'Подбор' }));
-    const threeCoreDialog = await screen.findByRole('dialog', { name: /Трёхжильный объект/ });
-    const staleConnectionType = within(threeCoreDialog).getByRole('combobox', {
-      name: 'Схема подключения',
-    });
-    await user.click(staleConnectionType);
-    await user.click(await screen.findByRole('option', { name: 'Петля 2×3' }));
-    await user.keyboard('{Escape}');
+    act(() => electricalAssignmentPanelMock.props?.onSystemViewChange?.('resistive'));
+    const otherSystemRow = await screen.findByRole('row', { name: /Объект другой системы/ });
+    expect(within(otherSystemRow).getByRole('checkbox')).toBeDisabled();
+    expect(within(otherSystemRow).getByRole('checkbox'))
+      .toHaveAccessibleName(/Резистив.*совместимый тип/i);
 
-    await user.click(within(otherSystemRow).getByText('Объект другой системы'));
-    expect(within(otherSystemRow).getByRole('button', { name: 'Выбор' })).toBeEnabled();
-    const resistiveSizing = within(otherSystemRow).getByRole('button', { name: 'Подбор' });
-    expect(resistiveSizing).toBeEnabled();
-    await user.click(resistiveSizing);
-    const sizingDialog = await screen.findByRole('dialog', { name: /Подбор кабеля для/ });
-    const sizingType = within(sizingDialog).getByRole('combobox', {
-      name: 'Тип кабеля для подбора',
-    });
-    expect(sizingType.closest('.ant-select')).toHaveTextContent('Однож. пост. мощн.');
-    expect(within(sizingDialog).getByRole('combobox', { name: 'Схема подключения' })
-      .closest('.ant-select')).toHaveTextContent('Линия');
-    await user.keyboard('{Escape}');
-
-    fireEvent.click(compatibleCheckbox);
+    act(() => electricalAssignmentPanelMock.props?.onSystemViewChange?.('self_regulating'));
+    const compatibleRowAfterSwitch = await screen.findByRole('row', { name: /Совместимый объект/ });
+    const compatibleCheckboxAfterSwitch = within(compatibleRowAfterSwitch).getByRole('checkbox');
+    fireEvent.click(compatibleCheckboxAfterSwitch);
     await user.click(screen.getByRole('button', { name: /Пересчитать выбранные \(1\)/i }));
 
     await waitFor(() => {
@@ -1503,7 +1512,7 @@ describe('ElecCalcPage (integration)', () => {
         'p-1',
         '11111111-1111-4111-8111-111111111111',
         'builtin',
-        'self_regulating',
+        'self_regulating_tt',
         expect.objectContaining({
           objectIds: ['o-compatible'],
         }),
@@ -1566,6 +1575,7 @@ describe('ElecCalcPage (integration)', () => {
     const copyButton = await screen.findByRole('button', {
       name: /Создать копию выбранного ЭР «ЭР1»/i,
     });
+    await waitFor(() => expect(copyButton).toBeEnabled());
     const pageCallsBeforeCopy = (getElectricalPage as ReturnType<typeof vi.fn>).mock.calls.length;
     const capabilityCallsBeforeCopy = apiMocks.electricalCapabilities.mock.calls.length;
     const candidateCallsBeforeCopy = (listElectricalCandidates as ReturnType<typeof vi.fn>)
@@ -1612,15 +1622,17 @@ describe('ElecCalcPage (integration)', () => {
     const user = (await import('@testing-library/user-event')).default.setup();
     renderPage();
 
-    await user.click(await screen.findByRole('button', {
+    const copyButton = await screen.findByRole('button', {
       name: /Создать копию выбранного ЭР «ЭР1»/i,
-    }));
+    });
+    await waitFor(() => expect(copyButton).toBeEnabled());
+    await user.click(copyButton);
 
     expect(await screen.findByText('Копирование требует UUID cutover')).toBeInTheDocument();
     expect(electricalVariantApiMocks.copy).toHaveBeenCalledTimes(1);
   });
 
-  it('при выключенных commercial features оставляет только саморегулирующийся ТЛТ', async () => {
+  it('при выключенных commercial features сохраняет технический каталог ТТ', async () => {
     vi.stubEnv('VITE_COMMERCIAL_FEATURES_ENABLED', 'false');
     const { enqueueElectricalBatchJob, getElectricalPage } = await import('@/api/calculations');
     const { getCablesTt, getResistiveCables } = await import('@/api/references');
@@ -1647,7 +1659,7 @@ describe('ElecCalcPage (integration)', () => {
       expect(screen.getByText(/Тип для пересчёта/i)).toBeInTheDocument();
       expect(screen.getByText('Труба-1')).toBeInTheDocument();
     });
-    expect(screen.queryByText('ТТН/ТТВ/ТТХ')).not.toBeInTheDocument();
+    expect(screen.getByText('ТТН/ТТВ/ТТХ')).toBeInTheDocument();
     expect(getCablesTt).not.toHaveBeenCalled();
     expect(getResistiveCables).not.toHaveBeenCalled();
 
@@ -1659,7 +1671,7 @@ describe('ElecCalcPage (integration)', () => {
         'p-1',
         'builtin',
         1,
-        'self_regulating',
+        'self_regulating_tt',
         expect.objectContaining({
           forceCableType: true,
           objectOverrides: undefined,
@@ -1670,11 +1682,10 @@ describe('ElecCalcPage (integration)', () => {
     });
   });
 
-  it('селектор типа кабеля содержит ТТН/ТТВ/ТТХ, single_core, three_core как доступные', async () => {
+  it('селектор типа кабеля оставляет доступным только подтверждённый ТТ-каталог', async () => {
     const { getElectricalPage } = await import('@/api/calculations');
     (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage([makeObject()]));
     useProjectStore.getState().setCurrentProject(mockProject);
-    const user = (await import('@testing-library/user-event')).default.setup();
     renderPage();
     await waitFor(() => {
       expect(screen.getByText(/Тип для пересчёта/i)).toBeInTheDocument();
@@ -1682,21 +1693,13 @@ describe('ElecCalcPage (integration)', () => {
     });
     const rowCheckbox = document.querySelector('tbody .ant-checkbox-input') as HTMLInputElement;
     fireEvent.click(rowCheckbox);
-    // Открываем селектор
     const selectors = document.querySelectorAll('.ant-select-selector');
     const cableTypeSelect = Array.from(selectors).find((el) =>
-      el.textContent?.includes('Саморегулирующийся')
+      el.textContent?.includes('ТТН/ТТВ/ТТХ')
     );
     expect(cableTypeSelect).toBeTruthy();
-    if (cableTypeSelect) {
-      await user.click(cableTypeSelect as HTMLElement);
-    }
-    // Проверяем, что новые типы есть в выпадающем списке и не disabled
-    await waitFor(() => {
-      expect(screen.getByText(/ТТН\/ТТВ\/ТТХ/i)).toBeInTheDocument();
-    });
-    expect(screen.getByText(/Однож. пост. мощн./i)).toBeInTheDocument();
-    expect(screen.getByText(/Трёхж. пост. мощн./i)).toBeInTheDocument();
+    expect(screen.queryByText(/Однож. пост. мощн./i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Трёхж. пост. мощн./i)).not.toBeInTheDocument();
   });
 
   it('применяет выбранный сверху тип ко всем объектам при полном пересчёте', async () => {
@@ -1724,13 +1727,7 @@ describe('ElecCalcPage (integration)', () => {
       expect(screen.getByText(/Тип для пересчёта/i)).toBeInTheDocument();
       expect(screen.getByText('Труба-1')).toBeInTheDocument();
     });
-    const selectors = document.querySelectorAll('.ant-select-selector');
-    const cableTypeSelect = Array.from(selectors).find((el) =>
-      el.textContent?.includes('Саморегулирующийся')
-    );
-    expect(cableTypeSelect).toBeTruthy();
-    await user.click(cableTypeSelect as HTMLElement);
-    await user.click(await screen.findByText('ТТН/ТТВ/ТТХ'));
+    expect(screen.getByText('ТТН/ТТВ/ТТХ')).toBeInTheDocument();
     await user.type(await screen.findByLabelText('T3 поддержания'), '50');
     await user.click(screen.getByRole('button', { name: /Пересчитать все · ЭР1/i }));
     await user.click(await screen.findByRole('button', { name: /Да, пересчитать все/i }));
@@ -1754,7 +1751,7 @@ describe('ElecCalcPage (integration)', () => {
     expect(options.objectOverrides).toBeUndefined();
   });
 
-  it('меняет тип кабеля только для выбранной строки и отправляет override по объекту', async () => {
+  it('пересчитывает только выбранную строку без лишнего override при единственном типе', async () => {
     const { enqueueElectricalBatchJob, getElectricalPage } = await import('@/api/calculations');
     const objects = [
       makeObject({ id: 'o-1', params: { name: 'Труба-1' } }),
@@ -1765,18 +1762,18 @@ describe('ElecCalcPage (integration)', () => {
         {
           id: 'c-1',
           object_id: 'o-1',
-          cable_type: 'self_regulating',
-          cable_mark: 'ТЛТ-20',
+          cable_type: 'self_regulating_tt',
+          cable_mark: '30ТТВ2-СТ',
           variant_number: 1,
-          results: { selected_cable: 'ТЛТ-20' },
+          results: { selected_cable: '30ТТВ2-СТ' },
         },
         {
           id: 'c-2',
           object_id: 'o-2',
-          cable_type: 'three_core',
-          cable_mark: 'Рез-3',
+          cable_type: 'self_regulating_tt',
+          cable_mark: '30ТТВ2-СТ',
           variant_number: 1,
-          results: { selected_cable: 'Рез-3' },
+          results: { selected_cable: '30ТТВ2-СТ' },
         },
       ]),
     );
@@ -1807,25 +1804,18 @@ describe('ElecCalcPage (integration)', () => {
       expect(screen.getByText('Труба-1')).toBeInTheDocument();
       expect(screen.getByText('Труба-2')).toBeInTheDocument();
     });
-    expect(screen.getByRole('row', { name: /Труба-1/ })).toHaveTextContent('Саморегулирующийся');
-    expect(screen.getByRole('row', { name: /Труба-2/ })).toHaveTextContent('Трёхж. пост. мощн.');
+    expect(screen.getByRole('row', { name: /Труба-1/ })).toHaveTextContent('ТТН/ТТВ/ТТХ');
+    expect(screen.getByRole('row', { name: /Труба-2/ })).toHaveTextContent('ТТН/ТТВ/ТТХ');
     const firstRow = screen.getByRole('row', { name: /Труба-1/ });
     fireEvent.click(within(firstRow).getByRole('checkbox'));
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /Пересчитать выбранные \(1\)/i })).toBeInTheDocument();
     });
-    const selectors = document.querySelectorAll('.ant-select-selector');
-    const cableTypeSelect = Array.from(selectors).find((el) =>
-      el.textContent?.includes('Саморегулирующийся')
-    );
-    expect(cableTypeSelect).toBeTruthy();
-    await user.click(cableTypeSelect as HTMLElement);
-    await user.click(await screen.findByText('ТТН/ТТВ/ТТХ'));
     await user.type(await screen.findByLabelText('T3 поддержания'), '50');
 
     expect(screen.getAllByText('ТТН/ТТВ/ТТХ').length).toBeGreaterThan(0);
-    expect(screen.getByRole('row', { name: /Труба-1/ })).toHaveTextContent('Саморегулирующийся');
-    expect(screen.getByRole('row', { name: /Труба-2/ })).toHaveTextContent('Трёхж. пост. мощн.');
+    expect(screen.getByRole('row', { name: /Труба-1/ })).toHaveTextContent('ТТН/ТТВ/ТТХ');
+    expect(screen.getByRole('row', { name: /Труба-2/ })).toHaveTextContent('ТТН/ТТВ/ТТХ');
     await user.click(screen.getByRole('button', { name: /Пересчитать выбранные \(1\)/i }));
 
     await waitFor(() => {
@@ -1837,7 +1827,7 @@ describe('ElecCalcPage (integration)', () => {
         expect.objectContaining({
           maintainTemperature: 50,
           objectIds: ['o-1'],
-          objectOverrides: [{ object_id: 'o-1', cable_type: 'self_regulating_tt' }],
+          objectOverrides: undefined,
           skipManual: true,
         }),
       );
@@ -1855,20 +1845,20 @@ describe('ElecCalcPage (integration)', () => {
         {
           id: 'c-1',
           object_id: 'o-1',
-          cable_type: 'single_core',
-          cable_mark: 'TT P1 62',
+          cable_type: 'self_regulating_tt',
+          cable_mark: '30ТТВ2-СТ',
           cable_mark_source: 'manual',
           variant_number: 1,
-          results: { selected_cable: 'TT P1 62' },
+          results: { selected_cable: '30ТТВ2-СТ' },
         },
         {
           id: 'c-2',
           object_id: 'o-2',
-          cable_type: 'self_regulating',
-          cable_mark: 'ТЛТ-30',
+          cable_type: 'self_regulating_tt',
+          cable_mark: '30ТТВ2-СТ',
           cable_mark_source: 'auto',
           variant_number: 1,
-          results: { selected_cable: 'ТЛТ-30' },
+          results: { selected_cable: '30ТТВ2-СТ' },
         },
       ]),
     );
@@ -1881,7 +1871,7 @@ describe('ElecCalcPage (integration)', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByRole('row', { name: /Труба-1/ })).toHaveTextContent('TT P1 62');
+      expect(screen.getByRole('row', { name: /Труба-1/ })).toHaveTextContent('30ТТВ2-СТ');
       expect(screen.getByRole('row', { name: /Труба-1/ })).not.toHaveTextContent('ручн.');
       expect(screen.getByRole('row', { name: /Труба-2/ })).not.toHaveTextContent('ручн.');
     });
@@ -1902,9 +1892,9 @@ describe('ElecCalcPage (integration)', () => {
         project_id: 'p-1',
         object_id: 'o-1',
         variant_number: 1,
-        cable_type: 'three_core',
+        cable_type: 'self_regulating_tt',
         cable_source: 'builtin',
-        cable_mark: 'ТТ Р3 x 0,5-0,6',
+        cable_mark: '30ТТВ2-СТ',
         dedupe_key: 'v1:test',
         mode: 'auto',
         status: 'applicable',
@@ -1930,26 +1920,26 @@ describe('ElecCalcPage (integration)', () => {
         {
           id: 'c-1',
           object_id: 'o-1',
-          cable_type: 'three_core',
-          cable_mark: 'ТТ Р3 x 0,5-0,6',
+          cable_type: 'self_regulating_tt',
+          cable_mark: '30ТТВ2-СТ',
           cable_mark_source: 'manual',
           cable_snapshot: {
-            cable_mark: 'ТТ Р3 x 0,5-0,6',
-            cable_type: 'three_core',
+            cable_mark: '30ТТВ2-СТ',
+            cable_type: 'self_regulating_tt',
             actual_catalog_source: 'builtin',
             technical: {
-              model: 'ТТ Р3 x 0,5-0,6',
-              brand: 'ТТ Р3',
-              resistance_ohm_km: 35,
+              model: '30ТТВ2',
+              brand: 'ТТВ',
               voltage: 220,
-              min_temperature: -60,
-              max_temperature: 130,
-              conductor_section_mm2: 0.5,
-              nominal_size_mm: '12,60 x 7,10',
+              nominal_power: 30,
+              q1: -0.141,
+              q2: 32,
+              max_product_temp: 120,
+              max_vapor_temp: 210,
             },
           },
           variant_number: 1,
-          results: { selected_cable: 'ТТ Р3 x 0,5-0,6' },
+          results: { selected_cable: '30ТТВ2-СТ' },
         },
       ]),
     );
@@ -1964,7 +1954,7 @@ describe('ElecCalcPage (integration)', () => {
     const row = await screen.findByRole('row', { name: /Труба-1/ });
     fireEvent.click(row);
 
-    expect(row).toHaveTextContent('ТТ Р3 x 0,5-0,6');
+    expect(row).toHaveTextContent('30ТТВ2-СТ');
     expect(row).not.toHaveTextContent('ручн.');
     expect(within(row).getByRole('button', { name: 'Выбор' })).toBeEnabled();
     const sizingButton = within(row).getByRole('button', { name: 'Подбор' });
@@ -2015,7 +2005,7 @@ describe('ElecCalcPage (integration)', () => {
         object_id: 'o-1',
         variant_number: 1,
         electrical_variant_id: '11111111-1111-4111-8111-111111111111',
-        cable_type: 'three_core',
+        cable_type: 'self_regulating_tt',
         mode: 'auto',
         cable_mark: null,
       }));
@@ -2854,7 +2844,7 @@ describe('ElecCalcPage (integration)', () => {
         'p-1',
         'builtin',
         1,
-        'self_regulating',
+        'self_regulating_tt',
         expect.objectContaining({
           forceCableType: true,
           skipManual: true,
@@ -2908,7 +2898,7 @@ describe('ElecCalcPage (integration)', () => {
         'p-1',
         'builtin',
         1,
-        'self_regulating',
+        'self_regulating_tt',
         expect.objectContaining({
           forceCableType: true,
           skipManual: false,
@@ -2964,7 +2954,7 @@ describe('ElecCalcPage (integration)', () => {
         'p-1',
         'builtin',
         1,
-        'self_regulating',
+        'self_regulating_tt',
         expect.objectContaining({
           objectIds: ['o-1'],
           skipManual: true,
@@ -3397,7 +3387,7 @@ describe('ElecCalcPage (integration)', () => {
         null,
         'builtin',
         [1],
-        'self_regulating',
+        'self_regulating_tt',
         expect.objectContaining({
           windingPitchMm: 400,
           numberOfThreads: null,
@@ -3413,7 +3403,7 @@ describe('ElecCalcPage (integration)', () => {
         null,
         'builtin',
         [1],
-        'self_regulating',
+        'self_regulating_tt',
         expect.objectContaining({
           numberOfThreads: 2,
         }),
@@ -3637,7 +3627,7 @@ describe('ElecCalcPage (integration)', () => {
       });
   });
 
-  it('показывает характеристики объекта и выбранного кабеля в модалке выбора марки', async () => {
+  it('показывает характеристики объекта и текущего ТТ-кабеля в модалке выбора марки', async () => {
     const { getElectricalPage, listCables } = await import('@/api/calculations');
     const user = (await import('@testing-library/user-event')).default.setup();
     (listCables as ReturnType<typeof vi.fn>).mockResolvedValue([
@@ -3675,11 +3665,11 @@ describe('ElecCalcPage (integration)', () => {
         {
           id: 'c-1',
           object_id: 'o-1',
-          cable_type: 'self_regulating',
-          cable_mark: 'ТЛТ-30',
+          cable_type: 'self_regulating_tt',
+          cable_mark: '30ТТВ2-СТ',
           variant_number: 1,
           results: {
-            selected_cable: 'ТЛТ-30',
+            selected_cable: '30ТТВ2-СТ',
             installed_cable_length: 50,
             order_cable_length: 55,
             total_power: 1500,
@@ -3712,13 +3702,12 @@ describe('ElecCalcPage (integration)', () => {
     expect(cableCharacteristics).not.toHaveTextContent('Склад:');
     expect(cableCharacteristics).not.toHaveTextContent('Остаток:');
     expect(cableCharacteristics).not.toHaveTextContent('Поставщик:');
-    expect(cableCharacteristics).toHaveTextContent('Защита:');
-    expect(cableCharacteristics).toHaveTextContent('IP68');
-    expect(cableCharacteristics).toHaveTextContent('Макс. T трубы:');
-    expect(cableCharacteristics).toHaveTextContent('160 °C');
-    expect(cableCharacteristics).toHaveTextContent('30,00 Вт/м');
-    expect(cableCharacteristics).toHaveTextContent('220 В');
-    expect(cableCharacteristics).toHaveTextContent('-60 °C…65 °C');
+    expect(cableCharacteristics).toHaveTextContent('Q1:');
+    expect(cableCharacteristics).toHaveTextContent('-0,141 Вт/(м·°C)');
+    expect(cableCharacteristics).toHaveTextContent('Q2:');
+    expect(cableCharacteristics).toHaveTextContent('32,00 Вт/м');
+    expect(cableCharacteristics).toHaveTextContent('Макс. T проп.:');
+    expect(cableCharacteristics).toHaveTextContent('210 °C');
   });
 
   it('показывает фиксированный список характеристик резервуара без трубных полей', async () => {
@@ -3828,7 +3817,7 @@ describe('ElecCalcPage (integration)', () => {
     expect(cableCharacteristics).toHaveTextContent('210 °C');
   });
 
-  it('показывает лейбл внешнего кабеля только в смешанном источнике', async () => {
+  it('показывает лейбл внешнего сохранённого кабеля только во внешнем источнике', async () => {
     const { getElectricalPage, listCables } = await import('@/api/calculations');
     const user = (await import('@testing-library/user-event')).default.setup();
     useAuthStore.getState().setEmployee(
@@ -3942,7 +3931,7 @@ describe('ElecCalcPage (integration)', () => {
     await waitFor(() => {
       expect(screen.getAllByText(/ВНШ-СР-18/).length).toBeGreaterThan(0);
     });
-    expect(screen.queryByText('внеш.')).not.toBeInTheDocument();
+    expect(screen.getByText('внеш.')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Отмена' }));
     await waitFor(() => {
       expect(screen.queryByRole('dialog', { name: /Выбор марки кабеля/ })).not.toBeInTheDocument();
@@ -3966,7 +3955,9 @@ describe('ElecCalcPage (integration)', () => {
     fireEvent.click(nextRow);
     await user.click(within(nextRow).getByRole('button', { name: 'Выбор' }));
 
-    expect(await screen.findByText('внеш.')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByText('внеш.')).not.toBeInTheDocument();
+    });
   });
 
   it('не пересчитывает объект из inline-полей таблицы', async () => {
@@ -4042,13 +4033,7 @@ describe('ElecCalcPage (integration)', () => {
     await waitFor(() => {
       expect(screen.getByText(/Тип для пересчёта/i)).toBeInTheDocument();
     });
-    const selectors = document.querySelectorAll('.ant-select-selector');
-    const cableTypeSelect = Array.from(selectors).find((el) =>
-      el.textContent?.includes('Саморегулирующийся')
-    );
-    expect(cableTypeSelect).toBeTruthy();
-    await user.click(cableTypeSelect as HTMLElement);
-    await user.click(await screen.findByText('ТТН/ТТВ/ТТХ'));
+    expect(screen.getByText('ТТН/ТТВ/ТТХ')).toBeInTheDocument();
     await user.type(await screen.findByLabelText('T3 поддержания'), '50');
     await user.click(screen.getByRole('button', { name: /Пересчитать все · ЭР1/i }));
     await user.click(await screen.findByRole('button', { name: /Да, пересчитать все/i }));
