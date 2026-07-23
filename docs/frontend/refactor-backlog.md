@@ -18,6 +18,7 @@
 |---|---:|
 | `src/styles.css` | freeze-stub |
 | `!important` baseline | **37** (≤75 ✅; was 475) |
+| Raw colors | **583** (was 610) |
 | Global layers | tokens → base → app-shell (header) → vendor |
 | G3 allowlists | all **0** |
 | Hotspots | Elec 545 · Heat 484 · Glide shared ~330 · Wizard 415 |
@@ -26,7 +27,7 @@
 
 | ID | Status | Domain | Goal | Allowed scope | Invariants | Focused proof | Depends |
 |---|---|---|---|---|---|---|---|
-| — | — | — | Queue empty. Optional next: compact-fields Ant locks (15), heat-object Ant locks (6), raw-color burn-down. | — | — | — | — |
+| — | — | — | Queue empty. Optional next: compact-fields Ant locks (15), heat-object Ant locks (6), continue raw-color burn-down (`tlt-form-controls` / `table-chrome` / `ui-kit`). | — | — | — | — |
 
 ## Completed
 
@@ -40,7 +41,8 @@
 | **CSS-IMP-02** | compact-fields Tlt vs Ant split | 55→52 | `cccc6c4` |
 | **CSS-IMP-03** | cable/heat-object shrink | 52→50 | `c2e68f1` |
 | **CSS-IMP-04** | insulation table BEM/Tlt burn-down | 50→44 | `777f1d7` |
-| **CSS-IMP-05** | ui-kit + field-chrome + cable mirror | **44→37** | c8cc942 |
+| **CSS-IMP-05** | ui-kit + field-chrome + cable mirror | **44→37** | `c8cc942` |
+| **CSS-RAW-01** | shared color tokens + calc-spreadsheet hex | raw **610→583**; calc **71→36** | `513c6cb` |
 
 ## Promotion rules
 
