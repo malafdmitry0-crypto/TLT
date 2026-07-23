@@ -36,9 +36,6 @@ import {
 import {
   isSavableExcelDraftRow,
 } from '@/utils/heatCalcExcelRows';
-import type {
-  DraftRowsById,
-} from '@/utils/heatCalcInlineEdit';
 import {
   getDefaultFieldInputSettings,
 } from '@/utils/heatCalcFieldInputSettings';
@@ -79,19 +76,18 @@ import {
   TankTypeIcon,
 } from '@/pages/heatcalc/HeatCalcObjectTypeIcons';
 import { useHeatCalcRouteShellEffects } from '@/pages/heatcalc/useHeatCalcRouteShellEffects';
-import { changedDraftRowIds } from '@/pages/heatcalc/heatCalcDraftRowsModel';
 import { useHeatCalcObjectReorder } from '@/pages/heatcalc/useHeatCalcObjectReorder';
 import { useHeatCalcContinueToElectrical } from '@/pages/heatcalc/useHeatCalcContinueToElectrical';
 import { buildHeatCalcTableCounts } from '@/pages/heatcalc/heatCalcTableCountsModel';
 import { buildHeatCalcToolbarSavePresentation } from '@/pages/heatcalc/heatCalcToolbarSavePresentation';
 import { buildHeatCalcLayoutPresentation } from '@/pages/heatcalc/heatCalcLayoutModel';
 import { HeatCalcWorkspaceLayout } from '@/pages/heatcalc/HeatCalcWorkspaceLayout';
+import { useHeatCalcNormalGridDraftInvalidation } from '@/pages/heatcalc/useHeatCalcNormalGridDraftInvalidation';
 
 const ColumnSettingsModal = lazy(() => import('@/components/heatcalc/ColumnSettingsModal'));
 
 type TableEditingMode = HeatCalcToolbarEditingMode;
 const COMMERCIAL_FEATURES_DISABLED_TABLE_VIEW_STATE = createEmptyTableViewState();
-type NormalGridDraftInvalidator = (rowIds?: readonly string[] | null) => void;
 
 export default function HeatCalcPage() {
   const queryClient = useQueryClient();
@@ -135,18 +131,8 @@ export default function HeatCalcPage() {
   const commercialFeaturesAvailable = areCommercialFeaturesEnabled();
   const tableFindabilityAvailable = true;
   const closeColumnSettingsRef = useRef<(() => void) | null>(null);
-  const normalGridDraftInvalidatorRef = useRef<NormalGridDraftInvalidator | null>(null);
-  const previousNormalGridDraftRowsRef = useRef<DraftRowsById>({});
   const closeColumnSettings = useCallback(() => {
     closeColumnSettingsRef.current?.();
-  }, []);
-  const registerNormalGridDraftInvalidator = useCallback((invalidateRows: NormalGridDraftInvalidator) => {
-    normalGridDraftInvalidatorRef.current = invalidateRows;
-    return () => {
-      if (normalGridDraftInvalidatorRef.current === invalidateRows) {
-        normalGridDraftInvalidatorRef.current = null;
-      }
-    };
   }, []);
   const {
     tableColumnSettings,
@@ -286,15 +272,10 @@ export default function HeatCalcPage() {
     editableExcelColumnKeys,
     onProjectReset: clearExcelSelectionForProject,
   });
-  useEffect(() => {
-    const previous = previousNormalGridDraftRowsRef.current;
-    previousNormalGridDraftRowsRef.current = draftRowsById;
-    if (excelModeEnabled) return;
-    const changedRowIds = changedDraftRowIds(previous, draftRowsById);
-    if (changedRowIds.length > 0) {
-      normalGridDraftInvalidatorRef.current?.(changedRowIds);
-    }
-  }, [draftRowsById, excelModeEnabled]);
+  const { registerNormalGridDraftInvalidator } = useHeatCalcNormalGridDraftInvalidation(
+    draftRowsById,
+    excelModeEnabled,
+  );
 
   const {
     baseVisibleTableObjects,

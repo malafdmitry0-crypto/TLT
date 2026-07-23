@@ -8,8 +8,9 @@
 
 | Path | LOC | Notes |
 |---|---:|---|
-| `frontend/src/pages/ElecCalcPage.tsx` | 1787 | assignment + modals + glide commit extracted |
-| `frontend/src/pages/HeatCalcPage.tsx` | 993 | shell orchestration; pure helpers extracted |
+| `frontend/src/pages/ElecCalcPage.tsx` | 30 | thin entry |
+| `frontend/src/pages/electrical/ElecCalcWorkspace.tsx` | 1194 | M1 shell ≤1200 |
+| `frontend/src/pages/HeatCalcPage.tsx` | 953 | layout + draft invalidation extracted |
 | `frontend/src/pages/SpecificationPage.tsx` | 1005 | — |
 | `frontend/src/styles.css` | 6777 | freeze |
 
