@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Card, Select, Segmented, Skeleton, Space, Tag, Typography, message } from 'antd';
+import { Alert, Button, Card, Select, Skeleton, Space, Tag, Typography, message } from 'antd';
 import {
   FileTextOutlined,
   FilePdfOutlined,
@@ -48,7 +48,6 @@ export default function ReportPage() {
   const [reportErIds, setReportErIds] = useState<string[]>([]);
   const variantContext = useLegacyElectricalVariantContext(project?.id);
   const selectedElectricalVariant = variantContext.selectedVariant;
-  const firstSupportedVariant = variantContext.variants[0] ?? null;
   const variant = variantContext.legacyVariantNumber ?? null;
   // Phase 5: report scopes by UUID; legacy slot is optional compatibility metadata.
   const reportDataPlaneEnabled = Boolean(project && selectedElectricalVariant);
