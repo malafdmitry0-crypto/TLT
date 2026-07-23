@@ -129,12 +129,12 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | **E12** | `skipped` | workspace query | already thin enough via existing models | — | skip |
 | **E13** | `done` | Project + Workspace split | page → 30 LOC | unit+smoke | `fbff7d1` |
 | **E14** | `done` | assign auto-calc model | PDF-ER-08 payload | unit | `fbff7d1` |
-| **E15** | `done` | error summary + section hierarchy | expandable sections | unit | next commit |
-| **E16** | `in_progress` | batch recalc actions + residual | until workspace ≤1200 | unit | **▶ current** |
-| **E17** | `pending` | residual → M3 | until workspace ≤500 | unit | — |
+| **E15** | `done` | error summary + section hierarchy | expandable sections | unit | `31acebc` |
+| **E16** | `done` | table/modals/chrome/ui helpers | workspace ≤1200 | unit+smoke | `4a125cf` **1194** |
+| **E17** | `pending` | residual → M3 | until workspace ≤500 | unit | after H track |
 
-**Метрика shell:** `ElecCalcPage` = 30 (entry). Толстый shell = `ElecCalcWorkspace.tsx` (**~1459**).  
-**Правило Track E:** пока **Workspace** > 1200 — не начинать Track H/S/C (кроме override).
+**Метрика shell:** `ElecCalcPage` = **30**. `ElecCalcWorkspace` = **1194** (M1 workspace ✅).  
+**Текущий пункт:** **H8** (Heat thin, 993 → ≤700).
 
 ### Track H — Heat
 

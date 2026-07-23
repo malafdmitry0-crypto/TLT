@@ -6,7 +6,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
 } from 'react';
 import {
   Alert,
@@ -86,6 +85,7 @@ import { useHeatCalcObjectReorder } from '@/pages/heatcalc/useHeatCalcObjectReor
 import { useHeatCalcContinueToElectrical } from '@/pages/heatcalc/useHeatCalcContinueToElectrical';
 import { buildHeatCalcTableCounts } from '@/pages/heatcalc/heatCalcTableCountsModel';
 import { buildHeatCalcToolbarSavePresentation } from '@/pages/heatcalc/heatCalcToolbarSavePresentation';
+import { buildHeatCalcLayoutPresentation } from '@/pages/heatcalc/heatCalcLayoutModel';
 
 const ColumnSettingsModal = lazy(() => import('@/components/heatcalc/ColumnSettingsModal'));
 
@@ -784,11 +784,11 @@ export default function HeatCalcPage() {
     );
   }
 
-  const isSideFormPlacement = formPlacement === 'left' || formPlacement === 'right';
-  const sideResizeVisible = isSideFormPlacement && formBlockVisible;
-  const workspaceLayoutStyle = isSideFormPlacement
-    ? ({ '--heatcalc-side-form-width': `${sideFormWidthPct}%` } as CSSProperties)
-    : undefined;
+  const {
+    isSideFormPlacement,
+    sideResizeVisible,
+    workspaceLayoutStyle,
+  } = buildHeatCalcLayoutPresentation(formPlacement, formBlockVisible, sideFormWidthPct);
 
   function renderSideResizeHandle() {
     if (!sideResizeVisible) return null;
