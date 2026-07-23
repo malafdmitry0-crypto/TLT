@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import type { SystemSummaryBucket } from '@/components/electrical/ElectricalSummary';
 import type { ElectricalStats } from '@/hooks/useElectricalStats';
 import { buildElecCalcSummaryViewModel } from '@/pages/electrical/elecCalcSummaryModel';
 import type { ElectricalCalcSummary, ElectricalPageSummary } from '@/types/calculation';
@@ -34,14 +35,16 @@ function calc(objectId: string, cableMarkSource: 'auto' | 'manual'): ElectricalC
   };
 }
 
-function emptyBucket() {
+/** Typed PDF §6.2 empty system bucket (no invent). */
+function emptyBucket(overrides: Partial<SystemSummaryBucket> = {}): SystemSummaryBucket {
   return {
     objectCount: 0,
     cableLengthM: 0,
-    sectionCount: null as number | null,
+    sectionCount: null,
     powerW: 0,
     startCurrentA: 0,
     workingCurrentA: 0,
+    ...overrides,
   };
 }
 

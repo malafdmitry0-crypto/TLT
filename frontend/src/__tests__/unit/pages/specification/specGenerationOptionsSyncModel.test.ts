@@ -44,4 +44,26 @@ describe('buildSpecSettingsFormSnapshot (B7)', () => {
     expect(buildSpecSettingsFormSnapshot({ connector_kit_sections_per_kit: 3 }).connectorKitSectionsPerKit).toBe(1);
     expect(buildSpecSettingsFormSnapshot({ connector_kit_sections_per_kit: 2 }).connectorKitSectionsPerKit).toBe(2);
   });
+
+  /**
+   * B7 contract: drawer state must re-hydrate when generation_options content
+   * changes even if spec.id stays the same (regenerate snapshot). Pure model is
+   * the source of the next state; effect deps include generation_options.
+   */
+  it('maps distinct generation_options payloads to distinct form state (same-spec regenerate)', () => {
+    const before = buildSpecSettingsFormSnapshot({
+      reserve_coefficient: 1,
+      ex_zone: false,
+      min_length_for_end_indication: 0,
+    });
+    const after = buildSpecSettingsFormSnapshot({
+      reserve_coefficient: 1.25,
+      ex_zone: true,
+      min_length_for_end_indication: 50,
+    });
+    expect(before).not.toEqual(after);
+    expect(after.reserveCoeff).toBe(1.25);
+    expect(after.exZone).toBe(true);
+    expect(after.minLengthK2i).toBe(50);
+  });
 });

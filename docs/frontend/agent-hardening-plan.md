@@ -2,7 +2,7 @@
 
 **Актуально на:** 2026-07-23  
 **Статус:** исполняемый hardening backlog после закрытия thin shells и CSS strangler  
-**Текущий pending:** **G5** (G1–G4 done — CSS architecture ratchet)
+**Текущий pending:** **IMP2** (G1–G5 done — coverage floor; next !important burn-down)
 **Цель:** агент должен быстро находить владельца поведения, получать зелёную и
 однозначную обратную связь и не иметь возможности незаметно вернуть god-файлы,
 глобальный CSS или обратные зависимости.
@@ -39,7 +39,7 @@
 | `useElectricalVariantSelection` | 726 LOC | ≤ 450 |
 | CSS architecture gate | G4 ✅ (`css:architecture`) | обязателен |
 | complexity / cycle gate | G2+G3 ✅ | обязателен |
-| coverage thresholds | отсутствуют | baseline ratchet |
+| coverage thresholds | G5 ✅ unit floor 70/62/70/72 + domain 85/75/90/85 | baseline ratchet |
 
 ## 2. Общие правила для всех агентов
 
@@ -115,13 +115,13 @@ P0 выполняется раньше любых новых архитекту�
 | ID | Scope | Результат | Зависит |
 |---|---|---|---|
 | **B1** | `done` | UI primitives readonly TltTable columns/rows | readonly contract | — |
-| **B2** | test fixture drift | elec summary + heat draft fixtures типобезопасны | — |
+| **B2** | `done` | elec summary SystemSummaryBucket + heat draft typed fixtures | — |
 | **B3** | `done` | TltSelect.allowClear + clear control | form-control + CableAlgorithm | B1 |
 | **B4** | `done` | ObjectWizard wide props | dead `geometryTitle` removed (banner fixed «Расчёт теплопотерь») | — |
 | **B5** | `done` | Electrical variant recoveryNotice null + cable type normalize fallback | — |
 | **B6** | `done` | Report cleanup unused Segmented/firstSupportedVariant | typecheck green | — |
-| **B7** | Specification effect contract | exhaustive-deps warning закрыт тестом | — |
-| **B8** | test lint cleanup | оставшиеся test-only lint errors закрыты | B1–B7 |
+| **B7** | `done` | generation_options rehydrate contract + pure model tests | — |
+| **B8** | `done` | test lint clean on listed files (no unused vars) | B1–B7 |
 | **B9** | `done` | baseline integration green (lint 0 err, typecheck, build, s0-gates 17) | B1–B8 |
 
 ### Phase P1 — добавить автоматические agent gates
@@ -132,7 +132,7 @@ P0 выполняется раньше любых новых архитекту�
 | **G2** | `done` | complexity ratchet (`complexityRatchet` + baseline 22 hotspots >500) | B9 |
 | **G3** | `done` | dependency/cycle ratchet (`dependencyRatchet` + allowlist + 0 cycles); fixed SRC_ROOT path for G2/IMP0 | B9 |
 | **G4** | `done` | CSS architecture ratchet (`cssArchitectureRatchet` + `css:architecture`; !important via IMP0) | B9 |
-| **G5** | coverage ratchet | текущий coverage становится floor, не «80% из воздуха» | G1 |
+| **G5** | `done` | coverage floor via vitest thresholds; test:coverage = unit suite | G1 |
 
 ### Phase P1.5 — приоритетное сокращение `!important`
 

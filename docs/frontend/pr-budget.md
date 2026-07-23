@@ -57,7 +57,7 @@ Full strangler prompt: [agent-prompt-ui-kit-strangler.md](./agent-prompt-ui-kit-
 **Не угадывать.** Брать первый `pending` из  
 [agent-hardening-plan.md](./agent-hardening-plan.md).
 
-Сейчас: **G5** coverage ratchet (after G4 CSS architecture).  
+Сейчас: **IMP2** `!important` burn-down in compact-fields.css (after G5 coverage floor).  
 Shells + CSS M4 closed. Proof: `cd frontend && npm run test:agent-gates`.
 
 ## Anti-goals
