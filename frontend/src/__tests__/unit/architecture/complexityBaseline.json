@@ -1,7 +1,7 @@
 {
-  "version": 1,
-  "slice": "G2",
-  "description": "Complexity ratchet: new production TS/TSX files LOC<=500. Hotspots in baseline cannot grow on loc/imports/useEffect/useState/useCallback. Decrease always OK.",
+  "version": 2,
+  "slice": "AF9-ARCH-01",
+  "description": "Truthful shrink-only complexity baseline: only files >newFileLocCap; metrics = current HEAD",
   "newFileLocCap": 500,
   "files": {
     "src/api/calculations.ts": {
@@ -38,20 +38,6 @@
       "useEffect": 1,
       "useState": 2,
       "useCallback": 0
-    },
-    "src/components/heatcalc/HeatCalcNormalGlideGrid.tsx": {
-      "loc": 1192,
-      "imports": 10,
-      "useEffect": 6,
-      "useState": 5,
-      "useCallback": 20
-    },
-    "src/components/wizard/ObjectWizard.tsx": {
-      "loc": 777,
-      "imports": 33,
-      "useEffect": 7,
-      "useState": 2,
-      "useCallback": 2
     },
     "src/hooks/useHeatCalcTableColumns.tsx": {
       "loc": 536,
@@ -103,25 +89,11 @@
       "useCallback": 0
     },
     "src/pages/electrical/useElecCalcWorkspaceModel.tsx": {
-      "loc": 1087,
-      "imports": 59,
+      "loc": 546,
+      "imports": 31,
       "useEffect": 1,
       "useState": 5,
-      "useCallback": 3
-    },
-    "src/pages/electrical/useElectricalVariantSelection.ts": {
-      "loc": 730,
-      "imports": 8,
-      "useEffect": 3,
-      "useState": 4,
-      "useCallback": 17
-    },
-    "src/pages/heatcalc/useHeatCalcPageModel.ts": {
-      "loc": 831,
-      "imports": 39,
-      "useEffect": 2,
-      "useState": 4,
-      "useCallback": 2
+      "useCallback": 0
     },
     "src/pages/specification/useSpecificationPageModel.ts": {
       "loc": 518,

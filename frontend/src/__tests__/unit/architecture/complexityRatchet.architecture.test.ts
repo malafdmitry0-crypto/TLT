@@ -1,12 +1,14 @@
 /**
- * G2: production TS/TSX complexity ratchet.
+ * G2: production TS/TSX complexity ratchet (truthful shrink-only).
  *
+ * - Baseline lists only production files with loc > newFileLocCap (hotspots).
+ * - Hotspot metrics cannot grow above baseline (loc/imports/hooks).
+ * - After a shrink, baseline must be updated in the same PR: stale higher
+ *   limits fail with STALE_BASELINE (no historical slack).
  * - New production files (not in baseline): LOC ≤ newFileLocCap (500).
- * - Baseline hotspots: loc / imports / useEffect / useState / useCallback cannot grow.
- * - Decrease is always allowed without editing the baseline.
+ * - Files that drop to ≤ newFileLocCap must leave the baseline.
  *
  * Imports counted via TypeScript compiler API (ImportDeclaration).
- * See: docs/frontend/agent-hardening-plan.md §G2
  */
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
@@ -142,7 +144,28 @@ describe('complexity ratchet (G2)', () => {
     for (const [file, limits] of Object.entries(baseline.files)) {
       const cur = current[file];
       if (!cur) {
-        // File removed — allowed (shrink).
+        // File removed — allowed, but drop the baseline entry in the same PR.
+        violations.push(
+          failMessage(
+            'STALE_BASELINE_MISSING_FILE',
+            'Baseline lists a production file that no longer exists',
+            'Remove the entry from complexityBaseline.json.',
+            file,
+          ),
+        );
+        continue;
+      }
+      if (cur.loc <= baseline.newFileLocCap) {
+        violations.push(
+          failMessage(
+            'STALE_BASELINE_UNDER_CAP',
+            `File is ≤ newFileLocCap (${baseline.newFileLocCap}) but still in hotspot baseline`,
+            'Remove the entry from complexityBaseline.json (no longer a hotspot).',
+            file,
+            cur.loc,
+            baseline.newFileLocCap,
+          ),
+        );
         continue;
       }
       for (const key of METRIC_KEYS) {
@@ -159,6 +182,17 @@ describe('complexity ratchet (G2)', () => {
               limits[key],
             ),
           );
+        } else if (cur[key] < limits[key]) {
+          violations.push(
+            failMessage(
+              'STALE_BASELINE',
+              `Baseline ${key} is higher than current (historical slack)`,
+              'Update complexityBaseline.json to current metrics in the same PR as the shrink.',
+              file,
+              cur[key],
+              limits[key],
+            ),
+          );
         }
       }
     }
@@ -169,8 +203,8 @@ describe('complexity ratchet (G2)', () => {
         violations.push(
           failMessage(
             'NEW_FILE_OVER_LOC_CAP',
-            `New production file exceeds absolute LOC cap (or crossed ${baseline.newFileLocCap} LOC)`,
-            `Keep new production TS/TSX ≤ ${baseline.newFileLocCap} LOC (named use-case extract). If splitting a hotspot, parent must shrink below its baseline.`,
+            `Production file exceeds LOC cap and is missing from hotspot baseline`,
+            `Keep file ≤ ${baseline.newFileLocCap} LOC or add current metrics to complexityBaseline.json.`,
             file,
             metrics.loc,
             baseline.newFileLocCap,
@@ -184,6 +218,7 @@ describe('complexity ratchet (G2)', () => {
     }
 
     expect(baseline.newFileLocCap).toBe(500);
+    expect(baseline.version).toBeGreaterThanOrEqual(2);
     expect(Object.keys(baseline.files).length).toBeGreaterThan(0);
   });
 
