@@ -52,9 +52,12 @@ cd e2e && E2E_BASE_URL=http://127.0.0.1:3003 npm run test:ui-kit-parity:chrome
 
 Full strangler prompt: [agent-prompt-ui-kit-strangler.md](./agent-prompt-ui-kit-strangler.md)
 
-## Next recommended slice (after S0)
+## Next recommended slice
 
-**Heat geometry fields → CompactField / CompactFieldGrid** (real HeatCalc, not only `/ui-kit`).
+**Не угадывать.** Брать первый `pending` из  
+[autonomous-continuation-plan.md](./autonomous-continuation-plan.md) §3–§4.
+
+Сейчас (2026-07-23): **E8** — Elec cable type options extract (пока Elec > 1200).
 
 ## Anti-goals
 

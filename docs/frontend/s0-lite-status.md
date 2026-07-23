@@ -108,5 +108,8 @@ cd e2e && E2E_BASE_URL=http://127.0.0.1:3003 npm run test:ui-kit-parity:chrome
 
 ## Next
 
-1. Continue ElecCalcPage shell thin (params panel / type controls / render sections)
-2. CSS extract one block from styles.css
+**Очередь и автономия:** [autonomous-continuation-plan.md](./autonomous-continuation-plan.md)
+
+1. Первый pending: **E8** (Elec cable type options)
+2. Пока Elec > 1200 — только Track E (до 3 slice за «продолжай»)
+3. Не спрашивать «что дальше» — брать следующий `pending`

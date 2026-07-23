@@ -15,14 +15,28 @@
 | PR budget | [pr-budget.md](./pr-budget.md) |
 | Metrics baseline | [metrics-baseline.md](./metrics-baseline.md) |
 
-**styles.css freeze:** no new feature rules; net LOC ≤ 0 unless moving CSS out.  
-**Next slice:** Heat geometry → CompactField ([agent-prompt-ui-kit-strangler.md](./agent-prompt-ui-kit-strangler.md)).
+**styles.css freeze:** no new feature rules; net LOC ≤ 0 unless moving CSS out.
+
+## Что делать дальше (агент: не спрашивать)
+
+**Источник правды:** [autonomous-continuation-plan.md](./autonomous-continuation-plan.md)
+
+| Команда | Поведение |
+|---|---|
+| «продолжай» / «дальше» / «continue» | до **3** pending slice по очереди плана |
+| «один slice» | ровно 1 |
+| «стой» | stop |
+
+Сейчас первый pending: **E8** (Elec cable type options extract).  
+Пока `ElecCalcPage` > 1200 — приоритет Track E.
 
 ## Содержание
 
 | Документ | О чём |
 |---|---|
+| **[autonomous-continuation-plan.md](./autonomous-continuation-plan.md)** | **Очередь slice, автономия, stop rules** |
 | [pr-budget.md](./pr-budget.md) | Budget PR + proof commands |
+| [s0-lite-status.md](./s0-lite-status.md) | Журнал выполненных slices |
 | [metrics-baseline.md](./metrics-baseline.md) | LOC / inverted deps baseline |
 | [llm-friendly-style.md](./llm-friendly-style.md) | Как писать фронт, понятный людям и LLM |
 | [rewrite-plan.md](./rewrite-plan.md) | План strangler-миграции всего фронта |
@@ -36,11 +50,12 @@
 
 ## Быстрый старт для агента / разработчика
 
-1. Прочитать `pr-budget.md`, `llm-friendly-style.md` и `rewrite-plan.md`.
-2. Не big-bang: budget PR (1 shell + 2 extract + 2 tests).
-3. UI полей — только `@/components/ui-kit`.
-4. `styles.css` — freeze (только delete/move).
-5. Proof: `npm run test:s0-gates` + e2e `test:ui-kit-parity` при касании форм.
+1. **Прочитать `autonomous-continuation-plan.md`** (очередь + «не спрашивать»).
+2. `pr-budget.md`, при необходимости `llm-friendly-style.md`.
+3. Не big-bang: budget PR (1 shell + 2 extract + 2 tests).
+4. UI полей — только `@/components/ui-kit`.
+5. `styles.css` — freeze (только delete/move).
+6. Proof: unit на extract; `test:architecture` / `test:s0-gates` по типу изменения.
 
 ## Ключевые пути в коде
 
