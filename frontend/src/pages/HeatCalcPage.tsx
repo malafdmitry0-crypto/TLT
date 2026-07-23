@@ -6,7 +6,6 @@ import {
   useState,
 } from 'react';
 import {
-  Alert,
   message as antdMessage,
 } from 'antd';
 import { useQueryClient } from '@tanstack/react-query';
@@ -37,8 +36,6 @@ import {
   getDefaultFieldInputSettings,
 } from '@/utils/heatCalcFieldInputSettings';
 import {
-  HeatCalcActionsToolbar,
-  HeatCalcTypeToolbar,
   type HeatCalcToolbarEditingMode,
 } from '@/pages/heatcalc/HeatCalcToolbar';
 import {
@@ -67,10 +64,6 @@ import {
 import { useHeatCalcPageEffectsModel } from '@/pages/heatcalc/useHeatCalcPageEffectsModel';
 import { useHeatCalcRouteActionsModel } from '@/pages/heatcalc/useHeatCalcRouteActionsModel';
 import HeatCalcEmptyProjectState from '@/pages/heatcalc/HeatCalcEmptyProjectState';
-import {
-  PipeTypeIcon,
-  TankTypeIcon,
-} from '@/pages/heatcalc/HeatCalcObjectTypeIcons';
 import { useHeatCalcRouteShellEffects } from '@/pages/heatcalc/useHeatCalcRouteShellEffects';
 import { useHeatCalcObjectReorder } from '@/pages/heatcalc/useHeatCalcObjectReorder';
 import { useHeatCalcContinueToElectrical } from '@/pages/heatcalc/useHeatCalcContinueToElectrical';
@@ -80,6 +73,11 @@ import { buildHeatCalcLayoutPresentation } from '@/pages/heatcalc/heatCalcLayout
 import { HeatCalcWorkspaceLayout } from '@/pages/heatcalc/HeatCalcWorkspaceLayout';
 import { useHeatCalcNormalGridDraftInvalidation } from '@/pages/heatcalc/useHeatCalcNormalGridDraftInvalidation';
 import { HeatCalcPageOverlays } from '@/pages/heatcalc/HeatCalcPageOverlays';
+import {
+  buildHeatCalcActionsBar,
+  buildHeatCalcJobAlert,
+  buildHeatCalcTypeBar,
+} from '@/pages/heatcalc/HeatCalcPageToolbars';
 
 type TableEditingMode = HeatCalcToolbarEditingMode;
 const COMMERCIAL_FEATURES_DISABLED_TABLE_VIEW_STATE = createEmptyTableViewState();
@@ -673,93 +671,6 @@ export default function HeatCalcPage() {
     visibleTableRows,
   });
 
-  function renderTypeBar() {
-    return (
-      <HeatCalcTypeToolbar
-        activeObjectScope={activeObjectScope}
-        pipeButtonCountText={pipeButtonCountText}
-        tankButtonCountText={tankButtonCountText}
-        allButtonCountText={allButtonCountText}
-        pipeIcon={<PipeTypeIcon />}
-        tankIcon={<TankTypeIcon />}
-        formBlockVisible={formBlockVisible}
-        formCaptionMode={formCaptionMode}
-        formCaptionModeLabel={formCaptionModeLabel}
-        onObjectScopeChange={handleObjectScopeChange}
-        onFormBlockVisibilityChange={handleFormBlockVisibilityChange}
-        onContinueToElectrical={handleContinueToElectrical}
-        continueToElectricalDisabled={continueToElectricalDisabled}
-        continueToElectricalTooltip={continueToElectricalTooltip}
-      />
-    );
-  }
-
-  function renderActionsBar() {
-    return (
-      <HeatCalcActionsToolbar
-        formActions={{
-          visible: formBlockVisible,
-          saveTooltip: toolbarSaveTooltip,
-          saveDisabled: toolbarSaveDisabled,
-          saveLoading: toolbarSaveLoading,
-          deleteTargetCount,
-          deleteLoading: remove.isPending,
-          onAdd: openAddWizard,
-          onSave: handleToolbarSave,
-          onDeleteSelected: removeSelectedObjects,
-        }}
-        tableActions={{
-          editingMode: tableEditingMode,
-          commercialFeaturesAvailable,
-          tableFindabilityAvailable,
-          recalcTooltip: heatLossRecalcTooltip,
-          recalcAriaLabel: heatLossRecalcAriaLabel,
-          recalcLoading: heatLossBatchPending || isHeatLossJobActive,
-          recalcDisabled: heatLossScopedRecalcDisabled || heatLossBatchPending,
-          recalcAllTooltip: heatLossRecalcAllTooltip,
-          recalcAllDisabled: heatLossRecalcDisabled || heatLossBatchPending,
-          jobActive: isHeatLossJobActive,
-          jobId: activeHeatLossJobId,
-          cancelJobLoading: cancelHeatLossJobPending,
-          currentTableViewActive,
-          draftControlsVisible,
-          dirtyDraftRowCount,
-          saveTargetCount,
-          inlineDraftSaving,
-          draftDiscardLabel,
-          selectedObjectCount,
-          duplicateLoading: add.isPending,
-          onEditingModeChange: handleTableEditingModeChange,
-          onRecalcScoped: recalcHeatLossScoped,
-          onRecalcAll: recalcHeatLossAll,
-          onCancelJob: cancelHeatLossJob,
-          onOpenSettings: columnSettingsDialog.open,
-          onResetCurrentTableView: resetCurrentTableViewState,
-          onDiscardDrafts: () => discardDraftRows(saveTargetIds),
-          onDuplicateSelected: duplicateSelectedObjects,
-        }}
-        importExport={{
-          projectId: project!.id,
-          projectName: project!.name,
-          existingObjectCount: projectObjectCount,
-          canExport: role === 'employee',
-        }}
-      />
-    );
-  }
-
-  function renderHeatLossJobAlert() {
-    if (!isHeatLossJobActive) return null;
-    return (
-      <Alert
-        type="info"
-        showIcon
-        className="heatcalc-job-alert"
-        message={`Пересчёт теплопотерь выполняется · ${heatLossJobProgressLabel}`}
-      />
-    );
-  }
-
   const {
     isSideFormPlacement,
     sideResizeVisible,
@@ -818,6 +729,62 @@ export default function HeatCalcPage() {
     return <HeatCalcEmptyProjectState />;
   }
 
+  const toolbarProps = {
+    activeObjectScope,
+    pipeButtonCountText,
+    tankButtonCountText,
+    allButtonCountText,
+    formBlockVisible,
+    formCaptionMode,
+    formCaptionModeLabel,
+    handleObjectScopeChange,
+    handleFormBlockVisibilityChange,
+    handleContinueToElectrical,
+    continueToElectricalDisabled,
+    continueToElectricalTooltip,
+    toolbarSaveTooltip,
+    toolbarSaveDisabled,
+    toolbarSaveLoading,
+    deleteTargetCount,
+    removeIsPending: remove.isPending,
+    openAddWizard,
+    handleToolbarSave,
+    removeSelectedObjects,
+    tableEditingMode,
+    commercialFeaturesAvailable,
+    tableFindabilityAvailable,
+    heatLossRecalcTooltip,
+    heatLossRecalcAriaLabel,
+    heatLossBatchPending,
+    isHeatLossJobActive,
+    heatLossScopedRecalcDisabled,
+    heatLossRecalcAllTooltip,
+    heatLossRecalcDisabled,
+    activeHeatLossJobId,
+    cancelHeatLossJobPending,
+    currentTableViewActive,
+    draftControlsVisible,
+    dirtyDraftRowCount,
+    saveTargetCount,
+    inlineDraftSaving,
+    draftDiscardLabel,
+    selectedObjectCount,
+    addIsPending: add.isPending,
+    handleTableEditingModeChange,
+    recalcHeatLossScoped,
+    recalcHeatLossAll,
+    cancelHeatLossJob,
+    openColumnSettings: columnSettingsDialog.open,
+    resetCurrentTableViewState,
+    discardDraftRows,
+    saveTargetIds,
+    duplicateSelectedObjects,
+    projectId: project.id,
+    projectName: project.name,
+    projectObjectCount,
+    role,
+  };
+
   const tablePane = (
     <>
       <HeatCalcAssumptionsPanel
@@ -875,9 +842,9 @@ export default function HeatCalcPage() {
         sideResizeVisible={sideResizeVisible}
         workspaceLayoutStyle={workspaceLayoutStyle}
         sideWorkspaceRef={sideWorkspaceRef}
-        typeBar={renderTypeBar()}
-        actionsBar={renderActionsBar()}
-        jobAlert={renderHeatLossJobAlert()}
+        typeBar={buildHeatCalcTypeBar(toolbarProps)}
+        actionsBar={buildHeatCalcActionsBar(toolbarProps)}
+        jobAlert={buildHeatCalcJobAlert(isHeatLossJobActive, heatLossJobProgressLabel)}
         formPanel={formPanel}
         tablePane={tablePane}
         errorsOverlay={<HeatCalcSelectedRowErrorsOverlay messages={selectedRowErrorMessages} />}
