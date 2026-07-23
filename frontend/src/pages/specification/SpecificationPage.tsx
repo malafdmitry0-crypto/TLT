@@ -46,6 +46,11 @@ import { ROUTES } from '@/routes/routes';
 import type { SpecificationItem } from '@/types/specification';
 import { formatSpecTimestamp, type SpecGroupBy as GroupBy } from '@/pages/specification/specFormatModel';
 import { useSpecParamsPanelState } from '@/pages/specification/useSpecParamsPanelState';
+import {
+  buildSpecGenerateOptions,
+  isSpecificationPartial,
+  resolveSpecificationExcludedGroups,
+} from '@/pages/specification/specGenerateOptionsModel';
 
 const { Text } = Typography;
 
@@ -332,26 +337,18 @@ export default function SpecificationPage() {
     [spec]
   );
   const isSpecStale = spec?.is_stale === true;
-  const isSpecPartial = Boolean(
-    spec?.is_partial
-    || (spec?.generation_options as { is_partial?: boolean } | null | undefined)?.is_partial,
-  );
-  const excludedGroups = (
-    spec?.excluded_groups
-    ?? (spec?.generation_options as { excluded_groups?: Array<{ error_code?: string; message?: string; group?: string }> } | null | undefined)
-      ?.excluded_groups
-    ?? []
-  );
-  const buildGenerateOptions = () => ({
-    ex_zone: exZone,
-    reserve_coefficient: reserveCoeff,
-    indication_on_boxes: indicationOnBoxes,
-    end_section_indication: endSectionIndication,
-    top_indication: topIndication,
-    min_length_for_end_indication: minLengthK2i,
-    connector_kit_sections_per_kit: connectorKitSectionsPerKit,
-    group_by: groupBy,
-    merge_identical: mergeIdentical,
+  const isSpecPartial = isSpecificationPartial(spec);
+  const excludedGroups = resolveSpecificationExcludedGroups(spec);
+  const buildGenerateOptions = () => buildSpecGenerateOptions({
+    exZone,
+    reserveCoeff,
+    indicationOnBoxes,
+    endSectionIndication,
+    topIndication,
+    minLengthK2i,
+    connectorKitSectionsPerKit,
+    groupBy,
+    mergeIdentical,
   });
 
   const saveDefaultsMut = useMutation({
