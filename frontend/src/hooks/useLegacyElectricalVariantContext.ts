@@ -5,7 +5,7 @@ import {
   useCalculationVariantStore,
   type CalculationVariant,
 } from '@/store/calculationVariantStore';
-import { useElectricalVariantSelection } from '@/pages/electrical/useElectricalVariantSelection';
+import { useElectricalVariantSelection } from '@/hooks/useElectricalVariantSelection';
 
 function asCalculationVariant(value: number | null): CalculationVariant | null {
   return (CALCULATION_VARIANTS as readonly number[]).includes(value ?? Number.NaN)

@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import ElectricalVariantTabs from '@/pages/electrical/ElectricalVariantTabs';
-import type { ElectricalVariantSelectionController } from '@/pages/electrical/useElectricalVariantSelection';
+import type { ElectricalVariantSelectionController } from '@/hooks/useElectricalVariantSelection';
 import type { ElectricalReadinessResponse, ElectricalVariant } from '@/types/electricalVariant';
 
 function tabsTree(

@@ -386,13 +386,20 @@ describe('dependency ratchet (G3)', () => {
   it('resolves @/ and relative imports via filesystem (sanity)', () => {
     const edges = collectEdges();
     expect(edges.length).toBeGreaterThan(50);
-    // Known inverted edge still present until VAR1
+    // FDEP-08: legacy bridge stays on hooks→hooks (no hooks→pages edge)
     expect(
       edges.some(
         (e) =>
           e.from === 'src/hooks/useLegacyElectricalVariantContext.ts'
-          && e.to === 'src/pages/electrical/useElectricalVariantSelection.ts',
+          && e.to === 'src/hooks/useElectricalVariantSelection.ts',
       ),
     ).toBe(true);
+    expect(
+      edges.some(
+        (e) =>
+          e.from === 'src/hooks/useLegacyElectricalVariantContext.ts'
+          && e.to.startsWith('src/pages/'),
+      ),
+    ).toBe(false);
   });
 });

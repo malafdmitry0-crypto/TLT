@@ -36,7 +36,7 @@ vi.mock('@/api/electricalVariants', async (importOriginal) => {
   };
 });
 
-import { useElectricalVariantSelection } from '@/pages/electrical/useElectricalVariantSelection';
+import { useElectricalVariantSelection } from '@/hooks/useElectricalVariantSelection';
 
 const PROJECT_ID = 'project-a';
 const ER_1_ID = '11111111-1111-4111-8111-111111111111';

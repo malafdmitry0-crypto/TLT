@@ -1,21 +1,7 @@
 {
   "version": 1,
-  "description": "G3 dependency/cycle ratchet allowlists. Shrink only — do not grow. Each edge has a shrink note.",
-  "layerToPagesAllowlist": [
-    {
-      "from": "src/hooks/useLegacyElectricalVariantContext.ts",
-      "to": "src/pages/electrical/useElectricalVariantSelection.ts",
-      "import": "@/pages/electrical/useElectricalVariantSelection",
-      "shrink": "Extract UUID-first variant selection core from pages/electrical into hooks/ or domain/electrical; remove hooks→pages edge."
-    }
-  ],
+  "description": "G3 dependency/cycle ratchet allowlists. Shrink only \u2014 do not grow. Each edge has a shrink note.",
+  "layerToPagesAllowlist": [],
   "crossFeatureAllowlist": [],
-  "featurePagesOutsiderAllowlist": [
-    {
-      "from": "src/hooks/useLegacyElectricalVariantContext.ts",
-      "to": "src/pages/electrical/useElectricalVariantSelection.ts",
-      "import": "@/pages/electrical/useElectricalVariantSelection",
-      "shrink": "Same as layer exception — selection core leaves pages/electrical."
-    }
-  ]
+  "featurePagesOutsiderAllowlist": []
 }
