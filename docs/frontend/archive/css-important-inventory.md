@@ -1,5 +1,7 @@
 # Inventory: `!important` by CSS owner (IMP1 + burn-down status)
 
+> Архивный snapshot. Текущий baseline всегда читать из architecture baseline.
+
 **Актуально на:** 2026-07-23 · after IMP2–IMP7 safe burn-down  
 **Источник счёта:** `frontend/src/__tests__/unit/architecture/cssImportantBaseline.json`  
 **Total:** **78** (was 475; hardening DoD ≤150 ✅; long-term ≤75 almost)

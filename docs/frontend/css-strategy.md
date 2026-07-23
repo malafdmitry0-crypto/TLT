@@ -3,6 +3,9 @@
 **Актуально на:** 2026-07-23  
 **Статус:** рабочий регламент для нового CSS и постепенного разбора legacy.
 
+> Тематический справочник. Обязательные workflow, budget, proof и hard stops:
+> [agent-development-standard.md](./agent-development-standard.md).
+
 ## Решение
 
 Используем гибрид:
@@ -10,7 +13,8 @@
 ```text
 Общее поведение и визуальные контракты → tokens / UI kit
 Уникальный layout и chrome             → рядом с feature-компонентом
-App shell                              → styles/layout.css
+App shell                              → styles/app-shell.css
+Vendor overrides                       → styles/vendor-overrides.css
 Legacy                                 → styles.css, только удаление и перенос
 ```
 
@@ -30,15 +34,18 @@ Legacy                                 → styles.css, только удален
 | Слой | Целевое место | Отвечает за | Не отвечает за |
 |---|---|---|---|
 | Tokens | `styles/tokens.css` | семантические цвета, размеры, density и layout tokens | селекторы компонентов |
+| Base | `styles/base.css` | document root и общие utility states | feature layout и vendor overrides |
 | Design system | `components/ui-kit/*.css` | `.tlt-*`, CompactField, primitives и состояния контролов | layout конкретного экрана |
 | Feature / island | `Foo.css` рядом с `Foo.tsx` | toolbar, page chrome, таблица, modal и feature-layout | чужие feature и app shell |
+| App shell | `styles/app-shell.css` | общий layout application chrome | layout Heat/Elec/Spec |
+| Vendor | `styles/vendor-overrides.css` | оставшиеся app-wide Ant overrides | feature-specific Ant overrides |
 | Legacy | `styles.css` | временно оставшийся глобальный код | новые правила |
 
 Допустимое направление зависимостей:
 
 ```text
+tokens ← base / app-shell / vendor-overrides
 tokens ← ui-kit ← feature
-tokens ← layout
 
 feature не импортирует legacy
 ui-kit не знает о heat / electrical / specification
@@ -52,8 +59,10 @@ feature A не стилизует feature B
 2. Это визуальное поведение переиспользуемого Tlt-компонента?  
    Добавить в UI kit.
 3. Это app header/sidebar/page frame?  
-   Добавить в `styles/layout.css`.
-4. Всё остальное?  
+   Добавить в `styles/app-shell.css` или существующий app-header owner.
+4. Это неизбежный app-wide override Ant Design?
+   Сначала проверить `theme/appTheme.ts`, затем `vendor-overrides.css`.
+5. Всё остальное?
    Добавить рядом с компонентом под его root namespace.
 
 Формат feature:
@@ -78,11 +87,14 @@ Plain CSS с root namespace/BEM — основной подход. CSS Modules �
 ```ts
 import './styles/tokens.css';
 import './styles/base.css';
-import './styles/layout.css';
-import './styles.css'; // legacy, временно
+import './styles/app-shell.css';
+import './styles/vendor-overrides.css';
+import './styles.css'; // freeze-stub
+// затем только явно зарегистрированные shared global owners
 ```
 
-Feature CSS импортирует компонент-владелец. Новый feature CSS не должен
+`styles/app-base.css` — legacy pointer на эту раскладку, новые правила туда не
+добавляются. Feature CSS импортирует компонент-владелец. Новый feature CSS не должен
 побеждать legacy только за счёт порядка импорта:
 
 - исходное legacy-правило удаляется в том же PR;
@@ -100,11 +112,12 @@ Cascade Layers пока не вводим: сначала уменьшаем leg
 | Контракт | Источник |
 |---|---|
 | CSS semantic tokens (`--tlt-*`, `--layout-*`) | `styles/tokens.css` |
-| Ant component/theme tokens | `appTheme.ts`, передаваемый в `ConfigProvider` |
+| Ant component/theme tokens | `theme/appTheme.ts`, передаваемый в `ConfigProvider` |
 | Значения, которые должны совпадать | parity-тест |
 
-Одинаковый literal в `tokens.css`, `main.tsx` и feature CSS недопустим. До
-выноса `appTheme.ts` текущий `ConfigProvider` считается legacy-точкой.
+Одинаковый literal в `tokens.css`, `main.tsx` и feature CSS недопустим.
+`theme/appTheme.ts` — единственный TypeScript owner конфигурации
+`ConfigProvider`; `main.tsx` только подключает его.
 
 Токен получает имя по назначению, а не по значению:
 
@@ -167,7 +180,7 @@ breakpoints разрешены только из принятого allowlist; �
 
 ## Автоматические gates
 
-В Phase 0 добавляется `css:architecture`, который хранит baseline и проверяет:
+`css:architecture` уже хранит shrink-only baseline и проверяет:
 
 1. `styles.css` не растёт по LOC, rules и declarations.
 2. Количество `!important` не растёт.

@@ -1,5 +1,7 @@
 # Frontend metrics baseline
 
+> Архивный snapshot. Текущие метрики пересчитываются перед каждым slice.
+
 **Дата:** 2026-07-23 (updated after Heat shell extract slice 3)  
 **Источник:** `wc -l` + `grep`.  
 **Обновлять:** после заметных shell/CSS slices (или weekly).

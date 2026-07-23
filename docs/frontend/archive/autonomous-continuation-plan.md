@@ -1,7 +1,10 @@
 # Автономный план продолжения frontend-рефакторинга
 
+> Архив: очередь закрытого этапа. Актуальная очередь находится в
+> `docs/frontend/refactor-backlog.md`.
+
 **Актуально на:** 2026-07-23  
-**Статус:** **исполняемый backlog** — единственный источник «что делать дальше» для агента.  
+**Исторический статус:** ранее исполняемый backlog; больше не маршрутизирует работу.  
 **Язык команд пользователя:** «продолжай», «дальше», «next slice», «выполни план» = **взять первый `pending` slice и выполнить до DoD**, без вопроса «что дальше?».
 
 ---
@@ -40,7 +43,7 @@
 
 ### Budget одного slice (жёстко)
 
-См. [pr-budget.md](./pr-budget.md):
+См. [pr-budget.md](../pr-budget.md):
 
 ```text
 max 1 page/shell file edited
@@ -165,7 +168,7 @@ Also fix baseline thick models line if present.
 ### Track C — CSS strangler (первый класс после thin shells)
 
 **Полный промпт/регламент slice:** [agent-prompt-css-strangler.md](./agent-prompt-css-strangler.md)  
-**Стратегия ownership:** [css-strategy.md](./css-strategy.md)
+**Стратегия ownership:** [css-strategy.md](../css-strategy.md)
 
 #### Правила Track C (из agent-prompt)
 
@@ -327,13 +330,13 @@ Page shell (`*Page.tsx`) = compose hooks + layout views only.
 | Doc | Роль |
 |---|---|
 | **Этот файл** | **очередь и автономия** |
-| [pr-budget.md](./pr-budget.md) | лимиты PR |
+| [pr-budget.md](../pr-budget.md) | лимиты PR |
 | [s0-lite-status.md](./s0-lite-status.md) | журнал выполненного |
 | [metrics-baseline.md](./metrics-baseline.md) | цифры |
 | [rewrite-plan.md](./rewrite-plan.md) | стратегический strangler |
 | [accelerated-rewrite-plan.md](./accelerated-rewrite-plan.md) | multi-agent day plan |
-| [llm-friendly-style.md](./llm-friendly-style.md) | стиль кода |
-| [css-strategy.md](./css-strategy.md) | CSS rules |
+| [llm-friendly-style.md](../llm-friendly-style.md) | стиль кода |
+| [css-strategy.md](../css-strategy.md) | CSS rules |
 | [hotspots.md](./hotspots.md) | где болит |
 
 ---

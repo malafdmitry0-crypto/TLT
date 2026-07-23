@@ -1,83 +1,100 @@
-# Frontend: планы рефакторинга и LLM-friendly стиль
+# Frontend TLT: разработка с coding agents
 
 **Актуально на:** 2026-07-23  
-**Контекст:** UI kit уже есть (`frontend/src/components/ui-kit/`), витрина `/ui-kit`, e2e parity kit↔Heat.  
-**Цель:** маленький явный граф зависимостей, тонкие shell-страницы, единый form layer, управляемый CSS.
+**Статус:** навигатор; нормативные правила находятся в стандарте.
 
-## S0-lite factory (done 2026-07-23)
+Frontend уже прошёл основной hardening: thin page shells, UI-kit, CSS freeze,
+architecture ratchets и agent gates существуют. Следующая цель — сохранять это
+состояние и выполнять изменения маленькими доказуемыми slices.
 
-| Gate | Command / file |
+## Начать здесь
+
+| Документ | Назначение |
 |---|---|
-| **Agent gates (G1)** | `cd frontend && npm run test:agent-gates` |
-| Architecture + wizard | `cd frontend && npm run test:architecture` |
-| S0 gates bundle | `cd frontend && npm run test:s0-gates` |
-| UI kit unit+integration | `cd frontend && npm run test:ui-kit` |
-| Parity e2e kit↔Heat | `cd e2e && E2E_BASE_URL=http://127.0.0.1:3003 npm run test:ui-kit-parity:chrome` |
-| PR budget | [pr-budget.md](./pr-budget.md) |
-| Metrics baseline | [metrics-baseline.md](./metrics-baseline.md) |
+| [`frontend/AGENTS.md`](../../frontend/AGENTS.md) | Короткий обязательный вход для агента |
+| [Стандарт разработки](./agent-development-standard.md) | Постоянные правила, DoD и hard stops |
+| [Мастер-промпт](./agent-refactor-prompt.md) | Полный исполняемый prompt одного refactoring slice |
+| [Актуальный backlog](./refactor-backlog.md) | Единственный источник `pending` |
+| [PR budget](./pr-budget.md) | Краткая памятка по размеру slice |
 
-**styles.css freeze:** stub only — no feature rules; net LOC ≤ 0 unless moving CSS out.
+Если пользователь задаёт конкретную цель, она определяет slice. Если цель не
+задана, агент берёт первый `pending` из backlog. Пустая очередь не разрешает
+придумывать рефакторинг — нужно запросить цель.
 
-## Что делать дальше (агент: не спрашивать)
+## Иерархия
 
-**Источник правды (post-M4 hardening):** [agent-hardening-plan.md](./agent-hardening-plan.md)  
-История thin-shell / CSS strangler: [autonomous-continuation-plan.md](./autonomous-continuation-plan.md)
+```text
+запрос пользователя и системные инструкции
+→ runtime-код, типы и тестовые контракты
+→ frontend/AGENTS.md
+→ agent-development-standard.md
+→ refactor-backlog.md
+→ тематические справочники
+→ archive/
+```
 
-| Команда | Поведение |
-|---|---|
-| «продолжай» / «дальше» / «continue» | до **3** pending slice по hardening-плану |
-| «один slice» | ровно 1 |
-| «стой» | stop |
+Архивные документы не задают очередь, текущие метрики или обязательные команды.
 
-**Сейчас:** Phase **P1** agent gates — pending **G2** (после G1).  
-Shells + CSS M4 закрыты; model-thin только после B9/G*.
-
-## Содержание
+## Тематические справочники
 
 | Документ | О чём |
 |---|---|
-| **[autonomous-continuation-plan.md](./autonomous-continuation-plan.md)** | **Очередь slice, автономия, stop rules** |
-| **[agent-hardening-plan.md](./agent-hardening-plan.md)** | **Закрытие красного baseline, agent gates, hotspots и готовые task-промпты** |
-| [pr-budget.md](./pr-budget.md) | Budget PR + proof commands |
-| [s0-lite-status.md](./s0-lite-status.md) | Журнал выполненных slices |
-| [metrics-baseline.md](./metrics-baseline.md) | LOC / inverted deps baseline |
-| [llm-friendly-style.md](./llm-friendly-style.md) | Как писать фронт, понятный людям и LLM |
-| [rewrite-plan.md](./rewrite-plan.md) | План strangler-миграции всего фронта |
-| [accelerated-rewrite-plan.md](./accelerated-rewrite-plan.md) | Ускоренный план, расчёт AI-команды и параллельные workstreams |
-| [hotspots.md](./hotspots.md) | Самые проблемные места |
-| [ui-kit.md](./ui-kit.md) | Что уже есть в UI kit; layout kit — нужен ли |
-| [css-strategy.md](./css-strategy.md) | Глобально vs в компоненте; упрощение CSS |
-| [refactoring-effectiveness.md](./refactoring-effectiveness.md) | Как сделать рефакторинг эффективным |
-| [agent-prompt-ui-kit-strangler.md](./agent-prompt-ui-kit-strangler.md) | Промпт для агента (миграция на kit) |
-| [agent-prompt-css-strangler.md](./agent-prompt-css-strangler.md) | Промпт отдельного CSS-агента: безопасное удаление legacy-дублей |
-| [ai-frontend-argument.md](./ai-frontend-argument.md) | Аргументы: ИИ и фронт при наличии системы |
+| [LLM-friendly стиль](./llm-friendly-style.md) | Колокация, pure models, явные зависимости |
+| [UI-kit](./ui-kit.md) | Публичный UI API и границы design system |
+| [CSS-стратегия](./css-strategy.md) | Ownership, tokens, feature roots и freeze `styles.css` |
+| [`components/ui-kit/README`](../../frontend/src/components/ui-kit/README.md) | Runtime-контракт UI-компонентов |
+| [Архив](./archive/README.md) | Завершённые планы, prompts и snapshots |
 
-## Быстрый старт для агента / разработчика
+Тематический документ может потребовать дополнительный proof, но не может
+ослабить стандарт.
 
-1. **Прочитать `agent-hardening-plan.md`** (текущая очередь + task-промпты).
-2. `pr-budget.md`, при необходимости `llm-friendly-style.md`.
-3. Не big-bang: budget PR (1 shell + 2 extract + 2 tests).
-4. UI полей — только `@/components/ui-kit`.
-5. `styles.css` — freeze stub (только delete/move).
-6. Proof: `npm run test:agent-gates` (+ focused suite slice).
+## Проверенные команды
 
-## Ключевые пути в коде
+```bash
+cd frontend
 
-```text
-frontend/src/components/ui-kit/     # design system (fields + primitives)
-frontend/src/components/form-controls/  # Tlt* implementation (re-export via ui-kit)
-frontend/src/pages/UIKitPage.tsx   # витрина /ui-kit
-frontend/src/pages/HeatCalcPage.tsx
-frontend/src/pages/ElecCalcPage.tsx
-frontend/src/pages/heatcalc/
-frontend/src/pages/electrical/
-frontend/src/styles.css            # FREEZE stub (feature CSS in styles/* + islands)
-frontend/src/styles/*.css          # app-base, calc-spreadsheet, actionbar, …
-e2e/tests/ui-kit-heatcalc-parity.spec.ts
+# Быстрый обязательный architecture/type/lint gate
+npm run test:agent-gates
+
+# Полный static + test + build proof
+npm run test:unit
+npm run test:integration
+npm run build
+
+# Узкие наборы
+npm run test:architecture
+npm run css:architecture
+npm run test:ui-kit
 ```
 
-## Иерархия решений
+Для видимого UI используй релевантный Playwright spec из `e2e/tests/`. Например:
 
-1. **Поведение** — код + тесты (не этот docs-набор как SoT runtime).
-2. **Этот каталог** — план и соглашения по рефакторингу фронта.
-3. Исторические `docs/audit/*` — evidence срезов, не текущий план.
+```bash
+cd e2e
+E2E_BASE_URL=http://127.0.0.1:3003 npm run test:ui-kit-parity:chrome
+```
+
+Недоступный обязательный browser proof означает `blocked`, а не `pass`.
+
+## Карта кода
+
+```text
+frontend/src/pages/heatcalc/          # Heat feature
+frontend/src/pages/electrical/        # Electrical feature
+frontend/src/pages/specification/     # Specification feature
+frontend/src/components/ui-kit/       # Feature-agnostic public UI
+frontend/src/domain/                  # Pure domain models
+frontend/src/api/                     # HTTP/query boundaries
+frontend/src/store/                   # Cross-screen client state
+frontend/src/theme/appTheme.ts         # Ant ConfigProvider theme SoT
+frontend/src/styles/tokens.css         # CSS custom properties only
+frontend/src/styles/base.css           # Document root + shared utilities
+frontend/src/styles/app-shell.css      # Application shell layout
+frontend/src/styles/vendor-overrides.css # App-wide third-party overrides
+frontend/src/styles.css               # Freeze-stub; новый feature CSS запрещён
+frontend/src/__tests__/unit/architecture/
+e2e/tests/
+```
+
+Массовый переход в новый `features/` namespace не запланирован. Улучшения идут
+strangler-подходом внутри текущих owner-зон.

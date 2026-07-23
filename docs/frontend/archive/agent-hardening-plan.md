@@ -1,8 +1,11 @@
 # План доведения frontend до agent-safe состояния
 
+> Архив: hardening завершён. Актуальная очередь находится в
+> `docs/frontend/refactor-backlog.md`.
+
 **Актуально на:** 2026-07-23  
 **Статус:** hardening DoD gates green; residual thin only  
-**Текущий pending:** none required — optional long-term only (`!important` ≤75, G3 allowlist shrink)  
+**Исторический pending:** none required — optional long-term only (`!important` ≤75, G3 allowlist shrink)  
 **Цель:** агент должен быстро находить владельца поведения, получать зелёную и
 однозначную обратную связь и не иметь возможности незаметно вернуть god-файлы,
 глобальный CSS или обратные зависимости.

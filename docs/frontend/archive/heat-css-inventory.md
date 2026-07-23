@@ -1,5 +1,7 @@
 # Heat CSS inventory (CSS1)
 
+> Архивный snapshot завершённого CSS split; line ranges больше не нормативны.
+
 **Актуально на:** 2026-07-23  
 **Owner file:** `frontend/src/pages/heatcalc/heatcalc-workspace.css` (~2561 LOC)  
 **Importer:** `HeatCalcWorkspaceLayout.tsx`  

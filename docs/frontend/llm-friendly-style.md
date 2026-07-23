@@ -2,6 +2,9 @@
 
 **Актуально на:** 2026-07-23
 
+> Тематический справочник. Обязательные workflow, budget, proof и hard stops:
+> [agent-development-standard.md](./agent-development-standard.md).
+
 ## Проблема
 
 Фронт — это **граф зависимостей + неявный runtime** (CSS cascade, hooks order, Ant context, router, query cache).  

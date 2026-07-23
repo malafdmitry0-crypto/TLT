@@ -1,5 +1,8 @@
 # Промпт агента: UI kit strangler (реальный экран)
 
+> Архив: специализированный промпт завершённого UI-kit этапа. Для новых slices
+> использовать `docs/frontend/agent-refactor-prompt.md`.
+
 Копировать в agent mode. Цель — один safe-split slice, не big-bang.
 
 ---

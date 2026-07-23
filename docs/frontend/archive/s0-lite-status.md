@@ -1,5 +1,7 @@
 # S0-lite execution status
 
+> Архивный status snapshot завершённого этапа.
+
 **Выполнено:** 2026-07-23  
 **Скоуп:** factory gates only (no Heat geometry migration).
 
@@ -11,7 +13,7 @@
 | `npm run test:s0-gates` | ✅ added + green (15 tests) |
 | `npm run test:ui-kit` | ✅ added + green (9 tests) |
 | e2e `test:ui-kit-parity` / `:chrome` | ✅ scripts in `e2e/package.json` |
-| [pr-budget.md](./pr-budget.md) | ✅ |
+| [pr-budget.md](../pr-budget.md) | ✅ |
 | [metrics-baseline.md](./metrics-baseline.md) | ✅ |
 | styles.css freeze documented | ✅ css-strategy + pr-budget |
 | architecture test pointer → docs/frontend | ✅ |

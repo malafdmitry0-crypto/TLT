@@ -1,70 +1,69 @@
-# PR budget — frontend refactor / UI kit
+# PR budget — frontend vertical slice
 
 **Актуально на:** 2026-07-23  
-**Статус:** S0-lite factory rule (обязателен для agent и human PR).
+**Статус:** краткая памятка; полный норматив —
+[agent-development-standard.md](./agent-development-standard.md).
 
-## Budget (строго)
+## Жёсткий budget
 
 ```text
-max 1 page/shell file edited
+max 1 page/shell file
 max 2 production helper/CSS files
-max 2 test files
-1 domain only: heat | electrical | specification | ui | shared
+max 2 test/architecture-baseline files
+1 feature-owner
 characterization first
-styles.css: net LOC ≤ 0 (prefer delete/move only)
+src/styles.css: net LOC ≤ 0
 ```
 
-Если нужно больше — **split PR** или stop + «Recommended next slice».
+Feature-owner: `heat`, `electrical`, `specification`, `reports`, `projects`,
+`admin`, `auth`, `ui`, `shared` или `css`. Это ownership, а не разрешение
+смешивать несколько зон в одном slice.
 
-## Domain isolation
+Если задача не помещается, раздели её и выполни только первую независимо
+проверяемую часть. Нельзя расширять budget после начала реализации.
 
-| Forbidden |
-|---|
-| heat ↔ electrical imports |
-| `components/*` → `pages/*` (кроме allowlist; **не расширять** без shrink plan) |
-| domain logic inside `ui-kit` |
-| new feature CSS in `styles.css` |
+## Запреты
 
-## Proof by change type
+- новые Heat ↔ Electrical ↔ Specification deep imports;
+- `components/hooks/utils → pages` за пределами существующего shrink-only
+  allowlist;
+- domain logic внутри UI-kit;
+- feature CSS в `src/styles.css`;
+- рост architecture baseline/allowlist внутри feature-slice;
+- изменение UX/API/query/routes/units/formulas/UUID semantics вне явного scope;
+- ослабление тестов или типизации.
 
-| Change | Minimum proof |
+## Минимальный proof
+
+| Изменение | Focused proof |
 |---|---|
-| pure model | unit |
-| ui-kit / form density | `npm run test:architecture` + UIKitLibrary + e2e ui-kit-parity |
-| Heat form / layout | parity e2e + focused heat form e2e if available |
-| Elec extract | focused electrical unit + relevant e2e |
-| CSS move | parity or screen smoke; styles.css not grown |
+| Pure model | Unit: happy path + edge/failure |
+| Workflow/hook | Unit + ближайший integration wiring test |
+| Dependency edge | Focused integration + `npm run test:architecture` |
+| UI-kit/form density | UI-kit tests + parity Playwright |
+| Feature layout/CSS | Focused UI test + desktop/narrow browser proof |
+| Route/query wiring | Relevant integration + e2e user flow |
 
-## Commands
+После focused proof всегда:
 
 ```bash
-# Architecture + wizard islands
-cd frontend && npm run test:architecture
-
-# UI kit unit
-cd frontend && npm test -- --run src/__tests__/unit/components/UIKitLibrary.test.tsx
-
-# UI kit ↔ Heat SC-03 parity (dev stack on :3003)
-cd e2e && E2E_BASE_URL=http://127.0.0.1:3003 npm run test:ui-kit-parity:chrome
+cd frontend
+npm run test:agent-gates
+npm run test:unit
+npm run test:integration
+npm run build
 ```
 
-## Agent prompt
+Для UI обязательны relevant Playwright, keyboard/focus, overflow,
+console/network audit. Без browser proof slice получает `blocked`.
 
-Full strangler prompt: [agent-prompt-ui-kit-strangler.md](./agent-prompt-ui-kit-strangler.md)
+## Git
 
-## Next recommended slice
+После полного DoD агент создаёт conventional production commit. Для backlog
+slice затем создаётся отдельный docs-only commit со статусом, метриками и hash
+production commit. Push — только по явному запросу пользователя.
 
-**Не угадывать.** Брать первый `pending` из  
-[agent-hardening-plan.md](./agent-hardening-plan.md).
+## Следующая задача
 
-Сейчас: optional long-term only (`!important` ≤75, G3 allowlist shrink).  
-ELEC workspace ≤650 and Glide host ≤700 closed.  
-Proof: `cd frontend && npm run test:agent-gates`.
-
-## Anti-goals
-
-- Layout kit
-- Glide rewrite «for beauty»
-- Rewrite frontend from scratch
-- Touch InsulationLayersTable without explicit request
-- Weaken test assertions
+Не хранится в этом документе. Единственный источник:
+[refactor-backlog.md](./refactor-backlog.md).
