@@ -854,3 +854,836 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* C22: dual-form field chrome (non-insulation) from styles.css */
+
+.heatcalc-context-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+  width: 100%;
+  min-height: 17px;
+  padding: 0 0 1px;
+  min-width: 0;
+}
+.inline-object-form {
+  margin-top: 0;
+  --inline-control-height: 24px;
+}
+.inline-object-form .inline-form-section-banner {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 18px;
+  margin: 0;
+  font-size: 8px;
+  color: #2f3d4f;
+  text-transform: uppercase;
+  letter-spacing: 0;
+  padding: 2px 6px;
+  background: #f8fbff;
+  border: 1px solid #dbe6f2;
+  border-bottom: 0;
+  border-radius: 7px 7px 0 0;
+}
+.inline-form-section-banner span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.inline-object-form--wide .object-wizard-wide-panel {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  /*
+   * Карточка облегает контент (поля + таблица изоляции ≈ max-content), а не
+   * растягивается на всю ширину колонки. Когда панель кабеля уходит вниз
+   * (≤1400px, dual-forms становится одноколоночным 1fr), это убирает пустой
+   * правый «хвост» ~475px внутри светло-голубой шапки «Расчёт теплопотерь».
+   * В режиме side-by-side (≥1440px) heat-колонка и так max-content — без изменений.
+   */
+  width: fit-content;
+  max-width: 100%;
+}
+@media (max-width: 1180px) {
+  .form-grid-srs {
+    flex-direction: column;
+    align-items: stretch;
+    overflow: visible;
+  }
+
+  .form-grid-srs .form-col-srs {
+    width: 100% !important;
+    min-width: 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    flex: none;
+  }
+
+  .form-grid-srs .form-col-srs--primary {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .heatcalc-form-pane--wide .inline-object-form--wide {
+    height: auto;
+  }
+
+  .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs,
+  .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "heat"
+      "spec"
+      "cable";
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    align-items: stretch;
+    overflow: visible;
+  }
+
+  .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs > .form-col-srs,
+  .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three > .form-col-srs {
+    flex: none;
+    width: auto !important;
+    max-width: none;
+    height: auto;
+    --field-input-min-width: 0px;
+    overflow: hidden;
+  }
+
+  .heatcalc-form-pane--wide .inline-object-form--wide .field-control-with-help,
+  .heatcalc-form-pane--wide .inline-object-form--wide .ant-input,
+  .heatcalc-form-pane--wide .inline-object-form--wide .ant-select,
+  .heatcalc-form-pane--wide .inline-object-form--wide .tlt-select,
+  .heatcalc-form-pane--wide .inline-object-form--wide .reference-picker-control,
+  .heatcalc-form-pane--wide .inline-object-form--wide .fixed-select-form-item .tlt-select,
+  .heatcalc-form-pane--wide .inline-object-form--wide .fixed-select-form-item .reference-picker-control,
+  .heatcalc-form-pane--wide .inline-object-form--wide .pipe-material-form-item .reference-picker-control {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .heatcalc-form-pane--wide .inline-object-form--wide .fixed-select-form-item .tlt-select,
+  .heatcalc-form-pane--wide .inline-object-form--wide .fixed-select-form-item .reference-picker-control,
+  .heatcalc-form-pane--wide .inline-object-form--wide .pipe-material-form-item .reference-picker-control {
+    width: 100%;
+  }
+
+  .heatcalc-form-pane--wide .inline-object-form--wide .ant-form-item-label > label {
+    display: block;
+    height: auto;
+    white-space: normal;
+  }
+
+  .heatcalc-form-pane--wide .inline-object-form--wide .ant-form-item-label > label > span {
+    overflow-wrap: normal;
+    word-break: normal;
+    white-space: normal;
+  }
+
+  .heatcalc-form-pane--wide .inline-object-form--wide .field-label-two-line {
+    display: block !important;
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  .heatcalc-form-pane--wide .inline-object-form--wide .field-label-two-line > span {
+    display: block;
+    max-width: 100%;
+    overflow-wrap: normal;
+    word-break: normal;
+    white-space: normal;
+  }
+
+  .form-col-resize-handle {
+    display: none;
+  }
+}
+@media (max-width: 720px) {
+  .form-grid-srs .form-col-srs {
+    grid-template-columns: 1fr !important;
+  }
+}
+.inline-object-form .ant-form-item {
+  display: block;
+  grid-column: 1 / -1;
+  overflow: visible;
+  margin-bottom: 0;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  min-height: 24px;
+  padding: 1px 2px;
+  box-sizing: border-box;
+}
+.inline-object-form .ant-form-item[hidden],
+.inline-object-form .ant-form-item-hidden {
+  display: none !important;
+  min-height: 0;
+  padding: 0;
+}
+.inline-object-form .ant-form-item-row {
+  display: grid;
+  grid-template-columns: minmax(var(--field-label-width, 104px), 1.1fr) minmax(var(--field-input-min-width, 160px), 1.4fr);
+  column-gap: 3px;
+  align-items: start;
+  width: 100%;
+  min-width: 0;
+}
+.inline-object-form {
+  --form-label-size: 8.5px;
+  --form-label-line-height: 1.0;
+  --dual-form-label-size: var(--form-label-size);
+  --dual-form-label-line-height: var(--form-label-line-height);
+}
+.inline-object-form .ant-form-item-label {
+  padding: 0;
+  width: auto;
+  min-width: 0;
+  overflow: visible;
+  line-height: var(--form-label-line-height);
+  grid-column: 1;
+  text-align: left;
+  white-space: nowrap;
+}
+.inline-object-form .ant-form-item-label > label {
+  display: flex;
+  align-items: flex-start;
+  gap: 3px;
+  min-height: 20px;
+  height: auto;
+  color: #4a5b6c;
+  font-size: var(--form-label-size);
+  line-height: var(--form-label-line-height);
+  margin-bottom: 0;
+  padding-top: 4px;
+  overflow: visible;
+  white-space: normal;
+}
+.inline-object-form .ant-form-item-label > label.ant-form-item-required::before {
+  display: none !important;
+  margin: 0 !important;
+  content: '' !important;
+}
+.inline-object-form .ant-form-item-label > label > span {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow: visible;
+  display: block;
+  hyphens: auto;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+}
+.inline-object-form .ant-form-item-label > label[data-field-help] {
+  position: relative;
+  overflow: visible;
+}
+.inline-object-form .ant-form-item-label > label[data-field-help]:not([data-field-help-floating])::after {
+  content: attr(data-field-help);
+  position: absolute;
+  z-index: 30;
+  left: 0;
+  bottom: calc(100% + 6px);
+  width: max-content;
+  max-width: min(320px, 70vw);
+  padding: 5px 7px;
+  border-radius: 2px;
+  background: rgba(45, 45, 45, 0.94);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.35;
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  white-space: normal;
+  transition:
+    opacity 0.12s ease 0.35s,
+    visibility 0s linear 0.47s;
+}
+.inline-object-form .ant-form-item-label > label[data-field-help]:not([data-field-help-floating]):hover::after {
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 0.35s, 0s;
+}
+.inline-object-form .field-label-two-line {
+  display: block !important;
+  gap: 0;
+  line-height: var(--form-label-line-height, 1.0);
+  max-width: 100%;
+}
+.inline-object-form .field-label-two-line > span {
+  display: block;
+  max-width: 100%;
+  hyphens: auto;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  word-break: break-word;
+}
+.inline-object-form .ant-form-item-control {
+  min-width: 0;
+  width: max-content;
+}
+.inline-object-form .ant-form-item-control-input {
+  min-height: 0;
+  height: var(--inline-control-height);
+  display: flex;
+  align-items: stretch;
+}
+.inline-object-form .ant-form-item-control-input-content {
+  flex: 1;
+  height: var(--inline-control-height);
+  min-width: 0;
+  display: flex;
+  align-items: stretch;
+}
+.inline-object-form .helped-form-item .ant-form-item-control,
+.inline-object-form .helped-form-item .ant-form-item-control-input,
+.inline-object-form .helped-form-item .ant-form-item-control-input-content {
+  display: contents;
+}
+.inline-object-form .field-control-with-help {
+  grid-column: 2;
+  position: relative;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+.inline-object-form .field-control-with-help > :not(.anticon) {
+  max-width: 100%;
+}
+.inline-object-form .ant-input {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: var(--field-input-min-width, 160px);
+  height: var(--inline-control-height);
+  padding: 0 4px;
+  font-size: 10px;
+  border-radius: 2px;
+  box-sizing: border-box;
+  line-height: calc(var(--inline-control-height) - 2px);
+}
+.inline-object-form .ant-form-item-has-warning .ant-form-item-explain,
+.inline-object-form .ant-form-item-has-warning .ant-form-item-extra {
+  display: none;
+  min-height: 0;
+}
+.inline-object-form .ant-form-item-has-error .ant-form-item-label > label {
+  color: #cf1322;
+}
+.inline-object-form .ant-form-item-has-error .ant-input:not([disabled]),
+.inline-object-form .ant-form-item-has-error .ant-input-number:not(.ant-input-number-disabled),
+.inline-object-form .ant-form-item-has-error .tlt-number-field__input:not([disabled]),
+.inline-object-form .ant-form-item-has-error .tlt-text-field__input:not([disabled]),
+.inline-object-form .ant-form-item-has-error .tlt-select__trigger:not([disabled]),
+.inline-object-form .ant-form-item-has-error .ant-select:not(.ant-select-disabled) .ant-select-selector,
+.inline-object-form .ant-form-item-has-error .reference-picker-control:not(.reference-picker-control--disabled) {
+  border-color: #ff4d4f !important;
+  background-color: #fff1f0;
+}
+.inline-object-form .ant-form-item-has-error .reference-picker-control:not(.reference-picker-control--disabled):hover,
+.inline-object-form .ant-form-item-has-error .reference-picker-control:not(.reference-picker-control--disabled):focus {
+  border-color: #ff7875 !important;
+}
+.inline-object-form .ant-form-item-explain-error:empty {
+  display: none;
+}
+.inline-object-form .ant-select {
+  width: 100%;
+  min-width: var(--field-input-min-width, 160px);
+  height: var(--inline-control-height);
+  flex: 1;
+}
+.inline-object-form .tlt-select {
+  width: 100%;
+  min-width: var(--field-input-min-width, 160px);
+  height: var(--inline-control-height);
+  flex: 1;
+}
+.inline-object-form .reference-picker-control {
+  width: 100%;
+  min-width: var(--field-input-min-width, 160px);
+  height: var(--inline-control-height);
+  min-height: var(--inline-control-height);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex: 1;
+  padding: 0 4px;
+  border: 1px solid #d9d9d9;
+  border-radius: 2px;
+  background: #fff;
+  color: #1f1f1f;
+  box-sizing: border-box;
+  cursor: pointer;
+  outline: none;
+}
+.inline-object-form .reference-picker-control:hover,
+.inline-object-form .reference-picker-control:focus {
+  border-color: #4096ff;
+}
+.inline-object-form .reference-picker-control--required {
+  box-shadow: inset 2px 0 0 #d48806;
+  background-color: #fffdf6;
+}
+.inline-object-form .reference-picker-control--disabled {
+  color: rgba(0, 0, 0, 0.25);
+  background: #f5f5f5;
+  cursor: not-allowed;
+}
+.inline-object-form .reference-picker-value {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 9px;
+  line-height: calc(var(--inline-control-height) - 2px);
+}
+.inline-object-form .reference-picker-placeholder {
+  color: #595959;
+}
+.inline-object-form .reference-picker-icon,
+.inline-object-form .reference-picker-clear {
+  flex: 0 0 auto;
+  color: #b5c0ca;
+  font-size: 12px;
+  line-height: 1;
+}
+.inline-object-form .reference-picker-control:hover .reference-picker-icon,
+.inline-object-form .reference-picker-control:focus .reference-picker-icon,
+.inline-object-form .reference-picker-clear:hover {
+  color: #6c7e8f;
+}
+.inline-object-form .ant-select-single {
+  height: var(--inline-control-height);
+}
+.inline-object-form .ant-select-single .ant-select-selector {
+  height: var(--inline-control-height) !important;
+  padding: 0 4px !important;
+  border-radius: 2px;
+  box-sizing: border-box;
+}
+.inline-object-form .ant-select-selection-item,
+.inline-object-form .ant-select-selection-placeholder {
+  font-size: 9px;
+  line-height: calc(var(--inline-control-height) - 2px) !important;
+}
+.inline-object-form .ant-select-single.ant-select-show-arrow .ant-select-selection-item,
+.inline-object-form .ant-select-single.ant-select-show-arrow .ant-select-selection-placeholder {
+  padding-inline-end: 10px !important;
+}
+.inline-object-form .ant-select .ant-select-arrow {
+  inset-inline-end: 3px;
+  width: 10px;
+  height: 10px;
+  color: #b5c0ca;
+  font-size: 10px;
+  transition: color 0.15s ease;
+}
+.inline-object-form .ant-select .ant-select-arrow .anticon,
+.inline-object-form .ant-select .ant-select-arrow svg {
+  width: 10px;
+  height: 10px;
+  font-size: 10px;
+}
+.inline-object-form .ant-select:hover .ant-select-arrow,
+.inline-object-form .ant-select-focused .ant-select-arrow,
+.inline-object-form .ant-select-open .ant-select-arrow {
+  color: #6c7e8f;
+}
+.inline-object-form .ant-select-disabled .ant-select-arrow {
+  color: #c7cfd6;
+}
+.inline-object-form .ant-select-single .ant-select-selector .ant-select-selection-search-input {
+  height: calc(var(--inline-control-height) - 2px) !important;
+}
+.inline-object-form .tlt-select__trigger {
+  height: var(--inline-control-height);
+  padding: 0 4px;
+  border-radius: 2px;
+}
+.inline-object-form .tlt-select__value {
+  font-size: 9px;
+  line-height: calc(var(--inline-control-height) - 2px);
+}
+.inline-object-form .tlt-select__arrow {
+  margin-inline-start: 4px;
+  border-inline-start-width: 3px;
+  border-inline-end-width: 3px;
+  border-block-start-width: 4px;
+}
+.inline-object-form .ant-input-number {
+  height: var(--inline-control-height);
+  width: calc(var(--numeric-value-width, 6ch) + 22px);
+  min-width: calc(var(--numeric-value-width, 6ch) + 22px);
+  border-radius: 2px;
+  box-sizing: border-box;
+}
+.unit-input-number .tlt-number-field__input,
+.inline-object-form .unit-input-number .tlt-number-field__input {
+  flex: 1 1 auto;
+  min-width: 0 !important;
+}
+.inline-object-form .unit-input-number {
+  height: var(--inline-control-height);
+}
+.inline-object-form .unit-input-number .ant-input-number {
+  height: var(--inline-control-height);
+  width: calc(var(--numeric-value-width, 6ch) + 22px);
+  min-width: calc(var(--numeric-value-width, 6ch) + 22px);
+}
+.inline-object-form .unit-input-number .tlt-number-field__input,
+.inline-object-form .tlt-number-field__input {
+  height: var(--inline-control-height);
+  width: calc(var(--numeric-value-width, 6ch) + 22px);
+  min-width: calc(var(--numeric-value-width, 6ch) + 22px);
+  padding: 0 3px;
+  font-size: 10px;
+  line-height: calc(var(--inline-control-height) - 2px);
+}
+.inline-object-form .ant-input-number-input-wrap {
+  height: calc(var(--inline-control-height) - 2px);
+}
+.inline-object-form .ant-input-number-input {
+  height: calc(var(--inline-control-height) - 2px);
+  padding: 0 3px;
+  font-size: 10px;
+  line-height: calc(var(--inline-control-height) - 2px);
+}
+.inline-object-form .unit-input-number__addon {
+  height: var(--inline-control-height);
+  font-size: 9px;
+  padding: 0 3px;
+  line-height: calc(var(--inline-control-height) - 2px);
+  vertical-align: middle;
+  box-sizing: border-box;
+  border-radius: 0 2px 2px 0;
+  white-space: nowrap;
+}
+.inline-object-form .ant-form-item-explain,
+.inline-object-form .ant-form-item-extra {
+  font-size: 9px;
+  grid-column: 2;
+}
+.inline-object-form .field-source-tag {
+  margin: 0;
+  padding: 0 3px;
+  font-size: 8px;
+  line-height: 12px;
+  color: #5d7180;
+  border-color: #d5dde3;
+  background: #f8fafb;
+}
+.inline-object-form .fit-label-form-item {
+  grid-column: auto;
+  width: 100%;
+  min-width: 0;
+}
+.inline-object-form .numeric-form-item {
+  grid-column: auto;
+  width: 100%;
+  min-width: 0;
+}
+.inline-object-form .compact-select-form-item {
+  grid-column: auto;
+  width: 100%;
+  min-width: 0;
+}
+.inline-object-form .medium-select-form-item {
+  grid-column: auto;
+  width: 100%;
+  min-width: 0;
+}
+.inline-object-form .layer-count-form-item {
+  grid-column: auto;
+  width: 100%;
+  min-width: 0;
+}
+.inline-object-form .fit-label-form-item .ant-form-item-row,
+.inline-object-form .numeric-form-item .ant-form-item-row,
+.inline-object-form .compact-select-form-item .ant-form-item-row,
+.inline-object-form .medium-select-form-item .ant-form-item-row,
+.inline-object-form .layer-count-form-item .ant-form-item-row {
+  grid-template-columns: minmax(var(--compact-field-label-width, 84px), 1fr) max-content;
+}
+.inline-object-form .fit-label-form-item .ant-form-item-label,
+.inline-object-form .numeric-form-item .ant-form-item-label,
+.inline-object-form .compact-select-form-item .ant-form-item-label,
+.inline-object-form .medium-select-form-item .ant-form-item-label,
+.inline-object-form .layer-count-form-item .ant-form-item-label {
+  width: auto;
+  min-width: 0;
+}
+.inline-object-form .fit-label-form-item .ant-form-item-control,
+.inline-object-form .fit-label-form-item .ant-form-item-control-input,
+.inline-object-form .fit-label-form-item .ant-form-item-control-input-content,
+.inline-object-form .numeric-form-item .ant-form-item-control,
+.inline-object-form .numeric-form-item .ant-form-item-control-input,
+.inline-object-form .numeric-form-item .ant-form-item-control-input-content,
+.inline-object-form .compact-select-form-item .ant-form-item-control,
+.inline-object-form .compact-select-form-item .ant-form-item-control-input,
+.inline-object-form .compact-select-form-item .ant-form-item-control-input-content,
+.inline-object-form .medium-select-form-item .ant-form-item-control,
+.inline-object-form .medium-select-form-item .ant-form-item-control-input,
+.inline-object-form .medium-select-form-item .ant-form-item-control-input-content,
+.inline-object-form .layer-count-form-item .ant-form-item-control,
+.inline-object-form .layer-count-form-item .ant-form-item-control-input,
+.inline-object-form .layer-count-form-item .ant-form-item-control-input-content {
+  width: max-content;
+  min-width: 0;
+}
+.inline-object-form .fit-label-form-item .ant-input,
+.inline-object-form .fit-label-form-item .ant-select,
+.inline-object-form .fit-label-form-item .tlt-select,
+.inline-object-form .fit-label-form-item .reference-picker-control,
+.inline-object-form .numeric-form-item .ant-input,
+.inline-object-form .numeric-form-item .ant-select,
+.inline-object-form .numeric-form-item .tlt-select,
+.inline-object-form .numeric-form-item .reference-picker-control,
+.inline-object-form .compact-select-form-item .ant-select,
+.inline-object-form .compact-select-form-item .tlt-select,
+.inline-object-form .compact-select-form-item .reference-picker-control,
+.inline-object-form .medium-select-form-item .ant-select,
+.inline-object-form .medium-select-form-item .tlt-select,
+.inline-object-form .medium-select-form-item .reference-picker-control,
+.inline-object-form .layer-count-form-item .ant-select,
+.inline-object-form .layer-count-form-item .tlt-select {
+  width: max-content;
+  min-width: var(--field-input-min-width, 104px);
+}
+.inline-object-form .compact-select-form-item .ant-select,
+.inline-object-form .compact-select-form-item .tlt-select {
+  width: 88px;
+  min-width: 88px;
+}
+.inline-object-form .compact-select-form-item .reference-picker-control {
+  width: 88px;
+  min-width: 88px;
+}
+.inline-object-form .medium-select-form-item .ant-select,
+.inline-object-form .medium-select-form-item .tlt-select {
+  width: 128px;
+  min-width: 128px;
+}
+.inline-object-form .medium-select-form-item .reference-picker-control {
+  width: 128px;
+  min-width: 128px;
+}
+.inline-object-form .environment-form-item .ant-select,
+.inline-object-form .environment-form-item .tlt-select {
+  flex: 0 0 94px;
+  width: 94px;
+  min-width: 94px;
+}
+.heatcalc-workspace-layout--left .inline-object-form .environment-form-item .field-control-with-help,
+.heatcalc-workspace-layout--right .inline-object-form .environment-form-item .field-control-with-help {
+  width: max-content;
+  max-width: none;
+}
+.inline-object-form .layer-material-form-item .ant-select {
+  width: 128px;
+  min-width: 128px;
+}
+.inline-object-form .layer-material-form-item .reference-picker-control {
+  width: 128px;
+  min-width: 128px;
+}
+.inline-object-form .layer-material-form-item .ant-form-item-row {
+  grid-template-columns: var(--compact-field-label-width, 84px) max-content;
+}
+.inline-object-form .second-layer-thickness-form-item {
+  grid-column: 1;
+}
+.inline-object-form .layer-count-form-item .ant-select,
+.inline-object-form .layer-count-form-item .tlt-select {
+  width: 94px;
+  min-width: 94px;
+}
+.inline-object-form .fit-label-form-item .ant-input-number,
+.inline-object-form .fit-label-form-item .ant-input-number-group-wrapper,
+.inline-object-form .numeric-form-item .ant-input-number,
+.inline-object-form .numeric-form-item .ant-input-number-group-wrapper {
+  min-width: 0;
+}
+.inline-object-form .fixed-select-form-item .reference-picker-control {
+  width: 100%;
+  min-width: var(--field-input-min-width, 160px);
+}
+.inline-object-form .insulation-temperature-basis-form-item .ant-form-item-row {
+  grid-template-columns: minmax(112px, 1fr) minmax(180px, 1.3fr);
+}
+.inline-object-form .insulation-temperature-basis-form-item .ant-form-item-label {
+  width: auto;
+  min-width: 0;
+}
+.inline-object-form .insulation-temperature-basis-form-item .ant-select {
+  min-width: 180px;
+}
+.inline-object-form .insulation-temperature-basis-form-item .field-label-two-line > span {
+  overflow-wrap: normal;
+  word-break: normal;
+}
+.inline-object-form .reduced-select-form-item .ant-form-item-row {
+  grid-template-columns: minmax(var(--field-label-width, 104px), 1fr) minmax(var(--field-input-min-width, 160px), 1.2fr);
+}
+.inline-object-form .temperature-group-form-item {
+  grid-column: auto;
+  width: 100%;
+  min-width: 0;
+}
+.inline-object-form .temperature-group-form-item .ant-form-item-row {
+  grid-template-columns: var(--compact-field-label-width, 84px) max-content;
+}
+.inline-object-form .temperature-group-form-item .ant-form-item-label {
+  width: var(--compact-field-label-width, 84px);
+}
+.inline-object-form .temperature-group-form-item .ant-form-item-control,
+.inline-object-form .temperature-group-form-item .ant-form-item-control-input,
+.inline-object-form .temperature-group-form-item .ant-form-item-control-input-content {
+  width: max-content;
+  min-width: 0;
+}
+.inline-object-form .temperature-group-form-item .ant-select,
+.inline-object-form .temperature-group-form-item .tlt-select {
+  width: 44px;
+  min-width: 44px;
+}
+.inline-object-form .short-number-form-item {
+  --numeric-value-width: 4ch;
+}
+.inline-object-form .temperature-number-form-item {
+  --numeric-value-width: 4ch;
+}
+.inline-object-form .coefficient-form-item {
+  --numeric-value-width: 5ch;
+}
+.inline-object-form .insulation-temperature-range-form-item {
+  --field-input-min-width: 96px;
+}
+.inline-object-form .insulation-temperature-range-form-item .ant-input {
+  min-width: 96px;
+  width: 96px;
+}
+.inline-object-form .temperature-range-picker-control {
+  width: 96px;
+  min-width: 96px;
+  max-width: 96px;
+}
+.inline-object-form .tank-size-form-item {
+  --numeric-value-width: 5ch;
+}
+.inline-object-form .long-number-form-item {
+  --numeric-value-width: 6ch;
+}
+.inline-object-form .fitting-count-form-item .ant-input-number-group-wrapper {
+  width: 86px;
+}
+.inline-object-form .fitting-count-form-item .ant-input-number {
+  width: 52px;
+}
+.inline-object-form--wide .object-wizard-wide-panel .ant-form-item {
+  min-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.inline-object-form--wide .object-wizard-wide-panel .insulation-temperature-basis-form-item {
+  flex: 1 1 calc(100% - 228px);
+  min-width: 0;
+}
+.inline-object-form--wide .object-wizard-wide-panel .form-col-srs--insulation {
+  gap: 4px 0;
+}
+.inline-object-form--wide .object-wizard-wide-panel .form-grid-srs--pdf-three > .form-col-srs--insulation {
+  display: flex;
+  overflow: hidden;
+}
+.inline-object-form .insulation-reference-value {
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+  color: #40566f;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide .ant-form-item-label > label > span {
+  overflow: hidden;
+  hyphens: none;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+@media (max-width: 1180px) {
+  .heatcalc-form-pane--wide .inline-object-form--wide .ant-form-item-label > label {
+    display: block;
+    height: auto;
+    white-space: normal;
+  }
+
+  .heatcalc-form-pane--wide .inline-object-form--wide .ant-form-item-label > label > span {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: normal;
+  }
+
+  .heatcalc-form-pane--wide .inline-object-form--wide .field-label-two-line {
+    display: block !important;
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  .heatcalc-form-pane--wide .inline-object-form--wide .field-label-two-line > span {
+    display: block;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: normal;
+  }
+}
+.heatcalc-column-resizing,
+.heatcalc-column-resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+.reference-picker-modal .ant-modal-body {
+  padding-top: 8px;
+}
+.reference-picker-group-filter {
+  flex: 0 0 240px;
+}
+.reference-picker-list {
+  display: grid;
+  gap: 4px;
+  max-height: min(55vh, 460px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.reference-picker-loading,
+.reference-picker-empty {
+  padding: 28px 0;
+}
+
+/* C22b: remaining dual-form layout (non table-insulation) */
+
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layer-index {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+  color: #214c78;
+  font-size: var(--ins-font, 12px);
+  font-weight: 700;
+}

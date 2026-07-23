@@ -57,7 +57,7 @@ Full strangler prompt: [agent-prompt-ui-kit-strangler.md](./agent-prompt-ui-kit-
 **Не угадывать.** Брать первый `pending` из  
 [autonomous-continuation-plan.md](./autonomous-continuation-plan.md) §3–§4.
 
-Сейчас: **Track C CSS** (C22 residual dual-form/insulation page-scope; M4 ✅ 1974) по  
+Сейчас: **Track C CSS** (C23 insulation page-scope residual only; M4 ✅ 868) по  
 [agent-prompt-css-strangler.md](./agent-prompt-css-strangler.md).
 
 ## Anti-goals

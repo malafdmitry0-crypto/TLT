@@ -82,7 +82,7 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | `ElecCalcWorkspace.tsx` | **192** | ≤500 ✅ |
 | `HeatCalcPage.tsx` | **280** | ≤500 ✅ |
 | `specification/SpecificationPage.tsx` | **398** | ≤500 ✅ |
-| `styles.css` | **1974** | ≤3000 (M4) ✅ · stretch ≤2000 |
+| `styles.css` | **868** | ≤3000 (M4) ✅ · residual ≈ insulation page-scope |
 | inverted `components→pages` | **0** | 0 ✅ |
 | thick models (Heat/Elec/Spec) | 829 / 1112 / 511 | optional deeper thin |
 
@@ -130,7 +130,7 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | **E17** | `done` | useElecCalcWorkspaceModel | workspace view 191 ≤500 | smoke | model ~1112 |
 
 **Метрика shell:** `ElecCalcPage` = **30**. `ElecCalcWorkspace` = **1194** (M1 workspace ✅).  
-**Текущий пункт:** **C22+** remaining inline-object-form / insulation page-scope residual
+**Текущий пункт:** **C23+** insulation page-scope residual only (kill-list careful)
 
 ### Track H — Heat
 
@@ -198,7 +198,8 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 | **C20** | `done` | glide, form-col h4, print, cable-picker, select dropdown | calc-spreadsheet / form-grid / print / elec | arch+wizard+glide | — |
 | **M4** | `done` | `styles.css` ≤3000 | **2788→1974** | arch suite | from 6777 peak / 6263 post-C4 |
 | **C21** | `done` | tlt controls + side shell + misc chrome + field geom maps | `tlt-form-controls.css`, heatcalc-workspace, table-chrome | arch+wizard+FormControls | **styles 2788→1974 (−814)**; no geom into heat-object-fields island |
-| **C22+** | `pending` | residual inline-object-form + insulation page-scope | careful; InsulationLayers kill-list | until further shrink | dual-form field chrome + insulation page maps |
+| **C22** | `done` | dual-form field chrome + app-base tokens | heatcalc-workspace + `app-base.css` | arch+wizard+FormControls 53 | **styles 1974→868 (−1106)**; residual mainly insulation page-scope |
+| **C23+** | `pending` | insulation page-scope residual in styles | only with explicit SoT / no island rewrite | arch+wizard | kill-list InsulationLayersTable |
 
 Budget CSS: **только** delete/move; `styles.css` net LOC ≤ 0.
 

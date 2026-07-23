@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ConfigProvider, theme } from 'antd';
 import ruRU from 'antd/locale/ru_RU';
 import App from './App';
+import './styles/app-base.css';
 import './styles.css';
 import './styles/calc-spreadsheet.css';
 import './styles/actionbar-srs.css';
