@@ -48,12 +48,11 @@ const GLOBAL_CSS_ENTRIES = new Set([
 export const GLOBAL_CSS_IMPORT_ORDER = [
   './styles/tokens.css',
   './styles/base.css',
-  './styles/app-shell.css',
+  './styles/app-shell.css', // includes former app-header chrome
   './styles/vendor-overrides.css',
   './styles.css',
   './styles/calc-spreadsheet.css',
   './styles/actionbar-srs.css',
-  './styles/app-header.css',
   './styles/table-chrome.css',
   './styles/form-grid-srs.css',
   './styles/print.css',

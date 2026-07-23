@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "slice": "CSS-layers-architecture",
-  "description": "CSS architecture after tokens/base/app-shell/vendor layers + raw color floor",
+  "slice": "CSS-shell-imp-burn",
+  "description": "After app-header→app-shell merge and !important 55",
   "stylesCssMaxLoc": 30,
   "newFileLocCap": 400,
   "files": {
@@ -101,14 +101,14 @@
       "media": 0
     },
     "src/styles/app-header.css": {
-      "loc": 272,
-      "bareAnt": 0,
-      "media": 3
-    },
-    "src/styles/app-shell.css": {
-      "loc": 10,
+      "loc": 6,
       "bareAnt": 0,
       "media": 0
+    },
+    "src/styles/app-shell.css": {
+      "loc": 283,
+      "bareAnt": 0,
+      "media": 3
     },
     "src/styles/base.css": {
       "loc": 16,
@@ -157,7 +157,7 @@
     }
   },
   "totals": {
-    "loc": 9268,
+    "loc": 9275,
     "bareAnt": 18,
     "media": 40
   },
@@ -178,7 +178,7 @@
     "src/pages/ui-kit.css": 96,
     "src/pages/workflow-params.css": 2,
     "src/styles/actionbar-srs.css": 12,
-    "src/styles/app-header.css": 22,
+    "src/styles/app-shell.css": 22,
     "src/styles/calc-spreadsheet.css": 71,
     "src/styles/form-grid-srs.css": 13,
     "src/styles/print.css": 2,

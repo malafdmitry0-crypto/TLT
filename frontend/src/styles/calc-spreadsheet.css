@@ -307,7 +307,7 @@
 }
 .calc-spreadsheet .ant-table-cell {
   box-sizing: border-box;
-  border-right: 1px solid var(--heatcalc-table-grid-border) !important;
+  border-right: 1px solid var(--heatcalc-table-grid-border);
 }
 .calc-spreadsheet .ant-table-cell .ant-typography,
 .calc-spreadsheet .ant-select,
@@ -456,10 +456,10 @@
 }
 .excel-virtual-table-body .ant-table-tbody > tr > td,
 .excel-virtual-table-body .ant-table-thead > tr > th {
-  border-right: 1px solid var(--heatcalc-table-grid-border) !important;
+  border-right: 1px solid var(--heatcalc-table-grid-border);
 }
 .excel-virtual-table-body .ant-table-tbody > tr > td {
-  border-bottom: 1px solid var(--heatcalc-table-grid-border) !important;
+  border-bottom: 1px solid var(--heatcalc-table-grid-border);
 }
 .excel-virtual-table-body .ant-table-cell-ellipsis {
   overflow: hidden;

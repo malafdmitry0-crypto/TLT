@@ -76,12 +76,12 @@
   display: none;
 }
 .workspace-table-card .ant-table-thead > tr > th {
-  padding-top: var(--heatcalc-table-header-padding-y, 2px) !important;
-  padding-bottom: var(--heatcalc-table-header-padding-y, 2px) !important;
+  padding-top: var(--heatcalc-table-header-padding-y, 2px);
+  padding-bottom: var(--heatcalc-table-header-padding-y, 2px);
 }
 .workspace-table-card .ant-table-tbody > tr > td {
-  padding-top: var(--heatcalc-table-cell-padding-y, 1px) !important;
-  padding-bottom: var(--heatcalc-table-cell-padding-y, 1px) !important;
+  padding-top: var(--heatcalc-table-cell-padding-y, 1px);
+  padding-bottom: var(--heatcalc-table-cell-padding-y, 1px);
 }
 
 @media (max-width: 1400px) {

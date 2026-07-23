@@ -166,7 +166,7 @@
   height: var(--tlt-field-control-height) !important;
   min-height: var(--tlt-field-control-height) !important;
   padding: 0 var(--tlt-field-control-padding-inline, 3px);
-  border-radius: var(--tlt-field-radius) !important;
+  border-radius: var(--tlt-field-radius);
   font-size: var(--tlt-field-control-font-size) !important;
   line-height: calc(var(--tlt-field-control-height) - 2px) !important;
   box-sizing: border-box;
@@ -361,7 +361,7 @@
   min-height: 0;
   margin: 0;
   font-size: var(--tlt-field-message-font-size) !important;
-  line-height: 1.3 !important;
+  line-height: 1.3;
 }
 
 .tlt-compact-field-grid--ant-form .ant-input,
@@ -390,7 +390,7 @@
 .tlt-compact-field-grid--ant-form .reference-picker-control {
   height: var(--tlt-field-control-height) !important;
   min-height: var(--tlt-field-control-height) !important;
-  border-radius: var(--tlt-field-radius) !important;
+  border-radius: var(--tlt-field-radius);
   font-size: var(--tlt-field-control-font-size) !important;
 }
 
