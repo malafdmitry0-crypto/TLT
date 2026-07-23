@@ -139,22 +139,22 @@ baseline для повышения лимитов.
 
 ### P2 — сузить типовой и dependency context
 
-- [ ] **AF9-TYPE-HEAT-TOOLBARS-01 — типизировать `HeatCalcPageToolbarsProps`.**
+- [x] **AF9-TYPE-HEAT-TOOLBARS-01 — типизировать `HeatCalcPageToolbarsProps`.**
 
   Заменить `Record<string, any>` на explicit data/events contract; не
   переносить Heat behavior и не добавлять broad casts.
 
-- [ ] **AF9-TYPE-HEAT-OVERLAYS-01 — типизировать `HeatCalcPageOverlaysProps`.**
+- [x] **AF9-TYPE-HEAT-OVERLAYS-01 — типизировать `HeatCalcPageOverlaysProps`.**
 
   Разделить modal state и events явными props; сохранить focus, close и
   unsaved-changes semantics.
 
-- [ ] **AF9-TYPE-SPEC-CHROME-01 — типизировать `SpecPageChromeProps`.**
+- [x] **AF9-TYPE-SPEC-CHROME-01 — типизировать `SpecPageChromeProps`.**
 
   Props-in/events-out без `any`, нового feature barrel или изменения
   generate/export workflow.
 
-- [ ] **AF9-TYPE-ELEC-MODALS-01 — типизировать `ElecCalcWorkspaceModalsProps`.**
+- [x] **AF9-TYPE-ELEC-MODALS-01 — типизировать `ElecCalcWorkspaceModalsProps`.**
 
   Выполнять только после `AF9-ELEC-REG-01`; сохранить modal lifecycle,
   selection identity и recalculation semantics.
