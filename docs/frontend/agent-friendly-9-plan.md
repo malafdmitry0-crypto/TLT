@@ -1,6 +1,6 @@
 # Frontend TLT: план достижения agent-friendly 9/10
 
-**Статус:** BLOCKED — Electrical correctness ещё не восстановлена
+**Статус:** IN PROGRESS — P2 closed, P3/P4 remaining
 
 **Актуально на:** 2026-07-24
 
@@ -159,27 +159,27 @@ baseline для повышения лимитов.
   Выполнять только после `AF9-ELEC-REG-01`; сохранить modal lifecycle,
   selection identity и recalculation semantics.
 
-- [ ] **AF9-ELEC-CONTRACT-01 — разделить Electrical presentation input.**
+- [x] **AF9-ELEC-CONTRACT-01 — разделить Electrical presentation input.**
 
   Плоский 58-field source заменить шестью consumer-owned группами:
   `core`, `table`, `candidate`, `catalog/recalculation`, `settings`, `modals`.
   На границе mapper/assembly не остаётся `any`, `as never` или
   `as unknown as`; query, UUID, persistence и calculation semantics неизменны.
 
-- [ ] **AF9-CONTEXT-GATE-01 — добавить import-context ratchet.**
+- [x] **AF9-CONTEXT-GATE-01 — добавить import-context ratchet.**
 
   Для нового production-файла предел — 20 imports. Файлы выше предела получают
   точный shrink-only baseline: добавление import или stale завышенный limit
   падает с `FILE / CURRENT / LIMIT / FIX`.
 
-- [ ] **AF9-TYPE-GATE-01 — запретить новый type escape debt.**
+- [x] **AF9-TYPE-GATE-01 — запретить новый type escape debt.**
 
   Architecture gate отклоняет новые `as unknown as`, `as never`,
   `@ts-ignore` и локальное отключение `no-explicit-any`. Допустимы только
   зарегистрированные third-party adapters с owner/reason; baseline не растёт
   и удаляет stale entries.
 
-- [ ] **AF9-ARTIFACT-01 — убрать TypeScript build artifact из Git.**
+- [x] **AF9-ARTIFACT-01 — убрать TypeScript build artifact из Git.**
 
   `frontend/tsconfig.tsbuildinfo` перестаёт отслеживаться, соответствующий
   pattern игнорируется, а typecheck/build не оставляют dirty tree.
