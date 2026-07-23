@@ -1,33 +1,40 @@
 # Frontend refactor backlog
 
-**Статус:** единственная активная очередь  
-**Актуально на:** 2026-07-23  
-**Режим:** optional long-term maintenance; обязательный hardening завершён.
+**Статус:** CLOSED  
+**Закрыт:** 2026-07-23  
+**Режим:** обязательный hardening и residual queue закрыты.
 
-Этот файл отвечает только на вопрос «какой refactoring slice следующий».
-Правила выполнения находятся в
+Правила выполнения новых slice (если появятся):  
 [agent-development-standard.md](./agent-development-standard.md).
 
-Допустим максимум один `in_progress`. Агент берёт первый `pending`, если
-пользователь не передал явный slice. Метрики обязательно пересчитываются перед
-работой.
+---
 
-## Проверенный baseline
+## Итоговый baseline (закрытие)
 
-| Метрика | Текущее значение |
+| Метрика | Значение |
 |---|---:|
 | `src/styles.css` | freeze-stub |
-| `!important` baseline | **37** (≤75 ✅; was 475) |
-| Raw colors | **559** (was 610) |
-| Global layers | tokens → base → app-shell (header) → vendor |
+| `!important` | **37** (≤75 ✅; was 475) — accepted Ant CSS-in-JS floor |
+| Raw colors | **449** (was 610 at start of RAW track; was ~559 before CLOSE) |
+| Global layers | tokens → base → app-shell → vendor |
 | G3 allowlists | all **0** |
 | Hotspots | Elec 545 · Heat 484 · Glide shared ~330 · Wizard 415 |
 
+### Accepted residual (не backlog)
+
+| Остаток | Почему не queue |
+|---|---|
+| **37 `!important`** в compact-fields / heat-object / cable / insulation / ui-kit / field-chrome | Ant Design CSS-in-JS; снятие без browser proof ломает density SC-03. Ratchet держит floor. |
+| **~449 raw colors** (в т.ч. unique hex в ui-kit / elec / primitives / table-chrome) | Не маппятся 1:1 на shared tokens; дальнейший burn-down только по новой product-задаче на палитру. |
+| Hotspot LOC | Отдельный scope; не CSS residual. |
+
+Новые pending **не** добавляются «по инерции». Только при явной цели пользователя или product decision, с budget и proof по стандарту.
+
 ## Queue
 
-| ID | Status | Domain | Goal | Allowed scope | Invariants | Focused proof | Depends |
-|---|---|---|---|---|---|---|---|
-| — | — | — | Queue empty. Optional next: compact-fields Ant locks (15), heat-object Ant locks (6), continue raw-color burn-down (`ui-kit` / `elec-workspace` / `primitives`). | — | — | — | — |
+| ID | Status | Domain | Goal |
+|---|---|---|---|
+| — | — | — | **Empty. Backlog closed.** |
 
 ## Completed
 
@@ -45,8 +52,9 @@
 | **CSS-RAW-01** | shared color tokens + calc-spreadsheet hex | raw **610→583**; calc **71→36** | `513c6cb` |
 | **CSS-RAW-02** | tlt-form-controls hex → tokens | raw **583→570**; tlt-form **36→23** | `2d6efe3` |
 | **CSS-RAW-03** | table-chrome hex → tokens | raw **570→559**; table-chrome **66→55** | `ecd12b0` |
+| **CSS-RAW-CLOSE** | bulk map known token hex across residual CSS | raw **559→449** | `1f4beb8` |
 
-## Promotion rules
+## Promotion rules (если backlog откроют снова)
 
 Новый pending добавляется только когда:
 
@@ -56,5 +64,4 @@
 - задача не дублирует уже завершённый slice;
 - текущие метрики подтверждены кодом, а не архивным документом.
 
-Если очередь пуста, агент не придумывает работу и просит пользователя задать
-цель.
+Без явной цели пользователя агент **не** продолжает residual burn-down.
