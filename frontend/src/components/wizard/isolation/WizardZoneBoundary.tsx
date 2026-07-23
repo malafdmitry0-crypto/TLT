@@ -82,7 +82,6 @@ class WizardZoneErrorBoundary extends Component<
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
-    // eslint-disable-next-line no-console
     console.error(
       `[WizardZoneBoundary] crash in island "${this.props.islandId}"`,
       error,

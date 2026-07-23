@@ -258,9 +258,10 @@ export function useElecCalcWorkspaceModel({
     closeCableMarkModal: cableMarkModal.close,
   });
 
+  const normalizeSelectedCableType = cableMarkModal.normalizeSelectedCableType;
   useEffect(() => {
-    cableMarkModal.normalizeSelectedCableType();
-  }, [cableMarkModal.normalizeSelectedCableType]);
+    normalizeSelectedCableType();
+  }, [normalizeSelectedCableType]);
 
   const objectActionModals = useElecCalcObjectActionModals({
     getObjectActionDisabledReason: data.getObjectActionDisabledReason,
