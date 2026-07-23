@@ -6,7 +6,7 @@
 
 | Место | ~LOC | Почему |
 |---|---:|---|
-| `pages/ElecCalcPage.tsx` | 1879 | ЭР UUID, assignments, batch, candidates, tables, modals |
+| `pages/ElecCalcPage.tsx` | 1787 | ЭР UUID, assignments, batch, candidates, tables, modals |
 | `pages/HeatCalcPage.tsx` | 993 | table + Excel + wizard + drafts + prefs |
 | `pages/SpecificationPage.tsx` | 1005 | flat, мало extract namespace |
 | `components/heatcalc/HeatCalcNormalGlideGrid.tsx` | 1191 | grid god-component |

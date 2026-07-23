@@ -20,7 +20,7 @@
 
 | Metric | Value |
 |---|---:|
-| ElecCalcPage LOC | 1936 → **1879** (slice 6) |
+| ElecCalcPage LOC | 1936 → **1787** (slices 6–7) |
 | HeatCalcPage LOC | 1046 → **993** (slices 3–5; pure presentation) |
 | SpecificationPage LOC | 1005 |
 | styles.css LOC | 6777 |
@@ -97,7 +97,16 @@ cd e2e && E2E_BASE_URL=http://127.0.0.1:3003 npm run test:ui-kit-parity:chrome
 | unit tests (9) | ✅ |
 | ElecCalcPage LOC | **1936 → 1879** (−57) |
 
+## Slice 7 — Elec object modals + Glide layout commit — 2026-07-23
+
+| Item | Status |
+|---|---|
+| `useElecCalcObjectActionModals` | ✅ mark/sizing open/close gates |
+| `useElecCalcGlideLayoutCommit` | ✅ editability + commit mutate |
+| unit tests (8) | ✅ |
+| ElecCalcPage LOC | **1879 → 1787** (−92) |
+
 ## Next
 
-1. Continue ElecCalcPage shell thin (modals / glide commit / params panel)
+1. Continue ElecCalcPage shell thin (params panel / type controls / render sections)
 2. CSS extract one block from styles.css

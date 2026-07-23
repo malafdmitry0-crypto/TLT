@@ -8,7 +8,7 @@
 
 | Path | LOC | Notes |
 |---|---:|---|
-| `frontend/src/pages/ElecCalcPage.tsx` | 1879 | assignment selection extracted |
+| `frontend/src/pages/ElecCalcPage.tsx` | 1787 | assignment + modals + glide commit extracted |
 | `frontend/src/pages/HeatCalcPage.tsx` | 993 | shell orchestration; pure helpers extracted |
 | `frontend/src/pages/SpecificationPage.tsx` | 1005 | — |
 | `frontend/src/styles.css` | 6777 | freeze |
@@ -57,7 +57,7 @@ Script added in S0-lite. Re-run after any form density / kit / heat dual-form CS
 
 | Metric | Baseline | S1-ish | S2-ish | S3 DoD |
 |---|---:|---:|---:|---:|
-| ElecCalcPage | 1879 | — | &lt;1200 | ≤500 |
+| ElecCalcPage | 1787 | — | &lt;1200 | ≤500 |
 | HeatCalcPage | 993 | −200…350 | ≤600 | ≤500 |
 | SpecPage | 1005 | — | namespace | ≤500 |
 | styles.css | 6777 | ≤6777 (freeze) | &lt;5000 | &lt;2500–3000 |

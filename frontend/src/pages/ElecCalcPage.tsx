@@ -104,10 +104,6 @@ import {
   buildElecCalcSummaryViewModel,
 } from '@/pages/electrical/elecCalcSummaryModel';
 import {
-  isElectricalLayoutCellEditable as resolveElectricalLayoutCellEditable,
-  validateElectricalLayoutCellCommit,
-} from '@/pages/electrical/elecCalcLayoutModel';
-import {
   CABLE_TYPE_LABEL,
   objectDisplayName,
   type CableTypeKey,
@@ -115,8 +111,9 @@ import {
 import type { ElectricalNavigationState } from '@/pages/electrical/elecCalcPageModel';
 import {
   getCableMark,
-  getCableMarkSource,
 } from '@/domain/electrical/elecCalcResultValueModel';
+import { useElecCalcObjectActionModals } from '@/pages/electrical/useElecCalcObjectActionModals';
+import { useElecCalcGlideLayoutCommit } from '@/pages/electrical/useElecCalcGlideLayoutCommit';
 import type { LegacyElectricalVariantTarget } from '@/pages/electrical/elecCalcVariantModel';
 import { useElecCalcAntTableHandlers } from '@/pages/electrical/useElecCalcAntTableHandlers';
 import { useElecCalcBootViewState } from '@/pages/electrical/useElecCalcBootViewState';
@@ -161,8 +158,6 @@ import {
 import { readStorageJson } from '@/utils/storage';
 
 const ELECCALC_PARAMS_PANEL_STORAGE_KEY = 'tlt-eleccalc-params-panel';
-const ELECCALC_READ_ONLY_MESSAGE =
-  'Проект открыт в режиме просмотра. Изменять электрорасчёт может только владелец или администратор.';
 
 const { Text } = Typography;
 const ElectricalGlideGrid = lazy(() => import('@/components/electrical/ElectricalGlideGrid'));
@@ -751,25 +746,6 @@ function ElecCalcWorkspace({
     normalizeSelectedCableType: normalizeCableMarkModalCableType,
     setTargetVariantsFromValues: setCableMarkModalTargetVariantsFromValues,
   } = cableMarkModal;
-  const openCableMarkModal = useCallback((obj: ProjectObject) => {
-    const reason = getObjectActionDisabledReason(obj);
-    if (reason) {
-      message.warning(reason);
-      return;
-    }
-    openCableMarkModalState(obj);
-    const preferredType = preferredObjectActionCableType(obj);
-    if (preferredType && preferredType !== objectActionCableType(obj.id)) {
-      changeCableMarkModalCableType(preferredType);
-    }
-  }, [
-    changeCableMarkModalCableType,
-    getObjectActionDisabledReason,
-    objectActionCableType,
-    openCableMarkModalState,
-    preferredObjectActionCableType,
-  ]);
-
   const {
     electricalLayoutMutate,
     isCableMarkPending,
@@ -796,46 +772,26 @@ function ElecCalcWorkspace({
     normalizeCableMarkModalCableType();
   }, [normalizeCableMarkModalCableType]);
 
-  const closeCableSizingModal = useCallback(() => {
-    resetCableSizingModalState();
-    resetMarkedCableSizingCandidates();
-    setActiveCandidateFolderKey('all');
-    closeCandidateFolderModal();
-    setCandidateColumnSettingsOpen(false);
-  }, [
-    closeCandidateFolderModal,
-    resetCableSizingModalState,
-    resetMarkedCableSizingCandidates,
-    setActiveCandidateFolderKey,
-  ]);
-  const openCableSizingModal = useCallback((obj: ProjectObject) => {
-    const reason = getObjectActionDisabledReason(obj);
-    if (reason) {
-      message.warning(reason);
-      return;
-    }
-    activateRowId(obj.id);
-    openCableSizingModalState(obj);
-    const preferredType = preferredObjectActionCableType(obj);
-    if (preferredType) {
-      setCableSizingCableType(preferredType);
-      if (preferredType !== objectActionCableType(obj.id)) {
-        setRecalc.connectionType('line_1ph');
-      }
-    }
-    resetMarkedCableSizingCandidates();
-    setActiveCandidateFolderKey('all');
-  }, [
-    activateRowId,
+  const {
+    openCableMarkModal,
+    openCableSizingModal,
+    closeCableSizingModal,
+  } = useElecCalcObjectActionModals({
     getObjectActionDisabledReason,
-    openCableSizingModalState,
-    objectActionCableType,
     preferredObjectActionCableType,
-    resetMarkedCableSizingCandidates,
+    objectActionCableType,
+    openCableMarkModalState,
+    changeCableMarkModalCableType,
+    activateRowId,
+    openCableSizingModalState,
     setCableSizingCableType,
-    setRecalc,
+    resetConnectionTypeOnPreferredChange: () => setRecalc.connectionType('line_1ph'),
+    resetMarkedCableSizingCandidates,
     setActiveCandidateFolderKey,
-  ]);
+    resetCableSizingModalState,
+    closeCandidateFolderModal,
+    setCandidateColumnSettingsOpen,
+  });
   const {
     fieldCapabilityByKey,
     enumOptionsByColumn,
@@ -973,24 +929,21 @@ function ElecCalcWorkspace({
     aggressiveProduct: recalc.aggressiveProduct,
   });
 
-  const isElectricalLayoutCellEditable = useCallback((obj: ProjectObject, columnKey: string) => {
-    if (getObjectCalculationDisabledReason(obj)) return false;
-    return resolveElectricalLayoutCellEditable({
-      obj,
-      columnKey,
-      projectSelected: Boolean(project) && canMutate,
-      isCableMarkPending,
-      calcByObjectId: stats.calcByObjectId,
-      getCableTypeForObject: cableTypes.getSavedCableTypeForObject,
-    });
-  }, [
-    cableTypes.getSavedCableTypeForObject,
+  const {
+    isElectricalLayoutCellEditable,
+    handleElectricalGlideStartCellEdit,
+    handleElectricalGlideCommitCell,
+  } = useElecCalcGlideLayoutCommit({
     canMutate,
+    projectSelected: Boolean(project),
+    effectiveSource,
+    calcByObjectId: stats.calcByObjectId,
+    getCableTypeForObject: cableTypes.getSavedCableTypeForObject,
     getObjectCalculationDisabledReason,
     isCableMarkPending,
-    project,
-    stats.calcByObjectId,
-  ]);
+    electricalLayoutMutate,
+    activateRowId,
+  });
 
   const {
     getElectricalGlideCellActions,
@@ -1012,51 +965,6 @@ function ElecCalcWorkspace({
     getColumnAlign: getElectricalGlideColumnAlign,
     getCellActions: getElectricalGlideCellActions,
   });
-
-  const handleElectricalGlideStartCellEdit = useCallback((obj: ProjectObject) => {
-    activateRowId(obj.id);
-  }, [activateRowId]);
-
-  const handleElectricalGlideCommitCell = useCallback((
-    obj: ProjectObject,
-    columnKey: string,
-    value: unknown,
-  ) => {
-    if (!canMutate) return ELECCALC_READ_ONLY_MESSAGE;
-    const assignmentReason = getObjectCalculationDisabledReason(obj);
-    if (assignmentReason) return assignmentReason;
-    const validation = validateElectricalLayoutCellCommit({
-      obj,
-      columnKey,
-      value,
-      projectSelected: Boolean(project),
-      calcByObjectId: stats.calcByObjectId,
-      getCableTypeForObject: cableTypes.getSavedCableTypeForObject,
-    });
-    if (validation.status === 'ignored') return null;
-    if (validation.status === 'error') return validation.error;
-
-    const markSource = getCableMarkSource(validation.calc);
-    electricalLayoutMutate({
-      objectId: obj.id,
-      cableMark: markSource === 'manual' ? validation.mark : null,
-      cableSource: markSource === 'manual'
-        ? catalogSourceFromSnapshot(validation.calc) ?? effectiveSource
-        : effectiveSource,
-      cableType: validation.cableType,
-      windingPitchMm: validation.windingPitchMm,
-      numberOfThreads: validation.numberOfThreads,
-    });
-    return null;
-  }, [
-    effectiveSource,
-    electricalLayoutMutate,
-    cableTypes.getSavedCableTypeForObject,
-    canMutate,
-    getObjectCalculationDisabledReason,
-    project,
-    stats.calcByObjectId,
-  ]);
 
   useElecCalcSelectedRowsClipboardEffect({
     electricalColumnCopyValue,
