@@ -18,7 +18,7 @@
 |---|---:|
 | `src/styles.css` | freeze-stub |
 | `!important` baseline | **37** (≤75 ✅; was 475) |
-| Raw colors | **570** (was 610) |
+| Raw colors | **559** (was 610) |
 | Global layers | tokens → base → app-shell (header) → vendor |
 | G3 allowlists | all **0** |
 | Hotspots | Elec 545 · Heat 484 · Glide shared ~330 · Wizard 415 |
@@ -27,7 +27,7 @@
 
 | ID | Status | Domain | Goal | Allowed scope | Invariants | Focused proof | Depends |
 |---|---|---|---|---|---|---|---|
-| — | — | — | Queue empty. Optional next: compact-fields Ant locks (15), heat-object Ant locks (6), continue raw-color burn-down (`table-chrome` / `ui-kit` / `elec-workspace`). | — | — | — | — |
+| — | — | — | Queue empty. Optional next: compact-fields Ant locks (15), heat-object Ant locks (6), continue raw-color burn-down (`ui-kit` / `elec-workspace` / `primitives`). | — | — | — | — |
 
 ## Completed
 
@@ -44,6 +44,7 @@
 | **CSS-IMP-05** | ui-kit + field-chrome + cable mirror | **44→37** | `c8cc942` |
 | **CSS-RAW-01** | shared color tokens + calc-spreadsheet hex | raw **610→583**; calc **71→36** | `513c6cb` |
 | **CSS-RAW-02** | tlt-form-controls hex → tokens | raw **583→570**; tlt-form **36→23** | `2d6efe3` |
+| **CSS-RAW-03** | table-chrome hex → tokens | raw **570→559**; table-chrome **66→55** | `ecd12b0` |
 
 ## Promotion rules
 
