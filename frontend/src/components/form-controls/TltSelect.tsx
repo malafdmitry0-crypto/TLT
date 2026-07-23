@@ -23,6 +23,8 @@ export interface TltSelectProps {
   onChange?: (value: string | number | null) => void;
   disabled?: boolean;
   required?: boolean;
+  /** When true and a value is selected, show a clear control that calls onChange(null). */
+  allowClear?: boolean;
   placeholder?: string;
   options?: TltSelectOption[];
   status?: 'error' | 'warning' | '';
@@ -37,7 +39,7 @@ export interface TltSelectProps {
   'data-testid'?: string;
 }
 
-function joinClassNames(...classNames: Array<string | undefined>) {
+function joinClassNames(...classNames: Array<string | false | undefined>) {
   return classNames.filter(Boolean).join(' ') || undefined;
 }
 
@@ -77,6 +79,7 @@ export default function TltSelect({
   onChange,
   disabled,
   required,
+  allowClear = false,
   placeholder,
   options = [],
   status,
@@ -100,48 +103,69 @@ export default function TltSelect({
   const baseId = sanitizeDomId(id ?? name ?? testId);
   const valueId = baseId ? `${baseId}-value` : undefined;
   const listBoxId = baseId ? `${baseId}-listbox` : undefined;
+  const hasClearableValue = allowClear
+    && !disabled
+    && selectedKey !== null
+    && selectedKey !== undefined;
 
   return (
-    <Select
-      aria-label={resolvedAriaLabel}
-      className={joinClassNames('tlt-select', className)}
-      defaultSelectedKey={defaultSelectedKey}
-      id={baseId}
-      isDisabled={disabled}
-      isInvalid={isInvalid}
-      isRequired={isRequired}
-      name={name}
-      onSelectionChange={(key) => onChange?.(resolveSelectedValue(key, options))}
-      placeholder={placeholder}
-      selectedKey={selectedKey}
-      style={style}
-      validationBehavior="aria"
-    >
-      <Button
-        aria-invalid={isInvalid || undefined}
-        aria-required={isRequired || undefined}
-        className={joinClassNames('tlt-select__trigger', triggerClassName)}
-        data-testid={testId}
+    <span className={joinClassNames('tlt-select-shell', hasClearableValue && 'tlt-select-shell--clearable')}>
+      <Select
+        aria-label={resolvedAriaLabel}
+        className={joinClassNames('tlt-select', className)}
+        defaultSelectedKey={defaultSelectedKey}
+        id={baseId}
+        isDisabled={disabled}
+        isInvalid={isInvalid}
+        isRequired={isRequired}
+        name={name}
+        onSelectionChange={(key) => onChange?.(resolveSelectedValue(key, options))}
+        placeholder={placeholder}
+        selectedKey={selectedKey}
+        style={style}
+        validationBehavior="aria"
       >
-        <SelectValue className="tlt-select__value" id={valueId} />
-        <span aria-hidden="true" className="tlt-select__arrow" />
-      </Button>
-      <Popover className={joinClassNames('tlt-select__popover', popoverClassName)}>
-        <ListBox className={joinClassNames('tlt-select__listbox', listBoxClassName)} id={listBoxId}>
-          {options.map((option) => (
-            <ListBoxItem
-              className="tlt-select__option"
-              id={option.value}
-              isDisabled={option.disabled}
-              key={option.value}
-              textValue={String(option.label)}
-              value={option}
-            >
-              {option.label}
-            </ListBoxItem>
-          ))}
-        </ListBox>
-      </Popover>
-    </Select>
+        <Button
+          aria-invalid={isInvalid || undefined}
+          aria-required={isRequired || undefined}
+          className={joinClassNames('tlt-select__trigger', triggerClassName)}
+          data-testid={testId}
+        >
+          <SelectValue className="tlt-select__value" id={valueId} />
+          <span aria-hidden="true" className="tlt-select__arrow" />
+        </Button>
+        <Popover className={joinClassNames('tlt-select__popover', popoverClassName)}>
+          <ListBox className={joinClassNames('tlt-select__listbox', listBoxClassName)} id={listBoxId}>
+            {options.map((option) => (
+              <ListBoxItem
+                className="tlt-select__option"
+                id={option.value}
+                isDisabled={option.disabled}
+                key={option.value}
+                textValue={String(option.label)}
+                value={option}
+              >
+                {option.label}
+              </ListBoxItem>
+            ))}
+          </ListBox>
+        </Popover>
+      </Select>
+      {hasClearableValue ? (
+        <button
+          type="button"
+          className="tlt-select__clear"
+          aria-label="Очистить"
+          data-testid={testId ? `${testId}-clear` : undefined}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onChange?.(null);
+          }}
+        >
+          ×
+        </button>
+      ) : null}
+    </span>
   );
 }

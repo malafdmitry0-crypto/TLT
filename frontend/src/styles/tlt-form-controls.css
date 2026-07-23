@@ -153,6 +153,45 @@
   font-weight: 600;
   background: #edf6fb;
 }
+.tlt-select-shell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  width: 100%;
+}
+
+.tlt-select-shell .tlt-select {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+}
+
+.tlt-select__clear {
+  position: absolute;
+  right: 18px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #8c8c8c;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.tlt-select__clear:hover {
+  color: #262626;
+  background: rgb(0 0 0 / 6%);
+}
+
 .tlt-select__option[data-disabled] {
   color: rgba(0, 0, 0, 0.25);
   cursor: not-allowed;
