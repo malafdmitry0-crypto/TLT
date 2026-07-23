@@ -1,0 +1,160 @@
+{
+  "version": 1,
+  "files": {
+    "src/components/heatcalc/EditableTableCell.tsx": [
+      {
+        "kind": "as_unknown_as",
+        "line": 96,
+        "text": "onContextMenu?.(event as unknown as React.MouseEvent<HTMLButtonElement>);"
+      }
+    ],
+    "src/components/heatcalc/HeatCalcGlideGrid.tsx": [
+      {
+        "kind": "as_unknown_as",
+        "line": 89,
+        "text": "} as unknown as MouseEvent<HTMLElement>;"
+      }
+    ],
+    "src/components/wizard/isolation/WizardZoneBoundary.tsx": [
+      {
+        "kind": "as_never",
+        "line": 171,
+        "text": "ref={rootRef as never}"
+      }
+    ],
+    "src/components/wizard/steps/ConfirmStep.tsx": [
+      {
+        "kind": "as_unknown_as",
+        "line": 48,
+        "text": "return generatePipeName(values as unknown as PipeFormValues);"
+      },
+      {
+        "kind": "as_unknown_as",
+        "line": 50,
+        "text": "return generateTankName(values as unknown as TankFormValues);"
+      }
+    ],
+    "src/components/wizard/useObjectWizardFormSync.ts": [
+      {
+        "kind": "as_unknown_as",
+        "line": 259,
+        "text": "? generatePipeName(watchedValues as unknown as PipeFormValues)"
+      },
+      {
+        "kind": "as_unknown_as",
+        "line": 260,
+        "text": ": generateTankName(watchedValues as unknown as TankFormValues);"
+      }
+    ],
+    "src/hooks/useHeatCalcTableColumns.tsx": [
+      {
+        "kind": "as_unknown_as",
+        "line": 465,
+        "text": "openExcelRowContextMenu(index, event as unknown as ReactMouseEvent<HTMLElement>);"
+      }
+    ],
+    "src/pages/electrical/ElecCalcWorkspace.tsx": [
+      {
+        "kind": "as_never",
+        "line": 160,
+        "text": "getElectricalGlideCellState={m.getElectricalGlideCellState as never}"
+      },
+      {
+        "kind": "as_never",
+        "line": 163,
+        "text": "setColumnFilter={m.setColumnFilter as never}"
+      },
+      {
+        "kind": "as_never",
+        "line": 164,
+        "text": "resetColumnFilter={m.resetColumnFilter as never}"
+      },
+      {
+        "kind": "as_never",
+        "line": 165,
+        "text": "setElectricalTableSort={m.setElectricalTableSort as never}"
+      },
+      {
+        "kind": "as_never",
+        "line": 166,
+        "text": "applyElectricalGlideColumnDraftWidth={m.applyElectricalGlideColumnDraftWidth as never}"
+      },
+      {
+        "kind": "as_never",
+        "line": 167,
+        "text": "commitElectricalGlideColumnWidth={m.commitElectricalGlideColumnWidth as never}"
+      },
+      {
+        "kind": "as_never",
+        "line": 168,
+        "text": "handleElectricalGlidePageChange={m.handleElectricalGlidePageChange as never}"
+      },
+      {
+        "kind": "as_never",
+        "line": 169,
+        "text": "handleElectricalGlideLoadMore={m.handleElectricalGlideLoadMore as never}"
+      },
+      {
+        "kind": "as_never",
+        "line": 170,
+        "text": "handleElectricalGlideCellAction={m.handleElectricalGlideCellAction as never}"
+      },
+      {
+        "kind": "as_never",
+        "line": 171,
+        "text": "handleElectricalGlideStartCellEdit={m.handleElectricalGlideStartCellEdit as never}"
+      },
+      {
+        "kind": "as_never",
+        "line": 172,
+        "text": "handleElectricalGlideCommitCell={m.handleElectricalGlideCommitCell as never}"
+      },
+      {
+        "kind": "as_never",
+        "line": 186,
+        "text": "ElectricalGlideGrid={ElectricalGlideGrid as never}"
+      }
+    ],
+    "src/pages/electrical/ElecCalcWorkspaceParamsChrome.tsx": [
+      {
+        "kind": "as_never",
+        "line": 81,
+        "text": "recalc={recalc as never}"
+      },
+      {
+        "kind": "as_never",
+        "line": 82,
+        "text": "setRecalc={setRecalc as never}"
+      },
+      {
+        "kind": "as_never",
+        "line": 88,
+        "text": "item={activeElectricalErrorItem as never}"
+      },
+      {
+        "kind": "as_never",
+        "line": 89,
+        "text": "guidance={activeElectricalErrorGuidance as never}"
+      }
+    ],
+    "src/utils/heatCalcInlineEdit.ts": [
+      {
+        "kind": "as_unknown_as",
+        "line": 195,
+        "text": "? pipeFormToApiParams(formValues as unknown as PipeFormValues & { name?: string })"
+      },
+      {
+        "kind": "as_unknown_as",
+        "line": 196,
+        "text": ": tankFormToApiParams(formValues as unknown as TankFormValues & { name?: string });"
+      }
+    ],
+    "src/utils/objectWizardUtils.ts": [
+      {
+        "kind": "as_never",
+        "line": 189,
+        "text": "next[key as keyof ObjectWizardFormValues] = value as never;"
+      }
+    ]
+  }
+}
