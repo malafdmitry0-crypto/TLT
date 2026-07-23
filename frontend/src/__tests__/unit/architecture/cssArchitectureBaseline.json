@@ -1,0 +1,114 @@
+{
+  "version": 1,
+  "slice": "G4",
+  "description": "CSS architecture ratchet: styles.css freeze, per-file/total LOC+bareAnt+media caps. !important stays in cssImportantBaseline (IMP0). Decrease always OK.",
+  "stylesCssMaxLoc": 20,
+  "newFileLocCap": 400,
+  "files": {
+    "src/components/ui-kit/compact-fields.css": {
+      "loc": 503,
+      "bareAnt": 0,
+      "media": 2
+    },
+    "src/components/ui-kit/primitives.css": {
+      "loc": 573,
+      "bareAnt": 0,
+      "media": 2
+    },
+    "src/components/wizard/cable-algorithm-panel.css": {
+      "loc": 231,
+      "bareAnt": 0,
+      "media": 0
+    },
+    "src/components/wizard/heat-object-fields.css": {
+      "loc": 258,
+      "bareAnt": 0,
+      "media": 1
+    },
+    "src/components/wizard/insulation-layers-table.css": {
+      "loc": 352,
+      "bareAnt": 0,
+      "media": 1
+    },
+    "src/pages/electrical/elec-workspace.css": {
+      "loc": 1002,
+      "bareAnt": 0,
+      "media": 8
+    },
+    "src/pages/heatcalc/heatcalc-workspace.css": {
+      "loc": 2562,
+      "bareAnt": 0,
+      "media": 15
+    },
+    "src/pages/projects-page.css": {
+      "loc": 48,
+      "bareAnt": 0,
+      "media": 1
+    },
+    "src/pages/specification/specification-page.css": {
+      "loc": 167,
+      "bareAnt": 0,
+      "media": 1
+    },
+    "src/pages/ui-kit.css": {
+      "loc": 1351,
+      "bareAnt": 0,
+      "media": 3
+    },
+    "src/pages/workflow-params.css": {
+      "loc": 60,
+      "bareAnt": 0,
+      "media": 1
+    },
+    "src/styles/actionbar-srs.css": {
+      "loc": 217,
+      "bareAnt": 0,
+      "media": 1
+    },
+    "src/styles/app-base.css": {
+      "loc": 69,
+      "bareAnt": 6,
+      "media": 0
+    },
+    "src/styles/app-header.css": {
+      "loc": 272,
+      "bareAnt": 0,
+      "media": 3
+    },
+    "src/styles/calc-spreadsheet.css": {
+      "loc": 604,
+      "bareAnt": 0,
+      "media": 0
+    },
+    "src/styles/form-grid-srs.css": {
+      "loc": 165,
+      "bareAnt": 3,
+      "media": 0
+    },
+    "src/styles/print.css": {
+      "loc": 38,
+      "bareAnt": 8,
+      "media": 1
+    },
+    "src/styles/table-chrome.css": {
+      "loc": 479,
+      "bareAnt": 0,
+      "media": 0
+    },
+    "src/styles/tlt-form-controls.css": {
+      "loc": 243,
+      "bareAnt": 1,
+      "media": 0
+    },
+    "src/styles.css": {
+      "loc": 15,
+      "bareAnt": 0,
+      "media": 0
+    }
+  },
+  "totals": {
+    "loc": 9209,
+    "bareAnt": 18,
+    "media": 40
+  }
+}
