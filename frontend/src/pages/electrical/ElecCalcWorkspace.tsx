@@ -19,7 +19,6 @@ import {
   Space,
   Table,
   Typography,
-  message,
 } from 'antd';
 import {
   ThunderboltOutlined,
@@ -71,14 +70,11 @@ import {
   updateElectricalQueryPageCalculation,
 } from '@/pages/electrical/elecCalcQueryModel';
 import {
-  buildElectricalErrorItems,
-  electricalErrorGuidanceForItem,
-  resolveActiveElectricalErrorItem,
-} from '@/pages/electrical/elecCalcErrorSummaryModel';
-import {
-  compatibleAssignedObjectIds,
   electricalAssignmentCompatibilityReason,
 } from '@/pages/electrical/elecCalcAssignmentScopeModel';
+import { useElecCalcErrorSummaryState } from '@/pages/electrical/useElecCalcErrorSummaryState';
+import { ElectricalSectionHierarchy } from '@/pages/electrical/ElectricalSectionHierarchy';
+import { useElecCalcBatchRecalcActions } from '@/pages/electrical/useElecCalcBatchRecalcActions';
 import { useElecCalcAssignmentSelectionState } from '@/pages/electrical/useElecCalcAssignmentSelectionState';
 import {
   buildElecCalcSummaryViewModel,
@@ -858,28 +854,27 @@ export function ElecCalcWorkspace({
       onOverwriteChange={setOverwriteManualChoices}
     />
   ), [canMutate, overwriteManualChoices]);
-  const electricalErrorItems = useMemo(
-    () => buildElectricalErrorItems({
-      objects,
-      calcByObjectId: stats.calcByObjectId,
-      electricalDisplayOffset,
-    }),
-    [electricalDisplayOffset, objects, stats.calcByObjectId],
-  );
-  const activeElectricalErrorItem = useMemo(
-    () => resolveActiveElectricalErrorItem({
-      activeRowId,
-      objects,
-      calcByObjectId: stats.calcByObjectId,
-      electricalDisplayOffset,
-      electricalErrorItems,
-    }),
-    [activeRowId, electricalDisplayOffset, electricalErrorItems, objects, stats.calcByObjectId],
-  );
-  const activeElectricalErrorGuidance = useMemo(
-    () => electricalErrorGuidanceForItem(activeElectricalErrorItem),
-    [activeElectricalErrorItem],
-  );
+  const {
+    activeElectricalErrorItem,
+    activeElectricalErrorGuidance,
+  } = useElecCalcErrorSummaryState({
+    objects,
+    calcByObjectId: stats.calcByObjectId,
+    electricalDisplayOffset,
+    activeRowId,
+  });
+  const {
+    onRecalculateSelected,
+    onRecalculateAll,
+    onCancelJob,
+  } = useElecCalcBatchRecalcActions({
+    canMutate,
+    selectedRowKeys,
+    assignmentByObjectId,
+    cableTypeForRecalculation: cableTypes.cableTypeForRecalculation,
+    mutateBatch: (args) => batchMut.mutate(args),
+    cancelJob: () => cancelJobMut.mutate(),
+  });
   const cableTypeControlLabel = 'Тип для пересчёта:';
   const {
     getElectricalCandidateGlideCellActions,
@@ -1164,35 +1159,9 @@ export function ElecCalcWorkspace({
           renderManualOverwriteControl={renderManualOverwriteControl}
           onCableTypeChange={handleCableTypeControlChange}
           onManualOverwritePromptOpen={() => setOverwriteManualChoices(false)}
-          onRecalculateSelected={(skipManual) => {
-            if (!canMutate) return;
-            const objectIds = compatibleAssignedObjectIds(
-              selectedRowKeys,
-              assignmentByObjectId,
-              cableTypes.cableTypeForRecalculation,
-            );
-            if (objectIds.length !== selectedRowKeys.length) {
-              message.warning(
-                'Несовместимые или нераспределённые строки исключены. Проверьте назначения ЭР.',
-              );
-            }
-            if (objectIds.length === 0) return;
-            batchMut.mutate({
-              scope: 'selected',
-              objectIds,
-              skipManual,
-            });
-          }}
-          onRecalculateAll={(skipManual) => {
-            if (!canMutate) return;
-            batchMut.mutate({
-              scope: 'all',
-              skipManual,
-            });
-          }}
-          onCancelJob={() => {
-            if (canMutate) cancelJobMut.mutate();
-          }}
+          onRecalculateSelected={onRecalculateSelected}
+          onRecalculateAll={onRecalculateAll}
+          onCancelJob={onCancelJob}
           onOpenColumnSettings={openColumnSettings}
           onResetFilters={resetCurrentTableViewState}
         />
@@ -1313,67 +1282,9 @@ export function ElecCalcWorkspace({
               }}
               columns={electricalColumns}
               expandable={{
-                expandedRowRender: (obj) => {
-                  const calc = stats.calcByObjectId[obj.id];
-                  const results = (calc?.results ?? {}) as Record<string, unknown>;
-                  const sections = Array.isArray(results.sections)
-                    ? (results.sections as Array<Record<string, unknown>>)
-                    : [];
-                  const sectionCount = Number(results.section_count ?? results.num_sections ?? 0);
-                  if (sections.length === 0 && !(sectionCount > 0)) {
-                    return (
-                      <div className="section-hierarchy-shell" data-testid="section-hierarchy-shell">
-                        <strong>Нагревательные секции</strong>
-                        <div>
-                          Секции появятся после успешного электрорасчёта с каталогом
-                          секционирования (Lмакс / Iдоп / Iст.уд).
-                        </div>
-                      </div>
-                    );
-                  }
-                  return (
-                    <div className="section-hierarchy-shell" data-testid="section-hierarchy-shell">
-                      <strong>Нагревательные секции · {sectionCount || sections.length}</strong>
-                      <table style={{ width: '100%', marginTop: 6, fontSize: 12 }}>
-                        <thead>
-                          <tr>
-                            <th style={{ textAlign: 'left' }}>№</th>
-                            <th style={{ textAlign: 'right' }}>L, м</th>
-                            <th style={{ textAlign: 'right' }}>P, Вт</th>
-                            <th style={{ textAlign: 'right' }}>Iраб, А</th>
-                            <th style={{ textAlign: 'right' }}>Iст, А</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(sections.length
-                            ? sections
-                            : Array.from({ length: sectionCount }, (_, i) => ({
-                                index: i + 1,
-                                length_m: results.section_length_m,
-                                power_w: results.section_power_w,
-                                working_current_a:
-                                  Number(results.section_working_current_a ?? 0) / sectionCount,
-                                start_current_a:
-                                  Number(results.section_start_current_a ?? 0) / sectionCount,
-                              }))
-                          ).map((sec, i) => (
-                            <tr key={String(sec.index ?? i)}>
-                              <td>{String(sec.index ?? i + 1)}</td>
-                              <td style={{ textAlign: 'right' }}>{String(sec.length_m ?? '—')}</td>
-                              <td style={{ textAlign: 'right' }}>{String(sec.power_w ?? '—')}</td>
-                              <td style={{ textAlign: 'right' }}>
-                                {String(sec.working_current_a ?? '—')}
-                              </td>
-                              <td style={{ textAlign: 'right' }}>
-                                {String(sec.start_current_a ?? '—')}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  );
-                },
+                expandedRowRender: (obj) => (
+                  <ElectricalSectionHierarchy calc={stats.calcByObjectId[obj.id]} />
+                ),
                 rowExpandable: () => systemView !== 'unassigned',
               }}
               locale={{

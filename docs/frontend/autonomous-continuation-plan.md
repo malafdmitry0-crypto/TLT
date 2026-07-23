@@ -78,7 +78,8 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 
 | Метрика | Значение (2026-07-23) | Цель milestone M2 | Цель M3 (DoD shell) |
 |---|---:|---:|---:|
-| `ElecCalcPage.tsx` | **1787** | ≤ 1200 | ≤ 500 |
+| `ElecCalcPage.tsx` | **30** (entry) | — | ≤ 80 |
+| `ElecCalcWorkspace.tsx` | **~1459** | ≤ 1200 | ≤ 500 |
 | `HeatCalcPage.tsx` | **993** | ≤ 700 | ≤ 500 |
 | `SpecificationPage.tsx` | **1005** | namespace + ≤ 800 | ≤ 500 |
 | `styles.css` | **6777** | ≤ 6777 freeze → ≤ 5500 | ≤ 3000 |
@@ -119,20 +120,21 @@ styles.css: net LOC ≤ 0 (prefer delete/move only)
 
 Цель: ElecCalcPage 1787 → ≤ 1200 → ≤ 500.
 
-| ID | Статус | Scope (≤2 prod files) | Что вынести | Proof | LOC target delta |
+| ID | Статус | Scope (≤2 prod files) | Что вынести | Proof | Note |
 |---|---|---|---|---|---|
-| **E8** | `pending` | `useElecCalcCableTypeOptions.ts` + pure option builder | `cableTypeOptions`, `cableTypeOptionsForObject`, modal option memos, `cableSourceOptions` | unit | −40…70 |
-| **E9** | `pending` | `useElecCalcParamsPanelState.ts` | storage key, `paramsPanelVisible`, `toggleParamsPanel` | unit | −25…40 |
-| **E10** | `pending` | `useElecCalcCableMarkPresentation.ts` | `findCableRowForMark`, `cableMarkValueForCalc`, sizing selected cable | unit | −50…80 |
-| **E11** | `pending` | `ElecCalcWorkspaceChrome.tsx` **или** `useElecCalcBatchBarPresentation.ts` | `renderManualOverwriteControl`, type controls default, chrome checkbox | unit + smoke if easy | −40…90 |
-| **E12** | `pending` | pure `elecCalcQueryRequestModel` already? → `useElecCalcWorkspaceQuery.ts` | `electricalQueryRequest` + page summary wiring only if still thick | unit | −30…60 |
-| **E13** | `pending` | `ElecCalcProject.tsx` extract file | `ElecCalcProject` + navigation job registration из page | unit/integration existing | −80…120 page |
-| **E14** | `pending` | `useElecCalcAssignAutoCalc.ts` | `onAssignedNeedCalc` batch payload (PDF-ER-08) | unit | −30…50 |
-| **E15** | `pending` | JSX views: `ElecCalcWorkspaceLayout.tsx` | разнести return JSX workspace (props in / events out) **без** новой бизнес-логики | focused unit render smoke | −150…300 |
-| **E16** | `pending` | residual pure leftovers | всё, что ещё >20 строк inline logic в shell | unit | until ≤1200 |
-| **E17** | `pending` | residual → M3 | повторять pattern E8–E15 до ≤500 | unit | until ≤500 |
+| **E8** | `done` | cable type options model+hook | options / change handler | unit | `fbff7d1` |
+| **E9** | `done` | params panel state | storage toggle | unit | `fbff7d1` |
+| **E10** | `done` | cable mark presentation | mark/row resolve | unit | `fbff7d1` |
+| **E11** | `done` | ManualOverwriteControl | batch bar checkbox | unit | `fbff7d1` |
+| **E12** | `skipped` | workspace query | already thin enough via existing models | — | skip |
+| **E13** | `done` | Project + Workspace split | page → 30 LOC | unit+smoke | `fbff7d1` |
+| **E14** | `done` | assign auto-calc model | PDF-ER-08 payload | unit | `fbff7d1` |
+| **E15** | `done` | error summary + section hierarchy | expandable sections | unit | next commit |
+| **E16** | `in_progress` | batch recalc actions + residual | until workspace ≤1200 | unit | **▶ current** |
+| **E17** | `pending` | residual → M3 | until workspace ≤500 | unit | — |
 
-**Правило Track E:** пока `ElecCalcPage` > 1200 — **не** начинать Track H/S/C (кроме hotfix / user override).
+**Метрика shell:** `ElecCalcPage` = 30 (entry). Толстый shell = `ElecCalcWorkspace.tsx` (**~1459**).  
+**Правило Track E:** пока **Workspace** > 1200 — не начинать Track H/S/C (кроме override).
 
 ### Track H — Heat
 
