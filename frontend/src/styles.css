@@ -420,52 +420,6 @@ html, body, #root {
   color: #1f6f3e;
 }
 
-.projects-page-layout {
-  min-width: 0;
-}
-
-.projects-page-sidebar,
-.projects-page-main {
-  min-width: 0;
-}
-
-.projects-page-card-actions {
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.projects-list-title {
-  min-width: 0;
-}
-
-.projects-list-title .ant-typography-secondary {
-  font-size: 11px;
-  white-space: nowrap;
-}
-
-.projects-page-card-actions .ant-btn {
-  height: 24px;
-}
-
-.projects-page-main .ant-table-wrapper {
-  min-width: 0;
-}
-
-@media (max-width: 900px) {
-  .projects-page-layout {
-    flex-direction: column;
-    row-gap: 8px;
-  }
-  .projects-page-layout > .ant-col {
-    flex: 1 1 100% !important;
-    max-width: 100%;
-    width: 100%;
-  }
-  .projects-page-card-actions {
-    justify-content: flex-start;
-  }
-}
-
 .workspace-table-card .ant-card-body {
   padding: 0 10px 10px;
 }
@@ -5110,64 +5064,6 @@ tr[draggable='true']:active {
 
 .ant-select-dropdown .ant-select-item-option-selected .ant-select-item-option-content {
   font-weight: 600;
-}
-
-/* ── Панель заполнения параметров (электрорасчёт, спецификация) ──
-   Переиспользует form-grid-srs/form-col-srs из SC-03 для единого вида. */
-.workflow-params-panel .form-col-srs {
-  flex: 1 1 260px;
-  min-width: min(100%, 240px);
-  grid-template-columns: 1fr !important;
-  overflow: visible;
-}
-
-.workflow-params-panel .form-col-srs > h4,
-.workflow-params-panel .workflow-params-row,
-.workflow-params-panel .workflow-params-hint {
-  grid-column: 1 / -1;
-}
-
-.workflow-params-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 2px 6px;
-  padding: 1px 4px;
-  min-height: 26px;
-}
-
-.workflow-params-label {
-  flex: 1 1 160px;
-  min-width: 120px;
-  font-size: 11px;
-  line-height: 1.25;
-  color: #4a5a6a;
-}
-
-.workflow-params-row .workflow-params-input {
-  flex: 0 1 110px;
-  width: 110px;
-  min-width: 88px;
-}
-
-.workflow-params-hint {
-  display: block;
-  padding: 2px 6px 4px;
-  font-size: 10px;
-  line-height: 1.35;
-  color: #5d6b7a;
-}
-
-@media (max-width: 1180px) {
-  .workflow-params-panel {
-    flex-direction: column;
-  }
-
-  .workflow-params-panel .form-col-srs {
-    flex: 0 0 auto;
-    width: 100% !important;
-    min-width: 0;
-  }
 }
 
 /* PDL-ER-37: stale specification quantities are read-only on screen and hidden from print. */

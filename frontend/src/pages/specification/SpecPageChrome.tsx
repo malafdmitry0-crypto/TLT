@@ -19,6 +19,7 @@ import {
   ReloadOutlined,
 } from '@ant-design/icons';
 import type { SpecGroupBy as GroupBy } from '@/pages/specification/specFormatModel';
+import '../workflow-params.css';
 
 const { Text } = Typography;
 

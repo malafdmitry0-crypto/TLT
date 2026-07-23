@@ -35,6 +35,7 @@ import { useNavigate } from 'react-router-dom';
 import { OBJECT_TYPE_LABELS, type ObjectType } from '@/constants/objectTypes';
 import type { Project } from '@/types/project';
 import QueryError from '@/components/common/QueryError';
+import './projects-page.css';
 
 const { Text } = Typography;
 

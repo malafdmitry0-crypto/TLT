@@ -1,0 +1,47 @@
+/* Projects page — moved from styles.css (C10) */
+
+.projects-page-layout {
+  min-width: 0;
+}
+
+.projects-page-sidebar,
+.projects-page-main {
+  min-width: 0;
+}
+
+.projects-page-card-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.projects-list-title {
+  min-width: 0;
+}
+
+.projects-list-title .ant-typography-secondary {
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.projects-page-card-actions .ant-btn {
+  height: 24px;
+}
+
+.projects-page-main .ant-table-wrapper {
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .projects-page-layout {
+    flex-direction: column;
+    row-gap: 8px;
+  }
+  .projects-page-layout > .ant-col {
+    flex: 1 1 100% !important;
+    max-width: 100%;
+    width: 100%;
+  }
+  .projects-page-card-actions {
+    justify-content: flex-start;
+  }
+}

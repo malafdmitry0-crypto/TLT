@@ -8,6 +8,7 @@ import {
   type ElecCalcTypeControlSetters,
   type ElecCalcTypeControlValues,
 } from '@/pages/electrical/elecCalcTypeControlModel';
+import '../workflow-params.css';
 
 const { Text } = Typography;
 
