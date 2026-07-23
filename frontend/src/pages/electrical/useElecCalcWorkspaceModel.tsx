@@ -2,23 +2,16 @@
  * @module electrical/workspace-model
  * @owner electrical
  * Orchestration bag for ElecCalcWorkspace.
+ * Data plane (queries/selection/batch): useElecCalcWorkspaceDataPlane.
  */
 import {
-  useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-import {
-  getElectricalQueryCapabilities,
-  queryElectrical,
-  type CableSource,
-} from '@/api/calculations';
-import { electricalDataQueryKeys } from '@/api/electricalQueryKeys';
+import { type CableSource } from '@/api/calculations';
 import { useAuthStore } from '@/store/authStore';
 import type { CalculationVariant } from '@/store/calculationVariantStore';
 import { useProjectStore } from '@/store/projectStore';
@@ -29,42 +22,25 @@ import {
   type ElectricalSystemView,
 } from '@/pages/electrical/elecCalcSystemViewModel';
 import type { ElectricalVariant } from '@/types/electricalVariant';
-import type {
-  ElectricalCalcSummary,
-  ElectricalQueryResponse,
-} from '@/types/calculation';
-import {
-  buildElectricalQueryRequest,
-  updateElectricalQueryPageCalculation,
-} from '@/pages/electrical/elecCalcQueryModel';
-import { useElecCalcAssignmentSelectionState } from '@/pages/electrical/useElecCalcAssignmentSelectionState';
 import { useElecCalcObjectActionModals } from '@/pages/electrical/useElecCalcObjectActionModals';
 import { useElecCalcCableTypeOptions } from '@/pages/electrical/useElecCalcCableTypeOptions';
 import { useElecCalcParamsPanelState } from '@/pages/electrical/useElecCalcParamsPanelState';
 import { useElecCalcCableMarkPresentation } from '@/pages/electrical/useElecCalcCableMarkPresentation';
-import type { LegacyElectricalVariantTarget } from '@/pages/electrical/elecCalcVariantModel';
 import { useElecCalcBootViewState } from '@/pages/electrical/useElecCalcBootViewState';
-import { useElecCalcCableReferenceData } from '@/pages/electrical/useElecCalcCableReferenceData';
 import { useElecCalcCableMarkModalState } from '@/pages/electrical/useElecCalcCableMarkModalState';
-import { useElecCalcCableSizingModalState } from '@/pages/electrical/useElecCalcCableSizingModalState';
-import { useElecCalcCableTypeState } from '@/pages/electrical/useElecCalcCableTypeState';
-import { useElecCalcBatchJobOrchestration } from '@/pages/electrical/useElecCalcBatchJobOrchestration';
 import { useElecCalcCandidateWorkflowController } from '@/pages/electrical/useElecCalcCandidateWorkflowController';
 import { useElecCalcCableSelectionMutationFlow } from '@/pages/electrical/useElecCalcCableSelectionMutationFlow';
 import { useElecCalcColumnPersistence } from '@/pages/electrical/useElecCalcColumnPersistence';
 import { useElecCalcColumnSettingsDraftState } from '@/pages/electrical/useElecCalcColumnSettingsDraftState';
 import { useElecCalcColumnViewModel } from '@/pages/electrical/useElecCalcColumnViewModel';
-import { useElecCalcDataLifecycleEffects } from '@/pages/electrical/useElecCalcDataLifecycleEffects';
 import { useElecCalcFilterOptions } from '@/pages/electrical/useElecCalcFilterOptions';
 import { useElecCalcMainTableController } from '@/pages/electrical/useElecCalcMainTableController';
-import { useElecCalcPageScopeEffects } from '@/pages/electrical/useElecCalcPageScopeEffects';
 import { useElecCalcPaginationState } from '@/pages/electrical/useElecCalcPaginationState';
+import { useElecCalcWorkspaceDataPlane } from '@/pages/electrical/useElecCalcWorkspaceDataPlane';
 import { useElecCalcWorkspacePresentationAssembly } from '@/pages/electrical/useElecCalcWorkspacePresentationAssembly';
 import { useElecCalcWorkspaceSummaryChrome } from '@/pages/electrical/useElecCalcWorkspaceSummaryChrome';
 import { useElecCalcPreferenceSettings } from '@/pages/electrical/useElecCalcPreferenceSettings';
 import { useElecCalcRecalculationParams } from '@/pages/electrical/useElecCalcRecalculationParams';
-import { useElecCalcRowSelectionState } from '@/pages/electrical/useElecCalcRowSelectionState';
-import { useElecCalcTableProjection } from '@/pages/electrical/useElecCalcTableProjection';
 import { useElecCalcTableViewState } from '@/pages/electrical/useElecCalcTableViewState';
 import {
   type ElectricalBatchJobCompletion,
@@ -108,9 +84,7 @@ export function useElecCalcWorkspaceModel({
     availableCableTypeKeys,
     availableCableTypes,
     electricalGlideEnabled,
-  } = useElecCalcBootViewState({
-    location,
-  });
+  } = useElecCalcBootViewState({ location });
   // The parent mounts this workspace only for variants that still have a
   // temporary numeric adapter. UUID remains the identity everywhere else.
   const variant = electricalVariant.legacy_variant_number as CalculationVariant;
@@ -193,229 +167,46 @@ export function useElecCalcWorkspaceModel({
     Boolean(project),
   );
 
-  const qc = useQueryClient();
   const navigate = useNavigate();
-
-  const {
-    data: electricalQueryCapabilities,
-    error: electricalCapabilitiesError,
-    isError: isElectricalCapabilitiesError,
-    refetch: retryElectricalCapabilities,
-  } = useQuery({
-    queryKey: electricalDataQueryKeys.capabilities(project!.id, electricalVariantId),
-    queryFn: () => getElectricalQueryCapabilities(
-      project!.id,
-      variant,
-      electricalVariantId,
-    ),
-    enabled: !!project,
-    staleTime: 60_000,
-  });
-  const electricalQueryRequest = useMemo(
-    () => (project
-      ? buildElectricalQueryRequest(
-        project.id,
-        electricalVariantId,
-        variant,
-        cableSource,
-        tableViewState,
-        tablePage,
-        tablePageSize,
-        electricalQueryCapabilities,
-        electricalPageCursor,
-      )
-      : null),
-    [
-      electricalPageCursor,
-      electricalQueryCapabilities,
-      electricalVariantId,
-      project,
-      cableSource,
-      tablePage,
-      tablePageSize,
-      tableViewState,
-      variant,
-    ],
-  );
-  const {
-    data: electricalPage,
-    isFetching: isElectricalPageFetching,
-    isPlaceholderData: isElectricalPagePlaceholderData,
-    error: electricalPageError,
-    isError: isElectricalPageError,
-    refetch: retryElectricalPage,
-  } = useQuery({
-    queryKey: electricalDataQueryKeys.page(
-      project!.id,
-      electricalVariantId,
-      electricalQueryRequest,
-    ),
-    queryFn: () => queryElectrical(electricalQueryRequest!),
-    enabled: !!project && electricalQueryRequest != null && !!electricalQueryCapabilities,
-  });
-  const pageSummary = electricalPage?.summary;
-  const pageInfo = electricalPage?.page_info;
-  const nextElectricalPageCursor = pageInfo?.next_cursor;
-  const {
-    electricalLoadedPages,
-    objects,
-    elecCalcs,
-    electricalDisplayOffset,
-    stats,
-  } = useElecCalcTableProjection({
-    selectedLegacyVariantNumber: variant,
-    electricalGlideEnabled,
-    electricalPage,
-    electricalInfinitePages,
-    isElectricalPagePlaceholderData,
-    tablePage,
-  });
-  const {
-    activeRowId,
-    selectedRowKeys,
-    setSelectedRowKeys,
-    activateRowId,
-    openElectricalRow,
-  } = useElecCalcRowSelectionState({
-    projectId: project?.id,
-    variant: electricalVariantId,
-    tablePage,
-    tablePageSize,
-    objects,
-  });
-  const cableTypes = useElecCalcCableTypeState({
-    availableCableTypes,
-    calcByObjectId: stats.calcByObjectId,
-    selectedRowKeys,
-    projectId: project?.id,
-    variant: electricalVariantId,
-  });
-  const batchCableType = cableTypes.cableTypeForRecalculation;
-  const objectActionCableType = cableTypes.getSavedCableTypeForObject;
-  const {
-    assignmentByObjectId,
-    versionByObjectId,
-    scopedObjects,
-    compatibleSelectedRowKeys,
-    handleAssignmentAwareSelectionChange,
-    getObjectActionDisabledReason,
-    getObjectCalculationDisabledReason,
-    preferredObjectActionCableType,
-  } = useElecCalcAssignmentSelectionState({
-    electricalLoadedPages,
-    objects,
-    systemView,
-    selectedRowKeys,
-    setSelectedRowKeys,
-    batchCableType,
-    getSavedCableTypeForObject: objectActionCableType,
-  });
-  const {
-    activeJob,
-    activeJobId,
-    batchMut,
-    cancelJobMut,
-  } = useElecCalcBatchJobOrchestration({
-    canMutate,
+  const data = useElecCalcWorkspaceDataPlane({
     projectId,
+    project,
     electricalVariantId,
     electricalVariantName,
+    variant,
+    canMutate,
     trackedJob,
     completion,
     registerJob,
+    cableSource,
     effectiveSource,
-    recalc,
-    selectedCableType: cableTypes.selectedCableType,
-    defaultCableType: cableTypes.defaultCableType,
-    cableTypeForRecalculation: cableTypes.cableTypeForRecalculation,
-    normalizeAvailableCableType: cableTypes.normalizeAvailableCableType,
-    objectOverridesForIds: cableTypes.objectOverridesForIds,
-    setCableTypeDraftByObjectId: cableTypes.setCableTypeDraftByObjectId,
-  });
-
-  useElecCalcPageScopeEffects({
-    projectId: project?.id,
-    variant: electricalVariantId,
-    effectiveSource,
-    tablePageSize,
-    tableViewState,
-    resetTablePage,
-    resetPaginationCache,
-  });
-
-  const cableSizingModal = useElecCalcCableSizingModalState({
-    projectId: project?.id,
-    electricalVariantId,
-    variant,
-    objects,
-    calcByObjectId: stats.calcByObjectId,
-    recalc,
-    getSavedCableTypeForObject: cableTypes.getSavedCableTypeForObject,
-    normalizeAvailableCableType: cableTypes.normalizeAvailableCableType,
-  });
-  const {
-    objectId: cableSizingModalObjectId,
-    setCableType: setCableSizingCableType,
-    manualMark: cableSizingManualMark,
-    effectiveCableType: cableSizingEffectiveCableType,
-    calc: cableSizingModalCalc,
-    resetModalState: resetCableSizingModalState,
-    openModalState: openCableSizingModalState,
-  } = cableSizingModal;
-
-  useElecCalcDataLifecycleEffects({
-    electricalGlideEnabled,
-    electricalPage,
-    isElectricalPageFetching,
-    isElectricalPagePlaceholderData,
-    rememberElectricalPage,
-    cableSizingModalObjectId,
-    resetCandidateTableViewState,
-    setCableSizingCableType,
-    normalizeAvailableCableType: cableTypes.normalizeAvailableCableType,
-    nextElectricalPageCursor,
-    rememberNextCursor,
-  });
-
-  const {
-    cableRowsForType,
-    commercialDataStatus,
-    technicalDataStatus,
-    manualCableOptionsForType,
-    cableMarkOptionsFor,
-    cableSizingManualOptions,
-  } = useElecCalcCableReferenceData({
-    projectSelected: Boolean(project),
     commercialFeaturesAvailable,
     availableCableTypes,
-    effectiveSource,
-    visibleCableTypeControl: cableTypes.visibleCableTypeControl,
-    aggressiveProduct: recalc.aggressiveProduct,
-    cableSizingEffectiveCableType,
+    electricalGlideEnabled,
+    systemView,
+    tableViewState,
+    tablePage,
+    tablePageSize,
+    electricalPageCursor,
+    electricalInfinitePages,
+    recalc,
+    resetTablePage,
+    resetPaginationCache,
+    rememberElectricalPage,
+    rememberNextCursor,
+    resetCandidateTableViewState,
   });
-  const setElectricalQueryCalculation = useCallback((
-    calculation: ElectricalCalcSummary,
-    target?: LegacyElectricalVariantTarget,
-  ) => {
-    if (!project?.id) return;
-    const targetVariantId = target?.id ?? electricalVariantId;
-    const targetLegacyVariantNumber = target?.legacyVariantNumber ?? variant;
-    if (calculation.variant_number !== targetLegacyVariantNumber) return;
-    qc.setQueriesData<ElectricalQueryResponse>(
-      { queryKey: electricalDataQueryKeys.queries(project.id, targetVariantId) },
-      (current) => {
-        if (!current) return current;
-        return updateElectricalQueryPageCalculation(current, calculation);
-      },
-    );
-  }, [electricalVariantId, project?.id, qc, variant]);
   const {
-    candidate,
-    electricalCandidateGlideColumns,
-    getElectricalCandidateGlideCellState,
-    handleElectricalCandidateGlideCellAction,
-    getElectricalCandidateGlideActionMenuItems,
-  } = useElecCalcCandidateWorkflowController({
+    cableTypes,
+    cableSizingModal,
+    stats,
+    objects,
+    selectedRowKeys,
+    activateRowId,
+    setElectricalQueryCalculation,
+  } = data;
+
+  const candidateWorkflow = useElecCalcCandidateWorkflowController({
     projectId: project?.id,
     electricalVariantId,
     canMutate,
@@ -426,35 +217,15 @@ export function useElecCalcWorkspaceModel({
     candidateTableViewState,
     visibleCandidateColumnMetas,
   });
-  const {
-    activeCandidateFolderKey,
-    setActiveCandidateFolderKey,
-    candidateFolderModalMode,
-    candidateFolderModalOpen,
-    candidateFolderName,
-    setCandidateFolderName,
-    closeCandidateFolderModal,
-    createCandidateFolderMut,
-    updateCandidateFolderMut,
-    deleteCandidateFolderMut,
-    submitCandidateFolderModal,
-    cableSizingCandidates,
-    activeCustomCandidateFolder,
-    candidateColumnValueAccessors,
-    resetMarkedCableSizingCandidates,
-  } = candidate;
+  const { candidate } = candidateWorkflow;
 
-  const {
-    findCableRowForMark,
-    cableSizingModalSelectedCable,
-    cableMarkValueForCalc,
-  } = useElecCalcCableMarkPresentation({
+  const cableMarkPresentation = useElecCalcCableMarkPresentation({
     effectiveSource,
-    cableRowsForType,
-    manualCableOptionsForType,
-    cableSizingEffectiveCableType,
-    cableSizingManualMark,
-    cableSizingModalCalc,
+    cableRowsForType: data.cableRowsForType,
+    manualCableOptionsForType: data.manualCableOptionsForType,
+    cableSizingEffectiveCableType: cableSizingModal.effectiveCableType,
+    cableSizingManualMark: cableSizingModal.manualMark,
+    cableSizingModalCalc: cableSizingModal.calc,
   });
   const cableMarkModal = useElecCalcCableMarkModalState({
     objects,
@@ -463,34 +234,13 @@ export function useElecCalcWorkspaceModel({
     electricalVariantId,
     getSavedCableTypeForObject: cableTypes.getSavedCableTypeForObject,
     normalizeAvailableCableType: cableTypes.normalizeAvailableCableType,
-    cableMarkOptionsFor,
-    cableMarkValueForCalc,
-    findCableRowForMark,
+    cableMarkOptionsFor: data.cableMarkOptionsFor,
+    cableMarkValueForCalc: cableMarkPresentation.cableMarkValueForCalc,
+    findCableRowForMark: cableMarkPresentation.findCableRowForMark,
     onOpenObject: (object) => activateRowId(object.id),
     onCableTypeChange: () => setRecalc.connectionType('line_1ph'),
   });
-  const {
-    object: cableMarkModalObject,
-    cableType: cableMarkModalCableType,
-    value: cableMarkModalValue,
-    setValue: setCableMarkModalValue,
-    targetVariants: cableMarkModalTargetVariants,
-    targetVariantsForSubmit: cableMarkModalTargetVariantsForSubmit,
-    options: cableMarkModalOptions,
-    optionByValue: cableMarkModalOptionByValue,
-    selectedCable: cableMarkModalSelectedCable,
-    targetVariantOptions: cableMarkModalTargetVariantOptions,
-    close: closeCableMarkModal,
-    open: openCableMarkModalState,
-    changeCableType: changeCableMarkModalCableType,
-    normalizeSelectedCableType: normalizeCableMarkModalCableType,
-    setTargetVariantsFromValues: setCableMarkModalTargetVariantsFromValues,
-  } = cableMarkModal;
-  const {
-    electricalLayoutMutate,
-    isCableMarkPending,
-    applyCableMarkModal,
-  } = useElecCalcCableSelectionMutationFlow({
+  const cableSelection = useElecCalcCableSelectionMutationFlow({
     projectId: project?.id,
     electricalVariantId,
     electricalVariantName,
@@ -500,57 +250,45 @@ export function useElecCalcWorkspaceModel({
     recalc,
     normalizeAvailableCableType: cableTypes.normalizeAvailableCableType,
     setElectricalQueryCalculation,
-    cableMarkModalObject,
-    cableMarkModalCableType,
-    cableMarkModalValue,
-    cableMarkModalTargetVariantsForSubmit,
-    cableMarkModalOptionByValue,
-    closeCableMarkModal,
+    cableMarkModalObject: cableMarkModal.object,
+    cableMarkModalCableType: cableMarkModal.cableType,
+    cableMarkModalValue: cableMarkModal.value,
+    cableMarkModalTargetVariantsForSubmit: cableMarkModal.targetVariantsForSubmit,
+    cableMarkModalOptionByValue: cableMarkModal.optionByValue,
+    closeCableMarkModal: cableMarkModal.close,
   });
 
   useEffect(() => {
-    normalizeCableMarkModalCableType();
-  }, [normalizeCableMarkModalCableType]);
+    cableMarkModal.normalizeSelectedCableType();
+  }, [cableMarkModal.normalizeSelectedCableType]);
 
-  const {
-    openCableMarkModal,
-    openCableSizingModal,
-    closeCableSizingModal,
-  } = useElecCalcObjectActionModals({
-    getObjectActionDisabledReason,
-    preferredObjectActionCableType,
-    objectActionCableType,
-    openCableMarkModalState,
-    changeCableMarkModalCableType,
+  const objectActionModals = useElecCalcObjectActionModals({
+    getObjectActionDisabledReason: data.getObjectActionDisabledReason,
+    preferredObjectActionCableType: data.preferredObjectActionCableType,
+    objectActionCableType: cableTypes.getSavedCableTypeForObject,
+    openCableMarkModalState: cableMarkModal.open,
+    changeCableMarkModalCableType: cableMarkModal.changeCableType,
     activateRowId,
-    openCableSizingModalState,
-    setCableSizingCableType,
+    openCableSizingModalState: cableSizingModal.openModalState,
+    setCableSizingCableType: cableSizingModal.setCableType,
     resetConnectionTypeOnPreferredChange: () => setRecalc.connectionType('line_1ph'),
-    resetMarkedCableSizingCandidates,
-    setActiveCandidateFolderKey,
-    resetCableSizingModalState,
-    closeCandidateFolderModal,
+    resetMarkedCableSizingCandidates: candidate.resetMarkedCableSizingCandidates,
+    setActiveCandidateFolderKey: candidate.setActiveCandidateFolderKey,
+    resetCableSizingModalState: cableSizingModal.resetModalState,
+    closeCandidateFolderModal: candidate.closeCandidateFolderModal,
     setCandidateColumnSettingsOpen,
   });
   const {
     fieldCapabilityByKey,
     enumOptionsByColumn,
   } = useElecCalcFilterOptions({
-    electricalFields: electricalQueryCapabilities?.fields,
-    cableSizingCandidates,
+    electricalFields: data.electricalQueryCapabilities?.fields,
+    cableSizingCandidates: candidate.cableSizingCandidates,
     visibleCandidateColumnMetas,
-    candidateColumnValueAccessors,
+    candidateColumnValueAccessors: candidate.candidateColumnValueAccessors,
   });
 
-  const {
-    persistCandidateTableColumnSettings,
-    persistTableSettings,
-    applyElectricalGlideColumnDraftWidth,
-    commitElectricalGlideColumnWidth,
-    applyElectricalCandidateGlideColumnDraftWidth,
-    commitElectricalCandidateGlideColumnWidth,
-    startColumnResize,
-  } = useElecCalcColumnPersistence({
+  const columnPersistence = useElecCalcColumnPersistence({
     tableColumnSettings,
     candidateTableColumnSettings,
     isRegisteredUser,
@@ -565,93 +303,50 @@ export function useElecCalcWorkspaceModel({
     updateTableSettingsPreference: updateTableSettingsPreference.mutate,
   });
 
-  const {
-    draftTableColumnSettings,
-    draftCandidateTableColumnSettings,
-    draftTableViewSettings,
-    openColumnSettings,
-    openCandidateColumnSettings,
-    updateDraftColumn,
-    updateDraftColumnOrder,
-    reorderDraftColumn,
-    updateDraftColumnWidth,
-    updateDraftTableFontSize,
-    resetDraftTableFontSize,
-    updateDraftTableLabelFormat,
-    updateDraftSettingsLabelFormat,
-    resetDraftLabelFormats,
-    updateDraftCalculationCableSource,
-    resetDraftColumnWidth,
-    resetDraftColumns,
-    selectAllDraftColumns,
-    applyColumnSettings,
-    updateDraftCandidateColumn,
-    updateDraftCandidateColumnOrder,
-    reorderDraftCandidateColumn,
-    updateDraftCandidateColumnWidth,
-    resetDraftCandidateColumnWidth,
-    resetDraftCandidateColumns,
-    selectAllDraftCandidateColumns,
-    applyCandidateColumnSettings,
-  } = useElecCalcColumnSettingsDraftState({
+  const columnDraft = useElecCalcColumnSettingsDraftState({
     tableColumnSettings,
     candidateTableColumnSettings,
     tableViewSettings,
     isEmployee,
     setColumnSettingsOpen,
     setCandidateColumnSettingsOpen,
-    persistTableSettings,
-    persistCandidateTableColumnSettings,
+    persistTableSettings: columnPersistence.persistTableSettings,
+    persistCandidateTableColumnSettings: columnPersistence.persistCandidateTableColumnSettings,
   });
 
-  const {
-    electricalColumns,
-    electricalGlideColumns,
-    electricalInfiniteLoading,
-    electricalPagination,
-    electricalRowClassName,
-    electricalTableScrollX,
-    electricalTableScrollY,
-    getElectricalGlideCellState,
-    handleElectricalGlideCellAction,
-    handleElectricalGlideCommitCell,
-    handleElectricalGlideLoadMore,
-    handleElectricalGlidePageChange,
-    handleElectricalGlideStartCellEdit,
-    handleElectricalTableChange,
-  } = useElecCalcMainTableController({
-    activeRowId,
+  const mainTable = useElecCalcMainTableController({
+    activeRowId: data.activeRowId,
     activateRowId,
     canMutate,
     calcByObjectId: stats.calcByObjectId,
     effectiveSource,
-    electricalDisplayOffset,
+    electricalDisplayOffset: data.electricalDisplayOffset,
     electricalGlideEnabled,
-    electricalLayoutMutate,
+    electricalLayoutMutate: cableSelection.electricalLayoutMutate,
     enumOptionsByColumn,
     fieldCapabilityByKey,
-    filteredCount: electricalPage?.counts?.filtered,
+    filteredCount: data.electricalPage?.counts?.filtered,
     getCalculatedCableTypeForObject: cableTypes.getCalculatedCableTypeForObject,
-    getObjectActionDisabledReason,
-    getObjectCalculationDisabledReason,
+    getObjectActionDisabledReason: data.getObjectActionDisabledReason,
+    getObjectCalculationDisabledReason: data.getObjectCalculationDisabledReason,
     getSavedCableTypeForObject: cableTypes.getSavedCableTypeForObject,
-    hasNextPage: Boolean(pageInfo?.has_next_page),
-    isCableMarkPending,
-    isElectricalPageFetching,
+    hasNextPage: Boolean(data.pageInfo?.has_next_page),
+    isCableMarkPending: cableSelection.isCableMarkPending,
+    isElectricalPageFetching: data.isElectricalPageFetching,
     loadNextElectricalGlidePage,
-    nextElectricalPageCursor,
+    nextElectricalPageCursor: data.nextElectricalPageCursor,
     objects,
-    openCableMarkModal,
-    openCableSizingModal,
-    pageSummary,
+    openCableMarkModal: objectActionModals.openCableMarkModal,
+    openCableSizingModal: objectActionModals.openCableSizingModal,
+    pageSummary: data.pageSummary,
     projectSelected: Boolean(project),
     recalc,
-    selectedRowKeys: compatibleSelectedRowKeys,
+    selectedRowKeys: data.compatibleSelectedRowKeys,
     setColumnFilter,
     setTablePage,
     setTablePageSize,
     setTableViewState,
-    startColumnResize,
+    startColumnResize: columnPersistence.startColumnResize,
     resetColumnFilter,
     tablePage,
     tablePageSize,
@@ -659,57 +354,29 @@ export function useElecCalcWorkspaceModel({
     visibleElectricalColumnMetas,
   });
 
-  const {
-    totalObjects,
-    validObjectsCount,
-    selectedValidObjectsCount,
-    selectedHeatLossFailedCount,
-    calculatedCount,
-    failedCount,
-    totalCableLength,
-    totalCurrent,
-    manualCableCount,
-    selectedManualCableCount,
-    isJobActive,
-    selectedRecalcDisabled,
-    selectedRecalcTooltip,
-    selectedRecalcCountLabel,
-    jobProgressLabel,
-    renderManualOverwriteControl,
-    activeElectricalErrorItem,
-    activeElectricalErrorGuidance,
-    onRecalculateSelected,
-    onRecalculateAll,
-    onCancelJob,
-    cableTypeControlLabel,
-  } = useElecCalcWorkspaceSummaryChrome({
-    pageSummary,
+  const summary = useElecCalcWorkspaceSummaryChrome({
+    pageSummary: data.pageSummary,
     objects,
-    elecCalcsCount: elecCalcs.length,
-    compatibleSelectedRowKeys,
+    elecCalcsCount: data.elecCalcs.length,
+    compatibleSelectedRowKeys: data.compatibleSelectedRowKeys,
     stats,
-    activeJob,
-    activeJobId,
+    activeJob: data.activeJob,
+    activeJobId: data.activeJobId,
     canMutate,
     overwriteManualChoices,
     setOverwriteManualChoices,
-    electricalDisplayOffset,
-    activeRowId,
+    electricalDisplayOffset: data.electricalDisplayOffset,
+    activeRowId: data.activeRowId,
     selectedRowKeys,
-    assignmentByObjectId,
+    assignmentByObjectId: data.assignmentByObjectId,
     cableTypeForRecalculation: cableTypes.cableTypeForRecalculation,
-    mutateBatch: (args) => batchMut.mutate(args),
-    cancelJob: () => cancelJobMut.mutate(),
+    mutateBatch: (args) => data.batchMut.mutate(args),
+    cancelJob: () => data.cancelJobMut.mutate(),
     calcByObjectId: stats.calcByObjectId,
   });
-  const {
-    cableTypeOptions,
-    cableTypeOptionsForObject,
-    cableSourceOptions,
-    handleCableTypeControlChange,
-  } = useElecCalcCableTypeOptions({
+  const cableTypeOptionsState = useElecCalcCableTypeOptions({
     availableCableTypeKeys,
-    assignmentByObjectId,
+    assignmentByObjectId: data.assignmentByObjectId,
     isEmployee,
     canMutate,
     selectedRowKeys,
@@ -719,181 +386,160 @@ export function useElecCalcWorkspaceModel({
     getSavedCableTypeForObject: cableTypes.getSavedCableTypeForObject,
     resetConnectionType: () => setRecalc.connectionType('line_1ph'),
   });
+
   return useElecCalcWorkspacePresentationAssembly({
+    ...data.presentationBindings,
     project,
     canMutate,
     projectId,
     electricalVariant,
     onAssignmentsChanged,
     activateRowId,
-    activeElectricalErrorGuidance,
-    activeElectricalErrorItem,
-    activeJobId,
-    activeRowId,
-    applyElectricalGlideColumnDraftWidth,
-    assignmentByObjectId,
-    batchMut,
-    cableTypeControlLabel,
-    cableTypeOptions,
-    cableTypes,
-    calculatedCount,
-    cancelJobMut,
-    commitElectricalGlideColumnWidth,
-    compatibleSelectedRowKeys,
+    activeElectricalErrorGuidance: summary.activeElectricalErrorGuidance,
+    activeElectricalErrorItem: summary.activeElectricalErrorItem,
+    applyElectricalGlideColumnDraftWidth: columnPersistence.applyElectricalGlideColumnDraftWidth,
+    cableTypeControlLabel: summary.cableTypeControlLabel,
+    cableTypeOptions: cableTypeOptionsState.cableTypeOptions,
+    calculatedCount: summary.calculatedCount,
+    commitElectricalGlideColumnWidth: columnPersistence.commitElectricalGlideColumnWidth,
     currentTableViewActive,
-    electricalCapabilitiesError,
-    electricalColumns,
-    electricalGlideColumns,
+    electricalColumns: mainTable.electricalColumns,
+    electricalGlideColumns: mainTable.electricalGlideColumns,
     electricalGlideEnabled,
-    electricalInfiniteLoading,
-    electricalPage,
-    electricalPageError,
-    electricalPagination,
-    electricalRowClassName,
-    electricalTableScrollX,
-    electricalTableScrollY,
+    electricalInfiniteLoading: mainTable.electricalInfiniteLoading,
+    electricalPagination: mainTable.electricalPagination,
+    electricalRowClassName: mainTable.electricalRowClassName,
+    electricalTableScrollX: mainTable.electricalTableScrollX,
+    electricalTableScrollY: mainTable.electricalTableScrollY,
     electricalVariantName,
-    failedCount,
-    getElectricalGlideCellState,
-    handleAssignmentAwareSelectionChange,
-    handleCableTypeControlChange,
-    handleElectricalGlideCellAction,
-    handleElectricalGlideCommitCell,
-    handleElectricalGlideLoadMore,
-    handleElectricalGlidePageChange,
-    handleElectricalGlideStartCellEdit,
-    handleElectricalTableChange,
-    isElectricalCapabilitiesError,
-    isElectricalPageError,
-    isElectricalPageFetching,
-    isJobActive,
-    jobProgressLabel,
-    manualCableCount,
+    failedCount: summary.failedCount,
+    getElectricalGlideCellState: mainTable.getElectricalGlideCellState,
+    handleCableTypeControlChange: cableTypeOptionsState.handleCableTypeControlChange,
+    handleElectricalGlideCellAction: mainTable.handleElectricalGlideCellAction,
+    handleElectricalGlideCommitCell: mainTable.handleElectricalGlideCommitCell,
+    handleElectricalGlideLoadMore: mainTable.handleElectricalGlideLoadMore,
+    handleElectricalGlidePageChange: mainTable.handleElectricalGlidePageChange,
+    handleElectricalGlideStartCellEdit: mainTable.handleElectricalGlideStartCellEdit,
+    handleElectricalTableChange: mainTable.handleElectricalTableChange,
+    isJobActive: summary.isJobActive,
+    jobProgressLabel: summary.jobProgressLabel,
+    manualCableCount: summary.manualCableCount,
     navigate,
-    onCancelJob,
-    onRecalculateAll,
-    onRecalculateSelected,
-    openColumnSettings,
-    openElectricalRow,
+    onCancelJob: summary.onCancelJob,
+    onRecalculateAll: summary.onRecalculateAll,
+    onRecalculateSelected: summary.onRecalculateSelected,
+    openColumnSettings: columnDraft.openColumnSettings,
     overwriteManualChoices,
     paramsPanelVisible,
     recalc,
-    renderManualOverwriteControl,
+    renderManualOverwriteControl: summary.renderManualOverwriteControl,
     resetColumnFilter,
     resetCurrentTableViewState,
     resolvedTableFontSize,
-    retryElectricalCapabilities,
-    retryElectricalPage,
-    scopedObjects,
-    selectedHeatLossFailedCount,
-    selectedManualCableCount,
-    selectedRecalcCountLabel,
-    selectedRecalcDisabled,
-    selectedRecalcTooltip,
-    selectedRowKeys,
-    selectedValidObjectsCount,
+    selectedHeatLossFailedCount: summary.selectedHeatLossFailedCount,
+    selectedManualCableCount: summary.selectedManualCableCount,
+    selectedRecalcCountLabel: summary.selectedRecalcCountLabel,
+    selectedRecalcDisabled: summary.selectedRecalcDisabled,
+    selectedRecalcTooltip: summary.selectedRecalcTooltip,
+    selectedValidObjectsCount: summary.selectedValidObjectsCount,
     setColumnFilter,
     setElectricalTableSort,
     setOverwriteManualChoices,
     setRecalc,
-    setSelectedRowKeys,
     setSystemView,
-    stats,
     systemView,
     tableDragging,
     tableScrollRegionsRef,
     tableViewState,
     toggleParamsPanel,
-    totalCableLength,
-    totalCurrent,
-    totalObjects,
-    validObjectsCount,
-    versionByObjectId,
+    totalCableLength: summary.totalCableLength,
+    totalCurrent: summary.totalCurrent,
+    totalObjects: summary.totalObjects,
+    validObjectsCount: summary.validObjectsCount,
     // presentation-only inputs
-    cableMarkModalObject,
+    cableMarkModalObject: cableMarkModal.object,
     cableSizingModalObject: cableSizingModal.object,
-    cableTypeOptionsForObject,
-    getObjectActionDisabledReason: getObjectActionDisabledReason as never,
+    cableTypeOptionsForObject: cableTypeOptionsState.cableTypeOptionsForObject,
+    getObjectActionDisabledReason: data.getObjectActionDisabledReason as never,
     visibleCandidateColumnMetas,
     commercialFeaturesAvailable,
     isEmployee,
-    draftTableViewSettings,
-    cableSourceOptions,
-    commercialDataStatus,
-    technicalDataStatus,
-    updateDraftCalculationCableSource,
-    deleteCandidateFolderMut,
-    activeCandidateFolderKey,
-    activeCustomCandidateFolder,
+    draftTableViewSettings: columnDraft.draftTableViewSettings,
+    cableSourceOptions: cableTypeOptionsState.cableSourceOptions,
+    updateDraftCalculationCableSource: columnDraft.updateDraftCalculationCableSource,
+    deleteCandidateFolderMut: candidate.deleteCandidateFolderMut,
+    activeCandidateFolderKey: candidate.activeCandidateFolderKey,
+    activeCustomCandidateFolder: candidate.activeCustomCandidateFolder,
     setTableDragging,
-    cableMarkModalSelectedCable,
-    cableMarkModalCableType,
-    isCableMarkPending,
-    cableMarkModalValue,
-    cableMarkModalOptions,
-    cableMarkModalTargetVariants,
-    cableMarkModalTargetVariantOptions,
-    changeCableMarkModalCableType,
-    setCableMarkModalValue,
-    setCableMarkModalTargetVariantsFromValues,
-    applyCableMarkModal,
-    closeCableMarkModal,
+    cableMarkModalSelectedCable: cableMarkModal.selectedCable,
+    cableMarkModalCableType: cableMarkModal.cableType,
+    isCableMarkPending: cableSelection.isCableMarkPending,
+    cableMarkModalValue: cableMarkModal.value,
+    cableMarkModalOptions: cableMarkModal.options,
+    cableMarkModalTargetVariants: cableMarkModal.targetVariants,
+    cableMarkModalTargetVariantOptions: cableMarkModal.targetVariantOptions,
+    changeCableMarkModalCableType: cableMarkModal.changeCableType,
+    setCableMarkModalValue: cableMarkModal.setValue,
+    setCableMarkModalTargetVariantsFromValues: cableMarkModal.setTargetVariantsFromValues,
+    applyCableMarkModal: cableSelection.applyCableMarkModal,
+    closeCableMarkModal: cableMarkModal.close,
     cableSizingModal,
     candidate,
-    cableSizingModalSelectedCable,
-    cableSizingManualOptions,
-    electricalCandidateGlideColumns,
+    cableSizingModalSelectedCable: cableMarkPresentation.cableSizingModalSelectedCable,
+    electricalCandidateGlideColumns: candidateWorkflow.electricalCandidateGlideColumns,
     candidateTableViewState,
     candidateTableViewActive,
-    closeCableSizingModal,
-    openCandidateColumnSettings,
+    closeCableSizingModal: objectActionModals.closeCableSizingModal,
+    openCandidateColumnSettings: columnDraft.openCandidateColumnSettings,
     resetCandidateTableViewState,
-    getElectricalCandidateGlideCellState,
-    handleElectricalCandidateGlideCellAction,
-    getElectricalCandidateGlideActionMenuItems,
+    getElectricalCandidateGlideCellState: candidateWorkflow.getElectricalCandidateGlideCellState,
+    handleElectricalCandidateGlideCellAction: candidateWorkflow.handleElectricalCandidateGlideCellAction,
+    getElectricalCandidateGlideActionMenuItems: candidateWorkflow.getElectricalCandidateGlideActionMenuItems,
     setCandidateColumnFilter,
     resetCandidateColumnFilter,
     setCandidateTableSort,
-    applyElectricalCandidateGlideColumnDraftWidth,
-    commitElectricalCandidateGlideColumnWidth,
-    candidateFolderModalOpen,
-    candidateFolderModalMode,
-    createCandidateFolderMut,
-    updateCandidateFolderMut,
-    candidateFolderName,
-    submitCandidateFolderModal,
-    closeCandidateFolderModal,
-    setCandidateFolderName,
+    applyElectricalCandidateGlideColumnDraftWidth:
+      columnPersistence.applyElectricalCandidateGlideColumnDraftWidth,
+    commitElectricalCandidateGlideColumnWidth:
+      columnPersistence.commitElectricalCandidateGlideColumnWidth,
+    candidateFolderModalOpen: candidate.candidateFolderModalOpen,
+    candidateFolderModalMode: candidate.candidateFolderModalMode,
+    createCandidateFolderMut: candidate.createCandidateFolderMut,
+    updateCandidateFolderMut: candidate.updateCandidateFolderMut,
+    candidateFolderName: candidate.candidateFolderName,
+    submitCandidateFolderModal: candidate.submitCandidateFolderModal,
+    closeCandidateFolderModal: candidate.closeCandidateFolderModal,
+    setCandidateFolderName: candidate.setCandidateFolderName,
     candidateColumnSettingsOpen,
     setCandidateColumnSettingsOpen,
-    draftCandidateTableColumnSettings,
+    draftCandidateTableColumnSettings: columnDraft.draftCandidateTableColumnSettings,
     normalizedTableViewSettings,
     updateCandidateTableColumnPreference,
-    applyCandidateColumnSettings,
-    selectAllDraftCandidateColumns,
-    resetDraftCandidateColumns,
-    updateDraftCandidateColumn,
-    updateDraftCandidateColumnOrder,
-    reorderDraftCandidateColumn,
-    updateDraftCandidateColumnWidth,
-    resetDraftCandidateColumnWidth,
+    applyCandidateColumnSettings: columnDraft.applyCandidateColumnSettings,
+    selectAllDraftCandidateColumns: columnDraft.selectAllDraftCandidateColumns,
+    resetDraftCandidateColumns: columnDraft.resetDraftCandidateColumns,
+    updateDraftCandidateColumn: columnDraft.updateDraftCandidateColumn,
+    updateDraftCandidateColumnOrder: columnDraft.updateDraftCandidateColumnOrder,
+    reorderDraftCandidateColumn: columnDraft.reorderDraftCandidateColumn,
+    updateDraftCandidateColumnWidth: columnDraft.updateDraftCandidateColumnWidth,
+    resetDraftCandidateColumnWidth: columnDraft.resetDraftCandidateColumnWidth,
     columnSettingsOpen,
     setColumnSettingsOpen,
-    draftTableColumnSettings,
+    draftTableColumnSettings: columnDraft.draftTableColumnSettings,
     updateTableColumnPreference,
     updateTableSettingsPreference,
-    applyColumnSettings,
-    selectAllDraftColumns,
-    resetDraftColumns,
-    updateDraftColumn,
-    updateDraftColumnOrder,
-    reorderDraftColumn,
-    updateDraftColumnWidth,
-    resetDraftColumnWidth,
-    updateDraftTableFontSize,
-    updateDraftTableLabelFormat,
-    updateDraftSettingsLabelFormat,
-    resetDraftTableFontSize,
-    resetDraftLabelFormats,
+    applyColumnSettings: columnDraft.applyColumnSettings,
+    selectAllDraftColumns: columnDraft.selectAllDraftColumns,
+    resetDraftColumns: columnDraft.resetDraftColumns,
+    updateDraftColumn: columnDraft.updateDraftColumn,
+    updateDraftColumnOrder: columnDraft.updateDraftColumnOrder,
+    reorderDraftColumn: columnDraft.reorderDraftColumn,
+    updateDraftColumnWidth: columnDraft.updateDraftColumnWidth,
+    resetDraftColumnWidth: columnDraft.resetDraftColumnWidth,
+    updateDraftTableFontSize: columnDraft.updateDraftTableFontSize,
+    updateDraftTableLabelFormat: columnDraft.updateDraftTableLabelFormat,
+    updateDraftSettingsLabelFormat: columnDraft.updateDraftSettingsLabelFormat,
+    resetDraftTableFontSize: columnDraft.resetDraftTableFontSize,
+    resetDraftLabelFormats: columnDraft.resetDraftLabelFormats,
   });
 }
