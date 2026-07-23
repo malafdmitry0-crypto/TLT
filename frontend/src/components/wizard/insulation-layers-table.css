@@ -282,11 +282,11 @@
   min-width: 0;
   /* высота растёт под 2 строки длинного имени материала, а не фиксирована */
   height: auto;
-  min-height: var(--ins-control-h) !important;
-  padding-top: 2px !important;
-  padding-bottom: 2px !important;
+  min-height: var(--ins-control-h);
+  padding-top: 2px;
+  padding-bottom: 2px;
   box-sizing: border-box;
-  font-size: var(--ins-font) !important;
+  font-size: var(--ins-font);
 }
 
 /*
@@ -301,8 +301,8 @@
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
-  line-height: 1.2 !important;
-  font-size: var(--ins-font) !important;
+  line-height: 1.2;
+  font-size: var(--ins-font);
 }
 
 .insulation-layers-table .tlt-number-field,
@@ -314,7 +314,12 @@
   min-width: 0;
 }
 
-.insulation-layers-table .tlt-number-field__input,
+.insulation-layers-table .tlt-number-field__input {
+  height: var(--ins-control-h);
+  font-size: var(--ins-font);
+}
+
+/* Ant number input still fights CSS-in-JS */
 .insulation-layers-table .ant-input-number-input {
   height: var(--ins-control-h) !important;
   font-size: var(--ins-font) !important;

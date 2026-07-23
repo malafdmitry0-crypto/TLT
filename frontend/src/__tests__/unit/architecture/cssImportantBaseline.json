@@ -2,12 +2,12 @@
   "version": 1,
   "slice": "IMP0",
   "description": "Per-file !important ratchet. Growth of total or any file fails. Decrease is always OK without baseline edit. New CSS files with !important must be added via intentional baseline shrink elsewhere first (net total non-increase).",
-  "total": 50,
+  "total": 44,
   "files": {
     "src/pages/ui-kit.css": 7,
     "src/pages/heatcalc/heatcalc-field-chrome.css": 4,
     "src/components/ui-kit/compact-fields.css": 15,
-    "src/components/wizard/insulation-layers-table.css": 10,
+    "src/components/wizard/insulation-layers-table.css": 4,
     "src/components/wizard/heat-object-fields.css": 6,
     "src/components/wizard/cable-algorithm-panel.css": 8
   }

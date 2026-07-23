@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "slice": "CSS-IMP-03",
-  "description": "cable+heat-object important burn",
+  "slice": "CSS-IMP-04",
+  "description": "insulation-layers-table important burn-down",
   "stylesCssMaxLoc": 30,
   "newFileLocCap": 400,
   "files": {
@@ -26,7 +26,7 @@
       "media": 1
     },
     "src/components/wizard/insulation-layers-table.css": {
-      "loc": 352,
+      "loc": 357,
       "bareAnt": 0,
       "media": 1
     },
@@ -157,7 +157,7 @@
     }
   },
   "totals": {
-    "loc": 9352,
+    "loc": 9357,
     "bareAnt": 18,
     "media": 40
   },
