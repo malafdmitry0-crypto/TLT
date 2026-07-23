@@ -21,10 +21,10 @@
 | Metric | Value |
 |---|---:|
 | ElecCalcPage LOC | 1936 |
-| HeatCalcPage LOC | 1046 |
+| HeatCalcPage LOC | 1046 → **1007** (slice 3) |
 | SpecificationPage LOC | 1005 |
 | styles.css LOC | 6777 |
-| inverted components→pages | 3 |
+| inverted components→pages | 3 → **0** |
 
 ## Proof commands run
 
@@ -59,8 +59,18 @@ cd e2e && E2E_BASE_URL=http://127.0.0.1:3003 npm run test:ui-kit-parity:chrome
 | architecture allowlist | **empty** |
 | inverted components→pages | **0** |
 
+## Slice 3 — Heat shell extract (reorder + draft ids) — 2026-07-23
+
+| Item | Status |
+|---|---|
+| pure `changedDraftRowIds` → `heatCalcDraftRowsModel.ts` | ✅ |
+| `useHeatCalcObjectReorder` (PDF-HEAT-08 DnD) | ✅ |
+| HeatCalcPage wired; local helpers removed | ✅ |
+| unit tests (6) | ✅ |
+| HeatCalcPage LOC | **1046 → 1007** |
+
 ## Next
 
-1. Thin HeatCalcPage shell extract **or** next form section on kit
+1. Continue HeatCalcPage shell thin (more pure models / interaction hooks)
 2. One ElecCalcPage orchestration extract (not full rewrite)
 3. CSS extract one block from styles.css
