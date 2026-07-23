@@ -153,8 +153,8 @@
 }
 .actionbar-srs .action-icon-button.save:not(:disabled),
 .actionbar-srs .action-save-button.save:not(:disabled) {
-  background: #1f6f3e;
-  border-color: #1f6f3e;
+  background: var(--c-1f6f3e);
+  border-color: var(--c-1f6f3e);
 }
 .actionbar-srs .action-icon-button.add:not(:disabled):hover,
 .actionbar-srs .action-add-button:not(:disabled):hover,
@@ -183,14 +183,14 @@
   font-weight: 600;
 }
 .actionbar-mode-tag.edit {
-  color: #7a4d00;
-  background: #fff3cd;
-  border-color: #f6c343;
+  color: var(--c-7a4d00);
+  background: var(--c-fff3cd);
+  border-color: var(--c-f6c343);
 }
 .actionbar-mode-tag.new {
-  color: #1f6f3e;
-  background: #e5f3e3;
-  border-color: #91c788;
+  color: var(--c-1f6f3e);
+  background: var(--c-e5f3e3);
+  border-color: var(--c-91c788);
 }
 .actionbar-form-toggle {
   white-space: nowrap;

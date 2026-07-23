@@ -13,15 +13,15 @@
 
 .heatcalc-header {
   background: var(--color-surface);
-  color: #213244;
+  color: var(--c-213244);
   height: auto;
   line-height: 1;
   padding: 0 10px;
   display: flex;
   flex-direction: column;
   gap: 0;
-  border-bottom: 1px solid #dfe7f1;
-  box-shadow: 0 1px 5px rgb(20 42 68 / 7%);
+  border-bottom: 1px solid var(--c-dfe7f1);
+  box-shadow: 0 1px 5px var(--a-48ed076d);
   min-width: 0;
 }
 .heatcalc-primary-row {
@@ -40,12 +40,12 @@
   min-width: 0;
 }
 .heatcalc-brand-icon {
-  color: #2457d6;
+  color: var(--c-2457d6);
   font-size: 15px;
   line-height: 1;
 }
 .heatcalc-title {
-  color: #162234;
+  color: var(--c-162234);
   font-size: 14px;
   font-weight: 800;
   line-height: 1;
@@ -71,7 +71,7 @@
   margin: 0 2px;
   padding-inline: 8px;
   border-radius: 5px;
-  color: #26364a;
+  color: var(--c-26364a);
   font-size: 12px;
   font-weight: 600;
 }
@@ -80,9 +80,9 @@
   display: none;
 }
 .heatcalc-primary-nav .ant-menu-item-selected {
-  background: #eef4ff;
-  color: #2457d6;
-  box-shadow: inset 0 0 0 1px #c9d9ff;
+  background: var(--c-eef4ff);
+  color: var(--c-2457d6);
+  box-shadow: inset 0 0 0 1px var(--c-c9d9ff);
 }
 .heatcalc-primary-nav .ant-menu-item .anticon {
   font-size: 12px;
@@ -104,7 +104,7 @@
   line-height: 1;
 }
 .heatcalc-step-done {
-  color: #52c41a;
+  color: var(--c-52c41a);
   font-size: 10px;
 }
 .heatcalc-step-label .ant-badge-count {
@@ -133,11 +133,11 @@
   min-width: 0;
 }
 .project-menu-current-icon {
-  color: #6a7a8e;
+  color: var(--c-6a7a8e);
   font-size: 10px;
 }
 .project-menu-current-name {
-  color: #26364a;
+  color: var(--c-26364a);
   max-width: 140px;
   font-size: 10px;
   line-height: 22px;
@@ -238,7 +238,7 @@
   max-width: none;
   height: 16px;
   padding: 0 2px;
-  color: #3b4a5d;
+  color: var(--c-3b4a5d);
   font-size: 9px;
   line-height: 1;
   white-space: nowrap;
@@ -246,7 +246,7 @@
 }
 .workspace-header-context-icon {
   flex: 0 0 auto;
-  color: #2457d6;
+  color: var(--c-2457d6);
   font-size: 10px;
 }
 .workspace-header-context-title {
@@ -259,19 +259,19 @@
   flex: 0 0 auto;
   padding: 0 5px;
   border-radius: 999px;
-  background: #eef3f6;
-  color: #607080;
+  background: var(--c-eef3f6);
+  color: var(--c-607080);
   font-size: 9px;
   font-weight: 600;
   line-height: 14px;
 }
 .workspace-header-context-mode.edit {
-  background: #fff3cd;
-  color: #7a4d00;
+  background: var(--c-fff3cd);
+  color: var(--c-7a4d00);
 }
 .workspace-header-context-mode.new {
-  background: #e5f3e3;
-  color: #1f6f3e;
+  background: var(--c-e5f3e3);
+  color: var(--c-1f6f3e);
 }
 @media (max-width: 900px) {
   

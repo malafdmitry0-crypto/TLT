@@ -132,8 +132,8 @@ describe('CSS !important ratchet (IMP0)', () => {
       expect.fail(violations.join('\n\n---\n\n'));
     }
 
-    // Decrease is allowed: assert we still track baseline shape for agents.
-    expect(baseline.total).toBeGreaterThan(0);
+    // Decrease is allowed down to zero (StyleProvider hashPriority=low path).
+    expect(baseline.total).toBeGreaterThanOrEqual(0);
     expect(current.total).toBeLessThanOrEqual(baseline.total);
   });
 

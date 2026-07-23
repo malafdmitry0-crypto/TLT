@@ -47,8 +47,8 @@
   width: 100%;
   min-width: 0;
   color: var(--tlt-field-label-color);
-  background: #f4f7fa;
-  border: 1px solid #d1dce8;
+  background: var(--c-f4f7fa);
+  border: 1px solid var(--c-d1dce8);
   border-radius: 5px 5px 0 0;
   font-size: var(--ins-font);
   font-weight: 650;
@@ -61,7 +61,7 @@
   min-width: 0;
   min-height: 28px;
   padding: 4px 8px;
-  border-left: 1px solid #dce5ee;
+  border-left: 1px solid var(--c-dce5ee);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -91,10 +91,10 @@
   height: 18px;
   margin: 0;
   padding: 0;
-  border: 1px solid #c5d4e4;
+  border: 1px solid var(--c-c5d4e4);
   border-radius: 3px;
   background: var(--color-surface);
-  color: #214c78;
+  color: var(--c-214c78);
   font-size: 10px;
   line-height: 1;
   cursor: pointer;
@@ -104,9 +104,9 @@
 
 .insulation-layers-table .insulation-layer-add-btn:hover:not(:disabled),
 .insulation-layers-table .insulation-layer-remove-btn:hover:not(:disabled) {
-  border-color: #1677ff;
-  color: #1677ff;
-  background: #f0f7ff;
+  border-color: var(--c-1677ff);
+  color: var(--c-1677ff);
+  background: var(--c-f0f7ff);
 }
 
 .insulation-layers-table .insulation-layer-add-btn:disabled {
@@ -115,13 +115,13 @@
 }
 
 .insulation-layers-table .insulation-layer-remove-btn {
-  border-color: #f0c9c9;
+  border-color: var(--c-f0c9c9);
   color: var(--color-danger-text);
 }
 
 .insulation-layers-table .insulation-layer-remove-btn:hover:not(:disabled) {
   border-color: var(--color-danger);
-  color: #cf1322;
+  color: var(--c-cf1322);
   background: var(--color-danger-bg);
 }
 
@@ -139,12 +139,12 @@
 }
 
 .insulation-layers-table .insulation-layer-group--active {
-  background: #f7fbff;
-  box-shadow: inset 0 0 0 1px #b7d4f0;
+  background: var(--c-f7fbff);
+  box-shadow: inset 0 0 0 1px var(--c-b7d4f0);
 }
 
 .insulation-layers-table .insulation-layer-group--active .insulation-layer-cell--index {
-  background: #eef6ff;
+  background: var(--c-eef6ff);
 }
 
 /* ── Body ─────────────────────────────────────────────────────── */
@@ -168,7 +168,7 @@
   flex: none;
   flex-wrap: nowrap;
   background: var(--color-surface);
-  border: 1px solid #d1dce8;
+  border: 1px solid var(--c-d1dce8);
   border-top: 0;
   border-radius: 0;
   box-sizing: border-box;
@@ -181,7 +181,7 @@
   display: flex;
   align-items: center;
   padding: 6px 8px;
-  border-left: 1px solid #e0e7ef;
+  border-left: 1px solid var(--c-e0e7ef);
   box-sizing: border-box;
   grid-row: 1;
 }
@@ -215,7 +215,7 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  color: #214c78;
+  color: var(--c-214c78);
   font-size: var(--ins-font);
   font-weight: 700;
   line-height: 1;
@@ -238,9 +238,9 @@
 
 /* sr-only labels — header owns column titles */
 .insulation-layers-table .ant-form-item-label {
-  position: absolute !important;
+  position: absolute;
   width: 1px;
-  height: 1px !important;
+  height: 1px;
   margin: 0;
   padding: 0;
   overflow: hidden;
@@ -321,8 +321,8 @@
 
 /* Ant number input still fights CSS-in-JS */
 .insulation-layers-table .ant-input-number-input {
-  height: var(--ins-control-h) !important;
-  font-size: var(--ins-font) !important;
+  height: var(--ins-control-h);
+  font-size: var(--ins-font);
 }
 
 .insulation-layers-table .insulation-reference-value {
@@ -330,7 +330,7 @@
   align-items: center;
   width: 100%;
   min-height: var(--ins-control-h);
-  color: #40566f;
+  color: var(--c-40566f);
   font-size: var(--ins-font);
   font-weight: 600;
   font-variant-numeric: tabular-nums;

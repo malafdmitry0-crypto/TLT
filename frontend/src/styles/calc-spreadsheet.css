@@ -8,19 +8,19 @@
   background-color: var(--color-danger-bg);
 }
 .row-invalid:hover > td {
-  background-color: #ffe7e6;
+  background-color: var(--c-ffe7e6);
 }
 .row-dirty > td {
-  background-color: #fffbe6;
+  background-color: var(--c-fffbe6);
 }
 .row-dirty:hover > td {
-  background-color: #fff4bf;
+  background-color: var(--c-fff4bf);
 }
 .row-excel-new:not(.row-dirty):not(.row-excel-dirty) > td {
   background-color: var(--color-surface-soft);
 }
 .row-excel-new:not(.row-dirty):not(.row-excel-dirty):hover > td {
-  background-color: #eef6ff;
+  background-color: var(--c-eef6ff);
 }
 .editable-cell-display {
   width: 100%;
@@ -39,8 +39,8 @@
 }
 .editable-cell-display:hover,
 .editable-cell-display:focus-visible {
-  border-color: #91caff;
-  background: #f0f7ff;
+  border-color: var(--c-91caff);
+  background: var(--c-f0f7ff);
   outline: none;
 }
 .excel-row-header-button {
@@ -48,15 +48,15 @@
   min-height: 24px;
   padding: 0 4px;
   border: 0;
-  border-right: 1px solid #d8e2ec;
+  border-right: 1px solid var(--c-d8e2ec);
   background: var(--color-surface-soft);
-  color: #64748b;
+  color: var(--c-64748b);
   font: inherit;
   font-size: 11px;
   cursor: cell;
 }
 .excel-row-header-button.selected {
-  background: #dceeff;
+  background: var(--c-dceeff);
   color: var(--color-primary);
   font-weight: 700;
 }
@@ -98,32 +98,32 @@
   left: 0;
   max-width: 260px;
   padding: 3px 6px;
-  border: 1px solid #ffa39e;
+  border: 1px solid var(--c-ffa39e);
   border-radius: 4px;
   background: var(--color-danger-bg);
   color: var(--color-danger-text);
   font-size: 11px;
   line-height: 1.2;
   white-space: normal;
-  box-shadow: 0 4px 12px rgb(0 0 0 / 10%);
+  box-shadow: 0 4px 12px var(--a-bd39caf1);
 }
 .row-selected > td {
-  background: #d6e9f5;
+  background: var(--c-d6e9f5);
 }
 .row-selected > td:first-child {
   border-left: 3px solid var(--color-primary);
 }
 .row-selected.row-dirty > td {
-  background-color: #fffbe6;
+  background-color: var(--c-fffbe6);
 }
 .row-selected.row-dirty:hover > td {
-  background-color: #fff4bf;
+  background-color: var(--c-fff4bf);
 }
 
 .calc-spreadsheet--excel-mode .row-excel-dirty .excel-row-header-button {
-  border-left: 3px solid #d97706;
-  background: #fff7d6;
-  color: #7a4b00;
+  border-left: 3px solid var(--c-d97706);
+  background: var(--c-fff7d6);
+  color: var(--c-7a4b00);
   font-weight: 700;
 }
 .calc-spreadsheet--excel-mode .row-excel-error .excel-row-header-button {
@@ -208,15 +208,15 @@
   box-sizing: border-box;
 }
 .calc-spreadsheet .ant-table-tbody > tr:hover > td {
-  background: #f0f7ff;
+  background: var(--c-f0f7ff);
   cursor: pointer;
 }
 .calc-spreadsheet .editable-cell-host {
   padding: 0;
 }
 .calc-spreadsheet .editable-cell-enabled .editable-cell-display {
-  background: #f3f4f6;
-  box-shadow: inset 0 0 0 1px rgb(15 23 42 / 8%);
+  background: var(--c-f3f4f6);
+  box-shadow: inset 0 0 0 1px var(--a-ed7811e9);
 }
 .calc-spreadsheet--excel-mode .editable-cell-display {
   position: relative;
@@ -274,22 +274,22 @@
 }
 .calc-spreadsheet .row-selected > .editable-cell-enabled .editable-cell-display {
   background: transparent;
-  box-shadow: inset 0 0 0 1px rgb(26 82 118 / 24%);
+  box-shadow: inset 0 0 0 1px var(--a-cac04ad2);
 }
 .calc-spreadsheet .row-dirty > .editable-cell-enabled .editable-cell-display {
   background: transparent;
-  box-shadow: inset 0 0 0 1px rgb(217 119 6 / 20%);
+  box-shadow: inset 0 0 0 1px var(--a-b1f9688d);
 }
 .calc-spreadsheet .row-dirty > .editable-cell-enabled .editable-cell-display:hover,
 .calc-spreadsheet .row-dirty > .editable-cell-enabled .editable-cell-display:focus-visible {
-  background: #fff4bf;
+  background: var(--c-fff4bf);
 }
 .calc-spreadsheet--excel-mode .editable-cell-display.selected:not(.error) {
   background: var(--color-info-soft);
   box-shadow: none;
 }
 .calc-spreadsheet--excel-mode .editable-cell-display.selected.dirty:not(.error) {
-  background: linear-gradient(135deg, #fff7d6 0 18%, var(--color-info-soft) 18% 100%);
+  background: linear-gradient(135deg, var(--c-fff7d6) 0 18%, var(--color-info-soft) 18% 100%);
   box-shadow: none;
 }
 .calc-spreadsheet--excel-mode .editable-cell-display.selected.error {
@@ -429,14 +429,14 @@
 
 /* editable cell dirty/error (after sheet chrome for cascade parity) */
 .editable-cell-display.dirty {
-  background: #fff1b8;
-  box-shadow: inset 0 0 0 1px rgb(217 119 6 / 28%);
+  background: var(--c-fff1b8);
+  box-shadow: inset 0 0 0 1px var(--a-b1f98a95);
 }
 
 .editable-cell-display.error {
   border-color: var(--color-danger-border);
   background: var(--color-danger-bg);
-  box-shadow: inset 0 0 0 1px rgb(217 54 62 / 24%);
+  box-shadow: inset 0 0 0 1px var(--a-f27f4531);
 }
 
 /* C14: excel virtual body + context menu from styles.css */
@@ -473,7 +473,7 @@
   white-space: nowrap;
 }
 .excel-virtual-table-body .ant-table-tbody > tr:hover > td {
-  background: #f0f7ff;
+  background: var(--c-f0f7ff);
   cursor: pointer;
 }
 .excel-virtual-spacer > td {
@@ -497,10 +497,10 @@
   display: grid;
   min-width: 220px;
   padding: 5px;
-  border: 1px solid #d8e2ec;
+  border: 1px solid var(--c-d8e2ec);
   border-radius: 6px;
   background: var(--color-surface);
-  box-shadow: 0 10px 28px rgb(15 23 42 / 18%);
+  box-shadow: 0 10px 28px var(--a-9c76c8da);
 }
 .excel-context-menu-item {
   display: grid;
@@ -512,7 +512,7 @@
   border: 0;
   border-radius: 4px;
   background: transparent;
-  color: #1f2937;
+  color: var(--c-1f2937);
   font: inherit;
   font-size: 13px;
   line-height: 1.25;
@@ -526,13 +526,13 @@
   outline: none;
 }
 .excel-context-menu-item:disabled {
-  color: #9ca3af;
+  color: var(--c-9ca3af);
   cursor: not-allowed;
 }
 .excel-context-menu-item:disabled:hover,
 .excel-context-menu-item:disabled:focus-visible {
   background: transparent;
-  color: #9ca3af;
+  color: var(--c-9ca3af);
 }
 .excel-context-menu-icon {
   display: inline-flex;
@@ -543,7 +543,7 @@
 .excel-context-menu-separator {
   height: 1px;
   margin: 4px 2px;
-  background: #e5edf5;
+  background: var(--c-e5edf5);
 }
 
 /* C20: heat glide + drag rows */
@@ -564,7 +564,7 @@
   border: 1px solid var(--color-border);
   border-radius: 4px;
   background: var(--color-surface);
-  box-shadow: 0 6px 16px rgb(0 0 0 / 12%);
+  box-shadow: 0 6px 16px var(--a-bd39d373);
 }
 .heatcalc-glide-engine-badge {
   position: absolute;
@@ -574,7 +574,7 @@
   padding: 2px 6px;
   border: 1px solid var(--color-border);
   border-radius: 4px;
-  background: rgb(255 255 255 / 86%);
+  background: var(--a-fd618982);
   color: var(--color-text-secondary);
   font-size: 11px;
   line-height: 1.2;

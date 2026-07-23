@@ -8,7 +8,7 @@
   grid-column: 1;
   grid-row: 1;
   min-width: 0;
-  color: #214c78;
+  color: var(--c-214c78);
   font-size: var(--ins-font, 12px);
   font-weight: 700;
 }
@@ -142,8 +142,8 @@
 }
 
 .inline-object-form--side .side-compact-insulation .insulation-layers-header {
-  border: 1px solid #d8e4f1;
-  background: #f5f8fc;
+  border: 1px solid var(--c-d8e4f1);
+  background: var(--c-f5f8fc);
   color: var(--tlt-field-label-color);
   font-size: 11px;
   font-weight: 650;
@@ -153,7 +153,7 @@
 .inline-object-form--side .side-compact-insulation .insulation-layer-group > * {
   min-width: 0;
   padding: 6px 8px;
-  border-left: 1px solid #d8e4f1;
+  border-left: 1px solid var(--c-d8e4f1);
 }
 
 .inline-object-form--side .side-compact-insulation .insulation-layers-header > span:first-child,
@@ -171,7 +171,7 @@
 .inline-object-form--side .side-compact-insulation .insulation-layers-grid {
   display: grid;
   gap: 0;
-  border: 1px solid #d8e4f1;
+  border: 1px solid var(--c-d8e4f1);
   border-top: 0;
 }
 
@@ -180,7 +180,7 @@
 }
 
 .inline-object-form--side .side-compact-insulation .insulation-layer-group + .insulation-layer-group {
-  border-top: 1px solid #d8e4f1;
+  border-top: 1px solid var(--c-d8e4f1);
 }
 
 .inline-object-form--side .side-compact-insulation .insulation-layer-group .ant-form-item-label {
@@ -237,7 +237,7 @@
 
   .inline-object-form--side .side-compact-insulation .insulation-layer-group > * {
     border-left: 0;
-    border-top: 1px solid #d8e4f1;
+    border-top: 1px solid var(--c-d8e4f1);
   }
 
   .inline-object-form--side .side-compact-insulation .insulation-layer-group > :first-child {
@@ -295,7 +295,7 @@
   .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-grid > .insulation-layer-group {
     grid-template-columns: minmax(0, 1fr);
     padding: 10px;
-    border-top: 1px solid #d1dce8;
+    border-top: 1px solid var(--c-d1dce8);
     border-radius: 6px;
   }
 
@@ -354,7 +354,7 @@
   padding: 4px 5px 5px;
   border: 1px solid var(--heatcalc-panel-border);
   border-radius: 5px;
-  background: #fbfdff;
+  background: var(--c-fbfdff);
   box-sizing: border-box;
 }
 

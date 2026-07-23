@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { StyleProvider } from '@ant-design/cssinjs';
 import { ConfigProvider } from 'antd';
 import ruRU from 'antd/locale/ru_RU';
 import App from './App';
@@ -36,11 +37,14 @@ const queryClient = new QueryClient({
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <ConfigProvider locale={ruRU} theme={appTheme}>
-        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-          <App />
-        </BrowserRouter>
-      </ConfigProvider>
+      {/* hashPriority=low → Ant CSS-in-JS uses :where (0 specificity); app CSS can drop !important */}
+      <StyleProvider hashPriority="low">
+        <ConfigProvider locale={ruRU} theme={appTheme}>
+          <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+            <App />
+          </BrowserRouter>
+        </ConfigProvider>
+      </StyleProvider>
     </QueryClientProvider>
   </React.StrictMode>
 );

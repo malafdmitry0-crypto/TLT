@@ -19,12 +19,12 @@
   max-height: 52px;
   box-sizing: border-box;
   padding: 5px 10px;
-  border: 1px solid #ffccc7;
+  border: 1px solid var(--c-ffccc7);
   border-left: 4px solid var(--color-danger);
   border-radius: 6px;
-  background: rgb(255 241 240 / 96%);
-  box-shadow: 0 8px 20px rgb(92 0 17 / 12%);
-  color: #5c0011;
+  background: var(--a-d86ffd78);
+  box-shadow: 0 8px 20px var(--a-bb427766);
+  color: var(--c-5c0011);
   font-size: 12px;
   line-height: 1.25;
   pointer-events: none;
@@ -38,7 +38,7 @@
 .heatcalc-row-errors-message {
   min-width: 0;
   overflow: hidden;
-  color: #6f1d1b;
+  color: var(--c-6f1d1b);
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -140,7 +140,7 @@
   left: 2px;
   width: 2px;
   border-radius: 999px;
-  background: #d8e6f3;
+  background: var(--c-d8e6f3);
 }
 
 .heatcalc-side-resize-handle:hover::before,

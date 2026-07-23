@@ -106,7 +106,7 @@
 .tlt-compact-field__message {
   grid-column: 2;
   min-height: 13px;
-  color: #7d8999;
+  color: var(--c-7d8999);
   font-size: var(--tlt-field-message-font-size);
   line-height: 1.3;
 }
@@ -155,7 +155,7 @@
   min-width: 0;
 }
 
-/* Tlt-owned controls — no !important (owner classes, no Ant CSS-in-JS) */
+/* Tlt-owned controls — no (owner classes, no Ant CSS-in-JS) */
 .tlt-compact-field .tlt-text-field__input,
 .tlt-compact-field .tlt-number-field__input,
 .tlt-compact-field .tlt-select__trigger {
@@ -168,18 +168,18 @@
   box-sizing: border-box;
 }
 
-/* Ant controls still need !important vs CSS-in-JS */
+/* Ant controls still need vs CSS-in-JS */
 .tlt-compact-field .ant-input,
 .tlt-compact-field .ant-input-affix-wrapper,
 .tlt-compact-field .ant-input-number,
 .tlt-compact-field .ant-input-number-input,
 .tlt-compact-field .ant-select-selector {
-  height: var(--tlt-field-control-height) !important;
-  min-height: var(--tlt-field-control-height) !important;
+  height: var(--tlt-field-control-height);
+  min-height: var(--tlt-field-control-height);
   padding: 0 var(--tlt-field-control-padding-inline, 3px);
   border-radius: var(--tlt-field-radius);
-  font-size: var(--tlt-field-control-font-size) !important;
-  line-height: calc(var(--tlt-field-control-height) - 2px) !important;
+  font-size: var(--tlt-field-control-font-size);
+  line-height: calc(var(--tlt-field-control-height) - 2px);
   box-sizing: border-box;
 }
 
@@ -188,7 +188,7 @@
   font-size: var(--tlt-field-number-font-size, 12px);
 }
 .tlt-compact-field .ant-input-number-input {
-  font-size: var(--tlt-field-number-font-size, 12px) !important;
+  font-size: var(--tlt-field-number-font-size, 12px);
 }
 
 .tlt-compact-field .tlt-select__value {
@@ -197,8 +197,8 @@
 }
 .tlt-compact-field .ant-select-selection-item,
 .tlt-compact-field .ant-select-selection-placeholder {
-  font-size: var(--tlt-field-select-font-size, 9px) !important;
-  line-height: calc(var(--tlt-field-control-height) - 2px) !important;
+  font-size: var(--tlt-field-select-font-size, 9px);
+  line-height: calc(var(--tlt-field-control-height) - 2px);
 }
 
 /* Number + unit fills track; unit sits on the right (HeatCalc) */
@@ -261,8 +261,8 @@
 .tlt-compact-field--required .ant-input-number,
 .tlt-compact-field--required .ant-select-selector,
 .tlt-compact-field--required .reference-picker-control {
-  background-color: #fffdf6;
-  box-shadow: inset 2px 0 0 #d48806;
+  background-color: var(--c-fffdf6);
+  box-shadow: inset 2px 0 0 var(--c-d48806);
 }
 
 .tlt-compact-field--error .tlt-text-field__input,
@@ -306,7 +306,7 @@
   flex-direction: column;
   justify-content: center;
   align-items: flex-start;
-  min-height: var(--tlt-field-control-height, 26px) !important;
+  min-height: var(--tlt-field-control-height, 26px);
   grid-column: 1;
   width: auto;
   margin: 0;
@@ -340,9 +340,9 @@
   margin: 0;
   padding: 0;
   color: var(--tlt-field-label-color);
-  font-size: var(--tlt-field-label-font-size) !important;
+  font-size: var(--tlt-field-label-font-size);
   font-weight: 600;
-  line-height: var(--tlt-field-label-line-height) !important;
+  line-height: var(--tlt-field-label-line-height);
   white-space: normal;
   overflow: visible;
   text-overflow: clip;
@@ -351,7 +351,7 @@
 /* Ant renders the label colon as an ::after pseudo-element; on a compact
    wrapped label it becomes a phantom extra line — never show it. */
 .tlt-compact-field-grid--ant-form .ant-form-item-label > label::after {
-  content: none !important;
+  content: none;
   display: none;
 }
 
@@ -424,7 +424,7 @@
 .tlt-compact-field-grid--ant-form .ant-input-number,
 .tlt-compact-field-grid--ant-form .ant-input-number-group-wrapper,
 .tlt-compact-field-grid--ant-form .ant-select {
-  font-size: var(--tlt-field-control-font-size) !important;
+  font-size: var(--tlt-field-control-font-size);
 }
 
 .tlt-compact-field-grid--ant-form .tlt-text-field__input,
@@ -440,10 +440,10 @@
 .tlt-compact-field-grid--ant-form .ant-input,
 .tlt-compact-field-grid--ant-form .ant-input-number,
 .tlt-compact-field-grid--ant-form .ant-input-number-input {
-  height: var(--tlt-field-control-height) !important;
-  min-height: var(--tlt-field-control-height) !important;
+  height: var(--tlt-field-control-height);
+  min-height: var(--tlt-field-control-height);
   border-radius: var(--tlt-field-radius);
-  font-size: var(--tlt-field-control-font-size) !important;
+  font-size: var(--tlt-field-control-font-size);
 }
 
 .tlt-compact-field-grid--ant-form .tlt-select__trigger,

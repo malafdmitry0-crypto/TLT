@@ -3,8 +3,8 @@
 @media print {
   .specification-stale-banner,
   .specification-partial-banner {
-    color: #9a3412;
-    border: 2px solid #9a3412;
+    color: var(--c-9a3412);
+    border: 2px solid var(--c-9a3412);
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }

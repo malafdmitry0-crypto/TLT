@@ -4,7 +4,7 @@
   background: var(--color-surface);
   border: 1px solid var(--heatcalc-panel-border);
   border-radius: 7px;
-  box-shadow: 0 1px 4px rgb(20 42 68 / 5%);
+  box-shadow: 0 1px 4px var(--a-48ecfeeb);
   padding: 2px;
 }
 .inline-form-shell {
@@ -99,7 +99,7 @@
   left: 1px;
   width: 2px;
   border-radius: 999px;
-  background: #d8e6f3;
+  background: var(--c-d8e6f3);
 }
 .form-col-resize-handle:hover::before,
 .form-col-resize-handle:focus-visible::before,
@@ -117,11 +117,11 @@
   min-height: 18px;
   margin: -3px -3px 3px;
   font-size: 8px;
-  color: #2f3d4f;
+  color: var(--c-2f3d4f);
   text-transform: uppercase;
   letter-spacing: 0;
   padding: 2px 6px;
-  background: #f8fbff;
+  background: var(--c-f8fbff);
   border-bottom: 1px solid var(--heatcalc-panel-border);
 }
 .form-col-srs h4::before {
@@ -133,12 +133,12 @@
   width: 14px;
   height: 14px;
   border-radius: 999px;
-  background: #2457d6;
+  background: var(--c-2457d6);
   color: var(--color-surface);
   font-size: 8px;
   font-weight: 700;
   line-height: 1;
-  box-shadow: 0 3px 8px rgb(36 87 214 / 16%);
+  box-shadow: 0 3px 8px var(--a-1eb8fd56);
 }
 .form-col-srs h4 span {
   min-width: 0;

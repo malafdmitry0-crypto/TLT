@@ -10,16 +10,16 @@
   gap: 6px;
   margin: 0 0 2px;
   padding: 3px 6px;
-  border: 1px solid #ffd591;
+  border: 1px solid var(--c-ffd591);
   border-radius: 5px;
-  background: #fff7e6;
-  color: #5c3b00;
+  background: var(--c-fff7e6);
+  color: var(--c-5c3b00);
   font-size: 10px;
   line-height: 1.25;
 }
 .heatcalc-object-diagnostic strong {
   flex: 0 0 auto;
-  color: #8a5600;
+  color: var(--c-8a5600);
 }
 .heatcalc-object-diagnostic span {
   min-width: 0;

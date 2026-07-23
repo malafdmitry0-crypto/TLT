@@ -45,9 +45,9 @@
 }
 
 .object-wizard-cable-panel .inline-form-section-banner--cable {
-  background: #fff6f0;
-  border-color: #f0c9b0;
-  color: #8a3d12;
+  background: var(--c-fff6f0);
+  border-color: var(--c-f0c9b0);
+  color: var(--c-8a3d12);
 }
 
 .object-wizard-cable-panel .ant-form-item {
@@ -86,9 +86,9 @@
   margin: 0;
   padding: 0;
   color: var(--cable-label-color);
-  font-size: var(--cable-label-size) !important;
+  font-size: var(--cable-label-size);
   font-weight: 600;
-  line-height: var(--cable-label-line-height) !important;
+  line-height: var(--cable-label-line-height);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -142,15 +142,15 @@
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  min-height: var(--cable-control-height) !important;
-  font-size: var(--cable-control-font) !important;
+  min-height: var(--cable-control-height);
+  font-size: var(--cable-control-font);
   line-height: 1.2;
   box-sizing: border-box;
 }
 
 .object-wizard-cable-panel .ant-input-number-input {
-  height: var(--cable-control-height) !important;
-  font-size: var(--cable-control-font) !important;
+  height: var(--cable-control-height);
+  font-size: var(--cable-control-font);
 }
 
 .object-wizard-cable-panel .tlt-select__trigger,
@@ -167,7 +167,7 @@
   gap: 8px 0;
   padding: 8px 10px 10px;
   background: var(--color-surface);
-  border: 1px solid #f0c9b0;
+  border: 1px solid var(--c-f0c9b0);
   border-top: 0;
   border-radius: 0 0 7px 7px;
   align-items: start;
@@ -208,17 +208,17 @@
   gap: 4px;
   min-height: var(--cable-control-height);
   padding: 2px 8px;
-  border: 1px dashed #e0c4b0;
+  border: 1px dashed var(--c-e0c4b0);
   border-radius: 6px;
-  background: #fffaf6;
-  color: #5a3a28;
+  background: var(--c-fffaf6);
+  color: var(--c-5a3a28);
   font-size: var(--cable-control-font);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
 .object-wizard-cable-panel .cable-algorithm-mirror-unit {
-  color: #8a6a58;
+  color: var(--c-8a6a58);
   font-size: var(--cable-label-size);
   font-weight: 500;
 }
@@ -229,7 +229,7 @@
 
 .object-wizard-cable-panel .cable-algorithm-hint {
   margin: 6px 10px 8px;
-  color: #8a6a58;
+  color: var(--c-8a6a58);
   font-size: var(--cable-hint-size);
   line-height: 1.35;
 }

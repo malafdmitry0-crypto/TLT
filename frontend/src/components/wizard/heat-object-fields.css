@@ -167,7 +167,7 @@
   min-width: 0;
 }
 
-/* Tlt/reference: owner specificity, no !important */
+/* Tlt/reference: owner specificity, no */
 .heat-object-fields--wide .heat-object-fields__geometry .tlt-select,
 .heat-object-fields--wide .heat-object-fields__geometry .tlt-select__trigger,
 .heat-object-fields--wide .heat-object-fields__geometry .reference-picker-control,
@@ -188,7 +188,7 @@
   box-sizing: border-box;
 }
 
-/* Ant controls: keep !important vs CSS-in-JS */
+/* Ant controls: keep vs CSS-in-JS */
 .heat-object-fields--wide .heat-object-fields__geometry .ant-input,
 .heat-object-fields--wide .heat-object-fields__geometry .ant-input-number,
 .heat-object-fields--wide .heat-object-fields__geometry .ant-input-number-group-wrapper,
@@ -202,16 +202,16 @@
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  min-height: var(--dual-form-control-height) !important;
-  font-size: var(--dual-form-control-font) !important;
+  min-height: var(--dual-form-control-height);
+  font-size: var(--dual-form-control-font);
   line-height: 1.2;
   box-sizing: border-box;
 }
 
 .heat-object-fields--wide .heat-object-fields__geometry .ant-input-number-input,
 .heat-object-fields--wide .heat-object-fields__climate .ant-input-number-input {
-  height: var(--dual-form-control-height) !important;
-  font-size: var(--dual-form-control-font) !important;
+  height: var(--dual-form-control-height);
+  font-size: var(--dual-form-control-font);
 }
 
 .heat-object-fields--wide .heat-object-fields__geometry .tlt-select__trigger,
@@ -263,8 +263,8 @@
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  min-height: var(--dual-form-control-height, var(--tlt-field-control-height, 26px)) !important;
-  font-size: var(--dual-form-control-font, var(--tlt-field-control-font-size, 12px)) !important;
+  min-height: var(--dual-form-control-height, var(--tlt-field-control-height, 26px));
+  font-size: var(--dual-form-control-font, var(--tlt-field-control-font-size, 12px));
   line-height: 1.2;
   box-sizing: border-box;
 }

@@ -1,14 +1,7 @@
 {
-  "version": 1,
-  "slice": "IMP0",
-  "description": "Per-file !important ratchet. Growth of total or any file fails. Decrease is always OK without baseline edit. New CSS files with !important must be added via intentional baseline shrink elsewhere first (net total non-increase).",
-  "total": 37,
-  "files": {
-    "src/pages/ui-kit.css": 5,
-    "src/pages/heatcalc/heatcalc-field-chrome.css": 1,
-    "src/components/ui-kit/compact-fields.css": 15,
-    "src/components/wizard/insulation-layers-table.css": 4,
-    "src/components/wizard/heat-object-fields.css": 6,
-    "src/components/wizard/cable-algorithm-panel.css": 6
-  }
+  "version": 2,
+  "slice": "CSS-RESIDUAL-CLOSE",
+  "description": "Zero !important after StyleProvider hashPriority=low (Ant :where). Growth fails.",
+  "total": 0,
+  "files": {}
 }

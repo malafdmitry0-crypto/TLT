@@ -22,11 +22,11 @@
   min-height: 18px;
   margin: 0;
   font-size: 8px;
-  color: #2f3d4f;
+  color: var(--c-2f3d4f);
   text-transform: uppercase;
   letter-spacing: 0;
   padding: 2px 6px;
-  background: #f8fbff;
+  background: var(--c-f8fbff);
   border: 1px solid var(--heatcalc-panel-border);
   border-bottom: 0;
   border-radius: 7px 7px 0 0;
@@ -201,7 +201,7 @@
   gap: 3px;
   min-height: 20px;
   height: auto;
-  color: #4a5b6c;
+  color: var(--c-4a5b6c);
   font-size: var(--form-label-size);
   line-height: var(--form-label-line-height);
   margin-bottom: 0;
@@ -212,7 +212,7 @@
 .inline-object-form .ant-form-item-label > label.ant-form-item-required::before {
   display: none;
   margin: 0;
-  content: '' !important;
+  content: '';
 }
 .inline-object-form .ant-form-item-label > label > span {
   flex: 1 1 auto;
@@ -239,8 +239,8 @@
   max-width: min(320px, 70vw);
   padding: 5px 7px;
   border-radius: 2px;
-  background: rgba(45, 45, 45, 0.94);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+  background: var(--a-a8b89137);
+  box-shadow: 0 4px 14px var(--a-dde98fe3);
   color: var(--color-surface);
   font-size: 12px;
   font-weight: 400;
@@ -322,7 +322,7 @@
   min-height: 0;
 }
 .inline-object-form .ant-form-item-has-error .ant-form-item-label > label {
-  color: #cf1322;
+  color: var(--c-cf1322);
 }
 .inline-object-form .ant-form-item-has-error .ant-input:not([disabled]),
 .inline-object-form .ant-form-item-has-error .ant-input-number:not(.ant-input-number-disabled),
@@ -336,7 +336,7 @@
 }
 .inline-object-form .ant-form-item-has-error .reference-picker-control:not(.reference-picker-control--disabled):hover,
 .inline-object-form .ant-form-item-has-error .reference-picker-control:not(.reference-picker-control--disabled):focus {
-  border-color: #ff7875;
+  border-color: var(--c-ff7875);
 }
 .inline-object-form .ant-form-item-explain-error:empty {
   display: none;
@@ -373,15 +373,15 @@
 }
 .inline-object-form .reference-picker-control:hover,
 .inline-object-form .reference-picker-control:focus {
-  border-color: #4096ff;
+  border-color: var(--c-4096ff);
 }
 .inline-object-form .reference-picker-control--required {
-  box-shadow: inset 2px 0 0 #d48806;
-  background-color: #fffdf6;
+  box-shadow: inset 2px 0 0 var(--c-d48806);
+  background-color: var(--c-fffdf6);
 }
 .inline-object-form .reference-picker-control--disabled {
-  color: rgba(0, 0, 0, 0.25);
-  background: #f5f5f5;
+  color: var(--a-dde99046);
+  background: var(--c-f5f5f5);
   cursor: not-allowed;
 }
 .inline-object-form .reference-picker-value {
@@ -399,14 +399,14 @@
 .inline-object-form .reference-picker-icon,
 .inline-object-form .reference-picker-clear {
   flex: 0 0 auto;
-  color: #b5c0ca;
+  color: var(--c-b5c0ca);
   font-size: 12px;
   line-height: 1;
 }
 .inline-object-form .reference-picker-control:hover .reference-picker-icon,
 .inline-object-form .reference-picker-control:focus .reference-picker-icon,
 .inline-object-form .reference-picker-clear:hover {
-  color: #6c7e8f;
+  color: var(--c-6c7e8f);
 }
 .inline-object-form .ant-select-single {
   height: var(--inline-control-height);
@@ -430,7 +430,7 @@
   inset-inline-end: 3px;
   width: 10px;
   height: 10px;
-  color: #b5c0ca;
+  color: var(--c-b5c0ca);
   font-size: 10px;
   transition: color 0.15s ease;
 }
@@ -443,10 +443,10 @@
 .inline-object-form .ant-select:hover .ant-select-arrow,
 .inline-object-form .ant-select-focused .ant-select-arrow,
 .inline-object-form .ant-select-open .ant-select-arrow {
-  color: #6c7e8f;
+  color: var(--c-6c7e8f);
 }
 .inline-object-form .ant-select-disabled .ant-select-arrow {
-  color: #c7cfd6;
+  color: var(--c-c7cfd6);
 }
 .inline-object-form.inline-object-form .ant-select-single .ant-select-selector .ant-select-selection-search-input {
   height: calc(var(--inline-control-height) - 2px);
@@ -524,9 +524,9 @@
   padding: 0 3px;
   font-size: 8px;
   line-height: 12px;
-  color: #5d7180;
-  border-color: #d5dde3;
-  background: #f8fafb;
+  color: var(--c-5d7180);
+  border-color: var(--c-d5dde3);
+  background: var(--c-f8fafb);
 }
 .inline-object-form .fit-label-form-item {
   grid-column: auto;
@@ -755,7 +755,7 @@
   display: flex;
   align-items: center;
   min-height: 24px;
-  color: #40566f;
+  color: var(--c-40566f);
   font-size: 12px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;

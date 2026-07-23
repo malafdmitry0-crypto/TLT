@@ -37,12 +37,12 @@
   min-height: 24px;
   padding: 3px 8px;
   border: 1px solid var(--heatcalc-toolbar-border);
-  background: #fbfcfd;
-  color: #4a5b6c;
+  background: var(--c-fbfcfd);
+  color: var(--c-4a5b6c);
   font-size: 11px;
 }
 .calc-assumptions-panel strong {
-  color: #2f4f66;
+  color: var(--c-2f4f66);
   margin-right: 2px;
 }
 .calc-assumptions-panel span {
@@ -114,9 +114,9 @@
   top: 0;
   z-index: 1;
   padding: 3px 6px;
-  border: 1px solid #dce5ec;
-  background: #eef3f6;
-  color: #607184;
+  border: 1px solid var(--c-dce5ec);
+  background: var(--c-eef3f6);
+  color: var(--c-607184);
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
@@ -124,21 +124,21 @@
 .column-layout-row {
   min-width: 0;
   padding: 3px 6px;
-  border: 1px solid #e1e8ee;
+  border: 1px solid var(--c-e1e8ee);
   border-radius: 4px;
   background: var(--color-surface);
-  color: #2e3640;
+  color: var(--c-2e3640);
   font-size: 12px;
 }
 .column-layout-row.hidden {
-  border-color: #e8edf2;
+  border-color: var(--c-e8edf2);
   background: var(--color-surface-soft);
-  color: #657382;
+  color: var(--c-657382);
 }
 .column-layout-row.dragging {
   z-index: 10;
-  border-color: #83acd0;
-  box-shadow: 0 4px 12px rgb(30 70 110 / 14%);
+  border-color: var(--c-83acd0);
+  box-shadow: 0 4px 12px var(--a-eff3e681);
 }
 .column-layout-drag {
   display: inline-flex;
@@ -149,20 +149,20 @@
   border: 0;
   border-radius: 4px;
   background: transparent;
-  color: #6d7d8d;
+  color: var(--c-6d7d8d);
   cursor: grab;
 }
 .column-layout-drag:active {
   cursor: grabbing;
 }
 .column-layout-drag:disabled {
-  color: #b4c0ca;
+  color: var(--c-b4c0ca);
   cursor: default;
 }
 .column-layout-section {
   grid-column: 1 / -1;
   padding: 8px 6px 2px;
-  color: #6c7b89;
+  color: var(--c-6c7b89);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0;
@@ -188,11 +188,11 @@
   white-space: nowrap;
 }
 .column-layout-title {
-  color: #233241;
+  color: var(--c-233241);
   font-weight: 600;
 }
 .column-layout-meta {
-  color: #7a8794;
+  color: var(--c-7a8794);
   font-size: 11px;
 }
 .column-layout-nature-tag,
@@ -203,47 +203,47 @@
   line-height: 16px;
 }
 .column-layout-nature-tag--input {
-  border-color: #b6c7d6;
-  background: #f5f8fb;
-  color: #34485b;
+  border-color: var(--c-b6c7d6);
+  background: var(--c-f5f8fb);
+  color: var(--c-34485b);
 }
 .column-layout-nature-tag--computed {
-  border-color: #90bddf;
-  background: #edf6ff;
-  color: #214f73;
+  border-color: var(--c-90bddf);
+  background: var(--c-edf6ff);
+  color: var(--c-214f73);
 }
 .column-layout-computed-tag--result {
-  border-color: #8fc7a8;
-  background: #eefaf3;
-  color: #216444;
+  border-color: var(--c-8fc7a8);
+  background: var(--c-eefaf3);
+  color: var(--c-216444);
 }
 .column-layout-computed-tag--specific {
-  border-color: #9fc7ec;
+  border-color: var(--c-9fc7ec);
   background: var(--color-info-soft);
-  color: #24527a;
+  color: var(--c-24527a);
 }
 .column-layout-computed-tag--applied {
-  border-color: #b7c9ef;
-  background: #f2f6ff;
-  color: #2c4e92;
+  border-color: var(--c-b7c9ef);
+  background: var(--c-f2f6ff);
+  color: var(--c-2c4e92);
 }
 .column-layout-computed-tag--geometry {
-  border-color: #c8b9e8;
-  background: #f7f2ff;
-  color: #5a3f8f;
+  border-color: var(--c-c8b9e8);
+  background: var(--c-f7f2ff);
+  color: var(--c-5a3f8f);
 }
 .column-layout-computed-tag--resistance {
-  border-color: #d6bf9e;
-  background: #fff7ed;
-  color: #755121;
+  border-color: var(--c-d6bf9e);
+  background: var(--c-fff7ed);
+  color: var(--c-755121);
 }
 .column-layout-computed-tag--derived {
-  border-color: #c7d0da;
-  background: #f4f7fa;
-  color: #485868;
+  border-color: var(--c-c7d0da);
+  background: var(--c-f4f7fa);
+  color: var(--c-485868);
 }
 .column-layout-empty {
-  color: #9aa8b5;
+  color: var(--c-9aa8b5);
   font-size: 12px;
   text-align: center;
 }
@@ -251,7 +251,7 @@
   width: 100%;
 }
 .column-layout-unit {
-  color: #6b7885;
+  color: var(--c-6b7885);
   font-size: 12px;
 }
 .resizable-column-title {
@@ -272,7 +272,7 @@
   hyphens: none;
 }
 .table-filter-icon {
-  color: #7a8b99;
+  color: var(--c-7a8b99);
   font-size: 11px;
 }
 .table-filter-icon.active {
@@ -286,7 +286,7 @@
   padding: 8px;
 }
 .table-filter-title {
-  color: #536577;
+  color: var(--c-536577);
   font-size: 11px;
   font-weight: 700;
   line-height: 1.2;
@@ -324,7 +324,7 @@
   gap: 8px;
   min-height: 32px;
   padding: 6px 8px;
-  border: 1px solid #dce5ec;
+  border: 1px solid var(--c-dce5ec);
   border-radius: 4px;
   background: var(--color-surface-soft);
 }
@@ -348,7 +348,7 @@
   font-variant-numeric: tabular-nums;
 }
 .table-view-settings-label {
-  color: #536577;
+  color: var(--c-536577);
   font-size: 12px;
   font-weight: 600;
 }
@@ -367,8 +367,8 @@
   max-width: min(360px, calc(100vw - 16px));
   padding: 6px 8px;
   border-radius: 3px;
-  background: rgba(35, 40, 48, 0.97);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  background: var(--a-e5e35b57);
+  box-shadow: 0 8px 24px var(--a-dde990a9);
   color: var(--color-surface);
   font-size: 12px;
   font-weight: 400;
@@ -403,7 +403,7 @@
   bottom: -3px;
   width: 8px;
   border: 0;
-  border-right: 1px solid rgba(26, 82, 118, 0.18);
+  border-right: 1px solid var(--a-20e71024);
   background: transparent;
   cursor: col-resize;
   opacity: 0.55;
@@ -411,7 +411,7 @@
 }
 .column-resize-handle:hover,
 .column-resize-handle:focus-visible {
-  border-right-color: #2f5f84;
+  border-right-color: var(--c-2f5f84);
   opacity: 1;
   outline: none;
 }
@@ -444,7 +444,7 @@
   gap: 2px;
   width: 100%;
   padding: 7px 9px;
-  border: 1px solid #d9e3ec;
+  border: 1px solid var(--c-d9e3ec);
   border-radius: 4px;
   background: var(--color-surface);
   color: var(--color-text);
@@ -453,8 +453,8 @@
 }
 .reference-picker-option:hover,
 .reference-picker-option:focus {
-  border-color: #6aa7d7;
-  background: #f4faff;
+  border-color: var(--c-6aa7d7);
+  background: var(--c-f4faff);
   outline: none;
 }
 .reference-picker-option--selected {
@@ -464,7 +464,7 @@
 .reference-picker-option-title {
   min-width: 0;
   overflow: hidden;
-  color: #1f2d3d;
+  color: var(--c-1f2d3d);
   font-size: 13px;
   font-weight: 600;
   line-height: 1.25;
@@ -472,7 +472,7 @@
   white-space: nowrap;
 }
 .reference-picker-option-description {
-  color: #68798a;
+  color: var(--c-68798a);
   font-size: 11px;
   line-height: 1.25;
 }

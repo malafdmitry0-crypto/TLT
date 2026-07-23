@@ -18,12 +18,12 @@
   min-height: 18px;
   margin: 0;
   padding: 2px 6px;
-  color: #2f3d4f;
+  color: var(--c-2f3d4f);
   font-size: 8px;
   line-height: 1;
   letter-spacing: 0;
   text-transform: uppercase;
-  background: #f8fbff;
+  background: var(--c-f8fbff);
   border: 1px solid var(--heatcalc-panel-border);
   border-bottom: 0;
   border-radius: 7px 7px 0 0;
@@ -71,12 +71,12 @@
   min-height: 18px;
   margin: -3px -3px 3px;
   padding: 2px 6px;
-  color: #2f3d4f;
+  color: var(--c-2f3d4f);
   font-size: 8px;
   line-height: 1;
   letter-spacing: 0;
   text-transform: uppercase;
-  background: #f8fbff;
+  background: var(--c-f8fbff);
   border-bottom: 1px solid var(--heatcalc-panel-border);
 }
 .inline-object-form--side .side-form-section > h4::before {
@@ -88,12 +88,12 @@
   width: 14px;
   height: 14px;
   border-radius: 999px;
-  background: #2457d6;
+  background: var(--c-2457d6);
   color: var(--color-surface);
   font-size: 8px;
   font-weight: 700;
   line-height: 1;
-  box-shadow: 0 3px 8px rgb(36 87 214 / 16%);
+  box-shadow: 0 3px 8px var(--a-1eb8fd56);
 }
 .inline-object-form--side .side-form-section > h4 span {
   min-width: 0;
@@ -384,7 +384,7 @@
   min-height: 0;
   margin: 0;
   padding: 0 18px;
-  border-left: 1px solid #dce5ee;
+  border-left: 1px solid var(--c-dce5ee);
 }
 .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--fittings > .ant-form-item:first-of-type {
   padding-left: 0;

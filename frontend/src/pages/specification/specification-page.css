@@ -21,7 +21,7 @@
 }
 
 .specification-er-tabs .ant-tabs-nav::before {
-  border-bottom-color: #e8eef5;
+  border-bottom-color: var(--c-e8eef5);
 }
 
 .specification-er-tabs .ant-tabs-tab {
@@ -49,7 +49,7 @@
   gap: 12px;
   margin-top: 16px;
   padding-top: 12px;
-  border-top: 1px solid #eef2f6;
+  border-top: 1px solid var(--c-eef2f6);
   flex-wrap: wrap;
 }
 
@@ -60,7 +60,7 @@
 .specification-settings-section {
   margin-bottom: 20px;
   padding-bottom: 16px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--c-f0f0f0);
 }
 
 .specification-settings-section:last-child {
@@ -105,7 +105,7 @@
 .spec-section-meta {
   font-weight: 400;
   font-size: 12px;
-  color: #8c8c8c;
+  color: var(--c-8c8c8c);
 }
 
 .spec-section-empty {
@@ -117,8 +117,8 @@
 }
 
 .spec-table .ant-table-thead > tr > th {
-  background: #f5f8fb;
-  color: #4a5568;
+  background: var(--c-f5f8fb);
+  color: var(--c-4a5568);
   font-weight: 500;
   font-size: 12px;
 }
@@ -140,7 +140,7 @@
 }
 
 .specification-stale-row td {
-  background: #fff7e6;
+  background: var(--c-fff7e6);
 }
 
 @media (max-width: 900px) {
