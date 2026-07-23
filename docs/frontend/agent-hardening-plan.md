@@ -2,7 +2,7 @@
 
 **Актуально на:** 2026-07-23  
 **Статус:** hardening DoD gates green; residual thin only  
-**Текущий pending:** optional residual thin (ELEC3 presentation done; workspace model ~899 → target ≤650 later)  
+**Текущий pending:** none required — optional long-term only (`!important` ≤75, G3 allowlist shrink)  
 **Цель:** агент должен быстро находить владельца поведения, получать зелёную и
 однозначную обратную связь и не иметь возможности незаметно вернуть god-файлы,
 глобальный CSS или обратные зависимости.
@@ -32,9 +32,9 @@
 | `!important` | 78 (was 475) | hardening DoD ≤ 150 ✅; long-term ≤ 75 almost |
 | production TS/TSX > 500 LOC | ratchet G2 ✅ | не растёт; target hotspots ниже |
 | production TS/TSX > 800 LOC | reduced (glide 886, elec 960) | 0 residual |
-| `useElecCalcWorkspaceModel` | 899 (ELEC1–3) | ≤ 650 — optional further data-plane thin |
+| `useElecCalcWorkspaceModel` | 545 ✅ (data plane extract) | ≤ 650 |
 | `useHeatCalcPageModel` | 484 ✅ | ≤ 500 |
-| `HeatCalcNormalGlideGrid` | 886 ✅ (pure model extract) | ≤ 700 almost |
+| `HeatCalcNormalGlideGrid` | 330 ✅ (controller extract) | ≤ 700 |
 | `ObjectWizard` | 415 ✅ (WIZ1+2) | ≤ 500 |
 | `useElectricalVariantSelection` | 311 ✅ (VAR1+2) | ≤ 450 |
 | CSS architecture gate | G4 ✅ (`css:architecture`) | обязателен |
