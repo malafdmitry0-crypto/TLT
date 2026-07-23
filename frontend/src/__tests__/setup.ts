@@ -2,6 +2,9 @@ import '@testing-library/jest-dom/vitest';
 import { afterEach } from 'vitest';
 import { cleanup, configure } from '@testing-library/react';
 
+// Design tokens must load before feature CSS so var(--…) owners exist in jsdom.
+import '@/styles/tokens.css';
+
 configure({ asyncUtilTimeout: 5_000 });
 
 let nativeElementFocus = typeof window.HTMLElement.prototype.focus === 'function'

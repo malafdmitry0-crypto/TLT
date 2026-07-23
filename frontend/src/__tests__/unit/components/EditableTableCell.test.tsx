@@ -6,6 +6,7 @@ import EditableTableCell, {
   type EditableTableCellProps,
 } from '@/components/heatcalc/EditableTableCell';
 import type { HeatCalcFieldDefinition } from '@/domain/heatCalcFields';
+import { resolvedBackgroundColor } from '@/__tests__/utils/resolvedBackgroundColor';
 import '@/styles.css';
 import '@/styles/calc-spreadsheet.css';
 
@@ -53,15 +54,17 @@ describe('EditableTableCell', () => {
     const display = container.querySelector<HTMLElement>('.editable-cell-display');
 
     expect(display).not.toBeNull();
-    expect(getComputedStyle(display!).backgroundColor).toBe('rgb(243, 244, 246)');
+    // jsdom does not resolve var(--token) on background; cascade is resolved via stylesheets + tokens
+    expect(resolvedBackgroundColor(display!)).toBe('rgb(243, 244, 246)');
 
     rerender(renderCell(false, true));
     const rowDirtyDisplay = container.querySelector<HTMLElement>('.editable-cell-display');
-    expect(getComputedStyle(rowDirtyDisplay!).backgroundColor).toBe('rgba(0, 0, 0, 0)');
+    // .row-dirty > … .editable-cell-display → transparent (row tint lives on <td>)
+    expect(resolvedBackgroundColor(rowDirtyDisplay!)).toBe('transparent');
 
     rerender(renderCell(true, true));
     const dirtyDisplay = container.querySelector<HTMLElement>('.editable-cell-display');
-    expect(getComputedStyle(dirtyDisplay!).backgroundColor).toBe('rgb(255, 241, 184)');
+    expect(resolvedBackgroundColor(dirtyDisplay!)).toBe('rgb(255, 241, 184)');
   });
 
   it('renders inactive invalid cells in red and lets error state win over dirty', () => {
@@ -96,7 +99,7 @@ describe('EditableTableCell', () => {
     expect(display).toHaveClass('error');
     expect(display).toHaveAttribute('aria-invalid', 'true');
     expect(display).toHaveAttribute('title', 'Минимальное значение — 10.8');
-    expect(getComputedStyle(display).backgroundColor).toBe('rgb(255, 241, 240)');
+    expect(resolvedBackgroundColor(display)).toBe('rgb(255, 241, 240)');
     expect(container.querySelector('.editable-cell-display.error')).toBe(display);
   });
 
