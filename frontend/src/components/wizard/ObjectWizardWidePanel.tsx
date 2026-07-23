@@ -3,7 +3,6 @@ import HeatCalcObjectFieldsPanel from './HeatCalcObjectFieldsPanel';
 import WizardZoneBoundary from './isolation/WizardZoneBoundary';
 
 export interface ObjectWizardWidePanelProps {
-  geometryTitle: string;
   formGridRef: RefCallback<HTMLDivElement>;
   geometry: ReactNode;
   climate: ReactNode;
