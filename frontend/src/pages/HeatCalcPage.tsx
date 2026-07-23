@@ -84,6 +84,8 @@ import { useHeatCalcRouteShellEffects } from '@/pages/heatcalc/useHeatCalcRouteS
 import { changedDraftRowIds } from '@/pages/heatcalc/heatCalcDraftRowsModel';
 import { useHeatCalcObjectReorder } from '@/pages/heatcalc/useHeatCalcObjectReorder';
 import { useHeatCalcContinueToElectrical } from '@/pages/heatcalc/useHeatCalcContinueToElectrical';
+import { buildHeatCalcTableCounts } from '@/pages/heatcalc/heatCalcTableCountsModel';
+import { buildHeatCalcToolbarSavePresentation } from '@/pages/heatcalc/heatCalcToolbarSavePresentation';
 
 const ColumnSettingsModal = lazy(() => import('@/components/heatcalc/ColumnSettingsModal'));
 
@@ -393,14 +395,17 @@ export default function HeatCalcPage() {
     [selectedRowKeys, visibleTableRows],
   );
   const currentTableViewActive = tableFindabilityAvailable && hasActiveTableViewState(effectiveActiveTableViewState);
-  const activeTypeTotalCount = isAllObjectScope
-    ? projectObjectCount
-    : objectQueryResult?.counts.by_type[activeTableObjectType] ?? totalCount;
-  const filteredTableCount = isAllObjectScope
-    ? allFilteredSortedTableRows.length
-    : excelModeEnabled
-      ? visibleTableObjects.length
-      : objectQueryResult?.counts.filtered ?? baseVisibleTableObjects.length;
+  const { activeTypeTotalCount, filteredTableCount } = buildHeatCalcTableCounts({
+    isAllObjectScope,
+    projectObjectCount,
+    totalCount,
+    activeTableObjectType,
+    objectQueryCounts: objectQueryResult?.counts,
+    excelModeEnabled,
+    allFilteredSortedTableRowsLength: allFilteredSortedTableRows.length,
+    visibleTableObjectsLength: visibleTableObjects.length,
+    baseVisibleTableObjectsLength: baseVisibleTableObjects.length,
+  });
   const notifyBulkActionSuccess = useCallback((message: string) => {
     void antdMessage.success(message);
   }, []);
@@ -486,15 +491,17 @@ export default function HeatCalcPage() {
     };
   }, [columnSettingsDialog.close]);
 
-  const toolbarSaveDisabled = saveTargetCount === 0 && !hasWizard;
-  const toolbarSaveLoading = inlineDraftSaving || submittingObject;
-  const toolbarSaveTooltip = saveTargetCount > 0
-    ? selectedDirtyTarget
-      ? `Сохранить выбранные строки (${saveTargetCount})`
-      : `Сохранить несохранённые строки (${saveTargetCount})`
-    : hasWizard
-      ? 'Сохранить объект'
-      : 'Нет изменений для сохранения';
+  const {
+    toolbarSaveDisabled,
+    toolbarSaveLoading,
+    toolbarSaveTooltip,
+  } = buildHeatCalcToolbarSavePresentation({
+    saveTargetCount,
+    hasWizard,
+    selectedDirtyTarget,
+    inlineDraftSaving,
+    submittingObject,
+  });
   const {
     activeHeatLossJobId,
     isHeatLossJobActive,

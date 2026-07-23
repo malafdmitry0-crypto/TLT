@@ -21,7 +21,7 @@
 | Metric | Value |
 |---|---:|
 | ElecCalcPage LOC | 1936 |
-| HeatCalcPage LOC | 1046 → **986** (slices 3–4) |
+| HeatCalcPage LOC | 1046 → **993** (slices 3–5; pure presentation) |
 | SpecificationPage LOC | 1005 |
 | styles.css LOC | 6777 |
 | inverted components→pages | 3 → **0** |
@@ -79,8 +79,16 @@ cd e2e && E2E_BASE_URL=http://127.0.0.1:3003 npm run test:ui-kit-parity:chrome
 | unit tests (10) | ✅ |
 | HeatCalcPage LOC | **1007 → 986** |
 
+## Slice 5 — Heat pure presentation (save + counts) — 2026-07-23
+
+| Item | Status |
+|---|---|
+| `buildHeatCalcToolbarSavePresentation` | ✅ |
+| `buildHeatCalcTableCounts` | ✅ |
+| unit tests (8) | ✅ |
+| HeatCalcPage LOC | **986 → 993** (named pure args; logic moved out) |
+
 ## Next
 
-1. Continue HeatCalcPage shell thin (toolbar save presentation / counts / effects)
-2. One ElecCalcPage orchestration extract (not full rewrite)
-3. CSS extract one block from styles.css
+1. One ElecCalcPage orchestration extract (not full rewrite) **or** more Heat shell
+2. CSS extract one block from styles.css
