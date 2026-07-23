@@ -51,7 +51,13 @@
   display: grid;
   grid-template-columns: var(--tlt-compact-label-width, 98px) var(--tlt-compact-control-width, var(--tlt-field-ctrl-num, 4rem));
   column-gap: var(--tlt-field-gap);
-  align-items: center;
+  /*
+   * Controls top-align to the shared row baseline: a label that wraps to
+   * 3 lines grows the row downward without pushing its control out of line
+   * with neighbouring columns. Short labels still center against the
+   * control via the label's control-height min-height below.
+   */
+  align-items: start;
   min-width: 0;
   /* HeatCalc form-item row is control-height; form-item shell ~28px for 2-line labels */
   min-height: var(--tlt-field-control-height, 26px);
@@ -65,8 +71,8 @@
   justify-content: center;
   width: var(--tlt-compact-label-width, 98px);
   max-width: var(--tlt-compact-label-width, 98px);
-  /* reserve 2× label line like HeatCalc dual-line labels (~17px) */
-  min-height: calc(var(--tlt-field-label-font-size, 8.5px) * 2);
+  /* 1–2-line labels center against the control; longer labels hang below */
+  min-height: var(--tlt-field-control-height, 26px);
   color: var(--tlt-field-label-color);
   font-size: var(--tlt-field-label-font-size);
   font-weight: 600;
@@ -203,10 +209,25 @@
   border-radius: 0 var(--tlt-field-radius) var(--tlt-field-radius) 0 !important;
 }
 
+/*
+ * Short units (мм / м / °C / шт / м/с) share one track so the input|unit
+ * seam lines up across stacked fields; longer units (Вт/(м·К)) still grow
+ * to their content and are never clipped.
+ */
+.tlt-compact-field .tlt-number-field__unit,
+.tlt-compact-field-grid--ant-form .tlt-number-field__unit,
+.tlt-compact-field-grid--ant-form .unit-input-number__addon {
+  min-width: var(--tlt-field-unit-width, 1.75rem);
+  justify-content: center;
+}
+
 .tlt-compact-field .ant-input-affix-wrapper {
   padding-block: 0;
 }
 
+/* Input nested INSIDE the bordered affix wrapper: 2px shorter than the
+   26px wrapper (1px border top + bottom) — the only place «-2px» applies
+   to height rather than line-height. */
 .tlt-compact-field .ant-input-affix-wrapper .ant-input {
   height: calc(var(--tlt-field-control-height) - 2px);
   min-height: calc(var(--tlt-field-control-height) - 2px);
@@ -236,11 +257,6 @@
   background-color: #fff1f0;
 }
 
-.tlt-compact-field .tlt-number-field__unit {
-  height: calc(var(--tlt-field-control-height) - 2px);
-  line-height: calc(var(--tlt-field-control-height) - 2px);
-}
-
 /* Ant Form adapter: makes existing feature forms follow CompactField. */
 .tlt-compact-field-grid--ant-form .ant-form-item {
   grid-column: auto !important;
@@ -257,13 +273,20 @@
 .tlt-compact-field-grid--ant-form .ant-form-item-row {
   display: grid !important;
   grid-template-columns: var(--tlt-compact-label-width, 98px) var(--tlt-compact-control-width, var(--tlt-field-ctrl-num, 4rem)) !important;
-  align-items: center !important;
+  /* Same top-align contract as .tlt-compact-field: controls share the row
+     baseline, tall labels hang below instead of pushing the control down. */
+  align-items: start !important;
   column-gap: var(--tlt-field-gap) !important;
   width: max-content !important;
   min-width: 0 !important;
 }
 
 .tlt-compact-field-grid--ant-form .ant-form-item-label {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  align-items: flex-start !important;
+  min-height: var(--tlt-field-control-height, 26px) !important;
   grid-column: 1 !important;
   width: auto !important;
   margin: 0 !important;
@@ -283,12 +306,18 @@
   padding: 0 !important;
   color: var(--tlt-field-label-color) !important;
   font-size: var(--tlt-field-label-font-size) !important;
-  font-weight: 650 !important;
+  font-weight: 600 !important;
   line-height: var(--tlt-field-label-line-height) !important;
   white-space: normal !important;
   overflow: visible !important;
   text-overflow: clip !important;
-  padding-top: 4px !important;
+}
+
+/* Ant renders the label colon as an ::after pseudo-element; on a compact
+   wrapped label it becomes a phantom extra line — never show it. */
+.tlt-compact-field-grid--ant-form .ant-form-item-label > label::after {
+  content: none !important;
+  display: none !important;
 }
 
 .tlt-compact-field-grid--ant-form .field-label-two-line {
@@ -361,6 +390,12 @@
   font-size: var(--tlt-field-control-font-size) !important;
 }
 
+.tlt-compact-field-grid--ant-form .tlt-select__trigger,
+.tlt-compact-field-grid--ant-form .reference-picker-control {
+  display: flex !important;
+  align-items: center !important;
+}
+
 .tlt-compact-field-grid--ant-form .tlt-number-field,
 .tlt-compact-field-grid--ant-form .unit-input-number {
   display: flex !important;
@@ -376,8 +411,48 @@
 .tlt-compact-field-grid--ant-form .tlt-number-field__unit,
 .tlt-compact-field-grid--ant-form .unit-input-number__addon {
   flex: 0 0 auto !important;
-  height: calc(var(--tlt-field-control-height) - 2px) !important;
+  /* Unit is border-box with its own 1px border: full track height;
+     «-2px» only in line-height to center text between the borders. */
+  height: var(--tlt-field-control-height) !important;
   line-height: calc(var(--tlt-field-control-height) - 2px) !important;
+}
+
+/*
+ * ── labels-top variant (side / narrow panels) ──
+ * Same control chrome as --ant-form; only the field anatomy changes:
+ * label sits above a full-width control. Field width comes from the host
+ * grid cell (e.g. HeatCalc side 12-col grid via --tlt-field-span).
+ */
+.tlt-compact-field-grid--ant-form.tlt-compact-field-grid--labels-top .ant-form-item {
+  grid-column: span var(--tlt-field-span, 12) !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-height: 0 !important;
+}
+
+.tlt-compact-field-grid--ant-form.tlt-compact-field-grid--labels-top .ant-form-item-row {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  row-gap: 2px !important;
+  width: 100% !important;
+  align-items: stretch !important;
+}
+
+.tlt-compact-field-grid--ant-form.tlt-compact-field-grid--labels-top .ant-form-item-label {
+  grid-column: 1 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-height: 0 !important;
+  justify-content: flex-end !important;
+}
+
+.tlt-compact-field-grid--ant-form.tlt-compact-field-grid--labels-top .ant-form-item-control,
+.tlt-compact-field-grid--ant-form.tlt-compact-field-grid--labels-top .field-control-with-help,
+.tlt-compact-field-grid--ant-form.tlt-compact-field-grid--labels-top .ant-form-item-extra,
+.tlt-compact-field-grid--ant-form.tlt-compact-field-grid--labels-top .ant-form-item-explain {
+  grid-column: 1 !important;
+  width: 100% !important;
+  max-width: 100% !important;
 }
 
 @media (max-width: 720px) {
@@ -388,6 +463,11 @@
     grid-auto-flow: row;
     grid-auto-columns: auto;
     width: 100%;
+  }
+
+  /* Narrow hosts collapse to a single column regardless of span vars */
+  .tlt-compact-field-grid--ant-form.tlt-compact-field-grid--labels-top .ant-form-item {
+    grid-column: 1 / -1 !important;
   }
 }
 

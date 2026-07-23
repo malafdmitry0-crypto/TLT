@@ -12,6 +12,8 @@
   --tlt-field-message-font-size: 9px;
   --tlt-field-select-font-size: 9px;
   --tlt-field-unit-font-size: 9px;
+  /* Shared track for short numeric units (мм/м/°C/шт/м·с) in compact grids */
+  --tlt-field-unit-width: 1.75rem;
   /* numeric body — HeatCalc dual-form computed 12px (unit stays 9px) */
   --tlt-field-number-font-size: 12px;
   --tlt-field-control-padding-inline: 3px;
@@ -103,39 +105,6 @@ html, body, #root {
   background: #fff1f0;
   color: #a8071a;
   font-weight: 700;
-}
-
-.object-count-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  white-space: nowrap;
-}
-
-.object-count-segment {
-  display: inline-flex;
-  align-items: center;
-  height: 22px;
-  padding: 0 8px;
-  border: 1px solid #d9e7ef;
-  border-radius: 6px;
-  background: #f8fbfd;
-  color: #34495e;
-  font-size: 11px;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-}
-
-.object-count-segment.success {
-  border-color: #b7eb8f;
-  background: #f6ffed;
-  color: #135200;
-}
-
-.object-count-segment.warning {
-  border-color: #ffd591;
-  background: #fff7e6;
-  color: #d46b08;
 }
 
 .heatcalc-header {
@@ -374,12 +343,6 @@ html, body, #root {
   .header-actions .ant-btn {
     padding-inline: 6px;
   }
-}
-
-.heatcalc-sidebar {
-  background: #ebf5fb;
-  width: 220px;
-  padding: 16px 0;
 }
 
 .heatcalc-content {
@@ -673,29 +636,8 @@ html, body, #root {
   }
 }
 
-.workspace-control-card .ant-card-body {
-  padding: 10px 12px;
-}
-
 .workspace-table-card .ant-card-body {
   padding: 0 10px 10px;
-}
-
-.elec-summary-table-card .ant-card-head {
-  min-height: 32px;
-  padding: 0 10px;
-}
-
-.elec-summary-table-card .ant-card-head-title {
-  padding: 6px 0;
-}
-
-.elec-summary-table-card .ant-card-body {
-  padding: 0;
-}
-
-.elec-summary-table-scroll {
-  overflow-x: auto;
 }
 
 .elec-summary-table {
@@ -737,23 +679,6 @@ html, body, #root {
   background: #f6fbff;
 }
 
-.heat-flat-form-preview {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(120px, 1fr));
-  gap: 6px;
-}
-
-.heat-flat-form-preview span {
-  min-height: 34px;
-  border: 1px solid #d9d9d9;
-  background: #fafafa;
-  color: #595959;
-  display: flex;
-  align-items: center;
-  padding: 0 10px;
-  font-size: 12px;
-}
-
 .inline-object-form {
   margin-top: 0;
   --inline-control-height: 24px;
@@ -782,59 +707,11 @@ html, body, #root {
   min-width: 0;
 }
 
-.heatcalc-object-diagnostic__fields {
-  color: #1f2d3d;
-}
-
-.flat-form-section {
-  height: 100%;
-  border: 1px solid #d9d9d9;
-  background: #fff;
-  padding: 10px 10px 2px;
-}
-
-.flat-form-title {
-  margin: -10px -10px 10px;
-  padding: 6px 10px;
-  background: #f3f6f4;
-  border-bottom: 1px solid #d9d9d9;
-  color: #262626;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-
-.flat-form-static-grid {
-  display: grid;
-  grid-template-columns: minmax(120px, 1fr) minmax(110px, 1fr);
-  border: 1px solid #d9d9d9;
-  border-bottom: 0;
-  font-size: 12px;
-}
-
-.flat-form-static-grid span,
-.flat-form-static-grid strong {
-  min-height: 30px;
-  padding: 6px 8px;
-  border-bottom: 1px solid #d9d9d9;
-}
-
-.flat-form-static-grid span {
-  background: #fafafa;
-  color: #595959;
-}
-
-.flat-form-static-grid strong {
-  font-weight: 500;
-  color: #262626;
-}
-
 .calc-spreadsheet {
   --heatcalc-table-font-size: 12px;
   --heatcalc-table-line-height: 1.22;
   --heatcalc-table-cell-padding-y: 2px;
   --heatcalc-table-header-padding-y: 3px;
-  --heatcalc-table-header-actions-height: 16px;
   --heatcalc-table-header-min-height: 38px;
   --heatcalc-table-header-content-min-height: 32px;
 }
@@ -1167,10 +1044,6 @@ html, body, #root {
   text-underline-offset: 3px;
 }
 
-.excel-mode-hint {
-  white-space: nowrap;
-}
-
 .excel-context-menu {
   position: fixed;
   z-index: 3000;
@@ -1331,22 +1204,6 @@ html, body, #root {
   line-height: 1.2;
   white-space: normal;
   box-shadow: 0 4px 12px rgb(0 0 0 / 10%);
-}
-
-.common-data-banner {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  padding: 5px 10px;
-  background: #fff8e0;
-  border-left: 4px solid #f5b400;
-  border-radius: 4px;
-  font-size: 12px;
-}
-
-.common-data-banner .label {
-  font-weight: 600;
 }
 
 .electrical-error-summary {
@@ -1629,55 +1486,6 @@ html, body, #root {
   }
 }
 
-.inline-form-caption {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  min-width: 0;
-  height: 14px;
-  padding: 0 172px 1px 3px;
-  font-size: 8.4px;
-  line-height: 1;
-  overflow: hidden;
-  white-space: nowrap;
-}
-
-.inline-form-caption-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  min-width: 0;
-  color: var(--color-primary);
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.inline-form-caption-icon {
-  flex: 0 0 auto;
-  font-size: 8.4px;
-}
-
-.inline-form-caption-mode {
-  flex: 0 0 auto;
-  color: #607080;
-  padding: 0 5px;
-  background: #eef3f6;
-  border-radius: 12px;
-  line-height: 12px;
-}
-
-.inline-form-caption-mode.edit {
-  background: #fff8e0;
-  color: #5b4400;
-}
-
-.inline-form-caption-mode.new {
-  background: #c2e0c0;
-  color: #1f6f3e;
-}
-
 .form-grid-srs {
   display: flex;
   align-items: stretch;
@@ -1800,7 +1608,6 @@ html, body, #root {
 }
 
 .heatcalc-form-pane--wide .inline-form-srs {
-  --heatcalc-top-form-height: auto;
   padding: 0;
   background: transparent;
   border: 0;
@@ -2523,14 +2330,6 @@ html, body, #root {
   border-radius: 10px;
 }
 
-.electrical-system-scope__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 6px;
-}
-
 .electrical-system-scope__tabs-row {
   margin-bottom: 4px;
 }
@@ -2679,22 +2478,6 @@ html, body, #root {
   color: #d46b08;
 }
 
-.assignment-drag-handle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 28px;
-  min-height: 28px;
-  color: #8c8c8c;
-  cursor: grab;
-  pointer-events: none; /* whole row is the drag source */
-}
-
-.assignment-drag-handle[data-disabled='true'] {
-  cursor: default;
-  opacity: 0.35;
-}
-
 /* While dragging a row, make table rows look grabby */
 tr[draggable='true'] {
   cursor: grab;
@@ -2786,11 +2569,6 @@ tr[draggable='true']:active {
   background: #fff;
 }
 
-.inline-object-form--side .side-form-section--primary {
-  --field-label-width: 82px;
-  --compact-field-label-width: 88px;
-}
-
 .inline-object-form--side .side-form-section .ant-form-item-row {
   column-gap: 2px;
 }
@@ -2839,7 +2617,6 @@ tr[draggable='true']:active {
 .inline-object-form--side .side-form-section > .name-form-item,
 .inline-object-form--side .side-form-section > .fixed-select-form-item,
 .inline-object-form--side .side-form-section > .pipe-material-form-item,
-.inline-object-form--side .side-form-section > .wide-select-form-item,
 .inline-object-form--side .side-form-section > .layer-material-form-item,
 .inline-object-form--side .side-form-section > .insulation-layer-count-form-item,
 .inline-object-form--side .side-form-section > .insulation-temperature-basis-form-item,
@@ -2849,11 +2626,6 @@ tr[draggable='true']:active {
 
 .inline-object-form--side .name-form-item .field-control-with-help {
   width: 100%;
-}
-
-.inline-object-form--side .side-form-section--primary > .pipe-material-form-item,
-.inline-object-form--side .side-form-section--primary > .fixed-select-form-item {
-  grid-column: 1 / -1;
 }
 
 .inline-object-form--side .form-col-resize-handle {
@@ -2877,7 +2649,11 @@ tr[draggable='true']:active {
   min-width: 0;
 }
 
-.inline-object-form--side .side-compact-form > .ant-form-item,
+/*
+ * Side field anatomy (label над контролом) и span'ы полей живут в UI kit
+ * (`.tlt-compact-field-grid--labels-top`) и острове heat-object-fields.css.
+ * Здесь — только сетка контейнера и таблица слоёв.
+ */
 .inline-object-form--side .side-compact-insulation .ant-form-item {
   width: 100%;
   min-width: 0;
@@ -2886,57 +2662,10 @@ tr[draggable='true']:active {
   padding: 0;
 }
 
-.inline-object-form--side .side-compact-form > .name-form-item,
-.inline-object-form--side .side-compact-form > .pipe-material-form-item,
-.inline-object-form--side .side-compact-form > .climate-form-item,
 .inline-object-form--side .side-compact-insulation {
   grid-column: 1 / -1;
-}
-
-.inline-object-form--side .side-compact-form > .outer-diameter-form-item,
-.inline-object-form--side .side-compact-form > .pipe-length-form-item,
-.inline-object-form--side .side-compact-form > .wall-thickness-form-item,
-.inline-object-form--side .side-compact-form > .local-elements-count-form-item,
-.inline-object-form--side .side-compact-form > .tank-size-form-item,
-.inline-object-form--side .side-compact-form > .burial-depth-form-item,
-.inline-object-form--side .side-compact-form > .ground-conductivity-form-item,
-.inline-object-form--side .side-compact-form > .ambient-temperature-form-item,
-.inline-object-form--side .side-compact-form > .process-temperature-form-item,
-.inline-object-form--side .side-compact-form > .wind-speed-form-item {
-  grid-column: span 3;
-}
-
-.inline-object-form--side .side-compact-form > .tank-shape-form-item,
-.inline-object-form--side .side-compact-form > .tank-additional-heat-loss-form-item,
-.inline-object-form--side .side-compact-form > .placement-form-item,
-.inline-object-form--side .side-compact-form > .ground-type-form-item,
-.inline-object-form--side .side-compact-form > .climate-basis-form-item {
-  grid-column: span 6;
-}
-
-.inline-object-form--side .side-compact-form > .pipe-material-form-item .reference-picker-control,
-.inline-object-form--side .side-compact-form > .climate-form-item .reference-picker-control,
-.inline-object-form--side .side-compact-form > .ground-type-form-item .reference-picker-control,
-.inline-object-form--side .side-compact-form > .placement-form-item .tlt-select,
-.inline-object-form--side .side-compact-form > .tank-shape-form-item .tlt-select {
-  width: 100%;
-  max-width: none;
-}
-
-.inline-object-form--side .side-compact-form .ant-form-item-label {
-  width: 100% !important;
-  margin: 0 0 2px;
-  padding: 0;
-}
-
-.inline-object-form--side .side-compact-form .ant-form-item-label > label {
-  display: block;
-  height: auto;
-  color: #53667b;
-  font-size: var(--form-label-size, 8.5px);
-  font-weight: 600;
-  line-height: var(--form-label-line-height, 1.0);
-  white-space: normal;
+  /* Таблица слоёв идёт после настроек изоляции, климат-поля (order:2) — после неё */
+  order: 1;
 }
 
 .inline-object-form--side .side-compact-insulation {
@@ -3057,7 +2786,6 @@ tr[draggable='true']:active {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .inline-object-form--side .side-compact-form > .ant-form-item,
   .inline-object-form--side .side-compact-insulation {
     grid-column: 1;
   }
@@ -4055,17 +3783,6 @@ tr[draggable='true']:active {
   background: #f8fafb;
 }
 
-.inline-object-form .wide-select-form-item {
-  width: 100%;
-}
-
-.inline-object-form .wide-select-form-item .ant-select-selection-item,
-.inline-object-form .wide-select-form-item .ant-select-selection-placeholder {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .inline-object-form .fit-label-form-item {
   grid-column: auto;
   width: 100%;
@@ -4174,19 +3891,6 @@ tr[draggable='true']:active {
   min-width: 128px;
 }
 
-.inline-object-form .zone-classification-form-item {
-  --compact-field-label-width: 74px;
-}
-
-.inline-object-form .zone-classification-form-item .ant-form-item-label {
-  font-size: 9px;
-  line-height: 1.05;
-}
-
-.inline-object-form .zone-classification-form-item .field-label-two-line {
-  line-height: 1.05;
-}
-
 .inline-object-form .environment-form-item .ant-select,
 .inline-object-form .environment-form-item .tlt-select {
   flex: 0 0 94px;
@@ -4194,17 +3898,8 @@ tr[draggable='true']:active {
   min-width: 94px;
 }
 
-.inline-object-form .zone-classification-form-item .ant-select,
-.inline-object-form .zone-classification-form-item .tlt-select {
-  flex: 0 0 108px;
-  width: 108px;
-  min-width: 108px;
-}
-
 .heatcalc-workspace-layout--left .inline-object-form .environment-form-item .field-control-with-help,
-.heatcalc-workspace-layout--left .inline-object-form .zone-classification-form-item .field-control-with-help,
-.heatcalc-workspace-layout--right .inline-object-form .environment-form-item .field-control-with-help,
-.heatcalc-workspace-layout--right .inline-object-form .zone-classification-form-item .field-control-with-help {
+.heatcalc-workspace-layout--right .inline-object-form .environment-form-item .field-control-with-help {
   width: max-content;
   max-width: none;
 }
@@ -4395,11 +4090,6 @@ tr[draggable='true']:active {
   flex: none !important;
 }
 
-.inline-object-form .insulation-layer-group .insulation-temperature-range-form-item--editable {
-  grid-column: 1 / -1;
-  flex: 0 0 100%;
-}
-
 .inline-object-form .insulation-layer-group .ant-form-item-row,
 .inline-object-form .insulation-layer-group .fixed-select-form-item .ant-form-item-row,
 .inline-object-form .insulation-layer-group .medium-select-form-item .ant-form-item-row,
@@ -4479,10 +4169,6 @@ tr[draggable='true']:active {
 .inline-object-form .insulation-layer-group .ant-form-item-explain,
 .inline-object-form .insulation-layer-group .ant-form-item-extra {
   grid-column: 2;
-}
-
-.inline-object-form .insulation-cover-form-item {
-  grid-column: 1 / -1;
 }
 
 .inline-object-form .temperature-group-form-item {
@@ -4582,15 +4268,10 @@ tr[draggable='true']:active {
 }
 
 /*
- * Heat object fields: HARD RULE horizontal [label | control].
- * Do NOT apply inside insulation-layer-group (layers table freeze).
+ * Heat object fields: HARD RULE horizontal [label | control] now lives in
+ * the UI kit adapter (`.tlt-compact-field-grid--ant-form`, compact-fields.css).
+ * Do NOT re-style heat field rows here.
  */
-.heat-object-fields--wide .ant-form-item-row {
-  grid-template-columns: var(--hof-label-w) var(--hof-ctrl) !important;
-  column-gap: var(--hof-row-gap) !important;
-  row-gap: 0 !important;
-  align-items: center !important;
-}
 
 /* HARD FREEZE: layers table uses base cascade only — no dual-form overrides */
 
@@ -4751,11 +4432,6 @@ tr[draggable='true']:active {
   grid-row: 3;
 }
 
-.inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .climate-basis-form-item {
-  grid-column: 10 / 13;
-  grid-row: 3;
-}
-
 .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .ground-type-form-item {
   grid-column: 1 / 5;
   grid-row: 4;
@@ -4838,11 +4514,9 @@ tr[draggable='true']:active {
 }
 
 .inline-object-form--wide .object-wizard-wide-panel .name-form-item,
-.inline-object-form--wide .object-wizard-wide-panel .wide-select-form-item,
 .inline-object-form--side .object-wizard-side-panel .name-form-item,
 .inline-object-form--side .object-wizard-side-panel .fixed-select-form-item,
 .inline-object-form--side .object-wizard-side-panel .pipe-material-form-item,
-.inline-object-form--side .object-wizard-side-panel .wide-select-form-item,
 .inline-object-form--side .object-wizard-side-panel .insulation-layer-count-form-item,
 .inline-object-form--side .object-wizard-side-panel .insulation-temperature-basis-form-item {
   flex-basis: 100%;
@@ -5267,13 +4941,11 @@ tr[draggable='true']:active {
     grid-column: 1 / 7;
   }
 
-  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .ambient-temperature-form-item,
-  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .climate-basis-form-item {
+  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .ambient-temperature-form-item {
     grid-column: 7 / 13;
   }
 
-  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .climate-form-item,
-  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .climate-basis-form-item {
+  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .climate-form-item {
     grid-row: 3;
   }
 
@@ -5282,10 +4954,7 @@ tr[draggable='true']:active {
     grid-row: 2;
   }
 
-  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .climate-basis-form-item {
-    grid-column: 1 / 5;
-    grid-row: 5;
-  }
+  
 
   .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate > .process-temperature-form-item {
     grid-column: 9 / 13;
@@ -5492,7 +5161,6 @@ tr[draggable='true']:active {
   width: 100%;
 }
 
-
 .hidden-submit {
   display: none;
 }
@@ -5520,13 +5188,8 @@ tr[draggable='true']:active {
   border-right: 1px solid var(--heatcalc-toolbar-divider);
 }
 
-.actionbar-group:last-of-type,
-.actionbar-io-group {
+.actionbar-group:last-of-type {
   border-right: 0;
-}
-
-.actionbar-context-group {
-  flex: 0 0 auto;
 }
 
 .actionbar-type-group {
@@ -5535,22 +5198,6 @@ tr[draggable='true']:active {
 
 .actionbar-type-row .actionbar-form-state-group {
   margin-left: auto;
-}
-
-.actionbar-context-label {
-  color: #607080;
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 1;
-  white-space: nowrap;
-}
-
-.object-type-option {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 14px;
-  line-height: 1;
 }
 
 .object-type-svg {
@@ -5565,8 +5212,7 @@ tr[draggable='true']:active {
 }
 
 .actionbar-form-actions-group,
-.actionbar-table-actions-group,
-.actionbar-io-group {
+.actionbar-table-actions-group {
   flex: 0 0 auto;
 }
 
@@ -5843,18 +5489,6 @@ tr[draggable='true']:active {
   background-color: #fff4bf !important;
 }
 
-.legend-row-srs {
-  padding: 5px 10px;
-  background: #fff;
-  border-top: 1px solid #eef3f6;
-  font-size: 11px;
-  color: #607080;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-}
-
 .calc-assumptions-panel {
   display: flex;
   align-items: center;
@@ -6028,24 +5662,6 @@ tr[draggable='true']:active {
   color: #536577;
   font-size: 12px;
   font-weight: 600;
-}
-
-.cable-picker-fields-panel {
-  align-items: stretch;
-  flex-direction: column;
-}
-
-.cable-picker-fields-header {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.cable-picker-fields-group {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(172px, 1fr));
-  gap: 6px 10px;
 }
 
 .cable-picker-characteristics {
@@ -6917,28 +6533,6 @@ tr[draggable='true']:active {
   line-height: 18px;
 }
 
-.electrical-candidate-actions {
-  display: inline-flex;
-}
-
-.electrical-candidate-action-button.ant-btn-sm {
-  width: 22px;
-  min-width: 22px;
-  height: 22px;
-  padding: 0;
-}
-
-.electrical-candidate-action-button .ant-btn-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-inline-end: 0;
-}
-
-.electrical-candidate-action-button[aria-pressed="true"] {
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.45);
-}
-
 .electrical-cable-sizing-table .ant-tag {
   min-height: 18px;
   margin-inline-end: 0;
@@ -7051,9 +6645,7 @@ tr[draggable='true']:active {
 }
 
 @media (max-width: 900px) {
-  .heat-flat-form-preview {
-    grid-template-columns: repeat(2, minmax(120px, 1fr));
-  }
+  
 
   .workspace-header-context {
     display: none;
@@ -7148,10 +6740,7 @@ tr[draggable='true']:active {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  .specification-page-main .ant-table-wrapper:has(.ant-table),
-  .specification-page-main .spec-table-print-exclude {
-    display: none !important;
-  }
+  
 
   .heatcalc-header,
   .ant-layout-sider,
@@ -7173,8 +6762,7 @@ tr[draggable='true']:active {
     border: none !important;
   }
 
-  .report-preview,
-  .report-preview-html {
+  .report-preview {
     width: 100% !important;
     overflow: visible !important;
   }

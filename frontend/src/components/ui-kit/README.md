@@ -1,7 +1,10 @@
 # TLT UI component library
 
 This directory is the public, feature-agnostic UI layer. The `/ui-kit` page
-uses it as the reference showcase; HeatCalc screens are still not migrated.
+uses it as the reference showcase. The HeatCalc wide dual-form
+(`HeatCalcObjectFieldsPanel`) is migrated: all three slots render through
+`CompactFieldGrid` + `antFormAdapter`; its island CSS keeps only the column
+reflow and per-field `--tlt-compact-control-width` overrides.
 
 ## Public API
 

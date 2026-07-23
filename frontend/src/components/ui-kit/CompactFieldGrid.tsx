@@ -12,6 +12,8 @@ export interface CompactFieldGridProps extends Omit<HTMLAttributes<HTMLDivElemen
   sizing?: 'content' | 'equal';
   /** Adapts Ant Design Form.Item markup to the same horizontal field contract. */
   antFormAdapter?: boolean;
+  /** 'left' = horizontal [label | control] row (default); 'top' = label above control. */
+  labelPlacement?: 'left' | 'top';
 }
 
 type CompactFieldGridStyle = CSSProperties & {
@@ -32,6 +34,7 @@ export default function CompactFieldGrid({
   maxRowsPerColumn = 5,
   sizing = 'content',
   antFormAdapter = false,
+  labelPlacement = 'left',
   className,
   style,
   ...rest
@@ -51,6 +54,7 @@ export default function CompactFieldGrid({
         `tlt-compact-field-grid--flow-${flow}`,
         `tlt-compact-field-grid--sizing-${sizing}`,
         antFormAdapter && 'tlt-compact-field-grid--ant-form',
+        labelPlacement === 'top' && 'tlt-compact-field-grid--labels-top',
         className,
       )}
       data-density={density}

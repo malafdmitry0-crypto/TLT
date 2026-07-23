@@ -22,8 +22,9 @@
  *    Как «Температура пропарки | [____] °C» на правой форме.
  *    Запрещено: label НАД control (vertical Form layout) как default.
  *    Label может быть 1–2 строки текста, но блок label остаётся СЛЕВА.
- *    CSS: `.heat-object-fields--wide .ant-form-item-row` →
- *         `grid-template-columns: var(--hof-label-w) var(--hof-ctrl)`.
+ *    CSS: UI kit adapter `.tlt-compact-field-grid--ant-form .ant-form-item-row`
+ *         → `grid-template-columns: var(--tlt-compact-label-width)
+ *            var(--tlt-compact-control-width)` (ui-kit/compact-fields.css).
  *
  * ════════════════════════════════════════════════════════════════════
  * ⛔ HARD RULE 2 — UNIFIED TYPE SCALE (эталон: Алгоритм выбора кабеля)
@@ -32,15 +33,16 @@
  *      label:   8.5px / line-height 1.0 / #53667b / weight 600
  *      control: 12px / height 26px
  *      banner:  9px
- *    CSS vars: --dual-form-label-size / --dual-form-label-line-height
- *    / --dual-form-control-font (aliases --hof-label-*, --cable-label-*).
+ *    Источник значений — глобальные --tlt-field-* токены (styles.css :root);
+ *    --dual-form-* здесь только алиасы на них.
  *    Запрещено: локальные font-size 10–11px «для читаемости» на heat.
  *
  * ════════════════════════════════════════════════════════════════════
  * ⛔ HARD RULE 3 — CONTENT-SIZED CONTROLS
  * ════════════════════════════════════════════════════════════════════
- *    Ширина CONTROL ≈ longest realistic value + chrome (--hof-*).
- *    Не растягивать form-item на 1fr «для красоты».
+ *    Ширина CONTROL ≈ longest realistic value + chrome: пофилдовые
+ *    --tlt-compact-control-width в heat-object-fields.css (значения —
+ *    :root --tlt-field-ctrl-*). Не растягивать form-item на 1fr «для красоты».
  *
  * ════════════════════════════════════════════════════════════════════
  * ⛔ HARD RULE 4 — MAX 5 FIELDS PER COLUMN + REFLOW
@@ -84,6 +86,8 @@ export default function HeatCalcObjectFieldsPanel({
   climate,
   insulationSettings,
 }: HeatCalcObjectFieldsPanelProps) {
+  /* wide: горизонтальные строки [label | control]; side: label над контролом */
+  const labelPlacement = layout === 'wide' ? 'left' : 'top';
   return (
     <div
       className={`heat-object-fields heat-object-fields--${layout}`}
@@ -99,15 +103,32 @@ export default function HeatCalcObjectFieldsPanel({
         flow="columns"
         maxRowsPerColumn={5}
         antFormAdapter
+        labelPlacement={labelPlacement}
       >
         {geometry}
       </CompactFieldGrid>
-      <div className="heat-object-fields__climate" data-slot="climate">
+      <CompactFieldGrid
+        className="heat-object-fields__climate"
+        data-slot="climate"
+        density="compact"
+        flow="columns"
+        maxRowsPerColumn={5}
+        antFormAdapter
+        labelPlacement={labelPlacement}
+      >
         {climate}
-      </div>
-      <div className="heat-object-fields__settings" data-slot="insulation-settings">
+      </CompactFieldGrid>
+      <CompactFieldGrid
+        className="heat-object-fields__settings"
+        data-slot="insulation-settings"
+        density="compact"
+        flow="columns"
+        maxRowsPerColumn={5}
+        antFormAdapter
+        labelPlacement={labelPlacement}
+      >
         {insulationSettings}
-      </div>
+      </CompactFieldGrid>
     </div>
   );
 }
