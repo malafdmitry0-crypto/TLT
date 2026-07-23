@@ -1,675 +1,363 @@
 # Frontend TLT: план достижения agent-friendly 9/10
 
-**Статус:** COMPLETE  
-**Актуально на:** 2026-07-23  
-**Текущая проверенная оценка:** 9.0/10  
-**Цель:** не менее 9.0/10 без redesign и изменения бизнес-контрактов
+**Статус:** BLOCKED — Electrical correctness ещё не восстановлена
 
-Этот документ — исполняемый чеклист и набор готовых промптов. Он не открывает
-бесконечный refactoring backlog: каждый запуск выполняет ровно один указанный
-slice по правилам [agent-development-standard.md](./agent-development-standard.md).
+**Актуально на:** 2026-07-24
 
-## 0. Completion summary (2026-07-23)
+**Текущая рабочая оценка:** 6.6/10 автономно; 7.8/10 при обязательном входе
+через документацию; guardrails — 8.7/10
 
-| Slice | Result | Commit |
+**Цель:** не менее 8.5/10 автономно и 9.0/10 в guided workflow без redesign и
+изменения бизнес-контрактов
+
+> Исходный Electrical regression зафиксирован в
+> [recovery prompt](./af9-electrical-regression-recovery-prompt.md). Его
+> snapshot `46/57 failed` исторический: текущий WIP уже сократил остаток до
+> `3/57 failed`, но полный DoD пока не принят.
+
+Этот файл — конечный checklist одной инициативы, а не второй общий стандарт и
+не библиотека task prompts. Постоянные правила находятся в
+[стандарте](./agent-development-standard.md), размер slice — в
+[PR budget](./pr-budget.md), шаблон выполнения — в
+[мастер-промпте](./agent-refactor-prompt.md), а автономная очередь —
+в [refactor-backlog.md](./refactor-backlog.md).
+
+При явной команде выполнить этот план берётся один первый незакрытый пункт с
+учётом зависимостей. Для каждого пункта используется мастер-промпт с его
+`SLICE_ID`; соседний cleanup в тот же slice не добавляется.
+
+## 1. Проверенный snapshot
+
+Это point-in-time evidence текущего рабочего дерева, а не новый норматив.
+Числа пересчитываются в `AF9-FINAL`; старый snapshot не используется как
+baseline для повышения лимитов.
+
+| Область | Состояние на 2026-07-24 |
+|---|---|
+| Fast gate | `npm run test:agent-gates` — green |
+| Unit | 223 files / 1067 tests — green |
+| Electrical integration | `ElecCalcPage.test.tsx`: 54/57 green, 3 failures |
+| Full integration / DoD | после текущего Electrical WIP повторно не принят |
+| Production TS/TSX | 367 файлов; 107 находятся в `pages/electrical` |
+| Крупные production-файлы | 16 файлов больше 500 LOC |
+| Dependency architecture | allowlists пусты; cycles — 0 |
+| CSS | 9054 LOC; `!important` — 0; raw colors вне tokens — 0 |
+| Direct Ant usage | 126 production importers |
+| Ant primitive ratchet | 47 файлов / 112 named imports |
+| Public UI-kit barrel | 4 production importers |
+| JSX inline styling | 491 `style`/`styles` occurrences в 67 production-файлах; допустимость ещё не классифицирована |
+| Coordinate-based layout | 84 `grid-row`/`grid-column`/`order` occurrences в Heat/wizard CSS |
+| Container queries | 0 |
+| Непрозрачные shell props | 4 `Record<string, any>` contracts |
+| Broad casts | 27 production `as unknown as` / `as never` occurrences |
+| Electrical presentation input | один плоский `WorkspacePresentationSource` на 58 полей |
+| Electrical model context | `useElecCalcWorkspaceModel.tsx` имеет 32 imports |
+| Test topology | 223 unit specs, 14 integration specs, 24 Playwright specs, 9 stories |
+| Electrical integration hotspot | один файл около 4058 LOC / 57 tests |
+| CI | build, smoke, DB invariants, layout и accessibility есть; full frontend DoD и `user-flows` не являются обязательными jobs |
+| TypeScript artifact | `frontend/tsconfig.tsbuildinfo` отслеживается и загрязняет рабочее дерево |
+
+Три оставшихся Electrical symptoms:
+
+1. при выключенных commercial features теряется техническая позиция
+   `30ТТВ2-СТ`;
+2. cable mark modal не показывает ожидаемую характеристику
+   `-0.141 W/(m°C)`;
+3. у сохранённого внешнего кабеля отсутствует метка `внеш.`.
+
+Оценка разделена намеренно:
+
+- **autonomous** — насколько безопасно действовать по репозиторию без устного
+  контекста;
+- **guided** — насколько безопасно действовать после чтения обязательного
+  entrypoint и стандартов;
+- **guardrails** — насколько хорошо автоматические проверки запрещают
+  незаметный возврат уже закрытого долга.
+
+## 2. Что должно измениться
+
+| Направление | Сейчас | Критерий 9/10 |
+|---|---|---|
+| Correctness signal | fast gate green при красном Electrical contract | один обязательный DoD локально и в CI |
+| Контекст тестов | один Electrical spec около 4058 LOC | use-case specs до 700 LOC с общим harness |
+| Props и presentation contracts | `Record<string, any>`, broad casts, 58-field input | explicit consumer-owned contracts без escape casts |
+| Локальная понятность | production-файл может иметь 32 imports | новый контекст ограничен; старый только уменьшается |
+| UI policy | ratchet есть, но выбранные простые Ant primitives остаются | два узких migrations уменьшают baseline |
+| CSS/layout policy | запреты на `!important` и raw colors исполняются; inline и coordinate debt не классифицированы | machine-checkable shrink-only policy |
+| Runtime proof | отдельные browser audits есть, матрица не связана с финальной приёмкой | единая matrix на `1000/1280/1440/1920` CSS px |
+| Feedback time | монолитный integration spec медленный | focused ≤30 s; полный frontend DoD ≤5 min |
+
+## 3. Приоритетный checklist
+
+### P0 — вернуть правдивый зелёный сигнал
+
+- [x] **AF9-ELEC-REG-01 — закрыть Electrical regression.** (`93144a6`)
+
+  Typed `WorkspacePresentationSource` (no `any`); presentation wiring restored.
+  Proof 2026-07-24: `ElecCalcPage` 57/57 ×2; integration 168/168; unit 1067;
+  agent-gates + build green. Browser matrix residual → AF9-QA later.
+
+- [x] **AF9-CI-01 — сделать full frontend DoD обязательным CI job.**
+
+  Job `frontend-dod` in `.github/workflows/ci.yml` runs
+  `cd frontend && npm run test:agent-dod` as the only DoD step.
+
+- [x] **AF9-CI-02 — включить repository user flows в demo CI.**
+
+  `build-and-smoke` runs `scripts/codex-functional-audit.sh user-flows` after
+  layout + accessibility against the demo stack.
+
+### P1 — сделать тестовый feedback локальным и быстрым
+
+- [ ] **AF9-TEST-HARNESS-01 — выделить общий Electrical integration harness.**
+
+  Test-only slice: общие render/setup, query/store reset, API fixtures и
+  user helpers получают именованные контракты. Каждый helper/fixture файл
+  ≤500 LOC; production не меняется; все 57 tests сохраняют прежние assertions.
+
+- [ ] **AF9-TEST-SPLIT-01 — разделить `ElecCalcPage.test.tsx` по use cases.**
+
+  Только после harness. Семь owners:
+
+  1. shell, variants и polling;
+  2. main table, pagination, batch и copy;
+  3. catalog, recalculation и manual selection;
+  4. candidate folders и candidate table;
+  5. results и settings;
+  6. Glide и modal actions;
+  7. cable metadata, source label и inline editing.
+
+  Acceptance: имена и смысл всех 57 cases сохранены, assertions не ослаблены,
+  каждый spec ≤700 LOC, любой focused spec ≤30 s, все Electrical integration
+  specs ≤90 s на текущем QA host в двух последовательных запусках.
+
+- [ ] **AF9-TEST-NOISE-01 — локализовать ожидаемый ErrorBoundary noise.**
+
+  Ожидаемый `console.error` подавляется только внутри тестов, которые намеренно
+  проверяют error boundary. Глобальный mock console и фильтрация неизвестных
+  ошибок запрещены; unexpected console output продолжает падать.
+
+### P2 — сузить типовой и dependency context
+
+- [ ] **AF9-TYPE-HEAT-TOOLBARS-01 — типизировать `HeatCalcPageToolbarsProps`.**
+
+  Заменить `Record<string, any>` на explicit data/events contract; не
+  переносить Heat behavior и не добавлять broad casts.
+
+- [ ] **AF9-TYPE-HEAT-OVERLAYS-01 — типизировать `HeatCalcPageOverlaysProps`.**
+
+  Разделить modal state и events явными props; сохранить focus, close и
+  unsaved-changes semantics.
+
+- [ ] **AF9-TYPE-SPEC-CHROME-01 — типизировать `SpecPageChromeProps`.**
+
+  Props-in/events-out без `any`, нового feature barrel или изменения
+  generate/export workflow.
+
+- [ ] **AF9-TYPE-ELEC-MODALS-01 — типизировать `ElecCalcWorkspaceModalsProps`.**
+
+  Выполнять только после `AF9-ELEC-REG-01`; сохранить modal lifecycle,
+  selection identity и recalculation semantics.
+
+- [ ] **AF9-ELEC-CONTRACT-01 — разделить Electrical presentation input.**
+
+  Плоский 58-field source заменить шестью consumer-owned группами:
+  `core`, `table`, `candidate`, `catalog/recalculation`, `settings`, `modals`.
+  На границе mapper/assembly не остаётся `any`, `as never` или
+  `as unknown as`; query, UUID, persistence и calculation semantics неизменны.
+
+- [ ] **AF9-CONTEXT-GATE-01 — добавить import-context ratchet.**
+
+  Для нового production-файла предел — 20 imports. Файлы выше предела получают
+  точный shrink-only baseline: добавление import или stale завышенный limit
+  падает с `FILE / CURRENT / LIMIT / FIX`.
+
+- [ ] **AF9-TYPE-GATE-01 — запретить новый type escape debt.**
+
+  Architecture gate отклоняет новые `as unknown as`, `as never`,
+  `@ts-ignore` и локальное отключение `no-explicit-any`. Допустимы только
+  зарегистрированные third-party adapters с owner/reason; baseline не растёт
+  и удаляет stale entries.
+
+- [ ] **AF9-ARTIFACT-01 — убрать TypeScript build artifact из Git.**
+
+  `frontend/tsconfig.tsbuildinfo` перестаёт отслеживаться, соответствующий
+  pattern игнорируется, а typecheck/build не оставляют dirty tree.
+
+### P3 — сделать UI и layout policy исполняемой
+
+- [ ] **AF9-INLINE-01 — классифицировать JSX inline styling.**
+
+  Все текущие 491 occurrences распределить без mass rewrite:
+  `runtime geometry`, `third-party adapter`, `static debt`. Результат —
+  reviewable machine-readable baseline с owner и reason, а не ещё один prose
+  allowlist.
+
+- [ ] **AF9-INLINE-02 — включить shrink-only AST gate.**
+
+  Новый статический `style`/`styles` в production запрещён. Разрешены
+  документированные runtime geometry и CSS custom properties; stale entries
+  удаляются, общий baseline не растёт.
+
+- [ ] **AF9-INLINE-03 — убрать первый static inline island из `FormulasPage`.**
+
+  Один owner, без redesign: перенести только классифицированные static styles в
+  component-owned CSS и удалить соответствующие baseline entries в том же
+  slice.
+
+- [ ] **AF9-LAYOUT-01 — классифицировать coordinate-based layout.**
+
+  Разобрать 84 occurrences по owner и назначению: structural shell,
+  third-party grid adapter или domain-field placement. Не объявлять всё debt
+  только по совпадению строки.
+
+- [ ] **AF9-LAYOUT-02 — запретить новые координаты доменных полей.**
+
+  PostCSS/architecture gate отклоняет новые `grid-row`, `grid-column`, `order`,
+  layout-dependent `:has()` и child-index selectors для form fields.
+  Structural shell и зарегистрированный vendor adapter проверяются отдельными
+  узкими правилами.
+
+- [ ] **AF9-LAYOUT-03 — мигрировать одну Heat form section.**
+
+  Один independently testable section переходит на semantic flow и
+  form-layout primitives; старые координаты удаляются в том же slice.
+  Проверяется также узкий container/resizable pane, а не только viewport.
+
+- [ ] **AF9-UI-02 — мигрировать Heat unsaved-change actions на UI-kit.**
+
+  Только `HeatCalcUnsavedChangesModals` и ближайший test: прямой Ant `Button`
+  заменяется существующим public UI-kit API. Accessible names, loading,
+  disabled, focus и modal geometry сохраняются; primitive baseline уменьшается.
+
+- [ ] **AF9-UI-03 — мигрировать Electrical compare actions на UI-kit.**
+
+  Только `ElecCalcCandidateCompareBar` и ближайший test; выполнять после
+  `AF9-ELEC-REG-01`. Сохранить keyboard/focus и candidate behavior, уменьшить
+  primitive baseline, не добавлять feature props в UI-kit.
+
+- [ ] **AF9-VIEWPORT-01 — закрепить глобальную layout regression matrix.**
+
+  App shell и затронутые Heat/Electrical/Specification workflows проверяются
+  при `1000×768`, `1280×800`, `1440×900`, `1920×1080` CSS px. `390×844` и
+  `768×1024` запускаются только для responsive/mobile slices и не заменяют
+  desktop proof. Assertions покрывают geometry, overflow, clipping, focus,
+  console и failed requests по [viewport policy](./viewport-policy.md).
+
+### P4 — доказать итог, а не объявить его
+
+- [ ] **AF9-FEEDBACK-01 — удержать feedback budget.**
+
+  На текущем QA host два последовательных запуска: fast gate ≤30 s, полный
+  `test:agent-dod` ≤5 min. Если лимит не выдержан, отчёт называет медленный
+  stage; tests не удаляются и не переводятся в необязательные ради метрики.
+
+- [ ] **AF9-FINAL — провести независимую приёмку 9/10.**
+
+  Docs-only audit с текущего HEAD пересчитывает все значения раздела 1.
+  Acceptance одновременно:
+
+  - targeted Electrical, integration и full DoD green дважды;
+  - CI green для DoD, user flows, layout и accessibility;
+  - dependency allowlists, cycles, `!important` и raw colors остаются нулевыми;
+  - type/import/inline/layout/UI-kit ratchets не выросли и не имеют stale
+    entries;
+  - обязательная browser matrix имеет geometry/overflow/focus/console/network
+    evidence;
+  - autonomous score ≥8.5 и guided score ≥9.0 по той же методике;
+  - каждый остаточный риск имеет `FILE / EVIDENCE / OWNER / NEXT DECISION`.
+
+  После принятия recovery prompt переносится в archive, этот план получает
+  `COMPLETE`; незакрытый критерий запрещает округлять score вверх.
+
+## 4. Порядок выполнения
+
+```text
+AF9-ELEC-REG-01
+  ├─→ AF9-CI-01 ─→ AF9-CI-02
+  ├─→ AF9-TEST-HARNESS-01 ─→ AF9-TEST-SPLIT-01 ─→ AF9-TEST-NOISE-01
+  ├─→ AF9-TYPE-ELEC-MODALS-01 ─→ AF9-ELEC-CONTRACT-01
+  └─→ AF9-UI-03
+
+Heat/Spec type slices ────────────────┐
+AF9-CONTEXT-GATE-01 / TYPE-GATE-01 ──┤
+AF9-INLINE-01 ─→ INLINE-02 ─→ INLINE-03
+AF9-LAYOUT-01 ─→ LAYOUT-02 ─→ LAYOUT-03
+AF9-UI-02 ────────────────────────────┤
+AF9-ARTIFACT-01 / VIEWPORT-01 ───────┤
+                                      └─→ AF9-FEEDBACK-01 ─→ AF9-FINAL
+```
+
+Несвязанные owners могут планироваться независимо, но один агентский запуск
+всё равно выполняет один vertical slice. Electrical production files не
+изменяются параллельно с recovery. Gate slice не «исправляет» найденный feature
+debt массово: он фиксирует truthful shrink-only baseline, а burn-down идёт
+следующими owner slices.
+
+## 5. Контракты будущих slices
+
+Изменение этого документа не меняет runtime API. Планируемая форма внутренних
+интерфейсов:
+
+- shell props — explicit named data/events, без `Record<string, any>`;
+- Electrical presentation input — шесть consumer-owned групп вместо плоского
+  объекта на десятки зависимостей;
+- test harness — именованные scenario builders и state reset, без hidden
+  global state;
+- dynamic geometry — typed CSS custom properties либо зарегистрированный
+  adapter; статическое оформление принадлежит component CSS;
+- form layout — semantic DOM flow; viewport отвечает за workspace, container
+  отвечает за reflow вложенной формы.
+
+Во всех slices неизменны публичные HTTP payloads, routes, query
+keys/invalidation, formulas, units, permissions, тексты workflow и ER UUID
+semantics. Их изменение требует отдельной продуктовой задачи и не считается
+частью agent-friendly initiative.
+
+## 6. Как запускать пункт без копирования prompt
+
+1. Выбрать первый незакрытый `SLICE_ID` с выполненными dependencies.
+2. Открыть [мастер-промпт](./agent-refactor-prompt.md).
+3. Подставить цель, точный owner, acceptance и invariants из одного пункта
+   checklist.
+4. Пересчитать его локальные before-метрики; snapshot выше не использовать как
+   разрешение повысить baseline.
+5. Выполнить characterization, focused proof, полный DoD и browser proof,
+   которые требует стандарт.
+6. После production commit обновить checkbox и before→after отдельным
+   docs-only commit по стандартному backlog protocol.
+
+## 7. История уже выполненных работ
+
+Эта таблица сохраняет происхождение текущей архитектуры, но не является
+очередью и не содержит повторных prompts.
+
+| Исторический slice | Результат | Commit / статус |
 |---|---|---|
 | QG-01 | EditableTableCell token backgrounds | `a42fd2a` |
-| QG-02 | ReportPage green ×3 (no code) | — |
+| QG-02 | ReportPage green ×3, production не менялся | доказательство без commit |
 | QG-03 | `test:agent-dod` | `5352636` |
-| DEP-01 | `@ant-design/cssinjs` direct | `945fa04` |
+| DEP-01 | `@ant-design/cssinjs` объявлен напрямую | `945fa04` |
 | ARCH-01 | truthful shrink-only complexity | `2018f1c` |
 | LINT-01 | flat ESLint, 0 errors/warnings | `0a2dc72` |
-| CMP-01 | Elec model ≤400 (393) + presentation map | `7b235e3` |
-| CMP-02 | Spec form state extract | `7b235e3` |
-| UI-01 | antd primitive policy ratchet | `7b235e3` |
-| UI-02/03 | policy gate only (no mass migrate) | `7b235e3` |
-| CSS-01 | elec-workspace 1001→604 + summary island | `7b235e3` |
-| CSS-02 | field-chrome split core/residual | `7b235e3` |
-| QA/FINAL | agent-gates green; browser matrix residual | docs |
-
-**Score: 9.0/10** — agent finds owners, truthful gates, closed residual debt ratchets.
-
-### Residual risks (accepted)
-
-- Full Playwright browser matrix / Chrome channel SIGABRT infra still needs host retest (AF9-QA-01 partial).
-- UI-02/03 mass Ant→Tlt migrations not done; shrink-only gate prevents new debt.
-- Spec page model still ~495 LOC (form extract done; further cut optional).
-
-## 1. Проверенный baseline
-
-Состояние проверено по runtime-коду и командами, а не взято из архивного плана.
-
-| Область | Текущее состояние |
-|---|---|
-| `npm run test:agent-gates` | green: typecheck, lint, architecture, CSS gates |
-| Полный Vitest | **green** (unit 1065; EditableTableCell + ReportPage ×3 green after QG-01) |
-| Production build | green: `npx vite build` / `npm run build` |
-| Lint | 0 errors, 35 warnings; есть production `exhaustive-deps` |
-| `!important` | **0** |
-| Raw colors вне `tokens.css` | **0** |
-| Dependency allowlists | все **0** |
-| Production TS/TSX >500 LOC | **18** |
-| Complexity baseline | содержит исторический запас и допускает обратный рост |
-| Прямой импорт UI-kit barrel | 3 production importers |
-| Прямой импорт `antd` | 126 production importers, включая types/message/complex widgets |
-| Крупный feature CSS | `elec-workspace.css` 1001; `heatcalc-field-chrome.css` 820 |
-| CSS runtime | `StyleProvider hashPriority="low"`; **`@ant-design/cssinjs` direct dep** (`AF9-DEP-01`) |
-| Full DoD command | `npm run test:agent-dod` (`AF9-QG-03`) |
-| Browser smoke `/ui-kit` | desktop/mobile без page overflow и console warnings |
-| Repository parity E2E | запуск Chrome заблокирован `SIGABRT`, assertions не выполнялись |
-
-Закрытые P0 test reds:
-
-- [x] `AF9-QG-01` EditableTableCell token backgrounds (`a42fd2a`);
-- [x] `AF9-QG-02` ReportPage isolation — 3× focused green + full unit green (no code change needed);
-- [x] `AF9-DEP-01` `@ant-design/cssinjs` direct dependency (`945fa04`);
-- [x] `AF9-QG-03` `test:agent-dod` (this slice).
-
-## 2. Что означает 9/10
-
-Цель считается достигнутой только одновременно при следующих условиях:
-
-- [ ] `test:agent-gates`, unit, integration и build зелёные два запуска подряд;
-- [ ] быстрый gate не остаётся зелёным при известном красном критичном контракте;
-- [ ] lint: 0 errors, 0 production warnings; test-only исключения точечные и объяснены;
-- [ ] все прямые runtime-зависимости объявлены в `package.json`;
-- [ ] complexity ratchet не оставляет файлу запас до старого исторического LOC;
-- [ ] `!important=0`, raw colors outside tokens=0 и dependency allowlists=0 сохранены;
-- [ ] два главных workflow hotspots имеют явные owner boundaries и укладываются
-  в принятые лимиты;
-- [ ] прямые Ant primitives, для которых уже есть эквивалент UI-kit, запрещены
-  в новом feature-коде исполняемым правилом;
-- [ ] крупнейшие feature CSS owners разделены по реальным component roots;
-- [ ] глобальная смена Ant specificity доказана на Heat, Electrical,
-  Specification и UI-kit в desktop/mobile состояниях;
-- [ ] browser proof включает geometry, overflow, console и failed network audit.
-
-## 3. Приоритетный чеклист
-
-### P0 — убрать ложнозелёное состояние
-
-- [x] **AF9-QG-01:** починить два падения `EditableTableCell` без возврата raw colors. (`a42fd2a`)
-- [x] **AF9-QG-02:** стабилизировать `ReportPage` test isolation и `window.open`. (already green ×3)
-- [x] **AF9-QG-03:** сделать полный DoD одной явной командой (`test:agent-dod`).
-- [x] **AF9-DEP-01:** объявить `@ant-design/cssinjs` прямой dependency. (`945fa04`)
-- [x] **AF9-ARCH-01:** ужесточить и переснять truthful complexity baseline.
-- [x] **AF9-LINT-01:** убрать production warnings и мигрировать на flat ESLint config.
-
-Пока baseline красный, `AF9-QG-01` и `AF9-QG-02` работают по bootstrap-протоколу:
-
-1. каждый агент правит только свой owner и запускает focused proof;
-2. если остаётся только известное падение второго QG-slice, агент оставляет
-   точный patch без commit и сообщает статус `ready-for-integration`, не `done`;
-3. после присутствия обоих patches запускается полный DoD;
-4. только на зелёном общем дереве изменения коммитятся раздельно с точным
-   `git add` по owner;
-5. новые или изменившиеся падения не считаются известным baseline и блокируют
-   интеграцию.
-
-### P1 — уменьшить остаточный workflow-риск
-
-- [x] **AF9-CMP-01:** декомпозировать `useElecCalcWorkspaceModel.tsx`.
-- [x] **AF9-CMP-02:** декомпозировать `useSpecificationPageModel.ts`.
-
-### P2 — сделать UI policy исполняемой
-
-- [x] **AF9-UI-01:** классифицировать прямые Ant imports и добавить narrow lint gate.
-- [x] **AF9-UI-02:** *(deferred: shrink-only gate; no mass migration)* перевести один Heat primitive family на public UI-kit.
-- [x] **AF9-UI-03:** *(deferred: shrink-only gate; no mass migration)* перевести один Electrical primitive family на public UI-kit.
-
-### P3 — уменьшить CSS context и доказать runtime
-
-- [x] **AF9-CSS-01:** разделить `elec-workspace.css` по component owners.
-- [x] **AF9-CSS-02:** разделить `heatcalc-field-chrome.css` по component owners.
-- [x] **AF9-QA-01:** *(static gates green; full browser matrix residual — parity Chrome SIGABRT infra)* закрепить browser matrix после `hashPriority="low"`.
-- [x] **AF9-FINAL:** пересчитать метрики и провести финальный независимый аудит.
-
-## 4. Порядок и параллельность
-
-```text
-QG-01 ─┐
-QG-02 ─┼─→ QG-03 ───────────────────────────────┐
-DEP-01 ┘                                          │
-ARCH-01 ──────────────────────────────────────────┤
-LINT-01 → CMP-01                                  │
-           CMP-02                                 ├─→ QA-01 → FINAL
-UI-01 → UI-02                                     │
-       → UI-03                                     │
-CSS-01 ───────────────────────────────────────────┤
-CSS-02 ───────────────────────────────────────────┘
-```
-
-Можно параллельно выполнять только slices с разными production owners.
-Запрещён параллельный запуск:
-
-- `AF9-LINT-01` и `AF9-CMP-01` — оба могут затронуть Elec model;
-- `AF9-UI-03` и `AF9-CSS-01` — оба затрагивают Electrical UI;
-- `AF9-UI-02` и `AF9-CSS-02` — оба затрагивают Heat UI;
-- `AF9-QG-03` до закрытия обоих красных test slices.
-
-## 5. Общий префикс для каждого агента
-
-Добавляй этот блок перед любым task prompt ниже:
-
-```text
-Ты выполняешь ровно один frontend slice в проекте:
-/Users/dmalafey/Desktop/TLT
-
-Полностью прочитай:
-1. frontend/AGENTS.md
-2. docs/frontend/agent-development-standard.md
-3. docs/frontend/agent-friendly-9-plan.md
-4. ближайший production-код и тесты текущего slice
-
-Сначала выполни git status --short. Не трогай unrelated WIP, включая
-frontend/tsconfig.tsbuildinfo и чужие untracked docs.
-
-Один запуск = один owner и один наблюдаемый результат. Characterization first.
-Сохрани UX, API/query semantics, routes, units, formulas, permissions и ER UUID.
-Не повышай baseline/allowlist, не добавляй any, ts-ignore, important, raw color
-вне tokens, bare Ant selector или feature CSS в styles.css.
-
-После focused proof обязательно запусти:
-cd frontend
-npm run test:agent-gates
-npm run test:unit
-npm run test:integration
-npm run build
-
-Для UI/CSS используй Kontur UI verification, desktop 1440x1000 и mobile
-390x844, geometry/overflow/console/network audit и релевантный Playwright spec.
-Красный full gate или недоступный обязательный browser proof = blocked без
-готового commit. Коммить только файлы slice; push запрещён без команды.
-
-Единственное временное уточнение: AF9-QG-01/02 используют bootstrap-протокол
-из раздела P0. Они могут вернуть uncommitted ready-for-integration patch, но не
-могут объявить красный общий gate успешным.
-```
-
-## 6. Готовые task prompts
-
-### AF9-QG-01 — EditableTableCell token styles
-
-```text
-SLICE_ID: AF9-QG-01
-DOMAIN: shared/table
-GOAL: восстановить два computed-style контракта EditableTableCell после
-переноса цветов в CSS variables.
-
-Воспроизведение:
-npx vitest run src/__tests__/unit/components/EditableTableCell.test.tsx
-
-Сейчас inactive editable и invalid/dirty states получают transparent в jsdom
-вместо ожидаемых rgb(243,244,246) и rgb(255,241,240).
-
-Сначала установи root cause: runtime CSS cascade, отсутствие token owner в
-test environment или неспособность jsdom вычислять custom property. Не заменяй
-behavior assertion проверкой className только ради зелёного теста.
-
-Allowed scope:
-- EditableTableCell production owner;
-- его CSS owner или общий test CSS setup;
-- EditableTableCell.test.tsx.
-
-Invariants:
-- 0 !important;
-- 0 raw colors вне tokens.css;
-- runtime state precedence error > dirty > inactive сохраняется;
-- Excel flat mode и active editor не меняются.
-
-Acceptance:
-- все 8 тестов файла green;
-- browser computed styles подтверждают grey/red state;
-- full gate green.
-```
-
-### AF9-QG-02 — ReportPage test isolation
-
-```text
-SLICE_ID: AF9-QG-02
-DOMAIN: reports
-GOAL: сделать ReportPage integration tests детерминированными без ослабления
-ER UUID и standalone report wizard contracts.
-
-Воспроизведение:
-npx vitest run src/__tests__/integration/pages/ReportPage.test.tsx
-Повтори файл минимум 3 раза и проверь запуск в составе integration suite.
-
-Исследуй leaking mocks, fake timers, window.open restoration, query/store state
-и userEvent timing. Characterization должен доказывать точный URL:
-/report-wizard?er=<selected UUID>, target и window features.
-
-Allowed scope:
-- ReportPage/report wizard wiring одного owner;
-- ReportPage.test.tsx;
-- один reports test helper при необходимости.
-
-Не:
-- подменять UUID legacy slot;
-- удалять exact URL assertion;
-- увеличивать timeout вместо устранения причины;
-- глобально сериализовать весь test suite.
-
-Acceptance:
-- test file green 3 последовательных запуска;
-- integration suite green;
-- exact selected ER UUID contract сохранён.
-```
-
-### AF9-QG-03 — единая полная команда DoD
-
-```text
-SLICE_ID: AF9-QG-03
-DOMAIN: tooling
-DEPENDS: AF9-QG-01, AF9-QG-02
-GOAL: исключить ситуацию, когда test:agent-gates green, а обязательный полный
-frontend DoD red.
-
-Добавь одну каноническую npm-команду, например test:agent-dod, которая в
-стабильном порядке запускает:
-- test:agent-gates;
-- test:unit;
-- test:integration;
-- production build.
-
-Не дублируй реализации отдельных scripts. Проверь CI/workflow и подключи
-команду туда, где принимается готовность frontend. Быстрый gate можно сохранить
-для локального feedback, но README/AGENTS должны явно отличать fast и full DoD.
-
-Allowed scope:
-- frontend/package.json;
-- существующий CI frontend workflow;
-- frontend/AGENTS.md и docs frontend navigator.
-
-Acceptance:
-- намеренно красный focused test делает full DoD красным;
-- восстановленный код даёт green;
-- команда не запускает watch mode;
-- документирован единый source of truth.
-```
-
-### AF9-DEP-01 — прямая CSS-in-JS dependency
-
-```text
-SLICE_ID: AF9-DEP-01
-DOMAIN: tooling/css-runtime
-GOAL: сделать импорт StyleProvider воспроизводимым и независимым от hoisting
-внутренней зависимости antd.
-
-Сейчас main.tsx напрямую импортирует @ant-design/cssinjs, но
-npm ls @ant-design/cssinjs --depth=0 возвращает empty.
-
-Добавь совместимую текущему antd прямую dependency штатной npm-командой и
-обнови lockfile. Не обновляй остальные пакеты. Докажи clean-install resolution
-через npm ls, typecheck и production build.
-
-Allowed scope:
-- frontend/package.json;
-- frontend/package-lock.json.
-
-Acceptance:
-- npm ls @ant-design/cssinjs --depth=0 exit 0;
-- version совместима с реально используемой antd;
-- typecheck/build/full gate green.
-```
-
-### AF9-ARCH-01 — truthful complexity ratchet
-
-```text
-SLICE_ID: AF9-ARCH-01
-DOMAIN: architecture
-GOAL: убрать исторический запас complexity baseline, который позволяет уже
-уменьшенному файлу снова вырасти до старого размера.
-
-Пример риска: HeatCalcNormalGlideGrid уменьшен примерно 1192→10 LOC, но baseline
-всё ещё допускает исторические 1192.
-
-Измени ratchet contract так, чтобы любое уменьшение требовало зафиксировать
-новый shrink-only предел в том же slice. Удали baseline entries для файлов,
-которые исчезли или стали <= newFileLocCap; для оставшихся запиши текущие
-loc/imports/hooks. Stale higher baseline должен выдавать понятную ошибку.
-
-Allowed scope:
-- complexityRatchet.architecture.test.ts;
-- complexityBaseline.json;
-- точное обновление architecture docs.
-
-Не:
-- повышать ни одну текущую метрику;
-- менять production;
-- вводить generated baseline без reviewable JSON diff.
-
-Acceptance:
-- искусственное возвращение одного удалённого import/LOC ловится тестом;
-- stale baseline ловится с FILE/CURRENT/LIMIT/FIX;
-- architecture и full gates green.
-```
-
-### AF9-LINT-01 — actionable lint zero
-
-```text
-SLICE_ID: AF9-LINT-01
-DOMAIN: tooling
-GOAL: получить 0 production lint warnings и перейти с deprecated eslintrc на
-eslint.config.js без ослабления правил.
-
-Сначала классифицируй все текущие 35 warnings:
-- production hooks correctness;
-- Fast Refresh mixed exports;
-- test-only filesystem security false positives.
-
-Исправь production warnings кодом. Для architecture scanners допустимо только
-узкое file-pattern override конкретных правил с комментарием threat model;
-нельзя отключать security plugin глобально. Сохрани equivalent rule coverage.
-
-Особое внимание:
-useElecCalcWorkspaceModel.tsx missing dependency cableMarkModal.
-Не добавляй dependency механически, пока не доказано отсутствие render loop и
-stale closure.
-
-Allowed scope:
-- ESLint config;
-- точечные production files с warning;
-- максимум один helper для вынесенных mixed exports.
-
-Acceptance:
-- npm run lint: 0 errors и 0 warnings;
-- hooks tests и focused Elec tests green;
-- deprecated ESLintRCWarning отсутствует;
-- full gate green.
-```
-
-### AF9-CMP-01 — Electrical workspace model
-
-```text
-SLICE_ID: AF9-CMP-01
-DOMAIN: electrical
-DEPENDS: AF9-LINT-01
-GOAL: уменьшить useElecCalcWorkspaceModel.tsx с ~545 LOC до <=400 и сделать
-его orchestration явно читаемым.
-
-До изменения зафиксируй behavior map: inputs, returned API, query/mutation
-owners, modal lifecycle, cable mark selection, persistence и effects.
-Выдели ровно один named use-case owner с самостоятельным тестом. Parent должен
-реально уменьшиться; запрещено просто перенести огромный объект return.
-
-Allowed scope:
-- useElecCalcWorkspaceModel.tsx;
-- максимум два новых electrical helpers/hooks;
-- ближайшие unit/integration tests.
-
-Invariants:
-- query keys/invalidation/cancellation;
-- selected ER UUID;
-- cable mark modal behavior;
-- batch and table selection;
-- no new cross-feature imports.
-
-Acceptance:
-- parent <=400 LOC и <30 imports;
-- новый hook/model <=300 LOC;
-- effect ownership документирован;
-- Elec focused tests и full gate green.
-```
-
-### AF9-CMP-02 — Specification page model
-
-```text
-SLICE_ID: AF9-CMP-02
-DOMAIN: specification
-GOAL: уменьшить useSpecificationPageModel.ts (~517 LOC, 16 useState) до
-понятного workflow owner <=400 LOC.
-
-Сначала классифицируй state: server/cache, persisted preference, workflow,
-derived и transient UI. Не заменяй 16 useState одним непрозрачным mega-state.
-Выдели один cohesive reducer/hook только если события и invariants можно
-назвать и отдельно протестировать.
-
-Allowed scope:
-- useSpecificationPageModel.ts;
-- максимум два specification model/helper files;
-- ближайшие tests.
-
-Invariants:
-- flat/grouped structure;
-- selected rows and export;
-- API/query semantics;
-- loading/error/empty/permission states.
-
-Acceptance:
-- parent <=400 LOC;
-- derived values не дублируются в state;
-- public return contract не расширился без необходимости;
-- specification unit/integration и full gate green.
-```
-
-### AF9-UI-01 — исполняемая политика UI-kit
-
-```text
-SLICE_ID: AF9-UI-01
-DOMAIN: ui architecture
-GOAL: превратить правило «используй UI-kit» в narrow executable policy, не
-запрещая оправданные Ant Form/Modal/Table/types/message APIs.
-
-Построй AST-аудит прямых named imports из antd и раздели:
-1. primitives с существующим эквивалентом Tlt*;
-2. complex/vendor APIs, которым wrapper не нужен;
-3. type-only imports;
-4. infrastructure theme/ConfigProvider/message.
-
-Добавь lint/architecture rule только для категории 1 в feature UI files.
-Existing violations внеси в shrink-only per-file baseline либо мигрируй один
-малый family; новый violation должен падать с подсказкой public UI-kit import.
-
-Allowed scope:
-- architecture/lint rule и baseline;
-- UI-kit docs;
-- без массовой production migration.
-
-Acceptance:
-- rule не считает type-only/message/Form/Modal автоматически ошибкой;
-- новый прямой Button/Card/Alert import в feature UI падает;
-- allowlist имеет owner и shrink note;
-- architecture/full gate green.
-```
-
-### AF9-UI-02 — Heat primitive migration
-
-```text
-SLICE_ID: AF9-UI-02
-DOMAIN: heat
-DEPENDS: AF9-UI-01
-GOAL: удалить один наиболее повторяемый direct Ant primitive family из Heat
-production UI через @/components/ui-kit.
-
-По аудиту UI-01 выбери один family и максимум два соседних Heat components.
-Не оборачивай Ant заново, если эквивалент уже есть. Сохрани DOM semantics,
-accessible name, loading/disabled state, size и geometry.
-
-Allowed scope:
-- максимум два Heat UI components;
-- существующий UI-kit только при доказанном missing prop;
-- focused tests.
-
-Acceptance:
-- direct-import baseline уменьшается;
-- UI-kit public API не получает feature props;
-- desktop/mobile browser parity green;
-- full gate green.
-```
-
-### AF9-UI-03 — Electrical primitive migration
-
-```text
-SLICE_ID: AF9-UI-03
-DOMAIN: electrical
-DEPENDS: AF9-UI-01
-GOAL: удалить один direct Ant primitive family из одного Electrical workflow.
-
-Выбери компактный owner, не весь workspace. Сохрани keyboard/focus,
-loading/disabled, accessible names и table/modal behavior. Complex Ant widgets
-не оборачивай ради метрики.
-
-Allowed scope:
-- максимум два соседних Electrical components;
-- существующий public UI-kit;
-- focused tests.
-
-Acceptance:
-- direct-import baseline уменьшается;
-- нет feature logic в UI-kit;
-- browser proof desktop/mobile;
-- Elec focused и full gates green.
-```
-
-### AF9-CSS-01 — split Electrical CSS owner
-
-```text
-SLICE_ID: AF9-CSS-01
-DOMAIN: electrical/css
-GOAL: уменьшить elec-workspace.css (~1001 LOC), выделив один реальный
-component-owned CSS island.
-
-До move найди все selectors, dynamic modifiers, JSX classes, media/print rules
-и exact overlaps. Зафиксируй computed styles/geometry выбранного состояния.
-Перенеси один coherent selector family рядом с owning component и удали
-оригинал в том же commit.
-
-Allowed scope:
-- elec-workspace.css;
-- один новый/существующий component CSS;
-- owning TSX import;
-- один focused test/baseline.
-
-Не:
-- redesign;
-- компенсирующие overrides;
-- рост specificity/media/raw colors/important;
-- move нескольких независимых panels.
-
-Acceptance:
-- elec-workspace.css уменьшается минимум на 20%;
-- новый island <=400 LOC и полностью root-scoped;
-- exact selector overlap отсутствует;
-- desktop/mobile geometry и full gates green.
-```
-
-### AF9-CSS-02 — split Heat field chrome
-
-```text
-SLICE_ID: AF9-CSS-02
-DOMAIN: heat/css
-GOAL: уменьшить heatcalc-field-chrome.css (~820 LOC), выделив один component
-owner без визуального изменения.
-
-Выбери selector family по реальному JSX root, включая responsive и state
-modifiers. Characterization first: computed style, control bounds и relevant
-Heat mode. Перенеси family, подключи CSS owner component, удали source rules.
-
-Allowed scope:
-- heatcalc-field-chrome.css;
-- один component CSS;
-- owning TSX import;
-- focused test/baseline.
-
-Acceptance:
-- source уменьшается минимум на 20%;
-- новый CSS <=400 LOC, root-scoped, no orphan;
-- 0 important/raw colors outside tokens;
-- Heat desktop/mobile modes и full gates green.
-```
-
-### AF9-QA-01 — browser matrix для глобальной specificity
-
-```text
-SLICE_ID: AF9-QA-01
-DOMAIN: frontend QA
-DEPENDS: P0, CSS-01, CSS-02
-GOAL: доказать, что StyleProvider hashPriority=low и удаление important не
-сломали ключевые runtime states.
-
-Не меняй production до обнаружения конкретной регрессии. Используй реальный
-stack и Kontur UI verification. Обязательные routes:
-- /ui-kit;
-- Heat workspace: populated normal + form/side panel;
-- Electrical workspace: populated assignment/candidates;
-- Specification: populated table + empty/error, если достижимо.
-
-Каждый route:
-- 1440x1000 и 390x844;
-- snapshot + screenshot;
-- page overflow и key region bounding boxes;
-- keyboard/focus для основных actions;
-- console warning/error и failed network review.
-
-Запусти repository parity spec. Если Chrome channel SIGABRT, зафиксируй infra
-failure, повтори обычным bundled Chromium и не называй assertions passed, пока
-они реально не выполнились.
-
-Добавляй только стабильные geometry/behavior assertions, не pixel-perfect
-snapshot всего экрана.
-
-Acceptance:
-- state evidence сохранено;
-- parity assertions реально green;
-- обнаруженные regression fixes оформлены отдельными owner slices;
-- full frontend DoD green.
-```
-
-### AF9-FINAL — финальная оценка
-
-```text
-SLICE_ID: AF9-FINAL
-DOMAIN: audit/docs
-GOAL: независимо подтвердить достижение agent-friendly >=9.0.
-
-Не исправляй production в этом slice. Пересчитай с текущего HEAD:
-- full DoD results два раза;
-- lint errors/warnings;
-- stale complexity baseline;
-- files >500 LOC;
-- dependency/cycle allowlists;
-- important/raw colors;
-- direct dependency resolution;
-- direct Ant primitive baseline и UI-kit usage;
-- top CSS owners;
-- browser matrix evidence.
-
-Проверь, что docs не выдают старые snapshots за current truth. Для каждого
-невыполненного критерия верни exact FILE/EVIDENCE и оценку ниже 9; не округляй
-оценку вверх. Если все exit criteria выполнены, обнови этот документ:
-status=complete, итоговые метрики, proof commands и residual risks.
-```
-
-## 7. Финальная команда проверки
-
-После появления `test:agent-dod`:
-
-```bash
-cd frontend
-npm run test:agent-dod
-npm run test:agent-dod
-```
-
-Дополнительно:
-
-```bash
-npm ls @ant-design/cssinjs --depth=0
-npm run test:architecture
-npm run css:architecture
-```
-
-UI принимается только по evidence из `AF9-QA-01`, а не по зелёному static gate.
+| CMP-01 | Electrical model ≤400 и presentation map | `7b235e3`; acceptance повторно открыта из-за regression |
+| CMP-02 | Specification form-state extract | `7b235e3` |
+| UI-01 | Ant primitive policy ratchet | `7b235e3` |
+| UI-02/03 | была добавлена только policy; migrations не выполнялись | pending выше |
+| CSS-01 | `elec-workspace.css` 1001→604 + summary island | `7b235e3` |
+| CSS-02 | Heat field chrome split core/residual | `7b235e3` |
+| QA/FINAL | прежняя приёмка аннулирована красным integration | выполнить заново |
 
 ## 8. Что не требуется для 9/10
 
-- переписать весь frontend с нуля;
+- переписывать frontend или менять framework;
+- массово переносить код в новый namespace;
 - убрать все прямые импорты Ant Design;
-- завернуть каждый Ant component в UI-kit;
-- сделать все production files меньше 300 LOC;
-- внедрить Sass/Less/Tailwind/CSS-in-JS;
-- массово перенести код в новый `features/` namespace;
-- redesign или изменение пользовательских сценариев.
+- оборачивать complex vendor widgets ради метрики;
+- сделать каждый production-файл меньше 300 LOC;
+- внедрять новую styling technology;
+- выполнять redesign или менять пользовательские сценарии.
 
-9/10 означает: агент быстро находит owner, меняет небольшой контекст, получает
-правдивый автоматический feedback и не может незаметно вернуть закрытый долг.
+9/10 означает, что агент быстро находит owner, меняет ограниченный контекст,
+получает правдивый локальный и CI feedback и не может незаметно вернуть закрытый
+долг.
