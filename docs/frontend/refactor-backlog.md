@@ -20,28 +20,28 @@
 | `!important` baseline | 67 (≤75 long-term ✅) |
 | `useElecCalcWorkspaceModel.tsx` | 545 LOC |
 | `useHeatCalcPageModel.ts` | 484 LOC |
-| `HeatCalcNormalGlideGrid.tsx` | 330 LOC |
-| Layer→pages allowlist | 1 edge |
-| Cross-feature allowlist | 3 edges |
-| Feature-pages outsider allowlist | 2 edges |
+| `HeatCalcNormalGlideGrid` host | shared `NormalGlideGrid` ~330 LOC |
+| Layer→pages allowlist | **1** edge |
+| Cross-feature allowlist | **0** edges |
+| Feature-pages outsider allowlist | **1** edge (same as layer) |
 
 ## Queue
 
 | ID | Status | Domain | Goal | Allowed scope | Invariants | Focused proof | Depends |
 |---|---|---|---|---|---|---|---|
-| — | — | — | Queue empty. Ask user for next goal or promote a new pending. | — | — | — | — |
+| **FDEP-08** | `pending` | electrical/shared | Вынести UUID variant selection core из `pages/electrical` в `hooks/` или `domain/`, убрать последний layer→pages edge | `useElectricalVariantSelection*`; `useLegacyElectricalVariantContext`; `dependencyBaseline.json`; selection tests | UUID ER semantics, query keys, lifecycle mutations | selection unit + architecture; full gate | — |
 
 ## Completed
 
 | ID | Result | Before → after | Production commit |
 |---|---|---|---|
-| **FDEP-01** | ReportPage uses `@/hooks/useLegacyElectricalVariantContext` | outsider edges 6→5 | `2df9bc4` |
+| **FDEP-01** | ReportPage uses `@/hooks/useLegacyElectricalVariantContext` | outsider 6→5 | `2df9bc4` |
 | **FDEP-02** | ReportWizardPage uses public hook bridge | outsider 5→4 | `2df9bc4` |
 | **FDEP-03** | WorkspacePage uses public hook bridge | outsider 4→3 | `2df9bc4` |
-| **FDEP-04** | Specification model uses public hook bridge; cross-feature re-export edge removed | outsider 3→2; cross 4→3 | `2df9bc4` |
-
-Remaining outsider: hooks→pages selection core; UIKitPage→heatcalc icons.  
-Remaining cross: elec→heatcalc Glide/ResizableColumnTitle (3 edges).
+| **FDEP-04** | Specification model uses public hook bridge | outsider 3→2; cross 4→3 | `2df9bc4` |
+| **FDEP-05** | ObjectTypeIcons → `components/shared` | outsider UIKit edge removed | `11f4f80` |
+| **FDEP-06** | ResizableColumnTitle → `components/shared` | cross-feature −1 | `11f4f80` |
+| **FDEP-07** | NormalGlideGrid + infinite-loading types → shared | cross-feature **0** | `11f4f80` |
 
 ## Promotion rules
 
