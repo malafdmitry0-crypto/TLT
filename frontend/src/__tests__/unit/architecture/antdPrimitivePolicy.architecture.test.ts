@@ -40,7 +40,17 @@ const FEATURE_DIRS = [
   'components/wizard',
 ];
 
+/** Extended scan roots (AF10-UIKIT-SCOPE-GATE-01). */
+const EXTENDED_ROOTS = ['pages', 'components', 'hooks'];
+
+const EXTENDED_EXCLUDE_PREFIXES = [
+  'src/components/ui-kit/',
+  'src/components/form-controls/',
+  'src/pages/UIKitPage.tsx',
+];
+
 const BASELINE_PATH = path.join(HERE, 'antdPrimitiveBaseline.json');
+const EXTENDED_BASELINE_PATH = path.join(HERE, 'antdPrimitiveExtendedBaseline.json');
 
 function walk(dir: string, out: string[] = []): string[] {
   if (!fs.existsSync(dir)) return out;
@@ -93,6 +103,35 @@ export function collectAntdPrimitiveViolations(
         const key = `src/${path.relative(srcRoot, abs).split(path.sep).join('/')}`;
         result[key] = hits;
       }
+    }
+  }
+  return result;
+}
+
+/**
+ * Extended scan: all production pages/components/hooks minus ui-kit, form-controls,
+ * UIKitPage, tests/stories, and paths already covered by the core feature baseline.
+ */
+export function collectExtendedAntdPrimitiveViolations(
+  srcRoot: string = SRC,
+  coreViolations: Record<string, string[]> = collectAntdPrimitiveViolations(srcRoot),
+  forbidden: ReadonlySet<string> = FORBIDDEN_ANT_PRIMITIVES,
+): Record<string, string[]> {
+  const coreKeys = new Set(Object.keys(coreViolations));
+  // Also exclude any file under core FEATURE_DIRS even if currently clean,
+  // so ownership stays with the core baseline.
+  const corePathPrefixes = FEATURE_DIRS.map((d) => `src/${d}/`);
+  const result: Record<string, string[]> = {};
+  for (const root of EXTENDED_ROOTS) {
+    for (const abs of walk(path.join(srcRoot, root))) {
+      const key = `src/${path.relative(srcRoot, abs).split(path.sep).join('/')}`;
+      if (EXTENDED_EXCLUDE_PREFIXES.some((p) => key === p || key.startsWith(p))) continue;
+      if (corePathPrefixes.some((p) => key.startsWith(p))) continue;
+      if (coreKeys.has(key)) continue;
+      if (key.includes('/__tests__/') || key.includes('.stories.')) continue;
+      const text = fs.readFileSync(abs, 'utf8');
+      const hits = collectForbiddenAntdImportsFromSource(text, abs, forbidden);
+      if (hits.length) result[key] = hits;
     }
   }
   return result;
@@ -158,6 +197,31 @@ describe('antd primitive policy (AF9-UI-01)', () => {
       `import { Space, Button } from 'antd';\nexport const X = () => <Space><Button /></Space>;\n`,
     );
     expect(hits).toEqual(['Button']);
+  });
+
+  it('does not grow or leave stale forbidden Ant primitives in extended pages/components/hooks', () => {
+    const core = collectAntdPrimitiveViolations();
+    const current = collectExtendedAntdPrimitiveViolations(SRC, core);
+    if (!fs.existsSync(EXTENDED_BASELINE_PATH)) {
+      fs.writeFileSync(
+        EXTENDED_BASELINE_PATH,
+        `${JSON.stringify({ version: 1, files: current }, null, 2)}\n`,
+      );
+    }
+    const baseline = JSON.parse(fs.readFileSync(EXTENDED_BASELINE_PATH, 'utf8')) as AntdBaseline;
+    const violations = diffAntdPrimitiveBaseline(current, baseline);
+    // Extended scope must never include core-owned paths.
+    for (const file of Object.keys(current)) {
+      if (FEATURE_DIRS.some((d) => file.startsWith(`src/${d}/`))) {
+        violations.push(`EXTENDED_OVERLAP_CORE ${file}`);
+      }
+    }
+    if (violations.length) {
+      expect.fail(
+        violations.join('\n')
+          + '\nFIX: import from @/components/ui-kit, or shrink antdPrimitiveExtendedBaseline.json after migration (never raise)',
+      );
+    }
   });
 });
 
