@@ -1,7 +1,9 @@
 # Стандарт agent-friendly разработки frontend TLT
 
-**Статус:** нормативный  
-**Актуально на:** 2026-07-23  
+**Статус:** нормативный
+
+**Актуально на:** 2026-07-24
+
 **Стек:** React 18, TypeScript, Vite, Ant Design, TanStack Query, Zustand,
 Vitest, Testing Library, Playwright.
 
@@ -26,6 +28,23 @@ Vitest, Testing Library, Playwright.
 Старые метрики и планы не являются доказательством текущего состояния. Перед
 slice пересчитывай LOC, зависимости и тестовый baseline.
 
+### 1.1 Единый источник очереди и метрик
+
+- Одновременно может существовать **только одна** ACTIVE frontend-очередь:
+  [refactor-backlog.md](./refactor-backlog.md).
+- Initiative plans, archive summaries и audit snapshots **не** маршрутизируют
+  `pending` и не могут объявлять `COMPLETE`, пока backlog содержит pending
+  acceptance той же residual-работы.
+- Нормативные документы (`AGENTS.md`, этот стандарт, PR budget, тематические
+  справочники) хранят **правила**, а не быстро устаревающие счётчики.
+- Динамические метрики (LOC, baseline totals, timing, scores) живут только в
+  датированных `docs/audit/YYYY-MM-DD-*/` snapshot. Новый snapshot создаётся
+  заново; старые числа не «подправляются» ради зелёного вида.
+- В snapshot обязательны: HEAD commit, команды проверки, время (UTC) и среда
+  запуска. Незапущенные проверки нельзя выдавать за green.
+- Две разные «текущие» оценки одной инициативы запрещены. Если оценка нужна,
+  она пересчитывается в audit и не копируется в backlog/стандарт как норматив.
+
 ## 2. Единица работы
 
 Один запуск агента выполняет один **vertical slice**:
@@ -37,23 +56,15 @@ slice пересчитывай LOC, зависимости и тестовый b
 - удаление заменённого дубля;
 - отчёт с остаточным риском.
 
-Feature-owner выбирается по реальному владельцу поведения: `heat`,
-`electrical`, `specification`, `reports`, `projects`, `admin`, `auth`, `ui`,
-`shared` или `css`. Не объединяй независимые owner-зоны ради удобства.
+Feature-owner выбирается по реальному владельцу поведения; допустимые значения
+перечислены в `pr-budget.md`. Не объединяй независимые owner-зоны ради удобства.
 
 ### Жёсткий budget
 
-```text
-max 1 page/shell file
-max 2 production helper/CSS files
-max 2 test/architecture-baseline files
-1 feature-owner
-characterization first
-src/styles.css: net LOC ≤ 0
-```
-
-Если безопасное изменение не помещается в budget, раздели его и выполни только
-первый самостоятельно проверяемый slice. Не повышай budget постфактум.
+Числовые пределы и классификация feature-owner заданы только в
+[pr-budget.md](./pr-budget.md). Если безопасное изменение не помещается в этот
+контракт, раздели его и выполни только первый самостоятельно проверяемый slice.
+Не копируй лимиты в task prompt и не повышай их постфактум.
 
 ## 3. Целевая архитектура
 
@@ -152,58 +163,41 @@ Redesign, copy-editing и архитектурный рефакторинг — 
 - рост allowlist/baseline внутри feature-slice;
 - compensating CSS override вместо устранения владельца конфликта.
 
-Обоснованное изменение не-absolute baseline выполняется отдельным
-architecture-slice. Это не относится к `!important`: его baseline `0` не
-повышается.
+Обоснованное изменение shrink-only baseline выполняется отдельным
+architecture-slice. Абсолютные CSS-запреты и baseline перечислены в
+[CSS-стратегии](./css-strategy.md) и не ослабляются через baseline update.
 
 ## 6. UI и CSS
 
-- Публичный UI импортируется из `@/components/ui-kit`.
-- Feature CSS принадлежит компоненту/экрану и имеет owner root class.
-- Глобальные слои подключаются в порядке
-  `tokens → base → app-shell → vendor-overrides → styles.css freeze-stub`.
-- Ant theme принадлежит `src/theme/appTheme.ts`; `main.tsx` только подключает его.
-- `src/styles.css` — freeze-stub: новый feature CSS запрещён.
-- Новый bare `.ant-*` запрещён; `!important` запрещён без исключений и остаётся
-  на абсолютном baseline `0`.
-- Статические presentation styles через JSX `style={{...}}` и Ant
-  `styles={{...}}` запрещены. Допустимы только runtime geometry, CSS custom
-  properties и документированное требование third-party API; статическая часть
-  всё равно выносится в owner class.
-- Новое визуальное значение получает semantic token. `--c-*` и `--a-*` —
-  legacy palette: существующие ссылки уменьшаются, новые feature-ссылки
-  запрещены.
-- Новый селектор использует минимальную специфичность. ID selectors, повтор
-  классов для усиления, длинная DOM-цепочка и `:has()` вместо явного state class
-  запрещены.
-- Новые responsive rules используют `480/768/1200/1400`, `print` или
-  `prefers-reduced-motion`; остальные существующие значения не распространяются
-  за пределы текущего owner.
-- Desktop width contract: `1000 px` — functional boundary, `1280 px` — full
-  engineering workspace, `1440×900` — primary QA, `1920 px` — wide proof.
-  Полная матрица находится в [viewport-policy.md](./viewport-policy.md);
-  viewports не являются разрешением добавить одноимённый breakpoint.
-- Плотность общих полей задаётся `--tlt-field-*` tokens.
-- UI-kit владеет поведением контрола; feature владеет размещением.
-- Accessibility-семантика — публичный интерфейс для пользователя и Playwright.
+Подробные правила имеют тематических владельцев и здесь не копируются:
 
-Часть правил пока проверяется review, а не общим architecture gate. Фактическая
-граница автоматизации перечислена в
-[CSS-стратегии](./css-strategy.md#что-проверяется-автоматически). Красный
-действующий LOC/media ratchet остаётся hard stop, даже если его изменение
-предлагается отдельной architecture-задачей.
+| Контракт | Источник истины |
+|---|---|
+| Public UI, form anatomy и form-layout ownership | [ui-kit.md](./ui-kit.md) |
+| CSS layers, selectors, tokens, breakpoints и gates | [css-strategy.md](./css-strategy.md) |
+| Мониторы, CSS viewport и browser proof matrix | [viewport-policy.md](./viewport-policy.md) |
 
-Видимый UI-slice проверяет минимум:
+На уровне общего стандарта остаются только границы:
 
-- primary desktop `1440×900`;
-- один релевантный крайний профиль из viewport policy;
-- для app shell/overflow — `1000×768` и `1920×1080`;
-- для плотного engineering layout — `1000×768` constrained и `1280×800` full;
-- `390×844`/`768×1024`, только если затронут responsive/mobile contract;
-- loading/empty/error/disabled/permission states, если затронуты;
+- публичный UI импортируется из `@/components/ui-kit`;
+- UI-kit владеет повторяемым control behavior, feature — композициями и
+  состояниями, workspace — размещением панелей;
+- feature CSS имеет одного component/screen owner и не попадает в глобальный
+  compatibility layer;
+- accessibility-семантика, DOM/focus order и accessible names являются
+  публичным контрактом для пользователя и Playwright;
+- UI/CSS slice не ослабляет architecture baseline и явно разделяет automatic
+  gates и manual review.
+
+Видимый UI-slice выбирает точные обязательные browser profiles по
+`viewport-policy.md` и дополнительно проверяет:
+
+- затронутые loading, empty, error, disabled и permission states;
 - keyboard navigation и видимый focus;
-- text overflow, clipping и пересечения;
+- text overflow, clipping, пересечения и допустимый local scroll;
 - console errors/warnings и failed network requests;
+- крайние ширины вложенного контейнера, если меняется form layout или resizable
+  pane;
 - reduced motion, если добавлена анимация.
 
 Если обязательный browser proof недоступен, UI-slice имеет статус `blocked` и не
@@ -240,15 +234,16 @@ architecture-slice. Это не относится к `!important`: его basel
 
 ### 7.4 Proof
 
-Всегда запускаются focused-тесты slice, затем:
+Всегда запускаются focused-тесты slice, затем канонический полный DoD:
 
 ```bash
 cd frontend
-npm run test:agent-gates
-npm run test:unit
-npm run test:integration
-npm run build
+npm run test:agent-dod
 ```
+
+`test:agent-dod` последовательно включает fast gates, unit, integration и
+production build. Не собирай альтернативную «полную» команду в локальном
+prompt или CI.
 
 Для UI дополнительно запускается релевантный Playwright spec. Доступные команды
 сверяются с `e2e/package.json`; например:
@@ -291,8 +286,7 @@ Push выполняется только по явному запросу пол
 - целевой файл уже изменён чужим WIP;
 - изменение не помещается в budget;
 - требуется повысить baseline или ослабить тест;
-- CSS-решение требует `!important`, нового статического inline-style,
-  неканонического breakpoint или не имеет одного owner root;
+- UI/CSS-решение нарушает тематическую CSS или form-layout политику;
 - полный gate красный;
 - обязательный browser proof недоступен или показывает регрессию;
 - одна причина не устранена после трёх содержательных попыток.
@@ -313,7 +307,7 @@ Console/network:
 Untested states:
 Residual risk:
 Production commit:
-Backlog commit:
+Backlog commit: (если slice взят из backlog)
 Next pending:
 ```
 

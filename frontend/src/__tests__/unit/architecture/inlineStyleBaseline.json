@@ -1,17 +1,17 @@
 {
-  "version": 1,
+  "version": 2,
   "generatedAt": "2026-07-24",
-  "total": 517,
+  "total": 520,
   "byClass": {
-    "runtime geometry": 183,
-    "static debt": 214,
-    "third-party adapter": 120
+    "static debt": 286,
+    "runtime geometry": 86,
+    "third-party adapter": 148
   },
   "fileCounts": {
     "src/components/ImportExcelButton.tsx": 4,
     "src/components/WorkflowSteps.tsx": 1,
     "src/components/admin/formulas/FormulaCalcResult.tsx": 18,
-    "src/components/admin/formulas/FormulaDisplays.tsx": 26,
+    "src/components/admin/formulas/FormulaDisplays.tsx": 28,
     "src/components/admin/formulas/formulaPrimitives.tsx": 12,
     "src/components/common/PageSkeleton.tsx": 3,
     "src/components/common/TabBadge.tsx": 1,
@@ -46,7 +46,7 @@
     "src/components/wizard/steps/ConfirmStep.tsx": 3,
     "src/hooks/useHeatCalcTableColumns.tsx": 1,
     "src/pages/ElecCalcPage.tsx": 1,
-    "src/pages/HomePage.tsx": 24,
+    "src/pages/HomePage.tsx": 25,
     "src/pages/LoginPage.tsx": 5,
     "src/pages/ProjectsPage.tsx": 31,
     "src/pages/ReportPage.tsx": 9,
@@ -81,33 +81,278 @@
     "src/pages/specification/SpecPageChrome.tsx": 19,
     "src/pages/specification/SpecificationPage.tsx": 7
   },
+  "fileClassCounts": {
+    "src/components/ImportExcelButton.tsx": {
+      "static debt": 4
+    },
+    "src/components/WorkflowSteps.tsx": {
+      "static debt": 1
+    },
+    "src/components/admin/formulas/FormulaCalcResult.tsx": {
+      "static debt": 10,
+      "runtime geometry": 8
+    },
+    "src/components/admin/formulas/FormulaDisplays.tsx": {
+      "runtime geometry": 22,
+      "static debt": 6
+    },
+    "src/components/admin/formulas/formulaPrimitives.tsx": {
+      "static debt": 7,
+      "runtime geometry": 5
+    },
+    "src/components/common/PageSkeleton.tsx": {
+      "static debt": 2,
+      "third-party adapter": 1
+    },
+    "src/components/common/TabBadge.tsx": {
+      "static debt": 1
+    },
+    "src/components/common/ValidationHighlight.tsx": {
+      "static debt": 1
+    },
+    "src/components/electrical/CablePickerCharacteristics.tsx": {
+      "runtime geometry": 1
+    },
+    "src/components/electrical/CableSelector.tsx": {
+      "static debt": 3,
+      "third-party adapter": 1
+    },
+    "src/components/electrical/ElectricalCandidateColumnSettingsModal.tsx": {
+      "runtime geometry": 2,
+      "third-party adapter": 3
+    },
+    "src/components/electrical/ElectricalCandidateFieldRenderer.tsx": {
+      "static debt": 5
+    },
+    "src/components/electrical/ElectricalCandidateGlideGrid.tsx": {
+      "runtime geometry": 2
+    },
+    "src/components/electrical/ElectricalColumnFilterDropdown.tsx": {
+      "third-party adapter": 2
+    },
+    "src/components/electrical/ElectricalColumnSettingsModal.tsx": {
+      "runtime geometry": 2,
+      "third-party adapter": 3
+    },
+    "src/components/electrical/ElectricalGlideColumnFilterDropdown.tsx": {
+      "third-party adapter": 1
+    },
+    "src/components/electrical/ObjectCalcCard.tsx": {
+      "static debt": 8
+    },
+    "src/components/form-controls/TltNumberField.tsx": {
+      "runtime geometry": 2
+    },
+    "src/components/form-controls/TltSelect.tsx": {
+      "runtime geometry": 1
+    },
+    "src/components/form-controls/TltTextField.tsx": {
+      "runtime geometry": 2
+    },
+    "src/components/heatcalc/ColumnSettingsModal.tsx": {
+      "runtime geometry": 1
+    },
+    "src/components/heatcalc/HeatCalcExcelContextMenu.tsx": {
+      "runtime geometry": 1
+    },
+    "src/components/heatcalc/HeatCalcExcelGrid.tsx": {
+      "runtime geometry": 7
+    },
+    "src/components/heatcalc/HeatCalcGlideGrid.tsx": {
+      "runtime geometry": 1
+    },
+    "src/components/layout/MainLayout.tsx": {
+      "static debt": 1
+    },
+    "src/components/layout/ProjectMenu.tsx": {
+      "static debt": 3,
+      "third-party adapter": 1
+    },
+    "src/components/layout/Sidebar.tsx": {
+      "static debt": 1
+    },
+    "src/components/reports/ReportPreview.tsx": {
+      "static debt": 1
+    },
+    "src/components/reports/ReportWizard.tsx": {
+      "static debt": 4,
+      "third-party adapter": 1
+    },
+    "src/components/shared/NormalGlideGrid.tsx": {
+      "runtime geometry": 3
+    },
+    "src/components/specification/SpecTable.tsx": {
+      "static debt": 2
+    },
+    "src/components/ui-kit/CompactField.tsx": {
+      "runtime geometry": 1
+    },
+    "src/components/ui-kit/CompactFieldGrid.tsx": {
+      "runtime geometry": 1
+    },
+    "src/components/ui-kit/UiPrimitives.tsx": {
+      "runtime geometry": 3
+    },
+    "src/components/wizard/isolation/WizardZoneBoundary.tsx": {
+      "static debt": 1
+    },
+    "src/components/wizard/steps/ConfirmStep.tsx": {
+      "static debt": 3
+    },
+    "src/hooks/useHeatCalcTableColumns.tsx": {
+      "static debt": 1
+    },
+    "src/pages/ElecCalcPage.tsx": {
+      "static debt": 1
+    },
+    "src/pages/HomePage.tsx": {
+      "static debt": 23,
+      "third-party adapter": 2
+    },
+    "src/pages/LoginPage.tsx": {
+      "static debt": 4,
+      "third-party adapter": 1
+    },
+    "src/pages/ProjectsPage.tsx": {
+      "static debt": 24,
+      "runtime geometry": 1,
+      "third-party adapter": 6
+    },
+    "src/pages/ReportPage.tsx": {
+      "static debt": 8,
+      "third-party adapter": 1
+    },
+    "src/pages/ReportWizardPage.tsx": {
+      "static debt": 29,
+      "third-party adapter": 2
+    },
+    "src/pages/UIKitPage.tsx": {
+      "runtime geometry": 1
+    },
+    "src/pages/WorkspacePage.tsx": {
+      "static debt": 8,
+      "runtime geometry": 1
+    },
+    "src/pages/admin/AdminLayout.tsx": {
+      "static debt": 4
+    },
+    "src/pages/admin/DatabasePage.tsx": {
+      "static debt": 2,
+      "third-party adapter": 25
+    },
+    "src/pages/admin/FormulasPage.tsx": {
+      "third-party adapter": 74,
+      "static debt": 12
+    },
+    "src/pages/admin/ReferencesPage.tsx": {
+      "static debt": 1
+    },
+    "src/pages/electrical/ElecCalcCableMarkModal.tsx": {
+      "third-party adapter": 4,
+      "static debt": 3
+    },
+    "src/pages/electrical/ElecCalcCableSizingModal.tsx": {
+      "third-party adapter": 3,
+      "static debt": 1
+    },
+    "src/pages/electrical/ElecCalcElectricalTypeControls.tsx": {
+      "runtime geometry": 17
+    },
+    "src/pages/electrical/ElecCalcParamsPanel.tsx": {
+      "third-party adapter": 2,
+      "static debt": 1
+    },
+    "src/pages/electrical/ElecCalcProject.tsx": {
+      "third-party adapter": 1
+    },
+    "src/pages/electrical/ElecCalcRecalculationSettings.tsx": {
+      "static debt": 2,
+      "third-party adapter": 1
+    },
+    "src/pages/electrical/ElecCalcWorkspace.tsx": {
+      "static debt": 1,
+      "third-party adapter": 1
+    },
+    "src/pages/electrical/ElecCalcWorkspaceParamsChrome.tsx": {
+      "static debt": 1
+    },
+    "src/pages/electrical/ElectricalAssignmentPanel.tsx": {
+      "static debt": 4
+    },
+    "src/pages/electrical/ElectricalBatchActionBar.tsx": {
+      "static debt": 1,
+      "third-party adapter": 1
+    },
+    "src/pages/electrical/ElectricalSectionHierarchy.tsx": {
+      "static debt": 10
+    },
+    "src/pages/electrical/ElectricalUnifiedTableCard.tsx": {
+      "static debt": 1
+    },
+    "src/pages/electrical/ElectricalVariantTabs.tsx": {
+      "third-party adapter": 4,
+      "static debt": 2
+    },
+    "src/pages/electrical/useElecCalcCableMarkOptions.tsx": {
+      "static debt": 1
+    },
+    "src/pages/electrical/useElecCalcElectricalColumnRenderers.tsx": {
+      "static debt": 9
+    },
+    "src/pages/electrical/useElecCalcElectricalColumns.tsx": {
+      "static debt": 1
+    },
+    "src/pages/heatcalc/HeatCalcEmptyProjectState.tsx": {
+      "static debt": 1
+    },
+    "src/pages/heatcalc/HeatCalcWorkspaceLayout.tsx": {
+      "third-party adapter": 1,
+      "runtime geometry": 1
+    },
+    "src/pages/help/AdminHelpPage.tsx": {
+      "static debt": 18
+    },
+    "src/pages/help/EmployeeHelpPage.tsx": {
+      "static debt": 13
+    },
+    "src/pages/help/GuestHelpPage.tsx": {
+      "static debt": 15
+    },
+    "src/pages/specification/SpecPageChrome.tsx": {
+      "static debt": 13,
+      "third-party adapter": 6
+    },
+    "src/pages/specification/SpecificationPage.tsx": {
+      "static debt": 7
+    }
+  },
   "occurrences": [
     {
       "file": "src/components/ImportExcelButton.tsx",
       "line": 169,
-      "class": "runtime geometry",
+      "class": "static debt",
       "text": "style={{ display: 'none' }}",
       "owner": "shared"
     },
     {
       "file": "src/components/ImportExcelButton.tsx",
       "line": 212,
-      "class": "runtime geometry",
-      "text": "<Text style={{ color: '#52c41a' }}>{result.created}</Text>",
+      "class": "static debt",
+      "text": "style={{ color: '#52c41a' }}",
       "owner": "shared"
     },
     {
       "file": "src/components/ImportExcelButton.tsx",
       "line": 238,
       "class": "static debt",
-      "text": "style={{",
+      "text": "style={{ maxHeight: 280, overflow: 'auto', border: '1px solid #eee', padding: 8, background: '#fafafa', }}",
       "owner": "shared"
     },
     {
       "file": "src/components/ImportExcelButton.tsx",
       "line": 247,
       "class": "static debt",
-      "text": "<div key={i} style={{ fontSize: 12, marginBottom: 4 }}>",
+      "text": "style={{ fontSize: 12, marginBottom: 4 }}",
       "owner": "shared"
     },
     {
@@ -120,421 +365,436 @@
     {
       "file": "src/components/admin/formulas/FormulaCalcResult.tsx",
       "line": 14,
-      "class": "runtime geometry",
+      "class": "static debt",
       "text": "style={{ marginTop: 16, borderColor: '#1677ff' }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaCalcResult.tsx",
       "line": 15,
-      "class": "runtime geometry",
+      "class": "static debt",
       "text": "styles={{ header: { background: '#e6f4ff', borderBottom: '1px solid #91caff' } }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaCalcResult.tsx",
       "line": 16,
-      "class": "static debt",
-      "text": "title={<span style={{ color: C.result }}>Результат расчёта трубопровода</span>}",
+      "class": "runtime geometry",
+      "text": "style={{ color: C.result }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaCalcResult.tsx",
       "line": 20,
-      "class": "static debt",
-      "text": "<Text strong style={{ color: C.result, fontSize: 16 }}>{Number(result.heat_loss_per_meter).toFixed(2)}</Text>",
+      "class": "runtime geometry",
+      "text": "style={{ color: C.result, fontSize: 16 }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaCalcResult.tsx",
       "line": 23,
-      "class": "static debt",
-      "text": "<Text strong style={{ color: C.result, fontSize: 16 }}>{Number(result.total_heat_loss).toFixed(0)}</Text>",
+      "class": "runtime geometry",
+      "text": "style={{ color: C.result, fontSize: 16 }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaCalcResult.tsx",
       "line": 45,
-      "class": "runtime geometry",
+      "class": "static debt",
       "text": "style={{ marginTop: 16, borderColor: '#1677ff' }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaCalcResult.tsx",
       "line": 46,
-      "class": "runtime geometry",
+      "class": "static debt",
       "text": "styles={{ header: { background: '#e6f4ff', borderBottom: '1px solid #91caff' } }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaCalcResult.tsx",
       "line": 47,
-      "class": "static debt",
-      "text": "title={<span style={{ color: C.result }}>Результат расчёта резервуара</span>}",
+      "class": "runtime geometry",
+      "text": "style={{ color: C.result }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaCalcResult.tsx",
       "line": 51,
-      "class": "static debt",
-      "text": "<Text strong style={{ color: C.result, fontSize: 16 }}>{Number(result.heat_loss_per_m2).toFixed(2)}</Text>",
+      "class": "runtime geometry",
+      "text": "style={{ color: C.result, fontSize: 16 }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaCalcResult.tsx",
       "line": 54,
-      "class": "static debt",
-      "text": "<Text strong style={{ color: C.result, fontSize: 16 }}>{Number(result.total_heat_loss).toFixed(0)}</Text>",
+      "class": "runtime geometry",
+      "text": "style={{ color: C.result, fontSize: 16 }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaCalcResult.tsx",
       "line": 73,
-      "class": "runtime geometry",
+      "class": "static debt",
       "text": "style={{ marginTop: 16, borderColor: '#1677ff' }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaCalcResult.tsx",
       "line": 74,
-      "class": "runtime geometry",
+      "class": "static debt",
       "text": "styles={{ header: { background: '#e6f4ff', borderBottom: '1px solid #91caff' } }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaCalcResult.tsx",
       "line": 75,
-      "class": "static debt",
-      "text": "title={<span style={{ color: C.result }}>Результат расчёта укладки</span>}",
+      "class": "runtime geometry",
+      "text": "style={{ color: C.result }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaCalcResult.tsx",
       "line": 79,
-      "class": "static debt",
-      "text": "<Text strong style={{ color: C.result, fontSize: 16 }}>{Number(result.cable_length).toFixed(3)}</Text>",
+      "class": "runtime geometry",
+      "text": "style={{ color: C.result, fontSize: 16 }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaCalcResult.tsx",
       "line": 89,
-      "class": "runtime geometry",
+      "class": "static debt",
       "text": "style={{ marginTop: 16, borderColor: '#fa8c16' }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaCalcResult.tsx",
       "line": 90,
-      "class": "runtime geometry",
+      "class": "static debt",
       "text": "styles={{ header: { background: '#fff7e6', borderBottom: '1px solid #ffd591' } }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaCalcResult.tsx",
       "line": 91,
-      "class": "runtime geometry",
-      "text": "title={<span style={{ color: '#fa8c16' }}>Результат подбора кабеля</span>}",
+      "class": "static debt",
+      "text": "style={{ color: '#fa8c16' }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaCalcResult.tsx",
       "line": 95,
-      "class": "runtime geometry",
-      "text": "<Text strong style={{ color: '#fa8c16', fontSize: 16 }}>{String(result.selected_cable)}</Text>",
+      "class": "static debt",
+      "text": "style={{ color: '#fa8c16', fontSize: 16 }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaDisplays.tsx",
       "line": 71,
-      "class": "static debt",
-      "text": "<span style={{ color: C.label, marginRight: 8 }}>Надземно:</span>",
+      "class": "runtime geometry",
+      "text": "style={{ color: C.label, marginRight: 8 }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaDisplays.tsx",
       "line": 80,
-      "class": "static debt",
-      "text": "<span style={{ color: C.label, marginRight: 8 }}>Подземно:&nbsp;</span>",
+      "class": "runtime geometry",
+      "text": "style={{ color: C.label, marginRight: 8 }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaDisplays.tsx",
       "line": 99,
-      "class": "static debt",
-      "text": "<span style={{ color: C.label }}>Помещение:&nbsp;</span>",
+      "class": "runtime geometry",
+      "text": "style={{ color: C.label }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaDisplays.tsx",
       "line": 105,
-      "class": "runtime geometry",
-      "text": "<Divider style={{ margin: '10px 0' }} />",
+      "class": "static debt",
+      "text": "style={{ margin: '10px 0' }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaDisplays.tsx",
       "line": 134,
-      "class": "runtime geometry",
-      "text": "<span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>",
+      "class": "static debt",
+      "text": "style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaDisplays.tsx",
       "line": 147,
-      "class": "static debt",
-      "text": "<span style={{ color: C.label }}>С несколькими слоями:&nbsp;</span>",
+      "class": "runtime geometry",
+      "text": "style={{ color: C.label }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaDisplays.tsx",
       "line": 156,
       "class": "runtime geometry",
-      "text": "<FL><span style={{ color: C.label, width: 160 }}>Цилиндр:</span> <V c={C.geom}>S</V> = π × <V c={C.geom}>d</V> × <V c={C.geom}>H</V> + π × <",
+      "text": "style={{ color: C.label, width: 160 }}",
+      "owner": "admin"
+    },
+    {
+      "file": "src/components/admin/formulas/FormulaDisplays.tsx",
+      "line": 156,
+      "class": "static debt",
+      "text": "style={{ fontSize: '0.7em' }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaDisplays.tsx",
       "line": 157,
-      "class": "static debt",
-      "text": "<FL><span style={{ color: C.label, width: 160 }}>Параллелепипед:</span> <V c={C.geom}>S</V> = 2 × (<V c={C.geom}>L</V>×<V c={C.geom}>W</V> +",
+      "class": "runtime geometry",
+      "text": "style={{ color: C.label, width: 160 }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaDisplays.tsx",
       "line": 158,
       "class": "runtime geometry",
-      "text": "<FL><span style={{ color: C.label, width: 160 }}>Шар:</span> <V c={C.geom}>S</V> = π × <V c={C.geom}>d</V><sup style={{ fontSize: '0.7em' }}",
+      "text": "style={{ color: C.label, width: 160 }}",
+      "owner": "admin"
+    },
+    {
+      "file": "src/components/admin/formulas/FormulaDisplays.tsx",
+      "line": 158,
+      "class": "static debt",
+      "text": "style={{ fontSize: '0.7em' }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaDisplays.tsx",
       "line": 170,
-      "class": "static debt",
-      "text": "<span style={{ color: C.label }}>Помещение:&nbsp;</span>",
+      "class": "runtime geometry",
+      "text": "style={{ color: C.label }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaDisplays.tsx",
       "line": 210,
-      "class": "runtime geometry",
-      "text": "<Divider style={{ margin: '10px 0' }} />",
+      "class": "static debt",
+      "text": "style={{ margin: '10px 0' }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaDisplays.tsx",
       "line": 249,
-      "class": "static debt",
-      "text": "<FL><V c={C.coeff}>T</V><S>макс</S><span> ≥ </span><V c={C.temp}>T</V><S>продукта</S><span style={{ color: C.unit }}> (если задана)</span></",
+      "class": "runtime geometry",
+      "text": "style={{ color: C.unit }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaDisplays.tsx",
       "line": 277,
-      "class": "runtime geometry",
-      "text": "<Divider style={{ margin: '10px 0' }} />",
+      "class": "static debt",
+      "text": "style={{ margin: '10px 0' }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaDisplays.tsx",
       "line": 317,
-      "class": "static debt",
-      "text": "<FL><span style={{ color: C.label, width: 72 }}>ТТН:</span><V c={C.temp}>T1</V> ≤ 65°C; <V c={C.temp}>T2</V> ≤ 85°C</FL>",
+      "class": "runtime geometry",
+      "text": "style={{ color: C.label, width: 72 }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaDisplays.tsx",
       "line": 318,
-      "class": "static debt",
-      "text": "<FL><span style={{ color: C.label, width: 72 }}>ТТВ:</span><V c={C.temp}>T1</V> ≤ 120°C; <V c={C.temp}>T2</V> ≤ 210°C</FL>",
+      "class": "runtime geometry",
+      "text": "style={{ color: C.label, width: 72 }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaDisplays.tsx",
       "line": 319,
-      "class": "static debt",
-      "text": "<FL><span style={{ color: C.label, width: 72 }}>ТТХ:</span><V c={C.temp}>T1</V> ≤ 150°C; <V c={C.temp}>T2</V> ≤ 250°C</FL>",
+      "class": "runtime geometry",
+      "text": "style={{ color: C.label, width: 72 }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaDisplays.tsx",
       "line": 393,
-      "class": "static debt",
-      "text": "<FL><span style={{ color: C.label, width: 92 }}>Линия 220В:</span><V c={C.resist}>S</V><S>к</S> = <Frac top={<><V c={C.result}>Q</V></>} bot",
+      "class": "runtime geometry",
+      "text": "style={{ color: C.label, width: 92 }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaDisplays.tsx",
       "line": 394,
-      "class": "static debt",
-      "text": "<FL><span style={{ color: C.label, width: 92 }}>Петля 220В:</span><V c={C.resist}>S</V><S>к</S> = <Frac top={<><V c={C.result}>Q</V></>} bot",
+      "class": "runtime geometry",
+      "text": "style={{ color: C.label, width: 92 }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaDisplays.tsx",
       "line": 395,
-      "class": "static debt",
-      "text": "<FL><span style={{ color: C.label, width: 92 }}>Звезда 380В:</span><V c={C.resist}>S</V><S>к</S> = <Frac top={<><V c={C.result}>Q</V></>} bo",
+      "class": "runtime geometry",
+      "text": "style={{ color: C.label, width: 92 }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaDisplays.tsx",
       "line": 400,
-      "class": "static debt",
-      "text": "<FL><span style={{ color: C.label, width: 118 }}>Линия:</span><V c={C.resist}>S</V><S>к</S> = <Frac top={<><V c={C.result}>Q</V></>} bot={<>",
+      "class": "runtime geometry",
+      "text": "style={{ color: C.label, width: 118 }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaDisplays.tsx",
       "line": 401,
-      "class": "static debt",
-      "text": "<FL><span style={{ color: C.label, width: 118 }}>Петля 2×3ж:</span><V c={C.resist}>S</V><S>к</S> = <Frac top={<><V c={C.result}>Q</V></>} bo",
+      "class": "runtime geometry",
+      "text": "style={{ color: C.label, width: 118 }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaDisplays.tsx",
       "line": 402,
-      "class": "static debt",
-      "text": "<FL><span style={{ color: C.label, width: 118 }}>Петля 1×3ж:</span><V c={C.resist}>S</V><S>к</S> = <Frac top={<><V c={C.result}>Q</V></>} bo",
+      "class": "runtime geometry",
+      "text": "style={{ color: C.label, width: 118 }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaDisplays.tsx",
       "line": 403,
-      "class": "static debt",
-      "text": "<FL><span style={{ color: C.label, width: 118 }}>Звезда 3×3ж:</span><V c={C.resist}>S</V><S>к</S> = <Frac top={<><V c={C.result}>Q</V></>} b",
+      "class": "runtime geometry",
+      "text": "style={{ color: C.label, width: 118 }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaDisplays.tsx",
       "line": 404,
-      "class": "static debt",
-      "text": "<FL><span style={{ color: C.label, width: 118 }}>Звезда 1×3ж:</span><V c={C.resist}>S</V><S>к</S> = <Frac top={<><V c={C.result}>Q</V></>} b",
+      "class": "runtime geometry",
+      "text": "style={{ color: C.label, width: 118 }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaDisplays.tsx",
       "line": 437,
-      "class": "static debt",
-      "text": "<FL><span style={{ color: C.label, width: 140 }}>Цилиндр:</span><V c={C.geom}>P</V><S>периметр</S> = π × <V c={C.geom}>d</V></FL>",
+      "class": "runtime geometry",
+      "text": "style={{ color: C.label, width: 140 }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/FormulaDisplays.tsx",
       "line": 438,
-      "class": "static debt",
-      "text": "<FL><span style={{ color: C.label, width: 140 }}>Параллелепипед:</span><V c={C.geom}>P</V><S>периметр</S> = 2 × (<V c={C.geom}>L</V> + <V c=",
+      "class": "runtime geometry",
+      "text": "style={{ color: C.label, width: 140 }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/formulaPrimitives.tsx",
       "line": 19,
-      "class": "runtime geometry",
-      "text": "<span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', verticalAlign: 'middle', margin: '0 3px', lineHeight: ",
+      "class": "static debt",
+      "text": "style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', verticalAlign: 'middle', margin: '0 3px', lineHeight: 1.25 }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/formulaPrimitives.tsx",
       "line": 20,
-      "class": "runtime geometry",
-      "text": "<span style={{ borderBottom: '1.5px solid #333', padding: '0 4px 2px', whiteSpace: 'nowrap', textAlign: 'center' }}>{top}</span>",
+      "class": "static debt",
+      "text": "style={{ borderBottom: '1.5px solid #333', padding: '0 4px 2px', whiteSpace: 'nowrap', textAlign: 'center' }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/formulaPrimitives.tsx",
       "line": 21,
-      "class": "runtime geometry",
-      "text": "<span style={{ padding: '2px 4px 0', whiteSpace: 'nowrap', textAlign: 'center' }}>{bot}</span>",
+      "class": "static debt",
+      "text": "style={{ padding: '2px 4px 0', whiteSpace: 'nowrap', textAlign: 'center' }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/formulaPrimitives.tsx",
       "line": 28,
-      "class": "static debt",
-      "text": "return <span style={{ color: c, fontWeight: bold ? 700 : 500 }}>{children}</span>;",
+      "class": "runtime geometry",
+      "text": "style={{ color: c, fontWeight: bold ? 700 : 500 }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/formulaPrimitives.tsx",
       "line": 33,
-      "class": "runtime geometry",
-      "text": "return <sub style={{ fontSize: '0.72em', lineHeight: 0 }}>{children}</sub>;",
+      "class": "static debt",
+      "text": "style={{ fontSize: '0.72em', lineHeight: 0 }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/formulaPrimitives.tsx",
       "line": 38,
-      "class": "runtime geometry",
-      "text": "return <sup style={{ fontSize: '0.7em', lineHeight: 0 }}>{children}</sup>;",
+      "class": "static debt",
+      "text": "style={{ fontSize: '0.7em', lineHeight: 0 }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/formulaPrimitives.tsx",
       "line": 44,
-      "class": "static debt",
-      "text": "<div style={{",
+      "class": "runtime geometry",
+      "text": "style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 2, fontSize: 15.5, lineHeight: 2.4, marginLeft: indent ? 24 : 0, }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/formulaPrimitives.tsx",
       "line": 57,
-      "class": "static debt",
-      "text": "<div style={{",
+      "class": "runtime geometry",
+      "text": "style={{ background: '#fafafa', border: '1px solid #e8e8e8', borderLeft: `4px solid ${accent ?? '#1677ff'}`, borderRadius: '0 8px 8px 0', padding: '14px 20px', ",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/formulaPrimitives.tsx",
       "line": 74,
-      "class": "runtime geometry",
-      "text": "<div style={{ fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: 0, margin: '14px 0 4px' }}>",
+      "class": "static debt",
+      "text": "style={{ fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: 0, margin: '14px 0 4px' }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/formulaPrimitives.tsx",
       "line": 83,
-      "class": "runtime geometry",
-      "text": "<div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 12px', fontSize: 12.5, marginTop: 10 }}>",
+      "class": "static debt",
+      "text": "style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 12px', fontSize: 12.5, marginTop: 10 }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/formulaPrimitives.tsx",
       "line": 86,
       "class": "runtime geometry",
-      "text": "<span key={`s${i}`} style={{ color: color ?? C.label, fontWeight: 600, whiteSpace: 'nowrap' }}>{sym}</span>",
+      "text": "style={{ color: color ?? C.label, fontWeight: 600, whiteSpace: 'nowrap' }}",
       "owner": "admin"
     },
     {
       "file": "src/components/admin/formulas/formulaPrimitives.tsx",
       "line": 87,
-      "class": "static debt",
-      "text": "<span key={`d${i}`} style={{ color: C.label }}>{desc}</span>",
+      "class": "runtime geometry",
+      "text": "style={{ color: C.label }}",
       "owner": "admin"
     },
     {
       "file": "src/components/common/PageSkeleton.tsx",
       "line": 16,
       "class": "static debt",
-      "text": "<div aria-busy=\"true\" style={{ padding: 24 }}>",
+      "text": "style={{ padding: 24 }}",
       "owner": "shared"
     },
     {
       "file": "src/components/common/PageSkeleton.tsx",
       "line": 17,
-      "class": "static debt",
-      "text": "<Skeleton.Input active size=\"large\" style={{ width: 280, marginBottom: 20 }} />",
-      "owner": "shared"
+      "class": "third-party adapter",
+      "text": "style={{ width: 280, marginBottom: 20 }}",
+      "owner": "shared",
+      "reason": "Ant Input style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/components/common/PageSkeleton.tsx",
       "line": 18,
-      "class": "runtime geometry",
-      "text": "<Space direction=\"vertical\" size={14} style={{ display: 'flex' }}>",
+      "class": "static debt",
+      "text": "style={{ display: 'flex' }}",
       "owner": "shared"
     },
     {
       "file": "src/components/common/TabBadge.tsx",
       "line": 19,
       "class": "static debt",
-      "text": "style={{",
+      "text": "style={{ marginLeft: 6, padding: '0 6px', borderRadius: 10, fontSize: 11, background: '#1890ff', color: '#fff', }}",
       "owner": "shared"
     },
     {
@@ -547,37 +807,38 @@
     {
       "file": "src/components/electrical/CablePickerCharacteristics.tsx",
       "line": 538,
-      "class": "static debt",
-      "text": "style={{",
+      "class": "runtime geometry",
+      "text": "style={{ '--cable-picker-characteristics-column-count': columnCount, } as CSSProperties}",
       "owner": "electrical"
     },
     {
       "file": "src/components/electrical/CableSelector.tsx",
       "line": 54,
       "class": "static debt",
-      "text": "<Tag color=\"purple\" style={{ marginLeft: 4 }}>",
+      "text": "style={{ marginLeft: 4 }}",
       "owner": "electrical"
     },
     {
       "file": "src/components/electrical/CableSelector.tsx",
       "line": 63,
       "class": "static debt",
-      "text": "<Space size={6} style={{ marginTop: 12 }}>",
+      "text": "style={{ marginTop: 12 }}",
       "owner": "electrical"
     },
     {
       "file": "src/components/electrical/CableSelector.tsx",
       "line": 64,
       "class": "static debt",
-      "text": "<Text type=\"secondary\" style={{ fontSize: 12 }}>",
+      "text": "style={{ fontSize: 12 }}",
       "owner": "electrical"
     },
     {
       "file": "src/components/electrical/CableSelector.tsx",
       "line": 69,
-      "class": "static debt",
+      "class": "third-party adapter",
       "text": "style={{ minWidth: 300 }}",
-      "owner": "electrical"
+      "owner": "electrical",
+      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/components/electrical/ElectricalCandidateColumnSettingsModal.tsx",
@@ -589,63 +850,66 @@
     {
       "file": "src/components/electrical/ElectricalCandidateColumnSettingsModal.tsx",
       "line": 368,
-      "class": "static debt",
+      "class": "third-party adapter",
       "text": "style={{ top: 24 }}",
-      "owner": "electrical"
+      "owner": "electrical",
+      "reason": "Ant Modal style prop used for chrome geometry adapter"
     },
     {
       "file": "src/components/electrical/ElectricalCandidateColumnSettingsModal.tsx",
       "line": 377,
       "class": "runtime geometry",
-      "text": "<div className=\"electrical-column-settings-window\" style={draggableWindowStyle}>",
+      "text": "style={draggableWindowStyle}",
       "owner": "electrical"
     },
     {
       "file": "src/components/electrical/ElectricalCandidateColumnSettingsModal.tsx",
       "line": 383,
       "class": "third-party adapter",
-      "text": "<Space direction=\"vertical\" size={10} style={{ width: '100%' }}>",
-      "owner": "electrical"
+      "text": "style={{ width: '100%' }}",
+      "owner": "electrical",
+      "reason": "Ant Space style prop used for chrome geometry adapter"
     },
     {
       "file": "src/components/electrical/ElectricalCandidateColumnSettingsModal.tsx",
       "line": 384,
       "class": "third-party adapter",
-      "text": "<Space wrap style={{ width: '100%', justifyContent: 'space-between' }}>",
-      "owner": "electrical"
+      "text": "style={{ width: '100%', justifyContent: 'space-between' }}",
+      "owner": "electrical",
+      "reason": "Ant Space style prop used for chrome geometry adapter"
     },
     {
       "file": "src/components/electrical/ElectricalCandidateFieldRenderer.tsx",
       "line": 38,
       "class": "static debt",
-      "text": "<Text strong={candidate.is_recommended} ellipsis style={{ maxWidth: 130 }}>",
+      "text": "style={{ maxWidth: 130 }}",
       "owner": "electrical"
     },
     {
       "file": "src/components/electrical/ElectricalCandidateFieldRenderer.tsx",
       "line": 41,
       "class": "static debt",
-      "text": "{candidate.is_recommended && <Tag color=\"blue\" style={{ marginInlineEnd: 0 }}>приор.</Tag>}",
+      "text": "style={{ marginInlineEnd: 0 }}",
       "owner": "electrical"
     },
     {
       "file": "src/components/electrical/ElectricalCandidateFieldRenderer.tsx",
       "line": 42,
       "class": "static debt",
-      "text": "{candidate.is_pinned && <Tag color=\"purple\" style={{ marginInlineEnd: 0 }}>избр.</Tag>}",
+      "text": "style={{ marginInlineEnd: 0 }}",
       "owner": "electrical"
     },
     {
       "file": "src/components/electrical/ElectricalCandidateFieldRenderer.tsx",
       "line": 47,
       "class": "static debt",
-      "text": "<Tag color=\"success\" style={{ marginInlineEnd: 0 }}>снимок</Tag>",
+      "text": "style={{ marginInlineEnd: 0 }}",
       "owner": "electrical"
     },
     {
       "file": "src/components/electrical/ElectricalCandidateFieldRenderer.tsx",
       "line": 77,
-      "class": "runtime geometry",
+      "class": "static debt",
       "text": "style={{ marginInlineEnd: 0, fontSize: 10, lineHeight: '16px' }}",
       "owner": "electrical"
     },
@@ -666,16 +930,18 @@
     {
       "file": "src/components/electrical/ElectricalColumnFilterDropdown.tsx",
       "line": 110,
-      "class": "static debt",
+      "class": "third-party adapter",
       "text": "style={{ minWidth: 220 }}",
-      "owner": "electrical"
+      "owner": "electrical",
+      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/components/electrical/ElectricalColumnFilterDropdown.tsx",
       "line": 126,
-      "class": "static debt",
+      "class": "third-party adapter",
       "text": "style={{ minWidth: 160 }}",
-      "owner": "electrical"
+      "owner": "electrical",
+      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/components/electrical/ElectricalColumnSettingsModal.tsx",
@@ -687,37 +953,41 @@
     {
       "file": "src/components/electrical/ElectricalColumnSettingsModal.tsx",
       "line": 485,
-      "class": "static debt",
+      "class": "third-party adapter",
       "text": "style={{ top: 24 }}",
-      "owner": "electrical"
+      "owner": "electrical",
+      "reason": "Ant Modal style prop used for chrome geometry adapter"
     },
     {
       "file": "src/components/electrical/ElectricalColumnSettingsModal.tsx",
       "line": 494,
       "class": "runtime geometry",
-      "text": "<div className=\"electrical-column-settings-window\" style={draggableWindowStyle}>",
+      "text": "style={draggableWindowStyle}",
       "owner": "electrical"
     },
     {
       "file": "src/components/electrical/ElectricalColumnSettingsModal.tsx",
       "line": 508,
       "class": "third-party adapter",
-      "text": "<Space direction=\"vertical\" size={10} style={{ width: '100%' }}>",
-      "owner": "electrical"
+      "text": "style={{ width: '100%' }}",
+      "owner": "electrical",
+      "reason": "Ant Space style prop used for chrome geometry adapter"
     },
     {
       "file": "src/components/electrical/ElectricalColumnSettingsModal.tsx",
       "line": 509,
       "class": "third-party adapter",
-      "text": "<Space wrap style={{ width: '100%', justifyContent: 'space-between' }}>",
-      "owner": "electrical"
+      "text": "style={{ width: '100%', justifyContent: 'space-between' }}",
+      "owner": "electrical",
+      "reason": "Ant Space style prop used for chrome geometry adapter"
     },
     {
       "file": "src/components/electrical/ElectricalGlideColumnFilterDropdown.tsx",
       "line": 168,
-      "class": "static debt",
+      "class": "third-party adapter",
       "text": "style={{ minWidth: 160 }}",
-      "owner": "electrical"
+      "owner": "electrical",
+      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/components/electrical/ObjectCalcCard.tsx",
@@ -729,35 +999,35 @@
     {
       "file": "src/components/electrical/ObjectCalcCard.tsx",
       "line": 89,
-      "class": "runtime geometry",
-      "text": "<CheckCircleFilled style={{ color: '#52c41a' }} />",
+      "class": "static debt",
+      "text": "style={{ color: '#52c41a' }}",
       "owner": "electrical"
     },
     {
       "file": "src/components/electrical/ObjectCalcCard.tsx",
       "line": 127,
       "class": "static debt",
-      "text": "<div style={{ marginBottom: 6 }}>",
+      "text": "style={{ marginBottom: 6 }}",
       "owner": "electrical"
     },
     {
       "file": "src/components/electrical/ObjectCalcCard.tsx",
       "line": 130,
       "class": "static debt",
-      "text": "<Text type=\"secondary\" style={{ fontSize: 12 }}>",
+      "text": "style={{ fontSize: 12 }}",
       "owner": "electrical"
     },
     {
       "file": "src/components/electrical/ObjectCalcCard.tsx",
       "line": 151,
       "class": "static debt",
-      "text": "<div style={{ marginBottom: 6 }}>",
+      "text": "style={{ marginBottom: 6 }}",
       "owner": "electrical"
     },
     {
       "file": "src/components/electrical/ObjectCalcCard.tsx",
       "line": 156,
-      "class": "runtime geometry",
+      "class": "static debt",
       "text": "style={{ fontSize: 12, display: 'block', marginBottom: 6 }}",
       "owner": "electrical"
     },
@@ -765,14 +1035,14 @@
       "file": "src/components/electrical/ObjectCalcCard.tsx",
       "line": 164,
       "class": "static debt",
-      "text": "<Text type=\"secondary\" style={{ fontSize: 12 }}>",
+      "text": "style={{ fontSize: 12 }}",
       "owner": "electrical"
     },
     {
       "file": "src/components/electrical/ObjectCalcCard.tsx",
       "line": 176,
-      "class": "runtime geometry",
-      "text": "<Text strong style={{ color: '#1890ff' }}>",
+      "class": "static debt",
+      "text": "style={{ color: '#1890ff' }}",
       "owner": "electrical"
     },
     {
@@ -820,91 +1090,91 @@
     {
       "file": "src/components/heatcalc/HeatCalcExcelContextMenu.tsx",
       "line": 120,
-      "class": "static debt",
+      "class": "runtime geometry",
       "text": "style={{ left: contextMenu.x, top: contextMenu.y }}",
       "owner": "heat"
     },
     {
       "file": "src/components/heatcalc/HeatCalcExcelGrid.tsx",
       "line": 108,
-      "class": "static debt",
+      "class": "runtime geometry",
       "text": "style={{ maxHeight: tableScrollY }}",
       "owner": "heat"
     },
     {
       "file": "src/components/heatcalc/HeatCalcExcelGrid.tsx",
       "line": 114,
-      "class": "static debt",
-      "text": "<table style={{ width: tableScrollX, minWidth: tableScrollX }}>",
+      "class": "runtime geometry",
+      "text": "style={{ width: tableScrollX, minWidth: tableScrollX }}",
       "owner": "heat"
     },
     {
       "file": "src/components/heatcalc/HeatCalcExcelGrid.tsx",
       "line": 119,
-      "class": "static debt",
-      "text": "style={{",
+      "class": "runtime geometry",
+      "text": "style={{ width: typeof column.width === 'number' ? column.width : undefined, }}",
       "owner": "heat"
     },
     {
       "file": "src/components/heatcalc/HeatCalcExcelGrid.tsx",
       "line": 135,
-      "class": "static debt",
+      "class": "runtime geometry",
       "text": "style={{ textAlign: column.align }}",
       "owner": "heat"
     },
     {
       "file": "src/components/heatcalc/HeatCalcExcelGrid.tsx",
       "line": 146,
-      "class": "static debt",
-      "text": "<td colSpan={columns.length} style={{ height: paddingTop }} />",
+      "class": "runtime geometry",
+      "text": "style={{ height: paddingTop }}",
       "owner": "heat"
     },
     {
       "file": "src/components/heatcalc/HeatCalcExcelGrid.tsx",
       "line": 191,
-      "class": "static debt",
-      "text": "style={{",
+      "class": "runtime geometry",
+      "text": "style={{ textAlign: column.align, ...(cellStyle as CSSProperties | undefined), }}",
       "owner": "heat"
     },
     {
       "file": "src/components/heatcalc/HeatCalcExcelGrid.tsx",
       "line": 208,
-      "class": "static debt",
-      "text": "<td colSpan={columns.length} style={{ height: paddingBottom }} />",
+      "class": "runtime geometry",
+      "text": "style={{ height: paddingBottom }}",
       "owner": "heat"
     },
     {
       "file": "src/components/heatcalc/HeatCalcGlideGrid.tsx",
       "line": 416,
-      "class": "static debt",
-      "text": "style={{",
+      "class": "runtime geometry",
+      "text": "style={{ left: editingCell.bounds.x, top: editingCell.bounds.y, width: editingCell.bounds.width, height: editingCell.bounds.height, }}",
       "owner": "heat"
     },
     {
       "file": "src/components/layout/MainLayout.tsx",
       "line": 78,
-      "class": "runtime geometry",
-      "text": "<Layout style={{ minHeight: '100vh' }}>",
+      "class": "static debt",
+      "text": "style={{ minHeight: '100vh' }}",
       "owner": "shared"
     },
     {
       "file": "src/components/layout/ProjectMenu.tsx",
       "line": 91,
       "class": "static debt",
-      "text": "<p style={{ marginBottom: 0 }}>",
+      "text": "style={{ marginBottom: 0 }}",
       "owner": "shared"
     },
     {
       "file": "src/components/layout/ProjectMenu.tsx",
       "line": 120,
       "class": "static debt",
-      "text": "style={{",
+      "text": "style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block', }}",
       "owner": "shared"
     },
     {
       "file": "src/components/layout/ProjectMenu.tsx",
       "line": 164,
-      "class": "runtime geometry",
+      "class": "static debt",
       "text": "style={{ display: 'none' }}",
       "owner": "shared"
     },
@@ -912,13 +1182,14 @@
       "file": "src/components/layout/ProjectMenu.tsx",
       "line": 180,
       "class": "third-party adapter",
-      "text": "<Space direction=\"vertical\" style={{ width: '100%' }}>",
-      "owner": "shared"
+      "text": "style={{ width: '100%' }}",
+      "owner": "shared",
+      "reason": "Ant Space style prop used for chrome geometry adapter"
     },
     {
       "file": "src/components/layout/Sidebar.tsx",
       "line": 111,
-      "class": "runtime geometry",
+      "class": "static debt",
       "text": "style={{ background: 'transparent', border: 0, minWidth: 0, flex: 1 }}",
       "owner": "shared"
     },
@@ -926,77 +1197,78 @@
       "file": "src/components/reports/ReportPreview.tsx",
       "line": 17,
       "class": "static debt",
-      "text": "style={{",
+      "text": "style={{ border: '1px solid #ddd', padding: 16, background: '#fff', maxHeight: 700, overflow: 'auto', }}",
       "owner": "shared"
     },
     {
       "file": "src/components/reports/ReportWizard.tsx",
       "line": 63,
-      "class": "runtime geometry",
-      "text": "<Text type=\"secondary\" style={{ fontSize: 12, display: 'block', marginBottom: 12 }}>",
+      "class": "static debt",
+      "text": "style={{ fontSize: 12, display: 'block', marginBottom: 12 }}",
       "owner": "shared"
     },
     {
       "file": "src/components/reports/ReportWizard.tsx",
       "line": 67,
       "class": "third-party adapter",
-      "text": "<Space direction=\"vertical\" size={6} style={{ width: '100%' }}>",
-      "owner": "shared"
+      "text": "style={{ width: '100%' }}",
+      "owner": "shared",
+      "reason": "Ant Space style prop used for chrome geometry adapter"
     },
     {
       "file": "src/components/reports/ReportWizard.tsx",
       "line": 68,
       "class": "static debt",
-      "text": "<Text type=\"secondary\" style={{ fontSize: 12 }}>",
+      "text": "style={{ fontSize: 12 }}",
       "owner": "shared"
     },
     {
       "file": "src/components/reports/ReportWizard.tsx",
       "line": 77,
       "class": "static debt",
-      "text": "<Button size=\"small\" type=\"link\" onClick={toggleAll} style={{ padding: 0 }}>",
+      "text": "style={{ padding: 0 }}",
       "owner": "shared"
     },
     {
       "file": "src/components/reports/ReportWizard.tsx",
       "line": 83,
-      "class": "runtime geometry",
+      "class": "static debt",
       "text": "style={{ display: 'flex', flexDirection: 'column', gap: 4 }}",
       "owner": "shared"
     },
     {
       "file": "src/components/shared/NormalGlideGrid.tsx",
       "line": 246,
-      "class": "static debt",
-      "text": "style={{",
+      "class": "runtime geometry",
+      "text": "style={{ left: editingCell.bounds.x, top: editingCell.bounds.y, width: editingCell.bounds.width, height: editingCell.bounds.height, }}",
       "owner": "shared"
     },
     {
       "file": "src/components/shared/NormalGlideGrid.tsx",
       "line": 275,
-      "class": "static debt",
-      "text": "style={{",
+      "class": "runtime geometry",
+      "text": "style={{ left: editingCell.bounds.x, top: editingCell.bounds.y, width: editingCell.bounds.width, height: editingCell.bounds.height, }}",
       "owner": "shared"
     },
     {
       "file": "src/components/shared/NormalGlideGrid.tsx",
       "line": 304,
       "class": "runtime geometry",
-      "text": "<div ref={filterPopupRef} className=\"heatcalc-normal-glide-filter-popup\" style={filterPopupStyle}>",
+      "text": "style={filterPopupStyle}",
       "owner": "shared"
     },
     {
       "file": "src/components/specification/SpecTable.tsx",
       "line": 84,
-      "class": "runtime geometry",
-      "text": "return <span style={{ color: '#bbb' }}>—</span>;",
+      "class": "static debt",
+      "text": "style={{ color: '#bbb' }}",
       "owner": "specification"
     },
     {
       "file": "src/components/specification/SpecTable.tsx",
       "line": 188,
-      "class": "runtime geometry",
-      "text": "<span style={{ fontVariantNumeric: 'tabular-nums' }}>",
+      "class": "static debt",
+      "text": "style={{ fontVariantNumeric: 'tabular-nums' }}",
       "owner": "specification"
     },
     {
@@ -1016,7 +1288,7 @@
     {
       "file": "src/components/ui-kit/UiPrimitives.tsx",
       "line": 374,
-      "class": "static debt",
+      "class": "runtime geometry",
       "text": "style={{ minWidth }}",
       "owner": "shared"
     },
@@ -1038,7 +1310,7 @@
       "file": "src/components/wizard/isolation/WizardZoneBoundary.tsx",
       "line": 52,
       "class": "static debt",
-      "text": "style={{",
+      "text": "style={{ margin: 8, padding: 10, border: '2px solid #cf1322', borderRadius: 6, background: '#fff1f0', color: '#a8071a', fontSize: 12, whiteSpace: 'pre-wrap', fo",
       "owner": "heat"
     },
     {
@@ -1052,153 +1324,162 @@
       "file": "src/components/wizard/steps/ConfirmStep.tsx",
       "line": 81,
       "class": "static debt",
-      "text": "<Descriptions size=\"small\" column={2} bordered style={{ marginBottom: 16 }}>",
+      "text": "style={{ marginBottom: 16 }}",
       "owner": "heat"
     },
     {
       "file": "src/components/wizard/steps/ConfirmStep.tsx",
       "line": 90,
       "class": "static debt",
-      "text": "<Descriptions size=\"small\" column={2} bordered style={{ marginBottom: 16 }}>",
+      "text": "style={{ marginBottom: 16 }}",
       "owner": "heat"
     },
     {
       "file": "src/hooks/useHeatCalcTableColumns.tsx",
       "line": 337,
-      "class": "runtime geometry",
+      "class": "static debt",
       "text": "style={{ pointerEvents: 'auto' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ElecCalcPage.tsx",
       "line": 17,
-      "class": "runtime geometry",
-      "text": "icon={<ThunderboltOutlined style={{ marginRight: 8, color: '#faad14' }} />}",
+      "class": "static debt",
+      "text": "style={{ marginRight: 8, color: '#faad14' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/HomePage.tsx",
       "line": 28,
       "class": "static debt",
-      "text": "style={{",
+      "text": "style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #1a5276, #2e86c1)', }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/HomePage.tsx",
       "line": 36,
       "class": "third-party adapter",
-      "text": "<Card style={{ width: 560 }} styles={{ body: { padding: 40 } }}>",
+      "text": "style={{ width: 560 }}",
+      "owner": "shared",
+      "reason": "Ant Card style prop used for chrome geometry adapter"
+    },
+    {
+      "file": "src/pages/HomePage.tsx",
+      "line": 36,
+      "class": "static debt",
+      "text": "styles={{ body: { padding: 40 } }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/HomePage.tsx",
       "line": 37,
-      "class": "runtime geometry",
-      "text": "<Title level={2} style={{ textAlign: 'center', color: '#1a5276', marginBottom: 4 }}>",
+      "class": "static debt",
+      "text": "style={{ textAlign: 'center', color: '#1a5276', marginBottom: 4 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/HomePage.tsx",
       "line": 40,
-      "class": "runtime geometry",
-      "text": "<Paragraph style={{ textAlign: 'center', color: '#555', marginBottom: 32 }}>",
+      "class": "static debt",
+      "text": "style={{ textAlign: 'center', color: '#555', marginBottom: 32 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/HomePage.tsx",
       "line": 44,
       "class": "third-party adapter",
-      "text": "<Space direction=\"vertical\" style={{ width: '100%' }} size={0}>",
-      "owner": "shared"
+      "text": "style={{ width: '100%' }}",
+      "owner": "shared",
+      "reason": "Ant Space style prop used for chrome geometry adapter"
     },
     {
       "file": "src/pages/HomePage.tsx",
       "line": 47,
       "class": "static debt",
-      "text": "style={{",
+      "text": "style={{ border: '1px solid #d9d9d9', borderRadius: 8, padding: '20px 24px', background: '#fafafa', }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/HomePage.tsx",
       "line": 54,
       "class": "static debt",
-      "text": "<Space align=\"start\" style={{ marginBottom: 12 }}>",
+      "text": "style={{ marginBottom: 12 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/HomePage.tsx",
       "line": 55,
-      "class": "runtime geometry",
-      "text": "<UserOutlined style={{ fontSize: 20, color: '#2e86c1', marginTop: 2 }} />",
+      "class": "static debt",
+      "text": "style={{ fontSize: 20, color: '#2e86c1', marginTop: 2 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/HomePage.tsx",
       "line": 57,
       "class": "static debt",
-      "text": "<Text strong style={{ fontSize: 15 }}>Войти без регистрации</Text>",
+      "text": "style={{ fontSize: 15 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/HomePage.tsx",
       "line": 59,
-      "class": "runtime geometry",
-      "text": "<Text type=\"secondary\" style={{ fontSize: 13, color: '#595959' }}>",
+      "class": "static debt",
+      "text": "style={{ fontSize: 13, color: '#595959' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/HomePage.tsx",
       "line": 73,
-      "class": "runtime geometry",
+      "class": "static debt",
       "text": "style={{ marginTop: 6, color: '#1a5276' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/HomePage.tsx",
       "line": 79,
-      "class": "runtime geometry",
-      "text": "<Divider style={{ margin: '16px 0' }}>или</Divider>",
+      "class": "static debt",
+      "text": "style={{ margin: '16px 0' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/HomePage.tsx",
       "line": 83,
       "class": "static debt",
-      "text": "style={{",
+      "text": "style={{ border: '1px solid #d9d9d9', borderRadius: 8, padding: '20px 24px', background: '#fafafa', }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/HomePage.tsx",
       "line": 90,
       "class": "static debt",
-      "text": "<Space align=\"start\" style={{ marginBottom: 12 }}>",
+      "text": "style={{ marginBottom: 12 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/HomePage.tsx",
       "line": 91,
-      "class": "runtime geometry",
-      "text": "<TeamOutlined style={{ fontSize: 20, color: '#1a5276', marginTop: 2 }} />",
+      "class": "static debt",
+      "text": "style={{ fontSize: 20, color: '#1a5276', marginTop: 2 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/HomePage.tsx",
       "line": 93,
       "class": "static debt",
-      "text": "<Text strong style={{ fontSize: 15 }}>Войти как сотрудник</Text>",
+      "text": "style={{ fontSize: 15 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/HomePage.tsx",
       "line": 95,
-      "class": "runtime geometry",
-      "text": "<Text type=\"secondary\" style={{ fontSize: 13, color: '#595959' }}>",
+      "class": "static debt",
+      "text": "style={{ fontSize: 13, color: '#595959' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/HomePage.tsx",
       "line": 109,
-      "class": "runtime geometry",
+      "class": "static debt",
       "text": "style={{ marginTop: 6, color: '#1a5276' }}",
       "owner": "shared"
     },
@@ -1206,41 +1487,41 @@
       "file": "src/pages/HomePage.tsx",
       "line": 118,
       "class": "static debt",
-      "text": "style={{",
+      "text": "style={{ border: '1px solid #d9d9d9', borderRadius: 8, padding: '20px 24px', background: '#fafafa', marginTop: 16, }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/HomePage.tsx",
       "line": 126,
       "class": "static debt",
-      "text": "<Space align=\"start\" style={{ marginBottom: 12 }}>",
+      "text": "style={{ marginBottom: 12 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/HomePage.tsx",
       "line": 127,
-      "class": "runtime geometry",
-      "text": "<SafetyCertificateOutlined style={{ fontSize: 20, color: '#7d3c98', marginTop: 2 }} />",
+      "class": "static debt",
+      "text": "style={{ fontSize: 20, color: '#7d3c98', marginTop: 2 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/HomePage.tsx",
       "line": 129,
       "class": "static debt",
-      "text": "<Text strong style={{ fontSize: 15 }}>Войти как администратор</Text>",
+      "text": "style={{ fontSize: 15 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/HomePage.tsx",
       "line": 131,
-      "class": "runtime geometry",
-      "text": "<Text type=\"secondary\" style={{ fontSize: 13, color: '#595959' }}>",
+      "class": "static debt",
+      "text": "style={{ fontSize: 13, color: '#595959' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/HomePage.tsx",
       "line": 145,
-      "class": "runtime geometry",
+      "class": "static debt",
       "text": "style={{ marginTop: 6, color: '#1a5276' }}",
       "owner": "shared"
     },
@@ -1248,98 +1529,100 @@
       "file": "src/pages/LoginPage.tsx",
       "line": 34,
       "class": "static debt",
-      "text": "style={{",
+      "text": "style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1a5276', }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/LoginPage.tsx",
       "line": 42,
       "class": "third-party adapter",
-      "text": "<Card style={{ width: 420 }}>",
-      "owner": "shared"
+      "text": "style={{ width: 420 }}",
+      "owner": "shared",
+      "reason": "Ant Card style prop used for chrome geometry adapter"
     },
     {
       "file": "src/pages/LoginPage.tsx",
       "line": 43,
-      "class": "runtime geometry",
-      "text": "<Title level={3} style={{ textAlign: 'center', color: '#1a5276' }}>",
+      "class": "static debt",
+      "text": "style={{ textAlign: 'center', color: '#1a5276' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/LoginPage.tsx",
       "line": 68,
-      "class": "runtime geometry",
-      "text": "<Button type=\"link\" block onClick={() => navigate('/')} style={{ color: '#1a5276' }}>",
+      "class": "static debt",
+      "text": "style={{ color: '#1a5276' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/LoginPage.tsx",
       "line": 76,
-      "class": "runtime geometry",
+      "class": "static debt",
       "text": "style={{ color: '#595959' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ProjectsPage.tsx",
       "line": 251,
-      "class": "runtime geometry",
-      "text": "v ? <Tag color=\"blue\">{v}</Tag> : <span style={{ color: '#595959' }}>—</span>,",
+      "class": "static debt",
+      "text": "style={{ color: '#595959' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ProjectsPage.tsx",
       "line": 268,
       "class": "runtime geometry",
-      "text": "<Tag color={color} style={computed === 'pipe' ? { color: '#873800' } : undefined}>",
+      "text": "style={computed === 'pipe' ? { color: '#873800' } : undefined}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ProjectsPage.tsx",
       "line": 286,
-      "class": "runtime geometry",
-      "text": "email ? email : <span style={{ color: '#595959' }}>гость</span>,",
+      "class": "static debt",
+      "text": "style={{ color: '#595959' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ProjectsPage.tsx",
       "line": 342,
-      "class": "runtime geometry",
-      "text": "<Card size=\"small\" style={{ height: '100%' }}>",
+      "class": "static debt",
+      "text": "style={{ height: '100%' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ProjectsPage.tsx",
       "line": 343,
       "class": "static debt",
-      "text": "<div style={{ marginBottom: 10 }}>",
+      "text": "style={{ marginBottom: 10 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ProjectsPage.tsx",
       "line": 344,
       "class": "static debt",
-      "text": "<Text strong style={{ fontSize: 13 }}>",
+      "text": "style={{ fontSize: 13 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ProjectsPage.tsx",
       "line": 345,
-      "class": "runtime geometry",
-      "text": "<FolderOutlined style={{ marginRight: 5, color: '#1a5276' }} />",
+      "class": "static debt",
+      "text": "style={{ marginRight: 5, color: '#1a5276' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ProjectsPage.tsx",
       "line": 350,
       "class": "third-party adapter",
-      "text": "<Space direction=\"vertical\" style={{ width: '100%' }} size={8}>",
-      "owner": "shared"
+      "text": "style={{ width: '100%' }}",
+      "owner": "shared",
+      "reason": "Ant Space style prop used for chrome geometry adapter"
     },
     {
       "file": "src/pages/ProjectsPage.tsx",
       "line": 363,
-      "class": "runtime geometry",
-      "text": "<Text style={{ fontSize: 11, color: '#595959' }}>Владелец</Text>",
+      "class": "static debt",
+      "text": "style={{ fontSize: 11, color: '#595959' }}",
       "owner": "shared"
     },
     {
@@ -1352,64 +1635,68 @@
     {
       "file": "src/pages/ProjectsPage.tsx",
       "line": 379,
-      "class": "runtime geometry",
-      "text": "<Text style={{ fontSize: 11, color: '#595959' }}>Тип проекта</Text>",
+      "class": "static debt",
+      "text": "style={{ fontSize: 11, color: '#595959' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ProjectsPage.tsx",
       "line": 385,
-      "class": "runtime geometry",
+      "class": "third-party adapter",
       "text": "style={{ width: '100%', marginTop: 4 }}",
-      "owner": "shared"
+      "owner": "shared",
+      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/ProjectsPage.tsx",
       "line": 399,
-      "class": "runtime geometry",
-      "text": "<Text style={{ fontSize: 11, color: '#595959' }}>Содержит объект</Text>",
+      "class": "static debt",
+      "text": "style={{ fontSize: 11, color: '#595959' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ProjectsPage.tsx",
       "line": 405,
-      "class": "runtime geometry",
+      "class": "third-party adapter",
       "text": "style={{ width: '100%', marginTop: 4 }}",
-      "owner": "shared"
+      "owner": "shared",
+      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/ProjectsPage.tsx",
       "line": 417,
-      "class": "runtime geometry",
-      "text": "<Text style={{ fontSize: 11, color: '#595959' }}>Год создания</Text>",
+      "class": "static debt",
+      "text": "style={{ fontSize: 11, color: '#595959' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ProjectsPage.tsx",
       "line": 423,
-      "class": "runtime geometry",
+      "class": "third-party adapter",
       "text": "style={{ width: '100%', marginTop: 4 }}",
-      "owner": "shared"
+      "owner": "shared",
+      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/ProjectsPage.tsx",
       "line": 432,
-      "class": "runtime geometry",
-      "text": "<Text style={{ fontSize: 11, color: '#595959' }}>Статус</Text>",
+      "class": "static debt",
+      "text": "style={{ fontSize: 11, color: '#595959' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ProjectsPage.tsx",
       "line": 438,
-      "class": "runtime geometry",
+      "class": "third-party adapter",
       "text": "style={{ width: '100%', marginTop: 4 }}",
-      "owner": "shared"
+      "owner": "shared",
+      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/ProjectsPage.tsx",
       "line": 448,
-      "class": "runtime geometry",
-      "text": "<Text style={{ fontSize: 11, color: '#595959' }}>№ задачи</Text>",
+      "class": "static debt",
+      "text": "style={{ fontSize: 11, color: '#595959' }}",
       "owner": "shared"
     },
     {
@@ -1422,8 +1709,8 @@
     {
       "file": "src/pages/ProjectsPage.tsx",
       "line": 460,
-      "class": "runtime geometry",
-      "text": "<Text style={{ fontSize: 11, color: '#595959' }}>Название</Text>",
+      "class": "static debt",
+      "text": "style={{ fontSize: 11, color: '#595959' }}",
       "owner": "shared"
     },
     {
@@ -1437,48 +1724,48 @@
       "file": "src/pages/ProjectsPage.tsx",
       "line": 479,
       "class": "static debt",
-      "text": "style={{",
+      "text": "style={{ marginTop: 12, padding: '6px 8px', background: '#f6f8fa', borderRadius: 6, border: '1px solid #e8e8e8', }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ProjectsPage.tsx",
       "line": 487,
-      "class": "runtime geometry",
-      "text": "<Text style={{ fontSize: 11, display: 'block' }}>",
+      "class": "static debt",
+      "text": "style={{ fontSize: 11, display: 'block' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ProjectsPage.tsx",
       "line": 491,
-      "class": "runtime geometry",
-      "text": "<Text style={{ fontSize: 11, color: '#1a5276' }}>",
+      "class": "static debt",
+      "text": "style={{ fontSize: 11, color: '#1a5276' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ProjectsPage.tsx",
       "line": 499,
       "class": "static debt",
-      "text": "<Col className=\"projects-page-main\" flex=\"1\" style={{ minWidth: 0 }}>",
+      "text": "style={{ minWidth: 0 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ProjectsPage.tsx",
       "line": 510,
-      "class": "runtime geometry",
+      "class": "static debt",
       "text": "styles={{ body: { paddingTop: 0 } }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ProjectsPage.tsx",
       "line": 551,
-      "class": "runtime geometry",
+      "class": "static debt",
       "text": "style={{ display: 'none' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ProjectsPage.tsx",
       "line": 562,
-      "class": "runtime geometry",
+      "class": "static debt",
       "text": "style={{ display: 'none' }}",
       "owner": "shared"
     },
@@ -1486,125 +1773,127 @@
       "file": "src/pages/ProjectsPage.tsx",
       "line": 573,
       "class": "static debt",
-      "text": "<div style={{ marginBottom: 16 }}>",
+      "text": "style={{ marginBottom: 16 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ProjectsPage.tsx",
       "line": 620,
       "class": "third-party adapter",
-      "text": "<Space direction=\"vertical\" style={{ width: '100%' }}>",
-      "owner": "shared"
+      "text": "style={{ width: '100%' }}",
+      "owner": "shared",
+      "reason": "Ant Space style prop used for chrome geometry adapter"
     },
     {
       "file": "src/pages/ReportPage.tsx",
       "line": 89,
       "class": "static debt",
-      "text": "icon={<FileTextOutlined style={{ marginRight: 8 }} />}",
+      "text": "style={{ marginRight: 8 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ReportPage.tsx",
       "line": 166,
       "class": "static debt",
-      "text": "<FileTextOutlined style={{ marginRight: 8 }} />",
+      "text": "style={{ marginRight: 8 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ReportPage.tsx",
       "line": 235,
       "class": "static debt",
-      "text": "<Paragraph type=\"secondary\" style={{ marginBottom: 8 }} className=\"report-page-actions-hint\">",
+      "text": "style={{ marginBottom: 8 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ReportPage.tsx",
       "line": 241,
       "class": "static debt",
-      "text": "<div style={{ marginBottom: 12 }} className=\"report-page-er-selector\">",
+      "text": "style={{ marginBottom: 12 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ReportPage.tsx",
       "line": 242,
       "class": "static debt",
-      "text": "<Text type=\"secondary\" style={{ fontSize: 12, marginRight: 8 }}>",
+      "text": "style={{ fontSize: 12, marginRight: 8 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ReportPage.tsx",
       "line": 245,
-      "class": "runtime geometry",
-      "text": "<div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>",
+      "class": "static debt",
+      "text": "style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ReportPage.tsx",
       "line": 249,
-      "class": "runtime geometry",
+      "class": "third-party adapter",
       "text": "style={{ minWidth: 280, maxWidth: '100%' }}",
-      "owner": "shared"
+      "owner": "shared",
+      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/ReportPage.tsx",
       "line": 277,
       "class": "static debt",
-      "text": "<div style={{ marginBottom: 12 }}>",
+      "text": "style={{ marginBottom: 12 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ReportPage.tsx",
       "line": 278,
       "class": "static debt",
-      "text": "<Text type=\"secondary\" style={{ fontSize: 12, marginRight: 8 }}>",
+      "text": "style={{ fontSize: 12, marginRight: 8 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ReportWizardPage.tsx",
       "line": 87,
       "class": "static debt",
-      "text": "<Card style={{ margin: 24 }}>",
+      "text": "style={{ margin: 24 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ReportWizardPage.tsx",
       "line": 100,
       "class": "static debt",
-      "text": "<Card style={{ margin: 24 }}>",
+      "text": "style={{ margin: 24 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ReportWizardPage.tsx",
       "line": 113,
       "class": "static debt",
-      "text": "<Card style={{ margin: 24 }} aria-busy=\"true\" aria-label=\"Загрузка списка ЭР\">",
+      "text": "style={{ margin: 24 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ReportWizardPage.tsx",
       "line": 121,
       "class": "static debt",
-      "text": "<Card style={{ margin: 24 }}>",
+      "text": "style={{ margin: 24 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ReportWizardPage.tsx",
       "line": 134,
       "class": "static debt",
-      "text": "<Card style={{ margin: 24 }}>",
+      "text": "style={{ margin: 24 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ReportWizardPage.tsx",
       "line": 187,
-      "class": "runtime geometry",
-      "text": "<div style={{ padding: 16, minHeight: '100vh', background: '#f5f7fa' }}>",
+      "class": "static debt",
+      "text": "style={{ padding: 16, minHeight: '100vh', background: '#f5f7fa' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ReportWizardPage.tsx",
       "line": 190,
-      "class": "runtime geometry",
+      "class": "static debt",
       "text": "styles={{ body: { padding: 16 } }}",
       "owner": "shared"
     },
@@ -1619,21 +1908,21 @@
       "file": "src/pages/ReportWizardPage.tsx",
       "line": 225,
       "class": "static debt",
-      "text": "<Paragraph type=\"secondary\" style={{ fontSize: 12, marginBottom: 8 }}>",
+      "text": "style={{ fontSize: 12, marginBottom: 8 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ReportWizardPage.tsx",
       "line": 228,
       "class": "static debt",
-      "text": "<Text type=\"secondary\" style={{ fontSize: 12 }}>",
+      "text": "style={{ fontSize: 12 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ReportWizardPage.tsx",
       "line": 231,
-      "class": "runtime geometry",
-      "text": "<div style={{ maxWidth: '100%', overflowX: 'auto', margin: '4px 0 10px' }}>",
+      "class": "static debt",
+      "text": "style={{ maxWidth: '100%', overflowX: 'auto', margin: '4px 0 10px' }}",
       "owner": "shared"
     },
     {
@@ -1646,7 +1935,7 @@
     {
       "file": "src/pages/ReportWizardPage.tsx",
       "line": 259,
-      "class": "runtime geometry",
+      "class": "static debt",
       "text": "style={{ display: 'flex', flexDirection: 'column', gap: 6 }}",
       "owner": "shared"
     },
@@ -1661,77 +1950,79 @@
       "file": "src/pages/ReportWizardPage.tsx",
       "line": 282,
       "class": "static debt",
-      "text": "<Paragraph type=\"secondary\" style={{ fontSize: 12, marginBottom: 8 }}>",
+      "text": "style={{ fontSize: 12, marginBottom: 8 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ReportWizardPage.tsx",
       "line": 285,
       "class": "third-party adapter",
-      "text": "<Space direction=\"vertical\" style={{ width: '100%' }}>",
-      "owner": "shared"
+      "text": "style={{ width: '100%' }}",
+      "owner": "shared",
+      "reason": "Ant Space style prop used for chrome geometry adapter"
     },
     {
       "file": "src/pages/ReportWizardPage.tsx",
       "line": 300,
       "class": "third-party adapter",
-      "text": "<Space style={{ marginTop: 12, width: '100%' }}>",
-      "owner": "shared"
+      "text": "style={{ marginTop: 12, width: '100%' }}",
+      "owner": "shared",
+      "reason": "Ant Space style prop used for chrome geometry adapter"
     },
     {
       "file": "src/pages/ReportWizardPage.tsx",
       "line": 313,
       "class": "static debt",
-      "text": "<div style={{ marginBottom: 8 }}>",
+      "text": "style={{ marginBottom: 8 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ReportWizardPage.tsx",
       "line": 314,
       "class": "static debt",
-      "text": "<Text type=\"secondary\" style={{ fontSize: 12 }}>",
+      "text": "style={{ fontSize: 12 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ReportWizardPage.tsx",
       "line": 317,
       "class": "static debt",
-      "text": "<div style={{ marginTop: 4 }}>",
+      "text": "style={{ marginTop: 4 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ReportWizardPage.tsx",
       "line": 322,
       "class": "static debt",
-      "text": "<Tag key={s} color=\"geekblue\" style={{ marginBottom: 4 }}>",
+      "text": "style={{ marginBottom: 4 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ReportWizardPage.tsx",
       "line": 329,
       "class": "static debt",
-      "text": "<div style={{ marginBottom: 12 }}>",
+      "text": "style={{ marginBottom: 12 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ReportWizardPage.tsx",
       "line": 330,
       "class": "static debt",
-      "text": "<Text type=\"secondary\" style={{ fontSize: 12 }}>",
+      "text": "style={{ fontSize: 12 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ReportWizardPage.tsx",
       "line": 335,
       "class": "static debt",
-      "text": "<div style={{ marginBottom: 12 }}>",
+      "text": "style={{ marginBottom: 12 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ReportWizardPage.tsx",
       "line": 336,
       "class": "static debt",
-      "text": "<Text type=\"secondary\" style={{ fontSize: 12 }}>",
+      "text": "style={{ fontSize: 12 }}",
       "owner": "shared"
     },
     {
@@ -1752,42 +2043,42 @@
       "file": "src/pages/ReportWizardPage.tsx",
       "line": 375,
       "class": "static debt",
-      "text": "<Col flex=\"1\" style={{ minWidth: 0 }}>",
+      "text": "style={{ minWidth: 0 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ReportWizardPage.tsx",
       "line": 399,
-      "class": "runtime geometry",
-      "text": "<div style={{ maxHeight: 'calc(100vh - 260px)', overflow: 'auto' }}>",
+      "class": "static debt",
+      "text": "style={{ maxHeight: 'calc(100vh - 260px)', overflow: 'auto' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ReportWizardPage.tsx",
       "line": 407,
-      "class": "runtime geometry",
-      "text": "<Title level={5} style={{ marginTop: 16, color: '#888' }}>",
+      "class": "static debt",
+      "text": "style={{ marginTop: 16, color: '#888' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/ReportWizardPage.tsx",
       "line": 408,
       "class": "static debt",
-      "text": "<span style={{ fontSize: 11 }}>",
+      "text": "style={{ fontSize: 11 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/UIKitPage.tsx",
       "line": 295,
       "class": "runtime geometry",
-      "text": "<div key={value}><span style={{ width: `${value * 2}px` }} /><code>{value}</code></div>",
+      "text": "style={{ width: `${value * 2}px` }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/WorkspacePage.tsx",
       "line": 67,
       "class": "static debt",
-      "text": "<Title level={3} style={{ marginTop: 0 }}>Добро пожаловать в HeatCalc</Title>",
+      "text": "style={{ marginTop: 0 }}",
       "owner": "shared"
     },
     {
@@ -1801,69 +2092,69 @@
       "file": "src/pages/WorkspacePage.tsx",
       "line": 147,
       "class": "static debt",
-      "text": "<Card style={{ marginBottom: 16 }}>",
+      "text": "style={{ marginBottom: 16 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/WorkspacePage.tsx",
       "line": 148,
       "class": "static debt",
-      "text": "<Title level={4} style={{ marginTop: 0 }}>",
+      "text": "style={{ marginTop: 0 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/WorkspacePage.tsx",
       "line": 151,
       "class": "static debt",
-      "text": "<Paragraph type=\"secondary\" style={{ margin: 0 }}>",
+      "text": "style={{ margin: 0 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/WorkspacePage.tsx",
       "line": 157,
       "class": "static debt",
-      "text": "<Card style={{ marginBottom: 16 }}>",
+      "text": "style={{ marginBottom: 16 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/WorkspacePage.tsx",
       "line": 163,
-      "class": "runtime geometry",
-      "text": "icon: s.done ? <CheckCircleOutlined style={{ color: '#52c41a' }} /> : s.done === false && steps.indexOf(s) < currentStep ? <ClockCircleOutli",
+      "class": "static debt",
+      "text": "style={{ color: '#52c41a' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/WorkspacePage.tsx",
       "line": 175,
-      "class": "static debt",
-      "text": "style={{",
+      "class": "runtime geometry",
+      "text": "style={{ borderColor: idx === currentStep ? '#1890ff' : undefined, opacity: idx > currentStep + 1 ? 0.6 : 1, }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/WorkspacePage.tsx",
       "line": 185,
-      "class": "runtime geometry",
-      "text": "? <CheckCircleOutlined style={{ color: '#52c41a' }} />",
+      "class": "static debt",
+      "text": "style={{ color: '#52c41a' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/admin/AdminLayout.tsx",
       "line": 16,
-      "class": "runtime geometry",
-      "text": "<Layout style={{ minHeight: '100vh' }}>",
+      "class": "static debt",
+      "text": "style={{ minHeight: '100vh' }}",
       "owner": "admin"
     },
     {
       "file": "src/pages/admin/AdminLayout.tsx",
       "line": 18,
-      "class": "runtime geometry",
-      "text": "<h2 style={{ color: 'white', margin: 0 }}>HeatCalc — Администрирование</h2>",
+      "class": "static debt",
+      "text": "style={{ color: 'white', margin: 0 }}",
       "owner": "admin"
     },
     {
       "file": "src/pages/admin/AdminLayout.tsx",
       "line": 25,
-      "class": "runtime geometry",
+      "class": "static debt",
       "text": "style={{ color: 'white', marginLeft: 'auto', cursor: 'pointer' }}",
       "owner": "admin"
     },
@@ -1871,798 +2162,897 @@
       "file": "src/pages/admin/AdminLayout.tsx",
       "line": 47,
       "class": "static debt",
-      "text": "<Content style={{ padding: 24 }}>",
+      "text": "style={{ padding: 24 }}",
       "owner": "admin"
     },
     {
       "file": "src/pages/admin/DatabasePage.tsx",
       "line": 325,
       "class": "static debt",
-      "text": "<Space style={{ marginBottom: 12 }} wrap>",
+      "text": "style={{ marginBottom: 12 }}",
       "owner": "admin"
     },
     {
       "file": "src/pages/admin/DatabasePage.tsx",
       "line": 350,
       "class": "static debt",
-      "text": "<Space style={{ marginBottom: 12 }} wrap>",
+      "text": "style={{ marginBottom: 12 }}",
       "owner": "admin"
     },
     {
       "file": "src/pages/admin/DatabasePage.tsx",
       "line": 392,
-      "class": "static debt",
+      "class": "third-party adapter",
       "text": "style={{ width: 180 }}",
-      "owner": "admin"
+      "owner": "admin",
+      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/DatabasePage.tsx",
       "line": 403,
       "class": "third-party adapter",
-      "text": "<Input style={{ width: 160 }} />",
-      "owner": "admin"
+      "text": "style={{ width: 160 }}",
+      "owner": "admin",
+      "reason": "Ant Input style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/DatabasePage.tsx",
       "line": 406,
       "class": "third-party adapter",
-      "text": "<Input style={{ width: 190 }} />",
-      "owner": "admin"
+      "text": "style={{ width: 190 }}",
+      "owner": "admin",
+      "reason": "Ant Input style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/DatabasePage.tsx",
       "line": 409,
       "class": "third-party adapter",
-      "text": "<InputNumber min={0} style={{ width: 110 }} />",
-      "owner": "admin"
+      "text": "style={{ width: 110 }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/DatabasePage.tsx",
       "line": 412,
       "class": "third-party adapter",
-      "text": "<InputNumber min={0} step={0.001} style={{ width: 110 }} />",
-      "owner": "admin"
+      "text": "style={{ width: 110 }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/DatabasePage.tsx",
       "line": 415,
       "class": "third-party adapter",
-      "text": "<InputNumber min={0} step={0.1} style={{ width: 120 }} />",
-      "owner": "admin"
+      "text": "style={{ width: 120 }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/DatabasePage.tsx",
       "line": 418,
       "class": "third-party adapter",
-      "text": "<InputNumber style={{ width: 100 }} />",
-      "owner": "admin"
+      "text": "style={{ width: 100 }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/DatabasePage.tsx",
       "line": 421,
       "class": "third-party adapter",
-      "text": "<InputNumber style={{ width: 100 }} />",
-      "owner": "admin"
+      "text": "style={{ width: 100 }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/DatabasePage.tsx",
       "line": 426,
       "class": "third-party adapter",
-      "text": "<Input style={{ width: 180 }} />",
-      "owner": "admin"
+      "text": "style={{ width: 180 }}",
+      "owner": "admin",
+      "reason": "Ant Input style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/DatabasePage.tsx",
       "line": 429,
       "class": "third-party adapter",
-      "text": "<Input style={{ width: 150 }} />",
-      "owner": "admin"
+      "text": "style={{ width: 150 }}",
+      "owner": "admin",
+      "reason": "Ant Input style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/DatabasePage.tsx",
       "line": 432,
       "class": "third-party adapter",
-      "text": "<InputNumber min={0} step={0.01} style={{ width: 110 }} />",
-      "owner": "admin"
+      "text": "style={{ width: 110 }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/DatabasePage.tsx",
       "line": 435,
       "class": "third-party adapter",
-      "text": "<Input style={{ width: 90 }} />",
-      "owner": "admin"
+      "text": "style={{ width: 90 }}",
+      "owner": "admin",
+      "reason": "Ant Input style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/DatabasePage.tsx",
       "line": 438,
       "class": "third-party adapter",
-      "text": "<InputNumber min={0} step={1} style={{ width: 120 }} />",
-      "owner": "admin"
+      "text": "style={{ width: 120 }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/DatabasePage.tsx",
       "line": 442,
-      "class": "static debt",
+      "class": "third-party adapter",
       "text": "style={{ width: 130 }}",
-      "owner": "admin"
+      "owner": "admin",
+      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/DatabasePage.tsx",
       "line": 453,
       "class": "third-party adapter",
-      "text": "<InputNumber min={0} precision={0} style={{ width: 110 }} />",
-      "owner": "admin"
+      "text": "style={{ width: 110 }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/DatabasePage.tsx",
       "line": 456,
       "class": "third-party adapter",
-      "text": "<InputNumber min={0} precision={0} style={{ width: 110 }} />",
-      "owner": "admin"
+      "text": "style={{ width: 110 }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/DatabasePage.tsx",
       "line": 461,
       "class": "third-party adapter",
-      "text": "<InputNumber min={0} step={1} style={{ width: 120 }} />",
-      "owner": "admin"
+      "text": "style={{ width: 120 }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/DatabasePage.tsx",
       "line": 464,
       "class": "third-party adapter",
-      "text": "<InputNumber min={0} step={1} style={{ width: 130 }} />",
-      "owner": "admin"
+      "text": "style={{ width: 130 }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/DatabasePage.tsx",
       "line": 467,
       "class": "third-party adapter",
-      "text": "<Input style={{ width: 160 }} />",
-      "owner": "admin"
+      "text": "style={{ width: 160 }}",
+      "owner": "admin",
+      "reason": "Ant Input style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/DatabasePage.tsx",
       "line": 470,
       "class": "third-party adapter",
-      "text": "<Input style={{ width: 200 }} placeholder=\"ISO datetime\" />",
-      "owner": "admin"
+      "text": "style={{ width: 200 }}",
+      "owner": "admin",
+      "reason": "Ant Input style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/DatabasePage.tsx",
       "line": 473,
       "class": "third-party adapter",
-      "text": "<Input style={{ width: 200 }} placeholder=\"ISO datetime\" />",
-      "owner": "admin"
+      "text": "style={{ width: 200 }}",
+      "owner": "admin",
+      "reason": "Ant Input style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/DatabasePage.tsx",
       "line": 476,
       "class": "third-party adapter",
-      "text": "<Input style={{ width: 140 }} />",
-      "owner": "admin"
+      "text": "style={{ width: 140 }}",
+      "owner": "admin",
+      "reason": "Ant Input style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/DatabasePage.tsx",
       "line": 511,
       "class": "third-party adapter",
-      "text": "<Input style={{ width: 180 }} />",
-      "owner": "admin"
+      "text": "style={{ width: 180 }}",
+      "owner": "admin",
+      "reason": "Ant Input style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/DatabasePage.tsx",
       "line": 514,
       "class": "third-party adapter",
-      "text": "<Input style={{ width: 260 }} />",
-      "owner": "admin"
+      "text": "style={{ width: 260 }}",
+      "owner": "admin",
+      "reason": "Ant Input style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/DatabasePage.tsx",
       "line": 517,
       "class": "third-party adapter",
-      "text": "<Input style={{ width: 160 }} />",
-      "owner": "admin"
+      "text": "style={{ width: 160 }}",
+      "owner": "admin",
+      "reason": "Ant Input style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 137,
       "class": "third-party adapter",
-      "text": "<InputNumber min={11} max={3000} style={{ width: '100%' }} placeholder=\"108\" />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 142,
       "class": "third-party adapter",
-      "text": "<InputNumber min={0.5} max={200000} style={{ width: '100%' }} placeholder=\"100\" />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 149,
       "class": "third-party adapter",
-      "text": "<InputNumber min={0.1} max={40} style={{ width: '100%' }} placeholder=\"4\" />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 165,
       "class": "third-party adapter",
-      "text": "<InputNumber min={0.001} max={400} style={{ width: '100%' }} placeholder=\"45\" />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 173,
       "class": "third-party adapter",
-      "text": "<InputNumber min={1} max={500} style={{ width: '100%' }} placeholder=\"50\" />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 188,
       "class": "third-party adapter",
-      "text": "<InputNumber min={0.001} max={400} style={{ width: '100%' }} placeholder=\"из справочника\" />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 196,
       "class": "third-party adapter",
-      "text": "<InputNumber min={-90} max={600} style={{ width: '100%' }} placeholder=\"80\" />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 201,
       "class": "third-party adapter",
-      "text": "<InputNumber min={-70} max={70} style={{ width: '100%' }} placeholder=\"-20\" />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 208,
       "class": "third-party adapter",
-      "text": "<InputNumber min={0} max={200} style={{ width: '100%' }} placeholder=\"0\" />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 213,
       "class": "third-party adapter",
-      "text": "<InputNumber min={0.5} max={3} style={{ width: '100%' }} placeholder=\"1.5\" />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 218,
       "class": "third-party adapter",
-      "text": "<InputNumber min={7} max={52} style={{ width: '100%' }} placeholder=\"из ветра\" />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 225,
       "class": "third-party adapter",
-      "text": "<InputNumber min={0} max={20} style={{ width: '100%' }} placeholder=\"5\" />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 254,
       "class": "third-party adapter",
-      "text": "<InputNumber min={0} max={100} style={{ width: '100%' }} placeholder=\"0\" />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 259,
       "class": "third-party adapter",
-      "text": "<InputNumber min={0.1} max={6.9} style={{ width: '100%' }} placeholder=\"1\" />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 264,
       "class": "third-party adapter",
-      "text": "<InputNumber min={1.05} max={1.7} step={0.05} style={{ width: '100%' }} placeholder=\"1.1\" />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 270,
       "class": "static debt",
-      "text": "{error && <Alert style={{ marginTop: 14 }} type=\"error\" message={error} />}",
+      "text": "style={{ marginTop: 14 }}",
       "owner": "admin"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 370,
       "class": "third-party adapter",
-      "text": "<InputNumber min={100} max={30000} style={{ width: '100%' }} placeholder=\"2000\" />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 376,
       "class": "third-party adapter",
-      "text": "<InputNumber min={100} max={50000} style={{ width: '100%' }} placeholder=\"3000\" />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 386,
       "class": "third-party adapter",
-      "text": "<InputNumber min={100} max={100000} style={{ width: '100%' }} placeholder=\"5000\" />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 391,
       "class": "third-party adapter",
-      "text": "<InputNumber min={100} max={100000} style={{ width: '100%' }} placeholder=\"3000\" />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 396,
       "class": "third-party adapter",
-      "text": "<InputNumber min={100} max={50000} style={{ width: '100%' }} placeholder=\"4000\" />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 405,
       "class": "third-party adapter",
-      "text": "<InputNumber min={1} max={500} style={{ width: '100%' }} placeholder=\"80\" />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 420,
       "class": "third-party adapter",
-      "text": "<InputNumber min={0.001} max={400} style={{ width: '100%' }} placeholder=\"из справочника\" />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 428,
       "class": "third-party adapter",
-      "text": "<InputNumber min={-90} max={600} style={{ width: '100%' }} placeholder=\"60\" />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 433,
       "class": "third-party adapter",
-      "text": "<InputNumber min={-70} max={70} style={{ width: '100%' }} placeholder=\"-20\" />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 440,
       "class": "third-party adapter",
-      "text": "<InputNumber min={1} max={500} style={{ width: '100%' }} placeholder=\"8\" />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 445,
       "class": "third-party adapter",
-      "text": "<InputNumber min={0.001} max={400} style={{ width: '100%' }} placeholder=\"45\" />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 450,
       "class": "third-party adapter",
-      "text": "<InputNumber min={0} style={{ width: '100%' }} placeholder=\"0\" />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 457,
       "class": "third-party adapter",
-      "text": "<InputNumber min={0} max={20} style={{ width: '100%' }} placeholder=\"5\" />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 462,
       "class": "third-party adapter",
-      "text": "<InputNumber min={7} max={52} style={{ width: '100%' }} placeholder=\"из ветра\" />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 467,
       "class": "third-party adapter",
-      "text": "<InputNumber min={1.05} max={1.7} step={0.05} style={{ width: '100%' }} placeholder=\"1.1\" />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 474,
       "class": "third-party adapter",
-      "text": "<InputNumber min={0} max={200} style={{ width: '100%' }} placeholder=\"0\" />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 479,
       "class": "third-party adapter",
-      "text": "<InputNumber min={0.5} max={3} style={{ width: '100%' }} placeholder=\"1.5\" />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 485,
       "class": "static debt",
-      "text": "{error && <Alert style={{ marginTop: 14 }} type=\"error\" message={error} />}",
+      "text": "style={{ marginTop: 14 }}",
       "owner": "admin"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 519,
-      "class": "runtime geometry",
-      "text": "<div style={{ marginTop: 10, padding: '8px 12px', background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 6, fontSize: 12, color: ",
+      "class": "static debt",
+      "text": "style={{ marginTop: 10, padding: '8px 12px', background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 6, fontSize: 12, color: '#555' }}",
       "owner": "admin"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 520,
       "class": "static debt",
-      "text": "Поле «Требуемая мощность» = <Text code style={{ fontSize: 11 }}>heat_loss_per_meter</Text> из результата расчёта теплопотерь.",
+      "text": "style={{ fontSize: 11 }}",
       "owner": "admin"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 524,
-      "class": "runtime geometry",
-      "text": "<div style={{ fontWeight: 600, marginBottom: 10, color: '#333' }}>Подобрать кабель</div>",
+      "class": "static debt",
+      "text": "style={{ fontWeight: 600, marginBottom: 10, color: '#333' }}",
       "owner": "admin"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 529,
       "class": "third-party adapter",
-      "text": "<InputNumber min={0.1} max={5000} style={{ width: '100%' }} placeholder=\"45\" />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 534,
       "class": "third-party adapter",
-      "text": "<InputNumber min={0.5} max={200000} style={{ width: '100%' }} placeholder=\"100\" />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 541,
       "class": "third-party adapter",
-      "text": "<InputNumber min={-70} max={70} style={{ width: '100%' }} placeholder=\"-20\" />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 546,
       "class": "third-party adapter",
-      "text": "<InputNumber min={-90} max={600} style={{ width: '100%' }} placeholder=\"80\" />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 550,
       "class": "static debt",
-      "text": "<Form.Item name=\"supply_voltage\" label=\"Напряжение питания, В\" style={{ maxWidth: 200 }}>",
+      "text": "style={{ maxWidth: 200 }}",
       "owner": "admin"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 551,
       "class": "third-party adapter",
-      "text": "<InputNumber min={1} max={1000} style={{ width: '100%' }} />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 561,
       "class": "third-party adapter",
-      "text": "<InputNumber min={1} max={2} step={0.05} style={{ width: '100%' }} />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 568,
       "class": "third-party adapter",
-      "text": "<InputNumber min={1} max={10} step={0.1} style={{ width: '100%' }} />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 573,
       "class": "third-party adapter",
-      "text": "<InputNumber min={0} style={{ width: '100%' }} placeholder=\"0\" />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 578,
       "class": "third-party adapter",
-      "text": "<InputNumber min={1} max={3} style={{ width: '100%' }} />",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 584,
       "class": "static debt",
-      "text": "{error && <Alert style={{ marginTop: 14 }} type=\"error\" message={error} />}",
+      "text": "style={{ marginTop: 14 }}",
       "owner": "admin"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 628,
       "class": "third-party adapter",
-      "text": "<Col span={12}><Form.Item name=\"required_power_per_meter\" label=\"Требуемая мощность, Вт/м\" rules={[{ required: true }]}><InputNumber min={0.",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 629,
       "class": "third-party adapter",
-      "text": "<Col span={12}><Form.Item name=\"pipe_length\" label=\"Длина, м\" rules={[{ required: true }]}><InputNumber min={0.1} style={{ width: '100%' }} ",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 632,
       "class": "third-party adapter",
-      "text": "<Col span={12}><Form.Item name=\"process_temperature\" label=\"T продукта, °C\" rules={[{ required: true }]}><InputNumber min={-90} max={600} st",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 633,
       "class": "third-party adapter",
-      "text": "<Col span={12}><Form.Item name=\"vapor_temperature\" label=\"T пропарки, °C\"><InputNumber style={{ width: '100%' }} placeholder=\"85\" /></Form.I",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 636,
       "class": "third-party adapter",
-      "text": "<Col span={12}><Form.Item name=\"maintain_temperature\" label=\"T3 поддержания, °C (необяз.)\"><InputNumber min={-90} max={600} style={{ width: ",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 639,
       "class": "third-party adapter",
-      "text": "<Col span={8}><Form.Item name=\"supply_voltage\" label=\"U, В\"><InputNumber min={1} style={{ width: '100%' }} /></Form.Item></Col>",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 640,
       "class": "third-party adapter",
-      "text": "<Col span={8}><Form.Item name=\"safety_factor\" label=\"K запаса\"><InputNumber min={1} max={2} step={0.05} style={{ width: '100%' }} /></Form.I",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 644,
       "class": "third-party adapter",
-      "text": "<Col span={8}><Form.Item name=\"winding_coefficient\" label=\"Коэф. укладки\"><InputNumber min={1} max={10} step={0.1} style={{ width: '100%' }}",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 645,
       "class": "third-party adapter",
-      "text": "<Col span={8}><Form.Item name=\"winding_pitch\" label=\"Шаг навива, мм\"><InputNumber min={0} style={{ width: '100%' }} /></Form.Item></Col>",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 646,
       "class": "third-party adapter",
-      "text": "<Col span={8}><Form.Item name=\"number_of_threads\" label=\"Нитки\"><InputNumber min={1} max={100} style={{ width: '100%' }} placeholder=\"авто\" ",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 653,
       "class": "third-party adapter",
-      "text": "<Form.Item name=\"tank_diameter_mm\" label=\"Диаметр резервуара, мм\" rules={[{ required: true }]}><InputNumber min={100} max={30000} style={{ w",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 657,
       "class": "third-party adapter",
-      "text": "<Col span={12}><Form.Item name=\"tank_length_mm\" label=\"Длина резервуара, мм\" rules={[{ required: true }]}><InputNumber min={100} max={100000",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 658,
       "class": "third-party adapter",
-      "text": "<Col span={12}><Form.Item name=\"tank_width_mm\" label=\"Ширина резервуара, мм\" rules={[{ required: true }]}><InputNumber min={100} max={100000",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 663,
       "class": "third-party adapter",
-      "text": "<Col span={12}><Form.Item name=\"heating_height\" label=\"Высота обогрева, м\" rules={[{ required: true }]}><InputNumber min={0.001} style={{ wi",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 664,
       "class": "third-party adapter",
-      "text": "<Col span={12}><Form.Item name=\"laying_step\" label=\"Шаг укладки, м\" rules={[{ required: true }]}><InputNumber min={0.1} max={0.4} step={0.01",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 669,
       "class": "static debt",
-      "text": "{error && <Alert style={{ marginTop: 14 }} type=\"error\" message={error} />}",
+      "text": "style={{ marginTop: 14 }}",
       "owner": "admin"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 709,
-      "class": "runtime geometry",
-      "text": "<div style={{ fontWeight: 600, marginBottom: 10, color: '#333' }}>Проверить резистивный кабель</div>",
+      "class": "static debt",
+      "text": "style={{ fontWeight: 600, marginBottom: 10, color: '#333' }}",
       "owner": "admin"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 718,
       "class": "third-party adapter",
-      "text": "<Col span={12}><Form.Item name=\"required_heat_loss\" label=\"Q треб., Вт\" rules={[{ required: true }]}><InputNumber min={0.1} style={{ width: ",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 719,
       "class": "third-party adapter",
-      "text": "<Col span={12}><Form.Item name=\"pipe_length\" label=\"Длина, м\" rules={[{ required: true }]}><InputNumber min={0.1} style={{ width: '100%' }} ",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 728,
       "class": "third-party adapter",
-      "text": "<Col span={8}><Form.Item name=\"add_length\" label=\"Lдоп, м\"><InputNumber min={0} style={{ width: '100%' }} placeholder=\"0\" /></Form.Item></Co",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 729,
       "class": "third-party adapter",
-      "text": "<Col span={8}><Form.Item name=\"process_temperature\" label=\"T продукта, °C\" rules={[{ required: true }]}><InputNumber style={{ width: '100%' ",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 730,
       "class": "third-party adapter",
-      "text": "<Col span={8}><Form.Item name=\"supply_voltage\" label=\"U, В\"><InputNumber min={1} style={{ width: '100%' }} /></Form.Item></Col>",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 750,
       "class": "third-party adapter",
-      "text": "<Col span={8}><Form.Item name=\"winding_coefficient\" label=\"Коэф. навива\"><InputNumber min={1} max={10} step={0.1} style={{ width: '100%' }} ",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 751,
       "class": "third-party adapter",
-      "text": "<Col span={8}><Form.Item name=\"winding_pitch\" label=\"Шаг навива, мм\"><InputNumber min={0} style={{ width: '100%' }} /></Form.Item></Col>",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 752,
       "class": "third-party adapter",
-      "text": "<Col span={8}><Form.Item name=\"number_of_threads\" label=\"Нитки\"><InputNumber min={1} max={3} style={{ width: '100%' }} /></Form.Item></Col>",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 760,
       "class": "third-party adapter",
-      "text": "{tankShape === 'cylindrical' && <Form.Item name=\"tank_diameter_mm\" label=\"Диаметр резервуара, мм\" rules={[{ required: true }]}><InputNumber ",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 763,
       "class": "third-party adapter",
-      "text": "<Col span={12}><Form.Item name=\"tank_length_mm\" label=\"Длина резервуара, мм\" rules={[{ required: true }]}><InputNumber min={100} max={100000",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 764,
       "class": "third-party adapter",
-      "text": "<Col span={12}><Form.Item name=\"tank_width_mm\" label=\"Ширина резервуара, мм\" rules={[{ required: true }]}><InputNumber min={100} max={100000",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 769,
       "class": "third-party adapter",
-      "text": "<Col span={12}><Form.Item name=\"heating_height\" label=\"Высота обогрева, м\" rules={[{ required: true }]}><InputNumber min={0.001} style={{ wi",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 770,
       "class": "third-party adapter",
-      "text": "<Col span={12}><Form.Item name=\"laying_step\" label=\"Шаг укладки, м\" rules={[{ required: true }]}><InputNumber min={0.1} max={0.4} step={0.01",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 775,
       "class": "static debt",
-      "text": "{error && <Alert style={{ marginTop: 14 }} type=\"error\" message={error} />}",
+      "text": "style={{ marginTop: 14 }}",
       "owner": "admin"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 804,
-      "class": "runtime geometry",
-      "text": "<div style={{ fontWeight: 600, marginBottom: 10, color: '#333' }}>Проверить геометрию укладки</div>",
+      "class": "static debt",
+      "text": "style={{ fontWeight: 600, marginBottom: 10, color: '#333' }}",
       "owner": "admin"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 808,
       "class": "third-party adapter",
-      "text": "<Form.Item name=\"diameter_mm\" label=\"Диаметр, мм\" rules={[{ required: true }]}><InputNumber min={1} style={{ width: '100%' }} placeholder=\"2",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 811,
       "class": "third-party adapter",
-      "text": "<Col span={12}><Form.Item name=\"length_mm\" label=\"Длина, мм\" rules={[{ required: true }]}><InputNumber min={1} style={{ width: '100%' }} pla",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 812,
       "class": "third-party adapter",
-      "text": "<Col span={12}><Form.Item name=\"width_mm\" label=\"Ширина, мм\" rules={[{ required: true }]}><InputNumber min={1} style={{ width: '100%' }} pla",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 816,
       "class": "third-party adapter",
-      "text": "<Col span={12}><Form.Item name=\"heating_height\" label=\"Высота обогрева, м\" rules={[{ required: true }]}><InputNumber min={0.001} style={{ wi",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 817,
       "class": "third-party adapter",
-      "text": "<Col span={12}><Form.Item name=\"laying_step\" label=\"Шаг укладки, м\" rules={[{ required: true }]}><InputNumber min={0.1} max={0.4} step={0.01",
-      "owner": "admin"
+      "text": "style={{ width: '100%' }}",
+      "owner": "admin",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/admin/FormulasPage.tsx",
       "line": 821,
       "class": "static debt",
-      "text": "{error && <Alert style={{ marginTop: 14 }} type=\"error\" message={error} />}",
+      "text": "style={{ marginTop: 14 }}",
       "owner": "admin"
     },
     {
@@ -2675,42 +3065,46 @@
     {
       "file": "src/pages/electrical/ElecCalcCableMarkModal.tsx",
       "line": 93,
-      "class": "static debt",
+      "class": "third-party adapter",
       "text": "style={{ top: 28 }}",
-      "owner": "electrical"
+      "owner": "electrical",
+      "reason": "Ant Modal style prop used for chrome geometry adapter"
     },
     {
       "file": "src/pages/electrical/ElecCalcCableMarkModal.tsx",
       "line": 104,
       "class": "third-party adapter",
-      "text": "<Space direction=\"vertical\" size={12} style={{ width: '100%' }}>",
-      "owner": "electrical"
+      "text": "style={{ width: '100%' }}",
+      "owner": "electrical",
+      "reason": "Ant Space style prop used for chrome geometry adapter"
     },
     {
       "file": "src/pages/electrical/ElecCalcCableMarkModal.tsx",
       "line": 122,
-      "class": "runtime geometry",
+      "class": "third-party adapter",
       "text": "style={{ width: '100%', marginTop: 4 }}",
-      "owner": "electrical"
+      "owner": "electrical",
+      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/electrical/ElecCalcCableMarkModal.tsx",
       "line": 130,
       "class": "static debt",
-      "text": "<fieldset disabled style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>",
+      "text": "style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}",
       "owner": "electrical"
     },
     {
       "file": "src/pages/electrical/ElecCalcCableMarkModal.tsx",
       "line": 146,
-      "class": "runtime geometry",
+      "class": "third-party adapter",
       "text": "style={{ width: '100%', marginTop: 4 }}",
-      "owner": "electrical"
+      "owner": "electrical",
+      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/electrical/ElecCalcCableMarkModal.tsx",
       "line": 164,
-      "class": "runtime geometry",
+      "class": "static debt",
       "text": "style={{ display: 'flex', gap: 12, marginTop: 6, flexWrap: 'wrap' }}",
       "owner": "electrical"
     },
@@ -2724,43 +3118,46 @@
     {
       "file": "src/pages/electrical/ElecCalcCableSizingModal.tsx",
       "line": 97,
-      "class": "runtime geometry",
+      "class": "third-party adapter",
       "text": "style={{ top: 0, maxWidth: 'none', paddingBottom: 0 }}",
-      "owner": "electrical"
+      "owner": "electrical",
+      "reason": "Ant Modal style prop used for chrome geometry adapter"
     },
     {
       "file": "src/pages/electrical/ElecCalcCableSizingModal.tsx",
       "line": 136,
-      "class": "static debt",
+      "class": "third-party adapter",
       "text": "style={{ minWidth: 220 }}",
-      "owner": "electrical"
+      "owner": "electrical",
+      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/electrical/ElecCalcCableSizingModal.tsx",
       "line": 153,
-      "class": "static debt",
+      "class": "third-party adapter",
       "text": "style={{ minWidth: 280 }}",
-      "owner": "electrical"
+      "owner": "electrical",
+      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/electrical/ElecCalcCableSizingModal.tsx",
       "line": 194,
       "class": "static debt",
-      "text": "<fieldset disabled style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>",
+      "text": "style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}",
       "owner": "electrical"
     },
     {
       "file": "src/pages/electrical/ElecCalcElectricalTypeControls.tsx",
       "line": 43,
       "class": "runtime geometry",
-      "text": "block ? <div style={WRAP_STYLE}>{content}</div> : content;",
+      "text": "style={WRAP_STYLE}",
       "owner": "electrical"
     },
     {
       "file": "src/pages/electrical/ElecCalcElectricalTypeControls.tsx",
       "line": 47,
       "class": "runtime geometry",
-      "text": "<Text style={HINT_STYLE}>U, В:</Text>",
+      "text": "style={HINT_STYLE}",
       "owner": "electrical"
     },
     {
@@ -2774,7 +3171,7 @@
       "file": "src/pages/electrical/ElecCalcElectricalTypeControls.tsx",
       "line": 67,
       "class": "runtime geometry",
-      "text": "<Text style={HINT_STYLE}>T проп., °C:</Text>",
+      "text": "style={HINT_STYLE}",
       "owner": "electrical"
     },
     {
@@ -2788,7 +3185,7 @@
       "file": "src/pages/electrical/ElecCalcElectricalTypeControls.tsx",
       "line": 76,
       "class": "runtime geometry",
-      "text": "<Text style={HINT_STYLE}>T3, °C:</Text>",
+      "text": "style={HINT_STYLE}",
       "owner": "electrical"
     },
     {
@@ -2802,7 +3199,7 @@
       "file": "src/pages/electrical/ElecCalcElectricalTypeControls.tsx",
       "line": 90,
       "class": "runtime geometry",
-      "text": "<span style={AGGR_LABEL_STYLE}>агр.</span>",
+      "text": "style={AGGR_LABEL_STYLE}",
       "owner": "electrical"
     },
     {
@@ -2816,126 +3213,131 @@
       "file": "src/pages/electrical/ElecCalcElectricalTypeControls.tsx",
       "line": 111,
       "class": "runtime geometry",
-      "text": "<Text style={HINT_STYLE}>U:</Text>",
+      "text": "style={HINT_STYLE}",
       "owner": "electrical"
     },
     {
       "file": "src/pages/electrical/ElecCalcElectricalTypeControls.tsx",
       "line": 112,
       "class": "runtime geometry",
-      "text": "<InputNumber<number> disabled={disabled} size=\"small\" min={1} value={recalc.supplyVoltage} onChange={setRecalc.supplyVoltage} style={INPUT_W",
+      "text": "style={INPUT_W76}",
       "owner": "electrical"
     },
     {
       "file": "src/pages/electrical/ElecCalcElectricalTypeControls.tsx",
       "line": 113,
       "class": "runtime geometry",
-      "text": "<Text style={HINT_STYLE}>w:</Text>",
+      "text": "style={HINT_STYLE}",
       "owner": "electrical"
     },
     {
       "file": "src/pages/electrical/ElecCalcElectricalTypeControls.tsx",
       "line": 114,
       "class": "runtime geometry",
-      "text": "<InputNumber<number> disabled={disabled} size=\"small\" min={1} max={1.5} step={0.05} value={recalc.windingCoefficient} onChange={setRecalc.wi",
+      "text": "style={INPUT_W72}",
       "owner": "electrical"
     },
     {
       "file": "src/pages/electrical/ElecCalcElectricalTypeControls.tsx",
       "line": 115,
       "class": "runtime geometry",
-      "text": "<Text style={HINT_STYLE}>h:</Text>",
+      "text": "style={HINT_STYLE}",
       "owner": "electrical"
     },
     {
       "file": "src/pages/electrical/ElecCalcElectricalTypeControls.tsx",
       "line": 116,
       "class": "runtime geometry",
-      "text": "<InputNumber<number> disabled={disabled} size=\"small\" min={0} step={0.1} value={recalc.heatingHeight} onChange={setRecalc.heatingHeight} sty",
+      "text": "style={INPUT_W76}",
       "owner": "electrical"
     },
     {
       "file": "src/pages/electrical/ElecCalcElectricalTypeControls.tsx",
       "line": 117,
       "class": "runtime geometry",
-      "text": "<Text style={HINT_STYLE}>шаг:</Text>",
+      "text": "style={HINT_STYLE}",
       "owner": "electrical"
     },
     {
       "file": "src/pages/electrical/ElecCalcElectricalTypeControls.tsx",
       "line": 118,
       "class": "runtime geometry",
-      "text": "<InputNumber<number> disabled={disabled} size=\"small\" min={0.1} max={0.4} step={0.01} value={recalc.layingStep} onChange={setRecalc.layingSt",
+      "text": "style={INPUT_W76}",
       "owner": "electrical"
     },
     {
       "file": "src/pages/electrical/ElecCalcParamsPanel.tsx",
       "line": 65,
-      "class": "static debt",
+      "class": "third-party adapter",
       "text": "style={{ minWidth: 190, flex: 1 }}",
-      "owner": "electrical"
+      "owner": "electrical",
+      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/electrical/ElecCalcParamsPanel.tsx",
       "line": 76,
-      "class": "static debt",
+      "class": "third-party adapter",
       "text": "style={{ minWidth: 190, flex: 1 }}",
-      "owner": "electrical"
+      "owner": "electrical",
+      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/electrical/ElecCalcParamsPanel.tsx",
       "line": 128,
       "class": "static debt",
-      "text": "<span style={{ fontSize: 12 }}>агрессивная (-СР)</span>",
+      "text": "style={{ fontSize: 12 }}",
       "owner": "electrical"
     },
     {
       "file": "src/pages/electrical/ElecCalcProject.tsx",
       "line": 77,
       "class": "third-party adapter",
-      "text": "<Space direction=\"vertical\" size={8} style={{ width: '100%' }}>",
-      "owner": "electrical"
+      "text": "style={{ width: '100%' }}",
+      "owner": "electrical",
+      "reason": "Ant Space style prop used for chrome geometry adapter"
     },
     {
       "file": "src/pages/electrical/ElecCalcRecalculationSettings.tsx",
       "line": 65,
       "class": "static debt",
-      "text": "<Tag color={commercialDataStatus.color} style={{ marginInlineEnd: 0 }}>",
+      "text": "style={{ marginInlineEnd: 0 }}",
       "owner": "electrical"
     },
     {
       "file": "src/pages/electrical/ElecCalcRecalculationSettings.tsx",
       "line": 77,
-      "class": "static debt",
+      "class": "third-party adapter",
       "text": "style={{ width: 128 }}",
-      "owner": "electrical"
+      "owner": "electrical",
+      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/electrical/ElecCalcRecalculationSettings.tsx",
       "line": 81,
       "class": "static debt",
-      "text": "<Tag color={technicalDataStatus.color} style={{ marginInlineEnd: 0 }}>",
+      "text": "style={{ marginInlineEnd: 0 }}",
       "owner": "electrical"
     },
     {
       "file": "src/pages/electrical/ElecCalcWorkspace.tsx",
       "line": 35,
-      "class": "runtime geometry",
-      "text": "icon={<ThunderboltOutlined style={{ marginRight: 8, color: '#faad14' }} />}",
+      "class": "static debt",
+      "text": "style={{ marginRight: 8, color: '#faad14' }}",
       "owner": "electrical"
     },
     {
       "file": "src/pages/electrical/ElecCalcWorkspace.tsx",
       "line": 45,
       "class": "third-party adapter",
-      "text": "<Space direction=\"vertical\" size={8} style={{ width: '100%' }}>",
-      "owner": "electrical"
+      "text": "style={{ width: '100%' }}",
+      "owner": "electrical",
+      "reason": "Ant Space style prop used for chrome geometry adapter"
     },
     {
       "file": "src/pages/electrical/ElecCalcWorkspaceParamsChrome.tsx",
       "line": 58,
       "class": "static debt",
-      "text": "style={{",
+      "text": "style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, minHeight: 28, }}",
       "owner": "electrical"
     },
     {
@@ -2969,85 +3371,86 @@
     {
       "file": "src/pages/electrical/ElectricalBatchActionBar.tsx",
       "line": 95,
-      "class": "runtime geometry",
-      "text": "<Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>",
+      "class": "static debt",
+      "text": "style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}",
       "owner": "electrical"
     },
     {
       "file": "src/pages/electrical/ElectricalBatchActionBar.tsx",
       "line": 106,
-      "class": "static debt",
+      "class": "third-party adapter",
       "text": "style={{ width: 210 }}",
-      "owner": "electrical"
+      "owner": "electrical",
+      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/electrical/ElectricalSectionHierarchy.tsx",
       "line": 53,
-      "class": "runtime geometry",
-      "text": "<table style={{ width: '100%', marginTop: 6, fontSize: 12 }}>",
+      "class": "static debt",
+      "text": "style={{ width: '100%', marginTop: 6, fontSize: 12 }}",
       "owner": "electrical"
     },
     {
       "file": "src/pages/electrical/ElectricalSectionHierarchy.tsx",
       "line": 56,
-      "class": "runtime geometry",
-      "text": "<th style={{ textAlign: 'left' }}>№</th>",
+      "class": "static debt",
+      "text": "style={{ textAlign: 'left' }}",
       "owner": "electrical"
     },
     {
       "file": "src/pages/electrical/ElectricalSectionHierarchy.tsx",
       "line": 57,
-      "class": "runtime geometry",
-      "text": "<th style={{ textAlign: 'right' }}>L, м</th>",
+      "class": "static debt",
+      "text": "style={{ textAlign: 'right' }}",
       "owner": "electrical"
     },
     {
       "file": "src/pages/electrical/ElectricalSectionHierarchy.tsx",
       "line": 58,
-      "class": "runtime geometry",
-      "text": "<th style={{ textAlign: 'right' }}>P, Вт</th>",
+      "class": "static debt",
+      "text": "style={{ textAlign: 'right' }}",
       "owner": "electrical"
     },
     {
       "file": "src/pages/electrical/ElectricalSectionHierarchy.tsx",
       "line": 59,
-      "class": "runtime geometry",
-      "text": "<th style={{ textAlign: 'right' }}>Iраб, А</th>",
+      "class": "static debt",
+      "text": "style={{ textAlign: 'right' }}",
       "owner": "electrical"
     },
     {
       "file": "src/pages/electrical/ElectricalSectionHierarchy.tsx",
       "line": 60,
-      "class": "runtime geometry",
-      "text": "<th style={{ textAlign: 'right' }}>Iст, А</th>",
+      "class": "static debt",
+      "text": "style={{ textAlign: 'right' }}",
       "owner": "electrical"
     },
     {
       "file": "src/pages/electrical/ElectricalSectionHierarchy.tsx",
       "line": 67,
-      "class": "runtime geometry",
-      "text": "<td style={{ textAlign: 'right' }}>{String(sec.length_m ?? '—')}</td>",
+      "class": "static debt",
+      "text": "style={{ textAlign: 'right' }}",
       "owner": "electrical"
     },
     {
       "file": "src/pages/electrical/ElectricalSectionHierarchy.tsx",
       "line": 68,
-      "class": "runtime geometry",
-      "text": "<td style={{ textAlign: 'right' }}>{String(sec.power_w ?? '—')}</td>",
+      "class": "static debt",
+      "text": "style={{ textAlign: 'right' }}",
       "owner": "electrical"
     },
     {
       "file": "src/pages/electrical/ElectricalSectionHierarchy.tsx",
       "line": 69,
-      "class": "runtime geometry",
-      "text": "<td style={{ textAlign: 'right' }}>",
+      "class": "static debt",
+      "text": "style={{ textAlign: 'right' }}",
       "owner": "electrical"
     },
     {
       "file": "src/pages/electrical/ElectricalSectionHierarchy.tsx",
       "line": 72,
-      "class": "runtime geometry",
-      "text": "<td style={{ textAlign: 'right' }}>",
+      "class": "static debt",
+      "text": "style={{ textAlign: 'right' }}",
       "owner": "electrical"
     },
     {
@@ -3061,36 +3464,40 @@
       "file": "src/pages/electrical/ElectricalVariantTabs.tsx",
       "line": 115,
       "class": "third-party adapter",
-      "text": "<Space direction=\"vertical\" size={4} style={{ width: '100%' }}>",
-      "owner": "electrical"
+      "text": "style={{ width: '100%' }}",
+      "owner": "electrical",
+      "reason": "Ant Space style prop used for chrome geometry adapter"
     },
     {
       "file": "src/pages/electrical/ElectricalVariantTabs.tsx",
       "line": 120,
       "class": "static debt",
-      "text": "<ul style={{ margin: 0, paddingInlineStart: 20 }}>",
+      "text": "style={{ margin: 0, paddingInlineStart: 20 }}",
       "owner": "electrical"
     },
     {
       "file": "src/pages/electrical/ElectricalVariantTabs.tsx",
       "line": 132,
       "class": "third-party adapter",
-      "text": "<Space direction=\"vertical\" size={8} style={{ width: '100%' }}>",
-      "owner": "electrical"
+      "text": "style={{ width: '100%' }}",
+      "owner": "electrical",
+      "reason": "Ant Space style prop used for chrome geometry adapter"
     },
     {
       "file": "src/pages/electrical/ElectricalVariantTabs.tsx",
       "line": 399,
       "class": "third-party adapter",
-      "text": "<Space direction=\"vertical\" size={8} style={{ width: '100%' }}>",
-      "owner": "electrical"
+      "text": "style={{ width: '100%' }}",
+      "owner": "electrical",
+      "reason": "Ant Space style prop used for chrome geometry adapter"
     },
     {
       "file": "src/pages/electrical/ElectricalVariantTabs.tsx",
       "line": 472,
-      "class": "static debt",
+      "class": "third-party adapter",
       "text": "style={{ width: 200 }}",
-      "owner": "electrical"
+      "owner": "electrical",
+      "reason": "Ant Input style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/electrical/ElectricalVariantTabs.tsx",
@@ -3103,35 +3510,35 @@
       "file": "src/pages/electrical/useElecCalcCableMarkOptions.tsx",
       "line": 55,
       "class": "static debt",
-      "text": "<Tag color={tag.color} style={{ marginInlineEnd: 0 }}>{tag.label}</Tag>",
+      "text": "style={{ marginInlineEnd: 0 }}",
       "owner": "electrical"
     },
     {
       "file": "src/pages/electrical/useElecCalcElectricalColumnRenderers.tsx",
       "line": 97,
       "class": "static debt",
-      "text": "<Text style={{ fontSize: 12 }}>",
+      "text": "style={{ fontSize: 12 }}",
       "owner": "electrical"
     },
     {
       "file": "src/pages/electrical/useElecCalcElectricalColumnRenderers.tsx",
       "line": 192,
       "class": "static debt",
-      "text": "return <Text style={{ fontSize: 12 }} type=\"secondary\">—</Text>;",
+      "text": "style={{ fontSize: 12 }}",
       "owner": "electrical"
     },
     {
       "file": "src/pages/electrical/useElecCalcElectricalColumnRenderers.tsx",
       "line": 195,
       "class": "static debt",
-      "text": "<Text style={{ fontSize: 12 }}>",
+      "text": "style={{ fontSize: 12 }}",
       "owner": "electrical"
     },
     {
       "file": "src/pages/electrical/useElecCalcElectricalColumnRenderers.tsx",
       "line": 212,
       "class": "static debt",
-      "text": "<Text style={{ fontSize: 12 }} type={mark ? undefined : 'secondary'}>",
+      "text": "style={{ fontSize: 12 }}",
       "owner": "electrical"
     },
     {
@@ -3145,20 +3552,20 @@
       "file": "src/pages/electrical/useElecCalcElectricalColumnRenderers.tsx",
       "line": 273,
       "class": "static debt",
-      "text": "<Tag color={meta.color} style={{ marginInlineEnd: 0 }}>",
+      "text": "style={{ marginInlineEnd: 0 }}",
       "owner": "electrical"
     },
     {
       "file": "src/pages/electrical/useElecCalcElectricalColumnRenderers.tsx",
       "line": 313,
       "class": "static debt",
-      "text": "<Text style={{ fontSize: 12 }} type={mark ? undefined : 'secondary'}>",
+      "text": "style={{ fontSize: 12 }}",
       "owner": "electrical"
     },
     {
       "file": "src/pages/electrical/useElecCalcElectricalColumnRenderers.tsx",
       "line": 330,
-      "class": "runtime geometry",
+      "class": "static debt",
       "text": "style={{ marginInlineEnd: 0, fontSize: 10, lineHeight: '16px' }}",
       "owner": "electrical"
     },
@@ -3166,29 +3573,30 @@
       "file": "src/pages/electrical/useElecCalcElectricalColumnRenderers.tsx",
       "line": 339,
       "class": "static debt",
-      "text": "<Text style={{ fontSize: 12 }} type={mark ? undefined : 'secondary'}>",
+      "text": "style={{ fontSize: 12 }}",
       "owner": "electrical"
     },
     {
       "file": "src/pages/electrical/useElecCalcElectricalColumns.tsx",
       "line": 87,
-      "class": "runtime geometry",
+      "class": "static debt",
       "text": "style={{ pointerEvents: 'auto' }}",
       "owner": "electrical"
     },
     {
       "file": "src/pages/heatcalc/HeatCalcEmptyProjectState.tsx",
       "line": 8,
-      "class": "runtime geometry",
-      "text": "icon={<FireOutlined style={{ marginRight: 8, color: '#e06c1e' }} />}",
+      "class": "static debt",
+      "text": "style={{ marginRight: 8, color: '#e06c1e' }}",
       "owner": "heat"
     },
     {
       "file": "src/pages/heatcalc/HeatCalcWorkspaceLayout.tsx",
       "line": 79,
       "class": "third-party adapter",
-      "text": "<Space direction=\"vertical\" size={5} style={{ width: '100%' }}>",
-      "owner": "heat"
+      "text": "style={{ width: '100%' }}",
+      "owner": "heat",
+      "reason": "Ant Space style prop used for chrome geometry adapter"
     },
     {
       "file": "src/pages/heatcalc/HeatCalcWorkspaceLayout.tsx",
@@ -3200,36 +3608,36 @@
     {
       "file": "src/pages/help/AdminHelpPage.tsx",
       "line": 17,
-      "class": "runtime geometry",
-      "text": "<div style={{ minHeight: '100vh', background: '#f5f5f5', padding: '40px 24px' }}>",
+      "class": "static debt",
+      "text": "style={{ minHeight: '100vh', background: '#f5f5f5', padding: '40px 24px' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/help/AdminHelpPage.tsx",
       "line": 18,
-      "class": "runtime geometry",
-      "text": "<div style={{ maxWidth: 860, margin: '0 auto' }}>",
+      "class": "static debt",
+      "text": "style={{ maxWidth: 860, margin: '0 auto' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/help/AdminHelpPage.tsx",
       "line": 19,
       "class": "static debt",
-      "text": "<Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)} style={{ marginBottom: 24 }}>",
+      "text": "style={{ marginBottom: 24 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/help/AdminHelpPage.tsx",
       "line": 24,
-      "class": "runtime geometry",
-      "text": "<div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>",
+      "class": "static debt",
+      "text": "style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/help/AdminHelpPage.tsx",
       "line": 25,
-      "class": "runtime geometry",
-      "text": "<Title level={2} style={{ margin: 0, color: '#1a5276' }}>",
+      "class": "static debt",
+      "text": "style={{ margin: 0, color: '#1a5276' }}",
       "owner": "shared"
     },
     {
@@ -3250,112 +3658,112 @@
       "file": "src/pages/help/AdminHelpPage.tsx",
       "line": 65,
       "class": "static debt",
-      "text": "<Paragraph style={{ margin: 0 }}>Управление учётными записями сотрудников:</Paragraph>",
+      "text": "style={{ margin: 0 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/help/AdminHelpPage.tsx",
       "line": 66,
-      "class": "runtime geometry",
-      "text": "<ul style={{ margin: '8px 0 0 0' }}>",
+      "class": "static debt",
+      "text": "style={{ margin: '8px 0 0 0' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/help/AdminHelpPage.tsx",
       "line": 71,
-      "class": "runtime geometry",
-      "text": "<Paragraph type=\"secondary\" style={{ margin: '8px 0 0 0' }}>",
+      "class": "static debt",
+      "text": "style={{ margin: '8px 0 0 0' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/help/AdminHelpPage.tsx",
       "line": 83,
       "class": "static debt",
-      "text": "<Paragraph style={{ margin: 0 }}>Настройка корректирующих коэффициентов для расчётов:</Paragraph>",
+      "text": "style={{ margin: 0 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/help/AdminHelpPage.tsx",
       "line": 84,
-      "class": "runtime geometry",
-      "text": "<ul style={{ margin: '8px 0 0 0' }}>",
+      "class": "static debt",
+      "text": "style={{ margin: '8px 0 0 0' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/help/AdminHelpPage.tsx",
       "line": 87,
-      "class": "runtime geometry",
-      "text": "<Paragraph type=\"warning\" style={{ margin: '8px 0 0 0' }}>",
+      "class": "static debt",
+      "text": "style={{ margin: '8px 0 0 0' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/help/AdminHelpPage.tsx",
       "line": 99,
       "class": "static debt",
-      "text": "<Paragraph style={{ margin: 0 }}>В текущем контуре встроены 4 справочника (JSON в образе backend):</Paragraph>",
+      "text": "style={{ margin: 0 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/help/AdminHelpPage.tsx",
       "line": 100,
-      "class": "runtime geometry",
-      "text": "<ul style={{ margin: '8px 0 0 0' }}>",
+      "class": "static debt",
+      "text": "style={{ margin: '8px 0 0 0' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/help/AdminHelpPage.tsx",
       "line": 106,
-      "class": "runtime geometry",
-      "text": "<Paragraph type=\"warning\" style={{ margin: '8px 0 0 0' }}>",
+      "class": "static debt",
+      "text": "style={{ margin: '8px 0 0 0' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/help/AdminHelpPage.tsx",
       "line": 161,
-      "class": "runtime geometry",
-      "text": "<Card type=\"inner\" style={{ background: '#fff2e8' }}>",
+      "class": "static debt",
+      "text": "style={{ background: '#fff2e8' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/help/AdminHelpPage.tsx",
       "line": 162,
       "class": "static debt",
-      "text": "<Paragraph style={{ margin: 0 }}>",
+      "text": "style={{ margin: 0 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/help/EmployeeHelpPage.tsx",
       "line": 34,
-      "class": "runtime geometry",
-      "text": "<div style={{ minHeight: '100vh', background: '#f5f5f5', padding: '40px 24px' }}>",
+      "class": "static debt",
+      "text": "style={{ minHeight: '100vh', background: '#f5f5f5', padding: '40px 24px' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/help/EmployeeHelpPage.tsx",
       "line": 35,
-      "class": "runtime geometry",
-      "text": "<div style={{ maxWidth: 860, margin: '0 auto' }}>",
+      "class": "static debt",
+      "text": "style={{ maxWidth: 860, margin: '0 auto' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/help/EmployeeHelpPage.tsx",
       "line": 36,
       "class": "static debt",
-      "text": "<Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/login')} style={{ marginBottom: 24 }}>",
+      "text": "style={{ marginBottom: 24 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/help/EmployeeHelpPage.tsx",
       "line": 41,
-      "class": "runtime geometry",
-      "text": "<div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>",
+      "class": "static debt",
+      "text": "style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/help/EmployeeHelpPage.tsx",
       "line": 42,
-      "class": "runtime geometry",
-      "text": "<Title level={2} style={{ margin: 0, color: '#1a5276' }}>",
+      "class": "static debt",
+      "text": "style={{ margin: 0, color: '#1a5276' }}",
       "owner": "shared"
     },
     {
@@ -3375,78 +3783,78 @@
     {
       "file": "src/pages/help/EmployeeHelpPage.tsx",
       "line": 146,
-      "class": "runtime geometry",
-      "text": "<li>✓ <Text style={{ color: '#52c41a' }}>зелёная галочка</Text> — кабель подобран, показаны марка, длина, мощность, ток</li>",
+      "class": "static debt",
+      "text": "style={{ color: '#52c41a' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/help/EmployeeHelpPage.tsx",
       "line": 155,
       "class": "static debt",
-      "text": "<Paragraph type=\"secondary\" style={{ marginBottom: 6 }}>",
+      "text": "style={{ marginBottom: 6 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/help/EmployeeHelpPage.tsx",
       "line": 158,
       "class": "static debt",
-      "text": "<Paragraph type=\"secondary\" style={{ fontSize: 13 }}>",
+      "text": "style={{ fontSize: 13 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/help/EmployeeHelpPage.tsx",
       "line": 169,
       "class": "static debt",
-      "text": "<Paragraph type=\"secondary\" style={{ fontSize: 13 }}>",
+      "text": "style={{ fontSize: 13 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/help/EmployeeHelpPage.tsx",
       "line": 201,
-      "class": "runtime geometry",
-      "text": "<Card type=\"inner\" style={{ background: '#f6ffed' }}>",
+      "class": "static debt",
+      "text": "style={{ background: '#f6ffed' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/help/EmployeeHelpPage.tsx",
       "line": 202,
       "class": "static debt",
-      "text": "<Paragraph style={{ margin: 0 }}>",
+      "text": "style={{ margin: 0 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/help/GuestHelpPage.tsx",
       "line": 20,
-      "class": "runtime geometry",
-      "text": "<div style={{ minHeight: '100vh', background: '#f5f5f5', padding: '40px 24px' }}>",
+      "class": "static debt",
+      "text": "style={{ minHeight: '100vh', background: '#f5f5f5', padding: '40px 24px' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/help/GuestHelpPage.tsx",
       "line": 21,
-      "class": "runtime geometry",
-      "text": "<div style={{ maxWidth: 820, margin: '0 auto' }}>",
+      "class": "static debt",
+      "text": "style={{ maxWidth: 820, margin: '0 auto' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/help/GuestHelpPage.tsx",
       "line": 22,
       "class": "static debt",
-      "text": "<Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/')} style={{ marginBottom: 24 }}>",
+      "text": "style={{ marginBottom: 24 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/help/GuestHelpPage.tsx",
       "line": 27,
-      "class": "runtime geometry",
-      "text": "<div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>",
+      "class": "static debt",
+      "text": "style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/help/GuestHelpPage.tsx",
       "line": 28,
-      "class": "runtime geometry",
-      "text": "<Title level={2} style={{ margin: 0, color: '#1a5276' }}>",
+      "class": "static debt",
+      "text": "style={{ margin: 0, color: '#1a5276' }}",
       "owner": "shared"
     },
     {
@@ -3460,7 +3868,7 @@
       "file": "src/pages/help/GuestHelpPage.tsx",
       "line": 62,
       "class": "static debt",
-      "text": "<Paragraph type=\"secondary\" style={{ marginBottom: 8 }}>",
+      "text": "style={{ marginBottom: 8 }}",
       "owner": "shared"
     },
     {
@@ -3480,8 +3888,8 @@
     {
       "file": "src/pages/help/GuestHelpPage.tsx",
       "line": 135,
-      "class": "runtime geometry",
-      "text": "<UploadOutlined style={{ marginRight: 6, color: '#1890ff' }} />",
+      "class": "static debt",
+      "text": "style={{ marginRight: 6, color: '#1890ff' }}",
       "owner": "shared"
     },
     {
@@ -3494,56 +3902,57 @@
     {
       "file": "src/pages/help/GuestHelpPage.tsx",
       "line": 158,
-      "class": "runtime geometry",
-      "text": "<UnorderedListOutlined style={{ marginRight: 6, color: '#1890ff' }} />",
+      "class": "static debt",
+      "text": "style={{ marginRight: 6, color: '#1890ff' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/help/GuestHelpPage.tsx",
       "line": 190,
       "class": "static debt",
-      "text": "<Paragraph type=\"secondary\" style={{ marginBottom: 10 }}>",
+      "text": "style={{ marginBottom: 10 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/help/GuestHelpPage.tsx",
       "line": 208,
-      "class": "runtime geometry",
-      "text": "<Card type=\"inner\" style={{ background: '#e8f4fd' }}>",
+      "class": "static debt",
+      "text": "style={{ background: '#e8f4fd' }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/help/GuestHelpPage.tsx",
       "line": 209,
       "class": "static debt",
-      "text": "<Paragraph style={{ margin: 0 }}>",
+      "text": "style={{ margin: 0 }}",
       "owner": "shared"
     },
     {
       "file": "src/pages/specification/SpecPageChrome.tsx",
       "line": 131,
-      "class": "runtime geometry",
-      "text": "<Text type=\"secondary\" style={{ display: 'block', fontSize: 12, margin: '6px 0 10px' }}>",
+      "class": "static debt",
+      "text": "style={{ display: 'block', fontSize: 12, margin: '6px 0 10px' }}",
       "owner": "specification"
     },
     {
       "file": "src/pages/specification/SpecPageChrome.tsx",
       "line": 145,
-      "class": "runtime geometry",
+      "class": "third-party adapter",
       "text": "style={{ minWidth: 220, width: '100%' }}",
-      "owner": "specification"
+      "owner": "specification",
+      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/specification/SpecPageChrome.tsx",
       "line": 156,
       "class": "static debt",
-      "text": "<div style={{ marginTop: 8 }}>",
+      "text": "style={{ marginTop: 8 }}",
       "owner": "specification"
     },
     {
       "file": "src/pages/specification/SpecPageChrome.tsx",
       "line": 181,
-      "class": "runtime geometry",
+      "class": "static debt",
       "text": "style={{ width: '100%' }}",
       "owner": "specification"
     },
@@ -3551,13 +3960,14 @@
       "file": "src/pages/specification/SpecPageChrome.tsx",
       "line": 205,
       "class": "third-party adapter",
-      "text": "<Space direction=\"vertical\" size={6} style={{ marginTop: 10, width: '100%' }}>",
-      "owner": "specification"
+      "text": "style={{ marginTop: 10, width: '100%' }}",
+      "owner": "specification",
+      "reason": "Ant Space style prop used for chrome geometry adapter"
     },
     {
       "file": "src/pages/specification/SpecPageChrome.tsx",
       "line": 248,
-      "class": "runtime geometry",
+      "class": "static debt",
       "text": "style={{ width: '100%' }}",
       "owner": "specification"
     },
@@ -3565,14 +3975,14 @@
       "file": "src/pages/specification/SpecPageChrome.tsx",
       "line": 258,
       "class": "static debt",
-      "text": "<div style={{ marginTop: 10 }}>",
+      "text": "style={{ marginTop: 10 }}",
       "owner": "specification"
     },
     {
       "file": "src/pages/specification/SpecPageChrome.tsx",
       "line": 259,
-      "class": "runtime geometry",
-      "text": "<Text style={{ fontSize: 12, color: '#888' }}>Группировка</Text>",
+      "class": "static debt",
+      "text": "style={{ fontSize: 12, color: '#888' }}",
       "owner": "specification"
     },
     {
@@ -3593,70 +4003,74 @@
       "file": "src/pages/specification/SpecPageChrome.tsx",
       "line": 282,
       "class": "static debt",
-      "text": "style={{",
+      "text": "style={{ marginTop: 12, padding: '8px 10px', background: '#f6f8fa', borderRadius: 6, border: '1px solid #e8e8e8', }}",
       "owner": "specification"
     },
     {
       "file": "src/pages/specification/SpecPageChrome.tsx",
       "line": 290,
-      "class": "runtime geometry",
-      "text": "<Text style={{ fontSize: 12, display: 'block' }}>",
+      "class": "static debt",
+      "text": "style={{ fontSize: 12, display: 'block' }}",
       "owner": "specification"
     },
     {
       "file": "src/pages/specification/SpecPageChrome.tsx",
       "line": 296,
-      "class": "runtime geometry",
-      "text": "<Text style={{ fontSize: 11, color: '#888', display: 'block', marginTop: 4 }}>",
+      "class": "static debt",
+      "text": "style={{ fontSize: 11, color: '#888', display: 'block', marginTop: 4 }}",
       "owner": "specification"
     },
     {
       "file": "src/pages/specification/SpecPageChrome.tsx",
       "line": 307,
       "class": "third-party adapter",
-      "text": "<Space direction=\"vertical\" style={{ width: '100%' }} size={8}>",
-      "owner": "specification"
+      "text": "style={{ width: '100%' }}",
+      "owner": "specification",
+      "reason": "Ant Space style prop used for chrome geometry adapter"
     },
     {
       "file": "src/pages/specification/SpecPageChrome.tsx",
       "line": 358,
       "class": "third-party adapter",
-      "text": "<Space direction=\"vertical\" style={{ width: '100%' }}>",
-      "owner": "specification"
+      "text": "style={{ width: '100%' }}",
+      "owner": "specification",
+      "reason": "Ant Space style prop used for chrome geometry adapter"
     },
     {
       "file": "src/pages/specification/SpecPageChrome.tsx",
       "line": 364,
-      "class": "runtime geometry",
+      "class": "third-party adapter",
       "text": "style={{ width: '100%' }}",
-      "owner": "specification"
+      "owner": "specification",
+      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/specification/SpecPageChrome.tsx",
       "line": 376,
-      "class": "runtime geometry",
+      "class": "third-party adapter",
       "text": "style={{ width: '100%' }}",
-      "owner": "specification"
+      "owner": "specification",
+      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/pages/specification/SpecPageChrome.tsx",
       "line": 379,
       "class": "static debt",
-      "text": "<Text type=\"secondary\" style={{ fontSize: 12 }}>",
+      "text": "style={{ fontSize: 12 }}",
       "owner": "specification"
     },
     {
       "file": "src/pages/specification/SpecPageChrome.tsx",
       "line": 397,
-      "class": "runtime geometry",
-      "text": "<pre style={{ whiteSpace: 'pre-wrap', margin: 0, fontFamily: 'inherit' }}>",
+      "class": "static debt",
+      "text": "style={{ whiteSpace: 'pre-wrap', margin: 0, fontFamily: 'inherit' }}",
       "owner": "specification"
     },
     {
       "file": "src/pages/specification/SpecificationPage.tsx",
       "line": 101,
       "class": "static debt",
-      "text": "icon={<UnorderedListOutlined style={{ marginRight: 8 }} />}",
+      "text": "style={{ marginRight: 8 }}",
       "owner": "specification"
     },
     {
@@ -3670,7 +4084,7 @@
       "file": "src/pages/specification/SpecificationPage.tsx",
       "line": 200,
       "class": "static debt",
-      "text": "<Text type=\"secondary\" style={{ fontSize: 12 }}>",
+      "text": "style={{ fontSize: 12 }}",
       "owner": "specification"
     },
     {
@@ -3682,16 +4096,16 @@
     },
     {
       "file": "src/pages/specification/SpecificationPage.tsx",
-      "line": 254,
-      "class": "runtime geometry",
-      "text": "<ul style={{ margin: '8px 0 0', paddingLeft: 18 }}>",
+      "line": 265,
+      "class": "static debt",
+      "text": "style={{ marginBottom: 12 }}",
       "owner": "specification"
     },
     {
       "file": "src/pages/specification/SpecificationPage.tsx",
-      "line": 265,
+      "line": 254,
       "class": "static debt",
-      "text": "style={{ marginBottom: 12 }}",
+      "text": "style={{ margin: '8px 0 0', paddingLeft: 18 }}",
       "owner": "specification"
     },
     {

@@ -7,7 +7,7 @@
  * - pages/electrical ✗→ pages/heatcalc
  * - components/** may only import pages/** from an allowlist (legacy inverted deps)
  *
- * See: docs/frontend/README.md, docs/frontend/rewrite-plan.md
+ * See: docs/frontend/README.md, docs/frontend/agent-development-standard.md
  */
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';

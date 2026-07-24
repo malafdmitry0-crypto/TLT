@@ -6,11 +6,12 @@
  *
  * Single system-filtered objects table (Glide or antd) + selection footer.
  */
-import { Suspense, type ReactNode } from 'react';
+import { lazy, Suspense, type ReactNode } from 'react';
 import { Alert, Button, Card, Table, Typography } from 'antd';
 import { ThunderboltOutlined } from '@ant-design/icons';
 import type { ColumnsType, TableProps } from 'antd/es/table';
 
+import type { ElectricalGlideGridProps } from '@/components/electrical/ElectricalGlideGrid';
 import type { ElectricalCalcSummary, ElectricalQueryAssignment } from '@/types/calculation';
 import type { ProjectObject } from '@/types/project';
 import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
@@ -25,37 +26,40 @@ import { ROUTES } from '@/routes/routes';
 
 const { Text } = Typography;
 
+/** Owns Glide code-split so the workspace shell does not inject a loosely typed component. */
+const ElectricalGlideGrid = lazy(() => import('@/components/electrical/ElectricalGlideGrid'));
+
 export type ElectricalUnifiedTableCardProps = {
   electricalPageLoaded: boolean;
   totalObjects: number;
   electricalGlideEnabled: boolean;
   scopedObjects: ProjectObject[];
-  electricalGlideColumns: unknown;
-  electricalTableScrollX: number | string;
-  electricalTableScrollY: number | string;
+  electricalGlideColumns: ElectricalGlideGridProps['gridColumns'];
+  electricalTableScrollX: ElectricalGlideGridProps['tableScrollX'];
+  electricalTableScrollY: ElectricalGlideGridProps['tableScrollY'];
   fontSizeKey: string;
   activeRowId: string | null;
   systemView: ElectricalSystemView;
   selectedRowKeys: string[];
   compatibleSelectedRowKeys: string[];
-  tableViewState: unknown;
+  tableViewState: ElectricalGlideGridProps['tableViewState'];
   electricalPagination: TableProps<ProjectObject>['pagination'];
-  electricalInfiniteLoading: boolean | null | unknown;
+  electricalInfiniteLoading: ElectricalGlideGridProps['infiniteLoading'];
   currentTableViewActive: boolean;
-  electricalRowClassName: (obj: ProjectObject, index: number) => string;
-  getElectricalGlideCellState: (...args: never[]) => unknown;
+  electricalRowClassName: (obj: ProjectObject) => string;
+  getElectricalGlideCellState: ElectricalGlideGridProps['getCellState'];
   openElectricalRow: (obj: ProjectObject) => void;
   handleAssignmentAwareSelectionChange: (keys: string[]) => void;
-  setColumnFilter: (...args: never[]) => void;
-  resetColumnFilter: (...args: never[]) => void;
-  setElectricalTableSort: (...args: never[]) => void;
-  applyElectricalGlideColumnDraftWidth: (...args: never[]) => void;
-  commitElectricalGlideColumnWidth: (...args: never[]) => void;
-  handleElectricalGlidePageChange: (...args: never[]) => void;
-  handleElectricalGlideLoadMore: (...args: never[]) => void;
-  handleElectricalGlideCellAction: (...args: never[]) => void;
-  handleElectricalGlideStartCellEdit: (...args: never[]) => void;
-  handleElectricalGlideCommitCell: (...args: never[]) => void;
+  setColumnFilter: ElectricalGlideGridProps['onSetColumnFilter'];
+  resetColumnFilter: ElectricalGlideGridProps['onResetColumnFilter'];
+  setElectricalTableSort: ElectricalGlideGridProps['onSetSort'];
+  applyElectricalGlideColumnDraftWidth: NonNullable<ElectricalGlideGridProps['onColumnResize']>;
+  commitElectricalGlideColumnWidth: NonNullable<ElectricalGlideGridProps['onColumnResizeEnd']>;
+  handleElectricalGlidePageChange: ElectricalGlideGridProps['onPageChange'];
+  handleElectricalGlideLoadMore: ElectricalGlideGridProps['onLoadMore'];
+  handleElectricalGlideCellAction: NonNullable<ElectricalGlideGridProps['onCellAction']>;
+  handleElectricalGlideStartCellEdit: NonNullable<ElectricalGlideGridProps['onStartCellEdit']>;
+  handleElectricalGlideCommitCell: NonNullable<ElectricalGlideGridProps['onCommitCell']>;
   isElectricalPageFetching: boolean;
   handleElectricalTableChange: TableProps<ProjectObject>['onChange'];
   canMutate: boolean;
@@ -69,7 +73,6 @@ export type ElectricalUnifiedTableCardProps = {
   calculatedCount: number;
   resetCurrentTableViewState: () => void;
   navigate: (path: string) => void;
-  ElectricalGlideGrid: React.ComponentType<Record<string, unknown>>;
 };
 
 export function ElectricalUnifiedTableCard(props: ElectricalUnifiedTableCardProps): ReactNode {
@@ -117,7 +120,6 @@ export function ElectricalUnifiedTableCard(props: ElectricalUnifiedTableCardProp
     calculatedCount,
     resetCurrentTableViewState,
     navigate,
-    ElectricalGlideGrid,
   } = props;
 
   const effectiveSelectedKeys = systemView === 'unassigned'

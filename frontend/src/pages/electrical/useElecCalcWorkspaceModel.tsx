@@ -3,6 +3,7 @@
  * @owner electrical
  * Orchestration bag for ElecCalcWorkspace.
  * Data plane (queries/selection/batch): useElecCalcWorkspaceDataPlane.
+ * Column preferences / table view / settings draft: useElecCalcWorkspaceColumnSettingsController.
  */
 import {
   useEffect,
@@ -24,25 +25,20 @@ import {
 import type { ElectricalVariant } from '@/types/electricalVariant';
 import { useElecCalcObjectActionModals } from '@/pages/electrical/useElecCalcObjectActionModals';
 import { useElecCalcCableTypeOptions } from '@/pages/electrical/useElecCalcCableTypeOptions';
-import { useElecCalcParamsPanelState } from '@/pages/electrical/useElecCalcParamsPanelState';
 import { useElecCalcCableMarkPresentation } from '@/pages/electrical/useElecCalcCableMarkPresentation';
 import { useElecCalcBootViewState } from '@/pages/electrical/useElecCalcBootViewState';
 import { useElecCalcCableMarkModalState } from '@/pages/electrical/useElecCalcCableMarkModalState';
 import { useElecCalcCandidateWorkflowController } from '@/pages/electrical/useElecCalcCandidateWorkflowController';
 import { useElecCalcCableSelectionMutationFlow } from '@/pages/electrical/useElecCalcCableSelectionMutationFlow';
-import { useElecCalcColumnPersistence } from '@/pages/electrical/useElecCalcColumnPersistence';
-import { useElecCalcColumnSettingsDraftState } from '@/pages/electrical/useElecCalcColumnSettingsDraftState';
-import { useElecCalcColumnViewModel } from '@/pages/electrical/useElecCalcColumnViewModel';
 import { useElecCalcFilterOptions } from '@/pages/electrical/useElecCalcFilterOptions';
 import { useElecCalcMainTableController } from '@/pages/electrical/useElecCalcMainTableController';
 import { useElecCalcPaginationState } from '@/pages/electrical/useElecCalcPaginationState';
+import { useElecCalcWorkspaceColumnSettingsController } from '@/pages/electrical/useElecCalcWorkspaceColumnSettingsController';
 import { useElecCalcWorkspaceDataPlane } from '@/pages/electrical/useElecCalcWorkspaceDataPlane';
 import { mapWorkspaceToPresentation } from '@/pages/electrical/elecCalcWorkspacePresentationMap';
 import { useElecCalcWorkspacePresentationAssembly } from '@/pages/electrical/useElecCalcWorkspacePresentationAssembly';
 import { useElecCalcWorkspaceSummaryChrome } from '@/pages/electrical/useElecCalcWorkspaceSummaryChrome';
-import { useElecCalcPreferenceSettings } from '@/pages/electrical/useElecCalcPreferenceSettings';
 import { useElecCalcRecalculationParams } from '@/pages/electrical/useElecCalcRecalculationParams';
-import { useElecCalcTableViewState } from '@/pages/electrical/useElecCalcTableViewState';
 import {
   type ElectricalBatchJobCompletion,
   type RegisterElectricalBatchJob,
@@ -106,37 +102,23 @@ export function useElecCalcWorkspaceModel({
     rememberNextCursor,
     loadNextElectricalGlidePage,
   } = useElecCalcPaginationState();
-  const [columnSettingsOpen, setColumnSettingsOpen] = useState(false);
-  const [candidateColumnSettingsOpen, setCandidateColumnSettingsOpen] = useState(false);
-  const {
-    tableColumnSettings,
-    setTableColumnSettings,
-    candidateTableColumnSettings,
-    setCandidateTableColumnSettings,
-    tableViewSettings,
-    setTableViewSettings,
-    updateTableColumnPreference,
-    updateCandidateTableColumnPreference,
-    updateTableSettingsPreference,
-  } = useElecCalcPreferenceSettings({
+
+  const columnSettings = useElecCalcWorkspaceColumnSettingsController({
     isRegisteredUser,
     registeredUserId,
-    setColumnSettingsOpen,
-    setCandidateColumnSettingsOpen,
+    isEmployee,
+    resetElectricalTablePage: resetTablePage,
   });
   const {
+    columnSettingsOpen,
+    setColumnSettingsOpen,
+    candidateColumnSettingsOpen,
+    setCandidateColumnSettingsOpen,
+    tableViewSettings,
     normalizedTableViewSettings,
     visibleElectricalColumnMetas,
     visibleCandidateColumnMetas,
     resolvedTableFontSize,
-    visibleElectricalColumnKeys,
-    visibleCandidateColumnKeys,
-  } = useElecCalcColumnViewModel({
-    tableColumnSettings,
-    candidateTableColumnSettings,
-    tableViewSettings,
-  });
-  const {
     tableViewState,
     candidateTableViewState,
     setTableViewState,
@@ -150,17 +132,20 @@ export function useElecCalcWorkspaceModel({
     resetCandidateColumnFilter,
     resetCandidateTableViewState,
     setCandidateTableSort,
-  } = useElecCalcTableViewState({
-    visibleElectricalColumnKeys,
-    visibleCandidateColumnKeys,
-    resetElectricalTablePage: resetTablePage,
-  });
+    paramsPanelVisible,
+    toggleParamsPanel,
+    columnPersistence,
+    columnDraft,
+    updateTableColumnPreference,
+    updateCandidateTableColumnPreference,
+    updateTableSettingsPreference,
+  } = columnSettings;
+
   const cableSource: CableSource = isEmployee
     ? tableViewSettings.calculationCableSource
     : 'builtin';
   const effectiveSource: CableSource = commercialFeaturesAvailable ? cableSource : 'builtin';
   const [overwriteManualChoices, setOverwriteManualChoices] = useState(false);
-  const { paramsPanelVisible, toggleParamsPanel } = useElecCalcParamsPanelState();
   const tableScrollRegionsRef = useRef<HTMLDivElement>(null);
   useFocusableTableScrollRegions(
     tableScrollRegionsRef,
@@ -288,32 +273,6 @@ export function useElecCalcWorkspaceModel({
     cableSizingCandidates: candidate.cableSizingCandidates,
     visibleCandidateColumnMetas,
     candidateColumnValueAccessors: candidate.candidateColumnValueAccessors,
-  });
-
-  const columnPersistence = useElecCalcColumnPersistence({
-    tableColumnSettings,
-    candidateTableColumnSettings,
-    isRegisteredUser,
-    registeredUserId,
-    setTableColumnSettings,
-    setCandidateTableColumnSettings,
-    setTableViewSettings,
-    setColumnSettingsOpen,
-    setCandidateColumnSettingsOpen,
-    updateTableColumnPreference: updateTableColumnPreference.mutate,
-    updateCandidateTableColumnPreference: updateCandidateTableColumnPreference.mutate,
-    updateTableSettingsPreference: updateTableSettingsPreference.mutate,
-  });
-
-  const columnDraft = useElecCalcColumnSettingsDraftState({
-    tableColumnSettings,
-    candidateTableColumnSettings,
-    tableViewSettings,
-    isEmployee,
-    setColumnSettingsOpen,
-    setCandidateColumnSettingsOpen,
-    persistTableSettings: columnPersistence.persistTableSettings,
-    persistCandidateTableColumnSettings: columnPersistence.persistCandidateTableColumnSettings,
   });
 
   const mainTable = useElecCalcMainTableController({

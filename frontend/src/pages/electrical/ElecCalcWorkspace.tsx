@@ -1,7 +1,6 @@
 /**
  * ElecCalc workspace view shell — orchestration in useElecCalcWorkspaceModel.
  */
-import { lazy } from 'react';
 import { Alert, Space } from 'antd';
 import { ThunderboltOutlined } from '@ant-design/icons';
 
@@ -19,8 +18,6 @@ import {
 } from '@/pages/electrical/useElecCalcWorkspaceModel';
 import './elec-workspace-summary.css';
 import './elec-workspace.css';
-
-const ElectricalGlideGrid = lazy(() => import('@/components/electrical/ElectricalGlideGrid'));
 
 export type { ElecCalcWorkspaceProps };
 
@@ -157,19 +154,19 @@ export function ElecCalcWorkspace(props: ElecCalcWorkspaceProps) {
             electricalInfiniteLoading={m.electricalInfiniteLoading}
             currentTableViewActive={m.currentTableViewActive}
             electricalRowClassName={m.electricalRowClassName}
-            getElectricalGlideCellState={m.getElectricalGlideCellState as never}
+            getElectricalGlideCellState={m.getElectricalGlideCellState}
             openElectricalRow={m.openElectricalRow}
             handleAssignmentAwareSelectionChange={m.handleAssignmentAwareSelectionChange}
-            setColumnFilter={m.setColumnFilter as never}
-            resetColumnFilter={m.resetColumnFilter as never}
-            setElectricalTableSort={m.setElectricalTableSort as never}
-            applyElectricalGlideColumnDraftWidth={m.applyElectricalGlideColumnDraftWidth as never}
-            commitElectricalGlideColumnWidth={m.commitElectricalGlideColumnWidth as never}
-            handleElectricalGlidePageChange={m.handleElectricalGlidePageChange as never}
-            handleElectricalGlideLoadMore={m.handleElectricalGlideLoadMore as never}
-            handleElectricalGlideCellAction={m.handleElectricalGlideCellAction as never}
-            handleElectricalGlideStartCellEdit={m.handleElectricalGlideStartCellEdit as never}
-            handleElectricalGlideCommitCell={m.handleElectricalGlideCommitCell as never}
+            setColumnFilter={m.setColumnFilter}
+            resetColumnFilter={m.resetColumnFilter}
+            setElectricalTableSort={m.setElectricalTableSort}
+            applyElectricalGlideColumnDraftWidth={m.applyElectricalGlideColumnDraftWidth}
+            commitElectricalGlideColumnWidth={m.commitElectricalGlideColumnWidth}
+            handleElectricalGlidePageChange={m.handleElectricalGlidePageChange}
+            handleElectricalGlideLoadMore={m.handleElectricalGlideLoadMore}
+            handleElectricalGlideCellAction={m.handleElectricalGlideCellAction}
+            handleElectricalGlideStartCellEdit={m.handleElectricalGlideStartCellEdit}
+            handleElectricalGlideCommitCell={m.handleElectricalGlideCommitCell}
             isElectricalPageFetching={m.isElectricalPageFetching}
             handleElectricalTableChange={m.handleElectricalTableChange}
             canMutate={canMutate}
@@ -183,7 +180,6 @@ export function ElecCalcWorkspace(props: ElecCalcWorkspaceProps) {
             calculatedCount={m.calculatedCount}
             resetCurrentTableViewState={m.resetCurrentTableViewState}
             navigate={m.navigate}
-            ElectricalGlideGrid={ElectricalGlideGrid as never}
           />
         </Space>
       </div>

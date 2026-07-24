@@ -10,7 +10,7 @@
  *
  * Decrease always allowed without editing baseline.
  * Errors: CODE, FILE, SELECTOR/METRIC, FIX
- * See: docs/frontend/agent-hardening-plan.md §G4
+ * See: docs/frontend/css-strategy.md, docs/frontend/archive/README.md
  */
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';

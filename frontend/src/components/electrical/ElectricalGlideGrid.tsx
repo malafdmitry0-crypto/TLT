@@ -14,7 +14,7 @@ import type {
   HeatCalcTableViewState,
 } from '@/utils/heatCalcTableFindability';
 
-interface ElectricalGlideGridProps {
+export type ElectricalGlideGridProps = {
   rows: ProjectObject[];
   gridColumns: HeatCalcGlideGridColumn[];
   tableScrollX: number;
@@ -44,7 +44,7 @@ interface ElectricalGlideGridProps {
   onCellAction?: (record: ProjectObject, columnKey: string, actionKey: string) => void;
   onStartCellEdit?: (record: ProjectObject, columnKey: string) => void;
   onCommitCell?: (record: ProjectObject, columnKey: string, value: unknown) => string | null;
-}
+};
 
 function ElectricalGlideGrid({
   rows,

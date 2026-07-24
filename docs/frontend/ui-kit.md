@@ -1,124 +1,130 @@
-# UI Kit: что есть и нужен ли layout kit
+# UI Kit и контракт раскладки форм
 
-**Актуально на:** 2026-07-23
+**Актуально на:** 2026-07-24
 
-> Тематический справочник. Обязательные workflow, budget, proof и hard stops:
-> [agent-development-standard.md](./agent-development-standard.md).
+**Статус:** архитектурная политика UI-kit и новых/изменяемых form layouts.
 
-## UI kit уже есть
+> Общий workflow, budget, proof и hard stops:
+> [agent-development-standard.md](./agent-development-standard.md). Фактический
+> public API, Storybook-команды, токены и работающие примеры:
+> [`components/ui-kit/README`](../../frontend/src/components/ui-kit/README.md).
 
-### Путь
+## Граница UI-kit
 
-```text
-frontend/src/components/ui-kit/
-  CompactField.tsx
-  CompactFieldGrid.tsx
-  CompactUi.tsx
-  UiPrimitives.tsx
-  compact-fields.css
-  primitives.css
-  index.ts          # public API
-  README.md
-  *.stories.tsx     # Storybook (UI-kit only)
-```
+UI-kit — feature-agnostic слой представления. Публичные компоненты импортируются
+только через `@/components/ui-kit`; сам kit не импортирует feature, domain,
+store, API или бизнес-валидацию.
 
-### Storybook
+В runtime уже существуют `CompactField`, `CompactFieldGrid`, Tlt form controls
+и CSS-first primitives. Этот документ не дублирует их список, props и
+пиксельные значения: источником текущего API является README рядом с кодом.
 
-```bash
-cd frontend
-npm run storybook          # http://127.0.0.1:6006
-npm run build-storybook    # → storybook-static/
-```
+UI-kit владеет повторяемой анатомией и поведением контрола. Он не владеет
+Heat/Electrical/Specification workflow и не превращает feature-формы в
+универсальную schema-driven систему.
 
-Preview: `tokens.css` + `StyleProvider hashPriority="low"` + `ConfigProvider`/`appTheme`.
-Только public kit; feature Heat/Elec/Spec stories — отдельные slices.
+## Контракт раскладки форм
 
-### Public API (import only from barrel)
+Контракт ниже обязателен для нового form layout и для legacy-секции, которую
+изменяют или мигрируют. Он является целевым направлением, а не утверждением, что
+каждая существующая форма уже ему соответствует.
 
-```ts
-import {
-  CompactField,
-  CompactFieldGrid,
-  TltNumberField,
-  TltSelect,
-  TltTextField,
-  TltButton,
-  TltBadge,
-  TltAlert,
-  TltCard,
-  TltEmptyState,
-  TltSkeleton,
-  TltTable,
-  TltTabs,
-} from '@/components/ui-kit';
-```
+### Ownership
 
-- **Поля:** CompactField / Grid + Tlt* (Tlt* живут в `form-controls/`, re-export)
-- **Примитивы:** Button, Badge, Alert, Card, Empty, Skeleton, Table, Tabs
-- **Витрина:** `/ui-kit` → `pages/UIKitPage.tsx`
-- **Тесты:** unit UIKitLibrary, integration UIKitPage, e2e `ui-kit-heatcalc-parity`
+| Уровень | Владеет | Не владеет |
+|---|---|---|
+| Workspace / page shell | размещение панели, доступная область, resizing и page overflow | координаты отдельных полей |
+| Feature form | секции, DOM-порядок, видимость, значения и бизнес-валидация | внутренний chrome переиспользуемого контрола |
+| Form section / grid | поток slots, gaps и reflow по доступной ширине | знание API, store или формул |
+| `CompactField` | label, control, required, hint, error и accessible association | положение поля среди соседей |
+| Tlt control | интерактивное поведение, intrinsic chrome и состояния | layout секции или workspace |
 
-### Контракт плотности (SC-03 / Heat dual-form)
+### Инварианты
 
-| Token / metric | Value |
-|---|---|
-| control height | 26px |
-| label / control / select / unit | 8.5 / 12 / 9 / 9 px |
-| label track | 98px |
-| num / name / climate / tm | 4rem / 7.5rem / 8.75rem / 8rem |
-| radius | 2px |
-| column / row gap | 10px / 4px |
-| reflow | max 5 fields per column |
+- DOM-порядок полей одновременно задаёт визуальный порядок и keyboard tab order.
+- Добавление, удаление или перемещение поля меняет feature-композицию, но не
+  требует новой CSS-координаты.
+- Скрытый slot полностью выходит из потока и не оставляет зарезервированную
+  ячейку.
+- Hint, validation error и длинный label могут увеличивать собственную ячейку,
+  но не перекрывают и не обрезают соседние controls.
+- Layout секции реагирует на реально доступную ширину своего контейнера.
+  Разрешение монитора и browser viewport используются для внешнего proof, но не
+  подменяют ширину вложенной панели.
+- Feature может передать CSS custom property для intrinsic-размера конкретного
+  контрола. Такая переменная не может задавать slot position, визуальный порядок
+  или компенсировать чужой layout.
+- Visual reordering, не совпадающий с DOM, допустим только как отдельное
+  accessibility-решение с keyboard и screen-reader proof; для обычных форм он
+  запрещён.
 
-Токены: `--tlt-field-*`.
+CSS-механика, запрещённые selector patterns и правила миграции находятся в
+[css-strategy.md](./css-strategy.md). Мониторы, CSS viewport и обязательные
+browser profiles находятся в
+[viewport-policy.md](./viewport-policy.md).
 
-### Чего ещё нет
+## Container width и thresholds
 
-- Полный design system на **все** экраны (Heat/Elec runtime частично на Ant Form + islands)
-- Layout kit (и не обязателен как большая библиотека)
-- Полный отказ от `form-controls/` path (implementation detail)
+Form layout должен ориентироваться на containing block, когда одна и та же
+форма может находиться сверху, снизу или в resizable side pane. Viewport media
+query не используется как косвенная оценка ширины такой панели.
 
-## Поможет ли kit рефакторингу?
+Канонические container thresholds пока не установлены. Нельзя придумывать и
+распространять значения `compact/wide` только из названий viewport-профилей.
+Первый threshold вводится отдельным architecture-slice:
 
-**Да** для: форм, токенов, CSS drift, скорости UI, онбординга агентов.  
-**Нет** (сам по себе) для: ElecCalc god-shell, ER/batch, Excel drafts, Spec flat structure.
+1. characterization текущих поддерживаемых состояний;
+2. измерение фактической ширины контейнера в каждом placement;
+3. централизованный именованный контракт;
+4. geometry proof непосредственно до и после границы.
 
-Оценка: kit закрывает **~20–30%** фронтового долга (UI/CSS), не 70% (orchestration).
+После появления такого контракта числовые значения документируются здесь один
+раз; `viewport-policy.md` их не дублирует.
 
-### Условия окупаемости
+## Нужен ли отдельный Layout Kit
 
-1. Один public API `@/components/ui-kit`
-2. Реальный Heat form strangler, не только showcase
-3. Parity e2e в CI
-4. Freeze styles.css
-5. Не тащить domain в kit
-
-## Нужен ли kit лейаутов?
-
-**Отдельный большой Layout Kit — нет.**
-
-Нужен **тонкий** layer:
+Большой универсальный Layout Kit сейчас не нужен. Действующая граница:
 
 ```text
-AppShell (MainLayout)
-layout tokens (--layout-*)
-PageBody / ToolbarRow (если реально дублируется)
+AppShell / workspace          → application и feature chrome
+CompactField / controls       → повторяемая анатомия поля
+CompactFieldGrid              → существующий form-grid primitive
+feature composition           → секции, порядок и видимость
 ```
 
-**Не** универсальный Page template на 10 variants.  
-Heat dual-form / Elec assignment — **feature layouts**, не design-system layouts.
+Новый shared layout primitive допустим, только если:
 
-### ROI
+1. существующего `CompactFieldGrid` доказанно недостаточно;
+2. один и тот же независимый контракт повторяется минимум в двух feature
+   layouts;
+3. API не содержит domain field names и не переносит state/validation в kit;
+4. adoption удаляет больше feature-specific geometry, чем добавляет shared
+   abstraction.
 
-| Идея | Делать? |
-|---|---|
-| Form/control kit | да (есть) |
-| Layout tokens + AppShell cleanup | да |
-| ToolbarRow / PageBody (2–3 шт) | по факту дубля |
-| Полный Layout Kit | **нет** сейчас |
+`PageBody` или `ToolbarRow` также вводятся только после доказанного повторения.
+Универсальный Page template с вариантами для всех экранов не является целью.
 
-## Стратегия дальше
+## Proof form-layout slice
 
-```text
-Form kit (есть) → strangler на Heat → thin shells → optional thin layout chrome
-```
+Помимо viewport-профилей из общей политики, form-layout proof покрывает:
+
+- исходный порядок, reorder, add/remove и условно скрытое поле;
+- required, hint, validation error, disabled и длинный label;
+- все затронутые workspace placements и крайние размеры resizable container;
+- отсутствие overlap, clipping, page-level overflow и пустых grid holes;
+- совпадение DOM, визуального порядка, keyboard focus и accessible names;
+- geometry непосредственно по обе стороны каждого изменяемого container
+  threshold.
+
+Полные pixel snapshots используются только для стабильного UI-kit visual
+contract. Для feature layout предпочтительны geometry assertions и
+state-driven Playwright proof.
+
+## Не делать
+
+- schema-driven form DSL «на будущее»;
+- второй form kit рядом с `CompactField`/`CompactFieldGrid`;
+- перенос feature validation, API mapping или state в UI-kit;
+- массовую миграцию Heat, Electrical и Specification одним slice;
+- общий layout primitive, доказанный только одним экраном;
+- объявлять legacy layout соответствующим этому контракту без browser proof.

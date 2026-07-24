@@ -7,7 +7,7 @@
  * - Decrease is always allowed without editing the baseline file.
  *
  * Baseline: cssImportantBaseline.json
- * See: docs/frontend/agent-hardening-plan.md §IMP0
+ * See: docs/frontend/css-strategy.md, docs/frontend/archive/README.md
  */
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';

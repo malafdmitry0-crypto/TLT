@@ -8,25 +8,15 @@
       "Button",
       "Tag"
     ],
-    "src/pages/heatcalc/HeatCalcUnsavedChangesModals.tsx": [
-      "Button"
-    ],
-    "src/pages/heatcalc/HeatCalcWorkspaceLayout.tsx": [
-      "Space"
-    ],
     "src/pages/heatcalc/heatCalcColumnRenderers.tsx": [
       "Tag"
     ],
     "src/pages/electrical/ElecCalcCableMarkModal.tsx": [
-      "Select",
-      "Space"
+      "Select"
     ],
     "src/pages/electrical/ElecCalcCableSizingModal.tsx": [
       "Button",
       "Select"
-    ],
-    "src/pages/electrical/ElecCalcCandidateCompareBar.tsx": [
-      "Button"
     ],
     "src/pages/electrical/ElecCalcCandidateFolderTabs.tsx": [
       "Button"
@@ -46,8 +36,7 @@
       "Select"
     ],
     "src/pages/electrical/ElecCalcProject.tsx": [
-      "Alert",
-      "Space"
+      "Alert"
     ],
     "src/pages/electrical/ElecCalcRecalculationSettings.tsx": [
       "Select",
@@ -57,8 +46,7 @@
       "Tag"
     ],
     "src/pages/electrical/ElecCalcWorkspace.tsx": [
-      "Alert",
-      "Space"
+      "Alert"
     ],
     "src/pages/electrical/ElecCalcWorkspaceModals.tsx": [
       "Input"
@@ -69,13 +57,11 @@
     ],
     "src/pages/electrical/ElectricalAssignmentPanel.tsx": [
       "Alert",
-      "Button",
-      "Space"
+      "Button"
     ],
     "src/pages/electrical/ElectricalBatchActionBar.tsx": [
       "Button",
-      "Select",
-      "Space"
+      "Select"
     ],
     "src/pages/electrical/ElectricalUnifiedTableCard.tsx": [
       "Alert",
@@ -86,34 +72,28 @@
       "Alert",
       "Button",
       "Card",
-      "Input",
-      "Space"
+      "Input"
     ],
     "src/pages/electrical/useElecCalcCableMarkOptions.tsx": [
-      "Space",
       "Tag"
     ],
     "src/pages/electrical/useElecCalcElectricalColumnRenderers.tsx": [
       "Button",
-      "Space",
       "Tag"
     ],
     "src/pages/specification/SpecPageChrome.tsx": [
       "Button",
       "InputNumber",
-      "Select",
-      "Space"
+      "Select"
     ],
     "src/pages/specification/SpecificationPage.tsx": [
       "Alert",
       "Button",
-      "Card",
-      "Space"
+      "Card"
     ],
     "src/components/heatcalc/ColumnSettingsModal.tsx": [
       "Button",
       "InputNumber",
-      "Space",
       "Tag"
     ],
     "src/components/heatcalc/EditableTableCell.tsx": [
@@ -133,38 +113,32 @@
     ],
     "src/components/electrical/CableSelector.tsx": [
       "Select",
-      "Space",
       "Tag"
     ],
     "src/components/electrical/ElectricalCandidateColumnSettingsModal.tsx": [
       "Button",
       "InputNumber",
-      "Space",
       "Tag"
     ],
     "src/components/electrical/ElectricalCandidateFieldRenderer.tsx": [
-      "Space",
       "Tag"
     ],
     "src/components/electrical/ElectricalColumnFilterDropdown.tsx": [
       "Button",
       "Input",
       "InputNumber",
-      "Select",
-      "Space"
+      "Select"
     ],
     "src/components/electrical/ElectricalColumnSettingsModal.tsx": [
       "Button",
       "InputNumber",
-      "Space",
       "Tag"
     ],
     "src/components/electrical/ElectricalGlideColumnFilterDropdown.tsx": [
       "Button",
       "Input",
       "InputNumber",
-      "Select",
-      "Space"
+      "Select"
     ],
     "src/components/electrical/ElectricalSummary.tsx": [
       "Card"
@@ -173,7 +147,6 @@
       "Alert",
       "Button",
       "Card",
-      "Space",
       "Tag"
     ],
     "src/components/specification/SpecBuilder.tsx": [
@@ -182,7 +155,6 @@
     "src/components/specification/SpecTable.tsx": [
       "Alert",
       "Button",
-      "Space",
       "Tag"
     ],
     "src/components/wizard/CableAlgorithmPanel.tsx": [

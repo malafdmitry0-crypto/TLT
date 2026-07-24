@@ -1,10 +1,13 @@
 # TLT UI component library
 
-This directory is the public, feature-agnostic UI layer. The `/ui-kit` page
-uses it as the reference showcase. The HeatCalc wide dual-form
-(`HeatCalcObjectFieldsPanel`) is migrated: all three slots render through
-`CompactFieldGrid` + `antFormAdapter`; its island CSS keeps only the column
-reflow and per-field `--tlt-compact-control-width` overrides.
+This directory is the public, feature-agnostic UI layer. This README is the
+source of truth for the current runtime API, Storybook setup, tokens and usage
+examples. Architectural boundaries and the form-layout contract live in
+[`docs/frontend/ui-kit.md`](../../../../docs/frontend/ui-kit.md).
+
+The `/ui-kit` page uses this library as the reference showcase. The HeatCalc
+wide dual-form (`HeatCalcObjectFieldsPanel`) currently renders its three slots
+through `CompactFieldGrid` + `antFormAdapter`.
 
 ## Storybook
 
@@ -68,9 +71,8 @@ Visual contract = HeatCalc dual-form (SC-03):
 </CompactFieldGrid>
 ```
 
-For a future staged migration of existing Ant Design forms, the grid exposes
-`antFormAdapter`. It normalizes `Form.Item` markup without moving domain state
-or validation rules into the UI library.
+The `antFormAdapter` prop normalizes existing Ant `Form.Item` markup without
+moving domain state or validation rules into the UI library.
 
 ## Boundaries
 
@@ -83,3 +85,5 @@ or validation rules into the UI library.
 - Visual values come from shared `--tlt-field-*` tokens.
 - New reusable controls are exported from `index.ts`; demo-only UI Kit helpers
   stay outside the public API.
+- Form placement, field order and conditional visibility remain feature-owned;
+  see the architectural policy for the full layout contract.

@@ -1,723 +1,633 @@
 {
-  "version": 1,
+  "version": 2,
   "generatedAt": "2026-07-24",
-  "total": 117,
+  "total": 88,
   "fileCounts": {
-    "src/components/ui-kit/compact-fields.css": 14,
-    "src/components/wizard/cable-algorithm-panel.css": 2,
-    "src/components/wizard/heat-object-fields.css": 2,
-    "src/components/wizard/insulation-layers-table.css": 15,
-    "src/pages/heatcalc/heatcalc-dual-form-shell.css": 4,
-    "src/pages/heatcalc/heatcalc-field-chrome-core.css": 5,
+    "src/components/ui-kit/compact-fields.css": 13,
+    "src/components/wizard/heat-object-fields.css": 1,
+    "src/components/wizard/insulation-layers-table.css": 9,
+    "src/pages/heatcalc/heatcalc-field-chrome-core.css": 3,
     "src/pages/heatcalc/heatcalc-field-chrome.css": 2,
     "src/pages/heatcalc/heatcalc-insulation-page.css": 1,
-    "src/pages/heatcalc/heatcalc-side-form-layout.css": 54,
-    "src/pages/heatcalc/heatcalc-workspace-shell.css": 1,
+    "src/pages/heatcalc/heatcalc-side-form-layout.css": 51,
     "src/pages/heatcalc/heatcalc-workspace-table.css": 7,
-    "src/styles/form-grid-srs.css": 5,
-    "src/styles/tlt-form-controls.css": 5
+    "src/styles/form-grid-srs.css": 1
   },
   "occurrences": [
     {
       "file": "src/components/ui-kit/compact-fields.css",
       "line": 107,
       "text": "grid-column: 2;",
+      "property": "grid-column",
       "class": "domain field"
     },
     {
       "file": "src/components/ui-kit/compact-fields.css",
       "line": 117,
       "text": "grid-column: 2;",
+      "property": "grid-column",
       "class": "domain field"
     },
     {
       "file": "src/components/ui-kit/compact-fields.css",
       "line": 132,
       "text": "grid-column: 1;",
+      "property": "grid-column",
       "class": "domain field"
     },
     {
       "file": "src/components/ui-kit/compact-fields.css",
       "line": 282,
       "text": "grid-column: auto;",
+      "property": "grid-column",
       "class": "domain field"
     },
     {
       "file": "src/components/ui-kit/compact-fields.css",
       "line": 283,
       "text": "grid-row: auto;",
+      "property": "grid-row",
       "class": "domain field"
     },
     {
       "file": "src/components/ui-kit/compact-fields.css",
       "line": 310,
       "text": "grid-column: 1;",
+      "property": "grid-column",
       "class": "domain field"
     },
     {
       "file": "src/components/ui-kit/compact-fields.css",
       "line": 380,
       "text": "grid-column: 2;",
+      "property": "grid-column",
       "class": "domain field"
     },
     {
       "file": "src/components/ui-kit/compact-fields.css",
       "line": 391,
       "text": "grid-column: 2;",
-      "class": "domain field"
-    },
-    {
-      "file": "src/components/ui-kit/compact-fields.css",
-      "line": 470,
-      "text": "/* Unit is border-box with its own 1px border: full track height;",
+      "property": "grid-column",
       "class": "domain field"
     },
     {
       "file": "src/components/ui-kit/compact-fields.css",
       "line": 483,
       "text": "grid-column: span var(--tlt-field-span, 12);",
+      "property": "grid-column",
       "class": "domain field"
     },
     {
       "file": "src/components/ui-kit/compact-fields.css",
       "line": 498,
       "text": "grid-column: 1;",
+      "property": "grid-column",
       "class": "domain field"
     },
     {
       "file": "src/components/ui-kit/compact-fields.css",
       "line": 509,
       "text": "grid-column: 1;",
+      "property": "grid-column",
       "class": "domain field"
     },
     {
       "file": "src/components/ui-kit/compact-fields.css",
       "line": 526,
       "text": "grid-column: 1 / -1;",
+      "property": "grid-column",
       "class": "domain field"
     },
     {
       "file": "src/components/ui-kit/compact-fields.css",
       "line": 541,
       "text": "grid-column: 1;",
-      "class": "domain field"
-    },
-    {
-      "file": "src/components/wizard/cable-algorithm-panel.css",
-      "line": 170,
-      "text": "border: 1px solid var(--c-f0c9b0);",
-      "class": "layout chrome"
-    },
-    {
-      "file": "src/components/wizard/cable-algorithm-panel.css",
-      "line": 211,
-      "text": "border: 1px dashed var(--c-e0c4b0);",
-      "class": "layout chrome"
-    },
-    {
-      "file": "src/components/wizard/heat-object-fields.css",
-      "line": 148,
-      "text": "* таблица слоёв (order:1 в page CSS) → климат/температуры/ветер.",
+      "property": "grid-column",
       "class": "domain field"
     },
     {
       "file": "src/components/wizard/heat-object-fields.css",
       "line": 150,
       "text": ".heat-object-fields--side .heat-object-fields__climate .ant-form-item { order: 2; }",
-      "class": "domain field"
-    },
-    {
-      "file": "src/components/wizard/insulation-layers-table.css",
-      "line": 53,
-      "text": "border: 1px solid var(--c-d1dce8);",
-      "class": "domain field"
-    },
-    {
-      "file": "src/components/wizard/insulation-layers-table.css",
-      "line": 96,
-      "text": "border: 1px solid var(--c-c5d4e4);",
-      "class": "domain field"
-    },
-    {
-      "file": "src/components/wizard/insulation-layers-table.css",
-      "line": 173,
-      "text": "border: 1px solid var(--c-d1dce8);",
+      "property": "order",
       "class": "domain field"
     },
     {
       "file": "src/components/wizard/insulation-layers-table.css",
       "line": 188,
       "text": "grid-row: 1;",
+      "property": "grid-row",
       "class": "domain field"
     },
     {
       "file": "src/components/wizard/insulation-layers-table.css",
       "line": 192,
       "text": "grid-column: 1;",
+      "property": "grid-column",
       "class": "domain field"
     },
     {
       "file": "src/components/wizard/insulation-layers-table.css",
       "line": 200,
       "text": "grid-column: 2;",
+      "property": "grid-column",
       "class": "domain field"
     },
     {
       "file": "src/components/wizard/insulation-layers-table.css",
       "line": 204,
       "text": "grid-column: 3;",
+      "property": "grid-column",
       "class": "domain field"
     },
     {
       "file": "src/components/wizard/insulation-layers-table.css",
       "line": 208,
       "text": "grid-column: 4;",
+      "property": "grid-column",
       "class": "domain field"
     },
     {
       "file": "src/components/wizard/insulation-layers-table.css",
       "line": 212,
       "text": "grid-column: 5;",
-      "class": "domain field"
-    },
-    {
-      "file": "src/components/wizard/insulation-layers-table.css",
-      "line": 235,
-      "text": "border: 0;",
-      "class": "domain field"
-    },
-    {
-      "file": "src/components/wizard/insulation-layers-table.css",
-      "line": 236,
-      "text": "/* neutralize legacy grid-column: 1 / -1 on .layer-material-form-item */",
+      "property": "grid-column",
       "class": "domain field"
     },
     {
       "file": "src/components/wizard/insulation-layers-table.css",
       "line": 237,
       "text": "grid-column: auto;",
+      "property": "grid-column",
       "class": "domain field"
     },
     {
       "file": "src/components/wizard/insulation-layers-table.css",
       "line": 238,
       "text": "grid-row: auto;",
-      "class": "domain field"
-    },
-    {
-      "file": "src/components/wizard/insulation-layers-table.css",
-      "line": 252,
-      "text": "border: 0;",
+      "property": "grid-row",
       "class": "domain field"
     },
     {
       "file": "src/components/wizard/insulation-layers-table.css",
       "line": 373,
       "text": "grid-column: 1;",
-      "class": "domain field"
-    },
-    {
-      "file": "src/pages/heatcalc/heatcalc-dual-form-shell.css",
-      "line": 16,
-      "text": "border: 1px solid var(--c-ffd591);",
-      "class": "layout chrome"
-    },
-    {
-      "file": "src/pages/heatcalc/heatcalc-dual-form-shell.css",
-      "line": 37,
-      "text": "border: 0;",
-      "class": "layout chrome"
-    },
-    {
-      "file": "src/pages/heatcalc/heatcalc-dual-form-shell.css",
-      "line": 175,
-      "text": "border: 1px solid var(--heatcalc-panel-border);",
-      "class": "layout chrome"
-    },
-    {
-      "file": "src/pages/heatcalc/heatcalc-dual-form-shell.css",
-      "line": 201,
-      "text": "border: 0;",
-      "class": "layout chrome"
-    },
-    {
-      "file": "src/pages/heatcalc/heatcalc-field-chrome-core.css",
-      "line": 39,
-      "text": "border: 1px solid var(--heatcalc-panel-border);",
+      "property": "grid-column",
       "class": "domain field"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-field-chrome-core.css",
       "line": 167,
       "text": "grid-column: 1 / -1;",
+      "property": "grid-column",
       "class": "domain field"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-field-chrome-core.css",
       "line": 203,
       "text": "grid-column: 1;",
+      "property": "grid-column",
       "class": "domain field"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-field-chrome-core.css",
       "line": 307,
       "text": "grid-column: 2;",
-      "class": "domain field"
-    },
-    {
-      "file": "src/pages/heatcalc/heatcalc-field-chrome-core.css",
-      "line": 375,
-      "text": "border: 1px solid var(--color-border);",
+      "property": "grid-column",
       "class": "domain field"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-field-chrome.css",
       "line": 24,
       "text": "grid-column: 2;",
+      "property": "grid-column",
       "class": "domain field"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-field-chrome.css",
       "line": 148,
       "text": "grid-column: 1;",
+      "property": "grid-column",
       "class": "domain field"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-insulation-page.css",
       "line": 65,
       "text": "grid-column: auto;",
+      "property": "grid-column",
       "class": "domain field"
-    },
-    {
-      "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
-      "line": 30,
-      "text": "border: 1px solid var(--heatcalc-panel-border);",
-      "class": "layout chrome"
-    },
-    {
-      "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
-      "line": 46,
-      "text": "border: 1px solid var(--heatcalc-panel-border);",
-      "class": "layout chrome"
-    },
-    {
-      "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
-      "line": 62,
-      "text": "border: 1px solid var(--heatcalc-panel-border);",
-      "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 73,
       "text": "grid-column: 1 / -1;",
+      "property": "grid-column",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 149,
       "text": "grid-column: 1;",
+      "property": "grid-column",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 252,
       "text": "grid-column: 1 / -1;",
+      "property": "grid-column",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 262,
       "text": "grid-column: 1 / 5;",
+      "property": "grid-column",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 263,
       "text": "grid-row: 2;",
+      "property": "grid-row",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 266,
       "text": "grid-column: 5 / 7;",
+      "property": "grid-column",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 267,
       "text": "grid-row: 2;",
+      "property": "grid-row",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 270,
       "text": "grid-column: 7 / 9;",
+      "property": "grid-column",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 271,
       "text": "grid-row: 2;",
+      "property": "grid-row",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 274,
       "text": "grid-column: 9 / 11;",
+      "property": "grid-column",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 275,
       "text": "grid-row: 2;",
+      "property": "grid-row",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 278,
       "text": "grid-column: 11 / 13;",
+      "property": "grid-column",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 279,
       "text": "grid-row: 2;",
+      "property": "grid-row",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 282,
       "text": "grid-column: 1 / 8;",
+      "property": "grid-column",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 283,
       "text": "grid-row: 3;",
+      "property": "grid-row",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 286,
       "text": "grid-column: 8 / 13;",
+      "property": "grid-column",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 287,
       "text": "grid-row: 3;",
+      "property": "grid-row",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 290,
       "text": "grid-column: 1 / 7;",
+      "property": "grid-column",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 291,
       "text": "grid-row: 2;",
+      "property": "grid-row",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 294,
       "text": "grid-column: 7 / 13;",
+      "property": "grid-column",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 295,
       "text": "grid-row: 2;",
+      "property": "grid-row",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 299,
       "text": "grid-column: 1 / 4;",
+      "property": "grid-column",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 300,
       "text": "grid-row: 3;",
+      "property": "grid-row",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 304,
       "text": "grid-column: 4 / 7;",
+      "property": "grid-column",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 305,
       "text": "grid-row: 3;",
+      "property": "grid-row",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 308,
       "text": "grid-column: 7 / 10;",
+      "property": "grid-column",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 309,
       "text": "grid-row: 3;",
+      "property": "grid-row",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 312,
       "text": "grid-column: 10 / 13;",
+      "property": "grid-column",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 313,
       "text": "grid-row: 3;",
+      "property": "grid-row",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 316,
       "text": "grid-column: 7 / 10;",
+      "property": "grid-column",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 319,
       "text": "grid-column: 10 / 13;",
+      "property": "grid-column",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 322,
       "text": "grid-column: 1 / 4;",
+      "property": "grid-column",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 323,
       "text": "grid-row: 4;",
+      "property": "grid-row",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 326,
       "text": "grid-column: 4 / 7;",
+      "property": "grid-column",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 327,
       "text": "grid-row: 4;",
+      "property": "grid-row",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 333,
       "text": "grid-column: 1 / 5;",
+      "property": "grid-column",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 334,
       "text": "grid-row: 2;",
+      "property": "grid-row",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 337,
       "text": "grid-column: 5 / 9;",
+      "property": "grid-column",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 338,
       "text": "grid-row: 2;",
+      "property": "grid-row",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 341,
       "text": "grid-column: 9 / 13;",
+      "property": "grid-column",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 342,
       "text": "grid-row: 2;",
+      "property": "grid-row",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 345,
       "text": "grid-column: 1 / 6;",
+      "property": "grid-column",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 346,
       "text": "grid-row: 3;",
+      "property": "grid-row",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 349,
       "text": "grid-column: 6 / 10;",
+      "property": "grid-column",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 350,
       "text": "grid-row: 3;",
+      "property": "grid-row",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 353,
       "text": "grid-column: 1 / 5;",
+      "property": "grid-column",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 354,
       "text": "grid-row: 4;",
+      "property": "grid-row",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 357,
       "text": "grid-column: 5 / 8;",
+      "property": "grid-column",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 358,
       "text": "grid-row: 4;",
+      "property": "grid-row",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 361,
       "text": "grid-column: 8 / 13;",
+      "property": "grid-column",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-side-form-layout.css",
       "line": 362,
       "text": "grid-row: 4;",
-      "class": "layout chrome"
-    },
-    {
-      "file": "src/pages/heatcalc/heatcalc-workspace-shell.css",
-      "line": 25,
-      "text": "border: 1px solid var(--c-ffccc7);",
+      "property": "grid-row",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-workspace-table.css",
       "line": 60,
       "text": "grid-column: 1 / -1;",
+      "property": "grid-column",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-workspace-table.css",
       "line": 77,
       "text": "grid-column: 1 / -1;",
+      "property": "grid-column",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-workspace-table.css",
       "line": 78,
       "text": "order: 1;",
+      "property": "order",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-workspace-table.css",
       "line": 88,
       "text": "grid-column: 1 / -1;",
+      "property": "grid-column",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-workspace-table.css",
       "line": 107,
       "text": "grid-column: 1;",
+      "property": "grid-column",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-workspace-table.css",
       "line": 132,
       "text": "grid-column: 1 / -1;",
+      "property": "grid-column",
       "class": "layout chrome"
     },
     {
       "file": "src/pages/heatcalc/heatcalc-workspace-table.css",
       "line": 183,
       "text": "grid-column: auto;",
-      "class": "layout chrome"
-    },
-    {
-      "file": "src/styles/form-grid-srs.css",
-      "line": 5,
-      "text": "border: 1px solid var(--heatcalc-panel-border);",
-      "class": "layout chrome"
-    },
-    {
-      "file": "src/styles/form-grid-srs.css",
-      "line": 22,
-      "text": "border: 1px solid var(--heatcalc-panel-border);",
-      "class": "layout chrome"
-    },
-    {
-      "file": "src/styles/form-grid-srs.css",
-      "line": 27,
-      "text": "border: 0;",
-      "class": "layout chrome"
-    },
-    {
-      "file": "src/styles/form-grid-srs.css",
-      "line": 45,
-      "text": "border: 1px solid var(--heatcalc-panel-border);",
+      "property": "grid-column",
       "class": "layout chrome"
     },
     {
       "file": "src/styles/form-grid-srs.css",
       "line": 116,
       "text": "grid-column: 1 / -1;",
-      "class": "layout chrome"
-    },
-    {
-      "file": "src/styles/tlt-form-controls.css",
-      "line": 24,
-      "text": "border: 1px solid var(--color-border);",
-      "class": "layout chrome"
-    },
-    {
-      "file": "src/styles/tlt-form-controls.css",
-      "line": 79,
-      "text": "border: 1px solid var(--color-border);",
-      "class": "layout chrome"
-    },
-    {
-      "file": "src/styles/tlt-form-controls.css",
-      "line": 126,
-      "text": "border: 1px solid var(--color-border);",
-      "class": "layout chrome"
-    },
-    {
-      "file": "src/styles/tlt-form-controls.css",
-      "line": 181,
-      "text": "border: 0;",
-      "class": "layout chrome"
-    },
-    {
-      "file": "src/styles/tlt-form-controls.css",
-      "line": 230,
-      "text": "border: 1px solid var(--color-border);",
+      "property": "grid-column",
       "class": "layout chrome"
     }
   ]

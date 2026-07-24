@@ -1,11 +1,14 @@
 # Frontend TLT: разработка с coding agents
 
-**Актуально на:** 2026-07-23  
-**Статус:** навигатор; нормативные правила находятся в стандарте.
+**Актуально на:** 2026-07-24
 
-Frontend уже прошёл основной hardening: thin page shells, UI-kit, CSS freeze,
-architecture ratchets и agent gates существуют. Следующая цель — сохранять это
-состояние и выполнять изменения маленькими доказуемыми slices.
+**Статус:** навигатор; общий норматив находится в стандарте, детали — у
+тематических владельцев.
+
+Frontend уже имеет thin page shells, UI-kit, CSS freeze, architecture ratchets
+и agent gates. Residual work к честному agent-friendly 9/10 и точный
+следующий контракт находятся **только** в backlog. Одновременно допускается
+только одна ACTIVE frontend-очередь.
 
 ## Начать здесь
 
@@ -13,10 +16,10 @@ architecture ratchets и agent gates существуют. Следующая ц
 |---|---|
 | [`frontend/AGENTS.md`](../../frontend/AGENTS.md) | Короткий обязательный вход для агента |
 | [Стандарт разработки](./agent-development-standard.md) | Постоянные правила, DoD и hard stops |
-| [Мастер-промпт](./agent-refactor-prompt.md) | Полный исполняемый prompt одного refactoring slice |
-| [Актуальный backlog](./refactor-backlog.md) | Единственный источник `pending` |
-| [Цель agent-friendly 9/10](./agent-friendly-9-plan.md) | Явная инициатива: чеклист, exit criteria и task prompts |
-| [PR budget](./pr-budget.md) | Краткая памятка по размеру slice |
+| [Мастер-промпт](./agent-refactor-prompt.md) | Заполняемый контракт одного refactoring slice |
+| [Актуальный backlog](./refactor-backlog.md) | Единственный ACTIVE источник `pending` |
+| [PR budget](./pr-budget.md) | Нормативный размер одного slice |
+| [AF9 historical pointer](./agent-friendly-9-plan.md) | Не очередь; ссылка на archive + audit |
 
 Если пользователь задаёт конкретную цель, она определяет slice. Если цель не
 задана, агент берёт первый `pending` из backlog. Пустая очередь не разрешает
@@ -34,18 +37,20 @@ architecture ratchets и agent gates существуют. Следующая ц
 → archive/
 ```
 
-Архивные документы не задают очередь, текущие метрики или обязательные команды.
+Архивные документы и initiative plans не задают очередь, текущие метрики или
+обязательные команды. Динамические счётчики — только в датированных
+`docs/audit/…` snapshot.
 
 ## Тематические справочники
 
 | Документ | О чём |
 |---|---|
-| [LLM-friendly стиль](./llm-friendly-style.md) | Колокация, pure models, явные зависимости |
-| [UI-kit](./ui-kit.md) | Публичный UI API и границы design system |
-| [CSS-стратегия](./css-strategy.md) | Ownership, tokens, feature roots и freeze `styles.css` |
+| [UI-kit](./ui-kit.md) | Границы design system и контракт раскладки форм |
+| [CSS-стратегия](./css-strategy.md) | Ownership, cascade, selectors и CSS-механика layout |
 | [Desktop viewport policy](./viewport-policy.md) | `1000` functional, `1280` full workspace, `1440` primary QA |
 | [`components/ui-kit/README`](../../frontend/src/components/ui-kit/README.md) | Runtime-контракт UI-компонентов |
-| [Архив](./archive/README.md) | Завершённые планы, prompts и snapshots |
+| [Архив](./archive/README.md) | Краткая история hardening и commit evidence |
+| [P0 doc-truth snapshot](../audit/2026-07-24-p0-doc-truth/snapshot.md) | Датированные факты дерева (не норматив) |
 
 Тематический документ может потребовать дополнительный proof, но не может
 ослабить стандарт.

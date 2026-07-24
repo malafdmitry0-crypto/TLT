@@ -1,50 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { useAuthStore } from '@/store/authStore';
-import { useCalculationVariantStore } from '@/store/calculationVariantStore';
 import { useProjectStore } from '@/store/projectStore';
 import type { ElectricalCandidate } from '@/types/calculation';
 import { ELECTRICAL_GUEST_TABLE_COLUMN_STORAGE_KEY } from '@/utils/electricalTableColumns';
-import { ELECTRICAL_TABLE_ENGINE_STORAGE_KEY } from '@/utils/electricalTableEngine';
 import { mockProject, makeObject, makeElectricalPage, renderPage } from '@/__tests__/integration/pages/electrical/elecCalcPageHarness';
-import { electricalVariantApiMocks, defaultElectricalVariantListImplementation, electricalGlideGridMock, electricalAssignmentPanelMock } from '@/__tests__/integration/pages/electrical/elecCalcPageTestEnv';
+import { resetElecCalcIntegrationState } from '@/__tests__/integration/pages/electrical/elecCalcPageTestEnv';
 import '@/__tests__/integration/pages/electrical/elecCalcPageTestEnv';
 
 describe('ElecCalcPage candidates / folders', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    electricalVariantApiMocks.list.mockReset();
-    electricalVariantApiMocks.list.mockImplementation(
-      defaultElectricalVariantListImplementation!,
-    );
-    electricalVariantApiMocks.readiness.mockReset();
-    electricalVariantApiMocks.initialize.mockReset();
-    electricalVariantApiMocks.create.mockReset();
-    electricalVariantApiMocks.copy.mockReset();
-    electricalVariantApiMocks.rename.mockReset();
-    electricalVariantApiMocks.activate.mockReset();
-    electricalVariantApiMocks.remove.mockReset();
-    electricalVariantApiMocks.listAssignments.mockClear();
-    electricalVariantApiMocks.assignObjects.mockReset();
-    electricalVariantApiMocks.unassignObjects.mockReset();
-    vi.unstubAllEnvs();
-    vi.stubEnv('VITE_COMMERCIAL_FEATURES_ENABLED', 'true');
-    electricalGlideGridMock.props = null;
-    electricalAssignmentPanelMock.props = null;
-    // Most scenarios exercise calculation behavior for already assigned
-    // self-regulating objects. The real page starts on "unassigned", so the
-    // harness explicitly performs the same tab change a user would.
-    electricalAssignmentPanelMock.initialSystemView = 'self_regulating';
-    localStorage.clear();
-    // Main table uses AntD DOM here; candidate table is mocked through its Glide props.
-    localStorage.setItem(ELECTRICAL_TABLE_ENGINE_STORAGE_KEY, 'table');
-    useAuthStore.getState().logout();
-    useAuthStore.getState().setGuest('sid');
-    useProjectStore.getState().setCurrentProject(null);
-    useCalculationVariantStore.setState({
-      selectedVariantIdByProject: {},
-      variantByProject: {},
-    });
+    resetElecCalcIntegrationState();
   });
 
   it('показывает «Вариант обновлён» при повторном идентичном авторасчёте', async () => {

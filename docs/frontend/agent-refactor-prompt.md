@@ -1,19 +1,21 @@
 # Мастер-промпт frontend refactoring
 
-**Статус:** исполняемый шаблон  
-**Применение:** один vertical slice за запуск  
+**Статус:** исполняемый шаблон
+
+**Актуально на:** 2026-07-24
+
+**Применение:** один vertical slice за запуск
+
 **Норматив:** [agent-development-standard.md](./agent-development-standard.md)
 
-Скопируй блок ниже в coding agent. Заполни известные поля. Пустой `SLICE_ID`
-разрешает агенту взять первый `pending` из
-[refactor-backlog.md](./refactor-backlog.md).
+Этот файл задаёт только форму task contract. Он не копирует hard stops, CSS,
+layout, viewport или Git policy: агент читает их у соответствующих владельцев.
 
 ```text
-Ты выполняешь один безопасный frontend refactoring slice в проекте TLT:
-/Users/dmalafey/Desktop/TLT
+Работай из корня текущего репозитория TLT.
 
 SLICE_ID:
-DOMAIN:
+OWNER:
 GOAL:
 USER_VISIBLE_SUCCESS:
 ALLOWED_SCOPE:
@@ -22,151 +24,58 @@ INVARIANTS:
 FOCUSED_PROOF:
 UI_STATES:
 
-## Источники
+1. Полностью прочитай:
+   - frontend/AGENTS.md;
+   - docs/frontend/agent-development-standard.md;
+   - docs/frontend/refactor-backlog.md;
+   - docs/frontend/pr-budget.md;
+   - ближайший production-код и tests.
 
-Полностью прочитай:
-1. frontend/AGENTS.md
-2. docs/frontend/agent-development-standard.md
-3. docs/frontend/refactor-backlog.md
-4. релевантный production-код, ближайшие тесты и тематический документ
+2. Для UI/CSS дополнительно прочитай только релевантных владельцев:
+   - docs/frontend/ui-kit.md;
+   - docs/frontend/css-strategy.md;
+   - docs/frontend/viewport-policy.md.
 
-Порядок приоритета задан в AGENTS.md. Архивные документы не маршрутизируют
-работу и не являются источником текущих метрик.
+3. Если SLICE_ID и контракт заполнены, выполняй только их. Если они пусты,
+   возьми первый pending из refactor-backlog.md. Если pending нет — STOP и
+   запроси конкретную цель.
 
-## Выбор slice
+4. До изменения:
+   - выполни git status --short;
+   - остановись при dirty target-файле, который не принадлежит этому slice;
+   - найди owner/callers/tests через rg;
+   - пересчитай локальные метрики;
+   - проверь budget;
+   - зафиксируй behavior before и characterization.
 
-- Если SLICE_ID/GOAL/ALLOWED_SCOPE заполнены, выполняй только этот контракт.
-- Если они пусты, возьми первый pending из refactor-backlog.md.
-- Если pending нет, STOP: запроси конкретную пользовательскую цель.
-- Не выбирай рефакторинг только потому, что файл длинный.
-- Один запуск = один slice и один feature-owner.
+5. Внеси минимальный patch одного owner. Следуй стандарту и тематическим
+   политикам; не добавляй соседний cleanup и не ослабляй baseline/tests.
 
-## Preflight
+6. Запусти FOCUSED_PROOF, затем:
 
-1. Выполни git status --short.
-2. Не трогай unrelated dirty files и не добавляй их в commit.
-3. Через rg найди владельца поведения, callers, imports и ближайшие тесты.
-4. Пересчитай текущие LOC/edges/селекторы; не копируй старые цифры из docs.
-5. Сформулируй:
-   - behavior before;
-   - behavior after;
-   - allowed files;
-   - non-goals;
-   - invariants;
-   - focused и full proof.
-6. Проверь budget:
-   max 1 page/shell, 2 production helper/CSS, 2 test/baseline files.
-   Если не помещается — спроектируй split и выполни только первую независимо
-   проверяемую часть.
+   cd frontend
+   npm run test:agent-dod
 
-## Characterization first
+7. Для видимого UI выполни обязательный browser proof по viewport-policy.md:
+   exact width×height, states, keyboard/focus, geometry/overflow,
+   console и failed network requests.
 
-До production-изменения зафиксируй существующий контракт тестом:
-- happy path;
-- один значимый edge/failure path;
-- публичное поведение, а не внутреннюю форму реализации.
+8. Красный full DoD, отсутствующий browser proof или другой hard stop из
+   стандарта означает blocked без готового commit. Сообщи:
+   FILE / EVIDENCE / DECISION NEEDED.
 
-Если надежный characterization уже существует, укажи точный файл и assertions.
-Не ослабляй и не удаляй тесты.
+9. После полного DoD следуй Git protocol стандарта. Если slice взят из
+   backlog, production commit и отдельный docs closure commit обязательны.
+   Для пользовательской задачи вне backlog не придумывай backlog entry.
 
-## Implementation
-
-- Сделай минимальный patch только в allowed scope.
-- Сохрани UX, copy, layout, API payload, query keys/invalidation, routes, units,
-  формулы, permissions и ER UUID semantics, если задача явно не меняет их.
-- Pure logic держи вне React/Ant/router/store/HTTP.
-- Presentational UI: props-in/events-out.
-- UI импортируй через @/components/ui-kit.
-- Не создавай Heat↔Electrical↔Specification deep imports.
-- Не добавляй feature CSS в src/styles.css, bare .ant-* или !important;
-  baseline !important остаётся абсолютным нулём.
-- Не добавляй статические JSX style/styles и прямые feature-ссылки на legacy
-  palette --c-*/--a-*; runtime style оставляй только для вычисляемой геометрии,
-  CSS custom properties или документированного third-party API.
-- Каждый новый селектор держи под owner root с минимальной специфичностью; не
-  добавляй ID, длинные DOM-цепочки, :has() вместо state class и breakpoint вне
-  480/768/1200/1400, print, prefers-reduced-motion.
-- Не используй any, @ts-ignore, as unknown as и broad casts.
-- Удали только заменённый код или доказанный дубль.
-- Не выполняй соседний cleanup.
-
-## Proof
-
-Сначала запусти FOCUSED_PROOF, затем полный gate:
-
-cd frontend
-npm run test:agent-gates
-npm run test:unit
-npm run test:integration
-npm run build
-
-Для DOM/CSS/interaction изменений browser proof обязателен:
-- primary desktop 1440x900;
-- один релевантный крайний профиль из docs/frontend/viewport-policy.md;
-- 1000x768 constrained + 1280x800 full для плотного engineering layout;
-- 1000x768 + 1920x1080 для app shell/overflow;
-- 390x844/768x1024 только для responsive/mobile contract;
-- затронутые loading/empty/error/disabled/permission states;
-- keyboard/focus;
-- overflow и geometry;
-- console warnings/errors;
-- failed network requests.
-
-Используй релевантный Playwright spec и приложи evidence. Если browser proof
-недоступен или показывает регрессию, статус blocked; готовый commit запрещён.
-Красный full gate также означает blocked, даже если ошибка выглядит unrelated.
-
-## Architecture baseline
-
-Не повышай complexity/CSS/dependency baseline и не расширяй allowlist внутри
-feature-slice. Если исключение действительно нужно, STOP и предложи отдельный
-architecture-slice. Это не разрешает повысить абсолютный baseline !important=0.
-
-Не считай manual CSS policy автоматически проверенной. Сверь раздел «Что
-проверяется автоматически» в docs/frontend/css-strategy.md и перечисли ручную
-проверку ownership, inline styles, specificity, semantic tokens и breakpoints в
-отчёте, если они затронуты.
-
-## Hard stops
-
-STOP без готового commit, если:
-- бизнес-правило неоднозначно;
-- нужен touch формул, units, API/query/route или UUID semantics вне scope;
-- целевой файл пересекается с чужим WIP;
-- budget превышен;
-- нужен weaker test или baseline increase;
-- full gate красный;
-- обязательный browser proof отсутствует;
-- три содержательные попытки не устранили одну причину.
-
-Сообщи FILE / EVIDENCE / DECISION NEEDED.
-
-## Commit protocol
-
-Только после полного DoD:
-1. Добавь git add только явные файлы slice.
-2. Создай conventional commit с SLICE_ID:
-   refactor(frontend): <SLICE_ID> <результат>
-3. Если slice пришёл из backlog, обнови его status=done, metrics и production
-   commit hash.
-4. Создай отдельный docs-only commit:
-   docs(frontend): close <SLICE_ID>
-5. Не push без явной команды пользователя.
-
-## Финальный отчёт
-
-Верни:
+Финальный отчёт:
 - Slice и behavior before → after;
 - files changed;
 - metrics before → after;
-- focused proof;
-- full gate;
-- browser states/viewports/evidence;
-- console/network summary;
-- untested states;
-- residual risk;
-- production commit;
-- backlog commit;
+- focused proof и full DoD;
+- browser states/viewports, console/network;
+- untested states и residual risk;
+- production/backlog commits, если применимо;
 - следующий pending.
 
 Не заявляй проверки, которые не запускались.
@@ -175,7 +84,7 @@ STOP без готового commit, если:
 ## Короткий запуск
 
 ```text
-Прочитай frontend/AGENTS.md и выполни ровно один slice по
-docs/frontend/agent-refactor-prompt.md. Если параметры не заданы, возьми первый
-pending из docs/frontend/refactor-backlog.md. Соблюдай full DoD и hard stops.
+Прочитай frontend/AGENTS.md и выполни один slice через
+docs/frontend/agent-refactor-prompt.md. Если контракт не задан, возьми первый
+pending из docs/frontend/refactor-backlog.md.
 ```

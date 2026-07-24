@@ -14,7 +14,7 @@
  * Do not grow allowlists without a shrink note and intentional review.
  *
  * Errors: CODE, FILE, IMPORT, FIX
- * See: docs/frontend/agent-hardening-plan.md §G3
+ * See: docs/frontend/agent-development-standard.md, docs/frontend/archive/README.md
  */
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';

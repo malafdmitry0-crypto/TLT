@@ -1,6 +1,13 @@
 /**
- * AF9-UI-01: direct Ant primitives with Tlt equivalents are blocked in feature UI.
- * Allowed: Form, Modal, Table, message, types, ConfigProvider, theme, icons usage.
+ * AF9-UI-01 / P1-GUARDRAIL-TRUTH-01: direct Ant primitives with Tlt equivalents
+ * are blocked in feature UI (bidirectional baseline).
+ *
+ * Forbidden only when `@/components/ui-kit` has an equivalent:
+ *   Button→TltButton, Input→TltTextField, InputNumber→TltNumberField,
+ *   Select→TltSelect, Card→TltCard, Alert→TltAlert, Tag→TltBadge.
+ * Space has no kit equivalent — not forbidden.
+ *
+ * Allowed: Form, Modal, Table, message, types, ConfigProvider, theme, icons, Space.
  */
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
@@ -12,7 +19,15 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SRC = path.resolve(HERE, '../../..');
 
 /** Named antd imports that must go through @/components/ui-kit in feature UI. */
-const FORBIDDEN = new Set(['Button', 'Input', 'InputNumber', 'Select', 'Card', 'Alert', 'Tag', 'Space']);
+export const FORBIDDEN_ANT_PRIMITIVES = new Set([
+  'Button',
+  'Input',
+  'InputNumber',
+  'Select',
+  'Card',
+  'Alert',
+  'Tag',
+]);
 
 const FEATURE_DIRS = [
   'pages/heatcalc',
@@ -40,57 +55,159 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-function collectViolations(): Record<string, string[]> {
+/** Collect forbidden named imports from `antd` in a single source string. */
+export function collectForbiddenAntdImportsFromSource(
+  text: string,
+  fileName = 'snippet.tsx',
+  forbidden: ReadonlySet<string> = FORBIDDEN_ANT_PRIMITIVES,
+): string[] {
+  if (!text.includes("from 'antd'") && !text.includes('from "antd"')) return [];
+  const kind = fileName.endsWith('.ts') && !fileName.endsWith('.tsx') ? ts.ScriptKind.TS : ts.ScriptKind.TSX;
+  const sf = ts.createSourceFile(fileName, text, ts.ScriptTarget.Latest, true, kind);
+  const hits: string[] = [];
+  sf.forEachChild(function visit(node) {
+    if (ts.isImportDeclaration(node) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
+      if (node.moduleSpecifier.text !== 'antd') return;
+      const clause = node.importClause;
+      if (!clause?.namedBindings || !ts.isNamedImports(clause.namedBindings)) return;
+      for (const el of clause.namedBindings.elements) {
+        const name = el.propertyName?.text ?? el.name.text;
+        if (forbidden.has(name)) hits.push(name);
+      }
+    }
+    ts.forEachChild(node, visit);
+  });
+  return [...new Set(hits)].sort();
+}
+
+export function collectAntdPrimitiveViolations(
+  srcRoot: string = SRC,
+  forbidden: ReadonlySet<string> = FORBIDDEN_ANT_PRIMITIVES,
+): Record<string, string[]> {
   const result: Record<string, string[]> = {};
   for (const rel of FEATURE_DIRS) {
-    for (const abs of walk(path.join(SRC, rel))) {
+    for (const abs of walk(path.join(srcRoot, rel))) {
       const text = fs.readFileSync(abs, 'utf8');
-      if (!text.includes("from 'antd'") && !text.includes('from "antd"')) continue;
-      const sf = ts.createSourceFile(abs, text, ts.ScriptTarget.Latest, true, abs.endsWith('tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
-      const hits: string[] = [];
-      sf.forEachChild(function visit(node) {
-        if (ts.isImportDeclaration(node) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
-          if (node.moduleSpecifier.text !== 'antd') return;
-          const clause = node.importClause;
-          if (!clause?.namedBindings || !ts.isNamedImports(clause.namedBindings)) return;
-          for (const el of clause.namedBindings.elements) {
-            const name = el.propertyName?.text ?? el.name.text;
-            if (FORBIDDEN.has(name)) hits.push(name);
-          }
-        }
-        ts.forEachChild(node, visit);
-      });
+      const hits = collectForbiddenAntdImportsFromSource(text, abs, forbidden);
       if (hits.length) {
-        const key = `src/${path.relative(SRC, abs).split(path.sep).join('/')}`;
-        result[key] = [...new Set(hits)].sort();
+        const key = `src/${path.relative(srcRoot, abs).split(path.sep).join('/')}`;
+        result[key] = hits;
       }
     }
   }
   return result;
 }
 
+export type AntdBaseline = {
+  version: number;
+  files: Record<string, string[]>;
+};
+
+/** Bidirectional diff: growth AND stale baseline entries fail. */
+export function diffAntdPrimitiveBaseline(
+  current: Record<string, string[]>,
+  baseline: AntdBaseline,
+): string[] {
+  const violations: string[] = [];
+  for (const [file, names] of Object.entries(current)) {
+    const limit = new Set(baseline.files[file] ?? []);
+    if (!(file in baseline.files)) {
+      violations.push(`NEW_FILE ${file}: ${names.join(',')}`);
+      continue;
+    }
+    const added = names.filter((n) => !limit.has(n));
+    if (added.length) {
+      violations.push(`GREW ${file}: +${added.join(',')}`);
+    }
+    const removed = [...limit].filter((n) => !names.includes(n));
+    if (removed.length) {
+      violations.push(
+        `STALE_BASELINE ${file}: baseline still lists ${removed.join(',')} (no longer imported from antd)`,
+      );
+    }
+  }
+  for (const file of Object.keys(baseline.files)) {
+    if (!(file in current)) {
+      violations.push(
+        `STALE_BASELINE_MISSING_FILE ${file}: baseline lists forbidden primitives but file has none (or was migrated)`,
+      );
+    }
+  }
+  return violations;
+}
+
 describe('antd primitive policy (AF9-UI-01)', () => {
-  it('does not grow forbidden direct Ant primitive imports in feature UI', () => {
-    const current = collectViolations();
+  it('does not grow or leave stale forbidden direct Ant primitive imports in feature UI', () => {
+    const current = collectAntdPrimitiveViolations();
     if (!fs.existsSync(BASELINE_PATH)) {
       fs.writeFileSync(BASELINE_PATH, JSON.stringify({ version: 1, files: current }, null, 2) + '\n');
     }
-    const baseline = JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8')) as {
-      files: Record<string, string[]>;
+    const baseline = JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8')) as AntdBaseline;
+    const violations = diffAntdPrimitiveBaseline(current, baseline);
+    if (violations.length) {
+      expect.fail(
+        violations.join('\n')
+          + '\nFIX: import from @/components/ui-kit, or shrink antdPrimitiveBaseline.json after migration (never raise)',
+      );
+    }
+  });
+
+  it('does not forbid Ant APIs that have no Tlt UI-kit equivalent (Space)', () => {
+    expect(FORBIDDEN_ANT_PRIMITIVES.has('Space')).toBe(false);
+    const hits = collectForbiddenAntdImportsFromSource(
+      `import { Space, Button } from 'antd';\nexport const X = () => <Space><Button /></Space>;\n`,
+    );
+    expect(hits).toEqual(['Button']);
+  });
+});
+
+describe('antd primitive fixtures (P1-GUARDRAIL-TRUTH-01)', () => {
+  it('OLD: growth-only compare misses stale baseline entry for a migrated file', () => {
+    const current: Record<string, string[]> = {
+      'src/pages/demo/StillDirty.tsx': ['Button'],
     };
-    const violations: string[] = [];
+    const baseline: AntdBaseline = {
+      version: 1,
+      files: {
+        'src/pages/demo/StillDirty.tsx': ['Button'],
+        'src/pages/demo/AlreadyMigrated.tsx': ['Button'],
+      },
+    };
+    // Growth-only (legacy) would only walk current → no failure for AlreadyMigrated.
+    const growthOnly: string[] = [];
     for (const [file, names] of Object.entries(current)) {
       const limit = new Set(baseline.files[file] ?? []);
       const added = names.filter((n) => !limit.has(n));
-      if (!(file in baseline.files)) {
-        violations.push(`NEW_FILE ${file}: ${names.join(',')}`);
-      } else if (added.length) {
-        violations.push(`GREW ${file}: +${added.join(',')}`);
-      }
+      if (!(file in baseline.files)) growthOnly.push(`NEW_FILE ${file}`);
+      else if (added.length) growthOnly.push(`GREW ${file}`);
     }
-    // shrink-only: missing files/names OK
-    if (violations.length) {
-      expect.fail(violations.join('\n') + '\nFIX: import from @/components/ui-kit or update baseline after migration');
-    }
+    expect(growthOnly).toEqual([]);
+  });
+
+  it('FIXED: removed Ant primitive baseline entry → stale-baseline failure', () => {
+    const current: Record<string, string[]> = {
+      'src/pages/demo/StillDirty.tsx': ['Button'],
+    };
+    const baseline: AntdBaseline = {
+      version: 1,
+      files: {
+        'src/pages/demo/StillDirty.tsx': ['Button'],
+        'src/pages/demo/AlreadyMigrated.tsx': ['Button'],
+      },
+    };
+    const violations = diffAntdPrimitiveBaseline(current, baseline);
+    expect(violations.some((v) => v.includes('STALE_BASELINE_MISSING_FILE') && v.includes('AlreadyMigrated'))).toBe(
+      true,
+    );
+  });
+
+  it('FIXED: stale name on a file that dropped one primitive fails', () => {
+    const current = { 'src/pages/demo/X.tsx': ['Button'] };
+    const baseline: AntdBaseline = {
+      version: 1,
+      files: { 'src/pages/demo/X.tsx': ['Button', 'Tag'] },
+    };
+    const violations = diffAntdPrimitiveBaseline(current, baseline);
+    expect(violations.some((v) => v.includes('STALE_BASELINE') && v.includes('Tag'))).toBe(true);
   });
 });

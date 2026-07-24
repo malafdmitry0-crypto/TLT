@@ -103,11 +103,17 @@ export default defineConfig({
           testTimeout: 60_000,
           hookTimeout: 60_000,
           sequence: { groupOrder: 2 },
+          // P2-ELEC-FEEDBACK-01 — worker budget for Electrical integration.
           // Per-file process isolation: setupFiles vi.hoisted mocks must not race
           // across workers (shared module state) or parallel files in one worker.
+          // maxWorkers=2: each file mounts full ElecCalcPage + AntD; uncapped
+          // fileParallelism on multi-core hosts + dual concurrent suite runs
+          // (two agent DoDs on one workspace) caused timeout flakiness.
+          // Budget keeps full Electrical ≤90s while dual concurrent runs stay green.
           pool: 'forks',
           isolate: true,
           fileParallelism: true,
+          maxWorkers: 2,
           setupFiles: [
             './src/__tests__/setup.ts',
             './src/__tests__/integration/pages/electrical/elecCalcPageTestEnv.tsx',

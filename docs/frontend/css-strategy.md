@@ -1,6 +1,7 @@
 # CSS-стратегия TLT: ownership, cascade и контроль качества
 
-**Актуально на:** 2026-07-23  
+**Актуально на:** 2026-07-24
+
 **Статус:** рабочий регламент для нового CSS и безопасного уменьшения
 существующего долга.
 
@@ -199,6 +200,39 @@ CSS custom properties не используются внутри media query.
 контракт и точные размеры browser proof заданы в
 [viewport-policy.md](./viewport-policy.md).
 
+## Раскладка форм
+
+Поведенческий ownership и целевой контракт формы заданы в
+[ui-kit.md](./ui-kit.md). Этот раздел владеет только CSS-механикой и не
+дублирует public API UI-kit или viewport-матрицу.
+
+Для нового или изменяемого form layout:
+
+- grid/flex owner — секция или form root, а не отдельный domain field;
+- DOM-порядок остаётся источником visual и keyboard order;
+- business field class нельзя использовать для `grid-row`, `grid-column`,
+  `order`, absolute positioning или компенсирующего offset;
+- `:has()`, `:nth-*`, child index и структура внутренних Ant-узлов не задают
+  geometry или conditional placement;
+- `display: contents` не используется для объединения независимых form sections
+  в один неявный layout owner;
+- hidden state выражается feature-rendering или явным modifier/state class, а
+  не поиском скрытого descendant через selector;
+- scoped Ant override может нормализовать внутренний chrome `Form.Item`, но не
+  размещать field slot относительно соседей;
+- field-level CSS custom property может настраивать intrinsic control width,
+  но не slot position, visual order или размер чужой секции.
+
+Если форма находится в resizable pane или меняет placement, её внутренний
+reflow ориентируется на доступную ширину контейнера. Числовой container
+threshold не выводится из viewport-профиля и не добавляется как локальная
+магическая константа: его введение требует отдельного characterization-first
+architecture-slice и централизованного контракта по `ui-kit.md`.
+
+Legacy coordinate maps считаются долгом, а не разрешённым шаблоном. При
+миграции секции заменённые coordinates удаляются в том же slice; старый и новый
+layout paths не остаются активными одновременно.
+
 ## Ant Design overrides и `!important`
 
 Порядок решения конфликта:
@@ -292,26 +326,25 @@ architecture-slice, а не внутри feature-задачи.
 4. Focused tests и релевантные browser states прошли.
 5. Console errors, overflow, keyboard/focus и print behavior не ухудшились.
 
-## Proof matrix
+## Proof
 
-| Изменение | Минимальный proof |
+Точные browser profiles и правила выбора крайних viewport задаёт только
+[viewport-policy.md](./viewport-policy.md). CSS-slice добавляет к выбранным
+профилям состояния своего владельца:
+
+| Изменение | Дополнительный focused proof |
 |---|---|
-| Token/UI kit | unit + `/ui-kit` + computed-style parity |
-| Heat form/layout | 1000 constrained; 1280 full; 1440 primary; используемые placements и validation |
-| Table/Glide chrome | 1000/1440; populated rows; local scroll; selection; error row |
-| Modal/settings | open/close; long content; keyboard focus; 1000 и 1440 |
-| Specification | populated + stale; screen + print |
-| Electrical | 1000 constrained; 1280 full; 1440 primary + focused e2e |
-| App shell | 1000, 1440, 1920; navigation; overflow |
-| Responsive component | 390 и 768 дополнительно |
+| Token/UI kit | `/ui-kit`, computed-style parity и затронутые control states |
+| Form layout | contract states из `ui-kit.md` и computed geometry на container extremes |
+| Table/Glide chrome | populated rows, local scroll, selection и error row |
+| Modal/settings | open/close, long content и keyboard focus |
+| Specification | populated/stale и screen/print |
+| Electrical | затронутый workflow и focused e2e |
+| App shell | navigation, overflow и распределение свободного пространства |
+| Responsive component | затронутые mobile/tablet states |
 
-`1000 px` — functional desktop boundary для всего приложения. Для плотных
-Heat/Electrical/Specification workflows полный workspace начинается с `1280 px`;
-между `1000` и `1279` допустимы documented warning, stacked/collapsed placement и
-локальный table scroll, но не недоступные ключевые действия или page-level
-overflow. `1440×900` остаётся primary QA. UI kit и явно
-responsive-компоненты дополнительно проверяются на 390/768. Reduced motion,
-focus-visible и print проверяются при затрагивании соответствующего поведения.
+Reduced motion, focus-visible и print проверяются, когда slice меняет
+соответствующее поведение.
 
 ## Definition of Done
 

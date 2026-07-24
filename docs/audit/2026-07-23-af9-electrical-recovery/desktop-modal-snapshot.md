@@ -1,0 +1,198 @@
+- generic [ref=f2e1] [box=0,0,1440,1000]:
+  - generic [ref=f2e3] [box=0,0,1440,1000]:
+    - banner [ref=f2e4] [box=0,0,1440,26]:
+      - generic [ref=f2e5] [box=10,0,1420,25]:
+        - generic "HeatCalc" [ref=f2e6] [box=10,5,86,15]:
+          - img "fire" [ref=f2e7] [box=10,5,15,15]
+          - heading "HeatCalc" [level=2] [ref=f2e10] [box=31,6,65,14]
+        - navigation "Разделы проекта" [ref=f2e11] [box=105,1,910,23]:
+          - menu [ref=f2e12] [box=105,1,910,23]:
+            - menuitem "fire Расчёт тепловых потерь check-circle 1" [ref=f2e13] [cursor=pointer] [box=107,1,246,24]:
+              - img "fire" [ref=f2e14] [box=115,7,14,12]
+              - generic [ref=f2e18] [box=139,6,206,15]:
+                - text: Расчёт тепловых потерь
+                - img "check-circle" [ref=f2e19] [box=292,7,14,12]
+                - superscript [ref=f2e23] [box=320,6,24,15]
+            - menuitem "thunderbolt Электротехнический расчёт check-circle 1" [ref=f2e26] [cursor=pointer] [box=356,1,271,24]:
+              - img "thunderbolt" [ref=f2e27] [box=364,7,14,12]
+              - generic [ref=f2e31] [box=388,6,231,15]:
+                - text: Электротехнический расчёт
+                - img "check-circle" [ref=f2e32] [box=568,7,14,12]
+                - superscript [ref=f2e36] [box=596,6,24,15]
+            - menuitem "unordered-list Спецификация" [ref=f2e39] [cursor=pointer] [box=632,1,132,24]:
+              - img "unordered-list" [ref=f2e40] [box=640,7,14,12]
+              - generic [ref=f2e43] [box=664,7,92,12]: Спецификация
+            - separator [box=354,2,0,21]
+            - menuitem "file-text Отчёт" [ref=f2e44] [cursor=pointer] [box=768,1,76,24]:
+              - img "file-text" [ref=f2e45] [box=776,7,14,12]
+              - generic [ref=f2e48] [box=800,7,36,12]: Отчёт
+            - menuitem [disabled] [box=123,0,30,24]
+        - generic [ref=f2e49] [box=1023,1,407,24]:
+          - generic [ref=f2e50] [box=1023,1,241,24]:
+            - generic [ref=f2e52] [box=1023,1,72,24]:
+              - img "folder-open" [ref=f2e54] [box=1023,9,10,10]
+              - generic "Мой проект" [ref=f2e58] [box=1036,1,59,22]
+            - button "download Скачать" [ref=f2e60] [cursor=pointer] [box=1102,2,73,22]:
+              - img "download" [ref=f2e62] [box=1110,7,11,11]
+              - generic [ref=f2e65] [box=1127,8,40,10]: Скачать
+            - button "upload Загрузить" [ref=f2e67] [cursor=pointer] [box=1178,2,83,22]:
+              - img "upload" [ref=f2e69] [box=1186,7,11,11]
+              - generic [ref=f2e72] [box=1203,8,50,10]: Загрузить
+          - generic [ref=f2e73] [box=1270,2,160,22]:
+            - button "question-circle Инструкция" [ref=f2e75] [cursor=pointer] [box=1270,2,92,22]:
+              - img "question-circle" [ref=f2e77] [box=1278,7,11,11]
+              - generic [ref=f2e81] [box=1295,8,60,10]: Инструкция
+            - button "logout Выход" [ref=f2e83] [cursor=pointer] [box=1366,2,64,22]:
+              - img "logout" [ref=f2e85] [box=1374,7,11,11]
+              - generic [ref=f2e88] [box=1390,8,32,10]: Выход
+    - main [ref=f2e90] [box=0,26,1440,974]:
+      - generic [ref=f2e91] [box=6,28,1428,700]:
+        - generic [ref=f2e96] [box=6,28,1428,37]:
+          - tablist "Варианты ЭР" [ref=f2e97] [box=6,28,638,37]:
+            - tab "ЭР1" [selected] [ref=f2e98] [cursor=pointer] [box=10,32,57,29]
+          - generic [ref=f2e99] [box=656,37,778,19]:
+            - button "Добавить пустой ЭР" [ref=f2e101] [cursor=pointer] [box=656,39,129,17]:
+              - generic [ref=f2e102] [box=662,42,117,11]: Добавить новый расчёт
+            - button "Создать копию выбранного ЭР «ЭР1»" [ref=f2e104] [cursor=pointer] [box=793,39,216,17]:
+              - generic [ref=f2e105] [box=799,42,204,11]: Добавить новый расчёт на основании ЭР
+            - button "Переименовать ЭР «ЭР1»" [ref=f2e106] [cursor=pointer] [box=1017,38,90,17]:
+              - generic [ref=f2e107] [box=1023,41,78,11]: Переименовать
+            - button "Нельзя удалить последний ЭР «ЭР1»" [disabled] [ref=f2e108] [box=1115,38,133,17]:
+              - generic [box=1121,41,121,11]: Удалить текущий расчёт
+            - button "Сформировать спецификацию" [ref=f2e109] [cursor=pointer] [box=1256,38,178,17]:
+              - img "file-text" [ref=f2e111] [box=1262,41,10,10]
+        - tabpanel "ЭР1" [ref=f2e116] [box=6,77,1428,651]:
+          - generic [ref=f2e118] [box=6,90,1428,638]:
+            - region "Саммари по типам кабеля" [ref=f2e120] [box=6,90,1428,236]:
+              - generic [ref=f2e121] [box=6,90,348,236]:
+                - strong [ref=f2e126] [box=123,102,115,16]: Саммари Самрег
+                - generic [ref=f2e128] [box=21,137,318,178]
+              - generic [ref=f2e147] [box=366,90,348,236]:
+                - strong [ref=f2e152] [box=477,102,126,16]: Саммари Резистив
+                - generic [ref=f2e154] [box=381,137,318,178]
+              - generic [ref=f2e173] [box=726,90,348,236]:
+                - strong [ref=f2e178] [box=851,102,98,16]: Саммари Скин
+                - generic [ref=f2e180] [box=741,137,318,178]
+              - generic [ref=f2e199] [box=1086,90,348,236]:
+                - strong [ref=f2e204] [box=1208,102,103,16]: Саммари Итого
+                - generic [ref=f2e206] [box=1101,137,318,178]
+            - generic [ref=f2e226] [box=6,346,1428,177]:
+              - generic [ref=f2e228] [box=19,357,1402,40]:
+                - tablist [ref=f2e229] [box=19,357,1402,32]
+                - generic [box=19,397,1402,0]
+              - generic "Зоны назначения перетаскиванием" [ref=f2e251] [box=19,401,1402,56]:
+                - generic [ref=f2e252] [box=19,401,462,56]
+                - generic [ref=f2e255] [box=489,401,462,56]
+                - generic [ref=f2e258] [box=959,401,462,56]
+              - toolbar "Действия с назначениями" [ref=f2e261] [box=19,465,1402,22]:
+                - generic [ref=f2e262] [box=19,465,77,22]: "Выбрано: 0"
+                - 'button "Назначить: Самрег" [disabled] [ref=f2e263] [box=104,465,118,22]'
+                - 'button "Назначить: Резистив" [disabled] [ref=f2e264] [box=230,465,127,22]'
+                - button "Вернуть в нераспределённые" [disabled] [ref=f2e265] [box=364,465,170,22]
+              - generic [ref=f2e266] [box=19,491,1402,19]: В текущей версии активен тип «Саморегулирующийся». «Резистив» и «Скин» — для будущего расширения.
+            - generic [ref=f2e269] [cursor=pointer] [box=1272,537,162,17]:
+              - checkbox "Расширенные параметры" [ref=f2e271] [box=1272,537,16,16]
+              - generic [ref=f2e273] [box=1288,537,146,17]: Расширенные параметры
+            - generic [ref=f2e275] [box=6,567,1428,30]:
+              - generic [ref=f2e276] [box=13,570,795,24]:
+                - generic [ref=f2e277] [box=13,574,105,17]: "Тип для пересчёта:"
+                - generic "Тип кабеля для пересчёта" [ref=f2e278] [cursor=pointer] [box=123,570,210,24]
+                - generic [ref=f2e284] [box=338,574,63,17]: "T проп., °C:"
+                - generic [ref=f2e285] [box=406,570,92,24]
+                - generic [ref=f2e296] [box=503,574,37,17]: "T3, °C:"
+                - generic [ref=f2e297] [box=545,570,92,24]
+                - generic [ref=f2e308] [cursor=pointer] [box=642,571,55,22]
+                - generic [ref=f2e313] [box=702,574,25,17]: "U, В:"
+                - generic [ref=f2e314] [box=732,570,76,24]
+              - generic [ref=f2e325] [box=813,571,638,22]:
+                - button "reload Пересчитать выбранные (0)" [disabled] [ref=f2e327] [box=820,571,202,22]
+                - button "reload Пересчитать все · ЭР1" [ref=f2e328] [cursor=pointer] [box=1027,571,168,22]
+                - button "Настройки" [ref=f2e334] [cursor=pointer] [box=1200,571,100,22]
+                - button "Сбросить фильтры таблицы" [disabled] [ref=f2e341] [box=1304,571,147,22]
+            - generic [ref=f2e344] [box=7,606,1426,121]:
+              - table [ref=f2e351] [box=8,607,1424,88]:
+                - rowgroup [ref=f2e367] [box=8,607,1424,49]
+                - rowgroup [ref=f2e608] [box=8,656,1424,39]
+              - generic [ref=f2e658] [box=7,696,1426,31]:
+                - generic [ref=f2e659] [box=11,704,93,19]: "Выбрано: 0 из 1"
+                - button "thunderbolt Спецификация →" [ref=f2e660] [cursor=pointer] [box=1317,705,112,17]
+  - generic [ref=f2e709] [box=0,0,1440,1000]:
+    - dialog "Подбор кабеля для Труба-1" [box=0,0,1440,1000]:
+      - generic [ref=f2e710] [box=0,0,1440,1000]:
+        - button "Close" [ref=f2e711] [cursor=pointer] [box=1396,12,32,32]:
+          - generic "Close" [ref=f2e712] [box=1396,20,32,16]:
+            - img "close" [ref=f2e713] [box=1404,20,16,16]
+        - generic [ref=f2e716] [box=24,20,1392,16]: Подбор кабеля для Труба-1
+        - generic [ref=f2e719] [box=36,56,1368,912]:
+          - generic "Характеристики объекта" [ref=f2e720] [box=36,56,1368,54]:
+            - 'group "Характеристики: объект" [ref=f2e721] [box=36,56,1368,54]':
+              - heading "Объект" [level=3] [ref=f2e722] [box=36,56,1368,13]
+              - generic [ref=f2e723] [box=36,72,1368,38]:
+                - generic [ref=f2e724] [box=36,72,336,38]
+                - generic [ref=f2e740] [box=380,72,336,38]
+                - generic [ref=f2e756] [box=724,72,336,38]
+          - generic [ref=f2e772] [box=36,118,1368,24]:
+            - radiogroup "Режим подбора кабеля" [ref=f2e773] [box=36,118,208,24]:
+              - generic [ref=f2e774] [box=38,120,204,20]:
+                - generic [ref=f2e775] [cursor=pointer] [box=38,120,91,20]
+                - generic [ref=f2e777] [cursor=pointer] [box=129,120,113,20]
+            - generic "Тип кабеля для подбора" [ref=f2e779] [cursor=pointer] [box=249,118,220,24]:
+              - generic [ref=f2e781] [box=257,119,204,22]:
+                - combobox "Тип кабеля для подбора" [disabled] [ref=f2e783] [box=257,119,186,22]
+                - generic "ТТН/ТТВ/ТТХ" [ref=f2e784] [box=257,119,204,22]
+            - button "Запустить авторасчёт" [ref=f2e785] [cursor=pointer] [box=474,122,120,17]
+            - button "Настройки таблицы" [ref=f2e787] [cursor=pointer] [box=599,122,125,17]:
+              - img "table" [ref=f2e789] [box=605,125,10,10]
+            - button "Сбросить фильтры таблицы кандидатов" [disabled] [ref=f2e793] [box=729,122,120,17]:
+              - generic [box=735,124,10,11]:
+                - img "close-circle" [box=735,125,10,10]
+              - generic [box=751,124,93,11]: Сбросить фильтры
+          - generic [ref=f2e794] [box=36,150,1368,24]:
+            - generic [ref=f2e795] [box=36,153,63,17]: "T проп., °C:"
+            - generic [ref=f2e796] [box=107,150,92,24]:
+              - generic [box=198,151,0,22]:
+                - button "Increase Value" [ref=f2e797] [cursor=pointer] [box=198,151,1,11]
+                - button "Decrease Value" [ref=f2e801] [cursor=pointer] [box=198,162,1,11]
+              - spinbutton "T пропарки" [ref=f2e806] [box=108,151,90,22]
+            - generic [ref=f2e807] [box=207,153,37,17]: "T3, °C:"
+            - generic [ref=f2e808] [box=252,150,92,24]:
+              - generic [box=343,151,0,22]:
+                - button "Increase Value" [ref=f2e809] [cursor=pointer] [box=343,151,1,11]
+                - button "Decrease Value" [ref=f2e813] [cursor=pointer] [box=343,162,1,11]
+              - spinbutton "T3 поддержания" [ref=f2e818] [box=253,151,90,22]
+            - generic [ref=f2e819] [cursor=pointer] [box=352,151,55,22]:
+              - checkbox "агр." [ref=f2e821] [box=352,154,16,16]
+              - generic [ref=f2e823] [box=368,151,39,22]: агр.
+            - generic [ref=f2e824] [box=415,153,25,17]: "U, В:"
+            - generic [ref=f2e825] [box=448,150,76,24]:
+              - generic [box=523,151,0,22]:
+                - button "Increase Value" [ref=f2e826] [cursor=pointer] [box=523,151,1,11]
+                - button "Decrease Value" [ref=f2e830] [cursor=pointer] [box=523,162,1,11]
+              - spinbutton "Напряжение питания" [ref=f2e835] [box=449,151,74,22]: "220"
+          - generic [ref=f2e836] [box=36,182,1368,34]:
+            - strong [ref=f2e838] [box=45,192,113,13]: "Выбранный кабель:"
+            - generic [ref=f2e839] [box=164,190,69,18]: 90ТТХ2-СТ
+            - generic [ref=f2e840] [box=239,190,73,17]: ТТН/ТТВ/ТТХ
+            - generic [ref=f2e841] [box=318,190,62,17]:
+              - text: "P:"
+              - strong [ref=f2e842] [box=332,192,48,13]: 8,48 кВт
+            - generic [ref=f2e843] [box=386,190,80,17]:
+              - text: "Заказ:"
+              - strong [ref=f2e844] [box=424,192,42,13]: 214,2 м
+            - generic [ref=f2e845] [box=472,190,53,17]:
+              - text: "I:"
+              - strong [ref=f2e846] [box=481,192,43,13]: 38,54 А
+          - generic "Папки вариантов подбора" [ref=f2e847] [box=36,224,1368,32]:
+            - generic [ref=f2e848] [box=36,232,1305,17]:
+              - button "Все 0" [ref=f2e849] [cursor=pointer] [box=36,232,46,17]:
+                - generic [ref=f2e850] [box=42,234,18,11]: Все
+                - generic [ref=f2e851] [box=70,234,6,11]: "0"
+              - button "Избранное 0" [ref=f2e852] [cursor=pointer] [box=86,232,82,17]:
+                - generic [ref=f2e853] [box=92,234,54,11]: Избранное
+                - generic [ref=f2e854] [box=156,234,6,11]: "0"
+            - button "plus Папка" [ref=f2e855] [cursor=pointer] [box=1347,232,57,17]:
+              - img "plus" [ref=f2e857] [box=1353,235,10,10]
+              - generic [ref=f2e861] [box=1368,234,30,11]: Папка
+          - generic [ref=f2e862] [box=36,264,1368,162]: Вариантов пока нет. Запустите авторасчёт или ручной расчёт.
+          - textbox "Комментарий к выбранному кандидату" [disabled] [ref=f2e864] [box=36,434,1368,46]:
+            - /placeholder: Комментарий инженера к выбранному варианту

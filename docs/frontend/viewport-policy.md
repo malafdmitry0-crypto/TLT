@@ -1,6 +1,6 @@
 # Desktop viewport policy TLT
 
-**Актуально на:** 2026-07-23
+**Актуально на:** 2026-07-24
 
 **Статус:** тематический регламент для desktop UI proof.
 
@@ -115,16 +115,23 @@ validation summary и сообщения об ошибках. Горизонта
 ## Viewports не являются breakpoints
 
 QA-профили проверяют поведение внутри диапазонов. Они не разрешают добавлять
-одноимённый media query. Действующая CSS policy остаётся:
+одноимённый media query. Канонический список responsive breakpoints находится
+только в разделе
+[Breakpoints CSS-стратегии](./css-strategy.md#breakpoints). Новый breakpoint
+требует отдельного CSS architecture decision независимо от этого документа.
 
-```text
-480 / 768 / 1200 / 1400
-print
-prefers-reduced-motion
-```
+## Viewport не равен form container
 
-Новый breakpoint требует отдельного CSS architecture decision независимо от
-этого документа.
+Viewport определяет внешнюю доступную область страницы. Вложенная форма может
+получить другую ширину из-за sidebar, split pane, resizing или placement
+сверху/сбоку. Поэтому viewport-профиль не используется как косвенная ширина
+form section.
+
+Правила внутреннего form reflow принадлежат
+[UI-kit и form-layout контракту](./ui-kit.md), а CSS-механика —
+[CSS-стратегии](./css-strategy.md). Канонические container thresholds пока не
+установлены; если они появятся после characterization, их значения хранятся в
+form-layout контракте и не дублируются в этой таблице.
 
 ## Definition of Done
 

@@ -8,6 +8,12 @@ import { Alert, Button, Checkbox } from 'antd';
 import ElecCalcParamsPanel from '@/pages/electrical/ElecCalcParamsPanel';
 import ElecCalcErrorSummary from '@/pages/electrical/ElecCalcErrorSummary';
 import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
+import type {
+  ElecCalcTypeControlSetters,
+  ElecCalcTypeControlValues,
+} from '@/pages/electrical/elecCalcTypeControlModel';
+import type { ElectricalErrorSummaryItem } from '@/pages/electrical/elecCalcErrorSummaryModel';
+import type { ElectricalErrorGuidance } from '@/utils/electricalErrorGuidance';
 
 export type ElecCalcWorkspaceParamsChromeProps = {
   canMutate: boolean;
@@ -16,12 +22,12 @@ export type ElecCalcWorkspaceParamsChromeProps = {
   visibleCableTypeControl: CableTypeKey | null;
   cableTypeOptions: Array<{ label: string; value: CableTypeKey }>;
   onCableTypeChange: (type: CableTypeKey) => void;
-  recalc: unknown;
-  setRecalc: unknown;
+  recalc: ElecCalcTypeControlValues;
+  setRecalc: ElecCalcTypeControlSetters;
   failedCount: number;
   activeRowId: string | null;
-  activeElectricalErrorItem: unknown;
-  activeElectricalErrorGuidance: unknown;
+  activeElectricalErrorItem: ElectricalErrorSummaryItem | null;
+  activeElectricalErrorGuidance: ElectricalErrorGuidance | null;
   isElectricalCapabilitiesError: boolean;
   isElectricalPageError: boolean;
   electricalPageError: unknown;
@@ -78,15 +84,15 @@ export function ElecCalcWorkspaceParamsChrome({
           cableType={visibleCableTypeControl}
           cableTypeOptions={cableTypeOptions}
           onCableTypeChange={onCableTypeChange}
-          recalc={recalc as never}
-          setRecalc={setRecalc as never}
+          recalc={recalc}
+          setRecalc={setRecalc}
         />
       )}
       <ElecCalcErrorSummary
         failedCount={failedCount}
         activeRowId={activeRowId}
-        item={activeElectricalErrorItem as never}
-        guidance={activeElectricalErrorGuidance as never}
+        item={activeElectricalErrorItem}
+        guidance={activeElectricalErrorGuidance}
       />
 
       {(isElectricalCapabilitiesError || isElectricalPageError) && (
