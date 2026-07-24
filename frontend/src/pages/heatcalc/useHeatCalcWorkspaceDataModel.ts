@@ -190,6 +190,7 @@ export function useHeatCalcWorkspaceDataModel({
     normalizedTableView,
     visibleAllTableRows,
     visibleTableColumnKeys,
+    workspaceLoadState,
   } = useHeatCalcObjectsDataModel({
     activeObjectQueryCursor,
     activeObjectScope,
@@ -361,6 +362,7 @@ export function useHeatCalcWorkspaceDataModel({
     totalCount,
     visibleAllTableRows,
     visibleTableColumnKeys,
+    workspaceLoadState,
     // drafts / excel local rows
     activeInlineCell,
     setActiveInlineCell,

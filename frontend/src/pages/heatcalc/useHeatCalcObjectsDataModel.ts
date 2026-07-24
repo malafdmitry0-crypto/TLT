@@ -53,10 +53,20 @@ import {
   isColumnApplicableToObjectType,
 } from '@/utils/heatCalcPageUtils';
 import { buildHeatCalcColumnRenderers } from '@/pages/heatcalc/heatCalcColumnRenderers';
+import {
+  buildHeatCalcWorkspaceLoadState,
+  requiredQuerySlice,
+} from '@/pages/heatcalc/heatCalcWorkspaceLoadStateModel';
 import type {
   ActiveObjectScope,
   NormalLoadedRowsByType,
 } from '@/pages/heatcalc/useHeatCalcTableState';
+
+export type {
+  HeatCalcRequiredQuerySlice,
+  HeatCalcWorkspaceLoadState,
+} from '@/pages/heatcalc/heatCalcWorkspaceLoadStateModel';
+export { buildHeatCalcWorkspaceLoadState } from '@/pages/heatcalc/heatCalcWorkspaceLoadStateModel';
 
 interface UseHeatCalcObjectsDataModelOptions {
   activeObjectQueryCursor: ProjectObjectsPageCursor | null;
@@ -185,19 +195,22 @@ export function useHeatCalcObjectsDataModel({
   rememberObjectQueryCursor,
   resetNormalLoadMoreRequest,
 }: UseHeatCalcObjectsDataModelOptions) {
-  const { data: objectsSummary } = useQuery({
+  const summaryQuery = useQuery({
     queryKey: ['project', project?.id, 'objects', 'summary'],
     queryFn: () => getObjectsSummary(project!.id),
     enabled: !!project,
   });
+  const objectsSummary = summaryQuery.data;
 
-  const { data: objectQueryCapabilities } = useQuery({
+  const capabilitiesQuery = useQuery({
     queryKey: ['project', project?.id, 'objects', 'query-capabilities', activeTableObjectType],
     queryFn: () => getObjectQueryCapabilities(project!.id, activeTableObjectType),
     enabled: !!project && !isAllObjectScope,
     staleTime: 5 * 60_000,
   });
+  const objectQueryCapabilities = capabilitiesQuery.data;
 
+  // Insulation reference is non-blocking for workspace load state (AF10-HEAT-LOAD-STATE-MODEL-01).
   const { data: insulationMaterials = [] } = useQuery({
     queryKey: referenceQueryKeys.insulation,
     queryFn: getInsulation,
@@ -240,12 +253,15 @@ export function useHeatCalcObjectsDataModel({
     () => ['project', project?.id, 'objects', 'query', 'all'] as const,
     [project?.id],
   );
-  const { data: objectQueryResult, isFetching: objectQueryFetching } = useQuery({
+  const objectQueryEnabled = !!project && objectQueryRequest != null && !!objectQueryCapabilities;
+  const activeObjectsQuery = useQuery({
     queryKey: objectQueryKey,
     queryFn: () => queryObjects(project!.id, objectQueryRequest!),
-    enabled: !!project && objectQueryRequest != null && !!objectQueryCapabilities,
+    enabled: objectQueryEnabled,
     placeholderData: (previous) => previous,
   });
+  const objectQueryResult = activeObjectsQuery.data;
+  const objectQueryFetching = activeObjectsQuery.isFetching;
 
   useEffect(() => {
     rememberObjectQueryCursor(objectQueryResult);
@@ -263,13 +279,33 @@ export function useHeatCalcObjectsDataModel({
     () => (!isAllObjectScope ? objectQueryResult?.items ?? [] : []),
     [isAllObjectScope, objectQueryResult?.items],
   );
-  const { data: allProjectObjectsData } = useQuery({
+  const allObjectsQueryEnabled = !!project && (isAllObjectScope || excelModeEnabled);
+  const allObjectsQuery = useQuery({
     queryKey: allProjectObjectsQueryKey,
     queryFn: () => listObjects(project!.id),
-    enabled: !!project && (isAllObjectScope || excelModeEnabled),
+    enabled: allObjectsQueryEnabled,
     placeholderData: (previous) => previous ?? currentPageObjectsForExcel,
   });
+  const allProjectObjectsData = allObjectsQuery.data;
   const allProjectObjects = allProjectObjectsData ?? currentPageObjectsForExcel;
+
+  const workspaceLoadState = useMemo(
+    () => buildHeatCalcWorkspaceLoadState([
+      requiredQuerySlice(!!project, summaryQuery),
+      requiredQuerySlice(!!project && !isAllObjectScope, capabilitiesQuery),
+      // placeholderData keeps previous page on refetch; treat that as usable.
+      requiredQuerySlice(objectQueryEnabled, activeObjectsQuery),
+      requiredQuerySlice(
+        allObjectsQueryEnabled,
+        allObjectsQuery,
+        allObjectsQuery.data != null
+          || (allObjectsQueryEnabled && currentPageObjectsForExcel.length > 0),
+      ),
+    ]),
+    [summaryQuery, capabilitiesQuery, activeObjectsQuery, allObjectsQuery,
+      allObjectsQueryEnabled, currentPageObjectsForExcel.length, isAllObjectScope,
+      objectQueryEnabled, project],
+  );
   const allProjectObjectsPrefetchLimit =
     objectQueryCapabilities?.default_page_size ?? DEFAULT_OBJECT_QUERY_PAGE_SIZE;
   const projectObjectCountForPrefetch = objectsSummary?.total;
@@ -447,5 +483,6 @@ export function useHeatCalcObjectsDataModel({
     normalizedTableView,
     visibleAllTableRows,
     visibleTableColumnKeys,
+    workspaceLoadState,
   };
 }
