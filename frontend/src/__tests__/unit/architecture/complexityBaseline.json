@@ -75,10 +75,10 @@
       "useCallback": 0
     },
     "src/pages/electrical/ElectricalVariantTabs.tsx": {
-      "loc": 615,
+      "loc": 531,
       "imports": 8,
-      "useEffect": 4,
-      "useState": 3,
+      "useEffect": 1,
+      "useState": 0,
       "useCallback": 0
     },
     "src/utils/electricalCandidateTableColumns.ts": {

@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
-import type { InputRef } from 'antd';
+import { useEffect, useRef, type KeyboardEvent } from 'react';
 import {
   Alert,
   Button,
@@ -19,6 +18,7 @@ import type {
   ElectricalVariantPendingOperation,
   ElectricalVariantSelectionController,
 } from './useElectricalVariantSelection';
+import { useElectricalVariantRename } from './useElectricalVariantRename';
 
 const MAX_ELECTRICAL_VARIANTS = 5;
 
@@ -55,24 +55,16 @@ function ignoreHandledError(operation: Promise<unknown>): void {
 function LoadingCard({ text }: { text: string }) {
   return (
     <Card size="small" className="electrical-variant-tabs electrical-variant-tabs--loading">
-      <Space role="status" aria-live="polite">
-        <Spin size="small" />
-        <Typography.Text>{text}</Typography.Text>
-      </Space>
+      <Space role="status" aria-live="polite"><Spin size="small" /><Typography.Text>{text}</Typography.Text></Space>
     </Card>
   );
 }
 
-function MutationStatus({
-  operation,
-}: {
-  operation: ElectricalVariantPendingOperation;
-}) {
+function MutationStatus({ operation }: { operation: ElectricalVariantPendingOperation }) {
   if (!operation) return null;
   return (
     <Space role="status" aria-live="polite" size={6}>
-      <Spin size="small" />
-      <Typography.Text>{PENDING_OPERATION_LABELS[operation]}</Typography.Text>
+      <Spin size="small" /><Typography.Text>{PENDING_OPERATION_LABELS[operation]}</Typography.Text>
     </Space>
   );
 }
@@ -198,37 +190,26 @@ export default function ElectricalVariantTabs({
   canMutate = true,
 }: ElectricalVariantTabsProps) {
   const navigate = useNavigate();
-  const [editingVariantId, setEditingVariantId] = useState<string | null>(null);
-  const [renameValue, setRenameValue] = useState('');
-  const [renameValidationError, setRenameValidationError] = useState<string | null>(null);
-  const renameInputRef = useRef<InputRef>(null);
   const tablistRef = useRef<HTMLDivElement>(null);
-  const focusVariantAfterEditRef = useRef<string | null>(null);
-  const renameSubmissionRef = useRef(false);
-  const cancelRenameRef = useRef(false);
-
-  useEffect(() => {
-    if (!editingVariantId) return;
-    if (!controller.variants.some((variant) => variant.id === editingVariantId)) {
-      setEditingVariantId(null);
-      setRenameValidationError(null);
-    }
-  }, [controller.variants, editingVariantId]);
-
-  useEffect(() => {
-    if (editingVariantId) {
-      renameInputRef.current?.focus({ cursor: 'all' });
-    }
-  }, [editingVariantId]);
-
-  useEffect(() => {
-    if (editingVariantId !== null || !focusVariantAfterEditRef.current) return;
-    const variantId = focusVariantAfterEditRef.current;
-    focusVariantAfterEditRef.current = null;
-    tablistRef.current
-      ?.querySelector<HTMLButtonElement>(`[data-electrical-variant-id="${variantId}"]`)
-      ?.focus();
-  }, [editingVariantId]);
+  const rename = useElectricalVariantRename({
+    variants: controller.variants,
+    selectedVariant: controller.selectedVariant,
+    renameVariant: controller.renameVariant,
+    clearMutationError: controller.clearMutationError,
+    tablistRef,
+  });
+  const {
+    editingVariantId,
+    renameValue,
+    setRenameValue,
+    renameValidationError,
+    setRenameValidationError,
+    renameInputRef,
+    isRenaming,
+    startRename,
+    handleRenameKeyDown,
+    handleRenameBlur,
+  } = rename;
 
   useEffect(() => {
     if (!controller.selectedVariantId) return;
@@ -296,70 +277,7 @@ export default function ElectricalVariantTabs({
 
   const reachedLimit = controller.variants.length >= MAX_ELECTRICAL_VARIANTS;
   const isLastVariant = controller.variants.length === 1;
-  const lifecycleWriteLocked = controller.isMutating || editingVariantId !== null;
-
-  const startRename = () => {
-    controller.clearMutationError();
-    setRenameValidationError(null);
-    setRenameValue(selected.name);
-    setEditingVariantId(selected.id);
-  };
-
-  const cancelRename = () => {
-    cancelRenameRef.current = true;
-    focusVariantAfterEditRef.current = editingVariantId;
-    setEditingVariantId(null);
-    setRenameValidationError(null);
-    queueMicrotask(() => {
-      cancelRenameRef.current = false;
-    });
-  };
-
-  const commitRename = async (restoreTabFocus: boolean) => {
-    if (!editingVariantId || renameSubmissionRef.current) return;
-    const target = controller.variants.find((variant) => variant.id === editingVariantId);
-    if (!target) {
-      setEditingVariantId(null);
-      return;
-    }
-
-    const trimmedName = renameValue.trim();
-    if (!trimmedName) {
-      setRenameValidationError('Название ЭР не может быть пустым');
-      return;
-    }
-    if (trimmedName === target.name) {
-      if (restoreTabFocus) focusVariantAfterEditRef.current = target.id;
-      setEditingVariantId(null);
-      setRenameValidationError(null);
-      return;
-    }
-
-    renameSubmissionRef.current = true;
-    controller.clearMutationError();
-    setRenameValidationError(null);
-    try {
-      await controller.renameVariant(target.id, trimmedName);
-      if (restoreTabFocus) focusVariantAfterEditRef.current = target.id;
-      setEditingVariantId(null);
-    } catch (error) {
-      setRenameValidationError(extractApiErrorMessage(error));
-    } finally {
-      renameSubmissionRef.current = false;
-    }
-  };
-
-  const handleRenameKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      void commitRename(true);
-      return;
-    }
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      cancelRename();
-    }
-  };
+  const lifecycleWriteLocked = controller.isMutating || isRenaming;
 
   const handleTabKeyDown = (
     index: number,
@@ -475,9 +393,7 @@ export default function ElectricalVariantTabs({
                         if (event.target.value.trim()) setRenameValidationError(null);
                       }}
                       onKeyDown={handleRenameKeyDown}
-                      onBlur={() => {
-                        if (!cancelRenameRef.current) void commitRename(false);
-                      }}
+                      onBlur={handleRenameBlur}
                       readOnly={controller.isMutating}
                       aria-busy={controller.isMutating}
                     />
