@@ -1,10 +1,10 @@
 # Frontend refactor backlog
 
-**Статус:** ACTIVE — RISK-CLOSE-PROOF-01 (honest DoD + browser closure)
+**Статус:** EMPTY QUEUE
 
-**Актуально на:** 2026-07-24
+**Актуально на:** 2026-07-25
 
-**Следующий незакрытый контракт:** `RISK-CLOSE-PROOF-01`
+**Следующий незакрытый контракт:** —
 
 Это **единственный** источник текущего `pending` для frontend. Одновременно
 может существовать только одна ACTIVE frontend-очередь (когда pending есть).
@@ -16,7 +16,8 @@ Completed initiative plans не имеют права объявлять `COMPLE
 Исполняемый шаблон: [мастер-промпт](./agent-refactor-prompt.md).
 Point-in-time метрики: [P0 audit](../audit/2026-07-24-p0-doc-truth/snapshot.md),
 [RISK pre-close incomplete](../audit/2026-07-24-frontend-risk-recovery/snapshot.md),
-[RISK-CLOSE-PROOF final (BLOCKED)](../audit/2026-07-24-frontend-risk-recovery-final/snapshot.md).
+[RISK-CLOSE-PROOF final (BLOCKED historical)](../audit/2026-07-24-frontend-risk-recovery-final/snapshot.md),
+[RISK-CLOSE-PROOF-01 PASS](../audit/2026-07-25-frontend-risk-recovery/snapshot.md).
 История AF9: [archive summary](./archive/agent-friendly-9-plan-historical.md).
 
 ## Правила очереди
@@ -224,9 +225,7 @@ Closure evidence:
 | `RISK-CSS-CLIMATE-DEAD-01` | climate coords removed; layout 88→72 |
 | `RISK-CLOSE-01` | pre-close audit only — **not** final (see PROOF-01) |
 
-### Общая приёмка (recompute at HEAD `4462374`)
-
-Metrics (recomputed in CLOSE-PROOF-01) remain met, but **queue is not closed**:
+### Общая приёмка (recompute + PROOF-01 PASS, 2026-07-25)
 
 - [x] Production type escapes: `11 → 0`
 - [x] Inline-style total: `520 → 496`
@@ -239,33 +238,27 @@ Metrics (recomputed in CLOSE-PROOF-01) remain met, but **queue is not closed**:
 - [x] Ant primitive baseline не вырос (90)
 - [x] Type/import/inline/coordinate baselines shrink-only
 - [x] Focused RISK suites 97/97; architecture 40/40; typecheck green
-- [ ] Browser proof 1000/1280/1440/1366 — **required**; matrix BLOCKED
-  (kontur_playwright unavailable; full Projects/Heat evidence missing)
-- [ ] Full `npm run test:agent-dod` green at production HEAD — **RED**
-  (`ReportPage.test.tsx` openSpy / report-wizard URL)
-- [ ] Honest final audit Status PASSED — current final audit is **BLOCKED**
-  ([final snapshot](../audit/2026-07-24-frontend-risk-recovery-final/snapshot.md))
-
-R1–R12 implementation slices remain landed in `4462374`. They are **not**
-declared fully closed as an initiative until PROOF-01 is PASSED.
+- [x] Browser proof 1000/1280/1366/1440 (+1440×1000, 390×844) — Projects +
+  Heat employee matrix green; evidence in
+  [2026-07-25 snapshot](../audit/2026-07-25-frontend-risk-recovery/snapshot.md)
+- [x] Full `npm run test:agent-dod` ×2 green (ReportPage flake fixed by
+  `AF10-REPORT-FLAKE-01` prior to proof)
+- [x] Honest final audit Status **PASS**
+  ([closure snapshot](../audit/2026-07-25-frontend-risk-recovery/snapshot.md))
 
 ### Pending
 
-- [ ] **RISK-CLOSE-PROOF-01 — honest DoD + browser closure evidence.**
+_EMPTY QUEUE — no pending frontend acceptance contracts._
 
-  Docs/QA only. Fix false EMPTY QUEUE: run full `test:agent-dod` and required
-  Projects/Heat browser matrix at HEAD `4462374` (or current production HEAD).
-  See [final audit (BLOCKED)](../audit/2026-07-24-frontend-risk-recovery-final/snapshot.md).
+### Done (closure)
 
-  **Blockers (FILE / EVIDENCE / DECISION NEEDED):**
+- [x] **RISK-CLOSE-PROOF-01 — honest DoD + browser closure evidence.**
 
-  1. `ReportPage.test.tsx` / openSpy 0 calls / report / fix outside this docs
-     slice then re-run DoD
-  2. `kontur_playwright` MCP / unavailable in session / tooling / enable MCP or
-     approve alternate browser harness
-  3. Projects+Heat matrix / no evidence artifacts / qa / run after DoD green
-
-  EMPTY QUEUE is forbidden while any checkbox above is open.
+  Docs/QA only. Double `test:agent-dod` green; live Projects/Heat screenshots
+  for required viewports; no pageerrors / useForm warnings / unexpected failed
+  network. Prerequisites on HEAD: ReportPage flake fix + useForm modal
+  connection. See
+  [PASS snapshot](../audit/2026-07-25-frontend-risk-recovery/snapshot.md).
 
 ### Исторические контракт-блоки R1–R12
 

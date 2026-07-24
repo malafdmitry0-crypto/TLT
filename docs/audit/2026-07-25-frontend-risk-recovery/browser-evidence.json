@@ -1,0 +1,350 @@
+{
+  "startedAt": "2026-07-24T22:50:17.601Z",
+  "console": [],
+  "networkFailed": [],
+  "shots": [
+    "browser/projects-1000x768.png",
+    "browser/projects-create-modal-1000x768.png",
+    "browser/heat-employee-1000x768.png",
+    "browser/projects-1280x800.png",
+    "browser/projects-create-modal-1280x800.png",
+    "browser/heat-employee-1280x800.png",
+    "browser/projects-1366x768.png",
+    "browser/projects-create-modal-1366x768.png",
+    "browser/heat-employee-1366x768.png",
+    "browser/projects-1440x900.png",
+    "browser/projects-create-modal-1440x900.png",
+    "browser/heat-employee-1440x900.png",
+    "browser/projects-1440x1000.png",
+    "browser/projects-create-modal-1440x1000.png",
+    "browser/heat-employee-1440x1000.png",
+    "browser/projects-390x844.png",
+    "browser/projects-create-modal-390x844.png",
+    "browser/heat-employee-390x844.png",
+    "browser/heat-guest-1000x768.png",
+    "browser/heat-guest-1440x900.png",
+    "browser/heat-guest-390x844.png"
+  ],
+  "states": [
+    {
+      "name": "employee-login-1000x768",
+      "ok": true,
+      "detail": "http://localhost:3003/workspace/heat-calc"
+    },
+    {
+      "name": "projects-loaded-1000x768",
+      "ok": true,
+      "detail": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Инструкция Выход Рекоме"
+    },
+    {
+      "name": "geometry-no-overflow-x-projects-1000x768",
+      "ok": true,
+      "detail": "{\"docW\":1000,\"clientW\":1000,\"docH\":1074,\"clientH\":768}"
+    },
+    {
+      "name": "projects-create-modal-1000x768",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "heat-employee-1000x768",
+      "ok": true,
+      "detail": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Новый проект Открыть Скачать Загрузить Инст"
+    },
+    {
+      "name": "geometry-no-overflow-x-heat-employee-1000x768",
+      "ok": true,
+      "detail": "{\"docW\":1000,\"clientW\":1000,\"docH\":768,\"clientH\":768}"
+    },
+    {
+      "name": "employee-login-1280x800",
+      "ok": true,
+      "detail": "http://localhost:3003/workspace/heat-calc"
+    },
+    {
+      "name": "projects-loaded-1280x800",
+      "ok": true,
+      "detail": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Инструкция Выход Проект"
+    },
+    {
+      "name": "geometry-no-overflow-x-projects-1280x800",
+      "ok": true,
+      "detail": "{\"docW\":1280,\"clientW\":1280,\"docH\":956,\"clientH\":800}"
+    },
+    {
+      "name": "projects-create-modal-1280x800",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "heat-employee-1280x800",
+      "ok": true,
+      "detail": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Новый проект Открыть Скачать Загрузить Инст"
+    },
+    {
+      "name": "geometry-no-overflow-x-heat-employee-1280x800",
+      "ok": true,
+      "detail": "{\"docW\":1280,\"clientW\":1280,\"docH\":800,\"clientH\":800}"
+    },
+    {
+      "name": "employee-login-1366x768",
+      "ok": true,
+      "detail": "http://localhost:3003/workspace/heat-calc"
+    },
+    {
+      "name": "projects-loaded-1366x768",
+      "ok": true,
+      "detail": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Инструкция Выход Проект"
+    },
+    {
+      "name": "geometry-no-overflow-x-projects-1366x768",
+      "ok": true,
+      "detail": "{\"docW\":1366,\"clientW\":1366,\"docH\":956,\"clientH\":768}"
+    },
+    {
+      "name": "projects-create-modal-1366x768",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "heat-employee-1366x768",
+      "ok": true,
+      "detail": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Новый проект Открыть Скачать Загрузить Инст"
+    },
+    {
+      "name": "geometry-no-overflow-x-heat-employee-1366x768",
+      "ok": true,
+      "detail": "{\"docW\":1366,\"clientW\":1366,\"docH\":768,\"clientH\":768}"
+    },
+    {
+      "name": "employee-login-1440x900",
+      "ok": true,
+      "detail": "http://localhost:3003/workspace/heat-calc"
+    },
+    {
+      "name": "projects-loaded-1440x900",
+      "ok": true,
+      "detail": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Инструкция Выход Проект"
+    },
+    {
+      "name": "geometry-no-overflow-x-projects-1440x900",
+      "ok": true,
+      "detail": "{\"docW\":1440,\"clientW\":1440,\"docH\":900,\"clientH\":900}"
+    },
+    {
+      "name": "projects-create-modal-1440x900",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "heat-employee-1440x900",
+      "ok": true,
+      "detail": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Новый проект Открыть Скачать Загрузить Инст"
+    },
+    {
+      "name": "geometry-no-overflow-x-heat-employee-1440x900",
+      "ok": true,
+      "detail": "{\"docW\":1440,\"clientW\":1440,\"docH\":900,\"clientH\":900}"
+    },
+    {
+      "name": "employee-login-1440x1000",
+      "ok": true,
+      "detail": "http://localhost:3003/workspace/heat-calc"
+    },
+    {
+      "name": "projects-loaded-1440x1000",
+      "ok": true,
+      "detail": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Инструкция Выход Проект"
+    },
+    {
+      "name": "geometry-no-overflow-x-projects-1440x1000",
+      "ok": true,
+      "detail": "{\"docW\":1440,\"clientW\":1440,\"docH\":1000,\"clientH\":1000}"
+    },
+    {
+      "name": "projects-create-modal-1440x1000",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "heat-employee-1440x1000",
+      "ok": true,
+      "detail": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Новый проект Открыть Скачать Загрузить Инст"
+    },
+    {
+      "name": "geometry-no-overflow-x-heat-employee-1440x1000",
+      "ok": true,
+      "detail": "{\"docW\":1440,\"clientW\":1440,\"docH\":1000,\"clientH\":1000}"
+    },
+    {
+      "name": "employee-login-390x844",
+      "ok": true,
+      "detail": "http://localhost:3003/workspace/heat-calc"
+    },
+    {
+      "name": "projects-loaded-390x844",
+      "ok": true,
+      "detail": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Инструкция Выход Рекоме"
+    },
+    {
+      "name": "geometry-no-overflow-x-projects-390x844",
+      "ok": true,
+      "detail": "{\"docW\":390,\"clientW\":390,\"docH\":1458,\"clientH\":844}"
+    },
+    {
+      "name": "projects-create-modal-390x844",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "heat-employee-390x844",
+      "ok": true,
+      "detail": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Новый проект Открыть Скачать Загрузить Инст"
+    },
+    {
+      "name": "geometry-no-overflow-x-heat-employee-390x844",
+      "ok": true,
+      "detail": "{\"docW\":390,\"clientW\":390,\"docH\":844,\"clientH\":844}"
+    },
+    {
+      "name": "heat-guest-1000x768",
+      "ok": true,
+      "detail": "HeatCalc Расчёт тепловых потерь и подбор систем электрообогрева трубопроводов и резервуаров Войти без регистрации Быстры"
+    },
+    {
+      "name": "geometry-no-overflow-x-heat-guest-1000x768",
+      "ok": true,
+      "detail": "{\"docW\":1000,\"clientW\":1000,\"docH\":840,\"clientH\":768}"
+    },
+    {
+      "name": "heat-guest-1440x900",
+      "ok": true,
+      "detail": "HeatCalc Расчёт тепловых потерь и подбор систем электрообогрева трубопроводов и резервуаров Войти без регистрации Быстры"
+    },
+    {
+      "name": "geometry-no-overflow-x-heat-guest-1440x900",
+      "ok": true,
+      "detail": "{\"docW\":1440,\"clientW\":1440,\"docH\":900,\"clientH\":900}"
+    },
+    {
+      "name": "heat-guest-390x844",
+      "ok": true,
+      "detail": "HeatCalc Расчёт тепловых потерь и подбор систем электрообогрева трубопроводов и резервуаров Войти без регистрации Быстры"
+    },
+    {
+      "name": "geometry-no-overflow-x-heat-guest-390x844",
+      "ok": true,
+      "detail": "{\"docW\":390,\"clientW\":390,\"docH\":1016,\"clientH\":844}"
+    }
+  ],
+  "blockers": [],
+  "geometry": {
+    "projects-1000x768": {
+      "docW": 1000,
+      "clientW": 1000,
+      "docH": 1074,
+      "clientH": 768
+    },
+    "heat-employee-1000x768": {
+      "docW": 1000,
+      "clientW": 1000,
+      "docH": 768,
+      "clientH": 768
+    },
+    "projects-1280x800": {
+      "docW": 1280,
+      "clientW": 1280,
+      "docH": 956,
+      "clientH": 800
+    },
+    "heat-employee-1280x800": {
+      "docW": 1280,
+      "clientW": 1280,
+      "docH": 800,
+      "clientH": 800
+    },
+    "projects-1366x768": {
+      "docW": 1366,
+      "clientW": 1366,
+      "docH": 956,
+      "clientH": 768
+    },
+    "heat-employee-1366x768": {
+      "docW": 1366,
+      "clientW": 1366,
+      "docH": 768,
+      "clientH": 768
+    },
+    "projects-1440x900": {
+      "docW": 1440,
+      "clientW": 1440,
+      "docH": 900,
+      "clientH": 900
+    },
+    "heat-employee-1440x900": {
+      "docW": 1440,
+      "clientW": 1440,
+      "docH": 900,
+      "clientH": 900
+    },
+    "projects-1440x1000": {
+      "docW": 1440,
+      "clientW": 1440,
+      "docH": 1000,
+      "clientH": 1000
+    },
+    "heat-employee-1440x1000": {
+      "docW": 1440,
+      "clientW": 1440,
+      "docH": 1000,
+      "clientH": 1000
+    },
+    "projects-390x844": {
+      "docW": 390,
+      "clientW": 390,
+      "docH": 1458,
+      "clientH": 844
+    },
+    "heat-employee-390x844": {
+      "docW": 390,
+      "clientW": 390,
+      "docH": 844,
+      "clientH": 844
+    },
+    "heat-guest-1000x768": {
+      "docW": 1000,
+      "clientW": 1000,
+      "docH": 840,
+      "clientH": 768
+    },
+    "heat-guest-1440x900": {
+      "docW": 1440,
+      "clientW": 1440,
+      "docH": 900,
+      "clientH": 900
+    },
+    "heat-guest-390x844": {
+      "docW": 390,
+      "clientW": 390,
+      "docH": 1016,
+      "clientH": 844
+    }
+  },
+  "finishedAt": "2026-07-24T22:51:11.033Z",
+  "pass": true,
+  "summary": {
+    "shots": 21,
+    "states": 42,
+    "failedStates": 0,
+    "blockers": 0,
+    "console": 0,
+    "pageErrors": 0,
+    "useFormWarnings": 0,
+    "noRouteWarnings": 0,
+    "networkFailed": 0
+  },
+  "hardConsole": [],
+  "useForm": [],
+  "noRoute": [],
+  "pageErrors": []
+}
