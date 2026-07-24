@@ -252,5 +252,6 @@ export function useHeatCalcPageModel() {
     selectedExcelRows: workspace.selectedExcelRows, isSavableDraftRow: workspace.isSavableDraftRow,
     preferenceSavePending, pendingWizardObject, saveDraftRows: workspace.saveDraftRows,
     setPendingWizardObject, forceOpenEditWizard, ...tableInteraction,
+    workspaceLoadState: workspace.workspaceLoadState,
   };
 }

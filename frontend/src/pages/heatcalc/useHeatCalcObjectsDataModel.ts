@@ -291,8 +291,10 @@ export function useHeatCalcObjectsDataModel({
 
   const workspaceLoadState = useMemo(
     () => buildHeatCalcWorkspaceLoadState([
+      // Summary counts count as a workspace snapshot (avoids fake empty-project UX).
       requiredQuerySlice(!!project, summaryQuery),
-      requiredQuerySlice(!!project && !isAllObjectScope, capabilitiesQuery),
+      // Capabilities is required metadata but not a table/rows snapshot.
+      requiredQuerySlice(!!project && !isAllObjectScope, capabilitiesQuery, false),
       // placeholderData keeps previous page on refetch; treat that as usable.
       requiredQuerySlice(objectQueryEnabled, activeObjectsQuery),
       requiredQuerySlice(

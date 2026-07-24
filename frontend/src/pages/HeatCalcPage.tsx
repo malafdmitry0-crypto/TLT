@@ -1,3 +1,4 @@
+import QueryError from '@/components/common/QueryError';
 import HeatCalcObjectsTableCard from '@/components/heatcalc/HeatCalcObjectsTableCard';
 import HeatCalcAssumptionsPanel from '@/pages/heatcalc/HeatCalcAssumptionsPanel';
 import HeatCalcSelectedRowErrorsOverlay from '@/pages/heatcalc/HeatCalcSelectedRowErrorsOverlay';
@@ -100,9 +101,23 @@ export default function HeatCalcPage() {
     saveDraftRows,
     setPendingWizardObject,
     forceOpenEditWizard,
+    workspaceLoadState,
   } = m;
   if (!project) {
     return <HeatCalcEmptyProjectState />;
+  }
+
+  if (workspaceLoadState.isBlockingError && workspaceLoadState.error) {
+    return (
+      <div className="heatcalc-workspace-load-error" data-testid="heatcalc-workspace-query-error">
+        <QueryError
+          title="Не удалось загрузить объекты проекта"
+          error={workspaceLoadState.error}
+          onRetry={workspaceLoadState.retry}
+          retrying={workspaceLoadState.isRetrying}
+        />
+      </div>
+    );
   }
 
   const formPanel = (
@@ -127,6 +142,17 @@ export default function HeatCalcPage() {
     />
   );
 
+  const staleLoadAlert = workspaceLoadState.error && workspaceLoadState.hasUsableSnapshot ? (
+    <div data-testid="heatcalc-workspace-stale-query-alert">
+      <QueryError
+        title="Не удалось обновить данные (показаны последние загруженные)"
+        error={workspaceLoadState.error}
+        onRetry={workspaceLoadState.retry}
+        retrying={workspaceLoadState.isRetrying}
+      />
+    </div>
+  ) : null;
+
   const toolbarProps = {
     activeObjectScope: m.activeObjectScope,
     pipeButtonCountText: m.pipeButtonCountText,
@@ -138,10 +164,10 @@ export default function HeatCalcPage() {
     handleObjectScopeChange: m.handleObjectScopeChange,
     handleFormBlockVisibilityChange: m.handleFormBlockVisibilityChange,
     handleContinueToElectrical: m.handleContinueToElectrical,
-    continueToElectricalDisabled: m.continueToElectricalDisabled,
+    continueToElectricalDisabled: m.continueToElectricalDisabled || Boolean(workspaceLoadState.error),
     continueToElectricalTooltip: m.continueToElectricalTooltip,
     toolbarSaveTooltip: m.toolbarSaveTooltip,
-    toolbarSaveDisabled: m.toolbarSaveDisabled,
+    toolbarSaveDisabled: m.toolbarSaveDisabled || Boolean(workspaceLoadState.error && !workspaceLoadState.hasUsableSnapshot),
     toolbarSaveLoading: m.toolbarSaveLoading,
     deleteTargetCount: m.deleteTargetCount,
     removeIsPending: m.remove.isPending,
@@ -185,6 +211,7 @@ export default function HeatCalcPage() {
 
   const tablePane = (
     <>
+      {staleLoadAlert}
       <HeatCalcAssumptionsPanel
         selectedObject={selectedObject}
         calculationDetailsSettings={calculationDetailsSettings}
