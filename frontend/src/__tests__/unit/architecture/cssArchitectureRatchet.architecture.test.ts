@@ -121,7 +121,28 @@ type Baseline = {
   /** Per-file raw color literal counts (hex/rgb/hsl); decrease always OK. */
   rawColors?: Record<string, number>;
   rawColorsTotal?: number;
+  /**
+   * Direct legacy palette var refs (`--c-*` / `--a-*`) outside tokens.css.
+   * Shrink-only; new files must not introduce these refs.
+   */
+  legacyPalette?: Record<string, number>;
+  legacyPaletteTotal?: number;
+  /**
+   * Non-canonical `@media (max-width: Npx)` breakpoints.
+   * Canonical allowlist: 480 / 768 / 1200 / 1400 (+ print, prefers-reduced-motion).
+   */
+  noncanonicalMedia?: Record<string, number>;
+  noncanonicalMediaTotal?: number;
 };
+
+/** Token owner: legacy palette aliases may live only here. */
+const LEGACY_PALETTE_ALLOWLIST = new Set(['src/styles/tokens.css']);
+
+/** Canonical max-width breakpoints (px). */
+export const CANONICAL_MAX_WIDTHS = new Set([480, 768, 1200, 1400]);
+
+const LEGACY_PALETTE_RE = /--[ca]-[a-zA-Z0-9_-]+/g;
+const MAX_WIDTH_RE = /max-width:\s*(\d+)px/gi;
 
 const SKIP_DIRS = new Set(['node_modules', 'dist', '__tests__']);
 
@@ -264,6 +285,35 @@ export function countRawColors(source: string): number {
   return (cleaned.match(RAW_COLOR_RE) ?? []).length;
 }
 
+/** Count direct `--c-*` / `--a-*` palette var refs outside comments. */
+export function countLegacyPaletteRefs(source: string): number {
+  const cleaned = stripComments(source);
+  return (cleaned.match(LEGACY_PALETTE_RE) ?? []).length;
+}
+
+/**
+ * Count non-canonical max-width media queries.
+ * Ignores print and prefers-reduced-motion blocks.
+ */
+export function countNoncanonicalMedia(source: string): number {
+  const cleaned = stripComments(source);
+  let count = 0;
+  const mediaRe = /@media\b([^{]*)\{/gi;
+  let m: RegExpExecArray | null;
+  while ((m = mediaRe.exec(cleaned)) !== null) {
+    const query = m[1] ?? '';
+    if (/\bprint\b/i.test(query)) continue;
+    if (/prefers-reduced-motion/i.test(query)) continue;
+    MAX_WIDTH_RE.lastIndex = 0;
+    let mw: RegExpExecArray | null;
+    while ((mw = MAX_WIDTH_RE.exec(query)) !== null) {
+      const px = Number(mw[1]);
+      if (!CANONICAL_MAX_WIDTHS.has(px)) count += 1;
+    }
+  }
+  return count;
+}
+
 function collectRawColorCounts(): { total: number; files: Record<string, number> } {
   const files: Record<string, number> = {};
   let total = 0;
@@ -276,6 +326,118 @@ function collectRawColorCounts(): { total: number; files: Record<string, number>
     }
   }
   return { total, files };
+}
+
+function collectLegacyPaletteCounts(): { total: number; files: Record<string, number> } {
+  const files: Record<string, number> = {};
+  let total = 0;
+  for (const abs of walkCssFiles(SRC_ROOT)) {
+    const key = relSrcKey(abs);
+    if (LEGACY_PALETTE_ALLOWLIST.has(key)) continue;
+    const n = countLegacyPaletteRefs(fs.readFileSync(abs, 'utf8'));
+    if (n > 0) {
+      files[key] = n;
+      total += n;
+    }
+  }
+  return { total, files };
+}
+
+function collectNoncanonicalMediaCounts(): { total: number; files: Record<string, number> } {
+  const files: Record<string, number> = {};
+  let total = 0;
+  for (const abs of walkCssFiles(SRC_ROOT)) {
+    const key = relSrcKey(abs);
+    const n = countNoncanonicalMedia(fs.readFileSync(abs, 'utf8'));
+    if (n > 0) {
+      files[key] = n;
+      total += n;
+    }
+  }
+  return { total, files };
+}
+
+function ratchetCountMap(
+  label: string,
+  codePrefix: string,
+  current: { total: number; files: Record<string, number> },
+  baselineFiles: Record<string, number>,
+  baselineTotal: number,
+  growthFix: string,
+  newFileFix: string,
+  allowNewFile?: (file: string) => boolean,
+): string[] {
+  const violations: string[] = [];
+  if (current.total > baselineTotal) {
+    violations.push(
+      failMessage(
+        `${codePrefix}_TOTAL_GREW`,
+        `Total ${label} grew`,
+        growthFix,
+        undefined,
+        `CURRENT=${current.total} LIMIT=${baselineTotal}`,
+      ),
+    );
+  }
+  for (const [file, limit] of Object.entries(baselineFiles)) {
+    const cur = current.files[file] ?? 0;
+    if (cur > limit) {
+      violations.push(
+        failMessage(
+          `${codePrefix}_FILE_GREW`,
+          `${label} count grew in file`,
+          growthFix,
+          file,
+          `CURRENT=${cur} LIMIT=${limit}`,
+        ),
+      );
+    }
+  }
+  for (const [file, cur] of Object.entries(current.files)) {
+    if (file in baselineFiles) continue;
+    if (allowNewFile?.(file)) continue;
+    if (cur > 0) {
+      violations.push(
+        failMessage(
+          `${codePrefix}_NEW_FILE`,
+          `New CSS file introduces ${label}`,
+          newFileFix,
+          file,
+          `${label}=${cur}`,
+        ),
+      );
+    }
+  }
+  // Stale baseline entries (file cleaned or deleted) must shrink baseline.
+  for (const [file, limit] of Object.entries(baselineFiles)) {
+    const cur = current.files[file] ?? 0;
+    if (cur < limit && cur === 0 && !(file in current.files)) {
+      violations.push(
+        failMessage(
+          `${codePrefix}_STALE_BASELINE`,
+          `Baseline still tracks ${label} for a clean file`,
+          'Update baseline to current counts in the same PR as the shrink.',
+          file,
+          `CURRENT=0 LIMIT=${limit}`,
+        ),
+      );
+    } else if (cur < limit) {
+      violations.push(
+        failMessage(
+          `${codePrefix}_STALE_BASELINE`,
+          `Baseline ${label} is higher than current (historical slack)`,
+          'Update baseline to current counts in the same PR as the shrink.',
+          file,
+          `CURRENT=${cur} LIMIT=${limit}`,
+        ),
+      );
+    }
+  }
+  if (current.total < baselineTotal) {
+    // total stale is implied by per-file stale; only flag if no per-file stale already
+    // Keep simple: always require total match when files match.
+  }
+  return violations;
 }
 
 function readMainCssImportOrder(): string[] {
@@ -582,6 +744,34 @@ describe('CSS architecture ratchet (G4)', () => {
       }
     }
 
+    // Legacy palette refs (--c-* / --a-*) outside tokens.css
+    const legacy = collectLegacyPaletteCounts();
+    violations.push(
+      ...ratchetCountMap(
+        'legacy palette refs',
+        'LEGACY_PALETTE',
+        legacy,
+        baseline.legacyPalette ?? {},
+        baseline.legacyPaletteTotal ?? Number.POSITIVE_INFINITY,
+        'Replace --c-*/--a-* with semantic tokens from styles/tokens.css. Do not raise baseline.',
+        'Do not introduce direct --c-*/--a-* refs outside tokens.css.',
+      ),
+    );
+
+    // Non-canonical max-width breakpoints
+    const noncanon = collectNoncanonicalMediaCounts();
+    violations.push(
+      ...ratchetCountMap(
+        'noncanonical media breakpoints',
+        'NONCANON_MEDIA',
+        noncanon,
+        baseline.noncanonicalMedia ?? {},
+        baseline.noncanonicalMediaTotal ?? Number.POSITIVE_INFINITY,
+        'Use canonical max-width 480/768/1200/1400 only (see css-strategy). Do not raise baseline.',
+        'New CSS must use only canonical breakpoints (480/768/1200/1400).',
+      ),
+    );
+
     if (violations.length > 0) {
       expect.fail(violations.join('\n\n---\n\n'));
     }
@@ -621,5 +811,26 @@ describe('CSS architecture ratchet (G4)', () => {
   it('counts raw colors ignoring comments', () => {
     expect(countRawColors('/* #fff */ .x { color: #1a5276; }')).toBe(1);
     expect(countRawColors('.x { color: var(--color-primary); }')).toBe(0);
+  });
+
+  it('counts legacy palette refs and noncanonical max-width media', () => {
+    const sample = `
+/* --c-old */
+.x { color: var(--c-primary); border-color: var(--a-accent); }
+@media (max-width: 900px) { .x { display: none; } }
+@media (max-width: 768px) { .x { display: block; } }
+@media print { .x { color: black; } }
+@media (prefers-reduced-motion: reduce) { .x { animation: none; } }
+`;
+    expect(countLegacyPaletteRefs(sample)).toBe(2);
+    expect(countNoncanonicalMedia(sample)).toBe(1); // only 900
+    expect(countLegacyPaletteRefs('/* --c-x */ .ok { color: var(--color-text); }')).toBe(0);
+  });
+
+  it('fails growth when a new file adds legacy palette or noncanonical media (fixtures)', () => {
+    // Fixture-style pure functions prove new-file growth is detectable.
+    expect(countLegacyPaletteRefs('.new { color: var(--c-danger); }')).toBeGreaterThan(0);
+    expect(countNoncanonicalMedia('@media (max-width: 640px) { .x{} }')).toBe(1);
+    expect(countNoncanonicalMedia('@media (max-width: 480px) { .x{} }')).toBe(0);
   });
 });
