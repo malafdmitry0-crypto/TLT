@@ -110,7 +110,7 @@
       "useCallback": 0
     },
     "src/utils/objectWizardUtils.ts": {
-      "loc": 756,
+      "loc": 648,
       "imports": 0,
       "useEffect": 0,
       "useState": 0,

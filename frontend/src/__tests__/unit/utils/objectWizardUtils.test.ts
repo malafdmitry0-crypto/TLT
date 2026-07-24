@@ -26,6 +26,14 @@ describe('findDN', () => {
     expect(findDN(0)).toBeNull();
     expect(findDN(-50)).toBeNull();
   });
+
+  it('boundary: accepts at exactly 5 mm and rejects just over', () => {
+    // OD 114.3 is DN100; 114.3 - 5 = 109.3 → still match; 109.2 → null
+    expect(findDN(109.3)).toBe(100);
+    expect(findDN(109.2)).toBeNull();
+    // OD 60.3 is DN50; 60.3 + 5 = 65.3 → match; 65.4 → may match other OD
+    expect(findDN(65.3)).toBe(50);
+  });
 });
 
 describe('generatePipeName', () => {
@@ -58,6 +66,21 @@ describe('generatePipeName', () => {
     });
     expect(name).toBe('Труба Ø234 мм, δ=30 мм, ППУ, L=10 м, +0→+50°C');
     expect(name).not.toContain('DN');
+  });
+
+  it('не срезает trailing zeros у целых толщин (δ=50, не δ=5)', () => {
+    const name = generatePipeName({
+      outer_diameter_mm: 114.3,
+      pipe_length: 12.5,
+      insulation_thickness_mm: 50,
+      insulation_material: 'mineral_wool',
+      ambient_temperature: -10,
+      process_temperature: 60,
+    });
+    expect(name).toContain('δ=50 мм');
+    expect(name).not.toMatch(/δ=5 мм/);
+    expect(name).toContain('L=12.5 м');
+    expect(name).toContain('DN100');
   });
 
   it('принимает partial/empty inputs без type assertion (runtime throws, callers catch)', () => {
