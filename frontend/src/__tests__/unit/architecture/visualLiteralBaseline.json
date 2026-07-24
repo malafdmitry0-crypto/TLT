@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "owners": {
+    "src/components/admin/formulas/formulaPrimitives.tsx": 12,
+    "src/pages/UIKitPage.tsx": 6,
+    "src/theme/appTheme.ts": 2,
+    "src/utils/glideGridPrimitives.ts": 3
+  },
+  "files": {
+    "src/components/ImportExcelButton.tsx": 3,
+    "src/components/admin/formulas/FormulaCalcResult.tsx": 14,
+    "src/components/admin/formulas/FormulaDisplays.tsx": 7,
+    "src/components/common/TabBadge.tsx": 2,
+    "src/components/electrical/ElectricalCandidateGlideGrid.tsx": 22,
+    "src/components/electrical/ObjectCalcCard.tsx": 2,
+    "src/components/heatcalc/HeatCalcGlideGrid.tsx": 11,
+    "src/components/layout/Sidebar.tsx": 3,
+    "src/components/reports/ReportPreview.tsx": 2,
+    "src/components/shared/NormalGlideGrid.tsx": 5,
+    "src/components/specification/SpecTable.tsx": 1,
+    "src/components/wizard/isolation/WizardZoneBoundary.tsx": 3,
+    "src/pages/ElecCalcPage.tsx": 1,
+    "src/pages/HomePage.tsx": 18,
+    "src/pages/LoginPage.tsx": 4,
+    "src/pages/ProjectsPage.tsx": 1,
+    "src/pages/ReportWizardPage.tsx": 2,
+    "src/pages/WorkspacePage.tsx": 6,
+    "src/pages/admin/FormulasPage.tsx": 6,
+    "src/pages/electrical/ElecCalcElectricalTypeControls.tsx": 1,
+    "src/pages/electrical/ElecCalcWorkspace.tsx": 1,
+    "src/pages/electrical/ElectricalBatchActionBar.tsx": 1,
+    "src/pages/heatcalc/HeatCalcEmptyProjectState.tsx": 1,
+    "src/pages/help/AdminHelpPage.tsx": 3,
+    "src/pages/help/EmployeeHelpPage.tsx": 4,
+    "src/pages/help/GuestHelpPage.tsx": 5,
+    "src/pages/specification/SpecPageChrome.tsx": 4,
+    "src/utils/heatCalcNormalGlidePureModel.ts": 27
+  },
+  "totalNonOwner": 160
+}
