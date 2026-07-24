@@ -1,8 +1,15 @@
-# RISK recovery R1–R13 — closure snapshot
+# RISK recovery R1–R13 — pre-close / incomplete snapshot
 
-**Status:** point-in-time evidence (not a second queue)
+**Status:** pre-close / incomplete working-tree evidence — **not final closure**
 
-**Slice:** `RISK-CLOSE-01`
+**Slice:** `RISK-CLOSE-01` (superseded for truth by `RISK-CLOSE-PROOF-01`)
+
+**Final attempt:** see
+[../2026-07-24-frontend-risk-recovery-final/snapshot.md](../2026-07-24-frontend-risk-recovery-final/snapshot.md)
+(**BLOCKED** at production HEAD `4462374` — DoD red + browser matrix incomplete).
+
+Do not treat numbers below as final acceptance. They were captured from a dirty
+working tree before honest DoD/browser proof and are kept only as history.
 
 **Captured (UTC):** 2026-07-24T06:27:22Z
 

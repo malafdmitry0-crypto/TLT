@@ -1,10 +1,10 @@
 # Frontend refactor backlog
 
-**Статус:** EMPTY QUEUE — risk recovery R1–R13 closed
+**Статус:** ACTIVE — RISK-CLOSE-PROOF-01 (honest DoD + browser closure)
 
 **Актуально на:** 2026-07-24
 
-**Следующий незакрытый контракт:** — (не придумывать работу)
+**Следующий незакрытый контракт:** `RISK-CLOSE-PROOF-01`
 
 Это **единственный** источник текущего `pending` для frontend. Одновременно
 может существовать только одна ACTIVE frontend-очередь (когда pending есть).
@@ -15,7 +15,8 @@ Completed initiative plans не имеют права объявлять `COMPLE
 Размер slice: [PR budget](./pr-budget.md).
 Исполняемый шаблон: [мастер-промпт](./agent-refactor-prompt.md).
 Point-in-time метрики: [P0 audit](../audit/2026-07-24-p0-doc-truth/snapshot.md),
-[RISK recovery audit](../audit/2026-07-24-frontend-risk-recovery/snapshot.md).
+[RISK pre-close incomplete](../audit/2026-07-24-frontend-risk-recovery/snapshot.md),
+[RISK-CLOSE-PROOF final (BLOCKED)](../audit/2026-07-24-frontend-risk-recovery-final/snapshot.md).
 История AF9: [archive summary](./archive/agent-friendly-9-plan-historical.md).
 
 ## Правила очереди
@@ -221,11 +222,11 @@ Closure evidence:
 | `RISK-TYPE-WIZARD-REF-01` | WizardZoneBoundary div/section branches |
 | `RISK-CSS-PROJECTS-01` | Projects static debt 24→0; inline 520→496 |
 | `RISK-CSS-CLIMATE-DEAD-01` | climate coords removed; layout 88→72 |
-| `RISK-CLOSE-01` | dated audit + EMPTY QUEUE |
+| `RISK-CLOSE-01` | pre-close audit only — **not** final (see PROOF-01) |
 
-### Общая приёмка (fact after close)
+### Общая приёмка (recompute at HEAD `4462374`)
 
-Before на `82851ba` → fact working tree (pre-commit):
+Metrics (recomputed in CLOSE-PROOF-01) remain met, but **queue is not closed**:
 
 - [x] Production type escapes: `11 → 0`
 - [x] Inline-style total: `520 → 496`
@@ -238,13 +239,33 @@ Before на `82851ba` → fact working tree (pre-commit):
 - [x] Ant primitive baseline не вырос (90)
 - [x] Type/import/inline/coordinate baselines shrink-only
 - [x] Focused RISK suites 97/97; architecture 40/40; typecheck green
-- [ ] Browser proof 1000/1280/1440 — residual (не блокирует EMPTY QUEUE metrics;
-  зафиксирован в audit residual risks)
-- [x] Финальный audit snapshot создан
+- [ ] Browser proof 1000/1280/1440/1366 — **required**; matrix BLOCKED
+  (kontur_playwright unavailable; full Projects/Heat evidence missing)
+- [ ] Full `npm run test:agent-dod` green at production HEAD — **RED**
+  (`ReportPage.test.tsx` openSpy / report-wizard URL)
+- [ ] Honest final audit Status PASSED — current final audit is **BLOCKED**
+  ([final snapshot](../audit/2026-07-24-frontend-risk-recovery-final/snapshot.md))
+
+R1–R12 implementation slices remain landed in `4462374`. They are **not**
+declared fully closed as an initiative until PROOF-01 is PASSED.
 
 ### Pending
 
-— empty. Новый pending только по явной цели пользователя.
+- [ ] **RISK-CLOSE-PROOF-01 — honest DoD + browser closure evidence.**
+
+  Docs/QA only. Fix false EMPTY QUEUE: run full `test:agent-dod` and required
+  Projects/Heat browser matrix at HEAD `4462374` (or current production HEAD).
+  See [final audit (BLOCKED)](../audit/2026-07-24-frontend-risk-recovery-final/snapshot.md).
+
+  **Blockers (FILE / EVIDENCE / DECISION NEEDED):**
+
+  1. `ReportPage.test.tsx` / openSpy 0 calls / report / fix outside this docs
+     slice then re-run DoD
+  2. `kontur_playwright` MCP / unavailable in session / tooling / enable MCP or
+     approve alternate browser harness
+  3. Projects+Heat matrix / no evidence artifacts / qa / run after DoD green
+
+  EMPTY QUEUE is forbidden while any checkbox above is open.
 
 ### Исторические контракт-блоки R1–R12
 
@@ -665,7 +686,9 @@ Acceptance: coordinate total `88→72`, file `51→35` или ниже. Посл
 proof запусти npm run test:agent-dod.
 ```
 
-- [x] **RISK-CLOSE-01 — финальная truth/audit closure.**
+- [x] **RISK-CLOSE-01 — pre-close audit only (incomplete; not final).**
+
+  Superseded by **RISK-CLOSE-PROOF-01**. Pre-close snapshot is historical.
 
 ```text
 Работай из корня TLT. Выполни ровно один slice через
