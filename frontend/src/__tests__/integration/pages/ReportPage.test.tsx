@@ -182,14 +182,14 @@ describe('ReportPage (integration)', () => {
     const printSpy = vi.spyOn(window, 'print').mockImplementation(() => undefined);
     renderPage();
     const printBtn = await screen.findByRole('button', { name: /Печать/i });
-    expect(printBtn).toBeInTheDocument();
+    await waitFor(() => expect(printBtn).toBeEnabled());
     await user.click(printBtn);
     expect(printSpy).toHaveBeenCalled();
     printSpy.mockRestore();
   });
 
   it('сотрудник: клик по PDF триггерит exportReport', async () => {
-    const userEvent = (await import('@testing-library/user-event')).default;
+    const user = (await import('@testing-library/user-event')).default.setup();
     const { getReportPreview, exportReport } = await import('@/api/reports');
     (getReportPreview as ReturnType<typeof vi.fn>).mockResolvedValue({
       project_id: 'p-1', html: '<div></div>', sections: [], variant_number: 1,
@@ -204,8 +204,9 @@ describe('ReportPage (integration)', () => {
     });
     useProjectStore.getState().setCurrentProject(mockProject);
     renderPage();
-    await waitFor(() => screen.getByRole('button', { name: /PDF/i }));
-    await userEvent.click(screen.getByRole('button', { name: /PDF/i }));
+    const pdfBtn = await screen.findByRole('button', { name: /PDF/i });
+    await waitFor(() => expect(pdfBtn).toBeEnabled());
+    await user.click(pdfBtn);
     await waitFor(() =>
       expect(exportReport).toHaveBeenCalledWith(
         'p-1',
@@ -247,7 +248,9 @@ describe('ReportPage (integration)', () => {
     useProjectStore.getState().setCurrentProject(mockProject);
     renderPage();
 
-    await user.click(await screen.findByRole('button', { name: /PDF/i }));
+    const pdfBtn = await screen.findByRole('button', { name: /PDF/i });
+    await waitFor(() => expect(pdfBtn).toBeEnabled());
+    await user.click(pdfBtn);
     await waitFor(() => {
       expect(exportReport).toHaveBeenCalledWith(
         mockProject.id,
@@ -266,7 +269,7 @@ describe('ReportPage (integration)', () => {
   });
 
   it('сотрудник: открывает модалку «Состав отчёта»', async () => {
-    const userEvent = (await import('@testing-library/user-event')).default;
+    const user = (await import('@testing-library/user-event')).default.setup();
     const { getReportPreview } = await import('@/api/reports');
     (getReportPreview as ReturnType<typeof vi.fn>).mockResolvedValue({
       project_id: 'p-1', html: '<div></div>', sections: [], variant_number: 1,
@@ -278,13 +281,14 @@ describe('ReportPage (integration)', () => {
     });
     useProjectStore.getState().setCurrentProject(mockProject);
     renderPage();
-    await waitFor(() => screen.getByRole('button', { name: /Состав отчёта/i }));
-    await userEvent.click(screen.getByRole('button', { name: /Состав отчёта/i }));
-    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+    const composerBtn = await screen.findByRole('button', { name: /Состав отчёта/i });
+    await waitFor(() => expect(composerBtn).toBeEnabled());
+    await user.click(composerBtn);
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
   });
 
   it('passes the exact selected ER UUID to the standalone report wizard URL', async () => {
-    const userEvent = (await import('@testing-library/user-event')).default;
+    const user = (await import('@testing-library/user-event')).default.setup();
     const { getReportPreview } = await import('@/api/reports');
     (getReportPreview as ReturnType<typeof vi.fn>).mockResolvedValue({
       project_id: 'p-1', html: '<div></div>', sections: [], variant_number: 3,
@@ -302,7 +306,9 @@ describe('ReportPage (integration)', () => {
     );
     renderPage();
 
-    await userEvent.click(await screen.findByRole('button', { name: /Мастер в новом окне/i }));
+    const wizardBtn = await screen.findByRole('button', { name: /Мастер в новом окне/i });
+    await waitFor(() => expect(wizardBtn).toBeEnabled());
+    await user.click(wizardBtn);
 
     expect(openSpy).toHaveBeenCalledWith(
       `/report-wizard?er=${thirdVariant.id}`,
