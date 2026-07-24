@@ -14,7 +14,6 @@ import type { Project, ProjectObject, ProjectObjectsQueryRequest } from '@/types
 export const HEATCALC_PAGE_TEST_TIMEOUT = 120_000;
 
 const HEATCALC_PAGE_TEST_IGNORED_WARNINGS = [
-  'Warning: Instance created by `useForm` is not connected to any Form element.',
   'Warning: A suspended resource finished loading inside a test',
 ];
 

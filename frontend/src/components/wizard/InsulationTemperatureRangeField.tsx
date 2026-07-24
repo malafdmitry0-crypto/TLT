@@ -218,7 +218,7 @@ export default function InsulationTemperatureRangeField({
         open={open}
         okText="Применить"
         cancelText="Отмена"
-        destroyOnHidden
+        forceRender
         className="temperature-range-modal"
         onOk={applyRange}
         onCancel={() => setOpen(false)}

@@ -1092,23 +1092,45 @@ describe('ObjectWizard dependencies', () => {
       cleanup();
     }
 
-    renderWizard({
-      layoutVariant: 'side',
-      initialParams: {
-        ...basePipeParams,
-        insulation_material: 'other',
-        insulation_layers: [{ thickness: 0.04, material: 'other', conductivity: 0.061 }],
-      },
+    const formConnectionWarnings: string[] = [];
+    const originalConsoleError = console.error;
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation((message?: unknown, ...args: unknown[]) => {
+      const text = typeof message === 'string' ? message : String(message ?? '');
+      if (text.includes('useForm` is not connected') || text.includes('useForm is not connected')) {
+        formConnectionWarnings.push(text);
+      }
+      originalConsoleError(message, ...args);
     });
-    expect(await screen.findByTestId('first-insulation-lambda-input')).toBeVisible();
-    expect(screen.getByTestId('first-insulation-lambda-input')).not.toBeDisabled();
-    const rangeButton = screen.getByTestId('first-insulation-temperature-range-button');
-    expect(rangeButton).toBeVisible();
-    await user.click(rangeButton);
-    const dialog = await screen.findByRole('dialog', { name: 'Диапазон температуры' });
-    await waitFor(() => {
-      expect(within(dialog).getByTestId('first-insulation-temperature-min-input')).toBeVisible();
-      expect(within(dialog).getByTestId('first-insulation-temperature-max-input')).toBeVisible();
-    });
+
+    try {
+      renderWizard({
+        layoutVariant: 'side',
+        initialParams: {
+          ...basePipeParams,
+          insulation_material: 'other',
+          insulation_layers: [{
+            thickness: 0.04,
+            material: 'other',
+            conductivity: 0.061,
+            temperature_range: [-40, 120],
+          }],
+        },
+      });
+      expect(await screen.findByTestId('first-insulation-lambda-input')).toBeVisible();
+      expect(screen.getByTestId('first-insulation-lambda-input')).not.toBeDisabled();
+      const rangeButton = screen.getByTestId('first-insulation-temperature-range-button');
+      expect(rangeButton).toBeVisible();
+      await user.click(rangeButton);
+      const dialog = await screen.findByRole('dialog', { name: 'Диапазон температуры' });
+      await waitFor(() => {
+        expect(within(dialog).getByTestId('first-insulation-temperature-min-input')).toBeVisible();
+        expect(within(dialog).getByTestId('first-insulation-temperature-max-input')).toBeVisible();
+      });
+      expect(within(dialog).getByTestId('first-insulation-temperature-min-input')).toHaveValue('-40');
+      expect(within(dialog).getByTestId('first-insulation-temperature-max-input')).toHaveValue('120');
+      expect(formConnectionWarnings).toEqual([]);
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
   });
 });
