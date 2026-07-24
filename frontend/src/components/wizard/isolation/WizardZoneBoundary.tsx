@@ -162,24 +162,42 @@ export default function WizardZoneBoundary({
   const rootRef = useRef<HTMLElement | null>(null);
   const guardError = useWizardZoneDomGuard(islandId, rootRef);
 
-  const Tag = as;
+  // Callback ref: HTMLElement-compatible for both div and section roots.
+  const setRootRef = (node: HTMLElement | null) => {
+    rootRef.current = node;
+  };
+
   const zoneValue = zone ?? island.zoneAttr ?? islandId;
+  const zoneProps = {
+    className,
+    'data-wizard-zone': zoneValue,
+    'data-wizard-island': islandId,
+    'data-protected-zone': island.protected ? island.dataProtected : undefined,
+    'aria-label': ariaLabel,
+    'data-form-column': dataFormColumn,
+    'data-testid': dataTestId,
+  } as const;
+
+  const body = (
+    <>
+      <ThrowIsolationError error={guardError} />
+      {children}
+    </>
+  );
+
+  // Explicit div/section branches: each tag gets a correctly typed ref callback.
+  const root =
+    as === 'section' ? (
+      <section ref={setRootRef} {...zoneProps}>
+        {body}
+      </section>
+    ) : (
+      <div ref={setRootRef} {...zoneProps}>
+        {body}
+      </div>
+    );
 
   return (
-    <WizardZoneErrorBoundary islandId={islandId}>
-      <Tag
-        ref={rootRef as never}
-        className={className}
-        data-wizard-zone={zoneValue}
-        data-wizard-island={islandId}
-        data-protected-zone={island.protected ? island.dataProtected : undefined}
-        aria-label={ariaLabel}
-        data-form-column={dataFormColumn}
-        data-testid={dataTestId}
-      >
-        <ThrowIsolationError error={guardError} />
-        {children}
-      </Tag>
-    </WizardZoneErrorBoundary>
+    <WizardZoneErrorBoundary islandId={islandId}>{root}</WizardZoneErrorBoundary>
   );
 }

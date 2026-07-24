@@ -3,13 +3,13 @@ import {
   useEffect,
   useRef,
   type CSSProperties,
-  type MouseEvent,
   type ReactNode,
   type TdHTMLAttributes,
 } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { ColumnType } from 'antd/es/table';
 
+import type { HeatCalcContextMenuTrigger } from '@/components/heatcalc/HeatCalcContextMenuTrigger';
 import type { ProjectObject } from '@/types/project';
 
 export interface HeatCalcExcelGridProps {
@@ -21,7 +21,8 @@ export interface HeatCalcExcelGridProps {
   selectedRowIndex: number | null;
   emptyContent: ReactNode;
   rowClassName: (record: ProjectObject) => string;
-  onRowSecondaryAction: (record: ProjectObject, event: MouseEvent<HTMLElement>) => void;
+  // Method form: bivariant params — React MouseEvent handlers remain assignable.
+  onRowSecondaryAction(record: ProjectObject, event: HeatCalcContextMenuTrigger): void;
   onReachScrollEnd?: () => void;
   overscan?: number;
   rowEstimatePx?: number;

@@ -10,6 +10,11 @@ Frontend уже имеет thin page shells, UI-kit, CSS freeze, architecture ra
 следующий контракт находятся **только** в backlog. Одновременно допускается
 только одна ACTIVE frontend-очередь.
 
+Текущий risk recovery в backlog снижает не «LOC ради LOC», а **связность
+orchestration hooks** (session / data / editing / presentation / effects) и
+фиксирует неявные инварианты project-switch characterization-тестами. Подробная
+мотивация — в [refactor-backlog.md](./refactor-backlog.md#мотивация-risk-recovery-не-loc-а-связи).
+
 ## Начать здесь
 
 | Документ | Назначение |

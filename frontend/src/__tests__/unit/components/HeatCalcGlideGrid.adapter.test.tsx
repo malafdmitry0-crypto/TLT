@@ -201,6 +201,70 @@ describe('HeatCalcGlideGrid model adapter', () => {
     });
   });
 
+  it('maps cell context menu to HeatCalcContextMenuTrigger at cell-center bounds', () => {
+    const onRowSecondaryAction = vi.fn();
+    const preventDefault = vi.fn();
+    render(
+      <HeatCalcGlideGrid
+        rows={[row]}
+        columns={[{ key: 'name' }] as ColumnType<ProjectObject>[]}
+        gridColumns={[{ key: 'name', title: 'Name', width: 180 }]}
+        tableScrollX={640}
+        tableScrollY="360px"
+        fontSizeKey="compact"
+        selectedRowIndex={0}
+        selectedPosition={{ rowIndex: 0, columnIndex: 0 }}
+        selectionRange={{
+          anchor: { rowId: 'row-1', columnKey: 'name' },
+          focus: { rowId: 'row-1', columnKey: 'name' },
+        }}
+        emptyContent={null}
+        rowClassName={() => ''}
+        getCellState={() => ({
+          displayValue: 'Pipe',
+          editable: true,
+        })}
+        onRowSecondaryAction={onRowSecondaryAction}
+        onSetRangeSelection={vi.fn()}
+        onStartCellEdit={vi.fn()}
+        onCommitCell={vi.fn()}
+      />,
+    );
+
+    const onCellContextMenu = glideMock.props?.onCellContextMenu as (
+      cell: [number, number],
+      event: {
+        bounds: { x: number; y: number; width: number; height: number };
+        preventDefault: () => void;
+      },
+    ) => void;
+
+    onCellContextMenu([0, 0], {
+      bounds: { x: 100, y: 200, width: 40, height: 20 },
+      preventDefault,
+    });
+
+    expect(preventDefault).toHaveBeenCalledOnce();
+    expect(onRowSecondaryAction).toHaveBeenCalledOnce();
+    const [, trigger] = onRowSecondaryAction.mock.calls[0] as [
+      ProjectObject,
+      {
+        clientX: number;
+        clientY: number;
+        preventDefault: () => void;
+        stopPropagation: () => void;
+      },
+    ];
+    expect(trigger).toEqual({
+      clientX: 120,
+      clientY: 210,
+      preventDefault,
+      stopPropagation: expect.any(Function),
+    });
+    expect(trigger).not.toHaveProperty('button');
+    expect(trigger).not.toHaveProperty('nativeEvent');
+  });
+
   it('maps Glide resize callbacks to column keys and clamps minimum width', () => {
     const onColumnResize = vi.fn();
     const onColumnResizeEnd = vi.fn();

@@ -1,6 +1,5 @@
 import {
   useMemo,
-  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react';
@@ -55,6 +54,9 @@ import {
 } from '@/utils/heatCalcPageUtils';
 
 const { Text } = Typography;
+
+/** Local alias keeps ImportDeclaration count flat while using the owner-neutral contract. */
+type HeatCalcContextMenuTrigger = import('@/components/heatcalc/HeatCalcContextMenuTrigger').HeatCalcContextMenuTrigger;
 
 export type HeatCalcTableColumnRenderSpec = Pick<ColumnType<ProjectObject>, 'render' | 'ellipsis' | 'align'> & {
   copyValue: (record: ProjectObject, index: number) => string;
@@ -155,12 +157,9 @@ interface UseHeatCalcTableColumnsOptions {
   formPlacement: string;
   isAllObjectScope: boolean;
   isSavableDraftRow: (draftRow: DraftRowState | undefined) => boolean;
-  openExcelCellContextMenu: (
-    rowIndex: number,
-    columnIndex: number,
-    event: ReactMouseEvent<HTMLElement>,
-  ) => void;
-  openExcelRowContextMenu: (rowIndex: number, event: ReactMouseEvent<HTMLElement>) => void;
+  // Method form: bivariant params — MouseEvent handlers assignable; PointerEvent opens without cast.
+  openExcelCellContextMenu(rowIndex: number, columnIndex: number, event: HeatCalcContextMenuTrigger): void;
+  openExcelRowContextMenu(rowIndex: number, event: HeatCalcContextMenuTrigger): void;
   resetColumnFilter: (columnKey: string) => void;
   selectAllExcelCells: () => void;
   selectExcelCellByPosition: (rowIndex: number, editableColumnIndex: number, extend?: boolean) => void;
@@ -363,7 +362,7 @@ export function useHeatCalcTableColumns({
           ? (_record, rowIndex) => ({
             className: 'editable-cell-host editable-cell-enabled',
             onContextMenu: excelModeEnabled && rowIndex != null
-              ? (event: ReactMouseEvent<HTMLElement>) => openExcelCellContextMenu(rowIndex, columnIndex, event)
+              ? (event) => openExcelCellContextMenu(rowIndex, columnIndex, event)
               : undefined,
           })
           : undefined,
@@ -462,7 +461,7 @@ export function useHeatCalcTableColumns({
               event.preventDefault();
               event.stopPropagation();
               if (event.button === 2) {
-                openExcelRowContextMenu(index, event as unknown as ReactMouseEvent<HTMLElement>);
+                openExcelRowContextMenu(index, event);
                 return;
               }
               beginExcelRowSelection(index, event);

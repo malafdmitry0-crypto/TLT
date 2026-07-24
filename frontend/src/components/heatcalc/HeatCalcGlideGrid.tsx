@@ -5,7 +5,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type MouseEvent,
   type PointerEvent,
 } from 'react';
 import {
@@ -22,6 +21,7 @@ import {
 } from '@glideapps/glide-data-grid';
 import '@glideapps/glide-data-grid/dist/index.css';
 
+import type { HeatCalcContextMenuTrigger } from '@/components/heatcalc/HeatCalcContextMenuTrigger';
 import type { HeatCalcExcelGridProps } from '@/components/heatcalc/HeatCalcExcelGrid';
 import type { ProjectObject } from '@/types/project';
 import type { ExcelCellPosition, ExcelSelectionRange } from '@/utils/heatCalcExcelMode';
@@ -79,14 +79,14 @@ function getGridCellEditedValue(newValue: EditableGridCell): unknown {
   return undefined;
 }
 
-function toSyntheticMouseEvent(event: CellClickedEventArgs): MouseEvent<HTMLElement> {
+/** Map Glide cell bounds to the owner-neutral context-menu trigger (cell center). */
+function toContextMenuTrigger(event: CellClickedEventArgs): HeatCalcContextMenuTrigger {
   return {
-    button: event.button,
     clientX: event.bounds.x + event.bounds.width / 2,
     clientY: event.bounds.y + event.bounds.height / 2,
     preventDefault: event.preventDefault,
     stopPropagation: () => undefined,
-  } as unknown as MouseEvent<HTMLElement>;
+  };
 }
 
 function contentAlign(
@@ -293,7 +293,7 @@ function HeatCalcGlideGrid({
     const record = rows[cell[1]];
     if (!record) return;
     event.preventDefault();
-    onRowSecondaryAction(record, toSyntheticMouseEvent(event));
+    onRowSecondaryAction(record, toContextMenuTrigger(event));
   }, [onRowSecondaryAction, rows]);
   const handleVisibleRegionChanged = useCallback((range: Rectangle) => {
     setEditingCell(null);

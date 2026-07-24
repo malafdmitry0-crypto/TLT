@@ -81,7 +81,7 @@
       "media": 0
     },
     "src/pages/projects-page.css": {
-      "loc": 48,
+      "loc": 110,
       "bareAnt": 0,
       "media": 1
     },
@@ -167,7 +167,7 @@
     }
   },
   "totals": {
-    "loc": 9047,
+    "loc": 9109,
     "bareAnt": 18,
     "media": 41
   },

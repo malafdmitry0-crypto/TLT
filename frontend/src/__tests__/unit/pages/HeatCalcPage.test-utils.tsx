@@ -41,6 +41,13 @@ type MockTableViewState = {
   sort?: { columnKey: string; direction: 'asc' | 'desc' };
 };
 
+type MockNormalPagination = {
+  current?: number;
+  pageSize?: number;
+  total?: number;
+  hideOnSinglePage?: boolean;
+};
+
 type MockNormalGlideGridProps = {
   rows: ProjectObject[];
   gridColumns: MockGridColumn[];
@@ -56,6 +63,8 @@ type MockNormalGlideGridProps = {
   tableViewState: MockTableViewState;
   rowClassName: (row: ProjectObject) => string;
   onSetColumnFilter: (columnKey: string, filter: unknown) => void;
+  pagination?: MockNormalPagination | false;
+  onPageChange?: (page: number) => void;
 };
 
 type MockExcelGlideGridProps = {
@@ -77,8 +86,8 @@ type MockExcelGlideGridProps = {
 
 vi.mock('@/api/projects', () => {
   const listObjects = vi.fn().mockResolvedValue([]);
-  async function getObjectsSummary() {
-    const all = await listObjects();
+  async function getObjectsSummary(projectId: string) {
+    const all = await listObjects(projectId);
     const byType = {
       pipe: all.filter((item: ProjectObject) => item.object_type === 'pipe').length,
       tank: all.filter((item: ProjectObject) => item.object_type === 'tank').length,
@@ -106,8 +115,8 @@ vi.mock('@/api/projects', () => {
     if (key === 'process_temperature') return record.params.process_temperature;
     return record.params[key];
   }
-  const queryObjects = vi.fn(async (_projectId: string, payload: ProjectObjectsQueryRequest) => {
-    const all = await listObjects();
+  const queryObjects = vi.fn(async (projectId: string, payload: ProjectObjectsQueryRequest) => {
+    const all = await listObjects(projectId);
     const typeItems = all.filter((item: ProjectObject) => item.object_type === payload.object_type);
     let items = [...typeItems];
     for (const filter of payload.filters ?? []) {
@@ -139,6 +148,8 @@ vi.mock('@/api/projects', () => {
     const pageSize = Number(payload.page_size ?? 50);
     const offset = (page - 1) * pageSize;
     const pageItems = items.slice(offset, offset + pageSize);
+    const hasNextPage = page * pageSize < items.length;
+    const lastItem = pageItems[pageItems.length - 1];
     return {
       items: pageItems,
       page_info: {
@@ -146,8 +157,17 @@ vi.mock('@/api/projects', () => {
         page_size: pageSize,
         offset,
         total_pages: items.length ? Math.ceil(items.length / pageSize) : 0,
-        has_next_page: page * pageSize < items.length,
+        has_next_page: hasNextPage,
         has_previous_page: page > 1,
+        next_cursor: hasNextPage && lastItem
+          ? {
+            sort_order: lastItem.sort_order,
+            id: lastItem.id,
+            key: 'sort_order',
+            value: lastItem.sort_order,
+            value_is_null: false,
+          }
+          : null,
       },
       counts: {
         total: all.length,
@@ -337,6 +357,17 @@ vi.mock('@/components/heatcalc/HeatCalcNormalGlideGrid', async () => {
       props.onSelectedRowKeysChange(Array.from(current));
     }
 
+    const pagination = props.pagination && typeof props.pagination === 'object'
+      ? props.pagination
+      : null;
+    const currentPage = Number(pagination?.current ?? 1);
+    const pageSize = Number(pagination?.pageSize ?? 50);
+    const total = Number(pagination?.total ?? props.rows.length);
+    const totalPages = pageSize > 0 ? Math.max(1, Math.ceil(total / pageSize)) : 1;
+    const hideOnSinglePage = pagination?.hideOnSinglePage !== false;
+    const showPagination = Boolean(pagination && props.onPageChange)
+      && (!hideOnSinglePage || totalPages > 1);
+
     return React.createElement(
       'div',
       {
@@ -457,6 +488,30 @@ vi.mock('@/components/heatcalc/HeatCalcNormalGlideGrid', async () => {
           }),
         ),
       ),
+      showPagination
+        ? React.createElement(
+          'div',
+          {
+            'data-testid': 'normal-glide-pagination',
+            'aria-label': `Страница ${currentPage} из ${totalPages}`,
+          },
+          React.createElement(
+            'button',
+            {
+              type: 'button',
+              'aria-label': 'Следующая страница',
+              disabled: currentPage >= totalPages,
+              onClick: () => props.onPageChange?.(currentPage + 1),
+            },
+            'Следующая страница',
+          ),
+          React.createElement(
+            'span',
+            { 'data-testid': 'normal-glide-current-page' },
+            String(currentPage),
+          ),
+        )
+        : null,
       filterColumn
         ? React.createElement(MockColumnFilter, {
           column: filterColumn,
@@ -482,6 +537,10 @@ vi.mock('@/components/heatcalc/HeatCalcGlideGrid', async () => {
       value: string;
       error?: string | null;
     } | null>(null);
+    const [selectedCell, setSelectedCell] = React.useState<{
+      rowId: string;
+      columnKey: string;
+    } | null>(null);
     const columns = props.gridColumns.filter((column) => column.key !== 'index');
 
     function stateFor(row: ProjectObject, column: MockGridColumn, rowIndex: number) {
@@ -490,6 +549,7 @@ vi.mock('@/components/heatcalc/HeatCalcGlideGrid', async () => {
 
     function selectCell(row: ProjectObject, column: MockGridColumn, rowIndex: number, columnIndex: number) {
       const position = { rowId: row.id, columnKey: column.key };
+      setSelectedCell(position);
       props.onSetRangeSelection(position, position, { rowIndex, columnIndex });
     }
 
@@ -544,9 +604,13 @@ vi.mock('@/components/heatcalc/HeatCalcGlideGrid', async () => {
             columns.map((column, columnIndex) => {
               const state = stateFor(row, column, rowIndex);
               const isEditing = editingCell?.row.id === row.id && editingCell.column.key === column.key;
+              const isSelected = selectedCell?.rowId === row.id && selectedCell.columnKey === column.key;
               return React.createElement(
                 'td',
-                { key: column.key },
+                {
+                  key: column.key,
+                  'data-excel-selected': isSelected ? 'true' : undefined,
+                },
                 isEditing
                   ? React.createElement('input', {
                     className: ['editable-cell-editor', editingCell.error ? 'error' : null].filter(Boolean).join(' '),
@@ -569,8 +633,10 @@ vi.mock('@/components/heatcalc/HeatCalcGlideGrid', async () => {
                           'editable-cell-display',
                           state.dirty ? 'dirty' : null,
                           state.error ? 'error' : null,
+                          isSelected ? 'excel-cell-selected' : null,
                         ].filter(Boolean).join(' '),
                         title: state.error ?? undefined,
+                        'aria-selected': isSelected || undefined,
                         onClick: () => selectCell(row, column, rowIndex, columnIndex),
                         onDoubleClick: () => startEdit(row, column, rowIndex, columnIndex),
                       },
@@ -728,6 +794,39 @@ export function getNormalGlideRowCells(row: HTMLElement) {
     .map((cell) => cell.textContent?.replace(/\s+/g, ' ').trim() ?? '');
 }
 
+export function getExcelGlideGrid() {
+  return screen.getByTestId('excel-glide-grid');
+}
+
+export function getExcelGlideRows() {
+  return Array.from(getExcelGlideGrid().querySelectorAll<HTMLElement>('[data-testid="excel-glide-row"]'));
+}
+
+export function makeProject(overrides: Partial<Project> = {}): Project {
+  return {
+    ...mockProject,
+    id: overrides.id ?? mockProject.id,
+    name: overrides.name ?? mockProject.name,
+    ...overrides,
+  };
+}
+
+/** Project-scoped objects map for multi-project HeatCalcPage characterization. */
+export function installProjectScopedObjects(
+  objectsByProjectId: Record<string, ProjectObject[]>,
+) {
+  return import('@/api/projects').then(({ listObjects }) => {
+    (listObjects as ReturnType<typeof vi.fn>).mockImplementation(
+      async (projectId: string) => objectsByProjectId[projectId] ?? [],
+    );
+  });
+}
+
+export async function switchCurrentProject(project: Project) {
+  await act(async () => {
+    useProjectStore.getState().setCurrentProject(project);
+  });
+}
 
 export function setupHeatCalcPageTest() {
   let consoleErrorSpy: ReturnType<typeof vi.spyOn> | undefined;

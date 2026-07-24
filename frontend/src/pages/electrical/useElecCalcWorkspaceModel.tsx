@@ -2,31 +2,17 @@
  * @module electrical/workspace-model
  * @owner electrical
  * Orchestration bag for ElecCalcWorkspace.
+ * Session (auth/boot/system/variant/focus): useElecCalcWorkspaceSessionController.
  * Data plane (queries/selection/batch): useElecCalcWorkspaceDataPlane.
  * Column preferences / table view / settings draft: useElecCalcWorkspaceColumnSettingsController.
  */
-import {
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 
 import { type CableSource } from '@/api/calculations';
-import { useAuthStore } from '@/store/authStore';
-import type { CalculationVariant } from '@/store/calculationVariantStore';
-import { useProjectStore } from '@/store/projectStore';
-import { areCommercialFeaturesEnabled } from '@/config/featureFlags';
-import { useFocusableTableScrollRegions } from '@/hooks/useFocusableTableScrollRegions';
-
-import {
-  type ElectricalSystemView,
-} from '@/pages/electrical/elecCalcSystemViewModel';
 import type { ElectricalVariant } from '@/types/electricalVariant';
 import { useElecCalcObjectActionModals } from '@/pages/electrical/useElecCalcObjectActionModals';
 import { useElecCalcCableTypeOptions } from '@/pages/electrical/useElecCalcCableTypeOptions';
 import { useElecCalcCableMarkPresentation } from '@/pages/electrical/useElecCalcCableMarkPresentation';
-import { useElecCalcBootViewState } from '@/pages/electrical/useElecCalcBootViewState';
 import { useElecCalcCableMarkModalState } from '@/pages/electrical/useElecCalcCableMarkModalState';
 import { useElecCalcCandidateWorkflowController } from '@/pages/electrical/useElecCalcCandidateWorkflowController';
 import { useElecCalcCableSelectionMutationFlow } from '@/pages/electrical/useElecCalcCableSelectionMutationFlow';
@@ -35,6 +21,7 @@ import { useElecCalcMainTableController } from '@/pages/electrical/useElecCalcMa
 import { useElecCalcPaginationState } from '@/pages/electrical/useElecCalcPaginationState';
 import { useElecCalcWorkspaceColumnSettingsController } from '@/pages/electrical/useElecCalcWorkspaceColumnSettingsController';
 import { useElecCalcWorkspaceDataPlane } from '@/pages/electrical/useElecCalcWorkspaceDataPlane';
+import { useElecCalcWorkspaceSessionController } from '@/pages/electrical/useElecCalcWorkspaceSessionController';
 import { mapWorkspaceToPresentation } from '@/pages/electrical/elecCalcWorkspacePresentationMap';
 import { useElecCalcWorkspacePresentationAssembly } from '@/pages/electrical/useElecCalcWorkspacePresentationAssembly';
 import { useElecCalcWorkspaceSummaryChrome } from '@/pages/electrical/useElecCalcWorkspaceSummaryChrome';
@@ -67,26 +54,25 @@ export function useElecCalcWorkspaceModel({
   registerJob,
   onAssignmentsChanged,
 }: ElecCalcWorkspaceProps) {
-  const project = useProjectStore((s) => s.currentProject);
-  const role = useAuthStore((s) => s.role);
-  const registeredUserId = useAuthStore((s) => s.user?.id ?? null);
-  const isEmployee = role === 'employee' || role === 'admin';
-  const isRegisteredUser = isEmployee;
-  const commercialFeaturesAvailable = areCommercialFeaturesEnabled();
-  const location = useLocation();
-  /** One system tab for the whole workspace (assign chrome + filtered table). */
-  const [systemView, setSystemView] = useState<ElectricalSystemView>('unassigned');
-  const [tableDragging, setTableDragging] = useState(false);
   const {
+    project,
+    registeredUserId,
+    isEmployee,
+    isRegisteredUser,
+    commercialFeaturesAvailable,
+    navigate,
+    systemView,
+    setSystemView,
+    tableDragging,
+    setTableDragging,
     availableCableTypeKeys,
     availableCableTypes,
     electricalGlideEnabled,
-  } = useElecCalcBootViewState({ location });
-  // The parent mounts this workspace only for variants that still have a
-  // temporary numeric adapter. UUID remains the identity everywhere else.
-  const variant = electricalVariant.legacy_variant_number as CalculationVariant;
-  const electricalVariantId = electricalVariant.id;
-  const electricalVariantName = electricalVariant.name;
+    variant,
+    electricalVariantId,
+    electricalVariantName,
+    tableScrollRegionsRef,
+  } = useElecCalcWorkspaceSessionController({ electricalVariant });
 
   const { values: recalc, setters: setRecalc } = useElecCalcRecalculationParams();
   const {
@@ -109,51 +95,13 @@ export function useElecCalcWorkspaceModel({
     isEmployee,
     resetElectricalTablePage: resetTablePage,
   });
-  const {
-    columnSettingsOpen,
-    setColumnSettingsOpen,
-    candidateColumnSettingsOpen,
-    setCandidateColumnSettingsOpen,
-    tableViewSettings,
-    normalizedTableViewSettings,
-    visibleElectricalColumnMetas,
-    visibleCandidateColumnMetas,
-    resolvedTableFontSize,
-    tableViewState,
-    candidateTableViewState,
-    setTableViewState,
-    currentTableViewActive,
-    candidateTableViewActive,
-    setColumnFilter,
-    resetColumnFilter,
-    resetCurrentTableViewState,
-    setElectricalTableSort,
-    setCandidateColumnFilter,
-    resetCandidateColumnFilter,
-    resetCandidateTableViewState,
-    setCandidateTableSort,
-    paramsPanelVisible,
-    toggleParamsPanel,
-    columnPersistence,
-    columnDraft,
-    updateTableColumnPreference,
-    updateCandidateTableColumnPreference,
-    updateTableSettingsPreference,
-  } = columnSettings;
 
   const cableSource: CableSource = isEmployee
-    ? tableViewSettings.calculationCableSource
+    ? columnSettings.tableViewSettings.calculationCableSource
     : 'builtin';
   const effectiveSource: CableSource = commercialFeaturesAvailable ? cableSource : 'builtin';
   const [overwriteManualChoices, setOverwriteManualChoices] = useState(false);
-  const tableScrollRegionsRef = useRef<HTMLDivElement>(null);
-  useFocusableTableScrollRegions(
-    tableScrollRegionsRef,
-    'Таблица электротехнического расчёта',
-    Boolean(project),
-  );
 
-  const navigate = useNavigate();
   const data = useElecCalcWorkspaceDataPlane({
     projectId,
     project,
@@ -170,7 +118,7 @@ export function useElecCalcWorkspaceModel({
     availableCableTypes,
     electricalGlideEnabled,
     systemView,
-    tableViewState,
+    tableViewState: columnSettings.tableViewState,
     tablePage,
     tablePageSize,
     electricalPageCursor,
@@ -180,7 +128,7 @@ export function useElecCalcWorkspaceModel({
     resetPaginationCache,
     rememberElectricalPage,
     rememberNextCursor,
-    resetCandidateTableViewState,
+    resetCandidateTableViewState: columnSettings.resetCandidateTableViewState,
   });
   const {
     cableTypes,
@@ -200,8 +148,8 @@ export function useElecCalcWorkspaceModel({
     effectiveSource,
     setElectricalQueryCalculation,
     cableSizingModal,
-    candidateTableViewState,
-    visibleCandidateColumnMetas,
+    candidateTableViewState: columnSettings.candidateTableViewState,
+    visibleCandidateColumnMetas: columnSettings.visibleCandidateColumnMetas,
   });
   const { candidate } = candidateWorkflow;
 
@@ -263,7 +211,7 @@ export function useElecCalcWorkspaceModel({
     setActiveCandidateFolderKey: candidate.setActiveCandidateFolderKey,
     resetCableSizingModalState: cableSizingModal.resetModalState,
     closeCandidateFolderModal: candidate.closeCandidateFolderModal,
-    setCandidateColumnSettingsOpen,
+    setCandidateColumnSettingsOpen: columnSettings.setCandidateColumnSettingsOpen,
   });
   const {
     fieldCapabilityByKey,
@@ -271,7 +219,7 @@ export function useElecCalcWorkspaceModel({
   } = useElecCalcFilterOptions({
     electricalFields: data.electricalQueryCapabilities?.fields,
     cableSizingCandidates: candidate.cableSizingCandidates,
-    visibleCandidateColumnMetas,
+    visibleCandidateColumnMetas: columnSettings.visibleCandidateColumnMetas,
     candidateColumnValueAccessors: candidate.candidateColumnValueAccessors,
   });
 
@@ -303,16 +251,16 @@ export function useElecCalcWorkspaceModel({
     projectSelected: Boolean(project),
     recalc,
     selectedRowKeys: data.compatibleSelectedRowKeys,
-    setColumnFilter,
+    setColumnFilter: columnSettings.setColumnFilter,
     setTablePage,
     setTablePageSize,
-    setTableViewState,
-    startColumnResize: columnPersistence.startColumnResize,
-    resetColumnFilter,
+    setTableViewState: columnSettings.setTableViewState,
+    startColumnResize: columnSettings.columnPersistence.startColumnResize,
+    resetColumnFilter: columnSettings.resetColumnFilter,
     tablePage,
     tablePageSize,
-    tableViewState,
-    visibleElectricalColumnMetas,
+    tableViewState: columnSettings.tableViewState,
+    visibleElectricalColumnMetas: columnSettings.visibleElectricalColumnMetas,
   });
 
   const summary = useElecCalcWorkspaceSummaryChrome({
@@ -366,33 +314,33 @@ export function useElecCalcWorkspaceModel({
       mainTable,
       electricalGlideEnabled,
       electricalVariantName,
-      currentTableViewActive,
+      currentTableViewActive: columnSettings.currentTableViewActive,
       tableDragging,
       setTableDragging,
       tableScrollRegionsRef,
-      tableViewState,
-      setColumnFilter,
-      resetColumnFilter,
-      setElectricalTableSort,
-      resetCurrentTableViewState,
-      resolvedTableFontSize,
-      normalizedTableViewSettings,
+      tableViewState: columnSettings.tableViewState,
+      setColumnFilter: columnSettings.setColumnFilter,
+      resetColumnFilter: columnSettings.resetColumnFilter,
+      setElectricalTableSort: columnSettings.setElectricalTableSort,
+      resetCurrentTableViewState: columnSettings.resetCurrentTableViewState,
+      resolvedTableFontSize: columnSettings.resolvedTableFontSize,
+      normalizedTableViewSettings: columnSettings.normalizedTableViewSettings,
       systemView,
       setSystemView,
     },
     candidate: {
       candidate,
       candidateWorkflow,
-      candidateTableViewState,
-      candidateTableViewActive,
-      resetCandidateTableViewState,
-      setCandidateColumnFilter,
-      resetCandidateColumnFilter,
-      setCandidateTableSort,
-      candidateColumnSettingsOpen,
-      setCandidateColumnSettingsOpen,
-      updateCandidateTableColumnPreference,
-      visibleCandidateColumnMetas,
+      candidateTableViewState: columnSettings.candidateTableViewState,
+      candidateTableViewActive: columnSettings.candidateTableViewActive,
+      resetCandidateTableViewState: columnSettings.resetCandidateTableViewState,
+      setCandidateColumnFilter: columnSettings.setCandidateColumnFilter,
+      resetCandidateColumnFilter: columnSettings.resetCandidateColumnFilter,
+      setCandidateTableSort: columnSettings.setCandidateTableSort,
+      candidateColumnSettingsOpen: columnSettings.candidateColumnSettingsOpen,
+      setCandidateColumnSettingsOpen: columnSettings.setCandidateColumnSettingsOpen,
+      updateCandidateTableColumnPreference: columnSettings.updateCandidateTableColumnPreference,
+      visibleCandidateColumnMetas: columnSettings.visibleCandidateColumnMetas,
     },
     catalog: {
       cableTypeOptionsState,
@@ -403,14 +351,14 @@ export function useElecCalcWorkspaceModel({
       setOverwriteManualChoices,
     },
     settings: {
-      columnDraft,
-      columnPersistence,
-      columnSettingsOpen,
-      setColumnSettingsOpen,
-      updateTableColumnPreference,
-      updateTableSettingsPreference,
-      paramsPanelVisible,
-      toggleParamsPanel,
+      columnDraft: columnSettings.columnDraft,
+      columnPersistence: columnSettings.columnPersistence,
+      columnSettingsOpen: columnSettings.columnSettingsOpen,
+      setColumnSettingsOpen: columnSettings.setColumnSettingsOpen,
+      updateTableColumnPreference: columnSettings.updateTableColumnPreference,
+      updateTableSettingsPreference: columnSettings.updateTableSettingsPreference,
+      paramsPanelVisible: columnSettings.paramsPanelVisible,
+      toggleParamsPanel: columnSettings.toggleParamsPanel,
     },
     modals: {
       cableMarkModal,

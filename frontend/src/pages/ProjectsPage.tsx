@@ -248,7 +248,7 @@ export default function ProjectsPage() {
       title: '№ задачи',
       dataIndex: 'task_number',
       render: (v: string | null) =>
-        v ? <Tag color="blue">{v}</Tag> : <span style={{ color: '#595959' }}>—</span>,
+        v ? <Tag color="blue">{v}</Tag> : <span className="projects-page-muted">—</span>,
       sorter: (a: Project, b: Project) =>
         (a.task_number ?? '').localeCompare(b.task_number ?? ''),
     },
@@ -283,7 +283,7 @@ export default function ProjectsPage() {
       title: 'Владелец',
       dataIndex: 'owner_email',
       render: (email: string | null) =>
-        email ? email : <span style={{ color: '#595959' }}>гость</span>,
+        email ? email : <span className="projects-page-muted">гость</span>,
       sorter: (a: Project, b: Project) =>
         (a.owner_email ?? '').localeCompare(b.owner_email ?? ''),
     },
@@ -339,10 +339,10 @@ export default function ProjectsPage() {
     <>
       <Row className="projects-page-layout" gutter={12} align="top">
         <Col className="projects-page-sidebar" flex="0 0 240px">
-          <Card size="small" style={{ height: '100%' }}>
-            <div style={{ marginBottom: 10 }}>
-              <Text strong style={{ fontSize: 13 }}>
-                <FolderOutlined style={{ marginRight: 5, color: '#1a5276' }} />
+          <Card size="small" className="projects-page-sidebar-card">
+            <div className="projects-page-sidebar-heading">
+              <Text strong className="projects-page-sidebar-title">
+                <FolderOutlined className="projects-page-sidebar-icon" />
                 Проекты
               </Text>
             </div>
@@ -360,7 +360,7 @@ export default function ProjectsPage() {
 
               {isEmployee && (
                 <div>
-                  <Text style={{ fontSize: 11, color: '#595959' }}>Владелец</Text>
+                  <Text className="projects-page-filter-label">Владелец</Text>
                   <Segmented<OwnerFilter>
                     block
                     size="small"
@@ -370,13 +370,13 @@ export default function ProjectsPage() {
                       { label: 'Все', value: 'all' },
                       { label: 'Мои', value: 'mine' },
                     ]}
-                    style={{ marginTop: 4 }}
+                    className="projects-page-filter-control"
                   />
                 </div>
               )}
 
               <div>
-                <Text style={{ fontSize: 11, color: '#595959' }}>Тип проекта</Text>
+                <Text className="projects-page-filter-label">Тип проекта</Text>
                 <Select<ProjectTypeFilter>
                   aria-label="Тип проекта"
                   value={typeFilter}
@@ -396,7 +396,7 @@ export default function ProjectsPage() {
               </div>
 
               <div>
-                <Text style={{ fontSize: 11, color: '#595959' }}>Содержит объект</Text>
+                <Text className="projects-page-filter-label">Содержит объект</Text>
                 <Select<ObjectType | 'all'>
                   aria-label="Содержит объект"
                   value={containsType}
@@ -414,7 +414,7 @@ export default function ProjectsPage() {
               </div>
 
               <div>
-                <Text style={{ fontSize: 11, color: '#595959' }}>Год создания</Text>
+                <Text className="projects-page-filter-label">Год создания</Text>
                 <Select<number | 'all'>
                   aria-label="Год создания"
                   value={yearFilter}
@@ -429,7 +429,7 @@ export default function ProjectsPage() {
               </div>
 
               <div>
-                <Text style={{ fontSize: 11, color: '#595959' }}>Статус</Text>
+                <Text className="projects-page-filter-label">Статус</Text>
                 <Select<StatusFilter>
                   aria-label="Статус"
                   value={statusFilter}
@@ -445,26 +445,26 @@ export default function ProjectsPage() {
               </div>
 
               <div>
-                <Text style={{ fontSize: 11, color: '#595959' }}>№ задачи</Text>
+                <Text className="projects-page-filter-label">№ задачи</Text>
                 <Input.Search
                   placeholder="Поиск"
                   value={taskSearch}
                   onChange={(e) => setTaskSearch(e.target.value)}
                   allowClear
                   size="small"
-                  style={{ marginTop: 4 }}
+                  className="projects-page-filter-control"
                 />
               </div>
 
               <div>
-                <Text style={{ fontSize: 11, color: '#595959' }}>Название</Text>
+                <Text className="projects-page-filter-label">Название</Text>
                 <Input.Search
                   placeholder="По названию"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   allowClear
                   size="small"
-                  style={{ marginTop: 4 }}
+                  className="projects-page-filter-control"
                 />
               </div>
 
@@ -475,20 +475,12 @@ export default function ProjectsPage() {
               )}
             </Space>
 
-            <div
-              style={{
-                marginTop: 12,
-                padding: '6px 8px',
-                background: '#f6f8fa',
-                borderRadius: 6,
-                border: '1px solid #e8e8e8',
-              }}
-            >
-              <Text style={{ fontSize: 11, display: 'block' }}>
+            <div className="projects-page-stats">
+              <Text className="projects-page-stats-total">
                 Всего: <strong>{projects.length}</strong>
               </Text>
               {filtersDirty && (
-                <Text style={{ fontSize: 11, color: '#1a5276' }}>
+                <Text className="projects-page-stats-filtered">
                   Показано: <strong>{filtered.length}</strong>
                 </Text>
               )}
@@ -496,9 +488,10 @@ export default function ProjectsPage() {
           </Card>
         </Col>
 
-        <Col className="projects-page-main" flex="1" style={{ minWidth: 0 }}>
+        <Col className="projects-page-main" flex="1">
           <Card
             size="small"
+            className="projects-page-list-card"
             title={(
               <Space className="projects-list-title" size={8}>
                 <Text strong>Список проектов</Text>
@@ -507,7 +500,6 @@ export default function ProjectsPage() {
                 </Text>
               </Space>
             )}
-            styles={{ body: { paddingTop: 0 } }}
             extra={
               <Space className="projects-page-card-actions">
                 <Button
@@ -548,7 +540,7 @@ export default function ProjectsPage() {
                   ref={singleFileInputRef}
                   type="file"
                   accept=".csv,text/csv"
-                  style={{ display: 'none' }}
+                  className="projects-page-file-input"
                   onChange={(e) => {
                     const f = e.target.files?.[0];
                     if (f) importSingleMut.mutate(f);
@@ -559,7 +551,7 @@ export default function ProjectsPage() {
                   ref={bulkFileInputRef}
                   type="file"
                   accept=".csv,text/csv"
-                  style={{ display: 'none' }}
+                  className="projects-page-file-input"
                   onChange={(e) => {
                     const f = e.target.files?.[0];
                     if (f) importBulkMut.mutate(f);
@@ -570,7 +562,7 @@ export default function ProjectsPage() {
             }
           >
             {projectsError && projects.length === 0 && (
-              <div style={{ marginBottom: 16 }}>
+              <div className="projects-page-error">
                 <QueryError
                   error={projectsErrorObj}
                   title="Не удалось загрузить список проектов"

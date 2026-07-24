@@ -4,15 +4,16 @@ import type { ObjectType } from '@/constants/objectTypes';
 import {
   generatePipeName,
   generateTankName,
-  type PipeFormValues,
-  type TankFormValues,
+  type PipeNameFields,
+  type TankNameFields,
 } from '@/utils/objectWizardUtils';
 
 interface Props {
   objectType: ObjectType;
 }
 
-type ConfirmStepWatchedValues = Record<string, unknown>;
+/** Watched fields used only for auto-name preview (union of pipe/tank name inputs). */
+type ConfirmStepWatchedValues = PipeNameFields & TankNameFields;
 
 const CONFIRM_STEP_WATCH_FIELDS = [
   'ambient_temperature',
@@ -28,7 +29,7 @@ const CONFIRM_STEP_WATCH_FIELDS = [
   'width_mm',
 ] as const;
 
-function selectConfirmStepWatchedValues(values: ConfirmStepWatchedValues = {}) {
+function selectConfirmStepWatchedValues(values: Record<string, unknown> = {}): ConfirmStepWatchedValues {
   return Object.fromEntries(
     CONFIRM_STEP_WATCH_FIELDS.map((fieldName) => [fieldName, values[fieldName]]),
   ) as ConfirmStepWatchedValues;
@@ -45,9 +46,9 @@ function ConfirmStepInner({ objectType }: Props) {
     if (!values) return '';
     try {
       if (objectType === 'pipe') {
-        return generatePipeName(values as unknown as PipeFormValues);
+        return generatePipeName(values);
       } else {
-        return generateTankName(values as unknown as TankFormValues);
+        return generateTankName(values);
       }
     } catch {
       return '';

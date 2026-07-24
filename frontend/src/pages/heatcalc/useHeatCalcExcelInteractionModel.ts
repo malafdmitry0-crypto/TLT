@@ -3,11 +3,11 @@ import {
   useEffect,
   useState,
   type Dispatch,
-  type MouseEvent as ReactMouseEvent,
   type SetStateAction,
 } from 'react';
 import { message as antdMessage } from 'antd';
 
+import type { HeatCalcContextMenuTrigger } from '@/components/heatcalc/HeatCalcContextMenuTrigger';
 import type { HeatCalcExcelContextMenuState } from '@/components/heatcalc/HeatCalcExcelContextMenu';
 import { useHeatCalcExcelClipboard } from '@/hooks/useHeatCalcExcelClipboard';
 import { useHeatCalcExcelKeyboard } from '@/hooks/useHeatCalcExcelKeyboard';
@@ -153,7 +153,7 @@ export function useHeatCalcExcelInteractionModel({
     setExcelContextMenu(null);
   }, [setExcelContextMenu]);
 
-  const openExcelContextMenu = useCallback((event: ReactMouseEvent<HTMLElement>) => {
+  const openExcelContextMenu = useCallback((event: HeatCalcContextMenuTrigger) => {
     event.preventDefault();
     event.stopPropagation();
     setExcelContextMenu(clampExcelContextMenuPosition(

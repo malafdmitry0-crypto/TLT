@@ -1,7 +1,8 @@
 import { Button, Card, Typography, type TableProps } from 'antd';
-import { lazy, Suspense, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
+import { lazy, Suspense, type ReactNode } from 'react';
 import type { ColumnType } from 'antd/es/table';
 
+import type { HeatCalcContextMenuTrigger } from '@/components/heatcalc/HeatCalcContextMenuTrigger';
 import HeatCalcExcelGrid from '@/components/heatcalc/HeatCalcExcelGrid';
 import type { HeatCalcExcelCellCoordinates } from '@/hooks/useHeatCalcExcelSelection';
 import type { ProjectObject } from '@/types/project';
@@ -52,10 +53,8 @@ interface HeatCalcObjectsTableCardProps {
   tableScrollX: number;
   tableScrollY: string;
   activeRowId: string | null;
-  onExcelRowSecondaryAction: (
-    record: ProjectObject,
-    event: ReactMouseEvent<HTMLElement>,
-  ) => void;
+  // Method form: bivariant params — React MouseEvent handlers remain assignable.
+  onExcelRowSecondaryAction(record: ProjectObject, event: HeatCalcContextMenuTrigger): void;
   onExcelReachScrollEnd: () => void;
   onExcelSetRangeSelection: (
     anchor: ExcelCellPosition,

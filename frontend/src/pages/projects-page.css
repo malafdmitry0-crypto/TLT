@@ -1,4 +1,4 @@
-/* Projects page — moved from styles.css (C10) */
+/* Projects page — owner root: .projects-page-* */
 
 .projects-page-layout {
   min-width: 0;
@@ -29,6 +29,68 @@
 
 .projects-page-main .ant-table-wrapper {
   min-width: 0;
+}
+
+/* Static debt moved from ProjectsPage.tsx (RISK-CSS-PROJECTS-01) */
+
+.projects-page-muted {
+  color: var(--color-text-secondary);
+}
+
+.projects-page-filter-label {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+}
+
+.projects-page-sidebar-card {
+  height: 100%;
+}
+
+.projects-page-sidebar-heading {
+  margin-bottom: 10px;
+}
+
+.projects-page-sidebar-title {
+  font-size: 13px;
+}
+
+.projects-page-sidebar-icon {
+  margin-right: 5px;
+  color: var(--color-primary);
+}
+
+.projects-page-filter-control {
+  margin-top: 4px;
+}
+
+.projects-page-stats {
+  margin-top: 12px;
+  padding: 6px 8px;
+  background: var(--color-surface-soft);
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+}
+
+.projects-page-stats-total {
+  font-size: 11px;
+  display: block;
+}
+
+.projects-page-stats-filtered {
+  font-size: 11px;
+  color: var(--color-primary);
+}
+
+.projects-page-list-card .ant-card-body {
+  padding-top: 0;
+}
+
+.projects-page-file-input {
+  display: none;
+}
+
+.projects-page-error {
+  margin-bottom: 16px;
 }
 
 @media (max-width: 900px) {

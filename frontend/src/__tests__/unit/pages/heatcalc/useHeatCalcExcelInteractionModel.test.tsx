@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { useState, type MouseEvent as ReactMouseEvent } from 'react';
+import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import type { HeatCalcContextMenuTrigger } from '@/components/heatcalc/HeatCalcContextMenuTrigger';
 import {
   clampExcelContextMenuPosition,
   useHeatCalcExcelInteractionModel,
@@ -67,13 +68,13 @@ function column(key: string): HeatCalcResolvedColumnMeta {
 function makeContextMenuEvent(
   clientX = 120,
   clientY = 160,
-): ReactMouseEvent<HTMLElement> {
+): HeatCalcContextMenuTrigger {
   return {
     clientX,
     clientY,
     preventDefault: vi.fn(),
     stopPropagation: vi.fn(),
-  } as unknown as ReactMouseEvent<HTMLElement>;
+  };
 }
 
 type SetupOptions = {

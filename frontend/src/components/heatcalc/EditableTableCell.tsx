@@ -1,5 +1,6 @@
 import { memo, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Input, InputNumber, Select } from 'antd';
+import type { HeatCalcContextMenuTrigger } from '@/components/heatcalc/HeatCalcContextMenuTrigger';
 import type { HeatCalcFieldDefinition } from '@/domain/heatCalcFields';
 
 export interface EditableTableCellProps {
@@ -21,7 +22,7 @@ export interface EditableTableCellProps {
   onSelect?: () => void;
   onSelectionPointerDown?: (event: React.PointerEvent<HTMLButtonElement>) => void;
   onSelectionPointerEnter?: (event: React.PointerEvent<HTMLButtonElement>) => void;
-  onContextMenu?: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  onContextMenu?: (event: HeatCalcContextMenuTrigger) => void;
   onStartEdit: () => void;
   onCommit: (value: unknown) => string | null;
   onCancel: () => void;
@@ -93,7 +94,7 @@ function EditableTableCell({
           event.stopPropagation();
           event.currentTarget.focus({ preventScroll: true });
           if (event.button === 2) {
-            onContextMenu?.(event as unknown as React.MouseEvent<HTMLButtonElement>);
+            onContextMenu?.(event);
             return;
           }
           const now = Date.now();

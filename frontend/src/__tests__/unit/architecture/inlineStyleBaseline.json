@@ -1,9 +1,9 @@
 {
   "version": 2,
   "generatedAt": "2026-07-24",
-  "total": 520,
+  "total": 496,
   "byClass": {
-    "static debt": 286,
+    "static debt": 262,
     "runtime geometry": 86,
     "third-party adapter": 148
   },
@@ -48,7 +48,7 @@
     "src/pages/ElecCalcPage.tsx": 1,
     "src/pages/HomePage.tsx": 25,
     "src/pages/LoginPage.tsx": 5,
-    "src/pages/ProjectsPage.tsx": 31,
+    "src/pages/ProjectsPage.tsx": 7,
     "src/pages/ReportPage.tsx": 9,
     "src/pages/ReportWizardPage.tsx": 31,
     "src/pages/UIKitPage.tsx": 1,
@@ -214,7 +214,6 @@
       "third-party adapter": 1
     },
     "src/pages/ProjectsPage.tsx": {
-      "static debt": 24,
       "runtime geometry": 1,
       "third-party adapter": 6
     },
@@ -1563,51 +1562,9 @@
     },
     {
       "file": "src/pages/ProjectsPage.tsx",
-      "line": 251,
-      "class": "static debt",
-      "text": "style={{ color: '#595959' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ProjectsPage.tsx",
       "line": 268,
       "class": "runtime geometry",
       "text": "style={computed === 'pipe' ? { color: '#873800' } : undefined}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ProjectsPage.tsx",
-      "line": 286,
-      "class": "static debt",
-      "text": "style={{ color: '#595959' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ProjectsPage.tsx",
-      "line": 342,
-      "class": "static debt",
-      "text": "style={{ height: '100%' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ProjectsPage.tsx",
-      "line": 343,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 10 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ProjectsPage.tsx",
-      "line": 344,
-      "class": "static debt",
-      "text": "style={{ fontSize: 13 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ProjectsPage.tsx",
-      "line": 345,
-      "class": "static debt",
-      "text": "style={{ marginRight: 5, color: '#1a5276' }}",
       "owner": "shared"
     },
     {
@@ -1620,39 +1577,11 @@
     },
     {
       "file": "src/pages/ProjectsPage.tsx",
-      "line": 363,
-      "class": "static debt",
-      "text": "style={{ fontSize: 11, color: '#595959' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ProjectsPage.tsx",
-      "line": 373,
-      "class": "static debt",
-      "text": "style={{ marginTop: 4 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ProjectsPage.tsx",
-      "line": 379,
-      "class": "static debt",
-      "text": "style={{ fontSize: 11, color: '#595959' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ProjectsPage.tsx",
       "line": 385,
       "class": "third-party adapter",
       "text": "style={{ width: '100%', marginTop: 4 }}",
       "owner": "shared",
       "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/ProjectsPage.tsx",
-      "line": 399,
-      "class": "static debt",
-      "text": "style={{ fontSize: 11, color: '#595959' }}",
-      "owner": "shared"
     },
     {
       "file": "src/pages/ProjectsPage.tsx",
@@ -1664,25 +1593,11 @@
     },
     {
       "file": "src/pages/ProjectsPage.tsx",
-      "line": 417,
-      "class": "static debt",
-      "text": "style={{ fontSize: 11, color: '#595959' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ProjectsPage.tsx",
       "line": 423,
       "class": "third-party adapter",
       "text": "style={{ width: '100%', marginTop: 4 }}",
       "owner": "shared",
       "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/ProjectsPage.tsx",
-      "line": 432,
-      "class": "static debt",
-      "text": "style={{ fontSize: 11, color: '#595959' }}",
-      "owner": "shared"
     },
     {
       "file": "src/pages/ProjectsPage.tsx",
@@ -1694,91 +1609,7 @@
     },
     {
       "file": "src/pages/ProjectsPage.tsx",
-      "line": 448,
-      "class": "static debt",
-      "text": "style={{ fontSize: 11, color: '#595959' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ProjectsPage.tsx",
-      "line": 455,
-      "class": "static debt",
-      "text": "style={{ marginTop: 4 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ProjectsPage.tsx",
-      "line": 460,
-      "class": "static debt",
-      "text": "style={{ fontSize: 11, color: '#595959' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ProjectsPage.tsx",
-      "line": 467,
-      "class": "static debt",
-      "text": "style={{ marginTop: 4 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ProjectsPage.tsx",
-      "line": 479,
-      "class": "static debt",
-      "text": "style={{ marginTop: 12, padding: '6px 8px', background: '#f6f8fa', borderRadius: 6, border: '1px solid #e8e8e8', }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ProjectsPage.tsx",
-      "line": 487,
-      "class": "static debt",
-      "text": "style={{ fontSize: 11, display: 'block' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ProjectsPage.tsx",
-      "line": 491,
-      "class": "static debt",
-      "text": "style={{ fontSize: 11, color: '#1a5276' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ProjectsPage.tsx",
-      "line": 499,
-      "class": "static debt",
-      "text": "style={{ minWidth: 0 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ProjectsPage.tsx",
-      "line": 510,
-      "class": "static debt",
-      "text": "styles={{ body: { paddingTop: 0 } }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ProjectsPage.tsx",
-      "line": 551,
-      "class": "static debt",
-      "text": "style={{ display: 'none' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ProjectsPage.tsx",
-      "line": 562,
-      "class": "static debt",
-      "text": "style={{ display: 'none' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ProjectsPage.tsx",
-      "line": 573,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 16 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ProjectsPage.tsx",
-      "line": 620,
+      "line": 612,
       "class": "third-party adapter",
       "text": "style={{ width: '100%' }}",
       "owner": "shared",
@@ -3320,14 +3151,14 @@
     },
     {
       "file": "src/pages/electrical/ElecCalcWorkspace.tsx",
-      "line": 35,
+      "line": 32,
       "class": "static debt",
       "text": "style={{ marginRight: 8, color: '#faad14' }}",
       "owner": "electrical"
     },
     {
       "file": "src/pages/electrical/ElecCalcWorkspace.tsx",
-      "line": 45,
+      "line": 42,
       "class": "third-party adapter",
       "text": "style={{ width: '100%' }}",
       "owner": "electrical",
@@ -3335,7 +3166,7 @@
     },
     {
       "file": "src/pages/electrical/ElecCalcWorkspaceParamsChrome.tsx",
-      "line": 58,
+      "line": 64,
       "class": "static debt",
       "text": "style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, minHeight: 28, }}",
       "owner": "electrical"
@@ -3455,7 +3286,7 @@
     },
     {
       "file": "src/pages/electrical/ElectricalUnifiedTableCard.tsx",
-      "line": 152,
+      "line": 154,
       "class": "static debt",
       "text": "style={{ margin: 12 }}",
       "owner": "electrical"

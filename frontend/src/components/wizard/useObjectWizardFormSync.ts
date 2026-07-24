@@ -16,8 +16,8 @@ import type { ClimateEntry, InsulationEntry, SoilConductivityEntry } from '@/typ
 import {
   generatePipeName,
   generateTankName,
-  type PipeFormValues,
-  type TankFormValues,
+  type PipeNameFields,
+  type TankNameFields,
 } from '@/utils/objectWizardUtils';
 import {
   defaultInsulationTemperatureBasisForPlacement,
@@ -254,10 +254,12 @@ export function useObjectWizardFormSync({
   useEffect(() => {
     if (!watchedValues) return;
     try {
+      // watchedValues is a form watch bag; name generators only read their declared fields.
+      const nameFields = watchedValues as PipeNameFields & TankNameFields;
       const suggestedName =
         objectType === 'pipe'
-          ? generatePipeName(watchedValues as unknown as PipeFormValues)
-          : generateTankName(watchedValues as unknown as TankFormValues);
+          ? generatePipeName(nameFields)
+          : generateTankName(nameFields);
       if (!suggestedName) return;
       const current = form.getFieldValue('name') as string | undefined;
       if (!current || current === prevSuggestedRef.current) {

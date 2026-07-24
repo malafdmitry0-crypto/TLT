@@ -40,14 +40,14 @@
       "useCallback": 0
     },
     "src/hooks/useHeatCalcTableColumns.tsx": {
-      "loc": 536,
+      "loc": 535,
       "imports": 16,
       "useEffect": 0,
       "useState": 0,
       "useCallback": 0
     },
     "src/pages/ProjectsPage.tsx": {
-      "loc": 639,
+      "loc": 631,
       "imports": 13,
       "useEffect": 0,
       "useState": 11,
@@ -110,7 +110,7 @@
       "useCallback": 0
     },
     "src/utils/objectWizardUtils.ts": {
-      "loc": 758,
+      "loc": 756,
       "imports": 0,
       "useEffect": 0,
       "useState": 0,

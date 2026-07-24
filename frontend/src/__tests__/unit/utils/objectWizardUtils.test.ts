@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  applyObjectFormDefaults,
   findDN,
   generatePipeName,
   generateTankName,
@@ -37,6 +38,7 @@ describe('generatePipeName', () => {
       ambient_temperature: -20,
       process_temperature: 80,
     });
+    expect(name).toBe('Труба Ø114 мм (DN100), δ=50 мм, МВ, L=50 м, -20→+80°C');
     expect(name).toContain('Ø114');
     expect(name).toContain('DN100');
     expect(name).toContain('δ=50');
@@ -54,7 +56,16 @@ describe('generatePipeName', () => {
       ambient_temperature: 0,
       process_temperature: 50,
     });
+    expect(name).toBe('Труба Ø234 мм, δ=30 мм, ППУ, L=10 м, +0→+50°C');
     expect(name).not.toContain('DN');
+  });
+
+  it('принимает partial/empty inputs без type assertion (runtime throws, callers catch)', () => {
+    // PipeNameFields is Partial — incomplete watches type-check at the call site.
+    const partial = { outer_diameter_mm: 114, ambient_temperature: -20 };
+    const empty = {};
+    expect(() => generatePipeName(partial)).toThrow(/toFixed/);
+    expect(() => generatePipeName(empty)).toThrow(/toFixed/);
   });
 });
 
@@ -69,6 +80,7 @@ describe('generateTankName', () => {
       ambient_temperature: -20,
       process_temperature: 80,
     });
+    expect(name).toBe('Бак цил. Ø2000 мм×H3000 мм, δ=80 мм, МВ, -20→+80°C');
     expect(name).toContain('цил.');
     expect(name).toContain('Ø2000');
     expect(name).toContain('H3000');
@@ -85,6 +97,7 @@ describe('generateTankName', () => {
       ambient_temperature: -20,
       process_temperature: 60,
     });
+    expect(name).toBe('Бак прям. 5000×3000×4000 мм, δ=80 мм, МВ, -20→+60°C');
     expect(name).toContain('5000×3000×4000');
     expect(name).toContain('прям.');
   });
@@ -98,8 +111,16 @@ describe('generateTankName', () => {
       ambient_temperature: -20,
       process_temperature: 60,
     });
+    expect(name).toBe('Бак сфер. Ø1500 мм, δ=60 мм, ППУ, -20→+60°C');
     expect(name).toContain('сфер.');
     expect(name).toContain('Ø1500');
+  });
+
+  it('принимает partial/empty inputs без type assertion (runtime throws, callers catch)', () => {
+    const partial = { shape: 'cylindrical' as const, diameter_mm: 2000 };
+    const empty = {};
+    expect(() => generateTankName(partial)).toThrow(/toFixed/);
+    expect(() => generateTankName(empty)).toThrow(/toFixed/);
   });
 });
 
@@ -490,5 +511,33 @@ describe('pipeApiParamsToForm и tankApiParamsToForm', () => {
     });
 
     expect(form.insulation_temperature_basis).toBe('outdoor_winter');
+  });
+});
+
+describe('applyObjectFormDefaults', () => {
+  it('restores empty string defaults without clobbering provided values', () => {
+    const pipe = applyObjectFormDefaults('pipe', {
+      // Runtime empty values must fall back to defaults (form may clear selects).
+      placement: '' as unknown as 'outdoor',
+      pipe_material: 'stainless_steel',
+      supply_voltage: 380,
+    });
+
+    expect(pipe.placement).toBe('outdoor');
+    expect(pipe.pipe_material).toBe('stainless_steel');
+    expect(pipe.pipe_lambda_mode).toBe('reference');
+    expect(pipe.supply_voltage).toBe(380);
+    expect(pipe.insulation_layer_count).toBe('1');
+    expect(pipe.insulation_temperature_basis).toBe('outdoor_winter');
+
+    const tank = applyObjectFormDefaults('tank', {
+      shape: '' as unknown as 'cylindrical',
+      insulation_cover_material: 'aluminum',
+    });
+
+    expect(tank.shape).toBe('cylindrical');
+    expect(tank.insulation_cover_material).toBe('aluminum');
+    expect(tank.placement).toBe('outdoor');
+    expect(tank.pipe_material).toBeUndefined();
   });
 });

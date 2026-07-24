@@ -179,21 +179,19 @@ export function applyObjectFormDefaults(
   values?: ObjectWizardFormValues,
 ): ObjectWizardFormValues {
   const defaults = formDefaultsForObjectType(objectType);
+  const merged: ObjectWizardFormValues = { ...defaults, ...(values ?? {}) };
+  // Restore empty default keys via spread (no heterogeneous index write).
   const next: ObjectWizardFormValues = {
-    ...defaults,
-    ...(values ?? {}),
+    ...merged,
+    ...Object.fromEntries(
+      Object.entries(defaults).filter(([key]) =>
+        isEmptyFormValue(merged[key as keyof ObjectWizardFormValues]),
+      ),
+    ),
   };
-
-  for (const [key, value] of Object.entries(defaults)) {
-    if (isEmptyFormValue(next[key as keyof ObjectWizardFormValues])) {
-      next[key as keyof ObjectWizardFormValues] = value as never;
-    }
-  }
-
   if (isEmptyFormValue(next.insulation_temperature_basis)) {
     next.insulation_temperature_basis = defaultInsulationTemperatureBasisForPlacement(next.placement);
   }
-
   return next;
 }
 
@@ -320,31 +318,31 @@ export interface TankFormValues {
   q_additional?: number;
 }
 
-export function generatePipeName(v: PipeFormValues): string {
-  const dn = findDN(v.outer_diameter_mm);
+/** Fields actually read by name generators; Partial accepts incomplete form watches. */
+export type PipeNameFields = Partial<Pick<PipeFormValues, 'outer_diameter_mm' | 'pipe_length' | 'insulation_thickness_mm' | 'insulation_material' | 'ambient_temperature' | 'process_temperature'>>;
+export type TankNameFields = Partial<Pick<TankFormValues, 'shape' | 'diameter_mm' | 'height_mm' | 'length_mm' | 'width_mm' | 'insulation_thickness_mm' | 'insulation_material' | 'ambient_temperature' | 'process_temperature'>>;
+
+export function generatePipeName(v: PipeNameFields): string {
+  const dn = findDN(v.outer_diameter_mm!);
   const dnPart = dn != null ? ` (DN${dn})` : '';
   const mat = shortMaterial(v.insulation_material ?? '');
-  const tAmb = tempSign(v.ambient_temperature);
-  const tProc = tempSign(v.process_temperature);
-  return `Труба Ø${fmt(v.outer_diameter_mm)} мм${dnPart}, δ=${fmt(v.insulation_thickness_mm)} мм, ${mat}, L=${fmt(v.pipe_length, 1)} м, ${tAmb}→${tProc}°C`;
+  const tAmb = tempSign(v.ambient_temperature!);
+  const tProc = tempSign(v.process_temperature!);
+  return `Труба Ø${fmt(v.outer_diameter_mm!)} мм${dnPart}, δ=${fmt(v.insulation_thickness_mm!)} мм, ${mat}, L=${fmt(v.pipe_length!, 1)} м, ${tAmb}→${tProc}°C`;
 }
 
-export function generateTankName(v: TankFormValues): string {
+export function generateTankName(v: TankNameFields): string {
   const mat = shortMaterial(v.insulation_material ?? '');
-  const tAmb = tempSign(v.ambient_temperature);
-  const tProc = tempSign(v.process_temperature);
-  const ins = `δ=${fmt(v.insulation_thickness_mm)} мм, ${mat}`;
-
+  const tAmb = tempSign(v.ambient_temperature!);
+  const tProc = tempSign(v.process_temperature!);
+  const ins = `δ=${fmt(v.insulation_thickness_mm!)} мм, ${mat}`;
   if (v.shape === 'cylindrical') {
     const d = v.diameter_mm ? `Ø${fmt(v.diameter_mm)} мм` : '';
     const h = v.height_mm ? `×H${fmt(v.height_mm)} мм` : '';
     return `Бак цил. ${d}${h}, ${ins}, ${tAmb}→${tProc}°C`;
   }
   if (v.shape === 'rectangular') {
-    const dims = [v.length_mm, v.width_mm, v.height_mm]
-      .filter(Boolean)
-      .map((x) => fmt(x!))
-      .join('×');
+    const dims = [v.length_mm, v.width_mm, v.height_mm].filter(Boolean).map((x) => fmt(x!)).join('×');
     return `Бак прям. ${dims} мм, ${ins}, ${tAmb}→${tProc}°C`;
   }
   if (v.shape === 'spherical') {

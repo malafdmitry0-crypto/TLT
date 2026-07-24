@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { createEvent, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import EditableTableCell, {
@@ -268,5 +268,70 @@ describe('EditableTableCell', () => {
       value: 26,
       children: '26',
     })).toBe(false);
+  });
+
+  it('forwards excel secondary-pointer open as HeatCalcContextMenuTrigger without cast path', () => {
+    const onContextMenu = vi.fn();
+    render(
+      <EditableTableCell
+        active={false}
+        excelMode
+        field={numericField}
+        value={108}
+        onContextMenu={onContextMenu}
+        onStartEdit={vi.fn()}
+        onCommit={() => null}
+        onCancel={vi.fn()}
+      >
+        108
+      </EditableTableCell>,
+    );
+
+    const display = screen.getByRole('button', { name: '108' });
+    const focusSpy = vi.spyOn(display, 'focus');
+    // jsdom pointer events omit button/coords; define the HeatCalcContextMenuTrigger surface.
+    const pointerDown = createEvent.pointerDown(display);
+    Object.defineProperties(pointerDown, {
+      button: { configurable: true, value: 2 },
+      clientX: { configurable: true, value: 42 },
+      clientY: { configurable: true, value: 84 },
+    });
+    fireEvent(display, pointerDown);
+
+    expect(focusSpy).toHaveBeenCalledWith({ preventScroll: true });
+    expect(pointerDown.defaultPrevented).toBe(true);
+    expect(onContextMenu).toHaveBeenCalledTimes(1);
+    const trigger = onContextMenu.mock.calls[0]?.[0];
+    expect(trigger).toMatchObject({ clientX: 42, clientY: 84 });
+    expect(typeof trigger.preventDefault).toBe('function');
+    expect(typeof trigger.stopPropagation).toBe('function');
+  });
+
+  it('does not open context menu outside excel mode', () => {
+    const onContextMenu = vi.fn();
+    render(
+      <EditableTableCell
+        active={false}
+        field={numericField}
+        value={108}
+        onContextMenu={onContextMenu}
+        onStartEdit={vi.fn()}
+        onCommit={() => null}
+        onCancel={vi.fn()}
+      >
+        108
+      </EditableTableCell>,
+    );
+
+    const display = screen.getByRole('button', { name: '108' });
+    const pointerDown = createEvent.pointerDown(display, {
+      clientX: 10,
+      clientY: 20,
+    });
+    Object.defineProperty(pointerDown, 'button', { configurable: true, value: 2 });
+    fireEvent(display, pointerDown);
+    fireEvent.contextMenu(display, { clientX: 10, clientY: 20 });
+
+    expect(onContextMenu).not.toHaveBeenCalled();
   });
 });
