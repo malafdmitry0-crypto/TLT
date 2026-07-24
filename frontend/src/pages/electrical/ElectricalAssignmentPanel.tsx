@@ -5,120 +5,39 @@
  * list lives in ElecCalcWorkspace and is filtered by shared `systemView`.
  */
 import {
-  useEffect,
-  useMemo,
-  useState,
   type DragEvent as ReactDragEvent,
   type ReactNode,
 } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
   Button,
   Dropdown,
-  Modal,
   Space,
   Tabs,
   Typography,
-  message,
 } from 'antd';
 import {
   ApartmentOutlined,
   AppstoreOutlined,
 } from '@ant-design/icons';
 
-import {
-  assignElectricalVariantObjects,
-  electricalAssignmentQueryKeys,
-  listElectricalVariantAssignments,
-  unassignElectricalVariantObjects,
-} from '@/api/electricalVariants';
-import { electricalDataQueryKeys } from '@/api/electricalQueryKeys';
-import { extractApiErrorMessage, type ApiError } from '@/api/client';
+import { extractApiErrorMessage } from '@/api/client';
 import {
   ELECTRICAL_SYSTEM_VIEWS,
   type ElectricalSystemView,
 } from '@/pages/electrical/elecCalcSystemViewModel';
-import type {
-  ElectricalAssignmentCounts,
-  ElectricalAssignmentMutationResponse,
-  ElectricalAssignmentSystemCounts,
-  ElectricalVariant,
-} from '@/types/electricalVariant';
+import type { AssignableSystem } from '@/pages/electrical/electricalAssignmentShared';
+import {
+  countForView,
+  isCleanupRequired,
+  isReassignConflict,
+  isVersionConflict,
+  useElectricalAssignmentController,
+  type DropTargetId,
+} from '@/pages/electrical/useElectricalAssignmentController';
+import type { ElectricalVariant } from '@/types/electricalVariant';
 
-const VERSION_CONFLICT_CODE = 'ELECTRICAL_ASSIGNMENT_VERSION_CONFLICT';
-const REASSIGN_REQUIRES_UNASSIGN_CODE = 'ELECTRICAL_ASSIGNMENT_REASSIGN_REQUIRES_UNASSIGN';
-const CLEANUP_REQUIRED_CODE = 'ELECTRICAL_ASSIGNMENT_CLEANUP_REQUIRED';
-export const ASSIGNMENT_DND_MIME = 'application/x-tlt-assignment-ids';
-
-export type AssignableSystem = 'self_regulating' | 'resistive';
-type DropTargetId = AssignableSystem | 'unassigned';
-
-type AssignmentMutationVariables =
-  | {
-    kind: 'assign';
-    systemType: AssignableSystem;
-    items: Array<{ object_id: string; expected_version: number }>;
-  }
-  | {
-    kind: 'unassign';
-    items: Array<{ object_id: string; expected_version: number }>;
-  };
-
-const EMPTY_SYSTEM_COUNTS: ElectricalAssignmentSystemCounts = {
-  unassigned: 0,
-  self_regulating: 0,
-  resistive: 0,
-  skin: 0,
-  mineral: 0,
-};
-
-function countForView(
-  counts: ElectricalAssignmentSystemCounts,
-  total: number,
-  view: ElectricalSystemView,
-): number {
-  if (view === 'all') return total;
-  return counts[view] ?? 0;
-}
-
-function isVersionConflict(error: unknown): boolean {
-  const apiError = error as ApiError | null;
-  return apiError?.status === 409 && apiError.code === VERSION_CONFLICT_CODE;
-}
-
-function isReassignConflict(error: unknown): boolean {
-  const apiError = error as ApiError | null;
-  return apiError?.status === 409 && apiError.code === REASSIGN_REQUIRES_UNASSIGN_CODE;
-}
-
-function isCleanupRequired(error: unknown): boolean {
-  const apiError = error as ApiError | null;
-  return apiError?.status === 409 && apiError.code === CLEANUP_REQUIRED_CODE;
-}
-
-function mutationSuccessMessage(
-  variables: AssignmentMutationVariables,
-  response: ElectricalAssignmentMutationResponse,
-): string {
-  if (variables.kind === 'unassign') {
-    return `В нераспределённые возвращено: ${response.changed_count}`;
-  }
-  return `Назначение сохранено для ${response.changed_count} объект(ов). Требуется пересчёт.`;
-}
-
-function parseDragIds(event: ReactDragEvent): string[] {
-  const raw = event.dataTransfer.getData(ASSIGNMENT_DND_MIME)
-    || event.dataTransfer.getData('text/plain');
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
-  } catch {
-    // plain id
-  }
-  return raw.trim() ? [raw.trim()] : [];
-}
+export { ASSIGNMENT_DND_MIME, type AssignableSystem } from '@/pages/electrical/electricalAssignmentShared';
 
 function tabLabel(label: string, count: number): ReactNode {
   return (
@@ -223,248 +142,18 @@ export default function ElectricalAssignmentPanel({
   onAssignedNeedCalc,
   tableDragging = false,
 }: ElectricalAssignmentPanelProps) {
-  const queryClient = useQueryClient();
-  const [messageApi, messageContextHolder] = message.useMessage();
-  const [modalApi, modalContextHolder] = Modal.useModal();
-  const [lastCounts, setLastCounts] = useState<ElectricalAssignmentCounts | null>(null);
-  const [overZone, setOverZone] = useState<DropTargetId | null>(null);
-  const [conflictNotice, setConflictNotice] = useState<{
-    title: string;
-    description: string;
-  } | null>(null);
-  const [cleanupRequiredIds, setCleanupRequiredIds] = useState<string[] | null>(null);
-
-  // Counts only — object rows live in the calc table.
-  const countsQuery = useQuery({
-    queryKey: electricalAssignmentQueryKeys.list(
-      projectId,
-      electricalVariant.id,
-      { view: 'all', page: 1, page_size: 1 },
-    ),
-    queryFn: () => listElectricalVariantAssignments(
-      projectId,
-      electricalVariant.id,
-      { view: 'all', page: 1, page_size: 1 },
-    ),
-    refetchOnMount: 'always',
-    staleTime: 0,
+  const c = useElectricalAssignmentController({
+    projectId,
+    electricalVariant,
+    canMutate,
+    systemView,
+    selectedObjectIds,
+    onSelectedObjectIdsChange,
+    versionByObjectId,
+    onAssignmentsChanged,
+    onAssignedNeedCalc,
   });
 
-  useEffect(() => {
-    if (countsQuery.data?.counts) setLastCounts(countsQuery.data.counts);
-  }, [countsQuery.data?.counts]);
-
-  const resolveItems = (objectIds: string[]) => {
-    const items: Array<{ object_id: string; expected_version: number }> = [];
-    const missing: string[] = [];
-    for (const objectId of objectIds) {
-      const version = versionByObjectId.get(objectId);
-      if (version == null || !Number.isFinite(version)) {
-        missing.push(objectId);
-        continue;
-      }
-      items.push({ object_id: objectId, expected_version: version });
-    }
-    return { items, missing };
-  };
-
-  const mutation = useMutation({
-    mutationFn: (variables: AssignmentMutationVariables) => {
-      if (variables.kind === 'unassign') {
-        return unassignElectricalVariantObjects(projectId, electricalVariant.id, {
-          confirm: true,
-          items: variables.items,
-        });
-      }
-      return assignElectricalVariantObjects(projectId, electricalVariant.id, {
-        system_type: variables.systemType,
-        items: variables.items,
-      });
-    },
-    onMutate: () => {
-      setConflictNotice(null);
-      setCleanupRequiredIds(null);
-    },
-    onSuccess: async (response, variables) => {
-      onSelectedObjectIdsChange?.([]);
-      messageApi.success(mutationSuccessMessage(variables, response));
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: electricalDataQueryKeys.variant(projectId, electricalVariant.id),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: electricalAssignmentQueryKeys.root(projectId, electricalVariant.id),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: ['spec', projectId, electricalVariant.id],
-        }),
-      ]);
-      onAssignmentsChanged?.();
-      // PDF §6.11–6.12: assignment into a supported system starts selection/sections.
-      if (variables.kind === 'assign' && response.changed_count > 0) {
-        const ids = variables.items.map((item) => item.object_id);
-        onAssignedNeedCalc?.(variables.systemType, ids);
-      }
-    },
-    onError: async (error, variables) => {
-      if (isCleanupRequired(error) && variables.kind === 'assign') {
-        setCleanupRequiredIds(variables.items.map((item) => item.object_id));
-        return;
-      }
-      if (!isVersionConflict(error) && !isReassignConflict(error)) return;
-      onSelectedObjectIdsChange?.([]);
-      setConflictNotice(isReassignConflict(error) ? {
-        title: 'Сначала верните объект в нераспределённые',
-        description: 'Для смены типа системы подтвердите возврат в нераспределённые, а затем выполните новое назначение.',
-      } : {
-        title: 'Список назначений обновлён',
-        description: 'Назначения изменились на сервере. Список обновлён — выберите объекты повторно.',
-      });
-      await queryClient.invalidateQueries({
-        queryKey: electricalDataQueryKeys.variant(projectId, electricalVariant.id),
-      });
-      onAssignmentsChanged?.();
-    },
-  });
-
-  const counts = lastCounts?.by_system ?? EMPTY_SYSTEM_COUNTS;
-  const busy = mutation.isPending;
-  const dragEnabled = canMutate && !busy;
-  // Button-assign only on «Нераспределённые»; DnD-assign also from «Все».
-  const canDropAssign = dragEnabled && (systemView === 'unassigned' || systemView === 'all');
-  const canDropUnassign = dragEnabled && systemView !== 'unassigned';
-  const selectedCount = selectedObjectIds.length;
-  const actionsDisabled = !canMutate || busy || selectedCount === 0;
-  const assignDisabled = actionsDisabled || systemView !== 'unassigned';
-
-  const runAssign = (systemType: AssignableSystem, objectIds: string[]) => {
-    if (!canMutate || busy || objectIds.length === 0) return;
-    const { items, missing } = resolveItems(objectIds);
-    if (missing.length) {
-      messageApi.error('Не удалось прочитать версию назначения. Обновите страницу.');
-      return;
-    }
-    mutation.mutate({ kind: 'assign', systemType, items });
-  };
-
-  const openUnassignConfirmation = (
-    objectIds: string[],
-    title: string,
-    okText = 'Вернуть',
-  ) => {
-    const { items, missing } = resolveItems(objectIds);
-    if (missing.length) {
-      messageApi.error('Не удалось прочитать версию назначения. Обновите страницу.');
-      return;
-    }
-    modalApi.confirm({
-      title,
-      content: (
-        <Space direction="vertical" size={4}>
-          <Typography.Text>
-            Удалятся только электрические расчёты, кандидаты, папки кандидатов и секции
-            выбранного ЭР.
-          </Typography.Text>
-          <Typography.Text strong>
-            Теплорасчёт и параметры объекта сохранятся.
-          </Typography.Text>
-        </Space>
-      ),
-      okText,
-      okType: 'danger',
-      cancelText: 'Отмена',
-      onOk: () => mutation.mutateAsync({ kind: 'unassign', items }).catch(() => undefined),
-    });
-  };
-
-  const confirmUnassign = (objectIds = selectedObjectIds) => {
-    if (!canMutate || busy || objectIds.length === 0) return;
-    if (systemView === 'unassigned') return;
-    openUnassignConfirmation(objectIds, `Вернуть в нераспределённые: ${objectIds.length}?`);
-  };
-
-  const confirmLegacyCleanup = () => {
-    if (!cleanupRequiredIds?.length || busy) return;
-    openUnassignConfirmation(
-      [...cleanupRequiredIds],
-      `Очистить legacy-данные: ${cleanupRequiredIds.length}?`,
-      'Очистить',
-    );
-  };
-
-  const handleZoneDragOver = (event: ReactDragEvent, id: DropTargetId) => {
-    if (id === 'self_regulating' || id === 'resistive') {
-      if (!canDropAssign) return;
-      event.preventDefault();
-      event.dataTransfer.dropEffect = 'move';
-      return;
-    }
-    if (id === 'unassigned' && canDropUnassign) {
-      event.preventDefault();
-      event.dataTransfer.dropEffect = 'move';
-    }
-  };
-
-  const handleZoneDrop = (event: ReactDragEvent, target: DropTargetId) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setOverZone(null);
-    if (!dragEnabled) return;
-    const ids = parseDragIds(event);
-    if (!ids.length) return;
-
-    if (target === 'self_regulating' || target === 'resistive') {
-      if (systemView !== 'unassigned' && systemView !== 'all') {
-        messageApi.info(
-          'Чтобы сменить систему: перетащите в «Нераспределённые», затем назначьте Самрег/Резистив.',
-        );
-        return;
-      }
-      runAssign(target, ids);
-      return;
-    }
-    if (target === 'unassigned') {
-      if (systemView === 'unassigned') return;
-      confirmUnassign(ids);
-    }
-  };
-
-  const totalLabel = useMemo(
-    () => lastCounts?.total ?? 0,
-    [lastCounts?.total],
-  );
-
-  const typeMenuItems = [
-    {
-      key: 'self_regulating',
-      label: 'Саморегулирующийся (Самрег)',
-      disabled: assignDisabled,
-      onClick: () => runAssign('self_regulating', selectedObjectIds),
-    },
-    {
-      key: 'resistive',
-      label: 'Резистивный',
-      disabled: assignDisabled,
-      onClick: () => runAssign('resistive', selectedObjectIds),
-    },
-    {
-      key: 'skin',
-      label: 'Скин (скоро)',
-      disabled: true,
-    },
-    {
-      type: 'divider' as const,
-    },
-    {
-      key: 'unassign',
-      label: 'Вернуть в нераспределённые',
-      danger: true,
-      disabled: actionsDisabled || systemView === 'unassigned',
-      onClick: () => confirmUnassign(),
-    },
-  ];
-
-  // System tabs shown in mockup (hide mineral / all from default chrome).
   const visibleTabs = ELECTRICAL_SYSTEM_VIEWS.filter(
     (tab) => tab.key === 'unassigned'
       || tab.key === 'self_regulating'
@@ -476,10 +165,10 @@ export default function ElectricalAssignmentPanel({
     <div
       data-testid="electrical-assignment-panel"
       className="electrical-system-scope"
-      aria-busy={countsQuery.isFetching || busy}
+      aria-busy={c.countsQuery.isFetching || c.busy}
     >
-      {messageContextHolder}
-      {modalContextHolder}
+      {c.messageContextHolder}
+      {c.modalContextHolder}
 
       {!canMutate && (
         <Alert
@@ -490,18 +179,18 @@ export default function ElectricalAssignmentPanel({
           description="Назначения можно смотреть; менять может только владелец проекта или администратор."
         />
       )}
-      {conflictNotice && (
+      {c.conflictNotice && (
         <Alert
           type="warning"
           showIcon
           closable
           style={{ marginBottom: 8 }}
-          onClose={() => setConflictNotice(null)}
-          message={conflictNotice.title}
-          description={conflictNotice.description}
+          onClose={() => c.setConflictNotice(null)}
+          message={c.conflictNotice.title}
+          description={c.conflictNotice.description}
         />
       )}
-      {cleanupRequiredIds && (
+      {c.cleanupRequiredIds && (
         <Alert
           type="warning"
           showIcon
@@ -509,32 +198,31 @@ export default function ElectricalAssignmentPanel({
           message="Найдены старые электрические данные"
           description="Перед назначением подтвердите очистку расчётов выбранного ЭР. Теплорасчёт сохранится."
           action={(
-            <Button size="small" danger disabled={busy} onClick={confirmLegacyCleanup}>
+            <Button size="small" danger disabled={c.busy} onClick={c.confirmLegacyCleanup}>
               Подтвердить очистку
             </Button>
           )}
         />
       )}
-      {mutation.isError
-        && !isVersionConflict(mutation.error)
-        && !isReassignConflict(mutation.error)
-        && !isCleanupRequired(mutation.error)
+      {c.mutation.isError
+        && !isVersionConflict(c.mutation.error)
+        && !isReassignConflict(c.mutation.error)
+        && !isCleanupRequired(c.mutation.error)
         && (
         <Alert
           type="error"
           showIcon
           style={{ marginBottom: 8 }}
           message="Не удалось изменить назначение"
-          description={extractApiErrorMessage(mutation.error)}
+          description={extractApiErrorMessage(c.mutation.error)}
           action={(
-            <Button size="small" loading={countsQuery.isFetching} onClick={() => void countsQuery.refetch()}>
+            <Button size="small" loading={c.countsQuery.isFetching} onClick={() => void c.countsQuery.refetch()}>
               Обновить
             </Button>
           )}
         />
       )}
 
-      {/* Mockup toolbar: system tabs left · group actions right */}
       <div className="electrical-system-scope__tabs-row">
         <Tabs
           className="electrical-system-scope__tabs"
@@ -542,42 +230,40 @@ export default function ElectricalAssignmentPanel({
           size="small"
           activeKey={systemView === 'all' || systemView === 'mineral' ? 'unassigned' : systemView}
           onChange={(nextKey) => {
-            if (busy) return;
+            if (c.busy) return;
             onSystemViewChange(nextKey as ElectricalSystemView);
             onSelectedObjectIdsChange?.([]);
-            setConflictNotice(null);
-            setCleanupRequiredIds(null);
-            mutation.reset();
+            c.clearNotices();
           }}
           items={visibleTabs.map((tab) => ({
             key: tab.key,
-            label: tabLabel(tab.label, countForView(counts, totalLabel, tab.key)),
-            disabled: busy || (tab.key === 'skin' && false),
+            label: tabLabel(tab.label, countForView(c.counts, c.totalLabel, tab.key)),
+            disabled: c.busy || (tab.key === 'skin' && false),
           }))}
           tabBarExtraContent={canMutate ? (
             <Space size={8} className="electrical-system-scope__actions" wrap>
               <Button
                 size="small"
                 icon={<ApartmentOutlined />}
-                disabled={assignDisabled}
-                loading={busy && mutation.variables?.kind === 'assign'
-                  && mutation.variables.systemType === 'self_regulating'}
-                onClick={() => runAssign('self_regulating', selectedObjectIds)}
+                disabled={c.assignDisabled}
+                loading={c.busy && c.mutation.variables?.kind === 'assign'
+                  && c.mutation.variables.systemType === 'self_regulating'}
+                onClick={() => c.runAssign('self_regulating', selectedObjectIds)}
                 aria-label="Применить правило к группе"
               >
                 Применить правило к группе
               </Button>
               <Dropdown
-                menu={{ items: typeMenuItems }}
-                disabled={actionsDisabled && systemView === 'unassigned' && selectedCount === 0}
+                menu={{ items: c.typeMenuItems }}
+                disabled={c.actionsDisabled && systemView === 'unassigned' && c.selectedCount === 0}
                 trigger={['click']}
               >
                 <Button
                   size="small"
                   icon={<AppstoreOutlined />}
-                  disabled={actionsDisabled && selectedCount === 0}
-                  loading={busy && mutation.variables?.kind === 'assign'
-                    && mutation.variables.systemType === 'resistive'}
+                  disabled={c.actionsDisabled && c.selectedCount === 0}
+                  loading={c.busy && c.mutation.variables?.kind === 'assign'
+                    && c.mutation.variables.systemType === 'resistive'}
                   aria-label="Выбрать тип"
                 >
                   Выбрать тип
@@ -588,7 +274,6 @@ export default function ElectricalAssignmentPanel({
         />
       </div>
 
-      {/* DnD zones (visible always when mutable; highlighted while dragging) */}
       {canMutate && (
         <div
           className={`assignment-drop-zones${tableDragging ? ' assignment-drop-zones--active' : ''}`}
@@ -599,69 +284,68 @@ export default function ElectricalAssignmentPanel({
           <DropZone
             id="self_regulating"
             label="↓ В Самрег"
-            hint={canDropAssign ? 'Отпустите строку таблицы' : 'Вкладка «Нераспределённые объекты»'}
-            disabled={!canDropAssign}
-            isOver={overZone === 'self_regulating'}
-            onDragEnter={setOverZone}
-            onDragLeave={(id) => setOverZone((cur) => (cur === id ? null : cur))}
-            onDragOver={handleZoneDragOver}
-            onDrop={handleZoneDrop}
+            hint={c.canDropAssign ? 'Отпустите строку таблицы' : 'Вкладка «Нераспределённые объекты»'}
+            disabled={!c.canDropAssign}
+            isOver={c.overZone === 'self_regulating'}
+            onDragEnter={c.setOverZone}
+            onDragLeave={(id) => c.setOverZone((cur) => (cur === id ? null : cur))}
+            onDragOver={c.handleZoneDragOver}
+            onDrop={c.handleZoneDrop}
           />
           <DropZone
             id="resistive"
             label="↓ В Резистив"
-            hint={canDropAssign ? 'Отпустите строку таблицы' : 'Вкладка «Нераспределённые объекты»'}
-            disabled={!canDropAssign}
-            isOver={overZone === 'resistive'}
-            onDragEnter={setOverZone}
-            onDragLeave={(id) => setOverZone((cur) => (cur === id ? null : cur))}
-            onDragOver={handleZoneDragOver}
-            onDrop={handleZoneDrop}
+            hint={c.canDropAssign ? 'Отпустите строку таблицы' : 'Вкладка «Нераспределённые объекты»'}
+            disabled={!c.canDropAssign}
+            isOver={c.overZone === 'resistive'}
+            onDragEnter={c.setOverZone}
+            onDragLeave={(id) => c.setOverZone((cur) => (cur === id ? null : cur))}
+            onDragOver={c.handleZoneDragOver}
+            onDrop={c.handleZoneDrop}
           />
           <DropZone
             id="unassigned"
             label="↓ В нераспределённые"
-            hint={canDropUnassign ? 'Отпустите строку таблицы' : 'Вкладка системы'}
+            hint={c.canDropUnassign ? 'Отпустите строку таблицы' : 'Вкладка системы'}
             kind="unassign"
-            disabled={!canDropUnassign}
-            isOver={overZone === 'unassigned'}
-            onDragEnter={setOverZone}
-            onDragLeave={(id) => setOverZone((cur) => (cur === id ? null : cur))}
-            onDragOver={handleZoneDragOver}
-            onDrop={handleZoneDrop}
+            disabled={!c.canDropUnassign}
+            isOver={c.overZone === 'unassigned'}
+            onDragEnter={c.setOverZone}
+            onDragLeave={(id) => c.setOverZone((cur) => (cur === id ? null : cur))}
+            onDragOver={c.handleZoneDragOver}
+            onDrop={c.handleZoneDrop}
           />
         </div>
       )}
 
-      {/* Secondary assign actions (also used by unit tests / keyboard) */}
       <div
         role="toolbar"
         aria-label="Действия с назначениями"
         className="electrical-system-scope__toolbar"
       >
-        <Typography.Text>Выбрано: {selectedCount}</Typography.Text>
+        <Typography.Text>Выбрано: {c.selectedCount}</Typography.Text>
         <Button
           type="primary"
-          disabled={assignDisabled}
-          loading={busy && mutation.variables?.kind === 'assign'
-            && mutation.variables.systemType === 'self_regulating'}
-          onClick={() => runAssign('self_regulating', selectedObjectIds)}
+          disabled={c.assignDisabled}
+          loading={c.busy && c.mutation.variables?.kind === 'assign'
+            && c.mutation.variables.systemType === 'self_regulating'}
+          onClick={() => c.runAssign('self_regulating', selectedObjectIds)}
         >
           Назначить: Самрег
         </Button>
         <Button
-          disabled={assignDisabled}
-          loading={busy && mutation.variables?.kind === 'assign'
-            && mutation.variables.systemType === 'resistive'}
-          onClick={() => runAssign('resistive', selectedObjectIds)}
+          disabled={c.assignDisabled}
+          loading={c.busy && c.mutation.variables?.kind === 'assign'
+            && c.mutation.variables.systemType === 'resistive'}
+          onClick={() => c.runAssign('resistive', selectedObjectIds)}
         >
           Назначить: Резистив
         </Button>
         <Button
           danger
-          disabled={actionsDisabled || systemView === 'unassigned'}
-          loading={busy && mutation.variables?.kind === 'unassign'}
-          onClick={() => confirmUnassign()}
+          disabled={c.actionsDisabled || systemView === 'unassigned'}
+          loading={c.busy && c.mutation.variables?.kind === 'unassign'}
+          onClick={() => c.confirmUnassign()}
         >
           Вернуть в нераспределённые
         </Button>

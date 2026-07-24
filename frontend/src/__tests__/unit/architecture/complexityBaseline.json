@@ -67,13 +67,6 @@
       "useState": 3,
       "useCallback": 0
     },
-    "src/pages/electrical/ElectricalAssignmentPanel.tsx": {
-      "loc": 676,
-      "imports": 9,
-      "useEffect": 1,
-      "useState": 4,
-      "useCallback": 0
-    },
     "src/pages/electrical/ElectricalVariantTabs.tsx": {
       "loc": 531,
       "imports": 8,
