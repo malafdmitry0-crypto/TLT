@@ -11,13 +11,6 @@
       "useState": 0,
       "useCallback": 0
     },
-    "src/components/electrical/CablePickerCharacteristics.tsx": {
-      "loc": 569,
-      "imports": 5,
-      "useEffect": 0,
-      "useState": 0,
-      "useCallback": 0
-    },
     "src/components/electrical/ElectricalCandidateGlideGrid.tsx": {
       "loc": 588,
       "imports": 10,
