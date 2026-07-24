@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import {
   Alert,
   Button,
@@ -13,7 +13,6 @@ import {
   Typography,
 } from 'antd';
 import { useQuery } from '@tanstack/react-query';
-import { checkFormula } from '@/api/admin';
 import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
 import { getInsulation } from '@/api/references';
 import { buildInsulationReferenceOptions } from '@/utils/referenceOptions';
@@ -26,68 +25,19 @@ import {
   TankFormulaDisplay,
   TTFormulaDisplay,
 } from '@/components/admin/formulas/FormulaDisplays';
+import {
+  assignIfPresent,
+  collectInsulationLayers,
+  useFormulaCalc,
+} from '@/pages/admin/useFormulaCalc';
 
 const { Text, Title } = Typography;
-
-type FormulaType =
-  | 'pipe'
-  | 'tank'
-  | 'electrical'
-  | 'electrical_tt'
-  | 'resistive_single'
-  | 'resistive_three'
-  | 'tank_cable_geometry';
-
-// ─── Общая логика калькулятора ────────────────────────────────────────────────
-
-function useCalc(formulaType: FormulaType) {
-  const [result, setResult] = useState<Record<string, unknown> | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  const run = async (params: Record<string, unknown>) => {
-    setError(null);
-    setLoading(true);
-    try {
-      setResult(await checkFormula(formulaType, params));
-    } catch (e: unknown) {
-      const detail = (e as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
-      setError(detail ? String(detail) : (e instanceof Error ? e.message : 'Ошибка расчёта'));
-      setResult(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return { result, error, loading, run };
-}
-
-function collectLayers(v: Record<string, unknown>) {
-  return [1, 2, 3]
-    .map((i) => ({
-      thickness: Number(v[`insulation_thickness_${i}_mm`]) / 1000,
-      material: v[`insulation_material_${i}`],
-      conductivity: v[`insulation_conductivity_${i}`],
-    }))
-    .filter((layer) => layer.thickness > 0 && typeof layer.material === 'string')
-    .map((layer) => ({
-      thickness: layer.thickness,
-      material: layer.material,
-      ...(layer.conductivity != null ? { conductivity: Number(layer.conductivity) } : {}),
-    }));
-}
-
-function assignIfPresent(target: Record<string, unknown>, key: string, value: unknown, transform?: (v: unknown) => unknown) {
-  if (value !== undefined && value !== null && value !== '') {
-    target[key] = transform ? transform(value) : value;
-  }
-}
 
 // ─── Вкладка: Трубопровод ─────────────────────────────────────────────────────
 
 function PipeTab() {
   const [form] = Form.useForm();
-  const { result, error, loading, run } = useCalc('pipe');
+  const { result, error, loading, run } = useFormulaCalc('pipe');
   const { data: insulation = [] } = useQuery({
     queryKey: referenceQueryKeys.insulation,
     queryFn: getInsulation,
@@ -100,7 +50,7 @@ function PipeTab() {
 
   const onCalc = async () => {
     const v = await form.validateFields();
-    const layers = collectLayers(v);
+    const layers = collectInsulationLayers(v);
     const p: Record<string, unknown> = {
       outer_diameter: v.outer_diameter_mm / 1000,
       pipe_length: v.pipe_length,
@@ -278,7 +228,7 @@ function PipeTab() {
 
 function TankTab() {
   const [form] = Form.useForm();
-  const { result, error, loading, run } = useCalc('tank');
+  const { result, error, loading, run } = useFormulaCalc('tank');
   const { data: insulation = [] } = useQuery({
     queryKey: referenceQueryKeys.insulation,
     queryFn: getInsulation,
@@ -292,7 +242,7 @@ function TankTab() {
 
   const onCalc = async () => {
     const v = await form.validateFields();
-    const layers = collectLayers(v);
+    const layers = collectInsulationLayers(v);
     const p: Record<string, unknown> = {
       shape: v.shape,
       insulation_thickness: layers[0]?.thickness,
@@ -493,7 +443,7 @@ function TankTab() {
 
 function ElecTab() {
   const [form] = Form.useForm();
-  const { result, error, loading, run } = useCalc('electrical');
+  const { result, error, loading, run } = useFormulaCalc('electrical');
 
   const onCalc = async () => {
     const v = await form.validateFields();
@@ -590,7 +540,7 @@ function ElecTab() {
 
 function TTTab() {
   const [form] = Form.useForm();
-  const { result, error, loading, run } = useCalc('electrical_tt');
+  const { result, error, loading, run } = useFormulaCalc('electrical_tt');
   const tankShape = Form.useWatch('tank_shape', form);
 
   const onCalc = async () => {
@@ -677,7 +627,7 @@ function ResistiveTab() {
   const [form] = Form.useForm();
   const cableKind = Form.useWatch('cable_kind', form) ?? 'resistive_single';
   const tankShape = Form.useWatch('tank_shape', form);
-  const { result, error, loading, run } = useCalc(cableKind);
+  const { result, error, loading, run } = useFormulaCalc(cableKind);
 
   const onCalc = async () => {
     const v = await form.validateFields();
@@ -782,7 +732,7 @@ function ResistiveTab() {
 function TankCableTab() {
   const [form] = Form.useForm();
   const shape = Form.useWatch('shape', form) ?? 'cylindrical';
-  const { result, error, loading, run } = useCalc('tank_cable_geometry');
+  const { result, error, loading, run } = useFormulaCalc('tank_cable_geometry');
 
   const onCalc = async () => {
     const v = await form.validateFields();

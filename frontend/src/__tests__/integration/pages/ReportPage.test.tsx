@@ -203,10 +203,15 @@ describe('ReportPage (integration)', () => {
       sessionId: null, accessToken: 'a', refreshToken: 'r',
     });
     useProjectStore.getState().setCurrentProject(mockProject);
+    // Prefer selected ER before mount so export has a concrete UUID immediately.
+    useCalculationVariantStore.getState().setSelectedVariantId(mockProject.id, firstVariant.id);
     renderPage();
-    const pdfBtn = await screen.findByRole('button', { name: /PDF/i });
-    await waitFor(() => expect(pdfBtn).toBeEnabled());
-    await user.click(pdfBtn);
+    // Wait for ER list + enabled PDF (avoid stale node after re-render).
+    await waitFor(() => {
+      expect(listElectricalVariantsMock).toHaveBeenCalled();
+      expect(screen.getByRole('button', { name: /PDF/i })).toBeEnabled();
+    });
+    await user.click(screen.getByRole('button', { name: /PDF/i }));
     await waitFor(() =>
       expect(exportReport).toHaveBeenCalledWith(
         'p-1',
@@ -248,9 +253,11 @@ describe('ReportPage (integration)', () => {
     useProjectStore.getState().setCurrentProject(mockProject);
     renderPage();
 
-    const pdfBtn = await screen.findByRole('button', { name: /PDF/i });
-    await waitFor(() => expect(pdfBtn).toBeEnabled());
-    await user.click(pdfBtn);
+    await waitFor(() => {
+      expect(listElectricalVariantsMock).toHaveBeenCalled();
+      expect(screen.getByRole('button', { name: /PDF/i })).toBeEnabled();
+    });
+    await user.click(screen.getByRole('button', { name: /PDF/i }));
     await waitFor(() => {
       expect(exportReport).toHaveBeenCalledWith(
         mockProject.id,
@@ -280,10 +287,13 @@ describe('ReportPage (integration)', () => {
       sessionId: null, accessToken: 'a', refreshToken: 'r',
     });
     useProjectStore.getState().setCurrentProject(mockProject);
+    useCalculationVariantStore.getState().setSelectedVariantId(mockProject.id, firstVariant.id);
     renderPage();
-    const composerBtn = await screen.findByRole('button', { name: /Состав отчёта/i });
-    await waitFor(() => expect(composerBtn).toBeEnabled());
-    await user.click(composerBtn);
+    await waitFor(() => {
+      expect(listElectricalVariantsMock).toHaveBeenCalled();
+      expect(screen.getByRole('button', { name: /Состав отчёта/i })).toBeEnabled();
+    });
+    await user.click(screen.getByRole('button', { name: /Состав отчёта/i }));
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
   });
 
@@ -306,9 +316,11 @@ describe('ReportPage (integration)', () => {
     );
     renderPage();
 
-    const wizardBtn = await screen.findByRole('button', { name: /Мастер в новом окне/i });
-    await waitFor(() => expect(wizardBtn).toBeEnabled());
-    await user.click(wizardBtn);
+    await waitFor(() => {
+      expect(listElectricalVariantsMock).toHaveBeenCalled();
+      expect(screen.getByRole('button', { name: /Мастер в новом окне/i })).toBeEnabled();
+    });
+    await user.click(screen.getByRole('button', { name: /Мастер в новом окне/i }));
 
     expect(openSpy).toHaveBeenCalledWith(
       `/report-wizard?er=${thirdVariant.id}`,

@@ -61,10 +61,10 @@
       "useCallback": 0
     },
     "src/pages/admin/FormulasPage.tsx": {
-      "loc": 846,
+      "loc": 796,
       "imports": 9,
       "useEffect": 0,
-      "useState": 3,
+      "useState": 0,
       "useCallback": 0
     },
     "src/pages/electrical/ElectricalVariantTabs.tsx": {
