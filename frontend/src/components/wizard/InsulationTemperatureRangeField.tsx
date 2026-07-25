@@ -59,9 +59,35 @@ interface Props {
   onRangeChange?: (changedValues: Record<string, unknown>) => void;
 }
 
-export default function InsulationTemperatureRangeField({
-  material,
+/** Reference branch only — no modal Form.useForm (avoids useForm is not connected). */
+function InsulationTemperatureRangeReference({
   selectedMaterial,
+  dataTestIdPrefix,
+  labelFieldId = 'first_insulation_temperature_range',
+  hint,
+}: Pick<Props, 'selectedMaterial' | 'dataTestIdPrefix' | 'labelFieldId' | 'hint'>) {
+  const referenceRange = formatInsulationTemperatureRange(selectedMaterial?.temperature_range) ?? '—';
+  return (
+    <Form.Item
+      className="fit-label-form-item insulation-temperature-range-form-item insulation-reference-form-item helped-form-item"
+      label={fieldLabel(labelFieldId)}
+    >
+      {withHelp(
+        <output
+          className="insulation-reference-value"
+          data-testid={`${dataTestIdPrefix}-temperature-range-reference`}
+          aria-label={`Диапазон температур материала: ${referenceRange}`}
+        >
+          {referenceRange}
+        </output>,
+        hint,
+      )}
+    </Form.Item>
+  );
+}
+
+/** Editable branch for material === "other" — owns modal Form.useForm. */
+function InsulationTemperatureRangeEditable({
   minName,
   maxName,
   dataTestIdPrefix,
@@ -70,34 +96,14 @@ export default function InsulationTemperatureRangeField({
   hint,
   required = false,
   onRangeChange,
-}: Props) {
+  referenceRange,
+}: Omit<Props, 'material' | 'selectedMaterial'> & { referenceRange: string }) {
   const form = Form.useFormInstance();
   const [modalForm] = Form.useForm<RangeModalValues>();
   const [open, setOpen] = useState(false);
-  const referenceRange = formatInsulationTemperatureRange(selectedMaterial?.temperature_range) ?? '—';
   const currentMin = numericValue(Form.useWatch(minName, form) ?? form.getFieldValue(minName));
   const currentMax = numericValue(Form.useWatch(maxName, form) ?? form.getFieldValue(maxName));
   const editableRange = formatEditableRange(currentMin, currentMax);
-
-  if (material !== 'other') {
-    return (
-      <Form.Item
-        className="fit-label-form-item insulation-temperature-range-form-item insulation-reference-form-item helped-form-item"
-        label={fieldLabel(labelFieldId)}
-      >
-        {withHelp(
-          <output
-            className="insulation-reference-value"
-            data-testid={`${dataTestIdPrefix}-temperature-range-reference`}
-            aria-label={`Диапазон температур материала: ${referenceRange}`}
-          >
-            {referenceRange}
-          </output>,
-          hint,
-        )}
-      </Form.Item>
-    );
-  }
 
   const minInputConfig = getHeatCalcFieldInputConfig(minName);
   const maxInputConfig = getHeatCalcFieldInputConfig(maxName);
@@ -219,7 +225,6 @@ export default function InsulationTemperatureRangeField({
         open={open}
         okText="Применить"
         cancelText="Отмена"
-        forceRender
         className="temperature-range-modal"
         onOk={applyRange}
         onCancel={() => setOpen(false)}
@@ -262,5 +267,45 @@ export default function InsulationTemperatureRangeField({
         </Form>
       </Modal>
     </>
+  );
+}
+
+export default function InsulationTemperatureRangeField({
+  material,
+  selectedMaterial,
+  minName,
+  maxName,
+  dataTestIdPrefix,
+  objectType,
+  labelFieldId = 'first_insulation_temperature_range',
+  hint,
+  required = false,
+  onRangeChange,
+}: Props) {
+  const referenceRange = formatInsulationTemperatureRange(selectedMaterial?.temperature_range) ?? '—';
+
+  if (material !== 'other') {
+    return (
+      <InsulationTemperatureRangeReference
+        selectedMaterial={selectedMaterial}
+        dataTestIdPrefix={dataTestIdPrefix}
+        labelFieldId={labelFieldId}
+        hint={hint}
+      />
+    );
+  }
+
+  return (
+    <InsulationTemperatureRangeEditable
+      minName={minName}
+      maxName={maxName}
+      dataTestIdPrefix={dataTestIdPrefix}
+      objectType={objectType}
+      labelFieldId={labelFieldId}
+      hint={hint}
+      required={required}
+      onRangeChange={onRangeChange}
+      referenceRange={referenceRange}
+    />
   );
 }
