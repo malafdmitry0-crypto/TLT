@@ -2,6 +2,7 @@
 
 **Status:** **PASS**  
 **UTC:** 2026-07-25  
+**Close HEAD:** `9e3c79c` (`9e3c79c3b4d0d57972d0e7777db9064f0c015330`)  
 **Program:** UI Kit agent-friendly CSS ownership (slices 06A–06H)
 
 ## Acceptance checklist
