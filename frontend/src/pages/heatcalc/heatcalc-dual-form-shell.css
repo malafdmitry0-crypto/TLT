@@ -142,13 +142,6 @@
   flex-direction: column;
   gap: 4px 0;
   overflow: visible;
-  /*
-   * contain: inline-size — ширина блока таблицы НЕ зависит от её контента,
-   * поэтому max-content-сетка карточки (fit-content) считается только по блоку
-   * полей. Таблица следует его ширине, а длинное имя материала переносится на
-   * 2 строки внутри столбца вместо расширения таблицы.
-   */
-  contain: inline-size;
   width: 100%;
   max-width: 100%;
   min-width: 0;

@@ -11,6 +11,9 @@ type LayoutProof = {
   columnOverlap: boolean;
   groupWidthRatio: number;
   groupOverflow: number;
+  hostWidthRatio: number;
+  tableHostOverflow: number;
+  tableFillsHost: boolean;
   hiddenControls: string[];
   clippedControls: string[];
   clippedLabels: string[];
@@ -31,7 +34,13 @@ async function inspectLayout(page: Page): Promise<LayoutProof> {
     const columns = Array.from(
       document.querySelectorAll<HTMLElement>('.object-wizard-wide-panel .pdf-form-column'),
     ).filter(visible);
-    const insulationColumn = document.querySelector<HTMLElement>('.object-wizard-wide-panel .form-col-srs--insulation');
+    const insulationColumn = document.querySelector<HTMLElement>('.object-wizard-wide-panel .form-col-srs--insulation')
+      ?? document.querySelector<HTMLElement>('.object-wizard-wide-panel .heat-wizard-zone--layers');
+    const fieldsHost = document.querySelector<HTMLElement>('.object-wizard-wide-panel .heat-object-fields')
+      ?? document.querySelector<HTMLElement>('.object-wizard-wide-panel .form-col-srs--primary')
+      ?? document.querySelector<HTMLElement>('.object-wizard-wide-panel');
+    const tableHost = insulationColumn?.querySelector<HTMLElement>('.insulation-layers-table')
+      ?? insulationColumn;
     const group = insulationColumn?.querySelector<HTMLElement>('.insulation-layer-group');
     const controls = group
       ? Array.from(group.querySelectorAll<HTMLElement>([
@@ -86,7 +95,17 @@ async function inspectLayout(page: Page): Promise<LayoutProof> {
     }
 
     const insulationRect = insulationColumn?.getBoundingClientRect();
+    const fieldsRect = fieldsHost?.getBoundingClientRect();
+    const tableRect = tableHost?.getBoundingClientRect();
     const groupRect = group?.getBoundingClientRect();
+    const hostWidthRatio = insulationRect && fieldsRect && fieldsRect.width > 0
+      ? insulationRect.width / fieldsRect.width
+      : 0;
+    const tableFillsHost = Boolean(
+      insulationRect
+      && tableRect
+      && Math.abs(tableRect.width - insulationRect.width) <= 2,
+    );
     return {
       documentOverflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth)
         - document.documentElement.clientWidth,
@@ -94,8 +113,11 @@ async function inspectLayout(page: Page): Promise<LayoutProof> {
       columnOverlap: columns.some((column, index) => columns
         .slice(index + 1)
         .some((other) => overlap(column.getBoundingClientRect(), other.getBoundingClientRect()))),
-      groupWidthRatio: insulationRect && groupRect ? groupRect.width / (insulationRect.width - 24) : 0,
+      groupWidthRatio: insulationRect && groupRect ? groupRect.width / Math.max(insulationRect.width - 24, 1) : 0,
       groupOverflow: group ? group.scrollWidth - group.clientWidth : -1,
+      hostWidthRatio,
+      tableHostOverflow: tableHost ? tableHost.scrollWidth - tableHost.clientWidth : -1,
+      tableFillsHost,
       hiddenControls: controls
         .filter((control) => !visible(control))
         .map((control) => control.dataset.testid ?? control.tagName),
@@ -103,6 +125,49 @@ async function inspectLayout(page: Page): Promise<LayoutProof> {
       clippedLabels,
       overlaps,
     };
+  });
+}
+
+const AF12_VIEWPORTS = [
+  { width: 1000, height: 768 },
+  { width: 1280, height: 800 },
+  { width: 1366, height: 768 },
+  { width: 1440, height: 900 },
+  { width: 1440, height: 1000 },
+  { width: 1920, height: 1080 },
+] as const;
+
+for (const viewport of AF12_VIEWPORTS) {
+  test(`AF12 insulation layers host width at ${viewport.width}x${viewport.height}`, async ({ page }) => {
+    mkdirSync(OUT_DIR, { recursive: true });
+    const consoleErrors: string[] = [];
+    const failedRequests: string[] = [];
+    page.on('console', (message) => {
+      if (message.type() === 'error') consoleErrors.push(message.text());
+    });
+    page.on('requestfailed', (request) => failedRequests.push(request.url()));
+
+    await page.setViewportSize(viewport);
+    await loginAsGuest(page);
+    await expect(page.getByTestId('heat-pdf-three-column-form')).toBeVisible();
+    await expect(page.getByTestId('first-insulation-temperature-range-reference')).toBeVisible();
+
+    const proof = await inspectLayout(page);
+    expect(proof.documentOverflow).toBeLessThanOrEqual(2);
+    expect(proof.hostWidthRatio).toBeGreaterThanOrEqual(0.85);
+    expect(proof.tableHostOverflow).toBeLessThanOrEqual(2);
+    expect(proof.groupOverflow).toBeLessThanOrEqual(2);
+    expect(proof.hiddenControls).toEqual([]);
+    expect(proof.clippedControls).toEqual([]);
+    expect(proof.clippedLabels).toEqual([]);
+    expect(proof.overlaps).toEqual([]);
+    expect(consoleErrors).toEqual([]);
+    expect(failedRequests).toEqual([]);
+
+    await page.screenshot({
+      path: `${OUT_DIR}/af12-1layer-${viewport.width}x${viewport.height}.png`,
+      fullPage: false,
+    });
   });
 }
 
