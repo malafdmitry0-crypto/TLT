@@ -62,29 +62,18 @@
   border-color: var(--color-danger);
   background-color: var(--color-danger-bg);
 }
+/* Space.Compact replaces deprecated InputNumber addonAfter */
+.tlt-number-field__compact { display: inline-flex; align-items: stretch; width: 100%; max-width: 100%; min-width: 0; }
+.tlt-number-field--with-unit .tlt-number-field__input { border-end-end-radius: 0; border-start-end-radius: 0; flex: 1 1 auto; min-width: 0; }
 .tlt-number-field__unit {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  min-width: 0;
-  /* Full control height like HeatCalc unit addon (border box matches 26px track) */
-  height: var(--tlt-field-control-height);
-  padding: 0 var(--tlt-field-control-padding-inline, 3px);
-  color: var(--color-alpha-dde9aa2f);
-  font-size: var(--tlt-field-unit-font-size, 9px);
-  line-height: calc(var(--tlt-field-control-height) - 2px);
-  white-space: nowrap;
-  background: var(--color-alpha-dde98761);
-  border: 1px solid var(--color-border);
-  border-inline-start: 0;
+  display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; min-width: 0; flex: 0 0 auto;
+  height: var(--tlt-field-control-height); padding: 0 var(--tlt-field-control-padding-inline, 3px);
+  color: var(--color-alpha-dde9aa2f); font-size: var(--tlt-field-unit-font-size, 9px);
+  line-height: calc(var(--tlt-field-control-height) - 2px); white-space: nowrap;
+  background: var(--color-alpha-dde98761); border: 1px solid var(--color-border); border-inline-start: 0;
   border-radius: 0 var(--tlt-field-radius) var(--tlt-field-radius) 0;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
 }
-.tlt-number-field[data-disabled] .tlt-number-field__unit {
-  color: var(--color-swatch-5f6b76);
-  background: var(--color-alpha-dde987a3);
-}
+.tlt-number-field[data-disabled] .tlt-number-field__unit { color: var(--color-swatch-5f6b76); background: var(--color-alpha-dde987a3); }
 .tlt-select {
   width: 100%;
   flex: 1;

@@ -4,7 +4,7 @@ import type {
   KeyboardEventHandler,
   ReactNode,
 } from 'react';
-import { InputNumber } from 'antd';
+import { InputNumber, Space } from 'antd';
 
 type NumberInputValue = number | string | null | undefined;
 
@@ -99,6 +99,67 @@ export default function TltNumberField({
     ? toFiniteNumber(defaultValue)
     : defaultValue;
 
+  const numberInput = (
+    <InputNumber
+      id={id}
+      name={name}
+      value={controlled === undefined ? undefined : controlled}
+      defaultValue={defaultNum}
+      min={toFiniteNumber(min)}
+      max={toFiniteNumber(max)}
+      step={toFiniteNumber(step) ?? 1}
+      disabled={disabled}
+      readOnly={readOnly}
+      required={isRequired}
+      placeholder={placeholder}
+      status={isInvalid ? 'error' : status === 'warning' ? 'warning' : undefined}
+      controls={false}
+      keyboard
+      changeOnWheel={false}
+      className={joinClassNames('tlt-number-field__input', inputClassName)}
+      style={inputStyle}
+      data-testid={testId}
+      aria-label={resolvedAriaLabel}
+      aria-required={isRequired || undefined}
+      aria-invalid={isInvalid || undefined}
+      // Comma as decimal separator (RU locale).
+      // Empty input must return '' (not NaN) so rc-input-number commits null on clear.
+      parser={(display) => {
+        const normalized = String(display ?? '').trim().replace(',', '.');
+        if (normalized === '') {
+          return '';
+        }
+        if (normalized === '-' || normalized === '.' || normalized === '-.') {
+          return normalized;
+        }
+        const parsed = Number(normalized);
+        return Number.isFinite(parsed) ? parsed : normalized;
+      }}
+      formatter={(val, info) => {
+        if (info?.userTyping) return info.input;
+        if (val === null || val === undefined || val === '' || Number.isNaN(Number(val))) return '';
+        return String(val).replace('.', ',');
+      }}
+      onChange={(next) => {
+        if (next === null || next === undefined || next === '') {
+          onChange?.(null);
+          return;
+        }
+        const num = typeof next === 'number' ? next : Number(next);
+        onChange?.(Number.isFinite(num) ? num : null);
+      }}
+      onBlur={onBlur}
+      onFocus={onFocus}
+      onKeyDown={(event) => {
+        onKeyDown?.(event);
+        if (event.defaultPrevented) return;
+        if (event.key === 'Enter') {
+          onPressEnter?.(event);
+        }
+      }}
+    />
+  );
+
   return (
     <span
       className={joinClassNames(
@@ -108,75 +169,19 @@ export default function TltNumberField({
       )}
       style={wrapperStyle ?? style}
     >
-      <InputNumber
-        id={id}
-        name={name}
-        value={controlled === undefined ? undefined : controlled}
-        defaultValue={defaultNum}
-        min={toFiniteNumber(min)}
-        max={toFiniteNumber(max)}
-        step={toFiniteNumber(step) ?? 1}
-        disabled={disabled}
-        readOnly={readOnly}
-        required={isRequired}
-        placeholder={placeholder}
-        status={isInvalid ? 'error' : status === 'warning' ? 'warning' : undefined}
-        controls={false}
-        keyboard
-        changeOnWheel={false}
-        className={joinClassNames('tlt-number-field__input', inputClassName)}
-        style={inputStyle}
-        data-testid={testId}
-        aria-label={resolvedAriaLabel}
-        aria-required={isRequired || undefined}
-        aria-invalid={isInvalid || undefined}
-        // Comma as decimal separator (RU locale).
-        // Empty input must return '' (not NaN) so rc-input-number commits null on clear.
-        parser={(display) => {
-          const normalized = String(display ?? '').trim().replace(',', '.');
-          if (normalized === '') {
-            return '';
-          }
-          if (normalized === '-' || normalized === '.' || normalized === '-.') {
-            return normalized;
-          }
-          const parsed = Number(normalized);
-          return Number.isFinite(parsed) ? parsed : normalized;
-        }}
-        formatter={(val, info) => {
-          if (info?.userTyping) return info.input;
-          if (val === null || val === undefined || val === '' || Number.isNaN(Number(val))) return '';
-          return String(val).replace('.', ',');
-        }}
-        onChange={(next) => {
-          if (next === null || next === undefined || next === '') {
-            onChange?.(null);
-            return;
-          }
-          const num = typeof next === 'number' ? next : Number(next);
-          onChange?.(Number.isFinite(num) ? num : null);
-        }}
-        onBlur={onBlur}
-        onFocus={onFocus}
-        onKeyDown={(event) => {
-          // Ant KeyboardEvent is compatible enough for our optional handlers
-          onKeyDown?.(event);
-          if (event.defaultPrevented) return;
-          if (event.key === 'Enter') {
-            onPressEnter?.(event);
-          }
-        }}
-        addonAfter={
-          unit ? (
-            <span
-              aria-hidden="true"
-              className={joinClassNames('tlt-number-field__unit', addonClassName)}
-            >
-              {unit}
-            </span>
-          ) : undefined
-        }
-      />
+      {unit ? (
+        <Space.Compact className="tlt-number-field__compact">
+          {numberInput}
+          <span
+            aria-hidden="true"
+            className={joinClassNames('tlt-number-field__unit', addonClassName)}
+          >
+            {unit}
+          </span>
+        </Space.Compact>
+      ) : (
+        numberInput
+      )}
     </span>
   );
 }
