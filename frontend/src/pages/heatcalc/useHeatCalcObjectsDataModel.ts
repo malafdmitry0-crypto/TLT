@@ -11,15 +11,12 @@ import {
 import { getObjectQueryCapabilities, getObjectsSummary, listObjects, queryObjects } from '@/api/projects';
 import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
 import { getInsulation } from '@/api/references';
-import { MATERIAL_LABELS } from '@/constants/materials';
 import type {
   Project,
-  ProjectObject,
   ProjectObjectsPageCursor,
   ProjectObjectsQueryResponse,
 } from '@/types/project';
 import {
-  HEATCALC_TABLE_COLUMN_CATALOG,
   getAllTableColumnMetas,
   getVisibleTableColumnMetas,
   type HeatCalcObjectType,
@@ -30,8 +27,6 @@ import {
   applyColumnFilters,
   applyTableSort,
   createEmptyTableViewState,
-  type HeatCalcColumnValueAccessors,
-  type HeatCalcIndexedTableRow,
   type HeatCalcTableViewState,
 } from '@/utils/heatCalcTableFindability';
 import {
@@ -43,10 +38,7 @@ import { getInlineEditFieldConfig } from '@/utils/heatCalcInlineEdit';
 import { getExcelEditableColumnMetas } from '@/utils/heatCalcExcelMode';
 import {
   DEFAULT_OBJECT_QUERY_PAGE_SIZE,
-  INAPPLICABLE_TABLE_VALUE,
   buildObjectQueryRequest,
-  insulationEntryLabel,
-  isColumnApplicableToObjectType,
 } from '@/utils/heatCalcPageUtils';
 import { buildHeatCalcColumnRenderers } from '@/pages/heatcalc/heatCalcColumnRenderers';
 import {
@@ -55,6 +47,13 @@ import {
 } from '@/pages/heatcalc/heatCalcWorkspaceLoadStateModel';
 import type { ActiveObjectScope } from '@/pages/heatcalc/useHeatCalcTableState';
 import { buildHeatCalcEnumOptionsByColumn } from '@/pages/heatcalc/heatCalcVisibleRowsModel';
+import {
+  buildAllIndexedTableRows,
+  buildHeatCalcTableValueAccessors,
+  buildInsulationLabelByCode,
+  resolveInsulationLabel,
+  resolveObjectCountsFromSummary,
+} from '@/pages/heatcalc/heatCalcObjectsDataAccessors';
 
 export type {
   HeatCalcRequiredQuerySlice,
@@ -263,21 +262,20 @@ export function useHeatCalcObjectsDataModel({
   ]);
 
   const insulationLabelByCode = useMemo(
-    () => new Map(insulationMaterials.map((m) => [m.material, insulationEntryLabel(m)])),
+    () => buildInsulationLabelByCode(insulationMaterials),
     [insulationMaterials],
   );
-  const insulationLabel = useCallback((material: unknown) => {
-    const code = String(material ?? '');
-    if (!code) return '—';
-    return insulationLabelByCode.get(code) ?? MATERIAL_LABELS[code] ?? code;
-  }, [insulationLabelByCode]);
+  const insulationLabel = useCallback(
+    (material: unknown) => resolveInsulationLabel(insulationLabelByCode, material),
+    [insulationLabelByCode],
+  );
 
-  const pipeCount = objectsSummary?.by_type.pipe ?? 0;
-  const tankCount = objectsSummary?.by_type.tank ?? 0;
-  const projectObjectCount = objectsSummary?.total ?? pipeCount + tankCount;
-  const totalCount = activeObjectScope === 'all'
-    ? projectObjectCount
-    : objectsSummary?.by_type[activeObjectScope] ?? 0;
+  const {
+    pipeCount,
+    tankCount,
+    projectObjectCount,
+    totalCount,
+  } = resolveObjectCountsFromSummary(objectsSummary, activeObjectScope);
   const columnRenderers = useMemo(
     () => buildHeatCalcColumnRenderers({ insulationLabel }),
     [insulationLabel],
@@ -329,27 +327,12 @@ export function useHeatCalcObjectsDataModel({
     () => configuredColumnMetas.map((meta) => meta.key),
     [configuredColumnMetas],
   );
-  const tableValueAccessors = useMemo<HeatCalcColumnValueAccessors<ProjectObject>>(() => {
-    const accessors: HeatCalcColumnValueAccessors<ProjectObject> = {};
-    for (const meta of HEATCALC_TABLE_COLUMN_CATALOG.all) {
-      accessors[meta.key] = (record, sourceIndex) => {
-        if (!isColumnApplicableToObjectType(meta.key, record.object_type)) {
-          return INAPPLICABLE_TABLE_VALUE;
-        }
-        return columnRenderers[meta.key].copyValue(record, sourceIndex);
-      };
-    }
-    return accessors;
-  }, [columnRenderers]);
-  const allIndexedTableRows = useMemo<HeatCalcIndexedTableRow<ProjectObject>[]>(
-    () => allProjectObjects
-      .filter((object) => object.object_type === 'pipe' || object.object_type === 'tank')
-      .sort((left, right) => {
-        const bySortOrder = left.sort_order - right.sort_order;
-        if (bySortOrder !== 0) return bySortOrder;
-        return left.created_at.localeCompare(right.created_at);
-      })
-      .map((record, index) => ({ record, sourceIndex: index })),
+  const tableValueAccessors = useMemo(
+    () => buildHeatCalcTableValueAccessors(columnRenderers),
+    [columnRenderers],
+  );
+  const allIndexedTableRows = useMemo(
+    () => buildAllIndexedTableRows(allProjectObjects),
     [allProjectObjects],
   );
   const allFilteredSortedTableRows = useMemo(
