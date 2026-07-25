@@ -1,8 +1,27 @@
 # UI Kit и контракт раскладки форм
 
-**Актуально на:** 2026-07-24
+**Актуально на:** 2026-07-25
 
 **Статус:** архитектурная политика UI-kit и новых/изменяемых form layouts.
+
+## Desktop-only product contract (AF12)
+
+- Product UI для UI Kit page (`/ui-kit`) и showcase acceptance: **≥1000 px** CSS
+  viewport.
+- **&lt;1000 px** — out of product scope: no support claim, no required browser
+  matrix rows, no agent-driven mobile CSS without a **separate product
+  decision**.
+- Canonical UI Kit desktop media condition for owner reflow: `max-width: 1200px`.
+- `@media (max-width: 768px)` in UI Kit CSS is **legacy** scheduled for removal
+  (AF12-UIKIT-MOBILE-CSS-01); do not extend it.
+- Target CSS ownership (one JSX seam → one CSS owner, base + own desktop media):
+  - `ui-kit-page-shell.css` — page/header/nav/main/intro/footer/reduced-motion
+  - `ui-kit-foundation.css` — colors, typography, foundation grids
+  - `ui-kit-primitives-showcase.css` — alerts, tabs, metrics, primitives
+  - `ui-kit-data-showcase.css` — filters, empty/loading, showcase table
+  - `ui-kit-heatcalc-reference.css` — Heat reference/form/action bar/layers/table
+- Shared production `ui-kit.css` with mixed owners is retired as owners land;
+  temporary `ui-kit-responsive.css` holds residual cascade until split completes.
 
 > Общий workflow, budget, proof и hard stops:
 > [agent-development-standard.md](./agent-development-standard.md). Фактический

@@ -1,8 +1,15 @@
 # Desktop viewport policy TLT
 
-**Актуально на:** 2026-07-24
+**Актуально на:** 2026-07-25
 
 **Статус:** тематический регламент для desktop UI proof.
+
+> **Product contract (AF12-UIKIT-DESKTOP-CONTRACT-01):** поддерживаемый UI
+> начинается с CSS viewport **1000 px**. Viewports **&lt;1000 px** — вне product
+> contract: не разрабатываются, не чинятся и не входят в acceptance UI Kit /
+> shell без **отдельного product decision**. Mobile profiles `390×844` и
+> `768×1024` **не** обязательны. Агентам запрещено добавлять mobile CSS /
+> breakpoints для UI Kit «заодно».
 
 > Общий workflow, hard stops и Definition of Done:
 > [agent-development-standard.md](./agent-development-standard.md). CSS
@@ -47,7 +54,7 @@ desktop-профилей сверяется по [StatCounter][statcounter], н�
 
 | CSS viewport | Уровень поддержки | Обязательное поведение |
 |---:|---|---|
-| `<1000 px` | Вне общего desktop-контракта | Проверяется только в responsive/mobile slice |
+| `<1000 px` | **Вне product contract** | Не acceptance, не default work. Только явный product decision / отдельная программа |
 | `1000–1279 px` | Functional desktop | Навигация и ключевые действия доступны; предупреждение, constrained mode и локальный horizontal scroll допустимы |
 | `≥1280 px` | Full workspace | Плотные Heat/Electrical/Specification workflows работают в полном desktop layout |
 | `1440 px` | Primary QA | Основной visual, geometry и interaction proof |
@@ -106,8 +113,8 @@ validation summary и сообщения об ошибках. Горизонта
 - Высотно-чувствительная форма/action bar: добавить `1366×768`.
 - Wide-layout или max-width: добавить `1920×1080`; QHD/4K только для release или
   явно затронутого wide-контракта.
-- Responsive/mobile slice: desktop matrix дополняется `390×844` и `768×1024`,
-  но не заменяется ими.
+- UI Kit / AF browser seal: **только** desktop matrix ≥`1000×768` (без
+  `390×844` / `768×1024`). Mobile не заменяет и не дополняет обязательный proof.
 
 Высота `1000 px` допустима для дополнительного proof длинной формы, однако не
 заменяет primary profile `1440×900`.
