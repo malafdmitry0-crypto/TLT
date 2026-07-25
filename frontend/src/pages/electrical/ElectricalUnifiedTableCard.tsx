@@ -7,11 +7,12 @@
  * Single system-filtered objects table (Glide or antd) + selection footer.
  */
 import { lazy, Suspense, type ReactNode } from 'react';
-import { Alert, Button, Card, Table, Typography } from 'antd';
+import { Table, Typography } from 'antd';
 import { ThunderboltOutlined } from '@ant-design/icons';
 import type { ColumnsType, TableProps } from 'antd/es/table';
 
 import type { ElectricalGlideGridProps } from '@/components/electrical/ElectricalGlideGrid';
+import { TltAlert, TltButton, TltCard } from '@/components/ui-kit';
 import type { ElectricalCalcSummary, ElectricalQueryAssignment } from '@/types/calculation';
 import type { ProjectObject } from '@/types/project';
 import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
@@ -137,22 +138,22 @@ export function ElectricalUnifiedTableCard(props: ElectricalUnifiedTableCardProp
   ) : currentTableViewActive && totalObjects > 0 ? (
     <div className="table-filter-empty">
       <Text type="secondary">Нет строк по текущим фильтрам</Text>
-      <Button size="small" onClick={resetCurrentTableViewState}>
+      <TltButton size="compact" onClick={resetCurrentTableViewState}>
         Сбросить фильтры
-      </Button>
+      </TltButton>
     </div>
   ) : undefined;
 
   return (
-    <Card size="small" className="workspace-table-card srs-table-wrap" data-testid="electrical-unified-table">
+    <TltCard padding="compact" className="workspace-table-card srs-table-wrap" data-testid="electrical-unified-table">
       {electricalPageLoaded && totalObjects === 0 ? (
-        <Alert
-          type="warning"
-          showIcon
-          message="Нет объектов"
-          description="Добавьте объекты на шаге «Теплопотери»."
-          style={{ margin: 12 }}
-        />
+        <TltAlert
+          tone="warning"
+          title="Нет объектов"
+          className="electrical-unified-alert"
+        >
+          Добавьте объекты на шаге «Теплопотери».
+        </TltAlert>
       ) : electricalGlideEnabled ? (
         <Suspense fallback={null}>
           <ElectricalGlideGrid
@@ -254,16 +255,16 @@ export function ElectricalUnifiedTableCard(props: ElectricalUnifiedTableCardProp
           {scopedObjects.length}
         </Text>
         {calculatedCount > 0 && (
-          <Button
-            size="small"
-            type="link"
+          <TltButton
+            size="compact"
+            variant="link"
             icon={<ThunderboltOutlined />}
             onClick={() => navigate(ROUTES.specification)}
           >
             Спецификация →
-          </Button>
+          </TltButton>
         )}
       </div>
-    </Card>
+    </TltCard>
   );
 }

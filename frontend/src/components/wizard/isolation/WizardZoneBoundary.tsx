@@ -12,6 +12,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import '../wizard-chrome.css';
 
 import {
   WIZARD_ISLAND_BY_ID,
@@ -49,17 +50,7 @@ function IsolationErrorPanel({
       role="alert"
       data-testid={`wizard-zone-error-${islandId}`}
       data-wizard-isolation-error={isIsolation ? error.code : 'REACT_CRASH'}
-      style={{
-        margin: 8,
-        padding: 10,
-        border: '2px solid #cf1322',
-        borderRadius: 6,
-        background: '#fff1f0',
-        color: '#a8071a',
-        fontSize: 12,
-        whiteSpace: 'pre-wrap',
-        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-      }}
+      className="wizard-zone-error"
     >
       <strong>[WizardIsolation] {island.label} broken</strong>
       {'\n'}

@@ -50,26 +50,26 @@ export function ElectricalSectionHierarchy({ calc }: ElectricalSectionHierarchyP
         {' '}
         {sectionCount || sections.length}
       </strong>
-      <table style={{ width: '100%', marginTop: 6, fontSize: 12 }}>
+      <table className="section-hierarchy-table">
         <thead>
           <tr>
-            <th style={{ textAlign: 'left' }}>№</th>
-            <th style={{ textAlign: 'right' }}>L, м</th>
-            <th style={{ textAlign: 'right' }}>P, Вт</th>
-            <th style={{ textAlign: 'right' }}>Iраб, А</th>
-            <th style={{ textAlign: 'right' }}>Iст, А</th>
+            <th className="section-hierarchy-table__th">№</th>
+            <th className="section-hierarchy-table__th section-hierarchy-table__th--num">L, м</th>
+            <th className="section-hierarchy-table__th section-hierarchy-table__th--num">P, Вт</th>
+            <th className="section-hierarchy-table__th section-hierarchy-table__th--num">Iраб, А</th>
+            <th className="section-hierarchy-table__th section-hierarchy-table__th--num">Iст, А</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((sec, i) => (
             <tr key={String(sec.index ?? i)}>
               <td>{String(sec.index ?? i + 1)}</td>
-              <td style={{ textAlign: 'right' }}>{String(sec.length_m ?? '—')}</td>
-              <td style={{ textAlign: 'right' }}>{String(sec.power_w ?? '—')}</td>
-              <td style={{ textAlign: 'right' }}>
+              <td className="section-hierarchy-table__td--num">{String(sec.length_m ?? '—')}</td>
+              <td className="section-hierarchy-table__td--num">{String(sec.power_w ?? '—')}</td>
+              <td className="section-hierarchy-table__td--num">
                 {String(sec.working_current_a ?? '—')}
               </td>
-              <td style={{ textAlign: 'right' }}>
+              <td className="section-hierarchy-table__td--num">
                 {String(sec.start_current_a ?? '—')}
               </td>
             </tr>

@@ -1,7 +1,4 @@
 import {
-  Alert,
-  Button,
-  Card,
   Skeleton,
   Space,
   Tabs,
@@ -17,6 +14,7 @@ import {
 import SpecTable from '@/components/specification/SpecTable';
 import QueryError from '@/components/common/QueryError';
 import EmptyProjectState from '@/components/common/EmptyProjectState';
+import { TltAlert, TltButton, TltCard } from '@/components/ui-kit';
 import { ROUTES } from '@/routes/routes';
 import { useSpecificationPageModel } from '@/pages/specification/useSpecificationPageModel';
 import { SpecPageChrome } from '@/pages/specification/SpecPageChrome';
@@ -98,7 +96,7 @@ export default function SpecificationPage() {
   if (!project) {
     return (
       <EmptyProjectState
-        icon={<UnorderedListOutlined style={{ marginRight: 8 }} />}
+        icon={<UnorderedListOutlined className="specification-empty-icon" />}
         title="Спецификация"
         description="Шаг 3 из 4. Автоматическое формирование перечня оборудования и материалов на основе расчётов."
       />
@@ -107,9 +105,9 @@ export default function SpecificationPage() {
 
   if (variantContext.isLoading) {
     return (
-      <Card size="small" aria-busy="true" aria-label="Загрузка списка ЭР">
+      <TltCard padding="compact" aria-busy="true" aria-label="Загрузка списка ЭР">
         <Skeleton active title paragraph={{ rows: 4 }} />
-      </Card>
+      </TltCard>
     );
   }
 
@@ -126,38 +124,38 @@ export default function SpecificationPage() {
 
   if (!selectedElectricalVariant) {
     return (
-      <Alert
-        type="warning"
-        showIcon
-        message="ЭР ещё не создан"
-        description="Завершите теплорасчёт и создайте первый ЭР на шаге 2."
-        action={<Button onClick={() => navigate(ROUTES.elecCalc)}>К электрорасчёту</Button>}
-      />
+      <TltAlert
+        tone="warning"
+        title="ЭР ещё не создан"
+        action={<TltButton onClick={() => navigate(ROUTES.elecCalc)}>К электрорасчёту</TltButton>}
+      >
+        Завершите теплорасчёт и создайте первый ЭР на шаге 2.
+      </TltAlert>
     );
   }
 
   if (variantContext.legacyVariantNumber == null) {
     return (
-      <Alert
-        type="warning"
-        showIcon
-        message={`«${selectedElectricalVariant.name}»: спецификация временно недоступна`}
-        description="UUID-версия спецификации относится к Phase 5. Данные другого ЭР не подставляются."
-        action={<Button onClick={() => navigate(ROUTES.elecCalc)}>Выбрать другой ЭР</Button>}
-      />
+      <TltAlert
+        tone="warning"
+        title={`«${selectedElectricalVariant.name}»: спецификация временно недоступна`}
+        action={<TltButton onClick={() => navigate(ROUTES.elecCalc)}>Выбрать другой ЭР</TltButton>}
+      >
+        UUID-версия спецификации относится к Phase 5. Данные другого ЭР не подставляются.
+      </TltAlert>
     );
   }
 
   return (
     <div className="specification-page" data-testid="specification-page">
       {!canMutateProject && (
-        <Alert
-          type="info"
-          showIcon
-          message="Режим просмотра"
-          description="Изменять или пересчитывать спецификацию может только владелец проекта или администратор."
-          style={{ marginBottom: 12 }}
-        />
+        <TltAlert
+          tone="info"
+          title="Режим просмотра"
+          className="specification-alert-gap"
+        >
+          Изменять или пересчитывать спецификацию может только владелец проекта или администратор.
+        </TltAlert>
       )}
 
       {/* Toolbar: ER tabs + Обновить + Настройки */}
@@ -173,7 +171,7 @@ export default function SpecificationPage() {
           items={erTabItems}
           tabBarExtraContent={(
             <Space size={8} className="specification-toolbar-actions">
-              <Button
+              <TltButton
                 icon={<ReloadOutlined />}
                 loading={mut.isPending}
                 disabled={!canMutateProject}
@@ -181,14 +179,14 @@ export default function SpecificationPage() {
                 aria-label={generateButtonLabel}
               >
                 {generateButtonLabel}
-              </Button>
-              <Button
+              </TltButton>
+              <TltButton
                 icon={<SettingOutlined />}
                 onClick={() => toggleSettings(true)}
                 aria-label="Настройки"
               >
                 Настройки
-              </Button>
+              </TltButton>
             </Space>
           )}
         />
@@ -197,7 +195,7 @@ export default function SpecificationPage() {
       {/* Compact status strip */}
       {canMutateProject && (
         <div className="specification-status-strip">
-          <Text type="secondary" style={{ fontSize: 12 }}>
+          <Text type="secondary" className="specification-status-text">
             {selectedElectricalVariant.name}
             {' · '}
             {isSpecStale
@@ -220,50 +218,47 @@ export default function SpecificationPage() {
       )}
 
       {isSpecStale && (
-        <Alert
-          className="specification-empty-alert specification-stale-banner"
-          type="error"
-          showIcon
-          message="Спецификация устарела — не для закупки / печати / отчёта"
-          description="Snapshot только для просмотра. Итоги, печать, отчёт и export не используют эти количества. Сформируйте спецификацию заново."
-          style={{ marginBottom: 12 }}
+        <TltAlert
+          className="specification-empty-alert specification-stale-banner specification-alert-gap"
+          tone="danger"
+          title="Спецификация устарела — не для закупки / печати / отчёта"
           action={
-            <Button
-              size="small"
-              type="primary"
+            <TltButton
+              size="compact"
+              variant="primary"
               icon={<ReloadOutlined />}
               loading={mut.isPending}
               disabled={!canMutateProject}
               onClick={() => runGenerate(false)}
             >
               Сформировать заново
-            </Button>
+            </TltButton>
           }
-        />
+        >
+          Snapshot только для просмотра. Итоги, печать, отчёт и export не используют эти количества.
+          Сформируйте спецификацию заново.
+        </TltAlert>
       )}
 
       {!isSpecStale && isSpecPartial && hasItems && (
-        <Alert
-          className="specification-partial-banner"
-          type="warning"
-          showIcon
-          message="Неполная спецификация — не использовать как полный закупочный комплект"
-          description={
-            excludedGroups.length
-              ? (
-                  <ul style={{ margin: '8px 0 0', paddingLeft: 18 }}>
-                    {excludedGroups.map((g) => (
-                      <li key={String(g.error_code || g.group || g.message)}>
-                        <strong>{g.error_code || g.group}</strong>
-                        {g.message ? ` — ${g.message}` : ''}
-                      </li>
-                    ))}
-                  </ul>
-                )
-              : 'Часть групп BOM исключена (секции, коробки или недоказанные методики).'
-          }
-          style={{ marginBottom: 12 }}
-        />
+        <TltAlert
+          className="specification-partial-banner specification-alert-gap"
+          tone="warning"
+          title="Неполная спецификация — не использовать как полный закупочный комплект"
+        >
+          {excludedGroups.length
+            ? (
+                <ul className="specification-partial-list">
+                  {excludedGroups.map((g) => (
+                    <li key={String(g.error_code || g.group || g.message)}>
+                      <strong>{g.error_code || g.group}</strong>
+                      {g.message ? ` — ${g.message}` : ''}
+                    </li>
+                  ))}
+                </ul>
+              )
+            : 'Часть групп BOM исключена (секции, коробки или недоказанные методики).'}
+        </TltAlert>
       )}
 
       {specError && !spec ? (
@@ -280,35 +275,34 @@ export default function SpecificationPage() {
       ) : (
         <>
           {!hasItems && (
-            <Alert
-              className="specification-empty-alert"
-              type="warning"
-              showIcon
-              message="Спецификация не сформирована"
-              description="Убедитесь, что для всех объектов выполнен электрорасчёт (шаг 2), затем нажмите «Сформировать»."
-              style={{ marginBottom: 12 }}
+            <TltAlert
+              className="specification-empty-alert specification-alert-gap"
+              tone="warning"
+              title="Спецификация не сформирована"
               action={
                 <Space>
-                  <Button
-                    size="small"
-                    type="primary"
+                  <TltButton
+                    size="compact"
+                    variant="primary"
                     icon={<ReloadOutlined />}
                     loading={mut.isPending}
                     disabled={!canMutateProject}
                     onClick={() => runGenerate(false)}
                   >
                     Сформировать
-                  </Button>
-                  <Button
-                    size="small"
+                  </TltButton>
+                  <TltButton
+                    size="compact"
                     icon={<ThunderboltOutlined />}
                     onClick={() => navigate(ROUTES.elecCalc)}
                   >
                     К электрорасчёту
-                  </Button>
+                  </TltButton>
                 </Space>
               }
-            />
+            >
+              Убедитесь, что для всех объектов выполнен электрорасчёт (шаг 2), затем нажмите «Сформировать».
+            </TltAlert>
           )}
 
           <div className={isSpecStale ? 'spec-table-print-exclude' : undefined}>
@@ -333,13 +327,13 @@ export default function SpecificationPage() {
               ? 'Спецификация сформирована'
               : 'Спецификация ещё не сформирована'}
         </Text>
-        <Button
+        <TltButton
           icon={<DownloadOutlined />}
           onClick={() => navigate(ROUTES.report)}
           disabled={!hasItems || isSpecStale}
         >
           Сформировать отчёт
-        </Button>
+        </TltButton>
       </div>
 
       {/* Settings drawer — параметры генерации и группировки */}

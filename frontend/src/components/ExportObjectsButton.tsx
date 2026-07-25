@@ -1,6 +1,7 @@
-import { Button, Tooltip, message } from 'antd';
+import { Tooltip, message } from 'antd';
 import { FileExcelOutlined } from '@ant-design/icons';
 import { useState } from 'react';
+import { TltButton } from '@/components/ui-kit';
 import { exportObjectsExcel } from '@/api/projects';
 
 interface Props {
@@ -32,11 +33,11 @@ export default function ExportObjectsButton({ projectId, projectName, disabled }
   return (
     <Tooltip title={disabled ? 'Нет объектов для экспорта' : 'Экспорт в Excel'}>
       <span className="action-tooltip-wrap">
-        <Button
+        <TltButton
           className="action-icon-button"
           icon={<FileExcelOutlined />}
           aria-label="Экспорт в Excel"
-          size="small"
+          size="icon"
           loading={loading}
           disabled={disabled}
           onClick={handleExport}

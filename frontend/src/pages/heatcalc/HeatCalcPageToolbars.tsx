@@ -4,7 +4,7 @@
  * Type toolbar, actions toolbar, heat-loss job alert.
  */
 import type { ReactNode } from 'react';
-import { Alert } from 'antd';
+import { TltAlert } from '@/components/ui-kit';
 
 import {
   HeatCalcActionsToolbar,
@@ -156,11 +156,10 @@ export function buildHeatCalcJobAlert(
 ): ReactNode {
   if (!isHeatLossJobActive) return null;
   return (
-    <Alert
-      type="info"
-      showIcon
+    <TltAlert
+      tone="info"
       className="heatcalc-job-alert"
-      message={`Пересчёт теплопотерь выполняется · ${heatLossJobProgressLabel}`}
+      title={`Пересчёт теплопотерь выполняется · ${heatLossJobProgressLabel}`}
     />
   );
 }

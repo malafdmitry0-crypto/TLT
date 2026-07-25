@@ -1,10 +1,13 @@
-import { Button, Checkbox, Modal, Segmented, Space, Typography } from 'antd';
+import { Checkbox, Modal, Segmented, Space, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 import {
   REPORT_SECTIONS,
   REPORT_SECTION_LABELS,
   type ReportSection,
 } from '@/api/reports';
+import { TltButton } from '@/components/ui-kit';
+import './report-wizard.css';
+
 const { Text } = Typography;
 
 type ElectricalVariantOption = {
@@ -60,12 +63,12 @@ export default function ReportWizard({
       okButtonProps={{ disabled: selected.length === 0 }}
       width={480}
     >
-      <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 12 }}>
+      <Text type="secondary" className="report-wizard-intro">
         Отметьте разделы, которые попадут в предпросмотр и экспорт. Изменения применяются
         только к этому проекту в текущей сессии.
       </Text>
       <Space direction="vertical" size={6} style={{ width: '100%' }}>
-        <Text type="secondary" style={{ fontSize: 12 }}>
+        <Text type="secondary" className="report-wizard-label">
           Вариант расчёта:
         </Text>
         <Segmented<string>
@@ -74,13 +77,13 @@ export default function ReportWizard({
           onChange={setVariantId}
           options={variantOptions}
         />
-        <Button size="small" type="link" onClick={toggleAll} style={{ padding: 0 }}>
+        <TltButton variant="link" size="compact" onClick={toggleAll} className="report-wizard-select-all">
           {selected.length === REPORT_SECTIONS.length ? 'Снять все' : 'Выбрать все'}
-        </Button>
+        </TltButton>
         <Checkbox.Group
           value={selected}
           onChange={(v) => setSelected(v as ReportSection[])}
-          style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
+          className="report-wizard-sections"
         >
           {REPORT_SECTIONS.map((s) => (
             <Checkbox key={s} value={s}>

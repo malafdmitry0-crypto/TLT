@@ -1,4 +1,4 @@
-import { Button } from 'antd';
+import { TltButton } from '@/components/ui-kit';
 
 interface Props {
   onGenerate: () => void;
@@ -7,8 +7,8 @@ interface Props {
 
 export default function SpecBuilder({ onGenerate, loading }: Props) {
   return (
-    <Button type="primary" onClick={onGenerate} loading={loading}>
+    <TltButton variant="primary" onClick={onGenerate} loading={loading}>
       Сгенерировать спецификацию
-    </Button>
+    </TltButton>
   );
 }

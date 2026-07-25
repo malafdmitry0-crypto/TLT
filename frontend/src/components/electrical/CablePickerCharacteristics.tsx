@@ -8,6 +8,7 @@ import {
   type CablePickerCableRow,
   type CablePickerFieldItem,
 } from '@/components/electrical/cablePickerCharacteristicsModel';
+import '@/components/electrical/CablePickerCharacteristics.css';
 
 interface CablePickerCharacteristicsProps {
   object: ProjectObject;

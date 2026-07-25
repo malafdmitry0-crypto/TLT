@@ -1,4 +1,5 @@
-import { Card, Typography } from 'antd';
+import { Typography } from 'antd';
+import { TltCard } from '@/components/ui-kit';
 
 const { Text } = Typography;
 
@@ -128,9 +129,9 @@ export default function ElectricalSummary({
         const bucket = resolved[card.key];
         const prefix = `elec-summary-${card.key}`;
         return (
-          <Card
+          <TltCard
             key={card.key}
-            size="small"
+            padding="compact"
             className={`elec-summary-card${card.key === 'total' ? ' elec-summary-card--total' : ''}`}
             data-testid={card.testId}
             title={<Text strong className="elec-summary-card__title">{card.title}</Text>}
@@ -168,7 +169,7 @@ export default function ElectricalSummary({
                 testId={`${prefix}-working-current`}
               />
             </div>
-          </Card>
+          </TltCard>
         );
       })}
     </div>

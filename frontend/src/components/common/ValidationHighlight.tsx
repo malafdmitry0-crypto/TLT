@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Tooltip } from 'antd';
+import './common-chrome.css';
 
 interface Props {
   isInvalid?: boolean;
@@ -15,8 +16,7 @@ export default function ValidationHighlight({
   const content = (
     <div
       data-testid="validation-wrapper"
-      className={isInvalid ? 'cell-invalid' : ''}
-      style={{ padding: 2 }}
+      className={`validation-highlight${isInvalid ? ' cell-invalid' : ''}`}
     >
       {children}
     </div>

@@ -1,5 +1,6 @@
-import { Tag, Tooltip, Typography } from 'antd';
+import { Tooltip, Typography } from 'antd';
 import { CloseCircleFilled } from '@ant-design/icons';
+import { TltBadge } from '@/components/ui-kit';
 
 import type { ElectricalErrorSummaryItem } from '@/pages/electrical/elecCalcErrorSummaryModel';
 import type { ElectricalErrorGuidance } from '@/utils/electricalErrorGuidance';
@@ -24,9 +25,9 @@ export default function ElecCalcErrorSummary({
   return (
     <div className="electrical-error-summary" aria-label="Сообщения ошибок электрорасчёта">
       <div className="electrical-error-summary__header">
-        <Tag color="error" icon={<CloseCircleFilled />}>
-          Ошибок: {failedCount}
-        </Tag>
+        <TltBadge tone="danger">
+          <CloseCircleFilled /> Ошибок: {failedCount}
+        </TltBadge>
       </div>
       {item?.error ? (
         <div className="electrical-error-summary__record">
@@ -42,16 +43,36 @@ export default function ElecCalcErrorSummary({
           )}
           {guidance && (
             <div className="electrical-error-summary__suggestions" aria-label="Предложения по исправлению ошибки">
-              <Tag color={guidance.tagColor} className="electrical-error-summary__kind">
+              <TltBadge
+                tone={
+                  guidance.tagColor === 'error'
+                  || guidance.tagColor === 'red'
+                  || guidance.tagColor === 'magenta'
+                  || guidance.tagColor === 'volcano'
+                    ? 'danger'
+                    : guidance.tagColor === 'warning'
+                      || guidance.tagColor === 'orange'
+                      || guidance.tagColor === 'gold'
+                      ? 'warning'
+                      : guidance.tagColor === 'success' || guidance.tagColor === 'green'
+                        ? 'success'
+                        : guidance.tagColor === 'blue'
+                          || guidance.tagColor === 'processing'
+                          || guidance.tagColor === 'cyan'
+                          ? 'info'
+                          : 'neutral'
+                }
+                className="electrical-error-summary__kind"
+              >
                 {guidance.label}
-              </Tag>
+              </TltBadge>
               <Text type="secondary" className="electrical-error-summary__suggestion-label">
                 Что попробовать:
               </Text>
               {guidance.suggestions.map((suggestion) => (
-                <Tag key={suggestion} className="electrical-error-summary__suggestion-tag">
+                <TltBadge key={suggestion} className="electrical-error-summary__suggestion-tag">
                   {suggestion}
-                </Tag>
+                </TltBadge>
               ))}
             </div>
           )}

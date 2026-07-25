@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button, Modal, Space, Tooltip, Typography, message } from 'antd';
+import { Modal, Space, Tooltip, Typography, message } from 'antd';
 import { DownloadOutlined, UploadOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { TltButton } from '@/components/ui-kit';
 import { getCalcTask } from '@/api/calculations';
 import {
   downloadImportTemplate,
@@ -10,6 +11,7 @@ import {
   type ImportResult,
 } from '@/api/projects';
 import { getCalcJobRefetchInterval, isActiveCalcJobStatus } from '@/utils/calcJobPolling';
+import './ImportExcelButton.css';
 
 const { Text } = Typography;
 
@@ -128,45 +130,45 @@ export default function ImportExcelButton({ projectId, existingObjectCount }: Pr
     <>
       <Space className="import-actions-compact" size={2} wrap>
         <Tooltip title="Импорт XLSX/CSV">
-          <Button
+          <TltButton
             className="action-icon-button action-secondary-button import-upload-button"
             icon={<UploadOutlined />}
             aria-label="Импорт XLSX/CSV"
-            size="small"
+            size="icon"
             loading={importMut.isPending}
             onClick={onPick}
           />
         </Tooltip>
         <Tooltip title="Скачать шаблон XLSX">
-          <Button
+          <TltButton
             icon={<DownloadOutlined />}
             aria-label="Скачать шаблон XLSX"
-            size="small"
-            type="link"
+            size="compact"
+            variant="link"
             className="template-download-button"
             onClick={() => downloadTemplate('xlsx')}
           >
             .xlsx
-          </Button>
+          </TltButton>
         </Tooltip>
         <Tooltip title="Скачать шаблон CSV">
-          <Button
+          <TltButton
             icon={<DownloadOutlined />}
             aria-label="Скачать шаблон CSV"
-            size="small"
-            type="link"
+            size="compact"
+            variant="link"
             className="template-download-button"
             onClick={() => downloadTemplate('csv')}
           >
             .csv
-          </Button>
+          </TltButton>
         </Tooltip>
       </Space>
       <input
         ref={fileInputRef}
         type="file"
         accept=".xlsx,.csv"
-        style={{ display: 'none' }}
+        className="import-excel-file-input"
         onChange={onFileChange}
       />
 
@@ -175,18 +177,18 @@ export default function ImportExcelButton({ projectId, existingObjectCount }: Pr
         title="Импорт в непустой проект"
         onCancel={() => setPendingFile(null)}
         footer={[
-          <Button key="cancel" onClick={() => setPendingFile(null)}>
+          <TltButton key="cancel" onClick={() => setPendingFile(null)}>
             Отмена
-          </Button>,
-          <Button key="append" onClick={() => runImport('append')}>
+          </TltButton>,
+          <TltButton key="append" onClick={() => runImport('append')}>
             Добавить
-          </Button>,
-          <Button key="replace" danger onClick={() => runImport('replace')}>
+          </TltButton>,
+          <TltButton key="replace" variant="danger" onClick={() => runImport('replace')}>
             Заменить
-          </Button>,
-          <Button key="merge" type="primary" onClick={() => runImport('merge')}>
+          </TltButton>,
+          <TltButton key="merge" variant="primary" onClick={() => runImport('merge')}>
             Объединить
-          </Button>,
+          </TltButton>,
         ]}
       >
         <p>
@@ -209,7 +211,7 @@ export default function ImportExcelButton({ projectId, existingObjectCount }: Pr
           <>
             <p>
               <Text strong>Создано объектов: </Text>
-              <Text style={{ color: '#52c41a' }}>{result.created}</Text>
+              <Text className="import-excel-created">{result.created}</Text>
             </p>
             {result.skipped_duplicates > 0 && (
               <p>
@@ -234,17 +236,9 @@ export default function ImportExcelButton({ projectId, existingObjectCount }: Pr
                   <Text strong>Пропущено строк: </Text>
                   <Text type="danger">{result.errors.length}</Text>
                 </p>
-                <div
-                  style={{
-                    maxHeight: 280,
-                    overflow: 'auto',
-                    border: '1px solid #eee',
-                    padding: 8,
-                    background: '#fafafa',
-                  }}
-                >
+                <div className="import-excel-errors">
                   {result.errors.map((err, i) => (
-                    <div key={i} style={{ fontSize: 12, marginBottom: 4 }}>
+                    <div key={i} className="import-excel-error-row">
                       <Text code>{err.sheet} · стр. {err.row}</Text>{' '}
                       <Text type="danger">{err.message}</Text>
                     </div>

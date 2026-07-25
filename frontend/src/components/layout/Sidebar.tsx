@@ -12,16 +12,18 @@ import { useProjectStore } from '@/store/projectStore';
 import { useQuery } from '@tanstack/react-query';
 import { getObjectsSummary } from '@/api/projects';
 import { useLegacyElectricalVariantContext } from '@/hooks/useLegacyElectricalVariantContext';
+import './layout-chrome.css';
 
 function StepLabel({
   text,
   count,
-  color,
+  badgeColor = 'success',
   done,
 }: {
   text: string;
   count?: number;
-  color?: string;
+  /** Ant Badge preset tone — no raw hex (visual literal ratchet). */
+  badgeColor?: 'success' | 'processing';
   done?: boolean;
 }) {
   if (!count && !done) return <span className="heatcalc-step-label">{text}</span>;
@@ -29,7 +31,7 @@ function StepLabel({
     <span className="heatcalc-step-label">
       {text}
       {done && <CheckCircleFilled className="heatcalc-step-done" />}
-      {count ? <Badge count={count} color={color ?? '#52c41a'} size="small" /> : null}
+      {count ? <Badge count={count} color={badgeColor} size="small" /> : null}
     </span>
   );
 }
@@ -71,7 +73,7 @@ export default function Sidebar() {
         <StepLabel
           text="Расчёт тепловых потерь"
           count={validObjectCount || undefined}
-          color="#52c41a"
+          badgeColor="success"
           done={heatDone}
         />
       ),
@@ -83,7 +85,7 @@ export default function Sidebar() {
         <StepLabel
           text="Электротехнический расчёт"
           count={elecCalcCount || undefined}
-          color="#1890ff"
+          badgeColor="processing"
           done={elecDone}
         />
       ),
@@ -108,7 +110,7 @@ export default function Sidebar() {
       selectedKeys={[location.pathname]}
       items={items}
       onClick={(e) => navigate(e.key)}
-      style={{ background: 'transparent', border: 0, minWidth: 0, flex: 1 }}
+      className="sidebar-menu"
     />
   );
 }

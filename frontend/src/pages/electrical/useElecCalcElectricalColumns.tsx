@@ -84,7 +84,6 @@ export function useElecCalcElectricalColumns({
             role="button"
             aria-label={`Фильтр ${column.label}`}
             className="table-filter-trigger"
-            style={{ pointerEvents: 'auto' }}
           >
             <FilterFilled
               className={isColumnFilterActive(activeFilter) ? 'table-filter-icon active' : 'table-filter-icon'}

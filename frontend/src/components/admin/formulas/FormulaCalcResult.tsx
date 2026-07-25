@@ -1,6 +1,9 @@
-import { Card, Descriptions, Typography } from 'antd';
+import { Descriptions, Typography } from 'antd';
+import { TltCard } from '@/components/ui-kit';
 
 import { C, V } from '@/components/admin/formulas/formulaPrimitives';
+
+import '@/components/admin/formulas/formula-primitives.css';
 
 const { Text } = Typography;
 
@@ -9,18 +12,17 @@ const { Text } = Typography;
 export default function CalcResult({ result, type }: { result: Record<string, unknown>; type: string }) {
   if (type === 'pipe') {
     return (
-      <Card
-        size="small"
-        style={{ marginTop: 16, borderColor: '#1677ff' }}
-        styles={{ header: { background: '#e6f4ff', borderBottom: '1px solid #91caff' } }}
-        title={<span style={{ color: C.result }}>Результат расчёта трубопровода</span>}
+      <TltCard
+        padding="compact"
+        className="formula-result-card formula-result-card--result"
+        title={<span className="formula-result-card__title--result">Результат расчёта трубопровода</span>}
       >
         <Descriptions size="small" column={1} bordered>
           <Descriptions.Item label={<><V c={C.result}>q</V> — теплопотери, Вт/м</>}>
-            <Text strong style={{ color: C.result, fontSize: 16 }}>{Number(result.heat_loss_per_meter).toFixed(2)}</Text>
+            <Text strong className="formula-result-card__value--result">{Number(result.heat_loss_per_meter).toFixed(2)}</Text>
           </Descriptions.Item>
           <Descriptions.Item label={<><V c={C.result}>Q</V> — суммарные теплопотери, Вт</>}>
-            <Text strong style={{ color: C.result, fontSize: 16 }}>{Number(result.total_heat_loss).toFixed(0)}</Text>
+            <Text strong className="formula-result-card__value--result">{Number(result.total_heat_loss).toFixed(0)}</Text>
           </Descriptions.Item>
           <Descriptions.Item label={<><V c={C.geom}>L</V><sub>эфф</sub> — расчётная длина, м</>}>
             {Number(result.effective_length).toFixed(2)}
@@ -34,24 +36,23 @@ export default function CalcResult({ result, type }: { result: Record<string, un
             </Descriptions.Item>
           )}
         </Descriptions>
-      </Card>
+      </TltCard>
     );
   }
 
   if (type === 'tank') {
     return (
-      <Card
-        size="small"
-        style={{ marginTop: 16, borderColor: '#1677ff' }}
-        styles={{ header: { background: '#e6f4ff', borderBottom: '1px solid #91caff' } }}
-        title={<span style={{ color: C.result }}>Результат расчёта резервуара</span>}
+      <TltCard
+        padding="compact"
+        className="formula-result-card formula-result-card--result"
+        title={<span className="formula-result-card__title--result">Результат расчёта резервуара</span>}
       >
         <Descriptions size="small" column={1} bordered>
           <Descriptions.Item label={<><V c={C.result}>q</V> — теплопотери, Вт/м²</>}>
-            <Text strong style={{ color: C.result, fontSize: 16 }}>{Number(result.heat_loss_per_m2).toFixed(2)}</Text>
+            <Text strong className="formula-result-card__value--result">{Number(result.heat_loss_per_m2).toFixed(2)}</Text>
           </Descriptions.Item>
           <Descriptions.Item label={<><V c={C.result}>Q</V> — суммарные теплопотери, Вт</>}>
-            <Text strong style={{ color: C.result, fontSize: 16 }}>{Number(result.total_heat_loss).toFixed(0)}</Text>
+            <Text strong className="formula-result-card__value--result">{Number(result.total_heat_loss).toFixed(0)}</Text>
           </Descriptions.Item>
           <Descriptions.Item label={<><V c={C.geom}>S</V> — площадь поверхности, м²</>}>
             {Number(result.surface_area).toFixed(2)}
@@ -62,37 +63,35 @@ export default function CalcResult({ result, type }: { result: Record<string, un
             </Descriptions.Item>
           )}
         </Descriptions>
-      </Card>
+      </TltCard>
     );
   }
 
   if (type === 'tank_cable_geometry') {
     return (
-      <Card
-        size="small"
-        style={{ marginTop: 16, borderColor: '#1677ff' }}
-        styles={{ header: { background: '#e6f4ff', borderBottom: '1px solid #91caff' } }}
-        title={<span style={{ color: C.result }}>Результат расчёта укладки</span>}
+      <TltCard
+        padding="compact"
+        className="formula-result-card formula-result-card--result"
+        title={<span className="formula-result-card__title--result">Результат расчёта укладки</span>}
       >
         <Descriptions size="small" column={1} bordered>
           <Descriptions.Item label={<><V c={C.geom}>L</V><sub>кабеля</sub> — длина, м</>}>
-            <Text strong style={{ color: C.result, fontSize: 16 }}>{Number(result.cable_length).toFixed(3)}</Text>
+            <Text strong className="formula-result-card__value--result">{Number(result.cable_length).toFixed(3)}</Text>
           </Descriptions.Item>
         </Descriptions>
-      </Card>
+      </TltCard>
     );
   }
 
   return (
-    <Card
-      size="small"
-      style={{ marginTop: 16, borderColor: '#fa8c16' }}
-      styles={{ header: { background: '#fff7e6', borderBottom: '1px solid #ffd591' } }}
-      title={<span style={{ color: '#fa8c16' }}>Результат подбора кабеля</span>}
+    <TltCard
+      padding="compact"
+      className="formula-result-card formula-result-card--cable"
+      title={<span className="formula-result-card__title--cable">Результат подбора кабеля</span>}
     >
       <Descriptions size="small" column={1} bordered>
         <Descriptions.Item label="Выбранный кабель">
-          <Text strong style={{ color: '#fa8c16', fontSize: 16 }}>{String(result.selected_cable)}</Text>
+          <Text strong className="formula-result-card__value--cable">{String(result.selected_cable)}</Text>
         </Descriptions.Item>
         <Descriptions.Item label={<><V c={C.geom}>L</V><sub>кабеля</sub> — расчётная длина, м</>}>
           {Number(result.cable_length).toFixed(1)}
@@ -112,6 +111,6 @@ export default function CalcResult({ result, type }: { result: Record<string, un
           {Number(result.voltage).toFixed(0)}
         </Descriptions.Item>
       </Descriptions>
-    </Card>
+    </TltCard>
   );
 }

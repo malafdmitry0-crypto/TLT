@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Button, Checkbox, Input, InputNumber, Select, Space, Typography } from 'antd';
+import { Checkbox, Space, Typography } from 'antd';
 
 import type { HeatCalcColumnFilter } from '@/utils/heatCalcTableFindability';
+import { TltButton, TltNumberField, TltSelect, TltTextField } from '@/components/ui-kit';
 
 const { Text } = Typography;
 
@@ -10,6 +11,20 @@ type ElectricalGlideFilterKind = 'text' | 'numberRange' | 'enum' | 'boolean';
 function toInputNumberValue(value: unknown) {
   const numericValue = Number(value);
   return Number.isFinite(numericValue) ? numericValue : null;
+}
+
+function toBooleanSelectValue(value: boolean | 'empty' | undefined) {
+  if (value === true) return 'true';
+  if (value === false) return 'false';
+  if (value === 'empty') return 'empty';
+  return null;
+}
+
+function fromBooleanSelectValue(value: string | number | null): boolean | 'empty' | undefined {
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  if (value === 'empty') return 'empty';
+  return undefined;
 }
 
 interface ElectricalGlideColumnFilterDropdownProps {
@@ -100,6 +115,12 @@ export default function ElectricalGlideColumnFilterDropdown({
     onClose();
   }
 
+  const toggleEnumValue = (value: string, checked: boolean) => {
+    setEnumValues((prev) => (
+      checked ? [...prev, value] : prev.filter((item) => item !== value)
+    ));
+  };
+
   return (
     <div
       className="table-filter-dropdown"
@@ -109,27 +130,23 @@ export default function ElectricalGlideColumnFilterDropdown({
     >
       <div className="table-filter-title">{title}</div>
       {kind === 'text' && (
-        <Input
+        <TltTextField
           autoFocus
-          allowClear
-          size="small"
           value={textValue}
           placeholder="Найти"
           aria-label={`Поиск: ${title}`}
-          onChange={(event) => setTextValue(event.target.value)}
+          onChange={setTextValue}
         />
       )}
       {kind === 'numberRange' && (
         <div className="table-filter-number-range">
-          <InputNumber
-            size="small"
+          <TltNumberField
             value={minValue}
             placeholder="от"
             aria-label={`Минимум: ${title}`}
             onChange={(value) => setMinValue(toInputNumberValue(value))}
           />
-          <InputNumber
-            size="small"
+          <TltNumberField
             value={maxValue}
             placeholder="до"
             aria-label={`Максимум: ${title}`}
@@ -139,34 +156,30 @@ export default function ElectricalGlideColumnFilterDropdown({
         </div>
       )}
       {kind === 'enum' && (
-        <Select
-          mode="multiple"
-          allowClear
-          showSearch
-          size="small"
-          value={enumValues}
-          options={enumOptions}
-          placeholder="Значения"
-          aria-label={`Значения: ${title}`}
-          optionFilterProp="label"
-          maxTagCount="responsive"
-          onChange={setEnumValues}
-        />
+        <div className="table-filter-enum-list" role="group" aria-label={`Значения: ${title}`}>
+          {enumOptions.map((option) => (
+            <Checkbox
+              key={option.value}
+              checked={enumValues.includes(option.value)}
+              onChange={(event) => toggleEnumValue(option.value, event.target.checked)}
+            >
+              {option.label}
+            </Checkbox>
+          ))}
+        </div>
       )}
       {kind === 'boolean' && (
-        <Select
+        <TltSelect
           allowClear
-          size="small"
-          value={booleanValue}
+          value={toBooleanSelectValue(booleanValue)}
           options={[
-            { value: true, label: 'Да' },
-            { value: false, label: 'Нет' },
+            { value: 'true', label: 'Да' },
+            { value: 'false', label: 'Нет' },
             { value: 'empty', label: 'Пустые' },
           ]}
           placeholder="Значение"
-          aria-label={`Значение: ${title}`}
-          style={{ minWidth: 160 }}
-          onChange={setBooleanValue}
+          aria-label={`Значение: ${title}`} className="tlt-field--min-w160"
+          onChange={(value) => setBooleanValue(fromBooleanSelectValue(value))}
         />
       )}
       {(kind === 'numberRange' || kind === 'enum') && (
@@ -175,12 +188,12 @@ export default function ElectricalGlideColumnFilterDropdown({
         </Checkbox>
       )}
       <Space className="table-filter-actions">
-        <Button size="small" onClick={resetFilter}>
+        <TltButton size="compact" onClick={resetFilter}>
           Сбросить
-        </Button>
-        <Button size="small" type="primary" disabled={invalidRange} onClick={applyFilter}>
+        </TltButton>
+        <TltButton size="compact" variant="primary" disabled={invalidRange} onClick={applyFilter}>
           Применить
-        </Button>
+        </TltButton>
       </Space>
     </div>
   );

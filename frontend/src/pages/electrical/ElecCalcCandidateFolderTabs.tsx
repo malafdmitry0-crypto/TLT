@@ -1,5 +1,4 @@
 import {
-  Button,
   Dropdown,
 } from 'antd';
 import {
@@ -9,6 +8,7 @@ import {
   PlusOutlined,
 } from '@ant-design/icons';
 
+import { TltButton } from '@/components/ui-kit';
 import type { ElectricalCandidateFolder } from '@/types/calculation';
 import {
   candidateCustomFolderKey,
@@ -47,14 +47,14 @@ export default function ElecCalcCandidateFolderTabs({
     label: string,
     count: number,
   ) => (
-    <Button
+    <TltButton
       key={key}
-      size="small"
-      type={activeKey === key ? 'primary' : 'default'}
+      size="compact"
+      variant={activeKey === key ? 'primary' : 'secondary'}
       onClick={() => onSelectFolder(key)}
     >
       {label} <span className="electrical-candidate-folder-count">{count}</span>
-    </Button>
+    </TltButton>
   );
 
   return (
@@ -94,8 +94,8 @@ export default function ElecCalcCandidateFolderTabs({
                   ],
                 }}
               >
-                <Button
-                  size="small"
+                <TltButton
+                  size="compact"
                   className="electrical-candidate-folder-menu"
                   icon={<MoreOutlined />}
                   aria-label={`Действия с папкой ${folder.name}`}
@@ -106,14 +106,14 @@ export default function ElecCalcCandidateFolderTabs({
           );
         })}
       </div>
-      <Button
-        size="small"
+      <TltButton
+        size="compact"
         icon={<PlusOutlined />}
         disabled={!canMutate}
         onClick={onCreateFolder}
       >
         Папка
-      </Button>
+      </TltButton>
     </div>
   );
 }

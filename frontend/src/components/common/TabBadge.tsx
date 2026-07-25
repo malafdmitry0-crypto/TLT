@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import './common-chrome.css';
 
 interface TabBadgeProps {
   label: ReactNode;
@@ -15,16 +16,7 @@ export default function TabBadge({ label, count }: TabBadgeProps) {
     <span>
       {label}
       {count > 0 && (
-        <span
-          style={{
-            marginLeft: 6,
-            padding: '0 6px',
-            borderRadius: 10,
-            fontSize: 11,
-            background: '#1890ff',
-            color: '#fff',
-          }}
-        >
+        <span className="tab-badge">
           {count}
         </span>
       )}

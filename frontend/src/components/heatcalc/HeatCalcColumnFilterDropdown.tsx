@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Button, Checkbox, Input, InputNumber, Select, Typography } from 'antd';
+import { Checkbox, Typography } from 'antd';
 
 import {
   toInputNumberValue,
   type HeatCalcFilterKind,
 } from '@/utils/heatCalcPageUtils';
 import type { HeatCalcColumnFilter } from '@/utils/heatCalcTableFindability';
+import { TltButton, TltNumberField, TltTextField } from '@/components/ui-kit';
 
 const { Text } = Typography;
 
@@ -93,33 +94,35 @@ export default function HeatCalcColumnFilterDropdown({
     onClose();
   }
 
+  const toggleEnumValue = (value: string, checked: boolean) => {
+    setEnumValues((prev) => (
+      checked ? [...prev, value] : prev.filter((item) => item !== value)
+    ));
+  };
+
   return (
     <div className="table-filter-dropdown" onKeyDown={(event) => {
       if (event.key === 'Enter') applyFilter();
     }}>
       <div className="table-filter-title">{title}</div>
       {kind === 'text' && (
-        <Input
+        <TltTextField
           autoFocus
-          allowClear
-          size="small"
           value={textValue}
           placeholder="Найти"
           aria-label={`Поиск: ${title}`}
-          onChange={(event) => setTextValue(event.target.value)}
+          onChange={setTextValue}
         />
       )}
       {kind === 'numberRange' && (
         <div className="table-filter-number-range">
-          <InputNumber
-            size="small"
+          <TltNumberField
             value={minValue}
             placeholder="от"
             aria-label={`Минимум: ${title}`}
             onChange={(value) => setMinValue(toInputNumberValue(value))}
           />
-          <InputNumber
-            size="small"
+          <TltNumberField
             value={maxValue}
             placeholder="до"
             aria-label={`Максимум: ${title}`}
@@ -129,19 +132,17 @@ export default function HeatCalcColumnFilterDropdown({
         </div>
       )}
       {kind === 'enum' && (
-        <Select
-          mode="multiple"
-          allowClear
-          showSearch
-          size="small"
-          value={enumValues}
-          options={enumOptions}
-          placeholder="Значения"
-          aria-label={`Значения: ${title}`}
-          optionFilterProp="label"
-          maxTagCount="responsive"
-          onChange={setEnumValues}
-        />
+        <div className="table-filter-enum-list" role="group" aria-label={`Значения: ${title}`}>
+          {enumOptions.map((option) => (
+            <Checkbox
+              key={option.value}
+              checked={enumValues.includes(option.value)}
+              onChange={(event) => toggleEnumValue(option.value, event.target.checked)}
+            >
+              {option.label}
+            </Checkbox>
+          ))}
+        </div>
       )}
       {(kind === 'numberRange' || kind === 'enum') && (
         <Checkbox checked={includeEmpty} onChange={(event) => setIncludeEmpty(event.target.checked)}>
@@ -149,12 +150,12 @@ export default function HeatCalcColumnFilterDropdown({
         </Checkbox>
       )}
       <div className="table-filter-actions">
-        <Button size="small" onClick={resetFilter}>
+        <TltButton size="compact" onClick={resetFilter}>
           Сбросить
-        </Button>
-        <Button size="small" type="primary" disabled={invalidRange} onClick={applyFilter}>
+        </TltButton>
+        <TltButton size="compact" variant="primary" disabled={invalidRange} onClick={applyFilter}>
           Применить
-        </Button>
+        </TltButton>
       </div>
     </div>
   );

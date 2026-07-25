@@ -1,5 +1,5 @@
 import { EditOutlined } from '@ant-design/icons';
-import { Form, Input, Modal } from 'antd';
+import { Form, Modal } from 'antd';
 import { useState, type KeyboardEvent, type ReactElement } from 'react';
 import UnitInputNumber from '@/components/common/UnitInputNumber';
 import {
@@ -12,6 +12,7 @@ import type { InsulationEntry } from '@/types/reference';
 import { formatInsulationTemperatureRange } from '@/utils/referenceOptions';
 import HelpedControl from './HelpedControl';
 import FieldLabel from './FieldLabel';
+import { TltTextField } from '@/components/ui-kit';
 
 function withHelp(control: ReactElement, hint: string) {
   return <HelpedControl hint={hint}>{control}</HelpedControl>;
@@ -210,7 +211,7 @@ export default function InsulationTemperatureRangeField({
         preserve={false}
         rules={[rangeValidator(maxName)]}
       >
-        <Input />
+        <TltTextField />
       </Form.Item>
 
       <Modal

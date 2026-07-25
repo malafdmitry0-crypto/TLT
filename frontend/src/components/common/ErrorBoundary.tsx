@@ -1,7 +1,8 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Button, Result, Typography } from 'antd';
+import { Result, Typography } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
+import { TltButton } from '@/components/ui-kit';
 import { recordClientAuditEvent } from '@/utils/clientAudit';
 
 const { Paragraph, Text } = Typography;
@@ -91,12 +92,17 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
         title={this.props.title ?? 'Что-то пошло не так'}
         subTitle="Произошла непредвиденная ошибка при отображении этого раздела. Введённые на других экранах данные не потеряны."
         extra={[
-          <Button type="primary" key="retry" icon={<ReloadOutlined />} onClick={this.reset}>
+          <TltButton
+            key="retry"
+            variant="primary"
+            icon={<ReloadOutlined />}
+            onClick={this.reset}
+          >
             Попробовать снова
-          </Button>,
-          <Button key="reload" onClick={() => window.location.reload()}>
+          </TltButton>,
+          <TltButton key="reload" onClick={() => window.location.reload()}>
             Перезагрузить страницу
-          </Button>,
+          </TltButton>,
         ]}
       >
         {import.meta.env.DEV && (

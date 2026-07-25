@@ -1,4 +1,4 @@
-import { Form, Input, InputNumber } from 'antd';
+import { Form } from 'antd';
 import type { ReactElement } from 'react';
 
 import UnitInputNumber from '@/components/common/UnitInputNumber';
@@ -13,6 +13,7 @@ import {
 } from '@/domain/heatCalcFields';
 import type { HeatCalcObjectType } from '@/types/project';
 import type { HeatCalcFieldInputSettings } from '@/utils/heatCalcFieldInputSettings';
+import { TltNumberField, TltTextField } from '@/components/ui-kit';
 import {
   heatCalcFormFieldRules,
   heatCalcNumberInputProps,
@@ -128,7 +129,7 @@ export default function CableAlgorithmPanel({
           rules={heatCalcFormFieldRules(form, objectType, 'safety_factor')}
         >
           {withHelp(
-            <InputNumber
+            <TltNumberField
               data-testid="safety-factor-input"
               {...numberInputProps('safety_factor')}
               className="cable-algorithm-number"
@@ -160,7 +161,7 @@ export default function CableAlgorithmPanel({
           name="winding_coefficient"
         >
           {withHelp(
-            <InputNumber
+            <TltNumberField
               data-testid="winding-coefficient-input"
               min={1}
               max={1.5}
@@ -244,10 +245,10 @@ export default function CableAlgorithmPanel({
       {/* Round-trip for steam_tracing (yes/no) — not part of the 9 TNP orange fields;
           vapor_temperature is the visible пропарки input. */}
       <Form.Item name="steam_tracing" hidden noStyle>
-        <Input type="hidden" />
+        <TltTextField type="hidden" />
       </Form.Item>
       <Form.Item name="zone_classification" hidden noStyle>
-        <Input type="hidden" />
+        <TltTextField type="hidden" />
       </Form.Item>
     </div>
   );

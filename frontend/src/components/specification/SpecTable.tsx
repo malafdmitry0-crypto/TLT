@@ -1,6 +1,8 @@
-import { Alert, Button, Collapse, Space, Table, Tag } from 'antd';
+import { Collapse, Space, Table } from 'antd';
 import { DeleteOutlined } from '@ant-design/icons';
+import { TltAlert, TltBadge, TltButton } from '@/components/ui-kit';
 import type { SpecificationItem } from '@/types/specification';
+import '@/pages/specification/specification-page.css';
 
 export type SpecGroupBy = 'none' | 'category' | 'unit' | 'object_section';
 
@@ -81,7 +83,7 @@ function mergeRows(rows: Row[]): Row[] {
 }
 
 function EmptyCell() {
-  return <span style={{ color: '#bbb' }}>—</span>;
+  return <span className="spec-table-muted">—</span>;
 }
 
 function buildBaseColumns(showCategory: boolean) {
@@ -107,7 +109,7 @@ function buildBaseColumns(showCategory: boolean) {
       render: (v: string, row: Row) => (
         <Space size={4}>
           <span>{v}</span>
-          {row.source === 'manual' && <Tag color="purple">ручная</Tag>}
+          {row.source === 'manual' && <TltBadge tone="info">ручная</TltBadge>}
         </Space>
       ),
     },
@@ -185,7 +187,7 @@ function buildBaseColumns(showCategory: boolean) {
       align: 'right' as const,
       sorter: (a: Row, b: Row) => a.quantity - b.quantity,
       render: (v: number) => (
-        <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+        <span className="spec-table-tabular">
           {Number.isFinite(v) ? v.toLocaleString('ru-RU') : v}
         </span>
       ),
@@ -222,11 +224,10 @@ export default function SpecTable({
           title: '',
           width: 48,
           render: (_: unknown, row: Row) => (
-            <Button
-              type="link"
-              danger
+            <TltButton
+              variant="danger"
+              size="icon"
               icon={<DeleteOutlined />}
-              size="small"
               aria-label={`Удалить ${row.name}`}
               onClick={() => onDelete?.(row.__index)}
             />
@@ -328,11 +329,10 @@ export default function SpecTable({
           children: (
             <div data-spec-section={g.key}>
               {g.items.length === 0 ? (
-                <Alert
-                  type="info"
-                  showIcon
+                <TltAlert
+                  tone="info"
                   className="spec-section-empty"
-                  message="Расчёт спецификации для данного типа объекта пока недоступен."
+                  title="Расчёт спецификации для данного типа объекта пока недоступен."
                 />
               ) : (
                 <Table<Row>

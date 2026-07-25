@@ -22,12 +22,12 @@
   max-height: 52px;
   box-sizing: border-box;
   padding: 5px 10px;
-  border: 1px solid var(--c-ffccc7);
+  border: 1px solid var(--color-swatch-ffccc7);
   border-left: 4px solid var(--color-danger);
   border-radius: 6px;
-  background: var(--a-d86ffd78);
-  box-shadow: 0 8px 20px var(--a-bb427766);
-  color: var(--c-5c0011);
+  background: var(--color-alpha-d86ffd78);
+  box-shadow: 0 8px 20px var(--color-alpha-bb427766);
+  color: var(--color-swatch-5c0011);
   font-size: 12px;
   line-height: 1.25;
   pointer-events: none;
@@ -41,7 +41,7 @@
 .heatcalc-row-errors-message {
   min-width: 0;
   overflow: hidden;
-  color: var(--c-6f1d1b);
+  color: var(--color-swatch-6f1d1b);
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -143,7 +143,7 @@
   left: 2px;
   width: 2px;
   border-radius: 999px;
-  background: var(--c-d8e6f3);
+  background: var(--color-swatch-d8e6f3);
 }
 
 .heatcalc-side-resize-handle:hover::before,
@@ -168,7 +168,7 @@
   margin-left: auto;
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1200px) {
   .heatcalc-workspace-layout--left,
   .heatcalc-workspace-layout--right {
     display: block;
@@ -199,3 +199,9 @@
   }
 }
 
+
+/* Static debt: empty project state icon */
+.heatcalc-empty-icon {
+  margin-right: 8px;
+  color: var(--color-workflow-heat);
+}

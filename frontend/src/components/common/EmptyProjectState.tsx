@@ -1,7 +1,8 @@
-import { Alert, Button, Card, Typography } from 'antd';
+import { Typography } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/routes/routes';
 import type { ReactNode } from 'react';
+import { TltAlert, TltButton, TltCard } from '@/components/ui-kit';
 
 const { Title, Paragraph } = Typography;
 
@@ -23,23 +24,23 @@ export default function EmptyProjectState({
 }: EmptyProjectStateProps) {
   const navigate = useNavigate();
   return (
-    <Card>
+    <TltCard>
       <Title level={4}>
         {icon}
         {title}
       </Title>
       <Paragraph type="secondary">{description}</Paragraph>
-      <Alert
-        type="info"
-        showIcon
-        message="Проект не выбран"
-        description="Создайте новый проект или откройте существующий, чтобы начать работу."
+      <TltAlert
+        tone="info"
+        title="Проект не выбран"
         action={
-          <Button type="primary" size="small" onClick={() => navigate(ROUTES.projects)}>
+          <TltButton variant="primary" size="compact" onClick={() => navigate(ROUTES.projects)}>
             Открыть проект
-          </Button>
+          </TltButton>
         }
-      />
-    </Card>
+      >
+        Создайте новый проект или откройте существующий, чтобы начать работу.
+      </TltAlert>
+    </TltCard>
   );
 }

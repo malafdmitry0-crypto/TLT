@@ -1,5 +1,5 @@
 import { type ComponentProps, type ReactNode } from 'react';
-import { Button, Modal, Segmented, Select } from 'antd';
+import { Modal, Segmented } from 'antd';
 import { CloseCircleOutlined, TableOutlined } from '@ant-design/icons';
 
 import CablePickerCharacteristics from '@/components/electrical/CablePickerCharacteristics';
@@ -13,6 +13,7 @@ import type { useElecCalcCableReferenceData } from '@/pages/electrical/useElecCa
 import type { useElecCalcCableSizingModalState } from '@/pages/electrical/useElecCalcCableSizingModalState';
 import type { useElecCalcCandidateState } from '@/pages/electrical/useElecCalcCandidateState';
 import type { ElectricalCandidateFolder } from '@/types/calculation';
+import { TltButton, TltSelect } from '@/components/ui-kit';
 
 type CandidateTablePanelProps = ComponentProps<typeof ElecCalcCandidateTablePanel>;
 
@@ -122,24 +123,21 @@ export default function ElecCalcCableSizingModal({
               { label: 'Ручной расчёт', value: 'manual' },
             ]}
           />
-          <Select<CableTypeKey>
+          <TltSelect
             aria-label="Тип кабеля для подбора"
-            size="small"
             value={effectiveCableType}
             disabled={!canMutate || !commercialFeaturesAvailable}
             onChange={(nextType) => {
-              setCableType(normalizeAvailableCableType(nextType));
+              if (nextType == null) return;
+              setCableType(normalizeAvailableCableType(String(nextType) as CableTypeKey));
               setManualMark(null);
               onResetConnectionType();
             }}
-            options={cableTypeOptions}
-            style={{ minWidth: 220 }}
+            options={cableTypeOptions} className="tlt-field--min-w220"
           />
           {mode === 'manual' && (
-            <Select
+            <TltSelect
               aria-label="Марка ручного кандидата"
-              showSearch
-              size="small"
               value={manualMark ?? undefined}
               placeholder="Марка"
               disabled={!canMutate}
@@ -148,16 +146,13 @@ export default function ElecCalcCableSizingModal({
                 .map((option) => ({
                   ...option,
                   value: option.mark!,
-                }))}
-              optionFilterProp="searchLabel"
-              style={{ minWidth: 280 }}
-              onChange={setManualMark}
+                }))} className="tlt-field--min-w280"
+              onChange={(value) => setManualMark(value == null ? null : String(value))}
             />
           )}
-          <Button
-            size="small"
-            type="primary"
-            loading={candidate.createCandidateMut.isPending}
+          <TltButton
+            size="compact"
+            variant="primary"
             disabled={
               !canMutate ||
               !object ||
@@ -169,29 +164,29 @@ export default function ElecCalcCableSizingModal({
             })}
           >
             {mode === 'auto' ? 'Запустить авторасчёт' : 'Рассчитать вариант'}
-          </Button>
-          <Button
-            size="small"
+          </TltButton>
+          <TltButton
+            size="compact"
             icon={<TableOutlined />}
             aria-label="Настройки таблицы"
             onClick={() => onOpenCandidateColumnSettings()}
           >
             Настройки таблицы
-          </Button>
-          <Button
-            size="small"
+          </TltButton>
+          <TltButton
+            size="compact"
             icon={<CloseCircleOutlined />}
             aria-label="Сбросить фильтры таблицы кандидатов"
             disabled={!candidateTableViewActive}
             onClick={onResetCandidateTableViewState}
           >
             Сбросить фильтры
-          </Button>
+          </TltButton>
         </div>
         {canMutate ? (
           renderTypeControls(effectiveCableType, { block: true })
         ) : (
-          <fieldset disabled style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
+          <fieldset disabled className="electrical-fieldset-reset">
             {renderTypeControls(effectiveCableType, { block: true })}
           </fieldset>
         )}
@@ -218,11 +213,11 @@ export default function ElecCalcCableSizingModal({
         />
         <ElecCalcCandidateTablePanel
           canMutate={canMutate}
+          loading={false}
           rows={candidate.displayedCableSizingCandidates}
           glideColumns={electricalCandidateGlideColumns}
           tableScrollX={candidateTableScrollX}
           fontSizeKey={candidateFontSizeKey}
-          loading={candidate.isCableSizingCandidatesFetching}
           tableViewState={candidateTableViewState}
           emptyContent={candidateFolderEmptyText()}
           rowClassName={candidate.cableSizingCandidateRowClassName}

@@ -354,7 +354,11 @@ describe('inline style ratchet (AF9-INLINE-01/02)', () => {
     expect(baseline.occurrences.length).toBeGreaterThan(0);
     const classes = new Set(baseline.occurrences.map((o) => o.class));
     expect(classes.has('runtime geometry')).toBe(true);
-    expect(classes.has('static debt')).toBe(true);
+    // static debt may be fully burned (0); byClass still tracks the cap.
+    expect(baseline.byClass['static debt'] ?? 0).toBeGreaterThanOrEqual(0);
+    if ((baseline.byClass['static debt'] ?? 0) > 0) {
+      expect(classes.has('static debt')).toBe(true);
+    }
     expect(classes.has('third-party adapter')).toBe(true);
 
     // Third-party adapters in baseline must document owner + reason.

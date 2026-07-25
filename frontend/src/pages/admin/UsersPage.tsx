@@ -1,8 +1,9 @@
-import { Button, Card, Form, Input, Modal, Table, message } from 'antd';
+import { Form, Modal, Table, message } from 'antd';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createUser, deactivateUser, listUsers } from '@/api/admin';
 import type { AdminUser } from '@/types/admin';
+import { TltButton, TltCard, TltTextField } from '@/components/ui-kit';
 
 export default function UsersPage() {
   const [open, setOpen] = useState(false);
@@ -40,20 +41,20 @@ export default function UsersPage() {
       title: 'Действия',
       render: (_: unknown, u: AdminUser) =>
         u.is_active && (
-          <Button size="small" danger onClick={() => deactMut.mutate(u.id)}>
+          <TltButton size="compact" variant="danger" onClick={() => deactMut.mutate(u.id)}>
             Деактивировать
-          </Button>
+          </TltButton>
         ),
     },
   ];
 
   return (
-    <Card
+    <TltCard
       title="Сотрудники"
-      extra={
-        <Button type="primary" onClick={() => setOpen(true)}>
+      actions={
+        <TltButton variant="primary" onClick={() => setOpen(true)}>
           Добавить
-        </Button>
+        </TltButton>
       }
     >
       <Table<AdminUser> rowKey="id" columns={columns} dataSource={users} />
@@ -65,20 +66,20 @@ export default function UsersPage() {
       >
         <Form form={form} layout="vertical" onFinish={(v) => createMut.mutate(v)}>
           <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email' }]}>
-            <Input />
+            <TltTextField type="email" autoComplete="email" />
           </Form.Item>
           <Form.Item
             name="password"
             label="Пароль"
             rules={[{ required: true, min: 6 }]}
           >
-            <Input.Password />
+            <TltTextField type="password" autoComplete="new-password" />
           </Form.Item>
           <Form.Item name="full_name" label="ФИО">
-            <Input />
+            <TltTextField />
           </Form.Item>
         </Form>
       </Modal>
-    </Card>
+    </TltCard>
   );
 }

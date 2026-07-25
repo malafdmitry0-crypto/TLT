@@ -1,24 +1,28 @@
 import { useEffect, useRef, type KeyboardEvent } from 'react';
 import {
-  Alert,
-  Button,
-  Card,
-  Input,
   Popconfirm,
   Space,
-  Spin,
   Tooltip,
   Typography,
 } from 'antd';
 import { FileTextOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { extractApiErrorMessage } from '@/api/client';
+import {
+  TltAlert,
+  TltButton,
+} from '@/components/ui-kit';
 import { ROUTES } from '@/routes/routes';
 import type {
-  ElectricalVariantPendingOperation,
   ElectricalVariantSelectionController,
 } from './useElectricalVariantSelection';
 import { useElectricalVariantRename } from './useElectricalVariantRename';
+import {
+  EmptyElectricalVariantState,
+  ignoreHandledError,
+  LoadingCard,
+  MutationStatus,
+} from './ElectricalVariantTabsEmptyState';
 
 const MAX_ELECTRICAL_VARIANTS = 5;
 
@@ -30,159 +34,9 @@ export function electricalVariantPanelId(variantId: string): string {
   return `electrical-variant-panel-${variantId}`;
 }
 
-const PENDING_OPERATION_LABELS: Record<
-  Exclude<ElectricalVariantPendingOperation, null>,
-  string
-> = {
-  initialize: 'Создаём первый ЭР…',
-  create: 'Создаём пустой ЭР…',
-  copy: 'Копируем выбранный ЭР…',
-  rename: 'Сохраняем новое название ЭР…',
-  activate: 'Переключаем текущий ЭР…',
-  delete: 'Удаляем выбранный ЭР…',
-  reconcile: 'Сверяем список ЭР с сервером…',
-};
-
 export interface ElectricalVariantTabsProps {
   controller: ElectricalVariantSelectionController;
   canMutate?: boolean;
-}
-
-function ignoreHandledError(operation: Promise<unknown>): void {
-  void operation.catch(() => undefined);
-}
-
-function LoadingCard({ text }: { text: string }) {
-  return (
-    <Card size="small" className="electrical-variant-tabs electrical-variant-tabs--loading">
-      <Space role="status" aria-live="polite"><Spin size="small" /><Typography.Text>{text}</Typography.Text></Space>
-    </Card>
-  );
-}
-
-function MutationStatus({ operation }: { operation: ElectricalVariantPendingOperation }) {
-  if (!operation) return null;
-  return (
-    <Space role="status" aria-live="polite" size={6}>
-      <Spin size="small" /><Typography.Text>{PENDING_OPERATION_LABELS[operation]}</Typography.Text>
-    </Space>
-  );
-}
-
-function EmptyElectricalVariantState({
-  controller,
-  canMutate = true,
-}: ElectricalVariantTabsProps) {
-  if (controller.isReadinessLoading && !controller.readiness) {
-    return <LoadingCard text="Проверяем готовность к созданию ЭР…" />;
-  }
-
-  if (controller.readinessError) {
-    return (
-      <Alert
-        type="error"
-        showIcon
-        message="Не удалось проверить готовность к созданию ЭР"
-        description={extractApiErrorMessage(controller.readinessError)}
-        action={(
-          <Button
-            size="small"
-            loading={controller.isReadinessFetching}
-            onClick={() => ignoreHandledError(controller.retryReadiness())}
-            aria-label="Повторить проверку готовности ЭР"
-          >
-            Повторить
-          </Button>
-        )}
-      />
-    );
-  }
-
-  const readiness = controller.readiness;
-  if (!readiness) {
-    return <LoadingCard text="Проверяем готовность к созданию ЭР…" />;
-  }
-
-  const readinessDescription = (
-    <Space direction="vertical" size={4} style={{ width: '100%' }}>
-      <Typography.Text>
-        Готово объектов: {readiness.ready_objects} из {readiness.total_objects}.
-      </Typography.Text>
-      {readiness.issues.length > 0 && (
-        <ul style={{ margin: 0, paddingInlineStart: 20 }}>
-          {readiness.issues.map((issue, index) => (
-            <li key={`${issue.code}-${issue.object_id ?? 'project'}-${index}`}>
-              {issue.message}
-            </li>
-          ))}
-        </ul>
-      )}
-    </Space>
-  );
-
-  return (
-    <Space direction="vertical" size={8} style={{ width: '100%' }}>
-      <MutationStatus operation={controller.pendingOperation} />
-      {!canMutate && (
-        <Alert
-          type="info"
-          showIcon
-          message="Режим просмотра"
-          description="Создать первый ЭР может только владелец проекта или администратор."
-        />
-      )}
-      {controller.mutationError != null && (
-        <Alert
-          type="error"
-          showIcon
-          closable
-          onClose={controller.clearMutationError}
-          message="Не удалось создать ЭР"
-          description={extractApiErrorMessage(controller.mutationError)}
-        />
-      )}
-      {controller.mutationNotice && (
-        <Alert
-          type="success"
-          showIcon
-          closable
-          onClose={controller.clearMutationError}
-          message="Результат операции подтверждён"
-          description={controller.mutationNotice}
-        />
-      )}
-      <Alert
-        type={readiness.ready ? 'info' : 'warning'}
-        showIcon
-        message={
-          readiness.ready
-            ? 'Можно создать первый электротехнический расчёт'
-            : 'ЭР пока нельзя создать'
-        }
-        description={readinessDescription}
-        action={(
-          <Button
-            type="primary"
-            disabled={
-              !readiness.ready
-              || !canMutate
-              || controller.isMutating
-              || controller.isReadinessFetching
-            }
-            loading={controller.isMutating || controller.isReadinessFetching}
-            onClick={() => ignoreHandledError(controller.initializeVariant())}
-            aria-label={
-              readiness.ready
-                ? 'Создать ЭР1'
-                : 'Создать ЭР1 — сначала завершите теплорасчёт'
-            }
-          >
-            Создать ЭР1
-          </Button>
-        )}
-      />
-    </Space>
-  );
 }
 
 export default function ElectricalVariantTabs({
@@ -226,22 +80,22 @@ export default function ElectricalVariantTabs({
 
   if (controller.isError) {
     return (
-      <Alert
-        type="error"
-        showIcon
-        message="Не удалось загрузить электротехнические решения"
-        description={extractApiErrorMessage(controller.listError)}
+      <TltAlert
+        tone="danger"
+        title="Не удалось загрузить электротехнические решения"
         action={(
-          <Button
-            size="small"
+          <TltButton
+            size="compact"
             loading={controller.isFetching}
             onClick={() => ignoreHandledError(controller.retryList())}
             aria-label="Повторить загрузку ЭР"
           >
             Повторить
-          </Button>
+          </TltButton>
         )}
-      />
+      >
+        {extractApiErrorMessage(controller.listError)}
+      </TltAlert>
     );
   }
 
@@ -257,21 +111,21 @@ export default function ElectricalVariantTabs({
   const selected = controller.selectedVariant;
   if (!selected) {
     return (
-      <Alert
-        type="error"
-        showIcon
-        message="Не удалось выбрать ЭР"
-        description="Обновите список электротехнических решений."
+      <TltAlert
+        tone="danger"
+        title="Не удалось выбрать ЭР"
         action={(
-          <Button
-            size="small"
+          <TltButton
+            size="compact"
             loading={controller.isFetching}
             onClick={() => ignoreHandledError(controller.retryList())}
           >
             Обновить
-          </Button>
+          </TltButton>
         )}
-      />
+      >
+        Обновите список электротехнических решений.
+      </TltAlert>
     );
   }
 
@@ -317,32 +171,27 @@ export default function ElectricalVariantTabs({
       <Space direction="vertical" size={8} style={{ width: '100%' }}>
         <MutationStatus operation={controller.pendingOperation} />
         {!canMutate && (
-          <Alert
-            type="info"
-            showIcon
-            message="Режим просмотра"
-            description="Изменять ЭР может только владелец проекта или администратор."
-          />
+          <TltAlert tone="info" title="Режим просмотра">
+            Изменять ЭР может только владелец проекта или администратор.
+          </TltAlert>
         )}
         {controller.mutationError != null && !editingVariantId && (
-          <Alert
-            type="error"
-            showIcon
-            closable
-            onClose={controller.clearMutationError}
-            message="Не удалось подтвердить результат операции с ЭР"
-            description={extractApiErrorMessage(controller.mutationError)}
-          />
+          <TltAlert
+            tone="danger"
+            title="Не удалось подтвердить результат операции с ЭР"
+            onDismiss={controller.clearMutationError}
+          >
+            {extractApiErrorMessage(controller.mutationError)}
+          </TltAlert>
         )}
         {controller.mutationNotice && !editingVariantId && (
-          <Alert
-            type="success"
-            showIcon
-            closable
-            onClose={controller.clearMutationError}
-            message="Результат операции подтверждён"
-            description={controller.mutationNotice}
-          />
+          <TltAlert
+            tone="success"
+            title="Результат операции подтверждён"
+            onDismiss={controller.clearMutationError}
+          >
+            {controller.mutationNotice}
+          </TltAlert>
         )}
 
         {/* One row: ER tabs + lifecycle actions (mockup toolbar). */}
@@ -378,16 +227,14 @@ export default function ElectricalVariantTabs({
                     >
                       {variant.name}
                     </button>
-                    <Input
+                    <input
                       ref={renameInputRef}
-                      size="small"
+                      className="electrical-variant-rename-input tlt-text-field__input tlt-field--w200"
                       value={renameValue}
                       maxLength={128}
-                      status={renameValidationError ? 'error' : undefined}
                       aria-label={`Новое название ЭР «${variant.name}»`}
                       aria-invalid={renameValidationError ? 'true' : 'false'}
                       aria-describedby={renameValidationError ? 'electrical-variant-rename-error' : undefined}
-                      style={{ width: 200 }}
                       onChange={(event) => {
                         setRenameValue(event.target.value);
                         if (event.target.value.trim()) setRenameValidationError(null);
@@ -401,7 +248,7 @@ export default function ElectricalVariantTabs({
                       <Typography.Text
                         id="electrical-variant-rename-error"
                         type="danger"
-                        style={{ fontSize: 12 }}
+                        className="electrical-variant-hint"
                       >
                         {renameValidationError}
                       </Typography.Text>
@@ -441,8 +288,8 @@ export default function ElectricalVariantTabs({
           <div className="electrical-variant-tabs__actions">
             <Tooltip title={reachedLimit ? 'В проекте уже создано 5 ЭР' : undefined}>
               <span>
-                <Button
-                  size="small"
+                <TltButton
+                  size="compact"
                   className="electrical-variant-action electrical-variant-action--create"
                   loading={controller.pendingOperation === 'create'}
                   disabled={!canMutate || reachedLimit || lifecycleWriteLocked}
@@ -454,14 +301,14 @@ export default function ElectricalVariantTabs({
                   onClick={() => ignoreHandledError(controller.createVariant())}
                 >
                   Добавить новый расчёт
-                </Button>
+                </TltButton>
               </span>
             </Tooltip>
 
             <Tooltip title={reachedLimit ? 'В проекте уже создано 5 ЭР' : undefined}>
               <span>
-                <Button
-                  size="small"
+                <TltButton
+                  size="compact"
                   className="electrical-variant-action electrical-variant-action--copy"
                   loading={controller.pendingOperation === 'copy'}
                   disabled={!canMutate || reachedLimit || lifecycleWriteLocked}
@@ -473,20 +320,20 @@ export default function ElectricalVariantTabs({
                   onClick={() => ignoreHandledError(controller.copySelectedVariant())}
                 >
                   Добавить новый расчёт на основании ЭР
-                </Button>
+                </TltButton>
               </span>
             </Tooltip>
 
-            <Button
-              size="small"
-              type="link"
+            <TltButton
+              size="compact"
+              variant="link"
               loading={controller.pendingOperation === 'rename'}
               disabled={!canMutate || lifecycleWriteLocked}
               aria-label={`Переименовать ЭР «${selected.name}»`}
               onClick={startRename}
             >
               Переименовать
-            </Button>
+            </TltButton>
 
             <Popconfirm
               disabled={!canMutate || isLastVariant || lifecycleWriteLocked}
@@ -497,9 +344,9 @@ export default function ElectricalVariantTabs({
               okButtonProps={{ danger: true }}
               onConfirm={() => ignoreHandledError(controller.deleteVariant(selected.id))}
             >
-              <Button
-                size="small"
-                danger
+              <TltButton
+                size="compact"
+                variant="danger"
                 className="electrical-variant-action electrical-variant-action--delete"
                 loading={controller.pendingOperation === 'delete'}
                 disabled={!canMutate || isLastVariant || lifecycleWriteLocked}
@@ -510,18 +357,18 @@ export default function ElectricalVariantTabs({
                 }
               >
                 Удалить текущий расчёт
-              </Button>
+              </TltButton>
             </Popconfirm>
 
-            <Button
-              size="small"
+            <TltButton
+              size="compact"
               className="electrical-variant-action electrical-variant-action--spec"
               icon={<FileTextOutlined />}
               onClick={() => navigate(ROUTES.specification)}
               aria-label="Сформировать спецификацию"
             >
               Сформировать спецификацию
-            </Button>
+            </TltButton>
           </div>
         </div>
       </Space>

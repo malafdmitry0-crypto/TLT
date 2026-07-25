@@ -1,7 +1,8 @@
 import { memo, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Input, InputNumber, Select } from 'antd';
+
 import type { HeatCalcContextMenuTrigger } from '@/components/heatcalc/HeatCalcContextMenuTrigger';
 import type { HeatCalcFieldDefinition } from '@/domain/heatCalcFields';
+import { TltNumberField, TltSelect, TltTextField } from '@/components/ui-kit';
 
 export interface EditableTableCellProps {
   rowId?: string;
@@ -171,11 +172,7 @@ function EditableTableCell({
     }
   }
 
-  const commonProps = {
-    className: editorError ? 'editable-cell-editor error' : 'editable-cell-editor',
-    autoFocus: true,
-    onClick: (event: React.MouseEvent<HTMLElement>) => event.stopPropagation(),
-  };
+  const editorClassName = editorError ? 'editable-cell-editor error' : 'editable-cell-editor';
   const editorWrapProps = {
     className: 'editable-cell-editor-wrap',
     onClick: (event: React.MouseEvent<HTMLDivElement>) => event.stopPropagation(),
@@ -187,10 +184,8 @@ function EditableTableCell({
   if (field.editor === 'select') {
     return (
       <div {...editorWrapProps}>
-        <Select
-          {...commonProps}
-          size="small"
-          open
+        <TltSelect
+          className={editorClassName}
           value={draftValue as string | number | undefined}
           options={options ?? field.options}
           onChange={(nextValue) => {
@@ -198,9 +193,7 @@ function EditableTableCell({
             setLocalError(null);
             onCommit(nextValue);
           }}
-          onBlur={() => {
-            if (draftValue != null && draftValue !== '') commit();
-          }}
+          aria-label="Редактирование ячейки"
         />
         {help}
       </div>
@@ -210,11 +203,8 @@ function EditableTableCell({
   if (field.editor === 'number') {
     return (
       <div {...editorWrapProps}>
-        <InputNumber
-          {...commonProps}
-          size="small"
-          controls={false}
-          keyboard={false}
+        <TltNumberField
+          className={editorClassName}
           min={field.min}
           max={field.max}
           step={step ?? field.step}
@@ -223,7 +213,14 @@ function EditableTableCell({
             setDraftValue(nextValue);
             setLocalError(null);
           }}
+          onKeyDown={(event) => {
+            // Match previous Ant InputNumber keyboard={false}: no step via arrows.
+            if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+              event.preventDefault();
+            }
+          }}
           onBlur={() => commit()}
+          aria-label="Редактирование числа"
         />
         {help}
       </div>
@@ -232,16 +229,17 @@ function EditableTableCell({
 
   return (
     <div {...editorWrapProps}>
-      <Input
-        {...commonProps}
-        size="small"
+      <TltTextField
+        className={editorClassName}
+        autoFocus
         maxLength={field.maxLength}
         value={normalizeInputValue(draftValue)}
-        onChange={(event) => {
-          setDraftValue(event.target.value);
+        onChange={(nextValue) => {
+          setDraftValue(nextValue);
           setLocalError(null);
         }}
         onBlur={() => commit()}
+        aria-label="Редактирование текста"
       />
       {help}
     </div>

@@ -1,4 +1,5 @@
-import { Tag, Typography } from 'antd';
+import { Typography } from 'antd';
+import { TltBadge } from '@/components/ui-kit';
 
 import type { ElectricalCalcSummary, ElectricalCandidate } from '@/types/calculation';
 import { candidateOrderCableLengthValue } from '@/domain/electrical/elecCalcCandidateCompareModel';
@@ -47,9 +48,9 @@ export default function ElecCalcSelectedCableSummary({
   return (
     <div className="electrical-selected-cable-summary">
       <Text strong>Выбранный кабель:</Text>
-      <Tag color="blue" className="electrical-selected-cable-summary__mark">
+      <TltBadge tone="info" className="electrical-selected-cable-summary__mark">
         {mark}
-      </Tag>
+      </TltBadge>
       <Text type="secondary">{CABLE_TYPE_LABEL[cableType] ?? valueText(cableType)}</Text>
       <Text type="secondary">
         P: <strong>{powerText(results?.total_power)}</strong>

@@ -1,0 +1,21 @@
+/* OWNER: wizard isolation / confirm step — static chrome */
+
+.wizard-zone-error {
+  margin: 8px;
+  padding: 10px;
+  border: 2px solid var(--color-danger-border);
+  border-radius: 6px;
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text);
+  font-size: 12px;
+  white-space: pre-wrap;
+  font-family: var(--font-family-data);
+}
+
+.wizard-confirm-alert {
+  margin-bottom: 16px;
+}
+
+.wizard-confirm-block {
+  margin-bottom: 16px;
+}

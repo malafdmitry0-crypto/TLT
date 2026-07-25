@@ -48,9 +48,9 @@
 }
 
 .object-wizard-cable-panel .inline-form-section-banner--cable {
-  background: var(--c-fff6f0);
-  border-color: var(--c-f0c9b0);
-  color: var(--c-8a3d12);
+  background: var(--color-swatch-fff6f0);
+  border-color: var(--color-swatch-f0c9b0);
+  color: var(--color-swatch-8a3d12);
 }
 
 .object-wizard-cable-panel .ant-form-item {
@@ -167,7 +167,7 @@
   gap: 8px 0;
   padding: 8px 10px 10px;
   background: var(--color-surface);
-  border: 1px solid var(--c-f0c9b0);
+  border: 1px solid var(--color-swatch-f0c9b0);
   border-top: 0;
   border-radius: 0 0 7px 7px;
   align-items: start;
@@ -208,17 +208,17 @@
   gap: 4px;
   min-height: var(--cable-control-height);
   padding: 2px 8px;
-  border: 1px dashed var(--c-e0c4b0);
+  border: 1px dashed var(--color-swatch-e0c4b0);
   border-radius: 6px;
-  background: var(--c-fffaf6);
-  color: var(--c-5a3a28);
+  background: var(--color-swatch-fffaf6);
+  color: var(--color-swatch-5a3a28);
   font-size: var(--cable-control-font);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
 .object-wizard-cable-panel .cable-algorithm-mirror-unit {
-  color: var(--c-8a6a58);
+  color: var(--color-swatch-8a6a58);
   font-size: var(--cable-label-size);
   font-weight: 500;
 }
@@ -229,7 +229,7 @@
 
 .object-wizard-cable-panel .cable-algorithm-hint {
   margin: 6px 10px 8px;
-  color: var(--c-8a6a58);
+  color: var(--color-swatch-8a6a58);
   font-size: var(--cable-hint-size);
   line-height: 1.35;
 }

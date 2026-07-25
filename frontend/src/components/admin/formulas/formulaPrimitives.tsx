@@ -1,68 +1,88 @@
 import { Fragment, type ReactNode } from 'react';
 
-// ─── Цвета переменных ────────────────────────────────────────────────────────
+import '@/components/admin/formulas/formula-primitives.css';
+
+// ─── Цвета переменных (JS palette for call sites; CSS owns presentation via role) ─
+/** Palette keys for role lookup; presentation is owner CSS via --color-formula-* */
 export const C = {
-  result:  '#1677ff',   // Q, P, I — синий
-  temp:    '#c0392b',   // ΔT, температуры — красный
-  geom:    '#2c3e50',   // d, L, S — тёмный
-  resist:  '#7d3c98',   // R — фиолетовый
-  coeff:   '#1a7a4a',   // K, α, λ — зелёный
-  unit:    '#888',      // [Вт] — серый
-  label:   '#555',
+  result:  '#1677ff',   // --color-formula-result / swatch-1677ff
+  temp:    '#9a3412',   // --color-formula-temp / swatch-9a3412
+  geom:    '#34495e',   // --color-formula-geom / swatch-34495e
+  resist:  '#7d3c98',   // --color-formula-resist / role-admin
+  coeff:   '#1f6f3e',   // --color-formula-coeff / swatch-1f6f3e
+  unit:    '#888888',   // --color-formula-unit / text-tertiary
+  label:   '#555555',   // --color-formula-label / text-body-muted
+  req:     '#fa8c16',   // --color-formula-req / formula-cable
 } as const;
+
+export type FormulaColorRole = keyof typeof C;
+
+const ROLE_BY_COLOR: Record<string, FormulaColorRole> = {
+  [C.result]: 'result',
+  [C.temp]: 'temp',
+  [C.geom]: 'geom',
+  [C.resist]: 'resist',
+  [C.coeff]: 'coeff',
+  [C.unit]: 'unit',
+  [C.label]: 'label',
+  [C.req]: 'req',
+};
+
+function joinClassNames(...parts: Array<string | false | null | undefined>) {
+  return parts.filter(Boolean).join(' ');
+}
+
+function colorRole(color: string | undefined, fallback: FormulaColorRole = 'label'): FormulaColorRole {
+  if (!color) return fallback;
+  return ROLE_BY_COLOR[color] ?? fallback;
+}
 
 // ─── Базовые примитивы ────────────────────────────────────────────────────────
 
 /** Дробь: числитель над знаменателем */
 export function Frac({ top, bot }: { top: ReactNode; bot: ReactNode }) {
   return (
-    <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', verticalAlign: 'middle', margin: '0 3px', lineHeight: 1.25 }}>
-      <span style={{ borderBottom: '1.5px solid #333', padding: '0 4px 2px', whiteSpace: 'nowrap', textAlign: 'center' }}>{top}</span>
-      <span style={{ padding: '2px 4px 0', whiteSpace: 'nowrap', textAlign: 'center' }}>{bot}</span>
+    <span className="formula-frac">
+      <span className="formula-frac__num">{top}</span>
+      <span className="formula-frac__den">{bot}</span>
     </span>
   );
 }
 
-/** Цветная переменная */
+/** Цветная переменная — palette role class only (no runtime style) */
 export function V({ c, children, bold }: { c: string; children: ReactNode; bold?: boolean }) {
-  return <span style={{ color: c, fontWeight: bold ? 700 : 500 }}>{children}</span>;
+  const role = colorRole(c, 'result');
+  return (
+    <span className={joinClassNames('formula-var', `formula-var--${role}`, bold && 'formula-var--bold')}>
+      {children}
+    </span>
+  );
 }
 
 /** Нижний индекс */
 export function S({ children }: { children: ReactNode }) {
-  return <sub style={{ fontSize: '0.72em', lineHeight: 0 }}>{children}</sub>;
+  return <sub className="formula-sub">{children}</sub>;
 }
 
 /** Верхний индекс */
 export function Sup({ children }: { children: ReactNode }) {
-  return <sup style={{ fontSize: '0.7em', lineHeight: 0 }}>{children}</sup>;
+  return <sup className="formula-sup">{children}</sup>;
 }
 
 /** Строка формулы — flex-row с вертикальным центрированием */
 export function FL({ children, indent }: { children: ReactNode; indent?: boolean }) {
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 2,
-      fontSize: 15.5, lineHeight: 2.4,
-      marginLeft: indent ? 24 : 0,
-    }}>
+    <div className={joinClassNames('formula-line', indent && 'formula-line--indent')}>
       {children}
     </div>
   );
 }
 
-/** Блок с формулой — рамка с отступом */
+/** Блок с формулой — accent maps to role border color (no runtime style) */
 export function FormulaBox({ children, accent }: { children: ReactNode; accent?: string }) {
+  const role = colorRole(accent, 'result');
   return (
-    <div style={{
-      background: '#fafafa',
-      border: '1px solid #e8e8e8',
-      borderLeft: `4px solid ${accent ?? '#1677ff'}`,
-      borderRadius: '0 8px 8px 0',
-      padding: '14px 20px',
-      marginBottom: 12,
-      overflowX: 'auto',
-    }}>
+    <div className={joinClassNames('formula-box', `formula-box--${role}`)}>
       {children}
     </div>
   );
@@ -71,7 +91,7 @@ export function FormulaBox({ children, accent }: { children: ReactNode; accent?:
 /** Заголовок вспомогательной формулы */
 export function SubTitle({ children }: { children: ReactNode }) {
   return (
-    <div style={{ fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: 0, margin: '14px 0 4px' }}>
+    <div className="formula-subtitle">
       {children}
     </div>
   );
@@ -80,13 +100,18 @@ export function SubTitle({ children }: { children: ReactNode }) {
 /** Таблица переменных */
 export function VarLegend({ rows }: { rows: { sym: ReactNode; color?: string; desc: string }[] }) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 12px', fontSize: 12.5, marginTop: 10 }}>
-      {rows.map(({ sym, color, desc }, i) => (
-        <Fragment key={i}>
-          <span key={`s${i}`} style={{ color: color ?? C.label, fontWeight: 600, whiteSpace: 'nowrap' }}>{sym}</span>
-          <span key={`d${i}`} style={{ color: C.label }}>{desc}</span>
-        </Fragment>
-      ))}
+    <div className="formula-var-legend">
+      {rows.map(({ sym, color, desc }, i) => {
+        const role = colorRole(color, 'label');
+        return (
+          <Fragment key={i}>
+            <span className={joinClassNames('formula-var-legend__sym', `formula-var-legend__sym--${role}`)}>
+              {sym}
+            </span>
+            <span className="formula-var-legend__desc">{desc}</span>
+          </Fragment>
+        );
+      })}
     </div>
   );
 }

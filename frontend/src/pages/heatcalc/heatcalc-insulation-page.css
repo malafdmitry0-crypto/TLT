@@ -24,7 +24,7 @@
   --ins-col-range: minmax(72px, 0.6fr);
 }
 
-@media (max-width: 1500px) {
+@media (max-width: 1400px) {
   .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-table {
     --ins-col-index: 56px;
     --ins-col-material: minmax(160px, 1.4fr);
@@ -65,7 +65,7 @@
   grid-column: auto;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 768px) {
   .inline-object-form--wide .object-wizard-wide-panel .insulation-layer-count-form-item,
   .inline-object-form--wide .object-wizard-wide-panel .insulation-temperature-basis-form-item {
     flex: 0 0 100%;
@@ -86,7 +86,7 @@
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .reference-picker-filter-row {
     flex-direction: column;
   }

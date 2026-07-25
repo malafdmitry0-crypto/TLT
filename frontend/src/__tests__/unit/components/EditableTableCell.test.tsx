@@ -201,13 +201,13 @@ describe('EditableTableCell', () => {
       </EditableTableCell>,
     );
 
-    const input = screen.getByRole('spinbutton');
-    fireEvent.keyDown(input, { key: 'ArrowUp' });
+    const input = screen.getByLabelText('Редактирование числа');
 
     expect(input).toHaveValue('108');
     expect(screen.queryByText('мм')).not.toBeInTheDocument();
     expect(container.querySelector('.ant-input-number-group-addon')).not.toBeInTheDocument();
     expect(container.querySelector('.ant-input-number-handler-wrap')).not.toBeInTheDocument();
+    expect(container.querySelector('.tlt-number-field__unit')).not.toBeInTheDocument();
   });
 
   it('constrains active numeric editor to the table cell width', () => {
@@ -227,7 +227,7 @@ describe('EditableTableCell', () => {
     );
 
     const wrap = container.querySelector<HTMLElement>('.editable-cell-editor-wrap');
-    const editor = container.querySelector<HTMLElement>('.editable-cell-editor.ant-input-number');
+    const editor = container.querySelector<HTMLElement>('.editable-cell-editor.tlt-number-field');
 
     expect(wrap).not.toBeNull();
     expect(editor).not.toBeNull();

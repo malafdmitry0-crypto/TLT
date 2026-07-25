@@ -127,7 +127,8 @@ export default function TltNumberField({
 
   const handleKeyDown: KeyboardEventHandler<HTMLInputElement> = (event) => {
     onKeyDown?.(event);
-    if (!event.defaultPrevented && event.key === 'Enter') {
+    if (event.defaultPrevented) return;
+    if (event.key === 'Enter') {
       onPressEnter?.(event);
     }
   };
@@ -135,7 +136,11 @@ export default function TltNumberField({
   return (
     <NumberField
       aria-label={resolvedAriaLabel}
-      className={joinClassNames('tlt-number-field', className)}
+      className={joinClassNames(
+        'tlt-number-field',
+        unit ? 'tlt-number-field--with-unit' : undefined,
+        className,
+      )}
       commitBehavior="validate"
       defaultValue={numberFieldDefaultValue}
       id={id}

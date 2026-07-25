@@ -4,6 +4,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { logout as logoutApi } from '@/api/auth';
 import { useAuthStore } from '@/store/authStore';
 import { RouteErrorBoundary } from '@/components/common/ErrorBoundary';
+import './admin-layout.css';
 
 const { Header, Sider, Content } = Layout;
 
@@ -13,16 +14,16 @@ export default function AdminLayout() {
   const logout = useAuthStore((s) => s.logout);
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout className="admin-layout">
       <Header className="heatcalc-header">
-        <h2 style={{ color: 'white', margin: 0 }}>HeatCalc — Администрирование</h2>
+        <h2 className="admin-layout-title">HeatCalc — Администрирование</h2>
         <a
           onClick={async () => {
             await logoutApi().catch(() => undefined);
             logout();
             navigate('/');
           }}
-          style={{ color: 'white', marginLeft: 'auto', cursor: 'pointer' }}
+          className="admin-layout-logout"
         >
           Выход
         </a>
@@ -44,7 +45,7 @@ export default function AdminLayout() {
             onClick={(e) => navigate(e.key)}
           />
         </Sider>
-        <Content style={{ padding: 24 }}>
+        <Content className="admin-layout-content">
           <RouteErrorBoundary>
             <Outlet />
           </RouteErrorBoundary>

@@ -21,7 +21,7 @@
 }
 
 .specification-er-tabs .ant-tabs-nav::before {
-  border-bottom-color: var(--c-e8eef5);
+  border-bottom-color: var(--color-swatch-e8eef5);
 }
 
 .specification-er-tabs .ant-tabs-tab {
@@ -49,7 +49,7 @@
   gap: 12px;
   margin-top: 16px;
   padding-top: 12px;
-  border-top: 1px solid var(--c-eef2f6);
+  border-top: 1px solid var(--color-swatch-eef2f6);
   flex-wrap: wrap;
 }
 
@@ -60,7 +60,7 @@
 .specification-settings-section {
   margin-bottom: 20px;
   padding-bottom: 16px;
-  border-bottom: 1px solid var(--c-f0f0f0);
+  border-bottom: 1px solid var(--color-swatch-f0f0f0);
 }
 
 .specification-settings-section:last-child {
@@ -105,7 +105,7 @@
 .spec-section-meta {
   font-weight: 400;
   font-size: 12px;
-  color: var(--c-8c8c8c);
+  color: var(--color-formula-muted);
 }
 
 .spec-section-empty {
@@ -117,8 +117,8 @@
 }
 
 .spec-table .ant-table-thead > tr > th {
-  background: var(--c-f5f8fb);
-  color: var(--c-4a5568);
+  background: var(--color-swatch-f5f8fb);
+  color: var(--color-swatch-4a5568);
   font-weight: 500;
   font-size: 12px;
 }
@@ -140,10 +140,101 @@
 }
 
 .specification-stale-row td {
-  background: var(--c-fff7e6);
+  background: var(--color-formula-cable-header-bg);
 }
 
-@media (max-width: 900px) {
+/* SpecPageChrome — static debt moved from SpecPageChrome.tsx */
+
+.specification-settings-intro {
+  display: block;
+  font-size: 12px;
+  margin: 6px 0 10px;
+}
+
+.specification-settings-er-actions {
+  margin-top: 8px;
+}
+
+.specification-settings-field-full { width: 100%; }
+.specification-settings-er-checkbox-group { min-width: 220px; width: 100%; }
+.specification-settings-display { margin-top: 10px; }
+
+.specification-settings-display-label {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+
+.specification-settings-group-by {
+  margin-top: 4px;
+}
+
+.specification-settings-merge {
+  font-size: 12px;
+  margin-top: 10px;
+}
+
+.specification-settings-stats {
+  margin-top: 12px;
+  padding: 8px 10px;
+  background: var(--color-meta-panel-bg);
+  border-radius: 6px;
+  border: 1px solid var(--color-meta-panel-border);
+}
+
+.specification-settings-stats-line {
+  font-size: 12px;
+  display: block;
+}
+
+.specification-settings-stats-meta {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  display: block;
+  margin-top: 4px;
+}
+
+.specification-settings-action {
+  width: 100%;
+}
+
+.specification-add-hint {
+  font-size: 12px;
+}
+
+.specification-preflight-summary {
+  white-space: pre-wrap;
+  margin: 0;
+  font-family: inherit;
+}
+
+/* Static debt moved from SpecificationPage / SpecTable */
+
+.specification-empty-icon {
+  margin-right: 8px;
+}
+
+.specification-alert-gap {
+  margin-bottom: 12px;
+}
+
+.specification-status-text {
+  font-size: 12px;
+}
+
+.specification-partial-list {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.spec-table-muted {
+  color: var(--color-text-tertiary);
+}
+
+.spec-table-tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 1200px) {
   .specification-toolbar-actions {
     padding-left: 0;
     padding-top: 8px;

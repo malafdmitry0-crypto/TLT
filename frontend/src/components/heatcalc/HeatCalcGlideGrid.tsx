@@ -34,13 +34,18 @@ import {
   type HeatCalcGlideGridColumn,
 } from '@/utils/heatCalcGlideGrid';
 import { resolveTableFontSizeByKey } from '@/utils/heatCalcTableViewSettings';
-import { blankCell, isDirtyRowClassName, isErrorRowClassName } from '@/utils/glideGridPrimitives';
+import {
+  blankCell,
+  GLIDE_THEME,
+  isDirtyRowClassName,
+  isErrorRowClassName,
+} from '@/utils/glideGridPrimitives';
 
 const GLIDE_ROW_MARKER_WIDTH = 50;
 const GLIDE_MIN_COLUMN_WIDTH = 48;
 const GLIDE_MAX_COLUMN_WIDTH = 600;
-const GLIDE_SELECTED_ROW_BG = '#dbeeff';
-const GLIDE_SELECTED_ROW_BORDER = '#1a5276';
+const GLIDE_SELECTED_ROW_BG = GLIDE_THEME.accentLight;
+const GLIDE_SELECTED_ROW_BORDER = GLIDE_THEME.accent;
 
 type GlideEditingCell = {
   cell: Item;
@@ -194,9 +199,9 @@ function HeatCalcGlideGrid({
     const text = modelCell.state.displayValue;
     const rowClasses = rowClassName(modelCell.record);
     const bgCell = modelCell.state.error || isErrorRowClassName(rowClasses)
-      ? '#fff1f0'
+      ? GLIDE_THEME.errorRowBg
       : modelCell.state.dirty || isDirtyRowClassName(rowClasses)
-        ? '#fffbe6'
+        ? GLIDE_THEME.dirtyRowBg
         : undefined;
     return {
       kind: GridCellKind.Text,
@@ -379,10 +384,10 @@ function HeatCalcGlideGrid({
           if (!record) return undefined;
           const className = rowClassName(record);
           if (isErrorRowClassName(className)) {
-            return { bgCell: '#fff1f0' };
+            return { bgCell: GLIDE_THEME.errorRowBg };
           }
           if (isDirtyRowClassName(className)) {
-            return { bgCell: '#fffbe6' };
+            return { bgCell: GLIDE_THEME.dirtyRowBg };
           }
           if (
             fullRowSelectionBounds
@@ -398,11 +403,11 @@ function HeatCalcGlideGrid({
           return undefined;
         }}
         theme={{
-          accentColor: '#1a5276',
-          accentLight: '#dbeeff',
-          bgCell: '#ffffff',
-          bgHeader: '#f3f6f4',
-          borderColor: '#d9d9d9',
+          accentColor: GLIDE_THEME.accent,
+          accentLight: GLIDE_THEME.accentLight,
+          bgCell: GLIDE_THEME.bgCell,
+          bgHeader: GLIDE_THEME.bgHeader,
+          borderColor: GLIDE_THEME.border,
           fontFamily: 'inherit',
           baseFontStyle: `${fontSize.fontSizePx}px inherit`,
           headerFontStyle: `600 ${fontSize.fontSizePx}px inherit`,

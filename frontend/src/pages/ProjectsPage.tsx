@@ -1,21 +1,5 @@
-import { useMemo, useRef, useState } from 'react';
-import {
-  Button,
-  Card,
-  Col,
-  Input,
-  Modal,
-  Popconfirm,
-  Row,
-  Segmented,
-  Select,
-  Space,
-  Table,
-  Tag,
-  Typography,
-  message,
-} from 'antd';
-import { DownloadOutlined, FolderOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons';
+import { useMemo, useState } from 'react';
+import { Row, message } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
@@ -28,47 +12,21 @@ import {
   importProjectsCsvBulk,
   listProjects,
 } from '@/api/projects';
-import { formatDate } from '@/utils/formatters';
 import { useProjectStore } from '@/store/projectStore';
 import { useAuthStore } from '@/store/authStore';
 import { useNavigate } from 'react-router-dom';
-import { OBJECT_TYPE_LABELS, type ObjectType } from '@/constants/objectTypes';
+import type { ObjectType } from '@/constants/objectTypes';
 import type { Project } from '@/types/project';
-import QueryError from '@/components/common/QueryError';
+import { ProjectsPageFilters } from '@/pages/projects/ProjectsPageFilters';
+import { ProjectsPageList } from '@/pages/projects/ProjectsPageList';
+import { ProjectsPageCreateModal } from '@/pages/projects/ProjectsPageCreateModal';
+import {
+  computeProjectType,
+  type OwnerFilter,
+  type ProjectTypeFilter,
+  type StatusFilter,
+} from '@/pages/projects/projectsPageModel';
 import './projects-page.css';
-
-const { Text } = Typography;
-
-type OwnerFilter = 'all' | 'mine';
-type StatusFilter = 'all' | 'draft' | 'completed';
-/**
- * Тип проекта — вычисляется по составу объектов:
- *   empty   — нет объектов
- *   pipe/tank/pump/platform/other — все объекты одного типа
- *   mixed   — присутствуют объекты разных типов
- */
-type ProjectTypeFilter = 'all' | 'empty' | 'mixed' | ObjectType;
-
-const STATUS_LABEL: Record<string, { text: string; color: string }> = {
-  completed: { text: 'Завершён', color: 'green' },
-  draft:     { text: 'Черновик', color: 'default' },
-};
-
-function computeProjectType(types: string[]): ProjectTypeFilter | 'other' {
-  if (types.length === 0) return 'empty';
-  if (types.length > 1) return 'mixed';
-  return types[0] as ObjectType;
-}
-
-const PROJECT_TYPE_LABEL: Record<string, string> = {
-  empty: 'Пустой',
-  mixed: 'Смешанный',
-  pipe: 'Трубопроводы',
-  tank: 'Резервуары',
-  pump: 'Насосы',
-  platform: 'Площадки',
-  other: 'Прочее',
-};
 
 export default function ProjectsPage() {
   const [search, setSearch]         = useState('');
@@ -81,6 +39,7 @@ export default function ProjectsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [newName, setNewName]       = useState('');
   const [newTaskNumber, setNewTaskNumber] = useState('');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const qc         = useQueryClient();
   const navigate   = useNavigate();
@@ -113,10 +72,6 @@ export default function ProjectsPage() {
     },
     onError: (e: Error) => message.error(e.message),
   });
-
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const bulkFileInputRef = useRef<HTMLInputElement>(null);
-  const singleFileInputRef = useRef<HTMLInputElement>(null);
 
   const downloadBlob = (blob: Blob, filename: string) => {
     const url = URL.createObjectURL(blob);
@@ -238,393 +193,73 @@ export default function ProjectsPage() {
     setTaskSearch('');
   };
 
-  const columns = [
-    {
-      title: 'Название',
-      dataIndex: 'name',
-      sorter: (a: Project, b: Project) => a.name.localeCompare(b.name),
-    },
-    {
-      title: '№ задачи',
-      dataIndex: 'task_number',
-      render: (v: string | null) =>
-        v ? <Tag color="blue">{v}</Tag> : <span className="projects-page-muted">—</span>,
-      sorter: (a: Project, b: Project) =>
-        (a.task_number ?? '').localeCompare(b.task_number ?? ''),
-    },
-    {
-      title: 'Тип',
-      dataIndex: 'object_types',
-      render: (types: string[]) => {
-        const computed = computeProjectType(types ?? []);
-        const label = PROJECT_TYPE_LABEL[computed] ?? computed;
-        const color =
-          computed === 'empty' ? 'default' :
-          computed === 'mixed' ? 'purple' :
-          computed === 'pipe' ? 'orange' :
-          computed === 'tank' ? 'cyan' :
-          'geekblue';
-        return (
-          <Tag color={color} style={computed === 'pipe' ? { color: '#873800' } : undefined}>
-            {label}
-          </Tag>
-        );
-      },
-    },
-    {
-      title: 'Статус',
-      dataIndex: 'status',
-      render: (s: string) => {
-        const info = STATUS_LABEL[s] ?? { text: s, color: 'default' };
-        return <Tag color={info.color}>{info.text}</Tag>;
-      },
-    },
-    {
-      title: 'Владелец',
-      dataIndex: 'owner_email',
-      render: (email: string | null) =>
-        email ? email : <span className="projects-page-muted">гость</span>,
-      sorter: (a: Project, b: Project) =>
-        (a.owner_email ?? '').localeCompare(b.owner_email ?? ''),
-    },
-    {
-      title: 'Обновлён',
-      dataIndex: 'updated_at',
-      render: (v: string) => formatDate(v),
-      sorter: (a: Project, b: Project) =>
-        new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime(),
-      defaultSortOrder: 'descend' as const,
-    },
-    {
-      title: 'Действия',
-      render: (_: unknown, p: Project) => (
-        <Space>
-          <Button
-            type="link"
-            onClick={() => {
-              setCurrent(p);
-              navigate('/workspace/heat-calc');
-            }}
-          >
-            Открыть
-          </Button>
-          {isEmployee && (
-            <Button
-              type="link"
-              loading={duplicateMut.isPending && duplicateMut.variables === p.id}
-              onClick={() => duplicateMut.mutate(p.id)}
-            >
-              Дублировать
-            </Button>
-          )}
-          <Button type="link" onClick={() => exportOne(p)}>
-            Скачать
-          </Button>
-          <Popconfirm
-            title="Удалить проект?"
-            description="Все объекты, расчёты и спецификации проекта будут удалены безвозвратно."
-            okText="Удалить"
-            cancelText="Отмена"
-            okButtonProps={{ danger: true }}
-            onConfirm={() => delMut.mutate(p.id)}
-          >
-            <Button type="link" danger>Удалить</Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ];
-
   return (
     <>
       <Row className="projects-page-layout" gutter={12} align="top">
-        <Col className="projects-page-sidebar" flex="0 0 240px">
-          <Card size="small" className="projects-page-sidebar-card">
-            <div className="projects-page-sidebar-heading">
-              <Text strong className="projects-page-sidebar-title">
-                <FolderOutlined className="projects-page-sidebar-icon" />
-                Проекты
-              </Text>
-            </div>
-
-            <Space direction="vertical" style={{ width: '100%' }} size={8}>
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                block
-                size="small"
-                onClick={() => setCreateOpen(true)}
-              >
-                Новый проект
-              </Button>
-
-              {isEmployee && (
-                <div>
-                  <Text className="projects-page-filter-label">Владелец</Text>
-                  <Segmented<OwnerFilter>
-                    block
-                    size="small"
-                    value={ownerFilter}
-                    onChange={setOwner}
-                    options={[
-                      { label: 'Все', value: 'all' },
-                      { label: 'Мои', value: 'mine' },
-                    ]}
-                    className="projects-page-filter-control"
-                  />
-                </div>
-              )}
-
-              <div>
-                <Text className="projects-page-filter-label">Тип проекта</Text>
-                <Select<ProjectTypeFilter>
-                  aria-label="Тип проекта"
-                  value={typeFilter}
-                  onChange={setTypeFilter}
-                  size="small"
-                  style={{ width: '100%', marginTop: 4 }}
-                  options={[
-                    { label: 'Все типы', value: 'all' },
-                    { label: 'Пустые', value: 'empty' },
-                    { label: 'Смешанные', value: 'mixed' },
-                    { label: OBJECT_TYPE_LABELS.pipe, value: 'pipe' },
-                    { label: OBJECT_TYPE_LABELS.tank, value: 'tank' },
-                    { label: OBJECT_TYPE_LABELS.pump, value: 'pump' },
-                    { label: OBJECT_TYPE_LABELS.platform, value: 'platform' },
-                  ]}
-                />
-              </div>
-
-              <div>
-                <Text className="projects-page-filter-label">Содержит объект</Text>
-                <Select<ObjectType | 'all'>
-                  aria-label="Содержит объект"
-                  value={containsType}
-                  onChange={setContainsType}
-                  size="small"
-                  style={{ width: '100%', marginTop: 4 }}
-                  options={[
-                    { label: 'Любой', value: 'all' },
-                    { label: OBJECT_TYPE_LABELS.pipe, value: 'pipe' },
-                    { label: OBJECT_TYPE_LABELS.tank, value: 'tank' },
-                    { label: OBJECT_TYPE_LABELS.pump, value: 'pump' },
-                    { label: OBJECT_TYPE_LABELS.platform, value: 'platform' },
-                  ]}
-                />
-              </div>
-
-              <div>
-                <Text className="projects-page-filter-label">Год создания</Text>
-                <Select<number | 'all'>
-                  aria-label="Год создания"
-                  value={yearFilter}
-                  onChange={setYearFilter}
-                  size="small"
-                  style={{ width: '100%', marginTop: 4 }}
-                  options={[
-                    { label: 'Все годы', value: 'all' },
-                    ...availableYears.map((y) => ({ label: String(y), value: y })),
-                  ]}
-                />
-              </div>
-
-              <div>
-                <Text className="projects-page-filter-label">Статус</Text>
-                <Select<StatusFilter>
-                  aria-label="Статус"
-                  value={statusFilter}
-                  onChange={setStatus}
-                  size="small"
-                  style={{ width: '100%', marginTop: 4 }}
-                  options={[
-                    { label: 'Все статусы', value: 'all' },
-                    { label: 'Черновик',    value: 'draft' },
-                    { label: 'Завершён',    value: 'completed' },
-                  ]}
-                />
-              </div>
-
-              <div>
-                <Text className="projects-page-filter-label">№ задачи</Text>
-                <Input.Search
-                  placeholder="Поиск"
-                  value={taskSearch}
-                  onChange={(e) => setTaskSearch(e.target.value)}
-                  allowClear
-                  size="small"
-                  className="projects-page-filter-control"
-                />
-              </div>
-
-              <div>
-                <Text className="projects-page-filter-label">Название</Text>
-                <Input.Search
-                  placeholder="По названию"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  allowClear
-                  size="small"
-                  className="projects-page-filter-control"
-                />
-              </div>
-
-              {filtersDirty && (
-                <Button size="small" block onClick={resetFilters}>
-                  Сбросить фильтры
-                </Button>
-              )}
-            </Space>
-
-            <div className="projects-page-stats">
-              <Text className="projects-page-stats-total">
-                Всего: <strong>{projects.length}</strong>
-              </Text>
-              {filtersDirty && (
-                <Text className="projects-page-stats-filtered">
-                  Показано: <strong>{filtered.length}</strong>
-                </Text>
-              )}
-            </div>
-          </Card>
-        </Col>
-
-        <Col className="projects-page-main" flex="1">
-          <Card
-            size="small"
-            className="projects-page-list-card"
-            title={(
-              <Space className="projects-list-title" size={8}>
-                <Text strong>Список проектов</Text>
-                <Text type="secondary">
-                  {filtered.length} из {projects.length}
-                </Text>
-              </Space>
-            )}
-            extra={
-              <Space className="projects-page-card-actions">
-                <Button
-                  size="small"
-                  icon={<UploadOutlined />}
-                  aria-label="Загрузить CSV"
-                  loading={importSingleMut.isPending}
-                  onClick={() => singleFileInputRef.current?.click()}
-                >
-                  Загрузить CSV
-                </Button>
-                {isEmployee && (
-                  <>
-                    <Button
-                      size="small"
-                      icon={<DownloadOutlined />}
-                      aria-label={selectedIds.length
-                        ? `Экспорт выбранных (${selectedIds.length})`
-                        : 'Экспорт всех'}
-                      onClick={exportBulk}
-                    >
-                      {selectedIds.length
-                        ? `Экспорт выбранных (${selectedIds.length})`
-                        : 'Экспорт всех'}
-                    </Button>
-                    <Button
-                      size="small"
-                      icon={<UploadOutlined />}
-                      aria-label="Пакетная загрузка"
-                      loading={importBulkMut.isPending}
-                      onClick={() => bulkFileInputRef.current?.click()}
-                    >
-                      Пакетная загрузка
-                    </Button>
-                  </>
-                )}
-                <input
-                  ref={singleFileInputRef}
-                  type="file"
-                  accept=".csv,text/csv"
-                  className="projects-page-file-input"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) importSingleMut.mutate(f);
-                    e.target.value = '';
-                  }}
-                />
-                <input
-                  ref={bulkFileInputRef}
-                  type="file"
-                  accept=".csv,text/csv"
-                  className="projects-page-file-input"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) importBulkMut.mutate(f);
-                    e.target.value = '';
-                  }}
-                />
-              </Space>
-            }
-          >
-            {projectsError && projects.length === 0 && (
-              <div className="projects-page-error">
-                <QueryError
-                  error={projectsErrorObj}
-                  title="Не удалось загрузить список проектов"
-                  onRetry={() => refetchProjects()}
-                  retrying={projectsFetching}
-                />
-              </div>
-            )}
-            <Table<Project>
-              rowKey="id"
-              columns={columns}
-              dataSource={filtered}
-              size="small"
-              pagination={{ pageSize: 20, showSizeChanger: false }}
-              locale={{ emptyText: 'Проекты не найдены' }}
-              rowSelection={
-                isEmployee
-                  ? {
-                      selectedRowKeys: selectedIds,
-                      onChange: (keys) => setSelectedIds(keys as string[]),
-                      getCheckboxProps: (record) => ({
-                        title: `Выбрать проект ${record.name}`,
-                      }),
-                    }
-                  : undefined
-              }
-              scroll={{ x: 980 }}
-            />
-          </Card>
-        </Col>
+        <ProjectsPageFilters
+          isEmployee={isEmployee}
+          ownerFilter={ownerFilter}
+          onOwnerChange={setOwner}
+          typeFilter={typeFilter}
+          onTypeFilterChange={setTypeFilter}
+          containsType={containsType}
+          onContainsTypeChange={setContainsType}
+          yearFilter={yearFilter}
+          onYearFilterChange={setYearFilter}
+          availableYears={availableYears}
+          statusFilter={statusFilter}
+          onStatusChange={setStatus}
+          taskSearch={taskSearch}
+          onTaskSearchChange={setTaskSearch}
+          search={search}
+          onSearchChange={setSearch}
+          filtersDirty={filtersDirty}
+          onResetFilters={resetFilters}
+          totalCount={projects.length}
+          filteredCount={filtered.length}
+          onCreateClick={() => setCreateOpen(true)}
+        />
+        <ProjectsPageList
+          projects={projects}
+          filtered={filtered}
+          isEmployee={isEmployee}
+          selectedIds={selectedIds}
+          onSelectedIdsChange={setSelectedIds}
+          projectsError={projectsError}
+          projectsErrorObj={projectsErrorObj}
+          projectsFetching={projectsFetching}
+          onRetry={() => refetchProjects()}
+          onOpen={(p) => {
+            setCurrent(p);
+            navigate('/workspace/heat-calc');
+          }}
+          onDuplicate={(id) => duplicateMut.mutate(id)}
+          duplicatePending={duplicateMut.isPending}
+          duplicateVariables={duplicateMut.variables}
+          onExportOne={exportOne}
+          onExportBulk={exportBulk}
+          onDelete={(id) => delMut.mutate(id)}
+          onImportSingle={(file) => importSingleMut.mutate(file)}
+          onImportBulk={(file) => importBulkMut.mutate(file)}
+          importSinglePending={importSingleMut.isPending}
+          importBulkPending={importBulkMut.isPending}
+        />
       </Row>
 
-      <Modal
-        title="Создать проект"
+      <ProjectsPageCreateModal
         open={createOpen}
+        name={newName}
+        taskNumber={newTaskNumber}
+        confirmLoading={createMut.isPending}
+        onNameChange={setNewName}
+        onTaskNumberChange={setNewTaskNumber}
         onCancel={() => {
           setCreateOpen(false);
           setNewName('');
           setNewTaskNumber('');
         }}
-        onOk={() => createMut.mutate()}
-        confirmLoading={createMut.isPending}
-        okText="Создать"
-        cancelText="Отмена"
-        okButtonProps={{ disabled: !newName.trim() }}
-      >
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <Input
-            placeholder="Название проекта"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            onPressEnter={() => newName.trim() && createMut.mutate()}
-            autoFocus
-          />
-          <Input
-            placeholder="Номер задачи (необязательно)"
-            value={newTaskNumber}
-            onChange={(e) => setNewTaskNumber(e.target.value)}
-            maxLength={64}
-          />
-        </Space>
-      </Modal>
+        onSubmit={() => createMut.mutate()}
+      />
     </>
   );
 }

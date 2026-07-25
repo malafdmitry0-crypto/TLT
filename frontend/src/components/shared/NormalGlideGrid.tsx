@@ -21,6 +21,7 @@ import {
   type HeatCalcNormalGlideDraftInvalidator,
 } from '@/hooks/useHeatCalcNormalGlideController';
 import type { NormalGlideInfiniteLoading } from '@/components/shared/normalGlideTypes';
+import { GLIDE_THEME } from '@/utils/glideGridPrimitives';
 
 /** @deprecated Prefer NormalGlideInfiniteLoading — heat-era alias. */
 export type HeatCalcNormalInfiniteLoading = NormalGlideInfiniteLoading;
@@ -226,11 +227,11 @@ function HeatCalcNormalGlideGrid({
         onRowMoved={onRowMoved}
         getRowThemeOverride={getRowThemeOverride}
         theme={{
-          accentColor: '#1a5276',
-          accentLight: '#dbeeff',
-          bgCell: '#ffffff',
-          bgHeader: '#f3f6f4',
-          borderColor: '#d9d9d9',
+          accentColor: GLIDE_THEME.accent,
+          accentLight: GLIDE_THEME.accentLight,
+          bgCell: GLIDE_THEME.bgCell,
+          bgHeader: GLIDE_THEME.bgHeader,
+          borderColor: GLIDE_THEME.border,
           fontFamily: 'inherit',
           baseFontStyle: `${fontSize.fontSizePx}px inherit`,
           headerFontStyle: `600 ${fontSize.fontSizePx}px inherit`,

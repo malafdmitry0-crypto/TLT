@@ -1,4 +1,5 @@
-import { Tag, Tooltip } from 'antd';
+import { Tooltip } from 'antd';
+import { TltBadge } from '@/components/ui-kit';
 import {
   CheckCircleFilled,
   CloseCircleFilled,
@@ -73,37 +74,36 @@ export function buildHeatCalcColumnRenderers({
         if (status === 'calculated') {
           return (
             <Tooltip title="Рассчитан">
-              <Tag className="heatloss-status-icon-tag" color="success" aria-label="Рассчитан">
+              <TltBadge className="heatloss-status-icon-tag" aria-label="Рассчитан" tone="success">
                 <CheckCircleFilled />
-              </Tag>
+              </TltBadge>
             </Tooltip>
           );
         }
         if (status === 'error') {
           return (
             <Tooltip title={heatLossErrorText(r)}>
-              <Tag className="heatloss-status-icon-tag" color="error" aria-label="Ошибка">
+              <TltBadge className="heatloss-status-icon-tag" aria-label="Ошибка" tone="danger">
                 <CloseCircleFilled />
-              </Tag>
+              </TltBadge>
             </Tooltip>
           );
         }
         if (status === 'unsupported') {
           return (
             <Tooltip title={heatLossErrorText(r)}>
-              <Tag
+              <TltBadge
                 className="heatloss-status-icon-tag"
-                color="default"
                 aria-label="Не применимо"
-              >
+               tone="neutral">
                 <MinusCircleFilled />
-              </Tag>
+              </TltBadge>
             </Tooltip>
           );
         }
         return (
           <Tooltip title="Не рассчитан">
-            <Tag className="heatloss-status-icon-tag" aria-label="Не рассчитан">—</Tag>
+            <TltBadge className="heatloss-status-icon-tag" aria-label="Не рассчитан" tone="neutral">—</TltBadge>
           </Tooltip>
         );
       },

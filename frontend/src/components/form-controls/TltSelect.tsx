@@ -109,10 +109,17 @@ export default function TltSelect({
     && selectedKey !== undefined;
 
   return (
-    <span className={joinClassNames('tlt-select-shell', hasClearableValue && 'tlt-select-shell--clearable')}>
+    <span
+      className={joinClassNames(
+        'tlt-select-shell',
+        hasClearableValue && 'tlt-select-shell--clearable',
+        className,
+      )}
+      style={style}
+    >
       <Select
         aria-label={resolvedAriaLabel}
-        className={joinClassNames('tlt-select', className)}
+        className="tlt-select"
         defaultSelectedKey={defaultSelectedKey}
         id={baseId}
         isDisabled={disabled}
@@ -122,7 +129,6 @@ export default function TltSelect({
         onSelectionChange={(key) => onChange?.(resolveSelectedValue(key, options))}
         placeholder={placeholder}
         selectedKey={selectedKey}
-        style={style}
         validationBehavior="aria"
       >
         <Button

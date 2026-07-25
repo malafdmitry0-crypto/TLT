@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from 'react';
-import { Space, Tag } from 'antd';
+import { Space } from 'antd';
+import { TltBadge } from '@/components/ui-kit';
 
 import type { CableInfo, CableSource } from '@/api/calculations';
 import {
@@ -47,12 +48,12 @@ export function useElecCalcCableMarkOptions({
   const optionWithSourceLabel = useCallback((label: string, source?: CableMarkOptionSource | null) => {
     if (source !== 'extended' && source !== 'project') return label;
     const tag = source === 'extended'
-      ? { color: 'blue', label: 'внеш.' }
-      : { color: 'green', label: 'проект' };
+      ? { tone: 'info' as const, label: 'внеш.' }
+      : { tone: 'success' as const, label: 'проект' };
     return (
       <Space size={6}>
         <span>{label}</span>
-        <Tag color={tag.color} style={{ marginInlineEnd: 0 }}>{tag.label}</Tag>
+        <TltBadge tone={tag.tone} className="electrical-inline-tag">{tag.label}</TltBadge>
       </Space>
     );
   }, []);

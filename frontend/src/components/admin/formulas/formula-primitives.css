@@ -1,0 +1,264 @@
+/* OWNER: admin formulas — primitives, displays, calc result chrome */
+
+/* ── Variable roles (palette presentation; matches formulaPrimitives C) ── */
+.formula-var {
+  font-weight: 500;
+}
+
+.formula-var--bold {
+  font-weight: 700;
+}
+
+.formula-var--result {
+  color: var(--color-formula-result);
+}
+.formula-var--temp {
+  color: var(--color-formula-temp);
+}
+.formula-var--geom {
+  color: var(--color-formula-geom);
+}
+.formula-var--resist {
+  color: var(--color-formula-resist);
+}
+.formula-var--coeff {
+  color: var(--color-formula-coeff);
+}
+.formula-var--unit {
+  color: var(--color-formula-unit);
+}
+.formula-var--label {
+  color: var(--color-formula-label);
+}
+.formula-var--req {
+  color: var(--color-formula-req);
+}
+
+/* ── Fraction ── */
+.formula-frac {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  vertical-align: middle;
+  margin: 0 3px;
+  line-height: 1.25;
+}
+
+.formula-frac__num {
+  border-bottom: 1.5px solid var(--color-text-heading);
+  padding: 0 4px 2px;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.formula-frac__den {
+  padding: 2px 4px 0;
+  white-space: nowrap;
+  text-align: center;
+}
+
+/* ── Super/sub scripts ── */
+.formula-sub {
+  font-size: 0.72em;
+  line-height: 0;
+}
+
+.formula-sup {
+  font-size: 0.7em;
+  line-height: 0;
+}
+
+/* ── Formula line ── */
+.formula-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  font-size: 15.5px;
+  line-height: 2.4;
+}
+
+.formula-line--indent {
+  margin-left: 24px;
+}
+
+/* ── Formula box ── */
+.formula-box {
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-meta-panel-border);
+  border-left: 4px solid var(--color-formula-result);
+  border-radius: 0 8px 8px 0;
+  padding: 14px 20px;
+  margin-bottom: 12px;
+  overflow-x: auto;
+}
+
+.formula-box--result {
+  border-left-color: var(--color-formula-result);
+}
+
+.formula-box--temp {
+  border-left-color: var(--color-formula-temp);
+}
+
+.formula-box--geom {
+  border-left-color: var(--color-formula-geom);
+}
+
+.formula-box--resist {
+  border-left-color: var(--color-formula-resist);
+}
+
+.formula-box--coeff {
+  border-left-color: var(--color-formula-coeff);
+}
+
+.formula-box--unit {
+  border-left-color: var(--color-formula-unit);
+}
+
+.formula-box--label {
+  border-left-color: var(--color-formula-label);
+}
+
+.formula-box--req {
+  border-left-color: var(--color-formula-req);
+}
+
+/* ── Sub-title + variable legend ── */
+.formula-subtitle {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-formula-muted);
+  text-transform: uppercase;
+  letter-spacing: 0;
+  margin: 14px 0 4px;
+}
+
+.formula-var-legend {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  font-size: 12.5px;
+  margin-top: 10px;
+}
+
+.formula-var-legend__sym {
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--color-formula-label);
+}
+
+.formula-var-legend__sym--result {
+  color: var(--color-formula-result);
+}
+.formula-var-legend__sym--temp {
+  color: var(--color-formula-temp);
+}
+.formula-var-legend__sym--geom {
+  color: var(--color-formula-geom);
+}
+.formula-var-legend__sym--resist {
+  color: var(--color-formula-resist);
+}
+.formula-var-legend__sym--coeff {
+  color: var(--color-formula-coeff);
+}
+.formula-var-legend__sym--unit {
+  color: var(--color-formula-unit);
+}
+.formula-var-legend__sym--label {
+  color: var(--color-formula-label);
+}
+.formula-var-legend__sym--req {
+  color: var(--color-formula-req);
+}
+
+.formula-var-legend__desc {
+  color: var(--color-formula-label);
+}
+
+/* ── Formula display helpers ── */
+.formula-display-divider.ant-divider {
+  margin: 10px 0;
+}
+
+.formula-inline-stack {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Line labels inside formula displays (static presentation) */
+.formula-line-label {
+  color: var(--color-formula-label);
+}
+
+.formula-line-label--gutter {
+  margin-right: 8px;
+}
+
+.formula-line-label--w72 {
+  width: 72px;
+}
+
+.formula-line-label--w92 {
+  width: 92px;
+}
+
+.formula-line-label--w118 {
+  width: 118px;
+}
+
+.formula-line-label--w140 {
+  width: 140px;
+}
+
+.formula-line-label--w160 {
+  width: 160px;
+}
+
+.formula-line-note {
+  color: var(--color-formula-unit);
+}
+
+/* ── Calc result cards ── */
+.formula-result-card {
+  margin-top: 16px;
+}
+
+.formula-result-card--result {
+  border-color: var(--color-formula-result);
+}
+
+.formula-result-card--result .ant-card-head {
+  background: var(--color-formula-result-header-bg);
+  border-bottom: 1px solid var(--color-formula-result-header-border);
+}
+
+.formula-result-card--cable {
+  border-color: var(--color-formula-cable);
+}
+
+.formula-result-card--cable .ant-card-head {
+  background: var(--color-formula-cable-header-bg);
+  border-bottom: 1px solid var(--color-formula-cable-header-border);
+}
+
+.formula-result-card__title--result {
+  color: var(--color-formula-result);
+}
+
+.formula-result-card__title--cable {
+  color: var(--color-formula-cable);
+}
+
+.formula-result-card__value--result {
+  color: var(--color-formula-result);
+  font-size: 16px;
+}
+
+.formula-result-card__value--cable {
+  color: var(--color-formula-cable);
+  font-size: 16px;
+}

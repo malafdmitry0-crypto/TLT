@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react';
-import { Button, Input, Modal, Space, Typography, message } from 'antd';
+import { Modal, Space, Typography, message } from 'antd';
 import { DownloadOutlined, FolderOpenOutlined, UploadOutlined } from '@ant-design/icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { TltButton, TltTextField } from '@/components/ui-kit';
 import {
   createProject,
   exportProjectCsv,
@@ -10,6 +11,7 @@ import {
 import { useProjectStore } from '@/store/projectStore';
 import { useAuthStore } from '@/store/authStore';
 import { useLocation, useNavigate } from 'react-router-dom';
+import './layout-chrome.css';
 
 const { Text } = Typography;
 
@@ -88,7 +90,7 @@ export default function ProjectMenu() {
             Загрузка CSV заменит текущий проект «{currentProject.name}» данными из файла.
             Несохранённые изменения в браузере будут потеряны.
           </p>
-          <p style={{ marginBottom: 0 }}>
+          <p className="project-menu-hint">
             При ошибке разбора файла текущий проект останется без изменений.
           </p>
         </div>
@@ -116,13 +118,7 @@ export default function ProjectMenu() {
         <Space className="project-menu-current" size={3}>
           <FolderOpenOutlined className="project-menu-current-icon" />
           <Text
-            className="project-menu-current-name"
-            style={{
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              display: 'inline-block',
-            }}
+            className="project-menu-current-name project-menu-name"
             title={currentProject.name}
           >
             {currentProject.name}
@@ -132,23 +128,23 @@ export default function ProjectMenu() {
 
       {!isProjectsPage && isEmployee && (
         <>
-          <Button type="primary" onClick={() => setOpen(true)}>
+          <TltButton variant="primary" onClick={() => setOpen(true)}>
             Новый проект
-          </Button>
-          <Button onClick={() => navigate('/projects')}>Открыть</Button>
+          </TltButton>
+          <TltButton onClick={() => navigate('/projects')}>Открыть</TltButton>
         </>
       )}
       {!isProjectsPage && (
         <>
-          <Button
+          <TltButton
             icon={<DownloadOutlined />}
             onClick={handleExport}
             disabled={!currentProject}
             title="Скачать проект (CSV)"
           >
             Скачать
-          </Button>
-          <Button
+          </TltButton>
+          <TltButton
             icon={<UploadOutlined />}
             onClick={handleImportClick}
             loading={importMut.isPending}
@@ -156,12 +152,12 @@ export default function ProjectMenu() {
             data-testid="project-menu-import-csv"
           >
             Загрузить
-          </Button>
+          </TltButton>
           <input
             ref={fileInputRef}
             type="file"
             accept=".csv,text/csv"
-            style={{ display: 'none' }}
+            className="project-menu-file-input"
             data-testid="project-menu-import-file-input"
             onChange={handleFileChange}
           />
@@ -178,17 +174,20 @@ export default function ProjectMenu() {
         okButtonProps={{ disabled: !name.trim() }}
       >
         <Space direction="vertical" style={{ width: '100%' }}>
-          <Input
+          <TltTextField
             placeholder="Название проекта"
+            aria-label="Название проекта"
             value={name}
-            onChange={(e) => setName(e.target.value)}
-            onPressEnter={() => name.trim() && createMut.mutate()}
-            autoFocus
+            onChange={setName}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && name.trim()) createMut.mutate();
+            }}
           />
-          <Input
+          <TltTextField
             placeholder="Номер задачи (необязательно)"
+            aria-label="Номер задачи (необязательно)"
             value={taskNumber}
-            onChange={(e) => setTaskNumber(e.target.value)}
+            onChange={setTaskNumber}
             maxLength={64}
           />
         </Space>

@@ -9,7 +9,6 @@ import {
   type KeyboardEvent,
   type RefObject,
 } from 'react';
-import type { InputRef } from 'antd';
 import { extractApiErrorMessage } from '@/api/client';
 import type { ElectricalVariant } from '@/types/electricalVariant';
 
@@ -32,7 +31,7 @@ export function useElectricalVariantRename({
   const [editingVariantId, setEditingVariantId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [renameValidationError, setRenameValidationError] = useState<string | null>(null);
-  const renameInputRef = useRef<InputRef>(null);
+  const renameInputRef = useRef<HTMLInputElement>(null);
   const focusVariantAfterEditRef = useRef<string | null>(null);
   const renameSubmissionRef = useRef(false);
   const cancelRenameRef = useRef(false);
@@ -47,7 +46,10 @@ export function useElectricalVariantRename({
 
   useEffect(() => {
     if (editingVariantId) {
-      renameInputRef.current?.focus({ cursor: 'all' });
+      const node = renameInputRef.current;
+      if (!node) return;
+      node.focus();
+      node.select();
     }
   }, [editingVariantId]);
 

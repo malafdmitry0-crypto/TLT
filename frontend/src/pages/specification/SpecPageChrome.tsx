@@ -4,13 +4,10 @@
  */
 import type { ReactNode } from 'react';
 import {
-  Button,
   Checkbox,
   Drawer,
-  InputNumber,
   Modal,
   Segmented,
-  Select,
   Space,
   Typography,
 } from 'antd';
@@ -31,6 +28,7 @@ import type {
 } from '@/api/specifications';
 import type { Specification, SpecificationItem } from '@/types/specification';
 import '../workflow-params.css';
+import './specification-page.css';
 
 const { Text } = Typography;
 
@@ -128,24 +126,19 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
         <div className="specification-settings-body" data-testid="spec-params-panel">
           <section className="specification-settings-section">
             <Text strong>ЭР и резерв R,гр</Text>
-            <Text type="secondary" style={{ display: 'block', fontSize: 12, margin: '6px 0 10px' }}>
+            <Text type="secondary" className="specification-settings-intro">
               Канонический режим: полный data-driven BOM (PDL-ER-29).
             </Text>
-            {/* Multi-select remains Ant Design — TltSelect is single-value only. */}
             <CompactField
               className="specification-settings-field"
               layout="vertical"
               label="ЭР для генерации"
               controlWidth="100%"
             >
-              <Select
-                mode="multiple"
-                size="small"
-                allowClear
-                style={{ minWidth: 220, width: '100%' }}
-                placeholder="Выберите ЭР"
+              <Checkbox.Group
+                className="specification-settings-er-checkbox-group"
                 value={selectedGenerateErIds}
-                onChange={(ids: string[]) => setSelectedGenerateErIds(ids)}
+                onChange={(ids) => setSelectedGenerateErIds(ids as string[])}
                 options={availableGenerateVariants.map((item) => ({
                   value: item.id,
                   label: item.name,
@@ -153,10 +146,9 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
                 aria-label="Выбор ЭР для генерации спецификации"
               />
             </CompactField>
-            <div style={{ marginTop: 8 }}>
+            <div className="specification-settings-er-actions">
               <TltButton
                 type="button"
-                size="compact"
                 variant="secondary"
                 onClick={() => setSelectedGenerateErIds(availableGenerateVariants.map((item) => item.id))}
                 disabled={availableGenerateVariants.length === 0}
@@ -178,7 +170,7 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
                 disabled={!canMutateProject || !fullModeActive}
                 value={reserveCoeff}
                 onChange={(v) => setReserveCoeff(Number(v ?? 1))}
-                style={{ width: '100%' }}
+                className="specification-settings-field-full"
               />
             </CompactField>
             <CompactField
@@ -245,7 +237,7 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
                     disabled={!canMutateProject}
                     value={minLengthK2i}
                     onChange={(v) => setMinLengthK2i(Number(v ?? 0))}
-                    style={{ width: '100%' }}
+                    className="specification-settings-field-full"
                     unit="м"
                   />
                 </CompactField>
@@ -255,11 +247,10 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
 
           <section className="specification-settings-section">
             <Text strong>Отображение</Text>
-            <div style={{ marginTop: 10 }}>
-              <Text style={{ fontSize: 12, color: '#888' }}>Группировка</Text>
+            <div className="specification-settings-display">
+              <Text className="specification-settings-display-label">Группировка</Text>
               <Segmented<GroupBy>
                 block
-                size="small"
                 value={groupBy}
                 onChange={setGroupBy}
                 options={[
@@ -268,32 +259,24 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
                   { label: 'Ед.', value: 'unit' },
                   { label: 'Нет', value: 'none' },
                 ]}
-                style={{ marginTop: 4 }}
+                className="specification-settings-group-by"
               />
               <Checkbox
                 checked={mergeIdentical}
                 onChange={(e) => setMergeIdentical(e.target.checked)}
-                style={{ fontSize: 12, marginTop: 10 }}
+                className="specification-settings-merge"
               >
                 Объединить одинаковые (base+код)
               </Checkbox>
             </div>
-            <div
-              style={{
-                marginTop: 12,
-                padding: '8px 10px',
-                background: '#f6f8fa',
-                borderRadius: 6,
-                border: '1px solid #e8e8e8',
-              }}
-            >
-              <Text style={{ fontSize: 12, display: 'block' }}>
+            <div className="specification-settings-stats">
+              <Text className="specification-settings-stats-line">
                 Позиций: <strong>{items.length}</strong>
                 {' · '}
                 категорий: <strong>{categoriesCount}</strong>
               </Text>
               {projectSettings?.version != null && (
-                <Text style={{ fontSize: 11, color: '#888', display: 'block', marginTop: 4 }}>
+                <Text className="specification-settings-stats-meta">
                   Project defaults v{projectSettings.version}
                   {typeof spec?.generation_options?.settings_version === 'number'
                     ? ` · snapshot v${spec.generation_options.settings_version as number}`
@@ -304,12 +287,11 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
           </section>
 
           <section className="specification-settings-section">
-            <Space direction="vertical" style={{ width: '100%' }} size={8}>
-              <Button
-                type="primary"
+            <Space direction="vertical" className="tlt-field--fill" size={8}>
+              <TltButton
+                variant="primary"
                 icon={<ReloadOutlined />}
-                block
-                loading={mut.isPending}
+                className="specification-settings-action"
                 disabled={!canMutateProject}
                 onClick={() => {
                   runGenerate(false);
@@ -317,20 +299,19 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
                 }}
               >
                 {hasItems ? 'Пересчитать' : 'Сформировать'}
-              </Button>
-              <Button
-                block
-                loading={saveDefaultsMut.isPending}
+              </TltButton>
+              <TltButton
+                className="specification-settings-action"
                 disabled={!canMutateProject}
                 onClick={() => saveDefaultsMut.mutate()}
                 aria-label="Сохранить defaults спецификации"
               >
                 Сохранить defaults
-              </Button>
+              </TltButton>
               {canManuallyEdit && (
-                <Button
+                <TltButton
                   icon={<PlusOutlined />}
-                  block
+                  className="specification-settings-action"
                   disabled={!hasItems || isSpecStale}
                   onClick={() => {
                     toggleSettings(false);
@@ -338,7 +319,7 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
                   }}
                 >
                   Добавить из БД
-                </Button>
+                </TltButton>
               )}
             </Space>
           </section>
@@ -355,28 +336,28 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
         cancelText="Отмена"
         okButtonProps={{ disabled: !selectedAccessoryId || qty <= 0 }}
       >
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <Select<string>
-            showSearch
+        <Space direction="vertical" className="tlt-field--fill">
+          <TltSelect
             placeholder="Выберите аксессуар"
             value={selectedAccessoryId ?? undefined}
-            onChange={setSelectedAccessoryId}
-            style={{ width: '100%' }}
-            optionFilterProp="label"
+            onChange={(value) => setSelectedAccessoryId(value == null ? null : String(value))}
+            className="tlt-field--fill"
             options={accessories.map((a) => ({
               value: a.id,
               label: `${a.category} · ${a.name}${a.article ? ` (${a.article})` : ''}`,
             }))}
+            aria-label="Выберите аксессуар"
           />
-          <InputNumber
+          <TltNumberField
             min={0.1}
             step={1}
             value={qty}
             onChange={(v) => setQty(Number(v ?? 1))}
-            style={{ width: '100%' }}
+            className="specification-settings-field-full"
             placeholder="Количество"
+            aria-label="Количество"
           />
-          <Text type="secondary" style={{ fontSize: 12 }}>
+          <Text type="secondary" className="specification-add-hint">
             Ручные позиции помечены тегом «ручная». При пересчёте они удаляются — добавьте
             заново после генерации.
           </Text>
@@ -394,7 +375,7 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
         cancelText="Отмена"
         confirmLoading={mut.isPending}
       >
-        <pre style={{ whiteSpace: 'pre-wrap', margin: 0, fontFamily: 'inherit' }}>
+        <pre className="specification-preflight-summary">
           {preflightSummary}
         </pre>
       </Modal>

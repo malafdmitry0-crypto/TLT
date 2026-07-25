@@ -1,10 +1,12 @@
-import { Select, Space, Tag, Typography, message } from 'antd';
+import { Space, Typography, message } from 'antd';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   selectCableManual,
   type CableInfo,
   type CableSource,
 } from '@/api/calculations';
+import { TltSelect } from '@/components/ui-kit';
+import './cable-selector.css';
 
 const { Text } = Typography;
 
@@ -45,35 +47,23 @@ export default function CableSelector({
 
   const options = cables.map((c) => ({
     value: c.model,
-    label: (
-      <Space size={4}>
-        <span>
-          {c.model} — {c.power_per_meter} Вт/м (T: {c.min_temperature}…{c.max_temperature}°C)
-        </span>
-        {c.source === 'extended' && (
-          <Tag color="purple" style={{ marginLeft: 4 }}>
-            ext
-          </Tag>
-        )}
-      </Space>
-    ),
+    label: `${c.model} — ${c.power_per_meter} Вт/м (T: ${c.min_temperature}…${c.max_temperature}°C)${c.source === 'extended' ? ' [ext]' : ''}`,
   }));
 
   return (
-    <Space size={6} style={{ marginTop: 12 }}>
-      <Text type="secondary" style={{ fontSize: 12 }}>
+    <Space size={6} className="cable-selector-actions">
+      <Text type="secondary" className="cable-selector-hint">
         Выбрать вручную:
       </Text>
-      <Select
-        size="small"
-        style={{ minWidth: 300 }}
+      <TltSelect className="tlt-field--min-w300"
         placeholder="Марка кабеля ТЛТ"
         value={currentMark ?? undefined}
-        loading={mut.isPending}
+        disabled={mut.isPending}
         options={options}
-        onChange={(v) => mut.mutate(v)}
-        showSearch
-        optionFilterProp="label"
+        onChange={(v) => {
+          if (v != null) mut.mutate(String(v));
+        }}
+        aria-label="Марка кабеля ТЛТ"
       />
     </Space>
   );

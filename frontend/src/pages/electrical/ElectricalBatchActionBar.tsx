@@ -1,13 +1,12 @@
 import { memo, type ReactNode } from 'react';
 import {
-  Button,
   Popconfirm,
-  Select,
   Space,
   Tooltip,
   Typography,
   type SelectProps,
 } from 'antd';
+import { TltButton, TltSelect } from '@/components/ui-kit';
 import {
   CloseCircleOutlined,
   ReloadOutlined,
@@ -92,18 +91,22 @@ function ElectricalBatchActionBar({
   return (
     <div className="actionbar-srs electrical-actionbar">
       <div className="electrical-actionbar-row electrical-actionbar-row--setup">
-        <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>
+        <Text className="electrical-params-label">
           {cableTypeControlLabel}
         </Text>
-        <Select<CableTypeKey>
+        <TltSelect
           aria-label="Тип кабеля для пересчёта"
-          size="small"
           value={visibleCableTypeControl ?? undefined}
           placeholder="Несколько типов"
           disabled={!canMutate || isJobActive}
-          onChange={onCableTypeChange}
-          options={cableTypeOptions}
-          style={{ width: 210 }}
+          onChange={(value) => {
+            if (value != null) onCableTypeChange(value as CableTypeKey);
+          }}
+          options={(cableTypeOptions ?? []).map((option) => ({
+            value: option.value as string,
+            label: option.label ?? String(option.value),
+            disabled: option.disabled,
+          }))} className="tlt-field--w210"
         />
         {typeControls}
       </div>
@@ -133,31 +136,31 @@ function ElectricalBatchActionBar({
           >
             <Tooltip title={canMutate ? selectedRecalcTooltip : 'Только владелец проекта или администратор может пересчитывать ЭР'}>
               <span>
-                <Button
-                  size="small"
-                  type="primary"
+                <TltButton
+                  size="compact"
+                  variant="primary"
                   icon={<ReloadOutlined />}
                   loading={batchPending || isJobActive}
                   disabled={!canMutate || selectedRecalcDisabled}
                 >
                   Пересчитать выбранные ({selectedRecalcCountLabel})
-                </Button>
+                </TltButton>
               </span>
             </Tooltip>
           </Popconfirm>
         ) : (
           <Tooltip title={canMutate ? selectedRecalcTooltip : 'Только владелец проекта или администратор может пересчитывать ЭР'}>
             <span>
-              <Button
-                size="small"
-                type="primary"
+              <TltButton
+                size="compact"
+                variant="primary"
                 icon={<ReloadOutlined />}
                 loading={batchPending || isJobActive}
                 disabled={!canMutate || selectedRecalcDisabled}
                 onClick={() => onRecalculateSelected(true)}
               >
                 Пересчитать выбранные ({selectedRecalcCountLabel})
-              </Button>
+              </TltButton>
             </span>
           </Tooltip>
         )}
@@ -183,47 +186,47 @@ function ElectricalBatchActionBar({
           onConfirm={() => onRecalculateAll(!overwriteManualChoices)}
           disabled={!canMutate || validObjectsCount === 0 || isJobActive}
         >
-          <Button
-            size="small"
-            danger
+          <TltButton
+            size="compact"
+            variant="danger"
             icon={<ReloadOutlined />}
             loading={batchPending || isJobActive}
             disabled={!canMutate || validObjectsCount === 0 || isJobActive}
           >
             Пересчитать все · {variantName}
-          </Button>
+          </TltButton>
         </Popconfirm>
         {isJobActive && activeJobId && (
-          <Button
-            size="small"
-            danger
+          <TltButton
+            size="compact"
+            variant="danger"
             icon={<StopOutlined />}
             loading={cancelJobPending}
             disabled={!canMutate}
             onClick={onCancelJob}
           >
             Отменить
-          </Button>
+          </TltButton>
         )}
-        <Button
-          size="small"
+        <TltButton
+          size="compact"
           icon={<TableOutlined />}
           aria-label="Настройки"
           onClick={onOpenColumnSettings}
         >
           Настройки
-        </Button>
+        </TltButton>
         <Tooltip title={currentTableViewActive ? 'Сбросить фильтры и сортировку' : 'Фильтры не активны'}>
           <span className="action-tooltip-wrap">
-            <Button
-              size="small"
+            <TltButton
+              size="compact"
               icon={<CloseCircleOutlined />}
               aria-label="Сбросить фильтры таблицы"
               disabled={!currentTableViewActive}
               onClick={onResetFilters}
             >
               Сбросить фильтры
-            </Button>
+            </TltButton>
           </span>
         </Tooltip>
       </div>

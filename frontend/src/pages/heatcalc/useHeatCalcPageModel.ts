@@ -5,11 +5,10 @@
  * Table session (state/editing/excel selection/focus): useHeatCalcTableSessionController.
  * Workspace query/drafts/data lifecycle: useHeatCalcWorkspaceDataModel (HEAT1).
  * Grid/excel/selection interaction: useHeatCalcInteractionController (HEAT2).
+ * Route context/header: useHeatCalcPageContext.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { message as antdMessage } from 'antd';
-import { useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
 
 import { useHeatCalcBulkActions } from '@/pages/heatcalc/useHeatCalcBulkActions';
 import { useHeatCalcColumnSettingsDialog } from '@/pages/heatcalc/useHeatCalcColumnSettingsDialog';
@@ -17,27 +16,26 @@ import { useHeatCalcContinueToElectrical } from '@/pages/heatcalc/useHeatCalcCon
 import { useHeatCalcHeatLossJob } from '@/pages/heatcalc/useHeatCalcHeatLossJob';
 import { useHeatCalcInteractionController } from '@/pages/heatcalc/useHeatCalcInteractionController';
 import { useHeatCalcObjectEditor } from '@/pages/heatcalc/useHeatCalcObjectEditor';
+import { useHeatCalcPageContext } from '@/pages/heatcalc/useHeatCalcPageContext';
 import { useHeatCalcPreferences } from '@/pages/heatcalc/useHeatCalcPreferences';
 import { useHeatCalcRouteActionsModel } from '@/pages/heatcalc/useHeatCalcRouteActionsModel';
-import { useHeatCalcRouteShellEffects } from '@/pages/heatcalc/useHeatCalcRouteShellEffects';
 import { useHeatCalcTableSessionController } from '@/pages/heatcalc/useHeatCalcTableSessionController';
 import { useHeatCalcWizardFormShellModel } from '@/pages/heatcalc/useHeatCalcWizardFormShellModel';
 import { useHeatCalcWorkspaceDataModel } from '@/pages/heatcalc/useHeatCalcWorkspaceDataModel';
 import { buildHeatCalcLayoutPresentation } from '@/pages/heatcalc/heatCalcLayoutModel';
 import { buildHeatCalcToolbarSavePresentation } from '@/pages/heatcalc/heatCalcToolbarSavePresentation';
-import { useAuthStore } from '@/store/authStore';
-import { useProjectStore } from '@/store/projectStore';
-import { useWorkspaceHeaderStore } from '@/store/workspaceHeaderStore';
 import type { ProjectObject } from '@/types/project';
 import { getDefaultFieldInputSettings } from '@/utils/heatCalcFieldInputSettings';
 
 export function useHeatCalcPageModel() {
-  const queryClient = useQueryClient();
-  const navigate = useNavigate();
-  const project = useProjectStore((s) => s.currentProject);
-  const role = useAuthStore((s) => s.role);
-  const registeredUserId = useAuthStore((s) => s.user?.id ?? null);
-  const isRegisteredUser = role === 'employee' || role === 'admin';
+  const {
+    queryClient,
+    navigate,
+    project,
+    role,
+    registeredUserId,
+    isRegisteredUser,
+  } = useHeatCalcPageContext();
   const [formBlockVisible, setFormBlockVisible] = useState(true);
   const {
     table: t,
@@ -74,12 +72,6 @@ export function useHeatCalcPageModel() {
   } = preferences;
   const fieldInputSettings = useMemo(() => getDefaultFieldInputSettings(), []);
   const [pendingWizardObject, setPendingWizardObject] = useState<ProjectObject | null>(null);
-  const setWorkspaceHeaderContext = useWorkspaceHeaderStore((s) => s.setContext);
-
-  useHeatCalcRouteShellEffects({
-    projectPresent: Boolean(project),
-    setWorkspaceHeaderContext,
-  });
 
   const workspace = useHeatCalcWorkspaceDataModel({
     project, queryClient, commercialFeaturesAvailable, tableEditingMode, tableFindabilityAvailable,

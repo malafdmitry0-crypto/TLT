@@ -153,8 +153,8 @@
 }
 .actionbar-srs .action-icon-button.save:not(:disabled),
 .actionbar-srs .action-save-button.save:not(:disabled) {
-  background: var(--c-1f6f3e);
-  border-color: var(--c-1f6f3e);
+  background: var(--color-swatch-1f6f3e);
+  border-color: var(--color-swatch-1f6f3e);
 }
 .actionbar-srs .action-icon-button.add:not(:disabled):hover,
 .actionbar-srs .action-add-button:not(:disabled):hover,
@@ -183,14 +183,14 @@
   font-weight: 600;
 }
 .actionbar-mode-tag.edit {
-  color: var(--c-7a4d00);
-  background: var(--c-fff3cd);
-  border-color: var(--c-f6c343);
+  color: var(--color-swatch-7a4d00);
+  background: var(--color-swatch-fff3cd);
+  border-color: var(--color-swatch-f6c343);
 }
 .actionbar-mode-tag.new {
-  color: var(--c-1f6f3e);
-  background: var(--c-e5f3e3);
-  border-color: var(--c-91c788);
+  color: var(--color-swatch-1f6f3e);
+  background: var(--color-formula-hint-bg);
+  border-color: var(--color-swatch-91c788);
 }
 .actionbar-form-toggle {
   white-space: nowrap;
@@ -200,7 +200,7 @@
   padding-inline-start: 5px;
   padding-inline-end: 0;
 }
-@media (max-width: 900px) {
+@media (max-width: 1200px) {
   .actionbar-srs {
     flex-wrap: wrap;
     overflow-x: visible;

@@ -1,13 +1,15 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Alert, Button, Layout, Space } from 'antd';
+import { Layout, Space } from 'antd';
 import { DatabaseOutlined, FireFilled, LogoutOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import { Outlet, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import ProjectMenu from './ProjectMenu';
 import { RouteErrorBoundary } from '@/components/common/ErrorBoundary';
+import { TltAlert, TltButton } from '@/components/ui-kit';
 import { logout as logoutApi } from '@/api/auth';
 import { useAuthStore } from '@/store/authStore';
 import { useWorkspaceHeaderStore } from '@/store/workspaceHeaderStore';
+import './layout-chrome.css';
 
 const { Header, Content } = Layout;
 
@@ -32,12 +34,12 @@ function HeaderActions() {
 
   return (
     <Space className="header-actions" size={3}>
-      <Button icon={<QuestionCircleOutlined />} onClick={() => navigate(helpRoute)}>
+      <TltButton icon={<QuestionCircleOutlined />} onClick={() => navigate(helpRoute)}>
         Инструкция
-      </Button>
-      <Button icon={<LogoutOutlined />} onClick={handleLogout}>
+      </TltButton>
+      <TltButton icon={<LogoutOutlined />} onClick={handleLogout}>
         Выход
-      </Button>
+      </TltButton>
     </Space>
   );
 }
@@ -75,7 +77,7 @@ export default function MainLayout({ children }: Props) {
   }, []);
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout className="main-layout">
       <Header className="heatcalc-header">
         <div className="heatcalc-primary-row">
           <div className="heatcalc-brand" aria-label="HeatCalc">
@@ -93,14 +95,14 @@ export default function MainLayout({ children }: Props) {
         <WorkspaceHeaderContextRow />
       </Header>
       {narrowViewport && (
-        <Alert
+        <TltAlert
           className="viewport-min-width-warning"
-          type="warning"
-          showIcon
-          banner
-          message="Рекомендуемая ширина окна — от 1280 px"
-          description="Интерактивный рабочий поток Phase 5 официально поддерживается от 1280 px (PDL-ER-30). На меньшей ширине возможны ограничения раскладки; печать остаётся адаптивной."
-        />
+          tone="warning"
+          title="Рекомендуемая ширина окна — от 1280 px"
+        >
+          Интерактивный рабочий поток Phase 5 официально поддерживается от 1280 px (PDL-ER-30).
+          На меньшей ширине возможны ограничения раскладки; печать остаётся адаптивной.
+        </TltAlert>
       )}
       <Layout className="heatcalc-main-layout">
         <Content className="heatcalc-content">

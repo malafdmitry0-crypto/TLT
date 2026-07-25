@@ -25,11 +25,14 @@ styles, включая JSX color literals. Они считаются сущес�
 runtime-кода и baseline; старые снимки из документации не являются источником
 истины.
 
-Предлагаемая эволюция CSS-метрик и исполняемые prompts находятся в
-[плане осмысленного CSS](./meaningful-css-plan.md). До выполнения отдельного
-`AF10-MEANINGFUL-CSS-GATE-01` действующий CSS LOC ratchet остаётся hard stop:
-proposal не разрешает повышать baseline или обходить красный gate внутри
-feature-slice.
+Метрики и исполняемые prompts: [meaningful-css-plan.md](./meaningful-css-plan.md),
+[af10-parallel-queue.md](./af10-parallel-queue.md).
+
+**AF10-MEANINGFUL-CSS-GATE-01 (active):** общий CSS LOC — **наблюдаемая**
+величина для audit, не pass/fail. Качество контролируют ownership, per-file
+cap/shrink-only hotspot, orphan detection, `!important`, raw colors, bare Ant,
+legacy palette, noncanonical breakpoints и static-inline ratchet. Feature-slice
+по-прежнему не может повышать debt baselines.
 
 ## Основной контракт
 
@@ -283,28 +286,19 @@ freeze-stub. Новые base, shell, vendor и feature rules туда не до�
 Текущий `css:architecture` и связанные architecture tests проверяют:
 
 - freeze `styles.css` и `styles/app-base.css`;
-- shrink-only baseline для CSS LOC, bare Ant selectors и количества media rules;
+- per-file CSS LOC shrink-only для baselined hotspots + new-file cap (400);
+- **totals.loc** — audit-only (не fail);
+- shrink-only totals для bare Ant selectors и media rule count;
 - абсолютный нулевой baseline `!important`;
 - raw color literals в CSS вне `tokens.css`;
+- legacy `--c-*`/`--a-*` (вне token owner) и noncanonical breakpoints;
 - порядок глобальных CSS imports;
-- orphan CSS и специальные import-owner контракты;
-- foreign feature markers для зарегистрированных feature-зон;
-- root isolation для отдельных wizard islands.
+- orphan CSS и import-owner контракты;
+- foreign feature markers для feature-зон;
+- static JSX `style`/`styles` (отдельный inlineStyleRatchet).
 
-Следующие правила пока обязательны на review, но не покрыты общим
-автоматическим gate:
-
-- статические JSX `style`/`styles`;
-- прямые новые ссылки на legacy `--c-*`/`--a-*`;
-- специфичность и глубина всех селекторов;
-- owner-root isolation каждого CSS-файла;
-- значения breakpoint allowlist;
-- полный запрет cross-feature CSS imports и semantic duplicates.
-
-Документ не выдаёт manual policy за существующий CI gate. Пока исполняемый
-LOC/media ratchet строже этого регламента, его красный результат остаётся hard
-stop. Изменение baseline или логики gate выполняется отдельным
-architecture-slice, а не внутри feature-задачи.
+Review-only (не полный CI): специфичность селекторов, полный semantic
+duplicate audit, глубина nesting.
 
 ## Протокол CSS-slice
 

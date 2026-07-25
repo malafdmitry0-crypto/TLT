@@ -1,11 +1,7 @@
 import {
-  Alert,
-  Button,
-  Card,
   Descriptions,
   Popconfirm,
   Space,
-  Tag,
   Tooltip,
   Typography,
   message,
@@ -30,6 +26,8 @@ import CableSelector from './CableSelector';
 import type { CableInfo, CableSource } from '@/api/calculations';
 import type { ProjectObject } from '@/types/project';
 import type { ElectricalCalcSummary } from '@/types/calculation';
+import { TltAlert, TltBadge, TltButton, TltCard } from '@/components/ui-kit';
+import './object-calc-card.css';
 
 const { Text } = Typography;
 
@@ -78,31 +76,31 @@ export default function ObjectCalcCard({
   });
 
   return (
-    <Card
-      size="small"
-      style={{ marginBottom: 12 }}
+    <TltCard
+      padding="compact"
+      className="object-calc-card"
       title={
         <Space>
-          <Tag color="blue">{typeLabel}</Tag>
+          <TltBadge tone="info">{typeLabel}</TltBadge>
           <Text strong>{objectName}</Text>
           {hasSuccess ? (
-            <CheckCircleFilled style={{ color: '#52c41a' }} />
+            <CheckCircleFilled className="object-calc-card__ok-icon" />
           ) : isUnsupported ? (
-            <Tag color="default" icon={<MinusCircleFilled />}>
-              не применимо
-            </Tag>
+            <TltBadge tone="neutral">
+              <MinusCircleFilled /> не применимо
+            </TltBadge>
           ) : isStale ? (
-            <Tag color="warning">требуется пересчёт</Tag>
+            <TltBadge tone="warning">требуется пересчёт</TltBadge>
           ) : errorMsg ? (
-            <Tag color="error" icon={<CloseCircleFilled />}>
-              ошибка
-            </Tag>
+            <TltBadge tone="danger">
+              <CloseCircleFilled /> ошибка
+            </TltBadge>
           ) : (
-            <Tag color="default">не рассчитан</Tag>
+            <TltBadge tone="neutral">не рассчитан</TltBadge>
           )}
         </Space>
       }
-      extra={
+      actions={
         <Popconfirm
           title="Удалить объект?"
           description="Будут удалены сам объект (из шага «Теплопотери») и связанный электрорасчёт."
@@ -112,68 +110,60 @@ export default function ObjectCalcCard({
           onConfirm={() => delMut.mutate()}
         >
           <Tooltip title="Удалить объект вместе с электрорасчётом">
-            <Button size="small" danger icon={<DeleteOutlined />} />
+            <TltButton size="compact" variant="danger" icon={<DeleteOutlined />} aria-label="Удалить объект" />
           </Tooltip>
         </Popconfirm>
       }
     >
       {isUnsupported ? (
-        <Alert
-          type="info"
-          showIcon
-          message="Электрорасчёт не применим"
-          description={
-            <>
-              <div style={{ marginBottom: 6 }}>
-                <Text code>{unsupportedText}</Text>
-              </div>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                Объект остаётся валидным по теплопотерям, но выбранная
-                геометрия не имеет утверждённой формулы укладки кабеля.
-              </Text>
-            </>
-          }
-        />
+        <TltAlert
+          tone="info"
+          title="Электрорасчёт не применим"
+        >
+          <div className="object-calc-card__block">
+            <Text code>{unsupportedText}</Text>
+          </div>
+          <Text type="secondary" className="object-calc-card__hint">
+            Объект остаётся валидным по теплопотерям, но выбранная
+            геометрия не имеет утверждённой формулы укладки кабеля.
+          </Text>
+        </TltAlert>
       ) : isStale ? (
-        <Alert
-          type="warning"
-          showIcon
-          message="Электрорасчёт требует пересчёта"
-          description={electricalCalcHint(calc) ?? errorMsg ?? 'Изменились теплопотери объекта.'}
-        />
+        <TltAlert
+          tone="warning"
+          title="Электрорасчёт требует пересчёта"
+        >
+          {electricalCalcHint(calc) ?? errorMsg ?? 'Изменились теплопотери объекта.'}
+        </TltAlert>
       ) : errorMsg ? (
-        <Alert
-          type="error"
-          showIcon
-          message="Электрорасчёт не выполнен"
-          description={
-            <>
-              <div style={{ marginBottom: 6 }}>
-                <Text code>{errorMsg}</Text>
-              </div>
-              <Text
-                type="secondary"
-                style={{ fontSize: 12, display: 'block', marginBottom: 6 }}
-              >
-                Объект <strong>валидный по теплопотерям</strong> (этап 1 прошёл),
-                но не укладывается в выбранный тип кабеля на этапе электрорасчёта.
-                В текущей поставке есть расчётные формулы для ТЛТ, ТТН/ТТВ/ТТХ,
-                ТТ Р1 и ТТ Р3. Для кабелей с минеральной изоляцией и скин-систем
-                нужны отдельные формулы и каталоги.
-              </Text>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                Можно также попробовать изменить параметры объекта (снизить
-                T_продукта, увеличить толщину изоляции, разбить объект на части)
-                на шаге «Теплопотери» — после чего нажать «Пересчитать» или
-                выбрать кабель вручную ниже.
-              </Text>
-            </>
-          }
-        />
+        <TltAlert
+          tone="danger"
+          title="Электрорасчёт не выполнен"
+        >
+          <div className="object-calc-card__block">
+            <Text code>{errorMsg}</Text>
+          </div>
+          <Text
+            type="secondary"
+            className="object-calc-card__hint--block"
+          >
+            Объект <strong>валидный по теплопотерям</strong> (этап 1 прошёл),
+            но не укладывается в выбранный тип кабеля на этапе электрорасчёта.
+            В текущей поставке есть расчётные формулы для ТЛТ, ТТН/ТТВ/ТТХ,
+            ТТ Р1 и ТТ Р3. Для кабелей с минеральной изоляцией и скин-систем
+            нужны отдельные формулы и каталоги.
+          </Text>
+          <Text type="secondary" className="object-calc-card__hint">
+            Можно также попробовать изменить параметры объекта (снизить
+            T_продукта, увеличить толщину изоляции, разбить объект на части)
+            на шаге «Теплопотери» — после чего нажать «Пересчитать» или
+            выбрать кабель вручную ниже.
+          </Text>
+        </TltAlert>
       ) : hasSuccess && r ? (
         <Descriptions column={3} size="small" bordered>
           <Descriptions.Item label="Марка кабеля" span={2}>
-            <Text strong style={{ color: '#1890ff' }}>
+            <Text strong className="object-calc-card__cable-mark">
               {String(r.selected_cable ?? '—')}
             </Text>
           </Descriptions.Item>
@@ -215,6 +205,6 @@ export default function ObjectCalcCard({
           cableSource={cableSource}
         />
       )}
-    </Card>
+    </TltCard>
   );
 }

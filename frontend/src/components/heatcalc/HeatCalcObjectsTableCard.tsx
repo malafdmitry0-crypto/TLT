@@ -1,7 +1,8 @@
-import { Button, Card, Typography, type TableProps } from 'antd';
+import { Typography, type TableProps } from 'antd';
 import { lazy, Suspense, type ReactNode } from 'react';
 import type { ColumnType } from 'antd/es/table';
 
+import { TltButton, TltCard } from '@/components/ui-kit';
 import type { HeatCalcContextMenuTrigger } from '@/components/heatcalc/HeatCalcContextMenuTrigger';
 import HeatCalcExcelGrid from '@/components/heatcalc/HeatCalcExcelGrid';
 import type { HeatCalcExcelCellCoordinates } from '@/hooks/useHeatCalcExcelSelection';
@@ -93,9 +94,9 @@ function renderFilterEmpty(resetCurrentTableViewState: () => void) {
   return (
     <div className="table-filter-empty">
       <Text type="secondary">Нет строк по текущим фильтрам</Text>
-      <Button size="small" onClick={resetCurrentTableViewState}>
+      <TltButton size="compact" onClick={resetCurrentTableViewState}>
         Сбросить фильтры
-      </Button>
+      </TltButton>
     </div>
   );
 }
@@ -216,7 +217,7 @@ export default function HeatCalcObjectsTableCard({
   });
 
   return (
-    <Card size="small" className="workspace-table-card srs-table-wrap">
+    <TltCard padding="compact" className="workspace-table-card srs-table-wrap">
       {excelModeEnabled && excelEngine === 'glide' ? (
         <Suspense fallback={tableGrid}>
           <HeatCalcGlideGrid
@@ -275,6 +276,6 @@ export default function HeatCalcObjectsTableCard({
           />
         </Suspense>
       )}
-    </Card>
+    </TltCard>
   );
 }

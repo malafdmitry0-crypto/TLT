@@ -1,7 +1,8 @@
-import { Card, InputNumber, Table, Typography, message } from 'antd';
+import { Table, Typography, message } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { listCoefficients, updateCoefficient } from '@/api/admin';
 import type { Coefficient } from '@/types/admin';
+import { TltCard, TltNumberField } from '@/components/ui-kit';
 
 const { Paragraph } = Typography;
 
@@ -22,7 +23,7 @@ export default function CoefficientsPage() {
   });
 
   return (
-    <Card title="Корректирующие коэффициенты">
+    <TltCard title="Корректирующие коэффициенты">
       <Paragraph>
         Значения используются при расчёте теплопотерь и электротехническом расчёте.
       </Paragraph>
@@ -36,7 +37,7 @@ export default function CoefficientsPage() {
             title: 'Значение',
             dataIndex: 'value',
             render: (v: number, row: Coefficient) => (
-              <InputNumber
+              <TltNumberField
                 defaultValue={v}
                 step={0.01}
                 onBlur={(e) => {
@@ -48,6 +49,6 @@ export default function CoefficientsPage() {
           },
         ]}
       />
-    </Card>
+    </TltCard>
   );
 }

@@ -20,6 +20,10 @@ export interface TltTextFieldProps {
   required?: boolean;
   placeholder?: string;
   maxLength?: number;
+  /** Native input type. Use `password` instead of Ant `Input.Password`. */
+  type?: 'text' | 'password' | 'email' | 'search' | 'tel' | 'url' | 'hidden';
+  autoComplete?: string;
+  autoFocus?: boolean;
   className?: string;
   inputClassName?: string;
   style?: CSSProperties;
@@ -52,6 +56,9 @@ export default function TltTextField({
   required,
   placeholder,
   maxLength,
+  type = 'text',
+  autoComplete,
+  autoFocus,
   className,
   inputClassName,
   style,
@@ -76,12 +83,15 @@ export default function TltTextField({
       isRequired={isRequired}
       onChange={onChange}
       style={style}
+      type={type}
       validationBehavior="aria"
       value={value}
     >
       <Input
         aria-invalid={isInvalid || undefined}
         aria-required={isRequired || undefined}
+        autoComplete={autoComplete}
+        autoFocus={autoFocus}
         className={joinClassNames('tlt-text-field__input', inputClassName)}
         data-testid={testId}
         id={id}
@@ -92,6 +102,7 @@ export default function TltTextField({
         onKeyDown={onKeyDown}
         placeholder={placeholder}
         style={inputStyle}
+        type={type}
       />
     </TextField>
   );

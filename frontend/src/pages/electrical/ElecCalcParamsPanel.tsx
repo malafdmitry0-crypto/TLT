@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { Checkbox, InputNumber, Select, Typography } from 'antd';
+import { Checkbox, Typography } from 'antd';
 
 import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
 import {
@@ -9,6 +9,7 @@ import {
   type ElecCalcTypeControlValues,
 } from '@/pages/electrical/elecCalcTypeControlModel';
 import '../workflow-params.css';
+import { TltNumberField, TltSelect } from '@/components/ui-kit';
 
 const { Text } = Typography;
 
@@ -55,25 +56,26 @@ function ElecCalcParamsPanel({
       <div className="form-col-srs">
         <h4 data-step={1}><span>Кабель и схема подключения</span></h4>
         {row('Тип кабеля', (
-          <Select<CableTypeKey>
+          <TltSelect
             aria-label="Тип кабеля"
             disabled={disabled}
-            size="small"
             value={cableType ?? undefined}
-            onChange={onCableTypeChange}
-            options={cableTypeOptions}
-            style={{ minWidth: 190, flex: 1 }}
+            onChange={(value) => {
+              if (value == null) return;
+              onCableTypeChange(String(value) as CableTypeKey);
+            }}
+            options={cableTypeOptions} className="tlt-field--min-w190"
           />
         ))}
         {isResistive && row('Схема соединения', (
-          <Select
+          <TltSelect
             aria-label="Схема подключения"
             disabled={disabled}
-            size="small"
             value={recalc.connectionType}
-            onChange={setRecalc.connectionType}
-            options={connectionOptions}
-            style={{ minWidth: 190, flex: 1 }}
+            onChange={(value) => {
+              if (value != null) setRecalc.connectionType(String(value));
+            }}
+            options={connectionOptions} className="tlt-field--min-w190"
           />
         ))}
         {!isResistive && (
@@ -87,10 +89,9 @@ function ElecCalcParamsPanel({
       <div className="form-col-srs">
         <h4 data-step={2}><span>Электропитание и температуры</span></h4>
         {row('Напряжение питания U, В', (
-          <InputNumber<number>
+          <TltNumberField
             aria-label="Напряжение питания"
             disabled={disabled}
-            size="small"
             min={1}
             value={recalc.supplyVoltage}
             onChange={setRecalc.supplyVoltage}
@@ -100,20 +101,18 @@ function ElecCalcParamsPanel({
         {isTt && (
           <>
             {row('Температура пропарки (T2), °C', (
-              <InputNumber<number>
+              <TltNumberField
                 aria-label="T пропарки"
                 disabled={disabled}
-                size="small"
                 value={recalc.vaporTemperature}
                 onChange={setRecalc.vaporTemperature}
                 className="workflow-params-input"
               />
             ))}
             {row('Температура поддержания (T3), °C', (
-              <InputNumber<number>
+              <TltNumberField
                 aria-label="T3 поддержания"
                 disabled={disabled}
-                size="small"
                 value={recalc.maintainTemperature}
                 onChange={setRecalc.maintainTemperature}
                 className="workflow-params-input"
@@ -125,7 +124,7 @@ function ElecCalcParamsPanel({
                 checked={recalc.aggressiveProduct}
                 onChange={(event) => setRecalc.aggressiveProduct(event.target.checked)}
               >
-                <span style={{ fontSize: 12 }}>агрессивная (-СР)</span>
+                <span className="electrical-params-label">агрессивная (-СР)</span>
               </Checkbox>
             ))}
           </>
@@ -137,10 +136,9 @@ function ElecCalcParamsPanel({
         {isResistive ? (
           <>
             {row('Коэффициент навива w (1–1,5)', (
-              <InputNumber<number>
+              <TltNumberField
                 aria-label="Коэффициент навива"
                 disabled={disabled}
-                size="small"
                 min={1}
                 max={1.5}
                 step={0.05}
@@ -150,10 +148,9 @@ function ElecCalcParamsPanel({
               />
             ))}
             {row('Высота обогрева h, м', (
-              <InputNumber<number>
+              <TltNumberField
                 aria-label="Высота обогрева"
                 disabled={disabled}
-                size="small"
                 min={0}
                 step={0.1}
                 value={recalc.heatingHeight}
@@ -162,10 +159,9 @@ function ElecCalcParamsPanel({
               />
             ))}
             {row('Шаг укладки, м', (
-              <InputNumber<number>
+              <TltNumberField
                 aria-label="Шаг укладки"
                 disabled={disabled}
-                size="small"
                 min={0.1}
                 max={0.4}
                 step={0.01}

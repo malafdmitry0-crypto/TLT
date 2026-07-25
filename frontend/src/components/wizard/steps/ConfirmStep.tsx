@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Form, Input, Descriptions, Alert } from 'antd';
+import { Form, Descriptions } from 'antd';
 import type { ObjectType } from '@/constants/objectTypes';
 import {
   generatePipeName,
@@ -7,6 +7,8 @@ import {
   type PipeNameFields,
   type TankNameFields,
 } from '@/utils/objectWizardUtils';
+import '../wizard-chrome.css';
+import { TltAlert, TltTextField } from '@/components/ui-kit';
 
 interface Props {
   objectType: ObjectType;
@@ -70,16 +72,16 @@ function ConfirmStepInner({ objectType }: Props) {
 
   return (
     <>
-      <Alert
-        type="info"
-        showIcon
-        message="Проверьте параметры объекта"
-        description="Теплопотери будут рассчитаны автоматически после сохранения."
-        style={{ marginBottom: 16 }}
-      />
+      <TltAlert
+        tone="info"
+        title="Проверьте параметры объекта"
+        className="wizard-confirm-alert"
+      >
+        Теплопотери будут рассчитаны автоматически после сохранения.
+      </TltAlert>
 
       {objectType === 'pipe' ? (
-        <Descriptions size="small" column={2} bordered style={{ marginBottom: 16 }}>
+        <Descriptions size="small" column={2} bordered className="wizard-confirm-block">
           <Descriptions.Item label="Наружный диаметр">{getVal('outer_diameter_mm') as number} мм</Descriptions.Item>
           <Descriptions.Item label="Длина">{getVal('pipe_length') as number} м</Descriptions.Item>
           <Descriptions.Item label="Толщина изоляции">{getVal('insulation_thickness_mm') as number} мм</Descriptions.Item>
@@ -88,7 +90,7 @@ function ConfirmStepInner({ objectType }: Props) {
           <Descriptions.Item label="Т° поддержания">{getVal('process_temperature') as number}°C</Descriptions.Item>
         </Descriptions>
       ) : (
-        <Descriptions size="small" column={2} bordered style={{ marginBottom: 16 }}>
+        <Descriptions size="small" column={2} bordered className="wizard-confirm-block">
           <Descriptions.Item label="Форма">
             {{ cylindrical: 'Цилиндрическая', rectangular: 'Параллелепипед', spherical: 'Сферическая' }[getVal('shape') as string] ?? String(getVal('shape'))}
           </Descriptions.Item>
@@ -117,7 +119,7 @@ function ConfirmStepInner({ objectType }: Props) {
         rules={[{ required: true, message: 'Укажите наименование объекта' }]}
         extra="Наименование генерируется автоматически из параметров. Вы можете изменить его."
       >
-        <Input placeholder="Напр.: Труба DN100 участок 1" />
+        <TltTextField placeholder="Напр.: Труба DN100 участок 1" />
       </Form.Item>
     </>
   );

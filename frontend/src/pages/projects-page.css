@@ -93,7 +93,11 @@
   margin-bottom: 16px;
 }
 
-@media (max-width: 900px) {
+.projects-page-type-pipe {
+  color: var(--color-pipe-type, #873800);
+}
+
+@media (max-width: 1200px) {
   .projects-page-layout {
     flex-direction: column;
     row-gap: 8px;

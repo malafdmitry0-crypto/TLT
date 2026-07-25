@@ -29,7 +29,7 @@
   min-width: 120px;
   font-size: 11px;
   line-height: 1.25;
-  color: var(--c-4a5a6a);
+  color: var(--color-swatch-4a5a6a);
 }
 
 .workflow-params-row .workflow-params-input {
@@ -43,10 +43,10 @@
   padding: 2px 6px 4px;
   font-size: 10px;
   line-height: 1.35;
-  color: var(--c-5d6b7a);
+  color: var(--color-swatch-5d6b7a);
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1200px) {
   .workflow-params-panel {
     flex-direction: column;
   }

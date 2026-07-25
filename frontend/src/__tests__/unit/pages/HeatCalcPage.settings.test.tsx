@@ -110,8 +110,9 @@ describe('HeatCalcPage settings', () => {
         Array.from(dialog.querySelectorAll('.column-layout-row:not(.hidden)'))
           .map((row) => row.getAttribute('data-column-key'));
 
-      const orderInput = within(dialog).getByRole('spinbutton', { name: 'Порядок: DN' });
-      const widthInput = within(dialog).getByRole('spinbutton', { name: 'Ширина: DN' });
+      // TltNumberField exposes textbox (react-aria), not Ant spinbutton
+      const orderInput = within(dialog).getByRole('textbox', { name: 'Порядок: DN' });
+      const widthInput = within(dialog).getByRole('textbox', { name: 'Ширина: DN' });
       fireEvent.change(orderInput, { target: { value: '3' } });
       expect(visibleColumnKeys().slice(0, 7)).toEqual([
         'heat_loss_status',

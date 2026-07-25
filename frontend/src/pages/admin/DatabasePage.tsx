@@ -1,20 +1,16 @@
 import { useState } from 'react';
 import {
-  Button,
   Form,
-  Input,
-  InputNumber,
   Modal,
   Popconfirm,
-  Select,
   Space,
   Switch,
   Table,
   Tabs,
-  Tag,
   Typography,
   message,
 } from 'antd';
+import { TltBadge, TltButton, TltNumberField, TltSelect, TltTextField } from '@/components/ui-kit';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createAdminAccessory,
@@ -32,99 +28,19 @@ import type {
   CableExtended,
   CableExtendedPayload,
 } from '@/types/admin';
+import {
+  cableConductorSection,
+  formatParamsJson,
+  normalizeAccessoryPayload,
+  normalizeCablePayload,
+  type AccessoryFormValues,
+  type CableFormValues,
+} from '@/pages/admin/databasePagePayloadModel';
+import './admin-layout.css';
 
 const { Paragraph, Text } = Typography;
-const { TextArea } = Input;
-
-type CableFormValues = Partial<Omit<CableExtendedPayload, 'params'>> & {
-  params_json?: string;
-  conductor_section_mm2?: number | null;
-};
-type AccessoryFormValues = Partial<Omit<AccessoryExtendedPayload, 'params'>> & {
-  params_json?: string;
-};
-
 const CABLE_QUERY_KEY = ['admin', 'cables'];
 const ACCESSORY_QUERY_KEY = ['admin', 'accessories'];
-
-function emptyToNull(value: unknown) {
-  return value === '' || value === undefined ? null : value;
-}
-
-function parseParamsJson(value: string | undefined): Record<string, unknown> | null {
-  if (!value || !value.trim()) return null;
-  const parsed = JSON.parse(value);
-  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new Error('params должен быть JSON-объектом');
-  }
-  return parsed as Record<string, unknown>;
-}
-
-function formatParamsJson(value: Record<string, unknown> | null | undefined) {
-  return value ? JSON.stringify(value, null, 2) : '';
-}
-
-function numberParam(value: unknown): number | null {
-  if (typeof value === 'number' && Number.isFinite(value)) return value;
-  if (typeof value === 'string' && value.trim()) {
-    const parsed = Number(value.replace(',', '.'));
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  return null;
-}
-
-function cableConductorSection(params: Record<string, unknown> | null | undefined): number | null {
-  return numberParam(params?.conductor_section_mm2 ?? params?.conductor_cross_section);
-}
-
-function normalizeCablePayload(values: CableFormValues): Partial<CableExtendedPayload> {
-  const parsedParams = parseParamsJson(values.params_json) ?? {};
-  const conductorSection = emptyToNull(values.conductor_section_mm2);
-  if (conductorSection !== null) {
-    parsedParams.conductor_section_mm2 = conductorSection;
-  }
-  const params = Object.keys(parsedParams).length > 0 ? parsedParams : null;
-
-  return {
-    cable_type: values.cable_type ?? 'self_regulating',
-    brand: String(values.brand ?? '').trim(),
-    model: String(values.model ?? '').trim(),
-    power_per_meter: emptyToNull(values.power_per_meter) as number | null,
-    max_temperature: emptyToNull(values.max_temperature) as number | null,
-    min_temperature: emptyToNull(values.min_temperature) as number | null,
-    resistance_per_meter: emptyToNull(values.resistance_per_meter) as number | null,
-    supplier_name: emptyToNull(values.supplier_name) as string | null,
-    article: emptyToNull(values.article) as string | null,
-    currency: (emptyToNull(values.currency) as string | null) ?? 'RUB',
-    price_per_meter: emptyToNull(values.price_per_meter) as number | null,
-    stock_quantity_m: emptyToNull(values.stock_quantity_m) as number | null,
-    stock_status: emptyToNull(values.stock_status) as CableExtendedPayload['stock_status'],
-    lead_time_days: emptyToNull(values.lead_time_days) as number | null,
-    supplier_priority: emptyToNull(values.supplier_priority) as number | null,
-    is_preferred: Boolean(values.is_preferred),
-    order_multiple_m: emptyToNull(values.order_multiple_m) as number | null,
-    min_order_quantity_m: emptyToNull(values.min_order_quantity_m) as number | null,
-    is_discontinued: Boolean(values.is_discontinued),
-    replacement_group: emptyToNull(values.replacement_group) as string | null,
-    price_updated_at: emptyToNull(values.price_updated_at) as string | null,
-    stock_updated_at: emptyToNull(values.stock_updated_at) as string | null,
-    commercial_data_source: emptyToNull(values.commercial_data_source) as string | null,
-    params,
-    is_active: values.is_active ?? true,
-  };
-}
-
-function normalizeAccessoryPayload(
-  values: AccessoryFormValues
-): Partial<AccessoryExtendedPayload> {
-  return {
-    category: String(values.category ?? '').trim(),
-    name: String(values.name ?? '').trim(),
-    article: emptyToNull(values.article) as string | null,
-    params: parseParamsJson(values.params_json),
-    is_active: values.is_active ?? true,
-  };
-}
 
 export default function DatabasePage() {
   const qc = useQueryClient();
@@ -227,7 +143,7 @@ export default function DatabasePage() {
         title: 'Тип',
         dataIndex: 'cable_type',
         width: 130,
-        render: (value: string) => <Tag>{value}</Tag>,
+        render: (value: string) => <TltBadge>{value}</TltBadge>,
       },
       { title: 'Марка', dataIndex: 'model', width: 150 },
       { title: 'Бренд', dataIndex: 'brand', width: 120 },
@@ -261,13 +177,13 @@ export default function DatabasePage() {
         width: 160,
         render: (_: unknown, row: CableExtended) => (
           <Space>
-            <Button size="small" onClick={() => openCableModal(row)}>
+            <TltButton size="compact" onClick={() => openCableModal(row)}>
               Изм.
-            </Button>
+            </TltButton>
             <Popconfirm title="Удалить кабель?" onConfirm={() => cableDelete.mutate(row.id)}>
-              <Button size="small" danger>
+              <TltButton size="compact" variant="danger">
                 Удалить
-              </Button>
+              </TltButton>
             </Popconfirm>
           </Space>
         ),
@@ -297,16 +213,16 @@ export default function DatabasePage() {
         width: 160,
         render: (_: unknown, row: AccessoryExtended) => (
           <Space>
-            <Button size="small" onClick={() => openAccessoryModal(row)}>
+            <TltButton size="compact" onClick={() => openAccessoryModal(row)}>
               Изм.
-            </Button>
+            </TltButton>
             <Popconfirm
               title="Удалить аксессуар?"
               onConfirm={() => accessoryDelete.mutate(row.id)}
             >
-              <Button size="small" danger>
+              <TltButton size="compact" variant="danger">
                 Удалить
-              </Button>
+              </TltButton>
             </Popconfirm>
           </Space>
         ),
@@ -322,10 +238,10 @@ export default function DatabasePage() {
             label: `Кабели (${cables.length})`,
             children: (
               <>
-                <Space style={{ marginBottom: 12 }} wrap>
-                  <Button type="primary" onClick={() => openCableModal()}>
+                <Space className="admin-db-toolbar" wrap>
+                  <TltButton variant="primary" onClick={() => openCableModal()}>
                     Добавить кабель
-                  </Button>
+                  </TltButton>
                   <Text type="secondary">
                     Commercial fields используются в public catalog и deterministic ranking.
                   </Text>
@@ -347,10 +263,10 @@ export default function DatabasePage() {
             label: `Аксессуары (${accessories.length})`,
             children: (
               <>
-                <Space style={{ marginBottom: 12 }} wrap>
-                  <Button type="primary" onClick={() => openAccessoryModal()}>
+                <Space className="admin-db-toolbar" wrap>
+                  <TltButton variant="primary" onClick={() => openAccessoryModal()}>
                     Добавить аксессуар
-                  </Button>
+                  </TltButton>
                   <Text type="secondary">
                     Стоимость аксессуаров задаётся через params и не подменяет бизнес-правила.
                   </Text>
@@ -388,8 +304,7 @@ export default function DatabasePage() {
         <Form form={cableForm} layout="vertical" onFinish={(values) => cableSave.mutate(values)}>
           <Space align="start" wrap>
             <Form.Item name="cable_type" label="Тип" rules={[{ required: true }]}>
-              <Select
-                style={{ width: 180 }}
+              <TltSelect className="tlt-field--w180"
                 options={[
                   { value: 'self_regulating', label: 'ТЛТ' },
                   { value: 'single_core', label: 'ТТ Р1' },
@@ -400,46 +315,45 @@ export default function DatabasePage() {
               />
             </Form.Item>
             <Form.Item name="brand" label="Бренд" rules={[{ required: true }]}>
-              <Input style={{ width: 160 }} />
+              <TltTextField className="tlt-field--w160" />
             </Form.Item>
             <Form.Item name="model" label="Марка" rules={[{ required: true }]}>
-              <Input style={{ width: 190 }} />
+              <TltTextField className="tlt-field--w190" />
             </Form.Item>
             <Form.Item name="power_per_meter" label="Вт/м">
-              <InputNumber min={0} style={{ width: 110 }} />
+              <TltNumberField min={0} className="tlt-field--w110" />
             </Form.Item>
             <Form.Item name="resistance_per_meter" label="Ом/м">
-              <InputNumber min={0} step={0.001} style={{ width: 110 }} />
+              <TltNumberField min={0} step={0.001} className="tlt-field--w110" />
             </Form.Item>
             <Form.Item name="conductor_section_mm2" label="Сечение, мм²">
-              <InputNumber min={0} step={0.1} style={{ width: 120 }} />
+              <TltNumberField min={0} step={0.1} className="tlt-field--w120" />
             </Form.Item>
             <Form.Item name="min_temperature" label="T min">
-              <InputNumber style={{ width: 100 }} />
+              <TltNumberField className="tlt-field--w100" />
             </Form.Item>
             <Form.Item name="max_temperature" label="T max">
-              <InputNumber style={{ width: 100 }} />
+              <TltNumberField className="tlt-field--w100" />
             </Form.Item>
           </Space>
           <Space align="start" wrap>
             <Form.Item name="supplier_name" label="Поставщик">
-              <Input style={{ width: 180 }} />
+              <TltTextField className="tlt-field--w180" />
             </Form.Item>
             <Form.Item name="article" label="Артикул">
-              <Input style={{ width: 150 }} />
+              <TltTextField className="tlt-field--w150" />
             </Form.Item>
             <Form.Item name="price_per_meter" label="Цена/м">
-              <InputNumber min={0} step={0.01} style={{ width: 110 }} />
+              <TltNumberField min={0} step={0.01} className="tlt-field--w110" />
             </Form.Item>
             <Form.Item name="currency" label="Валюта">
-              <Input style={{ width: 90 }} />
+              <TltTextField className="tlt-field--w90" />
             </Form.Item>
             <Form.Item name="stock_quantity_m" label="Остаток, м">
-              <InputNumber min={0} step={1} style={{ width: 120 }} />
+              <TltNumberField min={0} step={1} className="tlt-field--w120" />
             </Form.Item>
             <Form.Item name="stock_status" label="Статус">
-              <Select
-                style={{ width: 130 }}
+              <TltSelect className="tlt-field--w130"
                 allowClear
                 options={[
                   { value: 'in_stock', label: 'in_stock' },
@@ -450,30 +364,30 @@ export default function DatabasePage() {
               />
             </Form.Item>
             <Form.Item name="lead_time_days" label="Срок, дн.">
-              <InputNumber min={0} precision={0} style={{ width: 110 }} />
+              <TltNumberField min={0} className="tlt-field--w110" />
             </Form.Item>
             <Form.Item name="supplier_priority" label="Приоритет">
-              <InputNumber min={0} precision={0} style={{ width: 110 }} />
+              <TltNumberField min={0} className="tlt-field--w110" />
             </Form.Item>
           </Space>
           <Space align="start" wrap>
             <Form.Item name="order_multiple_m" label="Кратность, м">
-              <InputNumber min={0} step={1} style={{ width: 120 }} />
+              <TltNumberField min={0} step={1} className="tlt-field--w120" />
             </Form.Item>
             <Form.Item name="min_order_quantity_m" label="Мин. заказ, м">
-              <InputNumber min={0} step={1} style={{ width: 130 }} />
+              <TltNumberField min={0} step={1} className="tlt-field--w130" />
             </Form.Item>
             <Form.Item name="replacement_group" label="Группа замены">
-              <Input style={{ width: 160 }} />
+              <TltTextField className="tlt-field--w160" />
             </Form.Item>
             <Form.Item name="price_updated_at" label="Цена обновлена">
-              <Input style={{ width: 200 }} placeholder="ISO datetime" />
+              <TltTextField className="tlt-field--w200" placeholder="ISO datetime" />
             </Form.Item>
             <Form.Item name="stock_updated_at" label="Склад обновлён">
-              <Input style={{ width: 200 }} placeholder="ISO datetime" />
+              <TltTextField className="tlt-field--w200" placeholder="ISO datetime" />
             </Form.Item>
             <Form.Item name="commercial_data_source" label="Источник">
-              <Input style={{ width: 140 }} />
+              <TltTextField className="tlt-field--w140" />
             </Form.Item>
           </Space>
           <Space align="start" wrap>
@@ -488,7 +402,7 @@ export default function DatabasePage() {
             </Form.Item>
           </Space>
           <Form.Item name="params_json" label="params JSON">
-            <TextArea rows={6} spellCheck={false} />
+            <textarea className="admin-db-textarea" rows={6} spellCheck={false} />
           </Form.Item>
         </Form>
       </Modal>
@@ -508,20 +422,20 @@ export default function DatabasePage() {
         >
           <Space align="start" wrap>
             <Form.Item name="category" label="Категория" rules={[{ required: true }]}>
-              <Input style={{ width: 180 }} />
+              <TltTextField className="tlt-field--w180" />
             </Form.Item>
             <Form.Item name="name" label="Наименование" rules={[{ required: true }]}>
-              <Input style={{ width: 260 }} />
+              <TltTextField className="tlt-field--w260" />
             </Form.Item>
             <Form.Item name="article" label="Артикул">
-              <Input style={{ width: 160 }} />
+              <TltTextField className="tlt-field--w160" />
             </Form.Item>
             <Form.Item name="is_active" label="Активен" valuePropName="checked">
               <Switch />
             </Form.Item>
           </Space>
           <Form.Item name="params_json" label="params JSON">
-            <TextArea rows={6} spellCheck={false} />
+            <textarea className="admin-db-textarea" rows={6} spellCheck={false} />
           </Form.Item>
         </Form>
       </Modal>

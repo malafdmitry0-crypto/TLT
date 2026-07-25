@@ -28,9 +28,9 @@
   padding: 0 3px;
   font-size: 8px;
   line-height: 12px;
-  color: var(--c-5d7180);
-  border-color: var(--c-d5dde3);
-  background: var(--c-f8fafb);
+  color: var(--color-swatch-5d7180);
+  border-color: var(--color-swatch-d5dde3);
+  background: var(--color-swatch-f8fafb);
 }
 .inline-object-form .fit-label-form-item {
   width: 100%;
@@ -253,7 +253,7 @@
   display: flex;
   align-items: center;
   min-height: 24px;
-  color: var(--c-40566f);
+  color: var(--color-swatch-40566f);
   font-size: 12px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -266,7 +266,7 @@
   overflow-wrap: normal;
   word-break: normal;
 }
-@media (max-width: 1180px) {
+@media (max-width: 1200px) {
   .heatcalc-form-pane--wide .inline-object-form--wide .ant-form-item-label > label {
     display: block;
     height: auto;

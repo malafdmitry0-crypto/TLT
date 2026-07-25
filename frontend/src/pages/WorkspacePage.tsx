@@ -1,4 +1,4 @@
-import { Card, Col, Row, Statistic, Steps, Typography, Alert } from 'antd';
+import { Col, Row, Statistic, Steps, Typography } from 'antd';
 import {
   FireOutlined,
   ThunderboltOutlined,
@@ -14,6 +14,8 @@ import { getObjectsSummary } from '@/api/projects';
 import { getSpecification } from '@/api/specifications';
 import { ROUTES } from '@/routes/routes';
 import { useLegacyElectricalVariantContext } from '@/hooks/useLegacyElectricalVariantContext';
+import { TltAlert, TltCard } from '@/components/ui-kit';
+import './workspace-page.css';
 
 const { Title, Paragraph } = Typography;
 
@@ -63,20 +65,20 @@ export default function WorkspacePage() {
 
   if (!project) {
     return (
-      <Card>
-        <Title level={3} style={{ marginTop: 0 }}>Добро пожаловать в HeatCalc</Title>
+      <TltCard>
+        <Title level={3} className="workspace-page-title">Добро пожаловать в HeatCalc</Title>
         <Paragraph type="secondary">
           Система для расчёта тепловых потерь и подбора систем электрообогрева
           трубопроводов и резервуаров. Работайте по шагам: теплопотери → электрорасчёт → спецификация → отчёт.
         </Paragraph>
-        <Alert
-          type="info"
-          showIcon
-          message="Начните с выбора или создания проекта"
-          description="Нажмите «Новый проект» в шапке, чтобы создать проект, или «Открыть», чтобы выбрать существующий."
-          style={{ maxWidth: 520 }}
-        />
-      </Card>
+        <TltAlert
+          tone="info"
+          title="Начните с выбора или создания проекта"
+          className="workspace-page-alert"
+        >
+          Нажмите «Новый проект» в шапке, чтобы создать проект, или «Открыть», чтобы выбрать существующий.
+        </TltAlert>
+      </TltCard>
     );
   }
 
@@ -144,53 +146,54 @@ export default function WorkspacePage() {
 
   return (
     <div>
-      <Card style={{ marginBottom: 16 }}>
-        <Title level={4} style={{ marginTop: 0 }}>
+      <TltCard className="workspace-page-card">
+        <Title level={4} className="workspace-page-title">
           {project.name}
         </Title>
-        <Paragraph type="secondary" style={{ margin: 0 }}>
+        <Paragraph type="secondary" className="workspace-page-lead">
           Следуйте шагам ниже. Каждый шаг разблокирует следующий. Нажмите на карточку шага, чтобы перейти к нему.
         </Paragraph>
-      </Card>
+      </TltCard>
 
       {/* Прогресс-бар */}
-      <Card style={{ marginBottom: 16 }}>
+      <TltCard className="workspace-page-card">
         <Steps
           current={currentStep}
           items={steps.map((s) => ({
             title: s.title,
             description: s.description,
-            icon: s.done ? <CheckCircleOutlined style={{ color: '#52c41a' }} /> : s.done === false && steps.indexOf(s) < currentStep ? <ClockCircleOutlined /> : s.icon,
+            icon: s.done
+              ? <CheckCircleOutlined className="workspace-step-icon--done" />
+              : s.done === false && steps.indexOf(s) < currentStep
+                ? <ClockCircleOutlined />
+                : s.icon,
           }))}
         />
-      </Card>
+      </TltCard>
 
       {/* Карточки шагов */}
       <Row gutter={[16, 16]}>
         {steps.map((s, idx) => (
           <Col span={12} key={s.route}>
-            <Card
-              hoverable
+            <TltCard
               onClick={() => navigate(s.route)}
-              style={{
-                borderColor: idx === currentStep ? '#1890ff' : undefined,
-                opacity: idx > currentStep + 1 ? 0.6 : 1,
-              }}
+              className={[
+                'workspace-step-card',
+                s.done ? 'workspace-step-card--done' : '',
+                idx === currentStep ? 'workspace-step-card--current' : '',
+                idx > currentStep + 1 ? 'workspace-step-card--far' : '',
+              ].filter(Boolean).join(' ')}
             >
               <Statistic
                 title={`${idx + 1}. ${s.title}`}
                 value={s.description}
                 prefix={
                   s.done
-                    ? <CheckCircleOutlined style={{ color: '#52c41a' }} />
+                    ? <CheckCircleOutlined className="workspace-step-icon--done" />
                     : s.icon
                 }
-                valueStyle={{
-                  fontSize: 14,
-                  color: s.done ? '#52c41a' : idx === currentStep ? '#1890ff' : '#595959',
-                }}
               />
-            </Card>
+            </TltCard>
           </Col>
         ))}
       </Row>

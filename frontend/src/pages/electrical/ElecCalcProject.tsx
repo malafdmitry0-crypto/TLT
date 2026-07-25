@@ -4,8 +4,9 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Alert, Space } from 'antd';
+import { Space } from 'antd';
 import { useLocation } from 'react-router-dom';
+import { TltAlert } from '@/components/ui-kit';
 
 import {
   useCalculationVariantStore,
@@ -82,17 +83,15 @@ export default function ElecCalcProject({
           role="tabpanel"
           aria-labelledby={electricalVariantTabId(selectedVariant.id)}
         >
-          <Alert
-            type="warning"
-            showIcon
-            message={`«${selectedVariant.name}»: расчётные действия временно недоступны`}
-            description={(
-              <span>
-                Для этого ЭР ещё нет UUID-совместимого расчётного контура. Расчёт, кандидаты,
-                спецификация и отчёт отключены; данные другого ЭР не подставляются.
-              </span>
-            )}
-          />
+          <TltAlert
+            tone="warning"
+            title={`«${selectedVariant.name}»: расчётные действия временно недоступны`}
+          >
+            <span>
+              Для этого ЭР ещё нет UUID-совместимого расчётного контура. Расчёт, кандидаты,
+              спецификация и отчёт отключены; данные другого ЭР не подставляются.
+            </span>
+          </TltAlert>
         </div>
       )}
       {selectedVariant?.legacy_variant_number != null && (

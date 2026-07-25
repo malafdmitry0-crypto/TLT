@@ -5,7 +5,7 @@
  */
 
 /* Pane height when insulation has many layers */
-.heatcalc-form-pane--wide .inline-object-form--wide:has(.insulation-layers-grid--3) {
+.heatcalc-form-pane--wide .inline-object-form--wide.inline-object-form--layers-3 {
   height: auto;
   min-height: 0;
   max-height: none;
@@ -22,7 +22,7 @@
     grid-template-rows: auto;
   }
 
-  .heatcalc-form-pane--wide .inline-object-form--wide:has(.insulation-layers-grid--3) {
+  .heatcalc-form-pane--wide .inline-object-form--wide.inline-object-form--layers-3 {
     height: auto;
     min-height: 0;
     max-height: none;
@@ -98,7 +98,7 @@
 
 /* Side table host tokens: heatcalc-insulation-page.css */
 
-@media (max-width: 720px) {
+@media (max-width: 768px) {
   .inline-object-form--side .side-compact-form {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -108,7 +108,7 @@
   }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1200px) {
   .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:

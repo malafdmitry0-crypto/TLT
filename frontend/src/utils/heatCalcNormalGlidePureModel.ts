@@ -20,6 +20,7 @@ import type {
 } from '@/utils/heatCalcGlideGrid';
 import { resolveTableFontSizeByKey } from '@/utils/heatCalcTableViewSettings';
 import {
+  GLIDE_THEME,
   isDirtyRowClassName,
   isErrorRowClassName,
 } from '@/utils/glideGridPrimitives';
@@ -28,28 +29,28 @@ export const NORMAL_ROW_MARKER_WIDTH = 52;
 export const NORMAL_GLIDE_HIDDEN_COLUMN_KEYS = new Set(['index']);
 export const NORMAL_INFINITE_LOAD_THRESHOLD_ROWS = 12;
 export const NORMAL_HEADER_FILTER_HIT_WIDTH = 28;
-export const NORMAL_HEADER_CONTROL_BG = '#f3f6f4';
+export const NORMAL_HEADER_CONTROL_BG = GLIDE_THEME.bgHeader;
 export const NORMAL_STATUS_COLUMN_KEYS = new Set(['heat_loss_status', 'electrical_status']);
 export const NORMAL_STATUS_BADGE_MIN_RADIUS = 6;
 export const NORMAL_STATUS_BADGE_MAX_RADIUS = 8;
 export const NORMAL_GLIDE_MIN_COLUMN_WIDTH = 48;
 export const NORMAL_GLIDE_MAX_COLUMN_WIDTH = 600;
-export const NORMAL_ACTIVE_ROW_BG = '#d6e9f5';
-export const NORMAL_ACTIVE_ROW_BORDER = '#1a5276';
-export const NORMAL_ERROR_ROW_BG = '#fff1f0';
-export const NORMAL_DIRTY_ROW_BG = '#fffbe6';
+export const NORMAL_ACTIVE_ROW_BG = GLIDE_THEME.activeRowBg;
+export const NORMAL_ACTIVE_ROW_BORDER = GLIDE_THEME.accent;
+export const NORMAL_ERROR_ROW_BG = GLIDE_THEME.errorRowBg;
+export const NORMAL_DIRTY_ROW_BG = GLIDE_THEME.dirtyRowBg;
 export const NORMAL_CELL_ACTION_HEIGHT = 21;
 export const NORMAL_CELL_ACTION_GAP = 4;
 export const NORMAL_CELL_ACTION_PADDING = 6;
 export const NORMAL_CELL_ACTION_MIN_WIDTH = 46;
 export const NORMAL_CELL_ACTION_MAX_WIDTH = 68;
 export const NORMAL_CELL_ACTION_TEXT_WIDTH = 6.8;
-export const NORMAL_CELL_ACTION_BG = '#ffffff';
-export const NORMAL_CELL_ACTION_BORDER = '#b8c8d6';
-export const NORMAL_CELL_ACTION_TEXT = '#1a5276';
-export const NORMAL_CELL_ACTION_DISABLED_BG = '#f5f5f5';
-export const NORMAL_CELL_ACTION_DISABLED_BORDER = '#d9d9d9';
-export const NORMAL_CELL_ACTION_DISABLED_TEXT = '#8c8c8c';
+export const NORMAL_CELL_ACTION_BG = GLIDE_THEME.bgCell;
+export const NORMAL_CELL_ACTION_BORDER = GLIDE_THEME.actionBorder;
+export const NORMAL_CELL_ACTION_TEXT = GLIDE_THEME.accent;
+export const NORMAL_CELL_ACTION_DISABLED_BG = GLIDE_THEME.surfaceDisabled;
+export const NORMAL_CELL_ACTION_DISABLED_BORDER = GLIDE_THEME.border;
+export const NORMAL_CELL_ACTION_DISABLED_TEXT = GLIDE_THEME.textMuted;
 
 export type NormalStatusVisual =
   | 'calculated'
@@ -136,18 +137,38 @@ export function normalStatusVisualFromValue(value: unknown): NormalStatusVisual 
 
 export function normalStatusPalette(status: NormalStatusVisual) {
   if (status === 'calculated') {
-    return { fill: '#f6ffed', stroke: '#95de64', glyph: '#389e0d' };
+    return {
+      fill: GLIDE_THEME.statusOkFill,
+      stroke: GLIDE_THEME.statusOkStroke,
+      glyph: GLIDE_THEME.statusOkGlyph,
+    };
   }
   if (status === 'error') {
-    return { fill: '#fff1f0', stroke: '#ffccc7', glyph: '#cf1322' };
+    return {
+      fill: GLIDE_THEME.errorRowBg,
+      stroke: GLIDE_THEME.statusErrorStroke,
+      glyph: GLIDE_THEME.statusErrorGlyph,
+    };
   }
   if (status === 'stale') {
-    return { fill: '#fffbe6', stroke: '#ffe58f', glyph: '#d48806' };
+    return {
+      fill: GLIDE_THEME.dirtyRowBg,
+      stroke: GLIDE_THEME.statusWarnStroke,
+      glyph: GLIDE_THEME.statusWarnGlyph,
+    };
   }
   if (status === 'unsupported') {
-    return { fill: '#fffbe6', stroke: '#ffe58f', glyph: '#d48806' };
+    return {
+      fill: GLIDE_THEME.dirtyRowBg,
+      stroke: GLIDE_THEME.statusWarnStroke,
+      glyph: GLIDE_THEME.statusWarnGlyph,
+    };
   }
-  return { fill: '#fafafa', stroke: '#d9d9d9', glyph: '#8c8c8c' };
+  return {
+    fill: GLIDE_THEME.surfaceMuted,
+    stroke: GLIDE_THEME.border,
+    glyph: GLIDE_THEME.textMuted,
+  };
 }
 
 export function drawNormalStatusBadge(
@@ -207,7 +228,7 @@ export function drawNormalStatusBadge(
 export function normalRowThemeOverride(className: string, active: boolean) {
   const baseTheme = {
     accentColor: NORMAL_ACTIVE_ROW_BORDER,
-    accentLight: '#dbeeff',
+    accentLight: GLIDE_THEME.accentLight,
   };
   if (isErrorRowClassName(className)) {
     return active ? { ...baseTheme, bgCell: NORMAL_ERROR_ROW_BG } : { bgCell: NORMAL_ERROR_ROW_BG };

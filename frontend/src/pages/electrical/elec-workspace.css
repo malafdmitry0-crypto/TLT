@@ -2,9 +2,9 @@
 .assignment-drop-zone[data-disabled='true'] {
   opacity: 0.5;
   cursor: not-allowed;
-  background: var(--c-f5f5f5);
-  border-color: var(--c-e0e0e0);
-  color: var(--c-8c8c8c);
+  background: var(--color-page-canvas);
+  border-color: var(--color-swatch-e0e0e0);
+  color: var(--color-formula-muted);
 }
 
 .assignment-drop-zone[data-disabled='true'] .assignment-drop-zone__hint {
@@ -13,45 +13,167 @@
 
 .assignment-drop-zone[data-over='true'] {
   border-style: solid;
-  border-color: var(--c-1677ff);
-  background: var(--c-e6f4ff);
-  box-shadow: 0 0 0 3px var(--a-b6c09e33);
-  color: var(--c-0958d9);
+  border-color: var(--color-formula-result);
+  background: var(--color-formula-result-header-bg);
+  box-shadow: 0 0 0 3px var(--color-alpha-b6c09e33);
+  color: var(--color-swatch-0958d9);
 }
 
 .assignment-drop-zone[data-over='true'] .assignment-drop-zone__hint {
-  color: var(--c-1677ff);
+  color: var(--color-formula-result);
 }
 
 .assignment-drop-zone[data-kind='unassign'][data-over='true'] {
-  border-color: var(--c-fa8c16);
-  background: var(--c-fff7e6);
-  box-shadow: 0 0 0 3px var(--a-937bc868);
-  color: var(--c-d46b08);
+  border-color: var(--color-formula-cable);
+  background: var(--color-formula-cable-header-bg);
+  box-shadow: 0 0 0 3px var(--color-alpha-937bc868);
+  color: var(--color-swatch-d46b08);
 }
 
 .assignment-drop-zone[data-kind='unassign'][data-over='true'] .assignment-drop-zone__hint {
-  color: var(--c-d46b08);
+  color: var(--color-swatch-d46b08);
 }
 
 .section-hierarchy-shell {
   padding: 10px 14px;
-  background: var(--c-fafcff);
-  border-left: 3px solid var(--c-91caff);
+  background: var(--color-swatch-fafcff);
+  border-left: 3px solid var(--color-formula-result-header-border);
   border-radius: 0 6px 6px 0;
   font-size: 12px;
-  color: var(--c-434343);
+  color: var(--color-swatch-434343);
   line-height: 1.45;
 }
 
 .section-hierarchy-shell strong {
   display: block;
   margin-bottom: 4px;
-  color: var(--c-1f2d3d);
+  color: var(--color-swatch-1f2d3d);
   font-size: 13px;
 }
 
-@media (max-width: 900px) {
+/* Static debt: ElectricalSectionHierarchy table chrome */
+.section-hierarchy-table {
+  width: 100%;
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.section-hierarchy-table__th {
+  text-align: left;
+}
+
+.section-hierarchy-table__th--num,
+.section-hierarchy-table__td--num {
+  text-align: right;
+}
+
+/* Static debt: electrical table cell / badge chrome */
+.electrical-cell-text {
+  font-size: 12px;
+}
+
+.electrical-inline-tag {
+  margin-inline-end: 0;
+}
+
+.electrical-inline-tag--compact {
+  margin-inline-end: 0;
+  font-size: 10px;
+  line-height: 16px;
+}
+
+.electrical-alert-gap {
+  margin-bottom: 8px;
+}
+
+.electrical-batch-hint {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  align-self: center;
+}
+
+.electrical-unified-alert {
+  margin: 12px;
+}
+
+.electrical-variant-hint {
+  font-size: 12px;
+}
+
+.electrical-variant-list {
+  margin: 0;
+  padding-inline-start: 20px;
+}
+
+.electrical-params-label {
+  font-size: 12px;
+}
+
+/* Type-specific control chrome (ElecCalcElectricalTypeControls) */
+.electrical-type-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.electrical-type-controls__aggr-label {
+  font-size: 12px;
+}
+
+.electrical-type-control--w72 {
+  width: 72px;
+}
+
+.electrical-type-control--w76 {
+  width: 76px;
+}
+
+.electrical-type-control--w92 {
+  width: 92px;
+}
+
+.electrical-type-control--w118 {
+  width: 118px;
+}
+
+.electrical-params-chrome-end {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-height: 28px;
+}
+
+.electrical-empty-icon {
+  margin-right: 8px;
+  color: var(--color-workflow-elec);
+}
+
+.electrical-fieldset-reset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.electrical-radio-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.electrical-radio-hint {
+  font-size: 12px;
+}
+
+.electrical-mark-max {
+  max-width: 130px;
+}
+
+
+@media (max-width: 1200px) {
   .assignment-drop-zones {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -79,7 +201,7 @@
 
 .electrical-actionbar-row--actions {
   padding-left: 6px;
-  border-left: 1px solid var(--c-d6e1e8);
+  border-left: 1px solid var(--color-swatch-d6e1e8);
 }
 
 .electrical-actionbar-row > * {
@@ -157,7 +279,7 @@
 
 .electrical-cable-picker-title-for {
   flex: 0 0 auto;
-  color: var(--c-1f2933);
+  color: var(--color-swatch-1f2933);
   font-size: 14px;
   font-weight: 600;
   line-height: 1.15;
@@ -165,7 +287,7 @@
 
 .electrical-cable-picker-title-object {
   min-width: 0;
-  color: var(--c-1f2933);
+  color: var(--color-swatch-1f2933);
   font-size: 14px;
   font-weight: 600;
   line-height: 1.15;
@@ -271,9 +393,9 @@
   gap: 6px;
   min-height: 26px;
   padding: 3px 8px;
-  border: 1px solid var(--c-d9e8f5);
+  border: 1px solid var(--color-swatch-d9e8f5);
   border-radius: 4px;
-  background: var(--c-f8fbff);
+  background: var(--color-swatch-f8fbff);
   font-size: 11px;
   line-height: 1.2;
   overflow-x: auto;
@@ -284,7 +406,8 @@
   font-size: 11px;
 }
 
-.electrical-selected-cable-summary .ant-tag {
+.electrical-selected-cable-summary .ant-tag,
+.electrical-selected-cable-summary .tlt-ui-badge {
   min-height: 18px;
   margin-inline-end: 0;
   padding: 0 5px;
@@ -340,9 +463,9 @@
   gap: 6px;
   min-height: 28px;
   padding: 3px 8px;
-  border: 1px solid var(--c-d6e6f2);
+  border: 1px solid var(--color-swatch-d6e6f2);
   border-radius: 4px;
-  background: var(--c-f7fbff);
+  background: var(--color-swatch-f7fbff);
   font-size: 11px;
   line-height: 1.2;
 }
@@ -382,13 +505,13 @@
 }
 
 .electrical-cable-sizing-table .ant-table-tbody > tr.electrical-cable-sizing-table__row--compared > td {
-  box-shadow: inset 0 1px 0 var(--a-3aec3cc9), inset 0 -1px 0 var(--a-3aec3cc9);
+  box-shadow: inset 0 1px 0 var(--color-alpha-3aec3cc9), inset 0 -1px 0 var(--color-alpha-3aec3cc9);
 }
 
 .electrical-cable-sizing-table .ant-table-tbody > tr > td.electrical-candidate-cell--diff,
 .electrical-cable-sizing-table .ant-table-tbody > tr:hover > td.electrical-candidate-cell--diff {
-  background: var(--c-fff7d6);
-  box-shadow: inset 0 0 0 1px var(--a-410ddc0e);
+  background: var(--color-swatch-fff7d6);
+  box-shadow: inset 0 0 0 1px var(--color-alpha-410ddc0e);
 }
 
 .electrical-cable-sizing-table .ant-table-cell {
@@ -464,7 +587,7 @@
   justify-content: center;
   padding-top: 24px;
   pointer-events: none;
-  background: var(--a-3716f109);
+  background: var(--color-alpha-3716f109);
   z-index: 2;
 }
 
@@ -473,7 +596,7 @@
   min-width: 160px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  box-shadow: 0 6px 18px var(--a-2ac07cc5);
+  box-shadow: 0 6px 18px var(--color-alpha-2ac07cc5);
   z-index: 8;
 }
 
@@ -495,109 +618,20 @@
 }
 
 .electrical-spreadsheet .electrical-row-active > td {
-  background: var(--c-f0f8ff);
+  background: var(--color-swatch-f0f8ff);
 }
 
 .electrical-spreadsheet .electrical-row-active:hover > td {
-  background: var(--c-e6f4ff);
+  background: var(--color-formula-result-header-bg);
 }
 
 .electrical-spreadsheet .electrical-row-active.row-invalid > td {
   background: var(--color-danger-bg);
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1200px) {
   .electrical-actionbar {
     flex-wrap: nowrap;
     overflow-x: auto;
-  }
-}
-
-/* C20: cable picker characteristics */
-
-.cable-picker-characteristics {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  align-items: start;
-  gap: 12px;
-  max-width: 100%;
-}
-.cable-picker-characteristics--single {
-  grid-template-columns: minmax(0, 1fr);
-}
-.cable-picker-characteristics-section {
-  min-width: 0;
-}
-.cable-picker-characteristics-title {
-  margin: 0 0 3px;
-  color: var(--c-536577);
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.1;
-}
-.cable-picker-characteristics-columns {
-  display: grid;
-  grid-template-columns: repeat(var(--cable-picker-characteristics-column-count, 2), minmax(0, 1fr));
-  gap: 0 8px;
-  min-width: 0;
-}
-.cable-picker-characteristics-list {
-  display: grid;
-  gap: 0;
-  margin: 0;
-}
-.cable-picker-characteristics-row {
-  display: grid;
-  grid-template-columns: minmax(72px, 45%) minmax(0, 1fr);
-  gap: 3px;
-  min-width: 0;
-  padding: 0;
-  border-bottom: 1px solid var(--c-e8eef3);
-}
-.cable-picker-characteristics-row:last-child {
-  border-bottom: 0;
-}
-.cable-picker-characteristics-label {
-  display: inline-flex;
-  min-width: 0;
-  gap: 0;
-  color: var(--c-6a7c8f);
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.08;
-}
-.cable-picker-characteristics-value {
-  min-width: 0;
-  margin: 0;
-  color: var(--c-1f2933);
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.08;
-  overflow-wrap: anywhere;
-}
-
-/* C20 residual media */
-
-@media (max-width: 760px) {
-  .cable-picker-characteristics {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 980px) {
-  .cable-picker-characteristics-columns {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 760px) {
-  .cable-picker-characteristics {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 980px) {
-  .cable-picker-characteristics-columns {
-    grid-template-columns: 1fr;
   }
 }

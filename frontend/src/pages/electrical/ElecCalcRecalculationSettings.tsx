@@ -1,7 +1,5 @@
 import {
-  Select,
   Segmented,
-  Tag,
   Tooltip,
   Typography,
 } from 'antd';
@@ -11,8 +9,31 @@ import type { ElectricalCalculationCableSource } from '@/utils/electricalTableVi
 import type { CatalogStatus } from '@/pages/electrical/elecCalcCableCatalogModel';
 import { SHOW_COMMERCIAL_CABLE_BASE_UI } from '@/pages/electrical/elecCalcPageModel';
 import { SELECTION_POLICY_OPTIONS } from '@/domain/electrical/elecCalcSelectionPolicyModel';
+import { TltBadge, TltSelect } from '@/components/ui-kit';
 
 const { Text } = Typography;
+
+function antColorToTltTone(color: string | undefined): 'neutral' | 'info' | 'success' | 'warning' | 'danger' {
+  switch (color) {
+    case 'success':
+    case 'green':
+      return 'success';
+    case 'error':
+    case 'red':
+    case 'volcano':
+    case 'magenta':
+      return 'danger';
+    case 'warning':
+    case 'gold':
+    case 'orange':
+      return 'warning';
+    case 'default':
+    case undefined:
+      return 'neutral';
+    default:
+      return 'info';
+  }
+}
 
 type ElecCalcRecalculationSettingsProps = {
   commercialFeaturesAvailable: boolean;
@@ -62,25 +83,26 @@ export default function ElecCalcRecalculationSettings({
       )}
       {showCommercialCableBaseUi && (
         <>
-          <Tag color={commercialDataStatus.color} style={{ marginInlineEnd: 0 }}>
+          <TltBadge tone={antColorToTltTone(commercialDataStatus.color)} className="electrical-inline-tag">
             {commercialDataStatus.label}
-          </Tag>
+          </TltBadge>
           <Text className="table-view-settings-label">
             Критерий:
           </Text>
-          <Select<SelectionPolicy>
+          <TltSelect
             aria-label="Критерий подбора кабеля"
-            size="small"
             value={selectionPolicy}
-            onChange={onSelectionPolicyChange}
-            options={SELECTION_POLICY_OPTIONS}
-            style={{ width: 128 }}
+            onChange={(value) => {
+              if (value == null) return;
+              onSelectionPolicyChange(String(value) as SelectionPolicy);
+            }}
+            options={SELECTION_POLICY_OPTIONS} className="tlt-field--w128"
           />
         </>
       )}
-      <Tag color={technicalDataStatus.color} style={{ marginInlineEnd: 0 }}>
+      <TltBadge tone={antColorToTltTone(technicalDataStatus.color)} className="electrical-inline-tag">
         {technicalDataStatus.label}
-      </Tag>
+      </TltBadge>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useMemo, useState, type KeyboardEvent, type ReactNode } from 'react';
-import { Empty, Input, Modal, Select, Spin } from 'antd';
+import { Empty, Modal, Spin } from 'antd';
 import { CloseCircleFilled, SearchOutlined } from '@ant-design/icons';
+import { TltSelect, TltTextField } from '@/components/ui-kit';
 
 type ReferencePickerValue = string | number;
 
@@ -175,35 +176,33 @@ export default function ReferencePicker({
       >
         {groupFilterPlaceholder && groupOptions.length > 0 ? (
           <div className="reference-picker-filter-row">
-            <Select
+            <TltSelect
               allowClear
-              showSearch
               value={selectedGroup}
               placeholder={groupFilterPlaceholder}
               className="reference-picker-group-filter"
-              optionFilterProp="label"
               options={groupOptions}
-              onChange={(nextGroup) => setSelectedGroup(nextGroup)}
+              onChange={(nextGroup) => setSelectedGroup(nextGroup == null ? undefined : String(nextGroup))}
             />
-            <Input
+            <TltTextField
               autoFocus
-              allowClear
-              prefix={<SearchOutlined />}
+              type="search"
               value={search}
               placeholder={searchPlaceholder}
               className="reference-picker-search"
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={setSearch}
+              aria-label={searchPlaceholder}
             />
           </div>
         ) : (
-          <Input
+          <TltTextField
             autoFocus
-            allowClear
-            prefix={<SearchOutlined />}
+            type="search"
             value={search}
             placeholder={searchPlaceholder}
             className="reference-picker-search"
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={setSearch}
+            aria-label={searchPlaceholder}
           />
         )}
         {loading ? (

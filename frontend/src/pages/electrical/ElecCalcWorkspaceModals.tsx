@@ -3,7 +3,7 @@
  * @owner electrical
  */
 import { lazy, Suspense, type ComponentProps, type ReactNode } from 'react';
-import { Input, Modal } from 'antd';
+import { Modal } from 'antd';
 
 import ElecCalcCableMarkModal from '@/pages/electrical/ElecCalcCableMarkModal';
 import ElecCalcCableSizingModal from '@/pages/electrical/ElecCalcCableSizingModal';
@@ -21,6 +21,7 @@ import type {
   ElectricalColumnKey,
   ElectricalTableColumnSettings,
 } from '@/utils/electricalTableColumns';
+import {  TltTextField  } from '@/components/ui-kit';
 import type {
   ElectricalTableFontSize,
   ElectricalTableLabelFormat,
@@ -311,15 +312,17 @@ export function ElecCalcWorkspaceModals(p: ElecCalcWorkspaceModalsProps): ReactN
         onOk={submitCandidateFolderModal}
         onCancel={closeCandidateFolderModal}
       >
-        <Input
+        <TltTextField
           autoFocus
           maxLength={64}
           value={candidateFolderName}
           placeholder="Название папки"
           aria-label="Название папки вариантов"
           disabled={!canMutate}
-          onChange={(event) => setCandidateFolderName(event.target.value)}
-          onPressEnter={submitCandidateFolderModal}
+          onChange={setCandidateFolderName}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') submitCandidateFolderModal();
+          }}
         />
       </Modal>
       {candidateColumnSettingsOpen && (

@@ -1,10 +1,8 @@
 import type { ReactNode } from 'react';
 import {
-  Button,
   Checkbox,
   Popconfirm,
   Segmented,
-  Tag,
   Tooltip,
 } from 'antd';
 import {
@@ -22,6 +20,7 @@ import {
 import ImportExcelButton from '@/components/ImportExcelButton';
 import ExportObjectsButton from '@/components/ExportObjectsButton';
 import type { ActiveObjectScope } from '@/pages/heatcalc/useHeatCalcTableState';
+import { TltBadge, TltButton } from '@/components/ui-kit';
 
 export type HeatCalcToolbarEditingMode = 'normal' | 'excel';
 
@@ -112,53 +111,53 @@ export function HeatCalcTypeToolbar({
   return (
     <div className="actionbar-srs actionbar-type-row" role="toolbar" aria-label="Тип объекта и блок параметров">
       <div className="actionbar-group actionbar-type-group" aria-label="Тип объекта">
-        <Button
+        <TltButton
           className="action-type-button"
-          type={activeObjectScope === 'pipe' ? 'primary' : 'default'}
+          variant={activeObjectScope === 'pipe' ? 'primary' : 'secondary'}
           icon={pipeIcon}
           aria-label={`Трубопровод: ${pipeButtonCountText}`}
           aria-pressed={activeObjectScope === 'pipe'}
           onClick={() => onObjectScopeChange('pipe')}
         >
           Трубопровод: <strong className="action-type-count">{pipeButtonCountText}</strong>
-        </Button>
-        <Button
+        </TltButton>
+        <TltButton
           className="action-type-button"
-          type={activeObjectScope === 'tank' ? 'primary' : 'default'}
+          variant={activeObjectScope === 'tank' ? 'primary' : 'secondary'}
           icon={tankIcon}
           aria-label={`Резервуар: ${tankButtonCountText}`}
           aria-pressed={activeObjectScope === 'tank'}
           onClick={() => onObjectScopeChange('tank')}
         >
           Резервуар: <strong className="action-type-count">{tankButtonCountText}</strong>
-        </Button>
-        <Button
+        </TltButton>
+        <TltButton
           className="action-type-button"
-          type={activeObjectScope === 'all' ? 'primary' : 'default'}
+          variant={activeObjectScope === 'all' ? 'primary' : 'secondary'}
           icon={<AppstoreOutlined />}
           aria-label={`Все: ${allButtonCountText}`}
           aria-pressed={activeObjectScope === 'all'}
           onClick={() => onObjectScopeChange('all')}
         >
           Все: <strong className="action-type-count">{allButtonCountText}</strong>
-        </Button>
+        </TltButton>
         <Tooltip title="Пол — будущее расширение PDF; расчёт не входит в MVP">
-          <Button
+          <TltButton
             className="action-type-button"
             disabled
             aria-label="Пол (недоступно)"
             aria-disabled
           >
             Пол
-          </Button>
+          </TltButton>
         </Tooltip>
       </div>
 
       <div className="actionbar-group actionbar-form-state-group">
         {formBlockVisible && (
-          <Tag className={`actionbar-mode-tag ${formCaptionMode}`}>
+          <TltBadge className={`actionbar-mode-tag ${formCaptionMode}`}>
             {formCaptionModeLabel}
-          </Tag>
+          </TltBadge>
         )}
         <Checkbox
           className="actionbar-form-toggle"
@@ -170,15 +169,15 @@ export function HeatCalcTypeToolbar({
         {onContinueToElectrical && (
           <Tooltip title={continueToElectricalTooltip}>
             <span className="action-tooltip-wrap">
-              <Button
-                type="primary"
+              <TltButton
+                variant="primary"
                 data-testid="heat-continue-to-electrical"
                 disabled={continueToElectricalDisabled}
                 onClick={onContinueToElectrical}
                 aria-label="Далее. Электротехнический расчёт"
               >
                 Далее → Электротехнический расчёт
-              </Button>
+              </TltButton>
             </span>
           </Tooltip>
         )}
@@ -198,8 +197,8 @@ export function HeatCalcActionsToolbar({
         <div className="actionbar-form-actions-row" role="toolbar" aria-label="Действия блока заполнения">
           <div className="actionbar-group actionbar-form-actions-group">
             <Tooltip title="Добавить">
-              <Button
-                type="primary"
+              <TltButton
+                variant="primary"
                 className="action-icon-button action-add-button add"
                 icon={<PlusOutlined />}
                 aria-label="Добавить"
@@ -209,7 +208,7 @@ export function HeatCalcActionsToolbar({
 
             <Tooltip title={formActions.saveTooltip}>
               <span className="action-tooltip-wrap">
-                <Button
+                <TltButton
                   className="action-icon-button action-save-button save"
                   icon={<SaveOutlined />}
                   aria-label="Сохранить"
@@ -230,8 +229,7 @@ export function HeatCalcActionsToolbar({
                   disabled={formActions.deleteTargetCount === 0}
                   onConfirm={formActions.onDeleteSelected}
                 >
-                  <Button
-                    danger
+                  <TltButton variant="danger"
                     className="action-icon-button action-secondary-button"
                     icon={<DeleteOutlined />}
                     aria-label="Удалить выбранные"
@@ -248,8 +246,7 @@ export function HeatCalcActionsToolbar({
       <div className="actionbar-table-actions-row" role="toolbar" aria-label="Действия таблицы объектов">
         <div className="actionbar-group actionbar-table-actions-group">
           {tableActions.commercialFeaturesAvailable && (
-            <Segmented
-              size="small"
+            <Segmented size="small"
               value={tableActions.editingMode}
               options={[
                 { label: 'Обычный режим', value: 'normal' },
@@ -260,7 +257,7 @@ export function HeatCalcActionsToolbar({
           )}
           <Tooltip title={tableActions.recalcTooltip}>
             <span className="action-tooltip-wrap">
-              <Button
+              <TltButton
                 className="action-icon-button action-secondary-button"
                 icon={<ReloadOutlined />}
                 aria-label={tableActions.recalcAriaLabel}
@@ -272,7 +269,7 @@ export function HeatCalcActionsToolbar({
           </Tooltip>
           <Tooltip title={tableActions.recalcAllTooltip}>
             <span className="action-tooltip-wrap">
-              <Button
+              <TltButton
                 className="action-secondary-button action-recalc-all-button"
                 icon={<ReloadOutlined />}
                 aria-label="Пересчитать все"
@@ -281,13 +278,12 @@ export function HeatCalcActionsToolbar({
                 onClick={tableActions.onRecalcAll}
               >
                 Пересчитать все
-              </Button>
+              </TltButton>
             </span>
           </Tooltip>
           {tableActions.jobActive && tableActions.jobId && (
             <Tooltip title="Отменить пересчёт теплопотерь">
-              <Button
-                danger
+              <TltButton variant="danger"
                 className="action-icon-button action-secondary-button"
                 icon={<StopOutlined />}
                 aria-label="Отменить пересчёт теплопотерь"
@@ -298,7 +294,7 @@ export function HeatCalcActionsToolbar({
           )}
           <Tooltip title="Настройки отображения">
             <span className="action-tooltip-wrap">
-              <Button
+              <TltButton
                 className="action-icon-button action-secondary-button"
                 icon={<TableOutlined />}
                 aria-label="Настройки отображения"
@@ -309,7 +305,7 @@ export function HeatCalcActionsToolbar({
           {tableActions.tableFindabilityAvailable && (
             <Tooltip title={tableActions.currentTableViewActive ? 'Сбросить фильтры и сортировку' : 'Фильтры не активны'}>
               <span className="action-tooltip-wrap">
-                <Button
+                <TltButton
                   className="action-icon-button action-secondary-button"
                   icon={<CloseCircleOutlined />}
                   aria-label="Сбросить фильтры таблицы"
@@ -321,16 +317,16 @@ export function HeatCalcActionsToolbar({
           )}
           {tableActions.draftControlsVisible && (
             <>
-              <Tag color={tableActions.dirtyDraftRowCount > 0 ? 'gold' : 'default'} className="inline-draft-status-tag">
+              <TltBadge tone={tableActions.dirtyDraftRowCount > 0 ? 'warning' : 'neutral'} className="inline-draft-status-tag">
                 Несохранено: {tableActions.dirtyDraftRowCount}
-              </Tag>
-              <Button
-                size="small"
+              </TltBadge>
+              <TltButton
+                size="compact"
                 disabled={tableActions.saveTargetCount === 0 || tableActions.inlineDraftSaving}
                 onClick={tableActions.onDiscardDrafts}
               >
                 {tableActions.draftDiscardLabel}
-              </Button>
+              </TltButton>
             </>
           )}
           <Tooltip
@@ -341,7 +337,7 @@ export function HeatCalcActionsToolbar({
             }
           >
             <span className="action-tooltip-wrap">
-              <Button
+              <TltButton
                 className="action-icon-button action-secondary-button"
                 icon={<CopyOutlined />}
                 aria-label="Добавить копии выбранных"

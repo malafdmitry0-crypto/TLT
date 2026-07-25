@@ -1,8 +1,5 @@
 import { useState } from 'react';
 import {
-  Alert,
-  Button,
-  Card,
   Checkbox,
   Col,
   Row,
@@ -10,10 +7,10 @@ import {
   Skeleton,
   Space,
   Steps,
-  Tag,
   Typography,
   message,
 } from 'antd';
+import { TltAlert, TltBadge, TltButton, TltCard } from '@/components/ui-kit';
 import {
   CloseOutlined,
   FileExcelOutlined,
@@ -34,6 +31,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useLegacyElectricalVariantContext } from '@/hooks/useLegacyElectricalVariantContext';
 import ReportPreview from '@/components/reports/ReportPreview';
 import QueryError from '@/components/common/QueryError';
+import './report-wizard-page.css';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -84,66 +82,66 @@ export default function ReportWizardPage() {
 
   if (!project) {
     return (
-      <Card style={{ margin: 24 }}>
-        <Alert
-          type="warning"
-          showIcon
-          message="Проект не выбран"
-          description="Откройте проект в основном окне и заново вызовите мастер."
-        />
-      </Card>
+      <TltCard className="report-wizard-page-card">
+        <TltAlert
+          tone="warning"
+          title="Проект не выбран"
+        >
+          Откройте проект в основном окне и заново вызовите мастер.
+        </TltAlert>
+      </TltCard>
     );
   }
 
   if (!isEmployee) {
     return (
-      <Card style={{ margin: 24 }}>
-        <Alert
-          type="error"
-          showIcon
-          message="Доступ запрещён"
-          description="Мастер формирования отчёта доступен только сотрудникам."
-        />
-      </Card>
+      <TltCard className="report-wizard-page-card">
+        <TltAlert
+          tone="danger"
+          title="Доступ запрещён"
+        >
+          Мастер формирования отчёта доступен только сотрудникам.
+        </TltAlert>
+      </TltCard>
     );
   }
 
   if (variantContext.isLoading) {
     return (
-      <Card style={{ margin: 24 }} aria-busy="true" aria-label="Загрузка списка ЭР">
+      <TltCard className="report-wizard-page-card" aria-busy="true" aria-label="Загрузка списка ЭР">
         <Skeleton active title paragraph={{ rows: 5 }} />
-      </Card>
+      </TltCard>
     );
   }
 
   if (variantContext.isError) {
     return (
-      <Card style={{ margin: 24 }}>
+      <TltCard className="report-wizard-page-card">
         <QueryError
           error={variantContext.error}
           title="Не удалось загрузить список ЭР"
           onRetry={() => variantContext.refetch()}
           retrying={variantContext.isFetching}
         />
-      </Card>
+      </TltCard>
     );
   }
 
   if (!selectedElectricalVariant) {
     return (
-      <Card style={{ margin: 24 }}>
-        <Alert
-          type="warning"
-          showIcon
-          message="ЭР ещё не создан"
-          description="Создайте первый ЭР на шаге электротехнического расчёта."
+      <TltCard className="report-wizard-page-card">
+        <TltAlert
+          tone="warning"
+          title="ЭР ещё не создан"
           action={firstSupportedVariant && (
-            <Button onClick={() => variantContext.selectVariant(firstSupportedVariant.id)}>
+            <TltButton onClick={() => variantContext.selectVariant(firstSupportedVariant.id)}>
               Выбрать {firstSupportedVariant.name}
-            </Button>
+            </TltButton>
           )}
-        />
-      </Card>
+        >
+          Создайте первый ЭР на шаге электротехнического расчёта.
+        </TltAlert>
+      </TltCard>
     );
   }
 
@@ -184,33 +182,33 @@ export default function ReportWizardPage() {
   const allSelected = sections.length === REPORT_SECTIONS.length;
 
   return (
-    <div style={{ padding: 16, minHeight: '100vh', background: '#f5f7fa' }}>
-      <Card
-        size="small"
-        styles={{ body: { padding: 16 } }}
+    <div className="report-wizard-page">
+      <TltCard
+        
+        className="report-wizard-page-main"
         title={
           <Space>
             <FileTextOutlined />
             <Text strong>Мастер формирования отчёта</Text>
-            <Tag color="blue">{project.name}</Tag>
-            <Tag color="geekblue">{selectedElectricalVariant.name}</Tag>
+            <TltBadge tone="info">{project.name}</TltBadge>
+            <TltBadge tone="info">{selectedElectricalVariant.name}</TltBadge>
           </Space>
         }
-        extra={
-          <Button
-            size="small"
+        actions={
+          <TltButton
+            
             icon={<CloseOutlined />}
             onClick={() => window.close()}
           >
             Закрыть окно
-          </Button>
+          </TltButton>
         }
       >
         <Steps
-          size="small"
+          
           current={step}
           onChange={exporting ? undefined : setStep}
-          style={{ marginBottom: 16 }}
+          className="report-wizard-page-steps"
           items={[
             { title: 'Разделы' },
             { title: 'Формат' },
@@ -221,16 +219,16 @@ export default function ReportWizardPage() {
         <Row gutter={16}>
           <Col flex="0 0 280px">
             {step === 0 && (
-              <Card size="small" title="Состав отчёта">
-                <Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 8 }}>
+              <TltCard  title="Состав отчёта">
+                <Paragraph type="secondary" className="report-wizard-page-hint">
                   Отметьте, какие разделы войдут в файл.
                 </Paragraph>
-                <Text type="secondary" style={{ fontSize: 12 }}>
+                <Text type="secondary" className="report-wizard-page-label">
                   Вариант расчёта:
                 </Text>
-                <div style={{ maxWidth: '100%', overflowX: 'auto', margin: '4px 0 10px' }}>
+                <div className="report-wizard-page-variant-scroll">
                   <Segmented<string>
-                    size="small"
+                    
                     value={selectedElectricalVariant.id}
                     onChange={variantContext.selectVariant}
                     disabled={exporting}
@@ -241,22 +239,22 @@ export default function ReportWizardPage() {
                     }))}
                   />
                 </div>
-                <Button
-                  type="link"
-                  size="small"
+                <TltButton
+                  variant="link"
+                  
                   onClick={() =>
                     setSections(allSelected ? [] : [...REPORT_SECTIONS])
                   }
                   disabled={exporting}
-                  style={{ padding: 0, marginBottom: 8 }}
+                  className="report-wizard-page-select-all"
                 >
                   {allSelected ? 'Снять все' : 'Выбрать все'}
-                </Button>
+                </TltButton>
                 <Checkbox.Group
                   value={sections}
                   onChange={(v) => setSections(v as ReportSection[])}
                   disabled={exporting}
-                  style={{ display: 'flex', flexDirection: 'column', gap: 6 }}
+                  className="report-wizard-page-sections"
                 >
                   {REPORT_SECTIONS.map((s) => (
                     <Checkbox key={s} value={s}>
@@ -264,116 +262,111 @@ export default function ReportWizardPage() {
                     </Checkbox>
                   ))}
                 </Checkbox.Group>
-                <Button
-                  type="primary"
-                  block
-                  size="small"
-                  style={{ marginTop: 12 }}
+                <TltButton
+                  variant="primary"
+                                    
+                  className="report-wizard-page-next"
                   disabled={sections.length === 0}
                   onClick={() => setStep(1)}
                 >
                   Далее: формат →
-                </Button>
-              </Card>
+                </TltButton>
+              </TltCard>
             )}
 
             {step === 1 && (
-              <Card size="small" title="Формат экспорта">
-                <Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 8 }}>
+              <TltCard  title="Формат экспорта">
+                <Paragraph type="secondary" className="report-wizard-page-hint">
                   Файл будет сформирован при нажатии «Скачать».
                 </Paragraph>
                 <Space direction="vertical" style={{ width: '100%' }}>
                   {(Object.keys(FORMAT_LABEL) as Format[]).map((f) => (
-                    <Button
+                    <TltButton
                       key={f}
-                      block
-                      size="small"
-                      type={format === f ? 'primary' : 'default'}
+                                            
+                      variant={format === f  ? 'primary' : 'secondary'}
                       icon={FORMAT_LABEL[f].icon}
                       disabled={exporting}
                       onClick={() => setFormat(f)}
                     >
                       {FORMAT_LABEL[f].label}
-                    </Button>
+                    </TltButton>
                   ))}
                 </Space>
                 <Space style={{ marginTop: 12, width: '100%' }}>
-                  <Button size="small" disabled={exporting} onClick={() => setStep(0)}>
+                  <TltButton  disabled={exporting} onClick={() => setStep(0)}>
                     ← Назад
-                  </Button>
-                  <Button type="primary" size="small" disabled={exporting} onClick={() => setStep(2)}>
+                  </TltButton>
+                  <TltButton variant="primary"  disabled={exporting} onClick={() => setStep(2)}>
                     Далее: предпросмотр →
-                  </Button>
+                  </TltButton>
                 </Space>
-              </Card>
+              </TltCard>
             )}
 
             {step === 2 && (
-              <Card size="small" title="Готово к экспорту">
-                <div style={{ marginBottom: 8 }}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
+              <TltCard  title="Готово к экспорту">
+                <div className="report-wizard-page-block">
+                  <Text type="secondary" className="report-wizard-page-label">
                     Разделы:
                   </Text>
-                  <div style={{ marginTop: 4 }}>
+                  <div className="report-wizard-page-tags">
                     {allSelected ? (
-                      <Tag color="blue">все</Tag>
+                      <TltBadge tone="info">все</TltBadge>
                     ) : (
                       sections.map((s) => (
-                        <Tag key={s} color="geekblue" style={{ marginBottom: 4 }}>
+                        <TltBadge key={s} tone="info" className="report-wizard-page-tag">
                           {REPORT_SECTION_LABELS[s]}
-                        </Tag>
+                        </TltBadge>
                       ))
                     )}
                   </div>
                 </div>
-                <div style={{ marginBottom: 12 }}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
+                <div className="report-wizard-page-block--lg">
+                  <Text type="secondary" className="report-wizard-page-label">
                     Вариант:
                   </Text>{' '}
-                  <Tag color="geekblue">{selectedElectricalVariant.name}</Tag>
+                  <TltBadge tone="info">{selectedElectricalVariant.name}</TltBadge>
                 </div>
-                <div style={{ marginBottom: 12 }}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
+                <div className="report-wizard-page-block--lg">
+                  <Text type="secondary" className="report-wizard-page-label">
                     Формат:
                   </Text>{' '}
-                  <Tag color="purple" icon={FORMAT_LABEL[format].icon}>
-                    {FORMAT_LABEL[format].label}
-                  </Tag>
+                  <TltBadge tone="info">
+                    {FORMAT_LABEL[format].icon} {FORMAT_LABEL[format].label}
+                  </TltBadge>
                 </div>
-                <Button
-                  type="primary"
-                  block
-                  size="large"
+                <TltButton
+                  variant="primary"
+                  size="comfortable"
                   icon={FORMAT_LABEL[format].icon}
                   loading={exporting}
                   onClick={handleExport}
                 >
                   Скачать {FORMAT_LABEL[format].label}
-                </Button>
-                <Button
-                  block
-                  size="small"
-                  style={{ marginTop: 8 }}
+                </TltButton>
+                <TltButton
+                                    
+                  className="report-wizard-page-back"
                   disabled={exporting}
                   onClick={() => setStep(1)}
                 >
                   ← Изменить формат
-                </Button>
-                <Button
-                  block
-                  size="small"
-                  style={{ marginTop: 4 }}
+                </TltButton>
+                <TltButton
+                                    
+                  className="report-wizard-page-back--sm"
                   disabled={exporting}
                   onClick={() => setStep(0)}
                 >
                   ← Изменить разделы
-                </Button>
-              </Card>
+                </TltButton>
+              </TltCard>
             )}
           </Col>
 
-          <Col flex="1" style={{ minWidth: 0 }}>
-            <Card size="small" title="Предпросмотр HTML">
+          <Col flex="1" className="report-wizard-page-preview-col">
+            <TltCard  title="Предпросмотр HTML">
               {isError && !data && (
                 <QueryError
                   error={error}
@@ -388,29 +381,29 @@ export default function ReportWizardPage() {
                 </div>
               )}
               {!isLoading && !isError && sections.length === 0 && (
-                <Alert
-                  type="info"
-                  showIcon
-                  message="Не выбрано ни одного раздела"
-                  description="Отметьте хотя бы один раздел в шаге 1, чтобы увидеть предпросмотр."
-                />
+                <TltAlert
+                  tone="info"
+                  title="Не выбрано ни одного раздела"
+                >
+                  Отметьте хотя бы один раздел в шаге 1, чтобы увидеть предпросмотр.
+                </TltAlert>
               )}
               {data && sections.length > 0 && (
-                <div style={{ maxHeight: 'calc(100vh - 260px)', overflow: 'auto' }}>
+                <div className="report-wizard-page-preview">
                   <ReportPreview html={data.html} />
                 </div>
               )}
-            </Card>
+            </TltCard>
           </Col>
         </Row>
 
-        <Title level={5} style={{ marginTop: 16, color: '#888' }}>
-          <span style={{ fontSize: 11 }}>
+        <Title level={5} className="report-wizard-page-footnote">
+          <span className="report-wizard-page-footnote-text">
             Это окно — отдельный мастер. Изменения здесь не сохраняются на основной
             странице «Отчёт». Окно можно закрыть после выгрузки файла.
           </span>
         </Title>
-      </Card>
+      </TltCard>
     </div>
   );
 }

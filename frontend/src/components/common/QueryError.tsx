@@ -1,5 +1,5 @@
-import { Alert, Button } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
+import { TltAlert, TltButton } from '@/components/ui-kit';
 import { extractApiErrorMessage } from '@/api/client';
 
 interface QueryErrorProps {
@@ -22,18 +22,24 @@ interface QueryErrorProps {
  */
 export default function QueryError({ error, onRetry, title, retrying }: QueryErrorProps) {
   return (
-    <Alert
-      type="error"
-      showIcon
-      message={title ?? 'Не удалось загрузить данные'}
-      description={extractApiErrorMessage(error)}
+    <TltAlert
+      tone="danger"
+      title={title ?? 'Не удалось загрузить данные'}
       action={
         onRetry ? (
-          <Button size="small" icon={<ReloadOutlined />} onClick={onRetry} loading={retrying}>
+          <TltButton
+            size="compact"
+            icon={<ReloadOutlined />}
+            onClick={onRetry}
+            loading={retrying}
+            aria-label="Повторить"
+          >
             Повторить
-          </Button>
+          </TltButton>
         ) : undefined
       }
-    />
+    >
+      {extractApiErrorMessage(error)}
+    </TltAlert>
   );
 }

@@ -65,7 +65,7 @@
 /* Hidden form fields must not occupy a grid cell (column cap) */
 .heat-object-fields--wide .ant-form-item-hidden,
 .heat-object-fields--wide .ant-form-item[hidden],
-.heat-object-fields--wide .ant-form-item:has(input[type='hidden']:only-child) {
+.heat-object-fields--wide .ant-form-item.ant-form-item-hidden {
   display: none;
 }
 
@@ -106,7 +106,7 @@
 }
 
 /* Still reflow by 5; fewer auto-columns on narrow screens is automatic */
-@media (max-width: 720px) {
+@media (max-width: 768px) {
   .heat-object-fields--wide {
     /* keep reflow rule; slightly tighter gaps */
     column-gap: 12px;
@@ -128,7 +128,7 @@
 
 .heat-object-fields--side .ant-form-item-hidden,
 .heat-object-fields--side .ant-form-item[hidden],
-.heat-object-fields--side .ant-form-item:has(input[type='hidden']:only-child) {
+.heat-object-fields--side .ant-form-item.ant-form-item-hidden {
   display: none;
 }
 

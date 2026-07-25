@@ -1,7 +1,8 @@
 import type { ReactElement } from 'react';
-import { Form, Tag } from 'antd';
+import { Form } from 'antd';
 import UnitInputNumber from '@/components/common/UnitInputNumber';
 import { TltSelect } from '@/components/form-controls';
+import { TltBadge } from '@/components/ui-kit';
 import {
   heatCalcFormFieldRules,
   heatCalcNumberInputProps,
@@ -30,8 +31,8 @@ function fieldHelp(fieldId: string, objectType: HeatCalcObjectType) {
 }
 
 function sourceTag(source: unknown) {
-  if (source === 'climate') return <Tag className="field-source-tag">из климата</Tag>;
-  if (source === 'manual') return <Tag className="field-source-tag">вручную</Tag>;
+  if (source === 'climate') return <TltBadge className="field-source-tag">из климата</TltBadge>;
+  if (source === 'manual') return <TltBadge className="field-source-tag">вручную</TltBadge>;
   return null;
 }
 

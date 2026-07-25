@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 import {
   Checkbox,
   Modal,
-  Select,
   Space,
   Typography,
 } from 'antd';
@@ -19,6 +18,7 @@ import {
   type CableTypeKey,
 } from '@/domain/electrical/elecCalcMainTableModel';
 import type { ElectricalVariantTargetOption } from '@/pages/electrical/elecCalcVariantModel';
+import { TltSelect } from '@/components/ui-kit';
 
 const { Text } = Typography;
 
@@ -112,14 +112,15 @@ export default function ElecCalcCableMarkModal({
         {cableType && (
           <div>
             <Text type="secondary">Тип кабеля</Text>
-            <Select<CableTypeKey>
+            <TltSelect
               aria-label="Тип кабеля для выбора марки"
-              size="small"
               value={cableType}
               disabled={!projectSelected || pending || !commercialFeaturesAvailable}
-              onChange={onCableTypeChange}
-              options={cableTypeOptions}
-              style={{ width: '100%', marginTop: 4 }}
+              onChange={(value) => {
+                if (value == null) return;
+                onCableTypeChange(String(value) as CableTypeKey);
+              }}
+              options={cableTypeOptions} className="tlt-field--fill-mt"
             />
           </div>
         )}
@@ -127,24 +128,18 @@ export default function ElecCalcCableMarkModal({
           projectSelected
             ? renderTypeControls(cableType)
             : (
-              <fieldset disabled style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
+              <fieldset disabled className="electrical-fieldset-reset">
                 {renderTypeControls(cableType)}
               </fieldset>
             )
         )}
         <div>
           <Text type="secondary">Марка</Text>
-          <Select
-            autoFocus
-            showSearch
+          <TltSelect
             value={value ?? AUTO_CABLE_MARK_VALUE}
             options={markOptions}
-            optionFilterProp="searchLabel"
-            disabled={!object?.is_valid || !projectSelected}
-            loading={pending}
-            notFoundContent="Нет доступных марок"
-            style={{ width: '100%', marginTop: 4 }}
-            onChange={onMarkChange}
+            disabled={!object?.is_valid || !projectSelected} className="tlt-field--fill-mt"
+            onChange={(value) => { if (value != null) onMarkChange(String(value)); }}
           />
         </div>
         <div>
@@ -161,14 +156,14 @@ export default function ElecCalcCableMarkModal({
               value={targetVariants}
               disabled={!projectSelected || pending}
               onChange={onTargetVariantsChange}
-              style={{ display: 'flex', gap: 12, marginTop: 6, flexWrap: 'wrap' }}
+              className="electrical-radio-row"
             />
           </div>
         </div>
         <Text
           id="electrical-cable-target-variants-help"
           type="secondary"
-          style={{ fontSize: 12 }}
+          className="electrical-radio-hint"
         >
           «Авто» запустит автоподбор для выбранных ЭР. Выбор конкретной марки сохранит
           ручной подбор в отмеченных ЭР. Недоступные ЭР ещё не поддерживают перенос

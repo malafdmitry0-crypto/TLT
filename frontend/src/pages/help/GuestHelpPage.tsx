@@ -1,4 +1,5 @@
-import { Button, Card, Steps, Typography, Tag, Divider, Alert } from 'antd';
+import { Steps, Typography, Divider } from 'antd';
+import { TltAlert, TltBadge, TltButton, TltCard } from '@/components/ui-kit';
 import { useNavigate } from 'react-router-dom';
 import {
   CalculatorOutlined,
@@ -10,6 +11,7 @@ import {
   UnorderedListOutlined,
   FireOutlined,
 } from '@ant-design/icons';
+import './help-page.css';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -17,18 +19,18 @@ export default function GuestHelpPage() {
   const navigate = useNavigate();
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f5f5f5', padding: '40px 24px' }}>
-      <div style={{ maxWidth: 820, margin: '0 auto' }}>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/')} style={{ marginBottom: 24 }}>
+    <div className="help-page">
+      <div className="help-page-inner help-page-inner--guest">
+        <TltButton icon={<ArrowLeftOutlined />} onClick={() => navigate('/')} className="help-page-back">
           На главную
-        </Button>
+        </TltButton>
 
-        <Card>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-            <Title level={2} style={{ margin: 0, color: '#1a5276' }}>
+        <TltCard>
+          <div className="help-page-header">
+            <Title level={2} className="help-page-title">
               Инструкция для пользователя
             </Title>
-            <Tag color="blue">Гостевой режим</Tag>
+            <TltBadge tone="info">Гостевой режим</TltBadge>
           </div>
           <Paragraph type="secondary">
             Работа без регистрации. Все расчёты сохраняются в рамках одной сессии (до 30 дней).
@@ -48,24 +50,24 @@ export default function GuestHelpPage() {
               <li>Получать предпросмотр отчёта на экране</li>
             </ul>
           </Paragraph>
-          <Alert
-            type="info"
-            showIcon
-            message="Ограничения гостевого режима"
-            description="Экспорт отчётов в PDF / Word / Excel и проводник проектов сотрудников доступны только сотрудникам. Чтобы получить расширенные возможности — обратитесь к администратору."
-            style={{ marginBottom: 16 }}
-          />
+          <TltAlert
+            tone="info"
+            title="Ограничения гостевого режима"
+            className="help-page-alert--sm"
+          >
+            Экспорт отчётов в PDF / Word / Excel и проводник проектов сотрудников доступны только сотрудникам. Чтобы получить расширенные возможности — обратитесь к администратору.
+          </TltAlert>
 
           <Divider />
 
           <Title level={4}>4 шага работы</Title>
-          <Paragraph type="secondary" style={{ marginBottom: 8 }}>
+          <Paragraph type="secondary" className="help-page-section-lead">
             Весь процесс разбит на четыре последовательных шага. Индикатор прогресса виден сверху каждой страницы рабочего стола.
           </Paragraph>
           <Steps
             direction="vertical"
             size="small"
-            style={{ marginTop: 16 }}
+            className="help-page-steps"
             items={[
               {
                 title: 'Шаг 1. Теплопотери',
@@ -100,7 +102,7 @@ export default function GuestHelpPage() {
           <Steps
             direction="vertical"
             size="small"
-            style={{ marginTop: 16 }}
+            className="help-page-steps"
             items={[
               {
                 title: 'Нажмите «Пользователь» на главной странице',
@@ -132,7 +134,7 @@ export default function GuestHelpPage() {
           <Divider />
 
           <Title level={4}>
-            <UploadOutlined style={{ marginRight: 6, color: '#1890ff' }} />
+            <UploadOutlined className="help-page-icon-inline" />
             Импорт объектов из Excel / CSV
           </Title>
           <Paragraph>
@@ -146,16 +148,16 @@ export default function GuestHelpPage() {
           <Paragraph>
             После импорта появится модалка с результатом: сколько объектов создано, какие строки пропущены и почему. Импорт не прерывается на единичных ошибках — все валидные строки будут добавлены.
           </Paragraph>
-          <Alert
-            type="info"
-            showIcon
-            message="Материалы изоляции"
-            description="Принимаются как русские названия (Минеральная вата, Пеностекло, ППУ, Пенополистирол, Аэрогель, Силикат кальция), так и английские коды (mineral_wool, foam_glass и т.д.)."
-            style={{ marginBottom: 16 }}
-          />
+          <TltAlert
+            tone="info"
+            title="Материалы изоляции"
+            className="help-page-alert--sm"
+          >
+            Принимаются как русские названия (Минеральная вата, Пеностекло, ППУ, Пенополистирол, Аэрогель, Силикат кальция), так и английские коды (mineral_wool, foam_glass и т.д.).
+          </TltAlert>
 
           <Title level={4}>
-            <UnorderedListOutlined style={{ marginRight: 6, color: '#1890ff' }} />
+            <UnorderedListOutlined className="help-page-icon-inline" />
             Работа с таблицей объектов
           </Title>
           <Paragraph>
@@ -187,7 +189,7 @@ export default function GuestHelpPage() {
           <Divider />
 
           <Title level={4}>Если расчёт не удался</Title>
-          <Paragraph type="secondary" style={{ marginBottom: 10 }}>
+          <Paragraph type="secondary" className="help-page-section-lead--md">
             Важно понимать: два этапа проверяют разные вещи.
           </Paragraph>
           <Paragraph>
@@ -205,12 +207,12 @@ export default function GuestHelpPage() {
 
           <Divider />
 
-          <Card type="inner" style={{ background: '#e8f4fd' }}>
-            <Paragraph style={{ margin: 0 }}>
+          <TltCard tone="soft" className="help-page-tip help-page-tip--guest">
+            <Paragraph className="help-page-tip-text">
               <Text strong>Нужно больше возможностей?</Text> Обратитесь к администратору для получения учётной записи сотрудника — это откроет доступ к экспорту отчётов в PDF/Word/Excel и проводнику проектов.
             </Paragraph>
-          </Card>
-        </Card>
+          </TltCard>
+        </TltCard>
       </div>
     </div>
   );

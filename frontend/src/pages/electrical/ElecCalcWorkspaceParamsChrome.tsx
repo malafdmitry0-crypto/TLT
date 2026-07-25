@@ -3,7 +3,8 @@
  * @owner electrical
  */
 import type { ReactNode } from 'react';
-import { Alert, Button, Checkbox } from 'antd';
+import { Checkbox } from 'antd';
+import { TltAlert, TltButton } from '@/components/ui-kit';
 
 import ElecCalcParamsPanel from '@/pages/electrical/ElecCalcParamsPanel';
 import ElecCalcErrorSummary from '@/pages/electrical/ElecCalcErrorSummary';
@@ -59,15 +60,8 @@ export function ElecCalcWorkspaceParamsChrome({
   return (
     <>
       <div
-        className="elec-workspace-chrome"
+        className="elec-workspace-chrome electrical-params-chrome-end"
         data-testid="elec-workspace-chrome"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'flex-end',
-          gap: 8,
-          minHeight: 28,
-        }}
       >
         <Checkbox
           className="actionbar-form-toggle"
@@ -96,29 +90,27 @@ export function ElecCalcWorkspaceParamsChrome({
       />
 
       {(isElectricalCapabilitiesError || isElectricalPageError) && (
-        <Alert
-          type="error"
-          showIcon
-          message="Не удалось загрузить данные выбранного ЭР"
-          description={(
-            electricalPageError instanceof Error
-              ? electricalPageError.message
-              : electricalCapabilitiesError instanceof Error
-                ? electricalCapabilitiesError.message
-                : 'Повторите запрос.'
-          )}
+        <TltAlert
+          tone="danger"
+          title="Не удалось загрузить данные выбранного ЭР"
           action={(
-            <Button
-              size="small"
+            <TltButton
+              size="compact"
               onClick={() => {
                 if (isElectricalCapabilitiesError) void retryElectricalCapabilities();
                 if (isElectricalPageError) void retryElectricalPage();
               }}
             >
               Повторить
-            </Button>
+            </TltButton>
           )}
-        />
+        >
+          {electricalPageError instanceof Error
+            ? electricalPageError.message
+            : electricalCapabilitiesError instanceof Error
+              ? electricalCapabilitiesError.message
+              : 'Повторите запрос.'}
+        </TltAlert>
       )}
     </>
   );

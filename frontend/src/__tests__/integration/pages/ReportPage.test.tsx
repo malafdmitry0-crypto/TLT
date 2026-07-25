@@ -266,12 +266,24 @@ describe('ReportPage (integration)', () => {
         expect.any(Array),
       );
     });
-    // Multi-select ER control is disabled while export is in flight (PDL-ER-39 UI).
-    const erSelect = screen.getAllByLabelText('Выбор ЭР для отчёта')[0];
-    expect(erSelect.className).toMatch(/ant-select-disabled/);
+    // Multi-select ER control (Checkbox.Group) is disabled while export is in flight.
+    const erCheckboxes = () => Array.from(
+      document.querySelectorAll<HTMLInputElement>(
+        '.report-page-er-checkbox-group input[type="checkbox"], .report-page-er-options input[type="checkbox"]',
+      ),
+    );
+    await waitFor(() => {
+      const boxes = erCheckboxes();
+      expect(boxes.length).toBeGreaterThan(0);
+      expect(boxes.every((box) => box.disabled)).toBe(true);
+    });
 
     resolveExport(new Blob(['report'], { type: 'application/pdf' }));
-    await waitFor(() => expect(erSelect.className).not.toMatch(/ant-select-disabled/));
+    await waitFor(() => {
+      const boxes = erCheckboxes();
+      expect(boxes.length).toBeGreaterThan(0);
+      expect(boxes.every((box) => box.disabled)).toBe(false);
+    });
     expect(downloadedName).toBe(`${mockProject.name}-${thirdVariant.name}.pdf`);
   });
 

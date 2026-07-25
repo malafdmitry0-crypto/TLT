@@ -22,7 +22,6 @@ import {
 import {
   isExcelCellActive,
   type ExcelCellPosition,
-  type NormalizedExcelSelectionRange,
   type ExcelSelectionRange,
 } from '@/utils/heatCalcExcelMode';
 import {
@@ -52,6 +51,10 @@ import {
   heatLossCalcStatus,
   isColumnApplicableToObjectType,
 } from '@/utils/heatCalcPageUtils';
+import {
+  buildExcelSelectionLookup,
+  isExcelCellSelectedByLookup,
+} from '@/utils/heatCalcExcelSelectionLookupModel';
 
 const { Text } = Typography;
 
@@ -62,65 +65,11 @@ export type HeatCalcTableColumnRenderSpec = Pick<ColumnType<ProjectObject>, 'ren
   copyValue: (record: ProjectObject, index: number) => string;
 };
 
-export interface ExcelSelectionLookup {
-  normalizedRange: NormalizedExcelSelectionRange | null;
-  rowIdToIndex: Map<string, number>;
-  columnKeyToIndex: Map<string, number>;
-}
-
-export function buildExcelSelectionLookup(
-  range: ExcelSelectionRange | null,
-  rowIds: readonly string[],
-  columnKeys: readonly string[],
-): ExcelSelectionLookup {
-  const rowIdToIndex = new Map<string, number>();
-  rowIds.forEach((rowId, index) => rowIdToIndex.set(rowId, index));
-
-  const columnKeyToIndex = new Map<string, number>();
-  columnKeys.forEach((columnKey, index) => columnKeyToIndex.set(columnKey, index));
-
-  const anchorRowIndex = range ? rowIdToIndex.get(range.anchor.rowId) : undefined;
-  const focusRowIndex = range ? rowIdToIndex.get(range.focus.rowId) : undefined;
-  const anchorColumnIndex = range ? columnKeyToIndex.get(range.anchor.columnKey) : undefined;
-  const focusColumnIndex = range ? columnKeyToIndex.get(range.focus.columnKey) : undefined;
-  const normalizedRange = (
-    anchorRowIndex != null
-    && focusRowIndex != null
-    && anchorColumnIndex != null
-    && focusColumnIndex != null
-  )
-    ? {
-      top: Math.min(anchorRowIndex, focusRowIndex),
-      bottom: Math.max(anchorRowIndex, focusRowIndex),
-      left: Math.min(anchorColumnIndex, focusColumnIndex),
-      right: Math.max(anchorColumnIndex, focusColumnIndex),
-    }
-    : null;
-
-  return {
-    normalizedRange,
-    rowIdToIndex,
-    columnKeyToIndex,
-  };
-}
-
-export function isExcelCellSelectedByLookup(
-  lookup: ExcelSelectionLookup,
-  rowId: string,
-  columnKey: string,
-) {
-  const { normalizedRange } = lookup;
-  if (!normalizedRange) return false;
-  const rowIndex = lookup.rowIdToIndex.get(rowId);
-  const columnIndex = lookup.columnKeyToIndex.get(columnKey);
-  if (rowIndex == null || columnIndex == null) return false;
-  return (
-    rowIndex >= normalizedRange.top
-    && rowIndex <= normalizedRange.bottom
-    && columnIndex >= normalizedRange.left
-    && columnIndex <= normalizedRange.right
-  );
-}
+export type { ExcelSelectionLookup } from '@/utils/heatCalcExcelSelectionLookupModel';
+export {
+  buildExcelSelectionLookup,
+  isExcelCellSelectedByLookup,
+} from '@/utils/heatCalcExcelSelectionLookupModel';
 
 interface UseHeatCalcTableColumnsOptions {
   activeTableColumnScope: HeatCalcTableColumnScope;
@@ -333,7 +282,6 @@ export function useHeatCalcTableColumns({
             role="button"
             aria-label={`Фильтр ${meta.label}`}
             className="table-filter-trigger"
-            style={{ pointerEvents: 'auto' }}
           >
             <FilterFilled
               className={filterActive ? 'table-filter-icon active' : 'table-filter-icon'}

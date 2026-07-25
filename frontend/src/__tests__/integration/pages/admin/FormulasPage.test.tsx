@@ -120,8 +120,11 @@ describe('FormulasPage', () => {
     // Ждём появления полей формы
     await screen.findByText(/Нар. диаметр трубы/i);
 
-    // Заполняем числовые поля через spinbutton
-    const spinbuttons = screen.getAllByRole('spinbutton');
+    // TltNumberField exposes textbox (react-aria); keep spinbutton for any residual Ant fields
+    const spinbuttons = [
+      ...screen.queryAllByRole('spinbutton'),
+      ...screen.queryAllByRole('textbox'),
+    ];
     for (const input of spinbuttons) {
       fireEvent.change(input, { target: { value: '50' } });
     }
@@ -148,9 +151,12 @@ describe('FormulasPage', () => {
     renderPage();
     await screen.findByText(/Нар. диаметр трубы/i);
 
-    // Заполняем числовые поля
-    const spinbuttons = screen.getAllByRole('spinbutton');
-    for (const input of spinbuttons) {
+    // TltNumberField exposes textbox (react-aria)
+    const numberInputs = [
+      ...screen.queryAllByRole('spinbutton'),
+      ...screen.queryAllByRole('textbox'),
+    ];
+    for (const input of numberInputs) {
       fireEvent.change(input, { target: { value: '50' } });
     }
 

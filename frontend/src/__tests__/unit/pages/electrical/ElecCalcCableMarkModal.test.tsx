@@ -174,7 +174,7 @@ describe('ElecCalcCableMarkModal', () => {
     expect(within(dialog).getByText('Труба-1')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Применить' })).toBeDisabled();
     expect(within(dialog).getAllByLabelText('Тип кабеля для выбора марки')[0])
-      .toHaveClass('ant-select-disabled');
+      .toHaveAttribute('data-disabled', 'true');
     expect(within(dialog).getByRole('checkbox', { name: 'ЭР1' })).toBeDisabled();
 
     expect(props.onApply).not.toHaveBeenCalled();

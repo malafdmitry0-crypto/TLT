@@ -1,0 +1,26 @@
+/* OWNER: shared common chrome — static styles for common/* components */
+
+.page-skeleton {
+  padding: 24px;
+}
+
+.page-skeleton-row {
+  display: flex;
+}
+
+.tab-badge {
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 10px;
+  font-size: 11px;
+  background: var(--color-info);
+  color: var(--color-surface);
+}
+
+.validation-highlight {
+  padding: 2px;
+}
+
+.workflow-steps {
+  margin-bottom: 16px;
+}

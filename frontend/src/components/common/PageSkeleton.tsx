@@ -1,4 +1,5 @@
 import { Skeleton, Space } from 'antd';
+import './common-chrome.css';
 
 interface PageSkeletonProps {
   /** Число строк-плейсхолдеров под заголовком (имитация таблицы/контента). */
@@ -13,9 +14,9 @@ interface PageSkeletonProps {
  */
 export default function PageSkeleton({ rows = 6 }: PageSkeletonProps) {
   return (
-    <div aria-busy="true" style={{ padding: 24 }}>
+    <div aria-busy="true" className="page-skeleton">
       <Skeleton.Input active size="large" style={{ width: 280, marginBottom: 20 }} />
-      <Space direction="vertical" size={14} style={{ display: 'flex' }}>
+      <Space direction="vertical" size={14} className="page-skeleton-row">
         {Array.from({ length: rows }, (_, i) => (
           <Skeleton.Input key={i} active block size="default" />
         ))}

@@ -1,4 +1,5 @@
-import { Space, Tag, Tooltip, Typography } from 'antd';
+import { Space, Tooltip, Typography } from 'antd';
+import { TltBadge } from '@/components/ui-kit';
 
 import {
   candidateCommercialValue,
@@ -22,6 +23,7 @@ import {
 } from '@/domain/electrical/elecCalcResultValueModel';
 import type { ElectricalCandidate } from '@/types/calculation';
 import type { ElectricalColumnKey } from '@/utils/electricalTableColumns';
+import './electrical-candidate-field.css';
 
 const { Text } = Typography;
 
@@ -35,16 +37,16 @@ export function renderCandidateElectricalField(
     case 'cable_mark':
       return (
         <Space size={4} wrap={false}>
-          <Text strong={candidate.is_recommended} ellipsis style={{ maxWidth: 130 }}>
+          <Text strong={candidate.is_recommended} ellipsis className="electrical-candidate-mark">
             {candidate.cable_mark ?? '—'}
           </Text>
-          {candidate.is_recommended && <Tag color="blue" style={{ marginInlineEnd: 0 }}>приор.</Tag>}
-          {candidate.is_pinned && <Tag color="purple" style={{ marginInlineEnd: 0 }}>избр.</Tag>}
+          {candidate.is_recommended && <TltBadge className="electrical-candidate-badge" tone="info">приор.</TltBadge>}
+          {candidate.is_pinned && <TltBadge className="electrical-candidate-badge" tone="neutral">избр.</TltBadge>}
         </Space>
       );
     case 'cable_snapshot_status':
       return candidate.cable_snapshot ? (
-        <Tag color="success" style={{ marginInlineEnd: 0 }}>снимок</Tag>
+        <TltBadge className="electrical-candidate-badge" tone="success">снимок</TltBadge>
       ) : '—';
     case 'selection_policy':
       return selectionPolicyText(candidate.results?.selection_policy);
@@ -72,12 +74,18 @@ export function renderCandidateElectricalField(
           <Text>{numberText(candidate.results?.num_circuits, 0)}</Text>
           {sourceMeta && (
             <Tooltip title={sourceMeta.tooltip}>
-              <Tag
-                color={sourceMeta.color}
-                style={{ marginInlineEnd: 0, fontSize: 10, lineHeight: '16px' }}
+              <TltBadge
+                className="electrical-candidate-badge--compact"
+                tone={
+                  sourceMeta.color === 'blue'
+                    ? 'info'
+                    : sourceMeta.color === 'gold'
+                      ? 'warning'
+                      : 'neutral'
+                }
               >
                 {sourceMeta.label}
-              </Tag>
+              </TltBadge>
             </Tooltip>
           )}
         </Space>

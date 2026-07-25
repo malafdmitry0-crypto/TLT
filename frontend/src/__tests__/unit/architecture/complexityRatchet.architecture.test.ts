@@ -219,7 +219,13 @@ describe('complexity ratchet (G2)', () => {
 
     expect(baseline.newFileLocCap).toBe(500);
     expect(baseline.version).toBeGreaterThanOrEqual(2);
-    expect(Object.keys(baseline.files).length).toBeGreaterThan(0);
+    // Empty hotspot list is valid when every production file is ≤ newFileLocCap.
+    const overCap = Object.values(current).filter((m) => m.loc > baseline.newFileLocCap).length;
+    if (overCap > 0) {
+      expect(Object.keys(baseline.files).length).toBeGreaterThan(0);
+    } else {
+      expect(Object.keys(baseline.files).length).toBe(0);
+    }
   });
 
   it('measures imports via TypeScript AST (ImportDeclaration only)', () => {

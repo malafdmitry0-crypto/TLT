@@ -9,8 +9,6 @@ import {
   type ReactNode,
 } from 'react';
 import {
-  Alert,
-  Button,
   Dropdown,
   Space,
   Tabs,
@@ -20,6 +18,7 @@ import {
   ApartmentOutlined,
   AppstoreOutlined,
 } from '@ant-design/icons';
+import { TltAlert, TltButton } from '@/components/ui-kit';
 
 import { extractApiErrorMessage } from '@/api/client';
 import {
@@ -171,56 +170,55 @@ export default function ElectricalAssignmentPanel({
       {c.modalContextHolder}
 
       {!canMutate && (
-        <Alert
-          type="info"
-          showIcon
-          style={{ marginBottom: 8 }}
-          message="Режим просмотра"
-          description="Назначения можно смотреть; менять может только владелец проекта или администратор."
-        />
+        <TltAlert
+          tone="info"
+          className="electrical-alert-gap"
+          title="Режим просмотра"
+        >
+          Назначения можно смотреть; менять может только владелец проекта или администратор.
+        </TltAlert>
       )}
       {c.conflictNotice && (
-        <Alert
-          type="warning"
-          showIcon
-          closable
-          style={{ marginBottom: 8 }}
-          onClose={() => c.setConflictNotice(null)}
-          message={c.conflictNotice.title}
-          description={c.conflictNotice.description}
-        />
+        <TltAlert
+          tone="warning"
+          className="electrical-alert-gap"
+          onDismiss={() => c.setConflictNotice(null)}
+          title={c.conflictNotice.title}
+        >
+          {c.conflictNotice.description}
+        </TltAlert>
       )}
       {c.cleanupRequiredIds && (
-        <Alert
-          type="warning"
-          showIcon
-          style={{ marginBottom: 8 }}
-          message="Найдены старые электрические данные"
-          description="Перед назначением подтвердите очистку расчётов выбранного ЭР. Теплорасчёт сохранится."
+        <TltAlert
+          tone="warning"
+          className="electrical-alert-gap"
+          title="Найдены старые электрические данные"
           action={(
-            <Button size="small" danger disabled={c.busy} onClick={c.confirmLegacyCleanup}>
+            <TltButton size="compact" variant="danger" disabled={c.busy} onClick={c.confirmLegacyCleanup}>
               Подтвердить очистку
-            </Button>
+            </TltButton>
           )}
-        />
+        >
+          Перед назначением подтвердите очистку расчётов выбранного ЭР. Теплорасчёт сохранится.
+        </TltAlert>
       )}
       {c.mutation.isError
         && !isVersionConflict(c.mutation.error)
         && !isReassignConflict(c.mutation.error)
         && !isCleanupRequired(c.mutation.error)
         && (
-        <Alert
-          type="error"
-          showIcon
-          style={{ marginBottom: 8 }}
-          message="Не удалось изменить назначение"
-          description={extractApiErrorMessage(c.mutation.error)}
+        <TltAlert
+          tone="danger"
+          className="electrical-alert-gap"
+          title="Не удалось изменить назначение"
           action={(
-            <Button size="small" loading={c.countsQuery.isFetching} onClick={() => void c.countsQuery.refetch()}>
+            <TltButton size="compact" loading={c.countsQuery.isFetching} onClick={() => void c.countsQuery.refetch()}>
               Обновить
-            </Button>
+            </TltButton>
           )}
-        />
+        >
+          {extractApiErrorMessage(c.mutation.error)}
+        </TltAlert>
       )}
 
       <div className="electrical-system-scope__tabs-row">
@@ -242,8 +240,8 @@ export default function ElectricalAssignmentPanel({
           }))}
           tabBarExtraContent={canMutate ? (
             <Space size={8} className="electrical-system-scope__actions" wrap>
-              <Button
-                size="small"
+              <TltButton
+                size="compact"
                 icon={<ApartmentOutlined />}
                 disabled={c.assignDisabled}
                 loading={c.busy && c.mutation.variables?.kind === 'assign'
@@ -252,14 +250,14 @@ export default function ElectricalAssignmentPanel({
                 aria-label="Применить правило к группе"
               >
                 Применить правило к группе
-              </Button>
+              </TltButton>
               <Dropdown
                 menu={{ items: c.typeMenuItems }}
                 disabled={c.actionsDisabled && systemView === 'unassigned' && c.selectedCount === 0}
                 trigger={['click']}
               >
-                <Button
-                  size="small"
+                <TltButton
+                  size="compact"
                   icon={<AppstoreOutlined />}
                   disabled={c.actionsDisabled && c.selectedCount === 0}
                   loading={c.busy && c.mutation.variables?.kind === 'assign'
@@ -267,7 +265,7 @@ export default function ElectricalAssignmentPanel({
                   aria-label="Выбрать тип"
                 >
                   Выбрать тип
-                </Button>
+                </TltButton>
               </Dropdown>
             </Space>
           ) : undefined}
@@ -324,31 +322,31 @@ export default function ElectricalAssignmentPanel({
         className="electrical-system-scope__toolbar"
       >
         <Typography.Text>Выбрано: {c.selectedCount}</Typography.Text>
-        <Button
-          type="primary"
+        <TltButton
+          variant="primary"
           disabled={c.assignDisabled}
           loading={c.busy && c.mutation.variables?.kind === 'assign'
             && c.mutation.variables.systemType === 'self_regulating'}
           onClick={() => c.runAssign('self_regulating', selectedObjectIds)}
         >
           Назначить: Самрег
-        </Button>
-        <Button
+        </TltButton>
+        <TltButton
           disabled={c.assignDisabled}
           loading={c.busy && c.mutation.variables?.kind === 'assign'
             && c.mutation.variables.systemType === 'resistive'}
           onClick={() => c.runAssign('resistive', selectedObjectIds)}
         >
           Назначить: Резистив
-        </Button>
-        <Button
-          danger
+        </TltButton>
+        <TltButton
+          variant="danger"
           disabled={c.actionsDisabled || systemView === 'unassigned'}
           loading={c.busy && c.mutation.variables?.kind === 'unassign'}
           onClick={() => c.confirmUnassign()}
         >
           Вернуть в нераспределённые
-        </Button>
+        </TltButton>
       </div>
 
       <Typography.Text type="secondary" id="unsupported-electrical-systems-note" className="electrical-system-scope__note">

@@ -1,0 +1,15 @@
+/* OWNER: ElectricalCandidateFieldRenderer — static cell chrome */
+
+.electrical-candidate-mark {
+  max-width: 130px;
+}
+
+.electrical-candidate-badge {
+  margin-inline-end: 0;
+}
+
+.electrical-candidate-badge--compact {
+  margin-inline-end: 0;
+  font-size: 10px;
+  line-height: 16px;
+}

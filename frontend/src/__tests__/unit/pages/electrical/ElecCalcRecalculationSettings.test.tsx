@@ -54,6 +54,7 @@ describe('ElecCalcRecalculationSettings', () => {
 
     expect(screen.getByText('Коммерческие данные есть')).toBeInTheDocument();
     expect(screen.getByText('Критерий:')).toBeInTheDocument();
-    expect(screen.getByText('Технический')).toBeInTheDocument();
+    expect(screen.getByLabelText('Критерий подбора кабеля')).toBeInTheDocument();
+    expect(screen.getByLabelText('Критерий подбора кабеля')).toHaveTextContent('Технический');
   });
 });

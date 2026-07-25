@@ -1,10 +1,5 @@
 {
   "version": 1,
   "newFileImportCap": 20,
-  "files": {
-    "src/pages/heatcalc/useHeatCalcPageModel.ts": 23,
-    "src/components/wizard/ObjectWizard.tsx": 29,
-    "src/pages/electrical/elecCalcWorkspacePresentationMap.ts": 21,
-    "src/pages/electrical/useElecCalcWorkspaceDataPlane.ts": 22
-  }
+  "files": {}
 }

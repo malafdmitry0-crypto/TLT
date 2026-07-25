@@ -17,6 +17,32 @@ export const GLIDE_HEADER_CONTROL_MUTED = '#7a8b99';
 export const GLIDE_HEADER_CONTROL_FAINT = '#b8c2cc';
 export const GLIDE_HEADER_CONTROL_ACTIVE = '#1a5276';
 
+/** Shared canvas palette for all glide-data-grid consumers (owner of hex literals). */
+export const GLIDE_THEME = {
+  accent: '#1a5276',
+  accentLight: '#dbeeff',
+  bgCell: '#ffffff',
+  bgHeader: '#f3f6f4',
+  border: '#d9d9d9',
+  text: '#2b2f33',
+  textMuted: '#8c8c8c',
+  surfaceMuted: '#fafafa',
+  surfaceDisabled: '#f5f5f5',
+  actionBorder: '#b8c8d6',
+  activeRowBg: '#d6e9f5',
+  errorRowBg: '#fff1f0',
+  dirtyRowBg: '#fffbe6',
+  comparedRowBg: '#f7fbff',
+  diffCellBg: '#fff7d6',
+  statusOkFill: '#f6ffed',
+  statusOkStroke: '#95de64',
+  statusOkGlyph: '#389e0d',
+  statusErrorStroke: '#ffccc7',
+  statusErrorGlyph: '#cf1322',
+  statusWarnStroke: '#ffe58f',
+  statusWarnGlyph: '#d48806',
+} as const;
+
 /** Класс строки «ошибка/не рассчитано» (используется normal- и excel-гридами теплопотерь). */
 export function isErrorRowClassName(className: string) {
   return className.includes('row-invalid')

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Button, Space, Tag, Tooltip, Typography } from 'antd';
+import { Space, Tooltip, Typography } from 'antd';
 import {
   CheckCircleFilled,
   CloseCircleFilled,
@@ -45,6 +45,29 @@ import {
   threadSourceTag,
   valueText,
 } from '@/domain/electrical/elecCalcResultValueModel';
+import { TltBadge, TltButton } from '@/components/ui-kit';
+
+function antColorToTltTone(color: string | undefined): 'neutral' | 'info' | 'success' | 'warning' | 'danger' {
+  switch (color) {
+    case 'success':
+    case 'green':
+      return 'success';
+    case 'error':
+    case 'red':
+    case 'volcano':
+    case 'magenta':
+      return 'danger';
+    case 'warning':
+    case 'gold':
+    case 'orange':
+      return 'warning';
+    case 'default':
+    case undefined:
+      return 'neutral';
+    default:
+      return 'info';
+  }
+}
 
 const { Text } = Typography;
 
@@ -94,7 +117,7 @@ export function useElecCalcElectricalColumnRenderers({
     object_name: {
       ellipsis: true,
       render: (_: unknown, obj) => (
-        <Text style={{ fontSize: 12 }}>
+        <Text className="electrical-cell-text">
           {objectDisplayName(obj)}
         </Text>
       ),
@@ -108,16 +131,16 @@ export function useElecCalcElectricalColumnRenderers({
         if (obj.is_valid) {
           return (
             <Tooltip title="Рассчитан">
-              <Tag className="heatloss-status-icon-tag" color="success" aria-label="Рассчитан">
+              <TltBadge className="heatloss-status-icon-tag" tone="success" aria-label="Рассчитан">
                 <CheckCircleFilled />
-              </Tag>
+              </TltBadge>
             </Tooltip>
           );
         }
         if (obj.validation_errors?.category === 'unsupported') {
           return (
             <Tooltip title={valueText(obj.validation_errors?.message ?? obj.validation_errors)}>
-              <Tag color="default">Не применимо</Tag>
+              <TltBadge tone="neutral">Не применимо</TltBadge>
             </Tooltip>
           );
         }
@@ -128,9 +151,9 @@ export function useElecCalcElectricalColumnRenderers({
               obj.validation_errors,
             )}
           >
-            <Tag className="heatloss-status-icon-tag" color="error" aria-label="Ошибка">
+            <TltBadge className="heatloss-status-icon-tag" tone="danger" aria-label="Ошибка">
               <CloseCircleFilled />
-            </Tag>
+            </TltBadge>
           </Tooltip>
         );
       },
@@ -145,42 +168,42 @@ export function useElecCalcElectricalColumnRenderers({
         if (isElectricalCalcSuccess(calc))
           return (
             <Tooltip title="Рассчитан">
-              <Tag className="electrical-status-icon-tag" color="success" aria-label="Рассчитан">
+              <TltBadge className="electrical-status-icon-tag" tone="success" aria-label="Рассчитан">
                 <CheckCircleFilled />
-              </Tag>
+              </TltBadge>
             </Tooltip>
           );
         if (unsupported)
           return (
             <Tooltip title={electricalCalcHint(calc) ?? err ?? 'Не применимо'}>
-              <Tag
+              <TltBadge
                 className="electrical-status-icon-tag"
-                color="default"
+                tone="neutral"
                 aria-label="Не применимо"
               >
                 <MinusCircleFilled />
-              </Tag>
+              </TltBadge>
             </Tooltip>
           );
         if (stale)
           return (
             <Tooltip title={electricalCalcHint(calc) ?? 'Требуется пересчёт'}>
-              <Tag className="electrical-status-icon-tag" color="warning" aria-label="Требуется пересчёт">
+              <TltBadge className="electrical-status-icon-tag" tone="warning" aria-label="Требуется пересчёт">
                 ↻
-              </Tag>
+              </TltBadge>
             </Tooltip>
           );
         if (err)
           return (
             <Tooltip title={err}>
-              <Tag className="electrical-status-icon-tag" color="error" aria-label="Ошибка">
+              <TltBadge className="electrical-status-icon-tag" tone="danger" aria-label="Ошибка">
                 <CloseCircleFilled />
-              </Tag>
+              </TltBadge>
             </Tooltip>
           );
         return (
           <Tooltip title="Не рассчитан">
-            <Tag className="electrical-status-icon-tag" aria-label="Не рассчитан">—</Tag>
+            <TltBadge className="electrical-status-icon-tag" aria-label="Не рассчитан">—</TltBadge>
           </Tooltip>
         );
       },
@@ -189,10 +212,10 @@ export function useElecCalcElectricalColumnRenderers({
       render: (_: unknown, obj) => {
         const type = getCalculatedCableTypeForObject(obj.id);
         if (!type) {
-          return <Text style={{ fontSize: 12 }} type="secondary">—</Text>;
+          return <Text className="electrical-cell-text" type="secondary">—</Text>;
         }
         return (
-          <Text style={{ fontSize: 12 }}>
+          <Text className="electrical-cell-text">
             {CABLE_TYPE_LABEL[type] ?? valueText(type)}
           </Text>
         );
@@ -209,7 +232,7 @@ export function useElecCalcElectricalColumnRenderers({
         if (!isActive) {
           return (
             <Space size={4} wrap={false}>
-              <Text style={{ fontSize: 12 }} type={mark ? undefined : 'secondary'}>
+              <Text className="electrical-cell-text" type={mark ? undefined : 'secondary'}>
                 {mark ?? '—'}
               </Text>
             </Space>
@@ -220,8 +243,7 @@ export function useElecCalcElectricalColumnRenderers({
           <div className="electrical-cable-mark-cell">
             <span className="electrical-cable-mark-current">
               <Text
-                className="electrical-cable-mark-text"
-                style={{ fontSize: 12 }}
+                className="electrical-cable-mark-text electrical-cell-text"
                 title={mark ?? undefined}
                 type={mark ? undefined : 'secondary'}
               >
@@ -231,9 +253,9 @@ export function useElecCalcElectricalColumnRenderers({
             <span className="electrical-cable-mark-actions">
               <Tooltip title={assignmentDisabledReason ?? undefined}>
                 <span>
-                  <Button
+                  <TltButton
                     className="electrical-cable-mark-action"
-                    size="small"
+                    size="compact"
                     disabled={
                       !canMutate
                       || !obj.is_valid
@@ -244,19 +266,19 @@ export function useElecCalcElectricalColumnRenderers({
                     onClick={() => openCableMarkModal(obj)}
                   >
                     Выбор
-                  </Button>
+                  </TltButton>
                 </span>
               </Tooltip>
               <Tooltip title={assignmentDisabledReason ?? undefined}>
                 <span>
-                  <Button
+                  <TltButton
                     className="electrical-cable-mark-action"
-                    size="small"
+                    size="compact"
                     disabled={!projectSelected || assignmentDisabledReason != null}
                     onClick={() => openCableSizingModal(obj)}
                   >
                     Подбор
-                  </Button>
+                  </TltButton>
                 </span>
               </Tooltip>
             </span>
@@ -270,9 +292,9 @@ export function useElecCalcElectricalColumnRenderers({
         if (!meta) return <Text type="secondary">—</Text>;
         return (
           <Tooltip title={meta.tooltip}>
-            <Tag color={meta.color} style={{ marginInlineEnd: 0 }}>
+            <TltBadge tone={antColorToTltTone(meta.color)} className="electrical-inline-tag">
               {meta.label}
-            </Tag>
+            </TltBadge>
           </Tooltip>
         );
       },
@@ -288,7 +310,7 @@ export function useElecCalcElectricalColumnRenderers({
         const applied = calc?.results?.applied_selection_policy;
         const label = selectionPolicyText(applied);
         const changed = typeof requested === 'string' && typeof applied === 'string' && requested !== applied;
-        return changed ? <Tag color="warning">{label}</Tag> : label;
+        return changed ? <TltBadge tone="warning">{label}</TltBadge> : label;
       },
     },
     selection_reason: {
@@ -310,7 +332,7 @@ export function useElecCalcElectricalColumnRenderers({
         const mark = getCableMark(calc);
         const values = calcLayoutValues(calc);
         return (
-          <Text style={{ fontSize: 12 }} type={mark ? undefined : 'secondary'}>
+          <Text className="electrical-cell-text" type={mark ? undefined : 'secondary'}>
             {mark ? formatNumber(values.windingPitchMm, 0) : '—'}
           </Text>
         );
@@ -325,18 +347,18 @@ export function useElecCalcElectricalColumnRenderers({
         const sourceMeta = threadSourceTag(getThreadSource(calc));
         const sourceTag = sourceMeta ? (
           <Tooltip title={sourceMeta.tooltip}>
-            <Tag
+            <TltBadge
               color={sourceMeta.color}
-              style={{ marginInlineEnd: 0, fontSize: 10, lineHeight: '16px' }}
+              className="electrical-inline-tag--compact"
             >
               {sourceMeta.label}
-            </Tag>
+            </TltBadge>
           </Tooltip>
         ) : null;
 
         return (
           <Space size={4} wrap={false}>
-            <Text style={{ fontSize: 12 }} type={mark ? undefined : 'secondary'}>
+            <Text className="electrical-cell-text" type={mark ? undefined : 'secondary'}>
               {mark ? values.numberOfThreads : '—'}
             </Text>
             {mark ? sourceTag : null}

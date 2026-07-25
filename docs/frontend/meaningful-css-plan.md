@@ -1,11 +1,11 @@
 # Осмысленный CSS: план миграции и исполняемые промпты
 
-**Статус:** PROPOSED — библиотека решений и промптов, не ACTIVE-очередь
+**Статус:** ACTIVE queue — см. [af10-parallel-queue.md](./af10-parallel-queue.md)
 
 **Актуально на:** 2026-07-25
 
-**Единственный источник `pending`:**
-[refactor-backlog.md](./refactor-backlog.md)
+**Очередь исполнения:** [af10-parallel-queue.md](./af10-parallel-queue.md)  
+**Единственный backlog pending (продукт):** [refactor-backlog.md](./refactor-backlog.md)
 
 Этот документ задаёт целевую политику для удаления статических JSX
 `style`/`styles` и перехода к осмысленному owner CSS. Он не разрешает запускать

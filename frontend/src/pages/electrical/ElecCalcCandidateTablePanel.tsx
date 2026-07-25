@@ -4,7 +4,7 @@ import {
   Suspense,
   type ReactNode,
 } from 'react';
-import { Input, type MenuProps } from 'antd';
+import { type MenuProps } from 'antd';
 
 import type { ElectricalCandidate } from '@/types/calculation';
 import type {
@@ -99,9 +99,9 @@ function ElecCalcCandidateTablePanel({
           onColumnResizeEnd={onColumnResizeEnd}
         />
       </Suspense>
-      <Input.TextArea
+      <textarea
+        className="electrical-candidate-comment"
         aria-label="Комментарий к выбранному кандидату"
-        size="small"
         rows={2}
         maxLength={2000}
         placeholder="Комментарий инженера к выбранному варианту"

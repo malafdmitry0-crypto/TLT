@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Card, Input, Table, Tabs, Tag, Typography } from 'antd';
+import { Table, Tabs, Typography } from 'antd';
+import { TltBadge, TltCard, TltTextField } from '@/components/ui-kit';
 import { useQuery } from '@tanstack/react-query';
 import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
 import {
@@ -12,10 +13,9 @@ import {
   getResistiveCables,
   getSoilConductivity,
 } from '@/api/references';
+import './admin-layout.css';
 
 const { Text } = Typography;
-const { Search } = Input;
-
 export default function ReferencesPage() {
   const [climateSearch, setClimateSearch] = useState('');
 
@@ -68,7 +68,7 @@ export default function ReferencesPage() {
   );
 
   return (
-    <Card title="Встроенные справочники">
+    <TltCard title="Встроенные справочники">
       <Tabs
         items={[
           {
@@ -76,11 +76,12 @@ export default function ReferencesPage() {
             label: `Климат (${climate.length})`,
             children: (
               <>
-                <Search
+                <TltTextField
+                  type="search"
                   placeholder="Поиск по городу или региону"
-                  style={{ marginBottom: 12, maxWidth: 380 }}
-                  onChange={(e) => setClimateSearch(e.target.value)}
-                  allowClear
+                  className="admin-references-search"
+                  onChange={(value) => setClimateSearch(value)}
+                  aria-label="Поиск по городу или региону"
                 />
                 <Table
                   size="small"
@@ -177,7 +178,7 @@ export default function ReferencesPage() {
                 scroll={{ x: 'max-content' }}
                 columns={[
                   { title: 'Модель', dataIndex: 'model', key: 'model', width: 130 },
-                  { title: 'Серия', dataIndex: 'series', key: 'series', width: 90, render: (v: string) => <Tag>{v}</Tag> },
+                  { title: 'Серия', dataIndex: 'series', key: 'series', width: 90, render: (v: string) => <TltBadge>{v}</TltBadge> },
                   { title: 'Номинал, Вт/м', dataIndex: 'nominal_power', key: 'nominal_power', width: 130 },
                   { title: 'q₁', dataIndex: 'q1', key: 'q1', width: 90, render: (v: number) => v.toFixed(4) },
                   { title: 'q₂', dataIndex: 'q2', key: 'q2', width: 90, render: (v: number) => v.toFixed(2) },
@@ -271,7 +272,7 @@ export default function ReferencesPage() {
                 rowKey={(r) => `${r.category}-${r.name}`}
                 pagination={false}
                 columns={[
-                  { title: 'Категория', dataIndex: 'category', key: 'category', width: 180, render: (v: string) => <Tag>{v}</Tag> },
+                  { title: 'Категория', dataIndex: 'category', key: 'category', width: 180, render: (v: string) => <TltBadge>{v}</TltBadge> },
                   { title: 'Наименование', dataIndex: 'name', key: 'name' },
                   { title: 'Артикул', dataIndex: 'article', key: 'article', width: 120, render: (v: string | null) => v ?? '—' },
                   { title: 'Ед.', dataIndex: 'unit', key: 'unit', width: 60 },
@@ -282,6 +283,6 @@ export default function ReferencesPage() {
           },
         ]}
       />
-    </Card>
+    </TltCard>
   );
 }

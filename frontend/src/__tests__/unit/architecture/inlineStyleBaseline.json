@@ -1,144 +1,66 @@
 {
   "version": 2,
-  "generatedAt": "2026-07-24",
-  "total": 496,
+  "generatedAt": "2026-07-25",
+  "total": 56,
   "byClass": {
-    "static debt": 262,
-    "runtime geometry": 86,
-    "third-party adapter": 148
+    "static debt": 0,
+    "runtime geometry": 32,
+    "third-party adapter": 24
   },
   "fileCounts": {
-    "src/components/ImportExcelButton.tsx": 4,
-    "src/components/WorkflowSteps.tsx": 1,
-    "src/components/admin/formulas/FormulaCalcResult.tsx": 18,
-    "src/components/admin/formulas/FormulaDisplays.tsx": 28,
-    "src/components/admin/formulas/formulaPrimitives.tsx": 12,
-    "src/components/common/PageSkeleton.tsx": 3,
-    "src/components/common/TabBadge.tsx": 1,
-    "src/components/common/ValidationHighlight.tsx": 1,
+    "src/components/common/PageSkeleton.tsx": 1,
     "src/components/electrical/CablePickerCharacteristics.tsx": 1,
-    "src/components/electrical/CableSelector.tsx": 4,
     "src/components/electrical/ElectricalCandidateColumnSettingsModal.tsx": 5,
-    "src/components/electrical/ElectricalCandidateFieldRenderer.tsx": 5,
     "src/components/electrical/ElectricalCandidateGlideGrid.tsx": 2,
-    "src/components/electrical/ElectricalColumnFilterDropdown.tsx": 2,
-    "src/components/electrical/ElectricalColumnSettingsModal.tsx": 5,
-    "src/components/electrical/ElectricalGlideColumnFilterDropdown.tsx": 1,
-    "src/components/electrical/ObjectCalcCard.tsx": 8,
+    "src/components/electrical/ElectricalColumnSettingsModal.tsx": 4,
+    "src/components/electrical/ElectricalColumnSettingsModalRows.tsx": 1,
     "src/components/form-controls/TltNumberField.tsx": 2,
     "src/components/form-controls/TltSelect.tsx": 1,
     "src/components/form-controls/TltTextField.tsx": 2,
-    "src/components/heatcalc/ColumnSettingsModal.tsx": 1,
+    "src/components/heatcalc/ColumnSettingsModalRows.tsx": 1,
     "src/components/heatcalc/HeatCalcExcelContextMenu.tsx": 1,
     "src/components/heatcalc/HeatCalcExcelGrid.tsx": 7,
     "src/components/heatcalc/HeatCalcGlideGrid.tsx": 1,
-    "src/components/layout/MainLayout.tsx": 1,
-    "src/components/layout/ProjectMenu.tsx": 4,
-    "src/components/layout/Sidebar.tsx": 1,
-    "src/components/reports/ReportPreview.tsx": 1,
-    "src/components/reports/ReportWizard.tsx": 5,
+    "src/components/layout/ProjectMenu.tsx": 1,
+    "src/components/reports/ReportWizard.tsx": 1,
     "src/components/shared/NormalGlideGrid.tsx": 3,
-    "src/components/specification/SpecTable.tsx": 2,
     "src/components/ui-kit/CompactField.tsx": 1,
     "src/components/ui-kit/CompactFieldGrid.tsx": 1,
     "src/components/ui-kit/UiPrimitives.tsx": 3,
-    "src/components/wizard/isolation/WizardZoneBoundary.tsx": 1,
-    "src/components/wizard/steps/ConfirmStep.tsx": 3,
-    "src/hooks/useHeatCalcTableColumns.tsx": 1,
-    "src/pages/ElecCalcPage.tsx": 1,
-    "src/pages/HomePage.tsx": 25,
-    "src/pages/LoginPage.tsx": 5,
-    "src/pages/ProjectsPage.tsx": 7,
-    "src/pages/ReportPage.tsx": 9,
-    "src/pages/ReportWizardPage.tsx": 31,
-    "src/pages/UIKitPage.tsx": 1,
-    "src/pages/WorkspacePage.tsx": 9,
-    "src/pages/admin/AdminLayout.tsx": 4,
-    "src/pages/admin/DatabasePage.tsx": 27,
-    "src/pages/admin/FormulasPage.tsx": 86,
-    "src/pages/admin/ReferencesPage.tsx": 1,
-    "src/pages/electrical/ElecCalcCableMarkModal.tsx": 7,
-    "src/pages/electrical/ElecCalcCableSizingModal.tsx": 4,
-    "src/pages/electrical/ElecCalcElectricalTypeControls.tsx": 17,
-    "src/pages/electrical/ElecCalcParamsPanel.tsx": 3,
+    "src/pages/HomePage.tsx": 1,
+    "src/pages/ReportWizardPage.tsx": 2,
+    "src/pages/electrical/ElecCalcCableMarkModal.tsx": 2,
+    "src/pages/electrical/ElecCalcCableSizingModal.tsx": 1,
     "src/pages/electrical/ElecCalcProject.tsx": 1,
-    "src/pages/electrical/ElecCalcRecalculationSettings.tsx": 3,
-    "src/pages/electrical/ElecCalcWorkspace.tsx": 2,
-    "src/pages/electrical/ElecCalcWorkspaceParamsChrome.tsx": 1,
-    "src/pages/electrical/ElectricalAssignmentPanel.tsx": 4,
-    "src/pages/electrical/ElectricalBatchActionBar.tsx": 2,
-    "src/pages/electrical/ElectricalSectionHierarchy.tsx": 10,
-    "src/pages/electrical/ElectricalUnifiedTableCard.tsx": 1,
-    "src/pages/electrical/ElectricalVariantTabs.tsx": 6,
-    "src/pages/electrical/useElecCalcCableMarkOptions.tsx": 1,
-    "src/pages/electrical/useElecCalcElectricalColumnRenderers.tsx": 9,
-    "src/pages/electrical/useElecCalcElectricalColumns.tsx": 1,
-    "src/pages/heatcalc/HeatCalcEmptyProjectState.tsx": 1,
+    "src/pages/electrical/ElecCalcWorkspace.tsx": 1,
+    "src/pages/electrical/ElectricalVariantTabs.tsx": 1,
+    "src/pages/electrical/ElectricalVariantTabsEmptyState.tsx": 2,
     "src/pages/heatcalc/HeatCalcWorkspaceLayout.tsx": 2,
-    "src/pages/help/AdminHelpPage.tsx": 18,
-    "src/pages/help/EmployeeHelpPage.tsx": 13,
-    "src/pages/help/GuestHelpPage.tsx": 15,
-    "src/pages/specification/SpecPageChrome.tsx": 19,
-    "src/pages/specification/SpecificationPage.tsx": 7
+    "src/pages/projects/ProjectsPageCreateModal.tsx": 1,
+    "src/pages/projects/ProjectsPageFilters.tsx": 1,
+    "src/pages/specification/SpecPageChrome.tsx": 1,
+    "src/pages/uikit/UIKitFoundationSection.tsx": 1
   },
   "fileClassCounts": {
-    "src/components/ImportExcelButton.tsx": {
-      "static debt": 4
-    },
-    "src/components/WorkflowSteps.tsx": {
-      "static debt": 1
-    },
-    "src/components/admin/formulas/FormulaCalcResult.tsx": {
-      "static debt": 10,
-      "runtime geometry": 8
-    },
-    "src/components/admin/formulas/FormulaDisplays.tsx": {
-      "runtime geometry": 22,
-      "static debt": 6
-    },
-    "src/components/admin/formulas/formulaPrimitives.tsx": {
-      "static debt": 7,
-      "runtime geometry": 5
-    },
     "src/components/common/PageSkeleton.tsx": {
-      "static debt": 2,
       "third-party adapter": 1
-    },
-    "src/components/common/TabBadge.tsx": {
-      "static debt": 1
-    },
-    "src/components/common/ValidationHighlight.tsx": {
-      "static debt": 1
     },
     "src/components/electrical/CablePickerCharacteristics.tsx": {
       "runtime geometry": 1
-    },
-    "src/components/electrical/CableSelector.tsx": {
-      "static debt": 3,
-      "third-party adapter": 1
     },
     "src/components/electrical/ElectricalCandidateColumnSettingsModal.tsx": {
       "runtime geometry": 2,
       "third-party adapter": 3
     },
-    "src/components/electrical/ElectricalCandidateFieldRenderer.tsx": {
-      "static debt": 5
-    },
     "src/components/electrical/ElectricalCandidateGlideGrid.tsx": {
       "runtime geometry": 2
     },
-    "src/components/electrical/ElectricalColumnFilterDropdown.tsx": {
-      "third-party adapter": 2
-    },
     "src/components/electrical/ElectricalColumnSettingsModal.tsx": {
-      "runtime geometry": 2,
-      "third-party adapter": 3
+      "third-party adapter": 3,
+      "runtime geometry": 1
     },
-    "src/components/electrical/ElectricalGlideColumnFilterDropdown.tsx": {
-      "third-party adapter": 1
-    },
-    "src/components/electrical/ObjectCalcCard.tsx": {
-      "static debt": 8
+    "src/components/electrical/ElectricalColumnSettingsModalRows.tsx": {
+      "runtime geometry": 1
     },
     "src/components/form-controls/TltNumberField.tsx": {
       "runtime geometry": 2
@@ -149,7 +71,7 @@
     "src/components/form-controls/TltTextField.tsx": {
       "runtime geometry": 2
     },
-    "src/components/heatcalc/ColumnSettingsModal.tsx": {
+    "src/components/heatcalc/ColumnSettingsModalRows.tsx": {
       "runtime geometry": 1
     },
     "src/components/heatcalc/HeatCalcExcelContextMenu.tsx": {
@@ -161,28 +83,14 @@
     "src/components/heatcalc/HeatCalcGlideGrid.tsx": {
       "runtime geometry": 1
     },
-    "src/components/layout/MainLayout.tsx": {
-      "static debt": 1
-    },
     "src/components/layout/ProjectMenu.tsx": {
-      "static debt": 3,
       "third-party adapter": 1
     },
-    "src/components/layout/Sidebar.tsx": {
-      "static debt": 1
-    },
-    "src/components/reports/ReportPreview.tsx": {
-      "static debt": 1
-    },
     "src/components/reports/ReportWizard.tsx": {
-      "static debt": 4,
       "third-party adapter": 1
     },
     "src/components/shared/NormalGlideGrid.tsx": {
       "runtime geometry": 3
-    },
-    "src/components/specification/SpecTable.tsx": {
-      "static debt": 2
     },
     "src/components/ui-kit/CompactField.tsx": {
       "runtime geometry": 1
@@ -193,869 +101,181 @@
     "src/components/ui-kit/UiPrimitives.tsx": {
       "runtime geometry": 3
     },
-    "src/components/wizard/isolation/WizardZoneBoundary.tsx": {
-      "static debt": 1
-    },
-    "src/components/wizard/steps/ConfirmStep.tsx": {
-      "static debt": 3
-    },
-    "src/hooks/useHeatCalcTableColumns.tsx": {
-      "static debt": 1
-    },
-    "src/pages/ElecCalcPage.tsx": {
-      "static debt": 1
-    },
     "src/pages/HomePage.tsx": {
-      "static debt": 23,
-      "third-party adapter": 2
-    },
-    "src/pages/LoginPage.tsx": {
-      "static debt": 4,
-      "third-party adapter": 1
-    },
-    "src/pages/ProjectsPage.tsx": {
-      "runtime geometry": 1,
-      "third-party adapter": 6
-    },
-    "src/pages/ReportPage.tsx": {
-      "static debt": 8,
       "third-party adapter": 1
     },
     "src/pages/ReportWizardPage.tsx": {
-      "static debt": 29,
       "third-party adapter": 2
     },
-    "src/pages/UIKitPage.tsx": {
-      "runtime geometry": 1
-    },
-    "src/pages/WorkspacePage.tsx": {
-      "static debt": 8,
-      "runtime geometry": 1
-    },
-    "src/pages/admin/AdminLayout.tsx": {
-      "static debt": 4
-    },
-    "src/pages/admin/DatabasePage.tsx": {
-      "static debt": 2,
-      "third-party adapter": 25
-    },
-    "src/pages/admin/FormulasPage.tsx": {
-      "third-party adapter": 74,
-      "static debt": 12
-    },
-    "src/pages/admin/ReferencesPage.tsx": {
-      "static debt": 1
-    },
     "src/pages/electrical/ElecCalcCableMarkModal.tsx": {
-      "third-party adapter": 4,
-      "static debt": 3
+      "third-party adapter": 2
     },
     "src/pages/electrical/ElecCalcCableSizingModal.tsx": {
-      "third-party adapter": 3,
-      "static debt": 1
-    },
-    "src/pages/electrical/ElecCalcElectricalTypeControls.tsx": {
-      "runtime geometry": 17
-    },
-    "src/pages/electrical/ElecCalcParamsPanel.tsx": {
-      "third-party adapter": 2,
-      "static debt": 1
+      "third-party adapter": 1
     },
     "src/pages/electrical/ElecCalcProject.tsx": {
       "third-party adapter": 1
     },
-    "src/pages/electrical/ElecCalcRecalculationSettings.tsx": {
-      "static debt": 2,
-      "third-party adapter": 1
-    },
     "src/pages/electrical/ElecCalcWorkspace.tsx": {
-      "static debt": 1,
       "third-party adapter": 1
-    },
-    "src/pages/electrical/ElecCalcWorkspaceParamsChrome.tsx": {
-      "static debt": 1
-    },
-    "src/pages/electrical/ElectricalAssignmentPanel.tsx": {
-      "static debt": 4
-    },
-    "src/pages/electrical/ElectricalBatchActionBar.tsx": {
-      "static debt": 1,
-      "third-party adapter": 1
-    },
-    "src/pages/electrical/ElectricalSectionHierarchy.tsx": {
-      "static debt": 10
-    },
-    "src/pages/electrical/ElectricalUnifiedTableCard.tsx": {
-      "static debt": 1
     },
     "src/pages/electrical/ElectricalVariantTabs.tsx": {
-      "third-party adapter": 4,
-      "static debt": 2
+      "third-party adapter": 1
     },
-    "src/pages/electrical/useElecCalcCableMarkOptions.tsx": {
-      "static debt": 1
-    },
-    "src/pages/electrical/useElecCalcElectricalColumnRenderers.tsx": {
-      "static debt": 9
-    },
-    "src/pages/electrical/useElecCalcElectricalColumns.tsx": {
-      "static debt": 1
-    },
-    "src/pages/heatcalc/HeatCalcEmptyProjectState.tsx": {
-      "static debt": 1
+    "src/pages/electrical/ElectricalVariantTabsEmptyState.tsx": {
+      "third-party adapter": 2
     },
     "src/pages/heatcalc/HeatCalcWorkspaceLayout.tsx": {
       "third-party adapter": 1,
       "runtime geometry": 1
     },
-    "src/pages/help/AdminHelpPage.tsx": {
-      "static debt": 18
+    "src/pages/projects/ProjectsPageCreateModal.tsx": {
+      "third-party adapter": 1
     },
-    "src/pages/help/EmployeeHelpPage.tsx": {
-      "static debt": 13
-    },
-    "src/pages/help/GuestHelpPage.tsx": {
-      "static debt": 15
+    "src/pages/projects/ProjectsPageFilters.tsx": {
+      "third-party adapter": 1
     },
     "src/pages/specification/SpecPageChrome.tsx": {
-      "static debt": 13,
-      "third-party adapter": 6
+      "third-party adapter": 1
     },
-    "src/pages/specification/SpecificationPage.tsx": {
-      "static debt": 7
+    "src/pages/uikit/UIKitFoundationSection.tsx": {
+      "runtime geometry": 1
     }
   },
   "occurrences": [
     {
-      "file": "src/components/ImportExcelButton.tsx",
-      "line": 169,
-      "class": "static debt",
-      "text": "style={{ display: 'none' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/components/ImportExcelButton.tsx",
-      "line": 212,
-      "class": "static debt",
-      "text": "style={{ color: '#52c41a' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/components/ImportExcelButton.tsx",
-      "line": 238,
-      "class": "static debt",
-      "text": "style={{ maxHeight: 280, overflow: 'auto', border: '1px solid #eee', padding: 8, background: '#fafafa', }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/components/ImportExcelButton.tsx",
-      "line": 247,
-      "class": "static debt",
-      "text": "style={{ fontSize: 12, marginBottom: 4 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/components/WorkflowSteps.tsx",
-      "line": 21,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 16 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaCalcResult.tsx",
-      "line": 14,
-      "class": "static debt",
-      "text": "style={{ marginTop: 16, borderColor: '#1677ff' }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaCalcResult.tsx",
-      "line": 15,
-      "class": "static debt",
-      "text": "styles={{ header: { background: '#e6f4ff', borderBottom: '1px solid #91caff' } }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaCalcResult.tsx",
-      "line": 16,
-      "class": "runtime geometry",
-      "text": "style={{ color: C.result }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaCalcResult.tsx",
-      "line": 20,
-      "class": "runtime geometry",
-      "text": "style={{ color: C.result, fontSize: 16 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaCalcResult.tsx",
-      "line": 23,
-      "class": "runtime geometry",
-      "text": "style={{ color: C.result, fontSize: 16 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaCalcResult.tsx",
-      "line": 45,
-      "class": "static debt",
-      "text": "style={{ marginTop: 16, borderColor: '#1677ff' }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaCalcResult.tsx",
-      "line": 46,
-      "class": "static debt",
-      "text": "styles={{ header: { background: '#e6f4ff', borderBottom: '1px solid #91caff' } }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaCalcResult.tsx",
-      "line": 47,
-      "class": "runtime geometry",
-      "text": "style={{ color: C.result }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaCalcResult.tsx",
-      "line": 51,
-      "class": "runtime geometry",
-      "text": "style={{ color: C.result, fontSize: 16 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaCalcResult.tsx",
-      "line": 54,
-      "class": "runtime geometry",
-      "text": "style={{ color: C.result, fontSize: 16 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaCalcResult.tsx",
-      "line": 73,
-      "class": "static debt",
-      "text": "style={{ marginTop: 16, borderColor: '#1677ff' }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaCalcResult.tsx",
-      "line": 74,
-      "class": "static debt",
-      "text": "styles={{ header: { background: '#e6f4ff', borderBottom: '1px solid #91caff' } }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaCalcResult.tsx",
-      "line": 75,
-      "class": "runtime geometry",
-      "text": "style={{ color: C.result }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaCalcResult.tsx",
-      "line": 79,
-      "class": "runtime geometry",
-      "text": "style={{ color: C.result, fontSize: 16 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaCalcResult.tsx",
-      "line": 89,
-      "class": "static debt",
-      "text": "style={{ marginTop: 16, borderColor: '#fa8c16' }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaCalcResult.tsx",
-      "line": 90,
-      "class": "static debt",
-      "text": "styles={{ header: { background: '#fff7e6', borderBottom: '1px solid #ffd591' } }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaCalcResult.tsx",
-      "line": 91,
-      "class": "static debt",
-      "text": "style={{ color: '#fa8c16' }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaCalcResult.tsx",
-      "line": 95,
-      "class": "static debt",
-      "text": "style={{ color: '#fa8c16', fontSize: 16 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaDisplays.tsx",
-      "line": 71,
-      "class": "runtime geometry",
-      "text": "style={{ color: C.label, marginRight: 8 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaDisplays.tsx",
-      "line": 80,
-      "class": "runtime geometry",
-      "text": "style={{ color: C.label, marginRight: 8 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaDisplays.tsx",
-      "line": 99,
-      "class": "runtime geometry",
-      "text": "style={{ color: C.label }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaDisplays.tsx",
-      "line": 105,
-      "class": "static debt",
-      "text": "style={{ margin: '10px 0' }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaDisplays.tsx",
-      "line": 134,
-      "class": "static debt",
-      "text": "style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaDisplays.tsx",
-      "line": 147,
-      "class": "runtime geometry",
-      "text": "style={{ color: C.label }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaDisplays.tsx",
-      "line": 156,
-      "class": "runtime geometry",
-      "text": "style={{ color: C.label, width: 160 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaDisplays.tsx",
-      "line": 156,
-      "class": "static debt",
-      "text": "style={{ fontSize: '0.7em' }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaDisplays.tsx",
-      "line": 157,
-      "class": "runtime geometry",
-      "text": "style={{ color: C.label, width: 160 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaDisplays.tsx",
-      "line": 158,
-      "class": "runtime geometry",
-      "text": "style={{ color: C.label, width: 160 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaDisplays.tsx",
-      "line": 158,
-      "class": "static debt",
-      "text": "style={{ fontSize: '0.7em' }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaDisplays.tsx",
-      "line": 170,
-      "class": "runtime geometry",
-      "text": "style={{ color: C.label }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaDisplays.tsx",
-      "line": 210,
-      "class": "static debt",
-      "text": "style={{ margin: '10px 0' }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaDisplays.tsx",
-      "line": 249,
-      "class": "runtime geometry",
-      "text": "style={{ color: C.unit }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaDisplays.tsx",
-      "line": 277,
-      "class": "static debt",
-      "text": "style={{ margin: '10px 0' }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaDisplays.tsx",
-      "line": 317,
-      "class": "runtime geometry",
-      "text": "style={{ color: C.label, width: 72 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaDisplays.tsx",
-      "line": 318,
-      "class": "runtime geometry",
-      "text": "style={{ color: C.label, width: 72 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaDisplays.tsx",
-      "line": 319,
-      "class": "runtime geometry",
-      "text": "style={{ color: C.label, width: 72 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaDisplays.tsx",
-      "line": 393,
-      "class": "runtime geometry",
-      "text": "style={{ color: C.label, width: 92 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaDisplays.tsx",
-      "line": 394,
-      "class": "runtime geometry",
-      "text": "style={{ color: C.label, width: 92 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaDisplays.tsx",
-      "line": 395,
-      "class": "runtime geometry",
-      "text": "style={{ color: C.label, width: 92 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaDisplays.tsx",
-      "line": 400,
-      "class": "runtime geometry",
-      "text": "style={{ color: C.label, width: 118 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaDisplays.tsx",
-      "line": 401,
-      "class": "runtime geometry",
-      "text": "style={{ color: C.label, width: 118 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaDisplays.tsx",
-      "line": 402,
-      "class": "runtime geometry",
-      "text": "style={{ color: C.label, width: 118 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaDisplays.tsx",
-      "line": 403,
-      "class": "runtime geometry",
-      "text": "style={{ color: C.label, width: 118 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaDisplays.tsx",
-      "line": 404,
-      "class": "runtime geometry",
-      "text": "style={{ color: C.label, width: 118 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaDisplays.tsx",
-      "line": 437,
-      "class": "runtime geometry",
-      "text": "style={{ color: C.label, width: 140 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/FormulaDisplays.tsx",
-      "line": 438,
-      "class": "runtime geometry",
-      "text": "style={{ color: C.label, width: 140 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/formulaPrimitives.tsx",
-      "line": 19,
-      "class": "static debt",
-      "text": "style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', verticalAlign: 'middle', margin: '0 3px', lineHeight: 1.25 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/formulaPrimitives.tsx",
-      "line": 20,
-      "class": "static debt",
-      "text": "style={{ borderBottom: '1.5px solid #333', padding: '0 4px 2px', whiteSpace: 'nowrap', textAlign: 'center' }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/formulaPrimitives.tsx",
-      "line": 21,
-      "class": "static debt",
-      "text": "style={{ padding: '2px 4px 0', whiteSpace: 'nowrap', textAlign: 'center' }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/formulaPrimitives.tsx",
-      "line": 28,
-      "class": "runtime geometry",
-      "text": "style={{ color: c, fontWeight: bold ? 700 : 500 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/formulaPrimitives.tsx",
-      "line": 33,
-      "class": "static debt",
-      "text": "style={{ fontSize: '0.72em', lineHeight: 0 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/formulaPrimitives.tsx",
-      "line": 38,
-      "class": "static debt",
-      "text": "style={{ fontSize: '0.7em', lineHeight: 0 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/formulaPrimitives.tsx",
-      "line": 44,
-      "class": "runtime geometry",
-      "text": "style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 2, fontSize: 15.5, lineHeight: 2.4, marginLeft: indent ? 24 : 0, }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/formulaPrimitives.tsx",
-      "line": 57,
-      "class": "runtime geometry",
-      "text": "style={{ background: '#fafafa', border: '1px solid #e8e8e8', borderLeft: `4px solid ${accent ?? '#1677ff'}`, borderRadius: '0 8px 8px 0', padding: '14px 20px', ",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/formulaPrimitives.tsx",
-      "line": 74,
-      "class": "static debt",
-      "text": "style={{ fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: 0, margin: '14px 0 4px' }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/formulaPrimitives.tsx",
-      "line": 83,
-      "class": "static debt",
-      "text": "style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 12px', fontSize: 12.5, marginTop: 10 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/formulaPrimitives.tsx",
-      "line": 86,
-      "class": "runtime geometry",
-      "text": "style={{ color: color ?? C.label, fontWeight: 600, whiteSpace: 'nowrap' }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/components/admin/formulas/formulaPrimitives.tsx",
-      "line": 87,
-      "class": "runtime geometry",
-      "text": "style={{ color: C.label }}",
-      "owner": "admin"
-    },
-    {
       "file": "src/components/common/PageSkeleton.tsx",
-      "line": 16,
-      "class": "static debt",
-      "text": "style={{ padding: 24 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/components/common/PageSkeleton.tsx",
-      "line": 17,
+      "line": 18,
       "class": "third-party adapter",
       "text": "style={{ width: 280, marginBottom: 20 }}",
+      "tag": "Input",
       "owner": "shared",
       "reason": "Ant Input style prop used as form-control adapter (no className path for this layout)"
     },
     {
-      "file": "src/components/common/PageSkeleton.tsx",
-      "line": 18,
-      "class": "static debt",
-      "text": "style={{ display: 'flex' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/components/common/TabBadge.tsx",
-      "line": 19,
-      "class": "static debt",
-      "text": "style={{ marginLeft: 6, padding: '0 6px', borderRadius: 10, fontSize: 11, background: '#1890ff', color: '#fff', }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/components/common/ValidationHighlight.tsx",
-      "line": 19,
-      "class": "static debt",
-      "text": "style={{ padding: 2 }}",
-      "owner": "shared"
-    },
-    {
       "file": "src/components/electrical/CablePickerCharacteristics.tsx",
-      "line": 538,
+      "line": 50,
       "class": "runtime geometry",
       "text": "style={{ '--cable-picker-characteristics-column-count': columnCount, } as CSSProperties}",
+      "tag": "div",
       "owner": "electrical"
-    },
-    {
-      "file": "src/components/electrical/CableSelector.tsx",
-      "line": 54,
-      "class": "static debt",
-      "text": "style={{ marginLeft: 4 }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/components/electrical/CableSelector.tsx",
-      "line": 63,
-      "class": "static debt",
-      "text": "style={{ marginTop: 12 }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/components/electrical/CableSelector.tsx",
-      "line": 64,
-      "class": "static debt",
-      "text": "style={{ fontSize: 12 }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/components/electrical/CableSelector.tsx",
-      "line": 69,
-      "class": "third-party adapter",
-      "text": "style={{ minWidth: 300 }}",
-      "owner": "electrical",
-      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
     },
     {
       "file": "src/components/electrical/ElectricalCandidateColumnSettingsModal.tsx",
-      "line": 247,
+      "line": 246,
       "class": "runtime geometry",
       "text": "style={style}",
+      "tag": "div",
       "owner": "electrical"
     },
     {
       "file": "src/components/electrical/ElectricalCandidateColumnSettingsModal.tsx",
-      "line": 368,
+      "line": 367,
       "class": "third-party adapter",
       "text": "style={{ top: 24 }}",
+      "tag": "Modal",
       "owner": "electrical",
       "reason": "Ant Modal style prop used for chrome geometry adapter"
     },
     {
       "file": "src/components/electrical/ElectricalCandidateColumnSettingsModal.tsx",
-      "line": 377,
+      "line": 376,
       "class": "runtime geometry",
       "text": "style={draggableWindowStyle}",
+      "tag": "div",
       "owner": "electrical"
+    },
+    {
+      "file": "src/components/electrical/ElectricalCandidateColumnSettingsModal.tsx",
+      "line": 382,
+      "class": "third-party adapter",
+      "text": "style={{ width: '100%' }}",
+      "tag": "Space",
+      "owner": "electrical",
+      "reason": "Ant Space style prop used for chrome geometry adapter"
     },
     {
       "file": "src/components/electrical/ElectricalCandidateColumnSettingsModal.tsx",
       "line": 383,
       "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "electrical",
-      "reason": "Ant Space style prop used for chrome geometry adapter"
-    },
-    {
-      "file": "src/components/electrical/ElectricalCandidateColumnSettingsModal.tsx",
-      "line": 384,
-      "class": "third-party adapter",
       "text": "style={{ width: '100%', justifyContent: 'space-between' }}",
+      "tag": "Space",
       "owner": "electrical",
       "reason": "Ant Space style prop used for chrome geometry adapter"
-    },
-    {
-      "file": "src/components/electrical/ElectricalCandidateFieldRenderer.tsx",
-      "line": 38,
-      "class": "static debt",
-      "text": "style={{ maxWidth: 130 }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/components/electrical/ElectricalCandidateFieldRenderer.tsx",
-      "line": 41,
-      "class": "static debt",
-      "text": "style={{ marginInlineEnd: 0 }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/components/electrical/ElectricalCandidateFieldRenderer.tsx",
-      "line": 42,
-      "class": "static debt",
-      "text": "style={{ marginInlineEnd: 0 }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/components/electrical/ElectricalCandidateFieldRenderer.tsx",
-      "line": 47,
-      "class": "static debt",
-      "text": "style={{ marginInlineEnd: 0 }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/components/electrical/ElectricalCandidateFieldRenderer.tsx",
-      "line": 77,
-      "class": "static debt",
-      "text": "style={{ marginInlineEnd: 0, fontSize: 10, lineHeight: '16px' }}",
-      "owner": "electrical"
     },
     {
       "file": "src/components/electrical/ElectricalCandidateGlideGrid.tsx",
-      "line": 551,
+      "line": 417,
       "class": "runtime geometry",
       "text": "style={filterPopupStyle}",
+      "tag": "div",
       "owner": "electrical"
     },
     {
       "file": "src/components/electrical/ElectricalCandidateGlideGrid.tsx",
-      "line": 574,
+      "line": 440,
       "class": "runtime geometry",
       "text": "style={actionMenuStyle}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/components/electrical/ElectricalColumnFilterDropdown.tsx",
-      "line": 110,
-      "class": "third-party adapter",
-      "text": "style={{ minWidth: 220 }}",
-      "owner": "electrical",
-      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/components/electrical/ElectricalColumnFilterDropdown.tsx",
-      "line": 126,
-      "class": "third-party adapter",
-      "text": "style={{ minWidth: 160 }}",
-      "owner": "electrical",
-      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/components/electrical/ElectricalColumnSettingsModal.tsx",
-      "line": 360,
-      "class": "runtime geometry",
-      "text": "style={style}",
+      "tag": "div",
       "owner": "electrical"
     },
     {
       "file": "src/components/electrical/ElectricalColumnSettingsModal.tsx",
-      "line": 485,
+      "line": 173,
       "class": "third-party adapter",
       "text": "style={{ top: 24 }}",
+      "tag": "Modal",
       "owner": "electrical",
       "reason": "Ant Modal style prop used for chrome geometry adapter"
     },
     {
       "file": "src/components/electrical/ElectricalColumnSettingsModal.tsx",
-      "line": 494,
+      "line": 182,
       "class": "runtime geometry",
       "text": "style={draggableWindowStyle}",
+      "tag": "div",
       "owner": "electrical"
     },
     {
       "file": "src/components/electrical/ElectricalColumnSettingsModal.tsx",
-      "line": 508,
+      "line": 196,
       "class": "third-party adapter",
       "text": "style={{ width: '100%' }}",
+      "tag": "Space",
       "owner": "electrical",
       "reason": "Ant Space style prop used for chrome geometry adapter"
     },
     {
       "file": "src/components/electrical/ElectricalColumnSettingsModal.tsx",
-      "line": 509,
+      "line": 197,
       "class": "third-party adapter",
       "text": "style={{ width: '100%', justifyContent: 'space-between' }}",
+      "tag": "Space",
       "owner": "electrical",
       "reason": "Ant Space style prop used for chrome geometry adapter"
     },
     {
-      "file": "src/components/electrical/ElectricalGlideColumnFilterDropdown.tsx",
-      "line": 168,
-      "class": "third-party adapter",
-      "text": "style={{ minWidth: 160 }}",
-      "owner": "electrical",
-      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/components/electrical/ObjectCalcCard.tsx",
-      "line": 83,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 12 }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/components/electrical/ObjectCalcCard.tsx",
-      "line": 89,
-      "class": "static debt",
-      "text": "style={{ color: '#52c41a' }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/components/electrical/ObjectCalcCard.tsx",
-      "line": 127,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 6 }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/components/electrical/ObjectCalcCard.tsx",
-      "line": 130,
-      "class": "static debt",
-      "text": "style={{ fontSize: 12 }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/components/electrical/ObjectCalcCard.tsx",
-      "line": 151,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 6 }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/components/electrical/ObjectCalcCard.tsx",
-      "line": 156,
-      "class": "static debt",
-      "text": "style={{ fontSize: 12, display: 'block', marginBottom: 6 }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/components/electrical/ObjectCalcCard.tsx",
-      "line": 164,
-      "class": "static debt",
-      "text": "style={{ fontSize: 12 }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/components/electrical/ObjectCalcCard.tsx",
-      "line": 176,
-      "class": "static debt",
-      "text": "style={{ color: '#1890ff' }}",
+      "file": "src/components/electrical/ElectricalColumnSettingsModalRows.tsx",
+      "line": 270,
+      "class": "runtime geometry",
+      "text": "style={style}",
+      "tag": "div",
       "owner": "electrical"
     },
     {
       "file": "src/components/form-controls/TltNumberField.tsx",
-      "line": 152,
+      "line": 153,
       "class": "runtime geometry",
       "text": "style={wrapperStyle ?? style}",
+      "tag": "NumberField",
       "owner": "shared"
     },
     {
       "file": "src/components/form-controls/TltNumberField.tsx",
-      "line": 169,
+      "line": 170,
       "class": "runtime geometry",
       "text": "style={inputStyle}",
+      "tag": "Input",
       "owner": "shared"
     },
     {
@@ -1063,27 +283,31 @@
       "line": 125,
       "class": "runtime geometry",
       "text": "style={style}",
+      "tag": "Select",
       "owner": "shared"
     },
     {
       "file": "src/components/form-controls/TltTextField.tsx",
-      "line": 78,
+      "line": 85,
       "class": "runtime geometry",
       "text": "style={style}",
+      "tag": "TextField",
       "owner": "shared"
     },
     {
       "file": "src/components/form-controls/TltTextField.tsx",
-      "line": 94,
+      "line": 104,
       "class": "runtime geometry",
       "text": "style={inputStyle}",
+      "tag": "Input",
       "owner": "shared"
     },
     {
-      "file": "src/components/heatcalc/ColumnSettingsModal.tsx",
-      "line": 408,
+      "file": "src/components/heatcalc/ColumnSettingsModalRows.tsx",
+      "line": 331,
       "class": "runtime geometry",
       "text": "style={style}",
+      "tag": "div",
       "owner": "heat"
     },
     {
@@ -1091,190 +315,121 @@
       "line": 120,
       "class": "runtime geometry",
       "text": "style={{ left: contextMenu.x, top: contextMenu.y }}",
+      "tag": "div",
       "owner": "heat"
     },
     {
       "file": "src/components/heatcalc/HeatCalcExcelGrid.tsx",
-      "line": 108,
+      "line": 109,
       "class": "runtime geometry",
       "text": "style={{ maxHeight: tableScrollY }}",
+      "tag": "div",
       "owner": "heat"
     },
     {
       "file": "src/components/heatcalc/HeatCalcExcelGrid.tsx",
-      "line": 114,
+      "line": 115,
       "class": "runtime geometry",
       "text": "style={{ width: tableScrollX, minWidth: tableScrollX }}",
+      "tag": "table",
       "owner": "heat"
     },
     {
       "file": "src/components/heatcalc/HeatCalcExcelGrid.tsx",
-      "line": 119,
+      "line": 120,
       "class": "runtime geometry",
       "text": "style={{ width: typeof column.width === 'number' ? column.width : undefined, }}",
+      "tag": "col",
       "owner": "heat"
     },
     {
       "file": "src/components/heatcalc/HeatCalcExcelGrid.tsx",
-      "line": 135,
+      "line": 136,
       "class": "runtime geometry",
       "text": "style={{ textAlign: column.align }}",
+      "tag": "th",
       "owner": "heat"
     },
     {
       "file": "src/components/heatcalc/HeatCalcExcelGrid.tsx",
-      "line": 146,
+      "line": 147,
       "class": "runtime geometry",
       "text": "style={{ height: paddingTop }}",
+      "tag": "td",
       "owner": "heat"
     },
     {
       "file": "src/components/heatcalc/HeatCalcExcelGrid.tsx",
-      "line": 191,
+      "line": 192,
       "class": "runtime geometry",
       "text": "style={{ textAlign: column.align, ...(cellStyle as CSSProperties | undefined), }}",
+      "tag": "td",
       "owner": "heat"
     },
     {
       "file": "src/components/heatcalc/HeatCalcExcelGrid.tsx",
-      "line": 208,
+      "line": 209,
       "class": "runtime geometry",
       "text": "style={{ height: paddingBottom }}",
+      "tag": "td",
       "owner": "heat"
     },
     {
       "file": "src/components/heatcalc/HeatCalcGlideGrid.tsx",
-      "line": 416,
+      "line": 421,
       "class": "runtime geometry",
       "text": "style={{ left: editingCell.bounds.x, top: editingCell.bounds.y, width: editingCell.bounds.width, height: editingCell.bounds.height, }}",
+      "tag": "input",
       "owner": "heat"
     },
     {
-      "file": "src/components/layout/MainLayout.tsx",
-      "line": 78,
-      "class": "static debt",
-      "text": "style={{ minHeight: '100vh' }}",
-      "owner": "shared"
-    },
-    {
       "file": "src/components/layout/ProjectMenu.tsx",
-      "line": 91,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 0 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/components/layout/ProjectMenu.tsx",
-      "line": 120,
-      "class": "static debt",
-      "text": "style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block', }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/components/layout/ProjectMenu.tsx",
-      "line": 164,
-      "class": "static debt",
-      "text": "style={{ display: 'none' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/components/layout/ProjectMenu.tsx",
-      "line": 180,
+      "line": 176,
       "class": "third-party adapter",
       "text": "style={{ width: '100%' }}",
-      "owner": "shared",
-      "reason": "Ant Space style prop used for chrome geometry adapter"
-    },
-    {
-      "file": "src/components/layout/Sidebar.tsx",
-      "line": 111,
-      "class": "static debt",
-      "text": "style={{ background: 'transparent', border: 0, minWidth: 0, flex: 1 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/components/reports/ReportPreview.tsx",
-      "line": 17,
-      "class": "static debt",
-      "text": "style={{ border: '1px solid #ddd', padding: 16, background: '#fff', maxHeight: 700, overflow: 'auto', }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/components/reports/ReportWizard.tsx",
-      "line": 63,
-      "class": "static debt",
-      "text": "style={{ fontSize: 12, display: 'block', marginBottom: 12 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/components/reports/ReportWizard.tsx",
-      "line": 67,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
+      "tag": "Space",
       "owner": "shared",
       "reason": "Ant Space style prop used for chrome geometry adapter"
     },
     {
       "file": "src/components/reports/ReportWizard.tsx",
-      "line": 68,
-      "class": "static debt",
-      "text": "style={{ fontSize: 12 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/components/reports/ReportWizard.tsx",
-      "line": 77,
-      "class": "static debt",
-      "text": "style={{ padding: 0 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/components/reports/ReportWizard.tsx",
-      "line": 83,
-      "class": "static debt",
-      "text": "style={{ display: 'flex', flexDirection: 'column', gap: 4 }}",
-      "owner": "shared"
+      "line": 70,
+      "class": "third-party adapter",
+      "text": "style={{ width: '100%' }}",
+      "tag": "Space",
+      "owner": "shared",
+      "reason": "Ant Space style prop used for chrome geometry adapter"
     },
     {
       "file": "src/components/shared/NormalGlideGrid.tsx",
-      "line": 246,
+      "line": 247,
       "class": "runtime geometry",
       "text": "style={{ left: editingCell.bounds.x, top: editingCell.bounds.y, width: editingCell.bounds.width, height: editingCell.bounds.height, }}",
+      "tag": "select",
       "owner": "shared"
     },
     {
       "file": "src/components/shared/NormalGlideGrid.tsx",
-      "line": 275,
+      "line": 276,
       "class": "runtime geometry",
       "text": "style={{ left: editingCell.bounds.x, top: editingCell.bounds.y, width: editingCell.bounds.width, height: editingCell.bounds.height, }}",
+      "tag": "input",
       "owner": "shared"
     },
     {
       "file": "src/components/shared/NormalGlideGrid.tsx",
-      "line": 304,
+      "line": 305,
       "class": "runtime geometry",
       "text": "style={filterPopupStyle}",
+      "tag": "div",
       "owner": "shared"
-    },
-    {
-      "file": "src/components/specification/SpecTable.tsx",
-      "line": 84,
-      "class": "static debt",
-      "text": "style={{ color: '#bbb' }}",
-      "owner": "specification"
-    },
-    {
-      "file": "src/components/specification/SpecTable.tsx",
-      "line": 188,
-      "class": "static debt",
-      "text": "style={{ fontVariantNumeric: 'tabular-nums' }}",
-      "owner": "specification"
     },
     {
       "file": "src/components/ui-kit/CompactField.tsx",
       "line": 54,
       "class": "runtime geometry",
       "text": "style={style}",
+      "tag": "div",
       "owner": "shared"
     },
     {
@@ -1282,6 +437,7 @@
       "line": 61,
       "class": "runtime geometry",
       "text": "style={gridStyle}",
+      "tag": "div",
       "owner": "shared"
     },
     {
@@ -1289,6 +445,7 @@
       "line": 374,
       "class": "runtime geometry",
       "text": "style={{ minWidth }}",
+      "tag": "table",
       "owner": "shared"
     },
     {
@@ -1296,6 +453,7 @@
       "line": 384,
       "class": "runtime geometry",
       "text": "style={{ textAlign: column.align ?? 'left', width: column.width }}",
+      "tag": "th",
       "owner": "shared"
     },
     {
@@ -1303,1601 +461,42 @@
       "line": 408,
       "class": "runtime geometry",
       "text": "style={{ textAlign: column.align ?? 'left' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/components/wizard/isolation/WizardZoneBoundary.tsx",
-      "line": 52,
-      "class": "static debt",
-      "text": "style={{ margin: 8, padding: 10, border: '2px solid #cf1322', borderRadius: 6, background: '#fff1f0', color: '#a8071a', fontSize: 12, whiteSpace: 'pre-wrap', fo",
-      "owner": "heat"
-    },
-    {
-      "file": "src/components/wizard/steps/ConfirmStep.tsx",
-      "line": 77,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 16 }}",
-      "owner": "heat"
-    },
-    {
-      "file": "src/components/wizard/steps/ConfirmStep.tsx",
-      "line": 81,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 16 }}",
-      "owner": "heat"
-    },
-    {
-      "file": "src/components/wizard/steps/ConfirmStep.tsx",
-      "line": 90,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 16 }}",
-      "owner": "heat"
-    },
-    {
-      "file": "src/hooks/useHeatCalcTableColumns.tsx",
-      "line": 337,
-      "class": "static debt",
-      "text": "style={{ pointerEvents: 'auto' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ElecCalcPage.tsx",
-      "line": 17,
-      "class": "static debt",
-      "text": "style={{ marginRight: 8, color: '#faad14' }}",
+      "tag": "td",
       "owner": "shared"
     },
     {
       "file": "src/pages/HomePage.tsx",
-      "line": 28,
-      "class": "static debt",
-      "text": "style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #1a5276, #2e86c1)', }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/HomePage.tsx",
-      "line": 36,
-      "class": "third-party adapter",
-      "text": "style={{ width: 560 }}",
-      "owner": "shared",
-      "reason": "Ant Card style prop used for chrome geometry adapter"
-    },
-    {
-      "file": "src/pages/HomePage.tsx",
-      "line": 36,
-      "class": "static debt",
-      "text": "styles={{ body: { padding: 40 } }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/HomePage.tsx",
-      "line": 37,
-      "class": "static debt",
-      "text": "style={{ textAlign: 'center', color: '#1a5276', marginBottom: 4 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/HomePage.tsx",
-      "line": 40,
-      "class": "static debt",
-      "text": "style={{ textAlign: 'center', color: '#555', marginBottom: 32 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/HomePage.tsx",
-      "line": 44,
+      "line": 38,
       "class": "third-party adapter",
       "text": "style={{ width: '100%' }}",
+      "tag": "Space",
       "owner": "shared",
       "reason": "Ant Space style prop used for chrome geometry adapter"
-    },
-    {
-      "file": "src/pages/HomePage.tsx",
-      "line": 47,
-      "class": "static debt",
-      "text": "style={{ border: '1px solid #d9d9d9', borderRadius: 8, padding: '20px 24px', background: '#fafafa', }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/HomePage.tsx",
-      "line": 54,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 12 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/HomePage.tsx",
-      "line": 55,
-      "class": "static debt",
-      "text": "style={{ fontSize: 20, color: '#2e86c1', marginTop: 2 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/HomePage.tsx",
-      "line": 57,
-      "class": "static debt",
-      "text": "style={{ fontSize: 15 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/HomePage.tsx",
-      "line": 59,
-      "class": "static debt",
-      "text": "style={{ fontSize: 13, color: '#595959' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/HomePage.tsx",
-      "line": 73,
-      "class": "static debt",
-      "text": "style={{ marginTop: 6, color: '#1a5276' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/HomePage.tsx",
-      "line": 79,
-      "class": "static debt",
-      "text": "style={{ margin: '16px 0' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/HomePage.tsx",
-      "line": 83,
-      "class": "static debt",
-      "text": "style={{ border: '1px solid #d9d9d9', borderRadius: 8, padding: '20px 24px', background: '#fafafa', }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/HomePage.tsx",
-      "line": 90,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 12 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/HomePage.tsx",
-      "line": 91,
-      "class": "static debt",
-      "text": "style={{ fontSize: 20, color: '#1a5276', marginTop: 2 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/HomePage.tsx",
-      "line": 93,
-      "class": "static debt",
-      "text": "style={{ fontSize: 15 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/HomePage.tsx",
-      "line": 95,
-      "class": "static debt",
-      "text": "style={{ fontSize: 13, color: '#595959' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/HomePage.tsx",
-      "line": 109,
-      "class": "static debt",
-      "text": "style={{ marginTop: 6, color: '#1a5276' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/HomePage.tsx",
-      "line": 118,
-      "class": "static debt",
-      "text": "style={{ border: '1px solid #d9d9d9', borderRadius: 8, padding: '20px 24px', background: '#fafafa', marginTop: 16, }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/HomePage.tsx",
-      "line": 126,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 12 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/HomePage.tsx",
-      "line": 127,
-      "class": "static debt",
-      "text": "style={{ fontSize: 20, color: '#7d3c98', marginTop: 2 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/HomePage.tsx",
-      "line": 129,
-      "class": "static debt",
-      "text": "style={{ fontSize: 15 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/HomePage.tsx",
-      "line": 131,
-      "class": "static debt",
-      "text": "style={{ fontSize: 13, color: '#595959' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/HomePage.tsx",
-      "line": 145,
-      "class": "static debt",
-      "text": "style={{ marginTop: 6, color: '#1a5276' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/LoginPage.tsx",
-      "line": 34,
-      "class": "static debt",
-      "text": "style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1a5276', }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/LoginPage.tsx",
-      "line": 42,
-      "class": "third-party adapter",
-      "text": "style={{ width: 420 }}",
-      "owner": "shared",
-      "reason": "Ant Card style prop used for chrome geometry adapter"
-    },
-    {
-      "file": "src/pages/LoginPage.tsx",
-      "line": 43,
-      "class": "static debt",
-      "text": "style={{ textAlign: 'center', color: '#1a5276' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/LoginPage.tsx",
-      "line": 68,
-      "class": "static debt",
-      "text": "style={{ color: '#1a5276' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/LoginPage.tsx",
-      "line": 76,
-      "class": "static debt",
-      "text": "style={{ color: '#595959' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ProjectsPage.tsx",
-      "line": 268,
-      "class": "runtime geometry",
-      "text": "style={computed === 'pipe' ? { color: '#873800' } : undefined}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ProjectsPage.tsx",
-      "line": 350,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "shared",
-      "reason": "Ant Space style prop used for chrome geometry adapter"
-    },
-    {
-      "file": "src/pages/ProjectsPage.tsx",
-      "line": 385,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%', marginTop: 4 }}",
-      "owner": "shared",
-      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/ProjectsPage.tsx",
-      "line": 405,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%', marginTop: 4 }}",
-      "owner": "shared",
-      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/ProjectsPage.tsx",
-      "line": 423,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%', marginTop: 4 }}",
-      "owner": "shared",
-      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/ProjectsPage.tsx",
-      "line": 438,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%', marginTop: 4 }}",
-      "owner": "shared",
-      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/ProjectsPage.tsx",
-      "line": 612,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "shared",
-      "reason": "Ant Space style prop used for chrome geometry adapter"
-    },
-    {
-      "file": "src/pages/ReportPage.tsx",
-      "line": 89,
-      "class": "static debt",
-      "text": "style={{ marginRight: 8 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ReportPage.tsx",
-      "line": 166,
-      "class": "static debt",
-      "text": "style={{ marginRight: 8 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ReportPage.tsx",
-      "line": 235,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 8 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ReportPage.tsx",
-      "line": 241,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 12 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ReportPage.tsx",
-      "line": 242,
-      "class": "static debt",
-      "text": "style={{ fontSize: 12, marginRight: 8 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ReportPage.tsx",
-      "line": 245,
-      "class": "static debt",
-      "text": "style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ReportPage.tsx",
-      "line": 249,
-      "class": "third-party adapter",
-      "text": "style={{ minWidth: 280, maxWidth: '100%' }}",
-      "owner": "shared",
-      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/ReportPage.tsx",
-      "line": 277,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 12 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ReportPage.tsx",
-      "line": 278,
-      "class": "static debt",
-      "text": "style={{ fontSize: 12, marginRight: 8 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ReportWizardPage.tsx",
-      "line": 87,
-      "class": "static debt",
-      "text": "style={{ margin: 24 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ReportWizardPage.tsx",
-      "line": 100,
-      "class": "static debt",
-      "text": "style={{ margin: 24 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ReportWizardPage.tsx",
-      "line": 113,
-      "class": "static debt",
-      "text": "style={{ margin: 24 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ReportWizardPage.tsx",
-      "line": 121,
-      "class": "static debt",
-      "text": "style={{ margin: 24 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ReportWizardPage.tsx",
-      "line": 134,
-      "class": "static debt",
-      "text": "style={{ margin: 24 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ReportWizardPage.tsx",
-      "line": 187,
-      "class": "static debt",
-      "text": "style={{ padding: 16, minHeight: '100vh', background: '#f5f7fa' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ReportWizardPage.tsx",
-      "line": 190,
-      "class": "static debt",
-      "text": "styles={{ body: { padding: 16 } }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ReportWizardPage.tsx",
-      "line": 213,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 16 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ReportWizardPage.tsx",
-      "line": 225,
-      "class": "static debt",
-      "text": "style={{ fontSize: 12, marginBottom: 8 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ReportWizardPage.tsx",
-      "line": 228,
-      "class": "static debt",
-      "text": "style={{ fontSize: 12 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ReportWizardPage.tsx",
-      "line": 231,
-      "class": "static debt",
-      "text": "style={{ maxWidth: '100%', overflowX: 'auto', margin: '4px 0 10px' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ReportWizardPage.tsx",
-      "line": 251,
-      "class": "static debt",
-      "text": "style={{ padding: 0, marginBottom: 8 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ReportWizardPage.tsx",
-      "line": 259,
-      "class": "static debt",
-      "text": "style={{ display: 'flex', flexDirection: 'column', gap: 6 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ReportWizardPage.tsx",
-      "line": 271,
-      "class": "static debt",
-      "text": "style={{ marginTop: 12 }}",
-      "owner": "shared"
     },
     {
       "file": "src/pages/ReportWizardPage.tsx",
       "line": 282,
-      "class": "static debt",
-      "text": "style={{ fontSize: 12, marginBottom: 8 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ReportWizardPage.tsx",
-      "line": 285,
       "class": "third-party adapter",
       "text": "style={{ width: '100%' }}",
+      "tag": "Space",
       "owner": "shared",
       "reason": "Ant Space style prop used for chrome geometry adapter"
     },
     {
       "file": "src/pages/ReportWizardPage.tsx",
-      "line": 300,
+      "line": 296,
       "class": "third-party adapter",
       "text": "style={{ marginTop: 12, width: '100%' }}",
+      "tag": "Space",
       "owner": "shared",
       "reason": "Ant Space style prop used for chrome geometry adapter"
-    },
-    {
-      "file": "src/pages/ReportWizardPage.tsx",
-      "line": 313,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 8 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ReportWizardPage.tsx",
-      "line": 314,
-      "class": "static debt",
-      "text": "style={{ fontSize: 12 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ReportWizardPage.tsx",
-      "line": 317,
-      "class": "static debt",
-      "text": "style={{ marginTop: 4 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ReportWizardPage.tsx",
-      "line": 322,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 4 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ReportWizardPage.tsx",
-      "line": 329,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 12 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ReportWizardPage.tsx",
-      "line": 330,
-      "class": "static debt",
-      "text": "style={{ fontSize: 12 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ReportWizardPage.tsx",
-      "line": 335,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 12 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ReportWizardPage.tsx",
-      "line": 336,
-      "class": "static debt",
-      "text": "style={{ fontSize: 12 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ReportWizardPage.tsx",
-      "line": 356,
-      "class": "static debt",
-      "text": "style={{ marginTop: 8 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ReportWizardPage.tsx",
-      "line": 365,
-      "class": "static debt",
-      "text": "style={{ marginTop: 4 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ReportWizardPage.tsx",
-      "line": 375,
-      "class": "static debt",
-      "text": "style={{ minWidth: 0 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ReportWizardPage.tsx",
-      "line": 399,
-      "class": "static debt",
-      "text": "style={{ maxHeight: 'calc(100vh - 260px)', overflow: 'auto' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ReportWizardPage.tsx",
-      "line": 407,
-      "class": "static debt",
-      "text": "style={{ marginTop: 16, color: '#888' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/ReportWizardPage.tsx",
-      "line": 408,
-      "class": "static debt",
-      "text": "style={{ fontSize: 11 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/UIKitPage.tsx",
-      "line": 295,
-      "class": "runtime geometry",
-      "text": "style={{ width: `${value * 2}px` }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/WorkspacePage.tsx",
-      "line": 67,
-      "class": "static debt",
-      "text": "style={{ marginTop: 0 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/WorkspacePage.tsx",
-      "line": 77,
-      "class": "static debt",
-      "text": "style={{ maxWidth: 520 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/WorkspacePage.tsx",
-      "line": 147,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 16 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/WorkspacePage.tsx",
-      "line": 148,
-      "class": "static debt",
-      "text": "style={{ marginTop: 0 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/WorkspacePage.tsx",
-      "line": 151,
-      "class": "static debt",
-      "text": "style={{ margin: 0 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/WorkspacePage.tsx",
-      "line": 157,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 16 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/WorkspacePage.tsx",
-      "line": 163,
-      "class": "static debt",
-      "text": "style={{ color: '#52c41a' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/WorkspacePage.tsx",
-      "line": 175,
-      "class": "runtime geometry",
-      "text": "style={{ borderColor: idx === currentStep ? '#1890ff' : undefined, opacity: idx > currentStep + 1 ? 0.6 : 1, }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/WorkspacePage.tsx",
-      "line": 185,
-      "class": "static debt",
-      "text": "style={{ color: '#52c41a' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/admin/AdminLayout.tsx",
-      "line": 16,
-      "class": "static debt",
-      "text": "style={{ minHeight: '100vh' }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/pages/admin/AdminLayout.tsx",
-      "line": 18,
-      "class": "static debt",
-      "text": "style={{ color: 'white', margin: 0 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/pages/admin/AdminLayout.tsx",
-      "line": 25,
-      "class": "static debt",
-      "text": "style={{ color: 'white', marginLeft: 'auto', cursor: 'pointer' }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/pages/admin/AdminLayout.tsx",
-      "line": 47,
-      "class": "static debt",
-      "text": "style={{ padding: 24 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/pages/admin/DatabasePage.tsx",
-      "line": 325,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 12 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/pages/admin/DatabasePage.tsx",
-      "line": 350,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 12 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/pages/admin/DatabasePage.tsx",
-      "line": 392,
-      "class": "third-party adapter",
-      "text": "style={{ width: 180 }}",
-      "owner": "admin",
-      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/DatabasePage.tsx",
-      "line": 403,
-      "class": "third-party adapter",
-      "text": "style={{ width: 160 }}",
-      "owner": "admin",
-      "reason": "Ant Input style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/DatabasePage.tsx",
-      "line": 406,
-      "class": "third-party adapter",
-      "text": "style={{ width: 190 }}",
-      "owner": "admin",
-      "reason": "Ant Input style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/DatabasePage.tsx",
-      "line": 409,
-      "class": "third-party adapter",
-      "text": "style={{ width: 110 }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/DatabasePage.tsx",
-      "line": 412,
-      "class": "third-party adapter",
-      "text": "style={{ width: 110 }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/DatabasePage.tsx",
-      "line": 415,
-      "class": "third-party adapter",
-      "text": "style={{ width: 120 }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/DatabasePage.tsx",
-      "line": 418,
-      "class": "third-party adapter",
-      "text": "style={{ width: 100 }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/DatabasePage.tsx",
-      "line": 421,
-      "class": "third-party adapter",
-      "text": "style={{ width: 100 }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/DatabasePage.tsx",
-      "line": 426,
-      "class": "third-party adapter",
-      "text": "style={{ width: 180 }}",
-      "owner": "admin",
-      "reason": "Ant Input style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/DatabasePage.tsx",
-      "line": 429,
-      "class": "third-party adapter",
-      "text": "style={{ width: 150 }}",
-      "owner": "admin",
-      "reason": "Ant Input style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/DatabasePage.tsx",
-      "line": 432,
-      "class": "third-party adapter",
-      "text": "style={{ width: 110 }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/DatabasePage.tsx",
-      "line": 435,
-      "class": "third-party adapter",
-      "text": "style={{ width: 90 }}",
-      "owner": "admin",
-      "reason": "Ant Input style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/DatabasePage.tsx",
-      "line": 438,
-      "class": "third-party adapter",
-      "text": "style={{ width: 120 }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/DatabasePage.tsx",
-      "line": 442,
-      "class": "third-party adapter",
-      "text": "style={{ width: 130 }}",
-      "owner": "admin",
-      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/DatabasePage.tsx",
-      "line": 453,
-      "class": "third-party adapter",
-      "text": "style={{ width: 110 }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/DatabasePage.tsx",
-      "line": 456,
-      "class": "third-party adapter",
-      "text": "style={{ width: 110 }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/DatabasePage.tsx",
-      "line": 461,
-      "class": "third-party adapter",
-      "text": "style={{ width: 120 }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/DatabasePage.tsx",
-      "line": 464,
-      "class": "third-party adapter",
-      "text": "style={{ width: 130 }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/DatabasePage.tsx",
-      "line": 467,
-      "class": "third-party adapter",
-      "text": "style={{ width: 160 }}",
-      "owner": "admin",
-      "reason": "Ant Input style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/DatabasePage.tsx",
-      "line": 470,
-      "class": "third-party adapter",
-      "text": "style={{ width: 200 }}",
-      "owner": "admin",
-      "reason": "Ant Input style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/DatabasePage.tsx",
-      "line": 473,
-      "class": "third-party adapter",
-      "text": "style={{ width: 200 }}",
-      "owner": "admin",
-      "reason": "Ant Input style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/DatabasePage.tsx",
-      "line": 476,
-      "class": "third-party adapter",
-      "text": "style={{ width: 140 }}",
-      "owner": "admin",
-      "reason": "Ant Input style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/DatabasePage.tsx",
-      "line": 511,
-      "class": "third-party adapter",
-      "text": "style={{ width: 180 }}",
-      "owner": "admin",
-      "reason": "Ant Input style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/DatabasePage.tsx",
-      "line": 514,
-      "class": "third-party adapter",
-      "text": "style={{ width: 260 }}",
-      "owner": "admin",
-      "reason": "Ant Input style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/DatabasePage.tsx",
-      "line": 517,
-      "class": "third-party adapter",
-      "text": "style={{ width: 160 }}",
-      "owner": "admin",
-      "reason": "Ant Input style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 137,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 142,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 149,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 165,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 173,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 188,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 196,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 201,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 208,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 213,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 218,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 225,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 254,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 259,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 264,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 270,
-      "class": "static debt",
-      "text": "style={{ marginTop: 14 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 370,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 376,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 386,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 391,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 396,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 405,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 420,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 428,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 433,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 440,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 445,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 450,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 457,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 462,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 467,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 474,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 479,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 485,
-      "class": "static debt",
-      "text": "style={{ marginTop: 14 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 519,
-      "class": "static debt",
-      "text": "style={{ marginTop: 10, padding: '8px 12px', background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 6, fontSize: 12, color: '#555' }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 520,
-      "class": "static debt",
-      "text": "style={{ fontSize: 11 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 524,
-      "class": "static debt",
-      "text": "style={{ fontWeight: 600, marginBottom: 10, color: '#333' }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 529,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 534,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 541,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 546,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 550,
-      "class": "static debt",
-      "text": "style={{ maxWidth: 200 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 551,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 561,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 568,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 573,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 578,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 584,
-      "class": "static debt",
-      "text": "style={{ marginTop: 14 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 628,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 629,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 632,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 633,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 636,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 639,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 640,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 644,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 645,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 646,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 653,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 657,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 658,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 663,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 664,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 669,
-      "class": "static debt",
-      "text": "style={{ marginTop: 14 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 709,
-      "class": "static debt",
-      "text": "style={{ fontWeight: 600, marginBottom: 10, color: '#333' }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 718,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 719,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 728,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 729,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 730,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 750,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 751,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 752,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 760,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 763,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 764,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 769,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 770,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 775,
-      "class": "static debt",
-      "text": "style={{ marginTop: 14 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 804,
-      "class": "static debt",
-      "text": "style={{ fontWeight: 600, marginBottom: 10, color: '#333' }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 808,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 811,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 812,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 816,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 817,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "admin",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/admin/FormulasPage.tsx",
-      "line": 821,
-      "class": "static debt",
-      "text": "style={{ marginTop: 14 }}",
-      "owner": "admin"
-    },
-    {
-      "file": "src/pages/admin/ReferencesPage.tsx",
-      "line": 81,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 12, maxWidth: 380 }}",
-      "owner": "admin"
     },
     {
       "file": "src/pages/electrical/ElecCalcCableMarkModal.tsx",
       "line": 93,
       "class": "third-party adapter",
       "text": "style={{ top: 28 }}",
+      "tag": "Modal",
       "owner": "electrical",
       "reason": "Ant Modal style prop used for chrome geometry adapter"
     },
@@ -2906,1045 +505,115 @@
       "line": 104,
       "class": "third-party adapter",
       "text": "style={{ width: '100%' }}",
+      "tag": "Space",
       "owner": "electrical",
       "reason": "Ant Space style prop used for chrome geometry adapter"
     },
     {
-      "file": "src/pages/electrical/ElecCalcCableMarkModal.tsx",
-      "line": 122,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%', marginTop: 4 }}",
-      "owner": "electrical",
-      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/electrical/ElecCalcCableMarkModal.tsx",
-      "line": 130,
-      "class": "static debt",
-      "text": "style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElecCalcCableMarkModal.tsx",
-      "line": 146,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%', marginTop: 4 }}",
-      "owner": "electrical",
-      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/electrical/ElecCalcCableMarkModal.tsx",
-      "line": 164,
-      "class": "static debt",
-      "text": "style={{ display: 'flex', gap: 12, marginTop: 6, flexWrap: 'wrap' }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElecCalcCableMarkModal.tsx",
-      "line": 171,
-      "class": "static debt",
-      "text": "style={{ fontSize: 12 }}",
-      "owner": "electrical"
-    },
-    {
       "file": "src/pages/electrical/ElecCalcCableSizingModal.tsx",
-      "line": 97,
+      "line": 98,
       "class": "third-party adapter",
       "text": "style={{ top: 0, maxWidth: 'none', paddingBottom: 0 }}",
+      "tag": "Modal",
       "owner": "electrical",
       "reason": "Ant Modal style prop used for chrome geometry adapter"
     },
     {
-      "file": "src/pages/electrical/ElecCalcCableSizingModal.tsx",
-      "line": 136,
-      "class": "third-party adapter",
-      "text": "style={{ minWidth: 220 }}",
-      "owner": "electrical",
-      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/electrical/ElecCalcCableSizingModal.tsx",
-      "line": 153,
-      "class": "third-party adapter",
-      "text": "style={{ minWidth: 280 }}",
-      "owner": "electrical",
-      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/electrical/ElecCalcCableSizingModal.tsx",
-      "line": 194,
-      "class": "static debt",
-      "text": "style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElecCalcElectricalTypeControls.tsx",
-      "line": 43,
-      "class": "runtime geometry",
-      "text": "style={WRAP_STYLE}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElecCalcElectricalTypeControls.tsx",
-      "line": 47,
-      "class": "runtime geometry",
-      "text": "style={HINT_STYLE}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElecCalcElectricalTypeControls.tsx",
-      "line": 55,
-      "class": "runtime geometry",
-      "text": "style={INPUT_W76}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElecCalcElectricalTypeControls.tsx",
-      "line": 67,
-      "class": "runtime geometry",
-      "text": "style={HINT_STYLE}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElecCalcElectricalTypeControls.tsx",
-      "line": 74,
-      "class": "runtime geometry",
-      "text": "style={INPUT_W92}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElecCalcElectricalTypeControls.tsx",
-      "line": 76,
-      "class": "runtime geometry",
-      "text": "style={HINT_STYLE}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElecCalcElectricalTypeControls.tsx",
-      "line": 83,
-      "class": "runtime geometry",
-      "text": "style={INPUT_W92}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElecCalcElectricalTypeControls.tsx",
-      "line": 90,
-      "class": "runtime geometry",
-      "text": "style={AGGR_LABEL_STYLE}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElecCalcElectricalTypeControls.tsx",
-      "line": 109,
-      "class": "runtime geometry",
-      "text": "style={SELECT_W118}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElecCalcElectricalTypeControls.tsx",
-      "line": 111,
-      "class": "runtime geometry",
-      "text": "style={HINT_STYLE}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElecCalcElectricalTypeControls.tsx",
-      "line": 112,
-      "class": "runtime geometry",
-      "text": "style={INPUT_W76}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElecCalcElectricalTypeControls.tsx",
-      "line": 113,
-      "class": "runtime geometry",
-      "text": "style={HINT_STYLE}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElecCalcElectricalTypeControls.tsx",
-      "line": 114,
-      "class": "runtime geometry",
-      "text": "style={INPUT_W72}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElecCalcElectricalTypeControls.tsx",
-      "line": 115,
-      "class": "runtime geometry",
-      "text": "style={HINT_STYLE}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElecCalcElectricalTypeControls.tsx",
-      "line": 116,
-      "class": "runtime geometry",
-      "text": "style={INPUT_W76}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElecCalcElectricalTypeControls.tsx",
-      "line": 117,
-      "class": "runtime geometry",
-      "text": "style={HINT_STYLE}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElecCalcElectricalTypeControls.tsx",
-      "line": 118,
-      "class": "runtime geometry",
-      "text": "style={INPUT_W76}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElecCalcParamsPanel.tsx",
-      "line": 65,
-      "class": "third-party adapter",
-      "text": "style={{ minWidth: 190, flex: 1 }}",
-      "owner": "electrical",
-      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/electrical/ElecCalcParamsPanel.tsx",
-      "line": 76,
-      "class": "third-party adapter",
-      "text": "style={{ minWidth: 190, flex: 1 }}",
-      "owner": "electrical",
-      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/electrical/ElecCalcParamsPanel.tsx",
-      "line": 128,
-      "class": "static debt",
-      "text": "style={{ fontSize: 12 }}",
-      "owner": "electrical"
-    },
-    {
       "file": "src/pages/electrical/ElecCalcProject.tsx",
-      "line": 77,
+      "line": 78,
       "class": "third-party adapter",
       "text": "style={{ width: '100%' }}",
+      "tag": "Space",
       "owner": "electrical",
       "reason": "Ant Space style prop used for chrome geometry adapter"
-    },
-    {
-      "file": "src/pages/electrical/ElecCalcRecalculationSettings.tsx",
-      "line": 65,
-      "class": "static debt",
-      "text": "style={{ marginInlineEnd: 0 }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElecCalcRecalculationSettings.tsx",
-      "line": 77,
-      "class": "third-party adapter",
-      "text": "style={{ width: 128 }}",
-      "owner": "electrical",
-      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/electrical/ElecCalcRecalculationSettings.tsx",
-      "line": 81,
-      "class": "static debt",
-      "text": "style={{ marginInlineEnd: 0 }}",
-      "owner": "electrical"
     },
     {
       "file": "src/pages/electrical/ElecCalcWorkspace.tsx",
-      "line": 32,
-      "class": "static debt",
-      "text": "style={{ marginRight: 8, color: '#faad14' }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElecCalcWorkspace.tsx",
-      "line": 42,
+      "line": 44,
       "class": "third-party adapter",
       "text": "style={{ width: '100%' }}",
-      "owner": "electrical",
-      "reason": "Ant Space style prop used for chrome geometry adapter"
-    },
-    {
-      "file": "src/pages/electrical/ElecCalcWorkspaceParamsChrome.tsx",
-      "line": 64,
-      "class": "static debt",
-      "text": "style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, minHeight: 28, }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElectricalAssignmentPanel.tsx",
-      "line": 488,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 8 }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElectricalAssignmentPanel.tsx",
-      "line": 498,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 8 }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElectricalAssignmentPanel.tsx",
-      "line": 508,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 8 }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElectricalAssignmentPanel.tsx",
-      "line": 526,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 8 }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElectricalBatchActionBar.tsx",
-      "line": 95,
-      "class": "static debt",
-      "text": "style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElectricalBatchActionBar.tsx",
-      "line": 106,
-      "class": "third-party adapter",
-      "text": "style={{ width: 210 }}",
-      "owner": "electrical",
-      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/electrical/ElectricalSectionHierarchy.tsx",
-      "line": 53,
-      "class": "static debt",
-      "text": "style={{ width: '100%', marginTop: 6, fontSize: 12 }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElectricalSectionHierarchy.tsx",
-      "line": 56,
-      "class": "static debt",
-      "text": "style={{ textAlign: 'left' }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElectricalSectionHierarchy.tsx",
-      "line": 57,
-      "class": "static debt",
-      "text": "style={{ textAlign: 'right' }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElectricalSectionHierarchy.tsx",
-      "line": 58,
-      "class": "static debt",
-      "text": "style={{ textAlign: 'right' }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElectricalSectionHierarchy.tsx",
-      "line": 59,
-      "class": "static debt",
-      "text": "style={{ textAlign: 'right' }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElectricalSectionHierarchy.tsx",
-      "line": 60,
-      "class": "static debt",
-      "text": "style={{ textAlign: 'right' }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElectricalSectionHierarchy.tsx",
-      "line": 67,
-      "class": "static debt",
-      "text": "style={{ textAlign: 'right' }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElectricalSectionHierarchy.tsx",
-      "line": 68,
-      "class": "static debt",
-      "text": "style={{ textAlign: 'right' }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElectricalSectionHierarchy.tsx",
-      "line": 69,
-      "class": "static debt",
-      "text": "style={{ textAlign: 'right' }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElectricalSectionHierarchy.tsx",
-      "line": 72,
-      "class": "static debt",
-      "text": "style={{ textAlign: 'right' }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElectricalUnifiedTableCard.tsx",
-      "line": 154,
-      "class": "static debt",
-      "text": "style={{ margin: 12 }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElectricalVariantTabs.tsx",
-      "line": 115,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
+      "tag": "Space",
       "owner": "electrical",
       "reason": "Ant Space style prop used for chrome geometry adapter"
     },
     {
       "file": "src/pages/electrical/ElectricalVariantTabs.tsx",
-      "line": 120,
-      "class": "static debt",
-      "text": "style={{ margin: 0, paddingInlineStart: 20 }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/ElectricalVariantTabs.tsx",
-      "line": 132,
+      "line": 171,
       "class": "third-party adapter",
       "text": "style={{ width: '100%' }}",
+      "tag": "Space",
       "owner": "electrical",
       "reason": "Ant Space style prop used for chrome geometry adapter"
     },
     {
-      "file": "src/pages/electrical/ElectricalVariantTabs.tsx",
-      "line": 399,
+      "file": "src/pages/electrical/ElectricalVariantTabsEmptyState.tsx",
+      "line": 90,
       "class": "third-party adapter",
       "text": "style={{ width: '100%' }}",
+      "tag": "Space",
       "owner": "electrical",
       "reason": "Ant Space style prop used for chrome geometry adapter"
     },
     {
-      "file": "src/pages/electrical/ElectricalVariantTabs.tsx",
-      "line": 472,
+      "file": "src/pages/electrical/ElectricalVariantTabsEmptyState.tsx",
+      "line": 107,
       "class": "third-party adapter",
-      "text": "style={{ width: 200 }}",
+      "text": "style={{ width: '100%' }}",
+      "tag": "Space",
       "owner": "electrical",
-      "reason": "Ant Input style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/electrical/ElectricalVariantTabs.tsx",
-      "line": 488,
-      "class": "static debt",
-      "text": "style={{ fontSize: 12 }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/useElecCalcCableMarkOptions.tsx",
-      "line": 55,
-      "class": "static debt",
-      "text": "style={{ marginInlineEnd: 0 }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/useElecCalcElectricalColumnRenderers.tsx",
-      "line": 97,
-      "class": "static debt",
-      "text": "style={{ fontSize: 12 }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/useElecCalcElectricalColumnRenderers.tsx",
-      "line": 192,
-      "class": "static debt",
-      "text": "style={{ fontSize: 12 }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/useElecCalcElectricalColumnRenderers.tsx",
-      "line": 195,
-      "class": "static debt",
-      "text": "style={{ fontSize: 12 }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/useElecCalcElectricalColumnRenderers.tsx",
-      "line": 212,
-      "class": "static debt",
-      "text": "style={{ fontSize: 12 }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/useElecCalcElectricalColumnRenderers.tsx",
-      "line": 224,
-      "class": "static debt",
-      "text": "style={{ fontSize: 12 }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/useElecCalcElectricalColumnRenderers.tsx",
-      "line": 273,
-      "class": "static debt",
-      "text": "style={{ marginInlineEnd: 0 }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/useElecCalcElectricalColumnRenderers.tsx",
-      "line": 313,
-      "class": "static debt",
-      "text": "style={{ fontSize: 12 }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/useElecCalcElectricalColumnRenderers.tsx",
-      "line": 330,
-      "class": "static debt",
-      "text": "style={{ marginInlineEnd: 0, fontSize: 10, lineHeight: '16px' }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/useElecCalcElectricalColumnRenderers.tsx",
-      "line": 339,
-      "class": "static debt",
-      "text": "style={{ fontSize: 12 }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/electrical/useElecCalcElectricalColumns.tsx",
-      "line": 87,
-      "class": "static debt",
-      "text": "style={{ pointerEvents: 'auto' }}",
-      "owner": "electrical"
-    },
-    {
-      "file": "src/pages/heatcalc/HeatCalcEmptyProjectState.tsx",
-      "line": 8,
-      "class": "static debt",
-      "text": "style={{ marginRight: 8, color: '#e06c1e' }}",
-      "owner": "heat"
+      "reason": "Ant Space style prop used for chrome geometry adapter"
     },
     {
       "file": "src/pages/heatcalc/HeatCalcWorkspaceLayout.tsx",
-      "line": 79,
+      "line": 80,
       "class": "third-party adapter",
       "text": "style={{ width: '100%' }}",
+      "tag": "Space",
       "owner": "heat",
       "reason": "Ant Space style prop used for chrome geometry adapter"
     },
     {
       "file": "src/pages/heatcalc/HeatCalcWorkspaceLayout.tsx",
-      "line": 88,
+      "line": 89,
       "class": "runtime geometry",
       "text": "style={workspaceLayoutStyle}",
+      "tag": "div",
       "owner": "heat"
     },
     {
-      "file": "src/pages/help/AdminHelpPage.tsx",
-      "line": 17,
-      "class": "static debt",
-      "text": "style={{ minHeight: '100vh', background: '#f5f5f5', padding: '40px 24px' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/AdminHelpPage.tsx",
-      "line": 18,
-      "class": "static debt",
-      "text": "style={{ maxWidth: 860, margin: '0 auto' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/AdminHelpPage.tsx",
-      "line": 19,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 24 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/AdminHelpPage.tsx",
-      "line": 24,
-      "class": "static debt",
-      "text": "style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/AdminHelpPage.tsx",
-      "line": 25,
-      "class": "static debt",
-      "text": "style={{ margin: 0, color: '#1a5276' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/AdminHelpPage.tsx",
-      "line": 43,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 24 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/AdminHelpPage.tsx",
-      "line": 59,
-      "class": "static debt",
-      "text": "style={{ marginTop: 16 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/AdminHelpPage.tsx",
-      "line": 65,
-      "class": "static debt",
-      "text": "style={{ margin: 0 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/AdminHelpPage.tsx",
-      "line": 66,
-      "class": "static debt",
-      "text": "style={{ margin: '8px 0 0 0' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/AdminHelpPage.tsx",
-      "line": 71,
-      "class": "static debt",
-      "text": "style={{ margin: '8px 0 0 0' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/AdminHelpPage.tsx",
-      "line": 83,
-      "class": "static debt",
-      "text": "style={{ margin: 0 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/AdminHelpPage.tsx",
-      "line": 84,
-      "class": "static debt",
-      "text": "style={{ margin: '8px 0 0 0' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/AdminHelpPage.tsx",
-      "line": 87,
-      "class": "static debt",
-      "text": "style={{ margin: '8px 0 0 0' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/AdminHelpPage.tsx",
-      "line": 99,
-      "class": "static debt",
-      "text": "style={{ margin: 0 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/AdminHelpPage.tsx",
-      "line": 100,
-      "class": "static debt",
-      "text": "style={{ margin: '8px 0 0 0' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/AdminHelpPage.tsx",
-      "line": 106,
-      "class": "static debt",
-      "text": "style={{ margin: '8px 0 0 0' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/AdminHelpPage.tsx",
-      "line": 161,
-      "class": "static debt",
-      "text": "style={{ background: '#fff2e8' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/AdminHelpPage.tsx",
-      "line": 162,
-      "class": "static debt",
-      "text": "style={{ margin: 0 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/EmployeeHelpPage.tsx",
-      "line": 34,
-      "class": "static debt",
-      "text": "style={{ minHeight: '100vh', background: '#f5f5f5', padding: '40px 24px' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/EmployeeHelpPage.tsx",
-      "line": 35,
-      "class": "static debt",
-      "text": "style={{ maxWidth: 860, margin: '0 auto' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/EmployeeHelpPage.tsx",
+      "file": "src/pages/projects/ProjectsPageCreateModal.tsx",
       "line": 36,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 24 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/EmployeeHelpPage.tsx",
-      "line": 41,
-      "class": "static debt",
-      "text": "style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/EmployeeHelpPage.tsx",
-      "line": 42,
-      "class": "static debt",
-      "text": "style={{ margin: 0, color: '#1a5276' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/EmployeeHelpPage.tsx",
-      "line": 60,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 16 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/EmployeeHelpPage.tsx",
-      "line": 69,
-      "class": "static debt",
-      "text": "style={{ marginTop: 16 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/EmployeeHelpPage.tsx",
-      "line": 146,
-      "class": "static debt",
-      "text": "style={{ color: '#52c41a' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/EmployeeHelpPage.tsx",
-      "line": 155,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 6 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/EmployeeHelpPage.tsx",
-      "line": 158,
-      "class": "static debt",
-      "text": "style={{ fontSize: 13 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/EmployeeHelpPage.tsx",
-      "line": 169,
-      "class": "static debt",
-      "text": "style={{ fontSize: 13 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/EmployeeHelpPage.tsx",
-      "line": 201,
-      "class": "static debt",
-      "text": "style={{ background: '#f6ffed' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/EmployeeHelpPage.tsx",
-      "line": 202,
-      "class": "static debt",
-      "text": "style={{ margin: 0 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/GuestHelpPage.tsx",
-      "line": 20,
-      "class": "static debt",
-      "text": "style={{ minHeight: '100vh', background: '#f5f5f5', padding: '40px 24px' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/GuestHelpPage.tsx",
-      "line": 21,
-      "class": "static debt",
-      "text": "style={{ maxWidth: 820, margin: '0 auto' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/GuestHelpPage.tsx",
-      "line": 22,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 24 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/GuestHelpPage.tsx",
-      "line": 27,
-      "class": "static debt",
-      "text": "style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/GuestHelpPage.tsx",
-      "line": 28,
-      "class": "static debt",
-      "text": "style={{ margin: 0, color: '#1a5276' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/GuestHelpPage.tsx",
-      "line": 56,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 16 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/GuestHelpPage.tsx",
-      "line": 62,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 8 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/GuestHelpPage.tsx",
-      "line": 68,
-      "class": "static debt",
-      "text": "style={{ marginTop: 16 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/GuestHelpPage.tsx",
-      "line": 103,
-      "class": "static debt",
-      "text": "style={{ marginTop: 16 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/GuestHelpPage.tsx",
-      "line": 135,
-      "class": "static debt",
-      "text": "style={{ marginRight: 6, color: '#1890ff' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/GuestHelpPage.tsx",
-      "line": 154,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 16 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/GuestHelpPage.tsx",
-      "line": 158,
-      "class": "static debt",
-      "text": "style={{ marginRight: 6, color: '#1890ff' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/GuestHelpPage.tsx",
-      "line": 190,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 10 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/GuestHelpPage.tsx",
-      "line": 208,
-      "class": "static debt",
-      "text": "style={{ background: '#e8f4fd' }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/help/GuestHelpPage.tsx",
-      "line": 209,
-      "class": "static debt",
-      "text": "style={{ margin: 0 }}",
-      "owner": "shared"
-    },
-    {
-      "file": "src/pages/specification/SpecPageChrome.tsx",
-      "line": 131,
-      "class": "static debt",
-      "text": "style={{ display: 'block', fontSize: 12, margin: '6px 0 10px' }}",
-      "owner": "specification"
-    },
-    {
-      "file": "src/pages/specification/SpecPageChrome.tsx",
-      "line": 145,
       "class": "third-party adapter",
-      "text": "style={{ minWidth: 220, width: '100%' }}",
-      "owner": "specification",
-      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/specification/SpecPageChrome.tsx",
-      "line": 156,
-      "class": "static debt",
-      "text": "style={{ marginTop: 8 }}",
-      "owner": "specification"
-    },
-    {
-      "file": "src/pages/specification/SpecPageChrome.tsx",
-      "line": 181,
-      "class": "static debt",
       "text": "style={{ width: '100%' }}",
-      "owner": "specification"
+      "tag": "Space",
+      "owner": "shared",
+      "reason": "Ant Space style prop used for chrome geometry adapter"
+    },
+    {
+      "file": "src/pages/projects/ProjectsPageFilters.tsx",
+      "line": 70,
+      "class": "third-party adapter",
+      "text": "style={{ width: '100%' }}",
+      "tag": "Space",
+      "owner": "shared",
+      "reason": "Ant Space style prop used for chrome geometry adapter"
     },
     {
       "file": "src/pages/specification/SpecPageChrome.tsx",
-      "line": 205,
+      "line": 197,
       "class": "third-party adapter",
       "text": "style={{ marginTop: 10, width: '100%' }}",
+      "tag": "Space",
       "owner": "specification",
       "reason": "Ant Space style prop used for chrome geometry adapter"
     },
     {
-      "file": "src/pages/specification/SpecPageChrome.tsx",
-      "line": 248,
-      "class": "static debt",
-      "text": "style={{ width: '100%' }}",
-      "owner": "specification"
-    },
-    {
-      "file": "src/pages/specification/SpecPageChrome.tsx",
-      "line": 258,
-      "class": "static debt",
-      "text": "style={{ marginTop: 10 }}",
-      "owner": "specification"
-    },
-    {
-      "file": "src/pages/specification/SpecPageChrome.tsx",
-      "line": 259,
-      "class": "static debt",
-      "text": "style={{ fontSize: 12, color: '#888' }}",
-      "owner": "specification"
-    },
-    {
-      "file": "src/pages/specification/SpecPageChrome.tsx",
-      "line": 271,
-      "class": "static debt",
-      "text": "style={{ marginTop: 4 }}",
-      "owner": "specification"
-    },
-    {
-      "file": "src/pages/specification/SpecPageChrome.tsx",
-      "line": 276,
-      "class": "static debt",
-      "text": "style={{ fontSize: 12, marginTop: 10 }}",
-      "owner": "specification"
-    },
-    {
-      "file": "src/pages/specification/SpecPageChrome.tsx",
-      "line": 282,
-      "class": "static debt",
-      "text": "style={{ marginTop: 12, padding: '8px 10px', background: '#f6f8fa', borderRadius: 6, border: '1px solid #e8e8e8', }}",
-      "owner": "specification"
-    },
-    {
-      "file": "src/pages/specification/SpecPageChrome.tsx",
-      "line": 290,
-      "class": "static debt",
-      "text": "style={{ fontSize: 12, display: 'block' }}",
-      "owner": "specification"
-    },
-    {
-      "file": "src/pages/specification/SpecPageChrome.tsx",
-      "line": 296,
-      "class": "static debt",
-      "text": "style={{ fontSize: 11, color: '#888', display: 'block', marginTop: 4 }}",
-      "owner": "specification"
-    },
-    {
-      "file": "src/pages/specification/SpecPageChrome.tsx",
-      "line": 307,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "specification",
-      "reason": "Ant Space style prop used for chrome geometry adapter"
-    },
-    {
-      "file": "src/pages/specification/SpecPageChrome.tsx",
-      "line": 358,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "specification",
-      "reason": "Ant Space style prop used for chrome geometry adapter"
-    },
-    {
-      "file": "src/pages/specification/SpecPageChrome.tsx",
-      "line": 364,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "specification",
-      "reason": "Ant Select style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/specification/SpecPageChrome.tsx",
-      "line": 376,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "owner": "specification",
-      "reason": "Ant InputNumber style prop used as form-control adapter (no className path for this layout)"
-    },
-    {
-      "file": "src/pages/specification/SpecPageChrome.tsx",
-      "line": 379,
-      "class": "static debt",
-      "text": "style={{ fontSize: 12 }}",
-      "owner": "specification"
-    },
-    {
-      "file": "src/pages/specification/SpecPageChrome.tsx",
-      "line": 397,
-      "class": "static debt",
-      "text": "style={{ whiteSpace: 'pre-wrap', margin: 0, fontFamily: 'inherit' }}",
-      "owner": "specification"
-    },
-    {
-      "file": "src/pages/specification/SpecificationPage.tsx",
-      "line": 101,
-      "class": "static debt",
-      "text": "style={{ marginRight: 8 }}",
-      "owner": "specification"
-    },
-    {
-      "file": "src/pages/specification/SpecificationPage.tsx",
-      "line": 159,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 12 }}",
-      "owner": "specification"
-    },
-    {
-      "file": "src/pages/specification/SpecificationPage.tsx",
-      "line": 200,
-      "class": "static debt",
-      "text": "style={{ fontSize: 12 }}",
-      "owner": "specification"
-    },
-    {
-      "file": "src/pages/specification/SpecificationPage.tsx",
-      "line": 229,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 12 }}",
-      "owner": "specification"
-    },
-    {
-      "file": "src/pages/specification/SpecificationPage.tsx",
-      "line": 265,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 12 }}",
-      "owner": "specification"
-    },
-    {
-      "file": "src/pages/specification/SpecificationPage.tsx",
-      "line": 254,
-      "class": "static debt",
-      "text": "style={{ margin: '8px 0 0', paddingLeft: 18 }}",
-      "owner": "specification"
-    },
-    {
-      "file": "src/pages/specification/SpecificationPage.tsx",
-      "line": 289,
-      "class": "static debt",
-      "text": "style={{ marginBottom: 12 }}",
-      "owner": "specification"
+      "file": "src/pages/uikit/UIKitFoundationSection.tsx",
+      "line": 46,
+      "class": "runtime geometry",
+      "text": "style={{ width: `${value * 2}px` }}",
+      "tag": "span",
+      "owner": "shared"
     }
   ]
 }

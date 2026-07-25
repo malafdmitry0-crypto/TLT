@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Button, Checkbox, InputNumber, Modal, Space, Tag, Tooltip, Typography } from 'antd';
+import { Checkbox, Modal, Space, Tooltip, Typography } from 'antd';
 import { HolderOutlined, ReloadOutlined } from '@ant-design/icons';
 import {
   closestCenter,
@@ -34,6 +34,7 @@ import {
   type ElectricalCandidateTableColumnSettings,
 } from '@/utils/electricalCandidateTableColumns';
 import type { ElectricalTableLabelFormat } from '@/utils/electricalTableViewSettings';
+import { TltBadge, TltButton, TltNumberField } from '@/components/ui-kit';
 
 const { Text } = Typography;
 
@@ -102,7 +103,7 @@ function renderCandidateColumnLabel(column: ElectricalCandidateResolvedColumnMet
           <span className="column-layout-title">{column.title}</span>
         </Tooltip>
         <Tooltip title={tag.title} placement="top" zIndex={3000}>
-          <Tag className={tag.className}>{tag.label}</Tag>
+          <TltBadge className={tag.className}>{tag.label}</TltBadge>
         </Tooltip>
       </span>
       <span className="column-layout-meta">{metaLabel}</span>
@@ -137,10 +138,9 @@ function CandidateColumnRowContent({
         onChange={(event) => onVisibleChange(column.key, event.target.checked)}
       />
       {column.visible ? (
-        <InputNumber
+        <TltNumberField
           min={1}
           max={Math.max(1, rowCount)}
-          precision={0}
           value={column.order}
           aria-label={`Порядок ${column.label}`}
           onChange={(value) => {
@@ -151,7 +151,7 @@ function CandidateColumnRowContent({
         <span className="column-layout-empty">—</span>
       )}
       {renderCandidateColumnLabel(column)}
-      <InputNumber
+      <TltNumberField
         min={ELECTRICAL_TABLE_COLUMN_MIN_WIDTH_PCT}
         max={ELECTRICAL_TABLE_COLUMN_MAX_WIDTH_PCT}
         step={0.2}
@@ -163,8 +163,7 @@ function CandidateColumnRowContent({
       />
       <span className="column-layout-unit">%</span>
       <Tooltip title="Сбросить ширину" placement="top" zIndex={3000}>
-        <Button
-          size="small"
+        <TltButton
           aria-label={`Сбросить ширину ${column.label}`}
           icon={<ReloadOutlined />}
           onClick={() => onResetWidth(column.key)}
@@ -386,8 +385,8 @@ export default function ElectricalCandidateColumnSettingsModal({
               Показано колонок: {visibleCount}/{columns.length}
             </Text>
             <Space>
-              <Button size="small" onClick={onSelectAllColumns}>Все поля</Button>
-              <Button size="small" onClick={onResetColumns}>Сбросить</Button>
+              <TltButton size="compact" onClick={onSelectAllColumns}>Все поля</TltButton>
+              <TltButton size="compact" onClick={onResetColumns}>Сбросить</TltButton>
             </Space>
           </Space>
           <div

@@ -18,6 +18,7 @@ import './heatcalc-field-chrome-core.css';
 import './heatcalc-field-chrome.css';
 import './heatcalc-workspace-table.css';
 import './heatcalc-insulation-page.css';
+import './heatcalc-glide-chrome.css';
 
 export type HeatCalcWorkspaceLayoutProps = {
   formPlacement: HeatCalcFormPlacement;

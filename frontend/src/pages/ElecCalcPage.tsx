@@ -4,6 +4,7 @@ import EmptyProjectState from '@/components/common/EmptyProjectState';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import ElecCalcProject from '@/pages/electrical/ElecCalcProject';
+import '@/pages/electrical/elec-workspace.css';
 
 export default function ElecCalcPage() {
   const project = useProjectStore((state) => state.currentProject);
@@ -14,7 +15,7 @@ export default function ElecCalcPage() {
   if (!project) {
     return (
       <EmptyProjectState
-        icon={<ThunderboltOutlined style={{ marginRight: 8, color: '#faad14' }} />}
+        icon={<ThunderboltOutlined className="electrical-empty-icon" />}
         title="Электротехнический расчёт"
         description="Шаг 2 из 4. Результаты автоподбора греющего кабеля ТЛТ для каждого объекта."
       />

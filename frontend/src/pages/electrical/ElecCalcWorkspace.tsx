@@ -1,11 +1,12 @@
 /**
  * ElecCalc workspace view shell — orchestration in useElecCalcWorkspaceModel.
  */
-import { Alert, Space } from 'antd';
+import { Space } from 'antd';
 import { ThunderboltOutlined } from '@ant-design/icons';
 
 import EmptyProjectState from '@/components/common/EmptyProjectState';
 import ElectricalSummary from '@/components/electrical/ElectricalSummary';
+import { TltAlert } from '@/components/ui-kit';
 import ElectricalBatchActionBar from '@/pages/electrical/ElectricalBatchActionBar';
 import ElectricalAssignmentPanel from '@/pages/electrical/ElectricalAssignmentPanel';
 import { buildAssignAutoCalcBatchPayload } from '@/pages/electrical/elecCalcAssignAutoCalcModel';
@@ -18,6 +19,7 @@ import {
 } from '@/pages/electrical/useElecCalcWorkspaceModel';
 import './elec-workspace-summary.css';
 import './elec-workspace.css';
+import '@/components/electrical/CablePickerCharacteristics.css';
 
 export type { ElecCalcWorkspaceProps };
 
@@ -29,7 +31,7 @@ export function ElecCalcWorkspace(props: ElecCalcWorkspaceProps) {
   if (!project) {
     return (
       <EmptyProjectState
-        icon={<ThunderboltOutlined style={{ marginRight: 8, color: '#faad14' }} />}
+        icon={<ThunderboltOutlined className="electrical-empty-icon" />}
         title="Электротехнический расчёт"
         description="Шаг 2 из 4. Результаты автоподбора греющего кабеля ТЛТ для каждого объекта."
       />
@@ -129,10 +131,9 @@ export function ElecCalcWorkspace(props: ElecCalcWorkspaceProps) {
           />
 
           {m.isJobActive && (
-            <Alert
-              type="info"
-              showIcon
-              message={`Электрорасчёт выполняется · ${m.jobProgressLabel}`}
+            <TltAlert
+              tone="info"
+              title={`Электрорасчёт выполняется · ${m.jobProgressLabel}`}
             />
           )}
 

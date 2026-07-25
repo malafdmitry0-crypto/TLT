@@ -1,5 +1,5 @@
 .uikit-page {
-  --ui-ink: var(--c-213244);
+  --ui-ink: var(--color-swatch-213244);
   --ui-ink-muted: var(--tlt-field-label-color);
   /* Акценты = палитра приложения: --color-primary / --color-primary-light,
      семантические цвета тегов HeatCalc */
@@ -7,11 +7,11 @@
   --ui-blue-strong: var(--color-primary-light);
   --ui-blue-soft: var(--color-info-soft);
   --ui-panel: var(--color-surface);
-  --ui-shell: var(--c-f8fbfd);
+  --ui-shell: var(--color-swatch-f8fbfd);
   --ui-border: var(--heatcalc-panel-border);
   --ui-border-strong: var(--heatcalc-toolbar-divider);
-  --ui-success: var(--c-1f6f3e);
-  --ui-warning: var(--c-d46b08);
+  --ui-success: var(--color-swatch-1f6f3e);
+  --ui-warning: var(--color-swatch-d46b08);
   --ui-danger: var(--color-danger-border);
   --ui-control: var(--tlt-field-control-height);
   min-height: 100vh;
@@ -59,8 +59,8 @@
   padding: 7px 10px;
   background: var(--color-surface);
   color: var(--ui-ink);
-  border-bottom: 1px solid var(--c-dfe7f1);
-  box-shadow: 0 1px 5px var(--a-48ed076d);
+  border-bottom: 1px solid var(--color-swatch-dfe7f1);
+  box-shadow: 0 1px 5px var(--color-alpha-48ed076d);
 }
 
 .uikit-header__brand,
@@ -76,7 +76,7 @@
   place-items: center;
   width: 28px;
   height: 28px;
-  border: 1px solid var(--c-bcd8f1);
+  border: 1px solid var(--color-swatch-bcd8f1);
   border-radius: 5px;
   background: var(--color-info-soft);
   color: var(--ui-blue-strong);
@@ -88,7 +88,7 @@
 .uikit-card-label,
 .uikit-nav__label {
   display: block;
-  color: var(--c-6d7f93);
+  color: var(--color-swatch-6d7f93);
   font: 700 9px/1.2 var(--font-family-app);
   letter-spacing: 0;
   text-transform: uppercase;
@@ -96,7 +96,7 @@
 
 .uikit-header h1 {
   margin: 1px 0 0;
-  color: var(--c-162234);
+  color: var(--color-swatch-162234);
   font-size: 14px;
   font-weight: 800;
   line-height: 1;
@@ -104,17 +104,17 @@
 }
 
 .uikit-header__hint {
-  color: var(--c-5f7085);
+  color: var(--color-swatch-5f7085);
   font-size: 10px;
 }
 
 .uikit-header .ant-segmented {
-  background: var(--c-f3f7fb);
+  background: var(--color-swatch-f3f7fb);
 }
 
 .uikit-header .ant-btn {
   border-color: var(--heatcalc-toolbar-divider);
-  color: var(--c-213244);
+  color: var(--color-swatch-213244);
   box-shadow: none;
 }
 
@@ -137,7 +137,7 @@
 
 .uikit-nav__label {
   margin: 0 8px 8px;
-  color: var(--c-7b8ba0);
+  color: var(--color-swatch-7b8ba0);
 }
 
 .uikit-nav a {
@@ -147,13 +147,13 @@
   min-height: 26px;
   padding: 0 8px;
   border-radius: 4px;
-  color: var(--c-465a70);
+  color: var(--color-swatch-465a70);
   font-weight: 600;
   text-decoration: none;
 }
 
 .uikit-nav a span {
-  color: var(--c-8a9aaf);
+  color: var(--color-swatch-8a9aaf);
   font: 700 9px var(--font-family-data);
 }
 
@@ -171,7 +171,7 @@
 }
 
 .uikit-nav__note p {
-  color: var(--c-6d7f93);
+  color: var(--color-swatch-6d7f93);
   font: 10px/1.45 var(--font-family-data);
 }
 
@@ -200,7 +200,7 @@
 .uikit-intro p {
   max-width: 760px;
   margin: 0;
-  color: var(--c-34495e);
+  color: var(--color-swatch-34495e);
   font-size: 12px;
   font-weight: 600;
   line-height: 1.35;
@@ -216,7 +216,7 @@
 }
 
 .uikit-intro__spec span {
-  color: var(--c-6d7f93);
+  color: var(--color-swatch-6d7f93);
   font-size: 10px;
 }
 
@@ -247,7 +247,7 @@
 
 .uikit-section h2 {
   margin: 0;
-  color: var(--c-213244);
+  color: var(--color-swatch-213244);
   font-size: 14px;
   font-weight: 800;
   line-height: 1.15;
@@ -285,12 +285,12 @@
 }
 
 .uikit-swatch:hover {
-  border-color: var(--c-9fc4ee);
-  box-shadow: 0 1px 5px var(--a-48ed076d);
+  border-color: var(--color-swatch-9fc4ee);
+  box-shadow: 0 1px 5px var(--color-alpha-48ed076d);
 }
 
 .uikit-swatch:focus-visible {
-  outline: 2px solid var(--c-8bb8ff);
+  outline: 2px solid var(--color-swatch-8bb8ff);
   outline-offset: 2px;
 }
 
@@ -322,7 +322,7 @@
 }
 
 .uikit-swatch__meta code {
-  color: var(--c-6d7f93);
+  color: var(--color-swatch-6d7f93);
   font-size: 9px;
 }
 
@@ -352,7 +352,7 @@
 
 .uikit-card-label {
   margin-bottom: 10px;
-  color: var(--c-6d7f93);
+  color: var(--color-swatch-6d7f93);
 }
 
 .uikit-type-row {
@@ -361,7 +361,7 @@
   align-items: baseline;
   gap: 8px;
   padding: 6px 0;
-  border-top: 1px solid var(--c-eef3f8);
+  border-top: 1px solid var(--color-swatch-eef3f8);
 }
 
 .uikit-font-contract {
@@ -378,14 +378,14 @@
 
 .uikit-font-contract code {
   overflow: hidden;
-  color: var(--c-63758b);
+  color: var(--color-swatch-63758b);
   font: 9px var(--font-family-data);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .uikit-type-row > span {
-  color: var(--c-7b8ba0);
+  color: var(--color-swatch-7b8ba0);
   font: 9px var(--font-family-data);
 }
 
@@ -428,7 +428,7 @@
 }
 
 .uikit-spacing-scale code {
-  color: var(--c-6d7f93);
+  color: var(--color-swatch-6d7f93);
   font-family: var(--font-family-data);
   font-size: 9px;
 }
@@ -445,7 +445,7 @@
   width: 30px;
   height: 30px;
   border: 1px solid var(--ui-border);
-  color: var(--c-63758b);
+  color: var(--color-swatch-63758b);
   font: 9px var(--font-family-data);
 }
 
@@ -458,61 +458,6 @@
   display: grid;
   grid-template-columns: 1.1fr 1fr;
   gap: 8px;
-}
-
-.uikit-primitive-grid,
-.uikit-primitive-data-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.uikit-primitive-stack {
-  display: grid;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.uikit-primitive-actions,
-.uikit-primitive-badges {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-
-.uikit-primitive-alerts,
-.uikit-primitive-state-stack {
-  display: grid;
-  gap: 6px;
-  margin-top: 10px;
-}
-
-.uikit-primitive-tab-content {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 4px 8px;
-  min-height: 50px;
-  padding: 8px 10px;
-  border: 1px solid var(--c-eef3f8);
-  border-radius: 4px;
-  background: var(--c-fbfdff);
-  color: var(--c-63758b);
-  font-size: 10px;
-}
-
-.uikit-primitive-tab-content strong {
-  color: var(--ui-ink);
-  font-size: 11px;
-}
-
-.uikit-primitive-tab-content > span {
-  grid-column: 2;
-}
-
-.uikit-primitive-data-grid > .tlt-ui-card {
-  min-width: 0;
 }
 
 .uikit-toolbar {
@@ -547,218 +492,12 @@
   gap: 10px;
   margin-top: 8px;
   padding: 9px 12px;
-  color: var(--c-52667b);
+  color: var(--color-swatch-52667b);
   font-size: 10px;
 }
 
 .uikit-options-row .ant-slider {
   margin: 5px 8px;
-}
-
-.uikit-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  width: max-content;
-  max-width: 100%;
-  min-height: 18px;
-  padding: 1px 6px;
-  border: 1px solid var(--c-d6e1eb);
-  border-radius: 999px;
-  background: var(--c-f4f7fa);
-  color: var(--c-52667b);
-  font-size: 9px;
-  font-weight: 700;
-  line-height: 1.2;
-  white-space: nowrap;
-}
-
-.uikit-status::before {
-  content: '';
-  flex: 0 0 auto;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--c-8a9aaf);
-}
-
-.uikit-status--info {
-  border-color: var(--c-bcd8f1);
-  background: var(--ui-blue-soft);
-  color: var(--color-primary);
-}
-
-.uikit-status--info::before { background: var(--ui-blue-strong); }
-
-/* Палитра тегов приложения (.actionbar-mode-tag.new) */
-.uikit-status--success {
-  border-color: var(--c-91c788);
-  background: var(--c-e5f3e3);
-  color: var(--c-1f6f3e);
-}
-
-.uikit-status--success::before { background: var(--ui-success); }
-
-/* Палитра тегов приложения (.actionbar-mode-tag.edit) */
-.uikit-status--warning {
-  border-color: var(--c-f6c343);
-  background: var(--c-fff3cd);
-  color: var(--c-7a4d00);
-}
-
-.uikit-status--warning::before { background: var(--ui-warning); }
-
-.uikit-status--danger {
-  border-color: var(--c-ffa39e);
-  background: var(--color-danger-bg);
-  color: var(--color-danger-border);
-}
-
-.uikit-status--danger::before { background: var(--ui-danger); }
-
-.uikit-status-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 8px;
-}
-
-.uikit-alerts {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(200px, 1fr));
-  gap: 8px;
-  padding: 8px;
-}
-
-.uikit-alerts .ant-alert {
-  align-items: flex-start;
-  padding: 8px;
-}
-
-.uikit-alerts .ant-alert-message {
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.uikit-alerts .ant-alert-description {
-  font-size: 10px;
-  line-height: 1.35;
-}
-
-.uikit-metrics {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(120px, 1fr));
-  border: 1px solid var(--ui-border);
-  border-bottom: 0;
-  border-radius: 8px 8px 0 0;
-  background: var(--color-surface);
-  overflow: hidden;
-}
-
-.uikit-metric {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: baseline;
-  gap: 4px;
-  padding: 8px 10px;
-  border-right: 1px solid var(--ui-border);
-}
-
-.uikit-metric:last-child {
-  border-right: 0;
-}
-
-.uikit-metric__label {
-  overflow: hidden;
-  color: var(--c-63758b);
-  font-size: 9px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.uikit-metric strong {
-  font: 700 17px var(--font-family-data);
-}
-
-.uikit-metric--accent strong {
-  color: var(--ui-success);
-}
-
-.uikit-metric__unit {
-  color: var(--c-63758b);
-  font-size: 9px;
-}
-
-.uikit-table-wrap {
-  max-width: 100%;
-  overflow-x: auto;
-  border: 1px solid var(--ui-border);
-  border-radius: 0 0 8px 8px;
-  background: var(--color-surface);
-}
-
-.uikit-table {
-  width: 100%;
-  min-width: 680px;
-  border-collapse: collapse;
-  font-size: 10px;
-}
-
-.uikit-table th {
-  padding: 6px 8px;
-  border-bottom: 1px solid var(--ui-border);
-  background: var(--heatcalc-toolbar-background);
-  color: var(--c-52667b);
-  font-size: 9px;
-  font-weight: 700;
-  text-align: left;
-}
-
-.uikit-table td {
-  height: 30px;
-  padding: 3px 8px;
-  border-bottom: 1px solid var(--c-edf2f6);
-  color: var(--c-45576d);
-}
-
-.uikit-table tbody tr {
-  cursor: pointer;
-}
-
-.uikit-table tbody tr:hover {
-  background: var(--c-f7fbff);
-}
-
-.uikit-table tbody tr.is-selected {
-  background: var(--ui-blue-soft);
-  box-shadow: inset 3px 0 var(--ui-blue-strong);
-}
-
-.uikit-table tbody tr:last-child td {
-  border-bottom: 0;
-}
-
-.uikit-table td strong {
-  color: var(--ui-ink);
-  font-weight: 600;
-}
-
-.uikit-table .number {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-.uikit-table td:last-child {
-  width: 30px;
-  padding: 0;
-}
-
-.uikit-table__empty {
-  height: 70px;
-  color: var(--c-6d7f93);
-  text-align: center;
-  cursor: default;
 }
 
 .uikit-pattern {
@@ -786,7 +525,7 @@
 
 .uikit-pattern__actions {
   margin-top: 10px;
-  color: var(--c-63758b);
+  color: var(--color-swatch-63758b);
   font-size: 10px;
 }
 
@@ -803,7 +542,7 @@
   place-items: center;
   width: 36px;
   height: 36px;
-  border: 1px dashed var(--c-a7bbcc);
+  border: 1px dashed var(--color-swatch-a7bbcc);
   border-radius: 6px;
   color: var(--ui-blue-strong);
   font-size: 22px;
@@ -811,7 +550,7 @@
 
 .uikit-empty p {
   margin: 3px 0 0;
-  color: var(--c-63758b);
+  color: var(--color-swatch-63758b);
   font-size: 10px;
 }
 
@@ -828,7 +567,7 @@
 .uikit-loading span {
   height: 18px;
   border-radius: 3px;
-  background: linear-gradient(90deg, var(--c-edf2f6) 25%, var(--c-f8fbfd) 50%, var(--c-edf2f6) 75%);
+  background: linear-gradient(90deg, var(--color-swatch-edf2f6) 25%, var(--color-swatch-f8fbfd) 50%, var(--color-swatch-edf2f6) 75%);
   background-size: 200% 100%;
   animation: uikit-shimmer 1.4s infinite linear;
 }
@@ -842,109 +581,10 @@
   justify-content: space-between;
   padding-top: 16px;
   border-top: 1px solid var(--ui-border);
-  color: var(--c-7b8ba0);
+  color: var(--color-swatch-7b8ba0);
   font: 9px var(--font-family-data);
   text-transform: uppercase;
   letter-spacing: 0;
-}
-
-.uikit-heatcalc-contract {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(100px, 1fr));
-  margin-bottom: 8px;
-  border: 1px solid var(--heatcalc-toolbar-border);
-  border-radius: 8px;
-  background: var(--heatcalc-toolbar-background);
-  overflow: hidden;
-}
-
-.uikit-heatcalc-contract > div {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  min-width: 0;
-  padding: 6px 8px;
-  border-right: 1px solid var(--heatcalc-toolbar-divider);
-}
-
-.uikit-heatcalc-contract > div:last-child {
-  border-right: 0;
-}
-
-.uikit-heatcalc-contract span {
-  color: var(--c-63758b);
-  font-size: 9px;
-}
-
-.uikit-heatcalc-contract strong {
-  font: 700 10px var(--font-family-data);
-  white-space: nowrap;
-}
-
-.uikit-heatcalc-reference {
-  display: grid;
-  gap: 6px;
-  padding: 6px;
-  border: 1px solid var(--heatcalc-panel-border);
-  border-radius: 8px;
-  background: var(--color-surface);
-  box-shadow: 0 1px 4px var(--a-48ecfeeb);
-}
-
-.uikit-heatcalc-reference__caption {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-width: 0;
-  padding: 2px 2px 3px;
-}
-
-.uikit-heatcalc-reference__caption .uikit-card-label {
-  margin: 0 0 2px;
-}
-
-.uikit-heatcalc-reference__caption strong {
-  color: var(--color-primary);
-  font-size: 12px;
-}
-
-.uikit-heatcalc-reference .actionbar-srs {
-  min-width: 0;
-}
-
-.uikit-heatcalc-reference .actionbar-mode-tag {
-  display: inline-flex;
-  align-items: center;
-}
-
-.uikit-heatcalc-form,
-.uikit-heatcalc-form__grid {
-  --tlt-field-column-gap: 10px;
-  --tlt-field-row-gap: 4px;
-  --tlt-field-gap: 4px;
-}
-
-/* Форма живёт в реальной оболочке .inline-form-srs > .inline-object-form;
-   здесь только контекстные переменные контракта SC-03. */
-.uikit-heatcalc-form {
-  --inline-control-height: var(--tlt-field-control-height);
-  --field-input-min-width: 0px;
-  min-width: 0;
-}
-
-.uikit-heatcalc-form__grid {
-  padding: 8px 12px 10px;
-  --tlt-field-column-gap: 10px;
-  --tlt-field-row-gap: 4px;
-  --tlt-field-gap: 4px;
-  width: max-content;
-  max-width: 100%;
-}
-
-.uikit-heatcalc-form .tlt-compact-field {
-  min-height: var(--tlt-field-row-min-h, 28px);
 }
 
 /* Keep ant Input (climate picker mock) on the same 26px / 12px contract */
@@ -966,102 +606,30 @@
   font-size: var(--tlt-field-control-font-size);
 }
 
-/* Таблица слоёв изоляции в эталоне = реальный CSS-остров
-   .insulation-layers-table; здесь только отступы внутри карточки формы. */
-.uikit-heatcalc-form .uikit-heatcalc-layers {
-  width: auto;
-  margin: 4px 12px 12px;
-}
 
-/* База ReferencePicker вне .inline-object-form — копия контракта
-   `.inline-object-form .reference-picker-control` (styles.css). */
-.uikit-page .reference-picker-control {
-  width: 100%;
-  min-width: 0;
-  height: var(--tlt-field-control-height);
-  min-height: var(--tlt-field-control-height);
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  padding: 0 4px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--tlt-field-radius);
-  background: var(--color-surface);
-  color: var(--color-text);
-  box-sizing: border-box;
-  cursor: pointer;
-  outline: none;
-}
-
-.uikit-page .reference-picker-control:hover,
-.uikit-page .reference-picker-control:focus {
-  border-color: var(--c-4096ff);
-}
-
-.uikit-page .reference-picker-control--required {
-  box-shadow: inset 2px 0 0 var(--c-d48806);
-  background-color: var(--c-fffdf6);
-}
-
-.uikit-page .reference-picker-value {
-  min-width: 0;
-  flex: 1 1 auto;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: var(--tlt-field-select-font-size, 9px);
-  line-height: calc(var(--tlt-field-control-height) - 2px);
-}
-
-.uikit-page .reference-picker-placeholder {
-  color: var(--color-text-secondary);
-}
-
-.uikit-page .reference-picker-icon,
-.uikit-page .reference-picker-clear {
-  flex: 0 0 auto;
-  color: var(--c-b5c0ca);
-  font-size: 12px;
-  line-height: 1;
-}
-
-.uikit-page .reference-picker-control:hover .reference-picker-icon,
-.uikit-page .reference-picker-control:focus .reference-picker-icon {
-  color: var(--c-6c7e8f);
-}
-
-.uikit-heatcalc-table {
-  min-width: 0;
-  overflow: hidden;
-}
-
-.uikit-heatcalc-table .ant-table-wrapper {
-  min-width: 0;
-}
-
-.uikit-heatcalc-table .ant-table-content {
-  overflow-x: auto;
-}
-
-.uikit-heatcalc-table code {
-  font-family: var(--font-family-data);
-  font-size: inherit;
-}
-
-.uikit-heatcalc-table .uikit-status {
-  min-height: 16px;
-  padding-block: 0;
-  font-size: 8px;
-}
-
-@media (max-width: 900px) {
-  .uikit-grid--colors,
-  .uikit-alerts {
+@media (max-width: 1200px) {
+.uikit-grid--colors {
     grid-template-columns: repeat(2, minmax(180px, 1fr));
   }
 
   .uikit-component-row {
     grid-template-columns: 1fr;
+  }
+
+.uikit-heatcalc-contract {
+    grid-template-columns: repeat(3, minmax(100px, 1fr));
+  }
+
+  .uikit-heatcalc-contract > div:nth-child(3) {
+    border-right: 0;
+  }
+
+  .uikit-heatcalc-contract > div:nth-child(-n+3) {
+    border-bottom: 1px solid var(--heatcalc-toolbar-divider);
+  }
+
+.uikit-alerts {
+    grid-template-columns: repeat(2, minmax(180px, 1fr));
   }
 
   .uikit-primitive-grid,
@@ -1080,23 +648,10 @@
   .uikit-metric:nth-child(-n+2) {
     border-bottom: 1px solid var(--ui-border);
   }
-
-  .uikit-heatcalc-contract {
-    grid-template-columns: repeat(3, minmax(100px, 1fr));
-  }
-
-  .uikit-heatcalc-contract > div:nth-child(3) {
-    border-right: 0;
-  }
-
-  .uikit-heatcalc-contract > div:nth-child(-n+3) {
-    border-bottom: 1px solid var(--heatcalc-toolbar-divider);
-  }
-
 }
 
-@media (max-width: 640px) {
-  .uikit-header {
+@media (max-width: 768px) {
+.uikit-header {
     align-items: center;
     padding: 7px 12px;
   }
@@ -1192,21 +747,12 @@
   }
 
   .uikit-grid--colors,
-  .uikit-foundation-grid,
-  .uikit-alerts {
+  .uikit-foundation-grid {
     grid-template-columns: 1fr;
   }
 
   .uikit-component-row {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .uikit-primitive-tab-content {
-    grid-template-columns: 1fr;
-  }
-
-  .uikit-primitive-tab-content > span {
-    grid-column: auto;
   }
 
   .uikit-demo-group {
@@ -1215,11 +761,6 @@
 
   .uikit-toolbar {
     width: 100%;
-  }
-
-  .uikit-form-grid,
-  .uikit-heatcalc-form__grid {
-    padding: 10px;
   }
 
   .uikit-options-row {
@@ -1235,22 +776,6 @@
     min-width: 0;
   }
 
-  .uikit-metrics {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .uikit-metric {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .uikit-metric__unit {
-    grid-column: 2;
-  }
-
-  .uikit-metric strong {
-    font-size: 14px;
-  }
-
   .uikit-font-contract {
     align-items: flex-start;
     flex-direction: column;
@@ -1259,6 +784,32 @@
 
   .uikit-font-contract code {
     max-width: 100%;
+  }
+
+  .uikit-empty {
+    grid-template-columns: auto 1fr;
+  }
+
+  .uikit-empty .ant-btn {
+    grid-column: 1 / -1;
+  }
+
+  .uikit-pattern__actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .uikit-loading {
+    grid-template-columns: 45px 1fr 64px;
+  }
+
+  .uikit-loading span:last-child {
+    display: none;
+  }
+
+.uikit-form-grid,
+  .uikit-heatcalc-form__grid {
+    padding: 10px;
   }
 
   .uikit-heatcalc-contract {
@@ -1316,29 +867,37 @@
     overflow-x: hidden;
   }
 
-  .uikit-empty {
-    grid-template-columns: auto 1fr;
+.uikit-alerts {
+    grid-template-columns: 1fr;
   }
 
-  .uikit-empty .ant-btn {
-    grid-column: 1 / -1;
+  .uikit-primitive-tab-content {
+    grid-template-columns: 1fr;
   }
 
-  .uikit-pattern__actions {
-    align-items: flex-start;
-    flex-direction: column;
+  .uikit-primitive-tab-content > span {
+    grid-column: auto;
   }
 
-  .uikit-loading {
-    grid-template-columns: 45px 1fr 64px;
+  .uikit-metrics {
+    grid-template-columns: 1fr 1fr;
   }
 
-  .uikit-loading span:last-child {
-    display: none;
+  .uikit-metric {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .uikit-metric__unit {
+    grid-column: 2;
+  }
+
+  .uikit-metric strong {
+    font-size: 14px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .uikit-page *,
   .uikit-page *::before,
   .uikit-page *::after {
@@ -1347,3 +906,5 @@
     animation-iteration-count: 1;
   }
 }
+
+/* Responsive rules for extracted showcase families (kept co-located to avoid media total growth) */

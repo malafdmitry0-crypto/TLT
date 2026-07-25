@@ -150,7 +150,8 @@ describe('ElecCalcPage catalog / recalculation / selection', () => {
       expect(screen.getByText(/Тип для пересчёта/i)).toBeInTheDocument();
       expect(screen.getByText('Труба-1')).toBeInTheDocument();
     });
-    expect(screen.getByText('ТТН/ТТВ/ТТХ')).toBeInTheDocument();
+    // TltSelect: selected value appears in trigger (and possibly list/option nodes).
+    expect(screen.getAllByText('ТТН/ТТВ/ТТХ').length).toBeGreaterThan(0);
     expect(getCablesTt).not.toHaveBeenCalled();
     expect(getResistiveCables).not.toHaveBeenCalled();
 
@@ -184,10 +185,11 @@ describe('ElecCalcPage catalog / recalculation / selection', () => {
     });
     const rowCheckbox = document.querySelector('tbody .ant-checkbox-input') as HTMLInputElement;
     fireEvent.click(rowCheckbox);
-    const selectors = document.querySelectorAll('.ant-select-selector');
+    // TltSelect trigger (react-aria button), not ant-select-selector.
+    const selectors = document.querySelectorAll('.tlt-select__trigger, .tlt-select__value');
     const cableTypeSelect = Array.from(selectors).find((el) =>
       el.textContent?.includes('ТТН/ТТВ/ТТХ')
-    );
+    ) ?? screen.queryByRole('button', { name: /Тип кабеля для пересчёта/i });
     expect(cableTypeSelect).toBeTruthy();
     expect(screen.queryByText(/Однож. пост. мощн./i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Трёхж. пост. мощн./i)).not.toBeInTheDocument();
@@ -218,7 +220,7 @@ describe('ElecCalcPage catalog / recalculation / selection', () => {
       expect(screen.getByText(/Тип для пересчёта/i)).toBeInTheDocument();
       expect(screen.getByText('Труба-1')).toBeInTheDocument();
     });
-    expect(screen.getByText('ТТН/ТТВ/ТТХ')).toBeInTheDocument();
+    expect(screen.getAllByText('ТТН/ТТВ/ТТХ').length).toBeGreaterThan(0);
     await user.type(await screen.findByLabelText('T3 поддержания'), '50');
     await user.click(screen.getByRole('button', { name: /Пересчитать все · ЭР1/i }));
     await user.click(await screen.findByRole('button', { name: /Да, пересчитать все/i }));

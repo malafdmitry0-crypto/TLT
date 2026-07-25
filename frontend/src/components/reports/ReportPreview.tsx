@@ -1,4 +1,5 @@
 import DOMPurify from 'dompurify';
+import './report-preview.css';
 
 interface Props {
   html: string;
@@ -14,13 +15,7 @@ export default function ReportPreview({ html }: Props) {
   return (
     <div
       data-testid="report-preview"
-      style={{
-        border: '1px solid #ddd',
-        padding: 16,
-        background: '#fff',
-        maxHeight: 700,
-        overflow: 'auto',
-      }}
+      className="report-preview-frame"
       dangerouslySetInnerHTML={{ __html: clean }}
     />
   );

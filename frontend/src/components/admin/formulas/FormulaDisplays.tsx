@@ -11,6 +11,8 @@ import {
 } from '@/components/admin/formulas/formulaPrimitives';
 import { Divider } from 'antd';
 
+import '@/components/admin/formulas/formula-primitives.css';
+
 // ─── Pipe formula display ─────────────────────────────────────────────────────
 
 export function PipeFormulaDisplay() {
@@ -68,7 +70,7 @@ export function PipeFormulaDisplay() {
       <SubTitle>Внешнее сопротивление</SubTitle>
       <FormulaBox accent={C.resist}>
         <FL>
-          <span style={{ color: C.label, marginRight: 8 }}>Надземно:</span>
+          <span className="formula-line-label formula-line-label--gutter">Надземно:</span>
           <V c={C.resist}>R</V><S>внеш</S>
           <span> = </span>
           <Frac
@@ -77,7 +79,7 @@ export function PipeFormulaDisplay() {
           />
         </FL>
         <FL>
-          <span style={{ color: C.label, marginRight: 8 }}>Подземно:&nbsp;</span>
+          <span className="formula-line-label formula-line-label--gutter">Подземно:&nbsp;</span>
           <V c={C.resist}>R</V><S>внеш</S>
           <span> = </span>
           <Frac
@@ -96,13 +98,13 @@ export function PipeFormulaDisplay() {
           <V c={C.unit}>&nbsp;[Вт/(м²·К)]</V>
         </FL>
         <FL>
-          <span style={{ color: C.label }}>Помещение:&nbsp;</span>
+          <span className="formula-line-label">Помещение:&nbsp;</span>
           <V c={C.coeff}>α</V>
           <span> = 9,0</span>
         </FL>
       </FormulaBox>
 
-      <Divider style={{ margin: '10px 0' }} />
+      <Divider className="formula-display-divider" />
       <VarLegend rows={[
         { sym: <><V c={C.temp}>ΔT</V></>,            color: C.temp,   desc: 'T_продукт − T_окружающая, °C' },
         { sym: <><V c={C.resist}>R</V><S>ст</S></>,  color: C.resist, desc: 'термосопр. стенки трубы, м·К/Вт' },
@@ -131,7 +133,7 @@ export function TankFormulaDisplay() {
           <Frac
             top={<V c={C.temp}>ΔT</V>}
             bot={
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+              <span className="formula-inline-stack">
                 <Frac top={<><V c={C.geom}>δ</V><S>ст</S></>} bot={<><V c={C.coeff}>λ</V><S>ст</S></>} />
                 <span> + </span>
                 <Frac top={<><V c={C.geom}>δ</V><S>из</S></>} bot={<><V c={C.coeff}>λ</V><S>из</S></>} />
@@ -144,7 +146,7 @@ export function TankFormulaDisplay() {
           <V c={C.unit}>&nbsp;[Вт]</V>
         </FL>
         <FL>
-          <span style={{ color: C.label }}>С несколькими слоями:&nbsp;</span>
+          <span className="formula-line-label">С несколькими слоями:&nbsp;</span>
           <V c={C.resist}>R</V><S>из</S>
           <span> = Σ </span>
           <Frac top={<><V c={C.geom}>δ</V><S>из i</S></>} bot={<><V c={C.coeff}>λ</V><S>из i</S></>} />
@@ -153,9 +155,9 @@ export function TankFormulaDisplay() {
 
       <SubTitle>Площадь поверхности S</SubTitle>
       <FormulaBox accent={C.geom}>
-        <FL><span style={{ color: C.label, width: 160 }}>Цилиндр:</span> <V c={C.geom}>S</V> = π × <V c={C.geom}>d</V> × <V c={C.geom}>H</V> + π × <Frac top={<><V c={C.geom}>d</V><sup style={{ fontSize: '0.7em' }}>2</sup></>} bot={<>2</>} /></FL>
-        <FL><span style={{ color: C.label, width: 160 }}>Параллелепипед:</span> <V c={C.geom}>S</V> = 2 × (<V c={C.geom}>L</V>×<V c={C.geom}>W</V> + <V c={C.geom}>L</V>×<V c={C.geom}>H</V> + <V c={C.geom}>W</V>×<V c={C.geom}>H</V>)</FL>
-        <FL><span style={{ color: C.label, width: 160 }}>Шар:</span> <V c={C.geom}>S</V> = π × <V c={C.geom}>d</V><sup style={{ fontSize: '0.7em' }}>2</sup></FL>
+        <FL><span className="formula-line-label formula-line-label--w160">Цилиндр:</span> <V c={C.geom}>S</V> = π × <V c={C.geom}>d</V> × <V c={C.geom}>H</V> + π × <Frac top={<><V c={C.geom}>d</V><sup className="formula-sup">2</sup></>} bot={<>2</>} /></FL>
+        <FL><span className="formula-line-label formula-line-label--w160">Параллелепипед:</span> <V c={C.geom}>S</V> = 2 × (<V c={C.geom}>L</V>×<V c={C.geom}>W</V> + <V c={C.geom}>L</V>×<V c={C.geom}>H</V> + <V c={C.geom}>W</V>×<V c={C.geom}>H</V>)</FL>
+        <FL><span className="formula-line-label formula-line-label--w160">Шар:</span> <V c={C.geom}>S</V> = π × <V c={C.geom}>d</V><sup className="formula-sup">2</sup></FL>
       </FormulaBox>
 
       <SubTitle>Коэффициент теплоотдачи</SubTitle>
@@ -167,7 +169,7 @@ export function TankFormulaDisplay() {
           <V c={C.unit}>&nbsp;[Вт/(м²·К)]</V>
         </FL>
         <FL>
-          <span style={{ color: C.label }}>Помещение:&nbsp;</span>
+          <span className="formula-line-label">Помещение:&nbsp;</span>
           <V c={C.coeff}>α</V>
           <span> = 9,0</span>
         </FL>
@@ -207,7 +209,7 @@ export function TankFormulaDisplay() {
         </FL>
       </FormulaBox>
 
-      <Divider style={{ margin: '10px 0' }} />
+      <Divider className="formula-display-divider" />
       <VarLegend rows={[
         { sym: <><V c={C.temp}>ΔT</V></>,            color: C.temp,  desc: 'T_продукт − T_окружающая, °C' },
         { sym: <><V c={C.geom}>δ</V><S>ст</S></>,    color: C.geom,  desc: 'толщина стенки резервуара, м' },
@@ -231,9 +233,9 @@ export function TankFormulaDisplay() {
 export function ElecFormulaDisplay() {
   return (
     <>
-      <FormulaBox accent="#fa8c16">
+      <FormulaBox accent={C.req}>
         <FL>
-          <V c="#fa8c16" bold>q</V><S>треб</S>
+          <V c={C.req} bold>q</V><S>треб</S>
           <span> = </span>
           <V c={C.result}>q</V><S>потерь</S>
           <span> × </span>
@@ -244,9 +246,9 @@ export function ElecFormulaDisplay() {
 
       <SubTitle>Критерии выбора кабеля из каталога ТЛТ</SubTitle>
       <FormulaBox accent={C.resist}>
-        <FL><V c={C.result}>p</V><S>кабеля</S><span> ≥ </span><V c="#fa8c16">q</V><S>треб</S></FL>
+        <FL><V c={C.result}>p</V><S>кабеля</S><span> ≥ </span><V c={C.req}>q</V><S>треб</S></FL>
         <FL><V c={C.coeff}>T</V><S>мин</S><span> ≤ </span><V c={C.temp}>T</V><S>окр</S></FL>
-        <FL><V c={C.coeff}>T</V><S>макс</S><span> ≥ </span><V c={C.temp}>T</V><S>продукта</S><span style={{ color: C.unit }}> (если задана)</span></FL>
+        <FL><V c={C.coeff}>T</V><S>макс</S><span> ≥ </span><V c={C.temp}>T</V><S>продукта</S><span className="formula-line-note"> (если задана)</span></FL>
       </FormulaBox>
 
       <SubTitle>Длина и мощность секции</SubTitle>
@@ -274,7 +276,7 @@ export function ElecFormulaDisplay() {
         </FL>
       </FormulaBox>
 
-      <Divider style={{ margin: '10px 0' }} />
+      <Divider className="formula-display-divider" />
       <VarLegend rows={[
         { sym: <><V c={C.result}>q</V><S>потерь</S></>, color: C.result,  desc: 'теплопотери трубы, Вт/м (из расчёта тепл.)' },
         { sym: <><V c={C.coeff}>K</V></>,               color: C.coeff,   desc: 'коэф. запаса (по умолч. 1,1)' },
@@ -292,9 +294,9 @@ export function ElecFormulaDisplay() {
 export function TTFormulaDisplay() {
   return (
     <>
-      <FormulaBox accent="#fa8c16">
+      <FormulaBox accent={C.req}>
         <FL>
-          <V c="#fa8c16" bold>q</V><S>треб</S>
+          <V c={C.req} bold>q</V><S>треб</S>
           <span> = </span>
           <V c={C.result}>q</V><S>потерь</S>
           <span> × </span>
@@ -314,9 +316,9 @@ export function TTFormulaDisplay() {
 
       <SubTitle>Выбор серии ТТН / ТТВ / ТТХ</SubTitle>
       <FormulaBox accent={C.coeff}>
-        <FL><span style={{ color: C.label, width: 72 }}>ТТН:</span><V c={C.temp}>T1</V> ≤ 65°C; <V c={C.temp}>T2</V> ≤ 85°C</FL>
-        <FL><span style={{ color: C.label, width: 72 }}>ТТВ:</span><V c={C.temp}>T1</V> ≤ 120°C; <V c={C.temp}>T2</V> ≤ 210°C</FL>
-        <FL><span style={{ color: C.label, width: 72 }}>ТТХ:</span><V c={C.temp}>T1</V> ≤ 150°C; <V c={C.temp}>T2</V> ≤ 250°C</FL>
+        <FL><span className="formula-line-label formula-line-label--w72">ТТН:</span><V c={C.temp}>T1</V> ≤ 65°C; <V c={C.temp}>T2</V> ≤ 85°C</FL>
+        <FL><span className="formula-line-label formula-line-label--w72">ТТВ:</span><V c={C.temp}>T1</V> ≤ 120°C; <V c={C.temp}>T2</V> ≤ 210°C</FL>
+        <FL><span className="formula-line-label formula-line-label--w72">ТТХ:</span><V c={C.temp}>T1</V> ≤ 150°C; <V c={C.temp}>T2</V> ≤ 250°C</FL>
       </FormulaBox>
 
       <SubTitle>Количество ниток и мощность</SubTitle>
@@ -324,7 +326,7 @@ export function TTFormulaDisplay() {
         <FL>
           <V c={C.geom}>N</V><S>ниток</S>
           <span> = ceil(</span>
-          <Frac top={<><V c="#fa8c16">q</V><S>треб</S></>} bot={<><V c={C.result}>q</V><S>б</S></>} />
+          <Frac top={<><V c={C.req}>q</V><S>треб</S></>} bot={<><V c={C.result}>q</V><S>б</S></>} />
           <span>)</span>
         </FL>
         <FL>
@@ -334,7 +336,7 @@ export function TTFormulaDisplay() {
           <span> × </span>
           <V c={C.geom}>N</V><S>ниток</S>
           <span> ≥ </span>
-          <V c="#fa8c16">q</V><S>треб</S>
+          <V c={C.req}>q</V><S>треб</S>
         </FL>
         <FL>
           <V c={C.result} bold>P</V>
@@ -390,18 +392,18 @@ export function ResistiveFormulaDisplay() {
 
       <SubTitle>ТТ Р1 — одножильный кабель</SubTitle>
       <FormulaBox accent={C.resist}>
-        <FL><span style={{ color: C.label, width: 92 }}>Линия 220В:</span><V c={C.resist}>S</V><S>к</S> = <Frac top={<><V c={C.result}>Q</V></>} bot={<><V c={C.geom}>U</V><Sup>2</Sup></>} /> × <V c={C.coeff}>ρ</V><S>T</S> × <V c={C.geom}>N</V></FL>
-        <FL><span style={{ color: C.label, width: 92 }}>Петля 220В:</span><V c={C.resist}>S</V><S>к</S> = <Frac top={<><V c={C.result}>Q</V></>} bot={<><V c={C.geom}>U</V><Sup>2</Sup></>} /> × <V c={C.coeff}>ρ</V><S>T</S> × 2<V c={C.geom}>N</V></FL>
-        <FL><span style={{ color: C.label, width: 92 }}>Звезда 380В:</span><V c={C.resist}>S</V><S>к</S> = <Frac top={<><V c={C.result}>Q</V></>} bot={<><span>(</span><V c={C.geom}>U</V> / √3<span>)</span><Sup>2</Sup></>} /> × <V c={C.coeff}>ρ</V><S>T</S> × 3<V c={C.geom}>N</V></FL>
+        <FL><span className="formula-line-label formula-line-label--w92">Линия 220В:</span><V c={C.resist}>S</V><S>к</S> = <Frac top={<><V c={C.result}>Q</V></>} bot={<><V c={C.geom}>U</V><Sup>2</Sup></>} /> × <V c={C.coeff}>ρ</V><S>T</S> × <V c={C.geom}>N</V></FL>
+        <FL><span className="formula-line-label formula-line-label--w92">Петля 220В:</span><V c={C.resist}>S</V><S>к</S> = <Frac top={<><V c={C.result}>Q</V></>} bot={<><V c={C.geom}>U</V><Sup>2</Sup></>} /> × <V c={C.coeff}>ρ</V><S>T</S> × 2<V c={C.geom}>N</V></FL>
+        <FL><span className="formula-line-label formula-line-label--w92">Звезда 380В:</span><V c={C.resist}>S</V><S>к</S> = <Frac top={<><V c={C.result}>Q</V></>} bot={<><span>(</span><V c={C.geom}>U</V> / √3<span>)</span><Sup>2</Sup></>} /> × <V c={C.coeff}>ρ</V><S>T</S> × 3<V c={C.geom}>N</V></FL>
       </FormulaBox>
 
       <SubTitle>ТТ Р3 — трёхжильный кабель</SubTitle>
       <FormulaBox accent={C.resist}>
-        <FL><span style={{ color: C.label, width: 118 }}>Линия:</span><V c={C.resist}>S</V><S>к</S> = <Frac top={<><V c={C.result}>Q</V></>} bot={<><V c={C.geom}>U</V><Sup>2</Sup></>} /> × <V c={C.coeff}>ρ</V><S>T</S> × <V c={C.geom}>N</V> / 3</FL>
-        <FL><span style={{ color: C.label, width: 118 }}>Петля 2×3ж:</span><V c={C.resist}>S</V><S>к</S> = <Frac top={<><V c={C.result}>Q</V></>} bot={<><V c={C.geom}>U</V><Sup>2</Sup></>} /> × <V c={C.coeff}>ρ</V><S>T</S> × 2<V c={C.geom}>N</V> / 3</FL>
-        <FL><span style={{ color: C.label, width: 118 }}>Петля 1×3ж:</span><V c={C.resist}>S</V><S>к</S> = <Frac top={<><V c={C.result}>Q</V></>} bot={<><V c={C.geom}>U</V><Sup>2</Sup></>} /> × <V c={C.coeff}>ρ</V><S>T</S> × 3<V c={C.geom}>N</V></FL>
-        <FL><span style={{ color: C.label, width: 118 }}>Звезда 3×3ж:</span><V c={C.resist}>S</V><S>к</S> = <Frac top={<><V c={C.result}>Q</V></>} bot={<><span>(</span><V c={C.geom}>U</V> / √3<span>)</span><Sup>2</Sup></>} /> × <V c={C.coeff}>ρ</V><S>T</S> × 3<V c={C.geom}>N</V> / 3</FL>
-        <FL><span style={{ color: C.label, width: 118 }}>Звезда 1×3ж:</span><V c={C.resist}>S</V><S>к</S> = <Frac top={<><V c={C.result}>Q</V></>} bot={<><span>(</span><V c={C.geom}>U</V> / √3<span>)</span><Sup>2</Sup></>} /> × <V c={C.coeff}>ρ</V><S>T</S> × 3<V c={C.geom}>N</V></FL>
+        <FL><span className="formula-line-label formula-line-label--w118">Линия:</span><V c={C.resist}>S</V><S>к</S> = <Frac top={<><V c={C.result}>Q</V></>} bot={<><V c={C.geom}>U</V><Sup>2</Sup></>} /> × <V c={C.coeff}>ρ</V><S>T</S> × <V c={C.geom}>N</V> / 3</FL>
+        <FL><span className="formula-line-label formula-line-label--w118">Петля 2×3ж:</span><V c={C.resist}>S</V><S>к</S> = <Frac top={<><V c={C.result}>Q</V></>} bot={<><V c={C.geom}>U</V><Sup>2</Sup></>} /> × <V c={C.coeff}>ρ</V><S>T</S> × 2<V c={C.geom}>N</V> / 3</FL>
+        <FL><span className="formula-line-label formula-line-label--w118">Петля 1×3ж:</span><V c={C.resist}>S</V><S>к</S> = <Frac top={<><V c={C.result}>Q</V></>} bot={<><V c={C.geom}>U</V><Sup>2</Sup></>} /> × <V c={C.coeff}>ρ</V><S>T</S> × 3<V c={C.geom}>N</V></FL>
+        <FL><span className="formula-line-label formula-line-label--w118">Звезда 3×3ж:</span><V c={C.resist}>S</V><S>к</S> = <Frac top={<><V c={C.result}>Q</V></>} bot={<><span>(</span><V c={C.geom}>U</V> / √3<span>)</span><Sup>2</Sup></>} /> × <V c={C.coeff}>ρ</V><S>T</S> × 3<V c={C.geom}>N</V> / 3</FL>
+        <FL><span className="formula-line-label formula-line-label--w118">Звезда 1×3ж:</span><V c={C.resist}>S</V><S>к</S> = <Frac top={<><V c={C.result}>Q</V></>} bot={<><span>(</span><V c={C.geom}>U</V> / √3<span>)</span><Sup>2</Sup></>} /> × <V c={C.coeff}>ρ</V><S>T</S> × 3<V c={C.geom}>N</V></FL>
       </FormulaBox>
 
       <SubTitle>Подбор</SubTitle>
@@ -434,8 +436,8 @@ export function TankCableGeometryDisplay() {
       </FormulaBox>
       <SubTitle>Периметр</SubTitle>
       <FormulaBox accent={C.geom}>
-        <FL><span style={{ color: C.label, width: 140 }}>Цилиндр:</span><V c={C.geom}>P</V><S>периметр</S> = π × <V c={C.geom}>d</V></FL>
-        <FL><span style={{ color: C.label, width: 140 }}>Параллелепипед:</span><V c={C.geom}>P</V><S>периметр</S> = 2 × (<V c={C.geom}>L</V> + <V c={C.geom}>W</V>)</FL>
+        <FL><span className="formula-line-label formula-line-label--w140">Цилиндр:</span><V c={C.geom}>P</V><S>периметр</S> = π × <V c={C.geom}>d</V></FL>
+        <FL><span className="formula-line-label formula-line-label--w140">Параллелепипед:</span><V c={C.geom}>P</V><S>периметр</S> = 2 × (<V c={C.geom}>L</V> + <V c={C.geom}>W</V>)</FL>
       </FormulaBox>
       <VarLegend rows={[
         { sym: <><V c={C.geom}>H</V><S>укл</S></>, color: C.geom, desc: 'высота зоны обогрева, м' },

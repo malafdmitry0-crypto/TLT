@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Card, Select, Skeleton, Space, Tag, Typography, message } from 'antd';
+import { Checkbox, Skeleton, Space, Typography, message } from 'antd';
+import { TltAlert, TltBadge, TltButton, TltCard } from '@/components/ui-kit';
 import {
   FileTextOutlined,
   FilePdfOutlined,
@@ -25,6 +26,7 @@ import ReportPreview from '@/components/reports/ReportPreview';
 import QueryError from '@/components/common/QueryError';
 import ReportWizard from '@/components/reports/ReportWizard';
 import EmptyProjectState from '@/components/common/EmptyProjectState';
+import './report-page.css';
 
 const { Paragraph, Text } = Typography;
 const REPORT_PREVIEW_DEBOUNCE_MS = 250;
@@ -86,7 +88,7 @@ export default function ReportPage() {
   if (!project) {
     return (
       <EmptyProjectState
-        icon={<FileTextOutlined style={{ marginRight: 8 }} />}
+        icon={<FileTextOutlined className="report-page-icon" />}
         title="Отчёт"
         description="Шаг 4 из 4. Итоговый документ по проекту с результатами расчётов."
       />
@@ -95,9 +97,9 @@ export default function ReportPage() {
 
   if (variantContext.isLoading) {
     return (
-      <Card size="small" aria-busy="true" aria-label="Загрузка списка ЭР">
+      <TltCard aria-busy="true" aria-label="Загрузка списка ЭР">
         <Skeleton active title paragraph={{ rows: 6 }} />
-      </Card>
+      </TltCard>
     );
   }
 
@@ -114,12 +116,12 @@ export default function ReportPage() {
 
   if (!selectedElectricalVariant) {
     return (
-      <Alert
-        type="warning"
-        showIcon
-        message="ЭР ещё не создан"
-        description="Создайте первый ЭР на шаге электротехнического расчёта."
-      />
+      <TltAlert
+        tone="warning"
+        title="ЭР ещё не создан"
+      >
+        Создайте первый ЭР на шаге электротехнического расчёта.
+      </TltAlert>
     );
   }
 
@@ -160,34 +162,34 @@ export default function ReportPage() {
 
   return (
     <>
-      <Card
+      <TltCard
         title={
           <span>
-            <FileTextOutlined style={{ marginRight: 8 }} />
+            <FileTextOutlined className="report-page-icon" />
             Шаг 4. Отчёт по проекту
           </span>
         }
-        extra={
+        actions={
           <Space>
-            <Button
+            <TltButton
               icon={<PrinterOutlined />}
               disabled={exportingFormat !== null || isLoading}
               onClick={() => window.print()}
               aria-label="Печать отчёта"
             >
               Печать
-            </Button>
+            </TltButton>
             {isEmployee && (
-              <Button
+              <TltButton
                 icon={<SettingOutlined />}
                 disabled={exportingFormat !== null}
                 onClick={() => setWizardOpen(true)}
               >
                 Состав отчёта
-              </Button>
+              </TltButton>
             )}
             {isEmployee && (
-              <Button
+              <TltButton
                 icon={<ExportOutlined />}
                 disabled={exportingFormat !== null}
                 onClick={() =>
@@ -199,60 +201,58 @@ export default function ReportPage() {
                 }
               >
                 Мастер в новом окне
-              </Button>
+              </TltButton>
             )}
             {isEmployee && (
               <>
-                <Button
+                <TltButton
                   icon={<FilePdfOutlined />}
                   loading={exportingFormat === 'pdf'}
                   disabled={exportingFormat !== null}
                   onClick={() => download('pdf')}
                 >
                   PDF
-                </Button>
-                <Button
+                </TltButton>
+                <TltButton
                   icon={<FileWordOutlined />}
                   loading={exportingFormat === 'docx'}
                   disabled={exportingFormat !== null}
                   onClick={() => download('docx')}
                 >
                   Word
-                </Button>
-                <Button
+                </TltButton>
+                <TltButton
                   icon={<FileExcelOutlined />}
                   loading={exportingFormat === 'xlsx'}
                   disabled={exportingFormat !== null}
                   onClick={() => download('xlsx')}
                 >
                   Excel
-                </Button>
+                </TltButton>
               </>
             )}
           </Space>
         }
       >
-        <Paragraph type="secondary" style={{ marginBottom: 8 }} className="report-page-actions-hint">
+        <Paragraph type="secondary" className="report-page-actions-hint">
           Итоговый отчёт содержит сводную информацию по проекту: объекты, результаты расчётов
           теплопотерь, подобранные кабели и спецификацию. Кнопка «Печать» открывает печать браузера.
           {!isEmployee && <> Server export (PDF/Word/Excel) — только сотрудникам.</>}
         </Paragraph>
 
-        <div style={{ marginBottom: 12 }} className="report-page-er-selector">
-          <Text type="secondary" style={{ fontSize: 12, marginRight: 8 }}>
+        <div className="report-page-er-selector">
+          <Text type="secondary" className="report-page-label">
             ЭР в отчёте:
           </Text>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-            <Select
-              mode="multiple"
-              size="small"
-              style={{ minWidth: 280, maxWidth: '100%' }}
-              placeholder="Выберите ЭР"
+          <div className="report-page-er-options">
+            <Checkbox.Group
+              className="report-page-er-checkbox-group"
               value={reportErIds}
               disabled={exportingFormat !== null}
-              onChange={(ids: string[]) => {
-                setReportErIds(ids);
-                if (ids[0]) variantContext.selectVariant(ids[0]);
+              onChange={(ids) => {
+                const next = ids as string[];
+                setReportErIds(next);
+                if (next[0]) variantContext.selectVariant(next[0]);
               }}
               options={variantContext.variants.map((item) => ({
                 label: item.name,
@@ -260,8 +260,8 @@ export default function ReportPage() {
               }))}
               aria-label="Выбор ЭР для отчёта"
             />
-            <Button
-              size="small"
+            <TltButton
+              size="compact"
               disabled={exportingFormat !== null || variantContext.variants.length === 0}
               onClick={() => {
                 const ids = variantContext.variants.map((item) => item.id);
@@ -269,24 +269,24 @@ export default function ReportPage() {
               }}
             >
               Выбрать все
-            </Button>
+            </TltButton>
           </div>
         </div>
 
         {isEmployee && (
-          <div style={{ marginBottom: 12 }}>
-            <Text type="secondary" style={{ fontSize: 12, marginRight: 8 }}>
+          <div className="report-page-sections">
+            <Text type="secondary" className="report-page-label">
               Активные разделы:
             </Text>
             {allSelected ? (
-              <Tag color="blue">все ({REPORT_SECTIONS.length})</Tag>
+              <TltBadge tone="info">все ({REPORT_SECTIONS.length})</TltBadge>
             ) : sections.length === 0 ? (
-              <Tag color="default">нет — выбраны 0 разделов</Tag>
+              <TltBadge tone="neutral">нет — выбраны 0 разделов</TltBadge>
             ) : (
               sections.map((s) => (
-                <Tag key={s} color="geekblue">
+                <TltBadge key={s} tone="info">
                   {REPORT_SECTION_LABELS[s]}
-                </Tag>
+                </TltBadge>
               ))
             )}
           </div>
@@ -306,7 +306,7 @@ export default function ReportPage() {
           </div>
         )}
         {data && <ReportPreview html={data.html} />}
-      </Card>
+      </TltCard>
 
       <ReportWizard
         open={wizardOpen}

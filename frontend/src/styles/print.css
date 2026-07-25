@@ -3,27 +3,27 @@
 @media print {
   .specification-stale-banner,
   .specification-partial-banner {
-    color: var(--c-9a3412);
-    border: 2px solid var(--c-9a3412);
+    color: var(--color-swatch-9a3412);
+    border: 2px solid var(--color-swatch-9a3412);
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
   
 
   .heatcalc-header,
-  .ant-layout-sider,
-  .ant-layout-footer,
+  body .ant-layout-sider,
+  body .ant-layout-footer,
   .report-page-actions-hint,
   .report-page-er-selector,
-  .ant-card-extra,
-  .ant-btn {
+  body .ant-card-extra,
+  body .ant-btn {
     display: none;
   }
 
-  .ant-layout,
-  .ant-layout-content,
-  .ant-card,
-  .ant-card-body {
+  body .ant-layout,
+  body .ant-layout-content,
+  body .ant-card,
+  body .ant-card-body {
     margin: 0;
     padding: 0;
     box-shadow: none;

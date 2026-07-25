@@ -1,4 +1,5 @@
-import { Button, Card, Steps, Typography, Tag, Divider, Table } from 'antd';
+import { Steps, Typography, Divider, Table } from 'antd';
+import { TltBadge, TltButton, TltCard } from '@/components/ui-kit';
 import { useNavigate } from 'react-router-dom';
 import {
   CalculatorOutlined,
@@ -7,6 +8,7 @@ import {
   ArrowLeftOutlined,
   SearchOutlined,
 } from '@ant-design/icons';
+import './help-page.css';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -15,7 +17,7 @@ export default function EmployeeHelpPage() {
 
   const accessColumns = [
     { title: 'Функция', dataIndex: 'feature', key: 'feature' },
-    { title: 'Доступ', dataIndex: 'access', key: 'access', render: (v: boolean) => v ? <Tag color="green">Да</Tag> : <Tag color="red">Нет</Tag> },
+    { title: 'Доступ', dataIndex: 'access', key: 'access', render: (v: boolean) => v ? <TltBadge tone="success">Да</TltBadge> : <TltBadge tone="danger">Нет</TltBadge> },
   ];
   const accessData = [
     { key: 1, feature: 'Расчёт теплопотерь (трубы, ёмкости)', access: true },
@@ -31,18 +33,18 @@ export default function EmployeeHelpPage() {
   ];
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f5f5f5', padding: '40px 24px' }}>
-      <div style={{ maxWidth: 860, margin: '0 auto' }}>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/login')} style={{ marginBottom: 24 }}>
+    <div className="help-page">
+      <div className="help-page-inner help-page-inner--employee">
+        <TltButton icon={<ArrowLeftOutlined />} onClick={() => navigate('/login')} className="help-page-back">
           Назад
-        </Button>
+        </TltButton>
 
-        <Card>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-            <Title level={2} style={{ margin: 0, color: '#1a5276' }}>
+        <TltCard>
+          <div className="help-page-header">
+            <Title level={2} className="help-page-title">
               Инструкция для сотрудника
             </Title>
-            <Tag color="green">Полный доступ</Tag>
+            <TltBadge tone="success">Полный доступ</TltBadge>
           </div>
           <Paragraph type="secondary">
             Вход по логину и паролю. В проводнике видны проекты сотрудников,
@@ -57,7 +59,7 @@ export default function EmployeeHelpPage() {
             dataSource={accessData}
             pagination={false}
             size="small"
-            style={{ marginBottom: 16 }}
+            className="help-page-table"
           />
 
           <Divider />
@@ -66,7 +68,7 @@ export default function EmployeeHelpPage() {
           <Steps
             direction="vertical"
             size="small"
-            style={{ marginTop: 16 }}
+            className="help-page-steps"
             items={[
               {
                 title: 'Войдите в систему',
@@ -143,19 +145,19 @@ export default function EmployeeHelpPage() {
             На странице «Электротехнический расчёт» каждый объект — отдельная карточка со статусом:
           </Paragraph>
           <ul>
-            <li>✓ <Text style={{ color: '#52c41a' }}>зелёная галочка</Text> — кабель подобран, показаны марка, длина, мощность, ток</li>
+            <li>✓ <Text className="help-page-status-ok">зелёная галочка</Text> — кабель подобран, показаны марка, длина, мощность, ток</li>
             <li>✗ <Text type="danger">красный тег «ошибка»</Text> — подбор не удался. Внутри карточки — Alert с текстом причины и подсказкой</li>
-            <li><Tag>не применимо</Tag> — объект валиден по теплопотерям, но выбранная геометрия не поддержана методикой укладки кабеля</li>
-            <li><Tag>не рассчитан</Tag> — расчёт ещё не запускался для этого объекта</li>
+            <li><TltBadge>не применимо</TltBadge> — объект валиден по теплопотерям, но выбранная геометрия не поддержана методикой укладки кабеля</li>
+            <li><TltBadge>не рассчитан</TltBadge> — расчёт ещё не запускался для этого объекта</li>
           </ul>
           <Paragraph>
             Баннер сверху страницы показывает число объектов с ошибками. В Sidebar галочка у «Электротехнический расчёт» появляется <Text strong>только когда все объекты рассчитались успешно</Text>.
           </Paragraph>
 
-          <Paragraph type="secondary" style={{ marginBottom: 6 }}>
+          <Paragraph type="secondary" className="help-page-section-lead--tight">
             <Text strong>Почему объект может пройти «Теплопотери», но упасть на «Электрорасчёте»?</Text>
           </Paragraph>
-          <Paragraph type="secondary" style={{ fontSize: 13 }}>
+          <Paragraph type="secondary" className="help-page-body-sm">
             Два этапа проверяют разные вещи:
           </Paragraph>
           <ul>
@@ -166,7 +168,7 @@ export default function EmployeeHelpPage() {
               <Text strong>Этап 2</Text> — применимость выбранного типа кабеля к рассчитанной теплопотере. Встроенные формулы есть для ТЛТ, ТТН/ТТВ/ТТХ, ТТ Р1 и ТТ Р3; MI и скин-системы пока остаются без расчётной формулы.
             </li>
           </ul>
-          <Paragraph type="secondary" style={{ fontSize: 13 }}>
+          <Paragraph type="secondary" className="help-page-body-sm">
             Что делать с ошибкой этапа 2: попробовать выбрать кабель вручную через селектор или снизить теплопотери (увеличить толщину изоляции, разбить длинную трубу на участки).
           </Paragraph>
 
@@ -198,12 +200,12 @@ export default function EmployeeHelpPage() {
 
           <Divider />
 
-          <Card type="inner" style={{ background: '#f6ffed' }}>
-            <Paragraph style={{ margin: 0 }}>
+          <TltCard tone="soft" className="help-page-tip help-page-tip--employee">
+            <Paragraph className="help-page-tip-text">
               <Text strong>Совет:</Text> для типовых проектов используйте импорт из шаблона Excel — скопируйте готовый файл и адаптируйте значения. Это быстрее, чем вводить десятки объектов через мастер.
             </Paragraph>
-          </Card>
-        </Card>
+          </TltCard>
+        </TltCard>
       </div>
     </div>
   );

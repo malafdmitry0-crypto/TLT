@@ -1,6 +1,8 @@
-import { Button, Card, Form, Input, Typography, message } from 'antd';
+import { Form, Typography, message } from 'antd';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { TltButton, TltCard, TltTextField } from '@/components/ui-kit';
+import './login-page.css';
 
 const { Title } = Typography;
 
@@ -30,17 +32,9 @@ export default function LoginPage() {
   };
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: '#1a5276',
-      }}
-    >
-      <Card style={{ width: 420 }}>
-        <Title level={3} style={{ textAlign: 'center', color: '#1a5276' }}>
+    <div className="login-page">
+      <TltCard className="login-page-card">
+        <Title level={3} className="login-page-title">
           {loginRole === 'admin' ? 'Вход администратора' : 'Вход сотрудника'}
         </Title>
         <Form layout="vertical" onFinish={onFinish}>
@@ -52,32 +46,31 @@ export default function LoginPage() {
               { type: 'email', message: 'Некорректный email' },
             ]}
           >
-            <Input autoComplete="email" autoFocus />
+            <TltTextField type="email" autoComplete="email" autoFocus />
           </Form.Item>
           <Form.Item
             label="Пароль"
             name="password"
             rules={[{ required: true, message: 'Введите пароль' }]}
           >
-            <Input.Password autoComplete="current-password" />
+            <TltTextField type="password" autoComplete="current-password" />
           </Form.Item>
-          <Button type="primary" htmlType="submit" block>
+          <TltButton variant="primary" type="submit" className="login-page-submit">
             Войти
-          </Button>
+          </TltButton>
         </Form>
-        <Button type="link" block onClick={() => navigate('/')} style={{ color: '#1a5276' }}>
+        <TltButton variant="link" onClick={() => navigate('/')} className="login-page-back">
           Назад
-        </Button>
-        <Button
-          type="link"
-          size="small"
-          block
+        </TltButton>
+        <TltButton
+          variant="link"
+          size="compact"
           onClick={() => navigate(loginRole === 'admin' ? '/help/admin' : '/help/employee')}
-          style={{ color: '#595959' }}
+          className="login-page-help"
         >
           {loginRole === 'admin' ? 'Инструкция для администратора' : 'Инструкция для сотрудника'}
-        </Button>
-      </Card>
+        </TltButton>
+      </TltCard>
     </div>
   );
 }

@@ -358,7 +358,8 @@ describe('ElecCalcPage glide / modal actions', () => {
       expect(selectCableForVariants).toHaveBeenCalled();
     });
     expect(screen.getByRole('dialog', { name: /Выбор марки кабеля/ })).toBeInTheDocument();
-    expect(within(dialog).getByText('Авто')).toBeInTheDocument();
+    // TltSelect may show "Авто" in trigger value and list option.
+    expect(within(dialog).getAllByText('Авто').length).toBeGreaterThan(0);
   });
 
 });

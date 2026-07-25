@@ -552,7 +552,8 @@ describe('ElecCalcPage cable metadata / source / inline', () => {
     await waitFor(() => {
       expect(screen.getByText(/Тип для пересчёта/i)).toBeInTheDocument();
     });
-    expect(screen.getByText('ТТН/ТТВ/ТТХ')).toBeInTheDocument();
+    // TltSelect shows selected value in trigger and may mirror label text elsewhere.
+    expect(screen.getAllByText('ТТН/ТТВ/ТТХ').length).toBeGreaterThan(0);
     await user.type(await screen.findByLabelText('T3 поддержания'), '50');
     await user.click(screen.getByRole('button', { name: /Пересчитать все · ЭР1/i }));
     await user.click(await screen.findByRole('button', { name: /Да, пересчитать все/i }));

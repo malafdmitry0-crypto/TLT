@@ -28,7 +28,6 @@ import '@glideapps/glide-data-grid/dist/index.css';
 import ElectricalGlideColumnFilterDropdown from '@/components/electrical/ElectricalGlideColumnFilterDropdown';
 import type { ElectricalCandidate } from '@/types/calculation';
 import type {
-  HeatCalcGlideGridCellAction,
   HeatCalcGlideGridCellState,
   HeatCalcGlideGridColumn,
 } from '@/utils/heatCalcGlideGrid';
@@ -42,24 +41,26 @@ import {
   blankCell,
   drawFilterIndicator,
   drawSortIndicator,
+  GLIDE_THEME,
   headerControlWidth,
   nextSortDirection,
 } from '@/utils/glideGridPrimitives';
-
-const CANDIDATE_GLIDE_MIN_COLUMN_WIDTH = 48;
-const CANDIDATE_GLIDE_MAX_COLUMN_WIDTH = 620;
-const CANDIDATE_HEADER_FILTER_HIT_WIDTH = 28;
-const CANDIDATE_HEADER_CONTROL_BG = '#f3f6f4';
-const CANDIDATE_ERROR_ROW_BG = '#fff1f0';
-const CANDIDATE_COMPARED_ROW_BG = '#f7fbff';
-const CANDIDATE_DIFF_CELL_BG = '#fff7d6';
-const CANDIDATE_ACTION_HEIGHT = 20;
-const CANDIDATE_ACTION_GAP = 3;
-const CANDIDATE_ACTION_PADDING = 5;
-const CANDIDATE_ACTION_MIN_WIDTH = 28;
-const CANDIDATE_ACTION_MAX_WIDTH = 58;
-const CANDIDATE_ACTION_TEXT_WIDTH = 6.2;
-const CANDIDATE_CHECKBOX_SIZE = 13;
+import {
+  CANDIDATE_COMPARED_ROW_BG,
+  CANDIDATE_DIFF_CELL_BG,
+  CANDIDATE_ERROR_ROW_BG,
+  CANDIDATE_GLIDE_MAX_COLUMN_WIDTH,
+  CANDIDATE_GLIDE_MIN_COLUMN_WIDTH,
+  CANDIDATE_HEADER_CONTROL_BG,
+  CANDIDATE_HEADER_FILTER_HIT_WIDTH,
+  candidateRowHeight,
+  clampCandidateColumnWidth,
+  drawCandidateActions,
+  drawCandidateCheckbox,
+  findCandidateActionAt,
+  isComparedRowClassName,
+  isErrorRowClassName,
+} from '@/utils/electricalCandidateGlidePureModel';
 
 interface ElectricalCandidateGlideGridProps {
   rows: ElectricalCandidate[];
@@ -100,141 +101,6 @@ interface CandidateActionMenuState {
   items: MenuProps['items'];
   left: number;
   top: number;
-}
-
-function isErrorRowClassName(className: string) {
-  return className.includes('row--error') || className.includes('row-error');
-}
-
-function isComparedRowClassName(className: string) {
-  return className.includes('row--compared') || className.includes('row-compared');
-}
-
-function candidateRowHeight(fontSizeKey: string) {
-  const fontSize = resolveTableFontSizeByKey(fontSizeKey);
-  return Math.max(24, Math.round(fontSize.fontSizePx * fontSize.lineHeight + fontSize.cellPaddingY * 2 + 7));
-}
-
-function actionWidth(action: HeatCalcGlideGridCellAction) {
-  return Math.max(
-    CANDIDATE_ACTION_MIN_WIDTH,
-    Math.min(CANDIDATE_ACTION_MAX_WIDTH, Math.ceil(action.label.length * CANDIDATE_ACTION_TEXT_WIDTH + 16)),
-  );
-}
-
-function actionRects(
-  actions: HeatCalcGlideGridCellAction[] | undefined,
-  width: number,
-  height: number,
-) {
-  if (!actions?.length) return [];
-  const widths = actions.map(actionWidth);
-  const totalWidth = widths.reduce((sum, current) => sum + current, 0)
-    + CANDIDATE_ACTION_GAP * Math.max(0, widths.length - 1);
-  let left = Math.max(CANDIDATE_ACTION_PADDING, width - CANDIDATE_ACTION_PADDING - totalWidth);
-  const top = Math.max(2, Math.floor((height - CANDIDATE_ACTION_HEIGHT) / 2));
-  return actions.map((action, index) => {
-    const widthPx = widths[index];
-    const rect = {
-      action,
-      x: left,
-      y: top,
-      width: widthPx,
-      height: CANDIDATE_ACTION_HEIGHT,
-    };
-    left += widthPx + CANDIDATE_ACTION_GAP;
-    return rect;
-  });
-}
-
-function findActionAt(actions: HeatCalcGlideGridCellAction[] | undefined, event: CellClickedEventArgs) {
-  if (!actions?.length) return undefined;
-  const bounds = (event as { bounds?: { x?: number; y?: number; width: number; height: number } }).bounds;
-  if (!bounds) return undefined;
-  const rawLocalX = typeof (event as { localEventX?: unknown }).localEventX === 'number'
-    ? (event as { localEventX: number }).localEventX
-    : null;
-  const rawLocalY = typeof (event as { localEventY?: unknown }).localEventY === 'number'
-    ? (event as { localEventY: number }).localEventY
-    : null;
-  const localX = rawLocalX == null
-    ? bounds.width / 2
-    : rawLocalX >= 0 && rawLocalX <= bounds.width
-      ? rawLocalX
-      : bounds.x != null && rawLocalX >= bounds.x && rawLocalX <= bounds.x + bounds.width
-        ? rawLocalX - bounds.x
-        : rawLocalX - (bounds.x ?? 0);
-  const localY = rawLocalY == null
-    ? bounds.height / 2
-    : rawLocalY >= 0 && rawLocalY <= bounds.height
-      ? rawLocalY
-      : bounds.y != null && rawLocalY >= bounds.y && rawLocalY <= bounds.y + bounds.height
-        ? rawLocalY - bounds.y
-        : rawLocalY - (bounds.y ?? 0);
-  return actionRects(actions, bounds.width, bounds.height)
-    .find((rect) =>
-      localX >= rect.x
-      && localX <= rect.x + rect.width
-      && localY >= rect.y
-      && localY <= rect.y + rect.height,
-    )?.action;
-}
-
-function drawActions(
-  ctx: CanvasRenderingContext2D,
-  rect: { x: number; y: number; width: number; height: number },
-  actions: HeatCalcGlideGridCellAction[] | undefined,
-) {
-  const rects = actionRects(actions, rect.width, rect.height);
-  if (rects.length === 0) return;
-  ctx.save();
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.font = '11px inherit';
-  for (const actionRect of rects) {
-    const left = Math.floor(rect.x + actionRect.x) + 0.5;
-    const top = Math.floor(rect.y + actionRect.y) + 0.5;
-    const disabled = actionRect.action.disabled;
-    ctx.fillStyle = disabled ? '#f5f5f5' : '#ffffff';
-    ctx.strokeStyle = disabled ? '#d9d9d9' : '#b8c8d6';
-    ctx.lineWidth = 1;
-    ctx.fillRect(left, top, actionRect.width, actionRect.height);
-    ctx.strokeRect(left, top, actionRect.width, actionRect.height);
-    ctx.fillStyle = disabled ? '#8c8c8c' : '#1a5276';
-    ctx.fillText(actionRect.action.label, left + actionRect.width / 2, top + actionRect.height / 2 + 0.5);
-  }
-  ctx.restore();
-}
-
-function drawCheckbox(
-  ctx: CanvasRenderingContext2D,
-  rect: { x: number; y: number; width: number; height: number },
-  checked: boolean,
-) {
-  const left = Math.floor(rect.x + rect.width / 2 - CANDIDATE_CHECKBOX_SIZE / 2) + 0.5;
-  const top = Math.floor(rect.y + rect.height / 2 - CANDIDATE_CHECKBOX_SIZE / 2) + 0.5;
-  ctx.save();
-  ctx.fillStyle = checked ? '#1a5276' : '#ffffff';
-  ctx.strokeStyle = checked ? '#1a5276' : '#b8c2cc';
-  ctx.lineWidth = 1.2;
-  ctx.fillRect(left, top, CANDIDATE_CHECKBOX_SIZE, CANDIDATE_CHECKBOX_SIZE);
-  ctx.strokeRect(left, top, CANDIDATE_CHECKBOX_SIZE, CANDIDATE_CHECKBOX_SIZE);
-  if (checked) {
-    ctx.beginPath();
-    ctx.lineWidth = 1.7;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.strokeStyle = '#ffffff';
-    ctx.moveTo(left + 3, top + 7);
-    ctx.lineTo(left + 5.5, top + 9.5);
-    ctx.lineTo(left + 10.5, top + 3.5);
-    ctx.stroke();
-  }
-  ctx.restore();
-}
-
-function clampColumnWidth(column: HeatCalcGlideGridColumn, widthPx: number) {
-  return Math.max(column.minWidthPx ?? CANDIDATE_GLIDE_MIN_COLUMN_WIDTH, widthPx);
 }
 
 function ElectricalCandidateGlideGrid({
@@ -316,11 +182,11 @@ function ElectricalCandidateGlideGrid({
     const state = column ? getModelCell(args.col, args.row)?.state : undefined;
     if (!column || !state) return;
     if (column.key === 'marked') {
-      drawCheckbox(args.ctx, args.rect, state.displayValue === '1');
+      drawCandidateCheckbox(args.ctx, args.rect, state.displayValue === '1');
       return;
     }
     if (column.key === 'actions') {
-      drawActions(args.ctx, args.rect, state.actions);
+      drawCandidateActions(args.ctx, args.rect, state.actions);
     }
   }, [getModelCell, gridColumns]);
   const openFilterPopup = useCallback((columnIndex: number, event: HeaderClickedEventArgs) => {
@@ -394,7 +260,7 @@ function ElectricalCandidateGlideGrid({
       onToggleMarked(candidate, state.displayValue !== '1');
       return;
     }
-    const action = findActionAt(state.actions, event);
+    const action = findCandidateActionAt(state.actions, event);
     if (!action || action.disabled) return;
     if (action.key === 'folder') {
       const items = getActionMenuItems?.(candidate, column.key, action.key);
@@ -417,7 +283,7 @@ function ElectricalCandidateGlideGrid({
   ) => {
     const column = gridColumns[columnIndex];
     if (!column || column.resizable === false) return;
-    onColumnResize?.(column.key, clampColumnWidth(column, widthPx));
+    onColumnResize?.(column.key, clampCandidateColumnWidth(column, widthPx));
   }, [gridColumns, onColumnResize]);
   const handleColumnResizeEnd = useCallback((
     _column: GridColumn,
@@ -426,7 +292,7 @@ function ElectricalCandidateGlideGrid({
   ) => {
     const column = gridColumns[columnIndex];
     if (!column || column.resizable === false) return;
-    onColumnResizeEnd?.(column.key, clampColumnWidth(column, widthPx));
+    onColumnResizeEnd?.(column.key, clampCandidateColumnWidth(column, widthPx));
   }, [gridColumns, onColumnResizeEnd]);
   const activeFilterColumn = filterPopup ? gridColumns[filterPopup.columnIndex] : undefined;
   const filterPopupStyle = useMemo<CSSProperties | undefined>(() => {
@@ -527,16 +393,16 @@ function ElectricalCandidateGlideGrid({
           return undefined;
         }}
         theme={{
-          accentColor: '#1a5276',
-          accentLight: '#dbeeff',
-          bgCell: '#ffffff',
-          bgHeader: '#f3f6f4',
-          borderColor: '#d9d9d9',
+          accentColor: GLIDE_THEME.accent,
+          accentLight: GLIDE_THEME.accentLight,
+          bgCell: GLIDE_THEME.bgCell,
+          bgHeader: GLIDE_THEME.bgHeader,
+          borderColor: GLIDE_THEME.border,
           fontFamily: 'inherit',
           baseFontStyle: `${fontSize.fontSizePx}px inherit`,
           headerFontStyle: `600 ${fontSize.fontSizePx}px inherit`,
-          textHeader: '#2b2f33',
-          textDark: '#2b2f33',
+          textHeader: GLIDE_THEME.text,
+          textDark: GLIDE_THEME.text,
         }}
       />
       {loading && (

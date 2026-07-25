@@ -1,4 +1,4 @@
-import { Button, Card, Space, Typography, message, Divider } from 'antd';
+import { Space, Typography, message, Divider } from 'antd';
 import {
   QuestionCircleOutlined,
   UserOutlined,
@@ -7,6 +7,8 @@ import {
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { TltButton, TltCard } from '@/components/ui-kit';
+import './home-page.css';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -24,131 +26,100 @@ export default function HomePage() {
   };
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'linear-gradient(135deg, #1a5276, #2e86c1)',
-      }}
-    >
-      <Card style={{ width: 560 }} styles={{ body: { padding: 40 } }}>
-        <Title level={2} style={{ textAlign: 'center', color: '#1a5276', marginBottom: 4 }}>
+    <div className="home-page">
+      <TltCard className="home-page-card" padding="none">
+        <Title level={2} className="home-page-title">
           HeatCalc
         </Title>
-        <Paragraph style={{ textAlign: 'center', color: '#555', marginBottom: 32 }}>
+        <Paragraph className="home-page-subtitle">
           Расчёт тепловых потерь и подбор систем электрообогрева трубопроводов и резервуаров
         </Paragraph>
 
         <Space direction="vertical" style={{ width: '100%' }} size={0}>
           {/* Гость */}
-          <div
-            style={{
-              border: '1px solid #d9d9d9',
-              borderRadius: 8,
-              padding: '20px 24px',
-              background: '#fafafa',
-            }}
-          >
-            <Space align="start" style={{ marginBottom: 12 }}>
-              <UserOutlined style={{ fontSize: 20, color: '#2e86c1', marginTop: 2 }} />
+          <div className="home-page-role-card">
+            <Space align="start" className="home-page-role-header">
+              <UserOutlined className="home-page-role-icon home-page-role-icon--guest" />
               <div>
-                <Text strong style={{ fontSize: 15 }}>Войти без регистрации</Text>
+                <Text strong className="home-page-role-name">Войти без регистрации</Text>
                 <br />
-                <Text type="secondary" style={{ fontSize: 13, color: '#595959' }}>
+                <Text type="secondary" className="home-page-role-desc">
                   Быстрый доступ без аккаунта: один временный проект на сервере (не «Мои проекты»), 3 дня после последней активности. Дольше — скачайте файл проекта (PDL-ER-42).
                 </Text>
               </div>
             </Space>
-            <Button type="primary" size="large" block onClick={handleGuest}>
+            <TltButton variant="primary" size="comfortable" className="home-page-full-width" onClick={handleGuest}>
               Начать без регистрации
-            </Button>
-            <Button
-              type="link"
-              size="small"
+            </TltButton>
+            <TltButton
+              variant="link"
+              size="compact"
               icon={<QuestionCircleOutlined />}
-              block
               onClick={() => navigate('/help/guest')}
-              style={{ marginTop: 6, color: '#1a5276' }}
+              className="home-page-help-link home-page-full-width"
             >
               Инструкция для гостей
-            </Button>
+            </TltButton>
           </div>
 
-          <Divider style={{ margin: '16px 0' }}>или</Divider>
+          <Divider className="home-page-divider">или</Divider>
 
           {/* Сотрудник */}
-          <div
-            style={{
-              border: '1px solid #d9d9d9',
-              borderRadius: 8,
-              padding: '20px 24px',
-              background: '#fafafa',
-            }}
-          >
-            <Space align="start" style={{ marginBottom: 12 }}>
-              <TeamOutlined style={{ fontSize: 20, color: '#1a5276', marginTop: 2 }} />
+          <div className="home-page-role-card">
+            <Space align="start" className="home-page-role-header">
+              <TeamOutlined className="home-page-role-icon home-page-role-icon--employee" />
               <div>
-                <Text strong style={{ fontSize: 15 }}>Войти как сотрудник</Text>
+                <Text strong className="home-page-role-name">Войти как сотрудник</Text>
                 <br />
-                <Text type="secondary" style={{ fontSize: 13, color: '#595959' }}>
+                <Text type="secondary" className="home-page-role-desc">
                   Полный доступ: сохранение проектов, история расчётов, экспорт отчётов. Требуется учётная запись.
                 </Text>
               </div>
             </Space>
-            <Button size="large" block onClick={() => navigate('/login?role=employee')}>
+            <TltButton size="comfortable" className="home-page-full-width" onClick={() => navigate('/login?role=employee')}>
               Войти с паролем
-            </Button>
-            <Button
-              type="link"
-              size="small"
+            </TltButton>
+            <TltButton
+              variant="link"
+              size="compact"
               icon={<QuestionCircleOutlined />}
-              block
               onClick={() => navigate('/help/employee')}
-              style={{ marginTop: 6, color: '#1a5276' }}
+              className="home-page-help-link home-page-full-width"
             >
               Инструкция для сотрудников
-            </Button>
+            </TltButton>
           </div>
 
           {/* Admin system role — PDL-ER-43: third card approved (not guest-case scope) */}
           <div
             data-testid="home-admin-entry"
-            style={{
-              border: '1px solid #d9d9d9',
-              borderRadius: 8,
-              padding: '20px 24px',
-              background: '#fafafa',
-              marginTop: 16,
-            }}
+            className="home-page-role-card home-page-role-card--admin"
           >
-            <Space align="start" style={{ marginBottom: 12 }}>
-              <SafetyCertificateOutlined style={{ fontSize: 20, color: '#7d3c98', marginTop: 2 }} />
+            <Space align="start" className="home-page-role-header">
+              <SafetyCertificateOutlined className="home-page-role-icon home-page-role-icon--admin" />
               <div>
-                <Text strong style={{ fontSize: 15 }}>Войти как администратор</Text>
+                <Text strong className="home-page-role-name">Войти как администратор</Text>
                 <br />
-                <Text type="secondary" style={{ fontSize: 13, color: '#595959' }}>
+                <Text type="secondary" className="home-page-role-desc">
                   Системная роль: пользователи, коэффициенты, справочники. Не заменяет вход инженера (гость / сотрудник).
                 </Text>
               </div>
             </Space>
-            <Button size="large" block onClick={() => navigate('/login?role=admin')}>
+            <TltButton size="comfortable" className="home-page-full-width" onClick={() => navigate('/login?role=admin')}>
               Войти в админку
-            </Button>
-            <Button
-              type="link"
-              size="small"
+            </TltButton>
+            <TltButton
+              variant="link"
+              size="compact"
               icon={<QuestionCircleOutlined />}
-              block
               onClick={() => navigate('/help/admin')}
-              style={{ marginTop: 6, color: '#1a5276' }}
+              className="home-page-help-link home-page-full-width"
             >
               Инструкция для администратора
-            </Button>
+            </TltButton>
           </div>
         </Space>
-      </Card>
+      </TltCard>
     </div>
   );
 }

@@ -1,0 +1,224 @@
+/* Owner: UI kit primitives / status / alerts / metrics / table showcase.
+ * Extracted from ui-kit.css (AF10-CSS-OWNER-SPLIT).
+ * Import from UIKitPage after ui-kit.css.
+ */
+
+.uikit-primitive-grid,
+.uikit-primitive-data-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.uikit-primitive-stack {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+.uikit-primitive-actions,
+.uikit-primitive-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.uikit-primitive-alerts,
+.uikit-primitive-state-stack {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+.uikit-primitive-tab-content {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 4px 8px;
+  min-height: 50px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-swatch-eef3f8);
+  border-radius: 4px;
+  background: var(--color-swatch-fbfdff);
+  color: var(--color-swatch-63758b);
+  font-size: 10px;
+}
+.uikit-primitive-tab-content strong {
+  color: var(--ui-ink);
+  font-size: 11px;
+}
+.uikit-primitive-tab-content > span {
+  grid-column: 2;
+}
+.uikit-primitive-data-grid > .tlt-ui-card {
+  min-width: 0;
+}
+.uikit-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: max-content;
+  max-width: 100%;
+  min-height: 18px;
+  padding: 1px 6px;
+  border: 1px solid var(--color-swatch-d6e1eb);
+  border-radius: 999px;
+  background: var(--color-swatch-f4f7fa);
+  color: var(--color-swatch-52667b);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.uikit-status::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-swatch-8a9aaf);
+}
+.uikit-status--info {
+  border-color: var(--color-swatch-bcd8f1);
+  background: var(--ui-blue-soft);
+  color: var(--color-primary);
+}
+.uikit-status--info::before { background: var(--ui-blue-strong); }
+/* Палитра тегов приложения (.actionbar-mode-tag.new) */
+.uikit-status--success {
+  border-color: var(--color-swatch-91c788);
+  background: var(--color-formula-hint-bg);
+  color: var(--color-swatch-1f6f3e);
+}
+.uikit-status--success::before { background: var(--ui-success); }
+/* Палитра тегов приложения (.actionbar-mode-tag.edit) */
+.uikit-status--warning {
+  border-color: var(--color-swatch-f6c343);
+  background: var(--color-swatch-fff3cd);
+  color: var(--color-swatch-7a4d00);
+}
+.uikit-status--warning::before { background: var(--ui-warning); }
+.uikit-status--danger {
+  border-color: var(--color-swatch-ffa39e);
+  background: var(--color-danger-bg);
+  color: var(--color-danger-border);
+}
+.uikit-status--danger::before { background: var(--ui-danger); }
+.uikit-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.uikit-alerts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(200px, 1fr));
+  gap: 8px;
+  padding: 8px;
+}
+.uikit-alerts .ant-alert {
+  align-items: flex-start;
+  padding: 8px;
+}
+.uikit-alerts .ant-alert-message {
+  font-size: 11px;
+  font-weight: 700;
+}
+.uikit-alerts .ant-alert-description {
+  font-size: 10px;
+  line-height: 1.35;
+}
+.uikit-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+  border: 1px solid var(--ui-border);
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  background: var(--color-surface);
+  overflow: hidden;
+}
+.uikit-metric {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: baseline;
+  gap: 4px;
+  padding: 8px 10px;
+  border-right: 1px solid var(--ui-border);
+}
+.uikit-metric:last-child {
+  border-right: 0;
+}
+.uikit-metric__label {
+  overflow: hidden;
+  color: var(--color-swatch-63758b);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.uikit-metric strong {
+  font: 700 17px var(--font-family-data);
+}
+.uikit-metric--accent strong {
+  color: var(--ui-success);
+}
+.uikit-metric__unit {
+  color: var(--color-swatch-63758b);
+  font-size: 9px;
+}
+.uikit-table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--ui-border);
+  border-radius: 0 0 8px 8px;
+  background: var(--color-surface);
+}
+.uikit-table {
+  width: 100%;
+  min-width: 680px;
+  border-collapse: collapse;
+  font-size: 10px;
+}
+.uikit-table th {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--ui-border);
+  background: var(--heatcalc-toolbar-background);
+  color: var(--color-swatch-52667b);
+  font-size: 9px;
+  font-weight: 700;
+  text-align: left;
+}
+.uikit-table td {
+  height: 30px;
+  padding: 3px 8px;
+  border-bottom: 1px solid var(--color-swatch-edf2f6);
+  color: var(--color-swatch-45576d);
+}
+.uikit-table tbody tr {
+  cursor: pointer;
+}
+.uikit-table tbody tr:hover {
+  background: var(--color-swatch-f7fbff);
+}
+.uikit-table tbody tr.is-selected {
+  background: var(--ui-blue-soft);
+  box-shadow: inset 3px 0 var(--ui-blue-strong);
+}
+.uikit-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.uikit-table td strong {
+  color: var(--ui-ink);
+  font-weight: 600;
+}
+.uikit-table .number {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.uikit-table td:last-child {
+  width: 30px;
+  padding: 0;
+}
+.uikit-table__empty {
+  height: 70px;
+  color: var(--color-swatch-6d7f93);
+  text-align: center;
+  cursor: default;
+}

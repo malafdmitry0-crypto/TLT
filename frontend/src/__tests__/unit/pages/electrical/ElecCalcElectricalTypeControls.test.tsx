@@ -71,17 +71,13 @@ describe('ElecCalcElectricalTypeControls', () => {
       block: true,
     });
 
-    expect(screen.getByRole('combobox', { name: 'Схема подключения' })).toBeInTheDocument();
-    expect(screen.getByText('Линия')).toBeInTheDocument();
+    expect(screen.getByLabelText('Схема подключения')).toBeInTheDocument();
+    expect(screen.getByLabelText('Схема подключения')).toHaveTextContent('Линия');
     expect(screen.getByText('U:')).toBeInTheDocument();
     expect(screen.getByText('w:')).toBeInTheDocument();
     expect(screen.getByText('h:')).toBeInTheDocument();
     expect(screen.getByText('шаг:')).toBeInTheDocument();
-    expect(container.firstElementChild).toHaveStyle({
-      display: 'flex',
-      flexWrap: 'wrap',
-      gap: '8px',
-      alignItems: 'center',
-    });
+    // block wrapper layout is owner CSS, not inline style
+    expect(container.firstElementChild).toHaveClass('electrical-type-controls');
   });
 });
