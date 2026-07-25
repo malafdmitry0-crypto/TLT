@@ -114,6 +114,13 @@ type FileMetrics = {
   media: number;
 };
 
+type ResponsiveContract = {
+  /** Normalized media conditions allowed in this file, e.g. "max-width: 1200px". */
+  conditions: string[];
+  /** Class-root prefixes; every non-empty selector compound in a contracted media block must match one. */
+  ownerRoots: string[];
+};
+
 type Baseline = {
   version: number;
   stylesCssMaxLoc: number;
@@ -135,6 +142,16 @@ type Baseline = {
    */
   noncanonicalMedia?: Record<string, number>;
   noncanonicalMediaTotal?: number;
+  /**
+   * AF12-CSS-MEDIA-CONTRACT-01: shrink-only set of max-width breakpoints (px)
+   * present anywhere under src/. Raw @media block counts are observational.
+   */
+  mediaConditionMaxWidths?: number[];
+  /**
+   * Optional per-file responsive ownership contracts (UI Kit owners, etc.).
+   * When present: at most one block per condition; selectors must match ownerRoots.
+   */
+  responsiveContracts?: Record<string, ResponsiveContract>;
 };
 
 /** Token owner: legacy palette aliases may live only here. */
@@ -314,6 +331,180 @@ export function countNoncanonicalMedia(source: string): number {
     }
   }
   return count;
+}
+
+/** Normalize @media query text for contract matching. */
+export function normalizeMediaCondition(query: string): string {
+  return query.replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+export type MediaBlock = {
+  condition: string;
+  body: string;
+  selectors: string[];
+};
+
+/**
+ * Top-level @media blocks with brace-matched bodies (no nested @media split).
+ */
+export function extractMediaBlocks(source: string): MediaBlock[] {
+  const text = stripComments(source);
+  const blocks: MediaBlock[] = [];
+  let i = 0;
+  while (i < text.length) {
+    const j = text.indexOf('@media', i);
+    if (j < 0) break;
+    const brace = text.indexOf('{', j);
+    if (brace < 0) break;
+    const condition = normalizeMediaCondition(text.slice(j + '@media'.length, brace));
+    let depth = 0;
+    let k = brace;
+    for (; k < text.length; k += 1) {
+      const ch = text[k];
+      if (ch === '{') depth += 1;
+      else if (ch === '}') {
+        depth -= 1;
+        if (depth === 0) {
+          k += 1;
+          break;
+        }
+      }
+    }
+    const body = text.slice(brace + 1, k - 1);
+    blocks.push({
+      condition,
+      body,
+      selectors: extractSelectors(body),
+    });
+    i = k;
+  }
+  return blocks;
+}
+
+/** Collect unique max-width px values under src/ (excludes print / reduced-motion-only). */
+export function collectMediaConditionMaxWidths(): number[] {
+  const set = new Set<number>();
+  for (const abs of walkCssFiles(SRC_ROOT)) {
+    const cleaned = stripComments(fs.readFileSync(abs, 'utf8'));
+    const mediaRe = /@media\b([^{]*)\{/gi;
+    let m: RegExpExecArray | null;
+    while ((m = mediaRe.exec(cleaned)) !== null) {
+      const query = m[1] ?? '';
+      if (/\bprint\b/i.test(query)) continue;
+      if (/prefers-reduced-motion/i.test(query) && !/max-width/i.test(query)) continue;
+      MAX_WIDTH_RE.lastIndex = 0;
+      let mw: RegExpExecArray | null;
+      while ((mw = MAX_WIDTH_RE.exec(query)) !== null) {
+        set.add(Number(mw[1]));
+      }
+    }
+  }
+  return [...set].sort((a, b) => a - b);
+}
+
+/** True if a selector compound is under one of the owner root prefixes. */
+export function selectorMatchesOwnerRoots(selector: string, ownerRoots: string[]): boolean {
+  for (const part of selector.split(',')) {
+    const trimmed = part.trim();
+    if (!trimmed) continue;
+    const head = trimmed.split(/[\s>+~]/)[0]?.trim() ?? '';
+    const ok = ownerRoots.some((root) => {
+      if (root.endsWith('-')) {
+        return head.startsWith(root) || head.includes(root);
+      }
+      // exact class or descendant starting with that class
+      return (
+        head === root ||
+        head.startsWith(`${root}.`) ||
+        head.startsWith(`${root}:`) ||
+        head.startsWith(`${root}[`) ||
+        trimmed.includes(root)
+      );
+    });
+    if (!ok) return false;
+  }
+  return true;
+}
+
+/**
+ * Validate responsiveContracts entries against file contents.
+ * Returns violation messages (empty if OK).
+ */
+export function validateResponsiveContracts(
+  contracts: Record<string, ResponsiveContract>,
+  readFile: (rel: string) => string,
+): string[] {
+  const violations: string[] = [];
+  for (const [file, contract] of Object.entries(contracts)) {
+    let source: string;
+    try {
+      source = readFile(file);
+    } catch {
+      violations.push(
+        failMessage(
+          'RESPONSIVE_CONTRACT_FILE_MISSING',
+          'responsiveContracts file missing on disk',
+          'Add the owner CSS file or remove the contract entry.',
+          file,
+        ),
+      );
+      continue;
+    }
+    const blocks = extractMediaBlocks(source);
+    const allowed = new Set(
+      contract.conditions.map((c) => normalizeMediaCondition(c.replace(/^@media\s*/i, ''))),
+    );
+    const seen = new Map<string, number>();
+    for (const block of blocks) {
+      // Prefer max-width contracts; reduced-motion optional without listing
+      if (/prefers-reduced-motion/i.test(block.condition)) continue;
+      if (/\bprint\b/i.test(block.condition)) continue;
+      const cond = block.condition;
+      seen.set(cond, (seen.get(cond) ?? 0) + 1);
+      if (seen.get(cond)! > 1) {
+        violations.push(
+          failMessage(
+            'RESPONSIVE_DUPLICATE_MEDIA',
+            `Duplicate @media condition in owner file: ${cond}`,
+            'Keep at most one block per media condition per owner file.',
+            file,
+            cond,
+          ),
+        );
+      }
+      // If contract lists specific conditions, non-listed max-width is a new breakpoint for this owner
+      if (allowed.size > 0) {
+        const listed = [...allowed].some(
+          (a) => cond.includes(a) || a.includes(cond) || cond === a,
+        );
+        if (!listed && /max-width/i.test(cond)) {
+          violations.push(
+            failMessage(
+              'RESPONSIVE_UNLISTED_CONDITION',
+              `Media condition not in responsiveContracts.conditions: ${cond}`,
+              'Add an exact baseline contract update or remove the media block.',
+              file,
+              cond,
+            ),
+          );
+        }
+      }
+      for (const sel of block.selectors) {
+        if (!selectorMatchesOwnerRoots(sel, contract.ownerRoots)) {
+          violations.push(
+            failMessage(
+              'RESPONSIVE_FOREIGN_SELECTOR',
+              `Selector in contracted media block is outside ownerRoots`,
+              'Move selector to its CSS owner or fix ownerRoots.',
+              file,
+              sel.slice(0, 120),
+            ),
+          );
+        }
+      }
+    }
+  }
+  return violations;
 }
 
 function collectRawColorCounts(): { total: number; files: Record<string, number> } {
@@ -561,7 +752,10 @@ describe('CSS architecture ratchet (G4)', () => {
     for (const [file, limits] of Object.entries(baseline.files)) {
       const cur = current[file];
       if (!cur) continue; // deleted OK
-      for (const key of ['loc', 'bareAnt', 'media'] as const) {
+      // AF12-CSS-MEDIA-CONTRACT-01: per-file raw @media counts are observational.
+      // Hard shrink-only: loc + bareAnt. Media ownership uses responsiveContracts +
+      // mediaConditionMaxWidths.
+      for (const key of ['loc', 'bareAnt'] as const) {
         if (cur[key] > limits[key]) {
           violations.push(
             failMessage(
@@ -569,15 +763,15 @@ describe('CSS architecture ratchet (G4)', () => {
               `CSS metric grew: ${key}`,
               key === 'bareAnt'
                 ? 'Prefix .ant-* with an owner root (e.g. .heat-form .ant-btn). Do not raise baseline.'
-                : key === 'media'
-                  ? 'Do not add breakpoints without removing others. Prefer shared tokens. Do not raise baseline.'
-                  : 'Split or delete CSS; keep owner file from growing. Do not raise baseline.',
+                : 'Split or delete CSS; keep owner file from growing. Do not raise baseline.',
               file,
               `CURRENT=${cur[key]} LIMIT=${limits[key]}`,
             ),
           );
         }
       }
+      void limits.media;
+      void cur.media;
     }
 
     for (const [file, metrics] of Object.entries(current)) {
@@ -607,24 +801,47 @@ describe('CSS architecture ratchet (G4)', () => {
     }
 
     const curTotals = sumMetrics(current);
-    // AF10-MEANINGFUL-CSS-GATE-01: totals.loc is observational only (semantic
-    // owner CSS may grow when JSX static styles move). bareAnt + media totals
-    // remain hard shrink-only gates.
-    for (const key of ['bareAnt', 'media'] as const) {
-      if (curTotals[key] > baseline.totals[key]) {
+    // AF10-MEANINGFUL-CSS-GATE-01: totals.loc observational.
+    // AF12-CSS-MEDIA-CONTRACT-01: totals.media observational (block count ≠ debt).
+    // bareAnt total remains hard shrink-only.
+    if (curTotals.bareAnt > baseline.totals.bareAnt) {
+      violations.push(
+        failMessage(
+          'CSS_TOTAL_BAREANT_GREW',
+          'Total CSS bareAnt grew',
+          'Reduce elsewhere before adding. Do not raise totals in baseline without evidence.',
+          undefined,
+          `CURRENT=${curTotals.bareAnt} LIMIT=${baseline.totals.bareAnt}`,
+        ),
+      );
+    }
+    void curTotals.loc;
+    void curTotals.media;
+
+    // Shrink-only global max-width condition set (new breakpoints forbidden).
+    const baselineWidths = baseline.mediaConditionMaxWidths ?? [...CANONICAL_MAX_WIDTHS].sort((a, b) => a - b);
+    const currentWidths = collectMediaConditionMaxWidths();
+    for (const px of currentWidths) {
+      if (!baselineWidths.includes(px)) {
         violations.push(
           failMessage(
-            `CSS_TOTAL_${key.toUpperCase()}_GREW`,
-            `Total CSS ${key} grew`,
-            'Reduce elsewhere before adding. Do not raise totals in baseline without evidence.',
+            'CSS_MEDIA_CONDITION_GREW',
+            `New max-width breakpoint introduced: ${px}px`,
+            'Do not add breakpoints. Prefer owner colocation of existing conditions with exact baseline update only when relocating contracts.',
             undefined,
-            `CURRENT=${curTotals[key]} LIMIT=${baseline.totals[key]}`,
+            `px=${px}`,
           ),
         );
       }
     }
-    // Still record loc total for audit observability (not a violation).
-    void curTotals.loc;
+
+    if (baseline.responsiveContracts) {
+      violations.push(
+        ...validateResponsiveContracts(baseline.responsiveContracts, (rel) =>
+          fs.readFileSync(path.join(FRONTEND_ROOT, rel), 'utf8'),
+        ),
+      );
+    }
 
     // Foreign feature markers in owner CSS
     for (const [file, source] of Object.entries(current)) {
@@ -787,16 +1004,68 @@ describe('CSS architecture ratchet (G4)', () => {
     expect(baseline.stylesCssMaxLoc).toBeLessThanOrEqual(30);
   });
 
-  it('treats total CSS LOC as observational (MEANINGFUL-CSS-GATE-01)', () => {
+  it('treats total CSS LOC and media block counts as observational', () => {
     // Semantic owner CSS may grow when JSX static styles move; totals.loc must
-    // not be a hard fail. bareAnt/media totals remain shrink-only.
+    // not be a hard fail. AF12: raw media block totals are observational;
+    // mediaConditionMaxWidths + responsiveContracts are the hard responsive gates.
     const baseline = loadBaseline();
     expect(typeof baseline.totals.loc).toBe('number');
     expect(baseline.totals.loc).toBeGreaterThan(0);
-    // Sanity: hard gates still defined
     expect(typeof baseline.totals.bareAnt).toBe('number');
     expect(typeof baseline.totals.media).toBe('number');
     expect(baseline.newFileLocCap).toBeLessThanOrEqual(400);
+    expect(Array.isArray(baseline.mediaConditionMaxWidths)).toBe(true);
+  });
+
+  it('validates responsiveContracts: foreign selector, duplicate media, unlisted condition', () => {
+    const read = (rel: string) => {
+      if (rel === 'src/pages/fixture-owner.css') {
+        return `
+.owner-a { color: red; }
+@media (max-width: 1200px) {
+  .owner-a { display: block; }
+  .foreign-b { display: none; }
+}
+@media (max-width: 1200px) {
+  .owner-a { margin: 0; }
+}
+@media (max-width: 999px) {
+  .owner-a { padding: 0; }
+}
+`;
+      }
+      throw new Error('missing');
+    };
+    const v = validateResponsiveContracts(
+      {
+        'src/pages/fixture-owner.css': {
+          conditions: ['max-width: 1200px'],
+          ownerRoots: ['.owner-a'],
+        },
+      },
+      read,
+    );
+    expect(v.some((x) => x.includes('RESPONSIVE_FOREIGN_SELECTOR'))).toBe(true);
+    expect(v.some((x) => x.includes('RESPONSIVE_DUPLICATE_MEDIA'))).toBe(true);
+    expect(v.some((x) => x.includes('RESPONSIVE_UNLISTED_CONDITION'))).toBe(true);
+  });
+
+  it('allows a single contracted 1200px block with only ownerRoots selectors', () => {
+    const v = validateResponsiveContracts(
+      {
+        'src/pages/ok.css': {
+          conditions: ['max-width: 1200px'],
+          ownerRoots: ['.uikit-heatcalc-'],
+        },
+      },
+      () => `
+@media (max-width: 1200px) {
+  .uikit-heatcalc-contract { grid-template-columns: 1fr; }
+  .uikit-heatcalc-form__grid { padding: 10px; }
+}
+`,
+    );
+    expect(v).toEqual([]);
   });
 
   it('enforces strict global CSS import order in main.tsx', () => {

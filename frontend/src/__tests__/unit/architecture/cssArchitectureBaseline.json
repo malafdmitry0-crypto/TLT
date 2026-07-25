@@ -1,7 +1,7 @@
 {
-  "version": 4,
-  "slice": "R2-CSS-RESIDUAL-ZERO",
-  "description": "R2: legacy palette, bare Ant, noncanonical breakpoints → 0",
+  "version": 5,
+  "slice": "AF12-CSS-MEDIA-CONTRACT-01",
+  "description": "AF12: media block counts observational; mediaConditionMaxWidths shrink-only; responsiveContracts optional",
   "stylesCssMaxLoc": 30,
   "newFileLocCap": 400,
   "files": {
@@ -304,5 +304,12 @@
   "legacyPalette": {},
   "legacyPaletteTotal": 0,
   "noncanonicalMedia": {},
-  "noncanonicalMediaTotal": 0
+  "noncanonicalMediaTotal": 0,
+  "mediaConditionMaxWidths": [
+    480,
+    768,
+    1200,
+    1400
+  ],
+  "responsiveContracts": {}
 }
