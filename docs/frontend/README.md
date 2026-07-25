@@ -60,6 +60,16 @@ orchestration hooks** (session / data / editing / presentation / effects) и
 Тематический документ может потребовать дополнительный proof, но не может
 ослабить стандарт.
 
+## Предложенные runbooks
+
+| Документ | Назначение |
+|---|---|
+| [Осмысленный CSS](./meaningful-css-plan.md) | PROPOSED: план и промпты для удаления static JSX `style`/`styles` и перехода к semantic owner CSS |
+
+Предложенный runbook не является ACTIVE-очередью и не задаёт `pending`.
+Исполнять его можно только по явной команде пользователя или после переноса
+одного конкретного slice в [актуальный backlog](./refactor-backlog.md).
+
 ## Проверенные команды
 
 ```bash

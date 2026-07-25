@@ -25,6 +25,12 @@ styles, включая JSX color literals. Они считаются сущес�
 runtime-кода и baseline; старые снимки из документации не являются источником
 истины.
 
+Предлагаемая эволюция CSS-метрик и исполняемые prompts находятся в
+[плане осмысленного CSS](./meaningful-css-plan.md). До выполнения отдельного
+`AF10-MEANINGFUL-CSS-GATE-01` действующий CSS LOC ratchet остаётся hard stop:
+proposal не разрешает повышать baseline или обходить красный gate внутри
+feature-slice.
+
 ## Основной контракт
 
 ```text

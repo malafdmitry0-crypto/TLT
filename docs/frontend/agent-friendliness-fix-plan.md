@@ -1,20 +1,23 @@
 # Frontend agent-friendliness fix runbook
 
-**Статус:** PROPOSED — исполняемый runbook, не текущая ACTIVE-очередь
+**Статус:** HISTORICAL / PARTIALLY EXECUTED — не ACTIVE-очередь
 
 **Актуально на:** 2026-07-25
 
-**Текущий pending:** `RISK-CLOSE-PROOF-01`
+**ACTIVE `pending`:** не копируется; источник истины —
+[refactor-backlog.md](./refactor-backlog.md)
 
 **Исходная оценка:** `7.0/10`
 
 **Целевая оценка:** `≥9.0/10`
 
-Этот документ не создаёт вторую frontend-очередь. Единственным источником
-текущего `pending` остаётся
-[refactor-backlog.md](./refactor-backlog.md). Один из предложенных ниже slices
-может стать активным только по явной команде пользователя или после переноса
-ровно одного контракта в backlog.
+Этот документ сохраняет исторический порядок AF10 и не создаёт вторую
+frontend-очередь. Единственным источником ACTIVE `pending` остаётся backlog.
+Один из исторических prompts может стать активным только по явной команде
+пользователя или после переноса ровно одного контракта в backlog.
+
+CSS-продолжение, актуальная политика semantic owner CSS и заменяющие prompts:
+[meaningful-css-plan.md](./meaningful-css-plan.md).
 
 Нормативы выполнения:
 
@@ -70,7 +73,8 @@ workspace-контракта. Mobile viewport используется как д
 
 1. Устранить `ReportPage` test race.
 2. Устранить Ant `useForm` warning.
-3. Закрыть текущий `RISK-CLOSE-PROOF-01`.
+3. Исторически закрыть `RISK-CLOSE-PROOF-01` — выполнено, см.
+   [PASS evidence](../audit/2026-07-25-frontend-risk-recovery/snapshot.md).
 4. Добавить честный Heat query-error state.
 5. Разрезать наиболее опасные контексты.
 6. Закрыть пробелы architecture gates.
@@ -596,6 +600,10 @@ UI_STATES: нет production change.
 
 ## Prompt 14 — CSS ownership split runner
 
+> **SUPERSEDED для новых запусков:** использовать этапы и prompts из
+> [meaningful-css-plan.md](./meaningful-css-plan.md). Текст ниже сохранён как
+> исторический контракт уже начатой AF10-последовательности.
+
 Повторить по четырём targets в указанном порядке.
 
 ```text
@@ -646,6 +654,11 @@ UI_STATES:
 ```
 
 ## Prompt 15 — общий debt burn-down runner
+
+> **SUPERSEDED для новых CSS-запусков:** использовать детерминированный
+> per-owner runner из
+> [meaningful-css-plan.md](./meaningful-css-plan.md). Текст ниже сохранён как
+> история первоначального плана.
 
 Повторять до достижения всех целевых нулей.
 
