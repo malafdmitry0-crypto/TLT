@@ -1,7 +1,6 @@
 import {
   memo,
   useCallback,
-  useEffect,
   useMemo,
   useRef,
   type ReactNode,
@@ -10,7 +9,6 @@ import { Menu, Spin, type MenuProps } from 'antd';
 import {
   CompactSelection,
   DataEditor,
-  GridCellKind,
   type CellClickedEventArgs,
   type DrawCellCallback,
   type DrawHeaderCallback,
@@ -23,8 +21,17 @@ import {
 } from '@glideapps/glide-data-grid';
 import '@glideapps/glide-data-grid/dist/index.css';
 
+import {
+  buildCandidateEditorColumns,
+  buildCandidateGlideTheme,
+  buildCandidateGridCell,
+  isCandidateHeaderControlsVisible,
+  isCandidateHeaderFilterHit,
+  resolveCandidateRowTheme,
+} from '@/components/electrical/electricalCandidateGlideAdapters';
 import ElectricalGlideColumnFilterDropdown from '@/components/electrical/ElectricalGlideColumnFilterDropdown';
 import { useElectricalCandidateGlideOverlay } from '@/components/electrical/useElectricalCandidateGlideOverlay';
+import { useOutsidePointerDismiss } from '@/components/electrical/useOutsidePointerDismiss';
 import type { ElectricalCandidate } from '@/types/calculation';
 import type {
   HeatCalcGlideGridCellState,
@@ -40,25 +47,18 @@ import {
   blankCell,
   drawFilterIndicator,
   drawSortIndicator,
-  GLIDE_THEME,
   headerControlWidth,
   nextSortDirection,
 } from '@/utils/glideGridPrimitives';
 import {
-  CANDIDATE_COMPARED_ROW_BG,
-  CANDIDATE_DIFF_CELL_BG,
-  CANDIDATE_ERROR_ROW_BG,
   CANDIDATE_GLIDE_MAX_COLUMN_WIDTH,
   CANDIDATE_GLIDE_MIN_COLUMN_WIDTH,
   CANDIDATE_HEADER_CONTROL_BG,
-  CANDIDATE_HEADER_FILTER_HIT_WIDTH,
   candidateRowHeight,
   clampCandidateColumnWidth,
   drawCandidateActions,
   drawCandidateCheckbox,
   findCandidateActionAt,
-  isComparedRowClassName,
-  isErrorRowClassName,
 } from '@/utils/electricalCandidateGlidePureModel';
 
 interface ElectricalCandidateGlideGridProps {
@@ -89,6 +89,11 @@ interface ElectricalCandidateGlideGridProps {
   onColumnResize?: (columnKey: string, widthPx: number) => void;
   onColumnResizeEnd?: (columnKey: string, widthPx: number) => void;
 }
+
+const EMPTY_GRID_SELECTION: GridSelection = {
+  columns: CompactSelection.empty(),
+  rows: CompactSelection.empty(),
+};
 
 function ElectricalCandidateGlideGrid({
   rows,
@@ -124,22 +129,21 @@ function ElectricalCandidateGlideGrid({
   } = useElectricalCandidateGlideOverlay(gridColumns);
   const filterPopupRef = useRef<HTMLDivElement | null>(null);
   const actionMenuRef = useRef<HTMLDivElement | null>(null);
+  const dismissFilterPopup = useCallback(() => setFilterPopup(null), [setFilterPopup]);
+  const dismissActionMenu = useCallback(() => setActionMenu(null), [setActionMenu]);
+  useOutsidePointerDismiss(!!filterPopup, filterPopupRef, dismissFilterPopup);
+  useOutsidePointerDismiss(!!actionMenu, actionMenuRef, dismissActionMenu);
+
   const fontSize = useMemo(() => resolveTableFontSizeByKey(fontSizeKey), [fontSizeKey]);
   const rowHeight = useMemo(() => candidateRowHeight(fontSizeKey), [fontSizeKey]);
-  const editorColumns = useMemo<GridColumn[]>(
-    () => gridColumns.map((column) => ({
-      id: column.key,
-      title: column.title || column.key,
-      width: column.width,
-      hasMenu: false,
-      style: isColumnFilterActive(tableViewState.filters[column.key]) ? 'highlight' : 'normal',
-    })),
+  const editorColumns = useMemo(
+    () => buildCandidateEditorColumns(gridColumns, tableViewState.filters),
     [gridColumns, tableViewState.filters],
   );
-  const gridSelection = useMemo<GridSelection>(() => ({
-    columns: CompactSelection.empty(),
-    rows: CompactSelection.empty(),
-  }), []);
+  const glideTheme = useMemo(
+    () => buildCandidateGlideTheme(fontSize.fontSizePx),
+    [fontSize.fontSizePx],
+  );
   const getModelCell = useCallback((columnIndex: number, rowIndex: number) => {
     const column = gridColumns[columnIndex];
     const candidate = rows[rowIndex];
@@ -155,22 +159,7 @@ function ElectricalCandidateGlideGrid({
     const modelCell = getModelCell(columnIndex, rowIndex);
     if (!modelCell) return blankCell();
     const { column, candidate, state } = modelCell;
-    const classes = rowClassName(candidate);
-    const bgCell = state.error || isErrorRowClassName(classes)
-      ? CANDIDATE_ERROR_ROW_BG
-      : state.dirty
-        ? CANDIDATE_DIFF_CELL_BG
-        : undefined;
-    return {
-      kind: GridCellKind.Text,
-      allowOverlay: false,
-      readonly: true,
-      data: state.displayValue,
-      displayData: column.key === 'marked' || column.key === 'actions' ? '' : state.displayValue,
-      copyData: state.displayValue,
-      contentAlign: state.align ?? column.align ?? 'left',
-      themeOverride: bgCell ? { bgCell } : undefined,
-    };
+    return buildCandidateGridCell(column, state, rowClassName(candidate));
   }, [getModelCell, rowClassName]);
   const drawCell = useCallback<DrawCellCallback>((args, drawContent) => {
     drawContent();
@@ -188,7 +177,7 @@ function ElectricalCandidateGlideGrid({
   const handleHeaderClicked = useCallback((columnIndex: number, event: HeaderClickedEventArgs) => {
     const column = gridColumns[columnIndex];
     if (!column) return;
-    if (column.filterable && event.localEventX >= Math.max(0, event.bounds.width - CANDIDATE_HEADER_FILTER_HIT_WIDTH)) {
+    if (isCandidateHeaderFilterHit(column, event.localEventX, event.bounds.width)) {
       openFilterPopup(columnIndex, event);
       return;
     }
@@ -213,10 +202,13 @@ function ElectricalCandidateGlideGrid({
       ? tableViewState.sort.direction
       : undefined;
     const filterActive = isColumnFilterActive(tableViewState.filters[column.key]);
-    const controlsVisible = hoveredHeaderColumnIndex === args.columnIndex
-      || filterPopup?.columnIndex === args.columnIndex
-      || !!sortDirection
-      || filterActive;
+    const controlsVisible = isCandidateHeaderControlsVisible({
+      columnIndex: args.columnIndex,
+      hoveredHeaderColumnIndex,
+      filterPopupColumnIndex: filterPopup?.columnIndex,
+      sortDirection,
+      filter: tableViewState.filters[column.key],
+    });
     if (!controlsVisible) return;
 
     ctx.save();
@@ -281,47 +273,6 @@ function ElectricalCandidateGlideGrid({
   }, [gridColumns, onColumnResizeEnd]);
   const activeFilterColumn = filterPopup ? gridColumns[filterPopup.columnIndex] : undefined;
 
-  useEffect(() => {
-    if (!filterPopup) return undefined;
-
-    function handlePointerDown(event: PointerEvent) {
-      const popup = filterPopupRef.current;
-      if (popup && event.target instanceof Node && popup.contains(event.target)) return;
-      setFilterPopup(null);
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') setFilterPopup(null);
-    }
-
-    document.addEventListener('pointerdown', handlePointerDown, true);
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown, true);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [filterPopup, setFilterPopup]);
-  useEffect(() => {
-    if (!actionMenu) return undefined;
-
-    function handlePointerDown(event: PointerEvent) {
-      const menu = actionMenuRef.current;
-      if (menu && event.target instanceof Node && menu.contains(event.target)) return;
-      setActionMenu(null);
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') setActionMenu(null);
-    }
-
-    document.addEventListener('pointerdown', handlePointerDown, true);
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown, true);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [actionMenu, setActionMenu]);
-
   if (rows.length === 0) {
     return (
       <div className={`electrical-cable-sizing-table electrical-candidate-spreadsheet--glide calc-spreadsheet--${fontSizeKey}`}>
@@ -350,7 +301,7 @@ function ElectricalCandidateGlideGrid({
         getCellContent={getCellContent}
         drawCell={drawCell}
         drawHeader={drawHeader}
-        gridSelection={gridSelection}
+        gridSelection={EMPTY_GRID_SELECTION}
         onCellClicked={handleCellClicked}
         onHeaderClicked={handleHeaderClicked}
         onHeaderContextMenu={openFilterPopup}
@@ -364,23 +315,9 @@ function ElectricalCandidateGlideGrid({
         getRowThemeOverride={(rowIndex) => {
           const candidate = rows[rowIndex];
           if (!candidate) return undefined;
-          const classes = rowClassName(candidate);
-          if (isErrorRowClassName(classes)) return { bgCell: CANDIDATE_ERROR_ROW_BG };
-          if (isComparedRowClassName(classes)) return { bgCell: CANDIDATE_COMPARED_ROW_BG };
-          return undefined;
+          return resolveCandidateRowTheme(rowClassName(candidate));
         }}
-        theme={{
-          accentColor: GLIDE_THEME.accent,
-          accentLight: GLIDE_THEME.accentLight,
-          bgCell: GLIDE_THEME.bgCell,
-          bgHeader: GLIDE_THEME.bgHeader,
-          borderColor: GLIDE_THEME.border,
-          fontFamily: 'inherit',
-          baseFontStyle: `${fontSize.fontSizePx}px inherit`,
-          headerFontStyle: `600 ${fontSize.fontSizePx}px inherit`,
-          textHeader: GLIDE_THEME.text,
-          textDark: GLIDE_THEME.text,
-        }}
+        theme={glideTheme}
       />
       {loading && (
         <div className="electrical-candidate-glide-loading">
