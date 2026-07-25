@@ -135,14 +135,50 @@ async function runSequential(script) {
 }
 
 /**
+ * Optional worker overrides under concurrent unit||integration.
+ * Defaults leave vitest/project config (unit = host cores; elec-integration maxWorkers=3).
+ * Dual stress may set AGENT_DOD_UNIT_MAX_WORKERS=3 to reduce contention flakes.
+ * Full suites always run (no skip/exclude).
+ */
+function concurrentWorkerArgs(kind) {
+  if (kind === 'unit' && process.env.AGENT_DOD_UNIT_MAX_WORKERS) {
+    return ['--', `--maxWorkers=${process.env.AGENT_DOD_UNIT_MAX_WORKERS}`];
+  }
+  if (kind === 'integration' && process.env.AGENT_DOD_INT_MAX_WORKERS) {
+    return ['--', `--maxWorkers=${process.env.AGENT_DOD_INT_MAX_WORKERS}`];
+  }
+  return [];
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
  * Run unit + integration concurrently. First non-zero exit kills the sibling.
+ * Integration starts first (optional stagger) so long elec suite is less starved
+ * when unit saturates all cores — full suites still run, no skip.
  */
 async function runUnitAndIntegrationConcurrent() {
   const t0 = nowMs();
-  log('start concurrent: test:unit || test:integration');
+  const staggerMs = Number(process.env.AGENT_DOD_UNIT_STAGGER_MS ?? '12000');
+  log(
+    `start concurrent: test:integration first, test:unit after ${staggerMs}ms (unit maxWorkers=${process.env.AGENT_DOD_UNIT_MAX_WORKERS || 'default'}, int maxWorkers=${process.env.AGENT_DOD_INT_MAX_WORKERS || 'project-default'})`,
+  );
 
-  const unit = spawnNpmScript('test:unit', { prefix: 'unit' });
-  const integration = spawnNpmScript('test:integration', { prefix: 'integration' });
+  const integration = spawnNpmScript('test:integration', {
+    prefix: 'integration',
+    extraArgs: concurrentWorkerArgs('integration'),
+  });
+
+  if (staggerMs > 0) {
+    await sleep(staggerMs);
+  }
+
+  const unit = spawnNpmScript('test:unit', {
+    prefix: 'unit',
+    extraArgs: concurrentWorkerArgs('unit'),
+  });
 
   const children = [unit, integration];
   let settled = false;

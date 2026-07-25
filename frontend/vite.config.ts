@@ -106,14 +106,13 @@ export default defineConfig({
           // P2-ELEC-FEEDBACK-01 — worker budget for Electrical integration.
           // Per-file process isolation: setupFiles vi.hoisted mocks must not race
           // across workers (shared module state) or parallel files in one worker.
-          // maxWorkers=2: each file mounts full ElecCalcPage + AntD; uncapped
-          // fileParallelism on multi-core hosts + dual concurrent suite runs
-          // (two agent DoDs on one workspace) caused timeout flakiness.
-          // Budget keeps full Electrical ≤90s while dual concurrent runs stay green.
+          // maxWorkers=4: AF12 wall target ≤120s full DoD under concurrent unit load.
+          // Dual concurrent stress should set AGENT_DOD_UNIT_MAX_WORKERS=3 (or lower)
+          // if HeatCalc flakiness returns; isolation stays per-file forks.
           pool: 'forks',
           isolate: true,
           fileParallelism: true,
-          maxWorkers: 2,
+          maxWorkers: 4,
           setupFiles: [
             './src/__tests__/setup.ts',
             './src/__tests__/integration/pages/electrical/elecCalcPageTestEnv.tsx',
