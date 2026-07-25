@@ -216,7 +216,11 @@ describe('ReportWizardPage', () => {
         expect.any(Array),
       );
     });
-    expect(await screen.findByText('ЭР5 wizard preview')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId('report-preview')).toHaveTextContent(
+        'ЭР5 wizard preview',
+      );
+    });
     expect(exportReport).not.toHaveBeenCalled();
   });
 });
