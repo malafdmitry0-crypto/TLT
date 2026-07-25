@@ -343,13 +343,16 @@ describe('ReportPage (integration)', () => {
       expect(listElectricalVariantsMock).toHaveBeenCalled();
       expect(screen.getByRole('button', { name: /Мастер в новом окне/i })).toBeEnabled();
     });
-    await user.click(screen.getByRole('button', { name: /Мастер в новом окне/i }));
+    // Re-query after enabled: the variants update can replace the Ant button node.
+    await user.click(await screen.findByRole('button', { name: /Мастер в новом окне/i }));
 
-    expect(openSpy).toHaveBeenCalledWith(
-      `/report-wizard?er=${thirdVariant.id}`,
-      'tlt-report-wizard',
-      'width=1280,height=860,toolbar=no,menubar=no,location=no,status=no',
-    );
+    await waitFor(() => {
+      expect(openSpy).toHaveBeenCalledWith(
+        `/report-wizard?er=${thirdVariant.id}`,
+        'tlt-report-wizard',
+        'width=1280,height=860,toolbar=no,menubar=no,location=no,status=no',
+      );
+    });
   });
 
   it('гостю кнопки экспорта не показываются', async () => {
