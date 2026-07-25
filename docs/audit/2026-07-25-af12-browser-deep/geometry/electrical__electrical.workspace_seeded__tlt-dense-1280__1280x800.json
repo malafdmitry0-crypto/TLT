@@ -1,0 +1,20 @@
+{
+  "metrics": {
+    "url": "http://127.0.0.1:3003/workspace/elec-calc",
+    "title": "HeatCalc",
+    "scrollWidth": 1280,
+    "clientWidth": 1280,
+    "scrollHeight": 800,
+    "clientHeight": 800,
+    "overflowX": false,
+    "overflowY": false,
+    "sample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Электротехнический расчёт Шаг 2 из 4. Результаты автоподбора греющего кабеля ТЛТ для каждого объекта. Проект не выбран Создайте новый проект или откройте существующий, "
+  },
+  "console": {
+    "pageerrors": 0,
+    "errors": 0,
+    "warnings": 0,
+    "excerpts": []
+  },
+  "failed_network": []
+}

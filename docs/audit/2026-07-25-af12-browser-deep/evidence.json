@@ -1,0 +1,1072 @@
+{
+  "head": "bd69ec622b98f793ba0e745b4bc7c57fbfa37c91",
+  "head_short": "bd69ec6",
+  "captured_at_utc": "2026-07-25T17:16:27.209Z",
+  "tool": "scripts/af12-kontur-browser-deep.mjs",
+  "guest_project_id": "b06694b9-161d-4867-a65b-cde6bd44e3db",
+  "totals": {
+    "rows": 29,
+    "pass": 25,
+    "fail": 0,
+    "blocked": 4
+  },
+  "note": "Deep guest path: empty/populated heat, wizards, elec/spec/reports/workspace, long names. Employee-only permission/error-injection states remain residual if not reachable as guest.",
+  "rows": [
+    {
+      "area": "heat",
+      "state_id": "heat.no_project",
+      "state_label": "Heat without selected project",
+      "required": true,
+      "action_path": [
+        "guest bootstrap",
+        "clear tlt-current-project",
+        "reload heat-calc"
+      ],
+      "url": "http://127.0.0.1:3003/workspace/heat-calc",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "viewport_profile": "kontur-desktop",
+      "screenshot": "screenshots/heat__heat.no_project__kontur-desktop__1440x1000.png",
+      "geometry": "geometry/heat__heat.no_project__kontur-desktop__1440x1000.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1440,
+        "clientWidth": 1440
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "excerpts": []
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /auth/guest + project objects via API (guest user path)",
+      "result": "pass",
+      "blocker": null,
+      "head": "bd69ec622b98f793ba0e745b4bc7c57fbfa37c91",
+      "head_short": "bd69ec6",
+      "captured_at_utc": "2026-07-25T17:15:52.367Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Расчёт теплопотерь Шаг 1 из 4. Добавьте объекты (трубопроводы, резервуары) вручную или импортом из Excel / CSV — система автоматически рассчитает тепловые потери. Проек"
+    },
+    {
+      "area": "heat",
+      "state_id": "heat.empty",
+      "state_label": "Heat empty project",
+      "required": true,
+      "action_path": [
+        "guest project",
+        "open heat-calc"
+      ],
+      "url": "http://127.0.0.1:3003/workspace/heat-calc",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "viewport_profile": "kontur-desktop",
+      "screenshot": "screenshots/heat__heat.empty__kontur-desktop__1440x1000.png",
+      "geometry": "geometry/heat__heat.empty__kontur-desktop__1440x1000.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1440,
+        "clientWidth": 1440
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "excerpts": []
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /auth/guest + project objects via API (guest user path)",
+      "result": "pass",
+      "blocker": null,
+      "head": "bd69ec622b98f793ba0e745b4bc7c57fbfa37c91",
+      "head_short": "bd69ec6",
+      "captured_at_utc": "2026-07-25T17:15:54.359Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Расчёт теплопотерь Шаг 1 из 4. Добавьте объекты (трубопроводы, резервуары) вручную или импортом из Excel / CSV — система автоматически рассчитает тепловые потери. Проек"
+    },
+    {
+      "area": "heat",
+      "state_id": "heat.empty",
+      "state_label": "Heat empty project",
+      "required": true,
+      "action_path": [
+        "guest project",
+        "open heat-calc"
+      ],
+      "url": "http://127.0.0.1:3003/workspace/heat-calc",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "viewport_profile": "tlt-dense-1280",
+      "screenshot": "screenshots/heat__heat.empty__tlt-dense-1280__1280x800.png",
+      "geometry": "geometry/heat__heat.empty__tlt-dense-1280__1280x800.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1280,
+        "clientWidth": 1280
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "excerpts": []
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /auth/guest + project objects via API (guest user path)",
+      "result": "pass",
+      "blocker": null,
+      "head": "bd69ec622b98f793ba0e745b4bc7c57fbfa37c91",
+      "head_short": "bd69ec6",
+      "captured_at_utc": "2026-07-25T17:15:54.818Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Расчёт теплопотерь Шаг 1 из 4. Добавьте объекты (трубопроводы, резервуары) вручную или импортом из Excel / CSV — система автоматически рассчитает тепловые потери. Проек"
+    },
+    {
+      "area": "heat",
+      "state_id": "heat.empty",
+      "state_label": "Heat empty project",
+      "required": true,
+      "action_path": [
+        "guest project",
+        "open heat-calc"
+      ],
+      "url": "http://127.0.0.1:3003/workspace/heat-calc",
+      "viewport": {
+        "width": 1366,
+        "height": 768
+      },
+      "viewport_profile": "tlt-dense-1366",
+      "screenshot": "screenshots/heat__heat.empty__tlt-dense-1366__1366x768.png",
+      "geometry": "geometry/heat__heat.empty__tlt-dense-1366__1366x768.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1366,
+        "clientWidth": 1366
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "excerpts": []
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /auth/guest + project objects via API (guest user path)",
+      "result": "pass",
+      "blocker": null,
+      "head": "bd69ec622b98f793ba0e745b4bc7c57fbfa37c91",
+      "head_short": "bd69ec6",
+      "captured_at_utc": "2026-07-25T17:15:55.287Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Расчёт теплопотерь Шаг 1 из 4. Добавьте объекты (трубопроводы, резервуары) вручную или импортом из Excel / CSV — система автоматически рассчитает тепловые потери. Проек"
+    },
+    {
+      "area": "heat",
+      "state_id": "heat.empty",
+      "state_label": "Heat empty project",
+      "required": true,
+      "action_path": [
+        "guest project",
+        "open heat-calc"
+      ],
+      "url": "http://127.0.0.1:3003/workspace/heat-calc",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "viewport_profile": "tlt-primary-qa",
+      "screenshot": "screenshots/heat__heat.empty__tlt-primary-qa__1440x900.png",
+      "geometry": "geometry/heat__heat.empty__tlt-primary-qa__1440x900.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1440,
+        "clientWidth": 1440
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "excerpts": []
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /auth/guest + project objects via API (guest user path)",
+      "result": "pass",
+      "blocker": null,
+      "head": "bd69ec622b98f793ba0e745b4bc7c57fbfa37c91",
+      "head_short": "bd69ec6",
+      "captured_at_utc": "2026-07-25T17:15:55.753Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Расчёт теплопотерь Шаг 1 из 4. Добавьте объекты (трубопроводы, резервуары) вручную или импортом из Excel / CSV — система автоматически рассчитает тепловые потери. Проек"
+    },
+    {
+      "area": "heat",
+      "state_id": "heat.populated_normal",
+      "state_label": "Heat populated normal mode",
+      "required": true,
+      "action_path": [
+        "seed pipe+tank+underground pipe",
+        "open heat-calc"
+      ],
+      "url": "http://127.0.0.1:3003/workspace/heat-calc",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "viewport_profile": "kontur-desktop",
+      "screenshot": "screenshots/heat__heat.populated_normal__kontur-desktop__1440x1000.png",
+      "geometry": "geometry/heat__heat.populated_normal__kontur-desktop__1440x1000.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1440,
+        "clientWidth": 1440
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "excerpts": []
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /auth/guest + project objects via API (guest user path)",
+      "result": "pass",
+      "blocker": null,
+      "head": "bd69ec622b98f793ba0e745b4bc7c57fbfa37c91",
+      "head_short": "bd69ec6",
+      "captured_at_utc": "2026-07-25T17:16:00.263Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Расчёт теплопотерь Шаг 1 из 4. Добавьте объекты (трубопроводы, резервуары) вручную или импортом из Excel / CSV — система автоматически рассчитает тепловые потери. Проек"
+    },
+    {
+      "area": "heat",
+      "state_id": "heat.populated_normal",
+      "state_label": "Heat populated normal mode",
+      "required": true,
+      "action_path": [
+        "seed pipe+tank+underground pipe",
+        "open heat-calc"
+      ],
+      "url": "http://127.0.0.1:3003/workspace/heat-calc",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "viewport_profile": "tlt-dense-1280",
+      "screenshot": "screenshots/heat__heat.populated_normal__tlt-dense-1280__1280x800.png",
+      "geometry": "geometry/heat__heat.populated_normal__tlt-dense-1280__1280x800.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1280,
+        "clientWidth": 1280
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "excerpts": []
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /auth/guest + project objects via API (guest user path)",
+      "result": "pass",
+      "blocker": null,
+      "head": "bd69ec622b98f793ba0e745b4bc7c57fbfa37c91",
+      "head_short": "bd69ec6",
+      "captured_at_utc": "2026-07-25T17:16:02.348Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Расчёт теплопотерь Шаг 1 из 4. Добавьте объекты (трубопроводы, резервуары) вручную или импортом из Excel / CSV — система автоматически рассчитает тепловые потери. Проек"
+    },
+    {
+      "area": "heat",
+      "state_id": "heat.populated_normal",
+      "state_label": "Heat populated normal mode",
+      "required": true,
+      "action_path": [
+        "seed pipe+tank+underground pipe",
+        "open heat-calc"
+      ],
+      "url": "http://127.0.0.1:3003/workspace/heat-calc",
+      "viewport": {
+        "width": 1366,
+        "height": 768
+      },
+      "viewport_profile": "tlt-dense-1366",
+      "screenshot": "screenshots/heat__heat.populated_normal__tlt-dense-1366__1366x768.png",
+      "geometry": "geometry/heat__heat.populated_normal__tlt-dense-1366__1366x768.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1366,
+        "clientWidth": 1366
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "excerpts": []
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /auth/guest + project objects via API (guest user path)",
+      "result": "pass",
+      "blocker": null,
+      "head": "bd69ec622b98f793ba0e745b4bc7c57fbfa37c91",
+      "head_short": "bd69ec6",
+      "captured_at_utc": "2026-07-25T17:16:04.440Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Расчёт теплопотерь Шаг 1 из 4. Добавьте объекты (трубопроводы, резервуары) вручную или импортом из Excel / CSV — система автоматически рассчитает тепловые потери. Проек"
+    },
+    {
+      "area": "heat",
+      "state_id": "heat.populated_normal",
+      "state_label": "Heat populated normal mode",
+      "required": true,
+      "action_path": [
+        "seed pipe+tank+underground pipe",
+        "open heat-calc"
+      ],
+      "url": "http://127.0.0.1:3003/workspace/heat-calc",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "viewport_profile": "tlt-primary-qa",
+      "screenshot": "screenshots/heat__heat.populated_normal__tlt-primary-qa__1440x900.png",
+      "geometry": "geometry/heat__heat.populated_normal__tlt-primary-qa__1440x900.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1440,
+        "clientWidth": 1440
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "excerpts": []
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /auth/guest + project objects via API (guest user path)",
+      "result": "pass",
+      "blocker": null,
+      "head": "bd69ec622b98f793ba0e745b4bc7c57fbfa37c91",
+      "head_short": "bd69ec6",
+      "captured_at_utc": "2026-07-25T17:16:06.513Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Расчёт теплопотерь Шаг 1 из 4. Добавьте объекты (трубопроводы, резервуары) вручную или импортом из Excel / CSV — система автоматически рассчитает тепловые потери. Проек"
+    },
+    {
+      "area": "heat",
+      "state_id": "heat.wizard_pipe",
+      "result": "blocked",
+      "blocker": "Add button not found",
+      "required": true,
+      "head": "bd69ec622b98f793ba0e745b4bc7c57fbfa37c91",
+      "captured_at_utc": "2026-07-25T17:16:07.976Z"
+    },
+    {
+      "area": "heat",
+      "state_id": "heat.populated_excel",
+      "result": "blocked",
+      "blocker": "Excel mode control not found in guest UI",
+      "required": true,
+      "head": "bd69ec622b98f793ba0e745b4bc7c57fbfa37c91",
+      "captured_at_utc": "2026-07-25T17:16:09.256Z"
+    },
+    {
+      "area": "electrical",
+      "state_id": "electrical.workspace_seeded",
+      "state_label": "Electrical with heat objects present",
+      "required": true,
+      "action_path": [
+        "seed objects",
+        "open elec-calc"
+      ],
+      "url": "http://127.0.0.1:3003/workspace/elec-calc",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "viewport_profile": "kontur-desktop",
+      "screenshot": "screenshots/electrical__electrical.workspace_seeded__kontur-desktop__1440x1000.png",
+      "geometry": "geometry/electrical__electrical.workspace_seeded__kontur-desktop__1440x1000.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1440,
+        "clientWidth": 1440
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "excerpts": []
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /auth/guest + project objects via API (guest user path)",
+      "result": "pass",
+      "blocker": null,
+      "head": "bd69ec622b98f793ba0e745b4bc7c57fbfa37c91",
+      "head_short": "bd69ec6",
+      "captured_at_utc": "2026-07-25T17:16:12.389Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Электротехнический расчёт Шаг 2 из 4. Результаты автоподбора греющего кабеля ТЛТ для каждого объекта. Проект не выбран Создайте новый проект или откройте существующий, "
+    },
+    {
+      "area": "electrical",
+      "state_id": "electrical.workspace_seeded",
+      "state_label": "Electrical with heat objects present",
+      "required": true,
+      "action_path": [
+        "seed objects",
+        "open elec-calc"
+      ],
+      "url": "http://127.0.0.1:3003/workspace/elec-calc",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "viewport_profile": "tlt-dense-1280",
+      "screenshot": "screenshots/electrical__electrical.workspace_seeded__tlt-dense-1280__1280x800.png",
+      "geometry": "geometry/electrical__electrical.workspace_seeded__tlt-dense-1280__1280x800.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1280,
+        "clientWidth": 1280
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "excerpts": []
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /auth/guest + project objects via API (guest user path)",
+      "result": "pass",
+      "blocker": null,
+      "head": "bd69ec622b98f793ba0e745b4bc7c57fbfa37c91",
+      "head_short": "bd69ec6",
+      "captured_at_utc": "2026-07-25T17:16:12.823Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Электротехнический расчёт Шаг 2 из 4. Результаты автоподбора греющего кабеля ТЛТ для каждого объекта. Проект не выбран Создайте новый проект или откройте существующий, "
+    },
+    {
+      "area": "electrical",
+      "state_id": "electrical.workspace_seeded",
+      "state_label": "Electrical with heat objects present",
+      "required": true,
+      "action_path": [
+        "seed objects",
+        "open elec-calc"
+      ],
+      "url": "http://127.0.0.1:3003/workspace/elec-calc",
+      "viewport": {
+        "width": 1366,
+        "height": 768
+      },
+      "viewport_profile": "tlt-dense-1366",
+      "screenshot": "screenshots/electrical__electrical.workspace_seeded__tlt-dense-1366__1366x768.png",
+      "geometry": "geometry/electrical__electrical.workspace_seeded__tlt-dense-1366__1366x768.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1366,
+        "clientWidth": 1366
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "excerpts": []
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /auth/guest + project objects via API (guest user path)",
+      "result": "pass",
+      "blocker": null,
+      "head": "bd69ec622b98f793ba0e745b4bc7c57fbfa37c91",
+      "head_short": "bd69ec6",
+      "captured_at_utc": "2026-07-25T17:16:13.255Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Электротехнический расчёт Шаг 2 из 4. Результаты автоподбора греющего кабеля ТЛТ для каждого объекта. Проект не выбран Создайте новый проект или откройте существующий, "
+    },
+    {
+      "area": "electrical",
+      "state_id": "electrical.workspace_seeded",
+      "state_label": "Electrical with heat objects present",
+      "required": true,
+      "action_path": [
+        "seed objects",
+        "open elec-calc"
+      ],
+      "url": "http://127.0.0.1:3003/workspace/elec-calc",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "viewport_profile": "tlt-primary-qa",
+      "screenshot": "screenshots/electrical__electrical.workspace_seeded__tlt-primary-qa__1440x900.png",
+      "geometry": "geometry/electrical__electrical.workspace_seeded__tlt-primary-qa__1440x900.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1440,
+        "clientWidth": 1440
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "excerpts": []
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /auth/guest + project objects via API (guest user path)",
+      "result": "pass",
+      "blocker": null,
+      "head": "bd69ec622b98f793ba0e745b4bc7c57fbfa37c91",
+      "head_short": "bd69ec6",
+      "captured_at_utc": "2026-07-25T17:16:13.695Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Электротехнический расчёт Шаг 2 из 4. Результаты автоподбора греющего кабеля ТЛТ для каждого объекта. Проект не выбран Создайте новый проект или откройте существующий, "
+    },
+    {
+      "area": "electrical",
+      "state_id": "electrical.view_unassigned",
+      "result": "blocked",
+      "blocker": "Unassigned view control not found",
+      "required": true,
+      "head": "bd69ec622b98f793ba0e745b4bc7c57fbfa37c91",
+      "captured_at_utc": "2026-07-25T17:16:13.705Z"
+    },
+    {
+      "area": "electrical",
+      "state_id": "electrical.view_system",
+      "result": "blocked",
+      "blocker": "System view control not found",
+      "required": true,
+      "head": "bd69ec622b98f793ba0e745b4bc7c57fbfa37c91",
+      "captured_at_utc": "2026-07-25T17:16:13.707Z"
+    },
+    {
+      "area": "specification",
+      "state_id": "specification.empty_or_ready",
+      "state_label": "Specification workspace (guest seeded project)",
+      "required": true,
+      "action_path": [
+        "seed objects",
+        "open specification"
+      ],
+      "url": "http://127.0.0.1:3003/workspace/specification",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "viewport_profile": "kontur-desktop",
+      "screenshot": "screenshots/specification__specification.empty_or_ready__kontur-desktop__1440x1000.png",
+      "geometry": "geometry/specification__specification.empty_or_ready__kontur-desktop__1440x1000.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1440,
+        "clientWidth": 1440
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "excerpts": []
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /auth/guest + project objects via API (guest user path)",
+      "result": "pass",
+      "blocker": null,
+      "head": "bd69ec622b98f793ba0e745b4bc7c57fbfa37c91",
+      "head_short": "bd69ec6",
+      "captured_at_utc": "2026-07-25T17:16:16.034Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Спецификация Шаг 3 из 4. Автоматическое формирование перечня оборудования и материалов на основе расчётов. Проект не выбран Создайте новый проект или откройте существую"
+    },
+    {
+      "area": "specification",
+      "state_id": "specification.empty_or_ready",
+      "state_label": "Specification workspace (guest seeded project)",
+      "required": true,
+      "action_path": [
+        "seed objects",
+        "open specification"
+      ],
+      "url": "http://127.0.0.1:3003/workspace/specification",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "viewport_profile": "tlt-dense-1280",
+      "screenshot": "screenshots/specification__specification.empty_or_ready__tlt-dense-1280__1280x800.png",
+      "geometry": "geometry/specification__specification.empty_or_ready__tlt-dense-1280__1280x800.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1280,
+        "clientWidth": 1280
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "excerpts": []
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /auth/guest + project objects via API (guest user path)",
+      "result": "pass",
+      "blocker": null,
+      "head": "bd69ec622b98f793ba0e745b4bc7c57fbfa37c91",
+      "head_short": "bd69ec6",
+      "captured_at_utc": "2026-07-25T17:16:16.469Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Спецификация Шаг 3 из 4. Автоматическое формирование перечня оборудования и материалов на основе расчётов. Проект не выбран Создайте новый проект или откройте существую"
+    },
+    {
+      "area": "specification",
+      "state_id": "specification.empty_or_ready",
+      "state_label": "Specification workspace (guest seeded project)",
+      "required": true,
+      "action_path": [
+        "seed objects",
+        "open specification"
+      ],
+      "url": "http://127.0.0.1:3003/workspace/specification",
+      "viewport": {
+        "width": 1366,
+        "height": 768
+      },
+      "viewport_profile": "tlt-dense-1366",
+      "screenshot": "screenshots/specification__specification.empty_or_ready__tlt-dense-1366__1366x768.png",
+      "geometry": "geometry/specification__specification.empty_or_ready__tlt-dense-1366__1366x768.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1366,
+        "clientWidth": 1366
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "excerpts": []
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /auth/guest + project objects via API (guest user path)",
+      "result": "pass",
+      "blocker": null,
+      "head": "bd69ec622b98f793ba0e745b4bc7c57fbfa37c91",
+      "head_short": "bd69ec6",
+      "captured_at_utc": "2026-07-25T17:16:16.897Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Спецификация Шаг 3 из 4. Автоматическое формирование перечня оборудования и материалов на основе расчётов. Проект не выбран Создайте новый проект или откройте существую"
+    },
+    {
+      "area": "specification",
+      "state_id": "specification.empty_or_ready",
+      "state_label": "Specification workspace (guest seeded project)",
+      "required": true,
+      "action_path": [
+        "seed objects",
+        "open specification"
+      ],
+      "url": "http://127.0.0.1:3003/workspace/specification",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "viewport_profile": "tlt-primary-qa",
+      "screenshot": "screenshots/specification__specification.empty_or_ready__tlt-primary-qa__1440x900.png",
+      "geometry": "geometry/specification__specification.empty_or_ready__tlt-primary-qa__1440x900.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1440,
+        "clientWidth": 1440
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "excerpts": []
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /auth/guest + project objects via API (guest user path)",
+      "result": "pass",
+      "blocker": null,
+      "head": "bd69ec622b98f793ba0e745b4bc7c57fbfa37c91",
+      "head_short": "bd69ec6",
+      "captured_at_utc": "2026-07-25T17:16:17.334Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Спецификация Шаг 3 из 4. Автоматическое формирование перечня оборудования и материалов на основе расчётов. Проект не выбран Создайте новый проект или откройте существую"
+    },
+    {
+      "area": "reports",
+      "state_id": "reports.empty_or_workspace",
+      "state_label": "Reports workspace",
+      "required": true,
+      "action_path": [
+        "open report"
+      ],
+      "url": "http://127.0.0.1:3003/workspace/report",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "viewport_profile": "kontur-desktop",
+      "screenshot": "screenshots/reports__reports.empty_or_workspace__kontur-desktop__1440x1000.png",
+      "geometry": "geometry/reports__reports.empty_or_workspace__kontur-desktop__1440x1000.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1440,
+        "clientWidth": 1440
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "excerpts": []
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /auth/guest + project objects via API (guest user path)",
+      "result": "pass",
+      "blocker": null,
+      "head": "bd69ec622b98f793ba0e745b4bc7c57fbfa37c91",
+      "head_short": "bd69ec6",
+      "captured_at_utc": "2026-07-25T17:16:19.591Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Отчёт Шаг 4 из 4. Итоговый документ по проекту с результатами расчётов. Проект не выбран Создайте новый проект или откройте существующий, чтобы начать работу. Открыть п"
+    },
+    {
+      "area": "reports",
+      "state_id": "reports.empty_or_workspace",
+      "state_label": "Reports workspace",
+      "required": true,
+      "action_path": [
+        "open report"
+      ],
+      "url": "http://127.0.0.1:3003/workspace/report",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "viewport_profile": "tlt-primary-qa",
+      "screenshot": "screenshots/reports__reports.empty_or_workspace__tlt-primary-qa__1440x900.png",
+      "geometry": "geometry/reports__reports.empty_or_workspace__tlt-primary-qa__1440x900.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1440,
+        "clientWidth": 1440
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "excerpts": []
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /auth/guest + project objects via API (guest user path)",
+      "result": "pass",
+      "blocker": null,
+      "head": "bd69ec622b98f793ba0e745b4bc7c57fbfa37c91",
+      "head_short": "bd69ec6",
+      "captured_at_utc": "2026-07-25T17:16:20.023Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Отчёт Шаг 4 из 4. Итоговый документ по проекту с результатами расчётов. Проект не выбран Создайте новый проект или откройте существующий, чтобы начать работу. Открыть п"
+    },
+    {
+      "area": "reports",
+      "state_id": "reports.empty_or_workspace",
+      "state_label": "Reports workspace",
+      "required": true,
+      "action_path": [
+        "open report"
+      ],
+      "url": "http://127.0.0.1:3003/workspace/report",
+      "viewport": {
+        "width": 1000,
+        "height": 768
+      },
+      "viewport_profile": "tlt-shell-1000",
+      "screenshot": "screenshots/reports__reports.empty_or_workspace__tlt-shell-1000__1000x768.png",
+      "geometry": "geometry/reports__reports.empty_or_workspace__tlt-shell-1000__1000x768.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1000,
+        "clientWidth": 1000
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "excerpts": []
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /auth/guest + project objects via API (guest user path)",
+      "result": "pass",
+      "blocker": null,
+      "head": "bd69ec622b98f793ba0e745b4bc7c57fbfa37c91",
+      "head_short": "bd69ec6",
+      "captured_at_utc": "2026-07-25T17:16:20.464Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Рекомендуемая ширина окна — от 1280 px Интерактивный рабочий поток Phase 5 официально поддерживается от 1280 px (PDL-ER-30). На меньшей ширине возможны ограничения раск"
+    },
+    {
+      "area": "projects",
+      "state_id": "projects.guest_workspace",
+      "state_label": "Guest workspace entry",
+      "required": true,
+      "action_path": [
+        "open /workspace"
+      ],
+      "url": "http://127.0.0.1:3003/workspace",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "viewport_profile": "kontur-desktop",
+      "screenshot": "screenshots/projects__projects.guest_workspace__kontur-desktop__1440x1000.png",
+      "geometry": "geometry/projects__projects.guest_workspace__kontur-desktop__1440x1000.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1440,
+        "clientWidth": 1440
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "excerpts": []
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /auth/guest + project objects via API (guest user path)",
+      "result": "pass",
+      "blocker": null,
+      "head": "bd69ec622b98f793ba0e745b4bc7c57fbfa37c91",
+      "head_short": "bd69ec6",
+      "captured_at_utc": "2026-07-25T17:16:22.343Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Добро пожаловать в HeatCalc Система для расчёта тепловых потерь и подбора систем электрообогрева трубопроводов и резервуаров. Работайте по шагам: теплопотери → электрор"
+    },
+    {
+      "area": "projects",
+      "state_id": "projects.guest_workspace",
+      "state_label": "Guest workspace entry",
+      "required": true,
+      "action_path": [
+        "open /workspace"
+      ],
+      "url": "http://127.0.0.1:3003/workspace",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "viewport_profile": "tlt-primary-qa",
+      "screenshot": "screenshots/projects__projects.guest_workspace__tlt-primary-qa__1440x900.png",
+      "geometry": "geometry/projects__projects.guest_workspace__tlt-primary-qa__1440x900.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1440,
+        "clientWidth": 1440
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "excerpts": []
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /auth/guest + project objects via API (guest user path)",
+      "result": "pass",
+      "blocker": null,
+      "head": "bd69ec622b98f793ba0e745b4bc7c57fbfa37c91",
+      "head_short": "bd69ec6",
+      "captured_at_utc": "2026-07-25T17:16:22.780Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Добро пожаловать в HeatCalc Система для расчёта тепловых потерь и подбора систем электрообогрева трубопроводов и резервуаров. Работайте по шагам: теплопотери → электрор"
+    },
+    {
+      "area": "projects",
+      "state_id": "projects.guest_workspace",
+      "state_label": "Guest workspace entry",
+      "required": true,
+      "action_path": [
+        "open /workspace"
+      ],
+      "url": "http://127.0.0.1:3003/workspace",
+      "viewport": {
+        "width": 1000,
+        "height": 768
+      },
+      "viewport_profile": "tlt-shell-1000",
+      "screenshot": "screenshots/projects__projects.guest_workspace__tlt-shell-1000__1000x768.png",
+      "geometry": "geometry/projects__projects.guest_workspace__tlt-shell-1000__1000x768.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1000,
+        "clientWidth": 1000
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "excerpts": []
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /auth/guest + project objects via API (guest user path)",
+      "result": "pass",
+      "blocker": null,
+      "head": "bd69ec622b98f793ba0e745b4bc7c57fbfa37c91",
+      "head_short": "bd69ec6",
+      "captured_at_utc": "2026-07-25T17:16:23.224Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Рекомендуемая ширина окна — от 1280 px Интерактивный рабочий поток Phase 5 официально поддерживается от 1280 px (PDL-ER-30). На меньшей ширине возможны ограничения раск"
+    },
+    {
+      "area": "projects",
+      "state_id": "projects.long_names",
+      "state_label": "Long Russian project name",
+      "required": true,
+      "action_path": [
+        "PUT project long name",
+        "open workspace"
+      ],
+      "url": "http://127.0.0.1:3003/workspace",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "viewport_profile": "kontur-desktop",
+      "screenshot": "screenshots/projects__projects.long_names__kontur-desktop__1440x1000.png",
+      "geometry": "geometry/projects__projects.long_names__kontur-desktop__1440x1000.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1440,
+        "clientWidth": 1440
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "excerpts": []
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /auth/guest + project objects via API (guest user path)",
+      "result": "pass",
+      "blocker": null,
+      "head": "bd69ec622b98f793ba0e745b4bc7c57fbfa37c91",
+      "head_short": "bd69ec6",
+      "captured_at_utc": "2026-07-25T17:16:25.112Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Добро пожаловать в HeatCalc Система для расчёта тепловых потерь и подбора систем электрообогрева трубопроводов и резервуаров. Работайте по шагам: теплопотери → электрор"
+    },
+    {
+      "area": "heat",
+      "state_id": "heat.insulation_geometry_check",
+      "state_label": "Insulation geometry host ratio probe",
+      "required": true,
+      "action_path": [
+        "open heat with objects",
+        "measure insulation host"
+      ],
+      "url": "http://127.0.0.1:3003/workspace/heat-calc",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "viewport_profile": "kontur-desktop",
+      "screenshot": "screenshots/heat__heat.insulation_geometry_check__kontur-desktop__1440x1000.png",
+      "geometry": "geometry/heat__heat.insulation_geometry_check__kontur-desktop__1440x1000.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1440,
+        "clientWidth": 1440
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "excerpts": []
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /auth/guest + project objects via API (guest user path) host not found",
+      "result": "pass",
+      "blocker": null,
+      "head": "bd69ec622b98f793ba0e745b4bc7c57fbfa37c91",
+      "head_short": "bd69ec6",
+      "captured_at_utc": "2026-07-25T17:16:27.002Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Расчёт теплопотерь Шаг 1 из 4. Добавьте объекты (трубопроводы, резервуары) вручную или импортом из Excel / CSV — система автоматически рассчитает тепловые потери. Проек"
+    }
+  ]
+}

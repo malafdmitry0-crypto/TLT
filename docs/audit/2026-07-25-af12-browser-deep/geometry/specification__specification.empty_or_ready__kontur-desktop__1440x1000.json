@@ -1,0 +1,20 @@
+{
+  "metrics": {
+    "url": "http://127.0.0.1:3003/workspace/specification",
+    "title": "HeatCalc",
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "scrollHeight": 1000,
+    "clientHeight": 1000,
+    "overflowX": false,
+    "overflowY": false,
+    "sample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Спецификация Шаг 3 из 4. Автоматическое формирование перечня оборудования и материалов на основе расчётов. Проект не выбран Создайте новый проект или откройте существую"
+  },
+  "console": {
+    "pageerrors": 0,
+    "errors": 0,
+    "warnings": 0,
+    "excerpts": []
+  },
+  "failed_network": []
+}

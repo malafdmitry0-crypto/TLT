@@ -1,0 +1,20 @@
+{
+  "metrics": {
+    "url": "http://127.0.0.1:3003/workspace/report",
+    "title": "HeatCalc",
+    "scrollWidth": 1000,
+    "clientWidth": 1000,
+    "scrollHeight": 768,
+    "clientHeight": 768,
+    "overflowX": false,
+    "overflowY": false,
+    "sample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Рекомендуемая ширина окна — от 1280 px Интерактивный рабочий поток Phase 5 официально поддерживается от 1280 px (PDL-ER-30). На меньшей ширине возможны ограничения раск"
+  },
+  "console": {
+    "pageerrors": 0,
+    "errors": 0,
+    "warnings": 0,
+    "excerpts": []
+  },
+  "failed_network": []
+}
