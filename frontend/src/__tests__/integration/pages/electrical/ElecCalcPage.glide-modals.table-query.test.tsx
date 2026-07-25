@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars -- scenario split keeps shared preamble */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { useProjectStore } from '@/store/projectStore';
@@ -9,60 +10,9 @@ import { mockProject, makeObject, makeElectricalPage, renderPage, openElectrical
 import { electricalGlideGridMock, resetElecCalcIntegrationState } from '@/__tests__/integration/pages/electrical/elecCalcPageTestEnv';
 import '@/__tests__/integration/pages/electrical/elecCalcPageTestEnv';
 
-describe('ElecCalcPage glide / modal actions', () => {
+describe('ElecCalcPage glide-modals — Glide table query / edit', () => {
   beforeEach(() => {
     resetElecCalcIntegrationState();
-  });
-
-  it('показывает базу пересчёта внутри настроек электрорасчёта', async () => {
-    const { getElectricalPage } = await import('@/api/calculations');
-    const user = (await import('@testing-library/user-event')).default.setup();
-    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage([makeObject()]));
-    useProjectStore.getState().setCurrentProject(mockProject);
-    renderPage();
-
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Настройки' })).toBeInTheDocument();
-    });
-    expect(screen.queryByText('База для пересчёта:')).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: 'Настройки' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Настройки таблицы электрорасчёта' });
-    expect(within(dialog).queryByText('База для пересчёта:')).not.toBeInTheDocument();
-    await openElectricalTableSettingsOtherTab(user, dialog);
-
-    expect(within(dialog).getByText('База для пересчёта:')).toBeInTheDocument();
-    expect(within(dialog).getByLabelText('База для пересчёта')).toBeInTheDocument();
-    expect(within(dialog).getByText('Встроенная')).toBeInTheDocument();
-    expect(within(dialog).queryByText('Внешняя')).not.toBeInTheDocument();
-  });
-
-  it('открывает окно настроек выше и позволяет двигать его за заголовок', async () => {
-    const { getElectricalPage } = await import('@/api/calculations');
-    const user = (await import('@testing-library/user-event')).default.setup();
-    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage([makeObject()]));
-    useProjectStore.getState().setCurrentProject(mockProject);
-    renderPage();
-
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Настройки' })).toBeInTheDocument();
-    });
-    await user.click(screen.getByRole('button', { name: 'Настройки' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Настройки таблицы электрорасчёта' });
-    const modal = document.querySelector('.electrical-column-settings-dialog') as HTMLElement;
-    const modalWindow = document.querySelector('.electrical-column-settings-window') as HTMLElement;
-    const title = within(dialog).getByText('Настройки таблицы электрорасчёта');
-
-    expect(modal).toHaveStyle({ top: '24px' });
-    expect(modalWindow.style.transform).toBe('translate(0px, 0px)');
-
-    fireEvent.mouseDown(title, { button: 0, clientX: 100, clientY: 120 });
-    fireEvent.mouseMove(document, { clientX: 132, clientY: 106 });
-    fireEvent.mouseUp(document);
-
-    await waitFor(() => {
-      expect(modalWindow.style.transform).toBe('translate(32px, -14px)');
-    });
   });
 
   it('сохраняет resize колонки прямо из заголовка таблицы электрорасчёта', async () => {
@@ -279,87 +229,6 @@ describe('ElecCalcPage glide / modal actions', () => {
         { 1: '11111111-1111-4111-8111-111111111111' },
       );
     });
-  });
-
-  it('не закрывает модалку выбора марки при ошибке ручного применения', async () => {
-    const { getElectricalPage, listCables, selectCableForVariants } = await import('@/api/calculations');
-    const user = (await import('@testing-library/user-event')).default.setup();
-    (listCables as ReturnType<typeof vi.fn>).mockResolvedValue([
-      {
-        brand: 'ТЛТ',
-        model: 'ТЛТ-30',
-        source: 'builtin',
-        cable_type: 'self_regulating',
-        power_per_meter: 30,
-        max_temperature: 65,
-        min_temperature: -60,
-        voltage: 220,
-        stock_quantity_m: 1200,
-        lead_time_days: 2,
-        params: {
-          max_pipe_temp: 160,
-          protection: 'IP68',
-        },
-      },
-    ]);
-    (selectCableForVariants as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('manual failed'));
-    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(
-      makeElectricalPage([makeObject()], [
-        {
-          id: 'c-1',
-          object_id: 'o-1',
-          cable_type: 'self_regulating',
-          cable_mark: 'ТЛТ-30',
-          variant_number: 1,
-          results: {
-            selected_cable: 'ТЛТ-30',
-            winding_pitch: 0,
-            num_circuits: 1,
-            installed_cable_length: 10,
-            order_cable_length: 11,
-            total_power: 300,
-            current: 1.4,
-            voltage: 220,
-          },
-        },
-      ]),
-    );
-    useProjectStore.getState().setCurrentProject(mockProject);
-    renderPage();
-
-    const row = await screen.findByRole('row', { name: /Труба-1/ });
-    fireEvent.click(row);
-    await user.click(within(row).getByRole('button', { name: 'Выбор' }));
-    const dialog = await screen.findByRole('dialog', { name: /Выбор марки кабеля/ });
-    await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
-
-    await waitFor(() => {
-      expect(selectCableForVariants).toHaveBeenCalled();
-    });
-    expect(screen.getByRole('dialog', { name: /Выбор марки кабеля/ })).toBeInTheDocument();
-    expect(within(dialog).getAllByText(/ТЛТ-30/).length).toBeGreaterThan(0);
-  });
-
-  it('не закрывает модалку выбора марки при ошибке автоподбора', async () => {
-    const { getElectricalPage, selectCableForVariants } = await import('@/api/calculations');
-    const user = (await import('@testing-library/user-event')).default.setup();
-    (selectCableForVariants as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('auto failed'));
-    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage([makeObject()]));
-    useProjectStore.getState().setCurrentProject(mockProject);
-    renderPage();
-
-    const row = await screen.findByRole('row', { name: /Труба-1/ });
-    fireEvent.click(row);
-    await user.click(within(row).getByRole('button', { name: 'Выбор' }));
-    const dialog = await screen.findByRole('dialog', { name: /Выбор марки кабеля/ });
-    await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
-
-    await waitFor(() => {
-      expect(selectCableForVariants).toHaveBeenCalled();
-    });
-    expect(screen.getByRole('dialog', { name: /Выбор марки кабеля/ })).toBeInTheDocument();
-    // TltSelect may show "Авто" in trigger value and list option.
-    expect(within(dialog).getAllByText('Авто').length).toBeGreaterThan(0);
   });
 
 });

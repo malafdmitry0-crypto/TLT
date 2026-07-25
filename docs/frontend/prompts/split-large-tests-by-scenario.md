@@ -105,3 +105,20 @@ Proof wave 3: **124** tests green (25 files). Architecture ratchets not split.
 | `HeatCalcPage.settings` (~416) | columns / layout / calc-details |
 
 Proof wave 4: **84** tests green (27 files). Architecture ratchets still not split.
+
+### Wave 5
+
+| Source | Split into |
+|---|---|
+| `useElecCalcCandidateMutationFlow` (~399) | candidates / folders / readonly |
+| `HeatCalcPage.project-isolation` (~396) | normal / excel / selection |
+| `heatCalcPageUtils` (~385) | status-errors / query-filters / format |
+| `useObjectWizardFormSync` (~379) | required-errors / name-suggest / derived-refs |
+| `useElecCalcCableSelectionMutationFlow` (~368) | selection / layout / modal / readonly |
+| `ElecCalcPage.glide-modals` (~365) | settings-ui / table-query / mark-modal |
+| `useHeatCalcDraftSaveModel` (~345) | save-success / invalid-fail / selection-scope |
+| `heatCalcExcelRows` (~340) | local-rows / cache / delete-reset / draft-helpers |
+| `EditableTableCell` (~337) | chrome-state / editor / excel-context |
+| `useElectricalBatchJobTracker` (~332) | concurrent / invalidate / recovery / terminal |
+
+Proof wave 5: **86** tests green (33 files).

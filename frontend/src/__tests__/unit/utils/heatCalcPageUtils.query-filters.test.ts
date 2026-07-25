@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars -- scenario split keeps shared preamble */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
   ObjectQueryCapabilities,
@@ -115,44 +116,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('heatCalcPageUtils', () => {
-  it('определяет статус теплопотерь и текст ошибки', () => {
-    const calculated = makeObject({ is_valid: true, results: { total_heat_loss: 100 } });
-    const failed = makeObject({ validation_errors: { message: 'Нет материала' } });
-    const structuredFailed = makeObject({ validation_errors: { message: 'Понятная ошибка' } });
-    const unsupported = makeObject({ validation_errors: { category: 'unsupported', message: 'Не применимо' } });
-    const rawFailed = makeObject({ validation_errors: { field: 'required' } });
-
-    expect(heatLossCalcStatus(calculated)).toBe('calculated');
-    expect(heatLossStatusLabel(heatLossCalcStatus(calculated))).toBe('Рассчитан');
-    expect(heatLossCalcStatus(failed)).toBe('error');
-    expect(heatLossStatusLabel(heatLossCalcStatus(failed))).toBe('Ошибка');
-    expect(heatLossErrorText(failed)).toBe('Нет материала');
-    expect(heatLossErrorText(structuredFailed)).toBe('Понятная ошибка');
-    expect(heatLossCalcStatus(unsupported)).toBe('unsupported');
-    expect(heatLossStatusLabel(heatLossCalcStatus(unsupported))).toBe('Не применимо');
-    expect(heatLossErrorText(rawFailed)).toBe('{"field":"required"}');
-    expect(heatLossStatusLabel(heatLossCalcStatus(makeObject()))).toBe('Не рассчитан');
-  });
-
-  it('объясняет расчётную ошибку диапазона температуры изоляции через поля формы', () => {
-    const failed = makeObject({
-      validation_errors: {
-        message: "Температура горячей стороны слоя изоляции #1 (0.999942 °C) вне диапазона материала 'other': 2...6 °C",
-      },
-    });
-
-    expect(heatLossErrorText(failed)).toBe(
-      'Теплоизоляция, слой 1: расчётная T на стороне трубы/продукта 1 °C вне Диапазона T материала "Другое" (2...6 °C). Проверьте Материал изоляции, λ и Диапазон T.',
-    );
-  });
-
-  it('распознаёт batch-ответ теплопотерь', () => {
-    expect(isBatchHeatLossResponse({ updated: 1, failed: 0 })).toBe(true);
-    expect(isBatchHeatLossResponse({ calculated: 1, failed: 0 })).toBe(false);
-    expect(isBatchHeatLossResponse(null)).toBe(false);
-  });
-
+describe('heatCalcPageUtils — query / filters / sort', () => {
   it('строит backend query из состояния таблицы', () => {
     const state: HeatCalcTableViewState = {
       filters: {
@@ -260,41 +224,6 @@ describe('heatCalcPageUtils', () => {
     })).not.toBe(draftRowFingerprint(left));
   });
 
-  it('нормализует сообщения draft errors и align значения для grid', () => {
-    expect(draftErrorMessages('pipe', {
-      pipe_length: 'обязательное поле',
-      _row: 'строка содержит ошибки',
-    })).toEqual([
-      'Длина трубопровода: обязательное поле',
-      'строка содержит ошибки',
-    ]);
-
-    expect(normalizeGlideCellAlign('left')).toBe('left');
-    expect(normalizeGlideCellAlign('center')).toBe('center');
-    expect(normalizeGlideCellAlign('right')).toBe('right');
-    expect(normalizeGlideCellAlign(undefined)).toBeUndefined();
-  });
-
-  it('удаляет пустые и повторяющиеся сообщения ошибок без изменения первого текста', () => {
-    expect(uniqueErrorMessages([
-      '',
-      '  ',
-      'Ошибка 1',
-      'Ошибка 2',
-      'Ошибка 1',
-      '  Ошибка 2  ',
-      ' Ошибка 3 ',
-    ])).toEqual(['Ошибка 1', 'Ошибка 2', ' Ошибка 3 ']);
-  });
-
-  it('экранирует table row key через CSS.escape или локальный fallback', () => {
-    vi.stubGlobal('CSS', { escape: (value: string) => `escaped:${value}` });
-    expect(escapeTableRowKey('row"1')).toBe('escaped:row"1');
-
-    vi.stubGlobal('CSS', undefined);
-    expect(escapeTableRowKey('row\\with"quote')).toBe('row\\\\with\\"quote');
-  });
-
   it('выбирает вид фильтра по capability или локальному fallback', () => {
     expect(filterKindForColumn('process_temperature')).toBe('numberRange');
     expect(filterKindForColumn('placement')).toBe('enum');
@@ -320,66 +249,4 @@ describe('heatCalcPageUtils', () => {
     expect(isColumnApplicableToObjectType('tank_height', 'tank')).toBe(true);
   });
 
-  it('форматирует параметры, результаты и размерности', () => {
-    const record = makeObject({
-      object_type: 'tank',
-      params: {
-        shape: 'rectangular',
-        length: 1.2,
-        width: 0.8,
-        height: 2,
-        wall_thickness: 0.006,
-        process_temperature: 65,
-        ambient_temperature: -25,
-        insulation_layer_count: 2,
-        insulation_layers: [
-          { thickness: 0.05, material: 'mineral_wool', conductivity: 0.045 },
-          { thickness: 0.03, material: 'foamglass', conductivity: 0.055 },
-        ],
-        ground_type: 'clay',
-      },
-      results: { total_heat_loss: 1234.56 },
-    });
-
-    expect(normalizeSpaces(tankDimensions(record))).toBe('1 200 × 800 × 2 000 мм');
-    expect(formatParamMetersAsMm(record, 'wall_thickness')).toBe('6');
-    expect(formatParamNumber(record, 'process_temperature', 0)).toBe('65');
-    expect(formatParamText(record, 'ground_type')).toBe('clay');
-    expect(formatDeltaTemperature(record, 0)).toBe('90');
-    expect(normalizeSpaces(formatResultNumber(record, 'total_heat_loss', 1))).toBe('1 234,6');
-    expect(formatResultOrParamNumber(record, 'q_additional', 0)).toBe('—');
-    expect(insulationLayerCount(record)).toBe('2');
-    expect(insulationLayerThickness(record, 1)).toBe('30');
-    expect(insulationLayerMaterial(record, 0, (material) => `label:${String(material)}`)).toBe('label:mineral_wool');
-    expect(insulationLayerConductivity(record, 0)).toBe('0,045');
-  });
-
-  it('для q_additional предпочитает result и падает обратно на params', () => {
-    expect(formatResultOrParamNumber(
-      makeObject({ results: { q_additional: 250 }, params: { q_additional: 100 } }),
-      'q_additional',
-      0,
-    )).toBe('250');
-    expect(formatResultOrParamNumber(
-      makeObject({ results: {}, params: { q_additional: 100 } }),
-      'q_additional',
-      0,
-    )).toBe('100');
-  });
-
-  it('форматирует справочные подписи', () => {
-    expect(tankShapeLabel('cylindrical')).toBe('Цилиндр');
-    expect(placementLabel('underground')).toBe('Подземно');
-    expect(lambdaModeLabel('reference')).toBe('Справ.');
-    expect(environmentLabel('aggressive')).toBe('Агрессивная');
-    expect(zoneLabel('hazardous')).toBe('Взрывоопасная');
-    expect(booleanChoiceLabel('yes')).toBe('Да');
-    expect(climateBasisLabel(0.92)).toBe('0,92');
-    expect(sourceText('manual')).toBe('вручную');
-    expect(sourceSuffix('climate')).toBe(' из климата');
-    expect(mmParam(makeObject({ params: { diameter: 0.325 } }), 'diameter')).toBe('325');
-    expect(countParamValue(makeObject({ params: { valve_count: 3 } }), 'valve_count')).toBe('3');
-    expect(toInputNumberValue('12.5')).toBe(12.5);
-    expect(toInputNumberValue('not a number')).toBeNull();
-  });
 });

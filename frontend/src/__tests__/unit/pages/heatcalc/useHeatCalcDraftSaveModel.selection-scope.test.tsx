@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars -- scenario split keeps shared preamble */
 import { useState } from 'react';
 import { act, renderHook } from '@testing-library/react';
 import { QueryClient } from '@tanstack/react-query';
@@ -170,151 +171,7 @@ function setupHook({
   };
 }
 
-describe('useHeatCalcDraftSaveModel', () => {
-  it('saves a persisted row, clears its draft, updates current query, and invalidates dependent data', async () => {
-    const source = makeObject();
-    const draft = draftFromInline(source, 'name', 'Труба saved');
-    const saved = makeObject({
-      id: source.id,
-      params: { ...source.params, name: 'Труба saved' },
-      version: 2,
-    });
-    const {
-      result,
-      notifySuccess,
-      objectQueryKey,
-      queryClient,
-      updateObjectRequest,
-      upsertNormalLoadedRow,
-    } = setupHook({
-      allProjectObjects: [source],
-      draftRowsById: makeDraftRows([draft]),
-      visibleTableObjects: [source],
-    });
-    updateObjectRequest.mockResolvedValue(saved);
-    queryClient.setQueryData(objectQueryKey, queryResponse([source]));
-    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
-
-    let saveResult: Awaited<ReturnType<typeof result.current.saveDraftRows>> | null = null;
-    await act(async () => {
-      saveResult = await result.current.saveDraftRows();
-    });
-
-    expect(saveResult).toEqual({ ok: true, saved: [saved] });
-    expect(updateObjectRequest).toHaveBeenCalledWith('project-1', source.id, {
-      version: 1,
-      params: expect.objectContaining({ name: 'Труба saved' }),
-    });
-    expect(result.current.draftRowsById).toEqual({});
-    expect((queryClient.getQueryData(objectQueryKey) as ProjectObjectsQueryResponse).items[0]).toEqual(saved);
-    expect(upsertNormalLoadedRow).toHaveBeenCalledWith(saved);
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['project', 'project-1', 'objects', 'query'] });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['project', 'project-1', 'objects', 'summary'] });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['spec', 'project-1'] });
-    expect(notifySuccess).toHaveBeenCalledWith('Сохранено строк: 1');
-  });
-
-  it('creates a new Excel row, removes the local row, and replaces it in the all-objects cache', async () => {
-    const localRow = makeObject({
-      id: 'new:pipe:0',
-      sort_order: 1,
-      version: 0,
-    }) as ExcelLocalProjectObject;
-    const draft = draftFromInline(localRow, 'name', 'Новая труба');
-    const saved = makeObject({
-      id: 'pipe-created',
-      params: { ...localRow.params, name: 'Новая труба' },
-      sort_order: 1,
-      version: 1,
-    });
-    const {
-      allProjectObjectsQueryKey,
-      createObjectRequest,
-      queryClient,
-      result,
-    } = setupHook({
-      allProjectObjects: [localRow],
-      draftRowsById: makeDraftRows([draft]),
-      excelLocalRows: [localRow],
-      visibleTableObjects: [makeObject({ id: 'pipe-existing' }), localRow],
-      projectObjectCount: 1,
-    });
-    createObjectRequest.mockResolvedValue(saved);
-    queryClient.setQueryData(allProjectObjectsQueryKey, [localRow]);
-
-    await act(async () => {
-      await result.current.saveDraftRows();
-    });
-
-    expect(createObjectRequest).toHaveBeenCalledWith('project-1', {
-      object_type: 'pipe',
-      params: expect.objectContaining({ name: 'Новая труба' }),
-      sort_order: 1,
-    });
-    expect(result.current.draftRowsById).toEqual({});
-    expect(result.current.excelLocalRows).toEqual([]);
-    expect(queryClient.getQueryData(allProjectObjectsQueryKey)).toEqual([saved]);
-  });
-
-  it('keeps an invalid draft row local and does not call create or update', async () => {
-    const source = makeObject();
-    const invalidDraft = draftFromInline(source, 'pipe_outer_diameter', 5);
-    const {
-      createObjectRequest,
-      notifyError,
-      result,
-      updateObjectRequest,
-    } = setupHook({
-      draftRowsById: makeDraftRows([invalidDraft]),
-      visibleTableObjects: [source],
-    });
-
-    let saveResult: Awaited<ReturnType<typeof result.current.saveDraftRows>> | null = null;
-    await act(async () => {
-      saveResult = await result.current.saveDraftRows();
-    });
-
-    expect(saveResult).toEqual({ ok: false, saved: [] });
-    expect(createObjectRequest).not.toHaveBeenCalled();
-    expect(updateObjectRequest).not.toHaveBeenCalled();
-    expect(result.current.draftRowsById[source.id].errors.outer_diameter_mm).toBe('Минимальное значение — 10.8');
-    expect(notifyError).toHaveBeenCalledWith('Исправьте ошибки в строках перед сохранением');
-  });
-
-  it('keeps failed rows with row errors while clearing successfully saved rows', async () => {
-    const first = makeObject({ id: 'pipe-1', sort_order: 0 });
-    const second = makeObject({ id: 'pipe-2', sort_order: 1 });
-    const firstDraft = draftFromInline(first, 'name', 'Первая saved');
-    const secondDraft = draftFromInline(second, 'name', 'Вторая failed');
-    const saved = makeObject({
-      id: first.id,
-      params: { ...first.params, name: 'Первая saved' },
-      version: 2,
-    });
-    const {
-      notifyError,
-      result,
-      updateObjectRequest,
-    } = setupHook({
-      draftRowsById: makeDraftRows([firstDraft, secondDraft]),
-      visibleTableObjects: [first, second],
-    });
-    updateObjectRequest.mockImplementation(async (_projectId, objectId) => {
-      if (objectId === first.id) return saved;
-      throw new Error('backend failed');
-    });
-
-    let saveResult: Awaited<ReturnType<typeof result.current.saveDraftRows>> | null = null;
-    await act(async () => {
-      saveResult = await result.current.saveDraftRows();
-    });
-
-    expect(saveResult).toEqual({ ok: false, saved: [saved] });
-    expect(result.current.draftRowsById[first.id]).toBeUndefined();
-    expect(result.current.draftRowsById[second.id].errors._row).toBe('backend failed');
-    expect(notifyError).toHaveBeenCalledWith('Часть строк не сохранена');
-  });
-
+describe('useHeatCalcDraftSaveModel — selected dirty rows', () => {
   it('targets only selected dirty rows when selectedRowKeys contain dirty rows', async () => {
     const first = makeObject({ id: 'pipe-1', sort_order: 0 });
     const second = makeObject({ id: 'pipe-2', sort_order: 1 });
@@ -342,4 +199,5 @@ describe('useHeatCalcDraftSaveModel', () => {
     expect(result.current.draftRowsById[first.id]).toBeDefined();
     expect(result.current.draftRowsById[second.id]).toBeUndefined();
   });
+
 });

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars -- scenario split keeps shared preamble */
 import type { ReactNode } from 'react';
 import { act, renderHook } from '@testing-library/react';
 import { Form } from 'antd';
@@ -101,7 +102,7 @@ function renderFormSync(
   };
 }
 
-describe('useObjectWizardFormSync', () => {
+describe('useObjectWizardFormSync — derived reference fields', () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -109,165 +110,6 @@ describe('useObjectWizardFormSync', () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
-  });
-
-  it('formAlreadyHasValues treats equivalent numeric form values as equal', () => {
-    const form = {
-      getFieldsValue: () => ({ outer_diameter_mm: 108, name: 'A' }),
-    } as unknown as FormInstance;
-
-    expect(formAlreadyHasValues(form, { outer_diameter_mm: 108, name: 'A' })).toBe(true);
-    expect(formAlreadyHasValues(form, { outer_diameter_mm: '108', name: 'A' })).toBe(true);
-    expect(formAlreadyHasValues(form, { outer_diameter_mm: 109, name: 'A' })).toBe(false);
-  });
-
-  it('clears required-field sync timer on unmount', () => {
-    const clearTimeoutSpy = vi.spyOn(window, 'clearTimeout');
-    const { result, unmount, getForm } = renderFormSync();
-
-    act(() => {
-      result.current.handleValuesChange({ placement: 'outdoor' });
-    });
-
-    // scheduleMissingRequiredFieldSync uses setTimeout(0); unmount must clear it.
-    const scheduledBeforeUnmount = clearTimeoutSpy.mock.calls.length;
-    unmount();
-    expect(clearTimeoutSpy.mock.calls.length).toBeGreaterThan(scheduledBeforeUnmount);
-    // form remains usable only as a detached instance; no throw expected
-    expect(getForm()).toBeTruthy();
-  });
-
-  it('applies calculation field errors on a zero-delay timer and clears them when empty', () => {
-    const { rerender, getForm } = renderFormSync({
-      calculationFieldErrors: {
-        // Non-required calc error keeps its message (required ones are re-synced to '').
-        pipe_length: { message: 'Диапазонная ошибка' },
-      },
-    });
-
-    act(() => {
-      vi.runOnlyPendingTimers();
-    });
-
-    expect(getForm().getFieldError('pipe_length')).toEqual(['Диапазонная ошибка']);
-
-    rerender({ calculationFieldErrors: {} });
-    act(() => {
-      vi.runOnlyPendingTimers();
-    });
-
-    expect(getForm().getFieldError('pipe_length')).toEqual([]);
-  });
-
-  it('tracks required calculation errors and re-syncs empty required fields via timeout', () => {
-    const { result, getForm } = renderFormSync({
-      calculationFieldErrors: {
-        pipe_length: { message: 'Не заполнено', required: true },
-      },
-    });
-
-    act(() => {
-      vi.runOnlyPendingTimers();
-    });
-
-    // Required re-sync replaces message with REQUIRED_FIELD_ERROR_MESSAGE ('').
-    expect(getForm().getFieldError('pipe_length')).toEqual(['']);
-
-    act(() => {
-      getForm().setFieldsValue({ pipe_length: 12 });
-      result.current.handleValuesChange({ pipe_length: 12 });
-    });
-    act(() => {
-      vi.runOnlyPendingTimers();
-    });
-
-    expect(getForm().getFieldError('pipe_length')).toEqual([]);
-  });
-
-  it('clears pending calculation-error timer when deps change before fire', () => {
-    const clearTimeoutSpy = vi.spyOn(window, 'clearTimeout');
-    const { rerender } = renderFormSync({
-      calculationFieldErrors: {
-        outer_diameter_mm: { message: 'required', required: true },
-      },
-    });
-
-    const clearedBefore = clearTimeoutSpy.mock.calls.length;
-    rerender({
-      calculationFieldErrors: {
-        pipe_length: { message: 'required', required: true },
-      },
-    });
-    expect(clearTimeoutSpy.mock.calls.length).toBeGreaterThan(clearedBefore);
-
-    act(() => {
-      vi.runOnlyPendingTimers();
-    });
-  });
-
-  it('suggests object name when name is empty and watched geometry is enough', () => {
-    const { rerender, getForm } = renderFormSync({
-      watchedValues: {
-        outer_diameter_mm: 108,
-        pipe_length: 25,
-        placement: 'outdoor',
-        process_temperature: 80,
-        ambient_temperature: -25,
-      },
-    });
-
-    act(() => {
-      vi.runOnlyPendingTimers();
-    });
-
-    // force re-run with same values after form is ready
-    rerender({
-      watchedValues: {
-        outer_diameter_mm: 108,
-        pipe_length: 25,
-        placement: 'outdoor',
-        process_temperature: 80,
-        ambient_temperature: -25,
-      },
-    });
-
-    act(() => {
-      vi.runOnlyPendingTimers();
-    });
-
-    const name = getForm().getFieldValue('name') as string | undefined;
-    // generatePipeName may return empty for incomplete shapes; when it succeeds name is set
-    if (name) {
-      expect(typeof name).toBe('string');
-      expect(name.length).toBeGreaterThan(0);
-    }
-  });
-
-  it('does not overwrite a user-edited name that differs from the last suggestion', () => {
-    const { result, rerender, getForm } = renderFormSync();
-
-    act(() => {
-      getForm().setFieldsValue({ name: 'Пользовательское имя' });
-    });
-
-    rerender({
-      watchedValues: {
-        outer_diameter_mm: 108,
-        pipe_length: 25,
-        placement: 'outdoor',
-      },
-    });
-
-    act(() => {
-      vi.runOnlyPendingTimers();
-    });
-
-    expect(getForm().getFieldValue('name')).toBe('Пользовательское имя');
-    // handleValuesChange remains callable after name protection
-    act(() => {
-      result.current.handleValuesChange({ ambient_temperature: 1 });
-    });
-    expect(getForm().getFieldValue('ambient_temperature_source')).toBe('manual');
   });
 
   it('syncs derived fields on values change (placement basis, climate clear, sources)', () => {
@@ -376,4 +218,5 @@ describe('useObjectWizardFormSync', () => {
 
     expect(getForm().getFieldValue('first_insulation_lambda')).toBe(0.045);
   });
+
 });

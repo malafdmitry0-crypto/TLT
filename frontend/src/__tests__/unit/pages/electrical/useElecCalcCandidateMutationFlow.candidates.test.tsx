@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars -- scenario split keeps shared preamble */
 import type { ReactNode } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -167,7 +168,7 @@ function setup(
   };
 }
 
-describe('useElecCalcCandidateMutationFlow', () => {
+describe('useElecCalcCandidateMutationFlow — create / apply candidates', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(createElectricalCandidate).mockResolvedValue({
@@ -278,122 +279,4 @@ describe('useElecCalcCandidateMutationFlow', () => {
     expect(message.error).toHaveBeenCalledWith('apply failed');
   });
 
-  it('creates, renames and deletes custom candidate folders without touching candidates', async () => {
-    const {
-      result,
-      rerender,
-      setActiveCandidateFolderKey,
-      closeCandidateFolderModal,
-    } = setup();
-
-    await act(async () => {
-      await result.current.createCandidateFolderMut.mutateAsync();
-    });
-
-    expect(createElectricalCandidateFolder).toHaveBeenCalledWith({
-      project_id: 'project-1',
-      object_id: 'object-1',
-      variant_number: 2,
-      electrical_variant_id: '22222222-2222-4222-8222-222222222222',
-      name: 'Новый набор',
-    });
-    expect(setActiveCandidateFolderKey).toHaveBeenCalledWith('custom:folder-1');
-    expect(closeCandidateFolderModal).toHaveBeenCalledTimes(1);
-
-    rerender();
-    await act(async () => {
-      await result.current.updateCandidateFolderMut.mutateAsync({
-        folderId: 'folder-1',
-        name: 'Переименовано',
-      });
-    });
-
-    expect(updateElectricalCandidateFolder).toHaveBeenCalledWith('folder-1', {
-      name: 'Переименовано',
-    });
-
-    const activeSetup = setup({ activeCandidateFolderKey: 'custom:folder-1' });
-    await act(async () => {
-      await activeSetup.result.current.deleteCandidateFolderMut.mutateAsync('folder-1');
-    });
-
-    expect(vi.mocked(deleteElectricalCandidateFolder).mock.calls[0]?.[0]).toBe('folder-1');
-    expect(activeSetup.setActiveCandidateFolderKey).toHaveBeenCalledWith('all');
-    expect(message.success).toHaveBeenCalledWith('Папка удалена');
-  });
-
-  it('submits folder modal and toggles folder membership through folder endpoints', async () => {
-    const { result } = setup({
-      candidateFolderModalMode: 'rename',
-      editingCandidateFolder: folder(),
-      candidateFolderName: '  Новое имя  ',
-    });
-
-    await act(async () => {
-      result.current.submitCandidateFolderModal();
-    });
-
-    await waitFor(() => {
-      expect(updateElectricalCandidateFolder).toHaveBeenCalledWith('folder-1', {
-        name: 'Новое имя',
-      });
-    });
-
-    await act(async () => {
-      await result.current.toggleCandidateFolderItemMut.mutateAsync({
-        folderId: 'folder-1',
-        candidateId: 'candidate-1',
-        checked: true,
-      });
-      await result.current.toggleCandidateFolderItemMut.mutateAsync({
-        folderId: 'folder-1',
-        candidateId: 'candidate-1',
-        checked: false,
-      });
-    });
-
-    expect(addElectricalCandidateToFolder).toHaveBeenCalledWith('folder-1', 'candidate-1');
-    expect(removeElectricalCandidateFromFolder).toHaveBeenCalledWith('folder-1', 'candidate-1');
-  });
-
-  it('rejects direct candidate and folder mutations when the project is read-only', async () => {
-    const { result } = setup({ canMutate: false });
-    const denied = 'Недостаточно прав для изменения вариантов подбора';
-
-    await act(async () => {
-      await expect(result.current.createCandidateMut.mutateAsync({ mode: 'auto' }))
-        .rejects.toThrow(denied);
-      await expect(result.current.updateCandidateMut.mutateAsync({
-        candidateId: 'candidate-1',
-        patch: { is_pinned: true },
-      })).rejects.toThrow(denied);
-      await expect(result.current.applyCandidateMut.mutateAsync('candidate-1'))
-        .rejects.toThrow(denied);
-      await expect(result.current.createCandidateFolderMut.mutateAsync())
-        .rejects.toThrow(denied);
-      await expect(result.current.updateCandidateFolderMut.mutateAsync({
-        folderId: 'folder-1',
-        name: 'Новое имя',
-      })).rejects.toThrow(denied);
-      await expect(result.current.deleteCandidateFolderMut.mutateAsync('folder-1'))
-        .rejects.toThrow(denied);
-      await expect(result.current.toggleCandidateFolderItemMut.mutateAsync({
-        folderId: 'folder-1',
-        candidateId: 'candidate-1',
-        checked: true,
-      })).rejects.toThrow(denied);
-    });
-
-    act(() => result.current.submitCandidateFolderModal());
-
-    expect(createElectricalCandidate).not.toHaveBeenCalled();
-    expect(updateElectricalCandidate).not.toHaveBeenCalled();
-    expect(applyElectricalCandidate).not.toHaveBeenCalled();
-    expect(createElectricalCandidateFolder).not.toHaveBeenCalled();
-    expect(updateElectricalCandidateFolder).not.toHaveBeenCalled();
-    expect(deleteElectricalCandidateFolder).not.toHaveBeenCalled();
-    expect(addElectricalCandidateToFolder).not.toHaveBeenCalled();
-    expect(removeElectricalCandidateFromFolder).not.toHaveBeenCalled();
-    expect(message.warning).toHaveBeenCalledWith(expect.stringContaining(denied));
-  });
 });

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars -- scenario split keeps shared preamble */
 /**
  * RISK-HEAT-CHAR-01 — high-level project isolation for HeatCalcPage.
  *
@@ -85,16 +86,14 @@ function listCallsAfter(
     .map((call) => call[0] as string);
 }
 
-describe('HeatCalcPage project isolation', () => {
+describe('HeatCalcPage project isolation — Excel mode isolation', () => {
   setupHeatCalcPageTest();
 
-  describe('normal mode', () => {
-    it('после A → B не показывает rows/selection/draft/pagination проекта A и ходит только в B', async () => {
-      const { listObjects, queryObjects } = await import('@/api/projects');
-      const { enqueueHeatLossBatchJob } = await import('@/api/calculations');
+    it('не смешивает project-scoped state при возврате из Excel в normal на проекте B', async () => {
+      useGlideExcelEngine();
       await enableSmallPageSize();
 
-      const projectAPipes = pipesForProject(PROJECT_A.id, [PIPE_A1_NAME, PIPE_A2_NAME, PIPE_A3_NAME]);
+      const projectAPipes = pipesForProject(PROJECT_A.id, [PIPE_A1_NAME]);
       const projectBPipes = pipesForProject(PROJECT_B.id, [PIPE_B1_NAME, PIPE_B2_NAME]);
       await installProjectScopedObjects({
         [PROJECT_A.id]: projectAPipes,
@@ -105,89 +104,42 @@ describe('HeatCalcPage project isolation', () => {
       const user = (await import('@testing-library/user-event')).default.setup();
       renderPage();
 
-      expect(await screen.findByText(PIPE_A1_NAME)).toBeInTheDocument();
-      expect(screen.getByText(PIPE_A2_NAME)).toBeInTheDocument();
-      expect(screen.queryByText(PIPE_A3_NAME)).not.toBeInTheDocument();
-
-      const table = getNormalGlideGrid();
-      fireEvent.click(within(table).getByRole('checkbox', { name: `Выбрать ${PIPE_A1_NAME}` }));
-      expect(within(table).getByRole('checkbox', { name: `Выбрать ${PIPE_A1_NAME}` })).toBeChecked();
-
-      await user.click(screen.getByText(PIPE_A1_NAME));
-      await waitFor(() => {
-        expect(screen.getByText('Режим: изменение')).toBeInTheDocument();
-      });
-      const lengthInput = await screen.findByTestId('pipe-length-input');
-      await user.clear(lengthInput);
-      await user.type(lengthInput, '42');
-      expect(await screen.findByText(/Несохранено:\s*1/)).toBeInTheDocument();
-
-      const nextPageButton = await screen.findByRole('button', { name: 'Следующая страница' });
-      await user.click(nextPageButton);
-      await waitFor(() => {
-        expect(screen.getByText(PIPE_A3_NAME)).toBeInTheDocument();
-      });
-      expect(screen.getByTestId('normal-glide-current-page')).toHaveTextContent('2');
-      expect(screen.getByText(PIPE_A1_NAME)).toBeInTheDocument();
-
-      const queryCallsBeforeSwitch = (queryObjects as ReturnType<typeof vi.fn>).mock.calls.length;
-      const listCallsBeforeSwitch = (listObjects as ReturnType<typeof vi.fn>).mock.calls.length;
+      await screen.findByText(PIPE_A1_NAME);
+      await user.click(screen.getByText('Excel-режим'));
+      const excelGrid = await screen.findByTestId('excel-glide-grid', {}, { timeout: HEATCALC_PAGE_TEST_TIMEOUT });
+      const rowA1 = (await within(excelGrid).findByText(PIPE_A1_NAME)).closest('tr');
+      expect(rowA1).toBeInstanceOf(HTMLElement);
+      await user.dblClick(within(rowA1 as HTMLElement).getByRole('button', { name: '60' }));
+      const editor = await within(rowA1 as HTMLElement).findByDisplayValue('60.0');
+      fireEvent.change(editor, { target: { value: '66' } });
+      fireEvent.keyDown(editor, { key: 'Enter' });
+      expect(await screen.findByText('Несохранено: 1')).toBeInTheDocument();
 
       await switchCurrentProject(PROJECT_B);
-
       await waitFor(() => {
         expect(screen.getByText(PIPE_B1_NAME)).toBeInTheDocument();
       });
+      expect(screen.getByText('Несохранено: 0')).toBeInTheDocument();
+      expect(screen.queryByText(/Несохранено:\s*[1-9]/)).not.toBeInTheDocument();
+
+      await user.click(screen.getByText('Обычный режим'));
+      await waitFor(() => {
+        expect(getNormalGlideGrid()).toBeInTheDocument();
+      });
+      expect(screen.getByText(PIPE_B1_NAME)).toBeInTheDocument();
       expect(screen.getByText(PIPE_B2_NAME)).toBeInTheDocument();
       expect(screen.queryByText(PIPE_A1_NAME)).not.toBeInTheDocument();
-      expect(screen.queryByText(PIPE_A2_NAME)).not.toBeInTheDocument();
-      expect(screen.queryByText(PIPE_A3_NAME)).not.toBeInTheDocument();
-
-      const tableAfter = getNormalGlideGrid();
-      const checkboxes = within(tableAfter).getAllByRole('checkbox');
-      expect(checkboxes.length).toBeGreaterThan(0);
-      for (const checkbox of checkboxes) {
-        expect(checkbox).not.toBeChecked();
-      }
+      // Leaving Excel mode hides draft chrome when no dirty rows remain.
       expect(screen.queryByText(/Несохранено:/)).not.toBeInTheDocument();
       expect(document.querySelector('.row-dirty')).not.toBeInTheDocument();
       expect(document.querySelector('.row-excel-dirty')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('normal-glide-current-page')).not.toBeInTheDocument();
-      expect(getNormalGlideRows().map((row) => row.getAttribute('data-row-key'))).toEqual(
-        projectBPipes.map((pipe) => pipe.id),
-      );
 
-      const queriesAfterSwitch = queryCallsAfter(
-        queryObjects as ReturnType<typeof vi.fn>,
-        queryCallsBeforeSwitch,
-      );
-      expect(queriesAfterSwitch.length).toBeGreaterThan(0);
-      for (const [projectId, payload] of queriesAfterSwitch) {
-        expect(projectId).toBe(PROJECT_B.id);
-        expect(payload.page ?? 1).toBe(1);
+      const table = getNormalGlideGrid();
+      for (const checkbox of within(table).getAllByRole('checkbox')) {
+        expect(checkbox).not.toBeChecked();
       }
-
-      const listsAfterSwitch = listCallsAfter(
-        listObjects as ReturnType<typeof vi.fn>,
-        listCallsBeforeSwitch,
-      );
-      for (const projectId of listsAfterSwitch) {
-        expect(projectId).toBe(PROJECT_B.id);
-      }
-
-      await user.click(screen.getByRole('button', { name: 'Пересчитать все' }));
-      await waitFor(() => {
-        expect(enqueueHeatLossBatchJob).toHaveBeenCalledWith(PROJECT_B.id, true, undefined);
-      });
-      expect(enqueueHeatLossBatchJob).not.toHaveBeenCalledWith(
-        PROJECT_A.id,
-        expect.anything(),
-        expect.anything(),
-      );
     }, HEATCALC_PAGE_TEST_TIMEOUT);
-  });
 
-  describe('Excel mode', () => {
     it('после A → B не переносит dirty draft, selection/active cell и rows проекта A', async () => {
       useGlideExcelEngine();
       const { listObjects, queryObjects, updateObject } = await import('@/api/projects');
@@ -308,89 +260,4 @@ describe('HeatCalcPage project isolation', () => {
       );
     }, HEATCALC_PAGE_TEST_TIMEOUT);
 
-    it('не смешивает project-scoped state при возврате из Excel в normal на проекте B', async () => {
-      useGlideExcelEngine();
-      await enableSmallPageSize();
-
-      const projectAPipes = pipesForProject(PROJECT_A.id, [PIPE_A1_NAME]);
-      const projectBPipes = pipesForProject(PROJECT_B.id, [PIPE_B1_NAME, PIPE_B2_NAME]);
-      await installProjectScopedObjects({
-        [PROJECT_A.id]: projectAPipes,
-        [PROJECT_B.id]: projectBPipes,
-      });
-
-      useProjectStore.getState().setCurrentProject(PROJECT_A);
-      const user = (await import('@testing-library/user-event')).default.setup();
-      renderPage();
-
-      await screen.findByText(PIPE_A1_NAME);
-      await user.click(screen.getByText('Excel-режим'));
-      const excelGrid = await screen.findByTestId('excel-glide-grid', {}, { timeout: HEATCALC_PAGE_TEST_TIMEOUT });
-      const rowA1 = (await within(excelGrid).findByText(PIPE_A1_NAME)).closest('tr');
-      expect(rowA1).toBeInstanceOf(HTMLElement);
-      await user.dblClick(within(rowA1 as HTMLElement).getByRole('button', { name: '60' }));
-      const editor = await within(rowA1 as HTMLElement).findByDisplayValue('60.0');
-      fireEvent.change(editor, { target: { value: '66' } });
-      fireEvent.keyDown(editor, { key: 'Enter' });
-      expect(await screen.findByText('Несохранено: 1')).toBeInTheDocument();
-
-      await switchCurrentProject(PROJECT_B);
-      await waitFor(() => {
-        expect(screen.getByText(PIPE_B1_NAME)).toBeInTheDocument();
-      });
-      expect(screen.getByText('Несохранено: 0')).toBeInTheDocument();
-      expect(screen.queryByText(/Несохранено:\s*[1-9]/)).not.toBeInTheDocument();
-
-      await user.click(screen.getByText('Обычный режим'));
-      await waitFor(() => {
-        expect(getNormalGlideGrid()).toBeInTheDocument();
-      });
-      expect(screen.getByText(PIPE_B1_NAME)).toBeInTheDocument();
-      expect(screen.getByText(PIPE_B2_NAME)).toBeInTheDocument();
-      expect(screen.queryByText(PIPE_A1_NAME)).not.toBeInTheDocument();
-      // Leaving Excel mode hides draft chrome when no dirty rows remain.
-      expect(screen.queryByText(/Несохранено:/)).not.toBeInTheDocument();
-      expect(document.querySelector('.row-dirty')).not.toBeInTheDocument();
-      expect(document.querySelector('.row-excel-dirty')).not.toBeInTheDocument();
-
-      const table = getNormalGlideGrid();
-      for (const checkbox of within(table).getAllByRole('checkbox')) {
-        expect(checkbox).not.toBeChecked();
-      }
-    }, HEATCALC_PAGE_TEST_TIMEOUT);
-  });
-
-  describe('selection pruning vs shared ids', () => {
-    it('не оставляет checkbox-selection проекта A после перехода на B', async () => {
-      await enableSmallPageSize();
-      const projectAPipes = pipesForProject(PROJECT_A.id, [PIPE_A1_NAME, PIPE_A2_NAME]);
-      const projectBPipes = pipesForProject(PROJECT_B.id, [PIPE_B1_NAME, PIPE_B2_NAME]);
-      await installProjectScopedObjects({
-        [PROJECT_A.id]: projectAPipes,
-        [PROJECT_B.id]: projectBPipes,
-      });
-
-      useProjectStore.getState().setCurrentProject(PROJECT_A);
-      renderPage();
-
-      const table = getNormalGlideGrid();
-      await screen.findByText(PIPE_A1_NAME);
-      fireEvent.click(within(table).getByRole('checkbox', { name: `Выбрать ${PIPE_A1_NAME}` }));
-      fireEvent.click(within(table).getByRole('checkbox', { name: `Выбрать ${PIPE_A2_NAME}` }));
-      expect(screen.getByRole('button', { name: /Пересчитать теплопотери выбранных строк \(2\)/i }))
-        .toBeInTheDocument();
-
-      await switchCurrentProject(PROJECT_B);
-      await waitFor(() => {
-        expect(screen.getByText(PIPE_B1_NAME)).toBeInTheDocument();
-      });
-
-      expect(screen.queryByRole('button', { name: /Пересчитать теплопотери выбранных строк/i }))
-        .not.toBeInTheDocument();
-      const tableAfter = getNormalGlideGrid();
-      for (const checkbox of within(tableAfter).getAllByRole('checkbox')) {
-        expect(checkbox).not.toBeChecked();
-      }
-    }, HEATCALC_PAGE_TEST_TIMEOUT);
-  });
 });
