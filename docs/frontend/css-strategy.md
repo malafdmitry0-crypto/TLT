@@ -217,8 +217,10 @@ CSS custom properties не используются внутри media query.
 [ui-kit.md](./ui-kit.md). Этот раздел владеет только CSS-механикой и не
 дублирует public API UI-kit или viewport-матрицу.
 
-Для нового или изменяемого form layout:
+Для нового или изменяемого form layout (норматив также в [ui-kit.md](./ui-kit.md)):
 
+- **MUST** use `CompactFieldGrid` (via `@/components/ui-kit`) for form field
+  matrices; this is not a mandate to use CSS Grid for toolbars/shell/tables;
 - grid/flex owner — секция или form root, а не отдельный domain field;
 - DOM-порядок остаётся источником visual и keyboard order;
 - business field class нельзя использовать для `grid-row`, `grid-column`,

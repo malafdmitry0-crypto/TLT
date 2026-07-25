@@ -1,8 +1,9 @@
 # UI Kit и контракт раскладки форм
 
-**Актуально на:** 2026-07-25
+**Актуально на:** 2026-07-26
 
-**Статус:** архитектурная политика UI-kit и новых/изменяемых form layouts.
+**Статус:** **норматив** form layout + архитектурная политика UI-kit.
+Не путать с «весь UI только на CSS Grid» — см. MUST / MUST NOT ниже.
 
 ## Desktop-only product contract (AF12)
 
@@ -44,9 +45,33 @@ Heat/Electrical/Specification workflow и не превращает feature-фо
 
 ## Контракт раскладки форм
 
-Контракт ниже обязателен для нового form layout и для legacy-секции, которую
-изменяют или мигрируют. Он является целевым направлением, а не утверждением, что
-каждая существующая форма уже ему соответствует.
+Контракт ниже **обязателен** для:
+
+1. **нового** form layout;
+2. **изменяемой** legacy form-секции (strangler: migrate touched section only).
+
+Это **не** утверждение, что каждая существующая форма уже соответствует
+контракту. Массовая миграция Heat/Electrical/Specification одним slice
+запрещена.
+
+### MUST / MUST NOT / MAY
+
+| | Правило |
+|---|---|
+| **MUST** | Новый form layout → `CompactField` + `CompactFieldGrid` (import only via `@/components/ui-kit`). |
+| **MUST** | Layout coordinates (`grid-template`, gaps, reflow, column counts) — на **section / grid root** owner CSS, не на domain field BEM classes. |
+| **MUST** | При migrate секции: удалить заменённый coordinate/layout path в том же slice; dual active path запрещён. |
+| **MUST** | DOM-порядок = visual order = keyboard tab order (см. инварианты ниже). |
+| **MUST NOT** | Объявлять обязательным `display: grid` для toolbar, app shell, Glide/spreadsheet, lists. |
+| **MUST NOT** | Второй form kit (Ant `Row`/`Col` как form system, schema-form DSL, custom grid-kit рядом с CompactField). |
+| **MUST NOT** | `grid-row` / `grid-column` / `order` / absolute placement на **business field** classes как постоянная архитектура. |
+| **MUST NOT** | Mobile / viewports &lt;1000 px «заодно» с form-grid slice. |
+| **MAY** | Flex + gap для toolbars, action bars, simple stacks. |
+| **MAY** | Spreadsheet/Glide и shell chrome — собственные layout models. |
+| **MAY** | Extension primitive только если CompactFieldGrid proven insufficient (см. «Нужен ли Layout Kit»). |
+
+**Reference adoption (already on HEAD):** `HeatCalcObjectFieldsPanel` (three
+slots via `CompactFieldGrid` + `antFormAdapter`); UI Kit showcase forms.
 
 ### Ownership
 
@@ -146,4 +171,19 @@ state-driven Playwright proof.
 - перенос feature validation, API mapping или state в UI-kit;
 - массовую миграцию Heat, Electrical и Specification одним slice;
 - общий layout primitive, доказанный только одним экраном;
-- объявлять legacy layout соответствующим этому контракту без browser proof.
+- объявлять legacy layout соответствующим этому контракту без browser proof;
+- «весь frontend только CSS Grid» как product/architecture mandate;
+- field-by-field coordinate maps (permanent `grid-area` / climate-style field
+  coords) вместо section grid.
+
+## SAFE NEXT (migrate slices — only by user goal)
+
+Один owner / одна section за запуск, characterization first, PR budget:
+
+1. Remaining Heat wizard / side-form islands still on legacy form-grid-srs coords
+2. Electrical dense form islands (if any touch planned)
+3. Specification form sections on touch
+4. Optional narrow architecture guard (separate slice) — not required for docs
+
+Исполняемый prompt: [prompts/form-grid-contract.md](./prompts/form-grid-contract.md)
+(если файл есть) или task `FORM-GRID-CONTRACT-01` Phase 2.

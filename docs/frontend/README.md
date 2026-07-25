@@ -45,7 +45,7 @@ frontend-очередь. Сейчас backlog: **EMPTY QUEUE**.
 
 | Документ | О чём |
 |---|---|
-| [UI-kit](./ui-kit.md) | Границы design system и контракт раскладки форм |
+| [UI-kit](./ui-kit.md) | Design system + **MUST** CompactFieldGrid for new/touched forms |
 | [Ant UI Kit — стратегия](./ant-ui-kit-strategy.md) | Ant как внутренняя основа Tlt-фасада |
 | [CSS-стратегия](./css-strategy.md) | Ownership, cascade, selectors и CSS-механика layout |
 | [Desktop viewport policy](./viewport-policy.md) | `1000` functional, `1280` full workspace, `1440` primary QA |
