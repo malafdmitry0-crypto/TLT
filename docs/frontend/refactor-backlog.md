@@ -7,9 +7,9 @@
 pending» (dense production 400-band + heavy test contexts) must be real
 `pending`, not EMPTY QUEUE cosmetics.  
 **Inventory at open:** **22** files in **400–445** LOC (production).  
-**Last closed production:** P-BAND-18 useHeatCalcObjectsDataModel (see table)
+**Last closed production:** P-BAND-19 InsulationLayersTable (see table)
 
-**Следующий незакрытый контракт:** `P-BAND-19`
+**Следующий незакрытый контракт:** `P-BAND-21`
 
 Это **единственный** источник текущего `pending` для frontend. Одновременно
 может существовать только одна ACTIVE frontend-очередь. Initiative plans,
@@ -89,7 +89,7 @@ util/domain/api/types).
 | 16 | **P-BAND-16** | **done** `5040267` | electrical | `ElectricalCandidateColumnSettingsModal.tsx` **409→239** | [audit](../audit/2026-07-26-p-band-16-candidate-settings/snapshot.md) |
 | 17 | **P-BAND-17** | **done** `61ef37f` | heat | `useObjectWizardFormSync.ts` **407→310** | [audit](../audit/2026-07-26-p-band-17-form-sync/snapshot.md) |
 | 18 | **P-BAND-18** | **done** `8d3afae` | heat | `useHeatCalcObjectsDataModel.ts` **406→389** | [audit](../audit/2026-07-26-p-band-18-objects-data/snapshot.md) |
-| 19 | P-BAND-19 | pending | heat | `components/wizard/InsulationLayersTable.tsx` (~406) | row/editor subcomponents |
+| 19 | **P-BAND-19** | **done** `ec34232` | heat | `InsulationLayersTable.tsx` **406→246** | [audit](../audit/2026-07-26-p-band-19-insulation-layers/snapshot.md) |
 | 20 | **P-BAND-20** | **done** `a156bf0` | electrical | `utils/electricalTableColumns.ts` **405→387** | [audit](../audit/2026-07-26-p-band-20-electrical-columns/snapshot.md) |
 | 21 | P-BAND-21 | pending | heat | `pages/heatcalc/useHeatCalcWorkspaceDataModel.ts` (~405) | workspace pure helpers |
 | 22 | P-BAND-22 | pending | specification | `pages/specification/useSpecificationPageModel.ts` (~403) | model sub-hooks |
