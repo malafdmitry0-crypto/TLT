@@ -1,48 +1,31 @@
 # Frontend refactor backlog
 
-**Статус:** EMPTY QUEUE (after P5–P9 corrective)
+**Статус:** ACTIVE
 
-**Актуально на:** 2026-07-25  
-**BASE (contested close):** `6a303f8`  
-**Corrective branch:** `p59-corrective-closure`  
-**Closure audit:** [p59-corrective-closure](../audit/2026-07-25-p59-corrective-closure/snapshot.md)
+**Актуально на:** 2026-07-26  
+**Queue open reason:** explicit user goal — residual «optional residual, not
+pending» (dense production 400-band + heavy test contexts) must be real
+`pending`, not EMPTY QUEUE cosmetics.  
+**Inventory at open:** **22** files in **400–445** LOC (production).  
+**Last closed production:** `P-BAND-01` @ `6cf5007`
 
-**Следующий незакрытый контракт:** —
+**Следующий незакрытый контракт:** `P-BAND-02`
 
 Это **единственный** источник текущего `pending` для frontend. Одновременно
-может существовать только одна ACTIVE frontend-очередь (когда pending есть).
-Initiative plans, archive summaries и audit snapshots **не** маршрутизируют
-`pending` и не объявляют `COMPLETE` при непустом backlog.
+может существовать только одна ACTIVE frontend-очередь. Initiative plans,
+archive summaries и audit snapshots **не** маршрутизируют `pending` и не
+объявляют `COMPLETE` при непустом backlog.
 
-Очереди RISK / AF10–AF12 и corrective P5–P9 **закрыты** как ACTIVE work. Длинные
-Done narratives — в
+Очереди RISK / AF10–AF12 и corrective P5–P9 **закрыты** как historical work.
+Длинные Done narratives — в
 [archive/risk-recovery-and-p-series-historical.md](./archive/risk-recovery-and-p-series-historical.md)
 и [archive/af12-historical.md](./archive/af12-historical.md).
-
-### P5–P9 corrective (review response) — done
-
-EMPTY QUEUE after `6a303f8` was **premature**. Corrective on isolated
-`p59-corrective-closure` worktree:
-
-- [x] **P7-CORRECTIVE** — all **25** band files classified  
-  [audit](../audit/2026-07-25-p7-stateful-owner-inventory/snapshot.md)
-- [x] **P8-CORRECTIVE** — pre-extract char baseline `b20f022` (400 LOC)  
-  [audit](../audit/2026-07-25-p8-stateful-owner-char/snapshot.md)
-- [x] **P9-CORRECTIVE** — owner **401→369** + `heatCalcExcelSelectionGestures.ts`  
-  [audit](../audit/2026-07-25-p9-stateful-owner-extract/snapshot.md)
-- [x] **P59-CORRECTIVE-CLOSE-01** — `test:agent-dod` **×2 PASS** (~151s / ~150s);
-  ReportPage + cable-meta harden; populated desktop browser PASS;
-  Excel UI **BLOCKED** by commercial flag (documented)
-
-### Residual (not pending)
-
-- Excel-selection live UI when `VITE_COMMERCIAL_FEATURES_ENABLED=true` on served build.
-- Optional dual concurrent DoD re-proof.
 
 Постоянные правила: [стандарт](./agent-development-standard.md).  
 Размер slice: [PR budget](./pr-budget.md).  
 Исполняемый шаблон: [мастер-промпт](./agent-refactor-prompt.md).  
-Viewport / UI Kit: [viewport-policy](./viewport-policy.md), [ui-kit](./ui-kit.md).
+Viewport / UI Kit: [viewport-policy](./viewport-policy.md), [ui-kit](./ui-kit.md).  
+Test split template: [split-large-tests-by-scenario](./prompts/split-large-tests-by-scenario.md).
 
 ## Правила очереди
 
@@ -54,6 +37,124 @@ Viewport / UI Kit: [viewport-policy](./viewport-policy.md), [ui-kit](./ui-kit.md
 - Новый пункт — только по явной цели пользователя.
 - Норматив хранит правила; счётчики — только в `docs/audit/YYYY-MM-DD-*/`.
 - Не объявляй инициативу завершённой, пока в этом файле есть pending.
+- Extract: behavior-preserving; characterization first for stateful owners;
+  after owner **≤399 LOC**; no multi-owner cascade in one slice.
+
+## Motivation (why this queue is ACTIVE)
+
+После P5–P9 corrective backlog wrongly stayed **EMPTY QUEUE** while:
+
+1. **22** production files still sit in the dense **400–445** LOC band
+   (agent open cost + extract debt).
+2. Heavy test contexts remain after partial scenario splits (integration /
+   unit / e2e / harness open paths).
+
+That residual was filed as «optional residual, not pending». User goal
+overrides that: **these items are pending**.
+
+Prior inventories / waves (evidence only, not queue authority):
+
+- [P7 band classification](../audit/2026-07-25-p7-stateful-owner-inventory/snapshot.md)
+- [Agent-friendliness residuals](../audit/2026-07-25-agent-friendliness-residuals/snapshot.md)
+- [Heavy test files](../audit/2026-07-26-heavy-test-files/snapshot.md)
+- [Five residual fixes (partial)](../audit/2026-07-26-agent-friendliness-five-fixes/snapshot.md)
+
+---
+
+## Pending — Track A: production 400-band extracts
+
+**Goal:** leave the 400–445 production band empty (or only newly grown files
+re-inventoried later). One file per slice. Recompute LOC at start of each slice.
+
+Order = risk first (stateful hooks/pages → interactive components → pure
+util/domain/api/types).
+
+| # | ID | Status | Owner | Path (approx LOC at queue open) | Extract hint |
+|---:|---|---|---|---|---|
+| 1 | **P-BAND-01** | **done** `6cf5007` | heat | `useHeatCalcPreferences.ts` **445→323** | model + server-sync extract; [audit](../audit/2026-07-25-p-band-01-prefs/snapshot.md) |
+| 2 | **P-BAND-02** | **pending** | admin | `pages/admin/DatabasePage.tsx` (~444) | table/sections vs page shell |
+| 3 | P-BAND-03 | pending | electrical | `pages/electrical/useElecCalcElectricalColumnRenderers.tsx` (~443) | renderer map modules |
+| 4 | P-BAND-04 | pending | heat | `utils/heatCalcInlineEdit.ts` (~442) | pure edit helpers |
+| 5 | P-BAND-05 | pending | electrical | `utils/electricalCandidateTableColumnsCore.ts` (~437) | column groups |
+| 6 | P-BAND-06 | pending | electrical | `components/electrical/ElectricalCandidateGlideGrid.tsx` (~430) | grid chrome vs data adapter |
+| 7 | P-BAND-07 | pending | heat | `components/heatcalc/HeatCalcGlideGrid.tsx` (~429) | grid chrome vs data adapter |
+| 8 | P-BAND-08 | pending | shared | `api/calculations.ts` (~428) | endpoint groups / mappers |
+| 9 | P-BAND-09 | pending | heat | `utils/heatCalcExcelMode.ts` (~427) | pure mode helpers |
+| 10 | P-BAND-10 | pending | heat | `pages/heatcalc/heatCalcColumnRenderers.tsx` (~423) | renderer clusters |
+| 11 | P-BAND-11 | pending | shared | `types/calculation.ts` (~413) | type modules by domain |
+| 12 | P-BAND-12 | pending | heat | `domain/heatCalcFieldRules.ts` (~412) | rule tables by field group |
+| 13 | P-BAND-13 | pending | heat | `hooks/useHeatCalcNormalGlideController.ts` (~412) | pure controller helpers |
+| 14 | P-BAND-14 | pending | heat | `hooks/useHeatCalcTableColumns.tsx` (~411) | column factory modules |
+| 15 | P-BAND-15 | pending | reports | `pages/ReportWizardPage.tsx` (~409) | step components |
+| 16 | P-BAND-16 | pending | electrical | `components/electrical/ElectricalCandidateColumnSettingsModal.tsx` (~409) | settings sections |
+| 17 | P-BAND-17 | pending | heat | `components/wizard/useObjectWizardFormSync.ts` (~407) | pure sync mappers |
+| 18 | P-BAND-18 | pending | heat | `pages/heatcalc/useHeatCalcObjectsDataModel.ts` (~406) | query/filter clusters |
+| 19 | P-BAND-19 | pending | heat | `components/wizard/InsulationLayersTable.tsx` (~406) | row/editor subcomponents |
+| 20 | P-BAND-20 | pending | electrical | `utils/electricalTableColumns.ts` (~405) | column groups |
+| 21 | P-BAND-21 | pending | heat | `pages/heatcalc/useHeatCalcWorkspaceDataModel.ts` (~405) | workspace pure helpers |
+| 22 | P-BAND-22 | pending | specification | `pages/specification/useSpecificationPageModel.ts` (~403) | model sub-hooks |
+
+**Acceptance per P-BAND-NN:**
+
+1. Single owner; ≤ budget from `pr-budget.md`.
+2. Characterization for stateful/interactive before extract.
+3. Owner file **≤399 LOC** after; extracted modules named by use-case.
+4. Focused tests green; `test:agent-dod` if runtime/tests touched.
+5. Audit note under `docs/audit/YYYY-MM-DD-p-band-NN-*/snapshot.md` with
+   before/after LOC + HEAD.
+6. Mark this row `done` in the same docs closure commit.
+
+If a file is already ≤399 after recompute (another slice shrunk it), mark
+done with evidence and take next pending — do not invent extra extract.
+
+---
+
+## Pending — Track B: heavy test contexts
+
+**Goal:** reduce agent open cost for large suites/harnesses still above
+comfortable scenario size. Prefer scenario split for suites; helpers extract
+for ratchets/harnesses (do **not** fake scenario-split a machine gate).
+
+Template: [split-large-tests-by-scenario](./prompts/split-large-tests-by-scenario.md).
+
+| # | ID | Status | Owner | Path (approx LOC at queue open) | Action |
+|---:|---|---|---|---|---|
+| 1 | **P-TEST-01** | pending | qa | `integration/…/ElecCalcPage.catalog-recalc.test.tsx` (~509) | scenario split |
+| 2 | P-TEST-02 | pending | qa | `unit/pages/HeatCalcPage.basics.test.tsx` (~507) | scenario sub-clusters |
+| 3 | P-TEST-03 | pending | qa | `integration/pages/ReportPage.test.tsx` (~481) | scenario split |
+| 4 | P-TEST-04 | pending | architecture | `unit/architecture/inlineStyleRatchet.architecture.test.ts` (~582) | helpers extract (keep gate cohesive) |
+| 5 | P-TEST-05 | pending | qa | `integration/…/elecCalcPageTestEnv.tsx` (~676 harness) | thin env barrel / pure fixtures (no scenario fiction) |
+| 6 | P-TEST-06 | pending | qa | `unit/pages/HeatCalcPage.test-mocks.tsx` (~643) | further mock clusters if open-cost still high |
+| 7 | P-TEST-07 | pending | qa | e2e `electrical-candidate-selection.spec.ts` (~667) | journey split |
+| 8 | P-TEST-08 | pending | qa | e2e `inline-form-dependencies.spec.ts` (~643) | journey split |
+
+**Order:** complete **Track A first** (production band), then Track B in table
+order — unless the user names a specific test slice.
+
+**Acceptance per P-TEST-NN:** same `it` titles/asserts; monolit removed or
+thinned; focused green; no production change unless fixing test-only import
+path; audit snapshot with before/after LOC.
+
+Already done (do not re-open as monolit): HeatCalcNormalGlideGrid, ObjectWizard,
+variant selection/tabs, objects data model, candidates, cable-meta, table-batch,
+headers-scroll, cssArchitectureRatchet helpers, HeatCalcPage.test-utils barrel.
+See [heavy-test audit](../audit/2026-07-26-heavy-test-files/snapshot.md) +
+[five-fixes](../audit/2026-07-26-agent-friendliness-five-fixes/snapshot.md).
+
+---
+
+## Process notes (not pending unless user promotes)
+
+These are product/ops targets, **not** a second queue and **not** a reason to
+claim EMPTY QUEUE while Track A/B are open:
+
+- DoD wall ≤120s — often unreachable on this host (integration alone can exceed
+  120s); dual DoD path exists (`test:agent-dod:dual` / `dual-safe`).
+- Deep browser blocked rows (wizard Add, elec system tabs seed) — environment /
+  seed, not extract debt.
+- Excel live UI source ungated (2026-07-26); served build must match source.
+
+---
 
 ## Done index (short)
 
@@ -66,31 +167,30 @@ Viewport / UI Kit: [viewport-policy](./viewport-policy.md), [ui-kit](./ui-kit.md
 | AF12 + UI Kit | [archive/af12-historical.md](./archive/af12-historical.md) |
 | Ant rollout A–D | [archive/ant-ui-kit-rollout-historical.md](./archive/ant-ui-kit-rollout-historical.md) |
 | Meaningful CSS policy | [archive/meaningful-css-historical.md](./archive/meaningful-css-historical.md) + [css-strategy.md](./css-strategy.md) |
+| P5–P9 corrective | [p59-corrective-closure](../audit/2026-07-25-p59-corrective-closure/snapshot.md) |
+| Heavy-test wave + five residuals | [heavy-test](../audit/2026-07-26-heavy-test-files/snapshot.md), [five-fixes](../audit/2026-07-26-agent-friendliness-five-fixes/snapshot.md) |
+
+### Corrective P5–P9 (closed)
+
+- [x] **P7-CORRECTIVE** — all band files classified  
+  [audit](../audit/2026-07-25-p7-stateful-owner-inventory/snapshot.md)
+- [x] **P8-CORRECTIVE** — pre-extract char baseline  
+  [audit](../audit/2026-07-25-p8-stateful-owner-char/snapshot.md)
+- [x] **P9-CORRECTIVE** — excel selection gestures extract  
+  [audit](../audit/2026-07-25-p9-stateful-owner-extract/snapshot.md)
+- [x] **P59-CORRECTIVE-CLOSE-01** — DoD + browser evidence  
+  [audit](../audit/2026-07-25-p59-corrective-closure/snapshot.md)
 
 Representative audits: [P0](../audit/2026-07-24-p0-doc-truth/snapshot.md),
 [RISK PASS](../audit/2026-07-25-frontend-risk-recovery/snapshot.md),
-[AF12 UI Kit](../audit/2026-07-25-af12-uikit-agent-friendly/snapshot.md),
-[docs cleanup](../audit/2026-07-25-frontend-docs-cleanup/snapshot.md).
-
-## Optional residual risk (not pending)
-
-Честные остатки; **не** делают очередь ACTIVE. Открыть slice — только user goal.
-Progress 2026-07-25: [agent-friendliness residuals audit](../audit/2026-07-25-agent-friendliness-residuals/snapshot.md).
-
-1. Dual both-green: **PASS** via `npm run test:agent-dod:dual` (~272s each, workers=2).
-2. DoD median wall ≤120 s (single ~136 s — still open).
-3. Deep browser blocked rows: wizard Add, Excel commercial flag, elec system tabs.
-4. Further large-test / ratchet context splits (ObjectWizard **done**; ratchet optional).
-5. Further 400–445 production extracts (FormulaDisplays + field registry types **done**).
-
-Подробнее: [archive/af12-historical.md](./archive/af12-historical.md).
+[AF12 UI Kit](../audit/2026-07-25-af12-uikit-agent-friendly/snapshot.md).
 
 ## Closure rule
 
-После закрытия последнего pending:
+После закрытия **последнего** pending (Track A **and** Track B):
 
 1. статус **EMPTY QUEUE**, next=—;
 2. evidence остаётся в archive/audit (не вторая очередь);
 3. новый point-in-time audit при необходимости;
-4. residual risk table может оставаться для честности, но не активирует очередь;
+4. process notes may remain for honesty, but do not activate the queue alone;
 5. новый `pending` — только по явной user goal (один owner, один slice).

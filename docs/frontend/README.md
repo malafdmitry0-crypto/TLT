@@ -1,14 +1,15 @@
 # Frontend TLT: разработка с coding agents
 
-**Актуально на:** 2026-07-25
+**Актуально на:** 2026-07-26
 
 **Статус:** навигатор; общий норматив находится в стандарте, детали — у
 тематических владельцев.
 
 Frontend имеет thin page shells, UI-kit, CSS freeze, architecture ratchets и
-agent gates. Residual work (если появится) и точный следующий контракт
-находятся **только** в backlog. Одновременно допускается только одна ACTIVE
-frontend-очередь. Сейчас backlog: **EMPTY QUEUE**.
+agent gates. Residual work и точный следующий контракт находятся **только** в
+backlog. Одновременно допускается только одна ACTIVE frontend-очередь. Сейчас
+backlog: **ACTIVE** (Track A: production 400-band extracts; Track B: heavy
+test contexts). Next: `P-BAND-02`.
 
 ## Начать здесь
 
@@ -61,7 +62,7 @@ frontend-очередь. Сейчас backlog: **EMPTY QUEUE**.
 
 | Документ | Назначение |
 |---|---|
-| [Split large tests by scenario](./prompts/split-large-tests-by-scenario.md) | Optional qa residual (ObjectWizard monolit) |
+| [Split large tests by scenario](./prompts/split-large-tests-by-scenario.md) | Template for backlog Track B (`P-TEST-*`) |
 
 Closed AF10–AF12 / meaningful-css / Ant rollout prompt dumps live only under
 [archive/](./archive/README.md) and git history.

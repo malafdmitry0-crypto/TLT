@@ -1,8 +1,9 @@
 # Промпт: разделить крупные test-файлы по пользовательским сценариям
 
-**Статус:** OPTIONAL residual template (qa) — не ACTIVE queue  
-**Актуально на:** 2026-07-25  
+**Статус:** template for backlog Track B (`P-TEST-*`)  
+**Актуально на:** 2026-07-26  
 **Pending authority:** только [refactor-backlog.md](../refactor-backlog.md)
+(Track B after Track A unless user names a test slice).
 
 ## Done
 
@@ -13,17 +14,21 @@
   - `ElectricalVariantTabs` → render-nav / create-rename / delete-limits-feedback / readiness-errors
   - `useHeatCalcObjectsDataModel` → query-scope / rows-enums / load-state
   - `ElecCalcPage.candidates` → auto-recalc / display / folders
+- **2026-07-26 five-fixes wave:** cable-meta, table-batch, headers-scroll,
+  cssArchitectureRatchet helpers, HeatCalcPage.test-utils barrel.
 
-## Remaining candidates (optional)
+## Remaining (queued in backlog Track B)
 
-| Файл | Notes |
-|---|---|
-| `HeatCalcPage.test-utils.tsx` (~918) | harness-only; split only if agent friction |
-| `elecCalcPageTestEnv.tsx` (~676) | harness/env |
-| `cssArchitectureRatchet.architecture.test.ts` (~1124) | machine gate; helpers extract optional |
-| `inlineStyleRatchet.architecture.test.ts` (~582) | machine gate |
-| `ElecCalcPage.cable-meta` / `table-batch` / e2e specs | next wave if needed |
-| `HeatCalcNormalGlideGrid.headers-scroll` (~533) | only if grows further |
+| ID | Файл | Notes |
+|---|---|---|
+| P-TEST-01 | `ElecCalcPage.catalog-recalc.test.tsx` (~509) | scenario split |
+| P-TEST-02 | `HeatCalcPage.basics.test.tsx` (~507) | scenario sub-clusters |
+| P-TEST-03 | `ReportPage.test.tsx` (~481) | scenario split |
+| P-TEST-04 | `inlineStyleRatchet.architecture.test.ts` (~582) | helpers extract |
+| P-TEST-05 | `elecCalcPageTestEnv.tsx` (~676) | harness thin / fixtures |
+| P-TEST-06 | `HeatCalcPage.test-mocks.tsx` (~643) | mock clusters |
+| P-TEST-07 | e2e `electrical-candidate-selection.spec.ts` (~667) | journey split |
+| P-TEST-08 | e2e `inline-form-dependencies.spec.ts` (~643) | journey split |
 
 ## Rules (if user activates another split)
 
