@@ -196,9 +196,9 @@
       "media": 0
     },
     "src/pages/ui-kit.css": {
-      "loc": 911,
+      "loc": 608,
       "bareAnt": 0,
-      "media": 3
+      "media": 0
     },
     "src/pages/workflow-params.css": {
       "loc": 60,
@@ -284,10 +284,15 @@
       "loc": 12,
       "bareAnt": 0,
       "media": 0
+    },
+    "src/pages/ui-kit-responsive.css": {
+      "loc": 308,
+      "bareAnt": 0,
+      "media": 3
     }
   },
   "totals": {
-    "loc": 10304,
+    "loc": 10243,
     "bareAnt": 0,
     "media": 39
   },

@@ -1,0 +1,42 @@
+@media (max-width: 1200px) {
+.uikit-grid--colors {
+    grid-template-columns: repeat(2, minmax(180px, 1fr));
+  }
+
+  .uikit-component-row {
+    grid-template-columns: 1fr;
+  }
+
+.uikit-heatcalc-contract {
+    grid-template-columns: repeat(3, minmax(100px, 1fr));
+  }
+
+  .uikit-heatcalc-contract > div:nth-child(3) {
+    border-right: 0;
+  }
+
+  .uikit-heatcalc-contract > div:nth-child(-n+3) {
+    border-bottom: 1px solid var(--heatcalc-toolbar-divider);
+  }
+
+.uikit-alerts {
+    grid-template-columns: repeat(2, minmax(180px, 1fr));
+  }
+
+  .uikit-primitive-grid,
+  .uikit-primitive-data-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .uikit-metrics {
+    grid-template-columns: repeat(2, minmax(120px, 1fr));
+  }
+
+  .uikit-metric:nth-child(2) {
+    border-right: 0;
+  }
+
+  .uikit-metric:nth-child(-n+2) {
+    border-bottom: 1px solid var(--ui-border);
+  }
+}

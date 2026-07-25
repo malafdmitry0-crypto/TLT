@@ -1,0 +1,21 @@
+{
+  "max_geometry_delta_px": 0.0,
+  "bounds_over_0_5": 0,
+  "computed_mismatches": 0,
+  "overflow_before": 0,
+  "overflow_after": 0,
+  "console_before": [
+    0,
+    0,
+    0
+  ],
+  "console_after": [
+    0,
+    0,
+    0
+  ],
+  "agent_dod": {
+    "pass": true,
+    "wall_s": 154.11
+  }
+}

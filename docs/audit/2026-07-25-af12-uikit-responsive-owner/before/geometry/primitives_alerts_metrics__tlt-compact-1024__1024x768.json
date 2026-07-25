@@ -1,0 +1,179 @@
+{
+  "phase": "before",
+  "state_id": "primitives_alerts_metrics",
+  "viewport_profile": "tlt-compact-1024",
+  "viewport": {
+    "width": 1024,
+    "height": 768
+  },
+  "url": "http://127.0.0.1:3010/ui-kit",
+  "overflowX": false,
+  "scrollWidth": 1024,
+  "clientWidth": 1024,
+  "bounds": {
+    ".uikit-page": {
+      "x": 0,
+      "y": -877,
+      "width": 1024,
+      "height": 3968.09375
+    },
+    ".uikit-header": {
+      "x": 0,
+      "y": -877,
+      "width": 1024,
+      "height": 44
+    },
+    ".uikit-shell": {
+      "x": 0,
+      "y": -833,
+      "width": 1024,
+      "height": 3924.09375
+    },
+    ".uikit-nav": {
+      "x": 0,
+      "y": 0,
+      "width": 164,
+      "height": 724
+    },
+    ".uikit-main": {
+      "x": 164,
+      "y": -833,
+      "width": 860,
+      "height": 3924.09375
+    },
+    ".uikit-heatcalc-reference": {
+      "x": 189.59375,
+      "y": 801.109375,
+      "width": 808.8125,
+      "height": 1016.640625
+    },
+    ".uikit-heatcalc-form": {
+      "x": 199.59375,
+      "y": 926.859375,
+      "width": 788.8125,
+      "height": 698.890625
+    },
+    ".uikit-alerts": {
+      "x": 189.59375,
+      "y": 316.765625,
+      "width": 808.8125,
+      "height": 134.65625
+    },
+    ".uikit-metrics": {
+      "x": 189.59375,
+      "y": 532.515625,
+      "width": 808.8125,
+      "height": 38
+    },
+    ".uikit-primitive-grid": {
+      "x": 189.59375,
+      "y": 1898.84375,
+      "width": 808.8125,
+      "height": 265.78125
+    }
+  },
+  "computed": {
+    ".uikit-page": {
+      "display": "block",
+      "gridTemplateColumns": "none",
+      "gap": "normal",
+      "padding": "0px",
+      "borderTopWidth": "0px",
+      "overflow": "visible",
+      "overflowX": "visible"
+    },
+    ".uikit-header": {
+      "display": "flex",
+      "gridTemplateColumns": "none",
+      "gap": "12px",
+      "padding": "7px 10px",
+      "borderTopWidth": "0px",
+      "overflow": "visible",
+      "overflowX": "visible"
+    },
+    ".uikit-shell": {
+      "display": "grid",
+      "gridTemplateColumns": "164px 860px",
+      "gap": "normal",
+      "padding": "0px",
+      "borderTopWidth": "0px",
+      "overflow": "visible",
+      "overflowX": "visible"
+    },
+    ".uikit-nav": {
+      "display": "block",
+      "gridTemplateColumns": "none",
+      "gap": "normal",
+      "padding": "18px 10px",
+      "borderTopWidth": "0px",
+      "overflow": "visible",
+      "overflowX": "visible"
+    },
+    ".uikit-main": {
+      "display": "block",
+      "gridTemplateColumns": "none",
+      "gap": "normal",
+      "padding": "16px 25.6px 36px",
+      "borderTopWidth": "0px",
+      "overflow": "visible",
+      "overflowX": "visible"
+    },
+    ".uikit-heatcalc-reference": {
+      "display": "grid",
+      "gridTemplateColumns": "794.812px",
+      "gap": "6px",
+      "padding": "6px",
+      "borderTopWidth": "1px",
+      "overflow": "visible",
+      "overflowX": "visible"
+    },
+    ".uikit-heatcalc-form": {
+      "display": "block",
+      "gridTemplateColumns": "none",
+      "gap": "normal",
+      "padding": "0px",
+      "borderTopWidth": "0px",
+      "overflow": "visible",
+      "overflowX": "visible"
+    },
+    ".uikit-alerts": {
+      "display": "grid",
+      "gridTemplateColumns": "258.266px 258.266px 258.281px",
+      "gap": "8px",
+      "padding": "8px",
+      "borderTopWidth": "1px",
+      "overflow": "visible",
+      "overflowX": "visible"
+    },
+    ".uikit-metrics": {
+      "display": "grid",
+      "gridTemplateColumns": "201.703px 201.703px 201.703px 201.703px",
+      "gap": "normal",
+      "padding": "0px",
+      "borderTopWidth": "1px",
+      "overflow": "hidden",
+      "overflowX": "hidden"
+    },
+    ".uikit-primitive-grid": {
+      "display": "grid",
+      "gridTemplateColumns": "400.406px 400.406px",
+      "gap": "8px",
+      "padding": "0px",
+      "borderTopWidth": "0px",
+      "overflow": "visible",
+      "overflowX": "visible"
+    }
+  },
+  "cssHrefs": [],
+  "console": {
+    "errors": 0,
+    "warnings": 0,
+    "pageerrors": 0,
+    "excerpts": [
+      "[debug] [vite] connecting...",
+      "[debug] [vite] connected.",
+      "[info] %cDownload the React DevTools for a better development experience: https://react"
+    ]
+  },
+  "failed_network": []
+}
