@@ -37,6 +37,8 @@
     "build-storybook": "storybook build -o storybook-static",
     "storybook:coverage": "node ../scripts/storybook-ui-kit-coverage.mjs",
     "storybook:coverage:strict": "node ../scripts/storybook-ui-kit-coverage.mjs --strict",
+    "agent:scope": "node ../scripts/agent-scope.mjs",
+    "agent:dod:profile": "node ../scripts/agent-dod-profile.mjs",
     "test:agent-dod:dual-safe": "AGENT_DOD_SUITE_MODE=concurrent AGENT_DOD_UNIT_MAX_WORKERS=2 AGENT_DOD_INT_MAX_WORKERS=2 AGENT_DOD_ELEC_MAX_WORKERS=2 AGENT_DOD_UNIT_STAGGER_MS=2000 node scripts/agent-dod.mjs",
     "test:agent-dod:dual": "node scripts/agent-dod-dual.mjs"
   },
