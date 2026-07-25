@@ -84,7 +84,7 @@ describe('useHeatCalcTableSessionController', () => {
     expect(result.current.excel.excelSelectionRange).toBeNull();
   });
 
-  it('clamps excel editing mode back to normal when commercial features are off', () => {
+  it('keeps excel editing mode when commercial features are off (Excel is core HeatCalc mode)', () => {
     commercialFlag.enabled = true;
     const { result, rerender } = renderHook(() =>
       useHeatCalcTableSessionController({ projectId: 'project-1' }),
@@ -99,7 +99,7 @@ describe('useHeatCalcTableSessionController', () => {
     rerender();
 
     expect(result.current.editing.commercialFeaturesAvailable).toBe(false);
-    expect(result.current.editing.tableEditingMode).toBe('normal');
+    expect(result.current.editing.tableEditingMode).toBe('excel');
   });
 
   it('wires focusable table scroll regions with project-gated enabled flag', () => {

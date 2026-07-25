@@ -26,7 +26,7 @@ describe('buildHeatCalcWorkspaceModeModel', () => {
   const activeTableViewState = activeViewState();
   const allTableViewState = createEmptyTableViewState();
 
-  it('enables excel mode only when commercial features allow it and scope is not all', () => {
+  it('enables excel mode when editing mode is excel and scope is not all (not commercial-gated)', () => {
     expect(buildHeatCalcWorkspaceModeModel({
       commercialFeaturesAvailable: true,
       tableEditingMode: 'excel',
@@ -49,6 +49,7 @@ describe('buildHeatCalcWorkspaceModeModel', () => {
       allTableViewState,
     }).excelModeEnabled).toBe(false);
 
+    // Commercial flag does not block HeatCalc Excel table mode.
     expect(buildHeatCalcWorkspaceModeModel({
       commercialFeaturesAvailable: false,
       tableEditingMode: 'excel',
@@ -56,7 +57,7 @@ describe('buildHeatCalcWorkspaceModeModel', () => {
       tableFindabilityAvailable: true,
       activeTableViewState,
       allTableViewState,
-    }).excelModeEnabled).toBe(false);
+    }).excelModeEnabled).toBe(true);
   });
 
   it('uses empty table view state when findability is unavailable', () => {

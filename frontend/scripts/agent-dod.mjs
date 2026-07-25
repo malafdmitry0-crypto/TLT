@@ -135,19 +135,33 @@ async function runSequential(script) {
 }
 
 /**
- * Worker budgets under concurrent unit||integration.
- * Canonical defaults are deliberately conservative: the integration command
- * contains both generic and electrical projects, so per-project auto sizing
- * can otherwise oversubscribe the host. Environment variables can override
- * the defaults for an explicitly measured machine. Full suites always run.
+ * Suite scheduling:
+ * - Default **concurrent** unit||integration with workers=2 (best observed wall ~150s;
+ *   integration alone is already ~130s+, so ≤120s needs suite shrink not more workers).
+ * - Optional sequential (higher workers per suite): AGENT_DOD_SUITE_MODE=sequential.
+ * Dual stress: `test:agent-dod:dual-safe` uses concurrent + workers=2 + stagger.
  */
+const SUITE_MODE = process.env.AGENT_DOD_SUITE_MODE || 'concurrent';
 const DEFAULT_CONCURRENT_MAX_WORKERS = '2';
+const DEFAULT_SEQUENTIAL_UNIT_WORKERS = process.env.AGENT_DOD_UNIT_MAX_WORKERS || '6';
+const DEFAULT_SEQUENTIAL_INT_WORKERS = process.env.AGENT_DOD_INT_MAX_WORKERS || '4';
 
 function concurrentWorkerCount(kind) {
   if (kind === 'unit') {
     return process.env.AGENT_DOD_UNIT_MAX_WORKERS || DEFAULT_CONCURRENT_MAX_WORKERS;
   }
   return process.env.AGENT_DOD_INT_MAX_WORKERS || DEFAULT_CONCURRENT_MAX_WORKERS;
+}
+
+async function runSequentialWithWorkers(script, workers, prefix) {
+  const t0 = nowMs();
+  const extraArgs = workers ? ['--', `--maxWorkers=${workers}`] : [];
+  log(`start sequential: npm run ${script} maxWorkers=${workers || 'default'}`);
+  const { done } = spawnNpmScript(script, { prefix: prefix ?? script, extraArgs });
+  const result = await done;
+  const elapsed = nowMs() - t0;
+  log(`done sequential: ${script} exit=${result.code} wall=${formatSec(elapsed)}`);
+  return { ...result, elapsedMs: elapsed };
 }
 
 function concurrentWorkerArgs(kind) {
@@ -165,7 +179,8 @@ function sleep(ms) {
  */
 async function runUnitAndIntegrationConcurrent() {
   const t0 = nowMs();
-  const staggerMs = Number(process.env.AGENT_DOD_UNIT_STAGGER_MS ?? '12000');
+  // Light stagger reduces unit vs elec thrash; dual-safe may raise to 2000+.
+  const staggerMs = Number(process.env.AGENT_DOD_UNIT_STAGGER_MS ?? '3000');
   const unitWorkers = concurrentWorkerCount('unit');
   const integrationWorkers = concurrentWorkerCount('integration');
   log(
@@ -310,18 +325,52 @@ async function main() {
     process.exit(gates.code);
   }
 
-  // 2. Unit + integration concurrent
-  const suites = await runUnitAndIntegrationConcurrent();
-  phases.push({
-    name: 'test:unit+integration',
-    code: suites.exitCode,
-    elapsedMs: suites.elapsedMs,
-  });
-  if (!suites.ok) {
-    log(
-      `STOP after concurrent suites exit=${suites.exitCode} total=${formatSec(nowMs() - totalT0)}`,
+  // 2. Unit + integration (sequential by default for wall ≤120s)
+  let suitesOk = true;
+  let suitesExit = 0;
+  let suitesElapsed = 0;
+  if (SUITE_MODE === 'concurrent') {
+    const suites = await runUnitAndIntegrationConcurrent();
+    suitesOk = suites.ok;
+    suitesExit = suites.exitCode;
+    suitesElapsed = suites.elapsedMs;
+    phases.push({
+      name: 'test:unit+integration(concurrent)',
+      code: suitesExit,
+      elapsedMs: suitesElapsed,
+    });
+  } else {
+    const unit = await runSequentialWithWorkers(
+      'test:unit',
+      DEFAULT_SEQUENTIAL_UNIT_WORKERS,
+      'unit',
     );
-    process.exit(suites.exitCode);
+    phases.push({ name: 'test:unit', ...unit });
+    if (unit.code !== 0) {
+      log(`STOP after unit exit=${unit.code} total=${formatSec(nowMs() - totalT0)}`);
+      process.exit(unit.code);
+    }
+    const integration = await runSequentialWithWorkers(
+      'test:integration',
+      DEFAULT_SEQUENTIAL_INT_WORKERS,
+      'integration',
+    );
+    phases.push({ name: 'test:integration', ...integration });
+    suitesOk = integration.code === 0;
+    suitesExit = integration.code;
+    suitesElapsed = unit.elapsedMs + integration.elapsedMs;
+    if (!suitesOk) {
+      log(
+        `STOP after integration exit=${suitesExit} total=${formatSec(nowMs() - totalT0)}`,
+      );
+      process.exit(suitesExit);
+    }
+  }
+  if (!suitesOk) {
+    log(
+      `STOP after suites exit=${suitesExit} total=${formatSec(nowMs() - totalT0)}`,
+    );
+    process.exit(suitesExit);
   }
 
   // 3. Build only after green tests

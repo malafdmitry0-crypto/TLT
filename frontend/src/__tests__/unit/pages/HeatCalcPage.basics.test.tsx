@@ -356,7 +356,9 @@ describe('HeatCalcPage basics', () => {
       expect(within(tableActionsToolbar).getByRole('button', { name: 'Добавить копии выбранных' })).toBeDisabled();
       expect(within(tableActionsToolbar).queryByRole('button', { name: 'Удалить выбранные' })).not.toBeInTheDocument();
       expect(within(tableActionsToolbar).getByRole('button', { name: 'Импорт XLSX/CSV' })).toBe(importButton);
-      expect(within(tableActionsToolbar).queryByText('Excel-режим')).not.toBeInTheDocument();
+      // Excel mode is core HeatCalc editing (not commercial-gated).
+      expect(within(tableActionsToolbar).getByText('Excel-режим')).toBeInTheDocument();
+      expect(within(tableActionsToolbar).getByText('Обычный режим')).toBeInTheDocument();
       const resetFiltersButton = within(tableActionsToolbar).getByRole('button', { name: 'Сбросить фильтры таблицы' });
       expect(resetFiltersButton).toBeDisabled();
       expect(resetFiltersButton).toHaveTextContent(/^$/);

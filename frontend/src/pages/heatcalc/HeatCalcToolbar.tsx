@@ -245,16 +245,14 @@ export function HeatCalcActionsToolbar({
 
       <div className="actionbar-table-actions-row" role="toolbar" aria-label="Действия таблицы объектов">
         <div className="actionbar-group actionbar-table-actions-group">
-          {tableActions.commercialFeaturesAvailable && (
-            <Segmented size="small"
-              value={tableActions.editingMode}
-              options={[
-                { label: 'Обычный режим', value: 'normal' },
-                { label: 'Excel-режим', value: 'excel' },
-              ]}
-              onChange={tableActions.onEditingModeChange}
-            />
-          )}
+          <Segmented size="small"
+            value={tableActions.editingMode}
+            options={[
+              { label: 'Обычный режим', value: 'normal' },
+              { label: 'Excel-режим', value: 'excel' },
+            ]}
+            onChange={tableActions.onEditingModeChange}
+          />
           <Tooltip title={tableActions.recalcTooltip}>
             <span className="action-tooltip-wrap">
               <TltButton

@@ -163,7 +163,7 @@ describe('useHeatCalcRouteActionsModel', () => {
     expect(closeExcelContextMenu).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps normal mode when commercial features are feature-flagged off', () => {
+  it('enables excel mode even when commercial features are feature-flagged off', () => {
     const clearSelectedRows = vi.fn();
     const notifyInfo = vi.fn();
     const selectObjectScope = vi.fn();
@@ -179,10 +179,10 @@ describe('useHeatCalcRouteActionsModel', () => {
 
     act(() => result.current.handleTableEditingModeChange('excel'));
 
-    expect(setTableEditingMode).toHaveBeenCalledWith('normal');
-    expect(selectObjectScope).not.toHaveBeenCalled();
-    expect(notifyInfo).not.toHaveBeenCalled();
-    expect(clearSelectedRows).not.toHaveBeenCalled();
+    expect(setTableEditingMode).toHaveBeenCalledWith('excel');
+    expect(selectObjectScope).toHaveBeenCalledWith('pipe');
+    expect(notifyInfo).toHaveBeenCalledWith('Excel-режим включён для таблицы трубопроводов');
+    expect(clearSelectedRows).toHaveBeenCalledTimes(1);
   });
 
   it('switches to normal mode without clearing selected normal rows', () => {

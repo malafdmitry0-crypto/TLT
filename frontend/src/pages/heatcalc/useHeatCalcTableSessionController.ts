@@ -4,7 +4,7 @@
  * Owns: table state, editing mode, Excel selection state, focus boundary.
  * Does-not: query/data model, object editor, preferences, toolbar, route actions.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 
 import { areCommercialFeaturesEnabled } from '@/config/featureFlags';
 import { useFocusableTableScrollRegions } from '@/hooks/useFocusableTableScrollRegions';
@@ -31,12 +31,6 @@ export function useHeatCalcTableSessionController({
   const [tableEditingMode, setTableEditingMode] = useState<HeatCalcToolbarEditingMode>('normal');
   const commercialFeaturesAvailable = areCommercialFeaturesEnabled();
   const tableFindabilityAvailable = true;
-
-  useEffect(() => {
-    if (!commercialFeaturesAvailable && tableEditingMode === 'excel') {
-      setTableEditingMode('normal');
-    }
-  }, [commercialFeaturesAvailable, tableEditingMode]);
 
   const excel = useHeatCalcExcelInteractionState();
 

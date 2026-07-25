@@ -51,7 +51,8 @@ import type {
 const FINDABILITY_DISABLED_TABLE_VIEW_STATE = createEmptyTableViewState();
 
 export type HeatCalcWorkspaceModeInput = {
-  commercialFeaturesAvailable: boolean;
+  /** @deprecated Excel mode is not commercial-gated; kept optional for callers. */
+  commercialFeaturesAvailable?: boolean;
   tableEditingMode: HeatCalcToolbarEditingMode;
   isAllObjectScope: boolean;
   tableFindabilityAvailable: boolean;
@@ -64,7 +65,7 @@ export type HeatCalcWorkspaceModeInput = {
  * Kept pure for focused characterization without mounting React Query hooks.
  */
 export function buildHeatCalcWorkspaceModeModel({
-  commercialFeaturesAvailable,
+  
   tableEditingMode,
   isAllObjectScope,
   tableFindabilityAvailable,
@@ -77,9 +78,9 @@ export function buildHeatCalcWorkspaceModeModel({
   const effectiveAllTableViewState = tableFindabilityAvailable
     ? allTableViewState
     : FINDABILITY_DISABLED_TABLE_VIEW_STATE;
-  const excelModeEnabled = commercialFeaturesAvailable
-    && tableEditingMode === 'excel'
-    && !isAllObjectScope;
+  // Excel table mode is a core HeatCalc editing mode (desktop), not commercial-gated.
+  // commercialFeaturesAvailable still gates external catalog / paid cable features.
+  const excelModeEnabled = tableEditingMode === 'excel' && !isAllObjectScope;
   const normalGlideEnabled = !excelModeEnabled;
   const tableCellEditingEnabled = excelModeEnabled;
   const currentTableViewActive = tableFindabilityAvailable
