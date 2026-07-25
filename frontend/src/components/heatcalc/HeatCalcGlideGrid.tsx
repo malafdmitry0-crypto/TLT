@@ -9,7 +9,6 @@ import {
 } from 'react';
 import {
   DataEditor,
-  GridCellKind,
   type CellClickedEventArgs,
   type DataEditorRef,
   type EditableGridCell,
@@ -32,27 +31,23 @@ import {
   type HeatCalcGlideGridColumn,
 } from '@/utils/heatCalcGlideGrid';
 import { resolveTableFontSizeByKey } from '@/utils/heatCalcTableViewSettings';
-import {
-  blankCell,
-  GLIDE_THEME,
-  isDirtyRowClassName,
-  isErrorRowClassName,
-} from '@/utils/glideGridPrimitives';
+import { blankCell } from '@/utils/glideGridPrimitives';
 
 import {
   GLIDE_MAX_COLUMN_WIDTH,
   GLIDE_MIN_COLUMN_WIDTH,
   GLIDE_ROW_MARKER_WIDTH,
-  GLIDE_SELECTED_ROW_BG,
-  GLIDE_SELECTED_ROW_BORDER,
+  buildHeatEditorColumns,
+  buildHeatGlideTheme,
+  buildHeatGridCell,
   clampGlideColumnWidth,
-  contentAlign,
   getGridCellEditedValue,
   glideRowHeight,
+  isNearScrollEnd,
+  resolveFullRowSelectionBounds,
+  resolveHeatRowTheme,
   toContextMenuTrigger,
 } from '@/components/heatcalc/heatCalcGlideGridAdapters';
-
-
 
 type GlideEditingCell = {
   cell: Item;
@@ -114,13 +109,13 @@ function HeatCalcGlideGrid({
     () => gridColumns.map((column) => column.key),
     [gridColumns],
   );
-  const editorColumns = useMemo<GridColumn[]>(
-    () => gridColumns.map((column) => ({
-      id: column.key,
-      title: column.title || column.key,
-      width: column.width,
-    })),
+  const editorColumns = useMemo(
+    () => buildHeatEditorColumns(gridColumns),
     [gridColumns],
+  );
+  const glideTheme = useMemo(
+    () => buildHeatGlideTheme(fontSize.fontSizePx),
+    [fontSize.fontSizePx],
   );
   const gridSelection = useMemo(
     () => buildHeatCalcGlideGridSelection({
@@ -131,30 +126,10 @@ function HeatCalcGlideGrid({
     }),
     [columnKeys, rows, selectedPosition, selectionRange],
   );
-  const fullRowSelectionBounds = useMemo(() => {
-    if (!selectionRange || rows.length === 0 || columnKeys.length === 0) return null;
-    const rowIdToIndex = new Map(rows.map((row, index) => [row.id, index]));
-    const columnKeyToIndex = new Map(columnKeys.map((columnKey, index) => [columnKey, index]));
-    const anchorRowIndex = rowIdToIndex.get(selectionRange.anchor.rowId);
-    const focusRowIndex = rowIdToIndex.get(selectionRange.focus.rowId);
-    const anchorColumnIndex = columnKeyToIndex.get(selectionRange.anchor.columnKey);
-    const focusColumnIndex = columnKeyToIndex.get(selectionRange.focus.columnKey);
-    if (
-      anchorRowIndex == null
-      || focusRowIndex == null
-      || anchorColumnIndex == null
-      || focusColumnIndex == null
-    ) {
-      return null;
-    }
-    const left = Math.min(anchorColumnIndex, focusColumnIndex);
-    const right = Math.max(anchorColumnIndex, focusColumnIndex);
-    if (left !== 0 || right !== columnKeys.length - 1) return null;
-    return {
-      top: Math.min(anchorRowIndex, focusRowIndex),
-      bottom: Math.max(anchorRowIndex, focusRowIndex),
-    };
-  }, [columnKeys, rows, selectionRange]);
+  const fullRowSelectionBounds = useMemo(
+    () => resolveFullRowSelectionBounds({ rows, columnKeys, selectionRange }),
+    [columnKeys, rows, selectionRange],
+  );
   const getModelCell = useCallback((columnIndex: number, rowIndex: number) => {
     const column = gridColumns[columnIndex];
     const record = rows[rowIndex];
@@ -166,26 +141,9 @@ function HeatCalcGlideGrid({
     };
   }, [getCellState, gridColumns, rows]);
   const getCellContent = useCallback((cell: Item): GridCell => {
-    const [columnIndex, rowIndex] = cell;
-    const modelCell = getModelCell(columnIndex, rowIndex);
+    const modelCell = getModelCell(cell[0], cell[1]);
     if (!modelCell) return blankCell();
-    const text = modelCell.state.displayValue;
-    const rowClasses = rowClassName(modelCell.record);
-    const bgCell = modelCell.state.error || isErrorRowClassName(rowClasses)
-      ? GLIDE_THEME.errorRowBg
-      : modelCell.state.dirty || isDirtyRowClassName(rowClasses)
-        ? GLIDE_THEME.dirtyRowBg
-        : undefined;
-    return {
-      kind: GridCellKind.Text,
-      allowOverlay: false,
-      readonly: !modelCell.state.editable,
-      data: text,
-      displayData: text,
-      copyData: text,
-      contentAlign: contentAlign(modelCell.column, modelCell.state),
-      themeOverride: bgCell ? { bgCell } : undefined,
-    };
+    return buildHeatGridCell(modelCell.column, modelCell.state, rowClassName(modelCell.record));
   }, [getModelCell, rowClassName]);
   const openEditorForCell = useCallback((cell: Item, fallbackBounds?: GlideEditingCell['bounds']) => {
     const modelCell = getModelCell(cell[0], cell[1]);
@@ -276,8 +234,7 @@ function HeatCalcGlideGrid({
   const handleVisibleRegionChanged = useCallback((range: Rectangle) => {
     setEditingCell(null);
     if (!onReachScrollEnd || rows.length === 0) return;
-    const nearBottom = range.y + range.height >= rows.length - 4;
-    if (!nearBottom || lastScrollEndRowsRef.current === rows.length) return;
+    if (!isNearScrollEnd(range, rows.length) || lastScrollEndRowsRef.current === rows.length) return;
     lastScrollEndRowsRef.current = rows.length;
     onReachScrollEnd();
   }, [onReachScrollEnd, rows.length]);
@@ -355,36 +312,13 @@ function HeatCalcGlideGrid({
         getRowThemeOverride={(rowIndex) => {
           const record = rows[rowIndex];
           if (!record) return undefined;
-          const className = rowClassName(record);
-          if (isErrorRowClassName(className)) {
-            return { bgCell: GLIDE_THEME.errorRowBg };
-          }
-          if (isDirtyRowClassName(className)) {
-            return { bgCell: GLIDE_THEME.dirtyRowBg };
-          }
-          if (
-            fullRowSelectionBounds
-            && rowIndex >= fullRowSelectionBounds.top
-            && rowIndex <= fullRowSelectionBounds.bottom
-          ) {
-            return {
-              accentColor: GLIDE_SELECTED_ROW_BORDER,
-              accentLight: GLIDE_SELECTED_ROW_BG,
-              bgCell: GLIDE_SELECTED_ROW_BG,
-            };
-          }
-          return undefined;
+          return resolveHeatRowTheme({
+            rowClassName: rowClassName(record),
+            rowIndex,
+            fullRowSelectionBounds,
+          });
         }}
-        theme={{
-          accentColor: GLIDE_THEME.accent,
-          accentLight: GLIDE_THEME.accentLight,
-          bgCell: GLIDE_THEME.bgCell,
-          bgHeader: GLIDE_THEME.bgHeader,
-          borderColor: GLIDE_THEME.border,
-          fontFamily: 'inherit',
-          baseFontStyle: `${fontSize.fontSizePx}px inherit`,
-          headerFontStyle: `600 ${fontSize.fontSizePx}px inherit`,
-        }}
+        theme={glideTheme}
       />
       {editingCell && (
         <input
