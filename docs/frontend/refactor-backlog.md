@@ -7,9 +7,9 @@
 pending» (dense production 400-band + heavy test contexts) must be real
 `pending`, not EMPTY QUEUE cosmetics.  
 **Inventory at open:** **22** files in **400–445** LOC (production).  
-**Last closed production:** `P-BAND-02` @ `9c21b70`
+**Last closed production:** `P-BAND-03` @ `907d435`
 
-**Следующий незакрытый контракт:** `P-BAND-03`
+**Следующий незакрытый контракт:** `P-BAND-04`
 
 Это **единственный** источник текущего `pending` для frontend. Одновременно
 может существовать только одна ACTIVE frontend-очередь. Initiative plans,
@@ -73,8 +73,8 @@ util/domain/api/types).
 |---:|---|---|---|---|---|
 | 1 | **P-BAND-01** | **done** `6cf5007` | heat | `useHeatCalcPreferences.ts` **445→323** | [audit](../audit/2026-07-25-p-band-01-prefs/snapshot.md) |
 | 2 | **P-BAND-02** | **done** `9c21b70` | admin | `DatabasePage.tsx` **444→230** | [audit](../audit/2026-07-25-p-band-02-database/snapshot.md) |
-| 3 | **P-BAND-03** | **pending** | electrical | `pages/electrical/useElecCalcElectricalColumnRenderers.tsx` (~443) | renderer map modules |
-| 4 | P-BAND-04 | pending | heat | `utils/heatCalcInlineEdit.ts` (~442) | pure edit helpers |
+| 3 | **P-BAND-03** | **done** `907d435` | electrical | `useElecCalcElectricalColumnRenderers.tsx` **443→255** | [audit](../audit/2026-07-25-p-band-03-elec-renderers/snapshot.md) |
+| 4 | **P-BAND-04** | **pending** | heat | `utils/heatCalcInlineEdit.ts` (~442) | pure edit helpers |
 | 5 | P-BAND-05 | pending | electrical | `utils/electricalCandidateTableColumnsCore.ts` (~437) | column groups |
 | 6 | P-BAND-06 | pending | electrical | `components/electrical/ElectricalCandidateGlideGrid.tsx` (~430) | grid chrome vs data adapter |
 | 7 | P-BAND-07 | pending | heat | `components/heatcalc/HeatCalcGlideGrid.tsx` (~429) | grid chrome vs data adapter |
