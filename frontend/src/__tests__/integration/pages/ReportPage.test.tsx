@@ -211,7 +211,7 @@ describe('ReportPage (integration)', () => {
       expect(listElectricalVariantsMock).toHaveBeenCalled();
       expect(screen.getByRole('button', { name: /PDF/i })).toBeEnabled();
     });
-    // Re-query after enabled: under dual-DoD load, a stale button node can swallow the click.
+    // Re-query after enabled: under concurrent DoD load a stale node can swallow click.
     const pdfButton = await screen.findByRole('button', { name: /PDF/i });
     await user.click(pdfButton);
     await waitFor(

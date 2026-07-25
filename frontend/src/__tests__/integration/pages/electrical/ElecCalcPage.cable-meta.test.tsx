@@ -6,6 +6,13 @@ import { mockProject, makeObject, makeElectricalPage, renderPage, openElectrical
 import { resetElecCalcIntegrationState } from '@/__tests__/integration/pages/electrical/elecCalcPageTestEnv';
 import '@/__tests__/integration/pages/electrical/elecCalcPageTestEnv';
 
+/** Under concurrent agent-dod load, elec table rows can exceed default findBy timeout. */
+const CABLE_META_FIND_TIMEOUT = 20_000;
+
+async function findObjectRow(name: RegExp) {
+  return screen.findByRole('row', { name }, { timeout: CABLE_META_FIND_TIMEOUT });
+}
+
 describe('ElecCalcPage cable metadata / source / inline', () => {
   beforeEach(() => {
     resetElecCalcIntegrationState();
@@ -64,7 +71,7 @@ describe('ElecCalcPage cable metadata / source / inline', () => {
     useProjectStore.getState().setCurrentProject(mockProject);
     renderPage();
 
-    const row = await screen.findByRole('row', { name: /Труба-1/ });
+    const row = await findObjectRow(/Труба-1/);
     fireEvent.click(row);
     await user.click(within(row).getByRole('button', { name: 'Выбор' }));
     const dialog = await screen.findByRole('dialog', { name: /Выбор марки кабеля/ });
@@ -124,7 +131,7 @@ describe('ElecCalcPage cable metadata / source / inline', () => {
     renderPage();
 
     await user.click(await screen.findByRole('tab', { name: 'ЭР2' }));
-    const row = await screen.findByRole('row', { name: /Труба-1/ });
+    const row = await findObjectRow(/Труба-1/);
     fireEvent.click(row);
     await user.click(within(row).getByRole('button', { name: 'Выбор' }));
     const dialog = await screen.findByRole('dialog', { name: /Выбор марки кабеля/ });
@@ -201,7 +208,7 @@ describe('ElecCalcPage cable metadata / source / inline', () => {
     useProjectStore.getState().setCurrentProject(mockProject);
     renderPage();
 
-    const row = await screen.findByRole('row', { name: /Труба-1/ });
+    const row = await findObjectRow(/Труба-1/);
     fireEvent.click(row);
     await user.click(within(row).getByRole('button', { name: 'Выбор' }));
     const dialog = await screen.findByRole('dialog', { name: /Выбор марки кабеля/ });
@@ -280,7 +287,7 @@ describe('ElecCalcPage cable metadata / source / inline', () => {
     useProjectStore.getState().setCurrentProject(mockProject);
     renderPage();
 
-    const row = await screen.findByRole('row', { name: /Резервуар-1/ });
+    const row = await findObjectRow(/Резервуар-1/);
     fireEvent.click(row);
     await user.click(within(row).getByRole('button', { name: 'Выбор' }));
     const dialog = await screen.findByRole('dialog', { name: /Выбор марки кабеля/ });
@@ -320,7 +327,7 @@ describe('ElecCalcPage cable metadata / source / inline', () => {
     useProjectStore.getState().setCurrentProject(mockProject);
     renderPage();
 
-    const row = await screen.findByRole('row', { name: /Труба-1/ });
+    const row = await findObjectRow(/Труба-1/);
     fireEvent.click(row);
     await user.click(within(row).getByRole('button', { name: 'Выбор' }));
     const dialog = await screen.findByRole('dialog', { name: /Выбор марки кабеля/ });

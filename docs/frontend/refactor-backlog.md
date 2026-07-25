@@ -1,8 +1,12 @@
 # Frontend refactor backlog
 
-**Статус:** EMPTY QUEUE
+**Статус:** EMPTY QUEUE (after P5–P9 corrective)
 
 **Актуально на:** 2026-07-25  
+**BASE (contested close):** `6a303f8`  
+**Corrective branch:** `p59-corrective-closure`  
+**Closure audit:** [p59-corrective-closure](../audit/2026-07-25-p59-corrective-closure/snapshot.md)
+
 **Следующий незакрытый контракт:** —
 
 Это **единственный** источник текущего `pending` для frontend. Одновременно
@@ -10,10 +14,30 @@
 Initiative plans, archive summaries и audit snapshots **не** маршрутизируют
 `pending` и не объявляют `COMPLETE` при непустом backlog.
 
-Очереди RISK / P0–P9 / AF10–AF12 **закрыты** как ACTIVE work. Длинные Done
-narratives и executed prompts — в
+Очереди RISK / AF10–AF12 и corrective P5–P9 **закрыты** как ACTIVE work. Длинные
+Done narratives — в
 [archive/risk-recovery-and-p-series-historical.md](./archive/risk-recovery-and-p-series-historical.md)
 и [archive/af12-historical.md](./archive/af12-historical.md).
+
+### P5–P9 corrective (review response) — done
+
+EMPTY QUEUE after `6a303f8` was **premature**. Corrective on isolated
+`p59-corrective-closure` worktree:
+
+- [x] **P7-CORRECTIVE** — all **25** band files classified  
+  [audit](../audit/2026-07-25-p7-stateful-owner-inventory/snapshot.md)
+- [x] **P8-CORRECTIVE** — pre-extract char baseline `b20f022` (400 LOC)  
+  [audit](../audit/2026-07-25-p8-stateful-owner-char/snapshot.md)
+- [x] **P9-CORRECTIVE** — owner **401→369** + `heatCalcExcelSelectionGestures.ts`  
+  [audit](../audit/2026-07-25-p9-stateful-owner-extract/snapshot.md)
+- [x] **P59-CORRECTIVE-CLOSE-01** — `test:agent-dod` **×2 PASS** (~151s / ~150s);
+  ReportPage + cable-meta harden; populated desktop browser PASS;
+  Excel UI **BLOCKED** by commercial flag (documented)
+
+### Residual (not pending)
+
+- Excel-selection live UI when `VITE_COMMERCIAL_FEATURES_ENABLED=true` on served build.
+- Optional dual concurrent DoD re-proof.
 
 Постоянные правила: [стандарт](./agent-development-standard.md).  
 Размер slice: [PR budget](./pr-budget.md).  
