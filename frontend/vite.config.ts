@@ -134,9 +134,9 @@ export default defineConfig({
           // P2-ELEC-FEEDBACK-01 — worker budget for Electrical integration.
           // Per-file process isolation: setupFiles vi.hoisted mocks must not race
           // across workers (shared module state) or parallel files in one worker.
-          // maxWorkers=4: AF12 wall target ≤120s full DoD under concurrent unit load.
-          // Dual concurrent stress should set AGENT_DOD_UNIT_MAX_WORKERS=3 (or lower)
-          // if HeatCalc flakiness returns; isolation stays per-file forks.
+          // Canonical/dual-safe default is 2 workers per project to avoid
+          // oversubscribing the host; override AGENT_DOD_ELEC_MAX_WORKERS only
+          // after measuring the complete DoD. Isolation stays per-file forks.
           pool: 'forks',
           isolate: true,
           fileParallelism: true,
