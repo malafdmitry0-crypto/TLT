@@ -13,6 +13,24 @@
 | After config land | **TOOLING UNBLOCKED** — `kontur_playwright` healthy, 21 tools |
 | Full five-area seal | **pending** — run Prompt 14 ×5 + Prompt 15 after MCP tools visible in agent session |
 
+
+
+## SESSION ATTACH (required once)
+
+Config + doctor are green, but **an agent session started before MCP registration will not see tools**.
+
+| Check | Result (2026-07-25) |
+|---|---|
+| `grok mcp doctor kontur_playwright` | ✓ 21 tools |
+| Live Chrome smoke `http://127.0.0.1:3003/` @ 1440×1000 | ✓ status 200, shot `.playwright-mcp/kontur-unblock-smoke-home-1440x1000.png` |
+| This long-lived session `use_tool(kontur_playwright__*)` | ✗ Tool not found until refresh |
+
+**Do one of:**
+1. In Grok TUI: `/mcps` → press **`r`** (refresh servers)
+2. Or start a **new** Grok chat in `/Users/dmalafey/Desktop/TLT`
+
+Then: `search_tool("kontur_playwright")` must list `browser_navigate` etc.
+
 ## What was blocked
 
 Tool discovery returned no `kontur_playwright` / Playwright browser tools.  
