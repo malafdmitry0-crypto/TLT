@@ -34,7 +34,9 @@
     "seed:guest:playwright": "node scripts/seed-guest-all-variants.mjs",
     "load:guest-query": "node scripts/load-guest-query.mjs",
     "storybook": "storybook dev -p 6006 --no-open",
-    "build-storybook": "storybook build -o storybook-static"
+    "build-storybook": "storybook build -o storybook-static",
+    "test:agent-dod:dual-safe": "AGENT_DOD_UNIT_MAX_WORKERS=2 AGENT_DOD_INT_MAX_WORKERS=2 AGENT_DOD_ELEC_MAX_WORKERS=2 AGENT_DOD_UNIT_STAGGER_MS=2000 node scripts/agent-dod.mjs",
+    "test:agent-dod:dual": "node scripts/agent-dod-dual.mjs"
   },
   "dependencies": {
     "@ant-design/cssinjs": "^1.24.0",

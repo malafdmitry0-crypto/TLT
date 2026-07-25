@@ -283,12 +283,30 @@ for (const vp of DENSE) {
   });
 }
 
-// heat.wizard_pipe — toolbar aria-label="Добавить"
+// heat.wizard_pipe — toolbar aria-label="Добавить" (icon button)
 try {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto(`${base}/workspace/heat-calc`, { waitUntil: 'networkidle' });
-  await page.waitForTimeout(1000);
-  const addBtn = page.getByRole('button', { name: 'Добавить' }).first();
+  await page.waitForTimeout(1500);
+  // Ensure «блок заполнения» is checked (hosts Add / wizard actions)
+  const formToggle = page.getByText('Показать блок заполнения параметров');
+  if (await formToggle.count()) {
+    const box = page.locator('.actionbar-form-toggle input[type="checkbox"]').first();
+    if (await box.count()) {
+      const checked = await box.isChecked().catch(() => false);
+      if (!checked) {
+        await page.locator('.actionbar-form-toggle').click();
+        await page.waitForTimeout(400);
+      }
+    }
+  }
+  const pipeType = page.getByRole('button', { name: /Труба/i }).first();
+  if (await pipeType.count()) await pipeType.click({ timeout: 5000 }).catch(() => {});
+  await page.waitForTimeout(400);
+  const addBtn = page
+    .locator('button[aria-label="Добавить"], [role="button"][aria-label="Добавить"]')
+    .first();
+  await addBtn.waitFor({ state: 'visible', timeout: 20000 });
   await addBtn.click({ timeout: 10000 });
   await page.waitForTimeout(1000);
   await capture(page, {
@@ -316,10 +334,17 @@ try {
 
 // heat.wizard_tank — switch type then add
 try {
-  const tankToggle = page.getByRole('button', { name: /Резервуар/i }).first();
-  await tankToggle.click({ timeout: 10000 });
+  await page.goto(`${base}/workspace/heat-calc`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(1000);
+  const tankToggle = page
+    .getByRole('button', { name: /Резервуар|tank/i })
+    .or(page.locator('[aria-label*="Резервуар"], [data-object-type="tank"]'))
+    .first();
+  await tankToggle.click({ timeout: 15000 });
   await page.waitForTimeout(800);
-  await page.getByRole('button', { name: 'Добавить' }).first().click({ timeout: 10000 });
+  const addBtn = page.locator('button[aria-label="Добавить"]').first();
+  await addBtn.waitFor({ state: 'visible', timeout: 15000 });
+  await addBtn.click({ timeout: 10000 });
   await page.waitForTimeout(1000);
   await capture(page, {
     area: 'heat',
@@ -344,14 +369,16 @@ try {
   });
 }
 
-// heat.populated_excel — Segmented «Excel-режим»
+// heat.populated_excel — Segmented «Excel-режим» (commercial feature gate)
 try {
   await page.goto(`${base}/workspace/heat-calc`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(800);
-  // Ant Design Segmented option
-  const excelOpt = page.getByText('Excel-режим', { exact: true });
+  // Ant Design Segmented option — only when areCommercialFeaturesEnabled()
+  const excelOpt = page
+    .getByText('Excel-режим', { exact: true })
+    .or(page.locator('.ant-segmented-item', { hasText: 'Excel-режим' }));
   if (await excelOpt.count()) {
-    await excelOpt.click();
+    await excelOpt.first().click();
     await page.waitForTimeout(1500);
     await capture(page, {
       area: 'heat',
@@ -367,7 +394,8 @@ try {
       area: 'heat',
       state_id: 'heat.populated_excel',
       result: 'blocked',
-      blocker: 'Excel-режим label not found',
+      blocker:
+        'Excel-режим control absent (commercialFeaturesAvailable=false on this guest path) — not a layout regression',
       required: true,
       head,
       captured_at_utc: new Date().toISOString(),
@@ -400,20 +428,23 @@ for (const vp of DENSE) {
   });
 }
 
-// try unassigned / system tabs if present
-for (const [state_id, nameRe, label] of [
-  ['electrical.view_unassigned', /неназнач/i, 'Unassigned view'],
-  ['electrical.view_system', /систем|расчётн/i, 'System view'],
+// System view tabs from ELECTRICAL_SYSTEM_VIEWS labels
+for (const [state_id, label, state_label] of [
+  ['electrical.view_unassigned', 'Нераспределённые объекты', 'Unassigned view'],
+  ['electrical.view_system', 'Самрег', 'Self-regulating system view'],
 ]) {
   try {
-    const tab = page.getByRole('button', { name: nameRe }).or(page.getByRole('tab', { name: nameRe }));
+    const tab = page
+      .getByRole('tab', { name: label })
+      .or(page.getByRole('button', { name: label }))
+      .or(page.getByText(label, { exact: true }));
     if (await tab.count()) {
       await tab.first().click();
       await page.waitForTimeout(800);
       await capture(page, {
         area: 'electrical',
         state_id,
-        state_label: label,
+        state_label,
         action_path: ['elec-calc', `click ${label}`],
         viewport: { width: 1440, height: 1000 },
         viewport_profile: 'kontur-desktop',
@@ -424,7 +455,7 @@ for (const [state_id, nameRe, label] of [
         area: 'electrical',
         state_id,
         result: 'blocked',
-        blocker: `${label} control not found`,
+        blocker: `${state_label} control not found (looked for «${label}»)`,
         required: true,
         head,
         captured_at_utc: new Date().toISOString(),

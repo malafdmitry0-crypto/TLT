@@ -101,7 +101,7 @@ describe('HeatCalcPage basics', () => {
       renderPage();
 
       const typeToolbar = screen.getByRole('toolbar', { name: 'Тип объекта и блок параметров' });
-      expect(await screen.findByTestId('object-name-input')).toBeInTheDocument();
+      expect(await screen.findByTestId('object-name-input', {}, { timeout: HEATCALC_PAGE_TEST_TIMEOUT })).toBeInTheDocument();
       // Правая форма «Алгоритм выбора кабеля» (ТНП orange block) рядом с теплорасчётом.
       expect(screen.getByText('Алгоритм выбора кабеля')).toBeInTheDocument();
       expect(document.querySelector('[data-testid="heat-cable-algorithm-form"]')).toBeInTheDocument();
@@ -307,7 +307,7 @@ describe('HeatCalcPage basics', () => {
 
       const formActionsToolbar = screen.getByRole('toolbar', { name: 'Действия блока заполнения' });
       const addButton = within(formActionsToolbar).getByRole('button', { name: 'Добавить' });
-      expect(await screen.findByTestId('object-name-input')).toBeInTheDocument();
+      expect(await screen.findByTestId('object-name-input', {}, { timeout: HEATCALC_PAGE_TEST_TIMEOUT })).toBeInTheDocument();
       await user.type(screen.getByTestId('object-name-input'), 'Черновик трубы');
       await user.click(addButton);
       await waitFor(() => {
@@ -317,7 +317,7 @@ describe('HeatCalcPage basics', () => {
       await user.click(screen.getByRole('button', { name: /Резервуар:/ }));
       await user.click(addButton);
 
-      expect(await screen.findByTestId('tank-shape-select')).toBeInTheDocument();
+      expect(await screen.findByTestId('tank-shape-select', {}, { timeout: HEATCALC_PAGE_TEST_TIMEOUT })).toBeInTheDocument();
     }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('основные действия toolbar доступны по имени при icon-only отображении', async () => {
@@ -381,7 +381,7 @@ describe('HeatCalcPage basics', () => {
       expect(within(typeToolbar).getByRole('button', { name: /Резервуар:\s*0/ })).toBeInTheDocument();
       expect(within(typeToolbar).getByRole('button', { name: /Все:\s*0/ })).toBeInTheDocument();
       expect(screen.queryByLabelText('Количество объектов')).not.toBeInTheDocument();
-      expect(await screen.findByTestId('object-name-input')).toBeInTheDocument();
+      expect(await screen.findByTestId('object-name-input', {}, { timeout: HEATCALC_PAGE_TEST_TIMEOUT })).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Сбросить' })).not.toBeInTheDocument();
     });
 
@@ -398,7 +398,7 @@ describe('HeatCalcPage basics', () => {
       });
       expect(visibilityToggle).toBeChecked();
       expect(paramsBlock()).toBeVisible();
-      expect(await screen.findByTestId('object-name-input')).toBeInTheDocument();
+      expect(await screen.findByTestId('object-name-input', {}, { timeout: HEATCALC_PAGE_TEST_TIMEOUT })).toBeInTheDocument();
       await user.type(screen.getByTestId('object-name-input'), 'Черновик трубы');
       expect(screen.getByTestId('object-name-input')).toHaveValue('Черновик трубы');
 
@@ -415,7 +415,7 @@ describe('HeatCalcPage basics', () => {
 
       await user.click(visibilityToggle);
       expect(visibilityToggle).toBeChecked();
-      expect(await screen.findByTestId('object-name-input')).toBeInTheDocument();
+      expect(await screen.findByTestId('object-name-input', {}, { timeout: HEATCALC_PAGE_TEST_TIMEOUT })).toBeInTheDocument();
       expect(screen.getByRole('toolbar', { name: 'Действия блока заполнения' })).toBeInTheDocument();
       expect(within(typeToolbar).getByText('Режим: добавление')).toBeInTheDocument();
       expect(screen.getByTestId('object-name-input')).toHaveValue('');
@@ -462,7 +462,7 @@ describe('HeatCalcPage basics', () => {
         .toBeChecked();
       expect(within(formActionsToolbar).getByRole('button', { name: 'Добавить' })).toBeVisible();
       expect(within(tableActionsToolbar).getByRole('button', { name: 'Настройки отображения' })).toBeVisible();
-      expect(await screen.findByTestId('object-name-input')).toBeInTheDocument();
+      expect(await screen.findByTestId('object-name-input', {}, { timeout: HEATCALC_PAGE_TEST_TIMEOUT })).toBeInTheDocument();
     });
   });
 
@@ -479,7 +479,7 @@ describe('HeatCalcPage basics', () => {
       const user = (await import('@testing-library/user-event')).default.setup();
       renderPage();
 
-      const errorRegion = await screen.findByTestId('heatcalc-workspace-query-error');
+      const errorRegion = await screen.findByTestId('heatcalc-workspace-query-error', {}, { timeout: HEATCALC_PAGE_TEST_TIMEOUT });
       expect(errorRegion).toBeInTheDocument();
       expect(screen.getByText(/Не удалось загрузить объекты проекта/i)).toBeInTheDocument();
       const retry = screen.getByRole('button', { name: /Повторить/i });

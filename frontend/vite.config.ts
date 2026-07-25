@@ -30,6 +30,24 @@ const coverage = {
   },
 };
 
+function resolveMaxWorkers(envKey: string, fallback: number): number {
+  const raw = process.env[envKey];
+  if (raw && Number.isFinite(Number(raw)) && Number(raw) > 0) {
+    return Number(raw);
+  }
+  return fallback;
+}
+
+const defaultUnitWorkers = resolveMaxWorkers(
+  'AGENT_DOD_UNIT_MAX_WORKERS',
+  2,
+);
+const defaultIntegrationWorkers = resolveMaxWorkers(
+  'AGENT_DOD_INT_MAX_WORKERS',
+  2,
+);
+const defaultElectricalWorkers = resolveMaxWorkers('AGENT_DOD_ELEC_MAX_WORKERS', 2);
+
 export default defineConfig({
   ...shared,
   server: {
@@ -72,6 +90,12 @@ export default defineConfig({
           testTimeout: 60_000,
           hookTimeout: 60_000,
           sequence: { groupOrder: 0 },
+          // Cap workers so single DoD stays fast and dual concurrent DoD does not thrash.
+          // Override: AGENT_DOD_UNIT_MAX_WORKERS (dual-safe uses 2).
+          pool: 'forks',
+          isolate: true,
+          fileParallelism: true,
+          maxWorkers: defaultUnitWorkers,
           setupFiles: ['./src/__tests__/setup.ts'],
           include: ['src/__tests__/unit/**/*.{test,spec}.{ts,tsx}'],
         },
@@ -86,6 +110,10 @@ export default defineConfig({
           testTimeout: 60_000,
           hookTimeout: 60_000,
           sequence: { groupOrder: 1 },
+          pool: 'forks',
+          isolate: true,
+          fileParallelism: true,
+          maxWorkers: defaultIntegrationWorkers,
           setupFiles: ['./src/__tests__/setup.ts'],
           include: ['src/__tests__/integration/**/*.{test,spec}.{ts,tsx}'],
           exclude: [
@@ -112,7 +140,7 @@ export default defineConfig({
           pool: 'forks',
           isolate: true,
           fileParallelism: true,
-          maxWorkers: 4,
+          maxWorkers: defaultElectricalWorkers,
           setupFiles: [
             './src/__tests__/setup.ts',
             './src/__tests__/integration/pages/electrical/elecCalcPageTestEnv.tsx',

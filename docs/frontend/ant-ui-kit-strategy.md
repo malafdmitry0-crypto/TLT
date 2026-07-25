@@ -1,10 +1,11 @@
 # Ant UI Kit — стратегия
 
-**Статус:** APPROVED; runtime A–D **DONE** (E Storybook a11y / F browser seal deferred)
+**Статус:** APPROVED; runtime A–D **DONE** (E Storybook a11y / F browser seal optional residual)
 **Актуально на:** 2026-07-25
 **Владелец:** ui
 **Pending / очередь:** только [refactor-backlog.md](./refactor-backlog.md);
-исполняемая программа — [ant-ui-kit-agent-rollout.md](./ant-ui-kit-agent-rollout.md);
+исполняемый rollout board — archived:
+[archive/ant-ui-kit-rollout-historical.md](./archive/ant-ui-kit-rollout-historical.md);
 audit — [docs/audit/2026-07-25-ant-ui-kit-rollout/snapshot.md](../audit/2026-07-25-ant-ui-kit-rollout/snapshot.md)
 
 Нормативы, которые этот документ не заменяет:

@@ -25,9 +25,10 @@ styles, включая JSX color literals. Они считаются сущес�
 runtime-кода и baseline; старые снимки из документации не являются источником
 истины.
 
-Метрики и policy prompts: [meaningful-css-plan.md](./meaningful-css-plan.md)
-(PROPOSED runbook). AF10 queue: [af10-parallel-queue.md](./af10-parallel-queue.md)
-(HISTORICAL/CLOSED).
+Closed meaningful-css / AF10 prompt dumps:
+[archive/meaningful-css-historical.md](./archive/meaningful-css-historical.md),
+[archive/af10-historical.md](./archive/af10-historical.md). Актуальные числа —
+только из runtime + dated `docs/audit/…`.
 
 **Установленный gate (AF10-MEANINGFUL-CSS-GATE-01):** общий CSS LOC —
 **наблюдаемая** величина для audit, не pass/fail. Качество контролируют

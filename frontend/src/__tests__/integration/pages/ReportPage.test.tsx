@@ -211,14 +211,18 @@ describe('ReportPage (integration)', () => {
       expect(listElectricalVariantsMock).toHaveBeenCalled();
       expect(screen.getByRole('button', { name: /PDF/i })).toBeEnabled();
     });
-    await user.click(screen.getByRole('button', { name: /PDF/i }));
-    await waitFor(() =>
-      expect(exportReport).toHaveBeenCalledWith(
-        'p-1',
-        'pdf',
-        firstVariant.id,
-        expect.any(Array),
-      )
+    // Re-query after enabled: under dual-DoD load, a stale button node can swallow the click.
+    const pdfButton = await screen.findByRole('button', { name: /PDF/i });
+    await user.click(pdfButton);
+    await waitFor(
+      () =>
+        expect(exportReport).toHaveBeenCalledWith(
+          'p-1',
+          'pdf',
+          firstVariant.id,
+          expect.any(Array),
+        ),
+      { timeout: 15_000 },
     );
   });
 
@@ -301,11 +305,15 @@ describe('ReportPage (integration)', () => {
     useProjectStore.getState().setCurrentProject(mockProject);
     useCalculationVariantStore.getState().setSelectedVariantId(mockProject.id, firstVariant.id);
     renderPage();
+    const reportCompositionButton = await screen.findByRole('button', {
+      name: /Состав отчёта/i,
+    });
     await waitFor(() => {
       expect(listElectricalVariantsMock).toHaveBeenCalled();
-      expect(screen.getByRole('button', { name: /Состав отчёта/i })).toBeEnabled();
+      expect(reportCompositionButton).toBeEnabled();
     });
-    await user.click(screen.getByRole('button', { name: /Состав отчёта/i }));
+    // Re-query after enabled: the variants update can replace the Ant button node.
+    await user.click(await screen.findByRole('button', { name: /Состав отчёта/i }));
     // Modal mounts async; concurrent suite load can delay portal paint
     expect(
       await screen.findByRole('dialog', {}, { timeout: 8_000 }),

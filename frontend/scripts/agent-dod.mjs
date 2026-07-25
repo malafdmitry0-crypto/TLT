@@ -135,19 +135,23 @@ async function runSequential(script) {
 }
 
 /**
- * Optional worker overrides under concurrent unit||integration.
- * Defaults leave vitest/project config (unit = host cores; elec-integration maxWorkers=3).
- * Dual stress may set AGENT_DOD_UNIT_MAX_WORKERS=3 to reduce contention flakes.
- * Full suites always run (no skip/exclude).
+ * Worker budgets under concurrent unit||integration.
+ * Canonical defaults are deliberately conservative: the integration command
+ * contains both generic and electrical projects, so per-project auto sizing
+ * can otherwise oversubscribe the host. Environment variables can override
+ * the defaults for an explicitly measured machine. Full suites always run.
  */
+const DEFAULT_CONCURRENT_MAX_WORKERS = '2';
+
+function concurrentWorkerCount(kind) {
+  if (kind === 'unit') {
+    return process.env.AGENT_DOD_UNIT_MAX_WORKERS || DEFAULT_CONCURRENT_MAX_WORKERS;
+  }
+  return process.env.AGENT_DOD_INT_MAX_WORKERS || DEFAULT_CONCURRENT_MAX_WORKERS;
+}
+
 function concurrentWorkerArgs(kind) {
-  if (kind === 'unit' && process.env.AGENT_DOD_UNIT_MAX_WORKERS) {
-    return ['--', `--maxWorkers=${process.env.AGENT_DOD_UNIT_MAX_WORKERS}`];
-  }
-  if (kind === 'integration' && process.env.AGENT_DOD_INT_MAX_WORKERS) {
-    return ['--', `--maxWorkers=${process.env.AGENT_DOD_INT_MAX_WORKERS}`];
-  }
-  return [];
+  return ['--', `--maxWorkers=${concurrentWorkerCount(kind)}`];
 }
 
 function sleep(ms) {
@@ -162,8 +166,10 @@ function sleep(ms) {
 async function runUnitAndIntegrationConcurrent() {
   const t0 = nowMs();
   const staggerMs = Number(process.env.AGENT_DOD_UNIT_STAGGER_MS ?? '12000');
+  const unitWorkers = concurrentWorkerCount('unit');
+  const integrationWorkers = concurrentWorkerCount('integration');
   log(
-    `start concurrent: test:integration first, test:unit after ${staggerMs}ms (unit maxWorkers=${process.env.AGENT_DOD_UNIT_MAX_WORKERS || 'default'}, int maxWorkers=${process.env.AGENT_DOD_INT_MAX_WORKERS || 'project-default'})`,
+    `start concurrent: test:integration first, test:unit after ${staggerMs}ms (unit maxWorkers=${unitWorkers}, int maxWorkers=${integrationWorkers})`,
   );
 
   const integration = spawnNpmScript('test:integration', {

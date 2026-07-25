@@ -12,16 +12,16 @@
   matrix rows, no agent-driven mobile CSS without a **separate product
   decision**.
 - Canonical UI Kit desktop media condition for owner reflow: `max-width: 1200px`.
-- `@media (max-width: 768px)` in UI Kit CSS is **legacy** scheduled for removal
-  (AF12-UIKIT-MOBILE-CSS-01); do not extend it.
-- Target CSS ownership (one JSX seam → one CSS owner, base + own desktop media):
+- `@media (max-width: 768px)` in UI Kit CSS is **not product scope**; do not
+  reintroduce it for UI Kit without a separate product decision.
+- CSS ownership (one JSX seam → one CSS owner, base + own desktop media):
   - `ui-kit-page-shell.css` — page/header/nav/main/intro/footer/reduced-motion
   - `ui-kit-foundation.css` — colors, typography, foundation grids
   - `ui-kit-primitives-showcase.css` — alerts, tabs, metrics, primitives
   - `ui-kit-data-showcase.css` — filters, empty/loading, showcase table
   - `ui-kit-heatcalc-reference.css` — Heat reference/form/action bar/layers/table
-- Shared production `ui-kit.css` with mixed owners is retired as owners land;
-  temporary `ui-kit-responsive.css` holds residual cascade until split completes.
+- Mixed `ui-kit.css` / temporary `ui-kit-responsive.css` are **retired**; new
+  UI Kit rules go only to the owner files above.
 
 > Общий workflow, budget, proof и hard stops:
 > [agent-development-standard.md](./agent-development-standard.md). Фактический

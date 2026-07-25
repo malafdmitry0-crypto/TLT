@@ -1,19 +1,14 @@
 # Frontend TLT: разработка с coding agents
 
-**Актуально на:** 2026-07-24
+**Актуально на:** 2026-07-25
 
 **Статус:** навигатор; общий норматив находится в стандарте, детали — у
 тематических владельцев.
 
-Frontend уже имеет thin page shells, UI-kit, CSS freeze, architecture ratchets
-и agent gates. Residual work к честному agent-friendly 9/10 и точный
-следующий контракт находятся **только** в backlog. Одновременно допускается
-только одна ACTIVE frontend-очередь.
-
-Текущий risk recovery в backlog снижает не «LOC ради LOC», а **связность
-orchestration hooks** (session / data / editing / presentation / effects) и
-фиксирует неявные инварианты project-switch characterization-тестами. Подробная
-мотивация — в [refactor-backlog.md](./refactor-backlog.md#мотивация-risk-recovery-не-loc-а-связи).
+Frontend имеет thin page shells, UI-kit, CSS freeze, architecture ratchets и
+agent gates. Residual work (если появится) и точный следующий контракт
+находятся **только** в backlog. Одновременно допускается только одна ACTIVE
+frontend-очередь. Сейчас backlog: **EMPTY QUEUE**.
 
 ## Начать здесь
 
@@ -51,27 +46,25 @@ orchestration hooks** (session / data / editing / presentation / effects) и
 | Документ | О чём |
 |---|---|
 | [UI-kit](./ui-kit.md) | Границы design system и контракт раскладки форм |
-| [Ant UI Kit — стратегия](./ant-ui-kit-strategy.md) | Ant как внутренняя основа Tlt-фасада: mapping, density, границы |
-| [Ant UI Kit — rollout](./ant-ui-kit-agent-rollout.md) | APPROVED программа миграции: slices, роли, proof, stop conditions |
+| [Ant UI Kit — стратегия](./ant-ui-kit-strategy.md) | Ant как внутренняя основа Tlt-фасада |
 | [CSS-стратегия](./css-strategy.md) | Ownership, cascade, selectors и CSS-механика layout |
 | [Desktop viewport policy](./viewport-policy.md) | `1000` functional, `1280` full workspace, `1440` primary QA |
+| [Browser state matrix](./browser-state-matrix.md) | State × viewport × evidence contract (не очередь) |
 | [`components/ui-kit/README`](../../frontend/src/components/ui-kit/README.md) | Runtime-контракт UI-компонентов |
-| [Архив](./archive/README.md) | Краткая история hardening и commit evidence |
-| [P0 doc-truth snapshot](../audit/2026-07-24-p0-doc-truth/snapshot.md) | Датированные факты дерева (не норматив) |
+| [Архив](./archive/README.md) | Closed initiatives; не маршрутизирует work |
+| [Docs cleanup audit](../audit/2026-07-25-frontend-docs-cleanup/snapshot.md) | Inventory after pruning closed plans |
 
 Тематический документ может потребовать дополнительный proof, но не может
 ослабить стандарт.
 
-## Предложенные runbooks
+## Runbooks / prompts
 
 | Документ | Назначение |
 |---|---|
-| [Осмысленный CSS](./meaningful-css-plan.md) | PROPOSED: план и промпты для удаления static JSX `style`/`styles` и перехода к semantic owner CSS |
-| [AF11 practical hardening](./af11-agent-friendliness-hardening-plan.md) | PROPOSED: context reduction, doc truth, тихий/быстрый DoD и новый state-driven browser seal |
+| [Split large tests by scenario](./prompts/split-large-tests-by-scenario.md) | Optional qa residual (ObjectWizard monolit) |
 
-Предложенный runbook не является ACTIVE-очередью и не задаёт `pending`.
-Исполнять его можно только по явной команде пользователя или после переноса
-одного конкретного slice в [актуальный backlog](./refactor-backlog.md).
+Closed AF10–AF12 / meaningful-css / Ant rollout prompt dumps live only under
+[archive/](./archive/README.md) and git history.
 
 ## Проверенные команды
 

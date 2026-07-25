@@ -11,9 +11,9 @@ passed. Execution is Prompt 14 per area, then Prompt 15 final seal.
 
 Normative inputs:
 
-- [AF11 plan §5 Browser state routing](./af11-agent-friendliness-hardening-plan.md#5-browser-state-routing)
 - [Desktop viewport policy](./viewport-policy.md)
 - [Agent development standard](./agent-development-standard.md)
+- AF11 origin (historical): [archive/af11-historical.md](./archive/af11-historical.md)
 - Machine schema example: [`docs/audit/2026-07-25-af11-browser-contract/evidence.schema.json`](../audit/2026-07-25-af11-browser-contract/evidence.schema.json)
 
 General Kontur UI quality dimensions (page overflow, key bounds, sibling

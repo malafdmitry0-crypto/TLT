@@ -117,7 +117,7 @@ describe('HeatCalcPage project isolation', () => {
       await waitFor(() => {
         expect(screen.getByText('Режим: изменение')).toBeInTheDocument();
       });
-      const lengthInput = await screen.findByTestId('pipe-length-input');
+      const lengthInput = await screen.findByTestId('pipe-length-input', {}, { timeout: HEATCALC_PAGE_TEST_TIMEOUT });
       await user.clear(lengthInput);
       await user.type(lengthInput, '42');
       expect(await screen.findByText(/Несохранено:\s*1/)).toBeInTheDocument();
