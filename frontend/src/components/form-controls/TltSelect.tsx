@@ -1,22 +1,32 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { Select } from 'antd';
 
+/** Single option for {@link TltSelect}. */
 export interface TltSelectOption {
   label: ReactNode;
   value: string | number;
   disabled?: boolean;
 }
 
+/**
+ * TLT select façade over Ant `Select`.
+ * Options: `{ value, label, disabled? }`. Prefer with `CompactField`.
+ * Import from `@/components/ui-kit`.
+ */
 export interface TltSelectProps {
   id?: string;
   name?: string;
+  /** Controlled value. Use `null` for empty. */
   value?: string | number | null;
   defaultValue?: string | number | null;
+  /** Selected value, or `null` when cleared. */
   onChange?: (value: string | number | null) => void;
   disabled?: boolean;
   required?: boolean;
+  /** Shows a clear control when a value is selected. */
   allowClear?: boolean;
   placeholder?: string;
+  /** Option list (`value` + `label`; optional `disabled`). */
   options?: TltSelectOption[];
   status?: 'error' | 'warning' | '';
   className?: string;

@@ -8,11 +8,17 @@ import { InputNumber, Space } from 'antd';
 
 type NumberInputValue = number | string | null | undefined;
 
+/**
+ * TLT number input with optional unit addon and RU decimal comma.
+ * Prefer wrapping with `CompactField`. Import from `@/components/ui-kit`.
+ */
 export interface TltNumberFieldProps {
   id?: string;
   name?: string;
+  /** Controlled value. Empty/clear → `onChange(null)`. */
   value?: NumberInputValue;
   defaultValue?: number | string;
+  /** Finite number, or `null` when cleared. */
   onChange?: (value: number | null) => void;
   onBlur?: FocusEventHandler<HTMLInputElement>;
   onFocus?: FocusEventHandler<HTMLInputElement>;
@@ -25,7 +31,9 @@ export interface TltNumberFieldProps {
   readOnly?: boolean;
   required?: boolean;
   placeholder?: string;
+  /** Unit label shown after the input (e.g. `°C`, `МПа`). */
   unit?: ReactNode;
+  /** Visual validation tone; `error` also marks the field invalid. */
   status?: 'error' | 'warning' | '';
   className?: string;
   inputClassName?: string;

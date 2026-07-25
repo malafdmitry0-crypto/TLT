@@ -14,22 +14,40 @@ function joinClassNames(...classNames: Array<string | false | undefined>) {
   return classNames.filter(Boolean).join(' ') || undefined;
 }
 
-export interface TltTableColumn<Row> {
+/**
+ * Column descriptor for {@link TltTable}.
+ * When `render` is omitted, the cell shows `String(row[column.key] ?? '—')`.
+ */
+export interface TltTableColumn<Row = Record<string, unknown>> {
+  /** Stable column id; also the default field key when `render` is omitted. */
   key: string;
+  /** Header cell content. */
   header: ReactNode;
+  /** Custom cell renderer. Receives the full row and row index. */
   render?: (row: Row, index: number) => ReactNode;
   align?: 'left' | 'center' | 'right';
   width?: CSSProperties['width'];
   className?: string;
 }
 
-export interface TltTableProps<Row> extends Omit<HTMLAttributes<HTMLDivElement>, 'children'> {
+/**
+ * Lightweight data table façade over Ant Table.
+ * Pass plain row objects + column descriptors — no Ant column API in features.
+ */
+export interface TltTableProps<Row = Record<string, unknown>>
+  extends Omit<HTMLAttributes<HTMLDivElement>, 'children'> {
+  /** Column definitions (`key`, `header`, optional `render` / `width` / `align`). */
   columns: readonly TltTableColumn<Row>[];
+  /** Row data. Empty array shows `emptyState`. */
   rows: readonly Row[];
+  /** Property name or function that returns a stable row identity. */
   rowKey: keyof Row | ((row: Row, index: number) => string | number);
+  /** Currently selected row key when selection is enabled. */
   selectedRowKey?: string | number | null;
+  /** Called when a selectable row is activated. */
   onRowSelect?: (row: Row, key: string | number) => void;
   caption?: ReactNode;
+  /** Placeholder when `rows` is empty. */
   emptyState?: ReactNode;
   minWidth?: CSSProperties['minWidth'];
   tableClassName?: string;

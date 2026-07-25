@@ -36,6 +36,89 @@ Frontend считается понятным для агента, если по 
 
 **Exit:** итог `≤2,0`, ни одно измерение не выше `3,0`.
 
+### 1.1 Baseline-метрики качества, скорости и надёжности
+
+**Срез:** runtime `12c45b0`; docs-only overlay `07af54e`.
+
+| Группа | Оценка |
+|---|---:|
+| Код и архитектурные гейты | **8,8 / 10** |
+| Процесс, backlog и доказательства | **7,3 / 10** |
+| Скорость малого изменения | **9,2 / 10** |
+| Скорость полного acceptance-цикла | **6,8 / 10** |
+| Надёжность кода | **9,0 / 10** |
+| Запутанность, где меньше — лучше | **3,0 / 10** |
+
+#### Исполняемые проверки
+
+| Метрика | Значение |
+|---|---:|
+| Focused tests | **57 / 57 PASS** |
+| TypeScript | **PASS** |
+| ESLint | **PASS** |
+| Architecture gates | **PASS** |
+| CSS ratchets | **PASS** |
+| Полный test-контур | **294 файла / 1324 теста PASS** |
+| Unit tests в каждом DoD | **1156 PASS** |
+| Integration tests в каждом DoD | **168 PASS** |
+| DoD repeatability | **2 / 2 PASS · 100%** |
+| DoD wall run 1 | **241 с** |
+| DoD wall run 2 | **224 с** |
+| DoD wall midpoint | **232,5 с** |
+| Integration wall range | **136–147 с** |
+| Production build | **PASS** |
+
+#### Скорость feedback
+
+| Контур | Оценка / значение |
+|---|---:|
+| Fast gate | **9,2 / 10** |
+| Full DoD | **6,8 / 10** |
+| Full DoD range | **224–241 с** |
+| Full DoD variability | **17 с · 7,3% от midpoint** |
+| Acceptance throughput | **5,5–5,9 tests/s по total wall** |
+| Цель `≤120 с` | **не достигнута · фактически 1,87–2,01× медленнее** |
+
+#### Надёжность кода
+
+| Сигнал | Значение |
+|---|---:|
+| Test pass rate в подтверждённых DoD | **1324 / 1324 · 100%** |
+| Повторяемость полного DoD | **100% на 2 прогонах** |
+| `any` | **0** |
+| `@ts-ignore` | **0** |
+| `as unknown as` | **0** |
+| `!important` | **0** |
+| Максимальный import-context | **20** |
+| Production files >500 LOC | **0** |
+| Browser viewport coverage | **4 / 4** |
+| Failed API requests в browser proof | **0** |
+| Console seal | **FAIL · 2 Ant warnings** |
+
+#### Размер контекста
+
+| Метрика | Значение |
+|---|---:|
+| Production files | **439** |
+| Production files ≥400 LOC | **22** |
+| Production files >500 LOC | **0** |
+| Test-related files | **340** |
+| Test-related files ≥500 LOC | **9** |
+| Максимальный test helper | **705 LOC** |
+
+#### Browser proof
+
+| Метрика | Значение |
+|---|---:|
+| `1000×768` | **PASS** |
+| `1280×800` | **PASS** |
+| `1440×900` | **PASS** |
+| `1920×1080` | **PASS** |
+| Excel без commercial flag | **PASS** |
+| Keyboard focus + `ArrowRight` | **PASS** |
+| Page-level horizontal overflow | **0** |
+| Mobile `<1000 px` | **вне product contract** |
+
 ## 2. Непереговорные ограничения
 
 - Этот документ не создаёт вторую очередь. Если пользователь не назвал

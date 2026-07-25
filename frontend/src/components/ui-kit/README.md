@@ -17,10 +17,17 @@ through `CompactFieldGrid` + `antFormAdapter`.
 cd frontend
 npm run storybook          # http://127.0.0.1:6006
 npm run build-storybook    # static → storybook-static/
+npm run storybook:coverage # barrel exports vs CSF (add :strict to fail on gaps)
 ```
 
 Preview mirrors app runtime: `tokens.css` + `StyleProvider hashPriority="low"` +
-`ConfigProvider`/`appTheme`. Stories live in `*.stories.tsx` next to kit components.
+`ConfigProvider`/`appTheme`. Stories live in `*.stories.tsx` next to kit
+components (including form-control façades re-exported from this barrel).
+
+**MCP / agent contract:** every public component export must have its own
+`UI Kit/<Name>` story file so Storybook MCP lists a first-class component ID
+(e.g. `ui-kit-tltselect`). Nested-only usage inside another story is not enough.
+Coverage gate: `npm run storybook:coverage:strict`.
 
 ## Public API
 

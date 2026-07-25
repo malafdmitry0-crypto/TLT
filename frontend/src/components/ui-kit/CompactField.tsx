@@ -1,14 +1,27 @@
 import type { CSSProperties, ReactNode } from 'react';
 
+/**
+ * Label / control / hint / error chrome for one form field.
+ * Feature code supplies the control (`children`); this owns layout only.
+ * Pair with {@link CompactFieldGrid} for multi-field rows.
+ */
 export interface CompactFieldProps {
+  /** Field label shown beside or above the control. */
   label: ReactNode;
+  /** Helper text under the control when there is no `error`. */
   hint?: ReactNode;
+  /** Marks the field required (amber inset on control; no asterisk). */
   required?: boolean;
+  /** Validation message; replaces `hint` when set. */
   error?: ReactNode;
+  /** Control node (`TltTextField`, `TltNumberField`, `TltSelect`, …). */
   children: ReactNode;
   className?: string;
+  /** `horizontal` = label | control; `vertical` = label above control. */
   layout?: 'horizontal' | 'vertical';
+  /** Override default label track width (token: `--tlt-field-label-width`). */
   labelWidth?: CSSProperties['width'];
+  /** Control track width (tokens: `--tlt-field-ctrl-num`, `-name`, …). */
   controlWidth?: CSSProperties['width'];
 }
 

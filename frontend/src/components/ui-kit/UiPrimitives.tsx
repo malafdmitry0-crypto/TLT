@@ -22,11 +22,21 @@ export type TltUiTone = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
 export type TltButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'link';
 export type TltButtonSize = 'compact' | 'comfortable' | 'icon';
 
-export interface TltButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+/**
+ * Public button façade. Visual look is controlled by `variant` / `size`;
+ * native submit/reset uses HTML `type` only (not Ant Button `type`).
+ */
+export interface TltButtonProps
+  extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'type' | 'color'> {
+  /** Visual style (primary / secondary / ghost / danger / link). */
   variant?: TltButtonVariant;
+  /** Control height density. `icon` is for icon-only compact buttons. */
   size?: TltButtonSize;
   icon?: ReactNode;
+  /** Shows spinner and disables the button while true. */
   loading?: boolean;
+  /** Native HTML button type. Does not change visual variant. */
+  type?: 'button' | 'submit' | 'reset';
 }
 
 function joinClassNames(...classNames: Array<string | false | undefined>) {
@@ -63,9 +73,8 @@ export const TltButton = forwardRef<HTMLButtonElement, TltButtonProps>(function 
 ) {
   const hasText = children !== undefined && children !== null;
   const htmlType = type === 'submit' || type === 'reset' ? type : 'button';
-  // Strip props that collide with Ant Button's own API (variant/color/type).
+  // Strip props that collide with Ant Button's own API (form* / name / value).
   const {
-    color: _c,
     form: _form,
     formAction: _formAction,
     formEncType: _formEncType,

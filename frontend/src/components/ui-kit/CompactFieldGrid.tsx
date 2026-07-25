@@ -1,18 +1,25 @@
 import type { CSSProperties, HTMLAttributes, ReactNode } from 'react';
 
+/**
+ * Shared responsive layout for compact fields (not app-wide CSS Grid).
+ * Owns columns / flow / density only — not form state or validation.
+ */
 export interface CompactFieldGridProps extends Omit<HTMLAttributes<HTMLDivElement>, 'children'> {
+  /** Field nodes, typically `CompactField` children. */
   children: ReactNode;
+  /** Vertical rhythm: compact (HeatCalc) or comfortable. */
   density?: 'compact' | 'comfortable';
-  /** Number of equal columns in the regular grid flow. */
+  /** Number of equal columns in the regular grid flow. Default 3. */
   columns?: number;
-  /** Fill a fixed number of rows before creating the next column. */
+  /** `columns` = fill column then next; `rows` = fill rows first. */
   flow?: 'rows' | 'columns';
+  /** When `flow="columns"`, max fields per column before next column. Default 5. */
   maxRowsPerColumn?: number;
-  /** Content sizing mirrors HeatCalc; equal sizing is useful for wide dashboard forms. */
+  /** `content` mirrors HeatCalc; `equal` for wide dashboard forms. */
   sizing?: 'content' | 'equal';
   /** Adapts Ant Design Form.Item markup to the same horizontal field contract. */
   antFormAdapter?: boolean;
-  /** 'left' = horizontal [label | control] row (default); 'top' = label above control. */
+  /** `left` = [label | control]; `top` = label above control. */
   labelPlacement?: 'left' | 'top';
 }
 

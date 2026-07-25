@@ -5,11 +5,18 @@ import type {
 } from 'react';
 import { Input } from 'antd';
 
+/**
+ * TLT text input façade over Ant `Input`.
+ * Prefer wrapping with `CompactField` for label / hint / error chrome.
+ * Import from `@/components/ui-kit` (or `@/components/form-controls`).
+ */
 export interface TltTextFieldProps {
   id?: string;
   name?: string;
+  /** Controlled value. Omit for uncontrolled + `defaultValue`. */
   value?: string;
   defaultValue?: string;
+  /** Fires with the string value (not the DOM event). */
   onChange?: (value: string) => void;
   onBlur?: FocusEventHandler<HTMLInputElement>;
   onFocus?: FocusEventHandler<HTMLInputElement>;
@@ -27,8 +34,10 @@ export interface TltTextFieldProps {
   inputClassName?: string;
   style?: CSSProperties;
   inputStyle?: CSSProperties;
+  /** Accessible name; falls back to placeholder / name / id. */
   'aria-label'?: string;
   'aria-required'?: boolean | 'true' | 'false';
+  /** When true/`true`, applies error status styling. */
   'aria-invalid'?: boolean | 'true' | 'false' | 'grammar' | 'spelling';
   'data-testid'?: string;
 }
