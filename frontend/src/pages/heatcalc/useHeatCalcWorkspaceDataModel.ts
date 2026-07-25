@@ -17,14 +17,7 @@ import type {
   ProjectObjectsPageCursor,
   ProjectObjectsQueryResponse,
 } from '@/types/project';
-import {
-  createEmptyTableViewState,
-  hasActiveTableViewState,
-  type HeatCalcTableViewState,
-} from '@/utils/heatCalcTableFindability';
-import {
-  isSavableExcelDraftRow,
-} from '@/utils/heatCalcExcelRows';
+import type { HeatCalcTableViewState } from '@/utils/heatCalcTableFindability';
 import type { ExcelSelectionRange } from '@/utils/heatCalcExcelMode';
 import type {
   HeatCalcObjectType,
@@ -47,55 +40,13 @@ import type {
   ActiveObjectScope,
   NormalLoadedRowsByType,
 } from '@/pages/heatcalc/useHeatCalcTableState';
+import {
+  buildHeatCalcWorkspaceModeModel,
+  type HeatCalcWorkspaceModeInput,
+} from '@/pages/heatcalc/heatCalcWorkspaceModeModel';
 
-const FINDABILITY_DISABLED_TABLE_VIEW_STATE = createEmptyTableViewState();
-
-export type HeatCalcWorkspaceModeInput = {
-  /** @deprecated Excel mode is not commercial-gated; kept optional for callers. */
-  commercialFeaturesAvailable?: boolean;
-  tableEditingMode: HeatCalcToolbarEditingMode;
-  isAllObjectScope: boolean;
-  tableFindabilityAvailable: boolean;
-  activeTableViewState: HeatCalcTableViewState;
-  allTableViewState: HeatCalcTableViewState;
-};
-
-/**
- * Pure mode + effective table-view flags for the workspace data pipeline.
- * Kept pure for focused characterization without mounting React Query hooks.
- */
-export function buildHeatCalcWorkspaceModeModel({
-  
-  tableEditingMode,
-  isAllObjectScope,
-  tableFindabilityAvailable,
-  activeTableViewState,
-  allTableViewState,
-}: HeatCalcWorkspaceModeInput) {
-  const effectiveActiveTableViewState = tableFindabilityAvailable
-    ? activeTableViewState
-    : FINDABILITY_DISABLED_TABLE_VIEW_STATE;
-  const effectiveAllTableViewState = tableFindabilityAvailable
-    ? allTableViewState
-    : FINDABILITY_DISABLED_TABLE_VIEW_STATE;
-  // Excel table mode is a core HeatCalc editing mode (desktop), not commercial-gated.
-  // commercialFeaturesAvailable still gates external catalog / paid cable features.
-  const excelModeEnabled = tableEditingMode === 'excel' && !isAllObjectScope;
-  const normalGlideEnabled = !excelModeEnabled;
-  const tableCellEditingEnabled = excelModeEnabled;
-  const currentTableViewActive = tableFindabilityAvailable
-    && hasActiveTableViewState(effectiveActiveTableViewState);
-
-  return {
-    effectiveActiveTableViewState,
-    effectiveAllTableViewState,
-    excelModeEnabled,
-    normalGlideEnabled,
-    tableCellEditingEnabled,
-    currentTableViewActive,
-    isSavableDraftRow: isSavableExcelDraftRow,
-  };
-}
+export type { HeatCalcWorkspaceModeInput };
+export { buildHeatCalcWorkspaceModeModel };
 
 export type UseHeatCalcWorkspaceDataModelOptions = {
   project: Project | null | undefined;
@@ -153,6 +104,14 @@ export function useHeatCalcWorkspaceDataModel({
   resetNormalLoadMoreRequest,
   upsertNormalLoadedRow,
 }: UseHeatCalcWorkspaceDataModelOptions) {
+  const mode = buildHeatCalcWorkspaceModeModel({
+    commercialFeaturesAvailable,
+    tableEditingMode,
+    isAllObjectScope,
+    tableFindabilityAvailable,
+    activeTableViewState,
+    allTableViewState,
+  });
   const {
     effectiveActiveTableViewState,
     effectiveAllTableViewState,
@@ -161,38 +120,9 @@ export function useHeatCalcWorkspaceDataModel({
     tableCellEditingEnabled,
     currentTableViewActive,
     isSavableDraftRow,
-  } = buildHeatCalcWorkspaceModeModel({
-    commercialFeaturesAvailable,
-    tableEditingMode,
-    isAllObjectScope,
-    tableFindabilityAvailable,
-    activeTableViewState,
-    allTableViewState,
-  });
+  } = mode;
 
-  const {
-    allFilteredSortedTableRows,
-    allProjectObjects,
-    allProjectObjectsQueryKey,
-    columnRenderers,
-    editableExcelColumnKeys,
-    enumOptionsByColumn,
-    fieldCapabilityByKey,
-    objectQueryFetching,
-    objectQueryKey,
-    objectQueryResult,
-    pipeCount,
-    projectObjectCount,
-    resolvedTableFontSize,
-    sourceColumnMetas,
-    tableValueAccessors,
-    tankCount,
-    totalCount,
-    normalizedTableView,
-    visibleAllTableRows,
-    visibleTableColumnKeys,
-    workspaceLoadState,
-  } = useHeatCalcObjectsDataModel({
+  const objects = useHeatCalcObjectsDataModel({
     activeObjectQueryCursor,
     activeObjectScope,
     activeTableColumnScope,
@@ -212,124 +142,92 @@ export function useHeatCalcWorkspaceDataModel({
     resetNormalLoadMoreRequest,
   });
 
-  const formPlacement = normalizedTableView.formPlacement;
-  const sideFormWidthPct = normalizedTableView.sideFormWidthPct;
+  const formPlacement = objects.normalizedTableView.formPlacement;
+  const sideFormWidthPct = objects.normalizedTableView.sideFormWidthPct;
 
-  const {
-    activeInlineCell,
-    setActiveInlineCell,
-    draftRowsById,
-    setDraftRowsById,
-    excelLocalRows,
-    setExcelLocalRows,
-    appendExcelLocalRows,
-    extendExcelInputRowsOnScroll,
-    discardDraftRows,
-    commitInlineCell,
-    handleWizardDraftValuesChange: applyWizardDraftValuesChange,
-    excelBaseRows,
-    excelRows,
-    excelTableRows,
-    excelRowIds,
-    activeExcelCellPosition,
-    selectedExcelRows,
-  } = useHeatCalcInlineDraftModel({
+  const drafts = useHeatCalcInlineDraftModel({
     projectId: project?.id,
     excelModeEnabled,
-    allProjectObjects,
+    allProjectObjects: objects.allProjectObjects,
     activeObjectType: activeTableObjectType,
-    projectObjectCount,
+    projectObjectCount: objects.projectObjectCount,
     tableViewState: effectiveActiveTableViewState,
-    tableValueAccessors,
+    tableValueAccessors: objects.tableValueAccessors,
     selectedExcelCell,
     excelSelectionRange,
-    editableExcelColumnKeys,
+    editableExcelColumnKeys: objects.editableExcelColumnKeys,
     onProjectReset: clearExcelSelectionForProject,
   });
 
   const { registerNormalGridDraftInvalidator } = useHeatCalcNormalGridDraftInvalidation(
-    draftRowsById,
+    drafts.draftRowsById,
     excelModeEnabled,
   );
 
-  const {
-    baseVisibleTableObjects,
-    visibleTableObjects,
-    visibleTableRows,
-    visibleSourceIndexById,
-  } = useMemo(
+  const visible = useMemo(
     () => buildHeatCalcVisibleRowsModel({
       activeTableObjectType,
-      excelBaseRows,
+      excelBaseRows: drafts.excelBaseRows,
       excelModeEnabled,
-      excelRows,
-      excelTableRows,
+      excelRows: drafts.excelRows,
+      excelTableRows: drafts.excelTableRows,
       isAllObjectScope,
       normalLoadedRowsByType,
-      objectQueryResult,
-      visibleAllTableRows,
+      objectQueryResult: objects.objectQueryResult,
+      visibleAllTableRows: objects.visibleAllTableRows,
     }),
     [
       activeTableObjectType,
-      excelBaseRows,
+      drafts.excelBaseRows,
+      drafts.excelRows,
+      drafts.excelTableRows,
       excelModeEnabled,
-      excelRows,
-      excelTableRows,
       isAllObjectScope,
       normalLoadedRowsByType,
-      objectQueryResult,
-      visibleAllTableRows,
+      objects.objectQueryResult,
+      objects.visibleAllTableRows,
     ],
   );
 
   const { handleObjectsRowMoved } = useHeatCalcObjectReorder({
     projectId: project?.id,
     excelModeEnabled,
-    visibleTableObjects,
+    visibleTableObjects: visible.visibleTableObjects,
     queryClient,
   });
 
   const selectedVisibleRows = useMemo(
-    () => filterVisibleRowsBySelectedKeys(visibleTableRows, selectedRowKeys),
-    [selectedRowKeys, visibleTableRows],
+    () => filterVisibleRowsBySelectedKeys(visible.visibleTableRows, selectedRowKeys),
+    [selectedRowKeys, visible.visibleTableRows],
   );
 
-  const { activeTypeTotalCount, filteredTableCount } = buildHeatCalcTableCounts({
+  const counts = buildHeatCalcTableCounts({
     isAllObjectScope,
-    projectObjectCount,
-    totalCount,
+    projectObjectCount: objects.projectObjectCount,
+    totalCount: objects.totalCount,
     activeTableObjectType,
-    objectQueryCounts: objectQueryResult?.counts,
+    objectQueryCounts: objects.objectQueryResult?.counts,
     excelModeEnabled,
-    allFilteredSortedTableRowsLength: allFilteredSortedTableRows.length,
-    visibleTableObjectsLength: visibleTableObjects.length,
-    baseVisibleTableObjectsLength: baseVisibleTableObjects.length,
+    allFilteredSortedTableRowsLength: objects.allFilteredSortedTableRows.length,
+    visibleTableObjectsLength: visible.visibleTableObjects.length,
+    baseVisibleTableObjectsLength: visible.baseVisibleTableObjects.length,
   });
 
-  const {
-    dirtyDraftRowCount,
-    draftControlsVisible,
-    draftDiscardLabel,
-    inlineDraftSaving,
-    saveDraftRows,
-    saveTargetCount,
-    saveTargetIds,
-    selectedDirtyTarget,
-  } = useHeatCalcDraftSaveModel({
-    allProjectObjects,
-    allProjectObjectsQueryKey,
-    draftRowsById,
+  const draftSave = useHeatCalcDraftSaveModel({
+    allProjectObjects: objects.allProjectObjects,
+    allProjectObjectsQueryKey: objects.allProjectObjectsQueryKey,
+    draftRowsById: drafts.draftRowsById,
     isSavableDraftRow,
-    objectQueryKey,
+    objectQueryKey: objects.objectQueryKey,
     project,
-    projectObjectCount,
+    projectObjectCount: objects.projectObjectCount,
     queryClient,
     selectedRowKeys,
-    setDraftRowsById,
-    setExcelLocalRows,
+    setDraftRowsById: drafts.setDraftRowsById,
+    setExcelLocalRows: drafts.setExcelLocalRows,
     tableCellEditingEnabled,
     upsertNormalLoadedRow,
-    visibleTableObjects,
+    visibleTableObjects: visible.visibleTableObjects,
   });
 
   return {
@@ -344,62 +242,62 @@ export function useHeatCalcWorkspaceDataModel({
     formPlacement,
     sideFormWidthPct,
     // objects query projection
-    allFilteredSortedTableRows,
-    allProjectObjects,
-    allProjectObjectsQueryKey,
-    columnRenderers,
-    editableExcelColumnKeys,
-    enumOptionsByColumn,
-    fieldCapabilityByKey,
-    objectQueryFetching,
-    objectQueryKey,
-    objectQueryResult,
-    pipeCount,
-    projectObjectCount,
-    resolvedTableFontSize,
-    sourceColumnMetas,
-    tableValueAccessors,
-    tankCount,
-    totalCount,
-    visibleAllTableRows,
-    visibleTableColumnKeys,
-    workspaceLoadState,
+    allFilteredSortedTableRows: objects.allFilteredSortedTableRows,
+    allProjectObjects: objects.allProjectObjects,
+    allProjectObjectsQueryKey: objects.allProjectObjectsQueryKey,
+    columnRenderers: objects.columnRenderers,
+    editableExcelColumnKeys: objects.editableExcelColumnKeys,
+    enumOptionsByColumn: objects.enumOptionsByColumn,
+    fieldCapabilityByKey: objects.fieldCapabilityByKey,
+    objectQueryFetching: objects.objectQueryFetching,
+    objectQueryKey: objects.objectQueryKey,
+    objectQueryResult: objects.objectQueryResult,
+    pipeCount: objects.pipeCount,
+    projectObjectCount: objects.projectObjectCount,
+    resolvedTableFontSize: objects.resolvedTableFontSize,
+    sourceColumnMetas: objects.sourceColumnMetas,
+    tableValueAccessors: objects.tableValueAccessors,
+    tankCount: objects.tankCount,
+    totalCount: objects.totalCount,
+    visibleAllTableRows: objects.visibleAllTableRows,
+    visibleTableColumnKeys: objects.visibleTableColumnKeys,
+    workspaceLoadState: objects.workspaceLoadState,
     // drafts / excel local rows
-    activeInlineCell,
-    setActiveInlineCell,
-    draftRowsById,
-    setDraftRowsById,
-    excelLocalRows,
-    setExcelLocalRows,
-    appendExcelLocalRows,
-    extendExcelInputRowsOnScroll,
-    discardDraftRows,
-    commitInlineCell,
-    applyWizardDraftValuesChange,
-    excelBaseRows,
-    excelRows,
-    excelTableRows,
-    excelRowIds,
-    activeExcelCellPosition,
-    selectedExcelRows,
+    activeInlineCell: drafts.activeInlineCell,
+    setActiveInlineCell: drafts.setActiveInlineCell,
+    draftRowsById: drafts.draftRowsById,
+    setDraftRowsById: drafts.setDraftRowsById,
+    excelLocalRows: drafts.excelLocalRows,
+    setExcelLocalRows: drafts.setExcelLocalRows,
+    appendExcelLocalRows: drafts.appendExcelLocalRows,
+    extendExcelInputRowsOnScroll: drafts.extendExcelInputRowsOnScroll,
+    discardDraftRows: drafts.discardDraftRows,
+    commitInlineCell: drafts.commitInlineCell,
+    applyWizardDraftValuesChange: drafts.handleWizardDraftValuesChange,
+    excelBaseRows: drafts.excelBaseRows,
+    excelRows: drafts.excelRows,
+    excelTableRows: drafts.excelTableRows,
+    excelRowIds: drafts.excelRowIds,
+    activeExcelCellPosition: drafts.activeExcelCellPosition,
+    selectedExcelRows: drafts.selectedExcelRows,
     registerNormalGridDraftInvalidator,
     // visible rows + selection projection
-    baseVisibleTableObjects,
-    visibleTableObjects,
-    visibleTableRows,
-    visibleSourceIndexById,
+    baseVisibleTableObjects: visible.baseVisibleTableObjects,
+    visibleTableObjects: visible.visibleTableObjects,
+    visibleTableRows: visible.visibleTableRows,
+    visibleSourceIndexById: visible.visibleSourceIndexById,
     selectedVisibleRows,
     handleObjectsRowMoved,
-    activeTypeTotalCount,
-    filteredTableCount,
+    activeTypeTotalCount: counts.activeTypeTotalCount,
+    filteredTableCount: counts.filteredTableCount,
     // draft save surface
-    dirtyDraftRowCount,
-    draftControlsVisible,
-    draftDiscardLabel,
-    inlineDraftSaving,
-    saveDraftRows,
-    saveTargetCount,
-    saveTargetIds,
-    selectedDirtyTarget,
+    dirtyDraftRowCount: draftSave.dirtyDraftRowCount,
+    draftControlsVisible: draftSave.draftControlsVisible,
+    draftDiscardLabel: draftSave.draftDiscardLabel,
+    inlineDraftSaving: draftSave.inlineDraftSaving,
+    saveDraftRows: draftSave.saveDraftRows,
+    saveTargetCount: draftSave.saveTargetCount,
+    saveTargetIds: draftSave.saveTargetIds,
+    selectedDirtyTarget: draftSave.selectedDirtyTarget,
   };
 }
