@@ -20,27 +20,26 @@ import {
   type TankNameFields,
 } from '@/utils/objectWizardUtils';
 import {
-  defaultInsulationTemperatureBasisForPlacement,
-  isInsulationTemperatureBasisAllowedForPlacement,
   isHeatCalcFieldRequired,
   isHeatCalcFieldVisible,
 } from '@/domain/heatCalcFieldRules';
-import {
-  climateTemperature,
-  climateWind,
-  type ClimateBasis,
-} from './objectWizardClimateModel';
-import {
-  expandedChangedFieldNames,
-  INSULATION_LAYER_FORM_FIELDS,
-  insulationReferenceFieldValues,
-  isReferenceInsulationMaterial,
-} from './objectWizardInsulationModel';
+import type { ClimateBasis } from './objectWizardClimateModel';
 import {
   isEmptyFormValue,
   REQUIRED_FIELD_ERROR_MESSAGE,
   type CalculationFieldError,
 } from './objectWizardValidationModel';
+import {
+  buildClearedClimateKeySync,
+  buildClimateSyncValues,
+  buildInsulationReferenceSyncValues,
+  buildPipeMaterialLambdaSync,
+  buildPlacementBasisSync,
+  collectInsulationLayerSyncValues,
+  formAlreadyHasValues,
+  resolveCalcErrorNamesToClear,
+  scrollToFirstError,
+} from './objectWizardFormSyncMappers';
 
 export type ObjectWizardSoilOption = {
   value: string;
@@ -69,32 +68,11 @@ export type UseObjectWizardFormSyncInput = {
   ) => void;
 };
 
-function equivalentFormValue(left: unknown, right: unknown) {
-  if (typeof left === 'number' || typeof right === 'number') {
-    const leftNumber = Number(left);
-    const rightNumber = Number(right);
-    if (!Number.isFinite(leftNumber) && !Number.isFinite(rightNumber)) return true;
-    return Math.abs(leftNumber - rightNumber) < 1e-9;
-  }
-  return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
-}
-
-export function formAlreadyHasValues(form: FormInstance, values: Record<string, unknown>) {
-  const current = form.getFieldsValue(true) as Record<string, unknown>;
-  return Object.entries(values).every(([key, value]) => equivalentFormValue(current[key], value));
-}
-
-export function scrollToFirstError() {
-  setTimeout(() => {
-    const el = document.querySelector<HTMLElement>('.inline-object-form .ant-form-item-has-error');
-    if (el) {
-      el.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
-      el.querySelector<HTMLElement>(
-        'input, select, textarea, .tlt-select__trigger, .reference-picker-control',
-      )?.focus();
-    }
-  }, 0);
-}
+export {
+  formAlreadyHasValues,
+  scrollToFirstError,
+  equivalentFormValue,
+} from './objectWizardFormSyncMappers';
 
 export function useObjectWizardFormSync({
   form,
@@ -214,25 +192,7 @@ export function useObjectWizardFormSync({
 
   useEffect(() => {
     if (!selectedClimate) return;
-    const tAmbient = climateBasis ? climateTemperature(selectedClimate, climateBasis) : null;
-    const wind = climateWind(selectedClimate);
-    const nextValues = {
-      climate_city: selectedClimate.city ?? selectedClimate.region,
-      climate_region: selectedClimate.region,
-      climate_temperature_basis: climateBasis,
-      ...(tAmbient != null
-        ? {
-            ambient_temperature: tAmbient,
-            ambient_temperature_source: 'climate',
-          }
-        : {}),
-      ...(wind != null
-        ? {
-            wind_speed: wind,
-            wind_speed_source: 'climate',
-          }
-        : {}),
-    };
+    const nextValues = buildClimateSyncValues(selectedClimate, climateBasis);
     form.setFieldsValue(nextValues);
     onDraftValuesChange?.(nextValues, form.getFieldsValue(true) as Record<string, unknown>);
   }, [climateBasis, form, onDraftValuesChange, selectedClimate]);
@@ -248,13 +208,7 @@ export function useObjectWizardFormSync({
 
   useEffect(() => {
     if (insulationMaterials.length === 0) return;
-    const nextValues: Record<string, unknown> = {};
-    INSULATION_LAYER_FORM_FIELDS.forEach((layer, index) => {
-      if (index + 1 > layerCount) return;
-      const material = form.getFieldValue(layer.material);
-      if (!isReferenceInsulationMaterial(material)) return;
-      Object.assign(nextValues, insulationReferenceFieldValues(layer, insulationMaterials, material));
-    });
+    const nextValues = buildInsulationReferenceSyncValues({ form, insulationMaterials, layerCount });
     if (Object.keys(nextValues).length === 0 || formAlreadyHasValues(form, nextValues)) return;
     form.setFieldsValue(nextValues);
   }, [
@@ -289,17 +243,7 @@ export function useObjectWizardFormSync({
   function clearCalculationFieldErrors(changedFieldNames?: string[]) {
     const currentFieldNames = calculationFieldErrorNamesRef.current;
     if (currentFieldNames.length === 0) return;
-    const expandedChangedNames = changedFieldNames ? expandedChangedFieldNames(changedFieldNames) : undefined;
-    const resetAll = !expandedChangedNames
-      || expandedChangedNames.some((fieldName) => (
-        fieldName === 'insulation_layer_count'
-        || fieldName === 'placement'
-        || fieldName === 'shape'
-        || fieldName === 'pipe_lambda_mode'
-      ));
-    const namesToClear = resetAll
-      ? currentFieldNames
-      : currentFieldNames.filter((fieldName) => expandedChangedNames.includes(fieldName));
+    const { namesToClear, resetAll } = resolveCalcErrorNamesToClear(currentFieldNames, changedFieldNames);
     if (namesToClear.length === 0) return;
     form.setFields(namesToClear.map((fieldName) => ({ name: fieldName, errors: [] })));
     calculationFieldErrorNamesRef.current = resetAll
@@ -307,34 +251,9 @@ export function useObjectWizardFormSync({
       : currentFieldNames.filter((fieldName) => !namesToClear.includes(fieldName));
   }
 
-  function collectInsulationLayerSyncValues(changed: Record<string, unknown>) {
-    const nextValues: Record<string, unknown> = {};
-    INSULATION_LAYER_FORM_FIELDS.forEach((layer) => {
-      if (Object.prototype.hasOwnProperty.call(changed, layer.material)) {
-        const material = changed[layer.material];
-        if (isReferenceInsulationMaterial(material)) {
-          Object.assign(nextValues, insulationReferenceFieldValues(layer, insulationMaterials, material));
-        }
-      }
-
-      const manualFieldChanged = [layer.lambda, layer.min, layer.max].some((fieldName) => (
-        Object.prototype.hasOwnProperty.call(changed, fieldName)
-      ));
-      if (manualFieldChanged) {
-        const material = Object.prototype.hasOwnProperty.call(changed, layer.material)
-          ? changed[layer.material]
-          : form.getFieldValue(layer.material);
-        if (material !== 'other') {
-          nextValues[layer.material] = 'other';
-        }
-      }
-    });
-    return nextValues;
-  }
-
   function syncProgrammaticValuesChange(changed: Record<string, unknown>) {
     const syncedChanges: Record<string, unknown> = { ...changed };
-    const layerSyncValues = collectInsulationLayerSyncValues(changed);
+    const layerSyncValues = collectInsulationLayerSyncValues({ form, changed, insulationMaterials });
     if (Object.keys(layerSyncValues).length > 0) {
       form.setFieldsValue(layerSyncValues);
       Object.assign(syncedChanges, layerSyncValues);
@@ -358,26 +277,14 @@ export function useObjectWizardFormSync({
 
     clearCalculationFieldErrors(Object.keys(changed));
     if (Object.prototype.hasOwnProperty.call(changed, 'placement')) {
-      const currentBasis = form.getFieldValue('insulation_temperature_basis');
-      if (
-        !currentBasis
-        || !isInsulationTemperatureBasisAllowedForPlacement(currentBasis, changed.placement)
-      ) {
-        setSyncedFields({
-          insulation_temperature_basis: defaultInsulationTemperatureBasisForPlacement(
-            changed.placement,
-          ),
-        });
-      }
+      const placementSync = buildPlacementBasisSync(
+        changed.placement,
+        form.getFieldValue('insulation_temperature_basis'),
+      );
+      if (placementSync) setSyncedFields(placementSync);
     }
     if (Object.prototype.hasOwnProperty.call(changed, 'climate_key') && !changed.climate_key) {
-      setSyncedFields({
-        climate_city: undefined,
-        climate_region: undefined,
-        climate_temperature_basis: undefined,
-        ambient_temperature_source: form.getFieldValue('ambient_temperature') == null ? undefined : 'manual',
-        wind_speed_source: form.getFieldValue('wind_speed') == null ? undefined : 'manual',
-      });
+      setSyncedFields(buildClearedClimateKeySync(form));
     }
     if (Object.prototype.hasOwnProperty.call(changed, 'ambient_temperature')) {
       setSyncedFields({ ambient_temperature_source: 'manual' });
@@ -386,13 +293,9 @@ export function useObjectWizardFormSync({
       setSyncedFields({ wind_speed_source: 'manual' });
     }
     if (Object.prototype.hasOwnProperty.call(changed, 'pipe_material')) {
-      const manualPipeLambda = changed.pipe_material === 'other';
-      setSyncedFields({
-        pipe_lambda_mode: manualPipeLambda ? 'manual' : 'reference',
-        ...(!manualPipeLambda ? { pipe_lambda: undefined } : {}),
-      });
+      setSyncedFields(buildPipeMaterialLambdaSync(changed.pipe_material));
     }
-    const layerSyncValues = collectInsulationLayerSyncValues(changed);
+    const layerSyncValues = collectInsulationLayerSyncValues({ form, changed, insulationMaterials });
     if (Object.keys(layerSyncValues).length > 0) {
       setSyncedFields(layerSyncValues);
     }
