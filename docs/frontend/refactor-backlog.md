@@ -7,9 +7,9 @@
 pending» (dense production 400-band + heavy test contexts) must be real
 `pending`, not EMPTY QUEUE cosmetics.  
 **Inventory at open:** **22** files in **400–445** LOC (production).  
-**Last closed production:** P-BAND-07 HeatCalcGlideGrid (see table)
+**Last closed production:** P-BAND-10 heatCalcColumnRenderers (see table)
 
-**Следующий незакрытый контракт:** `P-BAND-10`
+**Следующий незакрытый контракт:** `P-BAND-13`
 
 Это **единственный** источник текущего `pending` для frontend. Одновременно
 может существовать только одна ACTIVE frontend-очередь. Initiative plans,
@@ -80,7 +80,7 @@ util/domain/api/types).
 | 7 | **P-BAND-07** | **done** `bb0189c` | heat | `HeatCalcGlideGrid.tsx` **429→363** | [audit](../audit/2026-07-26-p-band-07-heat-glide/snapshot.md) |
 | 8 | **P-BAND-08** | **done** `bc07b4f` | shared | `api/calculations.ts` **428→212** | [audit](../audit/2026-07-26-p-band-08-calculations-api/snapshot.md) |
 | 9 | **P-BAND-09** | **done** `525c1a3` | heat | `utils/heatCalcExcelMode.ts` **427→256** | [audit](../audit/2026-07-26-p-band-09-excel-mode/snapshot.md) |
-| 10 | P-BAND-10 | pending | heat | `pages/heatcalc/heatCalcColumnRenderers.tsx` (~423) | renderer clusters |
+| 10 | **P-BAND-10** | **done** `99c5726` | heat | `heatCalcColumnRenderers.tsx` **423→293** | [audit](../audit/2026-07-26-p-band-10-heat-renderers/snapshot.md) |
 | 11 | **P-BAND-11** | **done** `14e1059` | shared | `types/calculation.ts` **413→109** | [audit](../audit/2026-07-26-p-band-11-calculation-types/snapshot.md) |
 | 12 | **P-BAND-12** | **done** `2d35d28` | heat | `domain/heatCalcFieldRules.ts` **412→254** | [audit](../audit/2026-07-26-p-band-12-field-rules/snapshot.md) |
 | 13 | P-BAND-13 | pending | heat | `hooks/useHeatCalcNormalGlideController.ts` (~412) | pure controller helpers |
