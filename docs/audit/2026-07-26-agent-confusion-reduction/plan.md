@@ -198,6 +198,72 @@ Frontend считается понятным для агента, если по 
 | Runtime/API errors | **rolling 7 и 30 days** |
 | Browser/evidence freshness | **каждый UI slice и каждый release candidate** |
 
+### 1.3 Свойства приоритизации
+
+Каждая проблемная метрика и каждый improvement slice получают три свойства:
+
+| Свойство | Значения | Смысл |
+|---|---|---|
+| `Срочность` | `U0 NOW`, `U1 NEXT`, `U2 PLANNED`, `U3 WATCH` | Когда показатель должен попасть в работу |
+| `Критичность` | `K0 BLOCKER`, `K1 HIGH`, `K2 MEDIUM`, `K3 LOW` | Какой production-риск возникает без исправления |
+| `Улучшение` | `I3 LARGE`, `I2 MEDIUM`, `I1 SMALL`, `I0 CONTROL` | Масштаб ожидаемого измеримого эффекта |
+
+#### Срочность
+
+| Код | Интерпретация |
+|---|---|
+| `U0 NOW` | Следующий безопасный slice; откладывание снижает доверие к текущему proof |
+| `U1 NEXT` | Один из следующих 1–3 slices |
+| `U2 PLANNED` | Выполнить в текущей инициативе после более срочных зависимостей |
+| `U3 WATCH` | Поддерживать или измерять; отдельное исправление сейчас не требуется |
+
+#### Критичность
+
+| Код | Интерпретация |
+|---|---|
+| `K0 BLOCKER` | Блокирует release/DoD либо создаёт риск критического пользовательского сбоя |
+| `K1 HIGH` | Подрывает надёжность, воспроизводимость, безопасность или доверие к evidence |
+| `K2 MEDIUM` | Замедляет агента, увеличивает контекст или стоимость сопровождения |
+| `K3 LOW` | Локальная оптимизация без существенного production-риска |
+
+#### Потенциал улучшения
+
+| Код | Интерпретация |
+|---|---|
+| `I3 LARGE` | Убирает blocker либо заметно улучшает несколько метрик |
+| `I2 MEDIUM` | Закрывает один значимый measurable gap |
+| `I1 SMALL` | Локальное улучшение одной метрики |
+| `I0 CONTROL` | Метрика уже зелёная; требуется только непрерывный контроль |
+
+Эти свойства не создают вторую очередь. Они описывают приоритет; точный
+`pending` по-прежнему определяется только пользовательской целью и
+`refactor-backlog.md`.
+
+#### Приоритет текущих метрик
+
+| Метрика | Срочность | Критичность | Улучшение | Измеримый результат |
+|---|---|---|---|---|
+| Console-clean acceptance | `U0 NOW` | `K1 HIGH` | `I2 MEDIUM` | **2 Ant warnings → 0** |
+| Stale current evidence | `U0 NOW` | `K1 HIGH` | `I2 MEDIUM` | **≥1 → 0** |
+| Slice commit isolation | `U0 NOW` | `K1 HIGH` | `I2 MEDIUM` | `NOT MEASURED` → **100%** |
+| Scope violation rate | `U0 NOW` | `K1 HIGH` | `I2 MEDIUM` | `NOT MEASURED` → **0%** |
+| Full DoD p50/p95 | `U1 NEXT` | `K1 HIGH` | `I3 LARGE` | p50 **232,5 с → ≤120 с**, p95 **≤180 с** |
+| Flake rate | `U1 NEXT` | `K1 HIGH` | `I3 LARGE` | 30 запусков, **≤0,5%** |
+| First-pass DoD success | `U1 NEXT` | `K2 MEDIUM` | `I3 LARGE` | `NOT MEASURED` → **≥80%** |
+| Time to first useful signal | `U1 NEXT` | `K2 MEDIUM` | `I2 MEDIUM` | p95 **≤60 с** |
+| Agent scope routing | `U1 NEXT` | `K2 MEDIUM` | `I3 LARGE` | unowned/ambiguous production paths **0/0** |
+| Change failure + runtime telemetry | `U1 NEXT` | `K1 HIGH` | `I3 LARGE` | CFR **<5%**, critical runtime SLO измеряется |
+| Critical post-release journeys | `U1 NEXT` | `K0 BLOCKER` | `I3 LARGE` | smoke pass **100%** |
+| Production 400-LOC band | `U2 PLANNED` | `K2 MEDIUM` | `I2 MEDIUM` | **22 → 0** после Track A |
+| Test-related files ≥500 LOC | `U2 PLANNED` | `K2 MEDIUM` | `I2 MEDIUM` | **9 → 0** после Track B |
+| Human-review correction rate | `U2 PLANNED` | `K2 MEDIUM` | `I2 MEDIUM` | baseline на 30 slices, затем снижение |
+| Performance-budget regressions | `U2 PLANNED` | `K1 HIGH` | `I2 MEDIUM` | **0** |
+| Accessibility critical regressions | `U2 PLANNED` | `K1 HIGH` | `I2 MEDIUM` | **0** |
+| Architecture/type/CSS escape gates | `U3 WATCH` | `K1 HIGH` | `I0 CONTROL` | сохранять **0 violations** |
+| Browser viewport coverage | `U3 WATCH` | `K1 HIGH` | `I0 CONTROL` | сохранять **4/4 · 100%** |
+| Failed acceptance network requests | `U3 WATCH` | `K1 HIGH` | `I0 CONTROL` | сохранять **0** |
+| Mobile `<1000 px` | `U3 WATCH` | `K3 LOW` | `I0 CONTROL` | остаётся вне product contract |
+
 ## 2. Непереговорные ограничения
 
 - Этот документ не создаёт вторую очередь. Если пользователь не назвал
@@ -258,18 +324,18 @@ Frontend считается понятным для агента, если по 
 
 ## 3. Последовательность
 
-| Порядок | Slice | Owner | Результат | Ожидаемый эффект |
-|---:|---|---|---|---:|
-| 1 | `CONF-DOD-01` | tooling | правдивый и валидируемый DoD contract | `−0,10` |
-| 2 | `CONF-EVIDENCE-01` | tooling | current evidence нельзя спутать с historical | `−0,20` |
-| 3 | `CONF-FORM-01` | heat | нулевой console noise на Heat critical path | `−0,10` |
-| 4 | `CONF-EXCEL-01` | heat | runtime, E2E и browser proof говорят одно | `−0,15` |
-| 5 | `CONF-STORYBOOK-01` | tooling | UI API и stories доступны агенту через MCP | `−0,15` |
-| 6 | `CONF-SCOPE-01` | tooling | файл автоматически маршрутизируется к owner/tests/proof | `−0,35` |
-| 7 | `CONF-UI-BOUNDARY-01` | ui | однозначный выбор TLT facade или raw Ant | `−0,20` |
-| 8 | `P-BAND-*` | backlog owner | меньше production-контекста | `−0,25` |
-| 9 | `P-TEST-*` | qa/architecture | меньше test/harness-контекста | `−0,15` |
-| 10 | `CONF-AUDIT-01` | qa | повторная итоговая оценка | контроль |
+| Порядок | Slice | Owner | Срочность | Критичность | Улучшение | Результат | Эффект |
+|---:|---|---|---|---|---|---|---:|
+| 1 | `CONF-DOD-01` | tooling | `U1 NEXT` | `K1 HIGH` | `I2 MEDIUM` | правдивый и валидируемый DoD contract | `−0,10` |
+| 2 | `CONF-EVIDENCE-01` | tooling | `U0 NOW` | `K1 HIGH` | `I2 MEDIUM` | current evidence нельзя спутать с historical | `−0,20` |
+| 3 | `CONF-FORM-01` | heat | `U0 NOW` | `K1 HIGH` | `I2 MEDIUM` | нулевой console noise на Heat critical path | `−0,10` |
+| 4 | `CONF-EXCEL-01` | heat | `U1 NEXT` | `K1 HIGH` | `I2 MEDIUM` | runtime, E2E и browser proof говорят одно | `−0,15` |
+| 5 | `CONF-STORYBOOK-01` | tooling | `U2 PLANNED` | `K2 MEDIUM` | `I2 MEDIUM` | UI API и stories доступны агенту через MCP | `−0,15` |
+| 6 | `CONF-SCOPE-01` | tooling | `U1 NEXT` | `K2 MEDIUM` | `I3 LARGE` | файл автоматически маршрутизируется к owner/tests/proof | `−0,35` |
+| 7 | `CONF-UI-BOUNDARY-01` | ui | `U2 PLANNED` | `K2 MEDIUM` | `I2 MEDIUM` | однозначный выбор TLT facade или raw Ant | `−0,20` |
+| 8 | `P-BAND-*` | backlog owner | `U2 PLANNED` | `K2 MEDIUM` | `I2 MEDIUM` | меньше production-контекста | `−0,25` |
+| 9 | `P-TEST-*` | qa/architecture | `U2 PLANNED` | `K2 MEDIUM` | `I2 MEDIUM` | меньше test/harness-контекста | `−0,15` |
+| 10 | `CONF-AUDIT-01` | qa | `U3 WATCH` | `K1 HIGH` | `I0 CONTROL` | повторная итоговая оценка | контроль |
 
 Эффекты ориентировочные и не складываются механически. Реалистичный диапазон
 после выполнения: `1,7–2,0/10`.
