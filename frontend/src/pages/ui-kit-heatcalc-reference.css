@@ -189,3 +189,18 @@
   padding-block: 0;
   font-size: 8px;
 }
+
+/* Desktop reflow (max-width: 1200px) — owner-local AF12 */
+@media (max-width: 1200px) {
+  .uikit-heatcalc-contract {
+      grid-template-columns: repeat(3, minmax(100px, 1fr));
+    }
+
+  .uikit-heatcalc-contract > div:nth-child(3) {
+      border-right: 0;
+    }
+
+  .uikit-heatcalc-contract > div:nth-child(-n+3) {
+      border-bottom: 1px solid var(--heatcalc-toolbar-divider);
+    }
+}

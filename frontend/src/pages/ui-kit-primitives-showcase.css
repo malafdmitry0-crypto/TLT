@@ -222,3 +222,27 @@
   text-align: center;
   cursor: default;
 }
+
+/* Desktop reflow (max-width: 1200px) — owner-local AF12 */
+@media (max-width: 1200px) {
+  .uikit-alerts {
+      grid-template-columns: repeat(2, minmax(180px, 1fr));
+    }
+
+  .uikit-primitive-grid,
+    .uikit-primitive-data-grid {
+      grid-template-columns: 1fr;
+    }
+
+  .uikit-metrics {
+      grid-template-columns: repeat(2, minmax(120px, 1fr));
+    }
+
+  .uikit-metric:nth-child(2) {
+      border-right: 0;
+    }
+
+  .uikit-metric:nth-child(-n+2) {
+      border-bottom: 1px solid var(--ui-border);
+    }
+}
