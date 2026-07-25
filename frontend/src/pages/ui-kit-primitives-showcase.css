@@ -224,6 +224,19 @@
 }
 
 /* Desktop reflow (max-width: 1200px) — owner-local AF12 */
+
+.uikit-specimen,
+.uikit-demo-group,
+.uikit-form-grid,
+.uikit-options-row,
+.uikit-alerts,
+.uikit-pattern,
+.uikit-empty {
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+}
+
 @media (max-width: 1200px) {
   .uikit-alerts {
       grid-template-columns: repeat(2, minmax(180px, 1fr));

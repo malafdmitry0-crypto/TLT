@@ -186,19 +186,14 @@
       "media": 1
     },
     "src/pages/ui-kit-heatcalc-reference.css": {
-      "loc": 207,
+      "loc": 239,
       "bareAnt": 0,
       "media": 1
     },
     "src/pages/ui-kit-primitives-showcase.css": {
-      "loc": 249,
+      "loc": 262,
       "bareAnt": 0,
       "media": 1
-    },
-    "src/pages/ui-kit.css": {
-      "loc": 608,
-      "bareAnt": 0,
-      "media": 0
     },
     "src/pages/workflow-params.css": {
       "loc": 60,
@@ -285,16 +280,26 @@
       "bareAnt": 0,
       "media": 0
     },
-    "src/pages/ui-kit-responsive.css": {
-      "loc": 30,
+    "src/pages/ui-kit-page-shell.css": {
+      "loc": 258,
       "bareAnt": 0,
-      "media": 2
+      "media": 1
+    },
+    "src/pages/ui-kit-foundation.css": {
+      "loc": 219,
+      "bareAnt": 0,
+      "media": 1
+    },
+    "src/pages/ui-kit-data-showcase.css": {
+      "loc": 135,
+      "bareAnt": 0,
+      "media": 1
     }
   },
   "totals": {
-    "loc": 10004,
+    "loc": 10023,
     "bareAnt": 0,
-    "media": 40
+    "media": 41
   },
   "rawColors": {
     "src/pages/projects-page.css": 1,
@@ -312,6 +317,47 @@
     1400
   ],
   "responsiveContracts": {
+    "src/pages/ui-kit-page-shell.css": {
+      "conditions": [],
+      "ownerRoots": [
+        ".uikit-page",
+        ".uikit-header",
+        ".uikit-shell",
+        ".uikit-nav",
+        ".uikit-main",
+        ".uikit-intro"
+      ]
+    },
+    "src/pages/ui-kit-foundation.css": {
+      "conditions": [
+        "max-width: 1200px"
+      ],
+      "ownerRoots": [
+        ".uikit-grid",
+        ".uikit-section",
+        ".uikit-swatch",
+        ".uikit-type",
+        ".uikit-spacing",
+        ".uikit-radius",
+        ".uikit-specimen",
+        ".uikit-font"
+      ]
+    },
+    "src/pages/ui-kit-data-showcase.css": {
+      "conditions": [
+        "max-width: 1200px"
+      ],
+      "ownerRoots": [
+        ".uikit-component",
+        ".uikit-empty",
+        ".uikit-loading",
+        ".uikit-toolbar",
+        ".uikit-options",
+        ".uikit-pattern",
+        ".uikit-demo",
+        ".uikit-form"
+      ]
+    },
     "src/pages/ui-kit-primitives-showcase.css": {
       "conditions": [
         "max-width: 1200px"
@@ -328,17 +374,8 @@
         "max-width: 1200px"
       ],
       "ownerRoots": [
-        ".uikit-heatcalc-"
-      ]
-    },
-    "src/pages/ui-kit-responsive.css": {
-      "conditions": [
-        "max-width: 1200px"
-      ],
-      "ownerRoots": [
-        ".uikit-grid",
-        ".uikit-component",
-        ".uikit-page"
+        ".uikit-heatcalc-",
+        ".uikit-form-grid"
       ]
     }
   }

@@ -49,10 +49,11 @@ import {
   rows,
   type Density,
 } from '@/pages/uikit/uiKitModel';
-import './ui-kit.css';
+import './ui-kit-page-shell.css';
+import './ui-kit-foundation.css';
+import './ui-kit-data-showcase.css';
 import './ui-kit-primitives-showcase.css';
 import './ui-kit-heatcalc-reference.css';
-import './ui-kit-responsive.css';
 
 export default function UIKitPage() {
   const navigate = useNavigate();

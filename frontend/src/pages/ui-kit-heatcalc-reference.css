@@ -191,6 +191,38 @@
 }
 
 /* Desktop reflow (max-width: 1200px) — owner-local AF12 */
+
+/* Base form control coupling moved from ui-kit.css (AF12) */
+.uikit-page--comfortable .uikit-form-grid,
+.uikit-page--comfortable .uikit-heatcalc-form,
+.uikit-page--comfortable .tlt-compact-field-grid {
+  --tlt-field-control-height: 26px;
+  --tlt-field-control-font-size: 12px;
+  --tlt-field-number-font-size: 12px;
+  --tlt-field-unit-font-size: 9px;
+  --tlt-field-select-font-size: 9px;
+  --tlt-field-label-font-size: 8.5px;
+  --tlt-field-row-gap: 4px;
+  --tlt-field-column-gap: 10px;
+}
+
+.uikit-form-grid .ant-input,
+.uikit-form-grid .ant-input-affix-wrapper,
+.uikit-heatcalc-form .ant-input,
+.uikit-heatcalc-form .ant-input-affix-wrapper {
+  height: var(--tlt-field-control-height);
+  padding: 0 var(--tlt-field-control-padding-inline, 3px);
+  font-size: var(--tlt-field-control-font-size);
+  line-height: calc(var(--tlt-field-control-height) - 2px);
+  border-radius: var(--tlt-field-radius);
+}
+
+.uikit-form-grid .ant-input-affix-wrapper .ant-input,
+.uikit-heatcalc-form .ant-input-affix-wrapper .ant-input {
+  height: calc(var(--tlt-field-control-height) - 2px);
+  font-size: var(--tlt-field-control-font-size);
+}
+
 @media (max-width: 1200px) {
   .uikit-heatcalc-contract {
       grid-template-columns: repeat(3, minmax(100px, 1fr));
