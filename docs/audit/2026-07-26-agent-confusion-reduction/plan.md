@@ -119,6 +119,85 @@ Frontend считается понятным для агента, если по 
 | Page-level horizontal overflow | **0** |
 | Mobile `<1000 px` | **вне product contract** |
 
+### 1.2 Production agentic-development scorecard
+
+Неизмеренные показатели обозначаются `NOT MEASURED`, а не получают
+предполагаемое зелёное значение.
+
+| Сводная метрика | Текущее значение | Цель |
+|---|---:|---:|
+| Здоровье frontend-кода | **8,7 / 10** | **≥9,0 / 10** |
+| Полнота системы agent-production метрик | **7,8 / 10** | **≥9,0 / 10** |
+
+#### Стабильность и скорость во времени
+
+| Метрика | Окно / формула | Текущее значение | Рабочая цель |
+|---|---|---:|---:|
+| Fast gates p50 | последние 30 запусков | **NOT MEASURED**; отдельные запуски около **8–10 с** | **≤10 с** |
+| Fast gates p95 | последние 30 запусков | **NOT MEASURED** | **≤15 с** |
+| Focused proof p50 | последние 30 slices | **NOT MEASURED** | **≤30 с** |
+| Focused proof p95 | последние 30 slices | **NOT MEASURED** | **≤60 с** |
+| Full DoD p50 | последние 30 запусков | **232,5 с при n=2** | сначала **≤240 с**, затем **≤120 с** |
+| Full DoD p95 | последние 30 запусков | **NOT MEASURED** | сначала **≤300 с**, затем снижать |
+| DoD variability | `(max − min) / midpoint` | **7,3% при n=2** | **≤10%** |
+| Flake rate | flaky test outcomes / все test outcomes, минимум 30 DoD | **0 при n=2; статистически недостаточно** | **≤0,5%** |
+| Time to first useful signal p50 | старт задачи → первый focused/gate result | **NOT MEASURED** | **≤30 с** |
+| Time to first useful signal p95 | старт задачи → первый focused/gate result | **NOT MEASURED** | **≤60 с** |
+
+#### Эффективность coding agents
+
+| Метрика | Формула | Текущее значение | Цель |
+|---|---|---:|---:|
+| First-pass DoD success | slices с PASS на первом полном DoD / завершённые slices | **NOT MEASURED** | **≥80%** |
+| Median attempts to PASS | медиана содержательных попыток до полного PASS | **NOT MEASURED** | **≤2** |
+| Scope violation rate | slices с изменением вне allowed scope / все slices | **NOT MEASURED** | **0%** |
+| Slice commit isolation | slices с отдельным commit / завершённые slices | **NOT MEASURED** | **100%** |
+| Dirty-WIP collision rate | slices, остановленные из-за пересечения target files / все slices | **NOT MEASURED** | измерять и снижать |
+| Human-review correction rate | slices с обязательной правкой после review / reviewed slices | **NOT MEASURED** | baseline на 30 slices, затем снижать |
+| Median agent wall time | старт slice → проверенный commit | **NOT MEASURED** | baseline по типам slice |
+| Aborted/blocked slice rate | blocked slices / все запуски | **NOT MEASURED** | измерять отдельно от failure |
+| Commit completeness | commits с proof/hash/files/status в отчёте / commits slice | **NOT MEASURED** | **100%** |
+
+#### Delivery и production reliability
+
+| Метрика | Формула / источник | Текущее значение | Цель |
+|---|---|---:|---:|
+| Change failure rate | релизы с incident/rollback/hotfix / все релизы | **NOT MEASURED** | **<5%** |
+| Rollback/revert rate | reverted frontend releases / все frontend releases | **NOT MEASURED** | baseline и снижение |
+| Median recovery time | incident start → восстановление frontend | **NOT MEASURED** | определить после baseline |
+| Critical escaped defects | Sev-1/Sev-2 frontend defects после релиза | **NOT MEASURED** | **0** |
+| Total escaped defects | подтверждённые frontend defects после релиза | **NOT MEASURED** | baseline и снижение |
+| Runtime error rate | sessions с unhandled frontend error / все sessions | **NOT MEASURED** | установить SLO после telemetry baseline |
+| Critical API failure rate | failed critical frontend requests / все critical requests | **NOT MEASURED** | установить SLO; acceptance path **0** |
+| Critical journey post-release pass | успешные smoke journeys / обязательные journeys | **NOT MEASURED** | **100%** |
+| Browser console issue rate | journeys с console error/warning / проверенные journeys | baseline: **FAIL, 2 Ant warnings** | **0%** |
+| Performance-budget regressions | релизы, нарушившие утверждённый bundle/runtime budget | **NOT MEASURED** | **0** |
+| Accessibility critical regressions | новые critical/serious violations | **NOT MEASURED** | **0** |
+
+#### Evidence и воспроизводимость
+
+| Метрика | Формула | Текущее значение | Цель |
+|---|---|---:|---:|
+| Stale current evidence | current manifests с несовпадающим source/build identity | **≥1 известный baseline case** | **0** |
+| Evidence completeness | manifests с commit/UTC/URL/viewport/state/console/network / current manifests | **NOT MEASURED** | **100%** |
+| Reproducible clean-tree proof | proofs, повторённые на clean commit / current proofs | **NOT MEASURED** | **100%** |
+| Browser viewport coverage | пройденные обязательные profiles / обязательные profiles | **4 / 4 · 100%** | **100%** |
+| Failed network requests in acceptance | failed requests в обязательных browser journeys | **0** | **0** |
+| Console-clean acceptance | journeys без errors/warnings / обязательные journeys | **не достигнуто** | **100%** |
+| Lockfile/toolchain reproducibility | slices с фиксированными lockfile и Node/tool versions | **частично подтверждено** | **100%** |
+| Metric snapshot freshness | snapshots, построенные на текущем source commit / current snapshots | **NOT MEASURED** | **100%** |
+
+#### Окна сбора
+
+| Категория | Минимальное окно |
+|---|---:|
+| Gate/DoD p50, p95 и flake rate | **30 запусков** |
+| Agent effectiveness | **30 завершённых slices** |
+| Review correction rate | **30 reviewed slices** |
+| Delivery/change failure | **30 релизов или rolling 90 days** |
+| Runtime/API errors | **rolling 7 и 30 days** |
+| Browser/evidence freshness | **каждый UI slice и каждый release candidate** |
+
 ## 2. Непереговорные ограничения
 
 - Этот документ не создаёт вторую очередь. Если пользователь не назвал
