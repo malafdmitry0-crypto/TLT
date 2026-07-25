@@ -1,16 +1,13 @@
 import { useState } from 'react';
 import {
   Form,
-  Modal,
-  Popconfirm,
   Space,
-  Switch,
   Table,
   Tabs,
   Typography,
   message,
 } from 'antd';
-import { TltBadge, TltButton, TltNumberField, TltSelect, TltTextField } from '@/components/ui-kit';
+import { TltButton } from '@/components/ui-kit';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createAdminAccessory,
@@ -36,9 +33,17 @@ import {
   type AccessoryFormValues,
   type CableFormValues,
 } from '@/pages/admin/databasePagePayloadModel';
+import {
+  buildAccessoryColumns,
+  buildCableColumns,
+} from '@/pages/admin/databasePageTableModel';
+import {
+  DatabaseAccessoryModal,
+  DatabaseCableModal,
+} from '@/pages/admin/DatabaseEntityModals';
 import './admin-layout.css';
 
-const { Paragraph, Text } = Typography;
+const { Text } = Typography;
 const CABLE_QUERY_KEY = ['admin', 'cables'];
 const ACCESSORY_QUERY_KEY = ['admin', 'accessories'];
 
@@ -138,96 +143,14 @@ export default function DatabasePage() {
     setAccessoryModalOpen(true);
   };
 
-  const cableColumns = [
-      {
-        title: 'Тип',
-        dataIndex: 'cable_type',
-        width: 130,
-        render: (value: string) => <TltBadge>{value}</TltBadge>,
-      },
-      { title: 'Марка', dataIndex: 'model', width: 150 },
-      { title: 'Бренд', dataIndex: 'brand', width: 120 },
-      { title: 'Вт/м', dataIndex: 'power_per_meter', width: 90 },
-      { title: 'Ом/м', dataIndex: 'resistance_per_meter', width: 90 },
-      {
-        title: 'Сечение',
-        dataIndex: ['params', 'conductor_section_mm2'],
-        width: 90,
-        render: (_: unknown, row: CableExtended) =>
-          cableConductorSection(row.params)?.toString() ?? '—',
-      },
-      { title: 'Поставщик', dataIndex: 'supplier_name', width: 150 },
-      { title: 'Артикул', dataIndex: 'article', width: 130 },
-      { title: 'Цена/м', dataIndex: 'price_per_meter', width: 100 },
-      { title: 'Валюта', dataIndex: 'currency', width: 80 },
-      { title: 'Остаток, м', dataIndex: 'stock_quantity_m', width: 110 },
-      { title: 'Статус', dataIndex: 'stock_status', width: 110 },
-      { title: 'Срок, дн.', dataIndex: 'lead_time_days', width: 90 },
-      { title: 'Приоритет', dataIndex: 'supplier_priority', width: 100 },
-      {
-        title: 'Активен',
-        dataIndex: 'is_active',
-        width: 90,
-        render: (value: boolean) => (value ? 'Да' : 'Нет'),
-      },
-      {
-        title: 'Действия',
-        key: 'actions',
-        fixed: 'right' as const,
-        width: 160,
-        render: (_: unknown, row: CableExtended) => (
-          <Space>
-            <TltButton size="compact" onClick={() => openCableModal(row)}>
-              Изм.
-            </TltButton>
-            <Popconfirm title="Удалить кабель?" onConfirm={() => cableDelete.mutate(row.id)}>
-              <TltButton size="compact" variant="danger">
-                Удалить
-              </TltButton>
-            </Popconfirm>
-          </Space>
-        ),
-      },
-  ];
-
-  const accessoryColumns = [
-      { title: 'Категория', dataIndex: 'category', width: 160 },
-      { title: 'Наименование', dataIndex: 'name', width: 240 },
-      { title: 'Артикул', dataIndex: 'article', width: 140 },
-      {
-        title: 'Активен',
-        dataIndex: 'is_active',
-        width: 90,
-        render: (value: boolean) => (value ? 'Да' : 'Нет'),
-      },
-      {
-        title: 'Commercial params',
-        dataIndex: 'params',
-        render: (value: Record<string, unknown> | null) =>
-          value ? <Text code>{Object.keys(value).join(', ')}</Text> : '—',
-      },
-      {
-        title: 'Действия',
-        key: 'actions',
-        fixed: 'right' as const,
-        width: 160,
-        render: (_: unknown, row: AccessoryExtended) => (
-          <Space>
-            <TltButton size="compact" onClick={() => openAccessoryModal(row)}>
-              Изм.
-            </TltButton>
-            <Popconfirm
-              title="Удалить аксессуар?"
-              onConfirm={() => accessoryDelete.mutate(row.id)}
-            >
-              <TltButton size="compact" variant="danger">
-                Удалить
-              </TltButton>
-            </Popconfirm>
-          </Space>
-        ),
-      },
-  ];
+  const cableColumns = buildCableColumns({
+    onEdit: openCableModal,
+    onDelete: (id) => cableDelete.mutate(id),
+  });
+  const accessoryColumns = buildAccessoryColumns({
+    onEdit: openAccessoryModal,
+    onDelete: (id) => accessoryDelete.mutate(id),
+  });
 
   return (
     <>
@@ -286,159 +209,22 @@ export default function DatabasePage() {
         ]}
       />
 
-      <Modal
-        title={editingCable ? 'Редактировать кабель' : 'Добавить кабель'}
+      <DatabaseCableModal
         open={cableModalOpen}
-        onCancel={() => setCableModalOpen(false)}
-        onOk={() => cableForm.submit()}
+        editing={!!editingCable}
+        form={cableForm}
         confirmLoading={cableSave.isPending}
-        width={920}
-      >
-        <Paragraph type="secondary">
-          Для резистивного кабеля сопротивление хранится как <Text code>Ом/м</Text>,
-          а сечение жилы сохраняется в params как <Text code>conductor_section_mm2</Text>.
-          Дополнительные технические поля: <Text code>diameter_mm</Text>,
-          <Text code>nominal_size_mm</Text>. Аксессуарная оценка:
-          {' '}<Text code>accessory_total_cost</Text>.
-        </Paragraph>
-        <Form form={cableForm} layout="vertical" onFinish={(values) => cableSave.mutate(values)}>
-          <Space align="start" wrap>
-            <Form.Item name="cable_type" label="Тип" rules={[{ required: true }]}>
-              <TltSelect className="tlt-field--w180"
-                options={[
-                  { value: 'self_regulating', label: 'ТЛТ' },
-                  { value: 'single_core', label: 'ТТ Р1' },
-                  { value: 'three_core', label: 'ТТ Р3' },
-                  { value: 'mineral', label: 'Минеральный' },
-                  { value: 'skin', label: 'Skin' },
-                ]}
-              />
-            </Form.Item>
-            <Form.Item name="brand" label="Бренд" rules={[{ required: true }]}>
-              <TltTextField className="tlt-field--w160" />
-            </Form.Item>
-            <Form.Item name="model" label="Марка" rules={[{ required: true }]}>
-              <TltTextField className="tlt-field--w190" />
-            </Form.Item>
-            <Form.Item name="power_per_meter" label="Вт/м">
-              <TltNumberField min={0} className="tlt-field--w110" />
-            </Form.Item>
-            <Form.Item name="resistance_per_meter" label="Ом/м">
-              <TltNumberField min={0} step={0.001} className="tlt-field--w110" />
-            </Form.Item>
-            <Form.Item name="conductor_section_mm2" label="Сечение, мм²">
-              <TltNumberField min={0} step={0.1} className="tlt-field--w120" />
-            </Form.Item>
-            <Form.Item name="min_temperature" label="T min">
-              <TltNumberField className="tlt-field--w100" />
-            </Form.Item>
-            <Form.Item name="max_temperature" label="T max">
-              <TltNumberField className="tlt-field--w100" />
-            </Form.Item>
-          </Space>
-          <Space align="start" wrap>
-            <Form.Item name="supplier_name" label="Поставщик">
-              <TltTextField className="tlt-field--w180" />
-            </Form.Item>
-            <Form.Item name="article" label="Артикул">
-              <TltTextField className="tlt-field--w150" />
-            </Form.Item>
-            <Form.Item name="price_per_meter" label="Цена/м">
-              <TltNumberField min={0} step={0.01} className="tlt-field--w110" />
-            </Form.Item>
-            <Form.Item name="currency" label="Валюта">
-              <TltTextField className="tlt-field--w90" />
-            </Form.Item>
-            <Form.Item name="stock_quantity_m" label="Остаток, м">
-              <TltNumberField min={0} step={1} className="tlt-field--w120" />
-            </Form.Item>
-            <Form.Item name="stock_status" label="Статус">
-              <TltSelect className="tlt-field--w130"
-                allowClear
-                options={[
-                  { value: 'in_stock', label: 'in_stock' },
-                  { value: 'limited', label: 'limited' },
-                  { value: 'on_order', label: 'on_order' },
-                  { value: 'unknown', label: 'unknown' },
-                ]}
-              />
-            </Form.Item>
-            <Form.Item name="lead_time_days" label="Срок, дн.">
-              <TltNumberField min={0} className="tlt-field--w110" />
-            </Form.Item>
-            <Form.Item name="supplier_priority" label="Приоритет">
-              <TltNumberField min={0} className="tlt-field--w110" />
-            </Form.Item>
-          </Space>
-          <Space align="start" wrap>
-            <Form.Item name="order_multiple_m" label="Кратность, м">
-              <TltNumberField min={0} step={1} className="tlt-field--w120" />
-            </Form.Item>
-            <Form.Item name="min_order_quantity_m" label="Мин. заказ, м">
-              <TltNumberField min={0} step={1} className="tlt-field--w130" />
-            </Form.Item>
-            <Form.Item name="replacement_group" label="Группа замены">
-              <TltTextField className="tlt-field--w160" />
-            </Form.Item>
-            <Form.Item name="price_updated_at" label="Цена обновлена">
-              <TltTextField className="tlt-field--w200" placeholder="ISO datetime" />
-            </Form.Item>
-            <Form.Item name="stock_updated_at" label="Склад обновлён">
-              <TltTextField className="tlt-field--w200" placeholder="ISO datetime" />
-            </Form.Item>
-            <Form.Item name="commercial_data_source" label="Источник">
-              <TltTextField className="tlt-field--w140" />
-            </Form.Item>
-          </Space>
-          <Space align="start" wrap>
-            <Form.Item name="is_preferred" label="Preferred" valuePropName="checked">
-              <Switch />
-            </Form.Item>
-            <Form.Item name="is_discontinued" label="Снят" valuePropName="checked">
-              <Switch />
-            </Form.Item>
-            <Form.Item name="is_active" label="Активен" valuePropName="checked">
-              <Switch />
-            </Form.Item>
-          </Space>
-          <Form.Item name="params_json" label="params JSON">
-            <textarea className="admin-db-textarea" rows={6} spellCheck={false} />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      <Modal
-        title={editingAccessory ? 'Редактировать аксессуар' : 'Добавить аксессуар'}
+        onCancel={() => setCableModalOpen(false)}
+        onSubmit={(values) => cableSave.mutate(values)}
+      />
+      <DatabaseAccessoryModal
         open={accessoryModalOpen}
-        onCancel={() => setAccessoryModalOpen(false)}
-        onOk={() => accessoryForm.submit()}
+        editing={!!editingAccessory}
+        form={accessoryForm}
         confirmLoading={accessorySave.isPending}
-        width={720}
-      >
-        <Form
-          form={accessoryForm}
-          layout="vertical"
-          onFinish={(values) => accessorySave.mutate(values)}
-        >
-          <Space align="start" wrap>
-            <Form.Item name="category" label="Категория" rules={[{ required: true }]}>
-              <TltTextField className="tlt-field--w180" />
-            </Form.Item>
-            <Form.Item name="name" label="Наименование" rules={[{ required: true }]}>
-              <TltTextField className="tlt-field--w260" />
-            </Form.Item>
-            <Form.Item name="article" label="Артикул">
-              <TltTextField className="tlt-field--w160" />
-            </Form.Item>
-            <Form.Item name="is_active" label="Активен" valuePropName="checked">
-              <Switch />
-            </Form.Item>
-          </Space>
-          <Form.Item name="params_json" label="params JSON">
-            <textarea className="admin-db-textarea" rows={6} spellCheck={false} />
-          </Form.Item>
-        </Form>
-      </Modal>
+        onCancel={() => setAccessoryModalOpen(false)}
+        onSubmit={(values) => accessorySave.mutate(values)}
+      />
     </>
   );
 }
