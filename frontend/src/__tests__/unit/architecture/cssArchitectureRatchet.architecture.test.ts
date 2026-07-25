@@ -209,7 +209,7 @@ function relSrcKey(abs: string): string {
   return `src/${path.relative(SRC_ROOT, abs).split(path.sep).join('/')}`;
 }
 
-function stripComments(source: string): string {
+export function stripComments(source: string): string {
   return source.replace(/\/\*[\s\S]*?\*\//g, '');
 }
 
