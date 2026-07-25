@@ -9,7 +9,7 @@ Frontend имеет thin page shells, UI-kit, CSS freeze, architecture ratchets 
 agent gates. Residual work и точный следующий контракт находятся **только** в
 backlog. Одновременно допускается только одна ACTIVE frontend-очередь. Сейчас
 backlog: **ACTIVE** (Track A: production 400-band extracts; Track B: heavy
-test contexts). Next: `P-BAND-13`.
+test contexts). Next: `P-BAND-14`.
 
 ## Начать здесь
 

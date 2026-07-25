@@ -7,9 +7,9 @@
 pending» (dense production 400-band + heavy test contexts) must be real
 `pending`, not EMPTY QUEUE cosmetics.  
 **Inventory at open:** **22** files in **400–445** LOC (production).  
-**Last closed production:** P-BAND-10 heatCalcColumnRenderers (see table)
+**Last closed production:** P-BAND-13 useHeatCalcNormalGlideController (see table)
 
-**Следующий незакрытый контракт:** `P-BAND-13`
+**Следующий незакрытый контракт:** `P-BAND-14`
 
 Это **единственный** источник текущего `pending` для frontend. Одновременно
 может существовать только одна ACTIVE frontend-очередь. Initiative plans,
@@ -83,7 +83,7 @@ util/domain/api/types).
 | 10 | **P-BAND-10** | **done** `99c5726` | heat | `heatCalcColumnRenderers.tsx` **423→293** | [audit](../audit/2026-07-26-p-band-10-heat-renderers/snapshot.md) |
 | 11 | **P-BAND-11** | **done** `14e1059` | shared | `types/calculation.ts` **413→109** | [audit](../audit/2026-07-26-p-band-11-calculation-types/snapshot.md) |
 | 12 | **P-BAND-12** | **done** `2d35d28` | heat | `domain/heatCalcFieldRules.ts` **412→254** | [audit](../audit/2026-07-26-p-band-12-field-rules/snapshot.md) |
-| 13 | P-BAND-13 | pending | heat | `hooks/useHeatCalcNormalGlideController.ts` (~412) | pure controller helpers |
+| 13 | **P-BAND-13** | **done** `8538079` | heat | `useHeatCalcNormalGlideController.ts` **412→396** | [audit](../audit/2026-07-26-p-band-13-normal-glide-controller/snapshot.md) |
 | 14 | P-BAND-14 | pending | heat | `hooks/useHeatCalcTableColumns.tsx` (~411) | column factory modules |
 | 15 | P-BAND-15 | pending | reports | `pages/ReportWizardPage.tsx` (~409) | step components |
 | 16 | P-BAND-16 | pending | electrical | `components/electrical/ElectricalCandidateColumnSettingsModal.tsx` (~409) | settings sections |
