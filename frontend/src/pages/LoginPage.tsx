@@ -1,4 +1,5 @@
-import { Form, Typography, message } from 'antd';
+import { Form, Typography } from 'antd';
+import { appMessage as message } from '@/feedback/appFeedback';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { TltButton, TltCard, TltTextField } from '@/components/ui-kit';

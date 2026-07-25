@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Checkbox, Skeleton, Space, Typography, message } from 'antd';
+import { Checkbox, Skeleton, Space, Typography } from 'antd';
+import { appMessage as message } from '@/feedback/appFeedback';
 import { TltAlert, TltBadge, TltButton, TltCard } from '@/components/ui-kit';
 import {
   FileTextOutlined,

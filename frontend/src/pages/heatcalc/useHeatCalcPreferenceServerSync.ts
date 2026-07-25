@@ -3,7 +3,7 @@
  * Keeps React Query wiring out of the composition owner.
  */
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
-import { message as antdMessage } from 'antd';
+import { appMessage as antdMessage } from '@/feedback/appFeedback';
 import { useMutation, useQuery } from '@tanstack/react-query';
 
 import { getUserPreference, updateUserPreference } from '@/api/preferences';

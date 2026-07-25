@@ -4,7 +4,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from 'react';
-import { message as antdMessage } from 'antd';
+import { appMessage as antdMessage } from '@/feedback/appFeedback';
 import type { QueryClient, QueryKey } from '@tanstack/react-query';
 
 import { createObject, updateObject } from '@/api/projects';

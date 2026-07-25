@@ -1,13 +1,6 @@
 import { useState } from 'react';
-import {
-  Col,
-  Row,
-  Skeleton,
-  Space,
-  Steps,
-  Typography,
-  message,
-} from 'antd';
+import { Col, Row, Skeleton, Space, Steps, Typography } from 'antd';
+import { appMessage as message } from '@/feedback/appFeedback';
 import { TltAlert, TltBadge, TltButton, TltCard } from '@/components/ui-kit';
 import {
   CloseOutlined,

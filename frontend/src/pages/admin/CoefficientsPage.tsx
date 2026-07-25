@@ -1,4 +1,5 @@
-import { Table, Typography, message } from 'antd';
+import { Table, Typography } from 'antd';
+import { appMessage as message } from '@/feedback/appFeedback';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { listCoefficients, updateCoefficient } from '@/api/admin';
 import type { Coefficient } from '@/types/admin';

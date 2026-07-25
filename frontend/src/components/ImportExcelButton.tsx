@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Modal, Space, Tooltip, Typography, message } from 'antd';
+import { Modal, Space, Tooltip, Typography } from 'antd';
+import { appMessage as message } from '@/feedback/appFeedback';
 import { DownloadOutlined, UploadOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { TltButton } from '@/components/ui-kit';

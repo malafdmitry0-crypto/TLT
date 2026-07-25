@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { message } from 'antd';
+import { appMessage as message } from '@/feedback/appFeedback';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -18,11 +18,13 @@ import { useElecCalcCableSelectionMutationFlow } from '@/pages/electrical/useEle
 import type { ElectricalCalcSummary } from '@/types/calculation';
 import type { ProjectObject } from '@/types/project';
 
-vi.mock('antd', () => ({
-  message: {
+vi.mock('@/feedback/appFeedback', () => ({
+  appMessage: {
+
     success: vi.fn(),
     warning: vi.fn(),
     error: vi.fn(),
+  
   },
 }));
 

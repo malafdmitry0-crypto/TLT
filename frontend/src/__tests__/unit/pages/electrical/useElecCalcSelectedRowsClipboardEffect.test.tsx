@@ -1,14 +1,16 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { message } from 'antd';
+import { appMessage as message } from '@/feedback/appFeedback';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { ProjectObject } from '@/types/project';
 import { copyToClipboard } from '@/utils/clipboard';
 import { useElecCalcSelectedRowsClipboardEffect } from '@/pages/electrical/useElecCalcSelectedRowsClipboardEffect';
 
-vi.mock('antd', () => ({
-  message: {
+vi.mock('@/feedback/appFeedback', () => ({
+  appMessage: {
+
     success: vi.fn(),
+  
   },
 }));
 

@@ -1,4 +1,5 @@
-import { Space, Typography, message } from 'antd';
+import { Space, Typography } from 'antd';
+import { appMessage as message } from '@/feedback/appFeedback';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   selectCableManual,

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { message } from 'antd';
+import { appMessage as message } from '@/feedback/appFeedback';
 
 import type { ProjectObject } from '@/types/project';
 import type { ElectricalColumnKey } from '@/utils/electricalTableColumns';

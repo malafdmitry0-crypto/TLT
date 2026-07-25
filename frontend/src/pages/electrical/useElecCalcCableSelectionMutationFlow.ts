@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { message } from 'antd';
+import { appMessage as message } from '@/feedback/appFeedback';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import {

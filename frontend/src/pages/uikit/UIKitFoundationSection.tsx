@@ -1,4 +1,4 @@
-import { message } from 'antd';
+import { appMessage as message } from '@/feedback/appFeedback';
 import { CopyOutlined } from '@ant-design/icons';
 import { CompactSection } from '@/components/ui-kit/CompactUi';
 import { colorTokens } from '@/pages/uikit/uiKitModel';

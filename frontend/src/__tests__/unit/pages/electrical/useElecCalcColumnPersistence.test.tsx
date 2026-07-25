@@ -1,6 +1,6 @@
 import { useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { act, renderHook } from '@testing-library/react';
-import { message } from 'antd';
+import { appMessage as message } from '@/feedback/appFeedback';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useElecCalcColumnPersistence } from '@/pages/electrical/useElecCalcColumnPersistence';
@@ -22,10 +22,12 @@ import {
   writeRegisteredElectricalTableViewCache,
 } from '@/utils/electricalTableViewSettings';
 
-vi.mock('antd', () => ({
-  message: {
+vi.mock('@/feedback/appFeedback', () => ({
+  appMessage: {
+
     success: vi.fn(),
     error: vi.fn(),
+  
   },
 }));
 

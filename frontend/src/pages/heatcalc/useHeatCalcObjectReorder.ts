@@ -7,7 +7,7 @@
  * PDF-HEAT-08: persist Glide row DnD via PUT /objects/reorder (full ID list).
  */
 import { useCallback, useRef } from 'react';
-import { message as antdMessage } from 'antd';
+import { appMessage as antdMessage } from '@/feedback/appFeedback';
 import type { QueryClient } from '@tanstack/react-query';
 
 import { listObjects, reorderObjects } from '@/api/projects';

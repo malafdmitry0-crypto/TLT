@@ -5,7 +5,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from 'react';
-import { message as antdMessage } from 'antd';
+import { appMessage as antdMessage } from '@/feedback/appFeedback';
 
 import type { HeatCalcContextMenuTrigger } from '@/components/heatcalc/HeatCalcContextMenuTrigger';
 import type { HeatCalcExcelContextMenuState } from '@/components/heatcalc/HeatCalcExcelContextMenu';

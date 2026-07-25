@@ -7,7 +7,7 @@
  * Scoped table selection + assignment projection for ElecCalcWorkspace.
  */
 import { useCallback, useEffect, useMemo } from 'react';
-import { message } from 'antd';
+import { appMessage as message } from '@/feedback/appFeedback';
 
 import type { ElectricalQueryResponse } from '@/types/calculation';
 import type { ProjectObject } from '@/types/project';

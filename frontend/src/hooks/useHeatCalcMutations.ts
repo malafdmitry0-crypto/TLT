@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { message } from 'antd';
+import { appMessage as message } from '@/feedback/appFeedback';
 import {
   createObject,
   deleteObject,

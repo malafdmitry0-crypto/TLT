@@ -1,11 +1,5 @@
-import {
-  Descriptions,
-  Popconfirm,
-  Space,
-  Tooltip,
-  Typography,
-  message,
-} from 'antd';
+import { Descriptions, Popconfirm, Space, Tooltip, Typography } from 'antd';
+import { appMessage as message } from '@/feedback/appFeedback';
 import {
   CheckCircleFilled,
   CloseCircleFilled,

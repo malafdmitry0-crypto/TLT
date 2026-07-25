@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
-import { Modal, Space, Typography, message } from 'antd';
+import { Modal, Space, Typography } from 'antd';
+import { appMessage as message, appModal } from '@/feedback/appFeedback';
 import { DownloadOutlined, FolderOpenOutlined, UploadOutlined } from '@ant-design/icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { TltButton, TltTextField } from '@/components/ui-kit';
@@ -82,7 +83,7 @@ export default function ProjectMenu() {
       fileInputRef.current?.click();
       return;
     }
-    Modal.confirm({
+    appModal.confirm({
       title: 'Заменить текущий проект?',
       content: (
         <div data-testid="project-import-replace-confirm">

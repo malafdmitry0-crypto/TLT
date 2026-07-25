@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { message as antdMessage, type TableProps } from 'antd';
+import type { TableProps } from 'antd';
+import { appMessage as antdMessage } from '@/feedback/appFeedback';
 
 import type { HeatCalcNormalInfiniteLoading } from '@/components/heatcalc/HeatCalcObjectsTableCard';
 import type { HeatCalcTableColumnRenderSpec } from '@/hooks/useHeatCalcTableColumns';

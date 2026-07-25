@@ -5,7 +5,7 @@
  * Query/session identity lives in useSpecificationQuerySession.
  */
 import { useEffect, useMemo } from 'react';
-import { message } from 'antd';
+import { appMessage as message } from '@/feedback/appFeedback';
 import { useMutation } from '@tanstack/react-query';
 
 import {

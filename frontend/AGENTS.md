@@ -35,6 +35,9 @@
 - При работе с UI-kit / stories: если MCP `storybook` доступен (dev server
   `npm run storybook` → `http://127.0.0.1:6006/mcp`), сначала читай docs/stories
   через MCP tools; не выдумывай props kit-компонентов.
+- Toast/confirm: только `appMessage` / `appModal` из `@/feedback/appFeedback`
+  (не static `message` / `Modal.confirm` из `antd` — иначе console seal ломается).
+- Маршрут файла → owner/gates/proof: `npm run agent:scope -- <path>`.
 - Видимое UI-изменение без browser proof не завершено.
 
 ## Базовые проверки

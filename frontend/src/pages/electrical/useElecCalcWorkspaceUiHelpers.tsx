@@ -1,3 +1,4 @@
+import { appModal } from '@/feedback/appFeedback';
 /**
  * @module electrical/workspace-ui-helpers
  * @owner electrical
@@ -5,7 +6,6 @@
  * @does-not heat
  */
 import { useCallback, useMemo, type ReactNode } from 'react';
-import { Modal } from 'antd';
 
 import type { SelectionPolicy } from '@/api/calculations';
 import type { ElectricalCandidateFolder } from '@/types/calculation';
@@ -118,7 +118,7 @@ export function useElecCalcWorkspaceUiHelpers({
 
   const showDeleteCandidateFolderConfirm = useCallback((folder: ElectricalCandidateFolder) => {
     if (!canMutate) return;
-    Modal.confirm({
+    appModal.confirm({
       title: `Удалить папку «${folder.name}»?`,
       content: 'Варианты останутся в списке. Удалится только фильтр-папка.',
       okText: 'Удалить',

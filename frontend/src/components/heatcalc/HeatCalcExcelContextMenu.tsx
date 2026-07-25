@@ -1,4 +1,4 @@
-import { Modal } from 'antd';
+import { appModal } from '@/feedback/appFeedback';
 import {
   CloseCircleOutlined,
   CopyOutlined,
@@ -101,7 +101,7 @@ export default function HeatCalcExcelContextMenu({
   const confirmDeleteRows = () => {
     if (selectedRows.length === 0) return;
     closeContextMenu();
-    Modal.confirm({
+    appModal.confirm({
       title: selectedRows.length > 1
         ? `Удалить выбранные строки: ${selectedRows.length}?`
         : 'Удалить выбранную строку?',

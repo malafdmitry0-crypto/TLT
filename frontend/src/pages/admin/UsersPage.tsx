@@ -1,4 +1,5 @@
-import { Form, Modal, Table, message } from 'antd';
+import { Form, Modal, Table } from 'antd';
+import { appMessage as message } from '@/feedback/appFeedback';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createUser, deactivateUser, listUsers } from '@/api/admin';

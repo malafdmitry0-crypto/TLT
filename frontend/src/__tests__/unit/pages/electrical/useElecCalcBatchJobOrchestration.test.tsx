@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { act, renderHook } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { message } from 'antd';
+import { appMessage as message } from '@/feedback/appFeedback';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { cancelCalcTask, enqueueElectricalVariantBatchJob } from '@/api/calculations';
@@ -13,12 +13,14 @@ import type {
 } from '@/pages/electrical/useElectricalBatchJobTracker';
 import type { CalculationTaskResponse } from '@/types/calculation';
 
-vi.mock('antd', () => ({
-  message: {
+vi.mock('@/feedback/appFeedback', () => ({
+  appMessage: {
+
     info: vi.fn(),
     success: vi.fn(),
     warning: vi.fn(),
     error: vi.fn(),
+  
   },
 }));
 

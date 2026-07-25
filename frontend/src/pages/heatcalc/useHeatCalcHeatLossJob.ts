@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { message as antdMessage } from 'antd';
+import { appMessage as antdMessage } from '@/feedback/appFeedback';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { cancelCalcTask, enqueueHeatLossBatchJob, getCalcTask } from '@/api/calculations';

@@ -2,7 +2,7 @@ import {
   useEffect,
   useState,
 } from 'react';
-import { message } from 'antd';
+import { appMessage as message } from '@/feedback/appFeedback';
 import { useMutation, useQuery } from '@tanstack/react-query';
 
 import { getUserPreference, updateUserPreference } from '@/api/preferences';

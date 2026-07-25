@@ -6,7 +6,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type SetStateAction,
 } from 'react';
-import { message } from 'antd';
+import { appMessage as message } from '@/feedback/appFeedback';
 
 import type {
   ElectricalCandidateTableColumnPreferenceMutation,

@@ -29,6 +29,13 @@ components (including form-control façades re-exported from this barrel).
 (e.g. `ui-kit-tltselect`). Nested-only usage inside another story is not enough.
 Coverage gate: `npm run storybook:coverage:strict`.
 
+Composition shells (empty / loading / error chrome, no domain) live under
+`UI Kit/Composition/*` (e.g. `PageChrome.stories.tsx`) — optional for agents
+assembling page regions; they do not count as barrel component IDs.
+
+**Feedback API:** use `appMessage` / `appModal` from `@/feedback/appFeedback`
+(not static `message` / `Modal.confirm` from `antd`) so console seal stays green.
+
 ## Public API
 
 Import components only from the barrel:

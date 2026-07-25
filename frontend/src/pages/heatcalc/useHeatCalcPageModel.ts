@@ -8,7 +8,7 @@
  * Route context/header: useHeatCalcPageContext.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { message as antdMessage } from 'antd';
+import { appMessage as antdMessage } from '@/feedback/appFeedback';
 
 import { useHeatCalcBulkActions } from '@/pages/heatcalc/useHeatCalcBulkActions';
 import { useHeatCalcColumnSettingsDialog } from '@/pages/heatcalc/useHeatCalcColumnSettingsDialog';

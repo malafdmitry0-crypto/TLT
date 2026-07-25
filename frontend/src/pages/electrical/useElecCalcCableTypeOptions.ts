@@ -5,7 +5,7 @@
  * @does-not heat
  */
 import { useCallback, useMemo } from 'react';
-import { message } from 'antd';
+import { appMessage as message } from '@/feedback/appFeedback';
 
 import type { ElectricalQueryAssignment } from '@/types/calculation';
 import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';

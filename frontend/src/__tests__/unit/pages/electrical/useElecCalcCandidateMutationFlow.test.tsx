@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { message } from 'antd';
+import { appMessage as message } from '@/feedback/appFeedback';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -23,11 +23,13 @@ import type {
   ElectricalCandidateFolder,
 } from '@/types/calculation';
 
-vi.mock('antd', () => ({
-  message: {
+vi.mock('@/feedback/appFeedback', () => ({
+  appMessage: {
+
     success: vi.fn(),
     warning: vi.fn(),
     error: vi.fn(),
+  
   },
 }));
 

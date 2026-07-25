@@ -1,12 +1,6 @@
 import { useState } from 'react';
-import {
-  Form,
-  Space,
-  Table,
-  Tabs,
-  Typography,
-  message,
-} from 'antd';
+import { Form, Space, Table, Tabs, Typography } from 'antd';
+import { appMessage as message } from '@/feedback/appFeedback';
 import { TltButton } from '@/components/ui-kit';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {

@@ -1,4 +1,5 @@
-import { Tooltip, message } from 'antd';
+import { Tooltip } from 'antd';
+import { appMessage as message } from '@/feedback/appFeedback';
 import { FileExcelOutlined } from '@ant-design/icons';
 import { useState } from 'react';
 import { TltButton } from '@/components/ui-kit';

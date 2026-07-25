@@ -1,4 +1,5 @@
-import { Space, Typography, message, Divider } from 'antd';
+import { Space, Typography, Divider } from 'antd';
+import { appMessage as message } from '@/feedback/appFeedback';
 import {
   QuestionCircleOutlined,
   UserOutlined,

@@ -7,7 +7,7 @@
  * PDF-HEAT-10: first transition may create ЭР1; navigation still proceeds on init failure.
  */
 import { useCallback, useMemo } from 'react';
-import { message as antdMessage } from 'antd';
+import { appMessage as antdMessage } from '@/feedback/appFeedback';
 import type { NavigateFunction } from 'react-router-dom';
 
 import { initializeElectricalVariants } from '@/api/electricalVariants';
