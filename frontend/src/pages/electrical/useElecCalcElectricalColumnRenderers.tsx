@@ -1,45 +1,23 @@
 import { useMemo } from 'react';
 import { Space, Tooltip, Typography } from 'antd';
-import {
-  CheckCircleFilled,
-  CloseCircleFilled,
-  MinusCircleFilled,
-} from '@ant-design/icons';
 
 import type { ProjectObject } from '@/types/project';
 import type { ElectricalCalcSummary } from '@/types/calculation';
 import type { ElectricalColumnKey } from '@/utils/electricalTableColumns';
-import {
-  electricalCalcError,
-  electricalCalcHint,
-  isElectricalCalcStale,
-  isElectricalCalcSuccess,
-  isElectricalCalcUnsupported,
-} from '@/utils/calcStatus';
 import { formatNumber } from '@/utils/formatters';
 import {
   CABLE_TYPE_LABEL,
   OBJECT_TYPE_LABEL,
   objectDisplayName,
-  STOCK_STATUS_LABEL,
   cableSnapshotStatusTag,
   type CableTypeKey,
 } from '@/domain/electrical/elecCalcMainTableModel';
 import type { ElectricalColumnRenderSpec } from '@/pages/electrical/elecCalcPageModel';
 import {
   calcLayoutValues,
-  cablePowerPerMeterValue,
-  commercialNumber,
-  commercialValue,
   currentElectricalCalc,
   getCableMark,
   getThreadSource,
-  installedPowerPerMeterValue,
-  numberText,
-  objectResultNumber,
-  orderCableLengthValue,
-  powerText,
-  resultNumber,
   selectionPolicyText,
   threadSourceTag,
   valueText,
@@ -49,28 +27,11 @@ import {
   buildElecCalcRecalculationColumnRenderers,
   type ElecCalcRendererRecalculationValues,
 } from '@/pages/electrical/elecCalcRecalculationColumnRenderers';
-
-function antColorToTltTone(color: string | undefined): 'neutral' | 'info' | 'success' | 'warning' | 'danger' {
-  switch (color) {
-    case 'success':
-    case 'green':
-      return 'success';
-    case 'error':
-    case 'red':
-    case 'volcano':
-    case 'magenta':
-      return 'danger';
-    case 'warning':
-    case 'gold':
-    case 'orange':
-      return 'warning';
-    case 'default':
-    case undefined:
-      return 'neutral';
-    default:
-      return 'info';
-  }
-}
+import {
+  antColorToTltTone,
+  buildElecCalcStatusColumnRenderers,
+} from '@/pages/electrical/elecCalcStatusColumnRenderers';
+import { buildElecCalcResultMetricColumnRenderers } from '@/pages/electrical/elecCalcResultMetricColumnRenderers';
 
 const { Text } = Typography;
 
@@ -117,89 +78,7 @@ export function useElecCalcElectricalColumnRenderers({
     object_type: {
       render: (_: unknown, obj) => OBJECT_TYPE_LABEL[obj.object_type] ?? obj.object_type,
     },
-    heat_loss_status: {
-      align: 'center',
-      render: (_: unknown, obj) => {
-        if (obj.is_valid) {
-          return (
-            <Tooltip title="Рассчитан">
-              <TltBadge className="heatloss-status-icon-tag" tone="success" aria-label="Рассчитан">
-                <CheckCircleFilled />
-              </TltBadge>
-            </Tooltip>
-          );
-        }
-        if (obj.validation_errors?.category === 'unsupported') {
-          return (
-            <Tooltip title={valueText(obj.validation_errors?.message ?? obj.validation_errors)}>
-              <TltBadge tone="neutral">Не применимо</TltBadge>
-            </Tooltip>
-          );
-        }
-        return (
-          <Tooltip
-            title={valueText(
-              obj.validation_errors?.message ??
-              obj.validation_errors,
-            )}
-          >
-            <TltBadge className="heatloss-status-icon-tag" tone="danger" aria-label="Ошибка">
-              <CloseCircleFilled />
-            </TltBadge>
-          </Tooltip>
-        );
-      },
-    },
-    electrical_status: {
-      align: 'center',
-      render: (_: unknown, obj) => {
-        const calc = calcByObjectId[obj.id];
-        const err = electricalCalcError(calc);
-        const unsupported = isElectricalCalcUnsupported(calc);
-        const stale = isElectricalCalcStale(calc);
-        if (isElectricalCalcSuccess(calc))
-          return (
-            <Tooltip title="Рассчитан">
-              <TltBadge className="electrical-status-icon-tag" tone="success" aria-label="Рассчитан">
-                <CheckCircleFilled />
-              </TltBadge>
-            </Tooltip>
-          );
-        if (unsupported)
-          return (
-            <Tooltip title={electricalCalcHint(calc) ?? err ?? 'Не применимо'}>
-              <TltBadge
-                className="electrical-status-icon-tag"
-                tone="neutral"
-                aria-label="Не применимо"
-              >
-                <MinusCircleFilled />
-              </TltBadge>
-            </Tooltip>
-          );
-        if (stale)
-          return (
-            <Tooltip title={electricalCalcHint(calc) ?? 'Требуется пересчёт'}>
-              <TltBadge className="electrical-status-icon-tag" tone="warning" aria-label="Требуется пересчёт">
-                ↻
-              </TltBadge>
-            </Tooltip>
-          );
-        if (err)
-          return (
-            <Tooltip title={err}>
-              <TltBadge className="electrical-status-icon-tag" tone="danger" aria-label="Ошибка">
-                <CloseCircleFilled />
-              </TltBadge>
-            </Tooltip>
-          );
-        return (
-          <Tooltip title="Не рассчитан">
-            <TltBadge className="electrical-status-icon-tag" aria-label="Не рассчитан">—</TltBadge>
-          </Tooltip>
-        );
-      },
-    },
+    ...buildElecCalcStatusColumnRenderers(calcByObjectId),
     cable_type: {
       render: (_: unknown, obj) => {
         const type = getCalculatedCableTypeForObject(obj.id);
@@ -359,74 +238,7 @@ export function useElecCalcElectricalColumnRenderers({
       },
     },
     ...buildElecCalcRecalculationColumnRenderers(calcByObjectId, recalc),
-    installed_cable_length: {
-      align: 'right',
-      render: (_: unknown, obj) =>
-        resultNumber(currentElectricalCalc(calcByObjectId[obj.id]), 'installed_cable_length', 1),
-    },
-    order_cable_length: {
-      align: 'right',
-      render: (_: unknown, obj) =>
-        numberText(orderCableLengthValue(currentElectricalCalc(calcByObjectId[obj.id])), 1),
-    },
-    total_power: {
-      align: 'right',
-      render: (_: unknown, obj) =>
-        powerText(currentElectricalCalc(calcByObjectId[obj.id])?.results?.total_power),
-    },
-    power_per_meter: {
-      align: 'right',
-      render: (_: unknown, obj) =>
-        numberText(cablePowerPerMeterValue(currentElectricalCalc(calcByObjectId[obj.id])), 2),
-    },
-    installed_power_per_meter: {
-      align: 'right',
-      render: (_: unknown, obj) =>
-        numberText(installedPowerPerMeterValue(currentElectricalCalc(calcByObjectId[obj.id])), 2),
-    },
-    current: {
-      align: 'right',
-      render: (_: unknown, obj) => resultNumber(currentElectricalCalc(calcByObjectId[obj.id]), 'current', 2),
-    },
-    voltage: {
-      align: 'right',
-      render: (_: unknown, obj) => resultNumber(currentElectricalCalc(calcByObjectId[obj.id]), 'voltage', 0),
-    },
-    price_per_meter: {
-      align: 'right',
-      render: (_: unknown, obj) => commercialNumber(currentElectricalCalc(calcByObjectId[obj.id]), 'price_per_meter', 2),
-    },
-    required_order_length: {
-      align: 'right',
-      render: (_: unknown, obj) =>
-        commercialNumber(currentElectricalCalc(calcByObjectId[obj.id]), 'required_order_length', 1),
-    },
-    total_cost: {
-      align: 'right',
-      render: (_: unknown, obj) => commercialNumber(currentElectricalCalc(calcByObjectId[obj.id]), 'total_cost', 2),
-    },
-    stock_status: {
-      render: (_: unknown, obj) => {
-        const value = commercialValue(currentElectricalCalc(calcByObjectId[obj.id]), 'stock_status');
-        return typeof value === 'string' ? STOCK_STATUS_LABEL[value] ?? value : '—';
-      },
-    },
-    lead_time_days: {
-      align: 'right',
-      render: (_: unknown, obj) => commercialNumber(currentElectricalCalc(calcByObjectId[obj.id]), 'lead_time_days', 0),
-    },
-    heat_loss_per_meter: {
-      align: 'right',
-      render: (_: unknown, obj) => objectResultNumber(obj, 'heat_loss_per_meter', 2),
-    },
-    heat_loss_per_m2: {
-      align: 'right',
-      render: (_: unknown, obj) => objectResultNumber(obj, 'heat_loss_per_m2', 2),
-    },
-    total_heat_loss: {
-      align: 'right',
-      render: (_: unknown, obj) => powerText(obj.results?.total_heat_loss),
-    },
+    ...buildElecCalcResultMetricColumnRenderers(calcByObjectId),
   }), [
     activeRowId,
     calcByObjectId,
