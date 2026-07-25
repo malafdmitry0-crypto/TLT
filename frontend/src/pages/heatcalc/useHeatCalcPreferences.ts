@@ -1,44 +1,31 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { message as antdMessage } from 'antd';
-import { useMutation, useQuery } from '@tanstack/react-query';
 
-import { getUserPreference, updateUserPreference } from '@/api/preferences';
 import {
-  HEATCALC_TABLE_COLUMN_PREF_KEY,
   clearRegisteredTableColumnCache,
   getDefaultTableColumnSettings,
   normalizeTableColumnSettings,
-  readGuestTableColumnSettings,
-  readRegisteredTableColumnCache,
   writeGuestTableColumnSettings,
   writeRegisteredTableColumnCache,
   type HeatCalcTableColumnSettings,
 } from '@/utils/heatCalcTableColumns';
 import {
-  HEATCALC_TABLE_VIEW_PREF_KEY,
-  areFormSectionWeightsEqual,
   clearGuestTableViewSettings,
   clearRegisteredTableViewCache,
   getDefaultTableViewSettings,
   isDefaultTableViewSettings,
   normalizeFormSectionWeights,
   normalizeTableViewSettings,
-  readGuestTableViewSettings,
-  readRegisteredTableViewCache,
   writeGuestTableViewSettings,
   writeRegisteredTableViewCache,
   type HeatCalcFormSectionWeights,
   type HeatCalcTableViewSettings,
 } from '@/utils/heatCalcTableViewSettings';
 import {
-  HEATCALC_CALCULATION_DETAILS_PREF_KEY,
   clearGuestCalculationDetailsSettings,
   clearRegisteredCalculationDetailsCache,
   getDefaultCalculationDetailsSettings,
-  isDefaultCalculationDetailsSettings,
   normalizeCalculationDetailsSettings,
-  readGuestCalculationDetailsSettings,
-  readRegisteredCalculationDetailsCache,
   writeGuestCalculationDetailsSettings,
   writeRegisteredCalculationDetailsCache,
   type HeatCalcCalculationDetailsSettings,
@@ -47,52 +34,53 @@ import {
   clearGuestFieldInputSettings,
   clearRegisteredFieldInputCache,
 } from '@/utils/heatCalcFieldInputSettings';
+import {
+  hasCalculationDetailsSettingsChanged,
+  hasTableViewSettingsChanged,
+  normalizePreferenceBundle,
+  planGuestCalculationDetailsWrite,
+  planGuestTableViewWrite,
+  planPreferenceHydration,
+  resolveInitialCalculationDetailsSettings,
+  resolveInitialTableColumnSettings,
+  resolveInitialTableViewSettings,
+  type GuestSettingsWriteAction,
+  type PreferenceUserContext,
+} from '@/pages/heatcalc/heatCalcPreferencesModel';
+import { useHeatCalcPreferenceServerSync } from '@/pages/heatcalc/useHeatCalcPreferenceServerSync';
 
-type TableColumnPreferenceMutation = {
-  settings: HeatCalcTableColumnSettings;
-  closeModal?: boolean;
-  showMessage?: boolean;
-};
-
-type TableSettingsPreferenceMutation = {
-  columnSettings: HeatCalcTableColumnSettings;
-  viewSettings?: HeatCalcTableViewSettings;
-  calculationDetailsSettings?: HeatCalcCalculationDetailsSettings;
-};
-
-type UseHeatCalcPreferencesOptions = {
-  isRegisteredUser: boolean;
-  registeredUserId: string | null;
+type UseHeatCalcPreferencesOptions = PreferenceUserContext & {
   onCloseSettingsModal?: () => void;
 };
+
+function applyGuestWriteAction<T>(
+  action: GuestSettingsWriteAction<T>,
+  write: (settings: T) => void,
+  clear: () => void,
+) {
+  if (action.kind === 'write') write(action.settings);
+  else if (action.kind === 'clear') clear();
+}
 
 export function useHeatCalcPreferences({
   isRegisteredUser,
   registeredUserId,
   onCloseSettingsModal,
 }: UseHeatCalcPreferencesOptions) {
-  const [tableColumnSettings, setTableColumnSettings] = useState<HeatCalcTableColumnSettings>(() => {
-    if (isRegisteredUser) {
-      return readRegisteredTableColumnCache(registeredUserId) ?? getDefaultTableColumnSettings();
-    }
-    return readGuestTableColumnSettings();
-  });
+  const userCtx: PreferenceUserContext = { isRegisteredUser, registeredUserId };
+
+  const [tableColumnSettings, setTableColumnSettings] = useState<HeatCalcTableColumnSettings>(
+    () => resolveInitialTableColumnSettings(userCtx),
+  );
   const tableColumnSettingsRef = useRef(tableColumnSettings);
-  const [tableViewSettings, setTableViewSettings] = useState<HeatCalcTableViewSettings>(() => {
-    if (isRegisteredUser) {
-      return readRegisteredTableViewCache(registeredUserId) ?? getDefaultTableViewSettings();
-    }
-    return readGuestTableViewSettings();
-  });
+  const [tableViewSettings, setTableViewSettings] = useState<HeatCalcTableViewSettings>(
+    () => resolveInitialTableViewSettings(userCtx),
+  );
   const tableViewSettingsRef = useRef(tableViewSettings);
   const [calculationDetailsSettings, setCalculationDetailsSettings] =
-    useState<HeatCalcCalculationDetailsSettings>(() => {
-      if (isRegisteredUser) {
-        return readRegisteredCalculationDetailsCache(registeredUserId)
-          ?? getDefaultCalculationDetailsSettings();
-      }
-      return readGuestCalculationDetailsSettings();
-    });
+    useState<HeatCalcCalculationDetailsSettings>(
+      () => resolveInitialCalculationDetailsSettings(userCtx),
+    );
 
   useEffect(() => {
     tableColumnSettingsRef.current = tableColumnSettings;
@@ -102,125 +90,21 @@ export function useHeatCalcPreferences({
     tableViewSettingsRef.current = tableViewSettings;
   }, [tableViewSettings]);
 
-  const { data: persistedTableColumnPreference } = useQuery({
-    queryKey: ['preference', HEATCALC_TABLE_COLUMN_PREF_KEY],
-    queryFn: () => getUserPreference<HeatCalcTableColumnSettings>(HEATCALC_TABLE_COLUMN_PREF_KEY),
-    enabled: isRegisteredUser,
-    staleTime: 30_000,
-  });
-
-  const { data: persistedTableViewPreference } = useQuery({
-    queryKey: ['preference', HEATCALC_TABLE_VIEW_PREF_KEY],
-    queryFn: () => getUserPreference<HeatCalcTableViewSettings>(HEATCALC_TABLE_VIEW_PREF_KEY),
-    enabled: isRegisteredUser,
-    staleTime: 30_000,
-  });
-
-  const { data: persistedCalculationDetailsPreference } = useQuery({
-    queryKey: ['preference', HEATCALC_CALCULATION_DETAILS_PREF_KEY],
-    queryFn: () => getUserPreference<HeatCalcCalculationDetailsSettings>(HEATCALC_CALCULATION_DETAILS_PREF_KEY),
-    enabled: isRegisteredUser,
-    staleTime: 30_000,
-  });
-
-  const updateTableColumnPreference = useMutation({
-    mutationFn: ({ settings }: TableColumnPreferenceMutation) =>
-      updateUserPreference<HeatCalcTableColumnSettings>(
-        HEATCALC_TABLE_COLUMN_PREF_KEY,
-        normalizeTableColumnSettings(settings),
-      ),
-    onSuccess: (preference, variables) => {
-      const normalized = normalizeTableColumnSettings(preference.value);
-      setTableColumnSettings(normalized);
-      if (preference.user_id) {
-        writeRegisteredTableColumnCache(preference.user_id, normalized);
-      }
-      if (variables.closeModal) onCloseSettingsModal?.();
-      if (variables.showMessage !== false) antdMessage.success('Настройки таблицы сохранены');
-    },
-    onError: (error) => {
-      antdMessage.error(error instanceof Error ? error.message : 'Не удалось сохранить настройки таблицы');
-    },
-  });
-
-  const updateTableSettingsPreference = useMutation({
-    mutationFn: async ({
-      columnSettings,
-      viewSettings,
-      calculationDetailsSettings: calculationDetailsPreferenceSettings,
-    }: TableSettingsPreferenceMutation) => {
-      const columnPreference = await updateUserPreference<HeatCalcTableColumnSettings>(
-        HEATCALC_TABLE_COLUMN_PREF_KEY,
-        normalizeTableColumnSettings(columnSettings),
-      );
-      const viewPreference = viewSettings
-        ? await updateUserPreference<HeatCalcTableViewSettings>(
-          HEATCALC_TABLE_VIEW_PREF_KEY,
-          normalizeTableViewSettings(viewSettings),
-        )
-        : null;
-      const calculationDetailsPreference = calculationDetailsPreferenceSettings
-        ? await updateUserPreference<HeatCalcCalculationDetailsSettings>(
-          HEATCALC_CALCULATION_DETAILS_PREF_KEY,
-          normalizeCalculationDetailsSettings(calculationDetailsPreferenceSettings),
-        )
-        : null;
-      return {
-        columnPreference,
-        viewPreference,
-        calculationDetailsPreference,
-      };
-    },
-    onSuccess: ({
-      columnPreference,
-      viewPreference,
-      calculationDetailsPreference,
-    }) => {
-      const normalizedColumns = normalizeTableColumnSettings(columnPreference.value);
-      setTableColumnSettings(normalizedColumns);
-      if (columnPreference.user_id) {
-        writeRegisteredTableColumnCache(columnPreference.user_id, normalizedColumns);
-      }
-      if (viewPreference) {
-        const normalizedView = normalizeTableViewSettings(viewPreference.value);
-        tableViewSettingsRef.current = normalizedView;
-        setTableViewSettings(normalizedView);
-        if (viewPreference.user_id) {
-          writeRegisteredTableViewCache(viewPreference.user_id, normalizedView);
-        }
-      }
-      if (calculationDetailsPreference) {
-        const normalizedDetails = normalizeCalculationDetailsSettings(calculationDetailsPreference.value);
-        setCalculationDetailsSettings(normalizedDetails);
-        if (calculationDetailsPreference.user_id) {
-          writeRegisteredCalculationDetailsCache(calculationDetailsPreference.user_id, normalizedDetails);
-        }
-      }
-      onCloseSettingsModal?.();
-      antdMessage.success('Настройки таблицы сохранены');
-    },
-    onError: (error) => {
-      antdMessage.error(error instanceof Error ? error.message : 'Не удалось сохранить настройки таблицы');
-    },
-  });
-
-  const updateTableViewPreference = useMutation({
-    mutationFn: (settings: HeatCalcTableViewSettings) =>
-      updateUserPreference<HeatCalcTableViewSettings>(
-        HEATCALC_TABLE_VIEW_PREF_KEY,
-        normalizeTableViewSettings(settings),
-      ),
-    onSuccess: (preference) => {
-      const normalizedView = normalizeTableViewSettings(preference.value);
-      tableViewSettingsRef.current = normalizedView;
-      setTableViewSettings(normalizedView);
-      if (preference.user_id) {
-        writeRegisteredTableViewCache(preference.user_id, normalizedView);
-      }
-    },
-    onError: (error) => {
-      antdMessage.error(error instanceof Error ? error.message : 'Не удалось сохранить настройки отображения');
-    },
+  const {
+    persistedTableColumnPreference,
+    persistedTableViewPreference,
+    persistedCalculationDetailsPreference,
+    updateTableColumnPreference,
+    updateTableSettingsPreference,
+    updateTableViewPreference,
+    preferenceSavePending,
+  } = useHeatCalcPreferenceServerSync({
+    isRegisteredUser,
+    onCloseSettingsModal,
+    setTableColumnSettings,
+    setTableViewSettings,
+    setCalculationDetailsSettings,
+    tableViewSettingsRef,
   });
 
   useEffect(() => {
@@ -229,68 +113,72 @@ export function useHeatCalcPreferences({
   }, [registeredUserId]);
 
   useEffect(() => {
-    if (isRegisteredUser) {
-      const registeredTableViewSettings =
-        readRegisteredTableViewCache(registeredUserId) ?? getDefaultTableViewSettings();
-      setTableColumnSettings(
-        readRegisteredTableColumnCache(registeredUserId) ?? getDefaultTableColumnSettings(),
-      );
-      tableViewSettingsRef.current = registeredTableViewSettings;
-      setTableViewSettings(registeredTableViewSettings);
-      setCalculationDetailsSettings(
-        readRegisteredCalculationDetailsCache(registeredUserId) ?? getDefaultCalculationDetailsSettings(),
-      );
-      return;
-    }
-    const guestTableViewSettings = readGuestTableViewSettings();
-    setTableColumnSettings(readGuestTableColumnSettings());
-    tableViewSettingsRef.current = guestTableViewSettings;
-    setTableViewSettings(guestTableViewSettings);
-    setCalculationDetailsSettings(readGuestCalculationDetailsSettings());
+    setTableColumnSettings(resolveInitialTableColumnSettings({
+      isRegisteredUser,
+      registeredUserId,
+    }));
+    const view = resolveInitialTableViewSettings({ isRegisteredUser, registeredUserId });
+    tableViewSettingsRef.current = view;
+    setTableViewSettings(view);
+    setCalculationDetailsSettings(resolveInitialCalculationDetailsSettings({
+      isRegisteredUser,
+      registeredUserId,
+    }));
   }, [isRegisteredUser, registeredUserId]);
 
   useEffect(() => {
-    if (!isRegisteredUser || !persistedTableColumnPreference) return;
-    if (persistedTableColumnPreference.value) {
-      const normalized = normalizeTableColumnSettings(persistedTableColumnPreference.value);
-      setTableColumnSettings(normalized);
-      if (persistedTableColumnPreference.user_id) {
-        writeRegisteredTableColumnCache(persistedTableColumnPreference.user_id, normalized);
-      }
+    const plan = planPreferenceHydration(
+      isRegisteredUser,
+      persistedTableColumnPreference,
+      registeredUserId,
+      normalizeTableColumnSettings,
+    );
+    if (!plan) return;
+    if (plan.kind === 'apply') {
+      setTableColumnSettings(plan.settings);
+      if (plan.cacheUserId) writeRegisteredTableColumnCache(plan.cacheUserId, plan.settings);
       return;
     }
-    clearRegisteredTableColumnCache(registeredUserId ?? persistedTableColumnPreference.user_id);
+    clearRegisteredTableColumnCache(plan.clearUserId);
     setTableColumnSettings(getDefaultTableColumnSettings());
   }, [isRegisteredUser, persistedTableColumnPreference, registeredUserId]);
 
   useEffect(() => {
-    if (!isRegisteredUser || !persistedTableViewPreference) return;
-    if (persistedTableViewPreference.value) {
-      const normalized = normalizeTableViewSettings(persistedTableViewPreference.value);
-      tableViewSettingsRef.current = normalized;
-      setTableViewSettings(normalized);
-      if (persistedTableViewPreference.user_id) {
-        writeRegisteredTableViewCache(persistedTableViewPreference.user_id, normalized);
-      }
+    const plan = planPreferenceHydration(
+      isRegisteredUser,
+      persistedTableViewPreference,
+      registeredUserId,
+      normalizeTableViewSettings,
+    );
+    if (!plan) return;
+    if (plan.kind === 'apply') {
+      tableViewSettingsRef.current = plan.settings;
+      setTableViewSettings(plan.settings);
+      if (plan.cacheUserId) writeRegisteredTableViewCache(plan.cacheUserId, plan.settings);
       return;
     }
-    clearRegisteredTableViewCache(registeredUserId ?? persistedTableViewPreference.user_id);
+    clearRegisteredTableViewCache(plan.clearUserId);
     const defaults = getDefaultTableViewSettings();
     tableViewSettingsRef.current = defaults;
     setTableViewSettings(defaults);
   }, [isRegisteredUser, persistedTableViewPreference, registeredUserId]);
 
   useEffect(() => {
-    if (!isRegisteredUser || !persistedCalculationDetailsPreference) return;
-    if (persistedCalculationDetailsPreference.value) {
-      const normalized = normalizeCalculationDetailsSettings(persistedCalculationDetailsPreference.value);
-      setCalculationDetailsSettings(normalized);
-      if (persistedCalculationDetailsPreference.user_id) {
-        writeRegisteredCalculationDetailsCache(persistedCalculationDetailsPreference.user_id, normalized);
+    const plan = planPreferenceHydration(
+      isRegisteredUser,
+      persistedCalculationDetailsPreference,
+      registeredUserId,
+      normalizeCalculationDetailsSettings,
+    );
+    if (!plan) return;
+    if (plan.kind === 'apply') {
+      setCalculationDetailsSettings(plan.settings);
+      if (plan.cacheUserId) {
+        writeRegisteredCalculationDetailsCache(plan.cacheUserId, plan.settings);
       }
       return;
     }
-    clearRegisteredCalculationDetailsCache(registeredUserId ?? persistedCalculationDetailsPreference.user_id);
+    clearRegisteredCalculationDetailsCache(plan.clearUserId);
     setCalculationDetailsSettings(getDefaultCalculationDetailsSettings());
   }, [isRegisteredUser, persistedCalculationDetailsPreference, registeredUserId]);
 
@@ -319,20 +207,16 @@ export function useHeatCalcPreferences({
     viewSettings: HeatCalcTableViewSettings,
     calculationDetails: HeatCalcCalculationDetailsSettings,
   ) => {
-    const normalizedColumns = normalizeTableColumnSettings(columnSettings);
-    const normalizedView = normalizeTableViewSettings(viewSettings);
-    const normalizedDetails = normalizeCalculationDetailsSettings(calculationDetails);
-    const currentView = normalizeTableViewSettings(tableViewSettings);
-    const currentDetails = normalizeCalculationDetailsSettings(calculationDetailsSettings);
-    const viewChanged = normalizedView.fontSize !== currentView.fontSize
-      || normalizedView.tableLabelFormat !== currentView.tableLabelFormat
-      || normalizedView.settingsLabelFormat !== currentView.settingsLabelFormat
-      || normalizedView.formPlacement !== currentView.formPlacement
-      || normalizedView.sideFormWidthPct !== currentView.sideFormWidthPct
-      || !areFormSectionWeightsEqual(normalizedView.formSectionWeights, currentView.formSectionWeights);
-    const detailsChanged = normalizedDetails.preset !== currentDetails.preset
-      || normalizedDetails.visibleMetrics.length !== currentDetails.visibleMetrics.length
-      || normalizedDetails.visibleMetrics.some((metric) => !currentDetails.visibleMetrics.includes(metric));
+    const {
+      columns: normalizedColumns,
+      view: normalizedView,
+      details: normalizedDetails,
+    } = normalizePreferenceBundle(columnSettings, viewSettings, calculationDetails);
+    const viewChanged = hasTableViewSettingsChanged(normalizedView, tableViewSettings);
+    const detailsChanged = hasCalculationDetailsSettingsChanged(
+      normalizedDetails,
+      calculationDetailsSettings,
+    );
     setTableColumnSettings(normalizedColumns);
     tableViewSettingsRef.current = normalizedView;
     setTableViewSettings(normalizedView);
@@ -349,20 +233,16 @@ export function useHeatCalcPreferences({
       return;
     }
     writeGuestTableColumnSettings(normalizedColumns);
-    if (viewChanged) {
-      if (isDefaultTableViewSettings(normalizedView)) {
-        clearGuestTableViewSettings();
-      } else {
-        writeGuestTableViewSettings(normalizedView);
-      }
-    }
-    if (detailsChanged) {
-      if (isDefaultCalculationDetailsSettings(normalizedDetails)) {
-        clearGuestCalculationDetailsSettings();
-      } else {
-        writeGuestCalculationDetailsSettings(normalizedDetails);
-      }
-    }
+    applyGuestWriteAction(
+      planGuestTableViewWrite(viewChanged, normalizedView),
+      writeGuestTableViewSettings,
+      clearGuestTableViewSettings,
+    );
+    applyGuestWriteAction(
+      planGuestCalculationDetailsWrite(detailsChanged, normalizedDetails),
+      writeGuestCalculationDetailsSettings,
+      clearGuestCalculationDetailsSettings,
+    );
     onCloseSettingsModal?.();
     antdMessage.success('Настройки таблицы сохранены');
   }, [
@@ -431,9 +311,7 @@ export function useHeatCalcPreferences({
     tableViewSettings,
     tableViewSettingsRef,
     calculationDetailsSettings,
-    preferenceSavePending: updateTableColumnPreference.isPending
-      || updateTableSettingsPreference.isPending
-      || updateTableViewPreference.isPending,
+    preferenceSavePending,
     persistTableColumnSettings,
     persistTableSettings,
     persistTableViewOnly,
