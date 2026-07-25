@@ -1,0 +1,10 @@
+@media (prefers-reduced-motion: reduce) {
+
+  .uikit-page *,
+  .uikit-page *::before,
+  .uikit-page *::after {
+    scroll-behavior: auto;
+    animation-duration: .01ms;
+    animation-iteration-count: 1;
+  }
+}

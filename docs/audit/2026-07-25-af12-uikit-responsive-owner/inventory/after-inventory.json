@@ -1,0 +1,16 @@
+{
+  "phase": "after",
+  "media_by_file": {
+    "ui-kit.css": 0,
+    "ui-kit-responsive.css": 3,
+    "ui-kit-primitives-showcase.css": 0,
+    "ui-kit-heatcalc-reference.css": 0
+  },
+  "AST_equal": true,
+  "imports": [
+    "import './ui-kit.css'",
+    "import './ui-kit-primitives-showcase.css'",
+    "import './ui-kit-heatcalc-reference.css'",
+    "import './ui-kit-responsive.css'"
+  ]
+}

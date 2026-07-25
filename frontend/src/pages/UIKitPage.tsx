@@ -52,6 +52,7 @@ import {
 import './ui-kit.css';
 import './ui-kit-primitives-showcase.css';
 import './ui-kit-heatcalc-reference.css';
+import './ui-kit-responsive.css';
 
 export default function UIKitPage() {
   const navigate = useNavigate();

@@ -1,0 +1,40 @@
+{
+  "BASE_HEAD": "bd69ec622b98f793ba0e745b4bc7c57fbfa37c91",
+  "phase": "before",
+  "media_by_file": {
+    "frontend/src/pages/ui-kit.css": 3,
+    "frontend/src/pages/ui-kit-primitives-showcase.css": 0,
+    "frontend/src/pages/ui-kit-heatcalc-reference.css": 0
+  },
+  "media_conditions_ui_kit": [
+    "(max-width: 1200px)",
+    "(max-width: 768px)",
+    "(prefers-reduced-motion: reduce)"
+  ],
+  "media_block_hashes": [
+    "a604e526bc47c599aa708e6129d93fd4f9ec6a0104a18936c48866e291abd290",
+    "a22456fda430067081de5fe4b0197c48be0c9d8242dd4d1a8a3ed9aca5fa95c8",
+    "67afa16850d8ffbd5511d2b02bf051c3c179f2030dff5ef5ba438172a1d9b8f0"
+  ],
+  "media_block_chars": [
+    855,
+    4141,
+    207
+  ],
+  "imports_UIKitPage": [
+    "./ui-kit.css",
+    "./ui-kit-primitives-showcase.css",
+    "./ui-kit-heatcalc-reference.css"
+  ],
+  "loc_by_file": {
+    "frontend/src/pages/ui-kit.css": 910,
+    "frontend/src/pages/ui-kit-primitives-showcase.css": 224,
+    "frontend/src/pages/ui-kit-heatcalc-reference.css": 191
+  },
+  "baseline_totals_media": 39,
+  "baseline_ui_kit": {
+    "loc": 911,
+    "bareAnt": 0,
+    "media": 3
+  }
+}
