@@ -68,3 +68,13 @@ Architecture ratchets (`cssArchitectureRatchet`, `inlineStyleRatchet`) **не** 
 Vitest: `vi.mock` for `@/api/references` must be in each ObjectWizard `*.test.tsx`;
 HeatCalc harness is imported first (mocks), SUT imported after. Do not export
 `vi.hoisted` bindings directly.
+
+### Wave 2 (electrical)
+
+| Source | Split into |
+|---|---|
+| `useElectricalVariantSelection.test.tsx` (~615) | `url-selection` / `readiness` / `lifecycle` + harness |
+| `ElecCalcPage.candidates.test.tsx` (~581) | `auto-recalc` / `rows-actions` / `folders` (shared elec harness) |
+| `ElecCalcPage.cable-meta.test.tsx` (~579) | `brand-modal` / `source-type` / `inline-batch` |
+
+Proof wave 2: 31 tests green.
