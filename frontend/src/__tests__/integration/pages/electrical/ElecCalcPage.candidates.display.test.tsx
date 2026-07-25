@@ -53,7 +53,7 @@ describe('ElecCalcPage candidates / folders — display', () => {
     await user.click(row);
     await user.click(within(row).getByRole('button', { name: 'Подбор' }));
     const sizingDialog = await screen.findByRole('dialog', { name: /Подбор кабеля для/ });
-    expect(within(sizingDialog).getAllByText('ТЛТ-75').length).toBe(2);
+    expect(await within(sizingDialog).findAllByText('ТЛТ-75')).toHaveLength(2);
   });
 
   it('показывает TT-поля, которые различают визуально похожие варианты', async () => {

@@ -10,12 +10,7 @@ import {
   queryObjects,
 } from '@/api/projects';
 import { getInsulation } from '@/api/references';
-import {
-  buildHeatCalcEnumOptionsByColumn,
-  buildHeatCalcVisibleRowsModel,
-  buildHeatCalcWorkspaceLoadState,
-  useHeatCalcObjectsDataModel,
-} from '@/pages/heatcalc/useHeatCalcObjectsDataModel';
+import { useHeatCalcObjectsDataModel } from '@/pages/heatcalc/useHeatCalcObjectsDataModel';
 import type {
   ObjectQueryCapabilities,
   ObjectQueryFieldCapability,
@@ -23,17 +18,9 @@ import type {
   ProjectObject,
   ProjectObjectsQueryResponse,
 } from '@/types/project';
-import {
-  createEmptyTableViewState,
-  type HeatCalcColumnValueAccessors,
-  type HeatCalcIndexedTableRow,
-} from '@/utils/heatCalcTableFindability';
-import {
-  getDefaultTableColumnSettings,
-  type HeatCalcResolvedColumnMeta,
-} from '@/utils/heatCalcTableColumns';
+import { createEmptyTableViewState } from '@/utils/heatCalcTableFindability';
+import { getDefaultTableColumnSettings } from '@/utils/heatCalcTableColumns';
 import { getDefaultTableViewSettings } from '@/utils/heatCalcTableViewSettings';
-import { INAPPLICABLE_TABLE_VALUE } from '@/utils/heatCalcPageUtils';
 
 vi.mock('@/api/projects', () => ({
   getObjectQueryCapabilities: vi.fn(),
@@ -142,21 +129,6 @@ function makeCapabilities(
     default_sort: { key: 'sort_order', dir: 'asc' },
     search: { enabled: true, max_text_length: 120, default_columns: ['name'] },
     fields,
-  };
-}
-
-function meta(key: string): HeatCalcResolvedColumnMeta {
-  return {
-    key,
-    labels: { short: key, compact: key, full: key },
-    label: key,
-    title: key,
-    group: 'test',
-    width: 120,
-    defaultWidthPct: 10,
-    minWidthPx: 80,
-    widthPct: 10,
-    visible: true,
   };
 }
 

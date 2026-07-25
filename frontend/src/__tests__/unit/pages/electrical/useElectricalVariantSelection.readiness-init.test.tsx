@@ -4,7 +4,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import TestMemoryRouter from '@/__tests__/utils/TestMemoryRouter';
 import { useCalculationVariantStore } from '@/store/calculationVariantStore';
-import { electricalDataQueryKeys } from '@/api/electricalQueryKeys';
 import type {
   ElectricalReadinessResponse,
   ElectricalVariant,
@@ -41,13 +40,6 @@ import { useElectricalVariantSelection } from '@/hooks/useElectricalVariantSelec
 const PROJECT_ID = 'project-a';
 const ER_1_ID = '11111111-1111-4111-8111-111111111111';
 const ER_2_ID = '22222222-2222-4222-8222-222222222222';
-const ER_3_ID = '33333333-3333-4333-8333-333333333333';
-const UNKNOWN_ID = '99999999-9999-4999-8999-999999999999';
-
-function responseLost(message: string): Error & { status: undefined } {
-  return Object.assign(new Error(message), { status: undefined });
-}
-
 function variant(
   id: string,
   name: string,
@@ -70,7 +62,6 @@ function variant(
 
 const ER_1 = variant(ER_1_ID, 'Основное решение', 0, true);
 const ER_2 = variant(ER_2_ID, 'Экономичный вариант', 1);
-const ER_3 = variant(ER_3_ID, 'Резерв', 2);
 
 function setup(
   initialEntry = '/workspace/elec-calc',

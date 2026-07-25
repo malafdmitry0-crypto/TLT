@@ -1,6 +1,3 @@
-import type { ReactNode } from 'react';
-import { renderHook, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -13,26 +10,18 @@ import { getInsulation } from '@/api/references';
 import {
   buildHeatCalcEnumOptionsByColumn,
   buildHeatCalcVisibleRowsModel,
-  buildHeatCalcWorkspaceLoadState,
-  useHeatCalcObjectsDataModel,
 } from '@/pages/heatcalc/useHeatCalcObjectsDataModel';
 import type {
   ObjectQueryCapabilities,
   ObjectQueryFieldCapability,
-  Project,
   ProjectObject,
   ProjectObjectsQueryResponse,
 } from '@/types/project';
 import {
-  createEmptyTableViewState,
   type HeatCalcColumnValueAccessors,
   type HeatCalcIndexedTableRow,
 } from '@/utils/heatCalcTableFindability';
-import {
-  getDefaultTableColumnSettings,
-  type HeatCalcResolvedColumnMeta,
-} from '@/utils/heatCalcTableColumns';
-import { getDefaultTableViewSettings } from '@/utils/heatCalcTableViewSettings';
+import type { HeatCalcResolvedColumnMeta } from '@/utils/heatCalcTableColumns';
 import { INAPPLICABLE_TABLE_VALUE } from '@/utils/heatCalcPageUtils';
 
 vi.mock('@/api/projects', () => ({
@@ -45,20 +34,6 @@ vi.mock('@/api/projects', () => ({
 vi.mock('@/api/references', () => ({
   getInsulation: vi.fn(),
 }));
-
-const mockProject: Project = {
-  id: 'project-1',
-  name: 'Проект',
-  description: null,
-  task_number: null,
-  user_id: null,
-  session_id: 'session-1',
-  status: 'draft',
-  owner_email: null,
-  object_types: [],
-  created_at: '2026-01-01T00:00:00Z',
-  updated_at: '2026-01-01T00:00:00Z',
-};
 
 function makeObject(overrides: Partial<ProjectObject> = {}): ProjectObject {
   return {
@@ -157,48 +132,6 @@ function meta(key: string): HeatCalcResolvedColumnMeta {
     minWidthPx: 80,
     widthPct: 10,
     visible: true,
-  };
-}
-
-function setupHook(
-  overrides: Partial<Parameters<typeof useHeatCalcObjectsDataModel>[0]> = {},
-) {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false },
-      mutations: { retry: false },
-    },
-  });
-  const wrapper = ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  );
-  const props = {
-    activeObjectQueryCursor: null,
-    activeObjectScope: 'pipe',
-    activeTableColumnScope: 'pipe',
-    activeTableObjectType: 'pipe',
-    activeTablePage: 1,
-    activeTableViewState: createEmptyTableViewState(),
-    allTableViewState: createEmptyTableViewState(),
-    excelModeEnabled: false,
-    isAllObjectScope: false,
-    project: mockProject,
-    queryClient,
-    tableColumnSettings: getDefaultTableColumnSettings(),
-    tableViewSettings: getDefaultTableViewSettings(),
-    tableFindabilityEnabled: true,
-    mergeNormalLoadedRows: vi.fn(),
-    rememberObjectQueryCursor: vi.fn(),
-    resetNormalLoadMoreRequest: vi.fn(),
-    ...overrides,
-  } satisfies Parameters<typeof useHeatCalcObjectsDataModel>[0];
-
-  return {
-    queryClient,
-    ...renderHook(
-      (hookProps: typeof props) => useHeatCalcObjectsDataModel(hookProps),
-      { initialProps: props, wrapper },
-    ),
   };
 }
 
