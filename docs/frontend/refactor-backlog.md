@@ -7,9 +7,9 @@
 pending» (dense production 400-band + heavy test contexts) must be real
 `pending`, not EMPTY QUEUE cosmetics.  
 **Inventory at open:** **22** files in **400–445** LOC (production).  
-**Last closed production:** P-TEST-01 catalog-recalc split @ `b6c7672`
+**Last closed production:** P-TEST-02 HeatCalc basics @ `df94f01`
 
-**Следующий незакрытый контракт:** `P-TEST-02`
+**Следующий незакрытый контракт:** `P-TEST-03`
 
 Это **единственный** источник текущего `pending` для frontend. Одновременно
 может существовать только одна ACTIVE frontend-очередь. Initiative plans,
@@ -120,8 +120,8 @@ Template: [split-large-tests-by-scenario](./prompts/split-large-tests-by-scenari
 | # | ID | Status | Owner | Path (approx LOC at queue open) | Action |
 |---:|---|---|---|---|---|
 | 1 | **P-TEST-01** | **done** `b6c7672` | qa | catalog-recalc **509 → 3 scenarios (≤217)** | [audit](../audit/2026-07-26-p-test-01-catalog-recalc/snapshot.md) |
-| 2 | **P-TEST-02** | **pending** | qa | `unit/pages/HeatCalcPage.basics.test.tsx` (~507) | scenario sub-clusters |
-| 3 | P-TEST-03 | pending | qa | `integration/pages/ReportPage.test.tsx` (~481) | scenario split |
+| 2 | **P-TEST-02** | **done** `df94f01` | qa | basics **507 → 4 scenarios (≤278)** | [audit](../audit/2026-07-26-p-test-02-heat-basics/snapshot.md) |
+| 3 | **P-TEST-03** | **pending** | qa | `integration/pages/ReportPage.test.tsx` (~481) | scenario split |
 | 4 | P-TEST-04 | pending | architecture | `unit/architecture/inlineStyleRatchet.architecture.test.ts` (~582) | helpers extract (keep gate cohesive) |
 | 5 | P-TEST-05 | pending | qa | `integration/…/elecCalcPageTestEnv.tsx` (~676 harness) | thin env barrel / pure fixtures (no scenario fiction) |
 | 6 | P-TEST-06 | pending | qa | `unit/pages/HeatCalcPage.test-mocks.tsx` (~643) | further mock clusters if open-cost still high |
