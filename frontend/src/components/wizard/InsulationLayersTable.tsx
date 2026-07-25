@@ -20,66 +20,29 @@ import {
   useEffect,
   useState,
   type MouseEvent,
-  type ReactElement,
-  type ReactNode,
 } from 'react';
 import { Form } from 'antd';
 import { MinusOutlined, PlusOutlined } from '@ant-design/icons';
-import UnitInputNumber from '@/components/common/UnitInputNumber';
 import './insulation-layers-table.css';
-import {
-  heatCalcCustomControlRequiredProps,
-  heatCalcFormFieldRules,
-  heatCalcNumberInputProps,
-} from '@/utils/heatCalcWizardFieldRules';
 import type { HeatCalcFieldInputSettings } from '@/utils/heatCalcFieldInputSettings';
 import type { HeatCalcObjectType } from '@/types/project';
 import type { InsulationEntry } from '@/types/reference';
-import {
-  getHeatCalcFieldDescription,
-  getHeatCalcFieldLabel,
-} from '@/domain/heatCalcFields';
 import { applyHeatCalcFieldValue } from '@/domain/heatCalcFieldRules';
-import HelpedControl from './HelpedControl';
-import FieldLabel from './FieldLabel';
-import InsulationConductivityField from './InsulationConductivityField';
-import InsulationTemperatureRangeField from './InsulationTemperatureRangeField';
-import ReferencePicker, { type ReferencePickerOption } from './ReferencePicker';
+import type { ReferencePickerOption } from './ReferencePicker';
 import ThermalStep from './steps/ThermalStep';
+import {
+  InsulationOuterLayerRow,
+  SECOND_INSULATION_LAYER,
+  THIRD_INSULATION_LAYER,
+} from './InsulationOuterLayerRow';
 
 const MIN_LAYERS = 1;
 const MAX_LAYERS = 3;
-
-function withHelp(control: ReactElement, hint: string) {
-  return <HelpedControl hint={hint}>{control}</HelpedControl>;
-}
-
-function fieldLabel(fieldId: string, objectType: HeatCalcObjectType) {
-  return <FieldLabel text={getHeatCalcFieldLabel(fieldId, { context: 'form', objectType })} />;
-}
-
-function fieldHelp(fieldId: string, objectType: HeatCalcObjectType) {
-  return getHeatCalcFieldDescription(fieldId, { objectType });
-}
 
 function normalizeLayerCount(value: unknown): number {
   const n = Number(value ?? MIN_LAYERS);
   if (!Number.isFinite(n)) return MIN_LAYERS;
   return Math.min(MAX_LAYERS, Math.max(MIN_LAYERS, Math.trunc(n)));
-}
-
-function Cell({
-  role,
-  children,
-}: {
-  role: 'index' | 'material' | 'thickness' | 'lambda' | 'range';
-  children: ReactNode;
-}) {
-  return (
-    <div className={`insulation-layer-cell insulation-layer-cell--${role}`} data-ins-cell={role}>
-      {children}
-    </div>
-  );
 }
 
 export interface InsulationLayersTableProps {
@@ -119,9 +82,6 @@ export default function InsulationLayersTable({
   useEffect(() => {
     setActiveLayer((prev) => Math.min(Math.max(prev, MIN_LAYERS), layerCount));
   }, [layerCount]);
-
-  const numberInputProps = (fieldId: string) =>
-    heatCalcNumberInputProps(objectType, fieldId, { fieldInputSettings, form });
 
   function setLayerCount(next: number) {
     const clamped = normalizeLayerCount(next);
@@ -170,7 +130,7 @@ export default function InsulationLayersTable({
   function renderIndexCell(layer: number) {
     const isActive = activeLayer === layer;
     return (
-      <Cell role="index">
+      <div className="insulation-layer-cell insulation-layer-cell--index" data-ins-cell="index">
         <div className="insulation-layer-index-wrap">
           <span className="insulation-layer-index" aria-hidden="true">{layer}</span>
           {isActive && canRemove ? (
@@ -186,7 +146,7 @@ export default function InsulationLayersTable({
             </button>
           ) : null}
         </div>
-      </Cell>
+      </div>
     );
   }
 
@@ -246,159 +206,39 @@ export default function InsulationLayersTable({
         </div>
 
         {layerCount >= 2 && (
-          <div
-            className={`insulation-layer-group${activeLayer === 2 ? ' insulation-layer-group--active' : ''}`}
-            data-layer="2"
-            data-active={activeLayer === 2 ? 'true' : 'false'}
-            onClick={() => setActiveLayer(2)}
-            onFocusCapture={() => setActiveLayer(2)}
-          >
-            {renderIndexCell(2)}
-            <Cell role="material">
-              <Form.Item
-                className="medium-select-form-item layer-material-form-item second-layer-material-form-item helped-form-item"
-                label={fieldLabel('second_insulation_material', objectType)}
-                name="second_insulation_material"
-                preserve={false}
-                rules={heatCalcFormFieldRules(form, objectType, 'second_insulation_material')}
-              >
-                {withHelp(
-                  <ReferencePicker
-                    data-testid="second-insulation-material-select"
-                    options={insulationMaterialOptions}
-                    placeholder="Выберите материал"
-                    modalTitle="Материал 2-го слоя"
-                    searchPlaceholder="Поиск материала"
-                    loading={isInsulationMaterialsFetching}
-                    notFoundContent={insulationMaterialsError ? 'Не удалось загрузить справочник' : 'Нет материалов'}
-                    {...heatCalcCustomControlRequiredProps(form, objectType, 'second_insulation_material')}
-                  />,
-                  fieldHelp('second_insulation_material', objectType),
-                )}
-              </Form.Item>
-            </Cell>
-            <Cell role="thickness">
-              <Form.Item
-                className="numeric-form-item short-number-form-item second-layer-thickness-form-item helped-form-item"
-                label={fieldLabel('second_insulation_thickness_mm', objectType)}
-                name="second_insulation_thickness_mm"
-                preserve={false}
-                rules={heatCalcFormFieldRules(form, objectType, 'second_insulation_thickness_mm')}
-              >
-                {withHelp(
-                  <UnitInputNumber
-                    data-testid="second-insulation-thickness-input"
-                    {...numberInputProps('second_insulation_thickness_mm')}
-                    unit="мм"
-                  />,
-                  fieldHelp('second_insulation_thickness_mm', objectType),
-                )}
-              </Form.Item>
-            </Cell>
-            <Cell role="lambda">
-              <InsulationConductivityField
-                material={secondInsulationMaterial}
-                selectedMaterial={selectedSecondInsulation}
-                name="second_insulation_lambda"
-                dataTestIdPrefix="second-insulation"
-                objectType={objectType}
-                fieldInputSettings={fieldInputSettings}
-                labelFieldId="second_insulation_lambda"
-              />
-            </Cell>
-            <Cell role="range">
-              <InsulationTemperatureRangeField
-                material={secondInsulationMaterial}
-                selectedMaterial={selectedSecondInsulation}
-                minName="second_insulation_temperature_min"
-                maxName="second_insulation_temperature_max"
-                dataTestIdPrefix="second-insulation"
-                objectType={objectType}
-                labelFieldId="second_insulation_temperature_range"
-                hint={fieldHelp('second_insulation_temperature_range', objectType)}
-                required={heatCalcCustomControlRequiredProps(form, objectType, 'second_insulation_temperature_range').required}
-                onRangeChange={onProgrammaticValuesChange}
-              />
-            </Cell>
-          </div>
+          <InsulationOuterLayerRow
+            config={SECOND_INSULATION_LAYER}
+            form={form}
+            objectType={objectType}
+            fieldInputSettings={fieldInputSettings}
+            insulationMaterialOptions={insulationMaterialOptions}
+            insulationMaterialsError={insulationMaterialsError}
+            isInsulationMaterialsFetching={isInsulationMaterialsFetching}
+            material={secondInsulationMaterial}
+            selectedMaterial={selectedSecondInsulation}
+            indexCell={renderIndexCell(2)}
+            active={activeLayer === 2}
+            onActivate={() => setActiveLayer(2)}
+            onProgrammaticValuesChange={onProgrammaticValuesChange}
+          />
         )}
 
         {layerCount >= 3 && (
-          <div
-            className={`insulation-layer-group${activeLayer === 3 ? ' insulation-layer-group--active' : ''}`}
-            data-layer="3"
-            data-active={activeLayer === 3 ? 'true' : 'false'}
-            onClick={() => setActiveLayer(3)}
-            onFocusCapture={() => setActiveLayer(3)}
-          >
-            {renderIndexCell(3)}
-            <Cell role="material">
-              <Form.Item
-                className="medium-select-form-item layer-material-form-item third-layer-material-form-item helped-form-item"
-                label={fieldLabel('third_insulation_material', objectType)}
-                name="third_insulation_material"
-                preserve={false}
-                rules={heatCalcFormFieldRules(form, objectType, 'third_insulation_material')}
-              >
-                {withHelp(
-                  <ReferencePicker
-                    data-testid="third-insulation-material-select"
-                    options={insulationMaterialOptions}
-                    placeholder="Выберите материал"
-                    modalTitle="Материал 3-го слоя"
-                    searchPlaceholder="Поиск материала"
-                    loading={isInsulationMaterialsFetching}
-                    notFoundContent={insulationMaterialsError ? 'Не удалось загрузить справочник' : 'Нет материалов'}
-                    {...heatCalcCustomControlRequiredProps(form, objectType, 'third_insulation_material')}
-                  />,
-                  fieldHelp('third_insulation_material', objectType),
-                )}
-              </Form.Item>
-            </Cell>
-            <Cell role="thickness">
-              <Form.Item
-                className="numeric-form-item short-number-form-item third-layer-thickness-form-item helped-form-item"
-                label={fieldLabel('third_insulation_thickness_mm', objectType)}
-                name="third_insulation_thickness_mm"
-                preserve={false}
-                rules={heatCalcFormFieldRules(form, objectType, 'third_insulation_thickness_mm')}
-              >
-                {withHelp(
-                  <UnitInputNumber
-                    data-testid="third-insulation-thickness-input"
-                    {...numberInputProps('third_insulation_thickness_mm')}
-                    unit="мм"
-                  />,
-                  fieldHelp('third_insulation_thickness_mm', objectType),
-                )}
-              </Form.Item>
-            </Cell>
-            <Cell role="lambda">
-              <InsulationConductivityField
-                material={thirdInsulationMaterial}
-                selectedMaterial={selectedThirdInsulation}
-                name="third_insulation_lambda"
-                dataTestIdPrefix="third-insulation"
-                objectType={objectType}
-                fieldInputSettings={fieldInputSettings}
-                labelFieldId="third_insulation_lambda"
-              />
-            </Cell>
-            <Cell role="range">
-              <InsulationTemperatureRangeField
-                material={thirdInsulationMaterial}
-                selectedMaterial={selectedThirdInsulation}
-                minName="third_insulation_temperature_min"
-                maxName="third_insulation_temperature_max"
-                dataTestIdPrefix="third-insulation"
-                objectType={objectType}
-                labelFieldId="third_insulation_temperature_range"
-                hint={fieldHelp('third_insulation_temperature_range', objectType)}
-                required={heatCalcCustomControlRequiredProps(form, objectType, 'third_insulation_temperature_range').required}
-                onRangeChange={onProgrammaticValuesChange}
-              />
-            </Cell>
-          </div>
+          <InsulationOuterLayerRow
+            config={THIRD_INSULATION_LAYER}
+            form={form}
+            objectType={objectType}
+            fieldInputSettings={fieldInputSettings}
+            insulationMaterialOptions={insulationMaterialOptions}
+            insulationMaterialsError={insulationMaterialsError}
+            isInsulationMaterialsFetching={isInsulationMaterialsFetching}
+            material={thirdInsulationMaterial}
+            selectedMaterial={selectedThirdInsulation}
+            indexCell={renderIndexCell(3)}
+            active={activeLayer === 3}
+            onActivate={() => setActiveLayer(3)}
+            onProgrammaticValuesChange={onProgrammaticValuesChange}
+          />
         )}
       </div>
     </div>
