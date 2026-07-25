@@ -24,13 +24,11 @@ import {
 } from '@glideapps/glide-data-grid';
 import type { ProjectObject } from '@/types/project';
 import {
-  NORMAL_HEADER_FILTER_HIT_WIDTH,
   NORMAL_INFINITE_LOAD_THRESHOLD_ROWS,
   clampNormalGlideColumnWidth,
   findNormalCellActionAt,
   getGridCellEditedValue,
   normalRowThemeOverride,
-  paginationConfig,
   type HeatCalcGlideGridCellState,
   type HeatCalcGlideGridColumn,
 } from '@/utils/heatCalcGlideGrid';
@@ -40,6 +38,12 @@ import {
   createNormalDrawCell,
   createNormalDrawHeader,
 } from '@/utils/heatCalcNormalGlideDraw';
+import {
+  activeCellForRowId,
+  isNormalHeaderFilterHit,
+  nextKeysFromRowClick,
+  shouldShowOffsetPagination,
+} from '@/utils/heatCalcNormalGlideControllerHelpers';
 import { useHeatCalcNormalGlideLayout } from '@/hooks/useHeatCalcNormalGlideLayout';
 import {
   useHeatCalcNormalGlideCellModel,
@@ -193,28 +197,18 @@ export function useHeatCalcNormalGlideController({
     rowIndex: number,
     event: Pick<CellClickedEventArgs, 'ctrlKey' | 'metaKey' | 'shiftKey'>,
   ) => {
-    const record = rows[rowIndex];
-    if (!record) return;
-    const selected = new Set(selectedRowKeys);
-    const multiKey = event.ctrlKey || event.metaKey;
-    if (event.shiftKey) {
-      const anchorRow = rowSelectionAnchorRef.current ?? activeCell?.[1] ?? rowIndex;
-      for (let index = Math.min(anchorRow, rowIndex); index <= Math.max(anchorRow, rowIndex); index += 1) {
-        const row = rows[index];
-        if (row) selected.add(row.id);
-      }
-      rowSelectionAnchorRef.current = anchorRow;
-      onSelectedRowKeysChange(rows.filter((row) => selected.has(row.id)).map((row) => row.id));
-      return;
-    }
-    rowSelectionAnchorRef.current = rowIndex;
-    if (multiKey) {
-      if (selected.has(record.id)) selected.delete(record.id);
-      else selected.add(record.id);
-      onSelectedRowKeysChange(rows.filter((row) => selected.has(row.id)).map((row) => row.id));
-      return;
-    }
-    onSelectedRowKeysChange([record.id]);
+    const { nextKeys, nextAnchor } = nextKeysFromRowClick({
+      rows,
+      selectedRowKeys,
+      rowIndex,
+      ctrlKey: event.ctrlKey,
+      metaKey: event.metaKey,
+      shiftKey: event.shiftKey,
+      anchorRow: rowSelectionAnchorRef.current,
+      activeCellRowIndex: activeCell?.[1] ?? null,
+    });
+    rowSelectionAnchorRef.current = nextAnchor;
+    onSelectedRowKeysChange(nextKeys);
   }, [activeCell, onSelectedRowKeysChange, rows, selectedRowKeys]);
   const handleCellClicked = useCallback((cell: Item, event: CellClickedEventArgs) => {
     if (cell[0] < 0) {
@@ -268,7 +262,7 @@ export function useHeatCalcNormalGlideController({
   const handleHeaderClicked = useCallback((columnIndex: number, event: HeaderClickedEventArgs) => {
     const column = visibleGridColumns[columnIndex];
     if (!column) return;
-    if (column.filterable && event.localEventX >= Math.max(0, event.bounds.width - NORMAL_HEADER_FILTER_HIT_WIDTH)) {
+    if (isNormalHeaderFilterHit(column, event.localEventX, event.bounds.width)) {
       openFilterPopup(columnIndex, event);
       return;
     }
@@ -342,20 +336,12 @@ export function useHeatCalcNormalGlideController({
     };
   }, [filterPopup]);
   useEffect(() => {
-    if (!activeRowId) {
-      setActiveCell(null);
-      return;
-    }
-    setActiveCell((current) => {
-      const currentRow = current ? rows[current[1]] : undefined;
-      if (currentRow?.id === activeRowId) return current;
-      const rowIndex = rows.findIndex((row) => row.id === activeRowId);
-      if (rowIndex < 0 || visibleGridColumns.length === 0) return current;
-      return [
-        Math.min(Math.max(current?.[0] ?? 0, 0), visibleGridColumns.length - 1),
-        rowIndex,
-      ] as Item;
-    });
+    setActiveCell((current) => activeCellForRowId({
+      activeRowId,
+      rows,
+      current,
+      visibleColumnCount: visibleGridColumns.length,
+    }));
   }, [activeRowId, rows, visibleGridColumns.length]);
   useEffect(() => {
     if (!editingCell) return undefined;
@@ -367,9 +353,7 @@ export function useHeatCalcNormalGlideController({
     return () => window.cancelAnimationFrame(frameId);
   }, [cellEditorElementRef, editingCell]);
 
-  const pageConfig = paginationConfig(pagination);
-  const showOffsetPagination = !infiniteLoading && !!pageConfig
-    && !(pageConfig.hideOnSinglePage && Number(pageConfig.total ?? 0) <= Number(pageConfig.pageSize ?? 0));
+  const { showOffsetPagination, pageConfig } = shouldShowOffsetPagination(infiniteLoading, pagination);
 
   return {
     rootRef,
