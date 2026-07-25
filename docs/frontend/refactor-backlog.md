@@ -2,7 +2,8 @@
 
 **Статус:** EMPTY QUEUE
 
-**Актуально на:** 2026-07-25
+**Актуально на:** 2026-07-25  
+**HEAD at last backlog truth:** `1573b1a` (AF12 UI Kit agent-friendly CSS close)
 
 **Следующий незакрытый контракт:** —
 
@@ -11,13 +12,19 @@
 Completed initiative plans не имеют права объявлять `COMPLETE`, пока backlog
 содержит pending acceptance.
 
+Не добавляй P5+/test-inventory/stateful-owner очередь без **явной** user goal.
+Не путай residual risk (ниже) с `pending` контрактом.
+
 Постоянные правила: [стандарт](./agent-development-standard.md).
 Размер slice: [PR budget](./pr-budget.md).
 Исполняемый шаблон: [мастер-промпт](./agent-refactor-prompt.md).
+Viewport / UI Kit desktop contract: [viewport-policy](./viewport-policy.md),
+[ui-kit](./ui-kit.md).
 Point-in-time метрики: [P0 audit](../audit/2026-07-24-p0-doc-truth/snapshot.md),
 [RISK pre-close incomplete](../audit/2026-07-24-frontend-risk-recovery/snapshot.md),
 [RISK-CLOSE-PROOF final (BLOCKED historical)](../audit/2026-07-24-frontend-risk-recovery-final/snapshot.md),
-[RISK-CLOSE-PROOF-01 PASS](../audit/2026-07-25-frontend-risk-recovery/snapshot.md).
+[RISK-CLOSE-PROOF-01 PASS](../audit/2026-07-25-frontend-risk-recovery/snapshot.md),
+[AF12 UI Kit agent-friendly PASS](../audit/2026-07-25-af12-uikit-agent-friendly/snapshot.md).
 История AF9: [archive summary](./archive/agent-friendly-9-plan-historical.md).
 
 ## Правила очереди
@@ -250,6 +257,21 @@ Closure evidence:
 
 _EMPTY QUEUE — no pending frontend acceptance contracts._
 
+Нет ACTIVE slice. Следующий агент **не** стартует inventory/split очередь из
+воздуха: только явная user goal → новый checkbox здесь.
+
+### Residual risk (не pending)
+
+Эти темы **не** открывают backlog. Берутся только отдельной user goal:
+
+| Тема | Статус | Note |
+|---|---|---|
+| UI Kit CSS ownership / desktop ≥1000 px | **closed** | [AF12 UI Kit close](../audit/2026-07-25-af12-uikit-agent-friendly/snapshot.md) |
+| Dual concurrent `test:agent-dod` | residual | quiet/full dual not sealed green |
+| DoD wall median ≤120 s | residual | observed ~120–154 s depending on load |
+| Deep product browser states (non–UI-Kit matrix) | residual | shell/deep guest partial; full AF11-style matrix optional |
+| `max-width: 768px` outside UI Kit | residual | UI Kit 768 removed; other features not in this close |
+
 ### Done (closure)
 
 - [x] **RISK-CLOSE-PROOF-01 — honest DoD + browser closure evidence.**
@@ -259,6 +281,14 @@ _EMPTY QUEUE — no pending frontend acceptance contracts._
   network. Prerequisites on HEAD: ReportPage flake fix + useForm modal
   connection. See
   [PASS snapshot](../audit/2026-07-25-frontend-risk-recovery/snapshot.md).
+
+- [x] **AF12-UIKIT-AGENT-FRIENDLY-01 — UI Kit CSS ownership (06A–06H).**
+
+  Desktop-only contract; semantic media contracts; owner gate; remove UI Kit
+  768 media; colocate Heat/primitives 1200; split shell/foundation/data;
+  retire mixed `ui-kit.css` / `ui-kit-responsive.css`; browser runner;
+  `test:agent-dod` green. Close evidence:
+  [2026-07-25-af12-uikit-agent-friendly](../audit/2026-07-25-af12-uikit-agent-friendly/snapshot.md).
 
 ### Исторические контракт-блоки R1–R12
 
@@ -737,8 +767,11 @@ Ant primitives. Только если все acceptance выполнены: от
 
 После закрытия последнего pending:
 
-1. backlog получает статус без ACTIVE residual (empty queue);
-2. AF9 historical summary остаётся в archive;
+1. backlog получает статус **EMPTY QUEUE**, next=—;
+2. AF9 / RISK / AF12 historical evidence остаётся в archive/audit (не вторая
+   очередь);
 3. новый point-in-time audit фиксирует HEAD, команды, среду и пересчитанные
    факты;
-4. только тогда допустимо говорить о завершении residual-инициативы — не раньше.
+4. residual risk table может оставаться для честности, но **не** делает очередь
+   ACTIVE;
+5. новый `pending` — только по явной user goal (один owner, один slice).
