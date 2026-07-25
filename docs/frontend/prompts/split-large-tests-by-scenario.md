@@ -78,3 +78,16 @@ HeatCalc harness is imported first (mocks), SUT imported after. Do not export
 | `ElecCalcPage.cable-meta.test.tsx` (~579) | `brand-modal` / `source-type` / `inline-batch` |
 
 Proof wave 2: 31 tests green.
+
+### Wave 3
+
+| Source | Split into |
+|---|---|
+| `objectWizardUtils.test.ts` (~566) | naming / pipe-form-api / tank-form-api / form-roundtrip / defaults |
+| `heatCalcExcelMode.test.ts` (~554) | parse / columns / selection / draft-rows / errors + harness |
+| `useHeatCalcObjectsDataModel.test.tsx` (~543) | query-scope / rows-model / load-state + harness |
+| `ElecCalcPage.table-batch.test.tsx` (~542) | permissions / display-status / pagination / batch-actions |
+| `ElectricalVariantTabs.test.tsx` (~511) | chrome / lifecycle-edit / delete-limit / readiness + harness |
+| `HeatCalcPage.basics.test.tsx` (~505) | chrome / object-type / toolbar / load-state |
+
+Proof wave 3: **124** tests green (25 files). Architecture ratchets not split.
