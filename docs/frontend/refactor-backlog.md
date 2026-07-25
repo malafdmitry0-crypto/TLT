@@ -7,9 +7,9 @@
 pending» (dense production 400-band + heavy test contexts) must be real
 `pending`, not EMPTY QUEUE cosmetics.  
 **Inventory at open:** **22** files in **400–445** LOC (production).  
-**Last closed production:** P-BAND-06 ElectricalCandidateGlideGrid (see table)
+**Last closed production:** P-BAND-07 HeatCalcGlideGrid (see table)
 
-**Следующий незакрытый контракт:** `P-BAND-07`
+**Следующий незакрытый контракт:** `P-BAND-10`
 
 Это **единственный** источник текущего `pending` для frontend. Одновременно
 может существовать только одна ACTIVE frontend-очередь. Initiative plans,
@@ -77,7 +77,7 @@ util/domain/api/types).
 | 4 | **P-BAND-04** | **done** `f1a3a64` | heat | `utils/heatCalcInlineEdit.ts` **442→322** | [audit](../audit/2026-07-26-p-band-04-inline-edit/snapshot.md) |
 | 5 | **P-BAND-05** | **done** `503539c` | electrical | `utils/electricalCandidateTableColumnsCore.ts` **437→257** | [audit](../audit/2026-07-26-p-band-05-candidate-columns/snapshot.md) |
 | 6 | **P-BAND-06** | **done** `83e4c08` | electrical | `ElectricalCandidateGlideGrid.tsx` **430→367** | [audit](../audit/2026-07-26-p-band-06-candidate-glide/snapshot.md) |
-| 7 | P-BAND-07 | pending | heat | `components/heatcalc/HeatCalcGlideGrid.tsx` (~429) | grid chrome vs data adapter |
+| 7 | **P-BAND-07** | **done** `bb0189c` | heat | `HeatCalcGlideGrid.tsx` **429→363** | [audit](../audit/2026-07-26-p-band-07-heat-glide/snapshot.md) |
 | 8 | **P-BAND-08** | **done** `bc07b4f` | shared | `api/calculations.ts` **428→212** | [audit](../audit/2026-07-26-p-band-08-calculations-api/snapshot.md) |
 | 9 | **P-BAND-09** | **done** `525c1a3` | heat | `utils/heatCalcExcelMode.ts` **427→256** | [audit](../audit/2026-07-26-p-band-09-excel-mode/snapshot.md) |
 | 10 | P-BAND-10 | pending | heat | `pages/heatcalc/heatCalcColumnRenderers.tsx` (~423) | renderer clusters |
