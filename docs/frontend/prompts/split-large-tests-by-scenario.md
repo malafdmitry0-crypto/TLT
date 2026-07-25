@@ -91,3 +91,17 @@ Proof wave 2: 31 tests green.
 | `HeatCalcPage.basics.test.tsx` (~505) | chrome / object-type / toolbar / load-state |
 
 Proof wave 3: **124** tests green (25 files). Architecture ratchets not split.
+
+### Wave 4
+
+| Source | Split into |
+|---|---|
+| `ElecCalcPage.catalog-recalc` (~509) | copy-lifecycle / catalog / recalculation / mark-ui |
+| `ReportPage` (~470) | empty-guest / export-print / composition / scope-uuid |
+| `client` (~461) | guest-recovery / network-retry / project-403 / async-jobs |
+| `heatCalcInlineEdit` (~458) | field-mapping / placement-tm / draft-model / validation-errors / save-projection |
+| `SpecificationPage` (~445) | empty-content / er-scope / permissions |
+| `HeatCalcPage.inline-edit` (~426) | normal-mode / excel-mode / draft-highlight / user-settings-api |
+| `HeatCalcPage.settings` (~416) | columns / layout / calc-details |
+
+Proof wave 4: **84** tests green (27 files). Architecture ratchets still not split.

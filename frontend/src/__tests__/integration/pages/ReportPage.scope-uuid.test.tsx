@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars -- scenario split keeps shared preamble fixtures */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import TestMemoryRouter from '@/__tests__/utils/TestMemoryRouter';
@@ -97,7 +98,7 @@ function renderPage(initialEntry = '/workspace/report') {
   );
 }
 
-describe('ReportPage (integration)', () => {
+describe('ReportPage — ER UUID scope', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     listElectricalVariantsMock.mockResolvedValue([
@@ -118,108 +119,6 @@ describe('ReportPage (integration)', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
-  });
-
-  it('показывает заглушку без выбранного проекта', () => {
-    useAuthStore.setState({
-      role: 'guest',
-      user: null,
-      sessionId: 'sid',
-      accessToken: null,
-      refreshToken: null,
-    });
-    renderPage();
-    expect(screen.getByText(/Проект не выбран/i)).toBeInTheDocument();
-  });
-
-  it('сотрудник видит кнопки экспорта PDF / Word / Excel', async () => {
-    useAuthStore.setState({
-      role: 'employee',
-      user: {
-        id: 'u-1',
-        email: 'e@tlt.ru',
-        full_name: null,
-        role: 'employee',
-        is_active: true,
-      },
-      sessionId: null,
-      accessToken: 'tok',
-      refreshToken: 'tok',
-    });
-    const { getReportPreview } = await import('@/api/reports');
-    (getReportPreview as ReturnType<typeof vi.fn>).mockResolvedValue({
-      project_id: 'p-1',
-      html: '<div class="tlt-report"><h1>Отчёт</h1></div>',
-      sections: ['Проект'],
-      variant_number: 1,
-    });
-    useProjectStore.getState().setCurrentProject(mockProject);
-    renderPage();
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /PDF/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /Word/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /Excel/i })).toBeInTheDocument();
-    });
-  });
-
-  it('FA-09: guest and employee see browser print button', async () => {
-    const user = (await import('@testing-library/user-event')).default.setup();
-    useAuthStore.setState({
-      role: 'guest',
-      user: null,
-      sessionId: 'sid',
-      accessToken: null,
-      refreshToken: null,
-    });
-    const { getReportPreview } = await import('@/api/reports');
-    (getReportPreview as ReturnType<typeof vi.fn>).mockResolvedValue({
-      project_id: 'p-1',
-      html: '<div class="tlt-report"><h1>Отчёт</h1></div>',
-      sections: ['Проект'],
-      variant_number: 1,
-    });
-    useProjectStore.getState().setCurrentProject(mockProject);
-    const printSpy = vi.spyOn(window, 'print').mockImplementation(() => undefined);
-    renderPage();
-    const printBtn = await screen.findByRole('button', { name: /Печать/i });
-    await waitFor(() => expect(printBtn).toBeEnabled());
-    await user.click(printBtn);
-    expect(printSpy).toHaveBeenCalled();
-    printSpy.mockRestore();
-  });
-
-  it('сотрудник: клик по PDF триггерит exportReport', async () => {
-    const user = (await import('@testing-library/user-event')).default.setup();
-    const { getReportPreview, exportReport } = await import('@/api/reports');
-    (getReportPreview as ReturnType<typeof vi.fn>).mockResolvedValue({
-      project_id: 'p-1', html: '<div></div>', sections: [], variant_number: 1,
-    });
-    (exportReport as ReturnType<typeof vi.fn>).mockResolvedValue(
-      new Blob(['fake'], { type: 'application/pdf' })
-    );
-    useAuthStore.setState({
-      role: 'employee',
-      user: { id: 'u', email: 'e@x', full_name: null, role: 'employee', is_active: true },
-      sessionId: null, accessToken: 'a', refreshToken: 'r',
-    });
-    useProjectStore.getState().setCurrentProject(mockProject);
-    // Prefer selected ER before mount so export has a concrete UUID immediately.
-    useCalculationVariantStore.getState().setSelectedVariantId(mockProject.id, firstVariant.id);
-    renderPage();
-    // Wait for ER list + enabled PDF (avoid stale node after re-render).
-    await waitFor(() => {
-      expect(listElectricalVariantsMock).toHaveBeenCalled();
-      expect(screen.getByRole('button', { name: /PDF/i })).toBeEnabled();
-    });
-    await user.click(screen.getByRole('button', { name: /PDF/i }));
-    await waitFor(() =>
-      expect(exportReport).toHaveBeenCalledWith(
-        'p-1',
-        'pdf',
-        firstVariant.id,
-        expect.any(Array),
-      )
-    );
   });
 
   it('фиксирует UUID и имя ЭР на время экспорта и блокирует смену scope', async () => {
@@ -285,91 +184,6 @@ describe('ReportPage (integration)', () => {
       expect(boxes.every((box) => box.disabled)).toBe(false);
     });
     expect(downloadedName).toBe(`${mockProject.name}-${thirdVariant.name}.pdf`);
-  });
-
-  it('сотрудник: открывает модалку «Состав отчёта»', async () => {
-    const user = (await import('@testing-library/user-event')).default.setup();
-    const { getReportPreview } = await import('@/api/reports');
-    (getReportPreview as ReturnType<typeof vi.fn>).mockResolvedValue({
-      project_id: 'p-1', html: '<div></div>', sections: [], variant_number: 1,
-    });
-    useAuthStore.setState({
-      role: 'employee',
-      user: { id: 'u', email: 'e@x', full_name: null, role: 'employee', is_active: true },
-      sessionId: null, accessToken: 'a', refreshToken: 'r',
-    });
-    useProjectStore.getState().setCurrentProject(mockProject);
-    useCalculationVariantStore.getState().setSelectedVariantId(mockProject.id, firstVariant.id);
-    renderPage();
-    await waitFor(() => {
-      expect(listElectricalVariantsMock).toHaveBeenCalled();
-      expect(screen.getByRole('button', { name: /Состав отчёта/i })).toBeEnabled();
-    });
-    await user.click(screen.getByRole('button', { name: /Состав отчёта/i }));
-    // Modal mounts async; concurrent suite load can delay portal paint
-    expect(
-      await screen.findByRole('dialog', {}, { timeout: 8_000 }),
-    ).toBeInTheDocument();
-  });
-
-  it('passes the exact selected ER UUID to the standalone report wizard URL', async () => {
-    const user = (await import('@testing-library/user-event')).default.setup();
-    const { getReportPreview } = await import('@/api/reports');
-    (getReportPreview as ReturnType<typeof vi.fn>).mockResolvedValue({
-      project_id: 'p-1', html: '<div></div>', sections: [], variant_number: 3,
-    });
-    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
-    useAuthStore.setState({
-      role: 'employee',
-      user: { id: 'u', email: 'e@x', full_name: null, role: 'employee', is_active: true },
-      sessionId: null, accessToken: 'a', refreshToken: 'r',
-    });
-    useProjectStore.getState().setCurrentProject(mockProject);
-    useCalculationVariantStore.getState().setSelectedVariantId(
-      mockProject.id,
-      thirdVariant.id,
-    );
-    renderPage();
-
-    await waitFor(() => {
-      expect(listElectricalVariantsMock).toHaveBeenCalled();
-      expect(screen.getByRole('button', { name: /Мастер в новом окне/i })).toBeEnabled();
-    });
-    await user.click(screen.getByRole('button', { name: /Мастер в новом окне/i }));
-
-    expect(openSpy).toHaveBeenCalledWith(
-      `/report-wizard?er=${thirdVariant.id}`,
-      'tlt-report-wizard',
-      'width=1280,height=860,toolbar=no,menubar=no,location=no,status=no',
-    );
-  });
-
-  it('гостю кнопки экспорта не показываются', async () => {
-    useAuthStore.setState({
-      role: 'guest',
-      user: null,
-      sessionId: 'sid',
-      accessToken: null,
-      refreshToken: null,
-    });
-    const { getReportPreview } = await import('@/api/reports');
-    (getReportPreview as ReturnType<typeof vi.fn>).mockResolvedValue({
-      project_id: 'p-1',
-      html: '<div></div>',
-      sections: [],
-      variant_number: 1,
-    });
-    useProjectStore.getState().setCurrentProject(mockProject);
-    renderPage();
-    await waitFor(() => {
-      expect(screen.getByText(/Шаг 4. Отчёт по проекту/i)).toBeInTheDocument();
-    });
-    expect(screen.queryByRole('button', { name: /PDF/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Word/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Excel/i })).not.toBeInTheDocument();
-    expect(
-      screen.getByText(/Server export \(PDF\/Word\/Excel\) — только сотрудникам/i)
-    ).toBeInTheDocument();
   });
 
   it('использует выбранный именованный ЭР для предпросмотра отчёта', async () => {
@@ -467,4 +281,5 @@ describe('ReportPage (integration)', () => {
       expect(erIds).not.toContain(firstVariant.id);
     });
   });
+
 });
