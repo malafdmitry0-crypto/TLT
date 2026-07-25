@@ -202,7 +202,7 @@ function setupHook(
   };
 }
 
-describe('useHeatCalcObjectsDataModel', () => {
+describe('useHeatCalcObjectsDataModel — query-scope', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     Object.defineProperty(window, 'requestIdleCallback', { configurable: true, value: undefined });
@@ -226,7 +226,6 @@ describe('useHeatCalcObjectsDataModel', () => {
     (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([]);
     (getInsulation as ReturnType<typeof vi.fn>).mockResolvedValue([]);
   });
-
   it('builds a typed pipe query request and exposes query-backed counts', async () => {
     const rememberObjectQueryCursor = vi.fn();
     const mergeNormalLoadedRows = vi.fn();
@@ -260,7 +259,6 @@ describe('useHeatCalcObjectsDataModel', () => {
     });
     expect(resetNormalLoadMoreRequest).toHaveBeenCalled();
   });
-
   it('idle-prefetches all objects only when the summary fits the current page limit', async () => {
     const requestIdleCallback = vi.fn((callback: () => void) => {
       callback();
@@ -276,7 +274,6 @@ describe('useHeatCalcObjectsDataModel', () => {
       expect(listObjects).toHaveBeenCalledWith('project-1');
     });
   });
-
   it('skips idle-prefetch of the full object list for large paginated projects', async () => {
     const requestIdleCallback = vi.fn((callback: () => void) => {
       callback();
@@ -306,7 +303,6 @@ describe('useHeatCalcObjectsDataModel', () => {
     expect(requestIdleCallback).not.toHaveBeenCalled();
     expect(listObjects).not.toHaveBeenCalled();
   });
-
   it('switches the typed query model to tank scope', async () => {
     (getObjectsSummary as ReturnType<typeof vi.fn>).mockResolvedValue({
       total: 1,
@@ -339,7 +335,6 @@ describe('useHeatCalcObjectsDataModel', () => {
       expect(result.current.tankCount).toBe(1);
     });
   });
-
   it('uses the all-objects list and local all-scope filtering without typed query capabilities', async () => {
     const alpha = makeObject({ id: 'pipe-a', sort_order: 2, params: { name: 'Alpha pipe' } });
     const beta = makeObject({ id: 'tank-b', object_type: 'tank', sort_order: 1, params: { name: 'Beta tank' } });
@@ -363,7 +358,6 @@ describe('useHeatCalcObjectsDataModel', () => {
     expect(queryObjects).not.toHaveBeenCalled();
     expect(result.current.visibleAllTableRows.map(({ record }) => record.id)).toEqual(['pipe-a']);
   });
-
   it('uses the full object list in Excel mode without also running the paginated typed query', async () => {
     const fullList = [
       makeObject({ id: 'pipe-a', sort_order: 1, params: { name: 'Alpha pipe' } }),
@@ -384,7 +378,6 @@ describe('useHeatCalcObjectsDataModel', () => {
     expect(queryObjects).not.toHaveBeenCalled();
     expect(result.current.objectQueryRequest).toBeNull();
   });
-
   it('ignores filters and sorting when table findability is feature-flagged off', async () => {
     setupHook({
       activeTableViewState: {
@@ -403,141 +396,5 @@ describe('useHeatCalcObjectsDataModel', () => {
         }),
       );
     });
-  });
-
-  it('keeps Excel visible rows separate from base query rows', () => {
-    const queryRow = makeObject({ id: 'query-row' });
-    const excelBaseRow = makeObject({ id: 'base-row' });
-    const excelRow = makeObject({ id: 'excel-row' });
-    const excelTableRows: HeatCalcIndexedTableRow<ProjectObject>[] = [{ record: excelRow, sourceIndex: 7 }];
-
-    const model = buildHeatCalcVisibleRowsModel({
-      activeTableObjectType: 'pipe',
-      excelBaseRows: [excelBaseRow],
-      excelModeEnabled: true,
-      excelRows: [excelRow],
-      excelTableRows,
-      isAllObjectScope: false,
-      normalLoadedRowsByType: { pipe: [], tank: [] },
-      objectQueryResult: makeQueryResponse([queryRow]),
-      visibleAllTableRows: [],
-    });
-
-    expect(model.baseVisibleTableObjects).toEqual([excelBaseRow]);
-    expect(model.visibleTableObjects).toEqual([excelRow]);
-    expect(model.visibleTableRows).toEqual(excelTableRows);
-    expect(model.visibleSourceIndexById.get('excel-row')).toBe(7);
-  });
-
-  it('uses loaded normal rows before first-page query rows', () => {
-    const queryRow = makeObject({ id: 'query-row' });
-    const loadedRow = makeObject({ id: 'loaded-row' });
-
-    const model = buildHeatCalcVisibleRowsModel({
-      activeTableObjectType: 'pipe',
-      excelBaseRows: [],
-      excelModeEnabled: false,
-      excelRows: [],
-      excelTableRows: [],
-      isAllObjectScope: false,
-      normalLoadedRowsByType: { pipe: [loadedRow], tank: [] },
-      objectQueryResult: makeQueryResponse([queryRow]),
-      visibleAllTableRows: [],
-    });
-
-    expect(model.baseVisibleTableObjects).toEqual([loadedRow]);
-    expect(model.visibleTableRows).toEqual([{ record: loadedRow, sourceIndex: 0 }]);
-  });
-
-  it('deduplicates and sorts all-scope enum options while skipping inapplicable cells', () => {
-    const rows: HeatCalcIndexedTableRow<ProjectObject>[] = [
-      { record: makeObject({ id: 'one', params: { placement: 'outdoor' } }), sourceIndex: 0 },
-      { record: makeObject({ id: 'two', params: { placement: 'indoor' } }), sourceIndex: 1 },
-      { record: makeObject({ id: 'three', params: { placement: 'outdoor' } }), sourceIndex: 2 },
-      { record: makeObject({ id: 'four', object_type: 'tank', params: { placement: '—' } }), sourceIndex: 3 },
-    ];
-    const accessors: HeatCalcColumnValueAccessors<ProjectObject> = {
-      placement: (record) => record.params.placement === '—'
-        ? INAPPLICABLE_TABLE_VALUE
-        : record.params.placement,
-    };
-
-    const options = buildHeatCalcEnumOptionsByColumn({
-      allIndexedTableRows: rows,
-      fieldCapabilityByKey: new Map(),
-      isAllObjectScope: true,
-      sourceColumnMetas: [meta('placement')],
-      tableValueAccessors: accessors,
-    });
-
-    expect(options.placement).toEqual([
-      { label: 'indoor', value: 'indoor' },
-      { label: 'outdoor', value: 'outdoor' },
-    ]);
-  });
-});
-
-describe('buildHeatCalcWorkspaceLoadState', () => {
-  function slice(overrides: Partial<Parameters<typeof buildHeatCalcWorkspaceLoadState>[0][number]> = {}) {
-    return {
-      enabled: true,
-      isError: false,
-      error: null as Error | null,
-      isFetching: false,
-      hasUsableSnapshot: false,
-      refetch: vi.fn(),
-      ...overrides,
-    };
-  }
-
-  it('ignores errors from disabled queries', () => {
-    const inactive = slice({
-      enabled: false,
-      isError: true,
-      error: new Error('inactive boom'),
-    });
-    const active = slice({ hasUsableSnapshot: true });
-    const state = buildHeatCalcWorkspaceLoadState([inactive, active]);
-    expect(state.error).toBeNull();
-    expect(state.isBlockingError).toBe(false);
-    expect(state.hasUsableSnapshot).toBe(true);
-    state.retry();
-    expect(inactive.refetch).not.toHaveBeenCalled();
-  });
-
-  it('surfaces first enabled error and blocks without snapshot', () => {
-    const first = slice({
-      isError: true,
-      error: new Error('summary failed'),
-    });
-    const second = slice({
-      isError: true,
-      error: new Error('capabilities failed'),
-    });
-    const state = buildHeatCalcWorkspaceLoadState([first, second]);
-    expect(state.error?.message).toBe('summary failed');
-    expect(state.isBlockingError).toBe(true);
-    expect(state.hasUsableSnapshot).toBe(false);
-    state.retry();
-    expect(first.refetch).toHaveBeenCalledTimes(1);
-    expect(second.refetch).toHaveBeenCalledTimes(1);
-  });
-
-  it('keeps stale snapshot usable while retrying a failed refetch', () => {
-    const failedWithStale = slice({
-      isError: true,
-      error: new Error('refetch 500'),
-      isFetching: true,
-      hasUsableSnapshot: true,
-    });
-    const healthy = slice({ hasUsableSnapshot: true });
-    const state = buildHeatCalcWorkspaceLoadState([failedWithStale, healthy]);
-    expect(state.error?.message).toBe('refetch 500');
-    expect(state.hasUsableSnapshot).toBe(true);
-    expect(state.isBlockingError).toBe(false);
-    expect(state.isRetrying).toBe(true);
-    state.retry();
-    expect(failedWithStale.refetch).toHaveBeenCalledTimes(1);
-    expect(healthy.refetch).not.toHaveBeenCalled();
   });
 });

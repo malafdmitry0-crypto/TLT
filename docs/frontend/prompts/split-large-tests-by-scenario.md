@@ -7,23 +7,23 @@
 ## Done
 
 - `HeatCalcNormalGlideGrid.test.tsx` → scenario files + harness (P6).
-- `ObjectWizardDependencies.test.tsx` → scenario files +
-  `ObjectWizardDependencies.test-harness.tsx` (DOC residual fix):
-  - layout-defaults
-  - lazy-references
-  - validation-highlight
-  - climate-cable-refs
-  - placement-visibility
-  - payload-fields
-  - visibility-matrix
+- `ObjectWizardDependencies.test.tsx` → scenario files + harness.
+- **2026-07-26 heavy-test wave** (see `docs/audit/2026-07-26-heavy-test-files/`):
+  - `useElectricalVariantSelection` → url-deep-link / readiness-init / lifecycle
+  - `ElectricalVariantTabs` → render-nav / create-rename / delete-limits-feedback / readiness-errors
+  - `useHeatCalcObjectsDataModel` → query-scope / rows-enums / load-state
+  - `ElecCalcPage.candidates` → auto-recalc / display / folders
 
 ## Remaining candidates (optional)
 
 | Файл | Notes |
 |---|---|
 | `HeatCalcPage.test-utils.tsx` (~918) | harness-only; split only if agent friction |
+| `elecCalcPageTestEnv.tsx` (~676) | harness/env |
 | `cssArchitectureRatchet.architecture.test.ts` (~1124) | machine gate; helpers extract optional |
 | `inlineStyleRatchet.architecture.test.ts` (~582) | machine gate |
+| `ElecCalcPage.cable-meta` / `table-batch` / e2e specs | next wave if needed |
+| `HeatCalcNormalGlideGrid.headers-scroll` (~533) | only if grows further |
 
 ## Rules (if user activates another split)
 
