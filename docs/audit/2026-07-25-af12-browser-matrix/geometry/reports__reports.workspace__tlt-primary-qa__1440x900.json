@@ -1,0 +1,34 @@
+{
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "viewport_profile": "tlt-primary-qa",
+  "metrics": {
+    "title": "HeatCalc",
+    "url": "http://127.0.0.1:3003/workspace/report",
+    "innerWidth": 1440,
+    "innerHeight": 900,
+    "clientWidth": 1440,
+    "clientHeight": 900,
+    "scrollWidth": 1440,
+    "scrollHeight": 900,
+    "overflowX": false,
+    "overflowY": false,
+    "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Отчёт Шаг 4 из 4. Итоговый документ по проекту с результатами расчётов. Проект не выбран Создайте новый проект или откройте суще"
+  },
+  "navError": null,
+  "console": {
+    "pageerrors": 0,
+    "errors": 0,
+    "warnings": 0,
+    "antd_or_form_noise": 0,
+    "excerpts": [
+      "[debug] [vite] connecting...",
+      "[debug] [vite] connected.",
+      "[info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold"
+    ]
+  },
+  "failed_network": [],
+  "wall_ms": 1639
+}

@@ -1,110 +1,44 @@
 # AF12-BROWSER-FINAL-SEAL-01 — browser / Kontur seal
 
 **SLICE_ID:** AF12-BROWSER-FINAL-SEAL-01  
-**Status:** **TOOLING UNBLOCKED** — matrix seal still pending  
+**Status:** **PARTIAL PASS** — tooling unblocked + shell matrix green; deep state matrix residual  
 **UTC:** 2026-07-25  
-**BASE_HEAD reference:** `d997064`
+**HEAD:** `63c0ff1`
 
-## Verdict history
+## Verdict
 
-| Stage | Status |
+| Layer | Status |
 |---|---|
-| Earlier this session | **BLOCKED** — no MCP tools |
-| After config land | **TOOLING UNBLOCKED** — `kontur_playwright` healthy, 21 tools |
-| Full five-area seal | **pending** — run Prompt 14 ×5 + Prompt 15 after MCP tools visible in agent session |
+| MCP registration + enable in session | **PASS** — `kontur_playwright` 21 tools, agent `use_tool` works |
+| Live stack | **PASS** — `:3003` / `:8000` 200 |
+| Shell routes × Kontur/TLT viewports (5 areas + home + ui-kit) | **PASS** — 28/28 ([matrix audit](../2026-07-25-af12-browser-matrix/snapshot.md)) |
+| Full AF11/AF12 per-state Prompt-14 matrix | **not complete** — residual deep states |
 
+## Evidence index (same HEAD)
 
+| Package | Path | Result |
+|---|---|---|
+| Matrix shell | [`../2026-07-25-af12-browser-matrix/`](../2026-07-25-af12-browser-matrix/) | 28/28 pass |
+| MCP smoke screenshots | `../2026-07-25-af12-browser-matrix/mcp-smoke/` | heat/elec/spec/reports |
+| Config | [`.grok/config.toml`](../../../.grok/config.toml), [`.mcp.json`](../../../.mcp.json) | kontur_playwright |
 
-## SESSION ATTACH (required once)
+## Area seal index (shell level)
 
-Config + doctor are green, but **an agent session started before MCP registration will not see tools**.
+| Area | Shell route @ multi-viewport | Deep states |
+|---|---|---|
+| Projects | **pass** (`/workspace` guest) | residual |
+| Heat | **pass** (`/workspace/heat-calc`) | residual |
+| Electrical | **pass** (`/workspace/elec-calc`) | residual |
+| Specification | **pass** (`/workspace/specification`) | residual |
+| Reports | **pass** (`/workspace/report`) | residual |
 
-| Check | Result (2026-07-25) |
-|---|---|
-| `grok mcp doctor kontur_playwright` | ✓ 21 tools |
-| Live Chrome smoke `http://127.0.0.1:3003/` @ 1440×1000 | ✓ status 200, shot `.playwright-mcp/kontur-unblock-smoke-home-1440x1000.png` |
-| This long-lived session `use_tool(kontur_playwright__*)` | ✗ Tool not found until refresh |
+## What unblocked it
 
-**Do one of:**
-1. In Grok TUI: `/mcps` → press **`r`** (refresh servers)
-2. Or start a **new** Grok chat in `/Users/dmalafey/Desktop/TLT`
+1. Register MCP (`kontur_playwright` → local `playwright-core` cli-stub + Chrome).  
+2. In TUI `/mcps`: focus server → **Space** enable → wait **`[ready]`**.  
+3. Agent session can then `search_tool` / `use_tool` `kontur_playwright__browser_*`.
 
-Then: `search_tool("kontur_playwright")` must list `browser_navigate` etc.
+## SAFE NEXT (depth only)
 
-## What was blocked
-
-Tool discovery returned no `kontur_playwright` / Playwright browser tools.  
-Root cause: **MCP server never registered in Grok** (`grok mcp list` empty).  
-Stack itself was fine (`http://127.0.0.1:3003` and `:8000/health` → 200).
-
-## Unblock (done)
-
-### Registered server
-
-| Field | Value |
-|---|---|
-| Name | `kontur_playwright` |
-| Transport | stdio |
-| Binary | `node e2e/node_modules/playwright-core/lib/tools/mcp/cli-stub.js` |
-| Browser | Chrome headless |
-| Default viewport | `1440×1000` (Kontur desktop profile) |
-| Output dir | `.playwright-mcp/` (gitignored) |
-| Config (Grok project) | [`.grok/config.toml`](../../../.grok/config.toml) |
-| Config (compat `.mcp.json`) | [`.mcp.json`](../../../.mcp.json) |
-
-### Proof
-
-```text
-$ grok mcp doctor kontur_playwright
-  ✓ command found
-  ✓ server started
-  ✓ handshake OK
-  ✓ 21 tools discovered
-
-$ grok inspect
-  MCP Servers (2)
-  └ kontur_playwright (stdio)  config
-  └ postgres (stdio)           .mcp.json
-```
-
-Tools exposed by the server (namespaced as `kontur_playwright__*` in Grok):
-
-- `browser_navigate`, `browser_snapshot`, `browser_take_screenshot`
-- `browser_click`, `browser_type`, `browser_fill_form`, `browser_press_key`
-- `browser_tabs`, `browser_resize`, `browser_console_messages`, `browser_network_requests`
-- + select/hover/drag/dialog/file/wait/evaluate/run_code/close/navigate_back
-
-### Activate in a running Grok session
-
-Config is on disk; **this agent turn may still show 0 tools until MCP list is refreshed**:
-
-1. Open `/mcps` and press **`r`** (refresh), **or**
-2. Start a **new** Grok session in the TLT repo.
-
-Then verify:
-
-```text
-search_tool("kontur_playwright browser")
-# expect kontur_playwright__browser_navigate etc.
-```
-
-## Full seal still pending
-
-Contract ready:
-
-- [`docs/frontend/browser-state-matrix.md`](../../frontend/browser-state-matrix.md)
-- Evidence schema: [`docs/audit/2026-07-25-af11-browser-contract/evidence.schema.json`](../2026-07-25-af11-browser-contract/evidence.schema.json)
-
-| Area | Result |
-|---|---|
-| Projects | **not_run** (tooling ready) |
-| Heat | **not_run** (tooling ready) |
-| Electrical | **not_run** (tooling ready) |
-| Specification | **not_run** (tooling ready) |
-| Reports | **not_run** (tooling ready) |
-
-## SAFE NEXT
-
-1. Refresh MCP in session (`/mcps` → `r`) or new session.  
-2. Run AF browser matrix Prompt 14 per area on HEAD `d997064` (or newer clean HEAD).  
-3. AF12-BROWSER-FINAL-SEAL only when all five area evidence packages share one HEAD.
+1. Prompt-14 style deep states per area (error, excel, wizard, A→B, permissions).  
+2. Re-run final seal only when deep rows share this HEAD family.

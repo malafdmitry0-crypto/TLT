@@ -1,0 +1,1337 @@
+{
+  "head": "63c0ff1def9592a848efe669a76511cde2de9cd6",
+  "head_short": "63c0ff1",
+  "captured_at_utc": "2026-07-25T17:02:37.635Z",
+  "tool": "scripts/af12-kontur-browser-matrix.mjs (playwright-core chrome; same stack as kontur_playwright MCP)",
+  "guest_project": {
+    "id": "b270fd8e-ed33-4914-b8fa-c38653d912ed",
+    "name": "Мой проект"
+  },
+  "viewports": [
+    {
+      "profile": "kontur-desktop",
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "profile": "tlt-primary-qa",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "profile": "tlt-dense-1280",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "profile": "tlt-shell-1000",
+      "width": 1000,
+      "height": 768
+    }
+  ],
+  "areas": [
+    "home",
+    "projects",
+    "heat",
+    "electrical",
+    "specification",
+    "reports",
+    "ui-kit"
+  ],
+  "note": "Shell/workspace routes at required Kontur + TLT viewports. Full AF11 state matrix (error/excel/wizard rows) remains separate Prompt-14 depth.",
+  "totals": {
+    "rows": 28,
+    "pass": 28,
+    "fail": 0
+  },
+  "rows": [
+    {
+      "area": "home",
+      "state_id": "shell.home",
+      "state_label": "Home",
+      "required": true,
+      "action_path": [
+        "POST /api/v1/auth/guest → localStorage session_id/role/project",
+        "goto /"
+      ],
+      "url": "http://127.0.0.1:3003/",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "viewport_profile": "kontur-desktop",
+      "screenshot": "screenshots/home__shell.home__kontur-desktop__1440x1000.png",
+      "geometry": "geometry/home__shell.home__kontur-desktop__1440x1000.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1440,
+        "clientWidth": 1440
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "antd_or_form_noise": 0,
+        "excerpts": [
+          "[debug] [vite] connecting...",
+          "[debug] [vite] connected.",
+          "[info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold"
+        ]
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /api/v1/auth/guest — guest user with auto project «Мой проект»",
+      "result": "pass",
+      "blocker": null,
+      "head": "63c0ff1def9592a848efe669a76511cde2de9cd6",
+      "head_short": "63c0ff1",
+      "captured_at_utc": "2026-07-25T17:01:52.077Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь и подбор систем электрообогрева трубопроводов и резервуаров Войти без регистрации Быстрый доступ без аккаунта: один временный проект на сервере (не «Мои проекты»), 3 дня после последней активности. Дольше — с"
+    },
+    {
+      "area": "projects",
+      "state_id": "projects.guest_workspace",
+      "state_label": "Workspace (guest)",
+      "required": true,
+      "action_path": [
+        "POST /api/v1/auth/guest → localStorage session_id/role/project",
+        "goto /workspace"
+      ],
+      "url": "http://127.0.0.1:3003/workspace",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "viewport_profile": "kontur-desktop",
+      "screenshot": "screenshots/projects__projects.guest_workspace__kontur-desktop__1440x1000.png",
+      "geometry": "geometry/projects__projects.guest_workspace__kontur-desktop__1440x1000.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1440,
+        "clientWidth": 1440
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "antd_or_form_noise": 0,
+        "excerpts": [
+          "[debug] [vite] connecting...",
+          "[debug] [vite] connected.",
+          "[info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold"
+        ]
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /api/v1/auth/guest — guest user with auto project «Мой проект»",
+      "result": "pass",
+      "blocker": null,
+      "head": "63c0ff1def9592a848efe669a76511cde2de9cd6",
+      "head_short": "63c0ff1",
+      "captured_at_utc": "2026-07-25T17:01:53.764Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Добро пожаловать в HeatCalc Система для расчёта тепловых потерь и подбора систем электрообогрева трубопроводов и резервуаров. Ра"
+    },
+    {
+      "area": "heat",
+      "state_id": "heat.workspace",
+      "state_label": "Heat calc",
+      "required": true,
+      "action_path": [
+        "POST /api/v1/auth/guest → localStorage session_id/role/project",
+        "goto /workspace/heat-calc"
+      ],
+      "url": "http://127.0.0.1:3003/workspace/heat-calc",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "viewport_profile": "kontur-desktop",
+      "screenshot": "screenshots/heat__heat.workspace__kontur-desktop__1440x1000.png",
+      "geometry": "geometry/heat__heat.workspace__kontur-desktop__1440x1000.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1440,
+        "clientWidth": 1440
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "antd_or_form_noise": 0,
+        "excerpts": [
+          "[debug] [vite] connecting...",
+          "[debug] [vite] connected.",
+          "[info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold"
+        ]
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /api/v1/auth/guest — guest user with auto project «Мой проект»",
+      "result": "pass",
+      "blocker": null,
+      "head": "63c0ff1def9592a848efe669a76511cde2de9cd6",
+      "head_short": "63c0ff1",
+      "captured_at_utc": "2026-07-25T17:01:55.473Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Расчёт теплопотерь Шаг 1 из 4. Добавьте объекты (трубопроводы, резервуары) вручную или импортом из Excel / CSV — система автомат"
+    },
+    {
+      "area": "electrical",
+      "state_id": "electrical.workspace",
+      "state_label": "Electrical",
+      "required": true,
+      "action_path": [
+        "POST /api/v1/auth/guest → localStorage session_id/role/project",
+        "goto /workspace/elec-calc"
+      ],
+      "url": "http://127.0.0.1:3003/workspace/elec-calc",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "viewport_profile": "kontur-desktop",
+      "screenshot": "screenshots/electrical__electrical.workspace__kontur-desktop__1440x1000.png",
+      "geometry": "geometry/electrical__electrical.workspace__kontur-desktop__1440x1000.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1440,
+        "clientWidth": 1440
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "antd_or_form_noise": 0,
+        "excerpts": [
+          "[debug] [vite] connecting...",
+          "[debug] [vite] connected.",
+          "[info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold"
+        ]
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /api/v1/auth/guest — guest user with auto project «Мой проект»",
+      "result": "pass",
+      "blocker": null,
+      "head": "63c0ff1def9592a848efe669a76511cde2de9cd6",
+      "head_short": "63c0ff1",
+      "captured_at_utc": "2026-07-25T17:01:57.460Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Электротехнический расчёт Шаг 2 из 4. Результаты автоподбора греющего кабеля ТЛТ для каждого объекта. Проект не выбран Создайте "
+    },
+    {
+      "area": "specification",
+      "state_id": "specification.workspace",
+      "state_label": "Specification",
+      "required": true,
+      "action_path": [
+        "POST /api/v1/auth/guest → localStorage session_id/role/project",
+        "goto /workspace/specification"
+      ],
+      "url": "http://127.0.0.1:3003/workspace/specification",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "viewport_profile": "kontur-desktop",
+      "screenshot": "screenshots/specification__specification.workspace__kontur-desktop__1440x1000.png",
+      "geometry": "geometry/specification__specification.workspace__kontur-desktop__1440x1000.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1440,
+        "clientWidth": 1440
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "antd_or_form_noise": 0,
+        "excerpts": [
+          "[debug] [vite] connecting...",
+          "[debug] [vite] connected.",
+          "[info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold"
+        ]
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /api/v1/auth/guest — guest user with auto project «Мой проект»",
+      "result": "pass",
+      "blocker": null,
+      "head": "63c0ff1def9592a848efe669a76511cde2de9cd6",
+      "head_short": "63c0ff1",
+      "captured_at_utc": "2026-07-25T17:01:59.147Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Спецификация Шаг 3 из 4. Автоматическое формирование перечня оборудования и материалов на основе расчётов. Проект не выбран Созд"
+    },
+    {
+      "area": "reports",
+      "state_id": "reports.workspace",
+      "state_label": "Reports",
+      "required": true,
+      "action_path": [
+        "POST /api/v1/auth/guest → localStorage session_id/role/project",
+        "goto /workspace/report"
+      ],
+      "url": "http://127.0.0.1:3003/workspace/report",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "viewport_profile": "kontur-desktop",
+      "screenshot": "screenshots/reports__reports.workspace__kontur-desktop__1440x1000.png",
+      "geometry": "geometry/reports__reports.workspace__kontur-desktop__1440x1000.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1440,
+        "clientWidth": 1440
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "antd_or_form_noise": 0,
+        "excerpts": [
+          "[debug] [vite] connecting...",
+          "[debug] [vite] connected.",
+          "[info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold"
+        ]
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /api/v1/auth/guest — guest user with auto project «Мой проект»",
+      "result": "pass",
+      "blocker": null,
+      "head": "63c0ff1def9592a848efe669a76511cde2de9cd6",
+      "head_short": "63c0ff1",
+      "captured_at_utc": "2026-07-25T17:02:00.809Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Отчёт Шаг 4 из 4. Итоговый документ по проекту с результатами расчётов. Проект не выбран Создайте новый проект или откройте суще"
+    },
+    {
+      "area": "ui-kit",
+      "state_id": "uikit.page",
+      "state_label": "UI Kit",
+      "required": true,
+      "action_path": [
+        "POST /api/v1/auth/guest → localStorage session_id/role/project",
+        "goto /ui-kit"
+      ],
+      "url": "http://127.0.0.1:3003/ui-kit",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "viewport_profile": "kontur-desktop",
+      "screenshot": "screenshots/ui-kit__uikit.page__kontur-desktop__1440x1000.png",
+      "geometry": "geometry/ui-kit__uikit.page__kontur-desktop__1440x1000.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": true,
+        "scrollWidth": 1440,
+        "clientWidth": 1440
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "antd_or_form_noise": 0,
+        "excerpts": [
+          "[debug] [vite] connecting...",
+          "[debug] [vite] connected.",
+          "[info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold"
+        ]
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /api/v1/auth/guest — guest user with auto project «Мой проект»",
+      "result": "pass",
+      "blocker": null,
+      "head": "63c0ff1def9592a848efe669a76511cde2de9cd6",
+      "head_short": "63c0ff1",
+      "captured_at_utc": "2026-07-25T17:02:02.485Z",
+      "bodyTextSample": "TLT / SYSTEM 01 Инженерный UI Kit Плотность Компактно Свободно В приложение НАВИГАЦИЯ 01 Основа 02 Действия 03 Поля 04 Состояния 05 Данные 06 Теплопотери 07 Компоненты 08 Паттерны v1.0 HeatCalc SC-03 26 px · 8.5 / 12 / 9 num 4rem · name 7."
+    },
+    {
+      "area": "home",
+      "state_id": "shell.home",
+      "state_label": "Home",
+      "required": true,
+      "action_path": [
+        "POST /api/v1/auth/guest → localStorage session_id/role/project",
+        "goto /"
+      ],
+      "url": "http://127.0.0.1:3003/",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "viewport_profile": "tlt-primary-qa",
+      "screenshot": "screenshots/home__shell.home__tlt-primary-qa__1440x900.png",
+      "geometry": "geometry/home__shell.home__tlt-primary-qa__1440x900.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1440,
+        "clientWidth": 1440
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "antd_or_form_noise": 0,
+        "excerpts": [
+          "[debug] [vite] connecting...",
+          "[debug] [vite] connected.",
+          "[info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold"
+        ]
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /api/v1/auth/guest — guest user with auto project «Мой проект»",
+      "result": "pass",
+      "blocker": null,
+      "head": "63c0ff1def9592a848efe669a76511cde2de9cd6",
+      "head_short": "63c0ff1",
+      "captured_at_utc": "2026-07-25T17:02:04.228Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь и подбор систем электрообогрева трубопроводов и резервуаров Войти без регистрации Быстрый доступ без аккаунта: один временный проект на сервере (не «Мои проекты»), 3 дня после последней активности. Дольше — с"
+    },
+    {
+      "area": "projects",
+      "state_id": "projects.guest_workspace",
+      "state_label": "Workspace (guest)",
+      "required": true,
+      "action_path": [
+        "POST /api/v1/auth/guest → localStorage session_id/role/project",
+        "goto /workspace"
+      ],
+      "url": "http://127.0.0.1:3003/workspace",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "viewport_profile": "tlt-primary-qa",
+      "screenshot": "screenshots/projects__projects.guest_workspace__tlt-primary-qa__1440x900.png",
+      "geometry": "geometry/projects__projects.guest_workspace__tlt-primary-qa__1440x900.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1440,
+        "clientWidth": 1440
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "antd_or_form_noise": 0,
+        "excerpts": [
+          "[debug] [vite] connecting...",
+          "[debug] [vite] connected.",
+          "[info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold"
+        ]
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /api/v1/auth/guest — guest user with auto project «Мой проект»",
+      "result": "pass",
+      "blocker": null,
+      "head": "63c0ff1def9592a848efe669a76511cde2de9cd6",
+      "head_short": "63c0ff1",
+      "captured_at_utc": "2026-07-25T17:02:05.866Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Добро пожаловать в HeatCalc Система для расчёта тепловых потерь и подбора систем электрообогрева трубопроводов и резервуаров. Ра"
+    },
+    {
+      "area": "heat",
+      "state_id": "heat.workspace",
+      "state_label": "Heat calc",
+      "required": true,
+      "action_path": [
+        "POST /api/v1/auth/guest → localStorage session_id/role/project",
+        "goto /workspace/heat-calc"
+      ],
+      "url": "http://127.0.0.1:3003/workspace/heat-calc",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "viewport_profile": "tlt-primary-qa",
+      "screenshot": "screenshots/heat__heat.workspace__tlt-primary-qa__1440x900.png",
+      "geometry": "geometry/heat__heat.workspace__tlt-primary-qa__1440x900.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1440,
+        "clientWidth": 1440
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "antd_or_form_noise": 0,
+        "excerpts": [
+          "[debug] [vite] connecting...",
+          "[debug] [vite] connected.",
+          "[info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold"
+        ]
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /api/v1/auth/guest — guest user with auto project «Мой проект»",
+      "result": "pass",
+      "blocker": null,
+      "head": "63c0ff1def9592a848efe669a76511cde2de9cd6",
+      "head_short": "63c0ff1",
+      "captured_at_utc": "2026-07-25T17:02:07.547Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Расчёт теплопотерь Шаг 1 из 4. Добавьте объекты (трубопроводы, резервуары) вручную или импортом из Excel / CSV — система автомат"
+    },
+    {
+      "area": "electrical",
+      "state_id": "electrical.workspace",
+      "state_label": "Electrical",
+      "required": true,
+      "action_path": [
+        "POST /api/v1/auth/guest → localStorage session_id/role/project",
+        "goto /workspace/elec-calc"
+      ],
+      "url": "http://127.0.0.1:3003/workspace/elec-calc",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "viewport_profile": "tlt-primary-qa",
+      "screenshot": "screenshots/electrical__electrical.workspace__tlt-primary-qa__1440x900.png",
+      "geometry": "geometry/electrical__electrical.workspace__tlt-primary-qa__1440x900.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1440,
+        "clientWidth": 1440
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "antd_or_form_noise": 0,
+        "excerpts": [
+          "[debug] [vite] connecting...",
+          "[debug] [vite] connected.",
+          "[info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold"
+        ]
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /api/v1/auth/guest — guest user with auto project «Мой проект»",
+      "result": "pass",
+      "blocker": null,
+      "head": "63c0ff1def9592a848efe669a76511cde2de9cd6",
+      "head_short": "63c0ff1",
+      "captured_at_utc": "2026-07-25T17:02:09.235Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Электротехнический расчёт Шаг 2 из 4. Результаты автоподбора греющего кабеля ТЛТ для каждого объекта. Проект не выбран Создайте "
+    },
+    {
+      "area": "specification",
+      "state_id": "specification.workspace",
+      "state_label": "Specification",
+      "required": true,
+      "action_path": [
+        "POST /api/v1/auth/guest → localStorage session_id/role/project",
+        "goto /workspace/specification"
+      ],
+      "url": "http://127.0.0.1:3003/workspace/specification",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "viewport_profile": "tlt-primary-qa",
+      "screenshot": "screenshots/specification__specification.workspace__tlt-primary-qa__1440x900.png",
+      "geometry": "geometry/specification__specification.workspace__tlt-primary-qa__1440x900.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1440,
+        "clientWidth": 1440
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "antd_or_form_noise": 0,
+        "excerpts": [
+          "[debug] [vite] connecting...",
+          "[debug] [vite] connected.",
+          "[info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold"
+        ]
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /api/v1/auth/guest — guest user with auto project «Мой проект»",
+      "result": "pass",
+      "blocker": null,
+      "head": "63c0ff1def9592a848efe669a76511cde2de9cd6",
+      "head_short": "63c0ff1",
+      "captured_at_utc": "2026-07-25T17:02:10.875Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Спецификация Шаг 3 из 4. Автоматическое формирование перечня оборудования и материалов на основе расчётов. Проект не выбран Созд"
+    },
+    {
+      "area": "reports",
+      "state_id": "reports.workspace",
+      "state_label": "Reports",
+      "required": true,
+      "action_path": [
+        "POST /api/v1/auth/guest → localStorage session_id/role/project",
+        "goto /workspace/report"
+      ],
+      "url": "http://127.0.0.1:3003/workspace/report",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "viewport_profile": "tlt-primary-qa",
+      "screenshot": "screenshots/reports__reports.workspace__tlt-primary-qa__1440x900.png",
+      "geometry": "geometry/reports__reports.workspace__tlt-primary-qa__1440x900.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1440,
+        "clientWidth": 1440
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "antd_or_form_noise": 0,
+        "excerpts": [
+          "[debug] [vite] connecting...",
+          "[debug] [vite] connected.",
+          "[info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold"
+        ]
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /api/v1/auth/guest — guest user with auto project «Мой проект»",
+      "result": "pass",
+      "blocker": null,
+      "head": "63c0ff1def9592a848efe669a76511cde2de9cd6",
+      "head_short": "63c0ff1",
+      "captured_at_utc": "2026-07-25T17:02:12.514Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Отчёт Шаг 4 из 4. Итоговый документ по проекту с результатами расчётов. Проект не выбран Создайте новый проект или откройте суще"
+    },
+    {
+      "area": "ui-kit",
+      "state_id": "uikit.page",
+      "state_label": "UI Kit",
+      "required": true,
+      "action_path": [
+        "POST /api/v1/auth/guest → localStorage session_id/role/project",
+        "goto /ui-kit"
+      ],
+      "url": "http://127.0.0.1:3003/ui-kit",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "viewport_profile": "tlt-primary-qa",
+      "screenshot": "screenshots/ui-kit__uikit.page__tlt-primary-qa__1440x900.png",
+      "geometry": "geometry/ui-kit__uikit.page__tlt-primary-qa__1440x900.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": true,
+        "scrollWidth": 1440,
+        "clientWidth": 1440
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "antd_or_form_noise": 0,
+        "excerpts": [
+          "[debug] [vite] connecting...",
+          "[debug] [vite] connected.",
+          "[info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold"
+        ]
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /api/v1/auth/guest — guest user with auto project «Мой проект»",
+      "result": "pass",
+      "blocker": null,
+      "head": "63c0ff1def9592a848efe669a76511cde2de9cd6",
+      "head_short": "63c0ff1",
+      "captured_at_utc": "2026-07-25T17:02:14.146Z",
+      "bodyTextSample": "TLT / SYSTEM 01 Инженерный UI Kit Плотность Компактно Свободно В приложение НАВИГАЦИЯ 01 Основа 02 Действия 03 Поля 04 Состояния 05 Данные 06 Теплопотери 07 Компоненты 08 Паттерны v1.0 HeatCalc SC-03 26 px · 8.5 / 12 / 9 num 4rem · name 7."
+    },
+    {
+      "area": "home",
+      "state_id": "shell.home",
+      "state_label": "Home",
+      "required": true,
+      "action_path": [
+        "POST /api/v1/auth/guest → localStorage session_id/role/project",
+        "goto /"
+      ],
+      "url": "http://127.0.0.1:3003/",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "viewport_profile": "tlt-dense-1280",
+      "screenshot": "screenshots/home__shell.home__tlt-dense-1280__1280x800.png",
+      "geometry": "geometry/home__shell.home__tlt-dense-1280__1280x800.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1280,
+        "clientWidth": 1280
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "antd_or_form_noise": 0,
+        "excerpts": [
+          "[debug] [vite] connecting...",
+          "[debug] [vite] connected.",
+          "[info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold"
+        ]
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /api/v1/auth/guest — guest user with auto project «Мой проект»",
+      "result": "pass",
+      "blocker": null,
+      "head": "63c0ff1def9592a848efe669a76511cde2de9cd6",
+      "head_short": "63c0ff1",
+      "captured_at_utc": "2026-07-25T17:02:15.931Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь и подбор систем электрообогрева трубопроводов и резервуаров Войти без регистрации Быстрый доступ без аккаунта: один временный проект на сервере (не «Мои проекты»), 3 дня после последней активности. Дольше — с"
+    },
+    {
+      "area": "projects",
+      "state_id": "projects.guest_workspace",
+      "state_label": "Workspace (guest)",
+      "required": true,
+      "action_path": [
+        "POST /api/v1/auth/guest → localStorage session_id/role/project",
+        "goto /workspace"
+      ],
+      "url": "http://127.0.0.1:3003/workspace",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "viewport_profile": "tlt-dense-1280",
+      "screenshot": "screenshots/projects__projects.guest_workspace__tlt-dense-1280__1280x800.png",
+      "geometry": "geometry/projects__projects.guest_workspace__tlt-dense-1280__1280x800.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1280,
+        "clientWidth": 1280
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "antd_or_form_noise": 0,
+        "excerpts": [
+          "[debug] [vite] connecting...",
+          "[debug] [vite] connected.",
+          "[info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold"
+        ]
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /api/v1/auth/guest — guest user with auto project «Мой проект»",
+      "result": "pass",
+      "blocker": null,
+      "head": "63c0ff1def9592a848efe669a76511cde2de9cd6",
+      "head_short": "63c0ff1",
+      "captured_at_utc": "2026-07-25T17:02:17.565Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Добро пожаловать в HeatCalc Система для расчёта тепловых потерь и подбора систем электрообогрева трубопроводов и резервуаров. Ра"
+    },
+    {
+      "area": "heat",
+      "state_id": "heat.workspace",
+      "state_label": "Heat calc",
+      "required": true,
+      "action_path": [
+        "POST /api/v1/auth/guest → localStorage session_id/role/project",
+        "goto /workspace/heat-calc"
+      ],
+      "url": "http://127.0.0.1:3003/workspace/heat-calc",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "viewport_profile": "tlt-dense-1280",
+      "screenshot": "screenshots/heat__heat.workspace__tlt-dense-1280__1280x800.png",
+      "geometry": "geometry/heat__heat.workspace__tlt-dense-1280__1280x800.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1280,
+        "clientWidth": 1280
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "antd_or_form_noise": 0,
+        "excerpts": [
+          "[debug] [vite] connecting...",
+          "[debug] [vite] connected.",
+          "[info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold"
+        ]
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /api/v1/auth/guest — guest user with auto project «Мой проект»",
+      "result": "pass",
+      "blocker": null,
+      "head": "63c0ff1def9592a848efe669a76511cde2de9cd6",
+      "head_short": "63c0ff1",
+      "captured_at_utc": "2026-07-25T17:02:19.245Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Расчёт теплопотерь Шаг 1 из 4. Добавьте объекты (трубопроводы, резервуары) вручную или импортом из Excel / CSV — система автомат"
+    },
+    {
+      "area": "electrical",
+      "state_id": "electrical.workspace",
+      "state_label": "Electrical",
+      "required": true,
+      "action_path": [
+        "POST /api/v1/auth/guest → localStorage session_id/role/project",
+        "goto /workspace/elec-calc"
+      ],
+      "url": "http://127.0.0.1:3003/workspace/elec-calc",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "viewport_profile": "tlt-dense-1280",
+      "screenshot": "screenshots/electrical__electrical.workspace__tlt-dense-1280__1280x800.png",
+      "geometry": "geometry/electrical__electrical.workspace__tlt-dense-1280__1280x800.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1280,
+        "clientWidth": 1280
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "antd_or_form_noise": 0,
+        "excerpts": [
+          "[debug] [vite] connecting...",
+          "[debug] [vite] connected.",
+          "[info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold"
+        ]
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /api/v1/auth/guest — guest user with auto project «Мой проект»",
+      "result": "pass",
+      "blocker": null,
+      "head": "63c0ff1def9592a848efe669a76511cde2de9cd6",
+      "head_short": "63c0ff1",
+      "captured_at_utc": "2026-07-25T17:02:20.942Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Электротехнический расчёт Шаг 2 из 4. Результаты автоподбора греющего кабеля ТЛТ для каждого объекта. Проект не выбран Создайте "
+    },
+    {
+      "area": "specification",
+      "state_id": "specification.workspace",
+      "state_label": "Specification",
+      "required": true,
+      "action_path": [
+        "POST /api/v1/auth/guest → localStorage session_id/role/project",
+        "goto /workspace/specification"
+      ],
+      "url": "http://127.0.0.1:3003/workspace/specification",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "viewport_profile": "tlt-dense-1280",
+      "screenshot": "screenshots/specification__specification.workspace__tlt-dense-1280__1280x800.png",
+      "geometry": "geometry/specification__specification.workspace__tlt-dense-1280__1280x800.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1280,
+        "clientWidth": 1280
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "antd_or_form_noise": 0,
+        "excerpts": [
+          "[debug] [vite] connecting...",
+          "[debug] [vite] connected.",
+          "[info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold"
+        ]
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /api/v1/auth/guest — guest user with auto project «Мой проект»",
+      "result": "pass",
+      "blocker": null,
+      "head": "63c0ff1def9592a848efe669a76511cde2de9cd6",
+      "head_short": "63c0ff1",
+      "captured_at_utc": "2026-07-25T17:02:22.594Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Спецификация Шаг 3 из 4. Автоматическое формирование перечня оборудования и материалов на основе расчётов. Проект не выбран Созд"
+    },
+    {
+      "area": "reports",
+      "state_id": "reports.workspace",
+      "state_label": "Reports",
+      "required": true,
+      "action_path": [
+        "POST /api/v1/auth/guest → localStorage session_id/role/project",
+        "goto /workspace/report"
+      ],
+      "url": "http://127.0.0.1:3003/workspace/report",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "viewport_profile": "tlt-dense-1280",
+      "screenshot": "screenshots/reports__reports.workspace__tlt-dense-1280__1280x800.png",
+      "geometry": "geometry/reports__reports.workspace__tlt-dense-1280__1280x800.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1280,
+        "clientWidth": 1280
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "antd_or_form_noise": 0,
+        "excerpts": [
+          "[debug] [vite] connecting...",
+          "[debug] [vite] connected.",
+          "[info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold"
+        ]
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /api/v1/auth/guest — guest user with auto project «Мой проект»",
+      "result": "pass",
+      "blocker": null,
+      "head": "63c0ff1def9592a848efe669a76511cde2de9cd6",
+      "head_short": "63c0ff1",
+      "captured_at_utc": "2026-07-25T17:02:24.241Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Отчёт Шаг 4 из 4. Итоговый документ по проекту с результатами расчётов. Проект не выбран Создайте новый проект или откройте суще"
+    },
+    {
+      "area": "ui-kit",
+      "state_id": "uikit.page",
+      "state_label": "UI Kit",
+      "required": true,
+      "action_path": [
+        "POST /api/v1/auth/guest → localStorage session_id/role/project",
+        "goto /ui-kit"
+      ],
+      "url": "http://127.0.0.1:3003/ui-kit",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "viewport_profile": "tlt-dense-1280",
+      "screenshot": "screenshots/ui-kit__uikit.page__tlt-dense-1280__1280x800.png",
+      "geometry": "geometry/ui-kit__uikit.page__tlt-dense-1280__1280x800.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": true,
+        "scrollWidth": 1280,
+        "clientWidth": 1280
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "antd_or_form_noise": 0,
+        "excerpts": [
+          "[debug] [vite] connecting...",
+          "[debug] [vite] connected.",
+          "[info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold"
+        ]
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /api/v1/auth/guest — guest user with auto project «Мой проект»",
+      "result": "pass",
+      "blocker": null,
+      "head": "63c0ff1def9592a848efe669a76511cde2de9cd6",
+      "head_short": "63c0ff1",
+      "captured_at_utc": "2026-07-25T17:02:25.879Z",
+      "bodyTextSample": "TLT / SYSTEM 01 Инженерный UI Kit Плотность Компактно Свободно В приложение НАВИГАЦИЯ 01 Основа 02 Действия 03 Поля 04 Состояния 05 Данные 06 Теплопотери 07 Компоненты 08 Паттерны v1.0 HeatCalc SC-03 26 px · 8.5 / 12 / 9 num 4rem · name 7."
+    },
+    {
+      "area": "home",
+      "state_id": "shell.home",
+      "state_label": "Home",
+      "required": true,
+      "action_path": [
+        "POST /api/v1/auth/guest → localStorage session_id/role/project",
+        "goto /"
+      ],
+      "url": "http://127.0.0.1:3003/",
+      "viewport": {
+        "width": 1000,
+        "height": 768
+      },
+      "viewport_profile": "tlt-shell-1000",
+      "screenshot": "screenshots/home__shell.home__tlt-shell-1000__1000x768.png",
+      "geometry": "geometry/home__shell.home__tlt-shell-1000__1000x768.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": true,
+        "scrollWidth": 1000,
+        "clientWidth": 1000
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "antd_or_form_noise": 0,
+        "excerpts": [
+          "[debug] [vite] connecting...",
+          "[debug] [vite] connected.",
+          "[info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold"
+        ]
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /api/v1/auth/guest — guest user with auto project «Мой проект»",
+      "result": "pass",
+      "blocker": null,
+      "head": "63c0ff1def9592a848efe669a76511cde2de9cd6",
+      "head_short": "63c0ff1",
+      "captured_at_utc": "2026-07-25T17:02:27.548Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь и подбор систем электрообогрева трубопроводов и резервуаров Войти без регистрации Быстрый доступ без аккаунта: один временный проект на сервере (не «Мои проекты»), 3 дня после последней активности. Дольше — с"
+    },
+    {
+      "area": "projects",
+      "state_id": "projects.guest_workspace",
+      "state_label": "Workspace (guest)",
+      "required": true,
+      "action_path": [
+        "POST /api/v1/auth/guest → localStorage session_id/role/project",
+        "goto /workspace"
+      ],
+      "url": "http://127.0.0.1:3003/workspace",
+      "viewport": {
+        "width": 1000,
+        "height": 768
+      },
+      "viewport_profile": "tlt-shell-1000",
+      "screenshot": "screenshots/projects__projects.guest_workspace__tlt-shell-1000__1000x768.png",
+      "geometry": "geometry/projects__projects.guest_workspace__tlt-shell-1000__1000x768.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1000,
+        "clientWidth": 1000
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "antd_or_form_noise": 0,
+        "excerpts": [
+          "[debug] [vite] connecting...",
+          "[debug] [vite] connected.",
+          "[info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold"
+        ]
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /api/v1/auth/guest — guest user with auto project «Мой проект»",
+      "result": "pass",
+      "blocker": null,
+      "head": "63c0ff1def9592a848efe669a76511cde2de9cd6",
+      "head_short": "63c0ff1",
+      "captured_at_utc": "2026-07-25T17:02:29.179Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Рекомендуемая ширина окна — от 1280 px Интерактивный рабочий поток Phase 5 официально поддерживается от 1280 px (PDL-ER-30). На "
+    },
+    {
+      "area": "heat",
+      "state_id": "heat.workspace",
+      "state_label": "Heat calc",
+      "required": true,
+      "action_path": [
+        "POST /api/v1/auth/guest → localStorage session_id/role/project",
+        "goto /workspace/heat-calc"
+      ],
+      "url": "http://127.0.0.1:3003/workspace/heat-calc",
+      "viewport": {
+        "width": 1000,
+        "height": 768
+      },
+      "viewport_profile": "tlt-shell-1000",
+      "screenshot": "screenshots/heat__heat.workspace__tlt-shell-1000__1000x768.png",
+      "geometry": "geometry/heat__heat.workspace__tlt-shell-1000__1000x768.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1000,
+        "clientWidth": 1000
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "antd_or_form_noise": 0,
+        "excerpts": [
+          "[debug] [vite] connecting...",
+          "[debug] [vite] connected.",
+          "[info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold"
+        ]
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /api/v1/auth/guest — guest user with auto project «Мой проект»",
+      "result": "pass",
+      "blocker": null,
+      "head": "63c0ff1def9592a848efe669a76511cde2de9cd6",
+      "head_short": "63c0ff1",
+      "captured_at_utc": "2026-07-25T17:02:30.839Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Рекомендуемая ширина окна — от 1280 px Интерактивный рабочий поток Phase 5 официально поддерживается от 1280 px (PDL-ER-30). На "
+    },
+    {
+      "area": "electrical",
+      "state_id": "electrical.workspace",
+      "state_label": "Electrical",
+      "required": true,
+      "action_path": [
+        "POST /api/v1/auth/guest → localStorage session_id/role/project",
+        "goto /workspace/elec-calc"
+      ],
+      "url": "http://127.0.0.1:3003/workspace/elec-calc",
+      "viewport": {
+        "width": 1000,
+        "height": 768
+      },
+      "viewport_profile": "tlt-shell-1000",
+      "screenshot": "screenshots/electrical__electrical.workspace__tlt-shell-1000__1000x768.png",
+      "geometry": "geometry/electrical__electrical.workspace__tlt-shell-1000__1000x768.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1000,
+        "clientWidth": 1000
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "antd_or_form_noise": 0,
+        "excerpts": [
+          "[debug] [vite] connecting...",
+          "[debug] [vite] connected.",
+          "[info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold"
+        ]
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /api/v1/auth/guest — guest user with auto project «Мой проект»",
+      "result": "pass",
+      "blocker": null,
+      "head": "63c0ff1def9592a848efe669a76511cde2de9cd6",
+      "head_short": "63c0ff1",
+      "captured_at_utc": "2026-07-25T17:02:32.541Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Рекомендуемая ширина окна — от 1280 px Интерактивный рабочий поток Phase 5 официально поддерживается от 1280 px (PDL-ER-30). На "
+    },
+    {
+      "area": "specification",
+      "state_id": "specification.workspace",
+      "state_label": "Specification",
+      "required": true,
+      "action_path": [
+        "POST /api/v1/auth/guest → localStorage session_id/role/project",
+        "goto /workspace/specification"
+      ],
+      "url": "http://127.0.0.1:3003/workspace/specification",
+      "viewport": {
+        "width": 1000,
+        "height": 768
+      },
+      "viewport_profile": "tlt-shell-1000",
+      "screenshot": "screenshots/specification__specification.workspace__tlt-shell-1000__1000x768.png",
+      "geometry": "geometry/specification__specification.workspace__tlt-shell-1000__1000x768.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1000,
+        "clientWidth": 1000
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "antd_or_form_noise": 0,
+        "excerpts": [
+          "[debug] [vite] connecting...",
+          "[debug] [vite] connected.",
+          "[info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold"
+        ]
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /api/v1/auth/guest — guest user with auto project «Мой проект»",
+      "result": "pass",
+      "blocker": null,
+      "head": "63c0ff1def9592a848efe669a76511cde2de9cd6",
+      "head_short": "63c0ff1",
+      "captured_at_utc": "2026-07-25T17:02:34.176Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Рекомендуемая ширина окна — от 1280 px Интерактивный рабочий поток Phase 5 официально поддерживается от 1280 px (PDL-ER-30). На "
+    },
+    {
+      "area": "reports",
+      "state_id": "reports.workspace",
+      "state_label": "Reports",
+      "required": true,
+      "action_path": [
+        "POST /api/v1/auth/guest → localStorage session_id/role/project",
+        "goto /workspace/report"
+      ],
+      "url": "http://127.0.0.1:3003/workspace/report",
+      "viewport": {
+        "width": 1000,
+        "height": 768
+      },
+      "viewport_profile": "tlt-shell-1000",
+      "screenshot": "screenshots/reports__reports.workspace__tlt-shell-1000__1000x768.png",
+      "geometry": "geometry/reports__reports.workspace__tlt-shell-1000__1000x768.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": false,
+        "scrollWidth": 1000,
+        "clientWidth": 1000
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "antd_or_form_noise": 0,
+        "excerpts": [
+          "[debug] [vite] connecting...",
+          "[debug] [vite] connected.",
+          "[info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold"
+        ]
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /api/v1/auth/guest — guest user with auto project «Мой проект»",
+      "result": "pass",
+      "blocker": null,
+      "head": "63c0ff1def9592a848efe669a76511cde2de9cd6",
+      "head_short": "63c0ff1",
+      "captured_at_utc": "2026-07-25T17:02:35.807Z",
+      "bodyTextSample": "HeatCalc Расчёт тепловых потерь Электротехнический расчёт Спецификация Отчёт Скачать Загрузить Инструкция Выход Рекомендуемая ширина окна — от 1280 px Интерактивный рабочий поток Phase 5 официально поддерживается от 1280 px (PDL-ER-30). На "
+    },
+    {
+      "area": "ui-kit",
+      "state_id": "uikit.page",
+      "state_label": "UI Kit",
+      "required": true,
+      "action_path": [
+        "POST /api/v1/auth/guest → localStorage session_id/role/project",
+        "goto /ui-kit"
+      ],
+      "url": "http://127.0.0.1:3003/ui-kit",
+      "viewport": {
+        "width": 1000,
+        "height": 768
+      },
+      "viewport_profile": "tlt-shell-1000",
+      "screenshot": "screenshots/ui-kit__uikit.page__tlt-shell-1000__1000x768.png",
+      "geometry": "geometry/ui-kit__uikit.page__tlt-shell-1000__1000x768.json",
+      "overflow": {
+        "overflowX": false,
+        "overflowY": true,
+        "scrollWidth": 1000,
+        "clientWidth": 1000
+      },
+      "console": {
+        "pageerrors": 0,
+        "errors": 0,
+        "warnings": 0,
+        "antd_or_form_noise": 0,
+        "excerpts": [
+          "[debug] [vite] connecting...",
+          "[debug] [vite] connected.",
+          "[info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold"
+        ]
+      },
+      "failed_network": {
+        "unexpected": [],
+        "count": 0
+      },
+      "fixture_or_seed": "POST /api/v1/auth/guest — guest user with auto project «Мой проект»",
+      "result": "pass",
+      "blocker": null,
+      "head": "63c0ff1def9592a848efe669a76511cde2de9cd6",
+      "head_short": "63c0ff1",
+      "captured_at_utc": "2026-07-25T17:02:37.435Z",
+      "bodyTextSample": "TLT / SYSTEM 01 Инженерный UI Kit Плотность Компактно Свободно В приложение НАВИГАЦИЯ 01 Основа 02 Действия 03 Поля 04 Состояния 05 Данные 06 Теплопотери 07 Компоненты 08 Паттерны v1.0 HeatCalc SC-03 26 px · 8.5 / 12 / 9 num 4rem · name 7."
+    }
+  ]
+}
