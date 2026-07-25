@@ -85,12 +85,16 @@ export default function TltSelect({
       <Select
         id={id}
         className={joinClassNames('tlt-select', 'tlt-select__trigger', triggerClassName)}
-        popupClassName={joinClassNames(
-          'tlt-select__popover',
-          'tlt-select__listbox',
-          popoverClassName,
-          listBoxClassName,
-        )}
+        classNames={{
+          popup: {
+            root: joinClassNames(
+              'tlt-select__popover',
+              'tlt-select__listbox',
+              popoverClassName,
+              listBoxClassName,
+            ),
+          },
+        }}
         value={controlled}
         defaultValue={defaultVal}
         disabled={disabled}
