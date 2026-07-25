@@ -131,7 +131,8 @@ USER_VISIBLE_SUCCESS: Модалка диапазона открывается �
 console warning; Apply/Cancel и валидация не меняются.
 ALLOWED_SCOPE:
   - frontend/src/components/wizard/InsulationTemperatureRangeField.tsx;
-  - frontend/src/__tests__/integration/components/ObjectWizardDependencies.test.tsx;
+  - frontend/src/__tests__/integration/components/ObjectWizard.*.test.tsx
+    (split from ObjectWizardDependencies; see prompts/split-large-tests-by-scenario.md);
   - frontend/src/__tests__/unit/pages/HeatCalcPage.test-utils.tsx.
 NON_GOALS:
   - перестройка ObjectWizard;
@@ -145,7 +146,7 @@ INVARIANTS:
 FOCUSED_PROOF:
   cd frontend && \
   npx vitest run --project integration \
-    src/__tests__/integration/components/ObjectWizardDependencies.test.tsx && \
+    src/__tests__/integration/components/ObjectWizard.*.test.tsx && \
   npx vitest run src/__tests__/unit/pages/HeatCalcPage.basics.test.tsx
 UI_STATES:
   - material=other, modal closed/open/applied/cancelled;
