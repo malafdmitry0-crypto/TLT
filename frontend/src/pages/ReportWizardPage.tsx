@@ -1,9 +1,7 @@
 import { useState } from 'react';
 import {
-  Checkbox,
   Col,
   Row,
-  Segmented,
   Skeleton,
   Space,
   Steps,
@@ -13,17 +11,13 @@ import {
 import { TltAlert, TltBadge, TltButton, TltCard } from '@/components/ui-kit';
 import {
   CloseOutlined,
-  FileExcelOutlined,
-  FilePdfOutlined,
   FileTextOutlined,
-  FileWordOutlined,
 } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import {
   exportReport,
   getReportPreview,
   REPORT_SECTIONS,
-  REPORT_SECTION_LABELS,
   type ReportSection,
 } from '@/api/reports';
 import { useProjectStore } from '@/store/projectStore';
@@ -31,17 +25,11 @@ import { useAuthStore } from '@/store/authStore';
 import { useLegacyElectricalVariantContext } from '@/hooks/useLegacyElectricalVariantContext';
 import ReportPreview from '@/components/reports/ReportPreview';
 import QueryError from '@/components/common/QueryError';
+import { ReportWizardSidebarSteps } from '@/pages/ReportWizardSidebarSteps';
+import { type ReportWizardFormat } from '@/pages/reportWizardFormats';
 import './report-wizard-page.css';
 
-const { Title, Paragraph, Text } = Typography;
-
-type Format = 'pdf' | 'docx' | 'xlsx';
-
-const FORMAT_LABEL: Record<Format, { label: string; icon: React.ReactNode }> = {
-  pdf: { label: 'PDF', icon: <FilePdfOutlined /> },
-  docx: { label: 'Word (DOCX)', icon: <FileWordOutlined /> },
-  xlsx: { label: 'Excel (XLSX)', icon: <FileExcelOutlined /> },
-};
+const { Title, Text } = Typography;
 
 /**
  * Standalone-страница мастера формирования отчёта (ТЗ 4.3.4).
@@ -59,7 +47,7 @@ export default function ReportWizardPage() {
   const reportDataPlaneEnabled = Boolean(project && selectedElectricalVariant);
 
   const [sections, setSections] = useState<ReportSection[]>([...REPORT_SECTIONS]);
-  const [format, setFormat] = useState<Format>('pdf');
+  const [format, setFormat] = useState<ReportWizardFormat>('pdf');
   const [step, setStep] = useState(0);
   const [exporting, setExporting] = useState(false);
 
@@ -184,7 +172,6 @@ export default function ReportWizardPage() {
   return (
     <div className="report-wizard-page">
       <TltCard
-        
         className="report-wizard-page-main"
         title={
           <Space>
@@ -196,7 +183,6 @@ export default function ReportWizardPage() {
         }
         actions={
           <TltButton
-            
             icon={<CloseOutlined />}
             onClick={() => window.close()}
           >
@@ -205,7 +191,6 @@ export default function ReportWizardPage() {
         }
       >
         <Steps
-          
           current={step}
           onChange={exporting ? undefined : setStep}
           className="report-wizard-page-steps"
@@ -218,155 +203,25 @@ export default function ReportWizardPage() {
 
         <Row gutter={16}>
           <Col flex="0 0 280px">
-            {step === 0 && (
-              <TltCard  title="Состав отчёта">
-                <Paragraph type="secondary" className="report-wizard-page-hint">
-                  Отметьте, какие разделы войдут в файл.
-                </Paragraph>
-                <Text type="secondary" className="report-wizard-page-label">
-                  Вариант расчёта:
-                </Text>
-                <div className="report-wizard-page-variant-scroll">
-                  <Segmented<string>
-                    
-                    value={selectedElectricalVariant.id}
-                    onChange={variantContext.selectVariant}
-                    disabled={exporting}
-                    options={variantContext.variants.map((item) => ({
-                      label: item.name,
-                      value: item.id,
-                      disabled: false,
-                    }))}
-                  />
-                </div>
-                <TltButton
-                  variant="link"
-                  
-                  onClick={() =>
-                    setSections(allSelected ? [] : [...REPORT_SECTIONS])
-                  }
-                  disabled={exporting}
-                  className="report-wizard-page-select-all"
-                >
-                  {allSelected ? 'Снять все' : 'Выбрать все'}
-                </TltButton>
-                <Checkbox.Group
-                  value={sections}
-                  onChange={(v) => setSections(v as ReportSection[])}
-                  disabled={exporting}
-                  className="report-wizard-page-sections"
-                >
-                  {REPORT_SECTIONS.map((s) => (
-                    <Checkbox key={s} value={s}>
-                      {REPORT_SECTION_LABELS[s]}
-                    </Checkbox>
-                  ))}
-                </Checkbox.Group>
-                <TltButton
-                  variant="primary"
-                                    
-                  className="report-wizard-page-next"
-                  disabled={sections.length === 0}
-                  onClick={() => setStep(1)}
-                >
-                  Далее: формат →
-                </TltButton>
-              </TltCard>
-            )}
-
-            {step === 1 && (
-              <TltCard  title="Формат экспорта">
-                <Paragraph type="secondary" className="report-wizard-page-hint">
-                  Файл будет сформирован при нажатии «Скачать».
-                </Paragraph>
-                <Space direction="vertical" style={{ width: '100%' }}>
-                  {(Object.keys(FORMAT_LABEL) as Format[]).map((f) => (
-                    <TltButton
-                      key={f}
-                                            
-                      variant={format === f  ? 'primary' : 'secondary'}
-                      icon={FORMAT_LABEL[f].icon}
-                      disabled={exporting}
-                      onClick={() => setFormat(f)}
-                    >
-                      {FORMAT_LABEL[f].label}
-                    </TltButton>
-                  ))}
-                </Space>
-                <Space style={{ marginTop: 12, width: '100%' }}>
-                  <TltButton  disabled={exporting} onClick={() => setStep(0)}>
-                    ← Назад
-                  </TltButton>
-                  <TltButton variant="primary"  disabled={exporting} onClick={() => setStep(2)}>
-                    Далее: предпросмотр →
-                  </TltButton>
-                </Space>
-              </TltCard>
-            )}
-
-            {step === 2 && (
-              <TltCard  title="Готово к экспорту">
-                <div className="report-wizard-page-block">
-                  <Text type="secondary" className="report-wizard-page-label">
-                    Разделы:
-                  </Text>
-                  <div className="report-wizard-page-tags">
-                    {allSelected ? (
-                      <TltBadge tone="info">все</TltBadge>
-                    ) : (
-                      sections.map((s) => (
-                        <TltBadge key={s} tone="info" className="report-wizard-page-tag">
-                          {REPORT_SECTION_LABELS[s]}
-                        </TltBadge>
-                      ))
-                    )}
-                  </div>
-                </div>
-                <div className="report-wizard-page-block--lg">
-                  <Text type="secondary" className="report-wizard-page-label">
-                    Вариант:
-                  </Text>{' '}
-                  <TltBadge tone="info">{selectedElectricalVariant.name}</TltBadge>
-                </div>
-                <div className="report-wizard-page-block--lg">
-                  <Text type="secondary" className="report-wizard-page-label">
-                    Формат:
-                  </Text>{' '}
-                  <TltBadge tone="info">
-                    {FORMAT_LABEL[format].icon} {FORMAT_LABEL[format].label}
-                  </TltBadge>
-                </div>
-                <TltButton
-                  variant="primary"
-                  size="comfortable"
-                  icon={FORMAT_LABEL[format].icon}
-                  loading={exporting}
-                  onClick={handleExport}
-                >
-                  Скачать {FORMAT_LABEL[format].label}
-                </TltButton>
-                <TltButton
-                                    
-                  className="report-wizard-page-back"
-                  disabled={exporting}
-                  onClick={() => setStep(1)}
-                >
-                  ← Изменить формат
-                </TltButton>
-                <TltButton
-                                    
-                  className="report-wizard-page-back--sm"
-                  disabled={exporting}
-                  onClick={() => setStep(0)}
-                >
-                  ← Изменить разделы
-                </TltButton>
-              </TltCard>
-            )}
+            <ReportWizardSidebarSteps
+              step={step}
+              sections={sections}
+              format={format}
+              exporting={exporting}
+              allSelected={allSelected}
+              selectedElectricalVariant={selectedElectricalVariant}
+              variants={variantContext.variants}
+              onSelectVariant={variantContext.selectVariant}
+              onSectionsChange={setSections}
+              onToggleAllSections={() => setSections(allSelected ? [] : [...REPORT_SECTIONS])}
+              onFormatChange={setFormat}
+              onStepChange={setStep}
+              onExport={handleExport}
+            />
           </Col>
 
           <Col flex="1" className="report-wizard-page-preview-col">
-            <TltCard  title="Предпросмотр HTML">
+            <TltCard title="Предпросмотр HTML">
               {isError && !data && (
                 <QueryError
                   error={error}
