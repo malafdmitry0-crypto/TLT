@@ -1,0 +1,5 @@
+{
+  "removed": "@media (max-width: 768px)",
+  "supported_viewports_ge": 1000,
+  "note": "768 block does not apply at >=1000px"
+}

@@ -186,14 +186,14 @@
       "media": 1
     },
     "src/pages/ui-kit-heatcalc-reference.css": {
-      "loc": 192,
+      "loc": 207,
       "bareAnt": 0,
-      "media": 0
+      "media": 1
     },
     "src/pages/ui-kit-primitives-showcase.css": {
-      "loc": 225,
+      "loc": 249,
       "bareAnt": 0,
-      "media": 0
+      "media": 1
     },
     "src/pages/ui-kit.css": {
       "loc": 608,
@@ -286,15 +286,15 @@
       "media": 0
     },
     "src/pages/ui-kit-responsive.css": {
-      "loc": 308,
+      "loc": 30,
       "bareAnt": 0,
-      "media": 3
+      "media": 2
     }
   },
   "totals": {
-    "loc": 10243,
+    "loc": 10004,
     "bareAnt": 0,
-    "media": 39
+    "media": 40
   },
   "rawColors": {
     "src/pages/projects-page.css": 1,
@@ -311,5 +311,35 @@
     1200,
     1400
   ],
-  "responsiveContracts": {}
+  "responsiveContracts": {
+    "src/pages/ui-kit-primitives-showcase.css": {
+      "conditions": [
+        "max-width: 1200px"
+      ],
+      "ownerRoots": [
+        ".uikit-alerts",
+        ".uikit-primitive-",
+        ".uikit-metrics",
+        ".uikit-metric"
+      ]
+    },
+    "src/pages/ui-kit-heatcalc-reference.css": {
+      "conditions": [
+        "max-width: 1200px"
+      ],
+      "ownerRoots": [
+        ".uikit-heatcalc-"
+      ]
+    },
+    "src/pages/ui-kit-responsive.css": {
+      "conditions": [
+        "max-width: 1200px"
+      ],
+      "ownerRoots": [
+        ".uikit-grid",
+        ".uikit-component",
+        ".uikit-page"
+      ]
+    }
+  }
 }
