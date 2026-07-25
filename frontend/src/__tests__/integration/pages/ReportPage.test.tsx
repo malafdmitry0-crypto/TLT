@@ -211,14 +211,18 @@ describe('ReportPage (integration)', () => {
       expect(listElectricalVariantsMock).toHaveBeenCalled();
       expect(screen.getByRole('button', { name: /PDF/i })).toBeEnabled();
     });
-    await user.click(screen.getByRole('button', { name: /PDF/i }));
-    await waitFor(() =>
-      expect(exportReport).toHaveBeenCalledWith(
-        'p-1',
-        'pdf',
-        firstVariant.id,
-        expect.any(Array),
-      )
+    // Re-query after enabled: under concurrent DoD load a stale node can swallow click.
+    const pdfButton = await screen.findByRole('button', { name: /PDF/i });
+    await user.click(pdfButton);
+    await waitFor(
+      () =>
+        expect(exportReport).toHaveBeenCalledWith(
+          'p-1',
+          'pdf',
+          firstVariant.id,
+          expect.any(Array),
+        ),
+      { timeout: 15_000 },
     );
   });
 

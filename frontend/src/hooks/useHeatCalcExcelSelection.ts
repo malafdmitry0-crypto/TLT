@@ -13,7 +13,6 @@ import type { ProjectObject } from '@/types/project';
 import {
   createExcelSelectionRange,
   isExcelCellInRange,
-  normalizeExcelSelectionRange,
   type ExcelCellPosition,
   type ExcelSelectionRange,
 } from '@/utils/heatCalcExcelMode';
@@ -25,6 +24,17 @@ import {
   type HeatCalcExcelCellCoordinates,
   type HeatCalcExcelCellRef,
 } from '@/utils/heatCalcExcelSelectionNav';
+import {
+  excelFullColumnEndpoints,
+  excelFullRowEndpoints,
+  excelShiftColumnAnchor,
+  excelShiftRowAnchor,
+  isExcelRowIndexSelected,
+  isExcelSelectionStale,
+  isRepeatedExcelCellClick,
+  type ExcelCellPointerStamp,
+  type ExcelSelectionDragState,
+} from '@/utils/heatCalcExcelSelectionGestures';
 
 export type { HeatCalcExcelCellCoordinates, HeatCalcExcelCellRef } from '@/utils/heatCalcExcelSelectionNav';
 
@@ -55,8 +65,8 @@ export function useHeatCalcExcelSelection({
   onSelectRecord,
   openContextMenu,
 }: UseHeatCalcExcelSelectionOptions) {
-  const selectionDragRef = useRef<{ mode: 'cells' | 'rows' | 'columns'; anchor: ExcelCellPosition } | null>(null);
-  const lastCellPointerDownRef = useRef<{ rowIndex: number; columnIndex: number; at: number } | null>(null);
+  const selectionDragRef = useRef<ExcelSelectionDragState | null>(null);
+  const lastCellPointerDownRef = useRef<ExcelCellPointerStamp | null>(null);
   const rowIds = useMemo(() => rows.map((row) => row.id), [rows]);
 
   const cellPositionAt = useCallback(
@@ -172,16 +182,15 @@ export function useHeatCalcExcelSelection({
     const start = cellPositionAt(0, 0);
     const end = cellPositionAt(rows.length - 1, editableColumnKeys.length - 1);
     if (!start || !end) return;
-    setRangeSelection(
-      start,
-      end,
-      start,
-    );
+    setRangeSelection(start, end, start);
   }, [cellPositionAt, editableColumnKeys.length, excelModeEnabled, rows.length, setRangeSelection]);
 
   const collapseSelectionToActiveCell = useCallback(() => {
     if (!selectedPosition) return;
-    const selectedCellPosition = cellPositionAt(selectedPosition.rowIndex, selectedPosition.columnIndex);
+    const selectedCellPosition = cellPositionAt(
+      selectedPosition.rowIndex,
+      selectedPosition.columnIndex,
+    );
     if (!selectedCellPosition) return;
     setActiveInlineCell(null);
     setSelectionRange(createExcelSelectionRange(selectedCellPosition));
@@ -195,19 +204,13 @@ export function useHeatCalcExcelSelection({
     if (!excelModeEnabled) return;
     const now = Date.now();
     const previous = lastCellPointerDownRef.current;
-    const repeatedCellClick = !!previous
-      && previous.rowIndex === rowIndex
-      && previous.columnIndex === columnIndex
-      && now - previous.at < 450;
+    const repeatedCellClick = isRepeatedExcelCellClick(previous, rowIndex, columnIndex, now);
     lastCellPointerDownRef.current = { rowIndex, columnIndex, at: now };
     const anchor = event.shiftKey && selectionRange
       ? selectionRange.anchor
       : cellPositionAt(rowIndex, columnIndex);
     if (!anchor) return;
-    selectionDragRef.current = {
-      mode: 'cells',
-      anchor,
-    };
+    selectionDragRef.current = { mode: 'cells', anchor };
     selectCellByPosition(rowIndex, columnIndex, event.shiftKey);
     if (repeatedCellClick) {
       const record = rows[rowIndex];
@@ -233,66 +236,53 @@ export function useHeatCalcExcelSelection({
   }, [cellPositionAt, excelModeEnabled, setRangeSelection]);
 
   const beginRowSelection = useCallback((rowIndex: number, event: ReactPointerEvent<HTMLElement>) => {
-    if (!excelModeEnabled || editableColumnKeys.length === 0) return;
-    const start = cellPositionAt(rowIndex, 0);
-    const end = cellPositionAt(rowIndex, editableColumnKeys.length - 1);
-    if (!start || !end) return;
+    if (!excelModeEnabled) return;
+    const endpoints = excelFullRowEndpoints(rowIds, editableColumnKeys, rowIndex);
     const firstColumnKey = editableColumnKeys[0];
-    if (!firstColumnKey) return;
-    const anchor = event.shiftKey && selectionRange
-      ? { rowId: selectionRange.anchor.rowId, columnKey: firstColumnKey }
-      : start;
-    selectionDragRef.current = { mode: 'rows', anchor };
-    setRangeSelection(
-      anchor,
-      end,
-      start,
+    if (!endpoints || !firstColumnKey) return;
+    const anchor = excelShiftRowAnchor(
+      selectionRange,
+      firstColumnKey,
+      endpoints.start,
+      event.shiftKey,
     );
-  }, [cellPositionAt, editableColumnKeys, excelModeEnabled, selectionRange, setRangeSelection]);
+    selectionDragRef.current = { mode: 'rows', anchor };
+    setRangeSelection(anchor, endpoints.end, endpoints.start);
+  }, [editableColumnKeys, excelModeEnabled, rowIds, selectionRange, setRangeSelection]);
 
   const extendRowSelection = useCallback((rowIndex: number) => {
     const drag = selectionDragRef.current;
-    if (!excelModeEnabled || !drag || drag.mode !== 'rows' || editableColumnKeys.length === 0) return;
-    const start = cellPositionAt(rowIndex, 0);
-    const end = cellPositionAt(rowIndex, editableColumnKeys.length - 1);
-    if (!start || !end) return;
-    setRangeSelection(
-      drag.anchor,
-      end,
-      start,
-    );
-  }, [cellPositionAt, editableColumnKeys.length, excelModeEnabled, setRangeSelection]);
+    if (!excelModeEnabled || !drag || drag.mode !== 'rows') return;
+    const endpoints = excelFullRowEndpoints(rowIds, editableColumnKeys, rowIndex);
+    if (!endpoints) return;
+    setRangeSelection(drag.anchor, endpoints.end, endpoints.start);
+  }, [editableColumnKeys, excelModeEnabled, rowIds, setRangeSelection]);
 
-  const beginColumnSelection = useCallback((columnIndex: number, event: ReactPointerEvent<HTMLElement>) => {
-    if (!excelModeEnabled || rows.length === 0) return;
-    const start = cellPositionAt(0, columnIndex);
-    const end = cellPositionAt(rows.length - 1, columnIndex);
-    if (!start || !end) return;
+  const beginColumnSelection = useCallback((
+    columnIndex: number,
+    event: ReactPointerEvent<HTMLElement>,
+  ) => {
+    if (!excelModeEnabled) return;
+    const endpoints = excelFullColumnEndpoints(rowIds, editableColumnKeys, columnIndex);
     const firstRowId = rowIds[0];
-    if (!firstRowId) return;
-    const anchor = event.shiftKey && selectionRange
-      ? { rowId: firstRowId, columnKey: selectionRange.anchor.columnKey }
-      : start;
-    selectionDragRef.current = { mode: 'columns', anchor };
-    setRangeSelection(
-      anchor,
-      end,
-      start,
+    if (!endpoints || !firstRowId) return;
+    const anchor = excelShiftColumnAnchor(
+      selectionRange,
+      firstRowId,
+      endpoints.start,
+      event.shiftKey,
     );
-  }, [cellPositionAt, excelModeEnabled, rowIds, rows.length, selectionRange, setRangeSelection]);
+    selectionDragRef.current = { mode: 'columns', anchor };
+    setRangeSelection(anchor, endpoints.end, endpoints.start);
+  }, [editableColumnKeys, excelModeEnabled, rowIds, selectionRange, setRangeSelection]);
 
   const extendColumnSelection = useCallback((columnIndex: number) => {
     const drag = selectionDragRef.current;
-    if (!excelModeEnabled || !drag || drag.mode !== 'columns' || rows.length === 0) return;
-    const start = cellPositionAt(0, columnIndex);
-    const end = cellPositionAt(rows.length - 1, columnIndex);
-    if (!start || !end) return;
-    setRangeSelection(
-      drag.anchor,
-      end,
-      start,
-    );
-  }, [cellPositionAt, excelModeEnabled, rows.length, setRangeSelection]);
+    if (!excelModeEnabled || !drag || drag.mode !== 'columns') return;
+    const endpoints = excelFullColumnEndpoints(rowIds, editableColumnKeys, columnIndex);
+    if (!endpoints) return;
+    setRangeSelection(drag.anchor, endpoints.end, endpoints.start);
+  }, [editableColumnKeys, excelModeEnabled, rowIds, setRangeSelection]);
 
   const openCellContextMenu = useCallback((
     rowIndex: number,
@@ -303,33 +293,20 @@ export function useHeatCalcExcelSelection({
     const cell = cellPositionAt(rowIndex, columnIndex);
     if (!cell) return;
     if (!isExcelCellInRange(selectionRange, cell.rowId, cell.columnKey, rowIds, editableColumnKeys)) {
-      setRangeSelection(
-        cell,
-        cell,
-        cell,
-      );
+      setRangeSelection(cell, cell, cell);
     }
     openContextMenu?.(event);
   }, [cellPositionAt, editableColumnKeys, excelModeEnabled, openContextMenu, rowIds, selectionRange, setRangeSelection]);
 
   const openRowContextMenu = useCallback((rowIndex: number, event: ReactMouseEvent<HTMLElement>) => {
     if (!excelModeEnabled || editableColumnKeys.length === 0) return;
-    const normalizedRange = selectionRange ? normalizeExcelSelectionRange(selectionRange, rowIds, editableColumnKeys) : null;
-    const rowAlreadySelected = !!normalizedRange
-      && rowIndex >= normalizedRange.top
-      && rowIndex <= normalizedRange.bottom;
-    if (!rowAlreadySelected) {
-      const start = cellPositionAt(rowIndex, 0);
-      const end = cellPositionAt(rowIndex, editableColumnKeys.length - 1);
-      if (!start || !end) return;
-      setRangeSelection(
-        start,
-        end,
-        start,
-      );
+    if (!isExcelRowIndexSelected(selectionRange, rowIds, editableColumnKeys, rowIndex)) {
+      const endpoints = excelFullRowEndpoints(rowIds, editableColumnKeys, rowIndex);
+      if (!endpoints) return;
+      setRangeSelection(endpoints.start, endpoints.end, endpoints.start);
     }
     openContextMenu?.(event);
-  }, [cellPositionAt, editableColumnKeys, excelModeEnabled, openContextMenu, rowIds, selectionRange, setRangeSelection]);
+  }, [editableColumnKeys, excelModeEnabled, openContextMenu, rowIds, selectionRange, setRangeSelection]);
 
   const openRecordContextMenu = useCallback((record: ProjectObject, event: ReactMouseEvent<HTMLElement>) => {
     if (!excelModeEnabled || editableColumnKeys.length === 0) return;
@@ -340,11 +317,7 @@ export function useHeatCalcExcelSelection({
     if (selectedPosition?.rowIndex !== rowIndex) {
       const cell = cellPositionAt(rowIndex, 0);
       if (!cell) return;
-      setRangeSelection(
-        cell,
-        cell,
-        cell,
-      );
+      setRangeSelection(cell, cell, cell);
     }
     openContextMenu?.(event);
   }, [
@@ -358,11 +331,7 @@ export function useHeatCalcExcelSelection({
   ]);
 
   useEffect(() => {
-    if (!selectedCell) return;
-    if (
-      !rows.some((object) => object.id === selectedCell.objectId)
-      || !editableColumnKeys.includes(selectedCell.columnKey)
-    ) {
+    if (isExcelSelectionStale(selectedCell, rows, editableColumnKeys)) {
       clearSelectionState();
     }
   }, [clearSelectionState, editableColumnKeys, rows, selectedCell]);
@@ -371,7 +340,6 @@ export function useHeatCalcExcelSelection({
     function clearSelectionDrag() {
       selectionDragRef.current = null;
     }
-
     window.addEventListener('pointerup', clearSelectionDrag);
     window.addEventListener('pointercancel', clearSelectionDrag);
     return () => {
