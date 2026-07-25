@@ -7,9 +7,9 @@
 pending» (dense production 400-band + heavy test contexts) must be real
 `pending`, not EMPTY QUEUE cosmetics.  
 **Inventory at open:** **22** files in **400–445** LOC (production).  
-**Last closed production:** `P-BAND-03` @ `907d435`
+**Last closed production:** pure util batch + P-BAND-03 (see table)
 
-**Следующий незакрытый контракт:** `P-BAND-04`
+**Следующий незакрытый контракт:** `P-BAND-06`
 
 Это **единственный** источник текущего `pending` для frontend. Одновременно
 может существовать только одна ACTIVE frontend-очередь. Initiative plans,
@@ -74,15 +74,15 @@ util/domain/api/types).
 | 1 | **P-BAND-01** | **done** `6cf5007` | heat | `useHeatCalcPreferences.ts` **445→323** | [audit](../audit/2026-07-25-p-band-01-prefs/snapshot.md) |
 | 2 | **P-BAND-02** | **done** `9c21b70` | admin | `DatabasePage.tsx` **444→230** | [audit](../audit/2026-07-25-p-band-02-database/snapshot.md) |
 | 3 | **P-BAND-03** | **done** `907d435` | electrical | `useElecCalcElectricalColumnRenderers.tsx` **443→255** | [audit](../audit/2026-07-25-p-band-03-elec-renderers/snapshot.md) |
-| 4 | **P-BAND-04** | **pending** | heat | `utils/heatCalcInlineEdit.ts` (~442) | pure edit helpers |
-| 5 | P-BAND-05 | pending | electrical | `utils/electricalCandidateTableColumnsCore.ts` (~437) | column groups |
-| 6 | P-BAND-06 | pending | electrical | `components/electrical/ElectricalCandidateGlideGrid.tsx` (~430) | grid chrome vs data adapter |
+| 4 | **P-BAND-04** | **done** `f1a3a64` | heat | `utils/heatCalcInlineEdit.ts` **442→322** | [audit](../audit/2026-07-26-p-band-04-inline-edit/snapshot.md) |
+| 5 | **P-BAND-05** | **done** `503539c` | electrical | `utils/electricalCandidateTableColumnsCore.ts` **437→257** | [audit](../audit/2026-07-26-p-band-05-candidate-columns/snapshot.md) |
+| 6 | **P-BAND-06** | **pending** | electrical | `components/electrical/ElectricalCandidateGlideGrid.tsx` (~430) | grid chrome vs data adapter |
 | 7 | P-BAND-07 | pending | heat | `components/heatcalc/HeatCalcGlideGrid.tsx` (~429) | grid chrome vs data adapter |
-| 8 | P-BAND-08 | pending | shared | `api/calculations.ts` (~428) | endpoint groups / mappers |
-| 9 | P-BAND-09 | pending | heat | `utils/heatCalcExcelMode.ts` (~427) | pure mode helpers |
+| 8 | **P-BAND-08** | **done** `bc07b4f` | shared | `api/calculations.ts` **428→212** | [audit](../audit/2026-07-26-p-band-08-calculations-api/snapshot.md) |
+| 9 | **P-BAND-09** | **done** `525c1a3` | heat | `utils/heatCalcExcelMode.ts` **427→256** | [audit](../audit/2026-07-26-p-band-09-excel-mode/snapshot.md) |
 | 10 | P-BAND-10 | pending | heat | `pages/heatcalc/heatCalcColumnRenderers.tsx` (~423) | renderer clusters |
-| 11 | P-BAND-11 | pending | shared | `types/calculation.ts` (~413) | type modules by domain |
-| 12 | P-BAND-12 | pending | heat | `domain/heatCalcFieldRules.ts` (~412) | rule tables by field group |
+| 11 | **P-BAND-11** | **done** `14e1059` | shared | `types/calculation.ts` **413→109** | [audit](../audit/2026-07-26-p-band-11-calculation-types/snapshot.md) |
+| 12 | **P-BAND-12** | **done** `2d35d28` | heat | `domain/heatCalcFieldRules.ts` **412→254** | [audit](../audit/2026-07-26-p-band-12-field-rules/snapshot.md) |
 | 13 | P-BAND-13 | pending | heat | `hooks/useHeatCalcNormalGlideController.ts` (~412) | pure controller helpers |
 | 14 | P-BAND-14 | pending | heat | `hooks/useHeatCalcTableColumns.tsx` (~411) | column factory modules |
 | 15 | P-BAND-15 | pending | reports | `pages/ReportWizardPage.tsx` (~409) | step components |
@@ -90,7 +90,7 @@ util/domain/api/types).
 | 17 | P-BAND-17 | pending | heat | `components/wizard/useObjectWizardFormSync.ts` (~407) | pure sync mappers |
 | 18 | P-BAND-18 | pending | heat | `pages/heatcalc/useHeatCalcObjectsDataModel.ts` (~406) | query/filter clusters |
 | 19 | P-BAND-19 | pending | heat | `components/wizard/InsulationLayersTable.tsx` (~406) | row/editor subcomponents |
-| 20 | P-BAND-20 | pending | electrical | `utils/electricalTableColumns.ts` (~405) | column groups |
+| 20 | **P-BAND-20** | **done** `a156bf0` | electrical | `utils/electricalTableColumns.ts` **405→387** | [audit](../audit/2026-07-26-p-band-20-electrical-columns/snapshot.md) |
 | 21 | P-BAND-21 | pending | heat | `pages/heatcalc/useHeatCalcWorkspaceDataModel.ts` (~405) | workspace pure helpers |
 | 22 | P-BAND-22 | pending | specification | `pages/specification/useSpecificationPageModel.ts` (~403) | model sub-hooks |
 
