@@ -7,9 +7,9 @@
 pending» (dense production 400-band + heavy test contexts) must be real
 `pending`, not EMPTY QUEUE cosmetics.  
 **Inventory at open:** **22** files in **400–445** LOC (production).  
-**Last closed production:** P-BAND-19 InsulationLayersTable (see table)
+**Last closed production:** P-BAND-22 useSpecificationPageModel — Track A complete (see table)
 
-**Следующий незакрытый контракт:** `P-BAND-21`
+**Следующий незакрытый контракт:** `P-TEST-01`
 
 Это **единственный** источник текущего `pending` для frontend. Одновременно
 может существовать только одна ACTIVE frontend-очередь. Initiative plans,
@@ -91,8 +91,8 @@ util/domain/api/types).
 | 18 | **P-BAND-18** | **done** `8d3afae` | heat | `useHeatCalcObjectsDataModel.ts` **406→389** | [audit](../audit/2026-07-26-p-band-18-objects-data/snapshot.md) |
 | 19 | **P-BAND-19** | **done** `ec34232` | heat | `InsulationLayersTable.tsx` **406→246** | [audit](../audit/2026-07-26-p-band-19-insulation-layers/snapshot.md) |
 | 20 | **P-BAND-20** | **done** `a156bf0` | electrical | `utils/electricalTableColumns.ts` **405→387** | [audit](../audit/2026-07-26-p-band-20-electrical-columns/snapshot.md) |
-| 21 | P-BAND-21 | pending | heat | `pages/heatcalc/useHeatCalcWorkspaceDataModel.ts` (~405) | workspace pure helpers |
-| 22 | P-BAND-22 | pending | specification | `pages/specification/useSpecificationPageModel.ts` (~403) | model sub-hooks |
+| 21 | **P-BAND-21** | **done** `be25348` | heat | `useHeatCalcWorkspaceDataModel.ts` **405→303** | [audit](../audit/2026-07-26-p-band-21-workspace-data/snapshot.md) |
+| 22 | **P-BAND-22** | **done** `8c57663` | specification | `useSpecificationPageModel.ts` **403→384** | [audit](../audit/2026-07-26-p-band-22-spec-model/snapshot.md) |
 
 **Acceptance per P-BAND-NN:**
 
