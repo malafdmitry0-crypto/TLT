@@ -581,7 +581,8 @@ describe('ObjectWizard dependencies', () => {
     expect(screen.queryByTestId('alpha-vnesh-input')).not.toBeInTheDocument();
     expect(screen.getAllByText('из климата').length).toBeGreaterThanOrEqual(1);
     expect(spinValue('ambient-temperature-input')).toHaveDisplayValue(/^-25(?:\.0)?$/);
-    expect(spinValue('wind-speed-input')).toHaveValue('4.2');
+    // TltNumberField formats decimals with RU comma separator
+    expect(spinValue('wind-speed-input')).toHaveValue('4,2');
     expect(screen.queryByText('Грунт')).not.toBeInTheDocument();
   });
 
@@ -623,7 +624,8 @@ describe('ObjectWizard dependencies', () => {
     await screen.findByTestId('placement-select');
     const safetyInput = screen.getByTestId('safety-factor-input');
     expect(safetyInput).toBeInTheDocument();
-    expect(safetyInput).toHaveValue('1.12');
+    // TltNumberField formats decimals with RU comma separator
+    expect(safetyInput).toHaveValue('1,12');
     await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));

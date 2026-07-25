@@ -54,7 +54,9 @@ describe('ElecCalcRecalculationSettings', () => {
 
     expect(screen.getByText('Коммерческие данные есть')).toBeInTheDocument();
     expect(screen.getByText('Критерий:')).toBeInTheDocument();
-    expect(screen.getByLabelText('Критерий подбора кабеля')).toBeInTheDocument();
-    expect(screen.getByLabelText('Критерий подбора кабеля')).toHaveTextContent('Технический');
+    // Ant Select: aria-label on root + combobox
+    const policy = screen.getAllByLabelText('Критерий подбора кабеля')[0];
+    expect(policy).toBeInTheDocument();
+    expect(policy).toHaveTextContent('Технический');
   });
 });

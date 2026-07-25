@@ -65,9 +65,10 @@ describe('SpecPageChrome UI kit strangler (U2)', () => {
     expect(screen.getByTestId('spec-params-panel')).toBeInTheDocument();
     // Ant Drawer portals content to document body
     expect(document.querySelectorAll('.tlt-compact-field').length).toBeGreaterThanOrEqual(3);
-    expect(screen.getByLabelText('Резерв R,гр')).toBeInTheDocument();
-    expect(screen.getByLabelText('Секций на соединительный комплект')).toBeInTheDocument();
-    expect(screen.getByLabelText('Мин. длина секции для К2i')).toBeInTheDocument();
+    // Ant Select puts aria-label on both root and combobox input
+    expect(screen.getAllByLabelText('Резерв R,гр').length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText('Секций на соединительный комплект').length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText('Мин. длина секции для К2i').length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'Выбрать все' })).toBeInTheDocument();
   });
 });

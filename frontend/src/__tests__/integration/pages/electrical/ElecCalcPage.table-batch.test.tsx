@@ -45,20 +45,23 @@ describe('ElecCalcPage table / pagination / batch / copy', () => {
     expect(screen.getByRole('button', { name: /Пересчитать все · ЭР1/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Настройки' })).not.toBeDisabled();
     // Default: wide params panel off — compact controls in action bar.
-    // TltSelect (react-aria): match by aria-label; disabled via disabled/data-disabled.
+    // TltSelect (Ant): aria-label on root + combobox; disabled via data-disabled / ant-select-disabled.
     const isTltSelectDisabled = (el: HTMLElement) =>
       el.getAttribute('data-disabled') === 'true'
       || el.getAttribute('aria-disabled') === 'true'
+      || el.classList.contains('ant-select-disabled')
+      || el.closest('.ant-select')?.classList.contains('ant-select-disabled') === true
+      || el.closest('[data-disabled="true"]') != null
       || el.hasAttribute('disabled')
       || (el as HTMLButtonElement | HTMLInputElement).disabled === true;
     const cableTypeForRecalc = screen.getAllByLabelText('Тип кабеля для пересчёта')[0];
     expect(isTltSelectDisabled(cableTypeForRecalc)).toBeTruthy();
-    expect(screen.getByLabelText('Напряжение питания')).toBeDisabled();
+    expect(screen.getAllByLabelText('Напряжение питания')[0]).toBeDisabled();
 
     await user.click(screen.getByRole('checkbox', { name: 'Расширенные параметры' }));
     const cableTypeWide = screen.getAllByLabelText('Тип кабеля')[0];
     expect(isTltSelectDisabled(cableTypeWide)).toBeTruthy();
-    expect(screen.getByLabelText('Напряжение питания')).toBeDisabled();
+    expect(screen.getAllByLabelText('Напряжение питания')[0]).toBeDisabled();
 
     await user.click(screen.getByText('Труба-1'));
     expect(await screen.findByRole('button', { name: 'Выбор' })).toBeDisabled();

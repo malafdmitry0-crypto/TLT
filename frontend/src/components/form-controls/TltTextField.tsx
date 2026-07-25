@@ -1,10 +1,9 @@
-import '@/utils/reactAriaEnvironment';
 import type {
   CSSProperties,
   FocusEventHandler,
   KeyboardEventHandler,
 } from 'react';
-import { Input, TextField } from 'react-aria-components';
+import { Input } from 'antd';
 
 export interface TltTextFieldProps {
   id?: string;
@@ -73,37 +72,36 @@ export default function TltTextField({
   const resolvedAriaLabel = ariaLabel ?? placeholder ?? name ?? id ?? 'Текстовое значение';
 
   return (
-    <TextField
-      aria-label={resolvedAriaLabel}
-      className={joinClassNames('tlt-text-field', className)}
-      defaultValue={defaultValue}
-      isDisabled={disabled}
-      isInvalid={isInvalid}
-      isReadOnly={readOnly}
-      isRequired={isRequired}
-      onChange={onChange}
+    <span
+      className={joinClassNames('tlt-text-field', isInvalid ? 'tlt-text-field--invalid' : undefined, className)}
+      data-invalid={isInvalid || undefined}
       style={style}
-      type={type}
-      validationBehavior="aria"
-      value={value}
     >
       <Input
-        aria-invalid={isInvalid || undefined}
-        aria-required={isRequired || undefined}
+        id={id}
+        name={name}
+        type={type}
+        value={value}
+        defaultValue={defaultValue}
+        disabled={disabled}
+        readOnly={readOnly}
+        required={isRequired}
+        placeholder={placeholder}
+        maxLength={maxLength}
         autoComplete={autoComplete}
         autoFocus={autoFocus}
+        status={isInvalid ? 'error' : undefined}
         className={joinClassNames('tlt-text-field__input', inputClassName)}
+        style={inputStyle}
         data-testid={testId}
-        id={id}
-        maxLength={maxLength}
-        name={name}
+        aria-label={resolvedAriaLabel}
+        aria-required={isRequired || undefined}
+        aria-invalid={isInvalid || undefined}
+        onChange={(event) => onChange?.(event.target.value)}
         onBlur={onBlur}
         onFocus={onFocus}
         onKeyDown={onKeyDown}
-        placeholder={placeholder}
-        style={inputStyle}
-        type={type}
       />
-    </TextField>
+    </span>
   );
 }

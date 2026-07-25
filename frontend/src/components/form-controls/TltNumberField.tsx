@@ -1,12 +1,10 @@
-import '@/utils/reactAriaEnvironment';
 import type {
-  ChangeEventHandler,
   CSSProperties,
   FocusEventHandler,
   KeyboardEventHandler,
   ReactNode,
 } from 'react';
-import { Input, NumberField } from 'react-aria-components';
+import { InputNumber } from 'antd';
 
 type NumberInputValue = number | string | null | undefined;
 
@@ -52,22 +50,11 @@ function toFiniteNumber(value: number | string | undefined) {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-function toNumberFieldValue(value: NumberInputValue) {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : Number.NaN;
-  if (typeof value === 'string') return toFiniteNumber(value) ?? Number.NaN;
-  return Number.NaN;
-}
-
-function toInputAttribute(value: number | string | undefined) {
-  const finiteValue = toFiniteNumber(value);
-  return finiteValue === undefined ? undefined : String(finiteValue);
-}
-
-function parseInputValue(value: string) {
-  const normalized = value.trim().replace(',', '.');
-  if (normalized === '') return null;
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : undefined;
+function toControlledValue(value: NumberInputValue) {
+  if (value === undefined) return undefined;
+  if (value === null || value === '') return null;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  return toFiniteNumber(value) ?? null;
 }
 
 function isInvalidValue(value: TltNumberFieldProps['aria-invalid'], status: TltNumberFieldProps['status']) {
@@ -106,81 +93,90 @@ export default function TltNumberField({
 }: TltNumberFieldProps) {
   const isRequired = Boolean(required || ariaRequired === true || ariaRequired === 'true');
   const isInvalid = isInvalidValue(ariaInvalid, status);
-  const numberFieldValue = value === undefined && defaultValue !== undefined
-    ? undefined
-    : toNumberFieldValue(value);
-  const numberFieldDefaultValue = typeof defaultValue === 'string'
+  const resolvedAriaLabel = ariaLabel ?? placeholder ?? name ?? id ?? 'Числовое значение';
+  const controlled = toControlledValue(value);
+  const defaultNum = typeof defaultValue === 'string'
     ? toFiniteNumber(defaultValue)
     : defaultValue;
-  const resolvedAriaLabel = ariaLabel ?? placeholder ?? name ?? id ?? 'Числовое значение';
-
-  const handleChange = (nextValue: number) => {
-    onChange?.(Number.isFinite(nextValue) ? nextValue : null);
-  };
-
-  const handleInputChange: ChangeEventHandler<HTMLInputElement> = (event) => {
-    const parsed = parseInputValue(event.currentTarget.value);
-    if (parsed !== undefined) {
-      onChange?.(parsed);
-    }
-  };
-
-  const handleKeyDown: KeyboardEventHandler<HTMLInputElement> = (event) => {
-    onKeyDown?.(event);
-    if (event.defaultPrevented) return;
-    if (event.key === 'Enter') {
-      onPressEnter?.(event);
-    }
-  };
 
   return (
-    <NumberField
-      aria-label={resolvedAriaLabel}
+    <span
       className={joinClassNames(
         'tlt-number-field',
         unit ? 'tlt-number-field--with-unit' : undefined,
         className,
       )}
-      commitBehavior="validate"
-      defaultValue={numberFieldDefaultValue}
-      id={id}
-      isDisabled={disabled}
-      isInvalid={isInvalid}
-      isReadOnly={readOnly}
-      isRequired={isRequired}
-      isWheelDisabled
-      maxValue={toFiniteNumber(max)}
-      minValue={toFiniteNumber(min)}
-      name={name}
-      onChange={handleChange}
-      step={toFiniteNumber(step)}
       style={wrapperStyle ?? style}
-      validationBehavior="aria"
-      value={numberFieldValue}
     >
-      <Input
-        aria-invalid={isInvalid || undefined}
-        aria-required={isRequired || undefined}
+      <InputNumber
+        id={id}
+        name={name}
+        value={controlled === undefined ? undefined : controlled}
+        defaultValue={defaultNum}
+        min={toFiniteNumber(min)}
+        max={toFiniteNumber(max)}
+        step={toFiniteNumber(step) ?? 1}
+        disabled={disabled}
+        readOnly={readOnly}
+        required={isRequired}
+        placeholder={placeholder}
+        status={isInvalid ? 'error' : status === 'warning' ? 'warning' : undefined}
+        controls={false}
+        keyboard
+        changeOnWheel={false}
         className={joinClassNames('tlt-number-field__input', inputClassName)}
+        style={inputStyle}
         data-testid={testId}
-        max={toInputAttribute(max)}
-        min={toInputAttribute(min)}
-        onChange={handleInputChange}
+        aria-label={resolvedAriaLabel}
+        aria-required={isRequired || undefined}
+        aria-invalid={isInvalid || undefined}
+        // Comma as decimal separator (RU locale).
+        // Empty input must return '' (not NaN) so rc-input-number commits null on clear.
+        parser={(display) => {
+          const normalized = String(display ?? '').trim().replace(',', '.');
+          if (normalized === '') {
+            return '';
+          }
+          if (normalized === '-' || normalized === '.' || normalized === '-.') {
+            return normalized;
+          }
+          const parsed = Number(normalized);
+          return Number.isFinite(parsed) ? parsed : normalized;
+        }}
+        formatter={(val, info) => {
+          if (info?.userTyping) return info.input;
+          if (val === null || val === undefined || val === '' || Number.isNaN(Number(val))) return '';
+          return String(val).replace('.', ',');
+        }}
+        onChange={(next) => {
+          if (next === null || next === undefined || next === '') {
+            onChange?.(null);
+            return;
+          }
+          const num = typeof next === 'number' ? next : Number(next);
+          onChange?.(Number.isFinite(num) ? num : null);
+        }}
         onBlur={onBlur}
         onFocus={onFocus}
-        onKeyDown={handleKeyDown}
-        placeholder={placeholder}
-        step={toInputAttribute(step)}
-        style={inputStyle}
+        onKeyDown={(event) => {
+          // Ant KeyboardEvent is compatible enough for our optional handlers
+          onKeyDown?.(event);
+          if (event.defaultPrevented) return;
+          if (event.key === 'Enter') {
+            onPressEnter?.(event);
+          }
+        }}
+        addonAfter={
+          unit ? (
+            <span
+              aria-hidden="true"
+              className={joinClassNames('tlt-number-field__unit', addonClassName)}
+            >
+              {unit}
+            </span>
+          ) : undefined
+        }
       />
-      {unit ? (
-        <span
-          aria-hidden="true"
-          className={joinClassNames('tlt-number-field__unit', addonClassName)}
-        >
-          {unit}
-        </span>
-      ) : null}
-    </NumberField>
+    </span>
   );
 }

@@ -271,7 +271,7 @@
       "media": 0
     },
     "src/styles/tokens.css": {
-      "loc": 329,
+      "loc": 332,
       "bareAnt": 0,
       "media": 0
     },
@@ -287,7 +287,7 @@
     }
   },
   "totals": {
-    "loc": 10301,
+    "loc": 10304,
     "bareAnt": 0,
     "media": 39
   },

@@ -1,13 +1,5 @@
-import '@/utils/reactAriaEnvironment';
-import type { CSSProperties, Key, ReactNode } from 'react';
-import {
-  Button,
-  ListBox,
-  ListBoxItem,
-  Popover,
-  Select,
-  SelectValue,
-} from 'react-aria-components';
+import type { CSSProperties, ReactNode } from 'react';
+import { Select } from 'antd';
 
 export interface TltSelectOption {
   label: ReactNode;
@@ -23,7 +15,6 @@ export interface TltSelectProps {
   onChange?: (value: string | number | null) => void;
   disabled?: boolean;
   required?: boolean;
-  /** When true and a value is selected, show a clear control that calls onChange(null). */
   allowClear?: boolean;
   placeholder?: string;
   options?: TltSelectOption[];
@@ -51,26 +42,6 @@ function isInvalidValue(value: TltSelectProps['aria-invalid'], status: TltSelect
   return status === 'error' || value === true || value === 'true';
 }
 
-function toSelectedKey(value: TltSelectProps['value']) {
-  return value === undefined || value === null || value === '' ? null : value;
-}
-
-function toDefaultSelectedKey(value: TltSelectProps['defaultValue']) {
-  return value === undefined || value === null || value === '' ? null : value;
-}
-
-function resolveSelectedValue(key: Key | null, options: TltSelectOption[]) {
-  if (key == null) return null;
-  const option = options.find((item) => item.value === key || String(item.value) === String(key));
-  if (option) return option.value;
-  if (typeof key === 'bigint') return String(key);
-  return key;
-}
-
-function sanitizeDomId(value: string | undefined) {
-  return value?.replace(/[^a-zA-Z0-9_-]/g, '-');
-}
-
 export default function TltSelect({
   id,
   name,
@@ -95,69 +66,57 @@ export default function TltSelect({
 }: TltSelectProps) {
   const isRequired = isRequiredValue(ariaRequired, required);
   const isInvalid = isInvalidValue(ariaInvalid, status);
-  const selectedKey = value === undefined && defaultValue !== undefined
-    ? undefined
-    : toSelectedKey(value);
-  const defaultSelectedKey = toDefaultSelectedKey(defaultValue);
   const resolvedAriaLabel = ariaLabel ?? placeholder ?? 'Выберите значение';
-  const baseId = sanitizeDomId(id ?? name ?? testId);
-  const valueId = baseId ? `${baseId}-value` : undefined;
-  const listBoxId = baseId ? `${baseId}-listbox` : undefined;
-  const hasClearableValue = allowClear
-    && !disabled
-    && selectedKey !== null
-    && selectedKey !== undefined;
+  const hasValue = value !== undefined && value !== null && value !== '';
+  const controlled = value === undefined ? undefined : (hasValue ? value : undefined);
+  const defaultVal = defaultValue === null || defaultValue === undefined ? undefined : defaultValue;
+  const showClear = allowClear && !disabled && hasValue;
 
   return (
     <span
       className={joinClassNames(
         'tlt-select-shell',
-        hasClearableValue && 'tlt-select-shell--clearable',
+        showClear && 'tlt-select-shell--clearable',
         className,
       )}
       style={style}
+      data-disabled={disabled ? 'true' : undefined}
     >
       <Select
-        aria-label={resolvedAriaLabel}
-        className="tlt-select"
-        defaultSelectedKey={defaultSelectedKey}
-        id={baseId}
-        isDisabled={disabled}
-        isInvalid={isInvalid}
-        isRequired={isRequired}
-        name={name}
-        onSelectionChange={(key) => onChange?.(resolveSelectedValue(key, options))}
+        id={id}
+        className={joinClassNames('tlt-select', 'tlt-select__trigger', triggerClassName)}
+        popupClassName={joinClassNames(
+          'tlt-select__popover',
+          'tlt-select__listbox',
+          popoverClassName,
+          listBoxClassName,
+        )}
+        value={controlled}
+        defaultValue={defaultVal}
+        disabled={disabled}
+        allowClear={false}
         placeholder={placeholder}
-        selectedKey={selectedKey}
-        validationBehavior="aria"
-      >
-        <Button
-          aria-invalid={isInvalid || undefined}
-          aria-required={isRequired || undefined}
-          className={joinClassNames('tlt-select__trigger', triggerClassName)}
-          data-testid={testId}
-        >
-          <SelectValue className="tlt-select__value" id={valueId} />
-          <span aria-hidden="true" className="tlt-select__arrow" />
-        </Button>
-        <Popover className={joinClassNames('tlt-select__popover', popoverClassName)}>
-          <ListBox className={joinClassNames('tlt-select__listbox', listBoxClassName)} id={listBoxId}>
-            {options.map((option) => (
-              <ListBoxItem
-                className="tlt-select__option"
-                id={option.value}
-                isDisabled={option.disabled}
-                key={option.value}
-                textValue={String(option.label)}
-                value={option}
-              >
-                {option.label}
-              </ListBoxItem>
-            ))}
-          </ListBox>
-        </Popover>
-      </Select>
-      {hasClearableValue ? (
+        status={isInvalid ? 'error' : status === 'warning' ? 'warning' : undefined}
+        options={options.map((option) => ({
+          label: option.label,
+          value: option.value,
+          disabled: option.disabled,
+        }))}
+        data-testid={testId}
+        data-disabled={disabled ? 'true' : undefined}
+        aria-label={resolvedAriaLabel}
+        aria-required={isRequired || undefined}
+        aria-invalid={isInvalid || undefined}
+        onChange={(next) => {
+          if (next === undefined || next === null) {
+            onChange?.(null);
+            return;
+          }
+          onChange?.(next as string | number);
+        }}
+        getPopupContainer={() => document.body}
+      />
+      {showClear ? (
         <button
           type="button"
           className="tlt-select__clear"
@@ -172,6 +131,7 @@ export default function TltSelect({
           ×
         </button>
       ) : null}
+      {name ? <input type="hidden" name={name} value={hasValue ? String(value) : ''} readOnly aria-hidden /> : null}
     </span>
   );
 }

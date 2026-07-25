@@ -71,8 +71,10 @@ describe('ElecCalcElectricalTypeControls', () => {
       block: true,
     });
 
-    expect(screen.getByLabelText('Схема подключения')).toBeInTheDocument();
-    expect(screen.getByLabelText('Схема подключения')).toHaveTextContent('Линия');
+    // Ant Select: aria-label on root + combobox; assert via root text content
+    const connection = screen.getAllByLabelText('Схема подключения')[0];
+    expect(connection).toBeInTheDocument();
+    expect(connection).toHaveTextContent('Линия');
     expect(screen.getByText('U:')).toBeInTheDocument();
     expect(screen.getByText('w:')).toBeInTheDocument();
     expect(screen.getByText('h:')).toBeInTheDocument();

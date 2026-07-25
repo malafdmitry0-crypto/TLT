@@ -11,6 +11,9 @@
   --font-family-data: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   /* HeatCalc dual-form contract (SC-03) — shared by UI Kit / Tlt* controls */
   --tlt-field-control-height: 26px;
+  --tlt-control-height-sm: 22px;
+  --tlt-control-height-md: 26px;
+  --tlt-control-height-lg: 32px;
   --tlt-field-control-font-size: 12px;
   --tlt-field-label-font-size: 8.5px;
   --tlt-field-label-line-height: 1;

@@ -1,9 +1,21 @@
+/**
+ * Public Tlt* primitives — Ant Design 5 under a stable TLT façade.
+ * Feature code imports only via @/components/ui-kit.
+ */
 import {
   forwardRef,
   type ButtonHTMLAttributes,
   type HTMLAttributes,
   type ReactNode,
 } from 'react';
+import {
+  Alert,
+  Button,
+  Card,
+  Empty,
+  Skeleton,
+  Tag,
+} from 'antd';
 
 export type TltUiTone = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
 
@@ -21,6 +33,20 @@ function joinClassNames(...classNames: Array<string | false | undefined>) {
   return classNames.filter(Boolean).join(' ') || undefined;
 }
 
+const buttonTypeMap: Record<TltButtonVariant, 'primary' | 'default' | 'text' | 'link' | 'dashed'> = {
+  primary: 'primary',
+  secondary: 'default',
+  ghost: 'text',
+  danger: 'primary',
+  link: 'link',
+};
+
+const buttonSizeMap: Record<TltButtonSize, 'small' | 'middle' | 'large'> = {
+  compact: 'middle',
+  comfortable: 'large',
+  icon: 'small',
+};
+
 export const TltButton = forwardRef<HTMLButtonElement, TltButtonProps>(function TltButton(
   {
     children,
@@ -36,10 +62,42 @@ export const TltButton = forwardRef<HTMLButtonElement, TltButtonProps>(function 
   ref,
 ) {
   const hasText = children !== undefined && children !== null;
+  const htmlType = type === 'submit' || type === 'reset' ? type : 'button';
+  // Strip props that collide with Ant Button's own API (variant/color/type).
+  const {
+    color: _c,
+    form: _form,
+    formAction: _formAction,
+    formEncType: _formEncType,
+    formMethod: _formMethod,
+    formNoValidate: _formNoValidate,
+    formTarget: _formTarget,
+    name,
+    value,
+    ...domSafe
+  } = rest;
+
+  const {
+    onClick,
+    onKeyDown,
+    onFocus,
+    onBlur,
+    id,
+    tabIndex,
+    title,
+    style,
+    'aria-label': ariaLabel,
+    'aria-pressed': ariaPressed,
+    'aria-disabled': ariaDisabled,
+    'aria-describedby': ariaDescribedBy,
+    'aria-expanded': ariaExpanded,
+    'aria-controls': ariaControls,
+    'aria-haspopup': ariaHasPopup,
+  } = domSafe;
+  const testId = (domSafe as { 'data-testid'?: string })['data-testid'];
 
   return (
-    <button
-      {...rest}
+    <Button
       ref={ref}
       className={joinClassNames(
         'tlt-ui-button',
@@ -48,17 +106,35 @@ export const TltButton = forwardRef<HTMLButtonElement, TltButtonProps>(function 
         loading && 'tlt-ui-button--loading',
         className,
       )}
+      type={buttonTypeMap[variant]}
+      danger={variant === 'danger'}
+      size={buttonSizeMap[size]}
+      icon={loading ? undefined : icon}
+      loading={loading}
       disabled={disabled || loading}
+      htmlType={htmlType}
+      name={name}
+      value={value as string | number | readonly string[] | undefined}
+      onClick={onClick}
+      onKeyDown={onKeyDown}
+      onFocus={onFocus}
+      onBlur={onBlur}
+      id={id}
+      tabIndex={tabIndex}
+      title={title}
+      style={style}
+      aria-label={ariaLabel}
+      aria-pressed={ariaPressed}
+      aria-disabled={ariaDisabled}
+      aria-describedby={ariaDescribedBy}
+      aria-expanded={ariaExpanded}
+      aria-controls={ariaControls}
+      aria-haspopup={ariaHasPopup}
       aria-busy={loading || undefined}
-      type={type}
+      data-testid={testId}
     >
-      {icon || loading ? (
-        <span className="tlt-ui-button__icon" aria-hidden={hasText || loading ? true : undefined}>
-          {loading ? <span className="tlt-ui-spinner" /> : icon}
-        </span>
-      ) : null}
       {hasText ? <span className="tlt-ui-button__label">{children}</span> : null}
-    </button>
+    </Button>
   );
 });
 
@@ -69,6 +145,14 @@ export interface TltBadgeProps extends HTMLAttributes<HTMLSpanElement> {
   dot?: boolean;
   size?: 'compact' | 'regular';
 }
+
+const badgeColor: Record<TltUiTone, string | undefined> = {
+  neutral: 'default',
+  info: 'blue',
+  success: 'green',
+  warning: 'gold',
+  danger: 'red',
+};
 
 export const TltBadge = forwardRef<HTMLSpanElement, TltBadgeProps>(function TltBadge(
   {
@@ -82,7 +166,7 @@ export const TltBadge = forwardRef<HTMLSpanElement, TltBadgeProps>(function TltB
   ref,
 ) {
   return (
-    <span
+    <Tag
       {...rest}
       ref={ref}
       className={joinClassNames(
@@ -92,9 +176,11 @@ export const TltBadge = forwardRef<HTMLSpanElement, TltBadgeProps>(function TltB
         dot && 'tlt-ui-badge--dot',
         className,
       )}
+      color={badgeColor[tone]}
+      bordered={false}
     >
       {children}
-    </span>
+    </Tag>
   );
 });
 
@@ -120,29 +206,34 @@ export function TltCard({
   tone = 'default',
   ...rest
 }: TltCardProps) {
-  const Component = as;
+  const titleNode = title != null
+    ? <h3 className="tlt-ui-card__title">{title}</h3>
+    : undefined;
 
-  return (
-    <Component
-      {...rest}
+  const body = (
+    <Card
       className={joinClassNames(
         'tlt-ui-card',
         `tlt-ui-card--${tone}`,
         `tlt-ui-card--padding-${padding}`,
         className,
       )}
+      title={titleNode}
+      extra={actions}
+      size={padding === 'comfortable' ? 'default' : 'small'}
+      variant="outlined"
     >
-      {title || description || actions ? (
-        <header className="tlt-ui-card__header">
-          <div className="tlt-ui-card__heading">
-            {title ? <h3 className="tlt-ui-card__title">{title}</h3> : null}
-            {description ? <p className="tlt-ui-card__description">{description}</p> : null}
-          </div>
-          {actions ? <div className="tlt-ui-card__actions">{actions}</div> : null}
-        </header>
-      ) : null}
-      {children !== undefined ? <div className="tlt-ui-card__body">{children}</div> : null}
-    </Component>
+      {description ? <p className="tlt-ui-card__description">{description}</p> : null}
+      {children}
+    </Card>
+  );
+
+  if (as === 'div') return body;
+  const Wrapper = as;
+  return (
+    <Wrapper {...rest} className={joinClassNames('tlt-ui-card-host', `tlt-ui-card-host--${as}`)}>
+      {body}
+    </Wrapper>
   );
 }
 
@@ -154,11 +245,11 @@ export interface TltAlertProps extends Omit<HTMLAttributes<HTMLDivElement>, 'tit
   dismissLabel?: string;
 }
 
-const alertMarkers: Record<Exclude<TltUiTone, 'neutral'>, string> = {
-  info: 'i',
-  success: '✓',
-  warning: '!',
-  danger: '×',
+const alertType: Record<Exclude<TltUiTone, 'neutral'>, 'info' | 'success' | 'warning' | 'error'> = {
+  info: 'info',
+  success: 'success',
+  warning: 'warning',
+  danger: 'error',
 };
 
 export function TltAlert({
@@ -173,31 +264,21 @@ export function TltAlert({
   ...rest
 }: TltAlertProps) {
   return (
-    <div
+    <Alert
       {...rest}
       className={joinClassNames('tlt-ui-alert', `tlt-ui-alert--${tone}`, className)}
+      type={alertType[tone]}
+      showIcon
+      message={title}
+      description={children}
+      action={action as React.ReactElement | undefined}
+      closable={Boolean(onDismiss)}
+      onClose={onDismiss}
+      closeIcon={<span aria-label={dismissLabel}>×</span>}
       role={role ?? (tone === 'danger' ? 'alert' : 'status')}
-    >
-      <span className="tlt-ui-alert__marker" aria-hidden="true">{alertMarkers[tone]}</span>
-      <div className="tlt-ui-alert__content">
-        {title ? <strong className="tlt-ui-alert__title">{title}</strong> : null}
-        {children ? <div className="tlt-ui-alert__message">{children}</div> : null}
-      </div>
-      {action ? <div className="tlt-ui-alert__action">{action}</div> : null}
-      {onDismiss ? (
-        <button
-          className="tlt-ui-alert__dismiss"
-          type="button"
-          aria-label={dismissLabel}
-          onClick={onDismiss}
-        >
-          ×
-        </button>
-      ) : null}
-    </div>
+    />
   );
 }
-
 
 export {
   TltTabs,
@@ -222,19 +303,24 @@ export function TltEmptyState({
   children,
   className,
   description,
-  icon = '+',
+  icon,
   title,
   ...rest
 }: TltEmptyStateProps) {
   return (
     <div {...rest} className={joinClassNames('tlt-ui-empty', className)}>
-      <span className="tlt-ui-empty__icon" aria-hidden="true">{icon}</span>
-      <div className="tlt-ui-empty__content">
-        <h3>{title}</h3>
-        {description ? <p>{description}</p> : null}
-        {children ? <div className="tlt-ui-empty__extra">{children}</div> : null}
-      </div>
-      {action ? <div className="tlt-ui-empty__action">{action}</div> : null}
+      <Empty
+        image={icon ?? Empty.PRESENTED_IMAGE_SIMPLE}
+        description={(
+          <div className="tlt-ui-empty__content">
+            <h3>{title}</h3>
+            {description ? <p>{description}</p> : null}
+            {children ? <div className="tlt-ui-empty__extra">{children}</div> : null}
+          </div>
+        )}
+      >
+        {action ? <div className="tlt-ui-empty__action">{action}</div> : null}
+      </Empty>
     </div>
   );
 }
@@ -260,9 +346,11 @@ export function TltSkeleton({
       aria-busy="true"
       aria-label={label}
     >
-      {Array.from({ length: count }, (_, index) => (
-        <span key={index} className="tlt-ui-skeleton__line" />
-      ))}
+      <Skeleton
+        active
+        title={variant === 'panel'}
+        paragraph={{ rows: count }}
+      />
     </div>
   );
 }

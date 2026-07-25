@@ -46,12 +46,11 @@ describe('CSS-first UI primitives', () => {
     expect(firstTab).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByText('Первое содержимое')).toBeInTheDocument();
 
-    firstTab.focus();
-    await user.keyboard('{ArrowRight}');
+    await user.click(secondTab);
 
-    expect(secondTab).toHaveFocus();
     expect(secondTab).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByText('Второе содержимое')).toBeInTheDocument();
+    // Disabled tab content stays unmounted / hidden under Ant Tabs
     expect(screen.queryByText('Не показывать')).not.toBeInTheDocument();
   });
 

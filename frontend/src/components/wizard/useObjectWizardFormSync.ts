@@ -144,9 +144,19 @@ export function useObjectWizardFormSync({
         && isEmptyFormValue(values[fieldName])
     ));
     const fieldNamesToClear = trackedFieldNames.filter((fieldName) => !nextFieldNames.includes(fieldName));
+    // Clear Ant warningOnly results when forcing the error highlight so CSS
+    // `.ant-form-item-has-error` (not warning) remains the required signal.
     const fieldUpdates = [
-      ...fieldNamesToClear.map((fieldName) => ({ name: fieldName, errors: [] as string[] })),
-      ...nextFieldNames.map((fieldName) => ({ name: fieldName, errors: [REQUIRED_FIELD_ERROR_MESSAGE] })),
+      ...fieldNamesToClear.map((fieldName) => ({
+        name: fieldName,
+        errors: [] as string[],
+        warnings: [] as string[],
+      })),
+      ...nextFieldNames.map((fieldName) => ({
+        name: fieldName,
+        errors: [REQUIRED_FIELD_ERROR_MESSAGE],
+        warnings: [] as string[],
+      })),
     ];
     if (fieldUpdates.length > 0) form.setFields(fieldUpdates);
   }, [form, heatCalcObjectType]);
@@ -155,9 +165,14 @@ export function useObjectWizardFormSync({
     if (requiredFieldSyncTimerRef.current != null) {
       window.clearTimeout(requiredFieldSyncTimerRef.current);
     }
+    // Ant InputNumber + async Form validators can overwrite setFields(errors)
+    // with warningOnly required-rule results. Re-apply after validators settle.
     requiredFieldSyncTimerRef.current = window.setTimeout(() => {
-      requiredFieldSyncTimerRef.current = null;
       syncMissingRequiredFieldErrors();
+      requiredFieldSyncTimerRef.current = window.setTimeout(() => {
+        requiredFieldSyncTimerRef.current = null;
+        syncMissingRequiredFieldErrors();
+      }, 0);
     }, 0);
   }, [syncMissingRequiredFieldErrors]);
 

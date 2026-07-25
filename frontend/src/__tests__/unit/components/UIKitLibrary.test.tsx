@@ -18,9 +18,11 @@ describe('UI component library', () => {
     expect(screen.getByText('Температура')).toBeInTheDocument();
     // HeatCalc contract: no asterisk (requiredMark=false), required = inset style
     expect(screen.queryByText('*')).not.toBeInTheDocument();
-    expect(screen.getByRole('textbox', { name: 'Температура' })).toHaveValue('95');
+    // Ant InputNumber exposes spinbutton (strategy: textbox → spinbutton)
+    const temp = screen.getByRole('spinbutton', { name: 'Температура' });
+    expect(temp).toHaveValue('95');
     expect(screen.getByText('Рабочий диапазон')).toBeInTheDocument();
-    expect(screen.getByRole('textbox', { name: 'Температура' }).parentElement?.parentElement)
+    expect(temp.closest('.tlt-compact-field__control') ?? temp.parentElement?.parentElement)
       .toHaveClass('tlt-compact-field__control');
   });
 

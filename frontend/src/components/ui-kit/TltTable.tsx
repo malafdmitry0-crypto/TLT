@@ -1,12 +1,14 @@
 /**
- * TltTable primitive — owner-local extract from UiPrimitives.
+ * TltTable — Ant Table under stable TLT columns/rows contract.
  */
 import {
   type CSSProperties,
   type HTMLAttributes,
-  type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
+  useMemo,
 } from 'react';
+import { Table } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 
 function joinClassNames(...classNames: Array<string | false | undefined>) {
   return classNames.filter(Boolean).join(' ') || undefined;
@@ -22,7 +24,6 @@ export interface TltTableColumn<Row> {
 }
 
 export interface TltTableProps<Row> extends Omit<HTMLAttributes<HTMLDivElement>, 'children'> {
-  /** Readonly columns are a supported public input (component never mutates the array). */
   columns: readonly TltTableColumn<Row>[];
   rows: readonly Row[];
   rowKey: keyof Row | ((row: Row, index: number) => string | number);
@@ -43,6 +44,12 @@ function resolveRowKey<Row>(
   return typeof value === 'string' || typeof value === 'number' ? value : String(value);
 }
 
+interface KeyedRow<Row> {
+  key: string | number;
+  index: number;
+  row: Row;
+}
+
 export function TltTable<Row>({
   'aria-label': ariaLabel,
   caption,
@@ -57,71 +64,64 @@ export function TltTable<Row>({
   tableClassName,
   ...rest
 }: TltTableProps<Row>) {
-  const handleRowKeyDown = (
-    event: ReactKeyboardEvent<HTMLTableRowElement>,
-    row: Row,
-    key: string | number,
-  ) => {
-    if (!onRowSelect || (event.key !== 'Enter' && event.key !== ' ')) return;
-    event.preventDefault();
-    onRowSelect(row, key);
-  };
+  const dataSource = useMemo<KeyedRow<Row>[]>(
+    () => rows.map((row, index) => ({
+      key: resolveRowKey(row, index, rowKey),
+      index,
+      row,
+    })),
+    [rows, rowKey],
+  );
+
+  const antColumns: ColumnsType<KeyedRow<Row>> = columns.map((column) => ({
+    key: column.key,
+    title: column.header,
+    align: column.align,
+    width: column.width,
+    className: column.className,
+    render: (_value, record) => (
+      column.render
+        ? column.render(record.row, record.index)
+        : String((record.row as Record<string, unknown>)[column.key] ?? '—')
+    ),
+  }));
 
   return (
     <div {...rest} className={joinClassNames('tlt-ui-table-scroll', className)}>
-      <table
-        aria-label={ariaLabel}
+      {caption ? <div className="tlt-ui-table__caption">{caption}</div> : null}
+      <Table<KeyedRow<Row>>
         className={joinClassNames('tlt-ui-table', tableClassName)}
         style={{ minWidth }}
-      >
-        {caption ? <caption className="tlt-ui-table__caption">{caption}</caption> : null}
-        <thead>
-          <tr>
-            {columns.map((column) => (
-              <th
-                key={column.key}
-                className={column.className}
-                scope="col"
-                style={{ textAlign: column.align ?? 'left', width: column.width }}
-              >
-                {column.header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, index) => {
-            const key = resolveRowKey(row, index, rowKey);
-            const isSelected = selectedRowKey != null && String(selectedRowKey) === String(key);
-            return (
-              <tr
-                key={String(key)}
-                aria-selected={onRowSelect ? isSelected : undefined}
-                className={isSelected ? 'tlt-ui-table__row--selected' : undefined}
-                tabIndex={onRowSelect ? 0 : undefined}
-                onClick={onRowSelect ? () => onRowSelect(row, key) : undefined}
-                onKeyDown={onRowSelect ? (event) => handleRowKeyDown(event, row, key) : undefined}
-              >
-                {columns.map((column) => (
-                  <td
-                    key={column.key}
-                    className={column.className}
-                    style={{ textAlign: column.align ?? 'left' }}
-                  >
-                    {column.render ? column.render(row, index) : String(row[column.key as keyof Row] ?? '—')}
-                  </td>
-                ))}
-              </tr>
-            );
-          })}
-          {rows.length === 0 ? (
-            <tr>
-              <td className="tlt-ui-table__empty" colSpan={columns.length}>{emptyState}</td>
-            </tr>
-          ) : null}
-        </tbody>
-      </table>
+        size="small"
+        pagination={false}
+        columns={antColumns}
+        dataSource={dataSource}
+        locale={{ emptyText: emptyState }}
+        rowKey="key"
+        rowClassName={(record) => {
+          const isSelected = selectedRowKey != null && String(selectedRowKey) === String(record.key);
+          return isSelected ? 'tlt-ui-table__row--selected' : '';
+        }}
+        onRow={(record) => {
+          const key = record.key;
+          return {
+            onClick: onRowSelect ? () => onRowSelect(record.row, key) : undefined,
+            onKeyDown: onRowSelect
+              ? (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  onRowSelect(record.row, key);
+                }
+              }
+              : undefined,
+            tabIndex: onRowSelect ? 0 : undefined,
+            'aria-selected': onRowSelect
+              ? selectedRowKey != null && String(selectedRowKey) === String(key)
+              : undefined,
+          };
+        }}
+        aria-label={ariaLabel}
+      />
     </div>
   );
 }
-

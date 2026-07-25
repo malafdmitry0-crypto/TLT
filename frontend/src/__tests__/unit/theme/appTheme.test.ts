@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { APP_BUTTON_SCALE, appTheme } from '@/theme/appTheme';
+import {
+  APP_BUTTON_SCALE,
+  CONTROL_HEIGHT_LG,
+  CONTROL_HEIGHT_MD,
+  CONTROL_HEIGHT_SM,
+  appTheme,
+} from '@/theme/appTheme';
 
 describe('appTheme', () => {
   it('exports primary palette aligned with CSS tokens', () => {
@@ -8,8 +14,12 @@ describe('appTheme', () => {
     expect(APP_BUTTON_SCALE).toBe(0.7);
   });
 
-  it('keeps button density scale contract', () => {
+  it('keeps button density scale contract (explicit 22/26/32)', () => {
     const button = appTheme.components?.Button as { controlHeight?: number };
-    expect(button?.controlHeight).toBe(32 * APP_BUTTON_SCALE);
+    expect(CONTROL_HEIGHT_SM).toBe(22);
+    expect(CONTROL_HEIGHT_MD).toBe(26);
+    expect(CONTROL_HEIGHT_LG).toBe(32);
+    expect(button?.controlHeight).toBe(CONTROL_HEIGHT_MD);
+    expect(appTheme.token?.controlHeight).toBe(CONTROL_HEIGHT_MD);
   });
 });

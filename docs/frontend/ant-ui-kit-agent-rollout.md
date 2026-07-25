@@ -1,30 +1,39 @@
 # Ant UI Kit — agent rollout
 
-**Статус:** APPROVED программа (план утверждён пользователем 2026-07-25);
-маршрутизация pending — только [refactor-backlog.md](./refactor-backlog.md)
+**Статус:** RUNTIME **PASS** (A–D done + agent-dod green; E/F deferred); pending — only
+[refactor-backlog.md](./refactor-backlog.md);
+audit — [docs/audit/2026-07-25-ant-ui-kit-rollout/snapshot.md](../audit/2026-07-25-ant-ui-kit-rollout/snapshot.md)
 **Стратегия:** [ant-ui-kit-strategy.md](./ant-ui-kit-strategy.md)
 **Владелец программы:** ui
 
 ## 1. Порядок slices и статусы
 
-| Slice | Содержание | Статус |
+| Slice | Содержание | Статус плана |
 |---|---|---|
-| A1 | strategy + rollout доки | done 2026-07-25 |
-| A2 | AF10 доки → HISTORICAL/CLOSED | done 2026-07-25 |
-| A3 | AF11: PROPOSED, без mobile acceptance и blanket `<450 LOC` | done 2026-07-25 |
-| A4 | Fast Refresh warning → owner-local `electricalVariantAsyncHelpers.ts`; lint 0/0 | done 2026-07-25 |
-| A5 | `TltBadge` → `forwardRef` + Tooltip/findDOMNode regression test | done 2026-07-25 |
-| A6 | action bar `max-width: 1200` → `1400`: на 1280/1366 wrap, не scroll | done 2026-07-25 (browser proof — в финальном seal) |
-| B | density: замер фактических высот → явные small 22 / middle 26 / large 32 + parity-тесты | pending |
-| C1 | `TltTextField` → Ant `Input` | pending |
-| C2 | `TltNumberField` → Ant `InputNumber` (самый рискованный) | pending |
-| C3 | `TltSelect` → Ant `Select` | pending |
-| C4 | удалить `react-aria-components` + `reactAriaEnvironment.ts` + lockfile | pending |
-| CHK | checkpoint по 8 plain-HTML примитивам (см. §4) | pending, после C4 |
-| D | stories форм-контролов, `a11y.test='error'`, `@storybook/addon-vitest` + `test-storybook` | pending |
+| A1 | strategy + rollout Markdown | **done** |
+| A2 | AF10 доки → `HISTORICAL/CLOSED`; backlog остаётся единственной очередью | **done** |
+| A3 | AF11 остаётся `PROPOSED`, без mobile acceptance и blanket `<450 LOC` | **done** |
+| A4 | Fast Refresh warning → owner-local async helper; lint `0/0` | **done** |
+| A5 | `TltBadge` → `forwardRef` + Tooltip/findDOMNode regression test | **done** |
+| A6 | action bar `1200` → canonical `1400`: на 1280/1366 wrap, не scroll | **done** |
+| B | явные density-токены small 22 / middle 26 / large 32 + parity-тесты | **done** |
+| C1 | `TltTextField` → Ant `Input` | **done** |
+| C2 | `TltNumberField` → Ant `InputNumber` | **done** |
+| C3 | `TltSelect` → Ant `Select` | **done** |
+| C4 | удалить `react-aria-components`, environment adapter и lockfile-записи | **done** |
+| D1 | `TltButton` → Ant `Button` | **done** |
+| D2 | `TltBadge` → Ant `Tag` | **done** |
+| D3 | `TltAlert` → Ant `Alert` | **done** |
+| D4 | `TltCard` → Ant `Card` | **done** |
+| D5 | `TltEmptyState` → Ant `Empty` | **done** |
+| D6 | `TltSkeleton` → Ant `Skeleton` | **done** |
+| D7 | `TltTabs` → Ant `Tabs` | **done** |
+| D8 | `TltTable` → Ant `Table` | **done** |
+| E | stories, `a11y.test='error'`, `@storybook/addon-vitest`, `test-storybook` | deferred |
+| F | полный desktop browser seal и docs closure | deferred |
 
-Порядок фиксирован: B до C1 (иначе визуальный паритет C-slices недоказуем);
-C1→C2→C3→C4 строго последовательно; D после C4.
+Порядок фиксирован: A2→A6, затем B; C1→C2→C3→C4 строго последовательно;
+D1→D8 по одному компоненту; E после runtime migration; F последним.
 
 ## 2. Роли и параллелизм
 
@@ -60,14 +69,7 @@ Per slice:
 - ноль console errors, нет page-level overflow, на `1280+` action bar без
   horizontal scroll; mobile viewports не входят в acceptance.
 
-## 4. Checkpoint по примитивам (после C4)
-
-Отдельный decision-документ: мигрировать ли `TltButton`, `TltBadge`,
-`TltAlert`, `TltCard`, `TltEmptyState`, `TltSkeleton`, `TltTabs`, `TltTable`
-на Ant. До явного решения пользователя они остаются нативными; их миграция
-вне checkpoint — нарушение программы.
-
-## 5. Stop conditions
+## 4. Stop conditions
 
 - изменение feature UX/API, query keys, формул, единиц, маршрутов;
 - необходимость нового CSS breakpoint вне канонического набора;
@@ -80,7 +82,7 @@ Per slice:
 Формат остановки: `FILE / EVIDENCE / INVARIANT AT RISK / DECISION NEEDED /
 SAFE NEXT SLICE`.
 
-## 6. Финальное состояние программы
+## 5. Финальное состояние программы
 
 - lint `0/0`; все существующие (1303+) и новые тесты зелёные;
 - Storybook build + a11y зелёные; `react-aria-components` отсутствует;
