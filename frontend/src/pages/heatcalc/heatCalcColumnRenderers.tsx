@@ -1,12 +1,3 @@
-import { Tooltip } from 'antd';
-import { TltBadge } from '@/components/ui-kit';
-import {
-  CheckCircleFilled,
-  CloseCircleFilled,
-  MinusCircleFilled,
-} from '@ant-design/icons';
-
-import { OBJECT_TYPE_LABELS } from '@/constants/objectTypes';
 import type { HeatCalcTableColumnRenderSpec } from '@/hooks/useHeatCalcTableColumns';
 import type { ProjectObject } from '@/types/project';
 import { formatNumber } from '@/utils/formatters';
@@ -17,15 +8,9 @@ import {
   climateBasisLabel,
   countParamValue,
   environmentLabel,
-  formatDeltaTemperature,
   formatParamMetersAsMm,
   formatParamNumber,
   formatParamText,
-  formatResultNumber,
-  formatResultOrParamNumber,
-  heatLossCalcStatus,
-  heatLossErrorText,
-  heatLossStatusLabel,
   insulationLayerConductivity,
   insulationLayerCount,
   insulationLayerMaterial,
@@ -39,6 +24,9 @@ import {
   tankShapeLabel,
   zoneLabel,
 } from '@/utils/heatCalcPageUtils';
+
+import { buildHeatCalcResultMetricColumnRenderers } from '@/pages/heatcalc/heatCalcResultMetricColumnRenderers';
+import { buildHeatCalcStatusColumnRenderers } from '@/pages/heatcalc/heatCalcStatusColumnRenderers';
 
 export interface HeatCalcColumnRendererDeps {
   insulationLabel: (material: unknown) => string;
@@ -63,62 +51,7 @@ export function buildHeatCalcColumnRenderers({
   insulationLabel,
 }: HeatCalcColumnRendererDeps): Record<HeatCalcColumnKey, HeatCalcTableColumnRenderSpec> {
   return {
-    index: {
-      render: (_: unknown, __: ProjectObject, idx: number) => idx + 1,
-      copyValue: (_record, idx) => String(idx + 1),
-    },
-    heat_loss_status: {
-      align: 'center',
-      render: (_: unknown, r: ProjectObject) => {
-        const status = heatLossCalcStatus(r);
-        if (status === 'calculated') {
-          return (
-            <Tooltip title="Рассчитан">
-              <TltBadge className="heatloss-status-icon-tag" aria-label="Рассчитан" tone="success">
-                <CheckCircleFilled />
-              </TltBadge>
-            </Tooltip>
-          );
-        }
-        if (status === 'error') {
-          return (
-            <Tooltip title={heatLossErrorText(r)}>
-              <TltBadge className="heatloss-status-icon-tag" aria-label="Ошибка" tone="danger">
-                <CloseCircleFilled />
-              </TltBadge>
-            </Tooltip>
-          );
-        }
-        if (status === 'unsupported') {
-          return (
-            <Tooltip title={heatLossErrorText(r)}>
-              <TltBadge
-                className="heatloss-status-icon-tag"
-                aria-label="Не применимо"
-               tone="neutral">
-                <MinusCircleFilled />
-              </TltBadge>
-            </Tooltip>
-          );
-        }
-        return (
-          <Tooltip title="Не рассчитан">
-            <TltBadge className="heatloss-status-icon-tag" aria-label="Не рассчитан" tone="neutral">—</TltBadge>
-          </Tooltip>
-        );
-      },
-      copyValue: (r) => heatLossStatusLabel(heatLossCalcStatus(r)),
-    },
-    type: {
-      render: (_: unknown, r: ProjectObject) => (r.object_type === 'pipe' ? 'Тр.' : 'Рез.'),
-      copyValue: (r) => (r.object_type === 'pipe' ? 'Труба' : 'Резервуар'),
-    },
-    name: {
-      ellipsis: true,
-      render: (_: unknown, r: ProjectObject, idx: number) =>
-        String(r.params?.name ?? `${OBJECT_TYPE_LABELS[r.object_type]} #${idx + 1}`),
-      copyValue: (r, idx) => String(r.params?.name ?? `${OBJECT_TYPE_LABELS[r.object_type]} #${idx + 1}`),
-    },
+    ...buildHeatCalcStatusColumnRenderers(),
     pipe_outer_diameter: {
       render: (_: unknown, r: ProjectObject) => {
         const diameter = outerDiameterMm(r);
@@ -355,69 +288,6 @@ export function buildHeatCalcColumnRenderers({
       render: (_: unknown, r: ProjectObject) => formatParamNumber(r, 'wall_lambda', 3),
       copyValue: (r) => formatParamNumber(r, 'wall_lambda', 3),
     },
-    q_additional: {
-      render: (_: unknown, r: ProjectObject) => formatResultOrParamNumber(r, 'q_additional', 0),
-      copyValue: (r) => formatResultOrParamNumber(r, 'q_additional', 0),
-    },
-    heat_loss_per_meter: {
-      render: (_: unknown, r: ProjectObject) => formatResultNumber(r, 'heat_loss_per_meter', 1),
-      copyValue: (r) => formatResultNumber(r, 'heat_loss_per_meter', 1),
-    },
-    heat_loss_per_m2: {
-      render: (_: unknown, r: ProjectObject) => formatResultNumber(r, 'heat_loss_per_m2', 1),
-      copyValue: (r) => formatResultNumber(r, 'heat_loss_per_m2', 1),
-    },
-    total_heat_loss: {
-      render: (_: unknown, r: ProjectObject) => formatResultNumber(r, 'total_heat_loss', 0),
-      copyValue: (r) => formatResultNumber(r, 'total_heat_loss', 0),
-    },
-    delta_t: {
-      render: (_: unknown, r: ProjectObject) => formatDeltaTemperature(r, 0),
-      copyValue: (r) => formatDeltaTemperature(r, 0),
-    },
-    applied_alpha_vnesh: {
-      render: (_: unknown, r: ProjectObject) => formatResultNumber(r, 'alpha_vnesh', 1),
-      copyValue: (r) => formatResultNumber(r, 'alpha_vnesh', 1),
-    },
-    applied_safety_factor: {
-      render: (_: unknown, r: ProjectObject) => formatResultNumber(r, 'safety_factor', 2),
-      copyValue: (r) => formatResultNumber(r, 'safety_factor', 2),
-    },
-    thermal_resistance: {
-      render: (_: unknown, r: ProjectObject) => formatResultNumber(r, 'thermal_resistance', 4),
-      copyValue: (r) => formatResultNumber(r, 'thermal_resistance', 4),
-    },
-    wall_resistance: {
-      render: (_: unknown, r: ProjectObject) => formatResultNumber(r, 'wall_resistance', 4),
-      copyValue: (r) => formatResultNumber(r, 'wall_resistance', 4),
-    },
-    insulation_resistance: {
-      render: (_: unknown, r: ProjectObject) => formatResultNumber(r, 'insulation_resistance', 4),
-      copyValue: (r) => formatResultNumber(r, 'insulation_resistance', 4),
-    },
-    external_resistance: {
-      render: (_: unknown, r: ProjectObject) => formatResultNumber(r, 'external_resistance', 4),
-      copyValue: (r) => formatResultNumber(r, 'external_resistance', 4),
-    },
-    ground_resistance: {
-      render: (_: unknown, r: ProjectObject) => formatResultNumber(r, 'ground_resistance', 4),
-      copyValue: (r) => formatResultNumber(r, 'ground_resistance', 4),
-    },
-    effective_length: {
-      render: (_: unknown, r: ProjectObject) => formatResultNumber(r, 'effective_length', 1),
-      copyValue: (r) => formatResultNumber(r, 'effective_length', 1),
-    },
-    surface_area: {
-      render: (_: unknown, r: ProjectObject) => formatResultNumber(r, 'surface_area', 1),
-      copyValue: (r) => formatResultNumber(r, 'surface_area', 1),
-    },
-    air_surface_area: {
-      render: (_: unknown, r: ProjectObject) => formatResultNumber(r, 'air_surface_area', 1),
-      copyValue: (r) => formatResultNumber(r, 'air_surface_area', 1),
-    },
-    ground_surface_area: {
-      render: (_: unknown, r: ProjectObject) => formatResultNumber(r, 'ground_surface_area', 1),
-      copyValue: (r) => formatResultNumber(r, 'ground_surface_area', 1),
-    },
-  };
+    ...buildHeatCalcResultMetricColumnRenderers(),
+  } as Record<HeatCalcColumnKey, HeatCalcTableColumnRenderSpec>;
 }
