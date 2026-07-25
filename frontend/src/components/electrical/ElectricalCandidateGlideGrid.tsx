@@ -4,8 +4,6 @@ import {
   useEffect,
   useMemo,
   useRef,
-  useState,
-  type CSSProperties,
   type ReactNode,
 } from 'react';
 import { Menu, Spin, type MenuProps } from 'antd';
@@ -26,6 +24,7 @@ import {
 import '@glideapps/glide-data-grid/dist/index.css';
 
 import ElectricalGlideColumnFilterDropdown from '@/components/electrical/ElectricalGlideColumnFilterDropdown';
+import { useElectricalCandidateGlideOverlay } from '@/components/electrical/useElectricalCandidateGlideOverlay';
 import type { ElectricalCandidate } from '@/types/calculation';
 import type {
   HeatCalcGlideGridCellState,
@@ -91,18 +90,6 @@ interface ElectricalCandidateGlideGridProps {
   onColumnResizeEnd?: (columnKey: string, widthPx: number) => void;
 }
 
-interface CandidateFilterPopupState {
-  columnIndex: number;
-  left: number;
-  top: number;
-}
-
-interface CandidateActionMenuState {
-  items: MenuProps['items'];
-  left: number;
-  top: number;
-}
-
 function ElectricalCandidateGlideGrid({
   rows,
   gridColumns,
@@ -123,9 +110,18 @@ function ElectricalCandidateGlideGrid({
   onColumnResize,
   onColumnResizeEnd,
 }: ElectricalCandidateGlideGridProps) {
-  const [filterPopup, setFilterPopup] = useState<CandidateFilterPopupState | null>(null);
-  const [actionMenu, setActionMenu] = useState<CandidateActionMenuState | null>(null);
-  const [hoveredHeaderColumnIndex, setHoveredHeaderColumnIndex] = useState<number | null>(null);
+  const {
+    filterPopup,
+    setFilterPopup,
+    actionMenu,
+    setActionMenu,
+    hoveredHeaderColumnIndex,
+    setHoveredHeaderColumnIndex,
+    openFilterPopup,
+    openActionMenu,
+    filterPopupStyle,
+    actionMenuStyle,
+  } = useElectricalCandidateGlideOverlay(gridColumns);
   const filterPopupRef = useRef<HTMLDivElement | null>(null);
   const actionMenuRef = useRef<HTMLDivElement | null>(null);
   const fontSize = useMemo(() => resolveTableFontSizeByKey(fontSizeKey), [fontSizeKey]);
@@ -189,17 +185,6 @@ function ElectricalCandidateGlideGrid({
       drawCandidateActions(args.ctx, args.rect, state.actions);
     }
   }, [getModelCell, gridColumns]);
-  const openFilterPopup = useCallback((columnIndex: number, event: HeaderClickedEventArgs) => {
-    const column = gridColumns[columnIndex];
-    if (!column?.filterable) return;
-    event.preventDefault();
-    setActionMenu(null);
-    setFilterPopup({
-      columnIndex,
-      left: event.bounds.x,
-      top: event.bounds.y + event.bounds.height,
-    });
-  }, [gridColumns]);
   const handleHeaderClicked = useCallback((columnIndex: number, event: HeaderClickedEventArgs) => {
     const column = gridColumns[columnIndex];
     if (!column) return;
@@ -212,7 +197,7 @@ function ElectricalCandidateGlideGrid({
     setFilterPopup(null);
     setActionMenu(null);
     onSetSort(column.key, nextSortDirection(tableViewState, column.key));
-  }, [gridColumns, onSetSort, openFilterPopup, tableViewState]);
+  }, [gridColumns, onSetSort, openFilterPopup, setActionMenu, setFilterPopup, tableViewState]);
   const drawHeader = useCallback<DrawHeaderCallback>((args, drawContent) => {
     drawContent();
     const column = gridColumns[args.columnIndex];
@@ -249,7 +234,7 @@ function ElectricalCandidateGlideGrid({
   }, [filterPopup?.columnIndex, gridColumns, hoveredHeaderColumnIndex, tableViewState]);
   const handleItemHovered = useCallback((args: GridMouseEventArgs) => {
     setHoveredHeaderColumnIndex(args.kind === 'header' ? args.location[0] : null);
-  }, []);
+  }, [setHoveredHeaderColumnIndex]);
   const handleCellClicked = useCallback((cell: Item, event: CellClickedEventArgs) => {
     const modelCell = getModelCell(cell[0], cell[1]);
     if (!modelCell) return;
@@ -265,7 +250,7 @@ function ElectricalCandidateGlideGrid({
     if (action.key === 'folder') {
       const items = getActionMenuItems?.(candidate, column.key, action.key);
       if (items?.length) {
-        setActionMenu({
+        openActionMenu({
           items,
           left: event.bounds.x,
           top: event.bounds.y + event.bounds.height,
@@ -275,7 +260,7 @@ function ElectricalCandidateGlideGrid({
     }
     setActionMenu(null);
     onCellAction(candidate, column.key, action.key);
-  }, [getActionMenuItems, getModelCell, onCellAction, onToggleMarked]);
+  }, [getActionMenuItems, getModelCell, onCellAction, onToggleMarked, openActionMenu, setActionMenu, setFilterPopup]);
   const handleColumnResize = useCallback((
     _column: GridColumn,
     widthPx: number,
@@ -295,14 +280,6 @@ function ElectricalCandidateGlideGrid({
     onColumnResizeEnd?.(column.key, clampCandidateColumnWidth(column, widthPx));
   }, [gridColumns, onColumnResizeEnd]);
   const activeFilterColumn = filterPopup ? gridColumns[filterPopup.columnIndex] : undefined;
-  const filterPopupStyle = useMemo<CSSProperties | undefined>(() => {
-    if (!filterPopup) return undefined;
-    return { left: filterPopup.left, top: filterPopup.top };
-  }, [filterPopup]);
-  const actionMenuStyle = useMemo<CSSProperties | undefined>(() => {
-    if (!actionMenu) return undefined;
-    return { left: actionMenu.left, top: actionMenu.top };
-  }, [actionMenu]);
 
   useEffect(() => {
     if (!filterPopup) return undefined;
@@ -323,7 +300,7 @@ function ElectricalCandidateGlideGrid({
       document.removeEventListener('pointerdown', handlePointerDown, true);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [filterPopup]);
+  }, [filterPopup, setFilterPopup]);
   useEffect(() => {
     if (!actionMenu) return undefined;
 
@@ -343,7 +320,7 @@ function ElectricalCandidateGlideGrid({
       document.removeEventListener('pointerdown', handlePointerDown, true);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [actionMenu]);
+  }, [actionMenu, setActionMenu]);
 
   if (rows.length === 0) {
     return (

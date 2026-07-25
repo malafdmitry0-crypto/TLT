@@ -21,7 +21,6 @@ import {
 } from '@glideapps/glide-data-grid';
 import '@glideapps/glide-data-grid/dist/index.css';
 
-import type { HeatCalcContextMenuTrigger } from '@/components/heatcalc/HeatCalcContextMenuTrigger';
 import type { HeatCalcExcelGridProps } from '@/components/heatcalc/HeatCalcExcelGrid';
 import type { ProjectObject } from '@/types/project';
 import type { ExcelCellPosition, ExcelSelectionRange } from '@/utils/heatCalcExcelMode';
@@ -29,7 +28,6 @@ import type { HeatCalcExcelCellCoordinates } from '@/hooks/useHeatCalcExcelSelec
 import {
   buildHeatCalcGlideGridSelection,
   heatCalcGlideSelectionToExcelRange,
-  type HeatCalcGlideCellAlign,
   type HeatCalcGlideGridCellState,
   type HeatCalcGlideGridColumn,
 } from '@/utils/heatCalcGlideGrid';
@@ -41,11 +39,20 @@ import {
   isErrorRowClassName,
 } from '@/utils/glideGridPrimitives';
 
-const GLIDE_ROW_MARKER_WIDTH = 50;
-const GLIDE_MIN_COLUMN_WIDTH = 48;
-const GLIDE_MAX_COLUMN_WIDTH = 600;
-const GLIDE_SELECTED_ROW_BG = GLIDE_THEME.accentLight;
-const GLIDE_SELECTED_ROW_BORDER = GLIDE_THEME.accent;
+import {
+  GLIDE_MAX_COLUMN_WIDTH,
+  GLIDE_MIN_COLUMN_WIDTH,
+  GLIDE_ROW_MARKER_WIDTH,
+  GLIDE_SELECTED_ROW_BG,
+  GLIDE_SELECTED_ROW_BORDER,
+  clampGlideColumnWidth,
+  contentAlign,
+  getGridCellEditedValue,
+  glideRowHeight,
+  toContextMenuTrigger,
+} from '@/components/heatcalc/heatCalcGlideGridAdapters';
+
+
 
 type GlideEditingCell = {
   cell: Item;
@@ -76,40 +83,6 @@ export interface HeatCalcGlideGridProps extends HeatCalcExcelGridProps {
   onColumnResizeEnd?: (columnKey: string, widthPx: number) => void;
   onStartCellEdit: (record: ProjectObject, columnKey: string) => void;
   onCommitCell: (record: ProjectObject, columnKey: string, value: unknown) => string | null;
-}
-
-function getGridCellEditedValue(newValue: EditableGridCell): unknown {
-  if (newValue.kind === GridCellKind.Number) return newValue.data;
-  if ('data' in newValue) return newValue.data;
-  return undefined;
-}
-
-/** Map Glide cell bounds to the owner-neutral context-menu trigger (cell center). */
-function toContextMenuTrigger(event: CellClickedEventArgs): HeatCalcContextMenuTrigger {
-  return {
-    clientX: event.bounds.x + event.bounds.width / 2,
-    clientY: event.bounds.y + event.bounds.height / 2,
-    preventDefault: event.preventDefault,
-    stopPropagation: () => undefined,
-  };
-}
-
-function contentAlign(
-  column: HeatCalcGlideGridColumn,
-  state: HeatCalcGlideGridCellState,
-): HeatCalcGlideCellAlign {
-  if (state.align) return state.align;
-  if (column.align) return column.align;
-  return state.editor === 'number' ? 'right' : 'left';
-}
-
-function clampGlideColumnWidth(column: HeatCalcGlideGridColumn, widthPx: number) {
-  return Math.max(column.minWidthPx ?? GLIDE_MIN_COLUMN_WIDTH, widthPx);
-}
-
-function glideRowHeight(fontSizeKey: string) {
-  const fontSize = resolveTableFontSizeByKey(fontSizeKey);
-  return Math.max(26, Math.round(fontSize.fontSizePx * fontSize.lineHeight + fontSize.cellPaddingY * 2 + 11));
 }
 
 function HeatCalcGlideGrid({

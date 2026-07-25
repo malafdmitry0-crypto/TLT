@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { MemoryRouter, Routes, Route, Link } from 'react-router-dom';
 import ErrorBoundary, { RouteErrorBoundary } from '@/components/common/ErrorBoundary';
 import { recordClientAuditEvent } from '@/utils/clientAudit';
+import { silenceExpectedErrorNoise } from '@/__tests__/utils/silenceExpectedErrorNoise';
 
 vi.mock('@/utils/clientAudit', () => ({
   recordClientAuditEvent: vi.fn(),
@@ -12,14 +13,6 @@ vi.mock('@/utils/clientAudit', () => ({
 
 function Boom(): JSX.Element {
   throw new Error('render exploded');
-}
-
-/**
- * AF9-TEST-NOISE-01: silence expected React ErrorBoundary console noise only
- * inside intentional throw tests. Not installed globally in setup or describe.
- */
-function silenceExpectedErrorBoundaryNoise() {
-  return vi.spyOn(console, 'error').mockImplementation(() => {});
 }
 
 describe('ErrorBoundary', () => {
@@ -37,7 +30,7 @@ describe('ErrorBoundary', () => {
   });
 
   it('shows fallback and reports telemetry when a child throws', () => {
-    const consoleError = silenceExpectedErrorBoundaryNoise();
+    const noise = silenceExpectedErrorNoise();
     try {
       render(
         <ErrorBoundary boundaryName="unit">
@@ -51,12 +44,12 @@ describe('ErrorBoundary', () => {
         expect.objectContaining({ severity: 'critical', error_code: 'render_error' }),
       );
     } finally {
-      consoleError.mockRestore();
+      noise.restore();
     }
   });
 
   it('recovers via "Попробовать снова" when the child stops throwing', async () => {
-    const consoleError = silenceExpectedErrorBoundaryNoise();
+    const noise = silenceExpectedErrorNoise();
     try {
       function Toggle(): JSX.Element {
         const [crash, setCrash] = useState(true);
@@ -73,12 +66,12 @@ describe('ErrorBoundary', () => {
       await userEvent.click(screen.getByText('retry'));
       expect(screen.getByText('recovered')).toBeInTheDocument();
     } finally {
-      consoleError.mockRestore();
+      noise.restore();
     }
   });
 
   it('RouteErrorBoundary clears the error after navigation', async () => {
-    const consoleError = silenceExpectedErrorBoundaryNoise();
+    const noise = silenceExpectedErrorNoise();
     try {
       render(
         <MemoryRouter initialEntries={['/boom']}>
@@ -95,7 +88,7 @@ describe('ErrorBoundary', () => {
       await userEvent.click(screen.getByText('go safe'));
       expect(screen.getByText('safe page')).toBeInTheDocument();
     } finally {
-      consoleError.mockRestore();
+      noise.restore();
     }
   });
 });

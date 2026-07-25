@@ -200,7 +200,7 @@
   padding-inline-start: 5px;
   padding-inline-end: 0;
 }
-@media (max-width: 1200px) {
+@media (max-width: 1400px) {
   .actionbar-srs {
     flex-wrap: wrap;
     overflow-x: visible;

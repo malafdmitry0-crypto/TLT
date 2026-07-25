@@ -1,10 +1,16 @@
 # AF10 parallel execution queue
 
-**Статус:** ACTIVE execution board  
-**Актуально на:** 2026-07-25  
-**Источники:**
+**Статус:** HISTORICAL / CLOSED — завершён на HEAD `faa6aab`  
+**Актуально на:** 2026-07-25 (закрыт)  
+**Маршрутизация pending:** только [refactor-backlog.md](./refactor-backlog.md)  
+**Исторические источники:**
 - [af10-residual-close-plan.md](./af10-residual-close-plan.md)
 - [meaningful-css-plan.md](./meaningful-css-plan.md)
+- финальный audit: [../audit/2026-07-25-frontend-agent-friendliness/snapshot.md](../audit/2026-07-25-frontend-agent-friendliness/snapshot.md)
+
+> Этот файл **не** является ACTIVE-очередью и **не** задаёт `pending`.
+> Практический hardening: [af11-agent-friendliness-hardening-plan.md](./af11-agent-friendliness-hardening-plan.md)
+> (PROPOSED runbook, без routing authority).
 
 ## Текущий scorecard (пересчитывать перед slice)
 

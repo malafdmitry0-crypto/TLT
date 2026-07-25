@@ -51,6 +51,8 @@ orchestration hooks** (session / data / editing / presentation / effects) и
 | Документ | О чём |
 |---|---|
 | [UI-kit](./ui-kit.md) | Границы design system и контракт раскладки форм |
+| [Ant UI Kit — стратегия](./ant-ui-kit-strategy.md) | Ant как внутренняя основа Tlt-фасада: mapping, density, границы |
+| [Ant UI Kit — rollout](./ant-ui-kit-agent-rollout.md) | APPROVED программа миграции: slices, роли, proof, stop conditions |
 | [CSS-стратегия](./css-strategy.md) | Ownership, cascade, selectors и CSS-механика layout |
 | [Desktop viewport policy](./viewport-policy.md) | `1000` functional, `1280` full workspace, `1440` primary QA |
 | [`components/ui-kit/README`](../../frontend/src/components/ui-kit/README.md) | Runtime-контракт UI-компонентов |
@@ -65,6 +67,7 @@ orchestration hooks** (session / data / editing / presentation / effects) и
 | Документ | Назначение |
 |---|---|
 | [Осмысленный CSS](./meaningful-css-plan.md) | PROPOSED: план и промпты для удаления static JSX `style`/`styles` и перехода к semantic owner CSS |
+| [AF11 practical hardening](./af11-agent-friendliness-hardening-plan.md) | PROPOSED: context reduction, doc truth, тихий/быстрый DoD и новый state-driven browser seal |
 
 Предложенный runbook не является ACTIVE-очередью и не задаёт `pending`.
 Исполнять его можно только по явной команде пользователя или после переноса

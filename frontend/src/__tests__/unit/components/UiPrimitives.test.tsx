@@ -1,5 +1,7 @@
+import { StrictMode, createRef } from 'react';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { Tooltip } from 'antd';
 import { describe, expect, it, vi } from 'vitest';
 import {
   TltAlert,
@@ -104,5 +106,28 @@ describe('CSS-first UI primitives', () => {
 
     expect(screen.getByRole('heading', { name: 'Нет объектов' })).toBeInTheDocument();
     expect(screen.getByText('Создайте первый объект.')).toBeInTheDocument();
+  });
+
+  it('forwards the badge DOM ref so Ant Tooltip works without findDOMNode in StrictMode', () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const badgeRef = createRef<HTMLSpanElement>();
+      render(
+        <StrictMode>
+          <Tooltip title="Рассчитан" open>
+            <TltBadge ref={badgeRef} tone="success">Рассчитан</TltBadge>
+          </Tooltip>
+        </StrictMode>,
+      );
+
+      expect(badgeRef.current).toBeInstanceOf(HTMLSpanElement);
+      expect(badgeRef.current).toHaveClass('tlt-ui-badge');
+      const findDomNodeErrors = consoleError.mock.calls.filter((call) =>
+        call.some((arg) => typeof arg === 'string' && arg.includes('findDOMNode')),
+      );
+      expect(findDomNodeErrors).toEqual([]);
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 });

@@ -1,9 +1,12 @@
 # AF10 residual close plan
 
-**Статус:** PROPOSED — доделка до полного ≥9.0  
-**Актуально на:** 2026-07-25  
+**Статус:** HISTORICAL / CLOSED — residual scorecard closed on AF10 final audit  
+**Актуально на:** 2026-07-25 (закрыт)  
 **Исходный runbook:** [agent-friendliness-fix-plan.md](./agent-friendliness-fix-plan.md)  
-**Промежуточный аудит:** [docs/audit/2026-07-25-frontend-agent-friendliness/snapshot.md](../audit/2026-07-25-frontend-agent-friendliness/snapshot.md)
+**Финальный audit:** [docs/audit/2026-07-25-frontend-agent-friendliness/snapshot.md](../audit/2026-07-25-frontend-agent-friendliness/snapshot.md)  
+**Pending:** только [refactor-backlog.md](./refactor-backlog.md)  
+
+> Не ACTIVE-очередь. Дальнейший hardening — [af11-agent-friendliness-hardening-plan.md](./af11-agent-friendliness-hardening-plan.md) (PROPOSED).
 
 ## Где мы сейчас
 

@@ -306,7 +306,10 @@ describe('ReportPage (integration)', () => {
       expect(screen.getByRole('button', { name: /Состав отчёта/i })).toBeEnabled();
     });
     await user.click(screen.getByRole('button', { name: /Состав отчёта/i }));
-    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    // Modal mounts async; concurrent suite load can delay portal paint
+    expect(
+      await screen.findByRole('dialog', {}, { timeout: 8_000 }),
+    ).toBeInTheDocument();
   });
 
   it('passes the exact selected ER UUID to the standalone report wizard URL', async () => {

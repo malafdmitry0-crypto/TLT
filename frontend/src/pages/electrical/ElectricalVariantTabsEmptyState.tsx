@@ -12,6 +12,7 @@ import type {
   ElectricalVariantPendingOperation,
   ElectricalVariantSelectionController,
 } from './useElectricalVariantSelection';
+import { ignoreHandledError } from './electricalVariantAsyncHelpers';
 
 const PENDING_OPERATION_LABELS: Record<
   Exclude<ElectricalVariantPendingOperation, null>,
@@ -25,10 +26,6 @@ const PENDING_OPERATION_LABELS: Record<
   delete: 'Удаляем выбранный ЭР…',
   reconcile: 'Сверяем список ЭР с сервером…',
 };
-
-export function ignoreHandledError(operation: Promise<unknown>): void {
-  void operation.catch(() => undefined);
-}
 
 export function LoadingCard({ text }: { text: string }) {
   return (

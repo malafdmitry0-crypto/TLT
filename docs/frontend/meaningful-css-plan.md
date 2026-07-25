@@ -1,11 +1,11 @@
 # Осмысленный CSS: план миграции и исполняемые промпты
 
-**Статус:** ACTIVE queue — см. [af10-parallel-queue.md](./af10-parallel-queue.md)
+**Статус:** PROPOSED runbook — политика/промпты, без routing authority
 
 **Актуально на:** 2026-07-25
 
-**Очередь исполнения:** [af10-parallel-queue.md](./af10-parallel-queue.md)  
-**Единственный backlog pending (продукт):** [refactor-backlog.md](./refactor-backlog.md)
+**Pending / ACTIVE-очередь:** только [refactor-backlog.md](./refactor-backlog.md)  
+**AF10 execution board:** [af10-parallel-queue.md](./af10-parallel-queue.md) (HISTORICAL/CLOSED)
 
 Этот документ задаёт целевую политику для удаления статических JSX
 `style`/`styles` и перехода к осмысленному owner CSS. Он не разрешает запускать

@@ -25,14 +25,15 @@ styles, включая JSX color literals. Они считаются сущес�
 runtime-кода и baseline; старые снимки из документации не являются источником
 истины.
 
-Метрики и исполняемые prompts: [meaningful-css-plan.md](./meaningful-css-plan.md),
-[af10-parallel-queue.md](./af10-parallel-queue.md).
+Метрики и policy prompts: [meaningful-css-plan.md](./meaningful-css-plan.md)
+(PROPOSED runbook). AF10 queue: [af10-parallel-queue.md](./af10-parallel-queue.md)
+(HISTORICAL/CLOSED).
 
-**AF10-MEANINGFUL-CSS-GATE-01 (active):** общий CSS LOC — **наблюдаемая**
-величина для audit, не pass/fail. Качество контролируют ownership, per-file
-cap/shrink-only hotspot, orphan detection, `!important`, raw colors, bare Ant,
-legacy palette, noncanonical breakpoints и static-inline ratchet. Feature-slice
-по-прежнему не может повышать debt baselines.
+**Установленный gate (AF10-MEANINGFUL-CSS-GATE-01):** общий CSS LOC —
+**наблюдаемая** величина для audit, не pass/fail. Качество контролируют
+ownership, per-file cap/shrink-only hotspot, orphan detection, `!important`,
+raw colors, bare Ant, legacy palette, noncanonical breakpoints и static-inline
+ratchet. Feature-slice не может повышать debt baselines.
 
 ## Основной контракт
 

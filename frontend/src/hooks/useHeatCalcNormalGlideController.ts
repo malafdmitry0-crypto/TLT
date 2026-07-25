@@ -9,7 +9,6 @@ import {
   useRef,
   useState,
   type CSSProperties,
-  type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 import type { TableProps } from 'antd';
 import {
@@ -32,7 +31,6 @@ import {
   getGridCellEditedValue,
   normalRowThemeOverride,
   paginationConfig,
-  selectedOptionValue,
   type HeatCalcGlideGridCellState,
   type HeatCalcGlideGridColumn,
 } from '@/utils/heatCalcGlideGrid';
@@ -48,6 +46,7 @@ import {
   type HeatCalcNormalGlideDraftInvalidator,
 } from '@/hooks/useHeatCalcNormalGlideCellModel';
 import type { NormalGlideInfiniteLoading } from '@/components/shared/normalGlideTypes';
+import { useHeatCalcNormalGlideEditorController } from '@/hooks/useHeatCalcNormalGlideEditorController';
 
 export type { HeatCalcNormalGlideDraftInvalidator } from '@/hooks/useHeatCalcNormalGlideCellModel';
 
@@ -59,16 +58,6 @@ interface FilterPopupState {
   left: number;
   top: number;
 }
-
-type NormalGlideEditingCell = {
-  cell: Item;
-  value: string;
-  bounds: { x: number; y: number; width: number; height: number };
-  editor?: HeatCalcGlideGridCellState['editor'];
-  options?: HeatCalcGlideGridCellState['options'];
-  step?: number;
-  error?: string | null;
-};
 
 export interface UseHeatCalcNormalGlideControllerOptions {
   rows: ProjectObject[];
@@ -124,11 +113,9 @@ export function useHeatCalcNormalGlideController({
   fillAvailableWidth = false,
 }: UseHeatCalcNormalGlideControllerOptions) {
   const [filterPopup, setFilterPopup] = useState<FilterPopupState | null>(null);
-  const [editingCell, setEditingCell] = useState<NormalGlideEditingCell | null>(null);
   const [hoveredHeaderColumnIndex, setHoveredHeaderColumnIndex] = useState<number | null>(null);
   const [activeCell, setActiveCell] = useState<Item | null>(null);
   const editorRef = useRef<DataEditorRef | null>(null);
-  const cellEditorElementRef = useRef<HTMLInputElement | HTMLSelectElement | null>(null);
   const filterPopupRef = useRef<HTMLDivElement | null>(null);
   const rowSelectionAnchorRef = useRef<number | null>(null);
 
@@ -166,9 +153,21 @@ export function useHeatCalcNormalGlideController({
     onRegisterDraftInvalidator,
   });
 
-  const setCellEditorElement = useCallback((element: HTMLInputElement | HTMLSelectElement | null) => {
-    cellEditorElementRef.current = element;
-  }, []);
+  const {
+    editingCell,
+    cellEditorElementRef,
+    setCellEditorElement,
+    openEditorForCell,
+    commitNormalEditor,
+    handleSelectEditorChange,
+    handleTextEditorChange,
+    handleEditorKeyDown,
+  } = useHeatCalcNormalGlideEditorController({
+    editorRef,
+    getModelCell,
+    onStartCellEdit,
+    onCommitCell,
+  });
   const syncActiveRecordFromCell = useCallback((cell: Item) => {
     if (cell[0] < 0 || cell[1] < 0) return null;
     const record = rows[cell[1]];
@@ -217,40 +216,6 @@ export function useHeatCalcNormalGlideController({
     }
     onSelectedRowKeysChange([record.id]);
   }, [activeCell, onSelectedRowKeysChange, rows, selectedRowKeys]);
-  const openEditorForCell = useCallback((cell: Item, fallbackBounds?: NormalGlideEditingCell['bounds']) => {
-    const modelCell = getModelCell(cell[0], cell[1]);
-    if (!modelCell?.state.editable) return false;
-    onStartCellEdit(modelCell.record, modelCell.column.key);
-    const bounds = editorRef.current?.getBounds(cell[0], cell[1]) ?? fallbackBounds;
-    if (!bounds) return true;
-    setEditingCell({
-      cell,
-      value: modelCell.state.displayValue,
-      bounds,
-      editor: modelCell.state.editor,
-      options: modelCell.state.options,
-      step: modelCell.state.step,
-      error: modelCell.state.error ?? null,
-    });
-    return true;
-  }, [getModelCell, onStartCellEdit]);
-  const commitNormalEditor = useCallback(() => {
-    if (!editingCell) return;
-    const modelCell = getModelCell(editingCell.cell[0], editingCell.cell[1]);
-    if (!modelCell?.state.editable) {
-      setEditingCell(null);
-      return;
-    }
-    const value = editingCell.editor === 'select'
-      ? selectedOptionValue(editingCell.value, editingCell.options)
-      : editingCell.value;
-    const error = onCommitCell(modelCell.record, modelCell.column.key, value);
-    if (error) {
-      setEditingCell((current) => (current ? { ...current, error } : current));
-      return;
-    }
-    setEditingCell(null);
-  }, [editingCell, getModelCell, onCommitCell]);
   const handleCellClicked = useCallback((cell: Item, event: CellClickedEventArgs) => {
     if (cell[0] < 0) {
       event.preventDefault();
@@ -357,33 +322,6 @@ export function useHeatCalcNormalGlideController({
     filterPopup ? { left: filterPopup.left, top: filterPopup.top } : undefined
   ), [filterPopup]);
 
-  const handleSelectEditorChange = useCallback((value: string) => {
-    setEditingCell((current) => (current ? { ...current, value, error: null } : current));
-    if (!editingCell) return;
-    const modelCell = getModelCell(editingCell.cell[0], editingCell.cell[1]);
-    if (!modelCell?.state.editable) return;
-    const error = onCommitCell(
-      modelCell.record,
-      modelCell.column.key,
-      selectedOptionValue(value, editingCell.options),
-    );
-    setEditingCell((current) => (current ? { ...current, error } : current));
-  }, [editingCell, getModelCell, onCommitCell]);
-  const handleTextEditorChange = useCallback((value: string) => {
-    setEditingCell((current) => (current ? { ...current, value, error: null } : current));
-  }, []);
-  const handleEditorKeyDown = useCallback((event: ReactKeyboardEvent) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      event.stopPropagation();
-      commitNormalEditor();
-    }
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      event.stopPropagation();
-      setEditingCell(null);
-    }
-  }, [commitNormalEditor]);
   const closeFilterPopup = useCallback(() => setFilterPopup(null), []);
 
   useEffect(() => {
@@ -427,7 +365,7 @@ export function useHeatCalcNormalGlideController({
       if (editor instanceof HTMLInputElement) editor.select();
     });
     return () => window.cancelAnimationFrame(frameId);
-  }, [editingCell]);
+  }, [cellEditorElementRef, editingCell]);
 
   const pageConfig = paginationConfig(pagination);
   const showOffsetPagination = !infiniteLoading && !!pageConfig

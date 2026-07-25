@@ -19,7 +19,6 @@ import {
 import { formatNumber } from '@/utils/formatters';
 import {
   CABLE_TYPE_LABEL,
-  CONNECTION_TYPE_LABEL,
   OBJECT_TYPE_LABEL,
   objectDisplayName,
   STOCK_STATUS_LABEL,
@@ -46,6 +45,10 @@ import {
   valueText,
 } from '@/domain/electrical/elecCalcResultValueModel';
 import { TltBadge, TltButton } from '@/components/ui-kit';
+import {
+  buildElecCalcRecalculationColumnRenderers,
+  type ElecCalcRendererRecalculationValues,
+} from '@/pages/electrical/elecCalcRecalculationColumnRenderers';
 
 function antColorToTltTone(color: string | undefined): 'neutral' | 'info' | 'success' | 'warning' | 'danger' {
   switch (color) {
@@ -70,17 +73,6 @@ function antColorToTltTone(color: string | undefined): 'neutral' | 'info' | 'suc
 }
 
 const { Text } = Typography;
-
-type ElecCalcRendererRecalculationValues = {
-  aggressiveProduct: boolean;
-  connectionType: string;
-  heatingHeight: number | null;
-  layingStep: number | null;
-  maintainTemperature: number | null;
-  supplyVoltage: number | null;
-  vaporTemperature: number | null;
-  windingCoefficient: number | null;
-};
 
 type UseElecCalcElectricalColumnRenderersOptions = {
   activeRowId: string | null;
@@ -366,53 +358,7 @@ export function useElecCalcElectricalColumnRenderers({
         );
       },
     },
-    laying_step: {
-      align: 'right',
-      render: (_: unknown, obj) =>
-        numberText(calcByObjectId[obj.id]?.params?.laying_step ?? recalc.layingStep, 2),
-    },
-    heating_height: {
-      align: 'right',
-      render: (_: unknown, obj) =>
-        numberText(calcByObjectId[obj.id]?.params?.heating_height ?? recalc.heatingHeight, 1),
-    },
-    connection_type: {
-      render: (_: unknown, obj) => {
-        const value = calcByObjectId[obj.id]?.params?.connection_type ?? recalc.connectionType;
-        return CONNECTION_TYPE_LABEL[String(value)] ?? valueText(value);
-      },
-    },
-    supply_voltage: {
-      align: 'right',
-      render: (_: unknown, obj) =>
-        numberText(calcByObjectId[obj.id]?.params?.supply_voltage ?? recalc.supplyVoltage, 0),
-    },
-    winding_coefficient: {
-      align: 'right',
-      render: (_: unknown, obj) =>
-        numberText(
-          calcByObjectId[obj.id]?.params?.winding_coefficient ?? recalc.windingCoefficient,
-          2,
-        ),
-    },
-    vapor_temperature: {
-      align: 'right',
-      render: (_: unknown, obj) =>
-        numberText(calcByObjectId[obj.id]?.params?.vapor_temperature ?? recalc.vaporTemperature, 1),
-    },
-    maintain_temperature: {
-      align: 'right',
-      render: (_: unknown, obj) =>
-        numberText(
-          calcByObjectId[obj.id]?.params?.maintain_temperature ?? recalc.maintainTemperature,
-          1,
-        ),
-    },
-    aggressive_product: {
-      align: 'center',
-      render: (_: unknown, obj) =>
-        valueText(calcByObjectId[obj.id]?.params?.aggressive_product ?? recalc.aggressiveProduct),
-    },
+    ...buildElecCalcRecalculationColumnRenderers(calcByObjectId, recalc),
     installed_cable_length: {
       align: 'right',
       render: (_: unknown, obj) =>

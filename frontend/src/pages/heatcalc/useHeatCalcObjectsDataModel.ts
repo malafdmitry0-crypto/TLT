@@ -13,7 +13,6 @@ import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQuerie
 import { getInsulation } from '@/api/references';
 import { MATERIAL_LABELS } from '@/constants/materials';
 import type {
-  ObjectQueryFieldCapability,
   Project,
   ProjectObject,
   ProjectObjectsPageCursor,
@@ -23,9 +22,7 @@ import {
   HEATCALC_TABLE_COLUMN_CATALOG,
   getAllTableColumnMetas,
   getVisibleTableColumnMetas,
-  type HeatCalcColumnKey,
   type HeatCalcObjectType,
-  type HeatCalcResolvedColumnMeta,
   type HeatCalcTableColumnScope,
   type HeatCalcTableColumnSettings,
 } from '@/utils/heatCalcTableColumns';
@@ -48,7 +45,6 @@ import {
   DEFAULT_OBJECT_QUERY_PAGE_SIZE,
   INAPPLICABLE_TABLE_VALUE,
   buildObjectQueryRequest,
-  filterKindForColumn,
   insulationEntryLabel,
   isColumnApplicableToObjectType,
 } from '@/utils/heatCalcPageUtils';
@@ -57,16 +53,19 @@ import {
   buildHeatCalcWorkspaceLoadState,
   requiredQuerySlice,
 } from '@/pages/heatcalc/heatCalcWorkspaceLoadStateModel';
-import type {
-  ActiveObjectScope,
-  NormalLoadedRowsByType,
-} from '@/pages/heatcalc/useHeatCalcTableState';
+import type { ActiveObjectScope } from '@/pages/heatcalc/useHeatCalcTableState';
+import { buildHeatCalcEnumOptionsByColumn } from '@/pages/heatcalc/heatCalcVisibleRowsModel';
 
 export type {
   HeatCalcRequiredQuerySlice,
   HeatCalcWorkspaceLoadState,
 } from '@/pages/heatcalc/heatCalcWorkspaceLoadStateModel';
 export { buildHeatCalcWorkspaceLoadState } from '@/pages/heatcalc/heatCalcWorkspaceLoadStateModel';
+export type { HeatCalcVisibleRowsModelOptions } from '@/pages/heatcalc/heatCalcVisibleRowsModel';
+export {
+  buildHeatCalcEnumOptionsByColumn,
+  buildHeatCalcVisibleRowsModel,
+} from '@/pages/heatcalc/heatCalcVisibleRowsModel';
 
 interface UseHeatCalcObjectsDataModelOptions {
   activeObjectQueryCursor: ProjectObjectsPageCursor | null;
@@ -92,89 +91,6 @@ interface UseHeatCalcObjectsDataModelOptions {
 }
 
 const FINDABILITY_DISABLED_TABLE_VIEW_STATE = createEmptyTableViewState();
-
-export interface HeatCalcVisibleRowsModelOptions {
-  activeTableObjectType: HeatCalcObjectType;
-  excelBaseRows: ProjectObject[];
-  excelModeEnabled: boolean;
-  excelRows: ProjectObject[];
-  excelTableRows: HeatCalcIndexedTableRow<ProjectObject>[];
-  isAllObjectScope: boolean;
-  normalLoadedRowsByType: NormalLoadedRowsByType;
-  objectQueryResult?: ProjectObjectsQueryResponse;
-  visibleAllTableRows: HeatCalcIndexedTableRow<ProjectObject>[];
-}
-
-export function buildHeatCalcVisibleRowsModel({
-  activeTableObjectType,
-  excelBaseRows,
-  excelModeEnabled,
-  excelRows,
-  excelTableRows,
-  isAllObjectScope,
-  normalLoadedRowsByType,
-  objectQueryResult,
-  visibleAllTableRows,
-}: HeatCalcVisibleRowsModelOptions) {
-  const baseVisibleTableObjects = (() => {
-    if (excelModeEnabled) return excelBaseRows;
-    if (isAllObjectScope) return visibleAllTableRows.map(({ record }) => record);
-    const loadedRows = normalLoadedRowsByType[activeTableObjectType];
-    if (loadedRows.length > 0) return loadedRows;
-    return objectQueryResult?.page_info.page === 1 ? objectQueryResult.items : [];
-  })();
-  const visibleTableObjects = excelModeEnabled ? excelRows : baseVisibleTableObjects;
-  const visibleTableRows = (() => {
-    if (excelModeEnabled) return excelTableRows;
-    if (isAllObjectScope) return visibleAllTableRows;
-    return visibleTableObjects.map((record, index) => ({ record, sourceIndex: index }));
-  })();
-  return {
-    baseVisibleTableObjects,
-    visibleTableObjects,
-    visibleTableRows,
-    visibleSourceIndexById: new Map(visibleTableRows.map(({ record, sourceIndex }) => [record.id, sourceIndex])),
-  };
-}
-
-export function buildHeatCalcEnumOptionsByColumn({
-  allIndexedTableRows,
-  fieldCapabilityByKey,
-  isAllObjectScope,
-  sourceColumnMetas,
-  tableValueAccessors,
-}: {
-  allIndexedTableRows: HeatCalcIndexedTableRow<ProjectObject>[];
-  fieldCapabilityByKey: Map<string, ObjectQueryFieldCapability>;
-  isAllObjectScope: boolean;
-  sourceColumnMetas: HeatCalcResolvedColumnMeta[];
-  tableValueAccessors: HeatCalcColumnValueAccessors<ProjectObject>;
-}) {
-  const result: Record<HeatCalcColumnKey, { label: string; value: string }[]> = {};
-  for (const meta of sourceColumnMetas) {
-    const capability = fieldCapabilityByKey.get(meta.key);
-    if (filterKindForColumn(meta.key, capability) !== 'enum') continue;
-    if (isAllObjectScope) {
-      const values = new Map<string, string>();
-      for (const row of allIndexedTableRows) {
-        const value = tableValueAccessors[meta.key]?.(row.record, row.sourceIndex);
-        if (value == null || value === INAPPLICABLE_TABLE_VALUE) continue;
-        const textValue = String(value).trim();
-        if (!textValue) continue;
-        values.set(textValue, textValue);
-      }
-      result[meta.key] = [...values.values()]
-        .sort((left, right) => left.localeCompare(right, 'ru', { numeric: true, sensitivity: 'base' }))
-        .map((value) => ({ label: value, value }));
-      continue;
-    }
-    result[meta.key] = (capability?.options?.items ?? []).map((item) => ({
-      label: item.label,
-      value: String(item.value),
-    }));
-  }
-  return result;
-}
 
 export function useHeatCalcObjectsDataModel({
   activeObjectQueryCursor,

@@ -19,10 +19,10 @@ import type {
 import { useElectricalVariantRename } from './useElectricalVariantRename';
 import {
   EmptyElectricalVariantState,
-  ignoreHandledError,
-  LoadingCard,
+    LoadingCard,
   MutationStatus,
 } from './ElectricalVariantTabsEmptyState';
+import { ignoreHandledError } from './electricalVariantAsyncHelpers';
 
 const MAX_ELECTRICAL_VARIANTS = 5;
 

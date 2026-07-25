@@ -1,26 +1,17 @@
 /**
  * @module specification/page-model
  * @owner specification
- * Orchestration for SpecificationPage (queries, mutations, generate options).
+ * Orchestration for SpecificationPage (mutations, generate options).
+ * Query/session identity lives in useSpecificationQuerySession.
  */
 import { useEffect, useMemo } from 'react';
 import { message } from 'antd';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useMutation } from '@tanstack/react-query';
 
 import {
   generateSpecification,
-  getSpecification,
-  getSpecificationSettings,
-  listAccessoriesExtended,
-  saveSpecificationItems,
   updateSpecificationSettings,
 } from '@/api/specifications';
-import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
-import { useAuthStore } from '@/store/authStore';
-import { useProjectStore } from '@/store/projectStore';
-import { useLegacyElectricalVariantContext } from '@/hooks/useLegacyElectricalVariantContext';
-import type { SpecificationItem } from '@/types/specification';
 import { formatSpecTimestamp } from '@/pages/specification/specFormatModel';
 import { useSpecParamsPanelState } from '@/pages/specification/useSpecParamsPanelState';
 import { useSpecPageFormState } from '@/pages/specification/useSpecPageFormState';
@@ -30,6 +21,8 @@ import {
   resolveSpecificationExcludedGroups,
 } from '@/pages/specification/specGenerateOptionsModel';
 import { buildSpecSettingsFormSnapshot } from '@/pages/specification/specGenerationOptionsSyncModel';
+import { useSpecificationQuerySession } from '@/pages/specification/useSpecificationQuerySession';
+import { useSpecificationManualItemsController } from '@/pages/specification/useSpecificationManualItemsController';
 
 type SpecificationMutationScope = {
   projectId: string;
@@ -44,70 +37,35 @@ type GenerateSpecificationVariables = SpecificationMutationScope & {
   options?: Parameters<typeof generateSpecification>[4];
 };
 
-type SaveSpecificationVariables = SpecificationMutationScope & {
-  items: SpecificationItem[];
-};
-
 export function useSpecificationPageModel() {
-  const project = useProjectStore((s) => s.currentProject);
-  const role = useAuthStore((s) => s.role);
-  const userId = useAuthStore((s) => s.user?.id ?? null);
-  const sessionId = useAuthStore((s) => s.sessionId);
-  const isEmployee = role === 'employee' || role === 'admin';
-  const canMutateProject = Boolean(project && (
-    role === 'admin'
-    || (role === 'employee' && project.user_id === userId)
-    || (role === 'guest' && project.session_id === sessionId)
-  ));
-  const canManuallyEdit = canMutateProject && isEmployee;
-  const navigate = useNavigate();
-  const qc = useQueryClient();
-  const variantContext = useLegacyElectricalVariantContext(project?.id);
-  const selectedElectricalVariant = variantContext.selectedVariant;
-  const variant = variantContext.legacyVariantNumber ?? 1;
-  const legacyDataPlaneEnabled = Boolean(
-    project && selectedElectricalVariant && variantContext.legacyVariantNumber != null,
-  );
-  const specificationQueryKey = [
-    'spec',
-    project?.id,
-    selectedElectricalVariant?.id,
+  const {
+    project,
+    role,
+    userId,
+    sessionId,
+    isEmployee,
+    canMutateProject,
+    canManuallyEdit,
+    navigate,
+    qc,
+    variantContext,
+    selectedElectricalVariant,
     variant,
-  ] as const;
+    legacyDataPlaneEnabled,
+    specificationQueryKey,
+    spec,
+    refetch,
+    specLoading,
+    specError,
+    specErrorObj,
+    specFetching,
+    projectSettings,
+    accessories,
+  } = useSpecificationQuerySession();
 
   const form = useSpecPageFormState();
   /** Блок настроек (параметры генерации) — Drawer, как «Настройки» в макете. */
   const { settingsOpen, toggleSettings } = useSpecParamsPanelState();
-
-  const {
-    data: spec,
-    refetch,
-    isLoading: specLoading,
-    isError: specError,
-    error: specErrorObj,
-    isFetching: specFetching,
-  } = useQuery({
-    queryKey: specificationQueryKey,
-    queryFn: () => getSpecification(
-      project!.id,
-      variant,
-      selectedElectricalVariant!.id,
-    ),
-    enabled: legacyDataPlaneEnabled,
-  });
-
-  const { data: projectSettings } = useQuery({
-    queryKey: ['spec-settings', project?.id],
-    queryFn: () => getSpecificationSettings(project!.id),
-    enabled: Boolean(project?.id),
-  });
-
-  const { data: accessories = [] } = useQuery({
-    queryKey: referenceQueryKeys.accessoriesExtended,
-    queryFn: listAccessoriesExtended,
-    enabled: canManuallyEdit,
-    ...referenceQueryOptions,
-  });
 
   // PDL-ER-07: load project defaults first; snapshot from last generation only
   // for the currently viewed ER (does not rewrite project defaults).
@@ -270,33 +228,6 @@ export function useSpecificationPageModel() {
     },
   });
 
-  const saveMut = useMutation({
-    mutationFn: ({
-      projectId,
-      electricalVariantId,
-      legacyVariantNumber,
-      items,
-    }: SaveSpecificationVariables) => {
-      if (!canManuallyEdit) {
-        throw new Error('Недостаточно прав для ручного изменения спецификации');
-      }
-      return saveSpecificationItems(
-        projectId,
-        items,
-        legacyVariantNumber,
-        electricalVariantId,
-      );
-    },
-    onSuccess: (_result, variables) => {
-      qc.invalidateQueries({ queryKey: variables.queryKey, exact: true });
-    },
-    onError: (e: Error) => message.error(e.message),
-  });
-
-  const items: SpecificationItem[] = useMemo(
-    () => (spec?.items as SpecificationItem[]) ?? [],
-    [spec]
-  );
   const isSpecStale = spec?.is_stale === true;
   const isSpecPartial = isSpecificationPartial(spec);
   const excludedGroups = resolveSpecificationExcludedGroups(spec);
@@ -362,46 +293,20 @@ export function useSpecificationPageModel() {
     });
   };
 
-  const hasItems = items.length > 0;
-
-  const handleAdd = () => {
-    if (!canManuallyEdit) return;
-    const acc = accessories.find((a) => a.id === form.selectedAccessoryId);
-    if (!acc || !form.qty || form.qty <= 0) return;
-    const newItem: SpecificationItem = {
-      category: acc.category,
-      name: acc.name,
-      article: acc.article,
-      unit: 'шт.',
-      quantity: form.qty,
-      params: { source_id: acc.id },
-      source: 'manual',
-    };
-    saveMut.mutate({
-      ...snapshotMutationScope(),
-      items: [...items, newItem],
-    }, {
-      onSuccess: () => {
-        message.success('Позиция добавлена');
-        form.setAddOpen(false);
-        form.setSelectedAccessoryId(null);
-        form.setQty(1);
-      },
-    });
-  };
-
-  const handleDelete = (index: number) => {
-    if (!canManuallyEdit) return;
-    const next = items.filter((_, i) => i !== index);
-    saveMut.mutate({
-      ...snapshotMutationScope(),
-      items: next,
-    }, {
-      onSuccess: () => message.success('Позиция удалена'),
-    });
-  };
-
-  const categoriesCount = new Set(items.map((i) => i.category)).size;
+  const {
+    saveMut,
+    items,
+    handleAdd,
+    handleDelete,
+    hasItems,
+    categoriesCount,
+  } = useSpecificationManualItemsController({
+    canManuallyEdit,
+    accessories,
+    specItems: spec?.items,
+    form,
+    snapshotMutationScope,
+  });
   const fullModeActive = true;
   const formedAt = formatSpecTimestamp(spec?.updated_at ?? spec?.created_at);
   const generateButtonLabel = hasItems ? 'Обновить' : 'Сформировать';
