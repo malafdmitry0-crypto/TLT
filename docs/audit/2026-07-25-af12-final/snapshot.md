@@ -15,7 +15,7 @@
 | AF12-TLT-SELECT-POPUP-01 | **DONE** | `popupClassName` → `classNames.popup.root`; portal class test |
 | AF12-CSS-OWNER-MAP-01 | **DONE** | [`2026-07-25-af12-css-owner-map/snapshot.md`](../2026-07-25-af12-css-owner-map/snapshot.md) |
 | AF12-UIKIT-RESPONSIVE-OWNER-01 | **BLOCKED** | [`2026-07-25-af12-uikit-responsive-blocked/snapshot.md`](../2026-07-25-af12-uikit-responsive-blocked/snapshot.md) — media ratchet 39→43 reverted |
-| AF12-BROWSER-FINAL-SEAL-01 | **BLOCKED** | [`2026-07-25-af12-browser-final/snapshot.md`](../2026-07-25-af12-browser-final/snapshot.md) — no Kontur Playwright MCP |
+| AF12-BROWSER-FINAL-SEAL-01 | **TOOLING UNBLOCKED** / matrix pending | [`2026-07-25-af12-browser-final/snapshot.md`](../2026-07-25-af12-browser-final/snapshot.md) — `kontur_playwright` MCP registered (21 tools); five-area seal not yet run |
 | AF12-DOD-REPEATABILITY-01 | **PARTIAL** | [`2026-07-25-af12-dod-repeatability/snapshot.md`](../2026-07-25-af12-dod-repeatability/snapshot.md) — 2× sequential green ~152.5 s median; dual FAIL contention; ≤120 s not met |
 | AF12-SCENARIO-RESPLIT-PILOT | **DONE** | [`2026-07-25-af12-scenario-resplit/snapshot.md`](../2026-07-25-af12-scenario-resplit/snapshot.md) — objectWizardUtils + heatCalcExcelMode harness pattern |
 | AF12-FINAL-AUDIT-01 | **THIS FILE** | |
@@ -33,22 +33,23 @@ Dual concurrent (two full DoDs in parallel):
   B FAIL total=276.91s  (same under load)
   → dual stress NOT green (resource contention)
 
-Kontur live browser: not available → no AF12 browser seal
+Kontur MCP: registered as kontur_playwright (21 tools) via .grok/config.toml + .mcp.json
+  → refresh /mcps or new session, then run five-area matrix seal
 UIKIT responsive owner move: BLOCKED (shrink-only media baseline)
 ```
 
 ## Residual risk
 
-1. Browser matrix not sealed (Kontur MCP)
+1. Browser **matrix** not sealed yet (MCP tooling unblocked; Prompt 14 ×5 + final seal pending)
 2. DoD median ~152 s (>120 s goal); dual concurrent not green
 3. `ui-kit.css` MIXED_OWNERSHIP for foreign responsive families (user decision)
-4. Insulation live geometry (`hostWidthRatio ≥ 0.85`) needs live stack
+4. Insulation live geometry (`hostWidthRatio ≥ 0.85`) needs live Kontur pass
 5. Broader monolit re-split backlog (pilot only for two util families)
 
 ## SAFE NEXT
 
-1. User decision on AF12-06: keep mixed media in `ui-kit.css` (recommended) / baseline exception / larger redesign  
-2. Kontur environment for AF12-BROWSER-FINAL-SEAL-01  
+1. Refresh MCP (`/mcps` → `r` or new session) → run AF browser matrix (Projects→Reports) on clean HEAD  
+2. User decision on AF12-06: keep mixed media in `ui-kit.css` (recommended) / baseline exception / larger redesign  
 3. Optional dual re-run under quiet CPU; else isolate flaky HeatCalc findBy under load  
 4. Extend typecheck-clean scenario re-split harness pattern to next monolithes as needed  
 5. Wall-time work only if product priority (≤120 s still open)

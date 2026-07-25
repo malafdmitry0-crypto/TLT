@@ -3,13 +3,35 @@
     "postgres": {
       "command": "docker",
       "args": [
-        "run", "-i", "--rm",
-        "--network", "tlt_default",
-        "-e", "PGHOST=db",
-        "-e", "PGUSER=heatcalc",
-        "-e", "PGPASSWORD=heatcalc_pass",
-        "-e", "PGDATABASE=heatcalc_db",
+        "run",
+        "-i",
+        "--rm",
+        "--network",
+        "tlt_default",
+        "-e",
+        "PGHOST=db",
+        "-e",
+        "PGUSER=heatcalc",
+        "-e",
+        "PGPASSWORD=heatcalc_pass",
+        "-e",
+        "PGDATABASE=heatcalc_db",
         "mcp/postgres"
+      ]
+    },
+    "kontur_playwright": {
+      "command": "node",
+      "args": [
+        "e2e/node_modules/playwright-core/lib/tools/mcp/cli-stub.js",
+        "--headless",
+        "--browser",
+        "chrome",
+        "--output-dir",
+        ".playwright-mcp",
+        "--viewport-size",
+        "1440x1000",
+        "--console-level",
+        "warning"
       ]
     }
   }
