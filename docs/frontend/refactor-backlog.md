@@ -1,19 +1,18 @@
 # Frontend refactor backlog
 
-**Статус:** ACTIVE
+**Статус:** EMPTY QUEUE
 
 **Актуально на:** 2026-07-25  
-**HEAD at queue open:** recompute on first slice from clean tree
+**HEAD at P5–P9 close:** see latest commits (`P5`–`P9` done)
 
-**Следующий незакрытый контракт:** `P5-TEST-CONTEXT-INVENTORY-01`
+**Следующий незакрытый контракт:** —
 
 Это **единственный** источник текущего `pending` для frontend. Одновременно
 может существовать только одна ACTIVE frontend-очередь (когда pending есть).
 Completed initiative plans не имеют права объявлять `COMPLETE`, пока backlog
 содержит pending acceptance.
 
-Очередь P5–P9 открыта **явной user goal** (test context + near-cap production
-owners). Не путай residual risk (ниже) с `pending` контрактом.
+Очередь P5–P9 **закрыта** (см. Done ниже). Residual risk table is not pending.
 
 Постоянные правила: [стандарт](./agent-development-standard.md).
 Размер slice: [PR budget](./pr-budget.md).
@@ -253,10 +252,11 @@ Closure evidence:
 - [x] Honest final audit Status **PASS**
   ([closure snapshot](../audit/2026-07-25-frontend-risk-recovery/snapshot.md))
 
-### Pending — queue P5–P9 (test context + near-cap owners)
+### Pending
 
-**Цель пользователя:** снизить риск огромных test-контекстов и подготовить
-точечные extract stateful production owners без массового дробления.
+_EMPTY QUEUE — no pending frontend acceptance contracts._
+
+### Done — queue P5–P9 (test context + near-cap owners)
 
 ```text
 P5-TEST-CONTEXT-INVENTORY-01
@@ -266,158 +266,26 @@ P5-TEST-CONTEXT-INVENTORY-01
   → P9-STATEFUL-OWNER-EXTRACT-01
 ```
 
-Point-in-time **observation only** (не baseline; P5 обязан пересчитать):
+- [x] **P5-TEST-CONTEXT-INVENTORY-01** — tests >700 LOC classified; pick
+  `HeatCalcNormalGlideGrid.test.tsx` (1473). Evidence:
+  [p5 inventory](../audit/2026-07-25-p5-test-context-inventory/snapshot.md).
 
-| Класс | Observation on open | Note |
-|---|---|---|
-| Test files `>700` LOC | **3** files (largest ~1473) | e.g. `HeatCalcNormalGlideGrid.test.tsx`, `ObjectWizardDependencies.test.tsx`, `cssArchitectureRatchet…` |
-| Production TS/TSX `400–448` LOC | **~25** files | near composition-root / field-registry / grid owners |
+- [x] **P6-TEST-CONTEXT-SPLIT-01** — split into rendering / painting-edit /
+  selection / headers-scroll + rows harness; 24/24 green.
 
-Эти числа **не** вечный baseline. Каждый inventory-срез пересчитывает из своего
-`BASE_HEAD` и пишет exact metrics в dated `docs/audit/…`.
+- [x] **P7-STATEFUL-OWNER-INVENTORY-01** — 25 files in 400–448 LOC; pick
+  `useHeatCalcExcelSelection`. Evidence:
+  [p7 inventory](../audit/2026-07-25-p7-stateful-owner-inventory/snapshot.md).
 
----
+- [x] **P8-STATEFUL-OWNER-CHAR-01** — excel selection + pure nav characterization.
+  Evidence: [p8 char](../audit/2026-07-25-p8-stateful-owner-char/snapshot.md).
 
-- [ ] **P5-TEST-CONTEXT-INVENTORY-01 — классифицировать крупные test-контексты.**
+- [x] **P9-STATEFUL-OWNER-EXTRACT-01** — `utils/heatCalcExcelSelectionNav.ts`
+  pure nav sub-owner. Evidence:
+  [p9 extract](../audit/2026-07-25-p9-stateful-owner-extract/snapshot.md).
+  Full DoD green (~127 s).
 
-  Owner: `qa`. Docs/test-architecture only; **production forbidden**.
-
-  GOAL: inventory всех test-файлов `>700` LOC (+ top near-misses если полезно),
-  классификация (unit/integration/architecture/harness), риск (shared preamble,
-  noUnusedLocals, scenario cohesion), рекомендация **одного** split-кандидата
-  для P6.
-
-  ALLOWED_SCOPE: dated audit snapshot; optional link from this backlog; no
-  production/test patch except pure docs.
-
-  NON_GOALS: split, rename suites, change thresholds, raise baselines.
-
-  FOCUSED_PROOF: reproducible `wc`/script commands; snapshot lists absolute
-  paths + LOC + class; SAFE NEXT = P6 only.
-
-```text
-Работай из корня TLT. Выполни ровно один slice через
-docs/frontend/agent-refactor-prompt.md.
-
-SLICE_ID: P5-TEST-CONTEXT-INVENTORY-01
-OWNER: qa
-GOAL: Пересчитать и классифицировать test-контексты >700 LOC на чистом HEAD;
-  выбрать один largest safe split candidate для P6.
-ALLOWED_SCOPE:
-  - docs/audit/<date>-p5-test-context-inventory/snapshot.md
-  - optional one-line pointer in refactor-backlog.md after done
-NON_GOALS: production patch; test split; baseline growth; architecture rule change.
-INVARIANTS: metrics from current tree only; no invented counts from old chats.
-FOCUSED_PROOF: commands + full file list in audit; git status clean of production.
-UI_STATES: n/a
-```
-
----
-
-- [ ] **P6-TEST-CONTEXT-SPLIT-01 — безопасный split одного test-контекста.**
-
-  Owner: `qa` (или owner suite: heat/wizard/architecture — по P5).
-
-  GOAL: разбить **только** кандидат из P5 по scenario/use-case; typecheck-clean
-  harness exports (как AF12 objectWizardUtils pilot); без потери coverage;
-  monolit delete only after green focused run.
-
-  ALLOWED_SCOPE: выбранные test files + optional test-harness under
-  `frontend/src/__tests__/**`; no production.
-
-  NON_GOALS: mass-split all large tests; weaken assertions; skip isolation.
-
-  FOCUSED_PROOF: `tsc`/unit or integration for touched paths; full
-  `test:agent-gates` if architecture tests touched; prefer
-  `npm run test:agent-dod` when suite is large.
-
-```text
-SLICE_ID: P6-TEST-CONTEXT-SPLIT-01
-OWNER: <from P5>
-GOAL: Scenario-split the single P5 candidate with harness-only shared helpers;
-  typecheck-clean; same test count ±0 skipped.
-ALLOWED_SCOPE: frontend/src/__tests__/** for that suite only
-NON_GOALS: production; other suites; baseline changes
-INVARIANTS: noUnusedLocals green; no orphan monolit; characterization preserved
-FOCUSED_PROOF: targeted vitest + agent-gates or agent-dod as needed
-```
-
----
-
-- [ ] **P7-STATEFUL-OWNER-INVENTORY-01 — аудит production 400–448 LOC.**
-
-  Owner: `frontend-process` / architecture.
-
-  GOAL: inventory production `.ts`/`.tsx` in **400–448 LOC** (exclude
-  `__tests__`); classify (composition root, pure model, UI, types bag);
-  rank by risk (effects, query keys, multi-owner); pick **one** stateful owner
-  for P8–P9.
-
-  ALLOWED_SCOPE: dated audit only; no production patch.
-
-  NON_GOALS: extract; rename; raise LOC caps.
-
-```text
-SLICE_ID: P7-STATEFUL-OWNER-INVENTORY-01
-OWNER: frontend-process
-GOAL: Recompute 400–448 LOC production inventory; recommend one stateful owner
-  for characterization + single sub-owner extract.
-ALLOWED_SCOPE: docs/audit/<date>-p7-stateful-owner-inventory/snapshot.md
-NON_GOALS: production/test code changes
-FOCUSED_PROOF: reproducible commands; ranked table; SAFE NEXT = P8
-```
-
----
-
-- [ ] **P8-STATEFUL-OWNER-CHAR-01 — characterization выбранного owner.**
-
-  Owner: feature owner of P7 pick (heat / electrical / specification / …).
-
-  GOAL: characterization tests (or extend existing) for the selected stateful
-  production module: inputs/outputs, project/variant isolation, temporal
-  rules, no behavior change.
-
-  ALLOWED_SCOPE: tests for that owner + minimal harness; production **read-only**
-  except if test IDs already exist.
-
-  NON_GOALS: extract; API/query-key change.
-
-```text
-SLICE_ID: P8-STATEFUL-OWNER-CHAR-01
-OWNER: <from P7>
-GOAL: Characterization coverage for the P7 stateful owner sufficient to unlock
-  one sub-owner extract in P9.
-ALLOWED_SCOPE: frontend/src/__tests__/** related to owner; no production extract
-NON_GOALS: refactor production; multi-owner extract
-FOCUSED_PROOF: new/extended tests green; agent-gates if architecture; agent-dod if runtime-heavy
-```
-
----
-
-- [ ] **P9-STATEFUL-OWNER-EXTRACT-01 — один sub-owner extract.**
-
-  Owner: same as P8.
-
-  GOAL: extract **exactly one** sub-owner (use-case named module) from the P7
-  file; thin parent remains composition root; no mass split; preserve
-  characterization + query keys / units / formulas / routes.
-
-  ALLOWED_SCOPE: parent file + one new module + tests; CSS only if unavoidable
-  and owner-mapped.
-
-  NON_GOALS: second extract; drive-by cleanups; baseline slack.
-
-```text
-SLICE_ID: P9-STATEFUL-OWNER-EXTRACT-01
-OWNER: <from P7/P8>
-GOAL: One use-case extract with green characterization and focused DoD.
-ALLOWED_SCOPE: production owner + one new file + tests
-NON_GOALS: multi-file cascade; API/query semantics change
-INVARIANTS: agent-development-standard + PR budget; noUnused; import/type baselines shrink-only
-FOCUSED_PROOF: characterization + agent-dod when runtime/guardrails touched
-```
-
-### Residual risk (не pending; вне очереди P5–P9)
+### Residual risk (не pending; вне P5–P9)
 
 Не блокируют EMPTY после P9 и **не** подмешиваются в P5–P9 scope:
 

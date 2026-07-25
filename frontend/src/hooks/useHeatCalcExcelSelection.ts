@@ -17,11 +17,16 @@ import {
   type ExcelCellPosition,
   type ExcelSelectionRange,
 } from '@/utils/heatCalcExcelMode';
+import {
+  clampExcelGridIndices,
+  computeMovedExcelSelectionIndices,
+  excelCellPositionAt,
+  excelSelectedCoordinates,
+  type HeatCalcExcelCellCoordinates,
+  type HeatCalcExcelCellRef,
+} from '@/utils/heatCalcExcelSelectionNav';
 
-export type HeatCalcExcelCellRef = {
-  objectId: string;
-  columnKey: string;
-} | null;
+export type { HeatCalcExcelCellCoordinates, HeatCalcExcelCellRef } from '@/utils/heatCalcExcelSelectionNav';
 
 interface UseHeatCalcExcelSelectionOptions {
   excelModeEnabled: boolean;
@@ -35,11 +40,6 @@ interface UseHeatCalcExcelSelectionOptions {
   focusedRowId?: string | null;
   onSelectRecord?: (record: ProjectObject) => void;
   openContextMenu?: (event: ReactMouseEvent<HTMLElement>) => void;
-}
-
-export interface HeatCalcExcelCellCoordinates {
-  rowIndex: number;
-  columnIndex: number;
 }
 
 export function useHeatCalcExcelSelection({
@@ -59,18 +59,17 @@ export function useHeatCalcExcelSelection({
   const lastCellPointerDownRef = useRef<{ rowIndex: number; columnIndex: number; at: number } | null>(null);
   const rowIds = useMemo(() => rows.map((row) => row.id), [rows]);
 
-  const cellPositionAt = useCallback((rowIndex: number, columnIndex: number): ExcelCellPosition | null => {
-    const rowId = rowIds[rowIndex];
-    const columnKey = editableColumnKeys[columnIndex];
-    return rowId && columnKey ? { rowId, columnKey } : null;
-  }, [editableColumnKeys, rowIds]);
+  const cellPositionAt = useCallback(
+    (rowIndex: number, columnIndex: number): ExcelCellPosition | null => (
+      excelCellPositionAt(rowIds, editableColumnKeys, rowIndex, columnIndex)
+    ),
+    [editableColumnKeys, rowIds],
+  );
 
-  const selectedPosition = useMemo<HeatCalcExcelCellCoordinates | null>(() => {
-    if (!selectedCell) return null;
-    const rowIndex = rows.findIndex((object) => object.id === selectedCell.objectId);
-    const columnIndex = editableColumnKeys.indexOf(selectedCell.columnKey);
-    return rowIndex >= 0 && columnIndex >= 0 ? { rowIndex, columnIndex } : null;
-  }, [editableColumnKeys, rows, selectedCell]);
+  const selectedPosition = useMemo<HeatCalcExcelCellCoordinates | null>(
+    () => excelSelectedCoordinates(rows, editableColumnKeys, selectedCell),
+    [editableColumnKeys, rows, selectedCell],
+  );
 
   const clearSelectionState = useCallback(() => {
     setSelectedCell(null);
@@ -89,8 +88,14 @@ export function useHeatCalcExcelSelection({
     extend = false,
   ) => {
     if (!excelModeEnabled || rows.length === 0 || editableColumnKeys.length === 0) return;
-    const nextRowIndex = Math.min(Math.max(rowIndex, 0), rows.length - 1);
-    const nextColumnIndex = Math.min(Math.max(editableColumnIndex, 0), editableColumnKeys.length - 1);
+    const clamped = clampExcelGridIndices(
+      rowIndex,
+      editableColumnIndex,
+      rows.length,
+      editableColumnKeys.length,
+    );
+    if (!clamped) return;
+    const { rowIndex: nextRowIndex, columnIndex: nextColumnIndex } = clamped;
     const record = rows[nextRowIndex];
     const columnKey = editableColumnKeys[nextColumnIndex];
     if (!record || !columnKey) return;
@@ -147,18 +152,14 @@ export function useHeatCalcExcelSelection({
     extend = false,
   ) => {
     if (!excelModeEnabled || !selectedPosition) return;
-    let nextRowIndex = selectedPosition.rowIndex + rowDelta;
-    let nextColumnIndex = selectedPosition.columnIndex + columnDelta;
-    if (wrap) {
-      if (nextColumnIndex >= editableColumnKeys.length) {
-        nextColumnIndex = 0;
-        nextRowIndex += 1;
-      } else if (nextColumnIndex < 0) {
-        nextColumnIndex = editableColumnKeys.length - 1;
-        nextRowIndex -= 1;
-      }
-    }
-    selectCellByPosition(nextRowIndex, nextColumnIndex, extend);
+    const next = computeMovedExcelSelectionIndices(
+      selectedPosition,
+      rowDelta,
+      columnDelta,
+      editableColumnKeys.length,
+      wrap,
+    );
+    selectCellByPosition(next.rowIndex, next.columnIndex, extend);
   }, [
     editableColumnKeys.length,
     excelModeEnabled,

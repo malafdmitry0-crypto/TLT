@@ -124,4 +124,29 @@ describe('useHeatCalcExcelSelection', () => {
     expect(onFormFocus).toHaveBeenCalledTimes(1);
     expect(onFormFocus).toHaveBeenLastCalledWith(rows[1]);
   });
+
+  it('moveSelection wraps across columns when requested (nav extract characterization)', () => {
+    const { result } = renderSelectionHook();
+
+    act(() => {
+      result.current.selection.selectCellByPosition(0, 2);
+    });
+    act(() => {
+      result.current.selection.moveSelection(0, 1, true);
+    });
+
+    expect(result.current.selectedCell).toEqual({ objectId: 'row-2', columnKey: 'name' });
+    expect(result.current.selection.selectedPosition).toEqual({ rowIndex: 1, columnIndex: 0 });
+  });
+
+  it('selectCellByPosition clamps out-of-range indices via nav helpers', () => {
+    const { result } = renderSelectionHook();
+
+    act(() => {
+      result.current.selection.selectCellByPosition(99, 99);
+    });
+
+    expect(result.current.selectedCell).toEqual({ objectId: 'row-2', columnKey: 'supply_voltage' });
+  });
 });
+
