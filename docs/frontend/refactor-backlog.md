@@ -7,9 +7,9 @@
 pending» (dense production 400-band + heavy test contexts) must be real
 `pending`, not EMPTY QUEUE cosmetics.  
 **Inventory at open:** **22** files in **400–445** LOC (production).  
-**Last closed production:** P-BAND-16 ElectricalCandidateColumnSettingsModal (see table)
+**Last closed production:** P-BAND-17 useObjectWizardFormSync (see table)
 
-**Следующий незакрытый контракт:** `P-BAND-17`
+**Следующий незакрытый контракт:** `P-BAND-18`
 
 Это **единственный** источник текущего `pending` для frontend. Одновременно
 может существовать только одна ACTIVE frontend-очередь. Initiative plans,
@@ -87,7 +87,7 @@ util/domain/api/types).
 | 14 | **P-BAND-14** | **done** `b54cd23` | heat | `useHeatCalcTableColumns.tsx` **411→287** | [audit](../audit/2026-07-26-p-band-14-table-columns/snapshot.md) |
 | 15 | **P-BAND-15** | **done** `498dfe8` | reports | `ReportWizardPage.tsx` **409→264** | [audit](../audit/2026-07-26-p-band-15-report-wizard/snapshot.md) |
 | 16 | **P-BAND-16** | **done** `5040267` | electrical | `ElectricalCandidateColumnSettingsModal.tsx` **409→239** | [audit](../audit/2026-07-26-p-band-16-candidate-settings/snapshot.md) |
-| 17 | P-BAND-17 | pending | heat | `components/wizard/useObjectWizardFormSync.ts` (~407) | pure sync mappers |
+| 17 | **P-BAND-17** | **done** `61ef37f` | heat | `useObjectWizardFormSync.ts` **407→310** | [audit](../audit/2026-07-26-p-band-17-form-sync/snapshot.md) |
 | 18 | P-BAND-18 | pending | heat | `pages/heatcalc/useHeatCalcObjectsDataModel.ts` (~406) | query/filter clusters |
 | 19 | P-BAND-19 | pending | heat | `components/wizard/InsulationLayersTable.tsx` (~406) | row/editor subcomponents |
 | 20 | **P-BAND-20** | **done** `a156bf0` | electrical | `utils/electricalTableColumns.ts` **405→387** | [audit](../audit/2026-07-26-p-band-20-electrical-columns/snapshot.md) |
