@@ -23,6 +23,13 @@ import {
 import { buildSpecSettingsFormSnapshot } from '@/pages/specification/specGenerationOptionsSyncModel';
 import { useSpecificationQuerySession } from '@/pages/specification/useSpecificationQuerySession';
 import { useSpecificationManualItemsController } from '@/pages/specification/useSpecificationManualItemsController';
+import {
+  buildExcludedGroupsToast,
+  buildPreflightSummaryText,
+  buildSpecificationGeneratedToast,
+  filterValidGenerateErIds,
+  resolveGenerateVariantIds,
+} from '@/pages/specification/specificationPageModelHelpers';
 
 type SpecificationMutationScope = {
   projectId: string;
@@ -106,16 +113,13 @@ export function useSpecificationPageModel() {
   );
   useEffect(() => {
     if (!selectedElectricalVariant?.id) return;
-    form.setSelectedGenerateErIds((prev) => {
-      if (prev.length === 0) return [selectedElectricalVariant.id];
-      const stillValid = prev.filter((id) =>
-        availableGenerateVariants.some((item) => item.id === id),
-      );
-      if (stillValid.length > 0) return stillValid;
-      return selectedElectricalVariant.legacy_variant_number != null
-        ? [selectedElectricalVariant.id]
-        : [];
-    });
+    const availableIds = new Set(availableGenerateVariants.map((item) => item.id));
+    form.setSelectedGenerateErIds((prev) => filterValidGenerateErIds(
+      prev,
+      availableIds,
+      selectedElectricalVariant.id,
+      selectedElectricalVariant.legacy_variant_number != null,
+    ));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- form.setSelectedGenerateErIds stable
   }, [selectedElectricalVariant?.id, selectedElectricalVariant?.legacy_variant_number, availableGenerateVariants]);
   const snapshotMutationScope = (): SpecificationMutationScope => {
@@ -165,33 +169,22 @@ export function useSpecificationPageModel() {
       form.setPreflightOpen(false);
       form.setPendingGenerate(null);
       const generatedCount = result.results?.length ?? 1;
-      if (result.partial) {
-        message.warning(
-          generatedCount > 1
-            ? `Сформирована неполная спецификация для ${generatedCount} ЭР — не использовать как полный закупочный комплект`
-            : `Сформирована неполная спецификация для «${variables.electricalVariantName}» — не использовать как полный закупочный комплект`,
-        );
-      } else {
-        message.success(
-          generatedCount > 1
-            ? `Спецификация сформирована для ${generatedCount} ЭР`
-            : `Спецификация для «${variables.electricalVariantName}» сформирована`,
-        );
-      }
+      const toast = buildSpecificationGeneratedToast({
+        partial: !!result.partial,
+        generatedCount,
+        electricalVariantName: variables.electricalVariantName,
+      });
+      if (result.partial) message.warning(toast);
+      else message.success(toast);
       if (result.mode === 'full' && result.skipped_objects > 0) {
         message.warning(
           `Объектов без успешного электрорасчёта: ${result.skipped_objects} — они не вошли в спецификацию`,
         );
       }
-      if (result.partial && (result.excluded_groups?.length ?? 0) > 0) {
-        const codes = (result.excluded_groups ?? [])
-          .map((g) => g.error_code)
-          .filter(Boolean)
-          .join(', ');
-        message.warning(
-          `Исключённые группы: ${codes || 'см. диагностику на экране'}`,
-        );
-      }
+      const excludedToast = result.partial
+        ? buildExcludedGroupsToast(result.excluded_groups)
+        : null;
+      if (excludedToast) message.warning(excludedToast);
       for (const id of variables.generateVariantIds) {
         qc.invalidateQueries({
           queryKey: ['spec', variables.projectId, id],
@@ -207,20 +200,7 @@ export function useSpecificationPageModel() {
       }>;
     } } }) => {
       if (e.code === 'SPECIFICATION_PREFLIGHT_CONFIRMATION_REQUIRED') {
-        const pf = e.detail?.preflight;
-        const lines = (pf?.variants ?? [])
-          .filter((v) => (v.skipped_objects ?? 0) > 0)
-          .map(
-            (v) =>
-              `«${v.electrical_variant_name || 'ЭР'}»: исключено объектов ${v.skipped_objects}`,
-          );
-        form.setPreflightSummary(
-          [
-            `Всего исключений: ${pf?.total_skipped_objects ?? 0}.`,
-            'После подтверждения partial generation выполнится атомарно (PDL-ER-36).',
-            ...lines,
-          ].join('\n'),
-        );
+        form.setPreflightSummary(buildPreflightSummaryText(e.detail?.preflight));
         form.setPreflightOpen(true);
         return;
       }
@@ -262,9 +242,10 @@ export function useSpecificationPageModel() {
 
   const runGenerate = (confirmPartial = false) => {
     const scope = snapshotMutationScope();
-    const generateVariantIds = form.selectedGenerateErIds.length > 0
-      ? form.selectedGenerateErIds
-      : [scope.electricalVariantId];
+    const generateVariantIds = resolveGenerateVariantIds(
+      form.selectedGenerateErIds,
+      scope.electricalVariantId,
+    );
     const options = buildGenerateOptions();
     if (!confirmPartial) {
       form.setPendingGenerate({ generateVariantIds, options });
