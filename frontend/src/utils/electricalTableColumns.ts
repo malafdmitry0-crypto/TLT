@@ -9,6 +9,19 @@ import {
 import type { ElectricalTableLabelFormat } from '@/utils/electricalTableViewSettings';
 import { readStorageJson } from '@/utils/storage';
 import { isRecord } from '@/utils/typeGuards';
+import {
+  clampElectricalTableColumnWidthPct,
+  electricalTableColumnWidthPctToPx,
+} from '@/utils/electricalTableColumnWidths';
+
+export {
+  ELECTRICAL_TABLE_COLUMN_WIDTH_BASE_PX,
+  ELECTRICAL_TABLE_COLUMN_MIN_WIDTH_PCT,
+  ELECTRICAL_TABLE_COLUMN_MAX_WIDTH_PCT,
+  clampElectricalTableColumnWidthPct,
+  electricalTableColumnWidthPctToPx,
+  electricalTableColumnWidthPxToPct,
+} from '@/utils/electricalTableColumnWidths';
 
 export type ElectricalColumnKey = string;
 
@@ -58,37 +71,6 @@ export const ELECTRICAL_TABLE_COLUMN_PREF_KEY = 'electrical.tableColumns';
 export const ELECTRICAL_GUEST_TABLE_COLUMN_STORAGE_KEY = `${ELECTRICAL_TABLE_COLUMN_PREF_KEY}.guest`;
 export const ELECTRICAL_REGISTERED_TABLE_COLUMN_CACHE_KEY =
   `${ELECTRICAL_TABLE_COLUMN_PREF_KEY}.registered.cache`;
-export const ELECTRICAL_TABLE_COLUMN_WIDTH_BASE_PX = 1000;
-export const ELECTRICAL_TABLE_COLUMN_MIN_WIDTH_PCT = 3;
-export const ELECTRICAL_TABLE_COLUMN_MAX_WIDTH_PCT = 60;
-
-function roundWidthPct(value: number) {
-  return Math.round(value * 10) / 10;
-}
-
-export function clampElectricalTableColumnWidthPct(value: unknown) {
-  const numericValue = Number(value);
-  if (!Number.isFinite(numericValue)) return ELECTRICAL_TABLE_COLUMN_MIN_WIDTH_PCT;
-  return roundWidthPct(
-    Math.min(
-      ELECTRICAL_TABLE_COLUMN_MAX_WIDTH_PCT,
-      Math.max(ELECTRICAL_TABLE_COLUMN_MIN_WIDTH_PCT, numericValue),
-    ),
-  );
-}
-
-export function electricalTableColumnWidthPctToPx(widthPct: number) {
-  return Math.round(
-    (clampElectricalTableColumnWidthPct(widthPct) / 100) *
-      ELECTRICAL_TABLE_COLUMN_WIDTH_BASE_PX,
-  );
-}
-
-export function electricalTableColumnWidthPxToPct(widthPx: number) {
-  return clampElectricalTableColumnWidthPct(
-    (widthPx / ELECTRICAL_TABLE_COLUMN_WIDTH_BASE_PX) * 100,
-  );
-}
 
 function normalizeRegistryColumn(column: ElectricalRegistryTableColumn): ElectricalColumnMeta | null {
   if (typeof column.key !== 'string') return null;
