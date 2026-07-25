@@ -1,0 +1,171 @@
+{
+  "head": "56b43c5df9615d32984187f9e6ed3a7b52408263",
+  "head_short": "56b43c5",
+  "state_id": "alerts_tabs_metrics",
+  "viewport_profile": "tlt-shell-1000",
+  "viewport": {
+    "width": 1000,
+    "height": 768
+  },
+  "url": "http://127.0.0.1:3003/ui-kit",
+  "overflowX": false,
+  "scrollWidth": 1000,
+  "clientWidth": 1000,
+  "bounds": {
+    ".uikit-page": {
+      "x": 0,
+      "y": -887,
+      "width": 1000,
+      "height": 4387.25
+    },
+    ".uikit-header": {
+      "x": 0,
+      "y": -887,
+      "width": 1000,
+      "height": 44
+    },
+    ".uikit-shell": {
+      "x": 0,
+      "y": -843,
+      "width": 1000,
+      "height": 4343.25
+    },
+    ".uikit-nav": {
+      "x": 0,
+      "y": 0,
+      "width": 164,
+      "height": 724
+    },
+    ".uikit-main": {
+      "x": 164,
+      "y": -843,
+      "width": 836,
+      "height": 4343.25
+    },
+    ".uikit-heatcalc-reference": {
+      "x": 189,
+      "y": 872.609375,
+      "width": 786,
+      "height": 1016.640625
+    },
+    ".uikit-heatcalc-form": {
+      "x": 199,
+      "y": 998.359375,
+      "width": 766,
+      "height": 698.890625
+    },
+    ".uikit-alerts": {
+      "x": 189,
+      "y": 306.765625,
+      "width": 786,
+      "height": 155.15625
+    },
+    ".uikit-metrics": {
+      "x": 189,
+      "y": 543.015625,
+      "width": 786,
+      "height": 74
+    },
+    ".uikit-primitive-grid": {
+      "x": 189,
+      "y": 1970.34375,
+      "width": 786,
+      "height": 339.78125
+    }
+  },
+  "computed": {
+    ".uikit-page": {
+      "display": "block",
+      "gridTemplateColumns": "none",
+      "gap": "normal",
+      "padding": "0px",
+      "overflow": "visible",
+      "overflowX": "visible"
+    },
+    ".uikit-header": {
+      "display": "flex",
+      "gridTemplateColumns": "none",
+      "gap": "12px",
+      "padding": "7px 10px",
+      "overflow": "visible",
+      "overflowX": "visible"
+    },
+    ".uikit-shell": {
+      "display": "grid",
+      "gridTemplateColumns": "164px 836px",
+      "gap": "normal",
+      "padding": "0px",
+      "overflow": "visible",
+      "overflowX": "visible"
+    },
+    ".uikit-nav": {
+      "display": "block",
+      "gridTemplateColumns": "none",
+      "gap": "normal",
+      "padding": "18px 10px",
+      "overflow": "visible",
+      "overflowX": "visible"
+    },
+    ".uikit-main": {
+      "display": "block",
+      "gridTemplateColumns": "none",
+      "gap": "normal",
+      "padding": "16px 25px 36px",
+      "overflow": "visible",
+      "overflowX": "visible"
+    },
+    ".uikit-heatcalc-reference": {
+      "display": "grid",
+      "gridTemplateColumns": "772px",
+      "gap": "6px",
+      "padding": "6px",
+      "overflow": "visible",
+      "overflowX": "visible"
+    },
+    ".uikit-heatcalc-form": {
+      "display": "block",
+      "gridTemplateColumns": "none",
+      "gap": "normal",
+      "padding": "0px",
+      "overflow": "visible",
+      "overflowX": "visible"
+    },
+    ".uikit-alerts": {
+      "display": "grid",
+      "gridTemplateColumns": "380px 380px",
+      "gap": "8px",
+      "padding": "8px",
+      "overflow": "visible",
+      "overflowX": "visible"
+    },
+    ".uikit-metrics": {
+      "display": "grid",
+      "gridTemplateColumns": "392px 392px",
+      "gap": "normal",
+      "padding": "0px",
+      "overflow": "hidden",
+      "overflowX": "hidden"
+    },
+    ".uikit-primitive-grid": {
+      "display": "grid",
+      "gridTemplateColumns": "786px",
+      "gap": "8px",
+      "padding": "0px",
+      "overflow": "visible",
+      "overflowX": "visible"
+    }
+  },
+  "console": {
+    "errors": 0,
+    "warnings": 0,
+    "pageerrors": 0,
+    "excerpts": [
+      "[debug] [vite] connecting...",
+      "[debug] [vite] connected.",
+      "[info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-de"
+    ]
+  },
+  "failed_network": [],
+  "screenshot": "screenshots/alerts_tabs_metrics__tlt-shell-1000__1000x768.png",
+  "captured_at_utc": "2026-07-25T17:48:11.069Z"
+}

@@ -85,10 +85,6 @@ function classTokensFromCss(source: string): string[] {
   return extractClassTokens(source);
 }
 
-function fileOwnsToken(token: string, roots: string[]): boolean {
-  return roots.some((r) => token === r || token.startsWith(r) || token.startsWith(`${r}-`) || (r.endsWith('-') && token.startsWith(r)));
-}
-
 describe('UI Kit owner gate (AF12-UIKIT-OWNER-GATE-01)', () => {
   it('UIKitPage imports every declared owner CSS that exists on disk', () => {
     const page = fs.readFileSync(UIKIT_PAGE, 'utf8');
