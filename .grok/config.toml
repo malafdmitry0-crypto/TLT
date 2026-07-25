@@ -1,15 +1,15 @@
-# Project MCP servers (Grok). kontur_playwright unblocks AF browser matrix.
-# Requires: e2e deps installed; Chrome (or change --browser chromium).
+# Project MCP: kontur_playwright unblocks AF browser matrix.
+# Requires e2e deps (`cd e2e && npm i`) and Google Chrome (or set --browser chromium).
 
 [mcp_servers.kontur_playwright]
 command = "node"
 args = [
-  "e2e/node_modules/playwright-core/lib/tools/mcp/cli-stub.js",
+  "/Users/dmalafey/Desktop/TLT/e2e/node_modules/playwright-core/lib/tools/mcp/cli-stub.js",
   "--headless",
   "--browser",
   "chrome",
   "--output-dir",
-  ".playwright-mcp",
+  "/Users/dmalafey/Desktop/TLT/.playwright-mcp",
   "--viewport-size",
   "1440x1000",
   "--console-level",

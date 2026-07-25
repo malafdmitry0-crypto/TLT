@@ -22,12 +22,12 @@
     "kontur_playwright": {
       "command": "node",
       "args": [
-        "e2e/node_modules/playwright-core/lib/tools/mcp/cli-stub.js",
+        "/Users/dmalafey/Desktop/TLT/e2e/node_modules/playwright-core/lib/tools/mcp/cli-stub.js",
         "--headless",
         "--browser",
         "chrome",
         "--output-dir",
-        ".playwright-mcp",
+        "/Users/dmalafey/Desktop/TLT/.playwright-mcp",
         "--viewport-size",
         "1440x1000",
         "--console-level",
