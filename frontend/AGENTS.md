@@ -32,6 +32,9 @@
 - Не создавай новые Heat ↔ Electrical ↔ Specification deep imports.
 - UI-kit не знает о feature/domain; feature UI импортирует kit только через
   `@/components/ui-kit`.
+- При работе с UI-kit / stories: если MCP `storybook` доступен (dev server
+  `npm run storybook` → `http://127.0.0.1:6006/mcp`), сначала читай docs/stories
+  через MCP tools; не выдумывай props kit-компонентов.
 - Видимое UI-изменение без browser proof не завершено.
 
 ## Базовые проверки

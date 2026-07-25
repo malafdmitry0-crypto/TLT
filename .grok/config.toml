@@ -17,3 +17,10 @@ args = [
 ]
 enabled = true
 startup_timeout_sec = 60
+
+# Official Storybook MCP (React): requires `cd frontend && npm run storybook`
+# Endpoint served by @storybook/addon-mcp at /mcp
+[mcp_servers.storybook]
+url = "http://127.0.0.1:6006/mcp"
+enabled = true
+startup_timeout_sec = 15
