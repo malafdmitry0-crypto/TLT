@@ -1,11 +1,13 @@
 # AF12 — остаточный frontend hardening: план и исполняемые промпты
 
-**Статус:** PROPOSED prompt-pack, не ACTIVE-очередь и не заявление о PASS
+**Статус:** PARTIAL EXECUTED (01–04 + 05 done; 06/07/08 residual; see audit)
 **Planning BASE_HEAD:** `c03498b07ab2e426ee015259b0b40cdda31c94bd`
 **Актуально на:** 2026-07-25
 **Владелец программы:** frontend-process
 **Маршрутизация `pending`:** только
 [refactor-backlog.md](./refactor-backlog.md)
+**Execution audit:**
+[docs/audit/2026-07-25-af12-final/snapshot.md](../audit/2026-07-25-af12-final/snapshot.md)
 
 Этот документ содержит только план и готовые к отдельному запуску промпты.
 Он не выполняет production-срезы, не меняет acceptance задним числом и не
