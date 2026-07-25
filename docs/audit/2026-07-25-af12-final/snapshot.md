@@ -1,8 +1,9 @@
 # AF12 final audit
 
-**UTC:** 2026-07-25  
+**UTC:** 2026-07-25 (updated residual close)  
 **Program BASE_HEAD (start):** `efdf5a0` (wave5 tests) / planning seed `c03498b`  
-**Status:** **PARTIAL PASS** — production 01–04 done; 05 docs done; 06/07/08 residual  
+**Committed baseline at residual measure:** `e45b83f`  
+**Status:** **PARTIAL PASS** — production 01–05 done; 06/07 blocked with evidence; 08 partial; scenario re-split pilot done
 
 ## Slice results
 
@@ -12,40 +13,42 @@
 | AF12-HEAT-RANGE-FORM-01 | **DONE** | `Form.useForm` only in editable child; reference branch has no modal form |
 | AF12-TLT-NUMBER-ADDON-01 | **DONE** | `addonAfter` → `Space.Compact` + unit sibling; CSS compressed under baseline |
 | AF12-TLT-SELECT-POPUP-01 | **DONE** | `popupClassName` → `classNames.popup.root`; portal class test |
-| AF12-CSS-OWNER-MAP-01 | **DONE** | `docs/audit/2026-07-25-af12-css-owner-map/snapshot.md` |
-| AF12-UIKIT-RESPONSIVE-OWNER-01 | **BLOCKED** | mechanical move grew CSS media total 39→43 (ratchet); needs careful co-locate without media inflation |
-| AF12-BROWSER-FINAL-SEAL-01 | **BLOCKED** | Kontur Playwright MCP unavailable |
-| AF12-DOD-REPEATABILITY-01 | **PARTIAL** | single green DoD wall≈**155.92s** (median≤120 not met; dual-concurrent not run this session) |
+| AF12-CSS-OWNER-MAP-01 | **DONE** | [`2026-07-25-af12-css-owner-map/snapshot.md`](../2026-07-25-af12-css-owner-map/snapshot.md) |
+| AF12-UIKIT-RESPONSIVE-OWNER-01 | **BLOCKED** | [`2026-07-25-af12-uikit-responsive-blocked/snapshot.md`](../2026-07-25-af12-uikit-responsive-blocked/snapshot.md) — media ratchet 39→43 reverted |
+| AF12-BROWSER-FINAL-SEAL-01 | **BLOCKED** | [`2026-07-25-af12-browser-final/snapshot.md`](../2026-07-25-af12-browser-final/snapshot.md) — no Kontur Playwright MCP |
+| AF12-DOD-REPEATABILITY-01 | **PARTIAL** | [`2026-07-25-af12-dod-repeatability/snapshot.md`](../2026-07-25-af12-dod-repeatability/snapshot.md) — 2× sequential green ~152.5 s median; dual FAIL contention; ≤120 s not met |
+| AF12-SCENARIO-RESPLIT-PILOT | **DONE** | [`2026-07-25-af12-scenario-resplit/snapshot.md`](../2026-07-25-af12-scenario-resplit/snapshot.md) — objectWizardUtils + heatCalcExcelMode harness pattern |
 | AF12-FINAL-AUDIT-01 | **THIS FILE** | |
 
-## Full proof (this environment)
+## Full proof (this environment, residual)
 
 ```text
-npm run test:agent-dod
-  agent-gates: exit=0 ~16.5s
-  unit+integration: exit=0 ~131.7s
-  build: exit=0 ~7.7s
-  PASS total wall=155.92s
+Sequential agent-dod (after typecheck-clean re-split complete):
+  run2 PASS total wall=152.69s
+  run3 PASS total wall=152.20s
+  green min/median/max ≈ 152.20 / 152.45 / 152.69 s
+
+Dual concurrent (two full DoDs in parallel):
+  A FAIL total=276.85s  (HeatCalcPage.basics + project-isolation timeouts)
+  B FAIL total=276.91s  (same under load)
+  → dual stress NOT green (resource contention)
+
+Kontur live browser: not available → no AF12 browser seal
+UIKIT responsive owner move: BLOCKED (shrink-only media baseline)
 ```
-
-Kontur live browser: **not available** → geometry/deprecation seals are unit/e2e/DoD only.
-
-## Note on test tree
-
-Scenario-split files from waves 1–5 introduced `noUnusedLocals` typecheck failures (shared preambles).  
-For green agent-gates, monolithes restored from pre-split commits under `frontend/src/__tests__` where needed.  
-**Residual:** re-split with harness-only exports (no unused imports) without losing scenario filenames.
 
 ## Residual risk
 
-1. Browser matrix not sealed (Kontur)
-2. DoD median still ~156s (>120s); dual concurrent not proven
-3. ui-kit.css still MIXED_OWNERSHIP for foreign responsive families
-4. Insulation e2e AF12 viewports need live stack to confirm hostWidthRatio ≥0.85 after containment removal
+1. Browser matrix not sealed (Kontur MCP)
+2. DoD median ~152 s (>120 s goal); dual concurrent not green
+3. `ui-kit.css` MIXED_OWNERSHIP for foreign responsive families (user decision)
+4. Insulation live geometry (`hostWidthRatio ≥ 0.85`) needs live stack
+5. Broader monolit re-split backlog (pilot only for two util families)
 
 ## SAFE NEXT
 
-1. Kontur: AF12-BROWSER-FINAL-SEAL-01  
-2. AF12-UIKIT-RESPONSIVE-OWNER-01 with media-preserving co-location (no new `@media` wrappers)  
-3. AF12-DOD-REPEATABILITY-01 profile + optional harness only if isolation-safe  
-4. Test harness cleanup for scenario files (typecheck-clean splits)
+1. User decision on AF12-06: keep mixed media in `ui-kit.css` (recommended) / baseline exception / larger redesign  
+2. Kontur environment for AF12-BROWSER-FINAL-SEAL-01  
+3. Optional dual re-run under quiet CPU; else isolate flaky HeatCalc findBy under load  
+4. Extend typecheck-clean scenario re-split harness pattern to next monolithes as needed  
+5. Wall-time work only if product priority (≤120 s still open)
