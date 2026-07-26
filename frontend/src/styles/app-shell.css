@@ -229,13 +229,13 @@
     padding-inline: 6px;
   }
 }
+/* min-width + clip: ant Row gutters must not grow document scrollWidth */
 .heatcalc-content {
   flex: 1;
-  padding: 16px;
-  background: var(--color-surface);
-}
-.heatcalc-content {
+  min-width: 0;
   padding: 2px 6px 8px;
+  background: var(--color-surface);
+  overflow-x: clip;
 }
 .workspace-header-context {
   display: inline-flex;
