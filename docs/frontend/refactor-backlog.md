@@ -1,15 +1,16 @@
 # Frontend refactor backlog
 
-**Статус:** EMPTY QUEUE
+**Статус:** ACTIVE — AF100 agent-friendly 10/10
 
 **Актуально на:** 2026-07-26  
-**Queue open reason:** closed — Track A (P-BAND-01..22) and Track B
-(P-TEST-01..08) complete.  
+**Queue open reason:** explicit user goal — довести frontend agent loop до
+исполняемых **10/10** по
+[agent-friendly-10-plan.md](./agent-friendly-10-plan.md).
 **Inventory at open:** **22** files in **400–445** LOC (production) — all
 extracted under Track A.  
 **Last closed:** P-TEST-08 inline-form-dependencies e2e @ `8560d79`
 
-**Следующий незакрытый контракт:** —
+**Следующий незакрытый контракт:** **AF100-02 — executable focused proof**
 
 Это **единственный** источник текущего `pending` для frontend. Одновременно
 может существовать только одна ACTIVE frontend-очередь. Initiative plans,
@@ -27,6 +28,33 @@ archive summaries и audit snapshots **не** маршрутизируют `pend
 Viewport / UI Kit: [viewport-policy](./viewport-policy.md), [ui-kit](./ui-kit.md).  
 Test split template: [split-large-tests-by-scenario](./prompts/split-large-tests-by-scenario.md).  
 **Текущие AF-метрики (binding only):** [agent-metrics-binding](../audit/2026-07-26-agent-metrics-binding/snapshot.md) — не цитировать historical **8.1**.
+
+## Pending — AF100 agent-friendly 10/10
+
+Acceptance и hard gates программы:
+[agent-friendly-10-plan.md](./agent-friendly-10-plan.md).
+
+| # | ID | Status | Owner | Outcome |
+|---:|---|---|---|---|
+| 1 | **AF100-01** | **done** `e7ed259` | tooling | `agent:scope`: unique 100%, ambiguous/unowned 0; coverage ловит оба класса ошибок |
+| 2 | **AF100-02** | **pending** | tooling | Все emitted focused commands точные и execution-tested |
+| 3 | **AF100-03** | **pending** | tooling | CSS gate проверяет все актуальные ratchets и fail-closed на missing target |
+| 4 | **AF100-04** | **pending** | tooling | Hooks не ссылаются на отсутствующие scripts; есть root agent entrypoint |
+| 5 | **AF100-05** | **pending** | qa | Одна рабочая Playwright discovery command из документированного cwd |
+| 6 | **AF100-06** | **pending** | qa | `ReportPage.export` deterministic; focused stress ≥20/20 |
+| 7 | **AF100-07** | **pending** | tooling | Одна каноническая full DoD команда в docs/scripts/CI |
+| 8 | **AF100-08** | **pending** | qa | Clean quiet-host profile n≥3 определяет long pole |
+| 9 | **AF100-09+** | **pending** | qa | Harness slices снижают full DoD p50 до ≤120 s, PASS 3/3 |
+| 10 | **AF100-10+** | **pending** | feature | Stateful/interactive >350 LOC classified; extracts только по одному owner |
+| 11 | **AF100-11+** | **pending** | ui | Direct Ant inventory classified; feature debt shrink-only |
+| 12 | **AF100-12** | **pending** | tooling | Production path детерминированно возвращает ближайшие tests/harness |
+| 13 | **AF100-13** | **pending** | qa | Live U0 browser matrix green на 1000/1280/1440 |
+| 14 | **AF100-14** | **pending** | tooling | Root artifact hygiene и явные owners для сохраняемых baselines |
+| 15 | **AF100-15** | **pending** | docs | Backlog/AGENTS/standard/README/scorecard синхронизированы |
+| 16 | **AF100-16** | **pending** | qa | Независимый clean-checkout audit подтверждает все hard gates и 10.0 |
+
+`AF100-09+`, `AF100-10+` и `AF100-11+` раскрываются только после inventory /
+profile: один owner и один измеримый результат на под-slice.
 
 ## Правила очереди
 
