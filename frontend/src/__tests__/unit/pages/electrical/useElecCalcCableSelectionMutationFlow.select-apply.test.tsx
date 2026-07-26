@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { appMessage as message } from '@/feedback/appFeedback';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -9,7 +9,6 @@ import {
 } from '@/api/calculations';
 import { electricalDataQueryKeys } from '@/api/electricalQueryKeys';
 import {
-  AUTO_CABLE_MARK_VALUE,
   cableMarkOptionValue,
   type CableMarkSelectOption,
 } from '@/pages/electrical/elecCalcCableOptionModel';
@@ -148,12 +147,11 @@ function setup(
   };
 }
 
-describe('useElecCalcCableSelectionMutationFlow', () => {
+describe('useElecCalcCableSelectionMutationFlow — select-apply', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(selectCableForVariants).mockResolvedValue([calculation()]);
   });
-
   it('sends manual cable selection payload with target variants and selected source', async () => {
     const { result, setElectricalQueryCalculation, queryClient } = setup();
     queryClient.setQueryData(
@@ -219,7 +217,6 @@ describe('useElecCalcCableSelectionMutationFlow', () => {
       'Кабель выбран, расчёт обновлён: Летний ЭР, Пиковый ЭР',
     );
   });
-
   it('falls back auto selection to the active variant and effective source', async () => {
     const { result, setElectricalQueryCalculation } = setup({ effectiveSource: 'builtin' });
 
@@ -250,7 +247,6 @@ describe('useElecCalcCableSelectionMutationFlow', () => {
     );
     expect(message.success).toHaveBeenCalledWith('Автоподбор выполнен');
   });
-
   it('sends layout edit payload and writes returned calculations to page cache helper', async () => {
     const { result, setElectricalQueryCalculation } = setup();
     vi.mocked(selectCableForVariants).mockResolvedValue([
@@ -287,84 +283,5 @@ describe('useElecCalcCableSelectionMutationFlow', () => {
       ER_2_TARGET,
     );
     expect(message.success).toHaveBeenCalledWith('Параметры укладки сохранены, расчёт обновлён');
-  });
-
-  it('applies selected modal mark and closes the modal only after success', async () => {
-    const selected = option('extended', '30ТТВ2-СР');
-    const { result, closeCableMarkModal } = setup({
-      cableMarkModalValue: selected[0],
-      cableMarkModalOptionByValue: new Map([selected]),
-    });
-
-    act(() => {
-      result.current.applyCableMarkModal();
-    });
-
-    await waitFor(() => {
-      expect(selectCableForVariants).toHaveBeenCalledWith(
-        'object-1',
-        '30ТТВ2-СР',
-        'extended',
-        [2, 4],
-        'self_regulating_tt',
-        expect.any(Object),
-        {
-          2: ER_2_ID,
-          4: ER_4_ID,
-        },
-      );
-      expect(closeCableMarkModal).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  it('keeps the modal open when auto apply fails', async () => {
-    vi.mocked(selectCableForVariants).mockRejectedValueOnce(new Error('auto failed'));
-    const { result, closeCableMarkModal } = setup({
-      cableMarkModalValue: AUTO_CABLE_MARK_VALUE,
-      cableMarkModalOptionByValue: new Map(),
-    });
-
-    act(() => {
-      result.current.applyCableMarkModal();
-    });
-
-    await waitFor(() => {
-      expect(message.error).toHaveBeenCalledWith('auto failed');
-    });
-    expect(closeCableMarkModal).not.toHaveBeenCalled();
-  });
-
-  it('rejects direct cable and layout mutations when the project is read-only', async () => {
-    const { result, closeCableMarkModal } = setup({ canMutate: false });
-    const denied = 'Недостаточно прав для изменения электрорасчёта';
-
-    await act(async () => {
-      await expect(result.current.manualCableMut.mutateAsync({
-        objectId: 'object-1',
-        mark: '30ТТВ2-СР',
-        cableType: 'self_regulating_tt',
-        cableSource: 'extended',
-        targetVariants: [ER_2_TARGET],
-      })).rejects.toThrow(denied);
-      await expect(result.current.autoCableMut.mutateAsync({
-        objectId: 'object-1',
-        cableType: 'self_regulating',
-        targetVariants: [ER_2_TARGET],
-      })).rejects.toThrow(denied);
-      await expect(result.current.electricalLayoutMut.mutateAsync({
-        objectId: 'object-1',
-        cableMark: null,
-        cableSource: 'builtin',
-        cableType: 'self_regulating',
-        windingPitchMm: 300,
-        numberOfThreads: 2,
-      })).rejects.toThrow(denied);
-    });
-
-    act(() => result.current.applyCableMarkModal());
-
-    expect(selectCableForVariants).not.toHaveBeenCalled();
-    expect(closeCableMarkModal).not.toHaveBeenCalled();
-    expect(message.warning).toHaveBeenCalledWith(expect.stringContaining(denied));
   });
 });
