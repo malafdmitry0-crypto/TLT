@@ -25,15 +25,28 @@ const shared = {
  * icon exports resolve to `undefined` (`ReloadOutlined` → undefined), which
  * surfaces as `Element type is invalid` at render time.
  *
- * Scope is the `unit` project only, and that is a hard constraint, not a default:
- * `vi.importActual('<pre-bundled package>')` cannot resolve — it dies with
- * `Cannot find module .../dist/main.js&v=<hash>`. The two `integration` files
- * that call `vi.importActual('react-router-dom')` therefore keep the plain
- * pipeline. Neither `optimizer.exclude` nor `server.deps.inline` rescues them
- * (both measured). Plain `vi.mock` factories are unaffected — the 10 unit files
- * mocking `@glideapps/glide-data-grid` run fine pre-bundled.
+ * The one thing pre-bundling cannot serve is `vi.importActual('<bare package>')`:
+ * resolution dies with `Cannot find module .../dist/main.js&v=<hash>` — the
+ * version query is appended as `&v=` and becomes part of the filename. Neither
+ * `optimizer.exclude`, nor `server.deps.inline`, nor the factory's own
+ * `importOriginal` parameter rescues it (all three measured). Plain `vi.mock`
+ * factories are unaffected — the 10 unit files mocking
+ * `@glideapps/glide-data-grid` run fine pre-bundled.
  *
- * `unit` is also where the tax lives: 287 of 328 test files.
+ * So the project split follows one rule: **a test that reads a real vendor
+ * module cannot live in an optimized project.**
+ *
+ * | Project | Optimized | Why |
+ * |---|---|---|
+ * | `unit` | yes | 289 files, no bare `importActual` |
+ * | `integration` | yes | 21 files |
+ * | `integration-unoptimized` | no | 2 files read the real `react-router-dom` |
+ * | `elec-integration` | no | its shared setupFile reads the real `react` |
+ *
+ * `elec-integration` is blocked at the harness, not per file: one
+ * `vi.importActual('react')` in `elecCalcPageTestEnv.componentMocks.tsx` fails
+ * all 18 of its files. Its wall is dominated by test execution (101.9 s) rather
+ * than import (23.3 s), so unblocking it is a separate slice.
  *
  * Guard: `antdOptimizerContract.architecture.test.ts`.
  */
@@ -45,6 +58,18 @@ const depsOptimizer = {
     },
   },
 };
+
+/**
+ * Integration tests that read a real vendor module via `vi.importActual`.
+ * They run in their own unoptimized project; everything else is pre-bundled.
+ * Adding a bare `importActual` to an integration test means adding it here.
+ */
+const INTEGRATION_UNOPTIMIZED = [
+  'src/__tests__/integration/pages/HomePage.test.tsx',
+  'src/__tests__/integration/pages/LoginPage.test.tsx',
+];
+
+const ELECTRICAL_INTEGRATION = 'src/__tests__/integration/pages/electrical/ElecCalcPage.*.test.tsx';
 
 const coverage = {
   provider: 'v8' as const,
@@ -84,6 +109,11 @@ const defaultElectricalWorkers = resolveMaxWorkers('AGENT_DOD_ELEC_MAX_WORKERS',
 
 export default defineConfig({
   ...shared,
+  // AF100-09c — keep the optimizer's pre-bundle inside node_modules. Left to its
+  // default it materialises `frontend/.vite/deps/`, which is gitignored but still
+  // gets picked up by `eslint .` — vendor bundles then fail `no-undef` and turn
+  // the lint gate red for code nobody wrote.
+  cacheDir: 'node_modules/.vite',
   server: {
     port: 3000,
     host: true,
@@ -139,6 +169,7 @@ export default defineConfig({
         ...shared,
         test: {
           name: 'integration',
+          deps: depsOptimizer,
           globals: true,
           environment: 'jsdom',
           css: true,
@@ -151,9 +182,29 @@ export default defineConfig({
           maxWorkers: defaultIntegrationWorkers,
           setupFiles: ['./src/__tests__/setup.ts'],
           include: ['src/__tests__/integration/**/*.{test,spec}.{ts,tsx}'],
-          exclude: [
-            'src/__tests__/integration/pages/electrical/ElecCalcPage.*.test.tsx',
-          ],
+          exclude: [ELECTRICAL_INTEGRATION, ...INTEGRATION_UNOPTIMIZED],
+        },
+      },
+      {
+        ...shared,
+        test: {
+          // AF100-09c — the only reason this project exists is that its files
+          // call `vi.importActual('react-router-dom')`, which cannot resolve
+          // against a pre-bundle. Same settings as `integration`, minus the
+          // optimizer. Isolation is unchanged.
+          name: 'integration-unoptimized',
+          globals: true,
+          environment: 'jsdom',
+          css: true,
+          testTimeout: 60_000,
+          hookTimeout: 60_000,
+          sequence: { groupOrder: 1 },
+          pool: 'forks',
+          isolate: true,
+          fileParallelism: true,
+          maxWorkers: defaultIntegrationWorkers,
+          setupFiles: ['./src/__tests__/setup.ts'],
+          include: INTEGRATION_UNOPTIMIZED,
         },
       },
       {
@@ -180,9 +231,7 @@ export default defineConfig({
             './src/__tests__/setup.ts',
             './src/__tests__/integration/pages/electrical/elecCalcPageTestEnv.tsx',
           ],
-          include: [
-            'src/__tests__/integration/pages/electrical/ElecCalcPage.*.test.tsx',
-          ],
+          include: [ELECTRICAL_INTEGRATION],
         },
       },
     ],

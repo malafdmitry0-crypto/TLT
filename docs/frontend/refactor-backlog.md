@@ -8,7 +8,9 @@
 [agent-friendly-10-plan.md](./agent-friendly-10-plan.md).
 **Inventory at open:** **22** files in **400–445** LOC (production) — all
 extracted under Track A.  
-**Last closed:** AF100-09b antd пре-бандлится один раз @ `c20bdea`
+**Last closed:** AF100-09c пре-бандл для integration @ `<pending>`
+([snapshot](../audit/2026-07-27-af100-09c-integration-prebundle/snapshot.md))  
+**Prior:** AF100-09b antd пре-бандлится один раз @ `c20bdea`
 ([snapshot](../audit/2026-07-27-af100-09b-antd-prebundle/snapshot.md))  
 **Prior:** AF100-09a node-окружение для DOM-free unit-тестов @ `aa9c3fa`
 ([snapshot](../audit/2026-07-26-af100-09a-node-environment/snapshot.md))  
@@ -23,52 +25,39 @@ extracted under Track A.
 
 | Поле | Значение |
 |---|---|
-| **NEXT** | **AF100-09c** — пре-бандл для integration (long pole переехал туда) |
+| **NEXT** | **AF100-09d** — quiet-host профиль n≥3: закрыт бюджет ≤120 s или нет |
 | Owner | `qa` |
-| **Не NEXT** | Не `isolate: false` (отклонён, см. п. 6) и не рост workers |
-| Разблокировано | 09b закрыт: unit-налог снят, и замер показал, где остался |
+| **Не NEXT** | Не оптимизация. План §2 запрещает speed-work до измерения |
+| Разблокировано | 09a/09b/09c закрыты; остался один вопрос — цифра на тихом хосте |
 
-**Почему NEXT = AF100-09c** (измерено на `825e4f6` → 09b):
+**Почему NEXT = AF100-09d** (измерено на `995c8e9` → 09c):
 
-1. **Long pole переехал в `integration`.** 09b оптимизировал только `unit`,
-   и per-file налог теперь распределён крайне неравномерно:
+1. **Бюджет близок, но не доказан.** PASS 3/3 дал 121.53 / 130.13 / 135.25 s,
+   **p50 130.13** против цели ≤120 s. Числа монотонно растут вместе с загрузкой
+   хоста (load average 3.43 → 9.79), а лучший прогон отстоит от цели на 1.5 s.
+2. Три слайса подряд мерились на шумном хосте, поэтому сравнивать их p50 между
+   собой нельзя. Достоверны только парные дельты:
 
-   | Проект | import | файлов | на файл |
-   |---|---:|---:|---:|
-   | unit (оптимизирован) | 33.4 s | 289 | **0.12 s** |
-   | integration (нет) | 50.1 s | 41 | **1.22 s** |
+   | Слайс | Что снято | Парная дельта |
+   |---|---|---|
+   | 09a | jsdom + setup для 87 DOM-free файлов | −13.7 s (unit) |
+   | 09b | импорт `antd` в `unit` | −26.6 s (unit) |
+   | 09c | импорт `antd` в `integration` | −8.4 s (integration) |
 
-   Integration платит **в 11 раз больше на файл** — тот же antd-налог, который
-   в unit уже снят.
-2. Блокируют **три места**, а не два (проверено `grep` по bare `importActual`):
-   - `HomePage.test.tsx`, `LoginPage.test.tsx` → `importActual('react-router-dom')`;
-   - `elecCalcPageTestEnv.componentMocks.tsx` → `importActual('react')` ×3, и это
-     **общий setupFile проекта elec-integration**, то есть влияет на все его файлы.
-3. Форма слайса: выделить router-файлы в отдельный unoptimized project,
-   остальные 39 запустить с `deps.optimizer.client`; для elec-integration
-   сначала проверить, переживает ли harness пре-бандл `react`.
-   `isolate: true` сохраняется везде.
-4. **Бюджет не подтверждён, а не провален.** Прогоны 09b дали PASS 3/3, но
-   179.29 / 148.69 / 129.21 s при load average 6.35 / 10.74. Гипотеза
-   «первый прогон строит пре-бандл» **опровергнута** (cold 134.25 s против
-   warm 134.63 s), значит разброс — шум хоста. Acceptance 09c обязан включать
-   quiet-host замер n≥3.
-5. Достоверны парные дельты, прогонами подряд на unit-проекте:
-   09a **−13.7 s** (env+setup), 09b **−26.6 s** (import 87.7 → 33.4 s).
-   Harness tax unit-проекта **185.0 → 95.3 s (−48 %)**.
-6. `isolate: false` (−86 % import, wall 84.1 s) **отклонён окончательно**:
-   ломает 27 файлов и снимает свойство безопасности — hoisted-моки
-   elec-harness, zustand-синглтоны, закэшированная ветка `api/client.ts`,
-   module-level кэши Ant/CSS-in-JS начинают течь между файлами. Безопасное
-   подмножество — ровно те 87 DOM-free файлов, что уже переведены в `node`.
-7. План §5: рост `maxWorkers` и дробление сценариев **не являются** acceptance.
+3. 09d — **только измерение**: тихий хост, n≥3, phase timings. По результату
+   серия 09 либо закрывается, либо получает следующий слайс с новым long pole.
+4. Известный остаток на случай, если бюджет не сойдётся: `elec-integration`
+   держит 23.3 s импорта, заблокированного `vi.importActual('react')` в общем
+   harness `elecCalcPageTestEnv.componentMocks.tsx` — один вызов валит все 18
+   файлов проекта. Его wall при этом держат сами тесты (101.9 s), поэтому
+   отдача меньше, чем у 09b/09c.
+5. `isolate: false` **отклонён окончательно** (см. 09b): ломает 27 файлов и
+   снимает свойство безопасности — hoisted-моки elec-harness,
+   zustand-синглтоны, закэшированная ветка `api/client.ts`, module-level кэши
+   Ant/CSS-in-JS начинают течь между файлами.
+6. План §5: рост `maxWorkers` и дробление сценариев **не являются** acceptance.
 
-**Долг, найденный при приёмке 09b** (не блокирует 09c, но обязателен до
-AF100-16): `agent:scope` не знает `vite.config.ts` — `unknown path (no owner
-rule)`. Обязательный первый шаг agent loop неисполним для конфигов frontend.
-Это тот же класс дефекта, что AF100-01/-02. Закрыть в **AF100-12**.
-
-Evidence: [af100-09a-node-environment](../audit/2026-07-26-af100-09a-node-environment/snapshot.md).
+Evidence: [af100-09c-integration-prebundle](../audit/2026-07-27-af100-09c-integration-prebundle/snapshot.md).
 Корневые причины и приёмка по slice:
 [prompts/af100-execution-plan.md](./prompts/af100-execution-plan.md).
 
@@ -109,7 +98,8 @@ Acceptance и hard gates программы:
 | 8 | **AF100-08** | **done** `42329ed` | qa | Quiet-host n=3: 145.08/145.99/145.68 s; long pole — concurrent unit+integration (~136 s) |
 | 9a | **AF100-09a** | **done** `aa9c3fa` | qa | 87 DOM-free файлов → `node`-окружение; env+setup −29.0 s, gates 10.13 → 7.32 s; 1202 теста без изменений; guard на env-ветвление в графе |
 | 9b | **AF100-09b** | **done** `c20bdea` | qa | `antd` пре-бандлится один раз для `unit`: import 87.7 → 33.4 s, wall −26.6 s; причина поломки — `@ant-design/icons`, не `antd`; 6 моков перенесены на границу `appMessage`; guard 8 тестов, 4 red-demo |
-| 9c | **AF100-09c** | **pending → NEXT** | qa | Пре-бандл для integration (1.22 s/файл против 0.12 в unit) + quiet-host профиль n≥3 |
+| 9c | **AF100-09c** | **done** `<pending>` | qa | `integration` пре-бандлится: import 29.3 → 10.1 s (−66 %), фаза 104.6 → 96.2 s; 168 тестов без изменений; новый проект `integration-unoptimized` для 2 файлов с `importActual`; guard 11 тестов, 8 red-demo |
+| 9d | **AF100-09d** | **pending → NEXT** | qa | Quiet-host профиль n≥3: закрыт бюджет ≤120 s или нет (сейчас p50 130.1 на шумном) |
 | 10 | **AF100-10+** | **pending** | feature | Stateful/interactive >350 LOC classified; extracts только по одному owner |
 | 11 | **AF100-11+** | **pending** | ui | Direct Ant inventory classified; feature debt shrink-only |
 | 12 | **AF100-12** | **pending** | tooling | Production path детерминированно возвращает ближайшие tests/harness |

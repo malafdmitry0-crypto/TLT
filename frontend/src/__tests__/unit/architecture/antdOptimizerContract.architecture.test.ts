@@ -1,6 +1,6 @@
 // @vitest-environment node
 /**
- * AF100-09b — the antd pre-bundle contract.
+ * AF100-09b / -09c — the pre-bundle contract and the project split it forces.
  *
  * Measured on `825e4f6`: importing `antd` cost ~1.3 s per test file no matter how
  * little of it the file used (import 89.7 s across 287 unit files). Pre-bundling
@@ -22,9 +22,17 @@
  *    are fine — the 10 unit files mocking `@glideapps/glide-data-grid` run
  *    pre-bundled without trouble. Only reading the *real* module breaks.
  *
- * This is why the optimizer is scoped to `unit`: two `integration` files call
- * `vi.importActual('react-router-dom')`, and neither `optimizer.exclude` nor
- * `server.deps.inline` rescues them (both measured).
+ * AF100-09c turned that constraint into the project layout: a test that reads a
+ * real vendor module lives in an unoptimized project, everything else
+ * pre-bundles. `integration-unoptimized` exists solely for the two files calling
+ * `vi.importActual('react-router-dom')`; `elec-integration` is blocked at its
+ * shared setupFile, which reads the real `react`. Neither `optimizer.exclude`,
+ * `server.deps.inline`, nor the factory's `importOriginal` parameter rescues
+ * them (all three measured).
+ *
+ * Splitting projects introduces its own silent failure: a project that no npm
+ * script names never runs, and the suite reports green without it. That is
+ * pinned here too.
  *
  * See: docs/frontend/agent-friendly-10-plan.md §2.1
  */
@@ -36,11 +44,22 @@ import { fileURLToPath } from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const FRONTEND_ROOT = path.resolve(HERE, '../../../..');
 const UNIT_TESTS_ROOT = path.join(FRONTEND_ROOT, 'src/__tests__/unit');
+const INTEGRATION_TESTS_ROOT = path.join(FRONTEND_ROOT, 'src/__tests__/integration');
+const ELECTRICAL_TESTS_ROOT = path.join(INTEGRATION_TESTS_ROOT, 'pages/electrical');
 
 const viteConfig = fs.readFileSync(path.join(FRONTEND_ROOT, 'vite.config.ts'), 'utf8');
 const optimizerBlock = viteConfig.slice(viteConfig.indexOf('const depsOptimizer'));
+const packageJson = JSON.parse(
+  fs.readFileSync(path.join(FRONTEND_ROOT, 'package.json'), 'utf8'),
+) as { scripts: Record<string, string> };
 
 const FEEDBACK_BOUNDARY = '@/feedback/appFeedback';
+
+/** Projects that pre-bundle, and therefore may not read a real vendor module. */
+const OPTIMIZED_PROJECTS = ['unit', 'integration'];
+/** Projects deliberately left on the plain pipeline. */
+const UNOPTIMIZED_PROJECTS = ['integration-unoptimized', 'elec-integration'];
+const ALL_PROJECTS = [...OPTIMIZED_PROJECTS, ...UNOPTIMIZED_PROJECTS];
 
 /** Vitest 4 optimizer keys. Anything else is accepted by the loader and ignored. */
 const VALID_OPTIMIZER_KEYS = ['client', 'ssr'];
@@ -66,10 +85,27 @@ export function bareImportActualTargets(source: string): string[] {
 
 /** This guard quotes the forbidden calls in its own docs, fixtures and messages. */
 const GUARD_SELF = fileURLToPath(import.meta.url);
-const unitTestFiles = listTestFiles(UNIT_TESTS_ROOT).filter((file) => file !== GUARD_SELF);
 const relative = (file: string) => path.relative(FRONTEND_ROOT, file);
 
-describe('AF100-09b — antd optimizer contract', () => {
+/** The `integration-unoptimized` include list, read from the config itself. */
+const unoptimizedIntegrationFiles = (
+  viteConfig.match(/const INTEGRATION_UNOPTIMIZED = \[([\s\S]*?)\]/)?.[1] ?? ''
+)
+  .split('\n')
+  .map((line) => line.trim().replace(/^'|',?$/g, ''))
+  .filter((line) => line.endsWith('.tsx') || line.endsWith('.ts'))
+  .map((rel) => path.join(FRONTEND_ROOT, rel));
+
+/** Test files that actually run pre-bundled — the ones the contract binds. */
+const optimizedTestFiles = [
+  ...listTestFiles(UNIT_TESTS_ROOT),
+  ...listTestFiles(INTEGRATION_TESTS_ROOT).filter(
+    (file) =>
+      !file.startsWith(ELECTRICAL_TESTS_ROOT) && !unoptimizedIntegrationFiles.includes(file),
+  ),
+].filter((file) => file !== GUARD_SELF);
+
+describe('AF100-09b/-09c — pre-bundle contract and project layout', () => {
   it('the optimizer is enabled for antd', () => {
     expect(optimizerBlock, 'antd must stay pre-bundled or the import tax returns').toMatch(
       /enabled:\s*true[\s\S]*?include:\s*\[[^\]]*'antd'/,
@@ -99,13 +135,44 @@ describe('AF100-09b — antd optimizer contract', () => {
     ).toBe(false);
   });
 
+  it('the pre-bundle is written inside node_modules', () => {
+    // Left at its default the optimizer materialises `frontend/.vite/deps/`.
+    // That path is gitignored, so nothing shows up in `git status` — but
+    // `eslint .` still walks it and vendor bundles fail `no-undef`, turning the
+    // lint gate red for third-party code. Observed on this slice.
+    const cacheDir = viteConfig.match(/cacheDir:\s*'([^']+)'/)?.[1];
+    expect(cacheDir, 'cacheDir must be pinned, not left to default').toBeDefined();
+    expect(
+      cacheDir?.startsWith('node_modules/'),
+      `cacheDir is "${cacheDir}" — the pre-bundle must stay inside node_modules so it is `
+        + 'invisible to lint and to repo-root hygiene.',
+    ).toBe(true);
+  });
+
+  it('every declared project is actually executed by test:integration or test:unit', () => {
+    // A project that no script names is a project whose tests silently stop
+    // running: vitest reports green because it never looked at them.
+    const declaredNames = [...viteConfig.matchAll(/name:\s*'([a-z-]+)'/g)].map((m) => m[1]);
+    expect(declaredNames.sort(), 'config projects changed — update this contract').toEqual(
+      [...ALL_PROJECTS].sort(),
+    );
+
+    const integrationScript = packageJson.scripts['test:integration'];
+    for (const project of ALL_PROJECTS.filter((name) => name !== 'unit')) {
+      expect(
+        integrationScript,
+        `test:integration must run --project ${project}, otherwise its files never execute `
+          + 'and the suite reports green without them.',
+      ).toContain(`--project ${project}`);
+    }
+  });
+
   it('every project keeps per-file isolation', () => {
     // The whole point of pre-bundling is that it buys speed *without* touching
     // isolation. `isolate: false` is ~2x faster still and was rejected: hoisted
     // mocks in the electrical harness, zustand singletons, the cached
     // `typeof window` branch in api/client.ts and Ant/CSS-in-JS module caches
     // would all start leaking between files, turning order into a hidden input.
-    const projectNames = ['unit', 'integration', 'elec-integration'];
     const declared = viteConfig
       .split('\n')
       .filter((line) => {
@@ -117,29 +184,50 @@ describe('AF100-09b — antd optimizer contract', () => {
 
     expect(
       declared.length,
-      `each of ${projectNames.join('/')} must declare isolate explicitly`,
-    ).toBe(projectNames.length);
+      `each of ${ALL_PROJECTS.join('/')} must declare isolate explicitly`,
+    ).toBe(ALL_PROJECTS.length);
     expect(
       declared,
       'Pre-bundling must never be traded for isolation: without it, test files '
         + 'share module and mock state and results become order-dependent.',
-    ).toEqual(projectNames.map(() => 'true'));
+    ).toEqual(ALL_PROJECTS.map(() => 'true'));
   });
 
-  it('stays scoped to the unit project', () => {
-    const unitBlock = viteConfig.slice(viteConfig.indexOf("name: 'unit'"), viteConfig.indexOf("name: 'integration'"));
-    expect(unitBlock, 'the unit project must receive the optimizer').toContain('deps: depsOptimizer');
+  it('exactly the intended projects are optimized', () => {
+    for (const project of ALL_PROJECTS) {
+      const start = viteConfig.indexOf(`name: '${project}'`);
+      expect(start, `project ${project} must exist in the config`).toBeGreaterThan(-1);
+      // A project block ends where the next `name:` begins.
+      const rest = viteConfig.slice(start + 1);
+      const nextName = rest.search(/name:\s*'[a-z-]+'/);
+      const block = nextName === -1 ? rest : rest.slice(0, nextName);
+      const optimized = block.includes('deps: depsOptimizer');
 
-    const afterUnit = viteConfig.slice(viteConfig.indexOf("name: 'integration'"));
-    expect(
-      afterUnit.includes('deps: depsOptimizer'),
-      'integration and elec-integration must stay unoptimized: they call '
-        + "vi.importActual('react-router-dom'), which cannot resolve against a pre-bundle.",
-    ).toBe(false);
+      expect(
+        optimized,
+        OPTIMIZED_PROJECTS.includes(project)
+          ? `${project} must stay pre-bundled or its import tax returns`
+          : `${project} must stay on the plain pipeline — it reads a real vendor module `
+            + 'via vi.importActual, which cannot resolve against a pre-bundle.',
+      ).toBe(OPTIMIZED_PROJECTS.includes(project));
+    }
   });
 
-  it('no unit test reads a pre-bundled package for real', () => {
-    const offenders = unitTestFiles
+  it('the unoptimized list matches the files that actually need it', () => {
+    expect(unoptimizedIntegrationFiles.length, 'INTEGRATION_UNOPTIMIZED must be parseable').toBeGreaterThan(0);
+
+    for (const file of unoptimizedIntegrationFiles) {
+      expect(fs.existsSync(file), `${relative(file)} is listed but does not exist`).toBe(true);
+      expect(
+        bareImportActualTargets(fs.readFileSync(file, 'utf8')).length,
+        `${relative(file)} no longer reads a real vendor module — move it back into the `
+          + 'optimized `integration` project instead of paying the import tax for nothing.',
+      ).toBeGreaterThan(0);
+    }
+  });
+
+  it('no test in an optimized project reads a pre-bundled package for real', () => {
+    const offenders = optimizedTestFiles
       .map((file) => ({ file, targets: bareImportActualTargets(fs.readFileSync(file, 'utf8')) }))
       .filter((entry) => entry.targets.length > 0);
 
