@@ -42,9 +42,12 @@ backlog: **EMPTY QUEUE** (Track A + Track B closed 2026-07-26). Next: —.
 `docs/audit/…` snapshot.
 
 **Текущая agent-friendly оценка (binding):**  
-[docs/audit/2026-07-26-agent-metrics-binding/snapshot.md](../audit/2026-07-26-agent-metrics-binding/snapshot.md)  
-(**8.3/10** @ `a9b4cb3`). Карта **8.1** (`agent-metrics-refresh` @ `452ec99`) —
-historical only.
+пересчитывай `node scripts/frontend-agent-metrics.mjs` на **текущем HEAD**;
+снимки — только в `docs/audit/YYYY-MM-DD-*/`.  
+Последние ориентиры: [open-six](../audit/2026-07-26-open-six-close/snapshot.md),
+[loc-int-shrink](../audit/2026-07-26-loc-int-shrink/snapshot.md),
+[agent-scope SoT](../audit/2026-07-26-agent-scope-and-docs-sot/snapshot.md).  
+Карты **8.1** / fixed **8.3 @ a9b4cb3** — historical only; не цитировать как live.
 
 ## Тематические справочники
 

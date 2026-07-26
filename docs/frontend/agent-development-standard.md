@@ -234,24 +234,33 @@ architecture-slice. Абсолютные CSS-запреты и baseline пере
 
 ### 7.4 Proof
 
-Всегда запускаются focused-тесты slice, затем канонический полный DoD:
+**Единая лестница proof** (совпадает с `frontend/AGENTS.md`):
+
+1. `npm run agent:scope -- <touched-path>` — owner, `focused_proof` /
+   `recommended_commands`, `full_dod_required`.
+2. **Focused tests** из scope (`focused_proof.argv` или `recommended_commands`).
+3. **`npm run test:agent-gates`** — всегда для runtime / tests / tooling.
+4. **Full DoD**, когда scope `full_dod_required: true` или slice меняет
+   cross-cutting runtime/tests/harness:
 
 ```bash
 cd frontend
-npm run test:agent-dod
+npm run test:agent-dod:dual-safe
 ```
 
-`test:agent-dod` последовательно включает fast gates, unit, integration и
-production build. Не собирай альтернативную «полную» команду в локальном
-prompt или CI.
+Канонический sequential fallback: `npm run test:agent-dod` (тот же набор
+фаз: gates + unit + integration + build). Dual-safe — предпочтительный
+agent path на этом host. Не собирай третью «полную» команду в prompt/CI.
 
-Для UI дополнительно запускается релевантный Playwright spec. Доступные команды
-сверяются с `e2e/package.json`; например:
+| Ситуация | Минимум |
+|---|---|
+| Docs/audit only | — / optional gates |
+| Tooling, scope rules, AGENTS | `test:agent-gates` |
+| Production runtime + `full_dod_required` | focused + gates + **dual-safe DoD** |
+| Shared test harness | dual-safe DoD |
+| Browser-visible layout | focused + viewport profiles |
 
-```bash
-cd e2e
-E2E_BASE_URL=http://127.0.0.1:3003 npm run test:ui-kit-parity:chrome
-```
+Для UI дополнительно — релевантный Playwright spec (`e2e/package.json`).
 
 Красный полный gate, даже из-за несвязанного baseline, означает `blocked`.
 Зафиксируй доказательство и не исправляй чужую проблему расширением scope.

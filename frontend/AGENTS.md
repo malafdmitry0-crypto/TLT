@@ -67,9 +67,12 @@ npm run test:agent-dod:dual-safe
 | Changed test harness shared by many suites | dual-safe DoD |
 | Browser-visible layout/CSS | focused + browser profiles from viewport policy |
 
-**Default agent loop:** `agent:scope` → focused tests from its output →
-`test:agent-gates`. Escalate to dual-safe DoD only when scope says so or when
-you changed cross-cutting runtime/tests.
+**Default agent loop:** `agent:scope` → run `recommended_commands` /
+`focused_proof.argv` (exact paths — never invent globs) →
+`test:agent-gates`. Escalate to dual-safe DoD only when scope says
+`full_dod_required: true` or when you changed cross-cutting runtime/tests.
+Coverage gate: `node scripts/agent-scope.mjs --coverage` must report
+unowned=0 **and** multi-owner=0.
 
 `test:agent-gates` может быть зелёным при красном полном DoD — перед commit
 используй dual-safe DoD, если slice затрагивает runtime/tests per table above.

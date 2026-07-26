@@ -41,17 +41,10 @@ Test split template: [split-large-tests-by-scenario](./prompts/split-large-tests
 - Extract: behavior-preserving; characterization first for stateful owners;
   after owner **≤399 LOC**; no multi-owner cascade in one slice.
 
-## Motivation (why this queue is ACTIVE)
+## Historical motivation (queue closed — not ACTIVE)
 
-После P5–P9 corrective backlog wrongly stayed **EMPTY QUEUE** while:
-
-1. **22** production files still sit in the dense **400–445** LOC band
-   (agent open cost + extract debt).
-2. Heavy test contexts remain after partial scenario splits (integration /
-   unit / e2e / harness open paths).
-
-That residual was filed as «optional residual, not pending». User goal
-overrides that: **these items are pending**.
+Track A (P-BAND-01..22) and Track B (P-TEST-01..08) **closed**. This section is
+provenance only; it does **not** reopen the queue.
 
 Prior inventories / waves (evidence only, not queue authority):
 
@@ -59,10 +52,16 @@ Prior inventories / waves (evidence only, not queue authority):
 - [Agent-friendliness residuals](../audit/2026-07-25-agent-friendliness-residuals/snapshot.md)
 - [Heavy test files](../audit/2026-07-26-heavy-test-files/snapshot.md)
 - [Five residual fixes (partial)](../audit/2026-07-26-agent-friendliness-five-fixes/snapshot.md)
+- [agent-scope + docs SoT](../audit/2026-07-26-agent-scope-and-docs-sot/snapshot.md)
+
+Process residuals (not pending unless user promotes): DoD harness extract,
+browser re-seal, production→tests registry — see
+[prompts/dod-wall-under-120.md](./prompts/dod-wall-under-120.md) and
+[agent-scope plan](../audit/2026-07-26-agent-scope-and-docs-sot/snapshot.md).
 
 ---
 
-## Pending — Track A: production 400-band extracts
+## Closed — Track A: production 400-band extracts
 
 **Goal:** leave the 400–445 production band empty (or only newly grown files
 re-inventoried later). One file per slice. Recompute LOC at start of each slice.
@@ -110,7 +109,7 @@ done with evidence and take next pending — do not invent extra extract.
 
 ---
 
-## Pending — Track B: heavy test contexts
+## Closed — Track B: heavy test contexts
 
 **Goal:** reduce agent open cost for large suites/harnesses still above
 comfortable scenario size. Prefer scenario split for suites; helpers extract
