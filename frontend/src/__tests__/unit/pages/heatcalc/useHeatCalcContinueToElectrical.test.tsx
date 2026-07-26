@@ -9,15 +9,13 @@ vi.mock('@/api/electricalVariants', () => ({
   initializeElectricalVariants,
 }));
 
-vi.mock('antd', async () => {
-  const actual = await vi.importActual<typeof import('antd')>('antd');
+vi.mock('@/feedback/appFeedback', async () => {
+  const actual = await vi.importActual<typeof import('@/feedback/appFeedback')>(
+    '@/feedback/appFeedback',
+  );
   return {
     ...actual,
-    message: {
-      ...actual.message,
-      warning,
-      error,
-    },
+    appMessage: { ...actual.appMessage, warning, error },
   };
 });
 

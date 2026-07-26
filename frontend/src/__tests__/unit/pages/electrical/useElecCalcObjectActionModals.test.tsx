@@ -3,14 +3,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const warning = vi.hoisted(() => vi.fn());
 
-vi.mock('antd', async () => {
-  const actual = await vi.importActual<typeof import('antd')>('antd');
+vi.mock('@/feedback/appFeedback', async () => {
+  const actual = await vi.importActual<typeof import('@/feedback/appFeedback')>(
+    '@/feedback/appFeedback',
+  );
   return {
     ...actual,
-    message: {
-      ...actual.message,
-      warning,
-    },
+    appMessage: { ...actual.appMessage, warning },
   };
 });
 

@@ -12,6 +12,40 @@ const shared = {
   },
 };
 
+/**
+ * AF100-09b — antd is pre-bundled once instead of being re-imported per test file.
+ *
+ * Measured on `825e4f6`: `antd` cost ~1.3 s of import per file regardless of how
+ * much of it a test used, which was the single largest remaining harness tax
+ * (import 89.7 s across 287 unit files). Pre-bundling keeps full per-file
+ * isolation — unlike `isolate: false`, which is 86 % faster but lets module and
+ * mock state leak between files.
+ *
+ * `@ant-design/icons` is deliberately NOT optimized: pre-bundling it makes named
+ * icon exports resolve to `undefined` (`ReloadOutlined` → undefined), which
+ * surfaces as `Element type is invalid` at render time.
+ *
+ * Scope is the `unit` project only, and that is a hard constraint, not a default:
+ * `vi.importActual('<pre-bundled package>')` cannot resolve — it dies with
+ * `Cannot find module .../dist/main.js&v=<hash>`. The two `integration` files
+ * that call `vi.importActual('react-router-dom')` therefore keep the plain
+ * pipeline. Neither `optimizer.exclude` nor `server.deps.inline` rescues them
+ * (both measured). Plain `vi.mock` factories are unaffected — the 10 unit files
+ * mocking `@glideapps/glide-data-grid` run fine pre-bundled.
+ *
+ * `unit` is also where the tax lives: 287 of 328 test files.
+ *
+ * Guard: `antdOptimizerContract.architecture.test.ts`.
+ */
+const depsOptimizer = {
+  optimizer: {
+    client: {
+      enabled: true,
+      include: ['antd'],
+    },
+  },
+};
+
 const coverage = {
   provider: 'v8' as const,
   reporter: ['text', 'html', 'json-summary'] as Array<'text' | 'html' | 'json-summary'>,
@@ -84,6 +118,7 @@ export default defineConfig({
         ...shared,
         test: {
           name: 'unit',
+          deps: depsOptimizer,
           globals: true,
           environment: 'jsdom',
           css: true,
