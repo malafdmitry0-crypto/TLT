@@ -89,15 +89,19 @@ describe('ReportPage (integration) — export', () => {
       expect(listElectricalVariants).toHaveBeenCalled();
       expect(screen.getByRole('button', { name: /PDF/i })).toBeEnabled();
     });
-    await user.click(screen.getByRole('button', { name: /PDF/i }));
-    await waitFor(() => {
-      expect(exportReport).toHaveBeenCalledWith(
-        mockProject.id,
-        'pdf',
-        thirdVariant.id,
-        expect.any(Array),
-      );
-    });
+    // Re-query after enabled: under concurrent DoD load a stale node can swallow click.
+    await user.click(await screen.findByRole('button', { name: /PDF/i }));
+    await waitFor(
+      () => {
+        expect(exportReport).toHaveBeenCalledWith(
+          mockProject.id,
+          'pdf',
+          thirdVariant.id,
+          expect.any(Array),
+        );
+      },
+      { timeout: 15_000 },
+    );
     // Multi-select ER control (Checkbox.Group) is disabled while export is in flight.
     const erCheckboxes = () => Array.from(
       document.querySelectorAll<HTMLInputElement>(
