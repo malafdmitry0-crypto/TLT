@@ -10,7 +10,17 @@
 extracted under Track A.  
 **Last closed:** P-TEST-08 inline-form-dependencies e2e @ `8560d79`
 
-**Следующий незакрытый контракт:** **AF100-02 — executable focused proof**
+**Следующий незакрытый контракт:** **AF100-06 — `ReportPage.export` deterministic**
+
+Причина приоритета (перемерено на `abb070a`): стандарт §7.4 объявил
+`test:agent-dod:dual-safe` предпочтительным agent path, а эта команда падает
+**2/2** на чистом дереве. Любой slice с `full_dod_required: true` упирается в
+§9 «полный gate красный → `blocked`» и встаёт на зелёном коде. Пока AF100-06 не
+закрыт, очередь исполнима только через sequential fallback, и **ни один** slice
+не может быть закрыт ссылкой на dual-safe.
+Evidence: [af-independent-execution-audit](../audit/2026-07-26-af-independent-execution-audit/snapshot.md).
+Корневые причины и приёмка по каждому slice:
+[prompts/af100-execution-plan.md](./prompts/af100-execution-plan.md).
 
 Это **единственный** источник текущего `pending` для frontend. Одновременно
 может существовать только одна ACTIVE frontend-очередь. Initiative plans,
@@ -41,8 +51,8 @@ Acceptance и hard gates программы:
 | 3 | **AF100-03** | **pending** | tooling | CSS gate проверяет все актуальные ratchets и fail-closed на missing target |
 | 4 | **AF100-04** | **pending** | tooling | Hooks не ссылаются на отсутствующие scripts; есть root agent entrypoint |
 | 5 | **AF100-05** | **pending** | qa | Одна рабочая Playwright discovery command из документированного cwd |
-| 6 | **AF100-06** | **pending** | qa | `ReportPage.export` deterministic; focused stress ≥20/20 |
-| 7 | **AF100-07** | **pending** | tooling | Одна каноническая full DoD команда в docs/scripts/CI |
+| 6 | **AF100-06** | **pending → NEXT** | qa | `ReportPage.export` deterministic; focused stress ≥20/20; dual-safe PASS 3/3 |
+| 7 | **AF100-07** | **pending** (blocked by 06, 08) | tooling | Одна каноническая full DoD команда в docs/scripts/CI |
 | 8 | **AF100-08** | **pending** | qa | Clean quiet-host profile n≥3 определяет long pole |
 | 9 | **AF100-09+** | **pending** | qa | Harness slices снижают full DoD p50 до ≤120 s, PASS 3/3 |
 | 10 | **AF100-10+** | **pending** | feature | Stateful/interactive >350 LOC classified; extracts только по одному owner |
@@ -56,6 +66,23 @@ Acceptance и hard gates программы:
 `AF100-09+`, `AF100-10+` и `AF100-11+` раскрываются только после inventory /
 profile: один owner и один измеримый результат на под-slice.
 
+### Обязательный порядок
+
+```text
+AF100-06 (flake)  →  AF100-08 (профиль)  →  AF100-07 (канонизация)  →  AF100-09+ (скорость)
+```
+
+Порядок нормативный, а не рекомендательный:
+
+- **07 не закрывается до 06 и 08.** Канонизировать команду до устранения флейка
+  — закрепить красный CI; выбирать orchestrator до профиля — выбирать вслепую.
+- **09+ не открывается до 08.** Оптимизация до замера запрещена планом §2.
+- **02–05 независимы** от этой цепочки и друг от друга: их можно вести
+  параллельными запусками, они не трогают runtime.
+- **13 (browser) не закрывается** раньше 06: live matrix, снятая на дереве с
+  флейкующим полным proof, не является приёмкой.
+- **16 закрывается последним** и только после того, как все остальные `done`.
+
 ## Правила очереди
 
 - Один запуск выполняет один `pending` slice и одного owner.
@@ -68,6 +95,34 @@ profile: один owner и один измеримый результат на �
 - Не объявляй инициативу завершённой, пока в этом файле есть pending.
 - Extract: behavior-preserving; characterization first for stateful owners;
   after owner **≤399 LOC**; no multi-owner cascade in one slice.
+
+### Условия закрытия AF100-slice (жёстче общих правил)
+
+Эти условия действуют поверх стандарта и не ослабляются ни одним промптом.
+
+1. **Guard обязателен.** Каждый закрытый дефект оставляет после себя машинную
+   проверку, которая краснеет при его возврате: тест, ratchet или fail-closed
+   gate. Исправление без guard — **не** `done`. Причина: все семь дефектов
+   аудита — это регрессии инструментов, которые ничто не удерживало.
+2. **Guard проверяется на обеих ветках.** В slice демонстрируется и success
+   path, и намеренно сломанный вход, на котором guard краснеет. Guard, который
+   не показали красным, считается непроверенным.
+3. **`NOT RUN` не закрывает пункт.** Любая заявленная проверка приводится
+   командой, точным HEAD и результатом. Отсутствие запуска — не «зелено».
+4. **Зелёный без обходов.** `done` не ставится, если в slice появились
+   `.only`, `.skip`, retry, поднятый timeout, увеличенный worker count,
+   повышенный baseline или ослабленный assertion. Скорость и стабильность
+   покупаются только устранением причины.
+5. **Флейк-стандарт.** Там, где acceptance требует повторяемости: focused
+   stress **≥20/20** и полный proof **PASS 3/3 подряд** на quiet host. Один
+   красный обнуляет счётчик — «прошло со второго раза» не является приёмкой.
+6. **Цифры из текущего дерева.** Before/after пересчитываются на HEAD слайса;
+   ссылка на прошлый snapshot не заменяет замер. Новые числа уходят в
+   датированный `docs/audit/YYYY-MM-DD-*/`, а не в этот файл.
+7. **Чужой WIP неприкосновенен.** `git status --short` перед стартом; в commit
+   попадают только файлы своего slice, `git add .` запрещён.
+8. **Slice не растит корневой мусор.** Скриншоты, логи и отчёты прогонов не
+   остаются в корне репозитория — иначе slice сам увеличивает долг AF100-14.
 
 ## Historical motivation (queue closed — not ACTIVE)
 
