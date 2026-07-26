@@ -24,11 +24,12 @@ const input = args[0];
 
 /** Viewport profiles from docs/frontend/viewport-policy.md (product contract). */
 const BROWSER_PROFILES = ['1000×768', '1280×800', '1440×900'];
+const PROOF_LEVELS = new Set(['scoped', 'owner']);
 
 /**
  * Ordered path rules (first match wins). More specific prefixes first.
  * Each rule: { id, test(relFromSrc), owner, zone, publicEntrypoint, stateOwner,
- *   focusedTests, architectureGates, fullDodRequired, browserRequired, notes }
+ *   focusedTests, architectureGates, browserRequired, notes }
  */
 const RULES = [
   {
@@ -47,7 +48,6 @@ const RULES = [
       'npm run storybook:coverage:strict',
     ],
     architectureGates: ['uiKitOwnerGate', 'css:architecture'],
-    fullDodRequired: false,
     browserRequired: true,
     browserProfiles: BROWSER_PROFILES,
     notes: 'MCP storybook preferred for props; no feature/domain imports.',
@@ -65,7 +65,6 @@ const RULES = [
     ],
     focusedTests: ['npm run typecheck', 'npm run test:agent-gates'],
     architectureGates: ['test:agent-gates'],
-    fullDodRequired: true,
     browserRequired: true,
     browserProfiles: BROWSER_PROFILES,
     notes: 'Use appMessage/appModal — never static antd message in features.',
@@ -96,7 +95,6 @@ const RULES = [
       'npm run test:agent-gates',
     ],
     architectureGates: ['featureBoundaries', 'test:agent-gates'],
-    fullDodRequired: true,
     browserRequired: true,
     browserProfiles: BROWSER_PROFILES,
     notes: 'Characterization first for table/excel/form contracts.',
@@ -126,7 +124,6 @@ const RULES = [
       'npm run test:agent-gates',
     ],
     architectureGates: ['featureBoundaries', 'test:agent-gates'],
-    fullDodRequired: true,
     browserRequired: true,
     browserProfiles: BROWSER_PROFILES,
     notes: null,
@@ -151,7 +148,6 @@ const RULES = [
       'npm run test:agent-gates',
     ],
     architectureGates: ['featureBoundaries', 'test:agent-gates'],
-    fullDodRequired: true,
     browserRequired: true,
     browserProfiles: BROWSER_PROFILES,
     notes: null,
@@ -178,7 +174,6 @@ const RULES = [
       'npm run test:agent-gates',
     ],
     architectureGates: ['test:agent-gates'],
-    fullDodRequired: true,
     browserRequired: true,
     browserProfiles: BROWSER_PROFILES,
     notes: null,
@@ -201,7 +196,6 @@ const RULES = [
       'npm run test:agent-gates',
     ],
     architectureGates: ['test:agent-gates'],
-    fullDodRequired: true,
     browserRequired: false,
     browserProfiles: [],
     notes: 'Browser optional unless UI layout changed.',
@@ -233,7 +227,6 @@ const RULES = [
     ],
     focusedTests: ['npm run test:agent-gates'],
     architectureGates: ['test:agent-gates'],
-    fullDodRequired: true,
     browserRequired: true,
     browserProfiles: BROWSER_PROFILES,
     notes: 'Top-level page shells; feature work usually lives under pages/<domain>/.',
@@ -265,7 +258,6 @@ const RULES = [
       'npm run test:agent-gates',
     ],
     architectureGates: ['test:agent-gates'],
-    fullDodRequired: true,
     browserRequired: false,
     browserProfiles: [],
     notes: null,
@@ -286,7 +278,6 @@ const RULES = [
       'npx vitest run --project unit src/__tests__/unit/components',
     ],
     architectureGates: ['test:agent-gates'],
-    fullDodRequired: false,
     browserRequired: false,
     browserProfiles: [],
     notes: null,
@@ -311,7 +302,6 @@ const RULES = [
       'npx vitest run --project unit src/__tests__/unit/hooks',
     ],
     architectureGates: ['test:agent-gates'],
-    fullDodRequired: false,
     browserRequired: false,
     browserProfiles: [],
     notes: 'Heat/electrical-named hooks may still match earlier domain rules.',
@@ -331,7 +321,6 @@ const RULES = [
     ],
     focusedTests: ['npm run test:agent-gates'],
     architectureGates: ['test:agent-gates'],
-    fullDodRequired: false,
     browserRequired: false,
     browserProfiles: [],
     notes: null,
@@ -351,7 +340,6 @@ const RULES = [
     ],
     focusedTests: ['npm run css:architecture'],
     architectureGates: ['cssArchitectureRatchet', 'cssImportantRatchet'],
-    fullDodRequired: false,
     browserRequired: true,
     browserProfiles: BROWSER_PROFILES,
     notes: 'No feature CSS in styles.css; no !important / bare .ant-*.',
@@ -378,7 +366,6 @@ const RULES = [
       'npm run test:agent-gates',
     ],
     architectureGates: ['test:agent-gates'],
-    fullDodRequired: true,
     browserRequired: false,
     browserProfiles: [],
     notes: null,
@@ -410,10 +397,30 @@ const RULES = [
       'npx vitest run --project unit src/__tests__/unit/utils src/__tests__/unit/domain',
     ],
     architectureGates: ['test:agent-gates'],
-    fullDodRequired: false,
     browserRequired: false,
     browserProfiles: [],
-    notes: 'full_dod if consumers runtime behaviour changes.',
+    notes: 'Expand focused/owner proof if consumer runtime behaviour changes.',
+  },
+  {
+    id: 'test-harness',
+    test: (p) =>
+      p === `__tests__${sep}setup.ts`
+      || (
+        p.startsWith(`__tests__${sep}`)
+        && /(?:testEnv|test-utils|test-mocks|Harness)\.[^.]+$/.test(p)
+      ),
+    owner: 'qa',
+    zone: 'shared-test-harness',
+    publicEntrypoint: 'Vitest setup / shared test harness',
+    stateOwner: 'test runtime',
+    focusedProof: [
+      { cwd: 'frontend', argv: ['npm', 'run', 'test:agent-gates'] },
+    ],
+    focusedTests: ['npm run test:agent-gates'],
+    architectureGates: ['test:agent-gates'],
+    browserRequired: false,
+    browserProfiles: [],
+    notes: 'Cross-file harness changes require expanded owner proof.',
   },
   {
     id: 'tests',
@@ -430,7 +437,6 @@ const RULES = [
       'npm run test:agent-gates',
     ],
     architectureGates: ['test:agent-gates if harness shared'],
-    fullDodRequired: false,
     browserRequired: false,
     browserProfiles: [],
     notes: null,
@@ -448,12 +454,62 @@ const RULES = [
     ],
     focusedTests: ['npm run storybook:coverage:strict', 'npm run build-storybook'],
     architectureGates: ['test:agent-gates'],
-    fullDodRequired: false,
     browserRequired: false,
     browserProfiles: [],
     notes: 'Stories only under ui-kit glob unless main.ts expanded.',
   },
+  {
+    id: 'frontend-tooling',
+    test: (p) =>
+      p === 'package.json'
+      || p === 'package-lock.json'
+      || p === 'vite.config.ts'
+      || p.startsWith('tsconfig')
+      || p.startsWith(`scripts${sep}`),
+    owner: 'tooling',
+    zone: 'frontend-tooling',
+    publicEntrypoint: 'frontend package / Vite / Vitest / agent scripts',
+    stateOwner: 'toolchain',
+    focusedProof: [
+      { cwd: 'frontend', argv: ['npm', 'run', 'test:agent-gates'] },
+    ],
+    focusedTests: ['npm run test:agent-gates'],
+    architectureGates: ['test:agent-gates'],
+    browserRequired: false,
+    browserProfiles: [],
+    notes: 'Config, dependencies and test orchestration require expanded owner proof.',
+  },
 ];
+
+const DEFAULT_PROOF_LEVEL_BY_RULE_ID = new Map([
+  ['ui-kit', 'owner'],
+  ['feedback', 'owner'],
+  ['heat-pages', 'owner'],
+  ['electrical', 'owner'],
+  ['specification', 'owner'],
+  ['reports', 'owner'],
+  ['admin', 'owner'],
+  ['auth-shell', 'owner'],
+  ['projects', 'owner'],
+  ['common-shared-components', 'owner'],
+  ['hooks', 'scoped'],
+  ['config-constants-store', 'owner'],
+  ['styles', 'owner'],
+  ['api-shared', 'owner'],
+  ['types-utils-domain', 'scoped'],
+  ['test-harness', 'owner'],
+  ['tests', 'scoped'],
+  ['storybook-config', 'owner'],
+  ['frontend-tooling', 'owner'],
+]);
+
+function defaultProofLevel(rule) {
+  const level = DEFAULT_PROOF_LEVEL_BY_RULE_ID.get(rule.id);
+  if (!PROOF_LEVELS.has(level)) {
+    throw new Error(`agent:scope proof level missing for rule: ${rule.id}`);
+  }
+  return level;
+}
 
 function fail(message, code = 1) {
   if (asJson) {
@@ -551,16 +607,36 @@ function listCoverageInventory() {
   return { unowned, multiOwner };
 }
 
+function testProjectForPath(relFromSrc) {
+  if (relFromSrc.startsWith(`__tests__${sep}integration${sep}pages${sep}electrical${sep}`)) {
+    return 'elec-integration';
+  }
+  if (relFromSrc.startsWith(`__tests__${sep}integration${sep}`)) return 'integration';
+  return 'unit';
+}
+
+function focusedProofForPath(rule, relFromSrc) {
+  if (rule.id !== 'tests') return rule.focusedProof ?? [];
+  const testTarget = join('src', relFromSrc);
+  return [
+    {
+      cwd: 'frontend',
+      argv: ['npx', 'vitest', 'run', '--project', testProjectForPath(relFromSrc), testTarget],
+    },
+    { cwd: 'frontend', argv: ['npm', 'run', 'test:agent-gates'] },
+  ];
+}
+
 /** Build copy-paste command lines from focusedProof / focusedTests without mangling globs. */
-function buildRecommendedCommands(rule) {
+function buildRecommendedCommands(rule, relFromSrc = '') {
   const cmds = [];
-  cmds.push('cd frontend && npm run test:agent-gates');
-  if (Array.isArray(rule.focusedProof) && rule.focusedProof.length > 0) {
-    for (const step of rule.focusedProof) {
+  const focusedProof = focusedProofForPath(rule, relFromSrc);
+  if (Array.isArray(focusedProof) && focusedProof.length > 0) {
+    for (const step of focusedProof) {
       if (!step || !Array.isArray(step.argv) || step.argv.length === 0) continue;
-      // Skip duplicate agent-gates if already first
       const line = step.argv.join(' ');
-      if (line === 'npm run test:agent-gates' && cmds[0].endsWith('test:agent-gates')) continue;
+      // Gates are appended once after focused proof.
+      if (line === 'npm run test:agent-gates') continue;
       const cwd = step.cwd === 'frontend' || !step.cwd ? 'frontend' : step.cwd;
       cmds.push(`cd ${cwd} && ${line}`);
     }
@@ -581,9 +657,7 @@ function buildRecommendedCommands(rule) {
       }
     }
   }
-  if (rule.fullDodRequired) {
-    cmds.push('cd frontend && npm run test:agent-dod:dual-safe');
-  }
+  cmds.push('cd frontend && npm run test:agent-gates');
   if (rule.browserRequired) {
     cmds.push(
       `browser proof: ${BROWSER_PROFILES.join(', ')} (see docs/frontend/viewport-policy.md)`,
@@ -662,7 +736,13 @@ function validateFocusedProof(rule) {
 }
 
 function validateProofCatalog() {
-  return RULES.flatMap(validateFocusedProof);
+  const issues = RULES.flatMap(validateFocusedProof);
+  for (const rule of RULES) {
+    if (!DEFAULT_PROOF_LEVEL_BY_RULE_ID.has(rule.id)) {
+      issues.push(`${rule.id}: default proof level is missing`);
+    }
+  }
+  return issues;
 }
 
 function runProofSmoke() {
@@ -721,6 +801,7 @@ function selfTest() {
     ['frontend/src/styles/tokens.css', 'css'],
     ['frontend/src/__tests__/unit/architecture/featureBoundaries.architecture.test.ts', 'qa'],
     ['frontend/src/feedback/appFeedback.ts', 'shared'],
+    ['frontend/vite.config.ts', 'tooling'],
   ];
   let failed = 0;
   for (const [path, owner] of cases) {
@@ -753,7 +834,7 @@ function selfTest() {
   const specAbs = resolveInputPath('frontend/src/pages/specification/useSpecificationPageModel.ts');
   const specRel = toSrcRelative(specAbs);
   const specRule = resolveOwnerHits(matchRules(specRel)).rule;
-  const cmds = buildRecommendedCommands(specRule);
+  const cmds = buildRecommendedCommands(specRule, specRel);
   if (cmds.some((c) => c.includes('src/__tests__//') || c.includes('**'))) {
     console.error('FAIL specification recommended_commands still contain broken globs:', cmds);
     failed += 1;
@@ -766,6 +847,30 @@ function selfTest() {
     failed += 1;
   } else {
     console.log(`ok focused proof catalog: ${RULES.length}/${RULES.length} rules`);
+  }
+  const heatRule = resolveOwnerHits(matchRules('pages/heatcalc/useHeatCalcPreferences.ts')).rule;
+  const toolingRule = resolveOwnerHits(matchRules('vite.config.ts')).rule;
+  if (defaultProofLevel(heatRule) !== 'owner' || defaultProofLevel(toolingRule) !== 'owner') {
+    console.error('FAIL default proof levels: expected heat=owner tooling=owner');
+    failed += 1;
+  } else {
+    console.log('ok default proof levels: heat=owner tooling=owner');
+  }
+  const toolingCommands = buildRecommendedCommands(toolingRule, 'vite.config.ts');
+  if (toolingCommands.some((command) => command.includes('test:agent-dod'))) {
+    console.error('FAIL full DoD must never be recommended without an explicit user request:', toolingCommands);
+    failed += 1;
+  } else {
+    console.log('ok full DoD is never recommended implicitly');
+  }
+  const exactTestPath = `__tests__${sep}unit${sep}utils${sep}formatters.test.ts`;
+  const testsRule = resolveOwnerHits(matchRules(exactTestPath)).rule;
+  const testCommands = buildRecommendedCommands(testsRule, exactTestPath);
+  if (!testCommands.some((command) => command.includes(join('src', exactTestPath)) && !command.includes('<'))) {
+    console.error('FAIL edited test path did not produce exact focused command:', testCommands);
+    failed += 1;
+  } else {
+    console.log('ok edited test path produces exact focused command');
   }
   const intentionalFailure = validateFocusedProof({
     id: 'intentional-bad-proof',
@@ -859,7 +964,9 @@ function main() {
   }
 
   const rule = resolved.rule;
-  const recommendedCommands = buildRecommendedCommands(rule);
+  const proofLevel = defaultProofLevel(rule);
+  const resolvedFocusedProof = focusedProofForPath(rule, rel);
+  const recommendedCommands = buildRecommendedCommands(rule, rel);
 
   const result = {
     ok: true,
@@ -869,10 +976,13 @@ function main() {
     zone: rule.zone,
     public_entrypoint: rule.publicEntrypoint,
     state_owner: rule.stateOwner,
-    focused_tests: rule.focusedTests,
-    focused_proof: rule.focusedProof ?? null,
+    focused_tests: resolvedFocusedProof.map((step) => step.argv.join(' ')),
+    focused_proof: resolvedFocusedProof,
     architecture_gates: rule.architectureGates,
-    full_dod_required: rule.fullDodRequired,
+    proof_contract_priority: 'explicit user contract; otherwise agent-selected risk-based proof',
+    default_proof_level: proofLevel,
+    full_dod_required: false,
+    full_dod_reason: 'local full DoD runs only on explicit user request',
     browser_profiles: rule.browserRequired ? rule.browserProfiles : [],
     browser_required: rule.browserRequired,
     recommended_commands: recommendedCommands,
@@ -898,7 +1008,10 @@ function main() {
     console.log(`state_owner:          ${result.state_owner}`);
     console.log(`focused_tests:        ${result.focused_tests.join(' | ')}`);
     console.log(`architecture_gates:   ${result.architecture_gates.join(', ')}`);
+    console.log(`proof_contract:       ${result.proof_contract_priority}`);
+    console.log(`default_proof_level:  ${result.default_proof_level}`);
     console.log(`full_dod_required:    ${result.full_dod_required}`);
+    console.log(`full_dod_reason:      ${result.full_dod_reason ?? '(none)'}`);
     console.log(`browser_required:     ${result.browser_required}`);
     console.log(`browser_profiles:     ${result.browser_profiles.join(', ') || '(none)'}`);
     console.log(`recommended_commands:`);

@@ -40,6 +40,28 @@
 - Маршрут файла → owner/gates/proof: `npm run agent:scope -- <path>`.
 - Видимое UI-изменение без browser proof не завершено.
 
+## Приоритет proof-контракта
+
+Если пользователь явно задал в задаче команды или попросил не запускать часть
+проверок, следуй этому контракту. Полный DoD (`test:agent-dod:dual-safe`)
+локально запускается **только по явному запросу пользователя**. Незапущенное
+честно отмечай как `NOT RUN`, а не как green.
+
+Если разработчик не задал proof-контракт, действует risk-based default:
+
+1. **Inner loop:** только точные focused tests / `vitest related --run` для
+   статических импортов; не запускай полный контур после каждой правки.
+2. **Перед завершением:** агент сам выбирает минимально достаточные проверки по
+   затронутому поведению и риску. `agent:scope` даёт рекомендации, а не повод
+   автоматически расширять прогон:
+   - `scoped` — точные focused/related tests;
+   - `owner` — focused owner pack и при необходимости fast gates.
+3. **Merge/release:** полный DoD остаётся обязанностью CI. Локально агент его
+   не дублирует без явного запроса пользователя.
+
+Не кэшируй proof по времени. Повторный запуск можно пропустить только для того
+же content signature изменённых файлов, lockfile, test config и команды.
+
 ## Базовые проверки
 
 ```bash
@@ -51,7 +73,7 @@ npm run agent:scope -- <path>
 # 1) Fast gate: typecheck + lint (--max-warnings 0 + Arch:* rules) + architecture/CSS ratchets (~10–15 s)
 npm run test:agent-gates
 
-# 2) Full DoD — единственное имя полного proof (то же в CI). ~145 s, quiet host n=3
+# 2) Full DoD — только по явному запросу пользователя
 npm run test:agent-dod:dual-safe
 ```
 
@@ -70,23 +92,24 @@ E2E_BASE_URL=http://127.0.0.1:3003 npm run <script из e2e/package.json>
 
 | Ситуация | Минимум proof |
 |---|---|
+| Явный proof-контракт разработчика | ровно заданные проверки; остальное `NOT RUN` |
 | Docs-only, audit, comments | nothing / optional gates |
-| Tooling scripts, AGENTS, scope rules | `test:agent-gates` |
-| UI-kit story / prop docs only | `storybook:coverage:strict` + gates |
-| Production runtime/types/hooks/pages | **focused tests** + `test:agent-gates` |
-| `agent:scope` → `full_dod_required: true` | + **`test:agent-dod:dual-safe`** before commit |
-| Changed test harness shared by many suites | dual-safe DoD |
+| `proof_level: scoped` | выбранные агентом focused/related tests |
+| `proof_level: owner` | выбранный агентом owner pack; gates по риску |
+| Shared test harness/config/deps/CI | расширенный owner proof по риску, но не полный DoD |
+| Явный запрос полного прогона | `test:agent-dod:dual-safe` |
 | Browser-visible layout/CSS | focused + browser profiles from viewport policy |
 
-**Default agent loop:** `agent:scope` → run `recommended_commands` /
-`focused_proof.argv` (exact paths — never invent globs) →
-`test:agent-gates`. Escalate to dual-safe DoD only when scope says
-`full_dod_required: true` or when you changed cross-cutting runtime/tests.
+**Default agent loop:** `agent:scope` → агент выбирает релевантное подмножество
+`recommended_commands` / `focused_proof.argv` (exact paths — never invent
+globs) → добавляет gates/browser proof только по риску. Не запускай dual-safe
+DoD из эвристики, `proof_level` или merge/release boundary: для локального
+полного прогона нужен явный запрос пользователя.
 Coverage gate: `node scripts/agent-scope.mjs --coverage` must report
 unowned=0 **and** multi-owner=0.
 
-`test:agent-gates` может быть зелёным при красном полном DoD — перед commit
-используй dual-safe DoD, если slice затрагивает runtime/tests per table above.
+В финальном отчёте перечисли фактически выполненные команды. Не выбранные
+агентом и не запрошенные проверки имеют статус `NOT RUN`, а не green.
 
 Дополнительно: focused-тесты и релевантный Playwright-сценарий. Полная
 матрица — в стандарте.

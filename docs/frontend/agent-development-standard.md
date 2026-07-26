@@ -52,7 +52,7 @@ slice пересчитывай LOC, зависимости и тестовый b
 - один feature-owner и одна причина изменения;
 - один наблюдаемый результат;
 - characterization до production-изменения;
-- focused proof и полный gate;
+- выбранный по риску focused/owner proof;
 - удаление заменённого дубля;
 - отчёт с остаточным риском.
 
@@ -234,14 +234,43 @@ architecture-slice. Абсолютные CSS-запреты и baseline пере
 
 ### 7.4 Proof
 
+### 7.4.1 Приоритет явного контракта
+
+Явно заданный пользователем proof-контракт имеет приоритет над risk-based
+default ниже. Если в задаче перечислены точные команды или явно сказано
+пропустить проверку, агент выполняет этот контракт без самовольного расширения.
+Пропущенная проверка получает статус `NOT RUN`; отсутствие запуска не является
+green.
+
+Если proof-контракт не задан, агент сам выбирает минимально достаточный proof
+по затронутому поведению и риску. `agent:scope` даёт рекомендации, но не
+заменяет это решение.
+
+### 7.4.2 Три контура
+
+1. **Inner loop** — после локальной правки запускаются только точные focused
+   tests. `vitest related --run <source>` допустим для статических импортов;
+   dynamic imports требуют явного registry в `agent:scope`.
+2. **Перед завершением** — агент выбирает релевантное подмножество focused
+   proof, owner pack, gates и browser proof. Чем шире blast radius, тем шире
+   выбранный proof, но это не включает полный DoD автоматически.
+3. **Merge/release** — CI выполняет свою полную матрицу. Локальный агент не
+   дублирует её без явного запроса пользователя.
+
+Test setup/harness, Vite/Vitest/package/lockfile, общий API/auth/routing/state
+контракт, CI/orchestrator и multi-owner change требуют расширенного анализа
+риска и owner proof. Даже для них полный DoD запускается локально только по
+явному запросу пользователя.
+
+### 7.4.3 Исполняемая лестница
+
 **Единая лестница proof** (совпадает с `frontend/AGENTS.md`):
 
 1. `npm run agent:scope -- <touched-path>` — owner, `focused_proof` /
-   `recommended_commands`, `full_dod_required`.
-2. **Focused tests** из scope (`focused_proof.argv` или `recommended_commands`).
-3. **`npm run test:agent-gates`** — всегда для runtime / tests / tooling.
-4. **Full DoD**, когда scope `full_dod_required: true` или slice меняет
-   cross-cutting runtime/tests/harness:
+   `recommended_commands` и default `proof_level`.
+2. Агент выбирает из scope тесты, которые действительно покрывают изменение.
+3. **`npm run test:agent-gates`** добавляется по риску, а не автоматически.
+4. **Full DoD** запускается локально только по явному запросу пользователя:
 
 ```bash
 cd frontend
@@ -260,20 +289,27 @@ concurrent unit+integration (~136 s), а не gates (~9 s) и не build (~0.8 s
 
 | Ситуация | Минимум |
 |---|---|
+| Явный developer proof | заданные команды; прочее `NOT RUN` |
 | Docs/audit only | — / optional gates |
-| Tooling, scope rules, AGENTS | `test:agent-gates` |
-| Production runtime + `full_dod_required` | focused + gates + **dual-safe DoD** |
-| Shared test harness | dual-safe DoD |
+| `scoped` | выбранные агентом focused/related tests |
+| `owner` | выбранный агентом owner pack; gates по риску |
+| shared harness/config/deps/CI | расширенный owner proof, без автоматического full DoD |
+| явный запрос полного прогона | **dual-safe DoD** |
 | Browser-visible layout | focused + viewport profiles |
 
 Для UI дополнительно — релевантный Playwright spec (`e2e/package.json`).
 
-Красный полный gate, даже из-за несвязанного baseline, означает `blocked`.
+Зелёный proof можно переиспользовать только при совпадении content signature:
+changed files + lockfile + test config/setup + команда. Время запуска или один
+commit hash сами по себе не являются достаточным ключом кэша.
+
+Если пользователь запросил полный gate и он красный, статус `blocked`.
 Зафиксируй доказательство и не исправляй чужую проблему расширением scope.
 
 ## 8. Git и завершение
 
-После полного DoD агент автоматически создаёт conventional commit:
+После согласованного proof агент создаёт conventional commit, если пользователь
+не попросил оставить изменения незакоммиченными:
 
 ```text
 refactor(frontend): <SLICE_ID> <результат>
@@ -302,10 +338,8 @@ Push выполняется только по явному запросу пол
 - изменение не помещается в budget;
 - требуется повысить baseline или ослабить тест;
 - UI/CSS-решение нарушает тематическую CSS или form-layout политику;
-- **полный gate красный** → статус **`blocked`** (даже при зелёных focused
-  tests). Пока в backlog NEXT = AF100-06 и dual-safe падает, slice с
-  `full_dod_required` **не** закрывается ссылкой на dual-safe PASS — см.
-  [refactor-backlog.md](./refactor-backlog.md);
+- явно запрошенный пользователем **полный gate красный** → статус
+  **`blocked`** (даже при зелёных focused tests);
 - обязательный browser proof недоступен или показывает регрессию;
 - одна причина не устранена после трёх содержательных попыток.
 
