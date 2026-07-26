@@ -30,6 +30,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import TestMemoryRouter from '@/__tests__/utils/TestMemoryRouter';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import HeatCalcPage from '@/pages/HeatCalcPage';
+import { loadHeatCalcObjectWizard } from '@/pages/heatcalc/heatCalcObjectWizardLoader';
 import { getUserPreference, updateUserPreference } from '@/api/preferences';
 import { cancelCalcTask, enqueueHeatLossBatchJob, getCalcTask } from '@/api/calculations';
 import { useAuthStore } from '@/store/authStore';
@@ -126,6 +127,12 @@ export function setupHeatCalcPageTest() {
   let consoleErrorSpy: ReturnType<typeof vi.spyOn> | undefined;
 
   afterEach(async () => {
+    // HeatCalcPage idle-preloads the wizard chunk (useHeatCalcRouteShellEffects).
+    // Scheduling is cancel-aware, but an import() already in flight is not: if the
+    // test ends first, Vitest tears the environment down and the pending import
+    // rejects with EnvironmentTeardownError — 1134/1134 green, exit 1.
+    // Awaiting the cached module promise settles it deterministically.
+    await loadHeatCalcObjectWizard();
     await act(async () => {
       await Promise.resolve();
     });

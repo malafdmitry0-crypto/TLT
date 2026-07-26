@@ -8,7 +8,7 @@ on:
 
 jobs:
   frontend-dod:
-    name: Frontend full DoD (test:agent-dod)
+    name: Frontend full DoD (test:agent-dod:dual-safe)
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -23,8 +23,9 @@ jobs:
         run: npm ci
       - name: Full frontend DoD
         working-directory: frontend
-        # Canonical command only — do not reassemble from partial scripts.
-        run: npm run test:agent-dod
+        # Canonical command only — same one AGENTS.md and the standard name.
+        # Do not reassemble from partial scripts.
+        run: npm run test:agent-dod:dual-safe
 
   build-and-smoke:
     name: Build demo stack + smoke/UI gates

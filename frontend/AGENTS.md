@@ -51,7 +51,7 @@ npm run agent:scope -- <path>
 # 1) Fast gate: typecheck + lint (--max-warnings 0 + Arch:* rules) + architecture/CSS ratchets (~10–15 s)
 npm run test:agent-gates
 
-# 2) Full DoD (slow: ~3–4 min). Prefer dual-safe concurrent orchestrator:
+# 2) Full DoD — единственное имя полного proof (то же в CI). ~145 s, quiet host n=3
 npm run test:agent-dod:dual-safe
 ```
 

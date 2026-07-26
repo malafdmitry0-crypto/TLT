@@ -248,9 +248,15 @@ cd frontend
 npm run test:agent-dod:dual-safe
 ```
 
-Канонический sequential fallback: `npm run test:agent-dod` (тот же набор
-фаз: gates + unit + integration + build). Dual-safe — предпочтительный
-agent path на этом host. Не собирай третью «полную» команду в prompt/CI.
+Это **единственное** имя полного proof: его называют AGENTS.md, этот стандарт,
+`package.json` и CI (`.github/workflows/ci.yml`). `npm run test:agent-dod` —
+не вторая команда, а тот же orchestrator (`scripts/agent-dod.mjs`) с другим
+worker-профилем; он допустим для отладки, но **не** как acceptance закрытия
+slice. Не собирай третью «полную» команду в prompt/CI.
+
+Измерено на quiet host, n=3 (`2026-07-26-af100-06-08-execution`):
+dual-safe **145.08 / 145.99 / 145.68 s** — разброс < 1 s; long pole —
+concurrent unit+integration (~136 s), а не gates (~9 s) и не build (~0.8 s).
 
 | Ситуация | Минимум |
 |---|---|
