@@ -2,8 +2,10 @@
 
 **Status:** **PARTIAL PASS** — lint, engines, bundle budget, Ant ratchet, LOC≥500, dual-safe green; DoD ≤120 and browser re-seal still open  
 **UTC:** 2026-07-26  
-**HEAD:** (this commit)  
-**Prior dual-safe:** 147.34 s → **143.68 s**
+**HEAD:** `a9b4cb3`  
+**Prior dual-safe:** 147.34 s → **143.68 s**  
+**Metrics role:** evidence only — **not** the binding scorecard. Current AF score:  
+[agent-metrics-binding](../2026-07-26-agent-metrics-binding/snapshot.md).
 
 ## Checklist
 

@@ -25,7 +25,8 @@ archive summaries и audit snapshots **не** маршрутизируют `pend
 Размер slice: [PR budget](./pr-budget.md).  
 Исполняемый шаблон: [мастер-промпт](./agent-refactor-prompt.md).  
 Viewport / UI Kit: [viewport-policy](./viewport-policy.md), [ui-kit](./ui-kit.md).  
-Test split template: [split-large-tests-by-scenario](./prompts/split-large-tests-by-scenario.md).
+Test split template: [split-large-tests-by-scenario](./prompts/split-large-tests-by-scenario.md).  
+**Текущие AF-метрики (binding only):** [agent-metrics-binding](../audit/2026-07-26-agent-metrics-binding/snapshot.md) — не цитировать historical **8.1**.
 
 ## Правила очереди
 

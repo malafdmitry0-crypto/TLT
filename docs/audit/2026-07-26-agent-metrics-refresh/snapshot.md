@@ -1,15 +1,22 @@
 # Frontend agent metrics refresh
 
-**Status:** **PARTIAL PASS** — static code/tests/build are green, but current
-desktop acceptance is red on console, accessibility and page overflow.  
+> **HISTORICAL — NOT CURRENT.**  
+> Binding card moved to  
+> **[2026-07-26-agent-metrics-binding](../2026-07-26-agent-metrics-binding/snapshot.md)**  
+> (**8.3/10** at `a9b4cb3`). Do **not** quote **8.1/10** below as “now”.
+
+**Status (at capture):** **PARTIAL PASS** — static code/tests/build green; desktop
+acceptance red on console, accessibility and page overflow.  
 **Source HEAD:** `452ec99`  
 **Collected:** 2026-07-26 UTC  
 **Worktree before collection:** clean  
 **Product viewport contract:** desktop `>=1000 px`; mobile is out of scope  
-**Binding evidence:** [evidence.json](./evidence.json)
+**Binding evidence (historical):** [evidence.json](./evidence.json)
 
-This snapshot supersedes older metric summaries as the current binding card.
-Historical audits remain provenance and are not rewritten.
+This snapshot **was** the binding card at `452ec99`. It remains provenance for
+that HEAD’s browser matrix and is **not** rewritten. Newer work (lint 0
+warnings, dual-safe ~144 s, engines^23, U0 code seal) is reflected only in the
+binding card above.
 
 ## 1. Updated assessment
 
@@ -26,7 +33,7 @@ signals. The evidence-adjusted assessment is therefore lower:
 | Feedback speed | 10% | **7.2** | fast gate acceptable; full cycle remains above target |
 | Browser/UI acceptance | 15% | **6.2** | console, a11y and `/workspace` overflow are red |
 | Reproducibility/toolchain | 10% | **7.5** | lockfiles exist; running Node does not match `engines` |
-| **Weighted agent-friendly score** | **100%** | **8.1/10** | current evidence-adjusted result |
+| **Weighted agent-friendly score** | **100%** | **8.1/10** | historical @ `452ec99` only — see binding card for current |
 
 **Запутанность, где меньше — лучше:** **2.5/10**. Production/test context and
 scope routing improved materially, but contradictory acceptance evidence,

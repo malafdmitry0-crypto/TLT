@@ -41,6 +41,11 @@ backlog: **EMPTY QUEUE** (Track A + Track B closed 2026-07-26). Next: —.
 обязательные команды. Динамические счётчики — только в датированных
 `docs/audit/…` snapshot.
 
+**Текущая agent-friendly оценка (binding):**  
+[docs/audit/2026-07-26-agent-metrics-binding/snapshot.md](../audit/2026-07-26-agent-metrics-binding/snapshot.md)  
+(**8.3/10** @ `a9b4cb3`). Карта **8.1** (`agent-metrics-refresh` @ `452ec99`) —
+historical only.
+
 ## Тематические справочники
 
 | Документ | О чём |
@@ -64,7 +69,9 @@ backlog: **EMPTY QUEUE** (Track A + Track B closed 2026-07-26). Next: —.
 |---|---|
 | [Split large tests by scenario](./prompts/split-large-tests-by-scenario.md) | Template for backlog Track B (`P-TEST-*`) |
 | [DoD wall ≤120 s](./prompts/dod-wall-under-120.md) | Full-cycle speed: profile → suite shrink → honest target |
+| [Browser U0 a11y/console/overflow](./prompts/browser-u0-a11y-console-overflow.md) | Fix gates; do not disable |
 | [Test LOC cap ≤350](./prompts/test-file-loc-cap-350.md) | All `__tests__` + e2e files ≤350 (ceiling 400) |
+| [Current AF metrics binding](../audit/2026-07-26-agent-metrics-binding/snapshot.md) | Only current scorecard (not historical 8.1) |
 
 Closed AF10–AF12 / meaningful-css / Ant rollout prompt dumps live only under
 [archive/](./archive/README.md) and git history.
