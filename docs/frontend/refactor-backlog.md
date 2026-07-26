@@ -8,7 +8,7 @@
 [agent-friendly-10-plan.md](./agent-friendly-10-plan.md).
 **Inventory at open:** **22** files in **400–445** LOC (production) — all
 extracted under Track A.  
-**Last closed:** AF100-09b antd пре-бандлится один раз @ `<pending>`
+**Last closed:** AF100-09b antd пре-бандлится один раз @ `c20bdea`
 ([snapshot](../audit/2026-07-27-af100-09b-antd-prebundle/snapshot.md))  
 **Prior:** AF100-09a node-окружение для DOM-free unit-тестов @ `aa9c3fa`
 ([snapshot](../audit/2026-07-26-af100-09a-node-environment/snapshot.md))  
@@ -108,7 +108,7 @@ Acceptance и hard gates программы:
 | 7 | **AF100-07** | **done** `42329ed` | tooling | CI, AGENTS, стандарт и package.json называют `test:agent-dod:dual-safe`; guard на дрейф |
 | 8 | **AF100-08** | **done** `42329ed` | qa | Quiet-host n=3: 145.08/145.99/145.68 s; long pole — concurrent unit+integration (~136 s) |
 | 9a | **AF100-09a** | **done** `aa9c3fa` | qa | 87 DOM-free файлов → `node`-окружение; env+setup −29.0 s, gates 10.13 → 7.32 s; 1202 теста без изменений; guard на env-ветвление в графе |
-| 9b | **AF100-09b** | **done** `<pending>` | qa | `antd` пре-бандлится один раз для `unit`: import 87.7 → 33.4 s, wall −26.6 s; причина поломки — `@ant-design/icons`, не `antd`; 6 моков перенесены на границу `appMessage`; guard 8 тестов, 4 red-demo |
+| 9b | **AF100-09b** | **done** `c20bdea` | qa | `antd` пре-бандлится один раз для `unit`: import 87.7 → 33.4 s, wall −26.6 s; причина поломки — `@ant-design/icons`, не `antd`; 6 моков перенесены на границу `appMessage`; guard 8 тестов, 4 red-demo |
 | 9c | **AF100-09c** | **pending → NEXT** | qa | Пре-бандл для integration (1.22 s/файл против 0.12 в unit) + quiet-host профиль n≥3 |
 | 10 | **AF100-10+** | **pending** | feature | Stateful/interactive >350 LOC classified; extracts только по одному owner |
 | 11 | **AF100-11+** | **pending** | ui | Direct Ant inventory classified; feature debt shrink-only |
