@@ -48,7 +48,7 @@ cd frontend
 # 0) Path → owner / proof (run first on the file you touch)
 npm run agent:scope -- <path>
 
-# 1) Fast gate: typecheck + lint + architecture/CSS ratchets (~10–15 s)
+# 1) Fast gate: typecheck + lint (--max-warnings 0 + Arch:* rules) + architecture/CSS ratchets (~10–15 s)
 npm run test:agent-gates
 
 # 2) Full DoD (slow: ~3–4 min). Prefer dual-safe concurrent orchestrator:

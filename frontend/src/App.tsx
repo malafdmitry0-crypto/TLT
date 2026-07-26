@@ -1,6 +1,6 @@
 import AppRoutes from './routes';
 import ErrorBoundary from '@/components/common/ErrorBoundary';
-import { AntdAppShell } from '@/feedback/appFeedback';
+import { AntdAppShell } from '@/feedback/AntdAppShell';
 
 export default function App() {
   // Auth-state читается из localStorage синхронно при инициализации authStore

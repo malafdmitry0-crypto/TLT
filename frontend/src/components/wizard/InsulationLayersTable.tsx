@@ -30,11 +30,11 @@ import type { InsulationEntry } from '@/types/reference';
 import { applyHeatCalcFieldValue } from '@/domain/heatCalcFieldRules';
 import type { ReferencePickerOption } from './ReferencePicker';
 import ThermalStep from './steps/ThermalStep';
+import { InsulationOuterLayerRow } from './InsulationOuterLayerRow';
 import {
-  InsulationOuterLayerRow,
   SECOND_INSULATION_LAYER,
   THIRD_INSULATION_LAYER,
-} from './InsulationOuterLayerRow';
+} from './insulationOuterLayerConfig';
 
 const MIN_LAYERS = 1;
 const MAX_LAYERS = 3;

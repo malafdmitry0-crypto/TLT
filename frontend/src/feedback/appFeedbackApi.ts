@@ -1,14 +1,13 @@
 /**
- * Ant Design App-bound feedback APIs.
+ * Ant Design App-bound feedback APIs (non-component exports).
  *
  * Static `message` / `Modal.confirm` from `antd` cannot consume ConfigProvider
  * theme context and emit console warnings. Prefer these helpers after the root
- * {@link AntdAppShell} mounts (see main.tsx).
+ * {@link AntdAppShell} mounts (see App.tsx).
  *
- * Import path: `@/feedback/appFeedback` (not from antd).
+ * Import path: `@/feedback/appFeedback` (stable re-export).
  */
-import { useEffect, type ReactNode } from 'react';
-import { App, message as staticMessage, Modal as StaticModal } from 'antd';
+import { message as staticMessage, Modal as StaticModal } from 'antd';
 import type { MessageInstance } from 'antd/es/message/interface';
 import type { HookAPI as ModalHookAPI } from 'antd/es/modal/useModal';
 import type { NotificationInstance } from 'antd/es/notification/interface';
@@ -24,16 +23,22 @@ let messageApi: MessageApi | null = null;
 let modalApi: ModalApi | null = null;
 let notificationApi: NotificationInstance | null = null;
 
-function bindMessage(api: MessageInstance) {
+export function bindAppMessage(api: MessageInstance) {
   messageApi = api;
 }
 
-function bindModal(api: ModalHookAPI) {
+export function bindAppModal(api: ModalHookAPI) {
   modalApi = api;
 }
 
-function bindNotification(api: NotificationInstance) {
+export function bindAppNotification(api: NotificationInstance) {
   notificationApi = api;
+}
+
+export function unbindAppFeedback() {
+  messageApi = null;
+  modalApi = null;
+  notificationApi = null;
 }
 
 /** Context-aware message API (falls back to static only before App mounts / in unit tests). */
@@ -65,7 +70,6 @@ export const appModal = {
 export const appNotification = {
   success: (...args: Parameters<NotificationInstance['success']>) => {
     if (!notificationApi) {
-      // Lazy import avoided — callers should prefer appMessage for toast UX.
       throw new Error('appNotification used before AntdAppShell mounted');
     }
     return notificationApi.success(...args);
@@ -83,31 +87,3 @@ export const appNotification = {
     return notificationApi.warning(...args);
   },
 };
-
-function AppFeedbackBinder() {
-  const { message, modal, notification } = App.useApp();
-  useEffect(() => {
-    bindMessage(message);
-    bindModal(modal);
-    bindNotification(notification);
-    return () => {
-      messageApi = null;
-      modalApi = null;
-      notificationApi = null;
-    };
-  }, [message, modal, notification]);
-  return null;
-}
-
-/**
- * Root shell: place inside ConfigProvider so message/modal hold theme context.
- * `component={false}` avoids an extra DOM wrapper that could affect layout.
- */
-export function AntdAppShell({ children }: { children: ReactNode }) {
-  return (
-    <App component={false}>
-      <AppFeedbackBinder />
-      {children}
-    </App>
-  );
-}
