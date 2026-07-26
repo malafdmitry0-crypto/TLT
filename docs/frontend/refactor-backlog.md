@@ -8,7 +8,9 @@
 [agent-friendly-10-plan.md](./agent-friendly-10-plan.md).
 **Inventory at open:** **22** files in **400–445** LOC (production) — all
 extracted under Track A.  
-**Last closed:** AF100-01 `agent:scope` uniqueness @ `e7ed259`  
+**Last closed:** AF100-02/-03/-04/-05/-14 Phase A + root hygiene @ `fd9ec39`
+([snapshot](../audit/2026-07-26-af100-phase-a-execution/snapshot.md))  
+**Prior:** AF100-01 `agent:scope` uniqueness @ `e7ed259`  
 **Prior track close:** P-TEST-08 @ `8560d79`
 
 ### NEXT (единственный)
@@ -17,7 +19,8 @@ extracted under Track A.
 |---|---|
 | **NEXT** | **AF100-06** — `ReportPage.export` deterministic |
 | Owner | `qa` |
-| **Не NEXT** | AF100-02 и прочие pending Phase A — **не** брать вместо 06 |
+| **Не NEXT** | Phase A (02–05) и 14 закрыты в `fd9ec39`; остальные pending — не брать вместо 06 |
+| Занятость | На 2026-07-26T16:25Z `ReportPage.export.test.tsx` был под WIP другой сессии — стандарт §9 запрещает трогать чужой файл. Перед стартом: `git status --short` |
 
 **Почему NEXT = AF100-06, а не AF100-02** (перемерено на `abb070a`):
 
@@ -74,10 +77,10 @@ Acceptance и hard gates программы:
 | # | ID | Status | Owner | Outcome |
 |---:|---|---|---|---|
 | 1 | **AF100-01** | **done** `e7ed259` | tooling | `agent:scope`: unique 100%, ambiguous/unowned 0; coverage ловит оба класса ошибок |
-| 2 | **AF100-02** | **pending** (not NEXT; parallel OK) | tooling | Все emitted focused commands точные и execution-tested |
-| 3 | **AF100-03** | **pending** (not NEXT; parallel OK) | tooling | CSS gate проверяет все актуальные ratchets и fail-closed на missing target |
-| 4 | **AF100-04** | **pending** (not NEXT; parallel OK) | tooling | Hooks не ссылаются на отсутствующие scripts; есть root agent entrypoint |
-| 5 | **AF100-05** | **pending** (not NEXT; parallel OK) | qa | Одна рабочая Playwright discovery command из документированного cwd |
+| 2 | **AF100-02** | **done** `fd9ec39` | tooling | Emitted commands исполнимы: 0 prose, 0 несуществующих npm scripts, path-фильтры матчат; guard на sample из 15 файлов |
+| 3 | **AF100-03** | **done** `fd9ec39` | tooling | `css:architecture` → fail-closed gate: 4 файла / 12 тестов; удалённый ratchet → exit 1 с именем группы |
+| 4 | **AF100-04** | **done** `fd9ec39` | tooling | Битый PostToolUse hook удалён; root `AGENTS.md` маршрутизирует; guard на пути скриптов в hooks |
+| 5 | **AF100-05** | **done** `fd9ec39` | qa | `frontend/playwright.config.ts` удалён; `cd e2e && npx playwright test --list` → 125/34; guard на единственный config |
 | 6 | **AF100-06** | **pending → NEXT** | qa | `ReportPage.export` deterministic; focused stress ≥20/20; dual-safe PASS **3/3** |
 | 7 | **AF100-07** | **pending · blocked by 06, 08** | tooling | Одна каноническая full DoD команда в docs/scripts/CI |
 | 8 | **AF100-08** | **pending · blocked by 06** | qa | Clean quiet-host profile n≥3 определяет long pole |
@@ -86,7 +89,7 @@ Acceptance и hard gates программы:
 | 11 | **AF100-11+** | **pending** | ui | Direct Ant inventory classified; feature debt shrink-only |
 | 12 | **AF100-12** | **pending** | tooling | Production path детерминированно возвращает ближайшие tests/harness |
 | 13 | **AF100-13** | **pending · blocked by 06** | qa | Live U0 browser matrix green на 1000/1280/1440 |
-| 14 | **AF100-14** | **pending** | tooling | Root artifact hygiene и явные owners для сохраняемых baselines |
+| 14 | **AF100-14** | **done** `fd9ec39` | tooling | Tracked в корне 84 → 14 (только конфигурация); `tmp/` untracked; guard с allowlist корневых файлов |
 | 15 | **AF100-15** | **pending** | docs | Backlog/AGENTS/standard/README/scorecard синхронизированы |
 | 16 | **AF100-16** | **pending · blocked by all others** | qa | Независимый clean-checkout audit: hard gates + 10.0 |
 
