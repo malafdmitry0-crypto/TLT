@@ -8,19 +8,43 @@
 [agent-friendly-10-plan.md](./agent-friendly-10-plan.md).
 **Inventory at open:** **22** files in **400–445** LOC (production) — all
 extracted under Track A.  
-**Last closed:** P-TEST-08 inline-form-dependencies e2e @ `8560d79`
+**Last closed:** AF100-01 `agent:scope` uniqueness @ `e7ed259`  
+**Prior track close:** P-TEST-08 @ `8560d79`
 
-**Следующий незакрытый контракт:** **AF100-06 — `ReportPage.export` deterministic**
+### NEXT (единственный)
 
-Причина приоритета (перемерено на `abb070a`): стандарт §7.4 объявил
-`test:agent-dod:dual-safe` предпочтительным agent path, а эта команда падает
-**2/2** на чистом дереве. Любой slice с `full_dod_required: true` упирается в
-§9 «полный gate красный → `blocked`» и встаёт на зелёном коде. Пока AF100-06 не
-закрыт, очередь исполнима только через sequential fallback, и **ни один** slice
-не может быть закрыт ссылкой на dual-safe.
-Evidence: [af-independent-execution-audit](../audit/2026-07-26-af-independent-execution-audit/snapshot.md).
-Корневые причины и приёмка по каждому slice:
-[prompts/af100-execution-plan.md](./prompts/af100-execution-plan.md).
+| Поле | Значение |
+|---|---|
+| **NEXT** | **AF100-06** — `ReportPage.export` deterministic |
+| Owner | `qa` |
+| **Не NEXT** | AF100-02 и прочие pending Phase A — **не** брать вместо 06 |
+
+**Почему NEXT = AF100-06, а не AF100-02** (перемерено на `abb070a`):
+
+1. Стандарт §7.4 объявил `npm run test:agent-dod:dual-safe` предпочтительным
+   agent path полного proof.
+2. На чистом дереве dual-safe падает **2/2** из-за flake `ReportPage.export`.
+3. Стандарт **§9**: красный полный gate → статус **`blocked`**, даже если
+   focused-тесты зелёные. Следовательно **каждый** slice с
+   `full_dod_required: true` обязан вставать в `blocked`, пока dual-safe красный.
+4. AF100-02 (focused-команды) не чинит dual-safe: tooling-only, runtime flake
+   остаётся. Брать 02 «как next» — продолжать очередь на broken full proof.
+
+**Жёсткий запрет, пока AF100-06 `pending`:**
+
+- **Нельзя** объявлять любой AF100-slice (и любой frontend slice с
+  `full_dod_required`) **`done` со ссылкой на dual-safe PASS**, если dual-safe
+  не зелёный на **этом** HEAD (n≥1 минимум; для AF100-06 acceptance — 3/3).
+- **Нельзя** писать «DoD зелёный» / «full proof OK» на основании sequential
+  `test:agent-dod` **как замены** dual-safe, пока 06 не закрыт: dual-safe —
+  предпочтительный path §7.4, и он красный.
+- Sequential `test:agent-dod` допустим только как **временный fallback**
+  исполнения (агент не блокируется навсегда), но **не** как acceptance
+  закрытия slice и **не** как proof, что dual-safe здоров.
+- Evidence flake / 2/2:
+  [af-independent-execution-audit](../audit/2026-07-26-af-independent-execution-audit/snapshot.md).
+- Корневые причины и приёмка по slice:
+  [prompts/af100-execution-plan.md](./prompts/af100-execution-plan.md).
 
 Это **единственный** источник текущего `pending` для frontend. Одновременно
 может существовать только одна ACTIVE frontend-очередь. Initiative plans,
@@ -37,57 +61,69 @@ archive summaries и audit snapshots **не** маршрутизируют `pend
 Исполняемый шаблон: [мастер-промпт](./agent-refactor-prompt.md).  
 Viewport / UI Kit: [viewport-policy](./viewport-policy.md), [ui-kit](./ui-kit.md).  
 Test split template: [split-large-tests-by-scenario](./prompts/split-large-tests-by-scenario.md).  
-**Текущие AF-метрики (binding only):** [agent-metrics-binding](../audit/2026-07-26-agent-metrics-binding/snapshot.md) — не цитировать historical **8.1**.
+**Текущие AF-метрики:** только датированные `docs/audit/YYYY-MM-DD-*/` на
+**текущем HEAD** — не цитировать historical **8.1** / fixed **8.3 @ a9b4cb3**.
 
 ## Pending — AF100 agent-friendly 10/10
 
 Acceptance и hard gates программы:
-[agent-friendly-10-plan.md](./agent-friendly-10-plan.md).
+[agent-friendly-10-plan.md](./agent-friendly-10-plan.md).  
+Исполнительные notes (не очередь):
+[prompts/af100-execution-plan.md](./prompts/af100-execution-plan.md).
 
 | # | ID | Status | Owner | Outcome |
 |---:|---|---|---|---|
 | 1 | **AF100-01** | **done** `e7ed259` | tooling | `agent:scope`: unique 100%, ambiguous/unowned 0; coverage ловит оба класса ошибок |
-| 2 | **AF100-02** | **pending** | tooling | Все emitted focused commands точные и execution-tested |
-| 3 | **AF100-03** | **pending** | tooling | CSS gate проверяет все актуальные ratchets и fail-closed на missing target |
-| 4 | **AF100-04** | **pending** | tooling | Hooks не ссылаются на отсутствующие scripts; есть root agent entrypoint |
-| 5 | **AF100-05** | **pending** | qa | Одна рабочая Playwright discovery command из документированного cwd |
-| 6 | **AF100-06** | **pending → NEXT** | qa | `ReportPage.export` deterministic; focused stress ≥20/20; dual-safe PASS 3/3 |
-| 7 | **AF100-07** | **pending** (blocked by 06, 08) | tooling | Одна каноническая full DoD команда в docs/scripts/CI |
-| 8 | **AF100-08** | **pending** | qa | Clean quiet-host profile n≥3 определяет long pole |
-| 9 | **AF100-09+** | **pending** | qa | Harness slices снижают full DoD p50 до ≤120 s, PASS 3/3 |
+| 2 | **AF100-02** | **pending** (not NEXT; parallel OK) | tooling | Все emitted focused commands точные и execution-tested |
+| 3 | **AF100-03** | **pending** (not NEXT; parallel OK) | tooling | CSS gate проверяет все актуальные ratchets и fail-closed на missing target |
+| 4 | **AF100-04** | **pending** (not NEXT; parallel OK) | tooling | Hooks не ссылаются на отсутствующие scripts; есть root agent entrypoint |
+| 5 | **AF100-05** | **pending** (not NEXT; parallel OK) | qa | Одна рабочая Playwright discovery command из документированного cwd |
+| 6 | **AF100-06** | **pending → NEXT** | qa | `ReportPage.export` deterministic; focused stress ≥20/20; dual-safe PASS **3/3** |
+| 7 | **AF100-07** | **pending · blocked by 06, 08** | tooling | Одна каноническая full DoD команда в docs/scripts/CI |
+| 8 | **AF100-08** | **pending · blocked by 06** | qa | Clean quiet-host profile n≥3 определяет long pole |
+| 9 | **AF100-09+** | **pending · blocked by 08** (и 06) | qa | Harness slices: full DoD p50 ≤120 s, PASS 3/3 |
 | 10 | **AF100-10+** | **pending** | feature | Stateful/interactive >350 LOC classified; extracts только по одному owner |
 | 11 | **AF100-11+** | **pending** | ui | Direct Ant inventory classified; feature debt shrink-only |
 | 12 | **AF100-12** | **pending** | tooling | Production path детерминированно возвращает ближайшие tests/harness |
-| 13 | **AF100-13** | **pending** | qa | Live U0 browser matrix green на 1000/1280/1440 |
+| 13 | **AF100-13** | **pending · blocked by 06** | qa | Live U0 browser matrix green на 1000/1280/1440 |
 | 14 | **AF100-14** | **pending** | tooling | Root artifact hygiene и явные owners для сохраняемых baselines |
 | 15 | **AF100-15** | **pending** | docs | Backlog/AGENTS/standard/README/scorecard синхронизированы |
-| 16 | **AF100-16** | **pending** | qa | Независимый clean-checkout audit подтверждает все hard gates и 10.0 |
+| 16 | **AF100-16** | **pending · blocked by all others** | qa | Независимый clean-checkout audit: hard gates + 10.0 |
 
 `AF100-09+`, `AF100-10+` и `AF100-11+` раскрываются только после inventory /
 profile: один owner и один измеримый результат на под-slice.
 
-### Обязательный порядок
+### Нормативная цепочка (обязательна)
 
 ```text
-AF100-06 (flake)  →  AF100-08 (профиль)  →  AF100-07 (канонизация)  →  AF100-09+ (скорость)
+AF100-06 (flake dual-safe)
+    → AF100-08 (quiet-host profile n≥3)
+        → AF100-07 (одна каноническая DoD-команда)
+            → AF100-09+ (harness / p50 ≤120 s)
 ```
 
-Порядок нормативный, а не рекомендательный:
+Каждая стрелка — **hard block**, не «желательно»:
 
-- **07 не закрывается до 06 и 08.** Канонизировать команду до устранения флейка
-  — закрепить красный CI; выбирать orchestrator до профиля — выбирать вслепую.
-- **09+ не открывается до 08.** Оптимизация до замера запрещена планом §2.
-- **02–05 независимы** от этой цепочки и друг от друга: их можно вести
-  параллельными запусками, они не трогают runtime.
-- **13 (browser) не закрывается** раньше 06: live matrix, снятая на дереве с
-  флейкующим полным proof, не является приёмкой.
-- **16 закрывается последним** и только после того, как все остальные `done`.
+| Стрелка | Почему нельзя перепрыгнуть |
+|---|---|
+| **06 → 08** | Профиль long pole / p50 на красном dual-safe или на «обходе» flake — невалидный baseline: фазы искажены ретраями, abort sibling, нестабильным export. 08 **blocked by 06**. |
+| **08 → 07** | Канонизировать orchestrator (dual-safe vs sequential) **до** quiet-host n≥3 — выбор вслепую; закрепить в CI/docs проигравшую или нестабильную команду. 07 **blocked by 06 и 08**. |
+| **07 → 09+** | Срезать harness/setup tax «до» единой команды и профиля — оптимизация без SoT-команды и без цифр long pole; план §2 запрещает speed-work до измерения. 09+ **blocked by 08** (и фактически 06). |
+| **06 → 13** | Live browser matrix на дереве с флейкующим full proof не является приёмкой U0. 13 **blocked by 06**. |
+| **\* → 16** | Независимый audit 10.0 только когда все остальные `done`. 16 **blocked by all**. |
+
+**Параллельно (не NEXT, не блокируют 06):** AF100-02…05 — tooling/docs/discovery,
+не runtime; можно вести отдельными запусками, **не** подменяя NEXT.
+
+**Пока 06 open — запрет dual-safe-close:** ни один пункт таблицы не становится
+`done` доказательством «dual-safe зелёный», если dual-safe на HEAD красный или
+не гонялся. См. жёсткий запрет в шапке.
 
 ## Правила очереди
 
 - Один запуск выполняет один `pending` slice и одного owner.
 - Пункт становится `done` только после focused proof (и DoD, если slice
-  затрагивает runtime/tests/guardrails).
+  затрагивает runtime/tests/guardrails) **и** условий закрытия AF100 ниже.
 - Before-метрики пересчитываются из текущего дерева; audit snapshot не
   разрешает повысить baseline.
 - Новый пункт — только по явной цели пользователя.
@@ -95,34 +131,33 @@ AF100-06 (flake)  →  AF100-08 (профиль)  →  AF100-07 (канониз�
 - Не объявляй инициативу завершённой, пока в этом файле есть pending.
 - Extract: behavior-preserving; characterization first for stateful owners;
   after owner **≤399 LOC**; no multi-owner cascade in one slice.
+- **Не закрывай slice ссылкой на dual-safe, пока AF100-06 `pending`.**
 
-### Условия закрытия AF100-slice (жёстче общих правил)
+### Условия закрытия AF100-slice (поверх стандарта)
 
-Эти условия действуют поверх стандарта и не ослабляются ни одним промптом.
+Эти **восемь** условий обязательны для каждого AF100-пункта. Они **жёстче**
+общих правил стандарта и **не** ослабляются промптом, chat-контрактом или
+«локально зелено».
 
-1. **Guard обязателен.** Каждый закрытый дефект оставляет после себя машинную
-   проверку, которая краснеет при его возврате: тест, ratchet или fail-closed
-   gate. Исправление без guard — **не** `done`. Причина: все семь дефектов
-   аудита — это регрессии инструментов, которые ничто не удерживало.
-2. **Guard проверяется на обеих ветках.** В slice демонстрируется и success
-   path, и намеренно сломанный вход, на котором guard краснеет. Guard, который
-   не показали красным, считается непроверенным.
-3. **`NOT RUN` не закрывает пункт.** Любая заявленная проверка приводится
-   командой, точным HEAD и результатом. Отсутствие запуска — не «зелено».
-4. **Зелёный без обходов.** `done` не ставится, если в slice появились
-   `.only`, `.skip`, retry, поднятый timeout, увеличенный worker count,
-   повышенный baseline или ослабленный assertion. Скорость и стабильность
-   покупаются только устранением причины.
-5. **Флейк-стандарт.** Там, где acceptance требует повторяемости: focused
-   stress **≥20/20** и полный proof **PASS 3/3 подряд** на quiet host. Один
-   красный обнуляет счётчик — «прошло со второго раза» не является приёмкой.
-6. **Цифры из текущего дерева.** Before/after пересчитываются на HEAD слайса;
-   ссылка на прошлый snapshot не заменяет замер. Новые числа уходят в
-   датированный `docs/audit/YYYY-MM-DD-*/`, а не в этот файл.
-7. **Чужой WIP неприкосновенен.** `git status --short` перед стартом; в commit
-   попадают только файлы своего slice, `git add .` запрещён.
-8. **Slice не растит корневой мусор.** Скриншоты, логи и отчёты прогонов не
-   остаются в корне репозитория — иначе slice сам увеличивает долг AF100-14.
+1. **Guard обязателен.** Каждый закрытый дефект оставляет машинную проверку,
+   которая краснеет при регрессии: тест, ratchet или fail-closed gate.
+   Исправление без guard — **не** `done`.
+2. **Guard на обеих ветках.** В slice показаны success path **и** намеренно
+   сломанный вход, на котором guard краснеет. Guard без red-demo — не принят.
+3. **`NOT RUN` ≠ PASS.** Каждая заявленная проверка — команда + HEAD +
+   результат. Отсутствие запуска не закрывает пункт.
+4. **Зелёный без обходов.** `done` запрещён при `.only` / `.skip` / retry /
+   поднятом timeout / увеличенных workers / raised baseline / ослабленном
+   assert. Скорость и стабильность — только устранением причины.
+5. **Флейк-стандарт.** Где acceptance требует повторяемости: focused stress
+   **≥20/20** и полный proof **PASS 3/3 подряд** на quiet host. Один красный
+   обнуляет счётчик; «со второго раза» — не приёмка.
+6. **Цифры с текущего дерева.** Before/after на HEAD слайса; старый snapshot
+   не заменяет замер. Числа — в `docs/audit/YYYY-MM-DD-*/`, не в backlog.
+7. **Чужой WIP неприкосновенен.** `git status --short` до старта; в commit
+   только файлы своего slice; `git add .` запрещён.
+8. **Без корневого мусора.** Скриншоты, логи, отчёты прогонов не остаются в
+   корне репо (иначе растёт долг AF100-14).
 
 ## Historical motivation (queue closed — not ACTIVE)
 
