@@ -99,7 +99,9 @@ function percent(numerator, denominator, digits = 1) {
 }
 
 function numberArg(name) {
-  const value = Number(arg(name));
+  const raw = arg(name);
+  if (raw === '') return null;
+  const value = Number(raw);
   return Number.isFinite(value) && value >= 0 ? value : null;
 }
 
@@ -217,22 +219,6 @@ const branch = command('git', ['branch', '--show-current']);
 const nodeVersion = process.version;
 const npmVersion = command('npm', ['--version']);
 
-const scores = [
-  ['Понятность входа и документации', '9,4', 'docs/README/AGENTS + канонические команды'],
-  ['Запутанность, где меньше — лучше', '3,0', 'LOC и import-context'],
-  ['Архитектурные границы', '9,3', 'architecture/ratchet tests + gates'],
-  ['Локальность изменений', '8,2', 'размер production-контекстов'],
-  ['UI Kit на базе Ant', '8,7', 'kit modules/stories + public barrel usage'],
-  ['Надёжность тестов и ratchets', '9,0', 'test inventory + повторяемые gates'],
-  ['Скорость малого изменения', '9,2', 'wall time test:agent-gates'],
-  ['Скорость полного цикла', '6,8', 'wall time test:agent-dod'],
-  ['Browser/E2E доказуемость', '8,0', 'specs/baselines; live run отдельно'],
-  ['Воспроизводимость текущего дерева', '7,8', 'lockfiles/toolchain/worktree state'],
-];
-
-const adjustedAverage =
-  (9.4 + (10 - 3.0) + 9.3 + 8.2 + 8.7 + 9.0 + 9.2 + 6.8 + 8.0 + 7.8) / 10;
-
 const gateStatus = status(arg('gates-status'));
 const dodStatus = status(arg('dod-status'));
 const e2eListStatus = status(arg('e2e-list-status'));
@@ -247,6 +233,110 @@ const buildSeconds = numberArg('build-seconds');
 const buildModules = numberArg('build-modules');
 const e2eListSeconds = numberArg('e2e-list-seconds');
 const e2eListTests = numberArg('e2e-list-tests');
+
+function clampScore(value, min = 1, max = 10) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function fmtScore(value) {
+  return value.toFixed(1).replace('.', ',');
+}
+
+// Live-calibrated scores (raw tree + optional wall times). Confusion is
+// "lower is better"; adjusted average uses (10 − confusion).
+const prodGe400 = countFiles(productionLoc, (item) => item.loc >= 400);
+const prodGe500 = countFiles(productionLoc, (item) => item.loc > 500);
+const maxProdLoc = productionLoc[0]?.loc ?? 0;
+const p90Prod = percentile(productionLocValues, 0.9);
+const le300Share = productionLocValues.filter((loc) => loc <= 300).length /
+  Math.max(1, productionLocValues.length);
+const testFilesGe500 = countFiles(
+  [...testFiles, ...e2eFiles].map((path) => ({ path, loc: lines(path) })),
+  (item) => item.loc >= 500,
+);
+
+// Confusion 1–5: empty 400-band → ~2.0; each ≥400 file adds pressure.
+let confusion = 2.0;
+if (prodGe500 > 0) confusion += 1.2 * prodGe500;
+if (prodGe400 > 0) confusion += Math.min(2.0, 0.12 * prodGe400);
+if (maxProdLoc >= 450) confusion += 0.4;
+else if (maxProdLoc >= 400) confusion += 0.2;
+if (testFilesGe500 > 4) confusion += 0.3;
+confusion = clampScore(confusion, 1.5, 5.0);
+
+// Locality: high share ≤300 and low p90 improve the score.
+const locality = clampScore(7.2 + le300Share * 2.0 + (p90Prod <= 320 ? 0.4 : p90Prod <= 360 ? 0.2 : 0));
+
+// Docs: broken links hurt.
+const docsScore = brokenCoreDocLinks.length === 0
+  ? (documentedAgentCommands.length === agentCommands.length ? 9.4 : 9.0)
+  : clampScore(9.4 - brokenCoreDocLinks.length * 0.4);
+
+// UI kit: stories + barrel consumers.
+const uiKitScore = clampScore(
+  7.5
+    + Math.min(1.0, uiKitStories.length / 14)
+    + Math.min(0.8, uiKitBarrelImportFiles.length / 100)
+    - Math.min(0.6, directAntFiles.length / 300),
+);
+
+// Test reliability: inventory volume + low mega-files.
+const testReliability = clampScore(
+  8.4
+    + Math.min(0.5, testCases / 3000)
+    + Math.min(0.3, architectureTests.length / 20)
+    - Math.min(0.5, testFilesGe500 * 0.08),
+);
+
+// Speed scores prefer measured walls when provided.
+const smallChangeSpeed = gatesSeconds == null
+  ? 9.2
+  : clampScore(
+    gatesSeconds <= 10 ? 9.4
+      : gatesSeconds <= 15 ? 9.0
+        : gatesSeconds <= 25 ? 8.4
+          : 7.5,
+  );
+const fullCycleSpeed = dodSeconds == null
+  ? 6.8
+  : clampScore(
+    dodSeconds <= 120 ? 9.0
+      : dodSeconds <= 180 ? 8.2
+        : dodSeconds <= 240 ? 7.4
+          : dodSeconds <= 300 ? 6.8
+            : 6.0,
+  );
+
+const browserScore = browserStatus === 'PASS' ? 9.0
+  : browserStatus === 'PARTIAL' ? 8.3
+    : e2eListStatus === 'PASS' ? 8.0
+      : 7.2;
+
+const reproducibilityScore = clampScore(
+  8.5
+    - Math.min(1.2, dirtyEntries * 0.15)
+    + (exists(join(FRONTEND, 'package-lock.json')) ? 0.2 : 0)
+    + (exists(join(ROOT, '.nvmrc')) ? 0.1 : 0),
+);
+
+const scoresNumeric = [
+  ['Понятность входа и документации', docsScore, 'docs/README/AGENTS + канонические команды'],
+  ['Запутанность, где меньше — лучше', confusion, `prod≥400=${prodGe400}, max=${maxProdLoc}, test≥500=${testFilesGe500}`],
+  ['Архитектурные границы', 9.3, 'architecture/ratchet tests + gates'],
+  ['Локальность изменений', locality, `≤300 ${percent(le300Share * 100, 100, 1)}, p90=${p90Prod}`],
+  ['UI Kit на базе Ant', uiKitScore, `stories=${uiKitStories.length}, barrel consumers=${uiKitBarrelImportFiles.length}`],
+  ['Надёжность тестов и ratchets', testReliability, `~${testCases} its, ratchets=${ratchetTests.length}`],
+  ['Скорость малого изменения', smallChangeSpeed, gatesSeconds == null ? 'wall time test:agent-gates (default)' : `gates ${gatesSeconds.toFixed(1)}s`],
+  ['Скорость полного цикла', fullCycleSpeed, dodSeconds == null ? 'wall time test:agent-dod (default)' : `dod ${dodSeconds.toFixed(1)}s`],
+  ['Browser/E2E доказуемость', browserScore, `browser=${browserStatus}; e2e-list=${e2eListStatus}`],
+  ['Воспроизводимость текущего дерева', reproducibilityScore, `dirty=${dirtyEntries}`],
+];
+
+const scores = scoresNumeric.map(([name, value, evidence]) => [name, fmtScore(value), evidence]);
+
+const adjustedAverage =
+  (docsScore + (10 - confusion) + 9.3 + locality + uiKitScore + testReliability
+    + smallChangeSpeed + fullCycleSpeed + browserScore + reproducibilityScore) / 10;
 
 const rows = [
   ['Production TS/TSX files', productionTs.length],
@@ -346,7 +436,7 @@ console.log(`# Frontend agent-friendliness metrics
 |---|---:|---|
 ${scores.map(([name, score, evidence]) => `| ${name} | **${score}** | ${evidence} |`).join('\n')}
 
-**Сводная оценка:** **${adjustedAverage.toFixed(2).replace('.', ',')} / 10**. Для обратного критерия «Запутанность» в среднем используется \`10 − 3,0 = 7,0\`.
+**Сводная оценка:** **${adjustedAverage.toFixed(2).replace('.', ',')} / 10**. Для обратного критерия «Запутанность» в среднем используется \`10 − ${fmtScore(confusion)} = ${fmtScore(10 - confusion)}\`.
 
 ## Сырые метрики
 
