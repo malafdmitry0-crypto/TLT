@@ -124,7 +124,7 @@ async function recalculateAll(page: Page) {
   await page.getByRole('button', { name: /Да, пересчитать все/i }).click();
 }
 
-test.describe('business flow: cable layout controls', () => {
+test.describe('business flow: cable layout controls — layout-glide', () => {
   test('резервуар проходит UI batch ТЛТ с геометрией укладки и заказным запасом отдельно', async ({
     page,
   }) => {
@@ -178,7 +178,6 @@ test.describe('business flow: cable layout controls', () => {
     expect(totalPower).toBeCloseTo(powerPerMeter * expectedInstalledLength, 3);
     expect(totalPower).toBeGreaterThanOrEqual(Number(tank.results.total_heat_loss));
   });
-
   test('автоматические шаг навива и нитки стабильны после повторного электрорасчёта', async ({
     page,
   }) => {
@@ -215,7 +214,6 @@ test.describe('business flow: cable layout controls', () => {
     expect(calc?.results.num_circuits).toBe(firstCalc?.results.num_circuits);
     expect(Number(calc?.results.cable_length)).toBeGreaterThan(50);
   });
-
   test('Glide-таблица редактирует шаг навива и количество ниток SC-04', async ({
     page,
   }) => {
@@ -244,186 +242,5 @@ test.describe('business flow: cable layout controls', () => {
     expect(calc.results?.winding_pitch).toBe(400);
     expect(calc.results?.num_circuits).toBe(2);
     expect(calc.results?.number_of_threads_source).toBe('manual');
-  });
-
-  test('ТТН/ТТВ/ТТХ проходит через UI-параметры и сохраняет тип расчёта', async ({ page }) => {
-    test.skip(!commercialFeaturesEnabled, COMMERCIAL_FEATURE_SKIP_REASON);
-
-    await loginAsGuest(page);
-    const { projectId, sessionId } = await currentGuestContext(page);
-    const pipeName = `E2E TT pipe ${Date.now()}`;
-    const pipe = await createCalculatedPipe(page, pipeName, {
-      ambient_temperature: 20,
-      process_temperature: 80,
-    });
-
-    await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
-    await selectCableType(page, 'Саморегулирующийся', 'ТТН/ТТВ/ТТХ');
-
-    await expect(page.getByText('T проп., °C:')).toBeVisible();
-    await page.getByRole('checkbox', { name: /агр./i }).check();
-    await recalculateAll(page);
-
-    await expectBatchSuccess(page);
-    await expectElectricalGlideReady(page);
-
-    const calcs = await fetchElectricalCalcs(page, projectId, sessionId);
-    const calc = calcs.find((item) => item.object_id === pipe.id);
-    expect(calc?.cable_type).toBe('self_regulating_tt');
-    expect(calc?.cable_mark).toMatch(/-СТ$/);
-    expect(calc?.results.series).toMatch(/^ТТ[НВХ]$/);
-  });
-
-  test('резистивный одножильный кабель считается из UI с параметрами подключения', async ({
-    page,
-  }) => {
-    test.skip(!commercialFeaturesEnabled, COMMERCIAL_FEATURE_SKIP_REASON);
-
-    await loginAsGuest(page);
-    const { projectId, sessionId } = await currentGuestContext(page);
-    const pipeName = `E2E R1 pipe ${Date.now()}`;
-    const pipe = await createCalculatedPipe(page, pipeName);
-
-    await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
-    await selectCableType(page, 'Саморегулирующийся', 'Однож. пост. мощн.');
-
-    await expect(page.getByText('U:')).toBeVisible();
-    await expect(page.getByText('w:')).toBeVisible();
-    await expect(page.getByText('h:')).toBeVisible();
-    await recalculateAll(page);
-
-    await expectBatchSuccess(page);
-    await expectElectricalCalcForObject(page, projectId, sessionId, pipe.id);
-    await expectElectricalGlideReady(page);
-
-    const calcs = await fetchElectricalCalcs(page, projectId, sessionId);
-    const calc = calcs.find((item) => item.object_id === pipe.id);
-    expect(calc?.cable_type).toBe('single_core');
-    expect(calc?.cable_mark).toBeTruthy();
-    expect(calc?.results.connection_type).toBe('loop_1ph');
-  });
-
-  test('резистивный трёхжильный кабель считается из UI и фиксирует свой тип', async ({
-    page,
-  }) => {
-    test.skip(!commercialFeaturesEnabled, COMMERCIAL_FEATURE_SKIP_REASON);
-
-    await loginAsGuest(page);
-    const { projectId, sessionId } = await currentGuestContext(page);
-    const pipeName = `E2E R3 pipe ${Date.now()}`;
-    const pipe = await createCalculatedPipe(page, pipeName);
-
-    await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
-    await selectCableType(page, 'Саморегулирующийся', 'Трёхж. пост. мощн.');
-
-    await recalculateAll(page);
-
-    await expectBatchSuccess(page);
-    await expectElectricalCalcForObject(page, projectId, sessionId, pipe.id);
-    await expectElectricalGlideReady(page);
-
-    const calcs = await fetchElectricalCalcs(page, projectId, sessionId);
-    const calc = calcs.find((item) => item.object_id === pipe.id);
-    expect(calc?.cable_type).toBe('three_core');
-    expect(calc?.cable_mark).toBeTruthy();
-    expect(calc?.results.connection_type).toBe('loop_2x3');
-  });
-
-  test('коммерческая база скрыта, встроенная база остаётся доступной', async ({ page }) => {
-    test.skip(!commercialFeaturesEnabled, COMMERCIAL_FEATURE_SKIP_REASON);
-
-    await loginAsGuest(page);
-    const { projectId, sessionId } = await currentGuestContext(page);
-    const pipeName = `E2E builtin source ${Date.now()}`;
-    const pipe = await createCalculatedPipe(page, pipeName, {
-      ambient_temperature: -10,
-      process_temperature: 40,
-    });
-
-    await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
-    await expect(page.getByText('База для пересчёта:')).toHaveCount(0);
-    const settingsDialog = await openElectricalSettingsDialog(page);
-    await settingsDialog.getByRole('tab', { name: 'Остальное' }).click();
-    await expect(settingsDialog.getByText('База для пересчёта:')).toBeVisible();
-    await expect(settingsDialog.getByText('Встроенная')).toBeVisible();
-    await expect(page.getByLabel('Критерий подбора кабеля')).toHaveCount(0);
-    await expect(settingsDialog.getByText('Коммерческая')).toHaveCount(0);
-    await settingsDialog.getByRole('button', { name: 'Отмена' }).click();
-    await recalculateAll(page);
-    await expectBatchSuccess(page);
-
-    await expectElectricalCalcForObject(page, projectId, sessionId, pipe.id);
-    await expectElectricalGlideReady(page);
-
-    const calcs = await fetchElectricalCalcs(page, projectId, sessionId);
-    const calc = calcs.find((item) => item.object_id === pipe.id);
-    expect(calc?.cable_type).toBe('self_regulating');
-    expect(calc?.cable_mark).toBeTruthy();
-    expect(calc?.results.selection_policy).toBe('technical_minimum');
-    expect(calc?.results.applied_selection_policy).toBe('technical_minimum');
-    expect(calc?.results.commercial ?? null).toBeNull();
-  });
-
-  test('новый тип кабеля работает после перехода из теплопотерь в электрорасчёт', async ({
-    page,
-  }) => {
-    test.skip(!commercialFeaturesEnabled, COMMERCIAL_FEATURE_SKIP_REASON);
-
-    await loginAsGuest(page);
-    const { projectId, sessionId } = await currentGuestContext(page);
-    const pipeName = `E2E heat R3 ${Date.now()}`;
-    const pipe = await createCalculatedPipe(page, pipeName);
-
-    await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
-    await selectCableType(page, 'Саморегулирующийся', 'Трёхж. пост. мощн.');
-    await expect(page.getByText('U:')).toBeVisible();
-    await expect(page.getByText('w:')).toBeVisible();
-    await expect(page.getByText('h:')).toBeVisible();
-
-    await recalculateAll(page);
-    await expectBatchSuccess(page);
-    await expectElectricalCalcForObject(page, projectId, sessionId, pipe.id);
-    await expectElectricalGlideReady(page);
-
-    const calcs = await fetchElectricalCalcs(page, projectId, sessionId);
-    const calc = calcs.find((item) => item.object_id === pipe.id);
-    expect(calc?.cable_type).toBe('three_core');
-    expect(calc?.cable_mark).toBeTruthy();
-  });
-
-  test('ТТ-кабель попадает в спецификацию и отчёт после полного пользовательского пути', async ({
-    page,
-  }) => {
-    test.skip(!commercialFeaturesEnabled, COMMERCIAL_FEATURE_SKIP_REASON);
-
-    await loginAsGuest(page);
-    const { projectId, sessionId } = await currentGuestContext(page);
-    const pipeName = `E2E TT spec ${Date.now()}`;
-    const pipe = await createCalculatedPipe(page, pipeName, {
-      ambient_temperature: 20,
-      process_temperature: 80,
-    });
-
-    await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
-    await selectCableType(page, 'Саморегулирующийся', 'ТТН/ТТВ/ТТХ');
-    await page.getByRole('checkbox', { name: /агр./i }).check();
-    await recalculateAll(page);
-    await expectBatchSuccess(page);
-
-    const calcs = await fetchElectricalCalcs(page, projectId, sessionId);
-    const calc = calcs.find((item) => item.object_id === pipe.id);
-    expect(calc?.cable_type).toBe('self_regulating_tt');
-    expect(calc?.cable_mark).toMatch(/-СТ$/);
-    const cableMark = calc!.cable_mark!;
-
-    await page.getByRole('menuitem', { name: 'Спецификация' }).click();
-    await page.getByRole('button', { name: /Сформировать/i }).click();
-    await expect(page.getByText(cableMark).first()).toBeVisible();
-    await expect(page.getByText(/Греющий кабель/i).first()).toBeVisible();
-
-    await page.getByRole('menuitem', { name: 'Отчёт' }).click();
-    await expect(page.getByTestId('report-preview')).toBeVisible();
-    await expect(page.getByTestId('report-preview')).toContainText(pipeName);
-    await expect(page.getByTestId('report-preview')).toContainText(cableMark);
   });
 });

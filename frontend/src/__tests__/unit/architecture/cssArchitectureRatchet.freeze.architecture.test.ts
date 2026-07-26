@@ -6,8 +6,6 @@ import {
   FEATURE_OWNERS,
   FRONTEND_ROOT,
   GLOBAL_CSS_ENTRIES,
-  GLOBAL_CSS_IMPORT_ORDER,
-  HERE,
   RAW_COLOR_ALLOWLIST,
   SRC_ROOT,
   collectCssImporters,
@@ -16,13 +14,9 @@ import {
   collectMediaConditionMaxWidths,
   collectNoncanonicalMediaCounts,
   collectRawColorCounts,
-  countLegacyPaletteRefs,
-  countNoncanonicalMedia,
-  countRawColors,
   extractSelectors,
   failMessage,
   loadBaseline,
-  measureCssFile,
   ratchetCountMap,
   readMainCssImportOrder,
   stripComments,
@@ -30,7 +24,7 @@ import {
   validateResponsiveContracts,
 } from './cssArchitectureRatchet.helpers';
 
-describe('CSS architecture ratchet (G4)', () => {
+describe('CSS architecture ratchet (G4) — freeze', () => {
   it('freezes styles.css and does not grow LOC / bare ant / media', () => {
     const baseline = loadBaseline();
     const current = collectCurrent();
@@ -329,7 +323,6 @@ describe('CSS architecture ratchet (G4)', () => {
     expect(baseline.version).toBeGreaterThanOrEqual(1);
     expect(baseline.stylesCssMaxLoc).toBeLessThanOrEqual(30);
   });
-
   it('treats total CSS LOC and media block counts as observational', () => {
     // Semantic owner CSS may grow when JSX static styles move; totals.loc must
     // not be a hard fail. AF12: raw media block totals are observational;
@@ -341,110 +334,5 @@ describe('CSS architecture ratchet (G4)', () => {
     expect(typeof baseline.totals.media).toBe('number');
     expect(baseline.newFileLocCap).toBeLessThanOrEqual(400);
     expect(Array.isArray(baseline.mediaConditionMaxWidths)).toBe(true);
-  });
-
-  it('validates responsiveContracts: foreign selector, duplicate media, unlisted condition', () => {
-    const read = (rel: string) => {
-      if (rel === 'src/pages/fixture-owner.css') {
-        return `
-.owner-a { color: red; }
-@media (max-width: 1200px) {
-  .owner-a { display: block; }
-  .foreign-b { display: none; }
-}
-@media (max-width: 1200px) {
-  .owner-a { margin: 0; }
-}
-@media (max-width: 999px) {
-  .owner-a { padding: 0; }
-}
-`;
-      }
-      throw new Error('missing');
-    };
-    const v = validateResponsiveContracts(
-      {
-        'src/pages/fixture-owner.css': {
-          conditions: ['max-width: 1200px'],
-          ownerRoots: ['.owner-a'],
-        },
-      },
-      read,
-    );
-    expect(v.some((x) => x.includes('RESPONSIVE_FOREIGN_SELECTOR'))).toBe(true);
-    expect(v.some((x) => x.includes('RESPONSIVE_DUPLICATE_MEDIA'))).toBe(true);
-    expect(v.some((x) => x.includes('RESPONSIVE_UNLISTED_CONDITION'))).toBe(true);
-  });
-
-  it('allows a single contracted 1200px block with only ownerRoots selectors', () => {
-    const v = validateResponsiveContracts(
-      {
-        'src/pages/ok.css': {
-          conditions: ['max-width: 1200px'],
-          ownerRoots: ['.uikit-heatcalc-'],
-        },
-      },
-      () => `
-@media (max-width: 1200px) {
-  .uikit-heatcalc-contract { grid-template-columns: 1fr; }
-  .uikit-heatcalc-form__grid { padding: 10px; }
-}
-`,
-    );
-    expect(v).toEqual([]);
-  });
-
-  it('enforces strict global CSS import order in main.tsx', () => {
-    const actual = readMainCssImportOrder();
-    expect(actual).toEqual([...GLOBAL_CSS_IMPORT_ORDER]);
-    expect(actual).not.toContain('./styles/tlt-form-controls.css');
-  });
-
-  it('reuses IMP0 for !important (no second counter)', () => {
-    // G4 must not maintain a parallel !important total — IMP0 owns that.
-    const baseline = loadBaseline();
-    expect('important' in (baseline.totals as object)).toBe(false);
-    expect(fs.existsSync(path.join(HERE, 'cssImportantBaseline.json'))).toBe(true);
-  });
-
-  it('measures bare .ant- and media via shared helpers', () => {
-    const sample = `
-/* comment .ant-btn */
-.owner .ant-btn { color: red; }
-.ant-modal { display: none; }
-@media (max-width: 600px) {
-  .owner .ant-input { width: 100%; }
-}
-`;
-    const m = measureCssFile(sample);
-    expect(m.bareAnt).toBe(1); // only .ant-modal
-    expect(m.media).toBe(1);
-    expect(m.loc).toBeGreaterThan(5);
-  });
-
-  it('counts raw colors ignoring comments', () => {
-    expect(countRawColors('/* #fff */ .x { color: #1a5276; }')).toBe(1);
-    expect(countRawColors('.x { color: var(--color-primary); }')).toBe(0);
-  });
-
-  it('counts legacy palette refs and noncanonical max-width media', () => {
-    const sample = `
-/* --c-old */
-.x { color: var(--c-primary); border-color: var(--a-accent); }
-@media (max-width: 900px) { .x { display: none; } }
-@media (max-width: 768px) { .x { display: block; } }
-@media print { .x { color: black; } }
-@media (prefers-reduced-motion: reduce) { .x { animation: none; } }
-`;
-    expect(countLegacyPaletteRefs(sample)).toBe(2);
-    expect(countNoncanonicalMedia(sample)).toBe(1); // only 900
-    expect(countLegacyPaletteRefs('/* --c-x */ .ok { color: var(--color-text); }')).toBe(0);
-  });
-
-  it('fails growth when a new file adds legacy palette or noncanonical media (fixtures)', () => {
-    // Fixture-style pure functions prove new-file growth is detectable.
-    expect(countLegacyPaletteRefs('.new { color: var(--c-danger); }')).toBeGreaterThan(0);
-    expect(countNoncanonicalMedia('@media (max-width: 640px) { .x{} }')).toBe(1);
-    expect(countNoncanonicalMedia('@media (max-width: 480px) { .x{} }')).toBe(0);
   });
 });

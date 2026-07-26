@@ -93,7 +93,7 @@ function renderPage(initialEntry = '/workspace/specification') {
   );
 }
 
-describe('SpecificationPage (integration)', () => {
+describe('SpecificationPage (integration) — er-scope-write', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     listElectricalVariantsMock.mockResolvedValue([firstVariant, fifthVariant]);
@@ -110,145 +110,6 @@ describe('SpecificationPage (integration)', () => {
       variantByProject: {},
     });
   });
-
-  it('показывает заглушку «Проект не выбран» без проекта', () => {
-    renderPage();
-    expect(screen.getByText(/Проект не выбран/i)).toBeInTheDocument();
-  });
-
-  it('показывает кнопку «Сформировать» при пустых items', async () => {
-    const { getSpecification } = await import('@/api/specifications');
-    (getSpecification as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: 's-1',
-      project_id: 'p-1',
-      variant_number: 1,
-      items: [],
-      created_at: '2026-01-01T00:00:00Z',
-      updated_at: '2026-01-01T00:00:00Z',
-    });
-    useProjectStore.getState().setCurrentProject(mockProject);
-    renderPage();
-    await waitFor(() => {
-      expect(screen.getByText(/Спецификация не сформирована/i)).toBeInTheDocument();
-    });
-    // Кнопка «Сформировать» в тулбаре (и в empty-alert)
-    const buttons = screen.getAllByRole('button');
-    expect(
-      buttons.some((b) => b.textContent?.trim() === 'Сформировать')
-    ).toBe(true);
-  });
-
-  it('отображает строки спецификации, пришедшие с бэкенда', async () => {
-    const { getSpecification } = await import('@/api/specifications');
-    (getSpecification as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: 's-1',
-      project_id: 'p-1',
-      variant_number: 1,
-      items: [
-        {
-          category: 'Кабель',
-          name: 'ТЛТ-30',
-          article: 'TLT-30-220',
-          unit: 'м',
-          quantity: 12,
-          params: {},
-        },
-        {
-          category: 'Аксессуары',
-          name: 'Концевой набор',
-          article: 'KIT-1',
-          unit: 'шт.',
-          quantity: 2,
-          params: {},
-        },
-      ],
-      created_at: '2026-01-01T00:00:00Z',
-      updated_at: '2026-01-01T00:00:00Z',
-    });
-    useProjectStore.getState().setCurrentProject(mockProject);
-    renderPage();
-    await waitFor(() => {
-      expect(screen.getByText('ТЛТ-30')).toBeInTheDocument();
-      expect(screen.getByText('Концевой набор')).toBeInTheDocument();
-    });
-    // При наличии items — кнопка «Обновить» в тулбаре (макет)
-    expect(screen.getByRole('button', { name: /Обновить/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Настройки/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Сформировать отчёт/i })).toBeInTheDocument();
-  });
-
-  it('показывает предупреждение для устаревшей спецификации', async () => {
-    const { getSpecification } = await import('@/api/specifications');
-    (getSpecification as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: 's-1',
-      project_id: 'p-1',
-      variant_number: 1,
-      is_stale: true,
-      stale_reason: 'object_params_updated',
-      stale_at: '2026-01-01T00:00:00Z',
-      stale_details: { object_ids: ['o-1'] },
-      items: [
-        {
-          category: 'Кабель',
-          name: 'Старая позиция',
-          article: 'OLD',
-          unit: 'м',
-          quantity: 12,
-          params: {},
-        },
-      ],
-      created_at: '2026-01-01T00:00:00Z',
-      updated_at: '2026-01-01T00:00:00Z',
-    });
-    useProjectStore.getState().setCurrentProject(mockProject);
-    renderPage();
-
-    await waitFor(() => {
-      expect(screen.getByText(/Спецификация устарела/i)).toBeInTheDocument();
-      expect(screen.getByText('Старая позиция')).toBeInTheDocument();
-    });
-    expect(screen.getByRole('button', { name: /Сформировать заново/i })).toBeInTheDocument();
-  });
-
-  it('показывает баннер неполной спецификации с excluded_groups (FA-01/05)', async () => {
-    const { getSpecification } = await import('@/api/specifications');
-    (getSpecification as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: 's-partial',
-      project_id: mockProject.id,
-      variant_number: 1,
-      is_stale: false,
-      is_partial: true,
-      excluded_groups: [
-        {
-          group: 'heating_sections',
-          error_code: 'SECTION_DATA_SOURCE_MISSING',
-          message: 'Каталог секционирования не зарегистрирован',
-        },
-      ],
-      items: [
-        {
-          category: 'Кабель',
-          name: 'Partial cable',
-          article: 'PC-1',
-          unit: 'м',
-          quantity: 50,
-          params: {},
-        },
-      ],
-      created_at: '2026-01-01T00:00:00Z',
-      updated_at: '2026-01-01T00:00:00Z',
-    });
-    useProjectStore.getState().setCurrentProject(mockProject);
-    renderPage();
-
-    expect(
-      await screen.findByText(/Неполная спецификация — не использовать как полный закупочный комплект/i),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/SECTION_DATA_SOURCE_MISSING/i)).toBeInTheDocument();
-    expect(document.body.textContent).toMatch(/НЕПОЛНАЯ/);
-    expect(screen.getByText('Partial cable')).toBeInTheDocument();
-  });
-
   it('не подменяет ЭР5 данными ЭР1, если legacy-привязки ещё нет', async () => {
     const { getSpecification } = await import('@/api/specifications');
     useCalculationVariantStore.getState().setSelectedVariantId(
@@ -265,7 +126,6 @@ describe('SpecificationPage (integration)', () => {
     });
     expect(getSpecification).not.toHaveBeenCalled();
   });
-
   it('honors a direct fifth-ER deep link and never calls the ER1 specification endpoint', async () => {
     const { getSpecification } = await import('@/api/specifications');
     (getSpecification as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -279,7 +139,6 @@ describe('SpecificationPage (integration)', () => {
     expect(await screen.findByText(/ЭР5.*временно недоступна/i)).toBeInTheDocument();
     expect(getSpecification).not.toHaveBeenCalled();
   });
-
   it('после ручного удаления инвалидирует exact cache выбранного UUID ЭР', async () => {
     const userEvent = (await import('@testing-library/user-event')).default;
     const { getSpecification, saveSpecificationItems } = await import('@/api/specifications');
@@ -339,7 +198,6 @@ describe('SpecificationPage (integration)', () => {
       expect(getSpecification).toHaveBeenCalledTimes(2);
     });
   });
-
   it('фиксирует UUID ЭР на время генерации и блокирует смену scope', async () => {
     const user = (await import('@testing-library/user-event')).default.setup();
     const { generateSpecification, getSpecification } = await import('@/api/specifications');
@@ -392,7 +250,6 @@ describe('SpecificationPage (integration)', () => {
       expect(er1Tab).not.toHaveAttribute('aria-disabled', 'true');
     });
   });
-
   it('не показывает write-actions сотруднику, который только читает чужой проект', async () => {
     const { getSpecification } = await import('@/api/specifications');
     (getSpecification as ReturnType<typeof vi.fn>).mockResolvedValue({
