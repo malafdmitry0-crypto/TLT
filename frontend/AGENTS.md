@@ -55,6 +55,17 @@ npm run test:agent-gates
 npm run test:agent-dod:dual-safe
 ```
 
+E2E живёт **только** в `e2e/` — там единственный Playwright config и свой
+`node_modules`. Из `frontend/` runner не запускается (две копии
+`@playwright/test` роняют discovery), пакет `playwright` здесь остаётся лишь
+как библиотека для browser-скриптов:
+
+```bash
+cd ../e2e
+npx playwright test --list          # 125 сценариев / 34 файла
+E2E_BASE_URL=http://127.0.0.1:3003 npm run <script из e2e/package.json>
+```
+
 ### Когда gates достаточно vs обязателен full DoD
 
 | Ситуация | Минимум proof |

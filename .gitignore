@@ -83,3 +83,10 @@ playwright/.cache/
 # QA agent generated reports
 qa-agent/reports/
 frontend/storybook-static/
+
+# Run artifacts: screenshots, console/network dumps, scratch PDFs.
+# Keepers belong in a dated docs/audit/YYYY-MM-DD-*/ folder, not in the root.
+tmp/
+/*.png
+/*.jpg
+/*.jpeg
