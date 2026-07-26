@@ -166,9 +166,6 @@ export default function ElectricalAssignmentPanel({
       className="electrical-system-scope"
       aria-busy={c.countsQuery.isFetching || c.busy}
     >
-      {c.messageContextHolder}
-      {c.modalContextHolder}
-
       {!canMutate && (
         <TltAlert
           tone="info"

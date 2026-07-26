@@ -31,7 +31,7 @@ import {
   TltSelect,
   TltTextField,
 } from '@/components/ui-kit';
-import { CompactSection, StatusChip } from '@/components/ui-kit/CompactUi';
+import { CompactSection, StatusChip } from '@/components/ui-kit';
 import CableAlgorithmPanel from '@/components/wizard/CableAlgorithmPanel';
 import ReferencePicker from '@/components/wizard/ReferencePicker';
 import { PipeTypeIcon, TankTypeIcon } from '@/components/shared/ObjectTypeIcons';

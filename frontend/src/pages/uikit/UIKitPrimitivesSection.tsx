@@ -15,7 +15,7 @@ import {
   TltTabs,
 } from '@/components/ui-kit';
 import type { TltTableColumn } from '@/components/ui-kit';
-import { CompactSection } from '@/components/ui-kit/CompactUi';
+import { CompactSection } from '@/components/ui-kit';
 import type { HeatLossRow } from '@/pages/uikit/uiKitModel';
 
 const primitiveTableColumns: TltTableColumn<HeatLossRow>[] = [

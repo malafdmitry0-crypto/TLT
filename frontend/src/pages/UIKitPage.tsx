@@ -29,15 +29,13 @@ import { useNavigate } from 'react-router-dom';
 import {
   CompactField,
   CompactFieldGrid,
+  CompactMetric,
+  CompactSection,
+  StatusChip,
   TltNumberField,
   TltSelect,
   TltTextField,
 } from '@/components/ui-kit';
-import {
-  CompactMetric,
-  CompactSection,
-  StatusChip,
-} from '@/components/ui-kit/CompactUi';
 import ReferencePicker from '@/components/wizard/ReferencePicker';
 import { UIKitFoundationSection } from '@/pages/uikit/UIKitFoundationSection';
 import { UIKitHeatReferenceSection } from '@/pages/uikit/UIKitHeatReferenceSection';

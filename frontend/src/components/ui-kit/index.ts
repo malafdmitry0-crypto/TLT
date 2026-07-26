@@ -5,6 +5,12 @@ export { default as CompactField } from './CompactField';
 export type { CompactFieldProps } from './CompactField';
 export { default as CompactFieldGrid } from './CompactFieldGrid';
 export type { CompactFieldGridProps } from './CompactFieldGrid';
+/** Showcase layout primitives used by /ui-kit (public barrel; no deep imports). */
+export {
+  CompactMetric,
+  CompactSection,
+  StatusChip,
+} from './CompactUi';
 export {
   TltNumberField,
   TltSelect,

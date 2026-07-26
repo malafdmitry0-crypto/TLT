@@ -2,7 +2,6 @@ import { Collapse, Space, Table } from 'antd';
 import { DeleteOutlined } from '@ant-design/icons';
 import { TltAlert, TltBadge, TltButton } from '@/components/ui-kit';
 import type { SpecificationItem } from '@/types/specification';
-import '@/pages/specification/specification-page.css';
 
 export type SpecGroupBy = 'none' | 'category' | 'unit' | 'object_section';
 

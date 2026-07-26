@@ -1,6 +1,6 @@
 import { appMessage as message } from '@/feedback/appFeedback';
 import { CopyOutlined } from '@ant-design/icons';
-import { CompactSection } from '@/components/ui-kit/CompactUi';
+import { CompactSection } from '@/components/ui-kit';
 import { colorTokens } from '@/pages/uikit/uiKitModel';
 
 function Swatch({ name, value, className }: (typeof colorTokens)[number]) {

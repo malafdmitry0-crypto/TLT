@@ -9,7 +9,7 @@ import {
   type DragEvent as ReactDragEvent,
 } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Modal, message } from 'antd';
+import { appMessage, appModal } from '@/feedback/appFeedback';
 
 import {
   assignElectricalVariantObjects,
@@ -131,8 +131,6 @@ export function useElectricalAssignmentController({
   onAssignedNeedCalc,
 }: UseElectricalAssignmentControllerOptions) {
   const queryClient = useQueryClient();
-  const [messageApi, messageContextHolder] = message.useMessage();
-  const [modalApi, modalContextHolder] = Modal.useModal();
   const [lastCounts, setLastCounts] = useState<ElectricalAssignmentCounts | null>(null);
   const [overZone, setOverZone] = useState<DropTargetId | null>(null);
   const [conflictNotice, setConflictNotice] = useState<{
@@ -193,7 +191,7 @@ export function useElectricalAssignmentController({
     },
     onSuccess: async (response, variables) => {
       onSelectedObjectIdsChange?.([]);
-      messageApi.success(mutationSuccessMessage(variables, response));
+      appMessage.success(mutationSuccessMessage(variables, response));
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: electricalDataQueryKeys.variant(projectId, electricalVariant.id),
@@ -245,7 +243,7 @@ export function useElectricalAssignmentController({
     if (!canMutate || busy || objectIds.length === 0) return;
     const { items, missing } = resolveItems(objectIds);
     if (missing.length) {
-      messageApi.error('Не удалось прочитать версию назначения. Обновите страницу.');
+      appMessage.error('Не удалось прочитать версию назначения. Обновите страницу.');
       return;
     }
     mutation.mutate({ kind: 'assign', systemType, items });
@@ -258,10 +256,10 @@ export function useElectricalAssignmentController({
   ) => {
     const { items, missing } = resolveItems(objectIds);
     if (missing.length) {
-      messageApi.error('Не удалось прочитать версию назначения. Обновите страницу.');
+      appMessage.error('Не удалось прочитать версию назначения. Обновите страницу.');
       return;
     }
-    modalApi.confirm({
+    appModal.confirm({
       title,
       content: UNASSIGN_CONTENT,
       okText,
@@ -309,7 +307,7 @@ export function useElectricalAssignmentController({
 
     if (target === 'self_regulating' || target === 'resistive') {
       if (systemView !== 'unassigned' && systemView !== 'all') {
-        messageApi.info(
+        appMessage.info(
           'Чтобы сменить систему: перетащите в «Нераспределённые», затем назначьте Самрег/Резистив.',
         );
         return;
@@ -365,8 +363,6 @@ export function useElectricalAssignmentController({
   ];
 
   return {
-    messageContextHolder,
-    modalContextHolder,
     counts,
     totalLabel,
     busy,
