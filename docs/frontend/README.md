@@ -63,6 +63,7 @@ backlog: **EMPTY QUEUE** (Track A + Track B closed 2026-07-26). Next: —.
 | Документ | Назначение |
 |---|---|
 | [Split large tests by scenario](./prompts/split-large-tests-by-scenario.md) | Template for backlog Track B (`P-TEST-*`) |
+| [DoD wall ≤120 s](./prompts/dod-wall-under-120.md) | Full-cycle speed: profile → suite shrink → honest target |
 
 Closed AF10–AF12 / meaningful-css / Ant rollout prompt dumps live only under
 [archive/](./archive/README.md) and git history.
