@@ -2,12 +2,19 @@
  * AF9-UI-01 / P1-GUARDRAIL-TRUTH-01: direct Ant primitives with Tlt equivalents
  * are blocked in feature UI (bidirectional baseline).
  *
+ * Decision rule (docs/frontend/ant-ui-kit-strategy.md §4.1):
+ * 1) Tlt equivalent exists → feature imports only @/components/ui-kit
+ * 2) No equivalent → raw antd allowed until product contract justifies Tlt
+ * 3) New Tlt for repeatable product behavior, not rename-only
+ * 4) UI Kit never imports feature/domain
+ *
  * Forbidden only when `@/components/ui-kit` has an equivalent:
  *   Button→TltButton, Input→TltTextField, InputNumber→TltNumberField,
  *   Select→TltSelect, Card→TltCard, Alert→TltAlert, Tag→TltBadge.
  * Space has no kit equivalent — not forbidden.
  *
  * Allowed: Form, Modal, Table, message, types, ConfigProvider, theme, icons, Space.
+ * Feedback: appMessage/appModal from @/feedback/appFeedback (not static message).
  */
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';

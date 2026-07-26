@@ -45,18 +45,37 @@
 ```bash
 cd frontend
 
-# Fast gate: typecheck + lint + architecture/CSS ratchets (локальный feedback)
+# 0) Path → owner / proof (run first on the file you touch)
+npm run agent:scope -- <path>
+
+# 1) Fast gate: typecheck + lint + architecture/CSS ratchets (~10–15 s)
 npm run test:agent-gates
 
-# Full DoD: fast gate + unit + integration + production build (source of truth)
-npm run test:agent-dod
+# 2) Full DoD (slow: ~3–4 min). Prefer dual-safe concurrent orchestrator:
+npm run test:agent-dod:dual-safe
 ```
 
-`test:agent-gates` может быть зелёным при красном полном DoD — перед commit
-используй `test:agent-dod`, если slice затрагивает runtime/tests.
+### Когда gates достаточно vs обязателен full DoD
 
-Дополнительно запускай focused-тесты и релевантный Playwright-сценарий. Полная
-матрица и stop conditions описаны в стандарте.
+| Ситуация | Минимум proof |
+|---|---|
+| Docs-only, audit, comments | nothing / optional gates |
+| Tooling scripts, AGENTS, scope rules | `test:agent-gates` |
+| UI-kit story / prop docs only | `storybook:coverage:strict` + gates |
+| Production runtime/types/hooks/pages | **focused tests** + `test:agent-gates` |
+| `agent:scope` → `full_dod_required: true` | + **`test:agent-dod:dual-safe`** before commit |
+| Changed test harness shared by many suites | dual-safe DoD |
+| Browser-visible layout/CSS | focused + browser profiles from viewport policy |
+
+**Default agent loop:** `agent:scope` → focused tests from its output →
+`test:agent-gates`. Escalate to dual-safe DoD only when scope says so or when
+you changed cross-cutting runtime/tests.
+
+`test:agent-gates` может быть зелёным при красном полном DoD — перед commit
+используй dual-safe DoD, если slice затрагивает runtime/tests per table above.
+
+Дополнительно: focused-тесты и релевантный Playwright-сценарий. Полная
+матрица — в стандарте.
 
 ## Приоритет инструкций
 

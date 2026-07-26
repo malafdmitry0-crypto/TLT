@@ -1,5 +1,9 @@
 /**
- * G4: CSS architecture ratchet.
+ * G4: CSS architecture ratchet helpers.
+ *
+ * AGENT: DO NOT OPEN for feature work — machine gate only (~700 LOC).
+ * Use `npm run css:architecture` / `test:agent-gates`. Edit only when changing
+ * CSS architecture policy or baseline generation.
  *
  * - styles.css stays a freeze-stub (LOC ≤ stylesCssMaxLoc, no selectors).
  * - Per-file / total CSS LOC, bare `.ant-*` roots, and `@media` counts do not grow.

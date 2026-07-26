@@ -482,6 +482,28 @@ function main() {
   }
 
   const rule = hits[0];
+  /** One-line copy-paste proof sequence for agents. */
+  const recommendedCommands = [];
+  recommendedCommands.push('cd frontend && npm run test:agent-gates');
+  if (Array.isArray(rule.focusedTests) && rule.focusedTests.length > 0) {
+    const first = rule.focusedTests[0];
+    if (first.startsWith('npm ') || first.startsWith('npx ')) {
+      recommendedCommands.push(first.startsWith('cd ') ? first : `cd frontend && ${first}`);
+    } else {
+      recommendedCommands.push(
+        `cd frontend && npx vitest run ${first.replace(/\*\*/g, '').slice(0, 80)} --project unit --project integration`,
+      );
+    }
+  }
+  if (rule.fullDodRequired) {
+    recommendedCommands.push('cd frontend && npm run test:agent-dod:dual-safe');
+  }
+  if (rule.browserRequired) {
+    recommendedCommands.push(
+      `browser proof: ${BROWSER_PROFILES.join(', ')} (see docs/frontend/viewport-policy.md)`,
+    );
+  }
+
   const result = {
     ok: true,
     path: rel,
@@ -495,11 +517,14 @@ function main() {
     full_dod_required: rule.fullDodRequired,
     browser_profiles: rule.browserRequired ? rule.browserProfiles : [],
     browser_required: rule.browserRequired,
+    recommended_commands: recommendedCommands,
     source_rules: [
       'frontend/AGENTS.md',
       'docs/frontend/agent-development-standard.md',
       'docs/frontend/pr-budget.md',
       'docs/frontend/viewport-policy.md',
+      'docs/frontend/state-ownership-map.md',
+      'docs/frontend/ant-ui-kit-strategy.md',
     ],
     notes: rule.notes,
     rule_id: rule.id,
@@ -518,6 +543,10 @@ function main() {
     console.log(`full_dod_required:    ${result.full_dod_required}`);
     console.log(`browser_required:     ${result.browser_required}`);
     console.log(`browser_profiles:     ${result.browser_profiles.join(', ') || '(none)'}`);
+    console.log(`recommended_commands:`);
+    for (const cmd of result.recommended_commands) {
+      console.log(`  - ${cmd}`);
+    }
     console.log(`source_rules:         ${result.source_rules.join(', ')}`);
     if (result.notes) console.log(`notes:                ${result.notes}`);
   }

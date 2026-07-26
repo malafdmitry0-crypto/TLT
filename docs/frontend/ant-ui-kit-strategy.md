@@ -70,7 +70,29 @@ API; feature-код по-прежнему не импортирует `antd`-п�
 
 ## 4. Правила границы
 
-- Feature-импорты — только через `@/components/ui-kit`; Ant-типы и DOM не
+### 4.1 Decision rule (agents — copy this)
+
+| # | Rule |
+|---:|---|
+| 1 | If a public **Tlt\*** / CompactField equivalent exists → feature imports **only** `@/components/ui-kit`. |
+| 2 | If no equivalent → raw **antd** is allowed until a repeated product contract justifies a Tlt façade. |
+| 3 | New Tlt primitive appears for **repeatable product behavior**, not for renaming Ant. |
+| 4 | UI Kit never imports feature/domain/store/API. |
+| 5 | Feedback: `appMessage` / `appModal` from `@/feedback/appFeedback` — not static `message` / `Modal.confirm`. |
+
+**Has Tlt equivalent today (forbidden as direct antd in feature UI):**  
+`Button`→`TltButton`, `Input`→`TltTextField`, `InputNumber`→`TltNumberField`,
+`Select`→`TltSelect`, `Card`→`TltCard`, `Alert`→`TltAlert`, `Tag`→`TltBadge`,
+plus `Table`/`Tabs`/`Empty`/`Skeleton` via kit when using the public façade.
+
+**No kit equivalent (raw antd OK when needed):**  
+`Form`, `Modal`, `Space`, `Tooltip`, `Dropdown`, `ConfigProvider`, types, icons, …
+
+Enforced by `antdPrimitivePolicy.architecture.test.ts` (baseline ratchet; never raise).
+
+### 4.2 Other boundary rules
+
+- Feature-импорты kit — только через `@/components/ui-kit`; Ant-типы и DOM не
   протекают в публичные props.
 - `CompactField`, `CompactFieldGrid` и feature-композиция остаются
   собственными TLT-примитивами.

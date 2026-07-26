@@ -1,3 +1,8 @@
+/**
+ * AGENT: large layout-proof e2e (~600 LOC). Do not open for ordinary heat
+ * feature slices — use focused heat form unit/integration + viewport policy.
+ * Touch only when changing heat form layout acceptance journeys.
+ */
 import { expect, test, type Page } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
