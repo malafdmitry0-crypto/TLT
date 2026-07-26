@@ -76,6 +76,7 @@ deterministic). Track A/B closed. SoT: [refactor-backlog.md](./refactor-backlog.
 | [Risk-based minimum proof](./prompts/risk-based-minimum-proof.md) | Diff-wide blast radius, required proof and content-bound receipts |
 | [Browser U0 a11y/console/overflow](./prompts/browser-u0-a11y-console-overflow.md) | Fix gates; do not disable |
 | [Test LOC cap ≤350](./prompts/test-file-loc-cap-350.md) | All `__tests__` + e2e files ≤350 (ceiling 400) |
+| [Direct Ant inventory and ratchet](./prompts/direct-ant-inventory-and-ratchet.md) | Classify imports; guard capability gaps; migrate only proven simple cases |
 | [Current AF metrics binding](../audit/2026-07-26-agent-metrics-binding/snapshot.md) | Only current scorecard (not historical 8.1) |
 
 Closed AF10–AF12 / meaningful-css / Ant rollout prompt dumps live only under
