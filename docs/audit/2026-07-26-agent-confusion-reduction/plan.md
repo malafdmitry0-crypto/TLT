@@ -241,28 +241,32 @@ Frontend считается понятным для агента, если по 
 
 #### Приоритет текущих метрик
 
-| Метрика | Срочность | Критичность | Улучшение | Измеримый результат |
-|---|---|---|---|---|
-| Console-clean acceptance | `U0 NOW` | `K1 HIGH` | `I2 MEDIUM` | **2 Ant warnings → 0** |
-| Stale current evidence | `U0 NOW` | `K1 HIGH` | `I2 MEDIUM` | **≥1 → 0** |
-| Slice commit isolation | `U0 NOW` | `K1 HIGH` | `I2 MEDIUM` | `NOT MEASURED` → **100%** |
-| Scope violation rate | `U0 NOW` | `K1 HIGH` | `I2 MEDIUM` | `NOT MEASURED` → **0%** |
-| Full DoD p50/p95 | `U1 NEXT` | `K1 HIGH` | `I3 LARGE` | p50 **232,5 с → ≤120 с**, p95 **≤180 с** |
-| Flake rate | `U1 NEXT` | `K1 HIGH` | `I3 LARGE` | 30 запусков, **≤0,5%** |
-| First-pass DoD success | `U1 NEXT` | `K2 MEDIUM` | `I3 LARGE` | `NOT MEASURED` → **≥80%** |
-| Time to first useful signal | `U1 NEXT` | `K2 MEDIUM` | `I2 MEDIUM` | p95 **≤60 с** |
-| Agent scope routing | `U1 NEXT` | `K2 MEDIUM` | `I3 LARGE` | unowned/ambiguous production paths **0/0** |
-| Change failure + runtime telemetry | `U1 NEXT` | `K1 HIGH` | `I3 LARGE` | CFR **<5%**, critical runtime SLO измеряется |
-| Critical post-release journeys | `U1 NEXT` | `K0 BLOCKER` | `I3 LARGE` | smoke pass **100%** |
-| Production 400-LOC band | `U2 PLANNED` | `K2 MEDIUM` | `I2 MEDIUM` | **22 → 0** после Track A |
-| Test-related files ≥500 LOC | `U2 PLANNED` | `K2 MEDIUM` | `I2 MEDIUM` | **9 → 0** после Track B |
-| Human-review correction rate | `U2 PLANNED` | `K2 MEDIUM` | `I2 MEDIUM` | baseline на 30 slices, затем снижение |
-| Performance-budget regressions | `U2 PLANNED` | `K1 HIGH` | `I2 MEDIUM` | **0** |
-| Accessibility critical regressions | `U2 PLANNED` | `K1 HIGH` | `I2 MEDIUM` | **0** |
-| Architecture/type/CSS escape gates | `U3 WATCH` | `K1 HIGH` | `I0 CONTROL` | сохранять **0 violations** |
-| Browser viewport coverage | `U3 WATCH` | `K1 HIGH` | `I0 CONTROL` | сохранять **4/4 · 100%** |
-| Failed acceptance network requests | `U3 WATCH` | `K1 HIGH` | `I0 CONTROL` | сохранять **0** |
-| Mobile `<1000 px` | `U3 WATCH` | `K3 LOW` | `I0 CONTROL` | остаётся вне product contract |
+**Current snapshot:** HEAD `8560d79`. Статические значения пересчитаны на
+текущем дереве; browser/DoD значения без свежего запуска помечены как
+`NOT RECHECKED`.
+
+| Метрика | Сейчас | Срочность | Критичность | Улучшение | Цель |
+|---|---|---|---|---|---|
+| Console-clean acceptance | **PASS: `warn_err=0`** на `/`, `/workspace`, `/workspace/heat-calc`, `/ui-kit` | `U3 WATCH` | `K1 HIGH` | `I0 CONTROL` | сохранять **0** |
+| Stale current evidence | **≥1 известный stale case** | `U0 NOW` | `K1 HIGH` | `I2 MEDIUM` | **0** |
+| Slice commit isolation | `NOT MEASURED` | `U0 NOW` | `K1 HIGH` | `I2 MEDIUM` | **100%** |
+| Scope violation rate | `NOT MEASURED` | `U0 NOW` | `K1 HIGH` | `I2 MEDIUM` | **0%** |
+| Full DoD p50/p95 | baseline p50 **232,5 с при n=2**; current HEAD `NOT RECHECKED` | `U1 NEXT` | `K1 HIGH` | `I3 LARGE` | p50 **≤120 с**, p95 **≤180 с** |
+| Flake rate | baseline **0 при n=2**; статистически недостаточно | `U1 NEXT` | `K1 HIGH` | `I3 LARGE` | 30 запусков, **≤0,5%** |
+| First-pass DoD success | `NOT MEASURED` | `U1 NEXT` | `K2 MEDIUM` | `I3 LARGE` | **≥80%** |
+| Time to first useful signal | отдельные fast gates **8–10 с**; p95 `NOT MEASURED` | `U1 NEXT` | `K2 MEDIUM` | `I2 MEDIUM` | p95 **≤60 с** |
+| Agent scope routing | **10/10 fixtures PASS; unowned production files 0** | `U3 WATCH` | `K2 MEDIUM` | `I0 CONTROL` | сохранять unowned/ambiguous **0/0** |
+| Change failure + runtime telemetry | `NOT MEASURED` | `U1 NEXT` | `K1 HIGH` | `I3 LARGE` | CFR **<5%**, critical runtime SLO измеряется |
+| Critical post-release journeys | `NOT MEASURED` | `U1 NEXT` | `K0 BLOCKER` | `I3 LARGE` | smoke pass **100%** |
+| Production 400-LOC band | **0**; 459 production files, max **397 LOC** | `U3 WATCH` | `K2 MEDIUM` | `I0 CONTROL` | сохранять **0** |
+| Test-related files ≥500 LOC | **2 из 372**; max helper **706 LOC** | `U2 PLANNED` | `K2 MEDIUM` | `I2 MEDIUM` | **0** |
+| Human-review correction rate | `NOT MEASURED` | `U2 PLANNED` | `K2 MEDIUM` | `I2 MEDIUM` | baseline на 30 slices, затем снижение |
+| Performance-budget regressions | `NOT MEASURED` | `U2 PLANNED` | `K1 HIGH` | `I2 MEDIUM` | **0** |
+| Accessibility critical regressions | `NOT MEASURED` | `U2 PLANNED` | `K1 HIGH` | `I2 MEDIUM` | **0** |
+| Architecture/type/CSS escape gates | последний proof **PASS**; current HEAD `NOT RECHECKED` | `U3 WATCH` | `K1 HIGH` | `I0 CONTROL` | сохранять **0 violations** |
+| Browser viewport coverage | baseline **4/4**; current HEAD `NOT RECHECKED` | `U3 WATCH` | `K1 HIGH` | `I0 CONTROL` | **4/4 · 100%** |
+| Failed acceptance network requests | baseline **0**; current HEAD `NOT RECHECKED` | `U3 WATCH` | `K1 HIGH` | `I0 CONTROL` | **0** |
+| Mobile `<1000 px` | **вне product contract** | `U3 WATCH` | `K3 LOW` | `I0 CONTROL` | без изменения scope |
 
 ## 2. Непереговорные ограничения
 
@@ -324,18 +328,18 @@ Frontend считается понятным для агента, если по 
 
 ## 3. Последовательность
 
-| Порядок | Slice | Owner | Срочность | Критичность | Улучшение | Результат | Эффект |
-|---:|---|---|---|---|---|---|---:|
-| 1 | `CONF-DOD-01` | tooling | `U1 NEXT` | `K1 HIGH` | `I2 MEDIUM` | правдивый и валидируемый DoD contract | `−0,10` |
-| 2 | `CONF-EVIDENCE-01` | tooling | `U0 NOW` | `K1 HIGH` | `I2 MEDIUM` | current evidence нельзя спутать с historical | `−0,20` |
-| 3 | `CONF-FORM-01` | heat | `U0 NOW` | `K1 HIGH` | `I2 MEDIUM` | нулевой console noise на Heat critical path | `−0,10` |
-| 4 | `CONF-EXCEL-01` | heat | `U1 NEXT` | `K1 HIGH` | `I2 MEDIUM` | runtime, E2E и browser proof говорят одно | `−0,15` |
-| 5 | `CONF-STORYBOOK-01` | tooling | `U2 PLANNED` | `K2 MEDIUM` | `I2 MEDIUM` | UI API и stories доступны агенту через MCP | `−0,15` |
-| 6 | `CONF-SCOPE-01` | tooling | `U1 NEXT` | `K2 MEDIUM` | `I3 LARGE` | файл автоматически маршрутизируется к owner/tests/proof | `−0,35` |
-| 7 | `CONF-UI-BOUNDARY-01` | ui | `U2 PLANNED` | `K2 MEDIUM` | `I2 MEDIUM` | однозначный выбор TLT facade или raw Ant | `−0,20` |
-| 8 | `P-BAND-*` | backlog owner | `U2 PLANNED` | `K2 MEDIUM` | `I2 MEDIUM` | меньше production-контекста | `−0,25` |
-| 9 | `P-TEST-*` | qa/architecture | `U2 PLANNED` | `K2 MEDIUM` | `I2 MEDIUM` | меньше test/harness-контекста | `−0,15` |
-| 10 | `CONF-AUDIT-01` | qa | `U3 WATCH` | `K1 HIGH` | `I0 CONTROL` | повторная итоговая оценка | контроль |
+| Порядок | Slice | Сейчас | Owner | Срочность | Критичность | Улучшение | Результат | Эффект |
+|---:|---|---|---|---|---|---|---|---:|
+| 1 | `CONF-DOD-01` | profiler **PASS**, wall target **OPEN** | tooling | `U1 NEXT` | `K1 HIGH` | `I2 MEDIUM` | правдивый и валидируемый DoD contract | `−0,10` |
+| 2 | `CONF-EVIDENCE-01` | **OPEN**, stale case ≥1 | tooling | `U0 NOW` | `K1 HIGH` | `I2 MEDIUM` | current evidence нельзя спутать с historical | `−0,20` |
+| 3 | `CONF-FORM-01` | console seal **PASS, 0 issues** | heat/shared | `U3 WATCH` | `K1 HIGH` | `I0 CONTROL` | сохранять нулевой console noise | достигнуто |
+| 4 | `CONF-EXCEL-01` | UI proof PASS; default E2E всё ещё commercial-skipped | heat | `U1 NEXT` | `K1 HIGH` | `I2 MEDIUM` | runtime, E2E и browser proof говорят одно | `−0,15` |
+| 5 | `CONF-STORYBOOK-01` | **PASS**, MCP + 13/13 public coverage | tooling | `U3 WATCH` | `K2 MEDIUM` | `I0 CONTROL` | поддерживать UI docs/stories через MCP | достигнуто |
+| 6 | `CONF-SCOPE-01` | **PASS**, 10/10 fixtures, unowned 0 | tooling | `U3 WATCH` | `K2 MEDIUM` | `I0 CONTROL` | сохранять owner/tests/proof routing | достигнуто |
+| 7 | `CONF-UI-BOUNDARY-01` | policy baseline PASS; 139 direct Ant imports | ui | `U2 PLANNED` | `K2 MEDIUM` | `I2 MEDIUM` | однозначный выбор TLT facade или raw Ant | `−0,20` |
+| 8 | `P-BAND-*` | **22/22 DONE**, production ≥400 LOC = 0 | backlog owner | `U3 WATCH` | `K2 MEDIUM` | `I0 CONTROL` | не допускать повторный рост | достигнуто |
+| 9 | `P-TEST-*` | **8/8 DONE**; глобально test-related ≥500 LOC = 2 | qa/architecture | `U2 PLANNED` | `K2 MEDIUM` | `I2 MEDIUM` | закрыть оставшийся глобальный test-context | частично |
+| 10 | `CONF-AUDIT-01` | current-HEAD audit `NOT RUN` | qa | `U1 NEXT` | `K1 HIGH` | `I2 MEDIUM` | повторная итоговая оценка | контроль |
 
 Эффекты ориентировочные и не складываются механически. Реалистичный диапазон
 после выполнения: `1,7–2,0/10`.
