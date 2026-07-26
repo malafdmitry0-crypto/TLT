@@ -33,8 +33,9 @@ Remaining >350 (all ≤399): heat-form inspect-dom 399, project-isolation 396, u
 |---|---:|---:|---:|
 | Prior (a9b4cb3) | **143.7 s** | 112.2 | 130.6 |
 | This wave n=1 | **197.0 s** | 146.8 | 183.5 |
+| This wave n=2 | **280.9 s** | (loaded host) | 264.9 concurrent |
 
-**Interpretation:** scenario splits improved open-cost (LOC) but **duplicated setup** can raise concurrent wall under worker caps. Target ≤120 still needs harness extract (shared setup, not more monolit→N full env copies) on int long poles. Re-run wall n≥2 for variance.
+**Interpretation:** LOC ceiling cleared. Wall runs **regressed under load** (197–281 s) vs prior 143.7 s — scenario fan-out duplicates suite setup tax; dual-safe workers thrash when host is busy. Target ≤120 needs **harness extract** (share setup, keep thin scenario files) and quiet-host n≥3, not more monolit fan-out alone.
 
 ## Browser re-seal
 
