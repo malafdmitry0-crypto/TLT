@@ -130,4 +130,24 @@ describe('form controls', () => {
     // Ant may normalize numeric options; accept number or numeric string
     expect(Number(handleChange.mock.calls.at(-1)?.[0])).toBe(380);
   });
+
+  it('puts aria-required on the combobox role, not the Ant Select shell', () => {
+    render(
+      <TltSelect
+        aria-label="Размещение"
+        aria-required
+        data-testid="placement-select"
+        options={[{ value: 'outdoor', label: 'Наружное' }]}
+        value="outdoor"
+      />,
+    );
+
+    const shell = screen.getByTestId('placement-select');
+    // Outer ant-select div must not carry aria-required (axe aria-allowed-attr).
+    expect(shell).not.toHaveAttribute('aria-required');
+    const combobox = shell.querySelector('[role="combobox"]')
+      ?? shell.closest('.tlt-select-shell')?.querySelector('[role="combobox"]');
+    expect(combobox).not.toBeNull();
+    expect(combobox).toHaveAttribute('aria-required', 'true');
+  });
 });

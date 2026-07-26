@@ -65,6 +65,7 @@ export default function WorkspacePage() {
 
   if (!project) {
     return (
+      <div className="workspace-page">
       <TltCard>
         <Title level={3} className="workspace-page-title">Добро пожаловать в HeatCalc</Title>
         <Paragraph type="secondary">
@@ -79,6 +80,7 @@ export default function WorkspacePage() {
           Нажмите «Новый проект» в шапке, чтобы создать проект, или «Открыть», чтобы выбрать существующий.
         </TltAlert>
       </TltCard>
+      </div>
     );
   }
 
@@ -145,7 +147,7 @@ export default function WorkspacePage() {
   ];
 
   return (
-    <div>
+    <div className="workspace-page">
       <TltCard className="workspace-page-card">
         <Title level={4} className="workspace-page-title">
           {project.name}

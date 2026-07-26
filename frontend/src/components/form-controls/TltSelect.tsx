@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import { Select } from 'antd';
 
 /** Single option for {@link TltSelect}. */
@@ -12,6 +13,10 @@ export interface TltSelectOption {
  * TLT select façade over Ant `Select`.
  * Options: `{ value, label, disabled? }`. Prefer with `CompactField`.
  * Import from `@/components/ui-kit`.
+ *
+ * A11y note: Ant puts unknown DOM props on the outer `.ant-select` div (no role).
+ * `aria-required` / `aria-invalid` are therefore applied to the inner
+ * `[role="combobox"]` so axe `aria-allowed-attr` stays green.
  */
 export interface TltSelectProps {
   id?: string;
@@ -52,6 +57,11 @@ function isInvalidValue(value: TltSelectProps['aria-invalid'], status: TltSelect
   return status === 'error' || value === true || value === 'true';
 }
 
+function setOrRemoveAttr(el: HTMLElement, name: string, on: boolean) {
+  if (on) el.setAttribute(name, 'true');
+  else el.removeAttribute(name);
+}
+
 export default function TltSelect({
   id,
   name,
@@ -74,6 +84,7 @@ export default function TltSelect({
   'aria-invalid': ariaInvalid,
   'data-testid': testId,
 }: TltSelectProps) {
+  const shellRef = useRef<HTMLSpanElement>(null);
   const isRequired = isRequiredValue(ariaRequired, required);
   const isInvalid = isInvalidValue(ariaInvalid, status);
   const resolvedAriaLabel = ariaLabel ?? placeholder ?? 'Выберите значение';
@@ -82,8 +93,17 @@ export default function TltSelect({
   const defaultVal = defaultValue === null || defaultValue === undefined ? undefined : defaultValue;
   const showClear = allowClear && !disabled && hasValue;
 
+  useLayoutEffect(() => {
+    const combobox = shellRef.current?.querySelector<HTMLElement>('[role="combobox"]');
+    if (!combobox) return;
+    setOrRemoveAttr(combobox, 'aria-required', isRequired);
+    setOrRemoveAttr(combobox, 'aria-invalid', isInvalid);
+    if (resolvedAriaLabel) combobox.setAttribute('aria-label', resolvedAriaLabel);
+  }, [isRequired, isInvalid, resolvedAriaLabel, controlled, disabled, options.length]);
+
   return (
     <span
+      ref={shellRef}
       className={joinClassNames(
         'tlt-select-shell',
         showClear && 'tlt-select-shell--clearable',
@@ -119,8 +139,6 @@ export default function TltSelect({
         data-testid={testId}
         data-disabled={disabled ? 'true' : undefined}
         aria-label={resolvedAriaLabel}
-        aria-required={isRequired || undefined}
-        aria-invalid={isInvalid || undefined}
         onChange={(next) => {
           if (next === undefined || next === null) {
             onChange?.(null);

@@ -1,7 +1,20 @@
 /* OWNER: WorkspacePage — static chrome colors moved from WorkspacePage.tsx */
 
+/*
+ * Ant Row gutter uses negative horizontal margins. With .heatcalc-content
+ * padding of 6px, gutter=16 (-8px each side) can leak ~2px past the viewport.
+ * Contain the page shell so page_overflow stays 0 without changing gutter UX.
+ */
+.workspace-page {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
 .workspace-page-card {
   margin-bottom: 16px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .workspace-step-card {

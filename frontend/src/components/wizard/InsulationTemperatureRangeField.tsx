@@ -226,6 +226,8 @@ function InsulationTemperatureRangeEditable({
         okText="Применить"
         cancelText="Отмена"
         className="temperature-range-modal"
+        forceRender
+        destroyOnHidden={false}
         onOk={applyRange}
         onCancel={() => setOpen(false)}
       >
