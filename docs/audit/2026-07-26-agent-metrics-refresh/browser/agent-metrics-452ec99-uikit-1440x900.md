@@ -1,0 +1,173 @@
+- generic [ref=f20e25] [box=0,0,1440,3714]:
+  - banner [ref=f20e26] [box=0,0,1440,44]:
+    - generic [ref=f20e27] [box=10,8,177,28]:
+      - img "fire" [ref=f20e29] [box=17,15,14,14]
+      - generic [ref=f20e32] [box=47,9,140,26]:
+        - generic [ref=f20e33] [box=47,9,140,11]: TLT / SYSTEM 01
+        - heading "Инженерный UI Kit" [level=1] [ref=f20e34] [box=47,20,140,14]
+    - generic [ref=f20e35] [box=1068,9,362,26]:
+      - generic [ref=f20e36] [box=1068,16,53,12]: Плотность
+      - radiogroup "Плотность интерфейса" [ref=f20e37] [box=1129,9,171,26]:
+        - generic [ref=f20e38] [box=1131,11,167,22]:
+          - generic [ref=f20e39] [cursor=pointer] [box=1131,11,86,22]
+          - generic [ref=f20e41] [cursor=pointer] [box=1218,11,81,22]
+      - button "arrow-left В приложение" [ref=f20e43] [cursor=pointer] [box=1309,11,121,22]:
+        - img "arrow-left" [ref=f20e45] [box=1317,16,12,12]
+        - generic [ref=f20e48] [box=1337,14,85,15]: В приложение
+  - generic [ref=f20e49] [box=0,44,1440,3670]:
+    - complementary "Разделы UI Kit" [ref=f20e50] [box=0,44,164,856]:
+      - generic [ref=f20e51] [box=18,62,127,11]: Навигация
+      - link "01 Основа" [ref=f20e52] [cursor=pointer] [box=10,81,143,26]:
+        - /url: "#foundation"
+        - generic [ref=f20e53] [box=18,89,11,10]: "01"
+        - text: Основа
+      - link "02 Действия" [ref=f20e54] [cursor=pointer] [box=10,107,143,26]:
+        - /url: "#actions"
+        - generic [ref=f20e55] [box=18,115,11,10]: "02"
+        - text: Действия
+      - link "03 Поля" [ref=f20e56] [cursor=pointer] [box=10,133,143,26]:
+        - /url: "#forms"
+        - generic [ref=f20e57] [box=18,141,11,10]: "03"
+        - text: Поля
+      - link "04 Состояния" [ref=f20e58] [cursor=pointer] [box=10,159,143,26]:
+        - /url: "#states"
+        - generic [ref=f20e59] [box=18,167,11,10]: "04"
+        - text: Состояния
+      - link "05 Данные" [ref=f20e60] [cursor=pointer] [box=10,185,143,26]:
+        - /url: "#data"
+        - generic [ref=f20e61] [box=18,193,11,10]: "05"
+        - text: Данные
+      - link "06 Теплопотери" [ref=f20e62] [cursor=pointer] [box=10,211,143,26]:
+        - /url: "#heatcalc"
+        - generic [ref=f20e63] [box=18,219,11,10]: "06"
+        - text: Теплопотери
+      - link "07 Компоненты" [ref=f20e64] [cursor=pointer] [box=10,237,143,26]:
+        - /url: "#primitives"
+        - generic [ref=f20e65] [box=18,245,11,10]: "07"
+        - text: Компоненты
+      - link "08 Паттерны" [ref=f20e66] [cursor=pointer] [box=10,263,143,26]:
+        - /url: "#patterns"
+        - generic [ref=f20e67] [box=18,271,11,10]: "08"
+        - text: Паттерны
+      - generic [ref=f20e68] [box=18,307,127,98]:
+        - generic [ref=f20e69] [box=18,318,43,18]: v1.0
+        - paragraph [ref=f20e70] [box=18,346,127,58]: HeatCalc SC-0326 px · 8.5 / 12 / 9num 4rem · name 7.5rem
+    - main [ref=f20e71] [box=164,44,1276,3670]:
+      - generic [ref=f20e72] [box=196,60,1212,79]:
+        - generic [ref=f20e73] [box=209,75,1026,48]:
+          - generic [ref=f20e74] [box=209,75,1026,11]: Функция прежде формы
+          - paragraph [ref=f20e75] [box=209,91,760,32]: Компоненты для расчётных экранов, где важны скорость чтения, точность ввода и максимум данных без визуального шума.
+        - generic [ref=f20e76] [box=1253,71,142,57]:
+          - generic [ref=f20e77] [box=1267,71,86,12]: Базовый модуль
+          - strong [ref=f20e78] [box=1365,71,30,12]: 4 px
+          - generic [ref=f20e79] [box=1267,86,86,12]: Высота контроля
+          - strong [ref=f20e80] [box=1365,86,30,12]: 26 px
+          - generic [ref=f20e81] [box=1267,101,86,12]: Радиус
+          - strong [ref=f20e82] [box=1365,101,30,12]: 2 px
+          - generic [ref=f20e83] [box=1267,116,86,12]: Label track
+          - strong [ref=f20e84] [box=1365,116,30,12]: 98 px
+      - region "Основа" [ref=f20e85] [box=196,153,1212,374]:
+        - generic [ref=f20e86] [box=196,172,1212,32]:
+          - generic [ref=f20e87] [box=196,172,22,14]: "01"
+          - generic [ref=f20e88] [box=226,172,242,32]
+        - generic [ref=f20e91] [box=196,214,1212,96]:
+          - 'button "Скопировать Primary 700: var(--color-primary)" [ref=f20e92] [cursor=pointer] [box=196,214,399,44]'
+          - 'button "Скопировать Primary 500 · Link: var(--color-primary-light)" [ref=f20e100] [cursor=pointer] [box=603,214,399,44]'
+          - 'button "Скопировать Label 600: var(--tlt-field-label-color)" [ref=f20e108] [cursor=pointer] [box=1009,214,399,44]'
+          - 'button "Скопировать Success 700: var(--ui-success)" [ref=f20e116] [cursor=pointer] [box=196,266,399,44]'
+          - 'button "Скопировать Warning 700: var(--ui-warning)" [ref=f20e124] [cursor=pointer] [box=603,266,399,44]'
+          - 'button "Скопировать Danger 600: var(--color-danger-border)" [ref=f20e132] [cursor=pointer] [box=1009,266,399,44]'
+        - generic [ref=f20e140] [box=196,318,1212,189]:
+          - generic [ref=f20e141] [box=196,318,692,189]
+          - generic [ref=f20e158] [box=896,318,512,189]
+      - region "Действия" [ref=f20e184] [box=196,527,1212,146]:
+        - generic [ref=f20e185] [box=196,546,1212,32]:
+          - generic [ref=f20e186] [box=196,546,22,14]: "02"
+          - generic [ref=f20e187] [box=226,546,481,32]
+        - generic [ref=f20e190] [box=196,588,1212,65]:
+          - generic [ref=f20e191] [box=196,588,631,65]
+          - generic [ref=f20e224] [box=835,588,573,65]
+      - region "Поля ввода" [ref=f20e244] [box=196,673,1212,309]:
+        - generic [ref=f20e245] [box=196,692,1212,32]:
+          - generic [ref=f20e246] [box=196,692,22,14]: "03"
+          - generic [ref=f20e247] [box=226,692,523,32]
+        - generic [ref=f20e250] [box=196,734,740,178]:
+          - generic [ref=f20e251] [box=209,745,222,28]
+          - generic [ref=f20e256] [box=209,777,166,28]
+          - generic [ref=f20e265] [box=209,809,166,28]
+          - generic [ref=f20e274] [box=209,841,166,28]
+          - generic [ref=f20e283] [box=209,873,222,28]
+          - generic [ref=f20e291] [box=441,745,166,28]
+          - generic [ref=f20e303] [box=441,777,242,28]
+          - generic [ref=f20e313] [box=441,809,242,28]
+          - generic [ref=f20e321] [box=441,841,166,28]
+          - generic [ref=f20e333] [box=441,873,166,28]
+          - generic [ref=f20e345] [box=693,745,166,28]
+          - generic [ref=f20e354] [box=693,777,230,28]
+        - generic [ref=f20e367] [box=196,920,1212,42]:
+          - generic [ref=f20e368] [cursor=pointer] [box=209,931,150,20]
+          - switch "Уведомления" [checked] [ref=f20e373] [cursor=pointer] [box=369,934,22,13]
+          - generic [ref=f20e376] [box=401,935,281,12]: Уведомления включены
+          - slider "Коэффициент запаса" [ref=f20e380] [cursor=pointer] [box=925,937,8,8]
+      - region "Состояния" [ref=f20e381] [box=196,982,1212,196]:
+        - generic [ref=f20e382] [box=196,1001,1212,32]:
+          - generic [ref=f20e383] [box=196,1001,22,14]: "04"
+          - generic [ref=f20e384] [box=226,1001,427,32]
+        - generic [ref=f20e387] [box=196,1043,1212,18]:
+          - generic [ref=f20e388] [box=196,1043,72,18]: Черновик
+          - generic [ref=f20e389] [box=274,1043,72,18]: В расчёте
+          - generic [ref=f20e390] [box=351,1043,75,18]: Рассчитан
+          - generic [ref=f20e391] [box=432,1043,102,18]: Требует данных
+          - generic [ref=f20e392] [box=541,1043,62,18]: Ошибка
+        - generic [ref=f20e393] [box=196,1069,1212,89]:
+          - alert [ref=f20e394] [box=205,1078,393,71]
+          - alert [ref=f20e401] [box=606,1078,393,71]
+          - alert [ref=f20e411] [box=1006,1078,393,71]
+      - region "Данные" [ref=f20e425] [box=196,1178,1212,234]:
+        - generic [ref=f20e426] [box=196,1197,1212,32]:
+          - generic [ref=f20e427] [box=196,1197,22,14]: "05"
+          - generic [ref=f20e428] [box=226,1197,543,32]
+        - generic [ref=f20e431] [box=196,1239,1212,37]:
+          - generic [ref=f20e432] [box=197,1240,303,36]
+          - generic [ref=f20e435] [box=500,1240,303,36]
+          - generic [ref=f20e438] [box=802,1240,303,36]
+          - generic [ref=f20e442] [box=1105,1240,303,36]
+        - grid [ref=f20e447] [box=197,1277,1210,114]:
+          - rowgroup [ref=f20e448] [box=197,1277,1210,24]
+          - rowgroup [ref=f20e456] [box=197,1301,1210,90]
+      - region "Расчёт теплопотерь" [ref=f20e502] [box=196,1412,1212,1087]:
+        - generic [ref=f20e503] [box=196,1431,1212,32]:
+          - generic [ref=f20e504] [box=196,1431,22,14]: "06"
+          - generic [ref=f20e505] [box=226,1431,468,32]
+        - generic "Контракт интерфейса расчёта теплопотерь" [ref=f20e508] [box=196,1473,1212,26]:
+          - generic [ref=f20e509] [box=197,1474,242,24]
+          - generic [ref=f20e512] [box=439,1474,242,24]
+          - generic [ref=f20e515] [box=681,1474,242,24]
+          - generic [ref=f20e518] [box=923,1474,242,24]
+          - generic [ref=f20e521] [box=1165,1474,242,24]
+        - generic [ref=f20e524] [box=196,1507,1212,972]:
+          - generic [ref=f20e525] [box=203,1514,1198,33]
+          - toolbar "Тип объекта в эталоне HeatCalc" [ref=f20e530] [box=203,1553,1198,28]
+          - generic [ref=f20e567] [box=206,1606,1192,708]
+          - generic "Действия эталона HeatCalc" [ref=f20e851] [box=203,2323,1198,30]
+          - table [ref=f20e935] [box=204,2360,1196,111]
+      - region "Компоненты" [ref=f20e997] [box=196,2499,1212,895]:
+        - generic [ref=f20e998] [box=196,2518,1212,32]:
+          - generic [ref=f20e999] [box=196,2518,22,14]: "07"
+          - generic [ref=f20e1000] [box=226,2518,495,32]
+        - generic [ref=f20e1003] [box=196,2560,1212,228]:
+          - article [ref=f20e1004] [box=196,2560,602,228]
+          - article [ref=f20e1041] [box=806,2560,602,228]
+        - generic [ref=f20e1073] [box=196,2796,1212,577]:
+          - article [ref=f20e1074] [box=196,2796,1212,188]
+          - generic [ref=f20e1102] [box=196,2992,1212,381]
+      - region "Рабочие паттерны" [ref=f20e1198] [box=196,3393,1212,258]:
+        - generic [ref=f20e1199] [box=196,3412,1212,32]:
+          - generic [ref=f20e1200] [box=196,3412,22,14]: "08"
+          - generic [ref=f20e1201] [box=226,3412,319,32]
+        - generic [ref=f20e1204] [box=196,3454,1212,177]:
+          - tablist [ref=f20e1205] [box=196,3454,1212,36]
+          - tabpanel "Расчёт" [ref=f20e1216] [box=196,3506,1212,125]
+      - generic [ref=f20e1240] [box=196,3651,1212,27]:
+        - generic [ref=f20e1241] [box=196,3668,92,10]: TLT UI Kit · 2026
+        - generic [ref=f20e1242] [box=1253,3668,155,10]: Точность в каждом пикселе

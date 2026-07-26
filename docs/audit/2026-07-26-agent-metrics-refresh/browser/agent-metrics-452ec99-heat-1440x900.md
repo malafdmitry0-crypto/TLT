@@ -1,0 +1,86 @@
+- generic [ref=f7e25] [box=0,0,1440,900]:
+  - banner [ref=f7e26] [box=0,0,1440,26]:
+    - generic [ref=f7e27] [box=10,0,1420,25]:
+      - generic "HeatCalc" [ref=f7e28] [box=10,5,86,15]:
+        - img "fire" [ref=f7e29] [box=10,5,15,15]
+        - heading "HeatCalc" [level=2] [ref=f7e32] [box=31,6,65,14]
+      - navigation "Разделы проекта" [ref=f7e33] [box=105,1,899,23]:
+        - menu [ref=f7e34] [box=105,1,899,23]:
+          - menuitem "fire Расчёт тепловых потерь" [ref=f7e35] [cursor=pointer] [box=107,1,188,24]:
+            - img "fire" [ref=f7e36] [box=115,7,12,12]
+            - generic [ref=f7e39] [box=137,7,150,12]: Расчёт тепловых потерь
+          - menuitem "thunderbolt Электротехнический расчёт" [ref=f7e41] [cursor=pointer] [box=298,1,213,24]:
+            - img "thunderbolt" [ref=f7e42] [box=306,7,12,12]
+            - generic [ref=f7e45] [box=328,7,175,12]: Электротехнический расчёт
+          - menuitem "unordered-list Спецификация" [ref=f7e47] [cursor=pointer] [box=516,1,130,24]:
+            - img "unordered-list" [ref=f7e48] [box=524,7,12,12]
+            - generic [ref=f7e51] [box=546,7,92,12]: Спецификация
+          - separator [box=296,2,0,21]
+          - menuitem "file-text Отчёт" [ref=f7e52] [cursor=pointer] [box=650,1,74,24]:
+            - img "file-text" [ref=f7e53] [box=658,7,12,12]
+            - generic [ref=f7e56] [box=680,7,36,12]: Отчёт
+          - menuitem [disabled] [box=123,0,28,24]
+      - generic [ref=f7e57] [box=1012,1,418,24]:
+        - generic [ref=f7e58] [box=1012,1,246,24]:
+          - generic [ref=f7e60] [box=1012,1,72,24]:
+            - img "folder-open" [ref=f7e62] [box=1012,8,10,10]
+            - generic "Мой проект" [ref=f7e66] [box=1025,1,59,22]
+          - button "download Скачать" [ref=f7e68] [cursor=pointer] [box=1091,2,75,22]:
+            - img "download" [ref=f7e70] [box=1099,7,11,11]
+            - generic [ref=f7e73] [box=1116,8,42,10]: Скачать
+          - button "upload Загрузить" [ref=f7e75] [cursor=pointer] [box=1170,2,86,22]:
+            - img "upload" [ref=f7e77] [box=1178,7,11,11]
+            - generic [ref=f7e80] [box=1195,8,53,10]: Загрузить
+        - generic [ref=f7e81] [box=1265,2,165,22]:
+          - button "question-circle Инструкция" [ref=f7e83] [cursor=pointer] [box=1265,2,96,22]:
+            - img "question-circle" [ref=f7e85] [box=1273,7,11,11]
+            - generic [ref=f7e89] [box=1290,8,63,10]: Инструкция
+          - button "logout Выход" [ref=f7e91] [cursor=pointer] [box=1363,2,67,22]:
+            - img "logout" [ref=f7e93] [box=1371,7,11,11]
+            - generic [ref=f7e96] [box=1388,8,34,10]: Выход
+  - main [ref=f7e98] [box=0,26,1440,874]:
+    - generic [ref=f7e100] [box=6,28,1428,677]:
+      - toolbar "Тип объекта и блок параметров" [ref=f7e102] [box=6,28,1428,28]:
+        - generic "Тип объекта" [ref=f7e103] [box=13,31,493,22]:
+          - 'button "Трубопровод: 0" [pressed] [ref=f7e104] [cursor=pointer] [box=13,31,135,22]':
+            - generic [ref=f7e110] [box=42,36,97,12]
+          - 'button "Резервуар: 0" [ref=f7e112] [cursor=pointer] [box=151,31,118,22]':
+            - generic [ref=f7e118] [box=180,36,80,12]
+          - 'button "Все: 0" [ref=f7e120] [cursor=pointer] [box=272,31,112,22]':
+            - img "appstore" [ref=f7e122] [box=300,36,12,12]
+            - generic [ref=f7e125] [box=318,36,38,12]
+          - button "Пол (недоступно)" [disabled] [ref=f7e127] [box=387,31,112,22]:
+            - generic [box=431,36,24,12]: Пол
+        - generic [ref=f7e128] [box=785,31,642,22]:
+          - generic [ref=f7e129] [box=785,32,138,20]: "Режим: добавление"
+          - generic [ref=f7e130] [cursor=pointer] [box=931,33,233,18]:
+            - checkbox "Показать блок заполнения параметров" [checked] [ref=f7e132] [box=931,35,13,13]
+            - generic [ref=f7e134] [box=944,33,220,18]: Показать блок заполнения параметров
+          - button "Далее. Электротехнический расчёт" [disabled] [ref=f7e136] [box=1172,31,249,22]:
+            - generic [box=1181,36,231,12]: Далее → Электротехнический расчёт
+      - generic "Блок заполнения параметров" [ref=f7e138] [box=6,61,1428,430]:
+        - generic [ref=f7e141] [box=6,61,1428,430]:
+          - generic [ref=f7e143] [box=6,61,1116,430]:
+            - heading "Расчёт теплопотерь" [level=4] [ref=f7e144] [box=6,61,1116,18]
+            - generic [ref=f7e146] [box=6,79,1116,412]
+          - generic [ref=f7e428] [box=1134,61,300,389]:
+            - heading "Алгоритм выбора кабеля" [level=4] [ref=f7e429] [box=1134,61,300,20]
+            - generic [ref=f7e431] [box=1134,81,300,328]
+            - paragraph [ref=f7e557] [box=1144,415,280,27]: Марка кабеля, нитки и подбор — на шаге «Электротехнический расчёт».
+      - generic [ref=f7e559] [box=6,496,1428,30]:
+        - toolbar "Действия блока заполнения" [ref=f7e560] [box=13,500,85,22]:
+          - generic [ref=f7e561] [box=13,500,85,22]:
+            - button "Добавить" [ref=f7e562] [cursor=pointer] [box=13,500,24,22]
+            - button "Сохранить" [ref=f7e569] [cursor=pointer] [box=40,500,24,22]
+            - button "Удалить выбранные" [disabled] [ref=f7e575] [box=67,500,24,22]
+        - toolbar "Действия таблицы объектов" [ref=f7e576] [box=103,499,1324,24]:
+          - generic [ref=f7e577] [box=103,499,1324,24]:
+            - radiogroup "segmented control" [ref=f7e578] [box=103,499,236,24]
+            - button "Пересчитать теплопотери выбранных или активной строки" [disabled] [ref=f7e585] [box=342,500,24,22]
+            - button "Пересчитать все" [disabled] [ref=f7e587] [box=369,500,136,22]
+            - button "Настройки отображения" [ref=f7e589] [cursor=pointer] [box=508,500,24,22]
+            - button "Сбросить фильтры таблицы" [disabled] [ref=f7e595] [box=535,500,24,22]
+            - button "Добавить копии выбранных" [disabled] [ref=f7e597] [box=562,500,24,22]
+            - generic [ref=f7e598] [box=589,500,126,22]
+      - article [ref=f7e622] [box=6,531,1428,174]:
+        - generic [ref=f7e623] [box=6,531,1428,174]: Трубопроводы не добавлены. Нажмите «+» или импортируйте XLSX/CSV.

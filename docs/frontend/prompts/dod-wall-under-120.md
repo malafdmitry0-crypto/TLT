@@ -1,244 +1,198 @@
 # Промпт: DoD wall ≤120 s (full-cycle agent speed)
 
-**Статус:** executable residual prompt (tooling / qa)  
+**Статус:** **CANONICAL executable residual** (tooling / qa)  
 **Актуально на:** 2026-07-26  
 **Pending authority:** только [refactor-backlog.md](../refactor-backlog.md)  
-**Score impact:** full-cycle agent-friendliness (сейчас ~**6,8 / 10** при wall ~**255 s**)
+**Score impact:** full-cycle (live ~**6,8 / 10** при wall ~**214–278 s**)
 
-## Контекст (не выдумывай baseline)
+## Пересечения (не дублируй)
 
-| Сигнал | Live evidence |
+| Уже сделано | Где | Не повторять |
+|---|---|---|
+| dual-safe levers (unitW=4, stagger=500, skipArch, fastBuild) | `package.json` `test:agent-dod:dual-safe`, `agent-dod.mjs` | «ещё workers» как sole plan |
+| Live scorecard + first wall profile | [live-metrics-and-dod-wall](../../audit/2026-07-26-live-metrics-and-dod-wall/snapshot.md) | переписывать history baseline |
+| Settings suite split (was #1 unit ~44s) | `HeatCalcPage.settings.{columns,view-layout,details-reset}.test.tsx` | split settings again |
+| Slow file list (pre-settings-split) | [confusion-and-cycle](../../audit/2026-07-26-confusion-and-cycle-improvements/snapshot.md) | trust as absolute without re-profile |
+| Confusion/policy/scope/Ant/state map | AGENTS, agent:scope, ant-ui-kit-strategy, state-ownership-map | out of scope for this prompt |
+
+**Этот промпт = единственный** master contract для **DoD wall ≤120**.  
+Другие chat drafts / informal S0–S6 lists **superseded** by this file.
+
+---
+
+## Live facts (re-measure in Phase 0; table is prior evidence)
+
+| Сигнал | Prior evidence |
 |---|---|
-| Canonical `npm run test:agent-dod` | **PASS ~255 s** (gates ~12 · concurrent suites ~235 · build ~7) |
-| Long pole | **unit** (~235 s observed), integration ~171 s concurrent |
-| Dual-safe best earlier | **~214 s** (`test:agent-dod:dual-safe`) — **ещё >>120** |
-| Integration floor | concurrent suites alone often **≥170 s** |
-| Gap to ≤120 | **≥~90–130 s** after best tooling levers |
-| Scorecard | [agent-friendliness-live](../../audit/2026-07-26-agent-friendliness-live/snapshot.md) |
-| Prior wall profile | [live-metrics-and-dod-wall](../../audit/2026-07-26-live-metrics-and-dod-wall/snapshot.md) |
+| Canonical `test:agent-dod` | ~**255 s** (scorecard host) |
+| Dual-safe best | ~**214 s** total; concurrent suites often **≥170 s** |
+| Long pole | **varies**: unit ~235s or int ~170–220s under concurrent |
+| Gap to ≤120 | **≥~90–130 s** after tooling levers |
+| Next unit candidates | `HeatCalcPage.inline-edit`, `.filters`, `.basics.object-type-chrome` |
+| Next int candidates | `ElecCalcPage.glide-modals`, `.results-settings`, `.cable-meta.*` |
 
-**Hard fact:** workers / stagger / skip-arch / fast-build **недостаточны** для ≤120 s. Нужно **сокращать suite cost** (медленные файлы, setup tax, дубли) или **честно поднять product target** с evidence.
+**Hard fact:** tooling levers alone **cannot** hit ≤120. Need **suite shrink** or **honest target raise**.
 
 ---
 
 ## Копируй в агент (master contract)
 
 ```text
-Работай из корня текущего репозитория TLT.
+Работай из корня репозитория TLT.
 
-SLICE_ID: DOD-WALL-PROFILE-01   # затем DOD-WALL-UNIT-01 / DOD-WALL-INT-01 / …
-OWNER: tooling                 # profile/tooling; qa for suite shrink; docs for target raise
+Прочитай:
+  frontend/AGENTS.md
+  docs/frontend/agent-development-standard.md
+  docs/frontend/prompts/dod-wall-under-120.md   ← this file is SoT
+  docs/frontend/pr-budget.md
+
 GOAL:
-  Снизить wall-time канонического frontend Definition of Done
-  (`npm run test:agent-dod` и/или `test:agent-dod:dual-safe`) так, чтобы
-  median total wall ≤120 s на этом host, без потери coverage и без
-  ослабления gates/ratchets/baselines. Если ≤120 s физически недостижим
-  без вырезания coverage — доказать floor evidence и предложить product
-  target raise (например ≤180 / ≤240) с цифрами.
+  Median wall of `npm run test:agent-dod:dual-safe` ≤ 120 s on quiet host
+  (n≥3), same coverage, no baseline raise, no skipped product asserts.
+  Canonical `npm run test:agent-dod` must stay PASS; record both walls.
+  If ≤120 impossible without coverage loss → DECISION NEEDED (≤180 / ≤240)
+  with evidence; do not fake ≤120.
 
 USER_VISIBLE_SUCCESS:
-  - Agent full-cycle feedback ближе к ≤120 s (или честный новый target).
-  - Live scorecard full-cycle score улучшается vs 6,8 (при ≤120 → ~9,0;
-    при ≤180 → ~8,2; при ≤240 → ~7,4 — см. frontend-agent-metrics.mjs).
-  - Backlog/audit отражают PASS или BLOCKED с DECISION NEEDED.
+  - Full-cycle score rises toward ~9.0 only if p50 ≤120 (see metrics script).
+  - Audit docs/audit/YYYY-MM-DD-dod-wall-profile/ then shrink audits.
+  - Clear residual or CLOSED.
 
-ALLOWED_SCOPE (один slice = один owner):
+ALLOWED_SCOPE by phase (one owner per commit):
   DOD-WALL-PROFILE-01 (tooling):
-    - scripts/agent-dod.mjs, agent-dod-dual.mjs, agent-dod-profile.mjs
-    - vite.config.ts worker env only if needed
-    - docs/audit/YYYY-MM-DD-dod-wall-*/snapshot.md
-    - NO production feature code; NO deletion of tests
-  DOD-WALL-UNIT-01+ (qa):
-    - только test files under frontend/src/__tests__/unit/**
-    - optional pure test harness extract (0 it in harness)
-    - same it titles/asserts; monolit split or setup extract only
-  DOD-WALL-INT-01+ (qa):
+    - run walls + duration profile only
+    - docs/audit/YYYY-MM-DD-dod-wall-profile/snapshot.md
+    - optional scripts/agent-dod-profile.mjs improvements
+    - NO test deletion; NO production feature code
+  DOD-WALL-UNIT-NN (qa):
+    - frontend/src/__tests__/unit/** only
+    - scenario split or harness extract; keep same it titles
+  DOD-WALL-INT-NN (qa):
     - frontend/src/__tests__/integration/** (+ elec-integration)
-    - harness extract / scenario split only
+    - harness/setup extract preferred over fiction splits
+  DOD-WALL-TOOL-01 (tooling):
+    - workers/stagger only if n≥2 proves win; no thrash
   DOD-WALL-TARGET-01 (docs):
-    - docs only: if evidence shows ≤120 unreachable, update product target
-      in AGENTS.md / standard / metrics calibration with audit proof
+    - only if floor proven >120 without coverage cut
 
 NON_GOALS:
-  - Не удалять и не skip-ать тесты «чтобы зелёнее/быстрее».
-  - Не повышать architecture baselines, не ослаблять assertions.
-  - Не менять production UX / formulas / API / query keys.
-  - Не раздувать maxWorkers так, что dual DoD thrash (раньше workers=4
-    concurrent unit+int давал regression).
-  - Не объявлять ≤120 s closed на одном lucky run.
+  - Delete/skip tests to look faster
+  - Raise architecture baselines / weaken expect()
+  - Product UX/API/formulas/query keys
+  - Re-split HeatCalcPage.settings.* (already done)
+  - Confusion/AF multi-hundred plans
+  - maxWorkers thrash (unit+int both high without proof)
 
 INVARIANTS:
-  - test:agent-gates must stay PASS.
-  - Full DoD must stay PASS (same suites, no silent exclusions beyond
-    already-documented AGENT_DOD_SKIP_ARCH_IN_UNIT which only skips
-    architecture/** already covered by gates).
-  - Characterization: same it() titles for any scenario split.
-  - One vertical slice / one owner / PR budget.
-
-FOCUSED_PROOF:
-  1) Profile before any production of speed claims:
-       cd frontend
-       npm run agent:dod:profile   # if present
-       # else instrument / time:
-       npm run test:agent-dod
-       npm run test:agent-dod:dual-safe
-     Capture: gates, unit wall, integration wall, build, total.
-  2) Rank top-N slowest test files (vitest reporter or profile script).
-  3) After each shrink slice: focused vitest on touched paths green.
-  4) Full: npm run test:agent-dod  (≥2 runs preferred; record both walls).
-  5) Metrics:
-       node scripts/frontend-agent-metrics.mjs \
-         --gates-status=pass --gates-seconds=<g> \
-         --dod-status=pass --dod-seconds=<d> \
-         --unit-tests=<n> --unit-seconds=<u> \
-         --integration-tests=<n> --integration-seconds=<i> \
-         --browser-status=not-run
-  6) Audit snapshot with HEAD, host, n runs, before/after walls, top slow files.
-
-UI_STATES: n/a (no visible UI).
+  - test:agent-gates PASS after each slice
+  - Full dual-safe DoD PASS; suites not removed
+  - SKIP_ARCH_IN_UNIT only excludes architecture/** already in gates
+  - FAST_BUILD vite-only only after gates typecheck
+  - One vertical slice / PR budget
+  - git status: no foreign WIP commits (agent-metrics-*.png etc.)
 
 WORK SEQUENCE
 =============
 
-### Phase 0 — PROFILE (обязательно первым, owner tooling)
-SLICE_ID: DOD-WALL-PROFILE-01
-1. git status --short; do not touch foreign WIP.
-2. Recompute live walls (quiet host if possible):
-   - baseline: npm run test:agent-dod
-   - dual-safe: npm run test:agent-dod:dual-safe
-3. Identify long pole (unit vs integration) and top 15 slow files.
-4. Write docs/audit/YYYY-MM-DD-dod-wall-profile/snapshot.md with:
-   - total / phase walls (n≥1, ideally n≥3)
-   - top slow files + loc/it hints
-   - decision tree: which suites can shrink vs harness extract vs target raise
-5. Commit docs-only if profile-only; next contract = first shrink slice.
-
-STOP after profile if user only asked for plan. Otherwise continue Phase 1.
-
-### Phase 1 — UNIT SHRINK (largest lever if unit is long pole)
-SLICE_ID: DOD-WALL-UNIT-01 (repeat UNIT-02… as needed)
-OWNER: qa
-Pick top slow unit file clusters (historically HeatCalcPage.* heavy scenarios,
-api/client, large pure util tests). Prefer in order:
-  a) harness extract reducing per-it setup (often best loc/it tax fix)
-  b) scenario split only if monolit still large AND clusters are real
-  c) shared mock factory thinning (do not break other suites)
-Acceptance per slice:
-  - focused green
-  - no production change
-  - measurable unit wall drop OR honest null result documented
-  - test:agent-dod PASS; record new total wall
-
-### Phase 2 — INTEGRATION SHRINK (if int is long pole or floor blocks ≤120)
-SLICE_ID: DOD-WALL-INT-01…
-OWNER: qa
-ElecCalcPage* / ReportPage / Specification heavy mounts:
-  - shared env already large — prefer fixture pure data + thinner env
-  - do not multiply setup across more files without harness discipline
-Acceptance: same as Phase 1 for integration wall.
-
-### Phase 3 — TOOLING ONLY IF EVIDENCE SUPPORTS
-SLICE_ID: DOD-WALL-TOOL-01
+### Phase 0 — DOD-WALL-PROFILE-01 (обязательно первым)
 OWNER: tooling
-Allowed experiments (measure n≥2 each, keep dual green):
-  - unit workers 2 vs 4 vs 6 under SINGLE DoD only
-  - int workers 1 vs 2
-  - stagger ms
-  - AGENT_DOD_FAST_BUILD already exists — keep if gates still typecheck
-Forbidden:
-  - skipping unit or integration entirely
-  - permanently excluding non-arch test folders without product decision
-  - raising timeouts instead of fixing slowness
+1. git status --short; ignore untracked agent-metrics screenshots; no foreign WIP.
+2. cd frontend
+   time npm run test:agent-dod
+   time npm run test:agent-dod:dual-safe
+   Capture phase lines from [agent-dod] summary.
+3. Duration rank (if not just done on this HEAD):
+   vitest unit (exclude architecture) + integration JSON → top 15 files.
+4. Write docs/audit/YYYY-MM-DD-dod-wall-profile/snapshot.md:
+   HEAD, host, n runs, canonical wall, dual-safe wall,
+   unit vs int long pole, top slow files, decision:
+   next = UNIT-01 | INT-01 | TARGET-01
+5. Commit docs (+ profile tooling only if needed).
+6. Continue Phase 1 without waiting for user unless STOP requested.
 
-### Phase 4 — CLOSE OR HONEST TARGET RAISE
-If after Phases 1–3 best median still >120:
-  SLICE_ID: DOD-WALL-TARGET-01
-  OWNER: docs
-  - Document measured floor (e.g. integration alone ≥170s ⇒ total ≤120 impossible
-    without suite cut).
-  - Propose product target: ≤180 or ≤240 with host note.
-  - Update metrics calibration thresholds only if product accepts.
-  - Do NOT fake ≤120.
+### Phase 1 — shrink (exactly one next slice after profile)
+If unit long pole OR unit >> int under dual-safe:
+  SLICE_ID: DOD-WALL-UNIT-01
+  Pick #1 unit file not already split this initiative
+  (prefer HeatCalcPage.inline-edit.test.tsx after settings split).
+  Split by real describe clusters OR extract shared setup.
+  Proof: focused vitest PASS + dual-safe once; record wall.
+If int is long pole / floor blocks ≤120:
+  SLICE_ID: DOD-WALL-INT-01
+  Pick #1 integration file; harness extract first.
+  Proof: focused int PASS + dual-safe once.
 
-If median ≤120 on n≥3 quiet runs:
-  - mark residual closed in audit
-  - recompute frontend-agent-metrics with dod-seconds
-  - backlog: only if user opened pending; else docs audit only
+### Phase 2+ — repeat UNIT-02 / INT-02 while total p50 >120
+Stop a phase when next file sum duration < ~12 s (diminishing returns)
+or n≥2 dual-safe still >120 with clear floor document.
+
+### Phase TOOL (optional)
+Re-tune workers only with measured win; otherwise skip.
+
+### Phase CLOSE
+n≥3 dual-safe on quiet host:
+  - p50 ≤120 → CLOSED audit + metrics --dod-seconds=
+  - else → TARGET-01 proposal ≤180 or ≤240, DECISION NEEDED
 
 GIT
 ===
-- Conventional commits: test(frontend)/chore(frontend)/docs(frontend)
-- Production/test commit then docs audit commit for backlog-driven slices
-- Do not push unless user asks
-- Do not commit foreign WIP
+- Conventional commits: docs|test|chore(frontend)
+- No push unless asked
+- Do not git add agent-metrics-*.png or foreign WIP
 
 HARD STOPS
 ==========
-- Full DoD red after change → fix or revert; no commit of red tree.
-- thrash dual DoD (both red or wall worse) → reduce workers; do not ship.
-- Need to drop coverage to hit 120 → STOP + DECISION NEEDED (target raise).
-- Ambiguous which suite is long pole → re-profile, do not guess.
+- Red DoD → fix or revert before commit
+- Wall worse after thrash → reduce workers
+- Would drop coverage → STOP + DECISION NEEDED
+- Ambiguous long pole → re-profile
 
 FINAL REPORT
 ============
-- Baseline walls (canonical + dual-safe)
-- Top slow files before/after
-- Slices landed + commits
-- Best median wall (n runs)
-- Full-cycle score before → after (metrics script)
-- Residual: still >120? target proposal? thrash risk?
-- Next pending or EMPTY residual for wall
+- Walls before/after each slice
+- Top slow files
+- Commits
+- Best median dual-safe
+- Score before→after if metrics re-run
+- Residual / DECISION NEEDED
 ```
 
 ---
 
-## Короткие follow-up промпты (после PROFILE)
+## Короткие follow-ups
 
-### A — только unit long pole
-
+### Только profile
 ```text
 Прочитай docs/frontend/prompts/dod-wall-under-120.md.
-Выполни только DOD-WALL-UNIT-01: возьми top-3 slowest unit files из
-последнего profile audit, сократи wall (harness extract предпочтительнее
-чем scenario fiction). Не трогай production. Focused green + test:agent-dod.
-Audit before/after walls. STOP after one slice.
+Выполни только Phase 0 DOD-WALL-PROFILE-01. Audit + commit docs. STOP.
 ```
 
-### B — только integration floor
+### Только unit after profile
+```text
+Прочитай docs/frontend/prompts/dod-wall-under-120.md и latest
+docs/audit/*-dod-wall-profile/snapshot.md.
+Выполни DOD-WALL-UNIT-01 на #1 unit file. One slice. Dual-safe once after.
+```
 
+### Только int floor
 ```text
 Прочитай docs/frontend/prompts/dod-wall-under-120.md.
-Выполни DOD-WALL-INT-01 на самом медленном integration/elec-integration
-файле: harness/setup extract first. Same it titles. Full DoD green.
-Audit: int wall and total wall delta.
+DOD-WALL-INT-01 на #1 integration file. Harness extract preferred.
 ```
 
-### C — честный target raise
-
+### Target raise
 ```text
-Прочитай docs/frontend/prompts/dod-wall-under-120.md Phase 4.
-Собери n≥2 walls canonical + dual-safe. Если concurrent suites floor >120,
-открой DOD-WALL-TARGET-01: audit + предложи ≤180 или ≤240; обнови docs
-только после явного product OK в ответе. Не меняй suite.
+Phase CLOSE evidence shows floor >120. DOD-WALL-TARGET-01 only:
+propose ≤180 or ≤240 with numbers; no suite cut without product OK.
 ```
 
 ---
 
-## Acceptance checklist (slice done)
+## Acceptance checklist
 
-- [ ] Profile numbers from **this** tree (not stale audit alone)
-- [ ] One owner, budget OK
-- [ ] Focused proof green
-- [ ] `npm run test:agent-dod` PASS; wall recorded
-- [ ] Audit snapshot with HEAD / host / commands / before→after
+- [ ] Profile from **this** HEAD (not stale alone)
+- [ ] One owner per commit
+- [ ] Focused green; dual-safe PASS; wall recorded
 - [ ] No coverage drop; no baseline raise
-- [ ] Metrics script re-run with `--dod-seconds=`
-- [ ] If ≤120 claimed: **n≥3** quiet runs median ≤120
-
-## Known anti-patterns
-
-1. «Ускорил» одним run 240→200 и объявил почти ≤120.  
-2. maxWorkers=8 → thrash, wall worse.  
-3. Skip flaky tests instead of fixing setup tax.  
-4. Scenario-split harness 0-it file into fake scenarios.  
-5. Changing product target silently without Phase 0 evidence.
+- [ ] ≤120 claimed only with **n≥3** median
+- [ ] Foreign WIP untouched
