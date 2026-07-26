@@ -1,52 +1,4 @@
-import '@testing-library/jest-dom/vitest';
 import { afterEach } from 'vitest';
-import { cleanup, configure } from '@testing-library/react';
-
-// Design tokens must load before feature CSS so var(--…) owners exist in jsdom.
-import '@/styles/tokens.css';
-
-configure({ asyncUtilTimeout: 5_000 });
-
-let nativeElementFocus = typeof window.HTMLElement.prototype.focus === 'function'
-  ? window.HTMLElement.prototype.focus
-  : function focusElement() {};
-Object.defineProperty(window.HTMLElement.prototype, 'focus', {
-  configurable: true,
-  get() {
-    return nativeElementFocus;
-  },
-  set(nextFocus) {
-    if (typeof nextFocus === 'function') {
-      nativeElementFocus = nextFocus;
-    }
-  },
-});
-
-afterEach(() => {
-  cleanup();
-  localStorage.clear();
-});
-
-// matchMedia polyfill для antd
-Object.defineProperty(window, 'matchMedia', {
-  writable: true,
-  value: (query: string) => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: () => {},
-    removeListener: () => {},
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    dispatchEvent: () => false,
-  }),
-});
-
-const getComputedStyle = window.getComputedStyle.bind(window);
-Object.defineProperty(window, 'getComputedStyle', {
-  writable: true,
-  value: (elt: Element) => getComputedStyle(elt),
-});
 
 /**
  * jsdom/nwsapi can throw when matching CSS :has() / composite selectors against
@@ -106,6 +58,71 @@ function patchSelectorApi(proto: {
   };
 }
 
-patchSelectorApi(Element.prototype);
-patchSelectorApi(Document.prototype as unknown as Element);
-patchSelectorApi(DocumentFragment.prototype as unknown as Element);
+function patchDomGlobals(): void {
+  let nativeElementFocus = typeof window.HTMLElement.prototype.focus === 'function'
+    ? window.HTMLElement.prototype.focus
+    : function focusElement() {};
+  Object.defineProperty(window.HTMLElement.prototype, 'focus', {
+    configurable: true,
+    get() {
+      return nativeElementFocus;
+    },
+    set(nextFocus) {
+      if (typeof nextFocus === 'function') {
+        nativeElementFocus = nextFocus;
+      }
+    },
+  });
+
+  // matchMedia polyfill для antd
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: (query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }),
+  });
+
+  const getComputedStyle = window.getComputedStyle.bind(window);
+  Object.defineProperty(window, 'getComputedStyle', {
+    writable: true,
+    value: (elt: Element) => getComputedStyle(elt),
+  });
+
+  patchSelectorApi(Element.prototype);
+  patchSelectorApi(Document.prototype as unknown as Element);
+  patchSelectorApi(DocumentFragment.prototype as unknown as Element);
+}
+
+/**
+ * AF100-09a — per-file harness tax.
+ *
+ * Files opting into `// @vitest-environment node` have no DOM at all, so the
+ * jest-dom matchers and the CSSOM parse of tokens.css below are dead weight for
+ * them (~110 ms/file). Loading them behind the environment check keeps the jsdom
+ * path byte-identical while node-environment files pay ~0.
+ *
+ * Guard: `unitNodeEnvironment.architecture.test.ts` proves that every file
+ * carrying the node docblock is genuinely DOM-free.
+ */
+if (typeof window !== 'undefined') {
+  await import('@testing-library/jest-dom/vitest');
+  // Design tokens must load before feature CSS so var(--…) owners exist in jsdom.
+  await import('@/styles/tokens.css');
+  const { cleanup, configure } = await import('@testing-library/react');
+
+  configure({ asyncUtilTimeout: 5_000 });
+
+  patchDomGlobals();
+
+  afterEach(() => {
+    cleanup();
+    localStorage.clear();
+  });
+}

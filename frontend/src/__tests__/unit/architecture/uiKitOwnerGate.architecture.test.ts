@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * AF12-UIKIT-OWNER-GATE-01 — static CSS ↔ JSX ownership for /ui-kit.
  *

@@ -8,7 +8,9 @@
 [agent-friendly-10-plan.md](./agent-friendly-10-plan.md).
 **Inventory at open:** **22** files in **400–445** LOC (production) — all
 extracted under Track A.  
-**Last closed:** AF100-06/-07/-08 deterministic full proof @ `42329ed`
+**Last closed:** AF100-09a node-окружение для DOM-free unit-тестов @ `02dc019`
+([snapshot](../audit/2026-07-26-af100-09a-node-environment/snapshot.md))  
+**Prior:** AF100-06/-07/-08 deterministic full proof @ `42329ed`
 ([snapshot](../audit/2026-07-26-af100-06-08-execution/snapshot.md))  
 **Prior:** AF100-02/-03/-04/-05/-14 @ `fd9ec39`
 ([snapshot](../audit/2026-07-26-af100-phase-a-execution/snapshot.md))  
@@ -19,23 +21,27 @@ extracted under Track A.
 
 | Поле | Значение |
 |---|---|
-| **NEXT** | **AF100-09+** — снизить setup/import tax (p50 ≤120 s) |
+| **NEXT** | **AF100-09b** — снять collect tax (импорт `antd` на файл); цель серии p50 ≤120 s |
 | Owner | `qa` |
 | **Не NEXT** | Цепочка 06 → 08 → 07 пройдена; остальные pending не подменяют 09+ |
-| Разблокировано | 09+ открыт, потому что 08 дал профиль на quiet host n=3, а 07 зафиксировал одну команду |
+| Разблокировано | 09a закрыт: плоский env/setup tax снят, замер long pole пересчитан |
 
-**Почему NEXT = AF100-09+** (измерено на `42329ed`):
+**Почему NEXT = AF100-09b** (измерено на `02dc019`, после 09a):
 
-1. Full proof стабилен: dual-safe **3/3** — 145.08 / 145.99 / 145.68 s,
-   разброс < 1 s (было 149–283 s с падениями 2/3).
-2. Long pole найден и он один: concurrent unit+integration **~136 s** (93 %
-   времени) против gates ~9 s и build ~0.8 s.
-3. Внутри unit-фазы плата — per-file `setup ~35 s` + `import ~130 s` на 266
-   файлов. Это harness tax, а не число тестов.
-4. План §5: увеличение `maxWorkers` и дальнейшее дробление сценариев
-   **не являются** acceptance. Нужен один harness-owner на под-slice.
+1. Бюджет **не достигнут**: p50 **140.00 s** против цели ≤120 s. PASS 3/3
+   (139.64 / 140.00 / 141.02), разброс 1.4 s.
+2. Плоский per-file налог снят: `env + setup` 94.0 → 65.0 s (−29.0 s суммарно,
+   −13.7 s wall на unit-проекте при идентичных 1202 тестах).
+3. Оставшийся long pole — **collect 89.8 s** на 200 jsdom-файлах. Это цена
+   импорта `antd` на файл, а не размера графа: `AdminLayout.test.tsx` при 24
+   первых-сторонних файлах платит 1.4 s.
+4. Рычаг найден и измерен: `deps.optimizer` даёт **−78 % collect**, но ломает
+   рендер antd (дублирование инстансов). Слайс = устранить дублирование, а не
+   включить опцию. Гипотеза про `antd/es/*` уже опровергнута — все 14 таких
+   импортов `import type`.
+5. План §5: рост `maxWorkers` и дробление сценариев **не являются** acceptance.
 
-Evidence: [af100-06-08-execution](../audit/2026-07-26-af100-06-08-execution/snapshot.md).
+Evidence: [af100-09a-node-environment](../audit/2026-07-26-af100-09a-node-environment/snapshot.md).
 Корневые причины и приёмка по slice:
 [prompts/af100-execution-plan.md](./prompts/af100-execution-plan.md).
 
@@ -74,7 +80,8 @@ Acceptance и hard gates программы:
 | 6 | **AF100-06** | **done** `42329ed` | qa | Два флейка (wall-cap + teardown import) устранены; stress 20/20; dual-safe 3/3 |
 | 7 | **AF100-07** | **done** `42329ed` | tooling | CI, AGENTS, стандарт и package.json называют `test:agent-dod:dual-safe`; guard на дрейф |
 | 8 | **AF100-08** | **done** `42329ed` | qa | Quiet-host n=3: 145.08/145.99/145.68 s; long pole — concurrent unit+integration (~136 s) |
-| 9 | **AF100-09+** | **pending → NEXT** | qa | Снизить per-file setup/import tax до p50 ≤120 s, PASS 3/3 |
+| 9a | **AF100-09a** | **done** `02dc019` | qa | 87 DOM-free файлов → `node`-окружение; env+setup −29.0 s, gates 10.13 → 7.32 s; 1202 теста без изменений; guard на env-ветвление в графе |
+| 9b | **AF100-09b** | **pending → NEXT** | qa | Снять collect tax (импорт `antd` на файл): p50 140.0 → ≤120 s, PASS 3/3 |
 | 10 | **AF100-10+** | **pending** | feature | Stateful/interactive >350 LOC classified; extracts только по одному owner |
 | 11 | **AF100-11+** | **pending** | ui | Direct Ant inventory classified; feature debt shrink-only |
 | 12 | **AF100-12** | **pending** | tooling | Production path детерминированно возвращает ближайшие tests/harness |
@@ -92,7 +99,8 @@ profile: один owner и один измеримый результат на �
 AF100-06 (flake dual-safe)
     → AF100-08 (quiet-host profile n≥3)
         → AF100-07 (одна каноническая DoD-команда)
-            → AF100-09+ (harness / p50 ≤120 s)
+            → AF100-09a (плоский env/setup tax)  ✔ 02dc019
+                → AF100-09b (collect tax / p50 ≤120 s)
 ```
 
 Каждая стрелка — **hard block**, не «желательно»:
@@ -105,7 +113,9 @@ AF100-06 (flake dual-safe)
 | **06 → 13** | Пройдено: full proof стабилен 3/3, 13 разблокирован. |
 | **\* → 16** | Независимый audit 10.0 только когда все остальные `done`. 16 **blocked by all**. |
 
-**Цепочка пройдена** в `42329ed`: 06 → 08 → 07 закрыты, 09+ открыт.
+**Цепочка пройдена** в `42329ed`: 06 → 08 → 07 закрыты. В `02dc019` закрыт
+**09a** — первый под-slice серии 09+; бюджет p50 ≤120 s ещё не достигнут
+(140.0 s), поэтому серия продолжается слайсом **09b**.
 Остаются независимые 10+, 11+, 12, 15 и заблокированные 13 (browser) и 16.
 
 **Правило dual-safe-close остаётся:** пункт становится `done` только если

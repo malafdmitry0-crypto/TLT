@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * AF100-04 / AF100-05 — agent entrypoint contracts.
  *

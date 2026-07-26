@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * AF100-03 — the CSS gate must be fail-closed.
  *

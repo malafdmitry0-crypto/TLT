@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * AF9-LAYOUT-01/02 / P1-GUARDRAIL-TRUTH-01: coordinate-based layout ratchet.
  *

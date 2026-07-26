@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * IMP0: per-file !important ratchet.
  *

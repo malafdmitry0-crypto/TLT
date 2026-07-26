@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * Shrink-only ratchet: production files that import `antd` directly.
  * Prefer `@/components/ui-kit` / form-controls façades for new UI.

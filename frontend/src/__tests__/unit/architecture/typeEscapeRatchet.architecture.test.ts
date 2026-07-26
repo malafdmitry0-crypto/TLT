@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * AF9-TYPE-GATE-01: type-escape debt ratchet.
  *

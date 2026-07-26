@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 
 import { formatSpecTimestamp } from '@/pages/specification/specFormatModel';

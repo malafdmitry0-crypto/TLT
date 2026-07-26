@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * AF100-07 — exactly one name for the full DoD.
  *

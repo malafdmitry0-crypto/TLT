@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import {
   ELEC_CALC_CABLE_TYPE_CONTROL_LABEL,

@@ -1,3 +1,4 @@
+// @vitest-environment node
 /* eslint-disable security/detect-non-literal-fs-filename */
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';

@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * Architecture gate: feature namespaces stay isolated for agent-safe edits.
  * Failures include FIX lines for AI agents.

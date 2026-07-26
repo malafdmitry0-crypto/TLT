@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import {
   ELECTRICAL_TABLE_COLUMN_MAX_WIDTH_PCT,

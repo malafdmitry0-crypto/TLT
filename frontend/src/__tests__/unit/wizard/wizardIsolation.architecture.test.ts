@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * Architecture gate: wizard dual-form islands must stay isolated.
  * Failures throw WizardIsolationError with FIX instructions for AI/agents.

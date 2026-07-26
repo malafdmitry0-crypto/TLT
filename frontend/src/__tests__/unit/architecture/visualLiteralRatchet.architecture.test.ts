@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * AF10-VISUAL-LITERAL-GATE-01: forbid growth of raw #hex/rgb/hsl color
  * literals in production TS/TSX outside approved owner files.

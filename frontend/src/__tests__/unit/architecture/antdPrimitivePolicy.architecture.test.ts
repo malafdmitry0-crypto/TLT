@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * AF9-UI-01 / P1-GUARDRAIL-TRUTH-01: direct Ant primitives with Tlt equivalents
  * are blocked in feature UI (bidirectional baseline).

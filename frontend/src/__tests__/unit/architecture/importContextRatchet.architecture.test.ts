@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * AF9-CONTEXT-GATE-01: import-context ratchet.
  *

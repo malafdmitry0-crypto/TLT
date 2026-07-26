@@ -1,3 +1,4 @@
+// @vitest-environment node
 import type { GridSelection } from '@glideapps/glide-data-grid';
 import { describe, expect, it, vi } from 'vitest';
 

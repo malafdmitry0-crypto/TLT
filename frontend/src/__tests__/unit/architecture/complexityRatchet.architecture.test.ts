@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * G2: production TS/TSX complexity ratchet (truthful shrink-only).
  *

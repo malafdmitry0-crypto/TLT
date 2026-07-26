@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * AF9-INLINE-01/02 / P1-GUARDRAIL-TRUTH-01: JSX style/styles ratchet gate.
  * Helpers live in inlineStyleRatchet.helpers.ts (keep gate cohesive).

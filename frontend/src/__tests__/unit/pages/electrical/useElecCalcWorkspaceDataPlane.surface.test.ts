@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * Characterization: data-plane surface keys used by workspace orchestration.
  * Does not mount React Query — documents the stable return contract only.

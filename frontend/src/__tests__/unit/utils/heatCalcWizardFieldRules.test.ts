@@ -1,3 +1,4 @@
+// @vitest-environment node
 import type { FormInstance } from 'antd';
 import { describe, expect, it } from 'vitest';
 import { heatCalcFormFieldRules } from '@/utils/heatCalcWizardFieldRules';

@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * AF100-14 — repo root stays a working entrypoint, not an artifact dump.
  *

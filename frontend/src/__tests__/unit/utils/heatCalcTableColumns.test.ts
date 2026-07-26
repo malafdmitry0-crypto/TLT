@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import {
   HEATCALC_ALL_OBJECT_COLUMN_KEYS,

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import {
   CABLE_SIZING_CANDIDATE_TABLE_MIN_SCROLL_X,

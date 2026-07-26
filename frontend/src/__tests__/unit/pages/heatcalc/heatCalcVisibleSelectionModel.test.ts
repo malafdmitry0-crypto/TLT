@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { filterVisibleRowsBySelectedKeys } from '@/pages/heatcalc/heatCalcVisibleSelectionModel';
 

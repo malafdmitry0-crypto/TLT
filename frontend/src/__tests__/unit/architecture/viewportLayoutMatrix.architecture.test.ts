@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * AF9-VIEWPORT-01: global layout regression matrix.
  *

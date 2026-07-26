@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * AF100-02 — every command `agent:scope` emits must be runnable as printed.
  *
