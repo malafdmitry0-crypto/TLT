@@ -75,7 +75,6 @@ Frontend считается понятным для агента, если по 
 | Fast gate | **9,2 / 10** |
 | Full DoD | **6,8 / 10** |
 | Full DoD range | **224–241 с** |
-| Full DoD variability | **17 с · 7,3% от midpoint** |
 | Acceptance throughput | **5,5–5,9 tests/s по total wall** |
 | Цель `≤120 с` | **не достигнута · фактически 1,87–2,01× медленнее** |
 
@@ -121,82 +120,65 @@ Frontend считается понятным для агента, если по 
 
 ### 1.2 Production agentic-development scorecard
 
-Неизмеренные показатели обозначаются `NOT MEASURED`, а не получают
-предполагаемое зелёное значение.
+В scorecard входят только показатели, которые можно получить статически или
+одним каноническим запуском. Один результат всегда привязывается к source
+commit и не называется percentile, median, flake rate или исторической
+надёжностью. Если текущий commit не проверен, ставится `NOT RECHECKED`.
 
 | Сводная метрика | Текущее значение | Цель |
 |---|---:|---:|
 | Здоровье frontend-кода | **8,7 / 10** | **≥9,0 / 10** |
 | Полнота системы agent-production метрик | **7,8 / 10** | **≥9,0 / 10** |
 
-#### Стабильность и скорость во времени
+#### Однопроходная стабильность и скорость
 
-| Метрика | Окно / формула | Текущее значение | Рабочая цель |
+| Метрика | Один источник | Текущее значение | Рабочая цель |
 |---|---|---:|---:|
-| Fast gates p50 | последние 30 запусков | **NOT MEASURED**; отдельные запуски около **8–10 с** | **≤10 с** |
-| Fast gates p95 | последние 30 запусков | **NOT MEASURED** | **≤15 с** |
-| Focused proof p50 | последние 30 slices | **NOT MEASURED** | **≤30 с** |
-| Focused proof p95 | последние 30 slices | **NOT MEASURED** | **≤60 с** |
-| Full DoD p50 | последние 30 запусков | **232,5 с при n=2** | сначала **≤240 с**, затем **≤120 с** |
-| Full DoD p95 | последние 30 запусков | **NOT MEASURED** | сначала **≤300 с**, затем снижать |
-| DoD variability | `(max − min) / midpoint` | **7,3% при n=2** | **≤10%** |
-| Flake rate | flaky test outcomes / все test outcomes, минимум 30 DoD | **0 при n=2; статистически недостаточно** | **≤0,5%** |
-| Time to first useful signal p50 | старт задачи → первый focused/gate result | **NOT MEASURED** | **≤30 с** |
-| Time to first useful signal p95 | старт задачи → первый focused/gate result | **NOT MEASURED** | **≤60 с** |
+| Последний fast gate | один `npm run test:agent-gates` | baseline **≈8–10 с**; current HEAD `NOT RECHECKED` | **PASS**, wall **≤15 с** |
+| Последний canonical DoD | один `npm run test:agent-dod` | последний baseline **PASS · 224 с**; current HEAD `NOT RECHECKED` | **PASS**, wall публикуется честно; ориентир **≤120 с** |
 
 #### Эффективность coding agents
 
-| Метрика | Формула | Текущее значение | Цель |
+| Метрика | Однопроходная проверка | Текущее значение | Цель |
 |---|---|---:|---:|
-| First-pass DoD success | slices с PASS на первом полном DoD / завершённые slices | **NOT MEASURED** | **≥80%** |
-| Median attempts to PASS | медиана содержательных попыток до полного PASS | **NOT MEASURED** | **≤2** |
-| Scope violation rate | slices с изменением вне allowed scope / все slices | **NOT MEASURED** | **0%** |
-| Slice commit isolation | slices с отдельным commit / завершённые slices | **NOT MEASURED** | **100%** |
-| Dirty-WIP collision rate | slices, остановленные из-за пересечения target files / все slices | **NOT MEASURED** | измерять и снижать |
-| Human-review correction rate | slices с обязательной правкой после review / reviewed slices | **NOT MEASURED** | baseline на 30 slices, затем снижать |
-| Median agent wall time | старт slice → проверенный commit | **NOT MEASURED** | baseline по типам slice |
-| Aborted/blocked slice rate | blocked slices / все запуски | **NOT MEASURED** | измерять отдельно от failure |
-| Commit completeness | commits с proof/hash/files/status в отчёте / commits slice | **NOT MEASURED** | **100%** |
+| Agent scope routing | один `agent-scope --self-test` + `--coverage` | **10/10 PASS; unowned production files 0** | unowned/ambiguous **0/0** |
+| Scope текущего slice | allowed files против `git diff --name-only` | docs target изолирован; внешний WIP вне scope | **PASS** |
+| Изоляция последнего slice commit | `git show --name-only <hash>` | `cc09595`: отдельный docs commit, **1 файл** | **PASS** |
+| Полнота отчёта текущего slice | hash + staged files + финальный status | проверяется один раз при закрытии slice | **PASS** |
 
 #### Delivery и production reliability
 
-| Метрика | Формула / источник | Текущее значение | Цель |
+| Метрика | Один acceptance source | Текущее значение | Цель |
 |---|---|---:|---:|
-| Change failure rate | релизы с incident/rollback/hotfix / все релизы | **NOT MEASURED** | **<5%** |
-| Rollback/revert rate | reverted frontend releases / все frontend releases | **NOT MEASURED** | baseline и снижение |
-| Median recovery time | incident start → восстановление frontend | **NOT MEASURED** | определить после baseline |
-| Critical escaped defects | Sev-1/Sev-2 frontend defects после релиза | **NOT MEASURED** | **0** |
-| Total escaped defects | подтверждённые frontend defects после релиза | **NOT MEASURED** | baseline и снижение |
-| Runtime error rate | sessions с unhandled frontend error / все sessions | **NOT MEASURED** | установить SLO после telemetry baseline |
-| Critical API failure rate | failed critical frontend requests / все critical requests | **NOT MEASURED** | установить SLO; acceptance path **0** |
-| Critical journey post-release pass | успешные smoke journeys / обязательные journeys | **NOT MEASURED** | **100%** |
-| Browser console issue rate | journeys с console error/warning / проверенные journeys | baseline: **FAIL, 2 Ant warnings** | **0%** |
-| Performance-budget regressions | релизы, нарушившие утверждённый bundle/runtime budget | **NOT MEASURED** | **0** |
-| Accessibility critical regressions | новые critical/serious violations | **NOT MEASURED** | **0** |
+| Текущий release smoke | один обязательный smoke-набор | current HEAD `NOT RECHECKED` | **PASS · 100% journeys** |
+| Browser console issues | один обязательный browser acceptance | последний proof **PASS · 0**; current HEAD `NOT RECHECKED` | **0** |
+| Failed acceptance network requests | тот же browser acceptance | baseline **0**; current HEAD `NOT RECHECKED` | **0** |
+| Текущий performance gate | один утверждённый performance-budget gate | `NOT RUN` | **PASS · 0 violations** |
+| Текущий accessibility gate | один accessibility audit | `NOT RUN` | **PASS · 0 critical/serious** |
 
 #### Evidence и воспроизводимость
 
-| Метрика | Формула | Текущее значение | Цель |
+| Метрика | Статическая или однопроходная проверка | Текущее значение | Цель |
 |---|---|---:|---:|
 | Stale current evidence | current manifests с несовпадающим source/build identity | **≥1 известный baseline case** | **0** |
 | Evidence completeness | manifests с commit/UTC/URL/viewport/state/console/network / current manifests | **NOT MEASURED** | **100%** |
-| Reproducible clean-tree proof | proofs, повторённые на clean commit / current proofs | **NOT MEASURED** | **100%** |
+| Reproducible clean-tree proof | один current proof привязан к clean source commit | `NOT RECHECKED` | **PASS** |
 | Browser viewport coverage | пройденные обязательные profiles / обязательные profiles | **4 / 4 · 100%** | **100%** |
 | Failed network requests in acceptance | failed requests в обязательных browser journeys | **0** | **0** |
-| Console-clean acceptance | journeys без errors/warnings / обязательные journeys | **не достигнуто** | **100%** |
-| Lockfile/toolchain reproducibility | slices с фиксированными lockfile и Node/tool versions | **частично подтверждено** | **100%** |
+| Console-clean acceptance | issues в обязательных browser journeys | **PASS · 0** | **0** |
+| Current toolchain pinned | lockfile + Node/npm contract доступны агенту | **частично подтверждено** | **PASS** |
 | Metric snapshot freshness | snapshots, построенные на текущем source commit / current snapshots | **NOT MEASURED** | **100%** |
 
-#### Окна сбора
+#### Правило сбора
 
-| Категория | Минимальное окно |
-|---|---:|
-| Gate/DoD p50, p95 и flake rate | **30 запусков** |
-| Agent effectiveness | **30 завершённых slices** |
-| Review correction rate | **30 reviewed slices** |
-| Delivery/change failure | **30 релизов или rolling 90 days** |
-| Runtime/API errors | **rolling 7 и 30 days** |
-| Browser/evidence freshness | **каждый UI slice и каждый release candidate** |
+- Одна динамическая метрика — не более одного канонического запуска на clean
+  source commit.
+- Повторные запуски для percentile, median, variability, flake или rolling rate
+  не являются частью scorecard.
+- Отсутствие proof на текущем commit обозначается `NOT RECHECKED`, а не
+  предполагаемым `PASS`.
+- Browser/evidence проверяются один раз для изменённого UI slice или release
+  candidate.
 
 ### 1.3 Свойства приоритизации
 
@@ -249,20 +231,15 @@ Frontend считается понятным для агента, если по 
 |---|---|---|---|---|---|
 | Console-clean acceptance | **PASS: `warn_err=0`** на `/`, `/workspace`, `/workspace/heat-calc`, `/ui-kit` | `U3 WATCH` | `K1 HIGH` | `I0 CONTROL` | сохранять **0** |
 | Stale current evidence | **≥1 известный stale case** | `U0 NOW` | `K1 HIGH` | `I2 MEDIUM` | **0** |
-| Slice commit isolation | `NOT MEASURED` | `U0 NOW` | `K1 HIGH` | `I2 MEDIUM` | **100%** |
-| Scope violation rate | `NOT MEASURED` | `U0 NOW` | `K1 HIGH` | `I2 MEDIUM` | **0%** |
-| Full DoD p50/p95 | baseline p50 **232,5 с при n=2**; current HEAD `NOT RECHECKED` | `U1 NEXT` | `K1 HIGH` | `I3 LARGE` | p50 **≤120 с**, p95 **≤180 с** |
-| Flake rate | baseline **0 при n=2**; статистически недостаточно | `U1 NEXT` | `K1 HIGH` | `I3 LARGE` | 30 запусков, **≤0,5%** |
-| First-pass DoD success | `NOT MEASURED` | `U1 NEXT` | `K2 MEDIUM` | `I3 LARGE` | **≥80%** |
-| Time to first useful signal | отдельные fast gates **8–10 с**; p95 `NOT MEASURED` | `U1 NEXT` | `K2 MEDIUM` | `I2 MEDIUM` | p95 **≤60 с** |
+| Изоляция последнего slice commit | `cc09595`: **PASS, 1 файл** | `U3 WATCH` | `K1 HIGH` | `I0 CONTROL` | сохранять **PASS** |
+| Scope текущего slice | docs target изолирован от внешнего WIP | `U3 WATCH` | `K1 HIGH` | `I0 CONTROL` | **PASS** |
+| Последний canonical DoD | baseline **PASS · 224 с**; current HEAD `NOT RECHECKED` | `U1 NEXT` | `K1 HIGH` | `I2 MEDIUM` | **PASS**, один честный wall; ориентир **≤120 с** |
 | Agent scope routing | **10/10 fixtures PASS; unowned production files 0** | `U3 WATCH` | `K2 MEDIUM` | `I0 CONTROL` | сохранять unowned/ambiguous **0/0** |
-| Change failure + runtime telemetry | `NOT MEASURED` | `U1 NEXT` | `K1 HIGH` | `I3 LARGE` | CFR **<5%**, critical runtime SLO измеряется |
-| Critical post-release journeys | `NOT MEASURED` | `U1 NEXT` | `K0 BLOCKER` | `I3 LARGE` | smoke pass **100%** |
+| Текущий release smoke | current HEAD `NOT RECHECKED` | `U1 NEXT` | `K0 BLOCKER` | `I2 MEDIUM` | один smoke **PASS · 100% journeys** |
 | Production 400-LOC band | **0**; 459 production files, max **397 LOC** | `U3 WATCH` | `K2 MEDIUM` | `I0 CONTROL` | сохранять **0** |
 | Test-related files ≥500 LOC | **2 из 372**; max helper **706 LOC** | `U2 PLANNED` | `K2 MEDIUM` | `I2 MEDIUM` | **0** |
-| Human-review correction rate | `NOT MEASURED` | `U2 PLANNED` | `K2 MEDIUM` | `I2 MEDIUM` | baseline на 30 slices, затем снижение |
-| Performance-budget regressions | `NOT MEASURED` | `U2 PLANNED` | `K1 HIGH` | `I2 MEDIUM` | **0** |
-| Accessibility critical regressions | `NOT MEASURED` | `U2 PLANNED` | `K1 HIGH` | `I2 MEDIUM` | **0** |
+| Текущий performance gate | `NOT RUN` | `U2 PLANNED` | `K1 HIGH` | `I2 MEDIUM` | один gate **PASS · 0 violations** |
+| Текущий accessibility gate | `NOT RUN` | `U2 PLANNED` | `K1 HIGH` | `I2 MEDIUM` | один audit **PASS · 0 critical/serious** |
 | Architecture/type/CSS escape gates | последний proof **PASS**; current HEAD `NOT RECHECKED` | `U3 WATCH` | `K1 HIGH` | `I0 CONTROL` | сохранять **0 violations** |
 | Browser viewport coverage | baseline **4/4**; current HEAD `NOT RECHECKED` | `U3 WATCH` | `K1 HIGH` | `I0 CONTROL` | **4/4 · 100%** |
 | Failed acceptance network requests | baseline **0**; current HEAD `NOT RECHECKED` | `U3 WATCH` | `K1 HIGH` | `I0 CONTROL` | **0** |
