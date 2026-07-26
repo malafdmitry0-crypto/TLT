@@ -8,7 +8,7 @@
 [agent-friendly-10-plan.md](./agent-friendly-10-plan.md).
 **Inventory at open:** **22** files in **400–445** LOC (production) — all
 extracted under Track A.  
-**Last closed:** AF100-09a node-окружение для DOM-free unit-тестов @ `02dc019`
+**Last closed:** AF100-09a node-окружение для DOM-free unit-тестов @ `aa9c3fa`
 ([snapshot](../audit/2026-07-26-af100-09a-node-environment/snapshot.md))  
 **Prior:** AF100-06/-07/-08 deterministic full proof @ `42329ed`
 ([snapshot](../audit/2026-07-26-af100-06-08-execution/snapshot.md))  
@@ -26,7 +26,7 @@ extracted under Track A.
 | **Не NEXT** | Цепочка 06 → 08 → 07 пройдена; остальные pending не подменяют 09+ |
 | Разблокировано | 09a закрыт: плоский env/setup tax снят, замер long pole пересчитан |
 
-**Почему NEXT = AF100-09b** (измерено на `02dc019`, после 09a):
+**Почему NEXT = AF100-09b** (измерено на `aa9c3fa`, после 09a):
 
 1. Бюджет **не достигнут**: p50 **140.00 s** против цели ≤120 s. PASS 3/3
    (139.64 / 140.00 / 141.02), разброс 1.4 s.
@@ -80,7 +80,7 @@ Acceptance и hard gates программы:
 | 6 | **AF100-06** | **done** `42329ed` | qa | Два флейка (wall-cap + teardown import) устранены; stress 20/20; dual-safe 3/3 |
 | 7 | **AF100-07** | **done** `42329ed` | tooling | CI, AGENTS, стандарт и package.json называют `test:agent-dod:dual-safe`; guard на дрейф |
 | 8 | **AF100-08** | **done** `42329ed` | qa | Quiet-host n=3: 145.08/145.99/145.68 s; long pole — concurrent unit+integration (~136 s) |
-| 9a | **AF100-09a** | **done** `02dc019` | qa | 87 DOM-free файлов → `node`-окружение; env+setup −29.0 s, gates 10.13 → 7.32 s; 1202 теста без изменений; guard на env-ветвление в графе |
+| 9a | **AF100-09a** | **done** `aa9c3fa` | qa | 87 DOM-free файлов → `node`-окружение; env+setup −29.0 s, gates 10.13 → 7.32 s; 1202 теста без изменений; guard на env-ветвление в графе |
 | 9b | **AF100-09b** | **pending → NEXT** | qa | Снять collect tax (импорт `antd` на файл): p50 140.0 → ≤120 s, PASS 3/3 |
 | 10 | **AF100-10+** | **pending** | feature | Stateful/interactive >350 LOC classified; extracts только по одному owner |
 | 11 | **AF100-11+** | **pending** | ui | Direct Ant inventory classified; feature debt shrink-only |
@@ -99,7 +99,7 @@ profile: один owner и один измеримый результат на �
 AF100-06 (flake dual-safe)
     → AF100-08 (quiet-host profile n≥3)
         → AF100-07 (одна каноническая DoD-команда)
-            → AF100-09a (плоский env/setup tax)  ✔ 02dc019
+            → AF100-09a (плоский env/setup tax)  ✔ aa9c3fa
                 → AF100-09b (collect tax / p50 ≤120 s)
 ```
 
@@ -113,7 +113,7 @@ AF100-06 (flake dual-safe)
 | **06 → 13** | Пройдено: full proof стабилен 3/3, 13 разблокирован. |
 | **\* → 16** | Независимый audit 10.0 только когда все остальные `done`. 16 **blocked by all**. |
 
-**Цепочка пройдена** в `42329ed`: 06 → 08 → 07 закрыты. В `02dc019` закрыт
+**Цепочка пройдена** в `42329ed`: 06 → 08 → 07 закрыты. В `aa9c3fa` закрыт
 **09a** — первый под-slice серии 09+; бюджет p50 ≤120 s ещё не достигнут
 (140.0 s), поэтому серия продолжается слайсом **09b**.
 Остаются независимые 10+, 11+, 12, 15 и заблокированные 13 (browser) и 16.
