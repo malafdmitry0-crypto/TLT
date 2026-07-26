@@ -463,6 +463,7 @@ const RULES = [
     test: (p) =>
       p === 'package.json'
       || p === 'package-lock.json'
+      || p === 'eslint.config.js'
       || p === 'vite.config.ts'
       || p.startsWith('tsconfig')
       || p.startsWith(`scripts${sep}`),
@@ -801,6 +802,7 @@ function selfTest() {
     ['frontend/src/styles/tokens.css', 'css'],
     ['frontend/src/__tests__/unit/architecture/featureBoundaries.architecture.test.ts', 'qa'],
     ['frontend/src/feedback/appFeedback.ts', 'shared'],
+    ['frontend/eslint.config.js', 'tooling'],
     ['frontend/vite.config.ts', 'tooling'],
   ];
   let failed = 0;

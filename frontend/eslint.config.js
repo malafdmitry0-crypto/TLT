@@ -87,6 +87,7 @@ export default [
     ignores: [
       'dist/**',
       'node_modules/**',
+      '.vite/**',
       'coverage/**',
       'eslint.config.js',
       'scripts/**',
