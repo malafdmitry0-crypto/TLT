@@ -25,6 +25,7 @@ node_modules/
 dist/
 build/
 .vite/
+.agent-proof/
 coverage/
 .nyc_output/
 *.tsbuildinfo

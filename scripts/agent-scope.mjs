@@ -6,6 +6,7 @@
  *   node scripts/agent-scope.mjs <repo-relative-or-frontend-path>
  *   npm run agent:scope -- src/pages/heatcalc/HeatCalcPage.tsx
  *   npm run agent:scope -- --json frontend/src/components/ui-kit/TltButton.tsx
+ *   npm run agent:scope -- --changed [--json] [--base <git-ref>]
  *
  * Exit: 0 on resolved owner; 1 on unknown / ambiguous / missing path.
  */
@@ -19,7 +20,8 @@ const FRONTEND = join(ROOT, 'frontend');
 const SRC = join(FRONTEND, 'src');
 
 const asJson = process.argv.includes('--json');
-const args = process.argv.slice(2).filter((a) => a !== '--json');
+const allowMissing = process.argv.includes('--allow-missing');
+const args = process.argv.slice(2).filter((a) => a !== '--json' && a !== '--allow-missing');
 const input = args[0];
 
 /** Viewport profiles from docs/frontend/viewport-policy.md (product contract). */
@@ -407,7 +409,7 @@ const RULES = [
       p === `__tests__${sep}setup.ts`
       || (
         p.startsWith(`__tests__${sep}`)
-        && /(?:testEnv|test-utils|test-mocks|Harness)\.[^.]+$/.test(p)
+        && /(?:testEnv|test-utils|test-mocks|Harness)\.[^.]+$/i.test(p)
       ),
     owner: 'qa',
     zone: 'shared-test-harness',
@@ -531,6 +533,11 @@ function resolveInputPath(raw) {
     if (existsSync(fromRoot)) candidate = fromRoot;
     else if (existsSync(fromFrontend)) candidate = fromFrontend;
     else if (existsSync(fromSrc)) candidate = fromSrc;
+    else if (allowMissing) {
+      candidate = raw.startsWith(`frontend${sep}`) || raw.startsWith('frontend/')
+        ? fromRoot
+        : fromFrontend;
+    }
     else fail(`path not found: ${raw}`);
   }
   const abs = resolve(candidate);
@@ -891,6 +898,21 @@ function selfTest() {
 }
 
 function main() {
+  if (args[0] === '--changed') {
+    const forwarded = [
+      join(ROOT, 'scripts/agent-proof.mjs'),
+      'plan',
+      '--changed',
+      ...(asJson ? ['--json'] : []),
+      ...args.slice(1),
+    ];
+    const result = spawnSync(process.execPath, forwarded, {
+      cwd: ROOT,
+      env: process.env,
+      stdio: 'inherit',
+    });
+    process.exit(result.status ?? 1);
+  }
   if (args[0] === '--self-test') {
     selfTest();
     return;

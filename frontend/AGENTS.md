@@ -38,6 +38,8 @@
 - Toast/confirm: только `appMessage` / `appModal` из `@/feedback/appFeedback`
   (не static `message` / `Modal.confirm` из `antd` — иначе console seal ломается).
 - Маршрут файла → owner/gates/proof: `npm run agent:scope -- <path>`.
+- Совокупный diff → minimum proof:
+  `npm run agent:scope -- --changed --json`.
 - Видимое UI-изменение без browser proof не завершено.
 
 ## Приоритет proof-контракта
@@ -51,11 +53,12 @@
 
 1. **Inner loop:** только точные focused tests / `vitest related --run` для
    статических импортов; не запускай полный контур после каждой правки.
-2. **Перед завершением:** агент сам выбирает минимально достаточные проверки по
-   затронутому поведению и риску. `agent:scope` даёт рекомендации, а не повод
-   автоматически расширять прогон:
-   - `scoped` — точные focused/related tests;
+2. **Перед завершением:** агент сам выбирает проверки, но не ниже
+   diff-wide minimum из `agent:scope -- --changed`:
+   - `local` — точные focused/related tests;
    - `owner` — focused owner pack и при необходимости fast gates.
+   - `cross-owner` — дедуплицированный proof владельцев и consumers.
+   Дополнительные проверки агент выбирает по риску.
 3. **Merge/release:** полный DoD остаётся обязанностью CI. Локально агент его
    не дублирует без явного запроса пользователя.
 
@@ -70,10 +73,14 @@ cd frontend
 # 0) Path → owner / proof (run first on the file you touch)
 npm run agent:scope -- <path>
 
-# 1) Fast gate: typecheck + lint (--max-warnings 0 + Arch:* rules) + architecture/CSS ratchets (~10–15 s)
-npm run test:agent-gates
+# 1) Whole diff → required/optional proof
+npm run agent:scope -- --changed --json
 
-# 2) Full DoD — только по явному запросу пользователя
+# 2) Run required proof through argv-safe wrapper; receipt is content-bound
+npm run agent:proof-run -- --changed
+npm run agent:proof-check -- --changed
+
+# 3) Full DoD — только по явному запросу пользователя
 npm run test:agent-dod:dual-safe
 ```
 
@@ -94,17 +101,19 @@ E2E_BASE_URL=http://127.0.0.1:3003 npm run <script из e2e/package.json>
 |---|---|
 | Явный proof-контракт разработчика | ровно заданные проверки; остальное `NOT RUN` |
 | Docs-only, audit, comments | nothing / optional gates |
-| `proof_level: scoped` | выбранные агентом focused/related tests |
+| `proof_level: local` | рассчитанные focused/related tests |
 | `proof_level: owner` | выбранный агентом owner pack; gates по риску |
 | Shared test harness/config/deps/CI | расширенный owner proof по риску, но не полный DoD |
 | Явный запрос полного прогона | `test:agent-dod:dual-safe` |
 | Browser-visible layout/CSS | focused + browser profiles from viewport policy |
 
-**Default agent loop:** `agent:scope` → агент выбирает релевантное подмножество
-`recommended_commands` / `focused_proof.argv` (exact paths — never invent
-globs) → добавляет gates/browser proof только по риску. Не запускай dual-safe
-DoD из эвристики, `proof_level` или merge/release boundary: для локального
-полного прогона нужен явный запрос пользователя.
+**Default agent loop:** per-file `agent:scope` для навигации →
+`agent:scope -- --changed` для обязательного минимума → `agent:proof-run` /
+`agent:proof-check` для content-bound receipt → дополнительные проверки по
+риску. Required proof нельзя уменьшить без явного пользовательского контракта;
+в этом случае пропуски остаются `NOT RUN`. Не запускай dual-safe DoD из
+эвристики, `proof_level` или merge/release boundary: для локального полного
+прогона нужен явный запрос пользователя.
 Coverage gate: `node scripts/agent-scope.mjs --coverage` must report
 unowned=0 **and** multi-owner=0.
 

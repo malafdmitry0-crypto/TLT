@@ -242,18 +242,19 @@ default ниже. Если в задаче перечислены точные �
 Пропущенная проверка получает статус `NOT RUN`; отсутствие запуска не является
 green.
 
-Если proof-контракт не задан, агент сам выбирает минимально достаточный proof
-по затронутому поведению и риску. `agent:scope` даёт рекомендации, но не
-заменяет это решение.
+Если proof-контракт не задан, `agent:scope -- --changed` рассчитывает
+обязательный risk-based minimum для совокупного diff. Агент может расширить
+его по затронутому поведению и риску, но не молча уменьшить.
 
 ### 7.4.2 Три контура
 
 1. **Inner loop** — после локальной правки запускаются только точные focused
    tests. `vitest related --run <source>` допустим для статических импортов;
    dynamic imports требуют явного registry в `agent:scope`.
-2. **Перед завершением** — агент выбирает релевантное подмножество focused
-   proof, owner pack, gates и browser proof. Чем шире blast radius, тем шире
-   выбранный proof, но это не включает полный DoD автоматически.
+2. **Перед завершением** — diff-wide planner определяет `local`, `owner` или
+   `cross-owner`, required proof и optional browser proof. Агент выполняет
+   required minimum через `agent:proof-run`; чем шире blast radius, тем шире
+   consumer proof, но это не включает полный DoD автоматически.
 3. **Merge/release** — CI выполняет свою полную матрицу. Локальный агент не
    дублирует её без явного запроса пользователя.
 
@@ -266,11 +267,16 @@ Test setup/harness, Vite/Vitest/package/lockfile, общий API/auth/routing/st
 
 **Единая лестница proof** (совпадает с `frontend/AGENTS.md`):
 
-1. `npm run agent:scope -- <touched-path>` — owner, `focused_proof` /
-   `recommended_commands` и default `proof_level`.
-2. Агент выбирает из scope тесты, которые действительно покрывают изменение.
-3. **`npm run test:agent-gates`** добавляется по риску, а не автоматически.
-4. **Full DoD** запускается локально только по явному запросу пользователя:
+1. `npm run agent:scope -- <touched-path>` — навигация одного файла.
+2. `npm run agent:scope -- --changed --json` — совокупный diff, blast radius,
+   consumers, required/optional `cwd + argv` и content signature.
+   По умолчанию учитываются staged, unstaged, untracked, delete и rename;
+   `--base <git-ref>` добавляет committed diff относительно выбранной базы.
+3. `npm run agent:proof-run -- --changed` — исполнение required-команд без
+   shell interpolation и запись HMAC-signed receipt в `.agent-proof/`.
+4. `npm run agent:proof-check -- --changed` — fail-closed проверка signature,
+   команд, exit codes и полноты proof.
+5. **Full DoD** запускается локально только по явному запросу пользователя:
 
 ```bash
 cd frontend
@@ -291,7 +297,7 @@ concurrent unit+integration (~136 s), а не gates (~9 s) и не build (~0.8 s
 |---|---|
 | Явный developer proof | заданные команды; прочее `NOT RUN` |
 | Docs/audit only | — / optional gates |
-| `scoped` | выбранные агентом focused/related tests |
+| `local` | рассчитанные focused/related tests |
 | `owner` | выбранный агентом owner pack; gates по риску |
 | shared harness/config/deps/CI | расширенный owner proof, без автоматического full DoD |
 | явный запрос полного прогона | **dual-safe DoD** |
@@ -302,6 +308,10 @@ concurrent unit+integration (~136 s), а не gates (~9 s) и не build (~0.8 s
 Зелёный proof можно переиспользовать только при совпадении content signature:
 changed files + lockfile + test config/setup + команда. Время запуска или один
 commit hash сами по себе не являются достаточным ключом кэша.
+
+Receipt является локальным tamper-evident доказательством, а не security
+boundary против процесса с полным доступом к рабочей машине. Ручная замена
+`exit_code`/`PASS` без пересчёта HMAC отклоняется.
 
 Если пользователь запросил полный gate и он красный, статус `blocked`.
 Зафиксируй доказательство и не исправляй чужую проблему расширением scope.

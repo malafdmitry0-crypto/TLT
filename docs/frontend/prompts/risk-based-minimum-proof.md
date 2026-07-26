@@ -1,6 +1,6 @@
 # Промпт: risk-based minimum proof для совокупного diff
 
-**Статус:** executable implementation prompt (tooling / qa)  
+**Статус:** implemented contract + regression prompt (tooling / qa)
 **Актуально на:** 2026-07-27  
 **Pending authority:** только [refactor-backlog.md](../refactor-backlog.md)  
 **Policy source:** [frontend/AGENTS.md](../../../frontend/AGENTS.md) и
@@ -19,6 +19,10 @@
 
 Этот файл — implementation prompt, а не очередь и не новое место хранения
 динамических метрик.
+
+**Реализация:** `scripts/agent-proof-core.mjs`,
+`scripts/agent-proof.mjs`, `scripts/agent-scope.mjs --changed`; package scripts
+`agent:proof-plan`, `agent:proof-run`, `agent:proof-check`.
 
 ## Копируй в агент
 
@@ -153,7 +157,7 @@ IMPLEMENTATION
 
 Добавь команду:
 
-  npm run agent:proof-check -- --changed --receipt <receipt.json>
+  npm run agent:proof-check -- --changed --receipt .agent-proof/<receipt>.json
 
 Она должна:
 

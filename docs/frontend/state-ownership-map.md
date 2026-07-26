@@ -75,6 +75,7 @@ local workflow UI. For path-level routing use `npm run agent:scope -- <path>`.
 
 ## Agent checklist
 
-1. `npm run agent:scope -- <file>` → `state_owner` + `full_dod_required`.  
+1. `npm run agent:scope -- <file>` → `state_owner`; затем
+   `npm run agent:scope -- --changed --json` → diff-wide minimum proof.
 2. Change **one** layer per slice when possible (server *or* workflow).  
 3. Characterization first if mutating RQ keys / invalidation / form payload.
