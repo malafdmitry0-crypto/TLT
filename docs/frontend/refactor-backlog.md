@@ -8,7 +8,9 @@
 [agent-friendly-10-plan.md](./agent-friendly-10-plan.md).
 **Inventory at open:** **22** files in **400–445** LOC (production) — all
 extracted under Track A.  
-**Last closed:** AF100-02/-03/-04/-05/-14 Phase A + root hygiene @ `fd9ec39`
+**Last closed:** AF100-06/-07/-08 deterministic full proof @ `42329ed`
+([snapshot](../audit/2026-07-26-af100-06-08-execution/snapshot.md))  
+**Prior:** AF100-02/-03/-04/-05/-14 @ `fd9ec39`
 ([snapshot](../audit/2026-07-26-af100-phase-a-execution/snapshot.md))  
 **Prior:** AF100-01 `agent:scope` uniqueness @ `e7ed259`  
 **Prior track close:** P-TEST-08 @ `8560d79`
@@ -17,37 +19,25 @@ extracted under Track A.
 
 | Поле | Значение |
 |---|---|
-| **NEXT** | **AF100-06** — `ReportPage.export` deterministic |
+| **NEXT** | **AF100-09+** — снизить setup/import tax (p50 ≤120 s) |
 | Owner | `qa` |
-| **Не NEXT** | Phase A (02–05) и 14 закрыты в `fd9ec39`; остальные pending — не брать вместо 06 |
-| Занятость | На 2026-07-26T16:25Z `ReportPage.export.test.tsx` был под WIP другой сессии — стандарт §9 запрещает трогать чужой файл. Перед стартом: `git status --short` |
+| **Не NEXT** | Цепочка 06 → 08 → 07 пройдена; остальные pending не подменяют 09+ |
+| Разблокировано | 09+ открыт, потому что 08 дал профиль на quiet host n=3, а 07 зафиксировал одну команду |
 
-**Почему NEXT = AF100-06, а не AF100-02** (перемерено на `abb070a`):
+**Почему NEXT = AF100-09+** (измерено на `42329ed`):
 
-1. Стандарт §7.4 объявил `npm run test:agent-dod:dual-safe` предпочтительным
-   agent path полного proof.
-2. На чистом дереве dual-safe падает **2/2** из-за flake `ReportPage.export`.
-3. Стандарт **§9**: красный полный gate → статус **`blocked`**, даже если
-   focused-тесты зелёные. Следовательно **каждый** slice с
-   `full_dod_required: true` обязан вставать в `blocked`, пока dual-safe красный.
-4. AF100-02 (focused-команды) не чинит dual-safe: tooling-only, runtime flake
-   остаётся. Брать 02 «как next» — продолжать очередь на broken full proof.
+1. Full proof стабилен: dual-safe **3/3** — 145.08 / 145.99 / 145.68 s,
+   разброс < 1 s (было 149–283 s с падениями 2/3).
+2. Long pole найден и он один: concurrent unit+integration **~136 s** (93 %
+   времени) против gates ~9 s и build ~0.8 s.
+3. Внутри unit-фазы плата — per-file `setup ~35 s` + `import ~130 s` на 266
+   файлов. Это harness tax, а не число тестов.
+4. План §5: увеличение `maxWorkers` и дальнейшее дробление сценариев
+   **не являются** acceptance. Нужен один harness-owner на под-slice.
 
-**Жёсткий запрет, пока AF100-06 `pending`:**
-
-- **Нельзя** объявлять любой AF100-slice (и любой frontend slice с
-  `full_dod_required`) **`done` со ссылкой на dual-safe PASS**, если dual-safe
-  не зелёный на **этом** HEAD (n≥1 минимум; для AF100-06 acceptance — 3/3).
-- **Нельзя** писать «DoD зелёный» / «full proof OK» на основании sequential
-  `test:agent-dod` **как замены** dual-safe, пока 06 не закрыт: dual-safe —
-  предпочтительный path §7.4, и он красный.
-- Sequential `test:agent-dod` допустим только как **временный fallback**
-  исполнения (агент не блокируется навсегда), но **не** как acceptance
-  закрытия slice и **не** как proof, что dual-safe здоров.
-- Evidence flake / 2/2:
-  [af-independent-execution-audit](../audit/2026-07-26-af-independent-execution-audit/snapshot.md).
-- Корневые причины и приёмка по slice:
-  [prompts/af100-execution-plan.md](./prompts/af100-execution-plan.md).
+Evidence: [af100-06-08-execution](../audit/2026-07-26-af100-06-08-execution/snapshot.md).
+Корневые причины и приёмка по slice:
+[prompts/af100-execution-plan.md](./prompts/af100-execution-plan.md).
 
 Это **единственный** источник текущего `pending` для frontend. Одновременно
 может существовать только одна ACTIVE frontend-очередь. Initiative plans,
@@ -81,14 +71,14 @@ Acceptance и hard gates программы:
 | 3 | **AF100-03** | **done** `fd9ec39` | tooling | `css:architecture` → fail-closed gate: 4 файла / 12 тестов; удалённый ratchet → exit 1 с именем группы |
 | 4 | **AF100-04** | **done** `fd9ec39` | tooling | Битый PostToolUse hook удалён; root `AGENTS.md` маршрутизирует; guard на пути скриптов в hooks |
 | 5 | **AF100-05** | **done** `fd9ec39` | qa | `frontend/playwright.config.ts` удалён; `cd e2e && npx playwright test --list` → 125/34; guard на единственный config |
-| 6 | **AF100-06** | **pending → NEXT** | qa | `ReportPage.export` deterministic; focused stress ≥20/20; dual-safe PASS **3/3** |
-| 7 | **AF100-07** | **pending · blocked by 06, 08** | tooling | Одна каноническая full DoD команда в docs/scripts/CI |
-| 8 | **AF100-08** | **pending · blocked by 06** | qa | Clean quiet-host profile n≥3 определяет long pole |
-| 9 | **AF100-09+** | **pending · blocked by 08** (и 06) | qa | Harness slices: full DoD p50 ≤120 s, PASS 3/3 |
+| 6 | **AF100-06** | **done** `42329ed` | qa | Два флейка (wall-cap + teardown import) устранены; stress 20/20; dual-safe 3/3 |
+| 7 | **AF100-07** | **done** `42329ed` | tooling | CI, AGENTS, стандарт и package.json называют `test:agent-dod:dual-safe`; guard на дрейф |
+| 8 | **AF100-08** | **done** `42329ed` | qa | Quiet-host n=3: 145.08/145.99/145.68 s; long pole — concurrent unit+integration (~136 s) |
+| 9 | **AF100-09+** | **pending → NEXT** | qa | Снизить per-file setup/import tax до p50 ≤120 s, PASS 3/3 |
 | 10 | **AF100-10+** | **pending** | feature | Stateful/interactive >350 LOC classified; extracts только по одному owner |
 | 11 | **AF100-11+** | **pending** | ui | Direct Ant inventory classified; feature debt shrink-only |
 | 12 | **AF100-12** | **pending** | tooling | Production path детерминированно возвращает ближайшие tests/harness |
-| 13 | **AF100-13** | **pending · blocked by 06** | qa | Live U0 browser matrix green на 1000/1280/1440 |
+| 13 | **AF100-13** | **pending** | qa | Live U0 browser matrix green на 1000/1280/1440 |
 | 14 | **AF100-14** | **done** `fd9ec39` | tooling | Tracked в корне 84 → 14 (только конфигурация); `tmp/` untracked; guard с allowlist корневых файлов |
 | 15 | **AF100-15** | **pending** | docs | Backlog/AGENTS/standard/README/scorecard синхронизированы |
 | 16 | **AF100-16** | **pending · blocked by all others** | qa | Независимый clean-checkout audit: hard gates + 10.0 |
@@ -112,15 +102,16 @@ AF100-06 (flake dual-safe)
 | **06 → 08** | Профиль long pole / p50 на красном dual-safe или на «обходе» flake — невалидный baseline: фазы искажены ретраями, abort sibling, нестабильным export. 08 **blocked by 06**. |
 | **08 → 07** | Канонизировать orchestrator (dual-safe vs sequential) **до** quiet-host n≥3 — выбор вслепую; закрепить в CI/docs проигравшую или нестабильную команду. 07 **blocked by 06 и 08**. |
 | **07 → 09+** | Срезать harness/setup tax «до» единой команды и профиля — оптимизация без SoT-команды и без цифр long pole; план §2 запрещает speed-work до измерения. 09+ **blocked by 08** (и фактически 06). |
-| **06 → 13** | Live browser matrix на дереве с флейкующим full proof не является приёмкой U0. 13 **blocked by 06**. |
+| **06 → 13** | Пройдено: full proof стабилен 3/3, 13 разблокирован. |
 | **\* → 16** | Независимый audit 10.0 только когда все остальные `done`. 16 **blocked by all**. |
 
-**Параллельно (не NEXT, не блокируют 06):** AF100-02…05 — tooling/docs/discovery,
-не runtime; можно вести отдельными запусками, **не** подменяя NEXT.
+**Цепочка пройдена** в `42329ed`: 06 → 08 → 07 закрыты, 09+ открыт.
+Остаются независимые 10+, 11+, 12, 15 и заблокированные 13 (browser) и 16.
 
-**Пока 06 open — запрет dual-safe-close:** ни один пункт таблицы не становится
-`done` доказательством «dual-safe зелёный», если dual-safe на HEAD красный или
-не гонялся. См. жёсткий запрет в шапке.
+**Правило dual-safe-close остаётся:** пункт становится `done` только если
+`test:agent-dod:dual-safe` зелёный на **этом** HEAD. Sequential
+`test:agent-dod` — тот же orchestrator с другим worker-профилем, годен для
+отладки, но не для закрытия slice.
 
 ## Правила очереди
 
@@ -134,7 +125,9 @@ AF100-06 (flake dual-safe)
 - Не объявляй инициативу завершённой, пока в этом файле есть pending.
 - Extract: behavior-preserving; characterization first for stateful owners;
   after owner **≤399 LOC**; no multi-owner cascade in one slice.
-- **Не закрывай slice ссылкой на dual-safe, пока AF100-06 `pending`.**
+- **Закрывай slice только при зелёном `test:agent-dod:dual-safe` на этом HEAD.**
+  Sequential `test:agent-dod` — тот же orchestrator с другим worker-профилем:
+  годен для отладки, не годен как acceptance.
 
 ### Условия закрытия AF100-slice (поверх стандарта)
 
