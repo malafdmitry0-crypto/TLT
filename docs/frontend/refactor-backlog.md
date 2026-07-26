@@ -1,15 +1,15 @@
 # Frontend refactor backlog
 
-**Статус:** ACTIVE
+**Статус:** EMPTY QUEUE
 
 **Актуально на:** 2026-07-26  
-**Queue open reason:** explicit user goal — residual «optional residual, not
-pending» (dense production 400-band + heavy test contexts) must be real
-`pending`, not EMPTY QUEUE cosmetics.  
-**Inventory at open:** **22** files in **400–445** LOC (production).  
-**Last closed production:** P-TEST-02 HeatCalc basics @ `df94f01`
+**Queue open reason:** closed — Track A (P-BAND-01..22) and Track B
+(P-TEST-01..08) complete.  
+**Inventory at open:** **22** files in **400–445** LOC (production) — all
+extracted under Track A.  
+**Last closed:** P-TEST-08 inline-form-dependencies e2e @ `8560d79`
 
-**Следующий незакрытый контракт:** `P-TEST-03`
+**Следующий незакрытый контракт:** —
 
 Это **единственный** источник текущего `pending` для frontend. Одновременно
 может существовать только одна ACTIVE frontend-очередь. Initiative plans,
@@ -121,12 +121,12 @@ Template: [split-large-tests-by-scenario](./prompts/split-large-tests-by-scenari
 |---:|---|---|---|---|---|
 | 1 | **P-TEST-01** | **done** `b6c7672` | qa | catalog-recalc **509 → 3 scenarios (≤217)** | [audit](../audit/2026-07-26-p-test-01-catalog-recalc/snapshot.md) |
 | 2 | **P-TEST-02** | **done** `df94f01` | qa | basics **507 → 4 scenarios (≤278)** | [audit](../audit/2026-07-26-p-test-02-heat-basics/snapshot.md) |
-| 3 | **P-TEST-03** | **pending** | qa | `integration/pages/ReportPage.test.tsx` (~481) | scenario split |
-| 4 | P-TEST-04 | pending | architecture | `unit/architecture/inlineStyleRatchet.architecture.test.ts` (~582) | helpers extract (keep gate cohesive) |
-| 5 | P-TEST-05 | pending | qa | `integration/…/elecCalcPageTestEnv.tsx` (~676 harness) | thin env barrel / pure fixtures (no scenario fiction) |
-| 6 | P-TEST-06 | pending | qa | `unit/pages/HeatCalcPage.test-mocks.tsx` (~643) | further mock clusters if open-cost still high |
-| 7 | P-TEST-07 | pending | qa | e2e `electrical-candidate-selection.spec.ts` (~667) | journey split |
-| 8 | P-TEST-08 | pending | qa | e2e `inline-form-dependencies.spec.ts` (~643) | journey split |
+| 3 | **P-TEST-03** | **done** `49d15da` | qa | ReportPage **481 → harness+4 scenarios (≤126)** | [audit](../audit/2026-07-26-p-test-03-report-page/snapshot.md) |
+| 4 | **P-TEST-04** | **done** `9c99510` | architecture | inlineStyleRatchet **582→249** gate + helpers | [audit](../audit/2026-07-26-p-test-04-inline-style-ratchet/snapshot.md) |
+| 5 | **P-TEST-05** | **done** `b7531b5` | qa | elecCalcPageTestEnv **676→80** barrel + api/component mocks | [audit](../audit/2026-07-26-p-test-05-elec-testenv/snapshot.md) |
+| 6 | **P-TEST-06** | **done** `f03b2df` | qa | HeatCalcPage.test-mocks **643→4** barrel + clusters | [audit](../audit/2026-07-26-p-test-06-heatcalc-mocks/snapshot.md) |
+| 7 | **P-TEST-07** | **done** `97c6d96` | qa | electrical-candidate-selection **667 → 4 journeys** | [audit](../audit/2026-07-26-p-test-07-elec-candidate-e2e/snapshot.md) |
+| 8 | **P-TEST-08** | **done** `8560d79` | qa | inline-form-dependencies **643 → 5 journeys** | [audit](../audit/2026-07-26-p-test-08-inline-form-e2e/snapshot.md) |
 
 **Order:** complete **Track A first** (production band), then Track B in table
 order — unless the user names a specific test slice.

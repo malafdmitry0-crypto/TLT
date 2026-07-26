@@ -17,18 +17,23 @@
 - **2026-07-26 five-fixes wave:** cable-meta, table-batch, headers-scroll,
   cssArchitectureRatchet helpers, HeatCalcPage.test-utils barrel.
 
-## Remaining (queued in backlog Track B)
+## Remaining
 
-| ID | Файл | Notes |
-|---|---|---|
-| P-TEST-01 | `ElecCalcPage.catalog-recalc.test.tsx` (~509) | scenario split |
-| P-TEST-02 | `HeatCalcPage.basics.test.tsx` (~507) | scenario sub-clusters |
-| P-TEST-03 | `ReportPage.test.tsx` (~481) | scenario split |
-| P-TEST-04 | `inlineStyleRatchet.architecture.test.ts` (~582) | helpers extract |
-| P-TEST-05 | `elecCalcPageTestEnv.tsx` (~676) | harness thin / fixtures |
-| P-TEST-06 | `HeatCalcPage.test-mocks.tsx` (~643) | mock clusters |
-| P-TEST-07 | e2e `electrical-candidate-selection.spec.ts` (~667) | journey split |
-| P-TEST-08 | e2e `inline-form-dependencies.spec.ts` (~643) | journey split |
+**None** — Track B P-TEST-01..08 closed 2026-07-26 (see `refactor-backlog.md`
+EMPTY QUEUE). New splits only by explicit user goal.
+
+### Closed this wave (P-TEST-01..08)
+
+| ID | Notes |
+|---|---|
+| P-TEST-01 | catalog-recalc scenario split |
+| P-TEST-02 | HeatCalc basics scenario split |
+| P-TEST-03 | ReportPage scenario split |
+| P-TEST-04 | inlineStyleRatchet helpers extract |
+| P-TEST-05 | elecCalcPageTestEnv thin harness |
+| P-TEST-06 | HeatCalcPage.test-mocks clusters |
+| P-TEST-07 | electrical-candidate-selection e2e journeys |
+| P-TEST-08 | inline-form-dependencies e2e journeys |
 
 ## Rules (if user activates another split)
 
