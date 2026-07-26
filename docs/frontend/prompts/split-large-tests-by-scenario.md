@@ -19,8 +19,8 @@
 
 ## Remaining
 
-**None** — Track B P-TEST-01..08 closed 2026-07-26 (see `refactor-backlog.md`
-EMPTY QUEUE). New splits only by explicit user goal.
+Track B P-TEST-01..08 closed. **Stricter LOC program** (all test files ≤350,
+ceiling 400): [test-file-loc-cap-350.md](./test-file-loc-cap-350.md).
 
 ### Closed this wave (P-TEST-01..08)
 
