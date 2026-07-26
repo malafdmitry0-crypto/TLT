@@ -136,15 +136,23 @@ async function runSequential(script) {
 
 /**
  * Suite scheduling:
- * - Default **concurrent** unit||integration with workers=2 (best observed wall ~150s;
- *   integration alone is already ~130s+, so ≤120s needs suite shrink not more workers).
- * - Optional sequential (higher workers per suite): AGENT_DOD_SUITE_MODE=sequential.
- * Dual stress: `test:agent-dod:dual-safe` uses concurrent + workers=2 + stagger.
+ * - Default **concurrent** unit||integration with workers=2.
+ * - Optional sequential: AGENT_DOD_SUITE_MODE=sequential.
+ * Dual-safe: concurrent + tuned workers/stagger (see package.json).
+ *
+ * Wall levers (safe after gates already ran typecheck + architecture):
+ * - AGENT_DOD_UNIT_STAGGER_MS (default 500)
+ * - AGENT_DOD_SKIP_ARCH_IN_UNIT=1 — skip unit architecture/ tree (already in gates)
+ * - AGENT_DOD_FAST_BUILD=1 — vite build only (typecheck already in gates)
+ *
+ * Live profile (2026-07-26): unit is often the long pole, not integration.
  */
 const SUITE_MODE = process.env.AGENT_DOD_SUITE_MODE || 'concurrent';
 const DEFAULT_CONCURRENT_MAX_WORKERS = '2';
 const DEFAULT_SEQUENTIAL_UNIT_WORKERS = process.env.AGENT_DOD_UNIT_MAX_WORKERS || '6';
 const DEFAULT_SEQUENTIAL_INT_WORKERS = process.env.AGENT_DOD_INT_MAX_WORKERS || '4';
+const SKIP_ARCH_IN_UNIT = process.env.AGENT_DOD_SKIP_ARCH_IN_UNIT === '1';
+const FAST_BUILD = process.env.AGENT_DOD_FAST_BUILD === '1';
 
 function concurrentWorkerCount(kind) {
   if (kind === 'unit') {
@@ -153,10 +161,24 @@ function concurrentWorkerCount(kind) {
   return process.env.AGENT_DOD_INT_MAX_WORKERS || DEFAULT_CONCURRENT_MAX_WORKERS;
 }
 
-async function runSequentialWithWorkers(script, workers, prefix) {
+/** Vitest CLI args after `--` for a suite. */
+function suiteVitestArgs(kind, workers) {
+  const args = [];
+  if (workers) args.push(`--maxWorkers=${workers}`);
+  if (kind === 'unit' && SKIP_ARCH_IN_UNIT) {
+    args.push('--exclude', '**/__tests__/unit/architecture/**');
+  }
+  return args.length ? ['--', ...args] : [];
+}
+
+async function runSequentialWithWorkers(script, workers, prefix, kind = 'unit') {
   const t0 = nowMs();
-  const extraArgs = workers ? ['--', `--maxWorkers=${workers}`] : [];
-  log(`start sequential: npm run ${script} maxWorkers=${workers || 'default'}`);
+  const extraArgs = suiteVitestArgs(kind, workers);
+  log(
+    `start sequential: npm run ${script} maxWorkers=${workers || 'default'}${
+      kind === 'unit' && SKIP_ARCH_IN_UNIT ? ' skipArch=1' : ''
+    }`,
+  );
   const { done } = spawnNpmScript(script, { prefix: prefix ?? script, extraArgs });
   const result = await done;
   const elapsed = nowMs() - t0;
@@ -165,7 +187,7 @@ async function runSequentialWithWorkers(script, workers, prefix) {
 }
 
 function concurrentWorkerArgs(kind) {
-  return ['--', `--maxWorkers=${concurrentWorkerCount(kind)}`];
+  return suiteVitestArgs(kind, concurrentWorkerCount(kind));
 }
 
 function sleep(ms) {
@@ -179,12 +201,14 @@ function sleep(ms) {
  */
 async function runUnitAndIntegrationConcurrent() {
   const t0 = nowMs();
-  // Light stagger reduces unit vs elec thrash; dual-safe may raise to 2000+.
-  const staggerMs = Number(process.env.AGENT_DOD_UNIT_STAGGER_MS ?? '3000');
+  // Light stagger reduces unit vs elec thrash.
+  const staggerMs = Number(process.env.AGENT_DOD_UNIT_STAGGER_MS ?? '500');
   const unitWorkers = concurrentWorkerCount('unit');
   const integrationWorkers = concurrentWorkerCount('integration');
   log(
-    `start concurrent: test:integration first, test:unit after ${staggerMs}ms (unit maxWorkers=${unitWorkers}, int maxWorkers=${integrationWorkers})`,
+    `start concurrent: test:integration first, test:unit after ${staggerMs}ms (unit maxWorkers=${unitWorkers}, int maxWorkers=${integrationWorkers}${
+      SKIP_ARCH_IN_UNIT ? ', skipArchInUnit' : ''
+    })`,
   );
 
   const integration = spawnNpmScript('test:integration', {
@@ -344,6 +368,7 @@ async function main() {
       'test:unit',
       DEFAULT_SEQUENTIAL_UNIT_WORKERS,
       'unit',
+      'unit',
     );
     phases.push({ name: 'test:unit', ...unit });
     if (unit.code !== 0) {
@@ -353,6 +378,7 @@ async function main() {
     const integration = await runSequentialWithWorkers(
       'test:integration',
       DEFAULT_SEQUENTIAL_INT_WORKERS,
+      'integration',
       'integration',
     );
     phases.push({ name: 'test:integration', ...integration });
@@ -374,10 +400,16 @@ async function main() {
   }
 
   // 3. Build only after green tests
-  const build = await runSequential('build');
-  phases.push({ name: 'build', ...build });
+  // FAST_BUILD: vite-only — typecheck already ran in gates; full `tsc -b && vite build`
+  // remains `npm run build` for release/CI.
+  const buildScript = FAST_BUILD ? 'build:vite' : 'build';
+  if (FAST_BUILD) {
+    log('FAST_BUILD=1 → npm run build:vite (typecheck already covered by gates)');
+  }
+  const build = await runSequential(buildScript);
+  phases.push({ name: buildScript, ...build });
   if (build.code !== 0) {
-    log(`STOP after build exit=${build.code} total=${formatSec(nowMs() - totalT0)}`);
+    log(`STOP after ${buildScript} exit=${build.code} total=${formatSec(nowMs() - totalT0)}`);
     process.exit(build.code);
   }
 
