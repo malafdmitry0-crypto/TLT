@@ -10,6 +10,7 @@
  * Exit: 0 on resolved owner; 1 on unknown / ambiguous / missing path.
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { dirname, extname, join, normalize, relative, resolve, sep } from 'node:path';
 import process from 'node:process';
 
@@ -169,11 +170,11 @@ const RULES = [
     publicEntrypoint: 'ReportWizardPage / ReportPage',
     stateOwner: 'report export flow',
     focusedProof: [
-      { cwd: 'frontend', argv: ['npx', 'vitest', 'run', '--project', 'unit', '--project', 'integration', 'src/__tests__/integration/pages/ReportWizardPage.test.tsx', 'src/__tests__/unit/components/reports', 'src/__tests__/unit/pages/ReportPage'] },
+      { cwd: 'frontend', argv: ['npx', 'vitest', 'run', '--project', 'unit', '--project', 'integration', 'src/__tests__/integration/pages/ReportPage', 'src/__tests__/integration/pages/ReportWizardPage.test.tsx', 'src/__tests__/unit/components/reports'] },
       { cwd: 'frontend', argv: ['npm', 'run', 'test:agent-gates'] },
     ],
     focusedTests: [
-      'npx vitest run --project unit --project integration src/__tests__/integration/pages/ReportWizardPage.test.tsx src/__tests__/unit/components/reports',
+      'npx vitest run --project unit --project integration src/__tests__/integration/pages/ReportPage src/__tests__/integration/pages/ReportWizardPage.test.tsx src/__tests__/unit/components/reports',
       'npm run test:agent-gates',
     ],
     architectureGates: ['test:agent-gates'],
@@ -192,11 +193,11 @@ const RULES = [
     publicEntrypoint: 'pages/admin/*',
     stateOwner: 'admin CRUD mutations',
     focusedProof: [
-      { cwd: 'frontend', argv: ['npx', 'vitest', 'run', '--project', 'unit', 'src/__tests__/unit/pages/admin', 'src/__tests__/unit/components/admin'] },
+      { cwd: 'frontend', argv: ['npx', 'vitest', 'run', '--project', 'unit', '--project', 'integration', 'src/__tests__/unit/pages/admin', 'src/__tests__/integration/pages/admin'] },
       { cwd: 'frontend', argv: ['npm', 'run', 'test:agent-gates'] },
     ],
     focusedTests: [
-      'npx vitest run --project unit src/__tests__/unit/pages/admin src/__tests__/unit/components/admin',
+      'npx vitest run --project unit --project integration src/__tests__/unit/pages/admin src/__tests__/integration/pages/admin',
       'npm run test:agent-gates',
     ],
     architectureGates: ['test:agent-gates'],
@@ -256,11 +257,11 @@ const RULES = [
     publicEntrypoint: 'ProjectsPage / WorkspacePage',
     stateOwner: 'project list mutations',
     focusedProof: [
-      { cwd: 'frontend', argv: ['npx', 'vitest', 'run', '--project', 'unit', 'src/__tests__/unit/pages/ProjectsPage', 'src/__tests__/unit/pages/projects'] },
+      { cwd: 'frontend', argv: ['npx', 'vitest', 'run', '--project', 'integration', 'src/__tests__/integration/pages/ProjectsPage.test.tsx'] },
       { cwd: 'frontend', argv: ['npm', 'run', 'test:agent-gates'] },
     ],
     focusedTests: [
-      'npx vitest run --project unit src/__tests__/unit/pages/ProjectsPage src/__tests__/unit/pages/projects',
+      'npx vitest run --project integration src/__tests__/integration/pages/ProjectsPage.test.tsx',
       'npm run test:agent-gates',
     ],
     architectureGates: ['test:agent-gates'],
@@ -325,6 +326,9 @@ const RULES = [
     zone: 'config-state',
     publicEntrypoint: 'config|constants|store',
     stateOwner: 'zustand store when under store/; else none',
+    focusedProof: [
+      { cwd: 'frontend', argv: ['npm', 'run', 'test:agent-gates'] },
+    ],
     focusedTests: ['npm run test:agent-gates'],
     architectureGates: ['test:agent-gates'],
     fullDodRequired: false,
@@ -342,6 +346,9 @@ const RULES = [
     zone: 'css',
     publicEntrypoint: 'styles/tokens.css + feature owner CSS',
     stateOwner: 'none',
+    focusedProof: [
+      { cwd: 'frontend', argv: ['npm', 'run', 'css:architecture'] },
+    ],
     focusedTests: ['npm run css:architecture'],
     architectureGates: ['cssArchitectureRatchet', 'cssImportantRatchet'],
     fullDodRequired: false,
@@ -397,7 +404,7 @@ const RULES = [
     publicEntrypoint: 'types|utils|domain|theme (path-local module)',
     stateOwner: 'none (pure) or documented store',
     focusedProof: [
-      { cwd: 'frontend', argv: ['npx', 'vitest', 'run', '--project', 'unit', 'src/__tests__/unit/utils', 'src/__tests__/unit/domain', 'src/__tests__/unit/types'] },
+      { cwd: 'frontend', argv: ['npx', 'vitest', 'run', '--project', 'unit', 'src/__tests__/unit/utils', 'src/__tests__/unit/domain'] },
     ],
     focusedTests: [
       'npx vitest run --project unit src/__tests__/unit/utils src/__tests__/unit/domain',
@@ -435,6 +442,10 @@ const RULES = [
     zone: 'storybook',
     publicEntrypoint: 'npm run storybook',
     stateOwner: 'none',
+    focusedProof: [
+      { cwd: 'frontend', argv: ['npm', 'run', 'storybook:coverage:strict'] },
+      { cwd: 'frontend', argv: ['npm', 'run', 'build-storybook'] },
+    ],
     focusedTests: ['npm run storybook:coverage:strict', 'npm run build-storybook'],
     architectureGates: ['test:agent-gates'],
     fullDodRequired: false,
@@ -581,6 +592,121 @@ function buildRecommendedCommands(rule) {
   return cmds;
 }
 
+function proofCwd(cwd) {
+  if (!cwd || cwd === 'frontend') return FRONTEND;
+  if (cwd === 'e2e') return join(ROOT, 'e2e');
+  return null;
+}
+
+function pathOrPrefixExists(base, target) {
+  const absolute = join(base, target);
+  if (existsSync(absolute)) return true;
+  const parent = dirname(absolute);
+  const prefix = absolute.slice(parent.length + 1);
+  if (!existsSync(parent) || !statSync(parent).isDirectory()) return false;
+  return readdirSync(parent).some((name) => name.startsWith(prefix));
+}
+
+/** Validate focused proof as argv, npm scripts and concrete Vitest paths. */
+function validateFocusedProof(rule) {
+  const issues = [];
+  if (!Array.isArray(rule.focusedProof) || rule.focusedProof.length === 0) {
+    return [`${rule.id}: focusedProof is missing`];
+  }
+  for (const [index, step] of rule.focusedProof.entries()) {
+    const label = `${rule.id}.focusedProof[${index}]`;
+    const cwd = proofCwd(step?.cwd);
+    if (!cwd) {
+      issues.push(`${label}: unsupported cwd=${String(step?.cwd)}`);
+      continue;
+    }
+    const argv = step?.argv;
+    if (!Array.isArray(argv) || argv.length < 3 || argv.some((arg) => typeof arg !== 'string' || arg.trim() === '')) {
+      issues.push(`${label}: argv must contain non-empty strings`);
+      continue;
+    }
+    if (argv.some((arg) => /[<>*]|\b(path-matched|prefer)\b/i.test(arg))) {
+      issues.push(`${label}: argv contains prose, placeholder or glob: ${argv.join(' ')}`);
+      continue;
+    }
+    if (argv[0] === 'npm' && argv[1] === 'run') {
+      const packagePath = join(cwd, 'package.json');
+      if (!existsSync(packagePath)) {
+        issues.push(`${label}: package.json missing in ${step.cwd}`);
+        continue;
+      }
+      const scripts = JSON.parse(readFileSync(packagePath, 'utf8')).scripts ?? {};
+      if (!Object.hasOwn(scripts, argv[2])) {
+        issues.push(`${label}: npm script does not exist: ${argv[2]}`);
+      }
+      continue;
+    }
+    if (argv[0] === 'npx' && argv[1] === 'vitest' && argv[2] === 'run') {
+      const valueOptions = new Set(['--project', '--maxWorkers', '--pool']);
+      for (let i = 3; i < argv.length; i += 1) {
+        const arg = argv[i];
+        if (valueOptions.has(arg)) {
+          i += 1;
+          continue;
+        }
+        if (arg.startsWith('--')) continue;
+        if (!pathOrPrefixExists(cwd, arg)) {
+          issues.push(`${label}: Vitest target does not exist: ${arg}`);
+        }
+      }
+      continue;
+    }
+    issues.push(`${label}: unsupported command: ${argv.join(' ')}`);
+  }
+  return issues;
+}
+
+function validateProofCatalog() {
+  return RULES.flatMap(validateFocusedProof);
+}
+
+function runProofSmoke() {
+  const issues = validateProofCatalog();
+  if (issues.length > 0) return { ok: false, results: [], issues };
+  const seen = new Set();
+  const steps = RULES.flatMap((rule) =>
+    rule.focusedProof.map((step) => ({ ruleId: rule.id, ...step })));
+  const unique = steps.filter((step) => {
+    const key = JSON.stringify([step.cwd, step.argv]);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  const results = [];
+  for (const step of unique) {
+    const cwd = proofCwd(step.cwd);
+    const started = Date.now();
+    const result = spawnSync(step.argv[0], step.argv.slice(1), {
+      cwd,
+      env: process.env,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: 180_000,
+    });
+    const entry = {
+      ruleId: step.ruleId,
+      cwd: step.cwd,
+      argv: step.argv,
+      exitCode: result.status,
+      signal: result.signal,
+      wallMs: Date.now() - started,
+    };
+    results.push(entry);
+    if (result.status !== 0) {
+      issues.push(
+        `${step.ruleId}: command failed exit=${String(result.status)} signal=${String(result.signal)}: ${step.argv.join(' ')}\n${result.stderr || result.stdout}`,
+      );
+      break;
+    }
+  }
+  return { ok: issues.length === 0, results, issues };
+}
+
 function selfTest() {
   const cases = [
     ['frontend/src/components/ui-kit/UiPrimitives.tsx', 'ui'],
@@ -634,6 +760,26 @@ function selfTest() {
   } else {
     console.log('ok specification recommended_commands clean');
   }
+  const proofIssues = validateProofCatalog();
+  if (proofIssues.length > 0) {
+    console.error('FAIL focused proof catalog:', proofIssues);
+    failed += 1;
+  } else {
+    console.log(`ok focused proof catalog: ${RULES.length}/${RULES.length} rules`);
+  }
+  const intentionalFailure = validateFocusedProof({
+    id: 'intentional-bad-proof',
+    focusedProof: [
+      { cwd: 'frontend', argv: ['npm', 'run', 'does-not-exist'] },
+      { cwd: 'frontend', argv: ['npx', 'vitest', 'run', 'path-matched <test>'] },
+    ],
+  });
+  if (intentionalFailure.length !== 2) {
+    console.error('FAIL proof validator did not reject intentional bad commands:', intentionalFailure);
+    failed += 1;
+  } else {
+    console.log('ok focused proof validator fails closed');
+  }
   process.exit(failed === 0 ? 0 : 1);
 }
 
@@ -665,6 +811,37 @@ function main() {
       console.log(ok ? 'coverage: PASS (unique owner for every production file)' : 'coverage: FAIL');
     }
     process.exit(ok ? 0 : 1);
+  }
+  if (args[0] === '--proof-check') {
+    const issues = validateProofCatalog();
+    const report = {
+      ok: issues.length === 0,
+      ruleCount: RULES.length,
+      issueCount: issues.length,
+      issues,
+    };
+    if (asJson) console.log(JSON.stringify(report, null, 2));
+    else {
+      console.log(`focused proof rules: ${RULES.length}`);
+      console.log(`focused proof issues: ${issues.length}`);
+      for (const issue of issues) console.log(`  - ${issue}`);
+      console.log(report.ok ? 'proof-check: PASS' : 'proof-check: FAIL');
+    }
+    process.exit(report.ok ? 0 : 1);
+  }
+  if (args[0] === '--proof-smoke') {
+    const report = runProofSmoke();
+    if (asJson) console.log(JSON.stringify(report, null, 2));
+    else {
+      for (const result of report.results) {
+        console.log(
+          `${result.exitCode === 0 ? 'PASS' : 'FAIL'} ${result.ruleId}: ${result.argv.join(' ')} (${(result.wallMs / 1000).toFixed(2)}s)`,
+        );
+      }
+      for (const issue of report.issues) console.error(issue);
+      console.log(report.ok ? 'proof-smoke: PASS' : 'proof-smoke: FAIL');
+    }
+    process.exit(report.ok ? 0 : 1);
   }
 
   const abs = resolveInputPath(input);
