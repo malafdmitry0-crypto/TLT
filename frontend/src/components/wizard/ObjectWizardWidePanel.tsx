@@ -1,9 +1,11 @@
 import type { ReactNode, RefCallback } from 'react';
+import type { HeatCalcObjectType } from '@/types/project';
 import HeatCalcObjectFieldsPanel from './HeatCalcObjectFieldsPanel';
 import WizardZoneBoundary from './isolation/WizardZoneBoundary';
 
 export interface ObjectWizardWidePanelProps {
   formGridRef: RefCallback<HTMLDivElement>;
+  objectType: HeatCalcObjectType;
   geometry: ReactNode;
   climate: ReactNode;
   insulationSettings: ReactNode;
@@ -22,6 +24,7 @@ export interface ObjectWizardWidePanelProps {
  */
 export default function ObjectWizardWidePanel({
   formGridRef,
+  objectType,
   geometry,
   climate,
   insulationSettings,
@@ -49,6 +52,7 @@ export default function ObjectWizardWidePanel({
         >
           <HeatCalcObjectFieldsPanel
             layout="wide"
+            objectType={objectType}
             geometry={geometry}
             climate={climate}
             insulationSettings={insulationSettings}

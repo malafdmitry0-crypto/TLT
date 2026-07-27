@@ -1,10 +1,13 @@
 /**
  * Regression seal — «Расчёт теплопотерь» (wide heat-structured card).
  *
- * Контракт раскладки (эталон 2026-07-22):
- *   1. Поля идут СВЕРХУ и переливаются по колонкам: ≤5 видимых полей на
- *      колонку, колонок ≥2 (HARD RULE 4, HeatCalcObjectFieldsPanel).
+ * Контракт раскладки (эталон 2026-07-27):
+ *   1. Поля образуют три независимые семантические группы: wide,
+ *      geometry numeric, environment numeric. Hidden-поля сжимают только
+ *      свою группу и никогда не перетекают в соседнюю.
  *   2. Таблица слоёв изоляции — ПОД полями, на всю ширину карточки.
+ *   3. Numeric controls = 128px; таблица имеет собственный пятиколоночный
+ *      grid и не наследует треки верхней формы.
  *
  * Сломано в CSS-OWN-03 split: generic-шаблон `.form-grid-srs--pdf-three`
  * («heat spec» / «cable cable») перебивал fields/layers-stack на равной
@@ -13,8 +16,8 @@
  * chrome-core `.inline-object-form .ant-form-item { grid-column: 1 / -1 }`
  * схлопывал reflow-сетку полей в одну длинную колонку.
  *
- * Дополнительно ≤1200: stacked-режим таблицы слоёв обязан сбрасывать
- * `grid-row: 1` базового режима, иначе все ячейки падают в клетку (1,1).
+ * На всех поддерживаемых desktop viewport таблица остаётся пятиколоночной:
+ * мобильный stacked-режим продуктом не поддерживается.
  *
  * Скриншоты: element-level baseline карточки на трёх обязательных viewport
  * (см. docs/frontend/viewport-policy.md). Обновление при намеренном изменении:
@@ -30,17 +33,6 @@ const VIEWPORTS = [
   { width: 1280, height: 800 },
   { width: 1440, height: 900 },
 ] as const;
-
-/** Cluster left edges with tolerance so sub-pixel jitter never splits a column. */
-function clusterColumns(lefts: number[], tolerance = 8): number[] {
-  const clusters: number[][] = [];
-  for (const left of [...lefts].sort((a, b) => a - b)) {
-    const cluster = clusters.find((c) => Math.abs(c[0] - left) <= tolerance);
-    if (cluster) cluster.push(left);
-    else clusters.push([left]);
-  }
-  return clusters.map((c) => c.length);
-}
 
 test('обязательные поля подсвечены; селект визуально закрывается после выбора', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -99,13 +91,73 @@ for (const viewport of VIEWPORTS) {
 
       const fieldsRect = fields.getBoundingClientRect();
       const layersRect = layers.getBoundingClientRect();
-      const itemLefts = Array.from(fields.querySelectorAll<HTMLElement>('.ant-form-item'))
-        .filter((el) => el.offsetParent !== null)
-        .map((el) => el.getBoundingClientRect().left);
+      const visible = (selector: string) => Array.from(
+        fields.querySelectorAll<HTMLElement>(selector),
+      ).filter((el) => el.offsetParent !== null);
+      const rects = (selector: string) => visible(selector).map((el) => {
+        const rect = el.getBoundingClientRect();
+        return {
+          left: rect.left,
+          right: rect.right,
+          top: rect.top,
+          bottom: rect.bottom,
+          width: rect.width,
+        };
+      });
+      const wideItems = rects([
+        '.name-form-item',
+        '.pipe-material-form-item',
+        '.tank-shape-form-item',
+        '.placement-form-item',
+        '.ground-type-form-item',
+        '.climate-form-item',
+        '.insulation-temperature-basis-form-item',
+      ].join(','));
+      const geometryItems = rects([
+        '.outer-diameter-form-item',
+        '.pipe-length-form-item',
+        '.wall-thickness-form-item',
+        '.pipe-lambda-manual-form-item',
+        '.local-elements-count-form-item',
+        '.tank-size-form-item',
+      ].join(','));
+      const environmentItems = rects([
+        '.ambient-temperature-form-item',
+        '.process-temperature-form-item',
+        '.wind-speed-form-item',
+        '.burial-depth-form-item',
+        '.ground-conductivity-form-item',
+        '.tank-additional-heat-loss-form-item',
+      ].join(','));
+      const numericControlWidths = visible([
+        '.outer-diameter-form-item',
+        '.pipe-length-form-item',
+        '.wall-thickness-form-item',
+        '.pipe-lambda-manual-form-item',
+        '.local-elements-count-form-item',
+        '.tank-size-form-item',
+        '.ambient-temperature-form-item',
+        '.process-temperature-form-item',
+        '.wind-speed-form-item',
+        '.burial-depth-form-item',
+        '.ground-conductivity-form-item',
+        '.tank-additional-heat-loss-form-item',
+      ].join(',')).map((item) => {
+        const control = item.querySelector<HTMLElement>('.ant-form-item-control');
+        return control?.getBoundingClientRect().width ?? 0;
+      });
+      const slotOrder = visible('.ant-form-item').map(
+        (item) => item.closest<HTMLElement>('[data-slot]')?.dataset.slot ?? '',
+      ).filter((slot) => slot.length > 0);
 
       const layerCells = Array.from(
         layers.querySelectorAll<HTMLElement>('.insulation-layer-group > .insulation-layer-cell'),
       ).filter((el) => el.offsetParent !== null);
+      const layerHeader = layers.querySelector<HTMLElement>('.insulation-layers-header');
+      const layerRow = layers.querySelector<HTMLElement>('.insulation-layer-group');
+      const thicknessControl = layers.querySelector<HTMLElement>(
+        '.insulation-layer-cell--thickness .ant-form-item-control',
+      );
       const cellPairOverlap = layerCells.some((cell, index) => {
         const a = cell.getBoundingClientRect();
         return layerCells.slice(index + 1).some((other) => {
@@ -119,8 +171,15 @@ for (const viewport of VIEWPORTS) {
         layersBelowFields: layersRect.top >= fieldsRect.bottom - 1,
         zonesOverlap: Math.min(fieldsRect.bottom, layersRect.bottom) > Math.max(fieldsRect.top, layersRect.top) + 2
           && Math.min(fieldsRect.right, layersRect.right) > Math.max(fieldsRect.left, layersRect.left) + 2,
-        itemLefts,
+        wideItems,
+        geometryItems,
+        environmentItems,
+        numericControlWidths,
+        slotOrder,
         layersWidthRatio: layersRect.width / fieldsRect.width,
+        layerHeaderTracks: layerHeader ? getComputedStyle(layerHeader).gridTemplateColumns : '',
+        layerRowTracks: layerRow ? getComputedStyle(layerRow).gridTemplateColumns : '',
+        thicknessControlWidth: thicknessControl?.getBoundingClientRect().width ?? 0,
         layerCellOverlap: cellPairOverlap,
         documentOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
       };
@@ -134,12 +193,33 @@ for (const viewport of VIEWPORTS) {
     expect(proof.zonesOverlap, 'поля и таблица не должны перекрываться').toBe(false);
     expect(proof.layersWidthRatio, 'таблица тянется на ширину блока полей').toBeGreaterThanOrEqual(0.85);
 
-    // 1 — reflow полей: ≥2 колонок, ≤5 видимых полей в колонке
-    const columns = clusterColumns(proof.itemLefts);
-    expect(columns.length, 'поля обязаны переливаться минимум в 2 колонки (HARD RULE 4)').toBeGreaterThanOrEqual(2);
-    expect(Math.max(...columns), 'не более 5 видимых полей в колонке (HARD RULE 4)').toBeLessThanOrEqual(5);
+    // 1 — wide-first: группы не смешиваются и читаются слева направо.
+    expect(proof.wideItems.length).toBeGreaterThan(0);
+    expect(proof.geometryItems.length).toBeGreaterThan(0);
+    expect(proof.environmentItems.length).toBeGreaterThan(0);
+    expect(Math.max(...proof.wideItems.map((rect) => rect.right)))
+      .toBeLessThanOrEqual(Math.min(...proof.geometryItems.map((rect) => rect.left)) + 1);
+    expect(Math.max(...proof.geometryItems.map((rect) => rect.right)))
+      .toBeLessThanOrEqual(Math.min(...proof.environmentItems.map((rect) => rect.left)) + 1);
+    expect(new Set(proof.wideItems.map((rect) => Math.round(rect.left))).size).toBe(1);
+    expect(new Set(proof.geometryItems.map((rect) => Math.round(rect.left))).size).toBe(1);
+    expect(new Set(proof.environmentItems.map((rect) => Math.round(rect.left))).size).toBe(1);
+    const slotRank: Record<string, number> = {
+      wide: 0,
+      'geometry-numeric': 1,
+      'environment-numeric': 2,
+    };
+    const slotRanks = proof.slotOrder.map((slot) => slotRank[slot] ?? 3);
+    expect(slotRanks, 'DOM/tab-порядок должен повторять wide → geometry → environment')
+      .toEqual([...slotRanks].sort((a, b) => a - b));
+    proof.numericControlWidths.forEach((width) => {
+      expect(width, 'каждый numeric control должен занимать 128px').toBeCloseTo(128, 0);
+    });
 
-    // stacked-режим таблицы (≤1200) не схлопывает ячейки в одну клетку
+    // 3 — таблица сохраняет собственный пятиколоночный grid и широкий input толщины.
+    expect(proof.layerHeaderTracks).toBe(proof.layerRowTracks);
+    expect(proof.layerRowTracks.trim().split(/\s+/)).toHaveLength(5);
+    expect(proof.thicknessControlWidth).toBeCloseTo(128, 0);
     expect(proof.layerCellOverlap, 'ячейки слоя не должны перекрываться').toBe(false);
 
     // seals

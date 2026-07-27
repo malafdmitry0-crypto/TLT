@@ -45,12 +45,11 @@
  *    :root --tlt-field-ctrl-*). Не растягивать form-item на 1fr «для красоты».
  *
  * ════════════════════════════════════════════════════════════════════
- * ⛔ HARD RULE 4 — MAX 5 FIELDS PER COLUMN + REFLOW
+ * ⛔ HARD RULE 4 — SEMANTIC GROUPS
  * ════════════════════════════════════════════════════════════════════
- *    В одном столбце не больше 5 видимых полей.
- *    6-е и далее переносятся в следующий столбец.
- *    CSS: grid-template-rows: repeat(5, auto); grid-auto-flow: column;
- *    Слоты geometry/climate/settings → display:contents (единый поток).
+ *    Wide text/select идут первыми. Geometry и environment numeric живут
+ *    в двух компактных колонках. Hidden-поле сжимает только свою группу;
+ *    поля не мигрируют между группами.
  *
  *    CSS: heat-object-fields.css only.
  *
@@ -66,22 +65,25 @@
 
 import type { ReactNode } from 'react';
 import { CompactFieldGrid } from '@/components/ui-kit';
+import type { HeatCalcObjectType } from '@/types/project';
 import type { ObjectWizardLayoutVariant } from './ObjectWizardPanelTypes';
 /** CSS island — only styles under .heat-object-fields (see WIZARD-CSS-ISLANDS.md) */
 import './heat-object-fields.css';
 
 export interface HeatCalcObjectFieldsPanelProps {
   layout: ObjectWizardLayoutVariant;
-  /** name + geometry + wall material + fittings (wide: local elements) */
+  objectType: HeatCalcObjectType;
+  /** wide: text/select group; side: name + geometry */
   geometry: ReactNode;
-  /** placement/ground (wide) + temperature/climate */
+  /** wide: geometry numeric group; side: climate */
   climate: ReactNode;
-  /** insulation_layer_count + insulation_temperature_basis */
+  /** wide: environment numeric group; side: insulation settings */
   insulationSettings: ReactNode;
 }
 
 export default function HeatCalcObjectFieldsPanel({
   layout,
+  objectType,
   geometry,
   climate,
   insulationSettings,
@@ -95,10 +97,11 @@ export default function HeatCalcObjectFieldsPanel({
       data-protected="heat-object-fields"
       data-wizard-island="heat-object-fields"
       data-layout={layout}
+      data-object-type={objectType}
     >
       <CompactFieldGrid
         className="heat-object-fields__geometry"
-        data-slot="geometry"
+        data-slot={layout === 'wide' ? 'wide' : 'geometry'}
         density="compact"
         flow="columns"
         maxRowsPerColumn={5}
@@ -109,7 +112,7 @@ export default function HeatCalcObjectFieldsPanel({
       </CompactFieldGrid>
       <CompactFieldGrid
         className="heat-object-fields__climate"
-        data-slot="climate"
+        data-slot={layout === 'wide' ? 'geometry-numeric' : 'climate'}
         density="compact"
         flow="columns"
         maxRowsPerColumn={5}
@@ -120,7 +123,7 @@ export default function HeatCalcObjectFieldsPanel({
       </CompactFieldGrid>
       <CompactFieldGrid
         className="heat-object-fields__settings"
-        data-slot="insulation-settings"
+        data-slot={layout === 'wide' ? 'environment-numeric' : 'insulation-settings'}
         density="compact"
         flow="columns"
         maxRowsPerColumn={5}

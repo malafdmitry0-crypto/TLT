@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react';
+import type { HeatCalcObjectType } from '@/types/project';
 import HeatCalcObjectFieldsPanel from './HeatCalcObjectFieldsPanel';
 
 export interface ObjectWizardSidePanelProps {
+  objectType: HeatCalcObjectType;
   geometry: ReactNode;
   climate: ReactNode;
   insulationSettings: ReactNode;
@@ -12,6 +14,7 @@ export interface ObjectWizardSidePanelProps {
  * Side heat card: same protected boundaries as wide.
  */
 export default function ObjectWizardSidePanel({
+  objectType,
   geometry,
   climate,
   insulationSettings,
@@ -25,6 +28,7 @@ export default function ObjectWizardSidePanel({
           {/* ⛔ PROTECTED: HeatCalcObjectFieldsPanel */}
           <HeatCalcObjectFieldsPanel
             layout="side"
+            objectType={objectType}
             geometry={geometry}
             climate={climate}
             insulationSettings={insulationSettings}

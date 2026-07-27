@@ -7,9 +7,11 @@ import type { InsulationEntry } from '@/types/reference';
 import InsulationLayersTable from '../InsulationLayersTable';
 import InsulationSettingsRow from '../InsulationSettingsRow';
 import type { ReferencePickerOption } from '../ReferencePicker';
+import type { ObjectWizardLayoutVariant } from '../ObjectWizardPanelTypes';
 
 interface Props {
   objectType: HeatCalcObjectType;
+  layout: ObjectWizardLayoutVariant;
   fieldInputSettings?: HeatCalcFieldInputSettings;
   watchedValues?: Record<string, unknown>;
   layerCount: number;
@@ -35,6 +37,7 @@ interface Props {
  */
 export default function InsulationLayersStep({
   objectType,
+  layout,
   fieldInputSettings,
   watchedValues,
   layerCount,
@@ -62,6 +65,7 @@ export default function InsulationLayersStep({
       {/* ⛔ PROTECTED: InsulationLayersTable — менять только по прямому запросу */}
       <InsulationLayersTable
         objectType={objectType}
+        layout={layout}
         fieldInputSettings={fieldInputSettings}
         layerCount={layerCount}
         insulationMaterials={insulationMaterials}

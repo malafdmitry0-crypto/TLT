@@ -51,10 +51,8 @@
   width: 100%;
   align-items: start;
 }
-.heatcalc-dual-forms--wide {
-  /* Heat hugs content (max-content); cable keeps a usable min width */
-  grid-template-columns: minmax(0, max-content) minmax(300px, 1fr);
-}
+.heatcalc-dual-forms--wide { --heatcalc-heat-pane-min: 780px; grid-template-columns: minmax(var(--heatcalc-heat-pane-min), 2fr) minmax(300px, 3fr); }
+.heatcalc-dual-forms--wide[data-object-type="tank"] { --heatcalc-heat-pane-min: 850px; }
 .heatcalc-dual-forms--side {
   grid-template-columns: minmax(0, 1fr);
 }
@@ -101,30 +99,31 @@
 .heatcalc-dual-forms__heat .form-grid-srs--pdf-three.form-grid-srs--heat-structured,
 .inline-object-form--wide .object-wizard-wide-panel .form-grid-srs--heat-structured {
   display: grid;
-  grid-template-columns: max-content;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto auto;
   grid-template-areas:
     "fields"
     "layers";
   gap: 8px;
   align-items: start;
-  justify-items: start;
+  justify-items: stretch;
   padding: 8px 10px 10px;
-  width: max-content;
+  width: 100%;
   max-width: 100%;
+  box-sizing: border-box;
 }
 .form-grid-srs--heat-structured > .heat-object-fields,
 .form-grid-srs--heat-structured > .heat-wizard-zone--fields,
 .heatcalc-dual-forms__heat .form-grid-srs--heat-structured > .heat-wizard-zone--fields {
   grid-area: fields;
   min-width: 0;
-  width: max-content;
+  width: 100%;
   max-width: 100%;
 }
 .heat-wizard-zone--fields {
   grid-area: fields;
   min-width: 0;
-  width: max-content;
+  width: 100%;
   max-width: 100%;
 }
 .heat-wizard-zone--layers {
@@ -252,4 +251,3 @@
     width: 100%;
   }
 }
-

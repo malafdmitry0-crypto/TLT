@@ -24,10 +24,12 @@ import {
 import { Form } from 'antd';
 import { MinusOutlined, PlusOutlined } from '@ant-design/icons';
 import './insulation-layers-table.css';
+import './insulation-layers-table-wide.css';
 import type { HeatCalcFieldInputSettings } from '@/utils/heatCalcFieldInputSettings';
 import type { HeatCalcObjectType } from '@/types/project';
 import type { InsulationEntry } from '@/types/reference';
 import { applyHeatCalcFieldValue } from '@/domain/heatCalcFieldRules';
+import type { ObjectWizardLayoutVariant } from './ObjectWizardPanelTypes';
 import type { ReferencePickerOption } from './ReferencePicker';
 import ThermalStep from './steps/ThermalStep';
 import { InsulationOuterLayerRow } from './InsulationOuterLayerRow';
@@ -47,6 +49,7 @@ function normalizeLayerCount(value: unknown): number {
 
 export interface InsulationLayersTableProps {
   objectType: HeatCalcObjectType;
+  layout: ObjectWizardLayoutVariant;
   fieldInputSettings?: HeatCalcFieldInputSettings;
   layerCount: number;
   insulationMaterials: InsulationEntry[];
@@ -62,6 +65,7 @@ export interface InsulationLayersTableProps {
 
 export default function InsulationLayersTable({
   objectType,
+  layout,
   fieldInputSettings,
   layerCount: layerCountProp,
   insulationMaterials,
@@ -157,6 +161,7 @@ export default function InsulationLayersTable({
       data-protected="insulation-layers-table"
       data-wizard-island="insulation-layers-table"
       data-layer-count={layerCount}
+      data-layout={layout}
     >
       {/* Keep form field for validation/submit; UX is table +/− */}
       <Form.Item name="insulation_layer_count" noStyle>

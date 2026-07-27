@@ -38,6 +38,7 @@ function sourceTag(source: unknown) {
 
 interface Props {
   objectType: HeatCalcObjectType;
+  part?: 'all' | 'wide' | 'temperatures' | 'wind';
   fieldInputSettings?: HeatCalcFieldInputSettings;
   climateOptions: ReferencePickerOption[];
   isClimateFetching: boolean;
@@ -49,6 +50,7 @@ interface Props {
 
 export default function TemperatureEnvironmentStep({
   objectType,
+  part = 'all',
   fieldInputSettings,
   climateOptions,
   isClimateFetching,
@@ -69,7 +71,7 @@ export default function TemperatureEnvironmentStep({
 
   return (
     <>
-      <Form.Item
+      {(part === 'all' || part === 'wide') && <Form.Item
         className="fixed-select-form-item reduced-select-form-item climate-form-item helped-form-item"
         label={fieldLabel('climate_key', objectType)}
         name="climate_key"
@@ -88,8 +90,8 @@ export default function TemperatureEnvironmentStep({
           />,
           fieldHelp('climate_key', objectType),
         )}
-      </Form.Item>
-      <Form.Item
+      </Form.Item>}
+      {(part === 'all' || part === 'temperatures') && <Form.Item
         className="numeric-form-item temperature-number-form-item ambient-temperature-form-item helped-form-item"
         label={fieldLabel('ambient_temperature', objectType)}
         name="ambient_temperature"
@@ -104,8 +106,8 @@ export default function TemperatureEnvironmentStep({
           />,
           fieldHelp('ambient_temperature', objectType),
         )}
-      </Form.Item>
-      <Form.Item
+      </Form.Item>}
+      {(part === 'all' || part === 'temperatures') && <Form.Item
         className="numeric-form-item temperature-number-form-item process-temperature-form-item helped-form-item"
         label={fieldLabel('process_temperature', objectType)}
         name="process_temperature"
@@ -120,8 +122,8 @@ export default function TemperatureEnvironmentStep({
           />,
           fieldHelp('process_temperature', objectType),
         )}
-      </Form.Item>
-      {showWindField && (
+      </Form.Item>}
+      {(part === 'all' || part === 'wind') && showWindField && (
         <Form.Item
           className="numeric-form-item short-number-form-item wind-speed-form-item helped-form-item"
           label={fieldLabel('wind_speed', objectType)}
@@ -144,18 +146,22 @@ export default function TemperatureEnvironmentStep({
       )}
       {/* max_* и zone — не входы теплопотерь; round-trip в params.
           environment / temperature_group / электро-поля — в CableAlgorithmPanel. */}
-      <Form.Item name="max_ambient_temperature" hidden>
-        <UnitInputNumber data-testid="max-ambient-temperature-input" unit="°C" />
-      </Form.Item>
-      <Form.Item name="max_process_temperature" hidden>
-        <UnitInputNumber data-testid="max-process-temperature-input" unit="°C" />
-      </Form.Item>
-      <Form.Item name="zone_classification" hidden>
-        <TltSelect
-          data-testid="zone-classification-select"
-          options={heatCalcSelectOptions(objectType, 'zone_classification')}
-        />
-      </Form.Item>
+      {(part === 'all' || part === 'wide') && (
+        <>
+          <Form.Item name="max_ambient_temperature" hidden>
+            <UnitInputNumber data-testid="max-ambient-temperature-input" unit="°C" />
+          </Form.Item>
+          <Form.Item name="max_process_temperature" hidden>
+            <UnitInputNumber data-testid="max-process-temperature-input" unit="°C" />
+          </Form.Item>
+          <Form.Item name="zone_classification" hidden>
+            <TltSelect
+              data-testid="zone-classification-select"
+              options={heatCalcSelectOptions(objectType, 'zone_classification')}
+            />
+          </Form.Item>
+        </>
+      )}
     </>
   );
 }

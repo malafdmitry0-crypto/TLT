@@ -347,7 +347,7 @@
 }
 
 @media (max-width: 1200px) {
-  .insulation-layers-table {
+  .insulation-layers-table[data-layout="side"] {
     --ins-col-index: 52px;
     --ins-col-material: minmax(140px, 1fr);
     --ins-col-thickness: 84px;
@@ -358,36 +358,36 @@
 
 /* Narrow: stack rows (owned here — not in heatcalc page CSS) */
 @media (max-width: 1200px) {
-  .insulation-layers-table .insulation-layers-header {
+  .insulation-layers-table[data-layout="side"] .insulation-layers-header {
     display: none;
   }
 
-  .insulation-layers-table .insulation-layer-group {
+  .insulation-layers-table[data-layout="side"] .insulation-layer-group {
     grid-template-columns: minmax(0, 1fr);
     padding: 10px;
     border-radius: 6px;
   }
 
-  .insulation-layers-table .insulation-layer-cell {
+  .insulation-layers-table[data-layout="side"] .insulation-layer-cell {
     grid-column: 1;
     border-left: 0;
     border-top: 1px solid var(--color-swatch-e0e7ef);
   }
 
-  .insulation-layers-table .insulation-layer-cell:first-child {
+  .insulation-layers-table[data-layout="side"] .insulation-layer-cell:first-child {
     border-top: 0;
   }
 
-  .insulation-layers-table .insulation-layer-index {
+  .insulation-layers-table[data-layout="side"] .insulation-layer-index {
     justify-content: flex-start;
   }
 
-  .insulation-layers-table .insulation-layer-index::before {
+  .insulation-layers-table[data-layout="side"] .insulation-layer-index::before {
     content: "Слой ";
     margin-right: 4px;
   }
 
-  .insulation-layers-table .ant-form-item-label {
+  .insulation-layers-table[data-layout="side"] .ant-form-item-label {
     position: static;
     width: 100%;
     height: auto;

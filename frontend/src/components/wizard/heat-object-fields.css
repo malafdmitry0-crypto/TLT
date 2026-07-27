@@ -1,24 +1,10 @@
 /**
- * ============================================================================
- * CSS ISLAND — HeatCalcObjectFieldsPanel ONLY
- * Root: .heat-object-fields / .heat-object-fields--wide
- * ============================================================================
- * HARD RULE 4 — COLUMN CAP + REFLOW:
- *   • В одном столбце ≤ 5 видимых полей (.ant-form-item)
- *   • 6-е и далее → следующий столбец (grid-auto-flow: column)
- *   • Слоты geometry/climate/settings = display:contents (плоский поток полей)
- * Columns = max-content (no 1fr holes). Each field = label | control.
- *
- * Анатомия поля (строка label|control, высоты, шрифты, юниты, colon) живёт
- * в UI kit: `.tlt-compact-field-grid--ant-form` (ui-kit/compact-fields.css).
- * Здесь ТОЛЬКО: reflow-сетка панели + пофилдовые ширины контролов
- * (HARD RULE 3) через --tlt-compact-control-width.
- * ⛔ Never style .insulation-layers-table from here.
- * ============================================================================
+ * CSS island: HeatCalcObjectFieldsPanel.
+ * Wide DOM consists of three semantic slot wrappers in reading/tab order:
+ * wide text/select → geometry numeric → environment numeric.
  */
 
-.heat-object-fields--wide {
-  /* HARD RULE 2: единый type scale — только алиасы на общие --tlt-field-* */
+.heat-object-fields.heat-object-fields--wide {
   --dual-form-banner-size: 9px;
   --dual-form-label-size: var(--tlt-field-label-font-size, 8.5px);
   --dual-form-label-line-height: var(--tlt-field-label-line-height, 1);
@@ -26,52 +12,60 @@
   --dual-form-control-height: var(--tlt-field-control-height, 26px);
   --dual-form-control-font: var(--tlt-field-control-font-size, 12px);
   --dual-form-hint-size: 10px;
-
-  /* HARD RULE 4: max visible fields per column before reflow */
-  --hof-max-fields-per-column: 5;
-
+  --hof-wide-label-width: 96px;
+  --hof-geometry-label-width: 88px;
+  --hof-environment-label-width: 120px;
+  --hof-label-control-gap: 8px;
+  --hof-numeric-control-width: 128px;
   --field-input-min-width: 0px;
   --inline-control-height: var(--tlt-field-control-height, 26px);
+  --tlt-field-gap: var(--hof-label-control-gap);
 
   isolation: isolate;
-  /*
-   * Column reflow: fill down 5 rows, then next column.
-   * Slots use display:contents so every .ant-form-item is a grid item.
-   * width:max-content — section hugs 3 dense columns (no empty right).
-   */
   display: grid;
-  grid-template-rows: repeat(var(--hof-max-fields-per-column), auto);
-  grid-auto-flow: column;
-  grid-auto-columns: max-content;
-  column-gap: 10px;
-  row-gap: 4px;
-  justify-content: start;
-  justify-items: start;
+  grid-template-columns: minmax(0, 1fr) max-content max-content;
+  gap: 4px 10px;
   align-items: start;
-  width: max-content;
+  width: 100%;
   max-width: 100%;
   min-width: 0;
   box-sizing: border-box;
 }
 
-/* Flatten composition slots → fields participate in parent grid */
-.heat-object-fields--wide .heat-object-fields__geometry,
-.heat-object-fields--wide .heat-object-fields__climate,
-.heat-object-fields--wide .heat-object-fields__settings,
-.heat-object-fields--wide .insulation-settings-row {
-  display: contents;
+.heat-object-fields.heat-object-fields--wide[data-object-type="tank"] {
+  --hof-wide-label-width: 112px;
+  --hof-geometry-label-width: 120px;
 }
 
-/* Hidden form fields must not occupy a grid cell (column cap) */
-.heat-object-fields--wide .ant-form-item-hidden,
-.heat-object-fields--wide .ant-form-item[hidden],
-.heat-object-fields--wide .ant-form-item.ant-form-item-hidden {
+/* Each slot owns its vertical flow; hidden fields compact only that slot. */
+.heat-object-fields.heat-object-fields--wide > .heat-object-fields__geometry,
+.heat-object-fields.heat-object-fields--wide > .heat-object-fields__climate,
+.heat-object-fields.heat-object-fields--wide > .heat-object-fields__settings {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-flow: row;
+  grid-auto-rows: minmax(36px, auto);
+  gap: 4px;
+  align-items: start;
+  min-width: 0;
+}
+
+.heat-object-fields.heat-object-fields--wide > .heat-object-fields__geometry {
+  width: 100%;
+}
+
+.heat-object-fields.heat-object-fields--wide > .heat-object-fields__climate,
+.heat-object-fields.heat-object-fields--wide > .heat-object-fields__settings {
+  width: max-content;
+}
+
+.heat-object-fields.heat-object-fields--wide .ant-form-item-hidden,
+.heat-object-fields.heat-object-fields--wide .ant-form-item[hidden],
+.heat-object-fields.heat-object-fields--wide .ant-form-item.ant-form-item-hidden {
   display: none;
 }
 
-/* Source tag («из климата»/«вручную»): compact, no 24px reserve under control.
-   TSX passes extra only when the tag is visible; keep the row near control height. */
-.heat-object-fields--wide .field-source-tag {
+.heat-object-fields.heat-object-fields--wide .field-source-tag {
   height: auto;
   margin: 0;
   padding: 0 4px;
@@ -79,172 +73,124 @@
   line-height: 1.3;
 }
 
+.heat-object-fields.heat-object-fields--wide [data-slot="wide"] {
+  --tlt-compact-label-width: var(--hof-wide-label-width);
+  --tlt-compact-control-width: 100%;
+}
+
+.heat-object-fields.heat-object-fields--wide [data-slot="geometry-numeric"] {
+  --tlt-compact-label-width: var(--hof-geometry-label-width);
+  --tlt-compact-control-width: var(--hof-numeric-control-width);
+}
+
+.heat-object-fields.heat-object-fields--wide [data-slot="environment-numeric"] {
+  --tlt-compact-label-width: var(--hof-environment-label-width);
+  --tlt-compact-control-width: var(--hof-numeric-control-width);
+}
+
+.heat-object-fields.heat-object-fields--wide [data-slot="wide"] .ant-form-item-row {
+  grid-template-columns: var(--hof-wide-label-width) minmax(0, 1fr);
+  column-gap: var(--hof-label-control-gap);
+  width: 100%;
+}
+
+.heat-object-fields.heat-object-fields--wide [data-slot="geometry-numeric"] .ant-form-item-row {
+  grid-template-columns: var(--hof-geometry-label-width) var(--hof-numeric-control-width);
+  column-gap: var(--hof-label-control-gap);
+  width: max-content;
+}
+
+.heat-object-fields.heat-object-fields--wide [data-slot="environment-numeric"] .ant-form-item-row {
+  grid-template-columns: var(--hof-environment-label-width) var(--hof-numeric-control-width);
+  column-gap: var(--hof-label-control-gap);
+  width: max-content;
+}
+
+.heat-object-fields.heat-object-fields--wide [data-slot="wide"] .ant-form-item-control,
+.heat-object-fields.heat-object-fields--wide [data-slot="wide"] .ant-form-item-control-input,
+.heat-object-fields.heat-object-fields--wide [data-slot="wide"] .ant-form-item-control-input-content,
+.heat-object-fields.heat-object-fields--wide [data-slot="wide"] .field-control-with-help,
+.heat-object-fields.heat-object-fields--wide [data-slot="wide"] .tlt-text-field,
+.heat-object-fields.heat-object-fields--wide [data-slot="wide"] .tlt-select,
+.heat-object-fields.heat-object-fields--wide [data-slot="wide"] .tlt-select__trigger,
+.heat-object-fields.heat-object-fields--wide [data-slot="wide"] .reference-picker-control,
+.heat-object-fields.heat-object-fields--wide [data-slot="wide"] .ant-input,
+.heat-object-fields.heat-object-fields--wide [data-slot="wide"] .ant-select {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.heat-object-fields.heat-object-fields--wide [data-slot="geometry-numeric"] .ant-form-item-control,
+.heat-object-fields.heat-object-fields--wide [data-slot="environment-numeric"] .ant-form-item-control {
+  width: var(--hof-numeric-control-width);
+}
+
+.heat-object-fields.heat-object-fields--wide .insulation-settings-row {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.heat-object-fields.heat-object-fields--wide .insulation-settings-row > .ant-form-item {
+  flex: none;
+  width: 100%;
+  min-width: 100%;
+  max-width: 100%;
+}
+
 /*
- * ── Per-field control widths (HARD RULE 3 — content-sized) ──
- * Consumed by the UI kit adapter row grid via --tlt-compact-control-width.
- * Default (numeric) = --tlt-field-ctrl-num, поэтому числовые поля не перечислены.
- * Группировка сохраняет ровный правый край полей, стоящих друг под другом.
+ * Side layout remains one 12-column page grid. Slot wrappers are transparent;
+ * the UI-kit labels-top variant owns field anatomy.
  */
-.heat-object-fields--wide .name-form-item,
-.heat-object-fields--wide .pipe-material-form-item,
-.heat-object-fields--wide .tank-shape-form-item {
-  --tlt-compact-control-width: var(--tlt-field-ctrl-name, 7.5rem);
+.heat-object-fields.heat-object-fields--side {
+  display: contents;
 }
 
-.heat-object-fields--wide .placement-form-item,
-.heat-object-fields--wide .climate-form-item {
-  --tlt-compact-control-width: var(--tlt-field-ctrl-climate, 8.75rem);
+.heat-object-fields.heat-object-fields--side > .heat-object-fields__geometry,
+.heat-object-fields.heat-object-fields--side > .heat-object-fields__climate,
+.heat-object-fields.heat-object-fields--side > .heat-object-fields__settings,
+.heat-object-fields.heat-object-fields--side .insulation-settings-row {
+  display: contents;
 }
 
-.heat-object-fields--wide .insulation-temperature-basis-form-item,
-.heat-object-fields--wide .ground-type-form-item {
-  --tlt-compact-control-width: var(--tlt-field-ctrl-tm, 8rem);
-}
-
-.heat-object-fields--wide .insulation-layer-count-form-item {
-  --tlt-compact-control-width: var(--tlt-field-ctrl-layers, 5rem);
-}
-
-/* Still reflow by 5; fewer auto-columns on narrow screens is automatic */
-@media (max-width: 768px) {
-  .heat-object-fields--wide {
-    /* keep reflow rule; slightly tighter gaps */
-    column-gap: 12px;
-  }
-}
-
-/*
- * ── SIDE LAYOUT ──
- * Панель и слоты — display:contents: поля (и .side-compact-insulation)
- * раскладываются одним 12-колоночным гридом `.side-compact-form` (page CSS).
- * Анатомия поля (label над контролом) — kit-вариант
- * `.tlt-compact-field-grid--labels-top`; здесь только span'ы и порядок.
- */
-.heat-object-fields--side { display: contents; }
-.heat-object-fields--side > .heat-object-fields__geometry,
-.heat-object-fields--side > .heat-object-fields__climate,
-.heat-object-fields--side > .heat-object-fields__settings,
-.heat-object-fields--side .insulation-settings-row { display: contents; }
-
-.heat-object-fields--side .ant-form-item-hidden,
-.heat-object-fields--side .ant-form-item[hidden],
-.heat-object-fields--side .ant-form-item.ant-form-item-hidden {
+.heat-object-fields.heat-object-fields--side .ant-form-item-hidden,
+.heat-object-fields.heat-object-fields--side .ant-form-item[hidden],
+.heat-object-fields.heat-object-fields--side .ant-form-item.ant-form-item-hidden {
   display: none;
 }
 
-/* Числовые поля — 4 в ряд; half-селекты — 2 в ряд; пикеры/tm — во всю ширину */
-.heat-object-fields--side .numeric-form-item { --tlt-field-span: 3; }
-.heat-object-fields--side .tank-shape-form-item,
-.heat-object-fields--side .placement-form-item,
-.heat-object-fields--side .ground-type-form-item,
-.heat-object-fields--side .insulation-layer-count-form-item { --tlt-field-span: 6; }
-.heat-object-fields--side .name-form-item,
-.heat-object-fields--side .pipe-material-form-item,
-.heat-object-fields--side .climate-form-item,
-.heat-object-fields--side .insulation-temperature-basis-form-item { --tlt-field-span: 12; }
-
-/*
- * Порядок как в эталоне side: geometry (+placement) → настройки изоляции →
- * таблица слоёв (order:1 в page CSS) → климат/температуры/ветер.
- */
-.heat-object-fields--side .heat-object-fields__climate .ant-form-item { order: 2; }
-
-/*
- * Control fills remaining cell (legacy dual-form fill, moved from styles.css C4).
- * Uses dual-form tokens already defined on .heat-object-fields--wide.
- */
-.heat-object-fields--wide .heat-object-fields__geometry .ant-form-item-control,
-.heat-object-fields--wide .heat-object-fields__geometry .ant-form-item-control-input,
-.heat-object-fields--wide .heat-object-fields__geometry .ant-form-item-control-input-content,
-.heat-object-fields--wide .heat-object-fields__climate .ant-form-item-control,
-.heat-object-fields--wide .heat-object-fields__climate .ant-form-item-control-input,
-.heat-object-fields--wide .heat-object-fields__climate .ant-form-item-control-input-content,
-.heat-object-fields--wide .insulation-settings-row .ant-form-item-control,
-.heat-object-fields--wide .insulation-settings-row .ant-form-item-control-input,
-.heat-object-fields--wide .insulation-settings-row .ant-form-item-control-input-content {
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
+.heat-object-fields.heat-object-fields--side .numeric-form-item {
+  --tlt-field-span: 3;
 }
 
-/* Tlt/reference: width fill only — density from tokens / tlt-form-controls */
-.heat-object-fields--wide .heat-object-fields__geometry .tlt-select,
-.heat-object-fields--wide .heat-object-fields__geometry .tlt-select__trigger,
-.heat-object-fields--wide .heat-object-fields__geometry .reference-picker-control,
-.heat-object-fields--wide .heat-object-fields__geometry .field-control-with-help,
-.heat-object-fields--wide .heat-object-fields__climate .tlt-select,
-.heat-object-fields--wide .heat-object-fields__climate .tlt-select__trigger,
-.heat-object-fields--wide .heat-object-fields__climate .reference-picker-control,
-.heat-object-fields--wide .heat-object-fields__climate .field-control-with-help,
-.heat-object-fields--wide .insulation-settings-row .tlt-select,
-.heat-object-fields--wide .insulation-settings-row .tlt-select__trigger,
-.heat-object-fields--wide .insulation-settings-row .field-control-with-help {
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  box-sizing: border-box;
+.heat-object-fields.heat-object-fields--side .tank-shape-form-item,
+.heat-object-fields.heat-object-fields--side .placement-form-item,
+.heat-object-fields.heat-object-fields--side .ground-type-form-item,
+.heat-object-fields.heat-object-fields--side .insulation-layer-count-form-item {
+  --tlt-field-span: 6;
 }
 
-/* Ant controls: keep vs CSS-in-JS */
-.heat-object-fields--wide .heat-object-fields__geometry .ant-input,
-.heat-object-fields--wide .heat-object-fields__geometry .ant-input-number,
-.heat-object-fields--wide .heat-object-fields__geometry .ant-input-number-group-wrapper,
-.heat-object-fields--wide .heat-object-fields__geometry .ant-select,
-.heat-object-fields--wide .heat-object-fields__climate .ant-input,
-.heat-object-fields--wide .heat-object-fields__climate .ant-input-number,
-.heat-object-fields--wide .heat-object-fields__climate .ant-input-number-group-wrapper,
-.heat-object-fields--wide .heat-object-fields__climate .ant-select,
-.heat-object-fields--wide .insulation-settings-row .ant-input,
-.heat-object-fields--wide .insulation-settings-row .ant-select {
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  min-height: var(--dual-form-control-height);
-  font-size: var(--dual-form-control-font);
-  line-height: 1.2;
-  box-sizing: border-box;
+.heat-object-fields.heat-object-fields--side .name-form-item,
+.heat-object-fields.heat-object-fields--side .pipe-material-form-item,
+.heat-object-fields.heat-object-fields--side .climate-form-item,
+.heat-object-fields.heat-object-fields--side .insulation-temperature-basis-form-item {
+  --tlt-field-span: 12;
 }
 
-.heat-object-fields--wide .heat-object-fields__geometry .ant-input-number-input,
-.heat-object-fields--wide .heat-object-fields__climate .ant-input-number-input {
-  height: var(--dual-form-control-height);
-  font-size: var(--dual-form-control-font);
+.heat-object-fields.heat-object-fields--side .heat-object-fields__climate .ant-form-item {
+  order: 2;
 }
 
-.heat-object-fields--wide .heat-object-fields__geometry .tlt-select__trigger,
-.heat-object-fields--wide .heat-object-fields__geometry .reference-picker-control,
-.heat-object-fields--wide .heat-object-fields__climate .tlt-select__trigger,
-.heat-object-fields--wide .heat-object-fields__climate .reference-picker-control,
-.heat-object-fields--wide .insulation-settings-row .tlt-select__trigger {
-  display: flex;
-  align-items: center;
-  box-sizing: border-box;
-}
-
-.heat-object-fields--wide .heat-object-fields__geometry .short-number-form-item .ant-input-number-group-wrapper,
-.heat-object-fields--wide .heat-object-fields__climate .short-number-form-item .ant-input-number-group-wrapper,
-.heat-object-fields--wide .heat-object-fields__geometry .outer-diameter-form-item .ant-input-number-group-wrapper,
-.heat-object-fields--wide .heat-object-fields__geometry .pipe-length-form-item .ant-input-number-group-wrapper,
-.heat-object-fields--wide .heat-object-fields__geometry .wall-thickness-form-item .ant-input-number-group-wrapper,
-.heat-object-fields--wide .heat-object-fields__geometry .local-elements-count-form-item .ant-input-number-group-wrapper,
-.heat-object-fields--wide .heat-object-fields__climate .ambient-temperature-form-item .ant-input-number-group-wrapper,
-.heat-object-fields--wide .heat-object-fields__climate .process-temperature-form-item .ant-input-number-group-wrapper,
-.heat-object-fields--wide .heat-object-fields__climate .wind-speed-form-item .ant-input-number-group-wrapper {
-  width: 100%;
-}
-
-/* Non-wide insulation settings row controls (legacy path) */
+/* Shared settings-row fill for the legacy side composition path. */
 .heat-object-fields .insulation-settings-row .ant-form-item-control,
 .heat-object-fields .insulation-settings-row .ant-form-item-control-input,
-.heat-object-fields .insulation-settings-row .ant-form-item-control-input-content {
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-}
-
+.heat-object-fields .insulation-settings-row .ant-form-item-control-input-content,
 .heat-object-fields .insulation-settings-row .tlt-select,
 .heat-object-fields .insulation-settings-row .tlt-select__trigger,
-.heat-object-fields .insulation-settings-row .field-control-with-help {
+.heat-object-fields .insulation-settings-row .field-control-with-help,
+.heat-object-fields .insulation-settings-row .ant-input,
+.heat-object-fields .insulation-settings-row .ant-select {
   width: 100%;
   max-width: 100%;
   min-width: 0;
@@ -253,17 +199,12 @@
 
 .heat-object-fields .insulation-settings-row .ant-input,
 .heat-object-fields .insulation-settings-row .ant-select {
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
   min-height: var(--dual-form-control-height, var(--tlt-field-control-height, 26px));
   font-size: var(--dual-form-control-font, var(--tlt-field-control-font-size, 12px));
   line-height: 1.2;
-  box-sizing: border-box;
 }
 
 .heat-object-fields .insulation-settings-row .tlt-select__trigger {
   display: flex;
   align-items: center;
-  box-sizing: border-box;
 }

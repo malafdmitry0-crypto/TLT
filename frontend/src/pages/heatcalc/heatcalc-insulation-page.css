@@ -6,15 +6,6 @@
  * (column track tokens under form shell contexts). No header/grid/cell chrome.
  */
 
-/* Optional wider material track when hosted in dual-form wide panel */
-.inline-object-form--wide .object-wizard-wide-panel .insulation-layers-table {
-  --ins-col-index: 56px;
-  --ins-col-material: minmax(200px, 1.8fr);
-  --ins-col-thickness: minmax(96px, 0.55fr);
-  --ins-col-lambda: minmax(88px, 0.5fr);
-  --ins-col-range: minmax(120px, 0.7fr);
-}
-
 /* Side-compact host: denser tracks (tokens only) */
 .inline-object-form--side .side-compact-insulation .insulation-layers-table {
   --ins-col-index: 36px;
@@ -22,26 +13,6 @@
   --ins-col-thickness: minmax(60px, 0.5fr);
   --ins-col-lambda: minmax(56px, 0.45fr);
   --ins-col-range: minmax(72px, 0.6fr);
-}
-
-@media (max-width: 1400px) {
-  .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-table {
-    --ins-col-index: 56px;
-    --ins-col-material: minmax(160px, 1.4fr);
-    --ins-col-thickness: minmax(88px, 0.5fr);
-    --ins-col-lambda: minmax(80px, 0.45fr);
-    --ins-col-range: minmax(110px, 0.6fr);
-  }
-}
-
-@media (max-width: 1200px) {
-  .inline-object-form--wide .object-wizard-wide-panel .insulation-layers-table {
-    --ins-col-index: 52px;
-    --ins-col-material: minmax(140px, 1.2fr);
-    --ins-col-thickness: minmax(80px, 0.45fr);
-    --ins-col-lambda: minmax(72px, 0.4fr);
-    --ins-col-range: minmax(100px, 0.55fr);
-  }
 }
 
 /*

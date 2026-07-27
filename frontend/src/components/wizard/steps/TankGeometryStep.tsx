@@ -30,9 +30,10 @@ function fieldHelp(fieldId: string) {
 
 interface Props {
   fieldInputSettings?: HeatCalcFieldInputSettings;
+  part?: 'all' | 'wide' | 'numeric';
 }
 
-export default function TankGeometryStep({ fieldInputSettings }: Props) {
+export default function TankGeometryStep({ fieldInputSettings, part = 'all' }: Props) {
   const form = Form.useFormInstance();
   const numberInputProps = (fieldId: string) =>
     heatCalcNumberInputProps('tank', fieldId, { fieldInputSettings, form });
@@ -46,7 +47,7 @@ export default function TankGeometryStep({ fieldInputSettings }: Props) {
 
   return (
     <>
-      <Form.Item
+      {(part === 'all' || part === 'wide') && <Form.Item
         className="fixed-select-form-item tank-shape-form-item helped-form-item"
         label={fieldLabel('shape')}
         name="shape"
@@ -61,9 +62,9 @@ export default function TankGeometryStep({ fieldInputSettings }: Props) {
           />,
           fieldHelp('shape'),
         )}
-      </Form.Item>
+      </Form.Item>}
 
-      {needDiameter && (
+      {(part === 'all' || part === 'numeric') && needDiameter && (
         <Form.Item
           className="numeric-form-item tank-size-form-item tank-diameter-form-item helped-form-item"
           label={fieldLabel('diameter_mm')}
@@ -81,7 +82,7 @@ export default function TankGeometryStep({ fieldInputSettings }: Props) {
         </Form.Item>
       )}
 
-      {needHeight && (
+      {(part === 'all' || part === 'numeric') && needHeight && (
         <Form.Item
           className="numeric-form-item tank-size-form-item tank-height-form-item helped-form-item"
           label={fieldLabel('height_mm')}
@@ -99,7 +100,7 @@ export default function TankGeometryStep({ fieldInputSettings }: Props) {
         </Form.Item>
       )}
 
-      {needLength && (
+      {(part === 'all' || part === 'numeric') && needLength && (
         <Form.Item
           className="numeric-form-item tank-size-form-item tank-length-form-item helped-form-item"
           label={fieldLabel('length_mm')}
@@ -117,7 +118,7 @@ export default function TankGeometryStep({ fieldInputSettings }: Props) {
         </Form.Item>
       )}
 
-      {needWidth && (
+      {(part === 'all' || part === 'numeric') && needWidth && (
         <Form.Item
           className="numeric-form-item tank-size-form-item tank-width-form-item helped-form-item"
           label={fieldLabel('width_mm')}
@@ -135,7 +136,7 @@ export default function TankGeometryStep({ fieldInputSettings }: Props) {
         </Form.Item>
       )}
 
-      <Form.Item
+      {(part === 'all' || part === 'numeric') && <Form.Item
         className="numeric-form-item tank-size-form-item tank-wall-thickness-form-item helped-form-item"
         label={fieldLabel('wall_thickness_mm')}
         name="wall_thickness_mm"
@@ -149,9 +150,9 @@ export default function TankGeometryStep({ fieldInputSettings }: Props) {
           />,
           fieldHelp('wall_thickness_mm'),
         )}
-      </Form.Item>
+      </Form.Item>}
 
-      <Form.Item
+      {(part === 'all' || part === 'numeric') && <Form.Item
         className="numeric-form-item tank-size-form-item tank-wall-lambda-form-item helped-form-item"
         label={fieldLabel('wall_lambda')}
         name="wall_lambda"
@@ -165,7 +166,7 @@ export default function TankGeometryStep({ fieldInputSettings }: Props) {
           />,
           fieldHelp('wall_lambda'),
         )}
-      </Form.Item>
+      </Form.Item>}
     </>
   );
 }

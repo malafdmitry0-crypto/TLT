@@ -34,6 +34,7 @@ function fieldHelp(fieldId: string, objectType: HeatCalcObjectType) {
 
 interface Props {
   objectType: HeatCalcObjectType;
+  part?: 'all' | 'wide' | 'numeric';
   fieldInputSettings?: HeatCalcFieldInputSettings;
   isSoilFetching: boolean;
   onSoilPickerOpen?: () => void;
@@ -42,6 +43,7 @@ interface Props {
 
 export default function PlacementGroundStep({
   objectType,
+  part = 'all',
   fieldInputSettings,
   isSoilFetching,
   onSoilPickerOpen,
@@ -57,7 +59,7 @@ export default function PlacementGroundStep({
 
   return (
     <>
-      <Form.Item
+      {(part === 'all' || part === 'wide') && <Form.Item
         className="fixed-select-form-item reduced-select-form-item placement-form-item helped-form-item"
         label={fieldLabel('placement', objectType)}
         name="placement"
@@ -72,10 +74,10 @@ export default function PlacementGroundStep({
           />,
           fieldHelp('placement', objectType),
         )}
-      </Form.Item>
+      </Form.Item>}
       {isUnderground && (
         <>
-          <Form.Item
+          {(part === 'all' || part === 'numeric') && <Form.Item
             className="fit-label-form-item burial-depth-form-item helped-form-item"
             label={fieldLabel('burial_depth', objectType)}
             name="burial_depth"
@@ -90,8 +92,8 @@ export default function PlacementGroundStep({
               />,
               fieldHelp('burial_depth', objectType),
             )}
-          </Form.Item>
-          <Form.Item
+          </Form.Item>}
+          {(part === 'all' || part === 'wide') && <Form.Item
             className="fixed-select-form-item ground-type-form-item helped-form-item"
             label={fieldLabel('ground_type', objectType)}
             name="ground_type"
@@ -111,8 +113,8 @@ export default function PlacementGroundStep({
               />,
               fieldHelp('ground_type', objectType),
             )}
-          </Form.Item>
-          <Form.Item
+          </Form.Item>}
+          {(part === 'all' || part === 'numeric') && <Form.Item
             className="numeric-form-item coefficient-form-item ground-conductivity-form-item helped-form-item"
             label={fieldLabel('ground_conductivity', objectType)}
             name="ground_conductivity"
@@ -127,7 +129,7 @@ export default function PlacementGroundStep({
               />,
               fieldHelp('ground_conductivity', objectType),
             )}
-          </Form.Item>
+          </Form.Item>}
         </>
       )}
     </>

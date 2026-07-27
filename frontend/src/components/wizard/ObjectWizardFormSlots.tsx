@@ -84,22 +84,78 @@ export function buildObjectWizardFormSlots(input: ObjectWizardFormSlotsInput) {
     syncProgrammaticValuesChange,
   } = input;
 
-  const geometry = (
+  const nameField = (
+    <Form.Item
+      className="name-form-item helped-form-item"
+      label={fieldLabel('name', heatCalcObjectType)}
+      name="name"
+      rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'name')}
+    >
+      {withHelp(
+        <TltTextField
+          data-testid="object-name-input"
+          {...heatCalcTextInputProps(heatCalcObjectType, 'name')}
+        />,
+        fieldHelp('name', heatCalcObjectType),
+      )}
+    </Form.Item>
+  );
+  const placementStep = (part: 'all' | 'wide' | 'numeric') => (
+    <PlacementGroundStep
+      objectType={heatCalcObjectType}
+      part={part}
+      fieldInputSettings={fieldInputSettings}
+      isSoilFetching={isSoilFetching}
+      onSoilPickerOpen={requestSoilReference}
+      soilOptions={soilOptions}
+    />
+  );
+  const temperatureStep = (part: 'all' | 'wide' | 'temperatures' | 'wind') => (
+    <TemperatureEnvironmentStep
+      objectType={heatCalcObjectType}
+      part={part}
+      fieldInputSettings={fieldInputSettings}
+      climateOptions={climateOptions}
+      isClimateFetching={isClimateFetching}
+      onClimatePickerOpen={requestClimateReference}
+      showWindField={showWindField}
+      ambientTemperatureSourceFallback={watchedValue('ambient_temperature_source')}
+      windSpeedSourceFallback={watchedValue('wind_speed_source')}
+    />
+  );
+  const insulationModeField = (
+    <InsulationSettingsRow
+      objectType={heatCalcObjectType}
+      fieldInputSettings={fieldInputSettings}
+      watchedValues={watchedValues}
+    />
+  );
+  const electricalStep = (
+    <ElectricalAndFittingsStep
+      objectType={heatCalcObjectType}
+      fieldInputSettings={fieldInputSettings}
+    />
+  );
+
+  const geometry = layoutVariant === 'wide' ? (
     <>
-      <Form.Item
-        className="name-form-item helped-form-item"
-        label={fieldLabel('name', heatCalcObjectType)}
-        name="name"
-        rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'name')}
-      >
-        {withHelp(
-          <TltTextField
-            data-testid="object-name-input"
-            {...heatCalcTextInputProps(heatCalcObjectType, 'name')}
-          />,
-          fieldHelp('name', heatCalcObjectType),
-        )}
-      </Form.Item>
+      {nameField}
+      {objectType === 'pipe' ? (
+        <PipeWallMaterialStep
+          part="material"
+          fieldInputSettings={fieldInputSettings}
+          pipeMaterialOptions={pipeMaterialOptions}
+        />
+      ) : (
+        <TankGeometryStep part="wide" fieldInputSettings={fieldInputSettings} />
+      )}
+      {placementStep('wide')}
+      {temperatureStep('wide')}
+      {insulationModeField}
+    </>
+  ) : (
+    <>
+      {nameField}
       {objectType === 'pipe'
         ? <PipeGeometryStep fieldInputSettings={fieldInputSettings} />
         : <TankGeometryStep fieldInputSettings={fieldInputSettings} />}
@@ -109,57 +165,47 @@ export function buildObjectWizardFormSlots(input: ObjectWizardFormSlotsInput) {
           pipeMaterialOptions={pipeMaterialOptions}
         />
       )}
-      {layoutVariant !== 'wide' && (
-        <PlacementGroundStep
-          objectType={heatCalcObjectType}
-          fieldInputSettings={fieldInputSettings}
-          isSoilFetching={isSoilFetching}
-          onSoilPickerOpen={requestSoilReference}
-          soilOptions={soilOptions}
-        />
-      )}
-      <ElectricalAndFittingsStep
-        objectType={heatCalcObjectType}
-        fieldInputSettings={fieldInputSettings}
-      />
+      {placementStep('all')}
+      {electricalStep}
     </>
   );
 
-  const climate = (
+  const climate = layoutVariant === 'wide' ? (
     <>
-      {layoutVariant === 'wide' && (
-        <PlacementGroundStep
-          objectType={heatCalcObjectType}
-          fieldInputSettings={fieldInputSettings}
-          isSoilFetching={isSoilFetching}
-          onSoilPickerOpen={requestSoilReference}
-          soilOptions={soilOptions}
-        />
+      {objectType === 'pipe' ? (
+        <>
+          <PipeGeometryStep fieldInputSettings={fieldInputSettings} />
+          <PipeWallMaterialStep
+            part="thickness"
+            fieldInputSettings={fieldInputSettings}
+            pipeMaterialOptions={pipeMaterialOptions}
+          />
+          {electricalStep}
+          <PipeWallMaterialStep
+            part="lambda"
+            fieldInputSettings={fieldInputSettings}
+            pipeMaterialOptions={pipeMaterialOptions}
+          />
+        </>
+      ) : (
+        <TankGeometryStep part="numeric" fieldInputSettings={fieldInputSettings} />
       )}
-      <TemperatureEnvironmentStep
-        objectType={heatCalcObjectType}
-        fieldInputSettings={fieldInputSettings}
-        climateOptions={climateOptions}
-        isClimateFetching={isClimateFetching}
-        onClimatePickerOpen={requestClimateReference}
-        showWindField={showWindField}
-        ambientTemperatureSourceFallback={watchedValue('ambient_temperature_source')}
-        windSpeedSourceFallback={watchedValue('wind_speed_source')}
-      />
     </>
-  );
+  ) : temperatureStep('all');
 
-  const insulationSettings = (
-    <InsulationSettingsRow
-      objectType={heatCalcObjectType}
-      fieldInputSettings={fieldInputSettings}
-      watchedValues={watchedValues}
-    />
-  );
+  const insulationSettings = layoutVariant === 'wide' ? (
+    <>
+      {temperatureStep('temperatures')}
+      {objectType === 'tank' ? electricalStep : null}
+      {temperatureStep('wind')}
+      {placementStep('numeric')}
+    </>
+  ) : insulationModeField;
 
   const insulationTable = (
     <InsulationLayersStep
       objectType={heatCalcObjectType}
+      layout={layoutVariant}
       fieldInputSettings={fieldInputSettings}
       watchedValues={watchedValues}
       layerCount={layerCount}

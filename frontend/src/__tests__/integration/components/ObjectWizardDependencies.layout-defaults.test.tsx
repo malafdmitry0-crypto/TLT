@@ -42,12 +42,14 @@ describe('ObjectWizard dependencies — layout-defaults', () => {
     )).toEqual(['Расчёт теплопотерь', 'Алгоритм выбора кабеля']);
     expect(document.querySelector('.heat-object-fields[data-protected="heat-object-fields"]')).toBeInTheDocument();
     expect(document.querySelector('.insulation-layers-table[data-protected="insulation-layers-table"]')).toBeInTheDocument();
-    expect(document.querySelector('[data-slot="geometry"]')).toHaveClass(
+    expect(document.querySelector('[data-slot="wide"]')).toHaveClass(
       'tlt-compact-field-grid',
       'tlt-compact-field-grid--flow-columns',
       'tlt-compact-field-grid--ant-form',
     );
-    expect(document.querySelector('[data-slot="geometry"]')).toHaveAttribute('data-density', 'compact');
+    expect(document.querySelector('[data-slot="wide"]')).toHaveAttribute('data-density', 'compact');
+    expect(document.querySelector('[data-slot="geometry-numeric"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-slot="environment-numeric"]')).toBeInTheDocument();
 
     cleanup();
     await mockReferences();

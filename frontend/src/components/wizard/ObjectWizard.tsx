@@ -134,9 +134,13 @@ export default function ObjectWizard({
         <TltTextField type="hidden" />
       </Form.Item>
       {layoutVariant === 'side' ? (
-        <div className="heatcalc-dual-forms heatcalc-dual-forms--side">
+        <div
+          className="heatcalc-dual-forms heatcalc-dual-forms--side"
+          data-object-type={heatCalcObjectType}
+        >
           <div className="heatcalc-dual-forms__heat">
             <ObjectWizardSidePanel
+              objectType={heatCalcObjectType}
               geometry={slots.geometry}
               climate={slots.climate}
               insulationSettings={slots.insulationSettings}
@@ -155,10 +159,14 @@ export default function ObjectWizard({
           </WizardZoneBoundary>
         </div>
       ) : (
-        <div className="heatcalc-dual-forms heatcalc-dual-forms--wide">
+        <div
+          className="heatcalc-dual-forms heatcalc-dual-forms--wide"
+          data-object-type={heatCalcObjectType}
+        >
           <div className="heatcalc-dual-forms__heat">
             <ObjectWizardWidePanel
               formGridRef={formGridRef}
+              objectType={heatCalcObjectType}
               geometry={slots.geometry}
               climate={slots.climate}
               insulationSettings={slots.insulationSettings}

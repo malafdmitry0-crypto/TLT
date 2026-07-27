@@ -31,9 +31,14 @@ function fieldHelp(fieldId: string) {
 interface Props {
   fieldInputSettings?: HeatCalcFieldInputSettings;
   pipeMaterialOptions: ReferenceOption[];
+  part?: 'all' | 'material' | 'thickness' | 'lambda';
 }
 
-export default function PipeWallMaterialStep({ fieldInputSettings, pipeMaterialOptions }: Props) {
+export default function PipeWallMaterialStep({
+  fieldInputSettings,
+  pipeMaterialOptions,
+  part = 'all',
+}: Props) {
   const form = Form.useFormInstance();
   const pipeMaterial = Form.useWatch('pipe_material', form);
   const numberInputProps = (fieldId: string) =>
@@ -41,7 +46,7 @@ export default function PipeWallMaterialStep({ fieldInputSettings, pipeMaterialO
 
   return (
     <>
-      <Form.Item
+      {(part === 'all' || part === 'thickness') && <Form.Item
         className="fit-label-form-item short-number-form-item wall-thickness-form-item helped-form-item"
         label={fieldLabel('wall_thickness_mm')}
         name="wall_thickness_mm"
@@ -55,8 +60,8 @@ export default function PipeWallMaterialStep({ fieldInputSettings, pipeMaterialO
           />,
           fieldHelp('wall_thickness_mm'),
         )}
-      </Form.Item>
-      <Form.Item
+      </Form.Item>}
+      {(part === 'all' || part === 'material') && <Form.Item
         className="pipe-material-form-item reduced-select-form-item helped-form-item"
         label={fieldLabel('pipe_material')}
         name="pipe_material"
@@ -73,8 +78,8 @@ export default function PipeWallMaterialStep({ fieldInputSettings, pipeMaterialO
           />,
           fieldHelp('pipe_material'),
         )}
-      </Form.Item>
-      {pipeMaterial === 'other' ? (
+      </Form.Item>}
+      {(part === 'all' || part === 'lambda') && pipeMaterial === 'other' ? (
         <Form.Item
           className="fit-label-form-item pipe-lambda-manual-form-item helped-form-item"
           label={fieldLabel('pipe_lambda')}

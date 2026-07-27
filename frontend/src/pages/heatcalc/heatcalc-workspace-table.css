@@ -163,15 +163,6 @@
   justify-content: start;
 }
 
-.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields .insulation-settings-row {
-  display: contents;
-  flex-direction: unset;
-  grid-template-columns: none;
-  width: auto;
-  max-width: none;
-  gap: 0;
-}
-
 .inline-object-form--wide .object-wizard-wide-panel .insulation-layer-count-form-item .ant-select,
 .inline-object-form--wide .object-wizard-wide-panel .insulation-layer-count-form-item .tlt-select {
   max-width: 96px;
