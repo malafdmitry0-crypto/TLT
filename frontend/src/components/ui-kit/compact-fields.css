@@ -168,12 +168,12 @@
   box-sizing: border-box;
 }
 
-/* Ant controls still need vs CSS-in-JS */
+/* Ant controls still need vs CSS-in-JS (selector chrome of TltSelect lives
+   on the trigger — tlt-form-controls.css owns it, no .ant-select-selector here) */
 .tlt-compact-field .ant-input,
 .tlt-compact-field .ant-input-affix-wrapper,
 .tlt-compact-field .ant-input-number,
-.tlt-compact-field .ant-input-number-input,
-.tlt-compact-field .ant-select-selector {
+.tlt-compact-field .ant-input-number-input {
   height: var(--tlt-field-control-height);
   min-height: var(--tlt-field-control-height);
   padding: 0 var(--tlt-field-control-padding-inline, 3px);
@@ -191,10 +191,6 @@
   font-size: var(--tlt-field-number-font-size, 12px);
 }
 
-.tlt-compact-field .tlt-select__value {
-  font-size: var(--tlt-field-select-font-size, 9px);
-  line-height: calc(var(--tlt-field-control-height) - 2px);
-}
 .tlt-compact-field .ant-select-selection-item,
 .tlt-compact-field .ant-select-selection-placeholder {
   font-size: var(--tlt-field-select-font-size, 9px);
@@ -259,7 +255,6 @@
 .tlt-compact-field--required .ant-input,
 .tlt-compact-field--required .ant-input-affix-wrapper,
 .tlt-compact-field--required .ant-input-number,
-.tlt-compact-field--required .ant-select-selector,
 .tlt-compact-field--required .reference-picker-control {
   background-color: var(--color-swatch-fffdf6);
   box-shadow: inset 2px 0 0 var(--color-swatch-d48806);
@@ -271,7 +266,6 @@
 .tlt-compact-field--error .ant-input,
 .tlt-compact-field--error .ant-input-affix-wrapper,
 .tlt-compact-field--error .ant-input-number,
-.tlt-compact-field--error .ant-select-selector,
 .tlt-compact-field--error .reference-picker-control {
   border-color: var(--color-danger);
   background-color: var(--color-danger-bg);

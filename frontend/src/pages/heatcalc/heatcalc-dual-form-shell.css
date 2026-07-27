@@ -147,8 +147,15 @@
   min-width: 0;
   justify-self: stretch;
 }
-.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs,
-.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three {
+/*
+ * Generic dual-card template (heat|spec over cable). MUST NOT catch the
+ * heat-structured grid: it comes later in the file at equal specificity, so
+ * without :not() it overrides the fields/layers stack above — the layers table
+ * lands in "cable" (top-left) and the fields zone, whose "fields" area does not
+ * exist here, is thrown into an implicit column on the right.
+ */
+.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs:not(.form-grid-srs--heat-structured),
+.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three:not(.form-grid-srs--heat-structured) {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
   grid-template-rows: auto auto;
@@ -178,13 +185,13 @@
   overflow: visible;
   scrollbar-gutter: auto;
 }
-.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three > .form-col-srs--primary {
+.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three:not(.form-grid-srs--heat-structured) > .form-col-srs--primary {
   grid-area: heat;
 }
-.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three > .form-col-srs--insulation {
+.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three:not(.form-grid-srs--heat-structured) > .form-col-srs--insulation {
   grid-area: cable;
 }
-.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three > .form-col-srs--climate {
+.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three:not(.form-grid-srs--heat-structured) > .form-col-srs--climate {
   grid-area: spec;
 }
 .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three .pdf-form-column {
@@ -199,8 +206,8 @@
 /* C19 residual media */
 
 @media (max-width: 1400px) {
-.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs,
-  .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three {
+.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs:not(.form-grid-srs--heat-structured),
+  .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three:not(.form-grid-srs--heat-structured) {
     grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
     grid-template-areas:
       "heat spec"
@@ -223,8 +230,8 @@
 }
 
 @media (max-width: 1400px) {
-  .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs,
-  .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three {
+  .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs:not(.form-grid-srs--heat-structured),
+  .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three:not(.form-grid-srs--heat-structured) {
     grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
     grid-template-areas:
       "heat spec"

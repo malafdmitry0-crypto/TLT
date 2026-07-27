@@ -109,7 +109,7 @@
 }
 
 @media (max-width: 1200px) {
-  .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three {
+  .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three:not(.form-grid-srs--heat-structured) {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
       "heat"
@@ -152,9 +152,7 @@
   min-width: 0;
 }
 
-/*
- * Legacy 2-up settings row — ONLY outside heat-object-fields island.
- */
+/* Legacy 2-up settings row — ONLY outside heat-object-fields island. */
 .inline-object-form--wide .object-wizard-wide-panel .insulation-settings-row:not(.heat-object-fields .insulation-settings-row) {
   display: grid;
   grid-template-columns: minmax(140px, 180px) minmax(220px, 360px);

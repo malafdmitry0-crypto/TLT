@@ -17,9 +17,9 @@
 }
 .inline-object-form {
   margin-top: 0;
-  /* Density SoT for this form — Tlt/Ant controls read these tokens (no per-control height re-declare) */
-  --inline-control-height: 24px;
-  --tlt-field-control-height: 24px;
+  /* Density SoT — controls read these tokens; 36px = 3 label lines at the 12px browser min font */
+  --inline-control-height: 36px;
+  --tlt-field-control-height: 36px;
   --tlt-field-number-font-size: 10px;
   --tlt-field-select-font-size: 9px;
   --tlt-field-unit-font-size: 9px;
@@ -85,8 +85,8 @@
     height: auto;
   }
 
-  .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs,
-  .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three {
+  .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs:not(.form-grid-srs--heat-structured),
+  .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three:not(.form-grid-srs--heat-structured) {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
       "heat"
@@ -164,7 +164,6 @@
 }
 .inline-object-form .ant-form-item {
   display: block;
-  grid-column: 1 / -1;
   overflow: visible;
   margin-bottom: 0;
   width: 100%;
@@ -174,6 +173,7 @@
   padding: 1px 2px;
   box-sizing: border-box;
 }
+.inline-object-form .ant-form-item:not(.heat-object-fields--wide *) { grid-column: 1 / -1; }
 .inline-object-form .ant-form-item[hidden],
 .inline-object-form .ant-form-item-hidden {
   display: none;
@@ -463,12 +463,6 @@
 /* Tlt density comes from --tlt-field-* on .inline-object-form; only layout deltas here */
 .inline-object-form .tlt-select__trigger {
   padding: 0 4px;
-}
-.inline-object-form .tlt-select__arrow {
-  margin-inline-start: 4px;
-  border-inline-start-width: 3px;
-  border-inline-end-width: 3px;
-  border-block-start-width: 4px;
 }
 .inline-object-form .ant-input-number {
   height: var(--inline-control-height);

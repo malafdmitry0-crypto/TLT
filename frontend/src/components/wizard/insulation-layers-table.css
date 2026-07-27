@@ -30,6 +30,7 @@
   --ins-font: 9px;
   --field-input-min-width: 0px;
   --inline-control-height: var(--ins-control-h);
+  --tlt-field-control-height: var(--ins-control-h);
   --field-label-width: 0px;
   --compact-field-label-width: 0px;
 
@@ -136,10 +137,6 @@
   width: 100%;
 }
 
-.insulation-layers-table .insulation-layer-group {
-  cursor: pointer;
-}
-
 .insulation-layers-table .insulation-layer-group--active {
   background: var(--color-swatch-f7fbff);
   box-shadow: inset 0 0 0 1px var(--color-swatch-b7d4f0);
@@ -158,6 +155,7 @@
 }
 
 .insulation-layers-table .insulation-layer-group {
+  cursor: pointer;
   display: grid;
   grid-template-columns: var(--ins-cols);
   grid-template-rows: auto;
@@ -185,7 +183,6 @@
   padding: 6px 8px;
   border-left: 1px solid var(--color-swatch-e0e7ef);
   box-sizing: border-box;
-  grid-row: 1;
 }
 
 .insulation-layers-table .insulation-layer-cell--index {
@@ -238,7 +235,9 @@
   grid-row: auto;
 }
 
-/* sr-only labels — header owns column titles */
+/* sr-only labels — header owns column titles; inner label must not stretch
+   to the host column (screen-reader box stays 1px, geometry stays sane) */
+.insulation-layers-table .ant-form-item-label > label { width: max-content; }
 .insulation-layers-table .ant-form-item-label {
   position: absolute;
   width: 1px;

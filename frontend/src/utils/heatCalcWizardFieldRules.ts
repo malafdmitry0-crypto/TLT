@@ -16,6 +16,27 @@ import {
   type HeatCalcFieldInputSettings,
 } from '@/utils/heatCalcFieldInputSettings';
 
+/*
+ * Render-phase reads must not touch the form store before <Form> mounts: the
+ * wizard builds its slots (rules, aria-required) during render, and when that
+ * render is thrown away — Suspense retry on the lazy chunk, StrictMode — the
+ * store is never hooked and rc-field-form logs «useForm is not connected».
+ * The wizard registers a render-safe snapshot getter per form instance;
+ * validators keep live reads (they only run after mount).
+ */
+const renderValuesByForm = new WeakMap<FormInstance, () => Record<string, unknown>>();
+
+export function registerHeatCalcWizardRenderValues(
+  form: FormInstance,
+  getValues: () => Record<string, unknown>,
+) {
+  renderValuesByForm.set(form, getValues);
+}
+
+function heatCalcRenderValues(form: FormInstance): Record<string, unknown> {
+  return renderValuesByForm.get(form)?.() ?? form.getFieldsValue(true);
+}
+
 export function heatCalcFieldRequired(
   form: FormInstance,
   objectType: HeatCalcObjectType,
@@ -23,7 +44,7 @@ export function heatCalcFieldRequired(
 ) {
   return isHeatCalcFieldRequired(fieldId, {
     objectType,
-    values: form.getFieldsValue(true),
+    values: heatCalcRenderValues(form),
   });
 }
 

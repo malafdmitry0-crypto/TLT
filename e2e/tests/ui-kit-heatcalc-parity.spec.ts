@@ -365,7 +365,10 @@ test.describe('UI Kit ↔ HeatCalc field parity', () => {
         const input = root.querySelector('.tlt-number-field__input') as HTMLElement | null;
         const unit = root.querySelector('.tlt-number-field__unit') as HTMLElement | null;
         const label = root.querySelector('.tlt-compact-field__label') as HTMLElement | null;
-        const sel = root.querySelector('.tlt-select__value') as HTMLElement | null;
+        // Post-Ant TltSelect renders no .tlt-select__value — value lives in ant selection nodes.
+        const sel = (root.querySelector('.tlt-select__value')
+          ?? root.querySelector('.ant-select-selection-item')
+          ?? root.querySelector('.ant-select-selection-placeholder')) as HTMLElement | null;
         const cs = (el: HTMLElement | null) => {
           if (!el) return null;
           const s = getComputedStyle(el);

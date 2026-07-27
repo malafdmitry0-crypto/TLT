@@ -179,16 +179,15 @@
   overflow-x: auto;
 }
 
-.uikit-heatcalc-table code {
-  font-family: var(--font-family-data);
-  font-size: inherit;
-}
+.uikit-heatcalc-table code { font-family: var(--font-family-data); font-size: inherit; }
+/* SC-03 parity: compact showcase mirrors the live dual-form density (36px = 3 label lines) */
+.uikit-page--compact .uikit-form-grid,
+.uikit-page--compact .uikit-heatcalc-form { --tlt-field-control-height: 36px; }
 
-.uikit-heatcalc-table .uikit-status {
-  min-height: 16px;
-  padding-block: 0;
-  font-size: 8px;
-}
+.uikit-heatcalc-table .uikit-status { min-height: 16px; padding-block: 0; font-size: 8px; }
+/* = dual-form label box (11px, lh 1.05 — heatcalc-side-form-layout.css) */
+.uikit-page--compact .uikit-form-grid .tlt-compact-field__label,
+.uikit-page--compact .uikit-heatcalc-form .tlt-compact-field__label { min-height: 11px; line-height: 1.05; }
 
 /* Desktop reflow (max-width: 1200px) — owner-local AF12 */
 
@@ -196,7 +195,7 @@
 .uikit-page--comfortable .uikit-form-grid,
 .uikit-page--comfortable .uikit-heatcalc-form,
 .uikit-page--comfortable .tlt-compact-field-grid {
-  --tlt-field-control-height: 26px;
+  --tlt-field-control-height: 36px; /* = live dual-form density: 3 label lines */
   --tlt-field-control-font-size: 12px;
   --tlt-field-number-font-size: 12px;
   --tlt-field-unit-font-size: 9px;

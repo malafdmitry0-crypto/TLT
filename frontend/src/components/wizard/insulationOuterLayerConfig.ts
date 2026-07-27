@@ -28,7 +28,7 @@ export const SECOND_INSULATION_LAYER: OuterInsulationLayerConfig = {
   tempMaxField: 'second_insulation_temperature_max',
   tempRangeField: 'second_insulation_temperature_range',
   materialClassName:
-    'medium-select-form-item layer-material-form-item second-layer-material-form-item helped-form-item',
+    'fixed-select-form-item layer-material-form-item second-layer-material-form-item helped-form-item',
   thicknessClassName:
     'numeric-form-item short-number-form-item second-layer-thickness-form-item helped-form-item',
   materialTestId: 'second-insulation-material-select',
@@ -46,7 +46,7 @@ export const THIRD_INSULATION_LAYER: OuterInsulationLayerConfig = {
   tempMaxField: 'third_insulation_temperature_max',
   tempRangeField: 'third_insulation_temperature_range',
   materialClassName:
-    'medium-select-form-item layer-material-form-item third-layer-material-form-item helped-form-item',
+    'fixed-select-form-item layer-material-form-item third-layer-material-form-item helped-form-item',
   thicknessClassName:
     'numeric-form-item short-number-form-item third-layer-thickness-form-item helped-form-item',
   materialTestId: 'third-insulation-material-select',

@@ -1,0 +1,350 @@
+- generic [ref=e1]:
+  - generic [ref=e25]:
+    - banner [ref=e26]:
+      - generic [ref=e27]:
+        - generic "HeatCalc" [ref=e28]:
+          - img "fire" [ref=e29]:
+            - img [ref=e30]
+          - heading "HeatCalc" [level=2] [ref=e32]
+        - navigation "Разделы проекта" [ref=e33]:
+          - menu [ref=e34]:
+            - menuitem "fire Расчёт тепловых потерь" [ref=e35] [cursor=pointer]:
+              - img "fire" [ref=e36]:
+                - img [ref=e37]
+              - generic [ref=e40]: Расчёт тепловых потерь
+            - menuitem "thunderbolt Электротехнический расчёт" [ref=e41] [cursor=pointer]:
+              - img "thunderbolt" [ref=e42]:
+                - img [ref=e43]
+              - generic [ref=e46]: Электротехнический расчёт
+            - menuitem "unordered-list Спецификация" [ref=e47] [cursor=pointer]:
+              - img "unordered-list" [ref=e48]:
+                - img [ref=e49]
+              - generic [ref=e51]: Спецификация
+            - separator
+            - menuitem "file-text Отчёт" [ref=e52] [cursor=pointer]:
+              - img "file-text" [ref=e53]:
+                - img [ref=e54]
+              - generic [ref=e56]: Отчёт
+            - menuitem [disabled]:
+              - img:
+                - img
+        - generic [ref=e57]:
+          - generic [ref=e58]:
+            - generic [ref=e60]:
+              - img "folder-open" [ref=e62]:
+                - img [ref=e63]
+              - generic "Мой проект" [ref=e66]
+            - button "download Скачать" [ref=e68] [cursor=pointer]:
+              - img "download" [ref=e70]:
+                - img [ref=e71]
+              - generic [ref=e73]: Скачать
+            - button "upload Загрузить" [ref=e75] [cursor=pointer]:
+              - img "upload" [ref=e77]:
+                - img [ref=e78]
+              - generic [ref=e80]: Загрузить
+          - generic [ref=e81]:
+            - button "question-circle Инструкция" [ref=e83] [cursor=pointer]:
+              - img "question-circle" [ref=e85]:
+                - img [ref=e86]
+              - generic [ref=e89]: Инструкция
+            - button "logout Выход" [ref=e91] [cursor=pointer]:
+              - img "logout" [ref=e93]:
+                - img [ref=e94]
+              - generic [ref=e96]: Выход
+    - main [ref=e105]:
+      - generic [ref=e107]:
+        - toolbar "Тип объекта и блок параметров" [ref=e109]:
+          - generic "Тип объекта" [ref=e110]:
+            - 'button "Трубопровод: 1" [pressed] [ref=e111] [cursor=pointer]':
+              - img [ref=e113]
+              - generic [ref=e117]:
+                - text: "Трубопровод:"
+                - strong [ref=e118]: "1"
+            - 'button "Резервуар: 0" [ref=e119] [cursor=pointer]':
+              - img [ref=e121]
+              - generic [ref=e125]:
+                - text: "Резервуар:"
+                - strong [ref=e126]: "0"
+            - 'button "Все: 1" [ref=e127] [cursor=pointer]':
+              - img "appstore" [ref=e129]:
+                - img [ref=e130]
+              - generic [ref=e132]:
+                - text: "Все:"
+                - strong [ref=e133]: "1"
+            - button "Пол (недоступно)" [disabled] [ref=e134]:
+              - generic: Пол
+          - generic [ref=e135]:
+            - generic [ref=e136]: "Режим: добавление"
+            - generic [ref=e137] [cursor=pointer]:
+              - checkbox "Показать блок заполнения параметров" [checked] [ref=e139]
+              - generic [ref=e141]: Показать блок заполнения параметров
+            - button "Далее. Электротехнический расчёт" [ref=e143] [cursor=pointer]:
+              - generic [ref=e144]: Далее → Электротехнический расчёт
+        - generic "Блок заполнения параметров" [ref=e146]:
+          - generic [ref=e149]:
+            - generic [ref=e151]:
+              - heading "Расчёт теплопотерь" [level=4] [ref=e152]:
+                - generic [ref=e153]: Расчёт теплопотерь
+              - generic [ref=e154]:
+                - generic [ref=e156]:
+                  - generic [ref=e157]:
+                    - generic [ref=e159]:
+                      - generic [ref=e162]: Наименование
+                      - textbox "Наименование" [ref=e168]
+                    - generic [ref=e170]:
+                      - generic [ref=e173]:
+                        - generic [ref=e174]: Наружный
+                        - generic [ref=e175]: диаметр
+                      - generic [ref=e181]:
+                        - spinbutton "Наружный диаметр" [ref=e184]
+                        - generic [ref=e185]: мм
+                    - generic [ref=e187]:
+                      - generic [ref=e190]:
+                        - generic [ref=e191]: Длина
+                        - generic [ref=e192]: трубопровода
+                      - generic [ref=e198]:
+                        - spinbutton "Длина трубопровода" [ref=e201]
+                        - generic [ref=e202]: м
+                    - generic [ref=e204]:
+                      - generic [ref=e207]:
+                        - generic [ref=e208]: Толщина
+                        - generic [ref=e209]: стенки
+                      - generic [ref=e215]:
+                        - spinbutton "Толщина стенки" [ref=e218]
+                        - generic [ref=e219]: мм
+                    - generic [ref=e221]:
+                      - generic [ref=e224]:
+                        - generic [ref=e225]: Материал
+                        - generic [ref=e226]: трубы
+                      - combobox "Материал трубы" [ref=e231] [cursor=pointer]:
+                        - generic [ref=e232]: Углеродистая сталь
+                        - img "search" [ref=e233]:
+                          - img [ref=e234]
+                    - generic [ref=e237]:
+                      - generic [ref=e240]:
+                        - generic [ref=e241]: Количество
+                        - generic [ref=e242]: локальных элементов
+                      - generic [ref=e248]:
+                        - spinbutton "Задвижки" [ref=e251]
+                        - generic [ref=e252]: шт
+                  - generic [ref=e253]:
+                    - generic [ref=e255]:
+                      - generic [ref=e258]: Размещение
+                      - generic "Размещение" [ref=e264] [cursor=pointer]:
+                        - generic: На открытом воздухе
+                        - generic [ref=e266]:
+                          - combobox "Размещение" [active] [ref=e268]:
+                            - listbox:
+                              - option "На открытом воздухе" [selected]: outdoor
+                              - option "В помещении": indoor
+                          - generic "На открытом воздухе" [ref=e269]
+                        - generic:
+                          - img:
+                            - img
+                    - generic [ref=e271]:
+                      - generic [ref=e274]: Климат
+                      - combobox "Климат" [ref=e279] [cursor=pointer]:
+                        - generic [ref=e280]: Выберите город
+                        - img "search" [ref=e281]:
+                          - img [ref=e282]
+                    - generic [ref=e285]:
+                      - generic [ref=e288]:
+                        - generic [ref=e289]: Температура
+                        - generic [ref=e290]: окружающей среды
+                      - generic [ref=e296]:
+                        - spinbutton "Температура окружающей среды" [ref=e299]
+                        - generic [ref=e300]: °C
+                    - generic [ref=e302]:
+                      - generic [ref=e305]:
+                        - generic [ref=e306]: Требуемая
+                        - generic [ref=e307]: температура объекта
+                      - generic [ref=e313]:
+                        - spinbutton "Требуемая температура объекта" [ref=e316]
+                        - generic [ref=e317]: °C
+                    - generic [ref=e319]:
+                      - generic [ref=e322]:
+                        - generic [ref=e323]: Скорость
+                        - generic [ref=e324]: ветра
+                      - generic [ref=e330]:
+                        - spinbutton "Скорость ветра" [ref=e333]
+                        - generic [ref=e334]: м/с
+                  - generic [ref=e338]:
+                    - generic [ref=e341]:
+                      - generic [ref=e342]: Режим температуры
+                      - generic [ref=e343]: изоляции (tm)
+                    - generic "Режим температуры изоляции (tm)" [ref=e349] [cursor=pointer]:
+                      - generic [ref=e351]:
+                        - combobox "Режим температуры изоляции (tm)" [ref=e353]
+                        - generic "Открытый воздух, зима" [ref=e354]
+                      - generic:
+                        - img:
+                          - img
+                - region "Таблица слоёв изоляции" [ref=e355]:
+                  - generic [ref=e356]:
+                    - generic [ref=e649]:
+                      - generic [ref=e650]:
+                        - generic [ref=e651]: Слой
+                        - button "Добавить слой изоляции" [ref=e652] [cursor=pointer]:
+                          - img "plus" [ref=e653]:
+                            - img [ref=e654]
+                      - generic [ref=e657]: Материал изоляции
+                      - generic [ref=e658]: Толщина
+                      - generic [ref=e659]: λ слоя
+                      - generic [ref=e660]: Диапазон температур
+                    - generic [ref=e358] [cursor=pointer]:
+                      - generic [ref=e361]: "1"
+                      - generic [ref=e364]:
+                        - generic [ref=e367]:
+                          - generic [ref=e368]: Материал
+                          - generic [ref=e369]: изоляции
+                        - combobox "Материал изоляции" [ref=e374]:
+                          - generic [ref=e375]: Выберите материал
+                          - img "search" [ref=e376]:
+                            - img [ref=e377]
+                      - generic [ref=e381]:
+                        - generic [ref=e384]:
+                          - generic [ref=e385]: Толщина
+                          - generic [ref=e386]: изоляции
+                        - generic [ref=e392]:
+                          - spinbutton "Толщина изоляции" [ref=e395]
+                          - generic [ref=e396]: мм
+                      - generic [ref=e399]:
+                        - generic [ref=e402]:
+                          - generic [ref=e403]: λ 1-го
+                          - generic [ref=e404]: слоя
+                        - 'status "Теплопроводность материала: —" [ref=e409]': —
+                      - generic [ref=e412]:
+                        - generic [ref=e415]:
+                          - generic [ref=e416]: Диапазон
+                          - generic [ref=e417]: температур
+                        - 'status "Диапазон температур материала: —" [ref=e422]': —
+            - generic [ref=e424]:
+              - heading "Алгоритм выбора кабеля" [level=4] [ref=e425]:
+                - generic [ref=e426]: Алгоритм выбора кабеля
+              - generic [ref=e427]:
+                - generic [ref=e428]:
+                  - generic "Температура жидкости внутри объекта" [ref=e430]:
+                    - generic [ref=e431]: T жидкости (из теплорасчёта)
+                  - generic "Синхронизировано с полем «Требуемая температура объекта»" [ref=e434]:
+                    - text: —
+                    - generic [ref=e435]: °C
+                - generic [ref=e437]:
+                  - generic [ref=e440]: Температура пропарки
+                  - generic [ref=e448]:
+                    - spinbutton "Температура пропарки" [ref=e451]
+                    - generic [ref=e452]: °C
+                - generic [ref=e454]:
+                  - generic [ref=e457]: Коэффициент запаса (Kзап)
+                  - spinbutton "Коэффициент запаса (Kзап)" [ref=e467]
+                - generic [ref=e469]:
+                  - generic [ref=e472]: Рабочее напряжение
+                  - generic "Выберите значение" [ref=e480] [cursor=pointer]:
+                    - generic [ref=e482]:
+                      - combobox "Выберите значение" [ref=e484]
+                      - generic "220" [ref=e485]
+                    - generic:
+                      - img:
+                        - img
+                - generic [ref=e487]:
+                  - generic [ref=e490]: Коэффициент навива w
+                  - spinbutton "Коэффициент навива" [ref=e500]: "1"
+                - generic [ref=e502]:
+                  - generic [ref=e505]: Среда
+                  - generic "Выберите значение" [ref=e511] [cursor=pointer]:
+                    - generic [ref=e513]:
+                      - combobox "Выберите значение" [ref=e515]
+                      - generic "Нормальная" [ref=e516]
+                    - generic:
+                      - img:
+                        - img
+                - generic [ref=e518]:
+                  - generic [ref=e521]: Температурная группа
+                  - generic "Выберите значение" [ref=e529] [cursor=pointer]:
+                    - generic [ref=e531]:
+                      - combobox "Выберите значение" [ref=e533]
+                      - generic "T1" [ref=e534]
+                    - generic:
+                      - img:
+                        - img
+                - generic [ref=e536]:
+                  - generic [ref=e539]: Минимальная температура включения
+                  - generic [ref=e547]:
+                    - spinbutton "Минимальная температура включения" [ref=e550]
+                    - generic [ref=e551]: °C
+                - generic [ref=e553]:
+                  - generic [ref=e556]: Схема соединения
+                  - generic "Выберите схему" [ref=e564] [cursor=pointer]:
+                    - generic [ref=e566]:
+                      - combobox "Выберите схему" [ref=e568]
+                      - generic: Выберите схему
+                    - generic:
+                      - img:
+                        - img
+              - paragraph [ref=e569]: Марка кабеля, нитки и подбор — на шаге «Электротехнический расчёт».
+        - generic [ref=e571]:
+          - toolbar "Действия блока заполнения" [ref=e572]:
+            - generic [ref=e573]:
+              - button "Добавить" [ref=e574] [cursor=pointer]:
+                - img "plus" [ref=e576]:
+                  - img [ref=e577]
+              - button "Сохранить" [ref=e581] [cursor=pointer]:
+                - img "save" [ref=e583]:
+                  - img [ref=e584]
+              - button "Удалить выбранные" [disabled] [ref=e587]:
+                - generic:
+                  - img "delete":
+                    - img
+          - toolbar "Действия таблицы объектов" [ref=e588]:
+            - generic [ref=e589]:
+              - radiogroup "segmented control" [ref=e590]:
+                - generic [ref=e591]:
+                  - generic [ref=e592] [cursor=pointer]:
+                    - radio "Обычный режим" [checked]
+                    - generic "Обычный режим" [ref=e593]
+                  - generic [ref=e594] [cursor=pointer]:
+                    - radio "Excel-режим"
+                    - generic "Excel-режим" [ref=e595]
+              - button "Пересчитать теплопотери выбранных или активной строки" [disabled] [ref=e597]:
+                - generic:
+                  - img "reload":
+                    - img
+              - button "Пересчитать все" [ref=e599] [cursor=pointer]:
+                - img "reload" [ref=e601]:
+                  - img [ref=e602]
+                - generic [ref=e604]: Пересчитать все
+              - button "Настройки отображения" [ref=e606] [cursor=pointer]:
+                - img "table" [ref=e608]:
+                  - img [ref=e609]
+              - button "Сбросить фильтры таблицы" [disabled] [ref=e612]:
+                - generic:
+                  - img "close-circle":
+                    - img
+              - button "Добавить копии выбранных" [disabled] [ref=e614]:
+                - generic:
+                  - img "copy":
+                    - img
+              - generic [ref=e615]:
+                - button "Импорт XLSX/CSV" [ref=e617] [cursor=pointer]:
+                  - img "upload" [ref=e619]:
+                    - img [ref=e620]
+                - button "Скачать шаблон XLSX" [ref=e623] [cursor=pointer]:
+                  - img "download" [ref=e625]:
+                    - img [ref=e626]
+                  - generic [ref=e628]: .xlsx
+                - button "Скачать шаблон CSV" [ref=e630] [cursor=pointer]:
+                  - img "download" [ref=e632]:
+                    - img [ref=e633]
+                  - generic [ref=e635]: .csv
+        - article [ref=e639]
+  - generic:
+    - generic:
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - generic "На открытом воздухе":
+                - generic: На открытом воздухе
+              - generic "В помещении":
+                - generic: В помещении
+              - generic "Подземно":
+                - generic: Подземно

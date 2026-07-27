@@ -83,7 +83,9 @@ export default function TltTextField({
   return (
     <span
       className={joinClassNames('tlt-text-field', isInvalid ? 'tlt-text-field--invalid' : undefined, className)}
+      data-required={isRequired ? 'true' : undefined}
       data-invalid={isInvalid || undefined}
+      data-disabled={disabled ? 'true' : undefined}
       style={style}
     >
       <Input

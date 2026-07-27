@@ -110,6 +110,8 @@ export default function TltSelect({
         className,
       )}
       style={style}
+      data-required={isRequired ? 'true' : undefined}
+      data-invalid={isInvalid ? 'true' : undefined}
       data-disabled={disabled ? 'true' : undefined}
     >
       <Select

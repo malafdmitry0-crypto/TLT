@@ -36,13 +36,14 @@
 }
 .tlt-number-field__input:focus,
 .tlt-text-field__input:focus,
-.tlt-select__trigger:focus {
+.tlt-select__trigger:focus,
+.tlt-select__trigger.ant-select-focused {
   border-color: var(--color-swatch-1f4e69);
   box-shadow: 0 0 0 2px var(--color-alpha-9873d7bf);
 }
 .tlt-number-field[data-disabled] .tlt-number-field__input,
 .tlt-text-field[data-disabled] .tlt-text-field__input,
-.tlt-select[data-disabled] .tlt-select__trigger,
+.tlt-select-shell[data-disabled] .tlt-select__trigger,
 .tlt-number-field__input:disabled,
 .tlt-text-field__input:disabled,
 .tlt-select__trigger:disabled {
@@ -50,15 +51,18 @@
   background: var(--color-page-canvas);
   cursor: not-allowed;
 }
+/* Required chrome. Post-Ant the trigger IS the .ant-select root and the shell
+   carries data-required; painting the trigger keeps the bar flush with its
+   border (the inner .ant-select-selector is a transparent filler, see below). */
 .tlt-number-field[data-required] .tlt-number-field__input,
 .tlt-text-field[data-required] .tlt-text-field__input,
-.tlt-select[data-required] .tlt-select__trigger {
+.tlt-select-shell[data-required] .tlt-select__trigger {
   box-shadow: inset 2px 0 0 var(--color-swatch-d48806);
   background-color: var(--color-swatch-fffdf6);
 }
 .tlt-number-field[data-invalid] .tlt-number-field__input,
 .tlt-text-field[data-invalid] .tlt-text-field__input,
-.tlt-select[data-invalid] .tlt-select__trigger {
+.tlt-select-shell[data-invalid] .tlt-select__trigger {
   border-color: var(--color-danger);
   background-color: var(--color-danger-bg);
 }
@@ -86,61 +90,34 @@
   cursor: pointer;
   text-align: start;
 }
-.tlt-select__value {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: var(--tlt-field-select-font-size);
+/* Ant renders its own bordered .ant-select-selector INSIDE the trigger; all
+   chrome (border, background, required bar) lives on the trigger, so the
+   selector must stay a transparent full-height filler — otherwise the paint
+   lands inset by the trigger's border+padding and overflows its height.
+   (0,5,0) outranks inline-object-form (0,4,0) and compact-field (0,2,0). */
+.tlt-select-shell .tlt-select.tlt-select__trigger.ant-select .ant-select-selector {
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  box-shadow: none;
+}
+/* Value/placeholder metrics — same (0,5,0) so antd size variants (sm) lose too */
+.tlt-select-shell .tlt-select.tlt-select__trigger.ant-select .ant-select-selection-item,
+.tlt-select-shell .tlt-select.tlt-select__trigger.ant-select .ant-select-selection-placeholder {
+  font-size: var(--tlt-field-select-font-size, 9px);
   line-height: calc(var(--tlt-field-control-height) - 2px);
 }
-.tlt-select__value[data-placeholder] {
-  color: var(--color-text-secondary);
-}
-.tlt-select__arrow {
-  flex: 0 0 auto;
-  width: 0;
-  height: 0;
-  margin-inline-start: 6px;
-  border-inline-start: 4px solid transparent;
-  border-inline-end: 4px solid transparent;
-  border-block-start: 5px solid var(--color-swatch-9aa8b5);
-}
+/* Theming only for the ant dropdown root (`__popover`+`__listbox` are the same
+   element); никакого display/размеров здесь — show/hide и скролл владеет antd. */
 .tlt-select__popover {
   z-index: 1070;
-  min-width: var(--trigger-width);
-  max-height: 260px;
-  overflow: auto;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 4px;
   box-shadow: 0 6px 16px var(--color-alpha-dde98ba2);
-}
-.tlt-select__listbox {
-  display: grid;
-  gap: 1px;
-  max-height: inherit;
-  padding: 4px;
-  outline: none;
-}
-.tlt-select__option {
-  min-height: 26px;
-  padding: 4px 8px;
-  color: var(--color-text);
-  font-size: 13px;
-  line-height: 18px;
-  border-radius: 3px;
-  cursor: pointer;
-  outline: none;
-}
-.tlt-select__option[data-focused],
-.tlt-select__option[data-hovered] {
-  background: var(--color-formula-result-header-bg);
-}
-.tlt-select__option[data-selected] {
-  color: var(--color-swatch-1f4e69);
-  font-weight: 600;
-  background: var(--color-swatch-edf6fb);
 }
 .tlt-select-shell {
   position: relative;
@@ -181,10 +158,6 @@
   background: var(--color-alpha-3447a5a6);
 }
 
-.tlt-select__option[data-disabled] {
-  color: var(--color-alpha-dde99046);
-  cursor: not-allowed;
-}
 .unit-input-number {
   display: inline-flex;
   width: max-content;

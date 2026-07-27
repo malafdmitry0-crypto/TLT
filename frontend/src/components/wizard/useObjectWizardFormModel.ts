@@ -7,7 +7,7 @@
  * Form ownership bag for ObjectWizard: form instance, watched values,
  * reference queries, sync handlers, and submit.
  */
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Form } from 'antd';
 
 import type { ObjectType } from '@/constants/objectTypes';
@@ -19,6 +19,7 @@ import {
   tankApiParamsToForm,
 } from '@/utils/objectWizardUtils';
 import type { HeatCalcFieldInputSettings } from '@/utils/heatCalcFieldInputSettings';
+import { registerHeatCalcWizardRenderValues } from '@/utils/heatCalcWizardFieldRules';
 import type { HeatCalcFormSectionWeights } from '@/utils/heatCalcTableViewSettings';
 import type { HeatCalcObjectType, ProjectObject } from '@/types/project';
 import {
@@ -118,6 +119,22 @@ export function useObjectWizardFormModel({
     () => applyObjectFormDefaults(heatCalcObjectType, initialValues),
     [heatCalcObjectType, initialValues],
   );
+  /*
+   * Render-safe values for the rules helpers: until <Form> mounts the store is
+   * empty (and a thrown-away render — Suspense retry, StrictMode — never hooks
+   * it, which triggers rc-field-form's «useForm is not connected»). Pre-mount
+   * the store would contain exactly formInitialValues, so serve those instead;
+   * post-mount fall through to the live store as before.
+   */
+  const formMountedRef = useRef(false);
+  useEffect(() => {
+    formMountedRef.current = true;
+  }, []);
+  registerHeatCalcWizardRenderValues(form, () => (
+    formMountedRef.current
+      ? form.getFieldsValue(true)
+      : (formInitialValues as Record<string, unknown>)
+  ));
   const calculationFieldErrors = useMemo(
     () => ({
       ...buildCalculationFieldErrors(validationErrors, heatCalcObjectType),

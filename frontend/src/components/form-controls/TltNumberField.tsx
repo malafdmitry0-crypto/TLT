@@ -176,6 +176,11 @@ export default function TltNumberField({
         className,
       )}
       style={wrapperStyle ?? style}
+      // tlt-form-controls.css paints the required/invalid field chrome from these
+      // wrapper attributes; the Ant migration must keep emitting them.
+      data-required={isRequired ? 'true' : undefined}
+      data-invalid={isInvalid ? 'true' : undefined}
+      data-disabled={disabled ? 'true' : undefined}
     >
       {unit ? (
         <Space.Compact className="tlt-number-field__compact">
