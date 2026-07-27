@@ -2,7 +2,6 @@ import type { ReactElement } from 'react';
 import { Form } from 'antd';
 import UnitInputNumber from '@/components/common/UnitInputNumber';
 import { TltSelect } from '@/components/form-controls';
-import { TltBadge } from '@/components/ui-kit';
 import {
   heatCalcFormFieldRules,
   heatCalcNumberInputProps,
@@ -30,12 +29,6 @@ function fieldHelp(fieldId: string, objectType: HeatCalcObjectType) {
   return getHeatCalcFieldDescription(fieldId, { objectType });
 }
 
-function sourceTag(source: unknown) {
-  if (source === 'climate') return <TltBadge className="field-source-tag">из климата</TltBadge>;
-  if (source === 'manual') return <TltBadge className="field-source-tag">вручную</TltBadge>;
-  return null;
-}
-
 interface Props {
   objectType: HeatCalcObjectType;
   part?: 'all' | 'wide' | 'temperatures' | 'wind';
@@ -44,8 +37,6 @@ interface Props {
   isClimateFetching: boolean;
   onClimatePickerOpen?: () => void;
   showWindField: boolean;
-  ambientTemperatureSourceFallback?: unknown;
-  windSpeedSourceFallback?: unknown;
 }
 
 export default function TemperatureEnvironmentStep({
@@ -56,18 +47,10 @@ export default function TemperatureEnvironmentStep({
   isClimateFetching,
   onClimatePickerOpen,
   showWindField,
-  ambientTemperatureSourceFallback,
-  windSpeedSourceFallback,
 }: Props) {
   const form = Form.useFormInstance();
   const numberInputProps = (fieldId: string) =>
     heatCalcNumberInputProps(objectType, fieldId, { fieldInputSettings, form });
-  // extra только при видимом теге: пустой .ant-form-item-extra резервирует ~24px
-  // и ломает единый ритм строк [label | control] (HARD RULE 1 heat-object-fields)
-  const ambientSource = Form.useWatch('ambient_temperature_source', form);
-  const windSource = Form.useWatch('wind_speed_source', form);
-  const ambientSourceTag = sourceTag(ambientSource ?? ambientTemperatureSourceFallback);
-  const windSourceTag = sourceTag(windSource ?? windSpeedSourceFallback);
 
   return (
     <>
@@ -95,7 +78,6 @@ export default function TemperatureEnvironmentStep({
         className="numeric-form-item temperature-number-form-item ambient-temperature-form-item helped-form-item"
         label={fieldLabel('ambient_temperature', objectType)}
         name="ambient_temperature"
-        extra={ambientSourceTag ?? undefined}
         rules={heatCalcFormFieldRules(form, objectType, 'ambient_temperature')}
       >
         {withHelp(
@@ -129,7 +111,6 @@ export default function TemperatureEnvironmentStep({
           label={fieldLabel('wind_speed', objectType)}
           name="wind_speed"
           preserve={false}
-          extra={windSourceTag ?? undefined}
           rules={[
             ...heatCalcFormFieldRules(form, objectType, 'wind_speed'),
           ]}

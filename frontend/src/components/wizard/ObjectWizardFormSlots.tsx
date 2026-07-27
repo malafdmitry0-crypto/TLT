@@ -34,7 +34,6 @@ export type ObjectWizardFormSlotsInput = {
   form: FormInstance;
   heatCalcObjectType: HeatCalcObjectType;
   watchedValues: FormModel['watchedValues'];
-  watchedValue: FormModel['watchedValue'];
   showWindField: boolean;
   layerCount: number;
   secondInsulationMaterial: string;
@@ -63,7 +62,6 @@ export function buildObjectWizardFormSlots(input: ObjectWizardFormSlotsInput) {
     form,
     heatCalcObjectType,
     watchedValues,
-    watchedValue,
     showWindField,
     layerCount,
     secondInsulationMaterial,
@@ -119,8 +117,6 @@ export function buildObjectWizardFormSlots(input: ObjectWizardFormSlotsInput) {
       isClimateFetching={isClimateFetching}
       onClimatePickerOpen={requestClimateReference}
       showWindField={showWindField}
-      ambientTemperatureSourceFallback={watchedValue('ambient_temperature_source')}
-      windSpeedSourceFallback={watchedValue('wind_speed_source')}
     />
   );
   const insulationModeField = (

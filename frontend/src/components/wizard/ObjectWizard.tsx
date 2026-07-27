@@ -84,7 +84,6 @@ export default function ObjectWizard({
     form,
     heatCalcObjectType,
     watchedValues: model.watchedValues,
-    watchedValue: model.watchedValue,
     showWindField: model.showWindField,
     layerCount: model.layerCount,
     secondInsulationMaterial: model.secondInsulationMaterial,

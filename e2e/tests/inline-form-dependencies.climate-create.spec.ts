@@ -7,12 +7,23 @@ import {
   fetchProjectObjects,
   fillInput,
   openPipeForm,
-  selectFirstOption,
   selectOption,
   selectSearchOption,
 } from './helpers/inline-form-dependencies';
 
 test.describe('inline form dependencies — climate / create pipeline', () => {
+  test('не рисует метки источника после выбора климата', async ({ page }) => {
+    await loginAsGuest(page);
+    await openPipeForm(page);
+
+    await selectSearchOption(page, 'climate-select', 'Москва', /Москва/);
+
+    await expect(page.getByTestId('climate-basis-select')).toHaveCount(0);
+    await expect(page.getByText('из климата')).toHaveCount(0);
+    await expect(page.getByText('вручную')).toHaveCount(0);
+    await expect(page.locator('.field-source-tag')).toHaveCount(0);
+  });
+
   test('климат, подземное размещение, ручная λ и 3 слоя переключают реальные поля', async ({ page }) => {
     await loginAsGuest(page);
     await openPipeForm(page);
@@ -23,9 +34,10 @@ test.describe('inline form dependencies — climate / create pipeline', () => {
     await expect(page.getByTestId('alpha-vnesh-input')).toHaveCount(0);
 
     await selectSearchOption(page, 'climate-select', 'Москва', /Москва/);
-    await expect(page.getByTestId('climate-basis-select')).toBeVisible();
-    await selectFirstOption(page, 'climate-basis-select');
-    await expect(page.getByText('из климата').first()).toBeVisible();
+    await expect(page.getByTestId('climate-basis-select')).toHaveCount(0);
+    await expect(page.getByText('из климата')).toHaveCount(0);
+    await expect(page.getByText('вручную')).toHaveCount(0);
+    await expect(page.locator('.field-source-tag')).toHaveCount(0);
 
     await selectOption(page, 'placement-select', 'Подземно');
     await expect(page.getByTestId('burial-depth-input')).toBeVisible();
@@ -57,7 +69,6 @@ test.describe('inline form dependencies — climate / create pipeline', () => {
     await selectOption(page, 'placement-select', 'На открытом воздухе');
     await fillInput(page, 'insulation-thickness-input', '40');
     await selectSearchOption(page, 'climate-select', 'Москва', /Москва/);
-    await selectFirstOption(page, 'climate-basis-select');
     await fillInput(page, 'ambient-temperature-input', '-25');
     await fillInput(page, 'wind-speed-input', '3');
     await fillInput(page, 'process-temperature-input', '80');

@@ -44,6 +44,9 @@
     сторон; required заменяет левый край акцентным `3px`.
 15. **DOM следует чтению.** В production DOM-, visual- и keyboard-порядок
     внутри каждой группы совпадают.
+16. **Условия и источники не становятся метками.** Shape, placement и source
+    управляют visibility и round-trip, но не создают badges рядом с
+    label/control (`подземное`, `наружное`, `из климата`, `вручную`).
 
 ## Рабочая область и треки
 
@@ -328,6 +331,8 @@ Geometry assertions:
 - двенадцать overlay-линий совпадают с DOM-краями;
 - shape-hidden и placement-hidden не оставляют дыр;
 - underground показывает wind + burial + ground одновременно;
+- condition/source badges внутри формы отсутствуют во всех shape/placement
+  состояниях;
 - нет clipping, overlap, unit wrap и page-level horizontal overflow.
 
 Browser proof включает console errors/warnings и failed network requests.

@@ -23,7 +23,7 @@ describe('ObjectWizard dependencies — climate-cable-refs', () => {
     await mockReferences();
   });
 
-  it('показывает источники климата и скрывает обеспеченность, когда выбран климат', async () => {
+  it('хранит источники климата без визуальных меток и скрывает обеспеченность', async () => {
     renderWizard({
       initialParams: {
         ...basePipeParams,
@@ -38,7 +38,9 @@ describe('ObjectWizard dependencies — climate-cable-refs', () => {
     expect(screen.queryByText('Обеспеченность климата')).not.toBeInTheDocument();
     expect(await screen.findByTestId('wind-speed-input')).toBeVisible();
     expect(screen.queryByTestId('alpha-vnesh-input')).not.toBeInTheDocument();
-    expect(screen.getAllByText('из климата').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText('из климата')).not.toBeInTheDocument();
+    expect(screen.queryByText('вручную')).not.toBeInTheDocument();
+    expect(document.querySelector('.field-source-tag')).not.toBeInTheDocument();
     expect(spinValue('ambient-temperature-input')).toHaveDisplayValue(/^-25(?:\.0)?$/);
     // TltNumberField formats decimals with RU comma separator
     expect(spinValue('wind-speed-input')).toHaveValue('4,2');
