@@ -19,9 +19,13 @@
       --blueprint: #2878bd;
       --label-control-gap: 8px;
       --wide-label-width: 112px;
+      --wide-control-width: 200px;
       --geometry-label-width: 120px;
       --thermal-label-width: 120px;
-      --numeric-control-width: 128px;
+      --geometry-control-width: 96px;
+      --thermal-control-width: 92px;
+      --numeric-unit-width: 28px;
+      --numeric-wide-unit-width: 34px;
     }
 
     * { box-sizing: border-box; }
@@ -172,8 +176,10 @@
     .grid-ruler,
     .form-grid {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) max-content max-content;
+      grid-template-columns: max-content max-content max-content;
       column-gap: 10px;
+      width: max-content;
+      max-width: 100%;
     }
 
     .grid-ruler {
@@ -194,9 +200,39 @@
 
     .form-grid {
       position: relative;
+      align-items: start;
+    }
+
+    .field-group {
+      display: grid;
       grid-auto-rows: minmax(36px, auto);
       row-gap: 4px;
       align-items: start;
+      width: max-content;
+    }
+
+    .field-group--wide {
+      width: calc(
+        var(--wide-label-width)
+        + var(--label-control-gap)
+        + var(--wide-control-width)
+      );
+    }
+
+    .field-group--geometry {
+      width: calc(
+        var(--geometry-label-width)
+        + var(--label-control-gap)
+        + var(--geometry-control-width)
+      );
+    }
+
+    .field-group--thermal {
+      width: calc(
+        var(--thermal-label-width)
+        + var(--label-control-gap)
+        + var(--thermal-control-width)
+      );
     }
 
     .field {
@@ -219,6 +255,7 @@
     }
 
     .field--numeric[data-group="geometry"] {
+      --numeric-control-width: var(--geometry-control-width);
       grid-template-columns:
         var(--geometry-label-width)
         var(--label-control-gap)
@@ -226,6 +263,7 @@
     }
 
     .field--numeric[data-group="thermal"] {
+      --numeric-control-width: var(--thermal-control-width);
       grid-template-columns:
         var(--thermal-label-width)
         var(--label-control-gap)
@@ -236,24 +274,9 @@
       grid-column: 1;
       padding-block: 1px;
       color: #53667b;
-      font-size: 12px;
-      font-weight: 650;
-      line-height: 1.06;
-      letter-spacing: 0.01em;
-    }
-
-    .field__condition {
-      display: block;
-      width: max-content;
-      max-width: 100%;
-      margin-top: 3px;
-      padding: 2px 5px;
-      border: 1px solid #b9d3e8;
-      border-radius: 8px;
-      background: #edf6fc;
-      color: #2870aa;
-      font: 700 8px/1 Consolas, "SFMono-Regular", monospace;
-      white-space: nowrap;
+      font-size: 8.5px;
+      font-weight: 600;
+      line-height: 1;
     }
 
     .field__control {
@@ -267,7 +290,7 @@
       border-radius: 4px;
       background: var(--control);
       color: #2c3035;
-      font-size: 14px;
+      font-size: 12px;
       line-height: 34px;
     }
 
@@ -293,15 +316,15 @@
 
     .field__unit {
       flex: 0 0 auto;
-      min-width: 42px;
-      padding: 0 8px;
+      min-width: var(--numeric-unit-width);
+      padding: 0 5px;
       border-left: 1px solid #d9dee5;
       background: #fafafa;
       color: #333;
       text-align: center;
     }
 
-    .field__unit--wide { min-width: 56px; }
+    .field__unit--wide { min-width: var(--numeric-wide-unit-width); }
 
     .field__icon {
       display: grid;
@@ -527,86 +550,92 @@
         <div class="form-wrap" id="form-wrap">
           <div class="grid-ruler" aria-hidden="true">
             <span>label 112px / 8px / control 5fr</span>
-            <span>геометрия · max + 8px + 128px</span>
-            <span>тепловые условия · max + 8px + 128px</span>
+            <span>геометрия · max 100000 мм → 96px</span>
+            <span>тепловые · max 3.00 Вт/мК → 92px*</span>
           </div>
 
           <div class="form-grid" data-testid="tank-target-grid">
             <div class="guides" aria-hidden="true"></div>
 
-            <div class="field" data-group="wide" data-order="1">
-              <span class="field__label">Наименование</span>
-              <span class="field__control"><span class="field__value"></span></span>
-            </div>
-            <div class="field field--required" data-group="wide" data-order="2">
-              <span class="field__label">Форма<br>резервуара</span>
-              <span class="field__control"><span class="field__value" id="shape-value">Цилиндрическая</span><span class="field__icon field__icon--chevron">⌄</span></span>
-            </div>
-            <div class="field field--required" data-group="wide" data-order="3">
-              <span class="field__label">Размещение</span>
-              <span class="field__control"><span class="field__value" id="placement-value">На открытом воздухе</span><span class="field__icon field__icon--chevron">⌄</span></span>
-            </div>
-            <div class="field field--required" id="ground-type-field" data-group="wide" data-order="4">
-              <span class="field__label">Тип грунта<span class="field__condition">подземное</span></span>
-              <span class="field__control"><span class="field__value">Выберите грунт</span><span class="field__icon">⌕</span></span>
-            </div>
-            <div class="field" data-group="wide" data-order="5">
-              <span class="field__label">Климат</span>
-              <span class="field__control"><span class="field__value">Выберите город</span><span class="field__icon">⌕</span></span>
-            </div>
-            <div class="field field--required" data-group="wide" data-order="6">
-              <span class="field__label">Режим температуры<br>изоляции (tm)</span>
-              <span class="field__control"><span class="field__value" id="tm-value">Открытый воздух, зима</span><span class="field__icon field__icon--chevron">⌄</span></span>
-            </div>
-
-            <div class="field field--numeric field--required" id="diameter-field" data-group="geometry" data-order="1">
-              <span class="field__label">Диаметр<span class="field__condition">цилиндр / сфера</span></span>
-              <span class="field__control"><span class="field__value"></span><span class="field__unit">мм</span></span>
-            </div>
-            <div class="field field--numeric field--required" id="height-field" data-group="geometry" data-order="2">
-              <span class="field__label">Высота<span class="field__condition">цилиндр / прямоуг.</span></span>
-              <span class="field__control"><span class="field__value"></span><span class="field__unit">мм</span></span>
-            </div>
-            <div class="field field--numeric field--required" id="length-field" data-group="geometry" data-order="3">
-              <span class="field__label">Длина<span class="field__condition">прямоугольный</span></span>
-              <span class="field__control"><span class="field__value"></span><span class="field__unit">мм</span></span>
-            </div>
-            <div class="field field--numeric field--required" id="width-field" data-group="geometry" data-order="4">
-              <span class="field__label">Ширина<span class="field__condition">прямоугольный</span></span>
-              <span class="field__control"><span class="field__value"></span><span class="field__unit">мм</span></span>
-            </div>
-            <div class="field field--numeric" data-group="geometry" data-order="5">
-              <span class="field__label">Толщина<br>стенки</span>
-              <span class="field__control"><span class="field__value"></span><span class="field__unit">мм</span></span>
-            </div>
-            <div class="field field--numeric" data-group="geometry" data-order="6">
-              <span class="field__label">Теплопроводность<br>стенки λ</span>
-              <span class="field__control"><span class="field__value"></span><span class="field__unit field__unit--wide">Вт/мК</span></span>
+            <div class="field-group field-group--wide">
+              <div class="field" data-group="wide" data-order="1">
+                <span class="field__label">Наименование</span>
+                <span class="field__control"><span class="field__value"></span></span>
+              </div>
+              <div class="field field--required" data-group="wide" data-order="2">
+                <span class="field__label">Форма<br>резервуара</span>
+                <span class="field__control"><span class="field__value" id="shape-value">Цилиндрическая</span><span class="field__icon field__icon--chevron">⌄</span></span>
+              </div>
+              <div class="field field--required" data-group="wide" data-order="3">
+                <span class="field__label">Размещение</span>
+                <span class="field__control"><span class="field__value" id="placement-value">На открытом воздухе</span><span class="field__icon field__icon--chevron">⌄</span></span>
+              </div>
+              <div class="field field--required" id="ground-type-field" data-group="wide" data-order="4">
+                <span class="field__label">Тип грунта</span>
+                <span class="field__control"><span class="field__value">Выберите грунт</span><span class="field__icon">⌕</span></span>
+              </div>
+              <div class="field" data-group="wide" data-order="5">
+                <span class="field__label">Климат</span>
+                <span class="field__control"><span class="field__value">Выберите город</span><span class="field__icon">⌕</span></span>
+              </div>
+              <div class="field field--required" data-group="wide" data-order="6">
+                <span class="field__label">Режим температуры<br>изоляции (tm)</span>
+                <span class="field__control"><span class="field__value" id="tm-value">Открытый воздух, зима</span><span class="field__icon field__icon--chevron">⌄</span></span>
+              </div>
             </div>
 
-            <div class="field field--numeric field--required" data-group="thermal" data-order="1">
-              <span class="field__label">Температура<br>окружающей среды</span>
-              <span class="field__control"><span class="field__value"></span><span class="field__unit">°C</span></span>
+            <div class="field-group field-group--geometry">
+              <div class="field field--numeric field--required" id="diameter-field" data-group="geometry" data-order="1">
+                <span class="field__label">Диаметр</span>
+                <span class="field__control"><span class="field__value"></span><span class="field__unit">мм</span></span>
+              </div>
+              <div class="field field--numeric field--required" id="height-field" data-group="geometry" data-order="2">
+                <span class="field__label">Высота<br>резервуара</span>
+                <span class="field__control"><span class="field__value"></span><span class="field__unit">мм</span></span>
+              </div>
+              <div class="field field--numeric field--required" id="length-field" data-group="geometry" data-order="3">
+                <span class="field__label">Длина<br>резервуара</span>
+                <span class="field__control"><span class="field__value"></span><span class="field__unit">мм</span></span>
+              </div>
+              <div class="field field--numeric field--required" id="width-field" data-group="geometry" data-order="4">
+                <span class="field__label">Ширина<br>резервуара</span>
+                <span class="field__control"><span class="field__value"></span><span class="field__unit">мм</span></span>
+              </div>
+              <div class="field field--numeric" data-group="geometry" data-order="5">
+                <span class="field__label">Толщина<br>стенки</span>
+                <span class="field__control"><span class="field__value"></span><span class="field__unit">мм</span></span>
+              </div>
+              <div class="field field--numeric" data-group="geometry" data-order="6">
+                <span class="field__label">Теплопроводность<br>стенки<br>λ</span>
+                <span class="field__control"><span class="field__value"></span><span class="field__unit field__unit--wide">Вт/мК</span></span>
+              </div>
             </div>
-            <div class="field field--numeric field--required" data-group="thermal" data-order="2">
-              <span class="field__label">Требуемая<br>температура объекта</span>
-              <span class="field__control"><span class="field__value"></span><span class="field__unit">°C</span></span>
-            </div>
-            <div class="field field--numeric" data-group="thermal" data-order="3">
-              <span class="field__label">Дополнительные<br>теплопотери</span>
-              <span class="field__control"><span class="field__value"></span><span class="field__unit">Вт</span></span>
-            </div>
-            <div class="field field--numeric" id="wind-field" data-group="thermal" data-order="4">
-              <span class="field__label">Скорость ветра<span class="field__condition">наружное / подземное</span></span>
-              <span class="field__control"><span class="field__value"></span><span class="field__unit">м/с</span></span>
-            </div>
-            <div class="field field--numeric field--required" id="burial-field" data-group="thermal" data-order="5">
-              <span class="field__label">Высота<br>подземной части<span class="field__condition">подземное</span></span>
-              <span class="field__control"><span class="field__value"></span><span class="field__unit">м</span></span>
-            </div>
-            <div class="field field--numeric field--required" id="ground-lambda-field" data-group="thermal" data-order="6">
-              <span class="field__label">Теплопроводность<br>грунта λ<span class="field__condition">подземное</span></span>
-              <span class="field__control"><span class="field__value"></span><span class="field__unit field__unit--wide">Вт/мК</span></span>
+
+            <div class="field-group field-group--thermal">
+              <div class="field field--numeric field--required" data-group="thermal" data-order="1">
+                <span class="field__label">Температура<br>окружающей<br>среды</span>
+                <span class="field__control"><span class="field__value"></span><span class="field__unit">°C</span></span>
+              </div>
+              <div class="field field--numeric field--required" data-group="thermal" data-order="2">
+                <span class="field__label">Требуемая<br>температура<br>объекта</span>
+                <span class="field__control"><span class="field__value"></span><span class="field__unit">°C</span></span>
+              </div>
+              <div class="field field--numeric" data-group="thermal" data-order="3">
+                <span class="field__label">Дополнительные<br>теплопотери</span>
+                <span class="field__control"><span class="field__value"></span><span class="field__unit">Вт</span></span>
+              </div>
+              <div class="field field--numeric" id="wind-field" data-group="thermal" data-order="4">
+                <span class="field__label">Скорость<br>ветра</span>
+                <span class="field__control"><span class="field__value"></span><span class="field__unit">м/с</span></span>
+              </div>
+              <div class="field field--numeric field--required" id="burial-field" data-group="thermal" data-order="5">
+                <span class="field__label">Высота<br>подземной<br>части</span>
+                <span class="field__control"><span class="field__value"></span><span class="field__unit">м</span></span>
+              </div>
+              <div class="field field--numeric field--required" id="ground-lambda-field" data-group="thermal" data-order="6">
+                <span class="field__label">Теплопроводность<br>грунта<br>λ</span>
+                <span class="field__control"><span class="field__value"></span><span class="field__unit field__unit--wide">Вт/мК</span></span>
+              </div>
             </div>
           </div>
 
@@ -658,7 +687,7 @@
 
     <aside class="note">
       <strong>Что смотреть:</strong>
-      <span>shape меняет только геометрию; underground показывает ветер вместе с грунтовыми полями; все группы сохраняют свои вертикали.</span>
+      <span>В каждом numeric-столбце controls равны самому широкому валидному полю: геометрия 96px, тепловые 92px. *Для Qдоп max отсутствует — это отдельный дефект validation-контракта.</span>
     </aside>
   </main>
 
@@ -702,12 +731,6 @@
     }
 
     function updateLayout() {
-      ['wide', 'geometry', 'thermal'].forEach((group, columnIndex) => {
-        visibleFields(group).forEach((field, rowIndex) => {
-          field.style.gridColumn = String(columnIndex + 1);
-          field.style.gridRow = String(rowIndex + 1);
-        });
-      });
       syncGridTracks();
     }
 

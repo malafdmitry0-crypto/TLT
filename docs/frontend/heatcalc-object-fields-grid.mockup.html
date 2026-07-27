@@ -20,7 +20,10 @@
       --label-control-gap: 8px;
       --field-group-gap: 16px;
       --wide-label-width: 96px;
-      --numeric-control-width: 128px;
+      --geometry-control-width: 96px;
+      --environment-control-width: 92px;
+      --numeric-unit-width: 32px;
+      --numeric-wide-unit-width: 48px;
     }
 
     * {
@@ -293,7 +296,9 @@
         var(--numeric-control-width);
     }
 
-    .numeric--wide-unit { --numeric-unit-width: 56px; }
+    .field--numeric.g2 { --numeric-control-width: var(--geometry-control-width); }
+    .field--numeric.g3 { --numeric-control-width: var(--environment-control-width); }
+    .numeric--wide-unit { --numeric-unit-width: var(--numeric-wide-unit-width); }
 
     .field--numeric .field__unit {
       min-width: var(--numeric-unit-width, 42px);
@@ -321,7 +326,7 @@
     .field__unit {
       flex: 0 0 auto;
       min-width: 42px;
-      padding: 0 8px;
+      padding: 0 5px;
       border-left: 1px solid #d9dee5;
       background: #fafafa;
       color: #333;
@@ -555,7 +560,8 @@
         <h1>Одна координатная система для верхней формы</h1>
         <p class="lede">
           Тепловая форма занимает 40% рабочей ширины. Длинные поля сохраняют
-          общий label-трек 96px / 8px / fluid 5fr; numeric controls — 128px.
+          общий label-трек 96px / 8px / fluid 5fr; numeric-столбцы
+          рассчитаны по самому широкому валидному значению внутри каждого столбца.
         </p>
       </div>
       <div class="toolbar" aria-label="Настройки макета">
@@ -587,8 +593,8 @@
       <div class="form-wrap" id="form-wrap">
         <div class="grid-ruler" aria-hidden="true">
           <span>label 96px / 8px / control 5fr</span>
-          <span>numeric · max + 8px + 128px</span>
-          <span>numeric · max + 8px + 128px</span>
+          <span>геометрия · max 200000 м → 96px</span>
+          <span>среда · max 3.00 Вт/мК → 92px</span>
         </div>
 
         <div class="form-grid" data-testid="target-grid">
@@ -600,15 +606,15 @@
           </div>
           <div class="field field--required field--numeric numeric--n4 g2 r1">
             <span class="field__label">Наружный<br>диаметр</span>
-            <span class="field__control"><span class="field__value"></span><span class="field__unit">мм</span></span>
+            <span class="field__control"><span class="field__value">3000</span><span class="field__unit">мм</span></span>
           </div>
           <div class="field field--required field--numeric numeric--n8 g2 r2">
             <span class="field__label">Длина<br>трубопровода</span>
-            <span class="field__control"><span class="field__value"></span><span class="field__unit">м</span></span>
+            <span class="field__control"><span class="field__value">200000</span><span class="field__unit">м</span></span>
           </div>
           <div class="field field--required field--numeric numeric--n4 g2 r3">
             <span class="field__label">Толщина<br>стенки</span>
-            <span class="field__control"><span class="field__value"></span><span class="field__unit">мм</span></span>
+            <span class="field__control"><span class="field__value">40</span><span class="field__unit">мм</span></span>
           </div>
           <div class="field field--required g1 r2">
             <span class="field__label">Материал<br>трубы</span>
@@ -616,11 +622,11 @@
           </div>
           <div class="field field--required field--numeric numeric--n7 numeric--wide-unit g2 r5" id="pipe-lambda-field">
             <span class="field__label">Теплопроводность<br>трубы<br>λ<span class="field__condition">материал: другое</span></span>
-            <span class="field__control"><span class="field__value"></span><span class="field__unit">Вт/мК</span></span>
+            <span class="field__control"><span class="field__value">400</span><span class="field__unit">Вт/мК</span></span>
           </div>
           <div class="field field--numeric numeric--n3 g2 r4">
             <span class="field__label">Количество<br>локальных<br>элементов</span>
-            <span class="field__control"><span class="field__value"></span><span class="field__unit">шт</span></span>
+            <span class="field__control"><span class="field__value">100</span><span class="field__unit">шт</span></span>
           </div>
           <div class="field field--required g1 r3">
             <span class="field__label">Размещение</span>
@@ -628,7 +634,7 @@
           </div>
           <div class="field field--required field--numeric numeric--n6 g3 r4" id="burial-depth-field">
             <span class="field__label">Глубина<br>заложения<span class="field__condition">подземное</span></span>
-            <span class="field__control"><span class="field__value"></span><span class="field__unit">м</span></span>
+            <span class="field__control"><span class="field__value">200</span><span class="field__unit">м</span></span>
           </div>
           <div class="field field--required g1 r4" id="ground-type-field">
             <span class="field__label">Тип<br>грунта<span class="field__condition">подземное</span></span>
@@ -636,7 +642,7 @@
           </div>
           <div class="field field--required field--numeric numeric--n4 numeric--wide-unit g3 r5" id="ground-conductivity-field">
             <span class="field__label">Теплопроводность<br>грунта<span class="field__condition">подземное</span></span>
-            <span class="field__control"><span class="field__value"></span><span class="field__unit">Вт/мК</span></span>
+            <span class="field__control"><span class="field__value">3.00</span><span class="field__unit">Вт/мК</span></span>
           </div>
           <div class="field field--climate g1 r4">
             <span class="field__label">Климат</span>
@@ -644,15 +650,15 @@
           </div>
           <div class="field field--required field--numeric numeric--n3 g3 r1">
             <span class="field__label">Температура<br>окружающей<br>среды</span>
-            <span class="field__control"><span class="field__value"></span><span class="field__unit">°C</span></span>
+            <span class="field__control"><span class="field__value">-70</span><span class="field__unit">°C</span></span>
           </div>
           <div class="field field--required field--numeric numeric--n3 g3 r2">
             <span class="field__label">Требуемая<br>температура<br>объекта</span>
-            <span class="field__control"><span class="field__value"></span><span class="field__unit">°C</span></span>
+            <span class="field__control"><span class="field__value">600</span><span class="field__unit">°C</span></span>
           </div>
           <div class="field field--numeric numeric--n4 g3 r3" id="wind-field">
             <span class="field__label">Скорость<br>ветра<span class="field__condition">наружное</span></span>
-            <span class="field__control"><span class="field__value"></span><span class="field__unit">м/с</span></span>
+            <span class="field__control"><span class="field__value">20</span><span class="field__unit">м/с</span></span>
           </div>
           <div class="field field--required field--tm g1 r5">
             <span class="field__label">Режим<br>температуры<br>изоляции (tm)</span>
@@ -707,7 +713,7 @@
 
     <aside class="note">
       <strong>Что смотреть:</strong>
-      <span>wide-first: общий label-трек 96px, затем 8px и fluid control; compact numeric-группы сохраняют те же строгие края.</span>
+      <span>wide-first: общий label-трек 96px; внутри каждого numeric-столбца все controls равны самому широкому валидному полю: геометрия 96px, среда 92px.</span>
     </aside>
   </main>
 

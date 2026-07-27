@@ -6,8 +6,8 @@
  *      geometry numeric, environment numeric. Hidden-поля сжимают только
  *      свою группу и никогда не перетекают в соседнюю.
  *   2. Таблица слоёв изоляции — ПОД полями, на всю ширину карточки.
- *   3. Numeric controls = 128px; таблица имеет собственный пятиколоночный
- *      grid и не наследует треки верхней формы.
+ *   3. Numeric controls равны внутри столбца: geometry = 96px,
+ *      environment = 92px. Таблица имеет собственный пятиколоночный grid.
  *
  * Сломано в CSS-OWN-03 split: generic-шаблон `.form-grid-srs--pdf-three`
  * («heat spec» / «cable cable») перебивал fields/layers-stack на равной
@@ -129,23 +129,27 @@ for (const viewport of VIEWPORTS) {
         '.ground-conductivity-form-item',
         '.tank-additional-heat-loss-form-item',
       ].join(','));
-      const numericControlWidths = visible([
+      const controlWidths = (selector: string) => visible(selector).map((item) => {
+        const control = item.querySelector<HTMLElement>('.tlt-number-field')
+          ?? item.querySelector<HTMLElement>('.ant-form-item-control');
+        return control?.getBoundingClientRect().width ?? 0;
+      });
+      const geometryControlWidths = controlWidths([
         '.outer-diameter-form-item',
         '.pipe-length-form-item',
         '.wall-thickness-form-item',
         '.pipe-lambda-manual-form-item',
         '.local-elements-count-form-item',
         '.tank-size-form-item',
+      ].join(','));
+      const environmentControlWidths = controlWidths([
         '.ambient-temperature-form-item',
         '.process-temperature-form-item',
         '.wind-speed-form-item',
         '.burial-depth-form-item',
         '.ground-conductivity-form-item',
         '.tank-additional-heat-loss-form-item',
-      ].join(',')).map((item) => {
-        const control = item.querySelector<HTMLElement>('.ant-form-item-control');
-        return control?.getBoundingClientRect().width ?? 0;
-      });
+      ].join(','));
       const slotOrder = visible('.ant-form-item').map(
         (item) => item.closest<HTMLElement>('[data-slot]')?.dataset.slot ?? '',
       ).filter((slot) => slot.length > 0);
@@ -174,7 +178,8 @@ for (const viewport of VIEWPORTS) {
         wideItems,
         geometryItems,
         environmentItems,
-        numericControlWidths,
+        geometryControlWidths,
+        environmentControlWidths,
         slotOrder,
         layersWidthRatio: layersRect.width / fieldsRect.width,
         layerHeaderTracks: layerHeader ? getComputedStyle(layerHeader).gridTemplateColumns : '',
@@ -212,8 +217,11 @@ for (const viewport of VIEWPORTS) {
     const slotRanks = proof.slotOrder.map((slot) => slotRank[slot] ?? 3);
     expect(slotRanks, 'DOM/tab-порядок должен повторять wide → geometry → environment')
       .toEqual([...slotRanks].sort((a, b) => a - b));
-    proof.numericControlWidths.forEach((width) => {
-      expect(width, 'каждый numeric control должен занимать 128px').toBeCloseTo(128, 0);
+    proof.geometryControlWidths.forEach((width) => {
+      expect(width, 'geometry controls должны занимать 96px').toBeCloseTo(96, 0);
+    });
+    proof.environmentControlWidths.forEach((width) => {
+      expect(width, 'environment controls должны занимать 92px').toBeCloseTo(92, 0);
     });
 
     // 3 — таблица сохраняет собственный пятиколоночный grid и широкий input толщины.

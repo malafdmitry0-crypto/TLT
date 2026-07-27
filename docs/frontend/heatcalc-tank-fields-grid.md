@@ -34,13 +34,15 @@
    находятся рядом с температурами, а не среди линейных размеров.
 10. **Свободное место не раздвигает пару.** Между label и control всегда
     `8px`; numeric-группы остаются content-sized.
-11. **Края образуют вертикали.** В каждой группе совпадают начала labels и оба
+11. **Ширина едина внутри столбца.** Все controls столбца равны по самому
+    широкому допустимому значению среди всех его полей, включая conditional.
+12. **Края образуют вертикали.** В каждой группе совпадают начала labels и оба
     края controls.
-12. **Сетка одна.** Форма, ruler и overlay используют одинаковые фактические
+13. **Сетка одна.** Форма, ruler и overlay используют одинаковые фактические
     треки.
-13. **Required не съедает optional.** Optional имеет серый border со всех
+14. **Required не съедает optional.** Optional имеет серый border со всех
     сторон; required заменяет левый край акцентным `3px`.
-14. **DOM следует чтению.** В production DOM-, visual- и keyboard-порядок
+15. **DOM следует чтению.** В production DOM-, visual- и keyboard-порядок
     внутри каждой группы совпадают.
 
 ## Рабочая область и треки
@@ -54,9 +56,9 @@ workspace
 │  ├─ wide group: 1fr
 │  │  └─ label 112px | gap 8px | control 5fr
 │  ├─ geometry numeric: max-content
-│  │  └─ label 120px | gap 8px | control 128px
+│  │  └─ label 120px | gap 8px | control 96px
 │  └─ thermal numeric: max-content
-│     └─ label 120px | gap 8px | control 128px
+│     └─ label 120px | gap 8px | control 92px
 └─ cable: minmax(300px, 3fr)
 ```
 
@@ -72,7 +74,8 @@ workspace
 | Geometry numeric label | `120px` |
 | Thermal numeric label | `120px` |
 | Wide control | fluid `5fr` |
-| Numeric control вместе с unit | `128px` |
+| Geometry numeric control вместе с unit | `96px` |
+| Thermal numeric control вместе с unit | `92px`* |
 | Label → control | `8px` |
 | Между группами | `10px` |
 | Высота control | `36px` |
@@ -89,8 +92,12 @@ workspace
   grid-template-columns: 112px 8px minmax(0, 5fr);
 }
 
-.tank-numeric-field {
-  grid-template-columns: var(--group-label-width) 8px 128px;
+.tank-geometry-numeric-field {
+  grid-template-columns: 120px 8px 96px;
+}
+
+.tank-thermal-numeric-field {
+  grid-template-columns: 120px 8px 92px;
 }
 ```
 
@@ -181,8 +188,9 @@ workspace
 
 ## Numeric-контракт
 
-Все numeric controls имеют внешнюю ширину `128px`. Value использует
-horizontal padding `6px`; стандартный unit-трек — `42px`, `Вт/мК` — `56px`.
+Все numeric controls внутри одного столбца имеют одинаковую внешнюю ширину,
+вычисленную по самому широкому максимальному отображению этого столбца.
+Conditional-поля участвуют в расчёте даже когда скрыты.
 
 | Поле | Диапазон | Проверочное максимальное отображение | Unit |
 |---|---:|---:|---:|
@@ -191,20 +199,26 @@ horizontal padding `6px`; стандартный unit-трек — `42px`, `Вт
 | Длина | `100…100000` | `100000` | `мм` |
 | Ширина | `100…100000` | `100000` | `мм` |
 | Толщина стенки | `1…500` | `500` | `мм` |
-| λ стенки | `0,001…400` | `400,000` | `Вт/мК` |
+| λ стенки | `0,001…400` | `400` | `Вт/мК` |
 | Температура среды | `−70…70` | `−70` | `°C` |
 | Температура объекта | `−90…600` | `600` | `°C` |
 | Q доп. | от `0` | граничное значение из runtime-config | `Вт` |
-| Скорость ветра | `0…20,0` | `20,0` | `м/с` |
-| Высота подземной части | `0…200,00` | `200,00` | `м` |
+| Скорость ветра | `0…20,0` | `20` | `м/с` |
+| Высота подземной части | `0…200,00` | `200` | `м` |
 | λ грунта | `0,50…3,00` | `3,00` | `Вт/мК` |
 
 Источник диапазонов:
 `frontend/src/config/heatcalc-fields.default.json`.
 
-Для `q_additional` в default-config отсутствует конечный `max`. UI-slice не
-должен выдумывать ограничение: acceptance использует фактический runtime
-field setting и отдельно проверяет отсутствие бесконечного визуального роста.
+Результат расчёта:
+
+- Geometry numeric: ширину задаёт `100000 мм` → общий control `96px`;
+- Thermal numeric: ширину задаёт `3,00 Вт/мК` → общий control `92px`.
+
+Для `q_additional` в default-config отсутствует конечный `max`. UI не
+выдумывает ограничение: `92px` является шириной столбца по bounded-полям,
+а отсутствие `max` остаётся отдельным дефектом validation-контракта.
+Переключение shape/placement не меняет ширину столбцов.
 
 ## Required и optional
 
@@ -307,7 +321,8 @@ Geometry assertions:
 - wide label = `112px`;
 - geometry и thermal numeric labels = `120px`;
 - label/control gap = `8px`;
-- numeric control = `128px`;
+- geometry numeric control = `96px`;
+- thermal numeric control = `92px`;
 - control height = `36px`;
 - ruler tracks равны form tracks;
 - двенадцать overlay-линий совпадают с DOM-краями;

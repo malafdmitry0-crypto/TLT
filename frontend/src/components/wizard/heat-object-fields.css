@@ -16,7 +16,8 @@
   --hof-geometry-label-width: 88px;
   --hof-environment-label-width: 120px;
   --hof-label-control-gap: 8px;
-  --hof-numeric-control-width: 128px;
+  --hof-geometry-control-width: 96px;
+  --hof-environment-control-width: 92px;
   --field-input-min-width: 0px;
   --inline-control-height: var(--tlt-field-control-height, 26px);
   --tlt-field-gap: var(--hof-label-control-gap);
@@ -80,12 +81,12 @@
 
 .heat-object-fields.heat-object-fields--wide [data-slot="geometry-numeric"] {
   --tlt-compact-label-width: var(--hof-geometry-label-width);
-  --tlt-compact-control-width: var(--hof-numeric-control-width);
+  --tlt-compact-control-width: var(--hof-geometry-control-width);
 }
 
 .heat-object-fields.heat-object-fields--wide [data-slot="environment-numeric"] {
   --tlt-compact-label-width: var(--hof-environment-label-width);
-  --tlt-compact-control-width: var(--hof-numeric-control-width);
+  --tlt-compact-control-width: var(--hof-environment-control-width);
 }
 
 .heat-object-fields.heat-object-fields--wide [data-slot="wide"] .ant-form-item-row {
@@ -95,13 +96,13 @@
 }
 
 .heat-object-fields.heat-object-fields--wide [data-slot="geometry-numeric"] .ant-form-item-row {
-  grid-template-columns: var(--hof-geometry-label-width) var(--hof-numeric-control-width);
+  grid-template-columns: var(--hof-geometry-label-width) var(--hof-geometry-control-width);
   column-gap: var(--hof-label-control-gap);
   width: max-content;
 }
 
 .heat-object-fields.heat-object-fields--wide [data-slot="environment-numeric"] .ant-form-item-row {
-  grid-template-columns: var(--hof-environment-label-width) var(--hof-numeric-control-width);
+  grid-template-columns: var(--hof-environment-label-width) var(--hof-environment-control-width);
   column-gap: var(--hof-label-control-gap);
   width: max-content;
 }
@@ -121,9 +122,12 @@
   min-width: 0;
 }
 
-.heat-object-fields.heat-object-fields--wide [data-slot="geometry-numeric"] .ant-form-item-control,
+.heat-object-fields.heat-object-fields--wide [data-slot="geometry-numeric"] .ant-form-item-control {
+  width: var(--hof-geometry-control-width);
+}
+
 .heat-object-fields.heat-object-fields--wide [data-slot="environment-numeric"] .ant-form-item-control {
-  width: var(--hof-numeric-control-width);
+  width: var(--hof-environment-control-width);
 }
 
 .heat-object-fields.heat-object-fields--wide .insulation-settings-row {

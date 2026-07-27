@@ -20,8 +20,9 @@ keyboard-порядок или бизнес-условия.
    reference picker. Числовые поля не вклиниваются между ними.
 3. **Малые поля находятся рядом с малыми.** Вторая и третья колонки содержат
    только numeric controls.
-4. **Ширина следует типу данных.** Длинный control получает fluid-трек `5fr`;
-   numeric control имеет общий компактный размер `128px`.
+4. **Ширина следует validation-контракту столбца.** Длинный control получает
+   fluid-трек `5fr`. Все numeric controls одного столбца равны по ширине,
+   вычисленной по самому широкому допустимому значению этого столбца.
 5. **Свободное место не является зазором.** Между label и control всегда
    `8px`. Лишняя ширина отдаётся длинному control, а не раздвигает пару.
 6. **Края важнее отдельных строк.** Labels одной группы начинаются на общей
@@ -53,9 +54,9 @@ workspace
 │  ├─ wide group: 1fr
 │  │  └─ label 96px | gap 8px | text/select/reference 5fr
 │  ├─ pipe numeric group: max-content
-│  │  └─ label 1fr | gap 8px | control 128px
+│  │  └─ label 88px | gap 8px | control 96px
 │  └─ environment numeric group: max-content
-│     └─ label 1fr | gap 8px | control 128px
+│     └─ label 120px | gap 8px | control 92px
 └─ cable: minmax(300px, 3fr)
 ```
 
@@ -65,7 +66,8 @@ workspace
 | Количество семантических групп | `3` |
 | Wide label | `96px` |
 | Wide control | fluid `5fr` |
-| Numeric control вместе с unit | `128px` |
+| Pipe numeric control вместе с unit | `96px` |
+| Environment numeric control вместе с unit | `92px` |
 | Label → control | `8px` |
 | Между группами | `10px` |
 | Высота control | `36px` |
@@ -88,8 +90,12 @@ workspace
   grid-template-columns: 96px 8px minmax(0, 5fr);
 }
 
-.numeric-field {
-  grid-template-columns: minmax(0, 1fr) 8px 128px;
+.pipe-numeric-field {
+  grid-template-columns: 88px 8px 96px;
+}
+
+.environment-numeric-field {
+  grid-template-columns: 120px 8px 92px;
 }
 ```
 
@@ -185,10 +191,10 @@ production-состоянием. Макет по умолчанию открыв
 
 ## Numeric-контракт
 
-Все numeric controls имеют одинаковую внешнюю ширину `128px`. В неё входят
-value, разделитель и unit-addon. Для value используется компактный
-horizontal padding `6px`; стандартный unit-трек — `42px`, широкий `Вт/мК` —
-`56px`.
+Все numeric controls внутри одного столбца имеют одинаковую внешнюю ширину.
+Ширина вычисляется один раз по полю столбца с самым широким максимальным
+отображением и применяется ко всем его полям, включая hidden/conditional.
+Между столбцами ширина может различаться.
 
 | Поле | Допустимый диапазон | Проверочное максимальное отображение | Unit |
 |---|---:|---:|---:|
@@ -196,20 +202,24 @@ horizontal padding `6px`; стандартный unit-трек — `42px`, ши�
 | Длина трубопровода | `0,5…200000` | `200000` | `м` |
 | Толщина стенки | `0,1…40` | `40` | `мм` |
 | Количество локальных элементов | `0…100` | `100` | `шт` |
-| λ трубы | `0,001…400` | `400,000` | `Вт/мК` |
+| λ трубы | `0,001…400` | `400` | `Вт/мК` |
 | Температура окружающей среды | `−70…70` | `−70` | `°C` |
 | Требуемая температура объекта | `−90…600` | `600` | `°C` |
-| Скорость ветра | `0…20,0` | `20,0` | `м/с` |
-| Глубина заложения | `0…200,00` | `200,00` | `м` |
+| Скорость ветра | `0…20,0` | `20` | `м/с` |
+| Глубина заложения | `0…200,00` | `200` | `м` |
 | Теплопроводность грунта | `0,50…3,00` | `3,00` | `Вт/мК` |
 
 Источник диапазонов и точности:
 `frontend/src/config/heatcalc-fields.default.json`.
 
-Acceptance проверяет фактический rendered overflow каждого максимального
-значения и unit, а не только арифметику `ch`. Текущий React-токен
-`--tlt-field-ctrl-num: 4rem` для этого контракта недостаточен; целевое значение
-в UI-slice — `128px`.
+Результат расчёта:
+
+- Pipe numeric: ширину задаёт `200000 м` → общий control `96px`;
+- Environment numeric: ширину задаёт `3,00 Вт/мК` → общий control `92px`.
+
+В ширину входят value, unit, разделитель, border и внутренние отступы.
+Acceptance проверяет фактический rendered overflow максимальных значений,
+а не только арифметику `ch`. Переключение режима не меняет ширину столбца.
 
 ## Wide-контракт
 
@@ -327,7 +337,8 @@ grid-template-columns:
 - двенадцать overlay-направляющих совпадают с DOM-краями;
 - wide label = `96px`;
 - label/control gap = `8px`;
-- numeric control = `128px`;
+- pipe numeric control = `96px`;
+- environment numeric control = `92px`;
 - control height = `36px`;
 - скрытые поля не оставляют дыр и не мигрируют между группами;
 - нет clipping, overlap, неожиданного переноса unit и page-level horizontal
