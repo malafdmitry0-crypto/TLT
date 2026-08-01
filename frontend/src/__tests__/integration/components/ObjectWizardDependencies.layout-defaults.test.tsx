@@ -39,7 +39,7 @@ describe('ObjectWizard dependencies — layout-defaults', () => {
     expect(document.querySelectorAll('.inline-object-form--wide .form-col-resize-handle')).toHaveLength(0);
     expect([...document.querySelectorAll('.inline-object-form--wide .inline-form-section-banner')].map((title) =>
       title.textContent?.replace(/\s+/g, ' ').trim(),
-    )).toEqual(['Расчёт теплопотерь', 'Алгоритм выбора кабеля']);
+    )).toEqual(['Расчёт теплопотерь', 'Алгоритм выбора кабеля', 'Подбор спецификации']);
     expect(document.querySelector('.heat-object-fields[data-protected="heat-object-fields"]')).toBeInTheDocument();
     expect(document.querySelector('.insulation-layers-table[data-protected="insulation-layers-table"]')).toBeInTheDocument();
     expect(document.querySelector('[data-slot="wide"]')).toHaveClass(

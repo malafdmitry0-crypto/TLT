@@ -211,6 +211,12 @@ function applyCommonObjectParams(params: Record<string, unknown>, v: PipeFormVal
   if (v.vapor_temperature != null) params.vapor_temperature = v.vapor_temperature;
   if (v.winding_coefficient != null) params.winding_coefficient = v.winding_coefficient;
   if (v.connection_type) params.connection_type = v.connection_type;
+  if (v.explosion_zone_type) params.explosion_zone_type = v.explosion_zone_type;
+  if (v.power_indication_on_boxes) params.power_indication_on_boxes = v.power_indication_on_boxes;
+  if (v.end_of_section_indication) params.end_of_section_indication = v.end_of_section_indication;
+  if (v.top_of_box_indication) params.top_of_box_indication = v.top_of_box_indication;
+  if (v.min_length_for_k2i != null) params.min_length_for_k2i = v.min_length_for_k2i;
+  if (v.hot_reserve_coefficient != null) params.hot_reserve_coefficient = v.hot_reserve_coefficient;
 }
 
 function applyInsulationLayers(params: Record<string, unknown>, v: LayeredFormValues) {

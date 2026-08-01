@@ -40,6 +40,10 @@ export const COMMON_OBJECT_FORM_DEFAULTS: ObjectWizardFormValues = {
   supply_voltage: 220,
   steam_tracing: 'no',
   winding_coefficient: 1,
+  explosion_zone_type: 'no',
+  power_indication_on_boxes: 'no',
+  end_of_section_indication: 'no',
+  top_of_box_indication: 'no',
 };
 
 export const PIPE_OBJECT_FORM_DEFAULTS: ObjectWizardFormValues = {
@@ -150,6 +154,12 @@ export interface PipeFormValues {
   winding_coefficient?: number;
   /** Схема соединения (алгоритм выбора кабеля, ТНП). */
   connection_type?: string;
+  explosion_zone_type?: 'yes' | 'no';
+  power_indication_on_boxes?: 'yes' | 'no';
+  end_of_section_indication?: 'yes' | 'no';
+  top_of_box_indication?: 'yes' | 'no';
+  min_length_for_k2i?: number;
+  hot_reserve_coefficient?: number;
   valve_count?: number;
   flange_count?: number;
   support_count?: number;
@@ -212,6 +222,12 @@ export interface TankFormValues {
   winding_coefficient?: number;
   /** Схема соединения (алгоритм выбора кабеля, ТНП). */
   connection_type?: string;
+  explosion_zone_type?: 'yes' | 'no';
+  power_indication_on_boxes?: 'yes' | 'no';
+  end_of_section_indication?: 'yes' | 'no';
+  top_of_box_indication?: 'yes' | 'no';
+  min_length_for_k2i?: number;
+  hot_reserve_coefficient?: number;
   q_additional?: number;
 }
 

@@ -51,13 +51,21 @@
   width: 100%;
   align-items: start;
 }
-.heatcalc-dual-forms--wide { --heatcalc-heat-pane-min: 780px; grid-template-columns: minmax(var(--heatcalc-heat-pane-min), 2fr) minmax(300px, 3fr); }
-.heatcalc-dual-forms--wide[data-object-type="tank"] { --heatcalc-heat-pane-min: 850px; }
+.heatcalc-dual-forms--wide {
+  --heatcalc-heat-pane-min: 440px;
+  --heatcalc-cable-pane-min: 240px;
+  grid-template-columns:
+    minmax(var(--heatcalc-heat-pane-min), max-content)
+    minmax(var(--heatcalc-cable-pane-min), max-content)
+    minmax(var(--heatcalc-cable-pane-min), max-content);
+  justify-content: space-around;
+}
 .heatcalc-dual-forms--side {
   grid-template-columns: minmax(0, 1fr);
 }
 .heatcalc-dual-forms__heat,
-.heatcalc-dual-forms__cable {
+.heatcalc-dual-forms__cable,
+.heatcalc-dual-forms__specs {
   min-width: 0;
 }
 .heatcalc-dual-forms {
@@ -85,7 +93,7 @@
   padding-bottom: var(--heatcalc-table-cell-padding-y, 1px);
 }
 
-@media (max-width: 1400px) {
+@media (max-width: 999px) {
   .heatcalc-dual-forms--wide {
     grid-template-columns: minmax(0, 1fr);
   }

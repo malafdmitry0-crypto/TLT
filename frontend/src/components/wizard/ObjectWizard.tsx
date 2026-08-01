@@ -4,6 +4,7 @@ import type { HeatCalcFieldInputSettings } from '@/utils/heatCalcFieldInputSetti
 import type { HeatCalcFormSectionWeights } from '@/utils/heatCalcTableViewSettings';
 import type { ProjectObject } from '@/types/project';
 import CableAlgorithmPanel from './CableAlgorithmPanel';
+import CableSpecPanel from './CableSpecPanel';
 import WizardZoneBoundary from './isolation/WizardZoneBoundary';
 import ObjectWizardSidePanel from './ObjectWizardSidePanel';
 import type { ObjectWizardLayoutVariant } from './ObjectWizardPanelTypes';
@@ -156,6 +157,9 @@ export default function ObjectWizard({
               fieldInputSettings={fieldInputSettings}
             />
           </WizardZoneBoundary>
+          <div className="heatcalc-dual-forms__specs">
+            <CableSpecPanel />
+          </div>
         </div>
       ) : (
         <div
@@ -182,6 +186,9 @@ export default function ObjectWizard({
               fieldInputSettings={fieldInputSettings}
             />
           </WizardZoneBoundary>
+          <div className="heatcalc-dual-forms__specs">
+            <CableSpecPanel />
+          </div>
         </div>
       )}
       <div className="hidden-submit">

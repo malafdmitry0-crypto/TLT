@@ -76,6 +76,7 @@ export default function ElectricalAndFittingsStep({
           className="numeric-form-item fitting-count-form-item local-elements-count-form-item helped-form-item"
           label={<FieldLabel text="Количество локальных элементов" />}
           name="num_local_elements"
+          rules={heatCalcFormFieldRules(form, objectType, 'valve_count')}
         >
           {withHelp(
             <UnitInputNumber

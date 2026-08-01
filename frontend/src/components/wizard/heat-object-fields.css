@@ -204,3 +204,21 @@
   display: flex;
   align-items: center;
 }
+
+/*
+ * Wide dual-form shell keeps the three panes in a row down to 1000px, where the
+ * heat pane is only ~440-740px wide. Its three slot columns (wide geometry +
+ * two max-content numeric groups ≈ 430px) cannot fit there, so the slots stack
+ * into a single column; full-width panes below 1000px keep the same stacked
+ * look for consistency.
+ */
+@media (max-width: 1399px) {
+  .heat-object-fields.heat-object-fields--wide {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .heat-object-fields.heat-object-fields--wide > .heat-object-fields__climate,
+  .heat-object-fields.heat-object-fields--wide > .heat-object-fields__settings {
+    width: 100%;
+  }
+}

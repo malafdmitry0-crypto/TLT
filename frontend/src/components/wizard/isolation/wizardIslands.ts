@@ -11,6 +11,7 @@
 export type WizardIslandId =
   | 'heat-object-fields'
   | 'cable-algorithm'
+  | 'cable-spec'
   | 'insulation-layers-table';
 
 export interface WizardIslandDefinition {
@@ -51,6 +52,16 @@ export const WIZARD_ISLANDS: readonly WizardIslandDefinition[] = [
     componentFile: 'CableAlgorithmPanel.tsx',
     zoneAttr: 'cable-algorithm',
     label: 'CableAlgorithmPanel (алгоритм выбора кабеля)',
+    protected: false,
+  },
+  {
+    id: 'cable-spec',
+    rootClass: 'object-wizard-cable-spec-panel',
+    dataProtected: 'heat-cable-spec',
+    cssFile: 'cable-algorithm-panel.css',
+    componentFile: 'CableSpecPanel.tsx',
+    zoneAttr: 'cable-spec',
+    label: 'CableSpecPanel (подбор спецификации)',
     protected: false,
   },
   {

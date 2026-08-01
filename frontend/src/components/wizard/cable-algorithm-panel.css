@@ -1,22 +1,25 @@
 /**
  * ============================================================================
  * CSS ISLAND — CableAlgorithmPanel ONLY
- * Root: .object-wizard-cable-panel
+ * Root: .cable-island
  * ============================================================================
  * Isolation contract:
- *   ✅ All selectors MUST start with .object-wizard-cable-panel
+ *   ✅ All selectors MUST start with .cable-island
  *   ⛔ NEVER select .heat-object-fields / .insulation-layers-table
  * Эталон horizontal field row + type scale for dual-form.
+ * Адаптивная сетка: auto-fit колонки фиксированной ширины, центрированные в блоке.
+ * Field internals scoped under .cable-algorithm-fields (0,3,1) — island wins
+ * over kit adapter (0,2,1) and inline-object-form chrome regardless of order.
  * ============================================================================
  */
-
-.object-wizard-cable-panel {
-  --dual-form-banner-size: 9px;
-  /* HARD RULE 2: labels compact — same as heat dual-form */
+.cable-island {
+  /* Same dual-form chrome as the heat pane (heatcalc-field-chrome-core):
+     banner 8px uppercase, labels 8.5px, controls 36px, number 10px, select 9px. */
+  --dual-form-banner-size: 8px;
   --dual-form-label-size: 8.5px;
-  --dual-form-label-line-height: 1.0;
-  --dual-form-label-color: var(--tlt-field-label-color);
-  --dual-form-control-height: 26px;
+  --dual-form-label-line-height: 1.05;
+  --dual-form-label-color: var(--color-swatch-4a5b6c);
+  --dual-form-control-height: 36px;
   --dual-form-control-font: 12px;
   --dual-form-hint-size: 10px;
   --cable-banner-size: var(--dual-form-banner-size);
@@ -30,206 +33,184 @@
   /* Bridge to Tlt control tokens (tlt-form-controls.css) */
   --tlt-field-control-height: var(--cable-control-height);
   --tlt-field-control-font-size: var(--cable-control-font);
-  --dual-field-label-width: 148px;
-
+  --tlt-field-number-font-size: 10px;
+  --tlt-field-select-font-size: 9px;
+  --tlt-field-unit-font-size: 9px;
+  --dual-field-label-width: 96px;
+  --cable-control-target-width: 222px;
+  --cable-column-width: calc(var(--dual-field-label-width) + 8px + var(--cable-control-target-width));
   isolation: isolate;
+  width: fit-content;
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   min-width: 0;
 }
-
-.object-wizard-cable-panel .inline-form-section-banner {
-  min-height: 20px;
-  padding: 3px 8px;
-  font-size: var(--cable-banner-size);
-  font-weight: 650;
-  letter-spacing: 0.03em;
-  line-height: 1.2;
-}
-
-.object-wizard-cable-panel .inline-form-section-banner--cable {
-  background: var(--color-swatch-fff6f0);
-  border-color: var(--color-swatch-f0c9b0);
-  color: var(--color-swatch-8a3d12);
-}
-
-.object-wizard-cable-panel .ant-form-item {
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-}
-
-.object-wizard-cable-panel .ant-form-item-row {
-  display: grid;
-  grid-template-columns: minmax(var(--dual-field-label-width), 42%) minmax(0, 1fr);
-  column-gap: 10px;
-  row-gap: 0;
-  align-items: center;
-  width: 100%;
-  min-height: var(--cable-control-height);
-}
-
-.object-wizard-cable-panel .ant-form-item-label {
-  width: auto;
-  max-width: 100%;
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-align: left;
-  align-self: center;
-}
-
-.object-wizard-cable-panel .ant-form-item-label > label {
-  display: block;
-  min-height: 0;
-  height: auto;
-  max-width: 100%;
-  margin: 0;
-  padding: 0;
-  color: var(--cable-label-color);
-  font-size: var(--cable-label-size);
-  font-weight: 600;
-  line-height: var(--cable-label-line-height);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-
-.object-wizard-cable-panel .field-label-two-line {
-  display: block;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.object-wizard-cable-panel .field-label-two-line > span {
-  display: inline;
-  font-size: var(--cable-label-size);
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.object-wizard-cable-panel .field-label-two-line > span + span::before {
-  content: ' ';
-}
-
-.object-wizard-cable-panel .ant-form-item-control,
-.object-wizard-cable-panel .ant-form-item-control-input,
-.object-wizard-cable-panel .ant-form-item-control-input-content,
-.object-wizard-cable-panel .field-control-with-help {
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-}
-
-/* Tlt width fill only — density via --cable-control-height → --tlt-field-* if set on panel */
-.object-wizard-cable-panel .tlt-select,
-.object-wizard-cable-panel .tlt-select__trigger,
-.object-wizard-cable-panel .reference-picker-control {
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  box-sizing: border-box;
-}
-
-.object-wizard-cable-panel .ant-input,
-.object-wizard-cable-panel .ant-input-number,
-.object-wizard-cable-panel .ant-input-number-group-wrapper,
-.object-wizard-cable-panel .ant-select {
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  min-height: var(--cable-control-height);
-  font-size: var(--cable-control-font);
-  line-height: 1.2;
-  box-sizing: border-box;
-}
-
-.object-wizard-cable-panel .ant-input-number-input {
-  height: var(--cable-control-height);
-  font-size: var(--cable-control-font);
-}
-
-.object-wizard-cable-panel .tlt-select__trigger,
-.object-wizard-cable-panel .reference-picker-control {
-  display: flex;
-  align-items: center;
-  box-sizing: border-box;
-}
-
-.object-wizard-cable-panel .cable-algorithm-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 8px 0;
-  padding: 8px 10px 10px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-swatch-f0c9b0);
-  border-top: 0;
-  border-radius: 0 0 7px 7px;
-  align-items: start;
-}
-
-.object-wizard-cable-panel .cable-algorithm-grid > .ant-form-item,
-.object-wizard-cable-panel .cable-algorithm-grid > .cable-algorithm-field {
-  width: 100%;
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-}
-
-.object-wizard-cable-panel .cable-algorithm-field--mirror {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.object-wizard-cable-panel .cable-algorithm-field--mirror .ant-form-item-label {
-  padding: 0;
-}
-
-.object-wizard-cable-panel .cable-algorithm-field--mirror .ant-form-item-label > label,
-.object-wizard-cable-panel .cable-algorithm-field--mirror .ant-form-item-label * {
-  height: auto;
-  color: var(--cable-label-color);
-  font-size: var(--cable-label-size);
-  font-weight: 600;
-  line-height: var(--cable-label-line-height);
-}
-
-.object-wizard-cable-panel .cable-algorithm-mirror-value {
+.cable-island .inline-form-section-banner {
   display: flex;
   align-items: center;
   gap: 4px;
-  min-height: var(--cable-control-height);
-  padding: 2px 8px;
-  border: 1px dashed var(--color-swatch-e0c4b0);
-  border-radius: 6px;
-  background: var(--color-swatch-fffaf6);
-  color: var(--color-swatch-5a3a28);
-  font-size: var(--cable-control-font);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
+  min-height: 18px;
+  margin: 0;
+  padding: 2px 6px;
+  font-size: var(--cable-banner-size);
+  font-weight: 650;
+  letter-spacing: 0;
+  line-height: 1.2;
+  text-transform: uppercase;
+  color: var(--color-swatch-2f3d4f);
+  background: var(--color-swatch-f8fbff);
+  border: 1px solid var(--heatcalc-panel-border);
+  border-bottom: 0;
+  border-radius: 7px 7px 0 0;
 }
-
-.object-wizard-cable-panel .cable-algorithm-mirror-unit {
-  color: var(--color-swatch-8a6a58);
+.cable-island .ant-form-item {
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+}
+.cable-island .cable-algorithm-grid {
+  padding: 8px 10px 10px;
+  background: var(--color-surface);
+  border: 1px solid var(--heatcalc-panel-border);
+  border-radius: 0 0 7px 7px;
+}
+/* Override .inline-object-form grid-column: 1/-1 fallback —
+   cable items must auto-place into the compact grid columns. */
+.cable-island .cable-algorithm-fields .ant-form-item {
+  grid-column: auto;
+}
+.cable-island .cable-algorithm-fields .ant-form-item-row {
+  display: grid;
+  grid-template-columns: var(--dual-field-label-width) minmax(0, 1fr);
+  column-gap: 8px;
+  row-gap: 0;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+}
+.cable-island .cable-algorithm-fields .ant-form-item-label {
+  width: auto;
+  max-width: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  white-space: normal;
+  text-align: left;
+}
+.cable-island .cable-algorithm-fields .ant-form-item-label > label {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  min-height: 11px;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  color: var(--cable-label-color);
   font-size: var(--cable-label-size);
-  font-weight: 500;
+  font-weight: 600;
+  line-height: var(--cable-label-line-height);
+  white-space: normal;
 }
-
-.object-wizard-cable-panel .cable-algorithm-number {
+.cable-island .cable-algorithm-fields .field-label-two-line {
+  display: block;
+  max-width: 100%;
+  overflow: visible;
+  white-space: normal;
+}
+.cable-island .cable-algorithm-fields .field-label-two-line > span {
+  display: block;
+  font-size: var(--cable-label-size);
+  font-weight: 600;
+  white-space: normal;
+}
+.cable-island .cable-algorithm-fields .ant-form-item-control,
+.cable-island .cable-algorithm-fields .ant-form-item-control-input,
+.cable-island .cable-algorithm-fields .ant-form-item-control-input-content,
+.cable-island .cable-algorithm-fields .field-control-with-help,
+.cable-island .cable-algorithm-fields .tlt-select,
+.cable-island .cable-algorithm-fields .tlt-select__trigger,
+.cable-island .cable-algorithm-fields .reference-picker-control {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.cable-island .cable-algorithm-fields .ant-input,
+.cable-island .cable-algorithm-fields .ant-input-number,
+.cable-island .cable-algorithm-fields .ant-input-number-group-wrapper,
+.cable-island .cable-algorithm-fields .ant-select {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: var(--cable-control-height);
+  height: var(--cable-control-height);
+  font-size: var(--cable-control-font);
+  line-height: 1.2;
+  box-sizing: border-box;
+}
+/* Inside tlt-select-shell, flex child needs flex:1 to fill (min-width: auto from
+   flex constraints defeats width:100% on short content like «Среда»).
+   Full-width select ensures Ant popupMatchSelectWidth measures correctly. */
+.cable-island .cable-algorithm-fields .tlt-select-shell {
+  display: flex;
   width: 100%;
 }
-
-.object-wizard-cable-panel .cable-algorithm-hint {
-  margin: 6px 10px 8px;
+.cable-island .cable-algorithm-fields .tlt-select-shell .ant-select,
+.cable-island .cable-algorithm-fields .tlt-select-shell .ant-select-selector {
+  flex: 1;
+  width: 100% !important;
+  min-width: 0;
+}
+/* inner selector must not duplicate the focus ring — only outer .ant-select gets it */
+.cable-island .cable-algorithm-fields .tlt-select-shell .ant-select-focused .ant-select-selector,
+.cable-island .cable-algorithm-fields .tlt-select-shell .ant-select-selector:focus,
+.cable-island .cable-algorithm-fields .tlt-select-shell .ant-select-selector:focus-within {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: inherit;
+}
+.cable-island .cable-algorithm-fields .ant-input-number-input {
+  height: var(--cable-control-height);
+  padding: 0 3px;
+  font-size: 10px;
+}
+.cable-island .cable-algorithm-fields .tlt-select__trigger,
+.cable-island .cable-algorithm-fields .reference-picker-control {
+  display: flex;
+  align-items: center;
+}
+.cable-island .cable-algorithm-fields .ant-select-selection-item,
+.cable-island .cable-algorithm-fields .ant-select-selection-placeholder {
+  font-size: 9px;
+  line-height: 34px;
+}
+.cable-island .cable-algorithm-fields .unit-input-number__addon {
+  height: var(--cable-control-height);
+  font-size: 9px;
+  line-height: 34px;
+}
+.cable-island .cable-algorithm-fields .cable-algorithm-number {
+  width: 100%;
+}
+/* Одна колонка фиксированной ширины (как поле «Наименование»: label 96 + gap 8 + control 222),
+   центрированная в карточке. */
+.cable-island .cable-algorithm-fields {
+  grid-template-columns: minmax(0, var(--cable-column-width));
+  grid-auto-flow: row;
+  justify-content: center;
+  width: 100%;
+}
+.cable-island .cable-algorithm-hint {
+  margin: 6px 0 8px;
+  padding: 0 10px;
   color: var(--color-swatch-8a6a58);
   font-size: var(--cable-hint-size);
   line-height: 1.35;
+}
+.cable-island .cable-spec-table {
+  padding: 4px 0;
 }

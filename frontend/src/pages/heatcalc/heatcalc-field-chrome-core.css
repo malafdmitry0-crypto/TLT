@@ -457,6 +457,14 @@
 .inline-object-form .ant-select-disabled .ant-select-arrow {
   color: var(--color-swatch-c7cfd6);
 }
+/* suppress duplicate focus ring on inner selector — outer .ant-select already has it */
+.inline-object-form .ant-select-focused .ant-select-selector,
+.inline-object-form .ant-select-selector:focus,
+.inline-object-form .ant-select-selector:focus-within {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: inherit;
+}
 .inline-object-form.inline-object-form .ant-select-single .ant-select-selector .ant-select-selection-search-input {
   height: calc(var(--inline-control-height) - 2px);
 }

@@ -169,7 +169,10 @@
 
     .workspace {
       display: grid;
-      grid-template-columns: minmax(780px, 2fr) minmax(300px, 3fr);
+      grid-template-columns:
+        minmax(780px, 47fr)
+        minmax(500px, 30fr)
+        minmax(300px, 23fr);
       gap: 12px;
       align-items: start;
     }
@@ -201,7 +204,11 @@
 
     .grid-ruler {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) max-content max-content;
+      grid-template-columns:
+        minmax(0, 1fr)
+        minmax(0, 1fr)
+        max-content
+        max-content;
       column-gap: 10px;
     }
 
@@ -221,7 +228,11 @@
     .form-grid {
       display: grid;
       position: relative;
-      grid-template-columns: minmax(0, 1fr) max-content max-content;
+      grid-template-columns:
+        minmax(0, 1fr)
+        minmax(0, 1fr)
+        max-content
+        max-content;
       grid-auto-rows: minmax(36px, auto);
       gap: 4px 10px;
       align-items: start;
@@ -229,6 +240,22 @@
 
     .form-grid.state-all {
       overflow: visible;
+    }
+
+    .form-grid > .field:not(.field--numeric) {
+      --wide-label-width: 80px;
+    }
+
+    .form-grid > .field--wide-promoted {
+      --wide-label-width: 80px;
+      grid-template-columns:
+        var(--wide-label-width)
+        var(--label-control-gap)
+        minmax(0, 1fr);
+    }
+
+    .form-grid > .field--wide-promoted .field__control {
+      width: 100%;
     }
 
     .field {
@@ -479,51 +506,221 @@
       color: #1f5f96;
     }
 
-    .companion {
+    .companion,
+    .specification-panel {
       min-height: 360px;
       overflow: hidden;
       border: 1px solid var(--line);
       border-radius: 9px;
-      background: rgba(255, 255, 255, 0.62);
+      background: var(--surface);
+      box-shadow: 0 12px 35px rgba(38, 56, 77, 0.07);
     }
 
-    .companion__header {
+    .companion__header,
+    .specification-panel__header {
       display: flex;
       justify-content: space-between;
       min-height: 38px;
       padding: 10px 12px;
       border-bottom: 1px solid var(--line);
-      color: #526b85;
       font-size: 12px;
       font-weight: 700;
     }
 
-    .companion__body {
+    .companion__header {
+      background: #fff8f3;
+      color: #8a4f2b;
+    }
+
+    .specification-panel__header {
+      background: #f0f8ee;
+      color: #3e6943;
+    }
+
+    .cable-form-wrap,
+    .specification-form-wrap {
+      padding: 12px 10px 14px;
+    }
+
+    .cable-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
-      padding: 12px;
+      grid-template-areas:
+        "wide temperature"
+        "wide coefficient";
+      gap: 10px 14px;
+      align-items: start;
     }
 
-    .companion__block {
-      min-height: 116px;
-      border: 1px dashed #c4d1df;
-      border-radius: 6px;
-      background:
-        repeating-linear-gradient(
-          to bottom,
-          transparent 0,
-          transparent 26px,
-          rgba(82, 107, 133, 0.09) 27px
-        );
+    .cable-group {
+      position: relative;
+      display: grid;
+      grid-auto-rows: minmax(36px, auto);
+      row-gap: 4px;
+      min-width: 0;
+      padding-top: 18px;
     }
 
-    @media (max-width: 1400px) {
+    .cable-group::before {
+      content: attr(data-group-label);
+      position: absolute;
+      inset: 0 0 auto;
+      overflow: hidden;
+      color: #9a735a;
+      font: 700 9px/1.2 Consolas, "SFMono-Regular", monospace;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .cable-group--wide { grid-area: wide; }
+    .cable-group--temperature { grid-area: temperature; }
+    .cable-group--coefficient { grid-area: coefficient; }
+
+    .cable-field {
+      display: grid;
+      align-items: center;
+      min-height: 36px;
+    }
+
+    .cable-field--wide {
+      grid-template-columns: 112px 8px minmax(0, 1fr);
+    }
+
+    .cable-field--temperature {
+      grid-template-columns: minmax(0, 1fr) 8px 92px;
+    }
+
+    .cable-field--coefficient {
+      grid-template-columns: minmax(0, 1fr) 8px 72px;
+    }
+
+    .cable-field .field__label,
+    .specification-field .field__label {
+      font-size: 10px;
+      line-height: 1.1;
+    }
+
+    .cable-field--mirror .field__control {
+      border-style: dashed;
+      border-color: #dfb99f;
+      background: #fffaf6;
+      font-weight: 650;
+    }
+
+    .cable-field--required .field__control {
+      border-left: 3px solid var(--accent);
+      background: #fffdf7;
+    }
+
+    .cable-field--coefficient .field__value,
+    .specification-number .field__value {
+      text-align: right;
+    }
+
+    .cable-hint,
+    .specification-hint {
+      margin: 10px 0 0;
+      padding: 8px 10px;
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    .cable-hint {
+      border-left: 3px solid #d58a55;
+      background: #fff8f3;
+      color: #7d5a44;
+    }
+
+    .cable-hidden {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+      color: #7d6a5e;
+      font-size: 9px;
+    }
+
+    .cable-hidden code {
+      padding: 2px 5px;
+      border-radius: 3px;
+      background: #f6ece5;
+      font: 600 9px/1.2 Consolas, "SFMono-Regular", monospace;
+    }
+
+    .specification-grid {
+      position: relative;
+      display: grid;
+      row-gap: 4px;
+      padding-top: 21px;
+    }
+
+    .specification-grid::before {
+      content: attr(data-group-label);
+      position: absolute;
+      inset: 0 0 auto;
+      color: #648368;
+      font: 700 9px/1.2 Consolas, "SFMono-Regular", monospace;
+    }
+
+    .specification-field {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 10px 112px;
+      align-items: center;
+      min-height: 46px;
+    }
+
+    .specification-switch {
+      grid-column: 3;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      width: 112px;
+      height: 36px;
+      padding: 2px;
+      border: 1px solid #cfd5dd;
+      border-left: 3px solid #6ca36c;
+      border-radius: 4px;
+      background: #f2f4f6;
+      color: #718096;
+      font: 650 11px/1 Arial, sans-serif;
+    }
+
+    .specification-switch span {
+      display: grid;
+      place-items: center;
+      border-radius: 3px;
+    }
+
+    .specification-switch[aria-checked="false"] span:first-child {
+      background: #fff;
+      color: #2c3035;
+      box-shadow: 0 1px 3px rgba(38, 56, 77, 0.16);
+    }
+
+    .specification-number {
+      grid-column: 3;
+      display: flex;
+      width: 112px;
+    }
+
+    .specification-number.is-disabled {
+      border-color: #dfe3e8;
+      background: #f4f5f6;
+      color: #9aa5b1;
+    }
+
+    .specification-hint {
+      border-left: 3px solid #79a879;
+      background: #f3f9f1;
+      color: #527057;
+    }
+
+    @media (max-width: 1643px) {
       .workspace {
         grid-template-columns: minmax(0, 1fr);
       }
 
-      .companion {
+      .companion,
+      .specification-panel {
         display: none;
       }
     }
@@ -544,7 +741,7 @@
         <p class="eyebrow">HeatCalc / grid proposal</p>
         <h1>Одна координатная система для верхней формы</h1>
         <p class="lede">
-          Тепловая форма занимает 40% рабочей ширины. Длинные поля сохраняют
+          Тепловая форма занимает 47% рабочей ширины. Длинные поля сохраняют
           общий label-трек 96px / 8px / fluid 5fr; numeric-столбцы
           рассчитаны по самому широкому валидному значению внутри каждого столбца.
         </p>
@@ -572,12 +769,13 @@
     <section class="sheet" aria-labelledby="sheet-title">
       <div class="sheet__header">
         <span class="sheet__title" id="sheet-title">Параметры трубопровода</span>
-        <span class="formula">40% · wide 1fr · numeric groups max-content</span>
+          <span class="formula">47% · wide 2×1fr · numeric groups max-content</span>
       </div>
 
       <div class="form-wrap" id="form-wrap">
         <div class="grid-ruler" aria-hidden="true">
-          <span>label 96px / 8px / control 5fr</span>
+          <span>wide A · label 80px / 8px / control 5fr</span>
+          <span>wide B · label 80px / 8px / control 5fr</span>
           <span>геометрия · max 200000 м → 96px</span>
           <span>среда · max 3.00 Вт/мК → 92px</span>
         </div>
@@ -605,7 +803,7 @@
             <span class="field__label">Материал<br>трубы</span>
             <span class="field__control"><span class="field__value" id="material-value">Углеродистая сталь</span><span class="field__icon">⌕</span></span>
           </div>
-          <div class="field field--required field--numeric numeric--n7 numeric--wide-unit g2 r5" id="pipe-lambda-field">
+          <div class="field field--required field--numeric field--wide-promoted numeric--n7 numeric--wide-unit g2 r5" id="pipe-lambda-field">
             <span class="field__label">Теплопроводность<br>трубы<br>λ</span>
             <span class="field__control"><span class="field__value">400</span><span class="field__unit">Вт/мК</span></span>
           </div>
@@ -625,7 +823,7 @@
             <span class="field__label">Тип<br>грунта</span>
             <span class="field__control"><span class="field__value">Выберите грунт</span><span class="field__icon">⌕</span></span>
           </div>
-          <div class="field field--required field--numeric numeric--n4 numeric--wide-unit g3 r5" id="ground-conductivity-field">
+          <div class="field field--required field--numeric field--wide-promoted numeric--n4 numeric--wide-unit g3 r5" id="ground-conductivity-field">
             <span class="field__label">Теплопроводность<br>грунта</span>
             <span class="field__control"><span class="field__value">3.00</span><span class="field__unit">Вт/мК</span></span>
           </div>
@@ -685,13 +883,69 @@
     <aside class="companion" aria-label="Соседняя область алгоритма выбора кабеля">
       <div class="companion__header">
         <span>Алгоритм выбора кабеля</span>
-        <span>60% рабочей ширины</span>
+        <span>30%</span>
       </div>
-      <div class="companion__body" aria-hidden="true">
-        <div class="companion__block"></div>
-        <div class="companion__block"></div>
-        <div class="companion__block"></div>
-        <div class="companion__block"></div>
+      <div class="cable-form-wrap">
+        <div class="cable-grid">
+          <div class="cable-group cable-group--wide" data-group-label="Wide · select">
+            <div class="cable-field cable-field--wide cable-field--required">
+              <span class="field__label">Рабочее<br>напряжение</span>
+              <span class="field__control"><span class="field__value">220</span><span class="field__icon field__icon--chevron">⌄</span></span>
+            </div>
+            <div class="cable-field cable-field--wide cable-field--required">
+              <span class="field__label">Среда</span>
+              <span class="field__control"><span class="field__value">Нормальная</span><span class="field__icon field__icon--chevron">⌄</span></span>
+            </div>
+            <div class="cable-field cable-field--wide cable-field--required">
+              <span class="field__label">Температурная<br>группа</span>
+              <span class="field__control"><span class="field__value">T1</span><span class="field__icon field__icon--chevron">⌄</span></span>
+            </div>
+            <div class="cable-field cable-field--wide">
+              <span class="field__label">Схема<br>соединения</span>
+              <span class="field__control"><span class="field__value">Выберите схему</span><span class="field__icon field__icon--chevron">⌄</span></span>
+            </div>
+          </div>
+          <div class="cable-group cable-group--temperature" data-group-label="Температуры · control 92px">
+            <div class="cable-field cable-field--temperature cable-field--mirror">
+              <span class="field__label">T жидкости<br>(из теплорасчёта)</span>
+              <span class="field__control"><span class="field__value">600</span><span class="field__unit">°C</span></span>
+            </div>
+            <div class="cable-field cable-field--temperature cable-field--required">
+              <span class="field__label">Температура<br>пропарки</span>
+              <span class="field__control"><span class="field__value"></span><span class="field__unit">°C</span></span>
+            </div>
+            <div class="cable-field cable-field--temperature cable-field--required">
+              <span class="field__label">Минимальная<br>температура<br>включения</span>
+              <span class="field__control"><span class="field__value"></span><span class="field__unit">°C</span></span>
+            </div>
+          </div>
+          <div class="cable-group cable-group--coefficient" data-group-label="Коэффициенты · control 72px">
+            <div class="cable-field cable-field--coefficient cable-field--required">
+              <span class="field__label">Коэффициент<br>запаса (Кзап)</span>
+              <span class="field__control"><span class="field__value">1.1</span></span>
+            </div>
+            <div class="cable-field cable-field--coefficient">
+              <span class="field__label">Коэффициент<br>навива w</span>
+              <span class="field__control"><span class="field__value">1</span></span>
+            </div>
+          </div>
+        </div>
+        <p class="cable-hint">Марка кабеля, нитки и подбор — на шаге «Электротехнический расчёт».</p>
+        <div class="cable-hidden"><strong>Hidden, только round-trip:</strong><code>steam_tracing</code><code>zone_classification</code></div>
+      </div>
+    </aside>
+    <aside class="specification-panel" aria-label="Подбор спецификации">
+      <div class="specification-panel__header"><span>Подбор спецификации</span><span>23%</span></div>
+      <div class="specification-form-wrap">
+        <div class="specification-grid" data-group-label="Указанные требования · лист 1">
+          <div class="specification-field"><span class="field__label">Тип зоны по<br>взрывоопасности <span class="formula">Ex</span></span><button class="specification-switch" type="button" role="switch" aria-checked="false"><span>Нет</span><span>Да</span></button></div>
+          <div class="specification-field"><span class="field__label">Индикация питания<br>на коробках <span class="formula">К1i</span></span><button class="specification-switch" type="button" role="switch" aria-checked="false"><span>Нет</span><span>Да</span></button></div>
+          <div class="specification-field"><span class="field__label">Доп. индикация в конце<br>нагревательной секции <span class="formula">К2i</span></span><button class="specification-switch" type="button" role="switch" aria-checked="false"><span>Нет</span><span>Да</span></button></div>
+          <div class="specification-field"><span class="field__label">Доп. индикация<br>сверху коробки <span class="formula">Кiu</span></span><button class="specification-switch" type="button" role="switch" aria-checked="false"><span>Нет</span><span>Да</span></button></div>
+          <div class="specification-field"><span class="field__label">Мин. длина секции<br>для применения <span class="formula">К2i</span></span><span class="field__control specification-number is-disabled"><span class="field__value">0</span><span class="field__unit">м</span></span></div>
+          <div class="specification-field"><span class="field__label">Коэффициент горячего<br>резервирования <span class="formula">R,гр</span></span><span class="field__control specification-number"><span class="field__value">1,0</span></span></div>
+        </div>
+        <p class="specification-hint">Комплект оборудования формируется после электрорасчёта.</p>
       </div>
     </aside>
     </div>
@@ -716,10 +970,14 @@
       gridRuler.style.gridTemplateColumns = tracks;
 
       const gridRect = formGrid.getBoundingClientRect();
+      const wideGuideFields = [...formGrid.querySelectorAll('.field:not(.field--numeric)')]
+        .filter((field) => !field.hidden);
+      const wideGuideSplit = Math.ceil(wideGuideFields.length / 2);
       const representatives = [
-        [...formGrid.querySelectorAll('.field:not(.field--numeric)')].find((field) => !field.hidden),
-        [...formGrid.querySelectorAll('.field--numeric.g2')].find((field) => !field.hidden),
-        [...formGrid.querySelectorAll('.field--numeric.g3')].find((field) => !field.hidden),
+        wideGuideFields[0],
+        wideGuideFields[wideGuideSplit],
+        [...formGrid.querySelectorAll('.field--numeric.g2:not(.field--wide-promoted)')].find((field) => !field.hidden),
+        [...formGrid.querySelectorAll('.field--numeric.g3:not(.field--wide-promoted)')].find((field) => !field.hidden),
       ].filter(Boolean);
       const positions = representatives.flatMap((field) => {
         const labelRect = field.querySelector('.field__label').getBoundingClientRect();
@@ -741,7 +999,14 @@
       const visibleFields = [...formGrid.querySelectorAll('.field')]
         .filter((field) => !field.hidden);
       const wideFields = visibleFields.filter((field) => !field.classList.contains('field--numeric'));
-      const numericFields = visibleFields.filter((field) => field.classList.contains('field--numeric'));
+      const wideSplit = Math.ceil(wideFields.length / 2);
+      const wideColumns = [
+        wideFields.slice(0, wideSplit),
+        wideFields.slice(wideSplit),
+      ];
+      const numericFields = visibleFields.filter((field) =>
+        field.classList.contains('field--numeric')
+        && !field.classList.contains('field--wide-promoted'));
       const rowIndex = (field) => {
         const rowClass = [...field.classList].find((className) => /^r\d+$/.test(className));
         return Number(rowClass?.slice(1) ?? 99);
@@ -751,13 +1016,25 @@
         numericFields.filter((field) => field.classList.contains('g3')).sort((a, b) => rowIndex(a) - rowIndex(b)),
       ];
 
-      wideFields.forEach((field, index) => {
-        field.style.gridColumn = '1';
-        field.style.gridRow = String(index + 1);
+      wideColumns.forEach((column, columnIndex) => {
+        column.forEach((field, row) => {
+          field.style.gridColumn = String(columnIndex + 1);
+          field.style.gridRow = String(row + 1);
+        });
       });
+      const pipeLambda = document.querySelector('#pipe-lambda-field');
+      const groundConductivity = document.querySelector('#ground-conductivity-field');
+      if (!pipeLambda.hidden) {
+        pipeLambda.style.gridColumn = '1';
+        pipeLambda.style.gridRow = String(wideColumns[0].length + 1);
+      }
+      if (!groundConductivity.hidden) {
+        groundConductivity.style.gridColumn = '2';
+        groundConductivity.style.gridRow = String(wideColumns[1].length + 1);
+      }
       numericColumns.forEach((column, columnIndex) => {
         column.forEach((field, row) => {
-          field.style.gridColumn = String(columnIndex + 2);
+          field.style.gridColumn = String(columnIndex + 3);
           field.style.gridRow = String(row + 1);
         });
       });

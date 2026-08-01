@@ -72,6 +72,61 @@ describe('heatCalcFieldRules', () => {
     })).toBeNull();
   });
 
+  it('ограничивает температурные и физические диапазоны из ТНП', () => {
+    expect(validateHeatCalcField('vapor_temperature', 85, {
+      objectType: 'pipe',
+      values: {},
+    })).toBe('Минимальное значение — 90');
+    expect(validateHeatCalcField('vapor_temperature', 200, {
+      objectType: 'pipe',
+      values: {},
+    })).toBeNull();
+    expect(validateHeatCalcField('vapor_temperature', 250, {
+      objectType: 'pipe',
+      values: {},
+    })).toBe('Максимальное значение — 200');
+    expect(validateHeatCalcField('ground_conductivity', 0.5, {
+      objectType: 'pipe',
+      values: { placement: 'underground' },
+    })).toBe('Минимальное значение — 0.8');
+    expect(validateHeatCalcField('ground_conductivity', 1.5, {
+      objectType: 'pipe',
+      values: { placement: 'underground' },
+    })).toBeNull();
+    expect(validateHeatCalcField('min_switch_temperature', -25, {
+      objectType: 'pipe',
+      values: {},
+    })).toBe('Минимальное значение — -20');
+    expect(validateHeatCalcField('min_switch_temperature', 0, {
+      objectType: 'pipe',
+      values: {},
+    })).toBeNull();
+    expect(validateHeatCalcField('min_switch_temperature', 10, {
+      objectType: 'pipe',
+      values: {},
+    })).toBe('Максимальное значение — 5');
+    expect(validateHeatCalcField('insulation_thickness_mm', 0.005, {
+      objectType: 'pipe',
+      values: {},
+    })).toBe('Минимальное значение — 0.01');
+    expect(validateHeatCalcField('insulation_thickness_mm', 0.05, {
+      objectType: 'pipe',
+      values: {},
+    })).toBeNull();
+    expect(validateHeatCalcField('winding_coefficient', 1.25, {
+      objectType: 'pipe',
+      values: {},
+    })).toBeNull();
+    expect(validateHeatCalcField('winding_coefficient', 2, {
+      objectType: 'pipe',
+      values: {},
+    })).toBe('Максимальное значение — 1.5');
+    expect(validateHeatCalcField('valve_count', 150, {
+      objectType: 'pipe',
+      values: {},
+    })).toBe('Максимальное значение — 100');
+  });
+
   it('учитывает количество слоёв и материал other для λ и диапазона T', () => {
     expect(isHeatCalcFieldVisible('second_insulation_material', {
       objectType: 'pipe',

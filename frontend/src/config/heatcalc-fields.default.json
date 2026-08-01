@@ -621,7 +621,7 @@
       "input": {
         "type": "number",
         "unit": "мм",
-        "min": 1,
+        "min": 0.01,
         "max": 500,
         "default_step": 5,
         "configurable_step": true,
@@ -629,7 +629,7 @@
         "input_unit": "mm",
         "display_digits": 0
       },
-      "description": "Толщина слоя тепловой изоляции. Диапазон: 1–500 мм.",
+      "description": "Толщина слоя тепловой изоляции. Диапазон: 0,01–500 мм.",
       "definition_object_types": [
         "pipe",
         "tank"
@@ -1857,14 +1857,14 @@
       "input": {
         "type": "number",
         "unit": "Вт/мК",
-        "min": 0.5,
+        "min": 0.8,
         "max": 3,
         "default_step": 0.1,
         "configurable_step": false,
         "input_unit": "raw",
         "display_digits": 2
       },
-      "description": "Теплопроводность грунта для подземной прокладки. Диапазон: 0,5…3,0 Вт/(м·К)."
+      "description": "Теплопроводность грунта для подземной прокладки. Диапазон: 0,8…3,0 Вт/(м·К)."
     },
     "min_switch_temperature": {
       "service_name": "min_switch_temperature",
@@ -1902,8 +1902,8 @@
       "input": {
         "type": "number",
         "unit": "°C",
-        "min": -70,
-        "max": 70,
+        "min": -20,
+        "max": 5,
         "default_step": 0.1,
         "configurable_step": false,
         "input_unit": "raw",
@@ -2109,8 +2109,8 @@
       "input": {
         "type": "number",
         "unit": "°C",
-        "min": 0,
-        "max": 600,
+        "min": 90,
+        "max": 200,
         "default_step": 0.1,
         "configurable_step": true,
         "input_unit": "raw",
@@ -2121,6 +2121,93 @@
         "pipe",
         "tank"
       ]
+    },
+    "explosion_zone_type": {
+      "service_name": "explosion_zone_type",
+      "object_types": ["pipe", "tank"],
+      "group": "Электропараметры и арматура",
+      "labels": { "full": "Тип зон по взрывоопасности", "short": "Ex", "compact": "Ex" },
+      "contexts": {
+        "table_by_key": { "explosion_zone_type": { "label": "Ex", "full_label": "Тип зон по взрывоопасности", "tooltip": "Тип зон по взрывоопасности" } },
+        "settings_by_key": { "explosion_zone_type": { "label": "Тип зон по взрывоопасности" } }
+      },
+      "table_keys": { "pipe": "explosion_zone_type", "tank": "explosion_zone_type" },
+      "input": { "type": "select", "options": [{ "value": "yes", "label": "Да" }, { "value": "no", "label": "Нет" }] },
+      "description": "Тип зон по взрывоопасности (Ex)."
+    },
+    "power_indication_on_boxes": {
+      "service_name": "power_indication_on_boxes",
+      "object_types": ["pipe", "tank"],
+      "group": "Электропараметры и арматура",
+      "labels": { "full": "Индикация питающих на коробках", "short": "К1i", "compact": "К1i" },
+      "contexts": {
+        "table_by_key": { "power_indication_on_boxes": { "label": "К1i", "full_label": "Индикация питающих на коробках", "tooltip": "Индикация питающих на коробках" } },
+        "settings_by_key": { "power_indication_on_boxes": { "label": "Индикация питающих на коробках" } }
+      },
+      "table_keys": { "pipe": "power_indication_on_boxes", "tank": "power_indication_on_boxes" },
+      "input": { "type": "select", "options": [{ "value": "yes", "label": "Да" }, { "value": "no", "label": "Нет" }] },
+      "description": "Индикация питающих на коробках (К1i)."
+    },
+    "end_of_section_indication": {
+      "service_name": "end_of_section_indication",
+      "object_types": ["pipe", "tank"],
+      "group": "Электропараметры и арматура",
+      "labels": { "full": "Доп. индикация в конце нагр. секции", "short": "К2i", "compact": "К2i" },
+      "contexts": {
+        "table_by_key": { "end_of_section_indication": { "label": "К2i", "full_label": "Доп. индикация в конце нагр. секции", "tooltip": "Доп. индикация в конце нагр. секции" } },
+        "settings_by_key": { "end_of_section_indication": { "label": "Доп. индикация в конце нагр. секции" } }
+      },
+      "table_keys": { "pipe": "end_of_section_indication", "tank": "end_of_section_indication" },
+      "input": { "type": "select", "options": [{ "value": "yes", "label": "Да" }, { "value": "no", "label": "Нет" }] },
+      "description": "Доп. индикация в конце нагревательной секции (К2i)."
+    },
+    "top_of_box_indication": {
+      "service_name": "top_of_box_indication",
+      "object_types": ["pipe", "tank"],
+      "group": "Электропараметры и арматура",
+      "labels": { "full": "Доп. индикация сверху коробки", "short": "Кiu", "compact": "Кiu" },
+      "contexts": {
+        "table_by_key": { "top_of_box_indication": { "label": "Кiu", "full_label": "Доп. индикация сверху коробки", "tooltip": "Доп. индикация сверху коробки" } },
+        "settings_by_key": { "top_of_box_indication": { "label": "Доп. индикация сверху коробки" } }
+      },
+      "table_keys": { "pipe": "top_of_box_indication", "tank": "top_of_box_indication" },
+      "input": { "type": "select", "options": [{ "value": "yes", "label": "Да" }, { "value": "no", "label": "Нет" }] },
+      "description": "Доп. индикация сверху коробки (Кiu)."
+    },
+    "min_length_for_k2i": {
+      "service_name": "min_length_for_k2i",
+      "object_types": ["pipe", "tank"],
+      "group": "Электропараметры и арматура",
+      "labels": { "full": "Мин. длина нагр. секции для К2i", "short": "L К2i", "compact": "L К2i" },
+      "contexts": {
+        "table_by_key": { "min_length_for_k2i": { "label": "L К2i", "full_label": "Мин. длина нагр. секции для К2i", "tooltip": "Мин. длина нагревательной секции для применения К2i" } },
+        "settings_by_key": { "min_length_for_k2i": { "label": "Мин. длина нагр. секции для К2i" } }
+      },
+      "table_keys": { "pipe": "min_length_for_k2i", "tank": "min_length_for_k2i" },
+      "input": { "type": "number", "unit": "м", "min": 0, "max": 10000, "default_step": 0.1, "input_unit": "raw", "display_digits": 1 },
+      "description": "Минимальная длина нагревательной секции для применения К2i."
+    },
+    "hot_reserve_coefficient": {
+      "service_name": "hot_reserve_coefficient",
+      "object_types": ["pipe", "tank"],
+      "group": "Электропараметры и арматура",
+      "labels": { "full": "Коэф. горячего резервирования", "short": "R гр", "compact": "R гр" },
+      "contexts": {
+        "table_by_key": { "hot_reserve_coefficient": { "label": "R гр", "full_label": "Коэф. горячего резервирования", "tooltip": "Коэф. горячего резервирования" } },
+        "settings_by_key": { "hot_reserve_coefficient": { "label": "Коэф. горячего резервирования" } }
+      },
+      "table_keys": { "pipe": "hot_reserve_coefficient", "tank": "hot_reserve_coefficient" },
+      "input": { "type": "number", "min": 1, "max": 10, "default_step": 0.1, "input_unit": "raw", "display_digits": 1 },
+      "description": "Коэффициент горячего резервирования (R гр)."
+    },
+    "winding_coefficient": {
+      "service_name": "winding_coefficient",
+      "object_types": ["pipe", "tank"],
+      "group": "Электропараметры и арматура",
+      "labels": { "full": "Коэффициент навива w", "short": "w", "compact": "w" },
+      "table_keys": { "pipe": "winding_coefficient", "tank": "winding_coefficient" },
+      "input": { "type": "number", "min": 1, "max": 1.5, "default_step": 0.05, "input_unit": "raw", "display_digits": 2 },
+      "description": "Коэффициент навива (1–1,5). Используется алгоритмом выбора кабеля (ТНП)."
     },
     "valve_count": {
       "service_name": "valve_count",
@@ -4882,6 +4969,14 @@
             "safety_factor",
             "steam_tracing",
             "vapor_temperature",
+            "winding_coefficient",
+            "connection_type",
+            "explosion_zone_type",
+            "power_indication_on_boxes",
+            "end_of_section_indication",
+            "top_of_box_indication",
+            "min_length_for_k2i",
+            "hot_reserve_coefficient",
             "valve_count",
             "flange_count",
             "support_count",
@@ -4955,7 +5050,15 @@
             "safety_factor",
             "q_additional",
             "steam_tracing",
-            "vapor_temperature"
+            "vapor_temperature",
+            "winding_coefficient",
+            "connection_type",
+            "explosion_zone_type",
+            "power_indication_on_boxes",
+            "end_of_section_indication",
+            "top_of_box_indication",
+            "min_length_for_k2i",
+            "hot_reserve_coefficient"
           ]
         }
       ]
