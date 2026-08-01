@@ -204,6 +204,11 @@
   justify-content: center;
   width: 100%;
 }
+/* Spec picks hold short values («Нет», 2-3 digit numbers) — half the control
+   target so the pane stops reserving name-field width. */
+.cable-island.object-wizard-cable-spec-panel {
+  --cable-control-target-width: 110px;
+}
 .cable-island .cable-algorithm-hint {
   margin: 6px 0 8px;
   padding: 0 10px;
