@@ -106,6 +106,38 @@
   padding-bottom: var(--heatcalc-table-cell-padding-y, 1px);
 }
 
+/*
+ * 1000-1399px three panes in a row would squeeze the heat pane to 440-630px
+ * and its field columns would stack while the page has free width. Give heat
+ * the full first row (three field columns stay side by side via the
+ * heat-fields container) and pair cable|specs on the second row.
+ */
+@media (max-width: 1399px) and (min-width: 1000px) {
+  .heatcalc-dual-forms--wide {
+    grid-template-columns: repeat(2, minmax(max-content, 1fr));
+    grid-template-areas:
+      "heat heat"
+      "cable specs";
+  }
+
+  .heatcalc-dual-forms__heat {
+    grid-area: heat;
+  }
+
+  .heatcalc-dual-forms__cable {
+    grid-area: cable;
+  }
+
+  .heatcalc-dual-forms__specs {
+    grid-area: specs;
+  }
+
+  .heatcalc-dual-forms__cable .cable-island,
+  .heatcalc-dual-forms__specs .cable-island {
+    margin-inline: auto;
+  }
+}
+
 @media (max-width: 999px) {
   .heatcalc-dual-forms--wide {
     grid-template-columns: minmax(0, 1fr);
