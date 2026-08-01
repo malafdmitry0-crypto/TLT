@@ -208,13 +208,68 @@
 /*
  * Wide layout adapts to the ACTUAL pane width (container `heat-fields` on the
  * fields zone, declared in heatcalc-dual-form-shell.css), not the viewport —
- * so browser zoom picks the right mode too. Below 694px the three slot
- * columns cannot fit (tank: label 112 + control 110 + two numeric groups 444
- * + gaps), so the wide slot becomes a full row with content-capped controls
- * and the two numeric groups sit side by side, wrapping only when the pane
- * is truly narrow.
+ * so browser zoom picks the right mode too. Numeric groups stay BESIDE the
+ * wide fields as long as anything fits:
+ *   ≥646px (pipe) / ≥694px (tank) — three slot columns (base grid above);
+ *   down to 600px — two columns: wide fields with tighter 240px controls on
+ *   the left, geometry group over environment group on the right;
+ *   <600px — single column, wide controls capped at 380px.
+ * :where() keeps the per-type tiers at base specificity so the later <600px
+ * tier wins by order.
  */
 @container heat-fields (width < 694px) {
+  .heat-object-fields.heat-object-fields--wide:where([data-object-type="tank"]) {
+    grid-template-columns: max-content max-content;
+    grid-template-areas:
+      "wide geo"
+      "wide env";
+    gap: 4px 24px;
+  }
+
+  .heat-object-fields.heat-object-fields--wide:where([data-object-type="tank"]) > .heat-object-fields__geometry {
+    grid-area: wide;
+  }
+
+  .heat-object-fields.heat-object-fields--wide:where([data-object-type="tank"]) > .heat-object-fields__climate {
+    grid-area: geo;
+  }
+
+  .heat-object-fields.heat-object-fields--wide:where([data-object-type="tank"]) > .heat-object-fields__settings {
+    grid-area: env;
+  }
+
+  .heat-object-fields.heat-object-fields--wide:where([data-object-type="tank"]) [data-slot="wide"] .ant-form-item-row {
+    grid-template-columns: var(--hof-wide-label-width) var(--hof-wide-control-tight, 240px);
+  }
+}
+
+@container heat-fields (width < 646px) {
+  .heat-object-fields.heat-object-fields--wide:where([data-object-type="pipe"]) {
+    grid-template-columns: max-content max-content;
+    grid-template-areas:
+      "wide geo"
+      "wide env";
+    gap: 4px 24px;
+  }
+
+  .heat-object-fields.heat-object-fields--wide:where([data-object-type="pipe"]) > .heat-object-fields__geometry {
+    grid-area: wide;
+  }
+
+  .heat-object-fields.heat-object-fields--wide:where([data-object-type="pipe"]) > .heat-object-fields__climate {
+    grid-area: geo;
+  }
+
+  .heat-object-fields.heat-object-fields--wide:where([data-object-type="pipe"]) > .heat-object-fields__settings {
+    grid-area: env;
+  }
+
+  .heat-object-fields.heat-object-fields--wide:where([data-object-type="pipe"]) [data-slot="wide"] .ant-form-item-row {
+    grid-template-columns: var(--hof-wide-label-width) var(--hof-wide-control-tight, 240px);
+  }
+}
+
+@container heat-fields (width < 600px) {
   .heat-object-fields.heat-object-fields--wide {
     display: flex;
     flex-wrap: wrap;
@@ -227,6 +282,6 @@
   }
 
   .heat-object-fields.heat-object-fields--wide [data-slot="wide"] .ant-form-item-row {
-    grid-template-columns: var(--hof-wide-label-width) minmax(0, var(--hof-wide-control-max, 380px));
+    grid-template-columns: var(--hof-wide-label-width) minmax(0, 380px);
   }
 }
