@@ -64,14 +64,16 @@
   grid-template-columns: minmax(0, 1fr);
 }
 /*
- * ≥1400px the heat pane lays its slots in three columns (see
- * heat-object-fields.css); 440px there leaves the wide-slot selects ~60px on
- * tank (label 112px + two max-content numeric groups). 720px keeps them
- * ≳110px; cable/spec panes absorb the difference down to their own minimums.
+ * ≥1400px reserve enough heat-pane width for its three slot columns (see
+ * heat-object-fields.css): tank needs ~714px for ≥110px wide-slot selects.
+ * The fields zone is an inline-size container, so it no longer contributes
+ * intrinsic width — this minimum IS the pane width unless the insulation
+ * table wants more. Cable/spec panes absorb the difference down to their own
+ * minimums.
  */
 @media (min-width: 1400px) {
   .heatcalc-dual-forms--wide {
-    --heatcalc-heat-pane-min: 720px;
+    --heatcalc-heat-pane-min: 760px;
   }
 }
 .heatcalc-dual-forms__heat,
@@ -144,6 +146,16 @@
   min-width: 0;
   width: 100%;
   max-width: 100%;
+}
+/*
+ * Fields zone is the `heat-fields` container: heat-object-fields--wide picks
+ * three-column vs stacked mode by the pane's REAL width (robust to browser
+ * zoom, unlike viewport media). Inline-size containment collapses the zone's
+ * intrinsic width — the wide panel's min-width floor (field-chrome-core.css)
+ * keeps the card at pane width instead.
+ */
+.form-grid-srs--heat-structured > .heat-wizard-zone--fields {
+  container: heat-fields / inline-size;
 }
 .heat-wizard-zone--layers {
   min-width: 0;
@@ -247,26 +259,3 @@
   }
 }
 
-@media (max-width: 1400px) {
-  .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs:not(.form-grid-srs--heat-structured),
-  .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three:not(.form-grid-srs--heat-structured) {
-    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
-    grid-template-areas:
-      "heat spec"
-      "cable cable";
-  }
-
-  /* Dual-form + heat-structured: keep fields/layers stack (do NOT force heat|spec). */
-  .heatcalc-dual-forms__heat .form-grid-srs--pdf-three.form-grid-srs--heat-structured {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas:
-      "fields"
-      "layers";
-  }
-
-  .heatcalc-dual-forms__heat .form-grid-srs--heat-structured > .form-col-srs--insulation {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-  }
-}
