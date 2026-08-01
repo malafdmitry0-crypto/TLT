@@ -63,6 +63,17 @@
 .heatcalc-dual-forms--side {
   grid-template-columns: minmax(0, 1fr);
 }
+/*
+ * ≥1400px the heat pane lays its slots in three columns (see
+ * heat-object-fields.css); 440px there leaves the wide-slot selects ~60px on
+ * tank (label 112px + two max-content numeric groups). 720px keeps them
+ * ≳110px; cable/spec panes absorb the difference down to their own minimums.
+ */
+@media (min-width: 1400px) {
+  .heatcalc-dual-forms--wide {
+    --heatcalc-heat-pane-min: 720px;
+  }
+}
 .heatcalc-dual-forms__heat,
 .heatcalc-dual-forms__cable,
 .heatcalc-dual-forms__specs {
