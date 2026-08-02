@@ -56,6 +56,36 @@ def test_cable_identity_uses_explicit_nomenclature():
     assert identity["nomenclature_code"] == "CAB-25-TTN"
 
 
+def test_tt_cable_identity_uses_exact_bom_and_ignores_result_article():
+    identity = cable_identity_from_result(
+        {
+            "cable_type": "self_regulating_tt",
+            "cable_mark": "30ТТВ2-СР",
+            "selected_cable": "30ТТВ2",
+            "nomenclature_code": "WRONG-FROM-RESULT",
+            "series": "ТТВ",
+        }
+    )
+    assert identity is not None
+    assert identity["nomenclature_code"] == "001-002-002"
+    assert identity["catalog_version"] == "selfreg-spec-2026-05-29"
+    assert identity["catalog_checksum"].startswith("sha256:")
+
+
+def test_tt_cable_identity_rejects_missing_full_mark_without_fallback():
+    assert (
+        cable_identity_from_result(
+            {
+                "cable_type": "self_regulating_tt",
+                "cable_mark": "30ТТВ2-СТ",
+                "selected_cable": "30ТТВ2",
+                "nomenclature_code": "SHOULD-NOT-BE-TRUSTED",
+            }
+        )
+        is None
+    )
+
+
 def test_box_matrix_registered_with_seeds():
     from app.formulas.specification.source_mapping import clear_box_matrix_cache
 

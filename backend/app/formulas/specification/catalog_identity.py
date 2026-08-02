@@ -9,7 +9,12 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Any
 
-from app.reference_data.loader import list_spec_accessory_rules, list_tlt_cables, list_tt_cables
+from app.reference_data.loader import (
+    get_electrical_tt_bom_entry,
+    list_spec_accessory_rules,
+    list_tlt_cables,
+    list_tt_cables,
+)
 
 
 @lru_cache
@@ -83,8 +88,9 @@ def temperature_group_from_result(result: dict[str, Any]) -> str | None:
     snapshot = result.get("cable_snapshot") if isinstance(result.get("cable_snapshot"), dict) else {}
     technical = snapshot.get("technical") if isinstance(snapshot.get("technical"), dict) else {}
     selection = snapshot.get("selection") if isinstance(snapshot.get("selection"), dict) else {}
+    cable = result.get("cable") if isinstance(result.get("cable"), dict) else {}
 
-    for source in (result, snapshot, technical, selection):
+    for source in (result, cable, snapshot, technical, selection):
         if not isinstance(source, dict):
             continue
         raw = source.get("temperature_group") or source.get("temp_class")
@@ -135,11 +141,40 @@ def temperature_group_from_result(result: dict[str, Any]) -> str | None:
 
 def cable_identity_from_result(result: dict[str, Any]) -> dict[str, Any] | None:
     """Build cable catalog identity from explicit snapshot/result fields."""
-    mark = result.get("cable_mark") or result.get("selected_cable")
+    snapshot = result.get("cable_snapshot") if isinstance(result.get("cable_snapshot"), dict) else {}
+    cable = result.get("cable") if isinstance(result.get("cable"), dict) else {}
+    mark = (
+        result.get("cable_mark")
+        or cable.get("mark")
+        or cable.get("full_mark")
+        or snapshot.get("cable_mark")
+        or result.get("selected_cable")
+    )
     if not mark:
         return None
-    snapshot = result.get("cable_snapshot") if isinstance(result.get("cable_snapshot"), dict) else {}
     technical = snapshot.get("technical") if isinstance(snapshot.get("technical"), dict) else {}
+    cable_type = result.get("cable_type") or cable.get("type")
+    if cable_type == "self_regulating_tt":
+        # The new TT calculation is procurement-safe only through the exact
+        # full-mark BOM catalog. Explicit result articles and approximate/base
+        # model matches are deliberately ignored at this boundary.
+        bom = get_electrical_tt_bom_entry(str(mark))
+        if bom is None:
+            return None
+        catalog = bom["catalog"]
+        return {
+            "mark": str(bom["full_mark"]),
+            "nomenclature_code": str(bom["nomenclature_code"]),
+            "temperature_group": temperature_group_from_result(result),
+            "catalog_base": "heating_cable",
+            "catalog_source": catalog.get("source"),
+            "catalog_version": catalog.get("version"),
+            "catalog_checksum": catalog.get("source_checksum"),
+            "catalog_schema_version": catalog.get("schema_version"),
+            "catalog_status": catalog.get("status"),
+            "supplier": str(bom.get("supplier") or "ТЛТ"),
+            "supply_unit": str(bom.get("unit") or "м"),
+        }
     code = (
         result.get("nomenclature_code")
         or result.get("article")
@@ -147,7 +182,7 @@ def cable_identity_from_result(result: dict[str, Any]) -> dict[str, Any] | None:
         or technical.get("nomenclature_code")
         or technical.get("article")
         or technical.get("code")
-        or mark  # mark doubles as procurement article when catalog code absent
+        or mark  # Legacy non-TT compatibility only.
     )
     temp = temperature_group_from_result(result)
     supplier = (

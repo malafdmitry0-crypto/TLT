@@ -130,6 +130,23 @@ def _tt_cables_by_model() -> dict[str, dict[str, Any]]:
     return by_model
 
 
+@lru_cache
+def _electrical_tt_bom() -> dict[str, Any]:
+    return _load_json("electrical_tt_bom_v1.json")
+
+
+@lru_cache
+def _electrical_tt_bom_by_full_mark() -> dict[str, dict[str, Any]]:
+    entries = _electrical_tt_bom().get("entries")
+    if not isinstance(entries, list):
+        return {}
+    return {
+        str(entry["full_mark"]): dict(entry)
+        for entry in entries
+        if isinstance(entry, dict) and entry.get("full_mark")
+    }
+
+
 # ---- public API ----
 
 
@@ -312,6 +329,25 @@ def get_tt_cable_by_model(model: str) -> dict[str, Any] | None:
     return dict(cable) if cable is not None else None
 
 
+def electrical_tt_bom_metadata() -> dict[str, Any]:
+    """Metadata of the active immutable TT cable BOM catalog."""
+    catalog = _electrical_tt_bom()
+    return {key: catalog.get(key) for key in catalog if key != "entries"}
+
+
+def list_electrical_tt_bom_entries() -> list[dict[str, Any]]:
+    """All TT BOM v1 rows; callers receive copies of cached catalog data."""
+    return [dict(entry) for entry in _electrical_tt_bom_by_full_mark().values()]
+
+
+def get_electrical_tt_bom_entry(full_mark: str) -> dict[str, Any] | None:
+    """Exact, case-sensitive full-mark lookup. No normalization or fallback."""
+    entry = _electrical_tt_bom_by_full_mark().get(full_mark)
+    if entry is None:
+        return None
+    return {**entry, "catalog": electrical_tt_bom_metadata()}
+
+
 def get_insulation_conductivity(material: str, temperature: float) -> float:
     """Возвращает теплопроводность λ материала.
 
@@ -426,6 +462,8 @@ def clear_cache() -> None:
     _resistive_cables.cache_clear()
     _cables_tt.cache_clear()
     _tt_cables_by_model.cache_clear()
+    _electrical_tt_bom.cache_clear()
+    _electrical_tt_bom_by_full_mark.cache_clear()
 
 
 def preload_all() -> None:
@@ -444,3 +482,5 @@ def preload_all() -> None:
     _resistive_cables()
     _cables_tt()
     _tt_cables_by_model()
+    _electrical_tt_bom()
+    _electrical_tt_bom_by_full_mark()

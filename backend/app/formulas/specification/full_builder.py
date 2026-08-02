@@ -114,7 +114,8 @@ def _floor(value: float) -> float:
 
 
 def _cable_type(result: dict[str, Any]) -> str | None:
-    raw = result.get("cable_type")
+    cable = result.get("cable") if isinstance(result.get("cable"), dict) else {}
+    raw = result.get("cable_type") or cable.get("type")
     if raw is None:
         return None
     return str(raw)
@@ -144,7 +145,31 @@ def contributes_cable_to_bom(result: dict[str, Any]) -> bool:
         return False
     if not (result.get("cable_mark") or result.get("selected_cable")):
         return False
-    return _num(result.get("installed_cable_length") or result.get("cable_length")) > 0
+    return _installed_cable_length(result) > 0
+
+
+def _installed_cable_length(result: dict[str, Any]) -> float:
+    layout = result.get("layout") if isinstance(result.get("layout"), dict) else {}
+    return _num(
+        layout.get("actual_installed_length_m")
+        or result.get("installed_cable_length")
+        or result.get("cable_length")
+    )
+
+
+def _mocked_fields(result: dict[str, Any]) -> list[str]:
+    provenance = result.get("provenance") if isinstance(result.get("provenance"), dict) else {}
+    resolved = (
+        result.get("resolved_inputs") if isinstance(result.get("resolved_inputs"), dict) else {}
+    )
+    raw = result.get("mocked_fields")
+    if raw is None:
+        raw = provenance.get("mocked_fields")
+    if raw is None:
+        raw = resolved.get("mocked_fields")
+    if not isinstance(raw, list):
+        return []
+    return [str(item) for item in raw if str(item)]
 
 
 def contributes_self_reg_accessories(result: dict[str, Any]) -> bool:
@@ -283,6 +308,21 @@ def _order_cable_qty(result: dict[str, Any], section_total: float) -> float:
     Priority: commercial.required_order_length → snapshot commercial_context →
     raw order_cable_length → installed section_total.
     """
+    if _cable_type(result) == "self_regulating_tt":
+        layout = result.get("layout") if isinstance(result.get("layout"), dict) else {}
+        # TT v2: procurement quantity is the final Lзаказ produced after
+        # equal-section expansion. Commercial/minimum-order fields may not
+        # override this engineering result.
+        for candidate in (
+            layout.get("required_order_length_m"),
+            result.get("required_order_length_m"),
+            result.get("order_cable_length"),
+        ):
+            value = _num(candidate)
+            if value > 0:
+                return value
+        return 0.0
+
     commercial = result.get("commercial") if isinstance(result.get("commercial"), dict) else {}
     snapshot = (
         result.get("cable_snapshot") if isinstance(result.get("cable_snapshot"), dict) else {}
@@ -433,10 +473,38 @@ def build_full_specification_detailed(
         obj_id = str(result.get("object_id") or "")
         if not contributes_cable_to_bom(result):
             continue
-        contributing_ids.append(obj_id)
+
+        if _cable_type(result) == "self_regulating_tt" and _mocked_fields(result):
+            excluded_groups.append(
+                {
+                    "group": "heating_cable",
+                    "error_code": "ELECTRICAL_MOCK_INPUTS_NOT_ALLOWED",
+                    "message": "Mocked electrical result cannot drive a production specification.",
+                    "object_ids": [obj_id],
+                    "mocked_fields": _mocked_fields(result),
+                }
+            )
+            continue
 
         identity = cable_identity_from_result(result)
         if identity is None:
+            if _cable_type(result) == "self_regulating_tt":
+                cable = result.get("cable") if isinstance(result.get("cable"), dict) else {}
+                mark = (
+                    result.get("cable_mark")
+                    or cable.get("mark")
+                    or cable.get("full_mark")
+                    or result.get("selected_cable")
+                )
+                excluded_groups.append(
+                    {
+                        "group": "heating_cable",
+                        "error_code": "SPEC_CABLE_NOMENCLATURE_MISSING",
+                        "message": "No exact active BOM entry exists for the full TT cable mark.",
+                        "object_ids": [obj_id],
+                        "full_mark": mark,
+                    }
+                )
             continue
         mark = str(identity["mark"])
         # Prefer real Phase-4 section_count; never invent from catalog absence.
@@ -450,9 +518,7 @@ def build_full_specification_detailed(
         n_sec = max(1, int(round(_num(n_sec_raw, 1) or 1))) if n_sec_raw is not None else 1
         if not sections_ready:
             n_sec = 1  # kits gated separately; keep non-kit paths stable
-        section_total = _num(
-            result.get("installed_cable_length") or result.get("cable_length")
-        )
+        section_total = _installed_cable_length(result)
         obj = objects_by_id.get(obj_id, {})
         obj_type = _object_type(obj)
         bom_section = "tank" if obj_type == "tank" else "pipe"
@@ -462,6 +528,9 @@ def build_full_specification_detailed(
         section_length = section_total / n_sec if n_sec else section_total
 
         cable_qty = _order_cable_qty(result, section_total)
+        if cable_qty <= 0:
+            continue
+        contributing_ids.append(obj_id)
         cable_by_key[(mark, bom_section)] += cable_qty
         installed_by_key[(mark, bom_section)] += section_total
         cable_meta.setdefault(
@@ -699,6 +768,8 @@ def build_full_specification_detailed(
                         "cable_type": meta.get("cable_type"),
                         "catalog_source": meta.get("catalog_source"),
                         "catalog_version": meta.get("catalog_version"),
+                        "catalog_checksum": meta.get("catalog_checksum"),
+                        "catalog_schema_version": meta.get("catalog_schema_version"),
                         "bom_section": bom_section,
                         "order_qty": round(qty, 2),
                         "installed_qty": round(installed_qty, 2),

@@ -1,0 +1,30 @@
+{
+  "kind": "bom",
+  "version": "selfreg-spec-2026-05-29",
+  "schema_version": 1,
+  "status": "active",
+  "source": "ТНП/Расчет_спецификации_трубы_самрег29_05_26.xlsx#Список материалов Самрег!9:26",
+  "source_checksum": "sha256:a230bbebff01a460df143063a871dc6bb6ab79e4da62d81131cd83abfe351d8d",
+  "imported_at": "2026-08-02T00:00:00Z",
+  "activated_at": "2026-08-02T00:00:00Z",
+  "entries": [
+    {"full_mark": "10ТТН2-СТ", "nomenclature_code": "001-001-001", "series": "ТТН", "supplier": "ТЛТ", "unit": "м"},
+    {"full_mark": "17ТТН2-СТ", "nomenclature_code": "001-001-002", "series": "ТТН", "supplier": "ТЛТ", "unit": "м"},
+    {"full_mark": "25ТТН2-СТ", "nomenclature_code": "001-001-003", "series": "ТТН", "supplier": "ТЛТ", "unit": "м"},
+    {"full_mark": "31ТТН2-СТ", "nomenclature_code": "001-001-004", "series": "ТТН", "supplier": "ТЛТ", "unit": "м"},
+    {"full_mark": "10ТТН2-СР", "nomenclature_code": "001-001-005", "series": "ТТН", "supplier": "ТЛТ", "unit": "м"},
+    {"full_mark": "17ТТН2-СР", "nomenclature_code": "001-001-006", "series": "ТТН", "supplier": "ТЛТ", "unit": "м"},
+    {"full_mark": "25ТТН2-СР", "nomenclature_code": "001-001-007", "series": "ТТН", "supplier": "ТЛТ", "unit": "м"},
+    {"full_mark": "31ТТН2-СР", "nomenclature_code": "001-001-008", "series": "ТТН", "supplier": "ТЛТ", "unit": "м"},
+    {"full_mark": "15ТТВ2-СР", "nomenclature_code": "001-002-001", "series": "ТТВ", "supplier": "ТЛТ", "unit": "м"},
+    {"full_mark": "30ТТВ2-СР", "nomenclature_code": "001-002-002", "series": "ТТВ", "supplier": "ТЛТ", "unit": "м"},
+    {"full_mark": "45ТТВ2-СР", "nomenclature_code": "001-002-003", "series": "ТТВ", "supplier": "ТЛТ", "unit": "м"},
+    {"full_mark": "60ТТВ2-СР", "nomenclature_code": "001-002-004", "series": "ТТВ", "supplier": "ТЛТ", "unit": "м"},
+    {"full_mark": "15ТТХ2-СР", "nomenclature_code": "001-003-001", "series": "ТТХ", "supplier": "ТЛТ", "unit": "м"},
+    {"full_mark": "30ТТХ2-СР", "nomenclature_code": "001-003-002", "series": "ТТХ", "supplier": "ТЛТ", "unit": "м"},
+    {"full_mark": "45ТТХ2-СР", "nomenclature_code": "001-003-003", "series": "ТТХ", "supplier": "ТЛТ", "unit": "м"},
+    {"full_mark": "60ТТХ2-СР", "nomenclature_code": "001-003-004", "series": "ТТХ", "supplier": "ТЛТ", "unit": "м"},
+    {"full_mark": "75ТТХ2-СР", "nomenclature_code": "001-003-005", "series": "ТТХ", "supplier": "ТЛТ", "unit": "м"},
+    {"full_mark": "90ТТХ2-СР", "nomenclature_code": "001-003-006", "series": "ТТХ", "supplier": "ТЛТ", "unit": "м"}
+  ]
+}

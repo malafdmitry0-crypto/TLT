@@ -284,12 +284,6 @@ class SpecificationService:
             variant_number=variant_number,
             electrical_variant_id=electrical_variant_id,
         )
-        contributing_ids = {
-            str(r.get("object_id"))
-            for r in electrical_results
-            if contributes_to_full_bom(r)
-        }
-        excluded = [obj.id for obj in objects if str(obj.id) not in contributing_ids]
         objects_by_id = {
             str(obj.id): {
                 "object_type": obj.object_type,
@@ -308,6 +302,32 @@ class SpecificationService:
             options=resolved,
         )
         group_exclusions = list(build.excluded_groups)
+        critical_codes = {
+            "SPEC_CABLE_NOMENCLATURE_MISSING",
+            "ELECTRICAL_MOCK_INPUTS_NOT_ALLOWED",
+        }
+        critical = next(
+            (
+                item
+                for item in group_exclusions
+                if item.get("error_code") in critical_codes
+            ),
+            None,
+        )
+        if critical is not None:
+            code = str(critical["error_code"])
+            raise ElectricalVariantServiceError(
+                code,
+                str(critical.get("message") or code),
+                status_code=422,
+                details={
+                    key: value
+                    for key, value in critical.items()
+                    if key not in {"error_code", "message"}
+                },
+            )
+        contributing_ids = set(build.contributing_object_ids)
+        excluded = [obj.id for obj in objects if str(obj.id) not in contributing_ids]
         requires = bool(excluded) or bool(group_exclusions)
         return SpecificationPreflightVariant(
             electrical_variant_id=electrical_variant_id,

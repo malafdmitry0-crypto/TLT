@@ -89,6 +89,72 @@ def _two_object_case():
     return elec, objs
 
 
+def _tt_result(**overrides):
+    result = {
+        "cable_type": "self_regulating_tt",
+        "cable_mark": "30ТТВ2-СР",
+        "selected_cable": "30ТТВ2",
+        "series": "ТТВ",
+        "temperature_group": "high",
+        "installed_cable_length": 100.0,
+        "order_cable_length": 110.0,
+        "object_id": "tt-1",
+    }
+    result.update(overrides)
+    return result
+
+
+def _tt_objects():
+    return {"tt-1": {"object_type": "pipe", "outer_diameter": 0.057, "pipe_length": 100}}
+
+
+def test_tt_cable_line_uses_exact_bom_code_and_final_result_order_length():
+    result = _tt_result(
+        layout={"required_order_length_m": 221.1},
+        commercial={"required_order_length": 999.0},
+    )
+    items = _build_full_specification([result], _tt_objects())
+    cable = next(item for item in items if item.category == "Кабель")
+    assert cable.article == "001-002-002"
+    assert cable.quantity == 221.1
+    assert cable.params["catalog_version"] == "selfreg-spec-2026-05-29"
+    assert cable.params["catalog_checksum"].startswith("sha256:")
+
+
+def test_tt_missing_bom_mark_is_fail_closed_with_stable_diagnostic():
+    build = _build_full_specification_detailed(
+        [_tt_result(cable_mark="30ТТВ2-СТ")],
+        _tt_objects(),
+    )
+    assert not [item for item in build.items if item.category == "Кабель"]
+    assert any(
+        item.get("error_code") == "SPEC_CABLE_NOMENCLATURE_MISSING"
+        for item in build.excluded_groups
+    )
+    assert build.excluded_object_ids == ["tt-1"]
+
+
+def test_tt_mocked_result_is_rejected_at_specification_boundary():
+    build = _build_full_specification_detailed(
+        [_tt_result(mocked_fields=["maintain_temperature_c"])],
+        _tt_objects(),
+    )
+    assert not [item for item in build.items if item.category == "Кабель"]
+    assert any(
+        item.get("error_code") == "ELECTRICAL_MOCK_INPUTS_NOT_ALLOWED"
+        for item in build.excluded_groups
+    )
+
+
+def test_tt_stale_result_is_rejected_from_bom():
+    build = _build_full_specification_detailed(
+        [_tt_result(stale=True, category="stale")],
+        _tt_objects(),
+    )
+    assert not [item for item in build.items if item.category == "Кабель"]
+    assert build.excluded_object_ids == ["tt-1"]
+
+
 @pytest.fixture
 def enable_box_matrix(monkeypatch):
     """PDL-ER-35 + Phase-4 sections: enable matrix and sections for box/kit formulas."""

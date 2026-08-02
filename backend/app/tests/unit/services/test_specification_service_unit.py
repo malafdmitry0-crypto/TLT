@@ -154,7 +154,7 @@ class TestGenerate:
         # SEEDS-01/02 registered: generation may be complete (no matrix/section missing).
         assert result.excluded_groups is not None
 
-    async def test_generate_preserves_tt_order_mark_suffix(self):
+    async def test_generate_resolves_tt_order_mark_to_exact_bom_code(self):
         from app.models.electrical_calculation import ElectricalCalculation
 
         calc = ElectricalCalculation(
@@ -162,7 +162,7 @@ class TestGenerate:
             object_id=uuid.uuid4(),
             variant_number=1,
             cable_type="self_regulating_tt",
-            cable_mark="30ТТВ2-СТ",
+            cable_mark="30ТТВ2-СР",
             params={},
             results={
                 "selected_cable": "30ТТВ2",
@@ -180,7 +180,46 @@ class TestGenerate:
         items = (await SpecificationService(db).generate(uuid.uuid4())).items
         cables = [i for i in items if i.category == "Кабель"]
         assert len(cables) == 1
-        assert cables[0].article == "30ТТВ2-СТ"
+        assert cables[0].article == "001-002-002"
+
+    async def test_preflight_rejects_tt_mark_missing_from_exact_bom(self):
+        from app.services.electrical_variant_service import ElectricalVariantServiceError
+
+        object_id = uuid.uuid4()
+        obj = SimpleNamespace(
+            id=object_id,
+            object_type="pipe",
+            params={"outer_diameter": 0.108, "pipe_length": 10},
+            results={},
+        )
+        db = AsyncMock()
+        db.execute = AsyncMock(return_value=_list_result([obj]))
+        db.get = AsyncMock(return_value=_project_defaults())
+        service = SpecificationService(db)
+        service._electrical_results_for_variant = AsyncMock(
+            return_value=[
+                {
+                    "object_id": str(object_id),
+                    "cable_type": "self_regulating_tt",
+                    "cable_mark": "30ТТВ2-СТ",
+                    "selected_cable": "30ТТВ2",
+                    "installed_cable_length": 10,
+                    "order_cable_length": 11,
+                }
+            ]
+        )
+
+        try:
+            await service.preflight_variant(
+                uuid.uuid4(),
+                variant_number=1,
+                electrical_variant_id=uuid.uuid4(),
+            )
+            raise AssertionError("expected exact TT BOM preflight failure")
+        except ElectricalVariantServiceError as exc:
+            assert exc.code == "SPEC_CABLE_NOMENCLATURE_MISSING"
+            assert exc.status_code == 422
+            assert exc.details["full_mark"] == "30ТТВ2-СТ"
 
     async def test_generate_excludes_stale_cable_from_auto_items(self):
         from app.models.electrical_calculation import ElectricalCalculation

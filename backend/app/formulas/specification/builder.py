@@ -8,6 +8,7 @@ from collections import defaultdict
 from typing import Any
 
 from app.electrical_result_status import is_successful_electrical_result
+from app.formulas.specification.catalog_identity import cable_identity_from_result
 from app.reference_data.loader import list_basic_accessories
 from app.schemas.specification import SpecificationItem
 
@@ -44,7 +45,14 @@ def build_basic_specification(
             continue
 
         snapshot = r.get("cable_snapshot") if isinstance(r.get("cable_snapshot"), dict) else {}
-        cable = snapshot.get("cable_mark") or r.get("cable_mark") or r.get("selected_cable")
+        cable_data = r.get("cable") if isinstance(r.get("cable"), dict) else {}
+        cable = (
+            snapshot.get("cable_mark")
+            or r.get("cable_mark")
+            or cable_data.get("mark")
+            or cable_data.get("full_mark")
+            or r.get("selected_cable")
+        )
         commercial = r.get("commercial")
         snapshot_commercial = (
             snapshot.get("commercial") if isinstance(snapshot.get("commercial"), dict) else {}
@@ -57,19 +65,34 @@ def build_basic_specification(
         commercial_order_length = (
             commercial.get("required_order_length") if isinstance(commercial, dict) else None
         )
-        length = (
-            snapshot_context.get("required_order_length")
-            or commercial_order_length
-            or r.get("order_cable_length")
-        )
+        identity = cable_identity_from_result(r)
+        is_tt = (r.get("cable_type") or cable_data.get("type")) == "self_regulating_tt"
+        if is_tt:
+            layout = r.get("layout") if isinstance(r.get("layout"), dict) else {}
+            length = (
+                layout.get("required_order_length_m")
+                or r.get("required_order_length_m")
+                or r.get("order_cable_length")
+            )
+            if identity is None:
+                continue
+        else:
+            length = (
+                snapshot_context.get("required_order_length")
+                or commercial_order_length
+                or r.get("order_cable_length")
+            )
         if cable and length:
             cable_mark = str(cable)
             cable_totals[cable_mark] += float(length)
-            cable_meta_by_mark.setdefault(cable_mark, snapshot_commercial)
+            cable_meta_by_mark.setdefault(
+                cable_mark,
+                identity if is_tt else snapshot_commercial,
+            )
 
     for cable_mark, length in sorted(cable_totals.items()):
         meta = cable_meta_by_mark.get(cable_mark, {})
-        article = meta.get("article") or cable_mark
+        article = meta.get("nomenclature_code") or meta.get("article") or cable_mark
         items.append(
             SpecificationItem(
                 category="Кабель",
