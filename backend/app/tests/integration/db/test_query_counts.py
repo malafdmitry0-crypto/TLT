@@ -21,10 +21,9 @@ from app.services.electrical_query_service import ElectricalQueryService
 from app.services.object_query_service import ObjectQueryService
 from app.services.project_io_service import export_projects_bulk
 from app.services.project_service import ProjectService
+from app.tests.heat_fixtures import canonical_pipe_params, canonical_tank_params
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
-
-MINERAL_WOOL = "mineral_wool_boards_120"
 
 
 @contextmanager
@@ -75,15 +74,10 @@ async def _seed_project(
             object_type="pipe",
             sort_order=i,
             is_valid=i % 3 != 0,
-            params={
-                "name": f"Pipe-{i:03d}",
-                "outer_diameter": 0.108,
-                "pipe_length": 50.0,
-                "insulation_material": MINERAL_WOOL,
-                "insulation_temperature_basis": "outdoor_winter",
-                "process_temperature": 80.0,
-                "ambient_temperature": -20.0,
-            },
+            params=canonical_pipe_params(
+                name=f"Pipe-{i:03d}",
+                ambient_temperature=-20.0,
+            ),
         )
         for i in range(per_type)
     ]
@@ -93,16 +87,10 @@ async def _seed_project(
             object_type="tank",
             sort_order=per_type + i,
             is_valid=i % 4 != 0,
-            params={
-                "name": f"Tank-{i:03d}",
-                "shape": "cylindrical",
-                "diameter": 2.0,
-                "height": 3.0,
-                "insulation_material": MINERAL_WOOL,
-                "insulation_temperature_basis": "outdoor_winter",
-                "process_temperature": 70.0,
-                "ambient_temperature": -20.0,
-            },
+            params=canonical_tank_params(
+                name=f"Tank-{i:03d}",
+                ambient_temperature=-20.0,
+            ),
         )
         for i in range(per_type)
     )
@@ -146,15 +134,10 @@ async def _seed_valid_pipes_for_batch(
             object_type="pipe",
             sort_order=index,
             is_valid=True,
-            params={
-                "name": f"Batch Pipe-{index:03d}",
-                "outer_diameter": 0.108,
-                "pipe_length": 50.0,
-                "insulation_material": MINERAL_WOOL,
-                "insulation_temperature_basis": "outdoor_winter",
-                "process_temperature": 80.0,
-                "ambient_temperature": -20.0,
-            },
+            params=canonical_pipe_params(
+                name=f"Batch Pipe-{index:03d}",
+                ambient_temperature=-20.0,
+            ),
             results={
                 "heat_loss_per_meter_base": 20.0,
                 "total_heat_loss_design": 1000.0,
@@ -392,9 +375,7 @@ async def test_electrical_query_assignment_projection_is_one_bounded_query(
             project_id=project.id,
             electrical_variant_id=variant.id,
             object_id=obj.id,
-            system_type=(
-                "self_regulating" if variant_index % 2 == 0 else "resistive"
-            ),
+            system_type=("self_regulating" if variant_index % 2 == 0 else "resistive"),
             assignment_state="ready",
             version=1,
             object_version_snapshot=obj.version,
@@ -420,15 +401,10 @@ async def test_electrical_query_assignment_projection_is_one_bounded_query(
             "self_regulating" if variant_index % 2 == 0 else "resistive"
         }
         assignment_selects = [
-            statement
-            for statement in statements
-            if "FROM electrical_variant_objects" in statement
+            statement for statement in statements if "FROM electrical_variant_objects" in statement
         ]
         assert len(assignment_selects) == 1
-        assert (
-            "electrical_variant_objects.electrical_variant_id"
-            in assignment_selects[0]
-        )
+        assert "electrical_variant_objects.electrical_variant_id" in assignment_selects[0]
         assert "electrical_variant_objects.object_id IN" in assignment_selects[0]
         _assert_query_count(statements, 8)
 

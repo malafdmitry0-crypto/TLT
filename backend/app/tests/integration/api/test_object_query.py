@@ -8,10 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.electrical_calculation import ElectricalCalculation
 from app.models.project_object import ProjectObject
+from app.tests.heat_fixtures import (
+    canonical_pipe_params,
+    canonical_tank_params,
+)
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
-MINERAL_WOOL = "mineral_wool_boards_120"
 PERLITE = "expanded_perlite_sand_225"
 
 
@@ -33,19 +36,17 @@ async def _seed_objects(db_session: AsyncSession, project_id: str) -> list[Proje
                 "heat_loss_per_meter_base": 40.0,
                 "total_heat_loss_design": 440.0,
             },
-            params={
-                "name": "Труба Север",
-                "outer_diameter": 0.06,
-                "pipe_length": 10,
-                "insulation_material": MINERAL_WOOL,
-                "insulation_temperature_basis": "outdoor_winter",
-                "process_temperature": 65,
-                "ambient_temperature": -25,
-                "climate_region": "ЯНАО",
-                "climate_city": "Салехард",
-                "climate_key": "ЯНАО|||Салехард",
-                "climate_temperature_basis": "t_abs_min",
-            },
+            params=canonical_pipe_params(
+                name="Труба Север",
+                outer_diameter=0.06,
+                pipe_length=10.0,
+                process_temperature=65.0,
+                ambient_temperature=-25.0,
+                climate_region="ЯНАО",
+                climate_city="Салехард",
+                climate_key="ЯНАО|||Салехард",
+                climate_temperature_basis="t_abs_min",
+            ),
         ),
         ProjectObject(
             project_id=pid,
@@ -56,19 +57,18 @@ async def _seed_objects(db_session: AsyncSession, project_id: str) -> list[Proje
                 "heat_loss_per_meter_base": 65.0,
                 "total_heat_loss_design": 1787.5,
             },
-            params={
-                "name": "Труба Юг",
-                "outer_diameter": 0.219,
-                "pipe_length": 25,
-                "insulation_material": PERLITE,
-                "insulation_temperature_basis": "outdoor_winter",
-                "process_temperature": 95,
-                "ambient_temperature": -20,
-                "climate_region": "ХМАО",
-                "climate_city": "Сургут",
-                "climate_key": "ХМАО|||Сургут",
-                "climate_temperature_basis": "t_0_92",
-            },
+            params=canonical_pipe_params(
+                name="Труба Юг",
+                outer_diameter=0.219,
+                pipe_length=25.0,
+                insulation_layers=[{"thickness": 0.05, "material": PERLITE}],
+                process_temperature=95.0,
+                ambient_temperature=-20.0,
+                climate_region="ХМАО",
+                climate_city="Сургут",
+                climate_key="ХМАО|||Сургут",
+                climate_temperature_basis="t_0_92",
+            ),
         ),
         ProjectObject(
             project_id=pid,
@@ -79,16 +79,10 @@ async def _seed_objects(db_session: AsyncSession, project_id: str) -> list[Proje
                 "heat_loss_per_m2_bare_base": 35.0,
                 "total_heat_loss_design": 2500.0,
             },
-            params={
-                "name": "Резервуар Юг",
-                "shape": "cylindrical",
-                "diameter": 2.0,
-                "height": 3.0,
-                "insulation_material": MINERAL_WOOL,
-                "insulation_temperature_basis": "outdoor_winter",
-                "process_temperature": 70,
-                "ambient_temperature": -25,
-            },
+            params=canonical_tank_params(
+                name="Резервуар Юг",
+                ambient_temperature=-25.0,
+            ),
         ),
     ]
     db_session.add_all(objects)

@@ -22,6 +22,7 @@ import logging
 import re
 import uuid
 from datetime import UTC, datetime
+from typing import Literal, TypedDict
 
 from sqlalchemy import delete, select
 
@@ -30,8 +31,6 @@ from app.core.dependencies import CurrentPrincipal
 from app.core.security import hash_password
 from app.formulas.electrical.sections import compute_section_plan, section_plan_to_result_fields
 from app.formulas.electrical.self_regulating import calc_self_regulating_tt
-from app.formulas.heat_loss.pipe import calc_pipe_heat_loss
-from app.formulas.heat_loss.tank import calc_tank_heat_loss
 from app.formulas.specification.builder import build_basic_specification
 from app.models.accessory import AccessoryExtended
 from app.models.cable import CableExtended
@@ -50,11 +49,13 @@ from app.reference_data.loader import (
 from app.schemas.calculation import (
     RESISTIVE_DEFAULT_MIN_ADJUSTED_VOLTAGE,
     RESISTIVE_DEFAULT_VOLTAGE_STEP,
-    PipeHeatLossParams,
     SelfRegulatingTTParams,
-    TankHeatLossParams,
 )
+from app.schemas.project import ProjectObjectCreate
+from app.services.calculation_service import CalculationService
+from app.services.electrical_input_resolver import FRONTEND_MOCK_PROFILE
 from app.services.electrical_variant_service import ElectricalVariantService
+from app.services.project_service import ProjectService
 
 logger = logging.getLogger("seeds")
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -73,10 +74,6 @@ async def _get_or_create_user(db, email: str, **kwargs) -> User:
         db.add(user)
         logger.info("  + user %s (%s)", email, kwargs.get("role"))
     return user
-
-
-def _get_coefficients_dict(coeffs: list[CorrectionCoefficient]) -> dict[str, float]:
-    return {c.key: c.value for c in coeffs}
 
 
 _DEMO_COMMERCIAL_SOURCES = {None, "seed", "demo_seed", "test", "e2e"}
@@ -250,14 +247,6 @@ def _resistive_section(cable: dict[str, object]) -> float:
     if match:
         return float(match.group(1).replace(",", "."))
     raise ValueError(f"Не удалось определить сечение для {cable.get('model')}")
-
-
-def _seed_params_are_current(
-    existing_params: dict[str, object] | None,
-    expected_params: dict[str, object],
-) -> bool:
-    """Checks whether an existing demo object already matches current seed params."""
-    return existing_params == expected_params
 
 
 def _insulation_seed_row(entry: dict[str, object]) -> dict[str, object]:
@@ -1185,288 +1174,388 @@ async def seed_projects(db, users: list[User]) -> list[Project]:
     return projects
 
 
-# Конфигурации объектов — только pipe и tank (поддерживаются сервисом расчётов)
-# Поля соответствуют PipeHeatLossParams / TankHeatLossParams
-_PIPE_CONFIGS = [
-    {
-        "name": "Трубопровод Ду100 L=120м (надземный)",
-        "params": {
+class HeatSeedConfig(TypedDict):
+    object_type: Literal["pipe", "tank"]
+    seed_case: str
+    name: str
+    params: dict[str, object]
+
+
+def _heat_seed_config(
+    object_type: Literal["pipe", "tank"],
+    seed_case: str,
+    name: str,
+    params: dict[str, object],
+) -> HeatSeedConfig:
+    """Build one traceable canonical seed payload with non-heat metadata."""
+
+    return {
+        "object_type": object_type,
+        "seed_case": seed_case,
+        "name": name,
+        "params": {"name": name, "seed_case": seed_case, **params},
+    }
+
+
+_MINERAL_WOOL = "mineral_wool_boards_120"
+_PERLITE = "expanded_perlite_sand_225"
+
+
+# Minimal Slice 5 matrix. Cases deliberately overlap business requirements
+# where possible, but every listed contract branch has a stable seed_case.
+_HEAT_SEED_CONFIGS: tuple[HeatSeedConfig, ...] = (
+    _heat_seed_config(
+        "pipe",
+        "pipe_indoor_manual_lambda_1_layer",
+        "Труба indoor — ручная λ, 1 слой",
+        {
+            "outer_diameter": 0.06,
+            "wall_thickness": 0.004,
+            "pipe_lambda": 45.0,
+            "pipe_length": 85.0,
+            "insulation_layers": [{"thickness": 0.04, "material": _MINERAL_WOOL}],
+            "insulation_temperature_basis": "indoor",
+            "ambient_temperature": 15.0,
+            "process_temperature": 60.0,
+            "placement": "indoor",
+            "ambient_temperature_source": "manual",
+            "safety_factor": 1.1,
+            "safety_factor_source": "manual",
+        },
+    ),
+    _heat_seed_config(
+        "pipe",
+        "pipe_outdoor_reference_2_layers",
+        "Труба outdoor — справочная λ, 2 слоя",
+        {
             "outer_diameter": 0.114,
             "wall_thickness": 0.006,
             "pipe_material": "carbon_steel",
-            "insulation_thickness": 0.05,
-            "insulation_material": "mineral_wool_cylinders_100",
-            "insulation_temperature_basis": "outdoor_winter",
-            "ambient_temperature": -30.0,
-            "process_temperature": 60.0,
             "pipe_length": 120.0,
-            "location": "outdoor",
-            "wind_speed": 5.0,
-        },
-    },
-    {
-        "name": "Трубопровод Ду50 L=85м (крытый)",
-        "params": {
-            "outer_diameter": 0.060,
-            "wall_thickness": 0.004,
-            "pipe_material": "carbon_steel",
-            "insulation_thickness": 0.04,
-            "insulation_material": "polyurethane_products_50",
-            "insulation_temperature_basis": "indoor",
-            "ambient_temperature": -25.0,
-            "process_temperature": 40.0,
-            "pipe_length": 85.0,
-            "location": "indoor",
-        },
-    },
-    {
-        "name": "Трубопровод Ду200 L=250м (подземный)",
-        "params": {
-            "outer_diameter": 0.219,
-            "wall_thickness": 0.008,
-            "pipe_material": "carbon_steel",
-            "insulation_thickness": 0.12,
-            "insulation_material": "mineral_wool_cylinders_150",
-            "insulation_temperature_basis": "channel",
-            "ambient_temperature": -25.0,
-            "process_temperature": 55.0,
-            "pipe_length": 250.0,
-            "burial_depth": 1.5,
-            "placement": "underground",
-            "location": "outdoor",
-        },
-    },
-    {
-        "name": "Трубопровод Ду32 L=45м (КИП)",
-        "params": {
-            "outer_diameter": 0.042,
-            "wall_thickness": 0.003,
-            "pipe_material": "stainless_304",
-            "insulation_thickness": 0.03,
-            "insulation_material": "k_flex_st",
-            "insulation_temperature_basis": "outdoor_winter",
-            "ambient_temperature": -40.0,
-            "process_temperature": 30.0,
-            "pipe_length": 45.0,
-            "location": "outdoor",
-            "wind_speed": 8.0,
-        },
-    },
-    {
-        "name": "Трубопровод Ду150 L=190м (многослойная изоляция)",
-        "params": {
-            "outer_diameter": 0.168,
-            "wall_thickness": 0.007,
-            "pipe_material": "carbon_steel",
             "insulation_layers": [
-                {"thickness": 0.05, "material": "mineral_wool_cylinders_100"},
-                {"thickness": 0.03, "material": "expanded_perlite_sand_150"},
+                {"thickness": 0.04, "material": _MINERAL_WOOL},
+                {"thickness": 0.02, "material": _PERLITE},
             ],
             "insulation_temperature_basis": "outdoor_winter",
             "ambient_temperature": -30.0,
-            "process_temperature": 60.0,
-            "pipe_length": 190.0,
-            "location": "outdoor",
-            "wind_speed": 4.0,
+            "process_temperature": 80.0,
+            "placement": "outdoor",
+            "wind_speed": 5.0,
+            "ambient_temperature_source": "manual",
+            "wind_speed_source": "manual",
+            "safety_factor": 1.1,
+            "safety_factor_source": "manual",
         },
-    },
-    {
-        "name": "Трубопровод Ду80 L=65м (локальные элементы)",
-        "params": {
-            "outer_diameter": 0.089,
-            "wall_thickness": 0.005,
+    ),
+    _heat_seed_config(
+        "pipe",
+        "pipe_underground_reference_3_layers",
+        "Труба underground — грунт, 3 слоя",
+        {
+            "outer_diameter": 0.219,
+            "wall_thickness": 0.008,
             "pipe_material": "carbon_steel",
-            "insulation_thickness": 0.05,
-            "insulation_material": "polystyrene_products_50",
-            "insulation_temperature_basis": "outdoor_winter",
-            "ambient_temperature": -30.0,
-            "process_temperature": 55.0,
-            "pipe_length": 65.0,
-            "num_local_elements": 4,
-            "local_element_equiv_length": 1.5,
-            "location": "outdoor",
+            "pipe_length": 250.0,
+            "insulation_layers": [
+                {"thickness": 0.04, "material": _MINERAL_WOOL},
+                {"thickness": 0.03, "material": _MINERAL_WOOL},
+                {"thickness": 0.02, "material": _MINERAL_WOOL},
+            ],
+            "insulation_temperature_basis": "channel",
+            "ground_temperature": 5.0,
+            "process_temperature": 70.0,
+            "placement": "underground",
+            "pipe_centerline_depth": 1.5,
+            "ground_type": "dry_sand",
+            "ground_conductivity": 1.5,
+            "ground_temperature_source": "manual",
+            "ground_conductivity_source": "manual",
+            "safety_factor": 1.1,
+            "safety_factor_source": "manual",
         },
-    },
-    {
-        "name": "Трубопровод Ду25 L=30м (нержавейка)",
-        "params": {
-            "outer_diameter": 0.032,
-            "wall_thickness": 0.003,
-            "pipe_material": "stainless_304",
-            "insulation_thickness": 0.025,
-            "insulation_material": "mineral_wool_cylinders_80",
+    ),
+    _heat_seed_config(
+        "tank",
+        "tank_cylindrical_indoor",
+        "Резервуар cylindrical indoor",
+        {
+            "shape": "cylindrical",
+            "diameter": 2.0,
+            "height": 3.0,
+            "volume": 24.5,
+            "wall_thickness": 0.01,
+            "wall_lambda": 45.0,
+            "insulation_layers": [{"thickness": 0.08, "material": _MINERAL_WOOL}],
             "insulation_temperature_basis": "indoor",
-            "ambient_temperature": -35.0,
-            "process_temperature": 25.0,
-            "pipe_length": 30.0,
-            "location": "indoor",
+            "ambient_temperature": 15.0,
+            "process_temperature": 80.0,
+            "placement": "indoor",
+            "ambient_temperature_source": "manual",
+            "safety_factor": 1.1,
+            "safety_factor_source": "manual",
+            "q_additional": 0.0,
         },
-    },
-]
-
-_TANK_CONFIGS = [
-    {
-        "name": "Резервуар РВС-100 (цилиндр)",
-        "params": {
+    ),
+    _heat_seed_config(
+        "tank",
+        "tank_cylindrical_outdoor",
+        "Резервуар cylindrical outdoor",
+        {
             "shape": "cylindrical",
             "diameter": 2.8,
             "height": 6.0,
-            "insulation_thickness": 0.08,
-            "insulation_material": "mineral_wool_boards_120",
+            "wall_thickness": 0.012,
+            "wall_lambda": 45.0,
+            "insulation_layers": [{"thickness": 0.08, "material": _MINERAL_WOOL}],
             "insulation_temperature_basis": "outdoor_winter",
             "ambient_temperature": -35.0,
-            "process_temperature": 50.0,
-            "location": "outdoor",
+            "process_temperature": 70.0,
+            "placement": "outdoor",
+            "wind_speed": 4.0,
+            "ambient_temperature_source": "manual",
+            "wind_speed_source": "manual",
+            "safety_factor": 1.1,
+            "safety_factor_source": "manual",
+            "q_additional": 0.0,
         },
-    },
-    {
-        "name": "Ёмкость дренажная ЕД-10 (прямоугольник)",
-        "params": {
+    ),
+    _heat_seed_config(
+        "tank",
+        "tank_rectangular_indoor",
+        "Резервуар rectangular indoor",
+        {
             "shape": "rectangular",
             "length": 3.0,
             "width": 2.0,
             "height": 2.0,
-            "insulation_thickness": 0.06,
-            "insulation_material": "polyurethane_products_50",
+            "insulation_layers": [{"thickness": 0.06, "material": _MINERAL_WOOL}],
+            "insulation_temperature_basis": "indoor",
+            "ambient_temperature": 15.0,
+            "process_temperature": 60.0,
+            "placement": "indoor",
+            "ambient_temperature_source": "manual",
+            "safety_factor": 1.1,
+            "safety_factor_source": "manual",
+            "q_additional": 0.0,
+        },
+    ),
+    _heat_seed_config(
+        "tank",
+        "tank_rectangular_outdoor",
+        "Резервуар rectangular outdoor",
+        {
+            "shape": "rectangular",
+            "length": 4.0,
+            "width": 2.0,
+            "height": 3.0,
+            "insulation_layers": [{"thickness": 0.08, "material": _MINERAL_WOOL}],
+            "insulation_temperature_basis": "outdoor_winter",
+            "ambient_temperature": -25.0,
+            "process_temperature": 80.0,
+            "placement": "outdoor",
+            "wind_speed": 3.0,
+            "ambient_temperature_source": "manual",
+            "wind_speed_source": "manual",
+            "safety_factor": 1.1,
+            "safety_factor_source": "manual",
+            "q_additional": 0.0,
+        },
+    ),
+    _heat_seed_config(
+        "tank",
+        "tank_spherical_indoor",
+        "Резервуар spherical indoor",
+        {
+            "shape": "spherical",
+            "diameter": 2.0,
+            "wall_thickness": 0.01,
+            "wall_lambda": 45.0,
+            "insulation_layers": [{"thickness": 0.1, "material": _MINERAL_WOOL}],
+            "insulation_temperature_basis": "indoor",
+            "ambient_temperature": 20.0,
+            "process_temperature": 100.0,
+            "placement": "indoor",
+            "ambient_temperature_source": "manual",
+            "safety_factor": 1.1,
+            "safety_factor_source": "manual",
+            "q_additional": 0.0,
+        },
+    ),
+    _heat_seed_config(
+        "tank",
+        "tank_spherical_outdoor",
+        "Резервуар spherical outdoor",
+        {
+            "shape": "spherical",
+            "diameter": 2.4,
+            "wall_thickness": 0.012,
+            "wall_lambda": 45.0,
+            "insulation_layers": [{"thickness": 0.08, "material": _MINERAL_WOOL}],
+            "insulation_temperature_basis": "outdoor_winter",
+            "ambient_temperature": -20.0,
+            "process_temperature": 80.0,
+            "placement": "outdoor",
+            "wind_speed": 2.0,
+            "ambient_temperature_source": "manual",
+            "wind_speed_source": "manual",
+            "safety_factor": 1.1,
+            "safety_factor_source": "manual",
+            "q_additional": 0.0,
+        },
+    ),
+    _heat_seed_config(
+        "tank",
+        "tank_spherical_outdoor_multilayer",
+        "Резервуар spherical outdoor — 2 слоя",
+        {
+            "shape": "spherical",
+            "diameter": 3.0,
+            "wall_thickness": 0.015,
+            "wall_lambda": 45.0,
+            "insulation_layers": [
+                {"thickness": 0.06, "material": _MINERAL_WOOL},
+                {"thickness": 0.04, "material": _PERLITE},
+            ],
             "insulation_temperature_basis": "outdoor_winter",
             "ambient_temperature": -30.0,
-            "process_temperature": 45.0,
-            "location": "outdoor",
+            "process_temperature": 90.0,
+            "placement": "outdoor",
+            "wind_speed": 4.0,
+            "ambient_temperature_source": "manual",
+            "wind_speed_source": "manual",
+            "safety_factor": 1.1,
+            "safety_factor_source": "manual",
+            "q_additional": 0.0,
         },
-    },
-    {
-        "name": "Сепаратор СГ-25 (цилиндр)",
-        "params": {
+    ),
+    _heat_seed_config(
+        "tank",
+        "tank_cylindrical_underground_split_temperatures",
+        "Резервуар cylindrical underground — воздух/грунт",
+        {
             "shape": "cylindrical",
-            "diameter": 2.4,
-            "height": 4.5,
-            "insulation_thickness": 0.07,
-            "insulation_material": "expanded_perlite_sand_150",
-            "insulation_temperature_basis": "outdoor_winter",
-            "ambient_temperature": -40.0,
-            "process_temperature": 60.0,
-            "location": "outdoor",
+            "diameter": 2.0,
+            "height": 4.0,
+            "insulation_layers": [{"thickness": 0.08, "material": _MINERAL_WOOL}],
+            "insulation_temperature_basis": "channel",
+            "ambient_temperature": -25.0,
+            "ground_temperature": 5.0,
+            "process_temperature": 70.0,
+            "placement": "underground",
+            "tank_buried_height": 1.5,
+            "ground_type": "dry_sand",
+            "ground_conductivity": 0.8,
+            "alpha_vnesh": 12.0,
+            "ambient_temperature_source": "manual",
+            "ground_temperature_source": "manual",
+            "ground_conductivity_source": "manual",
+            "safety_factor": 1.15,
+            "safety_factor_source": "manual",
+            "q_additional": 0.0,
         },
-    },
-]
+    ),
+    _heat_seed_config(
+        "tank",
+        "tank_rectangular_underground_split_temperatures",
+        "Резервуар rectangular underground — воздух/грунт",
+        {
+            "shape": "rectangular",
+            "length": 4.0,
+            "width": 2.0,
+            "height": 3.0,
+            "insulation_layers": [{"thickness": 0.08, "material": _MINERAL_WOOL}],
+            "insulation_temperature_basis": "channel",
+            "ambient_temperature": -20.0,
+            "ground_temperature": 7.0,
+            "process_temperature": 75.0,
+            "placement": "underground",
+            "tank_buried_height": 1.0,
+            "ground_type": "dry_sand",
+            "ground_conductivity": 1.1,
+            "alpha_vnesh": 10.0,
+            "ambient_temperature_source": "manual",
+            "ground_temperature_source": "manual",
+            "ground_conductivity_source": "manual",
+            "safety_factor": 1.1,
+            "safety_factor_source": "manual",
+            "q_additional": 0.0,
+        },
+    ),
+    _heat_seed_config(
+        "tank",
+        "tank_q_additional_after_safety_factor",
+        "Резервуар с дополнительными теплопотерями",
+        {
+            "shape": "cylindrical",
+            "diameter": 1.5,
+            "height": 2.5,
+            "insulation_layers": [{"thickness": 0.05, "material": _MINERAL_WOOL}],
+            "insulation_temperature_basis": "indoor",
+            "ambient_temperature": 20.0,
+            "process_temperature": 60.0,
+            "placement": "indoor",
+            "ambient_temperature_source": "manual",
+            "safety_factor": 1.2,
+            "safety_factor_source": "manual",
+            "q_additional": 250.0,
+        },
+    ),
+)
+
+
+async def seed_heat_objects(
+    db,
+    projects: list[Project],
+    principal: CurrentPrincipal,
+) -> None:
+    """Replace all heat objects through the same schema/service path as the API."""
+
+    if not projects:
+        raise RuntimeError("Canonical heat seeds require at least one project")
+
+    deleted = await db.execute(
+        delete(ProjectObject).where(ProjectObject.object_type.in_(("pipe", "tank")))
+    )
+    await db.flush()
+    logger.info("  - purged %d legacy heat objects", deleted.rowcount or 0)
+
+    project_service = ProjectService(db)
+    calculation_service = CalculationService(db)
+    sort_orders: dict[uuid.UUID, int] = {project.id: 0 for project in projects}
+
+    for index, config in enumerate(_HEAT_SEED_CONFIGS):
+        project = projects[index % len(projects)]
+        sort_order = sort_orders[project.id]
+        sort_orders[project.id] += 1
+        data = ProjectObjectCreate(
+            object_type=config["object_type"],
+            sort_order=sort_order,
+            params=config["params"],
+        )
+        obj = await project_service.add_object(project.id, data, principal)
+        await calculation_service.recalculate_object(obj)
+        if not obj.is_valid or obj.results is None:
+            detail = (obj.validation_errors or {}).get("message", "unknown heat seed error")
+            raise RuntimeError(f"Canonical heat seed {config['seed_case']} failed: {detail}")
+        logger.info(
+            "  + canonical heat object [%s] '%s' for '%s' → OK",
+            config["object_type"],
+            config["name"],
+            project.name,
+        )
+
+    await db.flush()
 
 
 async def seed_objects_and_calculations(
     db,
     projects: list[Project],
-    coefficients_list: list[CorrectionCoefficient],
     principal: CurrentPrincipal,
 ) -> None:
-    """Создаёт объекты с реальными расчётами теплопотерь и электрорасчётами."""
-    coefficients = _get_coefficients_dict(coefficients_list)
+    """Создаёт канонические heat-объекты и связанные демо-электрорасчёты."""
+    await seed_heat_objects(db, projects, principal)
 
-    # Всего 10 проектов. Раскладываем: 6 pipe + 2 tank + ещё mix
-    # Схема на проект: 2-3 объекта (mix pipe/tank)
-    # Всего будет ~25 объектов
-    project_object_plan = [
-        # (object_type, config_index_in_respective_list)
-        [("pipe", 0), ("pipe", 1), ("tank", 0)],  # проект 0
-        [("tank", 1), ("pipe", 2), ("pipe", 3)],  # проект 1
-        [("pipe", 4), ("tank", 2), ("pipe", 5)],  # проект 2
-        [("pipe", 0), ("pipe", 1)],  # проект 3
-        [("pipe", 2), ("tank", 0), ("pipe", 6)],  # проект 4
-        [("tank", 1), ("pipe", 3), ("pipe", 4)],  # проект 5
-        [("pipe", 5), ("pipe", 6), ("tank", 2)],  # проект 6
-        [("pipe", 0), ("tank", 0)],  # проект 7
-        [("pipe", 1), ("pipe", 2), ("pipe", 3)],  # проект 8
-        [("tank", 1), ("tank", 2), ("pipe", 4)],  # проект 9
-    ]
-
-    pipe_cfgs = _PIPE_CONFIGS
-    tank_cfgs = _TANK_CONFIGS
-
-    for proj_idx, project in enumerate(projects):
-        plan = project_object_plan[proj_idx % len(project_object_plan)]
-
-        for sort_order, (obj_type, cfg_idx) in enumerate(plan):
-            cfg = pipe_cfgs[cfg_idx] if obj_type == "pipe" else tank_cfgs[cfg_idx]
-
-            # Проверяем существование
-            result = await db.execute(
-                select(ProjectObject).where(
-                    ProjectObject.project_id == project.id,
-                    ProjectObject.sort_order == sort_order,
-                )
-            )
-            obj = result.scalar_one_or_none()
-            if obj is not None:
-                params_are_current = _seed_params_are_current(obj.params, cfg["params"])
-                # Пропускаем только если объект валиден, рассчитан и уже соответствует
-                # текущему seed-контракту. Старые demo-объекты с generic материалами
-                # нужно пересоздать даже при наличии прежних результатов.
-                if obj.is_valid and obj.results is not None and params_are_current:
-                    logger.info("  ~ skip valid object [%s] for '%s'", obj_type, project.name)
-                    continue
-                # Иначе удаляем сломанный или устаревший объект и создаём заново
-                logger.info(
-                    (
-                        "  ~ replace stale/broken object [%s] "
-                        "(is_valid=%s, has_results=%s, params_current=%s) for '%s'"
-                    ),
-                    obj_type,
-                    obj.is_valid,
-                    obj.results is not None,
-                    params_are_current,
-                    project.name,
-                )
-                # Удаляем связанные электрорасчёты
-                elec_result = await db.execute(
-                    select(ElectricalCalculation).where(ElectricalCalculation.object_id == obj.id)
-                )
-                for ec in elec_result.scalars().all():
-                    await db.delete(ec)
-                await db.delete(obj)
-                await db.flush()
-
-            # Рассчитываем теплопотери
-            try:
-                if obj_type == "pipe":
-                    hl_params = PipeHeatLossParams(**cfg["params"])
-                    hl_result = calc_pipe_heat_loss(hl_params, coefficients=coefficients)
-                    results_dict = hl_result.model_dump()
-                else:
-                    hl_params_t = TankHeatLossParams(**cfg["params"])
-                    hl_result = calc_tank_heat_loss(hl_params_t, coefficients=coefficients)
-                    results_dict = hl_result.model_dump()
-                is_valid = True
-                validation_errors = None
-            except Exception as exc:
-                results_dict = None
-                is_valid = False
-                validation_errors = {
-                    "error_code": "seed_heat_loss_error",
-                    "category": "formula",
-                    "message": str(exc),
-                    "field": None,
-                    "hint": "Проверьте seed-параметры объекта.",
-                }
-                logger.warning("  ! calc error [%s] '%s': %s", obj_type, cfg["name"], exc)
-
-            obj = ProjectObject(
-                project_id=project.id,
-                object_type=obj_type,
-                sort_order=sort_order,
-                params=cfg["params"],
-                results=results_dict,
-                is_valid=is_valid,
-                validation_errors=validation_errors,
-            )
-            db.add(obj)
-            logger.info(
-                "  + object [%s] '%s' for '%s' → %s",
-                obj_type,
-                cfg["name"],
-                project.name,
-                "OK" if is_valid else "INVALID",
-            )
-
-        await db.flush()
-
+    for project in projects:
         # Seed writes follow the same readiness-gated numeric compatibility
         # adapter as the API.  This creates the project-scoped UUID variant and
         # all object assignments before any downstream row is inserted.
@@ -1495,20 +1584,20 @@ async def seed_objects_and_calculations(
             )
         )
         assignments_by_object_id = {
-            assignment.object_id: assignment
-            for assignment in assignment_result.scalars().all()
+            assignment.object_id: assignment for assignment in assignment_result.scalars().all()
         }
 
         for pipe_obj in pipe_objects:
             assignment = assignments_by_object_id.get(pipe_obj.id)
             if assignment is None:
-                raise RuntimeError(
-                    f"Seed assignment is missing for pipe object {pipe_obj.id}"
-                )
+                raise RuntimeError(f"Seed assignment is missing for pipe object {pipe_obj.id}")
             assignment.system_type = "self_regulating"
             assignment.assignment_state = "ready"
             assignment.requested_cable_type = "self_regulating_tt"
             assignment.object_version_snapshot = pipe_obj.version
+            assignment.max_section_start_current_a = (
+                FRONTEND_MOCK_PROFILE.max_section_start_current_a
+            )
             assignment.diagnostics = {}
 
             # Сид всегда отражает текущую формулу и паспортный каталог. Поэтому
@@ -1536,14 +1625,15 @@ async def seed_objects_and_calculations(
                 continue
 
             try:
+                max_section_start_current = float(assignment.max_section_start_current_a)
                 elec_params = SelfRegulatingTTParams(
                     required_power_per_meter=heat_loss_per_meter,
                     process_temperature=process_temperature,
                     maintain_temperature=process_temperature,
                     pipe_length=pipe_length,
-                    supply_voltage=220.0,
                     winding_coefficient=1.0,
                     safety_factor=1.0,  # коэффициент уже применён в теплопотерях
+                    max_start_current_per_section=max_section_start_current,
                 )
                 elec_result = calc_self_regulating_tt(elec_params)
                 elec_results_dict = elec_result.model_dump()
@@ -1560,6 +1650,7 @@ async def seed_objects_and_calculations(
                     working_current_total_a=elec_result.current,
                     voltage_v=elec_result.voltage,
                     cold_start_temp_c=cold_start_temperature,
+                    max_start_current_per_section_a=max_section_start_current,
                 )
                 if section_plan is None:
                     raise RuntimeError(
@@ -1590,7 +1681,8 @@ async def seed_objects_and_calculations(
                     "maintain_temperature": process_temperature,
                     "vapor_temperature": None,
                     "aggressive_product": False,
-                    "supply_voltage": 220.0,
+                    "supply_voltage": elec_result.voltage,
+                    "max_start_current_per_section": max_section_start_current,
                     "winding_coefficient": 1.0,
                     "min_switch_temperature": cold_start_temperature,
                     "safety_factor": 1.0,
@@ -1680,7 +1772,7 @@ async def run_seeds() -> None:
         )
 
         logger.info("=== Seed: correction coefficients ===")
-        coefficients = await seed_coefficients(db, admin_id)
+        await seed_coefficients(db, admin_id)
 
         logger.info("=== Seed: insulation_materials ===")
         await seed_insulation_materials(db)
@@ -1698,7 +1790,6 @@ async def run_seeds() -> None:
         await seed_objects_and_calculations(
             db,
             projects,
-            coefficients,
             seed_principal,
         )
 

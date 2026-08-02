@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.audit_event import AuditEvent
+from app.tests.heat_fixtures import canonical_pipe_params
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -68,15 +69,10 @@ async def test_object_created_audit_event_is_staged_in_business_commit(
         json={
             "object_type": "pipe",
             "sort_order": 0,
-            "params": {
-                "outer_diameter": 0.1,
-                "insulation_thickness": 0.05,
-                "insulation_material": "mineral_wool_boards_120",
-                "insulation_temperature_basis": "outdoor_winter",
-                "ambient_temperature": -20,
-                "process_temperature": 80,
-                "pipe_length": 10,
-            },
+            "params": canonical_pipe_params(
+                ambient_temperature=-20.0,
+                pipe_length=10.0,
+            ),
         },
         headers={"X-Session-Id": guest_session},
     )

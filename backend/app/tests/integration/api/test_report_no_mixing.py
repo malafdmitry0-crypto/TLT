@@ -11,10 +11,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.specification import Specification
+from app.tests.heat_fixtures import canonical_pipe_params
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
-
-MINERAL = "mineral_wool_boards_120"
 
 
 async def _add_pipe(client: AsyncClient, pid: str, headers: dict[str, str], name: str) -> None:
@@ -22,16 +21,12 @@ async def _add_pipe(client: AsyncClient, pid: str, headers: dict[str, str], name
         f"/api/v1/projects/{pid}/objects",
         json={
             "object_type": "pipe",
-            "params": {
-                "name": name,
-                "outer_diameter": 0.108,
-                "pipe_length": 40,
-                "insulation_thickness": 0.05,
-                "insulation_material": MINERAL,
-                "insulation_temperature_basis": "outdoor_winter",
-                "ambient_temperature": -25,
-                "process_temperature": 70,
-            },
+            "params": canonical_pipe_params(
+                name=name,
+                pipe_length=40.0,
+                ambient_temperature=-25.0,
+                process_temperature=70.0,
+            ),
         },
         headers=headers,
     )
@@ -44,9 +39,7 @@ class TestReportNoMixing:
     ):
         headers = {"Authorization": f"Bearer {employee_token}"}
         project = (
-            await client.post(
-                "/api/v1/projects", json={"name": "No-mix stale"}, headers=headers
-            )
+            await client.post("/api/v1/projects", json={"name": "No-mix stale"}, headers=headers)
         ).json()
         pid = project["id"]
         await _add_pipe(client, pid, headers, "pipe-stale")

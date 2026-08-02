@@ -1,5 +1,6 @@
 """Integration-тесты экспорта/импорта проектов в CSV."""
 
+import json
 import uuid
 from datetime import UTC, datetime
 from uuid import UUID
@@ -15,23 +16,17 @@ from app.models.project import Project
 from app.models.project_object import ProjectObject
 from app.models.specification import Specification
 from app.models.user import User
+from app.tests.heat_fixtures import canonical_pipe_params
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
-MINERAL_WOOL = "mineral_wool_boards_120"
 PERLITE = "expanded_perlite_sand_225"
 
 
-PIPE_PARAMS = {
-    "name": "Труба 1",
-    "outer_diameter": 0.108,
-    "insulation_thickness": 0.05,
-    "insulation_material": MINERAL_WOOL,
-    "insulation_temperature_basis": "outdoor_winter",
-    "ambient_temperature": -20.0,
-    "process_temperature": 80.0,
-    "pipe_length": 50.0,
-}
+PIPE_PARAMS = canonical_pipe_params(
+    name="Труба 1",
+    ambient_temperature=-20.0,
+)
 
 
 async def _add_pipe(client: AsyncClient, project_id: str, headers: dict):
@@ -395,9 +390,7 @@ class TestSingleExportImport:
         )
         assert init.status_code in (200, 201), init.text
         er = init.json()["variant"]
-        objects = (
-            await client.get(f"/api/v1/projects/{pid}/objects", headers=headers)
-        ).json()
+        objects = (await client.get(f"/api/v1/projects/{pid}/objects", headers=headers)).json()
         assignments = (
             await client.get(
                 f"/api/v1/projects/{pid}/electrical-variants/{er['id']}/assignments",
@@ -407,9 +400,7 @@ class TestSingleExportImport:
         items = assignments.get("items") or assignments
         if isinstance(items, dict):
             items = items.get("items") or []
-        target = next(
-            item for item in items if str(item.get("object_id")) == str(objects[0]["id"])
-        )
+        target = next(item for item in items if str(item.get("object_id")) == str(objects[0]["id"]))
         assign = await client.patch(
             f"/api/v1/projects/{pid}/electrical-variants/{er['id']}/assignments",
             json={
@@ -848,16 +839,14 @@ class TestBulkExportImport:
                 headers=headers,
             )
         ).json()
-        src_params = {
-            "name": "Tag-X-7",
-            "outer_diameter": 0.159,
-            "insulation_thickness": 0.07,
-            "insulation_material": PERLITE,
-            "insulation_temperature_basis": "outdoor_winter",
-            "ambient_temperature": -25.0,
-            "process_temperature": 95.0,
-            "pipe_length": 42.3,
-        }
+        src_params = canonical_pipe_params(
+            name="Tag-X-7",
+            outer_diameter=0.159,
+            insulation_layers=[{"thickness": 0.07, "material": PERLITE}],
+            ambient_temperature=-25.0,
+            process_temperature=95.0,
+            pipe_length=42.3,
+        )
         created = await client.post(
             f"/api/v1/projects/{src['id']}/objects",
             json={"object_type": "pipe", "sort_order": 0, "params": src_params},
@@ -1010,18 +999,13 @@ class TestBulkExportImport:
         suffix = uuid.uuid4().hex[:8]
         bad_task = f"BULK-BAD-{suffix}"
         ok_task = f"BULK-OK-{suffix}"
-        ok_params = (
-            "{"
-            '""name"": ""Valid pipe"",'
-            '""outer_diameter"": 0.108,'
-            '""insulation_thickness"": 0.05,'
-            f'""insulation_material"": ""{MINERAL_WOOL}"",'
-            '""insulation_temperature_basis"": ""outdoor_winter"",'
-            '""ambient_temperature"": -20,'
-            '""process_temperature"": 80,'
-            '""pipe_length"": 50'
-            "}"
-        )
+        ok_params = json.dumps(
+            canonical_pipe_params(
+                name="Valid pipe",
+                ambient_temperature=-20.0,
+            ),
+            ensure_ascii=False,
+        ).replace('"', '""')
         csv = (
             "[SECTION];meta\n"
             "key;value\n"

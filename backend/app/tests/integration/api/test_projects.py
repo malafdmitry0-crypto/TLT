@@ -11,10 +11,9 @@ from app.models.audit_event import AuditEvent
 from app.models.electrical_calculation import ElectricalCalculation
 from app.models.electrical_variant import ElectricalVariant, ElectricalVariantObject
 from app.models.project_object import ProjectObject
+from app.tests.heat_fixtures import canonical_pipe_params
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
-
-MINERAL_WOOL = "mineral_wool_boards_120"
 
 
 async def _guest_project(client: AsyncClient, session_id: str) -> dict:
@@ -197,16 +196,10 @@ class TestProjectDuplicate:
                 headers=headers,
             )
         ).json()
-        pipe_params = {
-            "name": "Труба 1",
-            "outer_diameter": 0.108,
-            "insulation_thickness": 0.05,
-            "insulation_material": MINERAL_WOOL,
-            "insulation_temperature_basis": "outdoor_winter",
-            "ambient_temperature": -20.0,
-            "process_temperature": 80.0,
-            "pipe_length": 50.0,
-        }
+        pipe_params = canonical_pipe_params(
+            name="Труба 1",
+            ambient_temperature=-20.0,
+        )
         await client.post(
             f"/api/v1/projects/{src['id']}/objects",
             json={"object_type": "pipe", "sort_order": 0, "params": pipe_params},
@@ -358,26 +351,27 @@ class TestProjectDuplicate:
                 headers=headers,
             )
         ).json()
-        invalid_object = await client.post(
-            f"/api/v1/projects/{source['id']}/objects",
-            json={
-                "object_type": "pipe",
-                "params": {
-                    "outer_diameter": 0.1,
-                    "wall_thickness": None,
-                    "pipe_material": None,
-                    "insulation_thickness": 0.05,
-                    "insulation_material": MINERAL_WOOL,
-                    "insulation_temperature_basis": "outdoor_winter",
-                    "ambient_temperature": -20,
-                    "process_temperature": 80,
-                    "pipe_length": 10,
-                },
+        source_object = ProjectObject(
+            project_id=UUID(source["id"]),
+            object_type="pipe",
+            sort_order=0,
+            params=canonical_pipe_params(
+                ambient_temperature=-20.0,
+                pipe_length=10.0,
+                wall_thickness=None,
+            ),
+            is_valid=False,
+            results=None,
+            validation_errors={
+                "error_code": "test_not_ready",
+                "category": "validation",
+                "message": "Synthetic not-ready state for duplicate readiness proof",
+                "field": "wall_thickness",
+                "hint": None,
             },
-            headers=headers,
         )
-        assert invalid_object.status_code == 201, invalid_object.text
-        assert invalid_object.json()["is_valid"] is False
+        db_session.add(source_object)
+        await db_session.commit()
 
         response = await client.post(
             f"/api/v1/projects/{source['id']}/duplicate",

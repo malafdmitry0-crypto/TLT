@@ -12,10 +12,9 @@ from app.models.audit_event import AuditEvent
 from app.models.background_task import BackgroundTask
 from app.models.user import User
 from app.services.report_artifact_service import write_report_artifact
+from app.tests.heat_fixtures import canonical_pipe_params
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
-
-MINERAL_WOOL = "mineral_wool_boards_120"
 
 
 class FakeTaskQueue:
@@ -34,15 +33,10 @@ async def _project_with_object(client: AsyncClient, session_id: str) -> str:
         f"/api/v1/projects/{p['id']}/objects",
         json={
             "object_type": "pipe",
-            "params": {
-                "outer_diameter": 0.1,
-                "insulation_thickness": 0.05,
-                "insulation_material": MINERAL_WOOL,
-                "insulation_temperature_basis": "outdoor_winter",
-                "ambient_temperature": -20,
-                "process_temperature": 80,
-                "pipe_length": 10,
-            },
+            "params": canonical_pipe_params(
+                ambient_temperature=-20.0,
+                pipe_length=10.0,
+            ),
         },
         headers={"X-Session-Id": session_id},
     )
@@ -62,15 +56,10 @@ async def _employee_project_with_object(client: AsyncClient, token: str) -> str:
         f"/api/v1/projects/{p['id']}/objects",
         json={
             "object_type": "pipe",
-            "params": {
-                "outer_diameter": 0.1,
-                "insulation_thickness": 0.05,
-                "insulation_material": MINERAL_WOOL,
-                "insulation_temperature_basis": "outdoor_winter",
-                "ambient_temperature": -20,
-                "process_temperature": 80,
-                "pipe_length": 10,
-            },
+            "params": canonical_pipe_params(
+                ambient_temperature=-20.0,
+                pipe_length=10.0,
+            ),
         },
         headers=headers,
     )
@@ -153,7 +142,6 @@ class TestReports:
         assert [item["legacy_variant_number"] for item in body] == [1, 4]
         assert response.json()["electrical_variant_id"] == body[1]["id"]
 
-
     async def test_preview_multi_er_independent_chapters(
         self, client: AsyncClient, employee_token: str
     ):
@@ -167,15 +155,10 @@ class TestReports:
             f"/api/v1/projects/{pid}/objects",
             json={
                 "object_type": "pipe",
-                "params": {
-                    "outer_diameter": 0.108,
-                    "insulation_thickness": 0.05,
-                    "insulation_material": "mineral_wool_boards_120",
-                    "insulation_temperature_basis": "outdoor_winter",
-                    "ambient_temperature": -30,
-                    "process_temperature": 80,
-                    "pipe_length": 50,
-                },
+                "params": canonical_pipe_params(
+                    ambient_temperature=-30,
+                    pipe_length=50,
+                ),
             },
             headers=headers,
         )
@@ -242,7 +225,6 @@ class TestReports:
         )
         assert resp.status_code == 422
 
-
     async def test_preview_excludes_stale_specification_quantities(
         self, client: AsyncClient, employee_token: str, db_session
     ):
@@ -270,15 +252,10 @@ class TestReports:
             f"/api/v1/projects/{pid}/objects",
             json={
                 "object_type": "pipe",
-                "params": {
-                    "outer_diameter": 0.108,
-                    "insulation_thickness": 0.05,
-                    "insulation_material": "mineral_wool_boards_120",
-                    "insulation_temperature_basis": "outdoor_winter",
-                    "ambient_temperature": -30,
-                    "process_temperature": 80,
-                    "pipe_length": 50,
-                },
+                "params": canonical_pipe_params(
+                    ambient_temperature=-30,
+                    pipe_length=50,
+                ),
             },
             headers=headers,
         )
@@ -334,7 +311,6 @@ class TestReports:
         assert "устарела" in html.lower() or "PDL-ER-37" in html
         assert "SECRET-MARK" not in html
         assert "123.45" not in html
-
 
     async def test_preview_by_electrical_variant_id_alone(
         self, client: AsyncClient, guest_session: str

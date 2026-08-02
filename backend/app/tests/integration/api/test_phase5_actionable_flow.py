@@ -11,10 +11,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.electrical_variant import ElectricalVariant
 from app.models.specification import Specification
+from app.tests.heat_fixtures import canonical_pipe_params
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
-
-MINERAL_WOOL = "mineral_wool_boards_120"
 
 
 class TestPhase5ActionableFlow:
@@ -25,16 +24,7 @@ class TestPhase5ActionableFlow:
             f"/api/v1/projects/{project_id}/objects",
             json={
                 "object_type": "pipe",
-                "params": {
-                    "name": "Phase5 actionable pipe",
-                    "outer_diameter": 0.108,
-                    "pipe_length": 50,
-                    "insulation_thickness": 0.05,
-                    "insulation_material": MINERAL_WOOL,
-                    "insulation_temperature_basis": "outdoor_winter",
-                    "ambient_temperature": -30,
-                    "process_temperature": 80,
-                },
+                "params": canonical_pipe_params(name="Phase5 actionable pipe"),
             },
             headers=headers,
         )
@@ -139,13 +129,17 @@ class TestPhase5ActionableFlow:
         assert int(bad_slots) == 0
 
         active = (
-            await db_session.execute(
-                select(ElectricalVariant).where(
-                    ElectricalVariant.project_id == UUID(pid),
-                    ElectricalVariant.is_active.is_(True),
+            (
+                await db_session.execute(
+                    select(ElectricalVariant).where(
+                        ElectricalVariant.project_id == UUID(pid),
+                        ElectricalVariant.is_active.is_(True),
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert len(active) == 1
 
     async def test_guest_import_rejects_manual_bom_rows(

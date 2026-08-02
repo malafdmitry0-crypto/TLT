@@ -1,11 +1,31 @@
 from app.reference_data.loader import list_insulation_materials, list_tt_cables
-from app.schemas.calculation import PipeHeatLossParams, TankHeatLossParams
+from app.schemas.project import ProjectObjectCreate
 from app.seeds import (
-    _PIPE_CONFIGS,
-    _TANK_CONFIGS,
+    _HEAT_SEED_CONFIGS,
     _insulation_seed_row,
-    _seed_params_are_current,
 )
+from app.services.heat_contract import (
+    DEPRECATED_HEAT_PARAM_KEYS,
+    PIPE_FORBIDDEN_HEAT_PARAM_KEYS,
+    TANK_FORBIDDEN_HEAT_PARAM_KEYS,
+)
+from app.services.project_object_params import prepare_project_object_params
+
+EXPECTED_HEAT_SEED_CASES = {
+    "pipe_indoor_manual_lambda_1_layer",
+    "pipe_outdoor_reference_2_layers",
+    "pipe_underground_reference_3_layers",
+    "tank_cylindrical_indoor",
+    "tank_cylindrical_outdoor",
+    "tank_rectangular_indoor",
+    "tank_rectangular_outdoor",
+    "tank_spherical_indoor",
+    "tank_spherical_outdoor",
+    "tank_spherical_outdoor_multilayer",
+    "tank_cylindrical_underground_split_temperatures",
+    "tank_rectangular_underground_split_temperatures",
+    "tank_q_additional_after_safety_factor",
+}
 
 
 def _seed_insulation_materials(params: dict[str, object]) -> list[str]:
@@ -22,13 +42,32 @@ def _seed_insulation_materials(params: dict[str, object]) -> list[str]:
 
 def test_tt_catalog_uses_the_supported_product_line():
     assert [row["model"] for row in list_tt_cables()] == [
-        "10ТТН2", "17ТТН2", "25ТТН2", "31ТТН2",
-        "15ТТВ2", "30ТТВ2", "45ТТВ2", "60ТТВ2",
-        "15ТТХ2", "30ТТХ2", "45ТТХ2", "60ТТХ2", "75ТТХ2", "90ТТХ2",
+        "10ТТН2",
+        "17ТТН2",
+        "25ТТН2",
+        "31ТТН2",
+        "15ТТВ2",
+        "30ТТВ2",
+        "45ТТВ2",
+        "60ТТВ2",
+        "15ТТХ2",
+        "30ТТХ2",
+        "45ТТХ2",
+        "60ТТХ2",
+        "75ТТХ2",
+        "90ТТХ2",
     ]
 
 
-def test_project_object_seeds_use_concrete_insulation_materials():
+def test_heat_seed_matrix_is_exact_and_traceable():
+    assert len(_HEAT_SEED_CONFIGS) == 13
+    assert {config["seed_case"] for config in _HEAT_SEED_CONFIGS} == EXPECTED_HEAT_SEED_CASES
+    assert len({config["name"] for config in _HEAT_SEED_CONFIGS}) == 13
+    assert [config["object_type"] for config in _HEAT_SEED_CONFIGS].count("pipe") == 3
+    assert [config["object_type"] for config in _HEAT_SEED_CONFIGS].count("tank") == 10
+
+
+def test_heat_seeds_pass_the_same_create_and_storage_contract_as_api_objects():
     selectable = {
         entry["material"]
         for entry in list_insulation_materials()
@@ -37,25 +76,74 @@ def test_project_object_seeds_use_concrete_insulation_materials():
         and entry.get("requires_material_reselection") is not True
     }
 
-    for config in _PIPE_CONFIGS:
+    for config in _HEAT_SEED_CONFIGS:
         params = config["params"]
-        PipeHeatLossParams(**params)
-        assert params.get("insulation_temperature_basis")
+        create = ProjectObjectCreate(
+            object_type=config["object_type"],
+            sort_order=0,
+            params=params,
+        )
+        stored = prepare_project_object_params(create.object_type, create.params)
+        forbidden = (
+            PIPE_FORBIDDEN_HEAT_PARAM_KEYS
+            if create.object_type == "pipe"
+            else TANK_FORBIDDEN_HEAT_PARAM_KEYS
+        )
+
+        assert stored["seed_case"] == config["seed_case"]
+        assert stored["name"] == config["name"]
+        assert stored.get("insulation_temperature_basis")
         assert set(_seed_insulation_materials(params)).issubset(selectable)
-
-    for config in _TANK_CONFIGS:
-        params = config["params"]
-        TankHeatLossParams(**params)
-        assert params.get("insulation_temperature_basis")
-        assert set(_seed_insulation_materials(params)).issubset(selectable)
+        assert DEPRECATED_HEAT_PARAM_KEYS.isdisjoint(stored)
+        assert forbidden.isdisjoint(stored)
+        assert not any(key.endswith("_mm") for key in stored)
 
 
-def test_stale_seed_params_are_replaced():
-    expected = _PIPE_CONFIGS[0]["params"]
-    stale = {**expected, "insulation_material": "mineral_wool"}
+def test_pipe_seed_matrix_covers_placement_lambda_and_layer_branches():
+    pipes = [config["params"] for config in _HEAT_SEED_CONFIGS if config["object_type"] == "pipe"]
 
-    assert _seed_params_are_current(expected, expected) is True
-    assert _seed_params_are_current(stale, expected) is False
+    assert {params["placement"] for params in pipes} == {"indoor", "outdoor", "underground"}
+    assert {len(params["insulation_layers"]) for params in pipes} == {1, 2, 3}
+    assert sum("pipe_lambda" in params for params in pipes) == 1
+    assert sum("pipe_material" in params for params in pipes) == 2
+    assert all(not ({"pipe_lambda", "pipe_material"} <= params.keys()) for params in pipes)
+
+    underground = next(params for params in pipes if params["placement"] == "underground")
+    assert "ground_temperature" in underground
+    assert "pipe_centerline_depth" in underground
+    assert "ambient_temperature" not in underground
+
+
+def test_tank_seed_matrix_covers_shapes_placements_and_special_cases():
+    tanks = [config["params"] for config in _HEAT_SEED_CONFIGS if config["object_type"] == "tank"]
+    shape_placements = {(params["shape"], params["placement"]) for params in tanks}
+
+    assert shape_placements == {
+        ("cylindrical", "indoor"),
+        ("cylindrical", "outdoor"),
+        ("cylindrical", "underground"),
+        ("rectangular", "indoor"),
+        ("rectangular", "outdoor"),
+        ("rectangular", "underground"),
+        ("spherical", "indoor"),
+        ("spherical", "outdoor"),
+    }
+
+    spherical = [params for params in tanks if params["shape"] == "spherical"]
+    assert {len(params["insulation_layers"]) for params in spherical} == {1, 2}
+    assert all(params["placement"] != "underground" for params in spherical)
+
+    underground = [params for params in tanks if params["placement"] == "underground"]
+    assert {params["shape"] for params in underground} == {"cylindrical", "rectangular"}
+    assert all(
+        params["ambient_temperature"] != params["ground_temperature"] for params in underground
+    )
+
+    additional = next(params for params in tanks if params["q_additional"] > 0)
+    assert additional["q_additional"] == 250.0
+
+    metadata_volume = next(params for params in tanks if "volume" in params)
+    assert metadata_volume["volume"] == 24.5
 
 
 def test_insulation_seed_row_preserves_reference_contract():

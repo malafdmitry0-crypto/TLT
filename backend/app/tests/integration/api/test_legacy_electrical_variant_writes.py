@@ -12,10 +12,9 @@ from app.models.electrical_candidate import ElectricalCandidate
 from app.models.electrical_candidate_folder import ElectricalCandidateFolder
 from app.models.electrical_variant import ElectricalVariant, ElectricalVariantObject
 from app.models.specification import Specification
+from app.tests.heat_fixtures import canonical_pipe_params
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
-
-MINERAL_WOOL = "mineral_wool_boards_120"
 
 
 async def _create_project(client: AsyncClient, token: str, name: str) -> dict:
@@ -37,15 +36,7 @@ async def _create_ready_pipe(
         f"/api/v1/projects/{project_id}/objects",
         json={
             "object_type": "pipe",
-            "params": {
-                "outer_diameter": 0.108,
-                "insulation_thickness": 0.05,
-                "insulation_material": MINERAL_WOOL,
-                "insulation_temperature_basis": "outdoor_winter",
-                "ambient_temperature": -30,
-                "process_temperature": 80,
-                "pipe_length": 50,
-            },
+            "params": canonical_pipe_params(),
         },
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -76,8 +67,7 @@ async def _prepare_assigned_legacy_variants(
 
     for variant in variants:
         assignments = await client.get(
-            f"/api/v1/projects/{project_id}/electrical-variants/"
-            f"{variant['id']}/assignments",
+            f"/api/v1/projects/{project_id}/electrical-variants/" f"{variant['id']}/assignments",
             headers=headers,
         )
         assert assignments.status_code == 200, assignments.text
@@ -85,8 +75,7 @@ async def _prepare_assigned_legacy_variants(
             item for item in assignments.json()["items"] if item["object_id"] == object_id
         )
         assigned = await client.patch(
-            f"/api/v1/projects/{project_id}/electrical-variants/"
-            f"{variant['id']}/assignments",
+            f"/api/v1/projects/{project_id}/electrical-variants/" f"{variant['id']}/assignments",
             json={
                 "system_type": "self_regulating",
                 "items": [

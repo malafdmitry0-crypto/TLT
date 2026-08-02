@@ -7,9 +7,9 @@
 import pytest
 from httpx import AsyncClient
 
-pytestmark = pytest.mark.asyncio(loop_scope="session")
+from app.tests.heat_fixtures import canonical_pipe_params
 
-MINERAL_WOOL = "mineral_wool_boards_120"
+pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 
 class FakeTaskQueue:
@@ -25,15 +25,10 @@ async def _guest_project_with_object(client: AsyncClient) -> tuple[str, dict, di
         json={
             "object_type": "pipe",
             "sort_order": 0,
-            "params": {
-                "outer_diameter": 0.108,
-                "insulation_thickness": 0.05,
-                "insulation_material": MINERAL_WOOL,
-                "insulation_temperature_basis": "outdoor_winter",
-                "ambient_temperature": -20,
-                "process_temperature": 80,
-                "pipe_length": 10,
-            },
+            "params": canonical_pipe_params(
+                ambient_temperature=-20.0,
+                pipe_length=10.0,
+            ),
         },
         headers={"X-Session-Id": sid},
     )
@@ -197,9 +192,9 @@ class TestGuestIsolation:
     ):
         monkeypatch.setattr("app.services.task_service.TaskQueue", FakeTaskQueue)
         sid_a = (await client.post("/api/v1/auth/guest")).json()["session_id"]
-        project_a = (
-            await client.get("/api/v1/projects", headers={"X-Session-Id": sid_a})
-        ).json()[0]
+        project_a = (await client.get("/api/v1/projects", headers={"X-Session-Id": sid_a})).json()[
+            0
+        ]
         sid_b = (await client.post("/api/v1/auth/guest")).json()["session_id"]
 
         foreign_enqueue = await client.post(
