@@ -34,9 +34,9 @@ const ALL_ELECTRICAL_COLUMN_KEYS = [
   'total_cost',
   'stock_status',
   'lead_time_days',
-  'heat_loss_per_meter',
-  'heat_loss_per_m2',
-  'total_heat_loss',
+  'heat_loss_per_meter_base',
+  'heat_loss_per_m2_bare_base',
+  'total_heat_loss_design',
 ] as const;
 
 type ElectricalColumnKey = typeof ALL_ELECTRICAL_COLUMN_KEYS[number];

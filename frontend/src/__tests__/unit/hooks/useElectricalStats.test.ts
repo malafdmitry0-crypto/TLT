@@ -12,7 +12,7 @@ function makeObj(id: string, isValid = true): ProjectObject {
     sort_order: 0,
     version: 1,
     params: {},
-    results: { heat_loss_per_meter: 50 },
+    results: { heat_loss_per_meter_base: 50 },
     is_valid: isValid,
     validation_errors: null,
     created_at: '2024-01-01',

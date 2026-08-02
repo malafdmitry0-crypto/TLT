@@ -66,8 +66,8 @@ describe('HeatCalcPage settings — columns', () => {
       expect(within(rowByKey('name')).getByText('Вводится')).toBeInTheDocument();
       expect(within(rowByKey('pipe_material')).getByText('Вводится')).toBeInTheDocument();
       expect(within(rowByKey('pipe_dn')).getByText('Вычисляется')).toBeInTheDocument();
-      expect(within(rowByKey('total_heat_loss')).getByText('Вычисляется')).toBeInTheDocument();
-      expect(within(rowByKey('total_heat_loss')).getByText('Итог')).toBeInTheDocument();
+      expect(within(rowByKey('total_heat_loss_design')).getByText('Вычисляется')).toBeInTheDocument();
+      expect(within(rowByKey('total_heat_loss_design')).getByText('Итог')).toBeInTheDocument();
       expect(within(rowByKey('thermal_resistance')).getByText('Вычисляется')).toBeInTheDocument();
       expect(within(rowByKey('thermal_resistance')).getByText('R')).toBeInTheDocument();
       expect(dialog.querySelector('.column-layout-row[data-column-key="index"]')).toBeNull();
@@ -114,8 +114,8 @@ describe('HeatCalcPage settings — columns', () => {
       fireEvent.change(orderInput, { target: { value: '3' } });
       expect(visibleColumnKeys().slice(0, 7)).toEqual([
         'heat_loss_status',
-        'heat_loss_per_meter',
-        'total_heat_loss',
+        'heat_loss_per_meter_base',
+        'total_heat_loss_design',
         'name',
         'placement',
         'pipe_outer_diameter',
@@ -125,9 +125,9 @@ describe('HeatCalcPage settings — columns', () => {
       await waitFor(() => {
         expect(visibleColumnKeys().slice(0, 7)).toEqual([
           'heat_loss_status',
-          'heat_loss_per_meter',
+          'heat_loss_per_meter_base',
           'pipe_dn',
-          'total_heat_loss',
+          'total_heat_loss_design',
           'name',
           'placement',
           'pipe_outer_diameter',
@@ -141,9 +141,9 @@ describe('HeatCalcPage settings — columns', () => {
       expect(saved.types.pipe.visibleOrder.slice(0, 8)).toEqual([
         'index',
         'heat_loss_status',
-        'heat_loss_per_meter',
+        'heat_loss_per_meter_base',
         'pipe_dn',
-        'total_heat_loss',
+        'total_heat_loss_design',
         'name',
         'placement',
         'pipe_outer_diameter',

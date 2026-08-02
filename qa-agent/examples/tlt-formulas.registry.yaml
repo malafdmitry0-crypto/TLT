@@ -138,7 +138,7 @@ formulas:
   - id: tlt_pipe_linear_heat_loss
     expression: "q_linear = deltaT / thermalResistance"
     variables: [deltaT, thermalResistance]
-    output: heat_loss_per_meter
+    output: heat_loss_per_meter_base
     tolerance:
       absoluteTolerance: 0.001
       relativeTolerance: 0.000001
@@ -164,7 +164,7 @@ formulas:
   - id: tlt_pipe_total_heat_loss
     expression: "Q = heatLossPerMeter * effectiveLength * safetyFactor"
     variables: [heatLossPerMeter, effectiveLength, safetyFactor]
-    output: total_heat_loss
+    output: total_heat_loss_design
     tolerance:
       absoluteTolerance: 0.001
       relativeTolerance: 0.000001
@@ -182,7 +182,7 @@ formulas:
       endpoint: /api/v1/admin/formula-check
       auth: admin
       formulaType: pipe
-      resultPath: total_heat_loss
+      resultPath: total_heat_loss_design
       requestShape: '{ formula_type: "pipe", params: PipeHeatLossParams }'
     oracle:
       status: implemented
@@ -248,7 +248,7 @@ formulas:
       endpoint: /api/v1/admin/formula-check
       auth: admin
       formulaType: pipe
-      resultPath: total_heat_loss
+      resultPath: total_heat_loss_design
       requestShape: '{ formula_type: "pipe", params: PipeHeatLossParams }'
     oracle:
       status: external_reference_required
@@ -261,7 +261,7 @@ formulas:
   - id: tlt_tank_surface_area_cylindrical
     expression: "S = pi * diameter * height + 2 * pi * (diameter / 2)^2"
     variables: [diameter, height]
-    output: surface_area
+    output: surface_area_bare
     tolerance:
       absoluteTolerance: 0.001
       relativeTolerance: 0.000001
@@ -285,7 +285,7 @@ formulas:
   - id: tlt_tank_surface_area_rectangular
     expression: "S = 2 * (length * width + length * height + width * height)"
     variables: [length, width, height]
-    output: surface_area
+    output: surface_area_bare
     tolerance:
       absoluteTolerance: 0.001
       relativeTolerance: 0.000001
@@ -311,7 +311,7 @@ formulas:
   - id: tlt_tank_surface_area_spherical
     expression: "S = 4 * pi * (diameter / 2)^2"
     variables: [diameter]
-    output: surface_area
+    output: surface_area_bare
     tolerance:
       absoluteTolerance: 0.001
       relativeTolerance: 0.000001
@@ -360,7 +360,7 @@ formulas:
   - id: tlt_tank_flat_heat_flux
     expression: "q = deltaT / (wallResistance + insulationResistance + externalResistance)"
     variables: [deltaT, wallResistance, insulationResistance, externalResistance]
-    output: heat_loss_per_m2
+    output: heat_loss_per_m2_bare_base
     tolerance:
       absoluteTolerance: 0.001
       relativeTolerance: 0.000001
@@ -389,7 +389,7 @@ formulas:
   - id: tlt_tank_total_heat_loss
     expression: "Q = heatLossPerM2 * surfaceArea * safetyFactor + qAdditional"
     variables: [heatLossPerM2, surfaceArea, safetyFactor, qAdditional]
-    output: total_heat_loss
+    output: total_heat_loss_design
     tolerance:
       absoluteTolerance: 0.001
       relativeTolerance: 0.000001
@@ -408,7 +408,7 @@ formulas:
       endpoint: /api/v1/admin/formula-check
       auth: admin
       formulaType: tank
-      resultPath: total_heat_loss
+      resultPath: total_heat_loss_design
       requestShape: '{ formula_type: "tank", params: TankHeatLossParams }'
     oracle:
       status: implemented
@@ -476,7 +476,7 @@ formulas:
       endpoint: /api/v1/admin/formula-check
       auth: admin
       formulaType: tank
-      resultPath: total_heat_loss
+      resultPath: total_heat_loss_design
       requestShape: '{ formula_type: "tank", params: TankHeatLossParams }'
     oracle:
       status: external_reference_required

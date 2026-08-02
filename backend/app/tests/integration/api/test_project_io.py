@@ -62,7 +62,7 @@ async def _seed_sparse_v2_export_graph(
         object_type="pipe",
         sort_order=0,
         params={**PIPE_PARAMS, "name": "Труба ЭР1"},
-        results={"total_heat_loss": 100.0},
+        results={"total_heat_loss_design": 100.0},
         is_valid=True,
     )
     second = ProjectObject(
@@ -70,7 +70,7 @@ async def _seed_sparse_v2_export_graph(
         object_type="pipe",
         sort_order=1,
         params={**PIPE_PARAMS, "name": "Труба ЭР4", "pipe_length": 75.0},
-        results={"total_heat_loss": 150.0},
+        results={"total_heat_loss_design": 150.0},
         is_valid=True,
     )
     db_session.add_all([first, second])

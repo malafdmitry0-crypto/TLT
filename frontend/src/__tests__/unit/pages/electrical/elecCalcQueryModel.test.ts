@@ -53,7 +53,7 @@ function page(objectIds: string[], calculations: ElectricalCalcSummary[]): Elect
       sort_order: sortOrder,
       version: 1,
       params: { name: id },
-      results: { total_heat_loss: 100 },
+      results: { total_heat_loss_design: 100 },
       is_valid: true,
       validation_errors: null,
       created_at: '2026-07-18T00:00:00Z',

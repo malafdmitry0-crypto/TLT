@@ -242,8 +242,8 @@ class TestHeatLossCalculation:
         )
         assert resp.status_code == 200, resp.text
         result = resp.json()["result"]
-        assert result["heat_loss_per_meter"] > 0
-        assert result["total_heat_loss"] > 0
+        assert result["heat_loss_per_meter_base"] > 0
+        assert result["total_heat_loss_design"] > 0
         assert result["thermal_resistance"] > 0
 
     async def test_heat_loss_accepts_named_local_element_counts(
@@ -273,9 +273,9 @@ class TestHeatLossCalculation:
         )
         assert resp.status_code == 200, resp.text
         result = resp.json()["result"]
-        assert result["local_elements_count"] == 6
-        assert result["local_element_equiv_length"] == pytest.approx(1.25)
-        assert result["total_heat_loss"] > 0
+        assert result["local_elements_count_applied"] == 6
+        assert result["local_element_equiv_length_applied"] == pytest.approx(1.25)
+        assert result["total_heat_loss_design"] > 0
 
     async def test_invalid_params_returns_422(self, client: AsyncClient, guest_session: str):
         project = await _create_project(client, guest_session)
@@ -370,7 +370,7 @@ class TestHeatLossCalculation:
         )
 
         assert resp.status_code == 200, resp.text
-        assert resp.json()["result"]["total_heat_loss"] > 0
+        assert resp.json()["result"]["total_heat_loss_design"] > 0
 
     async def test_insulation_material_temperature_range_returns_422(
         self, client: AsyncClient, guest_session: str
@@ -2061,8 +2061,8 @@ class TestElectricalCalculationContinued:
         obj = obj_result.scalar_one()
         obj.results = {
             **(obj.results or {}),
-            "heat_loss_per_meter": 300.0,
-            "total_heat_loss": 15000.0,
+            "heat_loss_per_meter_base": 300.0,
+            "total_heat_loss_design": 15000.0,
             "effective_length": 50.0,
         }
         await db_session.commit()
@@ -2296,7 +2296,7 @@ class TestElectricalCalculationContinued:
         assert body["calculated"] == 1
         result = body["results"][0]["results"]
         assert result["installed_cable_length"] > tank["params"]["height"] * 1.1
-        assert result["total_power"] >= tank["results"]["total_heat_loss"]
+        assert result["total_power"] >= tank["results"]["total_heat_loss_design"]
 
     async def test_batch_can_skip_result_payload(self, client: AsyncClient, guest_session: str):
         project = await _create_project(client, guest_session)
@@ -3239,7 +3239,7 @@ class TestNoDoubleSafetyFactor:
             guest_session,
         )
 
-        q_linear = obj["results"]["heat_loss_per_meter"]
+        q_linear = obj["results"]["heat_loss_per_meter_base"]
         required_effective_single = q_linear * 1.1
         required_effective_double = q_linear * 1.21  # = 1.1**2
 
@@ -3268,10 +3268,10 @@ class TestNoDoubleSafetyFactor:
             f"Если факт = double — это регрессия по safety_factor."
         )
 
-    async def test_total_heat_loss_equals_q_linear_times_L_times_K(
+    async def test_total_heat_loss_design_equals_q_linear_times_L_times_K(
         self, client: AsyncClient, guest_session: str
     ):
-        """Контракт API: total_heat_loss = heat_loss_per_meter × L × K.
+        """Контракт API: total_heat_loss_design = heat_loss_per_meter_base × L × K.
 
         Эта формула — отправная точка, от которой зависит, где «живёт» К.
         Если контракт сломается (например K будет зашит в q_linear),
@@ -3286,14 +3286,14 @@ class TestNoDoubleSafetyFactor:
             process_temperature=80,
         )
         results = obj["results"]
-        q = results["heat_loss_per_meter"]
-        total = results["total_heat_loss"]
+        q = results["heat_loss_per_meter_base"]
+        total = results["total_heat_loss_design"]
         l_eff = results["effective_length"]  # 50 без локальных элементов
 
         # К по умолчанию = 1.1 (safety_factor)
         expected_total = q * l_eff * 1.1
         assert total == pytest.approx(expected_total, rel=1e-3), (
-            f"total_heat_loss={total} != q × L × K = {q} × {l_eff} × 1.1 = {expected_total}. "
+            f"total_heat_loss_design={total} != q × L × K = {q} × {l_eff} × 1.1 = {expected_total}. "
             f"Либо K зашит в q_linear (double-K риск), либо L_eff изменилось."
         )
 

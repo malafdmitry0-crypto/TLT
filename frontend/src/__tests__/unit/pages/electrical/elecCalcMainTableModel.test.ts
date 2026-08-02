@@ -38,8 +38,8 @@ function projectObject(overrides: Partial<ProjectObject> = {}): ProjectObject {
     version: 1,
     params: { name: 'Труба DN100' },
     results: {
-      heat_loss_per_meter: 42.5,
-      total_heat_loss: 2125,
+      heat_loss_per_meter_base: 42.5,
+      total_heat_loss_design: 2125,
     },
     is_valid: true,
     validation_errors: null,
@@ -117,8 +117,8 @@ describe('elecCalcMainTableModel', () => {
     expect(mainElectricalColumnCopyValue('object_type', object, 0, context)).toBe('Труба');
     expect(mainElectricalColumnCopyValue('heat_loss_status', object, 0, context)).toBe('Рассчитан');
     expect(mainElectricalColumnCopyValue('electrical_status', object, 0, context)).toBe('Рассчитан');
-    expect(mainElectricalColumnCopyValue('heat_loss_per_meter', object, 0, context)).toBe('42.5');
-    expect(mainElectricalColumnCopyValue('total_heat_loss', object, 0, context)).toBe('2125');
+    expect(mainElectricalColumnCopyValue('heat_loss_per_meter_base', object, 0, context)).toBe('42.5');
+    expect(mainElectricalColumnCopyValue('total_heat_loss_design', object, 0, context)).toBe('2125');
 
     expect(mainElectricalColumnCopyValue(
       'heat_loss_status',

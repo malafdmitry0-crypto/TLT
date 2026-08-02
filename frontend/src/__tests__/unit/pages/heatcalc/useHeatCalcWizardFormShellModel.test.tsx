@@ -50,7 +50,7 @@ function makeObject(overrides: Partial<ProjectObject> = {}): ProjectObject {
       support_count: 3,
       local_element_equiv_length: 1.5,
     },
-    results: { heat_loss_per_meter: 50, total_heat_loss: 5000 },
+    results: { heat_loss_per_meter_base: 50, total_heat_loss_design: 5000 },
     is_valid: true,
     validation_errors: null,
     created_at: '2026-01-01T00:00:00Z',

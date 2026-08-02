@@ -48,7 +48,7 @@ describe('ElecCalcPage cable metadata / source / inline — object-fields', () =
             ambient_temperature: -30,
             process_temperature: 80,
           },
-          results: { heat_loss_per_meter: 100, total_heat_loss: 5000 },
+          results: { heat_loss_per_meter_base: 100, total_heat_loss_design: 5000 },
         }),
       ], [
         {
@@ -126,7 +126,7 @@ describe('ElecCalcPage cable metadata / source / inline — object-fields', () =
             ambient_temperature: -30,
             process_temperature: 80,
           },
-          results: { heat_loss_per_m2: 45, total_heat_loss: 9000 },
+          results: { heat_loss_per_m2_bare_base: 45, total_heat_loss_design: 9000 },
         }),
       ], [
         {

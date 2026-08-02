@@ -47,8 +47,8 @@ describe('HeatCalcPage basics — object type', () => {
       expect(screen.queryByText('Резервуар прямоугольный')).not.toBeInTheDocument();
       expect(screen.getAllByText('DN').length).toBeGreaterThan(0);
       expect(screen.getAllByText('L, м').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('q, Вт/м').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('Q, Вт').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('q до K, Вт/м').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Q проект., Вт').length).toBeGreaterThan(0);
       expect(screen.getByText('50,0')).toBeInTheDocument();
     });
 
@@ -93,8 +93,8 @@ describe('HeatCalcPage basics — object type', () => {
       expect(screen.getAllByText('Форма').length).toBeGreaterThan(0);
       expect(screen.getAllByText('Габариты').length).toBeGreaterThan(0);
       expect(screen.getAllByText('Размещение').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('q, Вт/м²').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('Q, Вт').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('q до K, Вт/м²').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Q проект., Вт').length).toBeGreaterThan(0);
       expect(screen.getByText('35,0')).toBeInTheDocument();
       expect(screen.queryByText('DN')).not.toBeInTheDocument();
       expect(screen.queryByText('L, м')).not.toBeInTheDocument();

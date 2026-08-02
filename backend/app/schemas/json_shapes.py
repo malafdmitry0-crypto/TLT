@@ -27,69 +27,81 @@ InsulationTemperatureBasisDict = Literal[
 ]
 
 
-class HeatLossCalculationTraceDict(TypedDict):
-    """Воспроизводимые сведения о расчётном контуре теплопотерь ТНП."""
-
-    formula_id: Literal["pipe_heat_loss", "tank_heat_loss"]
-    formula_version: str
-    formula_source: str
-    coefficients_source: str
-    coefficients_version: str
-    materials_source: str
-    materials_version: str
-    tm_mode: InsulationTemperatureBasisDict
-    insulation_tm: float
-    safety_factor: float
-    applied_coefficients: dict[str, float]
-
-
-PipeHeatLossCalculationTraceDict = HeatLossCalculationTraceDict
-TankHeatLossCalculationTraceDict = HeatLossCalculationTraceDict
-
 # ---------------------------------------------------------------------------
 # results-поля project_objects.results (JSONB)
 # ---------------------------------------------------------------------------
 
 
-class PipeHeatLossResultDict(TypedDict):
+class InsulationLayerAppliedDict(TypedDict):
+    """Resolved insulation data used by the formula."""
+
+    index: int
+    thickness: float
+    material: str
+    conductivity_applied: float
+    conductivity_source: Literal["manual", "reference_data"]
+    conductivity_temperature_applied: float
+    resistance: float
+    resistance_unit: Literal["m*K/W", "m2*K/W"]
+
+
+class HeatResultTraceDict(TypedDict):
+    """Common top-level trace shared by both heat result variants."""
+
+    formula_model: str
+    formula_model_version: str
+    model_assumptions: list[str]
+    process_temperature_applied: float | None
+    ambient_temperature_applied: float | None
+    ground_temperature_applied: float | None
+    safety_factor_applied: float
+    insulation_layers_applied: list[InsulationLayerAppliedDict]
+    input_units: dict[str, str]
+    applied_units: dict[str, str]
+    source_corrections: list[str]
+
+
+class PipeHeatLossResultDict(HeatResultTraceDict):
     """Результат расчёта теплопотерь трубы. Зеркало `PipeHeatLossResult`."""
 
-    heat_loss_per_meter: float  # q_linear — без учёта safety_factor
-    total_heat_loss: float  # q_linear × L_eff × K
+    heat_loss_per_meter_base: float  # q_linear — без safety_factor
+    heat_loss_per_meter_design: float  # q_linear × K
+    total_heat_loss_base: float  # q_linear × L_eff
+    total_heat_loss_design: float  # q_linear × L_eff × K
     effective_length: float  # L + n·L_экв
+    additional_equivalent_length: float
     thermal_resistance: float  # м·К/Вт
-    wall_resistance: NotRequired[float | None]
-    insulation_resistance: NotRequired[float | None]
-    external_resistance: NotRequired[float | None]
-    alpha_vnesh: NotRequired[float | None]
-    wind_speed: NotRequired[float | None]
-    ground_conductivity: NotRequired[float | None]
-    safety_factor: NotRequired[float | None]
-    local_elements_count: NotRequired[int | None]
-    local_element_equiv_length: NotRequired[float | None]
-    calculation_trace: NotRequired[PipeHeatLossCalculationTraceDict]
+    wall_resistance: float | None
+    insulation_resistance: float | None
+    external_resistance: float | None
+    alpha_vnesh_applied: float | None
+    wind_speed_applied: float | None
+    ground_conductivity_applied: float | None
+    local_elements_count_applied: int | None
+    local_element_equiv_length_applied: float | None
 
 
-class TankHeatLossResultDict(TypedDict):
+class TankHeatLossResultDict(HeatResultTraceDict):
     """Результат расчёта теплопотерь резервуара. Зеркало `TankHeatLossResult`."""
 
-    heat_loss_per_m2: float  # q — без учёта safety_factor
-    total_heat_loss: float  # q × S × K + Q_доп
-    surface_area: float  # м²
-    wall_resistance: NotRequired[float | None]
-    insulation_resistance: NotRequired[float | None]
-    external_resistance: NotRequired[float | None]
-    ground_resistance: NotRequired[float | None]
-    alpha_vnesh: NotRequired[float | None]
-    wind_speed: NotRequired[float | None]
-    ground_conductivity: NotRequired[float | None]
-    safety_factor: NotRequired[float | None]
-    air_surface_area: NotRequired[float | None]
-    ground_surface_area: NotRequired[float | None]
-    heat_loss_air_per_m2: NotRequired[float | None]
-    heat_loss_ground_per_m2: NotRequired[float | None]
-    q_additional: NotRequired[float | None]
-    calculation_trace: NotRequired[TankHeatLossCalculationTraceDict]
+    total_heat_loss_base: float
+    total_heat_loss_design: float
+    heat_loss_per_m2_bare_base: float
+    heat_loss_per_m2_bare_design: float
+    surface_area_bare: float
+    thermal_resistance_areal_bare: float | None
+    wall_resistance_areal_bare: float | None
+    insulation_resistance_areal_bare: float | None
+    external_resistance_areal_bare: float | None
+    ground_resistance_areal_bare: float | None
+    alpha_vnesh_applied: float | None
+    wind_speed_applied: float | None
+    ground_conductivity_applied: float | None
+    air_surface_area: float | None
+    ground_surface_area: float | None
+    heat_loss_air_base: float | None
+    heat_loss_ground_base: float | None
+    q_additional_applied: float
 
 
 # Алиас: результат любого теплорасчёта

@@ -22,8 +22,8 @@ describe('heatCalcExcelMode — editable columns', () => {
     expect(keys).toContain('supply_voltage');
     expect(keys).not.toContain('index');
     expect(keys).not.toContain('heat_loss_status');
-    expect(keys).not.toContain('heat_loss_per_meter');
-    expect(keys).not.toContain('total_heat_loss');
+    expect(keys).not.toContain('heat_loss_per_meter_base');
+    expect(keys).not.toContain('total_heat_loss_design');
     expect(keys).not.toContain('pipe_dn');
   });
 
@@ -35,8 +35,8 @@ describe('heatCalcExcelMode — editable columns', () => {
     expect(keys).toContain('tank_height');
     expect(keys).not.toContain('index');
     expect(keys).not.toContain('heat_loss_status');
-    expect(keys).not.toContain('heat_loss_per_m2');
-    expect(keys).not.toContain('total_heat_loss');
+    expect(keys).not.toContain('heat_loss_per_m2_bare_base');
+    expect(keys).not.toContain('total_heat_loss_design');
     expect(keys).not.toContain('tank_shape');
   });
 

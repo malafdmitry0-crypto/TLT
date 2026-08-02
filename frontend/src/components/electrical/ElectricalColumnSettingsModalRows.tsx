@@ -96,17 +96,17 @@ const COLUMN_DETAIL_BADGES: Record<ElectricalColumnKey, ColumnDetailBadge> = {
     tooltip: 'Геометрический параметр обогрева резервуара',
     tone: 'geometry',
   },
-  heat_loss_per_meter: {
+  heat_loss_per_meter_base: {
     label: 'Теплопотери',
     tooltip: 'Значение приходит из результата расчёта теплопотерь трубы',
     tone: 'specific',
   },
-  heat_loss_per_m2: {
+  heat_loss_per_m2_bare_base: {
     label: 'Теплопотери',
     tooltip: 'Значение приходит из результата расчёта теплопотерь резервуара',
     tone: 'specific',
   },
-  total_heat_loss: {
+  total_heat_loss_design: {
     label: 'Теплопотери',
     tooltip: 'Суммарные теплопотери из результата теплового расчёта',
     tone: 'specific',

@@ -49,7 +49,7 @@ class TestSurfaceArea:
     def test_cylindrical(self):
         r = calc_tank_heat_loss(_cyl(diameter=2.0, height=3.0))
         expected = math.pi * 2.0 * 3.0 + 2 * math.pi * 1.0**2
-        assert r.surface_area == pytest.approx(expected, rel=1e-3)
+        assert r.surface_area_bare == pytest.approx(expected, rel=1e-3)
 
     def test_rectangular(self):
         params = TankHeatLossParams(
@@ -65,7 +65,7 @@ class TestSurfaceArea:
         )
         r = calc_tank_heat_loss(params)
         # 2*(L*W + L*H + W*H) = 2*(8+8+4) = 40
-        assert r.surface_area == pytest.approx(40.0, rel=1e-3)
+        assert r.surface_area_bare == pytest.approx(40.0, rel=1e-3)
 
     def test_spherical(self):
         params = TankHeatLossParams(
@@ -78,7 +78,7 @@ class TestSurfaceArea:
             process_temperature=80,
         )
         r = calc_tank_heat_loss(params)
-        assert r.surface_area == pytest.approx(4 * math.pi * 1.5**2, rel=1e-3)
+        assert r.surface_area_bare == pytest.approx(4 * math.pi * 1.5**2, rel=1e-3)
 
     def test_rectangular_requires_dimensions(self):
         with pytest.raises(ValueError, match="параллелепипед"):
@@ -102,8 +102,25 @@ class TestSurfaceArea:
 class TestHeatLossFormula:
     def test_positive_result(self):
         r = calc_tank_heat_loss(_cyl())
-        assert r.heat_loss_per_m2 > 0
-        assert r.total_heat_loss > 0
+        assert r.heat_loss_per_m2_bare_base > 0
+        assert r.total_heat_loss_design > 0
+
+    def test_result_trace_contains_resolved_layer_and_stable_formula_revision(self):
+        result = calc_tank_heat_loss(_cyl())
+
+        assert result.formula_model == "tank_heat_loss"
+        assert result.formula_model_version == "2"
+        assert len(result.insulation_layers_applied) == 1
+        layer = result.insulation_layers_applied[0]
+        assert layer.conductivity_applied > 0
+        assert layer.conductivity_source == "reference_data"
+        assert layer.resistance_unit == "m2*K/W"
+
+    def test_manual_alpha_does_not_claim_wind_was_applied(self):
+        result = calc_tank_heat_loss(_cyl(alpha_vnesh=15.0, wind_speed=8.0))
+
+        assert result.alpha_vnesh_applied == pytest.approx(15.0)
+        assert result.wind_speed_applied is None
 
     def test_layer_temperature_above_material_range_raises(self):
         params = _cyl(
@@ -127,7 +144,7 @@ class TestHeatLossFormula:
             process_temperature=200.0,
         )
 
-        assert calc_tank_heat_loss(params).heat_loss_per_m2 > 0
+        assert calc_tank_heat_loss(params).heat_loss_per_m2_bare_base > 0
 
     def test_other_layer_uses_manual_temperature_range(self):
         params = _cyl(
@@ -161,15 +178,15 @@ class TestHeatLossFormula:
         expected_q = delta_t / (r_ins + r_ext)
         # K=1.1 (default)
         r = calc_tank_heat_loss(params)
-        assert r.heat_loss_per_m2 == pytest.approx(expected_q, rel=0.01)
+        assert r.heat_loss_per_m2_bare_base == pytest.approx(expected_q, rel=0.01)
 
     def test_underground_cylindrical_split_uses_ground_resistance(self):
         """Подземный резервуар считается раздельно по надземной и заглублённой площади."""
         above = calc_tank_heat_loss(_cyl(burial_depth=0.0, ground_conductivity=1.5))
         buried = calc_tank_heat_loss(_cyl(burial_depth=1.5, ground_conductivity=1.5))
-        assert buried.total_heat_loss > 0
-        assert buried.surface_area == pytest.approx(above.surface_area, rel=1e-6)
-        assert buried.total_heat_loss != pytest.approx(above.total_heat_loss, rel=1e-6)
+        assert buried.total_heat_loss_design > 0
+        assert buried.surface_area_bare == pytest.approx(above.surface_area_bare, rel=1e-6)
+        assert buried.total_heat_loss_design != pytest.approx(above.total_heat_loss_design, rel=1e-6)
 
     def test_underground_depth_cannot_exceed_height(self):
         with pytest.raises(ValueError, match="подземной части"):
@@ -179,7 +196,7 @@ class TestHeatLossFormula:
         """С учётом стенки потери должны быть меньше — добавляется сопротивление."""
         without_wall = calc_tank_heat_loss(_cyl())
         with_wall = calc_tank_heat_loss(_cyl(wall_thickness=0.008, wall_lambda=50.0))
-        assert with_wall.heat_loss_per_m2 < without_wall.heat_loss_per_m2
+        assert with_wall.heat_loss_per_m2_bare_base < without_wall.heat_loss_per_m2_bare_base
 
     def test_three_insulation_layers_reduce_heat_loss(self):
         """Три слоя должны учитываться как сумма сопротивлений изоляции."""
@@ -194,7 +211,7 @@ class TestHeatLossFormula:
                 ],
             )
         )
-        assert three_layers.heat_loss_per_m2 < one_layer.heat_loss_per_m2
+        assert three_layers.heat_loss_per_m2_bare_base < one_layer.heat_loss_per_m2_bare_base
 
     def test_wall_resistance_manual(self):
         """q с учётом стенки."""
@@ -211,7 +228,7 @@ class TestHeatLossFormula:
         delta_t = 100.0
         expected_q = delta_t / (r_wall + r_ins + r_ext)
         r = calc_tank_heat_loss(params)
-        assert r.heat_loss_per_m2 == pytest.approx(expected_q, rel=0.01)
+        assert r.heat_loss_per_m2_bare_base == pytest.approx(expected_q, rel=0.01)
 
 
 # ---------------------------------------------------------------------------
@@ -243,15 +260,15 @@ class TestAlpha:
         """Больше ветра → меньше R_ext → больше теплопотерь."""
         low = calc_tank_heat_loss(_cyl(wind_speed=0.0))
         high = calc_tank_heat_loss(_cyl(wind_speed=5.0))
-        assert high.heat_loss_per_m2 > low.heat_loss_per_m2
+        assert high.heat_loss_per_m2_bare_base > low.heat_loss_per_m2_bare_base
 
     def test_indoor_location_contract(self):
         indoor = calc_tank_heat_loss(_cyl(location="indoor"))
         outdoor = calc_tank_heat_loss(_cyl(location="outdoor", wind_speed=0.0))
         # indoor α=9.0, outdoor α=11.6, but q also includes the placement-specific tm basis.
-        assert indoor.alpha_vnesh == pytest.approx(9.0)
-        assert outdoor.alpha_vnesh == pytest.approx(11.6)
-        assert indoor.external_resistance > outdoor.external_resistance
+        assert indoor.alpha_vnesh_applied == pytest.approx(9.0)
+        assert outdoor.alpha_vnesh_applied == pytest.approx(11.6)
+        assert indoor.external_resistance_areal_bare > outdoor.external_resistance_areal_bare
         # Итог зависит также от режима tm; дополнительного Kразм нет.
 
 
@@ -264,21 +281,21 @@ class TestSafetyFactor:
     def test_default_k_applied(self):
         """Без явного K используется 1.1 из DEFAULT_COEFFICIENTS."""
         r_no_k = calc_tank_heat_loss(_cyl())
-        area = r_no_k.surface_area
-        # q * area * 1.1 == total_heat_loss
-        assert r_no_k.total_heat_loss == pytest.approx(
-            r_no_k.heat_loss_per_m2 * area * 1.1, rel=1e-3
+        area = r_no_k.surface_area_bare
+        # q * area * 1.1 == total_heat_loss_design
+        assert r_no_k.total_heat_loss_design == pytest.approx(
+            r_no_k.heat_loss_per_m2_bare_base * area * 1.1, rel=1e-3
         )
 
     def test_explicit_k(self):
         r_k11 = calc_tank_heat_loss(_cyl(safety_factor=1.1))
         r_k15 = calc_tank_heat_loss(_cyl(safety_factor=1.5))
-        assert r_k15.total_heat_loss == pytest.approx(r_k11.total_heat_loss * (1.5 / 1.1), rel=1e-3)
+        assert r_k15.total_heat_loss_design == pytest.approx(r_k11.total_heat_loss_design * (1.5 / 1.1), rel=1e-3)
 
     def test_larger_k_larger_total(self):
         r1 = calc_tank_heat_loss(_cyl())
         r2 = calc_tank_heat_loss(_cyl(), coefficients={"safety_factor": 1.3})
-        assert r2.total_heat_loss > r1.total_heat_loss
+        assert r2.total_heat_loss_design > r1.total_heat_loss_design
 
 
 # ---------------------------------------------------------------------------
@@ -297,15 +314,15 @@ class TestLegacyFactorsIgnored:
             coefficients={"location_indoor": 0.9},
         )
 
-        assert adjusted.heat_loss_per_m2 == pytest.approx(base.heat_loss_per_m2, rel=1e-6)
-        assert adjusted.total_heat_loss == pytest.approx(base.total_heat_loss, rel=1e-6)
+        assert adjusted.heat_loss_per_m2_bare_base == pytest.approx(base.heat_loss_per_m2_bare_base, rel=1e-6)
+        assert adjusted.total_heat_loss_design == pytest.approx(base.total_heat_loss_design, rel=1e-6)
         assert "location_factor" not in adjusted.model_dump()
 
     def test_legacy_wind_factor_does_not_change_alpha_or_total(self):
         base = calc_tank_heat_loss(_cyl(wind_speed=4.0))
         legacy = calc_tank_heat_loss(_cyl(wind_speed=4.0), coefficients={"wind_factor": 0.5})
-        assert legacy.alpha_vnesh == pytest.approx(base.alpha_vnesh)
-        assert legacy.total_heat_loss == pytest.approx(base.total_heat_loss)
+        assert legacy.alpha_vnesh_applied == pytest.approx(base.alpha_vnesh_applied)
+        assert legacy.total_heat_loss_design == pytest.approx(base.total_heat_loss_design)
 
 
 class TestTnpGoldenFormula:
@@ -328,8 +345,8 @@ class TestTnpGoldenFormula:
         expected_total = q * area * 1.2 + 50.0
 
         result = calc_tank_heat_loss(params)
-        assert result.heat_loss_per_m2 == pytest.approx(q, abs=1e-3)
-        assert result.total_heat_loss == pytest.approx(expected_total, abs=1e-3)
+        assert result.heat_loss_per_m2_bare_base == pytest.approx(q, abs=1e-3)
+        assert result.total_heat_loss_design == pytest.approx(expected_total, abs=1e-3)
 
 
 # ---------------------------------------------------------------------------
@@ -341,20 +358,20 @@ class TestMonotonicity:
     def test_thicker_insulation_reduces_losses(self):
         thin = calc_tank_heat_loss(_cyl(insulation_thickness=0.05))
         thick = calc_tank_heat_loss(_cyl(insulation_thickness=0.20))
-        assert thick.heat_loss_per_m2 < thin.heat_loss_per_m2
+        assert thick.heat_loss_per_m2_bare_base < thin.heat_loss_per_m2_bare_base
 
     def test_higher_delta_t_more_losses(self):
         small = calc_tank_heat_loss(_cyl(process_temperature=50.0))
         large = calc_tank_heat_loss(_cyl(process_temperature=150.0))
-        assert large.heat_loss_per_m2 > small.heat_loss_per_m2
+        assert large.heat_loss_per_m2_bare_base > small.heat_loss_per_m2_bare_base
 
     def test_total_proportional_to_area(self):
         """Одинаковый цилиндр но вдвое выше → примерно вдвое больше площадь."""
         r_h3 = calc_tank_heat_loss(_cyl(height=3.0))
         r_h6 = calc_tank_heat_loss(_cyl(height=6.0))
         # q/m2 одинаковый, площадь разная
-        assert r_h3.heat_loss_per_m2 == pytest.approx(r_h6.heat_loss_per_m2, rel=0.05)
-        assert r_h6.total_heat_loss > r_h3.total_heat_loss
+        assert r_h3.heat_loss_per_m2_bare_base == pytest.approx(r_h6.heat_loss_per_m2_bare_base, rel=0.05)
+        assert r_h6.total_heat_loss_design > r_h3.total_heat_loss_design
 
 
 # ---------------------------------------------------------------------------
@@ -376,8 +393,8 @@ class TestValidation:
         without = calc_tank_heat_loss(_cyl())
         with_thickness_only = calc_tank_heat_loss(_cyl(wall_thickness=0.01))
         # wall_lambda=None → стенка не учитывается → результат одинаковый
-        assert without.heat_loss_per_m2 == pytest.approx(
-            with_thickness_only.heat_loss_per_m2, rel=1e-6
+        assert without.heat_loss_per_m2_bare_base == pytest.approx(
+            with_thickness_only.heat_loss_per_m2_bare_base, rel=1e-6
         )
 
 
@@ -389,19 +406,23 @@ class TestValidation:
 class TestQAdditional:
     def test_zero_by_default(self):
         r = calc_tank_heat_loss(_cyl())
-        assert r.q_additional == 0.0
+        assert r.q_additional_applied == 0.0
 
-    def test_adds_to_total_heat_loss(self):
+    def test_adds_to_total_heat_loss_design(self):
         base = calc_tank_heat_loss(_cyl())
         with_extra = calc_tank_heat_loss(_cyl(q_additional=500.0))
-        assert with_extra.total_heat_loss == pytest.approx(base.total_heat_loss + 500.0, rel=1e-4)
+        assert with_extra.total_heat_loss_design == pytest.approx(base.total_heat_loss_design + 500.0, rel=1e-4)
+        assert with_extra.heat_loss_per_m2_bare_design == pytest.approx(
+            with_extra.total_heat_loss_design / with_extra.surface_area_bare,
+            rel=1e-3,
+        )
 
-    def test_does_not_affect_heat_loss_per_m2(self):
+    def test_does_not_affect_heat_loss_per_m2_bare_base(self):
         """Q_доп не входит в удельные потери — только в суммарные."""
         base = calc_tank_heat_loss(_cyl())
         with_extra = calc_tank_heat_loss(_cyl(q_additional=1000.0))
-        assert with_extra.heat_loss_per_m2 == pytest.approx(base.heat_loss_per_m2, rel=1e-6)
+        assert with_extra.heat_loss_per_m2_bare_base == pytest.approx(base.heat_loss_per_m2_bare_base, rel=1e-6)
 
     def test_q_additional_reflected_in_result(self):
         r = calc_tank_heat_loss(_cyl(q_additional=250.0))
-        assert r.q_additional == pytest.approx(250.0, rel=1e-4)
+        assert r.q_additional_applied == pytest.approx(250.0, rel=1e-4)

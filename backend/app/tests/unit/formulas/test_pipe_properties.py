@@ -63,13 +63,13 @@ class TestMetamorphicPipe:
         """MR1: Q(2L) = 2·Q(L) при прочих равных."""
         r1 = calc_pipe_heat_loss(_p(pipe_length=50))
         r2 = calc_pipe_heat_loss(_p(pipe_length=100))
-        assert r2.total_heat_loss == pytest.approx(2 * r1.total_heat_loss, rel=1e-6)
-        assert r2.heat_loss_per_meter == pytest.approx(r1.heat_loss_per_meter, rel=1e-6)
+        assert r2.total_heat_loss_design == pytest.approx(2 * r1.total_heat_loss_design, rel=1e-6)
+        assert r2.heat_loss_per_meter_base == pytest.approx(r1.heat_loss_per_meter_base, rel=1e-6)
 
     def test_q_linear_independent_of_length(self):
         """MR2: q_linear НЕ зависит от длины трубы (инвариант по L)."""
         qs = [
-            calc_pipe_heat_loss(_p(pipe_length=L)).heat_loss_per_meter
+            calc_pipe_heat_loss(_p(pipe_length=L)).heat_loss_per_meter_base
             for L in (1.0, 10.0, 100.0, 1_000.0, 10_000.0)
         ]
         # Все значения q_linear должны быть одинаковыми (в пределах округления)
@@ -82,9 +82,9 @@ class TestMetamorphicPipe:
         """
         r1 = calc_pipe_heat_loss(_p(safety_factor=1.1))
         r2 = calc_pipe_heat_loss(_p(safety_factor=1.65))
-        assert r2.total_heat_loss == pytest.approx((1.65 / 1.1) * r1.total_heat_loss, rel=1e-3)
-        assert r2.heat_loss_per_meter == pytest.approx(
-            r1.heat_loss_per_meter, rel=1e-6
+        assert r2.total_heat_loss_design == pytest.approx((1.65 / 1.1) * r1.total_heat_loss_design, rel=1e-3)
+        assert r2.heat_loss_per_meter_base == pytest.approx(
+            r1.heat_loss_per_meter_base, rel=1e-6
         ), "safety_factor не должен менять q_linear — только Q_total"
 
     def test_q_grows_with_delta_t_and_reference_lambda_tm(self):
@@ -96,7 +96,7 @@ class TestMetamorphicPipe:
         # Центрируем на нуле: ΔT=40 → [-20, 20], ΔT=80 → [-40, 40]
         r1 = calc_pipe_heat_loss(_p(ambient_temperature=-20, process_temperature=20))
         r2 = calc_pipe_heat_loss(_p(ambient_temperature=-40, process_temperature=40))
-        ratio = r2.heat_loss_per_meter / r1.heat_loss_per_meter
+        ratio = r2.heat_loss_per_meter_base / r1.heat_loss_per_meter_base
         assert 2.0 <= ratio <= 2.35
 
     # ── Монотонность ──────────────────────────────────────────────────────
@@ -104,8 +104,8 @@ class TestMetamorphicPipe:
     @pytest.mark.parametrize("low,high", [(0.02, 0.03), (0.03, 0.05), (0.05, 0.10), (0.10, 0.20)])
     def test_thicker_insulation_monotonically_reduces_loss(self, low, high):
         """MR5: ∂q/∂δ_из < 0 (строго монотонно)."""
-        q_low = calc_pipe_heat_loss(_p(insulation_thickness=low)).heat_loss_per_meter
-        q_high = calc_pipe_heat_loss(_p(insulation_thickness=high)).heat_loss_per_meter
+        q_low = calc_pipe_heat_loss(_p(insulation_thickness=low)).heat_loss_per_meter_base
+        q_high = calc_pipe_heat_loss(_p(insulation_thickness=high)).heat_loss_per_meter_base
         assert q_high < q_low
 
     @pytest.mark.parametrize("t_amb", [-50, -40, -20, 0, 20])
@@ -113,13 +113,13 @@ class TestMetamorphicPipe:
         """MR6: ∂q/∂T_среды < 0 (холоднее снаружи — больше потерь)."""
         r_base = calc_pipe_heat_loss(_p(ambient_temperature=t_amb))
         r_colder = calc_pipe_heat_loss(_p(ambient_temperature=t_amb - 10))
-        assert r_colder.heat_loss_per_meter > r_base.heat_loss_per_meter
+        assert r_colder.heat_loss_per_meter_base > r_base.heat_loss_per_meter_base
 
     def test_stronger_wind_increases_loss(self):
         """MR7: ∂q/∂v ≥ 0 при прочих равных."""
         qs = []
         for v in (0, 2, 5, 10, 15):
-            qs.append(calc_pipe_heat_loss(_p(wind_speed=v)).heat_loss_per_meter)
+            qs.append(calc_pipe_heat_loss(_p(wind_speed=v)).heat_loss_per_meter_base)
         assert all(qs[i] <= qs[i + 1] + 1e-6 for i in range(len(qs) - 1))
         # И эффект должен быть заметен
         assert qs[-1] > qs[0]
@@ -128,17 +128,17 @@ class TestMetamorphicPipe:
         """MR8: indoor uses α=9 and its own tm basis without a hidden Kразм."""
         indoor = calc_pipe_heat_loss(_p(location="indoor"))
         outdoor = calc_pipe_heat_loss(_p(location="outdoor", wind_speed=0))
-        assert indoor.alpha_vnesh == pytest.approx(9.0)
-        assert outdoor.alpha_vnesh == pytest.approx(11.6)
+        assert indoor.alpha_vnesh_applied == pytest.approx(9.0)
+        assert outdoor.alpha_vnesh_applied == pytest.approx(11.6)
         assert indoor.external_resistance > outdoor.external_resistance
         # Итог зависит также от режима tm; дополнительного Kразм нет.
 
     def test_lower_conductivity_material_reduces_loss(self):
         """MR9: ↓λ_из → ↓q (ППУ лучше минваты при тех же условиях)."""
-        q_mw = calc_pipe_heat_loss(_p(insulation_material=MINERAL_WOOL)).heat_loss_per_meter
+        q_mw = calc_pipe_heat_loss(_p(insulation_material=MINERAL_WOOL)).heat_loss_per_meter_base
         q_pu = calc_pipe_heat_loss(
             _p(insulation_material=LOW_LAMBDA_INSULATION)
-        ).heat_loss_per_meter
+        ).heat_loss_per_meter_base
         assert q_pu < q_mw
 
     # ── Композиционные инварианты ─────────────────────────────────────────
@@ -156,7 +156,7 @@ class TestMetamorphicPipe:
         )
         r_single = calc_pipe_heat_loss(params_single)
         r_multi = calc_pipe_heat_loss(params_multi)
-        assert r_multi.heat_loss_per_meter == pytest.approx(r_single.heat_loss_per_meter, rel=1e-3)
+        assert r_multi.heat_loss_per_meter_base == pytest.approx(r_single.heat_loss_per_meter_base, rel=1e-3)
 
     def test_multi_layer_order_independent_for_same_material(self):
         """MR11: Перестановка слоёв того же материала не меняет R."""
@@ -176,8 +176,8 @@ class TestMetamorphicPipe:
                 InsulationLayer(thickness=0.03, material=MINERAL_WOOL),
             ],
         )
-        assert calc_pipe_heat_loss(p_ab).heat_loss_per_meter == pytest.approx(
-            calc_pipe_heat_loss(p_ba).heat_loss_per_meter, rel=1e-6
+        assert calc_pipe_heat_loss(p_ab).heat_loss_per_meter_base == pytest.approx(
+            calc_pipe_heat_loss(p_ba).heat_loss_per_meter_base, rel=1e-6
         )
 
     def test_local_elements_increase_effective_length(self):
@@ -187,7 +187,7 @@ class TestMetamorphicPipe:
             _p(pipe_length=100, num_local_elements=5, local_element_equiv_length=2.0)
         )
         assert r_flanges.effective_length == pytest.approx(100 + 5 * 2.0)
-        assert r_flanges.total_heat_loss > r_base.total_heat_loss
+        assert r_flanges.total_heat_loss_design > r_base.total_heat_loss_design
 
     # ── Симметрия ─────────────────────────────────────────────────────────
 
@@ -198,10 +198,10 @@ class TestMetamorphicPipe:
         """
         q_low = calc_pipe_heat_loss(
             _p(ambient_temperature=-30, process_temperature=20)  # ΔT=50
-        ).heat_loss_per_meter
+        ).heat_loss_per_meter_base
         q_high = calc_pipe_heat_loss(
             _p(ambient_temperature=20, process_temperature=70)  # ΔT=50
-        ).heat_loss_per_meter
+        ).heat_loss_per_meter_base
         # Разность может быть заметной из-за λ(tm) изоляции, но остаётся
         # ограниченной для одного и того же ΔT.
         assert abs(q_low - q_high) / q_low < 0.20
@@ -242,11 +242,11 @@ class TestGoldenFromFormulesMd:
         )
         # Цилиндрическое Rиз: ln(0.104/0.054)/(2π×0.0534) ≈ 1.953394 м·К/Вт.
         # λиз(tm=40 °C)=0.045+0.00021×40=0.0534 Вт/(м·К).
-        assert r.heat_loss_per_meter == pytest.approx(47.954, rel=0.05)
+        assert r.heat_loss_per_meter_base == pytest.approx(47.954, rel=0.05)
         # Rвнеш=1/(2π×0.104×11.6)≈0.131926; RΣ≈2.085320 м·К/Вт.
         assert r.thermal_resistance > 0
         # Q=q×50×1.1×1.0≈2637.485 Вт.
-        assert r.total_heat_loss == pytest.approx(r.heat_loss_per_meter * 50 * 1.1, rel=1e-3)
+        assert r.total_heat_loss_design == pytest.approx(r.heat_loss_per_meter_base * 50 * 1.1, rel=1e-3)
 
     def test_alpha_formula_vnesh_exact(self):
         """α_внеш = 11.6 + 7·√v  (SNiP 41-03-2003)."""
@@ -321,7 +321,7 @@ class TestBuriedPipe:
         """Глубже закопанная труба теряет меньше (через R_grunt растёт с H)."""
         r_shallow = calc_pipe_heat_loss(_p(burial_depth=0.5, ground_conductivity=1.5))
         r_deep = calc_pipe_heat_loss(_p(burial_depth=3.0, ground_conductivity=1.5))
-        assert r_deep.heat_loss_per_meter < r_shallow.heat_loss_per_meter
+        assert r_deep.heat_loss_per_meter_base < r_shallow.heat_loss_per_meter_base
 
     def test_burial_depth_below_radius_raises(self):
         """H < r_из — труба физически не помещается в грунт."""
@@ -338,13 +338,13 @@ class TestBuriedPipe:
         """↑λ_grunt → ↓R_grunt → ↑q. Водонасыщенный грунт хуже сухого."""
         r_dry = calc_pipe_heat_loss(_p(burial_depth=2.0, ground_conductivity=0.8))
         r_wet = calc_pipe_heat_loss(_p(burial_depth=2.0, ground_conductivity=3.0))
-        assert r_wet.heat_loss_per_meter > r_dry.heat_loss_per_meter
+        assert r_wet.heat_loss_per_meter_base > r_dry.heat_loss_per_meter_base
 
     def test_buried_ignores_wind_speed(self):
         """При подземной прокладке скорость ветра не влияет."""
         r_v0 = calc_pipe_heat_loss(_p(burial_depth=1.5, wind_speed=0))
         r_v10 = calc_pipe_heat_loss(_p(burial_depth=1.5, wind_speed=10))
-        assert r_v0.heat_loss_per_meter == pytest.approx(r_v10.heat_loss_per_meter, rel=1e-6)
+        assert r_v0.heat_loss_per_meter_base == pytest.approx(r_v10.heat_loss_per_meter_base, rel=1e-6)
 
     def test_arccosh_formula_equivalence(self):
         """Проверка: arccosh(x) = ln(x + √(x²-1)) — вручную посчитать одну точку."""
@@ -362,7 +362,7 @@ class TestBuriedPipe:
                 process_temperature=90,
             )
         )
-        assert r.heat_loss_per_meter > 0
+        assert r.heat_loss_per_meter_base > 0
         assert r.thermal_resistance > 0
 
 
@@ -377,12 +377,12 @@ class TestBoundaryValues:
     def test_min_outer_diameter_accepted(self):
         """outer_diameter = 0.0108 м (10.8 мм, нижняя граница) — принимается."""
         r = calc_pipe_heat_loss(_p(outer_diameter=0.0108))
-        assert r.heat_loss_per_meter > 0
+        assert r.heat_loss_per_meter_base > 0
 
     def test_max_outer_diameter_accepted(self):
         """outer_diameter = 3.0 м (верхняя граница)."""
         r = calc_pipe_heat_loss(_p(outer_diameter=3.0))
-        assert r.heat_loss_per_meter > 0
+        assert r.heat_loss_per_meter_base > 0
 
     def test_below_min_diameter_rejected(self):
         """outer_diameter < 0.0108 → Pydantic ValidationError."""
@@ -400,12 +400,12 @@ class TestBoundaryValues:
     def test_min_pipe_length_accepted(self):
         """pipe_length = 0.5 м (минимум по SRS VAL-15) — принимается."""
         r = calc_pipe_heat_loss(_p(pipe_length=0.5))
-        assert r.total_heat_loss > 0
+        assert r.total_heat_loss_design > 0
 
     def test_max_pipe_length_accepted(self):
         """pipe_length = 200 000 м (максимум по ТНП)."""
         r = calc_pipe_heat_loss(_p(pipe_length=200_000))
-        assert r.total_heat_loss > 0
+        assert r.total_heat_loss_design > 0
 
     def test_zero_length_rejected(self):
         from pydantic import ValidationError

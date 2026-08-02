@@ -88,9 +88,9 @@ ELECTRICAL_TABLE_COLUMN_KEYS = {
     "total_cost",
     "stock_status",
     "lead_time_days",
-    "heat_loss_per_meter",
-    "heat_loss_per_m2",
-    "total_heat_loss",
+    "heat_loss_per_meter_base",
+    "heat_loss_per_m2_bare_base",
+    "total_heat_loss_design",
     "message",
 }
 ELECTRICAL_TABLE_COLUMN_REQUIRED_KEYS = {"index", "object_name", "cable_mark"}

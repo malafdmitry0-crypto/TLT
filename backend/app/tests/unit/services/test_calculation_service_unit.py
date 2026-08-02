@@ -201,9 +201,9 @@ class TestCalcHeatLoss:
                 "pipe_length": 10,
             },
         )
-        assert "heat_loss_per_meter" in result
-        assert "total_heat_loss" in result
-        assert result["heat_loss_per_meter"] > 0
+        assert "heat_loss_per_meter_base" in result
+        assert "total_heat_loss_design" in result
+        assert result["heat_loss_per_meter_base"] > 0
 
     async def test_tank_happy_path(self):
         service = CalculationService(_mock_db_empty())
@@ -220,9 +220,9 @@ class TestCalcHeatLoss:
                 "process_temperature": 80,
             },
         )
-        assert "heat_loss_per_m2" in result
-        assert "surface_area" in result
-        assert result["surface_area"] > 0
+        assert "heat_loss_per_m2_bare_base" in result
+        assert "surface_area_bare" in result
+        assert result["surface_area_bare"] > 0
 
     async def test_unknown_object_type_raises(self):
         service = CalculationService(_mock_db_empty())
@@ -260,7 +260,7 @@ class TestRecalculateObject:
         assert obj.is_valid is True
         assert obj.validation_errors is None
         assert obj.results is not None
-        assert obj.results["heat_loss_per_meter"] > 0
+        assert obj.results["heat_loss_per_meter_base"] > 0
 
     async def test_failure_sets_is_valid_false_and_captures_error(self):
         """Некорректные параметры (T_proc ≤ T_amb) → is_valid=False + error."""
@@ -298,7 +298,7 @@ class TestRecalculateObject:
             id=uuid.uuid4(),
             object_type="pipe",
             params={"outer_diameter": -1},  # невалидный
-            results={"heat_loss_per_meter": 123},  # старые данные
+            results={"heat_loss_per_meter_base": 123},  # старые данные
             is_valid=True,
             validation_errors=None,
         )
@@ -325,7 +325,7 @@ class TestRecalculateObject:
         )
         await service.recalculate_object(obj)
         assert obj.is_valid is True
-        assert obj.results["surface_area"] > 0
+        assert obj.results["surface_area_bare"] > 0
 
     async def test_unknown_object_type_marks_invalid(self):
         service = CalculationService(_mock_db_empty())
@@ -667,15 +667,23 @@ class TestCableLayoutMapping:
 
     def test_tank_q_additional_is_not_safetied_twice_for_electrical_input(self):
         service = CalculationService(_mock_db_empty())
+        safety_factor = 1.2
+        total_heat_loss_base = 1000.0
+        q_additional = 100.0
+        total_heat_loss_design = total_heat_loss_base * safety_factor + q_additional
         heat_loss = service._tank_heat_loss_without_double_safety(
             {
-                "total_heat_loss": 1300.0,
-                "safety_factor": 1.2,
-                "q_additional": 100.0,
+                "total_heat_loss_base": total_heat_loss_base,
+                "total_heat_loss_design": total_heat_loss_design,
+                "safety_factor_applied": safety_factor,
+                "q_additional_applied": q_additional,
             },
             fallback_safety_factor=1.1,
         )
-        assert heat_loss == pytest.approx(1300.0 / 1.2)
+        assert heat_loss == pytest.approx(total_heat_loss_design / safety_factor)
+        # Downstream self-regulating formula applies K once and restores exact
+        # Qdesign = Qbase*K + Qadditional (Qadditional is not multiplied twice).
+        assert heat_loss * safety_factor == pytest.approx(total_heat_loss_design)
 
     def test_pipe_electrical_length_uses_effective_length(self):
         service = CalculationService(_mock_db_empty())
@@ -688,7 +696,7 @@ class TestCableLayoutMapping:
                 "safety_factor": 1.1,
             },
             results={
-                "heat_loss_per_meter": 20,
+                "heat_loss_per_meter_base": 20,
                 "effective_length": 60,
             },
             is_valid=True,
@@ -718,7 +726,7 @@ class TestCableLayoutMapping:
                 "safety_factor": 1.1,
             },
             results={
-                "heat_loss_per_meter": 20.0,
+                "heat_loss_per_meter_base": 20.0,
                 "effective_length": 50,
             },
             is_valid=True,
@@ -747,7 +755,7 @@ class TestCableLayoutMapping:
                 "aggressive_product": True,
             },
             results={
-                "heat_loss_per_meter": 20.0,
+                "heat_loss_per_meter_base": 20.0,
                 "effective_length": 50,
             },
             is_valid=True,
@@ -776,9 +784,9 @@ class TestCableLayoutMapping:
                 "safety_factor": 1.1,
             },
             results={
-                "heat_loss_per_m2": 60.0,
-                "total_heat_loss": 1100.0,
-                "safety_factor": 1.1,
+                "heat_loss_per_m2_bare_base": 60.0,
+                "total_heat_loss_design": 1100.0,
+                "safety_factor_applied": 1.1,
             },
             is_valid=True,
         )
@@ -809,9 +817,9 @@ class TestCableLayoutMapping:
                 "safety_factor": 1.1,
             },
             results={
-                "heat_loss_per_m2": 60.0,
-                "total_heat_loss": 1100.0,
-                "safety_factor": 1.1,
+                "heat_loss_per_m2_bare_base": 60.0,
+                "total_heat_loss_design": 1100.0,
+                "safety_factor_applied": 1.1,
             },
             is_valid=True,
         )
@@ -836,8 +844,8 @@ class TestCableLayoutMapping:
                 "safety_factor": 1.1,
             },
             results={
-                "heat_loss_per_meter": 30,
-                "total_heat_loss": 3000,
+                "heat_loss_per_meter_base": 30,
+                "total_heat_loss_design": 3000,
                 "effective_length": 100,
             },
             is_valid=True,
@@ -866,8 +874,8 @@ class TestCableLayoutMapping:
                 "safety_factor": 1.1,
             },
             results={
-                "heat_loss_per_meter": 30,
-                "total_heat_loss": 3000,
+                "heat_loss_per_meter_base": 30,
+                "total_heat_loss_design": 3000,
                 "effective_length": 100,
             },
             is_valid=True,
@@ -992,8 +1000,8 @@ class TestCableLayoutMapping:
                 "safety_factor": 1.1,
             },
             results={
-                "heat_loss_per_meter": 30,
-                "total_heat_loss": 3000,
+                "heat_loss_per_meter_base": 30,
+                "total_heat_loss_design": 3000,
                 "effective_length": 100,
             },
             is_valid=True,
@@ -1032,8 +1040,8 @@ class TestCableLayoutMapping:
                 "safety_factor": 1.1,
             },
             results={
-                "heat_loss_per_meter": 30,
-                "total_heat_loss": 3000,
+                "heat_loss_per_meter_base": 30,
+                "total_heat_loss_design": 3000,
                 "effective_length": 100,
             },
             is_valid=True,
@@ -1296,7 +1304,7 @@ class TestBatchRecalculate:
         service.get_coefficients = AsyncMock(return_value={})  # type: ignore[method-assign]
         service._calc_heat_loss_with_coefficients = MagicMock(  # type: ignore[method-assign]
             side_effect=[
-                {"heat_loss_per_meter": 10},
+                {"heat_loss_per_meter_base": 10},
                 ValueError("process temperature ниже ambient"),
             ]
         )
@@ -1337,7 +1345,7 @@ class TestBatchRecalculate:
         coefficients = {"safety_factor": 1.0}
         service.get_coefficients = AsyncMock(return_value=coefficients)  # type: ignore[method-assign]
         service._calc_heat_loss_with_coefficients = MagicMock(  # type: ignore[method-assign]
-            return_value={"heat_loss_per_meter": 10}
+            return_value={"heat_loss_per_meter_base": 10}
         )
 
         updated, failed, errors = await service.batch_recalculate(project_id)
@@ -1443,7 +1451,7 @@ class TestBatchRecalculate:
         _disable_stale_mark(service)
         service.get_coefficients = AsyncMock(return_value={})  # type: ignore[method-assign]
         service._calc_heat_loss_with_coefficients = MagicMock(  # type: ignore[method-assign]
-            return_value={"heat_loss_per_meter": 10}
+            return_value={"heat_loss_per_meter_base": 10}
         )
         progress = []
 
@@ -1579,7 +1587,7 @@ class TestBatchElectricalCallbacks:
                     "process_temperature": 80,
                     "pipe_length": 10,
                 },
-                results={"heat_loss_per_meter": 30, "total_heat_loss": 300},
+                results={"heat_loss_per_meter_base": 30, "total_heat_loss_design": 300},
                 is_valid=True,
             )
             for index in range(5)
@@ -1646,7 +1654,7 @@ class TestBatchElectricalCallbacks:
                 "process_temperature": 80,
                 "pipe_length": 10,
             },
-            results={"heat_loss_per_meter": 30, "total_heat_loss": 300},
+            results={"heat_loss_per_meter_base": 30, "total_heat_loss_design": 300},
             is_valid=True,
         )
         db = AsyncMock()
@@ -1695,7 +1703,7 @@ class TestBatchElectricalCallbacks:
                 "ambient_temperature": -20,
                 "process_temperature": 80,
             },
-            results={"total_heat_loss": 300, "safety_factor": 1.1},
+            results={"total_heat_loss_design": 300, "safety_factor_applied": 1.1},
             is_valid=True,
         )
         db = AsyncMock()
@@ -1751,7 +1759,7 @@ class TestBatchElectricalCallbacks:
                     "process_temperature": 80,
                     "pipe_length": 10,
                 },
-                results={"heat_loss_per_meter": 30, "total_heat_loss": 300},
+                results={"heat_loss_per_meter_base": 30, "total_heat_loss_design": 300},
                 is_valid=True,
             )
             for index in range(2)
@@ -1824,7 +1832,7 @@ class TestBatchElectricalCallbacks:
                     "process_temperature": 80,
                     "pipe_length": 10,
                 },
-                results={"heat_loss_per_meter": 30, "total_heat_loss": 300},
+                results={"heat_loss_per_meter_base": 30, "total_heat_loss_design": 300},
                 is_valid=True,
             )
             for index in range(2)
@@ -1897,7 +1905,7 @@ class TestBatchElectricalCallbacks:
                 "process_temperature": 80,
                 "pipe_length": 10,
             },
-            results={"heat_loss_per_meter": 30, "total_heat_loss": 300},
+            results={"heat_loss_per_meter_base": 30, "total_heat_loss_design": 300},
             is_valid=True,
         )
         count_result = MagicMock()
@@ -1952,7 +1960,7 @@ class TestBatchElectricalCallbacks:
                 "process_temperature": 80,
                 "pipe_length": 100,
             },
-            results={"heat_loss_per_meter": 30, "total_heat_loss": 3000},
+            results={"heat_loss_per_meter_base": 30, "total_heat_loss_design": 3000},
             is_valid=True,
         )
         count_result = MagicMock()
@@ -2000,7 +2008,7 @@ class TestBatchElectricalCallbacks:
                 "process_temperature": 80,
                 "pipe_length": 10,
             },
-            results={"heat_loss_per_meter": 30, "total_heat_loss": 300},
+            results={"heat_loss_per_meter_base": 30, "total_heat_loss_design": 300},
             is_valid=True,
         )
         db = AsyncMock()
@@ -2458,7 +2466,7 @@ class TestSelectCableManual:
             project_id=uuid.uuid4(),
             object_type="pipe",
             params=_minimal_pipe_params(),
-            results={"heat_loss_per_meter": 20},
+            results={"heat_loss_per_meter_base": 20},
             is_valid=True,
         )
         result = MagicMock()
@@ -2500,7 +2508,7 @@ class TestSelectCableManual:
             project_id=uuid.uuid4(),
             object_type="pipe",
             params=_minimal_pipe_params(),
-            results={"heat_loss_per_meter": 20},
+            results={"heat_loss_per_meter_base": 20},
             is_valid=True,
         )
         result = MagicMock()
@@ -2551,7 +2559,7 @@ class TestSelectCableManual:
             project_id=uuid.uuid4(),
             object_type="pipe",
             params={"ambient_temperature": -20, "pipe_length": 10},
-            results={"heat_loss_per_meter": 0},
+            results={"heat_loss_per_meter_base": 0},
             is_valid=True,
         )
         result = MagicMock()
@@ -2575,7 +2583,7 @@ class TestSelectCableManual:
                 "supply_voltage": 380,
                 "safety_factor": 1.2,
             },
-            results={"heat_loss_per_meter": 20},
+            results={"heat_loss_per_meter_base": 20},
             is_valid=True,
         )
         result = MagicMock()
@@ -2606,7 +2614,7 @@ class TestSelectCableManual:
                 "pipe_length": 10,
                 "vapor_temperature": 140,
             },
-            results={"heat_loss_per_meter": 20},
+            results={"heat_loss_per_meter_base": 20},
             is_valid=True,
         )
         result = MagicMock()
@@ -2642,7 +2650,7 @@ class TestSelectCableManual:
                 "pipe_length": 10,
                 "vapor_temperature": 140,
             },
-            results={"heat_loss_per_meter": 20},
+            results={"heat_loss_per_meter_base": 20},
             is_valid=True,
         )
         result = MagicMock()
@@ -2676,7 +2684,7 @@ class TestSelectCableManual:
                 "process_temperature": 80,
                 "pipe_length": 10,
             },
-            results={"heat_loss_per_meter": 20},
+            results={"heat_loss_per_meter_base": 20},
             is_valid=True,
         )
         result = MagicMock()
@@ -2711,7 +2719,7 @@ class TestSelectCableManual:
                 "maintain_temperature": 45,
                 "pipe_length": 10,
             },
-            results={"heat_loss_per_meter": 20},
+            results={"heat_loss_per_meter_base": 20},
             is_valid=True,
         )
         result = MagicMock()

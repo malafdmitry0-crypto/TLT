@@ -88,7 +88,7 @@
   {% set elec_unsupported = electrical_ctx.get('unsupported', []) %}
   {% set elec_stale = electrical_ctx.get('stale', []) %}
   {% set elec_excluded = elec_failed + elec_unsupported + elec_stale %}
-  {% set total_heat = valid_objs | map(attribute='results') | map('default', {}) | map(attribute='total_heat_loss', default=0) | sum %}
+  {% set total_heat = valid_objs | map(attribute='results') | map('default', {}) | map(attribute='total_heat_loss_design', default=0) | sum %}
   {% set total_power = electrical_summary.get('total_power', 0) %}
   {% set total_cable = electrical_summary.get('total_cable', 0) %}
   {% set total_current = electrical_summary.get('total_current', 0) %}
@@ -118,7 +118,7 @@
         <th class="num">Ø, мм</th><th class="num">Длина, м</th>
         <th class="num">δ изол., мм</th><th>Материал</th>
         <th class="num">T₀, °C</th><th class="num">Tподд., °C</th>
-        <th class="num">q, Вт/м</th><th class="num">Q, Вт</th>
+        <th class="num">q base, Вт/м</th><th class="num">Q design, Вт</th>
         <th>Статус</th>
       </tr>
     </thead>
@@ -133,8 +133,8 @@
         <td>{{ MATERIALS.get(o.params.get('insulation_material'), o.params.get('insulation_material') or '—') }}</td>
         <td class="num">{{ fmt(o.params.get('ambient_temperature'), 1) }}</td>
         <td class="num">{{ fmt(o.params.get('process_temperature'), 1) }}</td>
-        <td class="num">{% if o.results %}{{ fmt(o.results.get('heat_loss_per_meter'), 1) }}{% else %}—{% endif %}</td>
-        <td class="num">{% if o.results %}{{ fmt(o.results.get('total_heat_loss'), 0) }}{% else %}—{% endif %}</td>
+        <td class="num">{% if o.results %}{{ fmt(o.results.get('heat_loss_per_meter_base'), 1) }}{% else %}—{% endif %}</td>
+        <td class="num">{% if o.results %}{{ fmt(o.results.get('total_heat_loss_design'), 0) }}{% else %}—{% endif %}</td>
         <td>{% if o.is_valid %}<span class="badge-ok">✓ ОК</span>{% else %}<span class="badge-err">✗ Ошибка</span>{% endif %}</td>
       </tr>
       {% endfor %}
@@ -157,7 +157,7 @@
         <th>Габариты</th>
         <th class="num">δ изол., мм</th><th>Материал</th>
         <th class="num">T₀, °C</th><th class="num">Tподд., °C</th>
-        <th class="num">S, м²</th><th class="num">q, Вт/м²</th><th class="num">Qдоп, Вт</th><th class="num">Q, Вт</th>
+        <th class="num">S bare, м²</th><th class="num">q base, Вт/м²</th><th class="num">Qдоп, Вт</th><th class="num">Q design, Вт</th>
         <th>Статус</th>
       </tr>
     </thead>
@@ -181,10 +181,10 @@
         <td>{{ MATERIALS.get(o.params.get('insulation_material'), o.params.get('insulation_material') or '—') }}</td>
         <td class="num">{{ fmt(o.params.get('ambient_temperature'), 1) }}</td>
         <td class="num">{{ fmt(o.params.get('process_temperature'), 1) }}</td>
-        <td class="num">{% if o.results %}{{ fmt(o.results.get('surface_area'), 2) }}{% else %}—{% endif %}</td>
-        <td class="num">{% if o.results %}{{ fmt(o.results.get('heat_loss_per_m2'), 1) }}{% else %}—{% endif %}</td>
-        <td class="num">{% if o.results %}{{ fmt(o.results.get('q_additional', o.params.get('q_additional')), 0) }}{% else %}{{ fmt(o.params.get('q_additional'), 0) }}{% endif %}</td>
-        <td class="num">{% if o.results %}{{ fmt(o.results.get('total_heat_loss'), 0) }}{% else %}—{% endif %}</td>
+        <td class="num">{% if o.results %}{{ fmt(o.results.get('surface_area_bare'), 2) }}{% else %}—{% endif %}</td>
+        <td class="num">{% if o.results %}{{ fmt(o.results.get('heat_loss_per_m2_bare_base'), 1) }}{% else %}—{% endif %}</td>
+        <td class="num">{% if o.results %}{{ fmt(o.results.get('q_additional_applied'), 0) }}{% else %}{{ fmt(o.params.get('q_additional'), 0) }}{% endif %}</td>
+        <td class="num">{% if o.results %}{{ fmt(o.results.get('total_heat_loss_design'), 0) }}{% else %}—{% endif %}</td>
         <td>{% if o.is_valid %}<span class="badge-ok">✓ ОК</span>{% else %}<span class="badge-err">✗ Ошибка</span>{% endif %}</td>
       </tr>
       {% endfor %}
@@ -353,7 +353,7 @@
   {% set elec_unsupported = electrical_ctx.get('unsupported', []) %}
   {% set elec_stale = electrical_ctx.get('stale', []) %}
   {% set elec_excluded = elec_failed + elec_unsupported + elec_stale %}
-  {% set total_heat = valid_objs | map(attribute='results') | map('default', {}) | map(attribute='total_heat_loss', default=0) | sum %}
+  {% set total_heat = valid_objs | map(attribute='results') | map('default', {}) | map(attribute='total_heat_loss_design', default=0) | sum %}
   {% set total_power = electrical_summary.get('total_power', 0) %}
   {% set total_cable = electrical_summary.get('total_cable', 0) %}
   {% set total_current = electrical_summary.get('total_current', 0) %}
@@ -383,7 +383,7 @@
         <th class="num">Ø, мм</th><th class="num">Длина, м</th>
         <th class="num">δ изол., мм</th><th>Материал</th>
         <th class="num">T₀, °C</th><th class="num">Tподд., °C</th>
-        <th class="num">q, Вт/м</th><th class="num">Q, Вт</th>
+        <th class="num">q base, Вт/м</th><th class="num">Q design, Вт</th>
         <th>Статус</th>
       </tr>
     </thead>
@@ -398,8 +398,8 @@
         <td>{{ MATERIALS.get(o.params.get('insulation_material'), o.params.get('insulation_material') or '—') }}</td>
         <td class="num">{{ fmt(o.params.get('ambient_temperature'), 1) }}</td>
         <td class="num">{{ fmt(o.params.get('process_temperature'), 1) }}</td>
-        <td class="num">{% if o.results %}{{ fmt(o.results.get('heat_loss_per_meter'), 1) }}{% else %}—{% endif %}</td>
-        <td class="num">{% if o.results %}{{ fmt(o.results.get('total_heat_loss'), 0) }}{% else %}—{% endif %}</td>
+        <td class="num">{% if o.results %}{{ fmt(o.results.get('heat_loss_per_meter_base'), 1) }}{% else %}—{% endif %}</td>
+        <td class="num">{% if o.results %}{{ fmt(o.results.get('total_heat_loss_design'), 0) }}{% else %}—{% endif %}</td>
         <td>{% if o.is_valid %}<span class="badge-ok">✓ ОК</span>{% else %}<span class="badge-err">✗ Ошибка</span>{% endif %}</td>
       </tr>
       {% endfor %}
@@ -422,7 +422,7 @@
         <th>Габариты</th>
         <th class="num">δ изол., мм</th><th>Материал</th>
         <th class="num">T₀, °C</th><th class="num">Tподд., °C</th>
-        <th class="num">S, м²</th><th class="num">q, Вт/м²</th><th class="num">Qдоп, Вт</th><th class="num">Q, Вт</th>
+        <th class="num">S bare, м²</th><th class="num">q base, Вт/м²</th><th class="num">Qдоп, Вт</th><th class="num">Q design, Вт</th>
         <th>Статус</th>
       </tr>
     </thead>
@@ -446,10 +446,10 @@
         <td>{{ MATERIALS.get(o.params.get('insulation_material'), o.params.get('insulation_material') or '—') }}</td>
         <td class="num">{{ fmt(o.params.get('ambient_temperature'), 1) }}</td>
         <td class="num">{{ fmt(o.params.get('process_temperature'), 1) }}</td>
-        <td class="num">{% if o.results %}{{ fmt(o.results.get('surface_area'), 2) }}{% else %}—{% endif %}</td>
-        <td class="num">{% if o.results %}{{ fmt(o.results.get('heat_loss_per_m2'), 1) }}{% else %}—{% endif %}</td>
-        <td class="num">{% if o.results %}{{ fmt(o.results.get('q_additional', o.params.get('q_additional')), 0) }}{% else %}{{ fmt(o.params.get('q_additional'), 0) }}{% endif %}</td>
-        <td class="num">{% if o.results %}{{ fmt(o.results.get('total_heat_loss'), 0) }}{% else %}—{% endif %}</td>
+        <td class="num">{% if o.results %}{{ fmt(o.results.get('surface_area_bare'), 2) }}{% else %}—{% endif %}</td>
+        <td class="num">{% if o.results %}{{ fmt(o.results.get('heat_loss_per_m2_bare_base'), 1) }}{% else %}—{% endif %}</td>
+        <td class="num">{% if o.results %}{{ fmt(o.results.get('q_additional_applied'), 0) }}{% else %}{{ fmt(o.params.get('q_additional'), 0) }}{% endif %}</td>
+        <td class="num">{% if o.results %}{{ fmt(o.results.get('total_heat_loss_design'), 0) }}{% else %}—{% endif %}</td>
         <td>{% if o.is_valid %}<span class="badge-ok">✓ ОК</span>{% else %}<span class="badge-err">✗ Ошибка</span>{% endif %}</td>
       </tr>
       {% endfor %}

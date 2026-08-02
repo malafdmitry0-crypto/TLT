@@ -30,8 +30,8 @@ async def _seed_objects(db_session: AsyncSession, project_id: str) -> list[Proje
             sort_order=0,
             is_valid=True,
             results={
-                "heat_loss_per_meter": 40.0,
-                "total_heat_loss": 440.0,
+                "heat_loss_per_meter_base": 40.0,
+                "total_heat_loss_design": 440.0,
             },
             params={
                 "name": "Труба Север",
@@ -53,8 +53,8 @@ async def _seed_objects(db_session: AsyncSession, project_id: str) -> list[Proje
             sort_order=1,
             is_valid=False,
             results={
-                "heat_loss_per_meter": 65.0,
-                "total_heat_loss": 1787.5,
+                "heat_loss_per_meter_base": 65.0,
+                "total_heat_loss_design": 1787.5,
             },
             params={
                 "name": "Труба Юг",
@@ -76,8 +76,8 @@ async def _seed_objects(db_session: AsyncSession, project_id: str) -> list[Proje
             sort_order=2,
             is_valid=True,
             results={
-                "heat_loss_per_m2": 35.0,
-                "total_heat_loss": 2500.0,
+                "heat_loss_per_m2_bare_base": 35.0,
+                "total_heat_loss_design": 2500.0,
             },
             params={
                 "name": "Резервуар Юг",
@@ -111,9 +111,9 @@ class TestObjectQuery:
         fields = {field["key"]: field for field in resp.json()["fields"]}
         assert fields["pipe_outer_diameter"]["filter"]["ops"] == ["range"]
         assert fields["pipe_outer_diameter"]["sort"]["enabled"] is True
-        assert fields["heat_loss_per_meter"]["filter"]["ops"] == ["range"]
-        assert fields["heat_loss_per_meter"]["sort"]["enabled"] is True
-        assert fields["total_heat_loss"]["filter"]["ops"] == ["range"]
+        assert fields["heat_loss_per_meter_base"]["filter"]["ops"] == ["range"]
+        assert fields["heat_loss_per_meter_base"]["sort"]["enabled"] is True
+        assert fields["total_heat_loss_design"]["filter"]["ops"] == ["range"]
         assert fields["climate_temperature_basis"]["data_type"] == "enum"
         assert fields["climate_temperature_basis"]["filter"]["ops"] == ["in"]
         assert fields["climate_temperature_basis"]["sort"]["type"] == "label"
@@ -247,12 +247,12 @@ class TestObjectQuery:
                 "object_type": "pipe",
                 "filters": [
                     {
-                        "key": "heat_loss_per_meter",
+                        "key": "heat_loss_per_meter_base",
                         "op": "range",
                         "min": 50,
                     }
                 ],
-                "sort": {"key": "total_heat_loss", "dir": "desc"},
+                "sort": {"key": "total_heat_loss_design", "dir": "desc"},
             },
             headers={"X-Session-Id": guest_session},
         )

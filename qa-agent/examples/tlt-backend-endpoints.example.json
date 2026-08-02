@@ -12,8 +12,8 @@
         "params": "schema matching selected formula_type"
       },
       "resultPaths": {
-        "pipe": ["heat_loss_per_meter", "total_heat_loss", "effective_length", "thermal_resistance"],
-        "tank": ["heat_loss_per_m2", "total_heat_loss", "surface_area"],
+        "pipe": ["heat_loss_per_meter_base", "total_heat_loss_design", "effective_length", "thermal_resistance"],
+        "tank": ["heat_loss_per_m2_bare_base", "total_heat_loss_design", "surface_area_bare"],
         "electrical": ["selected_cable", "cable_length", "total_power", "current"],
         "electrical_tt": ["selected_cable", "series", "power_per_meter", "cable_length", "total_power"],
         "resistive_single": ["selected_cable", "required_cross_section", "conductor_cross_section", "total_power"],
@@ -36,7 +36,7 @@
         "object_type": "pipe | tank",
         "data": "PipeHeatLossParams | TankHeatLossParams"
       },
-      "resultPaths": ["result.heat_loss_per_meter", "result.heat_loss_per_m2", "result.total_heat_loss"]
+      "resultPaths": ["result.heat_loss_per_meter_base", "result.heat_loss_per_m2_bare_base", "result.total_heat_loss_design"]
     },
     {
       "id": "calc_electrical",

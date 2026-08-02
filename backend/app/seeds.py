@@ -1524,9 +1524,9 @@ async def seed_objects_and_calculations(
                 await db.delete(existing)
                 await db.flush()
 
-            # Берём heat_loss_per_meter из результатов объекта
+            # Берём базовые линейные теплопотери: электрическая формула сама применяет K.
             heat_loss_per_meter = (
-                pipe_obj.results.get("heat_loss_per_meter", 0) if pipe_obj.results else 0
+                pipe_obj.results.get("heat_loss_per_meter_base", 0) if pipe_obj.results else 0
             )
             pipe_length = pipe_obj.params.get("pipe_length", 100.0)
             process_temperature = pipe_obj.params.get("process_temperature", 80.0)

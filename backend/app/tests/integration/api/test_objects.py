@@ -1,6 +1,5 @@
 """Integration-тесты объектов проекта с автопересчётом."""
 
-import re
 from uuid import UUID
 
 import pytest
@@ -8,20 +7,8 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.cache import cache
-from app.models.coefficient import CorrectionCoefficient
 from app.models.project_object import ProjectObject
-from app.reference_data.loader import (
-    PIPE_HEAT_LOSS_MATERIALS_SOURCE,
-    pipe_heat_loss_materials_version,
-)
-from app.services.calculation_service import (
-    PIPE_HEAT_LOSS_COEFFICIENTS_SOURCE,
-    PIPE_HEAT_LOSS_FORMULA_SOURCE,
-    PIPE_HEAT_LOSS_FORMULA_VERSION,
-    TANK_HEAT_LOSS_FORMULA_SOURCE,
-    TANK_HEAT_LOSS_FORMULA_VERSION,
-)
+from app.services.heat_contract import DEPRECATED_HEAT_RESULT_KEYS
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -39,7 +26,7 @@ async def _project(client: AsyncClient, session_id: str) -> str:
 
 
 class TestObjectsLifecycle:
-    async def test_pipe_calculation_trace_is_returned_persisted_and_reloaded(
+    async def test_pipe_canonical_results_are_returned_persisted_and_reloaded(
         self,
         client: AsyncClient,
         guest_session: str,
@@ -65,25 +52,29 @@ class TestObjectsLifecycle:
         )
         assert created_response.status_code == 201, created_response.text
         created = created_response.json()
-        trace = created["results"]["calculation_trace"]
-        assert trace["formula_id"] == "pipe_heat_loss"
-        assert trace["formula_version"] == PIPE_HEAT_LOSS_FORMULA_VERSION
-        assert trace["formula_source"] == PIPE_HEAT_LOSS_FORMULA_SOURCE
-        assert trace["coefficients_source"] == PIPE_HEAT_LOSS_COEFFICIENTS_SOURCE
-        assert re.fullmatch(r"sha256:[0-9a-f]{64}", trace["coefficients_version"])
-        assert trace["materials_source"] == PIPE_HEAT_LOSS_MATERIALS_SOURCE
-        assert trace["materials_version"] == pipe_heat_loss_materials_version()
-        assert trace["tm_mode"] == "outdoor_winter"
-        assert trace["insulation_tm"] == pytest.approx(40.0)
-        assert trace["applied_coefficients"] == {"safety_factor": 1.1}
-        assert trace["safety_factor"] == pytest.approx(1.1)
+        results = created["results"]
+        assert results["formula_model"] == "pipe_heat_loss"
+        assert results["formula_model_version"] == "2"
+        assert results["safety_factor_applied"] == pytest.approx(1.1)
+        assert results["total_heat_loss_design"] == pytest.approx(
+            results["total_heat_loss_base"] * results["safety_factor_applied"],
+            rel=1e-3,
+        )
+        assert (
+            results["insulation_layers_applied"][0]["conductivity_source"]
+            == "reference_data"
+        )
+        assert results["insulation_layers_applied"][0][
+            "conductivity_temperature_applied"
+        ] == pytest.approx(40.0)
+        assert DEPRECATED_HEAT_RESULT_KEYS.isdisjoint(results)
 
         stored = (
             await db_session.execute(
                 select(ProjectObject).where(ProjectObject.id == UUID(created["id"]))
             )
         ).scalar_one()
-        assert (stored.results or {})["calculation_trace"] == trace
+        assert stored.results == results
 
         reloaded_response = await client.get(
             f"/api/v1/projects/{pid}/objects",
@@ -91,7 +82,7 @@ class TestObjectsLifecycle:
         )
         assert reloaded_response.status_code == 200, reloaded_response.text
         reloaded = next(item for item in reloaded_response.json() if item["id"] == created["id"])
-        assert reloaded["results"]["calculation_trace"] == trace
+        assert reloaded["results"] == results
 
         recalculated_response = await client.put(
             f"/api/v1/projects/{pid}/objects/{created['id']}",
@@ -99,17 +90,12 @@ class TestObjectsLifecycle:
             headers=headers,
         )
         assert recalculated_response.status_code == 200, recalculated_response.text
-        recalculated = recalculated_response.json()["results"]
-        assert recalculated["calculation_trace"] == trace
-        assert {
-            key: value for key, value in recalculated.items() if key != "calculation_trace"
-        } == {key: value for key, value in created["results"].items() if key != "calculation_trace"}
+        assert recalculated_response.json()["results"] == results
 
-    async def test_pipe_recalculation_refreshes_trace_for_resolved_tm_mode(
+    async def test_pipe_recalculation_keeps_only_canonical_result_keys(
         self,
         client: AsyncClient,
         guest_session: str,
-        db_session: AsyncSession,
     ):
         pid = await _project(client, guest_session)
         headers = {"X-Session-Id": guest_session}
@@ -131,26 +117,9 @@ class TestObjectsLifecycle:
         )
         assert created_response.status_code == 201, created_response.text
         created = created_response.json()
-        winter_trace = created["results"]["calculation_trace"]
-
-        wind_factor = (
-            await db_session.execute(
-                select(CorrectionCoefficient).where(CorrectionCoefficient.key == "wind_factor")
-            )
-        ).scalar_one_or_none()
-        if wind_factor is None:
-            db_session.add(
-                CorrectionCoefficient(
-                    key="wind_factor",
-                    value=1.1,
-                    description="Traceability test coefficient",
-                )
-            )
-        else:
-            wind_factor.value += 0.1
-        await db_session.commit()
-        cache.invalidate("coefficients")
-
+        winter_temperature = created["results"]["insulation_layers_applied"][0][
+            "conductivity_temperature_applied"
+        ]
         recalculated_response = await client.put(
             f"/api/v1/projects/{pid}/objects/{created['id']}",
             json={
@@ -163,21 +132,15 @@ class TestObjectsLifecycle:
             headers=headers,
         )
         assert recalculated_response.status_code == 200, recalculated_response.text
-        summer_trace = recalculated_response.json()["results"]["calculation_trace"]
-        assert summer_trace["coefficients_version"] == winter_trace["coefficients_version"]
-        assert {
-            key: value
-            for key, value in summer_trace.items()
-            if key not in {"tm_mode", "insulation_tm"}
-        } == {
-            key: value
-            for key, value in winter_trace.items()
-            if key not in {"tm_mode", "insulation_tm"}
-        }
-        assert summer_trace["tm_mode"] == "outdoor_summer"
-        assert summer_trace["insulation_tm"] == pytest.approx(60.0)
+        results = recalculated_response.json()["results"]
+        assert results["formula_model"] == "pipe_heat_loss"
+        assert winter_temperature == pytest.approx(40.0)
+        assert results["insulation_layers_applied"][0][
+            "conductivity_temperature_applied"
+        ] == pytest.approx(60.0)
+        assert DEPRECATED_HEAT_RESULT_KEYS.isdisjoint(results)
 
-    async def test_tank_calculation_trace_is_persisted_with_tnp_source(
+    async def test_tank_canonical_results_include_base_design_and_model_metadata(
         self,
         client: AsyncClient,
         guest_session: str,
@@ -201,17 +164,20 @@ class TestObjectsLifecycle:
             headers={"X-Session-Id": guest_session},
         )
         assert response.status_code == 201, response.text
-        trace = response.json()["results"]["calculation_trace"]
-        assert trace["formula_id"] == "tank_heat_loss"
-        assert trace["formula_version"] == TANK_HEAT_LOSS_FORMULA_VERSION
-        assert trace["formula_source"] == TANK_HEAT_LOSS_FORMULA_SOURCE
-        assert trace["applied_coefficients"] == {"safety_factor": 1.1}
+        results = response.json()["results"]
+        assert results["formula_model"] == "tank_heat_loss"
+        assert results["formula_model_version"] == "2"
+        assert results["safety_factor_applied"] == pytest.approx(1.1)
+        assert results["total_heat_loss_design"] == pytest.approx(
+            results["total_heat_loss_base"] * results["safety_factor_applied"],
+            rel=1e-3,
+        )
+        assert DEPRECATED_HEAT_RESULT_KEYS.isdisjoint(results)
 
-    async def test_legacy_pipe_result_without_calculation_trace_loads(
+    async def test_new_pipe_result_has_no_deprecated_keys(
         self,
         client: AsyncClient,
         guest_session: str,
-        db_session: AsyncSession,
     ):
         pid = await _project(client, guest_session)
         headers = {"X-Session-Id": guest_session}
@@ -233,26 +199,14 @@ class TestObjectsLifecycle:
         )
         assert created_response.status_code == 201, created_response.text
         created = created_response.json()
-        stored = (
-            await db_session.execute(
-                select(ProjectObject).where(ProjectObject.id == UUID(created["id"]))
-            )
-        ).scalar_one()
-        stored.results = {
-            key: value
-            for key, value in (stored.results or {}).items()
-            if key != "calculation_trace"
-        }
-        await db_session.commit()
-
         reloaded_response = await client.get(
             f"/api/v1/projects/{pid}/objects",
             headers=headers,
         )
         assert reloaded_response.status_code == 200, reloaded_response.text
         reloaded = next(item for item in reloaded_response.json() if item["id"] == created["id"])
-        assert "calculation_trace" not in reloaded["results"]
-        assert reloaded["results"]["heat_loss_per_meter"] == created["results"]["heat_loss_per_meter"]
+        assert DEPRECATED_HEAT_RESULT_KEYS.isdisjoint(reloaded["results"])
+        assert reloaded["results"] == created["results"]
 
     async def test_new_pipe_results_omit_surface_temperature_after_recalculate_and_reload(
         self,
@@ -386,8 +340,8 @@ class TestObjectsLifecycle:
         assert body["params"]["insulation_layers"] == [
             {"thickness": 0.05, "material": MINERAL_WOOL}
         ]
-        assert body["results"]["safety_factor"] == pytest.approx(1.1)
-        assert body["results"]["heat_loss_per_meter"] > 0
+        assert body["results"]["safety_factor_applied"] == pytest.approx(1.1)
+        assert body["results"]["heat_loss_per_meter_base"] > 0
 
     async def test_pipe_local_element_named_counts_are_used(
         self, client: AsyncClient, guest_session: str
@@ -420,8 +374,8 @@ class TestObjectsLifecycle:
         assert body["params"]["flange_count"] == 2
         assert body["params"]["support_count"] == 3
         assert body["params"]["num_local_elements"] == 6
-        assert body["results"]["local_elements_count"] == 6
-        assert body["results"]["local_element_equiv_length"] == pytest.approx(1.1)
+        assert body["results"]["local_elements_count_applied"] == 6
+        assert body["results"]["local_element_equiv_length_applied"] == pytest.approx(1.1)
 
     async def test_blank_required_pipe_fields_mark_object_invalid(
         self, client: AsyncClient, guest_session: str
@@ -558,8 +512,8 @@ class TestObjectsLifecycle:
         assert resp.status_code == 201, resp.text
         body = resp.json()
         assert body["is_valid"] is True
-        assert body["results"]["heat_loss_per_m2"] > 0
-        assert body["results"]["surface_area"] > 0
+        assert body["results"]["heat_loss_per_m2_bare_base"] > 0
+        assert body["results"]["surface_area_bare"] > 0
 
     async def test_add_large_tank_with_tank_dimensions_is_valid(
         self, client: AsyncClient, guest_session: str
@@ -606,7 +560,7 @@ class TestObjectsLifecycle:
             )
         ).json()
         # Уменьшаем толщину изоляции → теплопотери должны вырасти
-        old_q = created["results"]["heat_loss_per_meter"]
+        old_q = created["results"]["heat_loss_per_meter_base"]
         resp = await client.put(
             f"/api/v1/projects/{pid}/objects/{created['id']}",
             json={
@@ -620,7 +574,7 @@ class TestObjectsLifecycle:
         )
         assert resp.status_code == 200
         assert resp.json()["version"] == created["version"] + 1
-        new_q = resp.json()["results"]["heat_loss_per_meter"]
+        new_q = resp.json()["results"]["heat_loss_per_meter_base"]
         assert new_q > old_q
 
     async def test_update_object_stale_version_returns_conflict(
@@ -783,16 +737,16 @@ class TestObjectsLifecycle:
         assert len(body["params"]["insulation_layers"]) == 3
 
         results = body["results"]
-        assert results["heat_loss_per_meter"] > 0
-        assert results["total_heat_loss"] > 0
+        assert results["heat_loss_per_meter_base"] > 0
+        assert results["total_heat_loss_design"] > 0
         assert results["wall_resistance"] > 0
         assert results["insulation_resistance"] > 0
         assert results["external_resistance"] > 0
-        assert results["alpha_vnesh"] == 14.0
-        assert results["wind_speed"] == 4.2
-        assert results["safety_factor"] == 1.2
-        assert results["local_elements_count"] == 3
-        assert results["local_element_equiv_length"] == 1.1
+        assert results["alpha_vnesh_applied"] == 14.0
+        assert results["wind_speed_applied"] is None
+        assert results["safety_factor_applied"] == 1.2
+        assert results["local_elements_count_applied"] == 3
+        assert results["local_element_equiv_length_applied"] == 1.1
 
     async def test_backend_overrides_frontend_climate_basis_on_object_recalculate(
         self, client: AsyncClient, guest_session: str
@@ -827,7 +781,7 @@ class TestObjectsLifecycle:
         assert body["params"]["ambient_temperature"] == pytest.approx(-48.0)
         assert body["params"]["ambient_temperature_source"] == "climate"
         assert body["params"]["safety_factor"] == pytest.approx(1.12)
-        assert body["results"]["safety_factor"] == pytest.approx(1.12)
+        assert body["results"]["safety_factor_applied"] == pytest.approx(1.12)
 
     async def test_underground_tank_returns_air_ground_split(
         self, client: AsyncClient, guest_session: str
@@ -866,12 +820,12 @@ class TestObjectsLifecycle:
         assert body["params"]["ground_conductivity"] == 0.8
 
         results = body["results"]
-        assert results["total_heat_loss"] > 0
+        assert results["total_heat_loss_design"] > 0
         assert results["air_surface_area"] > 0
         assert results["ground_surface_area"] > 0
-        assert results["heat_loss_air_per_m2"] > 0
-        assert results["heat_loss_ground_per_m2"] > 0
-        assert results["ground_resistance"] > 0
-        assert results["ground_conductivity"] == 0.8
-        assert results["alpha_vnesh"] == 12.0
-        assert results["safety_factor"] == 1.15
+        assert results["heat_loss_air_base"] > 0
+        assert results["heat_loss_ground_base"] > 0
+        assert results["ground_resistance_areal_bare"] > 0
+        assert results["ground_conductivity_applied"] == 0.8
+        assert results["alpha_vnesh_applied"] == 12.0
+        assert results["safety_factor_applied"] == 1.15

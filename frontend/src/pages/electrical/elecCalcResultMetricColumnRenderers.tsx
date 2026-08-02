@@ -78,17 +78,17 @@ export function buildElecCalcResultMetricColumnRenderers(
       align: 'right',
       render: (_: unknown, obj) => commercialNumber(currentElectricalCalc(calcByObjectId[obj.id]), 'lead_time_days', 0),
     },
-    heat_loss_per_meter: {
+    heat_loss_per_meter_base: {
       align: 'right',
-      render: (_: unknown, obj) => objectResultNumber(obj, 'heat_loss_per_meter', 2),
+      render: (_: unknown, obj) => objectResultNumber(obj, 'heat_loss_per_meter_base', 2),
     },
-    heat_loss_per_m2: {
+    heat_loss_per_m2_bare_base: {
       align: 'right',
-      render: (_: unknown, obj) => objectResultNumber(obj, 'heat_loss_per_m2', 2),
+      render: (_: unknown, obj) => objectResultNumber(obj, 'heat_loss_per_m2_bare_base', 2),
     },
-    total_heat_loss: {
+    total_heat_loss_design: {
       align: 'right',
-      render: (_: unknown, obj) => powerText(obj.results?.total_heat_loss),
+      render: (_: unknown, obj) => powerText(obj.results?.total_heat_loss_design),
     },
   };
 }

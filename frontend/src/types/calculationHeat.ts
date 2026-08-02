@@ -17,6 +17,31 @@ export interface InsulationLayerParams {
   temperature_range?: [number, number] | null;
 }
 
+export interface InsulationLayerApplied {
+  index: number;
+  thickness: number;
+  material: string;
+  conductivity_applied: number;
+  conductivity_source: 'manual' | 'reference_data';
+  conductivity_temperature_applied: number;
+  resistance: number;
+  resistance_unit: 'm*K/W' | 'm2*K/W';
+}
+
+export interface HeatResultTrace {
+  formula_model: string;
+  formula_model_version: string;
+  model_assumptions: string[];
+  process_temperature_applied?: number | null;
+  ambient_temperature_applied?: number | null;
+  ground_temperature_applied?: number | null;
+  safety_factor_applied: number;
+  insulation_layers_applied: InsulationLayerApplied[];
+  input_units: Record<string, string>;
+  applied_units: Record<string, string>;
+  source_corrections: string[];
+}
+
 export interface PipeParams {
   outer_diameter: number;
   wall_thickness?: number | null;
@@ -56,20 +81,22 @@ export interface PipeParams {
   location?: 'indoor' | 'outdoor';
 }
 
-export interface PipeResult {
-  heat_loss_per_meter: number;
-  total_heat_loss: number;
+export interface PipeResult extends HeatResultTrace {
+  heat_loss_per_meter_base: number;
+  heat_loss_per_meter_design: number;
+  total_heat_loss_base: number;
+  total_heat_loss_design: number;
   effective_length?: number | null;
+  additional_equivalent_length?: number | null;
   thermal_resistance?: number | null;
   wall_resistance?: number | null;
   insulation_resistance?: number | null;
   external_resistance?: number | null;
-  alpha_vnesh?: number | null;
-  wind_speed?: number | null;
-  ground_conductivity?: number | null;
-  safety_factor?: number | null;
-  local_elements_count?: number | null;
-  local_element_equiv_length?: number | null;
+  alpha_vnesh_applied?: number | null;
+  wind_speed_applied?: number | null;
+  ground_conductivity_applied?: number | null;
+  local_elements_count_applied?: number | null;
+  local_element_equiv_length_applied?: number | null;
 }
 
 export interface TankParams {
@@ -108,23 +135,25 @@ export interface TankParams {
   location?: 'indoor' | 'outdoor';
 }
 
-export interface TankResult {
-  heat_loss_per_m2: number;
-  total_heat_loss: number;
-  surface_area: number;
-  wall_resistance?: number | null;
-  insulation_resistance?: number | null;
-  external_resistance?: number | null;
-  ground_resistance?: number | null;
-  alpha_vnesh?: number | null;
-  wind_speed?: number | null;
-  ground_conductivity?: number | null;
-  safety_factor?: number | null;
+export interface TankResult extends HeatResultTrace {
+  total_heat_loss_base: number;
+  total_heat_loss_design: number;
+  heat_loss_per_m2_bare_base: number;
+  heat_loss_per_m2_bare_design: number;
+  surface_area_bare: number;
+  thermal_resistance_areal_bare?: number | null;
+  wall_resistance_areal_bare?: number | null;
+  insulation_resistance_areal_bare?: number | null;
+  external_resistance_areal_bare?: number | null;
+  ground_resistance_areal_bare?: number | null;
   air_surface_area?: number | null;
   ground_surface_area?: number | null;
-  heat_loss_air_per_m2?: number | null;
-  heat_loss_ground_per_m2?: number | null;
-  q_additional?: number | null;
+  heat_loss_air_base?: number | null;
+  heat_loss_ground_base?: number | null;
+  alpha_vnesh_applied?: number | null;
+  wind_speed_applied?: number | null;
+  ground_conductivity_applied?: number | null;
+  q_additional_applied?: number | null;
 }
 
 export interface HeatLossRequest {

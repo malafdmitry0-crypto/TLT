@@ -106,6 +106,6 @@ export async function createCalculatedTank(
   expect(response.status()).toBe(201);
   const body = await response.json();
   expect(body.is_valid).toBe(true);
-  expect(Number(body.results?.total_heat_loss)).toBeGreaterThan(0);
+  expect(Number(body.results?.total_heat_loss_design)).toBeGreaterThan(0);
   return body;
 }

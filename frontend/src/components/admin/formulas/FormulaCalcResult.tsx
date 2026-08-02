@@ -18,11 +18,11 @@ export default function CalcResult({ result, type }: { result: Record<string, un
         title={<span className="formula-result-card__title--result">Результат расчёта трубопровода</span>}
       >
         <Descriptions size="small" column={1} bordered>
-          <Descriptions.Item label={<><V c={C.result}>q</V> — теплопотери, Вт/м</>}>
-            <Text strong className="formula-result-card__value--result">{Number(result.heat_loss_per_meter).toFixed(2)}</Text>
+          <Descriptions.Item label={<><V c={C.result}>q base</V> — до K, Вт/м</>}>
+            <Text strong className="formula-result-card__value--result">{Number(result.heat_loss_per_meter_base).toFixed(2)}</Text>
           </Descriptions.Item>
-          <Descriptions.Item label={<><V c={C.result}>Q</V> — суммарные теплопотери, Вт</>}>
-            <Text strong className="formula-result-card__value--result">{Number(result.total_heat_loss).toFixed(0)}</Text>
+          <Descriptions.Item label={<><V c={C.result}>Q design</V> — проектные теплопотери, Вт</>}>
+            <Text strong className="formula-result-card__value--result">{Number(result.total_heat_loss_design).toFixed(0)}</Text>
           </Descriptions.Item>
           <Descriptions.Item label={<><V c={C.geom}>L</V><sub>эфф</sub> — расчётная длина, м</>}>
             {Number(result.effective_length).toFixed(2)}
@@ -30,9 +30,9 @@ export default function CalcResult({ result, type }: { result: Record<string, un
           <Descriptions.Item label={<>Σ<V c={C.resist}>R</V> — сумм. терм. сопр., м·К/Вт</>}>
             {Number(result.thermal_resistance).toFixed(4)}
           </Descriptions.Item>
-          {result.alpha_vnesh != null && (
+          {result.alpha_vnesh_applied != null && (
             <Descriptions.Item label={<><V c={C.coeff}>α</V> — коэф. теплоотдачи, Вт/(м²·К)</>}>
-              {Number(result.alpha_vnesh).toFixed(2)}
+              {Number(result.alpha_vnesh_applied).toFixed(2)}
             </Descriptions.Item>
           )}
         </Descriptions>
@@ -48,18 +48,18 @@ export default function CalcResult({ result, type }: { result: Record<string, un
         title={<span className="formula-result-card__title--result">Результат расчёта резервуара</span>}
       >
         <Descriptions size="small" column={1} bordered>
-          <Descriptions.Item label={<><V c={C.result}>q</V> — теплопотери, Вт/м²</>}>
-            <Text strong className="formula-result-card__value--result">{Number(result.heat_loss_per_m2).toFixed(2)}</Text>
+          <Descriptions.Item label={<><V c={C.result}>q base</V> — до K, Вт/м²</>}>
+            <Text strong className="formula-result-card__value--result">{Number(result.heat_loss_per_m2_bare_base).toFixed(2)}</Text>
           </Descriptions.Item>
-          <Descriptions.Item label={<><V c={C.result}>Q</V> — суммарные теплопотери, Вт</>}>
-            <Text strong className="formula-result-card__value--result">{Number(result.total_heat_loss).toFixed(0)}</Text>
+          <Descriptions.Item label={<><V c={C.result}>Q design</V> — проектные теплопотери, Вт</>}>
+            <Text strong className="formula-result-card__value--result">{Number(result.total_heat_loss_design).toFixed(0)}</Text>
           </Descriptions.Item>
           <Descriptions.Item label={<><V c={C.geom}>S</V> — площадь поверхности, м²</>}>
-            {Number(result.surface_area).toFixed(2)}
+            {Number(result.surface_area_bare).toFixed(2)}
           </Descriptions.Item>
-          {result.alpha_vnesh != null && (
+          {result.alpha_vnesh_applied != null && (
             <Descriptions.Item label={<><V c={C.coeff}>α</V> — коэф. теплоотдачи, Вт/(м²·К)</>}>
-              {Number(result.alpha_vnesh).toFixed(2)}
+              {Number(result.alpha_vnesh_applied).toFixed(2)}
             </Descriptions.Item>
           )}
         </Descriptions>

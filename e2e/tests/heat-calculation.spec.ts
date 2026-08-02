@@ -191,7 +191,7 @@ test.describe('4.3 Расчёт тепловых потерь', () => {
       insulation_thickness: 0.05,
       insulation_material: 'mineral_wool_boards_120',
     });
-    expect(savedObject?.results?.heat_loss_per_meter).toBeTruthy();
+    expect(savedObject?.results?.heat_loss_per_meter_base).toBeTruthy();
 
     await expect(page.getByRole('button', { name: /Электрорасчёт/i })).toHaveCount(0);
     await expect(page.getByRole('menuitem', { name: /Электротехнический расчёт/i })).toBeVisible();

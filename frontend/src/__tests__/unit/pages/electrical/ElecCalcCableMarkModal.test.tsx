@@ -31,8 +31,8 @@ function projectObject(overrides: Partial<ProjectObject> = {}): ProjectObject {
       process_temperature: 60,
     },
     results: {
-      heat_loss_per_meter: 12.5,
-      total_heat_loss: 625,
+      heat_loss_per_meter_base: 12.5,
+      total_heat_loss_design: 625,
     },
     is_valid: true,
     validation_errors: null,

@@ -232,26 +232,26 @@
       "valueType": "input",
       "description": "Срок поставки выбранного кабеля."
     },
-    "heat_loss_per_meter": {
-      "labels": { "short": "q, Вт/м", "full": "Теплопотери трубы, Вт/м", "compact": "q" },
+    "heat_loss_per_meter_base": {
+      "labels": { "short": "q до K, Вт/м", "full": "Базовые теплопотери трубы (до K), Вт/м", "compact": "q base" },
       "group": "Теплопотери",
       "source": "project_objects.results",
       "valueType": "computed",
-      "description": "Удельные теплопотери трубы из теплового расчёта."
+      "description": "Базовые удельные теплопотери трубы до коэффициента запаса K."
     },
-    "heat_loss_per_m2": {
-      "labels": { "short": "q, Вт/м²", "full": "Теплопотери резервуара, Вт/м²", "compact": "q м²" },
+    "heat_loss_per_m2_bare_base": {
+      "labels": { "short": "q до K, Вт/м²", "full": "Базовые теплопотери резервуара (до K), Вт/м²", "compact": "q base" },
       "group": "Теплопотери",
       "source": "project_objects.results",
       "valueType": "computed",
-      "description": "Удельные теплопотери резервуара из теплового расчёта."
+      "description": "Базовые удельные теплопотери резервуара до коэффициента запаса K."
     },
-    "total_heat_loss": {
-      "labels": { "short": "Q тепл., Вт", "full": "Суммарные теплопотери, Вт", "compact": "Q тепл." },
+    "total_heat_loss_design": {
+      "labels": { "short": "Q проект., Вт", "full": "Проектные суммарные теплопотери, Вт", "compact": "Q design" },
       "group": "Теплопотери",
       "source": "project_objects.results",
       "valueType": "computed",
-      "description": "Суммарные теплопотери объекта из теплового расчёта."
+      "description": "Готовая проектная тепловая нагрузка после K; для резервуара включает Qдоп после K."
     }
   },
   "table": {
@@ -302,9 +302,9 @@
       { "key": "total_cost", "defaultWidthPct": 10, "minWidthPx": 90 },
       { "key": "stock_status", "defaultWidthPct": 10, "minWidthPx": 90 },
       { "key": "lead_time_days", "defaultWidthPct": 9, "minWidthPx": 80 },
-      { "key": "heat_loss_per_meter", "defaultWidthPct": 9, "minWidthPx": 80 },
-      { "key": "heat_loss_per_m2", "defaultWidthPct": 9, "minWidthPx": 80 },
-      { "key": "total_heat_loss", "defaultWidthPct": 11, "minWidthPx": 90 }
+      { "key": "heat_loss_per_meter_base", "defaultWidthPct": 9, "minWidthPx": 80 },
+      { "key": "heat_loss_per_m2_bare_base", "defaultWidthPct": 9, "minWidthPx": 80 },
+      { "key": "total_heat_loss_design", "defaultWidthPct": 11, "minWidthPx": 90 }
     ]
   }
 }

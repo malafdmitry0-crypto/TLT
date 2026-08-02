@@ -11,7 +11,7 @@ export type HeatCalcCalculationDetailMetric =
   | 'external_resistance'
   | 'ground_resistance'
   | 'effective_length'
-  | 'surface_area'
+  | 'surface_area_bare'
   | 'wall_resistance'
   | 'thermal_resistance'
   | 'wind_speed'
@@ -59,7 +59,7 @@ export const HEATCALC_CALCULATION_DETAIL_METRIC_OPTIONS: Array<{
   { key: 'external_resistance', label: 'Rвнеш/гр' },
   { key: 'ground_resistance', label: 'Rгр' },
   { key: 'effective_length', label: 'Lэфф' },
-  { key: 'surface_area', label: 'Sпов.' },
+  { key: 'surface_area_bare', label: 'Sпов.' },
   { key: 'wall_resistance', label: 'Rст' },
   { key: 'thermal_resistance', label: 'RΣ' },
   { key: 'wind_speed', label: 'Ветер' },
@@ -80,7 +80,7 @@ const PRESET_METRICS: Record<
     'applied_safety_factor',
     'insulation_resistance',
     'effective_length',
-    'surface_area',
+    'surface_area_bare',
   ],
   standard: [
     'delta_t',
@@ -90,7 +90,7 @@ const PRESET_METRICS: Record<
     'external_resistance',
     'ground_resistance',
     'effective_length',
-    'surface_area',
+    'surface_area_bare',
   ],
   detailed: [
     'delta_t',
@@ -100,7 +100,7 @@ const PRESET_METRICS: Record<
     'external_resistance',
     'ground_resistance',
     'effective_length',
-    'surface_area',
+    'surface_area_bare',
     'wall_resistance',
     'thermal_resistance',
     'wind_speed',

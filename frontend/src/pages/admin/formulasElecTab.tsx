@@ -39,7 +39,7 @@ export function FormulasElecTab() {
       <Col xs={24} lg={12}>
         <ElecFormulaDisplay />
         <div className="formulas-tab-hint">
-          Поле «Требуемая мощность» = <Text code className="formulas-tab-hint__code">heat_loss_per_meter</Text> из результата расчёта теплопотерь.
+          Поле «Требуемая мощность» = <Text code className="formulas-tab-hint__code">heat_loss_per_meter_base</Text> (до K) из результата расчёта теплопотерь.
         </div>
       </Col>
       <Col xs={24} lg={12}>

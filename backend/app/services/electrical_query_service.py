@@ -749,33 +749,33 @@ FIELDS: tuple[FieldDef, ...] = (
         sort_type="number",
     ),
     FieldDef(
-        "heat_loss_per_meter",
+        "heat_loss_per_meter_base",
         "Теплопотери трубы, Вт/м",
         "q, Вт/м",
         "number",
-        lambda row: _object_result(row, "heat_loss_per_meter"),
+        lambda row: _object_result(row, "heat_loss_per_meter_base"),
         unit="Вт/м",
         filter_ops=("range",),
         sortable=True,
         sort_type="number",
     ),
     FieldDef(
-        "heat_loss_per_m2",
+        "heat_loss_per_m2_bare_base",
         "Теплопотери резервуара, Вт/м²",
         "q, Вт/м²",
         "number",
-        lambda row: _object_result(row, "heat_loss_per_m2"),
+        lambda row: _object_result(row, "heat_loss_per_m2_bare_base"),
         unit="Вт/м²",
         filter_ops=("range",),
         sortable=True,
         sort_type="number",
     ),
     FieldDef(
-        "total_heat_loss",
+        "total_heat_loss_design",
         "Суммарные теплопотери, Вт",
         "Q тепл., Вт",
         "number",
-        lambda row: _object_result(row, "total_heat_loss"),
+        lambda row: _object_result(row, "total_heat_loss_design"),
         unit="Вт",
         filter_ops=("range",),
         sortable=True,
@@ -828,18 +828,18 @@ ELECTRICAL_SQL_EXPRESSIONS: dict[str, SqlExprFactory] = {
     "total_cost": lambda: _sql_calc_commercial_number("total_cost"),
     "stock_status": lambda: _sql_calc_commercial_text("stock_status"),
     "lead_time_days": lambda: _sql_calc_commercial_number("lead_time_days"),
-    "heat_loss_per_meter": lambda: _sql_object_result_number("heat_loss_per_meter"),
-    "heat_loss_per_m2": lambda: _sql_object_result_number("heat_loss_per_m2"),
-    "total_heat_loss": lambda: _sql_object_result_number("total_heat_loss"),
+    "heat_loss_per_meter_base": lambda: _sql_object_result_number("heat_loss_per_meter_base"),
+    "heat_loss_per_m2_bare_base": lambda: _sql_object_result_number("heat_loss_per_m2_bare_base"),
+    "total_heat_loss_design": lambda: _sql_object_result_number("total_heat_loss_design"),
     "message": _sql_calc_error,
 }
 
 ELECTRICAL_OBJECT_PARAM_KEYS = frozenset({"name"})
 ELECTRICAL_OBJECT_RESULT_KEYS = frozenset(
     {
-        "heat_loss_per_meter",
-        "heat_loss_per_m2",
-        "total_heat_loss",
+        "heat_loss_per_meter_base",
+        "heat_loss_per_m2_bare_base",
+        "total_heat_loss_design",
     }
 )
 ELECTRICAL_CALC_PARAM_KEYS = frozenset(

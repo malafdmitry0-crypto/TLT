@@ -1,13 +1,13 @@
 """Regression-guard: safety_factor НЕ применяется дважды в пайплайне.
 
 Контекст:
-    Теплорасчёт уже умножает на K в total_heat_loss (но НЕ в heat_loss_per_meter).
+    Теплорасчёт уже умножает на K в total_heat_loss_design (но НЕ в heat_loss_per_meter_base).
     Электрорасчёт принимает required_power_per_meter и сам умножает на
     safety_factor внутри calc_self_regulating.
 
     Если calculation_service случайно передаст
-      - total_heat_loss / L  (вместо heat_loss_per_meter), или
-      - heat_loss_per_meter × K (pre-multiplied)
+      - total_heat_loss_design / L  (вместо heat_loss_per_meter_base), или
+      - heat_loss_per_meter_base × K (pre-multiplied)
     то K применится дважды → подберётся кабель с запасом 21% вместо 10%.
 
 Эти тесты ловят оба варианта регрессии, перехватывая входной аргумент
@@ -55,7 +55,7 @@ def _make_mock_db(pipe_object: SimpleNamespace, cable_catalog_rows: list | None 
     return db
 
 
-def _fake_pipe_object(heat_loss_per_meter: float, pipe_length: float = 50.0):
+def _fake_pipe_object(heat_loss_per_meter_base: float, pipe_length: float = 50.0):
     """Мок-ProjectObject с уже «посчитанными» теплопотерями."""
     oid = uuid.uuid4()
     pid = uuid.uuid4()
@@ -75,11 +75,11 @@ def _fake_pipe_object(heat_loss_per_meter: float, pipe_length: float = 50.0):
             "pipe_length": pipe_length,
         },
         results={
-            "heat_loss_per_meter": heat_loss_per_meter,
-            # Значение total_heat_loss вычислено с учётом К=1.1 — важно для теста:
+            "heat_loss_per_meter_base": heat_loss_per_meter_base,
+            # Значение total_heat_loss_design вычислено с учётом К=1.1 — важно для теста:
             # если service по ошибке возьмёт total/L, он получит q×K и будет
             # дважды множить на К.
-            "total_heat_loss": heat_loss_per_meter * pipe_length * 1.1,
+            "total_heat_loss_design": heat_loss_per_meter_base * pipe_length * 1.1,
             "effective_length": pipe_length,
             "thermal_resistance": 0.5,
         },
@@ -89,10 +89,10 @@ def _fake_pipe_object(heat_loss_per_meter: float, pipe_length: float = 50.0):
 @pytest.mark.asyncio
 async def test_batch_calc_electrical_passes_raw_q_linear_not_total():
     """batch_calc_electrical должен передать в электрорасчёт РОВНО
-    heat_loss_per_meter (без K), а не total_heat_loss/L (c K).
+    heat_loss_per_meter_base (без K), а не total_heat_loss_design/L (c K).
 
     Регрессия: если кто-то перепишет строку `required_power = results.get(...)`
-    на `total_heat_loss / pipe_length`, safety_factor применится дважды.
+    на `total_heat_loss_design / pipe_length`, safety_factor применится дважды.
     """
     Q_LINEAR = 22.0  # Вт/м — «голое» значение
     PIPE_LEN = 50.0
@@ -129,7 +129,7 @@ async def test_batch_calc_electrical_passes_raw_q_linear_not_total():
 
     assert captured["required_power_per_meter"] == pytest.approx(Q_LINEAR, rel=1e-6), (
         f"Service передал {captured['required_power_per_meter']} Вт/м — "
-        f"ожидалось heat_loss_per_meter={Q_LINEAR}. "
+        f"ожидалось heat_loss_per_meter_base={Q_LINEAR}. "
         f"Если получили {TOTAL / PIPE_LEN:.2f} — это total/L (double-K bug)."
     )
     # safety_factor=1.1 прямо зашит в service; проверяем, что он один раз применится
@@ -138,12 +138,12 @@ async def test_batch_calc_electrical_passes_raw_q_linear_not_total():
 
 
 @pytest.mark.asyncio
-async def test_heat_loss_per_meter_never_includes_safety_factor():
+async def test_heat_loss_per_meter_base_never_includes_safety_factor():
     """calc_heat_loss (через service) не должен применять K к q_linear.
 
     Проверяем через реальный вызов формулы: q_linear не меняется от входного K.
-    Явно заданный K сохраняется, поэтому total_heat_loss меняется пропорционально
-    K, но heat_loss_per_meter остается неизменным.
+    Явно заданный K сохраняется, поэтому total_heat_loss_design меняется пропорционально
+    K, но heat_loss_per_meter_base остается неизменным.
     """
     db = AsyncMock()
     db.execute = AsyncMock(return_value=MagicMock(scalars=lambda: MagicMock(all=lambda: [])))
@@ -164,14 +164,14 @@ async def test_heat_loss_per_meter_never_includes_safety_factor():
     r2 = await service.calc_heat_loss("pipe", {**pipe_params, "safety_factor": 1.5})
 
     # q_linear — инвариант: НЕ зависит от safety_factor
-    assert r1["heat_loss_per_meter"] == pytest.approx(r2["heat_loss_per_meter"], rel=1e-6), (
-        "heat_loss_per_meter изменился при изменении safety_factor — "
+    assert r1["heat_loss_per_meter_base"] == pytest.approx(r2["heat_loss_per_meter_base"], rel=1e-6), (
+        "heat_loss_per_meter_base изменился при изменении safety_factor — "
         "значит K применяется к q_linear. Это сломает электрорасчёт "
         "(будет двойная накрутка). Fix: убрать × K из расчёта q_linear в pipe.py."
     )
 
-    # total_heat_loss масштабируется только один раз через safety_factor.
-    ratio = r2["total_heat_loss"] / r1["total_heat_loss"]
+    # total_heat_loss_design масштабируется только один раз через safety_factor.
+    ratio = r2["total_heat_loss_design"] / r1["total_heat_loss_design"]
     assert ratio == pytest.approx(1.5 / 1.1, rel=1e-3)
-    assert r1["safety_factor"] == pytest.approx(1.1)
-    assert r2["safety_factor"] == pytest.approx(1.5)
+    assert r1["safety_factor_applied"] == pytest.approx(1.1)
+    assert r2["safety_factor_applied"] == pytest.approx(1.5)

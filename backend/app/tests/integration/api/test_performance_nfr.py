@@ -326,8 +326,8 @@ class TestStress1000Objects:
             coefficients={"safety_factor": 1.0},
         )
         shared_results = {
-            "heat_loss_per_meter": heat_result.heat_loss_per_meter,
-            "total_heat_loss": heat_result.total_heat_loss,
+            "heat_loss_per_meter_base": heat_result.heat_loss_per_meter_base,
+            "total_heat_loss_design": heat_result.total_heat_loss_design,
             "thermal_resistance": heat_result.thermal_resistance,
         }
         objs = [

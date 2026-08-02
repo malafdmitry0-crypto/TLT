@@ -73,7 +73,7 @@ async def _add_ready_pipe(
     assert response.status_code == 201, response.text
     body = response.json()
     assert body["is_valid"] is True
-    assert body["results"]["total_heat_loss"] > 0
+    assert body["results"]["total_heat_loss_design"] > 0
     return body
 
 
@@ -245,8 +245,8 @@ async def _seed_ready_project_objects(
             is_valid=True,
             params={**READY_PIPE_PARAMS, "name": f"Трубопровод {index + 1}"},
             results={
-                "heat_loss_per_meter": 20.0,
-                "total_heat_loss": 1000.0,
+                "heat_loss_per_meter_base": 20.0,
+                "total_heat_loss_design": 1000.0,
                 "effective_length": 50.0,
             },
         )
@@ -375,7 +375,7 @@ class TestElectricalReadinessAndInitialization:
         assert body["ready"] is False
         assert body["ready_objects"] == 0
         assert body["issues"][0]["code"] == "ELECTRICAL_OBJECT_NOT_READY"
-        assert body["issues"][0]["details"]["total_heat_loss"] is None
+        assert body["issues"][0]["details"]["total_heat_loss_design"] is None
 
     async def test_initialize_is_idempotent_and_creates_unassigned_assignment(
         self,

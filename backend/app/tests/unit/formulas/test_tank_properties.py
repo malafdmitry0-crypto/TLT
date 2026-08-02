@@ -86,20 +86,20 @@ class TestSurfaceAreaFormulas:
         # Боковая: π·2·3 = 6π ≈ 18.85
         # Донышки: 2·π·1² = 2π ≈ 6.28
         expected = math.pi * 2.0 * 3.0 + 2 * math.pi * (1.0) ** 2
-        assert r.surface_area == pytest.approx(expected, rel=1e-3)
+        assert r.surface_area_bare == pytest.approx(expected, rel=1e-3)
 
     def test_rectangular_area_formula(self):
         """S = 2·(L·W + L·H + W·H) = 2·(15+20+12) = 94 м² при 5×3×4."""
         r = calc_tank_heat_loss(_rect(length=5, width=3, height=4))
-        assert r.surface_area == pytest.approx(94.0, rel=1e-3)
+        assert r.surface_area_bare == pytest.approx(94.0, rel=1e-3)
 
     def test_sphere_area_formula(self):
         """S = 4·π·r² = π·d² при d=1.5 → π·2.25 ≈ 7.069 м²."""
         r = calc_tank_heat_loss(_sph(diameter=1.5))
         expected = 4 * math.pi * (1.5 / 2) ** 2
-        assert r.surface_area == pytest.approx(expected, rel=1e-3)
+        assert r.surface_area_bare == pytest.approx(expected, rel=1e-3)
         # Эквивалентно π·d²
-        assert r.surface_area == pytest.approx(math.pi * 1.5**2, rel=1e-3)
+        assert r.surface_area_bare == pytest.approx(math.pi * 1.5**2, rel=1e-3)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -116,10 +116,10 @@ class TestMetamorphicTank:
 
         k = math.sqrt(2)
         r2 = calc_tank_heat_loss(_cyl(diameter=1.5 * k, height=2.0 * k))
-        assert r2.surface_area == pytest.approx(2 * r1.surface_area, rel=1e-3)
+        assert r2.surface_area_bare == pytest.approx(2 * r1.surface_area_bare, rel=1e-3)
         # q на м² не зависит от геометрии (плоская стенка)
-        assert r2.heat_loss_per_m2 == pytest.approx(r1.heat_loss_per_m2, rel=1e-3)
-        assert r2.total_heat_loss == pytest.approx(2 * r1.total_heat_loss, rel=1e-3)
+        assert r2.heat_loss_per_m2_bare_base == pytest.approx(r1.heat_loss_per_m2_bare_base, rel=1e-3)
+        assert r2.total_heat_loss_design == pytest.approx(2 * r1.total_heat_loss_design, rel=1e-3)
 
     def test_q_per_m2_independent_of_shape_when_same_thermal_config(self):
         """q на м² — это свойство стенки (ΔT, изоляция, α), не зависит от формы."""
@@ -152,45 +152,45 @@ class TestMetamorphicTank:
             )
         )
         # q на м² одинаковое для всех трёх форм — формула плоской стенки
-        assert r_cyl.heat_loss_per_m2 == pytest.approx(r_rect.heat_loss_per_m2, rel=1e-3)
-        assert r_cyl.heat_loss_per_m2 == pytest.approx(r_sph.heat_loss_per_m2, rel=1e-3)
+        assert r_cyl.heat_loss_per_m2_bare_base == pytest.approx(r_rect.heat_loss_per_m2_bare_base, rel=1e-3)
+        assert r_cyl.heat_loss_per_m2_bare_base == pytest.approx(r_sph.heat_loss_per_m2_bare_base, rel=1e-3)
 
     def test_thicker_insulation_reduces_q(self):
-        q_thin = calc_tank_heat_loss(_cyl(insulation_thickness=0.02)).heat_loss_per_m2
-        q_thick = calc_tank_heat_loss(_cyl(insulation_thickness=0.15)).heat_loss_per_m2
+        q_thin = calc_tank_heat_loss(_cyl(insulation_thickness=0.02)).heat_loss_per_m2_bare_base
+        q_thick = calc_tank_heat_loss(_cyl(insulation_thickness=0.15)).heat_loss_per_m2_bare_base
         assert q_thick < q_thin
 
     @pytest.mark.parametrize("v", [0, 1, 3, 5, 10])
     def test_wind_monotonically_increases_q(self, v):
         """∂q/∂v ≥ 0."""
-        q_calm = calc_tank_heat_loss(_cyl(wind_speed=0)).heat_loss_per_m2
-        q_windy = calc_tank_heat_loss(_cyl(wind_speed=v)).heat_loss_per_m2
+        q_calm = calc_tank_heat_loss(_cyl(wind_speed=0)).heat_loss_per_m2_bare_base
+        q_windy = calc_tank_heat_loss(_cyl(wind_speed=v)).heat_loss_per_m2_bare_base
         assert q_windy >= q_calm - 1e-6
 
     def test_indoor_location_contract(self):
         indoor = calc_tank_heat_loss(_cyl(location="indoor"))
         outdoor = calc_tank_heat_loss(_cyl(location="outdoor", wind_speed=0))
-        assert indoor.alpha_vnesh == pytest.approx(9.0)
-        assert outdoor.alpha_vnesh == pytest.approx(11.6)
-        assert indoor.external_resistance > outdoor.external_resistance
+        assert indoor.alpha_vnesh_applied == pytest.approx(9.0)
+        assert outdoor.alpha_vnesh_applied == pytest.approx(11.6)
+        assert indoor.external_resistance_areal_bare > outdoor.external_resistance_areal_bare
         # Итог зависит также от режима tm; дополнительного Kразм нет.
 
     def test_safety_factor_scales_only_total(self):
         """K влияет на Q, не на q. Диапазон ТЗ: 1.05…1.7."""
         r1 = calc_tank_heat_loss(_cyl(safety_factor=1.1))
         r2 = calc_tank_heat_loss(_cyl(safety_factor=1.65))
-        assert r2.heat_loss_per_m2 == pytest.approx(r1.heat_loss_per_m2, rel=1e-6)
-        assert r2.total_heat_loss == pytest.approx((1.65 / 1.1) * r1.total_heat_loss, rel=1e-3)
+        assert r2.heat_loss_per_m2_bare_base == pytest.approx(r1.heat_loss_per_m2_bare_base, rel=1e-6)
+        assert r2.total_heat_loss_design == pytest.approx((1.65 / 1.1) * r1.total_heat_loss_design, rel=1e-3)
 
     def test_wall_resistance_reduces_loss(self):
         """Если указать стенку с низкой λ — q уменьшится."""
-        q_no_wall = calc_tank_heat_loss(_cyl()).heat_loss_per_m2
+        q_no_wall = calc_tank_heat_loss(_cyl()).heat_loss_per_m2_bare_base
         q_with_wall = calc_tank_heat_loss(
             _cyl(
                 wall_thickness=0.01,
                 wall_lambda=0.5,  # "плохой" металл
             )
-        ).heat_loss_per_m2
+        ).heat_loss_per_m2_bare_base
         assert q_with_wall < q_no_wall
 
 
@@ -219,7 +219,7 @@ class TestGoldenTankFromDocs:
         )
         # Для конкретной минваты ρ120 λ(tm=40°C)≈0.0534, поэтому q выше
         # старого generic-примера с постоянной λ=0.045.
-        assert r.heat_loss_per_m2 == pytest.approx(63.1, rel=0.10)
+        assert r.heat_loss_per_m2_bare_base == pytest.approx(63.1, rel=0.10)
 
 
 # ═══════════════════════════════════════════════════════════════════════════

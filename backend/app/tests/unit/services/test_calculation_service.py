@@ -26,8 +26,8 @@ async def test_calc_heat_loss_pipe_returns_dict():
             "pipe_length": 10,
         },
     )
-    assert "heat_loss_per_meter" in result
-    assert result["heat_loss_per_meter"] > 0
+    assert "heat_loss_per_meter_base" in result
+    assert result["heat_loss_per_meter_base"] > 0
 
 
 @pytest.mark.asyncio

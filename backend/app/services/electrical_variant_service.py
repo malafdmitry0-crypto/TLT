@@ -871,7 +871,7 @@ class ElectricalVariantService:
                 )
                 continue
             total_heat_loss = (
-                obj.results.get("total_heat_loss") if isinstance(obj.results, dict) else None
+                obj.results.get("total_heat_loss_design") if isinstance(obj.results, dict) else None
             )
             has_meaningful_heat_result = (
                 isinstance(total_heat_loss, int | float)
@@ -887,7 +887,7 @@ class ElectricalVariantService:
                         message="Сначала исправьте данные и выполните расчёт теплопотерь объекта",
                         details={
                             "object_type": str(object_type),
-                            "total_heat_loss": total_heat_loss,
+                            "total_heat_loss_design": total_heat_loss,
                             "validation_errors": copy.deepcopy(obj.validation_errors or {}),
                         },
                     )

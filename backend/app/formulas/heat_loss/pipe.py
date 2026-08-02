@@ -84,6 +84,8 @@ def _resolve_layers(params: PipeHeatLossParams) -> list[InsulationLayer]:
 class _LayerResistance:
     layer: InsulationLayer
     resistance: float
+    conductivity: float
+    conductivity_source: str
 
 
 def _fmt_temp(value: float) -> str:
@@ -180,11 +182,20 @@ def _r_insulation_layers(
             if layer.conductivity is None:
                 raise ValueError("Для материала изоляции 'other' необходимо задать λ слоя")
             lam = layer.conductivity
+            conductivity_source = "manual"
         else:
             lam = get_insulation_conductivity(layer.material, insulation_tm)
+            conductivity_source = "reference_data"
         layer_resistance = _r_cylindrical(r, r_out, lam)
         r_total += layer_resistance
-        layer_resistances.append(_LayerResistance(layer=layer, resistance=layer_resistance))
+        layer_resistances.append(
+            _LayerResistance(
+                layer=layer,
+                resistance=layer_resistance,
+                conductivity=lam,
+                conductivity_source=conductivity_source,
+            )
+        )
         r = r_out
     return r_total, r, layer_resistances  # (сопротивление, наружный радиус, слои)
 
@@ -243,8 +254,8 @@ def calc_pipe_heat_loss(
             DEFAULT_COEFFICIENTS.
 
     Returns:
-        PipeHeatLossResult: `heat_loss_per_meter` (q без K), `total_heat_loss`
-        (Q с K), `effective_length` (L_eff), `thermal_resistance` (R_total).
+        PipeHeatLossResult: base/design values for q and Q, `effective_length`
+        (L_eff), and `thermal_resistance` (R_total).
 
     Raises:
         ValueError: невалидные входы (отрицательные/нулевые размеры, слишком
@@ -330,18 +341,67 @@ def calc_pipe_heat_loss(
     # --- 7. Итоговые теплопотери ---
     q_total = q_linear * l_eff * k
 
+    q_design = q_linear * k
+    q_base_total = q_linear * l_eff
+    additional_length = n_i * l_ekv
+
     return PipeHeatLossResult(
-        heat_loss_per_meter=round(q_linear, 3),
-        total_heat_loss=round(q_total, 3),
+        heat_loss_per_meter_base=round(q_linear, 3),
+        heat_loss_per_meter_design=round(q_design, 3),
+        total_heat_loss_base=round(q_base_total, 3),
+        total_heat_loss_design=round(q_total, 3),
         effective_length=round(l_eff, 3),
+        additional_equivalent_length=round(additional_length, 3),
         thermal_resistance=round(r_total, 6),
         wall_resistance=round(r_pipe_wall, 6),
         insulation_resistance=round(r_ins, 6),
         external_resistance=round(r_external, 6),
-        alpha_vnesh=round(alpha, 3) if alpha is not None else None,
-        wind_speed=params.wind_speed,
-        ground_conductivity=round(lambda_gr, 3) if lambda_gr is not None else None,
-        safety_factor=round(k, 3),
-        local_elements_count=n_i,
-        local_element_equiv_length=round(l_ekv, 3),
+        alpha_vnesh_applied=round(alpha, 3) if alpha is not None else None,
+        wind_speed_applied=(
+            params.wind_speed
+            if alpha is not None and params.alpha_vnesh is None and params.location != "indoor"
+            else None
+        ),
+        ground_conductivity_applied=(round(lambda_gr, 3) if lambda_gr is not None else None),
+        safety_factor_applied=round(k, 3),
+        local_elements_count_applied=n_i,
+        local_element_equiv_length_applied=round(l_ekv, 3),
+        formula_model="pipe_heat_loss",
+        formula_model_version="2",
+        model_assumptions=["uniform_equivalent_length_per_local_element"],
+        process_temperature_applied=params.process_temperature,
+        ambient_temperature_applied=params.ambient_temperature,
+        insulation_layers_applied=[
+            {
+                "index": index,
+                "thickness": layer_resistance.layer.thickness,
+                "material": layer_resistance.layer.material,
+                "conductivity_applied": layer_resistance.conductivity,
+                "conductivity_source": layer_resistance.conductivity_source,
+                "conductivity_temperature_applied": insulation_tm,
+                "resistance": layer_resistance.resistance,
+                "resistance_unit": "m*K/W",
+            }
+            for index, layer_resistance in enumerate(layer_resistances, start=1)
+        ],
+        input_units={
+            "outer_diameter": "m",
+            "wall_thickness": "m",
+            "insulation_layers.thickness": "m",
+            "ambient_temperature": "degC",
+            "process_temperature": "degC",
+            "pipe_length": "m",
+            "burial_depth": "m",
+            "wind_speed": "m/s",
+            "ground_conductivity": "W/(m*K)",
+        },
+        applied_units={
+            "heat_loss_per_meter_base": "W/m",
+            "heat_loss_per_meter_design": "W/m",
+            "total_heat_loss_base": "W",
+            "total_heat_loss_design": "W",
+            "thermal_resistance": "m*K/W",
+            "alpha_vnesh_applied": "W/(m2*K)",
+            "safety_factor_applied": "1",
+        },
     )

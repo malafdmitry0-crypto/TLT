@@ -50,9 +50,15 @@ export default function HeatCalcAssumptionsPanel({
     addDetail('delta_t', 'ΔT', `${formatNumber(processTemperature - ambientTemperature, 0)}°C`);
   }
 
-  addDetail('applied_alpha_vnesh', 'α примен.', resultDetailValue('alpha_vnesh', 1, ' Вт/м²К'));
-  addDetail('applied_safety_factor', 'Kзап примен.', resultValue('safety_factor', 2));
-  addDetail('insulation_resistance', 'Rиз', resultValue('insulation_resistance', 4));
+  addDetail('applied_alpha_vnesh', 'α примен.', resultDetailValue('alpha_vnesh_applied', 1, ' Вт/м²К'));
+  addDetail('applied_safety_factor', 'Kзап примен.', resultValue('safety_factor_applied', 2));
+  addDetail(
+    'insulation_resistance',
+    'Rиз',
+    resultValue(isPipe
+      ? 'insulation_resistance'
+      : 'insulation_resistance_areal_bare', 4),
+  );
 
   if (isPipe) {
     addDetail('external_resistance', isUnderground ? 'Rгр' : 'Rвнеш', resultValue('external_resistance', 4));
@@ -60,19 +66,27 @@ export default function HeatCalcAssumptionsPanel({
     addDetail('wall_resistance', 'Rст', resultValue('wall_resistance', 4));
     addDetail('thermal_resistance', 'RΣ', resultValue('thermal_resistance', 4));
   } else {
-    addDetail('external_resistance', 'Rвнеш', resultValue('external_resistance', 4));
+    addDetail(
+      'external_resistance',
+      'Rвнеш',
+      resultValue('external_resistance_areal_bare', 4),
+    );
     if (isUnderground) {
-      addDetail('ground_resistance', 'Rгр', resultValue('ground_resistance', 4));
+      addDetail('ground_resistance', 'Rгр', resultValue('ground_resistance_areal_bare', 4));
     }
-    addDetail('surface_area', 'Sпов.', resultDetailValue('surface_area', 1, ' м²'));
-    addDetail('wall_resistance', 'Rст', resultValue('wall_resistance', 4));
+    addDetail('surface_area_bare', 'Sпов.', resultDetailValue('surface_area_bare', 1, ' м²'));
+    addDetail(
+      'wall_resistance',
+      'Rст',
+      resultValue('wall_resistance_areal_bare', 4),
+    );
     if (isUnderground) {
       addDetail('air_surface_area', 'Sвозд', resultDetailValue('air_surface_area', 1, ' м²'));
       addDetail('ground_surface_area', 'Sгр', resultDetailValue('ground_surface_area', 1, ' м²'));
     }
   }
 
-  const windSpeed = Number(selectedResults.wind_speed ?? selectedParams?.wind_speed);
+  const windSpeed = Number(selectedResults.wind_speed_applied);
   if (Number.isFinite(windSpeed)) {
     addDetail('wind_speed', 'ветер', `${formatNumber(windSpeed, 1)} м/с`);
   }
@@ -90,7 +104,7 @@ export default function HeatCalcAssumptionsPanel({
     addDetail('wind_speed_source', 'ветер ист.', sourceText(selectedParams?.wind_speed_source));
   }
   if (isUnderground) {
-    addDetail('ground_conductivity', 'λгр', resultDetailValue('ground_conductivity', 2, ' Вт/мК'));
+    addDetail('ground_conductivity', 'λгр', resultDetailValue('ground_conductivity_applied', 2, ' Вт/мК'));
   }
 
   if (details.length === 0) return null;

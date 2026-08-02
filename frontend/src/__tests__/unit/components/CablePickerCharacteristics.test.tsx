@@ -26,8 +26,8 @@ function makePipe(overrides: Partial<ProjectObject> = {}): ProjectObject {
       process_temperature: 80,
     },
     results: {
-      heat_loss_per_meter: 12.5,
-      total_heat_loss: 312.5,
+      heat_loss_per_meter_base: 12.5,
+      total_heat_loss_design: 312.5,
     },
     is_valid: true,
     validation_errors: null,
@@ -45,7 +45,7 @@ describe('cablePickerCharacteristicsModel', () => {
       'outer_diameter',
       'pipe_length',
       'heat_loss_specific',
-      'total_heat_loss',
+      'total_heat_loss_design',
       'placement',
       'insulation',
       'ambient_temperature',
@@ -66,7 +66,7 @@ describe('cablePickerCharacteristicsModel', () => {
     const fields = buildObjectFields(tank);
     expect(fields[0].value).toBe('Резервуар');
     expect(fields.find((f) => f.key === 'tank_geometry')?.value).toMatch(/цилиндр/);
-    expect(fields.find((f) => f.key === 'total_heat_loss')?.value).toBe('—');
+    expect(fields.find((f) => f.key === 'total_heat_loss_design')?.value).toBe('—');
   });
 
   it('orders cable fields and formats extended values with fallbacks', () => {

@@ -141,6 +141,21 @@ class InsulationLayer(BaseModel):
         return self
 
 
+class InsulationLayerApplied(BaseModel):
+    """Resolved layer values persisted in the flat heat-calculation trace."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    index: int = Field(ge=1, le=3)
+    thickness: float = Field(gt=0)
+    material: str = Field(min_length=1)
+    conductivity_applied: float = Field(gt=0)
+    conductivity_source: Literal["manual", "reference_data"]
+    conductivity_temperature_applied: float
+    resistance: float = Field(ge=0)
+    resistance_unit: Literal["m*K/W", "m2*K/W"]
+
+
 class PipeHeatLossParams(BaseModel):
     """Параметры для расчёта теплопотерь трубопровода.
 
@@ -323,11 +338,16 @@ class PipeHeatLossParams(BaseModel):
 
 
 class PipeHeatLossResult(BaseModel):
-    heat_loss_per_meter: float = Field(description="Теплопотери q_linear, Вт/м")
-    total_heat_loss: float = Field(
-        description="Полные теплопотери с учётом K и локальных элементов, Вт"
-    )
+    """Canonical pipe heat result; base values never include safety_factor."""
+
+    model_config = ConfigDict(extra="forbid", protected_namespaces=())
+
+    heat_loss_per_meter_base: float = Field(description="Базовые теплопотери, Вт/м")
+    heat_loss_per_meter_design: float = Field(description="Проектные теплопотери, Вт/м")
+    total_heat_loss_base: float = Field(description="Базовые полные теплопотери, Вт")
+    total_heat_loss_design: float = Field(description="Проектные полные теплопотери, Вт")
     effective_length: float = Field(description="Расчётная длина с учётом локальных элементов, м")
+    additional_equivalent_length: float = Field(description="Дополнительная эквивалентная длина, м")
     thermal_resistance: float = Field(description="Суммарное термическое сопротивление, м·К/Вт")
     wall_resistance: float | None = Field(
         default=None,
@@ -341,24 +361,34 @@ class PipeHeatLossResult(BaseModel):
         default=None,
         description="Внешнее/грунтовое сопротивление, м·К/Вт",
     )
-    alpha_vnesh: float | None = Field(
+    alpha_vnesh_applied: float | None = Field(
         default=None,
         description="Коэффициент внешней теплоотдачи, Вт/(м²·К)",
     )
-    wind_speed: float | None = Field(default=None, description="Скорость ветра, м/с")
-    ground_conductivity: float | None = Field(
+    wind_speed_applied: float | None = Field(default=None, description="Скорость ветра, м/с")
+    ground_conductivity_applied: float | None = Field(
         default=None,
         description="Теплопроводность грунта, Вт/(м·К)",
     )
-    safety_factor: float | None = Field(default=None, description="Коэффициент запаса")
-    local_elements_count: int | None = Field(
+    safety_factor_applied: float = Field(description="Применённый коэффициент запаса")
+    local_elements_count_applied: int | None = Field(
         default=None,
         description="Количество локальных элементов",
     )
-    local_element_equiv_length: float | None = Field(
+    local_element_equiv_length_applied: float | None = Field(
         default=None,
         description="Эквивалентная длина одного локального элемента, м",
     )
+    formula_model: str
+    formula_model_version: str
+    model_assumptions: list[str] = Field(default_factory=list)
+    process_temperature_applied: float | None = None
+    ambient_temperature_applied: float | None = None
+    ground_temperature_applied: float | None = None
+    insulation_layers_applied: list[InsulationLayerApplied] = Field(default_factory=list)
+    input_units: dict[str, str] = Field(default_factory=dict)
+    applied_units: dict[str, str] = Field(default_factory=dict)
+    source_corrections: list[str] = Field(default_factory=list)
 
 
 class TankHeatLossParams(BaseModel):
@@ -376,7 +406,6 @@ class TankHeatLossParams(BaseModel):
     height: float | None = Field(default=None, ge=TANK_HEIGHT_MIN, le=TANK_HEIGHT_MAX)
     length: float | None = Field(default=None, ge=TANK_SIDE_MIN, le=TANK_SIDE_MAX)
     width: float | None = Field(default=None, ge=TANK_SIDE_MIN, le=TANK_SIDE_MAX)
-    volume: float | None = Field(default=None, gt=0)
     insulation_thickness: float = Field(gt=0)
     insulation_material: str = Field(min_length=1)
     insulation_layers: list[InsulationLayer] | None = Field(
@@ -469,22 +498,39 @@ class TankHeatLossParams(BaseModel):
 
 
 class TankHeatLossResult(BaseModel):
-    heat_loss_per_m2: float
-    total_heat_loss: float
-    surface_area: float
-    wall_resistance: float | None = None
-    insulation_resistance: float | None = None
-    external_resistance: float | None = None
-    ground_resistance: float | None = None
-    alpha_vnesh: float | None = None
-    wind_speed: float | None = None
-    ground_conductivity: float | None = None
-    safety_factor: float | None = None
+    """Canonical tank heat result; additional load is applied after K."""
+
+    model_config = ConfigDict(extra="forbid", protected_namespaces=())
+
+    total_heat_loss_base: float
+    total_heat_loss_design: float
+    heat_loss_per_m2_bare_base: float
+    heat_loss_per_m2_bare_design: float
+    surface_area_bare: float
+    thermal_resistance_areal_bare: float | None = None
+    wall_resistance_areal_bare: float | None = None
+    insulation_resistance_areal_bare: float | None = None
+    external_resistance_areal_bare: float | None = None
+    ground_resistance_areal_bare: float | None = None
     air_surface_area: float | None = None
     ground_surface_area: float | None = None
-    heat_loss_air_per_m2: float | None = None
-    heat_loss_ground_per_m2: float | None = None
-    q_additional: float = 0.0
+    heat_loss_air_base: float | None = None
+    heat_loss_ground_base: float | None = None
+    alpha_vnesh_applied: float | None = None
+    wind_speed_applied: float | None = None
+    ground_conductivity_applied: float | None = None
+    safety_factor_applied: float
+    q_additional_applied: float = 0.0
+    formula_model: str
+    formula_model_version: str
+    model_assumptions: list[str] = Field(default_factory=list)
+    process_temperature_applied: float | None = None
+    ambient_temperature_applied: float | None = None
+    ground_temperature_applied: float | None = None
+    insulation_layers_applied: list[InsulationLayerApplied] = Field(default_factory=list)
+    input_units: dict[str, str] = Field(default_factory=dict)
+    applied_units: dict[str, str] = Field(default_factory=dict)
+    source_corrections: list[str] = Field(default_factory=list)
 
 
 class HeatLossRequest(BaseModel):

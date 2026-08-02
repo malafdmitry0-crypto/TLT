@@ -27,7 +27,7 @@ const OBJECT_FIELD_LABELS: Record<string, string> = {
   ambient_temperature: 'T окр.',
   process_temperature: 'T объекта',
   heat_loss_specific: 'Уд. теплопотери',
-  total_heat_loss: 'Суммарные теплопотери',
+  total_heat_loss_design: 'Суммарные теплопотери',
 };
 
 const PIPE_OBJECT_FIELD_ORDER = [
@@ -35,7 +35,7 @@ const PIPE_OBJECT_FIELD_ORDER = [
   'outer_diameter',
   'pipe_length',
   'heat_loss_specific',
-  'total_heat_loss',
+  'total_heat_loss_design',
   'placement',
   'insulation',
   'ambient_temperature',
@@ -46,7 +46,7 @@ const TANK_OBJECT_FIELD_ORDER = [
   'object_type',
   'tank_geometry',
   'heat_loss_specific',
-  'total_heat_loss',
+  'total_heat_loss_design',
   'placement',
   'insulation',
   'ambient_temperature',
@@ -120,10 +120,10 @@ function objectValue(object: ProjectObject, field: string) {
       return formatTemperatureValue(params.process_temperature);
     case 'heat_loss_specific':
       return object.object_type === 'tank'
-        ? formatUnitValue(results.heat_loss_per_m2, 'Вт/м²', 2)
-        : formatUnitValue(results.heat_loss_per_meter, 'Вт/м', 2);
-    case 'total_heat_loss':
-      return powerText(results.total_heat_loss);
+        ? formatUnitValue(results.heat_loss_per_m2_bare_base, 'Вт/м²', 2)
+        : formatUnitValue(results.heat_loss_per_meter_base, 'Вт/м', 2);
+    case 'total_heat_loss_design':
+      return powerText(results.total_heat_loss_design);
     default:
       return '—';
   }

@@ -58,16 +58,16 @@ class TestPipeBoundaries:
     def test_min_diameter_dn10(self):
         """0.0108м (минимальная DN10) — нижняя граница."""
         r = calc_pipe_heat_loss(_pipe(outer_diameter=0.0108))
-        assert r.heat_loss_per_meter > 0
-        assert math.isfinite(r.total_heat_loss)
+        assert r.heat_loss_per_meter_base > 0
+        assert math.isfinite(r.total_heat_loss_design)
         assert math.isfinite(r.thermal_resistance)
         assert r.thermal_resistance > 0
 
     def test_max_diameter_3m(self):
         """3.0м (магистральная труба) — верхняя граница."""
         r = calc_pipe_heat_loss(_pipe(outer_diameter=3.0))
-        assert r.heat_loss_per_meter > 0
-        assert math.isfinite(r.total_heat_loss)
+        assert r.heat_loss_per_meter_base > 0
+        assert math.isfinite(r.total_heat_loss_design)
 
     def test_min_pipe_length(self):
         """Полметра — техническая минимальная длина. Учтён safety_factor."""
@@ -76,13 +76,13 @@ class TestPipeBoundaries:
             coefficients={"safety_factor": 1.1},
         )
         # total = q × L × K  (safety_factor ≈1.1)
-        assert r.total_heat_loss == pytest.approx(r.heat_loss_per_meter * 0.5 * 1.1, rel=0.01)
+        assert r.total_heat_loss_design == pytest.approx(r.heat_loss_per_meter_base * 0.5 * 1.1, rel=0.01)
 
     def test_max_pipe_length_no_overflow(self):
         """200 км — верхняя граница ТНП. Не должно быть overflow."""
         r = calc_pipe_heat_loss(_pipe(pipe_length=200_000.0))
-        assert math.isfinite(r.total_heat_loss)
-        assert r.total_heat_loss > 0
+        assert math.isfinite(r.total_heat_loss_design)
+        assert r.total_heat_loss_design > 0
 
 
 class TestPipeTemperatureExtremes:
@@ -107,7 +107,7 @@ class TestPipeTemperatureExtremes:
                 process_temperature=300,
             )
         )
-        assert r.heat_loss_per_meter > 50  # Большая дельта → большие потери
+        assert r.heat_loss_per_meter_base > 50  # Большая дельта → большие потери
 
     def test_arctic_extreme_ambient(self):
         """Граница ТНП: -70°C среда, 80°C продукт."""
@@ -117,7 +117,7 @@ class TestPipeTemperatureExtremes:
                 process_temperature=80,
             )
         )
-        assert r.heat_loss_per_meter > 0
+        assert r.heat_loss_per_meter_base > 0
 
     def test_zero_delta_t_rejected_by_formula(self):
         """ΔT=0 — формула отклоняет."""
@@ -139,14 +139,14 @@ class TestPipeInsulationExtremes:
         thick = calc_pipe_heat_loss(_pipe(insulation_thickness=0.2))
         # Толстая изоляция → меньше теплопотерь (физический инвариант)
         assert (
-            thick.heat_loss_per_meter < thin.heat_loss_per_meter
+            thick.heat_loss_per_meter_base < thin.heat_loss_per_meter_base
         ), "ФИЗИКА СЛОМАНА: толстая изоляция теплее тонкой?"
 
     def test_extreme_insulation_500mm(self):
         """Полметра изоляции (теплоэлектростанции)."""
         r = calc_pipe_heat_loss(_pipe(insulation_thickness=0.5))
-        assert r.heat_loss_per_meter > 0
-        assert math.isfinite(r.heat_loss_per_meter)
+        assert r.heat_loss_per_meter_base > 0
+        assert math.isfinite(r.heat_loss_per_meter_base)
 
 
 class TestPipePhysicalInvariants:
@@ -156,13 +156,13 @@ class TestPipePhysicalInvariants:
         """Q_total линейно зависит от длины."""
         r1 = calc_pipe_heat_loss(_pipe(pipe_length=100))
         r2 = calc_pipe_heat_loss(_pipe(pipe_length=200))
-        assert r2.total_heat_loss == pytest.approx(r1.total_heat_loss * 2, rel=0.01)
+        assert r2.total_heat_loss_design == pytest.approx(r1.total_heat_loss_design * 2, rel=0.01)
 
     def test_safety_factor_increases_total(self):
         """K из coefficients увеличивает total."""
         r0 = calc_pipe_heat_loss(_pipe(), coefficients={"safety_factor": 1.0})
         r1 = calc_pipe_heat_loss(_pipe(), coefficients={"safety_factor": 1.5})
-        assert r1.total_heat_loss > r0.total_heat_loss
+        assert r1.total_heat_loss_design > r0.total_heat_loss_design
 
     def test_higher_lambda_lowers_resistance(self):
         """Лучший проводник изоляции (выше λ) → меньше R → больше Q."""
@@ -170,7 +170,7 @@ class TestPipePhysicalInvariants:
         mw = calc_pipe_heat_loss(_pipe(insulation_material=MINERAL_WOOL))
         pu = calc_pipe_heat_loss(_pipe(insulation_material=LOW_LAMBDA_INSULATION))
         # ППУ изолирует лучше → меньше потерь
-        assert pu.heat_loss_per_meter < mw.heat_loss_per_meter, "ФИЗИКА СЛОМАНА: ППУ хуже минваты?"
+        assert pu.heat_loss_per_meter_base < mw.heat_loss_per_meter_base, "ФИЗИКА СЛОМАНА: ППУ хуже минваты?"
 
 
 class TestTankShapeBoundaries:
@@ -178,7 +178,7 @@ class TestTankShapeBoundaries:
 
     def test_small_cylindrical_tank(self):
         r = calc_tank_heat_loss(_tank(diameter=0.5, height=1.0))
-        assert r.total_heat_loss > 0
+        assert r.total_heat_loss_design > 0
 
     def test_large_rectangular_tank(self):
         r = calc_tank_heat_loss(
@@ -190,7 +190,7 @@ class TestTankShapeBoundaries:
                 diameter=None,
             )
         )
-        assert r.total_heat_loss > 0
+        assert r.total_heat_loss_design > 0
 
     def test_spherical_tank(self):
         r = calc_tank_heat_loss(
@@ -200,14 +200,14 @@ class TestTankShapeBoundaries:
                 height=None,
             )
         )
-        assert r.total_heat_loss > 0
+        assert r.total_heat_loss_design > 0
 
 
 class TestTankPhysicalInvariants:
     def test_safety_factor_applies_to_tank(self):
         r0 = calc_tank_heat_loss(_tank(), coefficients={"safety_factor": 1.0})
         r1 = calc_tank_heat_loss(_tank(), coefficients={"safety_factor": 1.3})
-        assert r1.total_heat_loss > r0.total_heat_loss
+        assert r1.total_heat_loss_design > r0.total_heat_loss_design
 
     def test_zero_delta_t_rejected_for_tank(self):
         with pytest.raises(ValueError):

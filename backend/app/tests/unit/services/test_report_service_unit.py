@@ -35,7 +35,7 @@ class TestLoadContext:
             id=oid,
             object_type="pipe",
             params={"name": "Т1"},
-            results={"heat_loss_per_meter": 50},
+            results={"heat_loss_per_meter_base": 50},
             is_valid=True,
         )
         spec = SimpleNamespace(items=[{"name": "Кабель"}])
@@ -316,10 +316,10 @@ class TestReportRendering:
                     "q_additional": 100,
                 },
                 "results": {
-                    "surface_area": 18.85,
-                    "heat_loss_per_m2": 40.0,
-                    "q_additional": 250.0,
-                    "total_heat_loss": 1004.0,
+                    "surface_area_bare": 18.85,
+                    "heat_loss_per_m2_bare_base": 40.0,
+                    "q_additional_applied": 250.0,
+                    "total_heat_loss_design": 1004.0,
                 },
                 "is_valid": True,
             }
@@ -328,6 +328,8 @@ class TestReportRendering:
         html = render_html(_report_context(objects, sections=["tanks"]))
 
         assert "Qдоп, Вт" in html
+        assert "q base, Вт/м²" in html
+        assert "Q design, Вт" in html
         assert "250" in html
 
     def test_electrical_table_uses_tt_power_per_meter(self):
@@ -363,7 +365,7 @@ class TestReportRendering:
                 "id": "ok",
                 "object_type": "pipe",
                 "params": {"name": "OK"},
-                "results": {"total_heat_loss": 1000},
+                "results": {"total_heat_loss_design": 1000},
                 "is_valid": True,
                 "electrical": {
                     "cable_mark": "ТЛТ-10",
@@ -381,7 +383,7 @@ class TestReportRendering:
                 "id": "bad",
                 "object_type": "pipe",
                 "params": {"name": "BAD"},
-                "results": {"total_heat_loss": 2000},
+                "results": {"total_heat_loss_design": 2000},
                 "is_valid": True,
                 "electrical": {
                     "cable_mark": None,
@@ -399,7 +401,7 @@ class TestReportRendering:
                 "id": "unsupported",
                 "object_type": "tank",
                 "params": {"name": "SPHERE"},
-                "results": {"total_heat_loss": 3000},
+                "results": {"total_heat_loss_design": 3000},
                 "is_valid": True,
                 "electrical": {
                     "cable_mark": None,
@@ -415,7 +417,7 @@ class TestReportRendering:
                 "id": "stale",
                 "object_type": "pipe",
                 "params": {"name": "STALE"},
-                "results": {"total_heat_loss": 4000},
+                "results": {"total_heat_loss_design": 4000},
                 "is_valid": True,
                 "electrical": {
                     "cable_mark": "ТЛТ-20",
@@ -460,7 +462,7 @@ def _object(oid: uuid.UUID, name: str, object_type: str = "pipe") -> SimpleNames
         id=oid,
         object_type=object_type,
         params={"name": name},
-        results={"total_heat_loss": 1000},
+        results={"total_heat_loss_design": 1000},
         is_valid=True,
     )
 

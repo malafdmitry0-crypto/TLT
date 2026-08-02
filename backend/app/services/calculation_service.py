@@ -2,8 +2,6 @@
 
 import asyncio
 import copy
-import hashlib
-import json
 import math
 import uuid
 from collections.abc import Awaitable, Callable
@@ -37,11 +35,6 @@ from app.formulas.electrical.resistive import (
     default_resistive_max_linear_power_w_m,
 )
 from app.formulas.electrical.self_regulating import calc_self_regulating, calc_self_regulating_tt
-from app.formulas.heat_loss.common import merge_coefficients
-from app.formulas.heat_loss.insulation import (
-    normalize_insulation_temperature_basis,
-    resolve_insulation_tm,
-)
 from app.formulas.heat_loss.pipe import calc_pipe_heat_loss
 from app.formulas.heat_loss.tank import calc_tank_heat_loss
 from app.models.cable import CableExtended
@@ -57,14 +50,10 @@ from app.models.project import Project
 from app.models.project_object import ProjectObject
 from app.models.specification import Specification
 from app.reference_data.loader import (
-    PIPE_HEAT_LOSS_MATERIALS_SOURCE,
-    TANK_HEAT_LOSS_MATERIALS_SOURCE,
     get_climate_entry,
     list_resistive_cables,
     list_tlt_cables,
     list_tt_cables,
-    pipe_heat_loss_materials_version,
-    tank_heat_loss_materials_version,
 )
 from app.result import Err, Ok, Result
 from app.schemas.calculation import (
@@ -118,24 +107,6 @@ COPY_SELECTION_METADATA_KEYS = (
     "candidate_count",
     "warnings",
 )
-
-# Revision of the calculation semantics in `heat_loss/pipe.py`. Bump only when
-# the formula algorithm, rounding or its interpretation changes; data-only
-# changes are represented by the source content versions below.
-PIPE_HEAT_LOSS_FORMULA_ID = "pipe_heat_loss"
-PIPE_HEAT_LOSS_FORMULA_VERSION = "2"
-PIPE_HEAT_LOSS_FORMULA_SOURCE = (
-    "ТНП/Блок теплопотери и выбор кабеля/"
-    "теплопротери в трубопроводах 30.04.docx"
-)
-PIPE_HEAT_LOSS_COEFFICIENTS_SOURCE = "heat_loss.default_coefficients+correction_coefficients"
-TANK_HEAT_LOSS_FORMULA_ID = "tank_heat_loss"
-TANK_HEAT_LOSS_FORMULA_VERSION = "2"
-TANK_HEAT_LOSS_FORMULA_SOURCE = (
-    "ТНП/Блок теплопотери и выбор кабеля/"
-    "теплопротери в резервуарах 30.04.docx"
-)
-TANK_HEAT_LOSS_COEFFICIENTS_SOURCE = PIPE_HEAT_LOSS_COEFFICIENTS_SOURCE
 
 
 class CalculationError(Exception):
@@ -909,105 +880,14 @@ class CalculationService:
             params = PipeHeatLossParams(**self._heat_loss_formula_input(PipeHeatLossParams, data))
             pipe_result = calc_pipe_heat_loss(params, coefficients=coefficients)
             result = pipe_result.model_dump()
-            result["calculation_trace"] = self._pipe_heat_loss_calculation_trace(
-                params,
-                coefficients,
-            )
             return cast(PipeHeatLossResultDict, result)
         elif object_type == "tank":
             params_t = TankHeatLossParams(**self._heat_loss_formula_input(TankHeatLossParams, data))
             tank_result = calc_tank_heat_loss(params_t, coefficients=coefficients)
             result = tank_result.model_dump()
-            result["calculation_trace"] = self._tank_heat_loss_calculation_trace(
-                params_t,
-                coefficients,
-            )
             return cast(TankHeatLossResultDict, result)
         else:
             raise CalculationError(f"Неподдерживаемый тип объекта: {object_type}")
-
-    @staticmethod
-    def _heat_loss_calculation_trace(
-        params: PipeHeatLossParams | TankHeatLossParams,
-        coefficients: dict[str, float],
-        *,
-        formula_id: str,
-        formula_version: str,
-        formula_source: str,
-        coefficients_source: str,
-        materials_source: str,
-        materials_version: str,
-    ) -> dict[str, Any]:
-        """Фиксирует использованные первичный источник, tm и K без legacy-ключей."""
-        tm_mode = normalize_insulation_temperature_basis(
-            basis=params.insulation_temperature_basis,
-            location=params.location,
-            placement=None,
-        )
-        insulation_tm = resolve_insulation_tm(
-            process_temperature=params.process_temperature,
-            basis=params.insulation_temperature_basis,
-            location=params.location,
-        )
-        effective_coefficients = merge_coefficients(coefficients)
-        safety_factor = float(params.safety_factor or effective_coefficients["safety_factor"])
-        applied_coefficients = {"safety_factor": safety_factor}
-        coefficients_snapshot = json.dumps(
-            applied_coefficients,
-            allow_nan=False,
-            separators=(",", ":"),
-            sort_keys=True,
-        )
-        coefficients_version = hashlib.sha256(
-            coefficients_snapshot.encode("utf-8")
-        ).hexdigest()
-        return {
-            "formula_id": formula_id,
-            "formula_version": formula_version,
-            "formula_source": formula_source,
-            "coefficients_source": coefficients_source,
-            "coefficients_version": f"sha256:{coefficients_version}",
-            "materials_source": materials_source,
-            "materials_version": materials_version,
-            "tm_mode": tm_mode,
-            "insulation_tm": insulation_tm,
-            "safety_factor": safety_factor,
-            "applied_coefficients": applied_coefficients,
-        }
-
-    @classmethod
-    def _pipe_heat_loss_calculation_trace(
-        cls,
-        params: PipeHeatLossParams,
-        coefficients: dict[str, float],
-    ) -> dict[str, Any]:
-        return cls._heat_loss_calculation_trace(
-            params,
-            coefficients,
-            formula_id=PIPE_HEAT_LOSS_FORMULA_ID,
-            formula_version=PIPE_HEAT_LOSS_FORMULA_VERSION,
-            formula_source=PIPE_HEAT_LOSS_FORMULA_SOURCE,
-            coefficients_source=PIPE_HEAT_LOSS_COEFFICIENTS_SOURCE,
-            materials_source=PIPE_HEAT_LOSS_MATERIALS_SOURCE,
-            materials_version=pipe_heat_loss_materials_version(),
-        )
-
-    @classmethod
-    def _tank_heat_loss_calculation_trace(
-        cls,
-        params: TankHeatLossParams,
-        coefficients: dict[str, float],
-    ) -> dict[str, Any]:
-        return cls._heat_loss_calculation_trace(
-            params,
-            coefficients,
-            formula_id=TANK_HEAT_LOSS_FORMULA_ID,
-            formula_version=TANK_HEAT_LOSS_FORMULA_VERSION,
-            formula_source=TANK_HEAT_LOSS_FORMULA_SOURCE,
-            coefficients_source=TANK_HEAT_LOSS_COEFFICIENTS_SOURCE,
-            materials_source=TANK_HEAT_LOSS_MATERIALS_SOURCE,
-            materials_version=tank_heat_loss_materials_version(),
-        )
 
     @staticmethod
     def _heat_loss_formula_input(
@@ -2816,13 +2696,13 @@ class CalculationService:
     ) -> float:
         """Возвращает Q для передачи в формулы, которые сами добавляют K.
 
-        `total_heat_loss` у резервуара уже содержит K, а электрическая
+        `total_heat_loss_design` у резервуара уже содержит K, а электрическая
         формула применит K повторно. Значит на вход ей нужно отдать `Q / K`,
         включая часть `Q_доп`; иначе дополнительная теплопотеря будет
         ошибочно умножена на K второй раз.
         """
-        total = self._positive_heat_loss(results.get("total_heat_loss"))
-        k = float(results.get("safety_factor") or fallback_safety_factor or 1.1)
+        total = self._positive_heat_loss(results.get("total_heat_loss_design"))
+        k = float(results.get("safety_factor_applied") or fallback_safety_factor or 1.1)
         return total / k
 
     def _required_power_per_meter(
@@ -2834,7 +2714,7 @@ class CalculationService:
     ) -> float:
         results = obj.results or {}
         if obj.object_type == "pipe":
-            return self._positive_heat_loss(results.get("heat_loss_per_meter"))
+            return self._positive_heat_loss(results.get("heat_loss_per_meter_base"))
 
         # Для кабеля на резервуаре считаем требуемые Вт/м кабеля по
         # полной площади и реальной длине укладки, чтобы не сравнивать Вт/м²
@@ -2968,7 +2848,7 @@ class CalculationService:
             return data
 
         if cable_type in ("single_core", "three_core"):
-            required_heat_loss = self._positive_heat_loss(results.get("total_heat_loss"))
+            required_heat_loss = self._positive_heat_loss(results.get("total_heat_loss_design"))
             process_temperature = self._required_process_temperature(None, params)
             thread_payload = self._number_of_threads_payload(overrides, params, 1)
             data = {

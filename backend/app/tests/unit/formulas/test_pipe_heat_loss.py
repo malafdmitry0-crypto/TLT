@@ -52,15 +52,40 @@ def _params(**overrides) -> PipeHeatLossParams:
 class TestBasicProperties:
     def test_returns_positive_values(self):
         r = calc_pipe_heat_loss(_params())
-        assert r.heat_loss_per_meter > 0
-        assert r.total_heat_loss > 0
+        assert r.heat_loss_per_meter_base > 0
+        assert r.total_heat_loss_design > 0
         assert r.thermal_resistance > 0
 
     def test_total_equals_per_meter_times_effective_length(self):
         k = 1.2
         params = _params(pipe_length=100.0, safety_factor=k)
         r = calc_pipe_heat_loss(params)
-        assert r.total_heat_loss == pytest.approx(r.heat_loss_per_meter * 100.0 * k, rel=1e-3)
+        assert r.total_heat_loss_design == pytest.approx(r.heat_loss_per_meter_base * 100.0 * k, rel=1e-3)
+        assert r.heat_loss_per_meter_design == pytest.approx(
+            r.heat_loss_per_meter_base * k,
+            rel=1e-3,
+        )
+        assert r.total_heat_loss_base == pytest.approx(
+            r.heat_loss_per_meter_base * r.effective_length,
+            rel=1e-3,
+        )
+
+    def test_result_trace_contains_resolved_layer_and_stable_formula_revision(self):
+        result = calc_pipe_heat_loss(_params())
+
+        assert result.formula_model == "pipe_heat_loss"
+        assert result.formula_model_version == "2"
+        assert len(result.insulation_layers_applied) == 1
+        layer = result.insulation_layers_applied[0]
+        assert layer.conductivity_applied > 0
+        assert layer.conductivity_source == "reference_data"
+        assert layer.resistance_unit == "m*K/W"
+
+    def test_manual_alpha_does_not_claim_wind_was_applied(self):
+        result = calc_pipe_heat_loss(_params(alpha_vnesh=15.0, wind_speed=8.0))
+
+        assert result.alpha_vnesh_applied == pytest.approx(15.0)
+        assert result.wind_speed_applied is None
 
     def test_effective_length_default_equals_pipe_length(self):
         params = _params(pipe_length=80.0)
@@ -70,17 +95,17 @@ class TestBasicProperties:
     def test_thicker_insulation_reduces_loss(self):
         thin = calc_pipe_heat_loss(_params(insulation_thickness=0.02))
         thick = calc_pipe_heat_loss(_params(insulation_thickness=0.10))
-        assert thick.heat_loss_per_meter < thin.heat_loss_per_meter
+        assert thick.heat_loss_per_meter_base < thin.heat_loss_per_meter_base
 
     def test_colder_ambient_increases_loss(self):
         warm = calc_pipe_heat_loss(_params(ambient_temperature=10))
         cold = calc_pipe_heat_loss(_params(ambient_temperature=-50))
-        assert cold.heat_loss_per_meter > warm.heat_loss_per_meter
+        assert cold.heat_loss_per_meter_base > warm.heat_loss_per_meter_base
 
     @pytest.mark.parametrize("temp", [-60, -40, -20, 0, 20])
     def test_various_ambient_temperatures(self, temp):
         r = calc_pipe_heat_loss(_params(ambient_temperature=temp))
-        assert r.heat_loss_per_meter > 0
+        assert r.heat_loss_per_meter_base > 0
 
 
 # ---------------------------------------------------------------------------
@@ -99,7 +124,7 @@ class TestMultiLayerInsulation:
             insulation_temperature_basis="outdoor_winter",
         )
         r = calc_pipe_heat_loss(params)
-        assert r.heat_loss_per_meter > 0
+        assert r.heat_loss_per_meter_base > 0
 
     def test_two_layers_less_loss_than_one(self):
         single = _params(insulation_thickness=0.05)
@@ -115,8 +140,8 @@ class TestMultiLayerInsulation:
             insulation_temperature_basis="outdoor_winter",
         )
         assert (
-            calc_pipe_heat_loss(two).heat_loss_per_meter
-            < calc_pipe_heat_loss(single).heat_loss_per_meter
+            calc_pipe_heat_loss(two).heat_loss_per_meter_base
+            < calc_pipe_heat_loss(single).heat_loss_per_meter_base
         )
 
     def test_three_layers_max(self):
@@ -133,7 +158,7 @@ class TestMultiLayerInsulation:
             insulation_temperature_basis="outdoor_winter",
         )
         r = calc_pipe_heat_loss(params)
-        assert r.heat_loss_per_meter > 0
+        assert r.heat_loss_per_meter_base > 0
 
     def test_four_layers_raises(self):
         from pydantic import ValidationError
@@ -165,7 +190,7 @@ class TestMultiLayerInsulation:
             insulation_temperature_basis="outdoor_winter",
         )
         r = calc_pipe_heat_loss(params)
-        assert r.heat_loss_per_meter > 0
+        assert r.heat_loss_per_meter_base > 0
 
     def test_layer_temperature_above_material_range_raises(self):
         params = PipeHeatLossParams(
@@ -195,7 +220,7 @@ class TestMultiLayerInsulation:
             insulation_temperature_basis="outdoor_winter",
         )
 
-        assert calc_pipe_heat_loss(params).heat_loss_per_meter > 0
+        assert calc_pipe_heat_loss(params).heat_loss_per_meter_base > 0
 
     def test_other_layer_uses_manual_temperature_range(self):
         params = PipeHeatLossParams(
@@ -303,12 +328,12 @@ class TestBuriedPipe:
     def test_buried_pipe_has_result(self):
         params = _params(burial_depth=1.5, ground_conductivity=1.5)
         r = calc_pipe_heat_loss(params)
-        assert r.heat_loss_per_meter > 0
+        assert r.heat_loss_per_meter_base > 0
 
     def test_buried_deeper_reduces_loss(self):
         shallow = calc_pipe_heat_loss(_params(burial_depth=0.5, ground_conductivity=1.5))
         deep = calc_pipe_heat_loss(_params(burial_depth=3.0, ground_conductivity=1.5))
-        assert deep.heat_loss_per_meter < shallow.heat_loss_per_meter
+        assert deep.heat_loss_per_meter_base < shallow.heat_loss_per_meter_base
 
     def test_burial_depth_less_than_radius_raises(self):
         with pytest.raises(ValueError, match="Глубина заложения"):
@@ -324,7 +349,7 @@ class TestBuriedPipe:
     def test_higher_ground_conductivity_increases_loss(self):
         low = calc_pipe_heat_loss(_params(burial_depth=1.5, ground_conductivity=0.8))
         high = calc_pipe_heat_loss(_params(burial_depth=1.5, ground_conductivity=3.0))
-        assert high.heat_loss_per_meter > low.heat_loss_per_meter
+        assert high.heat_loss_per_meter_base > low.heat_loss_per_meter_base
 
 
 # ---------------------------------------------------------------------------
@@ -338,7 +363,7 @@ class TestLocalElements:
         with_elements = calc_pipe_heat_loss(
             _params(num_local_elements=5, local_element_equiv_length=1.0)
         )
-        assert with_elements.total_heat_loss > base.total_heat_loss
+        assert with_elements.total_heat_loss_design > base.total_heat_loss_design
 
     def test_effective_length_with_elements(self):
         params = _params(pipe_length=100.0, num_local_elements=4, local_element_equiv_length=2.5)
@@ -348,7 +373,7 @@ class TestLocalElements:
     def test_zero_elements_no_change(self):
         base = calc_pipe_heat_loss(_params(pipe_length=100.0))
         same = calc_pipe_heat_loss(_params(pipe_length=100.0, num_local_elements=0))
-        assert base.total_heat_loss == pytest.approx(same.total_heat_loss)
+        assert base.total_heat_loss_design == pytest.approx(same.total_heat_loss_design)
 
 
 # ---------------------------------------------------------------------------
@@ -360,12 +385,12 @@ class TestSafetyFactor:
     def test_higher_safety_factor_increases_total(self):
         low_k = calc_pipe_heat_loss(_params(safety_factor=1.05))
         high_k = calc_pipe_heat_loss(_params(safety_factor=1.5))
-        assert high_k.total_heat_loss > low_k.total_heat_loss
+        assert high_k.total_heat_loss_design > low_k.total_heat_loss_design
 
     def test_safety_factor_proportional_to_total(self):
         r1 = calc_pipe_heat_loss(_params(safety_factor=1.1))
         r2 = calc_pipe_heat_loss(_params(safety_factor=1.3))
-        ratio = r2.total_heat_loss / r1.total_heat_loss
+        ratio = r2.total_heat_loss_design / r1.total_heat_loss_design
         assert ratio == pytest.approx(1.3 / 1.1, rel=1e-3)
 
 
@@ -385,15 +410,15 @@ class TestLegacyFactorsIgnored:
             coefficients={"location_indoor": 0.9},
         )
 
-        assert adjusted.heat_loss_per_meter == pytest.approx(base.heat_loss_per_meter, rel=1e-6)
-        assert adjusted.total_heat_loss == pytest.approx(base.total_heat_loss, rel=1e-6)
+        assert adjusted.heat_loss_per_meter_base == pytest.approx(base.heat_loss_per_meter_base, rel=1e-6)
+        assert adjusted.total_heat_loss_design == pytest.approx(base.total_heat_loss_design, rel=1e-6)
         assert "location_factor" not in adjusted.model_dump()
 
     def test_legacy_wind_factor_does_not_change_alpha_or_total(self):
         base = calc_pipe_heat_loss(_params(wind_speed=4.0))
         legacy = calc_pipe_heat_loss(_params(wind_speed=4.0), coefficients={"wind_factor": 0.5})
-        assert legacy.alpha_vnesh == pytest.approx(base.alpha_vnesh)
-        assert legacy.total_heat_loss == pytest.approx(base.total_heat_loss)
+        assert legacy.alpha_vnesh_applied == pytest.approx(base.alpha_vnesh_applied)
+        assert legacy.total_heat_loss_design == pytest.approx(base.total_heat_loss_design)
 
 
 class TestTnpGoldenFormula:
@@ -421,8 +446,8 @@ class TestTnpGoldenFormula:
         expected_total = expected_q * (10.0 + 2 * 0.5) * 1.2
 
         result = calc_pipe_heat_loss(params)
-        assert result.heat_loss_per_meter == pytest.approx(expected_q, abs=1e-3)
-        assert result.total_heat_loss == pytest.approx(expected_total, abs=1e-3)
+        assert result.heat_loss_per_meter_base == pytest.approx(expected_q, abs=1e-3)
+        assert result.total_heat_loss_design == pytest.approx(expected_total, abs=1e-3)
 
 
 # ---------------------------------------------------------------------------
@@ -464,7 +489,7 @@ class TestAlphaVnesh:
         # При alpha=15 потери меньше чем при alpha от v=20 (~48 Вт/м²К)
         params_high_alpha = _params(wind_speed=20.0)  # α ≈ 42.9 Вт/(м²·К)
         r_high = calc_pipe_heat_loss(params_high_alpha)
-        assert r.heat_loss_per_meter < r_high.heat_loss_per_meter
+        assert r.heat_loss_per_meter_base < r_high.heat_loss_per_meter_base
 
 
 # ---------------------------------------------------------------------------

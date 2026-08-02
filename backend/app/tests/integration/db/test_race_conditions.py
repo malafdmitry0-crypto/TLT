@@ -46,9 +46,9 @@ async def _create_valid_pipe(db_session: AsyncSession, project_id: uuid.UUID) ->
             "pipe_length": 50,
         },
         results={
-            "heat_loss_per_meter": 20,
-            "total_heat_loss": 1000,
-            "safety_factor": 1.1,
+            "heat_loss_per_meter_base": 20,
+            "total_heat_loss_design": 1000,
+            "safety_factor_applied": 1.1,
         },
         is_valid=True,
     )
@@ -73,8 +73,8 @@ async def _create_tank_without_cable_layout(
             "process_temperature": 80,
         },
         results={
-            "total_heat_loss": 300,
-            "safety_factor": 1.1,
+            "total_heat_loss_design": 300,
+            "safety_factor_applied": 1.1,
         },
         is_valid=True,
     )

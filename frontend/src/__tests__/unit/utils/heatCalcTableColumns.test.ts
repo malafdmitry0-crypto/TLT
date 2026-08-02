@@ -87,8 +87,8 @@ describe('heatCalcTableColumns', () => {
       'index',
       'heat_loss_status',
       'pipe_dn',
-      'heat_loss_per_meter',
-      'total_heat_loss',
+      'heat_loss_per_meter_base',
+      'total_heat_loss_design',
       'name',
       'placement',
     ]);
@@ -96,8 +96,8 @@ describe('heatCalcTableColumns', () => {
       'index',
       'heat_loss_status',
       'pipe_dn',
-      'heat_loss_per_meter',
-      'total_heat_loss',
+      'heat_loss_per_meter_base',
+      'total_heat_loss_design',
       'name',
       'placement',
     ]);
@@ -177,14 +177,14 @@ describe('heatCalcTableColumns', () => {
     const visibleAll = getVisibleTableColumnMetas('all', settings).map((column) => column.key);
 
     expect(visiblePipe).toEqual(expect.arrayContaining([
-      'heat_loss_per_meter',
-      'total_heat_loss',
+      'heat_loss_per_meter_base',
+      'total_heat_loss_design',
     ]));
     expect(visibleTank).toEqual(expect.arrayContaining([
-      'heat_loss_per_m2',
-      'total_heat_loss',
+      'heat_loss_per_m2_bare_base',
+      'total_heat_loss_design',
     ]));
-    expect(visibleAll).toContain('total_heat_loss');
+    expect(visibleAll).toContain('total_heat_loss_design');
   });
 
   it('показывает размещение трубопровода в дефолтной таблице', () => {
@@ -212,7 +212,7 @@ describe('heatCalcTableColumns', () => {
     expect(visiblePipe).not.toContain('delta_t');
     expect(visiblePipe).not.toContain('applied_alpha_vnesh');
     expect(visiblePipe).not.toContain('effective_length');
-    expect(visibleTank).not.toContain('surface_area');
+    expect(visibleTank).not.toContain('surface_area_bare');
     expect(visibleTank).not.toContain('ground_resistance');
     expect(allPipe).toEqual(expect.arrayContaining([
       'delta_t',
@@ -225,7 +225,7 @@ describe('heatCalcTableColumns', () => {
       'delta_t',
       'applied_alpha_vnesh',
       'applied_safety_factor',
-      'surface_area',
+      'surface_area_bare',
       'ground_resistance',
     ]));
   });
@@ -245,7 +245,7 @@ describe('heatCalcTableColumns', () => {
       'tank_dimensions',
       'delta_t',
       'effective_length',
-      'surface_area',
+      'surface_area_bare',
     ]));
     expect(visible).toContain('type');
     expect(visible).not.toContain('pipe_dn');

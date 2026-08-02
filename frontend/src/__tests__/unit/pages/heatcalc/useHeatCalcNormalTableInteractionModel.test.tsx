@@ -39,7 +39,7 @@ function makeObject(overrides: Partial<ProjectObject> = {}): ProjectObject {
       name: 'Труба DN100',
       pipe_length: 25,
     },
-    results: { total_heat_loss: 100 },
+    results: { total_heat_loss_design: 100 },
     is_valid: true,
     validation_errors: null,
     created_at: '2026-01-01T00:00:00Z',

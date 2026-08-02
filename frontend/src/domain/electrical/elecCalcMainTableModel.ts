@@ -230,9 +230,9 @@ export function mainElectricalColumnCopyValue(
         const value = commercialValue(currentCalc, key);
         return typeof value === 'string' ? STOCK_STATUS_LABEL[value] ?? value : '—';
       }
-    case 'heat_loss_per_meter':
-    case 'heat_loss_per_m2':
-    case 'total_heat_loss':
+    case 'heat_loss_per_meter_base':
+    case 'heat_loss_per_m2_bare_base':
+    case 'total_heat_loss_design':
       return valueText(obj.results?.[key]);
     default:
       return '';

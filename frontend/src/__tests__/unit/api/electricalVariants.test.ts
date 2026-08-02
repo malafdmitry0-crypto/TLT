@@ -75,7 +75,7 @@ describe('electrical variants API', () => {
           code: 'ELECTRICAL_OBJECT_NOT_READY',
           message: 'Тепловой расчёт не готов',
           object_id: '33333333-3333-4333-8333-333333333333',
-          details: { total_heat_loss: null },
+          details: { total_heat_loss_design: null },
         },
       ],
     };

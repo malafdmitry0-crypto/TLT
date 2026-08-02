@@ -2372,109 +2372,109 @@
       },
       "description": "Эквивалентная длина одного локального элемента Lэкв. Прибавляется к длине трубы как N × Lэкв."
     },
-    "heat_loss_per_meter": {
-      "service_name": "heat_loss_per_meter",
+    "heat_loss_per_meter_base": {
+      "service_name": "heat_loss_per_meter_base",
       "object_types": [
         "pipe"
       ],
       "group": "Теплопотери",
       "labels": {
-        "full": "Линейные теплопотери",
-        "short": "q, Вт/м",
-        "compact": "q"
+        "full": "Базовые линейные теплопотери (до K)",
+        "short": "q до K, Вт/м",
+        "compact": "q base"
       },
       "contexts": {
         "table_by_key": {
-          "heat_loss_per_meter": {
-            "label": "q, Вт/м",
-            "full_label": "Линейные теплопотери",
-            "compact_label": "q",
-            "tooltip": "Линейные теплопотери трубы"
+          "heat_loss_per_meter_base": {
+            "label": "q до K, Вт/м",
+            "full_label": "Базовые линейные теплопотери (до K)",
+            "compact_label": "q base",
+            "tooltip": "Базовые линейные теплопотери трубы до коэффициента K"
           }
         },
         "settings_by_key": {
-          "heat_loss_per_meter": {
-            "label": "Линейные теплопотери"
+          "heat_loss_per_meter_base": {
+            "label": "Базовые линейные теплопотери (до K)"
           }
         }
       },
       "table_keys": {
-        "pipe": "heat_loss_per_meter"
+        "pipe": "heat_loss_per_meter_base"
       },
       "input": {
         "type": "computed"
       },
-      "description": "Результат расчёта теплопотерь на 1 метр трубы из project_objects.results. Не хранится во входных параметрах."
+      "description": "Базовые теплопотери на 1 метр трубы до применения коэффициента запаса K. Не хранятся во входных параметрах."
     },
-    "heat_loss_per_m2": {
-      "service_name": "heat_loss_per_m2",
+    "heat_loss_per_m2_bare_base": {
+      "service_name": "heat_loss_per_m2_bare_base",
       "object_types": [
         "tank"
       ],
       "group": "Теплопотери",
       "labels": {
-        "full": "Удельные теплопотери",
-        "short": "q, Вт/м²",
-        "compact": "q"
+        "full": "Базовые удельные теплопотери (до K)",
+        "short": "q до K, Вт/м²",
+        "compact": "q base"
       },
       "contexts": {
         "table_by_key": {
-          "heat_loss_per_m2": {
-            "label": "q, Вт/м²",
-            "full_label": "Удельные теплопотери",
-            "compact_label": "q",
-            "tooltip": "Удельные теплопотери резервуара"
+          "heat_loss_per_m2_bare_base": {
+            "label": "q до K, Вт/м²",
+            "full_label": "Базовые удельные теплопотери (до K)",
+            "compact_label": "q base",
+            "tooltip": "Базовые удельные теплопотери резервуара до коэффициента K"
           }
         },
         "settings_by_key": {
-          "heat_loss_per_m2": {
-            "label": "Удельные теплопотери"
+          "heat_loss_per_m2_bare_base": {
+            "label": "Базовые удельные теплопотери (до K)"
           }
         }
       },
       "table_keys": {
-        "tank": "heat_loss_per_m2"
+        "tank": "heat_loss_per_m2_bare_base"
       },
       "input": {
         "type": "computed"
       },
-      "description": "Результат расчёта теплопотерь на 1 м² поверхности резервуара из project_objects.results. Не хранится во входных параметрах."
+      "description": "Базовые теплопотери на 1 м² неизолированной поверхности резервуара до применения K. Не хранятся во входных параметрах."
     },
-    "total_heat_loss": {
-      "service_name": "total_heat_loss",
+    "total_heat_loss_design": {
+      "service_name": "total_heat_loss_design",
       "object_types": [
         "pipe",
         "tank"
       ],
       "group": "Теплопотери",
       "labels": {
-        "full": "Суммарные теплопотери",
-        "short": "Q, Вт",
-        "compact": "Q"
+        "full": "Проектные суммарные теплопотери",
+        "short": "Q проект., Вт",
+        "compact": "Q design"
       },
       "contexts": {
         "table_by_key": {
-          "total_heat_loss": {
-            "label": "Q, Вт",
-            "full_label": "Суммарные теплопотери",
-            "compact_label": "Q",
-            "tooltip": "Суммарные теплопотери объекта"
+          "total_heat_loss_design": {
+            "label": "Q проект., Вт",
+            "full_label": "Проектные суммарные теплопотери",
+            "compact_label": "Q design",
+            "tooltip": "Проектная тепловая нагрузка после коэффициента K"
           }
         },
         "settings_by_key": {
-          "total_heat_loss": {
-            "label": "Суммарные теплопотери"
+          "total_heat_loss_design": {
+            "label": "Проектные суммарные теплопотери"
           }
         }
       },
       "table_keys": {
-        "pipe": "total_heat_loss",
-        "tank": "total_heat_loss"
+        "pipe": "total_heat_loss_design",
+        "tank": "total_heat_loss_design"
       },
       "input": {
         "type": "computed"
       },
-      "description": "Итоговая мощность теплопотерь объекта из project_objects.results. Не хранится во входных параметрах."
+      "description": "Проектная суммарная нагрузка после применения K; для резервуара включает Qдоп после K. Не хранится во входных параметрах."
     },
     "delta_t": {
       "service_name": "delta_t",
@@ -3126,8 +3126,8 @@
         "type": "computed"
       }
     },
-    "surface_area": {
-      "service_name": "surface_area",
+    "surface_area_bare": {
+      "service_name": "surface_area_bare",
       "object_types": [
         "tank"
       ],
@@ -3139,20 +3139,20 @@
       },
       "contexts": {
         "table_by_key": {
-          "surface_area": {
+          "surface_area_bare": {
             "label": "Sпов.",
             "full_label": "Площадь поверхности",
             "tooltip": "Площадь поверхности"
           }
         },
         "settings_by_key": {
-          "surface_area": {
+          "surface_area_bare": {
             "label": "Площадь поверхности"
           }
         }
       },
       "table_keys": {
-        "tank": "surface_area"
+        "tank": "surface_area_bare"
       },
       "input": {
         "type": "computed"
@@ -3427,7 +3427,7 @@
           "field": "heat_loss_status"
         },
         {
-          "key": "heat_loss_per_meter",
+          "key": "heat_loss_per_meter_base",
           "group": "Теплопотери",
           "defaultWidthPct": 8.2,
           "minWidthPx": 64,
@@ -3436,10 +3436,10 @@
           "sortable": true,
           "filterable": true,
           "resizable": true,
-          "field": "heat_loss_per_meter"
+          "field": "heat_loss_per_meter_base"
         },
         {
-          "key": "total_heat_loss",
+          "key": "total_heat_loss_design",
           "group": "Теплопотери",
           "defaultWidthPct": 8.8,
           "minWidthPx": 64,
@@ -3448,7 +3448,7 @@
           "sortable": true,
           "filterable": true,
           "resizable": true,
-          "field": "total_heat_loss"
+          "field": "total_heat_loss_design"
         },
         {
           "key": "type",
@@ -4147,7 +4147,7 @@
           "field": "heat_loss_status"
         },
         {
-          "key": "heat_loss_per_m2",
+          "key": "heat_loss_per_m2_bare_base",
           "group": "Теплопотери",
           "defaultWidthPct": 8.4,
           "minWidthPx": 64,
@@ -4156,10 +4156,10 @@
           "sortable": true,
           "filterable": true,
           "resizable": true,
-          "field": "heat_loss_per_m2"
+          "field": "heat_loss_per_m2_bare_base"
         },
         {
-          "key": "total_heat_loss",
+          "key": "total_heat_loss_design",
           "group": "Теплопотери",
           "defaultWidthPct": 8.8,
           "minWidthPx": 64,
@@ -4168,7 +4168,7 @@
           "sortable": true,
           "filterable": true,
           "resizable": true,
-          "field": "total_heat_loss"
+          "field": "total_heat_loss_design"
         },
         {
           "key": "type",
@@ -4804,7 +4804,7 @@
           "field": "ground_resistance"
         },
         {
-          "key": "surface_area",
+          "key": "surface_area_bare",
           "group": "Расчётные детали",
           "defaultWidthPct": 8,
           "minWidthPx": 64,
@@ -4813,7 +4813,7 @@
           "sortable": false,
           "filterable": false,
           "resizable": true,
-          "field": "surface_area"
+          "field": "surface_area_bare"
         },
         {
           "key": "air_surface_area",
@@ -4845,8 +4845,8 @@
       "pipe": [
         "index",
         "heat_loss_status",
-        "heat_loss_per_meter",
-        "total_heat_loss",
+        "heat_loss_per_meter_base",
+        "total_heat_loss_design",
         "name",
         "placement",
         "pipe_outer_diameter",
@@ -4865,8 +4865,8 @@
       "tank": [
         "index",
         "heat_loss_status",
-        "heat_loss_per_m2",
-        "total_heat_loss",
+        "heat_loss_per_m2_bare_base",
+        "total_heat_loss_design",
         "name",
         "tank_shape",
         "tank_dimensions",
@@ -4881,7 +4881,7 @@
       "all": [
         "index",
         "heat_loss_status",
-        "total_heat_loss",
+        "total_heat_loss_design",
         "type",
         "name",
         "placement",

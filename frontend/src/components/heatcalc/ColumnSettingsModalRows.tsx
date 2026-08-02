@@ -47,17 +47,17 @@ const COMPUTED_COLUMN_BADGE: ColumnNatureBadge = {
 };
 
 const COMPUTED_COLUMN_BADGES: Record<HeatCalcColumnKey, ComputedColumnBadge> = {
-  total_heat_loss: {
+  total_heat_loss_design: {
     label: 'Итог',
     tooltip: 'Главный итог расчёта: суммарные теплопотери объекта',
     tone: 'result',
   },
-  heat_loss_per_meter: {
+  heat_loss_per_meter_base: {
     label: 'Удельное',
     tooltip: 'Теплопотери на метр трубы из результата расчёта',
     tone: 'specific',
   },
-  heat_loss_per_m2: {
+  heat_loss_per_m2_bare_base: {
     label: 'Удельное',
     tooltip: 'Теплопотери на м² поверхности резервуара из результата расчёта',
     tone: 'specific',
@@ -77,7 +77,7 @@ const COMPUTED_COLUMN_BADGES: Record<HeatCalcColumnKey, ComputedColumnBadge> = {
     tooltip: 'Расчётная геометрия, полученная для тепловой модели',
     tone: 'geometry',
   },
-  surface_area: {
+  surface_area_bare: {
     label: 'Геометрия',
     tooltip: 'Расчётная геометрия, полученная для тепловой модели',
     tone: 'geometry',

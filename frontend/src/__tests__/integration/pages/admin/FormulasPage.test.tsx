@@ -110,8 +110,8 @@ describe('FormulasPage', () => {
   it('после успешного расчёта трубопровода показывает результат', async () => {
     const { checkFormula } = await import('@/api/admin');
     (checkFormula as ReturnType<typeof vi.fn>).mockResolvedValue({
-      heat_loss_per_meter: 42.54,
-      total_heat_loss: 2127.0,
+      heat_loss_per_meter_base: 42.54,
+      total_heat_loss_design: 2127.0,
       safety_factor_applied: 1.1,
     });
 

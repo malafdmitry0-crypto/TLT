@@ -565,10 +565,10 @@ class TestFormulaCheck:
         )
         assert resp.status_code == 200
         data = resp.json()
-        assert "heat_loss_per_meter" in data
-        assert "total_heat_loss" in data
-        assert data["heat_loss_per_meter"] > 0
-        assert data["total_heat_loss"] > 0
+        assert "heat_loss_per_meter_base" in data
+        assert "total_heat_loss_design" in data
+        assert data["heat_loss_per_meter_base"] > 0
+        assert data["total_heat_loss_design"] > 0
 
     async def test_pipe_formula_check_accepts_named_local_element_counts(
         self, client: AsyncClient, admin_token: str
@@ -595,8 +595,8 @@ class TestFormulaCheck:
         )
         assert resp.status_code == 200, resp.text
         data = resp.json()
-        assert data["local_elements_count"] == 6
-        assert data["local_element_equiv_length"] == pytest.approx(1.25)
+        assert data["local_elements_count_applied"] == 6
+        assert data["local_element_equiv_length_applied"] == pytest.approx(1.25)
 
     async def test_tank_formula_check_success(self, client: AsyncClient, admin_token: str):
         resp = await client.post(
@@ -619,8 +619,8 @@ class TestFormulaCheck:
         )
         assert resp.status_code == 200
         data = resp.json()
-        assert "total_heat_loss" in data
-        assert data["total_heat_loss"] > 0
+        assert "total_heat_loss_design" in data
+        assert data["total_heat_loss_design"] > 0
 
     async def test_electrical_formula_check_success(self, client: AsyncClient, admin_token: str):
         resp = await client.post(

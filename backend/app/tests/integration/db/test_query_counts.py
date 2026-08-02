@@ -156,8 +156,8 @@ async def _seed_valid_pipes_for_batch(
                 "ambient_temperature": -20.0,
             },
             results={
-                "heat_loss_per_meter": 20.0,
-                "total_heat_loss": 1000.0,
+                "heat_loss_per_meter_base": 20.0,
+                "total_heat_loss_design": 1000.0,
                 "effective_length": 50.0,
             },
         )
@@ -545,7 +545,7 @@ async def test_bulk_project_csv_export_uses_constant_query_count(
                 sort_order=object_index,
                 is_valid=True,
                 params={"name": f"Pipe-{project_index}-{object_index}"},
-                results={"heat_loss_per_meter": 20.0, "total_heat_loss": 100.0},
+                results={"heat_loss_per_meter_base": 20.0, "total_heat_loss_design": 100.0},
             )
             for object_index in range(3)
         ]

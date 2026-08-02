@@ -45,13 +45,13 @@ export type TltCaseSanitizationResult = {
 };
 
 export type TltHeatLossValue = {
-  heat_loss_per_meter?: number;
-  heat_loss_per_m2?: number;
-  total_heat_loss: number;
+  heat_loss_per_meter_base?: number;
+  heat_loss_per_m2_bare_base?: number;
+  total_heat_loss_design: number;
   effective_length?: number;
-  surface_area?: number;
+  surface_area_bare?: number;
   thermal_resistance?: number;
-  safety_factor?: number;
+  safety_factor_applied?: number;
 };
 
 export type TltHeatLossRunner = {
@@ -548,11 +548,11 @@ function pipeResult(params: Record<string, unknown>): TltHeatLossValue {
   const effectiveLength = length + n * lEkv;
   const safety = asFiniteNumber(params.safety_factor) ?? 1.1;
   return {
-    heat_loss_per_meter: round(q, 3),
-    total_heat_loss: round(q * effectiveLength * safety, 3),
+    heat_loss_per_meter_base: round(q, 3),
+    total_heat_loss_design: round(q * effectiveLength * safety, 3),
     effective_length: round(effectiveLength, 3),
     thermal_resistance: round(resistance, 6),
-    safety_factor: safety,
+    safety_factor_applied: safety,
   };
 }
 
@@ -592,11 +592,11 @@ function tankResult(params: Record<string, unknown>): TltHeatLossValue {
   const safety = asFiniteNumber(params.safety_factor) ?? 1.1;
   const qAdditional = asFiniteNumber(params.q_additional) ?? 0;
   return {
-    heat_loss_per_m2: round(q, 3),
-    total_heat_loss: round(q * area * safety + qAdditional, 3),
-    surface_area: round(area, 3),
+    heat_loss_per_m2_bare_base: round(q, 3),
+    total_heat_loss_design: round(q * area * safety + qAdditional, 3),
+    surface_area_bare: round(area, 3),
     thermal_resistance: round(resistance, 6),
-    safety_factor: safety,
+    safety_factor_applied: safety,
   };
 }
 
@@ -756,16 +756,16 @@ function variantCases(testCase: TltHeatLossCase): Array<{ label: string; testCas
 
 function heatValue(value: unknown): TltHeatLossValue | undefined {
   if (!isRecord(value)) return undefined;
-  const total = asFiniteNumber(value.total_heat_loss);
+  const total = asFiniteNumber(value.total_heat_loss_design);
   if (total === undefined) return undefined;
   return {
-    total_heat_loss: total,
-    heat_loss_per_meter: asFiniteNumber(value.heat_loss_per_meter),
-    heat_loss_per_m2: asFiniteNumber(value.heat_loss_per_m2),
+    total_heat_loss_design: total,
+    heat_loss_per_meter_base: asFiniteNumber(value.heat_loss_per_meter_base),
+    heat_loss_per_m2_bare_base: asFiniteNumber(value.heat_loss_per_m2_bare_base),
     effective_length: asFiniteNumber(value.effective_length),
-    surface_area: asFiniteNumber(value.surface_area),
+    surface_area_bare: asFiniteNumber(value.surface_area_bare),
     thermal_resistance: asFiniteNumber(value.thermal_resistance),
-    safety_factor: asFiniteNumber(value.safety_factor),
+    safety_factor_applied: asFiniteNumber(value.safety_factor_applied),
   };
 }
 
@@ -803,29 +803,29 @@ function evaluateInvariant(
   testCase: TltHeatLossCase,
 ): ComparisonResult {
   if (label === 'thicker_insulation') {
-    return variant.total_heat_loss < baseline.total_heat_loss
+    return variant.total_heat_loss_design < baseline.total_heat_loss_design
       ? pass('Thicker insulation reduces total heat loss')
-      : fail('total_heat_loss', '< baseline', variant.total_heat_loss, 'Thicker insulation must reduce total heat loss');
+      : fail('total_heat_loss_design', '< baseline', variant.total_heat_loss_design, 'Thicker insulation must reduce total heat loss');
   }
   if (label === 'higher_process_temperature') {
-    return variant.total_heat_loss > baseline.total_heat_loss
+    return variant.total_heat_loss_design > baseline.total_heat_loss_design
       ? pass('Higher process temperature increases total heat loss')
       : fail(
-          'total_heat_loss',
+          'total_heat_loss_design',
           '> baseline',
-          variant.total_heat_loss,
+          variant.total_heat_loss_design,
           'Higher process temperature must increase total heat loss',
         );
   }
   if (label === 'higher_safety_factor') {
     const linearBaseline =
-      testCase.objectType === 'pipe' ? baseline.heat_loss_per_meter : baseline.heat_loss_per_m2;
-    const linearVariant = testCase.objectType === 'pipe' ? variant.heat_loss_per_meter : variant.heat_loss_per_m2;
-    if (variant.total_heat_loss <= baseline.total_heat_loss) {
+      testCase.objectType === 'pipe' ? baseline.heat_loss_per_meter_base : baseline.heat_loss_per_m2_bare_base;
+    const linearVariant = testCase.objectType === 'pipe' ? variant.heat_loss_per_meter_base : variant.heat_loss_per_m2_bare_base;
+    if (variant.total_heat_loss_design <= baseline.total_heat_loss_design) {
       return fail(
-        'total_heat_loss',
+        'total_heat_loss_design',
         '> baseline',
-        variant.total_heat_loss,
+        variant.total_heat_loss_design,
         'Higher safety factor must increase total heat loss',
       );
     }
@@ -835,7 +835,7 @@ function evaluateInvariant(
       Math.abs(linearBaseline - linearVariant) > Math.max(0.001, Math.abs(linearBaseline) * 0.0001)
     ) {
       return fail(
-        testCase.objectType === 'pipe' ? 'heat_loss_per_meter' : 'heat_loss_per_m2',
+        testCase.objectType === 'pipe' ? 'heat_loss_per_meter_base' : 'heat_loss_per_m2_bare_base',
         linearBaseline,
         linearVariant,
         'Safety factor must not change linear/surface heat loss',
@@ -844,19 +844,19 @@ function evaluateInvariant(
     return pass('Higher safety factor increases total heat loss only');
   }
   if (label === 'longer_pipe') {
-    if (variant.total_heat_loss <= baseline.total_heat_loss) {
-      return fail('total_heat_loss', '> baseline', variant.total_heat_loss, 'Longer pipe must increase total heat loss');
+    if (variant.total_heat_loss_design <= baseline.total_heat_loss_design) {
+      return fail('total_heat_loss_design', '> baseline', variant.total_heat_loss_design, 'Longer pipe must increase total heat loss');
     }
     if (
-      baseline.heat_loss_per_meter !== undefined &&
-      variant.heat_loss_per_meter !== undefined &&
-      Math.abs(baseline.heat_loss_per_meter - variant.heat_loss_per_meter) >
-        Math.max(0.001, Math.abs(baseline.heat_loss_per_meter) * 0.0001)
+      baseline.heat_loss_per_meter_base !== undefined &&
+      variant.heat_loss_per_meter_base !== undefined &&
+      Math.abs(baseline.heat_loss_per_meter_base - variant.heat_loss_per_meter_base) >
+        Math.max(0.001, Math.abs(baseline.heat_loss_per_meter_base) * 0.0001)
     ) {
       return fail(
-        'heat_loss_per_meter',
-        baseline.heat_loss_per_meter,
-        variant.heat_loss_per_meter,
+        'heat_loss_per_meter_base',
+        baseline.heat_loss_per_meter_base,
+        variant.heat_loss_per_meter_base,
         'Pipe length must not change heat loss per meter',
       );
     }
@@ -911,13 +911,13 @@ export async function evaluateTltHeatLossCases(
       );
       continue;
     }
-    if (baseline.total_heat_loss <= 0) {
+    if (baseline.total_heat_loss_design <= 0) {
       results.push(
         reportResult({
           testCase,
-          expected: 'total_heat_loss > 0',
+          expected: 'total_heat_loss_design > 0',
           actual: baselineActual,
-          deterministic: fail('total_heat_loss', '> 0', baseline.total_heat_loss, 'Heat loss must be positive'),
+          deterministic: fail('total_heat_loss_design', '> 0', baseline.total_heat_loss_design, 'Heat loss must be positive'),
         }),
       );
       continue;

@@ -98,7 +98,7 @@ describe('elecCalcResultValueModel', () => {
     expect(commercialValue(row, 'price_per_meter')).toBe('315.75');
     expect(commercialValue(calc({ results: { commercial: [] } }), 'price_per_meter')).toBeUndefined();
     expect(commercialNumber(row, 'price_per_meter', 2)).toBe('315,75');
-    expect(objectResultNumber(projectObject({ results: { total_heat_loss: 1234.5 } }), 'total_heat_loss', 1))
+    expect(objectResultNumber(projectObject({ results: { total_heat_loss_design: 1234.5 } }), 'total_heat_loss_design', 1))
       .toBe('1\u00a0234,5');
     expect(numberText(null, 1)).toBe('—');
     expect(numberText(12.345, 2)).toBe('12,35');

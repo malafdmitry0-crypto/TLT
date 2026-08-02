@@ -56,23 +56,23 @@ class TestReferenceValuesNotRegressed:
         # Эталонные значения зафиксированы для concrete-кода
         # mineral_wool_boards_120 и λ(tm=40°C) из справочника.
         # Допуск 5% — на несущественные refactor (округление, минимальные правки).
-        assert r.heat_loss_per_meter == pytest.approx(47.954, rel=0.05)
+        assert r.heat_loss_per_meter_base == pytest.approx(47.954, rel=0.05)
         assert r.thermal_resistance == pytest.approx(2.085, rel=0.05)
-        assert r.total_heat_loss == pytest.approx(2397.7, rel=0.05)
+        assert r.total_heat_loss_design == pytest.approx(2397.7, rel=0.05)
 
     def test_pipe_with_safety_factor_1_1(self):
         """Та же труба + safety K=1.1 → total × 1.1."""
         r0 = calc_pipe_heat_loss(PIPE, coefficients={"safety_factor": 1.0})
         r1 = calc_pipe_heat_loss(PIPE, coefficients={"safety_factor": 1.1})
-        assert r1.total_heat_loss == pytest.approx(r0.total_heat_loss * 1.1, rel=0.001)
+        assert r1.total_heat_loss_design == pytest.approx(r0.total_heat_loss_design * 1.1, rel=0.001)
 
     def test_tank_cylindrical_DN2000_H3000_80mm(self):
         """Эталон: бак цилиндр Ø2м×H3м, 80мм минвата, -20→+80°C."""
         r = calc_tank_heat_loss(TANK, coefficients={"safety_factor": 1.0})
-        assert r.total_heat_loss > 0
-        # heat_loss_per_m2 — главная характеристика
-        assert r.heat_loss_per_m2 > 10  # Дельта 100°C, минвата 80мм → разумный диапазон
-        assert r.heat_loss_per_m2 < 200
+        assert r.total_heat_loss_design > 0
+        # heat_loss_per_m2_bare_base — главная характеристика
+        assert r.heat_loss_per_m2_bare_base > 10  # Дельта 100°C, минвата 80мм → разумный диапазон
+        assert r.heat_loss_per_m2_bare_base < 200
 
 
 # ─── «Симулированные мутации»: что МЫ ОЖИДАЕМ что тесты бы поймали ────────
@@ -96,9 +96,9 @@ class TestMutationCoverage:
             PIPE.model_copy(update={"outer_diameter": 0.5}),
             coefficients={"safety_factor": 1.0},
         )
-        assert thin.heat_loss_per_meter != thick.heat_loss_per_meter
+        assert thin.heat_loss_per_meter_base != thick.heat_loss_per_meter_base
         # Толстая труба отдаёт больше тепла на метр (площадь поверхности больше)
-        assert thick.heat_loss_per_meter > thin.heat_loss_per_meter
+        assert thick.heat_loss_per_meter_base > thin.heat_loss_per_meter_base
 
     def test_pipe_temperature_difference_signed(self):
         """Если бы формула брала |ΔT|, отрицательная и положительная давали бы одно.
@@ -110,7 +110,7 @@ class TestMutationCoverage:
             coefficients={"safety_factor": 1.0},
         )
         # ΔT=100 > ΔT=50 → больше потерь
-        assert cold_to_hot.heat_loss_per_meter > smaller_dt.heat_loss_per_meter
+        assert cold_to_hot.heat_loss_per_meter_base > smaller_dt.heat_loss_per_meter_base
 
     def test_pipe_insulation_thickness_inverse(self):
         """Толщина изоляции в знаменателе термического сопротивления.
@@ -125,7 +125,7 @@ class TestMutationCoverage:
         )
         # Тонкая (1см) даёт больше потерь — это основной инвариант
         assert (
-            thin.heat_loss_per_meter > thick.heat_loss_per_meter
+            thin.heat_loss_per_meter_base > thick.heat_loss_per_meter_base
         ), "MUTATION: толщина изоляции работает в обратную сторону"
 
     def test_pipe_safety_factor_multiplied_not_divided(self):
@@ -133,8 +133,8 @@ class TestMutationCoverage:
         Проверяем что K=2 даёт total в 2 раза БОЛЬШЕ."""
         r1 = calc_pipe_heat_loss(PIPE, coefficients={"safety_factor": 1.0})
         r2 = calc_pipe_heat_loss(PIPE, coefficients={"safety_factor": 2.0})
-        assert r2.total_heat_loss > r1.total_heat_loss
-        assert r2.total_heat_loss == pytest.approx(r1.total_heat_loss * 2, rel=0.01)
+        assert r2.total_heat_loss_design > r1.total_heat_loss_design
+        assert r2.total_heat_loss_design == pytest.approx(r1.total_heat_loss_design * 2, rel=0.01)
 
     def test_pipe_length_linear_not_squared(self):
         """Q линейно от L. Если кто-то ошибётся L² → проверим quadratic vs linear."""
@@ -147,12 +147,12 @@ class TestMutationCoverage:
             coefficients={"safety_factor": 1.0},
         )
         # Линейно → 2× при удвоении. Если бы было L²: было бы 4×
-        ratio = r20.total_heat_loss / r10.total_heat_loss
+        ratio = r20.total_heat_loss_design / r10.total_heat_loss_design
         assert (
             1.95 <= ratio <= 2.05
         ), f"MUTATION: Q НЕ линейно от L (ratio={ratio:.2f}, должно ≈2.0)"
 
-    def test_tank_surface_area_includes_all_sides(self):
+    def test_tank_surface_area_bare_includes_all_sides(self):
         """Цилиндрический бак: площадь = π·d·H + π·d²/2 (бок + 2 крышки).
         Если забыли крышку — площадь меньше → меньше потерь."""
         # Высокий узкий бак (бок доминирует)
@@ -166,8 +166,8 @@ class TestMutationCoverage:
             coefficients={"safety_factor": 1.0},
         )
         # Оба должны иметь positive total
-        assert tall.total_heat_loss > 0
-        assert flat.total_heat_loss > 0
+        assert tall.total_heat_loss_design > 0
+        assert flat.total_heat_loss_design > 0
 
     def test_thermal_resistance_grows_with_thickness(self):
         """R_изоляции = ln(d_внеш/d_внутр)/(2π·λ). Растёт с толщиной."""
@@ -195,7 +195,7 @@ class TestMutationCoverage:
             coefficients={"safety_factor": 1.0},
         )
         # ППУ имеет МЕНЬШЕ λ → БОЛЬШЕ R → МЕНЬШЕ Q
-        assert pu.heat_loss_per_meter < mw.heat_loss_per_meter, "MUTATION: λ перепутана с 1/λ"
+        assert pu.heat_loss_per_meter_base < mw.heat_loss_per_meter_base, "MUTATION: λ перепутана с 1/λ"
 
 
 # ─── Метаданные о формуле ───────────────────────────────────────────────────
@@ -219,7 +219,7 @@ class TestFormulaInvariantsDocumented:
             coefficients={"safety_factor": 1.0},
         )
         # Q примерно линейно растёт с ΔT (alpha_внеш слабо зависит от T)
-        ratio = big_dt.heat_loss_per_meter / small_dt.heat_loss_per_meter
+        ratio = big_dt.heat_loss_per_meter_base / small_dt.heat_loss_per_meter_base
         # ΔT удвоилось, а λ(tm) справочной изоляции выросла при большем T3,
         # поэтому q растёт сильнее 2×, но остаётся в ограниченном диапазоне.
         assert 2.0 <= ratio <= 2.5
@@ -235,4 +235,4 @@ class TestFormulaInvariantsDocumented:
             coefficients={"safety_factor": 1.0},
         )
         assert r2.thermal_resistance > r1.thermal_resistance
-        assert r2.heat_loss_per_meter < r1.heat_loss_per_meter
+        assert r2.heat_loss_per_meter_base < r1.heat_loss_per_meter_base

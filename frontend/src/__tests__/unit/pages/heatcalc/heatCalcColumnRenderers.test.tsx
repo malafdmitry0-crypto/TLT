@@ -47,10 +47,13 @@ describe('heatCalcColumnRenderers', () => {
         ],
         process_temperature: 80,
         ambient_temperature: -20,
+        safety_factor: 1.2,
       },
       results: {
-        heat_loss_per_meter: 42.4,
-        total_heat_loss: 2332.2,
+        heat_loss_per_meter_base: 42.4,
+        heat_loss_per_meter_design: 50.88,
+        safety_factor_applied: 1.2,
+        total_heat_loss_design: 2332.2,
         thermal_resistance: 2.35789,
       },
     });
@@ -67,8 +70,8 @@ describe('heatCalcColumnRenderers', () => {
     expect(renderers.second_insulation_material.copyValue(record, 0)).toBe('label:foamglass');
     expect(renderers.second_insulation_thickness.copyValue(record, 0)).toBe('30');
     expect(renderers.delta_t.copyValue(record, 0)).toBe('100');
-    expect(renderers.heat_loss_per_meter.copyValue(record, 0)).toBe('42,4');
-    expect(normalizeSpaces(renderers.total_heat_loss.copyValue(record, 0))).toBe('2 332');
+    expect(renderers.heat_loss_per_meter_base.copyValue(record, 0)).toBe('42,4');
+    expect(normalizeSpaces(renderers.total_heat_loss_design.copyValue(record, 0))).toBe('2 332');
     expect(renderers.thermal_resistance.copyValue(record, 0)).toBe('2,3579');
   });
 
@@ -102,10 +105,10 @@ describe('heatCalcColumnRenderers', () => {
         q_additional: 100,
       },
       results: {
-        heat_loss_per_m2: 53.6,
-        total_heat_loss: 1347,
-        q_additional: 250,
-        surface_area: 11.2,
+        heat_loss_per_m2_bare_base: 53.6,
+        total_heat_loss_design: 1347,
+        q_additional_applied: 250,
+        surface_area_bare: 11.2,
       },
     });
 
@@ -114,8 +117,8 @@ describe('heatCalcColumnRenderers', () => {
     expect(normalizeSpaces(renderers.tank_dimensions.copyValue(record, 0))).toBe('1 200 × 800 × 2 000 мм');
     expect(renderers.tank_wall_thickness.copyValue(record, 0)).toBe('6');
     expect(renderers.q_additional.copyValue(record, 0)).toBe('250');
-    expect(renderers.heat_loss_per_m2.copyValue(record, 0)).toBe('53,6');
-    expect(normalizeSpaces(renderers.total_heat_loss.copyValue(record, 0))).toBe('1 347');
-    expect(renderers.surface_area.copyValue(record, 0)).toBe('11,2');
+    expect(renderers.heat_loss_per_m2_bare_base.copyValue(record, 0)).toBe('53,6');
+    expect(normalizeSpaces(renderers.total_heat_loss_design.copyValue(record, 0))).toBe('1 347');
+    expect(renderers.surface_area_bare.copyValue(record, 0)).toBe('11,2');
   });
 });

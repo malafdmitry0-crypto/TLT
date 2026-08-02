@@ -176,7 +176,7 @@ test.describe('business flow: cable layout controls — layout-glide', () => {
     expect(installedCableLength).toBeCloseTo(expectedInstalledLength, 3);
     expect(orderCableLength).toBeCloseTo(installedCableLength * 1.1, 3);
     expect(totalPower).toBeCloseTo(powerPerMeter * expectedInstalledLength, 3);
-    expect(totalPower).toBeGreaterThanOrEqual(Number(tank.results.total_heat_loss));
+    expect(totalPower).toBeGreaterThanOrEqual(Number(tank.results.total_heat_loss_design));
   });
   test('автоматические шаг навива и нитки стабильны после повторного электрорасчёта', async ({
     page,

@@ -21,7 +21,6 @@ import {
   formatParamMetersAsMm,
   formatParamNumber,
   formatParamText,
-  formatResultOrParamNumber,
   formatResultNumber,
   heatLossCalcStatus,
   heatLossErrorText,
@@ -118,7 +117,7 @@ afterEach(() => {
 
 describe('heatCalcPageUtils', () => {
   it('определяет статус теплопотерь и текст ошибки', () => {
-    const calculated = makeObject({ is_valid: true, results: { total_heat_loss: 100 } });
+    const calculated = makeObject({ is_valid: true, results: { total_heat_loss_design: 100 } });
     const failed = makeObject({ validation_errors: { message: 'Нет материала' } });
     const structuredFailed = makeObject({ validation_errors: { message: 'Понятная ошибка' } });
     const unsupported = makeObject({ validation_errors: { category: 'unsupported', message: 'Не применимо' } });
@@ -339,7 +338,7 @@ describe('heatCalcPageUtils', () => {
         ],
         ground_type: 'clay',
       },
-      results: { total_heat_loss: 1234.56 },
+      results: { total_heat_loss_design: 1234.56 },
     });
 
     expect(normalizeSpaces(tankDimensions(record))).toBe('1 200 × 800 × 2 000 мм');
@@ -347,25 +346,11 @@ describe('heatCalcPageUtils', () => {
     expect(formatParamNumber(record, 'process_temperature', 0)).toBe('65');
     expect(formatParamText(record, 'ground_type')).toBe('clay');
     expect(formatDeltaTemperature(record, 0)).toBe('90');
-    expect(normalizeSpaces(formatResultNumber(record, 'total_heat_loss', 1))).toBe('1 234,6');
-    expect(formatResultOrParamNumber(record, 'q_additional', 0)).toBe('—');
+    expect(normalizeSpaces(formatResultNumber(record, 'total_heat_loss_design', 1))).toBe('1 234,6');
     expect(insulationLayerCount(record)).toBe('2');
     expect(insulationLayerThickness(record, 1)).toBe('30');
     expect(insulationLayerMaterial(record, 0, (material) => `label:${String(material)}`)).toBe('label:mineral_wool');
     expect(insulationLayerConductivity(record, 0)).toBe('0,045');
-  });
-
-  it('для q_additional предпочитает result и падает обратно на params', () => {
-    expect(formatResultOrParamNumber(
-      makeObject({ results: { q_additional: 250 }, params: { q_additional: 100 } }),
-      'q_additional',
-      0,
-    )).toBe('250');
-    expect(formatResultOrParamNumber(
-      makeObject({ results: {}, params: { q_additional: 100 } }),
-      'q_additional',
-      0,
-    )).toBe('100');
   });
 
   it('форматирует справочные подписи', () => {
