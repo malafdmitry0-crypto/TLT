@@ -1,10 +1,12 @@
 """Схемы спецификации."""
 
 from datetime import datetime
+from decimal import Decimal
+from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class SpecificationItem(BaseModel):
@@ -17,6 +19,176 @@ class SpecificationItem(BaseModel):
     # 'auto' — построено генератором из электрорасчёта; 'manual' — добавлено сотрудником.
     # При перегенерации auto-позиции пересоздаются, manual — сохраняются.
     source: str | None = None
+
+
+class SpecificationGroupingMode(StrEnum):
+    """Нормативные режимы группировки строк одного ЭР."""
+
+    SEPARATE_BY_OBJECT_TYPE = "separate_by_object_type"
+    MERGE_MATERIALS = "merge_materials"
+
+
+class SpecificationIssueKind(StrEnum):
+    """Взаимоисключающие классы preflight-диагностик."""
+
+    CONFIRMABLE = "confirmable"
+    BLOCKING = "blocking"
+    SELECTION_REQUIRED = "selection_required"
+
+
+class SpecificationPreflightStatus(StrEnum):
+    READY = "ready"
+    CONFIRMATION_REQUIRED = "confirmation_required"
+    BLOCKED = "blocked"
+    SELECTION_REQUIRED = "selection_required"
+
+
+class SpecificationGenerationStatus(StrEnum):
+    GENERATED = "generated"
+    BLOCKED = "blocked"
+    CONFIRMATION_REQUIRED = "confirmation_required"
+    SELECTION_REQUIRED = "selection_required"
+
+
+class SpecificationDiagnosticCode(StrEnum):
+    """Stable codes утверждённого backend-контракта спецификации."""
+
+    VARIANT_IDS_REQUIRED = "SPEC_VARIANT_IDS_REQUIRED"
+    VARIANT_NOT_FOUND = "SPEC_VARIANT_NOT_FOUND"
+    VARIANT_PROJECT_MISMATCH = "SPEC_VARIANT_PROJECT_MISMATCH"
+    UNASSIGNED_CONFIRMATION_REQUIRED = "SPEC_UNASSIGNED_CONFIRMATION_REQUIRED"
+    VARIANT_NOT_READY = "SPEC_VARIANT_NOT_READY"
+    UNSUPPORTED_OBJECT_TYPE = "SPEC_UNSUPPORTED_OBJECT_TYPE"
+    RESULT_STALE = "SPEC_RESULT_STALE"
+    MOCK_INPUTS_NOT_ALLOWED = "ELECTRICAL_MOCK_INPUTS_NOT_ALLOWED"
+    SECTION_PLAN_INVALID = "ELECTRICAL_SECTION_PLAN_INVALID"
+    CABLE_NOMENCLATURE_MISSING = "SPEC_CABLE_NOMENCLATURE_MISSING"
+    CATALOG_VERSION_INACTIVE = "SPEC_CATALOG_VERSION_INACTIVE"
+    CATALOG_UNAVAILABLE = "SPEC_CATALOG_UNAVAILABLE"
+    ACCESSORY_CATALOG_ITEM_MISSING = "SPEC_ACCESSORY_CATALOG_ITEM_MISSING"
+    ACCESSORY_CATALOG_INCOMPLETE = "SPEC_ACCESSORY_CATALOG_INCOMPLETE"
+    ACCESSORY_SELECTION_REQUIRED = "SPEC_ACCESSORY_SELECTION_REQUIRED"
+    BOX_EX_RGR_MATRIX_MISSING = "SPEC_BOX_EX_RGR_MATRIX_MISSING"
+    FORMULA_INPUT_INVALID = "SPEC_FORMULA_INPUT_INVALID"
+    GENERATION_CONFLICT = "SPEC_GENERATION_CONFLICT"
+
+
+class SpecificationRequestedOptions(BaseModel):
+    """Опции V2 до resolution из versioned project settings.
+
+    ``None`` означает «разрешить из project settings», а не подставить mock или
+    неявный business-default. После resolution сервис обязан получить
+    :class:`SpecificationResolvedOptions` либо вернуть domain error.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+        populate_by_name=True,
+        allow_inf_nan=False,
+    )
+
+    catalog_id: UUID | str | None = None
+    catalog_version: str | None = Field(default=None, min_length=1)
+    grouping_mode: SpecificationGroupingMode | None = None
+    ex: bool | None = Field(default=None, alias="Ex")
+    k1i: bool | None = Field(default=None, alias="K1i")
+    k2i: bool | None = Field(default=None, alias="K2i")
+    kiu: bool | None = Field(default=None, alias="Kiu")
+    l_k2i_m: Decimal | None = Field(default=None, ge=0, alias="L_K2i_m")
+    r_gr: Decimal | None = Field(default=None, alias="R_gr")
+
+    @field_validator("catalog_id")
+    @classmethod
+    def _catalog_id_is_not_blank(cls, value: UUID | str | None) -> UUID | str | None:
+        if isinstance(value, str) and not value.strip():
+            raise ValueError("catalog_id must not be blank")
+        return value
+
+
+class SpecificationResolvedOptions(BaseModel):
+    """Полностью разрешённые и snapshot-ready настройки одного запроса."""
+
+    model_config = ConfigDict(
+        extra="forbid",
+        populate_by_name=True,
+        allow_inf_nan=False,
+    )
+
+    catalog_id: UUID | str
+    catalog_version: str = Field(min_length=1)
+    grouping_mode: SpecificationGroupingMode
+    ex: bool = Field(alias="Ex")
+    k1i: bool = Field(alias="K1i")
+    k2i: bool = Field(alias="K2i")
+    kiu: bool = Field(alias="Kiu")
+    l_k2i_m: Decimal = Field(ge=0, alias="L_K2i_m")
+    r_gr: Decimal = Field(alias="R_gr")
+
+    @field_validator("catalog_id")
+    @classmethod
+    def _catalog_id_is_not_blank(cls, value: UUID | str) -> UUID | str:
+        if isinstance(value, str) and not value.strip():
+            raise ValueError("catalog_id must not be blank")
+        return value
+
+
+class SpecificationGenerationRequestV2(BaseModel):
+    """Канонический UUID-scoped запрос; implicit-all отсутствует."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    variant_ids: list[UUID] = Field(min_length=1, max_length=5)
+    options: SpecificationRequestedOptions = Field(default_factory=SpecificationRequestedOptions)
+    exclude_unassigned_confirmed: bool = False
+    catalog_selections: dict[str, UUID | str] = Field(default_factory=dict)
+
+    @field_validator("variant_ids")
+    @classmethod
+    def _variant_ids_are_unique(cls, value: list[UUID]) -> list[UUID]:
+        if len(set(value)) != len(value):
+            raise ValueError("variant_ids must be unique")
+        return value
+
+
+class SpecificationDiagnostic(BaseModel):
+    """Typed issue; бизнес-ветвление не зависит от текста message."""
+
+    code: SpecificationDiagnosticCode
+    kind: SpecificationIssueKind
+    message: str
+    issues: list[dict[str, Any]] = Field(default_factory=list)
+    details: dict[str, Any] = Field(default_factory=dict)
+
+
+class SpecificationErrorDetail(BaseModel):
+    code: SpecificationDiagnosticCode
+    message: str
+    issues: list[dict[str, Any]] = Field(default_factory=list)
+    details: dict[str, Any] = Field(default_factory=dict)
+
+
+class SpecificationErrorEnvelope(BaseModel):
+    detail: SpecificationErrorDetail
+
+
+class SpecificationVariantPreflightResultV2(BaseModel):
+    electrical_variant_id: UUID
+    electrical_variant_name: str | None = None
+    status: SpecificationPreflightStatus
+    total_objects: int = Field(default=0, ge=0)
+    contributing_objects: int = Field(default=0, ge=0)
+    excluded_unassigned_object_ids: list[UUID] = Field(default_factory=list)
+    diagnostics: list[SpecificationDiagnostic] = Field(default_factory=list)
+    input_fingerprint: str | None = None
+
+
+class SpecificationVariantGenerationResultV2(BaseModel):
+    electrical_variant_id: UUID
+    status: SpecificationGenerationStatus
+    items: list[SpecificationItem] = Field(default_factory=list)
+    excluded_unassigned_object_ids: list[UUID] = Field(default_factory=list)
+    diagnostics: list[SpecificationDiagnostic] = Field(default_factory=list)
+    snapshot: dict[str, Any] | None = None
 
 
 class SpecificationOptions(BaseModel):
@@ -45,9 +217,7 @@ class SpecificationOptions(BaseModel):
     end_section_indication: bool = Field(
         default=False, description="К2i — доп. индикация в конце нагревательной секции"
     )
-    top_indication: bool = Field(
-        default=False, description="Кiu — доп. индикация сверху коробки"
-    )
+    top_indication: bool = Field(default=False, description="Кiu — доп. индикация сверху коробки")
     min_length_for_end_indication: float = Field(
         default=0.0,
         ge=0.0,
