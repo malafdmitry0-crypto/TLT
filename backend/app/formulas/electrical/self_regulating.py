@@ -1,8 +1,10 @@
 """Электротехнический расчёт саморегулирующихся кабелей ТЛТ и ТТН/ТТВ/ТТХ."""
 
 import math
+from decimal import Decimal
 from typing import Any
 
+from app.electrical_domain import ElectricalFormulaError
 from app.formulas.electrical.cable_geometry import compute_tank_cable_length
 from app.formulas.electrical.commercial import (
     BalancedRankingConfig,
@@ -12,6 +14,7 @@ from app.formulas.electrical.commercial import (
     select_commercial_candidate,
 )
 from app.formulas.electrical.common import cable_order_length
+from app.formulas.electrical.decimal_math import SIX_PLACES, decimal_value, round_result, round_up
 from app.reference_data.loader import (
     get_tlt_cable_by_mark,
     get_tt_cable_by_model,
@@ -294,15 +297,61 @@ _SERIES_LIMITS: dict[str, dict[str, float]] = {
 def _select_tt_series(process_temp: float, vapor_temp: float | None) -> str:
     """Выбирает минимальную подходящую серию ТТН→ТТВ→ТТХ."""
     for series, limits in _SERIES_LIMITS.items():
-        if process_temp > limits["max_product_temp"]:
+        if process_temp >= limits["max_product_temp"]:
             continue
-        if vapor_temp is not None and vapor_temp > limits["max_vapor_temp"]:
+        if vapor_temp is not None and vapor_temp >= limits["max_vapor_temp"]:
             continue
         return series
-    raise ValueError(
-        f"Температура продукта {process_temp}°C или пропарки {vapor_temp}°C "
-        "превышает предел ТТХ (150°C / 250°C). Требуется другой тип кабеля."
+    raise ElectricalFormulaError(
+        "ELECTRICAL_CABLE_TEMPERATURE_LIMIT_EXCEEDED",
+        "Температура продукта или пропарки превышает предел серии ТТХ",
+        details={"product_temperature_c": process_temp, "steam_temperature_c": vapor_temp},
     )
+
+
+def compute_winding_factor(
+    *, outer_diameter_mm: float, winding_pitch_mm: float | None
+) -> Decimal:
+    """Return Kнав from canonical millimetre inputs and enforce the diameter table."""
+    diameter_mm = decimal_value(outer_diameter_mm)
+    if diameter_mm <= 0:
+        raise ElectricalFormulaError(
+            "ELECTRICAL_WINDING_PITCH_INVALID", "Наружный диаметр должен быть положительным"
+        )
+    if winding_pitch_mm is None:
+        return Decimal(1)
+    pitch_mm = decimal_value(winding_pitch_mm)
+    if pitch_mm <= diameter_mm:
+        raise ElectricalFormulaError(
+            "ELECTRICAL_WINDING_PITCH_INVALID",
+            "Шаг навива должен быть больше наружного диаметра трубы",
+            details={"outer_diameter_mm": outer_diameter_mm, "winding_pitch_mm": winding_pitch_mm},
+        )
+    factor = decimal_value(math.sqrt(1.0 + (math.pi * float(diameter_mm / pitch_mm)) ** 2))
+    maximum = max_winding_factor(outer_diameter_mm)
+    if factor > maximum:
+        raise ElectricalFormulaError(
+            "ELECTRICAL_WINDING_FACTOR_LIMIT_EXCEEDED",
+            "Коэффициент навива превышает допустимый предел для диаметра трубы",
+            details={"winding_factor": float(factor), "maximum": float(maximum)},
+        )
+    return round_result(factor, SIX_PLACES)
+
+
+def max_winding_factor(outer_diameter_mm: float) -> Decimal:
+    """Return the exact normative Kнав boundary for an outer diameter in mm."""
+    diameter_mm = decimal_value(outer_diameter_mm)
+    if diameter_mm < Decimal("57"):
+        return Decimal("1.0")
+    if diameter_mm == Decimal("57"):
+        return Decimal("1.1")
+    if diameter_mm <= Decimal("75"):
+        return Decimal("1.2")
+    if diameter_mm <= Decimal("89"):
+        return Decimal("1.3")
+    if diameter_mm <= Decimal("108"):
+        return Decimal("1.4")
+    return Decimal("1.5")
 
 
 def calc_self_regulating_tt(params: SelfRegulatingTTParams) -> SelfRegulatingTTResult:
@@ -320,117 +369,96 @@ def calc_self_regulating_tt(params: SelfRegulatingTTParams) -> SelfRegulatingTTR
     N = ceil(q_required / (q_б × k_навива)) без эскалации серии только из-за
     мощности.
     """
-    suffix = "СР" if params.aggressive_product else "СТ"
-    q_required = params.required_power_per_meter * params.safety_factor
-    selected_threads: int | None = None
-    t3 = (
-        params.maintain_temperature
-        if params.maintain_temperature is not None
-        else params.process_temperature
-    )
+    selection_policy = getattr(params, "selection_policy", "technical_minimum")
+    if selection_policy != "technical_minimum":
+        raise ElectricalFormulaError(
+            "ELECTRICAL_SELECTION_POLICY_UNSUPPORTED",
+            "В MVP поддерживается только политика technical_minimum",
+            details={"selection_policy": selection_policy},
+        )
+    if params.supply_voltage != 230:
+        raise ElectricalFormulaError(
+            "ELECTRICAL_NOMINAL_VOLTAGE_UNSUPPORTED",
+            "Новый электрический расчёт поддерживает только напряжение 230 В",
+            details={"nominal_voltage_v": params.supply_voltage},
+        )
+    if params.maintain_temperature is None:
+        raise ElectricalFormulaError(
+            "ELECTRICAL_CABLE_POWER_CURVE_INVALID", "Температура поддержания T3 обязательна"
+        )
+    if params.number_of_threads is not None and params.number_of_threads not in {1, 2, 3}:
+        raise ElectricalFormulaError(
+            "ELECTRICAL_THREAD_COUNT_INVALID", "Число ниток должно быть от 1 до 3"
+        )
 
-    def installed_linear_power(q_b: float, threads: int) -> float:
-        return q_b * params.winding_coefficient * threads
+    series = _select_tt_series(params.process_temperature, params.vapor_temperature)
+    suffix = "СР" if series != "ТТН" or params.aggressive_product else "СТ"
+    q_required = decimal_value(params.required_power_per_meter) * decimal_value(params.safety_factor)
+    # Canonical absence of pitch means straight laying. A non-unit legacy coefficient is ignored.
+    winding_factor = (
+        Decimal(1)
+        if params.winding_pitch is None or params.winding_pitch == 0
+        else decimal_value(params.winding_coefficient)
+    )
+    t3 = decimal_value(params.maintain_temperature)
+
+    def cable_power(cable_row: CableRow) -> Decimal:
+        return decimal_value(cable_row["q1"]) * t3 + decimal_value(cable_row["q2"])
 
     if params.cable_mark is not None:
-        if params.cable_mark.endswith("-СТ"):
-            suffix = "СТ"
-        elif params.cable_mark.endswith("-СР"):
-            suffix = "СР"
-        base_model = (
-            params.cable_mark.split("-")[0] if "-" in params.cable_mark else params.cable_mark
-        )
-        match = get_tt_cable_by_model(base_model)
-        if match is None:
-            raise ValueError(f"Кабель «{params.cable_mark}» не найден в справочнике")
-        cable = match
-        series = cable["series"]
-        if params.process_temperature > float(cable["max_product_temp"]):
-            raise ValueError(
-                f"Температура продукта {params.process_temperature}°C превышает предел "
-                f"серии {series} ({cable['max_product_temp']}°C)"
+        normalized_model = "".join(params.cable_mark.split()).upper()
+        if normalized_model.endswith(("-СТ", "-СР", "-НР")):
+            raise ElectricalFormulaError(
+                "ELECTRICAL_CABLE_CONSTRUCTION_UNSUPPORTED",
+                "Ручной выбор принимает базовую модель без суффикса исполнения",
             )
-        if params.vapor_temperature is not None and params.vapor_temperature > float(
-            cable["max_vapor_temp"]
-        ):
-            raise ValueError(
-                f"Температура пропарки {params.vapor_temperature}°C превышает предел "
-                f"серии {series} ({cable['max_vapor_temp']}°C)"
+        cable = get_tt_cable_by_model(normalized_model)
+        if cable is None:
+            raise ElectricalFormulaError(
+                "ELECTRICAL_CABLE_NOT_FOUND",
+                f"Кабель «{params.cable_mark}» не найден в справочнике",
             )
+        if cable["series"] != series:
+            raise ElectricalFormulaError(
+                "ELECTRICAL_CABLE_SERIES_MISMATCH",
+                "Ручная модель не принадлежит вычисленной температурной серии",
+                details={"requested_model": normalized_model, "required_series": series},
+            )
+        candidate_rows = [cable]
     else:
         catalog = list_tt_cables()
-        series = _select_tt_series(params.process_temperature, params.vapor_temperature)
-        s_cables = sorted(
-            [c for c in catalog if c["series"] == series],
-            key=lambda c: c["nominal_power"],
-        )
-        power_rows = [(c["q1"] * t3 + c["q2"], c) for c in s_cables if c["q1"] * t3 + c["q2"] > 0]
-        if not power_rows:
-            raise ValueError(
-                f"Ни один кабель серии {series} не имеет положительной мощности "
-                f"при T3={t3}°C. Требуется другой тип кабеля."
-            )
+        candidate_rows = [row for row in catalog if row["series"] == series]
 
-        if params.number_of_threads is not None:
-            candidates = [
-                (
-                    c["nominal_power"],
-                    installed_linear_power(q_b, params.number_of_threads),
-                    q_b,
-                    c,
-                )
-                for q_b, c in power_rows
-                if installed_linear_power(q_b, params.number_of_threads) >= q_required
-            ]
-            if not candidates:
-                raise ValueError(
-                    f"Ни один кабель серии {series} при {params.number_of_threads} нитк. "
-                    f"не обеспечивает {q_required:.2f} Вт/м при T3={t3}°C "
-                    f"и k_навива={params.winding_coefficient:.3f}"
-                )
-            _, _, _, cable = min(candidates, key=lambda item: (item[0], item[1]))
-            selected_threads = params.number_of_threads
-        else:
-            single_thread_match = next(
-                (
-                    (q_b, c)
-                    for q_b, c in power_rows
-                    if installed_linear_power(q_b, 1) >= q_required
-                ),
-                None,
-            )
-            if single_thread_match is not None:
-                _, cable = single_thread_match
-                selected_threads = 1
-            else:
-                q_b_max, cable = max(power_rows, key=lambda item: item[1]["nominal_power"])
-                selected_threads = math.ceil(q_required / installed_linear_power(q_b_max, 1))
-
-    q_b = cable["q1"] * t3 + cable["q2"]
-    if q_b <= 0:
-        raise ValueError(
-            f"Кабель {cable['model']} при T3={t3}°C "
-            f"имеет нулевую или отрицательную мощность ({q_b:.2f} Вт/м)"
+    positive_rows = [(cable_power(row), row) for row in candidate_rows if cable_power(row) > 0]
+    if not positive_rows:
+        raise ElectricalFormulaError(
+            "ELECTRICAL_CABLE_POWER_CURVE_INVALID",
+            "В выбранной серии нет модели с положительной мощностью при T3",
         )
 
-    if params.number_of_threads is not None:
-        num_circuits = params.number_of_threads
-        effective_power_per_meter = installed_linear_power(q_b, num_circuits)
-        if effective_power_per_meter < q_required:
-            raise ValueError(
-                f"Кабель {cable['model']} при {num_circuits} нитк. обеспечивает "
-                f"{effective_power_per_meter:.2f} Вт/м с учётом k_навива="
-                f"{params.winding_coefficient:.3f}, требуется {q_required:.2f} Вт/м"
-            )
-    elif selected_threads is not None:
-        num_circuits = selected_threads
-    else:
-        single_thread_power = installed_linear_power(q_b, 1)
-        num_circuits = (
-            math.ceil(q_required / single_thread_power)
-            if single_thread_power < q_required
-            else 1
+    requested_threads = (
+        [params.number_of_threads] if params.number_of_threads is not None else [1, 2, 3]
+    )
+    candidates: list[tuple[int, Decimal, CableRow]] = []
+    for threads in requested_threads:
+        for q_b_candidate, cable_candidate in positive_rows:
+            if q_b_candidate * winding_factor * threads >= q_required:
+                candidates.append((threads, q_b_candidate, cable_candidate))
+    if not candidates:
+        raise ElectricalFormulaError(
+            "ELECTRICAL_CABLE_POWER_INSUFFICIENT",
+            "Ни один кабель вычисленной серии не обеспечивает требуемую мощность",
+            details={"required_power_per_meter_w": float(q_required), "maximum_threads": 3},
         )
+    num_circuits, q_b, cable = min(
+        candidates,
+        key=lambda item: (
+            item[0],
+            item[1] * item[0],
+            decimal_value(item[2]["nominal_power"]),
+            str(item[2]["model"]),
+        ),
+    )
     cable_mark = f"{cable['model']}-{suffix}"
 
     if params.tank_shape and params.heating_height and params.laying_step:
@@ -444,11 +472,11 @@ def calc_self_regulating_tt(params: SelfRegulatingTTParams) -> SelfRegulatingTTR
         )
     else:
         base_length = params.pipe_length
-    cable_length = base_length * params.winding_coefficient * num_circuits
-    order_cable_length = cable_order_length(cable_length)
+    cable_length = decimal_value(base_length) * winding_factor * num_circuits
+    order_cable_length = round_up(cable_length * Decimal("1.10"))
     total_power = q_b * cable_length
-    installed_power_per_meter = installed_linear_power(q_b, num_circuits)
-    applied_voltage = _catalog_voltage(cable) or params.supply_voltage
+    installed_power_per_meter = q_b * winding_factor * num_circuits
+    applied_voltage = Decimal(230)
 
     temp_group = "high" if series in {"ТТВ", "ТТХ"} else "low"
     return SelfRegulatingTTResult(
@@ -457,15 +485,15 @@ def calc_self_regulating_tt(params: SelfRegulatingTTParams) -> SelfRegulatingTTR
         series=series,
         cable_model=cable["model"],
         temperature_group=temp_group,
-        cable_length=round(cable_length, 3),
-        installed_cable_length=round(cable_length, 3),
-        order_cable_length=round(order_cable_length, 3),
+        cable_length=float(round_result(cable_length)),
+        installed_cable_length=float(round_result(cable_length)),
+        order_cable_length=float(order_cable_length),
         num_circuits=num_circuits,
-        power_per_meter=round(q_b, 3),
-        installed_power_per_meter=round(installed_power_per_meter, 3),
-        total_power=round(total_power, 3),
-        current=round(total_power / applied_voltage, 3),
-        voltage=applied_voltage,
+        power_per_meter=float(round_result(q_b)),
+        installed_power_per_meter=float(round_result(installed_power_per_meter)),
+        total_power=float(round_result(total_power)),
+        current=float(round_result(total_power / applied_voltage)),
+        voltage=float(applied_voltage),
         winding_pitch=round(params.winding_pitch or 0.0, 3),
-        winding_coefficient=round(params.winding_coefficient, 6),
+        winding_coefficient=float(round_result(winding_factor, SIX_PLACES)),
     )

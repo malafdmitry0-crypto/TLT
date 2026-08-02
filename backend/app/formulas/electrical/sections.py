@@ -7,11 +7,13 @@ current; an optional upstream breaker limit can further reduce ``Lогр``.
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass
+from decimal import ROUND_CEILING, Decimal
 from functools import lru_cache
 from typing import Any
 
+from app.electrical_domain import ElectricalFormulaError
+from app.formulas.electrical.decimal_math import decimal_value, round_down, round_result, round_up
 from app.reference_data.loader import _load_json  # type: ignore[attr-defined]
 
 
@@ -30,16 +32,20 @@ class SectionPlan:
     section_count: int
     section_length_m: float
     l_max_m: float
-    l_tok_m: float | None
+    l_tok_m: float
     l_ogr_m: float
     l_required_m: float
     l_fact_m: float
-    i_dop_a: float | None
+    i_dop_a: float
     i_st_ud_a_per_m: float
     start_current_a: float
     working_current_a: float
+    start_current_per_section_a: float
+    working_current_per_section_a: float
     power_per_section_w: float
     total_power_w: float
+    l_excess_m: float
+    order_cable_length_m: float
     catalog_source: str
     catalog_version: str
     voltage_v: float
@@ -108,20 +114,10 @@ def _parse_rows() -> list[SectionCatalogRow]:
 def _mark_lookup_keys(mark: str) -> list[str]:
     """Return exact TT model keys, accepting only its commercial suffix."""
     raw = mark.strip()
-    keys = [raw]
-    # Strip commercial suffix if present
     for suffix in ("-СТ", "-СР"):
         if raw.endswith(suffix):
-            keys.append(raw[: -len(suffix)])
-            break
-    # Deduplicate preserving order
-    seen: set[str] = set()
-    out: list[str] = []
-    for key in keys:
-        if key not in seen:
-            seen.add(key)
-            out.append(key)
-    return out
+            return [raw[: -len(suffix)]]
+    return [raw]
 
 
 def lookup_section_row(
@@ -130,22 +126,20 @@ def lookup_section_row(
     voltage_v: float,
     cold_start_temp_c: float,
 ) -> SectionCatalogRow | None:
-    """Exact mark + nearest colder-or-equal cold-start row for voltage."""
+    """Exact model + exact/nearest-colder cold-start row, never warmer fallback."""
     if not section_catalog_registered():
         return None
     all_rows = _parse_rows()
     for mark_key in _mark_lookup_keys(mark):
-        rows = [
-            r
-            for r in all_rows
-            if r.mark == mark_key and abs(r.voltage_v - voltage_v) < 0.5
-        ]
+        rows = [r for r in all_rows if r.mark == mark_key]
         if not rows:
             continue
-        # Prefer cold_start_temp <= ambient cold-start, closest from below; else nearest.
+        # Imported rows may carry legacy 220 V; lookup is temperature/model based and
+        # the new calculation is normalized to 230 V at the formula boundary.
         colder = [r for r in rows if r.cold_start_temp_c <= cold_start_temp_c]
-        pool = colder if colder else rows
-        return min(pool, key=lambda r: abs(r.cold_start_temp_c - cold_start_temp_c))
+        if not colder:
+            return None
+        return max(colder, key=lambda r: r.cold_start_temp_c)
     return None
 
 
@@ -154,66 +148,94 @@ def compute_section_plan(
     mark: str,
     installed_cable_length_m: float,
     power_per_meter_w: float,
-    working_current_total_a: float,
-    voltage_v: float = 220.0,
+    working_current_total_a: float | None = None,
+    voltage_v: float = 230.0,
     cold_start_temp_c: float = -20.0,
     max_start_current_per_section_a: float | None = None,
-) -> SectionPlan | None:
-    """PDF §6.14: Lток, Lогр, N=ceil, equal sections.
-
-    Returns None when catalog row missing (fail-closed for that mark).
-    """
+) -> SectionPlan:
+    """Compute equal fail-closed sections and totals from physical installed length."""
+    del working_current_total_a  # preserved in the public signature; totals are authoritative here
+    if voltage_v != 230:
+        raise ElectricalFormulaError(
+            "ELECTRICAL_NOMINAL_VOLTAGE_UNSUPPORTED",
+            "Новый электрический расчёт поддерживает только напряжение 230 В",
+        )
     if installed_cable_length_m <= 0 or power_per_meter_w <= 0:
-        return None
+        raise ElectricalFormulaError(
+            "ELECTRICAL_SECTION_PLAN_INVALID", "Длина и мощность кабеля должны быть положительными"
+        )
     row = lookup_section_row(
         mark=mark,
         voltage_v=voltage_v,
         cold_start_temp_c=cold_start_temp_c,
     )
-    if row is None or row.i_st_ud_a_per_m <= 0 or row.l_max_m <= 0:
-        return None
+    if row is None:
+        raise ElectricalFormulaError(
+            "ELECTRICAL_SECTION_CATALOG_ROW_NOT_FOUND",
+            "Не найдена строка каталога секционирования для модели и температуры",
+            details={"mark": mark, "cold_start_temperature_c": cold_start_temp_c},
+        )
+    if row.i_st_ud_a_per_m <= 0 or row.l_max_m <= 0:
+        raise ElectricalFormulaError(
+            "ELECTRICAL_SECTION_PLAN_INVALID", "Параметры строки секционирования неположительны"
+        )
+    if max_start_current_per_section_a is None:
+        raise ElectricalFormulaError(
+            "SECTION_CURRENT_LIMIT_REQUIRED", "Требуется допустимый стартовый ток секции Iдоп"
+        )
+    current_limit = decimal_value(max_start_current_per_section_a)
+    if current_limit <= 0:
+        raise ElectricalFormulaError(
+            "SECTION_CURRENT_LIMIT_REQUIRED", "Допустимый стартовый ток секции должен быть положительным"
+        )
 
-    current_limit = max_start_current_per_section_a
-    if current_limit is None:
-        current_limit = row.i_dop_a
-    l_tok = (
-        current_limit / row.i_st_ud_a_per_m
-        if current_limit is not None and current_limit > 0
-        else None
-    )
-    # PDL-ER-24: floor for Lогр per catalog rounding=floor_l_ogr
-    l_ogr_limit = min(row.l_max_m, l_tok) if l_tok is not None else row.l_max_m
-    l_ogr = math.floor(l_ogr_limit * 1000.0) / 1000.0
+    specific_start = decimal_value(row.i_st_ud_a_per_m)
+    l_tok = current_limit / specific_start
+    l_ogr_limit = min(decimal_value(row.l_max_m), l_tok)
+    l_ogr = round_down(l_ogr_limit)
     if l_ogr <= 0:
-        return None
+        raise ElectricalFormulaError(
+            "ELECTRICAL_SECTION_PLAN_INVALID", "Расчётный предел длины секции неположителен"
+        )
 
-    l_req = float(installed_cable_length_m)
-    n = max(1, int(math.ceil(l_req / l_ogr - 1e-12)))
+    l_req = decimal_value(installed_cable_length_m)
+    n = int((l_req / l_ogr).to_integral_value(rounding=ROUND_CEILING))
     l_sec = l_ogr
     l_fact = l_sec * n
-    # Equal auto-sections (PDF): last is not remainder — all length Lогр.
-    start_per_section = row.i_st_ud_a_per_m * l_sec
+    l_excess = l_fact - l_req
+    order_length = round_up(l_fact * Decimal("1.10"))
+    start_per_section = specific_start * l_sec
+    if start_per_section > current_limit:
+        raise ElectricalFormulaError(
+            "ELECTRICAL_SECTION_PLAN_INVALID", "Стартовый ток секции превышает Iдоп"
+        )
     start_total = start_per_section * n
-    power_per_section = power_per_meter_w * l_sec
+    power_per_section = decimal_value(power_per_meter_w) * l_sec
+    working_per_section = power_per_section / Decimal(230)
+    working_total = working_per_section * n
     meta = section_catalog_meta()
 
     return SectionPlan(
         section_count=n,
-        section_length_m=round(l_sec, 3),
+        section_length_m=float(l_sec),
         l_max_m=row.l_max_m,
-        l_tok_m=round(l_tok, 3) if l_tok is not None else None,
-        l_ogr_m=round(l_ogr, 3),
-        l_required_m=round(l_req, 3),
-        l_fact_m=round(l_fact, 3),
-        i_dop_a=row.i_dop_a,
+        l_tok_m=float(round_result(l_tok)),
+        l_ogr_m=float(l_ogr),
+        l_required_m=float(round_result(l_req)),
+        l_fact_m=float(round_result(l_fact)),
+        i_dop_a=float(current_limit),
         i_st_ud_a_per_m=row.i_st_ud_a_per_m,
-        start_current_a=round(start_total, 3),
-        working_current_a=round(working_current_total_a, 3),
-        power_per_section_w=round(power_per_section, 3),
-        total_power_w=round(power_per_section * n, 3),
+        start_current_a=float(round_result(start_total)),
+        working_current_a=float(round_result(working_total)),
+        start_current_per_section_a=float(round_result(start_per_section)),
+        working_current_per_section_a=float(round_result(working_per_section)),
+        power_per_section_w=float(round_result(power_per_section)),
+        total_power_w=float(round_result(power_per_section * n)),
+        l_excess_m=float(round_result(l_excess)),
+        order_cable_length_m=float(order_length),
         catalog_source=str(meta.get("source") or ""),
         catalog_version=str(meta.get("version") or ""),
-        voltage_v=row.voltage_v,
+        voltage_v=230.0,
         cold_start_temp_c=row.cold_start_temp_c,
     )
 
@@ -228,11 +250,17 @@ def section_plan_to_result_fields(plan: SectionPlan) -> dict[str, Any]:
         "section_l_tok_m": plan.l_tok_m,
         "section_l_ogr_m": plan.l_ogr_m,
         "section_l_fact_m": plan.l_fact_m,
+        "section_l_excess_m": plan.l_excess_m,
+        "order_cable_length": plan.order_cable_length_m,
+        "cable_length": plan.l_fact_m,
+        "installed_cable_length": plan.l_fact_m,
         "section_start_current_a": plan.start_current_a,
         "section_working_current_a": plan.working_current_a,
         "start_current": plan.start_current_a,
         "working_current": plan.working_current_a,
+        "current": plan.working_current_a,
         "section_power_w": plan.power_per_section_w,
+        "total_power": plan.total_power_w,
         "section_catalog_source": plan.catalog_source,
         "section_catalog_version": plan.catalog_version,
         "sections": [
@@ -240,8 +268,8 @@ def section_plan_to_result_fields(plan: SectionPlan) -> dict[str, Any]:
                 "index": i + 1,
                 "length_m": plan.section_length_m,
                 "power_w": plan.power_per_section_w,
-                "start_current_a": round(plan.start_current_a / plan.section_count, 3),
-                "working_current_a": round(plan.working_current_a / plan.section_count, 3),
+                "start_current_a": plan.start_current_per_section_a,
+                "working_current_a": plan.working_current_per_section_a,
             }
             for i in range(plan.section_count)
         ],

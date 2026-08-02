@@ -1,393 +1,332 @@
-"""Unit-тесты расчёта саморегулирующихся кабелей ТТН/ТТВ/ТТХ."""
+"""Focused goldens for the normative ТТН/ТТВ/ТТХ formula."""
 
 import math
+from decimal import Decimal
 
 import pytest
 
-from app.formulas.electrical.self_regulating import calc_self_regulating_tt
+from app.electrical_domain import ElectricalFormulaError
+from app.formulas.electrical.self_regulating import (
+    calc_self_regulating_tt,
+    compute_winding_factor,
+    max_winding_factor,
+)
 from app.reference_data.loader import clear_cache, get_tt_cable_by_model
 from app.schemas.calculation import SelfRegulatingTTParams
 
 
 def _params(**kwargs) -> SelfRegulatingTTParams:
     defaults = {
-        "required_power_per_meter": 18.0,
+        "required_power_per_meter": 5.0,
         "pipe_length": 50.0,
-        "process_temperature": 50.0,
-        "maintain_temperature": 50.0,
-        "safety_factor": 1.1,
+        "process_temperature": 20.0,
+        "maintain_temperature": 10.0,
+        "supply_voltage": 230.0,
+        "safety_factor": 1.0,
+        "winding_coefficient": 1.0,
     }
     defaults.update(kwargs)
     return SelfRegulatingTTParams(**defaults)
 
 
-class TestSeriesSelection:
-    def test_selects_ttn_for_low_temp(self):
-        r = calc_self_regulating_tt(_params(process_temperature=40.0, required_power_per_meter=5.0))
-        assert r.series == "ТТН"
+@pytest.mark.parametrize(
+    ("t1", "t2", "series"),
+    [(20, None, "ТТН"), (65, None, "ТТВ"), (20, 85, "ТТВ"), (120, None, "ТТХ")],
+)
+def test_strict_temperature_series_boundaries(t1, t2, series):
+    result = calc_self_regulating_tt(
+        _params(process_temperature=t1, vapor_temperature=t2)
+    )
+    assert result.series == series
 
-    def test_selects_ttv_when_ttn_exceeded(self):
-        r = calc_self_regulating_tt(_params(process_temperature=80.0, required_power_per_meter=5.0))
-        assert r.series == "ТТВ"
 
-    def test_selects_ttx_when_ttv_exceeded(self):
-        r = calc_self_regulating_tt(
-            _params(process_temperature=130.0, required_power_per_meter=5.0)
-        )
-        assert r.series == "ТТХ"
+@pytest.mark.parametrize(("t1", "t2"), [(150, None), (20, 250)])
+def test_temperature_above_ttx_is_typed_error(t1, t2):
+    with pytest.raises(ElectricalFormulaError) as exc:
+        calc_self_regulating_tt(_params(process_temperature=t1, vapor_temperature=t2))
+    assert exc.value.code == "ELECTRICAL_CABLE_TEMPERATURE_LIMIT_EXCEEDED"
 
-    def test_raises_when_all_exceeded(self):
-        with pytest.raises(ValueError, match="превышает предел ТТХ"):
-            calc_self_regulating_tt(
-                _params(process_temperature=160.0, required_power_per_meter=5.0)
-            )
 
-    def test_vapor_temp_forces_higher_series(self):
-        # vapor_temp=100 не проходит ТТН (max 85), переходим к ТТВ
-        r = calc_self_regulating_tt(
+def test_power_curve_uses_exact_catalog_coefficients():
+    result = calc_self_regulating_tt(_params(cable_mark="25ТТН2"))
+    assert result.power_per_meter == 25.08
+
+
+@pytest.mark.parametrize(("aggressive", "suffix"), [(False, "СТ"), (True, "СР")])
+def test_ttn_suffix_depends_on_aggressiveness(aggressive, suffix):
+    result = calc_self_regulating_tt(_params(cable_mark="25ТТН2", aggressive_product=aggressive))
+    assert result.cable_mark == f"25ТТН2-{suffix}"
+
+
+@pytest.mark.parametrize("series_temperature", [80, 130])
+@pytest.mark.parametrize("aggressive", [False, True])
+def test_ttv_and_ttx_are_always_sr(series_temperature, aggressive):
+    result = calc_self_regulating_tt(
+        _params(process_temperature=series_temperature, aggressive_product=aggressive)
+    )
+    assert result.cable_mark.endswith("-СР")
+
+
+def test_manual_input_is_exact_base_model_only():
+    with pytest.raises(ElectricalFormulaError) as exc:
+        calc_self_regulating_tt(_params(cable_mark="25ТТН2-СТ"))
+    assert exc.value.code == "ELECTRICAL_CABLE_CONSTRUCTION_UNSUPPORTED"
+
+
+def test_manual_model_must_belong_to_computed_series():
+    with pytest.raises(ElectricalFormulaError) as exc:
+        calc_self_regulating_tt(_params(process_temperature=80, cable_mark="25ТТН2"))
+    assert exc.value.code == "ELECTRICAL_CABLE_SERIES_MISMATCH"
+
+
+@pytest.mark.parametrize(("required", "threads"), [(8, 1), (40, 2), (70, 3)])
+def test_auto_selects_minimum_sufficient_thread_count(required, threads):
+    result = calc_self_regulating_tt(_params(required_power_per_meter=required))
+    assert result.num_circuits == threads
+
+
+def test_three_threads_insufficient_is_typed_error():
+    with pytest.raises(ElectricalFormulaError) as exc:
+        calc_self_regulating_tt(_params(required_power_per_meter=1000))
+    assert exc.value.code == "ELECTRICAL_CABLE_POWER_INSUFFICIENT"
+
+
+@pytest.mark.parametrize("threads", [0, 4])
+def test_formula_rejects_manual_thread_count_outside_one_to_three(threads):
+    params = _params().model_copy(update={"number_of_threads": threads})
+    with pytest.raises(ElectricalFormulaError) as exc:
+        calc_self_regulating_tt(params)
+    assert exc.value.code == "ELECTRICAL_THREAD_COUNT_INVALID"
+
+
+def test_new_calculation_requires_230_v():
+    with pytest.raises(ElectricalFormulaError) as exc:
+        calc_self_regulating_tt(_params(supply_voltage=220))
+    assert exc.value.code == "ELECTRICAL_NOMINAL_VOLTAGE_UNSUPPORTED"
+
+
+def test_only_technical_minimum_policy_is_accepted():
+    params = _params().model_copy(update={"selection_policy": "cheapest"})
+    with pytest.raises(ElectricalFormulaError) as exc:
+        calc_self_regulating_tt(params)
+    assert exc.value.code == "ELECTRICAL_SELECTION_POLICY_UNSUPPORTED"
+
+
+def test_no_pitch_means_straight_laying_even_with_legacy_coefficient():
+    result = calc_self_regulating_tt(_params(winding_coefficient=1.1, winding_pitch=None))
+    assert result.winding_coefficient == 1
+
+
+@pytest.mark.parametrize(
+    ("diameter", "expected_limit"),
+    [(56.999, "1.0"), (57, "1.1"), (75, "1.2"), (89, "1.3"), (108, "1.4")],
+)
+def test_winding_diameter_boundaries(diameter, expected_limit):
+    assert max_winding_factor(diameter) == Decimal(expected_limit)
+
+
+def test_winding_pitch_must_exceed_diameter():
+    with pytest.raises(ElectricalFormulaError) as exc:
+        compute_winding_factor(outer_diameter_mm=57, winding_pitch_mm=57)
+    assert exc.value.code == "ELECTRICAL_WINDING_PITCH_INVALID"
+
+
+class TestIndependentCableCalculations:
+    def test_auto_uses_multiple_threads_without_escalating_temperature_series(self):
+        result = calc_self_regulating_tt(
             _params(
-                process_temperature=50.0,
-                vapor_temperature=100.0,
-                required_power_per_meter=5.0,
-            )
-        )
-        assert r.series == "ТТВ"
-
-
-class TestCableSelection:
-    def test_autoselect_uses_multiple_threads_before_escalating_series(self):
-        """T=50°C, q=18 Вт/м: 2 нитки 31ТТН2 закрывают 19.8 Вт/м."""
-        r = calc_self_regulating_tt(
-            _params(
-                process_temperature=50.0,
-                required_power_per_meter=18.0,
+                process_temperature=50,
+                maintain_temperature=50,
+                required_power_per_meter=18,
                 safety_factor=1.1,
             )
         )
-        assert "31ТТН2" in r.selected_cable
-        assert r.series == "ТТН"
-        assert r.num_circuits == 2
-        assert r.power_per_meter == pytest.approx(-0.491 * 50 + 37.5, rel=1e-3)
+        assert result.series == "ТТН"
+        assert result.selected_cable == "31ТТН2"
+        assert result.num_circuits == 2
+        assert result.power_per_meter == pytest.approx(-0.491 * 50 + 37.5, rel=1e-3)
 
-    def test_autoselect_uses_minimal_nominal_when_single_thread_is_sufficient(self):
-        """Full-version VSDX loop stops at the first TT nominal covering q_required."""
-        r = calc_self_regulating_tt(
+    def test_auto_uses_minimum_power_model_for_one_thread(self):
+        result = calc_self_regulating_tt(
             _params(
-                process_temperature=40.0,
-                maintain_temperature=40.0,
-                required_power_per_meter=5.0,
+                process_temperature=40,
+                maintain_temperature=40,
+                required_power_per_meter=5,
                 safety_factor=1.1,
             )
         )
-        assert r.series == "ТТН"
-        assert r.selected_cable == "17ТТН2"
-        assert r.cable_mark == "17ТТН2-СТ"
-        assert r.num_circuits == 1
-        assert r.power_per_meter * r.num_circuits >= 5.0 * 1.1
+        assert result.selected_cable == "17ТТН2"
+        assert result.num_circuits == 1
+        assert result.installed_power_per_meter >= 5.5
 
-    def test_power_curve_uses_t3_not_product_temperature(self):
-        """T1 выбирает серию, но q_б считается от T3."""
-        r = calc_self_regulating_tt(
-            _params(
-                cable_mark="31ТТН2",
-                process_temperature=60.0,
-                maintain_temperature=40.0,
-                required_power_per_meter=5.0,
-                safety_factor=1.0,
-            )
+    def test_power_curve_uses_t3_not_t1(self):
+        result = calc_self_regulating_tt(
+            _params(cable_mark="31ТТН2", process_temperature=60, maintain_temperature=40)
         )
-        assert r.series == "ТТН"
-        assert r.power_per_meter == pytest.approx(-0.491 * 40 + 37.5, rel=1e-3)
+        assert result.power_per_meter == pytest.approx(-0.491 * 40 + 37.5, rel=1e-3)
 
-    def test_power_curve_falls_back_to_product_temperature_when_t3_missing(self):
-        """Для совместимости старых запросов отсутствие T3 означает T3=T1."""
-        r = calc_self_regulating_tt(
-            _params(
-                cable_mark="31ТТН2",
-                process_temperature=40.0,
-                maintain_temperature=None,
-                required_power_per_meter=5.0,
-                safety_factor=1.0,
-            )
+    def test_missing_t3_is_typed_curve_error(self):
+        with pytest.raises(ElectricalFormulaError) as exc:
+            calc_self_regulating_tt(_params(maintain_temperature=None))
+        assert exc.value.code == "ELECTRICAL_CABLE_POWER_CURVE_INVALID"
+
+    def test_current_is_derived_from_total_power_at_230_v(self):
+        result = calc_self_regulating_tt(
+            _params(cable_mark="30ТТВ2", process_temperature=80, maintain_temperature=50)
         )
-        assert r.series == "ТТН"
-        assert r.power_per_meter == pytest.approx(-0.491 * 40 + 37.5, rel=1e-3)
+        assert result.voltage == 230
+        assert result.current == pytest.approx(result.total_power / 230, abs=0.001)
 
-    def test_catalog_voltage_overrides_request_voltage_for_current(self):
-        """ТТН/ТТВ/ТТХ имеют паспортное voltage в каталоге; ток считается по нему."""
-        r = calc_self_regulating_tt(
+    def test_manual_coverage_uses_winding_factor(self):
+        result = calc_self_regulating_tt(
             _params(
-                cable_mark="30ТТВ2-СР",
-                process_temperature=80.0,
-                maintain_temperature=50.0,
-                required_power_per_meter=10.0,
-                safety_factor=1.0,
-                supply_voltage=380.0,
-            )
-        )
-
-        assert r.voltage == pytest.approx(220.0)
-        assert r.current == pytest.approx(r.total_power / 220.0, rel=1e-4)
-
-    def test_manual_mark_coverage_uses_winding_coefficient(self):
-        """30ТТВ2 at T3=50 gives 24.95 W/m; with k=1.1 it covers 27 W/m."""
-        r = calc_self_regulating_tt(
-            _params(
-                cable_mark="30ТТВ2-СР",
-                process_temperature=80.0,
-                maintain_temperature=50.0,
-                required_power_per_meter=27.0,
-                safety_factor=1.0,
+                cable_mark="30ТТВ2",
+                process_temperature=80,
+                maintain_temperature=50,
+                required_power_per_meter=27,
                 winding_coefficient=1.1,
+                winding_pitch=100,
                 number_of_threads=1,
             )
         )
+        assert result.power_per_meter == 24.95
+        assert result.installed_power_per_meter == pytest.approx(24.95 * 1.1)
 
-        assert r.selected_cable == "30ТТВ2"
-        assert r.power_per_meter == pytest.approx(24.95, rel=1e-4)
-        assert r.installed_power_per_meter == pytest.approx(24.95 * 1.1, rel=1e-4)
-
-    def test_autoselect_coverage_uses_winding_coefficient(self):
-        """Auto must not skip 30ТТВ2 when winding makes it sufficient."""
-        r = calc_self_regulating_tt(
+    def test_auto_coverage_uses_winding_factor(self):
+        result = calc_self_regulating_tt(
             _params(
-                process_temperature=80.0,
-                maintain_temperature=50.0,
-                required_power_per_meter=27.0,
-                safety_factor=1.0,
+                process_temperature=80,
+                maintain_temperature=50,
+                required_power_per_meter=27,
                 winding_coefficient=1.1,
+                winding_pitch=100,
             )
         )
+        assert result.selected_cable == "30ТТВ2"
+        assert result.num_circuits == 1
 
-        assert r.selected_cable == "30ТТВ2"
-        assert r.num_circuits == 1
-        assert r.installed_power_per_meter >= 27.0
-
-    def test_autoselect_thread_count_uses_winding_coefficient_boundary(self):
-        """At k=1.1 one 60ТТВ2 thread covers 55 W/m; without k it would need two."""
-        r = calc_self_regulating_tt(
-            _params(
-                process_temperature=80.0,
-                maintain_temperature=50.0,
-                required_power_per_meter=55.0,
-                safety_factor=1.0,
-                winding_coefficient=1.1,
-            )
-        )
-
-        assert r.selected_cable == "60ТТВ2"
-        assert r.num_circuits == 1
-        assert r.power_per_meter == pytest.approx(53.5, rel=1e-4)
-        assert r.installed_power_per_meter == pytest.approx(53.5 * 1.1, rel=1e-4)
-
-    def test_manual_cable_mark_uses_indexed_model_lookup(self, monkeypatch):
+    def test_manual_lookup_uses_model_index(self, monkeypatch):
         clear_cache()
         assert get_tt_cable_by_model("30ТТВ2") is not None
 
         def fail_full_scan():
-            raise AssertionError("manual TT cable lookup must not rescan full catalog")
+            raise AssertionError("manual lookup must not rescan the full catalog")
 
         monkeypatch.setattr("app.reference_data.loader._cables_tt", fail_full_scan)
-
-        r = calc_self_regulating_tt(
-            _params(
-                cable_mark="30ТТВ2-СР",
-                process_temperature=80.0,
-                maintain_temperature=50.0,
-                required_power_per_meter=10.0,
-                safety_factor=1.0,
-            )
+        result = calc_self_regulating_tt(
+            _params(cable_mark="30ТТВ2", process_temperature=80, maintain_temperature=50)
         )
+        assert result.cable_mark == "30ТТВ2-СР"
 
-        assert r.selected_cable == "30ТТВ2"
-        assert r.cable_mark == "30ТТВ2-СР"
-
-    def test_user_threads_participate_in_autoselect(self):
-        """При заданных 2 нитках можно выбрать 30ТТВ2 вместо более мощного 45ТТВ2."""
-        r = calc_self_regulating_tt(
+    def test_explicit_threads_participate_in_auto_selection(self):
+        result = calc_self_regulating_tt(
             _params(
-                process_temperature=80.0,
-                maintain_temperature=50.0,
-                required_power_per_meter=30.0,
-                safety_factor=1.0,
+                process_temperature=80,
+                maintain_temperature=50,
+                required_power_per_meter=30,
                 number_of_threads=2,
             )
         )
-        assert "30ТТВ2" in r.selected_cable
-        assert r.series == "ТТВ"
-        assert r.num_circuits == 2
-        assert r.power_per_meter * r.num_circuits >= 30.0
+        assert result.selected_cable == "30ТТВ2"
+        assert result.num_circuits == 2
+        assert result.installed_power_per_meter >= 30
 
-    def test_suffix_st_for_non_aggressive(self):
-        # Первоисточник: -СТ = среда не агрессивная
-        r = calc_self_regulating_tt(_params(aggressive_product=False))
-        assert r.cable_mark.endswith("-СТ")
-
-    def test_suffix_sr_for_aggressive(self):
-        # Первоисточник: -СР = среда агрессивная
-        r = calc_self_regulating_tt(_params(aggressive_product=True))
-        assert r.cable_mark.endswith("-СР")
-
-    def test_cable_length_uses_winding_coefficient(self):
-        r = calc_self_regulating_tt(_params(pipe_length=100.0, winding_coefficient=1.2))
-        assert r.cable_length == pytest.approx(100.0 * 1.2 * r.num_circuits, rel=1e-3)
-        assert r.order_cable_length == pytest.approx(r.cable_length * 1.1, rel=1e-3)
-
-    def test_geometric_winding_coefficient_above_1_5_is_allowed(self):
-        """Шаг навива чуть больше диаметра трубы даёт k > 1.5 и должен проходить схему."""
-        r = calc_self_regulating_tt(
+    def test_threads_apply_to_length_power_order_length_and_current(self):
+        result = calc_self_regulating_tt(
             _params(
-                pipe_length=20.0,
-                winding_coefficient=2.7949559992123163,
-                winding_pitch=120.0,
-                number_of_threads=1,
-                required_power_per_meter=5.0,
-            )
-        )
-        assert r.winding_coefficient == pytest.approx(2.7949559992123163)
-        assert r.cable_length == pytest.approx(20.0 * 2.7949559992123163, rel=1e-3)
-
-    def test_num_circuits_is_one_when_single_cable_sufficient(self):
-        r = calc_self_regulating_tt(
-            _params(
-                required_power_per_meter=5.0,
-                process_temperature=30.0,
-                safety_factor=1.0,
-            )
-        )
-        assert r.num_circuits == 1
-
-    def test_user_threads_are_applied_to_length_and_power(self):
-        r = calc_self_regulating_tt(
-            _params(
-                cable_mark="30ТТВ2-СР",
-                required_power_per_meter=18.0,
-                pipe_length=50.0,
-                process_temperature=50.0,
-                safety_factor=1.0,
+                cable_mark="30ТТВ2",
+                process_temperature=80,
+                maintain_temperature=50,
+                pipe_length=50,
                 winding_coefficient=1.2,
-                number_of_threads=2,
                 winding_pitch=90,
+                number_of_threads=2,
             )
         )
-        assert r.num_circuits == 2
-        assert r.winding_pitch == 90
-        assert r.cable_length == pytest.approx(50.0 * 1.2 * 2, rel=1e-3)
-        assert r.order_cable_length == pytest.approx(50.0 * 1.2 * 2 * 1.1, rel=1e-3)
-        assert r.total_power == pytest.approx(r.power_per_meter * r.cable_length, rel=1e-3)
-        assert r.installed_power_per_meter == pytest.approx(
-            r.power_per_meter * r.winding_coefficient * r.num_circuits,
-            rel=1e-3,
+        assert result.cable_length == 120
+        assert result.order_cable_length == 132
+        assert result.total_power == pytest.approx(result.power_per_meter * 120, abs=0.001)
+        assert result.current == pytest.approx(result.total_power / 230, abs=0.001)
+        assert result.installed_power_per_meter == pytest.approx(
+            result.power_per_meter * 1.2 * 2, abs=0.001
         )
 
-    def test_user_threads_must_cover_required_power(self):
-        with pytest.raises(ValueError, match="требуется"):
+    def test_manual_model_must_cover_required_power(self):
+        with pytest.raises(ElectricalFormulaError) as exc:
             calc_self_regulating_tt(
-                _params(
-                    cable_mark="10ТТН2-СР",
-                    required_power_per_meter=30.0,
-                    process_temperature=40.0,
-                    safety_factor=1.0,
-                    number_of_threads=1,
-                )
+                _params(cable_mark="10ТТН2", required_power_per_meter=30, number_of_threads=1)
             )
+        assert exc.value.code == "ELECTRICAL_CABLE_POWER_INSUFFICIENT"
 
-    def test_autoselect_allows_more_than_three_threads_in_temperature_series(self):
-        r = calc_self_regulating_tt(
-            _params(
-                process_temperature=40.0,
-                required_power_per_meter=500.0,
-                safety_factor=1.0,
-            )
+    def test_manual_model_overrides_auto_choice(self):
+        result = calc_self_regulating_tt(
+            _params(cable_mark="60ТТВ2", process_temperature=80, required_power_per_meter=5)
         )
-        assert r.series == "ТТН"
-        assert r.num_circuits > 3
-        assert r.installed_power_per_meter >= 500.0
+        assert result.selected_cable == "60ТТВ2"
 
-
-class TestManualMark:
-    def test_manual_mark_overrides_autoselect(self):
-        r = calc_self_regulating_tt(
-            _params(
-                cable_mark="60ТТВ2",
-                process_temperature=50.0,
-                required_power_per_meter=5.0,
-            )
-        )
-        assert "60ТТВ2" in r.selected_cable
-
-    def test_manual_mark_suffix_is_preserved(self):
-        r = calc_self_regulating_tt(
-            _params(
-                cable_mark="60ТТВ2-СТ",
-                process_temperature=50.0,
-                required_power_per_meter=5.0,
-                aggressive_product=False,
-            )
-        )
-        assert r.cable_mark == "60ТТВ2-СТ"
-
-    def test_manual_mark_unknown_raises(self):
-        with pytest.raises(ValueError, match="не найден"):
+    def test_unknown_manual_model_is_typed_error(self):
+        with pytest.raises(ElectricalFormulaError) as exc:
             calc_self_regulating_tt(_params(cable_mark="99ТТВ9"))
+        assert exc.value.code == "ELECTRICAL_CABLE_NOT_FOUND"
 
-    def test_manual_mark_respects_product_temperature_limit(self):
-        with pytest.raises(ValueError, match="превышает"):
-            calc_self_regulating_tt(
-                _params(
-                    cable_mark="31ТТН2",
-                    process_temperature=70.0,
-                    required_power_per_meter=1.0,
-                    safety_factor=1.0,
-                )
-            )
+    def test_non_positive_manual_power_curve_is_typed_error(self, monkeypatch):
+        row = {
+            "model": "25ТТН2",
+            "series": "ТТН",
+            "nominal_power": 25,
+            "q1": 0,
+            "q2": 0,
+        }
+        monkeypatch.setattr(
+            "app.formulas.electrical.self_regulating.get_tt_cable_by_model", lambda _model: row
+        )
+        with pytest.raises(ElectricalFormulaError) as exc:
+            calc_self_regulating_tt(_params(cable_mark="25ТТН2"))
+        assert exc.value.code == "ELECTRICAL_CABLE_POWER_CURVE_INVALID"
 
-    def test_manual_mark_respects_vapor_temperature_limit(self):
-        with pytest.raises(ValueError, match="пропар"):
-            calc_self_regulating_tt(
-                _params(
-                    cable_mark="31ТТН2",
-                    process_temperature=50.0,
-                    vapor_temperature=100.0,
-                    required_power_per_meter=1.0,
-                    safety_factor=1.0,
-                )
-            )
+    def test_non_positive_auto_power_curves_are_typed_error(self, monkeypatch):
+        rows = [
+            {
+                "model": "25ТТН2",
+                "series": "ТТН",
+                "nominal_power": 25,
+                "q1": -1,
+                "q2": 0,
+            }
+        ]
+        monkeypatch.setattr("app.formulas.electrical.self_regulating.list_tt_cables", lambda: rows)
+        with pytest.raises(ElectricalFormulaError) as exc:
+            calc_self_regulating_tt(_params())
+        assert exc.value.code == "ELECTRICAL_CABLE_POWER_CURVE_INVALID"
 
 
-class TestTankGeometry:
-    """Когда задана геометрия резервуара — длина кабеля считается через периметр."""
+class TestPreservedTankGeometry:
+    def test_explicit_pipe_length_without_tank(self):
+        result = calc_self_regulating_tt(_params(pipe_length=50))
+        assert result.cable_length == pytest.approx(50 * result.num_circuits)
 
-    def test_explicit_pipe_length_when_no_tank(self):
-        r = calc_self_regulating_tt(_params(pipe_length=50.0, winding_coefficient=1.0))
-        assert r.cable_length == pytest.approx(50.0 * r.num_circuits, rel=1e-4)
-
-    def test_cylinder_tank_overrides(self):
-        """Цилиндр Ø2 м, h=3 м, w=0.1 → length = π × 2 / 2 × 30 ≈ 94.25."""
-        r = calc_self_regulating_tt(
+    def test_cylindrical_tank_geometry_overrides_pipe_length(self):
+        result = calc_self_regulating_tt(
             _params(
-                pipe_length=1.0,
-                winding_coefficient=1.0,
+                pipe_length=1,
                 tank_shape="cylindrical",
-                tank_diameter=2.0,
-                heating_height=3.0,
+                tank_diameter=2,
+                heating_height=3,
                 laying_step=0.1,
             )
         )
-        expected = math.pi * 2.0 / 2.0 * (3.0 / 0.1)
-        assert r.cable_length == pytest.approx(expected * r.num_circuits, rel=1e-4)
+        expected = math.pi * 2 / 2 * (3 / 0.1)
+        assert result.cable_length == pytest.approx(expected * result.num_circuits, abs=0.001)
 
-    def test_rectangular_tank(self):
-        """Прямоугольник 4×3 м, h=2 м, w=0.1 → length = 7 × 20 = 140."""
-        r = calc_self_regulating_tt(
+    def test_rectangular_tank_geometry_overrides_pipe_length(self):
+        result = calc_self_regulating_tt(
             _params(
-                pipe_length=1.0,
-                winding_coefficient=1.0,
+                pipe_length=1,
                 tank_shape="rectangular",
-                tank_length=4.0,
-                tank_width=3.0,
-                heating_height=2.0,
+                tank_length=4,
+                tank_width=3,
+                heating_height=2,
                 laying_step=0.1,
             )
         )
-        assert r.cable_length == pytest.approx(140.0 * r.num_circuits, rel=1e-4)
+        assert result.cable_length == pytest.approx(140 * result.num_circuits, abs=0.001)
