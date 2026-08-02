@@ -11,6 +11,7 @@ from app.formulas.specification.full_builder import (
 from app.formulas.specification.full_builder import (
     build_full_specification_detailed as _build_full_specification_detailed,
 )
+from app.reference_data.loader import get_electrical_tt_bom_entry
 from app.schemas.specification import SpecificationOptions
 
 
@@ -90,6 +91,9 @@ def _two_object_case():
 
 
 def _tt_result(**overrides):
+    bom = get_electrical_tt_bom_entry("30ТТВ2-СР")
+    assert bom is not None
+    bom_row = {key: value for key, value in bom.items() if key != "catalog"}
     result = {
         "cable_type": "self_regulating_tt",
         "cable_mark": "30ТТВ2-СР",
@@ -102,6 +106,19 @@ def _tt_result(**overrides):
         "installed_cable_length": 100.0,
         "order_cable_length": 110.0,
         "object_id": "tt-1",
+        "catalogs": {
+            "power": {
+                "status": "active",
+                "version": "test-power-v1",
+                "source_checksum": "sha256:test-power",
+            },
+            "section": {
+                "status": "registered",
+                "version": "2026-07-20",
+                "source_checksum": "sha256:test-section",
+            },
+            "bom": {**bom["catalog"], "row": bom_row},
+        },
     }
     result.update(overrides)
     return result
@@ -163,6 +180,19 @@ def test_tt_production_ineligible_result_is_rejected_without_mocked_fields():
     assert not [item for item in build.items if item.category == "Кабель"]
     assert any(
         item.get("error_code") == "ELECTRICAL_MOCK_INPUTS_NOT_ALLOWED"
+        for item in build.excluded_groups
+    )
+
+
+def test_tt_provisional_catalog_is_rejected_at_specification_boundary():
+    result = _tt_result()
+    result["catalogs"]["power"]["status"] = "provisional"
+
+    build = _build_full_specification_detailed([result], _tt_objects())
+
+    assert not [item for item in build.items if item.category == "Кабель"]
+    assert any(
+        item.get("error_code") == "ELECTRICAL_CATALOG_SOURCE_UNREGISTERED"
         for item in build.excluded_groups
     )
 
@@ -367,8 +397,8 @@ class TestFullSpecificationBoxes:
         """PDL-ER-08: dтр ≥ 57 мм inclusive — boundary at exactly 57 mm is large."""
         base = {
             "cable_mark": "10ТТН2-СТ",
-                "selected_cable": "10ТТН2",
-                "temperature_group": "low",
+            "selected_cable": "10ТТН2",
+            "temperature_group": "low",
             "num_circuits": 1,
             "installed_cable_length": 20.0,
         }
@@ -520,7 +550,9 @@ class TestFullSpecificationRobustness:
         build = build_full_specification_detailed(elec, objs)
         assert _qty(build.items, "ТТ Р1 1x2.5") == 50.0
         assert _qty(build.items, "КСН-1") is None
-        assert any(g["error_code"] == "RESISTIVE_ACCESSORY_METHOD_UNPROVEN" for g in build.excluded_groups)
+        assert any(
+            g["error_code"] == "RESISTIVE_ACCESSORY_METHOD_UNPROVEN" for g in build.excluded_groups
+        )
         assert build.partial is True
 
     def test_tank_keeps_proven_cable_without_pipe_accessories(self):
@@ -545,7 +577,9 @@ class TestFullSpecificationRobustness:
         assert _qty(build.items, "25ТТН2-СТ") == 40.0
         assert _qty(build.items, "КСН-1") is None
         assert _qty(build.items, "ЛКС 12") is None
-        assert any(g["error_code"] == "TANK_ACCESSORY_METHOD_UNPROVEN" for g in build.excluded_groups)
+        assert any(
+            g["error_code"] == "TANK_ACCESSORY_METHOD_UNPROVEN" for g in build.excluded_groups
+        )
 
     def test_missing_cable_type_treated_as_self_regulating(self, enable_sections):
         """Legacy-результаты без cable_type продолжают попадать в BOM."""

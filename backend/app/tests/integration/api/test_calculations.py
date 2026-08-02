@@ -137,12 +137,9 @@ async def _assign_electrical_object_with_headers(
         )
         assert created.status_code == 201, created.text
         variants.append(created.json())
-    variant = next(
-        item for item in variants if item["legacy_variant_number"] == variant_number
-    )
+    variant = next(item for item in variants if item["legacy_variant_number"] == variant_number)
     assignments = await client.get(
-        f"/api/v1/projects/{project_id}/electrical-variants/"
-        f"{variant['id']}/assignments",
+        f"/api/v1/projects/{project_id}/electrical-variants/" f"{variant['id']}/assignments",
         headers=headers,
     )
     assert assignments.status_code == 200, assignments.text
@@ -151,8 +148,7 @@ async def _assign_electrical_object_with_headers(
     )
     if assignment["system_type"] is None:
         assigned = await client.patch(
-            f"/api/v1/projects/{project_id}/electrical-variants/"
-            f"{variant['id']}/assignments",
+            f"/api/v1/projects/{project_id}/electrical-variants/" f"{variant['id']}/assignments",
             headers=headers,
             json={
                 "system_type": system_type,
@@ -530,10 +526,10 @@ class TestElectricalCalculation:
         assert calc["params"]["supply_voltage"] == 220
         assert calc["results"]["voltage"] == 220
 
-    async def test_tt_uses_catalog_voltage_for_current(
+    async def test_tt_rejects_non_compatibility_voltage(
         self, client: AsyncClient, guest_session: str
     ):
-        """ТТН/ТТВ/ТТХ считают ток по паспортному voltage выбранного кабеля."""
+        """Only 220 compatibility input may be forced to canonical 230 V."""
         project = await _create_project(client, guest_session)
         obj = await _create_pipe_object(client, project["id"], guest_session)
         await _assign_electrical_object(client, project["id"], obj["id"], guest_session)
@@ -556,20 +552,8 @@ class TestElectricalCalculation:
             headers={"X-Session-Id": guest_session},
         )
 
-        assert resp.status_code == 200, resp.text
-        result = resp.json()["result"]
-        assert result["voltage"] == 220
-        assert result["current"] == pytest.approx(result["total_power"] / 220, rel=1e-4)
-
-        list_resp = await client.get(
-            "/api/v1/calc/electrical",
-            params={"project_id": project["id"]},
-            headers={"X-Session-Id": guest_session},
-        )
-        assert list_resp.status_code == 200, list_resp.text
-        calc = list_resp.json()[0]
-        assert calc["params"]["supply_voltage"] == 220
-        assert calc["results"]["voltage"] == 220
+        assert resp.status_code == 422, resp.text
+        assert resp.json()["detail"]["code"] == "ELECTRICAL_NOMINAL_VOLTAGE_UNSUPPORTED"
 
     async def test_order_cable_length_includes_10_percent_factor(
         self, client: AsyncClient, guest_session: str
@@ -957,9 +941,7 @@ class TestElectricalCandidateDedupe:
                 project_id,
                 object_id,
                 session_id,
-                system_type=(
-                    "resistive" if requested_type == "single_core" else "self_regulating"
-                ),
+                system_type=("resistive" if requested_type == "single_core" else "self_regulating"),
             )
         resp = await client.post(
             "/api/v1/calc/electrical/candidates",
@@ -1839,10 +1821,10 @@ class TestElectricalCalculationContinued:
                 "outer_diameter": 0.014,
                 "insulation_layers": [{"thickness": 0.08, "material": MINERAL_WOOL}],
                 "process_temperature": 60,
-                    "pipe_length": 20,
-                    "placement": "outdoor",
-                    "wind_speed": 0,
-                },
+                "pipe_length": 20,
+                "placement": "outdoor",
+                "wind_speed": 0,
+            },
         )
         await _calc_pipe_electrical(
             client,
@@ -2189,7 +2171,7 @@ class TestElectricalCalculationContinued:
                     "required_power_per_meter": 18.0,
                     "pipe_length": 50.0,
                     "process_temperature": 50.0,
-                    "maintain_temperature": 50.0,
+                    "maintain_temperature": 10.0,
                     "safety_factor": 1.1,
                     "aggressive_product": False,
                 },
@@ -2202,6 +2184,11 @@ class TestElectricalCalculationContinued:
         assert result["cable_mark"].endswith("-СТ")
         assert result["series"] in ("ТТН", "ТТВ", "ТТХ")
         assert result["power_per_meter"] > 0
+        assert result["voltage"] == 230
+        assert result["section_count"] > 0
+        assert result["cable_length"] == result["section_l_fact_m"]
+        assert result["mocked_fields"]
+        assert result["production_eligible"] is False
 
         aggressive_resp = await client.post(
             "/api/v1/calc/electrical",
@@ -2212,7 +2199,7 @@ class TestElectricalCalculationContinued:
                     "required_power_per_meter": 18.0,
                     "pipe_length": 50.0,
                     "process_temperature": 50.0,
-                    "maintain_temperature": 50.0,
+                    "maintain_temperature": 10.0,
                     "safety_factor": 1.1,
                     "aggressive_product": True,
                 },
@@ -2222,6 +2209,20 @@ class TestElectricalCalculationContinued:
         assert aggressive_resp.status_code == 200, aggressive_resp.text
         aggressive_result = aggressive_resp.json()["result"]
         assert aggressive_result["cable_mark"].endswith("-СР")
+
+        invalid_voltage = await client.post(
+            "/api/v1/calc/electrical",
+            json={
+                "object_id": obj["id"],
+                "cable_type": "self_regulating_tt",
+                "data": {"supply_voltage": 240},
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+        assert invalid_voltage.status_code == 422
+        assert invalid_voltage.json()["detail"]["code"] == (
+            "ELECTRICAL_NOMINAL_VOLTAGE_UNSUPPORTED"
+        )
 
     async def test_single_core_resistive_calc(self, client: AsyncClient, guest_session: str):
         """single_core: возвращает selected_cable и conductor_cross_section."""
@@ -2642,9 +2643,7 @@ class TestElectricalCalculationContinued:
         )
         assert isolated.status_code == 200, isolated.text
         assert {item["version"] for item in isolated.json()["assignments"]} == {9}
-        assert {item["assignment_state"] for item in isolated.json()["assignments"]} == {
-            "error"
-        }
+        assert {item["assignment_state"] for item in isolated.json()["assignments"]} == {"error"}
 
     async def test_heat_loss_batch_does_not_create_electrical_calculation_rows(
         self,

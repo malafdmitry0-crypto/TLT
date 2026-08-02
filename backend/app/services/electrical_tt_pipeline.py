@@ -21,13 +21,19 @@ from app.schemas.calculation import SelfRegulatingTTParams
 from app.schemas.electrical_inputs import ResolvedElectricalInputs
 
 ELECTRICAL_TT_FORMULA_VERSION = "electrical-tt-v2"
+ELECTRICAL_POWER_CATALOG_PROVISIONAL = "ELECTRICAL_POWER_CATALOG_PROVISIONAL"
+_PRODUCTION_CATALOG_STATUSES = {
+    "power": {"active"},
+    "section": {"active", "registered"},
+    "bom": {"active"},
+}
 _FORMULA_CONTRACT = (
     "T1/T2-strict;q1*T3+q2;technical-minimum;threads=1..3;"
     "U=230;winding-pitch;equal-sections;Lfact-totals;order=ceil(Lfact*1.10,0.001)"
 )
-ELECTRICAL_TT_FORMULA_FINGERPRINT = "sha256:" + hashlib.sha256(
-    _FORMULA_CONTRACT.encode("utf-8")
-).hexdigest()
+ELECTRICAL_TT_FORMULA_FINGERPRINT = (
+    "sha256:" + hashlib.sha256(_FORMULA_CONTRACT.encode("utf-8")).hexdigest()
+)
 
 
 def _stable_hash(value: Any) -> str:
@@ -57,6 +63,12 @@ def _power_catalog_snapshot(
         "schema_version": 1,
         "status": "provisional",
         "source": "backend/app/reference_data/cables_tt.json",
+        "source_checksum": (
+            "sha256:933db17044e58ec330f06ae1f9b269bd82224c41e3836505f6e2eac986109c74"
+        ),
+        "imported_at": "2026-08-02T00:00:00Z",
+        "activated_at": None,
+        "diagnostics": ["Power coefficients require engineering source approval"],
         "payload_checksum": _stable_hash(rows),
         "row": dict(cable_row),
     }
@@ -95,11 +107,31 @@ def _bom_catalog_snapshot(
     return _merged_snapshot(default, override)
 
 
-def _source_snapshot(
-    provenance: Mapping[str, Any], key: str
-) -> Mapping[str, Any] | None:
+def _source_snapshot(provenance: Mapping[str, Any], key: str) -> Mapping[str, Any] | None:
     value = provenance.get(key)
     return value if isinstance(value, Mapping) else None
+
+
+def electrical_tt_catalog_eligibility(
+    catalogs: Mapping[str, Any],
+) -> tuple[bool, list[dict[str, Any]]]:
+    """Return fail-closed status for the three immutable TT catalog snapshots."""
+    invalid: list[dict[str, Any]] = []
+    for kind, allowed_statuses in _PRODUCTION_CATALOG_STATUSES.items():
+        raw = catalogs.get(kind)
+        catalog = raw if isinstance(raw, Mapping) else {}
+        status = catalog.get("status")
+        checksum = catalog.get("source_checksum") or catalog.get("payload_checksum")
+        if status not in allowed_statuses or not checksum:
+            invalid.append(
+                {
+                    "kind": kind,
+                    "status": status,
+                    "version": catalog.get("version"),
+                    "checksum": checksum,
+                }
+            )
+    return not invalid, invalid
 
 
 def calculate_electrical_tt(
@@ -154,13 +186,10 @@ def calculate_electrical_tt(
         raise ElectricalFormulaError(
             "ELECTRICAL_CABLE_NOT_FOUND", "Выбранная модель отсутствует в power-каталоге"
         )
-    power_exact = (
-        decimal_value(cable_row["q1"]) * values.maintain_temperature_c
-        + decimal_value(cable_row["q2"])
+    power_exact = decimal_value(cable_row["q1"]) * values.maintain_temperature_c + decimal_value(
+        cable_row["q2"]
     )
-    required_length = (
-        values.base_length_m * winding_factor * Decimal(preliminary.num_circuits)
-    )
+    required_length = values.base_length_m * winding_factor * Decimal(preliminary.num_circuits)
     plan = compute_section_plan(
         mark=preliminary.cable_mark,
         installed_cable_length_m=float(required_length),
@@ -188,6 +217,17 @@ def calculate_electrical_tt(
     bom_catalog = _bom_catalog_snapshot(
         bom_entry, _source_snapshot(source_provenance, "bom_catalog")
     )
+    catalogs = {
+        "power": power_catalog,
+        "section": section_catalog,
+        "bom": bom_catalog,
+    }
+    catalog_production_eligible, _invalid_catalogs = electrical_tt_catalog_eligibility(catalogs)
+    warnings = list(resolved.warnings)
+    if not catalog_production_eligible:
+        warnings.append(ELECTRICAL_POWER_CATALOG_PROVISIONAL)
+    warnings = list(dict.fromkeys(warnings))
+    production_eligible = resolved.production_eligible and catalog_production_eligible
     resolved_values = values.model_dump(mode="json")
     calculation_fingerprint = _stable_hash(
         {
@@ -265,11 +305,7 @@ def calculate_electrical_tt(
             "working_current_a": plan.working_current_a,
             "start_current_a": plan.start_current_a,
         },
-        "catalogs": {
-            "power": power_catalog,
-            "section": section_catalog,
-            "bom": bom_catalog,
-        },
+        "catalogs": catalogs,
         "provenance": {
             **{
                 key: value
@@ -280,16 +316,12 @@ def calculate_electrical_tt(
             "input_sources": dict(resolved.sources),
             "mocked_fields": list(resolved.mocked_fields),
             "legacy_aliases": list(resolved.legacy_aliases),
-            "warnings": list(resolved.warnings),
-            "production_eligible": resolved.production_eligible,
+            "warnings": warnings,
+            "production_eligible": production_eligible,
             "formula_version": ELECTRICAL_TT_FORMULA_VERSION,
             "formula_fingerprint": ELECTRICAL_TT_FORMULA_FINGERPRINT,
             "calculation_fingerprint": calculation_fingerprint,
-            "catalogs": {
-                "power": power_catalog,
-                "section": section_catalog,
-                "bom": bom_catalog,
-            },
+            "catalogs": catalogs,
         },
         # Compatibility fields consumed by the current calculation/specification layer.
         "cable_type": "self_regulating_tt",
@@ -330,6 +362,6 @@ def calculate_electrical_tt(
         "input_sources": dict(resolved.sources),
         "mocked_fields": list(resolved.mocked_fields),
         "legacy_aliases": list(resolved.legacy_aliases),
-        "warnings": list(resolved.warnings),
-        "production_eligible": resolved.production_eligible,
+        "warnings": warnings,
+        "production_eligible": production_eligible,
     }

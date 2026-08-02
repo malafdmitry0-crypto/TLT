@@ -28,12 +28,15 @@ class TestSpecification:
                 "object_type": "pipe",
                 "params": {
                     "outer_diameter": 0.108,
-                    "insulation_thickness": 0.05,
-                    "insulation_material": MINERAL_WOOL,
+                    "wall_thickness": 0.004,
+                    "pipe_material": "carbon_steel",
+                    "insulation_layers": [{"thickness": 0.05, "material": MINERAL_WOOL}],
                     "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -30,
                     "process_temperature": 80,
                     "pipe_length": 50,
+                    "placement": "outdoor",
+                    "wind_speed": 0.0,
                 },
             },
             headers=headers,
@@ -218,8 +221,6 @@ class TestSpecification:
         )
         assert manual.status_code == 403
 
-
-
     async def test_generate_requires_confirm_partial_when_exclusions(
         self, client: AsyncClient, guest_session: str
     ):
@@ -239,12 +240,8 @@ class TestSpecification:
         # FA-06: confirmation required for object skips AND/OR excluded BOM groups
         # (sections catalog, boxes matrix) even when all objects contribute.
         pf_variants = detail["preflight"].get("variants") or []
-        has_group_exclusions = any(
-            (v.get("excluded_groups") or []) for v in pf_variants
-        )
-        assert (
-            detail["preflight"]["total_skipped_objects"] >= 1 or has_group_exclusions
-        )
+        has_group_exclusions = any((v.get("excluded_groups") or []) for v in pf_variants)
+        assert detail["preflight"]["total_skipped_objects"] >= 1 or has_group_exclusions
 
         confirmed = await client.post(
             f"/api/v1/specifications/{project['id']}/generate",
@@ -308,9 +305,7 @@ class TestSpecification:
         """PDL-ER-07: save defaults bumps version and stales other snapshot, no regenerate."""
         headers = {"Authorization": f"Bearer {employee_token}"}
         p = (
-            await client.post(
-                "/api/v1/projects", json={"name": "Spec-Settings"}, headers=headers
-            )
+            await client.post("/api/v1/projects", json={"name": "Spec-Settings"}, headers=headers)
         ).json()
         await self._add_pipe(client, p["id"], headers)
 
@@ -394,7 +389,10 @@ class TestSpecification:
 
         update_resp = await client.put(
             f"/api/v1/projects/{project['id']}/objects/{obj['id']}",
-            json={"version": obj["version"], "params": {"pipe_length": 75}},
+            json={
+                "version": obj["version"],
+                "params": {**obj["params"], "pipe_length": 75},
+            },
             headers=headers,
         )
         assert update_resp.status_code == 200, update_resp.text
@@ -466,7 +464,10 @@ class TestSpecification:
         await self._save_manual_spec(client, project["id"], headers)
         await client.put(
             f"/api/v1/projects/{project['id']}/objects/{obj['id']}",
-            json={"version": obj["version"], "params": {"pipe_length": 75}},
+            json={
+                "version": obj["version"],
+                "params": {**obj["params"], "pipe_length": 75},
+            },
             headers=headers,
         )
 
@@ -501,16 +502,13 @@ class TestSpecification:
             not any(i.get("name") == "Новая ручная позиция" for i in (spec.get("items") or []))
         )
 
-
     async def test_multi_er_generate_is_atomic_and_scoped(
         self, client: AsyncClient, employee_token: str
     ):
         """PDL-ER-01/14: explicit multi-ER generation creates independent specs."""
         headers = {"Authorization": f"Bearer {employee_token}"}
         project = (
-            await client.post(
-                "/api/v1/projects", json={"name": "Multi-ER Spec"}, headers=headers
-            )
+            await client.post("/api/v1/projects", json={"name": "Multi-ER Spec"}, headers=headers)
         ).json()
         await self._add_pipe(client, project["id"], headers)
 
@@ -584,12 +582,15 @@ class TestSpecAccessoryCountForAllObjects:
                 "object_type": "pipe",
                 "params": {
                     "outer_diameter": 0.108,
-                    "insulation_thickness": 0.05,
-                    "insulation_material": MINERAL_WOOL,
+                    "wall_thickness": 0.004,
+                    "pipe_material": "carbon_steel",
+                    "insulation_layers": [{"thickness": 0.05, "material": MINERAL_WOOL}],
                     "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -30,
                     "process_temperature": 80,
                     "pipe_length": 50,
+                    "placement": "outdoor",
+                    "wind_speed": 0.0,
                 },
             },
             headers={"X-Session-Id": session_id},
@@ -617,9 +618,10 @@ class TestSpecAccessoryCountForAllObjects:
         # Without successful electrical results contributing to full BOM, there
         # is no basic-mode accessory multiplier over all project objects.
         accessories = [i for i in body["items"] if i.get("category") != "Кабель"]
-        assert all(
-            "УЗО" not in (i.get("name") or "") or float(i.get("quantity") or 0) != 3
-            for i in accessories
-        ) or not accessories
-
-
+        assert (
+            all(
+                "УЗО" not in (i.get("name") or "") or float(i.get("quantity") or 0) != 3
+                for i in accessories
+            )
+            or not accessories
+        )

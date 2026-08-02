@@ -27,11 +27,27 @@ ELECTRICAL_NOMINAL_VOLTAGE_FORCED_230 = "ELECTRICAL_NOMINAL_VOLTAGE_FORCED_230"
 class ElectricalInputResolutionError(ValueError):
     """Small resolver-specific domain error for service/API adapters."""
 
-    def __init__(self, code: str, message: str, *, details: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self,
+        code: str,
+        message: str,
+        *,
+        details: dict[str, Any] | None = None,
+        status_code: int = 422,
+    ) -> None:
         super().__init__(message)
         self.code = code
         self.message = message
         self.details = details or {}
+        self.status_code = status_code
+
+    def as_detail(self) -> dict[str, Any]:
+        return {
+            "code": self.code,
+            "message": self.message,
+            "issues": [],
+            "details": self.details,
+        }
 
 
 class ElectricalFrontendMockProfile(BaseModel):
@@ -80,7 +96,9 @@ _POSITIVE_FIELDS = {
 }
 
 
-def normalize_electrical_override_payload(payload: Mapping[str, Any]) -> NormalizedElectricalOverrides:
+def normalize_electrical_override_payload(
+    payload: Mapping[str, Any],
+) -> NormalizedElectricalOverrides:
     """Translate legacy request names once, at the API boundary.
 
     Canonical names win when a payload contains both spellings. Only aliases
@@ -114,7 +132,9 @@ def normalize_electrical_override_payload(payload: Mapping[str, Any]) -> Normali
     )
 
 
-def _present_values(source: Mapping[str, Any] | BaseModel | None) -> tuple[dict[str, Any], set[str]]:
+def _present_values(
+    source: Mapping[str, Any] | BaseModel | None,
+) -> tuple[dict[str, Any], set[str]]:
     if source is None:
         return {}, set()
     if isinstance(source, BaseModel):
@@ -182,16 +202,12 @@ class ElectricalInputResolver:
                 sources[field] = "assignment_override"
                 continue
             project_value = project_values.get(field)
-            if field in project_fields and (
-                project_value is not None or field in _NULL_IS_VALUE
-            ):
+            if field in project_fields and (project_value is not None or field in _NULL_IS_VALUE):
                 values[field] = project_value
                 sources[field] = "project_setting"
                 continue
             object_value = object_values.get(field)
-            if field in object_fields and (
-                object_value is not None or field in _NULL_IS_VALUE
-            ):
+            if field in object_fields and (object_value is not None or field in _NULL_IS_VALUE):
                 values[field] = object_value
                 sources[field] = "object_heat"
                 continue

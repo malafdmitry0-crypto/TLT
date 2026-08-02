@@ -6,6 +6,7 @@ import uuid
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
+from app.reference_data.loader import get_electrical_tt_bom_entry
 from app.schemas.specification import SpecificationItem, SpecificationOptions
 from app.services.specification_service import SpecificationService
 
@@ -40,9 +41,7 @@ def _upsert_result(spec=None):
 
 def _empty_result():
     result = MagicMock()
-    result.scalars = lambda: MagicMock(
-        first=lambda: None, one_or_none=lambda: None, all=lambda: []
-    )
+    result.scalars = lambda: MagicMock(first=lambda: None, one_or_none=lambda: None, all=lambda: [])
     return result
 
 
@@ -61,6 +60,27 @@ def _project_defaults():
         specification_settings={},
         specification_settings_version=1,
     )
+
+
+def _tt_catalogs() -> dict:
+    bom = get_electrical_tt_bom_entry("30ТТВ2-СР")
+    assert bom is not None
+    return {
+        "power": {
+            "status": "active",
+            "version": "test-power-v1",
+            "source_checksum": "sha256:test-power",
+        },
+        "section": {
+            "status": "registered",
+            "version": "2026-07-20",
+            "source_checksum": "sha256:test-section",
+        },
+        "bom": {
+            **bom["catalog"],
+            "row": {key: value for key, value in bom.items() if key != "catalog"},
+        },
+    }
 
 
 def _generate_db(*, existing_spec=None, calcs=None, objects=None, upsert_spec=None):
@@ -171,6 +191,7 @@ class TestGenerate:
                 "section_l_fact_m": 10,
                 "order_cable_length": 11,
                 "installed_cable_length": 10,
+                "catalogs": _tt_catalogs(),
             },
         )
         obj = SimpleNamespace(
@@ -255,6 +276,7 @@ class TestGenerate:
                     "order_cable_length": 11,
                     "production_eligible": False,
                     "mocked_fields": [],
+                    "catalogs": _tt_catalogs(),
                 }
             ]
         )
@@ -293,6 +315,7 @@ class TestGenerate:
                     "selected_cable": "30ТТВ2",
                     "installed_cable_length": 10,
                     "order_cable_length": 11,
+                    "catalogs": _tt_catalogs(),
                 }
             ]
         )
@@ -344,9 +367,7 @@ class TestSaveItems:
     async def test_creates_new_when_no_existing(self):
         db = AsyncMock()
         # lock + get_specification (none) + upsert
-        db.execute = AsyncMock(
-            side_effect=[_empty_result(), _list_result([]), _upsert_result()]
-        )
+        db.execute = AsyncMock(side_effect=[_empty_result(), _list_result([]), _upsert_result()])
         db.commit = AsyncMock()
         db.add = MagicMock()
         items = [SpecificationItem(category="a", name="A", unit="шт", quantity=1)]

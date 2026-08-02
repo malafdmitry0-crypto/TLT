@@ -7,9 +7,11 @@ import pytest
 from app.electrical_domain import ElectricalFormulaError
 from app.schemas.electrical_inputs import CanonicalElectricalInputs, ResolvedElectricalInputs
 from app.services.electrical_tt_pipeline import (
+    ELECTRICAL_POWER_CATALOG_PROVISIONAL,
     ELECTRICAL_TT_FORMULA_FINGERPRINT,
     ELECTRICAL_TT_FORMULA_VERSION,
     calculate_electrical_tt,
+    electrical_tt_catalog_eligibility,
 )
 
 
@@ -82,6 +84,36 @@ def test_pipeline_emits_exact_bom_sections_totals_and_provenance():
     assert result["catalogs"]["power"]["row"]["model"] == "30ТТВ2"
     assert result["catalogs"]["section"]["row"]["cold_start_temperature_c"] == -20
     assert result["catalogs"]["bom"]["row"]["nomenclature_code"] == "001-002-002"
+    assert result["production_eligible"] is False
+    assert ELECTRICAL_POWER_CATALOG_PROVISIONAL in result["warnings"]
+
+
+def test_catalog_eligibility_requires_checksum_for_every_active_snapshot():
+    eligible, invalid = electrical_tt_catalog_eligibility(
+        {
+            "power": {"status": "active", "version": "power-v1"},
+            "section": {
+                "status": "registered",
+                "version": "section-v1",
+                "source_checksum": "sha256:section",
+            },
+            "bom": {
+                "status": "active",
+                "version": "bom-v1",
+                "source_checksum": "sha256:bom",
+            },
+        }
+    )
+
+    assert eligible is False
+    assert invalid == [
+        {
+            "kind": "power",
+            "status": "active",
+            "version": "power-v1",
+            "checksum": None,
+        }
+    ]
 
 
 def test_pipeline_computes_winding_from_canonical_geometry():
@@ -128,17 +160,13 @@ def test_pipeline_fails_closed_when_section_row_is_unavailable():
 
 @pytest.mark.parametrize("pitch", [None, Decimal("0")])
 def test_pipeline_does_not_require_diameter_for_straight_laying(pitch):
-    result = calculate_electrical_tt(
-        _resolved(outer_diameter_mm=None, winding_pitch_mm=pitch)
-    )
+    result = calculate_electrical_tt(_resolved(outer_diameter_mm=None, winding_pitch_mm=pitch))
     assert result["layout"]["winding_factor"] == 1
 
 
 def test_pipeline_requires_pipe_outer_diameter_for_winding():
     with pytest.raises(ElectricalFormulaError) as exc:
-        calculate_electrical_tt(
-            _resolved(outer_diameter_mm=None, winding_pitch_mm=Decimal("400"))
-        )
+        calculate_electrical_tt(_resolved(outer_diameter_mm=None, winding_pitch_mm=Decimal("400")))
     assert exc.value.code == "ELECTRICAL_WINDING_PITCH_INVALID"
 
 
@@ -163,10 +191,11 @@ def test_pipeline_preserves_input_provenance_and_mock_eligibility():
 
     provenance = result["provenance"]
     assert provenance["mocked_fields"] == ["maintain_temperature_c"]
-    assert provenance["legacy_aliases"] == [
-        "maintain_temperature->maintain_temperature_c"
+    assert provenance["legacy_aliases"] == ["maintain_temperature->maintain_temperature_c"]
+    assert provenance["warnings"] == [
+        "ELECTRICAL_FRONTEND_INPUTS_MOCKED",
+        ELECTRICAL_POWER_CATALOG_PROVISIONAL,
     ]
-    assert provenance["warnings"] == ["ELECTRICAL_FRONTEND_INPUTS_MOCKED"]
     assert provenance["production_eligible"] is False
     assert result["resolved_inputs"] == provenance["resolved_inputs"]
     assert result["input_sources"] == provenance["input_sources"]
@@ -181,12 +210,14 @@ def test_calculation_fingerprint_is_stable_and_input_sensitive():
     same = calculate_electrical_tt(_resolved())
     changed = calculate_electrical_tt(_resolved(base_length_m=Decimal("201")))
 
-    assert first["provenance"]["calculation_fingerprint"] == same["provenance"][
-        "calculation_fingerprint"
-    ]
-    assert first["provenance"]["calculation_fingerprint"] != changed["provenance"][
-        "calculation_fingerprint"
-    ]
+    assert (
+        first["provenance"]["calculation_fingerprint"]
+        == same["provenance"]["calculation_fingerprint"]
+    )
+    assert (
+        first["provenance"]["calculation_fingerprint"]
+        != changed["provenance"]["calculation_fingerprint"]
+    )
 
 
 def test_calculation_fingerprint_includes_upstream_versions():
@@ -209,6 +240,7 @@ def test_calculation_fingerprint_includes_upstream_versions():
         },
     )
 
-    assert version_one["provenance"]["calculation_fingerprint"] != version_two[
-        "provenance"
-    ]["calculation_fingerprint"]
+    assert (
+        version_one["provenance"]["calculation_fingerprint"]
+        != version_two["provenance"]["calculation_fingerprint"]
+    )

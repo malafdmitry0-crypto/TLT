@@ -606,7 +606,7 @@ class TestCableLayoutMapping:
                 1.0,
             )
 
-    def test_saved_layout_is_used_when_batch_has_no_explicit_layout(self):
+    def test_explicit_null_clears_saved_batch_layout(self):
         service = CalculationService(_mock_db_empty())
         saved = SimpleNamespace(
             results={
@@ -620,9 +620,25 @@ class TestCableLayoutMapping:
             {"supply_voltage": 220, "winding_pitch": None, "number_of_threads": None},
             layout,
         )
+        assert merged["winding_pitch"] is None
+        assert merged["number_of_threads"] is None
+        assert "winding_coefficient" not in merged
+
+    def test_omitted_batch_layout_reuses_saved_values(self):
+        service = CalculationService(_mock_db_empty())
+        saved = SimpleNamespace(
+            results={
+                "winding_pitch": 120.0,
+                "num_circuits": 2,
+                "number_of_threads_source": "manual",
+            }
+        )
+        layout = service._layout_overrides_from_existing(saved)
+
+        merged = service._merge_electrical_overrides({"supply_voltage": 230}, layout)
+
         assert merged["winding_pitch"] == 120.0
         assert merged["number_of_threads"] == 2
-        assert "winding_coefficient" not in merged
 
     def test_auto_threads_are_not_reused_as_requested_layout(self):
         service = CalculationService(_mock_db_empty())
@@ -753,7 +769,7 @@ class TestCableLayoutMapping:
         assert data["required_power_per_meter"] == pytest.approx(20.0)
         assert data["safety_factor"] == pytest.approx(1.3)
 
-    def test_ttn_uses_object_aggressive_product_when_override_absent(self):
+    def test_tt_build_data_keeps_object_values_out_of_explicit_overrides(self):
         service = CalculationService(_mock_db_empty())
         obj = SimpleNamespace(
             object_type="pipe",
@@ -779,7 +795,7 @@ class TestCableLayoutMapping:
             overrides={},
         )
 
-        assert data["aggressive_product"] is True
+        assert data["_tt_explicit_overrides"] == {}
 
     def test_tlt_tank_required_power_uses_cable_geometry_not_m2(self):
         service = CalculationService(_mock_db_empty())
@@ -870,7 +886,7 @@ class TestCableLayoutMapping:
                 overrides={},
             )
 
-    @pytest.mark.parametrize("cable_type", ["self_regulating_tt", "single_core", "three_core"])
+    @pytest.mark.parametrize("cable_type", ["single_core", "three_core"])
     def test_batch_electrical_data_requires_process_temperature_for_supported_types(
         self, cable_type: str
     ):
@@ -920,7 +936,7 @@ class TestCableLayoutMapping:
 
     @pytest.mark.parametrize(
         "cable_type",
-        ["self_regulating", "self_regulating_tt", "single_core", "three_core"],
+        ["self_regulating", "single_core", "three_core"],
     )
     def test_direct_electrical_request_fills_process_temperature_for_all_supported_types(
         self, cable_type: str
@@ -960,7 +976,7 @@ class TestCableLayoutMapping:
 
     @pytest.mark.parametrize(
         "cable_type",
-        ["self_regulating", "self_regulating_tt", "single_core", "three_core"],
+        ["self_regulating", "single_core", "three_core"],
     )
     def test_direct_electrical_request_requires_process_temperature_for_all_supported_types(
         self, cable_type: str
@@ -2594,8 +2610,8 @@ class TestSelectCableManual:
         assert request.data["supply_voltage"] == 380
         assert request.data["safety_factor"] == 1.2
 
-    async def test_object_vapor_temperature_used_for_tt_when_global_empty(self):
-        """Если общий T проп. не задан, ТТ-расчёт берёт температуру пропарки из params объекта."""
+    async def test_explicit_null_vapor_is_preserved_for_tt_resolver(self):
+        """Explicit null means that steaming is not applicable."""
         db = AsyncMock()
         obj = SimpleNamespace(
             id=uuid.uuid4(),
@@ -2627,11 +2643,10 @@ class TestSelectCableManual:
         )
 
         request = service.calc_electrical.call_args.args[0]
-        assert request.data["vapor_temperature"] == 140
-        assert request.data["maintain_temperature"] == 50
+        assert request.data["_tt_explicit_overrides"]["vapor_temperature"] is None
 
-    async def test_global_vapor_temperature_overrides_object_value(self):
-        """Общий T проп. с вкладки электрорасчёта приоритетнее object params."""
+    async def test_explicit_vapor_temperature_is_preserved_for_tt_resolver(self):
+        """The resolver later applies explicit-over-object precedence."""
         db = AsyncMock()
         obj = SimpleNamespace(
             id=uuid.uuid4(),
@@ -2663,11 +2678,10 @@ class TestSelectCableManual:
         )
 
         request = service.calc_electrical.call_args.args[0]
-        assert request.data["vapor_temperature"] == 160
-        assert request.data["maintain_temperature"] == 50
+        assert request.data["_tt_explicit_overrides"]["vapor_temperature"] == 160
 
-    async def test_tt_maintain_temperature_falls_back_to_process_temperature(self):
-        """T3 опционален: backend пропускает None, формула использует T1 как fallback."""
+    async def test_omitted_tt_maintain_temperature_is_not_invented_at_boundary(self):
+        """The resolver, not the legacy payload builder, supplies missing T3."""
         db = AsyncMock()
         obj = SimpleNamespace(
             id=uuid.uuid4(),
@@ -2697,11 +2711,10 @@ class TestSelectCableManual:
         )
 
         request = service.calc_electrical.call_args.args[0]
-        assert request.data["maintain_temperature"] is None
-        assert request.data["process_temperature"] == 80
+        assert "maintain_temperature" not in request.data["_tt_explicit_overrides"]
 
-    async def test_global_maintain_temperature_overrides_object_value(self):
-        """T3 из панели электрорасчёта приоритетнее object params."""
+    async def test_explicit_maintain_temperature_is_preserved_for_tt_resolver(self):
+        """The resolver later applies explicit-over-object precedence."""
         db = AsyncMock()
         obj = SimpleNamespace(
             id=uuid.uuid4(),
@@ -2732,4 +2745,4 @@ class TestSelectCableManual:
         )
 
         request = service.calc_electrical.call_args.args[0]
-        assert request.data["maintain_temperature"] == 55
+        assert request.data["_tt_explicit_overrides"]["maintain_temperature"] == 55

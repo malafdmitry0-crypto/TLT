@@ -21,7 +21,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import load_only
 
+from app.core.config import settings as app_settings
 from app.core.database import use_fast_commit_for_current_transaction
+from app.electrical_domain import ElectricalFormulaError
 from app.electrical_input_validation import (
     PROCESS_TEMPERATURE_REQUIRED_CABLE_TYPES,
     ProcessTemperatureInputError,
@@ -35,7 +37,7 @@ from app.formulas.electrical.resistive import (
     calc_resistive_three_core,
     default_resistive_max_linear_power_w_m,
 )
-from app.formulas.electrical.self_regulating import calc_self_regulating, calc_self_regulating_tt
+from app.formulas.electrical.self_regulating import calc_self_regulating
 from app.formulas.heat_loss.pipe import calc_pipe_heat_loss
 from app.formulas.heat_loss.tank import calc_tank_heat_loss
 from app.models.cable import CableExtended
@@ -48,6 +50,7 @@ from app.models.electrical_candidate_folder import (
 )
 from app.models.electrical_variant import ElectricalVariant, ElectricalVariantObject
 from app.models.project import Project
+from app.models.project_electrical_settings import ProjectElectricalSettings
 from app.models.project_object import ProjectObject
 from app.models.specification import Specification
 from app.reference_data.loader import (
@@ -66,7 +69,6 @@ from app.schemas.calculation import (
     ResistiveSingleCoreParams,
     ResistiveThreeCoreParams,
     SelfRegulatingParams,
-    SelfRegulatingTTParams,
     StoredPipeHeatParams,
     StoredTankHeatParams,
     TankHeatLossParams,
@@ -89,6 +91,16 @@ from app.services.electrical_assignment_service import (
 )
 from app.services.electrical_candidate_dedupe import build_dedupe_key, build_identity_payload
 from app.services.electrical_error_guidance import build_electrical_error_payload
+from app.services.electrical_input_resolver import (
+    ElectricalInputResolutionError,
+    configured_electrical_input_resolver,
+    normalize_electrical_override_payload,
+    require_production_eligible_inputs,
+)
+from app.services.electrical_tt_pipeline import (
+    calculate_electrical_tt,
+    electrical_tt_catalog_eligibility,
+)
 from app.services.heat_contract import (
     COMMON_HEAT_PARAM_KEYS,
     PIPE_FORBIDDEN_HEAT_PARAM_KEYS,
@@ -229,8 +241,7 @@ def build_heat_loss_error_payload(
             "message": message,
             "field": "insulation_layers",
             "hint": (
-                "Увеличьте толщину внешнего слоя изоляции до критического радиуса "
-                "или выше."
+                "Увеличьте толщину внешнего слоя изоляции до критического радиуса " "или выше."
             ),
             "error_context": sphere_context,
         }
@@ -423,6 +434,10 @@ class BatchCancelChecker:
 class CalculationService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
+        self._tt_project_settings_cache: dict[UUID, ProjectElectricalSettings | None] = {}
+        self._tt_assignment_cache: dict[
+            tuple[UUID, UUID, UUID], ElectricalVariantObject | None
+        ] = {}
 
     async def electrical_calc_summaries(
         self,
@@ -935,9 +950,7 @@ class CalculationService:
         if object_type == "pipe":
             forbidden = sorted(PIPE_FORBIDDEN_HEAT_PARAM_KEYS.intersection(data))
             if forbidden:
-                raise ValueError(
-                    "Forbidden pipe heat params: " + ", ".join(forbidden)
-                )
+                raise ValueError("Forbidden pipe heat params: " + ", ".join(forbidden))
             stored = StoredPipeHeatParams(
                 **{
                     key: value
@@ -1266,6 +1279,7 @@ class CalculationService:
                     ProjectObject.project_id,
                     ProjectObject.object_type,
                     ProjectObject.sort_order,
+                    ProjectObject.version,
                     ProjectObject.params,
                     ProjectObject.results,
                     ProjectObject.is_valid,
@@ -1399,7 +1413,22 @@ class CalculationService:
         commit: bool = True,
         electrical_variant_id: UUID | None = None,
     ) -> ElectricalCalculation:
-        # Получаем объект, чтобы узнать project_id
+        # Resolve the project first, then keep the shared project -> object lock
+        # order used by ER/settings mutations.
+        object_scope = await self.db.execute(
+            select(ProjectObject.id, ProjectObject.project_id).where(
+                ProjectObject.id == request.object_id
+            )
+        )
+        scope_row = object_scope.one_or_none()
+        if scope_row is None:
+            raise CalculationError("Объект не найден")
+        await self.db.execute(
+            select(Project)
+            .where(Project.id == scope_row.project_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
         obj_result = await self.db.execute(
             select(ProjectObject)
             .where(ProjectObject.id == request.object_id)
@@ -1410,7 +1439,13 @@ class CalculationService:
         if obj is None:
             raise CalculationError("Объект не найден")
 
+        resolved_variant_id = electrical_variant_id or request.electrical_variant_id
         self._hydrate_electrical_request_from_object(request, obj)
+        await self._prepare_self_regulating_tt_request(
+            request,
+            obj,
+            electrical_variant_id=resolved_variant_id,
+        )
         cable_mark, result_dict = self._calculate_electrical_result(request)
         cable_snapshot = self._build_cable_snapshot_for_result(
             request=request,
@@ -1424,7 +1459,7 @@ class CalculationService:
             cable_mark=cable_mark,
             result_dict=result_dict,
             cable_snapshot=cable_snapshot,
-            electrical_variant_id=electrical_variant_id,
+            electrical_variant_id=resolved_variant_id,
         )
         if not commit:
             return calc
@@ -1432,11 +1467,264 @@ class CalculationService:
         await self.db.refresh(calc)
         return calc
 
+    @staticmethod
+    def _tt_optional_object_value(
+        target: dict[str, Any],
+        canonical_key: str,
+        source: dict[str, Any],
+        *source_keys: str,
+    ) -> None:
+        for key in source_keys:
+            if key in source:
+                target[canonical_key] = source.get(key)
+                return
+
+    def _tt_object_heat_inputs(
+        self,
+        obj: ProjectObject,
+        explicit_payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Map authoritative object/Heat data without engineering defaults."""
+        params = obj.params if isinstance(obj.params, dict) else {}
+        results = obj.results if isinstance(obj.results, dict) else {}
+        values: dict[str, Any] = {}
+
+        self._tt_optional_object_value(
+            values, "product_temperature_c", params, "process_temperature"
+        )
+        self._tt_optional_object_value(values, "steam_temperature_c", params, "vapor_temperature")
+        self._tt_optional_object_value(
+            values, "maintain_temperature_c", params, "maintain_temperature"
+        )
+        cold_start = params.get("min_switch_temperature")
+        if cold_start is None:
+            cold_start = params.get("ambient_temperature")
+        if cold_start is not None:
+            values["cold_start_temperature_c"] = cold_start
+        self._tt_optional_object_value(values, "aggressive_product", params, "aggressive_product")
+        self._tt_optional_object_value(
+            values, "winding_pitch_mm", params, "winding_pitch", "winding_pitch_mm"
+        )
+        self._tt_optional_object_value(values, "thread_count", params, "number_of_threads")
+        self._tt_optional_object_value(values, "selection_policy", params, "selection_policy")
+
+        safety_factor = results.get("safety_factor_applied")
+        if safety_factor is None:
+            safety_factor = params.get("safety_factor")
+        if safety_factor is not None:
+            values["safety_factor"] = safety_factor
+
+        if obj.object_type == "tank":
+            base_length = self._tank_base_cable_length(obj, explicit_payload)
+            total_heat_loss_base = self._num(results.get("total_heat_loss_base"))
+            if base_length is not None:
+                values["base_length_m"] = base_length
+                if total_heat_loss_base is not None and base_length > 0:
+                    values["heat_loss_per_meter_w"] = total_heat_loss_base / base_length
+        else:
+            base_length = self._num(results.get("effective_length"))
+            if base_length is None:
+                base_length = self._num(params.get("pipe_length"))
+            if base_length is not None:
+                values["base_length_m"] = base_length
+            heat_loss = self._num(results.get("heat_loss_per_meter_base"))
+            if heat_loss is not None:
+                values["heat_loss_per_meter_w"] = heat_loss
+            outer_diameter_m = self._num(params.get("outer_diameter"))
+            if outer_diameter_m is not None:
+                values["outer_diameter_mm"] = outer_diameter_m * 1000.0
+        return values
+
+    async def _tt_project_settings(
+        self,
+        project_id: UUID,
+    ) -> ProjectElectricalSettings | None:
+        if project_id not in self._tt_project_settings_cache:
+            self._tt_project_settings_cache[project_id] = await self.db.get(
+                ProjectElectricalSettings,
+                project_id,
+            )
+        return self._tt_project_settings_cache[project_id]
+
+    async def _prefetch_tt_assignments(
+        self,
+        project_id: UUID,
+        electrical_variant_id: UUID | None,
+        object_ids: list[UUID],
+    ) -> None:
+        if electrical_variant_id is None or not object_ids:
+            return
+        missing = [
+            object_id
+            for object_id in object_ids
+            if (project_id, electrical_variant_id, object_id) not in self._tt_assignment_cache
+        ]
+        if not missing:
+            return
+        rows = await self.db.scalars(
+            select(ElectricalVariantObject).where(
+                ElectricalVariantObject.project_id == project_id,
+                ElectricalVariantObject.electrical_variant_id == electrical_variant_id,
+                ElectricalVariantObject.object_id.in_(missing),
+            )
+        )
+        by_object_id = {row.object_id: row for row in rows.all()}
+        for object_id in missing:
+            self._tt_assignment_cache[(project_id, electrical_variant_id, object_id)] = (
+                by_object_id.get(object_id)
+            )
+
+    async def _tt_assignment(
+        self,
+        project_id: UUID,
+        electrical_variant_id: UUID | None,
+        object_id: UUID,
+    ) -> ElectricalVariantObject | None:
+        if electrical_variant_id is None:
+            return None
+        key = (project_id, electrical_variant_id, object_id)
+        if key not in self._tt_assignment_cache:
+            await self._prefetch_tt_assignments(
+                project_id,
+                electrical_variant_id,
+                [object_id],
+            )
+        return self._tt_assignment_cache.get(key)
+
+    async def _prepare_self_regulating_tt_request(
+        self,
+        request: ElectricalRequest,
+        obj: ProjectObject,
+        *,
+        electrical_variant_id: UUID | None,
+    ) -> None:
+        """Resolve canonical TT inputs once and run the shared pure pipeline."""
+        if request.cable_type != "self_regulating_tt":
+            return
+        if not obj.is_valid or not obj.results or obj.results.get("stale"):
+            raise ElectricalInputResolutionError(
+                "ELECTRICAL_HEAT_LOSS_REQUIRED",
+                "Для электрорасчёта требуются актуальные теплопотери объекта",
+                details={"object_id": str(obj.id)},
+            )
+        raw_marker = request.data.pop("_tt_explicit_overrides", None)
+        explicit_payload = dict(raw_marker) if isinstance(raw_marker, dict) else dict(request.data)
+        normalized = normalize_electrical_override_payload(explicit_payload)
+        project_settings = await self._tt_project_settings(obj.project_id)
+        assignment = await self._tt_assignment(
+            obj.project_id,
+            electrical_variant_id,
+            obj.id,
+        )
+        project_values = (
+            {"max_section_start_current_a": (project_settings.max_section_start_current_a)}
+            if project_settings is not None
+            else {}
+        )
+        assignment_values = (
+            {
+                "max_section_start_current_a": assignment.max_section_start_current_a,
+            }
+            if assignment is not None
+            else {}
+        )
+        object_heat = self._tt_object_heat_inputs(obj, explicit_payload)
+        resolved = configured_electrical_input_resolver().resolve(
+            explicit=normalized.overrides,
+            assignment=assignment_values,
+            project_settings=project_values,
+            object_heat=object_heat,
+            legacy_aliases=normalized.legacy_aliases,
+            boundary_warnings=normalized.warnings,
+        )
+        if app_settings.is_production:
+            require_production_eligible_inputs(resolved)
+        current_limit_source = resolved.sources.get("max_section_start_current_a")
+        provenance = {
+            "object_snapshot": {
+                "id": str(obj.id),
+                "project_id": str(obj.project_id),
+                "object_type": str(getattr(obj.object_type, "value", obj.object_type)),
+                "version": obj.version,
+            },
+            "heat_snapshot": {
+                "version": obj.version,
+                "base_length_m": object_heat.get("base_length_m"),
+                "heat_loss_per_meter_w": object_heat.get("heat_loss_per_meter_w"),
+                "safety_factor": object_heat.get("safety_factor"),
+            },
+            "object_version": obj.version,
+            "heat_result_version": obj.version,
+            "project_settings_version": (
+                project_settings.version
+                if project_settings is not None and current_limit_source == "project_setting"
+                else None
+            ),
+            "assignment_version": assignment.version if assignment is not None else None,
+        }
+        result_dict = calculate_electrical_tt(resolved, provenance=provenance)
+        catalogs = result_dict.get("catalogs", {})
+        catalogs_eligible, invalid_catalogs = electrical_tt_catalog_eligibility(catalogs)
+        if app_settings.is_production and not catalogs_eligible:
+            primary = invalid_catalogs[0]
+            raise ElectricalFormulaError(
+                "ELECTRICAL_CATALOG_SOURCE_UNREGISTERED",
+                "Для production-расчёта требуются утверждённые каталоги",
+                details={
+                    "catalog_kind": primary["kind"],
+                    "status": primary["status"],
+                    "version": primary["version"],
+                    "invalid_catalogs": invalid_catalogs,
+                },
+            )
+        values = resolved.values
+        preserved = {
+            key: value
+            for key, value in request.data.items()
+            if key in {"cable_source", "cable_type_source", "cable_mark_source"}
+        }
+        request.data = {
+            **preserved,
+            "required_power_per_meter": float(values.heat_loss_per_meter_w),
+            "pipe_length": float(values.base_length_m),
+            "process_temperature": float(values.product_temperature_c),
+            "maintain_temperature": float(values.maintain_temperature_c),
+            "supply_voltage": 230,
+            "max_start_current_per_section": float(values.max_section_start_current_a),
+            "vapor_temperature": (
+                float(values.steam_temperature_c)
+                if values.steam_temperature_c is not None
+                else None
+            ),
+            "aggressive_product": values.aggressive_product,
+            "winding_coefficient": result_dict["winding_coefficient"],
+            "winding_pitch": (
+                float(values.winding_pitch_mm) if values.winding_pitch_mm is not None else None
+            ),
+            "number_of_threads": values.thread_count,
+            "requested_number_of_threads": values.thread_count,
+            "number_of_threads_source": (
+                THREAD_SOURCE_MANUAL if values.thread_count is not None else THREAD_SOURCE_AUTO
+            ),
+            "cable_mark": values.manual_cable_model,
+            "selection_policy": values.selection_policy,
+            "safety_factor": float(values.safety_factor),
+            "cold_start_temperature_c": float(values.cold_start_temperature_c),
+            "ambient_temperature": float(values.cold_start_temperature_c),
+            "max_section_start_current_a": float(values.max_section_start_current_a),
+            "outer_diameter_mm": (
+                float(values.outer_diameter_mm) if values.outer_diameter_mm is not None else None
+            ),
+            "_tt_pipeline_result": result_dict,
+        }
+
     def _hydrate_electrical_request_from_object(
         self,
         request: ElectricalRequest,
         obj: ProjectObject,
     ) -> None:
+        if request.cable_type == "self_regulating_tt":
+            return
         if request.cable_type not in PROCESS_TEMPERATURE_REQUIRED_CABLE_TYPES:
             return
         obj_params = obj.params if isinstance(obj.params, dict) else {}
@@ -1456,11 +1744,14 @@ class CalculationService:
             result_dict = result_obj.model_dump()
             request.data["supply_voltage"] = result_dict["voltage"]
         elif cable_type == "self_regulating_tt":
-            params_tt = SelfRegulatingTTParams(**request.data)
-            result_tt = calc_self_regulating_tt(params_tt)
-            cable_mark = result_tt.cable_mark
-            result_dict = result_tt.model_dump()
-            request.data["supply_voltage"] = result_dict["voltage"]
+            prepared_result = request.data.pop("_tt_pipeline_result", None)
+            if not isinstance(prepared_result, dict):
+                raise CalculationError(
+                    "TT calculation must be prepared by the canonical input pipeline"
+                )
+            result_dict = prepared_result
+            cable_mark = str(result_dict["cable_mark"])
+            return cable_mark, result_dict
         elif cable_type == "single_core":
             params_sc = ResistiveSingleCoreParams(**request.data)
             result_sc = calc_resistive_single_core(params_sc)
@@ -1487,7 +1778,7 @@ class CalculationService:
         cable_mark: str | None,
     ) -> None:
         """Attach section metrics from the registered TT cable passport table."""
-        if request.cable_type not in {"self_regulating", "self_regulating_tt"}:
+        if request.cable_type != "self_regulating_tt":
             return
         if not cable_mark or not isinstance(result_dict, dict):
             return
@@ -1522,14 +1813,10 @@ class CalculationService:
             start_current_limit_f = None
         plan = compute_section_plan(
             mark=str(
-                result_dict.get("cable_model")
-                or result_dict.get("selected_cable")
-                or cable_mark
+                result_dict.get("cable_model") or result_dict.get("selected_cable") or cable_mark
             ),
             installed_cable_length_m=float(
-                result_dict.get("installed_cable_length")
-                or result_dict.get("cable_length")
-                or 0
+                result_dict.get("installed_cable_length") or result_dict.get("cable_length") or 0
             ),
             power_per_meter_w=float(result_dict.get("power_per_meter") or 0),
             working_current_total_a=float(result_dict.get("current") or 0),
@@ -1959,13 +2246,12 @@ class CalculationService:
         error: Exception,
         request_data: dict[str, Any] | None,
     ) -> dict[str, Any]:
-        error_message = f"{type(error).__name__}: {error}"
         error_request_data = dict(obj.params or {})
         if request_data:
             error_request_data.update(request_data)
         payload: dict[str, Any] = dict(
             build_electrical_error_payload(
-                error_message,
+                error,
                 object_type=obj.object_type,
                 object_name=(obj.params or {}).get("name"),
                 cable_type=calc.cable_type,
@@ -2041,8 +2327,7 @@ class CalculationService:
             .where(
                 ElectricalCalculation.project_id == project_id,
                 ElectricalCalculation.variant_number == source_variant_number,
-                ElectricalCalculation.electrical_variant_id
-                == source_electrical_variant_id,
+                ElectricalCalculation.electrical_variant_id == source_electrical_variant_id,
             )
             .order_by(ProjectObject.sort_order, ProjectObject.id)
         )
@@ -2071,8 +2356,7 @@ class CalculationService:
                 select(func.count(ElectricalCalculation.id)).where(
                     ElectricalCalculation.project_id == project_id,
                     ElectricalCalculation.variant_number == target_variant_number,
-                    ElectricalCalculation.electrical_variant_id
-                    == target_electrical_variant_id,
+                    ElectricalCalculation.electrical_variant_id == target_electrical_variant_id,
                 )
             )
             or 0
@@ -2094,8 +2378,7 @@ class CalculationService:
                     delete(ElectricalCalculation).where(
                         ElectricalCalculation.project_id == project_id,
                         ElectricalCalculation.variant_number == target_variant_number,
-                        ElectricalCalculation.electrical_variant_id
-                        == target_electrical_variant_id,
+                        ElectricalCalculation.electrical_variant_id == target_electrical_variant_id,
                     )
                 )
 
@@ -2136,6 +2419,11 @@ class CalculationService:
                         cable_type=cast(Any, calc.cable_type),
                         variant_number=target_variant_number,
                         data=request_data,
+                    )
+                    await self._prepare_self_regulating_tt_request(
+                        request,
+                        obj,
+                        electrical_variant_id=target_electrical_variant_id,
                     )
                     validated_cable_mark, result_dict = self._calculate_electrical_result(request)
                     if validated_cable_mark != copied_cable_mark:
@@ -2852,6 +3140,14 @@ class CalculationService:
 
         params = obj.params or {}
         results = obj.results or {}
+        if cable_type == "self_regulating_tt":
+            explicit_tt = dict(overrides)
+            if cable_mark is not None:
+                explicit_tt["cable_mark"] = cable_mark
+            return {
+                "cable_mark": cable_mark,
+                "_tt_explicit_overrides": explicit_tt,
+            }
         supply_voltage = self._num(
             overrides.get("supply_voltage") or params.get("supply_voltage"),
             220.0,
@@ -2861,13 +3157,6 @@ class CalculationService:
             safety_factor = self._num(params.get("safety_factor"), 1.1)
         pipe_length = self._base_cable_length(obj, overrides, params, results)
         winding_pitch = self._winding_pitch_mm(overrides, params)
-        override_vapor_temperature = self._num(overrides.get("vapor_temperature"))
-        object_vapor_temperature = self._num(params.get("vapor_temperature"))
-        vapor_temperature = (
-            override_vapor_temperature
-            if override_vapor_temperature is not None
-            else object_vapor_temperature
-        )
         override_maintain_temperature = self._num(overrides.get("maintain_temperature"))
         object_maintain_temperature = self._num(params.get("maintain_temperature"))
         maintain_temperature = (
@@ -2905,35 +3194,6 @@ class CalculationService:
                 ),
                 **thread_payload,
             }
-
-        if cable_type == "self_regulating_tt":
-            required_power_per_meter = self._required_power_per_meter(
-                obj, cable_type, overrides, safety_factor or 1.1
-            )
-            process_temperature = self._required_process_temperature(None, params)
-            thread_payload = self._number_of_threads_payload(overrides, params, None)
-            aggressive_product = (
-                overrides.get("aggressive_product")
-                if "aggressive_product" in overrides
-                and overrides.get("aggressive_product") is not None
-                else params.get("aggressive_product", False)
-            )
-            data = {
-                "required_power_per_meter": required_power_per_meter,
-                "pipe_length": pipe_length,
-                "process_temperature": process_temperature,
-                "maintain_temperature": maintain_temperature,
-                "supply_voltage": supply_voltage,
-                "safety_factor": safety_factor,
-                "cable_mark": cable_mark,
-                "vapor_temperature": vapor_temperature,
-                "aggressive_product": bool(aggressive_product),
-                "winding_coefficient": self._winding_coefficient(obj, overrides, params, 1.1),
-                "winding_pitch": winding_pitch,
-                **thread_payload,
-            }
-            data.update(self._tank_geometry_payload(obj, overrides))
-            return data
 
         if cable_type in ("single_core", "three_core"):
             required_heat_loss = self._positive_heat_loss(results.get("total_heat_loss_design"))
@@ -3060,8 +3320,7 @@ class CalculationService:
     ) -> dict[str, Any]:
         merged = dict(saved_layout)
         for key, value in base.items():
-            if value is not None:
-                merged[key] = value
+            merged[key] = value
         return merged
 
     async def _require_clean_candidate_scope(
@@ -3081,17 +3340,13 @@ class CalculationService:
             candidate_filters = [
                 ElectricalCandidate.project_id == project_id,
                 ElectricalCandidate.variant_number == variant_number,
-                ElectricalCandidate.electrical_variant_id.is_distinct_from(
-                    electrical_variant_id
-                ),
+                ElectricalCandidate.electrical_variant_id.is_distinct_from(electrical_variant_id),
             ]
             if object_id is not None:
                 candidate_filters.append(ElectricalCandidate.object_id == object_id)
             candidate_ids = list(
                 (
-                    await self.db.execute(
-                        select(ElectricalCandidate.id).where(*candidate_filters)
-                    )
+                    await self.db.execute(select(ElectricalCandidate.id).where(*candidate_filters))
                 ).scalars()
             )
         if include_folders:
@@ -3150,9 +3405,7 @@ class CalculationService:
                 object_id=object_id,
                 include_folders=False,
             )
-            filters.append(
-                ElectricalCandidate.electrical_variant_id == electrical_variant_id
-            )
+            filters.append(ElectricalCandidate.electrical_variant_id == electrical_variant_id)
         result = await self.db.execute(
             select(ElectricalCandidate)
             .where(*filters)
@@ -3223,10 +3476,7 @@ class CalculationService:
             ElectricalCandidateFolder.variant_number == variant_number,
         ]
         if electrical_variant_id is not None:
-            filters.append(
-                ElectricalCandidateFolder.electrical_variant_id
-                == electrical_variant_id
-            )
+            filters.append(ElectricalCandidateFolder.electrical_variant_id == electrical_variant_id)
         result = await self.db.execute(
             select(ElectricalCandidateFolder)
             .where(*filters)
@@ -3306,8 +3556,7 @@ class CalculationService:
                 ElectricalCandidateFolder.project_id == project_id,
                 ElectricalCandidateFolder.object_id == object_id,
                 ElectricalCandidateFolder.variant_number == variant_number,
-                ElectricalCandidateFolder.electrical_variant_id
-                == electrical_variant_id,
+                ElectricalCandidateFolder.electrical_variant_id == electrical_variant_id,
             )
         )
         next_sort = int(max_sort_result.scalar() or 0) + 10
@@ -3553,16 +3802,16 @@ class CalculationService:
         dedupe_key: str,
     ) -> ElectricalCandidate | None:
         result = await self.db.execute(
-            select(ElectricalCandidate).where(
+            select(ElectricalCandidate)
+            .where(
                 ElectricalCandidate.object_id == object_id,
                 ElectricalCandidate.variant_number == variant_number,
                 ElectricalCandidate.dedupe_key == dedupe_key,
-            ).with_for_update()
+            )
+            .with_for_update()
         )
         rows = list(result.scalars().all())
-        conflicts = [
-            row for row in rows if row.electrical_variant_id != electrical_variant_id
-        ]
+        conflicts = [row for row in rows if row.electrical_variant_id != electrical_variant_id]
         if conflicts:
             raise ElectricalAssignmentServiceError(
                 "ELECTRICAL_ASSIGNMENT_DOWNSTREAM_SCOPE_CONFLICT",
@@ -3795,6 +4044,11 @@ class CalculationService:
                 data=request_data,
             )
             self._hydrate_electrical_request_from_object(request, obj)
+            await self._prepare_self_regulating_tt_request(
+                request,
+                obj,
+                electrical_variant_id=electrical_variant_id,
+            )
             selected_mark, result_dict = self._calculate_electrical_result(request)
             cable_snapshot = self._build_cable_snapshot_for_result(
                 request=request,
@@ -4356,9 +4610,7 @@ class CalculationService:
             ElectricalCalculation.object_id.in_(object_ids),
         ]
         if electrical_variant_id is not None:
-            filters.append(
-                ElectricalCalculation.electrical_variant_id == electrical_variant_id
-            )
+            filters.append(ElectricalCalculation.electrical_variant_id == electrical_variant_id)
         result = await self.db.execute(
             select(ElectricalCalculation)
             .options(
@@ -4491,6 +4743,11 @@ class CalculationService:
                 object_ids=[obj.id for obj in objects],
                 electrical_variant_id=electrical_variant_id,
             )
+            await self._prefetch_tt_assignments(
+                project_id,
+                electrical_variant_id,
+                [obj.id for obj in objects],
+            )
             successful_rows: list[dict[str, Any]] = []
 
             for obj in objects:
@@ -4557,6 +4814,11 @@ class CalculationService:
                         variant_number=variant_number,
                         data=request_data,
                     )
+                    await self._prepare_self_regulating_tt_request(
+                        request,
+                        obj,
+                        electrical_variant_id=electrical_variant_id,
+                    )
                     cable_mark, result_dict = self._calculate_electrical_result(request)
                     cable_snapshot = self._build_cable_snapshot_for_result(
                         request=request,
@@ -4584,7 +4846,6 @@ class CalculationService:
                     raise
                 except Exception as exc:
                     skipped += 1
-                    err_msg = f"{type(exc).__name__}: {exc}"
                     error_request_data = dict(obj.params or {})
                     if request_data:
                         error_request_data.update(request_data)
@@ -4592,7 +4853,7 @@ class CalculationService:
                         {
                             "object_id": str(obj.id),
                             **build_electrical_error_payload(
-                                err_msg,
+                                exc,
                                 object_type=obj.object_type,
                                 object_name=(obj.params or {}).get("name"),
                                 cable_type=object_cable_type,
@@ -4602,7 +4863,7 @@ class CalculationService:
                     )
                     await self._upsert_failed_electrical(
                         obj,
-                        err_msg,
+                        exc,
                         variant_number,
                         object_cable_type,
                         cable_type_source=cable_type_source,
@@ -4661,7 +4922,7 @@ class CalculationService:
     async def _upsert_failed_electrical(
         self,
         obj: ProjectObject,
-        error_message: str,
+        error_message: str | Exception,
         variant_number: int,
         cable_type: str,
         *,

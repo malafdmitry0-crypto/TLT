@@ -10,7 +10,10 @@ from app.formulas.specification.source_mapping import (
     box_ex_rgr_matrix_registered,
     is_rule_approved,
 )
-from app.reference_data.loader import list_spec_accessory_rules
+from app.reference_data.loader import (
+    get_electrical_tt_bom_entry,
+    list_spec_accessory_rules,
+)
 
 
 def test_all_accessory_rules_have_explicit_identity():
@@ -37,9 +40,7 @@ def test_temperature_group_requires_explicit_fields():
         )
         == "low"
     )
-    assert (
-        temperature_group_from_result({"selected_cable": "45ТТХ2", "series": "ТТХ"}) == "high"
-    )
+    assert temperature_group_from_result({"selected_cable": "45ТТХ2", "series": "ТТХ"}) == "high"
 
 
 def test_cable_identity_uses_explicit_nomenclature():
@@ -57,6 +58,8 @@ def test_cable_identity_uses_explicit_nomenclature():
 
 
 def test_tt_cable_identity_uses_exact_bom_and_ignores_result_article():
+    bom = get_electrical_tt_bom_entry("30ТТВ2-СР")
+    assert bom is not None
     identity = cable_identity_from_result(
         {
             "cable_type": "self_regulating_tt",
@@ -64,6 +67,22 @@ def test_tt_cable_identity_uses_exact_bom_and_ignores_result_article():
             "selected_cable": "30ТТВ2",
             "nomenclature_code": "WRONG-FROM-RESULT",
             "series": "ТТВ",
+            "catalogs": {
+                "power": {
+                    "status": "active",
+                    "version": "test-power-v1",
+                    "source_checksum": "sha256:test-power",
+                },
+                "section": {
+                    "status": "registered",
+                    "version": "test-section-v1",
+                    "source_checksum": "sha256:test-section",
+                },
+                "bom": {
+                    **bom["catalog"],
+                    "row": {key: value for key, value in bom.items() if key != "catalog"},
+                },
+            },
         }
     )
     assert identity is not None

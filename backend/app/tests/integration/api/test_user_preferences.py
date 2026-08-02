@@ -5,7 +5,10 @@ from typing import Any, cast
 import pytest
 from httpx import AsyncClient
 
-from app.generated.heatcalc_field_contract import HEATCALC_TABLE_COLUMNS_VERSION
+from app.generated.heatcalc_field_contract import (
+    HEATCALC_FIELD_INPUT_VERSION,
+    HEATCALC_TABLE_COLUMNS_VERSION,
+)
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -70,7 +73,7 @@ def heatcalc_table_view_value(
 
 def heatcalc_field_inputs_value(step: float = 2.5) -> dict[str, object]:
     return {
-        "version": 1,
+        "version": HEATCALC_FIELD_INPUT_VERSION,
         "fields": {
             "pipe": {
                 "outer_diameter_mm": {"step": step},

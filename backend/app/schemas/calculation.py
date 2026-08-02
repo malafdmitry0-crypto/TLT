@@ -283,9 +283,7 @@ class PipeHeatLossParams(BaseModel):
                     label=f"материала изоляции #{index}",
                 )
         if self.num_local_elements > 0 and self.local_element_equiv_length is None:
-            raise ValueError(
-                "Для num_local_elements > 0 требуется local_element_equiv_length"
-            )
+            raise ValueError("Для num_local_elements > 0 требуется local_element_equiv_length")
         if self.placement == "underground":
             if self.ground_temperature is None:
                 raise ValueError("Для underground требуется ground_temperature")
@@ -490,6 +488,7 @@ class TankHeatLossParams(BaseModel):
         ge=0,
         description="Q_доп — дополнительные теплопотери (днище, фланцы и пр.), Вт",
     )
+
     @model_validator(mode="after")
     def check_ranges_and_layers(self) -> "TankHeatLossParams":
         _validate_insulation_temperature_basis_for_location(
@@ -1163,7 +1162,7 @@ class ElectricalCableSelectionVariantsRequest(BaseModel):
     laying_step: float | None = Field(default=None, ge=0.1, le=0.4)
     maintain_temperature: float | None = None
     vapor_temperature: float | None = None
-    aggressive_product: bool = False
+    aggressive_product: bool | None = None
     selection_policy: SelectionPolicy = "technical_minimum"
 
     @model_validator(mode="after")
@@ -1178,16 +1177,14 @@ class ElectricalCableSelectionVariantsRequest(BaseModel):
         if self.electrical_variant_ids and set(self.electrical_variant_ids) != set(
             normalized_variants
         ):
-            raise ValueError(
-                "electrical_variant_ids должны точно соответствовать variant_numbers"
-            )
+            raise ValueError("electrical_variant_ids должны точно соответствовать variant_numbers")
         if isinstance(self.cable_mark, str):
             mark = self.cable_mark.strip()
             self.cable_mark = mark or None
         return self
 
     def electrical_params(self) -> dict[str, Any]:
-        return {
+        values = {
             "selection_mode": self.selection_mode,
             "supply_voltage": self.supply_voltage,
             "connection_type": self.connection_type,
@@ -1201,6 +1198,7 @@ class ElectricalCableSelectionVariantsRequest(BaseModel):
             "aggressive_product": self.aggressive_product,
             "selection_policy": self.selection_policy,
         }
+        return {key: value for key, value in values.items() if key in self.model_fields_set}
 
 
 ElectricalCandidateMode = Literal["auto", "manual"]
@@ -1490,7 +1488,7 @@ class ElectricalBatchJobRequest(BaseModel):
     laying_step: float | None = Field(default=None, ge=0.1, le=0.4)
     maintain_temperature: float | None = None
     vapor_temperature: float | None = None
-    aggressive_product: bool = False
+    aggressive_product: bool | None = None
     skip_manual: bool = True
     include_results: bool = False
     include_errors: bool = True
@@ -1508,7 +1506,7 @@ class ElectricalBatchJobRequest(BaseModel):
         return self
 
     def electrical_params(self) -> dict[str, Any]:
-        return {
+        values = {
             "supply_voltage": self.supply_voltage,
             "connection_type": self.connection_type,
             "winding_coefficient": self.winding_coefficient,
@@ -1521,6 +1519,7 @@ class ElectricalBatchJobRequest(BaseModel):
             "aggressive_product": self.aggressive_product,
             "selection_policy": self.selection_policy,
         }
+        return {key: value for key, value in values.items() if key in self.model_fields_set}
 
 
 class HeatLossBatchJobRequest(BaseModel):

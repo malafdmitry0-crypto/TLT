@@ -54,10 +54,7 @@ def accessory_identity(rule: dict[str, Any]) -> dict[str, Any] | None:
     if not mark or not code:
         return None
     supplier = (
-        rule.get("supplier")
-        or rule.get("supplier_name")
-        or rule.get("manufacturer")
-        or "ТЛТ"
+        rule.get("supplier") or rule.get("supplier_name") or rule.get("manufacturer") or "ТЛТ"
     )
     supply_unit = rule.get("supply_unit") or rule.get("unit") or "шт."
     return {
@@ -85,7 +82,9 @@ def resolve_accessory_rule(rule_key: str) -> tuple[dict[str, Any] | None, str | 
 
 def temperature_group_from_result(result: dict[str, Any]) -> str | None:
     """Explicit temperature group only — no mark prefix inference (PDL-ER-33)."""
-    snapshot = result.get("cable_snapshot") if isinstance(result.get("cable_snapshot"), dict) else {}
+    snapshot = (
+        result.get("cable_snapshot") if isinstance(result.get("cable_snapshot"), dict) else {}
+    )
     technical = snapshot.get("technical") if isinstance(snapshot.get("technical"), dict) else {}
     selection = snapshot.get("selection") if isinstance(snapshot.get("selection"), dict) else {}
     cable = result.get("cable") if isinstance(result.get("cable"), dict) else {}
@@ -139,9 +138,73 @@ def temperature_group_from_result(result: dict[str, Any]) -> str | None:
     return None
 
 
+def tt_catalog_issue_from_result(result: dict[str, Any]) -> dict[str, Any] | None:
+    """Validate saved TT catalogs and the exact current active BOM identity."""
+    cable = result.get("cable") if isinstance(result.get("cable"), dict) else {}
+    mark = result.get("cable_mark") or cable.get("mark") or cable.get("full_mark")
+    if not isinstance(mark, str) or get_electrical_tt_bom_entry(mark) is None:
+        # Missing exact mark has its own SPEC_CABLE_NOMENCLATURE_MISSING diagnostic.
+        return None
+    provenance = result.get("provenance")
+    provenance = provenance if isinstance(provenance, dict) else {}
+    catalogs = result.get("catalogs")
+    if not isinstance(catalogs, dict):
+        catalogs = provenance.get("catalogs")
+    if not isinstance(catalogs, dict):
+        return {"reason": "catalog_snapshots_missing", "invalid_catalogs": ["all"]}
+
+    allowed_statuses = {
+        "power": {"active"},
+        "section": {"active", "registered"},
+        "bom": {"active"},
+    }
+    invalid: list[dict[str, Any]] = []
+    for kind, allowed in allowed_statuses.items():
+        raw = catalogs.get(kind)
+        catalog = raw if isinstance(raw, dict) else {}
+        checksum = catalog.get("source_checksum") or catalog.get("payload_checksum")
+        if catalog.get("status") not in allowed or not checksum:
+            invalid.append(
+                {
+                    "kind": kind,
+                    "status": catalog.get("status"),
+                    "version": catalog.get("version"),
+                    "checksum": checksum,
+                }
+            )
+
+    saved_bom = catalogs.get("bom")
+    saved_bom = saved_bom if isinstance(saved_bom, dict) else {}
+    current_bom = get_electrical_tt_bom_entry(mark)
+    current_catalog = current_bom["catalog"] if current_bom is not None else {}
+    for field in ("version", "source_checksum", "schema_version"):
+        if saved_bom.get(field) != current_catalog.get(field):
+            invalid.append(
+                {
+                    "kind": "bom",
+                    "reason": "snapshot_mismatch",
+                    "field": field,
+                    "saved": saved_bom.get(field),
+                    "active": current_catalog.get(field),
+                }
+            )
+    saved_row = saved_bom.get("row")
+    saved_row = saved_row if isinstance(saved_row, dict) else {}
+    if current_bom is not None and (
+        saved_row.get("full_mark") != current_bom.get("full_mark")
+        or saved_row.get("nomenclature_code") != current_bom.get("nomenclature_code")
+    ):
+        invalid.append({"kind": "bom", "reason": "row_snapshot_mismatch"})
+    if invalid:
+        return {"reason": "catalog_not_active_or_stale", "invalid_catalogs": invalid}
+    return None
+
+
 def cable_identity_from_result(result: dict[str, Any]) -> dict[str, Any] | None:
     """Build cable catalog identity from explicit snapshot/result fields."""
-    snapshot = result.get("cable_snapshot") if isinstance(result.get("cable_snapshot"), dict) else {}
+    snapshot = (
+        result.get("cable_snapshot") if isinstance(result.get("cable_snapshot"), dict) else {}
+    )
     cable = result.get("cable") if isinstance(result.get("cable"), dict) else {}
     mark = (
         result.get("cable_mark")
@@ -158,6 +221,8 @@ def cable_identity_from_result(result: dict[str, Any]) -> dict[str, Any] | None:
         # The new TT calculation is procurement-safe only through the exact
         # full-mark BOM catalog. Explicit result articles and approximate/base
         # model matches are deliberately ignored at this boundary.
+        if tt_catalog_issue_from_result(result) is not None:
+            return None
         bom = get_electrical_tt_bom_entry(str(mark))
         if bom is None:
             return None

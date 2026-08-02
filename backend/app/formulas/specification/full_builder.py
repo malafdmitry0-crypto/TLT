@@ -24,6 +24,7 @@ from app.formulas.specification.catalog_identity import (
     cable_identity_from_result,
     resolve_accessory_rule,
     temperature_group_from_result,
+    tt_catalog_issue_from_result,
 )
 from app.formulas.specification.source_mapping import (
     box_ex_rgr_matrix_meta,
@@ -178,21 +179,16 @@ def _is_explicitly_production_ineligible(result: dict[str, Any]) -> bool:
         result.get("resolved_inputs") if isinstance(result.get("resolved_inputs"), dict) else {}
     )
     return any(
-        source.get("production_eligible") is False
-        for source in (result, provenance, resolved)
+        source.get("production_eligible") is False for source in (result, provenance, resolved)
     )
 
 
 def _tt_section_plan_issue(result: dict[str, Any]) -> dict[str, Any] | None:
     """Validate proof that TT order quantity was produced after sectioning."""
     layout = result.get("layout") if isinstance(result.get("layout"), dict) else {}
-    section_summary = (
-        result.get("sections") if isinstance(result.get("sections"), dict) else {}
-    )
+    section_summary = result.get("sections") if isinstance(result.get("sections"), dict) else {}
     count = _num(
-        result.get("section_count")
-        or result.get("num_sections")
-        or section_summary.get("count")
+        result.get("section_count") or result.get("num_sections") or section_summary.get("count")
     )
     section_length = _num(result.get("section_length_m") or section_summary.get("length_m"))
     l_fact = _num(result.get("section_l_fact_m") or layout.get("actual_installed_length_m"))
@@ -416,9 +412,7 @@ def _repair_length_per_kit() -> float:
     return _DEFAULT_REPAIR_LENGTH_PER_KIT
 
 
-def _package_quantity(
-    raw_value: float, resolved: dict[str, Any]
-) -> tuple[float, dict[str, Any]]:
+def _package_quantity(raw_value: float, resolved: dict[str, Any]) -> tuple[float, dict[str, Any]]:
     """PDF packing: kits_per_unit / reel_m preferred over float package_factor."""
     extra: dict[str, Any] = {}
     unit = resolved.get("unit", "шт.")
@@ -527,9 +521,30 @@ def build_full_specification_detailed(
     for result in electrical_results:
         obj_id = str(result.get("object_id") or "")
         is_successful_tt = _cable_type(result) == "self_regulating_tt" and _is_successful(result)
-        if is_successful_tt and (
-            _mocked_fields(result) or _is_explicitly_production_ineligible(result)
-        ):
+        if is_successful_tt and _mocked_fields(result):
+            excluded_groups.append(
+                {
+                    "group": "heating_cable",
+                    "error_code": "ELECTRICAL_MOCK_INPUTS_NOT_ALLOWED",
+                    "message": "Non-production electrical result cannot drive a specification.",
+                    "object_ids": [obj_id],
+                    "mocked_fields": _mocked_fields(result),
+                }
+            )
+            continue
+        catalog_issue = tt_catalog_issue_from_result(result) if is_successful_tt else None
+        if catalog_issue is not None:
+            excluded_groups.append(
+                {
+                    "group": "heating_cable",
+                    "error_code": "ELECTRICAL_CATALOG_SOURCE_UNREGISTERED",
+                    "message": "TT catalog snapshots are missing, inactive, or stale.",
+                    "object_ids": [obj_id],
+                    **catalog_issue,
+                }
+            )
+            continue
+        if is_successful_tt and _is_explicitly_production_ineligible(result):
             excluded_groups.append(
                 {
                     "group": "heating_cable",
@@ -719,12 +734,8 @@ def build_full_specification_detailed(
     kit_cap = int(getattr(opt, "connector_kit_sections_per_kit", 1) or 1)
     if kit_cap not in (1, 2):
         kit_cap = 1
-    conn_low = (
-        _ceil(n_low / float(kit_cap)) if sections_ready and n_low > 0 else 0.0
-    )
-    conn_high = (
-        _ceil(n_high / float(kit_cap)) if sections_ready and n_high > 0 else 0.0
-    )
+    conn_low = _ceil(n_low / float(kit_cap)) if sections_ready and n_low > 0 else 0.0
+    conn_high = _ceil(n_high / float(kit_cap)) if sections_ready and n_high > 0 else 0.0
     # Emit only the selected capacity rule; other capacity stays 0.
     fl1 = conn_low if kit_cap == 1 else 0.0
     fl2 = conn_low if kit_cap == 2 else 0.0
@@ -755,7 +766,9 @@ def build_full_specification_detailed(
         "box_Nk11": b("box_Nk11"),
         "box_Nk12": b("box_Nk12"),
         "cable_entry_plastic": (
-            (nk_large_plain + nk_large_k1i + b("box_Nk7")) if (matrix_ok and not opt.ex_zone) else 0.0
+            (nk_large_plain + nk_large_k1i + b("box_Nk7"))
+            if (matrix_ok and not opt.ex_zone)
+            else 0.0
         ),
         "cable_entry_armored": (
             (nk_large_plain + nk_large_k1i + b("box_Nk7")) if (matrix_ok and opt.ex_zone) else 0.0
@@ -783,13 +796,7 @@ def build_full_specification_detailed(
         ),
         "label_warning": label_warning,
         "label_grounding": (
-            (
-                nk_large_plain
-                + nk_large_k1i
-                + nk_small_plain
-                + b("box_Nk11")
-                + b("box_Nk12")
-            )
+            (nk_large_plain + nk_large_k1i + nk_small_plain + b("box_Nk11") + b("box_Nk12"))
             if matrix_ok
             else 0.0
         ),
@@ -831,7 +838,8 @@ def build_full_specification_detailed(
                         "mark": mark,
                         "cable_mark": mark,
                         "nomenclature_code": meta.get("nomenclature_code") or mark,
-                        "temperature_group": meta.get("temperature_group") or meta.get("temp_class"),
+                        "temperature_group": meta.get("temperature_group")
+                        or meta.get("temp_class"),
                         "temp_class": meta.get("temp_class"),
                         "catalog_base": "heating_cable",
                         "cable_type": meta.get("cable_type"),
@@ -861,8 +869,7 @@ def build_full_specification_detailed(
             if (
                 excl
                 and excl.get("error_code") != "BOX_EX_RGR_MATRIX_MISSING"
-                and excl.get("error_code")
-                not in {g.get("error_code") for g in excluded_groups}
+                and excl.get("error_code") not in {g.get("error_code") for g in excluded_groups}
             ):
                 excluded_groups.append(excl)
             continue
@@ -874,8 +881,7 @@ def build_full_specification_detailed(
                     "group": rule_key,
                     "error_code": err or "CATALOG_IDENTITY_INCOMPLETE",
                     "message": (
-                        f"Позиция «{rule_key}» без явных mark/nomenclature_code "
-                        "(PDL-ER-33)."
+                        f"Позиция «{rule_key}» без явных mark/nomenclature_code " "(PDL-ER-33)."
                     ),
                 }
             )

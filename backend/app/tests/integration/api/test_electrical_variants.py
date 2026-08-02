@@ -37,12 +37,15 @@ MINERAL_WOOL = "mineral_wool_boards_120"
 READY_PIPE_PARAMS = {
     "name": "Трубопровод 1",
     "outer_diameter": 0.108,
-    "insulation_thickness": 0.05,
-    "insulation_material": MINERAL_WOOL,
+    "wall_thickness": 0.004,
+    "pipe_material": "carbon_steel",
+    "insulation_layers": [{"thickness": 0.05, "material": MINERAL_WOOL}],
     "insulation_temperature_basis": "outdoor_winter",
     "ambient_temperature": -30.0,
     "process_temperature": 80.0,
     "pipe_length": 50.0,
+    "placement": "outdoor",
+    "wind_speed": 0.0,
 }
 
 
@@ -142,9 +145,7 @@ async def _prepare_and_assign_legacy_variant(
     )
     assert variants.status_code == 200, variants.text
     variant = next(
-        item
-        for item in variants.json()
-        if item["legacy_variant_number"] == variant_number
+        item for item in variants.json() if item["legacy_variant_number"] == variant_number
     )
     await _assign_variant_object(
         client,
@@ -556,9 +557,7 @@ class TestElectricalVariantLifecycle:
         assert retry.status_code == 201, retry.text
         assert retry.json()["id"] == first.json()["id"]
         assert mismatch.status_code == 409, mismatch.text
-        assert mismatch.json()["detail"]["code"] == (
-            "ELECTRICAL_VARIANT_IDEMPOTENCY_KEY_REUSED"
-        )
+        assert mismatch.json()["detail"]["code"] == ("ELECTRICAL_VARIANT_IDEMPOTENCY_KEY_REUSED")
         listing = await client.get(url, headers=headers)
         assert len(listing.json()) == 2
 
@@ -839,9 +838,7 @@ class TestElectricalVariantConcurrency:
             stale_multi_write,
         ):
             assert response.status_code == 409, response.text
-            assert response.json()["detail"]["code"] == (
-                "ELECTRICAL_VARIANT_SCOPE_MISMATCH"
-            )
+            assert response.json()["detail"]["code"] == ("ELECTRICAL_VARIANT_SCOPE_MISMATCH")
         candidates_for_replacement = await db_session.scalar(
             select(func.count(ElectricalCandidate.id)).where(
                 ElectricalCandidate.electrical_variant_id == UUID(replacement["id"])

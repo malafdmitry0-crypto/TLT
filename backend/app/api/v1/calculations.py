@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.dependencies import CurrentPrincipal, require_any
 from app.core.rate_limit import batch_limiter, enforce_principal_rate_limit
+from app.electrical_domain import ElectricalFormulaError
 from app.models.electrical_calculation import ElectricalCalculation
 from app.schemas.calculation import (
     BatchCalcResponse,
@@ -45,6 +46,7 @@ from app.services.calculation_service import (
     ElectricalCandidateApplyError,
     ElectricalVariantCopyError,
 )
+from app.services.electrical_input_resolver import ElectricalInputResolutionError
 from app.services.electrical_query_service import (
     ElectricalQueryService,
     ElectricalQueryValidationError,
@@ -162,6 +164,8 @@ async def calc_electrical(
         raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     except (ProjectNotFoundError, ProjectAccessError) as exc:
         _raise_project_error(exc)
+    except (ElectricalFormulaError, ElectricalInputResolutionError) as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     except (ValueError, ValidationError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except CalculationError as exc:
@@ -518,6 +522,8 @@ async def create_electrical_candidate(
         raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     except (ProjectNotFoundError, ProjectAccessError) as exc:
         _raise_project_error(exc)
+    except (ElectricalFormulaError, ElectricalInputResolutionError) as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     except (ValueError, ValidationError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except CalculationError as exc:
@@ -855,7 +861,7 @@ async def select_cable(
     laying_step: float | None = None,
     maintain_temperature: float | None = None,
     vapor_temperature: float | None = None,
-    aggressive_product: bool = False,
+    aggressive_product: bool | None = None,
     selection_policy: SelectionPolicy = "technical_minimum",
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
@@ -904,6 +910,8 @@ async def select_cable(
         raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     except (ProjectNotFoundError, ProjectAccessError) as exc:
         _raise_project_error(exc)
+    except (ElectricalFormulaError, ElectricalInputResolutionError) as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     except (ValueError, ValidationError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except CalculationError as exc:
@@ -970,6 +978,8 @@ async def select_cable_variants(
         raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     except (ProjectNotFoundError, ProjectAccessError) as exc:
         _raise_project_error(exc)
+    except (ElectricalFormulaError, ElectricalInputResolutionError) as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     except (ValueError, ValidationError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except CalculationError as exc:
@@ -1019,7 +1029,7 @@ async def batch_calc_electrical(
     laying_step: float | None = None,
     maintain_temperature: float | None = None,
     vapor_temperature: float | None = None,
-    aggressive_product: bool = False,
+    aggressive_product: bool | None = None,
     selection_policy: SelectionPolicy = "technical_minimum",
     skip_manual: bool = True,
     include_results: bool = True,

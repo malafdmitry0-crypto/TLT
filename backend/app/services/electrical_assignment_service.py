@@ -8,7 +8,7 @@ from time import perf_counter
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import and_, delete, func, or_, select, tuple_
+from sqlalchemy import and_, delete, func, or_, select, tuple_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import CurrentPrincipal
@@ -26,6 +26,7 @@ from app.models.project_object import ProjectObject
 from app.models.specification import Specification
 from app.schemas.electrical_assignment import (
     ElectricalAssignmentCounts,
+    ElectricalAssignmentCurrentLimitPatch,
     ElectricalAssignmentMutationItem,
     ElectricalAssignmentResponse,
     ElectricalAssignmentsListResponse,
@@ -75,45 +76,49 @@ class ElectricalAssignmentService:
         await self._require_variant(project_id, variant_id)
 
         aggregate = (
-            await self.db.execute(
-                select(
-                    func.count(ElectricalVariantObject.id).label("total"),
-                    func.count(ElectricalVariantObject.id)
-                    .filter(ElectricalVariantObject.system_type.is_(None))
-                    .label("system_unassigned"),
-                    func.count(ElectricalVariantObject.id)
-                    .filter(ElectricalVariantObject.system_type == "self_regulating")
-                    .label("system_self_regulating"),
-                    func.count(ElectricalVariantObject.id)
-                    .filter(ElectricalVariantObject.system_type == "resistive")
-                    .label("system_resistive"),
-                    func.count(ElectricalVariantObject.id)
-                    .filter(ElectricalVariantObject.system_type == "skin")
-                    .label("system_skin"),
-                    func.count(ElectricalVariantObject.id)
-                    .filter(ElectricalVariantObject.system_type == "mineral")
-                    .label("system_mineral"),
-                    func.count(ElectricalVariantObject.id)
-                    .filter(ElectricalVariantObject.assignment_state == "unassigned")
-                    .label("state_unassigned"),
-                    func.count(ElectricalVariantObject.id)
-                    .filter(ElectricalVariantObject.assignment_state == "ready")
-                    .label("state_ready"),
-                    func.count(ElectricalVariantObject.id)
-                    .filter(ElectricalVariantObject.assignment_state == "unsupported")
-                    .label("state_unsupported"),
-                    func.count(ElectricalVariantObject.id)
-                    .filter(ElectricalVariantObject.assignment_state == "stale")
-                    .label("state_stale"),
-                    func.count(ElectricalVariantObject.id)
-                    .filter(ElectricalVariantObject.assignment_state == "error")
-                    .label("state_error"),
-                ).where(
-                    ElectricalVariantObject.project_id == project_id,
-                    ElectricalVariantObject.electrical_variant_id == variant_id,
+            (
+                await self.db.execute(
+                    select(
+                        func.count(ElectricalVariantObject.id).label("total"),
+                        func.count(ElectricalVariantObject.id)
+                        .filter(ElectricalVariantObject.system_type.is_(None))
+                        .label("system_unassigned"),
+                        func.count(ElectricalVariantObject.id)
+                        .filter(ElectricalVariantObject.system_type == "self_regulating")
+                        .label("system_self_regulating"),
+                        func.count(ElectricalVariantObject.id)
+                        .filter(ElectricalVariantObject.system_type == "resistive")
+                        .label("system_resistive"),
+                        func.count(ElectricalVariantObject.id)
+                        .filter(ElectricalVariantObject.system_type == "skin")
+                        .label("system_skin"),
+                        func.count(ElectricalVariantObject.id)
+                        .filter(ElectricalVariantObject.system_type == "mineral")
+                        .label("system_mineral"),
+                        func.count(ElectricalVariantObject.id)
+                        .filter(ElectricalVariantObject.assignment_state == "unassigned")
+                        .label("state_unassigned"),
+                        func.count(ElectricalVariantObject.id)
+                        .filter(ElectricalVariantObject.assignment_state == "ready")
+                        .label("state_ready"),
+                        func.count(ElectricalVariantObject.id)
+                        .filter(ElectricalVariantObject.assignment_state == "unsupported")
+                        .label("state_unsupported"),
+                        func.count(ElectricalVariantObject.id)
+                        .filter(ElectricalVariantObject.assignment_state == "stale")
+                        .label("state_stale"),
+                        func.count(ElectricalVariantObject.id)
+                        .filter(ElectricalVariantObject.assignment_state == "error")
+                        .label("state_error"),
+                    ).where(
+                        ElectricalVariantObject.project_id == project_id,
+                        ElectricalVariantObject.electrical_variant_id == variant_id,
+                    )
                 )
             )
-        ).one()._mapping
+            .one()
+            ._mapping
+        )
 
         filters = [
             ElectricalVariantObject.project_id == project_id,
@@ -188,6 +193,96 @@ class ElectricalAssignmentService:
                 next_cursor=next_cursor,
             ),
         )
+
+    async def patch_section_current_limit(
+        self,
+        project_id: UUID,
+        variant_id: UUID,
+        object_id: UUID,
+        data: ElectricalAssignmentCurrentLimitPatch,
+        principal: CurrentPrincipal,
+    ) -> ElectricalAssignmentResponse:
+        """Optimistically update the object-level Iдоп override for one exact ER."""
+        try:
+            await self._guard_and_lock_project(project_id, principal)
+            await self._require_variant(project_id, variant_id)
+            item = ElectricalAssignmentMutationItem(
+                object_id=object_id,
+                expected_version=data.expected_version,
+            )
+            assignment, obj = (await self._lock_assignments(project_id, variant_id, [item]))[
+                object_id
+            ]
+            if assignment.system_type != "self_regulating":
+                raise ElectricalAssignmentServiceError(
+                    "ELECTRICAL_ASSIGNMENT_SYSTEM_MISMATCH",
+                    "Iдоп секции применяется только к саморегулирующемуся кабелю",
+                    status_code=409,
+                    details={"object_id": str(object_id)},
+                )
+            await self._require_no_active_job_conflict(project_id, variant_id, {object_id})
+            if assignment.max_section_start_current_a == data.max_section_start_current_a:
+                await self.db.commit()
+                await self.db.refresh(assignment)
+                return self._response(assignment, obj)
+
+            before = assignment.max_section_start_current_a
+            assignment.max_section_start_current_a = data.max_section_start_current_a
+            calculation_result = await self.db.execute(
+                select(ElectricalCalculation)
+                .where(
+                    ElectricalCalculation.project_id == project_id,
+                    ElectricalCalculation.electrical_variant_id == variant_id,
+                    ElectricalCalculation.object_id == object_id,
+                )
+                .with_for_update()
+            )
+            for calculation in calculation_result.scalars().all():
+                previous = dict(calculation.results or {})
+                calculation.results = {
+                    **previous,
+                    "stale": True,
+                    "category": "stale",
+                    "stale_reason": "section_current_limit_changed",
+                    "error_code": "ELECTRICAL_RECALCULATION_REQUIRED",
+                    "message": "Допустимый стартовый ток секции изменён",
+                }
+            await self.db.execute(
+                update(ElectricalCandidate)
+                .where(
+                    ElectricalCandidate.project_id == project_id,
+                    ElectricalCandidate.electrical_variant_id == variant_id,
+                    ElectricalCandidate.object_id == object_id,
+                )
+                .values(status="stale", is_applied=False)
+            )
+            await self.mark_assignments_stale(
+                project_id,
+                variant_id,
+                [object_id],
+                reason="section_current_limit_changed",
+                operation="assignment_current_limit_patch",
+            )
+            await AuditService(self.db).stage(
+                event_type="project.electrical_assignment.current_limit_updated",
+                category="project",
+                principal=principal,
+                project_id=project_id,
+                object_id=object_id,
+                requirement_refs=["DEC-05", "BE-17"],
+                before_state={"max_section_start_current_a": before},
+                after_state={
+                    "max_section_start_current_a": data.max_section_start_current_a,
+                    "assignment_version": assignment.version,
+                },
+                message="Updated assignment section current limit",
+            )
+            await self.db.commit()
+            await self.db.refresh(assignment)
+            return self._response(assignment, obj)
+        except Exception:
+            await self.db.rollback()
+            raise
 
     async def assign(
         self,
@@ -296,9 +391,7 @@ class ElectricalAssignmentService:
 
         specification_state = await self._specification_state(project_id, variant_id)
         if changed:
-            await SpecificationService(
-                self.db
-            ).mark_electrical_variant_specification_stale(
+            await SpecificationService(self.db).mark_electrical_variant_specification_stale(
                 project_id,
                 variant_id,
                 "electrical_assignment_changed",
@@ -438,9 +531,7 @@ class ElectricalAssignmentService:
 
         specification_state = await self._specification_state(project_id, variant_id)
         if changed:
-            await SpecificationService(
-                self.db
-            ).mark_electrical_variant_specification_stale(
+            await SpecificationService(self.db).mark_electrical_variant_specification_stale(
                 project_id,
                 variant_id,
                 "electrical_assignment_unassigned",
@@ -503,9 +594,7 @@ class ElectricalAssignmentService:
         exc: Exception,
         system_type: ElectricalSystemType | None = None,
     ) -> None:
-        error_code = str(
-            getattr(exc, "code", None) or "ELECTRICAL_ASSIGNMENT_INTERNAL_ERROR"
-        )
+        error_code = str(getattr(exc, "code", None) or "ELECTRICAL_ASSIGNMENT_INTERNAL_ERROR")
         details: dict[str, Any] = {
             "electrical_variant_id": str(variant_id),
             "action": action,
@@ -584,7 +673,10 @@ class ElectricalAssignmentService:
             assignment, obj = assignments[pair]
             cable_type = str(row.get("cable_type") or "")
             mapped_system = self.normalize_system_type(cable_type)
-            if assignment.system_type != mapped_system or mapped_system not in _SUPPORTED_SYSTEM_TYPES:
+            if (
+                assignment.system_type != mapped_system
+                or mapped_system not in _SUPPORTED_SYSTEM_TYPES
+            ):
                 raise ElectricalAssignmentServiceError(
                     "ELECTRICAL_ASSIGNMENT_SYSTEM_MISMATCH",
                     "Тип расчёта не соответствует назначенной системе объекта",
@@ -639,8 +731,7 @@ class ElectricalAssignmentService:
             )
         )
         assignments = {
-            (item.electrical_variant_id, item.object_id): item
-            for item in result.scalars().all()
+            (item.electrical_variant_id, item.object_id): item for item in result.scalars().all()
         }
         missing = [pair for pair in scoped_rows if pair not in assignments]
         if missing:
@@ -781,9 +872,7 @@ class ElectricalAssignmentService:
                 details={"requested_cable_type": requested_cable_type},
             )
         if lock_project:
-            await self.db.execute(
-                select(Project).where(Project.id == project_id).with_for_update()
-            )
+            await self.db.execute(select(Project).where(Project.id == project_id).with_for_update())
         result = await self.db.execute(
             select(ElectricalVariantObject.object_id)
             .where(
@@ -940,9 +1029,7 @@ class ElectricalAssignmentService:
             }
             assignment.version += 1
         if assignments:
-            await SpecificationService(
-                self.db
-            ).mark_electrical_variant_specification_stale(
+            await SpecificationService(self.db).mark_electrical_variant_specification_stale(
                 project_id,
                 variant_id,
                 reason,
@@ -1104,9 +1191,7 @@ class ElectricalAssignmentService:
                 BackgroundTask.status.in_(_ACTIVE_TASK_STATUSES),
                 or_(
                     BackgroundTask.type == _HEAT_TASK,
-                    (
-                        BackgroundTask.electrical_variant_id == variant_id
-                    )
+                    (BackgroundTask.electrical_variant_id == variant_id)
                     & BackgroundTask.type.in_((_ELECTRICAL_TASK, _REPORT_TASK)),
                 ),
             )
@@ -1199,13 +1284,11 @@ class ElectricalAssignmentService:
                     .select_from(ElectricalCandidateFolderItem)
                     .join(
                         ElectricalCandidateFolder,
-                        ElectricalCandidateFolder.id
-                        == ElectricalCandidateFolderItem.folder_id,
+                        ElectricalCandidateFolder.id == ElectricalCandidateFolderItem.folder_id,
                     )
                     .join(
                         ElectricalCandidate,
-                        ElectricalCandidate.id
-                        == ElectricalCandidateFolderItem.candidate_id,
+                        ElectricalCandidate.id == ElectricalCandidateFolderItem.candidate_id,
                     )
                     .where(
                         or_(
@@ -1218,15 +1301,12 @@ class ElectricalAssignmentService:
                             and_(
                                 ElectricalCandidate.project_id == project_id,
                                 ElectricalCandidate.object_id.in_(object_ids),
-                                ElectricalCandidate.variant_number
-                                == variant.legacy_variant_number,
+                                ElectricalCandidate.variant_number == variant.legacy_variant_number,
                             ),
                         ),
                         or_(
-                            ElectricalCandidateFolder.project_id
-                            != ElectricalCandidate.project_id,
-                            ElectricalCandidateFolder.object_id
-                            != ElectricalCandidate.object_id,
+                            ElectricalCandidateFolder.project_id != ElectricalCandidate.project_id,
+                            ElectricalCandidateFolder.object_id != ElectricalCandidate.object_id,
                             ElectricalCandidateFolder.variant_number
                             != ElectricalCandidate.variant_number,
                             ElectricalCandidateFolder.electrical_variant_id.is_distinct_from(
@@ -1235,9 +1315,7 @@ class ElectricalAssignmentService:
                             ElectricalCandidateFolder.electrical_variant_id.is_distinct_from(
                                 variant.id
                             ),
-                            ElectricalCandidate.electrical_variant_id.is_distinct_from(
-                                variant.id
-                            ),
+                            ElectricalCandidate.electrical_variant_id.is_distinct_from(variant.id),
                         ),
                     )
                 )
@@ -1458,6 +1536,7 @@ class ElectricalAssignmentService:
                 "system_type": assignment.system_type,
                 "assignment_state": assignment.assignment_state,
                 "requested_cable_type": assignment.requested_cable_type,
+                "max_section_start_current_a": assignment.max_section_start_current_a,
                 "object_version_snapshot": assignment.object_version_snapshot,
                 "version": assignment.version,
                 "diagnostics": assignment.diagnostics or {},

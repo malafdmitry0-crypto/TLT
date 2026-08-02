@@ -2,7 +2,9 @@
   "description": "Паспортные параметры секционирования саморегулирующихся кабелей ТТН/ТТВ/ТТХ.",
   "status": "registered",
   "source": "ТНП/Параметры Кабеля.xlsx",
+  "source_checksum": "sha256:db07164c0673145b16c325d99de6620d6c53a17d11bbbd3b36e63e6353031815",
   "version": "2026-07-20",
+  "schema_version": 1,
   "registered_at": "2026-07-20",
   "notes": [
     "Строка: марка × Тмин_вкл × Lмакс × Iст_уд.",

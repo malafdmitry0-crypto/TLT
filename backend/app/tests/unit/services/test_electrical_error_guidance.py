@@ -1,3 +1,4 @@
+from app.electrical_domain import ElectricalFormulaError
 from app.electrical_input_validation import PROCESS_TEMPERATURE_REQUIRED_MESSAGE
 from app.services.electrical_error_guidance import (
     build_electrical_error_context,
@@ -213,3 +214,23 @@ def test_classifies_known_error_codes():
 
 def test_cleans_exception_prefix():
     assert clean_electrical_error_message("CalculationError: Ошибка") == "Ошибка"
+
+
+def test_typed_electrical_error_keeps_stable_code_and_details():
+    error = ElectricalFormulaError(
+        "ELECTRICAL_CABLE_POWER_INSUFFICIENT",
+        "Недостаточно мощности трёх ниток",
+        details={"maximum_threads": 3},
+    )
+
+    payload = build_electrical_error_payload(
+        error,
+        object_type="pipe",
+        cable_type="self_regulating_tt",
+    )
+
+    assert payload["error_code"] == "ELECTRICAL_CABLE_POWER_INSUFFICIENT"
+    assert payload["code"] == payload["error_code"]
+    assert payload["message"] == "Недостаточно мощности трёх ниток"
+    assert payload["details"] == {"maximum_threads": 3}
+    assert payload["issues"] == []

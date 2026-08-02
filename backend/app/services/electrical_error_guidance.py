@@ -45,9 +45,12 @@ ElectricalSuggestedAction = Literal[
 
 
 class ElectricalErrorPayload(TypedDict, total=False):
-    error_code: ElectricalErrorCode
+    error_code: str
+    code: str
     category: ElectricalErrorCategory
     message: str
+    issues: list[dict[str, Any]]
+    details: dict[str, Any]
     field: str | None
     hint: str | None
     suggested_actions: list[ElectricalSuggestedAction]
@@ -397,16 +400,51 @@ def _message_for_electrical_error(
 
 
 def build_electrical_error_payload(
-    error_message: str,
+    error_message: str | Exception,
     *,
     object_type: str | None = None,
     object_name: str | None = None,
     cable_type: str | None = None,
     request_data: dict[str, Any] | None = None,
 ) -> ElectricalErrorPayload:
-    error_code = classify_electrical_error(error_message)
+    raw_message = (
+        f"{type(error_message).__name__}: {error_message}"
+        if isinstance(error_message, Exception)
+        else error_message
+    )
+    typed_code = getattr(error_message, "code", None)
+    typed_details = getattr(error_message, "details", None)
+    if isinstance(typed_code, str) and typed_code:
+        message = str(getattr(error_message, "message", None) or error_message)
+        details = dict(typed_details) if isinstance(typed_details, dict) else {}
+        context = build_electrical_error_context(
+            message,
+            cable_type=cable_type,
+            request_data=request_data,
+        )
+        _add_context_value(context, "object_type", object_type)
+        context.update(details)
+        field = details.get("field")
+        payload: ElectricalErrorPayload = {
+            "error_code": typed_code,
+            "code": typed_code,
+            "category": "validation" if typed_code.endswith("_REQUIRED") else "formula",
+            "message": message,
+            "issues": [],
+            "details": details,
+            "field": str(field) if field is not None else None,
+            "hint": "Проверьте параметры электротехнического расчёта.",
+            "suggested_actions": ["CHECK_OBJECT_PARAMS"],
+            "error_context": context,
+        }
+        if object_type is not None:
+            payload["object_type"] = object_type
+        payload["object_name"] = object_name
+        return payload
+
+    error_code = classify_electrical_error(raw_message)
     context = build_electrical_error_context(
-        error_message,
+        raw_message,
         cable_type=cable_type,
         request_data=request_data,
     )
@@ -414,8 +452,11 @@ def build_electrical_error_payload(
     error_code = _normalize_error_code_for_context(error_code, context)
     payload: ElectricalErrorPayload = {
         "error_code": error_code,
+        "code": error_code,
         "category": _category_for_electrical_error(error_code),
-        "message": _message_for_electrical_error(error_code, error_message),
+        "message": _message_for_electrical_error(error_code, raw_message),
+        "issues": [],
+        "details": {},
         "field": _field_for_electrical_error(error_code, context),
         "hint": _hint_for_electrical_error(error_code),
         "suggested_actions": suggested_actions_for_electrical_error(error_code, context),

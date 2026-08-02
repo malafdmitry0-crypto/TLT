@@ -1,6 +1,7 @@
 """Public contracts for project-scoped ER object assignments."""
 
 from datetime import datetime
+from decimal import Decimal
 from typing import Any, Literal
 from uuid import UUID
 
@@ -38,6 +39,13 @@ class ElectricalAssignmentsUnassignRequest(BaseModel):
     items: list[ElectricalAssignmentMutationItem] = Field(min_length=1, max_length=500)
 
 
+class ElectricalAssignmentCurrentLimitPatch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    expected_version: int = Field(ge=1)
+    max_section_start_current_a: Decimal | None = Field(gt=0)
+
+
 class ElectricalAssignmentResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -48,6 +56,7 @@ class ElectricalAssignmentResponse(BaseModel):
     system_type: ElectricalSystemType | None
     assignment_state: ElectricalAssignmentState
     requested_cable_type: str | None
+    max_section_start_current_a: Decimal | None
     object_version_snapshot: int
     version: int
     diagnostics: dict[str, Any]

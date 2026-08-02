@@ -77,7 +77,9 @@ def section_catalog_meta() -> dict[str, Any]:
     return {
         "status": data.get("status"),
         "source": data.get("source"),
+        "source_checksum": data.get("source_checksum"),
         "version": data.get("version"),
+        "schema_version": data.get("schema_version"),
         "registered_at": data.get("registered_at"),
     }
 
@@ -98,11 +100,7 @@ def _parse_rows() -> list[SectionCatalogRow]:
                     voltage_v=float(item["voltage_v"]),
                     cold_start_temp_c=float(item["cold_start_temp_c"]),
                     l_max_m=float(item["l_max_m"]),
-                    i_dop_a=(
-                        float(item["i_dop_a"])
-                        if item.get("i_dop_a") is not None
-                        else None
-                    ),
+                    i_dop_a=(float(item["i_dop_a"]) if item.get("i_dop_a") is not None else None),
                     i_st_ud_a_per_m=float(item["i_st_ud_a_per_m"]),
                 )
             )
@@ -186,7 +184,8 @@ def compute_section_plan(
     current_limit = decimal_value(max_start_current_per_section_a)
     if current_limit <= 0:
         raise ElectricalFormulaError(
-            "SECTION_CURRENT_LIMIT_REQUIRED", "Допустимый стартовый ток секции должен быть положительным"
+            "SECTION_CURRENT_LIMIT_REQUIRED",
+            "Допустимый стартовый ток секции должен быть положительным",
         )
 
     specific_start = decimal_value(row.i_st_ud_a_per_m)
