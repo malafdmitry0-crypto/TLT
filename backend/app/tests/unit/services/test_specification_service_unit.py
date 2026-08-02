@@ -166,7 +166,10 @@ class TestGenerate:
             params={},
             results={
                 "selected_cable": "30ТТВ2",
-                "order_cable_length": 10,
+                "section_count": 1,
+                "section_length_m": 10,
+                "section_l_fact_m": 10,
+                "order_cable_length": 11,
                 "installed_cable_length": 10,
             },
         )
@@ -203,6 +206,9 @@ class TestGenerate:
                     "cable_type": "self_regulating_tt",
                     "cable_mark": "30ТТВ2-СТ",
                     "selected_cable": "30ТТВ2",
+                    "section_count": 1,
+                    "section_length_m": 10,
+                    "section_l_fact_m": 10,
                     "installed_cable_length": 10,
                     "order_cable_length": 11,
                 }
@@ -220,6 +226,88 @@ class TestGenerate:
             assert exc.code == "SPEC_CABLE_NOMENCLATURE_MISSING"
             assert exc.status_code == 422
             assert exc.details["full_mark"] == "30ТТВ2-СТ"
+
+    async def test_preflight_rejects_production_ineligible_tt_result(self):
+        from app.services.electrical_variant_service import ElectricalVariantServiceError
+
+        object_id = uuid.uuid4()
+        obj = SimpleNamespace(
+            id=object_id,
+            object_type="pipe",
+            params={"outer_diameter": 0.108, "pipe_length": 10},
+            results={},
+        )
+        db = AsyncMock()
+        db.execute = AsyncMock(return_value=_list_result([obj]))
+        db.get = AsyncMock(return_value=_project_defaults())
+        service = SpecificationService(db)
+        service._electrical_results_for_variant = AsyncMock(
+            return_value=[
+                {
+                    "object_id": str(object_id),
+                    "cable_type": "self_regulating_tt",
+                    "cable_mark": "30ТТВ2-СР",
+                    "selected_cable": "30ТТВ2",
+                    "section_count": 1,
+                    "section_length_m": 10,
+                    "section_l_fact_m": 10,
+                    "installed_cable_length": 10,
+                    "order_cable_length": 11,
+                    "production_eligible": False,
+                    "mocked_fields": [],
+                }
+            ]
+        )
+
+        try:
+            await service.preflight_variant(
+                uuid.uuid4(),
+                variant_number=1,
+                electrical_variant_id=uuid.uuid4(),
+            )
+            raise AssertionError("expected production eligibility preflight failure")
+        except ElectricalVariantServiceError as exc:
+            assert exc.code == "ELECTRICAL_MOCK_INPUTS_NOT_ALLOWED"
+            assert exc.status_code == 422
+
+    async def test_preflight_rejects_tt_result_without_final_section_plan(self):
+        from app.services.electrical_variant_service import ElectricalVariantServiceError
+
+        object_id = uuid.uuid4()
+        obj = SimpleNamespace(
+            id=object_id,
+            object_type="pipe",
+            params={"outer_diameter": 0.108, "pipe_length": 10},
+            results={},
+        )
+        db = AsyncMock()
+        db.execute = AsyncMock(return_value=_list_result([obj]))
+        db.get = AsyncMock(return_value=_project_defaults())
+        service = SpecificationService(db)
+        service._electrical_results_for_variant = AsyncMock(
+            return_value=[
+                {
+                    "object_id": str(object_id),
+                    "cable_type": "self_regulating_tt",
+                    "cable_mark": "30ТТВ2-СР",
+                    "selected_cable": "30ТТВ2",
+                    "installed_cable_length": 10,
+                    "order_cable_length": 11,
+                }
+            ]
+        )
+
+        try:
+            await service.preflight_variant(
+                uuid.uuid4(),
+                variant_number=1,
+                electrical_variant_id=uuid.uuid4(),
+            )
+            raise AssertionError("expected final section plan preflight failure")
+        except ElectricalVariantServiceError as exc:
+            assert exc.code == "ELECTRICAL_SECTION_PLAN_INVALID"
+            assert exc.status_code == 422
+            assert "section_count" in exc.details["missing_or_invalid_fields"]
 
     async def test_generate_excludes_stale_cable_from_auto_items(self):
         from app.models.electrical_calculation import ElectricalCalculation

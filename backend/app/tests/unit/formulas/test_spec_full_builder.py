@@ -96,6 +96,9 @@ def _tt_result(**overrides):
         "selected_cable": "30ТТВ2",
         "series": "ТТВ",
         "temperature_group": "high",
+        "section_count": 2,
+        "section_length_m": 50.0,
+        "section_l_fact_m": 100.0,
         "installed_cable_length": 100.0,
         "order_cable_length": 110.0,
         "object_id": "tt-1",
@@ -110,7 +113,13 @@ def _tt_objects():
 
 def test_tt_cable_line_uses_exact_bom_code_and_final_result_order_length():
     result = _tt_result(
-        layout={"required_order_length_m": 221.1},
+        section_count=3,
+        section_length_m=67.0,
+        section_l_fact_m=201.0,
+        layout={
+            "actual_installed_length_m": 201.0,
+            "required_order_length_m": 221.1,
+        },
         commercial={"required_order_length": 999.0},
     )
     items = _build_full_specification([result], _tt_objects())
@@ -144,6 +153,81 @@ def test_tt_mocked_result_is_rejected_at_specification_boundary():
         item.get("error_code") == "ELECTRICAL_MOCK_INPUTS_NOT_ALLOWED"
         for item in build.excluded_groups
     )
+
+
+def test_tt_production_ineligible_result_is_rejected_without_mocked_fields():
+    build = _build_full_specification_detailed(
+        [_tt_result(production_eligible=False, mocked_fields=[])],
+        _tt_objects(),
+    )
+    assert not [item for item in build.items if item.category == "Кабель"]
+    assert any(
+        item.get("error_code") == "ELECTRICAL_MOCK_INPUTS_NOT_ALLOWED"
+        for item in build.excluded_groups
+    )
+
+
+@pytest.mark.parametrize(
+    ("overrides", "missing_field"),
+    [
+        ({"section_count": None, "num_sections": None}, "section_count"),
+        ({"section_l_fact_m": None}, "actual_installed_length_m"),
+        ({"order_cable_length": None}, "required_order_length_m"),
+    ],
+)
+def test_tt_result_requires_proven_final_section_plan(overrides, missing_field):
+    build = _build_full_specification_detailed(
+        [_tt_result(**overrides)],
+        _tt_objects(),
+    )
+    issue = next(
+        item
+        for item in build.excluded_groups
+        if item.get("error_code") == "ELECTRICAL_SECTION_PLAN_INVALID"
+    )
+    assert missing_field in issue["missing_or_invalid_fields"]
+    assert not [item for item in build.items if item.category == "Кабель"]
+
+
+def test_tt_result_rejects_inconsistent_final_installed_length():
+    build = _build_full_specification_detailed(
+        [_tt_result(section_l_fact_m=99.0)],
+        _tt_objects(),
+    )
+    assert any(
+        item.get("error_code") == "ELECTRICAL_SECTION_PLAN_INVALID"
+        for item in build.excluded_groups
+    )
+
+
+def test_tt_result_rejects_order_length_not_derived_from_final_length():
+    build = _build_full_specification_detailed(
+        [_tt_result(order_cable_length=109.0)],
+        _tt_objects(),
+    )
+    issue = next(
+        item
+        for item in build.excluded_groups
+        if item.get("error_code") == "ELECTRICAL_SECTION_PLAN_INVALID"
+    )
+    assert issue["expected_order_length_m"] == 110.0
+    assert issue["required_order_length_m"] == 109.0
+
+
+def test_legacy_non_tt_cable_still_allows_unsectioned_result():
+    result = {
+        "cable_type": "self_regulating",
+        "cable_mark": "ТЛТ-25",
+        "selected_cable": "ТЛТ-25",
+        "temperature_group": "low",
+        "installed_cable_length": 10.0,
+        "order_cable_length": 11.0,
+        "object_id": "tt-1",
+    }
+    items = _build_full_specification([result], _tt_objects())
+    cable = next(item for item in items if item.category == "Кабель")
+    assert cable.article == "ТЛТ-25"
+    assert cable.quantity == 11.0
 
 
 def test_tt_stale_result_is_rejected_from_bom():

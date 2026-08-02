@@ -172,6 +172,61 @@ def _mocked_fields(result: dict[str, Any]) -> list[str]:
     return [str(item) for item in raw if str(item)]
 
 
+def _is_explicitly_production_ineligible(result: dict[str, Any]) -> bool:
+    provenance = result.get("provenance") if isinstance(result.get("provenance"), dict) else {}
+    resolved = (
+        result.get("resolved_inputs") if isinstance(result.get("resolved_inputs"), dict) else {}
+    )
+    return any(
+        source.get("production_eligible") is False
+        for source in (result, provenance, resolved)
+    )
+
+
+def _tt_section_plan_issue(result: dict[str, Any]) -> dict[str, Any] | None:
+    """Validate proof that TT order quantity was produced after sectioning."""
+    layout = result.get("layout") if isinstance(result.get("layout"), dict) else {}
+    section_summary = (
+        result.get("sections") if isinstance(result.get("sections"), dict) else {}
+    )
+    count = _num(
+        result.get("section_count")
+        or result.get("num_sections")
+        or section_summary.get("count")
+    )
+    section_length = _num(result.get("section_length_m") or section_summary.get("length_m"))
+    l_fact = _num(result.get("section_l_fact_m") or layout.get("actual_installed_length_m"))
+    installed = _installed_cable_length(result)
+    order_length = _order_cable_qty(result, installed)
+
+    missing: list[str] = []
+    for field_name, value in (
+        ("section_count", count),
+        ("section_length_m", section_length),
+        ("actual_installed_length_m", l_fact),
+        ("required_order_length_m", order_length),
+    ):
+        if value <= 0:
+            missing.append(field_name)
+    if missing:
+        return {"missing_or_invalid_fields": missing}
+    if abs(section_length * count - l_fact) > 0.001 or abs(installed - l_fact) > 0.001:
+        return {
+            "section_count": count,
+            "section_length_m": section_length,
+            "actual_installed_length_m": l_fact,
+            "result_installed_length_m": installed,
+        }
+    expected_order_length = _ceil(l_fact * 1.10 * 1000.0) / 1000.0
+    if abs(order_length - expected_order_length) > 0.001:
+        return {
+            "actual_installed_length_m": l_fact,
+            "required_order_length_m": order_length,
+            "expected_order_length_m": expected_order_length,
+        }
+    return None
+
+
 def contributes_self_reg_accessories(result: dict[str, Any]) -> bool:
     """Self-reg accessory formulas (kits/tapes) — only self-reg rows."""
     return contributes_cable_to_bom(result) and is_self_regulating_result(result)
@@ -471,19 +526,33 @@ def build_full_specification_detailed(
 
     for result in electrical_results:
         obj_id = str(result.get("object_id") or "")
-        if not contributes_cable_to_bom(result):
-            continue
-
-        if _cable_type(result) == "self_regulating_tt" and _mocked_fields(result):
+        is_successful_tt = _cable_type(result) == "self_regulating_tt" and _is_successful(result)
+        if is_successful_tt and (
+            _mocked_fields(result) or _is_explicitly_production_ineligible(result)
+        ):
             excluded_groups.append(
                 {
                     "group": "heating_cable",
                     "error_code": "ELECTRICAL_MOCK_INPUTS_NOT_ALLOWED",
-                    "message": "Mocked electrical result cannot drive a production specification.",
+                    "message": "Non-production electrical result cannot drive a specification.",
                     "object_ids": [obj_id],
                     "mocked_fields": _mocked_fields(result),
                 }
             )
+            continue
+        section_issue = _tt_section_plan_issue(result) if is_successful_tt else None
+        if section_issue is not None:
+            excluded_groups.append(
+                {
+                    "group": "heating_cable",
+                    "error_code": "ELECTRICAL_SECTION_PLAN_INVALID",
+                    "message": "TT cable result has no proven final section plan and order length.",
+                    "object_ids": [obj_id],
+                    **section_issue,
+                }
+            )
+            continue
+        if not contributes_cable_to_bom(result):
             continue
 
         identity = cable_identity_from_result(result)

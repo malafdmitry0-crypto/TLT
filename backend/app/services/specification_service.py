@@ -305,6 +305,7 @@ class SpecificationService:
         critical_codes = {
             "SPEC_CABLE_NOMENCLATURE_MISSING",
             "ELECTRICAL_MOCK_INPUTS_NOT_ALLOWED",
+            "ELECTRICAL_SECTION_PLAN_INVALID",
         }
         critical = next(
             (
