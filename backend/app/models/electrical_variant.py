@@ -1,6 +1,7 @@
 """Dynamic electrical variants and their per-object assignments."""
 
 import uuid
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import (
@@ -11,6 +12,7 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     Index,
     Integer,
+    Numeric,
     String,
     UniqueConstraint,
     event,
@@ -160,6 +162,10 @@ class ElectricalVariantObject(Base, TimestampMixin):
             name="ck_electrical_variant_objects_assignment_version_positive",
         ),
         CheckConstraint(
+            "max_section_start_current_a IS NULL OR max_section_start_current_a > 0",
+            name="ck_electrical_variant_objects_current_positive",
+        ),
+        CheckConstraint(
             "assignment_state <> 'unassigned' OR system_type IS NULL",
             name="ck_electrical_variant_objects_unassigned_system_null",
         ),
@@ -240,6 +246,10 @@ class ElectricalVariantObject(Base, TimestampMixin):
         nullable=False,
         default=dict,
         server_default=text("'{}'::jsonb"),
+    )
+    max_section_start_current_a: Mapped[Decimal | None] = mapped_column(
+        Numeric(12, 3),
+        nullable=True,
     )
 
     electrical_variant: Mapped[ElectricalVariant] = relationship(back_populates="assignments")

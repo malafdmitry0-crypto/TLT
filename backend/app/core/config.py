@@ -1,6 +1,7 @@
 """Конфигурация приложения через переменные окружения."""
 
 from functools import lru_cache
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -49,6 +50,9 @@ class Settings(BaseSettings):
     LOG_ACCESS: bool = False
     AUDIT_ENABLED: bool = True
     AUDIT_FAIL_CLOSED: bool = False
+    # Temporary frontend compatibility inputs. This remains fail-closed unless
+    # explicitly enabled for local development or tests.
+    ELECTRICAL_FRONTEND_MOCK_MODE: Literal["off", "test", "dev"] = "off"
 
     # CORS — comma-separated список разрешённых origin'ов фронта.
     # Формат в env: CORS_ORIGINS=https://example.ru,https://www.example.ru
@@ -152,6 +156,8 @@ class Settings(BaseSettings):
             errors.append("FIRST_ADMIN_PASSWORD must be at least 12 characters in production")
         if not self.auth_cookie_secure:
             errors.append("AUTH_COOKIE_SECURE must be True in production (HTTPS cookies)")
+        if self.ELECTRICAL_FRONTEND_MOCK_MODE != "off":
+            errors.append("ELECTRICAL_FRONTEND_MOCK_MODE must be off in production")
         if errors:
             raise RuntimeError("; ".join(errors))
 

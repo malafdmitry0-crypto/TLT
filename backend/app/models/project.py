@@ -13,6 +13,7 @@ from app.models.base import Base, TimestampMixin
 
 if TYPE_CHECKING:
     from app.models.electrical_variant import ElectricalVariant
+    from app.models.project_electrical_settings import ProjectElectricalSettings
     from app.models.project_object import ProjectObject
 
 
@@ -82,4 +83,9 @@ class Project(Base, TimestampMixin):
         back_populates="project",
         cascade="all, delete-orphan",
         order_by="ElectricalVariant.sort_order",
+    )
+    electrical_settings: Mapped["ProjectElectricalSettings | None"] = relationship(
+        back_populates="project",
+        cascade="all, delete-orphan",
+        uselist=False,
     )
