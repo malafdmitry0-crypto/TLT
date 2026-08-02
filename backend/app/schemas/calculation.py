@@ -768,12 +768,9 @@ class SelfRegulatingTTParams(BaseModel):
     )
     maintain_temperature: float | None = Field(
         default=None,
-        description=(
-            "T3 — температура поддержания для расчёта q_б(T3), °C; "
-            "если не задана, для совместимости используется T1/process_temperature"
-        ),
+        description="T3 — обязательная температура поддержания для расчёта q_б(T3), °C",
     )
-    supply_voltage: float = Field(default=220.0, gt=0, description="U — напряжение питания, В")
+    supply_voltage: float = Field(default=230.0, gt=0, description="U — напряжение питания, В")
     max_start_current_per_section: float | None = Field(
         default=None,
         gt=0,
@@ -791,10 +788,10 @@ class SelfRegulatingTTParams(BaseModel):
         description="Агрессивная среда → суффикс -СР; неагрессивная → -СТ в марке",
     )
     winding_coefficient: float = Field(
-        default=1.1,
+        default=1.0,
         ge=1.0,
         le=10.0,
-        description="Коэффициент укладки кабеля; может быть >1.5 при расчёте из шага навива",
+        description="Расчётный Kнав; при отсутствии шага навива backend передаёт 1",
     )
     winding_pitch: float | None = Field(
         default=None, ge=0, description="Шаг навива, мм; 0 или null — прямая укладка"
@@ -802,10 +799,14 @@ class SelfRegulatingTTParams(BaseModel):
     number_of_threads: int | None = Field(
         default=None,
         ge=1,
-        le=100,
-        description="Заданное пользователем количество ниток; null — автоподбор по full-version policy",
+        le=3,
+        description="Заданное пользователем количество ниток 1..3; null — автоподбор",
     )
     cable_mark: str | None = Field(default=None, description="Марка кабеля; null — автоподбор")
+    selection_policy: str = Field(
+        default="technical_minimum",
+        description="Для нового TT-расчёта поддерживается только technical_minimum",
+    )
     safety_factor: float = Field(default=1.1, ge=1.0, le=2.0)
     # Геометрия резервуара (опционально, для укладки на поверхность бака)
     tank_shape: Literal["cylindrical", "rectangular"] | None = Field(
