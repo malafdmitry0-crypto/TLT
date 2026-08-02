@@ -110,6 +110,7 @@ describe('heatCalcColumnRenderers', () => {
         width: 0.8,
         height: 2,
         wall_thickness: 0.006,
+        insulation_layers: [{ thickness: 0.05, material: 'mineral_wool' }],
         q_additional: 100,
       },
       results: {
@@ -124,6 +125,8 @@ describe('heatCalcColumnRenderers', () => {
     expect(renderers.tank_shape.copyValue(record, 0)).toBe('Прямоуг.');
     expect(normalizeSpaces(renderers.tank_dimensions.copyValue(record, 0))).toBe('1 200 × 800 × 2 000 мм');
     expect(renderers.tank_wall_thickness.copyValue(record, 0)).toBe('6');
+    expect(renderers.insulation_thickness.copyValue(record, 0)).toBe('50');
+    expect(renderers.insulation_material.copyValue(record, 0)).not.toBe('—');
     expect(renderers.q_additional.copyValue(record, 0)).toBe('250');
     expect(renderers.heat_loss_per_m2_bare_base.copyValue(record, 0)).toBe('53,6');
     expect(normalizeSpaces(renderers.total_heat_loss_design.copyValue(record, 0))).toBe('1 347');

@@ -335,8 +335,9 @@ class TestReportRendering:
                     "shape": "cylindrical",
                     "diameter": 2.0,
                     "height": 3.0,
-                    "insulation_thickness": 0.05,
-                    "insulation_material": "mineral_wool_boards_120",
+                    "insulation_layers": [
+                        {"thickness": 0.05, "material": "mineral_wool_boards_120"}
+                    ],
                     "ambient_temperature": -25,
                     "process_temperature": 70,
                     "q_additional": 100,
@@ -356,6 +357,8 @@ class TestReportRendering:
         assert "Qдоп, Вт" in html
         assert "q base, Вт/м²" in html
         assert "Q design, Вт" in html
+        assert "50" in html
+        assert "Плиты минераловатные прошивные, 120 кг/м³" in html
         assert "250" in html
 
     def test_electrical_table_uses_tt_power_per_meter(self):

@@ -38,11 +38,13 @@ TANK = TankHeatLossParams(
     shape="cylindrical",
     diameter=2.0,
     height=3.0,
-    insulation_thickness=0.08,
-    insulation_material=MINERAL_WOOL,
+    insulation_layers=[InsulationLayer(thickness=0.08, material=MINERAL_WOOL)],
     insulation_temperature_basis="outdoor_winter",
     ambient_temperature=-20.0,
     process_temperature=80.0,
+    placement="outdoor",
+    wind_speed=0.0,
+    safety_factor=1.1,
 )
 
 
@@ -71,7 +73,7 @@ class TestReferenceValuesNotRegressed:
 
     def test_tank_cylindrical_DN2000_H3000_80mm(self):
         """Эталон: бак цилиндр Ø2м×H3м, 80мм минвата, -20→+80°C."""
-        r = calc_tank_heat_loss(TANK, coefficients={"safety_factor": 1.0})
+        r = calc_tank_heat_loss(TANK.model_copy(update={"safety_factor": 1.0}))
         assert r.total_heat_loss_design > 0
         # heat_loss_per_m2_bare_base — главная характеристика
         assert r.heat_loss_per_m2_bare_base > 10  # Дельта 100°C, минвата 80мм → разумный диапазон

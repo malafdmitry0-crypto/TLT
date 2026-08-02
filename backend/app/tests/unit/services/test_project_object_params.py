@@ -130,14 +130,17 @@ def test_second_insulation_layer_requires_material():
 
 
 def test_tank_shape_geometry_is_required_after_defaults():
-    with pytest.raises(ProjectObjectParamsError, match="Диаметр резервуара"):
+    with pytest.raises(ProjectObjectParamsError, match="diameter и height"):
         prepare_project_object_params(
             "tank",
             {
-                "insulation_thickness": 0.05,
-                "insulation_material": "mineral_wool_boards_120",
+                "insulation_layers": [
+                    {"thickness": 0.05, "material": "mineral_wool_boards_120"}
+                ],
                 "insulation_temperature_basis": "outdoor_winter",
                 "ambient_temperature": -20,
                 "process_temperature": 80,
+                "placement": "outdoor",
+                "wind_speed": 0,
             },
         )

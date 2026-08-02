@@ -106,18 +106,19 @@ export interface TankParams {
   width?: number;
   wall_thickness?: number | null;
   wall_lambda?: number | null;
-  insulation_thickness: number;
-  insulation_material: string;
   insulation_cover_material?: string | null;
-  insulation_layers?: InsulationLayerParams[];
+  insulation_layers: InsulationLayerParams[];
   ambient_temperature: number;
   process_temperature: number;
   max_ambient_temperature?: number | null;
   max_process_temperature?: number | null;
-  placement?: 'indoor' | 'outdoor' | 'underground';
-  burial_depth?: number | null;
+  placement: 'indoor' | 'outdoor' | 'underground';
+  tank_buried_height?: number | null;
+  ground_temperature?: number | null;
+  ground_temperature_source?: 'manual' | 'climate' | null;
   ground_type?: string | null;
   ground_conductivity?: number | null;
+  ground_conductivity_source?: 'manual' | 'reference' | null;
   wind_speed?: number | null;
   alpha_vnesh?: number | null;
   climate_city?: string | null;
@@ -128,10 +129,11 @@ export interface TankParams {
   ambient_temperature_source?: 'manual' | 'climate' | null;
   wind_speed_source?: 'manual' | 'climate' | null;
   supply_voltage?: number | null;
-  safety_factor?: number | null;
+  safety_factor: number;
+  safety_factor_source?: 'default' | 'manual' | 'climate_policy' | null;
+  q_additional: number;
   maintain_temperature?: number | null;
   vapor_temperature?: number | null;
-  location?: 'indoor' | 'outdoor';
 }
 
 export interface TankResult extends HeatResultTrace {

@@ -204,17 +204,19 @@ class TankParamsDict(TypedDict, total=False):
     length: float | None
     width: float | None
     volume: float | None
-    insulation_thickness: float
-    insulation_material: str
     insulation_cover_material: str | None
     insulation_layers: list[dict[str, float | str | list[float] | None]]
-    ambient_temperature: float
+    ambient_temperature: float | None
+    ground_temperature: float | None
     process_temperature: float
     max_ambient_temperature: float | None
     max_process_temperature: float | None
     placement: Literal["indoor", "outdoor", "underground"]
-    burial_depth: float | None
+    tank_buried_height: float | None
+    ground_temperature_source: Literal["manual", "climate"] | None
     ground_type: str | None
+    ground_conductivity: float | None
+    ground_conductivity_source: Literal["manual", "reference"] | None
     climate_city: str | None
     climate_region: str | None
     climate_key: str | None
@@ -223,12 +225,12 @@ class TankParamsDict(TypedDict, total=False):
     ambient_temperature_source: Literal["manual", "climate"] | None
     wind_speed_source: Literal["manual", "climate"] | None
     safety_factor_source: Literal["default", "manual", "climate_policy"] | None
-    location: Literal["indoor", "outdoor"]
     wall_thickness: float | None
     wall_lambda: float | None
     wind_speed: float | None
     alpha_vnesh: float | None
-    safety_factor: float | None
+    safety_factor: float
+    q_additional: float
     environment: Literal["normal", "aggressive"] | None
     zone_classification: Literal["safe", "explosive"] | None
     temperature_group: Literal["T1", "T2", "T3", "T4", "T5", "T6"] | None

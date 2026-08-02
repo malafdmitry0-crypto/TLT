@@ -30,7 +30,6 @@ const REQUIRED_FIELD_LABEL_TO_FORM_NAMES: Record<string, string[]> = {
   'Требуемая температура объекта': ['process_temperature'],
   'Температура продукта': ['process_temperature'],
   'Режим температуры изоляции': ['insulation_temperature_basis'],
-  'Глубина/высота подземной части': ['burial_depth'],
   'Тип грунта': ['ground_type'],
   'λ грунта': ['ground_conductivity'],
   'Толщина изоляции': ['insulation_thickness_mm'],
@@ -70,7 +69,7 @@ const API_FIELD_TO_FORM_NAMES: Record<string, string[]> = {
   process_temperature: ['process_temperature'],
   ground_temperature: ['ground_temperature'],
   pipe_centerline_depth: ['burial_depth'],
-  burial_depth: ['burial_depth'],
+  tank_buried_height: ['tank_buried_height'],
   ground_type: ['ground_type'],
   ground_conductivity: ['ground_conductivity'],
   wind_speed: ['wind_speed'],
@@ -93,7 +92,6 @@ const RANGE_MESSAGE_TO_FORM_NAMES: Array<[RegExp, string[]]> = [
   [/Длина трубопровода/i, ['pipe_length']],
   [/Толщина стенки/i, ['wall_thickness_mm']],
   [/Толщина изоляции/i, ['insulation_thickness_mm']],
-  [/Глубина|подземной части/i, ['burial_depth']],
   [/λ грунта|теплопроводность грунта/i, ['ground_conductivity']],
   [/Скорость ветра/i, ['wind_speed']],
   [/коэф.*наружной теплоотдачи|alpha/i, ['alpha_vnesh']],
@@ -144,10 +142,13 @@ function uniqueFieldNames(fieldNames: string[]) {
   return [...new Set(fieldNames.filter(Boolean))];
 }
 
-function requiredFieldNamesFromLabels(labels: string[]) {
+function requiredFieldNamesFromLabels(labels: string[], objectType: HeatCalcObjectType) {
   return uniqueFieldNames(labels.flatMap((field) => {
     const trimmed = field.trim();
     if (!trimmed) return [];
+    if (trimmed === 'Глубина/высота подземной части') {
+      return objectType === 'pipe' ? ['burial_depth'] : ['tank_buried_height'];
+    }
     if (REQUIRED_FIELD_LABEL_TO_FORM_NAMES[trimmed]) return REQUIRED_FIELD_LABEL_TO_FORM_NAMES[trimmed];
     if (API_FIELD_TO_FORM_NAMES[trimmed]) return API_FIELD_TO_FORM_NAMES[trimmed];
     return /^[a-z][a-z0-9_]*$/i.test(trimmed) ? [trimmed] : [];
@@ -187,7 +188,7 @@ function messageHasApiFieldName(message: string, apiName: string) {
   return message.split(/\s+/).includes(apiName);
 }
 
-function fieldNamesFromValidationMessage(message: string) {
+function fieldNamesFromValidationMessage(message: string, objectType: HeatCalcObjectType) {
   const fromApiNames = Object.entries(API_FIELD_TO_FORM_NAMES)
     .filter(([apiName]) => messageHasApiFieldName(message, apiName))
     .flatMap(([, formNames]) => formNames);
@@ -198,6 +199,9 @@ function fieldNamesFromValidationMessage(message: string) {
     ...fromApiNames,
     ...fromRangeMessages,
     ...insulationLayerFieldNamesFromMessage(message),
+    ...(/Глубина|подземной части/i.test(message)
+      ? [objectType === 'pipe' ? 'burial_depth' : 'tank_buried_height']
+      : []),
   ]);
 }
 
@@ -210,7 +214,7 @@ function formFieldNamesFromErrorKey(fieldKey: string, objectType: HeatCalcObject
   if (byColumn) return [byColumn.id];
   const withoutParamsPrefix = normalizedKey.replace(/^params[.\s]+/, '');
   if (withoutParamsPrefix !== normalizedKey) return formFieldNamesFromErrorKey(withoutParamsPrefix, objectType);
-  return fieldNamesFromValidationMessage(normalizedKey);
+  return fieldNamesFromValidationMessage(normalizedKey, objectType);
 }
 
 export function normalizeFieldErrorsForForm(
@@ -247,7 +251,10 @@ export function buildCalculationFieldErrors(
     Object.assign(structuredErrors, normalizeFieldErrorsForForm(fields as Record<string, unknown>, objectType));
   }
   if (!message) return structuredErrors;
-  const requiredFieldNames = requiredFieldNamesFromLabels(validationRequiredFields(validationErrors, message));
+  const requiredFieldNames = requiredFieldNamesFromLabels(
+    validationRequiredFields(validationErrors, message),
+    objectType,
+  );
   if (requiredFieldNames.length > 0) {
     return {
       ...structuredErrors,
@@ -269,7 +276,7 @@ export function buildCalculationFieldErrors(
   }
   return {
     ...structuredErrors,
-    ...Object.fromEntries(fieldNamesFromValidationMessage(message).map((fieldName) => [
+    ...Object.fromEntries(fieldNamesFromValidationMessage(message, objectType).map((fieldName) => [
       fieldName,
       { message },
     ])),

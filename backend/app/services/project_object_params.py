@@ -8,15 +8,12 @@ required fields must make the object invalid before formulas run.
 from collections.abc import Mapping
 from typing import Any
 
-from app.formulas.heat_loss.insulation import (
-    validate_insulation_temperature_basis_for_placement,
+from app.schemas.calculation import StoredPipeHeatParams, StoredTankHeatParams
+from app.services.heat_contract import (
+    COMMON_HEAT_PARAM_KEYS,
+    PIPE_HEAT_PARAM_KEYS,
+    TANK_HEAT_PARAM_KEYS,
 )
-from app.reference_data.loader import (
-    INSULATION_MATERIAL_RESELECTION_MESSAGE,
-    is_generic_insulation_material,
-)
-from app.schemas.calculation import StoredPipeHeatParams
-from app.services.heat_contract import COMMON_HEAT_PARAM_KEYS, PIPE_HEAT_PARAM_KEYS
 
 
 class ProjectObjectParamsError(ValueError):
@@ -66,9 +63,6 @@ def normalize_project_object_params(
         return normalized
     elif object_type == "tank":
         _normalize_climate_key(normalized)
-        _normalize_placement(normalized)
-        _normalize_insulation_temperature_basis(normalized)
-        _normalize_insulation_layers(normalized)
         _apply_defaults(normalized, TANK_OBJECT_DEFAULTS)
 
     return normalized
@@ -84,6 +78,15 @@ def prepare_project_object_params(
     if object_type == "pipe":
         heat_keys = COMMON_HEAT_PARAM_KEYS | PIPE_HEAT_PARAM_KEYS
         stored = StoredPipeHeatParams(
+            **{key: value for key, value in normalized.items() if key in heat_keys}
+        )
+        normalized = {
+            **{key: value for key, value in normalized.items() if key not in heat_keys},
+            **stored.model_dump(exclude_none=True),
+        }
+    elif object_type == "tank":
+        heat_keys = COMMON_HEAT_PARAM_KEYS | TANK_HEAT_PARAM_KEYS
+        stored = StoredTankHeatParams(
             **{key: value for key, value in normalized.items() if key in heat_keys}
         )
         normalized = {
@@ -130,58 +133,6 @@ def _normalize_climate_key(params: dict[str, Any]) -> None:
     params["climate_key"] = f"{region}|||{city}"
 
 
-def _normalize_placement(params: dict[str, Any]) -> None:
-    if "placement" not in params:
-        location = params.get("location")
-        if params.get("burial_depth") is not None:
-            params["placement"] = "underground"
-        elif location == "indoor":
-            params["placement"] = "indoor"
-        else:
-            params["placement"] = "outdoor"
-
-    placement = params.get("placement")
-    if placement in ("indoor", "outdoor", "underground") and _is_missing(params.get("location")):
-        params["location"] = "indoor" if placement == "indoor" else "outdoor"
-
-
-def _normalize_insulation_temperature_basis(params: dict[str, Any]) -> None:
-    if not _is_missing(params.get("insulation_temperature_basis")):
-        return
-    placement = params.get("placement")
-    if placement == "indoor" or params.get("location") == "indoor":
-        params["insulation_temperature_basis"] = "indoor"
-    elif placement == "outdoor":
-        params["insulation_temperature_basis"] = "outdoor_winter"
-
-
-def _normalize_insulation_layers(params: dict[str, Any]) -> None:
-    layers = params.get("insulation_layers")
-    thickness = params.get("insulation_thickness")
-    material = params.get("insulation_material")
-    if isinstance(layers, list) and len(layers) > 0:
-        first_layer = layers[0] if isinstance(layers[0], dict) else {}
-        if not _is_missing(thickness):
-            first_layer["thickness"] = thickness
-        if not _is_missing(material):
-            first_layer["material"] = material
-        if params.get("first_insulation_lambda") is not None:
-            first_layer["conductivity"] = params["first_insulation_lambda"]
-        layers[0] = first_layer
-    else:
-        if not _is_missing(thickness) and not _is_missing(material):
-            layer: dict[str, Any] = {"thickness": thickness, "material": material}
-            if params.get("first_insulation_lambda") is not None:
-                layer["conductivity"] = params["first_insulation_lambda"]
-            params["insulation_layers"] = [layer]
-            layers = params["insulation_layers"]
-
-    if "insulation_layer_count" not in params:
-        params["insulation_layer_count"] = str(
-            len(layers) if isinstance(layers, list) and layers else 1
-        )
-
-
 def _validate_pipe_params(params: Mapping[str, Any], missing: list[str]) -> None:
     heat_keys = COMMON_HEAT_PARAM_KEYS | PIPE_HEAT_PARAM_KEYS
     heat_payload = {key: value for key, value in params.items() if key in heat_keys}
@@ -192,102 +143,8 @@ def _validate_pipe_params(params: Mapping[str, Any], missing: list[str]) -> None
 
 
 def _validate_tank_params(params: Mapping[str, Any], missing: list[str]) -> None:
-    _require(params, "shape", "Форма резервуара", missing)
-    if _is_missing(params.get("wall_thickness")) and not _is_missing(params.get("wall_lambda")):
-        missing.append("Толщина стенки")
-    if _is_missing(params.get("wall_lambda")) and not _is_missing(params.get("wall_thickness")):
-        missing.append("λ стенки")
-    shape = params.get("shape")
-    if shape == "cylindrical":
-        _require(params, "diameter", "Диаметр резервуара", missing)
-        _require(params, "height", "Высота резервуара", missing)
-    elif shape == "rectangular":
-        _require(params, "length", "Длина резервуара", missing)
-        _require(params, "width", "Ширина резервуара", missing)
-        _require(params, "height", "Высота резервуара", missing)
-    elif shape == "spherical":
-        _require(params, "diameter", "Диаметр резервуара", missing)
-    _validate_common_params(params, missing)
-    _validate_insulation(params, missing)
-
-
-def _validate_common_params(params: Mapping[str, Any], missing: list[str]) -> None:
-    _require(params, "placement", "Размещение объекта", missing)
-    _require(params, "ambient_temperature", "Температура окружающей среды", missing)
-    _require(params, "process_temperature", "Требуемая температура объекта", missing)
-
-    if params.get("placement") == "underground":
-        _require(params, "burial_depth", "Глубина/высота подземной части", missing)
-        _require(params, "ground_type", "Тип грунта", missing)
-        _require(params, "ground_conductivity", "λ грунта", missing)
-    if params.get("placement") != "indoor" and params.get("location") != "indoor":
-        _require(
-            params,
-            "insulation_temperature_basis",
-            "Режим температуры изоляции",
-            missing,
-        )
+    heat_keys = COMMON_HEAT_PARAM_KEYS | TANK_HEAT_PARAM_KEYS
     try:
-        validate_insulation_temperature_basis_for_placement(
-            basis=params.get("insulation_temperature_basis"),
-            location=params.get("location"),
-            placement=params.get("placement"),
-        )
+        StoredTankHeatParams(**{key: value for key, value in params.items() if key in heat_keys})
     except ValueError as exc:
         raise ProjectObjectParamsError(str(exc)) from exc
-
-
-def _validate_insulation(params: Mapping[str, Any], missing: list[str]) -> None:
-    if params.get("needs_material_reselection") is True:
-        missing.append(INSULATION_MATERIAL_RESELECTION_MESSAGE)
-
-    count = _layer_count(params)
-    layers = params.get("insulation_layers")
-    layer_list = layers if isinstance(layers, list) else []
-
-    for index in range(count):
-        label = f"{index + 1}-го слоя изоляции"
-        layer = (
-            layer_list[index]
-            if index < len(layer_list) and isinstance(layer_list[index], Mapping)
-            else None
-        )
-        if layer is None:
-            if index == 0:
-                _require(params, "insulation_thickness", "Толщина изоляции", missing)
-                _require(params, "insulation_material", "Материал изоляции", missing)
-                if is_generic_insulation_material(str(params.get("insulation_material") or "")):
-                    missing.append(INSULATION_MATERIAL_RESELECTION_MESSAGE)
-                if params.get("insulation_material") == "other":
-                    missing.append("λ 1-го слоя изоляции")
-            else:
-                missing.append(f"Толщина {label}")
-                missing.append(f"Материал {label}")
-            continue
-
-        _require(layer, "thickness", f"Толщина {label}", missing)
-        _require(layer, "material", f"Материал {label}", missing)
-        if is_generic_insulation_material(str(layer.get("material") or "")):
-            missing.append(INSULATION_MATERIAL_RESELECTION_MESSAGE)
-        if layer.get("material") == "other" and _is_missing(layer.get("conductivity")):
-            missing.append(f"λ {label}")
-        if layer.get("material") == "other" and _is_missing(layer.get("temperature_range")):
-            missing.append(f"Температурный диапазон {label}")
-
-
-def _layer_count(params: Mapping[str, Any]) -> int:
-    raw = params.get("insulation_layer_count")
-    try:
-        count = int(raw)
-    except (TypeError, ValueError):
-        count = 1
-    return min(max(count, 1), 3)
-
-
-def _require(params: Mapping[str, Any], key: str, label: str, missing: list[str]) -> None:
-    if _is_missing(params.get(key)):
-        missing.append(label)
-
-
-def _is_missing(value: Any) -> bool:
-    return value is None or (isinstance(value, str) and value.strip() == "")

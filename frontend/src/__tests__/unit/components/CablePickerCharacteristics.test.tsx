@@ -75,16 +75,30 @@ describe('cablePickerCharacteristicsModel', () => {
         shape: 'cylindrical',
         diameter: 2,
         height: 3,
-        insulation_material: 'tank_legacy_material',
-        insulation_thickness: 0.04,
+        insulation_layers: [{ material: 'tank_material', thickness: 0.04 }],
       },
       results: null,
     });
     const fields = buildObjectFields(tank);
     expect(fields[0].value).toBe('Резервуар');
     expect(fields.find((f) => f.key === 'tank_geometry')?.value).toMatch(/цилиндр/);
-    expect(fields.find((f) => f.key === 'insulation')?.value).toBe('tank_legacy_material, 40 мм');
+    expect(fields.find((f) => f.key === 'insulation')?.value).toBe('tank_material, 40 мм');
     expect(fields.find((f) => f.key === 'total_heat_loss_design')?.value).toBe('—');
+  });
+
+  it('does not read legacy insulation keys for tank objects', () => {
+    const fields = buildObjectFields(makePipe({
+      object_type: 'tank',
+      params: {
+        shape: 'cylindrical',
+        diameter: 2,
+        height: 3,
+        insulation_material: 'tank_legacy_material',
+        insulation_thickness: 0.04,
+      },
+    }));
+
+    expect(fields.find((f) => f.key === 'insulation')?.value).toBe('—');
   });
 
   it('orders cable fields and formats extended values with fallbacks', () => {

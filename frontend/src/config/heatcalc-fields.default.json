@@ -1745,7 +1745,7 @@
     },
     "ground_temperature": {
       "service_name": "ground_temperature",
-      "object_types": ["pipe"],
+      "object_types": ["pipe", "tank"],
       "group": "Грунт",
       "labels": { "full": "Температура грунта", "short": "T грунта", "compact": "T гр." },
       "contexts": {
@@ -1753,30 +1753,30 @@
         "settings_by_key": { "ground_temperature": { "label": "Температура грунта" } },
         "form": { "label": "Температура грунта" }
       },
-      "table_keys": { "pipe": "ground_temperature" },
+      "table_keys": { "pipe": "ground_temperature", "tank": "ground_temperature" },
       "input": { "type": "number", "unit": "°C", "min": -70, "max": 70, "default_step": 1, "configurable_step": false, "input_unit": "raw", "display_digits": 1 },
-      "description": "Температура грунта для бесканальной подземной прокладки. Диапазон ТНП: −70…+70 °C."
+      "description": "Температура грунта для бесканальной трубы или грунтовой части частично заглублённого резервуара. Диапазон ТНП: −70…+70 °C."
     },
-    "burial_depth": {
-      "service_name": "burial_depth",
+    "tank_buried_height": {
+      "service_name": "tank_buried_height",
       "object_types": ["tank"],
       "group": "Грунт",
       "labels": {
-        "full": "Глубина заложения",
-        "short": "Глубина",
+        "full": "Высота заглублённой части",
+        "short": "Высота заглубления",
         "compact": "h"
       },
       "contexts": {
         "table_by_key": {
-          "burial_depth": {
-            "label": "Глубина, м",
-            "full_label": "Глубина заложения",
-            "tooltip": "Глубина заложения"
+          "tank_buried_height": {
+            "label": "Высота заглубления, м",
+            "full_label": "Высота части резервуара в контакте с грунтом",
+            "tooltip": "Высота части резервуара в контакте с грунтом"
           }
         },
         "settings_by_key": {
-          "burial_depth": {
-            "label": "Глубина заложения"
+          "tank_buried_height": {
+            "label": "Высота заглублённой части"
           }
         },
         "form_by_type": {
@@ -1785,18 +1785,18 @@
           }
         }
       },
-      "table_keys": { "tank": "burial_depth" },
+      "table_keys": { "tank": "tank_buried_height" },
       "input": {
         "type": "number",
         "unit": "м",
-        "min": 0,
-        "max": 200,
+        "min": 0.01,
+        "max": 50,
         "default_step": 0.1,
         "configurable_step": false,
         "input_unit": "raw",
         "display_digits": 2
       },
-      "description": "Высота подземной части резервуара. Backend делит расчёт на Sвозд и Sгр. Диапазон ТНП: 0…200 м."
+      "description": "Высота части резервуара, контактирующей с грунтом: больше 0 и не больше полной высоты резервуара."
     },
     "ground_type": {
       "service_name": "ground_type",
@@ -4554,7 +4554,7 @@
           "field": "insulation_temperature_basis"
         },
         {
-          "key": "burial_depth",
+          "key": "tank_buried_height",
           "group": "Грунт",
           "defaultWidthPct": 9.2,
           "minWidthPx": 64,
@@ -4563,7 +4563,7 @@
           "sortable": true,
           "filterable": true,
           "resizable": true,
-          "field": "burial_depth"
+          "field": "tank_buried_height"
         },
         {
           "key": "ground_conductivity",
@@ -4879,6 +4879,7 @@
             "climate_temperature_basis",
             "insulation_temperature_basis",
             "ambient_temperature",
+            "ground_temperature",
             "process_temperature",
             "wind_speed",
             "alpha_vnesh",
@@ -4925,7 +4926,7 @@
             "wall_thickness_mm",
             "wall_lambda",
             "placement",
-            "burial_depth",
+            "tank_buried_height",
             "ground_type",
             "ground_conductivity"
           ]

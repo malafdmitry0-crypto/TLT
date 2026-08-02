@@ -208,11 +208,13 @@ class TestCalcHeatLoss:
                 "shape": "cylindrical",
                 "diameter": 2.0,
                 "height": 3.0,
-                "insulation_thickness": 0.08,
-                "insulation_material": MINERAL_WOOL,
+                "insulation_layers": [{"thickness": 0.08, "material": MINERAL_WOOL}],
                 "insulation_temperature_basis": "outdoor_winter",
                 "ambient_temperature": -20,
                 "process_temperature": 80,
+                "placement": "outdoor",
+                "wind_speed": 0,
+                "safety_factor": 1.1,
             },
         )
         assert "heat_loss_per_m2_bare_base" in result
@@ -269,7 +271,7 @@ class TestRecalculateObject:
         assert obj.is_valid is False
         assert obj.validation_errors is not None
         assert obj.validation_errors["category"] == "validation"
-        assert obj.validation_errors["error_code"] == "invalid_object_params"
+        assert obj.validation_errors["error_code"] == "process_temperature_not_above_ambient"
         # Сообщение об ошибке содержит упоминание T_продукта
         err_msg = obj.validation_errors["message"].lower()
         assert "выше" in err_msg or "температур" in err_msg
@@ -294,13 +296,16 @@ class TestRecalculateObject:
             id=uuid.uuid4(),
             object_type="tank",
             params={
-                "shape": "spherical",
+                "shape": "cylindrical",
                 "diameter": 1.5,
-                "insulation_thickness": 0.06,
-                "insulation_material": MINERAL_WOOL,
+                "height": 2.0,
+                "insulation_layers": [{"thickness": 0.06, "material": MINERAL_WOOL}],
                 "insulation_temperature_basis": "outdoor_winter",
                 "ambient_temperature": -10,
                 "process_temperature": 60,
+                "placement": "outdoor",
+                "wind_speed": 0,
+                "safety_factor": 1.1,
             },
             results=None,
             is_valid=False,

@@ -138,9 +138,7 @@ export function tankApiParamsToForm(p: Record<string, unknown>): Partial<TankFor
   const firstRange = apiTemperatureRange(layers[0]);
   const secondRange = apiTemperatureRange(layers[1]);
   const thirdRange = apiTemperatureRange(layers[2]);
-  const placement =
-    (p.placement as TankFormValues['placement']) ??
-    (p.burial_depth != null ? 'underground' : p.location as TankFormValues['placement']);
+  const placement = p.placement as TankFormValues['placement'];
   return {
     shape: (p.shape as TankFormValues['shape']) ?? 'cylindrical',
     diameter_mm: p.diameter != null ? Number(p.diameter) * 1000 : undefined,
@@ -149,20 +147,13 @@ export function tankApiParamsToForm(p: Record<string, unknown>): Partial<TankFor
     width_mm: p.width != null ? Number(p.width) * 1000 : undefined,
     wall_thickness_mm: p.wall_thickness != null ? Number(p.wall_thickness) * 1000 : undefined,
     wall_lambda: p.wall_lambda as number | undefined,
-    insulation_thickness_mm:
-      layers[0]?.thickness != null
-        ? Number(layers[0].thickness) * 1000
-        : p.insulation_thickness != null ? Number(p.insulation_thickness) * 1000 : undefined,
-    insulation_material:
-      (layers[0]?.material as string | undefined) ?? (p.insulation_material as string | undefined),
+    insulation_thickness_mm: layers[0]?.thickness != null ? Number(layers[0].thickness) * 1000 : undefined,
+    insulation_material: layers[0]?.material as string | undefined,
     first_insulation_lambda: layers[0]?.conductivity as number | undefined,
     first_insulation_temperature_min: firstRange.temperature_min,
     first_insulation_temperature_max: firstRange.temperature_max,
     insulation_cover_material: p.insulation_cover_material as string | undefined,
-    insulation_layer_count:
-      p.insulation_layer_count != null
-        ? String(p.insulation_layer_count) as TankFormValues['insulation_layer_count']
-        : layers.length > 0 ? String(Math.min(layers.length, 3)) as TankFormValues['insulation_layer_count'] : '1',
+    insulation_layer_count: String(Math.min(Math.max(layers.length, 1), 3)) as TankFormValues['insulation_layer_count'],
     second_insulation_thickness_mm:
       layers[1]?.thickness != null ? Number(layers[1].thickness) * 1000 : undefined,
     second_insulation_material: layers[1]?.material as string | undefined,
@@ -183,9 +174,13 @@ export function tankApiParamsToForm(p: Record<string, unknown>): Partial<TankFor
     zone_classification: p.zone_classification as TankFormValues['zone_classification'],
     temperature_group: p.temperature_group as TankFormValues['temperature_group'],
     placement,
-    burial_depth: p.burial_depth as number | undefined,
+    tank_buried_height: p.tank_buried_height as number | undefined,
+    ground_temperature: p.ground_temperature as number | undefined,
+    ground_temperature_source: p.ground_temperature_source as TankFormValues['ground_temperature_source'],
     ground_type: p.ground_type as string | undefined,
     ground_conductivity: p.ground_conductivity as number | undefined,
+    ground_conductivity_source:
+      p.ground_conductivity_source as TankFormValues['ground_conductivity_source'],
     wind_speed: p.wind_speed as number | undefined,
     alpha_vnesh: p.alpha_vnesh as number | undefined,
     climate_city: p.climate_city as string | undefined,

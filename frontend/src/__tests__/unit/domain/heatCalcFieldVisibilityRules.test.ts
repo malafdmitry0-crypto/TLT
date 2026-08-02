@@ -6,6 +6,7 @@ import {
   isHeatCalcFieldVisible,
   isInsulationTemperatureBasisAllowedForPlacement,
 } from '@/domain/heatCalcFieldVisibilityRules';
+import { getHeatCalcFieldConfig, getHeatCalcTableColumnRegistry } from '@/domain/heatCalcFields';
 
 describe('heatCalcFieldVisibilityRules', () => {
   it('maps insulation temperature basis options by placement', () => {
@@ -26,5 +27,13 @@ describe('heatCalcFieldVisibilityRules', () => {
     };
     expect(isHeatCalcFieldVisible('burial_depth', context)).toBe(false);
     expect(isHeatCalcFieldVisible('ground_type', context)).toBe(false);
+  });
+
+  it('registers canonical tank underground fields without the legacy depth key', () => {
+    const context = { objectType: 'tank' as const, values: { placement: 'underground' } };
+    expect(isHeatCalcFieldVisible('tank_buried_height', context)).toBe(true);
+    expect(getHeatCalcFieldConfig('tank_buried_height')?.table_keys?.tank).toBe('tank_buried_height');
+    expect(getHeatCalcTableColumnRegistry('tank').some((column) => column.key === 'tank_buried_height')).toBe(true);
+    expect(getHeatCalcFieldConfig('burial_depth')).toBeNull();
   });
 });

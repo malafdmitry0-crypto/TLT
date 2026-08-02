@@ -201,9 +201,13 @@ export interface TankFormValues {
   zone_classification?: 'safe' | 'explosive';
   temperature_group?: 'T1' | 'T2' | 'T3' | 'T4' | 'T5' | 'T6';
   placement?: 'outdoor' | 'indoor' | 'underground';
-  burial_depth?: number;
+  /** Height of the tank surface in contact with ground, in metres. */
+  tank_buried_height?: number;
+  ground_temperature?: number;
+  ground_temperature_source?: 'manual' | 'climate';
   ground_type?: string;
   ground_conductivity?: number;
+  ground_conductivity_source?: 'manual' | 'reference';
   wind_speed?: number;
   alpha_vnesh?: number;
   climate_city?: string;

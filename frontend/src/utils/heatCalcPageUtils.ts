@@ -53,7 +53,7 @@ const NUMBER_FILTER_COLUMNS = new Set<HeatCalcColumnKey>([
   'max_process_temperature',
   'wind_speed',
   'alpha_vnesh',
-  'burial_depth',
+  'tank_buried_height',
   'pipe_centerline_depth',
   'ground_temperature',
   'ground_conductivity',

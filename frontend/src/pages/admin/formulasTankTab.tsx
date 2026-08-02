@@ -34,28 +34,30 @@ export function FormulasTankTab() {
     [insulation],
  );
  const shape = Form.useWatch('shape', form) ?? 'cylindrical';
+ const placement = Form.useWatch('placement', form) ?? 'outdoor';
 
  const onCalc = async () => {
     const v = await form.validateFields();
     const layers = collectInsulationLayers(v);
     const p: Record<string, unknown> = {
       shape: v.shape,
-      insulation_thickness: layers[0]?.thickness,
-      insulation_material: layers[0]?.material,
       insulation_layers: layers,
       process_temperature: v.process_temperature,
       ambient_temperature: v.ambient_temperature,
-      location: v.location ?? 'outdoor',
+      placement: v.placement,
       insulation_temperature_basis: v.insulation_temperature_basis,
+      safety_factor: v.safety_factor,
+      q_additional: v.q_additional,
     };
     assignIfPresent(p, 'wall_thickness', v.wall_thickness_mm, (x) => Number(x) / 1000);
     assignIfPresent(p, 'wall_lambda', v.wall_lambda);
-    assignIfPresent(p, 'burial_depth', v.burial_depth);
-    assignIfPresent(p, 'ground_conductivity', v.ground_conductivity);
+    if (v.placement === 'underground') {
+      assignIfPresent(p, 'ground_temperature', v.ground_temperature);
+      assignIfPresent(p, 'tank_buried_height', v.tank_buried_height);
+      assignIfPresent(p, 'ground_conductivity', v.ground_conductivity);
+    }
     assignIfPresent(p, 'wind_speed', v.wind_speed);
     assignIfPresent(p, 'alpha_vnesh', v.alpha_vnesh);
-    assignIfPresent(p, 'safety_factor', v.safety_factor);
-    assignIfPresent(p, 'q_additional', v.q_additional);
     if (v.shape === 'cylindrical' || v.shape === 'spherical') {
       p.diameter = v.diameter_mm / 1000;
       if (v.shape === 'cylindrical') p.height = v.height_mm / 1000;
@@ -74,7 +76,20 @@ export function FormulasTankTab() {
       </Col>
       <Col xs={24} lg={12}>
         <Title level={5}>Проверить расчёт</Title>
-        <Form form={form} name="tank_formula_check" layout="vertical" initialValues={{ shape: 'cylindrical', location: 'outdoor', insulation_temperature_basis: 'outdoor_winter', insulation_material_1: 'mineral_wool_boards_120' }}>
+        <Form
+          form={form}
+          name="tank_formula_check"
+          layout="vertical"
+          initialValues={{
+            shape: 'cylindrical',
+            placement: 'outdoor',
+            insulation_temperature_basis: 'outdoor_winter',
+            insulation_material_1: 'mineral_wool_boards_120',
+            wind_speed: 0,
+            safety_factor: 1.1,
+            q_additional: 0,
+          }}
+        >
           <Row gutter={12}>
             <Col span={8}>
               <Form.Item name="shape" label="Форма" rules={[{ required: true }]}>
@@ -88,11 +103,12 @@ export function FormulasTankTab() {
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="location" label="Размещение">
+              <Form.Item name="placement" label="Размещение" rules={[{ required: true }]}>
                 <TltSelect
                   options={[
                     { value: 'outdoor', label: 'Надземное' },
                     { value: 'indoor', label: 'В помещении' },
+                    { value: 'underground', label: 'Частично заглублённое', disabled: shape === 'spherical' },
                   ]}
                 />
               </Form.Item>
@@ -212,23 +228,30 @@ export function FormulasTankTab() {
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="safety_factor" label="K запаса">
-                <TltNumberField min={1.05} max={1.7} step={0.05} className="tlt-field--fill" placeholder="1.1" />
+              <Form.Item name="safety_factor" label="K запаса" rules={[{ required: true }]}>
+                <TltNumberField min={1} max={1.7} step={0.05} className="tlt-field--fill" placeholder="1.1" />
               </Form.Item>
             </Col>
           </Row>
-          <Row gutter={12}>
-            <Col span={12}>
-              <Form.Item name="burial_depth" label="Высота подземной части, м">
-                <TltNumberField min={0} max={200} className="tlt-field--fill" placeholder="0" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="ground_conductivity" label="λ грунта">
-                <TltNumberField min={0.5} max={3} className="tlt-field--fill" placeholder="1.5" />
-              </Form.Item>
-            </Col>
-          </Row>
+          {placement === 'underground' && (
+            <Row gutter={12}>
+              <Col span={8}>
+                <Form.Item name="ground_temperature" label="T грунта, °C" rules={[{ required: true }]}>
+                  <TltNumberField min={-70} max={70} className="tlt-field--fill" placeholder="5" />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item name="tank_buried_height" label="Высота заглублённой части, м" rules={[{ required: true }]}>
+                  <TltNumberField min={0.01} max={50} className="tlt-field--fill" placeholder="1" />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item name="ground_conductivity" label="λ грунта" rules={[{ required: true }]}>
+                  <TltNumberField min={0.5} max={3} className="tlt-field--fill" placeholder="1.5" />
+                </Form.Item>
+              </Col>
+            </Row>
+          )}
           <TltButton variant="primary" onClick={onCalc} loading={loading}>Рассчитать</TltButton>
         </Form>
         {error && <TltAlert className="formulas-tab-alert" tone="danger" title={error} />}

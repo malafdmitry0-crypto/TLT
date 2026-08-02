@@ -164,7 +164,7 @@ describe('ObjectWizard dependencies — payload-fields', () => {
     expect(payload.wall_lambda).toBe(45);
   });
 
-  it('помечает стенку резервуара парой, но позволяет сохранить для расчёта статуса', async () => {
+  it('cleans an incomplete tank wall pair before saving', async () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
     renderWizard({
@@ -188,7 +188,7 @@ describe('ObjectWizard dependencies — payload-fields', () => {
     await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     const payload = onSubmit.mock.calls[0][0] as Record<string, unknown>;
-    expect(payload.wall_thickness).toBe(0.012);
+    expect(payload.wall_thickness).toBeUndefined();
     expect(payload.wall_lambda).toBeUndefined();
   });
 

@@ -34,8 +34,7 @@ export default function HeatCalcAssumptionsPanel({
   };
 
   const isPipe = selectedObject.object_type === 'pipe';
-  const isUnderground = selectedParams?.placement === 'underground'
-    || (!isPipe && selectedParams?.burial_depth != null);
+  const isUnderground = selectedParams?.placement === 'underground';
   const enabledMetrics = new Set(normalizeCalculationDetailsSettings(calculationDetailsSettings).visibleMetrics);
   const details: Array<{ key: string; label: string; value: string }> = [];
 

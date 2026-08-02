@@ -159,15 +159,11 @@ def _param_m_as_mm(key: str) -> Callable[[ProjectObject], Any]:
 
 
 def _placement(obj: ProjectObject) -> Any:
-    if obj.object_type == "pipe":
-        return obj.params.get("placement")
-    return obj.params.get("placement") or obj.params.get("location")
+    return obj.params.get("placement")
 
 
 def _first_insulation_value(obj: ProjectObject, key: str) -> Any:
-    if obj.object_type == "pipe":
-        return (_layer(obj, 0) or {}).get(key)
-    return obj.params.get(f"insulation_{key}")
+    return (_layer(obj, 0) or {}).get(key)
 
 
 def _pipe_lambda_mode(obj: ProjectObject) -> str:
@@ -208,14 +204,7 @@ def _layer_m_as_mm(index: int, key: str) -> Callable[[ProjectObject], Any]:
 
 def _insulation_layer_count(obj: ProjectObject) -> int:
     layers = obj.params.get("insulation_layers")
-    if isinstance(layers, list) and len(layers) > 0:
-        return len(layers)
-    if obj.object_type == "pipe":
-        return 0
-    explicit = _to_float(obj.params.get("insulation_layer_count"))
-    if explicit is not None:
-        return int(explicit)
-    return 1
+    return len(layers) if isinstance(layers, list) else 0
 
 
 def _find_dn(outer_diameter_mm: float | None) -> int | None:
@@ -331,19 +320,9 @@ def _sql_heat_loss_status() -> Any:
 
 def _sql_insulation_layer_count() -> Any:
     layers = ProjectObject.params["insulation_layers"]
-    canonical_count = case(
+    return case(
         (func.jsonb_typeof(layers) == "array", func.jsonb_array_length(layers)),
         else_=0,
-    )
-    return case(
-        (ProjectObject.object_type == "pipe", canonical_count),
-        else_=func.coalesce(
-            cast(func.nullif(_sql_param_text("insulation_layer_count"), ""), Float),
-            case(
-                (func.jsonb_typeof(layers) == "array", func.jsonb_array_length(layers)),
-                else_=1,
-            ),
-        ),
     )
 
 
@@ -797,12 +776,14 @@ def _common_fields(object_type: str) -> list[FieldDef]:
             static_options=CLIMATE_BASIS_OPTIONS,
         ),
         FieldDef(
-            "pipe_centerline_depth" if object_type == "pipe" else "burial_depth",
-            "Глубина заложения",
-            "Глубина, м",
+            "pipe_centerline_depth" if object_type == "pipe" else "tank_buried_height",
+            "Глубина заложения" if object_type == "pipe" else "Высота заглублённой части",
+            "Глубина, м" if object_type == "pipe" else "Высота заглубления, м",
             (object_type,),
             "number",
-            _param("pipe_centerline_depth" if object_type == "pipe" else "burial_depth"),
+            _param(
+                "pipe_centerline_depth" if object_type == "pipe" else "tank_buried_height"
+            ),
             unit="m",
             filter_ops=("range",),
             sortable=True,
@@ -1208,19 +1189,10 @@ DEFAULT_SEARCH_COLUMNS = {
 OBJECT_SQL_EXPRESSIONS: dict[str, SqlExprFactory] = {
     "heat_loss_status": _sql_heat_loss_status,
     "name": lambda: _sql_param_text("name"),
-    "placement": lambda: case(
-        (ProjectObject.object_type == "pipe", _sql_param_text("placement")),
-        else_=func.coalesce(_sql_param_text("placement"), _sql_param_text("location")),
-    ),
+    "placement": lambda: _sql_param_text("placement"),
     "insulation_layer_count": _sql_insulation_layer_count,
-    "insulation_thickness": lambda: case(
-        (ProjectObject.object_type == "pipe", _sql_layer_mm(0, "thickness")),
-        else_=_sql_param_mm("insulation_thickness"),
-    ),
-    "insulation_material": lambda: case(
-        (ProjectObject.object_type == "pipe", _sql_layer_text(0, "material")),
-        else_=_sql_param_text("insulation_material"),
-    ),
+    "insulation_thickness": lambda: _sql_layer_mm(0, "thickness"),
+    "insulation_material": lambda: _sql_layer_text(0, "material"),
     "first_insulation_lambda": lambda: _sql_layer_number(0, "conductivity"),
     "second_insulation_thickness": lambda: _sql_layer_mm(1, "thickness"),
     "second_insulation_material": lambda: _sql_layer_text(1, "material"),
@@ -1245,8 +1217,8 @@ OBJECT_SQL_EXPRESSIONS: dict[str, SqlExprFactory] = {
     "climate_region": lambda: _sql_param_text("climate_region"),
     "climate_key": lambda: _sql_param_text("climate_key"),
     "climate_temperature_basis": lambda: _sql_param_text("climate_temperature_basis"),
-    "burial_depth": lambda: _sql_param_number("burial_depth"),
     "pipe_centerline_depth": lambda: _sql_param_number("pipe_centerline_depth"),
+    "tank_buried_height": lambda: _sql_param_number("tank_buried_height"),
     "ground_type": lambda: _sql_param_text("ground_type"),
     "ground_conductivity": lambda: _sql_param_number("ground_conductivity"),
     "min_switch_temperature": lambda: _sql_param_number("min_switch_temperature"),

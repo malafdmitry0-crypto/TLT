@@ -96,21 +96,13 @@ export function buildHeatCalcColumnRenderers({
       copyValue: (r) => insulationLayerCount(r),
     },
     insulation_thickness: {
-      render: (_: unknown, r: ProjectObject) => r.object_type === 'pipe'
-        ? insulationLayerThickness(r, 0)
-        : formatParamMetersAsMm(r, 'insulation_thickness'),
-      copyValue: (r) => r.object_type === 'pipe'
-        ? insulationLayerThickness(r, 0)
-        : formatParamMetersAsMm(r, 'insulation_thickness'),
+      render: (_: unknown, r: ProjectObject) => insulationLayerThickness(r, 0),
+      copyValue: (r) => insulationLayerThickness(r, 0),
     },
     insulation_material: {
       ellipsis: true,
-      render: (_: unknown, r: ProjectObject) => r.object_type === 'pipe'
-        ? insulationLayerMaterial(r, 0, insulationLabel)
-        : insulationLabel(r.params?.insulation_material),
-      copyValue: (r) => r.object_type === 'pipe'
-        ? insulationLayerMaterial(r, 0, insulationLabel)
-        : insulationLabel(r.params?.insulation_material),
+      render: (_: unknown, r: ProjectObject) => insulationLayerMaterial(r, 0, insulationLabel),
+      copyValue: (r) => insulationLayerMaterial(r, 0, insulationLabel),
     },
     first_insulation_lambda: {
       render: (_: unknown, r: ProjectObject) => insulationLayerConductivity(r, 0),
@@ -214,9 +206,9 @@ export function buildHeatCalcColumnRenderers({
       render: (_: unknown, r: ProjectObject) => insulationTemperatureBasisLabel(r.params?.insulation_temperature_basis),
       copyValue: (r) => insulationTemperatureBasisLabel(r.params?.insulation_temperature_basis),
     },
-    burial_depth: {
-      render: (_: unknown, r: ProjectObject) => formatParamNumber(r, 'burial_depth', 2),
-      copyValue: (r) => formatParamNumber(r, 'burial_depth', 2),
+    tank_buried_height: {
+      render: (_: unknown, r: ProjectObject) => formatParamNumber(r, 'tank_buried_height', 2),
+      copyValue: (r) => formatParamNumber(r, 'tank_buried_height', 2),
     },
     pipe_centerline_depth: {
       render: (_: unknown, r: ProjectObject) => formatParamNumber(r, 'pipe_centerline_depth', 2),

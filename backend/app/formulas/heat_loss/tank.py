@@ -16,11 +16,7 @@ import math
 from dataclasses import dataclass
 from typing import Any
 
-from app.formulas.heat_loss.common import (
-    merge_coefficients,
-    validate_positive,
-    validate_temperature_range,
-)
+from app.formulas.heat_loss.common import validate_positive, validate_temperature_range
 from app.formulas.heat_loss.insulation import resolve_insulation_tm
 from app.reference_data.loader import get_insulation_conductivity, get_insulation_temperature_range
 from app.schemas.calculation import InsulationLayer, TankHeatLossParams, TankHeatLossResult
@@ -154,21 +150,16 @@ def _calc_alpha(params: TankHeatLossParams) -> float:
     """
     if params.alpha_vnesh is not None:
         return params.alpha_vnesh
-    if params.location == "indoor":
+    if params.placement == "indoor":
         return 9.0
-    v = max(params.wind_speed or 0.0, 0.0)
+    if params.wind_speed is None:
+        raise ValueError("Для автоматического alpha_vnesh требуется wind_speed")
+    v = max(params.wind_speed, 0.0)
     return 11.6 + 7.0 * math.sqrt(v)
 
 
 def _resolve_layers(params: TankHeatLossParams) -> list[InsulationLayer]:
-    if params.insulation_layers:
-        return list(params.insulation_layers)
-    return [
-        InsulationLayer(
-            thickness=params.insulation_thickness,
-            material=params.insulation_material,
-        )
-    ]
+    return list(params.insulation_layers)
 
 
 def _r_insulation_layers(
@@ -217,7 +208,7 @@ def calc_tank_heat_loss(
     Алгоритм:
         1. r_wall = δ_р / λ_р (если заданы толщина и λ стенки)
         2. r_ins  = δ_из / λ_из  (изоляция — плоская стенка)
-        3. r_ext  = 1 / α_внеш   (α = 11.6 + 7·v на улице, 9.0 в помещении)
+        3. r_ext  = 1 / α_внеш   (α = 11.6 + 7·sqrt(v) на улице, 9.0 в помещении)
         4. Для подземной части: r_ground = h / λ_гр
         5. q = ΔT / r_total (Вт/м², БЕЗ safety_factor)
         6. S — площадь по форме или раздельно S_air/S_ground
@@ -239,10 +230,11 @@ def calc_tank_heat_loss(
     See Also:
         backend formula unit tests / golden cases
     """
-    validate_positive("Толщина изоляции", params.insulation_thickness)
+    if params.shape == "spherical":
+        raise ValueError("spherical_tank_formula_deferred_to_slice_4")
+    if params.ambient_temperature is None:
+        raise ValueError("Для резервуара требуется ambient_temperature")
     validate_temperature_range(params.ambient_temperature, params.process_temperature)
-
-    delta_t = params.process_temperature - params.ambient_temperature
 
     # --- 1. Сопротивление стенки резервуара ---
     r_wall = 0.0
@@ -259,7 +251,8 @@ def calc_tank_heat_loss(
     insulation_tm = resolve_insulation_tm(
         process_temperature=params.process_temperature,
         basis=params.insulation_temperature_basis,
-        location=params.location,
+        location="indoor" if params.placement == "indoor" else "outdoor",
+        placement=params.placement,
     )
     r_ins, layer_resistances = _r_insulation_layers(layers, insulation_tm)
 
@@ -268,11 +261,10 @@ def calc_tank_heat_loss(
     r_ext = 1.0 / alpha
 
     # --- 7. Коэффициент запаса ---
-    merged = merge_coefficients(coefficients)
-    k = params.safety_factor or merged.get("safety_factor", 1.1)
+    k = params.safety_factor
 
     r_common = r_wall + r_ins
-    buried_height = params.burial_depth or 0.0
+    buried_height = params.tank_buried_height or 0.0
     lambda_gr: float | None = None
     r_ground: float | None = None
     s_air: float | None = None
@@ -280,12 +272,16 @@ def calc_tank_heat_loss(
     q_air: float | None = None
     q_ground: float | None = None
     if buried_height > 0:
-        lambda_gr = params.ground_conductivity or merged.get("ground_conductivity", 1.5)
+        if params.ground_temperature is None:
+            raise ValueError("Для underground требуется ground_temperature")
+        if params.ground_conductivity is None:
+            raise ValueError("Для underground требуется ground_conductivity")
+        lambda_gr = params.ground_conductivity
         validate_positive("Теплопроводность грунта", lambda_gr)
         s_air, s_ground = _surface_area_split(params, buried_height)
-        q_air = delta_t / (r_common + r_ext)
+        q_air = (params.process_temperature - params.ambient_temperature) / (r_common + r_ext)
         r_ground = buried_height / lambda_gr
-        q_ground = delta_t / (r_common + r_ground)
+        q_ground = (params.process_temperature - params.ground_temperature) / (r_common + r_ground)
         for heat_flux in (q_air, q_ground):
             _validate_layer_temperatures(
                 layer_resistances,
@@ -296,10 +292,11 @@ def calc_tank_heat_loss(
         q_base_total = q_air * s_air + q_ground * s_ground
         q_total = q_base_total * k
         q_per_m2 = q_base_total / area
-        effective_resistance = delta_t / q_per_m2
+        effective_resistance = (params.process_temperature - params.ambient_temperature) / q_per_m2
     else:
         # --- 4–5. Тепловой поток на м² ---
         r_total = r_common + r_ext
+        delta_t = params.process_temperature - params.ambient_temperature
         q_per_m2 = delta_t / r_total
         _validate_layer_temperatures(
             layer_resistances,
@@ -319,40 +316,39 @@ def calc_tank_heat_loss(
     q_total += q_additional
 
     return TankHeatLossResult(
-        total_heat_loss_base=round(q_base_total, 3),
-        total_heat_loss_design=round(q_total, 3),
-        heat_loss_per_m2_bare_base=round(q_per_m2, 3),
-        heat_loss_per_m2_bare_design=round(q_total / area, 3),
-        surface_area_bare=round(area, 3),
-        thermal_resistance_areal_bare=(
-            None if buried_height > 0 else round(effective_resistance, 6)
-        ),
-        wall_resistance_areal_bare=round(r_wall, 6),
-        insulation_resistance_areal_bare=round(r_ins, 6),
-        external_resistance_areal_bare=round(r_ext, 6),
-        ground_resistance_areal_bare=(round(r_ground, 6) if r_ground is not None else None),
-        alpha_vnesh_applied=round(alpha, 3),
+        total_heat_loss_base=q_base_total,
+        total_heat_loss_design=q_total,
+        heat_loss_per_m2_bare_base=q_per_m2,
+        heat_loss_per_m2_bare_design=q_total / area,
+        surface_area_bare=area,
+        thermal_resistance_areal_bare=None if buried_height > 0 else effective_resistance,
+        wall_resistance_areal_bare=r_wall,
+        insulation_resistance_areal_bare=r_ins,
+        external_resistance_areal_bare=r_ext,
+        ground_resistance_areal_bare=r_ground,
+        alpha_vnesh_applied=alpha,
         wind_speed_applied=(
             params.wind_speed
-            if params.alpha_vnesh is None and params.location != "indoor"
+            if params.alpha_vnesh is None and params.placement != "indoor"
             else None
         ),
-        ground_conductivity_applied=(round(lambda_gr, 3) if lambda_gr is not None else None),
-        safety_factor_applied=round(k, 3),
-        q_additional_applied=round(q_additional, 3),
-        air_surface_area=round(s_air, 3) if s_air is not None else None,
-        ground_surface_area=round(s_ground, 3) if s_ground is not None else None,
+        ground_conductivity_applied=lambda_gr,
+        safety_factor_applied=k,
+        q_additional_applied=q_additional,
+        air_surface_area=s_air,
+        ground_surface_area=s_ground,
         heat_loss_air_base=(
-            round(q_air * s_air, 3) if q_air is not None and s_air is not None else None
+            q_air * s_air if q_air is not None and s_air is not None else None
         ),
         heat_loss_ground_base=(
-            round(q_ground * s_ground, 3) if q_ground is not None and s_ground is not None else None
+            q_ground * s_ground if q_ground is not None and s_ground is not None else None
         ),
         formula_model="tank_heat_loss",
-        formula_model_version="2",
-        model_assumptions=["plane_wall_resistance_for_tank"],
+        formula_model_version="3",
+        model_assumptions=["plane_wall_resistance_for_cylindrical_and_rectangular_tank"],
         process_temperature_applied=params.process_temperature,
         ambient_temperature_applied=params.ambient_temperature,
+        ground_temperature_applied=params.ground_temperature if buried_height > 0 else None,
         insulation_layers_applied=[
             {
                 "index": index,
@@ -372,12 +368,17 @@ def calc_tank_heat_loss(
             "length": "m",
             "width": "m",
             "wall_thickness": "m",
+            "wall_lambda": "W/(m*K)",
             "insulation_layers.thickness": "m",
+            "insulation_layers.conductivity": "W/(m*K)",
             "ambient_temperature": "degC",
             "process_temperature": "degC",
-            "burial_depth": "m",
+            "tank_buried_height": "m",
+            "ground_temperature": "degC",
             "wind_speed": "m/s",
+            "alpha_vnesh": "W/(m2*K)",
             "ground_conductivity": "W/(m*K)",
+            "safety_factor": "1",
             "q_additional": "W",
         },
         applied_units={
@@ -385,10 +386,25 @@ def calc_tank_heat_loss(
             "heat_loss_per_m2_bare_design": "W/m2",
             "total_heat_loss_base": "W",
             "total_heat_loss_design": "W",
+            "surface_area_bare": "m2",
             "thermal_resistance_areal_bare": "m2*K/W",
+            "wall_resistance_areal_bare": "m2*K/W",
+            "insulation_resistance_areal_bare": "m2*K/W",
+            "external_resistance_areal_bare": "m2*K/W",
+            "ground_resistance_areal_bare": "m2*K/W",
+            "air_surface_area": "m2",
+            "ground_surface_area": "m2",
+            "heat_loss_air_base": "W",
+            "heat_loss_ground_base": "W",
             "alpha_vnesh_applied": "W/(m2*K)",
+            "wind_speed_applied": "m/s",
+            "ground_conductivity_applied": "W/(m*K)",
             "safety_factor_applied": "1",
             "q_additional_applied": "W",
         },
-        source_corrections=["tank_external_resistance_is_areal_inverse_alpha"],
+        source_corrections=[
+            "tank_external_resistance_is_areal_inverse_alpha",
+            "tank_air_and_ground_temperatures_are_separate",
+            "tank_additional_load_is_applied_after_safety_factor",
+        ],
     )

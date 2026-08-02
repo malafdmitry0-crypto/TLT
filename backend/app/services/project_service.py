@@ -23,6 +23,7 @@ from app.schemas.project import (
 )
 from app.services.heat_contract import (
     PIPE_FORBIDDEN_HEAT_PARAM_KEYS,
+    TANK_FORBIDDEN_HEAT_PARAM_KEYS,
     replace_heat_owned_params,
 )
 from app.services.project_object_params import (
@@ -324,19 +325,21 @@ class ProjectService:
                 f"Достигнут лимит объектов в проекте ({settings.GUEST_MAX_OBJECTS_PER_PROJECT})."
             )
         try:
-            if (
-                data.object_type == "pipe"
-                and PIPE_FORBIDDEN_HEAT_PARAM_KEYS.intersection(data.params)
-            ):
-                forbidden = sorted(PIPE_FORBIDDEN_HEAT_PARAM_KEYS.intersection(data.params))
+            forbidden_keys = (
+                PIPE_FORBIDDEN_HEAT_PARAM_KEYS
+                if data.object_type == "pipe"
+                else TANK_FORBIDDEN_HEAT_PARAM_KEYS
+            )
+            if data.object_type in ("pipe", "tank") and forbidden_keys.intersection(data.params):
+                forbidden = sorted(forbidden_keys.intersection(data.params))
                 raise ProjectObjectParamsError(
-                    "Forbidden pipe heat params: " + ", ".join(forbidden)
+                    f"Forbidden {data.object_type} heat params: " + ", ".join(forbidden)
                 )
             params = (
                 prepare_project_object_params(
-                    "pipe", replace_heat_owned_params({}, data.params)
+                    data.object_type, replace_heat_owned_params({}, data.params)
                 )
-                if data.object_type == "pipe"
+                if data.object_type in ("pipe", "tank")
                 else normalize_project_object_params(data.object_type, data.params)
             )
         except ProjectObjectParamsError as exc:
@@ -377,11 +380,16 @@ class ProjectService:
         update_data = data.model_dump(exclude_unset=True, exclude={"version"})
         if "params" in update_data:
             incoming_params = update_data["params"] or {}
-            if obj.object_type == "pipe":
-                forbidden = sorted(PIPE_FORBIDDEN_HEAT_PARAM_KEYS.intersection(incoming_params))
+            if obj.object_type in ("pipe", "tank"):
+                forbidden_keys = (
+                    PIPE_FORBIDDEN_HEAT_PARAM_KEYS
+                    if obj.object_type == "pipe"
+                    else TANK_FORBIDDEN_HEAT_PARAM_KEYS
+                )
+                forbidden = sorted(forbidden_keys.intersection(incoming_params))
                 if forbidden:
                     raise ProjectValidationError(
-                        "Forbidden pipe heat params: " + ", ".join(forbidden)
+                        f"Forbidden {obj.object_type} heat params: " + ", ".join(forbidden)
                     )
                 replaced_params = replace_heat_owned_params(obj.params, incoming_params)
                 try:

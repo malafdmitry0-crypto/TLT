@@ -1,5 +1,6 @@
 {% set MATERIALS = {
   'mineral_wool': 'Минеральная вата',
+  'mineral_wool_boards_120': 'Плиты минераловатные прошивные, 120 кг/м³',
   'foam_glass': 'Пеностекло',
   'polyurethane': 'Пенополиуретан',
   'polystyrene': 'Пенополистирол',
@@ -165,6 +166,7 @@
     <tbody>
       {% for o in tanks %}
       {% set shape = o.params.get('shape') %}
+      {% set insulation = (o.params.get('insulation_layers') or [{}]) | first %}
       <tr>
         <td>{{ loop.index }}</td>
         <td>{{ o.params.get('name') or '—' }}</td>
@@ -178,8 +180,8 @@
             Ø{{ mm(o.params.get('diameter')) }} мм
           {% else %}—{% endif %}
         </td>
-        <td class="num">{{ mm(o.params.get('insulation_thickness')) }}</td>
-        <td>{{ MATERIALS.get(o.params.get('insulation_material'), o.params.get('insulation_material') or '—') }}</td>
+        <td class="num">{{ mm(insulation.get('thickness')) }}</td>
+        <td>{{ MATERIALS.get(insulation.get('material'), insulation.get('material') or '—') }}</td>
         <td class="num">{{ fmt(o.params.get('ambient_temperature'), 1) }}</td>
         <td class="num">{{ fmt(o.params.get('process_temperature'), 1) }}</td>
         <td class="num">{% if o.results %}{{ fmt(o.results.get('surface_area_bare'), 2) }}{% else %}—{% endif %}</td>
@@ -431,6 +433,7 @@
     <tbody>
       {% for o in tanks %}
       {% set shape = o.params.get('shape') %}
+      {% set insulation = (o.params.get('insulation_layers') or [{}]) | first %}
       <tr>
         <td>{{ loop.index }}</td>
         <td>{{ o.params.get('name') or '—' }}</td>
@@ -444,8 +447,8 @@
             Ø{{ mm(o.params.get('diameter')) }} мм
           {% else %}—{% endif %}
         </td>
-        <td class="num">{{ mm(o.params.get('insulation_thickness')) }}</td>
-        <td>{{ MATERIALS.get(o.params.get('insulation_material'), o.params.get('insulation_material') or '—') }}</td>
+        <td class="num">{{ mm(insulation.get('thickness')) }}</td>
+        <td>{{ MATERIALS.get(insulation.get('material'), insulation.get('material') or '—') }}</td>
         <td class="num">{{ fmt(o.params.get('ambient_temperature'), 1) }}</td>
         <td class="num">{{ fmt(o.params.get('process_temperature'), 1) }}</td>
         <td class="num">{% if o.results %}{{ fmt(o.results.get('surface_area_bare'), 2) }}{% else %}—{% endif %}</td>

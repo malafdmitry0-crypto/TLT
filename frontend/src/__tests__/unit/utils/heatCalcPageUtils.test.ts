@@ -331,7 +331,6 @@ describe('heatCalcPageUtils', () => {
         wall_thickness: 0.006,
         process_temperature: 65,
         ambient_temperature: -25,
-        insulation_layer_count: 2,
         insulation_layers: [
           { thickness: 0.05, material: 'mineral_wool', conductivity: 0.045 },
           { thickness: 0.03, material: 'foamglass', conductivity: 0.055 },

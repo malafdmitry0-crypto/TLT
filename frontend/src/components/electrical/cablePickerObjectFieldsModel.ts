@@ -118,13 +118,9 @@ function objectValue(object: ProjectObject, field: string) {
       return valueText(params.shape);
     }
     case 'insulation': {
-      const pipeLayer = object.object_type === 'pipe' ? firstInsulationLayer(params) : null;
-      const material = valueText(object.object_type === 'pipe'
-        ? pipeLayer?.material
-        : firstValue(params.insulation_material, params.insulation_type));
-      const thickness = formatMillimetersFromMeters(object.object_type === 'pipe'
-        ? pipeLayer?.thickness
-        : params.insulation_thickness);
+      const firstLayer = firstInsulationLayer(params);
+      const material = valueText(firstLayer?.material);
+      const thickness = formatMillimetersFromMeters(firstLayer?.thickness);
       return material === '—' && thickness === '—' ? '—' : `${material}, ${thickness}`;
     }
     case 'ambient_temperature':

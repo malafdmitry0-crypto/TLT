@@ -52,7 +52,8 @@ export default function PlacementGroundStep({
   const form = Form.useFormInstance();
   const placement = Form.useWatch('placement', form);
   const isUnderground = placement === 'underground';
-  const depthFieldId = objectType === 'pipe' ? 'pipe_centerline_depth' : 'burial_depth';
+  const depthFieldId = objectType === 'pipe' ? 'pipe_centerline_depth' : 'tank_buried_height';
+  const depthFieldName = objectType === 'pipe' ? 'burial_depth' : 'tank_buried_height';
   const numberInputProps = (fieldId: string) =>
     heatCalcNumberInputProps(objectType, fieldId, { fieldInputSettings, form });
   const selectInputProps = (fieldId: string) =>
@@ -81,7 +82,7 @@ export default function PlacementGroundStep({
           {(part === 'all' || part === 'numeric') && <Form.Item
             className="fit-label-form-item burial-depth-form-item helped-form-item"
             label={fieldLabel(depthFieldId, objectType)}
-            name="burial_depth"
+            name={depthFieldName}
             preserve={false}
             rules={heatCalcFormFieldRules(form, objectType, depthFieldId)}
           >
@@ -94,7 +95,7 @@ export default function PlacementGroundStep({
               fieldHelp(depthFieldId, objectType),
             )}
           </Form.Item>}
-          {objectType === 'pipe' && (part === 'all' || part === 'numeric') && <Form.Item
+          {(part === 'all' || part === 'numeric') && <Form.Item
             className="numeric-form-item helped-form-item"
             label={fieldLabel('ground_temperature', objectType)}
             name="ground_temperature"

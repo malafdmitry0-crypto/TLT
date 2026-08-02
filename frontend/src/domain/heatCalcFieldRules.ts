@@ -47,7 +47,7 @@ function fieldRequired(fieldId: string, context: HeatCalcFieldContext) {
   }
   if (fieldId === 'pipe_material') return context.objectType === 'pipe';
   if (fieldId === 'pipe_lambda') return context.objectType === 'pipe' && context.values.pipe_material === 'other';
-  if (fieldId === 'burial_depth' || fieldId === 'pipe_centerline_depth' || fieldId === 'ground_type' || fieldId === 'ground_temperature') return context.values.placement === 'underground';
+  if (fieldId === 'burial_depth' || fieldId === 'pipe_centerline_depth' || fieldId === 'tank_buried_height' || fieldId === 'ground_type' || fieldId === 'ground_temperature') return context.values.placement === 'underground';
   if (fieldId === 'ground_conductivity') {
     return context.values.placement === 'underground' && isCustomGroundType(context.values.ground_type);
   }
@@ -172,16 +172,15 @@ export function validateHeatCalcField(
   if (fieldInput.max != null && numberValue > fieldInput.max) return `Максимальное значение — ${fieldInput.max}`;
 
   if (fieldId === 'process_temperature') {
-    const environmentTemperature = numericValue(
-      context.objectType === 'pipe' && context.values.placement === 'underground'
+    const boundaries = context.values.placement === 'underground' && context.objectType === 'tank'
+      ? [context.values.ambient_temperature, context.values.ground_temperature]
+      : [context.objectType === 'pipe' && context.values.placement === 'underground'
         ? context.values.ground_temperature
-        : context.values.ambient_temperature,
-    );
-    if (
-      typeof environmentTemperature === 'number'
-      && Number.isFinite(environmentTemperature)
-      && numberValue <= environmentTemperature
-    ) {
+        : context.values.ambient_temperature];
+    if (boundaries.some((temperature) => {
+      const value = numericValue(temperature);
+      return typeof value === 'number' && Number.isFinite(value) && numberValue <= value;
+    })) {
       return 'Требуемая температура объекта должна быть выше температуры среды';
     }
   }
@@ -193,7 +192,7 @@ export function validateHeatCalcField(
   }
   if (
     fieldId === 'ground_temperature'
-    && context.objectType === 'pipe'
+    && (context.objectType === 'pipe' || context.objectType === 'tank')
     && context.values.placement === 'underground'
   ) {
     const process = numericValue(context.values.process_temperature);

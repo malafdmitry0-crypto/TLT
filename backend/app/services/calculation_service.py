@@ -67,6 +67,7 @@ from app.schemas.calculation import (
     SelfRegulatingParams,
     SelfRegulatingTTParams,
     StoredPipeHeatParams,
+    StoredTankHeatParams,
     TankHeatLossParams,
 )
 from app.schemas.json_shapes import (
@@ -91,6 +92,8 @@ from app.services.heat_contract import (
     COMMON_HEAT_PARAM_KEYS,
     PIPE_FORBIDDEN_HEAT_PARAM_KEYS,
     PIPE_HEAT_PARAM_KEYS,
+    TANK_FORBIDDEN_HEAT_PARAM_KEYS,
+    TANK_HEAT_PARAM_KEYS,
 )
 from app.services.project_object_params import (
     ProjectObjectParamsError,
@@ -197,6 +200,14 @@ def build_heat_loss_error_payload(
     hint: str | None = "Проверьте параметры объекта и повторите расчёт."
     extra: dict[str, Any] = {}
 
+    if "process_temperature_not_above_ambient" in message:
+        error_code = "process_temperature_not_above_ambient"
+        field = "process_temperature"
+        hint = "Температура продукта должна быть выше температуры воздуха."
+    elif "process_temperature_not_above_ground" in message:
+        error_code = "process_temperature_not_above_ground"
+        field = "process_temperature"
+        hint = "Температура продукта должна быть выше температуры грунта."
     if isinstance(exc, ProjectObjectParamsError):
         missing_fields = _missing_fields_from_message(message)
         if "неподдерживаемый тип объекта" in lower_message:
@@ -213,9 +224,14 @@ def build_heat_loss_error_payload(
             extra["missing_fields"] = missing_fields
             hint = "Заполните обязательные поля объекта."
     elif isinstance(exc, ValidationError):
-        error_code = "schema_validation_error"
-        field = _first_validation_field(exc)
-        hint = "Проверьте формат и диапазоны значений."
+        if "process_temperature_not_above_ambient" not in message and (
+            "process_temperature_not_above_ground" not in message
+        ):
+            error_code = "schema_validation_error"
+        if error_code == "schema_validation_error":
+            field = _first_validation_field(exc)
+        if error_code == "schema_validation_error":
+            hint = "Проверьте формат и диапазоны значений."
     elif "неподдерживаемый тип объекта" in lower_message or "неизвестная форма" in lower_message:
         category = "unsupported"
         error_code = (
@@ -902,7 +918,19 @@ class CalculationService:
             result = pipe_result.model_dump()
             return cast(PipeHeatLossResultDict, result)
         elif object_type == "tank":
-            params_t = TankHeatLossParams(**self._heat_loss_formula_input(TankHeatLossParams, data))
+            forbidden = sorted(TANK_FORBIDDEN_HEAT_PARAM_KEYS.intersection(data))
+            if forbidden:
+                raise ValueError("Forbidden tank heat params: " + ", ".join(forbidden))
+            stored_tank = StoredTankHeatParams(
+                **{
+                    key: value
+                    for key, value in data.items()
+                    if key in COMMON_HEAT_PARAM_KEYS | TANK_HEAT_PARAM_KEYS
+                }
+            )
+            params_t = TankHeatLossParams(
+                **self._heat_loss_formula_input(TankHeatLossParams, stored_tank.model_dump())
+            )
             tank_result = calc_tank_heat_loss(params_t, coefficients=coefficients)
             result = tank_result.model_dump()
             return cast(TankHeatLossResultDict, result)

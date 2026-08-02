@@ -121,8 +121,9 @@ class TestBuildObjectsXlsxSafety:
                 "length": "+SUM(1,1)",
                 "width": "-2+3",
                 "height": "@cmd",
-                "insulation_thickness": "=10",
-                "insulation_material": "mineral_wool_boards_120",
+                "insulation_layers": [
+                    {"thickness": "=10", "material": "mineral_wool_boards_120"}
+                ],
                 "ambient_temperature": -20,
                 "process_temperature": 80,
             },
@@ -284,6 +285,68 @@ class TestBuildObjectsXlsxSafety:
                 "temperature_range": (-50.0, 250.0),
             }
         ]
+
+    def test_tank_export_round_trips_canonical_underground_three_layers(self):
+        from types import SimpleNamespace
+
+        source = {
+            "name": "UG tank",
+            "shape": "rectangular",
+            "length": 4.0,
+            "width": 2.0,
+            "height": 3.0,
+            "wall_thickness": 0.01,
+            "wall_lambda": 45.0,
+            "insulation_layers": [
+                {"thickness": 0.04, "material": "mineral_wool_boards_120"},
+                {
+                    "thickness": 0.03,
+                    "material": "other",
+                    "conductivity": 0.039,
+                    "temperature_range": (-40.0, 180.0),
+                },
+                {"thickness": 0.02, "material": "polyurethane_products_50"},
+            ],
+            "ambient_temperature": -20.0,
+            "ground_temperature": 5.0,
+            "process_temperature": 80.0,
+            "placement": "underground",
+            "insulation_temperature_basis": "channel",
+            "tank_buried_height": 1.25,
+            "ground_type": "dry_sand",
+            "ground_conductivity": 1.2,
+            "alpha_vnesh": 12.0,
+            "safety_factor": 1.15,
+            "q_additional": 0.0,
+            "min_switch_temperature": -30.0,
+        }
+
+        content = build_objects_xlsx([SimpleNamespace(object_type="tank", params=source)])
+        [(_label, _object_type, rows)] = [
+            parsed for parsed in _parse_excel_workbook(content) if parsed[1] == "tank"
+        ]
+        params, err = _build_tank_params(rows[0])
+
+        assert err is None
+        assert params is not None
+        assert params["insulation_layers"] == source["insulation_layers"]
+        assert params["placement"] == "underground"
+        assert params["ground_temperature"] == 5.0
+        assert params["ground_temperature_source"] == "manual"
+        assert params["ground_conductivity_source"] == "reference"
+        assert params["tank_buried_height"] == pytest.approx(1.25)
+        assert params["wall_thickness"] == pytest.approx(0.01)
+        assert params["wall_lambda"] == 45.0
+        assert params["q_additional"] == 0.0
+        assert params["min_switch_temperature"] == -30.0
+        for forbidden in (
+            "location",
+            "burial_depth",
+            "insulation_thickness",
+            "insulation_material",
+            "insulation_layer_count",
+        ):
+            assert forbidden not in params
 
 
 class TestExtendedRoundtripFields:
@@ -631,7 +694,9 @@ class TestBuildTankParams:
         params, err = _build_tank_params(row)
         assert err is None
         assert params is not None
-        assert params["insulation_thickness"] == pytest.approx(0.06)
+        assert params["placement"] == "outdoor"
+        assert params["insulation_layers"][0]["thickness"] == pytest.approx(0.06)
+        assert "insulation_thickness" not in params
 
     def test_unknown_shape_rejected(self):
         row = {"_row": 2, "shape": "Куб", "insulation_thickness_mm": 60}
@@ -675,6 +740,67 @@ class TestBuildTankParams:
         assert params["length"] == pytest.approx(5.0)
         assert params["height"] == pytest.approx(4.0)
         assert "width" not in params
+
+    def test_underground_rectangular_is_canonical_and_keeps_ground_provenance(self):
+        params, err = _build_tank_params(
+            {
+                "_row": 2,
+                "shape": "Параллелепипед",
+                "length_mm": 5000,
+                "width_mm": 3000,
+                "height_mm": 4000,
+                "wall_thickness_mm": 10,
+                "wall_lambda": 45,
+                "insulation_thickness_mm": 80,
+                "insulation_material": "mineral_wool_boards_120",
+                "ambient_temperature": -20,
+                "ground_temperature": 5,
+                "process_temperature": 80,
+                "placement": "underground",
+                "tank_buried_height": 1.5,
+                "ground_type": "dry_sand",
+                "ground_conductivity": 1.2,
+                "alpha_vnesh": 12,
+            }
+        )
+
+        assert err is None
+        assert params is not None
+        assert params["placement"] == "underground"
+        assert params["ambient_temperature"] == -20
+        assert params["ground_temperature"] == 5
+        assert params["ground_temperature_source"] == "manual"
+        assert params["tank_buried_height"] == pytest.approx(1.5)
+        assert params["ground_conductivity_source"] == "reference"
+        assert params["wall_thickness"] == pytest.approx(0.01)
+        assert params["wall_lambda"] == 45
+        assert params["q_additional"] == 0.0
+        assert params["insulation_layers"] == [
+            {"thickness": pytest.approx(0.08), "material": "mineral_wool_boards_120"}
+        ]
+        for legacy_key in ("location", "burial_depth", "insulation_thickness", "insulation_material", "insulation_layer_count"):
+            assert legacy_key not in params
+
+    def test_spherical_row_is_preserved_without_legacy_insulation_keys(self):
+        params, err = _build_tank_params(
+            {
+                "_row": 2,
+                "shape": "Шар",
+                "diameter_mm": 1500,
+                "insulation_thickness_mm": 60,
+                "insulation_material": "mineral_wool_boards_120",
+                "ambient_temperature": -20,
+                "process_temperature": 50,
+            }
+        )
+
+        assert err is None
+        assert params is not None
+        assert params["shape"] == "spherical"
+        assert params["diameter"] == pytest.approx(1.5)
+        assert params["placement"] == "outdoor"
+        assert params["insulation_layers"][0]["thickness"] == pytest.approx(0.06)
+        assert "insulation_thickness" not in params
 
 
 class TestParseCsv:

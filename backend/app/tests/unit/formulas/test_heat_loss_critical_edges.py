@@ -45,11 +45,13 @@ def _tank(**kw):
         shape="cylindrical",
         diameter=2.0,
         height=3.0,
-        insulation_thickness=0.08,
-        insulation_material=MINERAL_WOOL,
+        insulation_layers=[InsulationLayer(thickness=0.08, material=MINERAL_WOOL)],
         insulation_temperature_basis="outdoor_winter",
         ambient_temperature=-20.0,
         process_temperature=80.0,
+        placement="outdoor",
+        wind_speed=0.0,
+        safety_factor=1.1,
     )
     base.update(kw)
     return TankHeatLossParams(**base)
@@ -209,21 +211,19 @@ class TestTankShapeBoundaries:
         )
         assert r.total_heat_loss_design > 0
 
-    def test_spherical_tank(self):
-        r = calc_tank_heat_loss(
+    def test_spherical_tank_underground_is_deferred(self):
+        with pytest.raises(ValueError, match="spherical"):
             _tank(
-                shape="spherical",
-                diameter=3.0,
-                height=None,
+                shape="spherical", height=None, placement="underground", ground_temperature=0,
+                ground_conductivity=1.5, tank_buried_height=1,
+                insulation_temperature_basis="channel",
             )
-        )
-        assert r.total_heat_loss_design > 0
 
 
 class TestTankPhysicalInvariants:
     def test_safety_factor_applies_to_tank(self):
-        r0 = calc_tank_heat_loss(_tank(), coefficients={"safety_factor": 1.0})
-        r1 = calc_tank_heat_loss(_tank(), coefficients={"safety_factor": 1.3})
+        r0 = calc_tank_heat_loss(_tank(safety_factor=1.0))
+        r1 = calc_tank_heat_loss(_tank(safety_factor=1.3))
         assert r1.total_heat_loss_design > r0.total_heat_loss_design
 
     def test_zero_delta_t_rejected_for_tank(self):

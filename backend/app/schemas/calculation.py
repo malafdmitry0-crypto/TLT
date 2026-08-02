@@ -430,14 +430,10 @@ class TankHeatLossParams(BaseModel):
     height: float | None = Field(default=None, ge=TANK_HEIGHT_MIN, le=TANK_HEIGHT_MAX)
     length: float | None = Field(default=None, ge=TANK_SIDE_MIN, le=TANK_SIDE_MAX)
     width: float | None = Field(default=None, ge=TANK_SIDE_MIN, le=TANK_SIDE_MAX)
-    insulation_thickness: float = Field(gt=0)
-    insulation_material: str = Field(min_length=1)
-    insulation_layers: list[InsulationLayer] | None = Field(
-        default=None,
-        description="N_iz — слои изоляции (1–3), многослойный режим",
-    )
-    ambient_temperature: float
-    process_temperature: float
+    insulation_layers: list[InsulationLayer] = Field(min_length=1, max_length=3)
+    ambient_temperature: float | None = Field(default=None, ge=-70.0, le=70.0)
+    ground_temperature: float | None = Field(default=None, ge=-70.0, le=70.0)
+    process_temperature: float = Field(ge=-90.0, le=600.0)
     insulation_temperature_basis: InsulationTemperatureBasis | None = Field(
         default=None,
         description=(
@@ -445,7 +441,7 @@ class TankHeatLossParams(BaseModel):
             "outdoor_winter/channel/tunnel/technical_subfloor/attic/basement"
         ),
     )
-    location: Literal["indoor", "outdoor"] = "outdoor"
+    placement: Literal["indoor", "outdoor", "underground"]
     # --- Стенка резервуара ---
     wall_thickness: float | None = Field(
         default=None,
@@ -459,10 +455,10 @@ class TankHeatLossParams(BaseModel):
         le=500,
         description="λ_р — теплопроводность стенки резервуара, Вт/(м·К)",
     )
-    burial_depth: float | None = Field(
+    tank_buried_height: float | None = Field(
         default=None,
-        ge=0.0,
-        le=200.0,
+        gt=0.0,
+        le=TANK_HEIGHT_MAX,
         description="h — высота подземной части резервуара, м",
     )
     ground_conductivity: float | None = Field(
@@ -484,9 +480,8 @@ class TankHeatLossParams(BaseModel):
         le=52.0,
         description="alpha — ручной коэф. наружной теплоотдачи, Вт/(м²·К)",
     )
-    safety_factor: float | None = Field(
-        default=None,
-        ge=1.05,
+    safety_factor: float = Field(
+        ge=1.0,
         le=1.7,
         description="K — коэффициент запаса",
     )
@@ -495,29 +490,109 @@ class TankHeatLossParams(BaseModel):
         ge=0,
         description="Q_доп — дополнительные теплопотери (днище, фланцы и пр.), Вт",
     )
-    placement: Literal["indoor", "outdoor", "underground"] | None = None
-
     @model_validator(mode="after")
     def check_ranges_and_layers(self) -> "TankHeatLossParams":
         _validate_insulation_temperature_basis_for_location(
             basis=self.insulation_temperature_basis,
-            location=self.location,
+            location="indoor" if self.placement == "indoor" else "outdoor",
             placement=self.placement,
         )
-        if not (-70.0 <= self.ambient_temperature <= 70.0):
-            raise ValueError("Температура окружающей среды должна быть в диапазоне −70…+70 °C")
-        if not (-90.0 <= self.process_temperature <= 600.0):
-            raise ValueError("Температура продукта должна быть в диапазоне −90…+600 °C")
-        if self.process_temperature <= self.ambient_temperature:
-            raise ValueError("Температура продукта должна быть выше температуры окружающей среды")
-        if self.insulation_layers and len(self.insulation_layers) > 3:
-            raise ValueError("Максимальное количество слоёв изоляции: 3 (N_iz ≤ 3)")
-        if not self.insulation_layers:
-            _validate_reference_insulation_temperature(
-                material=self.insulation_material,
-                process_temperature=self.process_temperature,
-                label="материала изоляции",
-            )
+        for index, layer in enumerate(self.insulation_layers, start=1):
+            if layer.material != "other" and (
+                layer.conductivity is not None or layer.temperature_range is not None
+            ):
+                raise ValueError(
+                    f"Справочный слой #{index} не должен содержать ручные "
+                    "conductivity/temperature_range"
+                )
+            if layer.material != "other":
+                _validate_reference_insulation_temperature(
+                    material=layer.material,
+                    process_temperature=self.process_temperature,
+                    label=f"материала изоляции #{index}",
+                )
+        if self.placement == "underground":
+            if self.shape == "spherical":
+                raise ValueError("spherical + underground не поддерживается")
+            if self.ground_temperature is None:
+                raise ValueError("Для underground требуется ground_temperature")
+            if self.ground_conductivity is None:
+                raise ValueError("Для underground требуется ground_conductivity")
+            if self.tank_buried_height is None:
+                raise ValueError("Для underground требуется tank_buried_height")
+            if self.height is None or self.tank_buried_height > self.height:
+                raise ValueError("tank_buried_height должна быть в диапазоне (0, height]")
+            if self.ambient_temperature is None:
+                raise ValueError("Для underground требуется ambient_temperature")
+            if self.process_temperature <= self.ambient_temperature:
+                raise ValueError("process_temperature_not_above_ambient")
+            if self.process_temperature <= self.ground_temperature:
+                raise ValueError("process_temperature_not_above_ground")
+            if self.alpha_vnesh is None and self.wind_speed is None:
+                raise ValueError("Для underground tank auto требуется wind_speed")
+        else:
+            if self.ambient_temperature is None:
+                raise ValueError("Для воздушного резервуара требуется ambient_temperature")
+            if self.process_temperature <= self.ambient_temperature:
+                raise ValueError("process_temperature_not_above_ambient")
+            if self.ground_temperature is not None or self.ground_conductivity is not None:
+                raise ValueError("Грунтовые параметры допустимы только для underground")
+            if self.tank_buried_height is not None:
+                raise ValueError("tank_buried_height допустима только для underground")
+            if self.placement == "outdoor" and self.alpha_vnesh is None and self.wind_speed is None:
+                raise ValueError("Для outdoor auto требуется wind_speed")
+        if (self.wall_thickness is None) != (self.wall_lambda is None):
+            raise ValueError("wall_thickness и wall_lambda задаются парой")
+        if (
+            self.shape in {"cylindrical", "spherical"}
+            and self.wall_thickness is not None
+            and self.diameter is not None
+            and self.wall_thickness >= self.diameter / 2
+        ):
+            raise ValueError("wall_thickness должна быть меньше половины diameter")
+        if self.shape == "cylindrical" and (self.diameter is None or self.height is None):
+            raise ValueError("Для цилиндра требуются diameter и height")
+        if self.shape == "rectangular" and (
+            self.length is None or self.width is None or self.height is None
+        ):
+            raise ValueError("Для параллелепипеда требуются length, width и height")
+        if self.shape == "spherical" and self.diameter is None:
+            raise ValueError("Для сферы требуется diameter")
+        if self.shape == "cylindrical" and (self.length is not None or self.width is not None):
+            raise ValueError("cylindrical не принимает length или width")
+        if self.shape == "rectangular" and self.diameter is not None:
+            raise ValueError("rectangular не принимает diameter")
+        if self.shape == "spherical" and any(
+            value is not None for value in (self.height, self.length, self.width)
+        ):
+            raise ValueError("spherical не принимает height, length или width")
+        return self
+
+
+class StoredTankHeatParams(TankHeatLossParams):
+    """Strict stored heat-owned tank payload, including provenance metadata."""
+
+    ground_type: str | None = None
+    climate_key: str | None = None
+    climate_city: str | None = None
+    climate_region: str | None = None
+    climate_temperature_basis: Literal["t_0_92", "t_0_98", "t_abs_min"] | None = None
+    ambient_temperature_source: Literal["manual", "climate"] | None = None
+    ground_temperature_source: Literal["manual", "climate"] | None = None
+    wind_speed_source: Literal["manual", "climate"] | None = None
+    ground_conductivity_source: Literal["manual", "reference"] | None = None
+    safety_factor_source: Literal["default", "manual", "climate_policy"] | None = None
+    climate_policy_rule: str | None = None
+    insulation_cover_material: str | None = None
+
+    @model_validator(mode="after")
+    def check_metadata_matches_placement(self) -> "StoredTankHeatParams":
+        if self.placement != "underground" and (
+            self.ground_type is not None
+            or self.ground_temperature_source is not None
+            or self.ground_conductivity_source is not None
+        ):
+            raise ValueError("Метаданные грунта допустимы только для underground tank")
         return self
 
 

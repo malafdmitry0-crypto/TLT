@@ -160,11 +160,12 @@ class TestObjectsLifecycle:
                     "shape": "cylindrical",
                     "diameter": 2,
                     "height": 3,
-                    "insulation_thickness": 0.05,
-                    "insulation_material": MINERAL_WOOL,
+                    "insulation_layers": [{"thickness": 0.05, "material": MINERAL_WOOL}],
                     "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -20,
                     "process_temperature": 80,
+                    "placement": "outdoor",
+                    "wind_speed": 0,
                 },
             },
             headers={"X-Session-Id": guest_session},
@@ -172,7 +173,7 @@ class TestObjectsLifecycle:
         assert response.status_code == 201, response.text
         results = response.json()["results"]
         assert results["formula_model"] == "tank_heat_loss"
-        assert results["formula_model_version"] == "2"
+        assert results["formula_model_version"] == "3"
         assert results["safety_factor_applied"] == pytest.approx(1.1)
         assert results["total_heat_loss_design"] == pytest.approx(
             results["total_heat_loss_base"] * results["safety_factor_applied"],
@@ -479,7 +480,6 @@ class TestObjectsLifecycle:
         [
             ("cylindrical", {"diameter": 3.0, "height": 12.0}),
             ("rectangular", {"length": 5.0, "width": 3.0, "height": 4.0}),
-            ("spherical", {"diameter": 3.0}),
         ],
     )
     async def test_add_tank_shapes_trigger_calculation(
@@ -499,11 +499,12 @@ class TestObjectsLifecycle:
                     "name": f"Резервуар {shape}",
                     "shape": shape,
                     **geometry,
-                    "insulation_thickness": 0.08,
-                    "insulation_material": MINERAL_WOOL,
+                    "insulation_layers": [{"thickness": 0.08, "material": MINERAL_WOOL}],
                     "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -20,
                     "process_temperature": 80,
+                    "placement": "outdoor",
+                    "wind_speed": 0,
                 },
             },
             headers={"X-Session-Id": guest_session},
@@ -513,6 +514,39 @@ class TestObjectsLifecycle:
         assert body["is_valid"] is True
         assert body["results"]["heat_loss_per_m2_bare_base"] > 0
         assert body["results"]["surface_area_bare"] > 0
+
+    async def test_add_spherical_tank_is_stored_but_formula_is_deferred_to_slice_4(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+    ):
+        pid = await _project(client, guest_session)
+        resp = await client.post(
+            f"/api/v1/projects/{pid}/objects",
+            json={
+                "object_type": "tank",
+                "params": {
+                    "shape": "spherical",
+                    "diameter": 3.0,
+                    "insulation_layers": [{"thickness": 0.08, "material": MINERAL_WOOL}],
+                    "insulation_temperature_basis": "outdoor_winter",
+                    "ambient_temperature": -20,
+                    "process_temperature": 80,
+                    "placement": "outdoor",
+                    "wind_speed": 0,
+                },
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert resp.status_code == 201, resp.text
+        body = resp.json()
+        assert body["params"]["shape"] == "spherical"
+        assert body["is_valid"] is False
+        assert body["results"] is None
+        assert "spherical_tank_formula_deferred_to_slice_4" in body["validation_errors"][
+            "message"
+        ]
 
     async def test_add_large_tank_with_tank_dimensions_is_valid(
         self, client: AsyncClient, guest_session: str
@@ -526,11 +560,12 @@ class TestObjectsLifecycle:
                     "shape": "cylindrical",
                     "diameter": 12.0,
                     "height": 20.0,
-                    "insulation_thickness": 0.1,
-                    "insulation_material": MINERAL_WOOL,
+                    "insulation_layers": [{"thickness": 0.1, "material": MINERAL_WOOL}],
                     "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -20,
                     "process_temperature": 80,
+                    "placement": "outdoor",
+                    "wind_speed": 0,
                 },
             },
             headers={"X-Session-Id": guest_session},
@@ -811,13 +846,13 @@ class TestObjectsLifecycle:
                     "shape": "cylindrical",
                     "diameter": 2.0,
                     "height": 4.0,
-                    "insulation_thickness": 0.08,
-                    "insulation_material": MINERAL_WOOL,
+                    "insulation_layers": [{"thickness": 0.08, "material": MINERAL_WOOL}],
                     "insulation_temperature_basis": "channel",
                     "ambient_temperature": -25,
+                    "ground_temperature": 5,
                     "process_temperature": 70,
                     "placement": "underground",
-                    "burial_depth": 1.5,
+                    "tank_buried_height": 1.5,
                     "ground_type": "dry_sand",
                     "ground_conductivity": 0.8,
                     "wind_speed": 4.2,
@@ -844,3 +879,84 @@ class TestObjectsLifecycle:
         assert results["ground_conductivity_applied"] == 0.8
         assert results["alpha_vnesh_applied"] == 12.0
         assert results["safety_factor_applied"] == 1.15
+
+    async def test_tank_heat_update_replaces_hidden_heat_fields_and_preserves_volume(
+        self, client: AsyncClient, guest_session: str
+    ):
+        pid = await _project(client, guest_session)
+        headers = {"X-Session-Id": guest_session}
+        created_response = await client.post(
+            f"/api/v1/projects/{pid}/objects",
+            json={
+                "object_type": "tank",
+                "params": {
+                    "name": "Canonical tank",
+                    "volume": 24.5,
+                    "shape": "rectangular",
+                    "length": 4.0,
+                    "width": 2.0,
+                    "height": 3.0,
+                    "insulation_layers": [
+                        {"thickness": 0.08, "material": MINERAL_WOOL}
+                    ],
+                    "insulation_temperature_basis": "channel",
+                    "ambient_temperature": -20,
+                    "ground_temperature": 5,
+                    "process_temperature": 80,
+                    "placement": "underground",
+                    "tank_buried_height": 1.0,
+                    "ground_type": "dry_sand",
+                    "ground_conductivity": 0.8,
+                    "alpha_vnesh": 12.0,
+                    "safety_factor": 1.15,
+                    "q_additional": 100,
+                },
+            },
+            headers=headers,
+        )
+        assert created_response.status_code == 201, created_response.text
+        created = created_response.json()
+
+        updated_response = await client.put(
+            f"/api/v1/projects/{pid}/objects/{created['id']}",
+            json={
+                "version": created["version"],
+                "params": {
+                    "name": "Canonical tank",
+                    "shape": "cylindrical",
+                    "diameter": 2.0,
+                    "height": 3.0,
+                    "insulation_layers": [
+                        {"thickness": 0.06, "material": MINERAL_WOOL}
+                    ],
+                    "insulation_temperature_basis": "outdoor_winter",
+                    "ambient_temperature": -15,
+                    "process_temperature": 75,
+                    "placement": "outdoor",
+                    "wind_speed": 0,
+                    "safety_factor": 1.1,
+                    "q_additional": 0,
+                },
+            },
+            headers=headers,
+        )
+
+        assert updated_response.status_code == 200, updated_response.text
+        body = updated_response.json()
+        params = body["params"]
+        assert params["q_additional"] == 0
+        assert params["volume"] == pytest.approx(24.5)
+        assert params["shape"] == "cylindrical"
+        for removed in (
+            "length",
+            "width",
+            "tank_buried_height",
+            "ground_temperature",
+            "ground_type",
+            "ground_conductivity",
+        ):
+            assert removed not in params
+        assert body["results"]["q_additional_applied"] == 0
+        assert body["results"]["total_heat_loss_design"] == pytest.approx(
+            body["results"]["total_heat_loss_base"] * 1.1
+        )

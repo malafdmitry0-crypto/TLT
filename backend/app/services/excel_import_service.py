@@ -23,10 +23,7 @@ from app.core.dependencies import CurrentPrincipal
 from app.models.electrical_calculation import ElectricalCalculation
 from app.models.project_object import ProjectObject
 from app.models.specification import Specification
-from app.reference_data.loader import (
-    INSULATION_MATERIAL_RESELECTION_MESSAGE,
-    list_insulation_materials,
-)
+from app.reference_data.loader import list_insulation_materials
 from app.services.project_object_params import (
     normalize_project_object_params,
     prepare_project_object_params,
@@ -305,6 +302,10 @@ TANK_HEADERS: dict[str, str] = {
     "высота, мм": "height_mm",
     "высота мм": "height_mm",
     "высота": "height_mm",
+    "толщина стенки, мм": "wall_thickness_mm",
+    "толщина стенки мм": "wall_thickness_mm",
+    "λ стенки": "wall_lambda",
+    "лямбда стенки": "wall_lambda",
     "толщина изоляции, мм": "insulation_thickness_mm",
     "толщина изоляции мм": "insulation_thickness_mm",
     "толщина изоляции": "insulation_thickness_mm",
@@ -342,24 +343,31 @@ TANK_HEADERS: dict[str, str] = {
     "макс t° окр. среды": "max_ambient_temperature",
     "макс. допуст. t° продукта": "max_process_temperature",
     "макс допуст t° продукта": "max_process_temperature",
-    "количество слоёв изоляции": "insulation_layer_count",
-    "кол-во слоёв из": "insulation_layer_count",
-    "слоёв из": "insulation_layer_count",
     "материал 2-го слоя": "second_insulation_material",
     "толщина 2-го слоя, мм": "second_insulation_thickness_mm",
     "толщина 2-го слоя": "second_insulation_thickness_mm",
     "λ 1-го слоя": "first_insulation_lambda",
+    "диапазон температур 1-го слоя, °c": "first_insulation_temperature_range",
     "λ 2-го слоя": "second_insulation_lambda",
+    "диапазон температур 2-го слоя, °c": "second_insulation_temperature_range",
     "материал 3-го слоя": "third_insulation_material",
     "толщина 3-го слоя, мм": "third_insulation_thickness_mm",
     "толщина 3-го слоя": "third_insulation_thickness_mm",
     "λ 3-го слоя": "third_insulation_lambda",
+    "диапазон температур 3-го слоя, °c": "third_insulation_temperature_range",
     "материал покрытия": "insulation_cover_material",
     "размещение": "placement",
     "размещение резервуара": "placement",
-    "глубина прокладки": "burial_depth",
+    "высота заглубленной части, м": "tank_buried_height",
+    "высота заглублённой части, м": "tank_buried_height",
     "грунт": "ground_type",
     "λ грунта": "ground_conductivity",
+    "температура грунта": "ground_temperature",
+    "t° грунта": "ground_temperature",
+    "скорость ветра, м/с": "wind_speed",
+    "скорость ветра": "wind_speed",
+    "α внешней теплоотдачи": "alpha_vnesh",
+    "alpha_vnesh": "alpha_vnesh",
     "kзап": "safety_factor",
     "k зап": "safety_factor",
     "коэффициент запаса": "safety_factor",
@@ -497,22 +505,6 @@ def _resolve_material(v: Any) -> str | None:
     return _resolve_material_entry(v).material
 
 
-def _apply_insulation_material_resolution(
-    params: dict[str, Any],
-    field: str,
-    resolution: _MaterialResolution,
-) -> None:
-    if resolution.material:
-        params[field] = resolution.material
-        return
-    if not resolution.needs_reselection:
-        return
-    params["needs_material_reselection"] = True
-    params[f"{field}_raw"] = resolution.raw
-    params[f"{field}_family"] = resolution.family
-    params[f"{field}_warning"] = INSULATION_MATERIAL_RESELECTION_MESSAGE
-
-
 def _resolve_pipe_material(v: Any) -> str | None:
     key = _norm(v)
     if not key:
@@ -542,143 +534,61 @@ def _resolve_shape(v: Any) -> str | None:
     return SHAPE_ALIASES.get(key) or SHAPE_ALIASES.get(key.split()[0] if key else "")
 
 
-def _apply_common_srs_params(params: dict[str, Any], row: dict[str, Any]) -> None:
-    """Добавляет необязательные SRS-поля объекта из Excel/CSV в params."""
-    placement = _resolve_alias(row.get("placement"), PLACEMENT_ALIASES)
-    if placement:
-        params["placement"] = placement
-        params["location"] = "indoor" if placement == "indoor" else "outdoor"
-    burial_depth = _to_float(row.get("burial_depth"))
-    if burial_depth is not None:
-        params["burial_depth"] = burial_depth
-    ground_type = _resolve_alias(row.get("ground_type"), GROUND_ALIASES)
-    if ground_type:
-        params["ground_type"] = ground_type
-    ground_conductivity = _to_float(row.get("ground_conductivity"))
-    if ground_conductivity is not None:
-        params["ground_conductivity"] = ground_conductivity
-    safety_factor = _to_float(row.get("safety_factor"))
-    if safety_factor is not None:
-        params["safety_factor"] = safety_factor
-    min_switch_temperature = _to_float(row.get("min_switch_temperature"))
-    if min_switch_temperature is not None:
-        params["min_switch_temperature"] = min_switch_temperature
-    supply_voltage = _to_float(row.get("supply_voltage"))
-    if supply_voltage is not None:
-        params["supply_voltage"] = supply_voltage
-    vapor_temperature = _to_float(row.get("vapor_temperature"))
-    if vapor_temperature is not None:
-        params["vapor_temperature"] = vapor_temperature
-    maintain_temperature = _to_float(row.get("maintain_temperature"))
-    if maintain_temperature is not None:
-        params["maintain_temperature"] = maintain_temperature
-    max_ambient = _to_float(row.get("max_ambient_temperature"))
-    if max_ambient is not None:
-        params["max_ambient_temperature"] = max_ambient
-    max_process = _to_float(row.get("max_process_temperature"))
-    if max_process is not None:
-        params["max_process_temperature"] = max_process
-    cover = row.get("insulation_cover_material")
-    if cover and str(cover).strip():
-        params["insulation_cover_material"] = str(cover).strip()
-    climate_key = row.get("climate_key")
-    if climate_key and str(climate_key).strip():
-        key_value = str(climate_key).strip()
-        params["climate_key"] = key_value
-        if "|||" in key_value:
-            region, city = key_value.split("|||", 1)
-            params.setdefault("climate_region", region.strip())
-            params.setdefault("climate_city", city.strip())
-    climate_region = row.get("climate_region")
-    if climate_region and str(climate_region).strip():
-        params["climate_region"] = str(climate_region).strip()
-    climate_city = row.get("climate_city")
-    if climate_city and str(climate_city).strip():
-        params["climate_city"] = str(climate_city).strip()
-    climate_basis = _resolve_climate_basis(row.get("climate_temperature_basis"))
-    if climate_basis:
-        params["climate_temperature_basis"] = climate_basis
-    insulation_temperature_basis = _resolve_alias(
-        row.get("insulation_temperature_basis"),
-        INSULATION_TEMPERATURE_BASIS_ALIASES,
-    )
-    if insulation_temperature_basis:
-        params["insulation_temperature_basis"] = insulation_temperature_basis
-
-
-def _apply_layered_insulation(params: dict[str, Any], row: dict[str, Any]) -> None:
-    count = int(_to_float(row.get("insulation_layer_count")) or 1)
-    count = min(max(count, 1), 3)
-    params["insulation_layer_count"] = str(count)
-
+def _canonical_tank_insulation_layers(
+    row: dict[str, Any],
+    *,
+    first_thickness_mm: float | None,
+    first_material: _MaterialResolution,
+) -> list[dict[str, Any]]:
     layers: list[dict[str, Any]] = []
-    first_layer: dict[str, Any] = {}
-    if params.get("insulation_thickness") is not None:
-        first_layer["thickness"] = params["insulation_thickness"]
-    if params.get("insulation_material") is not None:
-        first_layer["material"] = params["insulation_material"]
-    first_lambda = _to_float(row.get("first_insulation_lambda"))
-    if first_lambda is not None:
-        first_layer["conductivity"] = first_lambda
-    if first_layer:
-        layers.append(first_layer)
-
-    if count >= 2:
-        material2_resolution = _resolve_material_entry(row.get("second_insulation_material"))
-        material2 = material2_resolution.material
-        thickness2 = _to_float(row.get("second_insulation_thickness_mm"))
-        lambda2 = _to_float(row.get("second_insulation_lambda"))
-        if (
-            material2
-            or material2_resolution.needs_reselection
-            or thickness2 is not None
-            or lambda2 is not None
+    specs = (
+        (
+            0,
+            first_thickness_mm,
+            first_material,
+            _to_float(row.get("first_insulation_lambda")),
+            _to_temperature_range(row.get("first_insulation_temperature_range")),
+        ),
+        (
+            1,
+            _to_float(row.get("second_insulation_thickness_mm")),
+            _resolve_material_entry(row.get("second_insulation_material")),
+            _to_float(row.get("second_insulation_lambda")),
+            _to_temperature_range(row.get("second_insulation_temperature_range")),
+        ),
+        (
+            2,
+            _to_float(row.get("third_insulation_thickness_mm")),
+            _resolve_material_entry(row.get("third_insulation_material")),
+            _to_float(row.get("third_insulation_lambda")),
+            _to_temperature_range(row.get("third_insulation_temperature_range")),
+        ),
+    )
+    for index, thickness_mm, material_resolution, conductivity, temperature_range in specs:
+        if not any(
+            value is not None
+            for value in (
+                thickness_mm,
+                material_resolution.raw,
+                conductivity,
+                temperature_range,
+            )
         ):
-            while len(layers) < 1:
-                layers.append({})
-            layer2: dict[str, Any] = {}
-            if thickness2 is not None:
-                layer2["thickness"] = thickness2 / 1000.0
-            if material2:
-                layer2["material"] = material2
-            elif material2_resolution.needs_reselection:
-                params["needs_material_reselection"] = True
-                layer2["material_raw"] = material2_resolution.raw
-                layer2["material_family"] = material2_resolution.family
-                layer2["material_warning"] = INSULATION_MATERIAL_RESELECTION_MESSAGE
-            if lambda2 is not None:
-                layer2["conductivity"] = lambda2
-            layers.append(layer2)
-
-    if count >= 3:
-        material3_resolution = _resolve_material_entry(row.get("third_insulation_material"))
-        material3 = material3_resolution.material
-        thickness3 = _to_float(row.get("third_insulation_thickness_mm"))
-        lambda3 = _to_float(row.get("third_insulation_lambda"))
-        if (
-            material3
-            or material3_resolution.needs_reselection
-            or thickness3 is not None
-            or lambda3 is not None
-        ):
-            while len(layers) < 2:
-                layers.append({})
-            layer3: dict[str, Any] = {}
-            if thickness3 is not None:
-                layer3["thickness"] = thickness3 / 1000.0
-            if material3:
-                layer3["material"] = material3
-            elif material3_resolution.needs_reselection:
-                params["needs_material_reselection"] = True
-                layer3["material_raw"] = material3_resolution.raw
-                layer3["material_family"] = material3_resolution.family
-                layer3["material_warning"] = INSULATION_MATERIAL_RESELECTION_MESSAGE
-            if lambda3 is not None:
-                layer3["conductivity"] = lambda3
-            layers.append(layer3)
-
-    if layers:
-        params["insulation_layers"] = layers
+            continue
+        while len(layers) < index:
+            layers.append({})
+        layer: dict[str, Any] = {}
+        if thickness_mm is not None:
+            layer["thickness"] = thickness_mm / 1000.0
+        if material_resolution.material is not None:
+            layer["material"] = material_resolution.material
+        if material_resolution.material == "other":
+            if conductivity is not None:
+                layer["conductivity"] = conductivity
+            if temperature_range is not None:
+                layer["temperature_range"] = temperature_range
+        layers.append(layer)
+    return layers
 
 
 def _read_sheet(ws: Any, header_map: dict[str, str]) -> list[dict[str, Any]]:
@@ -884,12 +794,16 @@ def _build_tank_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
     t_a = _to_float(row.get("ambient_temperature"))
     t_p = _to_float(row.get("process_temperature"))
 
-    params: dict[str, Any] = {}
+    placement_raw = row.get("placement")
+    placement = _resolve_alias(placement_raw, PLACEMENT_ALIASES)
+    if placement_raw not in (None, "") and placement is None:
+        return None, f"Не распознано размещение резервуара: {placement_raw}"
+
+    # The spreadsheet default is explicit outdoor placement; no other field
+    # is allowed to infer the calculation mode.
+    params: dict[str, Any] = {"placement": placement or "outdoor", "q_additional": 0.0}
     if shape:
         params["shape"] = shape
-    if ins_mm is not None:
-        params["insulation_thickness"] = ins_mm / 1000.0
-    _apply_insulation_material_resolution(params, "insulation_material", material_resolution)
     if t_a is not None:
         params["ambient_temperature"] = t_a
     if t_p is not None:
@@ -917,8 +831,85 @@ def _build_tank_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
         if d_mm is not None:
             params["diameter"] = d_mm / 1000.0
 
-    _apply_common_srs_params(params, row)
-    _apply_layered_insulation(params, row)
+    layers = _canonical_tank_insulation_layers(
+        row,
+        first_thickness_mm=ins_mm,
+        first_material=material_resolution,
+    )
+    if layers:
+        params["insulation_layers"] = layers
+
+    wall_thickness_mm = _to_float(row.get("wall_thickness_mm"))
+    wall_lambda = _to_float(row.get("wall_lambda"))
+    if wall_thickness_mm is not None:
+        params["wall_thickness"] = wall_thickness_mm / 1000.0
+    if wall_lambda is not None:
+        params["wall_lambda"] = wall_lambda
+
+    if params["placement"] == "underground":
+        buried_height = _to_float(row.get("tank_buried_height"))
+        if buried_height is not None:
+            params["tank_buried_height"] = buried_height
+        ground_temperature = _to_float(row.get("ground_temperature"))
+        if ground_temperature is not None:
+            params["ground_temperature"] = ground_temperature
+            params["ground_temperature_source"] = "manual"
+        ground_type = _resolve_alias(row.get("ground_type"), GROUND_ALIASES)
+        if ground_type:
+            params["ground_type"] = ground_type
+        ground_conductivity = _to_float(row.get("ground_conductivity"))
+        if ground_conductivity is not None:
+            params["ground_conductivity"] = ground_conductivity
+        if ground_type or ground_conductivity is not None:
+            params["ground_conductivity_source"] = (
+                "reference" if ground_type not in (None, "custom") else "manual"
+            )
+
+    wind_speed = _to_float(row.get("wind_speed"))
+    if wind_speed is not None:
+        params["wind_speed"] = wind_speed
+        params["wind_speed_source"] = "manual"
+    alpha_vnesh = _to_float(row.get("alpha_vnesh"))
+    if alpha_vnesh is not None:
+        params["alpha_vnesh"] = alpha_vnesh
+    safety_factor = _to_float(row.get("safety_factor"))
+    if safety_factor is not None:
+        params["safety_factor"] = safety_factor
+        params["safety_factor_source"] = "manual"
+    basis = _resolve_alias(
+        row.get("insulation_temperature_basis"), INSULATION_TEMPERATURE_BASIS_ALIASES
+    )
+    if basis:
+        params["insulation_temperature_basis"] = basis
+    else:
+        params["insulation_temperature_basis"] = {
+            "indoor": "indoor",
+            "outdoor": "outdoor_winter",
+            "underground": "channel",
+        }[params["placement"]]
+    for field in (
+        "vapor_temperature",
+        "maintain_temperature",
+        "max_ambient_temperature",
+        "max_process_temperature",
+        "min_switch_temperature",
+        "supply_voltage",
+    ):
+        value = _to_float(row.get(field))
+        if value is not None:
+            params[field] = value
+    for field in ("climate_key", "climate_region", "climate_city", "insulation_cover_material"):
+        value = row.get(field)
+        if value and str(value).strip():
+            params[field] = str(value).strip()
+    climate_key = params.get("climate_key")
+    if isinstance(climate_key, str) and "|||" in climate_key:
+        region, city = climate_key.split("|||", 1)
+        params.setdefault("climate_region", region.strip())
+        params.setdefault("climate_city", city.strip())
+    climate_basis = _resolve_climate_basis(row.get("climate_temperature_basis"))
+    if climate_basis:
+        params["climate_temperature_basis"] = climate_basis
     q_additional = _to_float(row.get("q_additional"))
     if q_additional is not None:
         params["q_additional"] = q_additional
@@ -1431,20 +1422,6 @@ def _material_label(material: Any) -> str:
     return material_str
 
 
-def _material_status(params: dict[str, Any]) -> str:
-    if params.get("needs_material_reselection") is True:
-        return "Требует уточнения"
-    if params.get("insulation_material"):
-        return "Конкретный материал"
-    return ""
-
-
-def _material_warning(params: dict[str, Any]) -> str:
-    if params.get("needs_material_reselection") is True:
-        return INSULATION_MATERIAL_RESELECTION_MESSAGE
-    return ""
-
-
 SHAPE_LABELS_RU: dict[str, str] = {
     "cylindrical": "Цилиндр",
     "rectangular": "Параллелепипед",
@@ -1554,6 +1531,24 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
         "Kзап",
         "Мин. T включения, °C",
         "Q доп., Вт",
+        "Толщина стенки, мм",
+        "λ стенки",
+        "Температура грунта",
+        "Высота заглубленной части, м",
+        "Грунт",
+        "λ грунта",
+        "Скорость ветра, м/с",
+        "α внешней теплоотдачи",
+        "λ 1-го слоя",
+        "Диапазон температур 1-го слоя, °C",
+        "Толщина 2-го слоя, мм",
+        "Материал 2-го слоя",
+        "λ 2-го слоя",
+        "Диапазон температур 2-го слоя, °C",
+        "Толщина 3-го слоя, мм",
+        "Материал 3-го слоя",
+        "λ 3-го слоя",
+        "Диапазон температур 3-го слоя, °C",
     ]
     for c, h in enumerate(tank_cols, start=1):
         cell = ws_tank.cell(row=1, column=c, value=h)
@@ -1563,10 +1558,11 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
     for obj in objects:
         params = obj.params or {}
         name = params.get("name") or ""
-        material_code = params.get("insulation_material", "")
-        material = _material_label(material_code) or str(
-            params.get("insulation_material_raw") or ""
-        )
+        layers = params.get("insulation_layers")
+        layer_list = layers if isinstance(layers, list) else []
+        first_layer = layer_list[0] if layer_list and isinstance(layer_list[0], dict) else {}
+        material_code = first_layer.get("material", "")
+        material = _material_label(material_code)
         if obj.object_type == "pipe":
             layers = params.get("insulation_layers")
             layer_list = layers if isinstance(layers, list) else []
@@ -1626,6 +1622,11 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
             def to_mm(k, _params=params):
                 return _to_export_mm(_params.get(k))
 
+            def tank_layer_value(index: int, key: str, _layers: list[Any] = layer_list) -> Any:
+                if index >= len(_layers) or not isinstance(_layers[index], dict):
+                    return ""
+                return _layers[index].get(key, "")
+
             append_safe_row(
                 ws_tank,
                 [
@@ -1635,11 +1636,11 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
                     to_mm("length"),
                     to_mm("width"),
                     to_mm("height"),
-                    to_mm("insulation_thickness"),
+                    _to_export_mm(first_layer.get("thickness")),
                     material,
                     material_code,
-                    _material_status(params),
-                    _material_warning(params),
+                    "Конкретный материал" if material_code else "",
+                    "",
                     params.get("ambient_temperature", ""),
                     params.get("process_temperature", ""),
                     params.get("vapor_temperature", ""),
@@ -1652,6 +1653,24 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
                     params.get("safety_factor", ""),
                     params.get("min_switch_temperature", ""),
                     params.get("q_additional", ""),
+                    to_mm("wall_thickness"),
+                    params.get("wall_lambda", ""),
+                    params.get("ground_temperature", ""),
+                    params.get("tank_buried_height", ""),
+                    params.get("ground_type", ""),
+                    params.get("ground_conductivity", ""),
+                    params.get("wind_speed", ""),
+                    params.get("alpha_vnesh", ""),
+                    tank_layer_value(0, "conductivity"),
+                    _format_temperature_range(tank_layer_value(0, "temperature_range")),
+                    _to_export_mm(tank_layer_value(1, "thickness")),
+                    tank_layer_value(1, "material"),
+                    tank_layer_value(1, "conductivity"),
+                    _format_temperature_range(tank_layer_value(1, "temperature_range")),
+                    _to_export_mm(tank_layer_value(2, "thickness")),
+                    tank_layer_value(2, "material"),
+                    tank_layer_value(2, "conductivity"),
+                    _format_temperature_range(tank_layer_value(2, "temperature_range")),
                 ],
             )
 
