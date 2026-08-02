@@ -204,6 +204,15 @@
   justify-content: center;
   width: 100%;
 }
+/* Cable algorithm panel: two columns of narrow controls (222/1.8 ≈ 124px) —
+   short numerics and picks don't need name-field width. */
+.cable-island.object-wizard-cable-panel {
+  --cable-control-target-width: 124px;
+}
+.cable-island.object-wizard-cable-panel .cable-algorithm-fields {
+  grid-template-columns: repeat(2, minmax(0, var(--cable-column-width)));
+  column-gap: 12px;
+}
 /* Spec picks hold short values («Нет», 2-3 digit numbers) — half the control
    target so the pane stops reserving name-field width. */
 .cable-island.object-wizard-cable-spec-panel {

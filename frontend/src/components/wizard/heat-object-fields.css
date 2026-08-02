@@ -208,43 +208,40 @@
 /*
  * Wide layout adapts to the ACTUAL pane width (container `heat-fields` on the
  * fields zone, declared in heatcalc-dual-form-shell.css), not the viewport —
- * so browser zoom picks the right mode too. Numeric groups stay BESIDE the
- * wide fields as long as anything fits:
- *   ≥646px (pipe) / ≥694px (tank) — three slot columns (base grid above);
- *   down to 600px — two columns: wide fields with tighter 240px controls on
- *   the left, geometry group over environment group on the right;
+ * so browser zoom picks the right mode too. Three slot columns survive as
+ * long as they physically fit; below the comfortable width the tiers first
+ * SQUEEZE (narrower labels, tighter gaps) and only then restack:
+ *   ≥646px (pipe) / ≥694px (tank) — three columns at full label widths;
+ *   squeeze tier down to ~610px (pipe) / 640px (tank) — still three columns,
+ *   labels trimmed to their longest word, wide controls flex down;
+ *   tank <640px — two columns: wide fields with tighter 240px controls on
+ *   the left, geometry group over environment group on the right (pipe skips
+ *   this tier — its squeeze floor nearly touches the single-column cut);
  *   <600px — single column, wide controls capped at 380px.
- * :where() keeps the per-type tiers at base specificity so the later <600px
- * tier wins by order.
+ * Tank tiers name [data-object-type] directly to OUT-specify the base tank
+ * override above (0,3,0 — it re-sets label widths); they never touch
+ * `display`, so the <600px flex tier still restacks everything. Pipe tiers
+ * keep :where() — nothing outranks them, order decides.
  */
 @container heat-fields (width < 694px) {
-  .heat-object-fields.heat-object-fields--wide:where([data-object-type="tank"]) {
-    grid-template-columns: max-content max-content;
-    grid-template-areas:
-      "wide geo"
-      "wide env";
-    gap: 4px 24px;
-  }
-
-  .heat-object-fields.heat-object-fields--wide:where([data-object-type="tank"]) > .heat-object-fields__geometry {
-    grid-area: wide;
-  }
-
-  .heat-object-fields.heat-object-fields--wide:where([data-object-type="tank"]) > .heat-object-fields__climate {
-    grid-area: geo;
-  }
-
-  .heat-object-fields.heat-object-fields--wide:where([data-object-type="tank"]) > .heat-object-fields__settings {
-    grid-area: env;
-  }
-
-  .heat-object-fields.heat-object-fields--wide:where([data-object-type="tank"]) [data-slot="wide"] .ant-form-item-row {
-    grid-template-columns: var(--hof-wide-label-width) var(--hof-wide-control-tight, 240px);
+  .heat-object-fields.heat-object-fields--wide[data-object-type="tank"] {
+    --hof-wide-label-width: 104px;
+    --hof-geometry-label-width: 104px;
+    --hof-environment-label-width: 96px;
+    gap: 4px 6px;
   }
 }
 
 @container heat-fields (width < 646px) {
   .heat-object-fields.heat-object-fields--wide:where([data-object-type="pipe"]) {
+    --hof-geometry-label-width: 80px;
+    --hof-environment-label-width: 100px;
+    gap: 4px 6px;
+  }
+}
+
+@container heat-fields (width < 640px) {
+  .heat-object-fields.heat-object-fields--wide[data-object-type="tank"] {
     grid-template-columns: max-content max-content;
     grid-template-areas:
       "wide geo"
@@ -252,19 +249,20 @@
     gap: 4px 24px;
   }
 
-  .heat-object-fields.heat-object-fields--wide:where([data-object-type="pipe"]) > .heat-object-fields__geometry {
+  .heat-object-fields.heat-object-fields--wide[data-object-type="tank"] > .heat-object-fields__geometry {
     grid-area: wide;
   }
 
-  .heat-object-fields.heat-object-fields--wide:where([data-object-type="pipe"]) > .heat-object-fields__climate {
+  .heat-object-fields.heat-object-fields--wide[data-object-type="tank"] > .heat-object-fields__climate {
     grid-area: geo;
   }
 
-  .heat-object-fields.heat-object-fields--wide:where([data-object-type="pipe"]) > .heat-object-fields__settings {
+  .heat-object-fields.heat-object-fields--wide[data-object-type="tank"] > .heat-object-fields__settings {
     grid-area: env;
   }
 
-  .heat-object-fields.heat-object-fields--wide:where([data-object-type="pipe"]) [data-slot="wide"] .ant-form-item-row {
+  /* :where() so the <600px tier's 380px control cap still wins by order. */
+  .heat-object-fields.heat-object-fields--wide:where([data-object-type="tank"]) [data-slot="wide"] .ant-form-item-row {
     grid-template-columns: var(--hof-wide-label-width) var(--hof-wide-control-tight, 240px);
   }
 }

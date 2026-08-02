@@ -63,15 +63,18 @@ pnpm-debug.log*
 demo/
 demo*.zip
 
+# Nested WIP / separate checkout (has its own .git)
+frontend1/
+
 # IDE
 .vscode/
 .idea/
 *.swp
 .DS_Store?
-.claude
 
 # OS
 .DS_Store
+**/.DS_Store
 Thumbs.db
 
 # Playwright
@@ -86,8 +89,46 @@ qa-agent/reports/
 frontend/storybook-static/
 
 # Run artifacts: screenshots, console/network dumps, scratch PDFs.
-# Keepers belong in a dated docs/audit/YYYY-MM-DD-*/ folder, not in the root.
 tmp/
 /*.png
 /*.jpg
 /*.jpeg
+
+# ---------------------------------------------------------------------------
+# Documentation (not product code) — keep local, do not ship in git
+# ---------------------------------------------------------------------------
+/docs/
+/demo-doc/
+/reports/
+/codex-workspace/
+/Внутренние справочники/
+/ТНП/
+/AGENTS.md
+**/AGENTS.md
+
+# ---------------------------------------------------------------------------
+# Hidden / local tooling (root-only blanket + known nested junk)
+# Keep: .gitignore, .github, .env*.example, .dockerignore, .nvmrc, .node-version
+# ---------------------------------------------------------------------------
+/.*
+!/.gitignore
+!/.github/
+!/.github/**
+!/.dockerignore
+!/.env.example
+!/.env.*.example
+!/.node-version
+!/.nvmrc
+
+# Nested local/tooling hidden dirs (not product config like .storybook / .eslintrc)
+**/.claude/
+**/.grok/
+**/.agent-proof/
+**/.playwright-mcp/
+**/.vite/
+**/.DS_Store
+**/.mcp.json
+.claude/
+.grok/
+.mcp.json
+.agent-proof/

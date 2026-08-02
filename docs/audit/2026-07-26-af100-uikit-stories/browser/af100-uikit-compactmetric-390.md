@@ -1,4 +1,0 @@
-- generic [ref=e6] [box=16,16,960,18]:
-  - text: Теплопотери
-  - strong [ref=e7] [box=115,16,33,18]: 12,4
-  - text: кВт
