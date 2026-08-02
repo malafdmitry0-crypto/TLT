@@ -44,7 +44,7 @@ class CanonicalElectricalInputs(BaseModel):
     selection_policy: str
     safety_factor: Decimal
     base_length_m: Decimal
-    outer_diameter_mm: Decimal
+    outer_diameter_mm: Decimal | None
     heat_loss_per_meter_w: Decimal
     nominal_voltage_v: int = Field(default=230, frozen=True)
 

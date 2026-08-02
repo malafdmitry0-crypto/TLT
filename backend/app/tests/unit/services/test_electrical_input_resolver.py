@@ -136,6 +136,81 @@ def test_explicit_null_steam_is_not_replaced_by_assignment_or_mock():
     assert "steam_temperature_c" not in result.mocked_fields
 
 
+def test_object_null_for_required_field_falls_through_to_mock():
+    object_heat = _minimal_object_heat()
+    object_heat["maintain_temperature_c"] = None
+
+    result = ElectricalInputResolver(mock_mode="test").resolve(object_heat=object_heat)
+
+    assert result.values.maintain_temperature_c == Decimal("10.0")
+    assert result.sources["maintain_temperature_c"] == "frontend_mock_test"
+    assert "maintain_temperature_c" in result.mocked_fields
+
+
+def test_project_null_for_required_field_falls_through_to_object():
+    result = ElectricalInputResolver(mock_mode="test").resolve(
+        project_settings={"maintain_temperature_c": None},
+        object_heat={**_minimal_object_heat(), "maintain_temperature_c": Decimal("23")},
+    )
+
+    assert result.values.maintain_temperature_c == Decimal("23")
+    assert result.sources["maintain_temperature_c"] == "object_heat"
+    assert "maintain_temperature_c" not in result.mocked_fields
+
+
+def test_object_and_project_normative_nulls_are_preserved():
+    result = ElectricalInputResolver(mock_mode="test").resolve(
+        project_settings={"winding_pitch_mm": None},
+        object_heat={**_minimal_object_heat(), "steam_temperature_c": None},
+    )
+
+    assert result.values.steam_temperature_c is None
+    assert result.sources["steam_temperature_c"] == "object_heat"
+    assert result.values.winding_pitch_mm is None
+    assert result.sources["winding_pitch_mm"] == "project_setting"
+    assert "steam_temperature_c" not in result.mocked_fields
+    assert "winding_pitch_mm" not in result.mocked_fields
+
+
+def test_diameter_is_optional_for_direct_layout():
+    object_heat = _minimal_object_heat()
+    object_heat.pop("outer_diameter_mm")
+
+    result = ElectricalInputResolver(mock_mode="test").resolve(
+        explicit=ElectricalInputOverrides(winding_pitch_mm=None),
+        object_heat=object_heat,
+    )
+
+    assert result.values.outer_diameter_mm is None
+    assert result.sources["outer_diameter_mm"] == "not_required_for_direct_layout"
+    assert "outer_diameter_mm" not in result.mocked_fields
+
+
+@pytest.mark.parametrize(
+    ("diameter", "expected_code"),
+    [
+        (None, "ELECTRICAL_INPUT_REQUIRED"),
+        (Decimal("0"), "ELECTRICAL_INPUT_INVALID"),
+        (Decimal("-1"), "ELECTRICAL_INPUT_INVALID"),
+    ],
+)
+def test_winding_requires_positive_diameter(
+    diameter: Decimal | None,
+    expected_code: str,
+):
+    object_heat = _minimal_object_heat()
+    object_heat["outer_diameter_mm"] = diameter
+
+    with pytest.raises(ElectricalInputResolutionError) as raised:
+        ElectricalInputResolver(mock_mode="test").resolve(
+            explicit=ElectricalInputOverrides(winding_pitch_mm=Decimal("100")),
+            object_heat=object_heat,
+        )
+
+    assert raised.value.code == expected_code
+    assert raised.value.details["field"] == "outer_diameter_mm"
+
+
 def test_explicit_null_current_clears_assignment_and_uses_project_setting():
     result = ElectricalInputResolver(mock_mode="test").resolve(
         explicit=ElectricalInputOverrides(max_section_start_current_a=None),
@@ -154,16 +229,19 @@ def test_aliases_are_normalized_only_at_boundary_and_cable_suffix_is_removed():
             "process_temperature": 50,
             "ambient_temperature": -10,
             "cable_mark": "30ттв2-ср",
+            "supply_voltage": 230,
         }
     )
 
     assert normalized.overrides.product_temperature_c == Decimal("50")
     assert normalized.overrides.cold_start_temperature_c == Decimal("-10")
     assert normalized.overrides.manual_cable_model == "30ттв2"
+    assert normalized.overrides.nominal_voltage_v == 230
     assert normalized.legacy_aliases == [
         "process_temperature->product_temperature_c",
         "ambient_temperature->cold_start_temperature_c",
         "cable_mark->manual_cable_model",
+        "supply_voltage->nominal_voltage_v",
     ]
     assert normalized.warnings == [ELECTRICAL_LEGACY_INPUT_ALIASES_USED]
 

@@ -61,6 +61,7 @@ _LEGACY_ALIASES = {
     "number_of_threads": "thread_count",
     "cable_mark": "manual_cable_model",
     "max_start_current_per_section": "max_section_start_current_a",
+    "supply_voltage": "nominal_voltage_v",
 }
 _ALLOWED_CABLE_SUFFIX = re.compile(r"\s*-\s*(?:СТ|СР|НР)\s*$", re.IGNORECASE)
 
@@ -73,7 +74,6 @@ _NULL_IS_VALUE = {
 }
 _POSITIVE_FIELDS = {
     "base_length_m",
-    "outer_diameter_mm",
     "heat_loss_per_meter_w",
     "safety_factor",
     "max_section_start_current_a",
@@ -181,13 +181,23 @@ class ElectricalInputResolver:
                 values[field] = assignment_values[field]
                 sources[field] = "assignment_override"
                 continue
-            if field in project_fields and project_values.get(field) is not None:
-                values[field] = project_values[field]
+            project_value = project_values.get(field)
+            if field in project_fields and (
+                project_value is not None or field in _NULL_IS_VALUE
+            ):
+                values[field] = project_value
                 sources[field] = "project_setting"
                 continue
-            if field in object_fields:
-                values[field] = object_values.get(field)
+            object_value = object_values.get(field)
+            if field in object_fields and (
+                object_value is not None or field in _NULL_IS_VALUE
+            ):
+                values[field] = object_value
                 sources[field] = "object_heat"
+                continue
+            if field == "outer_diameter_mm" and values.get("winding_pitch_mm") is None:
+                values[field] = None
+                sources[field] = "not_required_for_direct_layout"
                 continue
             if self.mock_mode != "off" and field in mock_values:
                 values[field] = mock_values[field]
@@ -256,6 +266,18 @@ class ElectricalInputResolver:
                     "ELECTRICAL_INPUT_INVALID",
                     f"Electrical input must be positive: {field}",
                     details={"field": field, "value": values.get(field)},
+                )
+        if values.get("winding_pitch_mm") is not None:
+            diameter = values.get("outer_diameter_mm")
+            try:
+                valid_diameter = Decimal(str(diameter)) > 0
+            except (ValueError, TypeError):
+                valid_diameter = False
+            if not valid_diameter:
+                raise ElectricalInputResolutionError(
+                    "ELECTRICAL_INPUT_INVALID",
+                    "Electrical input must be positive: outer_diameter_mm",
+                    details={"field": "outer_diameter_mm", "value": diameter},
                 )
         thread_count = values.get("thread_count")
         if thread_count is not None and thread_count not in {1, 2, 3}:
