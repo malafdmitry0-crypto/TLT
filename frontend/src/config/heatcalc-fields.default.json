@@ -1670,7 +1670,7 @@
       },
       "contexts": {
         "form": {
-          "label": "Режим температуры изоляции (tm)"
+          "label": "Режим температуры изоляции"
         },
         "table_by_key": {
           "insulation_temperature_basis": {
@@ -1999,7 +1999,7 @@
           }
         },
         "form": {
-          "label": "Коэффициент запаса (Kзап)"
+          "label": "Коэффициент запаса"
         }
       },
       "table_keys": {
@@ -2152,36 +2152,36 @@
       "service_name": "end_of_section_indication",
       "object_types": ["pipe", "tank"],
       "group": "Электропараметры и арматура",
-      "labels": { "full": "Доп. индикация в конце нагр. секции", "short": "К2i", "compact": "К2i" },
+      "labels": { "full": "Дополнительная индикация в конце нагревательной секции", "short": "К2i", "compact": "К2i" },
       "contexts": {
-        "table_by_key": { "end_of_section_indication": { "label": "К2i", "full_label": "Доп. индикация в конце нагр. секции", "tooltip": "Доп. индикация в конце нагр. секции" } },
-        "settings_by_key": { "end_of_section_indication": { "label": "Доп. индикация в конце нагр. секции" } }
+        "table_by_key": { "end_of_section_indication": { "label": "К2i", "full_label": "Дополнительная индикация в конце нагревательной секции", "tooltip": "Дополнительная индикация в конце нагревательной секции" } },
+        "settings_by_key": { "end_of_section_indication": { "label": "Дополнительная индикация в конце нагревательной секции" } }
       },
       "table_keys": { "pipe": "end_of_section_indication", "tank": "end_of_section_indication" },
       "input": { "type": "select", "options": [{ "value": "yes", "label": "Да" }, { "value": "no", "label": "Нет" }] },
-      "description": "Доп. индикация в конце нагревательной секции (К2i)."
+      "description": "Дополнительная индикация в конце нагревательной секции (К2i)."
     },
     "top_of_box_indication": {
       "service_name": "top_of_box_indication",
       "object_types": ["pipe", "tank"],
       "group": "Электропараметры и арматура",
-      "labels": { "full": "Доп. индикация сверху коробки", "short": "Кiu", "compact": "Кiu" },
+      "labels": { "full": "Дополнительная индикация сверху коробки", "short": "Кiu", "compact": "Кiu" },
       "contexts": {
-        "table_by_key": { "top_of_box_indication": { "label": "Кiu", "full_label": "Доп. индикация сверху коробки", "tooltip": "Доп. индикация сверху коробки" } },
-        "settings_by_key": { "top_of_box_indication": { "label": "Доп. индикация сверху коробки" } }
+        "table_by_key": { "top_of_box_indication": { "label": "Кiu", "full_label": "Дополнительная индикация сверху коробки", "tooltip": "Дополнительная индикация сверху коробки" } },
+        "settings_by_key": { "top_of_box_indication": { "label": "Дополнительная индикация сверху коробки" } }
       },
       "table_keys": { "pipe": "top_of_box_indication", "tank": "top_of_box_indication" },
       "input": { "type": "select", "options": [{ "value": "yes", "label": "Да" }, { "value": "no", "label": "Нет" }] },
-      "description": "Доп. индикация сверху коробки (Кiu)."
+      "description": "Дополнительная индикация сверху коробки (Кiu)."
     },
     "min_length_for_k2i": {
       "service_name": "min_length_for_k2i",
       "object_types": ["pipe", "tank"],
       "group": "Электропараметры и арматура",
-      "labels": { "full": "Мин. длина нагр. секции для К2i", "short": "L К2i", "compact": "L К2i" },
+      "labels": { "full": "Минимальная длина нагревательной секции для К2i", "short": "L К2i", "compact": "L К2i" },
       "contexts": {
-        "table_by_key": { "min_length_for_k2i": { "label": "L К2i", "full_label": "Мин. длина нагр. секции для К2i", "tooltip": "Мин. длина нагревательной секции для применения К2i" } },
-        "settings_by_key": { "min_length_for_k2i": { "label": "Мин. длина нагр. секции для К2i" } }
+        "table_by_key": { "min_length_for_k2i": { "label": "L К2i", "full_label": "Минимальная длина нагревательной секции для К2i", "tooltip": "Минимальная длина нагревательной секции для применения К2i" } },
+        "settings_by_key": { "min_length_for_k2i": { "label": "Минимальная длина нагревательной секции для К2i" } }
       },
       "table_keys": { "pipe": "min_length_for_k2i", "tank": "min_length_for_k2i" },
       "input": { "type": "number", "unit": "м", "min": 0, "max": 10000, "default_step": 0.1, "input_unit": "raw", "display_digits": 1 },
@@ -2191,10 +2191,10 @@
       "service_name": "hot_reserve_coefficient",
       "object_types": ["pipe", "tank"],
       "group": "Электропараметры и арматура",
-      "labels": { "full": "Коэф. горячего резервирования", "short": "R гр", "compact": "R гр" },
+      "labels": { "full": "Коэффициент горячего резервирования", "short": "R гр", "compact": "R гр" },
       "contexts": {
-        "table_by_key": { "hot_reserve_coefficient": { "label": "R гр", "full_label": "Коэф. горячего резервирования", "tooltip": "Коэф. горячего резервирования" } },
-        "settings_by_key": { "hot_reserve_coefficient": { "label": "Коэф. горячего резервирования" } }
+        "table_by_key": { "hot_reserve_coefficient": { "label": "R гр", "full_label": "Коэффициент горячего резервирования", "tooltip": "Коэффициент горячего резервирования" } },
+        "settings_by_key": { "hot_reserve_coefficient": { "label": "Коэффициент горячего резервирования" } }
       },
       "table_keys": { "pipe": "hot_reserve_coefficient", "tank": "hot_reserve_coefficient" },
       "input": { "type": "number", "min": 1, "max": 10, "default_step": 0.1, "input_unit": "raw", "display_digits": 1 },
@@ -2204,7 +2204,7 @@
       "service_name": "winding_coefficient",
       "object_types": ["pipe", "tank"],
       "group": "Электропараметры и арматура",
-      "labels": { "full": "Коэффициент навива w", "short": "w", "compact": "w" },
+      "labels": { "full": "Коэффициент навива", "short": "w", "compact": "w" },
       "table_keys": { "pipe": "winding_coefficient", "tank": "winding_coefficient" },
       "input": { "type": "number", "min": 1, "max": 1.5, "default_step": 0.05, "input_unit": "raw", "display_digits": 2 },
       "description": "Коэффициент навива (1–1,5). Используется алгоритмом выбора кабеля (ТНП)."

@@ -170,6 +170,10 @@ export default function ObjectWizard({
             <ObjectWizardWidePanel
               formGridRef={formGridRef}
               objectType={heatCalcObjectType}
+              wideLeft={slots.wideLeft}
+              wideRight={slots.wideRight}
+              compactLeft={slots.compactLeft}
+              compactRight={slots.compactRight}
               geometry={slots.geometry}
               climate={slots.climate}
               insulationSettings={slots.insulationSettings}

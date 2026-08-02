@@ -17,11 +17,11 @@
    * Parent (heat-structured) is sized by fields max-content → table ≤ fields,
    * no empty strip under fields, no 1fr inflate beyond the heat card.
    */
-  --ins-col-index: 56px;
-  --ins-col-material: minmax(160px, 1fr);
-  --ins-col-thickness: 92px;
-  --ins-col-lambda: 76px;
-  --ins-col-range: 104px;
+  --ins-col-index: 52px;
+  --ins-col-material: minmax(140px, 1fr);
+  --ins-col-thickness: 84px;
+  --ins-col-lambda: 68px;
+  --ins-col-range: 96px;
   --ins-cols: var(--ins-col-index) var(--ins-col-material) var(--ins-col-thickness) var(--ins-col-lambda) var(--ins-col-range);
   --ins-control-h: 28px;
   /* Единый размер шрифта во всех ячейках таблицы = компактный размер формы

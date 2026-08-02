@@ -52,34 +52,28 @@
   align-items: start;
 }
 .heatcalc-dual-forms--wide {
-  --heatcalc-heat-pane-min: 440px;
-  --heatcalc-cable-pane-min: 240px;
-  grid-template-columns:
-    minmax(var(--heatcalc-heat-pane-min), max-content)
-    minmax(var(--heatcalc-cable-pane-min), max-content)
-    minmax(var(--heatcalc-cable-pane-min), max-content);
-  justify-content: space-around;
+  /* Size columns to the natural width of each pane so there is no empty
+     space inside a track wider than its content. */
+  /* grid-template-columns: 2.25fr 1.2fr 1fr; */
+  grid-template-columns: minmax(0, 1fr) max-content max-content;
+  gap: 0 8px;
 }
 .heatcalc-dual-forms--side {
   grid-template-columns: minmax(0, 1fr);
 }
 /*
- * ≥1400px reserve enough heat-pane width for its three slot columns (see
- * heat-object-fields.css): tank needs ~714px for ≥110px wide-slot selects.
- * The fields zone is an inline-size container, so it no longer contributes
- * intrinsic width — this minimum IS the pane width unless the insulation
- * table wants more. Cable/spec panes absorb the difference down to their own
- * minimums.
+ * 4-column layout needs ≥692px for heat pane (204+156×3 + gaps + padding).
  */
-@media (min-width: 1400px) {
-  .heatcalc-dual-forms--wide {
-    --heatcalc-heat-pane-min: 760px;
-  }
-}
 .heatcalc-dual-forms__heat,
 .heatcalc-dual-forms__cable,
 .heatcalc-dual-forms__specs {
   min-width: 0;
+}
+
+.heatcalc-dual-forms__specs,
+.heatcalc-dual-forms__cable {
+  border-left: 1px solid var(--heatcalc-panel-border);
+  padding-left: 16px;
 }
 .heatcalc-dual-forms {
   --dual-form-banner-size: 9px;
@@ -114,7 +108,7 @@
  */
 @media (max-width: 1399px) and (min-width: 1000px) {
   .heatcalc-dual-forms--wide {
-    grid-template-columns: repeat(2, minmax(max-content, 1fr));
+    grid-template-columns: minmax(0, auto) minmax(0, auto);
     grid-template-areas:
       "heat heat"
       "cable specs";
@@ -131,43 +125,44 @@
   .heatcalc-dual-forms__specs {
     grid-area: specs;
   }
-
-  .heatcalc-dual-forms__cable .cable-island,
-  .heatcalc-dual-forms__specs .cable-island {
-    margin-inline: auto;
-  }
 }
 
 @media (max-width: 999px) {
   .heatcalc-dual-forms--wide {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, auto);
   }
 }
 
 /* C19: heat-structured dual-form shell / SC-03 form pane from styles.css */
 
 .form-grid-srs--heat-structured,
-.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--heat-structured,
+.heatcalc-form-pane--wide
+  .inline-object-form--wide
+  .form-grid-srs--heat-structured,
 .heatcalc-dual-forms__heat .form-grid-srs--heat-structured,
-.heatcalc-dual-forms__heat .form-grid-srs--pdf-three.form-grid-srs--heat-structured,
-.inline-object-form--wide .object-wizard-wide-panel .form-grid-srs--heat-structured {
+.heatcalc-dual-forms__heat
+  .form-grid-srs--pdf-three.form-grid-srs--heat-structured,
+.inline-object-form--wide
+  .object-wizard-wide-panel
+  .form-grid-srs--heat-structured {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto auto;
   grid-template-areas:
     "fields"
     "layers";
-  gap: 8px;
+  gap: 32px;
+  padding: 10px 12px 12px;
   align-items: start;
-  justify-items: stretch;
-  padding: 8px 10px 10px;
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
 }
 .form-grid-srs--heat-structured > .heat-object-fields,
 .form-grid-srs--heat-structured > .heat-wizard-zone--fields,
-.heatcalc-dual-forms__heat .form-grid-srs--heat-structured > .heat-wizard-zone--fields {
+.heatcalc-dual-forms__heat
+  .form-grid-srs--heat-structured
+  > .heat-wizard-zone--fields {
   grid-area: fields;
   min-width: 0;
   width: 100%;
@@ -197,8 +192,12 @@
 }
 .form-grid-srs--heat-structured > .form-col-srs--insulation,
 .form-grid-srs--heat-structured > .heat-wizard-zone--layers,
-.heatcalc-dual-forms__heat .form-grid-srs--heat-structured > .form-col-srs--insulation,
-.heatcalc-dual-forms__heat .form-grid-srs--heat-structured > .heat-wizard-zone--layers {
+.heatcalc-dual-forms__heat
+  .form-grid-srs--heat-structured
+  > .form-col-srs--insulation,
+.heatcalc-dual-forms__heat
+  .form-grid-srs--heat-structured
+  > .heat-wizard-zone--layers {
   grid-area: layers;
   display: flex;
   flex-direction: column;
@@ -216,8 +215,12 @@
  * lands in "cable" (top-left) and the fields zone, whose "fields" area does not
  * exist here, is thrown into an implicit column on the right.
  */
-.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs:not(.form-grid-srs--heat-structured),
-.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three:not(.form-grid-srs--heat-structured) {
+.heatcalc-form-pane--wide
+  .inline-object-form--wide
+  .form-grid-srs:not(.form-grid-srs--heat-structured),
+.heatcalc-form-pane--wide
+  .inline-object-form--wide
+  .form-grid-srs--pdf-three:not(.form-grid-srs--heat-structured) {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
   grid-template-rows: auto auto;
@@ -238,8 +241,14 @@
   border-top: 0;
   border-radius: 0 0 7px 7px;
 }
-.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs > .form-col-srs,
-.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three > .form-col-srs {
+.heatcalc-form-pane--wide
+  .inline-object-form--wide
+  .form-grid-srs
+  > .form-col-srs,
+.heatcalc-form-pane--wide
+  .inline-object-form--wide
+  .form-grid-srs--pdf-three
+  > .form-col-srs {
   flex: none;
   width: auto;
   height: auto;
@@ -247,16 +256,28 @@
   overflow: visible;
   scrollbar-gutter: auto;
 }
-.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three:not(.form-grid-srs--heat-structured) > .form-col-srs--primary {
+.heatcalc-form-pane--wide
+  .inline-object-form--wide
+  .form-grid-srs--pdf-three:not(.form-grid-srs--heat-structured)
+  > .form-col-srs--primary {
   grid-area: heat;
 }
-.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three:not(.form-grid-srs--heat-structured) > .form-col-srs--insulation {
+.heatcalc-form-pane--wide
+  .inline-object-form--wide
+  .form-grid-srs--pdf-three:not(.form-grid-srs--heat-structured)
+  > .form-col-srs--insulation {
   grid-area: cable;
 }
-.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three:not(.form-grid-srs--heat-structured) > .form-col-srs--climate {
+.heatcalc-form-pane--wide
+  .inline-object-form--wide
+  .form-grid-srs--pdf-three:not(.form-grid-srs--heat-structured)
+  > .form-col-srs--climate {
   grid-area: spec;
 }
-.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three .pdf-form-column {
+.heatcalc-form-pane--wide
+  .inline-object-form--wide
+  .form-grid-srs--pdf-three
+  .pdf-form-column {
   position: relative;
   padding: 0;
   background: transparent;
@@ -268,26 +289,32 @@
 /* C19 residual media */
 
 @media (max-width: 1400px) {
-.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs:not(.form-grid-srs--heat-structured),
-  .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three:not(.form-grid-srs--heat-structured) {
+  .heatcalc-form-pane--wide
+    .inline-object-form--wide
+    .form-grid-srs:not(.form-grid-srs--heat-structured),
+  .heatcalc-form-pane--wide
+    .inline-object-form--wide
+    .form-grid-srs--pdf-three:not(.form-grid-srs--heat-structured) {
     grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
     grid-template-areas:
       "heat spec"
       "cable cable";
   }
 
-/* Dual-form + heat-structured: keep fields/layers stack (do NOT force heat|spec). */
-  .heatcalc-dual-forms__heat .form-grid-srs--pdf-three.form-grid-srs--heat-structured {
+  /* Dual-form + heat-structured: keep fields/layers stack (do NOT force heat|spec). */
+  .heatcalc-dual-forms__heat
+    .form-grid-srs--pdf-three.form-grid-srs--heat-structured {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
       "fields"
       "layers";
   }
 
-.heatcalc-dual-forms__heat .form-grid-srs--heat-structured > .form-col-srs--insulation {
+  .heatcalc-dual-forms__heat
+    .form-grid-srs--heat-structured
+    > .form-col-srs--insulation {
     display: flex;
     flex-direction: column;
     width: 100%;
   }
 }
-

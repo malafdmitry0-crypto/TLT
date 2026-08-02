@@ -198,6 +198,49 @@ export function buildObjectWizardFormSlots(input: ObjectWizardFormSlotsInput) {
     </>
   ) : insulationModeField;
 
+  const wideLeft = layoutVariant === 'wide' ? (
+    <>
+      {nameField}
+      {temperatureStep('wide')}
+    </>
+  ) : null;
+
+  const wideRight = layoutVariant === 'wide' ? (
+    <>
+      {objectType === 'pipe' ? (
+        <PipeWallMaterialStep part="material" fieldInputSettings={fieldInputSettings} pipeMaterialOptions={pipeMaterialOptions} />
+      ) : (
+        <TankGeometryStep part="wide" fieldInputSettings={fieldInputSettings} />
+      )}
+      {placementStep('wide')}
+      {insulationModeField}
+    </>
+  ) : null;
+
+  const compactLeft = layoutVariant === 'wide' ? (
+    <>
+      {temperatureStep('temperatures')}
+      {temperatureStep('wind')}
+      {electricalStep}
+    </>
+  ) : null;
+
+  const compactRight = layoutVariant === 'wide' ? (
+    objectType === 'pipe' ? (
+      <>
+        <PipeGeometryStep fieldInputSettings={fieldInputSettings} />
+        <PipeWallMaterialStep part="thickness" fieldInputSettings={fieldInputSettings} pipeMaterialOptions={pipeMaterialOptions} />
+        <PipeWallMaterialStep part="lambda" fieldInputSettings={fieldInputSettings} pipeMaterialOptions={pipeMaterialOptions} />
+        {placementStep('numeric')}
+      </>
+    ) : (
+      <>
+        <TankGeometryStep part="numeric" fieldInputSettings={fieldInputSettings} />
+        {placementStep('numeric')}
+      </>
+    )
+  ) : null;
+
   const insulationTable = (
     <InsulationLayersStep
       objectType={heatCalcObjectType}
@@ -218,5 +261,5 @@ export function buildObjectWizardFormSlots(input: ObjectWizardFormSlotsInput) {
     />
   );
 
-  return { geometry, climate, insulationSettings, insulationTable };
+  return { geometry, climate, insulationSettings, insulationTable, wideLeft, wideRight, compactLeft, compactRight };
 }

@@ -73,22 +73,26 @@ import './heat-object-fields.css';
 export interface HeatCalcObjectFieldsPanelProps {
   layout: ObjectWizardLayoutVariant;
   objectType: HeatCalcObjectType;
-  /** wide: text/select group; side: name + geometry */
+  wideLeft: ReactNode;
+  wideRight: ReactNode;
+  compactLeft: ReactNode;
+  compactRight: ReactNode;
   geometry: ReactNode;
-  /** wide: geometry numeric group; side: climate */
   climate: ReactNode;
-  /** wide: environment numeric group; side: insulation settings */
   insulationSettings: ReactNode;
 }
 
 export default function HeatCalcObjectFieldsPanel({
   layout,
   objectType,
+  wideLeft,
+  wideRight,
+  compactLeft,
+  compactRight,
   geometry,
   climate,
   insulationSettings,
 }: HeatCalcObjectFieldsPanelProps) {
-  /* wide: горизонтальные строки [label | control]; side: label над контролом */
   const labelPlacement = layout === 'wide' ? 'left' : 'top';
   return (
     <div
@@ -99,39 +103,69 @@ export default function HeatCalcObjectFieldsPanel({
       data-layout={layout}
       data-object-type={objectType}
     >
-      <CompactFieldGrid
-        className="heat-object-fields__geometry"
-        data-slot={layout === 'wide' ? 'wide' : 'geometry'}
-        density="compact"
-        flow="columns"
-        maxRowsPerColumn={5}
-        antFormAdapter
-        labelPlacement={labelPlacement}
-      >
-        {geometry}
-      </CompactFieldGrid>
-      <CompactFieldGrid
-        className="heat-object-fields__climate"
-        data-slot={layout === 'wide' ? 'geometry-numeric' : 'climate'}
-        density="compact"
-        flow="columns"
-        maxRowsPerColumn={5}
-        antFormAdapter
-        labelPlacement={labelPlacement}
-      >
-        {climate}
-      </CompactFieldGrid>
-      <CompactFieldGrid
-        className="heat-object-fields__settings"
-        data-slot={layout === 'wide' ? 'environment-numeric' : 'insulation-settings'}
-        density="compact"
-        flow="columns"
-        maxRowsPerColumn={5}
-        antFormAdapter
-        labelPlacement={labelPlacement}
-      >
-        {insulationSettings}
-      </CompactFieldGrid>
+      {layout === 'wide' ? (
+        <>
+          <CompactFieldGrid
+            className="heat-object-fields__geometry"
+            data-slot="wide-left"
+            density="compact" flow="columns" maxRowsPerColumn={4}
+            antFormAdapter labelPlacement={labelPlacement}
+          >
+            {wideLeft}
+          </CompactFieldGrid>
+          <CompactFieldGrid
+            className="heat-object-fields__geometry"
+            data-slot="wide-right"
+            density="compact" flow="columns" maxRowsPerColumn={4}
+            antFormAdapter labelPlacement={labelPlacement}
+          >
+            {wideRight}
+          </CompactFieldGrid>
+          <CompactFieldGrid
+            className="heat-object-fields__geometry"
+            data-slot="compact-left"
+            density="compact" flow="columns" maxRowsPerColumn={5}
+            antFormAdapter labelPlacement={labelPlacement}
+          >
+            {compactLeft}
+          </CompactFieldGrid>
+          <CompactFieldGrid
+            className="heat-object-fields__geometry"
+            data-slot="compact-right"
+            density="compact" flow="columns" maxRowsPerColumn={5}
+            antFormAdapter labelPlacement={labelPlacement}
+          >
+            {compactRight}
+          </CompactFieldGrid>
+        </>
+      ) : (
+        <>
+          <CompactFieldGrid
+            className="heat-object-fields__geometry"
+            data-slot={layout === 'wide' ? 'wide' : 'geometry'}
+            density="compact" flow="columns" maxRowsPerColumn={5}
+            antFormAdapter labelPlacement={labelPlacement}
+          >
+            {geometry}
+          </CompactFieldGrid>
+          <CompactFieldGrid
+            className="heat-object-fields__climate"
+            data-slot={layout === 'wide' ? 'geometry-numeric' : 'climate'}
+            density="compact" flow="columns" maxRowsPerColumn={5}
+            antFormAdapter labelPlacement={labelPlacement}
+          >
+            {climate}
+          </CompactFieldGrid>
+          <CompactFieldGrid
+            className="heat-object-fields__settings"
+            data-slot={layout === 'wide' ? 'environment-numeric' : 'insulation-settings'}
+            density="compact" flow="columns" maxRowsPerColumn={5}
+            antFormAdapter labelPlacement={labelPlacement}
+          >
+            {insulationSettings}
+          </CompactFieldGrid>
+        </>
+      )}
     </div>
   );
 }

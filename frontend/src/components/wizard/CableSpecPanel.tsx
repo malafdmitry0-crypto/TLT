@@ -25,8 +25,8 @@ export default function CableSpecPanel() {
         <CompactFieldGrid
           className="cable-algorithm-fields"
           columns={2}
-          flow="rows"
-          maxRowsPerColumn={6}
+          flow="columns"
+          maxRowsPerColumn={4}
           antFormAdapter
           labelPlacement="left"
         >
@@ -60,7 +60,7 @@ export default function CableSpecPanel() {
 
           <Form.Item
             className="cable-algorithm-field helped-form-item"
-            label={<FieldLabel text="Доп. индикация в конце нагр. секции" />}
+            label={<FieldLabel text="Дополнительная индикация в конце нагревательной секции" />}
             name="end_of_section_indication"
           >
             <TltSelect
@@ -74,7 +74,7 @@ export default function CableSpecPanel() {
 
           <Form.Item
             className="cable-algorithm-field helped-form-item"
-            label={<FieldLabel text="Доп. индикация сверху коробки" />}
+            label={<FieldLabel text="Дополнительная индикация сверху коробки" />}
             name="top_of_box_indication"
           >
             <TltSelect
@@ -87,8 +87,8 @@ export default function CableSpecPanel() {
           </Form.Item>
 
           <Form.Item
-            className="cable-algorithm-field helped-form-item"
-            label={<FieldLabel text="Мин. длина нагр. секции для К2i" />}
+            className="cable-algorithm-field helped-form-item cable-spec-number-field"
+            label={<FieldLabel text="Минимальная длина нагревательной секции для К2i" />}
             name="min_length_for_k2i"
           >
             <UnitInputNumber
@@ -96,14 +96,14 @@ export default function CableSpecPanel() {
               min={0}
               max={10000}
               step={0.1}
-              aria-label="Мин. длина секции для К2i"
+              aria-label="Минимальная длина секции для К2i"
               unit="L"
             />
           </Form.Item>
 
           <Form.Item
-            className="cable-algorithm-field helped-form-item"
-            label={<FieldLabel text="Коэф. горячего резервирования, гр" />}
+            className="cable-algorithm-field helped-form-item cable-spec-number-field"
+            label={<FieldLabel text="Коэффициент горячего резервирования, группа" />}
             name="hot_reserve_coefficient"
           >
             <TltNumberField
@@ -111,7 +111,7 @@ export default function CableSpecPanel() {
               min={1}
               max={10}
               step={0.1}
-              aria-label="Коэф. горячего резервирования"
+              aria-label="Коэффициент горячего резервирования"
               className="cable-algorithm-number"
               unit="R"
             />
