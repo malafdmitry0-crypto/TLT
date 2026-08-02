@@ -12,18 +12,30 @@
   --dual-form-control-height: var(--tlt-field-control-height, 26px);
   --dual-form-control-font: var(--tlt-field-control-font-size, 12px);
   --dual-form-hint-size: 10px;
-  --hof-wide-label-width: 96px;
+  --hof-wide-label-width: 57px;
   --hof-geometry-label-width: 96px;
   --hof-environment-label-width: 96px;
   --hof-label-control-gap: 8px;
   --field-input-min-width: 0px;
   --inline-control-height: var(--tlt-field-control-height, 26px);
   --tlt-field-gap: var(--hof-label-control-gap);
+  /* Wide slot: label 96 + gap 8 + control 110; compact: label 96 + gap 8 + control 62.
+     Columns must fit the whole label-control pair so adjacent fields never overlap. */
+  --hof-wide-column-min: calc(
+    var(--hof-wide-label-width) + var(--hof-label-control-gap) + 110px
+  );
+  --hof-compact-column-min: calc(
+    var(--hof-wide-label-width) + var(--hof-label-control-gap) + 62px
+  );
 
   isolation: isolate;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 4px 16px;
+  grid-template-columns:
+    minmax(var(--hof-wide-column-min), 1fr)
+    minmax(var(--hof-wide-column-min), 1fr)
+    minmax(var(--hof-compact-column-min), 1fr)
+    minmax(var(--hof-compact-column-min), 1fr);
+  gap: 4px;
   align-items: start;
   width: 100%;
   max-width: 100%;
@@ -33,79 +45,127 @@
 }
 
 .heat-object-fields.heat-object-fields--wide[data-object-type="tank"] {
-  --hof-wide-label-width: 96px;
+  --hof-wide-label-width: 57px;
   --hof-geometry-label-width: 96px;
 }
 
 /* Each slot owns its vertical flow; hidden fields compact only that slot. */
 .heat-object-fields.heat-object-fields--wide .tlt-compact-field-grid {
+  display: flex;
+  flex-direction: column;
   gap: 10px 10px;
-  padding: 4px 8px;
+  padding: 0;
+  min-width: 0;
+  width: 100%;
 }
 
 .heat-object-fields.heat-object-fields--wide > .heat-object-fields__geometry,
 .heat-object-fields.heat-object-fields--wide > .heat-object-fields__climate,
 .heat-object-fields.heat-object-fields--wide > .heat-object-fields__settings {
-  display: contents;
+  /* no display:contents */
 }
 
 .heat-object-fields.heat-object-fields--wide .ant-form-item-hidden,
 .heat-object-fields.heat-object-fields--wide .ant-form-item[hidden],
-.heat-object-fields.heat-object-fields--wide .ant-form-item.ant-form-item-hidden {
+.heat-object-fields.heat-object-fields--wide
+  .ant-form-item.ant-form-item-hidden {
   display: none;
 }
 
-.heat-object-fields.heat-object-fields--wide [data-slot="wide"] {
+.heat-object-fields.heat-object-fields--wide [data-slot="wide-left"] {
   --tlt-compact-label-width: var(--hof-wide-label-width);
-  --tlt-compact-control-width: 152px;
+  --tlt-compact-control-width: 110px;
+}
+.heat-object-fields.heat-object-fields--wide [data-slot="wide-right"] {
+  --tlt-compact-label-width: var(--hof-wide-label-width);
+  --tlt-compact-control-width: 110px;
+}
+.heat-object-fields.heat-object-fields--wide [data-slot="compact-left"] {
+  --tlt-compact-label-width: var(--hof-wide-label-width);
+  --tlt-compact-control-width: 62px;
+}
+.heat-object-fields.heat-object-fields--wide [data-slot="compact-right"] {
+  --tlt-compact-label-width: var(--hof-wide-label-width);
+  --tlt-compact-control-width: 62px;
 }
 
-.heat-object-fields.heat-object-fields--wide [data-slot="geometry-numeric"] {
-  --tlt-compact-label-width: var(--hof-geometry-label-width);
-  --tlt-compact-control-width: 152px;
+.heat-object-fields.heat-object-fields--wide
+  [data-slot="wide-left"]
+  .ant-form-item-row {
+  grid-template-columns: var(--hof-wide-label-width) 110px;
+  column-gap: var(--hof-label-control-gap);
+  width: fit-content;
 }
-
-.heat-object-fields.heat-object-fields--wide [data-slot="environment-numeric"] {
-  --tlt-compact-label-width: var(--hof-environment-label-width);
-  --tlt-compact-control-width: 152px;
+.heat-object-fields.heat-object-fields--wide
+  [data-slot="wide-right"]
+  .ant-form-item-row {
+  grid-template-columns: var(--hof-wide-label-width) 110px;
+  column-gap: var(--hof-label-control-gap);
+  width: fit-content;
 }
-
-.heat-object-fields.heat-object-fields--wide [data-slot="wide"] .ant-form-item-row {
-  grid-template-columns: var(--hof-wide-label-width) 152px;
+.heat-object-fields.heat-object-fields--wide
+  [data-slot="wide-right"]
+  .insulation-temperature-basis-form-item
+  .ant-form-item-row {
+  grid-template-columns: var(--hof-wide-label-width) 150px;
+  column-gap: var(--hof-label-control-gap);
+  width: fit-content;
+}
+.heat-object-fields.heat-object-fields--wide
+  [data-slot="compact-left"]
+  .ant-form-item-row {
+  grid-template-columns: var(--hof-wide-label-width) 62px;
+  column-gap: var(--hof-label-control-gap);
+  width: fit-content;
+}
+.heat-object-fields.heat-object-fields--wide
+  [data-slot="compact-right"]
+  .ant-form-item-row {
+  grid-template-columns: var(--hof-wide-label-width) 62px;
   column-gap: var(--hof-label-control-gap);
   width: fit-content;
 }
 
-.heat-object-fields.heat-object-fields--wide [data-slot="geometry-numeric"] .ant-form-item-row {
-  grid-template-columns: var(--hof-geometry-label-width) 152px;
-  column-gap: var(--hof-label-control-gap);
-  width: fit-content;
-}
-
-.heat-object-fields.heat-object-fields--wide [data-slot="environment-numeric"] .ant-form-item-row {
-  grid-template-columns: var(--hof-environment-label-width) 152px;
-  column-gap: var(--hof-label-control-gap);
-  width: fit-content;
-}
-
-.heat-object-fields.heat-object-fields--wide [data-slot="wide"] .ant-form-item-control,
-.heat-object-fields.heat-object-fields--wide [data-slot="wide"] .ant-form-item-control-input,
-.heat-object-fields.heat-object-fields--wide [data-slot="wide"] .ant-form-item-control-input-content,
-.heat-object-fields.heat-object-fields--wide [data-slot="wide"] .field-control-with-help,
-.heat-object-fields.heat-object-fields--wide [data-slot="wide"] .tlt-text-field,
-.heat-object-fields.heat-object-fields--wide [data-slot="wide"] .tlt-select,
-.heat-object-fields.heat-object-fields--wide [data-slot="wide"] .tlt-select__trigger,
-.heat-object-fields.heat-object-fields--wide [data-slot="wide"] .reference-picker-control,
-.heat-object-fields.heat-object-fields--wide [data-slot="wide"] .ant-input,
-.heat-object-fields.heat-object-fields--wide [data-slot="wide"] .ant-select {
+.heat-object-fields.heat-object-fields--wide
+  [data-slot="wide-left"]
+  .ant-form-item-control,
+.heat-object-fields.heat-object-fields--wide
+  [data-slot="wide-left"]
+  .ant-form-item-control-input,
+.heat-object-fields.heat-object-fields--wide
+  [data-slot="wide-left"]
+  .ant-form-item-control-input-content,
+.heat-object-fields.heat-object-fields--wide
+  [data-slot="wide-left"]
+  .field-control-with-help,
+.heat-object-fields.heat-object-fields--wide
+  [data-slot="wide-left"]
+  .tlt-text-field,
+.heat-object-fields.heat-object-fields--wide
+  [data-slot="wide-left"]
+  .tlt-select,
+.heat-object-fields.heat-object-fields--wide
+  [data-slot="wide-left"]
+  .tlt-select__trigger,
+.heat-object-fields.heat-object-fields--wide
+  [data-slot="wide-left"]
+  .reference-picker-control,
+.heat-object-fields.heat-object-fields--wide [data-slot="wide-left"] .ant-input,
+.heat-object-fields.heat-object-fields--wide
+  [data-slot="wide-left"]
+  .ant-select {
   width: 100%;
   max-width: 100%;
   min-width: 0;
 }
 
-.heat-object-fields.heat-object-fields--wide [data-slot="geometry-numeric"] .ant-form-item-control,
-.heat-object-fields.heat-object-fields--wide [data-slot="environment-numeric"] .ant-form-item-control {
-  width: 152px;
+.heat-object-fields.heat-object-fields--wide
+  [data-slot="compact-left"]
+  .ant-form-item-control,
+.heat-object-fields.heat-object-fields--wide
+  [data-slot="compact-right"]
+  .ant-form-item-control {
+  width: 62px;
 }
 
 .heat-object-fields.heat-object-fields--wide .insulation-settings-row {
@@ -114,7 +174,9 @@
   min-width: 0;
 }
 
-.heat-object-fields.heat-object-fields--wide .insulation-settings-row > .ant-form-item {
+.heat-object-fields.heat-object-fields--wide
+  .insulation-settings-row
+  > .ant-form-item {
   flex: none;
   width: 100%;
   min-width: 100%;
@@ -138,7 +200,8 @@
 
 .heat-object-fields.heat-object-fields--side .ant-form-item-hidden,
 .heat-object-fields.heat-object-fields--side .ant-form-item[hidden],
-.heat-object-fields.heat-object-fields--side .ant-form-item.ant-form-item-hidden {
+.heat-object-fields.heat-object-fields--side
+  .ant-form-item.ant-form-item-hidden {
   display: none;
 }
 
@@ -156,18 +219,23 @@
 .heat-object-fields.heat-object-fields--side .name-form-item,
 .heat-object-fields.heat-object-fields--side .pipe-material-form-item,
 .heat-object-fields.heat-object-fields--side .climate-form-item,
-.heat-object-fields.heat-object-fields--side .insulation-temperature-basis-form-item {
+.heat-object-fields.heat-object-fields--side
+  .insulation-temperature-basis-form-item {
   --tlt-field-span: 12;
 }
 
-.heat-object-fields.heat-object-fields--side .heat-object-fields__climate .ant-form-item {
+.heat-object-fields.heat-object-fields--side
+  .heat-object-fields__climate
+  .ant-form-item {
   order: 2;
 }
 
 /* Shared settings-row fill for the legacy side composition path. */
 .heat-object-fields .insulation-settings-row .ant-form-item-control,
 .heat-object-fields .insulation-settings-row .ant-form-item-control-input,
-.heat-object-fields .insulation-settings-row .ant-form-item-control-input-content,
+.heat-object-fields
+  .insulation-settings-row
+  .ant-form-item-control-input-content,
 .heat-object-fields .insulation-settings-row .tlt-select,
 .heat-object-fields .insulation-settings-row .tlt-select__trigger,
 .heat-object-fields .insulation-settings-row .field-control-with-help,
@@ -181,8 +249,14 @@
 
 .heat-object-fields .insulation-settings-row .ant-input,
 .heat-object-fields .insulation-settings-row .ant-select {
-  min-height: var(--dual-form-control-height, var(--tlt-field-control-height, 26px));
-  font-size: var(--dual-form-control-font, var(--tlt-field-control-font-size, 12px));
+  min-height: var(
+    --dual-form-control-height,
+    var(--tlt-field-control-height, 26px)
+  );
+  font-size: var(
+    --dual-form-control-font,
+    var(--tlt-field-control-font-size, 12px)
+  );
   line-height: 1.2;
 }
 

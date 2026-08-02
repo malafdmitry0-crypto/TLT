@@ -6,25 +6,23 @@ import WizardZoneBoundary from './isolation/WizardZoneBoundary';
 export interface ObjectWizardWidePanelProps {
   formGridRef: RefCallback<HTMLDivElement>;
   objectType: HeatCalcObjectType;
+  wideLeft: ReactNode;
+  wideRight: ReactNode;
+  compactLeft: ReactNode;
+  compactRight: ReactNode;
   geometry: ReactNode;
   climate: ReactNode;
   insulationSettings: ReactNode;
   insulationTable: ReactNode;
 }
 
-/**
- * Wide heat card shell (layout only — no form-item styles).
- *
- * Isolated React zones (see isolation/ + WIZARD-ISLANDS.md):
- *   1) WizardZoneBoundary heat-object-fields  → HeatCalcObjectFieldsPanel
- *   2) WizardZoneBoundary insulation-layers  → InsulationLayersTable
- *
- * Shell must not import island internals beyond the public panel components.
- * CSS for controls lives in co-located island CSS files only.
- */
 export default function ObjectWizardWidePanel({
   formGridRef,
   objectType,
+  wideLeft,
+  wideRight,
+  compactLeft,
+  compactRight,
   geometry,
   climate,
   insulationSettings,
@@ -53,6 +51,10 @@ export default function ObjectWizardWidePanel({
           <HeatCalcObjectFieldsPanel
             layout="wide"
             objectType={objectType}
+            wideLeft={wideLeft}
+            wideRight={wideRight}
+            compactLeft={compactLeft}
+            compactRight={compactRight}
             geometry={geometry}
             climate={climate}
             insulationSettings={insulationSettings}

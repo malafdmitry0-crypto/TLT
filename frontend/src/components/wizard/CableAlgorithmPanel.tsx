@@ -96,9 +96,26 @@ export default function CableAlgorithmPanel({
           antFormAdapter
           labelPlacement="left"
         >
+          {/* 8. connection_type / схема соединения */}
+          <Form.Item
+            className="cable-algorithm-field connection-type-form-item"
+            label={<FieldLabel text="Схема соединения" />}
+            name="connection_type"
+          >
+            {withHelp(
+              <TltSelect
+                data-testid="connection-type-select"
+                options={[...CABLE_CONNECTION_SCHEME_OPTIONS]}
+                allowClear
+                placeholder="Выберите схему"
+              />,
+              "Схема соединения нагревательной секции (ТНП: петля / линия / звезда / …).",
+            )}
+          </Form.Item>
+
           {/* 1. vapor_temperature */}
           <Form.Item
-            className="cable-algorithm-field vapor-temperature-form-item helped-form-item"
+            className="cable-algorithm-field vapor-temperature-form-item cable-algorithm-field--unit helped-form-item"
             label={fieldLabel("vapor_temperature", objectType)}
             name="vapor_temperature"
             rules={heatCalcFormFieldRules(
@@ -114,6 +131,43 @@ export default function CableAlgorithmPanel({
                 unit="°C"
               />,
               fieldHelp("vapor_temperature", objectType),
+            )}
+          </Form.Item>
+
+          {/* 5. environment */}
+          <Form.Item
+            className="cable-algorithm-field environment-form-item helped-form-item"
+            label={fieldLabel("environment", objectType)}
+            name="environment"
+            rules={heatCalcFormFieldRules(form, objectType, "environment")}
+          >
+            {withHelp(
+              <TltSelect
+                data-testid="environment-select"
+                options={heatCalcSelectOptions(objectType, "environment")}
+              />,
+              fieldHelp("environment", objectType),
+            )}
+          </Form.Item>
+
+          {/* 7. min_switch_temperature */}
+          <Form.Item
+            className="cable-algorithm-field min-switch-temperature-form-item cable-algorithm-field--unit helped-form-item"
+            label={fieldLabel("min_switch_temperature", objectType)}
+            name="min_switch_temperature"
+            rules={heatCalcFormFieldRules(
+              form,
+              objectType,
+              "min_switch_temperature",
+            )}
+          >
+            {withHelp(
+              <UnitInputNumber
+                data-testid="min-switch-temperature-input"
+                {...numberInputProps("min_switch_temperature")}
+                unit="°C"
+              />,
+              fieldHelp("min_switch_temperature", objectType),
             )}
           </Form.Item>
 
@@ -171,22 +225,6 @@ export default function CableAlgorithmPanel({
             )}
           </Form.Item>
 
-          {/* 5. environment */}
-          <Form.Item
-            className="cable-algorithm-field environment-form-item helped-form-item"
-            label={fieldLabel("environment", objectType)}
-            name="environment"
-            rules={heatCalcFormFieldRules(form, objectType, "environment")}
-          >
-            {withHelp(
-              <TltSelect
-                data-testid="environment-select"
-                options={heatCalcSelectOptions(objectType, "environment")}
-              />,
-              fieldHelp("environment", objectType),
-            )}
-          </Form.Item>
-
           {/* 6. temperature_group T1…T6 */}
           <Form.Item
             className="cable-algorithm-field temperature-group-form-item helped-form-item"
@@ -204,44 +242,6 @@ export default function CableAlgorithmPanel({
                 options={heatCalcSelectOptions(objectType, "temperature_group")}
               />,
               fieldHelp("temperature_group", objectType),
-            )}
-          </Form.Item>
-
-          {/* 7. min_switch_temperature */}
-          <Form.Item
-            className="cable-algorithm-field min-switch-temperature-form-item helped-form-item"
-            label={fieldLabel("min_switch_temperature", objectType)}
-            name="min_switch_temperature"
-            rules={heatCalcFormFieldRules(
-              form,
-              objectType,
-              "min_switch_temperature",
-            )}
-          >
-            {withHelp(
-              <UnitInputNumber
-                data-testid="min-switch-temperature-input"
-                {...numberInputProps("min_switch_temperature")}
-                unit="°C"
-              />,
-              fieldHelp("min_switch_temperature", objectType),
-            )}
-          </Form.Item>
-
-          {/* 8. connection_type / схема соединения */}
-          <Form.Item
-            className="cable-algorithm-field connection-type-form-item helped-form-item"
-            label={<FieldLabel text="Схема соединения" />}
-            name="connection_type"
-          >
-            {withHelp(
-              <TltSelect
-                data-testid="connection-type-select"
-                options={[...CABLE_CONNECTION_SCHEME_OPTIONS]}
-                allowClear
-                placeholder="Выберите схему"
-              />,
-              "Схема соединения нагревательной секции (ТНП: петля / линия / звезда / …).",
             )}
           </Form.Item>
         </CompactFieldGrid>

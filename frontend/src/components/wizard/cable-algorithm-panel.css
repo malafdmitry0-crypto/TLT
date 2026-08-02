@@ -188,6 +188,9 @@
   font-size: 9px;
   line-height: 34px;
 }
+.cable-island .cable-algorithm-fields .ant-select-selection-placeholder {
+  color: var(--color-text);
+}
 .cable-island .cable-algorithm-fields .unit-input-number__addon {
   height: var(--cable-control-height);
   font-size: 9px;
@@ -201,22 +204,50 @@
 .cable-island .cable-algorithm-fields {
   grid-template-columns: minmax(0, var(--cable-column-width));
   grid-auto-flow: row;
+  row-gap: 8px;
   justify-content: center;
   width: 100%;
 }
 /* Cable algorithm panel: two columns of narrow controls (222/1.8 ≈ 124px) —
    short numerics and picks don't need name-field width. */
 .cable-island.object-wizard-cable-panel {
-  --cable-control-target-width: 124px;
+  --cable-control-target-width: 50px;
 }
 .cable-island.object-wizard-cable-panel .cable-algorithm-fields {
-  grid-template-columns: repeat(2, minmax(0, var(--cable-column-width)));
+  grid-template-columns: repeat(2, minmax(0, max-content));
   column-gap: 12px;
+  justify-items: start;
+}
+.cable-island.object-wizard-cable-panel .cable-algorithm-fields .field-control-with-help {
+  width: 54px;
+}
+.cable-island.object-wizard-cable-panel .cable-algorithm-fields .cable-algorithm-field--unit .field-control-with-help {
+  width: 60px;
+}
+.cable-island.object-wizard-cable-panel .cable-algorithm-fields .environment-form-item .field-control-with-help,
+.cable-island.object-wizard-cable-panel .cable-algorithm-fields .connection-type-form-item .field-control-with-help {
+  width: 120px;
 }
 /* Spec picks hold short values («Нет», 2-3 digit numbers) — half the control
    target so the pane stops reserving name-field width. */
 .cable-island.object-wizard-cable-spec-panel {
-  --cable-control-target-width: 110px;
+  --dual-field-label-width: 100px;
+}
+.cable-island.object-wizard-cable-spec-panel .cable-algorithm-fields {
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-auto-flow: row;
+  column-gap: 12px;
+  row-gap: 8px;
+}
+.cable-island.object-wizard-cable-spec-panel .cable-algorithm-fields .ant-form-item-row {
+  grid-template-columns: var(--dual-field-label-width) 54px;
+  align-items: start;
+}
+.cable-island.object-wizard-cable-spec-panel .cable-algorithm-fields .cable-spec-number-field .ant-form-item-row {
+  grid-template-columns: var(--dual-field-label-width) 80px;
+}
+.cable-island.object-wizard-cable-spec-panel .cable-algorithm-fields .cable-spec-number-field .field-control-with-help {
+  width: 80px;
 }
 .cable-island .cable-algorithm-hint {
   margin: 6px 0 8px;

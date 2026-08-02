@@ -159,11 +159,11 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
             <CompactField
               className="specification-settings-field"
               layout="vertical"
-              label="Коэффициент горячего резервирования R,гр (1–3)"
+              label="Коэффициент горячего резервирования, группа (1–3)"
               controlWidth="100%"
             >
               <TltNumberField
-                aria-label="Резерв R,гр"
+                aria-label="Коэффициент горячего резервирования"
                 min={1}
                 max={3}
                 step={0.1}
@@ -227,11 +227,11 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
                 <CompactField
                   className="specification-settings-field"
                   layout="vertical"
-                  label="Мин. длина секции для К2i (L,К2i), м"
+                  label="Минимальная длина секции для К2i, м"
                   controlWidth="100%"
                 >
                   <TltNumberField
-                    aria-label="Мин. длина секции для К2i"
+                    aria-label="Минимальная длина секции для К2i"
                     min={0}
                     step={10}
                     disabled={!canMutateProject}

@@ -52,31 +52,18 @@
   align-items: start;
 }
 .heatcalc-dual-forms--wide {
-  --heatcalc-heat-pane-min: 400px;
-  --heatcalc-cable-pane-min: 240px;
-  grid-template-columns:
-    minmax(var(--heatcalc-heat-pane-min), 1.6fr)
-    minmax(var(--heatcalc-cable-pane-min), 1fr)
-    minmax(var(--heatcalc-cable-pane-min), 1fr);
-  justify-content: stretch;
-  gap: 0 16px;
+  /* Size columns to the natural width of each pane so there is no empty
+     space inside a track wider than its content. */
+  /* grid-template-columns: 2.25fr 1.2fr 1fr; */
+  grid-template-columns: minmax(0, 1fr) max-content max-content;
+  gap: 0 8px;
 }
 .heatcalc-dual-forms--side {
   grid-template-columns: minmax(0, 1fr);
 }
 /*
- * ≥1400px reserve enough heat-pane width for its three slot columns (see
- * heat-object-fields.css): tank needs ~714px for ≥110px wide-slot selects.
- * The fields zone is an inline-size container, so it no longer contributes
- * intrinsic width — this minimum IS the pane width unless the insulation
- * table wants more. Cable/spec panes absorb the difference down to their own
- * minimums.
+ * 4-column layout needs ≥692px for heat pane (204+156×3 + gaps + padding).
  */
-@media (min-width: 1400px) {
-  .heatcalc-dual-forms--wide {
-    --heatcalc-heat-pane-min: 600px;
-  }
-}
 .heatcalc-dual-forms__heat,
 .heatcalc-dual-forms__cable,
 .heatcalc-dual-forms__specs {
@@ -121,7 +108,7 @@
  */
 @media (max-width: 1399px) and (min-width: 1000px) {
   .heatcalc-dual-forms--wide {
-    grid-template-columns: repeat(2, minmax(max-content, 1fr));
+    grid-template-columns: minmax(0, auto) minmax(0, auto);
     grid-template-areas:
       "heat heat"
       "cable specs";
@@ -138,16 +125,11 @@
   .heatcalc-dual-forms__specs {
     grid-area: specs;
   }
-
-  .heatcalc-dual-forms__cable .cable-island,
-  .heatcalc-dual-forms__specs .cable-island {
-    margin-inline: auto;
-  }
 }
 
 @media (max-width: 999px) {
   .heatcalc-dual-forms--wide {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, auto);
   }
 }
 
