@@ -155,7 +155,7 @@ class InsulationLayerApplied(BaseModel):
     conductivity_source: Literal["manual", "reference_data"]
     conductivity_temperature_applied: float
     resistance: float = Field(ge=0)
-    resistance_unit: Literal["m*K/W", "m2*K/W"]
+    resistance_unit: Literal["m*K/W", "m2*K/W", "K/W"]
 
 
 class PipeHeatLossParams(BaseModel):
@@ -606,11 +606,20 @@ class TankHeatLossResult(BaseModel):
     heat_loss_per_m2_bare_base: float
     heat_loss_per_m2_bare_design: float
     surface_area_bare: float
+    surface_area_outer: float | None = None
     thermal_resistance_areal_bare: float | None = None
     wall_resistance_areal_bare: float | None = None
     insulation_resistance_areal_bare: float | None = None
     external_resistance_areal_bare: float | None = None
     ground_resistance_areal_bare: float | None = None
+    thermal_resistance_total: float | None = None
+    wall_resistance_total: float | None = None
+    insulation_resistance_total: float | None = None
+    external_resistance_total: float | None = None
+    external_heat_flux_base: float | None = None
+    critical_insulation_radius: float | None = None
+    outer_insulation_radius: float | None = None
+    critical_radius_check_passed: bool | None = None
     air_surface_area: float | None = None
     ground_surface_area: float | None = None
     heat_loss_air_base: float | None = None

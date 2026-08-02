@@ -38,6 +38,13 @@ export function FormulasTankTab() {
 
  const onCalc = async () => {
     const v = await form.validateFields();
+    if (v.shape === 'spherical' && v.placement === 'underground') {
+      form.setFields([{
+        name: 'placement',
+        errors: ['Сферический резервуар нельзя рассчитывать в частично заглублённом размещении'],
+      }]);
+      return;
+    }
     const layers = collectInsulationLayers(v);
     const p: Record<string, unknown> = {
       shape: v.shape,
@@ -103,7 +110,7 @@ export function FormulasTankTab() {
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="placement" label="Размещение" rules={[{ required: true }]}>
+              <Form.Item name="placement" label="Размещение" dependencies={['shape']} rules={[{ required: true }]}>
                 <TltSelect
                   options={[
                     { value: 'outdoor', label: 'Надземное' },

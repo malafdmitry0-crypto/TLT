@@ -128,9 +128,33 @@ describe('HeatCalcAssumptionsPanel', () => {
 
     expect(screen.getByText('ΔT: 60°C')).toBeInTheDocument();
     expect(screen.getByText('Sпов.: 36,4 м²')).toBeInTheDocument();
-    expect(screen.getByText('Rвнеш: 0,0245')).toBeInTheDocument();
+    expect(screen.getByText('Rвнеш, м²·К/Вт: 0,0245 м²·К/Вт')).toBeInTheDocument();
     expect(screen.queryByText(/^Lэфф:/)).not.toBeInTheDocument();
     expect(screen.queryByText(/^RΣ:/)).not.toBeInTheDocument();
+  });
+
+  it('renders exact spherical resistances in K/W', () => {
+    render(
+      <HeatCalcAssumptionsPanel
+        selectedObject={makeObject({
+          object_type: 'tank',
+          params: { shape: 'spherical', process_temperature: 45, ambient_temperature: -15 },
+          results: {
+            insulation_resistance_total: 0.9876,
+            external_resistance_total: 0.0245,
+            wall_resistance_total: 0.0032,
+            thermal_resistance_total: 1.0153,
+            surface_area_bare: 12.57,
+          },
+        })}
+        calculationDetailsSettings={detailedSettings}
+      />,
+    );
+
+    expect(screen.getByText('Rиз, К/Вт: 0,9876 К/Вт')).toBeInTheDocument();
+    expect(screen.getByText('Rвнеш, К/Вт: 0,0245 К/Вт')).toBeInTheDocument();
+    expect(screen.getByText('Rст, К/Вт: 0,0032 К/Вт')).toBeInTheDocument();
+    expect(screen.getByText('RΣ, К/Вт: 1,0153 К/Вт')).toBeInTheDocument();
   });
 
   it('uses canonical ground temperature for an underground pipe ΔT', () => {

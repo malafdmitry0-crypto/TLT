@@ -132,4 +132,17 @@ describe('heatCalcColumnRenderers', () => {
     expect(normalizeSpaces(renderers.total_heat_loss_design.copyValue(record, 0))).toBe('1 347');
     expect(renderers.surface_area_bare.copyValue(record, 0)).toBe('11,2');
   });
+
+  it('reads exact total resistances for a spherical tank instead of areal keys', () => {
+    const record = makeObject({
+      object_type: 'tank',
+      params: { shape: 'spherical', diameter: 2 },
+      results: {
+        thermal_resistance_total: 0.12345,
+        thermal_resistance_areal_bare: 99,
+      },
+    });
+
+    expect(renderers.thermal_resistance.copyValue(record, 0)).toBe('0,1235');
+  });
 });

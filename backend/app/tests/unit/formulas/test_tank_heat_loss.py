@@ -37,7 +37,7 @@ def test_cylindrical_and_rectangular_surface_areas():
     assert calc_tank_heat_loss(_rect()).surface_area_bare == pytest.approx(40.0)
 
 
-def test_spherical_calculation_is_deferred_to_slice4():
+def test_spherical_underground_is_rejected():
     with pytest.raises(ValueError, match="spherical"):
         TankHeatLossParams(
             shape="spherical", diameter=3.0, placement="underground", ambient_temperature=-20,

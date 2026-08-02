@@ -3,7 +3,6 @@
 from app.schemas.calculation import PipeHeatLossResult, TankHeatLossParams, TankHeatLossResult
 from app.services.heat_contract import (
     CANONICAL_HEAT_RESULT_KEYS,
-    DEFERRED_SPHERICAL_TANK_RESULT_KEYS,
     DEPRECATED_HEAT_PARAM_KEYS,
     DEPRECATED_HEAT_RESULT_KEYS,
     HEAT_OWNED_PARAM_KEYS,
@@ -27,7 +26,12 @@ def test_result_schemas_exactly_match_their_per_object_registries():
     assert set(TankHeatLossResult.model_fields) == TANK_CANONICAL_RESULT_KEYS
     assert PIPE_CANONICAL_RESULT_KEYS.isdisjoint(PIPE_DEPRECATED_RESULT_KEYS)
     assert TANK_CANONICAL_RESULT_KEYS.isdisjoint(TANK_DEPRECATED_RESULT_KEYS)
-    assert TANK_CANONICAL_RESULT_KEYS.isdisjoint(DEFERRED_SPHERICAL_TANK_RESULT_KEYS)
+    assert {
+        "thermal_resistance_total",
+        "wall_resistance_total",
+        "insulation_resistance_total",
+        "external_resistance_total",
+    }.issubset(TANK_CANONICAL_RESULT_KEYS)
 
 
 def test_volume_is_not_part_of_the_tank_formula_schema():

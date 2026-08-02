@@ -117,6 +117,20 @@ function validationErrorsText(validationErrors: ProjectObject['validation_errors
   }
 }
 
+function sphereCriticalRadiusError(validationErrors: ProjectObject['validation_errors'] | undefined) {
+  if (validationErrors?.['error_code'] !== 'sphere_below_critical_insulation_radius') return null;
+  const context = validationErrors['error_context'];
+  if (!context || typeof context !== 'object' || Array.isArray(context)) {
+    return 'Наружный радиус изоляции сферы меньше критического радиуса; увеличьте толщину изоляции.';
+  }
+  const outerRadius = Number((context as Record<string, unknown>).router);
+  const criticalRadius = Number((context as Record<string, unknown>).rcritical);
+  if (!Number.isFinite(outerRadius) || !Number.isFinite(criticalRadius)) {
+    return 'Наружный радиус изоляции сферы меньше критического радиуса; увеличьте толщину изоляции.';
+  }
+  return `Наружный радиус изоляции ${outerRadius.toFixed(3)} м меньше критического ${criticalRadius.toFixed(3)} м; увеличьте толщину изоляции.`;
+}
+
 export function isEmptyFormValue(value: unknown) {
   return value === undefined || value === null || value === '';
 }
@@ -238,6 +252,10 @@ export function buildCalculationFieldErrors(
   validationErrors: ProjectObject['validation_errors'] | undefined,
   objectType: HeatCalcObjectType,
 ): Record<string, CalculationFieldError> {
+  const criticalRadiusError = sphereCriticalRadiusError(validationErrors);
+  if (criticalRadiusError) {
+    return { insulation_thickness_mm: { message: criticalRadiusError } };
+  }
   const message = validationErrorsText(validationErrors).trim();
   const structuredErrors: Record<string, CalculationFieldError> = {};
   const field = validationErrors?.['field'];

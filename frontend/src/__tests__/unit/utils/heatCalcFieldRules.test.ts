@@ -157,6 +157,20 @@ describe('heatCalcFieldRules', () => {
     })).toBe('Требуемая температура объекта должна быть выше температуры среды');
   });
 
+  it('отклоняет неподдерживаемое сочетание сферического резервуара и заглубления', () => {
+    const context = {
+      objectType: 'tank' as const,
+      values: { shape: 'spherical', placement: 'underground' },
+    };
+
+    expect(validateHeatCalcField('placement', 'underground', context)).toBe(
+      'Сферический резервуар нельзя рассчитывать в частично заглублённом размещении',
+    );
+    expect(validateHeatCalcFormValues(context)).toMatchObject({
+      placement: 'Сферический резервуар нельзя рассчитывать в частично заглублённом размещении',
+    });
+  });
+
   it('учитывает количество слоёв и материал other для λ и диапазона T', () => {
     expect(isHeatCalcFieldVisible('second_insulation_material', {
       objectType: 'pipe',

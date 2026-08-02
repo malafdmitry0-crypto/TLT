@@ -57,6 +57,16 @@ export default function CalcResult({ result, type }: { result: Record<string, un
           <Descriptions.Item label={<><V c={C.geom}>S</V> — площадь поверхности, м²</>}>
             {Number(result.surface_area_bare).toFixed(2)}
           </Descriptions.Item>
+          {result.thermal_resistance_total != null && (
+            <Descriptions.Item label={<>Σ<V c={C.resist}>R</V> — точное сферическое сопр., К/Вт</>}>
+              {Number(result.thermal_resistance_total).toFixed(4)}
+            </Descriptions.Item>
+          )}
+          {result.surface_area_outer != null && (
+            <Descriptions.Item label={<><V c={C.geom}>S</V><sub>нар</sub> — внешняя площадь, м²</>}>
+              {Number(result.surface_area_outer).toFixed(2)}
+            </Descriptions.Item>
+          )}
           {result.alpha_vnesh_applied != null && (
             <Descriptions.Item label={<><V c={C.coeff}>α</V> — коэф. теплоотдачи, Вт/(м²·К)</>}>
               {Number(result.alpha_vnesh_applied).toFixed(2)}

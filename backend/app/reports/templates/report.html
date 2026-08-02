@@ -159,7 +159,7 @@
         <th>Габариты</th>
         <th class="num">δ изол., мм</th><th>Материал</th>
         <th class="num">T₀, °C</th><th class="num">Tподд., °C</th>
-        <th class="num">S bare, м²</th><th class="num">q base, Вт/м²</th><th class="num">Qдоп, Вт</th><th class="num">Q design, Вт</th>
+        <th class="num">S bare, м²</th><th class="num">RΣ, К/Вт или м²·К/Вт</th><th class="num">q base, Вт/м²</th><th class="num">Qдоп, Вт</th><th class="num">Q design, Вт</th>
         <th>Статус</th>
       </tr>
     </thead>
@@ -185,6 +185,11 @@
         <td class="num">{{ fmt(o.params.get('ambient_temperature'), 1) }}</td>
         <td class="num">{{ fmt(o.params.get('process_temperature'), 1) }}</td>
         <td class="num">{% if o.results %}{{ fmt(o.results.get('surface_area_bare'), 2) }}{% else %}—{% endif %}</td>
+        <td class="num">
+          {% if o.results %}
+            {% if shape == 'spherical' %}{{ fmt(o.results.get('thermal_resistance_total'), 5) }}{% else %}{{ fmt(o.results.get('thermal_resistance_areal_bare'), 5) }}{% endif %}
+          {% else %}—{% endif %}
+        </td>
         <td class="num">{% if o.results %}{{ fmt(o.results.get('heat_loss_per_m2_bare_base'), 1) }}{% else %}—{% endif %}</td>
         <td class="num">{% if o.results %}{{ fmt(o.results.get('q_additional_applied'), 0) }}{% else %}{{ fmt(o.params.get('q_additional'), 0) }}{% endif %}</td>
         <td class="num">{% if o.results %}{{ fmt(o.results.get('total_heat_loss_design'), 0) }}{% else %}—{% endif %}</td>
@@ -426,7 +431,7 @@
         <th>Габариты</th>
         <th class="num">δ изол., мм</th><th>Материал</th>
         <th class="num">T₀, °C</th><th class="num">Tподд., °C</th>
-        <th class="num">S bare, м²</th><th class="num">q base, Вт/м²</th><th class="num">Qдоп, Вт</th><th class="num">Q design, Вт</th>
+        <th class="num">S bare, м²</th><th class="num">RΣ, К/Вт или м²·К/Вт</th><th class="num">q base, Вт/м²</th><th class="num">Qдоп, Вт</th><th class="num">Q design, Вт</th>
         <th>Статус</th>
       </tr>
     </thead>
@@ -452,6 +457,11 @@
         <td class="num">{{ fmt(o.params.get('ambient_temperature'), 1) }}</td>
         <td class="num">{{ fmt(o.params.get('process_temperature'), 1) }}</td>
         <td class="num">{% if o.results %}{{ fmt(o.results.get('surface_area_bare'), 2) }}{% else %}—{% endif %}</td>
+        <td class="num">
+          {% if o.results %}
+            {% if shape == 'spherical' %}{{ fmt(o.results.get('thermal_resistance_total'), 5) }}{% else %}{{ fmt(o.results.get('thermal_resistance_areal_bare'), 5) }}{% endif %}
+          {% else %}—{% endif %}
+        </td>
         <td class="num">{% if o.results %}{{ fmt(o.results.get('heat_loss_per_m2_bare_base'), 1) }}{% else %}—{% endif %}</td>
         <td class="num">{% if o.results %}{{ fmt(o.results.get('q_additional_applied'), 0) }}{% else %}{{ fmt(o.params.get('q_additional'), 0) }}{% endif %}</td>
         <td class="num">{% if o.results %}{{ fmt(o.results.get('total_heat_loss_design'), 0) }}{% else %}—{% endif %}</td>

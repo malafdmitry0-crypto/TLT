@@ -83,4 +83,14 @@ describe('tankFormToApiParams', () => {
     expect(api).not.toHaveProperty('wall_thickness');
     expect(api).not.toHaveProperty('wall_lambda');
   });
+
+  it('keeps spherical placement explicit for API validation instead of silently treating it as underground-capable', () => {
+    const api = tankFormToApiParams({
+      shape: 'spherical', diameter_mm: 2000,
+      insulation_thickness_mm: 80, insulation_material: 'mineral_wool',
+      ambient_temperature: 20, process_temperature: 80, placement: 'underground',
+    });
+    expect(api).toMatchObject({ shape: 'spherical', placement: 'underground', diameter: 2 });
+    expect(api).not.toHaveProperty('tank_buried_height');
+  });
 });

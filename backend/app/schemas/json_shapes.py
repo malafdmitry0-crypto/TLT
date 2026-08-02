@@ -42,7 +42,7 @@ class InsulationLayerAppliedDict(TypedDict):
     conductivity_source: Literal["manual", "reference_data"]
     conductivity_temperature_applied: float
     resistance: float
-    resistance_unit: Literal["m*K/W", "m2*K/W"]
+    resistance_unit: Literal["m*K/W", "m2*K/W", "K/W"]
 
 
 class HeatResultTraceDict(TypedDict):
@@ -89,11 +89,20 @@ class TankHeatLossResultDict(HeatResultTraceDict):
     heat_loss_per_m2_bare_base: float
     heat_loss_per_m2_bare_design: float
     surface_area_bare: float
+    surface_area_outer: float | None
     thermal_resistance_areal_bare: float | None
     wall_resistance_areal_bare: float | None
     insulation_resistance_areal_bare: float | None
     external_resistance_areal_bare: float | None
     ground_resistance_areal_bare: float | None
+    thermal_resistance_total: float | None
+    wall_resistance_total: float | None
+    insulation_resistance_total: float | None
+    external_resistance_total: float | None
+    external_heat_flux_base: float | None
+    critical_insulation_radius: float | None
+    outer_insulation_radius: float | None
+    critical_radius_check_passed: bool | None
     alpha_vnesh_applied: float | None
     wind_speed_applied: float | None
     ground_conductivity_applied: float | None

@@ -515,7 +515,7 @@ class TestObjectsLifecycle:
         assert body["results"]["heat_loss_per_m2_bare_base"] > 0
         assert body["results"]["surface_area_bare"] > 0
 
-    async def test_add_spherical_tank_is_stored_but_formula_is_deferred_to_slice_4(
+    async def test_add_spherical_tank_uses_exact_radial_formula(
         self,
         client: AsyncClient,
         guest_session: str,
@@ -542,11 +542,58 @@ class TestObjectsLifecycle:
         assert resp.status_code == 201, resp.text
         body = resp.json()
         assert body["params"]["shape"] == "spherical"
+        assert body["is_valid"] is True
+        assert body["validation_errors"] is None
+        assert body["results"]["formula_model"] == "tank_heat_loss_spherical_radial"
+        assert body["results"]["formula_model_version"] == "4"
+        assert body["results"]["thermal_resistance_total"] > 0
+        assert body["results"]["wall_resistance_total"] == 0
+        assert body["results"]["insulation_resistance_total"] > 0
+        assert body["results"]["external_resistance_total"] > 0
+        assert body["results"]["critical_radius_check_passed"] is True
+
+    async def test_add_spherical_tank_below_critical_radius_has_structured_error(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+    ):
+        pid = await _project(client, guest_session)
+        resp = await client.post(
+            f"/api/v1/projects/{pid}/objects",
+            json={
+                "object_type": "tank",
+                "params": {
+                    "shape": "spherical",
+                    "diameter": 0.1,
+                    "insulation_layers": [
+                        {
+                            "thickness": 0.001,
+                            "material": "other",
+                            "conductivity": 1.0,
+                            "temperature_range": [-100, 200],
+                        }
+                    ],
+                    "insulation_temperature_basis": "indoor",
+                    "ambient_temperature": -20,
+                    "process_temperature": 80,
+                    "placement": "indoor",
+                },
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert resp.status_code == 201, resp.text
+        body = resp.json()
         assert body["is_valid"] is False
         assert body["results"] is None
-        assert "spherical_tank_formula_deferred_to_slice_4" in body["validation_errors"][
-            "message"
-        ]
+        error = body["validation_errors"]
+        assert error["error_code"] == "sphere_below_critical_insulation_radius"
+        assert error["field"] == "insulation_layers"
+        context = error["error_context"]
+        assert context["router"] == pytest.approx(0.051)
+        assert context["rcritical"] == pytest.approx(2 / 9)
+        assert context["conductivity_outermost"] == pytest.approx(1.0)
+        assert context["alpha_vnesh_applied"] == pytest.approx(9.0)
 
     async def test_add_large_tank_with_tank_dimensions_is_valid(
         self, client: AsyncClient, guest_session: str

@@ -1,8 +1,14 @@
-"""Расчёт теплопотерь ёмкости.
+"""Расчёт теплопотерь резервуара.
 
-Формула (плоская стенка, источник: ТНП):
+Цилиндрическая и прямоугольная формы используют удельные сопротивления
+плоской стенки (источник: ТНП):
   q = ΔT / (δ_р/λ_р + δ_из/λ_из + R_внеш)   [Вт/м²]
-  Q = q × S × K                                 [Вт]
+  Q = q × S × K + Q_доп                          [Вт]
+
+Сферическая форма использует отдельную точную радиальную модель через полные
+сопротивления сферических оболочек в К/Вт:
+  R = (1 / (4πλ)) × (1/r_inner - 1/r_outer)
+  Q = ΔT / (R_стенки + ΣR_изоляции + 1/(αS_outer))
 
 R_внеш (воздух):   R = 1 / α_внеш,    α = 11,6 + 7·√v  [Вт/(м²·К)]
 R_внеш (помещение): R = 1 / 9.0
@@ -195,24 +201,140 @@ def _r_insulation_layers(
     return r_ins, layer_resistances
 
 
+def _sphere_shell_resistance(r_inner: float, r_outer: float, conductivity: float) -> float:
+    """Full radial resistance of a spherical shell, K/W."""
+    return (1.0 / (4.0 * math.pi * conductivity)) * (1.0 / r_inner - 1.0 / r_outer)
+
+
+def _calc_spherical_tank_heat_loss(
+    params: TankHeatLossParams,
+    *,
+    layer_resistances: list[_LayerResistance],
+    insulation_tm: float,
+    alpha: float,
+) -> TankHeatLossResult:
+    """Exact radial spherical-tank model using full K/W resistances."""
+    assert params.diameter is not None
+    r_wall_outer = params.diameter / 2.0
+    r_wall_inner = r_wall_outer
+    r_wall_total = 0.0
+    if params.wall_thickness is not None and params.wall_lambda is not None:
+        r_wall_inner -= params.wall_thickness
+        r_wall_total = _sphere_shell_resistance(r_wall_inner, r_wall_outer, params.wall_lambda)
+
+    radius = r_wall_outer
+    spherical_layers: list[tuple[_LayerResistance, float, float, float]] = []
+    for layer_resistance in layer_resistances:
+        r_inner = radius
+        radius += layer_resistance.layer.thickness
+        resistance = _sphere_shell_resistance(r_inner, radius, layer_resistance.conductivity)
+        spherical_layers.append((layer_resistance, r_inner, radius, resistance))
+    r_outer = radius
+    r_critical = 2.0 * layer_resistances[-1].conductivity / alpha
+    radii_are_equal = math.isclose(r_outer, r_critical, rel_tol=1e-12, abs_tol=1e-12)
+    if r_outer < r_critical and not radii_are_equal:
+        raise ValueError(
+            "sphere_below_critical_insulation_radius "
+            f"router={r_outer:.12g} rcritical={r_critical:.12g} "
+            f"conductivity_outermost={layer_resistances[-1].conductivity:.12g} "
+            f"alpha_vnesh_applied={alpha:.12g}"
+        )
+
+    area_bare = 4.0 * math.pi * r_wall_outer**2
+    area_outer = 4.0 * math.pi * r_outer**2
+    r_ins_total = sum(item[3] for item in spherical_layers)
+    r_ext_total = 1.0 / (alpha * area_outer)
+    r_total = r_wall_total + r_ins_total + r_ext_total
+    delta_t = params.process_temperature - params.ambient_temperature  # schema guarantees ambient
+    assert delta_t is not None
+    q_base_total = delta_t / r_total
+    q_additional = params.q_additional
+    q_total = q_base_total * params.safety_factor + q_additional
+
+    # Validate each material at its actual radial temperature drop.
+    current_temperature = params.process_temperature - q_base_total * r_wall_total
+    for index, (layer_resistance, _r_inner, _r_outer, resistance) in enumerate(spherical_layers):
+        next_temperature = current_temperature - q_base_total * resistance
+        _validate_layer_temperature_interval(
+            layer_resistance.layer, index=index, t_hot=current_temperature, t_cold=next_temperature
+        )
+        current_temperature = next_temperature
+
+    return TankHeatLossResult(
+        total_heat_loss_base=q_base_total,
+        total_heat_loss_design=q_total,
+        heat_loss_per_m2_bare_base=q_base_total / area_bare,
+        heat_loss_per_m2_bare_design=q_total / area_bare,
+        surface_area_bare=area_bare,
+        surface_area_outer=area_outer,
+        thermal_resistance_areal_bare=r_total * area_bare,
+        wall_resistance_areal_bare=r_wall_total * area_bare,
+        insulation_resistance_areal_bare=r_ins_total * area_bare,
+        external_resistance_areal_bare=r_ext_total * area_bare,
+        thermal_resistance_total=r_total,
+        wall_resistance_total=r_wall_total,
+        insulation_resistance_total=r_ins_total,
+        external_resistance_total=r_ext_total,
+        external_heat_flux_base=q_base_total / area_outer,
+        critical_insulation_radius=r_critical,
+        outer_insulation_radius=r_outer,
+        critical_radius_check_passed=True,
+        alpha_vnesh_applied=alpha,
+        wind_speed_applied=params.wind_speed if params.alpha_vnesh is None and params.placement == "outdoor" else None,
+        safety_factor_applied=params.safety_factor,
+        q_additional_applied=q_additional,
+        formula_model="tank_heat_loss_spherical_radial",
+        formula_model_version="4",
+        model_assumptions=["exact_radial_spherical_shell_resistance"],
+        process_temperature_applied=params.process_temperature,
+        ambient_temperature_applied=params.ambient_temperature,
+        insulation_layers_applied=[
+            {
+                "index": index,
+                "thickness": item.layer.thickness,
+                "material": item.layer.material,
+                "conductivity_applied": item.conductivity,
+                "conductivity_source": item.conductivity_source,
+                "conductivity_temperature_applied": insulation_tm,
+                "resistance": resistance,
+                "resistance_unit": "K/W",
+            }
+            for index, (item, _r_inner, _r_outer, resistance) in enumerate(spherical_layers, start=1)
+        ],
+        input_units={"diameter": "m", "wall_thickness": "m", "wall_lambda": "W/(m*K)", "insulation_layers.thickness": "m", "insulation_layers.conductivity": "W/(m*K)", "ambient_temperature": "degC", "process_temperature": "degC", "wind_speed": "m/s", "alpha_vnesh": "W/(m2*K)", "safety_factor": "1", "q_additional": "W"},
+        applied_units={"total_heat_loss_base": "W", "total_heat_loss_design": "W", "heat_loss_per_m2_bare_base": "W/m2", "heat_loss_per_m2_bare_design": "W/m2", "external_heat_flux_base": "W/m2", "surface_area_bare": "m2", "surface_area_outer": "m2", "thermal_resistance_areal_bare": "m2*K/W", "wall_resistance_areal_bare": "m2*K/W", "insulation_resistance_areal_bare": "m2*K/W", "external_resistance_areal_bare": "m2*K/W", "thermal_resistance_total": "K/W", "wall_resistance_total": "K/W", "insulation_resistance_total": "K/W", "external_resistance_total": "K/W", "critical_insulation_radius": "m", "outer_insulation_radius": "m", "alpha_vnesh_applied": "W/(m2*K)", "wind_speed_applied": "m/s", "safety_factor_applied": "1", "q_additional_applied": "W"},
+        source_corrections=["spherical_tank_uses_exact_radial_resistances", "spherical_external_resistance_uses_outer_insulated_area", "tank_additional_load_is_applied_after_safety_factor"],
+    )
+
+
 def calc_tank_heat_loss(
     params: TankHeatLossParams,
     coefficients: dict[str, Any] | None = None,
 ) -> TankHeatLossResult:
-    """Расчёт тепловых потерь ёмкости (модель плоской стенки).
+    """Рассчитать теплопотери резервуара по модели, соответствующей форме.
 
-    Упрощение: считаем все стенки плоскими (последовательное сопротивление),
-    а площадь поверхности берём по геометрии (цилиндр / параллелепипед / шар).
-    Для резервуаров d > 0.5 м кривизна практически не влияет на результат.
+    Для cylindrical/rectangular применяются последовательные удельные
+    сопротивления плоской стенки в м²·К/Вт. Для spherical применяется отдельная
+    точная радиальная ветка: сопротивления стенки, каждого слоя и внешней
+    теплоотдачи являются полными сопротивлениями в К/Вт, а внешняя теплоотдача
+    использует площадь наружной поверхности изоляции.
 
-    Алгоритм:
+    Алгоритм cylindrical/rectangular:
         1. r_wall = δ_р / λ_р (если заданы толщина и λ стенки)
         2. r_ins  = δ_из / λ_из  (изоляция — плоская стенка)
         3. r_ext  = 1 / α_внеш   (α = 11.6 + 7·sqrt(v) на улице, 9.0 в помещении)
         4. Для подземной части: r_ground = h / λ_гр
         5. q = ΔT / r_total (Вт/м², БЕЗ safety_factor)
         6. S — площадь по форме или раздельно S_air/S_ground
-        7. Q = q · S · K или (q_air·S_air + q_ground·S_ground)·K
+        7. Q = q · S · K + Q_доп или
+           (q_air·S_air + q_ground·S_ground)·K + Q_доп
+
+    Алгоритм spherical:
+        1. Построить последовательные радиусы стенки и слоёв изоляции.
+        2. Вычислить точные радиальные сопротивления сферических оболочек.
+        3. Проверить наружный радиус относительно критического радиуса.
+        4. Вычислить R_external = 1/(α·S_outer) и Q_base = ΔT/R_total.
+        5. Вычислить Q_design = Q_base·K + Q_доп.
 
     Args:
         params: валидированные параметры ёмкости. Требует указать геометрию,
@@ -230,8 +352,6 @@ def calc_tank_heat_loss(
     See Also:
         backend formula unit tests / golden cases
     """
-    if params.shape == "spherical":
-        raise ValueError("spherical_tank_formula_deferred_to_slice_4")
     if params.ambient_temperature is None:
         raise ValueError("Для резервуара требуется ambient_temperature")
     validate_temperature_range(params.ambient_temperature, params.process_temperature)
@@ -258,6 +378,13 @@ def calc_tank_heat_loss(
 
     # --- 3. Внешнее сопротивление ---
     alpha = _calc_alpha(params)
+    if params.shape == "spherical":
+        return _calc_spherical_tank_heat_loss(
+            params,
+            layer_resistances=layer_resistances,
+            insulation_tm=insulation_tm,
+            alpha=alpha,
+        )
     r_ext = 1.0 / alpha
 
     # --- 7. Коэффициент запаса ---

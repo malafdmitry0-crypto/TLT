@@ -361,6 +361,37 @@ class TestReportRendering:
         assert "Плиты минераловатные прошивные, 120 кг/м³" in html
         assert "250" in html
 
+    def test_spherical_tank_report_reads_exact_total_resistance(self):
+        objects = [
+            {
+                "id": "tank-sphere-1",
+                "object_type": "tank",
+                "params": {
+                    "name": "Сферический R1",
+                    "shape": "spherical",
+                    "diameter": 2.0,
+                    "insulation_layers": [{"thickness": 0.05, "material": "foam_glass"}],
+                    "ambient_temperature": -25,
+                    "process_temperature": 70,
+                },
+                "results": {
+                    "surface_area_bare": 12.57,
+                    "thermal_resistance_total": 0.12345,
+                    "thermal_resistance_areal_bare": 999.0,
+                    "heat_loss_per_m2_bare_base": 40.0,
+                    "q_additional_applied": 0.0,
+                    "total_heat_loss_design": 500.0,
+                },
+                "is_valid": True,
+            }
+        ]
+
+        html = render_html(_report_context(objects, sections=["tanks"]))
+
+        assert "RΣ" in html
+        assert "0.12345" in html
+        assert "999.00000" not in html
+
     def test_electrical_table_uses_tt_power_per_meter(self):
         objects = [
             {

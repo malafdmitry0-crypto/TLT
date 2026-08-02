@@ -155,6 +155,14 @@ export function validateHeatCalcField(
       const known = fieldInput.options?.some((item) => String(item.value) === String(value)) ?? false;
       if (!known) return 'Выберите значение из списка';
       if (
+        fieldId === 'placement'
+        && context.objectType === 'tank'
+        && context.values.shape === 'spherical'
+        && value === 'underground'
+      ) {
+        return 'Сферический резервуар нельзя рассчитывать в частично заглублённом размещении';
+      }
+      if (
         fieldId === 'insulation_temperature_basis'
         && !isInsulationTemperatureBasisAllowedForPlacement(value, context.values.placement)
       ) {

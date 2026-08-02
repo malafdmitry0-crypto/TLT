@@ -211,7 +211,7 @@ class TestTankShapeBoundaries:
         )
         assert r.total_heat_loss_design > 0
 
-    def test_spherical_tank_underground_is_deferred(self):
+    def test_spherical_tank_underground_is_rejected(self):
         with pytest.raises(ValueError, match="spherical"):
             _tank(
                 shape="spherical", height=None, placement="underground", ground_temperature=0,

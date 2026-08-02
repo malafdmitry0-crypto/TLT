@@ -51,6 +51,7 @@ export default function TankGeometryStep({ fieldInputSettings, part = 'all' }: P
         className="fixed-select-form-item tank-shape-form-item helped-form-item"
         label={fieldLabel('shape')}
         name="shape"
+        dependencies={['placement']}
         rules={heatCalcFormFieldRules(form, 'tank', 'shape')}
       >
         {withHelp(

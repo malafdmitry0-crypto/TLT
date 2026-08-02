@@ -24,4 +24,15 @@ describe('objectWizardValidationModel canonical pipe fields', () => {
       message: 'Температура грунта должна быть ниже температуры продукта',
     }, 'pipe')).toHaveProperty('ground_temperature');
   });
+
+  it('maps the spherical critical-radius API code to a blocking insulation field error', () => {
+    expect(buildCalculationFieldErrors({
+      error_code: 'sphere_below_critical_insulation_radius',
+      error_context: { router: 0.91, rcritical: 1.02, conductivity_outermost: 0.05, alpha_vnesh_applied: 9 },
+    }, 'tank')).toEqual({
+      insulation_thickness_mm: {
+        message: 'Наружный радиус изоляции 0.910 м меньше критического 1.020 м; увеличьте толщину изоляции.',
+      },
+    });
+  });
 });

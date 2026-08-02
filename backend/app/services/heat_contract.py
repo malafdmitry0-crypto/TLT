@@ -144,6 +144,21 @@ PIPE_HEAT_RESULT_KEYS = frozenset(
     }
 )
 
+SPHERICAL_TANK_EXACT_RESULT_KEYS = frozenset(
+    {
+        "surface_area_outer",
+        "thermal_resistance_total",
+        "wall_resistance_total",
+        "insulation_resistance_total",
+        "external_resistance_total",
+        "external_heat_flux_base",
+        "critical_insulation_radius",
+        "outer_insulation_radius",
+        "critical_radius_check_passed",
+    }
+)
+
+
 TANK_HEAT_RESULT_KEYS = frozenset(
     {
         "total_heat_loss_base",
@@ -165,24 +180,7 @@ TANK_HEAT_RESULT_KEYS = frozenset(
         "ground_conductivity_applied",
         "q_additional_applied",
     }
-)
-
-# Activated together with the exact spherical producer and shape-specific
-# readers in Slice 4.  Publishing these nullable keys earlier would make the
-# current plane-wall spherical branch look like an exact radial model.
-DEFERRED_SPHERICAL_TANK_RESULT_KEYS = frozenset(
-    {
-        "surface_area_outer",
-        "thermal_resistance_total",
-        "wall_resistance_total",
-        "insulation_resistance_total",
-        "external_resistance_total",
-        "external_heat_flux_base",
-        "critical_insulation_radius",
-        "outer_insulation_radius",
-        "critical_radius_check_passed",
-    }
-)
+) | SPHERICAL_TANK_EXACT_RESULT_KEYS
 
 PIPE_CANONICAL_RESULT_KEYS = COMMON_HEAT_RESULT_KEYS | PIPE_HEAT_RESULT_KEYS
 TANK_CANONICAL_RESULT_KEYS = COMMON_HEAT_RESULT_KEYS | TANK_HEAT_RESULT_KEYS

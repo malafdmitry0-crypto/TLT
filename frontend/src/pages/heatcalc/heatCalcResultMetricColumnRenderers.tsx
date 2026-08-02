@@ -15,6 +15,9 @@ function resistanceResultKey(
   pipeKey: string,
   tankArealKey: string,
 ) {
+  if (record.object_type === 'tank' && record.params?.shape === 'spherical') {
+    return `${pipeKey}_total`;
+  }
   return record.object_type === 'pipe' ? pipeKey : tankArealKey;
 }
 
