@@ -20,8 +20,7 @@ function makePipe(overrides: Partial<ProjectObject> = {}): ProjectObject {
       placement: 'outdoor',
       outer_diameter: 0.114,
       pipe_length: 25,
-      insulation_material: 'mineral_wool',
-      insulation_thickness: 0.05,
+      insulation_layers: [{ material: 'mineral_wool', thickness: 0.05 }],
       ambient_temperature: -20,
       process_temperature: 80,
     },
@@ -54,18 +53,37 @@ describe('cablePickerCharacteristicsModel', () => {
     expect(fields.find((f) => f.key === 'object_type')?.value).toBe('Труба');
     expect(fields.find((f) => f.key === 'placement')?.value).toBe('Открыто');
     expect(fields.find((f) => f.key === 'outer_diameter')?.value).toMatch(/мм/);
+    expect(fields.find((f) => f.key === 'insulation')?.value).toBe('mineral_wool, 50 мм');
     expect(fields.find((f) => f.key === 'heat_loss_specific')?.value).toMatch(/Вт\/м/);
+  });
+
+  it('does not read legacy insulation keys for pipe objects', () => {
+    const fields = buildObjectFields(makePipe({
+      params: {
+        insulation_material: 'legacy_material',
+        insulation_thickness: 0.08,
+      },
+    }));
+
+    expect(fields.find((f) => f.key === 'insulation')?.value).toBe('—');
   });
 
   it('builds tank geometry and uses fallback em dash for missing values', () => {
     const tank = makePipe({
       object_type: 'tank',
-      params: { shape: 'cylindrical', diameter: 2, height: 3 },
+      params: {
+        shape: 'cylindrical',
+        diameter: 2,
+        height: 3,
+        insulation_material: 'tank_legacy_material',
+        insulation_thickness: 0.04,
+      },
       results: null,
     });
     const fields = buildObjectFields(tank);
     expect(fields[0].value).toBe('Резервуар');
     expect(fields.find((f) => f.key === 'tank_geometry')?.value).toMatch(/цилиндр/);
+    expect(fields.find((f) => f.key === 'insulation')?.value).toBe('tank_legacy_material, 40 мм');
     expect(fields.find((f) => f.key === 'total_heat_loss_design')?.value).toBe('—');
   });
 

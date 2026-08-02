@@ -18,12 +18,15 @@ async def test_calc_heat_loss_pipe_returns_dict():
         "pipe",
         {
             "outer_diameter": 0.1,
-            "insulation_thickness": 0.05,
-            "insulation_material": MINERAL_WOOL,
+            "wall_thickness": 0.004,
+            "pipe_material": "carbon_steel",
+            "insulation_layers": [{"thickness": 0.05, "material": MINERAL_WOOL}],
             "insulation_temperature_basis": "outdoor_winter",
             "ambient_temperature": -30,
             "process_temperature": 80,
             "pipe_length": 10,
+            "placement": "outdoor",
+            "wind_speed": 0,
         },
     )
     assert "heat_loss_per_meter_base" in result

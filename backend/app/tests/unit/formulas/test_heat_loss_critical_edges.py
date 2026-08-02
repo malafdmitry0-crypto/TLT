@@ -17,7 +17,7 @@ import pytest
 
 from app.formulas.heat_loss.pipe import calc_pipe_heat_loss
 from app.formulas.heat_loss.tank import calc_tank_heat_loss
-from app.schemas.calculation import PipeHeatLossParams, TankHeatLossParams
+from app.schemas.calculation import InsulationLayer, PipeHeatLossParams, TankHeatLossParams
 
 MINERAL_WOOL = "mineral_wool_boards_120"
 LOW_LAMBDA_INSULATION = "polyurethane_products_40"
@@ -26,12 +26,15 @@ LOW_LAMBDA_INSULATION = "polyurethane_products_40"
 def _pipe(**kw):
     base = dict(
         outer_diameter=0.108,
-        insulation_thickness=0.05,
-        insulation_material=MINERAL_WOOL,
+        wall_thickness=0.004,
+        pipe_material="carbon_steel",
+        insulation_layers=[InsulationLayer(thickness=0.05, material=MINERAL_WOOL)],
         insulation_temperature_basis="outdoor_winter",
         ambient_temperature=-20.0,
         process_temperature=80.0,
         pipe_length=50.0,
+        placement="outdoor",
+        wind_speed=0.0,
     )
     base.update(kw)
     return PipeHeatLossParams(**base)
@@ -135,8 +138,12 @@ class TestPipeInsulationExtremes:
 
     def test_thin_insulation_10mm(self):
         """Минимальная промышленная толщина — 10мм."""
-        thin = calc_pipe_heat_loss(_pipe(insulation_thickness=0.01))
-        thick = calc_pipe_heat_loss(_pipe(insulation_thickness=0.2))
+        thin = calc_pipe_heat_loss(
+            _pipe(insulation_layers=[InsulationLayer(thickness=0.01, material=MINERAL_WOOL)])
+        )
+        thick = calc_pipe_heat_loss(
+            _pipe(insulation_layers=[InsulationLayer(thickness=0.2, material=MINERAL_WOOL)])
+        )
         # Толстая изоляция → меньше теплопотерь (физический инвариант)
         assert (
             thick.heat_loss_per_meter_base < thin.heat_loss_per_meter_base
@@ -144,7 +151,9 @@ class TestPipeInsulationExtremes:
 
     def test_extreme_insulation_500mm(self):
         """Полметра изоляции (теплоэлектростанции)."""
-        r = calc_pipe_heat_loss(_pipe(insulation_thickness=0.5))
+        r = calc_pipe_heat_loss(
+            _pipe(insulation_layers=[InsulationLayer(thickness=0.5, material=MINERAL_WOOL)])
+        )
         assert r.heat_loss_per_meter_base > 0
         assert math.isfinite(r.heat_loss_per_meter_base)
 
@@ -167,8 +176,16 @@ class TestPipePhysicalInvariants:
     def test_higher_lambda_lowers_resistance(self):
         """Лучший проводник изоляции (выше λ) → меньше R → больше Q."""
         # Конкретные selectable-коды: ППУ имеет меньшую λ(tm), чем минвата ρ120.
-        mw = calc_pipe_heat_loss(_pipe(insulation_material=MINERAL_WOOL))
-        pu = calc_pipe_heat_loss(_pipe(insulation_material=LOW_LAMBDA_INSULATION))
+        mw = calc_pipe_heat_loss(
+            _pipe(insulation_layers=[InsulationLayer(thickness=0.05, material=MINERAL_WOOL)])
+        )
+        pu = calc_pipe_heat_loss(
+            _pipe(
+                insulation_layers=[
+                    InsulationLayer(thickness=0.05, material=LOW_LAMBDA_INSULATION)
+                ]
+            )
+        )
         # ППУ изолирует лучше → меньше потерь
         assert pu.heat_loss_per_meter_base < mw.heat_loss_per_meter_base, "ФИЗИКА СЛОМАНА: ППУ хуже минваты?"
 

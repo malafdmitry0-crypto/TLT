@@ -84,25 +84,33 @@ export function buildHeatCalcColumnRenderers({
       copyValue: (r) => formatParamNumber(r, 'pipe_lambda', 3),
     },
     pipe_lambda_mode: {
-      render: (_: unknown, r: ProjectObject) => lambdaModeLabel(r.params?.pipe_lambda_mode),
-      copyValue: (r) => lambdaModeLabel(r.params?.pipe_lambda_mode),
+      render: (_: unknown, r: ProjectObject) => lambdaModeLabel(r.params?.pipe_lambda != null ? 'manual' : 'reference'),
+      copyValue: (r) => lambdaModeLabel(r.params?.pipe_lambda != null ? 'manual' : 'reference'),
     },
     placement: {
-      render: (_: unknown, r: ProjectObject) => placementLabel(r.params?.placement ?? r.params?.location),
-      copyValue: (r) => placementLabel(r.params?.placement ?? r.params?.location),
+      render: (_: unknown, r: ProjectObject) => placementLabel(r.params?.placement),
+      copyValue: (r) => placementLabel(r.params?.placement),
     },
     insulation_layer_count: {
       render: (_: unknown, r: ProjectObject) => insulationLayerCount(r),
       copyValue: (r) => insulationLayerCount(r),
     },
     insulation_thickness: {
-      render: (_: unknown, r: ProjectObject) => formatParamMetersAsMm(r, 'insulation_thickness'),
-      copyValue: (r) => formatParamMetersAsMm(r, 'insulation_thickness'),
+      render: (_: unknown, r: ProjectObject) => r.object_type === 'pipe'
+        ? insulationLayerThickness(r, 0)
+        : formatParamMetersAsMm(r, 'insulation_thickness'),
+      copyValue: (r) => r.object_type === 'pipe'
+        ? insulationLayerThickness(r, 0)
+        : formatParamMetersAsMm(r, 'insulation_thickness'),
     },
     insulation_material: {
       ellipsis: true,
-      render: (_: unknown, r: ProjectObject) => insulationLabel(r.params?.insulation_material),
-      copyValue: (r) => insulationLabel(r.params?.insulation_material),
+      render: (_: unknown, r: ProjectObject) => r.object_type === 'pipe'
+        ? insulationLayerMaterial(r, 0, insulationLabel)
+        : insulationLabel(r.params?.insulation_material),
+      copyValue: (r) => r.object_type === 'pipe'
+        ? insulationLayerMaterial(r, 0, insulationLabel)
+        : insulationLabel(r.params?.insulation_material),
     },
     first_insulation_lambda: {
       render: (_: unknown, r: ProjectObject) => insulationLayerConductivity(r, 0),
@@ -210,6 +218,14 @@ export function buildHeatCalcColumnRenderers({
       render: (_: unknown, r: ProjectObject) => formatParamNumber(r, 'burial_depth', 2),
       copyValue: (r) => formatParamNumber(r, 'burial_depth', 2),
     },
+    pipe_centerline_depth: {
+      render: (_: unknown, r: ProjectObject) => formatParamNumber(r, 'pipe_centerline_depth', 2),
+      copyValue: (r) => formatParamNumber(r, 'pipe_centerline_depth', 2),
+    },
+    ground_temperature: {
+      render: (_: unknown, r: ProjectObject) => formatParamNumber(r, 'ground_temperature', 1),
+      copyValue: (r) => formatParamNumber(r, 'ground_temperature', 1),
+    },
     ground_type: {
       ellipsis: true,
       render: (_: unknown, r: ProjectObject) => formatParamText(r, 'ground_type'),
@@ -239,17 +255,9 @@ export function buildHeatCalcColumnRenderers({
       render: (_: unknown, r: ProjectObject) => formatParamNumber(r, 'vapor_temperature', 0),
       copyValue: (r) => formatParamNumber(r, 'vapor_temperature', 0),
     },
-    valve_count: {
-      render: (_: unknown, r: ProjectObject) => countParamValue(r, 'valve_count'),
-      copyValue: (r) => countParamValue(r, 'valve_count'),
-    },
-    flange_count: {
-      render: (_: unknown, r: ProjectObject) => countParamValue(r, 'flange_count'),
-      copyValue: (r) => countParamValue(r, 'flange_count'),
-    },
-    support_count: {
-      render: (_: unknown, r: ProjectObject) => countParamValue(r, 'support_count'),
-      copyValue: (r) => countParamValue(r, 'support_count'),
+    num_local_elements: {
+      render: (_: unknown, r: ProjectObject) => countParamValue(r, 'num_local_elements'),
+      copyValue: (r) => countParamValue(r, 'num_local_elements'),
     },
     local_element_equiv_length: {
       render: (_: unknown, r: ProjectObject) => formatParamNumber(r, 'local_element_equiv_length', 1),

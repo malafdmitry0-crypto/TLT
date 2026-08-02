@@ -33,8 +33,10 @@ describe('ObjectWizard dependencies — placement-visibility', () => {
     expect(await screen.findByTestId('burial-depth-input')).toBeVisible();
     expect(screen.getByTestId('ground-type-select')).toBeVisible();
     expect(screen.getByTestId('ground-type-select')).toHaveAttribute('aria-required', 'true');
+    expect(screen.getByTestId('ground-temperature-input')).toBeVisible();
     expect(screen.getByTestId('ground-conductivity-input')).toBeVisible();
     expect(screen.getByTestId('ground-conductivity-input')).not.toHaveAttribute('aria-required');
+    expect(screen.queryByTestId('ambient-temperature-input')).not.toBeInTheDocument();
     expect(screen.queryByTestId('wind-speed-input')).not.toBeInTheDocument();
     expect(screen.queryByTestId('alpha-vnesh-input')).not.toBeInTheDocument();
   });

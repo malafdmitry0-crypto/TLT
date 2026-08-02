@@ -15,6 +15,8 @@ from app.reference_data.loader import (
     INSULATION_MATERIAL_RESELECTION_MESSAGE,
     is_generic_insulation_material,
 )
+from app.schemas.calculation import StoredPipeHeatParams
+from app.services.heat_contract import COMMON_HEAT_PARAM_KEYS, PIPE_HEAT_PARAM_KEYS
 
 
 class ProjectObjectParamsError(ValueError):
@@ -31,15 +33,6 @@ COMMON_OBJECT_DEFAULTS: dict[str, Any] = {
     "min_switch_temperature": -20,
     "supply_voltage": 220,
     "steam_tracing": "no",
-}
-
-PIPE_OBJECT_DEFAULTS: dict[str, Any] = {
-    "wall_thickness": 0.004,
-    "pipe_material": "carbon_steel",
-    "valve_count": 2,
-    "flange_count": 2,
-    "support_count": 2,
-    "local_element_equiv_length": 1.5,
 }
 
 TANK_OBJECT_DEFAULTS: dict[str, Any] = {
@@ -66,15 +59,16 @@ def normalize_project_object_params(
     if "safety_factor" not in normalized:
         normalized["safety_factor"] = 1.1
         normalized.setdefault("safety_factor_source", "default")
-    _normalize_climate_key(normalized)
-    _normalize_placement(normalized)
-    _normalize_insulation_temperature_basis(normalized)
-    _normalize_insulation_layers(normalized)
-
     if object_type == "pipe":
-        _apply_pipe_defaults(normalized)
-        _normalize_local_elements(normalized)
+        _normalize_climate_key(normalized)
+        if "num_local_elements" not in normalized:
+            normalized["num_local_elements"] = 0
+        return normalized
     elif object_type == "tank":
+        _normalize_climate_key(normalized)
+        _normalize_placement(normalized)
+        _normalize_insulation_temperature_basis(normalized)
+        _normalize_insulation_layers(normalized)
         _apply_defaults(normalized, TANK_OBJECT_DEFAULTS)
 
     return normalized
@@ -87,6 +81,15 @@ def prepare_project_object_params(
 
     normalized = normalize_project_object_params(object_type, params)
     validate_project_object_params(object_type, normalized)
+    if object_type == "pipe":
+        heat_keys = COMMON_HEAT_PARAM_KEYS | PIPE_HEAT_PARAM_KEYS
+        stored = StoredPipeHeatParams(
+            **{key: value for key, value in normalized.items() if key in heat_keys}
+        )
+        normalized = {
+            **{key: value for key, value in normalized.items() if key not in heat_keys},
+            **stored.model_dump(exclude_none=True),
+        }
     return normalized
 
 
@@ -125,16 +128,6 @@ def _normalize_climate_key(params: dict[str, Any]) -> None:
     if not city or not region:
         return
     params["climate_key"] = f"{region}|||{city}"
-
-
-def _apply_pipe_defaults(params: dict[str, Any]) -> None:
-    if "wall_thickness" not in params:
-        params["wall_thickness"] = PIPE_OBJECT_DEFAULTS["wall_thickness"]
-    if "pipe_material" not in params and "pipe_lambda" not in params:
-        params["pipe_material"] = PIPE_OBJECT_DEFAULTS["pipe_material"]
-    for key in ("valve_count", "flange_count", "support_count", "local_element_equiv_length"):
-        if key not in params:
-            params[key] = PIPE_OBJECT_DEFAULTS[key]
 
 
 def _normalize_placement(params: dict[str, Any]) -> None:
@@ -189,27 +182,13 @@ def _normalize_insulation_layers(params: dict[str, Any]) -> None:
         )
 
 
-def _normalize_local_elements(params: dict[str, Any]) -> None:
-    if "num_local_elements" in params:
-        return
-    total = 0
-    for key in ("valve_count", "flange_count", "support_count"):
-        try:
-            total += int(params.get(key) or 0)
-        except (TypeError, ValueError):
-            return
-    if total > 0:
-        params["num_local_elements"] = total
-
-
 def _validate_pipe_params(params: Mapping[str, Any], missing: list[str]) -> None:
-    _require(params, "outer_diameter", "Наружный диаметр", missing)
-    _require(params, "pipe_length", "Длина трубопровода", missing)
-    _require(params, "wall_thickness", "Толщина стенки", missing)
-    if _is_missing(params.get("pipe_material")) and _is_missing(params.get("pipe_lambda")):
-        missing.append("Материал трубы или λ трубы")
-    _validate_common_params(params, missing)
-    _validate_insulation(params, missing)
+    heat_keys = COMMON_HEAT_PARAM_KEYS | PIPE_HEAT_PARAM_KEYS
+    heat_payload = {key: value for key, value in params.items() if key in heat_keys}
+    try:
+        StoredPipeHeatParams(**heat_payload)
+    except ValueError as exc:
+        raise ProjectObjectParamsError(str(exc)) from exc
 
 
 def _validate_tank_params(params: Mapping[str, Any], missing: list[str]) -> None:

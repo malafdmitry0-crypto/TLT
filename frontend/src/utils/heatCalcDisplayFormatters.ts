@@ -8,6 +8,9 @@ export function insulationEntryLabel(entry: { name: string; density_kg_m3?: numb
 }
 
 export function insulationLayerCount(record: ProjectObject) {
+  if (record.object_type === 'pipe') {
+    return String(Array.isArray(record.params?.insulation_layers) ? record.params.insulation_layers.length : 0);
+  }
   return String(record.params?.insulation_layer_count ?? (
     Array.isArray(record.params?.insulation_layers) ? record.params.insulation_layers.length : 1
   ));

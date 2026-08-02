@@ -50,29 +50,20 @@ export function pipeApiParamsToForm(p: Record<string, unknown>): Partial<PipeFor
   const firstRange = apiTemperatureRange(layers[0]);
   const secondRange = apiTemperatureRange(layers[1]);
   const thirdRange = apiTemperatureRange(layers[2]);
-  const placement =
-    (p.placement as PipeFormValues['placement']) ??
-    (p.burial_depth != null ? 'underground' : p.location as PipeFormValues['placement']);
+  const placement = p.placement as PipeFormValues['placement'];
   return {
     outer_diameter_mm: p.outer_diameter != null ? Number(p.outer_diameter) * 1000 : undefined,
     wall_thickness_mm: p.wall_thickness != null ? Number(p.wall_thickness) * 1000 : undefined,
     pipe_material: p.pipe_lambda != null ? 'other' : p.pipe_material as string | undefined,
     pipe_lambda: p.pipe_lambda as number | undefined,
     pipe_lambda_mode: p.pipe_lambda != null ? 'manual' : 'reference',
-    insulation_thickness_mm:
-      layers[0]?.thickness != null
-        ? Number(layers[0].thickness) * 1000
-        : p.insulation_thickness != null ? Number(p.insulation_thickness) * 1000 : undefined,
-    insulation_material:
-      (layers[0]?.material as string | undefined) ?? (p.insulation_material as string | undefined),
+    insulation_thickness_mm: layers[0]?.thickness != null ? Number(layers[0].thickness) * 1000 : undefined,
+    insulation_material: layers[0]?.material as string | undefined,
     first_insulation_lambda: layers[0]?.conductivity as number | undefined,
     first_insulation_temperature_min: firstRange.temperature_min,
     first_insulation_temperature_max: firstRange.temperature_max,
     insulation_cover_material: p.insulation_cover_material as string | undefined,
-    insulation_layer_count:
-      p.insulation_layer_count != null
-        ? String(p.insulation_layer_count) as PipeFormValues['insulation_layer_count']
-        : layers.length > 0 ? String(Math.min(layers.length, 3)) as PipeFormValues['insulation_layer_count'] : '1',
+    insulation_layer_count: String(Math.min(Math.max(layers.length, 1), 3)) as PipeFormValues['insulation_layer_count'],
     second_insulation_thickness_mm:
       layers[1]?.thickness != null ? Number(layers[1].thickness) * 1000 : undefined,
     second_insulation_material: layers[1]?.material as string | undefined,
@@ -93,9 +84,14 @@ export function pipeApiParamsToForm(p: Record<string, unknown>): Partial<PipeFor
     zone_classification: p.zone_classification as PipeFormValues['zone_classification'],
     temperature_group: p.temperature_group as PipeFormValues['temperature_group'],
     placement,
-    burial_depth: p.burial_depth as number | undefined,
+    ground_temperature: p.ground_temperature as number | undefined,
+    ground_temperature_source:
+      p.ground_temperature_source as PipeFormValues['ground_temperature_source'],
+    burial_depth: p.pipe_centerline_depth as number | undefined,
     ground_type: p.ground_type as string | undefined,
     ground_conductivity: p.ground_conductivity as number | undefined,
+    ground_conductivity_source:
+      p.ground_conductivity_source as PipeFormValues['ground_conductivity_source'],
     wind_speed: p.wind_speed as number | undefined,
     alpha_vnesh: p.alpha_vnesh as number | undefined,
     climate_city: p.climate_city as string | undefined,
@@ -129,17 +125,7 @@ export function pipeApiParamsToForm(p: Record<string, unknown>): Partial<PipeFor
     top_of_box_indication: p.top_of_box_indication as PipeFormValues['top_of_box_indication'],
     min_length_for_k2i: p.min_length_for_k2i as number | undefined,
     hot_reserve_coefficient: p.hot_reserve_coefficient as number | undefined,
-    valve_count: p.valve_count as number | undefined,
-    flange_count: p.flange_count as number | undefined,
-    support_count: p.support_count as number | undefined,
-    num_local_elements: p.num_local_elements != null
-      ? Number(p.num_local_elements)
-      : [p.valve_count, p.flange_count, p.support_count].some((value) => value != null)
-        ? [p.valve_count, p.flange_count, p.support_count].reduce<number>(
-            (sum, value) => sum + (Number(value) || 0),
-            0,
-          )
-        : undefined,
+    num_local_elements: p.num_local_elements != null ? Number(p.num_local_elements) : undefined,
     local_element_equiv_length: p.local_element_equiv_length as number | undefined,
     name: p.name as string | undefined,
   };

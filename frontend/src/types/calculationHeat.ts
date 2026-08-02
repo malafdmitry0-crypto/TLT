@@ -44,20 +44,19 @@ export interface HeatResultTrace {
 
 export interface PipeParams {
   outer_diameter: number;
-  wall_thickness?: number | null;
+  wall_thickness: number;
   pipe_material?: string | null;
   pipe_lambda?: number | null;
-  insulation_thickness: number;
-  insulation_material: string;
   insulation_cover_material?: string | null;
-  insulation_layers?: InsulationLayerParams[];
-  ambient_temperature: number;
+  insulation_layers: InsulationLayerParams[];
+  ambient_temperature?: number | null;
   process_temperature: number;
   max_ambient_temperature?: number | null;
   max_process_temperature?: number | null;
   pipe_length: number;
-  placement?: 'indoor' | 'outdoor' | 'underground';
-  burial_depth?: number | null;
+  placement: 'indoor' | 'outdoor' | 'underground';
+  ground_temperature?: number | null;
+  pipe_centerline_depth?: number | null;
   ground_type?: string | null;
   ground_conductivity?: number | null;
   wind_speed?: number | null;
@@ -68,17 +67,17 @@ export interface PipeParams {
   climate_temperature_basis?: 't_0_92' | 't_0_98' | 't_abs_min' | null;
   insulation_temperature_basis?: InsulationTemperatureBasis | null;
   ambient_temperature_source?: 'manual' | 'climate' | null;
+  ground_temperature_source?: 'manual' | 'climate' | null;
   wind_speed_source?: 'manual' | 'climate' | null;
-  valve_count?: number | null;
-  flange_count?: number | null;
-  support_count?: number | null;
-  num_local_elements?: number | null;
+  ground_conductivity_source?: 'manual' | 'reference' | null;
+  num_local_elements: number;
   local_element_equiv_length?: number | null;
   supply_voltage?: number | null;
-  safety_factor?: number | null;
+  safety_factor: number;
+  safety_factor_source?: 'default' | 'manual' | 'climate_policy' | null;
+  climate_policy_rule?: 'pipe_diameter_ge_100' | 'pipe_diameter_lt_100' | null;
   maintain_temperature?: number | null;
   vapor_temperature?: number | null;
-  location?: 'indoor' | 'outdoor';
 }
 
 export interface PipeResult extends HeatResultTrace {

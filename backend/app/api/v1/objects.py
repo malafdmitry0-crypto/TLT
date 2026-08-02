@@ -159,6 +159,10 @@ async def add_object(
         obj = await project_service.add_object(project_id, data, principal)
         calc_service = CalculationService(db)
         await calc_service.recalculate_object(obj)
+        if obj.object_type == "pipe" and not obj.is_valid:
+            detail = (obj.validation_errors or {}).get("message", "Некорректные параметры трубы")
+            await db.rollback()
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=detail)
         await SpecificationService(db).mark_project_specifications_stale(
             project_id,
             "object_created",
@@ -191,6 +195,8 @@ async def add_object(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ProjectAccessError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ProjectValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
 
 
 # ---- Специальные операции (должны быть ВЫШЕ маршрутов с {object_id}) ----
@@ -415,6 +421,10 @@ async def update_object(
         obj = await project_service.update_object(project_id, object_id, data, principal)
         calc_service = CalculationService(db)
         await calc_service.recalculate_object(obj)
+        if obj.object_type == "pipe" and not obj.is_valid:
+            detail = (obj.validation_errors or {}).get("message", "Некорректные параметры трубы")
+            await db.rollback()
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=detail)
         if params_changed:
             await calc_service.mark_electrical_calculations_stale(
                 project_id,
@@ -457,6 +467,8 @@ async def update_object(
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     except ProjectConflictError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except ProjectValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
 
 
 @router.delete(

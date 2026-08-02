@@ -28,196 +28,119 @@ MANUAL_HIGH_TEMP_LAYER = InsulationLayer(
 )
 
 
+def _outdoor_pipe(**overrides) -> PipeHeatLossParams:
+    data = {
+        "outer_diameter": 0.1,
+        "wall_thickness": 0.004,
+        "pipe_material": "carbon_steel",
+        "insulation_layers": [InsulationLayer(thickness=0.05, material=MINERAL_WOOL)],
+        "insulation_temperature_basis": "outdoor_winter",
+        "ambient_temperature": -30,
+        "process_temperature": 80,
+        "pipe_length": 10,
+        "placement": "outdoor",
+        "wind_speed": 0,
+    }
+    data.update(overrides)
+    return PipeHeatLossParams(**data)
+
+
+def _underground_pipe(**overrides) -> PipeHeatLossParams:
+    data = {
+        "outer_diameter": 0.1,
+        "wall_thickness": 0.004,
+        "pipe_material": "carbon_steel",
+        "insulation_layers": [InsulationLayer(thickness=0.05, material=MINERAL_WOOL)],
+        "insulation_temperature_basis": "channel",
+        "process_temperature": 80,
+        "pipe_length": 10,
+        "placement": "underground",
+        "ground_temperature": -20,
+        "pipe_centerline_depth": 1.2,
+        "ground_conductivity": 1.5,
+    }
+    data.update(overrides)
+    return PipeHeatLossParams(**data)
+
+
 class TestPipeHeatLossParams:
     def test_valid(self):
-        p = PipeHeatLossParams(
-            outer_diameter=0.1,
-            insulation_thickness=0.05,
-            insulation_material=MINERAL_WOOL,
-            insulation_temperature_basis="outdoor_winter",
-            ambient_temperature=-30,
-            process_temperature=80,
-            pipe_length=10,
-        )
-        assert p.outer_diameter == 0.1
+        assert _outdoor_pipe().outer_diameter == 0.1
 
     def test_negative_diameter_rejected(self):
         with pytest.raises(ValidationError):
-            PipeHeatLossParams(
-                outer_diameter=-0.1,
-                insulation_thickness=0.05,
-                insulation_material=MINERAL_WOOL,
-                insulation_temperature_basis="outdoor_winter",
-                ambient_temperature=-30,
-                process_temperature=80,
-                pipe_length=10,
-            )
+            _outdoor_pipe(outer_diameter=-0.1)
 
     def test_unknown_field_rejected(self):
         with pytest.raises(ValidationError):
-            PipeHeatLossParams(
-                outer_diameter=0.1,
-                insulation_thickness=0.05,
-                insulation_material=MINERAL_WOOL,
-                insulation_temperature_basis="outdoor_winter",
-                ambient_temperature=-30,
-                process_temperature=80,
-                pipe_length=10,
-                legacy_alias=1,
-            )
+            _outdoor_pipe(legacy_alias=1)
 
     def test_zero_thickness_rejected(self):
         with pytest.raises(ValidationError):
-            PipeHeatLossParams(
-                outer_diameter=0.1,
-                insulation_thickness=0,
-                insulation_material=MINERAL_WOOL,
-                insulation_temperature_basis="outdoor_winter",
-                ambient_temperature=-30,
-                process_temperature=80,
-                pipe_length=10,
+            _outdoor_pipe(
+                insulation_layers=[InsulationLayer(thickness=0, material=MINERAL_WOOL)]
             )
 
     def test_srs_pipe_limits(self):
-        p = PipeHeatLossParams(
-            outer_diameter=0.0108,
+        p = _underground_pipe(
+            outer_diameter=0.1,
             wall_thickness=0.04,
             pipe_material="carbon_steel",
-            insulation_thickness=None,
-            insulation_material=None,
             insulation_layers=[MANUAL_HIGH_TEMP_LAYER],
-            insulation_temperature_basis="outdoor_winter",
-            ambient_temperature=-70,
             process_temperature=600,
             pipe_length=200_000,
-            burial_depth=200,
-            wind_speed=20,
+            pipe_centerline_depth=200,
+            num_local_elements=100,
             local_element_equiv_length=6.9,
             safety_factor=1.05,
         )
-        assert p.outer_diameter == 0.0108
+        assert p.pipe_centerline_depth == 200
         assert p.wall_thickness == 0.04
 
     def test_reference_insulation_temperature_range_is_enforced(self):
         with pytest.raises(ValidationError, match="вне диапазона"):
-            PipeHeatLossParams(
-                outer_diameter=0.1,
-                insulation_thickness=0.05,
-                insulation_material=POLYURETHANE,
-                insulation_temperature_basis="outdoor_winter",
-                ambient_temperature=-20,
+            _outdoor_pipe(
+                insulation_layers=[InsulationLayer(thickness=0.05, material=POLYURETHANE)],
                 process_temperature=450,
-                pipe_length=10,
             )
 
     def test_reference_insulation_temperature_range_accepts_boundary(self):
-        p = PipeHeatLossParams(
-            outer_diameter=0.1,
-            insulation_thickness=0.05,
-            insulation_material=POLYURETHANE,
-            insulation_temperature_basis="outdoor_winter",
-            ambient_temperature=-20,
+        p = _outdoor_pipe(
+            insulation_layers=[InsulationLayer(thickness=0.05, material=POLYURETHANE)],
             process_temperature=400,
-            pipe_length=10,
         )
-
         assert p.process_temperature == 400
 
     @pytest.mark.parametrize("basis", ["indoor", "attic", "basement", "channel"])
     def test_outdoor_location_rejects_non_outdoor_insulation_temperature_basis(self, basis):
         with pytest.raises(ValidationError, match="Режим tm"):
-            PipeHeatLossParams(
-                outer_diameter=0.1,
-                insulation_thickness=0.05,
-                insulation_material=MINERAL_WOOL,
-                insulation_temperature_basis=basis,
-                ambient_temperature=-20,
-                process_temperature=80,
-                pipe_length=10,
-                location="outdoor",
-            )
+            _outdoor_pipe(insulation_temperature_basis=basis)
 
     def test_underground_placement_accepts_channel_insulation_temperature_basis(self):
-        p = PipeHeatLossParams(
-            outer_diameter=0.1,
-            insulation_thickness=0.05,
-            insulation_material=MINERAL_WOOL,
-            insulation_temperature_basis="channel",
-            ambient_temperature=-20,
-            process_temperature=80,
-            pipe_length=10,
-            location="outdoor",
-            placement="underground",
-            burial_depth=1.2,
-        )
-
-        assert p.insulation_temperature_basis == "channel"
+        assert _underground_pipe().insulation_temperature_basis == "channel"
 
     def test_underground_placement_rejects_attic_insulation_temperature_basis(self):
         with pytest.raises(ValidationError, match="Режим tm"):
-            PipeHeatLossParams(
-                outer_diameter=0.1,
-                insulation_thickness=0.05,
-                insulation_material=MINERAL_WOOL,
-                insulation_temperature_basis="attic",
-                ambient_temperature=-20,
-                process_temperature=80,
-                pipe_length=10,
-                location="outdoor",
-                placement="underground",
-                burial_depth=1.2,
-            )
+            _underground_pipe(insulation_temperature_basis="attic")
 
     @pytest.mark.parametrize("basis", ["attic", "basement"])
     def test_indoor_location_accepts_building_insulation_temperature_basis(self, basis):
-        p = PipeHeatLossParams(
-            outer_diameter=0.1,
-            insulation_thickness=0.05,
-            insulation_material=MINERAL_WOOL,
+        p = _outdoor_pipe(
+            placement="indoor",
+            wind_speed=None,
             insulation_temperature_basis=basis,
             ambient_temperature=20,
-            process_temperature=80,
-            pipe_length=10,
-            location="indoor",
-            placement="indoor",
         )
-
         assert p.insulation_temperature_basis == basis
 
-    def test_local_element_counts_are_mapped_to_formula_count(self):
-        p = PipeHeatLossParams(
-            outer_diameter=0.1,
-            insulation_thickness=0.05,
-            insulation_material=MINERAL_WOOL,
-            insulation_temperature_basis="outdoor_winter",
-            ambient_temperature=-30,
-            process_temperature=80,
-            pipe_length=10,
-            valve_count=1,
-            flange_count=2,
-            support_count=3,
-            local_element_equiv_length=1.5,
-        )
-
+    def test_num_local_elements_is_canonical_formula_count(self):
+        p = _outdoor_pipe(num_local_elements=6, local_element_equiv_length=1.5)
         assert p.num_local_elements == 6
 
-    def test_explicit_num_local_elements_wins_over_named_counts(self):
-        p = PipeHeatLossParams(
-            outer_diameter=0.1,
-            insulation_thickness=0.05,
-            insulation_material=MINERAL_WOOL,
-            insulation_temperature_basis="outdoor_winter",
-            ambient_temperature=-30,
-            process_temperature=80,
-            pipe_length=10,
-            num_local_elements=4,
-            valve_count=1,
-            flange_count=2,
-            support_count=3,
-            local_element_equiv_length=1.5,
-        )
-
-        assert p.num_local_elements == 4
+    @pytest.mark.parametrize("legacy_field", ["valve_count", "flange_count", "support_count"])
+    def test_named_local_element_counts_are_rejected(self, legacy_field):
+        with pytest.raises(ValidationError):
+            _outdoor_pipe(**{legacy_field: 1})
 
     @pytest.mark.parametrize(
         "field,value",
@@ -231,46 +154,22 @@ class TestPipeHeatLossParams:
         ],
     )
     def test_srs_pipe_limits_rejected(self, field: str, value: float):
-        data = {
-            "outer_diameter": 0.1,
-            "wall_thickness": 0.004,
-            "pipe_material": "carbon_steel",
-            "insulation_thickness": 0.05,
-            "insulation_material": MINERAL_WOOL,
-            "insulation_temperature_basis": "outdoor_winter",
-            "ambient_temperature": -20,
-            "process_temperature": 80,
-            "pipe_length": 10,
-        }
-        data[field] = value
+        data = {"wall_thickness": 0.004, "pipe_material": "carbon_steel", field: value}
         with pytest.raises(ValidationError):
-            PipeHeatLossParams(**data)
+            _outdoor_pipe(**data)
 
-    def test_wall_thickness_requires_pipe_material_or_lambda(self):
-        with pytest.raises(ValidationError, match="материал трубы или λ трубы"):
-            PipeHeatLossParams(
-                outer_diameter=0.1,
+    def test_wall_thickness_requires_exactly_one_lambda_source(self):
+        with pytest.raises(ValidationError, match="ровно один источник"):
+            _outdoor_pipe(wall_thickness=0.004, pipe_material=None)
+        with pytest.raises(ValidationError, match="ровно один источник"):
+            _outdoor_pipe(
                 wall_thickness=0.004,
-                insulation_thickness=0.05,
-                insulation_material=MINERAL_WOOL,
-                insulation_temperature_basis="outdoor_winter",
-                ambient_temperature=-30,
-                process_temperature=80,
-                pipe_length=10,
+                pipe_material="carbon_steel",
+                pipe_lambda=56.0,
             )
 
     def test_wall_thickness_accepts_manual_pipe_lambda_without_material(self):
-        p = PipeHeatLossParams(
-            outer_diameter=0.1,
-            wall_thickness=0.004,
-            pipe_lambda=56.0,
-            insulation_thickness=0.05,
-            insulation_material=MINERAL_WOOL,
-            insulation_temperature_basis="outdoor_winter",
-            ambient_temperature=-30,
-            process_temperature=80,
-            pipe_length=10,
-        )
+        p = _outdoor_pipe(wall_thickness=0.004, pipe_material=None, pipe_lambda=56.0)
         assert p.pipe_lambda == 56.0
 
     def test_insulation_other_lambda_limits(self):
@@ -294,16 +193,7 @@ class TestPipeHeatLossParams:
 
     def test_reference_soil_conductivity_values_are_valid(self):
         for row in list_soil_conductivity():
-            p = PipeHeatLossParams(
-                outer_diameter=0.1,
-                insulation_thickness=0.05,
-                insulation_material=MINERAL_WOOL,
-                insulation_temperature_basis="outdoor_winter",
-                ambient_temperature=-30,
-                process_temperature=80,
-                pipe_length=10,
-                ground_conductivity=row["conductivity"],
-            )
+            p = _underground_pipe(ground_conductivity=row["conductivity"])
             assert p.ground_conductivity == row["conductivity"]
 
 

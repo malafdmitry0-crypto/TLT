@@ -299,6 +299,32 @@ class TestExport:
 
 
 class TestReportRendering:
+    def test_pipe_table_reads_only_canonical_insulation_layers(self):
+        objects = [
+            {
+                "id": "pipe-1",
+                "object_type": "pipe",
+                "params": {
+                    "name": "Трубопровод P1",
+                    "outer_diameter": 0.108,
+                    "pipe_length": 25.0,
+                    "insulation_layers": [{"thickness": 0.08, "material": "aerogel"}],
+                    "ambient_temperature": -25,
+                    "process_temperature": 70,
+                },
+                "results": {
+                    "heat_loss_per_meter_base": 40.0,
+                    "total_heat_loss_design": 1000.0,
+                },
+                "is_valid": True,
+            }
+        ]
+
+        html = render_html(_report_context(objects, sections=["pipes"]))
+
+        assert "80" in html
+        assert "Аэрогель" in html
+
     def test_tank_table_shows_q_additional_from_results(self):
         objects = [
             {

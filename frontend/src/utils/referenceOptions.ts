@@ -87,7 +87,7 @@ export function buildSoilReferenceOptions(entries: SoilConductivityEntry[]): Soi
     const details = [density, moisture, conductivity].filter(Boolean);
 
     return {
-      value: `${entry.soil_code}:${entry.density_kg_m3 ?? 'na'}:${entry.moisture_percent}`,
+      value: `${entry.soil_code}:${entry.density_kg_m3 ?? 'na'}:${entry.moisture_percent}:${formatNumber(entry.conductivity)}`,
       label: `${entry.soil} · ${details.join(' · ')}`,
       description: entry.soil_code,
       searchText: [entry.soil, entry.soil_code, ...details].join(' '),

@@ -67,12 +67,15 @@ def _fake_pipe_object(heat_loss_per_meter_base: float, pipe_length: float = 50.0
         is_valid=True,
         params={
             "outer_diameter": 0.108,
-            "insulation_thickness": 0.05,
-            "insulation_material": MINERAL_WOOL,
+            "wall_thickness": 0.004,
+            "pipe_material": "carbon_steel",
+            "insulation_layers": [{"thickness": 0.05, "material": MINERAL_WOOL}],
             "insulation_temperature_basis": "outdoor_winter",
             "ambient_temperature": -30.0,
             "process_temperature": 80.0,
             "pipe_length": pipe_length,
+            "placement": "outdoor",
+            "wind_speed": 0,
         },
         results={
             "heat_loss_per_meter_base": heat_loss_per_meter_base,
@@ -151,13 +154,16 @@ async def test_heat_loss_per_meter_base_never_includes_safety_factor():
 
     pipe_params = {
         "outer_diameter": 0.108,
-        "insulation_thickness": 0.05,
-        "insulation_material": MINERAL_WOOL,
+        "wall_thickness": 0.004,
+        "pipe_material": "carbon_steel",
+        "insulation_layers": [{"thickness": 0.05, "material": MINERAL_WOOL}],
         "insulation_temperature_basis": "outdoor_winter",
         "ambient_temperature": -30.0,
         "process_temperature": 150.0,
         "pipe_length": 100.0,
         "safety_factor": 1.1,
+        "placement": "outdoor",
+        "wind_speed": 0,
     }
 
     r1 = await service.calc_heat_loss("pipe", {**pipe_params, "safety_factor": 1.1})

@@ -49,6 +49,8 @@ export default function TemperatureEnvironmentStep({
   showWindField,
 }: Props) {
   const form = Form.useFormInstance();
+  const placement = Form.useWatch('placement', form) ?? form.getFieldValue('placement');
+  const isUndergroundPipe = objectType === 'pipe' && placement === 'underground';
   const numberInputProps = (fieldId: string) =>
     heatCalcNumberInputProps(objectType, fieldId, { fieldInputSettings, form });
 
@@ -74,10 +76,11 @@ export default function TemperatureEnvironmentStep({
           fieldHelp('climate_key', objectType),
         )}
       </Form.Item>}
-      {(part === 'all' || part === 'temperatures') && <Form.Item
+      {(part === 'all' || part === 'temperatures') && !isUndergroundPipe && <Form.Item
         className="numeric-form-item temperature-number-form-item ambient-temperature-form-item helped-form-item"
         label={fieldLabel('ambient_temperature', objectType)}
         name="ambient_temperature"
+        preserve={false}
         rules={heatCalcFormFieldRules(form, objectType, 'ambient_temperature')}
       >
         {withHelp(
@@ -93,7 +96,7 @@ export default function TemperatureEnvironmentStep({
         className="numeric-form-item temperature-number-form-item process-temperature-form-item helped-form-item"
         label={fieldLabel('process_temperature', objectType)}
         name="process_temperature"
-        dependencies={['ambient_temperature']}
+        dependencies={['ambient_temperature', 'ground_temperature']}
         rules={heatCalcFormFieldRules(form, objectType, 'process_temperature')}
       >
         {withHelp(
@@ -122,6 +125,24 @@ export default function TemperatureEnvironmentStep({
               unit="м/с"
             />,
             fieldHelp('wind_speed', objectType),
+          )}
+        </Form.Item>
+      )}
+      {(part === 'all' || part === 'wind') && objectType === 'pipe' && !isUndergroundPipe && (
+        <Form.Item
+          className="numeric-form-item coefficient-form-item alpha-vnesh-form-item helped-form-item"
+          label={fieldLabel('alpha_vnesh', objectType)}
+          name="alpha_vnesh"
+          preserve={false}
+          rules={heatCalcFormFieldRules(form, objectType, 'alpha_vnesh')}
+        >
+          {withHelp(
+            <UnitInputNumber
+              data-testid="alpha-vnesh-input"
+              {...numberInputProps('alpha_vnesh')}
+              unit="Вт/м²К"
+            />,
+            fieldHelp('alpha_vnesh', objectType),
           )}
         </Form.Item>
       )}

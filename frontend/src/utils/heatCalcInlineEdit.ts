@@ -48,6 +48,30 @@ export class DraftRowValidationError extends Error {
   }
 }
 
+const PIPE_REPLACED_PARAM_KEYS = new Set([
+  'process_temperature', 'placement', 'ambient_temperature', 'ground_temperature',
+  'wind_speed', 'alpha_vnesh', 'safety_factor', 'insulation_temperature_basis',
+  'insulation_layers', 'ground_type', 'ground_conductivity', 'climate_key',
+  'climate_city', 'climate_region', 'climate_temperature_basis',
+  'ambient_temperature_source', 'ground_temperature_source', 'wind_speed_source',
+  'ground_conductivity_source', 'safety_factor_source', 'climate_policy_rule',
+  'insulation_cover_material', 'outer_diameter', 'pipe_length', 'wall_thickness',
+  'pipe_material', 'pipe_lambda', 'pipe_centerline_depth', 'num_local_elements',
+  'local_element_equiv_length',
+  // Removed pipe aliases and cross-type heat fields must never leak back from sourceParams.
+  'location', 'burial_depth', 'insulation_thickness', 'insulation_material',
+  'insulation_layer_count', 'valve_count', 'flange_count', 'support_count',
+  'shape', 'diameter', 'height', 'length', 'width', 'wall_lambda', 'q_additional',
+]);
+
+function preservedSourceParams(draftRow: DraftRowState) {
+  if (draftRow.objectType !== 'pipe') return draftRow.sourceParams;
+  return Object.fromEntries(
+    Object.entries(draftRow.sourceParams)
+      .filter(([key]) => !PIPE_REPLACED_PARAM_KEYS.has(key)),
+  );
+}
+
 // Re-export projection helpers for stable public paths.
 export {
   projectPipeFormValuesFromRecord,
@@ -226,7 +250,7 @@ export function buildDraftRowParams(
     throw new DraftRowValidationError(errors);
   }
   return {
-    ...draftRow.sourceParams,
+    ...preservedSourceParams(draftRow),
     ...convertFormValuesToParams(draftRow.objectType, draftRow.draftFormValues),
   };
 }

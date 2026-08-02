@@ -98,6 +98,12 @@ DEPRECATED_HEAT_PARAM_KEYS = frozenset(
     }
 )
 
+# A shared JSONB object may contain non-heat metadata, but heat-owned keys for a
+# different object type are neither metadata nor valid pipe input.
+PIPE_FORBIDDEN_HEAT_PARAM_KEYS = DEPRECATED_HEAT_PARAM_KEYS | (
+    TANK_HEAT_PARAM_KEYS - PIPE_HEAT_PARAM_KEYS
+)
+
 COMMON_HEAT_RESULT_KEYS = frozenset(
     {
         "formula_model",

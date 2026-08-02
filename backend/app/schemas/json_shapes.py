@@ -153,20 +153,19 @@ class PipeParamsDict(TypedDict, total=False):
 
     name: str
     outer_diameter: float
-    wall_thickness: float | None
+    wall_thickness: float
     pipe_material: str | None
     pipe_lambda: float | None
-    insulation_thickness: float | None
-    insulation_material: str | None
     insulation_cover_material: str | None
     insulation_layers: list[dict[str, float | str | list[float] | None]]
-    ambient_temperature: float
+    ambient_temperature: float | None
+    ground_temperature: float | None
     process_temperature: float
     max_ambient_temperature: float | None
     max_process_temperature: float | None
     pipe_length: float
     placement: Literal["indoor", "outdoor", "underground"]
-    burial_depth: float | None
+    pipe_centerline_depth: float | None
     ground_type: str | None
     climate_city: str | None
     climate_region: str | None
@@ -174,18 +173,17 @@ class PipeParamsDict(TypedDict, total=False):
     climate_temperature_basis: Literal["t_0_92", "t_0_98", "t_abs_min"] | None
     insulation_temperature_basis: InsulationTemperatureBasisDict | None
     ambient_temperature_source: Literal["manual", "climate"] | None
+    ground_temperature_source: Literal["manual", "climate"] | None
     wind_speed_source: Literal["manual", "climate"] | None
+    ground_conductivity_source: Literal["manual", "reference"] | None
     safety_factor_source: Literal["default", "manual", "climate_policy"] | None
-    num_local_elements: int | None
+    climate_policy_rule: Literal["pipe_diameter_ge_100", "pipe_diameter_lt_100"] | None
+    num_local_elements: int
     local_element_equiv_length: float | None
-    valve_count: int | None
-    flange_count: int | None
-    support_count: int | None
     wind_speed: float | None
     alpha_vnesh: float | None
     ground_conductivity: float | None
-    safety_factor: float | None
-    location: Literal["indoor", "outdoor"]
+    safety_factor: float
     environment: Literal["normal", "aggressive"] | None
     zone_classification: Literal["safe", "explosive"] | None
     temperature_group: Literal["T1", "T2", "T3", "T4", "T5", "T6"] | None

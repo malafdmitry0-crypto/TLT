@@ -355,12 +355,15 @@ class TestAdminDeadLetter:
                 "object_type": "pipe",
                 "params": {
                     "outer_diameter": 0.108,
-                    "insulation_thickness": 0.05,
-                    "insulation_material": MINERAL_WOOL,
+                    "wall_thickness": 0.004,
+                    "pipe_material": "carbon_steel",
+                    "insulation_layers": [{"thickness": 0.05, "material": MINERAL_WOOL}],
                     "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -20,
                     "process_temperature": 80,
                     "pipe_length": 25,
+                    "placement": "outdoor",
+                    "wind_speed": 0,
                 },
             },
             headers=headers,
@@ -553,12 +556,15 @@ class TestFormulaCheck:
                 "formula_type": "pipe",
                 "params": {
                     "outer_diameter": 0.108,
+                    "wall_thickness": 0.004,
+                    "pipe_material": "carbon_steel",
                     "insulation_layers": [{"material": MINERAL_WOOL, "thickness": 0.05}],
                     "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -26.0,
                     "process_temperature": 80.0,
                     "pipe_length": 50.0,
                     "wind_speed": 4.9,
+                    "placement": "outdoor",
                 },
             },
             headers={"Authorization": f"Bearer {admin_token}"},
@@ -570,7 +576,7 @@ class TestFormulaCheck:
         assert data["heat_loss_per_meter_base"] > 0
         assert data["total_heat_loss_design"] > 0
 
-    async def test_pipe_formula_check_accepts_named_local_element_counts(
+    async def test_pipe_formula_check_accepts_canonical_local_element_count(
         self, client: AsyncClient, admin_token: str
     ):
         resp = await client.post(
@@ -579,15 +585,16 @@ class TestFormulaCheck:
                 "formula_type": "pipe",
                 "params": {
                     "outer_diameter": 0.108,
+                    "wall_thickness": 0.004,
+                    "pipe_material": "carbon_steel",
                     "insulation_layers": [{"material": MINERAL_WOOL, "thickness": 0.05}],
                     "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -26.0,
                     "process_temperature": 80.0,
                     "pipe_length": 50.0,
                     "wind_speed": 4.9,
-                    "valve_count": 1,
-                    "flange_count": 2,
-                    "support_count": 3,
+                    "placement": "outdoor",
+                    "num_local_elements": 6,
                     "local_element_equiv_length": 1.25,
                 },
             },

@@ -364,7 +364,7 @@ describe('heatCalcPageUtils', () => {
     expect(sourceText('manual')).toBe('вручную');
     expect(sourceSuffix('climate')).toBe(' из климата');
     expect(mmParam(makeObject({ params: { diameter: 0.325 } }), 'diameter')).toBe('325');
-    expect(countParamValue(makeObject({ params: { valve_count: 3 } }), 'valve_count')).toBe('3');
+    expect(countParamValue(makeObject({ params: { num_local_elements: 3 } }), 'num_local_elements')).toBe('3');
     expect(toInputNumberValue('12.5')).toBe(12.5);
     expect(toInputNumberValue('not a number')).toBeNull();
   });

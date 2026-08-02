@@ -27,7 +27,7 @@ describe('heatCalcInlineEdit layers and projection', () => {
     expect(draft.draftFormValues.third_insulation_material).toBeUndefined();
 
     const params = buildDraftRowParams(draft, { enforceRequired: true });
-    expect(params.insulation_layer_count).toBe('2');
+    expect(params).not.toHaveProperty('insulation_layer_count');
     expect(params.insulation_layers).toEqual([
       { thickness: 0.05, material: 'mineral_wool' },
       { thickness: 0.02, material: 'polyurethane_foam' },
@@ -51,7 +51,7 @@ describe('heatCalcInlineEdit layers and projection', () => {
 
   it('allows inline save when local elements require Lэкв so backend can mark calculation status', () => {
     const record = makePipe();
-    record.params.valve_count = 1;
+    record.params.num_local_elements = 1;
     const draft = applyInlineCellDraft(null, record, 'pipe_outer_diameter', 114);
 
     expect(buildDraftRowParams(draft!).outer_diameter).toBeCloseTo(0.114);

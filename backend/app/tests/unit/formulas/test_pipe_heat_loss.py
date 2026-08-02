@@ -30,16 +30,22 @@ from app.schemas.calculation import InsulationLayer, PipeHeatLossParams
 def _params(**overrides) -> PipeHeatLossParams:
     defaults = dict(
         outer_diameter=0.108,  # DN100
-        insulation_thickness=0.05,
-        insulation_material="mineral_wool_boards_120",
+        wall_thickness=0.004,
+        pipe_material="carbon_steel",
+        insulation_layers=[
+            InsulationLayer(thickness=0.05, material="mineral_wool_boards_120")
+        ],
         insulation_temperature_basis="outdoor_winter",
         ambient_temperature=-30.0,
         process_temperature=150.0,
         pipe_length=100.0,
-        location="outdoor",
+        placement="outdoor",
+        wind_speed=0.0,
     )
     defaults.update(overrides)
-    if defaults.get("location") == "indoor" and "insulation_temperature_basis" not in overrides:
+    if defaults.get("placement") == "indoor":
+        defaults.pop("wind_speed", None)
+    if defaults.get("placement") == "indoor" and "insulation_temperature_basis" not in overrides:
         defaults["insulation_temperature_basis"] = "indoor"
     return PipeHeatLossParams(**defaults)
 
@@ -93,8 +99,12 @@ class TestBasicProperties:
         assert r.effective_length == pytest.approx(80.0)
 
     def test_thicker_insulation_reduces_loss(self):
-        thin = calc_pipe_heat_loss(_params(insulation_thickness=0.02))
-        thick = calc_pipe_heat_loss(_params(insulation_thickness=0.10))
+        thin = calc_pipe_heat_loss(
+            _params(insulation_layers=[InsulationLayer(thickness=0.02, material="mineral_wool_boards_120")])
+        )
+        thick = calc_pipe_heat_loss(
+            _params(insulation_layers=[InsulationLayer(thickness=0.10, material="mineral_wool_boards_120")])
+        )
         assert thick.heat_loss_per_meter_base < thin.heat_loss_per_meter_base
 
     def test_colder_ambient_increases_loss(self):
@@ -117,19 +127,25 @@ class TestMultiLayerInsulation:
     def test_single_layer_via_list(self):
         params = PipeHeatLossParams(
             outer_diameter=0.108,
+            wall_thickness=0.004,
+            pipe_material="carbon_steel",
             insulation_layers=[InsulationLayer(thickness=0.05, material="mineral_wool_boards_120")],
             ambient_temperature=-30.0,
             process_temperature=150.0,
             pipe_length=100.0,
             insulation_temperature_basis="outdoor_winter",
+            placement="outdoor",
+            wind_speed=0.0,
         )
         r = calc_pipe_heat_loss(params)
         assert r.heat_loss_per_meter_base > 0
 
     def test_two_layers_less_loss_than_one(self):
-        single = _params(insulation_thickness=0.05)
+        single = _params()
         two = PipeHeatLossParams(
             outer_diameter=0.108,
+            wall_thickness=0.004,
+            pipe_material="carbon_steel",
             insulation_layers=[
                 InsulationLayer(thickness=0.05, material="mineral_wool_boards_120"),
                 InsulationLayer(thickness=0.05, material="mineral_wool_boards_120"),
@@ -138,6 +154,8 @@ class TestMultiLayerInsulation:
             process_temperature=150.0,
             pipe_length=100.0,
             insulation_temperature_basis="outdoor_winter",
+            placement="outdoor",
+            wind_speed=0.0,
         )
         assert (
             calc_pipe_heat_loss(two).heat_loss_per_meter_base
@@ -147,6 +165,8 @@ class TestMultiLayerInsulation:
     def test_three_layers_max(self):
         params = PipeHeatLossParams(
             outer_diameter=0.108,
+            wall_thickness=0.004,
+            pipe_material="carbon_steel",
             insulation_layers=[
                 InsulationLayer(thickness=0.03, material="mineral_wool_boards_120"),
                 InsulationLayer(thickness=0.03, material="polyurethane_products_50"),
@@ -156,6 +176,8 @@ class TestMultiLayerInsulation:
             process_temperature=150.0,
             pipe_length=100.0,
             insulation_temperature_basis="outdoor_winter",
+            placement="outdoor",
+            wind_speed=0.0,
         )
         r = calc_pipe_heat_loss(params)
         assert r.heat_loss_per_meter_base > 0
@@ -166,6 +188,8 @@ class TestMultiLayerInsulation:
         with pytest.raises(ValidationError):
             PipeHeatLossParams(
                 outer_diameter=0.108,
+                wall_thickness=0.004,
+                pipe_material="carbon_steel",
                 insulation_layers=[
                     InsulationLayer(thickness=0.03, material="mineral_wool_boards_120")
                 ]
@@ -174,42 +198,55 @@ class TestMultiLayerInsulation:
                 process_temperature=150.0,
                 pipe_length=100.0,
                 insulation_temperature_basis="outdoor_winter",
+                placement="outdoor",
+                wind_speed=0.0,
             )
 
     def test_layer_with_explicit_conductivity(self):
         params = PipeHeatLossParams(
             outer_diameter=0.108,
+            wall_thickness=0.004,
+            pipe_material="carbon_steel",
             insulation_layers=[
                 InsulationLayer(
-                    thickness=0.05, material="mineral_wool_boards_120", conductivity=0.040
+                    thickness=0.05,
+                    material="other",
+                    conductivity=0.040,
+                    temperature_range=(-90, 600),
                 )
             ],
             ambient_temperature=-30.0,
             process_temperature=150.0,
             pipe_length=100.0,
             insulation_temperature_basis="outdoor_winter",
+            placement="outdoor",
+            wind_speed=0.0,
         )
         r = calc_pipe_heat_loss(params)
         assert r.heat_loss_per_meter_base > 0
 
     def test_layer_temperature_above_material_range_raises(self):
-        params = PipeHeatLossParams(
-            outer_diameter=0.108,
-            insulation_layers=[
-                InsulationLayer(thickness=0.02, material="polystyrene_products_50"),
-            ],
-            ambient_temperature=-20.0,
-            process_temperature=500.0,
-            pipe_length=100.0,
-            insulation_temperature_basis="outdoor_winter",
-        )
-
         with pytest.raises(ValueError, match="вне диапазона"):
-            calc_pipe_heat_loss(params)
+            PipeHeatLossParams(
+                outer_diameter=0.108,
+                wall_thickness=0.004,
+                pipe_material="carbon_steel",
+                insulation_layers=[
+                    InsulationLayer(thickness=0.02, material="polystyrene_products_50"),
+                ],
+                ambient_temperature=-20.0,
+                process_temperature=500.0,
+                pipe_length=100.0,
+                insulation_temperature_basis="outdoor_winter",
+                placement="outdoor",
+                wind_speed=0.0,
+            )
 
     def test_outer_layer_is_checked_by_actual_layer_temperature(self):
         params = PipeHeatLossParams(
             outer_diameter=0.108,
+            wall_thickness=0.004,
+            pipe_material="carbon_steel",
             insulation_layers=[
                 InsulationLayer(thickness=0.20, material="mineral_wool_boards_120"),
                 InsulationLayer(thickness=0.02, material="polystyrene_products_50"),
@@ -218,6 +255,8 @@ class TestMultiLayerInsulation:
             process_temperature=200.0,
             pipe_length=100.0,
             insulation_temperature_basis="outdoor_winter",
+            placement="outdoor",
+            wind_speed=0.0,
         )
 
         assert calc_pipe_heat_loss(params).heat_loss_per_meter_base > 0
@@ -225,6 +264,8 @@ class TestMultiLayerInsulation:
     def test_other_layer_uses_manual_temperature_range(self):
         params = PipeHeatLossParams(
             outer_diameter=0.108,
+            wall_thickness=0.004,
+            pipe_material="carbon_steel",
             insulation_layers=[
                 InsulationLayer(
                     thickness=0.02,
@@ -237,6 +278,8 @@ class TestMultiLayerInsulation:
             process_temperature=150.0,
             pipe_length=100.0,
             insulation_temperature_basis="outdoor_winter",
+            placement="outdoor",
+            wind_speed=0.0,
         )
 
         with pytest.raises(ValueError, match="вне диапазона"):
@@ -250,7 +293,7 @@ class TestMultiLayerInsulation:
 
 class TestPipeWall:
     def test_wall_increases_thermal_resistance(self):
-        without = calc_pipe_heat_loss(_params())
+        without = calc_pipe_heat_loss(_params(wall_thickness=0.0001))
         with_wall = calc_pipe_heat_loss(_params(wall_thickness=0.004, pipe_material="carbon_steel"))
         # Стенка добавляет сопротивление → меньше потерь (незначительно)
         assert with_wall.thermal_resistance > without.thermal_resistance
@@ -286,19 +329,21 @@ class TestPipeWall:
 
     def test_wall_thickness_exceeding_radius_raises(self):
         # DN10 (OD=0.0108м, r=5.4мм): стенка 6мм > 5.4мм → невозможно физически
-        params = PipeHeatLossParams(
-            outer_diameter=0.0108,
-            wall_thickness=0.006,
-            pipe_material="carbon_steel",
-            insulation_thickness=0.05,
-            insulation_material="mineral_wool_boards_120",
-            insulation_temperature_basis="outdoor_winter",
-            ambient_temperature=-30,
-            process_temperature=150,
-            pipe_length=10,
-        )
-        with pytest.raises(ValueError, match="Толщина стенки"):
-            calc_pipe_heat_loss(params)
+        with pytest.raises(ValueError, match="wall_thickness"):
+            PipeHeatLossParams(
+                outer_diameter=0.0108,
+                wall_thickness=0.006,
+                pipe_material="carbon_steel",
+                insulation_layers=[
+                    InsulationLayer(thickness=0.05, material="mineral_wool_boards_120")
+                ],
+                insulation_temperature_basis="outdoor_winter",
+                ambient_temperature=-30,
+                process_temperature=150,
+                pipe_length=10,
+                placement="outdoor",
+                wind_speed=0.0,
+            )
 
     def test_pipe_lambda_override(self):
         # Используем маленькую трубу DN10 (OD=0.0108м) с толстой стенкой 4мм,
@@ -306,12 +351,15 @@ class TestPipeWall:
         base = dict(
             outer_diameter=0.0108,
             wall_thickness=0.004,
-            insulation_thickness=0.03,
-            insulation_material="mineral_wool_boards_120",
+            insulation_layers=[
+                InsulationLayer(thickness=0.03, material="mineral_wool_boards_120")
+            ],
             insulation_temperature_basis="outdoor_winter",
             ambient_temperature=-30,
             process_temperature=150,
             pipe_length=100,
+            placement="outdoor",
+            wind_speed=0.0,
         )
         r1 = calc_pipe_heat_loss(PipeHeatLossParams(**{**base, "pipe_material": "carbon_steel"}))
         r2 = calc_pipe_heat_loss(PipeHeatLossParams(**{**base, "pipe_lambda": 0.5}))  # пластик-like
@@ -326,29 +374,84 @@ class TestPipeWall:
 
 class TestBuriedPipe:
     def test_buried_pipe_has_result(self):
-        params = _params(burial_depth=1.5, ground_conductivity=1.5)
+        params = _params(
+            placement="underground",
+            ambient_temperature=None,
+            wind_speed=None,
+            pipe_centerline_depth=1.5,
+            ground_temperature=-30.0,
+            ground_conductivity=1.5,
+            insulation_temperature_basis="channel",
+        )
         r = calc_pipe_heat_loss(params)
         assert r.heat_loss_per_meter_base > 0
 
     def test_buried_deeper_reduces_loss(self):
-        shallow = calc_pipe_heat_loss(_params(burial_depth=0.5, ground_conductivity=1.5))
-        deep = calc_pipe_heat_loss(_params(burial_depth=3.0, ground_conductivity=1.5))
+        shallow = calc_pipe_heat_loss(
+            _params(
+                placement="underground",
+                ambient_temperature=None,
+                wind_speed=None,
+                pipe_centerline_depth=0.5,
+                ground_temperature=-30.0,
+                ground_conductivity=1.5,
+                insulation_temperature_basis="channel",
+            )
+        )
+        deep = calc_pipe_heat_loss(
+            _params(
+                placement="underground",
+                ambient_temperature=None,
+                wind_speed=None,
+                pipe_centerline_depth=3.0,
+                ground_temperature=-30.0,
+                ground_conductivity=1.5,
+                insulation_temperature_basis="channel",
+            )
+        )
         assert deep.heat_loss_per_meter_base < shallow.heat_loss_per_meter_base
 
-    def test_burial_depth_less_than_radius_raises(self):
+    def test_pipe_centerline_depth_less_than_radius_raises(self):
         with pytest.raises(ValueError, match="Глубина заложения"):
             calc_pipe_heat_loss(
                 _params(
                     outer_diameter=0.5,
-                    insulation_thickness=0.2,
-                    burial_depth=0.1,
+                    insulation_layers=[
+                        InsulationLayer(thickness=0.2, material="mineral_wool_boards_120")
+                    ],
+                    placement="underground",
+                    ambient_temperature=None,
+                    wind_speed=None,
+                    pipe_centerline_depth=0.1,
+                    ground_temperature=-30.0,
                     ground_conductivity=1.5,
+                    insulation_temperature_basis="channel",
                 )
             )
 
     def test_higher_ground_conductivity_increases_loss(self):
-        low = calc_pipe_heat_loss(_params(burial_depth=1.5, ground_conductivity=0.8))
-        high = calc_pipe_heat_loss(_params(burial_depth=1.5, ground_conductivity=3.0))
+        low = calc_pipe_heat_loss(
+            _params(
+                placement="underground",
+                ambient_temperature=None,
+                wind_speed=None,
+                pipe_centerline_depth=1.5,
+                ground_temperature=-30.0,
+                ground_conductivity=0.8,
+                insulation_temperature_basis="channel",
+            )
+        )
+        high = calc_pipe_heat_loss(
+            _params(
+                placement="underground",
+                ambient_temperature=None,
+                wind_speed=None,
+                pipe_centerline_depth=1.5,
+                ground_temperature=-30.0,
+                ground_conductivity=3.0,
+                insulation_temperature_basis="channel",
+            )
+        )
         assert high.heat_loss_per_meter_base > low.heat_loss_per_meter_base
 
 
@@ -402,11 +505,11 @@ class TestSafetyFactor:
 class TestLegacyFactorsIgnored:
     def test_location_coefficients_do_not_change_total(self):
         base = calc_pipe_heat_loss(
-            _params(location="indoor"),
+            _params(placement="indoor"),
             coefficients={"location_indoor": 1.0},
         )
         adjusted = calc_pipe_heat_loss(
-            _params(location="indoor"),
+            _params(placement="indoor"),
             coefficients={"location_indoor": 0.9},
         )
 
@@ -426,7 +529,9 @@ class TestTnpGoldenFormula:
         """Число вычислено напрямую по формуле P-PIPE, не production-функцией."""
         params = _params(
             outer_diameter=0.1,
-            insulation_thickness=0.05,
+            insulation_layers=[
+                InsulationLayer(thickness=0.05, material="mineral_wool_boards_120")
+            ],
             ambient_temperature=-20.0,
             process_temperature=80.0,
             pipe_length=10.0,
@@ -441,8 +546,10 @@ class TestTnpGoldenFormula:
         d_out = d + 2 * 0.05
         alpha = 11.6 + 7.0 * math.sqrt(4.0)
         r_ins = math.log(d_out / d) / (2 * math.pi * lam_ins)
+        lam_wall = 60.0 - 0.10 * (30.0 + 40.0)
+        r_wall = math.log((d / 2) / (d / 2 - 0.004)) / (2 * math.pi * lam_wall)
         r_ext = 1.0 / (math.pi * alpha * d_out)
-        expected_q = (80.0 - (-20.0)) / (r_ins + r_ext)
+        expected_q = (80.0 - (-20.0)) / (r_wall + r_ins + r_ext)
         expected_total = expected_q * (10.0 + 2 * 0.5) * 1.2
 
         result = calc_pipe_heat_loss(params)
@@ -457,30 +564,30 @@ class TestTnpGoldenFormula:
 
 class TestAlphaVnesh:
     def test_zero_wind_indoor(self):
-        alpha = calc_alpha_vnesh(wind_speed=0, location="indoor")
+        alpha = calc_alpha_vnesh(wind_speed=0, placement="indoor")
         assert alpha == pytest.approx(9.0)
 
     def test_zero_wind_outdoor(self):
         # α = 11,6 + 7·√v, при v=0 → 11,6  (SNiP 41-03-2003)
-        alpha = calc_alpha_vnesh(wind_speed=0, location="outdoor")
+        alpha = calc_alpha_vnesh(wind_speed=0, placement="outdoor")
         assert alpha == pytest.approx(11.6)
 
     def test_low_wind_linear(self):
-        alpha = calc_alpha_vnesh(wind_speed=3.0, location="outdoor")
+        alpha = calc_alpha_vnesh(wind_speed=3.0, placement="outdoor")
         assert alpha == pytest.approx(11.6 + 7.0 * math.sqrt(3.0), rel=1e-3)
 
     def test_high_wind_follows_primary_formula_without_cap(self):
-        alpha = calc_alpha_vnesh(wind_speed=34.0, location="outdoor")
+        alpha = calc_alpha_vnesh(wind_speed=34.0, placement="outdoor")
         assert alpha == pytest.approx(11.6 + 7.0 * math.sqrt(34.0))
 
     def test_alpha_in_range(self):
         for v in [0, 1, 5, 10, 20]:
-            alpha = calc_alpha_vnesh(wind_speed=v, location="outdoor")
+            alpha = calc_alpha_vnesh(wind_speed=v, placement="outdoor")
             assert 11.6 <= alpha <= 52.0
 
     def test_higher_wind_higher_alpha(self):
-        a1 = calc_alpha_vnesh(wind_speed=2.0, location="outdoor")
-        a2 = calc_alpha_vnesh(wind_speed=8.0, location="outdoor")
+        a1 = calc_alpha_vnesh(wind_speed=2.0, placement="outdoor")
+        a2 = calc_alpha_vnesh(wind_speed=8.0, placement="outdoor")
         assert a2 > a1
 
     def test_explicit_alpha_overrides_wind(self):
@@ -504,12 +611,17 @@ class TestSchemaValidation:
         with pytest.raises(ValidationError):
             PipeHeatLossParams(
                 outer_diameter=-0.1,
-                insulation_thickness=0.05,
-                insulation_material="mineral_wool_boards_120",
+                wall_thickness=0.004,
+                pipe_material="carbon_steel",
+                insulation_layers=[
+                    InsulationLayer(thickness=0.05, material="mineral_wool_boards_120")
+                ],
                 insulation_temperature_basis="outdoor_winter",
                 ambient_temperature=-30,
                 process_temperature=150,
                 pipe_length=100,
+                placement="outdoor",
+                wind_speed=0.0,
             )
 
     def test_diameter_below_minimum_rejected(self):
@@ -547,13 +659,19 @@ class TestSchemaValidation:
         with pytest.raises(ValidationError):
             PipeHeatLossParams(
                 outer_diameter=0.108,
+                wall_thickness=0.004,
+                pipe_material="carbon_steel",
                 ambient_temperature=-30,
                 process_temperature=150,
                 pipe_length=100,
+                placement="outdoor",
+                wind_speed=0.0,
             )
 
     def test_unknown_insulation_raises(self):
         from pydantic import ValidationError
 
         with pytest.raises(ValidationError, match="Неизвестный материал"):
-            _params(insulation_material="unobtanium")
+            _params(
+                insulation_layers=[InsulationLayer(thickness=0.05, material="unobtanium")]
+            )

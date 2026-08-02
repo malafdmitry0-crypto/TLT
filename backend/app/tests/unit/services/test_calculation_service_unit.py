@@ -133,12 +133,15 @@ def _stale_execute_mock(
 def _minimal_pipe_params() -> dict[str, object]:
     return {
         "outer_diameter": 0.1,
-        "insulation_thickness": 0.05,
-        "insulation_material": MINERAL_WOOL,
+        "wall_thickness": 0.004,
+        "pipe_material": "carbon_steel",
+        "insulation_layers": [{"thickness": 0.05, "material": MINERAL_WOOL}],
         "insulation_temperature_basis": "outdoor_winter",
         "ambient_temperature": -10,
         "process_temperature": 60,
         "pipe_length": 10,
+        "placement": "outdoor",
+        "wind_speed": 0,
     }
 
 
@@ -191,15 +194,7 @@ class TestCalcHeatLoss:
         service = CalculationService(_mock_db_empty())
         result = await service.calc_heat_loss(
             "pipe",
-            {
-                "outer_diameter": 0.108,
-                "insulation_thickness": 0.05,
-                "insulation_material": MINERAL_WOOL,
-                "insulation_temperature_basis": "outdoor_winter",
-                "ambient_temperature": -30,
-                "process_temperature": 80,
-                "pipe_length": 10,
-            },
+            {**_minimal_pipe_params(), "outer_diameter": 0.108, "ambient_temperature": -30},
         )
         assert "heat_loss_per_meter_base" in result
         assert "total_heat_loss_design" in result
@@ -242,15 +237,7 @@ class TestRecalculateObject:
         obj = SimpleNamespace(
             id=uuid.uuid4(),
             object_type="pipe",
-            params={
-                "outer_diameter": 0.1,
-                "insulation_thickness": 0.05,
-                "insulation_material": MINERAL_WOOL,
-                "insulation_temperature_basis": "outdoor_winter",
-                "ambient_temperature": -30,
-                "process_temperature": 80,
-                "pipe_length": 10,
-            },
+            params={**_minimal_pipe_params(), "ambient_temperature": -30},
             results=None,
             is_valid=False,
             validation_errors={"message": "old"},
@@ -269,13 +256,9 @@ class TestRecalculateObject:
             id=uuid.uuid4(),
             object_type="pipe",
             params={
-                "outer_diameter": 0.1,
-                "insulation_thickness": 0.05,
-                "insulation_material": MINERAL_WOOL,
-                "insulation_temperature_basis": "outdoor_winter",
+                **_minimal_pipe_params(),
                 "ambient_temperature": 50,
-                "process_temperature": 50,  # равно → нет перепада
-                "pipe_length": 10,
+                "process_temperature": 50,
             },
             results=None,
             is_valid=True,  # начальное состояние
@@ -286,7 +269,7 @@ class TestRecalculateObject:
         assert obj.is_valid is False
         assert obj.validation_errors is not None
         assert obj.validation_errors["category"] == "validation"
-        assert obj.validation_errors["error_code"] == "schema_validation_error"
+        assert obj.validation_errors["error_code"] == "invalid_object_params"
         # Сообщение об ошибке содержит упоминание T_продукта
         err_msg = obj.validation_errors["message"].lower()
         assert "выше" in err_msg or "температур" in err_msg
@@ -1264,15 +1247,7 @@ class TestBatchRecalculate:
                 project_id=project_id,
                 object_type="pipe",
                 sort_order=0,
-                params={
-                    "outer_diameter": 0.1,
-                    "insulation_thickness": 0.05,
-                    "insulation_material": MINERAL_WOOL,
-                    "insulation_temperature_basis": "outdoor_winter",
-                    "ambient_temperature": -10,
-                    "process_temperature": 60,
-                    "pipe_length": 10,
-                },
+                params=_minimal_pipe_params(),
                 results=None,
                 is_valid=False,
                 validation_errors=None,
@@ -1282,15 +1257,7 @@ class TestBatchRecalculate:
                 project_id=project_id,
                 object_type="pipe",
                 sort_order=1,
-                params={
-                    "outer_diameter": 0.1,
-                    "insulation_thickness": 0.05,
-                    "insulation_material": MINERAL_WOOL,
-                    "insulation_temperature_basis": "outdoor_winter",
-                    "ambient_temperature": 100,
-                    "process_temperature": 50,  # невалидно
-                    "pipe_length": 10,
-                },
+                params=_minimal_pipe_params(),
                 results=None,
                 is_valid=False,
                 validation_errors=None,

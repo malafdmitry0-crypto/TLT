@@ -133,6 +133,19 @@ describe('HeatCalcAssumptionsPanel', () => {
     expect(screen.queryByText(/^RΣ:/)).not.toBeInTheDocument();
   });
 
+  it('uses canonical ground temperature for an underground pipe ΔT', () => {
+    render(
+      <HeatCalcAssumptionsPanel
+        selectedObject={makeObject({
+          params: { name: 'Подземная труба', placement: 'underground', process_temperature: 60, ground_temperature: 5 },
+        })}
+        calculationDetailsSettings={detailedSettings}
+      />,
+    );
+
+    expect(screen.getByText('ΔT: 55°C')).toBeInTheDocument();
+  });
+
   it('renders underground tank ground and split surface details', () => {
     render(
       <HeatCalcAssumptionsPanel

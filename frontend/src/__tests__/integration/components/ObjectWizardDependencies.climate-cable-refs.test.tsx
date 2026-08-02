@@ -37,7 +37,7 @@ describe('ObjectWizard dependencies — climate-cable-refs', () => {
     expect(screen.queryByTestId('climate-basis-display')).not.toBeInTheDocument();
     expect(screen.queryByText('Обеспеченность климата')).not.toBeInTheDocument();
     expect(await screen.findByTestId('wind-speed-input')).toBeVisible();
-    expect(screen.queryByTestId('alpha-vnesh-input')).not.toBeInTheDocument();
+    expect(screen.getByTestId('alpha-vnesh-input')).toHaveValue('');
     expect(screen.queryByText('из климата')).not.toBeInTheDocument();
     expect(screen.queryByText('вручную')).not.toBeInTheDocument();
     expect(document.querySelector('.field-source-tag')).not.toBeInTheDocument();

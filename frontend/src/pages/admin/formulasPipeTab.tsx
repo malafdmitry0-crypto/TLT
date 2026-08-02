@@ -43,19 +43,24 @@ export function FormulasPipeTab() {
       pipe_length: v.pipe_length,
       insulation_layers: layers,
       process_temperature: v.process_temperature,
-      ambient_temperature: v.ambient_temperature,
-      location: v.location ?? 'outdoor',
+      placement: v.placement ?? 'outdoor',
       insulation_temperature_basis: v.insulation_temperature_basis,
     };
+    if (p.placement !== 'underground') assignIfPresent(p, 'ambient_temperature', v.ambient_temperature);
     assignIfPresent(p, 'wall_thickness', v.wall_thickness_mm, (x) => Number(x) / 1000);
-    assignIfPresent(p, 'pipe_material', v.pipe_material);
-    assignIfPresent(p, 'pipe_lambda', v.pipe_lambda);
-    assignIfPresent(p, 'burial_depth', v.burial_depth);
-    assignIfPresent(p, 'ground_conductivity', v.ground_conductivity);
+    if (v.pipe_lambda != null) assignIfPresent(p, 'pipe_lambda', v.pipe_lambda);
+    else assignIfPresent(p, 'pipe_material', v.pipe_material);
+    if (p.placement === 'underground') {
+      assignIfPresent(p, 'ground_temperature', v.ground_temperature);
+      assignIfPresent(p, 'pipe_centerline_depth', v.pipe_centerline_depth);
+      assignIfPresent(p, 'ground_conductivity', v.ground_conductivity);
+    }
     assignIfPresent(p, 'num_local_elements', v.num_local_elements);
     assignIfPresent(p, 'local_element_equiv_length', v.local_element_equiv_length);
-    assignIfPresent(p, 'wind_speed', v.wind_speed);
-    assignIfPresent(p, 'alpha_vnesh', v.alpha_vnesh);
+    if (p.placement !== 'underground') {
+      assignIfPresent(p, 'wind_speed', v.wind_speed);
+      assignIfPresent(p, 'alpha_vnesh', v.alpha_vnesh);
+    }
     assignIfPresent(p, 'safety_factor', v.safety_factor);
     run(p);
  };
@@ -67,7 +72,7 @@ export function FormulasPipeTab() {
       </Col>
       <Col xs={24} lg={12}>
         <Title level={5}>Проверить расчёт</Title>
-        <Form form={form} name="pipe_formula_check" layout="vertical" initialValues={{ location: 'outdoor', insulation_temperature_basis: 'outdoor_winter', insulation_material_1: 'mineral_wool_boards_120' }}>
+        <Form form={form} name="pipe_formula_check" layout="vertical" initialValues={{ placement: 'outdoor', insulation_temperature_basis: 'outdoor_winter', insulation_material_1: 'mineral_wool_boards_120' }}>
           <Row gutter={12}>
             <Col span={12}>
               <Form.Item name="outer_diameter_mm" label="Нар. диаметр трубы, мм" rules={[{ required: true }]}>
@@ -143,7 +148,7 @@ export function FormulasPipeTab() {
           </Row>
           <Row gutter={12}>
             <Col span={8}>
-              <Form.Item name="burial_depth" label="Глубина, м">
+              <Form.Item name="pipe_centerline_depth" label="Глубина оси трубы, м">
                 <TltNumberField min={0} max={200} className="tlt-field--fill" placeholder="0" />
               </Form.Item>
             </Col>
@@ -153,8 +158,8 @@ export function FormulasPipeTab() {
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="alpha_vnesh" label="α вручную">
-                <TltNumberField min={7} max={52} className="tlt-field--fill" placeholder="из ветра" />
+              <Form.Item name="ground_temperature" label="T грунта, °C">
+                <TltNumberField min={-70} max={70} className="tlt-field--fill" placeholder="5" />
               </Form.Item>
             </Col>
           </Row>
@@ -165,13 +170,19 @@ export function FormulasPipeTab() {
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="location" label="Размещение">
+              <Form.Item name="placement" label="Размещение">
                 <TltSelect
                   options={[
                     { value: 'outdoor', label: 'Надземное' },
                     { value: 'indoor', label: 'В помещении' },
+                    { value: 'underground', label: 'Подземное' },
                   ]}
                 />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="alpha_vnesh" label="α вручную">
+                <TltNumberField min={7} max={52} className="tlt-field--fill" placeholder="из ветра" />
               </Form.Item>
             </Col>
             <Col span={8}>

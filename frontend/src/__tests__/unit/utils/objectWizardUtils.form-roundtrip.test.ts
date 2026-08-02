@@ -9,8 +9,7 @@ describe('pipeApiParamsToForm и tankApiParamsToForm', () => {
   it('обратная конвертация м → мм', () => {
     const form = pipeApiParamsToForm({
       outer_diameter: 0.108,
-      insulation_thickness: 0.05,
-      insulation_material: 'mineral_wool',
+      insulation_layers: [{ thickness: 0.05, material: 'mineral_wool' }],
       ambient_temperature: -20,
       process_temperature: 80,
       pipe_length: 50,
@@ -90,12 +89,11 @@ describe('pipeApiParamsToForm и tankApiParamsToForm', () => {
     expect(form.pipe_length).toBeUndefined();
   });
 
-  it('подставляет зимний режим tm при открытии старого наружного объекта без этого поля', () => {
+  it('подставляет зимний режим tm при открытии наружного объекта без этого поля', () => {
     const form = pipeApiParamsToForm({
       placement: 'outdoor',
       outer_diameter: 0.108,
-      insulation_thickness: 0.05,
-      insulation_material: 'mineral_wool',
+      insulation_layers: [{ thickness: 0.05, material: 'mineral_wool' }],
       ambient_temperature: -20,
       process_temperature: 80,
       pipe_length: 50,

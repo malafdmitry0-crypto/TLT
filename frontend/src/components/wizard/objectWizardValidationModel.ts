@@ -26,6 +26,7 @@ const REQUIRED_FIELD_LABEL_TO_FORM_NAMES: Record<string, string[]> = {
   'Ширина резервуара': ['width_mm'],
   'Размещение объекта': ['placement'],
   'Температура окружающей среды': ['ambient_temperature'],
+  'Температура грунта': ['ground_temperature'],
   'Требуемая температура объекта': ['process_temperature'],
   'Температура продукта': ['process_temperature'],
   'Режим температуры изоляции': ['insulation_temperature_basis'],
@@ -67,6 +68,8 @@ const API_FIELD_TO_FORM_NAMES: Record<string, string[]> = {
   insulation_material: ['insulation_material'],
   ambient_temperature: ['ambient_temperature'],
   process_temperature: ['process_temperature'],
+  ground_temperature: ['ground_temperature'],
+  pipe_centerline_depth: ['burial_depth'],
   burial_depth: ['burial_depth'],
   ground_type: ['ground_type'],
   ground_conductivity: ['ground_conductivity'],
@@ -75,6 +78,7 @@ const API_FIELD_TO_FORM_NAMES: Record<string, string[]> = {
   safety_factor: ['safety_factor'],
   vapor_temperature: ['vapor_temperature'],
   local_element_equiv_length: ['local_element_equiv_length'],
+  num_local_elements: ['num_local_elements'],
   q_additional: ['q_additional'],
   insulation_layer_count: ['insulation_layer_count'],
   insulation_temperature_basis: ['insulation_temperature_basis'],
@@ -82,6 +86,7 @@ const API_FIELD_TO_FORM_NAMES: Record<string, string[]> = {
 
 const RANGE_MESSAGE_TO_FORM_NAMES: Array<[RegExp, string[]]> = [
   [/Температура окружающей среды/i, ['ambient_temperature']],
+  [/Температура грунта/i, ['ground_temperature']],
   [/Температура продукта|Требуемая температура объекта/i, ['process_temperature']],
   [/Режим температуры изоляции|tm изоляции/i, ['insulation_temperature_basis']],
   [/Наружный диаметр/i, ['outer_diameter_mm']],

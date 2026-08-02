@@ -55,10 +55,8 @@ export function layerCount(context: HeatCalcFieldContext) {
 }
 
 export function localElementCount(context: HeatCalcFieldContext) {
-  return ['valve_count', 'flange_count', 'support_count'].reduce((total, fieldId) => {
-    const value = numericValue(context.values[fieldId]);
-    return total + (typeof value === 'number' && Number.isFinite(value) ? value : 0);
-  }, 0);
+  const value = numericValue(context.values.num_local_elements);
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
 
 export function isCustomGroundType(value: unknown) {
@@ -167,7 +165,7 @@ export function isHeatCalcFieldVisible(fieldId: string, context: HeatCalcFieldCo
   if (!fieldExistsForContext(fieldId, context)) return false;
   if (fieldId === 'pipe_material') return context.objectType === 'pipe';
   if (fieldId === 'pipe_lambda') return context.objectType === 'pipe' && context.values.pipe_material === 'other';
-  if (fieldId === 'burial_depth' || fieldId === 'ground_type' || fieldId === 'ground_conductivity') {
+  if (fieldId === 'burial_depth' || fieldId === 'pipe_centerline_depth' || fieldId === 'ground_temperature' || fieldId === 'ground_type' || fieldId === 'ground_conductivity') {
     return context.values.placement === 'underground';
   }
   if (fieldId === 'climate_temperature_basis') return hasValue(context.values.climate_key);

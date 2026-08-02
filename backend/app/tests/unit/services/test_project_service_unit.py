@@ -297,7 +297,24 @@ class TestObjectsCRUD:
 
         obj = await ProjectService(db).add_object(
             project.id,
-            ProjectObjectCreate(object_type="pipe", sort_order=0, params={"x": 1}),
+            ProjectObjectCreate(
+                object_type="pipe",
+                sort_order=0,
+                params={
+                    "outer_diameter": 0.1,
+                    "wall_thickness": 0.004,
+                    "pipe_material": "carbon_steel",
+                    "insulation_layers": [
+                        {"thickness": 0.05, "material": "mineral_wool_boards_120"}
+                    ],
+                    "insulation_temperature_basis": "outdoor_winter",
+                    "ambient_temperature": -20,
+                    "process_temperature": 80,
+                    "pipe_length": 10,
+                    "placement": "outdoor",
+                    "wind_speed": 0,
+                },
+            ),
             _principal(role="employee", user_id=my_id),
         )
         assert obj.object_type == "pipe"
@@ -332,6 +349,7 @@ class TestObjectsCRUD:
         db.execute = AsyncMock(
             side_effect=[
                 _result_with(scalar=project),
+                _result_with(),
                 _result_with(scalar=None),
             ]
         )
@@ -346,7 +364,7 @@ class TestObjectsCRUD:
                 _principal(role="employee", user_id=my_id),
             )
 
-    async def test_update_object_merges_params_patch(self):
+    async def test_update_object_replaces_complete_pipe_heat_and_preserves_non_heat(self):
         from app.schemas.project import ProjectObjectUpdate
 
         my_id = uuid.uuid4()
@@ -358,17 +376,26 @@ class TestObjectsCRUD:
             sort_order=0,
             params={
                 "outer_diameter": 0.1,
-                "insulation_thickness": 0.05,
-                "insulation_material": "mineral_wool_boards_120",
+                "wall_thickness": 0.004,
+                "pipe_material": "carbon_steel",
+                "insulation_layers": [
+                    {"thickness": 0.05, "material": "mineral_wool_boards_120"}
+                ],
+                "insulation_temperature_basis": "outdoor_winter",
                 "ambient_temperature": -20,
                 "process_temperature": 80,
                 "pipe_length": 10,
+                "placement": "outdoor",
+                "wind_speed": 0,
+                "volume": 12.5,
+                "location": "outdoor",
             },
         )
         db = AsyncMock()
         db.execute = AsyncMock(
             side_effect=[
                 _result_with(scalar=project),
+                _result_with(),
                 _result_with(scalar=obj),
                 SimpleNamespace(rowcount=1),
             ]
@@ -378,8 +405,14 @@ class TestObjectsCRUD:
         async def refresh_updated(updated_obj):
             updated_obj.version = 2
             updated_obj.params = {
-                **obj.params,
-                "insulation_thickness": 0.02,
+                **{
+                    key: value
+                    for key, value in obj.params.items()
+                    if key != "location"
+                },
+                "insulation_layers": [
+                    {"thickness": 0.02, "material": "mineral_wool_boards_120"}
+                ],
             }
 
         db.refresh = AsyncMock(side_effect=refresh_updated)
@@ -387,13 +420,32 @@ class TestObjectsCRUD:
         updated = await ProjectService(db).update_object(
             project.id,
             obj.id,
-            ProjectObjectUpdate(version=1, params={"insulation_thickness": 0.02}),
+            ProjectObjectUpdate(
+                version=1,
+                params={
+                    "outer_diameter": 0.1,
+                    "wall_thickness": 0.004,
+                    "pipe_material": "carbon_steel",
+                    "insulation_layers": [
+                        {"thickness": 0.02, "material": "mineral_wool_boards_120"}
+                    ],
+                    "insulation_temperature_basis": "outdoor_winter",
+                    "ambient_temperature": -20,
+                    "process_temperature": 80,
+                    "pipe_length": 10,
+                    "placement": "outdoor",
+                    "wind_speed": 0,
+                },
+            ),
             _principal(role="employee", user_id=my_id),
         )
 
         assert updated.params["outer_diameter"] == pytest.approx(0.1)
-        assert updated.params["insulation_thickness"] == pytest.approx(0.02)
-        assert updated.params["insulation_material"] == "mineral_wool_boards_120"
+        assert updated.params["insulation_layers"] == [
+            {"thickness": 0.02, "material": "mineral_wool_boards_120"}
+        ]
+        assert updated.params["volume"] == 12.5
+        assert "location" not in updated.params
         assert updated.version == 2
         db.commit.assert_not_awaited()
 
@@ -410,17 +462,24 @@ class TestObjectsCRUD:
             version=2,
             params={
                 "outer_diameter": 0.1,
-                "insulation_thickness": 0.05,
-                "insulation_material": "mineral_wool_boards_120",
+                "wall_thickness": 0.004,
+                "pipe_material": "carbon_steel",
+                "insulation_layers": [
+                    {"thickness": 0.05, "material": "mineral_wool_boards_120"}
+                ],
+                "insulation_temperature_basis": "outdoor_winter",
                 "ambient_temperature": -20,
                 "process_temperature": 80,
                 "pipe_length": 10,
+                "placement": "outdoor",
+                "wind_speed": 0,
             },
         )
         db = AsyncMock()
         db.execute = AsyncMock(
             side_effect=[
                 _result_with(scalar=project),
+                _result_with(),
                 _result_with(scalar=obj),
                 SimpleNamespace(rowcount=0),
             ]
@@ -431,7 +490,23 @@ class TestObjectsCRUD:
             await ProjectService(db).update_object(
                 project.id,
                 obj.id,
-                ProjectObjectUpdate(version=1, params={"insulation_thickness": 0.02}),
+                ProjectObjectUpdate(
+                    version=1,
+                    params={
+                        "outer_diameter": 0.1,
+                        "wall_thickness": 0.004,
+                        "pipe_material": "carbon_steel",
+                        "insulation_layers": [
+                            {"thickness": 0.02, "material": "mineral_wool_boards_120"}
+                        ],
+                        "insulation_temperature_basis": "outdoor_winter",
+                        "ambient_temperature": -20,
+                        "process_temperature": 80,
+                        "pipe_length": 10,
+                        "placement": "outdoor",
+                        "wind_speed": 0,
+                    },
+                ),
                 _principal(role="employee", user_id=my_id),
             )
 
@@ -445,6 +520,7 @@ class TestObjectsCRUD:
         db.execute = AsyncMock(
             side_effect=[
                 _result_with(scalar=project),
+                _result_with(),
                 _result_with(scalar=obj),
             ]
         )

@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "fields": {
     "index": {
       "service_name": "index",
@@ -1729,12 +1729,37 @@
       },
       "description": "Документальный режим расчётной температуры tm для λ изоляции. Доступные варианты зависят от размещения: улица — лето/зима, подземно — канал/тоннель/техническое подполье, помещение — помещение/чердак/подвал."
     },
+    "pipe_centerline_depth": {
+      "service_name": "pipe_centerline_depth",
+      "object_types": ["pipe"],
+      "group": "Грунт",
+      "labels": { "full": "Глубина прокладки", "short": "Глубина", "compact": "h" },
+      "contexts": {
+        "table_by_key": { "pipe_centerline_depth": { "label": "Глубина, м", "full_label": "Глубина прокладки", "tooltip": "Глубина оси трубы" } },
+        "settings_by_key": { "pipe_centerline_depth": { "label": "Глубина прокладки" } },
+        "form": { "label": "Глубина прокладки" }
+      },
+      "table_keys": { "pipe": "pipe_centerline_depth" },
+      "input": { "type": "number", "unit": "м", "min": 0, "max": 200, "default_step": 0.1, "configurable_step": false, "input_unit": "raw", "display_digits": 2 },
+      "description": "Глубина оси бесканально проложенной подземной трубы. Диапазон ТНП: 0…200 м."
+    },
+    "ground_temperature": {
+      "service_name": "ground_temperature",
+      "object_types": ["pipe"],
+      "group": "Грунт",
+      "labels": { "full": "Температура грунта", "short": "T грунта", "compact": "T гр." },
+      "contexts": {
+        "table_by_key": { "ground_temperature": { "label": "T грунта, °C", "full_label": "Температура грунта", "tooltip": "Температура грунта" } },
+        "settings_by_key": { "ground_temperature": { "label": "Температура грунта" } },
+        "form": { "label": "Температура грунта" }
+      },
+      "table_keys": { "pipe": "ground_temperature" },
+      "input": { "type": "number", "unit": "°C", "min": -70, "max": 70, "default_step": 1, "configurable_step": false, "input_unit": "raw", "display_digits": 1 },
+      "description": "Температура грунта для бесканальной подземной прокладки. Диапазон ТНП: −70…+70 °C."
+    },
     "burial_depth": {
       "service_name": "burial_depth",
-      "object_types": [
-        "pipe",
-        "tank"
-      ],
+      "object_types": ["tank"],
       "group": "Грунт",
       "labels": {
         "full": "Глубина заложения",
@@ -1755,18 +1780,12 @@
           }
         },
         "form_by_type": {
-          "pipe": {
-            "label": "Глубина прокладки"
-          },
           "tank": {
             "label": "Высота подземной части"
           }
         }
       },
-      "table_keys": {
-        "pipe": "burial_depth",
-        "tank": "burial_depth"
-      },
+      "table_keys": { "tank": "burial_depth" },
       "input": {
         "type": "number",
         "unit": "м",
@@ -1777,10 +1796,7 @@
         "input_unit": "raw",
         "display_digits": 2
       },
-      "description_by_type": {
-        "pipe": "Используется только для подземной прокладки. Диапазон ТНП: 0…200 м.",
-        "tank": "Высота подземной части резервуара. Backend делит расчёт на Sвозд и Sгр. Диапазон ТНП: 0…200 м."
-      }
+      "description": "Высота подземной части резервуара. Backend делит расчёт на Sвозд и Sгр. Диапазон ТНП: 0…200 м."
     },
     "ground_type": {
       "service_name": "ground_type",
@@ -1857,14 +1873,14 @@
       "input": {
         "type": "number",
         "unit": "Вт/мК",
-        "min": 0.8,
+        "min": 0.5,
         "max": 3,
         "default_step": 0.1,
         "configurable_step": false,
         "input_unit": "raw",
         "display_digits": 2
       },
-      "description": "Теплопроводность грунта для подземной прокладки. Диапазон: 0,8…3,0 Вт/(м·К)."
+      "description": "Теплопроводность грунта для подземной прокладки. Диапазон: 0,5…3,0 Вт/(м·К); включает все значения справочника грунтов."
     },
     "min_switch_temperature": {
       "service_name": "min_switch_temperature",
@@ -2015,9 +2031,14 @@
         "input_unit": "raw",
         "display_digits": 2
       },
-      "description": "Коэффициент запаса Kзап. Диапазон ТНП: 1,05…1,70. Используется в суммарных теплопотерях и при подборе кабеля.",
+      "description": "Коэффициент запаса Kзап. Используется в суммарных теплопотерях и при подборе кабеля.",
+      "description_by_type": {
+        "pipe": "Коэффициент запаса Kзап для трубопровода: 1,00…1,70. Значение 1 оставляет проектные теплопотери равными базовым.",
+        "tank": "Коэффициент запаса Kзап для резервуара: 1,05…1,70."
+      },
       "input_by_type": {
         "pipe": {
+          "min": 1,
           "configurable_step": true
         },
         "tank": {
@@ -2209,33 +2230,34 @@
       "input": { "type": "number", "min": 1, "max": 1.5, "default_step": 0.05, "input_unit": "raw", "display_digits": 2 },
       "description": "Коэффициент навива (1–1,5). Используется алгоритмом выбора кабеля (ТНП)."
     },
-    "valve_count": {
-      "service_name": "valve_count",
-      "object_types": [
-        "pipe"
-      ],
+    "num_local_elements": {
+      "service_name": "num_local_elements",
+      "object_types": ["pipe"],
       "group": "Электропараметры и арматура",
       "labels": {
-        "full": "Задвижки",
-        "short": "Зад.",
-        "compact": "Зад."
+        "full": "Количество локальных элементов",
+        "short": "Лок. элементы",
+        "compact": "Лок."
       },
       "contexts": {
         "table_by_key": {
-          "valve_count": {
-            "label": "Зад.",
-            "full_label": "Задвижки",
-            "tooltip": "Задвижки"
+          "num_local_elements": {
+            "label": "Лок., шт",
+            "full_label": "Количество локальных элементов",
+            "tooltip": "Суммарное количество локальных элементов"
           }
         },
         "settings_by_key": {
-          "valve_count": {
-            "label": "Задвижки"
+          "num_local_elements": {
+            "label": "Количество локальных элементов"
           }
+        },
+        "form": {
+          "label": "Количество локальных элементов"
         }
       },
       "table_keys": {
-        "pipe": "valve_count"
+        "pipe": "num_local_elements"
       },
       "input": {
         "type": "number",
@@ -2247,87 +2269,7 @@
         "input_unit": "raw",
         "display_digits": 0
       },
-      "description": "Количество задвижек, шт. Диапазон: 0…100. Сохраняется как локальные элементы объекта."
-    },
-    "flange_count": {
-      "service_name": "flange_count",
-      "object_types": [
-        "pipe"
-      ],
-      "group": "Электропараметры и арматура",
-      "labels": {
-        "full": "Фланцы",
-        "short": "Флн.",
-        "compact": "Флн."
-      },
-      "contexts": {
-        "table_by_key": {
-          "flange_count": {
-            "label": "Флн.",
-            "full_label": "Фланцы",
-            "tooltip": "Фланцы"
-          }
-        },
-        "settings_by_key": {
-          "flange_count": {
-            "label": "Фланцы"
-          }
-        }
-      },
-      "table_keys": {
-        "pipe": "flange_count"
-      },
-      "input": {
-        "type": "number",
-        "unit": "шт",
-        "min": 0,
-        "max": 100,
-        "default_step": 1,
-        "configurable_step": false,
-        "input_unit": "raw",
-        "display_digits": 0
-      },
-      "description": "Количество фланцев, шт. Диапазон: 0…100. Сохраняется как локальные элементы объекта."
-    },
-    "support_count": {
-      "service_name": "support_count",
-      "object_types": [
-        "pipe"
-      ],
-      "group": "Электропараметры и арматура",
-      "labels": {
-        "full": "Опоры",
-        "short": "Опр.",
-        "compact": "Опр."
-      },
-      "contexts": {
-        "table_by_key": {
-          "support_count": {
-            "label": "Опр.",
-            "full_label": "Опоры",
-            "tooltip": "Опоры"
-          }
-        },
-        "settings_by_key": {
-          "support_count": {
-            "label": "Опоры"
-          }
-        }
-      },
-      "table_keys": {
-        "pipe": "support_count"
-      },
-      "input": {
-        "type": "number",
-        "unit": "шт",
-        "min": 0,
-        "max": 100,
-        "default_step": 1,
-        "configurable_step": false,
-        "input_unit": "raw",
-        "display_digits": 0
-      },
-      "description": "Количество опор, шт. Диапазон: 0…100. Сохраняется как локальные элементы объекта."
+      "description": "Суммарное количество локальных элементов трубопровода, шт. Диапазон: 0…100."
     },
     "local_element_equiv_length": {
       "service_name": "local_element_equiv_length",
@@ -3398,7 +3340,7 @@
     }
   },
   "table": {
-    "settings_version": 8,
+    "settings_version": 9,
     "registry": {
       "pipe": [
         {
@@ -3892,7 +3834,7 @@
           "field": "insulation_temperature_basis"
         },
         {
-          "key": "burial_depth",
+          "key": "pipe_centerline_depth",
           "group": "Грунт",
           "defaultWidthPct": 9.2,
           "minWidthPx": 64,
@@ -3901,7 +3843,19 @@
           "sortable": true,
           "filterable": true,
           "resizable": true,
-          "field": "burial_depth"
+          "field": "pipe_centerline_depth"
+        },
+        {
+          "key": "ground_temperature",
+          "group": "Грунт",
+          "defaultWidthPct": 8.2,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "ground_temperature"
         },
         {
           "key": "ground_conductivity",
@@ -3976,40 +3930,16 @@
           "field": "vapor_temperature"
         },
         {
-          "key": "valve_count",
+          "key": "num_local_elements",
           "group": "Локальные элементы",
-          "defaultWidthPct": 6.4,
+          "defaultWidthPct": 8.2,
           "minWidthPx": 48,
           "valueType": "number",
           "defaultVisible": true,
           "sortable": true,
           "filterable": true,
           "resizable": true,
-          "field": "valve_count"
-        },
-        {
-          "key": "flange_count",
-          "group": "Локальные элементы",
-          "defaultWidthPct": 6.4,
-          "minWidthPx": 48,
-          "valueType": "number",
-          "defaultVisible": true,
-          "sortable": true,
-          "filterable": true,
-          "resizable": true,
-          "field": "flange_count"
-        },
-        {
-          "key": "support_count",
-          "group": "Локальные элементы",
-          "defaultWidthPct": 6.4,
-          "minWidthPx": 48,
-          "valueType": "number",
-          "defaultVisible": true,
-          "sortable": true,
-          "filterable": true,
-          "resizable": true,
-          "field": "support_count"
+          "field": "num_local_elements"
         },
         {
           "key": "local_element_equiv_length",
@@ -4857,9 +4787,7 @@
         "insulation_material",
         "process_temperature",
         "ambient_temperature",
-        "valve_count",
-        "flange_count",
-        "support_count",
+        "num_local_elements",
         "local_element_equiv_length"
       ],
       "tank": [
@@ -4902,7 +4830,7 @@
     }
   },
   "form": {
-    "field_input_settings_version": 1,
+    "field_input_settings_version": 2,
     "sections": {
       "pipe": [
         {
@@ -4917,9 +4845,10 @@
             "pipe_material",
             "pipe_lambda",
             "placement",
-            "burial_depth",
+            "pipe_centerline_depth",
             "ground_type",
-            "ground_conductivity"
+            "ground_conductivity",
+            "ground_temperature"
           ]
         },
         {
@@ -4977,9 +4906,7 @@
             "top_of_box_indication",
             "min_length_for_k2i",
             "hot_reserve_coefficient",
-            "valve_count",
-            "flange_count",
-            "support_count",
+            "num_local_elements",
             "local_element_equiv_length"
           ]
         }

@@ -110,12 +110,14 @@ def _validate_insulation_temperature_basis_for_location(
 class InsulationLayer(BaseModel):
     """Один слой тепловой изоляции (для многослойного расчёта)."""
 
+    model_config = ConfigDict(extra="forbid")
+
     thickness: float = Field(gt=0, le=0.5, description="Толщина слоя, м (до 500 мм)")
     material: str = Field(min_length=1, description="Код материала из справочника")
     conductivity: float | None = Field(
         default=None,
         gt=0,
-        le=500.0,
+        le=400.0,
         description="λ слоя, Вт/(м·К) — используется только для материала 'other'",
     )
     temperature_range: tuple[float, float] | None = Field(
@@ -157,23 +159,16 @@ class InsulationLayerApplied(BaseModel):
 
 
 class PipeHeatLossParams(BaseModel):
-    """Параметры для расчёта теплопотерь трубопровода.
-
-    Поддерживает два режима:
-    - Однослойный: insulation_thickness + insulation_material
-    - Многослойный: insulation_layers (список InsulationLayer, 1–3 слоя)
-    """
+    """Canonical formula-only parameters for pipe heat loss."""
 
     model_config = ConfigDict(extra="forbid")
 
-    # --- Геометрия трубы ---
     outer_diameter: float = Field(
         ge=0.0108,
         le=3.0,
         description="d_tp — наружный диаметр трубы, м",
     )
-    wall_thickness: float | None = Field(
-        default=None,
+    wall_thickness: float = Field(
         ge=0.0001,
         le=0.04,
         description="delta_tp — толщина стенки трубы, м (0.1–40 мм)",
@@ -185,30 +180,19 @@ class PipeHeatLossParams(BaseModel):
     pipe_lambda: float | None = Field(
         default=None,
         gt=0,
-        le=500,
+        le=400,
         description="lambda_tp — ручное задание теплопроводности трубы, Вт/(м·К)",
     )
 
-    # --- Изоляция (однослойный режим) ---
-    insulation_thickness: float | None = Field(
-        default=None,
-        gt=0,
-        le=0.5,
-        description="Толщина изоляции, м — однослойный режим",
-    )
-    insulation_material: str | None = Field(
-        default=None,
-        description="Материал изоляции — однослойный режим",
-    )
-
-    # --- Изоляция (многослойный режим) ---
-    insulation_layers: list[InsulationLayer] | None = Field(
-        default=None,
-        description="N_iz — слои изоляции (1–3), многослойный режим",
+    insulation_layers: list[InsulationLayer] = Field(
+        min_length=1,
+        max_length=3,
+        description="N_iz — единственный канонический список слоёв изоляции (1–3)",
     )
 
     # --- Температуры ---
-    ambient_temperature: float = Field(
+    ambient_temperature: float | None = Field(
+        default=None,
         ge=-70.0,
         le=70.0,
         description="T_os — температура окружающей среды, °C",
@@ -226,41 +210,22 @@ class PipeHeatLossParams(BaseModel):
         ),
     )
 
-    # --- Длина и конфигурация ---
     pipe_length: float = Field(
         ge=0.5,
         le=200_000.0,
         description="L — длина трубопровода / секции, м",
     )
-    burial_depth: float | None = Field(
+    pipe_centerline_depth: float | None = Field(
         default=None,
         ge=0.0,
         le=200.0,
         description="H — глубина заложения трубы, м",
     )
-    num_local_elements: int | None = Field(
-        default=None,
+    num_local_elements: int = Field(
+        default=0,
         ge=0,
         le=100,
         description="n_i — количество локальных элементов (фланцы и др.)",
-    )
-    valve_count: int | None = Field(
-        default=None,
-        ge=0,
-        le=100,
-        description="Количество задвижек/клапанов для расчёта локальных элементов",
-    )
-    flange_count: int | None = Field(
-        default=None,
-        ge=0,
-        le=100,
-        description="Количество фланцев для расчёта локальных элементов",
-    )
-    support_count: int | None = Field(
-        default=None,
-        ge=0,
-        le=100,
-        description="Количество опор для расчёта локальных элементов",
     )
     local_element_equiv_length: float | None = Field(
         default=None,
@@ -269,7 +234,6 @@ class PipeHeatLossParams(BaseModel):
         description="L_ekv — эквивалентная длина одного локального элемента, м",
     )
 
-    # --- Внешние условия ---
     wind_speed: float | None = Field(
         default=None, ge=0.0, le=20.0, description="v — скорость ветра, м/с"
     )
@@ -285,55 +249,115 @@ class PipeHeatLossParams(BaseModel):
         le=GROUND_CONDUCTIVITY_MAX,
         description="lambda_gr — теплопроводность грунта, Вт/(м·К)",
     )
+    ground_temperature: float | None = Field(default=None, ge=-70.0, le=70.0)
     safety_factor: float | None = Field(
         default=None,
-        ge=1.05,
+        ge=1.0,
         le=1.7,
         description="K — коэффициент запаса",
     )
-    location: Literal["indoor", "outdoor"] = "outdoor"
-    placement: Literal["indoor", "outdoor", "underground"] | None = None
+    placement: Literal["indoor", "outdoor", "underground"]
 
     @model_validator(mode="after")
-    def check_insulation_provided(self) -> "PipeHeatLossParams":
+    def check_canonical_contract(self) -> "PipeHeatLossParams":
         _validate_insulation_temperature_basis_for_location(
             basis=self.insulation_temperature_basis,
-            location=self.location,
+            location=None,
             placement=self.placement,
         )
-        if self.num_local_elements is None:
-            local_count = sum(
-                value or 0 for value in (self.valve_count, self.flange_count, self.support_count)
+        if (self.pipe_material is None) == (self.pipe_lambda is None):
+            raise ValueError("Задайте ровно один источник λ трубы: pipe_material или pipe_lambda")
+        if self.wall_thickness >= self.outer_diameter / 2:
+            raise ValueError("wall_thickness должна быть меньше половины outer_diameter")
+        for index, layer in enumerate(self.insulation_layers, start=1):
+            if layer.material != "other" and (
+                layer.conductivity is not None or layer.temperature_range is not None
+            ):
+                raise ValueError(
+                    f"Справочный слой #{index} не должен содержать ручные conductivity/temperature_range"
+                )
+            if layer.material != "other":
+                _validate_reference_insulation_temperature(
+                    material=layer.material,
+                    process_temperature=self.process_temperature,
+                    label=f"материала изоляции #{index}",
+                )
+        if self.num_local_elements > 0 and self.local_element_equiv_length is None:
+            raise ValueError(
+                "Для num_local_elements > 0 требуется local_element_equiv_length"
             )
-            if local_count > 0:
-                self.num_local_elements = local_count
-        if self.process_temperature <= self.ambient_temperature:
-            raise ValueError("Температура продукта должна быть выше температуры окружающей среды")
-        if (
-            self.wall_thickness is not None
-            and self.pipe_material is None
-            and self.pipe_lambda is None
+        if self.placement == "underground":
+            if self.ground_temperature is None:
+                raise ValueError("Для underground требуется ground_temperature")
+            if self.pipe_centerline_depth is None:
+                raise ValueError("Для underground требуется pipe_centerline_depth")
+            if self.ground_conductivity is None:
+                raise ValueError("Для underground требуется ground_conductivity")
+            if self.ambient_temperature is not None:
+                raise ValueError("ambient_temperature запрещена для underground pipe")
+            if self.wind_speed is not None or self.alpha_vnesh is not None:
+                raise ValueError("wind_speed и alpha_vnesh запрещены для underground pipe")
+            if self.process_temperature <= self.ground_temperature:
+                raise ValueError(
+                    "process_temperature_not_above_ground: температура продукта должна быть выше температуры грунта"
+                )
+            outer_radius = self.outer_diameter / 2 + sum(
+                layer.thickness for layer in self.insulation_layers
+            )
+            if self.pipe_centerline_depth <= outer_radius:
+                raise ValueError(
+                    "Глубина заложения pipe_centerline_depth должна быть больше наружного радиуса изоляции"
+                )
+        else:
+            if self.ambient_temperature is None:
+                raise ValueError("Для воздушной трубы требуется ambient_temperature")
+            if self.process_temperature <= self.ambient_temperature:
+                raise ValueError(
+                    "process_temperature_not_above_ambient: температура продукта должна быть выше температуры среды"
+                )
+            if self.pipe_centerline_depth is not None:
+                raise ValueError("pipe_centerline_depth допустима только для underground")
+            if self.ground_temperature is not None or self.ground_conductivity is not None:
+                raise ValueError("Грунтовые параметры допустимы только для underground")
+            if self.placement == "outdoor" and self.alpha_vnesh is None and self.wind_speed is None:
+                raise ValueError("Для outdoor auto требуется wind_speed")
+        return self
+
+
+class StoredPipeHeatParams(PipeHeatLossParams):
+    """Strict stored heat-owned pipe payload, including provenance metadata."""
+
+    safety_factor: float = Field(ge=1.0, le=1.7)
+    ground_type: str | None = None
+    climate_key: str | None = None
+    climate_city: str | None = None
+    climate_region: str | None = None
+    climate_temperature_basis: Literal["t_0_92", "t_0_98", "t_abs_min"] | None = None
+    ambient_temperature_source: Literal["manual", "climate"] | None = None
+    ground_temperature_source: Literal["manual", "climate"] | None = None
+    wind_speed_source: Literal["manual", "climate"] | None = None
+    ground_conductivity_source: Literal["manual", "reference"] | None = None
+    safety_factor_source: Literal["default", "manual", "climate_policy"] | None = None
+    climate_policy_rule: Literal["pipe_diameter_ge_100", "pipe_diameter_lt_100"] | None = None
+    insulation_cover_material: str | None = None
+
+    @model_validator(mode="after")
+    def check_metadata_matches_placement(self) -> "StoredPipeHeatParams":
+        if self.placement == "underground":
+            if (
+                self.ambient_temperature_source is not None
+                or self.wind_speed_source is not None
+                or self.climate_temperature_basis is not None
+            ):
+                raise ValueError(
+                    "Метаданные температуры воздуха и ветра запрещены для underground pipe"
+                )
+        elif (
+            self.ground_type is not None
+            or self.ground_temperature_source is not None
+            or self.ground_conductivity_source is not None
         ):
-            raise ValueError(
-                "Для расчёта стенки трубы необходимо задать материал трубы или λ трубы"
-            )
-        has_single = self.insulation_thickness is not None and self.insulation_material is not None
-        multi_layers = self.insulation_layers or []
-        has_multi = len(multi_layers) > 0
-        if not has_single and not has_multi:
-            raise ValueError(
-                "Необходимо задать изоляцию: либо insulation_thickness + insulation_material, "
-                "либо insulation_layers"
-            )
-        if len(multi_layers) > 3:
-            raise ValueError("Максимальное количество слоёв изоляции: 3 (N_iz ≤ 3)")
-        if has_single and not has_multi:
-            assert self.insulation_material is not None
-            _validate_reference_insulation_temperature(
-                material=self.insulation_material,
-                process_temperature=self.process_temperature,
-                label="материала изоляции",
-            )
+            raise ValueError("Метаданные грунта допустимы только для underground pipe")
         return self
 
 

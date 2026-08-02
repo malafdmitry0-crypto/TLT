@@ -21,7 +21,15 @@ from app.schemas.project import (
     ProjectObjectUpdate,
     ProjectUpdate,
 )
-from app.services.project_object_params import normalize_project_object_params
+from app.services.heat_contract import (
+    PIPE_FORBIDDEN_HEAT_PARAM_KEYS,
+    replace_heat_owned_params,
+)
+from app.services.project_object_params import (
+    ProjectObjectParamsError,
+    normalize_project_object_params,
+    prepare_project_object_params,
+)
 
 
 class ProjectNotFoundError(Exception):
@@ -315,11 +323,29 @@ class ProjectService:
             raise ProjectLimitError(
                 f"Достигнут лимит объектов в проекте ({settings.GUEST_MAX_OBJECTS_PER_PROJECT})."
             )
+        try:
+            if (
+                data.object_type == "pipe"
+                and PIPE_FORBIDDEN_HEAT_PARAM_KEYS.intersection(data.params)
+            ):
+                forbidden = sorted(PIPE_FORBIDDEN_HEAT_PARAM_KEYS.intersection(data.params))
+                raise ProjectObjectParamsError(
+                    "Forbidden pipe heat params: " + ", ".join(forbidden)
+                )
+            params = (
+                prepare_project_object_params(
+                    "pipe", replace_heat_owned_params({}, data.params)
+                )
+                if data.object_type == "pipe"
+                else normalize_project_object_params(data.object_type, data.params)
+            )
+        except ProjectObjectParamsError as exc:
+            raise ProjectValidationError(str(exc)) from exc
         obj = ProjectObject(
             project_id=project_id,
             object_type=data.object_type,
             sort_order=data.sort_order,
-            params=normalize_project_object_params(data.object_type, data.params),
+            params=params,
         )
         self.db.add(obj)
         await self.db.flush()
@@ -351,11 +377,24 @@ class ProjectService:
         update_data = data.model_dump(exclude_unset=True, exclude={"version"})
         if "params" in update_data:
             incoming_params = update_data["params"] or {}
-            merged_params = {
-                **(obj.params or {}),
-                **incoming_params,
-            }
-            update_data["params"] = normalize_project_object_params(obj.object_type, merged_params)
+            if obj.object_type == "pipe":
+                forbidden = sorted(PIPE_FORBIDDEN_HEAT_PARAM_KEYS.intersection(incoming_params))
+                if forbidden:
+                    raise ProjectValidationError(
+                        "Forbidden pipe heat params: " + ", ".join(forbidden)
+                    )
+                replaced_params = replace_heat_owned_params(obj.params, incoming_params)
+                try:
+                    update_data["params"] = prepare_project_object_params(
+                        obj.object_type, replaced_params
+                    )
+                except ProjectObjectParamsError as exc:
+                    raise ProjectValidationError(str(exc)) from exc
+            else:
+                merged_params = {**(obj.params or {}), **incoming_params}
+                update_data["params"] = normalize_project_object_params(
+                    obj.object_type, merged_params
+                )
         stmt = (
             update(ProjectObject)
             .where(

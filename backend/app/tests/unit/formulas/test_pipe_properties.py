@@ -34,19 +34,37 @@ def _p(**overrides) -> PipeHeatLossParams:
     """Дефолтная конфигурация трубопровода для изоляции переменной под тест."""
     defaults = dict(
         outer_diameter=0.108,
-        insulation_thickness=0.05,
-        insulation_material=MINERAL_WOOL,
+        wall_thickness=0.004,
+        pipe_material="carbon_steel",
+        insulation_layers=[InsulationLayer(thickness=0.05, material=MINERAL_WOOL)],
         insulation_temperature_basis="outdoor_winter",
         ambient_temperature=-20.0,
         process_temperature=80.0,
         pipe_length=50.0,
-        location="outdoor",
+        placement="outdoor",
+        wind_speed=0.0,
         safety_factor=1.1,
     )
     defaults.update(overrides)
-    if defaults.get("location") == "indoor" and "insulation_temperature_basis" not in overrides:
+    if defaults.get("placement") == "indoor":
+        defaults.pop("wind_speed", None)
+    if defaults.get("placement") == "indoor" and "insulation_temperature_basis" not in overrides:
         defaults["insulation_temperature_basis"] = "indoor"
     return PipeHeatLossParams(**defaults)
+
+
+def _underground(**overrides) -> PipeHeatLossParams:
+    params = dict(
+        placement="underground",
+        ambient_temperature=None,
+        wind_speed=None,
+        insulation_temperature_basis="channel",
+        ground_temperature=-20.0,
+        pipe_centerline_depth=1.5,
+        ground_conductivity=1.5,
+    )
+    params.update(overrides)
+    return _p(**params)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -104,8 +122,12 @@ class TestMetamorphicPipe:
     @pytest.mark.parametrize("low,high", [(0.02, 0.03), (0.03, 0.05), (0.05, 0.10), (0.10, 0.20)])
     def test_thicker_insulation_monotonically_reduces_loss(self, low, high):
         """MR5: ∂q/∂δ_из < 0 (строго монотонно)."""
-        q_low = calc_pipe_heat_loss(_p(insulation_thickness=low)).heat_loss_per_meter_base
-        q_high = calc_pipe_heat_loss(_p(insulation_thickness=high)).heat_loss_per_meter_base
+        q_low = calc_pipe_heat_loss(
+            _p(insulation_layers=[InsulationLayer(thickness=low, material=MINERAL_WOOL)])
+        ).heat_loss_per_meter_base
+        q_high = calc_pipe_heat_loss(
+            _p(insulation_layers=[InsulationLayer(thickness=high, material=MINERAL_WOOL)])
+        ).heat_loss_per_meter_base
         assert q_high < q_low
 
     @pytest.mark.parametrize("t_amb", [-50, -40, -20, 0, 20])
@@ -126,8 +148,8 @@ class TestMetamorphicPipe:
 
     def test_indoor_location_contract_no_wind(self):
         """MR8: indoor uses α=9 and its own tm basis without a hidden Kразм."""
-        indoor = calc_pipe_heat_loss(_p(location="indoor"))
-        outdoor = calc_pipe_heat_loss(_p(location="outdoor", wind_speed=0))
+        indoor = calc_pipe_heat_loss(_p(placement="indoor"))
+        outdoor = calc_pipe_heat_loss(_p(placement="outdoor", wind_speed=0))
         assert indoor.alpha_vnesh_applied == pytest.approx(9.0)
         assert outdoor.alpha_vnesh_applied == pytest.approx(11.6)
         assert indoor.external_resistance > outdoor.external_resistance
@@ -135,9 +157,13 @@ class TestMetamorphicPipe:
 
     def test_lower_conductivity_material_reduces_loss(self):
         """MR9: ↓λ_из → ↓q (ППУ лучше минваты при тех же условиях)."""
-        q_mw = calc_pipe_heat_loss(_p(insulation_material=MINERAL_WOOL)).heat_loss_per_meter_base
+        q_mw = calc_pipe_heat_loss(_p()).heat_loss_per_meter_base
         q_pu = calc_pipe_heat_loss(
-            _p(insulation_material=LOW_LAMBDA_INSULATION)
+            _p(
+                insulation_layers=[
+                    InsulationLayer(thickness=0.05, material=LOW_LAMBDA_INSULATION)
+                ]
+            )
         ).heat_loss_per_meter_base
         assert q_pu < q_mw
 
@@ -145,10 +171,8 @@ class TestMetamorphicPipe:
 
     def test_multi_layer_same_as_single_when_equivalent(self):
         """MR10: Слои 20+30 мм того же материала эквивалентны одному 50 мм."""
-        params_single = _p(insulation_thickness=0.05, insulation_material=MINERAL_WOOL)
+        params_single = _p()
         params_multi = _p(
-            insulation_thickness=None,
-            insulation_material=None,
             insulation_layers=[
                 InsulationLayer(thickness=0.02, material=MINERAL_WOOL),
                 InsulationLayer(thickness=0.03, material=MINERAL_WOOL),
@@ -161,16 +185,12 @@ class TestMetamorphicPipe:
     def test_multi_layer_order_independent_for_same_material(self):
         """MR11: Перестановка слоёв того же материала не меняет R."""
         p_ab = _p(
-            insulation_thickness=None,
-            insulation_material=None,
             insulation_layers=[
                 InsulationLayer(thickness=0.03, material=MINERAL_WOOL),
                 InsulationLayer(thickness=0.02, material=MINERAL_WOOL),
             ],
         )
         p_ba = _p(
-            insulation_thickness=None,
-            insulation_material=None,
             insulation_layers=[
                 InsulationLayer(thickness=0.02, material=MINERAL_WOOL),
                 InsulationLayer(thickness=0.03, material=MINERAL_WOOL),
@@ -230,14 +250,13 @@ class TestGoldenFromFormulesMd:
         r = calc_pipe_heat_loss(
             _p(
                 outer_diameter=0.108,
-                insulation_thickness=0.05,
-                insulation_material=MINERAL_WOOL,
+                insulation_layers=[InsulationLayer(thickness=0.05, material=MINERAL_WOOL)],
                 ambient_temperature=-20,
                 process_temperature=80,
                 pipe_length=50,
                 safety_factor=1.1,
                 wind_speed=0,
-                location="outdoor",
+                placement="outdoor",
             )
         )
         # Цилиндрическое Rиз: ln(0.104/0.054)/(2π×0.0534) ≈ 1.953394 м·К/Вт.
@@ -252,7 +271,8 @@ class TestGoldenFromFormulesMd:
         """α_внеш = 11.6 + 7·√v  (SNiP 41-03-2003)."""
         import math
 
-        assert calc_alpha_vnesh(None, "outdoor") == pytest.approx(11.6)
+        with pytest.raises(ValueError, match="wind_speed"):
+            calc_alpha_vnesh(None, "outdoor")
         assert calc_alpha_vnesh(0, "outdoor") == pytest.approx(11.6)
         assert calc_alpha_vnesh(3, "outdoor") == pytest.approx(11.6 + 7 * math.sqrt(3), rel=1e-4)
         assert calc_alpha_vnesh(5, "outdoor") == pytest.approx(11.6 + 7 * math.sqrt(5), rel=1e-4)
@@ -319,32 +339,31 @@ class TestPipeMaterialLambda:
 class TestBuriedPipe:
     def test_deep_burial_reduces_loss_vs_shallow(self):
         """Глубже закопанная труба теряет меньше (через R_grunt растёт с H)."""
-        r_shallow = calc_pipe_heat_loss(_p(burial_depth=0.5, ground_conductivity=1.5))
-        r_deep = calc_pipe_heat_loss(_p(burial_depth=3.0, ground_conductivity=1.5))
+        r_shallow = calc_pipe_heat_loss(_underground(pipe_centerline_depth=0.5))
+        r_deep = calc_pipe_heat_loss(_underground(pipe_centerline_depth=3.0))
         assert r_deep.heat_loss_per_meter_base < r_shallow.heat_loss_per_meter_base
 
-    def test_burial_depth_below_radius_raises(self):
+    def test_pipe_centerline_depth_below_radius_raises(self):
         """H < r_из — труба физически не помещается в грунт."""
-        with pytest.raises(ValueError, match="не помещается"):
-            calc_pipe_heat_loss(
-                _p(
+        with pytest.raises(ValueError, match="pipe_centerline_depth"):
+            _underground(
                     outer_diameter=0.5,
-                    insulation_thickness=0.1,
-                    burial_depth=0.2,  # допустимо схемой, но меньше r_нар_из
-                )
+                    insulation_layers=[
+                        InsulationLayer(thickness=0.1, material=MINERAL_WOOL)
+                    ],
+                    pipe_centerline_depth=0.2,
             )
 
     def test_higher_ground_conductivity_increases_loss(self):
         """↑λ_grunt → ↓R_grunt → ↑q. Водонасыщенный грунт хуже сухого."""
-        r_dry = calc_pipe_heat_loss(_p(burial_depth=2.0, ground_conductivity=0.8))
-        r_wet = calc_pipe_heat_loss(_p(burial_depth=2.0, ground_conductivity=3.0))
+        r_dry = calc_pipe_heat_loss(_underground(pipe_centerline_depth=2.0, ground_conductivity=0.8))
+        r_wet = calc_pipe_heat_loss(_underground(pipe_centerline_depth=2.0, ground_conductivity=3.0))
         assert r_wet.heat_loss_per_meter_base > r_dry.heat_loss_per_meter_base
 
-    def test_buried_ignores_wind_speed(self):
-        """При подземной прокладке скорость ветра не влияет."""
-        r_v0 = calc_pipe_heat_loss(_p(burial_depth=1.5, wind_speed=0))
-        r_v10 = calc_pipe_heat_loss(_p(burial_depth=1.5, wind_speed=10))
-        assert r_v0.heat_loss_per_meter_base == pytest.approx(r_v10.heat_loss_per_meter_base, rel=1e-6)
+    def test_buried_result_omits_wind_trace(self):
+        """Для подземной прокладки ветер отсутствует во входе и trace."""
+        result = calc_pipe_heat_loss(_underground())
+        assert result.wind_speed_applied is None
 
     def test_arccosh_formula_equivalence(self):
         """Проверка: arccosh(x) = ln(x + √(x²-1)) — вручную посчитать одну точку."""
@@ -353,12 +372,12 @@ class TestBuriedPipe:
         # ΔT=100°C: q = 100 / 0.3176 + (R_ins + R_wall, малые) ≈ 315 Вт/м но плюс R_ins
         # Тестируем только факт монотонности
         r = calc_pipe_heat_loss(
-            _p(
+            _underground(
                 outer_diameter=0.1,
-                insulation_thickness=0.05,
-                burial_depth=1.0,
+                insulation_layers=[InsulationLayer(thickness=0.05, material=MINERAL_WOOL)],
+                pipe_centerline_depth=1.0,
                 ground_conductivity=1.5,
-                ambient_temperature=-10,
+                ground_temperature=-10,
                 process_temperature=90,
             )
         )

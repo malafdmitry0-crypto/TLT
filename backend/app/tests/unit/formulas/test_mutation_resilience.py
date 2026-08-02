@@ -14,7 +14,7 @@ import pytest
 
 from app.formulas.heat_loss.pipe import calc_pipe_heat_loss
 from app.formulas.heat_loss.tank import calc_tank_heat_loss
-from app.schemas.calculation import PipeHeatLossParams, TankHeatLossParams
+from app.schemas.calculation import InsulationLayer, PipeHeatLossParams, TankHeatLossParams
 
 # ─── База для тестов ────────────────────────────────────────────────────────
 
@@ -23,12 +23,15 @@ POLYURETHANE = "polyurethane_products_40"
 
 PIPE = PipeHeatLossParams(
     outer_diameter=0.108,
-    insulation_thickness=0.05,
-    insulation_material=MINERAL_WOOL,
+    wall_thickness=0.004,
+    pipe_material="carbon_steel",
+    insulation_layers=[InsulationLayer(thickness=0.05, material=MINERAL_WOOL)],
     insulation_temperature_basis="outdoor_winter",
     ambient_temperature=-20.0,
     process_temperature=80.0,
     pipe_length=50.0,
+    placement="outdoor",
+    wind_speed=0.0,
 )
 
 TANK = TankHeatLossParams(
@@ -112,15 +115,27 @@ class TestMutationCoverage:
         # ΔT=100 > ΔT=50 → больше потерь
         assert cold_to_hot.heat_loss_per_meter_base > smaller_dt.heat_loss_per_meter_base
 
-    def test_pipe_insulation_thickness_inverse(self):
+    def test_pipe_insulation_layer_thickness_inverse(self):
         """Толщина изоляции в знаменателе термического сопротивления.
         Если перепутать с числителем — толстая давала бы БОЛЬШЕ потерь."""
         thin = calc_pipe_heat_loss(
-            PIPE.model_copy(update={"insulation_thickness": 0.01}),
+            PIPE.model_copy(
+                update={
+                    "insulation_layers": [
+                        InsulationLayer(thickness=0.01, material=MINERAL_WOOL)
+                    ]
+                }
+            ),
             coefficients={"safety_factor": 1.0},
         )
         thick = calc_pipe_heat_loss(
-            PIPE.model_copy(update={"insulation_thickness": 0.2}),
+            PIPE.model_copy(
+                update={
+                    "insulation_layers": [
+                        InsulationLayer(thickness=0.2, material=MINERAL_WOOL)
+                    ]
+                }
+            ),
             coefficients={"safety_factor": 1.0},
         )
         # Тонкая (1см) даёт больше потерь — это основной инвариант
@@ -172,11 +187,23 @@ class TestMutationCoverage:
     def test_thermal_resistance_grows_with_thickness(self):
         """R_изоляции = ln(d_внеш/d_внутр)/(2π·λ). Растёт с толщиной."""
         thin = calc_pipe_heat_loss(
-            PIPE.model_copy(update={"insulation_thickness": 0.01}),
+            PIPE.model_copy(
+                update={
+                    "insulation_layers": [
+                        InsulationLayer(thickness=0.01, material=MINERAL_WOOL)
+                    ]
+                }
+            ),
             coefficients={"safety_factor": 1.0},
         )
         thick = calc_pipe_heat_loss(
-            PIPE.model_copy(update={"insulation_thickness": 0.1}),
+            PIPE.model_copy(
+                update={
+                    "insulation_layers": [
+                        InsulationLayer(thickness=0.1, material=MINERAL_WOOL)
+                    ]
+                }
+            ),
             coefficients={"safety_factor": 1.0},
         )
         assert (
@@ -187,11 +214,23 @@ class TestMutationCoverage:
         """λ изоляции в знаменателе R. Лучший проводник (выше λ) → меньше R → больше Q."""
         # Конкретные selectable-коды: минвата λ(tm) выше, ППУ ниже.
         mw = calc_pipe_heat_loss(
-            PIPE.model_copy(update={"insulation_material": MINERAL_WOOL}),
+            PIPE.model_copy(
+                update={
+                    "insulation_layers": [
+                        InsulationLayer(thickness=0.05, material=MINERAL_WOOL)
+                    ]
+                }
+            ),
             coefficients={"safety_factor": 1.0},
         )
         pu = calc_pipe_heat_loss(
-            PIPE.model_copy(update={"insulation_material": POLYURETHANE}),
+            PIPE.model_copy(
+                update={
+                    "insulation_layers": [
+                        InsulationLayer(thickness=0.05, material=POLYURETHANE)
+                    ]
+                }
+            ),
             coefficients={"safety_factor": 1.0},
         )
         # ППУ имеет МЕНЬШЕ λ → БОЛЬШЕ R → МЕНЬШЕ Q
@@ -227,11 +266,23 @@ class TestFormulaInvariantsDocumented:
     def test_q_inverse_in_R(self):
         """Q = ΔT/R → больше R, меньше Q."""
         r1 = calc_pipe_heat_loss(
-            PIPE.model_copy(update={"insulation_thickness": 0.05}),
+            PIPE.model_copy(
+                update={
+                    "insulation_layers": [
+                        InsulationLayer(thickness=0.05, material=MINERAL_WOOL)
+                    ]
+                }
+            ),
             coefficients={"safety_factor": 1.0},
         )
         r2 = calc_pipe_heat_loss(
-            PIPE.model_copy(update={"insulation_thickness": 0.1}),
+            PIPE.model_copy(
+                update={
+                    "insulation_layers": [
+                        InsulationLayer(thickness=0.1, material=MINERAL_WOOL)
+                    ]
+                }
+            ),
             coefficients={"safety_factor": 1.0},
         )
         assert r2.thermal_resistance > r1.thermal_resistance

@@ -57,20 +57,18 @@ describe('ObjectWizard dependencies — payload-fields', () => {
     expect(screen.queryByTestId('q-additional-input')).not.toBeInTheDocument();
   });
 
-  it('L_ekv не редактируется в форме, но существующее справочное значение сохраняется', async () => {
+  it('L_ekv редактируется при наличии локальных элементов и сохраняется', async () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
     renderWizard({
       onSubmit,
       initialParams: {
         ...basePipeParams,
-        valve_count: 1,
-        flange_count: 1,
-        support_count: 0,
+        num_local_elements: 2,
         local_element_equiv_length: 2.4}});
 
     expect(await screen.findByTestId('local-elements-count-input')).toHaveValue('2');
-    expect(screen.queryByTestId('local-element-equiv-length-input')).not.toBeInTheDocument();
+    expect(screen.getByTestId('local-element-equiv-length-input')).toHaveValue('2,4');
 
     await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
@@ -79,25 +77,41 @@ describe('ObjectWizard dependencies — payload-fields', () => {
     expect(payload.local_element_equiv_length).toBe(2.4);
   });
 
-  it('не показывает L_ekv и позволяет backend применить справочное значение', async () => {
+  it('помечает L_ekv обязательным при наличии локальных элементов', async () => {
+    renderWizard({
+      initialParams: {
+        ...basePipeParams,
+        num_local_elements: 1,
+        local_element_equiv_length: undefined}});
+
+    expect(await screen.findByTestId('local-elements-count-input')).toHaveValue('1');
+    expect(screen.getByTestId('local-element-equiv-length-input')).toHaveAttribute('aria-required', 'true');
+  });
+
+  it('передаёт ручной alpha_vnesh и удаляет его после очистки поля', async () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
     renderWizard({
       onSubmit,
       initialParams: {
         ...basePipeParams,
-        valve_count: 1,
-        flange_count: 0,
-        support_count: 0,
-        local_element_equiv_length: undefined}});
+        placement: 'outdoor',
+        wind_speed: 4,
+        alpha_vnesh: 15,
+      },
+    });
 
-    expect(await screen.findByTestId('local-elements-count-input')).toHaveValue('1');
-    expect(screen.queryByTestId('local-element-equiv-length-input')).not.toBeInTheDocument();
-
+    const alphaInput = await screen.findByTestId('alpha-vnesh-input');
+    expect(alphaInput).toHaveValue('15');
     await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
-    const payload = onSubmit.mock.calls[0][0] as Record<string, unknown>;
-    expect(payload.local_element_equiv_length).toBeUndefined();
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ alpha_vnesh: 15, wind_speed: 4 });
+
+    await user.clear(alphaInput);
+    await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(2));
+    expect(onSubmit.mock.calls[1][0]).not.toHaveProperty('alpha_vnesh');
+    expect(onSubmit.mock.calls[1][0]).toMatchObject({ wind_speed: 4 });
   });
 
   it('помечает λ грунта только для ручного грунта, но позволяет сохранить для расчёта статуса', async () => {
@@ -203,7 +217,7 @@ describe('ObjectWizard dependencies — payload-fields', () => {
     const payload = onSubmit.mock.calls[0][0] as Record<string, unknown>;
     expect(payload.pipe_lambda).toBe(56);
     expect(payload.pipe_material).toBeUndefined();
-    expect(payload.insulation_layer_count).toBe('3');
+    expect(payload.insulation_layer_count).toBeUndefined();
     expect(payload.insulation_layers).toEqual([
       { thickness: 0.04, material: 'mineral_wool' },
       { thickness: 0.02, material: 'foam_glass' },

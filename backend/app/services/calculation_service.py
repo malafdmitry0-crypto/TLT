@@ -66,6 +66,7 @@ from app.schemas.calculation import (
     ResistiveThreeCoreParams,
     SelfRegulatingParams,
     SelfRegulatingTTParams,
+    StoredPipeHeatParams,
     TankHeatLossParams,
 )
 from app.schemas.json_shapes import (
@@ -86,6 +87,11 @@ from app.services.electrical_assignment_service import (
 )
 from app.services.electrical_candidate_dedupe import build_dedupe_key, build_identity_payload
 from app.services.electrical_error_guidance import build_electrical_error_payload
+from app.services.heat_contract import (
+    COMMON_HEAT_PARAM_KEYS,
+    PIPE_FORBIDDEN_HEAT_PARAM_KEYS,
+    PIPE_HEAT_PARAM_KEYS,
+)
 from app.services.project_object_params import (
     ProjectObjectParamsError,
     prepare_project_object_params,
@@ -877,7 +883,21 @@ class CalculationService:
         if apply_climate_policy:
             data = self._apply_climate_policy(object_type, data)
         if object_type == "pipe":
-            params = PipeHeatLossParams(**self._heat_loss_formula_input(PipeHeatLossParams, data))
+            forbidden = sorted(PIPE_FORBIDDEN_HEAT_PARAM_KEYS.intersection(data))
+            if forbidden:
+                raise ValueError(
+                    "Forbidden pipe heat params: " + ", ".join(forbidden)
+                )
+            stored = StoredPipeHeatParams(
+                **{
+                    key: value
+                    for key, value in data.items()
+                    if key in COMMON_HEAT_PARAM_KEYS | PIPE_HEAT_PARAM_KEYS
+                }
+            )
+            params = PipeHeatLossParams(
+                **self._heat_loss_formula_input(PipeHeatLossParams, stored.model_dump())
+            )
             pipe_result = calc_pipe_heat_loss(params, coefficients=coefficients)
             result = pipe_result.model_dump()
             return cast(PipeHeatLossResultDict, result)
@@ -1119,13 +1139,19 @@ class CalculationService:
             normalized.get("ambient_temperature_source") == "manual"
             and cls._num(normalized.get("ambient_temperature")) is not None
         )
-        if climate_temperature is not None:
+        uses_air_temperature = not (
+            object_type == "pipe" and normalized.get("placement") == "underground"
+        )
+        if climate_temperature is not None and uses_air_temperature:
             if not manual_ambient_temperature:
                 normalized["ambient_temperature"] = climate_temperature
                 normalized["ambient_temperature_source"] = "climate"
             normalized["climate_temperature_basis"] = basis
         else:
             normalized.pop("climate_temperature_basis", None)
+            if not uses_air_temperature:
+                normalized.pop("ambient_temperature", None)
+                normalized.pop("ambient_temperature_source", None)
         normalized["climate_policy_rule"] = rule
         if safety_factor_from_policy:
             normalized["safety_factor_source"] = "climate_policy"

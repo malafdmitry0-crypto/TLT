@@ -82,6 +82,14 @@ function firstValue(...values: unknown[]) {
   return values.find((value) => value !== null && value !== undefined && value !== '');
 }
 
+function firstInsulationLayer(params: Record<string, unknown>): Record<string, unknown> | null {
+  const layers = params.insulation_layers;
+  const firstLayer = Array.isArray(layers) ? layers[0] : null;
+  return firstLayer && typeof firstLayer === 'object'
+    ? firstLayer as Record<string, unknown>
+    : null;
+}
+
 function powerText(value: unknown) {
   if (value == null || value === '') return '—';
   return formatPower(Number(value));
@@ -110,8 +118,13 @@ function objectValue(object: ProjectObject, field: string) {
       return valueText(params.shape);
     }
     case 'insulation': {
-      const material = valueText(firstValue(params.insulation_material, params.insulation_type));
-      const thickness = formatMillimetersFromMeters(params.insulation_thickness);
+      const pipeLayer = object.object_type === 'pipe' ? firstInsulationLayer(params) : null;
+      const material = valueText(object.object_type === 'pipe'
+        ? pipeLayer?.material
+        : firstValue(params.insulation_material, params.insulation_type));
+      const thickness = formatMillimetersFromMeters(object.object_type === 'pipe'
+        ? pipeLayer?.thickness
+        : params.insulation_thickness);
       return material === '—' && thickness === '—' ? '—' : `${material}, ${thickness}`;
     }
     case 'ambient_temperature':

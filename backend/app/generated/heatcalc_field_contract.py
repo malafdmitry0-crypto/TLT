@@ -6,9 +6,9 @@ Regenerate: python3 scripts/sync-heatcalc-field-contract.py
 
 from __future__ import annotations
 
-HEATCALC_FIELD_REGISTRY_VERSION = 1
-HEATCALC_TABLE_COLUMNS_VERSION = 8
-HEATCALC_FIELD_INPUT_VERSION = 1
+HEATCALC_FIELD_REGISTRY_VERSION = 2
+HEATCALC_TABLE_COLUMNS_VERSION = 9
+HEATCALC_FIELD_INPUT_VERSION = 2
 
 HEATCALC_TABLE_COLUMN_KEYS: dict[str, frozenset[str]] = {
     "pipe": frozenset((
@@ -17,7 +17,6 @@ HEATCALC_TABLE_COLUMN_KEYS: dict[str, frozenset[str]] = {
         "ambient_temperature_source",
         "applied_alpha_vnesh",
         "applied_safety_factor",
-        "burial_depth",
         "climate_city",
         "climate_region",
         "climate_temperature_basis",
@@ -26,8 +25,8 @@ HEATCALC_TABLE_COLUMN_KEYS: dict[str, frozenset[str]] = {
         "environment",
         "external_resistance",
         "first_insulation_lambda",
-        "flange_count",
         "ground_conductivity",
+        "ground_temperature",
         "heat_loss_per_meter_base",
         "heat_loss_status",
         "index",
@@ -42,6 +41,8 @@ HEATCALC_TABLE_COLUMN_KEYS: dict[str, frozenset[str]] = {
         "max_process_temperature",
         "min_switch_temperature",
         "name",
+        "num_local_elements",
+        "pipe_centerline_depth",
         "pipe_dn",
         "pipe_lambda",
         "pipe_lambda_mode",
@@ -57,7 +58,6 @@ HEATCALC_TABLE_COLUMN_KEYS: dict[str, frozenset[str]] = {
         "second_insulation_thickness",
         "steam_tracing",
         "supply_voltage",
-        "support_count",
         "temperature_group",
         "thermal_resistance",
         "third_insulation_lambda",
@@ -65,7 +65,6 @@ HEATCALC_TABLE_COLUMN_KEYS: dict[str, frozenset[str]] = {
         "third_insulation_thickness",
         "total_heat_loss_design",
         "type",
-        "valve_count",
         "vapor_temperature",
         "wall_resistance",
         "wind_speed",
@@ -149,10 +148,10 @@ HEATCALC_TABLE_COLUMN_KEYS: dict[str, frozenset[str]] = {
         "environment",
         "external_resistance",
         "first_insulation_lambda",
-        "flange_count",
         "ground_conductivity",
         "ground_resistance",
         "ground_surface_area",
+        "ground_temperature",
         "heat_loss_per_m2_bare_base",
         "heat_loss_per_meter_base",
         "heat_loss_status",
@@ -168,6 +167,8 @@ HEATCALC_TABLE_COLUMN_KEYS: dict[str, frozenset[str]] = {
         "max_process_temperature",
         "min_switch_temperature",
         "name",
+        "num_local_elements",
+        "pipe_centerline_depth",
         "pipe_dn",
         "pipe_lambda",
         "pipe_lambda_mode",
@@ -184,7 +185,6 @@ HEATCALC_TABLE_COLUMN_KEYS: dict[str, frozenset[str]] = {
         "second_insulation_thickness",
         "steam_tracing",
         "supply_voltage",
-        "support_count",
         "surface_area_bare",
         "tank_diameter",
         "tank_dimensions",
@@ -201,7 +201,6 @@ HEATCALC_TABLE_COLUMN_KEYS: dict[str, frozenset[str]] = {
         "third_insulation_thickness",
         "total_heat_loss_design",
         "type",
-        "valve_count",
         "vapor_temperature",
         "wall_resistance",
         "wind_speed",

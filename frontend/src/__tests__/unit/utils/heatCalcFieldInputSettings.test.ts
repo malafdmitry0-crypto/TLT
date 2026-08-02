@@ -60,7 +60,7 @@ describe('heatCalcFieldInputSettings', () => {
     });
 
     expect(settings).toEqual({
-      version: 1,
+      version: 2,
       fields: {},
     });
     expect(resolveHeatCalcFieldStep('pipe', 'outer_diameter_mm', settings)).toBe(1);
@@ -72,7 +72,7 @@ describe('heatCalcFieldInputSettings', () => {
 
     writeGuestFieldInputSettings(settings);
     expect(JSON.parse(localStorage.getItem(HEATCALC_GUEST_FIELD_INPUT_STORAGE_KEY) ?? '{}'))
-      .toEqual({ version: 1, fields: {} });
+      .toEqual({ version: 2, fields: {} });
     localStorage.setItem(HEATCALC_GUEST_FIELD_INPUT_STORAGE_KEY, JSON.stringify({
       version: 1,
       fields: { tank: { diameter_mm: { step: 25 } } },
@@ -93,7 +93,7 @@ describe('heatCalcFieldInputSettings', () => {
     localStorage.clear();
     writeRegisteredFieldInputCache('user-1', settings);
     expect(JSON.parse(localStorage.getItem(HEATCALC_REGISTERED_FIELD_INPUT_CACHE_KEY) ?? '{}'))
-      .toMatchObject({ userId: 'user-1', settings: { version: 1, fields: {} } });
+      .toMatchObject({ userId: 'user-1', settings: { version: 2, fields: {} } });
   });
 
   it('не возвращает список настраиваемых шагов', () => {

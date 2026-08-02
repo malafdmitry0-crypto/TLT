@@ -43,16 +43,18 @@ def pipe_material_lambda(material: str | None, temperature: float) -> float:
 # ---------------------------------------------------------------------------
 
 
-def calc_alpha_vnesh(wind_speed: float | None, location: str) -> float:
+def calc_alpha_vnesh(wind_speed: float | None, placement: str) -> float:
     """Коэффициент наружной теплоотдачи α, Вт/(м²·К).
 
     Для помещения: α = 9.0 (свободная конвекция)
     Для улицы: α = 11,6 + 7·√v  (SNiP 41-03-2003, формула для трубопроводов)
     Отдельный ручной ``alpha_vnesh`` допускается параметрическим контрактом.
     """
-    if location == "indoor":
+    if placement == "indoor":
         return 9.0
-    v = max(wind_speed or 0.0, 0.0)
+    if wind_speed is None:
+        raise ValueError("Для outdoor auto требуется wind_speed")
+    v = max(wind_speed, 0.0)
     return 11.6 + 7.0 * math.sqrt(v)
 
 
@@ -62,22 +64,8 @@ def calc_alpha_vnesh(wind_speed: float | None, location: str) -> float:
 
 
 def _resolve_layers(params: PipeHeatLossParams) -> list[InsulationLayer]:
-    """Возвращает список слоёв изоляции из параметров (однослойный или многослойный).
-
-    Валидатор `PipeHeatLossParams.check_insulation_provided` гарантирует,
-    что ИЛИ `insulation_layers` задан, ИЛИ пара `insulation_thickness +
-    insulation_material` — поэтому в однослойной ветке оба поля не None.
-    """
-    if params.insulation_layers:
-        return list(params.insulation_layers)
-    # однослойный режим
-    thickness = params.insulation_thickness
-    material = params.insulation_material
-    # Инвариант гарантирован валидатором — assert для mypy + runtime safety net.
-    assert (
-        thickness is not None and material is not None
-    ), "Валидатор PipeHeatLossParams должен был это поймать"
-    return [InsulationLayer(thickness=thickness, material=material)]
+    """Return the canonical non-empty insulation layer list."""
+    return list(params.insulation_layers)
 
 
 @dataclass(frozen=True)
@@ -205,16 +193,16 @@ def _r_external(r_outer: float, alpha: float) -> float:
     return 1.0 / (2 * math.pi * r_outer * alpha)
 
 
-def _r_ground(r_outer: float, burial_depth: float, lambda_gr: float) -> float:
+def _r_ground(r_outer: float, centerline_depth: float, lambda_gr: float) -> float:
     """Сопротивление грунта (подземная прокладка).
 
     R = arccosh(H/r) / (2π·λ_gr)
     При H/r >> 1: arccosh(x) ≈ ln(2x)
     """
-    x = burial_depth / r_outer
+    x = centerline_depth / r_outer
     if x < 1.0:
         raise ValueError(
-            f"Глубина заложения H={burial_depth:.2f} м меньше наружного радиуса изоляции "
+            f"Глубина оси H={centerline_depth:.2f} м меньше наружного радиуса изоляции "
             f"r={r_outer:.3f} м — труба не помещается в грунт"
         )
     acosh_val = math.log(x + math.sqrt(x * x - 1))
@@ -248,7 +236,7 @@ def calc_pipe_heat_loss(
 
     Args:
         params: валидированные параметры трубопровода. Инварианты: наличие
-            изоляции (layers или thickness+material), ΔT > 0, L > 0.
+            insulation_layers (1–3 слоя), ΔT > 0, L > 0.
         coefficients: `safety_factor` и `ground_conductivity`. Приоритет:
             `params.safety_factor` > coefficients >
             DEFAULT_COEFFICIENTS.
@@ -267,14 +255,19 @@ def calc_pipe_heat_loss(
     """
     validate_positive("Наружный диаметр", params.outer_diameter)
     validate_positive("Длина трубы", params.pipe_length)
-    validate_temperature_range(params.ambient_temperature, params.process_temperature)
-
     layers = _resolve_layers(params)
     for i, layer in enumerate(layers):
         validate_positive(f"Толщина слоя изоляции #{i + 1}", layer.thickness)
 
-    delta_t = params.process_temperature - params.ambient_temperature
-    t_mean = (params.process_temperature + params.ambient_temperature) / 2.0
+    environment_temperature = (
+        params.ground_temperature
+        if params.placement == "underground"
+        else params.ambient_temperature
+    )
+    assert environment_temperature is not None
+    validate_temperature_range(environment_temperature, params.process_temperature)
+    delta_t = params.process_temperature - environment_temperature
+    t_mean = (params.process_temperature + environment_temperature) / 2.0
     r_outer_pipe = params.outer_diameter / 2.0
 
     # --- 1. Сопротивление стенки трубы ---
@@ -292,7 +285,8 @@ def calc_pipe_heat_loss(
     insulation_tm = resolve_insulation_tm(
         process_temperature=params.process_temperature,
         basis=params.insulation_temperature_basis,
-        location=params.location,
+        location=None,
+        placement=params.placement,
     )
     r_ins, r_outer_total, layer_resistances = _r_insulation_layers(
         r_outer_pipe,
@@ -303,20 +297,18 @@ def calc_pipe_heat_loss(
     # --- 3. Внешнее сопротивление ---
     merged_coeffs = merge_coefficients(coefficients)
 
-    burial_depth = params.burial_depth
-    is_buried = burial_depth is not None and burial_depth > 0
-
     alpha: float | None = None
     lambda_gr: float | None = None
-    if is_buried:
-        assert burial_depth is not None  # сужение типа для mypy
-        lambda_gr = params.ground_conductivity or merged_coeffs.get("ground_conductivity", 1.5)
-        r_external = _r_ground(r_outer_total, burial_depth, lambda_gr)
+    if params.placement == "underground":
+        assert params.pipe_centerline_depth is not None
+        assert params.ground_conductivity is not None
+        lambda_gr = params.ground_conductivity
+        r_external = _r_ground(r_outer_total, params.pipe_centerline_depth, lambda_gr)
     else:
         alpha = (
             params.alpha_vnesh
             if params.alpha_vnesh is not None
-            else calc_alpha_vnesh(params.wind_speed, params.location)
+            else calc_alpha_vnesh(params.wind_speed, params.placement)
         )
         r_external = _r_external(r_outer_total, alpha)
 
@@ -331,7 +323,7 @@ def calc_pipe_heat_loss(
     )
 
     # --- 5. Эффективная длина с локальными элементами ---
-    n_i = params.num_local_elements or 0
+    n_i = params.num_local_elements
     l_ekv = params.local_element_equiv_length or 0.0
     l_eff = params.pipe_length + n_i * l_ekv
 
@@ -344,6 +336,46 @@ def calc_pipe_heat_loss(
     q_design = q_linear * k
     q_base_total = q_linear * l_eff
     additional_length = n_i * l_ekv
+
+    input_units = {
+        "outer_diameter": "m",
+        "wall_thickness": "m",
+        "insulation_layers.thickness": "m",
+        "process_temperature": "degC",
+        "pipe_length": "m",
+        "num_local_elements": "1",
+        "local_element_equiv_length": "m",
+        "safety_factor": "1",
+    }
+    if params.pipe_lambda is not None:
+        input_units["pipe_lambda"] = "W/(m*K)"
+    if any(layer.conductivity is not None for layer in layers):
+        input_units["insulation_layers.conductivity"] = "W/(m*K)"
+    if params.placement == "underground":
+        input_units.update(
+            {
+                "pipe_centerline_depth": "m",
+                "ground_temperature": "degC",
+                "ground_conductivity": "W/(m*K)",
+            }
+        )
+    else:
+        input_units["ambient_temperature"] = "degC"
+        if params.wind_speed is not None:
+            input_units["wind_speed"] = "m/s"
+        if params.alpha_vnesh is not None:
+            input_units["alpha_vnesh"] = "W/(m2*K)"
+
+    model_assumptions = [
+        "steady_state_one_dimensional_radial_heat_flow",
+        "uniform_equivalent_length_per_local_element",
+    ]
+    source_corrections = ["base_and_design_heat_losses_reported_separately"]
+    if params.placement == "underground":
+        model_assumptions.append("direct_buried_pipe_in_homogeneous_ground")
+        source_corrections.append("ground_temperature_used_for_underground_pipe")
+    elif params.placement == "outdoor" and params.alpha_vnesh is None:
+        source_corrections.append("outdoor_auto_alpha_requires_explicit_wind_speed")
 
     return PipeHeatLossResult(
         heat_loss_per_meter_base=round(q_linear, 3),
@@ -359,7 +391,7 @@ def calc_pipe_heat_loss(
         alpha_vnesh_applied=round(alpha, 3) if alpha is not None else None,
         wind_speed_applied=(
             params.wind_speed
-            if alpha is not None and params.alpha_vnesh is None and params.location != "indoor"
+            if alpha is not None and params.alpha_vnesh is None and params.placement == "outdoor"
             else None
         ),
         ground_conductivity_applied=(round(lambda_gr, 3) if lambda_gr is not None else None),
@@ -368,9 +400,14 @@ def calc_pipe_heat_loss(
         local_element_equiv_length_applied=round(l_ekv, 3),
         formula_model="pipe_heat_loss",
         formula_model_version="2",
-        model_assumptions=["uniform_equivalent_length_per_local_element"],
+        model_assumptions=model_assumptions,
         process_temperature_applied=params.process_temperature,
-        ambient_temperature_applied=params.ambient_temperature,
+        ambient_temperature_applied=(
+            params.ambient_temperature if params.placement != "underground" else None
+        ),
+        ground_temperature_applied=(
+            params.ground_temperature if params.placement == "underground" else None
+        ),
         insulation_layers_applied=[
             {
                 "index": index,
@@ -384,24 +421,21 @@ def calc_pipe_heat_loss(
             }
             for index, layer_resistance in enumerate(layer_resistances, start=1)
         ],
-        input_units={
-            "outer_diameter": "m",
-            "wall_thickness": "m",
-            "insulation_layers.thickness": "m",
-            "ambient_temperature": "degC",
-            "process_temperature": "degC",
-            "pipe_length": "m",
-            "burial_depth": "m",
-            "wind_speed": "m/s",
-            "ground_conductivity": "W/(m*K)",
-        },
+        input_units=input_units,
         applied_units={
             "heat_loss_per_meter_base": "W/m",
             "heat_loss_per_meter_design": "W/m",
             "total_heat_loss_base": "W",
             "total_heat_loss_design": "W",
+            "effective_length": "m",
+            "additional_equivalent_length": "m",
             "thermal_resistance": "m*K/W",
+            "wall_resistance": "m*K/W",
+            "insulation_resistance": "m*K/W",
+            "external_resistance": "m*K/W",
             "alpha_vnesh_applied": "W/(m2*K)",
+            "ground_conductivity_applied": "W/(m*K)",
             "safety_factor_applied": "1",
         },
+        source_corrections=source_corrections,
     )

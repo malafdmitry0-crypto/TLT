@@ -57,4 +57,28 @@ describe('referenceOptions', () => {
     expect(options[1].label).toBe('Суглинок · ρ 1800 кг/м³ · W 10% · λ 1.4 Вт/мК');
     expect(new Set(options.map((option) => option.label)).size).toBe(options.length);
   });
+
+  it('даёт разные ключи вариантам грунта с одинаковыми плотностью и влажностью, но разной λ', () => {
+    const options = buildSoilReferenceOptions([
+      {
+        soil: 'Суглинок',
+        soil_code: 'suglinok',
+        density_kg_m3: 1300,
+        moisture_percent: 8,
+        conductivity: 0.98,
+      },
+      {
+        soil: 'Суглинок',
+        soil_code: 'suglinok',
+        density_kg_m3: 1300,
+        moisture_percent: 8,
+        conductivity: 1.12,
+      },
+    ]);
+
+    expect(options.map((option) => option.value)).toEqual([
+      'suglinok:1300:8:0.98',
+      'suglinok:1300:8:1.12',
+    ]);
+  });
 });

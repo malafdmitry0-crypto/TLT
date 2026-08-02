@@ -23,7 +23,10 @@ describe('heatCalcInlineEdit draft and errors', () => {
 
     const params = buildDraftRowParams(draft!);
     expect(params.outer_diameter).toBeCloseTo(0.114);
-    expect(params.insulation_thickness).toBeCloseTo(0.05);
+    expect(params.insulation_layers).toEqual([
+      { thickness: 0.05, material: 'mineral_wool' },
+    ]);
+    expect(params).not.toHaveProperty('insulation_thickness');
   });
 
   it('applies form field drafts through the same row draft model as Excel cells', () => {
@@ -100,7 +103,7 @@ describe('heatCalcInlineEdit draft and errors', () => {
     expect(params.pipe_material).toBe('carbon_steel');
     expect(params.placement).toBe('outdoor');
     expect(params.insulation_temperature_basis).toBe('outdoor_winter');
-    expect(params.insulation_layer_count).toBe('1');
+    expect(params).not.toHaveProperty('insulation_layer_count');
     expect(params.insulation_cover_material).toBe('none');
     expect(params.environment).toBe('normal');
     expect(params.zone_classification).toBe('safe');
@@ -154,7 +157,7 @@ describe('heatCalcInlineEdit draft and errors', () => {
 
     expect(getDraftRowValidationErrors(staleDraft, { enforceRequired: true })).toEqual({});
     const params = buildDraftRowParams(staleDraft, { enforceRequired: true });
-    expect(params.insulation_layer_count).toBe('1');
+    expect(params).not.toHaveProperty('insulation_layer_count');
     expect(params.insulation_layers).toEqual([
       { thickness: 0.05, material: 'mineral_wool' },
     ]);

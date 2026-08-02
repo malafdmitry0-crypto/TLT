@@ -14,14 +14,15 @@ const PIPE_FORM_PROJECTION_KEYS = [
   'third_insulation_thickness_mm', 'third_insulation_material', 'third_insulation_lambda',
   'third_insulation_temperature_min', 'third_insulation_temperature_max',
   'ambient_temperature', 'process_temperature', 'max_ambient_temperature', 'max_process_temperature',
-  'environment', 'zone_classification', 'temperature_group', 'placement', 'burial_depth',
-  'ground_type', 'ground_conductivity', 'wind_speed', 'alpha_vnesh', 'climate_city', 'climate_region',
+  'environment', 'zone_classification', 'temperature_group', 'placement', 'ground_temperature',
+  'ground_temperature_source', 'burial_depth', 'ground_type', 'ground_conductivity',
+  'ground_conductivity_source', 'wind_speed', 'alpha_vnesh', 'climate_city', 'climate_region',
   'climate_key', 'climate_temperature_basis', 'insulation_temperature_basis', 'ambient_temperature_source',
   'wind_speed_source', 'pipe_length', 'min_switch_temperature', 'supply_voltage', 'safety_factor',
   'safety_factor_source', 'steam_tracing', 'vapor_temperature', 'winding_coefficient', 'connection_type',
   'explosion_zone_type', 'power_indication_on_boxes', 'end_of_section_indication', 'top_of_box_indication',
   'min_length_for_k2i', 'hot_reserve_coefficient',
-  'valve_count', 'flange_count', 'support_count', 'num_local_elements', 'local_element_equiv_length', 'name',
+  'num_local_elements', 'local_element_equiv_length', 'name',
 ] as const satisfies readonly (keyof (PipeFormValues & { name?: string }))[];
 const TANK_FORM_PROJECTION_KEYS = [
   'shape', 'diameter_mm', 'height_mm', 'length_mm', 'width_mm', 'wall_thickness_mm', 'wall_lambda',

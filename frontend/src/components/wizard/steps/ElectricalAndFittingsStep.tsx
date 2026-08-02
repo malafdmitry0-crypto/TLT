@@ -42,6 +42,9 @@ export default function ElectricalAndFittingsStep({
   fieldInputSettings,
 }: Props) {
   const form = Form.useFormInstance();
+  const localElementCount = Number(
+    Form.useWatch('num_local_elements', form) ?? form.getFieldValue('num_local_elements') ?? 0,
+  );
   const numberInputProps = (
     fieldId: string,
     options: { includeStep?: boolean } = {},
@@ -72,21 +75,41 @@ export default function ElectricalAndFittingsStep({
         </Form.Item>
       )}
       {objectType === 'pipe' && (
-        <Form.Item
-          className="numeric-form-item fitting-count-form-item local-elements-count-form-item helped-form-item"
-          label={<FieldLabel text="Количество локальных элементов" />}
-          name="num_local_elements"
-          rules={heatCalcFormFieldRules(form, objectType, 'valve_count')}
-        >
-          {withHelp(
-            <UnitInputNumber
-              data-testid="local-elements-count-input"
-              {...numberInputProps('valve_count')}
-              unit="шт"
-            />,
-            'Суммарное количество локальных элементов трубопровода.',
+        <>
+          <Form.Item
+            className="numeric-form-item fitting-count-form-item local-elements-count-form-item helped-form-item"
+            label={fieldLabel('num_local_elements', objectType)}
+            name="num_local_elements"
+            rules={heatCalcFormFieldRules(form, objectType, 'num_local_elements')}
+          >
+            {withHelp(
+              <UnitInputNumber
+                data-testid="local-elements-count-input"
+                {...numberInputProps('num_local_elements')}
+                unit="шт"
+              />,
+              fieldHelp('num_local_elements', objectType),
+            )}
+          </Form.Item>
+          {Number.isFinite(localElementCount) && localElementCount > 0 && (
+            <Form.Item
+              className="numeric-form-item fitting-count-form-item local-element-equiv-length-form-item helped-form-item"
+              label={fieldLabel('local_element_equiv_length', objectType)}
+              name="local_element_equiv_length"
+              preserve={false}
+              rules={heatCalcFormFieldRules(form, objectType, 'local_element_equiv_length')}
+            >
+              {withHelp(
+                <UnitInputNumber
+                  data-testid="local-element-equiv-length-input"
+                  {...numberInputProps('local_element_equiv_length')}
+                  unit="м"
+                />,
+                fieldHelp('local_element_equiv_length', objectType),
+              )}
+            </Form.Item>
           )}
-        </Form.Item>
+        </>
       )}
     </>
   );

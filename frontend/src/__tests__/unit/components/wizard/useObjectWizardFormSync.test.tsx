@@ -352,6 +352,7 @@ describe('useObjectWizardFormSync', () => {
     });
 
     expect(getForm().getFieldValue('ground_conductivity')).toBe(0.8);
+    expect(getForm().getFieldValue('ground_conductivity_source')).toBe('reference');
   });
 
   it('syncs insulation reference lambda when materials load for a reference material', () => {

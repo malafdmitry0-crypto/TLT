@@ -201,7 +201,10 @@ export function useObjectWizardFormSync({
     if (!selectedGroundType) return;
     const selectedSoil = soilOptions.find((option) => option.value === selectedGroundType)?.entry;
     if (!selectedSoil) return;
-    const nextValues = { ground_conductivity: selectedSoil.conductivity };
+    const nextValues = {
+      ground_conductivity: selectedSoil.conductivity,
+      ground_conductivity_source: 'reference' as const,
+    };
     form.setFieldsValue(nextValues);
     onDraftValuesChange?.(nextValues, form.getFieldsValue(true) as Record<string, unknown>);
   }, [form, onDraftValuesChange, selectedGroundType, soilOptions]);
@@ -291,6 +294,12 @@ export function useObjectWizardFormSync({
     }
     if (Object.prototype.hasOwnProperty.call(changed, 'wind_speed')) {
       setSyncedFields({ wind_speed_source: 'manual' });
+    }
+    if (Object.prototype.hasOwnProperty.call(changed, 'ground_temperature')) {
+      setSyncedFields({ ground_temperature_source: 'manual' });
+    }
+    if (Object.prototype.hasOwnProperty.call(changed, 'ground_conductivity')) {
+      setSyncedFields({ ground_conductivity_source: 'manual' });
     }
     if (Object.prototype.hasOwnProperty.call(changed, 'pipe_material')) {
       setSyncedFields(buildPipeMaterialLambdaSync(changed.pipe_material));

@@ -35,7 +35,7 @@ export default function HeatCalcAssumptionsPanel({
 
   const isPipe = selectedObject.object_type === 'pipe';
   const isUnderground = selectedParams?.placement === 'underground'
-    || selectedParams?.burial_depth != null;
+    || (!isPipe && selectedParams?.burial_depth != null);
   const enabledMetrics = new Set(normalizeCalculationDetailsSettings(calculationDetailsSettings).visibleMetrics);
   const details: Array<{ key: string; label: string; value: string }> = [];
 
@@ -45,9 +45,11 @@ export default function HeatCalcAssumptionsPanel({
   }
 
   const processTemperature = Number(selectedParams?.process_temperature);
-  const ambientTemperature = Number(selectedParams?.ambient_temperature);
-  if (Number.isFinite(processTemperature) && Number.isFinite(ambientTemperature)) {
-    addDetail('delta_t', 'ΔT', `${formatNumber(processTemperature - ambientTemperature, 0)}°C`);
+  const mediumTemperature = Number(isPipe && isUnderground
+    ? selectedParams?.ground_temperature
+    : selectedParams?.ambient_temperature);
+  if (Number.isFinite(processTemperature) && Number.isFinite(mediumTemperature)) {
+    addDetail('delta_t', 'ΔT', `${formatNumber(processTemperature - mediumTemperature, 0)}°C`);
   }
 
   addDetail('applied_alpha_vnesh', 'α примен.', resultDetailValue('alpha_vnesh_applied', 1, ' Вт/м²К'));

@@ -131,9 +131,13 @@ export interface PipeFormValues {
   zone_classification?: 'safe' | 'explosive';
   temperature_group?: 'T1' | 'T2' | 'T3' | 'T4' | 'T5' | 'T6';
   placement?: 'outdoor' | 'indoor' | 'underground';
+  ground_temperature?: number;
+  ground_temperature_source?: 'manual' | 'climate';
+  /** Form-only UI field; API uses pipe_centerline_depth. */
   burial_depth?: number;
   ground_type?: string;
   ground_conductivity?: number;
+  ground_conductivity_source?: 'manual' | 'reference';
   wind_speed?: number;
   alpha_vnesh?: number;
   climate_city?: string;
@@ -160,9 +164,6 @@ export interface PipeFormValues {
   top_of_box_indication?: 'yes' | 'no';
   min_length_for_k2i?: number;
   hot_reserve_coefficient?: number;
-  valve_count?: number;
-  flange_count?: number;
-  support_count?: number;
   num_local_elements?: number;
   local_element_equiv_length?: number;
 }

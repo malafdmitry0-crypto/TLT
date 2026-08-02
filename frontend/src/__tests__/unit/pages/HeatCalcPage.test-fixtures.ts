@@ -30,8 +30,8 @@ export function makeObject(overrides: Partial<ProjectObject> = {}): ProjectObjec
       wall_thickness: 0.004,
       pipe_material: 'carbon_steel',
       pipe_length: 25,
-      insulation_thickness: 0.05,
-      insulation_material: 'mineral_wool',
+      insulation_layers: [{ thickness: 0.05, material: 'mineral_wool' }],
+      wind_speed: 3,
       process_temperature: 60,
       ambient_temperature: -20,
       max_ambient_temperature: 35,
@@ -43,9 +43,7 @@ export function makeObject(overrides: Partial<ProjectObject> = {}): ProjectObjec
       supply_voltage: 220,
       safety_factor: 1.2,
       steam_tracing: 'no',
-      valve_count: 1,
-      flange_count: 2,
-      support_count: 3,
+      num_local_elements: 6,
       local_element_equiv_length: 1.5,
     },
     results: { heat_loss_per_meter_base: 50, total_heat_loss_design: 5000 },
@@ -89,4 +87,3 @@ export function makeProject(overrides: Partial<Project> = {}): Project {
     ...overrides,
   };
 }
-

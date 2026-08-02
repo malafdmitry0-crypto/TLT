@@ -198,8 +198,8 @@ describe('heatCalcTableColumns', () => {
     const settings = getDefaultTableColumnSettings();
     const visiblePipe = getVisibleTableColumnMetas('pipe', settings).map((column) => column.key);
 
-    expect(visiblePipe.slice(visiblePipe.indexOf('valve_count'), visiblePipe.indexOf('local_element_equiv_length') + 1))
-      .toEqual(['valve_count', 'flange_count', 'support_count', 'local_element_equiv_length']);
+    expect(visiblePipe.slice(visiblePipe.indexOf('num_local_elements'), visiblePipe.indexOf('local_element_equiv_length') + 1))
+      .toEqual(['num_local_elements', 'local_element_equiv_length']);
   });
 
   it('оставляет расчетные детали скрытыми по умолчанию, но доступными в каталоге', () => {

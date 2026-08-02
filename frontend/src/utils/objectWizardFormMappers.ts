@@ -62,13 +62,11 @@ export function pipeFormToApiParams(
   const params: Record<string, unknown> = {
     outer_diameter: mmToMOrNull(v.outer_diameter_mm),
     wall_thickness: mmToMOrNull(v.wall_thickness_mm),
-    insulation_thickness: mmToMOrNull(v.insulation_thickness_mm),
-    insulation_material: v.insulation_material ?? null,
-    ambient_temperature: numberOrNull(v.ambient_temperature),
     process_temperature: numberOrNull(v.process_temperature),
     pipe_length: numberOrNull(v.pipe_length),
   };
-  applyCommonObjectParams(params, v);
+  if (v.placement !== 'underground') params.ambient_temperature = numberOrNull(v.ambient_temperature);
+  applyCommonObjectParams(params, v, { objectType: 'pipe' });
   if (v.pipe_material === 'other' || v.pipe_lambda_mode === 'manual') {
     params.pipe_lambda = numberOrNull(v.pipe_lambda);
   } else {
@@ -76,32 +74,11 @@ export function pipeFormToApiParams(
   }
   if (hasExplicitNumberValue(v.num_local_elements)) {
     params.num_local_elements = numberOrZero(v.num_local_elements);
-    if (hasExplicitNumberValue(v.local_element_equiv_length)) {
-      params.local_element_equiv_length = numberOrNull(v.local_element_equiv_length);
-    }
-  } else {
-    const hasExplicitLocalCounts = [
-    v.valve_count,
-    v.flange_count,
-    v.support_count,
-    ].some(hasExplicitNumberValue);
-    if (hasExplicitLocalCounts) {
-      const valveCount = numberOrZero(v.valve_count);
-      const flangeCount = numberOrZero(v.flange_count);
-      const supportCount = numberOrZero(v.support_count);
-      const localCount = valveCount + flangeCount + supportCount;
-      params.valve_count = valveCount;
-      params.flange_count = flangeCount;
-      params.support_count = supportCount;
-      if (localCount > 0) params.num_local_elements = localCount;
-      if (localCount > 0 || hasExplicitNumberValue(v.local_element_equiv_length)) {
-        params.local_element_equiv_length = numberOrNull(v.local_element_equiv_length);
-      }
-    } else if (hasExplicitNumberValue(v.local_element_equiv_length)) {
-      params.local_element_equiv_length = numberOrNull(v.local_element_equiv_length);
-    }
   }
-  applyInsulationLayers(params, v);
+  if (hasExplicitNumberValue(v.local_element_equiv_length)) {
+    params.local_element_equiv_length = numberOrNull(v.local_element_equiv_length);
+  }
+  applyInsulationLayers(params, v, { canonical: true });
   if (v.name) params.name = v.name;
   return params;
 }
@@ -116,7 +93,7 @@ export function tankFormToApiParams(
     ambient_temperature: numberOrNull(v.ambient_temperature),
     process_temperature: numberOrNull(v.process_temperature),
   };
-  applyCommonObjectParams(params, v);
+  applyCommonObjectParams(params, v, { objectType: 'tank' });
   applyInsulationLayers(params, v);
   if (hasExplicitNumberValue(v.diameter_mm)) params.diameter = mmToMOrNull(v.diameter_mm);
   if (hasExplicitNumberValue(v.height_mm)) params.height = mmToMOrNull(v.height_mm);
@@ -155,21 +132,39 @@ function formTemperatureRange(min?: number, max?: number) {
 }
 
 
-function applyCommonObjectParams(params: Record<string, unknown>, v: PipeFormValues | TankFormValues) {
+function applyCommonObjectParams(
+  params: Record<string, unknown>,
+  v: PipeFormValues | TankFormValues,
+  options: { objectType: 'pipe' | 'tank' },
+) {
   const placement = v.placement ?? null;
   params.placement = placement;
-  if (placement === 'indoor' || placement === 'outdoor' || placement === 'underground') {
+  const isPipe = options.objectType === 'pipe';
+  if (!isPipe && (placement === 'indoor' || placement === 'outdoor' || placement === 'underground')) {
     params.location = placement === 'indoor' ? 'indoor' : 'outdoor';
   }
-  if (placement === 'underground' && v.burial_depth != null) {
+  if (!isPipe && placement === 'underground' && v.burial_depth != null) {
     params.burial_depth = v.burial_depth;
+  }
+  if (isPipe && placement === 'underground') {
+    const pipeValues = v as PipeFormValues;
+    if (pipeValues.ground_temperature != null) {
+      params.ground_temperature = pipeValues.ground_temperature;
+      params.ground_temperature_source = pipeValues.ground_temperature_source ?? 'manual';
+    }
+    if (v.burial_depth != null) params.pipe_centerline_depth = v.burial_depth;
   }
   if (placement === 'underground' && v.ground_type) params.ground_type = v.ground_type;
   if (placement === 'underground' && v.ground_conductivity != null) {
     params.ground_conductivity = v.ground_conductivity;
+    if (isPipe) {
+      const pipeValues = v as PipeFormValues;
+      params.ground_conductivity_source = pipeValues.ground_conductivity_source
+        ?? (v.ground_type === 'custom' ? 'manual' : 'reference');
+    }
   }
-  if (v.wind_speed != null) params.wind_speed = v.wind_speed;
-  if (v.alpha_vnesh != null) params.alpha_vnesh = v.alpha_vnesh;
+  if ((!isPipe || placement !== 'underground') && v.wind_speed != null) params.wind_speed = v.wind_speed;
+  if ((!isPipe || placement !== 'underground') && v.alpha_vnesh != null) params.alpha_vnesh = v.alpha_vnesh;
   const hasClimateKeyField = Object.prototype.hasOwnProperty.call(v, 'climate_key');
   if (v.climate_key) {
     params.climate_key = v.climate_key;
@@ -179,11 +174,11 @@ function applyCommonObjectParams(params: Record<string, unknown>, v: PipeFormVal
     params.climate_key = null;
     params.climate_city = null;
     params.climate_region = null;
-    params.climate_temperature_basis = null;
+    if (!isPipe || placement !== 'underground') params.climate_temperature_basis = null;
   }
   if (v.climate_city) params.climate_city = v.climate_city;
   if (v.climate_region) params.climate_region = v.climate_region;
-  if (v.climate_temperature_basis) {
+  if ((!isPipe || placement !== 'underground') && v.climate_temperature_basis) {
     params.climate_temperature_basis = v.climate_temperature_basis;
   }
   const insulationTemperatureBasis = insulationTemperatureBasisOrDefault(
@@ -193,10 +188,12 @@ function applyCommonObjectParams(params: Record<string, unknown>, v: PipeFormVal
   if (insulationTemperatureBasis) {
     params.insulation_temperature_basis = insulationTemperatureBasis;
   }
-  if (v.ambient_temperature_source) {
+  if ((!isPipe || placement !== 'underground') && v.ambient_temperature_source) {
     params.ambient_temperature_source = v.ambient_temperature_source;
   }
-  if (v.wind_speed_source) params.wind_speed_source = v.wind_speed_source;
+  if ((!isPipe || placement !== 'underground') && v.wind_speed_source) {
+    params.wind_speed_source = v.wind_speed_source;
+  }
   if (v.insulation_cover_material) params.insulation_cover_material = v.insulation_cover_material;
   if (v.max_ambient_temperature != null) params.max_ambient_temperature = v.max_ambient_temperature;
   if (v.max_process_temperature != null) params.max_process_temperature = v.max_process_temperature;
@@ -219,9 +216,13 @@ function applyCommonObjectParams(params: Record<string, unknown>, v: PipeFormVal
   if (v.hot_reserve_coefficient != null) params.hot_reserve_coefficient = v.hot_reserve_coefficient;
 }
 
-function applyInsulationLayers(params: Record<string, unknown>, v: LayeredFormValues) {
+function applyInsulationLayers(
+  params: Record<string, unknown>,
+  v: LayeredFormValues,
+  options: { canonical?: boolean } = {},
+) {
   const count = Number(v.insulation_layer_count ?? '1');
-  params.insulation_layer_count = String(Math.min(Math.max(count || 1, 1), 3));
+  if (!options.canonical) params.insulation_layer_count = String(Math.min(Math.max(count || 1, 1), 3));
 
   const layers = [
     {

@@ -24,6 +24,7 @@ from app.services.excel_import_service import (
     _commit_object_batch_row_by_row,
     _norm,
     _parse_csv,
+    _parse_excel_workbook,
     _resolve_material,
     _resolve_material_entry,
     _resolve_shape,
@@ -77,8 +78,11 @@ class TestBuildObjectsXlsxSafety:
                 "name": '=HYPERLINK("http://example.test","x")',
                 "outer_diameter": 0.108,
                 "pipe_length": "+SUM(1,1)",
-                "insulation_thickness": 0.05,
-                "insulation_material": "+SUM(1,1)",
+                "wall_thickness": 0.004,
+                "pipe_material": "carbon_steel",
+                "insulation_layers": [
+                    {"thickness": 0.05, "material": "+SUM(1,1)"}
+                ],
                 "ambient_temperature": "-2+3",
                 "process_temperature": "=1+1",
                 "vapor_temperature": "@cmd",
@@ -87,9 +91,19 @@ class TestBuildObjectsXlsxSafety:
 
         wb = load_workbook(io.BytesIO(build_objects_xlsx([obj])), data_only=False)
         ws = wb["Трубопроводы"]
-
-        for cell_ref in ("A2", "C2", "E2", "F2", "I2", "J2", "K2"):
-            cell = ws[cell_ref]
+        cells_by_header = {
+            header.value: ws.cell(row=2, column=index)
+            for index, header in enumerate(ws[1], start=1)
+        }
+        for header in (
+            "Наименование",
+            "Длина, м",
+            "Код материала изоляции",
+            "T° среды",
+            "T° продукта",
+            "T проп., °C",
+        ):
+            cell = cells_by_header[header]
             assert cell.data_type == "s"
             assert str(cell.value).startswith("'")
 
@@ -132,20 +146,22 @@ class TestBuildObjectsXlsxSafety:
                 "name": "pipe",
                 "outer_diameter": 0.108,
                 "pipe_length": 50,
-                "insulation_thickness": 0.05,
-                "insulation_material": "mineral_wool_boards_120",
+                "wall_thickness": 0.004,
+                "pipe_material": "carbon_steel",
+                "insulation_layers": [
+                    {"thickness": 0.05, "material": "mineral_wool_boards_120"}
+                ],
                 "ambient_temperature": -20,
                 "process_temperature": 80,
                 "placement": "outdoor",
+                "wind_speed": 3.5,
                 "climate_region": "ХМАО",
                 "climate_city": "Сургут",
                 "climate_key": "ХМАО|||Сургут",
                 "climate_temperature_basis": "t_0_92",
                 "safety_factor": 1.2,
                 "min_switch_temperature": -35,
-                "valve_count": 1,
-                "flange_count": 2,
-                "support_count": 3,
+                "num_local_elements": 6,
                 "local_element_equiv_length": 2.4,
             },
         )
@@ -158,10 +174,140 @@ class TestBuildObjectsXlsxSafety:
         assert row["Ключ климата"] == "ХМАО|||Сургут"
         assert row["Обеспеченность климата"] == "t_0_92"
         assert row["Мин. T включения, °C"] == -35
+        assert row["Количество локальных элементов"] == 6
         assert row["L экв., м"] == 2.4
+        assert all(
+            forbidden not in header.casefold()
+            for header in headers
+            for forbidden in ("location", "burial_depth", "количество слоёв")
+        )
+
+    def test_pipe_export_round_trips_canonical_underground_layers(self):
+        from types import SimpleNamespace
+
+        obj = SimpleNamespace(
+            object_type="pipe",
+            params={
+                "name": "UG-1",
+                "outer_diameter": 0.108,
+                "pipe_length": 25.0,
+                "wall_thickness": 0.004,
+                "pipe_lambda": 45.0,
+                "insulation_layers": [
+                    {"thickness": 0.03, "material": "mineral_wool_boards_120"},
+                    {"thickness": 0.02, "material": "polyurethane_products_50"},
+                ],
+                "process_temperature": 80.0,
+                "placement": "underground",
+                "pipe_centerline_depth": 1.4,
+                "ground_temperature": 4.0,
+                "ground_type": "clay",
+                "ground_conductivity": 1.5,
+                "num_local_elements": 2,
+                "local_element_equiv_length": 1.2,
+            },
+        )
+
+        content = build_objects_xlsx([obj])
+        [(label, object_type, rows)] = [
+            parsed for parsed in _parse_excel_workbook(content) if parsed[1] == "pipe"
+        ]
+        params, err = _build_pipe_params(rows[0])
+
+        assert label == "Трубопроводы"
+        assert object_type == "pipe"
+        assert err is None
+        assert params is not None
+        assert params["insulation_layers"] == obj.params["insulation_layers"]
+        assert params["pipe_centerline_depth"] == 1.4
+        assert params["ground_temperature"] == 4.0
+        assert params["ground_temperature_source"] == "manual"
+        assert params["ground_conductivity_source"] == "reference"
+        assert params["num_local_elements"] == 2
+        assert params["local_element_equiv_length"] == 1.2
+        assert params["pipe_lambda"] == 45.0
+        assert "pipe_material" not in params
+        for forbidden in (
+            "location",
+            "burial_depth",
+            "insulation_thickness",
+            "insulation_material",
+            "insulation_layer_count",
+        ):
+            assert forbidden not in params
+
+    def test_pipe_export_round_trips_manual_alpha_and_manual_insulation(self):
+        from types import SimpleNamespace
+
+        from app.services.project_object_params import prepare_project_object_params
+
+        source = {
+            "name": "Manual physics",
+            "outer_diameter": 0.108,
+            "pipe_length": 50.0,
+            "wall_thickness": 0.004,
+            "pipe_material": "carbon_steel",
+            "insulation_layers": [
+                {
+                    "thickness": 0.05,
+                    "material": "other",
+                    "conductivity": 0.037,
+                    "temperature_range": (-50.0, 250.0),
+                }
+            ],
+            "ambient_temperature": -20.0,
+            "process_temperature": 80.0,
+            "placement": "outdoor",
+            "alpha_vnesh": 18.5,
+            "insulation_temperature_basis": "outdoor_winter",
+            "insulation_cover_material": "aluminum",
+            "num_local_elements": 0,
+        }
+        content = build_objects_xlsx([SimpleNamespace(object_type="pipe", params=source)])
+        [(_label, _object_type, rows)] = [
+            parsed for parsed in _parse_excel_workbook(content) if parsed[1] == "pipe"
+        ]
+
+        built, err = _build_pipe_params(rows[0])
+        assert err is None
+        assert built is not None
+        prepared = prepare_project_object_params("pipe", built)
+
+        assert prepared["alpha_vnesh"] == 18.5
+        assert "wind_speed" not in prepared
+        assert prepared["insulation_cover_material"] == "aluminum"
+        assert prepared["insulation_layers"] == [
+            {
+                "thickness": 0.05,
+                "material": "other",
+                "conductivity": 0.037,
+                "temperature_range": (-50.0, 250.0),
+            }
+        ]
 
 
 class TestExtendedRoundtripFields:
+    @pytest.mark.parametrize(
+        ("ground_type", "expected_source"),
+        [(None, "manual"), ("custom", "manual"), ("clay", "reference")],
+    )
+    def test_pipe_parser_sets_ground_conductivity_provenance(
+        self, ground_type: str | None, expected_source: str
+    ):
+        params, err = _build_pipe_params(
+            {
+                "placement": "underground",
+                "ground_type": ground_type,
+                "ground_conductivity": 1.5,
+                "ground_temperature": 4,
+            }
+        )
+
+        assert err is None
+        assert params is not None
+        assert params["ground_temperature_source"] == "manual"
+        assert params["ground_conductivity_source"] == expected_source
+
     def test_pipe_parser_reads_climate_and_local_element_fields(self):
         params, err = _build_pipe_params(
             {
@@ -178,9 +324,7 @@ class TestExtendedRoundtripFields:
                 "climate_temperature_basis": "0,92",
                 "safety_factor": 1.2,
                 "min_switch_temperature": -35,
-                "valve_count": 1,
-                "flange_count": 2,
-                "support_count": 3,
+                "num_local_elements": 6,
                 "local_element_equiv_length": 2.4,
             }
         )
@@ -302,10 +446,21 @@ class TestBuildPipeParams:
         assert err is None
         # мм → м
         assert params["outer_diameter"] == pytest.approx(0.108)
-        assert params["insulation_thickness"] == pytest.approx(0.05)
+        assert params["insulation_layers"] == [
+            {"thickness": pytest.approx(0.05), "material": "mineral_wool_boards_120"}
+        ]
         assert params["pipe_length"] == 50
-        assert params["insulation_material"] == "mineral_wool_boards_120"
         assert params["name"] == "Т1"
+        for implicit_default in (
+            "placement",
+            "location",
+            "wall_thickness",
+            "pipe_material",
+            "pipe_lambda",
+            "wind_speed",
+            "insulation_temperature_basis",
+        ):
+            assert implicit_default not in params
 
     def test_generic_material_is_preserved_as_reselection_request(self):
         row = {
@@ -320,9 +475,7 @@ class TestBuildPipeParams:
         params, err = _build_pipe_params(row)
         assert err is None
         assert params is not None
-        assert "insulation_material" not in params
-        assert params["insulation_material_raw"] == "Минеральная вата"
-        assert params["needs_material_reselection"] is True
+        assert params["insulation_layers"] == [{"thickness": pytest.approx(0.05)}]
 
     def test_missing_required_field_keeps_partial_params(self):
         row = {"_row": 5, "outer_diameter_mm": 108, "pipe_length": 50}
@@ -331,22 +484,50 @@ class TestBuildPipeParams:
         assert params is not None
         assert params["outer_diameter"] == pytest.approx(0.108)
         assert params["pipe_length"] == 50
-        assert "insulation_thickness" not in params
+        assert "insulation_layers" not in params
 
-    def test_unknown_material_keeps_object_without_material(self):
+    def test_unknown_pipe_material_is_rejected_explicitly(self):
         row = {
             "_row": 3,
             "outer_diameter_mm": 108,
             "pipe_length": 50,
             "insulation_thickness_mm": 50,
-            "insulation_material": "какой-то-крутой",
+            "insulation_material": "mineral_wool_boards_120",
+            "pipe_material": "какой-то-крутой",
             "ambient_temperature": -20,
             "process_temperature": 80,
         }
         params, err = _build_pipe_params(row)
-        assert err is None
-        assert params is not None
-        assert "insulation_material" not in params
+        assert params is None
+        assert err is not None
+        assert "материал трубы" in err
+
+    def test_unknown_placement_is_rejected_explicitly(self):
+        params, err = _build_pipe_params({"_row": 2, "placement": "на Луне"})
+
+        assert params is None
+        assert err is not None
+        assert "размещение" in err
+
+    def test_pipe_material_and_lambda_are_mutually_exclusive(self):
+        params, err = _build_pipe_params(
+            {"_row": 2, "pipe_material": "carbon_steel", "pipe_lambda": 45}
+        )
+
+        assert params is None
+        assert err is not None
+        assert "один источник" in err
+
+    def test_legacy_local_element_columns_are_not_imported(self):
+        [(label, rows)] = _parse_csv(
+            (
+                "Тип;Задвижки;Фланцы;Опоры;Количество локальных элементов\n"
+                "труба;1;2;3;4\n"
+            ).encode()
+        )
+
+        assert label == "Трубопроводы (CSV)"
+        assert rows == [{"_row": 2, "num_local_elements": "4"}]
 
     def test_name_stripped(self):
         row = {
@@ -604,13 +785,19 @@ class TestAddRowsHelper:
                 "insulation_temperature_basis": "outdoor_winter",
                 "ambient_temperature": -20,
                 "process_temperature": 80,
+                "wall_thickness_mm": 4,
+                "pipe_material": "carbon_steel",
+                "placement": "outdoor",
+                "wind_speed": 0,
             }
             for idx in range(2, 32)
         ]
         batch_sizes: list[int] = []
+        stored_params: list[dict] = []
 
         async def fake_commit(db, batch, sheet_label):
             batch_sizes.append(len(batch))
+            stored_params.extend(obj.params for obj, _row in batch)
             return len(batch), [uuid4() for _obj, _row in batch], []
 
         monkeypatch.setattr(mod, "_commit_object_batch", fake_commit)
@@ -642,6 +829,22 @@ class TestAddRowsHelper:
         assert skipped_limit == 0
         assert errors == []
         assert batch_sizes == [25, 5]
+        assert all(params["insulation_layers"] for params in stored_params)
+        assert all(params["placement"] == "outdoor" for params in stored_params)
+        assert all(
+            forbidden not in params
+            for params in stored_params
+            for forbidden in (
+                "location",
+                "burial_depth",
+                "insulation_thickness",
+                "insulation_material",
+                "insulation_layer_count",
+                "valve_count",
+                "flange_count",
+                "support_count",
+            )
+        )
 
     async def test_merge_mode_skips_existing_dedupe_key(self, monkeypatch: pytest.MonkeyPatch):
         from unittest.mock import AsyncMock
@@ -649,7 +852,7 @@ class TestAddRowsHelper:
 
         from app.services import excel_import_service as mod
         from app.services.excel_import_service import _add_rows, _dedupe_key
-        from app.services.project_object_params import normalize_project_object_params
+        from app.services.project_object_params import prepare_project_object_params
 
         row = {
             "_row": 2,
@@ -661,20 +864,15 @@ class TestAddRowsHelper:
             "insulation_temperature_basis": "outdoor_winter",
             "ambient_temperature": -20,
             "process_temperature": 80,
+            "wall_thickness_mm": 4,
+            "pipe_material": "carbon_steel",
+            "placement": "outdoor",
+            "wind_speed": 0,
         }
-        normalized = normalize_project_object_params(
-            "pipe",
-            {
-                "name": " Line A ",
-                "outer_diameter": 0.108,
-                "pipe_length": 50.0,
-                "insulation_thickness": 0.05,
-                "insulation_material": "mineral_wool_boards_120",
-                "insulation_temperature_basis": "outdoor_winter",
-                "ambient_temperature": -20.0,
-                "process_temperature": 80.0,
-            },
-        )
+        built, err = _build_pipe_params(row)
+        assert err is None
+        assert built is not None
+        normalized = prepare_project_object_params("pipe", built)
         dedupe_keys = {_dedupe_key("pipe", normalized)}
 
         async def fake_commit(db, batch, sheet_label):
@@ -1111,10 +1309,10 @@ class TestAddRowsHelper:
             },
         ]
 
-        def boom_normalize(*args, **kwargs):
-            raise RuntimeError("bad normalize")
+        def boom_prepare(*args, **kwargs):
+            raise RuntimeError("bad prepare")
 
-        monkeypatch.setattr(mod, "normalize_project_object_params", boom_normalize)
+        monkeypatch.setattr(mod, "prepare_project_object_params", boom_prepare)
         db = AsyncMock()
         created, _, current_count, errors, object_ids, skipped, skipped_limit = await _add_rows(
             db,

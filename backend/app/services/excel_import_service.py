@@ -27,7 +27,10 @@ from app.reference_data.loader import (
     INSULATION_MATERIAL_RESELECTION_MESSAGE,
     list_insulation_materials,
 )
-from app.services.project_object_params import normalize_project_object_params
+from app.services.project_object_params import (
+    normalize_project_object_params,
+    prepare_project_object_params,
+)
 from app.services.project_service import (
     ProjectAccessError,
     ProjectNotFoundError,
@@ -233,24 +236,32 @@ PIPE_HEADERS: dict[str, str] = {
     "материал трубы": "pipe_material",
     "λ трубы": "pipe_lambda",
     "лямбда трубы": "pipe_lambda",
-    "количество слоёв изоляции": "insulation_layer_count",
-    "кол-во слоёв из": "insulation_layer_count",
-    "слоёв из": "insulation_layer_count",
     "материал 2-го слоя": "second_insulation_material",
     "толщина 2-го слоя, мм": "second_insulation_thickness_mm",
     "толщина 2-го слоя": "second_insulation_thickness_mm",
     "λ 1-го слоя": "first_insulation_lambda",
+    "диапазон температур 1-го слоя, °c": "first_insulation_temperature_range",
     "λ 2-го слоя": "second_insulation_lambda",
+    "диапазон температур 2-го слоя, °c": "second_insulation_temperature_range",
     "материал 3-го слоя": "third_insulation_material",
     "толщина 3-го слоя, мм": "third_insulation_thickness_mm",
     "толщина 3-го слоя": "third_insulation_thickness_mm",
     "λ 3-го слоя": "third_insulation_lambda",
+    "диапазон температур 3-го слоя, °c": "third_insulation_temperature_range",
     "материал покрытия": "insulation_cover_material",
     "размещение": "placement",
     "размещение трубопровода": "placement",
-    "глубина прокладки": "burial_depth",
+    "глубина прокладки": "pipe_centerline_depth",
+    "глубина заложения оси трубы, м": "pipe_centerline_depth",
+    "глубина заложения оси трубы": "pipe_centerline_depth",
     "грунт": "ground_type",
     "λ грунта": "ground_conductivity",
+    "температура грунта": "ground_temperature",
+    "t° грунта": "ground_temperature",
+    "скорость ветра, м/с": "wind_speed",
+    "скорость ветра": "wind_speed",
+    "α внешней теплоотдачи": "alpha_vnesh",
+    "alpha_vnesh": "alpha_vnesh",
     "kзап": "safety_factor",
     "k зап": "safety_factor",
     "коэффициент запаса": "safety_factor",
@@ -270,9 +281,8 @@ PIPE_HEADERS: dict[str, str] = {
     "режим температуры изоляции": "insulation_temperature_basis",
     "tm изоляции": "insulation_temperature_basis",
     "tм изоляции": "insulation_temperature_basis",
-    "задвижки": "valve_count",
-    "фланцы": "flange_count",
-    "опоры": "support_count",
+    "количество локальных элементов": "num_local_elements",
+    "локальных элементов": "num_local_elements",
     "l экв., м": "local_element_equiv_length",
     "l экв. м": "local_element_equiv_length",
     "эквивалентная длина локального элемента": "local_element_equiv_length",
@@ -420,6 +430,22 @@ def _to_float(v: Any) -> float | None:
         return float(s)
     except ValueError:
         return None
+
+
+def _to_temperature_range(v: Any) -> tuple[float, float] | None:
+    if isinstance(v, list | tuple) and len(v) == 2:
+        lower = _to_float(v[0])
+        upper = _to_float(v[1])
+    elif v not in (None, ""):
+        values = re.findall(r"[-+]?\d+(?:[.,]\d+)?", str(v))
+        if len(values) != 2:
+            return None
+        lower, upper = (_to_float(value) for value in values)
+    else:
+        return None
+    if lower is None or upper is None:
+        return None
+    return lower, upper
 
 
 @dataclass(frozen=True)
@@ -693,41 +719,155 @@ def _build_pipe_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
     t_a = _to_float(row.get("ambient_temperature"))
     t_p = _to_float(row.get("process_temperature"))
 
+    placement_raw = row.get("placement")
+    placement = _resolve_alias(placement_raw, PLACEMENT_ALIASES)
+    if placement_raw not in (None, "") and placement is None:
+        return None, f"Не распознано размещение трубопровода: {placement_raw}"
+
+    pipe_material_raw = row.get("pipe_material")
+    pipe_material = _resolve_pipe_material(pipe_material_raw)
+    if pipe_material_raw not in (None, "") and pipe_material is None:
+        return None, f"Не распознан материал трубы: {pipe_material_raw}"
+    pipe_lambda = _to_float(row.get("pipe_lambda"))
+    if pipe_material is not None and pipe_lambda is not None:
+        return None, "Задайте только один источник λ трубы: материал или λ"
+
     params: dict[str, Any] = {}
     if d_mm is not None:
         params["outer_diameter"] = d_mm / 1000.0
     if L is not None:
         params["pipe_length"] = L
+    layers: list[dict[str, Any]] = []
+    first_layer: dict[str, Any] = {}
     if ins_mm is not None:
-        params["insulation_thickness"] = ins_mm / 1000.0
-    _apply_insulation_material_resolution(params, "insulation_material", material_resolution)
-    if t_a is not None:
-        params["ambient_temperature"] = t_a
+        first_layer["thickness"] = ins_mm / 1000.0
+    if material_resolution.material:
+        first_layer["material"] = material_resolution.material
+    first_lambda = _to_float(row.get("first_insulation_lambda"))
+    if first_lambda is not None:
+        first_layer["conductivity"] = first_lambda
+    first_temperature_range = _to_temperature_range(
+        row.get("first_insulation_temperature_range")
+    )
+    if first_temperature_range is not None:
+        first_layer["temperature_range"] = first_temperature_range
+    if first_layer:
+        layers.append(first_layer)
+
+    for material_field, thickness_field, lambda_field, temperature_range_field in (
+        (
+            "second_insulation_material",
+            "second_insulation_thickness_mm",
+            "second_insulation_lambda",
+            "second_insulation_temperature_range",
+        ),
+        (
+            "third_insulation_material",
+            "third_insulation_thickness_mm",
+            "third_insulation_lambda",
+            "third_insulation_temperature_range",
+        ),
+    ):
+        resolution = _resolve_material_entry(row.get(material_field))
+        thickness = _to_float(row.get(thickness_field))
+        conductivity = _to_float(row.get(lambda_field))
+        temperature_range = _to_temperature_range(row.get(temperature_range_field))
+        if not (
+            resolution.material
+            or thickness is not None
+            or conductivity is not None
+            or temperature_range is not None
+        ):
+            continue
+        layer: dict[str, Any] = {}
+        if thickness is not None:
+            layer["thickness"] = thickness / 1000.0
+        if resolution.material:
+            layer["material"] = resolution.material
+        if conductivity is not None:
+            layer["conductivity"] = conductivity
+        if temperature_range is not None:
+            layer["temperature_range"] = temperature_range
+        layers.append(layer)
+    if layers:
+        params["insulation_layers"] = layers[:3]
+
     if t_p is not None:
         params["process_temperature"] = t_p
     wall_mm = _to_float(row.get("wall_thickness_mm"))
     if wall_mm is not None:
         params["wall_thickness"] = wall_mm / 1000.0
-    pipe_material = _resolve_pipe_material(row.get("pipe_material"))
     if pipe_material:
         params["pipe_material"] = pipe_material
-    pipe_lambda = _to_float(row.get("pipe_lambda"))
     if pipe_lambda is not None:
         params["pipe_lambda"] = pipe_lambda
-    for count_field in ("valve_count", "flange_count", "support_count"):
-        value = _to_float(row.get(count_field))
-        if value is not None:
-            params[count_field] = int(value)
+
     local_element_equiv_length = _to_float(row.get("local_element_equiv_length"))
     if local_element_equiv_length is not None:
         params["local_element_equiv_length"] = local_element_equiv_length
-    local_count = sum(
-        int(params.get(k, 0) or 0) for k in ("valve_count", "flange_count", "support_count")
+    explicit_local_count = _to_float(row.get("num_local_elements"))
+    params["num_local_elements"] = int(explicit_local_count or 0)
+
+    if placement:
+        params["placement"] = placement
+    if placement == "underground":
+        depth = _to_float(row.get("pipe_centerline_depth"))
+        if depth is not None:
+            params["pipe_centerline_depth"] = depth
+        ground_temperature = _to_float(row.get("ground_temperature"))
+        if ground_temperature is not None:
+            params["ground_temperature"] = ground_temperature
+            params["ground_temperature_source"] = "manual"
+        ground_conductivity = _to_float(row.get("ground_conductivity"))
+        if ground_conductivity is not None:
+            params["ground_conductivity"] = ground_conductivity
+        ground_type = _resolve_alias(row.get("ground_type"), GROUND_ALIASES)
+        if ground_type:
+            params["ground_type"] = ground_type
+        if ground_type or ground_conductivity is not None:
+            params["ground_conductivity_source"] = (
+                "reference" if ground_type not in (None, "custom") else "manual"
+            )
+    elif t_a is not None:
+        params["ambient_temperature"] = t_a
+
+    wind_speed = _to_float(row.get("wind_speed"))
+    if wind_speed is not None:
+        params["wind_speed"] = wind_speed
+    alpha_vnesh = _to_float(row.get("alpha_vnesh"))
+    if alpha_vnesh is not None:
+        params["alpha_vnesh"] = alpha_vnesh
+
+    safety_factor = _to_float(row.get("safety_factor"))
+    if safety_factor is not None:
+        params["safety_factor"] = safety_factor
+    basis = _resolve_alias(
+        row.get("insulation_temperature_basis"), INSULATION_TEMPERATURE_BASIS_ALIASES
     )
-    if local_count:
-        params["num_local_elements"] = local_count
-    _apply_common_srs_params(params, row)
-    _apply_layered_insulation(params, row)
+    if basis:
+        params["insulation_temperature_basis"] = basis
+
+    for field in (
+        "vapor_temperature",
+        "maintain_temperature",
+        "max_ambient_temperature",
+        "max_process_temperature",
+        "min_switch_temperature",
+        "supply_voltage",
+    ):
+        value = _to_float(row.get(field))
+        if value is not None:
+            params[field] = value
+    for field in ("climate_key", "climate_region", "climate_city"):
+        value = row.get(field)
+        if value and str(value).strip():
+            params[field] = str(value).strip()
+    climate_basis = _resolve_climate_basis(row.get("climate_temperature_basis"))
+    if climate_basis:
+        params["climate_temperature_basis"] = climate_basis
+    cover = row.get("insulation_cover_material")
+    if cover and str(cover).strip():
+        params["insulation_cover_material"] = str(cover).strip()
     name = row.get("name")
     if name and str(name).strip():
         params["name"] = str(name).strip()
@@ -1058,7 +1198,11 @@ async def _add_rows(
             )
             continue
         try:
-            normalized_params = normalize_project_object_params(object_type, params)
+            normalized_params = (
+                prepare_project_object_params(object_type, params)
+                if object_type == "pipe"
+                else normalize_project_object_params(object_type, params)
+            )
             if dedupe_keys is not None:
                 key = _dedupe_key(object_type, normalized_params)
                 if key in dedupe_keys:
@@ -1318,6 +1462,14 @@ def _to_export_mm(value: Any) -> float | str:
     return result or ""
 
 
+def _format_temperature_range(value: Any) -> str:
+    parsed = _to_temperature_range(value)
+    if parsed is None:
+        return ""
+    lower, upper = parsed
+    return f"{lower:g}..{upper:g}"
+
+
 def build_objects_xlsx(objects: list[Any]) -> bytes:
     """Экспорт объектов проекта в формат, round-trip-совместимый с импортом.
 
@@ -1336,25 +1488,40 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
         "Наименование",
         "Диаметр, мм",
         "Длина, м",
+        "Толщина стенки, мм",
+        "Материал трубы",
+        "λ трубы",
         "Толщина изоляции, мм",
-        "Материал изоляции",
         "Код материала изоляции",
-        "Статус материала изоляции",
-        "Комментарий материала изоляции",
+        "λ 1-го слоя",
+        "Диапазон температур 1-го слоя, °C",
+        "Толщина 2-го слоя, мм",
+        "Материал 2-го слоя",
+        "λ 2-го слоя",
+        "Диапазон температур 2-го слоя, °C",
+        "Толщина 3-го слоя, мм",
+        "Материал 3-го слоя",
+        "λ 3-го слоя",
+        "Диапазон температур 3-го слоя, °C",
         "T° среды",
+        "Температура грунта",
         "T° продукта",
         "T проп., °C",
         "Размещение",
+        "Глубина заложения оси трубы, м",
+        "Грунт",
+        "λ грунта",
+        "Скорость ветра, м/с",
+        "α внешней теплоотдачи",
         "Режим температуры изоляции",
+        "Материал покрытия",
         "Климатический регион",
         "Климатический город",
         "Ключ климата",
         "Обеспеченность климата",
         "Kзап",
         "Мин. T включения, °C",
-        "Задвижки",
-        "Фланцы",
-        "Опоры",
+        "Количество локальных элементов",
         "L экв., м",
     ]
     for c, h in enumerate(pipe_cols, start=1):
@@ -1401,31 +1568,54 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
             params.get("insulation_material_raw") or ""
         )
         if obj.object_type == "pipe":
+            layers = params.get("insulation_layers")
+            layer_list = layers if isinstance(layers, list) else []
+
+            def layer_value(index: int, key: str, _layers: list[Any] = layer_list) -> Any:
+                if index >= len(_layers) or not isinstance(_layers[index], dict):
+                    return ""
+                return _layers[index].get(key, "")
+
             append_safe_row(
                 ws_pipe,
                 [
                     name,
                     _to_export_mm(params.get("outer_diameter")),
                     params.get("pipe_length") or "",
-                    _to_export_mm(params.get("insulation_thickness")),
-                    material,
-                    material_code,
-                    _material_status(params),
-                    _material_warning(params),
+                    _to_export_mm(params.get("wall_thickness")),
+                    params.get("pipe_material", ""),
+                    params.get("pipe_lambda", ""),
+                    _to_export_mm(layer_value(0, "thickness")),
+                    layer_value(0, "material"),
+                    layer_value(0, "conductivity"),
+                    _format_temperature_range(layer_value(0, "temperature_range")),
+                    _to_export_mm(layer_value(1, "thickness")),
+                    layer_value(1, "material"),
+                    layer_value(1, "conductivity"),
+                    _format_temperature_range(layer_value(1, "temperature_range")),
+                    _to_export_mm(layer_value(2, "thickness")),
+                    layer_value(2, "material"),
+                    layer_value(2, "conductivity"),
+                    _format_temperature_range(layer_value(2, "temperature_range")),
                     params.get("ambient_temperature", ""),
+                    params.get("ground_temperature", ""),
                     params.get("process_temperature", ""),
                     params.get("vapor_temperature", ""),
                     params.get("placement", ""),
+                    params.get("pipe_centerline_depth", ""),
+                    params.get("ground_type", ""),
+                    params.get("ground_conductivity", ""),
+                    params.get("wind_speed", ""),
+                    params.get("alpha_vnesh", ""),
                     params.get("insulation_temperature_basis", ""),
+                    params.get("insulation_cover_material", ""),
                     params.get("climate_region", ""),
                     params.get("climate_city", ""),
                     params.get("climate_key", ""),
                     params.get("climate_temperature_basis", ""),
                     params.get("safety_factor", ""),
                     params.get("min_switch_temperature", ""),
-                    params.get("valve_count", ""),
-                    params.get("flange_count", ""),
-                    params.get("support_count", ""),
+                    params.get("num_local_elements", ""),
                     params.get("local_element_equiv_length", ""),
                 ],
             )
@@ -1490,85 +1680,84 @@ def build_template_xlsx() -> bytes:
         "Наименование",
         "Диаметр, мм",
         "Длина, м",
+        "Толщина стенки, мм",
+        "Материал трубы",
+        "λ трубы",
         "Толщина изоляции, мм",
-        "Материал изоляции",
         "Код материала изоляции",
-        "Статус материала изоляции",
-        "Комментарий материала изоляции",
+        "λ 1-го слоя",
+        "Диапазон температур 1-го слоя, °C",
+        "Толщина 2-го слоя, мм",
+        "Материал 2-го слоя",
+        "λ 2-го слоя",
+        "Диапазон температур 2-го слоя, °C",
+        "Толщина 3-го слоя, мм",
+        "Материал 3-го слоя",
+        "λ 3-го слоя",
+        "Диапазон температур 3-го слоя, °C",
         "T° среды",
+        "Температура грунта",
         "T° продукта",
         "T проп., °C",
         "Размещение",
+        "Глубина заложения оси трубы, м",
+        "Грунт",
+        "λ грунта",
+        "Скорость ветра, м/с",
+        "α внешней теплоотдачи",
         "Режим температуры изоляции",
+        "Материал покрытия",
         "Климатический регион",
         "Климатический город",
         "Ключ климата",
         "Обеспеченность климата",
         "Kзап",
         "Мин. T включения, °C",
-        "Задвижки",
-        "Фланцы",
-        "Опоры",
+        "Количество локальных элементов",
         "L экв., м",
     ]
     for c, h in enumerate(pipe_cols, start=1):
         cell = ws_pipe.cell(row=1, column=c, value=h)
         cell.font = Font(bold=True)
         cell.fill = PatternFill("solid", fgColor="DCEEF7")
-    ws_pipe.append(
-        [
-            "Пример DN100",
-            108,
-            50,
-            50,
-            "Плиты минераловатные прошивные",
-            "mineral_wool_boards_120",
-            "",
-            "",
-            -20,
-            80,
-            "",
-            "outdoor",
-            "outdoor_winter",
-            "",
-            "",
-            "",
-            "",
-            1.1,
-            -20,
-            2,
-            2,
-            2,
-            1.5,
-        ]
-    )
-    ws_pipe.append(
-        [
-            "Пример DN50",
-            57,
-            20,
-            40,
-            "Теплоизоляционные изделия из пенополиуретана",
-            "polyurethane_products_50",
-            "",
-            "",
-            -30,
-            60,
-            "",
-            "outdoor",
-            "outdoor_winter",
-            "",
-            "",
-            "",
-            "",
-            1.1,
-            -20,
-            0,
-            0,
-            0,
-            "",
-        ]
-    )
+    for example in (
+        {
+            "Наименование": "Пример DN100",
+            "Диаметр, мм": 108,
+            "Длина, м": 50,
+            "Толщина стенки, мм": 4,
+            "Материал трубы": "carbon_steel",
+            "Толщина изоляции, мм": 50,
+            "Код материала изоляции": "mineral_wool_boards_120",
+            "T° среды": -20,
+            "T° продукта": 80,
+            "Размещение": "outdoor",
+            "Скорость ветра, м/с": 0,
+            "Режим температуры изоляции": "outdoor_winter",
+            "Kзап": 1.1,
+            "Мин. T включения, °C": -20,
+            "Количество локальных элементов": 6,
+            "L экв., м": 1.5,
+        },
+        {
+            "Наименование": "Пример DN50",
+            "Диаметр, мм": 57,
+            "Длина, м": 20,
+            "Толщина стенки, мм": 4,
+            "Материал трубы": "carbon_steel",
+            "Толщина изоляции, мм": 40,
+            "Код материала изоляции": "polyurethane_products_50",
+            "T° среды": -30,
+            "T° продукта": 60,
+            "Размещение": "outdoor",
+            "Скорость ветра, м/с": 0,
+            "Режим температуры изоляции": "outdoor_winter",
+            "Kзап": 1.1,
+            "Мин. T включения, °C": -20,
+            "Количество локальных элементов": 0,
+        },
+    ):
+        ws_pipe.append([example.get(header, "") for header in pipe_cols])
     ws_pipe.column_dimensions["A"].width = 24
     for col_idx in range(2, len(pipe_cols) + 1):
         ws_pipe.column_dimensions[get_column_letter(col_idx)].width = 18
@@ -1749,9 +1938,10 @@ def build_template_csv() -> bytes:
             "Обеспеченность климата",
             "Kзап",
             "Мин. T включения, °C",
-            "Задвижки",
-            "Фланцы",
-            "Опоры",
+            "Толщина стенки, мм",
+            "Материал трубы",
+            "Скорость ветра, м/с",
+            "Количество локальных элементов",
             "L экв., м",
             "Q доп., Вт",
         ]
@@ -1783,9 +1973,10 @@ def build_template_csv() -> bytes:
             "",
             1.1,
             -20,
-            2,
-            2,
-            2,
+            4,
+            "carbon_steel",
+            0,
+            6,
             1.5,
             "",
         ]
@@ -1816,7 +2007,8 @@ def build_template_csv() -> bytes:
             "",
             1.1,
             -20,
-            0,
+            4,
+            "carbon_steel",
             0,
             0,
             "",
@@ -1854,6 +2046,7 @@ def build_template_csv() -> bytes:
             "",
             "",
             "",
+            "",
             0,
         ]
     )
@@ -1883,6 +2076,7 @@ def build_template_csv() -> bytes:
             "",
             1.1,
             -20,
+            "",
             "",
             "",
             "",

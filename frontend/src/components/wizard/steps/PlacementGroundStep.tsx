@@ -52,6 +52,7 @@ export default function PlacementGroundStep({
   const form = Form.useFormInstance();
   const placement = Form.useWatch('placement', form);
   const isUnderground = placement === 'underground';
+  const depthFieldId = objectType === 'pipe' ? 'pipe_centerline_depth' : 'burial_depth';
   const numberInputProps = (fieldId: string) =>
     heatCalcNumberInputProps(objectType, fieldId, { fieldInputSettings, form });
   const selectInputProps = (fieldId: string) =>
@@ -79,18 +80,34 @@ export default function PlacementGroundStep({
         <>
           {(part === 'all' || part === 'numeric') && <Form.Item
             className="fit-label-form-item burial-depth-form-item helped-form-item"
-            label={fieldLabel('burial_depth', objectType)}
+            label={fieldLabel(depthFieldId, objectType)}
             name="burial_depth"
             preserve={false}
-            rules={heatCalcFormFieldRules(form, objectType, 'burial_depth')}
+            rules={heatCalcFormFieldRules(form, objectType, depthFieldId)}
           >
             {withHelp(
               <UnitInputNumber
                 data-testid="burial-depth-input"
-                {...numberInputProps('burial_depth')}
+                {...numberInputProps(depthFieldId)}
                 unit="м"
               />,
-              fieldHelp('burial_depth', objectType),
+              fieldHelp(depthFieldId, objectType),
+            )}
+          </Form.Item>}
+          {objectType === 'pipe' && (part === 'all' || part === 'numeric') && <Form.Item
+            className="numeric-form-item helped-form-item"
+            label={fieldLabel('ground_temperature', objectType)}
+            name="ground_temperature"
+            preserve={false}
+            rules={heatCalcFormFieldRules(form, objectType, 'ground_temperature')}
+          >
+            {withHelp(
+              <UnitInputNumber
+                data-testid="ground-temperature-input"
+                {...numberInputProps('ground_temperature')}
+                unit="°C"
+              />,
+              fieldHelp('ground_temperature', objectType),
             )}
           </Form.Item>}
           {(part === 'all' || part === 'wide') && <Form.Item

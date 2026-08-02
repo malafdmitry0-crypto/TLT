@@ -182,8 +182,7 @@ describe('ObjectWizard dependencies — validation-highlight', () => {
         outer_diameter: undefined,
         pipe_length: undefined,
         wall_thickness: undefined,
-        insulation_thickness: undefined,
-        insulation_material: undefined,
+        insulation_layers: [{ thickness: null, material: null }],
         ambient_temperature: undefined,
         process_temperature: undefined},
       validationErrors: {
@@ -213,7 +212,10 @@ describe('ObjectWizard dependencies — validation-highlight', () => {
     renderWizard({
       initialParams: {
         ...basePipeParams,
-        insulation_layer_count: '2'},
+        insulation_layers: [
+          { thickness: 0.05, material: 'mineral_wool' },
+          { thickness: null, material: null },
+        ]},
       validationErrors: {
         message: 'Не заполнены обязательные поля объекта: Толщина 2-го слоя изоляции, Материал 2-го слоя изоляции'}});
 

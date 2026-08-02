@@ -2,9 +2,19 @@
 import { describe, it, expect } from 'vitest';
 import {
   pipeFormToApiParams,
+  pipeApiParamsToForm,
 } from '@/utils/objectWizardUtils';
 
 describe('pipeFormToApiParams', () => {
+  it('не добавляет tank-only location даже для незаполненной pipe-формы', () => {
+    const api = pipeFormToApiParams(
+      { placement: 'outdoor' } as Parameters<typeof pipeFormToApiParams>[0],
+    );
+
+    expect(api).toMatchObject({ placement: 'outdoor' });
+    expect(api).not.toHaveProperty('location');
+  });
+
   it('конвертирует мм → м', () => {
     const api = pipeFormToApiParams({
       outer_diameter_mm: 108,
@@ -15,7 +25,7 @@ describe('pipeFormToApiParams', () => {
       process_temperature: 80,
     });
     expect(api.outer_diameter).toBeCloseTo(0.108);
-    expect(api.insulation_thickness).toBeCloseTo(0.05);
+    expect(api.insulation_layers).toEqual([{ thickness: 0.05, material: 'mineral_wool' }]);
     expect(api.pipe_length).toBe(50);
     expect(api.name).toBeUndefined();
     expect(api.valve_count).toBeUndefined();
@@ -81,32 +91,40 @@ describe('pipeFormToApiParams', () => {
       max_ambient_temperature: 30,
       max_process_temperature: 90,
       placement: 'underground',
+      ground_temperature: 8,
       burial_depth: 1.2,
       ground_type: 'clay',
       ground_conductivity: 1.7,
       climate_region: 'ХМАО',
       climate_city: 'Сургут',
       climate_temperature_basis: 't_0_92',
+      ambient_temperature_source: 'climate',
+      wind_speed_source: 'climate',
       safety_factor: 1.2,
       safety_factor_source: 'manual',
       supply_voltage: 380,
       vapor_temperature: 140,
-      valve_count: 1,
-      flange_count: 2,
-      support_count: 3,
+      num_local_elements: 6,
       local_element_equiv_length: 1.5,
     });
 
     expect(api.wall_thickness).toBeCloseTo(0.004);
     expect(api.pipe_material).toBeUndefined();
     expect(api.pipe_lambda).toBe(56);
-    expect(api.location).toBe('outdoor');
     expect(api.placement).toBe('underground');
-    expect(api.burial_depth).toBe(1.2);
+    expect(api.ground_temperature).toBe(8);
+    expect(api.ground_temperature_source).toBe('manual');
+    expect(api.pipe_centerline_depth).toBe(1.2);
+    expect(api.ambient_temperature).toBeUndefined();
+    expect(api.wind_speed).toBeUndefined();
+    expect(api.alpha_vnesh).toBeUndefined();
     expect(api.ground_type).toBe('clay');
     expect(api.ground_conductivity).toBe(1.7);
+    expect(api.ground_conductivity_source).toBe('reference');
     expect(api.climate_key).toBe('ХМАО|||Сургут');
-    expect(api.climate_temperature_basis).toBe('t_0_92');
+    expect(api.climate_temperature_basis).toBeUndefined();
+    expect(api.ambient_temperature_source).toBeUndefined();
+    expect(api.wind_speed_source).toBeUndefined();
     expect(api.safety_factor).toBe(1.2);
     expect(api.safety_factor_source).toBe('manual');
     expect(api.supply_voltage).toBe(380);
@@ -116,6 +134,9 @@ describe('pipeFormToApiParams', () => {
     expect(api.max_process_temperature).toBe(90);
     expect(api.num_local_elements).toBe(6);
     expect(api.local_element_equiv_length).toBe(1.5);
+    expect(api).not.toHaveProperty('valve_count');
+    expect(api).not.toHaveProperty('flange_count');
+    expect(api).not.toHaveProperty('support_count');
   });
 
   it('не затирает backend-дефолты локальных элементов пустыми нулями', () => {
@@ -159,15 +180,13 @@ describe('pipeFormToApiParams', () => {
       insulation_material: 'mineral_wool',
       ambient_temperature: -20,
       process_temperature: 80,
-      valve_count: 0,
-      flange_count: 0,
-      support_count: 0,
+      num_local_elements: 0,
     });
 
-    expect(api.valve_count).toBe(0);
-    expect(api.flange_count).toBe(0);
-    expect(api.support_count).toBe(0);
-    expect(api.num_local_elements).toBeUndefined();
+    expect(api.num_local_elements).toBe(0);
+    expect(api).not.toHaveProperty('valve_count');
+    expect(api).not.toHaveProperty('flange_count');
+    expect(api).not.toHaveProperty('support_count');
   });
 
   it('формирует insulation_layers для трёх слоёв', () => {
@@ -184,13 +203,79 @@ describe('pipeFormToApiParams', () => {
       ambient_temperature: -20,
       process_temperature: 80,
     });
-    expect(api.insulation_layer_count).toBe('3');
+    expect(api).not.toHaveProperty('insulation_layer_count');
     expect(api.insulation_layers).toEqual([
       { thickness: 0.04, material: 'mineral_wool' },
       { thickness: 0.02, material: 'polyurethane_foam' },
       { thickness: 0.01, material: 'foam_glass' },
     ]);
-    expect(api.insulation_thickness).toBeCloseTo(0.04);
+    expect(api).not.toHaveProperty('insulation_thickness');
+    expect(api).not.toHaveProperty('insulation_material');
+    expect(api).not.toHaveProperty('insulation_layer_count');
+  });
+
+  it('round-trips canonical underground payload without legacy aliases', () => {
+    const api = pipeFormToApiParams({
+      outer_diameter_mm: 108,
+      wall_thickness_mm: 4,
+      pipe_length: 50,
+      insulation_thickness_mm: 40,
+      insulation_material: 'mineral_wool',
+      ambient_temperature: -20,
+      process_temperature: 80,
+      placement: 'underground',
+      ground_temperature: 8,
+      ground_temperature_source: 'manual',
+      burial_depth: 1.2,
+      ground_type: 'clay',
+      ground_conductivity: 1.7,
+      pipe_material: 'carbon_steel',
+    });
+
+    expect(api).not.toHaveProperty('location');
+    expect(api).not.toHaveProperty('burial_depth');
+    expect(api).not.toHaveProperty('insulation_thickness');
+    expect(api).not.toHaveProperty('insulation_material');
+    expect(api).not.toHaveProperty('insulation_layer_count');
+    expect(pipeApiParamsToForm(api)).toMatchObject({
+      outer_diameter_mm: 108,
+      wall_thickness_mm: 4,
+      placement: 'underground',
+      ground_temperature: 8,
+      burial_depth: 1.2,
+      insulation_thickness_mm: 40,
+      insulation_material: 'mineral_wool',
+      insulation_layer_count: '1',
+      pipe_material: 'carbon_steel',
+      pipe_lambda_mode: 'reference',
+      ground_conductivity_source: 'reference',
+    });
+  });
+
+  it('очищает ground-ветку из воздушного payload при смене placement', () => {
+    const api = pipeFormToApiParams({
+      outer_diameter_mm: 108,
+      pipe_length: 50,
+      insulation_thickness_mm: 40,
+      insulation_material: 'mineral_wool',
+      ambient_temperature: -20,
+      process_temperature: 80,
+      placement: 'outdoor',
+      ground_temperature: 8,
+      burial_depth: 1.2,
+      ground_type: 'clay',
+      ground_conductivity: 1.7,
+      wind_speed: 3,
+    });
+
+    expect(api.ambient_temperature).toBe(-20);
+    expect(api.wind_speed).toBe(3);
+    expect(api).not.toHaveProperty('ground_temperature');
+    expect(api).not.toHaveProperty('ground_temperature_source');
+    expect(api).not.toHaveProperty('pipe_centerline_depth');
+    expect(api).not.toHaveProperty('ground_type');
+    expect(api).not.toHaveProperty('ground_conductivity');
+    expect(api).not.toHaveProperty('ground_conductivity_source');
   });
 
   it('передаёт ручную λ для материала «Другое» в каждом слое', () => {

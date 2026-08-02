@@ -13,8 +13,7 @@ export function makePipe(): ProjectObject {
       wall_thickness: 0.004,
       pipe_material: 'carbon_steel',
       pipe_length: 50,
-      insulation_thickness: 0.05,
-      insulation_material: 'mineral_wool',
+      insulation_layers: [{ thickness: 0.05, material: 'mineral_wool' }],
       ambient_temperature: -20,
       process_temperature: 80,
       placement: 'outdoor',
@@ -36,9 +35,10 @@ export function makeInvalidDeclaredThreeLayerPipe(): ProjectObject {
     ...record,
     params: {
       ...record.params,
-      insulation_layer_count: '3',
       insulation_layers: [
         { thickness: 0.05, material: 'mineral_wool' },
+        {},
+        {},
       ],
     },
     is_valid: false,
@@ -54,7 +54,6 @@ export function makeValidThreeLayerPipe(): ProjectObject {
     ...record,
     params: {
       ...record.params,
-      insulation_layer_count: '3',
       insulation_layers: [
         { thickness: 0.05, material: 'mineral_wool' },
         { thickness: 0.02, material: 'polyurethane_foam' },

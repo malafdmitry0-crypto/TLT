@@ -47,6 +47,10 @@ describe('heatCalcColumnRenderers', () => {
         ],
         process_temperature: 80,
         ambient_temperature: -20,
+        placement: 'underground',
+        ground_temperature: 6,
+        pipe_centerline_depth: 1.25,
+        num_local_elements: 6,
         safety_factor: 1.2,
       },
       results: {
@@ -70,6 +74,10 @@ describe('heatCalcColumnRenderers', () => {
     expect(renderers.second_insulation_material.copyValue(record, 0)).toBe('label:foamglass');
     expect(renderers.second_insulation_thickness.copyValue(record, 0)).toBe('30');
     expect(renderers.delta_t.copyValue(record, 0)).toBe('100');
+    expect(renderers.placement.copyValue(record, 0)).toBe('Подземно');
+    expect(renderers.ground_temperature.copyValue(record, 0)).toBe('6,0');
+    expect(renderers.pipe_centerline_depth.copyValue(record, 0)).toBe('1,25');
+    expect(renderers.num_local_elements.copyValue(record, 0)).toBe('6');
     expect(renderers.heat_loss_per_meter_base.copyValue(record, 0)).toBe('42,4');
     expect(normalizeSpaces(renderers.total_heat_loss_design.copyValue(record, 0))).toBe('2 332');
     expect(renderers.thermal_resistance.copyValue(record, 0)).toBe('2,3579');

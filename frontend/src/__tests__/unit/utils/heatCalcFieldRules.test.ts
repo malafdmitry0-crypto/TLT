@@ -30,15 +30,15 @@ describe('heatCalcFieldRules', () => {
   it('требует Lэкв только когда есть ненулевые локальные элементы', () => {
     expect(isHeatCalcFieldRequired('local_element_equiv_length', {
       objectType: 'pipe',
-      values: { valve_count: 0, flange_count: 0, support_count: 0 },
+      values: { num_local_elements: 0 },
     })).toBe(false);
     expect(isHeatCalcFieldRequired('local_element_equiv_length', {
       objectType: 'pipe',
-      values: { valve_count: 1, flange_count: 0, support_count: 0 },
+      values: { num_local_elements: 1 },
     })).toBe(true);
     expect(validateHeatCalcField('local_element_equiv_length', undefined, {
       objectType: 'pipe',
-      values: { valve_count: 1, flange_count: 0, support_count: 0 },
+      values: { num_local_elements: 1 },
     })).toBe('Укажите значение');
   });
 
@@ -85,10 +85,14 @@ describe('heatCalcFieldRules', () => {
       objectType: 'pipe',
       values: {},
     })).toBe('Максимальное значение — 200');
+    expect(validateHeatCalcField('ground_conductivity', 0.49, {
+      objectType: 'pipe',
+      values: { placement: 'underground' },
+    })).toBe('Минимальное значение — 0.5');
     expect(validateHeatCalcField('ground_conductivity', 0.5, {
       objectType: 'pipe',
       values: { placement: 'underground' },
-    })).toBe('Минимальное значение — 0.8');
+    })).toBeNull();
     expect(validateHeatCalcField('ground_conductivity', 1.5, {
       objectType: 'pipe',
       values: { placement: 'underground' },
@@ -121,10 +125,36 @@ describe('heatCalcFieldRules', () => {
       objectType: 'pipe',
       values: {},
     })).toBe('Максимальное значение — 1.5');
-    expect(validateHeatCalcField('valve_count', 150, {
+    expect(validateHeatCalcField('num_local_elements', 150, {
       objectType: 'pipe',
       values: {},
     })).toBe('Максимальное значение — 100');
+    expect(validateHeatCalcField('safety_factor', 1, {
+      objectType: 'pipe',
+      values: {},
+    })).toBeNull();
+  });
+
+  it('для underground pipe сравнивает температуру продукта с грунтом, а не со скрытым воздухом', () => {
+    const context = {
+      objectType: 'pipe' as const,
+      values: {
+        placement: 'underground',
+        ambient_temperature: 100,
+        ground_temperature: 5,
+        process_temperature: 20,
+      },
+    };
+
+    expect(validateHeatCalcField('process_temperature', 20, context)).toBeNull();
+    expect(validateHeatCalcField('ground_temperature', 20, {
+      ...context,
+      values: { ...context.values, ground_temperature: 20 },
+    })).toBe('Температура грунта должна быть ниже требуемой температуры объекта');
+    expect(validateHeatCalcField('process_temperature', 5, {
+      ...context,
+      values: { ...context.values, process_temperature: 5 },
+    })).toBe('Требуемая температура объекта должна быть выше температуры среды');
   });
 
   it('учитывает количество слоёв и материал other для λ и диапазона T', () => {
