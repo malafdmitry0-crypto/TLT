@@ -13,51 +13,40 @@
   --dual-form-control-font: var(--tlt-field-control-font-size, 12px);
   --dual-form-hint-size: 10px;
   --hof-wide-label-width: 96px;
-  --hof-geometry-label-width: 88px;
-  --hof-environment-label-width: 120px;
+  --hof-geometry-label-width: 96px;
+  --hof-environment-label-width: 96px;
   --hof-label-control-gap: 8px;
-  --hof-geometry-control-width: 96px;
-  --hof-environment-control-width: 92px;
   --field-input-min-width: 0px;
   --inline-control-height: var(--tlt-field-control-height, 26px);
   --tlt-field-gap: var(--hof-label-control-gap);
 
   isolation: isolate;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) max-content max-content;
-  gap: 4px 10px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 4px 16px;
   align-items: start;
   width: 100%;
   max-width: 100%;
   min-width: 0;
+  padding: 0 4px;
   box-sizing: border-box;
 }
 
 .heat-object-fields.heat-object-fields--wide[data-object-type="tank"] {
-  --hof-wide-label-width: 112px;
-  --hof-geometry-label-width: 120px;
+  --hof-wide-label-width: 96px;
+  --hof-geometry-label-width: 96px;
 }
 
 /* Each slot owns its vertical flow; hidden fields compact only that slot. */
+.heat-object-fields.heat-object-fields--wide .tlt-compact-field-grid {
+  gap: 10px 10px;
+  padding: 4px 8px;
+}
+
 .heat-object-fields.heat-object-fields--wide > .heat-object-fields__geometry,
 .heat-object-fields.heat-object-fields--wide > .heat-object-fields__climate,
 .heat-object-fields.heat-object-fields--wide > .heat-object-fields__settings {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-auto-flow: row;
-  grid-auto-rows: minmax(36px, auto);
-  gap: 4px;
-  align-items: start;
-  min-width: 0;
-}
-
-.heat-object-fields.heat-object-fields--wide > .heat-object-fields__geometry {
-  width: 100%;
-}
-
-.heat-object-fields.heat-object-fields--wide > .heat-object-fields__climate,
-.heat-object-fields.heat-object-fields--wide > .heat-object-fields__settings {
-  width: max-content;
+  display: contents;
 }
 
 .heat-object-fields.heat-object-fields--wide .ant-form-item-hidden,
@@ -68,35 +57,35 @@
 
 .heat-object-fields.heat-object-fields--wide [data-slot="wide"] {
   --tlt-compact-label-width: var(--hof-wide-label-width);
-  --tlt-compact-control-width: 100%;
+  --tlt-compact-control-width: 152px;
 }
 
 .heat-object-fields.heat-object-fields--wide [data-slot="geometry-numeric"] {
   --tlt-compact-label-width: var(--hof-geometry-label-width);
-  --tlt-compact-control-width: var(--hof-geometry-control-width);
+  --tlt-compact-control-width: 152px;
 }
 
 .heat-object-fields.heat-object-fields--wide [data-slot="environment-numeric"] {
   --tlt-compact-label-width: var(--hof-environment-label-width);
-  --tlt-compact-control-width: var(--hof-environment-control-width);
+  --tlt-compact-control-width: 152px;
 }
 
 .heat-object-fields.heat-object-fields--wide [data-slot="wide"] .ant-form-item-row {
-  grid-template-columns: var(--hof-wide-label-width) minmax(0, 1fr);
+  grid-template-columns: var(--hof-wide-label-width) 152px;
   column-gap: var(--hof-label-control-gap);
-  width: 100%;
+  width: fit-content;
 }
 
 .heat-object-fields.heat-object-fields--wide [data-slot="geometry-numeric"] .ant-form-item-row {
-  grid-template-columns: var(--hof-geometry-label-width) var(--hof-geometry-control-width);
+  grid-template-columns: var(--hof-geometry-label-width) 152px;
   column-gap: var(--hof-label-control-gap);
-  width: max-content;
+  width: fit-content;
 }
 
 .heat-object-fields.heat-object-fields--wide [data-slot="environment-numeric"] .ant-form-item-row {
-  grid-template-columns: var(--hof-environment-label-width) var(--hof-environment-control-width);
+  grid-template-columns: var(--hof-environment-label-width) 152px;
   column-gap: var(--hof-label-control-gap);
-  width: max-content;
+  width: fit-content;
 }
 
 .heat-object-fields.heat-object-fields--wide [data-slot="wide"] .ant-form-item-control,
@@ -114,12 +103,9 @@
   min-width: 0;
 }
 
-.heat-object-fields.heat-object-fields--wide [data-slot="geometry-numeric"] .ant-form-item-control {
-  width: var(--hof-geometry-control-width);
-}
-
+.heat-object-fields.heat-object-fields--wide [data-slot="geometry-numeric"] .ant-form-item-control,
 .heat-object-fields.heat-object-fields--wide [data-slot="environment-numeric"] .ant-form-item-control {
-  width: var(--hof-environment-control-width);
+  width: 152px;
 }
 
 .heat-object-fields.heat-object-fields--wide .insulation-settings-row {
@@ -206,80 +192,11 @@
 }
 
 /*
- * Wide layout adapts to the ACTUAL pane width (container `heat-fields` on the
- * fields zone, declared in heatcalc-dual-form-shell.css), not the viewport —
- * so browser zoom picks the right mode too. Three slot columns survive as
- * long as they physically fit; below the comfortable width the tiers first
- * SQUEEZE (narrower labels, tighter gaps) and only then restack:
- *   ≥646px (pipe) / ≥694px (tank) — three columns at full label widths;
- *   squeeze tier down to ~610px (pipe) / 640px (tank) — still three columns,
- *   labels trimmed to their longest word, wide controls flex down;
- *   tank <640px — two columns: wide fields with tighter 240px controls on
- *   the left, geometry group over environment group on the right (pipe skips
- *   this tier — its squeeze floor nearly touches the single-column cut);
- *   <600px — single column, wide controls capped at 380px.
- * Tank tiers name [data-object-type] directly to OUT-specify the base tank
- * override above (0,3,0 — it re-sets label widths); they never touch
- * `display`, so the <600px flex tier still restacks everything. Pipe tiers
- * keep :where() — nothing outranks them, order decides.
+ * Auto-fill grid handles column count automatically via minmax(240px, 1fr).
+ * Narrow: stack to single column below 520px container.
  */
-@container heat-fields (width < 694px) {
-  .heat-object-fields.heat-object-fields--wide[data-object-type="tank"] {
-    --hof-wide-label-width: 104px;
-    --hof-geometry-label-width: 104px;
-    --hof-environment-label-width: 96px;
-    gap: 4px 6px;
-  }
-}
-
-@container heat-fields (width < 646px) {
-  .heat-object-fields.heat-object-fields--wide:where([data-object-type="pipe"]) {
-    --hof-geometry-label-width: 80px;
-    --hof-environment-label-width: 100px;
-    gap: 4px 6px;
-  }
-}
-
-@container heat-fields (width < 640px) {
-  .heat-object-fields.heat-object-fields--wide[data-object-type="tank"] {
-    grid-template-columns: max-content max-content;
-    grid-template-areas:
-      "wide geo"
-      "wide env";
-    gap: 4px 24px;
-  }
-
-  .heat-object-fields.heat-object-fields--wide[data-object-type="tank"] > .heat-object-fields__geometry {
-    grid-area: wide;
-  }
-
-  .heat-object-fields.heat-object-fields--wide[data-object-type="tank"] > .heat-object-fields__climate {
-    grid-area: geo;
-  }
-
-  .heat-object-fields.heat-object-fields--wide[data-object-type="tank"] > .heat-object-fields__settings {
-    grid-area: env;
-  }
-
-  /* :where() so the <600px tier's 380px control cap still wins by order. */
-  .heat-object-fields.heat-object-fields--wide:where([data-object-type="tank"]) [data-slot="wide"] .ant-form-item-row {
-    grid-template-columns: var(--hof-wide-label-width) var(--hof-wide-control-tight, 240px);
-  }
-}
-
-@container heat-fields (width < 600px) {
+@container heat-fields (width < 520px) {
   .heat-object-fields.heat-object-fields--wide {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-start;
-    gap: 4px 24px;
-  }
-
-  .heat-object-fields.heat-object-fields--wide > .heat-object-fields__geometry {
-    width: 100%;
-  }
-
-  .heat-object-fields.heat-object-fields--wide [data-slot="wide"] .ant-form-item-row {
-    grid-template-columns: var(--hof-wide-label-width) minmax(0, 380px);
+    grid-template-columns: minmax(0, 1fr);
   }
 }

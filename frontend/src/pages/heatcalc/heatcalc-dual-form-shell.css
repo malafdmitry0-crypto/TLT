@@ -59,6 +59,7 @@
     minmax(var(--heatcalc-cable-pane-min), max-content)
     minmax(var(--heatcalc-cable-pane-min), max-content);
   justify-content: space-around;
+  gap: 0 16px;
 }
 .heatcalc-dual-forms--side {
   grid-template-columns: minmax(0, 1fr);
@@ -80,6 +81,14 @@
 .heatcalc-dual-forms__cable,
 .heatcalc-dual-forms__specs {
   min-width: 0;
+}
+.heatcalc-dual-forms__cable {
+  border-left: 1px solid var(--heatcalc-panel-border);
+  padding-left: 16px;
+}
+.heatcalc-dual-forms__specs {
+  border-left: 1px solid var(--heatcalc-panel-border);
+  padding-left: 16px;
 }
 .heatcalc-dual-forms {
   --dual-form-banner-size: 9px;
@@ -157,10 +166,9 @@
   grid-template-areas:
     "fields"
     "layers";
-  gap: 8px;
+  gap: 32px;
+  padding: 10px 12px 12px;
   align-items: start;
-  justify-items: stretch;
-  padding: 8px 10px 10px;
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
