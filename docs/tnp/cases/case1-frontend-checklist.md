@@ -12,6 +12,8 @@
 - [`guest-specification-calculation-algorithm.md`](./guest-specification-calculation-algorithm.md);
 - [`specification-backend-implementation-prompt.md`](./specification-backend-implementation-prompt.md);
 - [`specification-frontend-follow-up.md`](./specification-frontend-follow-up.md);
+- [`case1-backend-status.md`](./case1-backend-status.md) — парная оценка бэкенда;
+- [`case1-closure-slice-plan.md`](./case1-closure-slice-plan.md) — план слайсов закрытия;
 - аудиты `docs/audit/2026-08-02-pdf-app-conformance`, `2026-08-02-electrical-calculation`,
   `2026-08-02-heatcalc-tab-audit`, `2026-08-03-heat-params-contract`;
 - ревизия кода `frontend/src` от 2026-08-03.
@@ -33,12 +35,22 @@ stale/partial-баннеры; отчёт — гостевой preview + печа
 - [x] Per-ER статусы `generated / blocked / confirmation_required / selection_required` и типы
       проблем `confirmable / blocking / selection_required`; HTTP-успех не маскирует `blocked`
       отдельного ЭР.
-- [x] Ветвление generation UI по typed `diagnostics[].kind/code`, не по тексту сообщения.
+- [ ] Ветвление generation UI по typed `diagnostics[].kind/code`, не по тексту сообщения.
+      **Частично (ревизия 2026-08-03):** по `code` ветвление есть
+      (`getSpecificationErrorDetail`, `useSpecificationPageModel.ts`), но `kind`
+      (`blocking / confirmable / selection_required`) в UI не используется — все диагностики
+      рендерятся одним danger-алертом (`SpecPageChrome.tsx`), `kind` служит только React-key.
+      Осталось: разные UI-ветки по `kind` (confirmable → подтверждение, selection_required →
+      выбор кандидата, blocking → блокирующий алерт).
 - [ ] UI выбора каталожной позиции при нескольких кандидатах (кейс 7.10–7.15: соединительные и
       ремонтные комплекты, клей-герметик, стекловолоконная и алюминиевая ленты, коробки):
       выпадающий список кандидатов, сохранение выбора (`catalog_selections`), автоматический
       пересчёт количества при смене, ветка «сохранённый выбор больше не в кандидатах» → stale +
       запрос нового выбора.
+      **Частично (ревизия №3, 2026-08-03):** happy-path реализован и покрыт тестом —
+      `SpecCandidateSelectionPanel` без предвыбора, `catalog_selections` шлётся заполненным,
+      пересчёт через регенерацию. Осталось: выбор живёт только в React-state (не персистится),
+      нет ветки «выбор выпал из кандидатов», в панели не показан ЭР группы.
 - [ ] Ветка «Исправить» в предупреждении о нераспределённых (кейс 7.3): переход в первый ЭР с
       нераспределёнными, открытие вкладки «Нераспределённые объекты», подсветка строк. Сейчас
       есть только подтверждение partial-генерации («Всё равно сформировать»).
