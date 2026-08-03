@@ -21,17 +21,13 @@ from app.electrical_input_validation import (
     ensure_process_temperature,
 )
 from app.formulas.electrical.cable_geometry import compute_tank_cable_length
-from app.formulas.electrical.resistive import calc_resistive_single_core, calc_resistive_three_core
-from app.formulas.electrical.self_regulating import calc_self_regulating, calc_self_regulating_tt
+from app.formulas.electrical.self_regulating import calc_self_regulating_tt
 from app.formulas.heat_loss.pipe import calc_pipe_heat_loss
 from app.formulas.heat_loss.tank import calc_tank_heat_loss
 from app.models.background_task import BackgroundTask
 from app.schemas.calculation import (
     CalculationTaskResponse,
     PipeHeatLossParams,
-    ResistiveSingleCoreParams,
-    ResistiveThreeCoreParams,
-    SelfRegulatingParams,
     SelfRegulatingTTParams,
     TankHeatLossParams,
 )
@@ -725,18 +721,9 @@ async def formula_check(
         elif data.formula_type == "tank":
             params = TankHeatLossParams(**params_data)
             result = calc_tank_heat_loss(params).model_dump()
-        elif data.formula_type == "electrical":
-            params = SelfRegulatingParams(**params_data)
-            result = calc_self_regulating(params).model_dump()
         elif data.formula_type == "electrical_tt":
             params = SelfRegulatingTTParams(**params_data)
             result = calc_self_regulating_tt(params).model_dump()
-        elif data.formula_type == "resistive_single":
-            params = ResistiveSingleCoreParams(**params_data)
-            result = calc_resistive_single_core(params).model_dump()
-        elif data.formula_type == "resistive_three":
-            params = ResistiveThreeCoreParams(**params_data)
-            result = calc_resistive_three_core(params).model_dump()
         elif data.formula_type == "tank_cable_geometry":
             params = TankCableGeometryCheckParams(**params_data)
             cable_length = compute_tank_cable_length(**params.model_dump())

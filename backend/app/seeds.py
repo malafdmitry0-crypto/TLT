@@ -40,11 +40,8 @@ from app.models.project_object import ProjectObject
 from app.models.user import User
 from app.reference_data.loader import (
     list_insulation_materials,
-    list_resistive_cables,
 )
 from app.schemas.calculation import (
-    RESISTIVE_DEFAULT_MIN_ADJUSTED_VOLTAGE,
-    RESISTIVE_DEFAULT_VOLTAGE_STEP,
     ElectricalRequest,
 )
 from app.schemas.project import ProjectObjectCreate
@@ -289,18 +286,9 @@ async def seed_demo_commercial_catalog(db) -> None:
     цены/остатки для dev/e2e. Production должен заменить их реальным импортом
     или ручным вводом, а повторный seed не перезапишет строки с другим source.
     """
-    now = datetime.now(UTC)
-    resistive_catalog = list_resistive_cables()
-    for index, cable in enumerate(resistive_catalog.get("single_core", [])):
-        await _upsert_demo_cable(
-            db,
-            _resistive_demo_cable(cable, cable_type="single_core", index=index, now=now),
-        )
-    for index, cable in enumerate(resistive_catalog.get("three_core", [])):
-        await _upsert_demo_cable(
-            db,
-            _resistive_demo_cable(cable, cable_type="three_core", index=index, now=now),
-        )
+    # РЕШЕНИЕ 2026-08-03 (DEC-07): resistive/ТЛТ demo-посев отключён.
+    # ТЕХДОЛГ №8: удалить функцию вместе с _upsert_demo_cable после зачистки.
+    return None
 
 
 async def purge_legacy_tlt_seed_cables(db) -> int:
@@ -458,22 +446,6 @@ async def seed_coefficients(db, admin_id: uuid.UUID) -> list[CorrectionCoefficie
             key="resistive_high_voltage_v",
             value=380.0,
             description="Demo/test high-voltage step for resistive auto-selection.",
-        ),
-        dict(
-            key="resistive_min_adjusted_voltage_v",
-            value=RESISTIVE_DEFAULT_MIN_ADJUSTED_VOLTAGE,
-            description=(
-                "Safety floor for resistive auto-selection voltage step-down, V. "
-                "Override only with an engineering-reviewed policy."
-            ),
-        ),
-        dict(
-            key="resistive_voltage_step_v",
-            value=RESISTIVE_DEFAULT_VOLTAGE_STEP,
-            description=(
-                "Safety fallback voltage decrement step for resistive auto-selection, V. "
-                "Override with 1 V only after engineering review."
-            ),
         ),
         dict(
             key="resistive_max_current_a",

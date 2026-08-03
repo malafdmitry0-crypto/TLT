@@ -1102,11 +1102,11 @@ class ResistiveThreeCoreResult(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+# РЕШЕНИЕ 2026-08-03: legacy-линейка ТЛТ (self_regulating/single_core/three_core)
+# выпилена без совместимости (DEC-07, BE-16 ТЗ). Расчётный тип — только
+# self_regulating_tt (серии ТТН/ТТВ/ТТХ); mineral/skin — unsupported-системы.
 ElectricalCableType = Literal[
-    "self_regulating",
     "self_regulating_tt",
-    "single_core",
-    "three_core",
     "mineral",
     "skin",
 ]
@@ -1151,7 +1151,7 @@ class ElectricalCableSelectionVariantsRequest(BaseModel):
     cable_source: ElectricalCableSource = "builtin"
     variant_numbers: list[int] = Field(default_factory=lambda: [1], min_length=1, max_length=5)
     electrical_variant_ids: dict[int, UUID] = Field(default_factory=dict)
-    cable_type: ElectricalCableType = "self_regulating"
+    cable_type: ElectricalCableType = "self_regulating_tt"
     selection_mode: Literal["auto", "manual"] | None = None
     supply_voltage: float | None = None
     connection_type: str | None = None
@@ -1212,7 +1212,7 @@ class ElectricalCandidateCreateRequest(BaseModel):
     object_id: UUID
     variant_number: int = Field(default=1, ge=1, le=5)
     electrical_variant_id: UUID | None = None
-    cable_type: ElectricalCableType = "self_regulating"
+    cable_type: ElectricalCableType = "self_regulating_tt"
     cable_source: ElectricalCableSource = "builtin"
     mode: ElectricalCandidateMode = "auto"
     cable_mark: str | None = None
@@ -1505,7 +1505,7 @@ class ElectricalBatchJobRequest(BaseModel):
     cable_source: str = "builtin"
     electrical_variant_id: UUID | None = None
     variant_number: int | None = Field(default=1, ge=1, le=5, deprecated=True)
-    cable_type: ElectricalCableType = "self_regulating"
+    cable_type: ElectricalCableType = "self_regulating_tt"
     selection_policy: SelectionPolicy = "technical_minimum"
     object_overrides: list[ElectricalObjectBatchOverride] | None = None
     force_cable_type: bool = False
