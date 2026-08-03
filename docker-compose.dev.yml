@@ -15,7 +15,7 @@ services:
       GUEST_MAX_SESSIONS_PER_IP: "500"
       LOGIN_MAX_ATTEMPTS_PER_IP: "500"
       # PDL-ER-27: keep 50 rollout guard until full 500-object perf gate is green.
-      GUEST_MAX_OBJECTS_PER_PROJECT: "50"
+      GUEST_MAX_OBJECTS_PER_PROJECT: "500"
 
   worker:
     build:
@@ -32,7 +32,7 @@ services:
       WORKER_QUEUE_CONSUMER: worker-dev
       GUEST_MAX_SESSIONS_PER_IP: "500"
       # PDL-ER-27: keep 50 rollout guard until full 500-object perf gate is green.
-      GUEST_MAX_OBJECTS_PER_PROJECT: "50"
+      GUEST_MAX_OBJECTS_PER_PROJECT: "500"
 
   frontend:
     build:

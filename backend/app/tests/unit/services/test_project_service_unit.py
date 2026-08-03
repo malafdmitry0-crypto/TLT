@@ -288,6 +288,7 @@ class TestObjectsCRUD:
             side_effect=[
                 _result_with(scalar=project),
                 _result_with(scalar=10),
+                _result_with(),  # touch_project: UPDATE projects.updated_at
             ]
         )
         db.commit = AsyncMock()
@@ -396,6 +397,7 @@ class TestObjectsCRUD:
                 _result_with(),
                 _result_with(scalar=obj),
                 SimpleNamespace(rowcount=1),
+                _result_with(),  # touch_project: UPDATE projects.updated_at
             ]
         )
         db.commit = AsyncMock()
@@ -512,6 +514,7 @@ class TestObjectsCRUD:
                 _result_with(scalar=project),
                 _result_with(),
                 _result_with(scalar=obj),
+                _result_with(),  # touch_project: UPDATE projects.updated_at
             ]
         )
         db.delete = AsyncMock()
@@ -653,6 +656,7 @@ class TestDuplicateProjectFlow:
         )
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_result_with(scalar=src))
+        db.get = AsyncMock(return_value=None)  # нет ProjectElectricalSettings у источника
         db.flush = AsyncMock()
         db.commit = AsyncMock()
         db.refresh = AsyncMock()

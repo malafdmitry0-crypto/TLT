@@ -16,6 +16,7 @@ from app.electrical_result_status import (
 from app.models.electrical_calculation import ElectricalCalculation
 from app.models.electrical_variant import ElectricalVariant
 from app.models.project import Project
+from app.models.project_electrical_settings import ProjectElectricalSettings
 from app.models.project_object import ProjectObject
 from app.models.user import User
 from app.schemas.project import (
@@ -77,6 +78,18 @@ class ProjectValidationError(Exception):
 
 class ProjectConflictError(Exception):
     """Объект был изменён параллельно."""
+
+
+class ProjectGroupValidationError(Exception):
+    """Кейс §5.8: значение нельзя применить хотя бы к одному объекту.
+
+    `problems` — перечень проблемных объектов `{object_id, name, error}`;
+    данные при этом не изменяются (всё-или-ничего).
+    """
+
+    def __init__(self, problems: list[dict[str, str | None]]) -> None:
+        super().__init__("Значение нельзя применить ко всем выбранным объектам")
+        self.problems = problems
 
 
 class ProjectElectricalVariantNotFoundError(Exception):
@@ -214,9 +227,28 @@ class ProjectService:
             user_id=principal.user_id,
             session_id=None,
             status="draft",
+            # Кейс §5.12: настройки проекта — часть проектных данных, копия их сохраняет.
+            specification_settings=copy.deepcopy(
+                getattr(source, "specification_settings", None) or {}
+            ),
+            specification_settings_version=(
+                getattr(source, "specification_settings_version", 1) or 1
+            ),
         )
         self.db.add(new_project)
         await self.db.flush()
+
+        source_electrical_settings = await self.db.get(ProjectElectricalSettings, source.id)
+        if source_electrical_settings is not None:
+            self.db.add(
+                ProjectElectricalSettings(
+                    project_id=new_project.id,
+                    max_section_start_current_a=(
+                        source_electrical_settings.max_section_start_current_a
+                    ),
+                    version=1,
+                )
+            )
 
         for src_obj in sorted(source.objects, key=lambda o: o.sort_order):
             self.db.add(
@@ -232,6 +264,17 @@ class ProjectService:
         return new_project
 
     # ---- Objects ----
+
+    async def touch_project(self, project_id: UUID) -> None:
+        """Кейс §4.4/§4.6: правка объектов обновляет «Последнее изменение» проекта.
+
+        Выполняется в текущей транзакции; вызывающая сторона коммитит вместе с
+        основной мутацией, поэтому сортировка «по дате изменения» видит правку
+        атомарно с ней.
+        """
+        await self.db.execute(
+            update(Project).where(Project.id == project_id).values(updated_at=func.now())
+        )
 
     async def list_objects(
         self, project_id: UUID, principal: CurrentPrincipal
@@ -389,6 +432,7 @@ class ProjectService:
         )
         self.db.add(obj)
         await self.db.flush()
+        await self.touch_project(project_id)
         await self.db.refresh(obj)
         return obj
 
@@ -463,6 +507,7 @@ class ProjectService:
         if result.rowcount != 1:
             await self.db.rollback()
             raise ProjectConflictError("Объект был изменён в другой вкладке, перезагрузите.")
+        await self.touch_project(project_id)
         await self.db.refresh(obj)
         return obj
 
@@ -483,6 +528,7 @@ class ProjectService:
         obj = await self._get_object(project_id, object_id)
         await self.db.delete(obj)
         await self.db.flush()
+        await self.touch_project(project_id)
 
     async def reorder_objects(
         self,
@@ -520,6 +566,7 @@ class ProjectService:
         objects_by_id = {obj.id: obj for obj in objects}
         for idx, obj_id in enumerate(order):
             objects_by_id[obj_id].sort_order = idx
+        await self.touch_project(project_id)
         await self.db.commit()
         result = await self.db.execute(
             select(ProjectObject)
@@ -527,6 +574,159 @@ class ProjectService:
             .order_by(ProjectObject.sort_order)
         )
         return list(result.scalars().all())
+
+    async def duplicate_objects(
+        self,
+        project_id: UUID,
+        object_ids: list[UUID],
+        principal: CurrentPrincipal,
+    ) -> list[ProjectObject]:
+        """Кейс §5.7 «Добавление объектов на основании выбранных».
+
+        Создаёт полную копию каждого выбранного объекта: собственный id, все
+        params переносятся без изменений, копии добавляются в конец таблицы.
+        Results не копируются — вызывающая сторона выполняет теплорасчёт
+        повторно. Исходные объекты не изменяются.
+        """
+        project = await self.get_project_basic(project_id, principal)
+        self._check_owner(project, principal)
+        await self.db.execute(
+            select(Project)
+            .where(Project.id == project_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        unique_ids = list(dict.fromkeys(object_ids))
+        result = await self.db.execute(
+            select(ProjectObject).where(
+                ProjectObject.project_id == project_id,
+                ProjectObject.id.in_(unique_ids),
+            )
+        )
+        objects_by_id = {obj.id: obj for obj in result.scalars().all()}
+        missing = [str(item) for item in unique_ids if item not in objects_by_id]
+        if missing:
+            raise ProjectNotFoundError("Объекты не найдены в проекте: " + ", ".join(missing))
+
+        count_result = await self.db.execute(
+            select(func.count())
+            .select_from(ProjectObject)
+            .where(ProjectObject.project_id == project_id)
+        )
+        count = count_result.scalar_one()
+        if count + len(unique_ids) > settings.GUEST_MAX_OBJECTS_PER_PROJECT:
+            raise ProjectLimitError(
+                f"Достигнут лимит объектов в проекте ({settings.GUEST_MAX_OBJECTS_PER_PROJECT})."
+            )
+
+        max_sort_result = await self.db.execute(
+            select(func.coalesce(func.max(ProjectObject.sort_order), -1)).where(
+                ProjectObject.project_id == project_id
+            )
+        )
+        next_sort = int(max_sort_result.scalar_one()) + 1
+        copies: list[ProjectObject] = []
+        for idx, object_id in enumerate(unique_ids):
+            source = objects_by_id[object_id]
+            copies.append(
+                ProjectObject(
+                    project_id=project_id,
+                    object_type=source.object_type,
+                    sort_order=next_sort + idx,
+                    params=copy.deepcopy(source.params or {}),
+                )
+            )
+        self.db.add_all(copies)
+        await self.db.flush()
+        await self.touch_project(project_id)
+        for obj in copies:
+            await self.db.refresh(obj)
+        return copies
+
+    async def group_update_objects(
+        self,
+        project_id: UUID,
+        object_ids: list[UUID],
+        param: str,
+        value: object,
+        principal: CurrentPrincipal,
+    ) -> list[ProjectObject]:
+        """Кейс §5.8 «Групповая корректировка объектов».
+
+        Меняет один общий параметр у всех выбранных объектов. Всё-или-ничего:
+        если новое значение недопустимо хотя бы для одного объекта — данные не
+        изменяются и поднимается ProjectGroupValidationError с перечнем
+        проблемных объектов. Остальные параметры объектов не изменяются.
+        """
+        project = await self.get_project_basic(project_id, principal)
+        self._check_owner(project, principal)
+        await self.db.execute(
+            select(Project)
+            .where(Project.id == project_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        unique_ids = list(dict.fromkeys(object_ids))
+        result = await self.db.execute(
+            select(ProjectObject)
+            .where(
+                ProjectObject.project_id == project_id,
+                ProjectObject.id.in_(unique_ids),
+            )
+            .order_by(ProjectObject.sort_order, ProjectObject.id)
+        )
+        objects = list(result.scalars().all())
+        found_ids = {obj.id for obj in objects}
+        missing = [str(item) for item in unique_ids if item not in found_ids]
+        if missing:
+            raise ProjectNotFoundError("Объекты не найдены в проекте: " + ", ".join(missing))
+
+        problems: list[dict[str, str | None]] = []
+        prepared_params: dict[UUID, dict[str, object]] = {}
+        for obj in objects:
+            obj_name = (obj.params or {}).get("name")
+            try:
+                if obj.object_type in ("pipe", "tank"):
+                    forbidden_keys = (
+                        PIPE_FORBIDDEN_HEAT_PARAM_KEYS
+                        if obj.object_type == "pipe"
+                        else TANK_FORBIDDEN_HEAT_PARAM_KEYS
+                    )
+                    if param in forbidden_keys:
+                        raise ProjectObjectParamsError(
+                            f"Forbidden {obj.object_type} heat params: {param}"
+                        )
+                    # Merge, не полный replace heat-фрагмента: групповая
+                    # корректировка меняет ровно один параметр (§5.8).
+                    merged = {**(obj.params or {}), param: value}
+                    prepared_params[obj.id] = prepare_project_object_params(
+                        obj.object_type, merged
+                    )
+                else:
+                    merged = {**(obj.params or {}), param: value}
+                    prepared_params[obj.id] = normalize_project_object_params(
+                        obj.object_type, merged
+                    )
+            except ProjectObjectParamsError as exc:
+                problems.append(
+                    {
+                        "object_id": str(obj.id),
+                        "name": str(obj_name) if obj_name is not None else None,
+                        "error": str(exc),
+                    }
+                )
+        if problems:
+            raise ProjectGroupValidationError(problems)
+
+        for obj in objects:
+            obj.params = prepared_params[obj.id]
+            obj.version = obj.version + 1
+            obj.updated_at = func.now()
+        await self.db.flush()
+        await self.touch_project(project_id)
+        for obj in objects:
+            await self.db.refresh(obj)
+        return objects
 
     async def _get_object(self, project_id: UUID, object_id: UUID) -> ProjectObject:
         result = await self.db.execute(

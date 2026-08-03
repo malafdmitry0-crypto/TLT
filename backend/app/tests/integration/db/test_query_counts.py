@@ -563,7 +563,9 @@ async def test_bulk_project_csv_export_uses_constant_query_count(
     assert "BulkExport-0" in text
     assert "BulkExport-4" in text
     assert "ТЛТ-30" in text
-    _assert_query_count(statements, 4)
+    # 7 констант-запросов независимо от числа проектов: projects, objects,
+    # electrical, specifications, variants, assignments, electrical_settings.
+    _assert_query_count(statements, 7)
 
 
 async def test_reorder_objects_uses_single_object_lookup(

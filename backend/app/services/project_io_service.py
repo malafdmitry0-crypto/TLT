@@ -20,6 +20,7 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from decimal import Decimal, InvalidOperation
 from typing import Any
 from uuid import UUID
 
@@ -30,6 +31,7 @@ from app.core.dependencies import CurrentPrincipal
 from app.models.electrical_calculation import ElectricalCalculation
 from app.models.electrical_variant import ElectricalVariant, ElectricalVariantObject
 from app.models.project import Project
+from app.models.project_electrical_settings import ProjectElectricalSettings
 from app.models.project_object import ProjectObject
 from app.models.specification import Specification
 from app.services.project_object_params import (
@@ -112,6 +114,7 @@ def _dump_project_to_writer(
     *,
     variants: list[ElectricalVariant] | None = None,
     assignments: list[ElectricalVariantObject] | None = None,
+    electrical_settings: ProjectElectricalSettings | None = None,
     project_key: str | None = None,
 ) -> None:
     """Записывает секции одного проекта (schema v3).
@@ -131,6 +134,41 @@ def _dump_project_to_writer(
         _write_row(w, ["task_number", project.task_number or ""])
         _write_row(w, ["description", project.description or ""])
         _write_row(w, ["status", project.status])
+        # Кейс §5.12: файл проекта включает настройки формирования спецификаций.
+        _write_row(
+            w,
+            [
+                "specification_settings",
+                json.dumps(
+                    getattr(project, "specification_settings", None) or {},
+                    ensure_ascii=False,
+                ),
+            ],
+        )
+        _write_row(
+            w,
+            [
+                "specification_settings_version",
+                getattr(project, "specification_settings_version", 1) or 1,
+            ],
+        )
+        _write_row(w, [])
+
+    if electrical_settings is not None:
+        # Кейс §5.12: проектные электротехнические настройки входят в файл.
+        _write_section(w, "electrical_settings")
+        header = ["nominal_voltage_v", "max_section_start_current_a", "version"]
+        if project_key is not None:
+            header = ["project_key", *header]
+        _write_row(w, header)
+        row = [
+            electrical_settings.nominal_voltage_v,
+            ""
+            if electrical_settings.max_section_start_current_a is None
+            else electrical_settings.max_section_start_current_a,
+            electrical_settings.version,
+        ]
+        _write_row(w, prefix + row)
         _write_row(w, [])
 
     _write_section(w, "objects")
@@ -357,6 +395,7 @@ async def export_project(
             )
         ).scalars()
     )
+    electrical_settings = await db.get(ProjectElectricalSettings, project.id)
 
     buf = io.StringIO()
     w = csv.writer(buf, delimiter=DELIMITER, quoting=csv.QUOTE_MINIMAL)
@@ -368,6 +407,7 @@ async def export_project(
         specs,
         variants=variants,
         assignments=assignments,
+        electrical_settings=electrical_settings,
     )
     filename = _suggest_filename(project.task_number, project.name)
     # UTF-8 BOM — чтобы Excel-ru открывал без «крокозябров»
@@ -402,7 +442,18 @@ async def export_projects_bulk(
     _write_row(w, [])
 
     _write_row(w, ["[SECTION]", "projects"])
-    _write_row(w, ["project_key", "name", "task_number", "description", "status"])
+    _write_row(
+        w,
+        [
+            "project_key",
+            "name",
+            "task_number",
+            "description",
+            "status",
+            "specification_settings",
+            "specification_settings_version",
+        ],
+    )
     for key, project in projects:
         _write_row(
             w,
@@ -412,6 +463,11 @@ async def export_projects_bulk(
                 project.task_number or "",
                 project.description or "",
                 project.status,
+                json.dumps(
+                    getattr(project, "specification_settings", None) or {},
+                    ensure_ascii=False,
+                ),
+                getattr(project, "specification_settings_version", 1) or 1,
             ],
         )
     _write_row(w, [])
@@ -471,6 +527,16 @@ async def export_projects_bulk(
         for assignment in assignments_result.scalars():
             assignments_by_project[assignment.project_id].append(assignment)
 
+    electrical_settings_by_project: dict[UUID, ProjectElectricalSettings] = {}
+    if unique_project_ids:
+        electrical_settings_result = await db.execute(
+            select(ProjectElectricalSettings).where(
+                ProjectElectricalSettings.project_id.in_(unique_project_ids)
+            )
+        )
+        for settings_row in electrical_settings_result.scalars():
+            electrical_settings_by_project[settings_row.project_id] = settings_row
+
     for key, project in projects:
         _dump_project_to_writer(
             w,
@@ -480,6 +546,7 @@ async def export_projects_bulk(
             specs_by_project[project.id],
             variants=variants_by_project[project.id],
             assignments=assignments_by_project[project.id],
+            electrical_settings=electrical_settings_by_project.get(project.id),
             project_key=key,
         )
 
@@ -608,6 +675,86 @@ def _reject_imported_legacy_specification_params(params: Any) -> None:
     except LegacySpecificationObjectParamsError as exc:
         fields = ", ".join(exc.fields)
         raise ProjectImportError(f"{exc} (code={exc.code}; fields={fields})") from exc
+
+
+def _apply_imported_specification_settings(
+    project: Project,
+    settings_raw: str | None,
+    version_raw: str | None,
+) -> None:
+    """Кейс §5.11: восстановить настройки формирования спецификаций из файла.
+
+    Структурно повреждённый JSON — ошибка импорта. Внутри payload храним
+    как есть (lossless): чтение защищено нормализацией в
+    SpecificationService._normalize_settings_payload, а формат полей может
+    эволюционировать между версиями контракта настроек.
+    """
+    if settings_raw is not None and settings_raw.strip():
+        payload = _parse_json_or_empty(settings_raw, {})
+        if not isinstance(payload, dict):
+            raise ProjectImportError(
+                "specification_settings в файле проекта должен быть JSON-объектом"
+            )
+        project.specification_settings = payload
+    version_text = (version_raw or "").strip()
+    if version_text:
+        try:
+            version = int(version_text)
+        except ValueError as exc:
+            raise ProjectImportError(
+                f"Некорректный specification_settings_version: {version_text!r}"
+            ) from exc
+        project.specification_settings_version = max(version, 1)
+
+
+def _apply_imported_electrical_settings(
+    db: AsyncSession,
+    project: Project,
+    rows: list[dict[str, str]],
+) -> None:
+    """Кейс §5.11: восстановить проектные электротехнические настройки из файла."""
+    if not rows:
+        return
+    if len(rows) > 1:
+        raise ProjectImportError(
+            "Секция electrical_settings должна содержать одну строку на проект"
+        )
+    row = rows[0]
+    voltage_raw = (row.get("nominal_voltage_v") or "").strip()
+    if voltage_raw and voltage_raw != "230":
+        raise ProjectImportError(
+            f"Неподдерживаемое nominal_voltage_v в electrical_settings: {voltage_raw!r} "
+            "(допустимо только 230)"
+        )
+    current_raw = (row.get("max_section_start_current_a") or "").strip()
+    max_current: Decimal | None = None
+    if current_raw:
+        try:
+            max_current = Decimal(current_raw.replace(",", "."))
+        except InvalidOperation as exc:
+            raise ProjectImportError(
+                f"Некорректный max_section_start_current_a: {current_raw!r}"
+            ) from exc
+        if max_current <= 0:
+            raise ProjectImportError(
+                "max_section_start_current_a в electrical_settings должен быть больше 0"
+            )
+    version_raw = (row.get("version") or "").strip()
+    version = 1
+    if version_raw:
+        try:
+            version = max(int(version_raw), 1)
+        except ValueError as exc:
+            raise ProjectImportError(
+                f"Некорректный version в electrical_settings: {version_raw!r}"
+            ) from exc
+    db.add(
+        ProjectElectricalSettings(
+            project_id=project.id,
+            max_section_start_current_a=max_current,
+            version=version,
+        )
+    )
 
 
 def _spec_rows_contain_manual_items(spec_rows: list[dict[str, str]]) -> bool:
@@ -1227,6 +1374,7 @@ async def import_project(db: AsyncSession, raw: bytes, principal: CurrentPrincip
     spec_rows = _rows_to_dicts(sections.get("specifications", []))
     variant_rows = _rows_to_dicts(sections.get("electrical_variants", []))
     assignment_rows = _rows_to_dicts(sections.get("electrical_assignments", []))
+    electrical_settings_rows = _rows_to_dicts(sections.get("electrical_settings", []))
     # Guest import replaces its current project, so reject an invalid payload before
     # staging any delete or insert in the session.
     if schema_version == LEGACY_SCHEMA_VERSION:
@@ -1268,8 +1416,14 @@ async def import_project(db: AsyncSession, raw: bytes, principal: CurrentPrincip
     else:
         raise ProjectAccessError("Нет доступа")
 
+    _apply_imported_specification_settings(
+        project,
+        meta.get("specification_settings"),
+        meta.get("specification_settings_version"),
+    )
     db.add(project)
     await db.flush()
+    _apply_imported_electrical_settings(db, project, electrical_settings_rows)
 
     if schema_version == LEGACY_SCHEMA_VERSION:
         await _apply_project_data(
@@ -1320,6 +1474,7 @@ async def import_projects_bulk(
     specs_by_key = by_project_key("specifications")
     variants_by_key = by_project_key("electrical_variants")
     assignments_by_key = by_project_key("electrical_assignments")
+    electrical_settings_by_key = by_project_key("electrical_settings")
 
     imported = 0
     errors: list[dict[str, Any]] = []
@@ -1355,8 +1510,16 @@ async def import_projects_bulk(
                     status=row.get("status", "draft") or "draft",
                     user_id=principal.user_id,
                 )
+                _apply_imported_specification_settings(
+                    project,
+                    row.get("specification_settings"),
+                    row.get("specification_settings_version"),
+                )
                 db.add(project)
                 await db.flush()
+                _apply_imported_electrical_settings(
+                    db, project, electrical_settings_by_key.get(key, [])
+                )
                 if schema_version == LEGACY_SCHEMA_VERSION:
                     await _apply_project_data(
                         db,

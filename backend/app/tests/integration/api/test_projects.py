@@ -546,3 +546,145 @@ class TestProjectAccessAndEdges:
         ids = {p["id"] for p in after}
         assert own["id"] in ids
         assert admin_project["id"] in ids
+
+
+class TestProjectUpdatedAtOnObjectEdits:
+    """Кейс §4.4/§4.6: правки объектов двигают «Последнее изменение» проекта."""
+
+    @staticmethod
+    def _parse(ts: str):
+        from datetime import datetime
+
+        return datetime.fromisoformat(ts)
+
+    async def _updated_at(self, client: AsyncClient, guest_session: str):
+        project = await _guest_project(client, guest_session)
+        return self._parse(project["updated_at"])
+
+    async def test_object_mutations_bump_project_updated_at(
+        self, client: AsyncClient, guest_session: str
+    ):
+        headers = {"X-Session-Id": guest_session}
+        project = await _guest_project(client, guest_session)
+        stamp = self._parse(project["updated_at"])
+
+        # Добавление объекта
+        first = (
+            await client.post(
+                f"/api/v1/projects/{project['id']}/objects",
+                json={
+                    "object_type": "pipe",
+                    "sort_order": 0,
+                    "params": canonical_pipe_params(name="Дата 1"),
+                },
+                headers=headers,
+            )
+        ).json()
+        after_add = await self._updated_at(client, guest_session)
+        assert after_add > stamp
+
+        # Редактирование объекта
+        resp = await client.put(
+            f"/api/v1/projects/{project['id']}/objects/{first['id']}",
+            json={
+                "version": first["version"],
+                "params": canonical_pipe_params(name="Дата 1", process_temperature=85.0),
+            },
+            headers=headers,
+        )
+        assert resp.status_code == 200, resp.text
+        after_update = await self._updated_at(client, guest_session)
+        assert after_update > after_add
+
+        # Изменение порядка
+        second = (
+            await client.post(
+                f"/api/v1/projects/{project['id']}/objects",
+                json={
+                    "object_type": "pipe",
+                    "sort_order": 1,
+                    "params": canonical_pipe_params(name="Дата 2"),
+                },
+                headers=headers,
+            )
+        ).json()
+        after_second = await self._updated_at(client, guest_session)
+        reorder = await client.put(
+            f"/api/v1/projects/{project['id']}/objects/reorder",
+            json={"order": [second["id"], first["id"]]},
+            headers=headers,
+        )
+        assert reorder.status_code == 200, reorder.text
+        after_reorder = await self._updated_at(client, guest_session)
+        assert after_reorder > after_second
+
+        # Удаление объекта
+        delete = await client.delete(
+            f"/api/v1/projects/{project['id']}/objects/{first['id']}",
+            headers=headers,
+        )
+        assert delete.status_code == 204
+        after_delete = await self._updated_at(client, guest_session)
+        assert after_delete > after_reorder
+
+
+class TestDuplicateProjectKeepsSettings:
+    """Кейс §5.12: настройки проекта — часть проектных данных, копия их сохраняет."""
+
+    async def test_duplicate_copies_specification_and_electrical_settings(
+        self,
+        client: AsyncClient,
+        employee_token: str,
+        db_session: AsyncSession,
+    ):
+        from app.models.project import Project
+
+        headers = {"Authorization": f"Bearer {employee_token}"}
+        project = (
+            await client.post(
+                "/api/v1/projects",
+                json={"name": "С настройками"},
+                headers=headers,
+            )
+        ).json()
+        pid = project["id"]
+
+        # Проектные defaults спецификации пишем в хранилище напрямую:
+        # API-контракт настроек в переходе, а копия оперирует JSONB проекта.
+        db_project = await db_session.get(Project, UUID(pid))
+        assert db_project is not None
+        db_project.specification_settings = {"reserve_coefficient": 1.5, "ex_zone": True}
+        db_project.specification_settings_version = 3
+        await db_session.commit()
+
+        es = (
+            await client.get(
+                f"/api/v1/projects/{pid}/electrical-settings", headers=headers
+            )
+        ).json()
+        patch = await client.patch(
+            f"/api/v1/projects/{pid}/electrical-settings",
+            json={"expected_version": es["version"], "max_section_start_current_a": 25},
+            headers=headers,
+        )
+        assert patch.status_code == 200, patch.text
+
+        duplicate = await client.post(
+            f"/api/v1/projects/{pid}/duplicate", headers=headers
+        )
+        assert duplicate.status_code == 201, duplicate.text
+        copy_id = duplicate.json()["id"]
+
+        copied = await db_session.get(Project, UUID(copy_id))
+        assert copied is not None
+        stored = copied.specification_settings or {}
+        assert stored.get("reserve_coefficient") == 1.5
+        assert stored.get("ex_zone") is True
+        assert copied.specification_settings_version == 3
+
+        copied_es = (
+            await client.get(
+                f"/api/v1/projects/{copy_id}/electrical-settings", headers=headers
+            )
+        ).json()
+        assert float(copied_es["max_section_start_current_a"]) == 25.0

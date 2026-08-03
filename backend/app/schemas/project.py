@@ -82,6 +82,25 @@ class ReorderRequest(BaseModel):
     order: list[UUID]
 
 
+class ObjectsDuplicateRequest(BaseModel):
+    """Кейс §5.7: копии одного или нескольких выбранных объектов."""
+
+    object_ids: list[UUID] = Field(min_length=1, max_length=500)
+
+
+class ObjectsGroupUpdateRequest(BaseModel):
+    """Кейс §5.8: изменение одного общего параметра у выбранных объектов."""
+
+    object_ids: list[UUID] = Field(min_length=1, max_length=500)
+    param: str = Field(min_length=1, max_length=128)
+    value: Any | None = None
+
+
+class ObjectsBatchResponse(BaseModel):
+    objects: list[ProjectObjectResponse]
+    count: int
+
+
 ObjectQueryType = Literal["pipe", "tank"]
 ObjectQueryFilterOp = Literal["contains", "range", "in", "equals"]
 ObjectQuerySortDir = Literal["asc", "desc"]

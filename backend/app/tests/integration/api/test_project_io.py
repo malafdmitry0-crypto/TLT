@@ -555,11 +555,11 @@ class TestSingleExportImport:
                 "[SECTION];electrical\n"
                 "object_key;variant_number;cable_type;cable_type_source;"
                 "cable_mark;cable_mark_source;cable_snapshot;params;results\n"
-                "missing;5;self_regulating;auto;;auto;;{};\n"
+                "missing;6;self_regulating;auto;;auto;;{};\n"
             ),
             ("[SECTION];specifications\n" "variant_number;items\n" "0;[]\n"),
         ],
-        ids=["electrical-slot-5", "specification-slot-0"],
+        ids=["electrical-slot-6", "specification-slot-0"],
     )
     async def test_guest_import_invalid_slot_is_atomic(
         self,
@@ -591,7 +591,8 @@ class TestSingleExportImport:
         )
 
         assert response.status_code == 422, response.text
-        assert "1..4" in response.json()["detail"]
+        # ER5 write cutover: допустимые legacy-слоты 1..5.
+        assert "1..5" in response.json()["detail"]
         remaining = (await client.get("/api/v1/projects", headers=headers)).json()
         assert [project["id"] for project in remaining] == [original_id]
 
@@ -718,7 +719,7 @@ class TestBulkExportImport:
             "[SECTION];electrical\n"
             "project_key;object_key;variant_number;cable_type;cable_type_source;"
             "cable_mark;cable_mark_source;cable_snapshot;params;results\n"
-            "bad;missing;5;self_regulating;auto;;auto;;{};\n"
+            "bad;missing;6;self_regulating;auto;;auto;;{};\n"
         ).encode()
         headers = {"Authorization": f"Bearer {employee_token}"}
 
@@ -730,11 +731,12 @@ class TestBulkExportImport:
 
         assert response.status_code == 200, response.text
         assert response.json()["imported"] == 1
+        # ER5 write cutover: допустимые legacy-слоты 1..5.
         assert response.json()["errors"] == [
             {
                 "project_key": "bad",
                 "error": "variant_number в секции electrical должен быть "
-                "в диапазоне 1..4: получено 5",
+                "в диапазоне 1..5: получено 6",
             }
         ]
 
@@ -1076,3 +1078,142 @@ class TestBulkExportImport:
                 headers=headers,
             )
             assert resp.status_code == 200, resp.text
+
+
+class TestProjectSettingsRoundtrip:
+    """Кейс §5.11/§5.12: файл проекта сохраняет и восстанавливает настройки.
+
+    Настройки спецификаций проверяются на уровне хранилища (JSONB проекта):
+    API-контракт настроек (SpecificationRequestedOptions) сейчас в переходе,
+    а формат файла оперирует именно сохранённым project-defaults payload.
+    """
+
+    SPEC_SETTINGS = {"reserve_coefficient": 1.5, "ex_zone": True}
+
+    async def _prepare_project_with_settings(
+        self, client: AsyncClient, headers: dict, db_session: AsyncSession
+    ) -> str:
+        project = (
+            await client.post(
+                "/api/v1/projects",
+                json={"name": "Настройки RT"},
+                headers=headers,
+            )
+        ).json()
+        pid = project["id"]
+
+        db_project = await db_session.get(Project, UUID(pid))
+        assert db_project is not None
+        db_project.specification_settings = dict(self.SPEC_SETTINGS)
+        db_project.specification_settings_version = 2
+        await db_session.commit()
+
+        es = (
+            await client.get(f"/api/v1/projects/{pid}/electrical-settings", headers=headers)
+        ).json()
+        patch = await client.patch(
+            f"/api/v1/projects/{pid}/electrical-settings",
+            json={
+                "expected_version": es["version"],
+                "max_section_start_current_a": 25,
+            },
+            headers=headers,
+        )
+        assert patch.status_code == 200, patch.text
+        return pid
+
+    async def _assert_settings_restored(
+        self,
+        client: AsyncClient,
+        headers: dict,
+        db_session: AsyncSession,
+        project_id: str,
+    ) -> None:
+        imported_project = await db_session.get(Project, UUID(project_id))
+        assert imported_project is not None
+        stored = imported_project.specification_settings or {}
+        assert stored.get("reserve_coefficient") == 1.5
+        assert stored.get("ex_zone") is True
+        assert imported_project.specification_settings_version == 2
+
+        es = (
+            await client.get(
+                f"/api/v1/projects/{project_id}/electrical-settings", headers=headers
+            )
+        ).json()
+        assert float(es["max_section_start_current_a"]) == 25.0
+
+    async def test_single_roundtrip_preserves_settings(
+        self, client: AsyncClient, employee_token: str, db_session: AsyncSession
+    ):
+        headers = {"Authorization": f"Bearer {employee_token}"}
+        pid = await self._prepare_project_with_settings(client, headers, db_session)
+
+        export = await client.get(f"/api/v1/projects/{pid}/export-csv", headers=headers)
+        assert export.status_code == 200
+        text = export.content.decode("utf-8-sig")
+        assert "specification_settings" in text
+        assert "electrical_settings" in text
+
+        imported = await client.post(
+            "/api/v1/projects/import-csv",
+            files={"file": ("proj.tlt.csv", export.content, "text/csv")},
+            headers=headers,
+        )
+        assert imported.status_code == 201, imported.text
+        await self._assert_settings_restored(
+            client, headers, db_session, imported.json()["id"]
+        )
+
+    async def test_bulk_roundtrip_preserves_settings(
+        self, client: AsyncClient, employee_token: str, db_session: AsyncSession
+    ):
+        headers = {"Authorization": f"Bearer {employee_token}"}
+        pid = await self._prepare_project_with_settings(client, headers, db_session)
+
+        export = await client.get(
+            f"/api/v1/projects/export-csv-bulk?ids={pid}", headers=headers
+        )
+        assert export.status_code == 200
+
+        before_ids = {
+            p["id"]
+            for p in (await client.get("/api/v1/projects", headers=headers)).json()
+        }
+        imported = await client.post(
+            "/api/v1/projects/import-csv-bulk",
+            files={"file": ("bulk.tlt.csv", export.content, "text/csv")},
+            headers=headers,
+        )
+        assert imported.status_code == 200, imported.text
+        assert imported.json()["imported"] == 1
+
+        after = (await client.get("/api/v1/projects", headers=headers)).json()
+        new_ids = [p["id"] for p in after if p["id"] not in before_ids]
+        assert len(new_ids) == 1
+        await self._assert_settings_restored(client, headers, db_session, new_ids[0])
+
+    async def test_import_without_settings_sections_uses_defaults(
+        self, client: AsyncClient, guest_session: str, db_session: AsyncSession
+    ):
+        """Старые файлы без секций настроек импортируются с дефолтами."""
+        headers = {"X-Session-Id": guest_session}
+        csv_text = (
+            "[SECTION];metadata\n"
+            "key;value\n"
+            "schema_version;3\n"
+            "name;Без настроек\n"
+            "\n"
+            "[SECTION];objects\n"
+            "object_key;type;name;sort_order;params;results;is_valid;validation_errors\n"
+        )
+        imported = await client.post(
+            "/api/v1/projects/import-csv",
+            files={"file": ("old.tlt.csv", csv_text.encode("utf-8"), "text/csv")},
+            headers=headers,
+        )
+        assert imported.status_code == 201, imported.text
+        imported_project = await db_session.get(Project, UUID(imported.json()["id"]))
+        assert imported_project is not None
+        assert (imported_project.specification_settings or {}) == {}
+        assert imported_project.specification_settings_version == 1

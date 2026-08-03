@@ -6,7 +6,8 @@ from app.core.config import Settings
 
 
 def test_default_object_limit_matches_srs_contract():
-    assert Settings.model_fields["GUEST_MAX_OBJECTS_PER_PROJECT"].default == 50
+    # Кейс §3.5: не менее 500 объектов в одном проекте.
+    assert Settings.model_fields["GUEST_MAX_OBJECTS_PER_PROJECT"].default == 500
 
 
 def test_production_rejects_default_secrets():

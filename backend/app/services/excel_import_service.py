@@ -13,7 +13,7 @@ from typing import Any, Literal
 from uuid import UUID
 
 from openpyxl import load_workbook
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,6 +21,7 @@ from app.core.config import settings
 from app.core.database import use_fast_commit_for_current_transaction
 from app.core.dependencies import CurrentPrincipal
 from app.models.electrical_calculation import ElectricalCalculation
+from app.models.project import Project
 from app.models.project_object import ProjectObject
 from app.models.specification import Specification
 from app.reference_data.loader import list_insulation_materials
@@ -1051,6 +1052,14 @@ async def _existing_dedupe_keys(db: AsyncSession, project_id: UUID) -> set[str]:
     }
 
 
+async def _touch_project_updated_at(db: AsyncSession, project_id: UUID) -> None:
+    """Кейс §4.4/§4.6: импорт объектов обновляет «Последнее изменение» проекта."""
+    await db.execute(
+        update(Project).where(Project.id == project_id).values(updated_at=func.now())
+    )
+    await db.commit()
+
+
 async def _replace_project_objects(db: AsyncSession, project_id: UUID) -> None:
     await db.execute(
         delete(ElectricalCalculation).where(ElectricalCalculation.project_id == project_id)
@@ -1293,6 +1302,8 @@ async def import_objects_from_csv(
 
     if import_mode == "replace" and not created_object_ids:
         await db.commit()
+    if created_object_ids or import_mode == "replace":
+        await _touch_project_updated_at(db, project_id)
 
     return {
         "created": total_created,
@@ -1403,6 +1414,8 @@ async def import_objects_from_excel(
 
     if import_mode == "replace" and not created_object_ids:
         await db.commit()
+    if created_object_ids or import_mode == "replace":
+        await _touch_project_updated_at(db, project_id)
 
     return {
         "created": created,

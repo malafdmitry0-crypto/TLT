@@ -17,6 +17,9 @@ from app.core.rate_limit import enforce_principal_rate_limit, import_limiter, re
 from app.core.uploads import read_upload_with_limit
 from app.schemas.project import (
     ObjectQueryCapabilitiesResponse,
+    ObjectsBatchResponse,
+    ObjectsDuplicateRequest,
+    ObjectsGroupUpdateRequest,
     ProjectObjectCreate,
     ProjectObjectResponse,
     ProjectObjectsQueryRequest,
@@ -33,6 +36,7 @@ from app.services.project_service import (
     ProjectAccessError,
     ProjectConflictError,
     ProjectElectricalVariantNotFoundError,
+    ProjectGroupValidationError,
     ProjectLimitError,
     ProjectNotFoundError,
     ProjectService,
@@ -233,6 +237,150 @@ async def reorder_objects(
         message="Изменён порядок объектов проекта",
     )
     return objects
+
+
+@router.post(
+    "/{project_id}/objects/duplicate-batch",
+    response_model=ObjectsBatchResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Добавить объекты на основании выбранных (копии, кейс §5.7)",
+)
+async def duplicate_objects_batch(
+    project_id: UUID,
+    data: ObjectsDuplicateRequest,
+    principal: CurrentPrincipal = Depends(require_any()),
+    db: AsyncSession = Depends(get_db),
+):
+    """Создаёт копию каждого выбранного объекта и пересчитывает теплопотери.
+
+    Каждой копии присваивается собственный идентификатор, все параметры
+    переносятся, исходные объекты не изменяются (кейс §5.7).
+    """
+    try:
+        service = ProjectService(db)
+        copies = await service.duplicate_objects(project_id, data.object_ids, principal)
+        calc_service = CalculationService(db)
+        for obj in copies:
+            await calc_service.recalculate_object(obj)
+        created_ids = [obj.id for obj in copies]
+        await SpecificationService(db).mark_project_specifications_stale(
+            project_id,
+            "objects_duplicated",
+            object_ids=created_ids,
+            operation="duplicate_batch",
+        )
+        await AuditService(db).stage(
+            event_type="object.duplicated_batch",
+            category="object",
+            principal=principal,
+            project_id=project_id,
+            details={
+                "source_object_ids": [str(item) for item in data.object_ids],
+                "created_object_ids": [str(item) for item in created_ids],
+                "count": len(copies),
+            },
+            message="Созданы копии выбранных объектов",
+        )
+        await db.commit()
+        for obj in copies:
+            await db.refresh(obj)
+        return {"objects": copies, "count": len(copies)}
+    except ProjectLimitError as exc:
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(exc)) from exc
+    except ProjectNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ProjectAccessError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+
+@router.post(
+    "/{project_id}/objects/group-update",
+    response_model=ObjectsBatchResponse,
+    summary="Групповая корректировка одного параметра выбранных объектов (кейс §5.8)",
+)
+async def group_update_objects(
+    project_id: UUID,
+    data: ObjectsGroupUpdateRequest,
+    principal: CurrentPrincipal = Depends(require_any()),
+    db: AsyncSession = Depends(get_db),
+):
+    """Меняет один общий параметр у выбранных объектов (всё-или-ничего).
+
+    Если значение недопустимо хотя бы для одного объекта — данные не
+    изменяются, ответ 422 содержит перечень проблемных объектов (кейс §5.8).
+    Теплопотери изменённых объектов пересчитываются, зависимые электрорасчёты
+    и спецификации помечаются как требующие пересчёта.
+    """
+    try:
+        service = ProjectService(db)
+        objects = await service.group_update_objects(
+            project_id, data.object_ids, data.param, data.value, principal
+        )
+        calc_service = CalculationService(db)
+        recalc_problems: list[dict[str, str | None]] = []
+        for obj in objects:
+            await calc_service.recalculate_object(obj)
+            if obj.object_type == "pipe" and not obj.is_valid:
+                obj_name = (obj.params or {}).get("name")
+                recalc_problems.append(
+                    {
+                        "object_id": str(obj.id),
+                        "name": str(obj_name) if obj_name is not None else None,
+                        "error": (obj.validation_errors or {}).get(
+                            "message", "Некорректные параметры трубы"
+                        ),
+                    }
+                )
+        if recalc_problems:
+            await db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail={
+                    "message": "Значение нельзя применить ко всем выбранным объектам",
+                    "objects": recalc_problems,
+                },
+            )
+        changed_ids = [obj.id for obj in objects]
+        await calc_service.mark_electrical_calculations_stale(
+            project_id,
+            changed_ids,
+            reason="object_params_updated",
+        )
+        await SpecificationService(db).mark_project_specifications_stale(
+            project_id,
+            "object_params_updated",
+            object_ids=changed_ids,
+            operation="group_update",
+        )
+        await AuditService(db).stage(
+            event_type="object.group_updated",
+            category="object",
+            principal=principal,
+            project_id=project_id,
+            details={
+                "object_ids": [str(item) for item in changed_ids],
+                "param": data.param,
+                "count": len(objects),
+            },
+            message="Выполнена групповая корректировка объектов",
+        )
+        await db.commit()
+        for obj in objects:
+            await db.refresh(obj)
+        return {"objects": objects, "count": len(objects)}
+    except ProjectGroupValidationError as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={
+                "message": "Значение нельзя применить ко всем выбранным объектам",
+                "objects": exc.problems,
+            },
+        ) from exc
+    except ProjectNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ProjectAccessError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
 
 
 @router.get(

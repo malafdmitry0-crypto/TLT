@@ -77,7 +77,8 @@ class Settings(BaseSettings):
     # лимит объектов в проекте для всех ролей, чтобы bounded NFR сохранялся в API.
     # Поток: зашёл → один авто-проект → поработал → ушёл → через TTL+интервал всё чистится.
     GUEST_MAX_PROJECTS: int = 1  # у пользователя ровно один проект
-    GUEST_MAX_OBJECTS_PER_PROJECT: int = 50  # максимум объектов в одном проекте
+    # Кейс §3.5: приложение должно поддерживать не менее 500 объектов в проекте.
+    GUEST_MAX_OBJECTS_PER_PROJECT: int = 500  # максимум объектов в одном проекте
     # PDL-ER-26: временное хранение гостевого проекта — 3 суток sliding TTL.
     GUEST_SESSION_TTL_MINUTES: int = 4320  # 3 дня; неактивная сессия чистится после N мин
     GUEST_CLEANUP_INTERVAL_MINUTES: int = 60  # периодичность фонового cleanup
