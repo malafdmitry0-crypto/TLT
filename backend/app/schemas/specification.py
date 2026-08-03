@@ -466,35 +466,8 @@ class SpecificationResponse(BaseModel):
         return self
 
 
-class SpecificationGenerateRequest(BaseModel):
-    """Legacy generate body (soft-deprecated, not mounted on public routes).
-
-    Public generate uses :class:`SpecificationGenerationRequest` (``variant_ids``).
-    Kept only so unit tests that import the old shape continue to import.
-    """
-
-    mode: str = Field(
-        default="full",
-        pattern="^(basic|full)$",
-        description="Канонически full; basic — deprecated compatibility alias.",
-    )
-    options: SpecificationOptions | None = None
-    electrical_variant_ids: list[UUID] | None = Field(
-        default=None,
-        max_length=5,
-        description="Явно выбранные UUID ЭР (1…5). Пустой/None — legacy single slot.",
-    )
-    confirm_partial: bool = Field(
-        default=False,
-        description=(
-            "PDL-ER-36: true after user confirms preflight exclusions. "
-            "If false and any ER would exclude objects, API returns 409."
-        ),
-    )
-
-
 class SpecificationGenerateVariantResult(BaseModel):
-    """Legacy per-variant generate row; soft-deprecated."""
+    """Per-variant row nested under manual-save envelopes (not a public generate body)."""
 
     electrical_variant_id: UUID
     items: list[SpecificationItem]
@@ -505,10 +478,10 @@ class SpecificationGenerateVariantResult(BaseModel):
 
 
 class SpecificationGenerateResponse(BaseModel):
-    """Manual PUT / legacy generate envelope.
+    """Manual PUT items envelope (UUID and legacy numeric adapters).
 
-    Generate itself uses :class:`SpecificationGenerationResponse`. This shape
-    remains for employee manual item saves (and transitional internal callers).
+    Public generate uses :class:`SpecificationGenerationResponse` only. This shape
+    remains for employee manual item saves.
     """
 
     project_id: UUID
@@ -521,29 +494,8 @@ class SpecificationGenerateResponse(BaseModel):
     excluded_groups: list[dict[str, Any]] = Field(default_factory=list)
     settings_version: int | None = None
     electrical_variant_id: UUID | None = None
-    # Multi-ЭР atomic generation: per-variant results (PDL-ER-01/14).
+    # Optional multi-ER diagnostic payload (not used by live generate).
     results: list[SpecificationGenerateVariantResult] | None = None
-
-
-class SpecificationPreflightVariantResult(BaseModel):
-    """Legacy preflight row; soft-deprecated (canonical uses VariantPreflightResult)."""
-
-    electrical_variant_id: UUID
-    electrical_variant_name: str | None = None
-    total_objects: int = 0
-    contributing_objects: int = 0
-    skipped_objects: int = 0
-    excluded_object_ids: list[UUID] = Field(default_factory=list)
-    excluded_groups: list[dict[str, Any]] = Field(default_factory=list)
-
-
-class SpecificationPreflightResponse(BaseModel):
-    """Legacy preflight envelope; soft-deprecated."""
-
-    project_id: UUID
-    requires_confirmation: bool
-    total_skipped_objects: int = 0
-    variants: list[SpecificationPreflightVariantResult] = Field(default_factory=list)
 
 
 class SpecificationUpdateRequest(BaseModel):

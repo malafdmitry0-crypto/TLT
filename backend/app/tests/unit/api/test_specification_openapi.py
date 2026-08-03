@@ -43,6 +43,11 @@ def test_generate_route_exposes_only_canonical_body() -> None:
         "connector_kit_sections_per_kit",
     } & (set(request_properties) | set(option_properties))
 
+    # SPEC-CANON-08: dead dual-mode generate body must not re-enter OpenAPI.
+    assert "SpecificationGenerateRequest" not in components
+    assert "SpecificationPreflightResponse" not in components
+    assert "SpecificationPreflightVariantResult" not in components
+
     responses = operation["responses"]
     assert {"201", "403", "404", "409", "422", "503"} <= set(responses)
 

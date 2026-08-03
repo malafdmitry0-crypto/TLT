@@ -242,7 +242,7 @@ async def get_specification(
         },
         status.HTTP_503_SERVICE_UNAVAILABLE: {"model": SpecificationErrorEnvelope},
     },
-    summary="Сформировать спецификации выбранных ЭР",
+    summary="Сформировать спецификации выбранных ЭР (канонический UUID BOM)",
 )
 async def generate_specification(
     project_id: UUID,
@@ -251,6 +251,7 @@ async def generate_specification(
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
+    """Canonical generate: SpecificationGenerationService only (no legacy full_builder)."""
     try:
         await ProjectService(db).get_project_for_write(project_id, principal)
     except ProjectNotFoundError as exc:

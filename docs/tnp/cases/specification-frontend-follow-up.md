@@ -8,16 +8,21 @@
 
 ## Зафиксированное решение
 
-Активный frontend и backend используют один канонический V2-контракт. Модальное окно
-«Спецификация» различает unset/`false`/`0`, отправляет только явные UUID ЭР и показывает typed
-backend diagnostics. Heat-объекты больше не владеют шестью настройками и новые object writes с
-legacy-ключами отклоняются backend.
+Активный frontend и backend используют один **канонический UUID generate-контракт**
+(`POST /api/v1/specifications/{project_id}/generate` → `SpecificationGenerationService` +
+BOM materializer). Модальное окно «Спецификация» различает unset/`false`/`0`, отправляет
+только явные UUID ЭР и показывает typed backend diagnostics. Heat-объекты больше не
+владеют шестью настройками и новые object writes с legacy-ключами отклоняются backend.
+
+Legacy dual-mode generate (`mode=basic|full`, `electrical_variant_ids`,
+`SpecificationService.generate` / `full_builder`) **не смонтирован** на public HTTP и не
+является production path (SPEC-CANON-08).
 
 ## Уже известно после Slice 1
 
 ### Запрос генерации
 
-Frontend отправляет канонический запрос:
+Frontend отправляет канонический UUID-запрос (`SpecificationGenerationRequest`):
 
 ```text
 variant_ids: non-empty unique list[UUID], max 5
@@ -36,7 +41,8 @@ catalog_selections: map[group_key, catalog_item_id]
 ```
 
 `electrical_variant_ids`, `confirm_partial`, `variant`, `electrical_variant_id` и `mode` не
-являются частью generation request. OpenAPI запрещает лишние поля.
+являются частью generation request. OpenAPI экспонирует только
+`SpecificationGenerationRequest` (legacy `SpecificationGenerateRequest` удалён).
 
 ### Resolution настроек
 

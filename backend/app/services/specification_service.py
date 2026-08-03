@@ -1,5 +1,14 @@
-"""Сервис спецификаций."""
+"""Сервис спецификаций (read/save/stale + deprecated legacy generate helpers).
 
+Production generate is :class:`SpecificationGenerationService` via
+``POST /api/v1/specifications/{project_id}/generate``. Methods that still call
+``full_builder`` / ``build_basic_specification`` are soft-deprecated and kept
+only for unit characterization of the old dual-mode path.
+"""
+
+from __future__ import annotations
+
+import warnings
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -10,11 +19,6 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import CurrentPrincipal
-from app.formulas.specification.builder import build_basic_specification
-from app.formulas.specification.full_builder import (
-    build_full_specification_detailed,
-    contributes_to_full_bom,
-)
 from app.models.electrical_calculation import ElectricalCalculation
 from app.models.electrical_variant import ElectricalVariant
 from app.models.project import Project
@@ -34,6 +38,12 @@ from app.services.specification_catalog_service import (
     ResolvedSpecificationCatalog,
     SpecificationCatalogService,
     SpecificationCatalogServiceError,
+)
+
+_LEGACY_GENERATE_DEPRECATION = (
+    "SpecificationService.generate* / preflight* use the legacy full_builder path. "
+    "Production callers must use SpecificationGenerationService "
+    "(POST /api/v1/specifications/{project_id}/generate)."
 )
 
 # Option keys that participate in PDL-ER-07 snapshot equality.
@@ -314,8 +324,18 @@ class SpecificationService:
     ) -> SpecificationPreflightVariant:
         """Side-effect-free exclusion scan for one ER (PDL-ER-36 / FA-06).
 
+        .. deprecated::
+            Not mounted on public HTTP. Canonical preflight lives in
+            :class:`SpecificationPreflightService`. Kept for unit characterization
+            of the legacy full_builder exclusion scan.
+
         Includes object skips AND builder-level excluded groups (boxes, sections).
         """
+        warnings.warn(_LEGACY_GENERATE_DEPRECATION, DeprecationWarning, stacklevel=2)
+        from app.formulas.specification.full_builder import (
+            build_full_specification_detailed,
+        )
+
         await self._require_authoritative_catalog()
         objects_q = await self.db.execute(
             select(ProjectObject).where(ProjectObject.project_id == project_id)
@@ -399,7 +419,12 @@ class SpecificationService:
         principal: CurrentPrincipal,
         electrical_variant_ids: list[UUID],
     ) -> list[SpecificationPreflightVariant]:
-        """PDL-ER-36: one side-effect-free preflight for the explicit ER list."""
+        """PDL-ER-36: one side-effect-free preflight for the explicit ER list.
+
+        .. deprecated::
+            Not mounted on public HTTP. Use :class:`SpecificationPreflightService`.
+        """
+        warnings.warn(_LEGACY_GENERATE_DEPRECATION, DeprecationWarning, stacklevel=2)
         requested = list(dict.fromkeys(electrical_variant_ids))
         if not requested:
             raise ElectricalVariantServiceError(
@@ -458,9 +483,14 @@ class SpecificationService:
     ) -> list[SpecificationGenerateResult]:
         """Atomically generate independent specifications for explicit ER UUIDs.
 
+        .. deprecated::
+            Not mounted on public HTTP. Production multi-ER generate is
+            :meth:`SpecificationGenerationService.generate`.
+
         PDL-ER-01/14: multi-ЭР list is processed in one project lock/transaction.
         Internal failure rolls back the whole list.
         """
+        warnings.warn(_LEGACY_GENERATE_DEPRECATION, DeprecationWarning, stacklevel=2)
         requested = list(dict.fromkeys(electrical_variant_ids))
         if not requested:
             raise ElectricalVariantServiceError(
@@ -535,12 +565,24 @@ class SpecificationService:
         options: SpecificationOptions | SpecificationResolvedOptions | None = None,
         electrical_variant_id: UUID | None = None,
     ) -> SpecificationGenerateResult:
-        """Генерирует спецификацию.
+        """Генерирует спецификацию через legacy full_builder.
+
+        .. deprecated::
+            Not mounted on public HTTP. Production path is
+            :meth:`SpecificationGenerationService.generate` (canonical BOM materializer).
+            Kept for unit characterization of the old builder.
 
         ``mode=None`` — переиспользовать опции последней генерации; канонический
         режим всегда full (PDL-ER-29). Deprecated ``basic`` входы нормализуются
         в full, чтобы не оставлять dual procurement semantics.
         """
+        warnings.warn(_LEGACY_GENERATE_DEPRECATION, DeprecationWarning, stacklevel=2)
+        from app.formulas.specification.builder import build_basic_specification
+        from app.formulas.specification.full_builder import (
+            build_full_specification_detailed,
+            contributes_to_full_bom,
+        )
+
         # Serialize the calculation/object snapshot and final upsert with every
         # object/assignment stale transition for this project.
         await self._lock_project(project_id)
