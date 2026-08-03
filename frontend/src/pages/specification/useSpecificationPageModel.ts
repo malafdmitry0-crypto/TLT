@@ -9,11 +9,17 @@ import { appMessage as message } from '@/feedback/appFeedback';
 import { useMutation } from '@tanstack/react-query';
 
 import {
+  candidateGroupNeedsUserChoice,
   generateSpecification,
+  getCatalogSelections,
   getSpecificationErrorDetail,
+  putCatalogSelections,
   updateSpecificationSettings,
 } from '@/api/specifications';
-import type { SpecificationOptions } from '@/api/specifications';
+import type {
+  SpecificationCatalogSelectionEntry,
+  SpecificationOptions,
+} from '@/api/specifications';
 import { formatSpecTimestamp } from '@/pages/specification/specFormatModel';
 import { useSpecParamsPanelState } from '@/pages/specification/useSpecParamsPanelState';
 import { useSpecPageFormState } from '@/pages/specification/useSpecPageFormState';
@@ -274,12 +280,13 @@ export function useSpecificationPageModel() {
       return;
     }
     const scope = snapshotMutationScope();
+    // Selections already on server after PUT; do not re-send from client cache.
     mut.mutate({
       ...scope,
       generateVariantIds: form.pendingGenerate.generateVariantIds,
       options: form.pendingGenerate.options,
       excludeUnassignedConfirmed: true,
-      catalogSelections: form.catalogSelections,
+      catalogSelections: {},
     });
   };
 
@@ -287,25 +294,71 @@ export function useSpecificationPageModel() {
     form.setDraftCatalogSelections((prev) => ({ ...prev, [groupKey]: catalogItemId }));
   };
 
-  const confirmCatalogSelections = () => {
-    if (!form.pendingGenerate || mut.isPending) return;
-    const merged: Record<string, string> = { ...form.catalogSelections };
-    for (const group of form.candidateGroups) {
-      if (group.selected_catalog_item_id) {
-        merged[group.group_key] = group.selected_catalog_item_id;
-      }
-    }
-    for (const [key, value] of Object.entries(form.draftCatalogSelections)) {
-      merged[key] = value;
-    }
-    form.setCatalogSelections(merged);
+  /**
+   * Persist multi-candidate choices on the server (PUT), then generate without
+   * relying on long-lived client selection state. Backend merges stored choices.
+   */
+  const confirmCatalogSelections = async () => {
+    if (!form.pendingGenerate || mut.isPending || !project) return;
     const scope = snapshotMutationScope();
+    const byEr = new Map<string, SpecificationCatalogSelectionEntry[]>();
+
+    for (const group of form.candidateGroups) {
+      if (group.candidates.length <= 1) continue;
+      const itemId = form.draftCatalogSelections[group.group_key];
+      if (!itemId) continue;
+      const candidate = group.candidates.find((item) => item.catalog_item_id === itemId);
+      if (!candidate) continue;
+      const fingerprint = group.candidate_set_fingerprint;
+      if (!fingerprint || !fingerprint.startsWith('sha256:')) {
+        message.error(
+          'SPEC_REQUEST_INVALID: backend не вернул candidate_set_fingerprint для группы',
+        );
+        return;
+      }
+      const entry: SpecificationCatalogSelectionEntry = {
+        candidate_group_key: group.group_key,
+        catalog_version_id: candidate.catalog_id,
+        catalog_item_id: itemId,
+        candidate_set_fingerprint: fingerprint,
+      };
+      const list = byEr.get(group.electrical_variant_id) ?? [];
+      list.push(entry);
+      byEr.set(group.electrical_variant_id, list);
+    }
+
+    if (byEr.size === 0) {
+      message.warning('Выберите позицию для каждой группы с несколькими кандидатами');
+      return;
+    }
+
+    try {
+      for (const [electricalVariantId, selections] of byEr) {
+        const current = await getCatalogSelections(project.id, electricalVariantId);
+        await putCatalogSelections(project.id, electricalVariantId, {
+          expected_version: current.collection_version,
+          selections,
+        });
+      }
+    } catch (error) {
+      const detail = getSpecificationErrorDetail(error);
+      message.error(
+        detail
+          ? `${detail.code}: ${detail.message}`
+          : 'Не удалось сохранить выбор комплектующих на сервере',
+      );
+      return;
+    }
+
+    // Client cache is not the long-term store; generate relies on server merge.
+    form.setCatalogSelections({});
+    form.setDraftCatalogSelections({});
     mut.mutate({
       ...scope,
       generateVariantIds: form.pendingGenerate.generateVariantIds,
       options: form.pendingGenerate.options,
       excludeUnassignedConfirmed: false,
-      catalogSelections: merged,
+      catalogSelections: {},
     });
   };
 

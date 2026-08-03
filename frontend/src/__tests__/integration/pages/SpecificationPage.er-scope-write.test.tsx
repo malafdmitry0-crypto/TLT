@@ -34,6 +34,36 @@ vi.mock('@/api/specifications', () => ({
   generateSpecification: vi.fn(),
   saveSpecificationItems: vi.fn(),
   listAccessoriesExtended: vi.fn().mockResolvedValue([]),
+  getCatalogSelections: vi.fn().mockResolvedValue({
+    project_id: 'p-1',
+    electrical_variant_id: 'er',
+    collection_version: 1,
+    selections: [],
+  }),
+  putCatalogSelections: vi.fn().mockImplementation(
+    async (
+      projectId: string,
+      electricalVariantId: string,
+      request: { expected_version: number; selections: unknown[] },
+    ) => ({
+      project_id: projectId,
+      electrical_variant_id: electricalVariantId,
+      collection_version: Math.max(1, request.expected_version) + 1,
+      selections: request.selections,
+    }),
+  ),
+  candidateGroupNeedsUserChoice: (
+    group: {
+      candidates: unknown[];
+      selected_catalog_item_id?: string | null;
+      selection_source?: string | null;
+    },
+  ) => {
+    if (group.candidates.length <= 1) return false;
+    if (group.selection_source === 'auto_single') return false;
+    if (group.selection_source === 'explicit' && group.selected_catalog_item_id) return false;
+    return !group.selected_catalog_item_id;
+  },
   getSpecificationSettings: vi.fn().mockResolvedValue({
     version: 1,
     settings: {
@@ -310,9 +340,15 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
   });
   it('keeps multi-ER catalog choices opaque and asks for unassigned confirmation separately', async () => {
     const user = (await import('@testing-library/user-event')).default.setup();
-    const { generateSpecification, getSpecification } = await import('@/api/specifications');
+    const {
+      generateSpecification,
+      getSpecification,
+      getCatalogSelections,
+      putCatalogSelections,
+    } = await import('@/api/specifications');
     listElectricalVariantsMock.mockResolvedValue([firstVariant, secondVariant]);
     (getSpecification as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+    const fp = `sha256:${'a'.repeat(64)}`;
     (generateSpecification as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce({
         project_id: mockProject.id,
@@ -329,6 +365,8 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
               electrical_variant_id: firstVariant.id,
               category: 'connection_kit',
               conditions: {},
+              selection_source: 'none',
+              candidate_set_fingerprint: fp,
               candidates: [
                 {
                   catalog_item_id: 'item-er1-a', catalog_id: 'catalog-1', catalog_version: 'v1',
@@ -362,6 +400,8 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
               electrical_variant_id: secondVariant.id,
               category: 'repair_kit',
               conditions: {},
+              selection_source: 'none',
+              candidate_set_fingerprint: fp,
               candidates: [
                 {
                   catalog_item_id: 'item-er2-a', catalog_id: 'catalog-1', catalog_version: 'v1',
@@ -431,18 +471,44 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
     await user.click(screen.getByRole('button', { name: /Ремкомплект ЭР2 A/i }));
     await user.click(screen.getByRole('button', { name: /Применить выбор и сформировать/i }));
 
+    await waitFor(() => {
+      expect(putCatalogSelections).toHaveBeenCalled();
+    });
+    // One PUT per ER with multi-candidate choice; generate does not re-send client store.
+    expect(putCatalogSelections).toHaveBeenCalledWith(
+      mockProject.id,
+      firstVariant.id,
+      expect.objectContaining({
+        selections: [
+          expect.objectContaining({
+            candidate_group_key: 'opaque:er-1:connection',
+            catalog_item_id: 'item-er1-b',
+          }),
+        ],
+      }),
+    );
+    expect(putCatalogSelections).toHaveBeenCalledWith(
+      mockProject.id,
+      secondVariant.id,
+      expect.objectContaining({
+        selections: [
+          expect.objectContaining({
+            candidate_group_key: 'opaque:er-2:repair',
+            catalog_item_id: 'item-er2-a',
+          }),
+        ],
+      }),
+    );
     expect(generateSpecification).toHaveBeenNthCalledWith(
       2,
       mockProject.id,
       expect.objectContaining({
         variant_ids: [firstVariant.id, secondVariant.id],
         exclude_unassigned_confirmed: false,
-        catalog_selections: {
-          'opaque:er-1:connection': 'item-er1-b',
-          'opaque:er-2:repair': 'item-er2-a',
-        },
+        catalog_selections: {},
       }),
     );
+    expect(getCatalogSelections).toHaveBeenCalled();
     expect(generateSpecification).toHaveBeenCalledTimes(2);
 
     await screen.findByText('Подтверждение исключения неназначенных объектов');
@@ -453,10 +519,7 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
       expect.objectContaining({
         variant_ids: [firstVariant.id, secondVariant.id],
         exclude_unassigned_confirmed: true,
-        catalog_selections: {
-          'opaque:er-1:connection': 'item-er1-b',
-          'opaque:er-2:repair': 'item-er2-a',
-        },
+        catalog_selections: {},
       }),
     );
   });

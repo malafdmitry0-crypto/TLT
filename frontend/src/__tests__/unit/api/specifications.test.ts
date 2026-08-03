@@ -1,9 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import apiClient from '@/api/client';
 import {
+  candidateGroupNeedsUserChoice,
   generateSpecification,
+  getCatalogSelections,
   getSpecification,
   getSpecificationErrorDetail,
+  putCatalogSelections,
   saveSpecificationItems,
 } from '@/api/specifications';
 
@@ -147,5 +150,100 @@ describe('specifications API', () => {
       exclude_unassigned_confirmed: false,
       catalog_selections: {},
     })).rejects.toThrow('Некорректный ответ формирования спецификации');
+  });
+
+  it('loads and replaces catalog selections on the UUID path', async () => {
+    getMock.mockResolvedValueOnce({
+      data: {
+        project_id: 'project-id',
+        electrical_variant_id: 'variant-id',
+        collection_version: 1,
+        selections: [],
+      },
+    });
+    await expect(getCatalogSelections('project-id', 'variant-id')).resolves.toMatchObject({
+      collection_version: 1,
+      selections: [],
+    });
+    expect(getMock).toHaveBeenCalledWith(
+      '/specifications/project-id/variants/variant-id/catalog-selections',
+    );
+
+    const body = {
+      expected_version: 1,
+      selections: [{
+        candidate_group_key: 'cg_key',
+        catalog_version_id: 'catalog-1',
+        catalog_item_id: 'item-1',
+        candidate_set_fingerprint: `sha256:${'a'.repeat(64)}`,
+      }],
+    };
+    putMock.mockResolvedValueOnce({
+      data: {
+        project_id: 'project-id',
+        electrical_variant_id: 'variant-id',
+        collection_version: 2,
+        selections: body.selections,
+      },
+    });
+    await expect(putCatalogSelections('project-id', 'variant-id', body)).resolves.toMatchObject({
+      collection_version: 2,
+    });
+    expect(putMock).toHaveBeenCalledWith(
+      '/specifications/project-id/variants/variant-id/catalog-selections',
+      body,
+    );
+  });
+
+  it('classifies multi-candidate groups that still need an engineer choice', () => {
+    expect(candidateGroupNeedsUserChoice({
+      group_key: 'g',
+      electrical_variant_id: 'er',
+      category: 'connection_kit',
+      conditions: {},
+      selection_source: 'auto_single',
+      candidates: [{
+        catalog_item_id: 'a',
+        catalog_id: 'c',
+        catalog_version: 'v1',
+        category: 'connection_kit',
+        name: 'A',
+        mark: 'A',
+        nomenclature_code: '1',
+        supply_unit: 'шт.',
+      }],
+      selected_catalog_item_id: 'a',
+    })).toBe(false);
+
+    expect(candidateGroupNeedsUserChoice({
+      group_key: 'g',
+      electrical_variant_id: 'er',
+      category: 'connection_kit',
+      conditions: {},
+      selection_source: 'none',
+      candidates: [
+        {
+          catalog_item_id: 'a',
+          catalog_id: 'c',
+          catalog_version: 'v1',
+          category: 'connection_kit',
+          name: 'A',
+          mark: 'A',
+          nomenclature_code: '1',
+          supply_unit: 'шт.',
+        },
+        {
+          catalog_item_id: 'b',
+          catalog_id: 'c',
+          catalog_version: 'v1',
+          category: 'connection_kit',
+          name: 'B',
+          mark: 'B',
+          nomenclature_code: '2',
+          supply_unit: 'шт.',
+        },
+      ],
+      selected_catalog_item_id: null,
+    })).toBe(true);
   });
 });

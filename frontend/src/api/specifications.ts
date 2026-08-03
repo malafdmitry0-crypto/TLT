@@ -99,6 +99,8 @@ export interface SpecificationCandidate {
   formula_parameters?: Record<string, unknown>;
 }
 
+export type SpecificationSelectionSource = 'auto_single' | 'explicit' | 'none';
+
 export interface SpecificationCandidateGroup {
   group_key: string;
   electrical_variant_id: string;
@@ -107,6 +109,28 @@ export interface SpecificationCandidateGroup {
   conditions: Record<string, unknown>;
   candidates: SpecificationCandidate[];
   selected_catalog_item_id?: string | null;
+  /** How effective selection was obtained (backend SPEC-DEC-05). */
+  selection_source?: SpecificationSelectionSource | null;
+  candidate_set_fingerprint?: string | null;
+}
+
+export interface SpecificationCatalogSelectionEntry {
+  candidate_group_key: string;
+  catalog_version_id: string;
+  catalog_item_id: string;
+  candidate_set_fingerprint: string;
+}
+
+export interface SpecificationCatalogSelectionsResponse {
+  project_id: string;
+  electrical_variant_id: string;
+  collection_version: number;
+  selections: SpecificationCatalogSelectionEntry[];
+}
+
+export interface SpecificationCatalogSelectionsPutRequest {
+  expected_version: number;
+  selections: SpecificationCatalogSelectionEntry[];
 }
 
 export interface SpecificationGenerateVariantResult {
@@ -257,6 +281,44 @@ export async function saveSpecificationItems(
     { items },
   );
   return data;
+}
+
+export async function getCatalogSelections(
+  projectId: string,
+  electricalVariantId: string,
+): Promise<SpecificationCatalogSelectionsResponse> {
+  const { data } = await apiClient.get<SpecificationCatalogSelectionsResponse>(
+    `/specifications/${projectId}/variants/${electricalVariantId}/catalog-selections`,
+  );
+  return data;
+}
+
+export async function putCatalogSelections(
+  projectId: string,
+  electricalVariantId: string,
+  request: SpecificationCatalogSelectionsPutRequest,
+): Promise<SpecificationCatalogSelectionsResponse> {
+  const { data } = await apiClient.put<SpecificationCatalogSelectionsResponse>(
+    `/specifications/${projectId}/variants/${electricalVariantId}/catalog-selections`,
+    request,
+  );
+  return data;
+}
+
+/** Groups that still need an engineer choice (backend selection_source=none, multi). */
+export function candidateGroupNeedsUserChoice(
+  group: SpecificationCandidateGroup,
+): boolean {
+  if (group.candidates.length <= 1) return false;
+  if (group.selection_source === 'auto_single') return false;
+  if (group.selection_source === 'explicit' && group.selected_catalog_item_id) {
+    return false;
+  }
+  // Prefer typed source; fall back for older payloads without the field.
+  if (group.selection_source === 'none' || group.selection_source == null) {
+    return !group.selected_catalog_item_id;
+  }
+  return !group.selected_catalog_item_id;
 }
 
 export interface AccessoryExtendedInfo {

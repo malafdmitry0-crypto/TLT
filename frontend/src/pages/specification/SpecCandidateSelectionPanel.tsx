@@ -4,7 +4,10 @@
  */
 import type { ReactNode } from 'react';
 import { TltButton, TltCard } from '@/components/ui-kit';
-import type { SpecificationCandidateGroup } from '@/api/specifications';
+import {
+  candidateGroupNeedsUserChoice,
+  type SpecificationCandidateGroup,
+} from '@/api/specifications';
 
 const CATEGORY_LABELS: Record<string, string> = {
   cable: 'Кабель',
@@ -24,10 +27,6 @@ export type SpecCandidateSelectionPanelProps = {
   confirming?: boolean;
   disabled?: boolean;
 };
-
-function needsUserChoice(group: SpecificationCandidateGroup): boolean {
-  return group.candidates.length > 1 && !group.selected_catalog_item_id;
-}
 
 function formatConditions(conditions: Record<string, unknown>): string | null {
   const parts = Object.entries(conditions)
@@ -58,7 +57,7 @@ export function SpecCandidateSelectionPanel({
   confirming = false,
   disabled = false,
 }: SpecCandidateSelectionPanelProps): ReactNode {
-  const choosable = groups.filter(needsUserChoice);
+  const choosable = groups.filter(candidateGroupNeedsUserChoice);
   if (choosable.length === 0) return null;
 
   const allChosen = choosable.every((group) => Boolean(draftSelections[group.group_key]));
