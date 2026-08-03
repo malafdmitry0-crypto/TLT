@@ -27,6 +27,13 @@ export interface SpecificationSnapshot {
   [key: string]: unknown;
 }
 
+/** Last generate attempt status persisted on the server (SPEC-REM-02 / F5). */
+export type SpecificationGenerationStatus =
+  | 'generated'
+  | 'blocked'
+  | 'confirmation_required'
+  | 'selection_required';
+
 export interface Specification {
   id: string;
   project_id: string;
@@ -39,6 +46,20 @@ export interface Specification {
   stale_reason?: string | null;
   stale_at?: string | null;
   stale_details?: Record<string, unknown> | null;
+  /**
+   * Last generate outcome for this ER (survives F5).
+   * Present after backend REM-02; older rows may omit these fields.
+   */
+  generation_status?: SpecificationGenerationStatus | null;
+  generation_diagnostics?: Array<{
+    code: string;
+    kind: string;
+    message: string;
+    issues?: Array<Record<string, unknown>>;
+    details?: Record<string, unknown>;
+  }>;
+  generation_candidate_groups?: Array<Record<string, unknown>>;
+  generation_at?: string | null;
   created_at: string;
   updated_at: string;
 }

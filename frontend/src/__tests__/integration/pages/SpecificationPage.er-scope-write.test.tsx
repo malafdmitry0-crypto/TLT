@@ -573,4 +573,113 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
     expect(screen.queryByRole('button', { name: 'Добавить из БД' }))
       .not.toBeInTheDocument();
   });
+
+  it('hydrates selection_required candidate panel from GET after F5 (no re-generate)', async () => {
+    const user = (await import('@testing-library/user-event')).default.setup();
+    const {
+      getSpecification,
+      putCatalogSelections,
+      generateSpecification,
+    } = await import('@/api/specifications');
+    const fp = `sha256:${'b'.repeat(64)}`;
+    (getSpecification as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: 'spec-outcome-1',
+      project_id: mockProject.id,
+      electrical_variant_id: firstVariant.id,
+      items: [],
+      snapshot: null,
+      is_stale: false,
+      generation_status: 'selection_required',
+      generation_at: '2026-08-04T10:00:00Z',
+      generation_diagnostics: [{
+        code: 'SPEC_ACCESSORY_SELECTION_REQUIRED',
+        kind: 'selection_required',
+        message: 'Нужен выбор комплекта',
+        issues: [],
+        details: {},
+      }],
+      generation_candidate_groups: [{
+        group_key: 'opaque:er-1:connection',
+        electrical_variant_id: firstVariant.id,
+        category: 'connection_kit',
+        conditions: {},
+        selection_source: 'none',
+        candidate_set_fingerprint: fp,
+        selected_catalog_item_id: null,
+        candidates: [
+          {
+            catalog_item_id: 'item-a',
+            catalog_id: 'catalog-1',
+            catalog_version: 'v1',
+            category: 'connection_kit',
+            name: 'Комплект F5 A',
+            mark: 'A',
+            nomenclature_code: '001',
+            supply_unit: 'шт.',
+          },
+          {
+            catalog_item_id: 'item-b',
+            catalog_id: 'catalog-1',
+            catalog_version: 'v1',
+            category: 'connection_kit',
+            name: 'Комплект F5 B',
+            mark: 'B',
+            nomenclature_code: '002',
+            supply_unit: 'шт.',
+          },
+        ],
+      }],
+      created_at: '2026-08-04T10:00:00Z',
+      updated_at: '2026-08-04T10:00:00Z',
+    });
+    (generateSpecification as ReturnType<typeof vi.fn>).mockResolvedValue({
+      project_id: mockProject.id,
+      settings_version: 1,
+      results: [{
+        electrical_variant_id: firstVariant.id,
+        status: 'generated',
+        items: [],
+        excluded_unassigned_object_ids: [],
+        diagnostics: [],
+        candidate_groups: [],
+        snapshot: {},
+      }],
+    });
+    useProjectStore.getState().setCurrentProject(mockProject);
+    useCalculationVariantStore.getState().setSelectedVariantId(
+      mockProject.id,
+      firstVariant.id,
+    );
+
+    renderPage();
+
+    // Panel appears from GET hydrate — generate was never called.
+    expect(await screen.findByRole('button', { name: /Комплект F5 B/i })).toBeInTheDocument();
+    expect(generateSpecification).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: /Комплект F5 B/i }));
+    await user.click(screen.getByRole('button', { name: /Применить выбор и сформировать/i }));
+
+    await waitFor(() => {
+      expect(putCatalogSelections).toHaveBeenCalledWith(
+        mockProject.id,
+        firstVariant.id,
+        expect.objectContaining({
+          selections: [
+            expect.objectContaining({
+              candidate_group_key: 'opaque:er-1:connection',
+              catalog_item_id: 'item-b',
+            }),
+          ],
+        }),
+      );
+    });
+    expect(generateSpecification).toHaveBeenCalledWith(
+      mockProject.id,
+      expect.objectContaining({
+        variant_ids: [firstVariant.id],
+        catalog_selections: {},
+      }),
+    );
+  });
 });

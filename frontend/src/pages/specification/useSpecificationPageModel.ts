@@ -4,7 +4,7 @@
  * Orchestration for SpecificationPage (mutations, generate options).
  * Query/session identity lives in useSpecificationQuerySession.
  */
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { appMessage as message } from '@/feedback/appFeedback';
 import { useMutation } from '@tanstack/react-query';
 
@@ -34,6 +34,7 @@ import {
   filterValidGenerateErIds,
   resolveGenerateVariantIds,
 } from '@/pages/specification/specificationPageModelHelpers';
+import { buildSpecGenerationHydrate } from '@/pages/specification/specGenerationHydrateModel';
 
 type SpecificationMutationScope = {
   projectId: string;
@@ -202,7 +203,8 @@ export function useSpecificationPageModel() {
         if (unresolved.length > 0) message.warning(toast);
         else message.success(toast);
       }
-      for (const id of generated.map((item) => item.electrical_variant_id)) {
+      // Invalidate every attempted ER so GET carries last generation_status (F5 / ER switch).
+      for (const id of result.results.map((item) => item.electrical_variant_id)) {
         qc.invalidateQueries({
           queryKey: ['spec', variables.projectId, id],
           exact: false,
@@ -218,6 +220,55 @@ export function useSpecificationPageModel() {
       message.error(detail ? `${detail.code}: ${detail.message}` : 'Не удалось сформировать спецификацию');
     },
   });
+
+  // SPEC-REM-05: restore last generation status/candidates from GET after F5 / ER switch.
+  // Deps are outcome identity only — do not re-clear drafts when the user edits form options.
+  const hydratedErRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (mut.isPending) return;
+    const erId = selectedElectricalVariant?.id ?? null;
+    const erChanged = hydratedErRef.current !== erId;
+    hydratedErRef.current = erId;
+
+    const options = buildSpecGenerateOptions({
+      exZone: form.exZone,
+      reserveCoeff: form.reserveCoeff,
+      indicationOnBoxes: form.indicationOnBoxes,
+      endSectionIndication: form.endSectionIndication,
+      topIndication: form.topIndication,
+      minLengthK2i: form.minLengthK2i,
+      groupingMode: form.groupingMode,
+    });
+    const hydrate = buildSpecGenerationHydrate(spec, erId, options);
+
+    if (!hydrate.hasOutcome) {
+      // Clear only on ER switch without a GET outcome. Do not wipe in-memory
+      // selection UI when invalidate/refetch still returns null after generate.
+      if (erChanged && spec == null) {
+        form.setCandidateGroups([]);
+        form.setGenerationDiagnostics([]);
+        form.setPreflightOpen(false);
+        form.setPendingGenerate(null);
+        form.setDraftCatalogSelections({});
+      }
+      return;
+    }
+
+    form.setGenerationDiagnostics(hydrate.generationDiagnostics);
+    form.setCandidateGroups(hydrate.candidateGroups);
+    form.setPreflightOpen(hydrate.preflightOpen);
+    form.setPendingGenerate(hydrate.pendingGenerate);
+    if (hydrate.clearDraftSelections) {
+      form.setDraftCatalogSelections({});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- form setters stable; only rehydrate on GET outcome
+  }, [
+    spec?.id,
+    spec?.generation_status,
+    spec?.generation_at,
+    selectedElectricalVariant?.id,
+    mut.isPending,
+  ]);
 
   const isSpecStale = spec?.is_stale === true;
   const buildGenerateOptions = () => buildSpecGenerateOptions({
@@ -299,12 +350,18 @@ export function useSpecificationPageModel() {
    * relying on long-lived client selection state. Backend merges stored choices.
    */
   const confirmCatalogSelections = async () => {
-    if (!form.pendingGenerate || mut.isPending || !project) return;
+    if (mut.isPending || !project) return;
     const scope = snapshotMutationScope();
+    // After F5, pendingGenerate is restored from GET hydrate; otherwise from last generate.
+    const generateVariantIds = form.pendingGenerate?.generateVariantIds
+      ?? (selectedElectricalVariant?.id ? [selectedElectricalVariant.id] : []);
+    const options = form.pendingGenerate?.options ?? buildGenerateOptions();
+    if (generateVariantIds.length === 0) return;
+
     const byEr = new Map<string, SpecificationCatalogSelectionEntry[]>();
 
     for (const group of form.candidateGroups) {
-      if (group.candidates.length <= 1) continue;
+      if (!candidateGroupNeedsUserChoice(group)) continue;
       const itemId = form.draftCatalogSelections[group.group_key];
       if (!itemId) continue;
       const candidate = group.candidates.find((item) => item.catalog_item_id === itemId);
@@ -353,10 +410,13 @@ export function useSpecificationPageModel() {
     // Client cache is not the long-term store; generate relies on server merge.
     form.setCatalogSelections({});
     form.setDraftCatalogSelections({});
+    if (!form.pendingGenerate) {
+      form.setPendingGenerate({ generateVariantIds, options });
+    }
     mut.mutate({
       ...scope,
-      generateVariantIds: form.pendingGenerate.generateVariantIds,
-      options: form.pendingGenerate.options,
+      generateVariantIds,
+      options,
       excludeUnassignedConfirmed: false,
       catalogSelections: {},
     });
