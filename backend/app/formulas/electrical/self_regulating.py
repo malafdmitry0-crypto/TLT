@@ -1,7 +1,8 @@
 """Электротехнический расчёт саморегулирующихся кабелей ТЛТ и ТТН/ТТВ/ТТХ."""
 
 import math
-from decimal import Decimal
+from collections.abc import Mapping, Sequence
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from app.electrical_domain import ElectricalFormulaError
@@ -294,6 +295,36 @@ _SERIES_LIMITS: dict[str, dict[str, float]] = {
 }
 
 
+def _tt_row_series(row: Mapping[str, Any]) -> str:
+    series = str(row.get("series") or "").strip().upper()
+    if series in _SERIES_LIMITS:
+        return series
+    model = "".join(str(row.get("model") or "").split()).upper()
+    for candidate in _SERIES_LIMITS:
+        if candidate in model:
+            return candidate
+    raise ElectricalFormulaError(
+        "ELECTRICAL_CATALOG_ROW_INVALID",
+        "Строка power-каталога не содержит допустимую серию",
+        details={"model": row.get("model")},
+    )
+
+
+def _tt_row_nominal_power(row: Mapping[str, Any]) -> Decimal:
+    value = row.get("nominal_power")
+    if value is None:
+        model = "".join(str(row.get("model") or "").split()).upper()
+        value = model.split("ТТ", 1)[0]
+    try:
+        return decimal_value(value)
+    except (InvalidOperation, TypeError, ValueError) as exc:
+        raise ElectricalFormulaError(
+            "ELECTRICAL_CATALOG_ROW_INVALID",
+            "Строка power-каталога не содержит номинальную мощность модели",
+            details={"model": row.get("model")},
+        ) from exc
+
+
 def _select_tt_series(process_temp: float, vapor_temp: float | None) -> str:
     """Выбирает минимальную подходящую серию ТТН→ТТВ→ТТХ."""
     for series, limits in _SERIES_LIMITS.items():
@@ -309,9 +340,7 @@ def _select_tt_series(process_temp: float, vapor_temp: float | None) -> str:
     )
 
 
-def compute_winding_factor(
-    *, outer_diameter_mm: float, winding_pitch_mm: float | None
-) -> Decimal:
+def compute_winding_factor(*, outer_diameter_mm: float, winding_pitch_mm: float | None) -> Decimal:
     """Return Kнав from canonical millimetre inputs and enforce the diameter table."""
     diameter_mm = decimal_value(outer_diameter_mm)
     if diameter_mm <= 0:
@@ -354,7 +383,11 @@ def max_winding_factor(outer_diameter_mm: float) -> Decimal:
     return Decimal("1.5")
 
 
-def calc_self_regulating_tt(params: SelfRegulatingTTParams) -> SelfRegulatingTTResult:
+def calc_self_regulating_tt(
+    params: SelfRegulatingTTParams,
+    *,
+    catalog_rows: Sequence[Mapping[str, Any]] | None = None,
+) -> SelfRegulatingTTResult:
     """Подбор саморегулирующегося кабеля ТТН/ТТВ/ТТХ.
 
     Формула мощности: q_б(T3) = q1 × T3 + q2  [Вт/м]
@@ -393,7 +426,9 @@ def calc_self_regulating_tt(params: SelfRegulatingTTParams) -> SelfRegulatingTTR
 
     series = _select_tt_series(params.process_temperature, params.vapor_temperature)
     suffix = "СР" if series != "ТТН" or params.aggressive_product else "СТ"
-    q_required = decimal_value(params.required_power_per_meter) * decimal_value(params.safety_factor)
+    q_required = decimal_value(params.required_power_per_meter) * decimal_value(
+        params.safety_factor
+    )
     # Canonical absence of pitch means straight laying. A non-unit legacy coefficient is ignored.
     winding_factor = (
         Decimal(1)
@@ -403,22 +438,59 @@ def calc_self_regulating_tt(params: SelfRegulatingTTParams) -> SelfRegulatingTTR
     t3 = decimal_value(params.maintain_temperature)
 
     def cable_power(cable_row: CableRow) -> Decimal:
-        return decimal_value(cable_row["q1"]) * t3 + decimal_value(cable_row["q2"])
+        try:
+            power = decimal_value(cable_row["q1"]) * t3 + decimal_value(cable_row["q2"])
+        except (InvalidOperation, KeyError, TypeError, ValueError) as exc:
+            raise ElectricalFormulaError(
+                "ELECTRICAL_CABLE_POWER_CURVE_INVALID",
+                "Строка power-каталога не содержит числовые коэффициенты q1/q2",
+                details={"model": cable_row.get("model")},
+            ) from exc
+        if not power.is_finite():
+            raise ElectricalFormulaError(
+                "ELECTRICAL_CABLE_POWER_CURVE_INVALID",
+                "Мощность кабеля при T3 должна быть конечным числом",
+                details={"model": cable_row.get("model")},
+            )
+        return power
+
+    supplied_catalog = (
+        [dict(row) for row in catalog_rows if isinstance(row, Mapping)]
+        if catalog_rows is not None
+        else None
+    )
 
     if params.cable_mark is not None:
         normalized_model = "".join(params.cable_mark.split()).upper()
+        if normalized_model.startswith("ТЛТ-"):
+            raise ElectricalFormulaError(
+                "ELECTRICAL_LEGACY_CABLE_MARK_UNSUPPORTED",
+                "Условные legacy-марки ТЛТ не поддерживаются в новом расчёте",
+                details={"requested_model": normalized_model},
+            )
         if normalized_model.endswith(("-СТ", "-СР", "-НР")):
             raise ElectricalFormulaError(
                 "ELECTRICAL_CABLE_CONSTRUCTION_UNSUPPORTED",
                 "Ручной выбор принимает базовую модель без суффикса исполнения",
             )
-        cable = get_tt_cable_by_model(normalized_model)
+        cable = (
+            next(
+                (
+                    row
+                    for row in supplied_catalog
+                    if "".join(str(row.get("model") or "").split()).upper() == normalized_model
+                ),
+                None,
+            )
+            if supplied_catalog is not None
+            else get_tt_cable_by_model(normalized_model)
+        )
         if cable is None:
             raise ElectricalFormulaError(
                 "ELECTRICAL_CABLE_NOT_FOUND",
                 f"Кабель «{params.cable_mark}» не найден в справочнике",
             )
-        if cable["series"] != series:
+        if _tt_row_series(cable) != series:
             raise ElectricalFormulaError(
                 "ELECTRICAL_CABLE_SERIES_MISMATCH",
                 "Ручная модель не принадлежит вычисленной температурной серии",
@@ -426,10 +498,10 @@ def calc_self_regulating_tt(params: SelfRegulatingTTParams) -> SelfRegulatingTTR
             )
         candidate_rows = [cable]
     else:
-        catalog = list_tt_cables()
-        candidate_rows = [row for row in catalog if row["series"] == series]
+        catalog = supplied_catalog if supplied_catalog is not None else list_tt_cables()
+        candidate_rows = [row for row in catalog if _tt_row_series(row) == series]
 
-    positive_rows = [(cable_power(row), row) for row in candidate_rows if cable_power(row) > 0]
+    positive_rows = [(power, row) for row in candidate_rows if (power := cable_power(row)) > 0]
     if not positive_rows:
         raise ElectricalFormulaError(
             "ELECTRICAL_CABLE_POWER_CURVE_INVALID",
@@ -455,7 +527,7 @@ def calc_self_regulating_tt(params: SelfRegulatingTTParams) -> SelfRegulatingTTR
         key=lambda item: (
             item[0],
             item[1] * item[0],
-            decimal_value(item[2]["nominal_power"]),
+            _tt_row_nominal_power(item[2]),
             str(item[2]["model"]),
         ),
     )

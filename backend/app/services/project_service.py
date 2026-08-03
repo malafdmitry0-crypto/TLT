@@ -9,7 +9,10 @@ from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.core.dependencies import CurrentPrincipal
-from app.electrical_result_status import is_successful_electrical_result
+from app.electrical_result_status import (
+    electrical_result_with_lifecycle,
+    is_successful_electrical_result,
+)
 from app.models.electrical_calculation import ElectricalCalculation
 from app.models.electrical_variant import ElectricalVariant
 from app.models.project import Project
@@ -266,6 +269,7 @@ class ProjectService:
         calculation_scope = select(
             ElectricalCalculation.object_id,
             ElectricalCalculation.cable_mark,
+            ElectricalCalculation.cable_type,
             ElectricalCalculation.results,
         ).where(ElectricalCalculation.project_id == project_id)
         if electrical_variant_id is not None:
@@ -278,8 +282,13 @@ class ProjectService:
         electrical_unsupported = 0
         electrical_stale = 0
         successful_object_ids: set[UUID] = set()
-        for object_id, cable_mark, results in calc_rows.all():
+        for object_id, cable_mark, cable_type, results in calc_rows.all():
             electrical_total += 1
+            if cable_type == "self_regulating_tt" and isinstance(results, dict):
+                results = electrical_result_with_lifecycle(
+                    cable_mark,
+                    {**results, "cable_type": cable_type},
+                )
             if isinstance(results, dict):
                 if results.get("category") == "unsupported":
                     electrical_unsupported += 1

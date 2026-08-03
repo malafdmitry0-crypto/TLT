@@ -72,6 +72,53 @@ def test_strict_mode_requires_section_current_limit():
     assert raised.value.code == "SECTION_CURRENT_LIMIT_REQUIRED"
 
 
+@pytest.mark.parametrize("field", ["base_length_m", "heat_loss_per_meter_w"])
+def test_missing_heat_inputs_use_normative_error(field: str):
+    sources = _strict_sources()
+    sources["object_heat"].pop(field)
+
+    with pytest.raises(ElectricalInputResolutionError) as raised:
+        ElectricalInputResolver().resolve(**sources)
+
+    assert raised.value.code == "ELECTRICAL_HEAT_LOSS_REQUIRED"
+    assert raised.value.details == {"field": field}
+
+
+def test_missing_safety_factor_uses_required_power_error():
+    sources = _strict_sources()
+    sources["project_settings"].pop("safety_factor")
+
+    with pytest.raises(ElectricalInputResolutionError) as raised:
+        ElectricalInputResolver().resolve(**sources)
+
+    assert raised.value.code == "ELECTRICAL_REQUIRED_POWER_INVALID"
+    assert raised.value.details == {"field": "safety_factor"}
+
+
+@pytest.mark.parametrize("field", ["heat_loss_per_meter_w", "safety_factor"])
+def test_non_positive_required_power_inputs_use_normative_error(field: str):
+    sources = _strict_sources()
+    target = "object_heat" if field == "heat_loss_per_meter_w" else "project_settings"
+    sources[target][field] = Decimal("0")
+
+    with pytest.raises(ElectricalInputResolutionError) as raised:
+        ElectricalInputResolver().resolve(**sources)
+
+    assert raised.value.code == "ELECTRICAL_REQUIRED_POWER_INVALID"
+    assert raised.value.details == {"field": field, "value": Decimal("0")}
+
+
+def test_invalid_object_heat_value_is_wrapped_in_stable_domain_error():
+    sources = _strict_sources()
+    sources["object_heat"]["product_temperature_c"] = "not-a-number"
+
+    with pytest.raises(ElectricalInputResolutionError) as raised:
+        ElectricalInputResolver().resolve(**sources)
+
+    assert raised.value.code == "ELECTRICAL_INPUT_INVALID"
+    assert raised.value.details["errors"][0]["loc"] == ("product_temperature_c",)
+
+
 def test_test_mock_profile_fills_all_and_only_missing_fields():
     result = ElectricalInputResolver(mock_mode="test").resolve(
         explicit=ElectricalInputOverrides(maintain_temperature_c=Decimal("15")),

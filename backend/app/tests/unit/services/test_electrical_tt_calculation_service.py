@@ -8,6 +8,7 @@ from app.electrical_domain import ElectricalFormulaError
 from app.schemas.calculation import ElectricalRequest
 from app.services import calculation_service as calculation_service_module
 from app.services.calculation_service import CalculationService
+from app.services.electrical_catalog_service import ElectricalCatalogService
 from app.services.electrical_input_resolver import (
     ELECTRICAL_NOMINAL_VOLTAGE_FORCED_230,
     ElectricalInputResolutionError,
@@ -45,6 +46,10 @@ def _service_with_sources(obj, *, project_current=13.065, assignment_current=Non
         max_section_start_current_a=assignment_current,
         version=5,
     )
+    service._tt_calculation_catalogs_cache = {
+        kind: ElectricalCatalogService._static_calculation_fallback(kind)
+        for kind in ("power", "section", "bom")
+    }
     return service, variant_id
 
 
@@ -217,7 +222,7 @@ async def test_production_rejects_provisional_power_catalog(monkeypatch):
         )
 
     assert raised.value.code == "ELECTRICAL_CATALOG_SOURCE_UNREGISTERED"
-    assert raised.value.details["status"] == "provisional"
+    assert raised.value.details["status"] == "draft"
 
 
 @pytest.mark.asyncio
@@ -270,3 +275,25 @@ async def test_production_rejects_mocked_inputs_before_catalog_use(monkeypatch):
         )
 
     assert raised.value.code == "ELECTRICAL_MOCK_INPUTS_NOT_ALLOWED"
+
+
+@pytest.mark.asyncio
+async def test_tt_error_provenance_records_missing_catalogs_once(monkeypatch):
+    service = CalculationService(AsyncMock())
+    service._tt_calculation_catalogs_error = ElectricalFormulaError(
+        "ELECTRICAL_CATALOG_SOURCE_UNREGISTERED",
+        "missing active catalogs",
+        status_code=503,
+    )
+    metadata = AsyncMock(return_value=SimpleNamespace(catalogs=[]))
+    monkeypatch.setattr(ElectricalCatalogService, "metadata", metadata)
+
+    first = await service._tt_error_provenance()
+    second = await service._tt_error_provenance()
+
+    assert first == second
+    assert first["voltage"] == first["normalized_voltage_v"] == 230
+    assert first["provenance"]["formula_version"] == "electrical-tt-v2"
+    assert set(first["catalogs"]) == {"power", "section", "bom"}
+    assert {item["status"] for item in first["catalogs"].values()} == {"missing"}
+    metadata.assert_awaited_once()

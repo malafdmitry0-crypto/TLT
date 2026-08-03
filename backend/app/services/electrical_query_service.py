@@ -14,7 +14,10 @@ from sqlalchemy import Float, String, and_, case, cast, func, literal, or_, sele
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import CurrentPrincipal
-from app.electrical_result_status import FAILED_ELECTRICAL_CATEGORIES
+from app.electrical_result_status import (
+    FAILED_ELECTRICAL_CATEGORIES,
+    electrical_result_status,
+)
 from app.models.electrical_calculation import ElectricalCalculation
 from app.models.electrical_variant import ElectricalVariantObject
 from app.models.project_object import ProjectObject
@@ -41,6 +44,7 @@ from app.schemas.project import (
     ProjectObjectsPageInfo,
 )
 from app.services.calculation_service import CalculationService
+from app.services.electrical_result_lifecycle import current_tt_result_sql_predicate
 from app.services.project_service import ProjectService
 
 FieldType = Literal["display", "text", "number", "enum", "boolean"]
@@ -260,6 +264,7 @@ def _sql_electrical_status() -> Any:
                     ElectricalCalculation.cable_mark.is_not(None),
                     _sql_calc_result_text("selected_cable").is_not(None),
                 ),
+                current_tt_result_sql_predicate(),
             ),
             literal("calculated"),
         ),
@@ -334,6 +339,14 @@ def _object_name(row: ElectricalQueryRow) -> str:
 
 
 def _calc_error(row: ElectricalQueryRow) -> str | None:
+    if row.calc is not None and isinstance(row.calc.results, dict):
+        payload = (
+            {**row.calc.results, "cable_type": row.calc.cable_type}
+            if row.calc.cable_type == "self_regulating_tt"
+            else row.calc.results
+        )
+        if electrical_result_status(row.calc.cable_mark, payload) == "stale":
+            return None
     category = _calc_result(row, "category")
     if category == "stale" or _calc_result(row, "stale") is True:
         return None
@@ -353,13 +366,21 @@ def _selected_cable(row: ElectricalQueryRow) -> Any:
 def _electrical_status(row: ElectricalQueryRow) -> str:
     if row.calc is None:
         return "not_calculated"
-    if _calc_result(row, "category") == "unsupported":
-        return "unsupported"
-    if _calc_result(row, "category") == "stale" or _calc_result(row, "stale") is True:
+    if row.calc.results is None:
         return "not_calculated"
-    if _calc_error(row):
+    payload = (
+        {**row.calc.results, "cable_type": row.calc.cable_type}
+        if row.calc.cable_type == "self_regulating_tt" and isinstance(row.calc.results, dict)
+        else row.calc.results
+    )
+    status = electrical_result_status(row.calc.cable_mark, payload)
+    if status == "unsupported":
+        return "unsupported"
+    if status == "stale":
+        return "not_calculated"
+    if status == "failed":
         return "error"
-    if row.calc.results and (row.calc.cable_mark or _calc_result(row, "selected_cable")):
+    if status == "success":
         return "calculated"
     return "not_calculated"
 
@@ -1293,8 +1314,7 @@ class ElectricalQueryService:
         result = await self.db.execute(
             select(ElectricalVariantObject).where(
                 ElectricalVariantObject.project_id == data.project_id,
-                ElectricalVariantObject.electrical_variant_id
-                == data.electrical_variant_id,
+                ElectricalVariantObject.electrical_variant_id == data.electrical_variant_id,
                 ElectricalVariantObject.object_id.in_(object_ids),
             )
         )
@@ -1307,11 +1327,7 @@ class ElectricalQueryService:
             )
             for assignment in result.scalars().all()
         }
-        return [
-            by_object_id[object_id]
-            for object_id in object_ids
-            if object_id in by_object_id
-        ]
+        return [by_object_id[object_id] for object_id in object_ids if object_id in by_object_id]
 
     def _field_capability(
         self,

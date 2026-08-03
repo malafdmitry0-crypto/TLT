@@ -30,7 +30,10 @@ from app.electrical_input_validation import (
     ensure_process_temperature,
     required_process_temperature,
 )
-from app.electrical_result_status import FAILED_ELECTRICAL_CATEGORIES
+from app.electrical_result_status import (
+    FAILED_ELECTRICAL_CATEGORIES,
+    electrical_result_with_lifecycle,
+)
 from app.formulas.electrical.cable_geometry import compute_tank_cable_length
 from app.formulas.electrical.resistive import (
     calc_resistive_single_core,
@@ -38,6 +41,10 @@ from app.formulas.electrical.resistive import (
     default_resistive_max_linear_power_w_m,
 )
 from app.formulas.electrical.self_regulating import calc_self_regulating
+from app.formulas.electrical.tt_contract import (
+    ELECTRICAL_TT_FORMULA_FINGERPRINT,
+    ELECTRICAL_TT_FORMULA_VERSION,
+)
 from app.formulas.heat_loss.pipe import calc_pipe_heat_loss
 from app.formulas.heat_loss.tank import calc_tank_heat_loss
 from app.models.cable import CableExtended
@@ -90,6 +97,10 @@ from app.services.electrical_assignment_service import (
     ElectricalAssignmentServiceError,
 )
 from app.services.electrical_candidate_dedupe import build_dedupe_key, build_identity_payload
+from app.services.electrical_catalog_service import (
+    ElectricalCatalogService,
+    ElectricalCatalogServiceError,
+)
 from app.services.electrical_error_guidance import build_electrical_error_payload
 from app.services.electrical_input_resolver import (
     ElectricalInputResolutionError,
@@ -97,6 +108,7 @@ from app.services.electrical_input_resolver import (
     normalize_electrical_override_payload,
     require_production_eligible_inputs,
 )
+from app.services.electrical_result_lifecycle import current_tt_result_sql_predicate
 from app.services.electrical_tt_pipeline import (
     calculate_electrical_tt,
     electrical_tt_catalog_eligibility,
@@ -438,6 +450,9 @@ class CalculationService:
         self._tt_assignment_cache: dict[
             tuple[UUID, UUID, UUID], ElectricalVariantObject | None
         ] = {}
+        self._tt_calculation_catalogs_cache: dict[str, dict[str, Any]] | None = None
+        self._tt_calculation_catalogs_error: ElectricalFormulaError | None = None
+        self._tt_error_catalog_snapshots_cache: dict[str, dict[str, Any]] | None = None
 
     async def electrical_calc_summaries(
         self,
@@ -457,7 +472,15 @@ class CalculationService:
                 cable_snapshot_status=statuses.get(calc.id),
                 variant_number=calc.variant_number,
                 params=calc.params,
-                results=calc.results,
+                results=electrical_result_with_lifecycle(
+                    calc.cable_mark,
+                    (
+                        {**calc.results, "cable_type": calc.cable_type}
+                        if calc.cable_type == "self_regulating_tt"
+                        and isinstance(calc.results, dict)
+                        else calc.results
+                    ),
+                ),
             )
             for calc in calculations
         ]
@@ -568,6 +591,7 @@ class CalculationService:
                 ElectricalCalculation.cable_mark.is_not(None),
                 selected_cable_text.is_not(None),
             ),
+            current_tt_result_sql_predicate(),
         )
         failed_calc = and_(
             or_(
@@ -1440,13 +1464,29 @@ class CalculationService:
             raise CalculationError("Объект не найден")
 
         resolved_variant_id = electrical_variant_id or request.electrical_variant_id
-        self._hydrate_electrical_request_from_object(request, obj)
-        await self._prepare_self_regulating_tt_request(
-            request,
-            obj,
-            electrical_variant_id=resolved_variant_id,
-        )
-        cable_mark, result_dict = self._calculate_electrical_result(request)
+        try:
+            self._hydrate_electrical_request_from_object(request, obj)
+            await self._prepare_self_regulating_tt_request(
+                request,
+                obj,
+                electrical_variant_id=resolved_variant_id,
+            )
+            cable_mark, result_dict = self._calculate_electrical_result(request)
+        except (ElectricalFormulaError, ElectricalInputResolutionError) as exc:
+            if request.cable_type == "self_regulating_tt":
+                await self._upsert_failed_electrical(
+                    obj,
+                    exc,
+                    request.variant_number,
+                    request.cable_type,
+                    cable_type_source=request.data.get("cable_type_source"),
+                    cable_mark_source=request.data.get("cable_mark_source"),
+                    request_data=request.data,
+                    electrical_variant_id=resolved_variant_id,
+                )
+                if commit:
+                    await self.db.commit()
+            raise
         cable_snapshot = self._build_cable_snapshot_for_result(
             request=request,
             cable_mark=cable_mark,
@@ -1545,6 +1585,79 @@ class CalculationService:
                 project_id,
             )
         return self._tt_project_settings_cache[project_id]
+
+    async def _tt_calculation_catalogs(self) -> dict[str, dict[str, Any]]:
+        """Resolve one immutable catalog set per service/batch execution."""
+        if self._tt_calculation_catalogs_cache is not None:
+            return self._tt_calculation_catalogs_cache
+        if self._tt_calculation_catalogs_error is not None:
+            raise self._tt_calculation_catalogs_error
+        try:
+            catalogs = await ElectricalCatalogService(self.db).active_calculation_catalogs()
+        except ElectricalCatalogServiceError as exc:
+            error = ElectricalFormulaError(
+                exc.code,
+                exc.message,
+                details=exc.details,
+                status_code=exc.status_code,
+            )
+            self._tt_calculation_catalogs_error = error
+            raise error from exc
+        self._tt_calculation_catalogs_cache = catalogs
+        return catalogs
+
+    async def _tt_error_provenance(self) -> dict[str, Any]:
+        """Build BE-14 provenance even when the TT calculation itself failed."""
+        if self._tt_error_catalog_snapshots_cache is not None:
+            snapshots = copy.deepcopy(self._tt_error_catalog_snapshots_cache)
+            return self._tt_error_provenance_payload(snapshots)
+        try:
+            catalogs = await self._tt_calculation_catalogs()
+            snapshots = {
+                kind: {key: value for key, value in catalogs[kind].items() if key != "payload"}
+                for kind in ("power", "section", "bom")
+            }
+        except ElectricalFormulaError:
+            metadata = await ElectricalCatalogService(self.db).metadata()
+            available = {
+                catalog.kind: catalog.model_dump(mode="json") for catalog in metadata.catalogs
+            }
+            snapshots = {
+                kind: available.get(kind)
+                or {
+                    "id": None,
+                    "kind": kind,
+                    "version": None,
+                    "status": "missing",
+                    "source": None,
+                    "source_checksum": None,
+                    "payload_checksum": None,
+                    "schema_version": None,
+                    "production_approved": False,
+                    "authority": "unavailable",
+                }
+                for kind in ("power", "section", "bom")
+            }
+        self._tt_error_catalog_snapshots_cache = copy.deepcopy(snapshots)
+        return self._tt_error_provenance_payload(snapshots)
+
+    @staticmethod
+    def _tt_error_provenance_payload(
+        snapshots: dict[str, dict[str, Any]],
+    ) -> dict[str, Any]:
+        return {
+            "voltage": 230,
+            "normalized_voltage_v": 230,
+            "catalogs": snapshots,
+            "production_eligible": False,
+            "provenance": {
+                "formula_version": ELECTRICAL_TT_FORMULA_VERSION,
+                "formula_fingerprint": ELECTRICAL_TT_FORMULA_FINGERPRINT,
+                "normalized_voltage_v": 230,
+                "catalogs": snapshots,
+                "production_eligible": False,
+            },
+        }
 
     async def _prefetch_tt_assignments(
         self,
@@ -1662,7 +1775,12 @@ class CalculationService:
             ),
             "assignment_version": assignment.version if assignment is not None else None,
         }
-        result_dict = calculate_electrical_tt(resolved, provenance=provenance)
+        calculation_catalogs = await self._tt_calculation_catalogs()
+        result_dict = calculate_electrical_tt(
+            resolved,
+            provenance=provenance,
+            calculation_catalogs=calculation_catalogs,
+        )
         catalogs = result_dict.get("catalogs", {})
         catalogs_eligible, invalid_catalogs = electrical_tt_catalog_eligibility(catalogs)
         if app_settings.is_production and not catalogs_eligible:
@@ -3142,8 +3260,11 @@ class CalculationService:
         results = obj.results or {}
         if cable_type == "self_regulating_tt":
             explicit_tt = dict(overrides)
-            if cable_mark is not None:
-                explicit_tt["cable_mark"] = cable_mark
+            # The batch path is authoritative about auto/manual selection.
+            # Preserve an explicit null so the strict resolver sees
+            # ``manual_cable_model=None`` instead of treating the field as a
+            # missing frontend input and falling through to mock/error.
+            explicit_tt["cable_mark"] = cable_mark
             return {
                 "cable_mark": cable_mark,
                 "_tt_explicit_overrides": explicit_tt,
@@ -4586,6 +4707,7 @@ class CalculationService:
                     ProjectObject.params,
                     ProjectObject.results,
                     ProjectObject.is_valid,
+                    ProjectObject.version,
                 )
             )
             .where(*filters)
@@ -4950,6 +5072,8 @@ class CalculationService:
             cable_type=cable_type,
             request_data=error_request_data,
         )
+        if cable_type == "self_regulating_tt":
+            payload = {**payload, **await self._tt_error_provenance()}
         rows = await self._bulk_upsert_electrical_calculations(
             [
                 {

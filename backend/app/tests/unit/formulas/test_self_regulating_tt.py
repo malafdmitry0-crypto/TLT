@@ -34,9 +34,7 @@ def _params(**kwargs) -> SelfRegulatingTTParams:
     [(20, None, "ТТН"), (65, None, "ТТВ"), (20, 85, "ТТВ"), (120, None, "ТТХ")],
 )
 def test_strict_temperature_series_boundaries(t1, t2, series):
-    result = calc_self_regulating_tt(
-        _params(process_temperature=t1, vapor_temperature=t2)
-    )
+    result = calc_self_regulating_tt(_params(process_temperature=t1, vapor_temperature=t2))
     assert result.series == series
 
 
@@ -71,6 +69,23 @@ def test_manual_input_is_exact_base_model_only():
     with pytest.raises(ElectricalFormulaError) as exc:
         calc_self_regulating_tt(_params(cable_mark="25ТТН2-СТ"))
     assert exc.value.code == "ELECTRICAL_CABLE_CONSTRUCTION_UNSUPPORTED"
+
+
+@pytest.mark.parametrize("legacy_mark", ["ТЛТ-25", "  тлт - 25  "])
+def test_legacy_tlt_mark_is_rejected_without_catalog_lookup(legacy_mark, monkeypatch):
+    def fail_lookup(_model):
+        raise AssertionError("legacy mark must be rejected before TT catalog lookup")
+
+    monkeypatch.setattr(
+        "app.formulas.electrical.self_regulating.get_tt_cable_by_model",
+        fail_lookup,
+    )
+
+    with pytest.raises(ElectricalFormulaError) as exc:
+        calc_self_regulating_tt(_params(cable_mark=legacy_mark))
+
+    assert exc.value.code == "ELECTRICAL_LEGACY_CABLE_MARK_UNSUPPORTED"
+    assert exc.value.details == {"requested_model": "ТЛТ-25"}
 
 
 def test_manual_model_must_belong_to_computed_series():
@@ -283,6 +298,18 @@ class TestIndependentCableCalculations:
         with pytest.raises(ElectricalFormulaError) as exc:
             calc_self_regulating_tt(_params(cable_mark="25ТТН2"))
         assert exc.value.code == "ELECTRICAL_CABLE_POWER_CURVE_INVALID"
+
+    def test_missing_power_curve_coefficient_is_typed_error(self):
+        row = {
+            "model": "25ТТН2",
+            "series": "ТТН",
+            "nominal_power": 25,
+            "q2": 25,
+        }
+        with pytest.raises(ElectricalFormulaError) as exc:
+            calc_self_regulating_tt(_params(cable_mark="25ТТН2"), catalog_rows=[row])
+        assert exc.value.code == "ELECTRICAL_CABLE_POWER_CURVE_INVALID"
+        assert exc.value.details == {"model": "25ТТН2"}
 
     def test_non_positive_auto_power_curves_are_typed_error(self, monkeypatch):
         rows = [

@@ -1502,7 +1502,10 @@ class ElectricalAssignmentService:
 
     @classmethod
     def _state_for_calculation(cls, calculation: ElectricalCalculation) -> str:
-        return cls._state_for_values(calculation.cable_mark, calculation.results)
+        results = calculation.results
+        if calculation.cable_type == "self_regulating_tt" and isinstance(results, dict):
+            results = {**results, "cable_type": calculation.cable_type}
+        return cls._state_for_values(calculation.cable_mark, results)
 
     @staticmethod
     def _diagnostics_for_results(results: Any) -> dict[str, Any]:

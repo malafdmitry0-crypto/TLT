@@ -769,7 +769,7 @@ class TestCableLayoutMapping:
         assert data["required_power_per_meter"] == pytest.approx(20.0)
         assert data["safety_factor"] == pytest.approx(1.3)
 
-    def test_tt_build_data_keeps_object_values_out_of_explicit_overrides(self):
+    def test_tt_build_data_keeps_only_authoritative_auto_mark_in_explicit_overrides(self):
         service = CalculationService(_mock_db_empty())
         obj = SimpleNamespace(
             object_type="pipe",
@@ -795,7 +795,7 @@ class TestCableLayoutMapping:
             overrides={},
         )
 
-        assert data["_tt_explicit_overrides"] == {}
+        assert data["_tt_explicit_overrides"] == {"cable_mark": None}
 
     def test_tlt_tank_required_power_uses_cable_geometry_not_m2(self):
         service = CalculationService(_mock_db_empty())

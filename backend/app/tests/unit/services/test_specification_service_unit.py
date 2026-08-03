@@ -6,6 +6,10 @@ import uuid
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
+from app.formulas.electrical.tt_contract import (
+    ELECTRICAL_TT_FORMULA_FINGERPRINT,
+    ELECTRICAL_TT_FORMULA_VERSION,
+)
 from app.reference_data.loader import get_electrical_tt_bom_entry
 from app.schemas.specification import SpecificationItem, SpecificationOptions
 from app.services.specification_service import SpecificationService
@@ -79,6 +83,20 @@ def _tt_catalogs() -> dict:
         "bom": {
             **bom["catalog"],
             "row": {key: value for key, value in bom.items() if key != "catalog"},
+        },
+    }
+
+
+def _tt_lifecycle_fields() -> dict:
+    return {
+        "voltage": 230,
+        "resolved_inputs": {
+            "nominal_voltage_v": 230,
+            "max_section_start_current_a": 13.065,
+        },
+        "provenance": {
+            "formula_version": ELECTRICAL_TT_FORMULA_VERSION,
+            "formula_fingerprint": ELECTRICAL_TT_FORMULA_FINGERPRINT,
         },
     }
 
@@ -185,6 +203,7 @@ class TestGenerate:
             cable_mark="30ТТВ2-СР",
             params={},
             results={
+                **_tt_lifecycle_fields(),
                 "selected_cable": "30ТТВ2",
                 "section_count": 1,
                 "section_length_m": 10,
@@ -220,9 +239,11 @@ class TestGenerate:
         db.execute = AsyncMock(return_value=_list_result([obj]))
         db.get = AsyncMock(return_value=_project_defaults())
         service = SpecificationService(db)
+        service._require_authoritative_catalog = AsyncMock()
         service._electrical_results_for_variant = AsyncMock(
             return_value=[
                 {
+                    **_tt_lifecycle_fields(),
                     "object_id": str(object_id),
                     "cable_type": "self_regulating_tt",
                     "cable_mark": "30ТТВ2-СТ",
@@ -232,6 +253,7 @@ class TestGenerate:
                     "section_l_fact_m": 10,
                     "installed_cable_length": 10,
                     "order_cable_length": 11,
+                    "catalogs": _tt_catalogs(),
                 }
             ]
         )
@@ -262,9 +284,11 @@ class TestGenerate:
         db.execute = AsyncMock(return_value=_list_result([obj]))
         db.get = AsyncMock(return_value=_project_defaults())
         service = SpecificationService(db)
+        service._require_authoritative_catalog = AsyncMock()
         service._electrical_results_for_variant = AsyncMock(
             return_value=[
                 {
+                    **_tt_lifecycle_fields(),
                     "object_id": str(object_id),
                     "cable_type": "self_regulating_tt",
                     "cable_mark": "30ТТВ2-СР",
@@ -306,9 +330,11 @@ class TestGenerate:
         db.execute = AsyncMock(return_value=_list_result([obj]))
         db.get = AsyncMock(return_value=_project_defaults())
         service = SpecificationService(db)
+        service._require_authoritative_catalog = AsyncMock()
         service._electrical_results_for_variant = AsyncMock(
             return_value=[
                 {
+                    **_tt_lifecycle_fields(),
                     "object_id": str(object_id),
                     "cable_type": "self_regulating_tt",
                     "cable_mark": "30ТТВ2-СР",

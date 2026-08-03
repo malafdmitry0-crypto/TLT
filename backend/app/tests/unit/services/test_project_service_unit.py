@@ -378,9 +378,7 @@ class TestObjectsCRUD:
                 "outer_diameter": 0.1,
                 "wall_thickness": 0.004,
                 "pipe_material": "carbon_steel",
-                "insulation_layers": [
-                    {"thickness": 0.05, "material": "mineral_wool_boards_120"}
-                ],
+                "insulation_layers": [{"thickness": 0.05, "material": "mineral_wool_boards_120"}],
                 "insulation_temperature_basis": "outdoor_winter",
                 "ambient_temperature": -20,
                 "process_temperature": 80,
@@ -405,14 +403,8 @@ class TestObjectsCRUD:
         async def refresh_updated(updated_obj):
             updated_obj.version = 2
             updated_obj.params = {
-                **{
-                    key: value
-                    for key, value in obj.params.items()
-                    if key != "location"
-                },
-                "insulation_layers": [
-                    {"thickness": 0.02, "material": "mineral_wool_boards_120"}
-                ],
+                **{key: value for key, value in obj.params.items() if key != "location"},
+                "insulation_layers": [{"thickness": 0.02, "material": "mineral_wool_boards_120"}],
             }
 
         db.refresh = AsyncMock(side_effect=refresh_updated)
@@ -464,9 +456,7 @@ class TestObjectsCRUD:
                 "outer_diameter": 0.1,
                 "wall_thickness": 0.004,
                 "pipe_material": "carbon_steel",
-                "insulation_layers": [
-                    {"thickness": 0.05, "material": "mineral_wool_boards_120"}
-                ],
+                "insulation_layers": [{"thickness": 0.05, "material": "mineral_wool_boards_120"}],
                 "insulation_temperature_basis": "outdoor_winter",
                 "ambient_temperature": -20,
                 "process_temperature": 80,
@@ -560,25 +550,28 @@ class TestObjectsSummary:
                         (
                             pipe_ok_id,
                             None,
+                            "self_regulating",
                             {
                                 "selected_cable": {"mark": "HTM"},
                                 "message": "Служебное пояснение успешного подбора",
                             },
                         ),
-                        (tank_ok_id, "HTM", {"total_power": 1200}),
+                        (tank_ok_id, "HTM", "self_regulating", {"total_power": 1200}),
                         (
                             pipe_bad_id,
                             "HTM",
+                            "self_regulating",
                             {
                                 "error_code": "POWER_TOO_HIGH",
                                 "category": "formula",
                                 "message": "invalid heat loss",
                             },
                         ),
-                        (pipe_bad_id, "HTM", None),
+                        (pipe_bad_id, "HTM", "self_regulating", None),
                         (
                             tank_ok_id,
                             None,
+                            "self_regulating",
                             {
                                 "error_code": "unsupported_layout",
                                 "category": "unsupported",

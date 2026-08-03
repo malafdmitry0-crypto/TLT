@@ -7,11 +7,13 @@ from app.models.base import Base
 from app.models.cable import CableExtended
 from app.models.coefficient import CorrectionCoefficient
 from app.models.electrical_calculation import ElectricalCalculation
+from app.models.electrical_calculation_revision import ElectricalCalculationRevision
 from app.models.electrical_candidate import ElectricalCandidate
 from app.models.electrical_candidate_folder import (
     ElectricalCandidateFolder,
     ElectricalCandidateFolderItem,
 )
+from app.models.electrical_catalog_version import ElectricalCatalogVersion
 from app.models.electrical_variant import ElectricalVariant, ElectricalVariantObject
 from app.models.guest_session import GuestSession
 from app.models.insulation_material import InsulationMaterial
@@ -39,6 +41,8 @@ __all__ = [
     "ObjectType",
     "RefreshSession",
     "ElectricalCalculation",
+    "ElectricalCalculationRevision",
+    "ElectricalCatalogVersion",
     "ElectricalCandidate",
     "ElectricalCandidateFolder",
     "ElectricalCandidateFolderItem",

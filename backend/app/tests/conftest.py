@@ -9,6 +9,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.core.cache import cache
+from app.core.config import Settings, settings
 from app.core.database import get_db
 from app.core.rate_limit import (
     batch_limiter,
@@ -22,6 +23,18 @@ from app.core.security import hash_password
 from app.main import app
 from app.models import Base
 from app.models.user import User
+
+
+@pytest.fixture
+def electrical_frontend_mock_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Explicitly enable temporary frontend compatibility inputs for a test."""
+    monkeypatch.setenv("ELECTRICAL_FRONTEND_MOCK_MODE", "test")
+    configured = Settings(_env_file=None)
+    monkeypatch.setattr(
+        settings,
+        "ELECTRICAL_FRONTEND_MOCK_MODE",
+        configured.ELECTRICAL_FRONTEND_MOCK_MODE,
+    )
 
 
 @pytest.fixture(autouse=True)

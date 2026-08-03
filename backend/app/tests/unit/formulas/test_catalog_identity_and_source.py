@@ -91,6 +91,49 @@ def test_tt_cable_identity_uses_exact_bom_and_ignores_result_article():
     assert identity["catalog_checksum"].startswith("sha256:")
 
 
+def test_tt_cable_identity_uses_saved_active_db_bom_version():
+    bom = get_electrical_tt_bom_entry("30ТТВ2-СР")
+    assert bom is not None
+    saved_row = {
+        **{key: value for key, value in bom.items() if key != "catalog"},
+        "nomenclature_code": "DB-BOM-30-TTV2-SR",
+    }
+    identity = cable_identity_from_result(
+        {
+            "cable_type": "self_regulating_tt",
+            "cable_mark": "30ТТВ2-СР",
+            "selected_cable": "30ТТВ2",
+            "nomenclature_code": "OUTDATED-TOP-LEVEL-CODE",
+            "series": "ТТВ",
+            "catalogs": {
+                "power": {
+                    "status": "active",
+                    "version": "db-power-v2",
+                    "source_checksum": "sha256:db-power",
+                },
+                "section": {
+                    "status": "active",
+                    "version": "db-section-v2",
+                    "source_checksum": "sha256:db-section",
+                },
+                "bom": {
+                    "status": "active",
+                    "version": "db-bom-v2",
+                    "source": "approved-db-bom.xlsx",
+                    "source_checksum": "sha256:db-bom",
+                    "schema_version": 2,
+                    "row": saved_row,
+                },
+            },
+        }
+    )
+
+    assert identity is not None
+    assert identity["nomenclature_code"] == "DB-BOM-30-TTV2-SR"
+    assert identity["catalog_version"] == "db-bom-v2"
+    assert identity["catalog_source"] == "approved-db-bom.xlsx"
+
+
 def test_tt_cable_identity_rejects_missing_full_mark_without_fallback():
     assert (
         cable_identity_from_result(
@@ -99,6 +142,21 @@ def test_tt_cable_identity_rejects_missing_full_mark_without_fallback():
                 "cable_mark": "30ТТВ2-СТ",
                 "selected_cable": "30ТТВ2",
                 "nomenclature_code": "SHOULD-NOT-BE-TRUSTED",
+                "catalogs": {
+                    "power": {"status": "active", "payload_checksum": "sha256:power"},
+                    "section": {
+                        "status": "active",
+                        "payload_checksum": "sha256:section",
+                    },
+                    "bom": {
+                        "status": "active",
+                        "payload_checksum": "sha256:bom",
+                        "row": {
+                            "full_mark": "30ТТВ2-СТ",
+                            "nomenclature_code": "SHOULD-NOT-BE-TRUSTED",
+                        },
+                    },
+                },
             }
         )
         is None

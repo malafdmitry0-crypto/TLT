@@ -8,7 +8,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import CurrentPrincipal
-from app.electrical_result_status import electrical_result_status, is_successful_electrical_result
+from app.electrical_result_status import (
+    electrical_result_status,
+    electrical_result_with_lifecycle,
+    is_successful_electrical_result,
+)
 from app.models.electrical_calculation import ElectricalCalculation
 from app.models.project import Project
 from app.models.project_object import ProjectObject
@@ -100,7 +104,9 @@ class ReportService:
                 # quantities. Preview/print/export must not ship procurement rows.
                 raw_items = list(spec.items or [])
                 gen_opts = getattr(spec, "generation_options", None) or {}
-                is_partial = bool(gen_opts.get("is_partial")) if isinstance(gen_opts, dict) else False
+                is_partial = (
+                    bool(gen_opts.get("is_partial")) if isinstance(gen_opts, dict) else False
+                )
                 excluded_groups = (
                     list(gen_opts.get("excluded_groups") or [])
                     if isinstance(gen_opts, dict)
@@ -132,9 +138,7 @@ class ReportService:
                     ElectricalCalculation.electrical_variant_id == electrical_variant_id
                 )
             elif variant_number is not None:
-                elec_stmt = elec_stmt.where(
-                    ElectricalCalculation.variant_number == variant_number
-                )
+                elec_stmt = elec_stmt.where(ElectricalCalculation.variant_number == variant_number)
             else:
                 elec_stmt = elec_stmt.where(False)
             elec_result = await self.db.execute(elec_stmt)
@@ -188,11 +192,15 @@ class ReportService:
     def _electrical_payload(cls, calc: ElectricalCalculation) -> dict:
         raw_results = calc.results or {}
         results = raw_results if isinstance(raw_results, dict) else {}
+        cable_type = getattr(calc, "cable_type", None)
+        if cable_type == "self_regulating_tt":
+            results = {**results, "cable_type": cable_type}
+        visible_results = electrical_result_with_lifecycle(calc.cable_mark, results) or {}
         return {
             "cable_mark": calc.cable_mark,
             "cable_snapshot": getattr(calc, "cable_snapshot", None),
-            "results": results,
-            "status": cls._electrical_status(calc.cable_mark, results),
+            "results": visible_results,
+            "status": cls._electrical_status(calc.cable_mark, visible_results),
         }
 
     @classmethod
@@ -340,7 +348,13 @@ class ReportService:
             "multi_er": True,
             # Keep single-ER keys empty so template does not mix totals.
             "objects": [],
-            "electrical": {"valid": [], "failed": [], "unsupported": [], "stale": [], "summary": {}},
+            "electrical": {
+                "valid": [],
+                "failed": [],
+                "unsupported": [],
+                "stale": [],
+                "summary": {},
+            },
             "specification": {"items": [], "is_stale": False},
             "variant_number": None,
             "electrical_variant_id": None,

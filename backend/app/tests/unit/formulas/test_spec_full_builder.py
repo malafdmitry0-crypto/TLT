@@ -4,6 +4,10 @@ import math
 
 import pytest
 
+from app.formulas.electrical.tt_contract import (
+    ELECTRICAL_TT_FORMULA_FINGERPRINT,
+    ELECTRICAL_TT_FORMULA_VERSION,
+)
 from app.formulas.specification import full_builder as fb
 from app.formulas.specification.full_builder import (
     build_full_specification as _build_full_specification,
@@ -100,6 +104,15 @@ def _tt_result(**overrides):
         "selected_cable": "30ТТВ2",
         "series": "ТТВ",
         "temperature_group": "high",
+        "voltage": 230,
+        "resolved_inputs": {
+            "nominal_voltage_v": 230,
+            "max_section_start_current_a": 13.065,
+        },
+        "provenance": {
+            "formula_version": ELECTRICAL_TT_FORMULA_VERSION,
+            "formula_fingerprint": ELECTRICAL_TT_FORMULA_FINGERPRINT,
+        },
         "section_count": 2,
         "section_length_m": 50.0,
         "section_l_fact_m": 100.0,

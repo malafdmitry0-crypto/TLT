@@ -245,8 +245,16 @@ class ElectricalInputResolver:
         if mocked_fields:
             warnings.append(ELECTRICAL_FRONTEND_INPUTS_MOCKED)
         warnings = list(dict.fromkeys(warnings))
+        try:
+            canonical_values = CanonicalElectricalInputs.model_validate(values)
+        except ValidationError as exc:
+            raise ElectricalInputResolutionError(
+                "ELECTRICAL_INPUT_INVALID",
+                "Resolved electrical inputs are invalid",
+                details={"errors": exc.errors(include_url=False)},
+            ) from exc
         return ResolvedElectricalInputs(
-            values=CanonicalElectricalInputs.model_validate(values),
+            values=canonical_values,
             sources=sources,
             mocked_fields=mocked_fields,
             legacy_aliases=list(legacy_aliases or []),
@@ -264,6 +272,18 @@ class ElectricalInputResolver:
                 "A project or assignment section current limit is required",
                 details={"field": field},
             )
+        if field in {"base_length_m", "heat_loss_per_meter_w"}:
+            raise ElectricalInputResolutionError(
+                "ELECTRICAL_HEAT_LOSS_REQUIRED",
+                "A current Heat calculation is required for electrical calculation",
+                details={"field": field},
+            )
+        if field == "safety_factor":
+            raise ElectricalInputResolutionError(
+                "ELECTRICAL_REQUIRED_POWER_INVALID",
+                "An explicit Heat safety factor is required",
+                details={"field": field},
+            )
         raise ElectricalInputResolutionError(
             "ELECTRICAL_INPUT_REQUIRED",
             f"Required electrical input is missing: {field}",
@@ -278,8 +298,14 @@ class ElectricalInputResolver:
             except (ValueError, TypeError):
                 valid = False
             if not valid:
+                if field == "base_length_m":
+                    code = "ELECTRICAL_HEAT_LOSS_REQUIRED"
+                elif field in {"heat_loss_per_meter_w", "safety_factor"}:
+                    code = "ELECTRICAL_REQUIRED_POWER_INVALID"
+                else:
+                    code = "ELECTRICAL_INPUT_INVALID"
                 raise ElectricalInputResolutionError(
-                    "ELECTRICAL_INPUT_INVALID",
+                    code,
                     f"Electrical input must be positive: {field}",
                     details={"field": field, "value": values.get(field)},
                 )

@@ -1,10 +1,12 @@
 """Endpoints администрирования."""
 
+import hashlib
+import json
 from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel
 from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import CurrentPrincipal, require_admin
+from app.core.uploads import read_upload_with_limit
 from app.electrical_input_validation import (
     PROCESS_TEMPERATURE_REQUIRED_FORMULA_TYPES,
     ProcessTemperatureInputError,
@@ -33,6 +36,12 @@ from app.schemas.calculation import (
     TankHeatLossParams,
 )
 from app.schemas.coefficient import CoefficientResponse, CoefficientUpdate
+from app.schemas.electrical_catalog import (
+    ElectricalCatalogActivationResponse,
+    ElectricalCatalogImportDocument,
+    ElectricalCatalogKind,
+    ElectricalCatalogVersionResponse,
+)
 from app.schemas.reference import (
     AccessoryExtendedCreate,
     AccessoryExtendedResponse,
@@ -44,6 +53,10 @@ from app.schemas.reference import (
 from app.schemas.user import UserCreate, UserResponse, UserUpdate
 from app.services.admin_service import AdminError, AdminService
 from app.services.audit_service import AuditService
+from app.services.electrical_catalog_service import (
+    ElectricalCatalogService,
+    ElectricalCatalogServiceError,
+)
 from app.services.task_queue import TaskQueue, TaskQueueError
 from app.services.task_service import TaskLimitError, TaskNotFoundError, TaskService
 
@@ -100,6 +113,10 @@ class DeadLetterDeleteResponse(BaseModel):
 
 
 router = APIRouter()
+
+
+def _raise_electrical_catalog_error(exc: ElectricalCatalogServiceError) -> None:
+    raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
 
 
 def _parse_task_id(value: str | None) -> UUID | None:
@@ -589,6 +606,101 @@ async def delete_dead_letter_entry(
     finally:
         if queue is not None:
             await queue.close()
+
+
+# ---- Electrical catalogs ----
+
+
+@router.post(
+    "/electrical-catalogs/import",
+    response_model=ElectricalCatalogVersionResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Импортировать draft-версию электрического каталога",
+)
+async def import_electrical_catalog(
+    kind: ElectricalCatalogKind = Form(...),
+    version: str = Form(...),
+    source: str = Form(...),
+    source_checksum: str = Form(...),
+    schema_version: int = Form(..., ge=1),
+    production_approved: bool = Form(False),
+    file: UploadFile = File(...),
+    principal: CurrentPrincipal = Depends(require_admin()),
+    db: AsyncSession = Depends(get_db),
+) -> ElectricalCatalogVersionResponse:
+    """Store a bounded JSON payload as a new immutable draft version."""
+    media_type = (file.content_type or "").split(";", 1)[0].strip().lower()
+    if media_type not in {"application/json", "text/json", "text/plain"}:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail={
+                "code": "ELECTRICAL_CATALOG_IMPORT_INVALID",
+                "message": "Поддерживается только JSON-каталог",
+                "issues": [],
+                "details": {"content_type": file.content_type},
+            },
+        )
+    content = await read_upload_with_limit(file)
+    import_checksum = "sha256:" + hashlib.sha256(content).hexdigest()
+    try:
+        payload = json.loads(content.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={
+                "code": "ELECTRICAL_CATALOG_IMPORT_INVALID",
+                "message": "Файл не является корректным UTF-8 JSON",
+                "issues": [],
+                "details": {},
+            },
+        ) from exc
+    if not isinstance(payload, dict):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={
+                "code": "ELECTRICAL_CATALOG_IMPORT_INVALID",
+                "message": "Корнем JSON-каталога должен быть объект",
+                "issues": [],
+                "details": {},
+            },
+        )
+    document = ElectricalCatalogImportDocument(
+        version=version,
+        source=source,
+        source_checksum=source_checksum,
+        import_checksum=import_checksum,
+        schema_version=schema_version,
+        payload=payload,
+        production_approved=production_approved,
+        diagnostics=[
+            {
+                "code": "ELECTRICAL_CATALOG_UPLOAD_RECORDED",
+                "filename": file.filename,
+                "content_type": file.content_type,
+            }
+        ],
+    )
+    try:
+        catalog = await ElectricalCatalogService(db).import_draft(kind, document, principal)
+    except ElectricalCatalogServiceError as exc:
+        _raise_electrical_catalog_error(exc)
+    return ElectricalCatalogVersionResponse.model_validate(catalog)
+
+
+@router.post(
+    "/electrical-catalogs/{catalog_version_id}/activate",
+    response_model=ElectricalCatalogActivationResponse,
+    summary="Атомарно активировать электрический каталог",
+)
+async def activate_electrical_catalog(
+    catalog_version_id: UUID,
+    principal: CurrentPrincipal = Depends(require_admin()),
+    db: AsyncSession = Depends(get_db),
+) -> ElectricalCatalogActivationResponse:
+    try:
+        return await ElectricalCatalogService(db).activate(catalog_version_id, principal)
+    except ElectricalCatalogServiceError as exc:
+        _raise_electrical_catalog_error(exc)
 
 
 # ---- Formula check ----

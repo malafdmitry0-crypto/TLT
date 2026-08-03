@@ -1,5 +1,6 @@
 """Endpoints расчётов."""
 
+from typing import NoReturn
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -39,12 +40,19 @@ from app.schemas.calculation import (
     HeatLossResponse,
     SelectionPolicy,
 )
+from app.schemas.electrical_catalog import ElectricalCatalogMetadataResponse
+from app.schemas.electrical_history import ElectricalCalculationHistoryResponse
 from app.services.audit_service import AuditService
 from app.services.calculation_service import (
     CalculationError,
     CalculationService,
     ElectricalCandidateApplyError,
     ElectricalVariantCopyError,
+)
+from app.services.electrical_catalog_service import ElectricalCatalogService
+from app.services.electrical_history_service import (
+    ElectricalCalculationHistoryNotFoundError,
+    ElectricalHistoryService,
 )
 from app.services.electrical_input_resolver import ElectricalInputResolutionError
 from app.services.electrical_query_service import (
@@ -60,12 +68,50 @@ from app.services.project_service import ProjectAccessError, ProjectNotFoundErro
 router = APIRouter()
 
 
-def _raise_project_error(exc: Exception) -> None:
+@router.get(
+    "/electrical/catalog-metadata",
+    response_model=ElectricalCatalogMetadataResponse,
+    summary="Активные версии электрических каталогов",
+)
+async def electrical_catalog_metadata(
+    _: CurrentPrincipal = Depends(require_any()),
+    db: AsyncSession = Depends(get_db),
+) -> ElectricalCatalogMetadataResponse:
+    """Return DB-active versions or explicit dev/test static fallbacks."""
+    return await ElectricalCatalogService(db).metadata()
+
+
+def _raise_project_error(exc: Exception) -> NoReturn:
     if isinstance(exc, ProjectNotFoundError):
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     if isinstance(exc, ProjectAccessError):
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     raise exc
+
+
+@router.get(
+    "/electrical/history/{calculation_id}",
+    response_model=ElectricalCalculationHistoryResponse,
+    summary="Неизменяемая история результата электрорасчёта",
+)
+async def electrical_calculation_history(
+    calculation_id: UUID,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    principal: CurrentPrincipal = Depends(require_any()),
+    db: AsyncSession = Depends(get_db),
+) -> ElectricalCalculationHistoryResponse:
+    try:
+        return await ElectricalHistoryService(db).list_revisions(
+            calculation_id,
+            principal,
+            page=page,
+            page_size=page_size,
+        )
+    except ElectricalCalculationHistoryNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except (ProjectNotFoundError, ProjectAccessError) as exc:
+        _raise_project_error(exc)
 
 
 @router.post(

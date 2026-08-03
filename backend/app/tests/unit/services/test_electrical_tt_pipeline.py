@@ -1,11 +1,13 @@
 """Focused tests for the pure resolved-input TT pipeline."""
 
+from copy import deepcopy
 from decimal import Decimal
 
 import pytest
 
 from app.electrical_domain import ElectricalFormulaError
 from app.schemas.electrical_inputs import CanonicalElectricalInputs, ResolvedElectricalInputs
+from app.services.electrical_catalog_service import ElectricalCatalogService
 from app.services.electrical_tt_pipeline import (
     ELECTRICAL_POWER_CATALOG_PROVISIONAL,
     ELECTRICAL_TT_FORMULA_FINGERPRINT,
@@ -45,6 +47,25 @@ def _resolved(**updates) -> ResolvedElectricalInputs:
         warnings=[],
         production_eligible=True,
     )
+
+
+def _active_calculation_catalogs() -> dict[str, dict]:
+    checksum_digits = {"power": "a", "section": "b", "bom": "c"}
+    catalogs = {
+        kind: deepcopy(ElectricalCatalogService._static_calculation_fallback(kind))
+        for kind in ("power", "section", "bom")
+    }
+    for kind, catalog in catalogs.items():
+        catalog.update(
+            {
+                "id": f"{kind}-catalog-id",
+                "status": "active",
+                "authority": "database",
+                "production_approved": True,
+                "payload_checksum": f"sha256:{checksum_digits[kind] * 64}",
+            }
+        )
+    return catalogs
 
 
 def test_pipeline_emits_exact_bom_sections_totals_and_provenance():
@@ -150,6 +171,83 @@ def test_pipeline_honours_exact_manual_base_model_and_catalog_overrides():
     assert result["catalogs"]["power"]["version"] == "approved-power-7"
     assert result["catalogs"]["section"]["version"] == "approved-section-8"
     assert result["catalogs"]["bom"]["version"] == "approved-bom-9"
+
+
+def test_active_catalog_payloads_are_the_only_calculation_authority(monkeypatch):
+    catalogs = _active_calculation_catalogs()
+    selected_row = next(
+        row for row in catalogs["power"]["payload"]["rows"] if row["model"] == "45ТТВ2"
+    )
+    selected_row.update({"q1": 0, "q2": 80})
+
+    def unexpected_static_lookup(*_args, **_kwargs):
+        raise AssertionError("static catalog must not be read")
+
+    monkeypatch.setattr(
+        "app.services.electrical_tt_pipeline.get_tt_cable_by_model",
+        unexpected_static_lookup,
+    )
+    monkeypatch.setattr(
+        "app.services.electrical_tt_pipeline.get_electrical_tt_bom_entry",
+        unexpected_static_lookup,
+    )
+    monkeypatch.setattr(
+        "app.services.electrical_tt_pipeline.list_tt_cables",
+        unexpected_static_lookup,
+    )
+    monkeypatch.setattr(
+        "app.formulas.electrical.self_regulating.get_tt_cable_by_model",
+        unexpected_static_lookup,
+    )
+    monkeypatch.setattr(
+        "app.formulas.electrical.self_regulating.list_tt_cables",
+        unexpected_static_lookup,
+    )
+
+    result = calculate_electrical_tt(
+        _resolved(manual_cable_model="45ТТВ2"),
+        calculation_catalogs=catalogs,
+    )
+
+    assert result["cable"]["power_at_maintain_temperature_w_per_m"] == 80
+    assert result["catalogs"]["power"]["id"] == "power-catalog-id"
+    assert result["catalogs"]["section"]["authority"] == "database"
+    assert result["catalogs"]["bom"]["id"] == "bom-catalog-id"
+    assert result["production_eligible"] is True
+    assert ELECTRICAL_POWER_CATALOG_PROVISIONAL not in result["warnings"]
+
+
+def test_active_catalog_missing_exact_bom_never_falls_back_to_static():
+    catalogs = _active_calculation_catalogs()
+    catalogs["bom"]["payload"]["entries"] = [
+        row for row in catalogs["bom"]["payload"]["entries"] if row["full_mark"] != "45ТТВ2-СР"
+    ]
+
+    with pytest.raises(ElectricalFormulaError) as exc:
+        calculate_electrical_tt(
+            _resolved(manual_cable_model="45ТТВ2"),
+            calculation_catalogs=catalogs,
+        )
+
+    assert exc.value.code == "SPEC_CABLE_NOMENCLATURE_MISSING"
+    assert exc.value.details == {"full_mark": "45ТТВ2-СР"}
+
+
+def test_active_catalog_incomplete_exact_bom_is_typed_error():
+    catalogs = _active_calculation_catalogs()
+    entry = next(
+        row for row in catalogs["bom"]["payload"]["entries"] if row["full_mark"] == "45ТТВ2-СР"
+    )
+    entry.pop("nomenclature_code")
+
+    with pytest.raises(ElectricalFormulaError) as exc:
+        calculate_electrical_tt(
+            _resolved(manual_cable_model="45ТТВ2"),
+            calculation_catalogs=catalogs,
+        )
+
+    assert exc.value.code == "SPEC_CABLE_NOMENCLATURE_MISSING"
+    assert exc.value.details == {"full_mark": "45ТТВ2-СР"}
 
 
 def test_pipeline_fails_closed_when_section_row_is_unavailable():

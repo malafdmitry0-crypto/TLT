@@ -7,6 +7,8 @@ current; an optional upstream breaker limit can further reduce ``Lогр``.
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
+from copy import deepcopy
 from dataclasses import dataclass
 from decimal import ROUND_CEILING, Decimal
 from functools import lru_cache
@@ -84,9 +86,12 @@ def section_catalog_meta() -> dict[str, Any]:
     }
 
 
-def _parse_rows() -> list[SectionCatalogRow]:
-    data = _catalog_payload()
-    raw = data.get("rows") or []
+def section_catalog_payload_snapshot() -> dict[str, Any]:
+    """Return an isolated copy for the dev/test catalog authority adapter."""
+    return deepcopy(_catalog_payload())
+
+
+def _parse_catalog_rows(raw: Any) -> list[SectionCatalogRow]:
     out: list[SectionCatalogRow] = []
     if not isinstance(raw, list):
         return out
@@ -94,19 +99,33 @@ def _parse_rows() -> list[SectionCatalogRow]:
         if not isinstance(item, dict):
             continue
         try:
+            cold_start = (
+                item["cold_start_temperature_c"]
+                if "cold_start_temperature_c" in item
+                else item["cold_start_temp_c"]
+            )
+            specific_start_current = (
+                item["specific_start_current_a_per_m"]
+                if "specific_start_current_a_per_m" in item
+                else item["i_st_ud_a_per_m"]
+            )
             out.append(
                 SectionCatalogRow(
-                    mark=str(item["mark"]).strip(),
-                    voltage_v=float(item["voltage_v"]),
-                    cold_start_temp_c=float(item["cold_start_temp_c"]),
+                    mark=str(item.get("base_model") or item["mark"]).strip(),
+                    voltage_v=float(item.get("voltage_v", 230)),
+                    cold_start_temp_c=float(cold_start),
                     l_max_m=float(item["l_max_m"]),
                     i_dop_a=(float(item["i_dop_a"]) if item.get("i_dop_a") is not None else None),
-                    i_st_ud_a_per_m=float(item["i_st_ud_a_per_m"]),
+                    i_st_ud_a_per_m=float(specific_start_current),
                 )
             )
         except (KeyError, TypeError, ValueError):
             continue
     return out
+
+
+def _parse_rows() -> list[SectionCatalogRow]:
+    return _parse_catalog_rows(_catalog_payload().get("rows") or [])
 
 
 def _mark_lookup_keys(mark: str) -> list[str]:
@@ -123,11 +142,15 @@ def lookup_section_row(
     mark: str,
     voltage_v: float,
     cold_start_temp_c: float,
+    catalog_rows: Sequence[Mapping[str, Any]] | None = None,
 ) -> SectionCatalogRow | None:
     """Exact model + exact/nearest-colder cold-start row, never warmer fallback."""
-    if not section_catalog_registered():
-        return None
-    all_rows = _parse_rows()
+    if catalog_rows is None:
+        if not section_catalog_registered():
+            return None
+        all_rows = _parse_rows()
+    else:
+        all_rows = _parse_catalog_rows(list(catalog_rows))
     for mark_key in _mark_lookup_keys(mark):
         rows = [r for r in all_rows if r.mark == mark_key]
         if not rows:
@@ -150,6 +173,8 @@ def compute_section_plan(
     voltage_v: float = 230.0,
     cold_start_temp_c: float = -20.0,
     max_start_current_per_section_a: float | None = None,
+    catalog_rows: Sequence[Mapping[str, Any]] | None = None,
+    catalog_metadata: Mapping[str, Any] | None = None,
 ) -> SectionPlan:
     """Compute equal fail-closed sections and totals from physical installed length."""
     del working_current_total_a  # preserved in the public signature; totals are authoritative here
@@ -166,6 +191,7 @@ def compute_section_plan(
         mark=mark,
         voltage_v=voltage_v,
         cold_start_temp_c=cold_start_temp_c,
+        catalog_rows=catalog_rows,
     )
     if row is None:
         raise ElectricalFormulaError(
@@ -212,7 +238,7 @@ def compute_section_plan(
     power_per_section = decimal_value(power_per_meter_w) * l_sec
     working_per_section = power_per_section / Decimal(230)
     working_total = working_per_section * n
-    meta = section_catalog_meta()
+    meta = dict(catalog_metadata) if catalog_metadata is not None else section_catalog_meta()
 
     return SectionPlan(
         section_count=n,
