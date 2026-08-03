@@ -225,7 +225,7 @@ describe('apiClient network retry and idempotency', () => {
     apiClient.defaults.adapter = adapter;
 
     await getElectricalQueryCapabilities('project-1', 2, 'er-2');
-    await getSpecification('project-1', 2, 'er-2');
+    await getSpecification('project-1', 'er-2');
     await getReportPreview('project-1', 2, 'er-2', ['summary']);
     await selectCableForVariants(
       'object-1',
@@ -245,10 +245,11 @@ describe('apiClient network retry and idempotency', () => {
       variant_number: 2,
       electrical_variant_id: 'er-2',
     });
-    expect(specification.params).toMatchObject({
-      variant: 2,
-      electrical_variant_id: 'er-2',
-    });
+    // Спецификация — канонический UUID data plane: адресация в пути, без
+    // transitional numeric params.
+    expect(specification.url).toBe('/specifications/project-1/variants/er-2');
+    expect(specification.params ?? {}).not.toHaveProperty('variant');
+    expect(specification.params ?? {}).not.toHaveProperty('variant_number');
     expect(preview.params).toMatchObject({
       variant_number: 2,
       electrical_variant_id: 'er-2',

@@ -57,7 +57,7 @@ export function useSpecificationManualItemsController({
       return saveSpecificationItems(
         projectId,
         electricalVariantId,
-        items,
+        items.filter((item) => item.source === 'manual'),
       );
     },
     onSuccess: (_result, variables) => {
@@ -86,7 +86,7 @@ export function useSpecificationManualItemsController({
     };
     saveMut.mutate({
       ...snapshotMutationScope(),
-      items: [...items, newItem],
+      items: [...items.filter((item) => item.source === 'manual'), newItem],
     }, {
       onSuccess: () => {
         message.success('Позиция добавлена');
@@ -99,7 +99,10 @@ export function useSpecificationManualItemsController({
 
   const handleDelete = (index: number) => {
     if (!canManuallyEdit) return;
-    const next = items.filter((_, i) => i !== index);
+    if (items[index]?.source !== 'manual') return;
+    const next = items
+      .filter((_, i) => i !== index)
+      .filter((item) => item.source === 'manual');
     saveMut.mutate({
       ...snapshotMutationScope(),
       items: next,

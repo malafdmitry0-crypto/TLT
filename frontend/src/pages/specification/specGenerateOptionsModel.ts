@@ -43,30 +43,3 @@ export function missingSpecGenerateFields(input: SpecGenerateOptionsInput): stri
     [input.reserveCoeff.trim() === '' ? null : input.reserveCoeff, 'R,гр'],
   ].filter(([value]) => value == null).map(([, label]) => String(label));
 }
-
-export function isSpecificationPartial(spec: {
-  is_partial?: boolean;
-  generation_options?: { is_partial?: boolean } | null;
-} | null | undefined): boolean {
-  return Boolean(
-    spec?.is_partial
-    || spec?.generation_options?.is_partial,
-  );
-}
-
-export type SpecExcludedGroup = {
-  error_code?: string;
-  message?: string;
-  group?: string;
-};
-
-export function resolveSpecificationExcludedGroups(spec: {
-  excluded_groups?: SpecExcludedGroup[];
-  generation_options?: { excluded_groups?: SpecExcludedGroup[] } | null;
-} | null | undefined): SpecExcludedGroup[] {
-  return (
-    spec?.excluded_groups
-    ?? spec?.generation_options?.excluded_groups
-    ?? []
-  );
-}

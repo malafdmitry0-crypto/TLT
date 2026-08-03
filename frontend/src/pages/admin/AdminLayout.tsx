@@ -39,6 +39,7 @@ export default function AdminLayout() {
               { key: '/admin/database', label: 'База данных' },
               { key: '/admin/references', label: 'Справочники' },
               { key: '/admin/formulas', label: 'Формулы' },
+              { key: '/admin/specification-catalogs', label: 'Каталоги спецификации' },
               { type: 'divider' as const },
               { key: '/help/admin', label: 'Инструкция', icon: <QuestionCircleOutlined /> },
             ]}

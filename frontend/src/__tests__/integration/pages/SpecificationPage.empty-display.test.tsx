@@ -30,6 +30,7 @@ vi.mock('@/api/electricalVariants', () => ({
 
 vi.mock('@/api/specifications', () => ({
   getSpecification: vi.fn(),
+  getSpecificationErrorDetail: vi.fn((error: { detail?: unknown }) => error?.detail ?? null),
   generateSpecification: vi.fn(),
   saveSpecificationItems: vi.fn(),
   listAccessoriesExtended: vi.fn().mockResolvedValue([]),
@@ -111,7 +112,8 @@ describe('SpecificationPage (integration) — empty-display', () => {
     (getSpecification as ReturnType<typeof vi.fn>).mockResolvedValue({
       id: 's-1',
       project_id: 'p-1',
-      variant_number: 1,
+      electrical_variant_id: firstVariant.id,
+      snapshot: null,
       items: [],
       created_at: '2026-01-01T00:00:00Z',
       updated_at: '2026-01-01T00:00:00Z',
@@ -132,7 +134,8 @@ describe('SpecificationPage (integration) — empty-display', () => {
     (getSpecification as ReturnType<typeof vi.fn>).mockResolvedValue({
       id: 's-1',
       project_id: 'p-1',
-      variant_number: 1,
+      electrical_variant_id: firstVariant.id,
+      snapshot: null,
       items: [
         {
           category: 'Кабель',
@@ -170,7 +173,8 @@ describe('SpecificationPage (integration) — empty-display', () => {
     (getSpecification as ReturnType<typeof vi.fn>).mockResolvedValue({
       id: 's-1',
       project_id: 'p-1',
-      variant_number: 1,
+      electrical_variant_id: firstVariant.id,
+      snapshot: null,
       is_stale: true,
       stale_reason: 'object_params_updated',
       stale_at: '2026-01-01T00:00:00Z',
@@ -196,43 +200,5 @@ describe('SpecificationPage (integration) — empty-display', () => {
       expect(screen.getByText('Старая позиция')).toBeInTheDocument();
     });
     expect(screen.getByRole('button', { name: /Сформировать заново/i })).toBeInTheDocument();
-  });
-  it('показывает баннер неполной спецификации с excluded_groups (FA-01/05)', async () => {
-    const { getSpecification } = await import('@/api/specifications');
-    (getSpecification as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: 's-partial',
-      project_id: mockProject.id,
-      variant_number: 1,
-      is_stale: false,
-      is_partial: true,
-      excluded_groups: [
-        {
-          group: 'heating_sections',
-          error_code: 'SECTION_DATA_SOURCE_MISSING',
-          message: 'Каталог секционирования не зарегистрирован',
-        },
-      ],
-      items: [
-        {
-          category: 'Кабель',
-          name: 'Partial cable',
-          article: 'PC-1',
-          unit: 'м',
-          quantity: 50,
-          params: {},
-        },
-      ],
-      created_at: '2026-01-01T00:00:00Z',
-      updated_at: '2026-01-01T00:00:00Z',
-    });
-    useProjectStore.getState().setCurrentProject(mockProject);
-    renderPage();
-
-    expect(
-      await screen.findByText(/Неполная спецификация — не использовать как полный закупочный комплект/i),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/SECTION_DATA_SOURCE_MISSING/i)).toBeInTheDocument();
-    expect(document.body.textContent).toMatch(/НЕПОЛНАЯ/);
-    expect(screen.getByText('Partial cable')).toBeInTheDocument();
   });
 });

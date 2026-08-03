@@ -22,6 +22,7 @@ const CoefficientsPage = lazy(() => import('@/pages/admin/CoefficientsPage'));
 const DatabasePage = lazy(() => import('@/pages/admin/DatabasePage'));
 const ReferencesPage = lazy(() => import('@/pages/admin/ReferencesPage'));
 const FormulasPage = lazy(() => import('@/pages/admin/FormulasPage'));
+const SpecificationCatalogsPage = lazy(() => import('@/pages/admin/SpecificationCatalogsPage'));
 
 const GuestHelpPage = lazy(() => import('@/pages/help/GuestHelpPage'));
 const EmployeeHelpPage = lazy(() => import('@/pages/help/EmployeeHelpPage'));
@@ -85,6 +86,7 @@ export default function AppRoutes() {
           <Route path="database" element={<DatabasePage />} />
           <Route path="references" element={<ReferencesPage />} />
           <Route path="formulas" element={<FormulasPage />} />
+          <Route path="specification-catalogs" element={<SpecificationCatalogsPage />} />
         </Route>
       </Routes>
     </Suspense>

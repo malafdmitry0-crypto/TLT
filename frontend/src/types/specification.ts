@@ -10,30 +10,35 @@ export interface SpecificationItem {
   source?: 'auto' | 'manual';
 }
 
+export interface SpecificationSnapshot {
+  schema?: string;
+  schema_version?: number;
+  electrical_variant_id?: string;
+  settings_revision?: number;
+  resolved_options?: Record<string, unknown>;
+  catalog?: {
+    id?: string;
+    catalog_key?: string;
+    version?: string;
+    source_checksum?: string;
+    payload_checksum?: string;
+    schema_version?: number;
+  };
+  [key: string]: unknown;
+}
+
 export interface Specification {
   id: string;
   project_id: string;
   /** Primary scope identity (UUID ЭР). */
-  electrical_variant_id?: string | null;
-  /** Transitional numeric slot; optional until CANON-06 drops it. */
-  variant_number?: number;
+  electrical_variant_id: string;
   items: SpecificationItem[];
-  /** Режим последней генерации ('basic' | 'full') — для восстановления UI после reload. */
-  generation_mode?: 'basic' | 'full' | null;
-  /** Опции последней генерации полного BOM (R,гр, Ex, К1i/К2i/Кiu, L,К2i). */
-  generation_options?: Record<string, unknown> | null;
+  /** Reproducible canonical generation snapshot returned by the UUID endpoint. */
+  snapshot: SpecificationSnapshot | null;
   is_stale?: boolean;
   stale_reason?: string | null;
   stale_at?: string | null;
   stale_details?: Record<string, unknown> | null;
-  /** FA-01/05: partial BOM honesty after reload */
-  is_partial?: boolean;
-  excluded_groups?: Array<{
-    group?: string;
-    error_code?: string;
-    message?: string;
-  }>;
-  skipped_objects?: number;
   created_at: string;
   updated_at: string;
 }

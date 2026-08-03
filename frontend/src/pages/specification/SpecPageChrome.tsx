@@ -30,6 +30,7 @@ import type {
   SpecificationSettings,
 } from '@/api/specifications';
 import { missingSpecGenerateFields } from '@/pages/specification/specGenerateOptionsModel';
+import { resolveSpecificationCatalogLabel } from '@/pages/specification/specGenerationOptionsSyncModel';
 import type { Specification, SpecificationItem } from '@/types/specification';
 import '../workflow-params.css';
 import './specification-page.css';
@@ -78,7 +79,7 @@ export type SpecPageChromeProps = {
   spec: Specification | null | undefined;
   mut: PendingMutation;
   saveDefaultsMut: MutateMutation;
-  runGenerate: (partial?: boolean) => void;
+  runGenerate: (excludeUnassignedConfirmed?: boolean) => void;
   canManuallyEdit: boolean;
   hasItems: boolean;
   isSpecStale: boolean;
@@ -141,6 +142,10 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
   const parseTriState = (value: string | number | null) => (
     value == null ? null : value === 'true'
   );
+  const catalogLabel = resolveSpecificationCatalogLabel(
+    spec?.snapshot,
+    projectSettings?.settings as Record<string, unknown> | undefined,
+  );
 
   return (
     <>
@@ -190,8 +195,8 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
               <CompactField layout="vertical" label="Номенклатурная база" controlWidth="100%">
                 <TltSelect
                   disabled
-                  value="standard"
-                  options={[{ value: 'standard', label: 'Стандартная активная версия' }]}
+                  value={catalogLabel}
+                  options={[{ value: catalogLabel, label: catalogLabel }]}
                   aria-label="Стандартная номенклатурная база"
                 />
               </CompactField>
@@ -295,8 +300,8 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
               {projectSettings?.version != null && (
                 <Text className="specification-settings-stats-meta">
                   Project defaults v{projectSettings.version}
-                  {typeof spec?.generation_options?.settings_version === 'number'
-                    ? ` · snapshot v${spec.generation_options.settings_version as number}`
+                  {typeof spec?.snapshot?.settings_revision === 'number'
+                    ? ` · snapshot v${spec.snapshot.settings_revision}`
                     : ''}
                 </Text>
               )}
@@ -402,13 +407,12 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
             aria-label="Количество"
           />
           <Text type="secondary" className="specification-add-hint">
-            Ручные позиции помечены тегом «ручная». При пересчёте они удаляются — добавьте
-            заново после генерации.
+            Ручные позиции помечены тегом «ручная» и сохраняются при пересчёте.
           </Text>
         </Space>
       </Modal>
       <Modal
-        title="Подтверждение partial-генерации"
+        title="Подтверждение исключения неназначенных объектов"
         open={preflightOpen}
         onCancel={() => {
           setPreflightOpen(false);

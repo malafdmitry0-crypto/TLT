@@ -8,6 +8,12 @@ import { API_BASE, currentGuestContext } from './workspace';
 
 export type GuestCtx = { projectId: string; sessionId: string };
 
+export type ElectricalVariantSummary = {
+  id: string;
+  name: string;
+  is_active: boolean;
+};
+
 export const CANONICAL_SPECIFICATION_OPTIONS = {
   grouping_mode: 'separate_by_object_type',
   Ex: false,
@@ -23,21 +29,81 @@ export async function guestHeaders(page: Page): Promise<Record<string, string>> 
   return { 'X-Session-Id': sessionId };
 }
 
+export async function createSpecificationReadyPipe(
+  page: Page,
+  name = `E2E specification pipe ${Date.now()}`,
+) {
+  const { projectId, sessionId } = await currentGuestContext(page);
+  const response = await page.request.post(
+    `${API_BASE}/api/v1/projects/${projectId}/objects`,
+    {
+      headers: { 'X-Session-Id': sessionId },
+      data: {
+        object_type: 'pipe',
+        params: {
+          name,
+          outer_diameter: 0.108,
+          wall_thickness: 0.004,
+          pipe_material: 'carbon_steel',
+          insulation_layers: [
+            { thickness: 0.05, material: 'mineral_wool_boards_120' },
+          ],
+          insulation_temperature_basis: 'outdoor_winter',
+          ambient_temperature: -30,
+          process_temperature: 80,
+          pipe_length: 50,
+          placement: 'outdoor',
+          wind_speed: 0,
+        },
+      },
+    },
+  );
+  expect(response.status()).toBe(201);
+  return response.json();
+}
+
+export async function createSpecificationReadyTank(
+  page: Page,
+  name = `E2E specification tank ${Date.now()}`,
+) {
+  const { projectId, sessionId } = await currentGuestContext(page);
+  const response = await page.request.post(
+    `${API_BASE}/api/v1/projects/${projectId}/objects`,
+    {
+      headers: { 'X-Session-Id': sessionId },
+      data: {
+        object_type: 'tank',
+        params: {
+          name,
+          shape: 'cylindrical',
+          diameter: 2,
+          height: 3,
+          insulation_layers: [
+            { thickness: 0.08, material: 'mineral_wool_boards_120' },
+          ],
+          insulation_temperature_basis: 'outdoor_winter',
+          ambient_temperature: -20,
+          process_temperature: 80,
+          placement: 'outdoor',
+          wind_speed: 0,
+        },
+      },
+    },
+  );
+  expect(response.status()).toBe(201);
+  const body = await response.json();
+  expect(body.is_valid).toBe(true);
+  return body;
+}
+
 export async function listElectricalVariants(page: Page) {
   const { projectId, sessionId } = await currentGuestContext(page);
   const resp = await page.request.get(
     `${API_BASE}/api/v1/projects/${projectId}/electrical-variants`,
     { headers: { 'X-Session-Id': sessionId } },
   );
-  expect(resp.ok()).toBeTruthy();
-  return resp.json() as Promise<
-    Array<{
-      id: string;
-      name: string;
-      legacy_variant_number: number | null;
-      is_active: boolean;
-    }>
-  >;
+  expect(resp.status()).toBe(200);
+  return resp.json() as Promise<Array<ElectricalVariantSummary>>;
 }
 
 export async function ensureElectricalInitialized(page: Page) {
@@ -47,20 +113,19 @@ export async function ensureElectricalInitialized(page: Page) {
     `${API_BASE}/api/v1/projects/${projectId}/electrical-variants`,
     { headers },
   );
-  if (list.ok()) {
-    const body = await list.json();
-    if (Array.isArray(body) && body.length > 0) return body;
-  }
+  expect(list.status()).toBe(200);
+  const body = await list.json();
+  if (Array.isArray(body) && body.length > 0) return body;
   const init = await page.request.post(
     `${API_BASE}/api/v1/projects/${projectId}/electrical-variants/initialize`,
     { headers },
   );
-  expect([200, 201]).toContain(init.status());
+  expect(init.status()).toBe(200);
   const after = await page.request.get(
     `${API_BASE}/api/v1/projects/${projectId}/electrical-variants`,
     { headers },
   );
-  expect(after.ok()).toBeTruthy();
+  expect(after.status()).toBe(200);
   return after.json();
 }
 
@@ -82,7 +147,7 @@ export async function createEmptyElectricalVariant(page: Page, name: string) {
   return resp.json() as Promise<{
     id: string;
     name: string;
-    legacy_variant_number: number | null;
+    is_active: boolean;
   }>;
 }
 
@@ -106,7 +171,7 @@ export async function batchCalcElectrical(
       electrical_variant_id: electricalVariantId,
     },
   });
-  expect([200, 201, 202]).toContain(resp.status());
+  expect(resp.status()).toBe(200);
   return resp;
 }
 
@@ -138,13 +203,39 @@ export async function generateSpecification(
   return resp;
 }
 
+export async function getSpecificationForVariant(
+  page: Page,
+  electricalVariantId: string,
+) {
+  const { projectId, sessionId } = await currentGuestContext(page);
+  return page.request.get(
+    `${API_BASE}/api/v1/specifications/${projectId}/variants/${electricalVariantId}`,
+    { headers: { 'X-Session-Id': sessionId } },
+  );
+}
+
+export async function saveManualSpecificationItemsForVariant(
+  page: Page,
+  electricalVariantId: string,
+  items: Array<Record<string, unknown>>,
+) {
+  const { projectId, sessionId } = await currentGuestContext(page);
+  return page.request.put(
+    `${API_BASE}/api/v1/specifications/${projectId}/variants/${electricalVariantId}/items`,
+    {
+      headers: { 'X-Session-Id': sessionId },
+      data: { items },
+    },
+  );
+}
+
 export async function getSpecificationSettings(page: Page) {
   const { projectId, sessionId } = await currentGuestContext(page);
   const resp = await page.request.get(
     `${API_BASE}/api/v1/specifications/${projectId}/settings`,
     { headers: { 'X-Session-Id': sessionId } },
   );
-  expect(resp.ok()).toBeTruthy();
+  expect(resp.status()).toBe(200);
   return resp.json() as Promise<{
     project_id: string;
     version: number;
@@ -164,7 +255,7 @@ export async function updateSpecificationSettings(
       data: { settings },
     },
   );
-  expect(resp.ok()).toBeTruthy();
+  expect(resp.status()).toBe(200);
   return resp.json() as Promise<{ version: number; settings: Record<string, unknown> }>;
 }
 
@@ -174,8 +265,12 @@ export async function reportPreview(
 ) {
   const { projectId, sessionId } = await currentGuestContext(page);
   const params = new URLSearchParams();
-  for (const id of electricalVariantIds) {
-    params.append('electrical_variant_id', id);
+  if (electricalVariantIds.length === 1) {
+    params.append('electrical_variant_id', electricalVariantIds[0]);
+  } else {
+    for (const id of electricalVariantIds) {
+      params.append('electrical_variant_ids', id);
+    }
   }
   params.append('sections', 'specification');
   params.append('sections', 'objects');
@@ -192,7 +287,7 @@ export async function exportProjectCsv(page: Page): Promise<string> {
     `${API_BASE}/api/v1/projects/${projectId}/export-csv`,
     { headers: { 'X-Session-Id': sessionId } },
   );
-  expect(resp.ok()).toBeTruthy();
+  expect(resp.status()).toBe(200);
   return resp.text();
 }
 

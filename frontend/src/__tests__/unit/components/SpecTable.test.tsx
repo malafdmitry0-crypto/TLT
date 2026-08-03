@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import SpecTable from '@/components/specification/SpecTable';
 
@@ -72,5 +72,29 @@ describe('SpecTable', () => {
     expect(
       screen.getByText(/Расчёт спецификации для данного типа объекта пока недоступен/i),
     ).toBeInTheDocument();
+  });
+
+  it('offers delete only for manual rows', () => {
+    render(
+      <SpecTable
+        groupBy="none"
+        canDelete
+        onDelete={vi.fn()}
+        items={[
+          {
+            category: 'Кабель', name: 'Автоматическая', article: 'AUTO', unit: 'м',
+            quantity: '10', params: {}, source: 'auto',
+          },
+          {
+            category: 'Доп.', name: 'Ручная', article: 'MANUAL', unit: 'шт.',
+            quantity: '1', params: {}, source: 'manual',
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Удалить Автоматическая' }))
+      .not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Удалить Ручная' })).toBeInTheDocument();
   });
 });

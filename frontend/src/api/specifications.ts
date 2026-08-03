@@ -126,6 +126,13 @@ export interface SpecificationGenerateResult {
   results: SpecificationGenerateVariantResult[];
 }
 
+const SPECIFICATION_GENERATION_STATUSES = new Set<SpecificationGenerateVariantResult['status']>([
+  'generated',
+  'blocked',
+  'confirmation_required',
+  'selection_required',
+]);
+
 function getSpecificationGenerateResult(data: unknown): SpecificationGenerateResult | null {
   if (typeof data !== 'object' || data == null) return null;
   const candidate = data as Partial<SpecificationGenerateResult>;
@@ -134,6 +141,18 @@ function getSpecificationGenerateResult(data: unknown): SpecificationGenerateRes
     || typeof candidate.settings_version !== 'number'
     || !Array.isArray(candidate.results)
   ) {
+    return null;
+  }
+  if (candidate.results.some((item) => (
+    typeof item !== 'object'
+    || item == null
+    || typeof item.electrical_variant_id !== 'string'
+    || !SPECIFICATION_GENERATION_STATUSES.has(item.status)
+    || !Array.isArray(item.items)
+    || !Array.isArray(item.excluded_unassigned_object_ids)
+    || !Array.isArray(item.diagnostics)
+    || !Array.isArray(item.candidate_groups)
+  ))) {
     return null;
   }
   return {

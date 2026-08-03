@@ -1,12 +1,15 @@
 import { test, expect } from '@playwright/test';
 
-import { createCalculatedPipe, createCalculatedTank, loginAsGuest, currentGuestContext } from './helpers/workspace';
+import { loginAsGuest, currentGuestContext } from './helpers/workspace';
 import {
   CANONICAL_SPECIFICATION_OPTIONS,
   createEmptyElectricalVariant,
+  createSpecificationReadyPipe,
+  createSpecificationReadyTank,
   ensureElectricalInitialized,
   exportProjectCsv,
   generateSpecification,
+  getSpecificationForVariant,
   getSpecificationSettings,
   listElectricalVariants,
   reportPreview,
@@ -22,20 +25,19 @@ test.describe('Phase 5 specification proof pack', () => {
 
   test('5.1 guest opens specification controls at desktop width', async ({ page }) => {
     await loginAsGuest(page);
-    await createCalculatedPipe(page);
+    await createSpecificationReadyPipe(page);
     await ensureElectricalInitialized(page);
     await page.getByRole('menuitem', { name: 'Спецификация' }).click();
-    const form = page.getByRole('button', { name: /Сформировать|Пересчитать/i }).first();
-    const warning = page.getByText(/ЭР ещё не создан|спецификация временно недоступна|Загрузка/i);
-    await expect(form.or(warning.first())).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole('button', { name: /Сформировать|Пересчитать/i }).first())
+      .toBeVisible({ timeout: 20_000 });
     const width = await page.evaluate(() => window.innerWidth);
     expect(width).toBeGreaterThanOrEqual(1280);
   });
 
   test('5.1a Heat objects do not own specification settings', async ({ page }) => {
     await loginAsGuest(page);
-    const pipe = await createCalculatedPipe(page);
-    const tank = await createCalculatedTank(page);
+    const pipe = await createSpecificationReadyPipe(page);
+    const tank = await createSpecificationReadyTank(page);
     const forbidden = [
       'explosion_zone_type',
       'power_indication_on_boxes',
@@ -60,7 +62,7 @@ test.describe('Phase 5 specification proof pack', () => {
 
   test('5.3 defaults settings API versioned without generation (PDL-ER-07)', async ({ page }) => {
     await loginAsGuest(page);
-    await createCalculatedPipe(page);
+    await createSpecificationReadyPipe(page);
     await ensureElectricalInitialized(page);
     const before = await getSpecificationSettings(page);
     expect(before.version).toBeGreaterThanOrEqual(1);
@@ -73,14 +75,14 @@ test.describe('Phase 5 specification proof pack', () => {
       L_K2i_m: '0',
       R_gr: '1.2',
     });
-    expect(after.version).toBeGreaterThanOrEqual(before.version);
+    expect(after.version).toBe(before.version + 1);
     expect(after.settings.R_gr).toBe('1.2');
     expect(after.settings.Ex).toBe(true);
   });
 
-  test('5.4 multi-ER list create up to two variants + generate preflight path', async ({ page }) => {
+  test('5.4 UUID generation request rejects unknown ER with the exact canonical envelope', async ({ page }) => {
     await loginAsGuest(page);
-    await createCalculatedPipe(page, `Phase5 pipe ${Date.now()}`);
+    await createSpecificationReadyPipe(page, `Phase5 pipe ${Date.now()}`);
     const variants = await ensureElectricalInitialized(page);
     expect(variants.length).toBeGreaterThanOrEqual(1);
     const er1 = variants[0];
@@ -92,13 +94,14 @@ test.describe('Phase 5 specification proof pack', () => {
     const list = await listElectricalVariants(page);
     expect(list.length).toBeGreaterThanOrEqual(2);
 
+    const unknownVariantId = crypto.randomUUID();
     const gen = await generateSpecification(page, {
-      variantIds: [er1.id, er2.id],
+      variantIds: [unknownVariantId],
       excludeUnassignedConfirmed: true,
       options: CANONICAL_SPECIFICATION_OPTIONS,
       inspectBody: (body) => {
         expect(body).toEqual({
-          variant_ids: [er1.id, er2.id],
+          variant_ids: [unknownVariantId],
           options: CANONICAL_SPECIFICATION_OPTIONS,
           exclude_unassigned_confirmed: true,
           catalog_selections: {},
@@ -108,17 +111,24 @@ test.describe('Phase 5 specification proof pack', () => {
         expect(body).not.toHaveProperty('mode');
       },
     });
-    expect([201, 422, 404]).toContain(gen.status());
-    if (gen.status() === 201) {
-      const body = await gen.json();
-      expect(body.project_id).toBeTruthy();
-      expect(body.results).toHaveLength(2);
-    }
+    expect(gen.status()).toBe(404);
+    expect(await gen.json()).toEqual({
+      detail: {
+        code: 'SPEC_VARIANT_NOT_FOUND',
+        message: 'Один или несколько ЭР не найдены в проекте',
+        issues: [],
+        details: { missing_variant_ids: [unknownVariantId] },
+      },
+    });
+
+    const emptySpecification = await getSpecificationForVariant(page, er1.id);
+    expect(emptySpecification.status()).toBe(200);
+    expect(await emptySpecification.json()).toBeNull();
   });
 
   test('5.5 CSV v3 export contains schema_version 3 and ER graph markers', async ({ page }) => {
     await loginAsGuest(page);
-    await createCalculatedPipe(page);
+    await createSpecificationReadyPipe(page);
     await ensureElectricalInitialized(page);
     const csv = await exportProjectCsv(page);
     expect(csv).toMatch(/schema_version;3|schema_version";3/i);
@@ -128,43 +138,38 @@ test.describe('Phase 5 specification proof pack', () => {
 
   test('5.6 report preview accepts explicit electrical_variant_id list', async ({ page }) => {
     await loginAsGuest(page);
-    await createCalculatedPipe(page);
+    await createSpecificationReadyPipe(page);
     const variants = await ensureElectricalInitialized(page);
     const erId = variants[0].id as string;
     const preview = await reportPreview(page, [erId]);
-    expect([200, 422, 404]).toContain(preview.status());
-    if (preview.status() === 200) {
-      const body = await preview.json();
-      expect(typeof body.html).toBe('string');
-      // Stale procurement quantities must not appear as success when empty/stale
-      expect(body.html).not.toMatch(/SECRET-MARK/);
-    }
+    expect(preview.status()).toBe(200);
+    const body = await preview.json();
+    expect(body.electrical_variant_id).toBe(erId);
+    expect(typeof body.html).toBe('string');
+    expect(body.html).not.toMatch(/SECRET-MARK/);
   });
 
-  test('5.7 UI: defaults button present when params/sidebar available', async ({ page }) => {
+  test('5.7 UI: canonical generation control is present for initialized ER', async ({ page }) => {
     await loginAsGuest(page);
-    await createCalculatedPipe(page);
+    await createSpecificationReadyPipe(page);
     await ensureElectricalInitialized(page);
     await page.getByRole('menuitem', { name: 'Спецификация' }).click();
-    // Without ready ER the page may show warning instead of generate controls.
-    const form = page.getByRole('button', { name: /Сформировать|Пересчитать/i }).first();
-    const warning = page.getByText(/ЭР ещё не создан|спецификация временно недоступна/i);
-    await expect(form.or(warning.first())).toBeVisible({ timeout: 15_000 });
-    const saveDefaults = page.getByRole('button', { name: /Сохранить defaults/i });
-    if (await saveDefaults.count()) {
-      await expect(saveDefaults).toBeVisible();
-    }
+    await expect(page.getByRole('button', { name: /Сформировать|Пересчитать/i }).first())
+      .toBeVisible({ timeout: 15_000 });
   });
 
   test('5.8 multi-ER report params do not require localStorage selection', async ({ page }) => {
     await loginAsGuest(page);
-    await createCalculatedPipe(page);
+    await createSpecificationReadyPipe(page);
     const variants = await ensureElectricalInitialized(page);
     const er2 = await createEmptyElectricalVariant(page, `ЭР-report-${Date.now()}`);
     const ids = [variants[0].id as string, er2.id as string];
     const preview = await reportPreview(page, ids);
-    // Explicit UUID list is accepted; empty localStorage must not be required.
-    expect([200, 422, 404, 409]).toContain(preview.status());
+    expect(preview.status()).toBe(200);
+    const body = await preview.json();
+    expect(body.chapters).toHaveLength(2);
+    expect(body.chapters.map((chapter: { electrical_variant_id: string }) => chapter.electrical_variant_id))
+      .toEqual(ids);
   });
 
   test('5.9 guest context isolation — project bound to session', async ({ page }) => {
@@ -172,12 +177,12 @@ test.describe('Phase 5 specification proof pack', () => {
     const ctx = await currentGuestContext(page);
     expect(ctx.projectId).toBeTruthy();
     expect(ctx.sessionId).toBeTruthy();
-    await createCalculatedPipe(page);
+    await createSpecificationReadyPipe(page);
     const objects = await page.request.get(
       `${process.env.E2E_API_BASE ?? 'http://127.0.0.1:8000'}/api/v1/projects/${ctx.projectId}/objects`,
       { headers: { 'X-Session-Id': ctx.sessionId } },
     );
-    expect(objects.ok()).toBeTruthy();
+    expect(objects.status()).toBe(200);
     const list = await objects.json();
     expect(Array.isArray(list) ? list.length : list.items?.length ?? 0).toBeGreaterThanOrEqual(1);
   });

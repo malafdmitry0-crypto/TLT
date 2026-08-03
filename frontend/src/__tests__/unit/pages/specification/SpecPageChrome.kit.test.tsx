@@ -70,6 +70,27 @@ describe('SpecPageChrome UI kit strangler (U2)', () => {
     expect(screen.getAllByLabelText('Параметр Ex').length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText('Параметр L К2i').length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'Выбрать все' })).toBeInTheDocument();
+    expect(screen.getByText('Не определена — backend разрешит при формировании'))
+      .toBeInTheDocument();
+    expect(screen.queryByText('Стандартная активная версия')).not.toBeInTheDocument();
+  });
+
+  it('shows the catalog identity resolved in the canonical snapshot', () => {
+    renderChrome({
+      spec: {
+        id: 'spec-1',
+        project_id: 'project-1',
+        electrical_variant_id: 'er-1',
+        items: [],
+        snapshot: {
+          catalog: { catalog_key: 'tnp-approved', version: '2026.08' },
+        },
+        created_at: '2026-08-03T00:00:00Z',
+        updated_at: '2026-08-03T00:00:00Z',
+      },
+    });
+
+    expect(screen.getByText('tnp-approved · 2026.08')).toBeInTheDocument();
   });
 
   it('keeps canonical unset state visible and disables writes until it is complete', () => {

@@ -30,6 +30,7 @@ vi.mock('@/api/electricalVariants', () => ({
 
 vi.mock('@/api/specifications', () => ({
   getSpecification: vi.fn(),
+  getSpecificationErrorDetail: vi.fn((error: { detail?: unknown }) => error?.detail ?? null),
   generateSpecification: vi.fn(),
   saveSpecificationItems: vi.fn(),
   listAccessoriesExtended: vi.fn().mockResolvedValue([]),
@@ -166,8 +167,17 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
       id: 's-1',
       project_id: mockProject.id,
       electrical_variant_id: firstVariant.id,
-      variant_number: 1,
+      snapshot: null,
       items: [
+        {
+          category: 'Кабель',
+          name: 'Автоматическая позиция',
+          article: 'AUTO',
+          unit: 'м',
+          quantity: '10',
+          params: {},
+          source: 'auto',
+        },
         {
           category: 'Кабель',
           name: 'Ручная позиция',
@@ -275,12 +285,188 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
       expect(er1Tab).not.toHaveAttribute('aria-disabled', 'true');
     });
   });
+  it('unlocks generation after a typed backend failure so the user can retry', async () => {
+    const user = (await import('@testing-library/user-event')).default.setup();
+    const { generateSpecification, getSpecification } = await import('@/api/specifications');
+    (getSpecification as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+    (generateSpecification as ReturnType<typeof vi.fn>).mockRejectedValue({
+      detail: {
+        code: 'SPEC_CATALOG_UNAVAILABLE',
+        message: 'Активный утверждённый каталог недоступен',
+        issues: [],
+        details: {},
+      },
+    });
+    useProjectStore.getState().setCurrentProject(mockProject);
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: 'Сформировать' }));
+    const settings = await screen.findByRole('dialog', { name: 'Настройки формирования спецификации' });
+    const generate = within(settings).getByRole('button', { name: 'Сформировать' });
+    await user.click(generate);
+
+    await waitFor(() => expect(generate).not.toBeDisabled());
+    expect(generateSpecification).toHaveBeenCalledTimes(1);
+  });
+  it('keeps multi-ER catalog choices opaque and asks for unassigned confirmation separately', async () => {
+    const user = (await import('@testing-library/user-event')).default.setup();
+    const { generateSpecification, getSpecification } = await import('@/api/specifications');
+    listElectricalVariantsMock.mockResolvedValue([firstVariant, secondVariant]);
+    (getSpecification as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+    (generateSpecification as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({
+        project_id: mockProject.id,
+        settings_version: 1,
+        results: [
+          {
+            electrical_variant_id: firstVariant.id,
+            status: 'selection_required',
+            items: [],
+            excluded_unassigned_object_ids: [],
+            diagnostics: [],
+            candidate_groups: [{
+              group_key: 'opaque:er-1:connection',
+              electrical_variant_id: firstVariant.id,
+              category: 'connection_kit',
+              conditions: {},
+              candidates: [
+                {
+                  catalog_item_id: 'item-er1-a', catalog_id: 'catalog-1', catalog_version: 'v1',
+                  category: 'connection_kit', name: 'Комплект ЭР1 A', mark: 'A',
+                  nomenclature_code: '001', supply_unit: 'шт.',
+                },
+                {
+                  catalog_item_id: 'item-er1-b', catalog_id: 'catalog-1', catalog_version: 'v1',
+                  category: 'connection_kit', name: 'Комплект ЭР1 B', mark: 'B',
+                  nomenclature_code: '002', supply_unit: 'шт.',
+                },
+              ],
+              selected_catalog_item_id: null,
+            }],
+            snapshot: null,
+          },
+          {
+            electrical_variant_id: secondVariant.id,
+            status: 'confirmation_required',
+            items: [],
+            excluded_unassigned_object_ids: ['object-er2'],
+            diagnostics: [{
+              code: 'SPEC_UNASSIGNED_CONFIRMATION_REQUIRED',
+              kind: 'confirmable',
+              message: 'ЭР2 содержит неназначенный объект',
+              issues: [],
+              details: {},
+            }],
+            candidate_groups: [{
+              group_key: 'opaque:er-2:repair',
+              electrical_variant_id: secondVariant.id,
+              category: 'repair_kit',
+              conditions: {},
+              candidates: [
+                {
+                  catalog_item_id: 'item-er2-a', catalog_id: 'catalog-1', catalog_version: 'v1',
+                  category: 'repair_kit', name: 'Ремкомплект ЭР2 A', mark: 'RA',
+                  nomenclature_code: '003', supply_unit: 'шт.',
+                },
+                {
+                  catalog_item_id: 'item-er2-b', catalog_id: 'catalog-1', catalog_version: 'v1',
+                  category: 'repair_kit', name: 'Ремкомплект ЭР2 B', mark: 'RB',
+                  nomenclature_code: '004', supply_unit: 'шт.',
+                },
+              ],
+              selected_catalog_item_id: null,
+            }],
+            snapshot: null,
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        project_id: mockProject.id,
+        settings_version: 1,
+        results: [{
+          electrical_variant_id: secondVariant.id,
+          status: 'confirmation_required',
+          items: [],
+          excluded_unassigned_object_ids: ['object-er2'],
+          diagnostics: [{
+            code: 'SPEC_UNASSIGNED_CONFIRMATION_REQUIRED',
+            kind: 'confirmable',
+            message: 'ЭР2 содержит неназначенный объект',
+            issues: [],
+            details: {},
+          }],
+          candidate_groups: [],
+          snapshot: null,
+        }],
+      })
+      .mockResolvedValueOnce({
+        project_id: mockProject.id,
+        settings_version: 1,
+        results: [{
+          electrical_variant_id: secondVariant.id,
+          status: 'generated',
+          items: [],
+          excluded_unassigned_object_ids: ['object-er2'],
+          diagnostics: [],
+          candidate_groups: [],
+          snapshot: {},
+        }],
+      });
+    useProjectStore.getState().setCurrentProject(mockProject);
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: 'Сформировать' }));
+    const settings = await screen.findByRole('dialog', { name: 'Настройки формирования спецификации' });
+    await user.click(within(settings).getByRole('checkbox', { name: 'ЭР2' }));
+    await user.click(within(settings).getByRole('button', { name: 'Сформировать' }));
+
+    await waitFor(() => {
+      for (const button of screen.getAllByRole('button', { name: 'Сформировать' })) {
+        expect(button).toBeDisabled();
+      }
+      expect(screen.getByRole('button', { name: 'Настройки' })).toBeDisabled();
+    });
+
+    await user.click(await screen.findByRole('button', { name: /Комплект ЭР1 B/i }));
+    await user.click(screen.getByRole('button', { name: /Ремкомплект ЭР2 A/i }));
+    await user.click(screen.getByRole('button', { name: /Применить выбор и сформировать/i }));
+
+    expect(generateSpecification).toHaveBeenNthCalledWith(
+      2,
+      mockProject.id,
+      expect.objectContaining({
+        variant_ids: [firstVariant.id, secondVariant.id],
+        exclude_unassigned_confirmed: false,
+        catalog_selections: {
+          'opaque:er-1:connection': 'item-er1-b',
+          'opaque:er-2:repair': 'item-er2-a',
+        },
+      }),
+    );
+    expect(generateSpecification).toHaveBeenCalledTimes(2);
+
+    await screen.findByText('Подтверждение исключения неназначенных объектов');
+    await user.click(screen.getByRole('button', { name: 'Подтвердить и сформировать' }));
+    expect(generateSpecification).toHaveBeenNthCalledWith(
+      3,
+      mockProject.id,
+      expect.objectContaining({
+        variant_ids: [firstVariant.id, secondVariant.id],
+        exclude_unassigned_confirmed: true,
+        catalog_selections: {
+          'opaque:er-1:connection': 'item-er1-b',
+          'opaque:er-2:repair': 'item-er2-a',
+        },
+      }),
+    );
+  });
   it('не показывает write-actions сотруднику, который только читает чужой проект', async () => {
     const { getSpecification } = await import('@/api/specifications');
     (getSpecification as ReturnType<typeof vi.fn>).mockResolvedValue({
       id: 's-1',
       project_id: mockProject.id,
-      variant_number: 1,
+      electrical_variant_id: firstVariant.id,
+      snapshot: null,
       items: [{
         category: 'Кабель',
         name: 'Чужая позиция',

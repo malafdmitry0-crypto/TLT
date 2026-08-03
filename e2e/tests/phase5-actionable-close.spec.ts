@@ -1,16 +1,15 @@
 import { test, expect } from '@playwright/test';
 
-import { createCalculatedPipe, loginAsGuest, currentGuestContext, API_BASE } from './helpers/workspace';
+import { loginAsGuest, currentGuestContext, API_BASE } from './helpers/workspace';
 import {
-  CANONICAL_SPECIFICATION_OPTIONS,
   createEmptyElectricalVariant,
+  createSpecificationReadyPipe,
   ensureElectricalInitialized,
   exportProjectCsv,
-  generateSpecification,
-  getSpecificationSettings,
+  getSpecificationForVariant,
   listElectricalVariants,
   reportPreview,
-  updateSpecificationSettings,
+  saveManualSpecificationItemsForVariant,
 } from './helpers/phase5-api';
 
 /**
@@ -19,89 +18,52 @@ import {
 test.describe('Phase 5 actionable close pack', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test('5.10 settings change stales existing specification snapshot (PDL-ER-07)', async ({ page }) => {
+  test('5.10 canonical UUID GET is null before formation and never falls back to a numeric adapter', async ({ page }) => {
     await loginAsGuest(page);
-    await createCalculatedPipe(page);
+    await createSpecificationReadyPipe(page);
     const variants = await ensureElectricalInitialized(page);
     const erId = variants[0].id as string;
 
-    const gen = await generateSpecification(page, {
-      variantIds: [erId],
-      excludeUnassignedConfirmed: true,
-      options: CANONICAL_SPECIFICATION_OPTIONS,
-    });
-    expect([201, 409, 422]).toContain(gen.status());
-    if (gen.status() !== 201) {
-      test.skip(true, `generate unavailable in this env: ${gen.status()}`);
-    }
-
-    const before = await getSpecificationSettings(page);
-    await updateSpecificationSettings(page, {
-      ...CANONICAL_SPECIFICATION_OPTIONS,
-      R_gr: '1.4',
-    });
-    const after = await getSpecificationSettings(page);
-    expect(after.version).toBeGreaterThanOrEqual(before.version);
-
-    const { projectId, sessionId } = await currentGuestContext(page);
-    const spec = await page.request.get(`${API_BASE}/api/v1/specifications/${projectId}`, {
-      headers: { 'X-Session-Id': sessionId },
-      params: {
-        electrical_variant_id: erId,
-        variant: variants[0].legacy_variant_number ?? 1,
-      },
-    });
-    if (spec.ok()) {
-      const body = await spec.json();
-      if (body && body.is_stale != null) {
-        // When settings actually changed relative to snapshot, expect stale.
-        if (after.version > (body.generation_options?.settings_version ?? 0)) {
-          expect(body.is_stale === true || body.stale_reason != null).toBeTruthy();
-        }
-      }
-    }
+    const spec = await getSpecificationForVariant(page, erId);
+    expect(spec.status()).toBe(200);
+    expect(await spec.json()).toBeNull();
   });
 
-  test('5.11 unconfirmed exclusions remain typed per-ER diagnostics', async ({ page }) => {
+  test('5.11 legacy generation aliases are rejected with the canonical validation code', async ({ page }) => {
     await loginAsGuest(page);
-    // Two objects: one calculated pipe, one without electrical → skipped_objects > 0
-    await createCalculatedPipe(page, `pipe-a-${Date.now()}`);
-    await createCalculatedPipe(page, `pipe-b-${Date.now()}`);
-    const variants = await ensureElectricalInitialized(page);
-    const erId = variants[0].id as string;
-
-    const gen = await generateSpecification(page, {
-      variantIds: [erId],
-      excludeUnassignedConfirmed: false,
+    const { projectId, sessionId } = await currentGuestContext(page);
+    const response = await page.request.post(`${API_BASE}/api/v1/specifications/${projectId}/generate`, {
+      headers: { 'X-Session-Id': sessionId },
+      data: {
+        electrical_variant_ids: [crypto.randomUUID()],
+        confirm_partial: true,
+      },
     });
-    expect([201, 422]).toContain(gen.status());
-    if (gen.status() === 201) {
-      const body = await gen.json();
-      expect(body.results).toHaveLength(1);
-      expect(body.results[0]).toHaveProperty('status');
-      expect(body.results[0]).toHaveProperty('diagnostics');
-    }
+    expect(response.status()).toBe(422);
+    const detail = (await response.json()).detail;
+    expect(detail.code).toBe('SPEC_VARIANT_IDS_REQUIRED');
+    expect(detail.details).toEqual({});
+    expect(detail.issues).not.toHaveLength(0);
   });
 
   test('5.12 report multi-ER explicit list keeps independent chapters', async ({ page }) => {
     await loginAsGuest(page);
-    await createCalculatedPipe(page);
+    await createSpecificationReadyPipe(page);
     const variants = await ensureElectricalInitialized(page);
     const er1 = variants[0];
     const er2 = await createEmptyElectricalVariant(page, `ER-close-${Date.now()}`);
     const preview = await reportPreview(page, [er1.id, er2.id]);
-    expect([200, 422, 404]).toContain(preview.status());
-    if (preview.status() === 200) {
-      const html = (await preview.json()).html as string;
-      // Must not invent SECRET-MARK quantities; names may appear in chapters
-      expect(html).not.toContain('SECRET-MARK');
-      expect(html.toLowerCase()).toMatch(/html|специф|отчёт|отчет|эр|er/i);
-    }
+    expect(preview.status()).toBe(200);
+    const body = await preview.json();
+    expect(body.chapters).toHaveLength(2);
+    expect(body.chapters.map((chapter: { electrical_variant_id: string }) => chapter.electrical_variant_id))
+      .toEqual([er1.id, er2.id]);
+    expect(body.html).not.toContain('SECRET-MARK');
   });
 
   test('5.13 CSV v3 export → re-import trust path for guest', async ({ page }) => {
     await loginAsGuest(page);
-    await createCalculatedPipe(page);
+    await createSpecificationReadyPipe(page);
     await ensureElectricalInitialized(page);
     const csv = await exportProjectCsv(page);
     expect(csv).toContain('schema_version;3');
@@ -117,44 +79,48 @@ test.describe('Phase 5 actionable close pack', () => {
         },
       },
     });
-    // Success or structured validation error — never 5xx silent wipe without response
-    expect(reimport.status()).toBeLessThan(500);
-    if (reimport.status() === 201 || reimport.status() === 200) {
-      const projects = await page.request.get(`${API_BASE}/api/v1/projects`, {
-        headers: { 'X-Session-Id': sessionId },
-      });
-      expect(projects.ok()).toBeTruthy();
-      expect((await projects.json()).length).toBe(1);
-    }
+    expect(reimport.status()).toBe(201);
+    const projects = await page.request.get(`${API_BASE}/api/v1/projects`, {
+      headers: { 'X-Session-Id': sessionId },
+    });
+    expect(projects.status()).toBe(200);
+    expect((await projects.json()).length).toBe(1);
   });
 
-  test('5.14 UI stale banner path when specification marked stale via settings', async ({ page }) => {
+  test('5.14 manual UUID PUT is employee-only and accepts no guest write bypass', async ({ page }) => {
     await loginAsGuest(page);
-    await createCalculatedPipe(page);
+    await createSpecificationReadyPipe(page);
     const variants = await ensureElectricalInitialized(page);
     const erId = variants[0].id as string;
-    await generateSpecification(page, {
-      variantIds: [erId],
-      excludeUnassignedConfirmed: true,
-    });
-    await updateSpecificationSettings(page, {
-      ...CANONICAL_SPECIFICATION_OPTIONS,
-      Ex: true,
-      R_gr: '1.5',
-    });
-    await page.getByRole('menuitem', { name: 'Спецификация' }).click();
-    // Soft UI: banner text may be «устарел» / «пересчит» / red alert
-    const staleHint = page.getByText(/устар|пересчит|stale|defaults/i);
-    // Page must still render generate controls even if banner timing differs
-    await expect(page.getByRole('button', { name: /Сформировать|Пересчитать/i }).first()).toBeVisible();
-    if (await staleHint.count()) {
-      await expect(staleHint.first()).toBeVisible();
-    }
+    const response = await saveManualSpecificationItemsForVariant(page, erId, [
+      {
+        category: 'extra',
+        name: 'Guest must not save this row',
+        unit: 'шт.',
+        quantity: '1',
+        source: 'manual',
+      },
+    ]);
+    expect(response.status()).toBe(403);
+    expect(await response.json()).toEqual({ detail: 'Недостаточно прав' });
+
+    const spec = await getSpecificationForVariant(page, erId);
+    expect(spec.status()).toBe(200);
+    expect(await spec.json()).toBeNull();
+  });
+
+  test('5.14a OpenAPI exposes snapshot and removes generation_options from UUID GET', async ({ page }) => {
+    const response = await page.request.get(`${API_BASE}/api/v1/openapi.json`);
+    expect(response.status()).toBe(200);
+    const schemas = (await response.json()).components.schemas;
+    expect(schemas.SpecificationResponse.properties).toHaveProperty('snapshot');
+    expect(schemas.SpecificationResponse.properties).not.toHaveProperty('generation_options');
+    expect(schemas.SpecificationResponse.required).toContain('electrical_variant_id');
   });
 
   test('5.15 list ER remains within max 5 capacity message path', async ({ page }) => {
     await loginAsGuest(page);
-    await createCalculatedPipe(page);
+    await createSpecificationReadyPipe(page);
     await ensureElectricalInitialized(page);
     const list = await listElectricalVariants(page);
     expect(list.length).toBeGreaterThanOrEqual(1);

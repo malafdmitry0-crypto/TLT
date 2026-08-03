@@ -1,7 +1,7 @@
 /**
  * @module specification/generation-options-sync-model
  * @owner specification
- * Pure mapping: API generation_options / project settings → local form state.
+ * Pure mapping: canonical API snapshot / project settings → local form state.
  *
  * PDL-ER-07: snapshot from last generation (or project defaults) hydrates the
  * settings drawer without rewriting project defaults on the server.
@@ -20,7 +20,7 @@ export type SpecSettingsFormSnapshot = {
 };
 
 /**
- * Build local drawer state from generation_options or project settings payload.
+ * Build local drawer state from a canonical snapshot or project settings payload.
  * Missing keys remain visibly unset; explicit false and zero are preserved.
  */
 export function buildSpecSettingsFormSnapshot(
@@ -44,4 +44,26 @@ export function buildSpecSettingsFormSnapshot(
       : null,
   };
   return snapshot;
+}
+
+export function resolveSpecificationCatalogLabel(
+  snapshot: Record<string, unknown> | null | undefined,
+  projectSettings: Record<string, unknown> | null | undefined,
+): string {
+  const catalog = snapshot?.catalog;
+  if (catalog && typeof catalog === 'object') {
+    const record = catalog as Record<string, unknown>;
+    const key = typeof record.catalog_key === 'string' ? record.catalog_key : 'Каталог';
+    if (typeof record.version === 'string' && record.version.trim() !== '') {
+      return `${key} · ${record.version}`;
+    }
+  }
+  const projectVersion = projectSettings?.catalog_version;
+  if (typeof projectVersion === 'string' && projectVersion.trim() !== '') {
+    return `Настройка проекта · ${projectVersion}`;
+  }
+  if (typeof projectSettings?.catalog_id === 'string' && projectSettings.catalog_id.trim() !== '') {
+    return `Каталог проекта · ${projectSettings.catalog_id}`;
+  }
+  return 'Не определена — backend разрешит при формировании';
 }

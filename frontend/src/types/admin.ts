@@ -122,11 +122,19 @@ export interface SpecificationCatalogVersion {
   schema_version: number;
   item_count: number;
   is_complete: boolean;
-  validation_issues: Array<Record<string, unknown>>;
+  validation_issues: SpecificationCatalogValidationIssue[];
   imported_at?: string | null;
   imported_by?: string | null;
   activated_at?: string | null;
   activated_by?: string | null;
+}
+
+export interface SpecificationCatalogValidationIssue {
+  code: string;
+  reason: string;
+  item_key?: string;
+  category?: SpecificationCatalogCategory;
+  details?: Record<string, unknown>;
 }
 
 export interface SpecificationCatalogItemSummary {

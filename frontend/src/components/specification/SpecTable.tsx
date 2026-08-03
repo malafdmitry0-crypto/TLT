@@ -225,15 +225,17 @@ export default function SpecTable({
         {
           title: '',
           width: 48,
-          render: (_: unknown, row: Row) => (
-            <TltButton
-              variant="danger"
-              size="icon"
-              icon={<DeleteOutlined />}
-              aria-label={`Удалить ${row.name}`}
-              onClick={() => onDelete?.(row.__index)}
-            />
-          ),
+          render: (_: unknown, row: Row) => row.source === 'manual'
+            ? (
+                <TltButton
+                  variant="danger"
+                  size="icon"
+                  icon={<DeleteOutlined />}
+                  aria-label={`Удалить ${row.name}`}
+                  onClick={() => onDelete?.(row.__index)}
+                />
+              )
+            : null,
         },
       ]
     : [];

@@ -19,8 +19,6 @@ import { useSpecParamsPanelState } from '@/pages/specification/useSpecParamsPane
 import { useSpecPageFormState } from '@/pages/specification/useSpecPageFormState';
 import {
   buildSpecGenerateOptions,
-  isSpecificationPartial,
-  resolveSpecificationExcludedGroups,
 } from '@/pages/specification/specGenerateOptionsModel';
 import { buildSpecSettingsFormSnapshot } from '@/pages/specification/specGenerationOptionsSyncModel';
 import { useSpecificationQuerySession } from '@/pages/specification/useSpecificationQuerySession';
@@ -75,11 +73,11 @@ export function useSpecificationPageModel() {
   /** Единое modal-окно настроек формирования. */
   const { settingsOpen, toggleSettings } = useSpecParamsPanelState();
 
-  // PDL-ER-07: load project defaults first; snapshot from last generation only
+  // PDL-ER-07: load project defaults first; canonical snapshot from last generation only
   // for the currently viewed ER (does not rewrite project defaults).
-  // Must re-run when generation_options content changes (same spec id after regenerate).
+  // Must re-run when snapshot content changes (same spec id after regenerate).
   useEffect(() => {
-    const opts = (spec?.generation_options as Record<string, unknown> | null | undefined)
+    const opts = spec?.snapshot?.resolved_options
       ?? (projectSettings?.settings as Record<string, unknown> | undefined)
       ?? {};
     const snapshot = buildSpecSettingsFormSnapshot(opts);
@@ -94,8 +92,7 @@ export function useSpecificationPageModel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- form.* setters only
   }, [
     spec?.id,
-    spec?.generation_mode,
-    spec?.generation_options,
+    spec?.snapshot?.resolved_options,
     projectSettings?.version,
     projectSettings?.settings,
   ]);
@@ -168,11 +165,14 @@ export function useSpecificationPageModel() {
       );
       const blocked = unresolved.some((item) => item.status === 'blocked');
       form.setPreflightOpen(confirmationRequired && !selectionRequired);
-      if (!confirmationRequired) form.setPendingGenerate(null);
+      if (!confirmationRequired && !selectionRequired) form.setPendingGenerate(null);
       if (selectionRequired) {
         // Keep draft empty — never preselect first candidate.
         form.setDraftCatalogSelections({});
+        toggleSettings(false);
         message.warning('Требуется выбор комплектующих из каталога');
+      } else if (confirmationRequired) {
+        toggleSettings(false);
       } else if (blocked) {
         const firstBlocking = diagnostics.find((item) => item.kind === 'blocking');
         message.warning(
@@ -188,7 +188,7 @@ export function useSpecificationPageModel() {
       }
       const generatedCount = generated.length;
       const toast = buildSpecificationGeneratedToast({
-        partial: unresolved.length > 0,
+        hasUnresolved: unresolved.length > 0,
         generatedCount,
         electricalVariantName: variables.electricalVariantName,
       });
@@ -204,14 +204,16 @@ export function useSpecificationPageModel() {
       }
     },
     onError: (error) => {
+      form.setPendingGenerate(null);
+      form.setPreflightOpen(false);
+      form.setCandidateGroups([]);
+      form.setDraftCatalogSelections({});
       const detail = getSpecificationErrorDetail(error);
       message.error(detail ? `${detail.code}: ${detail.message}` : 'Не удалось сформировать спецификацию');
     },
   });
 
   const isSpecStale = spec?.is_stale === true;
-  const isSpecPartial = isSpecificationPartial(spec);
-  const excludedGroups = resolveSpecificationExcludedGroups(spec);
   const buildGenerateOptions = () => buildSpecGenerateOptions({
     exZone: form.exZone,
     reserveCoeff: form.reserveCoeff,
@@ -286,6 +288,7 @@ export function useSpecificationPageModel() {
   };
 
   const confirmCatalogSelections = () => {
+    if (!form.pendingGenerate || mut.isPending) return;
     const merged: Record<string, string> = { ...form.catalogSelections };
     for (const group of form.candidateGroups) {
       if (group.selected_catalog_item_id) {
@@ -296,7 +299,14 @@ export function useSpecificationPageModel() {
       merged[key] = value;
     }
     form.setCatalogSelections(merged);
-    runGenerate(Boolean(form.pendingGenerate), merged);
+    const scope = snapshotMutationScope();
+    mut.mutate({
+      ...scope,
+      generateVariantIds: form.pendingGenerate.generateVariantIds,
+      options: form.pendingGenerate.options,
+      excludeUnassignedConfirmed: false,
+      catalogSelections: merged,
+    });
   };
 
   const {
@@ -315,7 +325,7 @@ export function useSpecificationPageModel() {
   });
   const formedAt = formatSpecTimestamp(spec?.updated_at ?? spec?.created_at);
   const generateButtonLabel = hasItems ? 'Обновить' : 'Сформировать';
-  const scopeSwitchDisabled = mut.isPending || saveMut.isPending;
+  const scopeSwitchDisabled = mut.isPending || saveMut.isPending || form.pendingGenerate != null;
 
   const erTabItems = variantContext.variants.map((item) => ({
     key: item.id,
@@ -355,6 +365,7 @@ export function useSpecificationPageModel() {
     preflightSummary: form.preflightSummary,
     setPreflightSummary: form.setPreflightSummary,
     pendingGenerate: form.pendingGenerate,
+    generationWorkflowPending: form.pendingGenerate != null,
     setPendingGenerate: form.setPendingGenerate,
     exZone: form.exZone,
     setExZone: form.setExZone,
@@ -391,8 +402,6 @@ export function useSpecificationPageModel() {
     saveMut,
     items,
     isSpecStale,
-    isSpecPartial,
-    excludedGroups,
     buildGenerateOptions,
     saveDefaultsMut,
     runGenerate,

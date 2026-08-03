@@ -28,6 +28,7 @@ describe('AdminLayout', () => {
     );
     expect(await screen.findByText(/Администрирование/i)).toBeInTheDocument();
     expect(await screen.findByText('USERS-CONTENT')).toBeInTheDocument();
+    expect(await screen.findByText('Каталоги спецификации')).toBeInTheDocument();
     expect(await screen.findByText('Выход')).toBeInTheDocument();
   });
 });

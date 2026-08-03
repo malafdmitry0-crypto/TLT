@@ -50,6 +50,7 @@ export default function SpecificationPage() {
     setPreflightOpen,
     preflightSummary,
     setPendingGenerate,
+    generationWorkflowPending,
     exZone,
     setExZone,
     reserveCoeff,
@@ -82,8 +83,6 @@ export default function SpecificationPage() {
     saveMut,
     items,
     isSpecStale,
-    isSpecPartial,
-    excludedGroups,
     saveDefaultsMut,
     runGenerate,
     confirmPartialGenerate,
@@ -167,7 +166,7 @@ export default function SpecificationPage() {
               <TltButton
                 icon={<ReloadOutlined />}
                 loading={mut.isPending}
-                disabled={!canMutateProject}
+                disabled={!canMutateProject || generationWorkflowPending}
                 onClick={() => toggleSettings(true)}
                 aria-label={generateButtonLabel}
               >
@@ -175,6 +174,7 @@ export default function SpecificationPage() {
               </TltButton>
               <TltButton
                 icon={<SettingOutlined />}
+                disabled={generationWorkflowPending}
                 onClick={() => toggleSettings(true)}
                 aria-label="Настройки"
               >
@@ -193,11 +193,9 @@ export default function SpecificationPage() {
             {' · '}
             {isSpecStale
               ? 'устарела'
-              : isSpecPartial
-                ? 'НЕПОЛНАЯ'
-                : hasItems
-                  ? 'полная'
-                  : 'не сформирована'}
+              : hasItems
+                ? 'полная'
+                : 'не сформирована'}
             {' · '}
             позиций: {items.length}
             {isEmployee && hasItems && (
@@ -221,7 +219,7 @@ export default function SpecificationPage() {
               variant="primary"
               icon={<ReloadOutlined />}
               loading={mut.isPending}
-              disabled={!canMutateProject}
+              disabled={!canMutateProject || generationWorkflowPending}
               onClick={() => toggleSettings(true)}
             >
               Сформировать заново
@@ -230,27 +228,6 @@ export default function SpecificationPage() {
         >
           Snapshot только для просмотра. Итоги, печать, отчёт и export не используют эти количества.
           Сформируйте спецификацию заново.
-        </TltAlert>
-      )}
-
-      {!isSpecStale && isSpecPartial && hasItems && (
-        <TltAlert
-          className="specification-partial-banner specification-alert-gap"
-          tone="warning"
-          title="Неполная спецификация — не использовать как полный закупочный комплект"
-        >
-          {excludedGroups.length
-            ? (
-                <ul className="specification-partial-list">
-                  {excludedGroups.map((g) => (
-                    <li key={String(g.error_code || g.group || g.message)}>
-                      <strong>{g.error_code || g.group}</strong>
-                      {g.message ? ` — ${g.message}` : ''}
-                    </li>
-                  ))}
-                </ul>
-              )
-            : 'Часть групп BOM исключена (секции, коробки или недоказанные методики).'}
         </TltAlert>
       )}
 
@@ -294,7 +271,7 @@ export default function SpecificationPage() {
                     variant="primary"
                     icon={<ReloadOutlined />}
                     loading={mut.isPending}
-                    disabled={!canMutateProject}
+                    disabled={!canMutateProject || generationWorkflowPending}
                     onClick={() => toggleSettings(true)}
                   >
                     Сформировать

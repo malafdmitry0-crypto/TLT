@@ -125,4 +125,27 @@ describe('specifications API', () => {
       },
     });
   });
+
+  it('rejects an unknown generation status instead of treating it as a partial result', async () => {
+    postMock.mockResolvedValueOnce({
+      status: 409,
+      data: {
+        project_id: 'project-id',
+        settings_version: 2,
+        results: [{
+          electrical_variant_id: 'variant-id',
+          status: 'legacy_partial',
+          diagnostics: [],
+          candidate_groups: [],
+        }],
+      },
+    });
+
+    await expect(generateSpecification('project-id', {
+      variant_ids: ['variant-id'],
+      options: {},
+      exclude_unassigned_confirmed: false,
+      catalog_selections: {},
+    })).rejects.toThrow('Некорректный ответ формирования спецификации');
+  });
 });

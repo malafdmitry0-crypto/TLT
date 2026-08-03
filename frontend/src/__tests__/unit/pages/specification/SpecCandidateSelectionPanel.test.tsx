@@ -21,6 +21,8 @@ const groups: SpecificationCandidateGroup[] = [
         mark: 'КСВ-1',
         nomenclature_code: '001',
         supply_unit: 'шт.',
+        package_parameters: { sections_per_kit: 2 },
+        formula_parameters: { formula_id: 'connection-kit/v1' },
       },
       {
         catalog_item_id: 'item-b',
@@ -72,6 +74,9 @@ describe('SpecCandidateSelectionPanel', () => {
 
     expect(screen.getByText('Комплект A')).toBeInTheDocument();
     expect(screen.getByText('Комплект B')).toBeInTheDocument();
+    expect(screen.getByText('ЭР: er-1')).toBeInTheDocument();
+    expect(screen.getByText('поставка: sections_per_kit=2')).toBeInTheDocument();
+    expect(screen.getByText('формула: formula_id=connection-kit/v1')).toBeInTheDocument();
     expect(screen.queryByText('Герметик')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Применить выбор/i })).toBeDisabled();
 
@@ -94,5 +99,25 @@ describe('SpecCandidateSelectionPanel', () => {
     expect(confirm).not.toBeDisabled();
     await user.click(confirm);
     expect(onConfirm).toHaveBeenCalled();
+  });
+
+  it('locks selection and submit while the confirmation request is pending', async () => {
+    const user = userEvent.setup();
+    const onConfirm = vi.fn();
+    render(
+      <SpecCandidateSelectionPanel
+        groups={groups}
+        draftSelections={{ cg_connection: 'item-b' }}
+        onSelect={vi.fn()}
+        onConfirm={onConfirm}
+        confirming
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: /Комплект A/i })).toBeDisabled();
+    const confirm = screen.getByRole('button', { name: /Применить выбор/i });
+    expect(confirm).toBeDisabled();
+    await user.click(confirm);
+    expect(onConfirm).not.toHaveBeenCalled();
   });
 });

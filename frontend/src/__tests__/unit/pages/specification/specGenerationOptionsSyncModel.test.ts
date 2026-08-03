@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { buildSpecSettingsFormSnapshot } from '@/pages/specification/specGenerationOptionsSyncModel';
+import {
+  buildSpecSettingsFormSnapshot,
+  resolveSpecificationCatalogLabel,
+} from '@/pages/specification/specGenerationOptionsSyncModel';
 
 describe('buildSpecSettingsFormSnapshot (B7)', () => {
   it('keeps missing keys unset', () => {
@@ -14,7 +17,7 @@ describe('buildSpecSettingsFormSnapshot (B7)', () => {
     });
   });
 
-  it('hydrates full generation_options snapshot including display prefs', () => {
+  it('hydrates full canonical snapshot including display prefs', () => {
     expect(
       buildSpecSettingsFormSnapshot({
         resolved_options: {
@@ -39,11 +42,10 @@ describe('buildSpecSettingsFormSnapshot (B7)', () => {
   });
 
   /**
-   * B7 contract: drawer state must re-hydrate when generation_options content
-   * changes even if spec.id stays the same (regenerate snapshot). Pure model is
-   * the source of the next state; effect deps include generation_options.
+   * B7 contract: drawer state must re-hydrate when snapshot content changes
+   * even if spec.id stays the same (regenerate snapshot).
    */
-  it('maps distinct generation_options payloads to distinct form state (same-spec regenerate)', () => {
+  it('maps distinct snapshot payloads to distinct form state (same-spec regenerate)', () => {
     const before = buildSpecSettingsFormSnapshot({
       R_gr: '1',
       Ex: false,
@@ -58,5 +60,16 @@ describe('buildSpecSettingsFormSnapshot (B7)', () => {
     expect(after.reserveCoeff).toBe('1.25');
     expect(after.exZone).toBe(true);
     expect(after.minLengthK2i).toBe('50');
+  });
+
+  it('shows resolved catalog identity and never invents an active default', () => {
+    expect(resolveSpecificationCatalogLabel({
+      catalog: { catalog_key: 'tnp-approved', version: '2026.08' },
+    }, {})).toBe('tnp-approved · 2026.08');
+    expect(resolveSpecificationCatalogLabel(null, {
+      catalog_version: 'project-v3',
+    })).toBe('Настройка проекта · project-v3');
+    expect(resolveSpecificationCatalogLabel(null, {}))
+      .toBe('Не определена — backend разрешит при формировании');
   });
 });

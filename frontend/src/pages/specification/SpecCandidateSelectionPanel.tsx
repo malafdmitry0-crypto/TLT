@@ -3,11 +3,8 @@
  * Minimal UI for SPEC-CANON-03 multi-candidate accessory selection.
  */
 import type { ReactNode } from 'react';
-import { Typography } from 'antd';
 import { TltButton, TltCard } from '@/components/ui-kit';
 import type { SpecificationCandidateGroup } from '@/api/specifications';
-
-const { Text } = Typography;
 
 const CATEGORY_LABELS: Record<string, string> = {
   cable: 'Кабель',
@@ -33,14 +30,24 @@ function needsUserChoice(group: SpecificationCandidateGroup): boolean {
 }
 
 function formatConditions(conditions: Record<string, unknown>): string | null {
-  const parts: string[] = [];
-  if (typeof conditions.temperature_group === 'string') {
-    parts.push(`T: ${conditions.temperature_group}`);
-  }
-  if (typeof conditions.mark === 'string') {
-    parts.push(`марка: ${conditions.mark}`);
-  }
+  const parts = Object.entries(conditions)
+    .filter((entry): entry is [string, string | number | boolean] => (
+      ['string', 'number', 'boolean'].includes(typeof entry[1])
+    ))
+    .map(([key, value]) => `${key}: ${String(value)}`);
   return parts.length ? parts.join(' · ') : null;
+}
+
+function formatParameters(
+  label: string,
+  parameters: Record<string, unknown> | undefined,
+): string | null {
+  const values = Object.entries(parameters ?? {})
+    .filter((entry): entry is [string, string | number | boolean] => (
+      ['string', 'number', 'boolean'].includes(typeof entry[1])
+    ))
+    .map(([key, value]) => `${key}=${String(value)}`);
+  return values.length ? `${label}: ${values.join(', ')}` : null;
 }
 
 export function SpecCandidateSelectionPanel({
@@ -62,13 +69,13 @@ export function SpecCandidateSelectionPanel({
       padding="compact"
       data-testid="spec-candidate-selection"
     >
-      <Text strong className="specification-candidate-title">
+      <strong className="specification-candidate-title">
         Выбор комплектующих
-      </Text>
-      <Text type="secondary" className="specification-candidate-intro">
+      </strong>
+      <span className="specification-candidate-intro">
         Для нескольких позиций каталога требуется явный выбор. Первый кандидат не
         предвыбирается.
-      </Text>
+      </span>
       <ul className="specification-candidate-groups">
         {choosable.map((group) => {
           const conditionLabel = formatConditions(group.conditions);
@@ -76,18 +83,29 @@ export function SpecCandidateSelectionPanel({
           return (
             <li key={group.group_key} className="specification-candidate-group">
               <div className="specification-candidate-group-head">
-                <Text strong>
+                <strong>
                   {CATEGORY_LABELS[group.category] ?? group.category}
-                </Text>
+                </strong>
+                <span className="specification-candidate-conditions">
+                  ЭР: {group.electrical_variant_id}
+                </span>
                 {conditionLabel ? (
-                  <Text type="secondary" className="specification-candidate-conditions">
+                  <span className="specification-candidate-conditions">
                     {conditionLabel}
-                  </Text>
+                  </span>
                 ) : null}
               </div>
-              <ul className="specification-candidate-list" role="listbox" aria-label={group.category}>
+              <ul className="specification-candidate-list" role="group" aria-label={group.category}>
                 {group.candidates.map((candidate) => {
                   const isSelected = selectedId === candidate.catalog_item_id;
+                  const packageLabel = formatParameters(
+                    'поставка',
+                    candidate.package_parameters,
+                  );
+                  const formulaLabel = formatParameters(
+                    'формула',
+                    candidate.formula_parameters,
+                  );
                   return (
                     <li key={candidate.catalog_item_id}>
                       <button
@@ -97,7 +115,7 @@ export function SpecCandidateSelectionPanel({
                             ? 'specification-candidate-option is-selected'
                             : 'specification-candidate-option'
                         }
-                        aria-selected={isSelected}
+                        aria-pressed={isSelected}
                         disabled={disabled || confirming}
                         onClick={() => onSelect(group.group_key, candidate.catalog_item_id)}
                       >
@@ -111,6 +129,12 @@ export function SpecCandidateSelectionPanel({
                           {' · '}
                           {candidate.supply_unit}
                         </span>
+                        {packageLabel ? (
+                          <span className="specification-candidate-option-meta">{packageLabel}</span>
+                        ) : null}
+                        {formulaLabel ? (
+                          <span className="specification-candidate-option-meta">{formulaLabel}</span>
+                        ) : null}
                       </button>
                     </li>
                   );
@@ -123,7 +147,7 @@ export function SpecCandidateSelectionPanel({
       <div className="specification-candidate-actions">
         <TltButton
           variant="primary"
-          disabled={!allChosen || disabled}
+          disabled={!allChosen || disabled || confirming}
           loading={confirming}
           onClick={onConfirm}
         >
