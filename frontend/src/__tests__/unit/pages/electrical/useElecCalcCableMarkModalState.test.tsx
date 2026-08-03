@@ -1,4 +1,6 @@
+import type { ReactNode } from 'react';
 import { act, renderHook } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 
 import { useElecCalcCableMarkModalState } from '@/pages/electrical/useElecCalcCableMarkModalState';
@@ -7,6 +9,23 @@ import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
 import type { ElectricalCalcSummary } from '@/types/calculation';
 import type { ElectricalVariant } from '@/types/electricalVariant';
 import type { ProjectObject } from '@/types/project';
+
+vi.mock('@/api/calculations', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/api/calculations')>();
+  return {
+    ...actual,
+    getCableOptions: vi.fn().mockResolvedValue([]),
+  };
+});
+
+function createWrapper() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return function Wrapper({ children }: { children: ReactNode }) {
+    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+  };
+}
 
 const ER_1_ID = '11111111-1111-4111-8111-111111111111';
 const ER_2_ID = '22222222-2222-4222-8222-222222222222';
@@ -114,7 +133,7 @@ describe('useElecCalcCableMarkModalState', () => {
       cableMarkValueForCalc: () => 'builtin::TLT-25',
       findCableRowForMark,
       onOpenObject,
-    }));
+    }), { wrapper: createWrapper() });
 
     act(() => {
       result.current.open(object);
@@ -172,7 +191,7 @@ describe('useElecCalcCableMarkModalState', () => {
       cableMarkValueForCalc: () => AUTO_CABLE_MARK_VALUE,
       findCableRowForMark: () => null,
       onCableTypeChange,
-    }));
+    }), { wrapper: createWrapper() });
 
     act(() => {
       result.current.open(object);
@@ -215,7 +234,7 @@ describe('useElecCalcCableMarkModalState', () => {
       cableMarkOptionsFor: () => [],
       cableMarkValueForCalc: () => AUTO_CABLE_MARK_VALUE,
       findCableRowForMark: () => null,
-    }));
+    }), { wrapper: createWrapper() });
 
     act(() => {
       result.current.open(object);

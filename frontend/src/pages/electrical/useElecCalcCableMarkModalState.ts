@@ -1,6 +1,11 @@
 import { useCallback, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 
-import type { CableSource } from '@/api/calculations';
+import {
+  getCableOptions,
+  type CableOptionOut,
+  type CableSource,
+} from '@/api/calculations';
 import type { ElectricalCalcSummary } from '@/types/calculation';
 import type { ElectricalVariant } from '@/types/electricalVariant';
 import type { ProjectObject } from '@/types/project';
@@ -34,6 +39,7 @@ type UseElecCalcCableMarkModalStateOptions = {
     type: CableTypeKey,
     currentMark: string | undefined,
     calc: ElectricalCalcSummary | undefined,
+    backendTtOptions?: readonly CableOptionOut[] | null,
   ) => CableMarkSelectOption[];
   cableMarkValueForCalc: (
     type: CableTypeKey,
@@ -74,13 +80,28 @@ export function useElecCalcCableMarkModalState({
   const calc = object ? calcByObjectId[object.id] : undefined;
   const savedType = object ? getSavedCableTypeForObject(object.id) : null;
   const currentMark = cableType === savedType ? getCableMark(calc) : undefined;
+  const needsBackendTtOptions = Boolean(
+    objectId && (cableType === 'self_regulating_tt' || savedType === 'self_regulating_tt'),
+  );
+  const backendTtQuery = useQuery({
+    queryKey: ['electrical', 'cable-options', objectId, electricalVariantId],
+    queryFn: () => getCableOptions(objectId!, electricalVariantId),
+    enabled: Boolean(objectId && needsBackendTtOptions),
+    staleTime: 30_000,
+  });
+  const backendTtOptions = backendTtQuery.data ?? null;
   const options = useMemo(
     () => (
       cableType
-        ? cableMarkOptionsFor(cableType, currentMark, calc)
+        ? cableMarkOptionsFor(
+            cableType,
+            currentMark,
+            calc,
+            cableType === 'self_regulating_tt' ? backendTtOptions : null,
+          )
         : []
     ),
-    [cableType, cableMarkOptionsFor, calc, currentMark],
+    [backendTtOptions, cableType, cableMarkOptionsFor, calc, currentMark],
   );
   const optionByValue = useMemo(
     () => new Map(options.map((option) => [option.value, option])),

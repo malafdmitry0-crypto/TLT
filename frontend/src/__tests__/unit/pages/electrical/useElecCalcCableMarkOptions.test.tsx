@@ -111,9 +111,7 @@ describe('useElecCalcCableMarkOptions', () => {
     expect(isValidElement(options[1].label)).toBe(true);
   });
 
-  it('builds TT suffixes from aggressive product mode and exposes sizing options', () => {
-    // Первоисточник (Расчет_спецификации_трубы_самрег29_05_26.xlsx):
-    // агрессивная среда → -СР, неагрессивная → -СТ.
+  it('builds TT manual options only from backend cable-options (E7)', () => {
     const { result } = renderOptions({
       available: ['self_regulating_tt'],
       ttCables: [ttCable()],
@@ -121,25 +119,47 @@ describe('useElecCalcCableMarkOptions', () => {
       cableSizingEffectiveCableType: 'self_regulating_tt',
     });
 
-    const manualOptions = result.current.manualCableOptionsForType('self_regulating_tt');
+    // Without backend payload, TT list is empty (no client q1/q2 path).
+    expect(result.current.manualCableOptionsForType('self_regulating_tt')).toEqual([]);
+    expect(result.current.cableSizingManualOptions).toEqual([]);
 
-    expect(manualOptions).toHaveLength(1);
-    expect(manualOptions[0].mark).toBe('30ТТВ2-СР');
-    expect(manualOptions[0].searchLabel).toBe('30ТТВ2-СР · ТТВ · 30 Вт/м');
-    expect(result.current.cableSizingManualOptions.map((option) => option.mark))
-      .toEqual(['30ТТВ2-СР']);
-  });
+    const manualOptions = result.current.manualCableOptionsForType('self_regulating_tt', [
+      {
+        model: '30ТТВ2',
+        series: 'ТТВ',
+        base_model: '30ТТВ2',
+        full_mark_preview: '30ТТВ2-СР',
+        power_at_t3_w_per_m: 30.59,
+        eligible: true,
+        unavailable_reason: null,
+        temperature_group: 'high',
+        q1: -0.141,
+        q2: 32,
+        nominal_power: 30,
+        required_series: 'ТТВ',
+      },
+      {
+        model: '25ТТН2',
+        series: 'ТТН',
+        base_model: '25ТТН2',
+        full_mark_preview: '25ТТН2-СТ',
+        power_at_t3_w_per_m: 25.08,
+        eligible: false,
+        unavailable_reason: 'ELECTRICAL_CABLE_SERIES_MISMATCH',
+        temperature_group: 'low',
+        q1: -0.392,
+        q2: 29,
+        nominal_power: 25,
+        required_series: 'ТТВ',
+      },
+    ]);
 
-  it('builds TT suffix -СТ for non-aggressive product', () => {
-    const { result } = renderOptions({
-      available: ['self_regulating_tt'],
-      ttCables: [ttCable()],
-      aggressiveProduct: false,
-      cableSizingEffectiveCableType: 'self_regulating_tt',
-    });
-
-    const manualOptions = result.current.manualCableOptionsForType('self_regulating_tt');
-    expect(manualOptions.map((option) => option.mark)).toEqual(['30ТТВ2-СТ']);
+    expect(manualOptions).toHaveLength(2);
+    expect(manualOptions[0].mark).toBe('30ТТВ2');
+    expect(manualOptions[0].disabled).toBe(false);
+    expect(manualOptions[0].searchLabel).toContain('30.59 Вт/м @T3');
+    expect(manualOptions[1].disabled).toBe(true);
+    expect(manualOptions[1].searchLabel).toContain('серия не подходит');
   });
 
   it('adds auto and project options before catalog options when snapshot is missing or changed', () => {

@@ -2,7 +2,7 @@ import { useCallback, useMemo } from 'react';
 import { Space } from 'antd';
 import { TltBadge } from '@/components/ui-kit';
 
-import type { CableInfo, CableSource } from '@/api/calculations';
+import type { CableInfo, CableOptionOut, CableSource } from '@/api/calculations';
 import {
   AUTO_CABLE_MARK_VALUE,
   cableMarkOptionValue,
@@ -14,6 +14,7 @@ import {
   type CableMarkOptionSource,
   type CableMarkSelectOption,
 } from '@/pages/electrical/elecCalcCableOptionModel';
+import { mapBackendCableOptionsToSelectOptions } from '@/pages/electrical/elecCalcCableOptionsModel';
 import type { CableStatusRow } from '@/pages/electrical/elecCalcCableCatalogModel';
 import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
 import type { ElectricalCalcSummary } from '@/types/calculation';
@@ -26,6 +27,7 @@ type UseElecCalcCableMarkOptionsOptions = {
   availableCableTypes: ReadonlySet<CableTypeKey>;
   cables: CableInfo[];
   builtinCables: CableInfo[];
+  /** @deprecated E7: TT manual list comes from GET /calc/cable-options, not client ttCables. */
   ttCables: CableTtEntry[];
   resistiveCables?: ResistiveCablesReference;
   builtinResistiveCables?: ResistiveCablesReference;
@@ -97,21 +99,17 @@ export function useElecCalcCableMarkOptions({
     }),
     [builtinCables, cableMarkOption, cables, effectiveSource],
   );
-  const manualCableOptionsForType = useCallback((type: CableTypeKey): CableMarkSelectOption[] => {
+  const manualCableOptionsForType = useCallback((
+    type: CableTypeKey,
+    backendTtOptions?: readonly CableOptionOut[] | null,
+  ): CableMarkSelectOption[] => {
     if (!availableCableTypes.has(type)) return [];
     if (type === 'self_regulating') return cableOptions;
     if (type === 'self_regulating_tt') {
-      // Первоисточник (Расчет_спецификации_трубы_самрег29_05_26.xlsx):
-      // -СР = агрессивная среда, -СТ = неагрессивная.
-      const suffix = aggressiveProduct ? 'СР' : 'СТ';
-      return ttCables.map((c) => {
-        const value = `${c.model}-${suffix}`;
-        return cableMarkOption(
-          value,
-          `${value} · ${c.series} · ${c.nominal_power} Вт/м`,
-          (c as { source?: string | null }).source,
-        );
-      });
+      // E7 / FE-25: only backend cable-options (series, P@T3, eligibility).
+      // No client q1/q2 / ttCables rebuild for TT manual marks.
+      if (!backendTtOptions) return [];
+      return mapBackendCableOptionsToSelectOptions(backendTtOptions);
     }
     if (type === 'single_core') {
       const rows = resistiveCables?.single_core ?? [];
@@ -159,21 +157,20 @@ export function useElecCalcCableMarkOptions({
     }
     return [];
   }, [
-    aggressiveProduct,
     availableCableTypes,
     builtinResistiveCables,
     cableMarkOption,
     cableOptions,
     effectiveSource,
     resistiveCables,
-    ttCables,
   ]);
   const cableMarkOptionsFor = useCallback((
     type: CableTypeKey,
     mark?: string,
     calc?: ElectricalCalcSummary,
+    backendTtOptions?: readonly CableOptionOut[] | null,
   ) => {
-    const manualOptions = manualCableOptionsForType(type);
+    const manualOptions = manualCableOptionsForType(type, backendTtOptions);
     const savedSource = catalogSourceFromSnapshot(calc);
     const matchingCatalogOption = mark
       ? manualOptions.find((option) =>
@@ -208,6 +205,7 @@ export function useElecCalcCableMarkOptions({
       ...manualOptions,
     ];
   }, [autoCableMarkOption, cableMarkOption, effectiveSource, manualCableOptionsForType]);
+  /** Sizing modal should pass object-scoped BE options; type-level list is empty for TT. */
   const cableSizingManualOptions = useMemo(
     () => manualCableOptionsForType(cableSizingEffectiveCableType),
     [cableSizingEffectiveCableType, manualCableOptionsForType],

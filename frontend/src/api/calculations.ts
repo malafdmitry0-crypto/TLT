@@ -67,8 +67,40 @@ export async function calcElectrical(
   return data;
 }
 
-export async function getCableOptions(objectId: string): Promise<unknown[]> {
-  const { data } = await apiClient.get<unknown[]>(`/calc/cable-options/${objectId}`);
+/** One TT model from GET /calc/cable-options (E5/E7). */
+export type CableOptionOut = {
+  model: string | null;
+  series: string | null;
+  base_model: string | null;
+  full_mark_preview: string | null;
+  power_at_t3_w_per_m: number | null;
+  eligible: boolean;
+  unavailable_reason: string | null;
+  temperature_group: string | null;
+  q1: number | null;
+  q2: number | null;
+  nominal_power: number | null;
+  nomenclature_code?: string | null;
+  required_series?: string | null;
+  catalog?: {
+    kind?: string;
+    version?: string | null;
+    status?: string | null;
+    source_checksum?: string | null;
+    authority?: string | null;
+    production_approved?: boolean | null;
+  } | null;
+};
+
+export async function getCableOptions(
+  objectId: string,
+  electricalVariantId?: string | null,
+): Promise<CableOptionOut[]> {
+  const { data } = await apiClient.get<CableOptionOut[]>(`/calc/cable-options/${objectId}`, {
+    params: electricalVariantId
+      ? { electrical_variant_id: electricalVariantId }
+      : undefined,
+  });
   return data;
 }
 
