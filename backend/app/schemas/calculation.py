@@ -1127,6 +1127,36 @@ class ElectricalResponse(BaseModel):
     result: dict[str, Any]
 
 
+class CableOptionCatalogMeta(BaseModel):
+    """Provenance of the power catalog that produced a cable option."""
+
+    kind: str = "power"
+    version: str | None = None
+    status: str | None = None
+    source_checksum: str | None = None
+    authority: str | None = None
+    production_approved: bool | None = None
+
+
+class CableOptionOut(BaseModel):
+    """One manual TT cable model for GET /calc/cable-options (B1 / E5)."""
+
+    model: str | None = None
+    series: str | None = None
+    base_model: str | None = None
+    full_mark_preview: str | None = None
+    power_at_t3_w_per_m: float | None = None
+    eligible: bool = False
+    unavailable_reason: str | None = None
+    temperature_group: str | None = None
+    q1: float | None = None
+    q2: float | None = None
+    nominal_power: float | None = None
+    nomenclature_code: str | None = None
+    required_series: str | None = None
+    catalog: CableOptionCatalogMeta | None = None
+
+
 class ElectricalCalcSummary(BaseModel):
     """Краткая информация об электрорасчёте объекта."""
 

@@ -35,6 +35,10 @@ from app.electrical_result_status import (
     electrical_result_with_lifecycle,
 )
 from app.formulas.electrical.cable_geometry import compute_tank_cable_length
+from app.formulas.electrical.tt_cable_options import (
+    build_tt_cable_options,
+    extract_power_catalog_rows,
+)
 from app.formulas.electrical.tt_contract import (
     ELECTRICAL_TT_FORMULA_FINGERPRINT,
     ELECTRICAL_TT_FORMULA_VERSION,
@@ -4676,10 +4680,92 @@ class CalculationService:
         )
         await self.db.commit()
 
-    async def get_cable_options(self, object_id: UUID) -> list[dict[str, Any]]:
-        """РЕШЕНИЕ 2026-08-03: каталог ТЛТ отключён — выдача пуста.
+    def _tt_cable_option_temperatures(
+        self,
+        obj: ProjectObject,
+    ) -> tuple[float, float | None, float, bool]:
+        """Temps for series + P@T3 without full TT input resolve (no Iдоп required).
 
-        ТЕХДОЛГ №8 (§9/§17.3.5 ТЗ): вернуть TT-модели активного power-каталога
-        с серией, мощностью при T3 и причиной недоступности, параметр ЭР.
+        T3 often lives only on the calc request (FE default 10 °C), not on the
+        object. For option P@T3 we prefer object param, else the same temporary
+        frontend mock profile default used by TT calc in test/dev.
         """
-        return []
+        from app.services.electrical_input_resolver import FRONTEND_MOCK_PROFILE
+
+        object_heat = self._tt_object_heat_inputs(obj, {})
+        product = object_heat.get("product_temperature_c")
+        if product is None:
+            raise ElectricalInputResolutionError(
+                "ELECTRICAL_INPUT_REQUIRED",
+                "Для списка моделей требуется температура продукта (T1)",
+                details={"field": "product_temperature_c", "object_id": str(obj.id)},
+            )
+
+        maintain = object_heat.get("maintain_temperature_c")
+        aggressive = object_heat.get("aggressive_product")
+        if maintain is None:
+            # Same default as FRONTEND_MOCK_PROFILE / FE recalc chrome (10 °C).
+            maintain = FRONTEND_MOCK_PROFILE.maintain_temperature_c
+        if aggressive is None:
+            aggressive = FRONTEND_MOCK_PROFILE.aggressive_product
+
+        steam = object_heat.get("steam_temperature_c")
+        return (
+            float(product),
+            float(steam) if steam is not None else None,
+            float(maintain),
+            bool(aggressive),
+        )
+
+    async def get_cable_options(
+        self,
+        object_id: UUID,
+        *,
+        electrical_variant_id: UUID | None = None,
+    ) -> list[dict[str, Any]]:
+        """TT power-catalog options for manual mark selection (B1 / E5).
+
+        Requires current heat results on the object. Uses the same series rule
+        and q1×T3+q2 curve as the TT calculation pipeline. ``electrical_variant_id``
+        is accepted for scope/provenance parity with calc endpoints (assignment
+        does not filter the series list for manual options).
+        """
+        obj_result = await self.db.execute(
+            select(ProjectObject).where(ProjectObject.id == object_id)
+        )
+        obj = obj_result.scalar_one_or_none()
+        if obj is None:
+            raise CalculationError("Объект не найден")
+        if not obj.is_valid or not obj.results or obj.results.get("stale"):
+            raise ElectricalInputResolutionError(
+                "ELECTRICAL_HEAT_LOSS_REQUIRED",
+                "Для списка моделей требуются актуальные теплопотери объекта",
+                details={"object_id": str(obj.id)},
+            )
+
+        if electrical_variant_id is not None:
+            # Touch assignment cache for ER-scoped callers without filtering options.
+            await self._tt_assignment(obj.project_id, electrical_variant_id, obj.id)
+
+        product_c, steam_c, maintain_c, aggressive = self._tt_cable_option_temperatures(obj)
+
+        catalogs = await self._tt_calculation_catalogs()
+        power_catalog = catalogs.get("power") or {}
+        rows, meta = extract_power_catalog_rows(power_catalog)
+        if not rows:
+            raise ElectricalFormulaError(
+                "ELECTRICAL_CATALOG_SOURCE_UNREGISTERED",
+                "Активный power-каталог не содержит моделей кабеля",
+                details={"catalog_kind": "power"},
+                status_code=503,
+            )
+
+        return build_tt_cable_options(
+            rows,
+            product_temperature_c=product_c,
+            steam_temperature_c=steam_c,
+            maintain_temperature_c=maintain_c,
+            aggressive_product=aggressive,
+            catalog_meta=meta,
+            strict_provisional=bool(app_settings.is_production),
+        )

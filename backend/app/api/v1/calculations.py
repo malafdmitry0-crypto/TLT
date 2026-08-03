@@ -16,6 +16,7 @@ from app.models.electrical_calculation import ElectricalCalculation
 from app.schemas.calculation import (
     BatchCalcResponse,
     BatchElectricalResponse,
+    CableOptionOut,
     CopyElectricalVariantRequest,
     CopyElectricalVariantResponse,
     ElectricalCableSelectionVariantsRequest,
@@ -1173,15 +1174,27 @@ async def batch_calc_electrical(
 
 @router.get(
     "/cable-options/{object_id}",
-    summary="Список доступных кабелей для объекта",
+    response_model=list[CableOptionOut],
+    summary="Список доступных кабелей ТТ для объекта (manual options)",
 )
 async def cable_options(
     object_id: UUID,
+    electrical_variant_id: UUID | None = Query(
+        None,
+        description="ЭР (UUID) — scope/provenance; не фильтрует список серии",
+    ),
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
     try:
         await ProjectService(db).get_object_for_read(object_id, principal)
+        return await CalculationService(db).get_cable_options(
+            object_id,
+            electrical_variant_id=electrical_variant_id,
+        )
     except (ProjectNotFoundError, ProjectAccessError) as exc:
         _raise_project_error(exc)
-    return await CalculationService(db).get_cable_options(object_id)
+    except (ElectricalFormulaError, ElectricalInputResolutionError) as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
+    except CalculationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc

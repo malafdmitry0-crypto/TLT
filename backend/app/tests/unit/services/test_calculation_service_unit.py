@@ -2456,12 +2456,69 @@ class TestSaveFailedElectrical:
 
 
 class TestGetCableOptions:
-    async def test_returns_builtin_tlt_list(self):
+    async def test_returns_tt_options_for_object_with_heat(self, monkeypatch):
         from app.services.calculation_service import CalculationService
+        from app.services.electrical_catalog_service import ElectricalCatalogService
 
-        result = await CalculationService(AsyncMock()).get_cable_options(uuid.uuid4())
-        assert len(result) > 0
-        assert all("brand" in c or "cable_mark" in c or "model" in c for c in result)
+        obj_id = uuid.uuid4()
+        obj = SimpleNamespace(
+            id=obj_id,
+            project_id=uuid.uuid4(),
+            object_type="pipe",
+            version=1,
+            is_valid=True,
+            params={
+                "process_temperature": 80.0,
+                "outer_diameter": 0.108,
+                "maintain_temperature": 10.0,
+                "aggressive_product": False,
+            },
+            results={
+                "heat_loss_per_meter_base": 20.0,
+                "effective_length": 50.0,
+                "safety_factor_applied": 1.1,
+            },
+        )
+        db = AsyncMock()
+        result_mock = MagicMock()
+        result_mock.scalar_one_or_none.return_value = obj
+        db.execute = AsyncMock(return_value=result_mock)
+
+        service = CalculationService(db)
+        service._tt_calculation_catalogs_cache = {
+            kind: ElectricalCatalogService._static_calculation_fallback(kind)
+            for kind in ("power", "section", "bom")
+        }
+
+        options = await service.get_cable_options(obj_id)
+        assert len(options) > 0
+        assert all(opt.get("model") for opt in options)
+        eligible = [opt for opt in options if opt["eligible"]]
+        assert eligible
+        assert all(opt["series"] == "ТТВ" for opt in eligible)
+        assert all(opt["required_series"] == "ТТВ" for opt in options)
+
+    async def test_requires_heat_results(self):
+        from app.services.calculation_service import CalculationService
+        from app.services.electrical_input_resolver import ElectricalInputResolutionError
+
+        obj_id = uuid.uuid4()
+        obj = SimpleNamespace(
+            id=obj_id,
+            project_id=uuid.uuid4(),
+            object_type="pipe",
+            is_valid=False,
+            params={"process_temperature": 80.0},
+            results=None,
+        )
+        db = AsyncMock()
+        result_mock = MagicMock()
+        result_mock.scalar_one_or_none.return_value = obj
+        db.execute = AsyncMock(return_value=result_mock)
+
+        with pytest.raises(ElectricalInputResolutionError) as exc:
+            await CalculationService(db).get_cable_options(obj_id)
+        assert exc.value.code == "ELECTRICAL_HEAT_LOSS_REQUIRED"
 
 
 class TestSelectCableManual:
