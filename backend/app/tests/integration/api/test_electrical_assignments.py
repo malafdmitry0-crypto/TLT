@@ -1134,7 +1134,7 @@ class TestElectricalAssignmentApi:
             "object_id": obj["id"],
             "variant_number": 1,
             "electrical_variant_id": variant["id"],
-            "cable_type": "self_regulating",
+            "cable_type": "self_regulating_tt",
             "cable_source": "builtin",
             "mode": "auto",
         }
@@ -1160,19 +1160,21 @@ class TestElectricalAssignmentApi:
         assert candidate_blocked.json()["detail"]["code"] == "ELECTRICAL_ASSIGNMENT_REQUIRED"
         assert folder_blocked.json()["detail"]["code"] == "ELECTRICAL_ASSIGNMENT_REQUIRED"
 
+        # Единственный расчётный тип — self_regulating_tt, поэтому несовпадение
+        # моделируем назначением объекта в другую поддерживаемую систему.
         assigned = await _patch_assignments(
             client,
             project["id"],
             variant["id"],
             headers,
-            system_type="self_regulating",
+            system_type="resistive",
             items=[{"object_id": obj["id"], "expected_version": 1}],
         )
         assert assigned.status_code == 200, assigned.text
         mismatch = await client.post(
             "/api/v1/calc/electrical/candidates",
             headers=headers,
-            json={**candidate_payload, "cable_type": "three_core"},
+            json=candidate_payload,
         )
         assert mismatch.status_code == 409
         assert mismatch.json()["detail"]["code"] == ("ELECTRICAL_ASSIGNMENT_SYSTEM_MISMATCH")
@@ -1235,7 +1237,7 @@ class TestElectricalAssignmentApi:
         assert assigned.status_code == 200, assigned.text
 
         candidates: list[dict] = []
-        for mark in ("ТЛТ-75", "ТЛТ-100"):
+        for mark in ("30ТТВ2-СР", "45ТТВ2-СР"):
             created = await client.post(
                 "/api/v1/calc/electrical/candidates",
                 headers=headers,
@@ -1244,7 +1246,7 @@ class TestElectricalAssignmentApi:
                     "object_id": obj["id"],
                     "variant_number": 1,
                     "electrical_variant_id": variant["id"],
-                    "cable_type": "self_regulating",
+                    "cable_type": "self_regulating_tt",
                     "cable_source": "builtin",
                     "mode": "manual",
                     "cable_mark": mark,
@@ -1375,10 +1377,10 @@ class TestElectricalAssignmentApi:
                 "object_id": obj["id"],
                 "variant_number": 1,
                 "electrical_variant_id": variant["id"],
-                "cable_type": "self_regulating",
+                "cable_type": "self_regulating_tt",
                 "cable_source": "builtin",
                 "mode": "manual",
-                "cable_mark": "ТЛТ-100",
+                "cable_mark": "45ТТВ2-СР",
             },
         )
         assert dirty_dedupe.status_code == 409
@@ -1404,10 +1406,10 @@ class TestElectricalAssignmentApi:
             ).scalars()
         )
         by_mark = {item.cable_mark: item for item in persisted}
-        assert by_mark["ТЛТ-75"].is_applied is False
-        assert by_mark["ТЛТ-75"].electrical_variant_id == UUID(variant["id"])
-        assert by_mark["ТЛТ-100"].is_applied is True
-        assert by_mark["ТЛТ-100"].electrical_variant_id is None
+        assert by_mark["30ТТВ2-СР"].is_applied is False
+        assert by_mark["30ТТВ2-СР"].electrical_variant_id == UUID(variant["id"])
+        assert by_mark["45ТТВ2-СР"].is_applied is True
+        assert by_mark["45ТТВ2-СР"].electrical_variant_id is None
 
     async def test_post_project_lock_loaders_refresh_prelock_object_identity(
         self,
@@ -1472,14 +1474,21 @@ class TestElectricalAssignmentApi:
                 else:
                     request = ElectricalRequest(
                         object_id=object_id,
-                        cable_type="self_regulating",
+                        cable_type="self_regulating_tt",
                         variant_number=1,
                         electrical_variant_id=variant_id,
                         data={
                             "required_power_per_meter": 20,
-                            "cable_mark": "ТЛТ-25",
-                            "supply_voltage": 220,
+                            "cable_mark": "30ТТВ2-СР",
+                            "supply_voltage": 230,
+                            "maintain_temperature": 50.0,
                             "ambient_temperature": -30,
+                            "steam_temperature_c": None,
+                            "aggressive_product": False,
+                            "winding_pitch_mm": None,
+                            "thread_count": None,
+                            "max_section_start_current_a": 13.065,
+                            "selection_policy": "technical_minimum",
                             "pipe_length": 50,
                             "safety_factor": 1.1,
                         },

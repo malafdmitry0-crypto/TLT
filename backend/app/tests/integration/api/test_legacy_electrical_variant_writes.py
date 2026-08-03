@@ -162,27 +162,39 @@ class TestLegacyElectricalVariantWrites:
         assert folder_response.status_code == 200, folder_response.text
         folder_id = folder_response.json()["id"]
 
+        # Iдоп секции select-cable наследует из проектных электронастроек.
+        section_limit = await client.patch(
+            f"/api/v1/projects/{project['id']}/electrical-settings",
+            json={"expected_version": 1, "max_section_start_current_a": "13.065"},
+            headers=headers,
+        )
+        assert section_limit.status_code == 200, section_limit.text
+
         manual_calc = await client.post(
             "/api/v1/calc/electrical/select-cable",
             params={
                 "object_id": obj["id"],
                 "variant_number": 4,
-                "cable_mark": "ТЛТ-60",
+                "cable_mark": "30ТТВ2-СР",
+                "maintain_temperature": 50.0,
+                "aggressive_product": False,
             },
             headers=headers,
         )
         assert manual_calc.status_code == 200, manual_calc.text
 
-        generated_spec = await client.post(
-            f"/api/v1/specifications/{project['id']}/generate",
-            params={"variant": 1},
+        # Спецификация UUID-only (DEC-07): числовой мост снят, позиции пишутся
+        # по UUID ЭР, который владеет legacy-слотом 2.
+        variants_listing = await client.get(
+            f"/api/v1/projects/{project['id']}/electrical-variants",
             headers=headers,
         )
-        assert generated_spec.status_code == 201, generated_spec.text
-
+        assert variants_listing.status_code == 200, variants_listing.text
+        slot_two = next(
+            item for item in variants_listing.json() if item["legacy_variant_number"] == 2
+        )
         saved_spec = await client.put(
-            f"/api/v1/specifications/{project['id']}/items",
-            params={"variant": 2},
+            f"/api/v1/specifications/{project['id']}/variants/{slot_two['id']}/items",
             json={
                 "items": [
                     {
@@ -246,10 +258,7 @@ class TestLegacyElectricalVariantWrites:
             .scalars()
             .all()
         )
-        assert {item.variant_number: item.electrical_variant_id for item in specifications} == {
-            1: variants_by_slot[1],
-            2: variants_by_slot[2],
-        }
+        assert {item.electrical_variant_id for item in specifications} == {variants_by_slot[2]}
 
         assignments = list(
             (

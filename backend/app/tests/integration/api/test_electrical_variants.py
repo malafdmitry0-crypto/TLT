@@ -157,6 +157,32 @@ async def _prepare_and_assign_legacy_variant(
     return variant
 
 
+CANDIDATE_ELECTRICAL_PARAMS = {
+    "supply_voltage": 230,
+    "maintain_temperature": 50.0,
+    # null — валидное значение (пар/навивка отсутствуют), но ключ обязан присутствовать.
+    "vapor_temperature": None,
+    "aggressive_product": False,
+    "winding_pitch": None,
+    "number_of_threads": None,
+    "selection_policy": "technical_minimum",
+    "safety_factor": 1.1,
+}
+
+
+async def _set_project_section_current_limit(
+    client: AsyncClient,
+    project_id: str,
+    headers: dict[str, str],
+) -> None:
+    response = await client.patch(
+        f"/api/v1/projects/{project_id}/electrical-settings",
+        json={"expected_version": 1, "max_section_start_current_a": "13.065"},
+        headers=headers,
+    )
+    assert response.status_code == 200, response.text
+
+
 async def _create_slot_two_candidate(
     client: AsyncClient,
     project_id: str,
@@ -179,7 +205,8 @@ async def _create_slot_two_candidate(
             "cable_type": "self_regulating_tt",
             "cable_source": "builtin",
             "mode": "manual",
-            "cable_mark": "ТЛТ-75",
+            "cable_mark": "30ТТВ2-СР",
+            "electrical_params": CANDIDATE_ELECTRICAL_PARAMS,
         },
         headers=headers,
     )
@@ -1248,6 +1275,7 @@ class TestElectricalVariantConcurrency:
             1,
             headers,
         )
+        await _set_project_section_current_limit(client, project["id"], headers)
         baseline_response = await client.post(
             "/api/v1/calc/electrical/candidates",
             json={
@@ -1257,12 +1285,14 @@ class TestElectricalVariantConcurrency:
                 "cable_type": "self_regulating_tt",
                 "cable_source": "builtin",
                 "mode": "manual",
-                "cable_mark": "ТЛТ-75",
+                "cable_mark": "30ТТВ2-СР",
+                "electrical_params": CANDIDATE_ELECTRICAL_PARAMS,
             },
             headers=headers,
         )
         assert baseline_response.status_code == 200, baseline_response.text
         baseline_candidate = baseline_response.json()["candidate"]
+        assert baseline_candidate["status"] == "applicable", baseline_response.text
         baseline_apply = await client.post(
             f"/api/v1/calc/electrical/candidates/{baseline_candidate['id']}/apply",
             headers=headers,

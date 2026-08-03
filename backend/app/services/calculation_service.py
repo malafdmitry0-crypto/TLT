@@ -3965,13 +3965,20 @@ class CalculationService:
             # Bind only to the mapping that already exists under the project lock;
             # candidate apply must never recreate a lifecycle-deleted ER.
             candidate.electrical_variant_id = variant.id
+            # Кандидат хранит явные ТТ-входы вложенными в _tt_explicit_overrides;
+            # select_cable_manual ждёт их плоскими — иначе строгий резолвер
+            # теряет сохранённые значения и applicable-кандидат не применяется.
+            apply_params = dict(candidate.params or {})
+            stored_overrides = apply_params.pop("_tt_explicit_overrides", None)
+            if isinstance(stored_overrides, dict):
+                apply_params.update(stored_overrides)
             calc = await self.select_cable_manual(
                 candidate.object_id,
                 candidate.cable_mark,
                 candidate.cable_source,
                 candidate.variant_number,
                 candidate.cable_type,
-                candidate.params,
+                apply_params,
                 commit=False,
                 electrical_variant_id=variant.id,
             )
