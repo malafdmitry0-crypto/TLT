@@ -34,12 +34,18 @@ describe('buildAssignAutoCalcBatchPayload', () => {
     });
   });
 
-  it('builds self_regulating batch', () => {
+  it('builds Samreg batch with self_regulating_tt cable type (E0 / FE-13)', () => {
     const payload = buildAssignAutoCalcBatchPayload({
       systemType: 'self_regulating',
       objectIds: ['x'],
     });
-    expect(payload?.cableType).toBe('self_regulating');
-    expect(payload?.nextSystemView).toBe('self_regulating');
+    expect(payload).toEqual({
+      scope: 'selected',
+      objectIds: ['x'],
+      skipManual: true,
+      cableType: 'self_regulating_tt',
+      objectOverrides: [{ object_id: 'x', cable_type: 'self_regulating_tt' }],
+      nextSystemView: 'self_regulating',
+    });
   });
 });

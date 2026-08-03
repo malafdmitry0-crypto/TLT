@@ -191,7 +191,7 @@ describe('elecCalcLayoutModel', () => {
     });
   });
 
-  it('validates thread count input and self-regulating cap', () => {
+  it('validates thread count input and 1..3 cap for all types (E0)', () => {
     expect(validateElectricalLayoutCellCommit(commitOptions({
       columnKey: 'number_of_threads',
       value: 1.5,
@@ -209,11 +209,23 @@ describe('elecCalcLayoutModel', () => {
     expect(validateElectricalLayoutCellCommit(commitOptions({
       columnKey: 'number_of_threads',
       value: 4,
+      getCableTypeForObject: () => 'self_regulating_tt',
+    }))).toEqual({ status: 'error', error: 'Количество ниток должно быть не больше 3' });
+
+    expect(validateElectricalLayoutCellCommit(commitOptions({
+      columnKey: 'number_of_threads',
+      value: 4,
       getCableTypeForObject: () => 'single_core',
+    }))).toEqual({ status: 'error', error: 'Количество ниток должно быть не больше 3' });
+
+    expect(validateElectricalLayoutCellCommit(commitOptions({
+      columnKey: 'number_of_threads',
+      value: 3,
+      getCableTypeForObject: () => 'self_regulating_tt',
     }))).toMatchObject({
       status: 'valid',
       windingPitchMm: 0,
-      numberOfThreads: 4,
+      numberOfThreads: 3,
     });
   });
 
@@ -227,13 +239,13 @@ describe('elecCalcLayoutModel', () => {
     expect(parseElectricalLayoutNumber('abc')).toBeNull();
   });
 
-  it('keeps self-regulating thread cap and full-version cable cap', () => {
+  it('caps all cable types at 1..3 threads (DEC-06 / E0 MVP)', () => {
     expect(maxThreadsForCableType('self_regulating')).toBe(3);
-    expect(maxThreadsForCableType('self_regulating_tt')).toBe(100);
-    expect(maxThreadsForCableType('single_core')).toBe(100);
-    expect(maxThreadsForCableType('three_core')).toBe(100);
-    expect(maxThreadsForCableType('mineral')).toBe(100);
-    expect(maxThreadsForCableType('skin')).toBe(100);
+    expect(maxThreadsForCableType('self_regulating_tt')).toBe(3);
+    expect(maxThreadsForCableType('single_core')).toBe(3);
+    expect(maxThreadsForCableType('three_core')).toBe(3);
+    expect(maxThreadsForCableType('mineral')).toBe(3);
+    expect(maxThreadsForCableType('skin')).toBe(3);
   });
 
   it('converts only positive pipe outer diameter from meters to millimeters', () => {

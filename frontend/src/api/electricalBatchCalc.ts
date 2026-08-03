@@ -94,7 +94,7 @@ export async function batchCalcElectrical(
   projectId: string,
   cableSource: CableSource = 'builtin',
   variantNumber: number = 1,
-  cableType: CableType = 'self_regulating',
+  cableType: CableType = 'self_regulating_tt',
   options: ElectricalBatchOptions = {},
 ): Promise<BatchElectricalResponse> {
   const { data } = await apiClient.post<BatchElectricalResponse>('/calc/electrical/batch', null, {
@@ -116,7 +116,7 @@ export async function enqueueElectricalBatchJob(
   projectId: string,
   cableSource: CableSource = 'builtin',
   variantNumber: number = 1,
-  cableType: CableType = 'self_regulating',
+  cableType: CableType = 'self_regulating_tt',
   options: ElectricalBatchOptions = {},
 ): Promise<CalculationTaskResponse> {
   const { data } = await apiClient.post<CalculationTaskResponse>(
@@ -146,7 +146,7 @@ export async function enqueueElectricalVariantBatchJob(
   projectId: string,
   electricalVariantId: string,
   cableSource: CableSource = 'builtin',
-  cableType: CableType = 'self_regulating',
+  cableType: CableType = 'self_regulating_tt',
   options: ElectricalBatchOptions = {},
 ): Promise<CalculationTaskResponse> {
   const { data } = await apiClient.post<CalculationTaskResponse>(
@@ -187,7 +187,7 @@ export async function selectCableManual(
   cableMark: string,
   cableSource: CableSource = 'builtin',
   variantNumber: number = 1,
-  cableType: CableType = 'self_regulating',
+  cableType: CableType = 'self_regulating_tt',
   options: ElectricalBatchOptions = {},
   electricalVariantId?: string,
 ): Promise<ElectricalCalcSummary> {
@@ -213,7 +213,7 @@ export async function selectCableForVariants(
   cableMark: string | null,
   cableSource: CableSource = 'builtin',
   variantNumbers: number[] = [1],
-  cableType: CableType = 'self_regulating',
+  cableType: CableType = 'self_regulating_tt',
   options: ElectricalBatchOptions = {},
   electricalVariantIds: Record<number, string> = {},
 ): Promise<ElectricalCalcSummary[]> {

@@ -31,9 +31,11 @@ export function buildAssignAutoCalcBatchPayload({
   if (objectIds.length === 0) return null;
   if (systemType !== 'resistive' && systemType !== 'self_regulating') return null;
 
+  // E0 / FE-13: Samreg assignment runs TT calc (self_regulating_tt), not legacy TLT.
+  // Resistive remains single_core for residual UI until E1 hides it (BE will 422).
   const cableType: CableTypeKey = systemType === 'resistive'
     ? 'single_core'
-    : 'self_regulating';
+    : 'self_regulating_tt';
 
   return {
     scope: 'selected',

@@ -22,8 +22,7 @@
 - [ ] **FE, баг:** `SpecTable.bomSectionOf` читать `params.object_type_section`
       (сейчас `bom_section || object_type` → все строки в «Общие материалы», «Трубы/Бочки»
       всегда пустые). `frontend/src/components/specification/SpecTable.tsx:34-54`.
-- [ ] **FE, баг:** нитки 1..3 для `self_regulating_tt` — сейчас лимит 3 только для legacy
-      (`elecCalcLayoutModel.ts:150-152`: `type === 'self_regulating' ? 3 : 100`).
+- [x] **FE, баг:** нитки 1..3 для `self_regulating_tt` — E0 (2026-08-04): cap 3 for all types.
 - [ ] **FE, UX:** не закрывать модалку настроек при `selection_required` /
       `confirmation_required` (`useSpecificationPageModel.ts:172,175` — `toggleSettings(false)`
       прячет диагностики).
@@ -31,8 +30,7 @@
       `max_length=5` → 422 при 6+ ЭР).
 - [ ] **FE:** тексты `GuestHelpPage` — 3 дня (не 30), 500 объектов (не 50), «Начать без
       регистрации» (не «Пользователь»).
-- [ ] **BE:** дефолт объекта `supply_voltage: 220 → 230`
-      (`backend/app/services/project_object_params.py:66`).
+- [x] **BE:** дефолт объекта `supply_voltage: 220 → 230` — E0 (2026-08-04).
 - [ ] **FE:** мёртвый CSS-класс `spec-table-print-exclude` — добавить правило в
       `styles/print.css` или удалить навешивание.
 
@@ -75,27 +73,32 @@ Acceptance path: **met for engineering/demo**. Production authority: **not met**
 
 ## Slice 5 — ЭР: конформность ТЗ §17.3 (FE) `[ ]`
 
+**Исполняемый agent prompt + слайсы E0–E3:**  
+[`electrical-mvp-cutover-agent-prompt.md`](./electrical-mvp-cutover-agent-prompt.md)  
+**Аудит gaps:** [`case1-electrical-be-fe-audit.md`](./case1-electrical-be-fe-audit.md).
+
 - [ ] 230 В read-only: убрать редактируемое поле U (дефолт 220) и select 220/380 из мастера;
-      показывать константу с источником.
+      показывать константу с источником. → **E1**
 - [ ] Iдоп-UI: настройка проекта (`/projects/{id}/electrical-settings` — бэкенд готов) +
       object override; блокирующее состояние «Задать допустимый стартовый ток»
-      (`SECTION_CURRENT_LIMIT_REQUIRED`).
+      (`SECTION_CURRENT_LIMIT_REQUIRED`). → **E2**
 - [ ] Скрыть Резистив/Скин/Минеральный: вкладки, drop-зоны, кнопки «Назначить», пункты меню,
-      саммари-карточки; удалить мёртвое `tab.key === 'skin' && false`.
+      саммари-карточки; удалить мёртвое `tab.key === 'skin' && false`. → **E1**
 - [ ] «Применить правило к группе»: убрать зашитый Самрег — либо семантика ТЗ, либо
-      переименовать в «Назначить Самрег выбранным».
+      переименовать в «Назначить Самрег выбранным». → **E1**
 - [ ] DnD в glide-движке (drag-источник есть только в AntD-ветке) + клавиатурная
-      альтернатива drop-зон.
+      альтернатива drop-зон. → **E3**
 - [ ] T2/T3: required-правила, управляемая применимость пропарки, бейджи источника значений.
 - [ ] Provenance: включить L-метрики в `default_visible`, вернуть номенклатурный код в
-      характеристики кабеля, тултип/модалка вместо сжатой строки.
+      характеристики кабеля, тултип/модалка вместо сжатой строки. → **E7** (после B1)
 - [ ] Stale per-объект: подсветка строки, построчная кнопка «Пересчитать», счётчик stale в
-      сводке.
+      сводке. → **E3** (+ BE **E6**)
+- [x] Assign auto-calc `self_regulating_tt` + threads 1..3. → **E0** (2026-08-04)
 
 ## Slice 6 — ЭР: зачистка бэкенда (BE) `[ ]`
 
-**Детальный план:** [`electrical-slice6-polish-plan.md`](./electrical-slice6-polish-plan.md)
-(B1/B2/B4/B6, №8, §9.15, import policy, PR-DAG, acceptance).
+**Детальный план:** [`electrical-slice6-polish-plan.md`](./electrical-slice6-polish-plan.md)  
+**Слайсы E4–E9 в agent prompt:** [`electrical-mvp-cutover-agent-prompt.md`](./electrical-mvp-cutover-agent-prompt.md).
 
 - [ ] Закрыть вход legacy `cable_type` (только `self_regulating_tt`), убрать дефолты
       `"self_regulating"`, вырезать legacy-ветки из прод-пути.

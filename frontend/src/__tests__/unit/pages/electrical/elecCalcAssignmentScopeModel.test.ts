@@ -76,6 +76,17 @@ describe('elecCalcAssignmentScopeModel', () => {
     )).toBeNull();
   });
 
+  it('prefers self_regulating_tt for Samreg assignment (E0)', () => {
+    const samreg = assignment('samreg', 'self_regulating', 'ready', 1);
+    expect(preferredCableTypeForElectricalAssignment(samreg, null)).toBe('self_regulating_tt');
+    expect(preferredCableTypeForElectricalAssignment(samreg, 'self_regulating')).toBe(
+      'self_regulating_tt',
+    );
+    expect(preferredCableTypeForElectricalAssignment(samreg, 'self_regulating_tt')).toBe(
+      'self_regulating_tt',
+    );
+  });
+
   it('объединяет pagination projection по object_id без подстановки другого ЭР', () => {
     const pageOne = {
       assignments: [assignment('one', 'self_regulating', 'ready', 1)],

@@ -866,7 +866,7 @@ class ResistiveSingleCoreParams(BaseModel):
     winding_pitch: float | None = Field(
         default=None, ge=0, description="Шаг навива, мм; 0 или null — прямая укладка"
     )
-    number_of_threads: int = Field(default=1, ge=1, le=100, description="Количество ниток")
+    number_of_threads: int = Field(default=1, ge=1, le=3, description="Количество ниток (DEC-06 / E0: 1..3)")
     max_current_a: float = Field(default=65.0, gt=0, description="Лимит тока резистивного кабеля")
     max_linear_power_w_m: float | None = Field(
         default=None,
@@ -1001,7 +1001,7 @@ class ResistiveThreeCoreParams(BaseModel):
     winding_pitch: float | None = Field(
         default=None, ge=0, description="Шаг навива, мм; 0 или null — прямая укладка"
     )
-    number_of_threads: int = Field(default=1, ge=1, le=100, description="Количество ниток")
+    number_of_threads: int = Field(default=1, ge=1, le=3, description="Количество ниток (DEC-06 / E0: 1..3)")
     max_current_a: float = Field(default=65.0, gt=0, description="Лимит тока резистивного кабеля")
     max_linear_power_w_m: float | None = Field(
         default=None,

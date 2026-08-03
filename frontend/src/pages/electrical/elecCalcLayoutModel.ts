@@ -147,8 +147,9 @@ export function parseElectricalLayoutNumber(value: unknown) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-export function maxThreadsForCableType(type: ElectricalLayoutCableType) {
-  return type === 'self_regulating' ? 3 : 100;
+/** DEC-06 / E0: manual and auto allow only 1..3 threads (TT MVP and residual types). */
+export function maxThreadsForCableType(_type: ElectricalLayoutCableType) {
+  return 3;
 }
 
 export function pipeOuterDiameterMm(obj: ProjectObject) {

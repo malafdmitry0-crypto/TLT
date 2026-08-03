@@ -434,7 +434,7 @@ class TestObjectsLifecycle:
         assert body["params"]["wall_thickness"] == pytest.approx(0.004)
         assert body["params"]["pipe_material"] == "carbon_steel"
         assert body["params"]["placement"] == "outdoor"
-        assert body["params"]["supply_voltage"] == 220
+        assert body["params"]["supply_voltage"] == 230
         assert body["params"]["safety_factor"] == pytest.approx(1.1)
         assert body["params"]["num_local_elements"] == 0
         assert body["params"]["insulation_layers"] == [

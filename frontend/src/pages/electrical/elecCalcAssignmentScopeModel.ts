@@ -94,10 +94,14 @@ export function preferredCableTypeForElectricalAssignment(
   if (electricalAssignmentAvailabilityReason(assignment)) return null;
   const assignedSystem = assignment?.system_type;
   if (assignedSystem !== 'self_regulating' && assignedSystem !== 'resistive') return null;
-  if (electricalSystemForCableType(currentCableType) === assignedSystem) {
-    return currentCableType ?? null;
+  // E0: Samreg system always prefers TT calc cable type (legacy self_regulating is not calculable).
+  if (assignedSystem === 'self_regulating') {
+    return 'self_regulating_tt';
   }
-  return assignedSystem === 'resistive' ? 'single_core' : 'self_regulating';
+  if (electricalSystemForCableType(currentCableType) === 'resistive') {
+    return currentCableType ?? 'single_core';
+  }
+  return 'single_core';
 }
 
 export function compatibleAssignedObjectIds(
