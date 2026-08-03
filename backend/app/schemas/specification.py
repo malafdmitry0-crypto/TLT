@@ -1,9 +1,10 @@
 """Схемы спецификации."""
 
+import re
 from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -137,6 +138,19 @@ class SpecificationResolvedOptions(BaseModel):
         return value
 
 
+class SpecificationCatalogSnapshotV2(BaseModel):
+    """Resolved immutable catalog identity used by preflight and fingerprints."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: UUID
+    catalog_key: str = Field(min_length=1)
+    version: str = Field(min_length=1)
+    source_checksum: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
+    payload_checksum: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
+    schema_version: int = Field(ge=1)
+
+
 class SpecificationGenerationRequestV2(BaseModel):
     """Канонический UUID-scoped запрос; implicit-all отсутствует."""
 
@@ -145,13 +159,24 @@ class SpecificationGenerationRequestV2(BaseModel):
     variant_ids: list[UUID] = Field(min_length=1, max_length=5)
     options: SpecificationRequestedOptions = Field(default_factory=SpecificationRequestedOptions)
     exclude_unassigned_confirmed: bool = False
-    catalog_selections: dict[str, UUID | str] = Field(default_factory=dict)
+    catalog_selections: dict[str, UUID] = Field(default_factory=dict)
 
     @field_validator("variant_ids")
     @classmethod
     def _variant_ids_are_unique(cls, value: list[UUID]) -> list[UUID]:
         if len(set(value)) != len(value):
             raise ValueError("variant_ids must be unique")
+        return value
+
+    @field_validator("catalog_selections")
+    @classmethod
+    def _catalog_selection_keys_are_explicit(cls, value: dict[str, UUID]) -> dict[str, UUID]:
+        if len(value) > 100:
+            raise ValueError("catalog_selections cannot contain more than 100 entries")
+        if any(not key.strip() or key != key.strip() or len(key) > 128 for key in value):
+            raise ValueError(
+                "catalog selection keys must be trimmed, non-empty and at most 128 chars"
+            )
         return value
 
 
@@ -182,9 +207,60 @@ class SpecificationVariantPreflightResultV2(BaseModel):
     status: SpecificationPreflightStatus
     total_objects: int = Field(default=0, ge=0)
     contributing_objects: int = Field(default=0, ge=0)
+    unassigned_object_ids: list[UUID] = Field(default_factory=list)
     excluded_unassigned_object_ids: list[UUID] = Field(default_factory=list)
     diagnostics: list[SpecificationDiagnostic] = Field(default_factory=list)
+    resolved_options: SpecificationResolvedOptions | None = None
+    catalog: SpecificationCatalogSnapshotV2 | None = None
+    catalog_selections: dict[str, UUID] = Field(default_factory=dict)
+    fingerprint_schema: Literal["specification-preflight/v1"] | None = None
     input_fingerprint: str | None = None
+
+    @model_validator(mode="after")
+    def _validate_preflight_state(self) -> "SpecificationVariantPreflightResultV2":
+        if self.contributing_objects > self.total_objects:
+            raise ValueError("contributing_objects cannot exceed total_objects")
+        if len(set(self.unassigned_object_ids)) != len(self.unassigned_object_ids):
+            raise ValueError("unassigned_object_ids must be unique")
+        if len(set(self.excluded_unassigned_object_ids)) != len(
+            self.excluded_unassigned_object_ids
+        ):
+            raise ValueError("excluded_unassigned_object_ids must be unique")
+        if not set(self.excluded_unassigned_object_ids).issubset(self.unassigned_object_ids):
+            raise ValueError(
+                "excluded_unassigned_object_ids must be a subset of unassigned_object_ids"
+            )
+        has_fingerprint = self.input_fingerprint is not None
+        has_fingerprint_schema = self.fingerprint_schema is not None
+        if has_fingerprint != has_fingerprint_schema:
+            raise ValueError("fingerprint_schema and input_fingerprint must be set together")
+        if has_fingerprint and not re.fullmatch(r"sha256:[0-9a-f]{64}", self.input_fingerprint):
+            raise ValueError("input_fingerprint must be SHA-256")
+
+        kinds = {diagnostic.kind for diagnostic in self.diagnostics}
+        expected = (
+            SpecificationPreflightStatus.BLOCKED
+            if SpecificationIssueKind.BLOCKING in kinds
+            else (
+                SpecificationPreflightStatus.SELECTION_REQUIRED
+                if SpecificationIssueKind.SELECTION_REQUIRED in kinds
+                else (
+                    SpecificationPreflightStatus.CONFIRMATION_REQUIRED
+                    if SpecificationIssueKind.CONFIRMABLE in kinds
+                    else SpecificationPreflightStatus.READY
+                )
+            )
+        )
+        if self.status != expected:
+            raise ValueError(
+                f"status {self.status.value} does not match diagnostic precedence "
+                f"{expected.value}"
+            )
+        if self.status is SpecificationPreflightStatus.READY and not has_fingerprint:
+            raise ValueError("ready preflight must include an input fingerprint")
+        if self.status is not SpecificationPreflightStatus.READY and has_fingerprint:
+            raise ValueError("non-ready preflight cannot include an input fingerprint")
+        return self
 
 
 class SpecificationVariantGenerationResultV2(BaseModel):

@@ -92,6 +92,31 @@ class TestCanonicalGenerationRequest:
                 {"electrical_variant_ids": [str(variant_id)]}
             )
 
+    def test_catalog_selections_require_immutable_item_uuids(self):
+        variant_id = uuid4()
+        item_id = uuid4()
+        request = SpecificationGenerationRequestV2.model_validate(
+            {
+                "variant_ids": [variant_id],
+                "catalog_selections": {"connection.low": str(item_id)},
+            }
+        )
+        assert request.catalog_selections == {"connection.low": item_id}
+        with pytest.raises(ValidationError):
+            SpecificationGenerationRequestV2.model_validate(
+                {
+                    "variant_ids": [variant_id],
+                    "catalog_selections": {"connection.low": "first-row"},
+                }
+            )
+        with pytest.raises(ValidationError, match="trimmed"):
+            SpecificationGenerationRequestV2.model_validate(
+                {
+                    "variant_ids": [variant_id],
+                    "catalog_selections": {" connection.low ": item_id},
+                }
+            )
+
 
 class TestTypedDiagnostics:
     @pytest.mark.parametrize(
@@ -154,6 +179,32 @@ class TestTypedDiagnostics:
             }
         )
         assert envelope.detail.code is SpecificationDiagnosticCode.BOX_EX_RGR_MATRIX_MISSING
+
+    def test_preflight_status_must_match_diagnostic_precedence(self):
+        with pytest.raises(ValidationError, match="diagnostic precedence"):
+            SpecificationVariantPreflightResultV2(
+                electrical_variant_id=uuid4(),
+                status=SpecificationPreflightStatus.READY,
+                diagnostics=[
+                    SpecificationDiagnostic(
+                        code=SpecificationDiagnosticCode.RESULT_STALE,
+                        kind=SpecificationIssueKind.BLOCKING,
+                        message="stale",
+                    )
+                ],
+            )
+        with pytest.raises(ValidationError, match="subset"):
+            SpecificationVariantPreflightResultV2(
+                electrical_variant_id=uuid4(),
+                status=SpecificationPreflightStatus.READY,
+                unassigned_object_ids=[],
+                excluded_unassigned_object_ids=[uuid4()],
+            )
+        with pytest.raises(ValidationError, match="input fingerprint"):
+            SpecificationVariantPreflightResultV2(
+                electrical_variant_id=uuid4(),
+                status=SpecificationPreflightStatus.READY,
+            )
 
 
 def test_normalized_golden_fixture_is_complete_and_explicitly_non_production():
