@@ -393,6 +393,11 @@ class SpecificationResponse(BaseModel):
     stale_reason: str | None = None
     stale_at: datetime | None = None
     stale_details: dict[str, Any] | None = None
+    # Last generate attempt (SPEC-REM-02): status survives F5 without re-generate.
+    generation_status: SpecificationGenerationStatus | None = None
+    generation_diagnostics: list[SpecificationDiagnostic] = Field(default_factory=list)
+    generation_candidate_groups: list[SpecificationCandidateGroup] = Field(default_factory=list)
+    generation_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 

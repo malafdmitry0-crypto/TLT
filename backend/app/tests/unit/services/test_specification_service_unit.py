@@ -73,6 +73,50 @@ class TestGetSpecification:
         assert result is None
 
 
+class TestRecordLastGeneration:
+    async def test_outcome_only_preserves_existing_items(self):
+        from app.schemas.specification import (
+            SpecificationDiagnostic,
+            SpecificationDiagnosticCode,
+            SpecificationGenerationStatus,
+            SpecificationIssueKind,
+        )
+
+        existing = SimpleNamespace(
+            items=[_auto_payload()],
+            snapshot={"schema": "v1"},
+            is_stale=False,
+        )
+        upserted = SimpleNamespace(
+            items=existing.items,
+            generation_status="selection_required",
+        )
+        db = AsyncMock()
+        db.execute = AsyncMock(
+            side_effect=[
+                _scalars_result(existing),
+                _upsert_result(upserted),
+            ]
+        )
+
+        result = await SpecificationService(db).record_last_generation(
+            project_id=uuid.uuid4(),
+            electrical_variant_id=uuid.uuid4(),
+            status=SpecificationGenerationStatus.SELECTION_REQUIRED,
+            diagnostics=[
+                SpecificationDiagnostic(
+                    code=SpecificationDiagnosticCode.ACCESSORY_SELECTION_REQUIRED,
+                    kind=SpecificationIssueKind.SELECTION_REQUIRED,
+                    message="need choice",
+                )
+            ],
+            candidate_groups=[],
+        )
+
+        assert result is upserted
+        assert db.execute.await_count == 2
+
+
 class TestSaveManualItems:
     async def test_creates_uuid_scoped_manual_specification(self):
         db = AsyncMock()

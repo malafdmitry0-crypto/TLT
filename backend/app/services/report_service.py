@@ -64,6 +64,16 @@ def specification_report_projection(
             "retained_item_count": len(raw_items),
         }
 
+    # Outcome-only rows (selection_required/blocked without BOM) are not a current
+    # report specification — keep report states in {absent, current, stale}.
+    generation_status = getattr(spec, "generation_status", None)
+    if not raw_items and generation_status not in (None, "generated"):
+        return {
+            "state": "absent",
+            "electrical_variant_id": er_id,
+            "items": [],
+        }
+
     return {
         "state": "current",
         "electrical_variant_id": er_id,

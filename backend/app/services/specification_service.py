@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
@@ -12,10 +13,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.project import Project
 from app.models.specification import Specification
-from app.schemas.specification import SpecificationItem
+from app.schemas.specification import (
+    SpecificationCandidateGroup,
+    SpecificationDiagnostic,
+    SpecificationGenerationStatus,
+    SpecificationItem,
+)
 from app.services.electrical_variant_service import ElectricalVariantServiceError
 
 _SNAPSHOT_UNSET = object()
+_ITEMS_UNSET = object()
 
 
 class SpecificationService:
@@ -37,6 +44,66 @@ class SpecificationService:
             )
         )
         return result.scalars().one_or_none()
+
+    async def record_last_generation(
+        self,
+        *,
+        project_id: UUID,
+        electrical_variant_id: UUID,
+        status: SpecificationGenerationStatus | str,
+        diagnostics: Sequence[SpecificationDiagnostic | Mapping[str, Any]] = (),
+        candidate_groups: Sequence[SpecificationCandidateGroup | Mapping[str, Any]] = (),
+        items_payload: list[dict[str, Any]] | object = _ITEMS_UNSET,
+        snapshot: dict[str, Any] | None | object = _SNAPSHOT_UNSET,
+        clear_stale: bool = False,
+    ) -> Specification:
+        """Persist last generate attempt so GET/F5 restores status without re-generate.
+
+        When ``items_payload`` is unset, existing items/snapshot are preserved
+        (outcome-only write for selection_required / blocked). Generated path
+        must pass items + snapshot explicitly.
+        """
+        status_value = str(getattr(status, "value", status))
+        diagnostics_payload = [
+            d.model_dump(mode="json") if hasattr(d, "model_dump") else dict(d)
+            for d in diagnostics
+        ]
+        groups_payload = [
+            g.model_dump(mode="json") if hasattr(g, "model_dump") else dict(g)
+            for g in candidate_groups
+        ]
+        now = datetime.now(UTC)
+        is_generated = status_value == SpecificationGenerationStatus.GENERATED.value
+
+        existing = await self.get_specification(
+            project_id, electrical_variant_id=electrical_variant_id
+        )
+        if items_payload is _ITEMS_UNSET:
+            retained_items = list(existing.items) if existing is not None else []
+            retained_snapshot = existing.snapshot if existing is not None else None
+            return await self._upsert_specification(
+                project_id=project_id,
+                electrical_variant_id=electrical_variant_id,
+                items_payload=retained_items,
+                snapshot=retained_snapshot,
+                generation_status=status_value,
+                generation_diagnostics=diagnostics_payload,
+                generation_candidate_groups=groups_payload,
+                generation_at=now,
+                clear_stale=clear_stale,
+            )
+
+        return await self._upsert_specification(
+            project_id=project_id,
+            electrical_variant_id=electrical_variant_id,
+            items_payload=list(items_payload),  # type: ignore[arg-type]
+            snapshot=snapshot,
+            generation_status=status_value,
+            generation_diagnostics=diagnostics_payload,
+            generation_candidate_groups=groups_payload,
+            generation_at=now,
+            clear_stale=clear_stale or is_generated,
+        )
 
     async def save_items(
         self,
@@ -198,31 +265,62 @@ class SpecificationService:
         electrical_variant_id: UUID,
         items_payload: list[dict[str, Any]],
         snapshot: dict[str, Any] | None | object = _SNAPSHOT_UNSET,
+        generation_status: str | None | object = _SNAPSHOT_UNSET,
+        generation_diagnostics: list[dict[str, Any]] | object = _SNAPSHOT_UNSET,
+        generation_candidate_groups: list[dict[str, Any]] | object = _SNAPSHOT_UNSET,
+        generation_at: datetime | None | object = _SNAPSHOT_UNSET,
+        clear_stale: bool = True,
     ) -> Specification:
         """Upsert exactly one specification by ``(project_id, ER UUID)``."""
         values: dict[str, Any] = {
             "project_id": project_id,
             "electrical_variant_id": electrical_variant_id,
             "items": items_payload,
-            "is_stale": False,
-            "stale_reason": None,
-            "stale_at": None,
-            "stale_details": None,
         }
+        if clear_stale:
+            values["is_stale"] = False
+            values["stale_reason"] = None
+            values["stale_at"] = None
+            values["stale_details"] = None
         if snapshot is not _SNAPSHOT_UNSET:
             values["snapshot"] = snapshot
+        if generation_status is not _SNAPSHOT_UNSET:
+            values["generation_status"] = generation_status
+        if generation_diagnostics is not _SNAPSHOT_UNSET:
+            values["generation_diagnostics"] = generation_diagnostics
+        if generation_candidate_groups is not _SNAPSHOT_UNSET:
+            values["generation_candidate_groups"] = generation_candidate_groups
+        if generation_at is not _SNAPSHOT_UNSET:
+            values["generation_at"] = generation_at
+
+        # Defaults for insert when generation fields omitted (manual PUT path).
+        if "generation_diagnostics" not in values:
+            values["generation_diagnostics"] = []
+        if "generation_candidate_groups" not in values:
+            values["generation_candidate_groups"] = []
 
         insert_stmt = pg_insert(Specification).values(**values)
         set_: dict[str, Any] = {
             "items": insert_stmt.excluded["items"],
-            "is_stale": False,
-            "stale_reason": None,
-            "stale_at": None,
-            "stale_details": None,
             "updated_at": func.now(),
         }
+        if clear_stale:
+            set_["is_stale"] = False
+            set_["stale_reason"] = None
+            set_["stale_at"] = None
+            set_["stale_details"] = None
         if snapshot is not _SNAPSHOT_UNSET:
             set_["snapshot"] = insert_stmt.excluded["snapshot"]
+        if generation_status is not _SNAPSHOT_UNSET:
+            set_["generation_status"] = insert_stmt.excluded["generation_status"]
+        if generation_diagnostics is not _SNAPSHOT_UNSET:
+            set_["generation_diagnostics"] = insert_stmt.excluded["generation_diagnostics"]
+        if generation_candidate_groups is not _SNAPSHOT_UNSET:
+            set_["generation_candidate_groups"] = insert_stmt.excluded[
+                "generation_candidate_groups"
+            ]
+        if generation_at is not _SNAPSHOT_UNSET:
+            set_["generation_at"] = insert_stmt.excluded["generation_at"]
 
         upsert_stmt = insert_stmt.on_conflict_do_update(
             constraint="uq_specifications_project_electrical_variant",

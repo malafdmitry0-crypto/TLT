@@ -58,6 +58,28 @@ class TestSpecificationReportProjection:
         assert "blocked" not in stale
         assert "status" not in stale
 
+    def test_outcome_only_selection_required_is_absent_for_report(self):
+        """GET may return a row for F5 status; report still uses absent without BOM."""
+        er_id = uuid.uuid4()
+        projected = specification_report_projection(
+            SimpleNamespace(
+                items=[],
+                is_stale=False,
+                electrical_variant_id=er_id,
+                generation_status="selection_required",
+                generation_diagnostics=[{"code": "SPEC_ACCESSORY_SELECTION_REQUIRED"}],
+                snapshot=None,
+            ),
+            electrical_variant_id=er_id,
+        )
+        assert projected == {
+            "state": "absent",
+            "electrical_variant_id": str(er_id),
+            "items": [],
+        }
+        assert "generation_status" not in projected
+        assert "is_partial" not in projected
+
 
 class TestLoadContext:
     async def test_project_not_found_raises(self):

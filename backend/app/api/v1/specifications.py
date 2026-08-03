@@ -164,10 +164,13 @@ async def get_specification_for_variant(
             message=str(exc),
         ) from exc
 
-    return await SpecificationService(db).get_specification(
+    row = await SpecificationService(db).get_specification(
         project_id,
         electrical_variant_id=electrical_variant_id,
     )
+    if row is None:
+        return None
+    return SpecificationResponse.model_validate(row)
 
 
 @router.get(

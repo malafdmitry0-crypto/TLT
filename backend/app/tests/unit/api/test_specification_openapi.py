@@ -131,6 +131,11 @@ def test_uuid_read_and_manual_routes_are_primary_data_plane() -> None:
     specification_properties = specification["properties"]
     assert "electrical_variant_id" in specification.get("required", [])
     assert "snapshot" in specification_properties
+    # SPEC-REM-02: last generation status survives F5 via GET.
+    assert "generation_status" in specification_properties
+    assert "generation_diagnostics" in specification_properties
+    assert "generation_candidate_groups" in specification_properties
+    assert "generation_at" in specification_properties
     assert not {
         "variant_number",
         "generation_mode",

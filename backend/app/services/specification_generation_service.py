@@ -148,23 +148,23 @@ class SpecificationGenerationService:
         settings_version = int(project.specification_settings_version or 1)
         results: list[SpecificationVariantGenerationResult] = []
 
-        has_ready = any(item.status is SpecificationPreflightStatus.READY for item in preflight)
-        if has_ready:
-            await SpecificationService(self.db)._lock_project(project_id)
+        # Always lock: non-ready outcomes also persist last-generation status (F5).
+        await SpecificationService(self.db)._lock_project(project_id)
 
-        wrote_any = False
+        recorded_any = False
         for item in preflight:
             if item.status is not SpecificationPreflightStatus.READY:
-                results.append(
-                    SpecificationVariantGenerationResult(
-                        electrical_variant_id=item.electrical_variant_id,
-                        electrical_variant_name=item.electrical_variant_name,
-                        status=SpecificationGenerationStatus(item.status.value),
-                        excluded_unassigned_object_ids=item.excluded_unassigned_object_ids,
-                        diagnostics=item.diagnostics,
-                        candidate_groups=list(item.candidate_groups),
-                    )
+                outcome = SpecificationVariantGenerationResult(
+                    electrical_variant_id=item.electrical_variant_id,
+                    electrical_variant_name=item.electrical_variant_name,
+                    status=SpecificationGenerationStatus(item.status.value),
+                    excluded_unassigned_object_ids=item.excluded_unassigned_object_ids,
+                    diagnostics=item.diagnostics,
+                    candidate_groups=list(item.candidate_groups),
                 )
+                await self._persist_outcome(project_id, outcome)
+                recorded_any = True
+                results.append(outcome)
                 continue
 
             # Per-ER savepoint: one blocked/failed ER must not undo another generated.
@@ -176,28 +176,47 @@ class SpecificationGenerationService:
                         request=request,
                         original=item,
                     )
-                    if outcome.status is SpecificationGenerationStatus.GENERATED:
-                        wrote_any = True
+                    # Generated path already wrote items; ensure status fields are set.
+                    if outcome.status is not SpecificationGenerationStatus.GENERATED:
+                        await self._persist_outcome(project_id, outcome)
+                    recorded_any = True
                     results.append(outcome)
             except Exception as exc:
                 # Nested transaction rolled back; no partial auto rows for this ER.
-                results.append(
-                    self._blocked(
-                        item.electrical_variant_id,
-                        item.electrical_variant_name,
-                        SpecificationDiagnosticCode.FORMULA_INPUT_INVALID,
-                        f"Ошибка формирования BOM: {exc}",
-                        issues=[{"reason": "generation_exception", "error": type(exc).__name__}],
-                    )
+                outcome = self._blocked(
+                    item.electrical_variant_id,
+                    item.electrical_variant_name,
+                    SpecificationDiagnosticCode.FORMULA_INPUT_INVALID,
+                    f"Ошибка формирования BOM: {exc}",
+                    issues=[{"reason": "generation_exception", "error": type(exc).__name__}],
                 )
+                await self._persist_outcome(project_id, outcome)
+                recorded_any = True
+                results.append(outcome)
 
-        if wrote_any:
+        if recorded_any:
             await self.db.commit()
 
         return SpecificationGenerationResponse(
             project_id=project_id,
             settings_version=settings_version,
             results=results,
+        )
+
+    async def _persist_outcome(
+        self,
+        project_id: UUID,
+        outcome: SpecificationVariantGenerationResult,
+    ) -> None:
+        """Write last generation status/diagnostics without requiring BOM items."""
+        await SpecificationService(self.db).record_last_generation(
+            project_id=project_id,
+            electrical_variant_id=outcome.electrical_variant_id,
+            status=outcome.status,
+            diagnostics=outcome.diagnostics,
+            candidate_groups=outcome.candidate_groups,
+            # Preserve any prior BOM; outcome-only for non-generated.
+            clear_stale=False,
         )
 
     async def _generate_ready_variant(
@@ -370,11 +389,15 @@ class SpecificationGenerationService:
             for group in current.candidate_groups
         }
 
-        await SpecificationService(self.db)._upsert_specification(
+        await SpecificationService(self.db).record_last_generation(
             project_id=project_id,
+            electrical_variant_id=current.electrical_variant_id,
+            status=SpecificationGenerationStatus.GENERATED,
+            diagnostics=[],
+            candidate_groups=list(current.candidate_groups),
             items_payload=items_payload,
             snapshot=snapshot,
-            electrical_variant_id=current.electrical_variant_id,
+            clear_stale=True,
         )
 
         # Persist explicit multi-candidate choices so reload/generate need no client store.

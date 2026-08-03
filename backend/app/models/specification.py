@@ -65,6 +65,21 @@ class Specification(Base, TimestampMixin):
     stale_reason: Mapped[str | None] = mapped_column(String(100), nullable=True)
     stale_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     stale_details: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    # Last generate attempt for this ER (survives F5 even when items were not written).
+    generation_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    generation_diagnostics: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=list,
+        server_default=text("'[]'::jsonb"),
+    )
+    generation_candidate_groups: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=list,
+        server_default=text("'[]'::jsonb"),
+    )
+    generation_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class SpecificationCatalogVersion(Base):

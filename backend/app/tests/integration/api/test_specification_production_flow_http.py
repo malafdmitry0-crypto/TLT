@@ -313,6 +313,23 @@ async def test_http_many_candidates_put_generate_get_reload_without_resend(
     chosen = group["candidates"][0]
     assert group["candidate_set_fingerprint"].startswith("sha256:")
 
+    # 1b) F5/GET restores last generation status without re-calling generate.
+    after_required = await client.get(
+        f"/api/v1/specifications/{project.id}/variants/{ready.id}",
+        headers=headers,
+    )
+    assert after_required.status_code == 200, after_required.text
+    status_body = after_required.json()
+    assert status_body is not None
+    assert status_body["generation_status"] == "selection_required"
+    assert status_body["items"] == []
+    assert status_body["generation_at"] is not None
+    assert any(
+        g["category"] == "connection_kit" and len(g["candidates"]) >= 2
+        for g in status_body["generation_candidate_groups"]
+    )
+    assert status_body["generation_diagnostics"]
+
     # 2) PUT explicit selection.
     get_sel = await client.get(
         f"/api/v1/specifications/{project.id}/variants/{ready.id}/catalog-selections",
@@ -366,7 +383,7 @@ async def test_http_many_candidates_put_generate_get_reload_without_resend(
     assert conn_snap["selection_source"] == "explicit"
     assert conn_snap["catalog_item_id"] == chosen["catalog_item_id"]
 
-    # 4) GET by UUID returns current non-stale rows.
+    # 4) GET by UUID returns current non-stale rows + generated status.
     got = await client.get(
         f"/api/v1/specifications/{project.id}/variants/{ready.id}",
         headers=headers,
@@ -376,6 +393,8 @@ async def test_http_many_candidates_put_generate_get_reload_without_resend(
     assert spec["electrical_variant_id"] == str(ready.id)
     assert spec["is_stale"] is False
     assert len(spec["items"]) >= 1
+    assert spec["generation_status"] == "generated"
+    assert spec["generation_diagnostics"] == []
 
     # 5) Third generate without selections remains deterministic generated.
     third = await client.post(
