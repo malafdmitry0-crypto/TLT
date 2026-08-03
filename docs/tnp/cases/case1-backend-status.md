@@ -1,7 +1,23 @@
 # Статус бэкенда по кейсу 1 «Расчёт спецификации для неавторизованных пользователей»
 
-**Дата оценки:** 2026-08-03 (повторная; первая — тем же днём до коммитов 3abab01…d399241)
+**Дата оценки:** 2026-08-03 (повторная; первая — тем же днём до коммитов 3abab01…d399241)  
+**Последнее закрытие спецификации (engineering):** 2026-08-04, HEAD `5038c56`  
 **Статус:** рабочая ведомость (снимок соответствия), не ACTIVE-очередь.
+
+> **Errata 2026-08-03 вечер (HEAD `33079ef`+):**  
+> 1) Iдоп: формула `sections.py` **fail-closed** при `None` (`SECTION_CURRENT_LIMIT_REQUIRED`) — пункты «optional Iдоп / only Lмакс» **устарели**.  
+> 2) `project_io` schema v3 + snapshot consumers усилены коммитом `33079ef` — IO-пробелы FE, не «CSV only objects».  
+> 3) Полная сверка: [`case1-docs-verification.md`](./case1-docs-verification.md).
+
+> **Оценка №4 — engineering closed (2026-08-04, HEAD `5038c56`):**  
+> Спецификация **как кодовый контур** закрыта: UUID BOM, selection GET/PUT + project IO,  
+> ER-level ceil, seed-debt bootstrap, last generation status на GET (F5), FE hydrate,  
+> stale fingerprint fail-closed, HTTP production flow + E2E phase5 **17/17** на `:3003`.  
+> **Не production authority:** active catalog = `seed-debt-v1` (TECH-DEBT), owner  
+> MATERIALS / EX-RGR / COMMON **OPEN**. Критические оговорки №3 п.1–5 **сняты кодом**  
+> (кроме owner-матриц и замены seed-debt). Электрика (п.6) — вне этого закрытия.  
+> Матрица: локальный audit `docs/audit/2026-08-03-specification-production/closure-matrix.md`.
+
 Парный документ по фронту: [`case1-frontend-checklist.md`](./case1-frontend-checklist.md).
 План закрытия: [`case1-closure-slice-plan.md`](./case1-closure-slice-plan.md).
 
@@ -19,8 +35,10 @@ canonical generation service, preflight rules v2, обработчики 422 в 
 | 5. Объекты и теплорасчёт | ~85% | ~92% | **~92%** | без изменений |
 | 6. Электротехнический расчёт | ~72% | ~78% | **~83%** | справочники 230 В, посев active/approved каталогов, сводка+UUID |
 | 7. Спецификация | ~45% | ~55% | **~84%*** | калькуляторы BOM на Decimal, snapshot, selection, группировки |
+| 7. Спецификация (№4 eng.) | — | — | **~95%†** | end-to-end path closed; residual = owner catalog authority |
 
-\* по коду; см. критические оговорки оценки №3 ниже.
+\* по коду; см. критические оговорки оценки №3 ниже.  
+† engineering; production claim blocked on owner-approved catalog (не seed-debt).
 
 ## Оценка №3 (2026-08-03, вечер) — дельта и критические оговорки
 
@@ -37,29 +55,19 @@ provenance персистится, fingerprint сверяется под лок�
 selection-протокол (0/1/N кандидатов, ER-scoped группы); `merge_materials` применяется;
 multi-ЭР — savepoint per ER. HTTP-endpoints admin import/activate каталога появились.
 
-**Критические оговорки №3:**
+**Критические оговорки №3** (исторический снимок вечера 2026-08-03):
 
-1. **Рабочая копия в моменте несогласована (не запускается)**: рефактор
-   `variant_number/generation_options → snapshot` доведён до моделей/схем/API, но не до
-   `specification_service.py` (`:210,267,601,865,1011`), `project_io_service.py:346-368`,
-   `report_service.py:97,107`, `calculation_service.py:2729`,
-   `electrical_assignment_service.py:1268`, `seeds.py:1716-1732`;
-   `_upsert_specification(snapshot=...)` и `save_items(...)` вызываются с несовпадающими
-   сигнатурами; repo-lock тест `test_canonical_path_no_legacy_builder.py` красный.
-2. **Каталог спецификации не засеян**: bundled-payload нет, seeds не создают
-   `SpecificationCatalogVersion` → dev/prod дают 503 `SPEC_CATALOG_UNAVAILABLE` до ручного
-   admin-импорта (в отличие от электрокаталогов, у которых посев появился).
-3. **Авторитетной Ex/R_gr-матрицы коробок нет**: валидация принимает все условия `"unused"`,
-   тестовая фикстура матчит все 12 коробок на любую трубу.
-4. Семантика `ceil`: округление по секциям типа объекта, потом суммирование — завышение при
-   нескольких типах; раздел «Общие материалы» в `separate_by_object_type` не формируется.
-5. `catalog_selections` не персистятся на сервере (клиент шлёт при каждом запросе).
-6. Электрика: топ-пробелы №2 не сдвинулись (`cable-options` = ТЛТ-заглушка, legacy
-   `cable_type` валиден, batch без UUID/Idempotency-Key, нет гейта §9.15,
-   `supply_voltage: 220` в `project_object_params.py:66` — теперь рассогласован и со
-   справочниками 230 В).
-7. Фронт: отладочный `console.log('SPEC_DEBUG_ON_SUCCESS', …)` в
-   `useSpecificationPageModel.ts:153` — блокер console-seal.
+1. ~~Рабочая копия несогласована~~ → **снято** (UUID path + legacy builders removed, HEAD `297ffb5`+).
+2. ~~Каталог не засеян~~ → **частично**: есть `seed-debt-v1` + `--specification-catalog-only`
+   (**TECH-DEBT**, не owner-approved).
+3. **Авторитетной Ex/R_gr owner-матрицы нет** — OPEN (`SPEC-OWNER-EX-RGR`); fail-closed authority
+   path есть, placeholder activation запрещён.
+4. ~~ceil по object-type first~~ → **снято кодом** (ER-level ceil kits, `fccd1a0`); owner COMMON
+   mapping table всё ещё OPEN.
+5. ~~`catalog_selections` только на клиенте~~ → **снято** (таблица + GET/PUT + project IO + F5 status).
+6. Электрика: топ-пробелы №2 **не входят** в закрытие спецификации (отдельный track Slice 6).
+7. ~~FE `console.log SPEC_DEBUG`~~ → считать **снятым** при зелёном phase5 / console-seal path
+   (повторно не воспроизводилось в closure 2026-08-04).
 
 *Ниже — детальный разбор состояния на оценку №2 (сохранён как история); проценты в
 заголовках разделов соответствуют №2.*

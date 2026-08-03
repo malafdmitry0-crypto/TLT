@@ -1,11 +1,12 @@
 # План слайсов закрытия кейса 1 (до 100%)
 
-**Дата:** 2026-08-03
+**Дата:** 2026-08-03  
+**Обновление закрытия спецификации:** 2026-08-04 (HEAD `5038c56`)  
 **Статус:** рабочая ведомость планирования, не ACTIVE-очередь; маршрутизация frontend-работ —
-через [`../../frontend/refactor-backlog.md`](../../frontend/refactor-backlog.md).
-**Входные снимки:** [`case1-backend-status.md`](./case1-backend-status.md) (оценка №3),
-[`case1-frontend-checklist.md`](./case1-frontend-checklist.md), инвентаризация фич фронта
-от 2026-08-03 (вечер).
+через [`../../frontend/refactor-backlog.md`](../../frontend/refactor-backlog.md).  
+**Спецификация (BE path + FE selection/F5):** **ENGINEERING CLOSED** — residual owner catalog.  
+**Входные снимки:** [`case1-backend-status.md`](./case1-backend-status.md) (оценка №3 + errata №4),
+[`case1-frontend-checklist.md`](./case1-frontend-checklist.md).
 
 **Принципы:** слайсы вертикальные и маленькие; каждый заканчивается зелёными тестами и
 работающим сценарием; порядок — сначала конец-в-конец гостевой путь «объект → ЭР →
@@ -38,43 +39,27 @@
 Acceptance: сгенерированная спецификация раскладывается по секциям «Трубы/Бочки»;
 TT-объект не даёт выбрать 4+ ниток; при selection/confirmation диагностики видны.
 
-## Slice 1 — каталог спецификации из коробки (BE) `[ ]`
+## Slice 1 — каталог спецификации из коробки (BE) `[x]` path / `[ ]` owner authority
 
-- [ ] Bundled-payload BOM-каталога из approved-части `reference_data`
-      (кабель `electrical_tt_bom_v1.json`, комплекты/расходники из `spec_accessories.json` —
-      добавить недостающие `sections_per_kit`, `consumption_m_per_cable_m`, provenance-поля).
-- [ ] Посев в `seeds.py` (по образцу `seed_electrical_catalogs`) + режим
-      `--specification-catalog-only`.
-- [ ] Интеграционный HTTP e2e: `POST /generate → 201 generated → GET /variants/{er}` строки
-      в ответе; тест «dev-seed даёт активный каталог».
-- [ ] Тест «валидный выбор из N кандидатов → generated с выбранной позицией».
+- [x] Bundled bootstrap + `seeds --specification-catalog-only` (**seed-debt-v1**, TECH-DEBT).
+- [x] HTTP many→PUT→generate→GET + auto_single + fail-closed 503/zero/stale fingerprint.
+- [x] E2E phase5 **17/17** на dev `:3003`.
+- [ ] **Residual:** заменить seed-debt owner-approved payload (`SPEC-OWNER-MATERIALS` + `EX-RGR`).
 
-⚠️ Риск/решение: категория `box` требует авторитетной Ex/R_gr-матрицы (см. Parking lot P1);
-если `is_complete` каталога требует боксы — согласовать с владельцем временный approved-набор
-или явное исключение категории с blocking-диагностикой.
+Acceptance path: **met for engineering/demo**. Production authority: **not met**.
 
-Acceptance: на чистом стенде гость проходит «объект → ЭР → Сформировать» и видит позиции.
+## Slice 2 — наблюдаемость спецификации (BE+FE) `[x]` core / polish open
 
-## Slice 2 — наблюдаемость спецификации (BE+FE) `[ ]`
+- [x] **BE:** GET `/variants/{er}` → `generation_status` + diagnostics + candidate_groups (REM-02).
+- [x] **FE:** F5 hydrate selection/confirm/blocked from GET (REM-05).
+- [ ] **FE polish:** per-ER status on tabs; kind-specific alerts; ER name in candidate panel.
 
-- [ ] **BE:** GET `/variants/{er}` отдаёт `status` и `diagnostics` последней генерации
-      (персист рядом со snapshot) — статус переживает F5.
-- [ ] **FE:** per-ER индикация статуса на вкладках (`erTabItems`); диагностики привязаны к
-      своему ЭР (убрать `flatMap` в общую кучу).
-- [ ] **FE:** ветвление UI по `kind`: blocking → danger-алерт, confirmable → окно
-      подтверждения, selection_required → панель кандидатов; вынести диагностики из модалки
-      настроек на страницу.
-- [ ] **FE:** в панели кандидатов показывать имя ЭР (сейчас сырой UUID,
-      `SpecCandidateSelectionPanel.tsx:90-91`).
+## Slice 3 — выбор кандидатов: полный цикл (FE+BE) `[x]`
 
-## Slice 3 — выбор кандидатов: полный цикл (FE, чуть BE) `[ ]`
-
-- [ ] **FE:** гидратация выбора из `snapshot.selections` / `selected_catalog_item_ids`
-      (бэкенд уже сохраняет — фронт не читает) → выбор переживает reload без серверных правок.
-- [ ] **FE:** ветка «сохранённый выбор больше не в кандидатах» (бэкенд шлёт
-      `reason: catalog_selection_stale_group`) — отдельный warning + запрос нового выбора.
-- [ ] **BE (опц.):** серверный персист `catalog_selections` в настройках проекта, если
-      гидратации из snapshot недостаточно (решить по результатам Slice 2).
+- [x] Server GET/PUT `catalog-selections` + project IO + generate without client store.
+- [x] Stale fingerprint fail-closed in preflight (`5038c56`).
+- [x] FE panel + confirm after F5 without live generate response.
+- [ ] **Polish:** explicit UX copy when choice dropped (status already returns).
 
 ## Slice 4 — UX кейса 7.x на странице спецификации (FE) `[ ]`
 
@@ -109,16 +94,20 @@ Acceptance: на чистом стенде гость проходит «объ�
 
 ## Slice 6 — ЭР: зачистка бэкенда (BE) `[ ]`
 
+**Детальный план:** [`electrical-slice6-polish-plan.md`](./electrical-slice6-polish-plan.md)
+(B1/B2/B4/B6, №8, §9.15, import policy, PR-DAG, acceptance).
+
 - [ ] Закрыть вход legacy `cable_type` (только `self_regulating_tt`), убрать дефолты
       `"self_regulating"`, вырезать legacy-ветки из прод-пути.
 - [ ] `GET /calc/cable-options` → TT-модели (серия, мощность при T3, причины недоступности,
       параметр ЭР).
-- [ ] `electrical_variant_id` + `Idempotency-Key` в `/calc/electrical`, `/batch`, `/page`.
+- [ ] `electrical_variant_id` + `Idempotency-Key` + `expected_assignment_version` в
+      `/calc/electrical`, `/batch`, `/page` (UUID-first).
 - [ ] Финальный гейт §9.15 после секционирования (`Pуст ≥ Pтреб`, `Lфакт ≥ Lтреб`).
 - [ ] Табличный статус: разделить «Требуется перерасчёт» (stale) и «Требуется корректировка»
       (error).
-- [ ] Удалить мёртвый `_apply_section_plan`; зачистить 220 В (cables_tlt.json, демо-сиды,
-      legacy-схемы).
+- [ ] Нитки `1..3` на всех публичных схемах (residual `le=100`); fail-closed вместо
+      fallback 220 В / −20 °C; зачистка `cables_tlt.json` / демо-сидов / import legacy policy.
 
 ## Slice 7 — heat-calc доделки (FE+BE) `[ ]`
 
