@@ -36,6 +36,7 @@ const apiMocks = vi.hoisted(() => {
         field('index', 'text', []),
         field('object_name'),
         field('electrical_status', 'enum', ['in'], [
+          { value: 'stale', label: 'Требуется перерасчёт' },
           { value: 'calculated', label: 'Рассчитан' },
           { value: 'error', label: 'Ошибка' },
           { value: 'unsupported', label: 'Не применимо' },

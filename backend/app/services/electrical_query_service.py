@@ -102,7 +102,8 @@ class FieldDef:
 OBJECT_TYPE_OPTIONS = (("pipe", "Труба"), ("tank", "Резервуар"))
 STATUS_OPTIONS = (
     ("calculated", "Рассчитан"),
-    ("error", "Ошибка"),
+    ("stale", "Требуется перерасчёт"),
+    ("error", "Требуется корректировка"),
     ("unsupported", "Не применимо"),
     ("not_calculated", "Не рассчитан"),
 )
@@ -258,7 +259,7 @@ def _sql_electrical_status() -> Any:
         (_sql_calc_result_text("category") == "unsupported", literal("unsupported")),
         (
             or_(_sql_calc_result_text("category") == "stale", stale_text == "true"),
-            literal("not_calculated"),
+            literal("stale"),
         ),
         (
             or_(
@@ -458,7 +459,7 @@ def _electrical_status(row: ElectricalQueryRow) -> str:
     if status == "unsupported":
         return "unsupported"
     if status == "stale":
-        return "not_calculated"
+        return "stale"
     if status == "failed":
         return "error"
     if status == "success":
