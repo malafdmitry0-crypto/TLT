@@ -14,14 +14,14 @@ from app.schemas.specification import (
     SpecificationDiagnostic,
     SpecificationDiagnosticCode,
     SpecificationErrorEnvelope,
-    SpecificationGenerationRequestV2,
+    SpecificationGenerationRequest,
     SpecificationGenerationStatus,
     SpecificationGroupingMode,
     SpecificationIssueKind,
     SpecificationPreflightStatus,
     SpecificationResolvedOptions,
-    SpecificationVariantGenerationResultV2,
-    SpecificationVariantPreflightResultV2,
+    SpecificationVariantGenerationResult,
+    SpecificationVariantPreflightResult,
 )
 
 GOLDENS_PATH = Path(__file__).parents[2] / "fixtures" / "specification_normalized_goldens.json"
@@ -47,23 +47,23 @@ def _canonical_request_data(*variant_ids):
 class TestCanonicalGenerationRequest:
     def test_requires_explicit_non_empty_variant_scope(self):
         with pytest.raises(ValidationError):
-            SpecificationGenerationRequestV2.model_validate({})
+            SpecificationGenerationRequest.model_validate({})
         with pytest.raises(ValidationError):
-            SpecificationGenerationRequestV2.model_validate({"variant_ids": []})
+            SpecificationGenerationRequest.model_validate({"variant_ids": []})
 
     def test_rejects_duplicate_or_more_than_five_variants(self):
         variant_id = uuid4()
         with pytest.raises(ValidationError, match="must be unique"):
-            SpecificationGenerationRequestV2.model_validate(
+            SpecificationGenerationRequest.model_validate(
                 {"variant_ids": [variant_id, variant_id]}
             )
         with pytest.raises(ValidationError):
-            SpecificationGenerationRequestV2.model_validate(
+            SpecificationGenerationRequest.model_validate(
                 {"variant_ids": [uuid4() for _ in range(6)]}
             )
 
     def test_preserves_canonical_option_names_and_decimal_values(self):
-        request = SpecificationGenerationRequestV2.model_validate(_canonical_request_data(uuid4()))
+        request = SpecificationGenerationRequest.model_validate(_canonical_request_data(uuid4()))
         assert request.options.grouping_mode is SpecificationGroupingMode.SEPARATE_BY_OBJECT_TYPE
         assert request.options.l_k2i_m == Decimal("0")
         assert request.options.r_gr == Decimal("1")
@@ -73,7 +73,7 @@ class TestCanonicalGenerationRequest:
         assert dumped["options"]["R_gr"] == "1"
 
     def test_missing_options_stay_unresolved_instead_of_becoming_mocks(self):
-        request = SpecificationGenerationRequestV2(variant_ids=[uuid4()])
+        request = SpecificationGenerationRequest(variant_ids=[uuid4()])
         assert request.options.ex is None
         assert request.options.r_gr is None
         with pytest.raises(ValidationError):
@@ -85,17 +85,17 @@ class TestCanonicalGenerationRequest:
                 }
             )
 
-    def test_legacy_frontend_field_is_not_part_of_v2_contract(self):
+    def test_legacy_frontend_field_is_not_part_of_canonical_contract(self):
         variant_id = uuid4()
         with pytest.raises(ValidationError):
-            SpecificationGenerationRequestV2.model_validate(
+            SpecificationGenerationRequest.model_validate(
                 {"electrical_variant_ids": [str(variant_id)]}
             )
 
     def test_catalog_selections_require_immutable_item_uuids(self):
         variant_id = uuid4()
         item_id = uuid4()
-        request = SpecificationGenerationRequestV2.model_validate(
+        request = SpecificationGenerationRequest.model_validate(
             {
                 "variant_ids": [variant_id],
                 "catalog_selections": {"connection.low": str(item_id)},
@@ -103,14 +103,14 @@ class TestCanonicalGenerationRequest:
         )
         assert request.catalog_selections == {"connection.low": item_id}
         with pytest.raises(ValidationError):
-            SpecificationGenerationRequestV2.model_validate(
+            SpecificationGenerationRequest.model_validate(
                 {
                     "variant_ids": [variant_id],
                     "catalog_selections": {"connection.low": "first-row"},
                 }
             )
         with pytest.raises(ValidationError, match="trimmed"):
-            SpecificationGenerationRequestV2.model_validate(
+            SpecificationGenerationRequest.model_validate(
                 {
                     "variant_ids": [variant_id],
                     "catalog_selections": {" connection.low ": item_id},
@@ -145,7 +145,7 @@ class TestTypedDiagnostics:
             kind=kind,
             message="stable test diagnostic",
         )
-        result = SpecificationVariantPreflightResultV2(
+        result = SpecificationVariantPreflightResult(
             electrical_variant_id=uuid4(),
             status=status,
             diagnostics=[diagnostic],
@@ -154,7 +154,7 @@ class TestTypedDiagnostics:
 
     def test_generation_result_and_error_envelope_are_per_er_and_stable(self):
         variant_id = uuid4()
-        result = SpecificationVariantGenerationResultV2(
+        result = SpecificationVariantGenerationResult(
             electrical_variant_id=variant_id,
             status=SpecificationGenerationStatus.BLOCKED,
             diagnostics=[
@@ -182,7 +182,7 @@ class TestTypedDiagnostics:
 
     def test_preflight_status_must_match_diagnostic_precedence(self):
         with pytest.raises(ValidationError, match="diagnostic precedence"):
-            SpecificationVariantPreflightResultV2(
+            SpecificationVariantPreflightResult(
                 electrical_variant_id=uuid4(),
                 status=SpecificationPreflightStatus.READY,
                 diagnostics=[
@@ -194,14 +194,14 @@ class TestTypedDiagnostics:
                 ],
             )
         with pytest.raises(ValidationError, match="subset"):
-            SpecificationVariantPreflightResultV2(
+            SpecificationVariantPreflightResult(
                 electrical_variant_id=uuid4(),
                 status=SpecificationPreflightStatus.READY,
                 unassigned_object_ids=[],
                 excluded_unassigned_object_ids=[uuid4()],
             )
         with pytest.raises(ValidationError, match="input fingerprint"):
-            SpecificationVariantPreflightResultV2(
+            SpecificationVariantPreflightResult(
                 electrical_variant_id=uuid4(),
                 status=SpecificationPreflightStatus.READY,
             )

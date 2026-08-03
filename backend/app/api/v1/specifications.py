@@ -2,15 +2,18 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import CurrentPrincipal, require_any, require_employee
 from app.schemas.specification import (
+    SpecificationDiagnosticCode,
+    SpecificationErrorDetail,
+    SpecificationErrorEnvelope,
     SpecificationGenerateResponse,
-    SpecificationGenerationRequestV2,
-    SpecificationGenerationResponseV2,
+    SpecificationGenerationRequest,
+    SpecificationGenerationResponse,
     SpecificationItem,
     SpecificationResponse,
     SpecificationSettingsResponse,
@@ -27,14 +30,37 @@ from app.services.project_service import (
     ProjectNotFoundError,
     ProjectService,
 )
-from app.services.specification_generation_v2_service import (
-    SpecificationGenerationV2Service,
+from app.services.specification_generation_service import (
+    SpecificationGenerationService,
     SpecificationProjectSettingsService,
 )
 from app.services.specification_preflight_service import SpecificationPreflightServiceError
 from app.services.specification_service import SpecificationService
 
 router = APIRouter()
+
+
+def _generation_http_status(generated: SpecificationGenerationResponse) -> int:
+    if any(result.status == "generated" for result in generated.results):
+        return status.HTTP_201_CREATED
+    if any(result.status == "blocked" for result in generated.results):
+        return status.HTTP_422_UNPROCESSABLE_CONTENT
+    return status.HTTP_409_CONFLICT
+
+
+def _specification_http_error(
+    *,
+    status_code: int,
+    code: SpecificationDiagnosticCode,
+    message: str,
+) -> HTTPException:
+    return HTTPException(
+        status_code=status_code,
+        detail=SpecificationErrorDetail(
+            code=code,
+            message=message,
+        ).model_dump(mode="json"),
+    )
 
 
 @router.get(
@@ -103,10 +129,7 @@ async def get_specification(
         await ProjectService(db).get_project_basic(project_id, principal)
         if electrical_variant_id is not None:
             await ElectricalVariantService(db).validate_legacy_variant_for_read(
-                project_id,
-                principal,
-                variant,
-                electrical_variant_id,
+                project_id, principal, variant, electrical_variant_id
             )
     except ElectricalVariantServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
@@ -125,39 +148,68 @@ async def get_specification(
 
 @router.post(
     "/{project_id}/generate",
-    response_model=SpecificationGenerationResponseV2,
+    response_model=SpecificationGenerationResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Сформировать спецификации выбранных ЭР (V2)",
+    responses={
+        status.HTTP_403_FORBIDDEN: {"model": SpecificationErrorEnvelope},
+        status.HTTP_404_NOT_FOUND: {"model": SpecificationErrorEnvelope},
+        status.HTTP_409_CONFLICT: {"model": SpecificationGenerationResponse},
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "model": SpecificationGenerationResponse | SpecificationErrorEnvelope
+        },
+        status.HTTP_503_SERVICE_UNAVAILABLE: {"model": SpecificationErrorEnvelope},
+    },
+    summary="Сформировать спецификации выбранных ЭР",
 )
 async def generate_specification(
     project_id: UUID,
-    data: SpecificationGenerationRequestV2,
+    data: SpecificationGenerationRequest,
+    response: Response,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
     try:
         await ProjectService(db).get_project_for_write(project_id, principal)
     except ProjectNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise _specification_http_error(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code=SpecificationDiagnosticCode.PROJECT_NOT_FOUND,
+            message=str(exc),
+        ) from exc
     except ProjectAccessError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
+        raise _specification_http_error(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code=SpecificationDiagnosticCode.PROJECT_ACCESS_DENIED,
+            message=str(exc),
+        ) from exc
 
     try:
-        response = await SpecificationGenerationV2Service(db).generate(project_id, principal, data)
+        generated = await SpecificationGenerationService(db).generate(project_id, principal, data)
     except SpecificationPreflightServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
+    generated_count = sum(result.status == "generated" for result in generated.results)
+    response.status_code = _generation_http_status(generated)
     await AuditService(db).try_record(
-        event_type="specification.generated",
+        event_type=(
+            "specification.generated"
+            if generated_count
+            else "specification.generation_not_completed"
+        ),
         category="specification",
         principal=principal,
         project_id=project_id,
         details={
             "electrical_variant_ids": [str(item) for item in data.variant_ids],
-            "generated_count": sum(result.status == "generated" for result in response.results),
+            "generated_count": generated_count,
+            "statuses": [result.status.value for result in generated.results],
         },
-        message="Сформированы спецификации выбранных ЭР",
+        message=(
+            "Сформированы спецификации выбранных ЭР"
+            if generated_count
+            else "Формирование спецификаций не завершено"
+        ),
     )
-    return response
+    return generated
 
 
 @router.put(

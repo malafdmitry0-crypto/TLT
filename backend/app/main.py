@@ -300,6 +300,54 @@ app.add_middleware(MaxBodySizeMiddleware)
 async def validation_exception_handler(
     request: Request, exc: RequestValidationError
 ) -> JSONResponse:
+    errors = exc.errors()
+    is_specification_generate = (
+        request.url.path.endswith("/generate")
+        and "/specifications/" in request.url.path
+    )
+    variant_ids_required = any(
+        tuple(error["loc"][-2:]) == ("body", "variant_ids")
+        and (
+            error["type"] == "missing"
+            or (
+                error["type"] == "too_short"
+                and error.get("ctx", {}).get("actual_length") == 0
+            )
+        )
+        for error in errors
+    )
+    issues = [
+        {
+            "path": ".".join(str(component) for component in error["loc"]),
+            "message": error["msg"],
+            "type": error["type"],
+        }
+        for error in errors
+    ]
+    if is_specification_generate and variant_ids_required:
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            content={
+                "detail": {
+                    "code": "SPEC_VARIANT_IDS_REQUIRED",
+                    "message": "variant_ids must contain from one to five UUIDs",
+                    "issues": issues,
+                    "details": {},
+                }
+            },
+        )
+    if is_specification_generate:
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            content={
+                "detail": {
+                    "code": "SPEC_REQUEST_INVALID",
+                    "message": "Invalid specification generation request",
+                    "issues": issues,
+                    "details": {},
+                }
+            },
+        )
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         content={

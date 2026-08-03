@@ -16,25 +16,21 @@ from app.models.project_object import ProjectObject
 from app.models.specification import Specification
 from app.models.user import User
 from app.schemas.specification import (
-    SpecificationCatalogSnapshotV2,
+    SpecificationCatalogSnapshot,
     SpecificationDiagnostic,
     SpecificationDiagnosticCode,
-    SpecificationGenerationRequestV2,
+    SpecificationGenerationRequest,
     SpecificationGenerationStatus,
     SpecificationGroupingMode,
     SpecificationIssueKind,
     SpecificationPreflightStatus,
     SpecificationRequestedOptions,
     SpecificationResolvedOptions,
-    SpecificationVariantPreflightResultV2,
+    SpecificationVariantPreflightResult,
 )
-from app.services.specification_generation_v2_service import (
-    SpecificationGenerationV2Service,
+from app.services.specification_generation_service import (
+    SpecificationGenerationService,
     SpecificationProjectSettingsService,
-)
-from app.services.specification_service import (
-    SpecificationGenerateResult,
-    SpecificationService,
 )
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
@@ -119,7 +115,7 @@ async def test_settings_change_is_versioned_and_stales_every_spec_atomically(
     assert repeated.version == 2
 
 
-async def test_settings_reader_translates_only_persisted_legacy_values(
+async def test_settings_reader_ignores_legacy_values(
     db_session: AsyncSession,
     employee_user: User,
 ) -> None:
@@ -140,14 +136,14 @@ async def test_settings_reader_translates_only_persisted_legacy_values(
 
     response = await SpecificationProjectSettingsService(db_session).get(project.id)
     assert response.version == 7
-    assert response.settings.ex is False
-    assert response.settings.l_k2i_m == 0
-    assert response.settings.r_gr == 1.25
+    assert response.settings.ex is None
+    assert response.settings.l_k2i_m is None
+    assert response.settings.r_gr is None
     assert response.settings.k1i is None
     assert "connector_kit_sections_per_kit" not in response.settings.model_dump()
 
 
-async def test_generation_keeps_ready_variants_independent_and_snapshots_shared_options(
+async def test_generation_fails_closed_until_canonical_calculators_are_connected(
     db_session: AsyncSession,
     employee_user: User,
     monkeypatch: pytest.MonkeyPatch,
@@ -189,7 +185,7 @@ async def test_generation_keeps_ready_variants_independent_and_snapshots_shared_
             "R_gr": "1.1",
         }
     )
-    catalog = SpecificationCatalogSnapshotV2(
+    catalog = SpecificationCatalogSnapshot(
         id=uuid.uuid4(),
         catalog_key="approved-catalog",
         version="2026-08-03",
@@ -198,7 +194,7 @@ async def test_generation_keeps_ready_variants_independent_and_snapshots_shared_
         schema_version=1,
     )
     ready = [
-        SpecificationVariantPreflightResultV2(
+        SpecificationVariantPreflightResult(
             electrical_variant_id=variant.id,
             electrical_variant_name=variant.name,
             status=SpecificationPreflightStatus.READY,
@@ -209,7 +205,7 @@ async def test_generation_keeps_ready_variants_independent_and_snapshots_shared_
         )
         for variant, digit in zip(variants[:2], ("1", "2"), strict=True)
     ]
-    blocked = SpecificationVariantPreflightResultV2(
+    blocked = SpecificationVariantPreflightResult(
         electrical_variant_id=variants[2].id,
         electrical_variant_name=variants[2].name,
         status=SpecificationPreflightStatus.BLOCKED,
@@ -223,43 +219,18 @@ async def test_generation_keeps_ready_variants_independent_and_snapshots_shared_
     )
     preflight_mock = AsyncMock(return_value=[ready[0], blocked, ready[1]])
     monkeypatch.setattr(
-        "app.services.specification_generation_v2_service."
+        "app.services.specification_generation_service."
         "SpecificationPreflightService.preflight_variants",
         preflight_mock,
     )
 
-    async def fake_generate(
-        _service: SpecificationService,
-        project_id: uuid.UUID,
-        variant_number: int,
-        **kwargs: object,
-    ) -> SpecificationGenerateResult:
-        variant_id = kwargs["electrical_variant_id"]
-        spec = Specification(
-            id=uuid.uuid4(),
-            project_id=project_id,
-            variant_number=variant_number,
-            electrical_variant_id=variant_id,
-            items=[],
-            generation_mode="full",
-            generation_options={},
-            is_stale=False,
-        )
-        db_session.add(spec)
-        await db_session.flush()
-        return SpecificationGenerateResult(
-            items=[],
-            electrical_variant_id=variant_id,
-        )
-
-    monkeypatch.setattr(SpecificationService, "generate", fake_generate)
-    request = SpecificationGenerationRequestV2(
+    request = SpecificationGenerationRequest(
         variant_ids=[variant.id for variant in variants],
         options=SpecificationRequestedOptions.model_validate(
             resolved.model_dump(by_alias=True, exclude={"catalog_id", "catalog_version"})
         ),
     )
-    response = await SpecificationGenerationV2Service(db_session).generate(
+    response = await SpecificationGenerationService(db_session).generate(
         project.id,
         CurrentPrincipal(
             role="employee",
@@ -270,9 +241,9 @@ async def test_generation_keeps_ready_variants_independent_and_snapshots_shared_
     )
 
     assert [item.status for item in response.results] == [
-        SpecificationGenerationStatus.GENERATED,
         SpecificationGenerationStatus.BLOCKED,
-        SpecificationGenerationStatus.GENERATED,
+        SpecificationGenerationStatus.BLOCKED,
+        SpecificationGenerationStatus.BLOCKED,
     ]
     persisted = list(
         (
@@ -285,13 +256,9 @@ async def test_generation_keeps_ready_variants_independent_and_snapshots_shared_
         .scalars()
         .all()
     )
-    assert [spec.electrical_variant_id for spec in persisted] == [
-        variants[0].id,
-        variants[1].id,
-    ]
-    assert (
-        persisted[0].generation_options["resolved_options"]
-        == persisted[1].generation_options["resolved_options"]
+    assert persisted == []
+    assert all(
+        result.diagnostics[0].code
+        is SpecificationDiagnosticCode.CANONICAL_CALCULATORS_UNAVAILABLE
+        for result in (response.results[0], response.results[2])
     )
-    assert all(spec.generation_options["settings_version"] == 4 for spec in persisted)
-    assert all(spec.generation_options["catalog"]["id"] == str(catalog.id) for spec in persisted)

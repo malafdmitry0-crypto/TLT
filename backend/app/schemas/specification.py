@@ -55,6 +55,9 @@ class SpecificationDiagnosticCode(StrEnum):
     """Stable codes утверждённого backend-контракта спецификации."""
 
     VARIANT_IDS_REQUIRED = "SPEC_VARIANT_IDS_REQUIRED"
+    REQUEST_INVALID = "SPEC_REQUEST_INVALID"
+    PROJECT_NOT_FOUND = "SPEC_PROJECT_NOT_FOUND"
+    PROJECT_ACCESS_DENIED = "SPEC_PROJECT_ACCESS_DENIED"
     VARIANT_NOT_FOUND = "SPEC_VARIANT_NOT_FOUND"
     VARIANT_PROJECT_MISMATCH = "SPEC_VARIANT_PROJECT_MISMATCH"
     UNASSIGNED_CONFIRMATION_REQUIRED = "SPEC_UNASSIGNED_CONFIRMATION_REQUIRED"
@@ -76,11 +79,12 @@ class SpecificationDiagnosticCode(StrEnum):
     ACCESSORY_SELECTION_REQUIRED = "SPEC_ACCESSORY_SELECTION_REQUIRED"
     BOX_EX_RGR_MATRIX_MISSING = "SPEC_BOX_EX_RGR_MATRIX_MISSING"
     FORMULA_INPUT_INVALID = "SPEC_FORMULA_INPUT_INVALID"
+    CANONICAL_CALCULATORS_UNAVAILABLE = "SPEC_CANONICAL_CALCULATORS_UNAVAILABLE"
     GENERATION_CONFLICT = "SPEC_GENERATION_CONFLICT"
 
 
 class SpecificationRequestedOptions(BaseModel):
-    """Опции V2 до resolution из versioned project settings.
+    """Опции до resolution из versioned project settings.
 
     ``None`` означает «разрешить из project settings», а не подставить mock или
     неявный business-default. После resolution сервис обязан получить
@@ -138,7 +142,7 @@ class SpecificationResolvedOptions(BaseModel):
         return value
 
 
-class SpecificationCatalogSnapshotV2(BaseModel):
+class SpecificationCatalogSnapshot(BaseModel):
     """Resolved immutable catalog identity used by preflight and fingerprints."""
 
     model_config = ConfigDict(extra="forbid")
@@ -151,7 +155,7 @@ class SpecificationCatalogSnapshotV2(BaseModel):
     schema_version: int = Field(ge=1)
 
 
-class SpecificationGenerationRequestV2(BaseModel):
+class SpecificationGenerationRequest(BaseModel):
     """Канонический UUID-scoped запрос; implicit-all отсутствует."""
 
     model_config = ConfigDict(extra="forbid")
@@ -201,7 +205,7 @@ class SpecificationErrorEnvelope(BaseModel):
     detail: SpecificationErrorDetail
 
 
-class SpecificationVariantPreflightResultV2(BaseModel):
+class SpecificationVariantPreflightResult(BaseModel):
     electrical_variant_id: UUID
     electrical_variant_name: str | None = None
     status: SpecificationPreflightStatus
@@ -211,13 +215,13 @@ class SpecificationVariantPreflightResultV2(BaseModel):
     excluded_unassigned_object_ids: list[UUID] = Field(default_factory=list)
     diagnostics: list[SpecificationDiagnostic] = Field(default_factory=list)
     resolved_options: SpecificationResolvedOptions | None = None
-    catalog: SpecificationCatalogSnapshotV2 | None = None
+    catalog: SpecificationCatalogSnapshot | None = None
     catalog_selections: dict[str, UUID] = Field(default_factory=dict)
     fingerprint_schema: Literal["specification-preflight/v1"] | None = None
     input_fingerprint: str | None = None
 
     @model_validator(mode="after")
-    def _validate_preflight_state(self) -> "SpecificationVariantPreflightResultV2":
+    def _validate_preflight_state(self) -> "SpecificationVariantPreflightResult":
         if self.contributing_objects > self.total_objects:
             raise ValueError("contributing_objects cannot exceed total_objects")
         if len(set(self.unassigned_object_ids)) != len(self.unassigned_object_ids):
@@ -263,8 +267,9 @@ class SpecificationVariantPreflightResultV2(BaseModel):
         return self
 
 
-class SpecificationVariantGenerationResultV2(BaseModel):
+class SpecificationVariantGenerationResult(BaseModel):
     electrical_variant_id: UUID
+    electrical_variant_name: str | None = None
     status: SpecificationGenerationStatus
     items: list[SpecificationItem] = Field(default_factory=list)
     excluded_unassigned_object_ids: list[UUID] = Field(default_factory=list)
@@ -272,10 +277,10 @@ class SpecificationVariantGenerationResultV2(BaseModel):
     snapshot: dict[str, Any] | None = None
 
 
-class SpecificationGenerationResponseV2(BaseModel):
+class SpecificationGenerationResponse(BaseModel):
     project_id: UUID
     settings_version: int
-    results: list[SpecificationVariantGenerationResultV2]
+    results: list[SpecificationVariantGenerationResult]
 
 
 class SpecificationOptions(BaseModel):

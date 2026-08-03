@@ -19,16 +19,16 @@ from app.models.electrical_variant import ElectricalVariant, ElectricalVariantOb
 from app.models.project import Project
 from app.models.project_object import ProjectObject
 from app.schemas.specification import (
-    SpecificationCatalogSnapshotV2,
+    SpecificationCatalogSnapshot,
     SpecificationDiagnostic,
     SpecificationDiagnosticCode,
-    SpecificationGenerationRequestV2,
+    SpecificationGenerationRequest,
     SpecificationGroupingMode,
     SpecificationIssueKind,
     SpecificationPreflightStatus,
     SpecificationRequestedOptions,
     SpecificationResolvedOptions,
-    SpecificationVariantPreflightResultV2,
+    SpecificationVariantPreflightResult,
 )
 from app.services.project_service import ProjectService
 from app.services.specification_catalog_service import (
@@ -83,8 +83,8 @@ class SpecificationPreflightService:
         self,
         project_id: UUID,
         principal: CurrentPrincipal,
-        request: SpecificationGenerationRequestV2,
-    ) -> list[SpecificationVariantPreflightResultV2]:
+        request: SpecificationGenerationRequest,
+    ) -> list[SpecificationVariantPreflightResult]:
         project = await ProjectService(self.db).get_project_basic(project_id, principal)
         variants = await self._variants(project_id, request.variant_ids)
         rows_by_variant = await self._assignment_rows(project_id, request.variant_ids)
@@ -99,7 +99,7 @@ class SpecificationPreflightService:
         )
         selection_diagnostic = _selection_diagnostic(request, catalog)
 
-        results: list[SpecificationVariantPreflightResultV2] = []
+        results: list[SpecificationVariantPreflightResult] = []
         for variant_id in request.variant_ids:
             variant = variants[variant_id]
             rows = rows_by_variant.get(variant_id, [])
@@ -153,7 +153,7 @@ class SpecificationPreflightService:
                 )
 
             results.append(
-                SpecificationVariantPreflightResultV2(
+                SpecificationVariantPreflightResult(
                     electrical_variant_id=variant.id,
                     electrical_variant_name=variant.name,
                     status=status,
@@ -285,9 +285,9 @@ def _preflight_assignment(
 
 def _catalog_snapshot(
     catalog: ResolvedSpecificationCatalog,
-) -> SpecificationCatalogSnapshotV2:
+) -> SpecificationCatalogSnapshot:
     version = catalog.version
-    return SpecificationCatalogSnapshotV2(
+    return SpecificationCatalogSnapshot(
         id=version.id,
         catalog_key=version.catalog_key,
         version=version.version,
@@ -423,7 +423,7 @@ def _option(
 
 
 def _selection_diagnostic(
-    request: SpecificationGenerationRequestV2,
+    request: SpecificationGenerationRequest,
     catalog: ResolvedSpecificationCatalog | None,
 ) -> SpecificationDiagnostic | None:
     if catalog is None or not request.catalog_selections:
@@ -456,7 +456,7 @@ def _input_fingerprint(
     variant_id: UUID,
     rows: Sequence[tuple[ElectricalVariantObject, ProjectObject, ElectricalCalculation | None]],
     resolved_options: SpecificationResolvedOptions,
-    catalog: SpecificationCatalogSnapshotV2,
+    catalog: SpecificationCatalogSnapshot,
     catalog_selections: Mapping[str, UUID],
     excluded_unassigned_object_ids: Sequence[UUID],
 ) -> str:

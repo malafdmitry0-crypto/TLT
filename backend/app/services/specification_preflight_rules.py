@@ -17,7 +17,7 @@ from app.schemas.specification import (
     SpecificationDiagnosticCode,
     SpecificationIssueKind,
     SpecificationPreflightStatus,
-    SpecificationVariantPreflightResultV2,
+    SpecificationVariantPreflightResult,
 )
 
 
@@ -78,7 +78,7 @@ def evaluate_specification_preflight(
     catalog: ImmutableSpecificationCatalog | None,
     exclude_unassigned_confirmed: bool,
     electrical_variant_name: str | None = None,
-) -> SpecificationVariantPreflightResultV2:
+) -> SpecificationVariantPreflightResult:
     """Evaluate only supplied ER assignments; this function has no side effects."""
     unassigned = sorted(
         (row.object_id for row in assignments if row.assignment_state == "unassigned"), key=str
@@ -135,7 +135,7 @@ def evaluate_specification_preflight(
             )
             status = SpecificationPreflightStatus.BLOCKED
 
-    return SpecificationVariantPreflightResultV2(
+    return SpecificationVariantPreflightResult(
         electrical_variant_id=electrical_variant_id,
         electrical_variant_name=electrical_variant_name,
         status=status,

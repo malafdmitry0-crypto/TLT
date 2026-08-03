@@ -64,7 +64,7 @@ def _settings_core(payload: dict[str, Any] | None) -> dict[str, Any]:
 
 
 def _read_legacy_formula_options(options: SpecificationOptions) -> SpecificationResolvedOptions:
-    """Compatibility reader for historical internal callers, never the V2 API path."""
+    """Compatibility reader for historical callers, never canonical generation."""
     return SpecificationResolvedOptions(
         catalog_id="legacy-compatibility",
         catalog_version="legacy-compatibility",

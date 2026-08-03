@@ -25,7 +25,7 @@ from app.models.specification import (
 from app.models.user import User
 from app.schemas.specification import (
     SpecificationDiagnosticCode,
-    SpecificationGenerationRequestV2,
+    SpecificationGenerationRequest,
     SpecificationPreflightStatus,
 )
 from app.services.specification_preflight_service import SpecificationPreflightService
@@ -234,7 +234,7 @@ async def test_uuid_preflight_isolates_variants_and_preserves_previous_specifica
     await db_session.commit()
     previous_updated_at = previous_specification.updated_at
 
-    request = SpecificationGenerationRequestV2.model_validate(
+    request = SpecificationGenerationRequest.model_validate(
         {
             "variant_ids": [ready_variant.id, legacy_only_variant.id],
             "options": {

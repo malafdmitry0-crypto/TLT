@@ -10,6 +10,7 @@ import { useMutation } from '@tanstack/react-query';
 
 import {
   generateSpecification,
+  getSpecificationErrorDetail,
   updateSpecificationSettings,
 } from '@/api/specifications';
 import type { SpecificationOptions } from '@/api/specifications';
@@ -180,7 +181,10 @@ export function useSpecificationPageModel() {
         });
       }
     },
-    onError: (e: Error) => message.error(e.message),
+    onError: (error) => {
+      const detail = getSpecificationErrorDetail(error);
+      message.error(detail ? `${detail.code}: ${detail.message}` : 'Не удалось сформировать спецификацию');
+    },
   });
 
   const isSpecStale = spec?.is_stale === true;
@@ -210,7 +214,10 @@ export function useSpecificationPageModel() {
       qc.invalidateQueries({ queryKey: ['spec-settings', project?.id], exact: true });
       qc.invalidateQueries({ queryKey: ['spec', project?.id], exact: false });
     },
-    onError: (e: Error) => message.error(e.message),
+    onError: (error) => {
+      const detail = getSpecificationErrorDetail(error);
+      message.error(detail ? `${detail.code}: ${detail.message}` : 'Не удалось сохранить настройки спецификации');
+    },
   });
 
   const runGenerate = (excludeUnassignedConfirmed = false) => {

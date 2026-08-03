@@ -23,7 +23,7 @@ from app.models.specification import (
 )
 from app.schemas.specification import (
     SpecificationDiagnosticCode,
-    SpecificationGenerationRequestV2,
+    SpecificationGenerationRequest,
     SpecificationPreflightStatus,
 )
 from app.services.project_service import ProjectService
@@ -203,7 +203,7 @@ def _request(
     confirmed: bool = False,
     selections: dict[str, uuid.UUID] | None = None,
     explicit_options: bool = True,
-) -> SpecificationGenerationRequestV2:
+) -> SpecificationGenerationRequest:
     options = (
         {
             "grouping_mode": "separate_by_object_type",
@@ -217,7 +217,7 @@ def _request(
         if explicit_options
         else {}
     )
-    return SpecificationGenerationRequestV2.model_validate(
+    return SpecificationGenerationRequest.model_validate(
         {
             "variant_ids": variant_ids,
             "options": options,
@@ -381,7 +381,7 @@ async def test_resolution_uses_request_then_project_and_preserves_false_and_zero
     variant = _variant(project_id, name="Mixed settings")
     db = _db_for([variant], [_row(project_id, variant.id)])
     _patch_read_boundaries(monkeypatch, project, _catalog())
-    request = SpecificationGenerationRequestV2.model_validate(
+    request = SpecificationGenerationRequest.model_validate(
         {
             "variant_ids": [variant.id],
             "options": {"Ex": False, "L_K2i_m": "0"},

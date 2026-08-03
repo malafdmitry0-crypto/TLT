@@ -48,6 +48,45 @@ export interface SpecificationDiagnostic {
   details: Record<string, unknown>;
 }
 
+export interface SpecificationErrorDetail {
+  code: string;
+  message: string;
+  issues: Array<Record<string, unknown>>;
+  details: Record<string, unknown>;
+}
+
+function normalizeSpecificationErrorDetail(detail: unknown): SpecificationErrorDetail | null {
+  if (typeof detail !== 'object' || detail == null) return null;
+  const detailRecord = detail as Record<string, unknown>;
+  if (typeof detailRecord.code !== 'string' || typeof detailRecord.message !== 'string') return null;
+  return {
+    code: detailRecord.code,
+    message: detailRecord.message,
+    issues: Array.isArray(detailRecord.issues)
+      ? detailRecord.issues.filter((issue): issue is Record<string, unknown> => (
+        typeof issue === 'object' && issue != null
+      ))
+      : [],
+    details: typeof detailRecord.details === 'object' && detailRecord.details != null
+      ? detailRecord.details as Record<string, unknown>
+      : {},
+  };
+}
+
+export function getSpecificationErrorDetail(error: unknown): SpecificationErrorDetail | null {
+  if (typeof error !== 'object' || error == null) return null;
+  if ('detail' in error) {
+    const normalized = normalizeSpecificationErrorDetail(error.detail);
+    if (normalized) return normalized;
+  }
+  if (!('response' in error)) return null;
+  const response = error.response;
+  if (typeof response !== 'object' || response == null || !('data' in response)) return null;
+  const data = response.data;
+  if (typeof data !== 'object' || data == null || !('detail' in data)) return null;
+  return normalizeSpecificationErrorDetail(data.detail);
+}
+
 export interface SpecificationGenerateVariantResult {
   electrical_variant_id: string;
   status: 'generated' | 'blocked' | 'confirmation_required' | 'selection_required';
@@ -61,6 +100,19 @@ export interface SpecificationGenerateResult {
   project_id: string;
   settings_version: number;
   results: SpecificationGenerateVariantResult[];
+}
+
+function getSpecificationGenerateResult(data: unknown): SpecificationGenerateResult | null {
+  if (typeof data !== 'object' || data == null) return null;
+  const candidate = data as Partial<SpecificationGenerateResult>;
+  if (
+    typeof candidate.project_id !== 'string'
+    || typeof candidate.settings_version !== 'number'
+    || !Array.isArray(candidate.results)
+  ) {
+    return null;
+  }
+  return candidate as SpecificationGenerateResult;
 }
 
 export interface SpecificationGenerationRequest {
@@ -110,11 +162,39 @@ export async function generateSpecification(
   projectId: string,
   request: SpecificationGenerationRequest,
 ): Promise<SpecificationGenerateResult> {
-  const { data } = await apiClient.post<SpecificationGenerateResult>(
+  const response = await apiClient.post<SpecificationGenerateResult | { detail?: unknown }>(
     `/specifications/${projectId}/generate`,
     request,
+    {
+      // 409/422 can carry valid per-ER preflight results. The body shape below
+      // distinguishes them from typed error envelopes.
+      validateStatus: (status) => (
+        (status >= 200 && status < 300)
+        || status === 409
+        || status === 422
+      ),
+    },
   );
-  return data;
+  const result = getSpecificationGenerateResult(response.data);
+  if (result) return result;
+
+  const detail = (
+    typeof response.data === 'object'
+    && response.data != null
+    && 'detail' in response.data
+  ) ? normalizeSpecificationErrorDetail(response.data.detail) : null;
+  if (detail) {
+    const error = new Error(detail.message) as Error & {
+      status: number;
+      code: string;
+      detail: SpecificationErrorDetail;
+    };
+    error.status = response.status;
+    error.code = detail.code;
+    error.detail = detail;
+    throw error;
+  }
+  throw new Error('Некорректный ответ формирования спецификации');
 }
 
 export async function saveSpecificationItems(
