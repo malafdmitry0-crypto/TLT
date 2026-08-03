@@ -511,9 +511,76 @@ def _advisory_key(catalog_key: str) -> int:
     return unsigned if unsigned < 2**31 else unsigned - 2**32
 
 
+def _as_catalog_id(value: UUID | str | None) -> UUID | str | None:
+    """Treat UUID-looking strings as version ids; keep catalog_key strings as-is."""
+    if value is None or isinstance(value, UUID):
+        return value
+    text = str(value).strip()
+    if not text:
+        return None
+    try:
+        return UUID(text)
+    except ValueError:
+        return text
+
+
 class SpecificationCatalogService:
     def __init__(self, db: AsyncSession):
         self.db = db
+
+    async def list_versions(
+        self,
+        *,
+        catalog_key: str | None = None,
+        status: str | None = None,
+    ) -> list[SpecificationCatalogVersion]:
+        filters = []
+        if catalog_key is not None:
+            filters.append(SpecificationCatalogVersion.catalog_key == catalog_key)
+        if status is not None:
+            filters.append(SpecificationCatalogVersion.status == status)
+        result = await self.db.execute(
+            select(SpecificationCatalogVersion)
+            .where(*filters)
+            .order_by(
+                SpecificationCatalogVersion.catalog_key,
+                SpecificationCatalogVersion.imported_at.desc(),
+                SpecificationCatalogVersion.version.desc(),
+            )
+        )
+        return list(result.scalars().all())
+
+    async def get_version(
+        self,
+        catalog_version_id: UUID,
+        *,
+        include_items: bool = True,
+    ) -> ResolvedSpecificationCatalog:
+        version = await self.db.scalar(
+            select(SpecificationCatalogVersion).where(
+                SpecificationCatalogVersion.id == catalog_version_id
+            )
+        )
+        if version is None:
+            raise SpecificationCatalogServiceError(
+                "SPEC_CATALOG_VERSION_NOT_FOUND",
+                "Версия specification catalog не найдена",
+                status_code=404,
+            )
+        items: tuple[SpecificationCatalogItem, ...] = ()
+        if include_items:
+            items = tuple(
+                (
+                    await self.db.execute(
+                        select(SpecificationCatalogItem)
+                        .where(SpecificationCatalogItem.catalog_version_id == version.id)
+                        .order_by(SpecificationCatalogItem.position)
+                    )
+                )
+                .scalars()
+                .all()
+            )
+        return ResolvedSpecificationCatalog(version=version, items=items)
 
     async def import_draft(
         self,
@@ -723,13 +790,15 @@ class SpecificationCatalogService:
         catalog_id: UUID | str | None = None,
         catalog_version: str | None = None,
     ) -> ResolvedSpecificationCatalog:
+        resolved_id = _as_catalog_id(catalog_id)
         filters = [SpecificationCatalogVersion.status == "active"]
-        if isinstance(catalog_id, UUID):
-            filters.append(SpecificationCatalogVersion.id == catalog_id)
+        if isinstance(resolved_id, UUID):
+            filters.append(SpecificationCatalogVersion.id == resolved_id)
         else:
+            # catalog_key pin, or unique active default key when nothing requested.
             filters.append(
                 SpecificationCatalogVersion.catalog_key
-                == (catalog_id or DEFAULT_SPECIFICATION_CATALOG_KEY)
+                == (resolved_id or DEFAULT_SPECIFICATION_CATALOG_KEY)
             )
         if catalog_version is not None:
             filters.append(SpecificationCatalogVersion.version == catalog_version)
@@ -737,7 +806,7 @@ class SpecificationCatalogService:
         if version is None:
             code = (
                 "SPEC_CATALOG_VERSION_INACTIVE"
-                if catalog_id is not None or catalog_version is not None
+                if resolved_id is not None or catalog_version is not None
                 else "SPEC_CATALOG_UNAVAILABLE"
             )
             raise SpecificationCatalogServiceError(

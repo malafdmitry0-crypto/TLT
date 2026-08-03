@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
+
+# Bound import payloads so admin HTTP cannot stream unbounded catalogs.
+SPECIFICATION_CATALOG_IMPORT_MAX_ITEMS = 5000
 
 
 class SpecificationCatalogStatus(StrEnum):
@@ -61,7 +65,10 @@ class SpecificationCatalogImportRequest(BaseModel):
     source: str = Field(min_length=1)
     source_checksum: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
     schema_version: int = Field(ge=1)
-    items: list[SpecificationCatalogItemInput] = Field(min_length=1)
+    items: list[SpecificationCatalogItemInput] = Field(
+        min_length=1,
+        max_length=SPECIFICATION_CATALOG_IMPORT_MAX_ITEMS,
+    )
 
 
 class SpecificationCatalogVersionResponse(BaseModel):
@@ -79,6 +86,35 @@ class SpecificationCatalogVersionResponse(BaseModel):
     item_count: int
     is_complete: bool
     validation_issues: list[dict[str, Any]]
+    imported_at: datetime | None = None
+    imported_by: str | None = None
+    activated_at: datetime | None = None
+    activated_by: str | None = None
+
+
+class SpecificationCatalogItemSummary(BaseModel):
+    """Admin-facing item row without raw formula parameter dump by default."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    item_key: str
+    category: SpecificationCatalogCategory
+    name: str
+    mark: str
+    nomenclature_code: str
+    supply_unit: str
+    source_ref: str
+    position: int
+    applicability: dict[str, Any] = Field(default_factory=dict)
+    package_parameters: dict[str, Any] = Field(default_factory=dict)
+    formula_parameters: dict[str, Any] = Field(default_factory=dict)
+
+
+class SpecificationCatalogDetailResponse(SpecificationCatalogVersionResponse):
+    """Version metadata plus ordered items for admin inspection."""
+
+    items: list[SpecificationCatalogItemSummary] = Field(default_factory=list)
 
 
 class SpecificationCatalogActivationResponse(BaseModel):

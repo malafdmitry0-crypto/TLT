@@ -402,6 +402,81 @@ async def test_resolution_uses_request_then_project_and_preserves_false_and_zero
     assert resolved.r_gr == pytest.approx(1.25)
 
 
+async def test_catalog_pin_uses_request_then_project_settings_then_default(monkeypatch):
+    project_id = uuid.uuid4()
+    project_catalog_id = uuid.uuid4()
+    request_catalog_id = uuid.uuid4()
+    project = _project(
+        project_id,
+        settings={
+            "catalog_id": str(project_catalog_id),
+            "catalog_version": "project-pinned-v1",
+            "grouping_mode": "separate_by_object_type",
+            "Ex": False,
+            "K1i": False,
+            "K2i": False,
+            "Kiu": False,
+            "L_K2i_m": "0",
+            "R_gr": "1",
+        },
+    )
+    variant = _variant(project_id, name="Catalog pin")
+    db = _db_for([variant], [_row(project_id, variant.id)])
+    catalog = _catalog()
+    resolve = AsyncMock(return_value=catalog)
+    monkeypatch.setattr(ProjectService, "get_project_basic", AsyncMock(return_value=project))
+    monkeypatch.setattr(SpecificationCatalogService, "resolve_active", resolve)
+
+    # Project settings only when request leaves catalog fields unset.
+    await SpecificationPreflightService(db).preflight_variants(
+        project_id,
+        CurrentPrincipal(role="employee", user_id=project.user_id),
+        _request([variant.id]),
+    )
+    assert str(resolve.await_args.kwargs["catalog_id"]) == str(project_catalog_id)
+    assert resolve.await_args.kwargs["catalog_version"] == "project-pinned-v1"
+
+    # Request pin wins over project settings.
+    resolve.reset_mock()
+    request = SpecificationGenerationRequest.model_validate(
+        {
+            "variant_ids": [variant.id],
+            "options": {
+                "catalog_id": str(request_catalog_id),
+                "catalog_version": "request-v9",
+                "grouping_mode": "separate_by_object_type",
+                "Ex": False,
+                "K1i": False,
+                "K2i": False,
+                "Kiu": False,
+                "L_K2i_m": "0",
+                "R_gr": "1",
+            },
+        }
+    )
+    db2 = _db_for([variant], [_row(project_id, variant.id)])
+    await SpecificationPreflightService(db2).preflight_variants(
+        project_id,
+        CurrentPrincipal(role="employee", user_id=project.user_id),
+        request,
+    )
+    assert str(resolve.await_args.kwargs["catalog_id"]) == str(request_catalog_id)
+    assert resolve.await_args.kwargs["catalog_version"] == "request-v9"
+
+    # Empty project settings → unique active default (None/None).
+    resolve.reset_mock()
+    bare = _project(project_id, settings={})
+    monkeypatch.setattr(ProjectService, "get_project_basic", AsyncMock(return_value=bare))
+    db3 = _db_for([variant], [_row(project_id, variant.id)])
+    await SpecificationPreflightService(db3).preflight_variants(
+        project_id,
+        CurrentPrincipal(role="employee", user_id=project.user_id),
+        _request([variant.id]),
+    )
+    assert resolve.await_args.kwargs["catalog_id"] is None
+    assert resolve.await_args.kwargs["catalog_version"] is None
+
+
 async def test_conflicting_legacy_object_options_never_affect_shared_resolution(monkeypatch):
     project_id = uuid.uuid4()
     project = _project(

@@ -361,6 +361,36 @@ async def test_resolve_explicit_inactive_version_has_stable_conflict_code():
     assert exc.value.status_code == 409
 
 
+async def test_resolve_active_accepts_uuid_string_catalog_id():
+    catalog_id = uuid.uuid4()
+    items = _persisted_items()
+    version = SpecificationCatalogVersion(
+        id=catalog_id,
+        catalog_key="builtin-specification",
+        version="approved-v1",
+        status="active",
+        authority="approved",
+        source="owner registry",
+        source_checksum=f"sha256:{'a' * 64}",
+        payload_checksum=_payload_checksum(items),
+        schema_version=1,
+        item_count=len(items),
+        is_complete=True,
+        validation_issues=[],
+    )
+    db = AsyncMock()
+    db.scalar = AsyncMock(return_value=version)
+    db.execute = AsyncMock(return_value=_items_result(items))
+
+    resolved = await SpecificationCatalogService(db).resolve_active(
+        catalog_id=str(catalog_id),
+        catalog_version="approved-v1",
+    )
+
+    assert resolved.version.id == catalog_id
+    assert len(resolved.items) == len(items)
+
+
 async def test_specification_preflight_blocks_before_reading_objects_without_catalog(
     monkeypatch: pytest.MonkeyPatch,
 ):

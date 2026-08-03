@@ -7,6 +7,10 @@ import type {
   CableExtendedPayload,
   Coefficient,
   CreateAdminUserRequest,
+  SpecificationCatalogActivationResult,
+  SpecificationCatalogDetail,
+  SpecificationCatalogImportRequest,
+  SpecificationCatalogVersion,
 } from '@/types/admin';
 
 export async function listUsers(): Promise<AdminUser[]> {
@@ -103,4 +107,43 @@ export async function updateAdminAccessory(
 
 export async function deleteAdminAccessory(id: string): Promise<void> {
   await apiClient.delete(`/admin/accessories/${id}`);
+}
+
+export async function listSpecificationCatalogs(params?: {
+  catalog_key?: string;
+  status?: 'draft' | 'active' | 'retired';
+}): Promise<SpecificationCatalogVersion[]> {
+  const { data } = await apiClient.get<SpecificationCatalogVersion[]>(
+    '/admin/specification-catalogs',
+    { params }
+  );
+  return data;
+}
+
+export async function getSpecificationCatalog(
+  catalogVersionId: string
+): Promise<SpecificationCatalogDetail> {
+  const { data } = await apiClient.get<SpecificationCatalogDetail>(
+    `/admin/specification-catalogs/${catalogVersionId}`
+  );
+  return data;
+}
+
+export async function importSpecificationCatalog(
+  payload: SpecificationCatalogImportRequest
+): Promise<SpecificationCatalogVersion> {
+  const { data } = await apiClient.post<SpecificationCatalogVersion>(
+    '/admin/specification-catalogs/import',
+    payload
+  );
+  return data;
+}
+
+export async function activateSpecificationCatalog(
+  catalogVersionId: string
+): Promise<SpecificationCatalogActivationResult> {
+  const { data } = await apiClient.post<SpecificationCatalogActivationResult>(
+    `/admin/specification-catalogs/${catalogVersionId}/activate`
+  );
+  return data;
 }

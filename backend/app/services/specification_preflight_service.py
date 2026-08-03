@@ -89,7 +89,7 @@ class SpecificationPreflightService:
         variants = await self._variants(project_id, request.variant_ids)
         rows_by_variant = await self._assignment_rows(project_id, request.variant_ids)
 
-        catalog, catalog_error = await self._catalog(request.options)
+        catalog, catalog_error = await self._catalog(project, request.options)
         catalog_snapshot = _catalog_snapshot(catalog) if catalog is not None else None
         immutable_catalog = _immutable_catalog(catalog) if catalog is not None else None
         resolved_options, options_diagnostic = _resolve_options(
@@ -239,12 +239,14 @@ class SpecificationPreflightService:
 
     async def _catalog(
         self,
+        project: Project,
         options: SpecificationRequestedOptions,
     ) -> tuple[ResolvedSpecificationCatalog | None, SpecificationDiagnostic | None]:
+        catalog_id, catalog_version = _resolve_catalog_pin(project, options)
         try:
             catalog = await SpecificationCatalogService(self.db).resolve_active(
-                catalog_id=options.catalog_id,
-                catalog_version=options.catalog_version,
+                catalog_id=catalog_id,
+                catalog_version=catalog_version,
             )
         except SpecificationCatalogServiceError as exc:
             try:
@@ -319,6 +321,28 @@ def _immutable_catalog(
         ),
         completeness_issues=tuple(version.validation_issues),
     )
+
+
+def _resolve_catalog_pin(
+    project: Project,
+    requested: SpecificationRequestedOptions,
+) -> tuple[UUID | str | None, str | None]:
+    """Resolve catalog pin: request → project settings → unique active default.
+
+    ``None``/``None`` means the catalog service picks the unique active default
+    (builtin catalog_key). Stored JSON may keep catalog_id as a UUID string.
+    """
+    raw_stored = getattr(project, "specification_settings", None)
+    stored = raw_stored if isinstance(raw_stored, Mapping) else {}
+    catalog_id = requested.catalog_id
+    if catalog_id is None:
+        catalog_id = _option(None, stored, "catalog_id")
+    catalog_version = requested.catalog_version
+    if catalog_version is None:
+        catalog_version = _option(None, stored, "catalog_version")
+    if isinstance(catalog_version, str):
+        catalog_version = catalog_version.strip() or None
+    return catalog_id, catalog_version
 
 
 def _resolve_options(

@@ -68,3 +68,87 @@ export interface AccessoryExtended {
 }
 
 export type AccessoryExtendedPayload = Omit<AccessoryExtended, 'id' | 'created_at' | 'updated_at'>;
+
+export type SpecificationCatalogStatus = 'draft' | 'active' | 'retired';
+
+export type SpecificationCatalogAuthority =
+  | 'approved'
+  | 'provisional'
+  | 'synthetic'
+  | 'demo'
+  | 'guessed';
+
+export type SpecificationCatalogCategory =
+  | 'cable'
+  | 'connection_kit'
+  | 'repair_kit'
+  | 'sealant'
+  | 'fiberglass_tape'
+  | 'aluminium_tape'
+  | 'box';
+
+export interface SpecificationCatalogItemInput {
+  item_key: string;
+  category: SpecificationCatalogCategory;
+  name: string;
+  mark: string;
+  nomenclature_code: string;
+  supply_unit: string;
+  applicability?: Record<string, unknown>;
+  package_parameters?: Record<string, unknown>;
+  formula_parameters?: Record<string, unknown>;
+  source_ref: string;
+}
+
+export interface SpecificationCatalogImportRequest {
+  catalog_key: string;
+  version: string;
+  authority: SpecificationCatalogAuthority;
+  source: string;
+  source_checksum: string;
+  schema_version: number;
+  items: SpecificationCatalogItemInput[];
+}
+
+export interface SpecificationCatalogVersion {
+  id: string;
+  catalog_key: string;
+  version: string;
+  status: SpecificationCatalogStatus;
+  authority: SpecificationCatalogAuthority;
+  source: string;
+  source_checksum: string;
+  payload_checksum: string;
+  schema_version: number;
+  item_count: number;
+  is_complete: boolean;
+  validation_issues: Array<Record<string, unknown>>;
+  imported_at?: string | null;
+  imported_by?: string | null;
+  activated_at?: string | null;
+  activated_by?: string | null;
+}
+
+export interface SpecificationCatalogItemSummary {
+  id: string;
+  item_key: string;
+  category: SpecificationCatalogCategory;
+  name: string;
+  mark: string;
+  nomenclature_code: string;
+  supply_unit: string;
+  source_ref: string;
+  position: number;
+  applicability: Record<string, unknown>;
+  package_parameters: Record<string, unknown>;
+  formula_parameters: Record<string, unknown>;
+}
+
+export interface SpecificationCatalogDetail extends SpecificationCatalogVersion {
+  items: SpecificationCatalogItemSummary[];
+}
+
+export interface SpecificationCatalogActivationResult {
+  catalog: SpecificationCatalogVersion;
+  stale_specification_count: number;
+}

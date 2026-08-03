@@ -15,6 +15,7 @@ from app.api.v1 import (
     projects,
     references,
     reports,
+    specification_catalogs,
     specifications,
 )
 
@@ -40,3 +41,8 @@ api_router.include_router(reports.router, prefix="/reports", tags=["reports"])
 api_router.include_router(references.router, prefix="/references", tags=["references"])
 api_router.include_router(preferences.router, prefix="/preferences", tags=["preferences"])
 api_router.include_router(admin.router, prefix="/admin", tags=["admin"])
+api_router.include_router(
+    specification_catalogs.router,
+    prefix="/admin",
+    tags=["admin"],
+)
