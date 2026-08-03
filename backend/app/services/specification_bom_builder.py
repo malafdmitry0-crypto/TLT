@@ -104,7 +104,9 @@ def materialize_specification_bom(
         return BomBuildFailure(diagnostics=diagnostics)
 
     try:
-        sectioned = _build_items_by_object_type(
+        # Stage 1: normative aggregation across the whole ER (one ceil per
+        # material identity). Stage 2: presentation grouping only.
+        aggregated = _build_er_aggregated_items(
             electrical_variant_id=electrical_variant_id,
             contributing_results=contributing_results,
             objects_by_id=objects_by_id,
@@ -113,7 +115,7 @@ def materialize_specification_bom(
             resolved_options=resolved_options,
         )
         items = _apply_grouping(
-            sectioned,
+            aggregated,
             grouping_mode=resolved_options.grouping_mode,
             electrical_variant_id=electrical_variant_id,
             catalog_id=catalog.version.id,
@@ -202,7 +204,7 @@ def _resolve_selected_items(
 
 
 def _object_type_section(obj: Mapping[str, Any] | None) -> str:
-    """Map project object type to BOM section (pipe / tank / common)."""
+    """Map project object type to BOM presentation section (pipe / tank / common)."""
     if not obj:
         return "common"
     raw = str(obj.get("object_type") or "pipe").strip().lower()
@@ -213,7 +215,29 @@ def _object_type_section(obj: Mapping[str, Any] | None) -> str:
     return "common"
 
 
-def _build_items_by_object_type(
+def _presentation_section_for_er(
+    contributing_results: Sequence[Mapping[str, Any]],
+    objects_by_id: Mapping[str, Mapping[str, Any]],
+) -> str:
+    """Presentation section for ER-level aggregated materials.
+
+    Aggregation never uses object type as a ceil boundary. When all contributing
+    objects share one type, keep that label for presentation; mixed types use
+    structural ``common`` (Общие материалы) so quantities are not split.
+    Category→section owner table is SPEC-OWNER-COMMON; without it only this
+    structural rule applies.
+    """
+    sections = {
+        _object_type_section(objects_by_id.get(str(result.get("object_id") or "")))
+        for result in contributing_results
+    }
+    sections.discard("")
+    if len(sections) == 1:
+        return next(iter(sections))
+    return "common"
+
+
+def _build_er_aggregated_items(
     *,
     electrical_variant_id: UUID,
     contributing_results: Sequence[Mapping[str, Any]],
@@ -222,26 +246,45 @@ def _build_items_by_object_type(
     selected: Mapping[str, SpecificationCatalogItem],
     resolved_options: SpecificationResolvedOptions,
 ) -> list[SpecificationItem]:
-    """Run formulas per object-type section before optional cross-section merge."""
+    """Aggregate formulas before presentation grouping (SPEC-FINAL-04).
+
+    * Cable: sum order lengths by SKU. Presentation may still split by object
+      type section because that is pure sum (no ceil boundary).
+    * Kits / sealant / tapes: one normative ceil across the whole ER.
+    * Boxes: per-pipe matrix, then sum identical codes (pipe section).
+    """
     by_section: dict[str, list[Mapping[str, Any]]] = defaultdict(list)
     for result in contributing_results:
         obj_id = str(result.get("object_id") or "")
-        section = _object_type_section(objects_by_id.get(obj_id))
-        by_section[section].append(result)
+        by_section[_object_type_section(objects_by_id.get(obj_id))].append(result)
 
     items: list[SpecificationItem] = []
     for section in sorted(by_section):
         items.extend(
-            _build_items_for_section(
+            _build_cable_items(
                 electrical_variant_id=electrical_variant_id,
                 object_type_section=section,
                 contributing_results=by_section[section],
-                objects_by_id=objects_by_id,
                 catalog=catalog,
                 selected=selected,
-                resolved_options=resolved_options,
             )
         )
+
+    presentation_section = _presentation_section_for_er(
+        contributing_results, objects_by_id
+    )
+    items.extend(
+        _build_accessory_and_box_items(
+            electrical_variant_id=electrical_variant_id,
+            object_type_section=presentation_section,
+            contributing_results=contributing_results,
+            objects_by_id=objects_by_id,
+            catalog=catalog,
+            selected=selected,
+            resolved_options=resolved_options,
+            box_object_type_section="pipe",
+        )
+    )
     return items
 
 
@@ -318,21 +361,18 @@ def _apply_grouping(
     return result
 
 
-def _build_items_for_section(
+def _build_cable_items(
     *,
     electrical_variant_id: UUID,
     object_type_section: str,
     contributing_results: Sequence[Mapping[str, Any]],
-    objects_by_id: Mapping[str, Mapping[str, Any]],
     catalog: ResolvedSpecificationCatalog,
     selected: Mapping[str, SpecificationCatalogItem],
-    resolved_options: SpecificationResolvedOptions,
 ) -> list[SpecificationItem]:
+    """Cable purchase qty = sum of order lengths by mark (no ceil boundary)."""
     catalog_id = catalog.version.id
     catalog_version = catalog.version.version
     items: list[SpecificationItem] = []
-
-    # --- Cable: group by mark, purchase qty = order length ---
     by_mark: dict[str, list[Mapping[str, Any]]] = defaultdict(list)
     for result in contributing_results:
         mark = _cable_mark(result)
@@ -383,10 +423,30 @@ def _build_items_for_section(
                     "cable_mark": mark,
                     "l_mark_actual": str(cable_result.l_mark_actual),
                     "l_mark_order": str(cable_result.l_mark_order),
+                    "raw_sum": str(cable_result.l_mark_order),
+                    "rounding_rule": "sum_order_length",
                     "formula_id": _FORMULA_FINGERPRINTS["cable"],
                 },
             )
         )
+    return items
+
+
+def _build_accessory_and_box_items(
+    *,
+    electrical_variant_id: UUID,
+    object_type_section: str,
+    contributing_results: Sequence[Mapping[str, Any]],
+    objects_by_id: Mapping[str, Mapping[str, Any]],
+    catalog: ResolvedSpecificationCatalog,
+    selected: Mapping[str, SpecificationCatalogItem],
+    resolved_options: SpecificationResolvedOptions,
+    box_object_type_section: str = "pipe",
+) -> list[SpecificationItem]:
+    """Kits/tapes/sealant: one ceil for the ER. Boxes: per-pipe then sum codes."""
+    catalog_id = catalog.version.id
+    catalog_version = catalog.version.version
+    items: list[SpecificationItem] = []
 
     # --- Connection kits by temperature_group ---
     section_by_temp: dict[str, int] = defaultdict(int)
@@ -477,6 +537,9 @@ def _build_items_for_section(
                         "temperature_group": temp,
                         "section_count": conn.section_count,
                         "sections_per_kit": str(conn.sections_per_kit),
+                        "raw_sum": str(conn.section_count),
+                        "capacity": str(conn.sections_per_kit),
+                        "rounding_rule": "ceil_div",
                         "formula_id": _FORMULA_FINGERPRINTS["connection_kit"],
                     },
                 )
@@ -536,6 +599,9 @@ def _build_items_for_section(
                         "temperature_group": temp,
                         "actual_installed_length_m": str(repair.actual_installed_length_m),
                         "cable_length_per_kit_m": str(repair.cable_length_per_kit_m),
+                        "raw_sum": str(repair.actual_installed_length_m),
+                        "capacity": str(repair.cable_length_per_kit_m),
+                        "rounding_rule": "ceil_div",
                         "formula_id": _FORMULA_FINGERPRINTS["repair_kit"],
                     },
                 )
@@ -585,6 +651,9 @@ def _build_items_for_section(
                 extra_params={
                     "n_all_kits": sealant.n_all_kits,
                     "kits_per_sealant_unit": str(sealant.kits_per_sealant_unit),
+                    "raw_sum": str(sealant.n_all_kits),
+                    "capacity": str(sealant.kits_per_sealant_unit),
+                    "rounding_rule": "ceil_div",
                     "formula_id": _FORMULA_FINGERPRINTS["sealant"],
                 },
             )
@@ -826,8 +895,11 @@ def _build_items_for_section(
                     catalog_id=catalog_id,
                     catalog_version=catalog_version,
                     electrical_variant_id=electrical_variant_id,
-                    object_type_section=object_type_section,
-                    extra_params={"formula_id": _FORMULA_FINGERPRINTS["box"]},
+                    object_type_section=box_object_type_section,
+                    extra_params={
+                        "formula_id": _FORMULA_FINGERPRINTS["box"],
+                        "aggregation": "per_pipe_then_sum_code",
+                    },
                 )
             )
 

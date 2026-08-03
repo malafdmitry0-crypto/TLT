@@ -466,3 +466,152 @@ class TestBomBuilderGoldens:
         assert cable_rows[0].quantity == Decimal("150.0")
         assert cable_rows[0].params.get("object_type_section") == "common"
         assert cable_rows[0].params.get("nomenclature_code") == "001-002-002"
+
+    def test_connection_kit_one_ceil_across_object_types_not_sum_of_section_ceils(
+        self,
+    ) -> None:
+        """Counterexample: ceil(3/2)+ceil(3/2)=4 is wrong; ceil(6/2)=3 is normative."""
+        variant_id = uuid.uuid4()
+        pipe_id = str(uuid.uuid4())
+        tank_id = str(uuid.uuid4())
+        catalog, groups, _ids = _fixture_catalog_and_groups(variant_id)
+        # sections_per_kit=2 from fixture connection kit КСВ-2
+        bom = materialize_specification_bom(
+            electrical_variant_id=variant_id,
+            contributing_results=[
+                _result(
+                    object_id=pipe_id,
+                    section_count=3,
+                    actual=100.0,
+                    order=110.0,
+                    section_length=30.0,
+                ),
+                _result(
+                    object_id=tank_id,
+                    section_count=3,
+                    actual=100.0,
+                    order=110.0,
+                    section_length=30.0,
+                ),
+            ],
+            objects_by_id={
+                pipe_id: {"object_type": "pipe", "outer_diameter": 0.108},
+                tank_id: {"object_type": "tank", "outer_diameter": 1.0},
+            },
+            catalog=catalog,  # type: ignore[arg-type]
+            candidate_groups=groups,
+            resolved_options=_options(),
+            snapshot_context=_snapshot_context(variant_id),
+            preflight_fingerprint=f"sha256:{'1' * 64}",
+        )
+        assert isinstance(bom, BomBuildSuccess)
+        connection_rows = [item for item in bom.items if item.category == "connection_kit"]
+        assert len(connection_rows) == 1
+        assert connection_rows[0].quantity == Decimal("3")
+        assert connection_rows[0].params.get("object_type_section") == "common"
+        assert connection_rows[0].params.get("rounding_rule") == "ceil_div"
+        assert connection_rows[0].params.get("raw_sum") == "6"
+        assert connection_rows[0].params.get("capacity") == "2"
+
+    def test_separate_and_merge_share_grand_totals_for_kits(self) -> None:
+        variant_id = uuid.uuid4()
+        pipe_id = str(uuid.uuid4())
+        tank_id = str(uuid.uuid4())
+        catalog, groups, _ids = _fixture_catalog_and_groups(variant_id)
+        results = [
+            _result(object_id=pipe_id, section_count=3, actual=100.0, order=110.0),
+            _result(object_id=tank_id, section_count=3, actual=100.0, order=110.0),
+        ]
+        objects = {
+            pipe_id: {"object_type": "pipe", "outer_diameter": 0.108},
+            tank_id: {"object_type": "tank", "outer_diameter": 1.0},
+        }
+        separate = materialize_specification_bom(
+            electrical_variant_id=variant_id,
+            contributing_results=results,
+            objects_by_id=objects,
+            catalog=catalog,  # type: ignore[arg-type]
+            candidate_groups=groups,
+            resolved_options=_options(),
+            snapshot_context=_snapshot_context(variant_id),
+            preflight_fingerprint=f"sha256:{'1' * 64}",
+        )
+        merge_opts = SpecificationResolvedOptions.model_validate(
+            {
+                "catalog_id": "test-catalog",
+                "catalog_version": "v1",
+                "grouping_mode": SpecificationGroupingMode.MERGE_MATERIALS,
+                "Ex": False,
+                "K1i": False,
+                "K2i": False,
+                "Kiu": False,
+                "L_K2i_m": "0",
+                "R_gr": "1",
+            }
+        )
+        merged = materialize_specification_bom(
+            electrical_variant_id=variant_id,
+            contributing_results=results,
+            objects_by_id=objects,
+            catalog=catalog,  # type: ignore[arg-type]
+            candidate_groups=groups,
+            resolved_options=merge_opts,
+            snapshot_context=_snapshot_context(variant_id),
+            preflight_fingerprint=f"sha256:{'1' * 64}",
+        )
+        assert isinstance(separate, BomBuildSuccess)
+        assert isinstance(merged, BomBuildSuccess)
+
+        def totals(items: list) -> dict[str, Decimal]:
+            acc: dict[str, Decimal] = {}
+            for item in items:
+                key = f"{item.category}:{item.article}"
+                acc[key] = acc.get(key, Decimal("0")) + Decimal(str(item.quantity))
+            return acc
+
+        assert totals(separate.items) == totals(merged.items)
+
+    def test_characterization_of_presentation_sections_without_owner_common(
+        self,
+    ) -> None:
+        """Document structural section mapping until SPEC-OWNER-COMMON closes.
+
+        Mixed object types → ER-level ceil materials use section ``common``.
+        Cable may still present per object type (sum components). Boxes stay pipe.
+        Full category→section table is blocked without owner decision.
+        """
+        variant_id = uuid.uuid4()
+        pipe_id = str(uuid.uuid4())
+        tank_id = str(uuid.uuid4())
+        catalog, groups, _ids = _fixture_catalog_and_groups(variant_id)
+        bom = materialize_specification_bom(
+            electrical_variant_id=variant_id,
+            contributing_results=[
+                _result(object_id=pipe_id, section_count=3, actual=100.0, order=110.0),
+                _result(object_id=tank_id, section_count=3, actual=100.0, order=110.0),
+            ],
+            objects_by_id={
+                pipe_id: {"object_type": "pipe", "outer_diameter": 0.108},
+                tank_id: {"object_type": "tank", "outer_diameter": 1.0},
+            },
+            catalog=catalog,  # type: ignore[arg-type]
+            candidate_groups=groups,
+            resolved_options=_options(),
+            snapshot_context=_snapshot_context(variant_id),
+            preflight_fingerprint=f"sha256:{'1' * 64}",
+        )
+        assert isinstance(bom, BomBuildSuccess)
+        by_cat = {
+            item.category: item.params.get("object_type_section") for item in bom.items
+        }
+        assert by_cat["connection_kit"] == "common"
+        assert by_cat["repair_kit"] == "common"
+        assert by_cat["sealant"] == "common"
+        assert by_cat["aluminium_tape"] == "common"
+        assert by_cat["box"] == "pipe"
+        cable_sections = {
+            item.params.get("object_type_section")
+            for item in bom.items
+            if item.category == "cable"
+        }
+        assert cable_sections == {"pipe", "tank"}
