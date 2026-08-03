@@ -337,3 +337,79 @@ class TestBomBuilderGoldens:
         )
         assert isinstance(bom, BomBuildFailure)
         assert bom.diagnostics[0].code is SpecificationDiagnosticCode.BOX_EX_RGR_MATRIX_MISSING
+
+    def test_separate_by_object_type_keeps_same_code_in_two_sections(self) -> None:
+        variant_id = uuid.uuid4()
+        pipe_id = str(uuid.uuid4())
+        tank_id = str(uuid.uuid4())
+        catalog, groups, _ids = _fixture_catalog_and_groups(variant_id)
+        bom = materialize_specification_bom(
+            electrical_variant_id=variant_id,
+            contributing_results=[
+                _result(object_id=pipe_id, order=100.0, actual=90.0, section_count=2),
+                _result(object_id=tank_id, order=50.0, actual=45.0, section_count=1),
+            ],
+            objects_by_id={
+                pipe_id: {"object_type": "pipe", "outer_diameter": 0.108},
+                tank_id: {"object_type": "tank", "outer_diameter": 1.0},
+            },
+            catalog=catalog,  # type: ignore[arg-type]
+            candidate_groups=groups,
+            resolved_options=_options(),  # separate_by_object_type
+        )
+        assert isinstance(bom, BomBuildSuccess)
+        cable_rows = [item for item in bom.items if item.category == "cable"]
+        assert len(cable_rows) == 2
+        sections = {item.params.get("object_type_section") for item in cable_rows}
+        assert sections == {"pipe", "tank"}
+        qty_by_section = {
+            item.params["object_type_section"]: item.quantity for item in cable_rows
+        }
+        assert qty_by_section["pipe"] == Decimal("100.0")
+        assert qty_by_section["tank"] == Decimal("50.0")
+        for item in cable_rows:
+            assert item.article == "001-002-002"
+            assert item.params.get("electrical_variant_id") == str(variant_id)
+            assert item.params.get("nomenclature_code") == "001-002-002"
+            assert item.params.get("supply_unit") == "м"
+            assert item.params.get("catalog_id")
+            assert item.params.get("catalog_version") == "v1"
+
+    def test_merge_materials_sums_same_code_across_object_types(self) -> None:
+        variant_id = uuid.uuid4()
+        pipe_id = str(uuid.uuid4())
+        tank_id = str(uuid.uuid4())
+        catalog, groups, _ids = _fixture_catalog_and_groups(variant_id)
+        options = SpecificationResolvedOptions.model_validate(
+            {
+                "catalog_id": "test-catalog",
+                "catalog_version": "v1",
+                "grouping_mode": SpecificationGroupingMode.MERGE_MATERIALS,
+                "Ex": False,
+                "K1i": False,
+                "K2i": False,
+                "Kiu": False,
+                "L_K2i_m": "0",
+                "R_gr": "1",
+            }
+        )
+        bom = materialize_specification_bom(
+            electrical_variant_id=variant_id,
+            contributing_results=[
+                _result(object_id=pipe_id, order=100.0, actual=90.0, section_count=2),
+                _result(object_id=tank_id, order=50.0, actual=45.0, section_count=1),
+            ],
+            objects_by_id={
+                pipe_id: {"object_type": "pipe", "outer_diameter": 0.108},
+                tank_id: {"object_type": "tank", "outer_diameter": 1.0},
+            },
+            catalog=catalog,  # type: ignore[arg-type]
+            candidate_groups=groups,
+            resolved_options=options,
+        )
+        assert isinstance(bom, BomBuildSuccess)
+        cable_rows = [item for item in bom.items if item.category == "cable"]
+        assert len(cable_rows) == 1
+        assert cable_rows[0].quantity == Decimal("150.0")
+        assert cable_rows[0].params.get("object_type_section") == "common"
+        assert cable_rows[0].params.get("nomenclature_code") == "001-002-002"

@@ -1532,13 +1532,8 @@ class CalculationService:
             await asyncio.sleep(0)
 
         await cancel_checker.check(processed, force=True)
-        if processed_object_ids:
-            await self.mark_project_specifications_stale(
-                project_id,
-                "heat_loss_batch_recalculate",
-                object_ids=processed_object_ids if object_ids is not None else None,
-                operation="batch_recalculate",
-            )
+        # Specs of affected ERs are already marked inside each
+        # mark_electrical_calculations_stale → mark_assignments_stale_for_objects.
         await emit_progress(
             BatchProgress(
                 current=processed,

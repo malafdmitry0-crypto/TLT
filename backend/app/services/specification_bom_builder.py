@@ -33,11 +33,16 @@ from app.formulas.specification.calculators import (
 )
 from app.formulas.specification.calculators.common import normalize_temperature_group
 from app.formulas.specification.catalog_identity import temperature_group_from_result
+from app.formulas.specification.grouping import (
+    MODE_MERGE_MATERIALS,
+    merge_items,
+)
 from app.models.specification import SpecificationCatalogItem
 from app.schemas.specification import (
     SpecificationCandidateGroup,
     SpecificationDiagnostic,
     SpecificationDiagnosticCode,
+    SpecificationGroupingMode,
     SpecificationIssueKind,
     SpecificationItem,
     SpecificationResolvedOptions,
@@ -97,12 +102,20 @@ def materialize_specification_bom(
         return BomBuildFailure(diagnostics=diagnostics)
 
     try:
-        items = _build_items(
+        sectioned = _build_items_by_object_type(
+            electrical_variant_id=electrical_variant_id,
             contributing_results=contributing_results,
             objects_by_id=objects_by_id,
             catalog=catalog,
             selected=selected,
             resolved_options=resolved_options,
+        )
+        items = _apply_grouping(
+            sectioned,
+            grouping_mode=resolved_options.grouping_mode,
+            electrical_variant_id=electrical_variant_id,
+            catalog_id=catalog.version.id,
+            catalog_version=catalog.version.version,
         )
     except FormulaInputError as exc:
         return BomBuildFailure(diagnostics=[_formula_diagnostic(exc, electrical_variant_id)])
@@ -183,8 +196,127 @@ def _resolve_selected_items(
     return selected
 
 
-def _build_items(
+def _object_type_section(obj: Mapping[str, Any] | None) -> str:
+    """Map project object type to BOM section (pipe / tank / common)."""
+    if not obj:
+        return "common"
+    raw = str(obj.get("object_type") or "pipe").strip().lower()
+    if raw in {"", "pipe", "трубопровод", "труба"}:
+        return "pipe"
+    if raw in {"tank", "ёмкость", "емкость", "резервуар", "бочка", "barrel"}:
+        return "tank"
+    return "common"
+
+
+def _build_items_by_object_type(
     *,
+    electrical_variant_id: UUID,
+    contributing_results: Sequence[Mapping[str, Any]],
+    objects_by_id: Mapping[str, Mapping[str, Any]],
+    catalog: ResolvedSpecificationCatalog,
+    selected: Mapping[str, SpecificationCatalogItem],
+    resolved_options: SpecificationResolvedOptions,
+) -> list[SpecificationItem]:
+    """Run formulas per object-type section before optional cross-section merge."""
+    by_section: dict[str, list[Mapping[str, Any]]] = defaultdict(list)
+    for result in contributing_results:
+        obj_id = str(result.get("object_id") or "")
+        section = _object_type_section(objects_by_id.get(obj_id))
+        by_section[section].append(result)
+
+    items: list[SpecificationItem] = []
+    for section in sorted(by_section):
+        items.extend(
+            _build_items_for_section(
+                electrical_variant_id=electrical_variant_id,
+                object_type_section=section,
+                contributing_results=by_section[section],
+                objects_by_id=objects_by_id,
+                catalog=catalog,
+                selected=selected,
+                resolved_options=resolved_options,
+            )
+        )
+    return items
+
+
+def _apply_grouping(
+    items: Sequence[SpecificationItem],
+    *,
+    grouping_mode: SpecificationGroupingMode | str,
+    electrical_variant_id: UUID,
+    catalog_id: UUID,
+    catalog_version: str,
+) -> list[SpecificationItem]:
+    """Merge auto rows by the resolved grouping mode (exact keys from CANON-07)."""
+    if not items:
+        return []
+    mode_value = getattr(grouping_mode, "value", grouping_mode)
+    er_id = str(electrical_variant_id)
+    cat_id = str(catalog_id)
+    rows: list[dict[str, Any]] = []
+    for item in items:
+        params = dict(item.params or {})
+        nomenclature = item.article or params.get("nomenclature_code") or ""
+        supply_unit = item.unit or params.get("supply_unit") or ""
+        section = params.get("object_type_section") or "common"
+        rows.append(
+            {
+                "category": item.category,
+                "name": item.name,
+                "article": item.article,
+                "unit": item.unit,
+                "quantity": item.quantity,
+                "params": params,
+                "source": item.source,
+                "electrical_variant_id": params.get("electrical_variant_id") or er_id,
+                "catalog_id": params.get("catalog_id") or cat_id,
+                "catalog_version": params.get("catalog_version") or catalog_version,
+                "object_type_section": section,
+                "nomenclature_code": nomenclature,
+                "supply_unit": supply_unit,
+            }
+        )
+    merged = merge_items(rows, mode_value)
+    result: list[SpecificationItem] = []
+    for row in merged:
+        params = dict(row.get("params") or {})
+        section = row.get("object_type_section") or params.get("object_type_section") or "common"
+        # After merge_materials, cross-type rows surface under «Общие материалы».
+        if mode_value == MODE_MERGE_MATERIALS:
+            section = "common"
+        params["object_type_section"] = section
+        params["electrical_variant_id"] = str(
+            row.get("electrical_variant_id") or params.get("electrical_variant_id") or er_id
+        )
+        params["catalog_id"] = str(row.get("catalog_id") or params.get("catalog_id") or cat_id)
+        params["catalog_version"] = str(
+            row.get("catalog_version") or params.get("catalog_version") or catalog_version
+        )
+        params["nomenclature_code"] = str(
+            row.get("nomenclature_code") or params.get("nomenclature_code") or row.get("article") or ""
+        )
+        params["supply_unit"] = str(
+            row.get("supply_unit") or params.get("supply_unit") or row.get("unit") or ""
+        )
+        result.append(
+            SpecificationItem(
+                category=str(row.get("category") or ""),
+                name=str(row.get("name") or ""),
+                article=row.get("article"),
+                unit=str(row.get("unit") or params["supply_unit"] or "шт."),
+                quantity=row["quantity"],
+                params=params,
+                source=row.get("source") or "auto",
+            )
+        )
+    return result
+
+
+def _build_items_for_section(
+    *,
+    electrical_variant_id: UUID,
+    object_type_section: str,
     contributing_results: Sequence[Mapping[str, Any]],
     objects_by_id: Mapping[str, Mapping[str, Any]],
     catalog: ResolvedSpecificationCatalog,
@@ -240,6 +372,8 @@ def _build_items(
                 quantity=cable_result.l_mark_order,
                 catalog_id=catalog_id,
                 catalog_version=catalog_version,
+                electrical_variant_id=electrical_variant_id,
+                object_type_section=object_type_section,
                 extra_params={
                     "cable_mark": mark,
                     "l_mark_actual": str(cable_result.l_mark_actual),
@@ -332,6 +466,8 @@ def _build_items(
                     quantity=Decimal(conn.quantity),
                     catalog_id=catalog_id,
                     catalog_version=catalog_version,
+                    electrical_variant_id=electrical_variant_id,
+                    object_type_section=object_type_section,
                     extra_params={
                         "temperature_group": temp,
                         "section_count": conn.section_count,
@@ -389,6 +525,8 @@ def _build_items(
                     quantity=Decimal(repair.quantity),
                     catalog_id=catalog_id,
                     catalog_version=catalog_version,
+                    electrical_variant_id=electrical_variant_id,
+                    object_type_section=object_type_section,
                     extra_params={
                         "temperature_group": temp,
                         "actual_installed_length_m": str(repair.actual_installed_length_m),
@@ -437,6 +575,8 @@ def _build_items(
                 quantity=Decimal(sealant.quantity),
                 catalog_id=catalog_id,
                 catalog_version=catalog_version,
+                electrical_variant_id=electrical_variant_id,
+                object_type_section=object_type_section,
                 extra_params={
                     "n_all_kits": sealant.n_all_kits,
                     "kits_per_sealant_unit": str(sealant.kits_per_sealant_unit),
@@ -505,6 +645,8 @@ def _build_items(
                     quantity=Decimal(fg.quantity),
                     catalog_id=catalog_id,
                     catalog_version=catalog_version,
+                    electrical_variant_id=electrical_variant_id,
+                    object_type_section=object_type_section,
                     extra_params={
                         "temperature_group": temp,
                         "total_required_length_m": str(fg.total_required_length_m),
@@ -569,6 +711,8 @@ def _build_items(
                     quantity=Decimal(al.quantity),
                     catalog_id=catalog_id,
                     catalog_version=catalog_version,
+                    electrical_variant_id=electrical_variant_id,
+                    object_type_section=object_type_section,
                     extra_params={
                         "total_required_length_m": str(al.total_required_length_m),
                         "reel_length_m": str(al.reel_length_m),
@@ -676,6 +820,8 @@ def _build_items(
                     quantity=Decimal(qty),
                     catalog_id=catalog_id,
                     catalog_version=catalog_version,
+                    electrical_variant_id=electrical_variant_id,
+                    object_type_section=object_type_section,
                     extra_params={"formula_id": _FORMULA_FINGERPRINTS["box"]},
                 )
             )
@@ -689,6 +835,8 @@ def _item_from_catalog(
     quantity: Decimal,
     catalog_id: UUID,
     catalog_version: str,
+    electrical_variant_id: UUID | None = None,
+    object_type_section: str = "pipe",
     extra_params: Mapping[str, Any] | None = None,
 ) -> SpecificationItem:
     params: dict[str, Any] = {
@@ -697,7 +845,12 @@ def _item_from_catalog(
         "catalog_item_id": str(item.id),
         "mark": item.mark,
         "item_key": item.item_key,
+        "nomenclature_code": item.nomenclature_code,
+        "supply_unit": item.supply_unit,
+        "object_type_section": object_type_section,
     }
+    if electrical_variant_id is not None:
+        params["electrical_variant_id"] = str(electrical_variant_id)
     if extra_params:
         params.update(dict(extra_params))
     return SpecificationItem(

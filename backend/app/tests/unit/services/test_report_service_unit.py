@@ -207,7 +207,12 @@ class TestLoadContext:
     async def test_specification_only_skips_objects_and_electrical(self):
         pid = uuid.uuid4()
         project = SimpleNamespace(id=pid, name="P", description="", status="draft")
-        spec = SimpleNamespace(items=[{"name": "Кабель"}])
+        spec = SimpleNamespace(
+            items=[{"name": "Кабель"}],
+            is_stale=False,
+            generation_options={},
+            electrical_variant_id=uuid.uuid4(),
+        )
         db = AsyncMock()
         db.execute = AsyncMock(
             side_effect=[
@@ -220,6 +225,47 @@ class TestLoadContext:
         assert ctx["objects"] == []
         assert ctx["specification"]["items"] == [{"name": "Кабель"}]
         assert db.execute.call_count == 2
+
+    async def test_stale_specification_excluded_from_report_totals(self):
+        pid = uuid.uuid4()
+        er_id = uuid.uuid4()
+        project = SimpleNamespace(id=pid, name="P", description="", status="draft")
+        spec = SimpleNamespace(
+            items=[
+                {
+                    "category": "cable",
+                    "name": "SECRET-CABLE-999",
+                    "article": "X-999",
+                    "unit": "м",
+                    "quantity": "999.1",
+                    "source": "manual",
+                }
+            ],
+            is_stale=True,
+            stale_reason="object_updated",
+            stale_at=None,
+            stale_details={"reason": "object_updated"},
+            generation_options={"schema": "specification-generation"},
+            electrical_variant_id=er_id,
+        )
+        db = AsyncMock()
+        db.execute = AsyncMock(
+            side_effect=[
+                _r(scalar_one_or_none=project),
+                _r(first=spec),
+            ]
+        )
+        ctx = await ReportService(db)._load_context(
+            pid,
+            ["specification"],
+            principal=None,
+            electrical_variant_id=er_id,
+        )
+        assert ctx["specification"]["items"] == []
+        assert ctx["specification"]["is_stale"] is True
+        assert ctx["specification"]["excluded_from_output"] is True
+        assert ctx["specification"]["retained_item_count"] == 1
+        assert ctx["specification"]["electrical_variant_id"] == str(er_id)
 
     async def test_preview_response_omits_context_data(self):
         pid = uuid.uuid4()

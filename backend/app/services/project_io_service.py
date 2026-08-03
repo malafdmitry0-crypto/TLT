@@ -317,13 +317,17 @@ def _dump_project_to_writer(
 
     if specifications:
         _write_section(w, "specifications")
+        # UUID-first: electrical_variant_id / variant_key identify the row;
+        # legacy_variant_number is transitional compatibility only.
         header = [
             "variant_key",
+            "electrical_variant_id",
             "legacy_variant_number",
             "items",
             "generation_mode",
             "generation_options",
             "is_stale",
+            "stale_reason",
         ]
         if project_key is not None:
             header = ["project_key", *header]
@@ -337,6 +341,7 @@ def _dump_project_to_writer(
                 variant_key = f"legacy-{spec.variant_number}"
             row = [
                 variant_key,
+                str(spec_er_id) if spec_er_id is not None else "",
                 getattr(spec, "variant_number", ""),
                 json.dumps(spec.items or [], ensure_ascii=False),
                 getattr(spec, "generation_mode", None) or "",
@@ -344,6 +349,7 @@ def _dump_project_to_writer(
                 if getattr(spec, "generation_options", None) is not None
                 else "",
                 "true" if getattr(spec, "is_stale", False) else "false",
+                getattr(spec, "stale_reason", None) or "",
             ]
             _write_row(w, prefix + row)
         _write_row(w, [])
@@ -1322,27 +1328,69 @@ async def _apply_project_data_v3(
             )
         )
 
+    # UUID identity: resolve by variant_key (preferred) or electrical_variant_id.
+    # Numeric specification section is not required as identity (CANON-07).
+    used_spec_numbers: set[int] = set()
+    for existing in variants_by_key.values():
+        if existing.legacy_variant_number is not None:
+            used_spec_numbers.add(int(existing.legacy_variant_number))
+
+    def _next_spec_variant_number() -> int:
+        candidate = 1
+        while candidate in used_spec_numbers:
+            candidate += 1
+        used_spec_numbers.add(candidate)
+        return candidate
+
     for row in spec_rows:
         variant_key = (row.get("variant_key") or "").strip()
-        if not variant_key:
-            raise ProjectImportError("В specifications обязателен variant_key")
-        if variant_key not in variants_by_key:
+        electrical_variant_id_raw = (row.get("electrical_variant_id") or "").strip()
+        if not variant_key and not electrical_variant_id_raw:
             raise ProjectImportError(
-                f"specifications: неизвестный variant_key {variant_key!r}"
+                "В specifications обязателен variant_key или electrical_variant_id"
             )
-        variant = variants_by_key[variant_key]
-        if variant.legacy_variant_number is None:
+        variant = None
+        if variant_key and variant_key in variants_by_key:
+            variant = variants_by_key[variant_key]
+        elif electrical_variant_id_raw:
+            # Match exported UUID string against re-keyed variants (variant_key is UUID).
+            variant = variants_by_key.get(electrical_variant_id_raw)
+            if variant is None:
+                for key, candidate in variants_by_key.items():
+                    if key == electrical_variant_id_raw or str(candidate.id) == electrical_variant_id_raw:
+                        variant = candidate
+                        break
+        if variant is None:
             raise ProjectImportError(
-                f"ЭР {variant_key!r} без legacy_variant_number не может импортировать "
-                "specification до UUID-only cutover"
+                f"specifications: неизвестный variant_key/electrical_variant_id "
+                f"{variant_key or electrical_variant_id_raw!r}"
             )
+        if variant.legacy_variant_number is not None:
+            variant_number = int(variant.legacy_variant_number)
+            used_spec_numbers.add(variant_number)
+        else:
+            legacy_raw = (row.get("legacy_variant_number") or "").strip()
+            if legacy_raw:
+                try:
+                    variant_number = int(legacy_raw)
+                except ValueError as exc:
+                    raise ProjectImportError(
+                        f"Некорректный legacy_variant_number в specifications: {legacy_raw!r}"
+                    ) from exc
+                if variant_number in used_spec_numbers:
+                    variant_number = _next_spec_variant_number()
+                else:
+                    used_spec_numbers.add(variant_number)
+            else:
+                variant_number = _next_spec_variant_number()
         generation_mode = (row.get("generation_mode") or "").strip() or None
         generation_options = _parse_json_or_empty(row.get("generation_options", ""), None)
         # Phase 4 sections are not reconstructed from CSV; always mark stale.
+        # items/generation_options preserve snapshot + manual rows for re-generation.
         db.add(
             Specification(
                 project_id=project.id,
-                variant_number=variant.legacy_variant_number,
+                variant_number=variant_number,
                 electrical_variant_id=variant.id,
                 items=_parse_json_or_empty(row.get("items", ""), []),
                 generation_mode=generation_mode,
@@ -1352,7 +1400,8 @@ async def _apply_project_data_v3(
                 stale_at=datetime.now(UTC),
                 stale_details={
                     "import_schema_version": SCHEMA_VERSION,
-                    "variant_key": variant_key,
+                    "variant_key": variant_key or electrical_variant_id_raw,
+                    "electrical_variant_id": str(variant.id),
                     "legacy_variant_number": variant.legacy_variant_number,
                     "sections_status": "not_ready",
                     "error_code": SECTIONS_NOT_READY_CODE,

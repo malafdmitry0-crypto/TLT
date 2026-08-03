@@ -919,6 +919,53 @@ class SpecificationService:
             await self.db.flush()
         return 1
 
+    async def mark_specifications_stale_for_objects(
+        self,
+        project_id: UUID,
+        object_ids: list[UUID] | set[UUID] | tuple[UUID, ...],
+        reason: str,
+        *,
+        operation: str | None = None,
+        commit: bool = False,
+    ) -> int:
+        """Stale only specifications of ERs that currently assign any of the objects.
+
+        Object/Heat mutations must not invalidate independent ERs (CANON-07).
+        Project settings / active catalog still use :meth:`mark_project_specifications_stale`.
+        """
+        unique_ids = list(dict.fromkeys(object_ids))
+        if not unique_ids:
+            return 0
+
+        from app.models.electrical_variant import ElectricalVariantObject
+
+        result = await self.db.execute(
+            select(ElectricalVariantObject.electrical_variant_id)
+            .where(
+                ElectricalVariantObject.project_id == project_id,
+                ElectricalVariantObject.object_id.in_(unique_ids),
+                ElectricalVariantObject.system_type.is_not(None),
+            )
+            .distinct()
+        )
+        variant_ids = [row[0] for row in result.all() if row[0] is not None]
+        if not variant_ids:
+            return 0
+
+        total = 0
+        for variant_id in variant_ids:
+            total += await self.mark_electrical_variant_specification_stale(
+                project_id,
+                variant_id,
+                reason,
+                object_ids=unique_ids,
+                operation=operation,
+                commit=False,
+            )
+        if commit:
+            await self.db.commit()
+        return total
+
     async def _upsert_specification(
         self,
         *,

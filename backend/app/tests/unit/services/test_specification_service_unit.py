@@ -498,3 +498,103 @@ class TestProjectSettings:
         assert project.specification_settings_version == 3
         assert old_spec.is_stale is True
         assert old_spec.stale_reason == "specification_settings_changed"
+
+
+class TestPreciseStaleHooks:
+    async def test_mark_project_specifications_stales_all(self):
+        specs = [
+            SimpleNamespace(
+                is_stale=False,
+                stale_reason=None,
+                stale_at=None,
+                stale_details=None,
+                electrical_variant_id=uuid.uuid4(),
+            ),
+            SimpleNamespace(
+                is_stale=False,
+                stale_reason=None,
+                stale_at=None,
+                stale_details=None,
+                electrical_variant_id=uuid.uuid4(),
+            ),
+        ]
+        db = AsyncMock()
+        db.execute = AsyncMock(return_value=_list_result(specs))
+        db.flush = AsyncMock()
+        count = await SpecificationService(db).mark_project_specifications_stale(
+            uuid.uuid4(),
+            "specification_settings_changed",
+            operation="settings_update",
+        )
+        assert count == 2
+        assert all(spec.is_stale is True for spec in specs)
+        assert all(spec.stale_reason == "specification_settings_changed" for spec in specs)
+
+    async def test_mark_electrical_variant_specification_stales_only_one(self):
+        er_a = uuid.uuid4()
+        er_b = uuid.uuid4()
+        target = SimpleNamespace(
+            is_stale=False,
+            stale_reason=None,
+            stale_at=None,
+            stale_details=None,
+            electrical_variant_id=er_a,
+        )
+        other = SimpleNamespace(
+            is_stale=False,
+            stale_reason=None,
+            stale_at=None,
+            stale_details=None,
+            electrical_variant_id=er_b,
+        )
+        db = AsyncMock()
+        # scalar_one_or_none returns the target for the UUID-filtered query
+        result = MagicMock()
+        result.scalar_one_or_none = lambda: target
+        db.execute = AsyncMock(return_value=result)
+        db.flush = AsyncMock()
+        count = await SpecificationService(db).mark_electrical_variant_specification_stale(
+            uuid.uuid4(),
+            er_a,
+            "electrical_calculation_changed",
+            operation="calculation_upsert",
+        )
+        assert count == 1
+        assert target.is_stale is True
+        assert target.stale_reason == "electrical_calculation_changed"
+        assert other.is_stale is False
+
+    async def test_mark_specifications_stale_for_objects_scopes_to_assigned_ers(self):
+        project_id = uuid.uuid4()
+        er_a = uuid.uuid4()
+        er_b = uuid.uuid4()
+        obj_id = uuid.uuid4()
+        spec_a = SimpleNamespace(
+            is_stale=False,
+            stale_reason=None,
+            stale_at=None,
+            stale_details=None,
+            electrical_variant_id=er_a,
+        )
+        # First execute: distinct variant ids assigned to object
+        variants_result = MagicMock()
+        variants_result.all = lambda: [(er_a,)]
+        # Second execute: load spec for er_a
+        spec_result = MagicMock()
+        spec_result.scalar_one_or_none = lambda: spec_a
+
+        db = AsyncMock()
+        db.execute = AsyncMock(side_effect=[variants_result, spec_result])
+        db.flush = AsyncMock()
+
+        count = await SpecificationService(db).mark_specifications_stale_for_objects(
+            project_id,
+            [obj_id],
+            "object_deleted",
+            operation="delete",
+        )
+        assert count == 1
+        assert spec_a.is_stale is True
+        assert spec_a.stale_reason == "object_deleted"
+        # er_b never queried / never staled
+        assert er_b != er_a

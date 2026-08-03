@@ -87,6 +87,7 @@ class ReportService:
             "stale_details": None,
         }
         if "specification" in enabled_sections:
+            # Prefer UUID identity; legacy variant_number is fallback only.
             spec_stmt = select(Specification).where(Specification.project_id == project_id)
             if electrical_variant_id is not None:
                 spec_stmt = spec_stmt.where(
@@ -100,8 +101,8 @@ class ReportService:
             spec = spec_result.scalars().first()
             if spec:
                 is_stale = bool(getattr(spec, "is_stale", False))
-                # PDL-ER-37: stale snapshot is viewable only outside report/export
-                # quantities. Preview/print/export must not ship procurement rows.
+                # PDL-ER-37 / CANON-07: stale or blocked BOM never enters current
+                # report/export procurement totals. Per-ER isolation via UUID selector.
                 raw_items = list(spec.items or [])
                 gen_opts = getattr(spec, "generation_options", None) or {}
                 is_partial = (
@@ -112,8 +113,17 @@ class ReportService:
                     if isinstance(gen_opts, dict)
                     else []
                 )
+                # Treat explicit blocked snapshots the same as stale for export totals.
+                is_blocked = (
+                    isinstance(gen_opts, dict)
+                    and (
+                        gen_opts.get("status") == "blocked"
+                        or gen_opts.get("blocked") is True
+                    )
+                )
+                exclude_from_totals = is_stale or is_blocked
                 specification_context = {
-                    "items": [] if is_stale else raw_items,
+                    "items": [] if exclude_from_totals else raw_items,
                     "is_stale": is_stale,
                     "stale_reason": getattr(spec, "stale_reason", None),
                     "stale_at": (
@@ -122,10 +132,15 @@ class ReportService:
                         else None
                     ),
                     "stale_details": getattr(spec, "stale_details", None),
-                    "is_partial": is_partial and not is_stale,
-                    "excluded_groups": excluded_groups if not is_stale else [],
-                    "excluded_from_output": is_stale,
-                    "retained_item_count": len(raw_items) if is_stale else 0,
+                    "is_partial": is_partial and not exclude_from_totals,
+                    "excluded_groups": excluded_groups if not exclude_from_totals else [],
+                    "excluded_from_output": exclude_from_totals,
+                    "retained_item_count": len(raw_items) if exclude_from_totals else 0,
+                    "electrical_variant_id": (
+                        str(spec.electrical_variant_id)
+                        if getattr(spec, "electrical_variant_id", None) is not None
+                        else None
+                    ),
                 }
 
         latest_by_object: dict[str, ElectricalCalculation] = {}

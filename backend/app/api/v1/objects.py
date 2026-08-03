@@ -167,12 +167,8 @@ async def add_object(
             detail = (obj.validation_errors or {}).get("message", "Некорректные параметры трубы")
             await db.rollback()
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=detail)
-        await SpecificationService(db).mark_project_specifications_stale(
-            project_id,
-            "object_created",
-            object_ids=[obj.id],
-            operation="create",
-        )
+        # New object is not yet assigned to any ER → no specification is affected.
+        # Precise per-ER staling happens on assignment / heat / calculation mutations.
         # Аудит кладём в ту же транзакцию (stage до commit) — один round-trip
         # вместо двух. obj уже сфлашен сервисом, поэтому id/params/results доступны.
         await AuditService(db).stage(
@@ -263,12 +259,7 @@ async def duplicate_objects_batch(
         for obj in copies:
             await calc_service.recalculate_object(obj)
         created_ids = [obj.id for obj in copies]
-        await SpecificationService(db).mark_project_specifications_stale(
-            project_id,
-            "objects_duplicated",
-            object_ids=created_ids,
-            operation="duplicate_batch",
-        )
+        # Duplicates are unassigned; independent ERs stay current until assign.
         await AuditService(db).stage(
             event_type="object.duplicated_batch",
             category="object",
@@ -341,16 +332,11 @@ async def group_update_objects(
                 },
             )
         changed_ids = [obj.id for obj in objects]
+        # Per-ER via assignments inside mark_electrical_calculations_stale.
         await calc_service.mark_electrical_calculations_stale(
             project_id,
             changed_ids,
             reason="object_params_updated",
-        )
-        await SpecificationService(db).mark_project_specifications_stale(
-            project_id,
-            "object_params_updated",
-            object_ids=changed_ids,
-            operation="group_update",
         )
         await AuditService(db).stage(
             event_type="object.group_updated",
@@ -463,13 +449,7 @@ async def import_excel(
             result = await import_objects_from_excel(db, project_id, principal, content, mode=mode)
         created_object_ids = result.pop("created_object_ids", [])
         if created_object_ids:
-            await SpecificationService(db).mark_project_specifications_stale(
-                project_id,
-                "objects_imported",
-                object_ids=created_object_ids,
-                operation=f"import_{mode}",
-                commit=True,
-            )
+            # Imported objects are unassigned; no ER BOM is invalidated until assign.
             task = await TaskService(db).create_heat_loss_batch_task(
                 HeatLossBatchJobRequest(
                     project_id=project_id,
@@ -577,16 +557,11 @@ async def update_object(
             await db.rollback()
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=detail)
         if params_changed:
+            # Marks electrical results + only specs of ERs that assign this object.
             await calc_service.mark_electrical_calculations_stale(
                 project_id,
                 [object_id],
                 reason="object_params_updated",
-            )
-            await SpecificationService(db).mark_project_specifications_stale(
-                project_id,
-                "object_params_updated",
-                object_ids=[object_id],
-                operation="update",
             )
         # Аудит в той же транзакции (stage до commit) — один round-trip.
         await AuditService(db).stage(
@@ -637,13 +612,14 @@ async def delete_object(
     db: AsyncSession = Depends(get_db),
 ) -> None:
     try:
-        await ProjectService(db).delete_object(project_id, object_id, principal)
-        await SpecificationService(db).mark_project_specifications_stale(
+        # Capture ER scope before CASCADE removes assignments with the object.
+        await SpecificationService(db).mark_specifications_stale_for_objects(
             project_id,
+            [object_id],
             "object_deleted",
-            object_ids=[object_id],
             operation="delete",
         )
+        await ProjectService(db).delete_object(project_id, object_id, principal)
         # Аудит в той же транзакции (stage до commit) — один round-trip.
         await AuditService(db).stage(
             event_type="object.deleted",
