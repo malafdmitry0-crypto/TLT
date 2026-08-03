@@ -1146,7 +1146,11 @@ def _legacy_assignment_projection(
     cable_mark: str | None,
     results: dict[str, Any] | None,
 ) -> tuple[str | None, str]:
-    """Map lossless requested cable type to normalized system/state fields."""
+    """Map imported cable type to assignment system/state (E9 / WP5).
+
+    Legacy non-TT types and ТЛТ marks never become ready — soft-stale so the
+    whole project file still imports without 422.
+    """
     normalized_type = (cable_type or "").strip().lower()
     if normalized_type in {"skin", "mineral"}:
         return normalized_type, "unsupported"
@@ -1158,13 +1162,64 @@ def _legacy_assignment_projection(
         return None, "unsupported"
     if result.get("error_code") or result.get("category"):
         return None, "error"
+
+    mark = str(cable_mark or result.get("selected_cable") or "").strip().upper()
+    if mark.startswith("ТЛТ-") or mark.startswith("TLT-"):
+        # Keep system for Samreg-like legacy marks but force re-calc.
+        if normalized_type in {"self_regulating", "self_regulating_tt", ""}:
+            return "self_regulating", "stale"
+        if normalized_type in {"single_core", "three_core"}:
+            return "resistive", "stale"
+        return None, "stale"
+
+    # Legacy resistive / old self_regulating (TLT formula era): not ready.
+    if normalized_type in {"self_regulating", "single_core", "three_core"}:
+        system = "self_regulating" if normalized_type == "self_regulating" else "resistive"
+        return system, "stale"
+
     if not _is_successful_legacy_result(cable_mark, results):
         return None, "unassigned"
-    if normalized_type in {"self_regulating", "self_regulating_tt"}:
+    if normalized_type == "self_regulating_tt":
         return "self_regulating", "ready"
-    if normalized_type in {"single_core", "three_core"}:
-        return "resistive", "ready"
     return None, "unassigned"
+
+
+def _legacy_import_results_soft_stale(
+    cable_type: str | None,
+    cable_mark: str | None,
+    results: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    """Ensure imported legacy calc rows are not treated as ready (E9)."""
+    if results is None:
+        payload: dict[str, Any] = {}
+    elif isinstance(results, dict):
+        payload = dict(results)
+    else:
+        return results
+
+    normalized_type = (cable_type or "").strip().lower()
+    mark = str(cable_mark or payload.get("selected_cable") or "").strip().upper()
+    is_legacy_type = normalized_type in {
+        "self_regulating",
+        "single_core",
+        "three_core",
+    }
+    is_legacy_mark = mark.startswith("ТЛТ-") or mark.startswith("TLT-")
+    if not is_legacy_type and not is_legacy_mark:
+        return results if results is not None else None
+
+    if payload.get("category") == "stale" or payload.get("stale") is True:
+        return payload
+    reason = "legacy_cable_mark" if is_legacy_mark else "legacy_cable_type"
+    payload = {
+        **payload,
+        "stale": True,
+        "category": "stale",
+        "stale_reason": reason,
+        "message": payload.get("message")
+        or "Импортированный legacy-расчёт требует пересчёта (TT / 230 В).",
+    }
+    return payload
 
 
 @dataclass(slots=True)
@@ -1361,7 +1416,11 @@ async def _apply_project_data(
                 cable_mark_source=imported.cable_mark_source,
                 cable_snapshot=imported.cable_snapshot,
                 params=imported.params,
-                results=imported.results,
+                results=_legacy_import_results_soft_stale(
+                    imported.cable_type,
+                    imported.cable_mark,
+                    imported.results,
+                ),
             )
         )
 
@@ -1655,19 +1714,25 @@ async def _apply_project_data_v3(
         cable_snapshot = _parse_json_or_empty(row.get("cable_snapshot", ""), None)
         if isinstance(cable_snapshot, dict):
             cable_snapshot = {**cable_snapshot, "origin": "imported_project"}
+        imported_type = row.get("cable_type", "").strip() or "self_regulating"
+        imported_results = _parse_json_or_empty(row.get("results", ""), None)
         db.add(
             ElectricalCalculation(
                 project_id=project.id,
                 object_id=obj.id,
                 variant_number=legacy_number,
                 electrical_variant_id=variant.id,
-                cable_type=row.get("cable_type", "").strip() or "self_regulating",
+                cable_type=imported_type,
                 cable_type_source=cable_type_source,
                 cable_mark=cable_mark,
                 cable_mark_source=cable_mark_source,
                 cable_snapshot=cable_snapshot,
                 params=_parse_json_or_empty(row.get("params", ""), {}),
-                results=_parse_json_or_empty(row.get("results", ""), None),
+                results=_legacy_import_results_soft_stale(
+                    imported_type,
+                    cable_mark,
+                    imported_results if isinstance(imported_results, dict) else None,
+                ),
             )
         )
 

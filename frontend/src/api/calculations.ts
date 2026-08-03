@@ -58,11 +58,12 @@ export async function calcHeatLoss(
 }
 
 export async function calcElectrical(
-  payload: ElectricalRequest
+  payload: ElectricalRequest,
 ): Promise<ElectricalResponse> {
   const { data } = await apiClient.post<ElectricalResponse>(
     '/calc/electrical',
-    payload
+    payload,
+    withIdempotencyKey(),
   );
   return data;
 }

@@ -96,19 +96,27 @@ export async function batchCalcElectrical(
   variantNumber: number = 1,
   cableType: CableType = 'self_regulating_tt',
   options: ElectricalBatchOptions = {},
+  electricalVariantId?: string | null,
 ): Promise<BatchElectricalResponse> {
-  const { data } = await apiClient.post<BatchElectricalResponse>('/calc/electrical/batch', null, {
-    params: {
-      project_id: projectId,
-      cable_source: cableSource,
-      variant_number: variantNumber,
-      include_results: false,
-      include_errors: false,
-      ...electricalParams(cableType, options),
-      object_ids: options.objectIds,
-      force_cable_type: options.forceCableType,
-    },
-  });
+  const { data } = await apiClient.post<BatchElectricalResponse>(
+    '/calc/electrical/batch',
+    null,
+    withIdempotencyKey({
+      params: {
+        project_id: projectId,
+        cable_source: cableSource,
+        variant_number: variantNumber,
+        ...(electricalVariantId
+          ? { electrical_variant_id: electricalVariantId }
+          : {}),
+        include_results: false,
+        include_errors: false,
+        ...electricalParams(cableType, options),
+        object_ids: options.objectIds,
+        force_cable_type: options.forceCableType,
+      },
+    }),
+  );
   return data;
 }
 

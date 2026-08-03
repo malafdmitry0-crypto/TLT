@@ -23,6 +23,8 @@ export interface ElectricalRequest {
     | 'skin';
   variant_number?: number;
   electrical_variant_id?: string;
+  /** Optimistic concurrency for ER assignment (E8 / B6). */
+  expected_assignment_version?: number | null;
   data: Record<string, unknown>;
 }
 

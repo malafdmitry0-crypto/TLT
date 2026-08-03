@@ -164,7 +164,7 @@ export async function batchCalcElectrical(
       project_id: projectId,
       cable_source: 'builtin',
       variant_number: opts?.variantNumber ?? 1,
-      cable_type: opts?.cableType ?? 'self_regulating',
+      cable_type: opts?.cableType ?? 'self_regulating_tt',
       include_results: true,
       include_errors: true,
       // Prefer UUID when supported; ignored if only legacy path is active.

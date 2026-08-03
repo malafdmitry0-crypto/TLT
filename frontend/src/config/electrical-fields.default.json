@@ -306,7 +306,10 @@
       "applied_selection_policy",
       "winding_pitch_mm",
       "number_of_threads",
+      "required_installed_length_m",
       "installed_cable_length",
+      "section_l_tok_m",
+      "section_l_excess_m",
       "order_cable_length",
       "total_power",
       "current"

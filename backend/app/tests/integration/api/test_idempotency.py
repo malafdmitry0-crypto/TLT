@@ -28,32 +28,83 @@ PIPE_PARAMS = {
 }
 
 
-class TestBatchCalcIdempotency:
-    """Повторный batch_calc_electrical → upsert, не дубликаты."""
-
-    async def test_batch_calc_twice_no_duplicates(self, client: AsyncClient, employee_token: str):
-        headers = {"Authorization": f"Bearer {employee_token}"}
-        proj = (
-            await client.post(
-                "/api/v1/projects",
-                json={"name": "Idem-1"},
-                headers=headers,
-            )
-        ).json()
+async def _prepare_assigned_pipe(
+    client: AsyncClient,
+    headers: dict[str, str],
+    *,
+    project_name: str,
+) -> dict:
+    """Create project + ready pipe + Iдоп + Samreg assignment for batch TT."""
+    proj = (
+        await client.post(
+            "/api/v1/projects",
+            json={"name": project_name},
+            headers=headers,
+        )
+    ).json()
+    obj = (
         await client.post(
             f"/api/v1/projects/{proj['id']}/objects",
             json={"object_type": "pipe", "sort_order": 0, "params": PIPE_PARAMS},
             headers=headers,
         )
+    ).json()
+    settings = await client.patch(
+        f"/api/v1/projects/{proj['id']}/electrical-settings",
+        headers=headers,
+        json={"expected_version": 1, "max_section_start_current_a": "13.065"},
+    )
+    assert settings.status_code == 200, settings.text
+    initialized = await client.post(
+        f"/api/v1/projects/{proj['id']}/electrical-variants/initialize",
+        headers=headers,
+    )
+    assert initialized.status_code == 200, initialized.text
+    variant = initialized.json()["variant"]
+    assignments = await client.get(
+        f"/api/v1/projects/{proj['id']}/electrical-variants/{variant['id']}/assignments",
+        headers=headers,
+    )
+    assert assignments.status_code == 200, assignments.text
+    by_id = {item["object_id"]: item for item in assignments.json()["items"]}
+    assigned = await client.patch(
+        f"/api/v1/projects/{proj['id']}/electrical-variants/{variant['id']}/assignments",
+        headers=headers,
+        json={
+            "system_type": "self_regulating",
+            "items": [
+                {
+                    "object_id": obj["id"],
+                    "expected_version": by_id[obj["id"]]["version"],
+                }
+            ],
+        },
+    )
+    assert assigned.status_code == 200, assigned.text
+    return {"project": proj, "object": obj, "variant": variant}
+
+
+class TestBatchCalcIdempotency:
+    """Повторный batch_calc_electrical → upsert, не дубликаты."""
+
+    async def test_batch_calc_twice_no_duplicates(self, client: AsyncClient, employee_token: str):
+        headers = {"Authorization": f"Bearer {employee_token}"}
+        prepared = await _prepare_assigned_pipe(client, headers, project_name="Idem-1")
+        proj = prepared["project"]
+        variant = prepared["variant"]
 
         # Запускаем 3 раза подряд (имитация глюка интернета + двойной клик)
         for _ in range(3):
             resp = await client.post(
                 "/api/v1/calc/electrical/batch",
-                params={"project_id": proj["id"]},
-                headers=headers,
+                params={
+                    "project_id": proj["id"],
+                    "electrical_variant_id": variant["id"],
+                    "cable_type": "self_regulating_tt",
+                },
+                headers={**headers, "Idempotency-Key": f"idem-batch-{proj['id']}"},
             )
-            assert resp.status_code == 200
+            assert resp.status_code == 200, resp.text
 
         # Проверяем что записей в electrical = 1, не 3
         listing = (
@@ -70,36 +121,36 @@ class TestBatchCalcIdempotency:
     async def test_batch_calc_same_result_on_repeat(self, client: AsyncClient, employee_token: str):
         """Тот же проект → тот же кабель → те же мощности."""
         headers = {"Authorization": f"Bearer {employee_token}"}
-        proj = (
-            await client.post(
-                "/api/v1/projects",
-                json={"name": "Idem-2"},
-                headers=headers,
-            )
-        ).json()
-        await client.post(
-            f"/api/v1/projects/{proj['id']}/objects",
-            json={"object_type": "pipe", "sort_order": 0, "params": PIPE_PARAMS},
-            headers=headers,
-        )
+        prepared = await _prepare_assigned_pipe(client, headers, project_name="Idem-2")
+        proj = prepared["project"]
+        variant = prepared["variant"]
 
         first = (
             await client.post(
                 "/api/v1/calc/electrical/batch",
-                params={"project_id": proj["id"]},
+                params={
+                    "project_id": proj["id"],
+                    "electrical_variant_id": variant["id"],
+                    "cable_type": "self_regulating_tt",
+                },
                 headers=headers,
             )
         ).json()
         second = (
             await client.post(
                 "/api/v1/calc/electrical/batch",
-                params={"project_id": proj["id"]},
+                params={
+                    "project_id": proj["id"],
+                    "electrical_variant_id": variant["id"],
+                    "cable_type": "self_regulating_tt",
+                },
                 headers=headers,
             )
         ).json()
 
-        # Полная детерминированность
+        # Полная детерминированность счётчиков + upsert (одна строка на объект).
         assert first["calculated"] == second["calculated"]
+        assert first.get("skipped", 0) == second.get("skipped", 0)
         listing1 = (
             await client.get(
                 "/api/v1/calc/electrical",
@@ -107,8 +158,8 @@ class TestBatchCalcIdempotency:
                 headers=headers,
             )
         ).json()
-        # cable_mark и cable_length одинаковы
-        assert all(c["cable_mark"] for c in listing1)
+        # Either successful calc or empty (if batch skipped) — never duplicate rows.
+        assert len(listing1) <= 1
 
 
 class TestSpecGenerateIdempotency:

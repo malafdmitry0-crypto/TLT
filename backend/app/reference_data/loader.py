@@ -92,6 +92,11 @@ def _insulation_by_material() -> dict[str, dict[str, Any]]:
 
 @lru_cache
 def _cables_tlt() -> list[dict[str, Any]]:
+    """Legacy TLT catalog (archived for tests only; not used by TT calc path).
+
+    E9 / №8: production electrical path uses ``cables_tt.json`` via
+    ``list_tt_cables``. Do not wire new product features to TLT.
+    """
     return cast(list[dict[str, Any]], _load_json("cables_tlt.json")["cables"])
 
 

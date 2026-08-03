@@ -144,6 +144,32 @@ class BatchCancelledError(CalculationError):
     pass
 
 
+class ElectricalCalcConcurrencyError(CalculationError):
+    """409-class conflicts for assignment version / idempotency (E8 / B6)."""
+
+    def __init__(
+        self,
+        *,
+        code: str,
+        message: str,
+        status_code: int = 409,
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.code = code
+        self.message = message
+        self.status_code = status_code
+        self.details = details or {}
+
+    def as_detail(self) -> dict[str, Any]:
+        return {
+            "code": self.code,
+            "message": self.message,
+            "issues": [],
+            "details": self.details,
+        }
+
+
 class ElectricalVariantCopyError(CalculationError):
     def __init__(
         self,
@@ -1468,6 +1494,11 @@ class CalculationService:
             raise CalculationError("Объект не найден")
 
         resolved_variant_id = electrical_variant_id or request.electrical_variant_id
+        await self._assert_expected_assignment_version(
+            obj,
+            electrical_variant_id=resolved_variant_id,
+            expected_assignment_version=request.expected_assignment_version,
+        )
         try:
             self._hydrate_electrical_request_from_object(request, obj)
             await self._prepare_self_regulating_tt_request(
@@ -1707,6 +1738,47 @@ class CalculationService:
                 [object_id],
             )
         return self._tt_assignment_cache.get(key)
+
+    async def _assert_expected_assignment_version(
+        self,
+        obj: ProjectObject,
+        *,
+        electrical_variant_id: UUID | None,
+        expected_assignment_version: int | None,
+    ) -> None:
+        """Optimistic concurrency for assigned ER objects (E8 / B6).
+
+        When the object has an assignment under the target ER and the client
+        sent ``expected_assignment_version``, versions must match. When an
+        assignment exists and the client omitted the version, we still accept
+        the write for legacy clients but do not silently ignore a mismatch.
+        """
+        if electrical_variant_id is None:
+            return
+        assignment = await self._tt_assignment(
+            obj.project_id,
+            electrical_variant_id,
+            obj.id,
+        )
+        if assignment is None:
+            return
+        if expected_assignment_version is None:
+            return
+        if int(assignment.version) != int(expected_assignment_version):
+            raise ElectricalCalcConcurrencyError(
+                code="ELECTRICAL_ASSIGNMENT_VERSION_CONFLICT",
+                message="Assignment был изменён другим запросом; обновите данные",
+                status_code=409,
+                details={
+                    "conflicts": [
+                        {
+                            "object_id": str(obj.id),
+                            "expected_version": expected_assignment_version,
+                            "current_version": assignment.version,
+                        }
+                    ]
+                },
+            )
 
     async def _prepare_self_regulating_tt_request(
         self,

@@ -3,7 +3,7 @@
 from typing import NoReturn
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
 from pydantic import ValidationError
 from sqlalchemy import select as sa_select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -47,6 +47,7 @@ from app.services.audit_service import AuditService
 from app.services.calculation_service import (
     CalculationError,
     CalculationService,
+    ElectricalCalcConcurrencyError,
     ElectricalCandidateApplyError,
     ElectricalVariantCopyError,
 )
@@ -193,6 +194,12 @@ async def calc_electrical(
     request: ElectricalRequest,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
+    idempotency_key: str | None = Header(
+        None,
+        alias="Idempotency-Key",
+        description="Optional double-click guard (E8); same key replays via upsert semantics",
+        max_length=256,
+    ),
 ):
     service = CalculationService(db)
     try:
@@ -203,11 +210,19 @@ async def calc_electrical(
             request.variant_number,
             expected_electrical_variant_id=request.electrical_variant_id,
         )
+        if idempotency_key:
+            # Stash for audit / future short-TTL store; upsert already prevents dual rows.
+            request.data = {
+                **(request.data or {}),
+                "_idempotency_key": idempotency_key.strip(),
+            }
         calc = await service.calc_electrical(
             request,
             electrical_variant_id=variant.id,
         )
     except ElectricalVariantServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
+    except ElectricalCalcConcurrencyError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     except (ProjectNotFoundError, ProjectAccessError) as exc:
         _raise_project_error(exc)
@@ -1066,6 +1081,10 @@ async def batch_calc_electrical(
     request: Request,
     cable_source: str = "builtin",
     variant_number: int = 1,
+    electrical_variant_id: UUID | None = Query(
+        None,
+        description="UUID ЭР (primary scope, E8); when set, preferred over variant_number",
+    ),
     cable_type: str = "self_regulating_tt",
     force_cable_type: bool = False,
     supply_voltage: float | None = None,
@@ -1086,12 +1105,18 @@ async def batch_calc_electrical(
     object_ids_brackets: list[UUID] | None = Query(default=None, alias="object_ids[]"),
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
+    idempotency_key: str | None = Header(
+        None,
+        alias="Idempotency-Key",
+        max_length=256,
+    ),
 ):
     """Подбирает кабель только в exact UUID scope выбранного ЭР.
 
     Без `object_ids` обрабатывает объекты, явно назначенные в совместимую
     электрическую систему этого ЭР. Явный список валидируется атомарно.
     """
+    _ = idempotency_key  # Accepted for double-click clients; upsert is the persistence guard.
     await enforce_principal_rate_limit(
         batch_limiter,
         principal,
@@ -1109,6 +1134,7 @@ async def batch_calc_electrical(
             project_id,
             principal,
             variant_number,
+            expected_electrical_variant_id=electrical_variant_id,
         )
         calculated, skipped, heat_loss_failed, errors, calcs = await service.batch_calc_electrical(
             project_id,

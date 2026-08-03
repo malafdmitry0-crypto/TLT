@@ -31,7 +31,10 @@ describe('electricalTableColumns', () => {
       'applied_selection_policy',
       'winding_pitch_mm',
       'number_of_threads',
+      'required_installed_length_m',
       'installed_cable_length',
+      'section_l_tok_m',
+      'section_l_excess_m',
       'order_cable_length',
       'total_power',
       'current',
@@ -68,12 +71,18 @@ describe('electricalTableColumns', () => {
     expect(availableKeys).toContain('installed_power_per_meter');
   });
 
-  it('keeps engineering columns opt-in while making them available in settings', () => {
+  it('shows core L* provenance columns by default (E7.4) and keeps advanced engineering opt-in', () => {
     const availableKeys = getAvailableElectricalTableColumnKeys();
     const defaultVisible = getDefaultElectricalTableColumnSettings().visibleOrder;
-    const engineeringKeys = ['required_installed_length_m', 'section_l_max_m', 'section_l_tok_m', 'section_l_ogr_m', 'section_l_excess_m', 'provenance'];
+    // FE-26 core set: Lтреб / Lфакт / Lток / Lдоп / Lзаказ
+    expect(defaultVisible).toContain('required_installed_length_m');
+    expect(defaultVisible).toContain('installed_cable_length');
+    expect(defaultVisible).toContain('section_l_tok_m');
+    expect(defaultVisible).toContain('section_l_excess_m');
+    expect(defaultVisible).toContain('order_cable_length');
 
-    engineeringKeys.forEach((key) => {
+    const advancedOptIn = ['section_l_max_m', 'section_l_ogr_m', 'provenance'];
+    advancedOptIn.forEach((key) => {
       expect(availableKeys).toContain(key);
       expect(defaultVisible).not.toContain(key);
     });

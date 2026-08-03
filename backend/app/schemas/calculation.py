@@ -1119,6 +1119,8 @@ class ElectricalRequest(BaseModel):
     data: dict[str, Any]
     variant_number: int = 1
     electrical_variant_id: UUID | None = None
+    # Optimistic concurrency token for the object's ER assignment (E8 / B6).
+    expected_assignment_version: int | None = None
 
 
 class ElectricalResponse(BaseModel):
