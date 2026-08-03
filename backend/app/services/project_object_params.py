@@ -20,6 +20,41 @@ class ProjectObjectParamsError(ValueError):
     """Object params are incomplete for a project object."""
 
 
+LEGACY_SPECIFICATION_OBJECT_PARAM_KEYS = frozenset(
+    {
+        "explosion_zone_type",
+        "power_indication_on_boxes",
+        "end_of_section_indication",
+        "top_of_box_indication",
+        "min_length_for_k2i",
+        "hot_reserve_coefficient",
+    }
+)
+
+
+class LegacySpecificationObjectParamsError(ProjectObjectParamsError):
+    """A write attempted to put project-scoped specification options on an object."""
+
+    code = "OBJECT_SPECIFICATION_SETTINGS_SCOPE_VIOLATION"
+
+    def __init__(self, fields: tuple[str, ...]) -> None:
+        super().__init__("Параметры спецификации запрещены в данных объекта")
+        self.fields = fields
+
+
+def reject_legacy_specification_object_params(params: Mapping[str, Any] | None) -> None:
+    """Reject legacy specification keys at object-write boundaries.
+
+    This is intentionally separate from normalization: existing database rows
+    may still contain these inert keys and must remain readable until a future
+    explicit data migration removes them.
+    """
+
+    fields = tuple(sorted(LEGACY_SPECIFICATION_OBJECT_PARAM_KEYS.intersection(params or {})))
+    if fields:
+        raise LegacySpecificationObjectParamsError(fields)
+
+
 COMMON_OBJECT_DEFAULTS: dict[str, Any] = {
     "insulation_cover_material": "none",
     "max_ambient_temperature": 30,

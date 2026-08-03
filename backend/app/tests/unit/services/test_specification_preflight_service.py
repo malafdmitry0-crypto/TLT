@@ -121,6 +121,7 @@ def _row(
     state: str = "ready",
     assignment_version: int = 2,
     with_calculation: bool = True,
+    object_params: dict | None = None,
 ) -> tuple[ElectricalVariantObject, ProjectObject, ElectricalCalculation | None]:
     object_id = uuid.uuid4()
     obj = ProjectObject(
@@ -129,7 +130,7 @@ def _row(
         object_type="pipe",
         sort_order=0,
         version=4,
-        params={},
+        params=object_params or {},
         results={"heat_loss": 100},
         is_valid=True,
     )
@@ -360,6 +361,147 @@ async def test_missing_options_block_instead_of_using_hidden_defaults(monkeypatc
     assert result[0].resolved_options is None
     assert SpecificationDiagnosticCode.FORMULA_INPUT_INVALID in {
         item.code for item in result[0].diagnostics
+    }
+
+
+async def test_resolution_uses_request_then_project_and_preserves_false_and_zero(monkeypatch):
+    project_id = uuid.uuid4()
+    project = _project(
+        project_id,
+        settings={
+            "grouping_mode": "merge_materials",
+            "Ex": True,
+            "K1i": True,
+            "K2i": True,
+            "Kiu": True,
+            "L_K2i_m": "25",
+            "R_gr": "1.25",
+        },
+    )
+    variant = _variant(project_id, name="Mixed settings")
+    db = _db_for([variant], [_row(project_id, variant.id)])
+    _patch_read_boundaries(monkeypatch, project, _catalog())
+    request = SpecificationGenerationRequestV2.model_validate(
+        {
+            "variant_ids": [variant.id],
+            "options": {"Ex": False, "L_K2i_m": "0"},
+        }
+    )
+
+    result = await SpecificationPreflightService(db).preflight_variants(
+        project_id,
+        CurrentPrincipal(role="employee", user_id=project.user_id),
+        request,
+    )
+
+    resolved = result[0].resolved_options
+    assert resolved is not None
+    assert resolved.ex is False
+    assert resolved.l_k2i_m == 0
+    assert resolved.k1i is True
+    assert resolved.r_gr == pytest.approx(1.25)
+
+
+async def test_conflicting_legacy_object_options_never_affect_shared_resolution(monkeypatch):
+    project_id = uuid.uuid4()
+    project = _project(
+        project_id,
+        settings={
+            "grouping_mode": "separate_by_object_type",
+            "Ex": False,
+            "K1i": False,
+            "K2i": True,
+            "Kiu": False,
+            "L_K2i_m": "0",
+            "R_gr": "1.1",
+        },
+    )
+    first = _variant(project_id, name="Legacy yes")
+    second = _variant(project_id, name="Legacy no")
+    legacy_yes = {
+        "explosion_zone_type": "yes",
+        "power_indication_on_boxes": "yes",
+        "end_of_section_indication": "yes",
+        "top_of_box_indication": "yes",
+        "min_length_for_k2i": 999,
+        "hot_reserve_coefficient": 9,
+    }
+    legacy_no = {
+        "explosion_zone_type": "no",
+        "power_indication_on_boxes": "no",
+        "end_of_section_indication": "no",
+        "top_of_box_indication": "no",
+        "min_length_for_k2i": 123,
+        "hot_reserve_coefficient": 2,
+    }
+    db = _db_for(
+        [first, second],
+        [
+            _row(project_id, first.id, object_params=legacy_yes),
+            _row(project_id, second.id, object_params=legacy_no),
+        ],
+    )
+    _patch_read_boundaries(monkeypatch, project, _catalog())
+
+    result = await SpecificationPreflightService(db).preflight_variants(
+        project_id,
+        CurrentPrincipal(role="employee", user_id=project.user_id),
+        _request([first.id, second.id], explicit_options=False),
+    )
+
+    assert all(item.status is SpecificationPreflightStatus.READY for item in result)
+    assert result[0].resolved_options == result[1].resolved_options
+    assert result[0].resolved_options is not None
+    assert result[0].resolved_options.ex is False
+    assert result[0].resolved_options.l_k2i_m == 0
+
+
+async def test_legacy_object_options_do_not_unblock_missing_request_and_project_settings(
+    monkeypatch,
+):
+    project_id = uuid.uuid4()
+    project = _project(project_id, settings={})
+    variant = _variant(project_id, name="Legacy-only settings")
+    db = _db_for(
+        [variant],
+        [
+            _row(
+                project_id,
+                variant.id,
+                object_params={
+                    "explosion_zone_type": "yes",
+                    "power_indication_on_boxes": "yes",
+                    "end_of_section_indication": "yes",
+                    "top_of_box_indication": "yes",
+                    "min_length_for_k2i": 50,
+                    "hot_reserve_coefficient": 1.1,
+                },
+            )
+        ],
+    )
+    _patch_read_boundaries(monkeypatch, project, _catalog())
+
+    result = await SpecificationPreflightService(db).preflight_variants(
+        project_id,
+        CurrentPrincipal(role="employee", user_id=project.user_id),
+        _request([variant.id], explicit_options=False),
+    )
+
+    assert result[0].status is SpecificationPreflightStatus.BLOCKED
+    assert result[0].resolved_options is None
+    diagnostic = next(
+        item
+        for item in result[0].diagnostics
+        if item.code is SpecificationDiagnosticCode.FORMULA_INPUT_INVALID
+    )
+    assert {issue["field"] for issue in diagnostic.issues} == {
+        "Ex",
+        "K1i",
+        "K2i",
+        "Kiu",
+        "L_K2i_m",
+        "R_gr",
+        "grouping_mode",
     }
 
 

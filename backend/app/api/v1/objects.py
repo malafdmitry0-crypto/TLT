@@ -196,7 +196,10 @@ async def add_object(
     except ProjectAccessError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     except ProjectValidationError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=exc.as_detail(),
+        ) from exc
 
 
 # ---- Специальные операции (должны быть ВЫШЕ маршрутов с {object_id}) ----
@@ -468,7 +471,10 @@ async def update_object(
     except ProjectConflictError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except ProjectValidationError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=exc.as_detail(),
+        ) from exc
 
 
 @router.delete(

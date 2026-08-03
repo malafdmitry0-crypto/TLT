@@ -42,6 +42,39 @@ class TestDecodeCsv:
         assert text == "ABC"
 
 
+class TestObjectImportScopeGuard:
+    async def test_project_import_rejects_legacy_object_specification_settings(self):
+        from types import SimpleNamespace
+        from unittest.mock import AsyncMock, MagicMock
+
+        from app.services.project_io_service import _apply_project_data
+
+        project = SimpleNamespace(id="pid")
+        db = AsyncMock()
+        db.add = MagicMock()
+        db.flush = AsyncMock()
+
+        with pytest.raises(
+            ProjectImportError,
+            match="OBJECT_SPECIFICATION_SETTINGS_SCOPE_VIOLATION",
+        ):
+            await _apply_project_data(
+                db,
+                project,
+                objects_rows=[
+                    {
+                        "object_key": "obj-1",
+                        "type": "pipe",
+                        "params": '{"explosion_zone_type": "yes"}',
+                    }
+                ],
+                electrical_rows=[],
+                spec_rows=[],
+            )
+
+        db.add.assert_not_called()
+
+
 class TestDetectDelimiter:
     def test_section_marker_with_semicolon(self):
         assert _detect_delimiter("[SECTION];metadata\nkey;value\n") == ";"

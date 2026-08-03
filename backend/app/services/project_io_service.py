@@ -32,6 +32,10 @@ from app.models.electrical_variant import ElectricalVariant, ElectricalVariantOb
 from app.models.project import Project
 from app.models.project_object import ProjectObject
 from app.models.specification import Specification
+from app.services.project_object_params import (
+    LegacySpecificationObjectParamsError,
+    reject_legacy_specification_object_params,
+)
 from app.services.project_service import (
     ProjectAccessError,
     ProjectNotFoundError,
@@ -596,6 +600,16 @@ def _parse_json_or_empty(raw: str, default: Any) -> Any:
         raise ProjectImportError(f"Некорректный JSON: {exc}") from exc
 
 
+def _reject_imported_legacy_specification_params(params: Any) -> None:
+    if not isinstance(params, dict):
+        return
+    try:
+        reject_legacy_specification_object_params(params)
+    except LegacySpecificationObjectParamsError as exc:
+        fields = ", ".join(exc.fields)
+        raise ProjectImportError(f"{exc} (code={exc.code}; fields={fields})") from exc
+
+
 def _spec_rows_contain_manual_items(spec_rows: list[dict[str, str]]) -> bool:
     """True if any specification row embeds source=manual positions (PDL-ER-41)."""
     for row in spec_rows:
@@ -765,6 +779,7 @@ async def _apply_project_data(
     obj_by_key: dict[str, ProjectObject] = {}
     for idx, row in enumerate(objects_rows):
         params = _parse_json_or_empty(row.get("params", ""), {})
+        _reject_imported_legacy_specification_params(params)
         if row.get("name") and "name" not in params:
             params["name"] = row["name"]
         object_key = (row.get("object_key") or "").strip()
@@ -1005,6 +1020,7 @@ async def _apply_project_data_v3(
     obj_by_key: dict[str, ProjectObject] = {}
     for idx, row in enumerate(objects_rows):
         params = _parse_json_or_empty(row.get("params", ""), {})
+        _reject_imported_legacy_specification_params(params)
         if row.get("name") and "name" not in params:
             params["name"] = row["name"]
         object_key = (row.get("object_key") or "").strip()

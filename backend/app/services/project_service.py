@@ -30,9 +30,11 @@ from app.services.heat_contract import (
     replace_heat_owned_params,
 )
 from app.services.project_object_params import (
+    LegacySpecificationObjectParamsError,
     ProjectObjectParamsError,
     normalize_project_object_params,
     prepare_project_object_params,
+    reject_legacy_specification_object_params,
 )
 
 
@@ -50,6 +52,27 @@ class ProjectLimitError(Exception):
 
 class ProjectValidationError(Exception):
     """Некорректные данные операции проекта."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        code: str | None = None,
+        fields: tuple[str, ...] = (),
+    ) -> None:
+        super().__init__(message)
+        self.message = message
+        self.code = code
+        self.fields = fields
+
+    def as_detail(self) -> str | dict[str, object]:
+        if self.code is None:
+            return self.message
+        return {
+            "code": self.code,
+            "message": self.message,
+            "fields": list(self.fields),
+        }
 
 
 class ProjectConflictError(Exception):
@@ -334,6 +357,7 @@ class ProjectService:
                 f"Достигнут лимит объектов в проекте ({settings.GUEST_MAX_OBJECTS_PER_PROJECT})."
             )
         try:
+            reject_legacy_specification_object_params(data.params)
             forbidden_keys = (
                 PIPE_FORBIDDEN_HEAT_PARAM_KEYS
                 if data.object_type == "pipe"
@@ -351,6 +375,10 @@ class ProjectService:
                 if data.object_type in ("pipe", "tank")
                 else normalize_project_object_params(data.object_type, data.params)
             )
+        except LegacySpecificationObjectParamsError as exc:
+            raise ProjectValidationError(
+                str(exc), code=exc.code, fields=exc.fields
+            ) from exc
         except ProjectObjectParamsError as exc:
             raise ProjectValidationError(str(exc)) from exc
         obj = ProjectObject(
@@ -389,6 +417,12 @@ class ProjectService:
         update_data = data.model_dump(exclude_unset=True, exclude={"version"})
         if "params" in update_data:
             incoming_params = update_data["params"] or {}
+            try:
+                reject_legacy_specification_object_params(incoming_params)
+            except LegacySpecificationObjectParamsError as exc:
+                raise ProjectValidationError(
+                    str(exc), code=exc.code, fields=exc.fields
+                ) from exc
             if obj.object_type in ("pipe", "tank"):
                 forbidden_keys = (
                     PIPE_FORBIDDEN_HEAT_PARAM_KEYS

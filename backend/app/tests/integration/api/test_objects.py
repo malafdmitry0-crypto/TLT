@@ -26,6 +26,87 @@ async def _project(client: AsyncClient, session_id: str) -> str:
 
 
 class TestObjectsLifecycle:
+    @pytest.mark.parametrize(
+        "legacy_key",
+        [
+            "explosion_zone_type",
+            "power_indication_on_boxes",
+            "end_of_section_indication",
+            "top_of_box_indication",
+            "min_length_for_k2i",
+            "hot_reserve_coefficient",
+        ],
+    )
+    async def test_create_rejects_legacy_object_specification_settings_with_typed_error(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+        legacy_key: str,
+    ):
+        pid = await _project(client, guest_session)
+        response = await client.post(
+            f"/api/v1/projects/{pid}/objects",
+            json={
+                "object_type": "pipe",
+                "params": {legacy_key: False},
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert response.status_code == 422
+        assert response.json()["detail"] == {
+            "code": "OBJECT_SPECIFICATION_SETTINGS_SCOPE_VIOLATION",
+            "message": "Параметры спецификации запрещены в данных объекта",
+            "fields": [legacy_key],
+        }
+
+    async def test_update_rejects_legacy_object_specification_settings_with_typed_error(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+    ):
+        pid = await _project(client, guest_session)
+        headers = {"X-Session-Id": guest_session}
+        created_response = await client.post(
+            f"/api/v1/projects/{pid}/objects",
+            json={
+                "object_type": "pipe",
+                "params": {
+                    "outer_diameter": 0.108,
+                    "wall_thickness": 0.004,
+                    "pipe_material": "carbon_steel",
+                    "insulation_layers": [
+                        {"thickness": 0.05, "material": MINERAL_WOOL}
+                    ],
+                    "insulation_temperature_basis": "outdoor_winter",
+                    "ambient_temperature": -20,
+                    "process_temperature": 80,
+                    "pipe_length": 50,
+                    "placement": "outdoor",
+                    "wind_speed": 0,
+                },
+            },
+            headers=headers,
+        )
+        assert created_response.status_code == 201, created_response.text
+        created = created_response.json()
+
+        response = await client.put(
+            f"/api/v1/projects/{pid}/objects/{created['id']}",
+            json={
+                "version": created["version"],
+                "params": {"hot_reserve_coefficient": 1.1},
+            },
+            headers=headers,
+        )
+
+        assert response.status_code == 422
+        assert response.json()["detail"] == {
+            "code": "OBJECT_SPECIFICATION_SETTINGS_SCOPE_VIOLATION",
+            "message": "Параметры спецификации запрещены в данных объекта",
+            "fields": ["hot_reserve_coefficient"],
+        }
+
     async def test_pipe_canonical_results_are_returned_persisted_and_reloaded(
         self,
         client: AsyncClient,

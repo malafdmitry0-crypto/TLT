@@ -27,6 +27,7 @@ from app.reference_data.loader import list_insulation_materials
 from app.services.project_object_params import (
     normalize_project_object_params,
     prepare_project_object_params,
+    reject_legacy_specification_object_params,
 )
 from app.services.project_service import (
     ProjectAccessError,
@@ -1189,6 +1190,7 @@ async def _add_rows(
             )
             continue
         try:
+            reject_legacy_specification_object_params(params)
             normalized_params = (
                 prepare_project_object_params(object_type, params)
                 if object_type == "pipe"

@@ -3,9 +3,12 @@
 import pytest
 
 from app.services.project_object_params import (
+    LEGACY_SPECIFICATION_OBJECT_PARAM_KEYS,
+    LegacySpecificationObjectParamsError,
     ProjectObjectParamsError,
     normalize_project_object_params,
     prepare_project_object_params,
+    reject_legacy_specification_object_params,
 )
 
 
@@ -53,6 +56,28 @@ def test_pipe_normalization_preserves_canonical_heat_fields_and_adds_non_heat_de
     assert params["insulation_layers"] == [
         {"thickness": 0.05, "material": "mineral_wool_boards_120"}
     ]
+
+
+@pytest.mark.parametrize("legacy_key", sorted(LEGACY_SPECIFICATION_OBJECT_PARAM_KEYS))
+def test_object_write_guard_rejects_each_legacy_specification_key(legacy_key):
+    with pytest.raises(LegacySpecificationObjectParamsError) as exc:
+        reject_legacy_specification_object_params({legacy_key: False})
+
+    assert exc.value.code == "OBJECT_SPECIFICATION_SETTINGS_SCOPE_VIOLATION"
+    assert exc.value.fields == (legacy_key,)
+
+
+def test_normalization_keeps_existing_legacy_values_inert_for_compatibility_reads():
+    params = normalize_project_object_params(
+        "pipe",
+        _outdoor_pipe(
+            explosion_zone_type="yes",
+            hot_reserve_coefficient=9,
+        ),
+    )
+
+    assert params["explosion_zone_type"] == "yes"
+    assert params["hot_reserve_coefficient"] == 9
 
 
 def test_non_indoor_object_rejects_indoor_insulation_temperature_basis():
