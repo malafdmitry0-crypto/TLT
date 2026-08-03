@@ -13,6 +13,8 @@ import { buildAssignAutoCalcBatchPayload } from '@/pages/electrical/elecCalcAssi
 import { ElectricalUnifiedTableCard } from '@/pages/electrical/ElectricalUnifiedTableCard';
 import { ElecCalcWorkspaceModals } from '@/pages/electrical/ElecCalcWorkspaceModals';
 import { ElecCalcWorkspaceParamsChrome } from '@/pages/electrical/ElecCalcWorkspaceParamsChrome';
+import { ElecCalcIdopSettings } from '@/pages/electrical/ElecCalcIdopSettings';
+import { useProjectElectricalSettings } from '@/pages/electrical/useProjectElectricalSettings';
 import {
   useElecCalcWorkspaceModel,
   type ElecCalcWorkspaceProps,
@@ -27,6 +29,7 @@ export function ElecCalcWorkspace(props: ElecCalcWorkspaceProps) {
   const m = useElecCalcWorkspaceModel(props);
   const { project } = m;
   const { canMutate, projectId, electricalVariant, onAssignmentsChanged } = props;
+  const electricalSettings = useProjectElectricalSettings(projectId, canMutate);
 
   if (!project) {
     return (
@@ -50,6 +53,8 @@ export function ElecCalcWorkspace(props: ElecCalcWorkspaceProps) {
             calcedCount={m.calculatedCount}
             totalObjects={m.totalObjects}
           />
+
+          <ElecCalcIdopSettings settings={electricalSettings} />
 
           <ElectricalAssignmentPanel
             projectId={projectId}
