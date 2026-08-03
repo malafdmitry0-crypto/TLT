@@ -1327,6 +1327,26 @@ class ElectricalCandidateFolderItemRequest(BaseModel):
     candidate_id: UUID
 
 
+class ElectricalSystemSummary(BaseModel):
+    """Ready electrical totals for one assigned system type."""
+
+    object_count: int = 0
+    cable_length_m: float = 0.0
+    section_count: int = 0
+    power_w: float = 0.0
+    working_current_a: float = 0.0
+    start_current_a: float = 0.0
+
+
+class ElectricalSystemSummaries(BaseModel):
+    """Same metric composition for every supported dashboard bucket."""
+
+    self_regulating: ElectricalSystemSummary = Field(default_factory=ElectricalSystemSummary)
+    resistive: ElectricalSystemSummary = Field(default_factory=ElectricalSystemSummary)
+    skin: ElectricalSystemSummary = Field(default_factory=ElectricalSystemSummary)
+    total: ElectricalSystemSummary = Field(default_factory=ElectricalSystemSummary)
+
+
 class ElectricalPageSummary(BaseModel):
     """Агрегаты страницы электрорасчёта без передачи всех строк в браузер."""
 
@@ -1340,6 +1360,9 @@ class ElectricalPageSummary(BaseModel):
     total_cable_length: float = 0.0
     total_power: float = 0.0
     total_current: float = 0.0
+    total_sections: int = 0
+    total_start_current_a: float = 0.0
+    system_summaries: ElectricalSystemSummaries = Field(default_factory=ElectricalSystemSummaries)
 
 
 class ElectricalPageResponse(BaseModel):
@@ -1355,7 +1378,7 @@ class ElectricalQueryRequest(BaseModel):
     """Backend-query таблицы электрорасчёта."""
 
     project_id: UUID
-    variant_number: int = 1
+    variant_number: int | None = 1
     electrical_variant_id: UUID | None = None
     cable_source: ElectricalCableSource = "builtin"
     page: int = Field(default=1, ge=1)
@@ -1369,6 +1392,12 @@ class ElectricalQueryRequest(BaseModel):
     filters: list[ObjectQueryFilter] = Field(default_factory=list, max_length=20)
     sort: ObjectQuerySort | None = None
 
+    @model_validator(mode="after")
+    def require_variant_selector(self) -> "ElectricalQueryRequest":
+        if self.electrical_variant_id is None and self.variant_number is None:
+            raise ValueError("Нужно указать electrical_variant_id или variant_number")
+        return self
+
 
 class ElectricalQueryCounts(BaseModel):
     """Счётчики backend-query таблицы электрорасчёта."""
@@ -1380,7 +1409,8 @@ class ElectricalQueryCounts(BaseModel):
 class ElectricalQueryEcho(BaseModel):
     """Нормализованный query, применённый к таблице электрорасчёта."""
 
-    variant_number: int
+    variant_number: int | None
+    electrical_variant_id: UUID | None = None
     sort: ObjectQuerySort | None = None
 
 

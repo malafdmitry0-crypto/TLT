@@ -154,6 +154,25 @@ export interface ElectricalPageSummary {
   total_cable_length: number;
   total_power: number;
   total_current: number;
+  total_sections?: number;
+  total_start_current_a?: number;
+  system_summaries?: ElectricalPageSystemSummaries;
+}
+
+export interface ElectricalPageSystemSummaryBucket {
+  object_count: number;
+  cable_length_m: number;
+  section_count: number;
+  power_w: number;
+  start_current_a: number;
+  working_current_a: number;
+}
+
+export interface ElectricalPageSystemSummaries {
+  self_regulating: ElectricalPageSystemSummaryBucket;
+  resistive: ElectricalPageSystemSummaryBucket;
+  skin: ElectricalPageSystemSummaryBucket;
+  total: ElectricalPageSystemSummaryBucket;
 }
 
 export interface ElectricalPageResponse {
@@ -165,7 +184,7 @@ export interface ElectricalPageResponse {
 
 export interface ElectricalQueryRequest {
   project_id: string;
-  variant_number?: number;
+  variant_number?: number | null;
   electrical_variant_id?: string;
   cable_source?: 'builtin' | 'commercial' | 'extended' | 'all';
   page?: number;
@@ -197,7 +216,8 @@ export interface ElectricalQueryResponse extends ElectricalPageResponse {
   assignments?: ElectricalQueryAssignment[];
   counts: ElectricalQueryCounts;
   query: {
-    variant_number: number;
+    electrical_variant_id: string | null;
+    variant_number: number | null;
     sort: ObjectQuerySort | null;
   };
 }

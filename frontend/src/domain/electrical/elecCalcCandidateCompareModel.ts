@@ -1,4 +1,5 @@
 import { selectionPolicyText } from '@/domain/electrical/elecCalcSelectionPolicyModel';
+import { engineeringResultValueFromResults } from '@/domain/electrical/elecCalcResultValueModel';
 import type { ElectricalCandidate } from '@/types/calculation';
 import type { ElectricalCandidateColumnKey } from '@/utils/electricalCandidateTableColumns';
 import { formatNumber, formatPower } from '@/utils/formatters';
@@ -74,8 +75,9 @@ function candidateCableTypeText(value: unknown) {
 }
 
 export function candidateOrderCableLengthValue(candidate: ElectricalCandidate) {
-  const explicitRaw = candidate.results?.order_cable_length;
-  return finiteCandidateNumber(explicitRaw);
+  return finiteCandidateNumber(
+    engineeringResultValueFromResults(candidate.results, 'order_cable_length'),
+  );
 }
 
 export function candidateCommercialValue(candidate: ElectricalCandidate, key: string) {
@@ -147,7 +149,7 @@ export function candidateElectricalFieldValue(
         ? candidate.params.aggressive_product
         : undefined;
     case 'installed_cable_length':
-      return candidate.results?.installed_cable_length;
+      return engineeringResultValueFromResults(candidate.results, 'installed_cable_length');
     case 'order_cable_length':
       return candidateOrderCableLengthValue(candidate);
     case 'total_power':
@@ -230,7 +232,10 @@ export function candidateCompareDisplayValue(
     case 'aggressive_product':
       return candidateValueText(candidate.params?.aggressive_product);
     case 'installed_cable_length':
-      return candidateNumberText(candidate.results?.installed_cable_length, 1);
+      return candidateNumberText(
+        engineeringResultValueFromResults(candidate.results, 'installed_cable_length'),
+        1,
+      );
     case 'order_cable_length':
       return candidateNumberText(candidateOrderCableLengthValue(candidate), 1);
     case 'total_power':

@@ -156,18 +156,60 @@
       "description": "Признак агрессивного продукта для выбора исполнения кабеля."
     },
     "installed_cable_length": {
-      "labels": { "short": "Длина улож., м", "full": "Уложенная длина кабеля, м", "compact": "L улож." },
+      "labels": { "short": "L факт, м", "full": "Фактическая длина кабеля после секционирования, м", "compact": "L факт" },
       "group": "Результат",
       "source": "results",
       "valueType": "computed",
       "description": "Каноническая расчётная/уложенная длина кабеля. Используется для мощности, тока и технической проверки."
     },
     "order_cable_length": {
-      "labels": { "short": "Заказ +10%, м", "full": "Заказная длина кабеля (+10%), м", "compact": "L заказ" },
+      "labels": { "short": "L заказ, м", "full": "Заказная длина кабеля с монтажным запасом, м", "compact": "L заказ" },
       "group": "Результат",
       "source": "results",
       "valueType": "computed",
       "description": "Длина кабеля для спецификации и закупки: расчётная длина с монтажным запасом 10%."
+    },
+    "required_installed_length_m": {
+      "labels": { "short": "L треб., м", "full": "Требуемая уложенная длина, м", "compact": "L треб." },
+      "group": "Инженерные ограничения",
+      "source": "results.layout",
+      "valueType": "computed",
+      "description": "Требуемая длина из канонического TT-снимка; legacy top-level значение поддерживается для чтения."
+    },
+    "section_l_max_m": {
+      "labels": { "short": "L макс, м", "full": "Максимальная длина секции, м", "compact": "L макс" },
+      "group": "Инженерные ограничения",
+      "source": "results.section_plan",
+      "valueType": "computed",
+      "description": "Ограничение длины секции из каталога секционирования."
+    },
+    "section_l_tok_m": {
+      "labels": { "short": "L ток, м", "full": "Ограничение длины секции по току, м", "compact": "L ток" },
+      "group": "Инженерные ограничения",
+      "source": "results.section_plan",
+      "valueType": "computed",
+      "description": "Допустимая длина секции по пусковому току."
+    },
+    "section_l_ogr_m": {
+      "labels": { "short": "L огр, м", "full": "Итоговое ограничение длины секции, м", "compact": "L огр" },
+      "group": "Инженерные ограничения",
+      "source": "results.section_plan",
+      "valueType": "computed",
+      "description": "Итоговая допустимая длина секции по техническим ограничениям."
+    },
+    "section_l_excess_m": {
+      "labels": { "short": "L доп., м", "full": "Дополнительная длина после выравнивания секций, м", "compact": "L доп." },
+      "group": "Инженерные ограничения",
+      "source": "results.layout",
+      "valueType": "computed",
+      "description": "Разность Lфакт − Lтреб после деления на равные секции."
+    },
+    "provenance": {
+      "labels": { "short": "Источники", "full": "Трассируемость расчёта", "compact": "Источники" },
+      "group": "Инженерные ограничения",
+      "source": "results.provenance",
+      "valueType": "computed",
+      "description": "Компактная трассируемость источников укладки, тока, каталога секций, версии и fingerprint формулы."
     },
     "total_power": {
       "labels": { "short": "Мощность, Вт", "full": "Суммарная мощность, Вт", "compact": "P" },
@@ -293,6 +335,12 @@
       { "key": "aggressive_product", "defaultWidthPct": 7, "minWidthPx": 64 },
       { "key": "installed_cable_length", "defaultWidthPct": 9, "minWidthPx": 70 },
       { "key": "order_cable_length", "defaultWidthPct": 9, "minWidthPx": 70 },
+      { "key": "required_installed_length_m", "defaultWidthPct": 10, "minWidthPx": 86 },
+      { "key": "section_l_max_m", "defaultWidthPct": 9, "minWidthPx": 78 },
+      { "key": "section_l_tok_m", "defaultWidthPct": 9, "minWidthPx": 78 },
+      { "key": "section_l_ogr_m", "defaultWidthPct": 9, "minWidthPx": 78 },
+      { "key": "section_l_excess_m", "defaultWidthPct": 9, "minWidthPx": 78 },
+      { "key": "provenance", "defaultWidthPct": 18, "minWidthPx": 150, "ellipsis": true },
       { "key": "total_power", "defaultWidthPct": 11, "minWidthPx": 90 },
       { "key": "installed_power_per_meter", "defaultWidthPct": 10, "minWidthPx": 86 },
       { "key": "current", "defaultWidthPct": 8, "minWidthPx": 70 },

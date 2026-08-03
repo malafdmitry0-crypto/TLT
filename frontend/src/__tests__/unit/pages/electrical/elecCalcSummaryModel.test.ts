@@ -153,6 +153,26 @@ describe('buildElecCalcSummaryViewModel', () => {
     expect(result.projectObjectsForCopyCount).toBe(100);
   });
 
+  it('prefers server system summaries over loaded-page aggregation', () => {
+    const result = buildElecCalcSummaryViewModel({
+      pageSummary: pageSummary({
+        system_summaries: {
+          self_regulating: { object_count: 7, cable_length_m: 70, section_count: 3, power_w: 700, start_current_a: 7, working_current_a: 5 },
+          resistive: { object_count: 2, cable_length_m: 20, section_count: 2, power_w: 200, start_current_a: 2, working_current_a: 1 },
+          skin: { object_count: 0, cable_length_m: 0, section_count: 0, power_w: 0, start_current_a: 0, working_current_a: 0 },
+          total: { object_count: 9, cable_length_m: 90, section_count: 5, power_w: 900, start_current_a: 9, working_current_a: 6 },
+        },
+      }),
+      objects: [object('object-1', true)], elecCalcsCount: 1, selectedRowKeys: [],
+      stats: stats({ systemSummaries: { self_regulating: emptyBucket({ objectCount: 1 }), resistive: emptyBucket(), skin: emptyBucket(), total: emptyBucket({ objectCount: 1 }) } }),
+      activeJobStatus: null,
+    });
+    expect(result.systemSummaries.total.objectCount).toBe(9);
+    expect(result.systemSummaries.self_regulating.cableLengthM).toBe(70);
+    expect(result.totalSections).toBe(5);
+    expect(result.totalStartCurrentA).toBe(9);
+  });
+
   it('keeps recalculation disabled while a job is active and formats progress', () => {
     const result = buildElecCalcSummaryViewModel({
       objects: [object('object-1', false)],

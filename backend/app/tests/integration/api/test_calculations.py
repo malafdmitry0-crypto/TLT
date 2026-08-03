@@ -2532,6 +2532,84 @@ class TestElectricalCalculationContinued:
         assert fields["power_per_meter"]["unit"] == "Вт/м"
         assert fields["installed_power_per_meter"]["sort"]["enabled"] is True
         assert fields["electrical_status"]["options"]["items"]
+        for key in (
+            "required_installed_length_m",
+            "installed_cable_length",
+            "section_l_max_m",
+            "section_l_tok_m",
+            "section_l_ogr_m",
+            "section_l_excess_m",
+            "order_cable_length",
+        ):
+            assert fields[key]["filter"]["ops"] == ["range"]
+            assert fields[key]["sort"]["enabled"] is True
+            assert fields[key]["unit"] == "м"
+        assert fields["provenance"]["filter"]["enabled"] is False
+        assert fields["provenance"]["sort"]["enabled"] is False
+
+    async def test_electrical_query_filters_and_sorts_nested_engineering_lengths(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        guest_session: str,
+    ):
+        project = await _create_project(client, guest_session)
+        short = await _create_pipe_object(
+            client, project["id"], guest_session, {"name": "Short engineering length"}
+        )
+        long = await _create_pipe_object(
+            client, project["id"], guest_session, {"name": "Long engineering length"}
+        )
+        for obj in (short, long):
+            await _assign_electrical_object(client, project["id"], obj["id"], guest_session)
+        batch = await client.post(
+            "/api/v1/calc/electrical/batch",
+            params={"project_id": project["id"]},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert batch.status_code == 200, batch.text
+
+        calculations = list(
+            (
+                await db_session.execute(
+                    select(ElectricalCalculation).where(
+                        ElectricalCalculation.project_id == UUID(project["id"])
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        required_by_object = {short["id"]: 12.5, long["id"]: 42.5}
+        for calculation in calculations:
+            results = dict(calculation.results or {})
+            results["layout"] = {
+                **(results.get("layout") if isinstance(results.get("layout"), dict) else {}),
+                "required_installed_length_m": required_by_object[str(calculation.object_id)],
+            }
+            calculation.results = results
+        await db_session.commit()
+
+        response = await client.post(
+            "/api/v1/calc/electrical/query",
+            json={
+                "project_id": project["id"],
+                "filters": [
+                    {
+                        "key": "required_installed_length_m",
+                        "op": "range",
+                        "min": 20,
+                    }
+                ],
+                "sort": {"key": "required_installed_length_m", "dir": "desc"},
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["counts"]["filtered"] == 1
+        assert body["items"][0]["id"] == long["id"]
 
     async def test_electrical_query_does_not_create_calculation_rows(
         self,
@@ -2635,6 +2713,38 @@ class TestElectricalCalculationContinued:
             assignment.system_type = "self_regulating"
             assignment.assignment_state = "error"
             assignment.version = 9
+        db_session.add_all(
+            [
+                ElectricalCalculation(
+                    project_id=UUID(project["id"]),
+                    object_id=UUID(objects[0]["id"]),
+                    variant_number=first_variant["legacy_variant_number"],
+                    electrical_variant_id=UUID(first_variant["id"]),
+                    cable_type="self_regulating",
+                    cable_mark="UUID-FIRST",
+                    params={},
+                    results={
+                        "selected_cable": "UUID-FIRST",
+                        "installed_cable_length": 10,
+                        "provenance": {"formula_version": "uuid-first"},
+                    },
+                ),
+                ElectricalCalculation(
+                    project_id=UUID(project["id"]),
+                    object_id=UUID(objects[0]["id"]),
+                    variant_number=second_variant["legacy_variant_number"],
+                    electrical_variant_id=UUID(second_variant["id"]),
+                    cable_type="self_regulating",
+                    cable_mark="UUID-SECOND",
+                    params={},
+                    results={
+                        "selected_cable": "UUID-SECOND",
+                        "installed_cable_length": 20,
+                        "provenance": {"formula_version": "uuid-second"},
+                    },
+                ),
+            ]
+        )
         await db_session.commit()
 
         first_page = await client.post(
@@ -2700,16 +2810,84 @@ class TestElectricalCalculationContinued:
             "/api/v1/calc/electrical/query",
             json={
                 "project_id": project["id"],
-                "variant_number": second_variant["legacy_variant_number"],
+                # Deliberately stale/mismatched legacy selector: exact UUID wins.
+                "variant_number": first_variant["legacy_variant_number"],
                 "electrical_variant_id": second_variant["id"],
                 "page": 1,
-                "page_size": 2,
+                "page_size": 3,
             },
             headers={"X-Session-Id": guest_session},
         )
         assert isolated.status_code == 200, isolated.text
-        assert {item["version"] for item in isolated.json()["assignments"]} == {9}
-        assert {item["assignment_state"] for item in isolated.json()["assignments"]} == {"error"}
+        isolated_body = isolated.json()
+        assert {item["version"] for item in isolated_body["assignments"]} == {9}
+        assert {item["assignment_state"] for item in isolated_body["assignments"]} == {"error"}
+        assert isolated_body["query"] == {
+            "variant_number": second_variant["legacy_variant_number"],
+            "electrical_variant_id": second_variant["id"],
+            "sort": None,
+        }
+        assert [item["cable_mark"] for item in isolated_body["calculations"]] == ["UUID-SECOND"]
+
+        sql_keyset = await client.post(
+            "/api/v1/calc/electrical/query",
+            json={
+                "project_id": project["id"],
+                "variant_number": first_variant["legacy_variant_number"],
+                "electrical_variant_id": second_variant["id"],
+                "filters": [{"key": "cable_mark", "op": "in", "values": ["UUID-SECOND"]}],
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+        assert sql_keyset.status_code == 200, sql_keyset.text
+        assert [item["cable_mark"] for item in sql_keyset.json()["calculations"]] == ["UUID-SECOND"]
+
+        sql_offset = await client.post(
+            "/api/v1/calc/electrical/query",
+            json={
+                "project_id": project["id"],
+                "variant_number": first_variant["legacy_variant_number"],
+                "electrical_variant_id": second_variant["id"],
+                "sort": {"key": "object_name", "dir": "asc"},
+                "page": 2,
+                "page_size": 1,
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+        assert sql_offset.status_code == 200, sql_offset.text
+        assert sql_offset.json()["query"]["electrical_variant_id"] == second_variant["id"]
+        assert sql_offset.json()["summary"]["total_cable_length"] == 0
+
+        capabilities = await client.get(
+            "/api/v1/calc/electrical/query-capabilities",
+            params={
+                "project_id": project["id"],
+                "variant_number": first_variant["legacy_variant_number"],
+                "electrical_variant_id": second_variant["id"],
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+        assert capabilities.status_code == 200, capabilities.text
+        cable_mark_field = next(
+            field for field in capabilities.json()["fields"] if field["key"] == "cable_mark"
+        )
+        assert [item["value"] for item in cable_mark_field["options"]["items"]] == ["UUID-SECOND"]
+
+        python_fallback = await client.post(
+            "/api/v1/calc/electrical/query",
+            json={
+                "project_id": project["id"],
+                "variant_number": first_variant["legacy_variant_number"],
+                "electrical_variant_id": second_variant["id"],
+                "search": {"text": "uuid-second", "columns": ["provenance"]},
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+        assert python_fallback.status_code == 200, python_fallback.text
+        assert python_fallback.json()["counts"]["filtered"] == 1
+        assert [item["cable_mark"] for item in python_fallback.json()["calculations"]] == [
+            "UUID-SECOND"
+        ]
 
     async def test_heat_loss_batch_does_not_create_electrical_calculation_rows(
         self,

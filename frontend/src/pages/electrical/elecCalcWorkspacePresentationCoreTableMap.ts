@@ -158,6 +158,7 @@ export function mapCoreTableToPresentation(source: CoreTablePresentationSource) 
     setOverwriteManualChoices: catalog.setOverwriteManualChoices,
     setRecalc: catalog.setRecalc,
     setSystemView: table.setSystemView,
+    systemSummaries: table.summary.systemSummaries,
     systemView: table.systemView,
     tableDragging: table.tableDragging,
     tableScrollRegionsRef: table.tableScrollRegionsRef,

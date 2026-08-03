@@ -44,6 +44,7 @@ function response(id: string): ElectricalQueryResponse {
       filtered: 0,
     },
     query: {
+      electrical_variant_id: null,
       variant_number: 1,
       sort: null,
     },

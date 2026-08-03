@@ -3,9 +3,12 @@ import { describe, expect, it } from 'vitest';
 import {
   calcLayoutValues,
   cablePowerPerMeterValue,
+  compactProvenanceValue,
   commercialNumber,
   commercialValue,
   currentElectricalCalc,
+  engineeringResultNumber,
+  engineeringResultValue,
   getCableMark,
   getCableMarkSource,
   getThreadSource,
@@ -105,6 +108,34 @@ describe('elecCalcResultValueModel', () => {
     expect(powerText(1500)).toBe('1,50 кВт');
     expect(valueText(true)).toBe('Да');
     expect(valueText('')).toBe('—');
+  });
+
+  it('reads canonical nested engineering values with legacy flat fallback and compacts provenance', () => {
+    const canonical = calc({ results: {
+      layout: {
+        required_installed_length_m: 42.25,
+        actual_installed_length_m: 44,
+        required_order_length_m: 48.4,
+      },
+      installed_cable_length: 99,
+      order_cable_length: 108.9,
+      section_plan: { l_ogr_m: 18 },
+      section_l_ogr_m: 17,
+      provenance: {
+        input_sources: { thread_count: 'manual', max_section_start_current_a: 'catalog' },
+        catalogs: { section: { authority: 'database', version: 'approved-8' } },
+        formula_version: 'electrical-tt-v2',
+        formula_fingerprint: 'abcdef1234567890',
+      },
+    } });
+    expect(engineeringResultValue(canonical, 'section_l_ogr_m')).toBe(18);
+    expect(engineeringResultNumber(canonical, 'required_installed_length_m')).toBe('42,3');
+    expect(engineeringResultValue(canonical, 'installed_cable_length')).toBe(44);
+    expect(orderCableLengthValue(canonical)).toBe(48.4);
+    expect(engineeringResultValue(calc({ results: { section_l_ogr_m: 17 } }), 'section_l_ogr_m')).toBe(17);
+    expect(compactProvenanceValue(canonical)).toContain('electrical-tt-v2');
+    expect(compactProvenanceValue(canonical)).toContain('abcdef123456');
+    expect(compactProvenanceValue(calc({ results: { provenance: {} } }))).toBe('—');
   });
 
   it('maps selection policy and source metadata labels', () => {

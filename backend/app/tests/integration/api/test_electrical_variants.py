@@ -741,6 +741,68 @@ class TestElectricalVariantLifecycle:
 
 
 class TestElectricalVariantConcurrency:
+    async def test_uuid_only_variant_has_safe_empty_query_and_capabilities(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+        db_session: AsyncSession,
+    ):
+        project = await _guest_project(client, guest_session)
+        headers = {"X-Session-Id": guest_session}
+        obj = await _add_ready_pipe(client, project["id"], headers)
+        variant = ElectricalVariant(
+            project_id=UUID(project["id"]),
+            name="UUID-only read",
+            name_normalized="uuid-only read",
+            sort_order=0,
+            is_active=True,
+            legacy_variant_number=None,
+        )
+        db_session.add(variant)
+        await db_session.flush()
+        db_session.add(
+            ElectricalVariantObject(
+                project_id=UUID(project["id"]),
+                electrical_variant_id=variant.id,
+                object_id=UUID(obj["id"]),
+                system_type="self_regulating",
+                assignment_state="ready",
+                version=1,
+                object_version_snapshot=obj["version"],
+            )
+        )
+        await db_session.commit()
+
+        capabilities = await client.get(
+            "/api/v1/calc/electrical/query-capabilities",
+            params={
+                "project_id": project["id"],
+                "variant_number": 1,
+                "electrical_variant_id": str(variant.id),
+            },
+            headers=headers,
+        )
+        assert capabilities.status_code == 200, capabilities.text
+
+        query = await client.post(
+            "/api/v1/calc/electrical/query",
+            json={
+                "project_id": project["id"],
+                "variant_number": 1,
+                "electrical_variant_id": str(variant.id),
+            },
+            headers=headers,
+        )
+        assert query.status_code == 200, query.text
+        body = query.json()
+        assert body["calculations"] == []
+        assert body["summary"]["calculated_count"] == 0
+        assert body["query"] == {
+            "variant_number": None,
+            "electrical_variant_id": str(variant.id),
+            "sort": None,
+        }
+
     async def test_stale_uuid_precondition_blocks_reused_legacy_slot_without_write(
         self,
         client: AsyncClient,
@@ -830,8 +892,9 @@ class TestElectricalVariantConcurrency:
             headers=headers,
         )
 
+        assert stale_read.status_code == 404, stale_read.text
+        assert stale_read.json()["detail"]["code"] == "ELECTRICAL_VARIANT_NOT_FOUND"
         for response in (
-            stale_read,
             stale_specification_read,
             stale_report_read,
             stale_write,

@@ -95,6 +95,111 @@ export function resultNumber(calc: ElectricalCalcSummary | undefined, key: strin
   return numberText(calc?.results?.[key], digits);
 }
 
+type ResultPath = readonly string[];
+
+const ENGINEERING_RESULT_PATHS: Readonly<Record<string, readonly ResultPath[]>> = {
+  installed_cable_length: [
+    ['layout', 'actual_installed_length_m'],
+    ['installed_cable_length'],
+  ],
+  order_cable_length: [
+    ['layout', 'required_order_length_m'],
+    ['order_cable_length'],
+  ],
+  required_installed_length_m: [
+    ['layout', 'required_installed_length_m'],
+    ['required_installed_length_m'],
+    ['section_l_required_m'],
+  ],
+  section_l_max_m: [['section_plan', 'l_max_m'], ['section_l_max_m']],
+  section_l_tok_m: [['section_plan', 'l_tok_m'], ['section_l_tok_m']],
+  section_l_ogr_m: [['section_plan', 'l_ogr_m'], ['section_l_ogr_m']],
+  section_l_excess_m: [
+    ['layout', 'excess_installed_length_m'],
+    ['section_l_excess_m'],
+  ],
+};
+
+function resultPathValue(results: Record<string, unknown>, path: ResultPath): unknown {
+  let value: unknown = results;
+  for (const segment of path) {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined;
+    value = (value as Record<string, unknown>)[segment];
+  }
+  return value;
+}
+
+/** Canonical TT fields live in nested snapshots; older responses keep flat aliases. */
+export function engineeringResultValueFromResults(
+  results: Record<string, unknown> | null | undefined,
+  key: string,
+) {
+  if (!results) return undefined;
+  const paths = ENGINEERING_RESULT_PATHS[key] ?? [[key]];
+  for (const path of paths) {
+    const value = resultPathValue(results, path);
+    if (value !== null && value !== undefined && value !== '') return value;
+  }
+  return undefined;
+}
+
+export function engineeringResultValue(calc: ElectricalCalcSummary | undefined, key: string) {
+  return engineeringResultValueFromResults(calc?.results, key);
+}
+
+export function engineeringResultNumber(calc: ElectricalCalcSummary | undefined, key: string, digits = 1) {
+  return numberText(engineeringResultValue(calc, key), digits);
+}
+
+export function compactProvenanceFromResults(results: Record<string, unknown> | null | undefined) {
+  const raw = results?.provenance;
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return '—';
+  const provenance = raw as Record<string, unknown>;
+  const layout = results?.layout;
+  const layoutRecord = typeof layout === 'object' && layout !== null && !Array.isArray(layout)
+    ? layout as Record<string, unknown>
+    : {};
+  const rawSources = provenance.input_sources ?? results?.input_sources;
+  const sources = typeof rawSources === 'object' && rawSources !== null && !Array.isArray(rawSources)
+    ? rawSources as Record<string, unknown>
+    : {};
+  const rawCatalogs = provenance.catalogs ?? results?.catalogs;
+  const catalogs = typeof rawCatalogs === 'object' && rawCatalogs !== null && !Array.isArray(rawCatalogs)
+    ? rawCatalogs as Record<string, unknown>
+    : {};
+  const rawSectionCatalog = catalogs.section;
+  const sectionCatalog = typeof rawSectionCatalog === 'object' && rawSectionCatalog !== null && !Array.isArray(rawSectionCatalog)
+    ? rawSectionCatalog as Record<string, unknown>
+    : {};
+  const threadSource = layoutRecord.thread_selection_source ?? sources.thread_count;
+  const layingSource = sources.winding_pitch_mm ?? sources.winding_coefficient;
+  const currentLimitSource = sources.max_section_start_current_a;
+  const catalogSource = sectionCatalog.source ?? sectionCatalog.authority;
+  const catalogVersion = sectionCatalog.version ?? sectionCatalog.id;
+  const formulaVersion = provenance.formula_version;
+  const formulaFingerprint = provenance.formula_fingerprint;
+  const formula = [
+    typeof formulaVersion === 'string' ? formulaVersion : '',
+    typeof formulaFingerprint === 'string' ? `fp ${formulaFingerprint.slice(0, 12)}` : '',
+  ].filter(Boolean).join('; ');
+  const sectionCatalogLabel = [catalogSource, catalogVersion]
+    .filter((value) => value !== null && value !== undefined && value !== '')
+    .join('/');
+  return [
+    threadSource && `нитки: ${String(threadSource)}`,
+    layingSource && `укладка: ${String(layingSource)}`,
+    currentLimitSource && `Iдоп: ${String(currentLimitSource)}`,
+    sectionCatalogLabel && `секции: ${sectionCatalogLabel}`,
+    formula && `формула: ${formula}`,
+  ]
+    .filter(Boolean)
+    .join(' · ') || '—';
+}
+
+export function compactProvenanceValue(calc: ElectricalCalcSummary | undefined) {
+  return compactProvenanceFromResults(calc?.results);
+}
+
 export function cablePowerPerMeterValue(calc: ElectricalCalcSummary | undefined) {
   return finiteNumber(calc?.results?.power_per_meter);
 }
@@ -104,13 +209,7 @@ export function installedPowerPerMeterValue(calc: ElectricalCalcSummary | undefi
 }
 
 export function orderCableLengthValue(calc: ElectricalCalcSummary | undefined) {
-  if (!calc?.results) return undefined;
-  const explicitRaw = calc.results.order_cable_length;
-  if (explicitRaw !== null && explicitRaw !== undefined && explicitRaw !== '') {
-    const explicitLength = Number(explicitRaw);
-    if (Number.isFinite(explicitLength)) return explicitLength;
-  }
-  return undefined;
+  return finiteNumber(engineeringResultValue(calc, 'order_cable_length'));
 }
 
 export function commercialValue(calc: ElectricalCalcSummary | undefined, key: string) {

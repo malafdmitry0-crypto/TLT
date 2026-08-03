@@ -70,17 +70,17 @@ describe('useElectricalStats', () => {
       }),
     ];
     const { result } = renderHook(() => useElectricalStats(objects, calcs));
-    expect(result.current.totalCableLength).toBe(33);
+    expect(result.current.totalCableLength).toBe(30);
     expect(result.current.totalPower).toBe(1050);
     expect(result.current.totalCurrent).toBeCloseTo(4.8, 3);
     expect(result.current.calcedCount).toBe(2);
     expect(result.current.allCalced).toBe(true);
     expect(result.current.systemSummaries.self_regulating.objectCount).toBe(2);
-    expect(result.current.systemSummaries.total.cableLengthM).toBe(33);
+    expect(result.current.systemSummaries.total.cableLengthM).toBe(30);
     expect(result.current.systemSummaries.self_regulating.sectionCount).toBeNull();
   });
 
-  it('суммирует заказную длину, если она есть в результате', () => {
+  it('суммирует уложенную длину, а не заказную', () => {
     const objects = [makeObj('a')];
     const calcs = [
       makeCalc('a', 1, {
@@ -92,14 +92,35 @@ describe('useElectricalStats', () => {
       }),
     ];
     const { result } = renderHook(() => useElectricalStats(objects, calcs));
-    expect(result.current.totalCableLength).toBe(11);
+    expect(result.current.totalCableLength).toBe(10);
+  });
+
+  it('читает канонические nested TT totals до compatibility aliases', () => {
+    const objects = [makeObj('a')];
+    const calcs = [makeCalc('a', 1, {
+      selected_cable: '30ТТВ2-СР',
+      installed_cable_length: 99,
+      layout: { actual_installed_length_m: 42 },
+      section_plan: { count: 3 },
+      electrical: {
+        total_power_w: 840,
+        working_current_a: 3.65,
+        start_current_a: 12.5,
+      },
+    })];
+    const { result } = renderHook(() => useElectricalStats(objects, calcs));
+    expect(result.current.totalCableLength).toBe(42);
+    expect(result.current.totalPower).toBe(840);
+    expect(result.current.totalCurrent).toBe(3.65);
+    expect(result.current.systemSummaries.total.sectionCount).toBe(3);
+    expect(result.current.systemSummaries.total.startCurrentA).toBe(12.5);
   });
 
   it('изолирует статистику явно выбранным legacy-слотом', () => {
     const objects = [makeObj('a')];
     const calcs = [
-      makeCalc('a', 1, { selected_cable: 'ТЛТ-10', order_cable_length: 5 }),
-      makeCalc('a', 2, { selected_cable: 'ТЛТ-25', order_cable_length: 10 }),
+      makeCalc('a', 1, { selected_cable: 'ТЛТ-10', installed_cable_length: 5 }),
+      makeCalc('a', 2, { selected_cable: 'ТЛТ-25', installed_cable_length: 10 }),
     ];
     const { result } = renderHook(() => useElectricalStats(objects, calcs, 1));
     expect(result.current.calcByObjectId['a'].variant_number).toBe(1);

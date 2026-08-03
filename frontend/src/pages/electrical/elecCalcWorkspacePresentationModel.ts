@@ -99,6 +99,7 @@ export const ELEC_CALC_WORKSPACE_VIEW_KEYS = [
   'setSelectedRowKeys',
   'setSystemView',
   'stats',
+  'systemSummaries',
   'systemView',
   'tableDragging',
   'tableScrollRegionsRef',

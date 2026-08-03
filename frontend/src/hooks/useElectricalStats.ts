@@ -9,13 +9,61 @@ import type { ProjectObject } from '@/types/project';
 import type { ElectricalCalcSummary } from '@/types/calculation';
 import type { ElectricalSystemSummaries, SystemSummaryBucket } from '@/components/electrical/ElectricalSummary';
 
-function orderCableLength(calc: ElectricalCalcSummary) {
-  const explicitRaw = calc.results?.order_cable_length;
-  if (explicitRaw !== null && explicitRaw !== undefined && explicitRaw !== '') {
-    const explicitLength = Number(explicitRaw);
-    if (Number.isFinite(explicitLength)) return explicitLength;
+function recordValue(value: unknown): Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function firstFinite(...values: unknown[]): number | undefined {
+  for (const value of values) {
+    if (value === null || value === undefined || value === '') continue;
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) return numeric;
   }
-  return 0;
+  return undefined;
+}
+
+function installedCableLength(calc: ElectricalCalcSummary) {
+  const layout = recordValue(calc.results?.layout);
+  return firstFinite(
+    layout.actual_installed_length_m,
+    calc.results?.installed_cable_length,
+  ) ?? 0;
+}
+
+function calculationTotalPower(calc: ElectricalCalcSummary) {
+  const electrical = recordValue(calc.results?.electrical);
+  return firstFinite(electrical.total_power_w, calc.results?.total_power) ?? 0;
+}
+
+function workingCurrent(calc: ElectricalCalcSummary) {
+  const electrical = recordValue(calc.results?.electrical);
+  return firstFinite(
+    electrical.working_current_a,
+    calc.results?.working_current,
+    calc.results?.section_working_current_a,
+    calc.results?.current,
+  ) ?? 0;
+}
+
+function startCurrent(calc: ElectricalCalcSummary) {
+  const electrical = recordValue(calc.results?.electrical);
+  return firstFinite(
+    electrical.start_current_a,
+    calc.results?.start_current,
+    calc.results?.starting_current,
+    calc.results?.section_start_current_a,
+  ) ?? 0;
+}
+
+function sectionCount(calc: ElectricalCalcSummary): number | undefined {
+  const sectionPlan = recordValue(calc.results?.section_plan);
+  return firstFinite(
+    sectionPlan.count,
+    calc.results?.section_count,
+    calc.results?.num_sections,
+  );
 }
 
 function emptyBucket(): SystemSummaryBucket {
@@ -39,30 +87,15 @@ function systemKeyOf(calc: ElectricalCalcSummary): 'self_regulating' | 'resistiv
 
 function addToBucket(bucket: SystemSummaryBucket, calc: ElectricalCalcSummary): void {
   bucket.objectCount += 1;
-  bucket.cableLengthM += orderCableLength(calc);
-  bucket.powerW += Number(calc.results?.total_power ?? 0);
-  const working = Number(
-    calc.results?.working_current
-    ?? calc.results?.section_working_current_a
-    ?? calc.results?.current
-    ?? 0,
-  );
-  bucket.workingCurrentA += Number.isFinite(working) ? working : 0;
-  const start = Number(
-    calc.results?.start_current
-    ?? calc.results?.starting_current
-    ?? calc.results?.section_start_current_a
-    ?? 0,
-  );
+  bucket.cableLengthM += installedCableLength(calc);
+  bucket.powerW += calculationTotalPower(calc);
+  bucket.workingCurrentA += workingCurrent(calc);
   // Do not fall back to working current for start — show 0 if unknown.
-  bucket.startCurrentA += Number.isFinite(start) ? start : 0;
+  bucket.startCurrentA += startCurrent(calc);
   // Real section_count from Phase-4 catalog only (not num_circuits).
-  const sectionsRaw = calc.results?.section_count ?? calc.results?.num_sections;
-  if (sectionsRaw !== null && sectionsRaw !== undefined && sectionsRaw !== '') {
-    const n = Number(sectionsRaw);
-    if (Number.isFinite(n) && n > 0) {
-      bucket.sectionCount = (bucket.sectionCount ?? 0) + n;
-    }
+  const sections = sectionCount(calc);
+  if (sections !== undefined && sections > 0) {
+    bucket.sectionCount = (bucket.sectionCount ?? 0) + sections;
   }
 }
 
@@ -126,15 +159,15 @@ export function useElectricalStats(
 
     const successCalcs = scopedCalcs.filter((c) => isElectricalCalcSuccess(c));
     const totalCableLength = successCalcs.reduce(
-      (sum, c) => sum + orderCableLength(c),
+      (sum, c) => sum + installedCableLength(c),
       0,
     );
     const totalPower = successCalcs.reduce(
-      (sum, c) => sum + Number(c.results?.total_power ?? 0),
+      (sum, c) => sum + calculationTotalPower(c),
       0,
     );
     const totalCurrent = successCalcs.reduce(
-      (sum, c) => sum + Number(c.results?.current ?? 0),
+      (sum, c) => sum + workingCurrent(c),
       0,
     );
 
@@ -155,8 +188,7 @@ export function useElectricalStats(
     // If no section catalog data at all, keep sectionCount null on buckets.
     for (const b of [self_regulating, resistive, skin, total]) {
       if (b.sectionCount === 0 && successCalcs.every((c) => {
-        const raw = c.results?.section_count ?? c.results?.num_sections;
-        return raw === null || raw === undefined || raw === '';
+        return sectionCount(c) === undefined;
       })) {
         b.sectionCount = null;
       }

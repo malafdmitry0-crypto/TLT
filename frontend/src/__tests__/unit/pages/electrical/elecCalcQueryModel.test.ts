@@ -80,7 +80,7 @@ function page(objectIds: string[], calculations: ElectricalCalcSummary[]): Elect
       has_previous_page: false,
     },
     counts: { total: objectIds.length, filtered: objectIds.length },
-    query: { variant_number: 1, sort: null },
+    query: { electrical_variant_id: null, variant_number: 1, sort: null },
   };
 }
 

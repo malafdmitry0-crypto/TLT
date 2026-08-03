@@ -9,8 +9,10 @@ import {
 } from '@/utils/calcStatus';
 import {
   cablePowerPerMeterValue,
+  compactProvenanceValue,
   commercialValue,
   currentElectricalCalc,
+  engineeringResultValue,
   getCableMark,
   getThreadSource,
   installedPowerPerMeterValue,
@@ -212,10 +214,19 @@ export function mainElectricalColumnCopyValue(
     case 'order_cable_length':
       return valueText(orderCableLengthValue(currentCalc));
     case 'installed_cable_length':
+    case 'required_installed_length_m':
+    case 'section_l_max_m':
+    case 'section_l_tok_m':
+    case 'section_l_ogr_m':
+    case 'section_l_excess_m':
     case 'total_power':
     case 'current':
     case 'voltage':
-      return valueText(currentCalc?.results?.[key]);
+      return valueText(key === 'total_power' || key === 'current' || key === 'voltage'
+        ? currentCalc?.results?.[key]
+        : engineeringResultValue(currentCalc, key));
+    case 'provenance':
+      return compactProvenanceValue(currentCalc);
     case 'power_per_meter':
       return valueText(cablePowerPerMeterValue(currentCalc));
     case 'installed_power_per_meter':

@@ -15,6 +15,8 @@ import {
   type CableTypeKey,
 } from '@/domain/electrical/elecCalcMainTableModel';
 import {
+  compactProvenanceFromResults,
+  engineeringResultValueFromResults,
   numberText,
   powerText,
   selectionPolicyText,
@@ -110,9 +112,24 @@ export function renderCandidateElectricalField(
     case 'aggressive_product':
       return valueText(candidate.params?.aggressive_product);
     case 'installed_cable_length':
-      return numberText(candidate.results?.installed_cable_length, 1);
+      return numberText(
+        engineeringResultValueFromResults(candidate.results, 'installed_cable_length'),
+        1,
+      );
     case 'order_cable_length':
       return numberText(candidateOrderCableLengthValue(candidate), 1);
+    case 'required_installed_length_m':
+    case 'section_l_max_m':
+    case 'section_l_tok_m':
+    case 'section_l_ogr_m':
+    case 'section_l_excess_m': {
+      return numberText(
+        engineeringResultValueFromResults(candidate.results, key),
+        1,
+      );
+    }
+    case 'provenance':
+      return compactProvenanceFromResults(candidate.results);
     case 'total_power':
       return powerText(candidate.results?.total_power);
     case 'power_per_meter':

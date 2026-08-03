@@ -68,6 +68,19 @@ describe('electricalTableColumns', () => {
     expect(availableKeys).toContain('installed_power_per_meter');
   });
 
+  it('keeps engineering columns opt-in while making them available in settings', () => {
+    const availableKeys = getAvailableElectricalTableColumnKeys();
+    const defaultVisible = getDefaultElectricalTableColumnSettings().visibleOrder;
+    const engineeringKeys = ['required_installed_length_m', 'section_l_max_m', 'section_l_tok_m', 'section_l_ogr_m', 'section_l_excess_m', 'provenance'];
+
+    engineeringKeys.forEach((key) => {
+      expect(availableKeys).toContain(key);
+      expect(defaultVisible).not.toContain(key);
+    });
+    expect(setElectricalTableColumnVisibility(getDefaultElectricalTableColumnSettings(), 'section_l_ogr_m', true).visibleOrder)
+      .toContain('section_l_ogr_m');
+  });
+
   it('нормализует неизвестные ключи и сохраняет обязательные колонки', () => {
     const settings = normalizeElectricalTableColumnSettings({
       version: 1,

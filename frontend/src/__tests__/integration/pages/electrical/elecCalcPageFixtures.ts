@@ -99,7 +99,7 @@ export function makeElectricalPage(
         summaryOverrides.total_cable_length ??
         calculated.reduce(
           (sum, calc) =>
-            sum + Number(calc.results?.order_cable_length ?? 0),
+            sum + Number(calc.results?.installed_cable_length ?? 0),
           0,
         ),
       total_power:

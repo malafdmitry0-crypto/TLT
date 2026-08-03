@@ -10,6 +10,8 @@ import {
   commercialNumber,
   commercialValue,
   currentElectricalCalc,
+  compactProvenanceValue,
+  engineeringResultNumber,
   installedPowerPerMeterValue,
   numberText,
   objectResultNumber,
@@ -25,13 +27,22 @@ export function buildElecCalcResultMetricColumnRenderers(
     installed_cable_length: {
       align: 'right',
       render: (_: unknown, obj) =>
-        resultNumber(currentElectricalCalc(calcByObjectId[obj.id]), 'installed_cable_length', 1),
+        engineeringResultNumber(
+          currentElectricalCalc(calcByObjectId[obj.id]),
+          'installed_cable_length',
+        ),
     },
     order_cable_length: {
       align: 'right',
       render: (_: unknown, obj) =>
         numberText(orderCableLengthValue(currentElectricalCalc(calcByObjectId[obj.id])), 1),
     },
+    required_installed_length_m: { align: 'right', render: (_: unknown, obj) => engineeringResultNumber(currentElectricalCalc(calcByObjectId[obj.id]), 'required_installed_length_m') },
+    section_l_max_m: { align: 'right', render: (_: unknown, obj) => engineeringResultNumber(currentElectricalCalc(calcByObjectId[obj.id]), 'section_l_max_m') },
+    section_l_tok_m: { align: 'right', render: (_: unknown, obj) => engineeringResultNumber(currentElectricalCalc(calcByObjectId[obj.id]), 'section_l_tok_m') },
+    section_l_ogr_m: { align: 'right', render: (_: unknown, obj) => engineeringResultNumber(currentElectricalCalc(calcByObjectId[obj.id]), 'section_l_ogr_m') },
+    section_l_excess_m: { align: 'right', render: (_: unknown, obj) => engineeringResultNumber(currentElectricalCalc(calcByObjectId[obj.id]), 'section_l_excess_m') },
+    provenance: { ellipsis: true, render: (_: unknown, obj) => compactProvenanceValue(currentElectricalCalc(calcByObjectId[obj.id])) },
     total_power: {
       align: 'right',
       render: (_: unknown, obj) =>
@@ -49,7 +60,10 @@ export function buildElecCalcResultMetricColumnRenderers(
     },
     current: {
       align: 'right',
-      render: (_: unknown, obj) => resultNumber(currentElectricalCalc(calcByObjectId[obj.id]), 'current', 2),
+      render: (_: unknown, obj) => numberText(
+        currentElectricalCalc(calcByObjectId[obj.id])?.results?.current,
+        2,
+      ),
     },
     voltage: {
       align: 'right',

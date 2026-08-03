@@ -1135,7 +1135,10 @@ const electricalVariants = [
     variant_number: 1,
     cable_type: 'self_regulating_tt',
     params: {
-      supply_voltage: 220,
+      // New TT calculations are canonically 230 V; keep the guest fixture
+      // aligned with the backend pipeline rather than exercising the 220 V
+      // legacy-read compatibility path.
+      supply_voltage: 230,
       winding_coefficient: 1.1,
       heating_height: 3,
       laying_step: 0.1,

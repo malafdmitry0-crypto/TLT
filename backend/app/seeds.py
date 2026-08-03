@@ -29,8 +29,6 @@ from sqlalchemy import delete, select
 from app.core.database import AsyncSessionLocal
 from app.core.dependencies import CurrentPrincipal
 from app.core.security import hash_password
-from app.formulas.electrical.sections import compute_section_plan, section_plan_to_result_fields
-from app.formulas.electrical.self_regulating import calc_self_regulating_tt
 from app.formulas.specification.builder import build_basic_specification
 from app.models.accessory import AccessoryExtended
 from app.models.cable import CableExtended
@@ -49,7 +47,7 @@ from app.reference_data.loader import (
 from app.schemas.calculation import (
     RESISTIVE_DEFAULT_MIN_ADJUSTED_VOLTAGE,
     RESISTIVE_DEFAULT_VOLTAGE_STEP,
-    SelfRegulatingTTParams,
+    ElectricalRequest,
 )
 from app.schemas.project import ProjectObjectCreate
 from app.services.calculation_service import CalculationService
@@ -1587,6 +1585,7 @@ async def seed_objects_and_calculations(
             assignment.object_id: assignment for assignment in assignment_result.scalars().all()
         }
 
+        electrical_calculation_service = CalculationService(db)
         for pipe_obj in pipe_objects:
             assignment = assignments_by_object_id.get(pipe_obj.id)
             if assignment is None:
@@ -1600,8 +1599,9 @@ async def seed_objects_and_calculations(
             )
             assignment.diagnostics = {}
 
-            # Сид всегда отражает текущую формулу и паспортный каталог. Поэтому
-            # прежний результат демо-объекта заменяется независимо от типа.
+            # Сид всегда отражает текущий shared TT pipeline и его immutable
+            # snapshots/provenance. Поэтому прежний результат демо-объекта
+            # заменяется независимо от типа.
             existing_calc = await db.execute(
                 select(ElectricalCalculation).where(
                     ElectricalCalculation.object_id == pipe_obj.id,
@@ -1613,83 +1613,47 @@ async def seed_objects_and_calculations(
                 await db.delete(existing)
                 await db.flush()
 
-            # Берём базовые линейные теплопотери: электрическая формула сама применяет K.
-            heat_loss_per_meter = (
-                pipe_obj.results.get("heat_loss_per_meter_base", 0) if pipe_obj.results else 0
-            )
-            pipe_length = pipe_obj.params.get("pipe_length", 100.0)
             process_temperature = pipe_obj.params.get("process_temperature", 80.0)
-
-            if heat_loss_per_meter <= 0:
-                logger.warning("  ! skip elec calc for object %s: heat_loss=0", pipe_obj.id)
-                continue
 
             try:
                 max_section_start_current = float(assignment.max_section_start_current_a)
-                elec_params = SelfRegulatingTTParams(
-                    required_power_per_meter=heat_loss_per_meter,
-                    process_temperature=process_temperature,
-                    maintain_temperature=process_temperature,
-                    pipe_length=pipe_length,
-                    winding_coefficient=1.0,
-                    safety_factor=1.0,  # коэффициент уже применён в теплопотерях
-                    max_start_current_per_section=max_section_start_current,
+                # Provide the complete canonical override set while leaving
+                # geometry and Heat values to their authoritative snapshots.
+                # The service owns 230 V, catalog resolution, sectioning and
+                # provenance exactly as it does for API-originated requests.
+                request = ElectricalRequest(
+                    object_id=pipe_obj.id,
+                    cable_type="self_regulating_tt",
+                    variant_number=1,
+                    electrical_variant_id=electrical_variant.id,
+                    data={
+                        "maintain_temperature_c": process_temperature,
+                        "steam_temperature_c": None,
+                        "aggressive_product": False,
+                        "winding_pitch_mm": None,
+                        "thread_count": None,
+                        "manual_cable_model": None,
+                        "max_section_start_current_a": max_section_start_current,
+                        "selection_policy": "technical_minimum",
+                        "nominal_voltage_v": 230,
+                    },
                 )
-                elec_result = calc_self_regulating_tt(elec_params)
-                elec_results_dict = elec_result.model_dump()
-                cable_mark = elec_result.cable_mark
-                cold_start_temperature = float(
-                    pipe_obj.params.get("min_switch_temperature")
-                    or pipe_obj.params.get("ambient_temperature")
-                    or -20.0
+                elec_calc = await electrical_calculation_service.calc_electrical(
+                    request,
+                    commit=False,
+                    electrical_variant_id=electrical_variant.id,
                 )
-                section_plan = compute_section_plan(
-                    mark=elec_result.cable_model or cable_mark,
-                    installed_cable_length_m=elec_result.installed_cable_length,
-                    power_per_meter_w=elec_result.power_per_meter,
-                    working_current_total_a=elec_result.current,
-                    voltage_v=elec_result.voltage,
-                    cold_start_temp_c=cold_start_temperature,
-                    max_start_current_per_section_a=max_section_start_current,
-                )
-                if section_plan is None:
-                    raise RuntimeError(
-                        f"TT section passport row is missing for {cable_mark} at "
-                        f"{cold_start_temperature:g}°C"
-                    )
-                elec_results_dict.update(section_plan_to_result_fields(section_plan))
+                result = elec_calc.results or {}
                 logger.info(
-                    "  + elec_calc '%s' → кабель %s, длина %.1f м",
+                    "  + elec_calc '%s' → кабель %s, Lтреб %.1f м, Lфакт %.1f м",
                     pipe_obj.params.get("outer_diameter", "?"),
-                    cable_mark,
-                    elec_result.cable_length,
+                    elec_calc.cable_mark,
+                    result.get("layout", {}).get("required_installed_length_m", 0),
+                    result.get("installed_cable_length", 0),
                 )
             except Exception as exc:
                 logger.warning("  ! elec_calc error for object %s: %s", pipe_obj.id, exc)
                 continue
-
-            elec_calc = ElectricalCalculation(
-                project_id=project.id,
-                object_id=pipe_obj.id,
-                variant_number=1,
-                electrical_variant_id=electrical_variant.id,
-                cable_type="self_regulating_tt",
-                cable_mark=cable_mark,
-                params={
-                    "required_power_per_meter": heat_loss_per_meter,
-                    "pipe_length": pipe_length,
-                    "maintain_temperature": process_temperature,
-                    "vapor_temperature": None,
-                    "aggressive_product": False,
-                    "supply_voltage": elec_result.voltage,
-                    "max_start_current_per_section": max_section_start_current,
-                    "winding_coefficient": 1.0,
-                    "min_switch_temperature": cold_start_temperature,
-                    "safety_factor": 1.0,
-                },
-                results=elec_results_dict,
-            )
-            db.add(elec_calc)
 
         await db.flush()
 

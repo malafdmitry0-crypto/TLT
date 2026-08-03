@@ -1,4 +1,5 @@
 import type { ElectricalStats } from '@/hooks/useElectricalStats';
+import type { ElectricalSystemSummaries } from '@/components/electrical/ElectricalSummary';
 import {
   countManualCableRows,
   countValidSelectedObjects,
@@ -14,6 +15,25 @@ import type {
 } from '@/types/calculation';
 import type { ProjectObject } from '@/types/project';
 import { isActiveCalcJobStatus } from '@/utils/calcJobPolling';
+
+function toSystemSummaries(pageSummary: ElectricalPageSummary): ElectricalSystemSummaries | undefined {
+  const summaries = pageSummary.system_summaries;
+  if (!summaries) return undefined;
+  const bucket = (value: typeof summaries.total) => ({
+    objectCount: value.object_count,
+    cableLengthM: value.cable_length_m,
+    sectionCount: value.section_count,
+    powerW: value.power_w,
+    startCurrentA: value.start_current_a,
+    workingCurrentA: value.working_current_a,
+  });
+  return {
+    self_regulating: bucket(summaries.self_regulating),
+    resistive: bucket(summaries.resistive),
+    skin: bucket(summaries.skin),
+    total: bucket(summaries.total),
+  };
+}
 
 type ElecCalcSummaryViewModelOptions = {
   pageSummary?: ElectricalPageSummary;
@@ -34,6 +54,7 @@ export function buildElecCalcSummaryViewModel({
   activeJobStatus,
   jobProgress,
 }: ElecCalcSummaryViewModelOptions) {
+  const systemSummaries = pageSummary ? toSystemSummaries(pageSummary) ?? stats.systemSummaries : stats.systemSummaries;
   const totalObjects = pageSummary?.total_objects ?? objects.length;
   const validObjectsCount = pageSummary?.valid_objects ?? stats.validObjects.length;
   const selectedObjectsCount = selectedRowKeys.length;
@@ -85,6 +106,9 @@ export function buildElecCalcSummaryViewModel({
     totalCableLength,
     totalPower,
     totalCurrent,
+    totalSections: pageSummary?.total_sections ?? systemSummaries.total.sectionCount,
+    totalStartCurrentA: pageSummary?.total_start_current_a ?? systemSummaries.total.startCurrentA,
+    systemSummaries,
     visibleManualCableCount,
     manualCableCount,
     selectedManualCableCount,

@@ -43,7 +43,7 @@ export function ElecCalcWorkspace(props: ElecCalcWorkspaceProps) {
       <div id="electrical-variant-workspace" ref={m.tableScrollRegionsRef}>
         <Space direction="vertical" size={8} style={{ width: '100%' }}>
           <ElectricalSummary
-            systems={m.stats.systemSummaries}
+            systems={m.systemSummaries}
             totalCableLength={m.totalCableLength}
             totalPower={Number(m.stats.totalPower)}
             totalCurrent={m.totalCurrent}

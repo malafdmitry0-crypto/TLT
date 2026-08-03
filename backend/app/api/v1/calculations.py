@@ -334,23 +334,24 @@ async def electrical_page(
 )
 async def electrical_query_capabilities(
     project_id: UUID,
-    variant_number: int = 1,
+    variant_number: int | None = 1,
     electrical_variant_id: UUID | None = None,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
     try:
         if electrical_variant_id is not None:
-            await ElectricalVariantService(db).validate_legacy_variant_for_read(
+            variant = await ElectricalVariantService(db).require_variant_for_read(
                 project_id,
                 principal,
-                variant_number,
                 electrical_variant_id,
             )
+            variant_number = variant.legacy_variant_number
         return await ElectricalQueryService(db).capabilities(
             project_id,
             variant_number,
             principal,
+            electrical_variant_id=electrical_variant_id,
         )
     except ElectricalVariantServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
@@ -381,12 +382,12 @@ async def query_electrical(
         )
     try:
         if data.electrical_variant_id is not None:
-            await ElectricalVariantService(db).validate_legacy_variant_for_read(
+            variant = await ElectricalVariantService(db).require_variant_for_read(
                 data.project_id,
                 principal,
-                data.variant_number,
                 data.electrical_variant_id,
             )
+            data = data.model_copy(update={"variant_number": variant.legacy_variant_number})
         return await ElectricalQueryService(db).query(data, principal)
     except ElectricalVariantServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc

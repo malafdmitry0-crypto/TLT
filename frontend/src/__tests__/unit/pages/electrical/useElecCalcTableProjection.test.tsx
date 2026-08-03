@@ -24,6 +24,7 @@ function calc(objectId: string, variantNumber = 1): ElectricalCalcSummary {
     params: {},
     results: {
       selected_cable: 'ТЛТ-25',
+      installed_cable_length: 10,
       order_cable_length: 11,
       total_power: 250,
       current: 1.14,
@@ -44,7 +45,7 @@ function page(
     summary: {},
     page_info: { offset },
     counts: { total: items.length, filtered: items.length },
-    query: { variant_number: 1, sort: null },
+    query: { electrical_variant_id: null, variant_number: 1, sort: null },
   } as ElectricalQueryResponse;
 }
 
@@ -83,6 +84,6 @@ describe('useElecCalcTableProjection', () => {
     expect(result.current.elecCalcs.map((item) => item.object_id)).toEqual(['obj-1', 'obj-2', 'obj-3']);
     expect(result.current.electricalDisplayOffset).toBe(0);
     expect(result.current.stats.calcByObjectId['obj-2'].variant_number).toBe(1);
-    expect(result.current.stats.totalCableLength).toBe(33);
+    expect(result.current.stats.totalCableLength).toBe(30);
   });
 });

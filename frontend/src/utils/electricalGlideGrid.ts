@@ -18,7 +18,7 @@ export function electricalGlideFilterKindForCapability(
     if (capability.filter.ops.includes('equals') && capability.data_type === 'boolean') return 'boolean';
     return 'text';
   }
-  if (['installed_cable_length', 'order_cable_length', 'total_power', 'current', 'voltage'].includes(key)) {
+  if (['installed_cable_length', 'order_cable_length', 'required_installed_length_m', 'section_l_max_m', 'section_l_tok_m', 'section_l_ogr_m', 'section_l_excess_m', 'total_power', 'current', 'voltage'].includes(key)) {
     return 'numberRange';
   }
   if (['electrical_status', 'object_type', 'heat_loss_status', 'cable_type'].includes(key)) {

@@ -180,6 +180,19 @@ def _sql_calc_result_number(key: str) -> Any:
     return _sql_number(_sql_calc_result_text(key))
 
 
+def _sql_calc_result_path_text(*path: str) -> Any:
+    expression = ElectricalCalculation.results
+    for key in path:
+        expression = expression[key]
+    return expression.astext
+
+
+def _sql_calc_result_number_fallback(*paths: tuple[str, ...]) -> Any:
+    return _sql_number(
+        func.coalesce(*(func.nullif(_sql_calc_result_path_text(*path), "") for path in paths))
+    )
+
+
 def _sql_calc_commercial_text(key: str) -> Any:
     return ElectricalCalculation.results["commercial"][key].astext
 
@@ -303,6 +316,74 @@ def _calc_result(row: ElectricalQueryRow, key: str) -> Any:
     if row.calc is None or not isinstance(row.calc.results, dict):
         return None
     return row.calc.results.get(key)
+
+
+def _calc_result_path(row: ElectricalQueryRow, *path: str) -> Any:
+    if row.calc is None or not isinstance(row.calc.results, dict):
+        return None
+    value: Any = row.calc.results
+    for key in path:
+        if not isinstance(value, dict):
+            return None
+        value = value.get(key)
+    return value
+
+
+def _calc_result_fallback(row: ElectricalQueryRow, *paths: tuple[str, ...]) -> Any:
+    for path in paths:
+        value = _calc_result_path(row, *path)
+        if value is not None and value != "":
+            return value
+    return None
+
+
+def _calc_provenance_summary(row: ElectricalQueryRow) -> str | None:
+    if row.calc is None or not isinstance(row.calc.results, dict):
+        return None
+    results = row.calc.results
+    layout = results.get("layout") if isinstance(results.get("layout"), dict) else {}
+    provenance = results.get("provenance") if isinstance(results.get("provenance"), dict) else {}
+    input_sources = (
+        provenance.get("input_sources")
+        if isinstance(provenance.get("input_sources"), dict)
+        else results.get("input_sources")
+        if isinstance(results.get("input_sources"), dict)
+        else {}
+    )
+    catalogs = (
+        provenance.get("catalogs")
+        if isinstance(provenance.get("catalogs"), dict)
+        else results.get("catalogs")
+        if isinstance(results.get("catalogs"), dict)
+        else {}
+    )
+    section_catalog = catalogs.get("section") if isinstance(catalogs.get("section"), dict) else {}
+    parts: list[str] = []
+    thread_source = layout.get("thread_selection_source") or input_sources.get("thread_count")
+    winding_source = input_sources.get("winding_pitch_mm") or input_sources.get(
+        "winding_coefficient"
+    )
+    current_limit_source = input_sources.get("max_section_start_current_a")
+    catalog_source = section_catalog.get("source") or section_catalog.get("authority")
+    catalog_version = section_catalog.get("version") or section_catalog.get("id")
+    formula_version = provenance.get("formula_version")
+    formula_fingerprint = provenance.get("formula_fingerprint")
+    if thread_source:
+        parts.append(f"нитки: {thread_source}")
+    if winding_source:
+        parts.append(f"укладка: {winding_source}")
+    if current_limit_source:
+        parts.append(f"Iдоп: {current_limit_source}")
+    if catalog_source or catalog_version:
+        catalog_label = "/".join(str(value) for value in (catalog_source, catalog_version) if value)
+        parts.append(f"секции: {catalog_label}")
+    if formula_version or formula_fingerprint:
+        formula_label = str(formula_version or "")
+        if formula_fingerprint:
+            fingerprint = str(formula_fingerprint)
+            formula_label = f"{formula_label}; fp {fingerprint[:12]}".strip("; ")
+        parts.append(f"формула: {formula_label}")
+    return " · ".join(parts) or None
 
 
 def _calc_power_per_meter(row: ElectricalQueryRow) -> float | None:
@@ -640,11 +721,79 @@ FIELDS: tuple[FieldDef, ...] = (
         static_options=BOOL_OPTIONS,
     ),
     FieldDef(
-        "installed_cable_length",
-        "Уложенная длина кабеля, м",
-        "Длина улож., м",
+        "required_installed_length_m",
+        "Требуемая общая длина кабеля до секционирования, м",
+        "Lтреб, м",
         "number",
-        lambda row: _calc_result(row, "installed_cable_length"),
+        lambda row: _calc_result_fallback(
+            row,
+            ("layout", "required_installed_length_m"),
+            ("required_installed_length_m",),
+            ("section_l_required_m",),
+        ),
+        unit="м",
+        filter_ops=("range",),
+        sortable=True,
+        sort_type="number",
+    ),
+    FieldDef(
+        "installed_cable_length",
+        "Фактическая общая длина кабеля после секционирования, м",
+        "Lфакт, м",
+        "number",
+        lambda row: _calc_result_fallback(
+            row,
+            ("layout", "actual_installed_length_m"),
+            ("installed_cable_length",),
+        ),
+        unit="м",
+        filter_ops=("range",),
+        sortable=True,
+        sort_type="number",
+    ),
+    FieldDef(
+        "section_l_max_m",
+        "Максимальная длина секции по каталогу, м",
+        "Lмакс, м",
+        "number",
+        lambda row: _calc_result_fallback(row, ("section_plan", "l_max_m"), ("section_l_max_m",)),
+        unit="м",
+        filter_ops=("range",),
+        sortable=True,
+        sort_type="number",
+    ),
+    FieldDef(
+        "section_l_tok_m",
+        "Максимальная длина секции по стартовому току, м",
+        "Lток, м",
+        "number",
+        lambda row: _calc_result_fallback(row, ("section_plan", "l_tok_m"), ("section_l_tok_m",)),
+        unit="м",
+        filter_ops=("range",),
+        sortable=True,
+        sort_type="number",
+    ),
+    FieldDef(
+        "section_l_ogr_m",
+        "Допустимая длина одной нагревательной секции, м",
+        "Lогр, м",
+        "number",
+        lambda row: _calc_result_fallback(row, ("section_plan", "l_ogr_m"), ("section_l_ogr_m",)),
+        unit="м",
+        filter_ops=("range",),
+        sortable=True,
+        sort_type="number",
+    ),
+    FieldDef(
+        "section_l_excess_m",
+        "Дополнительная длина после выравнивания секций, м",
+        "Lдоп, м",
+        "number",
+        lambda row: _calc_result_fallback(
+            row,
+            ("layout", "excess_installed_length_m"),
+            ("section_l_excess_m",),
+        ),
         unit="м",
         filter_ops=("range",),
         sortable=True,
@@ -653,13 +802,26 @@ FIELDS: tuple[FieldDef, ...] = (
     FieldDef(
         "order_cable_length",
         "Заказная длина кабеля с монтажным запасом, м",
-        "Заказ +10%, м",
+        "Lзаказ, м",
         "number",
-        lambda row: _calc_result(row, "order_cable_length"),
+        lambda row: _calc_result_fallback(
+            row,
+            ("layout", "required_order_length_m"),
+            ("order_cable_length",),
+        ),
         unit="м",
         filter_ops=("range",),
         sortable=True,
         sort_type="number",
+    ),
+    FieldDef(
+        "provenance",
+        "Происхождение параметров длины и секционирования",
+        "Источники",
+        "text",
+        _calc_provenance_summary,
+        filter_reason="display_only",
+        sort_reason="display_only",
     ),
     FieldDef(
         "total_power",
@@ -837,8 +999,29 @@ ELECTRICAL_SQL_EXPRESSIONS: dict[str, SqlExprFactory] = {
     "vapor_temperature": lambda: _sql_calc_param_number("vapor_temperature"),
     "maintain_temperature": lambda: _sql_calc_param_number("maintain_temperature"),
     "aggressive_product": lambda: _sql_calc_param_text("aggressive_product"),
-    "installed_cable_length": lambda: _sql_calc_result_number("installed_cable_length"),
-    "order_cable_length": lambda: _sql_calc_result_number("order_cable_length"),
+    "required_installed_length_m": lambda: _sql_calc_result_number_fallback(
+        ("layout", "required_installed_length_m"),
+        ("required_installed_length_m",),
+        ("section_l_required_m",),
+    ),
+    "installed_cable_length": lambda: _sql_calc_result_number_fallback(
+        ("layout", "actual_installed_length_m"), ("installed_cable_length",)
+    ),
+    "section_l_max_m": lambda: _sql_calc_result_number_fallback(
+        ("section_plan", "l_max_m"), ("section_l_max_m",)
+    ),
+    "section_l_tok_m": lambda: _sql_calc_result_number_fallback(
+        ("section_plan", "l_tok_m"), ("section_l_tok_m",)
+    ),
+    "section_l_ogr_m": lambda: _sql_calc_result_number_fallback(
+        ("section_plan", "l_ogr_m"), ("section_l_ogr_m",)
+    ),
+    "section_l_excess_m": lambda: _sql_calc_result_number_fallback(
+        ("layout", "excess_installed_length_m"), ("section_l_excess_m",)
+    ),
+    "order_cable_length": lambda: _sql_calc_result_number_fallback(
+        ("layout", "required_order_length_m"), ("order_cable_length",)
+    ),
     "total_power": lambda: _sql_calc_result_number("total_power"),
     "power_per_meter": _sql_power_per_meter,
     "installed_power_per_meter": _sql_installed_power_per_meter,
@@ -884,7 +1067,13 @@ ELECTRICAL_CALC_RESULT_KEYS = frozenset(
         "selection_reason",
         "winding_pitch",
         "num_circuits",
+        "required_installed_length_m",
+        "section_l_required_m",
         "installed_cable_length",
+        "section_l_max_m",
+        "section_l_tok_m",
+        "section_l_ogr_m",
+        "section_l_excess_m",
         "order_cable_length",
         "total_power",
         "power_per_meter",
@@ -899,6 +1088,11 @@ ELECTRICAL_CALC_RESULT_KEYS = frozenset(
         "suggested_actions",
         "error_context",
         "commercial",
+        "layout",
+        "section_plan",
+        "provenance",
+        "input_sources",
+        "catalogs",
     }
 )
 
@@ -910,11 +1104,18 @@ class ElectricalQueryService:
     async def capabilities(
         self,
         project_id: UUID,
-        variant_number: int,
+        variant_number: int | None,
         principal: CurrentPrincipal,
+        *,
+        electrical_variant_id: UUID | None = None,
     ) -> ElectricalQueryCapabilitiesResponse:
         await ProjectService(self.db).get_project_basic(project_id, principal)
-        rows = await self._load_rows(project_id, variant_number, limit=CAPABILITIES_SAMPLE_LIMIT)
+        rows = await self._load_rows(
+            project_id,
+            variant_number,
+            electrical_variant_id=electrical_variant_id,
+            limit=CAPABILITIES_SAMPLE_LIMIT,
+        )
         return ElectricalQueryCapabilitiesResponse(
             version=1,
             default_page_size=DEFAULT_PAGE_SIZE,
@@ -945,6 +1146,7 @@ class ElectricalQueryService:
             ).electrical_project_page(
                 data.project_id,
                 variant_number=data.variant_number,
+                electrical_variant_id=data.electrical_variant_id,
                 page=page,
                 page_size=page_size,
             )
@@ -962,7 +1164,7 @@ class ElectricalQueryService:
                     total=int(summary["total_objects"]),
                     filtered=int(summary["total_objects"]),
                 ),
-                query=ElectricalQueryEcho(variant_number=data.variant_number, sort=data.sort),
+                query=self._query_echo(data),
             )
         if self._can_use_sql_query(data):
             if page == 1 or self._has_keyset_cursor(data):
@@ -970,7 +1172,11 @@ class ElectricalQueryService:
             return await self._query_sql_offset_page(data, page=page, page_size=page_size)
 
         await self._ensure_python_fallback_size(data.project_id)
-        rows = await self._load_rows(data.project_id, data.variant_number)
+        rows = await self._load_rows(
+            data.project_id,
+            data.variant_number,
+            electrical_variant_id=data.electrical_variant_id,
+        )
         filtered_rows = self._apply_search(rows, data)
         filtered_rows = self._apply_filters(filtered_rows, data)
         sorted_rows = self._apply_sort(filtered_rows, data)
@@ -983,6 +1189,7 @@ class ElectricalQueryService:
         _, _, summary, _ = await CalculationService(self.db).electrical_project_page(
             data.project_id,
             variant_number=data.variant_number,
+            electrical_variant_id=data.electrical_variant_id,
             page=1,
             page_size=1,
         )
@@ -1006,7 +1213,7 @@ class ElectricalQueryService:
                 has_previous_page=page > 1,
             ),
             counts=ElectricalQueryCounts(total=len(rows), filtered=filtered_count),
-            query=ElectricalQueryEcho(variant_number=data.variant_number, sort=data.sort),
+            query=self._query_echo(data),
         )
 
     async def _query_default_keyset_page(
@@ -1042,8 +1249,7 @@ class ElectricalQueryService:
         if object_ids:
             calculations_result = await self.db.execute(
                 select(ElectricalCalculation).where(
-                    ElectricalCalculation.project_id == data.project_id,
-                    ElectricalCalculation.variant_number == data.variant_number,
+                    *self._calculation_scope_conditions(data),
                     ElectricalCalculation.object_id.in_(object_ids),
                 )
             )
@@ -1054,6 +1260,7 @@ class ElectricalQueryService:
         _, _, summary, _ = await CalculationService(self.db).electrical_project_page(
             data.project_id,
             variant_number=data.variant_number,
+            electrical_variant_id=data.electrical_variant_id,
             page=1,
             page_size=1,
         )
@@ -1086,7 +1293,37 @@ class ElectricalQueryService:
                 else None,
             ),
             counts=ElectricalQueryCounts(total=total_objects, filtered=total_objects),
-            query=ElectricalQueryEcho(variant_number=data.variant_number, sort=data.sort),
+            query=self._query_echo(data),
+        )
+
+    @staticmethod
+    def _calculation_scope_conditions(data: ElectricalQueryRequest) -> list[Any]:
+        conditions: list[Any] = [ElectricalCalculation.project_id == data.project_id]
+        if data.electrical_variant_id is not None:
+            conditions.append(
+                ElectricalCalculation.electrical_variant_id == data.electrical_variant_id
+            )
+        elif data.variant_number is not None:
+            conditions.append(ElectricalCalculation.variant_number == data.variant_number)
+        else:
+            raise ElectricalQueryValidationError(
+                "Нужно указать electrical_variant_id или variant_number"
+            )
+        return conditions
+
+    @classmethod
+    def _calculation_join_condition(cls, data: ElectricalQueryRequest) -> Any:
+        return and_(
+            ElectricalCalculation.object_id == ProjectObject.id,
+            *cls._calculation_scope_conditions(data),
+        )
+
+    @staticmethod
+    def _query_echo(data: ElectricalQueryRequest) -> ElectricalQueryEcho:
+        return ElectricalQueryEcho(
+            variant_number=data.variant_number,
+            electrical_variant_id=data.electrical_variant_id,
+            sort=data.sort,
         )
 
     def _sql_expr(self, field: FieldDef) -> Any:
@@ -1270,8 +1507,9 @@ class ElectricalQueryService:
     async def _load_rows(
         self,
         project_id: UUID,
-        variant_number: int,
+        variant_number: int | None,
         *,
+        electrical_variant_id: UUID | None = None,
         limit: int | None = None,
     ) -> list[ElectricalQueryRow]:
         objects_stmt = (
@@ -1287,12 +1525,22 @@ class ElectricalQueryService:
         if not object_ids:
             return []
 
-        calculations_result = await self.db.execute(
-            select(ElectricalCalculation).where(
-                ElectricalCalculation.project_id == project_id,
-                ElectricalCalculation.variant_number == variant_number,
-                ElectricalCalculation.object_id.in_(object_ids),
+        calculation_conditions: list[Any] = [
+            ElectricalCalculation.project_id == project_id,
+            ElectricalCalculation.object_id.in_(object_ids),
+        ]
+        if electrical_variant_id is not None:
+            calculation_conditions.append(
+                ElectricalCalculation.electrical_variant_id == electrical_variant_id
             )
+        elif variant_number is not None:
+            calculation_conditions.append(ElectricalCalculation.variant_number == variant_number)
+        else:
+            raise ElectricalQueryValidationError(
+                "Нужно указать electrical_variant_id или variant_number"
+            )
+        calculations_result = await self.db.execute(
+            select(ElectricalCalculation).where(*calculation_conditions)
         )
         calculations_by_object_id = {
             calc.object_id: calc for calc in calculations_result.scalars().all()
@@ -1434,11 +1682,7 @@ class ElectricalQueryService:
         page: int,
         page_size: int,
     ) -> ElectricalQueryResponse:
-        join_condition = and_(
-            ElectricalCalculation.object_id == ProjectObject.id,
-            ElectricalCalculation.project_id == data.project_id,
-            ElectricalCalculation.variant_number == data.variant_number,
-        )
+        join_condition = self._calculation_join_condition(data)
         conditions = [ProjectObject.project_id == data.project_id]
         search_clause = self._sql_search_clause(data)
         if search_clause is not None:
@@ -1486,6 +1730,7 @@ class ElectricalQueryService:
         _, _, summary, _ = await CalculationService(self.db).electrical_project_page(
             data.project_id,
             variant_number=data.variant_number,
+            electrical_variant_id=data.electrical_variant_id,
             page=1,
             page_size=1,
         )
@@ -1524,7 +1769,7 @@ class ElectricalQueryService:
                 total=int(summary["total_objects"]),
                 filtered=filtered_count,
             ),
-            query=ElectricalQueryEcho(variant_number=data.variant_number, sort=data.sort),
+            query=self._query_echo(data),
         )
 
     async def _query_sql_offset_page(
@@ -1534,11 +1779,7 @@ class ElectricalQueryService:
         page: int,
         page_size: int,
     ) -> ElectricalQueryResponse:
-        join_condition = and_(
-            ElectricalCalculation.object_id == ProjectObject.id,
-            ElectricalCalculation.project_id == data.project_id,
-            ElectricalCalculation.variant_number == data.variant_number,
-        )
+        join_condition = self._calculation_join_condition(data)
         conditions = [ProjectObject.project_id == data.project_id]
         search_clause = self._sql_search_clause(data)
         if search_clause is not None:
@@ -1575,6 +1816,7 @@ class ElectricalQueryService:
         _, _, summary, _ = await CalculationService(self.db).electrical_project_page(
             data.project_id,
             variant_number=data.variant_number,
+            electrical_variant_id=data.electrical_variant_id,
             page=1,
             page_size=1,
         )
@@ -1601,7 +1843,7 @@ class ElectricalQueryService:
                 total=int(summary["total_objects"]),
                 filtered=filtered_count,
             ),
-            query=ElectricalQueryEcho(variant_number=data.variant_number, sort=data.sort),
+            query=self._query_echo(data),
         )
 
     def _apply_search(
