@@ -42,6 +42,7 @@ type GenerateSpecificationVariables = SpecificationMutationScope & {
   options: SpecificationOptions;
   generateVariantIds: string[];
   excludeUnassignedConfirmed: boolean;
+  catalogSelections: Record<string, string>;
 };
 
 export function useSpecificationPageModel() {
@@ -134,6 +135,7 @@ export function useSpecificationPageModel() {
       options,
       generateVariantIds,
       excludeUnassignedConfirmed,
+      catalogSelections,
     }: GenerateSpecificationVariables) => {
       if (!canMutateProject) {
         throw new Error('Недостаточно прав для изменения спецификации');
@@ -144,7 +146,7 @@ export function useSpecificationPageModel() {
           variant_ids: generateVariantIds,
           options,
           exclude_unassigned_confirmed: excludeUnassignedConfirmed,
-          catalog_selections: {},
+          catalog_selections: catalogSelections,
         },
       );
     },
@@ -152,24 +154,48 @@ export function useSpecificationPageModel() {
       const generated = result.results.filter((item) => item.status === 'generated');
       const unresolved = result.results.filter((item) => item.status !== 'generated');
       const diagnostics = unresolved.flatMap((item) => item.diagnostics);
+      const groups = unresolved.flatMap((item) => item.candidate_groups ?? []);
       form.setGenerationDiagnostics(diagnostics);
+      form.setCandidateGroups(groups);
       form.setPreflightSummary(
         diagnostics.map((diagnostic) => `${diagnostic.code}: ${diagnostic.message}`).join('\n'),
       );
       const confirmationRequired = unresolved.some(
         (item) => item.status === 'confirmation_required',
       );
-      form.setPreflightOpen(confirmationRequired);
+      const selectionRequired = unresolved.some(
+        (item) => item.status === 'selection_required',
+      );
+      const blocked = unresolved.some((item) => item.status === 'blocked');
+      form.setPreflightOpen(confirmationRequired && !selectionRequired);
       if (!confirmationRequired) form.setPendingGenerate(null);
-      if (unresolved.length === 0 && generated.length > 0) toggleSettings(false);
+      if (selectionRequired) {
+        // Keep draft empty — never preselect first candidate.
+        form.setDraftCatalogSelections({});
+        message.warning('Требуется выбор комплектующих из каталога');
+      } else if (blocked) {
+        const firstBlocking = diagnostics.find((item) => item.kind === 'blocking');
+        message.warning(
+          firstBlocking
+            ? `${firstBlocking.code}: ${firstBlocking.message}`
+            : 'Формирование заблокировано',
+        );
+      } else if (unresolved.length === 0 && generated.length > 0) {
+        form.setCandidateGroups([]);
+        form.setDraftCatalogSelections({});
+        form.setCatalogSelections({});
+        toggleSettings(false);
+      }
       const generatedCount = generated.length;
       const toast = buildSpecificationGeneratedToast({
         partial: unresolved.length > 0,
         generatedCount,
         electricalVariantName: variables.electricalVariantName,
       });
-      if (unresolved.length > 0) message.warning(toast);
-      else message.success(toast);
+      if (!selectionRequired && !blocked) {
+        if (unresolved.length > 0) message.warning(toast);
+        else message.success(toast);
+      }
       for (const id of generated.map((item) => item.electrical_variant_id)) {
         qc.invalidateQueries({
           queryKey: ['spec', variables.projectId, id],
@@ -216,7 +242,10 @@ export function useSpecificationPageModel() {
     },
   });
 
-  const runGenerate = (excludeUnassignedConfirmed = false) => {
+  const runGenerate = (
+    excludeUnassignedConfirmed = false,
+    nextCatalogSelections?: Record<string, string>,
+  ) => {
     form.setGenerationDiagnostics([]);
     const scope = snapshotMutationScope();
     const generateVariantIds = resolveGenerateVariantIds(
@@ -224,6 +253,7 @@ export function useSpecificationPageModel() {
       scope.electricalVariantId,
     );
     const options = buildGenerateOptions();
+    const catalogSelections = nextCatalogSelections ?? form.catalogSelections;
     if (!excludeUnassignedConfirmed) {
       form.setPendingGenerate({ generateVariantIds, options });
     }
@@ -232,6 +262,7 @@ export function useSpecificationPageModel() {
       generateVariantIds,
       options,
       excludeUnassignedConfirmed,
+      catalogSelections,
     });
   };
 
@@ -246,7 +277,26 @@ export function useSpecificationPageModel() {
       generateVariantIds: form.pendingGenerate.generateVariantIds,
       options: form.pendingGenerate.options,
       excludeUnassignedConfirmed: true,
+      catalogSelections: form.catalogSelections,
     });
+  };
+
+  const selectCandidate = (groupKey: string, catalogItemId: string) => {
+    form.setDraftCatalogSelections((prev) => ({ ...prev, [groupKey]: catalogItemId }));
+  };
+
+  const confirmCatalogSelections = () => {
+    const merged: Record<string, string> = { ...form.catalogSelections };
+    for (const group of form.candidateGroups) {
+      if (group.selected_catalog_item_id) {
+        merged[group.group_key] = group.selected_catalog_item_id;
+      }
+    }
+    for (const [key, value] of Object.entries(form.draftCatalogSelections)) {
+      merged[key] = value;
+    }
+    form.setCatalogSelections(merged);
+    runGenerate(Boolean(form.pendingGenerate), merged);
   };
 
   const {
@@ -321,6 +371,10 @@ export function useSpecificationPageModel() {
     groupingMode: form.groupingMode,
     setGroupingMode: form.setGroupingMode,
     generationDiagnostics: form.generationDiagnostics,
+    candidateGroups: form.candidateGroups,
+    draftCatalogSelections: form.draftCatalogSelections,
+    selectCandidate,
+    confirmCatalogSelections,
     settingsOpen,
     toggleSettings,
     spec,

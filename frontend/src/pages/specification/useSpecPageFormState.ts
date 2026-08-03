@@ -5,6 +5,7 @@
  */
 import { useState } from 'react';
 import type {
+  SpecificationCandidateGroup,
   SpecificationDiagnostic,
   SpecificationGroupingMode,
   SpecificationOptions,
@@ -28,6 +29,10 @@ export function useSpecPageFormState() {
     options: SpecificationOptions;
   } | null>(null);
   const [generationDiagnostics, setGenerationDiagnostics] = useState<SpecificationDiagnostic[]>([]);
+  const [candidateGroups, setCandidateGroups] = useState<SpecificationCandidateGroup[]>([]);
+  /** Draft UI picks only; never preselected from first candidate. */
+  const [draftCatalogSelections, setDraftCatalogSelections] = useState<Record<string, string>>({});
+  const [catalogSelections, setCatalogSelections] = useState<Record<string, string>>({});
   const [exZone, setExZone] = useState<boolean | null>(null);
   const [reserveCoeff, setReserveCoeff] = useState('');
   // Опции индикации ТНП: К1i / К2i / Кiu / L,К2i
@@ -58,6 +63,12 @@ export function useSpecPageFormState() {
     setPendingGenerate,
     generationDiagnostics,
     setGenerationDiagnostics,
+    candidateGroups,
+    setCandidateGroups,
+    draftCatalogSelections,
+    setDraftCatalogSelections,
+    catalogSelections,
+    setCatalogSelections,
     exZone,
     setExZone,
     reserveCoeff,

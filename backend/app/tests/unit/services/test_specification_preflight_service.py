@@ -86,6 +86,8 @@ def _tt_result(*, object_version: int = 4, assignment_version: int = 2) -> dict:
             "mark": "30ТТВ2-СР",
             "nomenclature_code": "001-002-002",
         },
+        "temperature_group": "high",
+        "selected_cable": "30ТТВ2",
         "production_eligible": True,
         "mocked_fields": [],
         "resolved_inputs": {
@@ -162,7 +164,10 @@ def _row(
     return assignment, obj, calculation
 
 
-def _catalog() -> ResolvedSpecificationCatalog:
+def _catalog(*, multi_connection: bool = False) -> ResolvedSpecificationCatalog:
+    """Single-choice accessory set keeps READY path; multi connection forces selection."""
+    from app.tests.specification_catalog_fixtures import complete_specification_catalog_items
+
     version_id = uuid.uuid4()
     version = SpecificationCatalogVersion(
         id=version_id,
@@ -174,27 +179,48 @@ def _catalog() -> ResolvedSpecificationCatalog:
         source_checksum=f"sha256:{'a' * 64}",
         payload_checksum=f"sha256:{'b' * 64}",
         schema_version=1,
-        item_count=1,
+        item_count=0,
         is_complete=True,
         validation_issues=[],
     )
-    item = SpecificationCatalogItem(
-        id=uuid.uuid4(),
-        catalog_version_id=version_id,
-        item_key="cable:30ТТВ2-СР",
-        category="cable",
-        name="Греющий кабель",
-        mark="30ТТВ2-СР",
-        nomenclature_code="001-002-002",
-        supply_unit="м",
-        applicability={},
-        package_parameters={},
-        formula_parameters={},
-        source_ref="owner registry row",
-        row_checksum=f"sha256:{'d' * 64}",
-        position=0,
-    )
-    return ResolvedSpecificationCatalog(version=version, items=(item,))
+    items: list[SpecificationCatalogItem] = []
+    for index, raw in enumerate(complete_specification_catalog_items()):
+        category = raw.category.value if hasattr(raw.category, "value") else raw.category
+        if category == "box":
+            continue
+        if category == "connection_kit" and not multi_connection and raw.mark != "КСВ-1":
+            continue
+        if category == "connection_kit" and multi_connection and raw.mark not in {
+            "КСВ-1",
+            "КСВ-2",
+        }:
+            continue
+        if category == "repair_kit" and raw.mark != "КСР-2":
+            continue
+        if category == "fiberglass_tape" and raw.mark != "ЛКВ 12":
+            continue
+        if category == "cable" and raw.mark != "30ТТВ2-СР":
+            continue
+        items.append(
+            SpecificationCatalogItem(
+                id=uuid.uuid4(),
+                catalog_version_id=version_id,
+                item_key=raw.item_key,
+                category=category,
+                name=raw.name,
+                mark=raw.mark,
+                nomenclature_code=raw.nomenclature_code,
+                supply_unit=raw.supply_unit,
+                applicability=dict(raw.applicability or {}),
+                package_parameters=dict(raw.package_parameters or {}),
+                formula_parameters=dict(raw.formula_parameters or {}),
+                source_ref=raw.source_ref,
+                row_checksum=f"sha256:{index:064x}",
+                position=index,
+            )
+        )
+    version.item_count = len(items)
+    return ResolvedSpecificationCatalog(version=version, items=tuple(items))
 
 
 def _request(
@@ -595,10 +621,70 @@ async def test_inactive_submitted_selection_requires_selection_without_writing(m
 
     assert result[0].status is SpecificationPreflightStatus.SELECTION_REQUIRED
     assert result[0].input_fingerprint is None
-    assert result[0].diagnostics[-1].code is (
-        SpecificationDiagnosticCode.ACCESSORY_SELECTION_REQUIRED
+    assert any(
+        item.code is SpecificationDiagnosticCode.ACCESSORY_SELECTION_REQUIRED
+        for item in result[0].diagnostics
     )
     db.commit.assert_not_awaited()
+
+
+async def test_multi_kit_catalog_requires_selection_with_candidate_groups(monkeypatch):
+    project_id = uuid.uuid4()
+    project = _project(project_id)
+    variant = _variant(project_id, name="Multi kit")
+    db = _db_for([variant], [_row(project_id, variant.id)])
+    _patch_read_boundaries(monkeypatch, project, _catalog(multi_connection=True))
+
+    result = await SpecificationPreflightService(db).preflight_variants(
+        project_id,
+        CurrentPrincipal(role="employee", user_id=project.user_id),
+        _request([variant.id]),
+    )
+
+    assert result[0].status is SpecificationPreflightStatus.SELECTION_REQUIRED
+    connection = next(
+        group for group in result[0].candidate_groups if group.category == "connection_kit"
+    )
+    assert len(connection.candidates) == 2
+    assert connection.selected_catalog_item_id is None
+
+
+async def test_selection_from_wrong_group_is_rejected(monkeypatch):
+    project_id = uuid.uuid4()
+    project = _project(project_id)
+    variant = _variant(project_id, name="Wrong group")
+    catalog = _catalog(multi_connection=True)
+    db = _db_for([variant], [_row(project_id, variant.id)])
+    _patch_read_boundaries(monkeypatch, project, catalog)
+
+    # Discover group key first.
+    first = await SpecificationPreflightService(db).preflight_variants(
+        project_id,
+        CurrentPrincipal(role="employee", user_id=project.user_id),
+        _request([variant.id]),
+    )
+    connection = next(
+        group for group in first[0].candidate_groups if group.category == "connection_kit"
+    )
+    foreign_item = next(
+        item for item in catalog.items if item.category == "sealant"
+    )
+
+    db2 = _db_for([variant], [_row(project_id, variant.id)])
+    rejected = await SpecificationPreflightService(db2).preflight_variants(
+        project_id,
+        CurrentPrincipal(role="employee", user_id=project.user_id),
+        _request(
+            [variant.id],
+            selections={connection.group_key: foreign_item.id},
+        ),
+    )
+    assert rejected[0].status is SpecificationPreflightStatus.SELECTION_REQUIRED
+    assert any(
+        issue.get("reason") == "catalog_selection_not_in_group"
+        for diagnostic in rejected[0].diagnostics
+        for issue in diagnostic.issues
+    )
 
 
 async def test_missing_or_foreign_variant_is_non_disclosing_and_stops_before_rows(

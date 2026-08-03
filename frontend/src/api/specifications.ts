@@ -85,14 +85,38 @@ export function getSpecificationErrorDetail(error: unknown): SpecificationErrorD
   return normalizeSpecificationErrorDetail(data.detail);
 }
 
+export interface SpecificationCandidate {
+  catalog_item_id: string;
+  catalog_id: string;
+  catalog_version: string;
+  category: string;
+  name: string;
+  mark: string;
+  nomenclature_code: string;
+  supply_unit: string;
+  applicability?: Record<string, unknown>;
+  package_parameters?: Record<string, unknown>;
+  formula_parameters?: Record<string, unknown>;
+}
+
+export interface SpecificationCandidateGroup {
+  group_key: string;
+  electrical_variant_id: string;
+  category: string;
+  object_type_section?: string | null;
+  conditions: Record<string, unknown>;
+  candidates: SpecificationCandidate[];
+  selected_catalog_item_id?: string | null;
+}
+
 export interface SpecificationGenerateVariantResult {
   electrical_variant_id: string;
+  electrical_variant_name?: string | null;
   status: 'generated' | 'blocked' | 'confirmation_required' | 'selection_required';
   items: SpecificationItem[];
   excluded_unassigned_object_ids: string[];
   diagnostics: SpecificationDiagnostic[];
-  /** Populated in CANON-03; empty list until candidate selection ships. */
-  candidate_groups?: Array<Record<string, unknown>>;
+  candidate_groups: SpecificationCandidateGroup[];
   snapshot: Record<string, unknown> | null;
 }
 
@@ -112,7 +136,14 @@ function getSpecificationGenerateResult(data: unknown): SpecificationGenerateRes
   ) {
     return null;
   }
-  return candidate as SpecificationGenerateResult;
+  return {
+    project_id: candidate.project_id,
+    settings_version: candidate.settings_version,
+    results: candidate.results.map((item) => ({
+      ...item,
+      candidate_groups: Array.isArray(item.candidate_groups) ? item.candidate_groups : [],
+    })),
+  };
 }
 
 export interface SpecificationGenerationRequest {

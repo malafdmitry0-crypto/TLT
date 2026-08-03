@@ -85,6 +85,7 @@ describe('specifications API', () => {
         items: [],
         excluded_unassigned_object_ids: [],
         diagnostics: [],
+        candidate_groups: [],
         snapshot: null,
       }],
     };

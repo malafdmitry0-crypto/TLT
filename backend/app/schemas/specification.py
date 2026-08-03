@@ -244,6 +244,38 @@ class SpecificationErrorEnvelope(BaseModel):
     detail: SpecificationErrorDetail
 
 
+class SpecificationCandidate(BaseModel):
+    """One applicable catalog item inside a selection group."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    catalog_item_id: UUID
+    catalog_id: UUID
+    catalog_version: str = Field(min_length=1)
+    category: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    mark: str = Field(min_length=1)
+    nomenclature_code: str = Field(min_length=1)
+    supply_unit: str = Field(min_length=1)
+    applicability: dict[str, Any] = Field(default_factory=dict)
+    package_parameters: dict[str, Any] = Field(default_factory=dict)
+    formula_parameters: dict[str, Any] = Field(default_factory=dict)
+
+
+class SpecificationCandidateGroup(BaseModel):
+    """Collision-free selection group for one ER category/condition slice."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    group_key: str = Field(min_length=1, max_length=128)
+    electrical_variant_id: UUID
+    category: str = Field(min_length=1)
+    object_type_section: str | None = None
+    conditions: dict[str, Any] = Field(default_factory=dict)
+    candidates: list[SpecificationCandidate] = Field(default_factory=list)
+    selected_catalog_item_id: UUID | None = None
+
+
 class SpecificationVariantPreflightResult(BaseModel):
     electrical_variant_id: UUID
     electrical_variant_name: str | None = None
@@ -256,6 +288,8 @@ class SpecificationVariantPreflightResult(BaseModel):
     resolved_options: SpecificationResolvedOptions | None = None
     catalog: SpecificationCatalogSnapshot | None = None
     catalog_selections: dict[str, UUID] = Field(default_factory=dict)
+    # Populated for selection protocol; generation copies into its response.
+    candidate_groups: list[SpecificationCandidateGroup] = Field(default_factory=list)
     fingerprint_schema: Literal["specification-preflight/v1"] | None = None
     input_fingerprint: str | None = None
 
@@ -313,8 +347,7 @@ class SpecificationVariantGenerationResult(BaseModel):
     items: list[SpecificationItem] = Field(default_factory=list)
     excluded_unassigned_object_ids: list[UUID] = Field(default_factory=list)
     diagnostics: list[SpecificationDiagnostic] = Field(default_factory=list)
-    # CANON-03 will populate applicable catalog candidates; empty until then.
-    candidate_groups: list[dict[str, Any]] = Field(default_factory=list)
+    candidate_groups: list[SpecificationCandidateGroup] = Field(default_factory=list)
     snapshot: dict[str, Any] | None = None
 
 

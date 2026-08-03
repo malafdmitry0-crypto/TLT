@@ -18,6 +18,7 @@ import { TltAlert, TltButton, TltCard } from '@/components/ui-kit';
 import { ROUTES } from '@/routes/routes';
 import { useSpecificationPageModel } from '@/pages/specification/useSpecificationPageModel';
 import { SpecPageChrome } from '@/pages/specification/SpecPageChrome';
+import { SpecCandidateSelectionPanel } from '@/pages/specification/SpecCandidateSelectionPanel';
 import './specification-page.css';
 
 const { Text } = Typography;
@@ -64,6 +65,10 @@ export default function SpecificationPage() {
     groupingMode,
     setGroupingMode,
     generationDiagnostics,
+    candidateGroups,
+    draftCatalogSelections,
+    selectCandidate,
+    confirmCatalogSelections,
     spec,
     refetch,
     specLoading,
@@ -247,6 +252,21 @@ export default function SpecificationPage() {
               )
             : 'Часть групп BOM исключена (секции, коробки или недоказанные методики).'}
         </TltAlert>
+      )}
+
+      {candidateGroups.some(
+        (group) => group.candidates.length > 1 && !group.selected_catalog_item_id,
+      ) && (
+        <div className="specification-alert-gap">
+          <SpecCandidateSelectionPanel
+            groups={candidateGroups}
+            draftSelections={draftCatalogSelections}
+            onSelect={selectCandidate}
+            onConfirm={confirmCatalogSelections}
+            confirming={mut.isPending}
+            disabled={!canMutateProject}
+          />
+        </div>
       )}
 
       {specError && !spec ? (

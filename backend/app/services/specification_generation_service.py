@@ -134,16 +134,28 @@ class SpecificationGenerationService:
                         status=SpecificationGenerationStatus(item.status.value),
                         excluded_unassigned_object_ids=item.excluded_unassigned_object_ids,
                         diagnostics=item.diagnostics,
+                        candidate_groups=list(item.candidate_groups),
                     )
                 )
                 continue
+            # Auto-selected groups are ready for calculators (CANON-06); fail closed.
             results.append(
-                self._blocked(
-                    item.electrical_variant_id,
-                    item.electrical_variant_name,
-                    SpecificationDiagnosticCode.CANONICAL_CALCULATORS_UNAVAILABLE,
-                    "Канонические калькуляторы спецификации ещё не подключены; "
-                    "формирование из provisional/static builder запрещено",
+                SpecificationVariantGenerationResult(
+                    electrical_variant_id=item.electrical_variant_id,
+                    electrical_variant_name=item.electrical_variant_name,
+                    status=SpecificationGenerationStatus.BLOCKED,
+                    excluded_unassigned_object_ids=item.excluded_unassigned_object_ids,
+                    candidate_groups=list(item.candidate_groups),
+                    diagnostics=[
+                        SpecificationDiagnostic(
+                            code=SpecificationDiagnosticCode.CANONICAL_CALCULATORS_UNAVAILABLE,
+                            kind=SpecificationIssueKind.BLOCKING,
+                            message=(
+                                "Канонические калькуляторы спецификации ещё не подключены; "
+                                "формирование из provisional/static builder запрещено"
+                            ),
+                        )
+                    ],
                 )
             )
 

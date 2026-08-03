@@ -31,6 +31,10 @@ from app.schemas.specification import (
     SpecificationVariantPreflightResult,
 )
 from app.services.project_service import ProjectService
+from app.services.specification_candidate_service import (
+    build_candidate_groups,
+    candidate_groups_fingerprint_payload,
+)
 from app.services.specification_catalog_service import (
     ResolvedSpecificationCatalog,
     SpecificationCatalogService,
@@ -97,7 +101,6 @@ class SpecificationPreflightService:
             request.options,
             catalog,
         )
-        selection_diagnostic = _selection_diagnostic(request, catalog)
 
         results: list[SpecificationVariantPreflightResult] = []
         for variant_id in request.variant_ids:
@@ -131,8 +134,25 @@ class SpecificationPreflightService:
                 )
             if options_diagnostic is not None:
                 diagnostics.append(options_diagnostic)
-            if selection_diagnostic is not None:
-                diagnostics.append(selection_diagnostic)
+
+            candidate_groups = []
+            # Selection protocol runs only when catalog is resolved and at least
+            # one object contributes conditions (excluded unassigned stay out).
+            if catalog is not None and base.contributing_objects > 0:
+                contributing_results = _contributing_results(
+                    assignments=assignments,
+                    base_diagnostics=base.diagnostics,
+                    excluded_unassigned_object_ids=base.excluded_unassigned_object_ids,
+                )
+                if contributing_results:
+                    built = build_candidate_groups(
+                        electrical_variant_id=variant.id,
+                        catalog=catalog,
+                        contributing_results=contributing_results,
+                        catalog_selections=request.catalog_selections,
+                    )
+                    candidate_groups = built.groups
+                    diagnostics.extend(built.diagnostics)
 
             status = _status_for(diagnostics)
             fingerprint = None
@@ -149,6 +169,7 @@ class SpecificationPreflightService:
                     resolved_options=resolved_options,
                     catalog=catalog_snapshot,
                     catalog_selections=request.catalog_selections,
+                    candidate_groups=candidate_groups,
                     excluded_unassigned_object_ids=base.excluded_unassigned_object_ids,
                 )
 
@@ -165,6 +186,7 @@ class SpecificationPreflightService:
                     resolved_options=resolved_options,
                     catalog=catalog_snapshot,
                     catalog_selections=request.catalog_selections,
+                    candidate_groups=candidate_groups,
                     fingerprint_schema=_FINGERPRINT_SCHEMA if fingerprint else None,
                     input_fingerprint=fingerprint,
                 )
@@ -446,31 +468,31 @@ def _option(
     return None
 
 
-def _selection_diagnostic(
-    request: SpecificationGenerationRequest,
-    catalog: ResolvedSpecificationCatalog | None,
-) -> SpecificationDiagnostic | None:
-    if catalog is None or not request.catalog_selections:
-        return None
-    item_ids = {item.id for item in catalog.items}
-    invalid = [
-        {"group_key": key, "catalog_item_id": str(item_id)}
-        for key, item_id in sorted(request.catalog_selections.items())
-        if item_id not in item_ids
-    ]
-    if not invalid:
-        return None
-    return _diagnostic(
-        SpecificationDiagnosticCode.ACCESSORY_SELECTION_REQUIRED,
-        SpecificationIssueKind.SELECTION_REQUIRED,
-        "Сохранённый выбор отсутствует в активной версии каталога",
-        issues=[{**item, "reason": "catalog_selection_inactive"} for item in invalid],
-        details={
-            "catalog_id": str(catalog.version.id),
-            "catalog_version": catalog.version.version,
-            "payload_checksum": catalog.version.payload_checksum,
-        },
-    )
+def _contributing_results(
+    *,
+    assignments: Sequence[SpecificationPreflightAssignment],
+    base_diagnostics: Sequence[SpecificationDiagnostic],
+    excluded_unassigned_object_ids: Sequence[UUID],
+) -> list[Mapping[str, Any]]:
+    """Results that feed candidate conditions (confirmed-excluded unassigned stay out)."""
+    excluded = set(excluded_unassigned_object_ids)
+    blocked_object_ids: set[str] = set()
+    for diagnostic in base_diagnostics:
+        object_id = diagnostic.details.get("object_id")
+        if isinstance(object_id, str):
+            blocked_object_ids.add(object_id)
+    results: list[Mapping[str, Any]] = []
+    for row in assignments:
+        if row.object_id in excluded:
+            continue
+        if row.assignment_state == "unassigned":
+            continue
+        if str(row.object_id) in blocked_object_ids:
+            continue
+        if not isinstance(row.result, Mapping):
+            continue
+        results.append(row.result)
+    return results
 
 
 def _input_fingerprint(
@@ -482,6 +504,7 @@ def _input_fingerprint(
     resolved_options: SpecificationResolvedOptions,
     catalog: SpecificationCatalogSnapshot,
     catalog_selections: Mapping[str, UUID],
+    candidate_groups: Sequence[Any],
     excluded_unassigned_object_ids: Sequence[UUID],
 ) -> str:
     assignments = [
@@ -500,6 +523,7 @@ def _input_fingerprint(
             "catalog_selections": {
                 key: str(value) for key, value in sorted(catalog_selections.items())
             },
+            "candidate_groups": candidate_groups_fingerprint_payload(candidate_groups),
             "excluded_unassigned_object_ids": sorted(
                 excluded_unassigned_object_ids,
                 key=str,
