@@ -12,6 +12,11 @@ from pathlib import Path
 from typing import Any, cast
 
 _BASE_DIR = Path(__file__).parent
+_ELECTRICAL_CATALOG_FILES = {
+    "power": "cables_tt.json",
+    "section": "section_catalog.json",
+    "bom": "electrical_tt_bom_v1.json",
+}
 
 PIPE_HEAT_LOSS_MATERIALS_SOURCE = "reference_data/insulation.json+pipe_materials.json"
 TANK_HEAT_LOSS_MATERIALS_SOURCE = "reference_data/insulation.json"
@@ -56,7 +61,10 @@ def _climate_by_key() -> dict[str, dict[str, Any]]:
 @lru_cache
 def _climate_by_city_region() -> dict[tuple[str, str], dict[str, Any]]:
     return {
-        (_normalized_text(entry.get("city") or entry["region"]), _normalized_text(entry["region"])): entry
+        (
+            _normalized_text(entry.get("city") or entry["region"]),
+            _normalized_text(entry["region"]),
+        ): entry
         for entry in _climate()
     }
 
@@ -323,6 +331,22 @@ def list_tt_cables() -> list[dict[str, Any]]:
     return list(_cables_tt())
 
 
+@lru_cache
+def electrical_catalog_file_checksum(kind: str) -> str:
+    """SHA-256 of the exact bundled JSON imported for a catalog kind."""
+    try:
+        filename = _ELECTRICAL_CATALOG_FILES[kind]
+    except KeyError as exc:
+        raise ValueError(f"Unknown electrical catalog kind: {kind}") from exc
+    digest = hashlib.sha256((_BASE_DIR / filename).read_bytes()).hexdigest()
+    return f"sha256:{digest}"
+
+
+def tt_cables_source_checksum() -> str:
+    """SHA-256 of the exact bundled power-catalog source bytes."""
+    return electrical_catalog_file_checksum("power")
+
+
 def get_tt_cable_by_model(model: str) -> dict[str, Any] | None:
     """Кабель ТТН/ТТВ/ТТХ по базовому имени модели (без суффикса -СР/-СТ)."""
     cable = _tt_cables_by_model().get(model)
@@ -461,6 +485,7 @@ def clear_cache() -> None:
     _soil_conductivity.cache_clear()
     _resistive_cables.cache_clear()
     _cables_tt.cache_clear()
+    electrical_catalog_file_checksum.cache_clear()
     _tt_cables_by_model.cache_clear()
     _electrical_tt_bom.cache_clear()
     _electrical_tt_bom_by_full_mark.cache_clear()

@@ -20,6 +20,7 @@ from app.reference_data.loader import (
     get_electrical_tt_bom_entry,
     get_tt_cable_by_model,
     list_tt_cables,
+    tt_cables_source_checksum,
 )
 from app.schemas.calculation import SelfRegulatingTTParams
 from app.schemas.electrical_inputs import ResolvedElectricalInputs
@@ -64,9 +65,7 @@ def _power_catalog_snapshot(
                 "schema_version": 1,
                 "status": "provisional",
                 "source": "backend/app/reference_data/cables_tt.json",
-                "source_checksum": (
-                    "sha256:933db17044e58ec330f06ae1f9b269bd82224c41e3836505f6e2eac986109c74"
-                ),
+                "source_checksum": tt_cables_source_checksum(),
                 "imported_at": "2026-08-02T00:00:00Z",
                 "activated_at": None,
                 "diagnostics": ["Power coefficients require engineering source approval"],

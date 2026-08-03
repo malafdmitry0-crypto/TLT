@@ -2,21 +2,24 @@
 
 Запуск:
     python -m app.seeds
+    python -m app.seeds --electrical-catalogs-only
 
 Идемпотентный: повторный запуск не создаёт дублей.
 
 Порядок выполнения:
   1. users (admin2 + 5 employees)
-  2. correction_coefficients (расчётные и demo commercial политики)
-  3. insulation_materials (DB projection встроенного JSON-справочника)
-  4. cables_extended (встроенный технический каталог + demo commercial projection)
-  5. accessories_extended (demo accessory cost layer)
-  6. projects (10 проектов, привязаны к employees)
-  7. project_objects — только pipe/tank, с конкретными материалами изоляции
-  8. electrical_calculations — для каждого pipe-объекта
-  9. specifications — для каждого проекта с электрорасчётом
+  2. electrical_catalog_versions (approved power/section/BOM authority)
+  3. correction_coefficients (расчётные и demo commercial политики)
+  4. insulation_materials (DB projection встроенного JSON-справочника)
+  5. cables_extended (встроенный технический каталог + demo commercial projection)
+  6. accessories_extended (demo accessory cost layer)
+  7. projects (10 проектов, привязаны к employees)
+  8. project_objects — только pipe/tank, с конкретными материалами изоляции
+  9. electrical_calculations — для каждого pipe-объекта
+ 10. specifications — для каждого проекта с электрорасчётом
 """
 
+import argparse
 import asyncio
 import logging
 import re
@@ -46,6 +49,7 @@ from app.schemas.calculation import (
 )
 from app.schemas.project import ProjectObjectCreate
 from app.services.calculation_service import CalculationService
+from app.services.electrical_catalog_service import ElectricalCatalogService
 from app.services.electrical_input_resolver import FRONTEND_MOCK_PROFILE
 from app.services.electrical_variant_service import ElectricalVariantService
 from app.services.project_service import ProjectService
@@ -377,6 +381,37 @@ async def seed_users(db) -> list[User]:
         users.append(user)
     await db.flush()
     return users
+
+
+async def seed_electrical_catalogs(db, principal: CurrentPrincipal) -> None:
+    """Register the shipped approved TT catalog set before demo calculations."""
+    active = await ElectricalCatalogService(db).ensure_bundled_catalogs_active(
+        principal,
+        commit=False,
+    )
+    logger.info(
+        "  + active electrical catalogs: %s",
+        ", ".join(f"{kind}={active[kind].version}" for kind in sorted(active)),
+    )
+
+
+async def _existing_admin_principal(db) -> CurrentPrincipal:
+    admin = await db.scalar(select(User).where(User.role == "admin").limit(1))
+    if admin is None:
+        raise RuntimeError("Electrical catalog registration requires an admin principal")
+    return CurrentPrincipal(
+        role="admin",
+        user_id=admin.id,
+        email=admin.email,
+    )
+
+
+async def run_electrical_catalog_seed() -> None:
+    """Safely register catalogs without replacing projects or demo objects."""
+    async with AsyncSessionLocal() as db:
+        principal = await _existing_admin_principal(db)
+        await seed_electrical_catalogs(db, principal)
+        await db.commit()
 
 
 async def seed_coefficients(db, admin_id: uuid.UUID) -> list[CorrectionCoefficient]:
@@ -1638,16 +1673,13 @@ async def run_seeds() -> None:
         logger.info("=== Seed: users ===")
         users = await seed_users(db)
 
-        admin_result = await db.execute(select(User).where(User.role == "admin").limit(1))
-        admin = admin_result.scalar_one_or_none()
-        admin_id = admin.id if admin else None
-        if admin is None:
-            raise RuntimeError("Seed requires an admin principal")
-        seed_principal = CurrentPrincipal(
-            role="admin",
-            user_id=admin.id,
-            email=admin.email,
-        )
+        seed_principal = await _existing_admin_principal(db)
+        admin_id = seed_principal.user_id
+        if admin_id is None:
+            raise RuntimeError("Seed requires an authenticated admin principal")
+
+        logger.info("=== Seed: electrical_catalog_versions ===")
+        await seed_electrical_catalogs(db, seed_principal)
 
         logger.info("=== Seed: correction coefficients ===")
         await seed_coefficients(db, admin_id)
@@ -1675,5 +1707,16 @@ async def run_seeds() -> None:
         logger.info("=== Seeds complete ===")
 
 
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Seed HeatCalc data")
+    parser.add_argument(
+        "--electrical-catalogs-only",
+        action="store_true",
+        help="register approved power/section/BOM versions without replacing demo projects",
+    )
+    args = parser.parse_args()
+    asyncio.run(run_electrical_catalog_seed() if args.electrical_catalogs_only else run_seeds())
+
+
 if __name__ == "__main__":
-    asyncio.run(run_seeds())
+    main()

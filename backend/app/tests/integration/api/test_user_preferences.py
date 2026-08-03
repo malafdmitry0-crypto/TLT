@@ -279,6 +279,34 @@ class TestUserPreferencesApi:
             "widthPct": 10
         }
 
+    async def test_electrical_table_columns_accepts_engineering_traceability_keys(
+        self,
+        client: AsyncClient,
+        employee_token: str,
+    ):
+        engineering_keys = [
+            "required_installed_length_m",
+            "section_l_max_m",
+            "section_l_tok_m",
+            "section_l_ogr_m",
+            "section_l_excess_m",
+            "provenance",
+        ]
+        value = electrical_table_columns_value(
+            ["index", "object_name", "cable_mark", *engineering_keys]
+        )
+        columns = cast(dict[str, Any], value["columns"])
+        columns.update({key: {"widthPct": 10} for key in engineering_keys})
+
+        resp = await client.put(
+            f"/api/v1/preferences/{ELECTRICAL_TABLE_COLUMNS_PREF_KEY}",
+            json={"value": value},
+            headers={"Authorization": f"Bearer {employee_token}"},
+        )
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["value"]["visibleOrder"][-6:] == engineering_keys
+
     async def test_electrical_table_columns_rejects_unknown_key(
         self,
         client: AsyncClient,

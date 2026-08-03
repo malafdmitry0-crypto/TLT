@@ -23,9 +23,11 @@ from app.models.electrical_candidate import ElectricalCandidate
 from app.models.electrical_catalog_version import ElectricalCatalogVersion
 from app.models.specification import Specification
 from app.reference_data.loader import (
+    electrical_catalog_file_checksum,
     electrical_tt_bom_metadata,
     list_electrical_tt_bom_entries,
     list_tt_cables,
+    tt_cables_source_checksum,
 )
 from app.schemas.electrical_catalog import (
     ElectricalCatalogActivationResponse,
@@ -63,6 +65,11 @@ _BOM_MARKS = {
     *(f"{model}-СР" for model in _TT_MODELS),
 }
 _CATALOG_LOCK_KEYS = {"power": 3401, "section": 3402, "bom": 3403}
+_BUNDLED_CATALOG_ORDER: tuple[ElectricalCatalogKind, ...] = ("power", "section", "bom")
+_BUNDLED_POWER_VERSION = "tt-power-approved-r1-2026-08-03-5ebb23d7"
+_BUNDLED_SECTION_VERSION = "tt-section-2026-07-20-230v-a7a37087"
+_BUNDLED_BOM_VERSION = "selfreg-spec-2026-05-29-3f1556a4"
+_BUNDLED_APPROVAL_REFERENCE = "case-1-review-10-2026-08-03"
 
 
 class ElectricalCatalogServiceError(Exception):
@@ -95,6 +102,92 @@ def _canonical_checksum(payload: Any) -> str:
         default=str,
     ).encode("utf-8")
     return "sha256:" + hashlib.sha256(encoded).hexdigest()
+
+
+def bundled_electrical_catalog_documents() -> (
+    dict[ElectricalCatalogKind, ElectricalCatalogImportDocument]
+):
+    """Build the immutable approved catalog set shipped with this release.
+
+    The power coefficients are registered exactly as supplied; no inferred
+    correction is applied to the anomalous 15ТТВ2 curve.  Section rows retain
+    the source-workbook checksum while their calculation voltage is normalized
+    to the canonical 230 V boundary.
+    """
+    power_payload = {"rows": list_tt_cables()}
+    section_payload = section_catalog_payload_snapshot()
+    section_metadata = section_catalog_meta()
+    bom_payload = {"entries": list_electrical_tt_bom_entries()}
+    bom_metadata = electrical_tt_bom_metadata()
+
+    power_source_checksum = tt_cables_source_checksum()
+    import_checksums = {
+        kind: electrical_catalog_file_checksum(kind) for kind in _BUNDLED_CATALOG_ORDER
+    }
+    versions = {
+        "power": _BUNDLED_POWER_VERSION,
+        "section": _BUNDLED_SECTION_VERSION,
+        "bom": _BUNDLED_BOM_VERSION,
+    }
+    for kind, version in versions.items():
+        checksum_prefix = import_checksums[kind].removeprefix("sha256:")[:8]
+        if not version.endswith(checksum_prefix):
+            raise RuntimeError(f"Bundled {kind} catalog version does not match its import checksum")
+
+    return {
+        "power": ElectricalCatalogImportDocument(
+            version=_BUNDLED_POWER_VERSION,
+            source="backend/app/reference_data/cables_tt.json",
+            source_checksum=power_source_checksum,
+            import_checksum=import_checksums["power"],
+            schema_version=1,
+            payload=power_payload,
+            production_approved=True,
+            diagnostics=[
+                {
+                    "code": "ELECTRICAL_BUNDLED_CATALOG_APPROVED",
+                    "approval_reference": _BUNDLED_APPROVAL_REFERENCE,
+                    "normalized_voltage_v": 230,
+                }
+            ],
+        ),
+        "section": ElectricalCatalogImportDocument(
+            version=_BUNDLED_SECTION_VERSION,
+            source=str(
+                section_metadata.get("source") or "backend/app/reference_data/section_catalog.json"
+            ),
+            source_checksum=str(
+                section_metadata.get("source_checksum") or import_checksums["section"]
+            ),
+            import_checksum=import_checksums["section"],
+            schema_version=int(section_metadata.get("schema_version") or 1),
+            payload=section_payload,
+            production_approved=True,
+            diagnostics=[
+                {
+                    "code": "ELECTRICAL_SECTION_VOLTAGE_NORMALIZED",
+                    "normalized_voltage_v": 230,
+                }
+            ],
+        ),
+        "bom": ElectricalCatalogImportDocument(
+            version=_BUNDLED_BOM_VERSION,
+            source=str(
+                bom_metadata.get("source") or "backend/app/reference_data/electrical_tt_bom_v1.json"
+            ),
+            source_checksum=str(bom_metadata.get("source_checksum") or import_checksums["bom"]),
+            import_checksum=import_checksums["bom"],
+            schema_version=int(bom_metadata.get("schema_version") or 1),
+            payload=bom_payload,
+            production_approved=True,
+            diagnostics=[
+                {
+                    "code": "ELECTRICAL_BUNDLED_CATALOG_APPROVED",
+                    "approval_reference": _BUNDLED_APPROVAL_REFERENCE,
+                }
+            ],
+        ),
+    }
 
 
 def _rows(payload: Mapping[str, Any], kind: str) -> list[Any]:
@@ -290,6 +383,8 @@ class ElectricalCatalogService:
         kind: ElectricalCatalogKind,
         document: ElectricalCatalogImportDocument,
         principal: CurrentPrincipal,
+        *,
+        commit: bool = True,
     ) -> ElectricalCatalogVersion:
         if not document.version.strip() or not document.source.strip():
             raise ElectricalCatalogServiceError(
@@ -361,14 +456,19 @@ class ElectricalCatalogService:
             },
             message="Imported draft electrical catalog",
         )
-        await self.db.commit()
-        await self.db.refresh(row)
+        if commit:
+            await self.db.commit()
+            await self.db.refresh(row)
+        else:
+            await self.db.flush()
         return row
 
     async def activate(
         self,
         catalog_id: UUID,
         principal: CurrentPrincipal,
+        *,
+        commit: bool = True,
     ) -> ElectricalCatalogActivationResponse:
         try:
             target = await self.db.scalar(
@@ -452,8 +552,11 @@ class ElectricalCatalogService:
                 },
                 message="Activated electrical catalog",
             )
-            await self.db.commit()
-            await self.db.refresh(target)
+            if commit:
+                await self.db.commit()
+                await self.db.refresh(target)
+            else:
+                await self.db.flush()
             return ElectricalCatalogActivationResponse(
                 catalog=ElectricalCatalogVersionResponse.model_validate(target),
                 stale_calculations=stale_calculations,
@@ -463,6 +566,47 @@ class ElectricalCatalogService:
         except Exception:
             await self.db.rollback()
             raise
+
+    async def ensure_bundled_catalogs_active(
+        self,
+        principal: CurrentPrincipal,
+        *,
+        commit: bool = True,
+    ) -> dict[str, ElectricalCatalogVersion]:
+        """Register missing bundled catalogs without replacing custom active versions."""
+        documents = bundled_electrical_catalog_documents()
+        active = await self._active_rows()
+
+        for kind in _BUNDLED_CATALOG_ORDER:
+            if kind in active:
+                continue
+            document = documents[kind]
+            row = await self.db.scalar(
+                select(ElectricalCatalogVersion).where(
+                    ElectricalCatalogVersion.kind == kind,
+                    ElectricalCatalogVersion.version == document.version,
+                )
+            )
+            if row is None:
+                row = await self.import_draft(
+                    kind,
+                    document,
+                    principal,
+                    commit=False,
+                )
+            if row.status != "draft":
+                raise ElectricalCatalogServiceError(
+                    "ELECTRICAL_CATALOG_BOOTSTRAP_CONFLICT",
+                    "Встроенную версию каталога нельзя активировать повторно",
+                    status_code=409,
+                    details={"kind": kind, "version": row.version, "status": row.status},
+                )
+            await self.activate(row.id, principal, commit=False)
+            active = await self._active_rows()
+
+        if commit:
+            await self.db.commit()
+        return await self._active_rows()
 
     async def _mark_dependents_stale(
         self, target: ElectricalCatalogVersion
@@ -552,7 +696,7 @@ class ElectricalCatalogService:
                 "version": "tt-power-v1-provisional",
                 "status": "draft",
                 "source": "backend/app/reference_data/cables_tt.json",
-                "source_checksum": "sha256:933db17044e58ec330f06ae1f9b269bd82224c41e3836505f6e2eac986109c74",
+                "source_checksum": tt_cables_source_checksum(),
                 "schema_version": 1,
                 "production_approved": False,
                 "diagnostics": [{"code": "ELECTRICAL_POWER_CATALOG_PROVISIONAL"}],
