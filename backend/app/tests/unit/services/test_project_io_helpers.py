@@ -21,6 +21,7 @@ from app.services.project_io_service import (
     _safe_csv_cell,
     _spec_rows_contain_manual_items,
     _suggest_filename,
+    _validate_catalog_selection_rows_shape,
     _validate_specification_section_before_mutation,
     _validate_specification_section_v3,
 )
@@ -834,3 +835,50 @@ class TestSpecificationIdentityResolution:
                     {"variant_key": "er-b", "name": "ЭР2"},
                 ],
             )
+
+
+class TestCatalogSelectionImportShape:
+    def test_rejects_bad_fingerprint_before_mutation(self):
+        with pytest.raises(ProjectImportError, match="candidate_set_fingerprint"):
+            _validate_catalog_selection_rows_shape(
+                [
+                    {
+                        "variant_key": "er-a",
+                        "candidate_group_key": "cg_" + "a" * 32 + "_" + "b" * 40,
+                        "catalog_version_id": "00000000-0000-0000-0000-000000000001",
+                        "catalog_item_id": "00000000-0000-0000-0000-000000000002",
+                        "candidate_set_fingerprint": "not-a-hash",
+                        "collection_version": "1",
+                    }
+                ],
+                {"er-a"},
+            )
+
+    def test_rejects_duplicate_group_for_same_er(self):
+        group = "cg_" + "a" * 32 + "_" + "b" * 40
+        fingerprint = "sha256:" + "c" * 64
+        row = {
+            "variant_key": "er-a",
+            "candidate_group_key": group,
+            "catalog_version_id": "00000000-0000-0000-0000-000000000001",
+            "catalog_item_id": "00000000-0000-0000-0000-000000000002",
+            "candidate_set_fingerprint": fingerprint,
+            "collection_version": "1",
+        }
+        with pytest.raises(ProjectImportError, match="дубликат"):
+            _validate_catalog_selection_rows_shape([row, dict(row)], {"er-a"})
+
+    def test_accepts_valid_shape(self):
+        _validate_catalog_selection_rows_shape(
+            [
+                {
+                    "variant_key": "er-a",
+                    "candidate_group_key": "cg_" + "a" * 32 + "_" + "b" * 40,
+                    "catalog_version_id": "00000000-0000-0000-0000-000000000001",
+                    "catalog_item_id": "00000000-0000-0000-0000-000000000002",
+                    "candidate_set_fingerprint": "sha256:" + "c" * 64,
+                    "collection_version": "2",
+                }
+            ],
+            {"er-a"},
+        )

@@ -34,7 +34,11 @@ from app.models.electrical_variant import ElectricalVariant, ElectricalVariantOb
 from app.models.project import Project
 from app.models.project_electrical_settings import ProjectElectricalSettings
 from app.models.project_object import ProjectObject
-from app.models.specification import Specification
+from app.models.specification import (
+    Specification,
+    SpecificationCatalogItem,
+    SpecificationCatalogSelection,
+)
 from app.services.project_object_params import (
     LegacySpecificationObjectParamsError,
     reject_legacy_specification_object_params,
@@ -116,6 +120,7 @@ def _dump_project_to_writer(
     variants: list[ElectricalVariant] | None = None,
     assignments: list[ElectricalVariantObject] | None = None,
     electrical_settings: ProjectElectricalSettings | None = None,
+    catalog_selections: list[SpecificationCatalogSelection] | None = None,
     project_key: str | None = None,
 ) -> None:
     """Записывает секции одного проекта (schema v3).
@@ -125,6 +130,7 @@ def _dump_project_to_writer(
     prefix = [project_key] if project_key is not None else []
     variants = list(variants or [])
     assignments = list(assignments or [])
+    catalog_selections = list(catalog_selections or [])
 
     if project_key is None:
         # одиночный экспорт — metadata в отдельной секции
@@ -370,6 +376,35 @@ def _dump_project_to_writer(
             _write_row(w, prefix + row)
         _write_row(w, [])
 
+    if catalog_selections:
+        _write_section(w, "catalog_selections")
+        header = [
+            "variant_key",
+            "electrical_variant_id",
+            "candidate_group_key",
+            "catalog_version_id",
+            "catalog_item_id",
+            "candidate_set_fingerprint",
+            "collection_version",
+        ]
+        if project_key is not None:
+            header = ["project_key", *header]
+        _write_row(w, header)
+        for selection in catalog_selections:
+            er_id = selection.electrical_variant_id
+            variant_key = variant_key_by_id.get(er_id, str(er_id))
+            row = [
+                variant_key,
+                str(er_id),
+                selection.candidate_group_key,
+                str(selection.catalog_version_id),
+                str(selection.catalog_item_id),
+                selection.candidate_set_fingerprint,
+                str(selection.collection_version),
+            ]
+            _write_row(w, prefix + row)
+        _write_row(w, [])
+
 
 async def export_project(
     db: AsyncSession, project_id: UUID, principal: CurrentPrincipal
@@ -418,6 +453,18 @@ async def export_project(
         ).scalars()
     )
     electrical_settings = await db.get(ProjectElectricalSettings, project.id)
+    catalog_selections = list(
+        (
+            await db.execute(
+                select(SpecificationCatalogSelection)
+                .where(SpecificationCatalogSelection.project_id == project.id)
+                .order_by(
+                    SpecificationCatalogSelection.electrical_variant_id,
+                    SpecificationCatalogSelection.candidate_group_key,
+                )
+            )
+        ).scalars()
+    )
 
     buf = io.StringIO()
     w = csv.writer(buf, delimiter=DELIMITER, quoting=csv.QUOTE_MINIMAL)
@@ -430,6 +477,7 @@ async def export_project(
         variants=variants,
         assignments=assignments,
         electrical_settings=electrical_settings,
+        catalog_selections=catalog_selections,
     )
     filename = _suggest_filename(project.task_number, project.name)
     # UTF-8 BOM — чтобы Excel-ru открывал без «крокозябров»
@@ -506,6 +554,7 @@ async def export_projects_bulk(
     specs_by_project: dict[UUID, list[Specification]] = defaultdict(list)
     variants_by_project: dict[UUID, list[ElectricalVariant]] = defaultdict(list)
     assignments_by_project: dict[UUID, list[ElectricalVariantObject]] = defaultdict(list)
+    selections_by_project: dict[UUID, list[SpecificationCatalogSelection]] = defaultdict(list)
 
     if unique_project_ids:
         objects_result = await db.execute(
@@ -556,6 +605,18 @@ async def export_projects_bulk(
         for assignment in assignments_result.scalars():
             assignments_by_project[assignment.project_id].append(assignment)
 
+        selections_result = await db.execute(
+            select(SpecificationCatalogSelection)
+            .where(SpecificationCatalogSelection.project_id.in_(unique_project_ids))
+            .order_by(
+                SpecificationCatalogSelection.project_id,
+                SpecificationCatalogSelection.electrical_variant_id,
+                SpecificationCatalogSelection.candidate_group_key,
+            )
+        )
+        for selection in selections_result.scalars():
+            selections_by_project[selection.project_id].append(selection)
+
     electrical_settings_by_project: dict[UUID, ProjectElectricalSettings] = {}
     if unique_project_ids:
         electrical_settings_result = await db.execute(
@@ -576,6 +637,7 @@ async def export_projects_bulk(
             variants=variants_by_project[project.id],
             assignments=assignments_by_project[project.id],
             electrical_settings=electrical_settings_by_project.get(project.id),
+            catalog_selections=selections_by_project[project.id],
             project_key=key,
         )
 
@@ -937,6 +999,66 @@ def _validate_specification_section_v3(
             (variant, items, snapshot, variant_key, electrical_variant_id_raw)
         )
     return resolved_rows
+
+
+def _validate_catalog_selection_rows_shape(
+    selection_rows: list[dict[str, str]],
+    variant_keys: set[str],
+) -> None:
+    """Pure pre-mutation validation for catalog_selections (no DB)."""
+    if not selection_rows:
+        return
+    if not variant_keys:
+        raise ProjectImportError(
+            "catalog_selections требует секцию electrical_variants с variant_key"
+        )
+    seen: set[tuple[str, str]] = set()
+    for row in selection_rows:
+        variant_key = (row.get("variant_key") or "").strip()
+        electrical_variant_id_raw = (row.get("electrical_variant_id") or "").strip()
+        group_key = (row.get("candidate_group_key") or "").strip()
+        catalog_version_id_raw = (row.get("catalog_version_id") or "").strip()
+        catalog_item_id_raw = (row.get("catalog_item_id") or "").strip()
+        fingerprint = (row.get("candidate_set_fingerprint") or "").strip()
+        if not group_key or len(group_key) > 128:
+            raise ProjectImportError(
+                "catalog_selections: candidate_group_key обязателен (1..128)"
+            )
+        if not fingerprint.startswith("sha256:") or len(fingerprint) != 71:
+            raise ProjectImportError(
+                "catalog_selections: candidate_set_fingerprint должен быть sha256:<64 hex>"
+            )
+        try:
+            UUID(catalog_version_id_raw)
+            UUID(catalog_item_id_raw)
+        except ValueError as exc:
+            raise ProjectImportError(
+                "catalog_selections: catalog_version_id и catalog_item_id должны быть UUID"
+            ) from exc
+        if not variant_key and not electrical_variant_id_raw:
+            raise ProjectImportError(
+                "catalog_selections: нужен variant_key или electrical_variant_id"
+            )
+        # Pure key map resolution (same rules as specs against stub keys).
+        resolved = _resolve_specification_identity(
+            variant_key=variant_key,
+            electrical_variant_id_raw=electrical_variant_id_raw,
+            variants_by_key={key: key for key in variant_keys},
+        )
+        scope = (str(resolved), group_key)
+        if scope in seen:
+            raise ProjectImportError(
+                "catalog_selections: дубликат candidate_group_key для одного ЭР"
+            )
+        seen.add(scope)
+        collection_version_raw = (row.get("collection_version") or "1").strip() or "1"
+        try:
+            if int(collection_version_raw) < 1:
+                raise ValueError
+        except ValueError as exc:
+            raise ProjectImportError(
+                "catalog_selections: collection_version должен быть целым >= 1"
+            ) from exc
 
 
 def _validate_specification_section_before_mutation(
@@ -1333,6 +1455,52 @@ async def _create_imported_variants_v3(
     return variants_by_key
 
 
+async def _import_catalog_selections_v3(
+    db: AsyncSession,
+    project: Project,
+    selection_rows: list[dict[str, str]],
+    variants_by_key: dict[str, ElectricalVariant],
+) -> None:
+    """Import persisted multi-candidate selections; fail closed on missing FKs."""
+    if not selection_rows:
+        return
+    for row in selection_rows:
+        variant_key = (row.get("variant_key") or "").strip()
+        electrical_variant_id_raw = (row.get("electrical_variant_id") or "").strip()
+        variant = _resolve_specification_identity(
+            variant_key=variant_key,
+            electrical_variant_id_raw=electrical_variant_id_raw,
+            variants_by_key=variants_by_key,
+        )
+        group_key = (row.get("candidate_group_key") or "").strip()
+        catalog_version_id = UUID((row.get("catalog_version_id") or "").strip())
+        catalog_item_id = UUID((row.get("catalog_item_id") or "").strip())
+        fingerprint = (row.get("candidate_set_fingerprint") or "").strip()
+        collection_version = int((row.get("collection_version") or "1").strip() or "1")
+        item = await db.scalar(
+            select(SpecificationCatalogItem).where(
+                SpecificationCatalogItem.id == catalog_item_id,
+                SpecificationCatalogItem.catalog_version_id == catalog_version_id,
+            )
+        )
+        if item is None:
+            raise ProjectImportError(
+                "catalog_selections: catalog_item_id не найден в catalog_version "
+                f"({catalog_item_id} / {catalog_version_id})"
+            )
+        db.add(
+            SpecificationCatalogSelection(
+                project_id=project.id,
+                electrical_variant_id=variant.id,
+                candidate_group_key=group_key,
+                catalog_version_id=catalog_version_id,
+                catalog_item_id=catalog_item_id,
+                candidate_set_fingerprint=fingerprint,
+                collection_version=collection_version,
+            )
+        )
+
+
 async def _apply_project_data_v3(
     db: AsyncSession,
     project: Project,
@@ -1341,6 +1509,7 @@ async def _apply_project_data_v3(
     assignment_rows: list[dict[str, str]],
     electrical_rows: list[dict[str, str]],
     spec_rows: list[dict[str, str]],
+    selection_rows: list[dict[str, str]] | None = None,
 ) -> None:
     """Import schema v3 graph: named ЭР, assignments, calculations, specifications."""
     # Objects first.
@@ -1528,6 +1697,13 @@ async def _apply_project_data_v3(
             )
         )
 
+    await _import_catalog_selections_v3(
+        db,
+        project,
+        selection_rows or [],
+        variants_by_key,
+    )
+
 
 async def import_project(db: AsyncSession, raw: bytes, principal: CurrentPrincipal) -> Project:
     """Одиночный импорт текущего single-формата с секцией `metadata`."""
@@ -1543,8 +1719,13 @@ async def import_project(db: AsyncSession, raw: bytes, principal: CurrentPrincip
     variant_rows = _rows_to_dicts(sections.get("electrical_variants", []))
     assignment_rows = _rows_to_dicts(sections.get("electrical_assignments", []))
     electrical_settings_rows = _rows_to_dicts(sections.get("electrical_settings", []))
+    selection_rows = _rows_to_dicts(sections.get("catalog_selections", []))
     # Reject invalid specification payloads before any guest delete or owner insert.
     if schema_version == LEGACY_SCHEMA_VERSION:
+        if selection_rows:
+            raise ProjectImportError(
+                "Секция catalog_selections не поддерживается для schema_version=2"
+            )
         _occupied_legacy_slots(electrical_rows, spec_rows)
         _validate_specification_section_before_mutation(
             schema_version=schema_version,
@@ -1552,15 +1733,19 @@ async def import_project(db: AsyncSession, raw: bytes, principal: CurrentPrincip
             variant_rows=variant_rows,
         )
     else:
-        if not variant_rows and (electrical_rows or spec_rows):
+        if not variant_rows and (electrical_rows or spec_rows or selection_rows):
             raise ProjectImportError(
                 "schema_version=3 требует секцию electrical_variants, "
-                "если есть electrical/specifications"
+                "если есть electrical/specifications/catalog_selections"
             )
         _validate_specification_section_before_mutation(
             schema_version=schema_version,
             spec_rows=spec_rows,
             variant_rows=variant_rows,
+        )
+        _validate_catalog_selection_rows_shape(
+            selection_rows,
+            _variant_keys_from_rows(variant_rows),
         )
 
     if principal.role == "guest" and _spec_rows_contain_manual_items(spec_rows):
@@ -1628,6 +1813,7 @@ async def import_project(db: AsyncSession, raw: bytes, principal: CurrentPrincip
                     assignment_rows,
                     electrical_rows,
                     spec_rows,
+                    selection_rows,
                 )
     except ProjectImportError:
         raise
@@ -1666,6 +1852,7 @@ async def import_projects_bulk(
     variants_by_key = by_project_key("electrical_variants")
     assignments_by_key = by_project_key("electrical_assignments")
     electrical_settings_by_key = by_project_key("electrical_settings")
+    selections_by_key = by_project_key("catalog_selections")
 
     imported = 0
     errors: list[dict[str, Any]] = []
@@ -1695,11 +1882,21 @@ async def import_projects_bulk(
         try:
             project_spec_rows = specs_by_key.get(key, [])
             project_variant_rows = variants_by_key.get(key, [])
+            project_selection_rows = selections_by_key.get(key, [])
             _validate_specification_section_before_mutation(
                 schema_version=schema_version,
                 spec_rows=project_spec_rows,
                 variant_rows=project_variant_rows,
             )
+            if schema_version == LEGACY_SCHEMA_VERSION and project_selection_rows:
+                raise ProjectImportError(
+                    "Секция catalog_selections не поддерживается для schema_version=2"
+                )
+            if schema_version != LEGACY_SCHEMA_VERSION:
+                _validate_catalog_selection_rows_shape(
+                    project_selection_rows,
+                    _variant_keys_from_rows(project_variant_rows),
+                )
             async with db.begin_nested():
                 project = Project(
                     name=name,
@@ -1740,6 +1937,7 @@ async def import_projects_bulk(
                         assignments_by_key.get(key, []),
                         electrical_by_key.get(key, []),
                         project_spec_rows,
+                        project_selection_rows,
                     )
             imported += 1
         except Exception as exc:
