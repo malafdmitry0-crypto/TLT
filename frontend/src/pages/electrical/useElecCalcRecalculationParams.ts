@@ -4,7 +4,8 @@ import type { SelectionPolicy } from '@/api/calculations';
 
 export function useElecCalcRecalculationParams() {
   const [selectionPolicy, setSelectionPolicy] = useState<SelectionPolicy>('technical_minimum');
-  const [supplyVoltage, setSupplyVoltage] = useState<number | null>(220);
+  // DEC-11 / E1: normative voltage is 230 V; UI is read-only (FE-28).
+  const [supplyVoltage, setSupplyVoltage] = useState<number | null>(230);
   const [connectionType, setConnectionType] = useState<string>('line_1ph');
   const [windingCoefficient, setWindingCoefficient] = useState<number | null>(1);
   const [heatingHeight, setHeatingHeight] = useState<number | null>(null);

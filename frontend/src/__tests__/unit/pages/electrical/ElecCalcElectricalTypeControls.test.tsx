@@ -26,7 +26,7 @@ function setup(overrides: Partial<Parameters<typeof ElecCalcElectricalTypeContro
           heatingHeight: null,
           layingStep: 0.1,
           maintainTemperature: 80,
-          supplyVoltage: 220,
+          supplyVoltage: 230,
           vaporTemperature: 120,
           windingCoefficient: 1,
         }}
@@ -43,23 +43,24 @@ describe('ElecCalcElectricalTypeControls', () => {
     expect(empty.container).toBeEmptyDOMElement();
   });
 
-  it('renders supply voltage control for self-regulating (ТЛТ)', async () => {
+  it('renders supply voltage as read-only 230 for self-regulating (E1 / FE-28)', () => {
     const { setRecalc } = setup({ cableType: 'self_regulating' });
 
     const voltage = screen.getByLabelText('Напряжение питания');
     expect(voltage).toBeInTheDocument();
     expect(screen.getByText('U, В:')).toBeInTheDocument();
-
-    await userEvent.type(voltage, '0');
-    expect(setRecalc.supplyVoltage).toHaveBeenCalled();
+    expect(voltage).toBeDisabled();
+    expect(setRecalc.supplyVoltage).not.toHaveBeenCalled();
   });
 
-  it('renders TT controls (incl. supply voltage) and keeps aggressive flag callback', async () => {
+  it('renders TT controls (incl. read-only supply voltage) and keeps aggressive flag callback', async () => {
     const { setRecalc } = setup();
 
     expect(screen.getByLabelText('T пропарки')).toBeInTheDocument();
     expect(screen.getByLabelText('T3 поддержания')).toBeInTheDocument();
-    expect(screen.getByLabelText('Напряжение питания')).toBeInTheDocument();
+    const voltage = screen.getByLabelText('Напряжение питания');
+    expect(voltage).toBeInTheDocument();
+    expect(voltage).toBeDisabled();
 
     await userEvent.click(screen.getByRole('checkbox', { name: 'агр.' }));
     expect(setRecalc.aggressiveProduct).toHaveBeenCalledWith(true);

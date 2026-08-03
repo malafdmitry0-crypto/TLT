@@ -332,23 +332,13 @@ export function useElectricalAssignmentController({
     mutation.reset();
   };
 
+  // E1 / FE-28: MVP type menu — Samreg only (no Resistive/Skin).
   const typeMenuItems = [
     {
       key: 'self_regulating',
       label: 'Саморегулирующийся (Самрег)',
       disabled: assignDisabled,
       onClick: () => runAssign('self_regulating', selectedObjectIds),
-    },
-    {
-      key: 'resistive',
-      label: 'Резистивный',
-      disabled: assignDisabled,
-      onClick: () => runAssign('resistive', selectedObjectIds),
-    },
-    {
-      key: 'skin',
-      label: 'Скин (скоро)',
-      disabled: true,
     },
     {
       type: 'divider' as const,

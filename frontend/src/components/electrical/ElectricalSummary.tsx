@@ -69,10 +69,9 @@ type SummaryCardDef = {
   testId: string;
 };
 
+// E1 / FE-28: MVP summary shows Samreg + Total only (Resistive/Skin hidden).
 const SUMMARY_CARDS: readonly SummaryCardDef[] = [
   { key: 'self_regulating', title: 'Саммари Самрег', testId: 'elec-summary-card-self_regulating' },
-  { key: 'resistive', title: 'Саммари Резистив', testId: 'elec-summary-card-resistive' },
-  { key: 'skin', title: 'Саммари Скин', testId: 'elec-summary-card-skin' },
   { key: 'total', title: 'Саммари Итого', testId: 'elec-summary-card-total' },
 ] as const;
 

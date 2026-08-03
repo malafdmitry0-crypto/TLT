@@ -91,13 +91,16 @@ function ElecCalcParamsPanel({
         {row('Напряжение питания U, В', (
           <TltNumberField
             aria-label="Напряжение питания"
-            disabled={disabled}
+            disabled
+            readOnly
             min={1}
-            value={recalc.supplyVoltage}
-            onChange={setRecalc.supplyVoltage}
+            value={recalc.supplyVoltage ?? 230}
             className="workflow-params-input"
           />
         ))}
+        <Text type="secondary" className="workflow-params-hint">
+          230 В — норматив системы (DEC-11); не редактируется
+        </Text>
         {isTt && (
           <>
             {row('Температура пропарки (T2), °C', (

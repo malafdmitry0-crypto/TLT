@@ -35,15 +35,16 @@ function ElecCalcElectricalTypeControls({
   const wrap = (content: ReactNode) =>
     block ? <div className="electrical-type-controls">{content}</div> : content;
 
+  // E1 / FE-28: U is always 230 V read-only (DEC-11).
   const voltageControl = (
     <>
       <Text className="electrical-params-label">U, В:</Text>
       <TltNumberField
         aria-label="Напряжение питания"
-        disabled={disabled}
+        disabled
+        readOnly
         min={1}
-        value={recalc.supplyVoltage}
-        onChange={setRecalc.supplyVoltage}
+        value={recalc.supplyVoltage ?? 230}
         className="electrical-type-control electrical-type-control--w76"
       />
     </>
@@ -101,10 +102,10 @@ function ElecCalcElectricalTypeControls({
         />
         <Text className="electrical-params-label">U:</Text>
         <TltNumberField
-          disabled={disabled}
+          disabled
+          readOnly
           min={1}
-          value={recalc.supplyVoltage}
-          onChange={setRecalc.supplyVoltage}
+          value={recalc.supplyVoltage ?? 230}
           className="electrical-type-control electrical-type-control--w76"
           aria-label="Напряжение"
         />

@@ -139,7 +139,7 @@ describe('ElectricalAssignmentPanel (system scope chrome)', () => {
     });
   });
 
-  it('shows system tabs with counts and no second object table', async () => {
+  it('shows MVP system tabs (Unassigned + Samreg only) and no second object table', async () => {
     renderPanel({ selectedObjectIds: [] });
 
     expect(await screen.findByTestId('electrical-assignment-panel')).toBeInTheDocument();
@@ -148,8 +148,6 @@ describe('ElectricalAssignmentPanel (system scope chrome)', () => {
       expect(tabs.map((tab) => tab.textContent?.replace(/\s+/gu, ' ').trim())).toEqual([
         'Нераспределённые объекты1',
         'Самрег2',
-        'Резистив2',
-        'Скин',
       ]);
       expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
     });
@@ -157,10 +155,13 @@ describe('ElectricalAssignmentPanel (system scope chrome)', () => {
       .toHaveAttribute('data-disabled', 'false');
     expect(screen.getByTestId('assignment-drop-zone-unassigned'))
       .toHaveAttribute('data-disabled', 'true');
+    // E1: no Resistive drop zone / assign button
+    expect(screen.queryByTestId('assignment-drop-zone-resistive')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Назначить: Резистив' })).not.toBeInTheDocument();
     // No dual assignment object grid
     expect(screen.queryByRole('columnheader', { name: 'Диагностика' })).not.toBeInTheDocument();
-    expect(screen.getByText(/Саморегулирующийся/iu)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Применить правило к группе' })).toBeInTheDocument();
+    expect(screen.getByText(/только саморегулирующийся кабель/iu)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Назначить Самрег выбранным' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Выбрать тип' })).toBeInTheDocument();
   });
 

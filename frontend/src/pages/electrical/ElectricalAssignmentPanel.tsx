@@ -153,11 +153,9 @@ export default function ElectricalAssignmentPanel({
     onAssignedNeedCalc,
   });
 
+  // E1 / FE-28: MVP shows only Unassigned + Samreg (hide Resistive/Skin/Mineral tabs).
   const visibleTabs = ELECTRICAL_SYSTEM_VIEWS.filter(
-    (tab) => tab.key === 'unassigned'
-      || tab.key === 'self_regulating'
-      || tab.key === 'resistive'
-      || tab.key === 'skin',
+    (tab) => tab.key === 'unassigned' || tab.key === 'self_regulating',
   );
 
   return (
@@ -223,7 +221,14 @@ export default function ElectricalAssignmentPanel({
           className="electrical-system-scope__tabs"
           type="card"
           size="small"
-          activeKey={systemView === 'all' || systemView === 'mineral' ? 'unassigned' : systemView}
+          activeKey={
+            systemView === 'all'
+              || systemView === 'mineral'
+              || systemView === 'resistive'
+              || systemView === 'skin'
+              ? 'unassigned'
+              : systemView
+          }
           onChange={(nextKey) => {
             if (c.busy) return;
             onSystemViewChange(nextKey as ElectricalSystemView);
@@ -233,7 +238,7 @@ export default function ElectricalAssignmentPanel({
           items={visibleTabs.map((tab) => ({
             key: tab.key,
             label: tabLabel(tab.label, countForView(c.counts, c.totalLabel, tab.key)),
-            disabled: c.busy || (tab.key === 'skin' && false),
+            disabled: c.busy,
           }))}
           tabBarExtraContent={canMutate ? (
             <Space size={8} className="electrical-system-scope__actions" wrap>
@@ -244,9 +249,9 @@ export default function ElectricalAssignmentPanel({
                 loading={c.busy && c.mutation.variables?.kind === 'assign'
                   && c.mutation.variables.systemType === 'self_regulating'}
                 onClick={() => c.runAssign('self_regulating', selectedObjectIds)}
-                aria-label="Применить правило к группе"
+                aria-label="Назначить Самрег выбранным"
               >
-                Применить правило к группе
+                Назначить Самрег выбранным
               </TltButton>
               <Dropdown
                 menu={{ items: c.typeMenuItems }}
@@ -258,7 +263,7 @@ export default function ElectricalAssignmentPanel({
                   icon={<AppstoreOutlined />}
                   disabled={c.actionsDisabled && c.selectedCount === 0}
                   loading={c.busy && c.mutation.variables?.kind === 'assign'
-                    && c.mutation.variables.systemType === 'resistive'}
+                    && c.mutation.variables.systemType === 'self_regulating'}
                   aria-label="Выбрать тип"
                 >
                   Выбрать тип
@@ -282,17 +287,6 @@ export default function ElectricalAssignmentPanel({
             hint={c.canDropAssign ? 'Отпустите строку таблицы' : 'Вкладка «Нераспределённые объекты»'}
             disabled={!c.canDropAssign}
             isOver={c.overZone === 'self_regulating'}
-            onDragEnter={c.setOverZone}
-            onDragLeave={(id) => c.setOverZone((cur) => (cur === id ? null : cur))}
-            onDragOver={c.handleZoneDragOver}
-            onDrop={c.handleZoneDrop}
-          />
-          <DropZone
-            id="resistive"
-            label="↓ В Резистив"
-            hint={c.canDropAssign ? 'Отпустите строку таблицы' : 'Вкладка «Нераспределённые объекты»'}
-            disabled={!c.canDropAssign}
-            isOver={c.overZone === 'resistive'}
             onDragEnter={c.setOverZone}
             onDragLeave={(id) => c.setOverZone((cur) => (cur === id ? null : cur))}
             onDragOver={c.handleZoneDragOver}
@@ -329,14 +323,6 @@ export default function ElectricalAssignmentPanel({
           Назначить: Самрег
         </TltButton>
         <TltButton
-          disabled={c.assignDisabled}
-          loading={c.busy && c.mutation.variables?.kind === 'assign'
-            && c.mutation.variables.systemType === 'resistive'}
-          onClick={() => c.runAssign('resistive', selectedObjectIds)}
-        >
-          Назначить: Резистив
-        </TltButton>
-        <TltButton
           variant="danger"
           disabled={c.actionsDisabled || systemView === 'unassigned'}
           loading={c.busy && c.mutation.variables?.kind === 'unassign'}
@@ -347,7 +333,7 @@ export default function ElectricalAssignmentPanel({
       </div>
 
       <Typography.Text type="secondary" id="unsupported-electrical-systems-note" className="electrical-system-scope__note">
-        В текущей версии активен тип «Саморегулирующийся». «Резистив» и «Скин» — для будущего расширения.
+        В этой версии доступен только саморегулирующийся кабель (ТТН / ТТВ / ТТХ).
       </Typography.Text>
     </div>
   );

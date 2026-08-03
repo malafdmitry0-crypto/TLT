@@ -39,29 +39,26 @@ const systems: ElectricalSystemSummaries = {
 };
 
 describe('ElectricalSummary', () => {
-  it('shows four summary cards (mockup layout)', () => {
+  it('shows MVP summary cards Samreg + Total only (E1 / FE-28)', () => {
     render(<ElectricalSummary systems={systems} />);
 
     expect(screen.getByTestId('elec-summary-table')).toBeInTheDocument();
     expect(screen.getByText('Саммари Самрег')).toBeInTheDocument();
-    expect(screen.getByText('Саммари Резистив')).toBeInTheDocument();
-    expect(screen.getByText('Саммари Скин')).toBeInTheDocument();
     expect(screen.getByText('Саммари Итого')).toBeInTheDocument();
+    expect(screen.queryByText('Саммари Резистив')).not.toBeInTheDocument();
+    expect(screen.queryByText('Саммари Скин')).not.toBeInTheDocument();
 
     // Objects
     expect(screen.getByTestId('elec-summary-self_regulating-objects')).toHaveTextContent('2');
-    expect(screen.getByTestId('elec-summary-resistive-objects')).toHaveTextContent('1');
-    expect(screen.getByTestId('elec-summary-skin-objects')).toHaveTextContent('0');
     expect(screen.getByTestId('elec-summary-total-objects')).toHaveTextContent('3');
+    expect(screen.queryByTestId('elec-summary-resistive-objects')).not.toBeInTheDocument();
 
     // Length
     expect(screen.getByTestId('elec-summary-self_regulating-length')).toHaveTextContent('115');
-    expect(screen.getByTestId('elec-summary-resistive-length')).toHaveTextContent('24');
     expect(screen.getByTestId('elec-summary-total-length')).toHaveTextContent('139');
 
     // Sections
     expect(screen.getByTestId('elec-summary-self_regulating-sections')).toHaveTextContent('3');
-    expect(screen.getByTestId('elec-summary-skin-sections')).toHaveTextContent('—');
     expect(screen.getByTestId('elec-summary-total-sections')).toHaveTextContent('4');
 
     // Power kW
