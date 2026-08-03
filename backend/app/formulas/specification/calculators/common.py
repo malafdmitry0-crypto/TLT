@@ -6,7 +6,7 @@ No database, FastAPI, filesystem, or static JSON imports.
 from __future__ import annotations
 
 import math
-from decimal import ROUND_CEILING, Decimal, InvalidOperation
+from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal, InvalidOperation
 from typing import Any
 
 from app.formulas.specification.calculators.types import FormulaInputError, TemperatureGroup
@@ -180,6 +180,36 @@ def ceil_div(numerator: Decimal, denominator: Decimal, *, divider_name: str = "d
 
     quotient = numerator / denominator
     return int(quotient.to_integral_value(rounding=ROUND_CEILING))
+
+
+def floor_div(numerator: Decimal, denominator: Decimal, *, divider_name: str = "divider") -> int:
+    """Integer floor of numerator / denominator using Decimal throughout.
+
+    Both arguments must already be validated Decimals. Denominator must be > 0.
+    """
+    if not isinstance(numerator, Decimal) or not isinstance(denominator, Decimal):
+        raise FormulaInputError(
+            "INVALID_TYPE",
+            "floor_div requires Decimal numerator and denominator",
+        )
+    if denominator <= 0:
+        raise FormulaInputError(
+            "ZERO_DIVIDER",
+            f"{divider_name}: divider must be > 0 (got {denominator})",
+            field=divider_name,
+            value=denominator,
+        )
+    if numerator < 0:
+        raise FormulaInputError(
+            "NEGATIVE_VALUE",
+            f"numerator must be non-negative (got {numerator})",
+            value=numerator,
+        )
+    if numerator == 0:
+        return 0
+
+    quotient = numerator / denominator
+    return int(quotient.to_integral_value(rounding=ROUND_FLOOR))
 
 
 def sum_decimals(values: list[Decimal] | tuple[Decimal, ...]) -> Decimal:

@@ -1,6 +1,7 @@
-"""Pure Decimal specification calculators (SPEC-CANON-04).
+"""Pure Decimal specification calculators (SPEC-CANON-04 / SPEC-CANON-05).
 
-Cable, connection kits, repair kits, sealant, fiberglass tape, aluminium tape.
+Cable, connection kits, repair kits, sealant, fiberglass tape, aluminium tape,
+and approved data-driven junction boxes.
 No database, FastAPI, filesystem, or static JSON imports.
 """
 
@@ -10,6 +11,18 @@ from app.formulas.specification.calculators.aluminium_tape import (
     calculate_aluminium_reels_from_total,
     calculate_aluminium_tape,
     calculate_aluminium_tape_from_input,
+)
+from app.formulas.specification.calculators.boxes import (
+    SPEC_BOX_EX_RGR_MATRIX_MISSING,
+    box_row_from_catalog_parts,
+    calculate_box_quantity,
+    compute_d_ge_57,
+    evaluate_box_matrix,
+    evaluate_box_matrix_from_input,
+    normalize_box_rounding_mode,
+    row_conditions_match,
+    validate_box_matrix_ex_r_gr,
+    validate_box_row_ex_r_gr,
 )
 from app.formulas.specification.calculators.cable import (
     calculate_cable_mark,
@@ -21,6 +34,7 @@ from app.formulas.specification.calculators.common import (
     FIBERGLASS_RESERVE,
     PI,
     ceil_div,
+    floor_div,
     require_positive_divider,
     to_decimal,
     to_non_negative_decimal,
@@ -48,10 +62,20 @@ from app.formulas.specification.calculators.sealant import (
     calculate_sealant_from_totals,
 )
 from app.formulas.specification.calculators.types import (
+    BOX_BOOLEAN_CONDITION_KEYS,
+    BOX_CONDITION_UNUSED,
     AluminiumObjectInput,
     AluminiumObjectResult,
     AluminiumTapeInput,
     AluminiumTapeResult,
+    BoxMatrixInput,
+    BoxMatrixResult,
+    BoxPipeInput,
+    BoxQuantityResult,
+    BoxRoundingMode,
+    BoxRowConditions,
+    BoxRowInput,
+    BoxRowMatch,
     CableGroupInput,
     CableGroupResult,
     CableMarkInput,
@@ -71,10 +95,20 @@ from app.formulas.specification.calculators.types import (
 )
 
 __all__ = [
+    "BOX_BOOLEAN_CONDITION_KEYS",
+    "BOX_CONDITION_UNUSED",
     "AluminiumObjectInput",
     "AluminiumObjectResult",
     "AluminiumTapeInput",
     "AluminiumTapeResult",
+    "BoxMatrixInput",
+    "BoxMatrixResult",
+    "BoxPipeInput",
+    "BoxQuantityResult",
+    "BoxRoundingMode",
+    "BoxRowConditions",
+    "BoxRowInput",
+    "BoxRowMatch",
     "CableGroupInput",
     "CableGroupResult",
     "CableMarkInput",
@@ -90,14 +124,17 @@ __all__ = [
     "PI",
     "RepairKitInput",
     "RepairKitResult",
+    "SPEC_BOX_EX_RGR_MATRIX_MISSING",
     "SealantInput",
     "SealantResult",
     "TemperatureGroup",
+    "box_row_from_catalog_parts",
     "calculate_aluminium_from_scalar",
     "calculate_aluminium_object_length",
     "calculate_aluminium_reels_from_total",
     "calculate_aluminium_tape",
     "calculate_aluminium_tape_from_input",
+    "calculate_box_quantity",
     "calculate_cable_mark",
     "calculate_connection_kits",
     "calculate_connection_kits_from_input",
@@ -115,9 +152,17 @@ __all__ = [
     "calculate_sealant_from_input",
     "calculate_sealant_from_totals",
     "ceil_div",
+    "compute_d_ge_57",
+    "evaluate_box_matrix",
+    "evaluate_box_matrix_from_input",
+    "floor_div",
+    "normalize_box_rounding_mode",
     "require_positive_divider",
+    "row_conditions_match",
     "to_decimal",
     "to_non_negative_decimal",
     "to_non_negative_int",
     "to_positive_decimal",
+    "validate_box_matrix_ex_r_gr",
+    "validate_box_row_ex_r_gr",
 ]

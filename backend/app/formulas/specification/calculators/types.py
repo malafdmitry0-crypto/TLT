@@ -208,3 +208,126 @@ class AluminiumTapeResult:
     total_required_length_m: Decimal
     object_lengths_m: tuple[Decimal, ...]
     reel_length_m: Decimal
+
+
+# --- Junction boxes (data-driven matrix) -----------------------------------
+
+
+class BoxRoundingMode(str, Enum):
+    """Directed rounding for box section-divider quantities."""
+
+    UP = "up"
+    DOWN = "down"
+
+
+# Catalog tri-state: condition active (bool) or "unused" (do not check).
+BOX_CONDITION_UNUSED = "unused"
+
+# Boolean condition keys on approved box matrix / catalog applicability rows.
+BOX_BOOLEAN_CONDITION_KEYS: tuple[str, ...] = (
+    "d_ge_57",
+    "K1i",
+    "K2i",
+    "Kiu",
+    "L_sec_ge_L_K2i",
+    "N_sec_ge_3",
+)
+
+
+@dataclass(frozen=True, slots=True)
+class BoxPipeInput:
+    """Per-pipe facts used to evaluate the approved box matrix.
+
+    Options ``K1i``/``K2i``/``Kiu``/``Ex``/``L_K2i_m``/``R_gr`` come from
+    project specification settings (not invented defaults for matching).
+    """
+
+    outer_diameter_mm: Decimal | int | str | float
+    section_count: Decimal | int | str | float
+    section_length_m: Decimal | int | str | float
+    k1i: bool = False
+    k2i: bool = False
+    kiu: bool = False
+    ex: bool = False
+    l_k2i_m: Decimal | int | str | float = 0
+    r_gr: Decimal | int | str | float | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class BoxRowConditions:
+    """Per-row applicability conditions (catalog ``applicability`` shape).
+
+    Boolean flags accept ``True`` / ``False`` / ``\"unused\"``.
+    ``Ex`` and ``R_gr`` are required for production evaluation: missing or
+    invalid values raise ``SPEC_BOX_EX_RGR_MATRIX_MISSING`` (do not invent).
+    ``R_gr`` is either ``\"unused\"`` or a non-negative numeric threshold/value.
+    """
+
+    d_ge_57: bool | str = BOX_CONDITION_UNUSED
+    K1i: bool | str = BOX_CONDITION_UNUSED
+    K2i: bool | str = BOX_CONDITION_UNUSED
+    Kiu: bool | str = BOX_CONDITION_UNUSED
+    L_sec_ge_L_K2i: bool | str = BOX_CONDITION_UNUSED
+    N_sec_ge_3: bool | str = BOX_CONDITION_UNUSED
+    Ex: bool | str | None = None
+    R_gr: Decimal | int | str | float | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class BoxRowInput:
+    """One approved matrix / catalog box row (identity + formula + conditions)."""
+
+    section_divider: Decimal | int | str | float
+    rounding_mode: BoxRoundingMode | str
+    conditions: BoxRowConditions
+    min_quantity: Decimal | int | str | float = 1
+    item_key: str | None = None
+    mark: str | None = None
+    nomenclature_code: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class BoxQuantityResult:
+    """Quantity for a single matched box row."""
+
+    quantity: int
+    raw: Decimal
+    calculated: int
+    section_count: int
+    section_divider: Decimal
+    rounding_mode: BoxRoundingMode
+    min_quantity: int
+
+
+@dataclass(frozen=True, slots=True)
+class BoxRowMatch:
+    """One matrix row that passed all used conditions for the pipe."""
+
+    quantity: int
+    raw: Decimal
+    calculated: int
+    section_divider: Decimal
+    rounding_mode: BoxRoundingMode
+    min_quantity: int
+    item_key: str | None = None
+    mark: str | None = None
+    nomenclature_code: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class BoxMatrixResult:
+    """All matching box rows for one pipe (multi-match is normative)."""
+
+    matches: tuple[BoxRowMatch, ...]
+    d_ge_57: bool
+    section_count: int
+    section_length_m: Decimal
+
+
+@dataclass(frozen=True, slots=True)
+class BoxMatrixInput:
+    """Pipe context plus approved complete matrix rows."""
+
+    pipe: BoxPipeInput
+    rows: tuple[BoxRowInput, ...]
+    require_ex_r_gr_conditions: bool = True
