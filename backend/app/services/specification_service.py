@@ -20,7 +20,12 @@ from app.models.electrical_variant import ElectricalVariant
 from app.models.project import Project
 from app.models.project_object import ProjectObject
 from app.models.specification import Specification
-from app.schemas.specification import SpecificationItem, SpecificationOptions
+from app.schemas.specification import (
+    SpecificationGroupingMode,
+    SpecificationItem,
+    SpecificationOptions,
+    SpecificationResolvedOptions,
+)
 from app.services.electrical_variant_service import (
     ElectricalVariantService,
     ElectricalVariantServiceError,
@@ -56,6 +61,25 @@ def _settings_core(payload: dict[str, Any] | None) -> dict[str, Any]:
     """Comparable core of a snapshot (excludes version/timestamp metadata)."""
     data = payload or {}
     return {key: data.get(key) for key in _SETTINGS_OPTION_KEYS}
+
+
+def _read_legacy_formula_options(options: SpecificationOptions) -> SpecificationResolvedOptions:
+    """Compatibility reader for historical internal callers, never the V2 API path."""
+    return SpecificationResolvedOptions(
+        catalog_id="legacy-compatibility",
+        catalog_version="legacy-compatibility",
+        grouping_mode=(
+            SpecificationGroupingMode.MERGE_MATERIALS
+            if options.merge_identical
+            else SpecificationGroupingMode.SEPARATE_BY_OBJECT_TYPE
+        ),
+        ex=options.ex_zone,
+        k1i=options.indication_on_boxes,
+        k2i=options.end_section_indication,
+        kiu=options.top_indication,
+        l_k2i_m=options.min_length_for_end_indication,
+        r_gr=options.reserve_coefficient,
+    )
 
 
 @dataclass
@@ -200,8 +224,8 @@ class SpecificationService:
     async def _resolve_generation_options(
         self,
         project_id: UUID,
-        options: SpecificationOptions | None,
-    ) -> tuple[SpecificationOptions, int, dict[str, Any]]:
+        options: SpecificationOptions | SpecificationResolvedOptions | None,
+    ) -> tuple[SpecificationOptions | SpecificationResolvedOptions, int, dict[str, Any]]:
         """Resolve options from request or project defaults; build snapshot."""
         version, project_settings = await self.get_project_settings(project_id)
         resolved = options if options is not None else project_settings
@@ -286,7 +310,7 @@ class SpecificationService:
         variant_number: int,
         electrical_variant_id: UUID,
         electrical_variant_name: str | None = None,
-        options: SpecificationOptions | None = None,
+        options: SpecificationOptions | SpecificationResolvedOptions | None = None,
     ) -> SpecificationPreflightVariant:
         """Side-effect-free exclusion scan for one ER (PDL-ER-36 / FA-06).
 
@@ -314,10 +338,20 @@ class SpecificationService:
             for obj in objects
         }
         resolved, _, _ = await self._resolve_generation_options(project_id, options)
+        formula_options = (
+            resolved
+            if isinstance(resolved, SpecificationResolvedOptions)
+            else _read_legacy_formula_options(resolved)
+        )
         build = build_full_specification_detailed(
             electrical_results,
             objects_by_id,
-            options=resolved,
+            options=formula_options,
+            connector_kit_sections_per_kit=(
+                resolved.connector_kit_sections_per_kit
+                if isinstance(resolved, SpecificationOptions)
+                else 1
+            ),
         )
         group_exclusions = list(build.excluded_groups)
         critical_codes = {
@@ -419,7 +453,7 @@ class SpecificationService:
         electrical_variant_ids: list[UUID],
         *,
         mode: str | None = None,
-        options: SpecificationOptions | None = None,
+        options: SpecificationOptions | SpecificationResolvedOptions | None = None,
         commit: bool = True,
     ) -> list[SpecificationGenerateResult]:
         """Atomically generate independent specifications for explicit ER UUIDs.
@@ -498,7 +532,7 @@ class SpecificationService:
         *,
         commit: bool = True,
         mode: str | None = None,
-        options: SpecificationOptions | None = None,
+        options: SpecificationOptions | SpecificationResolvedOptions | None = None,
         electrical_variant_id: UUID | None = None,
     ) -> SpecificationGenerateResult:
         """Генерирует спецификацию.
@@ -537,8 +571,7 @@ class SpecificationService:
                         continue
 
         # PDL-ER-29: product generation is always full; basic is transitional alias only.
-        if mode in (None, "basic"):
-            mode = "full"
+        mode = "full"
 
         # PDL-ER-07: request options override; else project defaults.
         # Do not silently reuse a previous ER snapshot as project defaults.
@@ -607,10 +640,20 @@ class SpecificationService:
                 }
                 for obj in objects
             }
+            formula_options = (
+                resolved_options
+                if isinstance(resolved_options, SpecificationResolvedOptions)
+                else _read_legacy_formula_options(resolved_options)
+            )
             build = build_full_specification_detailed(
                 electrical_results,
                 objects_by_id,
-                options=resolved_options,
+                options=formula_options,
+                connector_kit_sections_per_kit=(
+                    resolved_options.connector_kit_sections_per_kit
+                    if isinstance(resolved_options, SpecificationOptions)
+                    else 1
+                ),
             )
             auto_items = build.items
             excluded_groups = list(build.excluded_groups)

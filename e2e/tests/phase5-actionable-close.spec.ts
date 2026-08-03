@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 
 import { createCalculatedPipe, loginAsGuest, currentGuestContext, API_BASE } from './helpers/workspace';
 import {
+  CANONICAL_SPECIFICATION_OPTIONS,
   createEmptyElectricalVariant,
   ensureElectricalInitialized,
   exportProjectCsv,
@@ -25,9 +26,9 @@ test.describe('Phase 5 actionable close pack', () => {
     const erId = variants[0].id as string;
 
     const gen = await generateSpecification(page, {
-      electricalVariantIds: [erId],
-      confirmPartial: true,
-      options: { reserve_coefficient: 1.0, ex_zone: false },
+      variantIds: [erId],
+      excludeUnassignedConfirmed: true,
+      options: CANONICAL_SPECIFICATION_OPTIONS,
     });
     expect([201, 409, 422]).toContain(gen.status());
     if (gen.status() !== 201) {
@@ -36,14 +37,8 @@ test.describe('Phase 5 actionable close pack', () => {
 
     const before = await getSpecificationSettings(page);
     await updateSpecificationSettings(page, {
-      reserve_coefficient: 1.4,
-      ex_zone: false,
-      indication_on_boxes: false,
-      end_section_indication: false,
-      top_indication: false,
-      min_length_for_end_indication: 0,
-      group_by: 'object_section',
-      merge_identical: false,
+      ...CANONICAL_SPECIFICATION_OPTIONS,
+      R_gr: '1.4',
     });
     const after = await getSpecificationSettings(page);
     expect(after.version).toBeGreaterThanOrEqual(before.version);
@@ -67,7 +62,7 @@ test.describe('Phase 5 actionable close pack', () => {
     }
   });
 
-  test('5.11 preflight confirm_partial=false returns 409 when exclusions exist', async ({ page }) => {
+  test('5.11 unconfirmed exclusions remain typed per-ER diagnostics', async ({ page }) => {
     await loginAsGuest(page);
     // Two objects: one calculated pipe, one without electrical → skipped_objects > 0
     await createCalculatedPipe(page, `pipe-a-${Date.now()}`);
@@ -76,17 +71,15 @@ test.describe('Phase 5 actionable close pack', () => {
     const erId = variants[0].id as string;
 
     const gen = await generateSpecification(page, {
-      electricalVariantIds: [erId],
-      confirmPartial: false,
+      variantIds: [erId],
+      excludeUnassignedConfirmed: false,
     });
-    // Either 409 preflight, 201 if all contribute, or 422 if data plane blocked
-    expect([201, 409, 422]).toContain(gen.status());
-    if (gen.status() === 409) {
+    expect([201, 422]).toContain(gen.status());
+    if (gen.status() === 201) {
       const body = await gen.json();
-      const detail = body.detail ?? body;
-      expect(
-        String(detail.code ?? detail?.code ?? JSON.stringify(detail)),
-      ).toMatch(/PREFLIGHT|confirm/i);
+      expect(body.results).toHaveLength(1);
+      expect(body.results[0]).toHaveProperty('status');
+      expect(body.results[0]).toHaveProperty('diagnostics');
     }
   });
 
@@ -141,18 +134,13 @@ test.describe('Phase 5 actionable close pack', () => {
     const variants = await ensureElectricalInitialized(page);
     const erId = variants[0].id as string;
     await generateSpecification(page, {
-      electricalVariantIds: [erId],
-      confirmPartial: true,
+      variantIds: [erId],
+      excludeUnassignedConfirmed: true,
     });
     await updateSpecificationSettings(page, {
-      reserve_coefficient: 1.5,
-      ex_zone: true,
-      indication_on_boxes: false,
-      end_section_indication: false,
-      top_indication: false,
-      min_length_for_end_indication: 0,
-      group_by: 'object_section',
-      merge_identical: false,
+      ...CANONICAL_SPECIFICATION_OPTIONS,
+      Ex: true,
+      R_gr: '1.5',
     });
     await page.getByRole('menuitem', { name: 'Спецификация' }).click();
     // Soft UI: banner text may be «устарел» / «пересчит» / red alert

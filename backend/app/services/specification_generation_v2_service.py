@@ -26,7 +26,6 @@ from app.schemas.specification import (
     SpecificationSettingsResponse,
     SpecificationVariantGenerationResultV2,
 )
-from app.schemas.specification import SpecificationOptions as LegacyFormulaOptions
 from app.services.specification_preflight_service import SpecificationPreflightService
 from app.services.specification_service import SpecificationService
 
@@ -171,7 +170,7 @@ class SpecificationGenerationV2Service:
                     variant.legacy_variant_number,
                     commit=False,
                     mode="full",
-                    options=self._formula_options(item.resolved_options),
+                    options=item.resolved_options,
                     electrical_variant_id=variant.id,
                 )
                 if generated.partial or generated.excluded_groups:
@@ -222,18 +221,6 @@ class SpecificationGenerationV2Service:
             project_id=project_id,
             settings_version=settings_version,
             results=results,
-        )
-
-    @staticmethod
-    def _formula_options(resolved: Any) -> LegacyFormulaOptions:
-        return LegacyFormulaOptions(
-            reserve_coefficient=float(resolved.r_gr),
-            ex_zone=resolved.ex,
-            indication_on_boxes=resolved.k1i,
-            end_section_indication=resolved.k2i,
-            top_indication=resolved.kiu,
-            min_length_for_end_indication=float(resolved.l_k2i_m),
-            merge_identical=(resolved.grouping_mode is SpecificationGroupingMode.MERGE_MATERIALS),
         )
 
     @staticmethod

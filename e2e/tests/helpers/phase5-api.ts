@@ -8,6 +8,16 @@ import { API_BASE, currentGuestContext } from './workspace';
 
 export type GuestCtx = { projectId: string; sessionId: string };
 
+export const CANONICAL_SPECIFICATION_OPTIONS = {
+  grouping_mode: 'separate_by_object_type',
+  Ex: false,
+  K1i: false,
+  K2i: false,
+  Kiu: false,
+  L_K2i_m: '0',
+  R_gr: '1',
+} as const;
+
 export async function guestHeaders(page: Page): Promise<Record<string, string>> {
   const { sessionId } = await currentGuestContext(page);
   return { 'X-Session-Id': sessionId };
@@ -103,27 +113,26 @@ export async function batchCalcElectrical(
 export async function generateSpecification(
   page: Page,
   opts: {
-    electricalVariantIds: string[];
-    confirmPartial?: boolean;
+    variantIds: string[];
+    excludeUnassignedConfirmed?: boolean;
     options?: Record<string, unknown>;
+    catalogSelections?: Record<string, string>;
+    inspectBody?: (body: Record<string, unknown>) => void;
   },
 ) {
   const { projectId, sessionId } = await currentGuestContext(page);
-  const primary = opts.electricalVariantIds[0];
+  const body = {
+    variant_ids: opts.variantIds,
+    options: opts.options ?? CANONICAL_SPECIFICATION_OPTIONS,
+    exclude_unassigned_confirmed: opts.excludeUnassignedConfirmed ?? false,
+    catalog_selections: opts.catalogSelections ?? {},
+  };
+  opts.inspectBody?.(body);
   const resp = await page.request.post(
     `${API_BASE}/api/v1/specifications/${projectId}/generate`,
     {
       headers: { 'X-Session-Id': sessionId },
-      params: { electrical_variant_id: primary },
-      data: {
-        mode: 'full',
-        electrical_variant_ids: opts.electricalVariantIds,
-        confirm_partial: opts.confirmPartial ?? true,
-        options: opts.options ?? {
-          reserve_coefficient: 1.0,
-          ex_zone: false,
-        },
-      },
+      data: body,
     },
   );
   return resp;

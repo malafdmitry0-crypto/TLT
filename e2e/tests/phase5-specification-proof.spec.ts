@@ -1,7 +1,8 @@
 import { test, expect } from '@playwright/test';
 
-import { createCalculatedPipe, loginAsGuest, currentGuestContext } from './helpers/workspace';
+import { createCalculatedPipe, createCalculatedTank, loginAsGuest, currentGuestContext } from './helpers/workspace';
 import {
+  CANONICAL_SPECIFICATION_OPTIONS,
   createEmptyElectricalVariant,
   ensureElectricalInitialized,
   exportProjectCsv,
@@ -31,6 +32,26 @@ test.describe('Phase 5 specification proof pack', () => {
     expect(width).toBeGreaterThanOrEqual(1280);
   });
 
+  test('5.1a Heat objects do not own specification settings', async ({ page }) => {
+    await loginAsGuest(page);
+    const pipe = await createCalculatedPipe(page);
+    const tank = await createCalculatedTank(page);
+    const forbidden = [
+      'explosion_zone_type',
+      'power_indication_on_boxes',
+      'end_of_section_indication',
+      'top_of_box_indication',
+      'min_length_for_k2i',
+      'hot_reserve_coefficient',
+    ];
+    for (const object of [pipe, tank]) {
+      for (const key of forbidden) {
+        expect(object.params).not.toHaveProperty(key);
+      }
+    }
+    await expect(page.getByText('Подбор спецификации')).toHaveCount(0);
+  });
+
   test('5.2 narrow viewport shows ≥1280 warning (PDL-ER-30)', async ({ page }) => {
     await page.setViewportSize({ width: 1100, height: 800 });
     await loginAsGuest(page);
@@ -44,18 +65,17 @@ test.describe('Phase 5 specification proof pack', () => {
     const before = await getSpecificationSettings(page);
     expect(before.version).toBeGreaterThanOrEqual(1);
     const after = await updateSpecificationSettings(page, {
-      reserve_coefficient: 1.2,
-      ex_zone: true,
-      indication_on_boxes: false,
-      end_section_indication: false,
-      top_indication: false,
-      min_length_for_end_indication: 0,
-      group_by: 'object_section',
-      merge_identical: false,
+      grouping_mode: 'separate_by_object_type',
+      Ex: true,
+      K1i: false,
+      K2i: false,
+      Kiu: false,
+      L_K2i_m: '0',
+      R_gr: '1.2',
     });
     expect(after.version).toBeGreaterThanOrEqual(before.version);
-    expect(after.settings.reserve_coefficient).toBe(1.2);
-    expect(after.settings.ex_zone).toBe(true);
+    expect(after.settings.R_gr).toBe('1.2');
+    expect(after.settings.Ex).toBe(true);
   });
 
   test('5.4 multi-ER list create up to two variants + generate preflight path', async ({ page }) => {
@@ -73,15 +93,26 @@ test.describe('Phase 5 specification proof pack', () => {
     expect(list.length).toBeGreaterThanOrEqual(2);
 
     const gen = await generateSpecification(page, {
-      electricalVariantIds: [er1.id, er2.id],
-      confirmPartial: true,
+      variantIds: [er1.id, er2.id],
+      excludeUnassignedConfirmed: true,
+      options: CANONICAL_SPECIFICATION_OPTIONS,
+      inspectBody: (body) => {
+        expect(body).toEqual({
+          variant_ids: [er1.id, er2.id],
+          options: CANONICAL_SPECIFICATION_OPTIONS,
+          exclude_unassigned_confirmed: true,
+          catalog_selections: {},
+        });
+        expect(body).not.toHaveProperty('electrical_variant_ids');
+        expect(body).not.toHaveProperty('confirm_partial');
+        expect(body).not.toHaveProperty('mode');
+      },
     });
-    // 201 generated, 409 preflight if confirm false path not used, 422 if ER5 data plane issues
-    expect([201, 409, 422, 404]).toContain(gen.status());
+    expect([201, 422, 404]).toContain(gen.status());
     if (gen.status() === 201) {
       const body = await gen.json();
-      expect(body.mode).toBe('full');
       expect(body.project_id).toBeTruthy();
+      expect(body.results).toHaveLength(2);
     }
   });
 

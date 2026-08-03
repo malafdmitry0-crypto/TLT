@@ -34,7 +34,7 @@ from app.formulas.specification.source_mapping import (
     rule_exclusion,
 )
 from app.reference_data.loader import list_spec_accessory_rules
-from app.schemas.specification import SpecificationItem, SpecificationOptions
+from app.schemas.specification import SpecificationItem, SpecificationResolvedOptions
 
 PI = math.pi
 
@@ -275,7 +275,7 @@ def _match_box_conditions(
     k1i: bool,
     k2i: bool,
     kiu: bool,
-    ex_zone: bool,
+    ex: bool,
     l_sec: float,
 ) -> bool:
     """PDF §7.15 tri-state conditions. d_mm_min inclusive, d_mm_max exclusive."""
@@ -297,7 +297,7 @@ def _match_box_conditions(
         ("requires_k1i", k1i),
         ("requires_k2i", k2i),
         ("requires_kiu", kiu),
-        ("requires_ex", ex_zone),
+        ("requires_ex", ex),
     ):
         if key not in conds or conds[key] is None:
             continue
@@ -326,7 +326,7 @@ def evaluate_box_matrix_for_object(
     k1i: bool,
     k2i: bool,
     kiu: bool,
-    ex_zone: bool,
+    ex: bool,
     l_sec: float,
     rows: list[dict[str, Any]] | None = None,
 ) -> dict[str, float]:
@@ -342,7 +342,7 @@ def evaluate_box_matrix_for_object(
             k1i=k1i,
             k2i=k2i,
             kiu=kiu,
-            ex_zone=ex_zone,
+            ex=ex,
             l_sec=l_sec,
         ):
             continue
@@ -457,11 +457,12 @@ def build_full_specification_detailed(
     electrical_results: list[dict[str, Any]],
     objects_by_id: dict[str, dict[str, Any]],
     *,
-    options: SpecificationOptions | None = None,
+    options: SpecificationResolvedOptions,
+    connector_kit_sections_per_kit: int = 1,
 ) -> FullSpecificationBuild:
     """Полная спецификация с partial/exclusion diagnostics (PDL-ER-32/35)."""
-    opt = options or SpecificationOptions()
-    r_res = opt.reserve_coefficient
+    opt = options
+    r_res = float(opt.r_gr)
     excluded_groups: list[dict[str, Any]] = []
     matrix_ok = box_ex_rgr_matrix_available()
     matrix_rows = list_box_ex_rgr_matrix_rows() if matrix_ok else []
@@ -642,8 +643,8 @@ def build_full_specification_detailed(
 
         k2i_active = (
             sections_ready
-            and opt.end_section_indication
-            and section_length >= opt.min_length_for_end_indication
+            and opt.k2i
+            and section_length >= float(opt.l_k2i_m)
         )
 
         # Length-based groups use installed length (not order) for engineering
@@ -669,10 +670,10 @@ def build_full_specification_detailed(
             matched = evaluate_box_matrix_for_object(
                 d_mm=d_mm,
                 n_sec=n_sec,
-                k1i=bool(opt.indication_on_boxes),
+                k1i=opt.k1i,
                 k2i=bool(k2i_active),
-                kiu=bool(opt.top_indication),
-                ex_zone=bool(opt.ex_zone),
+                kiu=opt.kiu,
+                ex=opt.ex,
                 l_sec=section_length,
                 rows=matrix_rows,
             )
@@ -730,8 +731,8 @@ def build_full_specification_detailed(
     nk_large_plain = b("box_Nk1") + b("box_Nk2")
     nk_large_k1i = b("box_Nk3") + b("box_Nk4")
     nk_small_plain = b("box_Nk7") + b("box_Nk8")
-    # PDL-ER-44 / PDF §7.10: pick ONE kit capacity per temp group.
-    kit_cap = int(getattr(opt, "connector_kit_sections_per_kit", 1) or 1)
+    # This is a resolved catalog choice, not a project/request setting.
+    kit_cap = connector_kit_sections_per_kit
     if kit_cap not in (1, 2):
         kit_cap = 1
     conn_low = _ceil(n_low / float(kit_cap)) if sections_ready and n_low > 0 else 0.0
@@ -767,11 +768,11 @@ def build_full_specification_detailed(
         "box_Nk12": b("box_Nk12"),
         "cable_entry_plastic": (
             (nk_large_plain + nk_large_k1i + b("box_Nk7"))
-            if (matrix_ok and not opt.ex_zone)
+            if (matrix_ok and not opt.ex)
             else 0.0
         ),
         "cable_entry_armored": (
-            (nk_large_plain + nk_large_k1i + b("box_Nk7")) if (matrix_ok and opt.ex_zone) else 0.0
+            (nk_large_plain + nk_large_k1i + b("box_Nk7")) if (matrix_ok and opt.ex) else 0.0
         ),
         "cable_entry_under_insulation": (
             (
@@ -941,11 +942,13 @@ def build_full_specification(
     electrical_results: list[dict[str, Any]],
     objects_by_id: dict[str, dict[str, Any]],
     *,
-    options: SpecificationOptions | None = None,
+    options: SpecificationResolvedOptions,
+    connector_kit_sections_per_kit: int = 1,
 ) -> list[SpecificationItem]:
     """Полная спецификация по ТНП-алгоритму (items only, compatibility API)."""
     return build_full_specification_detailed(
         electrical_results,
         objects_by_id,
         options=options,
+        connector_kit_sections_per_kit=connector_kit_sections_per_kit,
     ).items

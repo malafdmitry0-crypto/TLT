@@ -10,20 +10,48 @@ from app.formulas.electrical.tt_contract import (
 )
 from app.formulas.specification import full_builder as fb
 from app.formulas.specification.full_builder import (
-    build_full_specification as _build_full_specification,
+    build_full_specification as _build_full_specification_impl,
 )
 from app.formulas.specification.full_builder import (
-    build_full_specification_detailed as _build_full_specification_detailed,
+    build_full_specification_detailed as _build_full_specification_detailed_impl,
 )
 from app.reference_data.loader import get_electrical_tt_bom_entry
-from app.schemas.specification import SpecificationOptions
+from app.schemas.specification import SpecificationResolvedOptions
+
+
+def _formula_options(**overrides) -> SpecificationResolvedOptions:
+    values = {
+        "catalog_id": "test-catalog",
+        "catalog_version": "test-v1",
+        "grouping_mode": "separate_by_object_type",
+        "Ex": False,
+        "K1i": False,
+        "K2i": False,
+        "Kiu": False,
+        "L_K2i_m": 0,
+        "R_gr": 1,
+    }
+    values.update(overrides)
+    return SpecificationResolvedOptions.model_validate(values)
+
+
+def _build_full_specification(elec, objs, **kwargs):
+    kwargs.setdefault("options", _formula_options())
+    return _build_full_specification_impl(elec, objs, **kwargs)
+
+
+def _build_full_specification_detailed(elec, objs, **kwargs):
+    kwargs.setdefault("options", _formula_options())
+    return _build_full_specification_detailed_impl(elec, objs, **kwargs)
 
 
 def build_full_specification(elec, objs, **kwargs):
+    kwargs.setdefault("options", _formula_options())
     return _build_full_specification([_with_identity(r) for r in elec], objs, **kwargs)
 
 
 def build_full_specification_detailed(elec, objs, **kwargs):
+    kwargs.setdefault("options", _formula_options())
     return _build_full_specification_detailed([_with_identity(r) for r in elec], objs, **kwargs)
 
 
@@ -315,7 +343,7 @@ class TestFullSpecificationCable:
         elec, objs = _two_object_case()
         base = build_full_specification(elec, objs)
         scaled = build_full_specification(
-            elec, objs, options=SpecificationOptions(reserve_coefficient=1.5)
+            elec, objs, options=_formula_options(R_gr=1.5)
         )
         base_cables = {i.article: i.quantity for i in base if i.category == "Кабель"}
         scaled_cables = {i.article: i.quantity for i in scaled if i.category == "Кабель"}
@@ -462,7 +490,7 @@ class TestFullSpecificationKits:
         items = build_full_specification(
             elec,
             objs,
-            options=SpecificationOptions(connector_kit_sections_per_kit=2),
+            connector_kit_sections_per_kit=2,
         )
         assert _qty(items, "КСН-2") == 5
         assert _qty(items, "КСН-1") is None
@@ -477,19 +505,19 @@ class TestFullSpecificationEntriesAndExZone:
             lambda: False,
         )
         elec, objs = _two_object_case()
-        items = build_full_specification(elec, objs, options=SpecificationOptions(ex_zone=False))
+        items = build_full_specification(elec, objs, options=_formula_options(Ex=False))
         assert _qty(items, "КВ-пластик-М25") is None
         assert _qty(items, "КВ-бронир-М25") is None
 
     def test_plastic_entry_when_no_ex(self, enable_box_matrix):
         elec, objs = _two_object_case()
-        items = build_full_specification(elec, objs, options=SpecificationOptions(ex_zone=False))
+        items = build_full_specification(elec, objs, options=_formula_options(Ex=False))
         assert _qty(items, "КВ-пластик-М25") == 3
         assert _qty(items, "КВ-бронир-М25") is None
 
     def test_armored_entry_when_ex(self, enable_box_matrix):
         elec, objs = _two_object_case()
-        items = build_full_specification(elec, objs, options=SpecificationOptions(ex_zone=True))
+        items = build_full_specification(elec, objs, options=_formula_options(Ex=True))
         assert _qty(items, "КВ-бронир-М25") == 3
         assert _qty(items, "КВ-пластик-М25") is None
 
@@ -543,7 +571,7 @@ class TestFullSpecificationRobustness:
             for i in range(10)
         }
         items = build_full_specification(
-            elec, objs, options=SpecificationOptions(reserve_coefficient=1.3)
+            elec, objs, options=_formula_options(R_gr=1.3)
         )
         assert _qty(items, "КСН-1") == 13
 
@@ -662,7 +690,7 @@ class TestPdfBomGoldens:
         ]
         objs = {"o1": {"outer_diameter": 0.108, "pipe_length": 100.0, "object_type": "pipe"}}
         items = build_full_specification(
-            elec, objs, options=SpecificationOptions(connector_kit_sections_per_kit=2)
+            elec, objs, connector_kit_sections_per_kit=2
         )
         assert _qty(items, "КСН-2") == 5
 
@@ -695,7 +723,7 @@ class TestPdfBomGoldens:
         ]
         objs = {"o1": {"outer_diameter": 0.108, "pipe_length": 100.0, "object_type": "pipe"}}
         items = build_full_specification(
-            elec, objs, options=SpecificationOptions(connector_kit_sections_per_kit=1)
+            elec, objs, connector_kit_sections_per_kit=1
         )
         # N=9 → 9 connector kits; repair ceil(729/150)=5; ceil(14/7)=2
         assert _qty(items, "КСН-1") == 9
@@ -862,9 +890,7 @@ class TestK2iSectionLengthThreshold:
         items = build_full_specification(
             elec,
             objs,
-            options=SpecificationOptions(
-                end_section_indication=True, min_length_for_end_indication=100.0
-            ),
+            options=_formula_options(K2i=True, L_K2i_m=100.0),
         )
         assert _qty(items, "КСН-2") is None
         # коробки остаются в обычной корзине (СКВ 1601: d>57, N>=3)
@@ -884,9 +910,7 @@ class TestK2iSectionLengthThreshold:
         items = build_full_specification(
             elec,
             objs,
-            options=SpecificationOptions(
-                end_section_indication=True, min_length_for_end_indication=100.0
-            ),
+            options=_formula_options(K2i=True, L_K2i_m=100.0),
         )
         # Default capacity=1 → КСН-1 only; K2i does not dual-emit КСН-2 as end kits.
         assert _qty(items, "КСН-1") == 1
