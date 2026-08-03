@@ -20,8 +20,6 @@ const PIPE_FORM_PROJECTION_KEYS = [
   'climate_key', 'climate_temperature_basis', 'insulation_temperature_basis', 'ambient_temperature_source',
   'wind_speed_source', 'pipe_length', 'min_switch_temperature', 'supply_voltage', 'safety_factor',
   'safety_factor_source', 'steam_tracing', 'vapor_temperature', 'winding_coefficient', 'connection_type',
-  'explosion_zone_type', 'power_indication_on_boxes', 'end_of_section_indication', 'top_of_box_indication',
-  'min_length_for_k2i', 'hot_reserve_coefficient',
   'num_local_elements', 'local_element_equiv_length', 'name',
 ] as const satisfies readonly (keyof (PipeFormValues & { name?: string }))[];
 const TANK_FORM_PROJECTION_KEYS = [
@@ -39,8 +37,7 @@ const TANK_FORM_PROJECTION_KEYS = [
   'climate_key', 'climate_temperature_basis', 'insulation_temperature_basis', 'ambient_temperature_source',
   'wind_speed_source', 'min_switch_temperature', 'supply_voltage', 'safety_factor', 'safety_factor_source',
   'steam_tracing', 'vapor_temperature', 'winding_coefficient', 'connection_type',
-  'explosion_zone_type', 'power_indication_on_boxes', 'end_of_section_indication', 'top_of_box_indication',
-  'min_length_for_k2i', 'hot_reserve_coefficient', 'q_additional', 'name',
+  'q_additional', 'name',
 ] as const satisfies readonly (keyof (TankFormValues & { name?: string }))[];
 
 function projectFormRecord<K extends string>(formValues: Record<string, unknown>, keys: readonly K[]) {

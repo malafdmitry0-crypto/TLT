@@ -1,10 +1,10 @@
 /**
  * ============================================================================
  * CSS ISLAND — CableAlgorithmPanel ONLY
- * Root: .cable-island
+ * Root: .object-wizard-cable-panel
  * ============================================================================
  * Isolation contract:
- *   ✅ All selectors MUST start with .cable-island
+ *   ✅ All selectors MUST start with .object-wizard-cable-panel
  *   ⛔ NEVER select .heat-object-fields / .insulation-layers-table
  * Эталон horizontal field row + type scale for dual-form.
  * Адаптивная сетка: auto-fit колонки фиксированной ширины, центрированные в блоке.
@@ -12,7 +12,7 @@
  * over kit adapter (0,2,1) and inline-object-form chrome regardless of order.
  * ============================================================================
  */
-.cable-island {
+.object-wizard-cable-panel {
   /* Same dual-form chrome as the heat pane (heatcalc-field-chrome-core):
      banner 8px uppercase, labels 8.5px, controls 36px, number 10px, select 9px. */
   --dual-form-banner-size: 8px;
@@ -46,7 +46,7 @@
   align-items: stretch;
   min-width: 0;
 }
-.cable-island .inline-form-section-banner {
+.object-wizard-cable-panel .inline-form-section-banner {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -64,25 +64,24 @@
   border-bottom: 0;
   border-radius: 7px 7px 0 0;
 }
-.cable-island .ant-form-item {
+.object-wizard-cable-panel .ant-form-item {
   min-width: 0;
   min-height: 0;
   margin: 0;
   padding: 0;
   overflow: visible;
 }
-.cable-island .cable-algorithm-grid {
+.object-wizard-cable-panel .cable-algorithm-grid {
   padding: 8px 10px 10px;
   background: var(--color-surface);
   border: 1px solid var(--heatcalc-panel-border);
   border-radius: 0 0 7px 7px;
 }
-/* Override .inline-object-form grid-column: 1/-1 fallback —
-   cable items must auto-place into the compact grid columns. */
-.cable-island .cable-algorithm-fields .ant-form-item {
-  grid-column: auto;
+/* Reset the shell's full-row fallback so compact fields follow grid flow. */
+.object-wizard-cable-panel .cable-algorithm-fields .ant-form-item {
+  grid-area: auto;
 }
-.cable-island .cable-algorithm-fields .ant-form-item-row {
+.object-wizard-cable-panel .cable-algorithm-fields .ant-form-item-row {
   display: grid;
   grid-template-columns: var(--dual-field-label-width) minmax(0, 1fr);
   column-gap: 8px;
@@ -91,7 +90,7 @@
   width: 100%;
   min-width: 0;
 }
-.cable-island .cable-algorithm-fields .ant-form-item-label {
+.object-wizard-cable-panel .cable-algorithm-fields .ant-form-item-label {
   width: auto;
   max-width: 100%;
   min-height: 0;
@@ -101,7 +100,7 @@
   white-space: normal;
   text-align: left;
 }
-.cable-island .cable-algorithm-fields .ant-form-item-label > label {
+.object-wizard-cable-panel .cable-algorithm-fields .ant-form-item-label > label {
   display: flex;
   align-items: flex-end;
   gap: 3px;
@@ -115,34 +114,34 @@
   line-height: var(--cable-label-line-height);
   white-space: normal;
 }
-.cable-island .cable-algorithm-fields .field-label-two-line {
+.object-wizard-cable-panel .cable-algorithm-fields .field-label-two-line {
   display: block;
   max-width: 100%;
   overflow: visible;
   white-space: normal;
 }
-.cable-island .cable-algorithm-fields .field-label-two-line > span {
+.object-wizard-cable-panel .cable-algorithm-fields .field-label-two-line > span {
   display: block;
   font-size: var(--cable-label-size);
   font-weight: 600;
   white-space: normal;
 }
-.cable-island .cable-algorithm-fields .ant-form-item-control,
-.cable-island .cable-algorithm-fields .ant-form-item-control-input,
-.cable-island .cable-algorithm-fields .ant-form-item-control-input-content,
-.cable-island .cable-algorithm-fields .field-control-with-help,
-.cable-island .cable-algorithm-fields .tlt-select,
-.cable-island .cable-algorithm-fields .tlt-select__trigger,
-.cable-island .cable-algorithm-fields .reference-picker-control {
+.object-wizard-cable-panel .cable-algorithm-fields .ant-form-item-control,
+.object-wizard-cable-panel .cable-algorithm-fields .ant-form-item-control-input,
+.object-wizard-cable-panel .cable-algorithm-fields .ant-form-item-control-input-content,
+.object-wizard-cable-panel .cable-algorithm-fields .field-control-with-help,
+.object-wizard-cable-panel .cable-algorithm-fields .tlt-select,
+.object-wizard-cable-panel .cable-algorithm-fields .tlt-select__trigger,
+.object-wizard-cable-panel .cable-algorithm-fields .reference-picker-control {
   width: 100%;
   max-width: 100%;
   min-width: 0;
   box-sizing: border-box;
 }
-.cable-island .cable-algorithm-fields .ant-input,
-.cable-island .cable-algorithm-fields .ant-input-number,
-.cable-island .cable-algorithm-fields .ant-input-number-group-wrapper,
-.cable-island .cable-algorithm-fields .ant-select {
+.object-wizard-cable-panel .cable-algorithm-fields .ant-input,
+.object-wizard-cable-panel .cable-algorithm-fields .ant-input-number,
+.object-wizard-cable-panel .cable-algorithm-fields .ant-input-number-group-wrapper,
+.object-wizard-cable-panel .cable-algorithm-fields .ant-select {
   width: 100%;
   max-width: 100%;
   min-width: 0;
@@ -155,50 +154,50 @@
 /* Inside tlt-select-shell, flex child needs flex:1 to fill (min-width: auto from
    flex constraints defeats width:100% on short content like «Среда»).
    Full-width select ensures Ant popupMatchSelectWidth measures correctly. */
-.cable-island .cable-algorithm-fields .tlt-select-shell {
+.object-wizard-cable-panel .cable-algorithm-fields .tlt-select-shell {
   display: flex;
   width: 100%;
 }
-.cable-island .cable-algorithm-fields .tlt-select-shell .ant-select,
-.cable-island .cable-algorithm-fields .tlt-select-shell .ant-select-selector {
+.object-wizard-cable-panel .cable-algorithm-fields .tlt-select-shell .ant-select,
+.object-wizard-cable-panel .cable-algorithm-fields .tlt-select-shell .ant-select-selector {
   flex: 1;
-  width: 100% !important;
+  width: 100%;
   min-width: 0;
 }
 /* inner selector must not duplicate the focus ring — only outer .ant-select gets it */
-.cable-island .cable-algorithm-fields .tlt-select-shell .ant-select-focused .ant-select-selector,
-.cable-island .cable-algorithm-fields .tlt-select-shell .ant-select-selector:focus,
-.cable-island .cable-algorithm-fields .tlt-select-shell .ant-select-selector:focus-within {
-  outline: none !important;
-  box-shadow: none !important;
+.object-wizard-cable-panel .cable-algorithm-fields .tlt-select-shell .ant-select-focused .ant-select-selector,
+.object-wizard-cable-panel .cable-algorithm-fields .tlt-select-shell .ant-select-selector:focus,
+.object-wizard-cable-panel .cable-algorithm-fields .tlt-select-shell .ant-select-selector:focus-within {
+  outline: none;
+  box-shadow: none;
   border-color: inherit;
 }
-.cable-island .cable-algorithm-fields .ant-input-number-input {
+.object-wizard-cable-panel .cable-algorithm-fields .ant-input-number-input {
   height: var(--cable-control-height);
   padding: 0 3px;
   font-size: 10px;
 }
-.cable-island .cable-algorithm-fields .tlt-select__trigger,
-.cable-island .cable-algorithm-fields .reference-picker-control {
+.object-wizard-cable-panel .cable-algorithm-fields .tlt-select__trigger,
+.object-wizard-cable-panel .cable-algorithm-fields .reference-picker-control {
   display: flex;
   align-items: center;
 }
-.cable-island .cable-algorithm-fields .ant-select-selection-item,
-.cable-island .cable-algorithm-fields .ant-select-selection-placeholder {
+.object-wizard-cable-panel .cable-algorithm-fields .ant-select-selection-item,
+.object-wizard-cable-panel .cable-algorithm-fields .ant-select-selection-placeholder {
   font-size: 9px;
   line-height: 34px;
 }
-.cable-island .cable-algorithm-fields .unit-input-number__addon {
+.object-wizard-cable-panel .cable-algorithm-fields .unit-input-number__addon {
   height: var(--cable-control-height);
   font-size: 9px;
   line-height: 34px;
 }
-.cable-island .cable-algorithm-fields .cable-algorithm-number {
+.object-wizard-cable-panel .cable-algorithm-fields .cable-algorithm-number {
   width: 100%;
 }
 /* Одна колонка фиксированной ширины (как поле «Наименование»: label 96 + gap 8 + control 222),
    центрированная в карточке. */
-.cable-island .cable-algorithm-fields {
+.object-wizard-cable-panel .cable-algorithm-fields {
   grid-template-columns: minmax(0, var(--cable-column-width));
   grid-auto-flow: row;
   justify-content: center;
@@ -206,25 +205,17 @@
 }
 /* Cable algorithm panel: two columns of narrow controls (222/1.8 ≈ 124px) —
    short numerics and picks don't need name-field width. */
-.cable-island.object-wizard-cable-panel {
+.object-wizard-cable-panel {
   --cable-control-target-width: 124px;
 }
-.cable-island.object-wizard-cable-panel .cable-algorithm-fields {
+.object-wizard-cable-panel .cable-algorithm-fields {
   grid-template-columns: repeat(2, minmax(0, var(--cable-column-width)));
   column-gap: 12px;
 }
-/* Spec picks hold short values («Нет», 2-3 digit numbers) — half the control
-   target so the pane stops reserving name-field width. */
-.cable-island.object-wizard-cable-spec-panel {
-  --cable-control-target-width: 110px;
-}
-.cable-island .cable-algorithm-hint {
+.object-wizard-cable-panel .cable-algorithm-hint {
   margin: 6px 0 8px;
   padding: 0 10px;
   color: var(--color-swatch-8a6a58);
   font-size: var(--cable-hint-size);
   line-height: 1.35;
-}
-.cable-island .cable-spec-table {
-  padding: 4px 0;
 }

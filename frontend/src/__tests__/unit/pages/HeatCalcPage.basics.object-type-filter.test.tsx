@@ -77,7 +77,7 @@ describe('HeatCalcPage basics — object type', () => {
       expect(document.querySelector('[data-testid="insulation-layers-table"]')).toBeInTheDocument();
       expect([...document.querySelectorAll('.inline-form-section-banner')].map((title) =>
         title.textContent?.replace(/\s+/g, ' ').trim(),
-      )).toEqual(['Расчёт теплопотерь', 'Алгоритм выбора кабеля', 'Подбор спецификации']);
+      )).toEqual(['Расчёт теплопотерь', 'Алгоритм выбора кабеля']);
       expect(within(typeToolbar).getByText('Режим: добавление')).toBeInTheDocument();
       await user.click(await within(typeToolbar).findByRole('button', { name: /Резервуар:/ }));
       expect(within(typeToolbar).getByRole('button', { name: /Резервуар:/ })).toHaveAttribute('aria-pressed', 'true');
@@ -105,7 +105,7 @@ describe('HeatCalcPage basics — object type', () => {
       expect(screen.queryByText('Электропараметры и арматура')).not.toBeInTheDocument();
       expect([...document.querySelectorAll('.inline-form-section-banner')].map((title) =>
         title.textContent?.replace(/\s+/g, ' ').trim(),
-      )).toEqual(['Расчёт теплопотерь', 'Алгоритм выбора кабеля', 'Подбор спецификации']);
+      )).toEqual(['Расчёт теплопотерь', 'Алгоритм выбора кабеля']);
 
       await user.click(screen.getByText('Резервуар прямоугольный'));
       await waitFor(() => {

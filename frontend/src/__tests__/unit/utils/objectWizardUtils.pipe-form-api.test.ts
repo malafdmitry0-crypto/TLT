@@ -3,9 +3,84 @@ import { describe, it, expect } from 'vitest';
 import {
   pipeFormToApiParams,
   pipeApiParamsToForm,
+  tankFormToApiParams,
 } from '@/utils/objectWizardUtils';
 
 describe('pipeFormToApiParams', () => {
+  it('never writes legacy object-scoped specification options', () => {
+    const api = pipeFormToApiParams({
+      outer_diameter_mm: 108,
+      pipe_length: 50,
+      insulation_thickness_mm: 50,
+      insulation_material: 'mineral_wool',
+      ambient_temperature: -20,
+      process_temperature: 80,
+      explosion_zone_type: 'yes',
+      power_indication_on_boxes: 'yes',
+      end_of_section_indication: 'no',
+      top_of_box_indication: 'yes',
+      min_length_for_k2i: 0,
+      hot_reserve_coefficient: 1.2,
+    } as Parameters<typeof pipeFormToApiParams>[0]);
+
+    expect(api).not.toHaveProperty('explosion_zone_type');
+    expect(api).not.toHaveProperty('power_indication_on_boxes');
+    expect(api).not.toHaveProperty('end_of_section_indication');
+    expect(api).not.toHaveProperty('top_of_box_indication');
+    expect(api).not.toHaveProperty('min_length_for_k2i');
+    expect(api).not.toHaveProperty('hot_reserve_coefficient');
+  });
+
+  it('keeps legacy values from an old object inert on edit and save', () => {
+    const form = pipeApiParamsToForm({
+      outer_diameter: 0.108,
+      pipe_length: 50,
+      insulation_layers: [{ thickness: 0.05, material: 'mineral_wool' }],
+      ambient_temperature: -20,
+      process_temperature: 80,
+      explosion_zone_type: 'yes',
+      power_indication_on_boxes: 'yes',
+      end_of_section_indication: 'yes',
+      top_of_box_indication: 'yes',
+      min_length_for_k2i: 0,
+      hot_reserve_coefficient: 1.2,
+    });
+
+    expect(form).not.toHaveProperty('explosion_zone_type');
+    expect(form).not.toHaveProperty('power_indication_on_boxes');
+    expect(form).not.toHaveProperty('end_of_section_indication');
+    expect(form).not.toHaveProperty('top_of_box_indication');
+    expect(form).not.toHaveProperty('min_length_for_k2i');
+    expect(form).not.toHaveProperty('hot_reserve_coefficient');
+    expect(pipeFormToApiParams(form as Parameters<typeof pipeFormToApiParams>[0]))
+      .not.toHaveProperty('explosion_zone_type');
+  });
+
+  it('never writes legacy specification options from a tank draft either', () => {
+    const api = tankFormToApiParams({
+      shape: 'cylindrical',
+      diameter_mm: 2000,
+      height_mm: 3000,
+      insulation_thickness_mm: 80,
+      insulation_material: 'mineral_wool',
+      ambient_temperature: -20,
+      process_temperature: 80,
+      explosion_zone_type: 'yes',
+      power_indication_on_boxes: 'yes',
+      end_of_section_indication: 'no',
+      top_of_box_indication: 'yes',
+      min_length_for_k2i: 0,
+      hot_reserve_coefficient: 1.2,
+    } as Parameters<typeof tankFormToApiParams>[0]);
+
+    expect(api).not.toHaveProperty('explosion_zone_type');
+    expect(api).not.toHaveProperty('power_indication_on_boxes');
+    expect(api).not.toHaveProperty('end_of_section_indication');
+    expect(api).not.toHaveProperty('top_of_box_indication');
+    expect(api).not.toHaveProperty('min_length_for_k2i');
+    expect(api).not.toHaveProperty('hot_reserve_coefficient');
+  });
+
   it('не добавляет tank-only location даже для незаполненной pipe-формы', () => {
     const api = pipeFormToApiParams(
       { placement: 'outdoor' } as Parameters<typeof pipeFormToApiParams>[0],
