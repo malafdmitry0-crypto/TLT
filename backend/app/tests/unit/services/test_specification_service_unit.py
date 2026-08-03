@@ -109,9 +109,11 @@ def _generate_db(*, existing_spec=None, calcs=None, objects=None, upsert_spec=No
       2) load existing specification
       3) electrical calculations
       4) project objects (full mode)
-      5) upsert
+      5) resolve electrical_variant_id from legacy slot
+      6) upsert
     plus db.get(Project) for settings.
     """
+    variant = SimpleNamespace(id=uuid.uuid4(), legacy_variant_number=1)
     db = AsyncMock()
     db.execute = AsyncMock(
         side_effect=[
@@ -119,6 +121,7 @@ def _generate_db(*, existing_spec=None, calcs=None, objects=None, upsert_spec=No
             _list_result([existing_spec] if existing_spec else []),
             _list_result(calcs or []),
             _list_result(objects or []),
+            _list_result([variant]),  # require electrical_variant_id
             _upsert_result(upsert_spec or existing_spec),
         ]
     )
@@ -151,7 +154,7 @@ class TestGenerate:
         assert result.mode == "full"
         assert result.settings_version == 1
         db.add.assert_not_called()
-        assert db.execute.await_count == 5
+        assert db.execute.await_count == 6
         db.commit.assert_awaited_once()
 
     async def test_replaces_existing_spec(self):
@@ -159,7 +162,7 @@ class TestGenerate:
         db = _generate_db(existing_spec=existing, upsert_spec=existing)
         await SpecificationService(db).generate(uuid.uuid4())
         db.add.assert_not_called()
-        assert db.execute.await_count == 5
+        assert db.execute.await_count == 6
 
     async def test_preserves_manual_items_skips_broken(self):
         existing = SimpleNamespace(
@@ -392,22 +395,36 @@ class TestGenerate:
 class TestSaveItems:
     async def test_creates_new_when_no_existing(self):
         db = AsyncMock()
-        # lock + get_specification (none) + upsert
-        db.execute = AsyncMock(side_effect=[_empty_result(), _list_result([]), _upsert_result()])
+        variant = SimpleNamespace(id=uuid.uuid4(), legacy_variant_number=1)
+        # lock + resolve EV + get_specification (none) + upsert
+        db.execute = AsyncMock(
+            side_effect=[
+                _empty_result(),
+                _list_result([variant]),
+                _list_result([]),
+                _upsert_result(),
+            ]
+        )
         db.commit = AsyncMock()
         db.add = MagicMock()
         items = [SpecificationItem(category="a", name="A", unit="шт", quantity=1)]
         result = await SpecificationService(db).save_items(uuid.uuid4(), items)
         assert result == items
         db.add.assert_not_called()
-        assert db.execute.await_count == 3
+        assert db.execute.await_count == 4
         db.commit.assert_awaited_once()
 
     async def test_replaces_when_existing(self):
-        fresh = SimpleNamespace(is_stale=False, items=[])
+        fresh = SimpleNamespace(is_stale=False, items=[], variant_number=2)
+        variant = SimpleNamespace(id=uuid.uuid4(), legacy_variant_number=2)
         db = AsyncMock()
         db.execute = AsyncMock(
-            side_effect=[_empty_result(), _list_result([fresh]), _upsert_result()]
+            side_effect=[
+                _empty_result(),
+                _list_result([variant]),
+                _list_result([fresh]),
+                _upsert_result(),
+            ]
         )
         db.commit = AsyncMock()
         db.add = MagicMock()
@@ -415,16 +432,17 @@ class TestSaveItems:
         result = await SpecificationService(db).save_items(uuid.uuid4(), items, variant_number=2)
         assert result == items
         db.add.assert_not_called()
-        assert db.execute.await_count == 3
+        assert db.execute.await_count == 4
         db.commit.assert_awaited_once()
 
     async def test_rejects_stale_read_only(self):
         """FA-07: PUT on stale specification is blocked with 409."""
         from app.services.electrical_variant_service import ElectricalVariantServiceError
 
-        stale = SimpleNamespace(is_stale=True, items=[{"name": "old"}])
+        stale = SimpleNamespace(is_stale=True, items=[{"name": "old"}], variant_number=1)
+        variant = SimpleNamespace(id=uuid.uuid4(), legacy_variant_number=1)
         db = AsyncMock()
-        db.execute = AsyncMock(side_effect=[_empty_result(), _list_result([stale])])
+        db.execute = AsyncMock(side_effect=[_empty_result(), _list_result([variant]), _list_result([stale])])
         db.commit = AsyncMock()
         items = [SpecificationItem(category="c", name="C", unit="шт", quantity=1)]
         try:

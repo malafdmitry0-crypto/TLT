@@ -194,10 +194,24 @@ async def test_activation_retires_previous_and_stales_specifications(
             headers=employee_headers,
         )
     ).json()
-    # Activation marks all non-stale specs globally; no ER initialize required.
+    # Activation marks all non-stale specs globally.
+    from app.models.electrical_variant import ElectricalVariant
+
+    variant = ElectricalVariant(
+        id=uuid4(),
+        project_id=UUID(project["id"]),
+        name="ЭР 1",
+        name_normalized="эр 1",
+        sort_order=0,
+        legacy_variant_number=1,
+        is_active=True,
+    )
+    db_session.add(variant)
+    await db_session.flush()
     spec = Specification(
         project_id=UUID(project["id"]),
         variant_number=1,
+        electrical_variant_id=variant.id,
         items=[{"name": "old", "quantity": 1}],
         is_stale=False,
     )

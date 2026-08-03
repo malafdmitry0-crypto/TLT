@@ -9,7 +9,6 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
-    ForeignKeyConstraint,
     Index,
     Integer,
     String,
@@ -26,27 +25,22 @@ from app.models.base import Base, TimestampMixin
 class Specification(Base, TimestampMixin):
     __tablename__ = "specifications"
     __table_args__ = (
-        ForeignKeyConstraint(
-            ["electrical_variant_id", "project_id", "variant_number"],
-            [
-                "electrical_variants.id",
-                "electrical_variants.project_id",
-                "electrical_variants.legacy_variant_number",
-            ],
-            name="fk_specifications_variant_project_legacy",
-            ondelete="CASCADE",
-        ),
+        # UUID identity is canonical (CANON-06). variant_number is retained as a
+        # transitional column (unique per project) but no longer requires a
+        # legacy_variant_number slot on electrical_variants.
         UniqueConstraint(
             "project_id",
             "variant_number",
             name="uq_specifications_project_variant",
         ),
-        Index(
-            "ux_specifications_project_electrical_variant",
+        UniqueConstraint(
             "project_id",
             "electrical_variant_id",
-            unique=True,
-            postgresql_where=text("electrical_variant_id IS NOT NULL"),
+            name="uq_specifications_project_electrical_variant",
+        ),
+        Index(
+            "ix_specifications_electrical_variant_id",
+            "electrical_variant_id",
         ),
     )
 
@@ -58,9 +52,10 @@ class Specification(Base, TimestampMixin):
         index=True,
     )
     variant_number: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
-    electrical_variant_id: Mapped[uuid.UUID | None] = mapped_column(
+    electrical_variant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        nullable=True,
+        ForeignKey("electrical_variants.id", ondelete="CASCADE"),
+        nullable=False,
     )
     items: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False, default=list)
     # Режим последней генерации ('basic'/'full') и её опции (R,гр, Ex, К1i/К2i/Кiu).

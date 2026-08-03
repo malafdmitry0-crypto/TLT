@@ -166,18 +166,6 @@ async def save_specification_items_for_variant(
     except ElectricalVariantServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
 
-    # Persistence still uses composite (project_id, variant_number) until CANON-06.
-    # Never fall back to slot 1: that would cross-write another ER's BOM.
-    if electrical_variant.legacy_variant_number is None:
-        raise _specification_http_error(
-            status_code=status.HTTP_409_CONFLICT,
-            code=SpecificationDiagnosticCode.GENERATION_CONFLICT,
-            message=(
-                "ЭР без legacy data plane: запись спецификации по UUID "
-                "будет доступна после миграции persistence (CANON-06)"
-            ),
-        )
-
     try:
         items: list[SpecificationItem] = await SpecificationService(db).save_items(
             project_id,

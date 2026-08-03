@@ -701,6 +701,11 @@ class SpecificationService:
             "skipped_objects": skipped_objects,
         }
 
+        electrical_variant_id = await self._require_electrical_variant_id(
+            project_id=project_id,
+            variant_number=variant_number,
+            electrical_variant_id=electrical_variant_id,
+        )
         await self._upsert_specification(
             project_id=project_id,
             variant_number=variant_number,
@@ -735,8 +740,15 @@ class SpecificationService:
         """Полностью замещает items спецификации варианта (или создаёт её).
 
         FA-07 / PDL-ER-37: stale specification is read-only — manual PUT rejected.
+        Canonical path keys rows by electrical_variant_id (CANON-06); variant_number
+        is filled from the ER legacy slot or allocated when absent.
         """
         await self._lock_project(project_id)
+        electrical_variant_id = await self._require_electrical_variant_id(
+            project_id=project_id,
+            variant_number=variant_number,
+            electrical_variant_id=electrical_variant_id,
+        )
         existing = await self.get_specification(
             project_id,
             variant_number,
@@ -749,16 +761,70 @@ class SpecificationService:
                 "требуется явная перегенерация (PDL-ER-37).",
                 status_code=409,
             )
+        resolved_variant_number = await self._resolve_variant_number_for_upsert(
+            project_id=project_id,
+            electrical_variant_id=electrical_variant_id,
+            variant_number=variant_number,
+            existing=existing,
+        )
         # mode=json keeps Decimal quantities as decimal strings for JSONB.
         payload = [i.model_dump(mode="json") for i in items]
         await self._upsert_specification(
             project_id=project_id,
-            variant_number=variant_number,
+            variant_number=resolved_variant_number,
             items_payload=payload,
             electrical_variant_id=electrical_variant_id,
         )
         await self.db.commit()
         return items
+
+    async def _require_electrical_variant_id(
+        self,
+        *,
+        project_id: UUID,
+        variant_number: int,
+        electrical_variant_id: UUID | None,
+    ) -> UUID:
+        if electrical_variant_id is not None:
+            return electrical_variant_id
+        result = await self.db.execute(
+            select(ElectricalVariant).where(
+                ElectricalVariant.project_id == project_id,
+                ElectricalVariant.legacy_variant_number == variant_number,
+            )
+        )
+        variant = result.scalars().one_or_none()
+        if variant is None:
+            raise ElectricalVariantServiceError(
+                "ELECTRICAL_VARIANT_NOT_FOUND",
+                f"ЭР со legacy slot {variant_number} не найден в проекте",
+                status_code=404,
+                details={"variant_number": variant_number},
+            )
+        return variant.id
+
+    async def _resolve_variant_number_for_upsert(
+        self,
+        *,
+        project_id: UUID,
+        electrical_variant_id: UUID | None,
+        variant_number: int | None,
+        existing: Specification | None,
+    ) -> int:
+        if existing is not None:
+            return int(existing.variant_number)
+        if variant_number is not None:
+            return int(variant_number)
+        if electrical_variant_id is not None:
+            variant = await self.db.get(ElectricalVariant, electrical_variant_id)
+            if variant is not None and variant.legacy_variant_number is not None:
+                return int(variant.legacy_variant_number)
+        max_number = await self.db.scalar(
+            select(func.coalesce(func.max(Specification.variant_number), 0)).where(
+                Specification.project_id == project_id
+            )
+        )
+        return int(max_number or 0) + 1
 
     async def _lock_project(self, project_id: UUID) -> None:
         await self.db.execute(
@@ -863,11 +929,17 @@ class SpecificationService:
         generation_options: dict[str, Any] | None = None,
         electrical_variant_id: UUID | None = None,
     ) -> Specification:
-        """Upsert спецификации.
+        """Upsert спецификации by UUID identity (CANON-06).
 
-        ``generation_mode=None`` (например, ручное сохранение items) не трогает
-        сохранённый режим последней генерации.
+        Conflict target is ``(project_id, electrical_variant_id)``.
+        ``generation_mode=None`` (manual save) does not touch generation snapshot.
         """
+        if electrical_variant_id is None:
+            raise ElectricalVariantServiceError(
+                "SPEC_REQUEST_INVALID",
+                "electrical_variant_id обязателен для upsert спецификации",
+                status_code=422,
+            )
         values: dict[str, Any] = dict(
             project_id=project_id,
             variant_number=variant_number,
@@ -889,14 +961,14 @@ class SpecificationService:
             "stale_at": None,
             "stale_details": None,
             "updated_at": func.now(),
+            # Keep variant_number stable on UUID conflict unless insert is new.
+            "variant_number": insert_stmt.excluded["variant_number"],
         }
         if generation_mode is not None:
             set_["generation_mode"] = insert_stmt.excluded["generation_mode"]
             set_["generation_options"] = insert_stmt.excluded["generation_options"]
-        if electrical_variant_id is not None:
-            set_["electrical_variant_id"] = insert_stmt.excluded["electrical_variant_id"]
         upsert_stmt = insert_stmt.on_conflict_do_update(
-            index_elements=["project_id", "variant_number"],
+            constraint="uq_specifications_project_electrical_variant",
             set_=set_,
         ).returning(Specification)
         orm_stmt = (
