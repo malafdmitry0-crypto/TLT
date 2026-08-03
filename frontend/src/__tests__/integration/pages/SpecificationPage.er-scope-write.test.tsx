@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import TestMemoryRouter from '@/__tests__/utils/TestMemoryRouter';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import SpecificationPage from '@/pages/SpecificationPage';
@@ -33,7 +33,18 @@ vi.mock('@/api/specifications', () => ({
   generateSpecification: vi.fn(),
   saveSpecificationItems: vi.fn(),
   listAccessoriesExtended: vi.fn().mockResolvedValue([]),
-  getSpecificationSettings: vi.fn().mockResolvedValue({ version: 1, settings: {} }),
+  getSpecificationSettings: vi.fn().mockResolvedValue({
+    version: 1,
+    settings: {
+      grouping_mode: 'separate_by_object_type',
+      Ex: false,
+      K1i: false,
+      K2i: false,
+      Kiu: false,
+      L_K2i_m: '0',
+      R_gr: '1',
+    },
+  }),
   updateSpecificationSettings: vi.fn(),
 }));
 
@@ -203,15 +214,13 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
     const { generateSpecification, getSpecification } = await import('@/api/specifications');
     let resolveGeneration!: (value: {
       project_id: string;
-      items: [];
-      mode: 'full';
-      skipped_objects: number;
+      settings_version: number;
+      results: [];
     }) => void;
     const pendingGeneration = new Promise<{
       project_id: string;
-      items: [];
-      mode: 'full';
-      skipped_objects: number;
+      settings_version: number;
+      results: [];
     }>((resolve) => {
       resolveGeneration = resolve;
     });
@@ -222,17 +231,25 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
     renderPage();
 
     await user.click(await screen.findByRole('button', { name: 'Сформировать' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Настройки формирования спецификации' });
+    await user.click(within(dialog).getByRole('checkbox', { name: 'ЭР2' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Сформировать' }));
     expect(generateSpecification).toHaveBeenCalledWith(
       mockProject.id,
-      1,
-      firstVariant.id,
-      'full',
-      expect.objectContaining({
-        ex_zone: false,
-        reserve_coefficient: 1,
-      }),
-      [firstVariant.id],
-      false,
+      {
+        variant_ids: [firstVariant.id, secondVariant.id],
+        options: {
+          grouping_mode: 'separate_by_object_type',
+          Ex: false,
+          K1i: false,
+          K2i: false,
+          Kiu: false,
+          L_K2i_m: '0',
+          R_gr: '1',
+        },
+        exclude_unassigned_confirmed: false,
+        catalog_selections: {},
+      },
     );
     // ER tabs are disabled while generation is in flight
     const er1Tab = screen.getByRole('tab', { name: /Спецификация ЭР1/i });
@@ -242,9 +259,8 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
 
     resolveGeneration({
       project_id: mockProject.id,
-      items: [],
-      mode: 'full',
-      skipped_objects: 0,
+      settings_version: 1,
+      results: [],
     });
     await waitFor(() => {
       expect(er1Tab).not.toHaveAttribute('aria-disabled', 'true');
@@ -295,7 +311,7 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
       .toBeDisabled();
     expect(screen.queryByRole('button', { name: 'Удалить Чужая позиция' }))
       .not.toBeInTheDocument();
-    // «Добавить из БД» живёт в drawer настроек и недоступна read-only
+    // «Добавить из БД» живёт в modal настроек и недоступна read-only
     expect(screen.queryByRole('button', { name: 'Добавить из БД' }))
       .not.toBeInTheDocument();
   });

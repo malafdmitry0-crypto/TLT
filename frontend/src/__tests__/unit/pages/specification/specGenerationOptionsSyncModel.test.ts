@@ -1,49 +1,41 @@
-// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { buildSpecSettingsFormSnapshot } from '@/pages/specification/specGenerationOptionsSyncModel';
 
 describe('buildSpecSettingsFormSnapshot (B7)', () => {
-  it('applies defaults for missing keys', () => {
+  it('keeps missing keys unset', () => {
     expect(buildSpecSettingsFormSnapshot({})).toEqual({
-      exZone: false,
-      reserveCoeff: 1,
-      indicationOnBoxes: false,
-      endSectionIndication: false,
-      topIndication: false,
-      minLengthK2i: 0,
-      connectorKitSectionsPerKit: 1,
+      exZone: null,
+      reserveCoeff: '',
+      indicationOnBoxes: null,
+      endSectionIndication: null,
+      topIndication: null,
+      minLengthK2i: '',
+      groupingMode: null,
     });
   });
 
   it('hydrates full generation_options snapshot including display prefs', () => {
     expect(
       buildSpecSettingsFormSnapshot({
-        ex_zone: true,
-        reserve_coefficient: 1.5,
-        indication_on_boxes: true,
-        end_section_indication: true,
-        top_indication: false,
-        min_length_for_end_indication: 120,
-        connector_kit_sections_per_kit: 2,
-        merge_identical: true,
-        group_by: 'category',
+        resolved_options: {
+          Ex: false,
+          R_gr: '1.5',
+          K1i: true,
+          K2i: true,
+          Kiu: false,
+          L_K2i_m: '0',
+          grouping_mode: 'merge_materials',
+        },
       }),
     ).toEqual({
-      exZone: true,
-      reserveCoeff: 1.5,
+      exZone: false,
+      reserveCoeff: '1.5',
       indicationOnBoxes: true,
       endSectionIndication: true,
       topIndication: false,
-      minLengthK2i: 120,
-      connectorKitSectionsPerKit: 2,
-      mergeIdentical: true,
-      groupBy: 'category',
+      minLengthK2i: '0',
+      groupingMode: 'merge_materials',
     });
-  });
-
-  it('coerces connector kit sections to 1 or 2 only', () => {
-    expect(buildSpecSettingsFormSnapshot({ connector_kit_sections_per_kit: 3 }).connectorKitSectionsPerKit).toBe(1);
-    expect(buildSpecSettingsFormSnapshot({ connector_kit_sections_per_kit: 2 }).connectorKitSectionsPerKit).toBe(2);
   });
 
   /**
@@ -53,18 +45,18 @@ describe('buildSpecSettingsFormSnapshot (B7)', () => {
    */
   it('maps distinct generation_options payloads to distinct form state (same-spec regenerate)', () => {
     const before = buildSpecSettingsFormSnapshot({
-      reserve_coefficient: 1,
-      ex_zone: false,
-      min_length_for_end_indication: 0,
+      R_gr: '1',
+      Ex: false,
+      L_K2i_m: '0',
     });
     const after = buildSpecSettingsFormSnapshot({
-      reserve_coefficient: 1.25,
-      ex_zone: true,
-      min_length_for_end_indication: 50,
+      R_gr: '1.25',
+      Ex: true,
+      L_K2i_m: '50',
     });
     expect(before).not.toEqual(after);
-    expect(after.reserveCoeff).toBe(1.25);
+    expect(after.reserveCoeff).toBe('1.25');
     expect(after.exZone).toBe(true);
-    expect(after.minLengthK2i).toBe(50);
+    expect(after.minLengthK2i).toBe('50');
   });
 });

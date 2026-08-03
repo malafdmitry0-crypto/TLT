@@ -7,42 +7,41 @@
  * settings drawer without rewriting project defaults on the server.
  */
 
-import type { SpecGroupBy } from '@/pages/specification/specFormatModel';
+import type { SpecificationGroupingMode } from '@/api/specifications';
 
 export type SpecSettingsFormSnapshot = {
-  exZone: boolean;
-  reserveCoeff: number;
-  indicationOnBoxes: boolean;
-  endSectionIndication: boolean;
-  topIndication: boolean;
-  minLengthK2i: number;
-  connectorKitSectionsPerKit: 1 | 2;
-  mergeIdentical?: boolean;
-  groupBy?: SpecGroupBy;
+  exZone: boolean | null;
+  reserveCoeff: string;
+  indicationOnBoxes: boolean | null;
+  endSectionIndication: boolean | null;
+  topIndication: boolean | null;
+  minLengthK2i: string;
+  groupingMode: SpecificationGroupingMode | null;
 };
 
 /**
  * Build local drawer state from generation_options or project settings payload.
- * Missing keys use product defaults (reserve=1, kit sections=1, flags false).
+ * Missing keys remain visibly unset; explicit false and zero are preserved.
  */
 export function buildSpecSettingsFormSnapshot(
   opts: Record<string, unknown>,
 ): SpecSettingsFormSnapshot {
-  const cap = Number(opts.connector_kit_sections_per_kit ?? 1);
+  const source = opts.resolved_options && typeof opts.resolved_options === 'object'
+    ? opts.resolved_options as Record<string, unknown>
+    : opts;
+  const booleanOrNull = (value: unknown) => typeof value === 'boolean' ? value : null;
+  const decimalOrEmpty = (value: unknown) => value == null ? '' : String(value);
   const snapshot: SpecSettingsFormSnapshot = {
-    exZone: Boolean(opts.ex_zone),
-    reserveCoeff: Number(opts.reserve_coefficient ?? 1),
-    indicationOnBoxes: Boolean(opts.indication_on_boxes),
-    endSectionIndication: Boolean(opts.end_section_indication),
-    topIndication: Boolean(opts.top_indication),
-    minLengthK2i: Number(opts.min_length_for_end_indication ?? 0),
-    connectorKitSectionsPerKit: cap === 2 ? 2 : 1,
+    exZone: booleanOrNull(source.Ex),
+    reserveCoeff: decimalOrEmpty(source.R_gr),
+    indicationOnBoxes: booleanOrNull(source.K1i),
+    endSectionIndication: booleanOrNull(source.K2i),
+    topIndication: booleanOrNull(source.Kiu),
+    minLengthK2i: decimalOrEmpty(source.L_K2i_m),
+    groupingMode: source.grouping_mode === 'separate_by_object_type'
+      || source.grouping_mode === 'merge_materials'
+      ? source.grouping_mode
+      : null,
   };
-  if (typeof opts.merge_identical === 'boolean') {
-    snapshot.mergeIdentical = opts.merge_identical;
-  }
-  if (typeof opts.group_by === 'string') {
-    snapshot.groupBy = opts.group_by as SpecGroupBy;
-  }
   return snapshot;
 }

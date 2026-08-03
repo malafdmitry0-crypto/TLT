@@ -13,15 +13,20 @@ export async function getSpecification(
   return data;
 }
 
+export type SpecificationGroupingMode =
+  | 'separate_by_object_type'
+  | 'merge_materials';
+
 export interface SpecificationOptions {
-  reserve_coefficient?: number;
-  ex_zone?: boolean;
-  indication_on_boxes?: boolean;
-  end_section_indication?: boolean;
-  top_indication?: boolean;
-  min_length_for_end_indication?: number;
-  group_by?: string;
-  merge_identical?: boolean;
+  catalog_id?: string | null;
+  catalog_version?: string | null;
+  grouping_mode?: SpecificationGroupingMode | null;
+  Ex?: boolean | null;
+  K1i?: boolean | null;
+  K2i?: boolean | null;
+  Kiu?: boolean | null;
+  L_K2i_m?: string | null;
+  R_gr?: string | null;
 }
 
 export interface SpecificationSettings {
@@ -30,30 +35,39 @@ export interface SpecificationSettings {
   settings: SpecificationOptions;
 }
 
+export type SpecificationDiagnosticKind =
+  | 'blocking'
+  | 'confirmable'
+  | 'selection_required';
+
+export interface SpecificationDiagnostic {
+  code: string;
+  kind: SpecificationDiagnosticKind;
+  message: string;
+  issues: Array<Record<string, unknown>>;
+  details: Record<string, unknown>;
+}
+
+export interface SpecificationGenerateVariantResult {
+  electrical_variant_id: string;
+  status: 'generated' | 'blocked' | 'confirmation_required' | 'selection_required';
+  items: SpecificationItem[];
+  excluded_unassigned_object_ids: string[];
+  diagnostics: SpecificationDiagnostic[];
+  snapshot: Record<string, unknown> | null;
+}
+
 export interface SpecificationGenerateResult {
   project_id: string;
-  items: SpecificationItem[];
-  /** Фактически применённый режим генерации. */
-  mode: 'basic' | 'full';
-  /** Объекты без успешного электрорасчёта, не вошедшие в полный BOM. */
-  skipped_objects: number;
-  partial?: boolean;
-  excluded_groups?: Array<{
-    group?: string;
-    error_code?: string;
-    message?: string;
-    object_ids?: string[];
-  }>;
-  settings_version?: number | null;
-  electrical_variant_id?: string | null;
-  results?: Array<{
-    electrical_variant_id: string;
-    items: SpecificationItem[];
-    mode: 'basic' | 'full';
-    skipped_objects: number;
-    partial?: boolean;
-    excluded_groups?: SpecificationGenerateResult['excluded_groups'];
-  }>;
+  settings_version: number;
+  results: SpecificationGenerateVariantResult[];
+}
+
+export interface SpecificationGenerationRequest {
+  variant_ids: string[];
+  options: SpecificationOptions;
+  exclude_unassigned_confirmed: boolean;
+  catalog_selections: Record<string, string>;
 }
 
 export interface SpecificationPreflightVariant {
@@ -94,27 +108,11 @@ export async function updateSpecificationSettings(
 
 export async function generateSpecification(
   projectId: string,
-  variant: number = 1,
-  electricalVariantId?: string,
-  mode: 'basic' | 'full' = 'full',
-  options?: SpecificationOptions,
-  electricalVariantIds?: string[],
-  confirmPartial: boolean = false,
+  request: SpecificationGenerationRequest,
 ): Promise<SpecificationGenerateResult> {
-  const explicitIds = electricalVariantIds?.length
-    ? electricalVariantIds
-    : electricalVariantId
-      ? [electricalVariantId]
-      : undefined;
-  const { data } = await apiClient.post(
+  const { data } = await apiClient.post<SpecificationGenerateResult>(
     `/specifications/${projectId}/generate`,
-    {
-      mode,
-      options: options ?? null,
-      electrical_variant_ids: explicitIds ?? null,
-      confirm_partial: confirmPartial,
-    },
-    { params: { variant, electrical_variant_id: electricalVariantId } }
+    request,
   );
   return data;
 }

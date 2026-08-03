@@ -1,11 +1,10 @@
 /**
  * @module specification/page-chrome
- * Settings drawer + add/preflight modals.
+ * Generation settings + add/preflight modals.
  */
 import type { ReactNode } from 'react';
 import {
   Checkbox,
-  Drawer,
   Modal,
   Segmented,
   Space,
@@ -17,6 +16,8 @@ import {
 } from '@ant-design/icons';
 import {
   CompactField,
+  CompactFieldGrid,
+  TltAlert,
   TltButton,
   TltNumberField,
   TltSelect,
@@ -24,11 +25,15 @@ import {
 import type { SpecGroupBy as GroupBy } from '@/pages/specification/specFormatModel';
 import type {
   AccessoryExtendedInfo,
+  SpecificationDiagnostic,
+  SpecificationGroupingMode,
   SpecificationSettings,
 } from '@/api/specifications';
+import { missingSpecGenerateFields } from '@/pages/specification/specGenerateOptionsModel';
 import type { Specification, SpecificationItem } from '@/types/specification';
 import '../workflow-params.css';
 import './specification-page.css';
+import './specification-settings-modal.css';
 
 const { Text } = Typography;
 
@@ -45,24 +50,24 @@ export type SpecPageChromeProps = {
   settingsOpen: boolean;
   toggleSettings: (open: boolean) => void;
   canMutateProject: boolean;
-  fullModeActive: boolean;
   selectedGenerateErIds: string[];
   setSelectedGenerateErIds: (ids: string[]) => void;
   availableGenerateVariants: Array<{ id: string; name: string }>;
-  reserveCoeff: number;
-  setReserveCoeff: (value: number) => void;
-  connectorKitSectionsPerKit: 1 | 2;
-  setConnectorKitSectionsPerKit: (value: 1 | 2) => void;
-  exZone: boolean;
-  setExZone: (value: boolean) => void;
-  indicationOnBoxes: boolean;
-  setIndicationOnBoxes: (value: boolean) => void;
-  endSectionIndication: boolean;
-  setEndSectionIndication: (value: boolean) => void;
-  topIndication: boolean;
-  setTopIndication: (value: boolean) => void;
-  minLengthK2i: number;
-  setMinLengthK2i: (value: number) => void;
+  reserveCoeff: string;
+  setReserveCoeff: (value: string) => void;
+  exZone: boolean | null;
+  setExZone: (value: boolean | null) => void;
+  indicationOnBoxes: boolean | null;
+  setIndicationOnBoxes: (value: boolean | null) => void;
+  endSectionIndication: boolean | null;
+  setEndSectionIndication: (value: boolean | null) => void;
+  topIndication: boolean | null;
+  setTopIndication: (value: boolean | null) => void;
+  minLengthK2i: string;
+  setMinLengthK2i: (value: string) => void;
+  groupingMode: SpecificationGroupingMode | null;
+  setGroupingMode: (value: SpecificationGroupingMode | null) => void;
+  generationDiagnostics: SpecificationDiagnostic[];
   groupBy: GroupBy;
   setGroupBy: (value: GroupBy) => void;
   mergeIdentical: boolean;
@@ -91,7 +96,7 @@ export type SpecPageChromeProps = {
   setPendingGenerate: (
     value: {
       generateVariantIds: string[];
-      options?: import('@/api/specifications').SpecificationOptions;
+      options: import('@/api/specifications').SpecificationOptions;
     } | null,
   ) => void;
   confirmPartialGenerate: () => void;
@@ -100,34 +105,59 @@ export type SpecPageChromeProps = {
 
 export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
   const {
-    settingsOpen, toggleSettings, canMutateProject, fullModeActive,
+    settingsOpen, toggleSettings, canMutateProject,
     selectedGenerateErIds, setSelectedGenerateErIds, availableGenerateVariants,
-    reserveCoeff, setReserveCoeff, connectorKitSectionsPerKit, setConnectorKitSectionsPerKit,
+    reserveCoeff, setReserveCoeff,
     exZone, setExZone, indicationOnBoxes, setIndicationOnBoxes,
     endSectionIndication, setEndSectionIndication, topIndication, setTopIndication,
-    minLengthK2i, setMinLengthK2i, groupBy, setGroupBy, mergeIdentical, setMergeIdentical,
+    minLengthK2i, setMinLengthK2i, groupingMode, setGroupingMode, generationDiagnostics,
+    groupBy, setGroupBy, mergeIdentical, setMergeIdentical,
     items, categoriesCount, projectSettings, spec, mut, saveDefaultsMut, runGenerate,
     canManuallyEdit, hasItems, isSpecStale, setAddOpen, addOpen, handleAdd, saveMut,
     selectedAccessoryId, setSelectedAccessoryId, qty, setQty, accessories,
     preflightOpen, setPreflightOpen, setPendingGenerate, confirmPartialGenerate, preflightSummary,
   } = p;
+  const missingFields = missingSpecGenerateFields({
+    exZone,
+    reserveCoeff,
+    indicationOnBoxes,
+    endSectionIndication,
+    topIndication,
+    minLengthK2i,
+    groupingMode,
+  });
+  const generationDisabled = !canMutateProject
+    || selectedGenerateErIds.length === 0
+    || missingFields.length > 0
+    || mut.isPending;
+  const projectSettingsDisabled = !canMutateProject
+    || missingFields.length > 0
+    || saveDefaultsMut.isPending;
+  const triStateOptions = [
+    { value: 'true', label: 'Да' },
+    { value: 'false', label: 'Нет' },
+  ];
+  const triStateValue = (value: boolean | null) => value == null ? null : String(value);
+  const parseTriState = (value: string | number | null) => (
+    value == null ? null : value === 'true'
+  );
 
   return (
     <>
-      <Drawer
-        title="Настройки спецификации"
-        placement="right"
-        width={400}
+      <Modal
+        title="Настройки формирования спецификации"
+        width={720}
         open={settingsOpen}
-        onClose={() => toggleSettings(false)}
-        destroyOnClose={false}
-        className="specification-settings-drawer"
+        onCancel={() => toggleSettings(false)}
+        footer={null}
+        destroyOnHidden={false}
+        className="specification-settings-modal"
       >
         <div className="specification-settings-body" data-testid="spec-params-panel">
           <section className="specification-settings-section">
-            <Text strong>ЭР и резерв R,гр</Text>
+            <Text strong>Область формирования</Text>
             <Text type="secondary" className="specification-settings-intro">
-              Канонический режим: полный data-driven BOM (PDL-ER-29).
+              Один набор параметров применяется ко всем явно выбранным ЭР.
             </Text>
             <CompactField
               className="specification-settings-field"
@@ -156,93 +186,80 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
                 Выбрать все
               </TltButton>
             </div>
-            <CompactField
-              className="specification-settings-field"
-              layout="vertical"
-              label="Коэффициент горячего резервирования R,гр (1–3)"
-              controlWidth="100%"
-            >
-              <TltNumberField
-                aria-label="Резерв R,гр"
-                min={1}
-                max={3}
-                step={0.1}
-                disabled={!canMutateProject || !fullModeActive}
-                value={reserveCoeff}
-                onChange={(v) => setReserveCoeff(Number(v ?? 1))}
-                className="specification-settings-field-full"
-              />
-            </CompactField>
-            <CompactField
-              className="specification-settings-field"
-              layout="vertical"
-              label="Соединительный комплект: секций на 1 шт. (PDF §7.10)"
-              controlWidth="100%"
-            >
-              <TltSelect
-                disabled={!canMutateProject || !fullModeActive}
-                value={connectorKitSectionsPerKit}
-                onChange={(v) => setConnectorKitSectionsPerKit(v === 2 || v === '2' ? 2 : 1)}
-                options={[
-                  { value: 1, label: '1 — КСН-1 / КСВ-1 (по умолчанию)' },
-                  { value: 2, label: '2 — КСН-2 / КСВ-2' },
-                ]}
-                aria-label="Секций на соединительный комплект"
-              />
-            </CompactField>
+            <CompactFieldGrid columns={2} antFormAdapter={false}>
+              <CompactField layout="vertical" label="Номенклатурная база" controlWidth="100%">
+                <TltSelect
+                  disabled
+                  value="standard"
+                  options={[{ value: 'standard', label: 'Стандартная активная версия' }]}
+                  aria-label="Стандартная номенклатурная база"
+                />
+              </CompactField>
+              <CompactField layout="vertical" label="Группировка строк ЭР" controlWidth="100%">
+                <TltSelect
+                  value={groupingMode}
+                  allowClear
+                  placeholder="Не задано"
+                  disabled={!canMutateProject}
+                  onChange={(value) => setGroupingMode(
+                    value === 'separate_by_object_type' || value === 'merge_materials'
+                      ? value
+                      : null,
+                  )}
+                  options={[
+                    { value: 'separate_by_object_type', label: 'Раздельно по типу объекта' },
+                    { value: 'merge_materials', label: 'Объединять одинаковые материалы' },
+                  ]}
+                  aria-label="Режим группировки спецификации"
+                />
+              </CompactField>
+            </CompactFieldGrid>
           </section>
 
           <section className="specification-settings-section">
             <Text strong>Требования ТНП (Ex и индикация)</Text>
-            <Space direction="vertical" size={6} style={{ marginTop: 10, width: '100%' }}>
-              <Checkbox
-                disabled={!canMutateProject || !fullModeActive}
-                checked={exZone}
-                onChange={(e) => setExZone(e.target.checked)}
-              >
-                Взрывоопасная зона (Ex)
-              </Checkbox>
-              <Checkbox
-                disabled={!canMutateProject || !fullModeActive}
-                checked={indicationOnBoxes}
-                onChange={(e) => setIndicationOnBoxes(e.target.checked)}
-              >
-                Индикация питания на коробках (К1i)
-              </Checkbox>
-              <Checkbox
-                disabled={!canMutateProject || !fullModeActive}
-                checked={endSectionIndication}
-                onChange={(e) => setEndSectionIndication(e.target.checked)}
-              >
-                Индикация в конце нагревательной секции (К2i)
-              </Checkbox>
-              <Checkbox
-                disabled={!canMutateProject || !fullModeActive}
-                checked={topIndication}
-                onChange={(e) => setTopIndication(e.target.checked)}
-              >
-                Индикация сверху коробки (Кiu)
-              </Checkbox>
-              {fullModeActive && endSectionIndication && (
-                <CompactField
-                  className="specification-settings-field"
-                  layout="vertical"
-                  label="Мин. длина секции для К2i (L,К2i), м"
-                  controlWidth="100%"
-                >
-                  <TltNumberField
-                    aria-label="Мин. длина секции для К2i"
-                    min={0}
-                    step={10}
+            <CompactFieldGrid columns={2} antFormAdapter={false}>
+              {[
+                ['Ex — взрывоопасная зона', exZone, setExZone, 'Параметр Ex'],
+                ['К1i — питание на коробках', indicationOnBoxes, setIndicationOnBoxes, 'Параметр К1i'],
+                ['К2i — индикация в конце секции', endSectionIndication, setEndSectionIndication, 'Параметр К2i'],
+                ['Кiu — индикация сверху коробки', topIndication, setTopIndication, 'Параметр Кiu'],
+              ].map(([label, value, setter, ariaLabel]) => (
+                <CompactField key={String(ariaLabel)} layout="vertical" label={String(label)} controlWidth="100%">
+                  <TltSelect
+                    value={triStateValue(value as boolean | null)}
+                    allowClear
+                    placeholder="Не задано"
                     disabled={!canMutateProject}
-                    value={minLengthK2i}
-                    onChange={(v) => setMinLengthK2i(Number(v ?? 0))}
-                    className="specification-settings-field-full"
-                    unit="м"
+                    onChange={(next) => (setter as (value: boolean | null) => void)(parseTriState(next))}
+                    options={triStateOptions}
+                    aria-label={String(ariaLabel)}
                   />
                 </CompactField>
-              )}
-            </Space>
+              ))}
+              <CompactField layout="vertical" label="L,К2i — мин. длина секции, м" controlWidth="100%">
+                <TltNumberField
+                  aria-label="Параметр L К2i"
+                  min={0}
+                  step={0.1}
+                  disabled={!canMutateProject}
+                  value={minLengthK2i === '' ? null : Number(minLengthK2i)}
+                  onChange={(value) => setMinLengthK2i(value == null ? '' : String(value))}
+                  className="specification-settings-field-full"
+                  unit="м"
+                />
+              </CompactField>
+              <CompactField layout="vertical" label="R,гр — горячее резервирование" controlWidth="100%">
+                <TltNumberField
+                  aria-label="Параметр R гр"
+                  step={0.1}
+                  disabled={!canMutateProject}
+                  value={reserveCoeff === '' ? null : Number(reserveCoeff)}
+                  onChange={(value) => setReserveCoeff(value == null ? '' : String(value))}
+                  className="specification-settings-field-full"
+                />
+              </CompactField>
+            </CompactFieldGrid>
           </section>
 
           <section className="specification-settings-section">
@@ -287,26 +304,53 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
           </section>
 
           <section className="specification-settings-section">
+            {(selectedGenerateErIds.length === 0 || missingFields.length > 0) && (
+              <TltAlert
+                tone="warning"
+                title="Заполните обязательные параметры"
+                className="specification-settings-validation"
+              >
+                {selectedGenerateErIds.length === 0 ? 'Выберите хотя бы один ЭР. ' : ''}
+                {missingFields.length > 0 ? `Не заданы: ${missingFields.join(', ')}.` : ''}
+              </TltAlert>
+            )}
+            {generationDiagnostics.length > 0 && (
+              <TltAlert
+                tone="danger"
+                title="Backend заблокировал формирование"
+                className="specification-settings-diagnostics"
+              >
+                <ul>
+                  {generationDiagnostics.map((diagnostic) => (
+                    <li key={`${diagnostic.kind}:${diagnostic.code}`}>
+                      <strong>{diagnostic.code}</strong>
+                      {' — '}
+                      {diagnostic.message}
+                    </li>
+                  ))}
+                </ul>
+              </TltAlert>
+            )}
             <Space direction="vertical" className="tlt-field--fill" size={8}>
               <TltButton
                 variant="primary"
                 icon={<ReloadOutlined />}
                 className="specification-settings-action"
-                disabled={!canMutateProject}
-                onClick={() => {
-                  runGenerate(false);
-                  toggleSettings(false);
-                }}
+                disabled={generationDisabled}
+                loading={mut.isPending}
+                onClick={() => runGenerate(false)}
+                aria-label={hasItems ? 'Пересчитать' : 'Сформировать'}
               >
                 {hasItems ? 'Пересчитать' : 'Сформировать'}
               </TltButton>
               <TltButton
                 className="specification-settings-action"
-                disabled={!canMutateProject}
+                disabled={projectSettingsDisabled}
+                loading={saveDefaultsMut.isPending}
                 onClick={() => saveDefaultsMut.mutate()}
-                aria-label="Сохранить defaults спецификации"
+                aria-label="Сохранить настройки проекта"
               >
-                Сохранить defaults
+                Сохранить настройки проекта
               </TltButton>
               {canManuallyEdit && (
                 <TltButton
@@ -324,7 +368,7 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
             </Space>
           </section>
         </div>
-      </Drawer>
+      </Modal>
 
       <Modal
         title="Добавить позицию из расширенной БД"

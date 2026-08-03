@@ -7,15 +7,12 @@ function renderChrome(overrides: Record<string, unknown> = {}) {
     settingsOpen: true,
     toggleSettings: vi.fn(),
     canMutateProject: true,
-    fullModeActive: true,
     selectedGenerateErIds: ['er-1'],
     setSelectedGenerateErIds: vi.fn(),
     availableGenerateVariants: [{ id: 'er-1', name: 'ЭР1' }],
-    reserveCoeff: 1.2,
+    reserveCoeff: '1.2',
     setReserveCoeff: vi.fn(),
-    connectorKitSectionsPerKit: 1 as const,
-    setConnectorKitSectionsPerKit: vi.fn(),
-    exZone: false,
+    exZone: false as boolean | null,
     setExZone: vi.fn(),
     indicationOnBoxes: false,
     setIndicationOnBoxes: vi.fn(),
@@ -23,8 +20,11 @@ function renderChrome(overrides: Record<string, unknown> = {}) {
     setEndSectionIndication: vi.fn(),
     topIndication: false,
     setTopIndication: vi.fn(),
-    minLengthK2i: 100,
+    minLengthK2i: '100',
     setMinLengthK2i: vi.fn(),
+    groupingMode: 'separate_by_object_type' as const,
+    setGroupingMode: vi.fn(),
+    generationDiagnostics: [],
     groupBy: 'object_section' as const,
     setGroupBy: vi.fn(),
     mergeIdentical: false,
@@ -63,12 +63,29 @@ describe('SpecPageChrome UI kit strangler (U2)', () => {
     renderChrome();
 
     expect(screen.getByTestId('spec-params-panel')).toBeInTheDocument();
-    // Ant Drawer portals content to document body
+    // Ant Modal portals content to document body
     expect(document.querySelectorAll('.tlt-compact-field').length).toBeGreaterThanOrEqual(3);
     // Ant Select puts aria-label on both root and combobox input
-    expect(screen.getAllByLabelText('Резерв R,гр').length).toBeGreaterThan(0);
-    expect(screen.getAllByLabelText('Секций на соединительный комплект').length).toBeGreaterThan(0);
-    expect(screen.getAllByLabelText('Мин. длина секции для К2i').length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText('Параметр R гр').length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText('Параметр Ex').length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText('Параметр L К2i').length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'Выбрать все' })).toBeInTheDocument();
+  });
+
+  it('keeps canonical unset state visible and disables writes until it is complete', () => {
+    renderChrome({
+      selectedGenerateErIds: [],
+      reserveCoeff: '',
+      exZone: null,
+      indicationOnBoxes: null,
+      endSectionIndication: null,
+      topIndication: null,
+      minLengthK2i: '',
+      groupingMode: null,
+    });
+
+    expect(screen.getByText('Заполните обязательные параметры')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Сформировать' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Сохранить настройки проекта' })).toBeDisabled();
   });
 });

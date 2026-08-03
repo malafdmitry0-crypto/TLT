@@ -4,33 +4,44 @@
  * @depends none
  * @does-not heat, electrical page modules
  */
-import type { SpecGroupBy } from '@/pages/specification/specFormatModel';
+import type {
+  SpecificationGroupingMode,
+  SpecificationOptions,
+} from '@/api/specifications';
 
 export type SpecGenerateOptionsInput = {
-  exZone: boolean;
-  reserveCoeff: number;
-  indicationOnBoxes: boolean;
-  endSectionIndication: boolean;
-  topIndication: boolean;
-  minLengthK2i: number;
-  connectorKitSectionsPerKit: 1 | 2;
-  groupBy: SpecGroupBy;
-  mergeIdentical: boolean;
+  exZone: boolean | null;
+  reserveCoeff: string;
+  indicationOnBoxes: boolean | null;
+  endSectionIndication: boolean | null;
+  topIndication: boolean | null;
+  minLengthK2i: string;
+  groupingMode: SpecificationGroupingMode | null;
 };
 
-/** Payload for generate/settings API (snake_case keys). */
-export function buildSpecGenerateOptions(input: SpecGenerateOptionsInput) {
+/** Canonical request/project options. Empty values remain absent. */
+export function buildSpecGenerateOptions(input: SpecGenerateOptionsInput): SpecificationOptions {
   return {
-    ex_zone: input.exZone,
-    reserve_coefficient: input.reserveCoeff,
-    indication_on_boxes: input.indicationOnBoxes,
-    end_section_indication: input.endSectionIndication,
-    top_indication: input.topIndication,
-    min_length_for_end_indication: input.minLengthK2i,
-    connector_kit_sections_per_kit: input.connectorKitSectionsPerKit,
-    group_by: input.groupBy,
-    merge_identical: input.mergeIdentical,
+    ...(input.groupingMode == null ? {} : { grouping_mode: input.groupingMode }),
+    ...(input.exZone == null ? {} : { Ex: input.exZone }),
+    ...(input.indicationOnBoxes == null ? {} : { K1i: input.indicationOnBoxes }),
+    ...(input.endSectionIndication == null ? {} : { K2i: input.endSectionIndication }),
+    ...(input.topIndication == null ? {} : { Kiu: input.topIndication }),
+    ...(input.minLengthK2i.trim() === '' ? {} : { L_K2i_m: input.minLengthK2i.trim() }),
+    ...(input.reserveCoeff.trim() === '' ? {} : { R_gr: input.reserveCoeff.trim() }),
   };
+}
+
+export function missingSpecGenerateFields(input: SpecGenerateOptionsInput): string[] {
+  return [
+    [input.groupingMode, 'режим группировки'],
+    [input.exZone, 'Ex'],
+    [input.indicationOnBoxes, 'К1i'],
+    [input.endSectionIndication, 'К2i'],
+    [input.topIndication, 'Кiu'],
+    [input.minLengthK2i.trim() === '' ? null : input.minLengthK2i, 'L,К2i'],
+    [input.reserveCoeff.trim() === '' ? null : input.reserveCoeff, 'R,гр'],
+  ].filter(([value]) => value == null).map(([, label]) => String(label));
 }
 
 export function isSpecificationPartial(spec: {

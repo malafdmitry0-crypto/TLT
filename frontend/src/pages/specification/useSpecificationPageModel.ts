@@ -12,6 +12,7 @@ import {
   generateSpecification,
   updateSpecificationSettings,
 } from '@/api/specifications';
+import type { SpecificationOptions } from '@/api/specifications';
 import { formatSpecTimestamp } from '@/pages/specification/specFormatModel';
 import { useSpecParamsPanelState } from '@/pages/specification/useSpecParamsPanelState';
 import { useSpecPageFormState } from '@/pages/specification/useSpecPageFormState';
@@ -24,8 +25,6 @@ import { buildSpecSettingsFormSnapshot } from '@/pages/specification/specGenerat
 import { useSpecificationQuerySession } from '@/pages/specification/useSpecificationQuerySession';
 import { useSpecificationManualItemsController } from '@/pages/specification/useSpecificationManualItemsController';
 import {
-  buildExcludedGroupsToast,
-  buildPreflightSummaryText,
   buildSpecificationGeneratedToast,
   filterValidGenerateErIds,
   resolveGenerateVariantIds,
@@ -40,8 +39,9 @@ type SpecificationMutationScope = {
 };
 
 type GenerateSpecificationVariables = SpecificationMutationScope & {
-  mode: 'basic' | 'full';
-  options?: Parameters<typeof generateSpecification>[4];
+  options: SpecificationOptions;
+  generateVariantIds: string[];
+  excludeUnassignedConfirmed: boolean;
 };
 
 export function useSpecificationPageModel() {
@@ -71,7 +71,7 @@ export function useSpecificationPageModel() {
   } = useSpecificationQuerySession();
 
   const form = useSpecPageFormState();
-  /** Блок настроек (параметры генерации) — Drawer, как «Настройки» в макете. */
+  /** Единое modal-окно настроек формирования. */
   const { settingsOpen, toggleSettings } = useSpecParamsPanelState();
 
   // PDL-ER-07: load project defaults first; snapshot from last generation only
@@ -79,8 +79,8 @@ export function useSpecificationPageModel() {
   // Must re-run when generation_options content changes (same spec id after regenerate).
   useEffect(() => {
     const opts = (spec?.generation_options as Record<string, unknown> | null | undefined)
-      ?? (projectSettings?.settings as Record<string, unknown> | undefined);
-    if (!opts) return;
+      ?? (projectSettings?.settings as Record<string, unknown> | undefined)
+      ?? {};
     const snapshot = buildSpecSettingsFormSnapshot(opts);
     form.setExZone(snapshot.exZone);
     form.setReserveCoeff(snapshot.reserveCoeff);
@@ -88,13 +88,7 @@ export function useSpecificationPageModel() {
     form.setEndSectionIndication(snapshot.endSectionIndication);
     form.setTopIndication(snapshot.topIndication);
     form.setMinLengthK2i(snapshot.minLengthK2i);
-    form.setConnectorKitSectionsPerKit(snapshot.connectorKitSectionsPerKit);
-    if (typeof snapshot.mergeIdentical === 'boolean') {
-      form.setMergeIdentical(snapshot.mergeIdentical);
-    }
-    if (snapshot.groupBy) {
-      form.setGroupBy(snapshot.groupBy);
-    }
+    form.setGroupingMode(snapshot.groupingMode);
     // form setters are stable (useState); omit form object to avoid effect loops
     // eslint-disable-next-line react-hooks/exhaustive-deps -- form.* setters only
   }, [
@@ -105,8 +99,6 @@ export function useSpecificationPageModel() {
     projectSettings?.settings,
   ]);
 
-  // PDL-ER-29: product generation is always full for guest and employee.
-  const effectiveMode = 'full' as const;
   const availableGenerateVariants = useMemo(
     () => (variantContext.variants ?? []).filter((item) => item.legacy_variant_number != null),
     [variantContext.variants],
@@ -142,70 +134,53 @@ export function useSpecificationPageModel() {
   const mut = useMutation({
     mutationFn: ({
       projectId,
-      electricalVariantId,
-      legacyVariantNumber,
-      mode,
       options,
       generateVariantIds,
-      confirmPartial = false,
-    }: GenerateSpecificationVariables & {
-      generateVariantIds: string[];
-      confirmPartial?: boolean;
-    }) => {
+      excludeUnassignedConfirmed,
+    }: GenerateSpecificationVariables) => {
       if (!canMutateProject) {
         throw new Error('Недостаточно прав для изменения спецификации');
       }
       return generateSpecification(
         projectId,
-        legacyVariantNumber,
-        electricalVariantId,
-        mode,
-        options,
-        generateVariantIds,
-        confirmPartial,
+        {
+          variant_ids: generateVariantIds,
+          options,
+          exclude_unassigned_confirmed: excludeUnassignedConfirmed,
+          catalog_selections: {},
+        },
       );
     },
     onSuccess: (result, variables) => {
-      form.setPreflightOpen(false);
-      form.setPendingGenerate(null);
-      const generatedCount = result.results?.length ?? 1;
+      const generated = result.results.filter((item) => item.status === 'generated');
+      const unresolved = result.results.filter((item) => item.status !== 'generated');
+      const diagnostics = unresolved.flatMap((item) => item.diagnostics);
+      form.setGenerationDiagnostics(diagnostics);
+      form.setPreflightSummary(
+        diagnostics.map((diagnostic) => `${diagnostic.code}: ${diagnostic.message}`).join('\n'),
+      );
+      const confirmationRequired = unresolved.some(
+        (item) => item.status === 'confirmation_required',
+      );
+      form.setPreflightOpen(confirmationRequired);
+      if (!confirmationRequired) form.setPendingGenerate(null);
+      if (unresolved.length === 0 && generated.length > 0) toggleSettings(false);
+      const generatedCount = generated.length;
       const toast = buildSpecificationGeneratedToast({
-        partial: !!result.partial,
+        partial: unresolved.length > 0,
         generatedCount,
         electricalVariantName: variables.electricalVariantName,
       });
-      if (result.partial) message.warning(toast);
+      if (unresolved.length > 0) message.warning(toast);
       else message.success(toast);
-      if (result.mode === 'full' && result.skipped_objects > 0) {
-        message.warning(
-          `Объектов без успешного электрорасчёта: ${result.skipped_objects} — они не вошли в спецификацию`,
-        );
-      }
-      const excludedToast = result.partial
-        ? buildExcludedGroupsToast(result.excluded_groups)
-        : null;
-      if (excludedToast) message.warning(excludedToast);
-      for (const id of variables.generateVariantIds) {
+      for (const id of generated.map((item) => item.electrical_variant_id)) {
         qc.invalidateQueries({
           queryKey: ['spec', variables.projectId, id],
           exact: false,
         });
       }
     },
-    onError: (e: Error & { code?: string; detail?: { preflight?: {
-      total_skipped_objects?: number;
-      variants?: Array<{
-        electrical_variant_name?: string | null;
-        skipped_objects?: number;
-      }>;
-    } } }) => {
-      if (e.code === 'SPECIFICATION_PREFLIGHT_CONFIRMATION_REQUIRED') {
-        form.setPreflightSummary(buildPreflightSummaryText(e.detail?.preflight));
-        form.setPreflightOpen(true);
-        return;
-      }
-      message.error(e.message);
-    },
+    onError: (e: Error) => message.error(e.message),
   });
 
   const isSpecStale = spec?.is_stale === true;
@@ -218,9 +193,7 @@ export function useSpecificationPageModel() {
     endSectionIndication: form.endSectionIndication,
     topIndication: form.topIndication,
     minLengthK2i: form.minLengthK2i,
-    connectorKitSectionsPerKit: form.connectorKitSectionsPerKit,
-    groupBy: form.groupBy,
-    mergeIdentical: form.mergeIdentical,
+    groupingMode: form.groupingMode,
   });
 
   const saveDefaultsMut = useMutation({
@@ -234,28 +207,28 @@ export function useSpecificationPageModel() {
       message.success(
         `Defaults сохранены (v${result.version}). Спецификации с другим snapshot помечены stale — перегенерируйте выбранные ЭР.`,
       );
-      qc.invalidateQueries({ queryKey: ['spec-settings', project?.id] });
+      qc.invalidateQueries({ queryKey: ['spec-settings', project?.id], exact: true });
       qc.invalidateQueries({ queryKey: ['spec', project?.id], exact: false });
     },
     onError: (e: Error) => message.error(e.message),
   });
 
-  const runGenerate = (confirmPartial = false) => {
+  const runGenerate = (excludeUnassignedConfirmed = false) => {
+    form.setGenerationDiagnostics([]);
     const scope = snapshotMutationScope();
     const generateVariantIds = resolveGenerateVariantIds(
       form.selectedGenerateErIds,
       scope.electricalVariantId,
     );
     const options = buildGenerateOptions();
-    if (!confirmPartial) {
+    if (!excludeUnassignedConfirmed) {
       form.setPendingGenerate({ generateVariantIds, options });
     }
     mut.mutate({
       ...scope,
       generateVariantIds,
-      mode: effectiveMode,
       options,
-      confirmPartial,
+      excludeUnassignedConfirmed,
     });
   };
 
@@ -268,9 +241,8 @@ export function useSpecificationPageModel() {
     mut.mutate({
       ...scope,
       generateVariantIds: form.pendingGenerate.generateVariantIds,
-      mode: effectiveMode,
       options: form.pendingGenerate.options,
-      confirmPartial: true,
+      excludeUnassignedConfirmed: true,
     });
   };
 
@@ -288,7 +260,6 @@ export function useSpecificationPageModel() {
     form,
     snapshotMutationScope,
   });
-  const fullModeActive = true;
   const formedAt = formatSpecTimestamp(spec?.updated_at ?? spec?.created_at);
   const generateButtonLabel = hasItems ? 'Обновить' : 'Сформировать';
   const scopeSwitchDisabled = mut.isPending || saveMut.isPending;
@@ -346,8 +317,9 @@ export function useSpecificationPageModel() {
     setTopIndication: form.setTopIndication,
     minLengthK2i: form.minLengthK2i,
     setMinLengthK2i: form.setMinLengthK2i,
-    connectorKitSectionsPerKit: form.connectorKitSectionsPerKit,
-    setConnectorKitSectionsPerKit: form.setConnectorKitSectionsPerKit,
+    groupingMode: form.groupingMode,
+    setGroupingMode: form.setGroupingMode,
+    generationDiagnostics: form.generationDiagnostics,
     settingsOpen,
     toggleSettings,
     spec,
@@ -358,7 +330,6 @@ export function useSpecificationPageModel() {
     specFetching,
     projectSettings,
     accessories,
-    effectiveMode,
     availableGenerateVariants,
     snapshotMutationScope,
     mut,
@@ -375,7 +346,6 @@ export function useSpecificationPageModel() {
     handleAdd,
     handleDelete,
     categoriesCount,
-    fullModeActive,
     formedAt,
     generateButtonLabel,
     scopeSwitchDisabled,

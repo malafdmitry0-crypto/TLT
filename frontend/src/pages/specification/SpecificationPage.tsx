@@ -61,8 +61,9 @@ export default function SpecificationPage() {
     setTopIndication,
     minLengthK2i,
     setMinLengthK2i,
-    connectorKitSectionsPerKit,
-    setConnectorKitSectionsPerKit,
+    groupingMode,
+    setGroupingMode,
+    generationDiagnostics,
     spec,
     refetch,
     specLoading,
@@ -85,7 +86,6 @@ export default function SpecificationPage() {
     handleAdd,
     handleDelete,
     categoriesCount,
-    fullModeActive,
     formedAt,
     generateButtonLabel,
     scopeSwitchDisabled,
@@ -175,7 +175,7 @@ export default function SpecificationPage() {
                 icon={<ReloadOutlined />}
                 loading={mut.isPending}
                 disabled={!canMutateProject}
-                onClick={() => runGenerate(false)}
+                onClick={() => toggleSettings(true)}
                 aria-label={generateButtonLabel}
               >
                 {generateButtonLabel}
@@ -229,7 +229,7 @@ export default function SpecificationPage() {
               icon={<ReloadOutlined />}
               loading={mut.isPending}
               disabled={!canMutateProject}
-              onClick={() => runGenerate(false)}
+              onClick={() => toggleSettings(true)}
             >
               Сформировать заново
             </TltButton>
@@ -287,7 +287,7 @@ export default function SpecificationPage() {
                     icon={<ReloadOutlined />}
                     loading={mut.isPending}
                     disabled={!canMutateProject}
-                    onClick={() => runGenerate(false)}
+                    onClick={() => toggleSettings(true)}
                   >
                     Сформировать
                   </TltButton>
@@ -341,14 +341,14 @@ export default function SpecificationPage() {
         settingsOpen={settingsOpen}
         toggleSettings={toggleSettings}
         canMutateProject={canMutateProject}
-        fullModeActive={fullModeActive}
         selectedGenerateErIds={selectedGenerateErIds}
         setSelectedGenerateErIds={setSelectedGenerateErIds}
         availableGenerateVariants={availableGenerateVariants}
         reserveCoeff={reserveCoeff}
         setReserveCoeff={setReserveCoeff}
-        connectorKitSectionsPerKit={connectorKitSectionsPerKit}
-        setConnectorKitSectionsPerKit={setConnectorKitSectionsPerKit}
+        groupingMode={groupingMode}
+        setGroupingMode={setGroupingMode}
+        generationDiagnostics={generationDiagnostics}
         exZone={exZone}
         setExZone={setExZone}
         indicationOnBoxes={indicationOnBoxes}

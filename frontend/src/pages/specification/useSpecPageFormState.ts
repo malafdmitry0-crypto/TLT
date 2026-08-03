@@ -4,7 +4,11 @@
  * Transient UI + generation form state for SpecificationPage.
  */
 import { useState } from 'react';
-import type { generateSpecification } from '@/api/specifications';
+import type {
+  SpecificationDiagnostic,
+  SpecificationGroupingMode,
+  SpecificationOptions,
+} from '@/api/specifications';
 import type { SpecGroupBy as GroupBy } from '@/pages/specification/specFormatModel';
 
 export function useSpecPageFormState() {
@@ -21,17 +25,17 @@ export function useSpecPageFormState() {
   const [preflightSummary, setPreflightSummary] = useState<string>('');
   const [pendingGenerate, setPendingGenerate] = useState<{
     generateVariantIds: string[];
-    options?: Parameters<typeof generateSpecification>[4];
+    options: SpecificationOptions;
   } | null>(null);
-  const [exZone, setExZone] = useState(false);
-  const [reserveCoeff, setReserveCoeff] = useState<number>(1);
+  const [generationDiagnostics, setGenerationDiagnostics] = useState<SpecificationDiagnostic[]>([]);
+  const [exZone, setExZone] = useState<boolean | null>(null);
+  const [reserveCoeff, setReserveCoeff] = useState('');
   // Опции индикации ТНП: К1i / К2i / Кiu / L,К2i
-  const [indicationOnBoxes, setIndicationOnBoxes] = useState(false);
-  const [endSectionIndication, setEndSectionIndication] = useState(false);
-  const [topIndication, setTopIndication] = useState(false);
-  const [minLengthK2i, setMinLengthK2i] = useState<number>(0);
-  /** PDL-ER-44: PDF §7.10 sections per connector kit (1→КСН-1, 2→КСН-2). */
-  const [connectorKitSectionsPerKit, setConnectorKitSectionsPerKit] = useState<1 | 2>(1);
+  const [indicationOnBoxes, setIndicationOnBoxes] = useState<boolean | null>(null);
+  const [endSectionIndication, setEndSectionIndication] = useState<boolean | null>(null);
+  const [topIndication, setTopIndication] = useState<boolean | null>(null);
+  const [minLengthK2i, setMinLengthK2i] = useState('');
+  const [groupingMode, setGroupingMode] = useState<SpecificationGroupingMode | null>(null);
 
   return {
     groupBy,
@@ -52,6 +56,8 @@ export function useSpecPageFormState() {
     setPreflightSummary,
     pendingGenerate,
     setPendingGenerate,
+    generationDiagnostics,
+    setGenerationDiagnostics,
     exZone,
     setExZone,
     reserveCoeff,
@@ -64,7 +70,7 @@ export function useSpecPageFormState() {
     setTopIndication,
     minLengthK2i,
     setMinLengthK2i,
-    connectorKitSectionsPerKit,
-    setConnectorKitSectionsPerKit,
+    groupingMode,
+    setGroupingMode,
   };
 }
