@@ -25,6 +25,11 @@ from app.services.electrical_variant_service import (
     ElectricalVariantService,
     ElectricalVariantServiceError,
 )
+from app.services.specification_catalog_service import (
+    ResolvedSpecificationCatalog,
+    SpecificationCatalogService,
+    SpecificationCatalogServiceError,
+)
 
 # Option keys that participate in PDL-ER-07 snapshot equality.
 _SETTINGS_OPTION_KEYS = (
@@ -81,6 +86,18 @@ class SpecificationPreflightVariant:
 class SpecificationService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
+
+    async def _require_authoritative_catalog(self) -> ResolvedSpecificationCatalog:
+        """Translate the catalog gate into the established API-domain error."""
+        try:
+            return await SpecificationCatalogService(self.db).resolve_active()
+        except SpecificationCatalogServiceError as exc:
+            raise ElectricalVariantServiceError(
+                exc.code,
+                exc.message,
+                status_code=exc.status_code,
+                details=exc.as_detail()["details"],
+            ) from exc
 
     async def get_project_settings(
         self,
@@ -275,6 +292,7 @@ class SpecificationService:
 
         Includes object skips AND builder-level excluded groups (boxes, sections).
         """
+        await self._require_authoritative_catalog()
         objects_q = await self.db.execute(
             select(ProjectObject).where(ProjectObject.project_id == project_id)
         )

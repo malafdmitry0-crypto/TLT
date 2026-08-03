@@ -21,7 +21,11 @@ from app.models.project import Project, ProjectStatus
 from app.models.project_electrical_settings import ProjectElectricalSettings
 from app.models.project_object import ObjectType, ProjectObject
 from app.models.refresh_session import RefreshSession
-from app.models.specification import Specification
+from app.models.specification import (
+    Specification,
+    SpecificationCatalogItem,
+    SpecificationCatalogVersion,
+)
 from app.models.user import User, UserRole
 from app.models.user_preference import UserPreference
 
@@ -49,6 +53,8 @@ __all__ = [
     "ElectricalVariant",
     "ElectricalVariantObject",
     "Specification",
+    "SpecificationCatalogVersion",
+    "SpecificationCatalogItem",
     "CorrectionCoefficient",
     "CableExtended",
     "AccessoryExtended",
