@@ -106,27 +106,6 @@ class SpecificationPreflightService:
         results: list[SpecificationVariantPreflightResult] = []
         for variant_id in request.variant_ids:
             variant = variants[variant_id]
-            stored_map: dict[str, UUID] = {}
-            if catalog is not None:
-                from app.services.specification_selection_service import (
-                    SpecificationSelectionService,
-                )
-
-                stored_map = await SpecificationSelectionService(self.db).as_selection_map(
-                    project_id,
-                    variant.id,
-                    catalog_version_id=catalog.version.id,
-                )
-            # Request overrides server store; store fills gaps for multi-candidate groups.
-            merged_selections = {
-                **stored_map,
-                **dict(request.catalog_selections or {}),
-            }
-            variant_catalog_selections = catalog_selections_for_variant(
-                merged_selections,
-                variant.id,
-                request.variant_ids,
-            )
             rows = rows_by_variant.get(variant_id, [])
             assignments = [_preflight_assignment(*row) for row in rows]
             base = evaluate_specification_preflight(
@@ -158,6 +137,11 @@ class SpecificationPreflightService:
                 diagnostics.append(options_diagnostic)
 
             candidate_groups = []
+            variant_catalog_selections: dict[str, UUID] = catalog_selections_for_variant(
+                dict(request.catalog_selections or {}),
+                variant.id,
+                request.variant_ids,
+            )
             # Selection protocol runs only when catalog is resolved and at least
             # one object contributes conditions (excluded unassigned stay out).
             if catalog is not None and base.contributing_objects > 0:
@@ -167,6 +151,39 @@ class SpecificationPreflightService:
                     excluded_unassigned_object_ids=base.excluded_unassigned_object_ids,
                 )
                 if contributing_results:
+                    from app.services.specification_selection_service import (
+                        SpecificationSelectionService,
+                    )
+
+                    # Pass 1: candidate-set fingerprints do not depend on selection.
+                    probe = build_candidate_groups(
+                        electrical_variant_id=variant.id,
+                        catalog=catalog,
+                        contributing_results=contributing_results,
+                        catalog_selections={},
+                    )
+                    group_fingerprints = {
+                        group.group_key: group.candidate_set_fingerprint
+                        for group in probe.groups
+                        if group.candidate_set_fingerprint
+                    }
+                    # Fail-closed: drop stored choices whose candidate set moved.
+                    stored_map = await SpecificationSelectionService(self.db).as_selection_map(
+                        project_id,
+                        variant.id,
+                        catalog_version_id=catalog.version.id,
+                        group_fingerprints=group_fingerprints,
+                    )
+                    # Request overrides server store; store fills remaining multi gaps.
+                    merged_selections = {
+                        **stored_map,
+                        **dict(request.catalog_selections or {}),
+                    }
+                    variant_catalog_selections = catalog_selections_for_variant(
+                        merged_selections,
+                        variant.id,
+                        request.variant_ids,
+                    )
                     built = build_candidate_groups(
                         electrical_variant_id=variant.id,
                         catalog=catalog,

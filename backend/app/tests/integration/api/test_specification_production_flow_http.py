@@ -109,12 +109,15 @@ def _catalog_items_multi_connection(
     catalog_id: uuid.UUID,
     *,
     multi_connection: bool,
+    include_connection_kits: bool = True,
 ) -> list[SpecificationCatalogItem]:
     """Complete-shape catalog; multi keeps both MEDIUM_HIGH connection kits."""
     items: list[SpecificationCatalogItem] = []
     for index, raw in enumerate(complete_specification_catalog_items()):
         category = raw.category.value if hasattr(raw.category, "value") else raw.category
         if category == "connection_kit":
+            if not include_connection_kits:
+                continue
             if multi_connection:
                 if raw.mark not in {"КСВ-1", "КСВ-2"}:
                     continue
@@ -155,6 +158,7 @@ async def _seed_http_ready_project(
     name: str,
     multi_connection: bool,
     second_er: bool = False,
+    include_connection_kits: bool = True,
 ) -> tuple[Project, list[ElectricalVariant], ProjectObject, SpecificationCatalogVersion]:
     project = Project(
         id=uuid.uuid4(),
@@ -238,7 +242,11 @@ async def _seed_http_ready_project(
         results=_calc_result(),
     )
     catalog_id = uuid.uuid4()
-    items = _catalog_items_multi_connection(catalog_id, multi_connection=multi_connection)
+    items = _catalog_items_multi_connection(
+        catalog_id,
+        multi_connection=multi_connection,
+        include_connection_kits=include_connection_kits,
+    )
     await db_session.execute(
         update(SpecificationCatalogVersion)
         .where(SpecificationCatalogVersion.status == "active")
@@ -669,3 +677,182 @@ async def test_seed_debt_catalog_bootstrap_is_idempotent(
         )
     )
     assert count is not None
+
+
+async def test_http_zero_connection_candidates_blocks_without_bom_write(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    employee_user: User,
+    employee_token: str,
+) -> None:
+    """No matching catalog item → blocked, outcome row only, no BOM items."""
+    headers = {"Authorization": f"Bearer {employee_token}"}
+    project, variants, _obj, _catalog = await _seed_http_ready_project(
+        db_session,
+        employee_user,
+        name="HTTP zero candidates",
+        multi_connection=False,
+        include_connection_kits=False,
+    )
+    ready = variants[0]
+
+    response = await client.post(
+        f"/api/v1/specifications/{project.id}/generate",
+        json={
+            "variant_ids": [str(ready.id)],
+            "options": _options(),
+            "catalog_selections": {},
+        },
+        headers=headers,
+    )
+    assert response.status_code == 422, response.text
+    result = response.json()["results"][0]
+    assert result["status"] == "blocked"
+    assert result["items"] == []
+    assert any(
+        d["code"] == "SPEC_ACCESSORY_CATALOG_ITEM_MISSING" for d in result["diagnostics"]
+    )
+
+    got = await client.get(
+        f"/api/v1/specifications/{project.id}/variants/{ready.id}",
+        headers=headers,
+    )
+    assert got.status_code == 200, got.text
+    body = got.json()
+    assert body is not None
+    assert body["generation_status"] == "blocked"
+    assert body["items"] == []
+    assert any(
+        d["code"] == "SPEC_ACCESSORY_CATALOG_ITEM_MISSING"
+        for d in body["generation_diagnostics"]
+    )
+
+
+async def test_http_stale_selection_fingerprint_requires_choice_again(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    employee_user: User,
+    employee_token: str,
+) -> None:
+    """Persisted selection with mismatched fingerprint is ignored → selection_required."""
+    headers = {"Authorization": f"Bearer {employee_token}"}
+    project, variants, _obj, _catalog = await _seed_http_ready_project(
+        db_session,
+        employee_user,
+        name="HTTP stale fingerprint",
+        multi_connection=True,
+    )
+    ready = variants[0]
+    options = _options()
+
+    first = await client.post(
+        f"/api/v1/specifications/{project.id}/generate",
+        json={
+            "variant_ids": [str(ready.id)],
+            "options": options,
+            "catalog_selections": {},
+        },
+        headers=headers,
+    )
+    assert first.status_code == 409, first.text
+    group = next(
+        g
+        for g in first.json()["results"][0]["candidate_groups"]
+        if g["category"] == "connection_kit"
+    )
+    chosen = group["candidates"][0]
+
+    get_sel = await client.get(
+        f"/api/v1/specifications/{project.id}/variants/{ready.id}/catalog-selections",
+        headers=headers,
+    )
+    put = await client.put(
+        f"/api/v1/specifications/{project.id}/variants/{ready.id}/catalog-selections",
+        json={
+            "expected_version": get_sel.json()["collection_version"],
+            "selections": [
+                {
+                    "candidate_group_key": group["group_key"],
+                    "catalog_version_id": chosen["catalog_id"],
+                    "catalog_item_id": chosen["catalog_item_id"],
+                    "candidate_set_fingerprint": group["candidate_set_fingerprint"],
+                }
+            ],
+        },
+        headers=headers,
+    )
+    assert put.status_code == 200, put.text
+
+    # Corrupt stored fingerprint so server drop-filters the choice.
+    stored = (
+        await db_session.execute(
+            select(SpecificationCatalogSelection).where(
+                SpecificationCatalogSelection.project_id == project.id,
+                SpecificationCatalogSelection.electrical_variant_id == ready.id,
+            )
+        )
+    ).scalar_one()
+    stored.candidate_set_fingerprint = f"sha256:{'0' * 64}"
+    await db_session.commit()
+
+    second = await client.post(
+        f"/api/v1/specifications/{project.id}/generate",
+        json={
+            "variant_ids": [str(ready.id)],
+            "options": options,
+            "catalog_selections": {},
+        },
+        headers=headers,
+    )
+    assert second.status_code == 409, second.text
+    again = second.json()["results"][0]
+    assert again["status"] == "selection_required"
+    assert again["items"] == []
+    conn = next(g for g in again["candidate_groups"] if g["category"] == "connection_kit")
+    assert conn["selection_source"] == "none"
+    assert len(conn["candidates"]) >= 2
+
+
+async def test_http_no_active_catalog_is_typed_503_without_spec_write(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    employee_user: User,
+    employee_token: str,
+) -> None:
+    """Retire active catalog → generate fails closed with 503 envelope."""
+    headers = {"Authorization": f"Bearer {employee_token}"}
+    project, variants, _obj, catalog = await _seed_http_ready_project(
+        db_session,
+        employee_user,
+        name="HTTP catalog unavailable",
+        multi_connection=False,
+    )
+    ready = variants[0]
+
+    await db_session.execute(
+        update(SpecificationCatalogVersion)
+        .where(SpecificationCatalogVersion.id == catalog.id)
+        .values(status="retired")
+    )
+    await db_session.commit()
+
+    response = await client.post(
+        f"/api/v1/specifications/{project.id}/generate",
+        json={
+            "variant_ids": [str(ready.id)],
+            "options": _options(),
+            "catalog_selections": {},
+        },
+        headers=headers,
+    )
+    assert response.status_code == 503, response.text
+    detail = response.json()["detail"]
+    assert detail["code"] == "SPEC_CATALOG_UNAVAILABLE"
+
+    got = await client.get(
+        f"/api/v1/specifications/{project.id}/variants/{ready.id}",
+        headers=headers,
+    )
+    assert got.status_code == 200
+    # 503 raises before per-ER outcome persist when all ERs hit catalog gap.
+    assert got.json() is None
