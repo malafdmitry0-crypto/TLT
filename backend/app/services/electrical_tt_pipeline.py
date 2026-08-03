@@ -11,6 +11,7 @@ from typing import Any
 from app.electrical_domain import ElectricalFormulaError
 from app.formulas.electrical.decimal_math import SIX_PLACES, decimal_value, round_result
 from app.formulas.electrical.sections import compute_section_plan, section_catalog_meta
+from app.formulas.electrical.tt_final_gate import assert_electrical_tt_ready
 from app.formulas.electrical.self_regulating import calc_self_regulating_tt, compute_winding_factor
 from app.formulas.electrical.tt_contract import (
     ELECTRICAL_TT_FORMULA_FINGERPRINT,
@@ -335,6 +336,19 @@ def calculate_electrical_tt(
     applied_threads = preliminary.num_circuits
     required_power = values.heat_loss_per_meter_w * values.safety_factor
     installed_power = power_exact * winding_factor * Decimal(applied_threads)
+
+    # §9.15 / E4: do not emit ready until final physical checks pass.
+    assert_electrical_tt_ready(
+        cable_mark=preliminary.cable_mark,
+        series=preliminary.series,
+        threads=int(applied_threads),
+        voltage_v=230,
+        required_power_per_meter_w=required_power,
+        installed_power_per_meter_w=installed_power,
+        plan=plan,
+        sections=sections,
+        catalogs=catalogs,
+    )
 
     return {
         "status": "ready",

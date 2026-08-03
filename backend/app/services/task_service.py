@@ -1021,7 +1021,7 @@ class TaskService:
                     UUID(payload["project_id"]),
                     payload.get("cable_source", "builtin"),
                     variant_number,
-                    payload.get("cable_type", "self_regulating"),
+                    payload.get("cable_type", "self_regulating_tt"),
                     payload.get("electrical_params") or {},
                     skip_manual=bool(payload.get("skip_manual", True)),
                     return_calcs=bool(payload.get("include_results", False)),
