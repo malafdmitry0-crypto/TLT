@@ -106,8 +106,24 @@ class SpecificationPreflightService:
         results: list[SpecificationVariantPreflightResult] = []
         for variant_id in request.variant_ids:
             variant = variants[variant_id]
+            stored_map: dict[str, UUID] = {}
+            if catalog is not None:
+                from app.services.specification_selection_service import (
+                    SpecificationSelectionService,
+                )
+
+                stored_map = await SpecificationSelectionService(self.db).as_selection_map(
+                    project_id,
+                    variant.id,
+                    catalog_version_id=catalog.version.id,
+                )
+            # Request overrides server store; store fills gaps for multi-candidate groups.
+            merged_selections = {
+                **stored_map,
+                **dict(request.catalog_selections or {}),
+            }
             variant_catalog_selections = catalog_selections_for_variant(
-                request.catalog_selections,
+                merged_selections,
                 variant.id,
                 request.variant_ids,
             )

@@ -8,6 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.dependencies import CurrentPrincipal, require_any, require_employee
 from app.schemas.specification import (
+    SpecificationCatalogSelectionEntry,
+    SpecificationCatalogSelectionsPutRequest,
+    SpecificationCatalogSelectionsResponse,
     SpecificationDiagnosticCode,
     SpecificationErrorDetail,
     SpecificationErrorEnvelope,
@@ -35,6 +38,7 @@ from app.services.specification_generation_service import (
     SpecificationProjectSettingsService,
 )
 from app.services.specification_preflight_service import SpecificationPreflightServiceError
+from app.services.specification_selection_service import SpecificationSelectionService
 from app.services.specification_service import SpecificationService
 
 router = APIRouter()
@@ -163,6 +167,127 @@ async def get_specification_for_variant(
     return await SpecificationService(db).get_specification(
         project_id,
         electrical_variant_id=electrical_variant_id,
+    )
+
+
+@router.get(
+    "/{project_id}/variants/{electrical_variant_id}/catalog-selections",
+    response_model=SpecificationCatalogSelectionsResponse,
+    summary="Persisted multi-candidate catalog selections for one ER",
+)
+async def get_catalog_selections_for_variant(
+    project_id: UUID,
+    electrical_variant_id: UUID,
+    principal: CurrentPrincipal = Depends(require_any()),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        await ProjectService(db).get_project_basic(project_id, principal)
+        await ElectricalVariantService(db).require_variant_for_read(
+            project_id, principal, electrical_variant_id
+        )
+    except ElectricalVariantServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
+    except ProjectNotFoundError as exc:
+        raise _specification_http_error(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code=SpecificationDiagnosticCode.PROJECT_NOT_FOUND,
+            message=str(exc),
+        ) from exc
+    except ProjectAccessError as exc:
+        raise _specification_http_error(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code=SpecificationDiagnosticCode.PROJECT_ACCESS_DENIED,
+            message=str(exc),
+        ) from exc
+
+    collection = await SpecificationSelectionService(db).get_collection(
+        project_id, electrical_variant_id
+    )
+    return SpecificationCatalogSelectionsResponse(
+        project_id=collection.project_id,
+        electrical_variant_id=collection.electrical_variant_id,
+        collection_version=collection.collection_version,
+        selections=[
+            SpecificationCatalogSelectionEntry(
+                candidate_group_key=row.candidate_group_key,
+                catalog_version_id=row.catalog_version_id,
+                catalog_item_id=row.catalog_item_id,
+                candidate_set_fingerprint=row.candidate_set_fingerprint,
+            )
+            for row in collection.selections
+        ],
+    )
+
+
+@router.put(
+    "/{project_id}/variants/{electrical_variant_id}/catalog-selections",
+    response_model=SpecificationCatalogSelectionsResponse,
+    summary="Replace persisted multi-candidate catalog selections for one ER",
+)
+async def put_catalog_selections_for_variant(
+    project_id: UUID,
+    electrical_variant_id: UUID,
+    data: SpecificationCatalogSelectionsPutRequest,
+    principal: CurrentPrincipal = Depends(require_any()),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        await ProjectService(db).get_project_for_write(project_id, principal)
+        await ElectricalVariantService(db).require_variant_for_read(
+            project_id, principal, electrical_variant_id
+        )
+    except ElectricalVariantServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
+    except ProjectNotFoundError as exc:
+        raise _specification_http_error(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code=SpecificationDiagnosticCode.PROJECT_NOT_FOUND,
+            message=str(exc),
+        ) from exc
+    except ProjectAccessError as exc:
+        raise _specification_http_error(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code=SpecificationDiagnosticCode.PROJECT_ACCESS_DENIED,
+            message=str(exc),
+        ) from exc
+
+    try:
+        collection = await SpecificationSelectionService(db).replace_collection(
+            project_id=project_id,
+            electrical_variant_id=electrical_variant_id,
+            expected_version=data.expected_version,
+            selections=[item.model_dump(mode="json") for item in data.selections],
+            commit=True,
+        )
+    except ElectricalVariantServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
+
+    await AuditService(db).try_record(
+        event_type="specification.catalog_selections_replaced",
+        category="specification",
+        principal=principal,
+        project_id=project_id,
+        details={
+            "electrical_variant_id": str(electrical_variant_id),
+            "selection_count": len(collection.selections),
+            "collection_version": collection.collection_version,
+        },
+        message="Обновлены catalog selections спецификации",
+    )
+    return SpecificationCatalogSelectionsResponse(
+        project_id=collection.project_id,
+        electrical_variant_id=collection.electrical_variant_id,
+        collection_version=collection.collection_version,
+        selections=[
+            SpecificationCatalogSelectionEntry(
+                candidate_group_key=row.candidate_group_key,
+                catalog_version_id=row.catalog_version_id,
+                catalog_item_id=row.catalog_item_id,
+                candidate_set_fingerprint=row.candidate_set_fingerprint,
+            )
+            for row in collection.selections
+        ],
     )
 
 

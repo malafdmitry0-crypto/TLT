@@ -24,6 +24,7 @@ from app.models.refresh_session import RefreshSession
 from app.models.specification import (
     Specification,
     SpecificationCatalogItem,
+    SpecificationCatalogSelection,
     SpecificationCatalogVersion,
 )
 from app.models.user import User, UserRole
@@ -55,6 +56,7 @@ __all__ = [
     "Specification",
     "SpecificationCatalogVersion",
     "SpecificationCatalogItem",
+    "SpecificationCatalogSelection",
     "CorrectionCoefficient",
     "CableExtended",
     "AccessoryExtended",

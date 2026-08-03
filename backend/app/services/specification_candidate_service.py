@@ -24,8 +24,10 @@ from app.schemas.specification import (
     SpecificationDiagnostic,
     SpecificationDiagnosticCode,
     SpecificationIssueKind,
+    SpecificationSelectionSource,
 )
 from app.services.specification_catalog_service import ResolvedSpecificationCatalog
+from app.services.specification_selection_service import candidate_set_fingerprint
 
 # Categories that participate in the single-choice selection protocol.
 _SELECTION_CATEGORIES: tuple[str, ...] = (
@@ -127,7 +129,7 @@ def build_candidate_groups(
                 conditions=conditions,
                 object_type_section=object_type_section,
             )
-            selected, group_diags = _resolve_selection(
+            selected, source, group_diags = _resolve_selection(
                 group_key=group_key,
                 category=category,
                 conditions=conditions,
@@ -146,6 +148,12 @@ def build_candidate_groups(
                     conditions=dict(conditions),
                     candidates=candidates,
                     selected_catalog_item_id=selected,
+                    selection_source=source,
+                    candidate_set_fingerprint=candidate_set_fingerprint(
+                        [item.catalog_item_id for item in candidates]
+                    )
+                    if candidates
+                    else None,
                 )
             )
 
@@ -382,12 +390,12 @@ def _resolve_selection(
     selections: Mapping[str, UUID],
     electrical_variant_id: UUID,
     catalog: ResolvedSpecificationCatalog,
-) -> tuple[UUID | None, list[SpecificationDiagnostic]]:
+) -> tuple[UUID | None, SpecificationSelectionSource, list[SpecificationDiagnostic]]:
     candidate_ids = {item.catalog_item_id for item in candidates}
     submitted = selections.get(group_key)
 
     if len(candidates) == 0:
-        return None, [
+        return None, SpecificationSelectionSource.NONE, [
             _diagnostic(
                 SpecificationDiagnosticCode.ACCESSORY_CATALOG_ITEM_MISSING,
                 SpecificationIssueKind.BLOCKING,
@@ -413,7 +421,7 @@ def _resolve_selection(
     if len(candidates) == 1:
         only = candidates[0].catalog_item_id
         if submitted is not None and submitted != only:
-            return None, [
+            return None, SpecificationSelectionSource.NONE, [
                 _diagnostic(
                     SpecificationDiagnosticCode.ACCESSORY_SELECTION_REQUIRED,
                     SpecificationIssueKind.SELECTION_REQUIRED,
@@ -434,11 +442,11 @@ def _resolve_selection(
                     },
                 )
             ]
-        return only, []
+        return only, SpecificationSelectionSource.AUTO_SINGLE, []
 
     # >1 candidates
     if submitted is None:
-        return None, [
+        return None, SpecificationSelectionSource.NONE, [
             _diagnostic(
                 SpecificationDiagnosticCode.ACCESSORY_SELECTION_REQUIRED,
                 SpecificationIssueKind.SELECTION_REQUIRED,
@@ -463,7 +471,7 @@ def _resolve_selection(
         ]
 
     if submitted not in candidate_ids:
-        return None, [
+        return None, SpecificationSelectionSource.NONE, [
             _diagnostic(
                 SpecificationDiagnosticCode.ACCESSORY_SELECTION_REQUIRED,
                 SpecificationIssueKind.SELECTION_REQUIRED,
@@ -485,7 +493,7 @@ def _resolve_selection(
             )
         ]
 
-    return submitted, []
+    return submitted, SpecificationSelectionSource.EXPLICIT, []
 
 
 def _cable_identity(result: Mapping[str, Any]) -> tuple[str, str] | None:

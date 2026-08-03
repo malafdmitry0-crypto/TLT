@@ -262,6 +262,14 @@ class SpecificationCandidate(BaseModel):
     formula_parameters: dict[str, Any] = Field(default_factory=dict)
 
 
+class SpecificationSelectionSource(StrEnum):
+    """How the effective catalog item for a group was obtained."""
+
+    AUTO_SINGLE = "auto_single"
+    EXPLICIT = "explicit"
+    NONE = "none"
+
+
 class SpecificationCandidateGroup(BaseModel):
     """Collision-free selection group for one ER category/condition slice."""
 
@@ -274,6 +282,8 @@ class SpecificationCandidateGroup(BaseModel):
     conditions: dict[str, Any] = Field(default_factory=dict)
     candidates: list[SpecificationCandidate] = Field(default_factory=list)
     selected_catalog_item_id: UUID | None = None
+    selection_source: SpecificationSelectionSource = SpecificationSelectionSource.NONE
+    candidate_set_fingerprint: str | None = None
 
 
 class SpecificationVariantPreflightResult(BaseModel):
@@ -405,4 +415,43 @@ class SpecificationUpdateRequest(BaseModel):
     def _items_are_manual(cls, value: list[SpecificationItem]) -> list[SpecificationItem]:
         if any(item.source != "manual" for item in value):
             raise ValueError("manual PUT accepts only source=manual items")
+        return value
+
+
+class SpecificationCatalogSelectionEntry(BaseModel):
+    """One explicit multi-candidate choice for an ER group."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    candidate_group_key: str = Field(min_length=1, max_length=128)
+    catalog_version_id: UUID
+    catalog_item_id: UUID
+    candidate_set_fingerprint: str = Field(
+        pattern=r"^sha256:[0-9a-f]{64}$",
+    )
+
+
+class SpecificationCatalogSelectionsResponse(BaseModel):
+    project_id: UUID
+    electrical_variant_id: UUID
+    collection_version: int = Field(ge=1)
+    selections: list[SpecificationCatalogSelectionEntry] = Field(default_factory=list)
+
+
+class SpecificationCatalogSelectionsPutRequest(BaseModel):
+    """Atomic replace of persisted explicit selections for one ER."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    expected_version: int = Field(ge=0)
+    selections: list[SpecificationCatalogSelectionEntry] = Field(default_factory=list)
+
+    @field_validator("selections")
+    @classmethod
+    def _unique_group_keys(
+        cls, value: list[SpecificationCatalogSelectionEntry]
+    ) -> list[SpecificationCatalogSelectionEntry]:
+        keys = [item.candidate_group_key for item in value]
+        if len(keys) != len(set(keys)):
+            raise ValueError("candidate_group_key must be unique within selections")
         return value

@@ -188,3 +188,65 @@ class SpecificationCatalogItem(Base):
     source_ref: Mapped[str] = mapped_column(Text, nullable=False)
     row_checksum: Mapped[str] = mapped_column(String(71), nullable=False)
     position: Mapped[int] = mapped_column(Integer, nullable=False)
+
+
+class SpecificationCatalogSelection(Base, TimestampMixin):
+    """Persisted explicit multi-candidate catalog choice for one ER group.
+
+    Auto-single selections are derived at preflight time and are not stored here.
+    """
+
+    __tablename__ = "specification_catalog_selections"
+    __table_args__ = (
+        UniqueConstraint(
+            "project_id",
+            "electrical_variant_id",
+            "candidate_group_key",
+            name="uq_spec_catalog_selections_project_er_group",
+        ),
+        ForeignKeyConstraint(
+            ["electrical_variant_id", "project_id"],
+            ["electrical_variants.id", "electrical_variants.project_id"],
+            name="fk_spec_catalog_selections_variant_project",
+            ondelete="CASCADE",
+        ),
+        CheckConstraint(
+            "collection_version >= 1",
+            name="ck_spec_catalog_selections_collection_version",
+        ),
+        CheckConstraint(
+            "char_length(btrim(candidate_group_key)) > 0",
+            name="ck_spec_catalog_selections_group_key_nonempty",
+        ),
+        Index(
+            "ix_spec_catalog_selections_project_er",
+            "project_id",
+            "electrical_variant_id",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    electrical_variant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    candidate_group_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    catalog_version_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("specification_catalog_versions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    catalog_item_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("specification_catalog_items.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    candidate_set_fingerprint: Mapped[str] = mapped_column(String(71), nullable=False)
+    collection_version: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=1,
+        server_default=text("1"),
+    )

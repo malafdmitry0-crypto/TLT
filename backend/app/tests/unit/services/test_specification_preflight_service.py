@@ -278,6 +278,14 @@ def _patch_read_boundaries(monkeypatch: pytest.MonkeyPatch, project, catalog):
         "resolve_active",
         AsyncMock(return_value=catalog),
     )
+    # Default unit tests do not exercise persisted selection IO; empty store.
+    from app.services.specification_selection_service import SpecificationSelectionService
+
+    monkeypatch.setattr(
+        SpecificationSelectionService,
+        "as_selection_map",
+        AsyncMock(return_value={}),
+    )
 
 
 async def test_two_variants_are_isolated_and_preflight_is_side_effect_free(monkeypatch):
@@ -452,6 +460,13 @@ async def test_catalog_pin_uses_request_then_project_settings_then_default(monke
     resolve = AsyncMock(return_value=catalog)
     monkeypatch.setattr(ProjectService, "get_project_basic", AsyncMock(return_value=project))
     monkeypatch.setattr(SpecificationCatalogService, "resolve_active", resolve)
+    from app.services.specification_selection_service import SpecificationSelectionService
+
+    monkeypatch.setattr(
+        SpecificationSelectionService,
+        "as_selection_map",
+        AsyncMock(return_value={}),
+    )
 
     # Project settings only when request leaves catalog fields unset.
     await SpecificationPreflightService(db).preflight_variants(

@@ -357,11 +357,35 @@ class SpecificationGenerationService:
         all_items = list(bom.items) + manual_items
         items_payload = [item.model_dump(mode="json") for item in all_items]
 
+        snapshot = dict(bom.snapshot)
+        snapshot["catalog_selections"] = {
+            group.group_key: {
+                "catalog_item_id": str(group.selected_catalog_item_id)
+                if group.selected_catalog_item_id is not None
+                else None,
+                "selection_source": getattr(group.selection_source, "value", group.selection_source),
+                "candidate_set_fingerprint": group.candidate_set_fingerprint,
+                "candidate_count": len(group.candidates),
+            }
+            for group in current.candidate_groups
+        }
+
         await SpecificationService(self.db)._upsert_specification(
             project_id=project_id,
             items_payload=items_payload,
-            snapshot=bom.snapshot,
+            snapshot=snapshot,
             electrical_variant_id=current.electrical_variant_id,
+        )
+
+        # Persist explicit multi-candidate choices so reload/generate need no client store.
+        from app.services.specification_selection_service import SpecificationSelectionService
+
+        await SpecificationSelectionService(self.db).persist_explicit_from_groups(
+            project_id=project_id,
+            electrical_variant_id=current.electrical_variant_id,
+            catalog_version_id=catalog.version.id,
+            groups=current.candidate_groups,
+            commit=False,
         )
 
         return SpecificationVariantGenerationResult(
@@ -372,7 +396,7 @@ class SpecificationGenerationService:
             excluded_unassigned_object_ids=current.excluded_unassigned_object_ids,
             diagnostics=[],
             candidate_groups=list(current.candidate_groups),
-            snapshot=bom.snapshot,
+            snapshot=snapshot,
         )
 
     async def _load_contributing_context(
