@@ -138,6 +138,7 @@ export function mapCoreTableToPresentation(source: CoreTablePresentationSource) 
     navigate: core.navigate,
     onCancelJob: table.summary.onCancelJob,
     onRecalculateAll: table.summary.onRecalculateAll,
+    onRecalculateObjectIds: table.summary.onRecalculateObjectIds,
     onRecalculateSelected: table.summary.onRecalculateSelected,
     openColumnSettings: settings.columnDraft.openColumnSettings,
     overwriteManualChoices: catalog.overwriteManualChoices,

@@ -86,7 +86,11 @@ export function isElectricalCalcUnsupported(
 export function isElectricalCalcStale(
   calc: ElectricalCalcSummary | null | undefined
 ): boolean {
-  return electricalCalcCategory(calc) === 'stale';
+  if (electricalCalcCategory(calc) === 'stale') return true;
+  const r = calc?.results as Record<string, unknown> | undefined;
+  if (!r) return false;
+  // Lifecycle overlay may set stale without category=stale.
+  return r.stale === true || r.stale === 'true';
 }
 
 export function electricalCalcSuggestedActions(

@@ -27,7 +27,7 @@ describe('resolveElectricalRowClassName', () => {
     })).toBe('row-invalid electrical-row-active');
   });
 
-  it('does not mark unsupported or stale calculations as invalid rows', () => {
+  it('does not mark unsupported calculations as invalid rows', () => {
     expect(resolveElectricalRowClassName({
       objectId: 'object-1',
       activeRowId: null,
@@ -37,6 +37,15 @@ describe('resolveElectricalRowClassName', () => {
         error_code: 'unsupported_layout',
       }),
     })).toBe('');
+  });
+
+  it('marks stale calculations with row-stale (not row-invalid) when assigned', () => {
+    const assigned = {
+      object_id: 'object-1',
+      system_type: 'self_regulating' as const,
+      assignment_state: 'ready' as const,
+      version: 1,
+    };
     expect(resolveElectricalRowClassName({
       objectId: 'object-1',
       activeRowId: null,
@@ -44,7 +53,32 @@ describe('resolveElectricalRowClassName', () => {
         message: 'Устарело',
         category: 'stale',
       }),
-    })).toBe('');
+      assignment: assigned,
+    })).toBe('row-stale');
+    expect(resolveElectricalRowClassName({
+      objectId: 'object-1',
+      activeRowId: 'object-1',
+      calc: calc({
+        message: 'Устарело',
+        category: 'stale',
+        stale: true,
+      }),
+      assignment: assigned,
+    })).toBe('row-stale electrical-row-active');
+  });
+
+  it('marks assignment_state stale even when calc looks successful', () => {
+    expect(resolveElectricalRowClassName({
+      objectId: 'object-1',
+      activeRowId: null,
+      calc: calc({ selected_cable: 'ТТН-30' }),
+      assignment: {
+        object_id: 'object-1',
+        system_type: 'self_regulating',
+        assignment_state: 'stale',
+        version: 2,
+      },
+    })).toBe('row-stale');
   });
 });
 

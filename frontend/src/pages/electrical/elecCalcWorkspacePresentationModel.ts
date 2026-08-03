@@ -72,6 +72,7 @@ export const ELEC_CALC_WORKSPACE_VIEW_KEYS = [
   'navigate',
   'onCancelJob',
   'onRecalculateAll',
+  'onRecalculateObjectIds',
   'onRecalculateSelected',
   'openColumnSettings',
   'openElectricalRow',

@@ -27,7 +27,11 @@ import { useElecCalcRowClassName } from '@/pages/electrical/useElecCalcRowClassN
 import { useElecCalcSelectedRowsClipboardEffect } from '@/pages/electrical/useElecCalcSelectedRowsClipboardEffect';
 import { useElecCalcTableDimensions } from '@/pages/electrical/useElecCalcTableDimensions';
 import { useElecCalcTableNavigation } from '@/pages/electrical/useElecCalcTableNavigation';
-import type { ElectricalCalcSummary, ElectricalPageSummary } from '@/types/calculation';
+import type {
+  ElectricalCalcSummary,
+  ElectricalPageSummary,
+  ElectricalQueryAssignment,
+} from '@/types/calculation';
 import type { ObjectQueryFieldCapability, ProjectObject, ProjectObjectsPageCursor } from '@/types/project';
 import type { ElectricalColumnKey, ElectricalResolvedColumnMeta } from '@/utils/electricalTableColumns';
 import type { HeatCalcColumnFilter, HeatCalcTableViewState } from '@/utils/heatCalcTableFindability';
@@ -52,6 +56,7 @@ type LoadNextPage = (options: {
 export type UseElecCalcMainTableControllerArgs = {
   activeRowId: string | null;
   activateRowId: (objectId: string) => void;
+  assignmentByObjectId?: ReadonlyMap<string, ElectricalQueryAssignment>;
   canMutate: boolean;
   calcByObjectId: Record<string, ElectricalCalcSummary | undefined>;
   effectiveSource: CableSource;
@@ -94,7 +99,7 @@ export type UseElecCalcMainTableControllerArgs = {
 
 export function useElecCalcMainTableController(args: UseElecCalcMainTableControllerArgs) {
   const {
-    activeRowId, activateRowId, canMutate, calcByObjectId,
+    activeRowId, activateRowId, assignmentByObjectId, canMutate, calcByObjectId,
     effectiveSource, electricalDisplayOffset, electricalGlideEnabled, electricalLayoutMutate,
     enumOptionsByColumn, fieldCapabilityByKey, filteredCount, getCalculatedCableTypeForObject,
     getObjectActionDisabledReason, getObjectCalculationDisabledReason, getSavedCableTypeForObject,
@@ -175,7 +180,11 @@ export function useElecCalcMainTableController(args: UseElecCalcMainTableControl
   const { electricalTableScrollX, electricalTableScrollY } = useElecCalcTableDimensions({
     visibleElectricalColumnMetas,
   });
-  const electricalRowClassName = useElecCalcRowClassName({ activeRowId, calcByObjectId });
+  const electricalRowClassName = useElecCalcRowClassName({
+    activeRowId,
+    calcByObjectId,
+    assignmentByObjectId,
+  });
   const totalObjects = resolveTotalObjectsCount(pageSummary?.total_objects, objects.length);
 
   const {

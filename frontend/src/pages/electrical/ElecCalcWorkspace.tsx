@@ -14,11 +14,14 @@ import { ElectricalUnifiedTableCard } from '@/pages/electrical/ElectricalUnified
 import { ElecCalcWorkspaceModals } from '@/pages/electrical/ElecCalcWorkspaceModals';
 import { ElecCalcWorkspaceParamsChrome } from '@/pages/electrical/ElecCalcWorkspaceParamsChrome';
 import { ElecCalcIdopSettings } from '@/pages/electrical/ElecCalcIdopSettings';
+import { ElecCalcStaleBanner } from '@/pages/electrical/ElecCalcStaleBanner';
+import { listStaleObjectIds } from '@/pages/electrical/elecCalcStaleModel';
 import { useProjectElectricalSettings } from '@/pages/electrical/useProjectElectricalSettings';
 import {
   useElecCalcWorkspaceModel,
   type ElecCalcWorkspaceProps,
 } from '@/pages/electrical/useElecCalcWorkspaceModel';
+import { useMemo } from 'react';
 import './elec-workspace-summary.css';
 import './elec-workspace.css';
 import '@/components/electrical/CablePickerCharacteristics.css';
@@ -30,6 +33,14 @@ export function ElecCalcWorkspace(props: ElecCalcWorkspaceProps) {
   const { project } = m;
   const { canMutate, projectId, electricalVariant, onAssignmentsChanged } = props;
   const electricalSettings = useProjectElectricalSettings(projectId, canMutate);
+  const staleObjectIds = useMemo(
+    () => listStaleObjectIds(
+      m.scopedObjects.map((obj) => obj.id),
+      m.stats.calcByObjectId,
+      m.assignmentByObjectId,
+    ),
+    [m.assignmentByObjectId, m.scopedObjects, m.stats.calcByObjectId],
+  );
 
   if (!project) {
     return (
@@ -55,6 +66,15 @@ export function ElecCalcWorkspace(props: ElecCalcWorkspaceProps) {
           />
 
           <ElecCalcIdopSettings settings={electricalSettings} />
+
+          <ElecCalcStaleBanner
+            staleCount={staleObjectIds.length}
+            canMutate={canMutate}
+            isJobActive={m.isJobActive}
+            batchPending={m.batchMut.isPending}
+            onSelectStale={() => m.setSelectedRowKeys(staleObjectIds)}
+            onRecalculateStale={() => m.onRecalculateObjectIds(staleObjectIds, true)}
+          />
 
           <ElectricalAssignmentPanel
             projectId={projectId}

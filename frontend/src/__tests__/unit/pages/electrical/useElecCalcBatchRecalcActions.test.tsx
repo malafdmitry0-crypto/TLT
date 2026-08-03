@@ -89,4 +89,45 @@ describe('useElecCalcBatchRecalcActions', () => {
     expect(mutateBatch).not.toHaveBeenCalled();
     expect(cancelJob).not.toHaveBeenCalled();
   });
+
+  it('recalculates explicit object ids (stale bulk path)', () => {
+    const { result } = renderHook(() => useElecCalcBatchRecalcActions({
+      canMutate: true,
+      selectedRowKeys: [],
+      assignmentByObjectId: new Map([
+        ['a', assignment('a', 'self_regulating')],
+        ['b', assignment('b', 'self_regulating')],
+        ['c', assignment('c', 'resistive')],
+      ]),
+      cableTypeForRecalculation: 'self_regulating',
+      mutateBatch,
+      cancelJob,
+    }));
+
+    act(() => {
+      result.current.onRecalculateObjectIds(['a', 'b', 'c'], true);
+    });
+    expect(warning).toHaveBeenCalled();
+    expect(mutateBatch).toHaveBeenCalledWith({
+      scope: 'selected',
+      objectIds: ['a', 'b'],
+      skipManual: true,
+    });
+  });
+
+  it('no-ops onRecalculateObjectIds when empty or readonly', () => {
+    const { result } = renderHook(() => useElecCalcBatchRecalcActions({
+      canMutate: false,
+      selectedRowKeys: [],
+      assignmentByObjectId: new Map([['a', assignment('a', 'self_regulating')]]),
+      cableTypeForRecalculation: 'self_regulating',
+      mutateBatch,
+      cancelJob,
+    }));
+    act(() => {
+      result.current.onRecalculateObjectIds(['a'], true);
+      result.current.onRecalculateObjectIds([], true);
+    });
+    expect(mutateBatch).not.toHaveBeenCalled();
+  });
 });

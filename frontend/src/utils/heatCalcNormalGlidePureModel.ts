@@ -23,6 +23,7 @@ import {
   GLIDE_THEME,
   isDirtyRowClassName,
   isErrorRowClassName,
+  isStaleRowClassName,
 } from '@/utils/glideGridPrimitives';
 
 export const NORMAL_ROW_MARKER_WIDTH = 52;
@@ -39,6 +40,7 @@ export const NORMAL_ACTIVE_ROW_BG = GLIDE_THEME.activeRowBg;
 export const NORMAL_ACTIVE_ROW_BORDER = GLIDE_THEME.accent;
 export const NORMAL_ERROR_ROW_BG = GLIDE_THEME.errorRowBg;
 export const NORMAL_DIRTY_ROW_BG = GLIDE_THEME.dirtyRowBg;
+export const NORMAL_STALE_ROW_BG = GLIDE_THEME.staleRowBg;
 export const NORMAL_CELL_ACTION_HEIGHT = 21;
 export const NORMAL_CELL_ACTION_GAP = 4;
 export const NORMAL_CELL_ACTION_PADDING = 6;
@@ -233,8 +235,9 @@ export function normalRowThemeOverride(className: string, active: boolean) {
   if (isErrorRowClassName(className)) {
     return active ? { ...baseTheme, bgCell: NORMAL_ERROR_ROW_BG } : { bgCell: NORMAL_ERROR_ROW_BG };
   }
-  if (isDirtyRowClassName(className)) {
-    return active ? { ...baseTheme, bgCell: NORMAL_DIRTY_ROW_BG } : { bgCell: NORMAL_DIRTY_ROW_BG };
+  if (isStaleRowClassName(className) || isDirtyRowClassName(className)) {
+    const bg = isStaleRowClassName(className) ? NORMAL_STALE_ROW_BG : NORMAL_DIRTY_ROW_BG;
+    return active ? { ...baseTheme, bgCell: bg } : { bgCell: bg };
   }
   if (active || isActiveRowClassName(className)) {
     return { ...baseTheme, bgCell: NORMAL_ACTIVE_ROW_BG };

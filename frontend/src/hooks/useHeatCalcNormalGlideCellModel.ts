@@ -18,6 +18,7 @@ import type { ProjectObject } from '@/types/project';
 import {
   NORMAL_DIRTY_ROW_BG,
   NORMAL_ERROR_ROW_BG,
+  NORMAL_STALE_ROW_BG,
   NORMAL_STATUS_COLUMN_KEYS,
   type HeatCalcGlideGridCellState,
   type HeatCalcGlideGridColumn,
@@ -26,6 +27,7 @@ import {
   blankCell,
   isDirtyRowClassName,
   isErrorRowClassName,
+  isStaleRowClassName,
 } from '@/utils/glideGridPrimitives';
 export type HeatCalcNormalGlideDraftInvalidator = (rowIds?: readonly string[] | null) => void;
 
@@ -126,9 +128,11 @@ export function useHeatCalcNormalGlideCellModel({
     const rowClasses = rowClassName(record);
     const bgCell = state.error || isErrorRowClassName(rowClasses)
       ? NORMAL_ERROR_ROW_BG
-      : state.dirty || isDirtyRowClassName(rowClasses)
-        ? NORMAL_DIRTY_ROW_BG
-        : undefined;
+      : isStaleRowClassName(rowClasses)
+        ? NORMAL_STALE_ROW_BG
+        : state.dirty || isDirtyRowClassName(rowClasses)
+          ? NORMAL_DIRTY_ROW_BG
+          : undefined;
     return {
       kind: GridCellKind.Text,
       allowOverlay: false,

@@ -334,6 +334,10 @@ export default function ElectricalAssignmentPanel({
 
       <Typography.Text type="secondary" id="unsupported-electrical-systems-note" className="electrical-system-scope__note">
         В этой версии доступен только саморегулирующийся кабель (ТТН / ТТВ / ТТХ).
+        {' '}
+        Назначение: выделите строки (чекбокс или клик по маркеру в таблице) и нажмите
+        «Назначить: Самрег» или «Вернуть в нераспределённые».
+        Перетаскивание строк в зоны доступно в табличном режиме Ant Design.
       </Typography.Text>
     </div>
   );

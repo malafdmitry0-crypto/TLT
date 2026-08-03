@@ -32,6 +32,8 @@ export const GLIDE_THEME = {
   activeRowBg: '#d6e9f5',
   errorRowBg: '#fff1f0',
   dirtyRowBg: '#fffbe6',
+  /** Warning tint for stale electrical results (row-stale). Same family as dirty. */
+  staleRowBg: '#fffbe6',
   comparedRowBg: '#f7fbff',
   diffCellBg: '#fff7d6',
   statusOkFill: '#f6ffed',
@@ -53,6 +55,11 @@ export function isErrorRowClassName(className: string) {
 /** Класс «грязной» (несохранённой) строки. */
 export function isDirtyRowClassName(className: string) {
   return className.includes('row-excel-dirty') || className.includes('row-dirty');
+}
+
+/** Класс устаревшего электрорасчёта / assignment (E3 / FE-21). */
+export function isStaleRowClassName(className: string) {
+  return className.includes('row-stale');
 }
 
 /** Пустая read-only ячейка-заглушка. */

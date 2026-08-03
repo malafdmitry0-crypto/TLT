@@ -11,9 +11,10 @@ import {
 import type { ProjectObject } from '@/types/project';
 
 describe('elecCalcWorkspacePresentationModel (ELEC3)', () => {
-  it('documents the stable public view key contract (94 keys)', () => {
-    expect(ELEC_CALC_WORKSPACE_VIEW_KEYS).toHaveLength(94);
-    expect(new Set(ELEC_CALC_WORKSPACE_VIEW_KEYS).size).toBe(94);
+  it('documents the stable public view key contract (95 keys)', () => {
+    expect(ELEC_CALC_WORKSPACE_VIEW_KEYS).toHaveLength(95);
+    expect(new Set(ELEC_CALC_WORKSPACE_VIEW_KEYS).size).toBe(95);
+    expect(ELEC_CALC_WORKSPACE_VIEW_KEYS).toContain('onRecalculateObjectIds');
   });
 
   it('assembles view bag as identity (preserves values and references)', () => {

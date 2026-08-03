@@ -69,6 +69,33 @@ export function useElecCalcBatchRecalcActions({
     });
   }, [canMutate, mutateBatch]);
 
+  /** Recalculate explicit object ids (e.g. all stale rows). */
+  const onRecalculateObjectIds = useCallback((
+    objectIds: readonly string[],
+    skipManual = true,
+  ) => {
+    if (!canMutate || objectIds.length === 0) return;
+    const compatible = compatibleAssignedObjectIds(
+      objectIds,
+      assignmentByObjectId,
+      cableTypeForRecalculation,
+    );
+    if (compatible.length !== objectIds.length) {
+      message.warning(BATCH_RECALC_INCOMPATIBLE_WARNING);
+    }
+    if (compatible.length === 0) return;
+    mutateBatch({
+      scope: 'selected',
+      objectIds: compatible,
+      skipManual,
+    });
+  }, [
+    assignmentByObjectId,
+    cableTypeForRecalculation,
+    canMutate,
+    mutateBatch,
+  ]);
+
   const onCancelJob = useCallback(() => {
     if (canMutate) cancelJob();
   }, [canMutate, cancelJob]);
@@ -76,6 +103,7 @@ export function useElecCalcBatchRecalcActions({
   return {
     onRecalculateSelected,
     onRecalculateAll,
+    onRecalculateObjectIds,
     onCancelJob,
   };
 }

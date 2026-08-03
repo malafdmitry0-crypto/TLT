@@ -127,6 +127,7 @@ export function useElecCalcWorkspaceSummaryChrome({
   const {
     onRecalculateSelected,
     onRecalculateAll,
+    onRecalculateObjectIds,
     onCancelJob,
   } = useElecCalcBatchRecalcActions({
     canMutate,
@@ -145,6 +146,7 @@ export function useElecCalcWorkspaceSummaryChrome({
     activeElectricalErrorGuidance,
     onRecalculateSelected,
     onRecalculateAll,
+    onRecalculateObjectIds,
     onCancelJob,
     cableTypeControlLabel: ELEC_CALC_CABLE_TYPE_CONTROL_LABEL,
   };

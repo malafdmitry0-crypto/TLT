@@ -226,6 +226,7 @@ export function useElecCalcWorkspaceModel({
   const mainTable = useElecCalcMainTableController({
     activeRowId: data.activeRowId,
     activateRowId,
+    assignmentByObjectId: data.assignmentByObjectId,
     canMutate,
     calcByObjectId: stats.calcByObjectId,
     effectiveSource,

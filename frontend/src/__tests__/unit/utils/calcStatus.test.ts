@@ -49,6 +49,22 @@ describe('calcStatus', () => {
     expect(electricalCalcCategory(stale)).toBe('stale');
   });
 
+  it('detects results.stale overlay without category=stale (E3 interim)', () => {
+    const overlay = calc({
+      selected_cable: 'ТЛТ-30',
+      stale: true,
+    });
+    expect(isElectricalCalcStale(overlay)).toBe(true);
+    expect(isElectricalCalcSuccess(overlay)).toBe(false);
+
+    const stringFlag = calc({
+      selected_cable: 'ТЛТ-30',
+      stale: 'true',
+    });
+    expect(isElectricalCalcStale(stringFlag)).toBe(true);
+    expect(isElectricalCalcSuccess(stringFlag)).toBe(false);
+  });
+
   it('treats service message on successful result as non-error metadata', () => {
     const successful = {
       ...calc({
