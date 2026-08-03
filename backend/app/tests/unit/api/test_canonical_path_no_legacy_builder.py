@@ -1,4 +1,4 @@
-"""Repo lock: no specification production module may retain a legacy builder path."""
+"""Repo lock: legacy specification builders are absent and not imported."""
 
 from __future__ import annotations
 
@@ -9,25 +9,17 @@ import pytest
 
 _APP_ROOT = Path(__file__).resolve().parents[3]
 
+_LEGACY_FILES = (
+    "formulas/specification/builder.py",
+    "formulas/specification/full_builder.py",
+    "formulas/specification/source_mapping.py",
+)
 
-def _python_files_under(*relative_parts: str) -> list[Path]:
-    root = _APP_ROOT.joinpath(*relative_parts)
-    assert root.exists(), f"missing production tree: {root}"
-    if root.is_file():
-        return [root]
-    return sorted(path for path in root.rglob("*.py") if path.is_file())
-
-
-def _imported_modules(path: Path) -> list[str]:
-    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-    names: list[str] = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            names.extend(alias.name for alias in node.names)
-        elif isinstance(node, ast.ImportFrom):
-            names.append(node.module or "")
-    return names
-
+_LEGACY_REFERENCE_DATA = (
+    "reference_data/spec_accessories.json",
+    "reference_data/box_ex_rgr_matrix.json",
+    "reference_data/spec_source_mapping.json",
+)
 
 _FORBIDDEN_PREFIXES = (
     "app.formulas.specification.full_builder",
@@ -41,8 +33,35 @@ _FORBIDDEN_NAMES = frozenset(
         "build_basic_specification",
         "full_builder",
         "build_full_specification",
+        "list_box_ex_rgr_matrix_rows",
+        "list_spec_accessory_rules",
+        "box_ex_rgr_matrix_registered",
+        "is_rule_approved",
     }
 )
+
+
+def _python_files_under(*relative_parts: str) -> list[Path]:
+    root = _APP_ROOT.joinpath(*relative_parts)
+    assert root.exists(), f"missing production tree: {root}"
+    if root.is_file():
+        return [root]
+    return sorted(
+        path
+        for path in root.rglob("*.py")
+        if path.is_file() and path.name != "__pycache__"
+    )
+
+
+def _imported_modules(path: Path) -> list[str]:
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    names: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            names.extend(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            names.append(node.module or "")
+    return names
 
 
 def _assert_no_legacy_builder_imports(path: Path) -> None:
@@ -62,11 +81,23 @@ def _assert_no_legacy_builder_imports(path: Path) -> None:
                 )
 
 
+def test_legacy_builder_files_are_physically_absent() -> None:
+    for relative in _LEGACY_FILES:
+        path = _APP_ROOT / relative
+        assert not path.exists(), f"legacy file still present: {relative}"
+
+
+def test_legacy_static_spec_json_is_not_shipped_as_runtime_data() -> None:
+    for relative in _LEGACY_REFERENCE_DATA:
+        path = _APP_ROOT / relative
+        assert not path.exists(), f"legacy provisional JSON still present: {relative}"
+
+
 @pytest.mark.parametrize(
     "path",
     _python_files_under("api")
-    + _python_files_under("services", "specification_generation_service.py")
-    + _python_files_under("services", "specification_service.py"),
+    + _python_files_under("services")
+    + _python_files_under("formulas", "specification"),
     ids=lambda p: str(p.relative_to(_APP_ROOT)),
 )
 def test_production_modules_do_not_import_legacy_builders(path: Path) -> None:
@@ -88,10 +119,10 @@ def test_api_generate_route_calls_generation_service_only() -> None:
     source = path.read_text(encoding="utf-8")
     assert "SpecificationGenerationService" in source
     assert "SpecificationGenerationRequest" in source
-    # Must not wire the deprecated dual-mode service generate into HTTP.
     assert "SpecificationService(db).generate" not in source
     assert "generate_for_electrical_variants" not in source
     assert "SpecificationGenerateRequest" not in source
+    assert "full_builder" not in source
 
 
 def test_specification_repository_has_no_legacy_generation_surface() -> None:
@@ -114,3 +145,10 @@ def test_specification_repository_has_no_legacy_generation_surface() -> None:
         "preflight_variant",
         "preflight_for_electrical_variants",
     } & method_names
+
+
+def test_loader_has_no_spec_accessories_runtime_entry() -> None:
+    path = _APP_ROOT / "reference_data" / "loader.py"
+    source = path.read_text(encoding="utf-8")
+    assert "list_spec_accessory_rules" not in source
+    assert "spec_accessories.json" not in source

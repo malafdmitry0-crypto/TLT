@@ -1,7 +1,7 @@
 """Pure-ish BOM materializer for canonical specification generation (SPEC-CANON-06).
 
 Assembles purchase rows from pure Decimal calculators + resolved catalog selections.
-No database, FastAPI, filesystem, or legacy full_builder.
+No database, FastAPI, filesystem, or dual BOM builders.
 """
 
 from __future__ import annotations

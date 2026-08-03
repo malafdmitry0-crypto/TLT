@@ -372,7 +372,7 @@ async def generate_specification(
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
-    """Canonical generate: SpecificationGenerationService only (no legacy full_builder)."""
+    """Canonical generate: SpecificationGenerationService only."""
     try:
         await ProjectService(db).get_project_for_write(project_id, principal)
     except ProjectNotFoundError as exc:

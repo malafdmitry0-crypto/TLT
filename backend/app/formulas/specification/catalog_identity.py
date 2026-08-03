@@ -24,7 +24,7 @@ def accessory_identity(rule: dict[str, Any]) -> dict[str, Any] | None:
         "nomenclature_code": str(code),
         "temperature_group": rule.get("temperature_group"),
         "catalog_base": rule.get("catalog_base") or rule.get("rule") or rule.get("name"),
-        "catalog_source": rule.get("catalog_source") or "spec_accessories",
+        "catalog_source": rule.get("catalog_source") or "specification_catalog",
         "catalog_version": rule.get("catalog_version"),
         "supplier": str(supplier),
         "supply_unit": str(supply_unit),

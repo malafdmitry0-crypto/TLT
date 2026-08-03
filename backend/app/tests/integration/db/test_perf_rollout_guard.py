@@ -2,7 +2,8 @@
 
 Suite documents the product contract:
 - GUEST_MAX_OBJECTS_PER_PROJECT / project object cap is 500 (case §3.5)
-- a lightweight wall-clock probe measures BOM build cost scale
+- a lightweight wall-clock probe measures canonical pure-calculator BOM cost scale
+  (no legacy full_builder).
 """
 
 from __future__ import annotations
@@ -10,7 +11,9 @@ from __future__ import annotations
 import time
 
 from app.core.config import settings
-from app.formulas.specification.full_builder import build_full_specification_detailed
+from app.formulas.specification.calculators.connection_kit import calculate_connection_kits
+from app.formulas.specification.calculators.repair_kit import calculate_repair_kits
+from app.formulas.specification.calculators.sealant import calculate_sealant
 
 
 def test_product_default_object_limit_is_five_hundred():
@@ -21,42 +24,40 @@ def test_product_default_object_limit_is_five_hundred():
     assert settings.GUEST_MAX_OBJECTS_PER_PROJECT >= 50
 
 
-def test_bom_build_scales_linearly_under_small_probe():
-    """Synthetic probe for BOM builder scaling on the object-limit path."""
+def test_canonical_accessory_formulas_scale_under_object_probe():
+    """Synthetic probe: ER-level ceil path scales for object-limit order of magnitude.
 
-    def _build(n: int):
-        elec = [
-            {
-                "cable_mark": "25ТТН2-СТ",
-                "selected_cable": "25ТТН2",
-                "temperature_group": "low",
-                "num_circuits": 1,
-                "installed_cable_length": 20.0,
-                "object_id": f"o{i}",
-            }
-            for i in range(n)
-        ]
-        objs = {
-            f"o{i}": {
-                "outer_diameter": 0.108,
-                "pipe_length": 20.0,
-                "object_type": "pipe",
-            }
-            for i in range(n)
+    Mirrors production aggregation (sum raw inputs → one ceil), not per-section
+    legacy dual-ceil.
+    """
+
+    def _aggregate(n_objects: int) -> dict[str, int]:
+        # Two sections per synthetic object; length 20 m each.
+        n_sections = n_objects * 2
+        length_m = n_objects * 20
+        connection = calculate_connection_kits(
+            n_sections, 2, temperature_group="LOW"
+        )
+        repair = calculate_repair_kits(length_m, 150, temperature_group="LOW")
+        sealant = calculate_sealant(connection.quantity, repair.quantity, 7)
+        return {
+            "objects": n_objects,
+            "connection": connection.quantity,
+            "repair": repair.quantity,
+            "sealant": sealant.quantity,
         }
-        return build_full_specification_detailed(elec, objs)
 
     t0 = time.perf_counter()
-    small = _build(10)
+    small = _aggregate(10)
     t_small = time.perf_counter() - t0
     t1 = time.perf_counter()
-    large = _build(50)
+    large = _aggregate(50)
     t_large = time.perf_counter() - t1
 
-    assert len(small.contributing_object_ids) == 10
-    assert len(large.contributing_object_ids) == 50
-    # Soft ceiling: 50-object pure BOM should stay well under 5s in unit env.
-    assert t_large < 5.0, f"BOM build for 50 objects took {t_large:.3f}s"
-    # Scale factor should not explode super-linearly for pure builder path.
+    assert small["objects"] == 10
+    assert large["objects"] == 50
+    # Normative one-ceil: 50 objects × 2 sections / 2 capacity → 50 kits
+    assert large["connection"] == 50
+    assert t_large < 5.0, f"canonical formulas for 50 objects took {t_large:.3f}s"
     if t_small > 0:
         assert t_large / t_small < 20.0

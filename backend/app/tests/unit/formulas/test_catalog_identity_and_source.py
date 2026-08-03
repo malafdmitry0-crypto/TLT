@@ -1,30 +1,14 @@
-"""PDL-ER-33/34/35 unit coverage for catalog identity and PDF-first mapping."""
+"""PDL-ER-33 catalog identity helpers (no legacy source_mapping / static accessories)."""
 
 import inspect
 
 import app.formulas.specification.catalog_identity as catalog_identity_module
 from app.formulas.specification.catalog_identity import (
-    accessory_identity,
     cable_identity_from_result,
     resolve_accessory_rule,
     temperature_group_from_result,
 )
-from app.formulas.specification.source_mapping import (
-    box_ex_rgr_matrix_registered,
-    is_rule_approved,
-)
-from app.reference_data.loader import (
-    get_electrical_tt_bom_entry,
-    list_spec_accessory_rules,
-)
-
-
-def test_all_accessory_rules_have_explicit_identity():
-    for rule in list_spec_accessory_rules():
-        identity = accessory_identity(rule)
-        assert identity is not None, rule.get("rule")
-        assert identity["mark"]
-        assert identity["nomenclature_code"]
+from app.reference_data.loader import get_electrical_tt_bom_entry
 
 
 def test_legacy_static_accessory_lookup_is_fail_closed():
@@ -170,17 +154,3 @@ def test_tt_cable_identity_accepts_exact_saved_active_row_without_static_lookup(
     assert identity is not None
     assert identity["mark"] == "30ТТВ2-СТ"
     assert identity["nomenclature_code"] == "DB-BOM-CODE"
-
-
-def test_box_matrix_registered_with_seeds():
-    from app.formulas.specification.source_mapping import clear_box_matrix_cache
-
-    clear_box_matrix_cache()
-    assert box_ex_rgr_matrix_registered() is True
-    # box_Nk rules still require mapping approval; matrix alone is not enough.
-    assert is_rule_approved("connector_kit_low_1") is True
-
-
-def test_pdf_approved_kit_rule_emits_without_matrix():
-    assert is_rule_approved("connector_kit_low_1") is True
-    assert is_rule_approved("heating_cable_order_length") is True
