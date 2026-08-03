@@ -607,6 +607,74 @@ class TestSingleExportImport:
         remaining = (await client.get("/api/v1/projects", headers=headers)).json()
         assert [project["id"] for project in remaining] == [original_id]
 
+    async def test_guest_import_identity_conflict_is_atomic_422(
+        self, client: AsyncClient, guest_session: str
+    ):
+        headers = {"X-Session-Id": guest_session}
+        original_id = (await client.get("/api/v1/projects", headers=headers)).json()[0]["id"]
+        csv_payload = (
+            "[SECTION];metadata\n"
+            "key;value\n"
+            "schema_version;3\n"
+            "name;Identity conflict\n"
+            "\n"
+            "[SECTION];objects\n"
+            "object_key;type;name;sort_order;params;results;is_valid;validation_errors\n"
+            "\n"
+            "[SECTION];electrical_variants\n"
+            "variant_key;name;sort_order;is_active;legacy_variant_number;copied_from_key\n"
+            "er-a;ЭР1;0;true;1;\n"
+            "er-b;ЭР2;1;false;2;\n"
+            "\n"
+            "[SECTION];specifications\n"
+            "variant_key;electrical_variant_id;items;snapshot\n"
+            'er-a;er-b;[];{}\n'
+        ).encode()
+
+        response = await client.post(
+            "/api/v1/projects/import-csv",
+            files={"file": ("conflict.csv", csv_payload, "text/csv")},
+            headers=headers,
+        )
+        assert response.status_code == 422, response.text
+        assert "конфликт identity" in response.json()["detail"]
+        remaining = (await client.get("/api/v1/projects", headers=headers)).json()
+        assert [project["id"] for project in remaining] == [original_id]
+
+    async def test_guest_import_duplicate_resolved_er_is_atomic_422(
+        self, client: AsyncClient, guest_session: str
+    ):
+        headers = {"X-Session-Id": guest_session}
+        original_id = (await client.get("/api/v1/projects", headers=headers)).json()[0]["id"]
+        csv_payload = (
+            "[SECTION];metadata\n"
+            "key;value\n"
+            "schema_version;3\n"
+            "name;Duplicate ER\n"
+            "\n"
+            "[SECTION];objects\n"
+            "object_key;type;name;sort_order;params;results;is_valid;validation_errors\n"
+            "\n"
+            "[SECTION];electrical_variants\n"
+            "variant_key;name;sort_order;is_active;legacy_variant_number;copied_from_key\n"
+            "er-a;ЭР1;0;true;1;\n"
+            "\n"
+            "[SECTION];specifications\n"
+            "variant_key;electrical_variant_id;items;snapshot\n"
+            "er-a;;[];{}\n"
+            ";er-a;[];{}\n"
+        ).encode()
+
+        response = await client.post(
+            "/api/v1/projects/import-csv",
+            files={"file": ("duplicate.csv", csv_payload, "text/csv")},
+            headers=headers,
+        )
+        assert response.status_code == 422, response.text
+        assert "дубликат" in response.json()["detail"]
+        remaining = (await client.get("/api/v1/projects", headers=headers)).json()
+        assert [project["id"] for project in remaining] == [original_id]
+
 
 class TestBulkExportImport:
     async def test_guest_cannot_bulk_export(self, client: AsyncClient, guest_session: str):

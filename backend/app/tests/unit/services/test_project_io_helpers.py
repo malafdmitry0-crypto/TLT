@@ -16,10 +16,13 @@ from app.services.project_io_service import (
     _parse_json_or_empty,
     _parse_sections,
     _require_schema_version,
+    _resolve_specification_identity,
     _rows_to_dicts,
     _safe_csv_cell,
     _spec_rows_contain_manual_items,
     _suggest_filename,
+    _validate_specification_section_before_mutation,
+    _validate_specification_section_v3,
 )
 
 
@@ -767,3 +770,67 @@ class TestGuestManualBomReject:
             }
         ]
         assert _spec_rows_contain_manual_items(rows) is False
+
+
+class TestSpecificationIdentityResolution:
+    def test_both_fields_must_point_to_same_er(self):
+        variants = {"er-a": object(), "er-b": object()}
+        with pytest.raises(ProjectImportError, match="конфликт identity"):
+            _resolve_specification_identity(
+                variant_key="er-a",
+                electrical_variant_id_raw="er-b",
+                variants_by_key=variants,
+            )
+
+    def test_both_fields_same_er_accepted(self):
+        er = object()
+        variants = {"er-a": er}
+        assert (
+            _resolve_specification_identity(
+                variant_key="er-a",
+                electrical_variant_id_raw="er-a",
+                variants_by_key=variants,
+            )
+            is er
+        )
+
+    def test_duplicate_resolved_uuid_rejected(self):
+        er = object()
+        variants = {"er-a": er}
+        rows = [
+            {"variant_key": "er-a", "items": "[]", "snapshot": "{}"},
+            {
+                "variant_key": "",
+                "electrical_variant_id": "er-a",
+                "items": "[]",
+                "snapshot": "{}",
+            },
+        ]
+        with pytest.raises(ProjectImportError, match="дубликат"):
+            _validate_specification_section_v3(rows, variants)
+
+    def test_legacy_spec_section_rejected_before_mutation(self):
+        with pytest.raises(ProjectImportError, match="schema_version=2 не поддерживается"):
+            _validate_specification_section_before_mutation(
+                schema_version="2",
+                spec_rows=[{"variant_number": "1", "items": "[]"}],
+                variant_rows=[],
+            )
+
+    def test_v3_conflict_rejected_before_mutation(self):
+        with pytest.raises(ProjectImportError, match="конфликт identity"):
+            _validate_specification_section_before_mutation(
+                schema_version="3",
+                spec_rows=[
+                    {
+                        "variant_key": "er-a",
+                        "electrical_variant_id": "er-b",
+                        "items": "[]",
+                        "snapshot": "{}",
+                    }
+                ],
+                variant_rows=[
+                    {"variant_key": "er-a", "name": "ЭР1"},
+                    {"variant_key": "er-b", "name": "ЭР2"},
+                ],
+            )

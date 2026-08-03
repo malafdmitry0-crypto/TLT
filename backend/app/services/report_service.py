@@ -27,6 +27,50 @@ class ReportError(Exception):
     pass
 
 
+def specification_report_projection(
+    spec: Specification | None,
+    *,
+    electrical_variant_id: UUID | None = None,
+) -> dict:
+    """Canonical report projection for one ER specification (SPEC-FINAL-01).
+
+    ``state`` is the only branch selector for templates and procurement totals:
+    ``absent`` | ``current`` | ``stale``. Phantom snapshot keys
+    (``is_partial``, ``excluded_groups``, blocked status) are never exposed.
+    """
+    er_id: str | None = None
+    if spec is not None and getattr(spec, "electrical_variant_id", None) is not None:
+        er_id = str(spec.electrical_variant_id)
+    elif electrical_variant_id is not None:
+        er_id = str(electrical_variant_id)
+
+    if spec is None:
+        return {
+            "state": "absent",
+            "electrical_variant_id": er_id,
+            "items": [],
+        }
+
+    raw_items = list(spec.items or [])
+    if bool(getattr(spec, "is_stale", False)):
+        stale_at = getattr(spec, "stale_at", None)
+        return {
+            "state": "stale",
+            "electrical_variant_id": er_id,
+            "items": [],
+            "stale_reason": getattr(spec, "stale_reason", None),
+            "stale_at": stale_at.isoformat() if stale_at is not None else None,
+            "stale_details": getattr(spec, "stale_details", None),
+            "retained_item_count": len(raw_items),
+        }
+
+    return {
+        "state": "current",
+        "electrical_variant_id": er_id,
+        "items": raw_items,
+    }
+
+
 class ReportService:
     AVAILABLE_SECTIONS: ClassVar[tuple[str, ...]] = (
         "summary",
@@ -78,14 +122,10 @@ class ReportService:
             objects_result = await self.db.execute(objects_stmt)
             objects = list(objects_result.scalars().all())
 
-        spec_items = []
-        specification_context = {
-            "items": spec_items,
-            "is_stale": False,
-            "stale_reason": None,
-            "stale_at": None,
-            "stale_details": None,
-        }
+        specification_context = specification_report_projection(
+            None,
+            electrical_variant_id=electrical_variant_id,
+        )
         if "specification" in enabled_sections:
             spec_stmt = select(Specification).where(Specification.project_id == project_id)
             if electrical_variant_id is not None:
@@ -98,49 +138,12 @@ class ReportService:
                 spec_stmt = spec_stmt.where(False)
             spec_result = await self.db.execute(spec_stmt)
             spec = spec_result.scalars().first()
-            if spec:
-                is_stale = bool(getattr(spec, "is_stale", False))
-                # PDL-ER-37 / CANON-07: stale or blocked BOM never enters current
-                # report/export procurement totals. Per-ER isolation via UUID selector.
-                raw_items = list(spec.items or [])
-                snapshot = getattr(spec, "snapshot", None) or {}
-                is_partial = (
-                    bool(snapshot.get("is_partial")) if isinstance(snapshot, dict) else False
-                )
-                excluded_groups = (
-                    list(snapshot.get("excluded_groups") or [])
-                    if isinstance(snapshot, dict)
-                    else []
-                )
-                # Treat explicit blocked snapshots the same as stale for export totals.
-                is_blocked = (
-                    isinstance(snapshot, dict)
-                    and (
-                        snapshot.get("status") == "blocked"
-                        or snapshot.get("blocked") is True
-                    )
-                )
-                exclude_from_totals = is_stale or is_blocked
-                specification_context = {
-                    "items": [] if exclude_from_totals else raw_items,
-                    "is_stale": is_stale,
-                    "stale_reason": getattr(spec, "stale_reason", None),
-                    "stale_at": (
-                        stale_at.isoformat()
-                        if (stale_at := getattr(spec, "stale_at", None))
-                        else None
-                    ),
-                    "stale_details": getattr(spec, "stale_details", None),
-                    "is_partial": is_partial and not exclude_from_totals,
-                    "excluded_groups": excluded_groups if not exclude_from_totals else [],
-                    "excluded_from_output": exclude_from_totals,
-                    "retained_item_count": len(raw_items) if exclude_from_totals else 0,
-                    "electrical_variant_id": (
-                        str(spec.electrical_variant_id)
-                        if getattr(spec, "electrical_variant_id", None) is not None
-                        else None
-                    ),
-                }
+            # Blocked generate attempts never create a specification row, so
+            # absence stays absent and a prior stale row stays stale.
+            specification_context = specification_report_projection(
+                spec,
+                electrical_variant_id=electrical_variant_id,
+            )
 
         latest_by_object: dict[str, ElectricalCalculation] = {}
         if {"summary", "electrical"}.intersection(enabled_sections):
@@ -369,7 +372,7 @@ class ReportService:
                 "stale": [],
                 "summary": {},
             },
-            "specification": {"items": [], "is_stale": False},
+            "specification": specification_report_projection(None),
             "variant_number": None,
             "electrical_variant_id": None,
             "electrical_variant_name": None,

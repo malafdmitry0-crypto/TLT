@@ -302,7 +302,7 @@
   {# ─────────── Спецификация ─────────── #}
   {% if 'specification' in enabled %}
   <h2>Спецификация</h2>
-  {% if specification.get('is_stale') %}
+  {% if specification.get('state') == 'stale' %}
   <p class="section-empty" style="color:#9A3412;font-weight:600;">
     Спецификация устарела (PDL-ER-37). Закупочные позиции исключены из отчёта и печати.
     Сформируйте спецификацию заново.
@@ -310,19 +310,7 @@
     (сохранённый snapshot: {{ specification.retained_item_count }} поз., только в UI)
     {% endif %}
   </p>
-  {% elif specification['items'] %}
-  {% if specification.get('is_partial') %}
-  <p class="section-empty" style="color:#B45309;font-weight:600;">
-    Неполная спецификация — не использовать как полный закупочный комплект.
-  </p>
-  {% if specification.get('excluded_groups') %}
-  <ul>
-    {% for g in specification.excluded_groups %}
-    <li><strong>{{ g.error_code or g.group }}</strong>{% if g.message %}: {{ g.message }}{% endif %}</li>
-    {% endfor %}
-  </ul>
-  {% endif %}
-  {% endif %}
+  {% elif specification.get('state') == 'current' and specification['items'] %}
   <table>
     <thead>
       <tr><th>#</th><th>Категория</th><th>Наименование</th><th>Артикул</th><th>Ед.</th><th class="num">Кол-во</th></tr>
@@ -574,7 +562,7 @@
   {# ─────────── Спецификация ─────────── #}
   {% if 'specification' in enabled %}
   <h2>Спецификация</h2>
-  {% if specification.get('is_stale') %}
+  {% if specification.get('state') == 'stale' %}
   <p class="section-empty" style="color:#9A3412;font-weight:600;">
     Спецификация устарела (PDL-ER-37). Закупочные позиции исключены из отчёта и печати.
     Сформируйте спецификацию заново.
@@ -582,19 +570,7 @@
     (сохранённый snapshot: {{ specification.retained_item_count }} поз., только в UI)
     {% endif %}
   </p>
-  {% elif specification['items'] %}
-  {% if specification.get('is_partial') %}
-  <p class="section-empty" style="color:#B45309;font-weight:600;">
-    Неполная спецификация — не использовать как полный закупочный комплект.
-  </p>
-  {% if specification.get('excluded_groups') %}
-  <ul>
-    {% for g in specification.excluded_groups %}
-    <li><strong>{{ g.error_code or g.group }}</strong>{% if g.message %}: {{ g.message }}{% endif %}</li>
-    {% endfor %}
-  </ul>
-  {% endif %}
-  {% endif %}
+  {% elif specification.get('state') == 'current' and specification['items'] %}
   <table>
     <thead>
       <tr><th>#</th><th>Категория</th><th>Наименование</th><th>Артикул</th><th>Ед.</th><th class="num">Кол-во</th></tr>

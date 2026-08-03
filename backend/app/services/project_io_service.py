@@ -828,6 +828,148 @@ def _spec_rows_contain_manual_items(spec_rows: list[dict[str, str]]) -> bool:
     return False
 
 
+def _variant_keys_from_rows(variant_rows: list[dict[str, str]]) -> set[str]:
+    """Collect non-empty electrical_variants.variant_key values without DB writes."""
+    keys: set[str] = set()
+    for row in variant_rows:
+        key = (row.get("variant_key") or "").strip()
+        if key:
+            keys.add(key)
+    return keys
+
+
+def _resolve_specification_identity(
+    *,
+    variant_key: str,
+    electrical_variant_id_raw: str,
+    variants_by_key: dict[str, Any],
+) -> Any:
+    """Resolve one specification row to a single ER entry from ``variants_by_key``.
+
+    When both identity fields are present they must resolve to the same ER.
+    Lookup accepts in-file ``variant_key`` and exported UUID string equality.
+    """
+    if not variant_key and not electrical_variant_id_raw:
+        raise ProjectImportError(
+            "В specifications обязателен variant_key или electrical_variant_id"
+        )
+
+    def _lookup(token: str) -> Any | None:
+        if not token:
+            return None
+        if token in variants_by_key:
+            return variants_by_key[token]
+        for key, candidate in variants_by_key.items():
+            candidate_id = getattr(candidate, "id", None)
+            if key == token or (candidate_id is not None and str(candidate_id) == token):
+                return candidate
+        return None
+
+    by_key = _lookup(variant_key) if variant_key else None
+    by_uuid = _lookup(electrical_variant_id_raw) if electrical_variant_id_raw else None
+
+    if variant_key and electrical_variant_id_raw:
+        if by_key is None:
+            raise ProjectImportError(
+                f"specifications: неизвестный variant_key {variant_key!r}"
+            )
+        if by_uuid is None:
+            raise ProjectImportError(
+                "specifications: неизвестный electrical_variant_id "
+                f"{electrical_variant_id_raw!r}"
+            )
+        if by_key is not by_uuid:
+            raise ProjectImportError(
+                "specifications: конфликт identity — variant_key и "
+                "electrical_variant_id указывают на разные ЭР "
+                f"({variant_key!r} vs {electrical_variant_id_raw!r})"
+            )
+        return by_key
+
+    resolved = by_key if by_key is not None else by_uuid
+    if resolved is None:
+        raise ProjectImportError(
+            "specifications: неизвестный variant_key/electrical_variant_id "
+            f"{variant_key or electrical_variant_id_raw!r}"
+        )
+    return resolved
+
+
+def _parse_specification_row_payload(row: dict[str, str]) -> tuple[list[Any], dict[str, Any] | None]:
+    """Validate items/snapshot JSON shape for one specification row."""
+    items = _parse_json_or_empty(row.get("items", ""), [])
+    if not isinstance(items, list):
+        raise ProjectImportError("specifications.items должен быть JSON-массивом")
+    snapshot = _parse_json_or_empty(row.get("snapshot", ""), None)
+    if snapshot is not None and not isinstance(snapshot, dict):
+        raise ProjectImportError("specifications.snapshot должен быть JSON-объектом")
+    return items, snapshot
+
+
+def _validate_specification_section_v3(
+    spec_rows: list[dict[str, str]],
+    variants_by_key: dict[str, Any],
+) -> list[tuple[Any, list[Any], dict[str, Any] | None, str, str]]:
+    """Validate the full specifications section before any project mutation.
+
+    Returns resolved ``(variant, items, snapshot, variant_key, electrical_variant_id_raw)``
+    tuples. Duplicate resolved ER identity is rejected after resolution.
+    """
+    resolved_rows: list[tuple[Any, list[Any], dict[str, Any] | None, str, str]] = []
+    seen_ids: set[Any] = set()
+    for row in spec_rows:
+        variant_key = (row.get("variant_key") or "").strip()
+        electrical_variant_id_raw = (row.get("electrical_variant_id") or "").strip()
+        variant = _resolve_specification_identity(
+            variant_key=variant_key,
+            electrical_variant_id_raw=electrical_variant_id_raw,
+            variants_by_key=variants_by_key,
+        )
+        identity = getattr(variant, "id", variant)
+        if identity in seen_ids:
+            raise ProjectImportError(
+                "specifications: дубликат electrical_variant_id после resolution "
+                f"({identity!s})"
+            )
+        seen_ids.add(identity)
+        items, snapshot = _parse_specification_row_payload(row)
+        resolved_rows.append(
+            (variant, items, snapshot, variant_key, electrical_variant_id_raw)
+        )
+    return resolved_rows
+
+
+def _validate_specification_section_before_mutation(
+    *,
+    schema_version: str,
+    spec_rows: list[dict[str, str]],
+    variant_rows: list[dict[str, str]],
+) -> None:
+    """Fail-closed specification validation with no DB side effects.
+
+    Guest replace and owner create must not stage deletes/inserts until this
+    returns successfully for the entire specification section.
+    """
+    if not spec_rows:
+        return
+    if schema_version == LEGACY_SCHEMA_VERSION:
+        raise ProjectImportError(
+            "Секция specifications schema_version=2 не поддерживается: "
+            "спецификация требует UUID ЭР и canonical snapshot"
+        )
+    if not variant_rows:
+        raise ProjectImportError(
+            "schema_version=3 требует секцию electrical_variants, "
+            "если есть electrical/specifications"
+        )
+    # Pure key map: values are the keys themselves until real ORM variants exist.
+    key_tokens = _variant_keys_from_rows(variant_rows)
+    if not key_tokens:
+        raise ProjectImportError("В electrical_variants пустой variant_key")
+    stub_map: dict[str, str] = {key: key for key in key_tokens}
+    _validate_specification_section_v3(spec_rows, stub_map)
+
+
 def _normalize_source(value: str | None, valid_values: set[str]) -> str | None:
     if value is None:
         return None
@@ -1360,37 +1502,11 @@ async def _apply_project_data_v3(
             )
         )
 
-    # UUID identity: resolve by variant_key (preferred) or electrical_variant_id.
-    # Numeric specification section is not required as identity (CANON-07).
-    for row in spec_rows:
-        variant_key = (row.get("variant_key") or "").strip()
-        electrical_variant_id_raw = (row.get("electrical_variant_id") or "").strip()
-        if not variant_key and not electrical_variant_id_raw:
-            raise ProjectImportError(
-                "В specifications обязателен variant_key или electrical_variant_id"
-            )
-        variant = None
-        if variant_key and variant_key in variants_by_key:
-            variant = variants_by_key[variant_key]
-        elif electrical_variant_id_raw:
-            # Match exported UUID string against re-keyed variants (variant_key is UUID).
-            variant = variants_by_key.get(electrical_variant_id_raw)
-            if variant is None:
-                for key, candidate in variants_by_key.items():
-                    if key == electrical_variant_id_raw or str(candidate.id) == electrical_variant_id_raw:
-                        variant = candidate
-                        break
-        if variant is None:
-            raise ProjectImportError(
-                f"specifications: неизвестный variant_key/electrical_variant_id "
-                f"{variant_key or electrical_variant_id_raw!r}"
-            )
-        items = _parse_json_or_empty(row.get("items", ""), [])
-        if not isinstance(items, list):
-            raise ProjectImportError("specifications.items должен быть JSON-массивом")
-        snapshot = _parse_json_or_empty(row.get("snapshot", ""), None)
-        if snapshot is not None and not isinstance(snapshot, dict):
-            raise ProjectImportError("specifications.snapshot должен быть JSON-объектом")
+    # UUID identity: variant_key and/or electrical_variant_id, same-ER when both.
+    # Duplicates are rejected after resolution (CANON-07 / SPEC-FINAL-01).
+    for variant, items, snapshot, variant_key, electrical_variant_id_raw in (
+        _validate_specification_section_v3(spec_rows, variants_by_key)
+    ):
         # Phase 4 sections are not reconstructed from CSV; always mark stale.
         # Items and snapshot remain available as history but cannot become current.
         db.add(
@@ -1427,14 +1543,24 @@ async def import_project(db: AsyncSession, raw: bytes, principal: CurrentPrincip
     variant_rows = _rows_to_dicts(sections.get("electrical_variants", []))
     assignment_rows = _rows_to_dicts(sections.get("electrical_assignments", []))
     electrical_settings_rows = _rows_to_dicts(sections.get("electrical_settings", []))
-    # Guest import replaces its current project, so reject an invalid payload before
-    # staging any delete or insert in the session.
+    # Reject invalid specification payloads before any guest delete or owner insert.
     if schema_version == LEGACY_SCHEMA_VERSION:
         _occupied_legacy_slots(electrical_rows, spec_rows)
-    elif not variant_rows and (electrical_rows or spec_rows):
-        raise ProjectImportError(
-            "schema_version=3 требует секцию electrical_variants, "
-            "если есть electrical/specifications"
+        _validate_specification_section_before_mutation(
+            schema_version=schema_version,
+            spec_rows=spec_rows,
+            variant_rows=variant_rows,
+        )
+    else:
+        if not variant_rows and (electrical_rows or spec_rows):
+            raise ProjectImportError(
+                "schema_version=3 требует секцию electrical_variants, "
+                "если есть electrical/specifications"
+            )
+        _validate_specification_section_before_mutation(
+            schema_version=schema_version,
+            spec_rows=spec_rows,
+            variant_rows=variant_rows,
         )
 
     if principal.role == "guest" and _spec_rows_contain_manual_items(spec_rows):
@@ -1442,64 +1568,72 @@ async def import_project(db: AsyncSession, raw: bytes, principal: CurrentPrincip
             "Гостю запрещён импорт спецификации с ручными (manual) позициями (PDL-ER-41)"
         )
 
-    if principal.role == "guest":
-        # Замещаем единственный авто-проект
-        existing = await db.execute(
-            select(Project).where(Project.session_id == principal.session_id)
-        )
-        for p in existing.scalars().all():
-            await db.delete(p)
-        await db.flush()
-        project = Project(
-            name=meta.get("name", "Импорт"),
-            description=meta.get("description") or None,
-            task_number=meta.get("task_number") or None,
-            status=meta.get("status", "draft") or "draft",
-            session_id=principal.session_id,
-        )
-    elif principal.role in ("employee", "admin"):
-        project = Project(
-            name=meta.get("name", "Импорт"),
-            description=meta.get("description") or None,
-            task_number=meta.get("task_number") or None,
-            status=meta.get("status", "draft") or "draft",
-            user_id=principal.user_id,
-        )
-    else:
-        raise ProjectAccessError("Нет доступа")
+    # Nested transaction: any domain failure after staging keeps outer session clean
+    # (guest original project remains; owner partial insert is rolled back).
+    try:
+        async with db.begin_nested():
+            if principal.role == "guest":
+                existing = await db.execute(
+                    select(Project).where(Project.session_id == principal.session_id)
+                )
+                for p in existing.scalars().all():
+                    await db.delete(p)
+                await db.flush()
+                project = Project(
+                    name=meta.get("name", "Импорт"),
+                    description=meta.get("description") or None,
+                    task_number=meta.get("task_number") or None,
+                    status=meta.get("status", "draft") or "draft",
+                    session_id=principal.session_id,
+                )
+            elif principal.role in ("employee", "admin"):
+                project = Project(
+                    name=meta.get("name", "Импорт"),
+                    description=meta.get("description") or None,
+                    task_number=meta.get("task_number") or None,
+                    status=meta.get("status", "draft") or "draft",
+                    user_id=principal.user_id,
+                )
+            else:
+                raise ProjectAccessError("Нет доступа")
 
-    _apply_imported_specification_settings(
-        project,
-        meta.get("specification_settings"),
-        meta.get("specification_settings_version"),
-    )
-    _apply_imported_display_settings(
-        project,
-        meta.get("display_settings"),
-        meta.get("display_settings_version"),
-    )
-    db.add(project)
-    await db.flush()
-    _apply_imported_electrical_settings(db, project, electrical_settings_rows)
+            _apply_imported_specification_settings(
+                project,
+                meta.get("specification_settings"),
+                meta.get("specification_settings_version"),
+            )
+            _apply_imported_display_settings(
+                project,
+                meta.get("display_settings"),
+                meta.get("display_settings_version"),
+            )
+            db.add(project)
+            await db.flush()
+            _apply_imported_electrical_settings(db, project, electrical_settings_rows)
 
-    if schema_version == LEGACY_SCHEMA_VERSION:
-        await _apply_project_data(
-            db,
-            project,
-            objects_rows,
-            electrical_rows,
-            spec_rows,
-        )
-    else:
-        await _apply_project_data_v3(
-            db,
-            project,
-            objects_rows,
-            variant_rows,
-            assignment_rows,
-            electrical_rows,
-            spec_rows,
-        )
+            if schema_version == LEGACY_SCHEMA_VERSION:
+                await _apply_project_data(
+                    db,
+                    project,
+                    objects_rows,
+                    electrical_rows,
+                    spec_rows,
+                )
+            else:
+                await _apply_project_data_v3(
+                    db,
+                    project,
+                    objects_rows,
+                    variant_rows,
+                    assignment_rows,
+                    electrical_rows,
+                    spec_rows,
+                )
+    except ProjectImportError:
+        raise
+    except ProjectAccessError:
+        raise
+
     await db.commit()
     await db.refresh(project)
     return project
@@ -1559,6 +1693,13 @@ async def import_projects_bulk(
                 task_number = f"{task_number}-импорт"
 
         try:
+            project_spec_rows = specs_by_key.get(key, [])
+            project_variant_rows = variants_by_key.get(key, [])
+            _validate_specification_section_before_mutation(
+                schema_version=schema_version,
+                spec_rows=project_spec_rows,
+                variant_rows=project_variant_rows,
+            )
             async with db.begin_nested():
                 project = Project(
                     name=name,
@@ -1588,17 +1729,17 @@ async def import_projects_bulk(
                         project,
                         objects_by_key.get(key, []),
                         electrical_by_key.get(key, []),
-                        specs_by_key.get(key, []),
+                        project_spec_rows,
                     )
                 else:
                     await _apply_project_data_v3(
                         db,
                         project,
                         objects_by_key.get(key, []),
-                        variants_by_key.get(key, []),
+                        project_variant_rows,
                         assignments_by_key.get(key, []),
                         electrical_by_key.get(key, []),
-                        specs_by_key.get(key, []),
+                        project_spec_rows,
                     )
             imported += 1
         except Exception as exc:

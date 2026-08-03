@@ -9,7 +9,54 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from app.reports.pdf_generator import render_html
-from app.services.report_service import ReportError, ReportService
+from app.services.report_service import (
+    ReportError,
+    ReportService,
+    specification_report_projection,
+)
+
+
+class TestSpecificationReportProjection:
+    def test_absent_current_stale_states_and_no_phantom_keys(self):
+        er_id = uuid.uuid4()
+        absent = specification_report_projection(None, electrical_variant_id=er_id)
+        assert absent == {
+            "state": "absent",
+            "electrical_variant_id": str(er_id),
+            "items": [],
+        }
+
+        current = specification_report_projection(
+            SimpleNamespace(
+                items=[{"name": "Cable"}],
+                is_stale=False,
+                electrical_variant_id=er_id,
+                snapshot={"is_partial": True, "excluded_groups": [], "blocked": True},
+            ),
+            electrical_variant_id=er_id,
+        )
+        assert current["state"] == "current"
+        assert current["items"] == [{"name": "Cable"}]
+        assert "is_partial" not in current
+        assert "excluded_groups" not in current
+        assert "is_stale" not in current
+
+        stale = specification_report_projection(
+            SimpleNamespace(
+                items=[{"name": "Old"}],
+                is_stale=True,
+                stale_reason="object_updated",
+                stale_at=None,
+                stale_details={"reason": "object_updated"},
+                electrical_variant_id=er_id,
+                snapshot={"status": "blocked"},
+            )
+        )
+        assert stale["state"] == "stale"
+        assert stale["items"] == []
+        assert stale["retained_item_count"] == 1
+        assert "blocked" not in stale
+        assert "status" not in stale
 
 
 class TestLoadContext:
@@ -168,6 +215,11 @@ class TestLoadContext:
         )
         ctx = await ReportService(db)._load_context(pid, principal=None)
         assert ctx["specification"]["items"] == []
+        assert ctx["specification"]["state"] == "absent"
+        assert "is_stale" not in ctx["specification"]
+        assert "is_partial" not in ctx["specification"]
+        assert "excluded_groups" not in ctx["specification"]
+        assert "excluded_from_output" not in ctx["specification"]
 
     async def test_requested_variant_picked(self):
         """Отчёт берёт электрорасчёт только запрошенного CO-варианта."""
@@ -224,6 +276,10 @@ class TestLoadContext:
         assert ctx["sections"] == ["specification"]
         assert ctx["objects"] == []
         assert ctx["specification"]["items"] == [{"name": "Кабель"}]
+        assert ctx["specification"]["state"] == "current"
+        assert "is_partial" not in ctx["specification"]
+        assert "excluded_groups" not in ctx["specification"]
+        assert "is_stale" not in ctx["specification"]
         assert db.execute.call_count == 2
 
     async def test_stale_specification_excluded_from_report_totals(self):
@@ -245,7 +301,13 @@ class TestLoadContext:
             stale_reason="object_updated",
             stale_at=None,
             stale_details={"reason": "object_updated"},
-            snapshot={"schema": "specification-generation"},
+            snapshot={
+                "schema": "specification-generation",
+                "is_partial": True,
+                "excluded_groups": [{"error_code": "legacy"}],
+                "status": "blocked",
+                "blocked": True,
+            },
             electrical_variant_id=er_id,
         )
         db = AsyncMock()
@@ -261,11 +323,18 @@ class TestLoadContext:
             principal=None,
             electrical_variant_id=er_id,
         )
+        assert ctx["specification"]["state"] == "stale"
         assert ctx["specification"]["items"] == []
-        assert ctx["specification"]["is_stale"] is True
-        assert ctx["specification"]["excluded_from_output"] is True
         assert ctx["specification"]["retained_item_count"] == 1
+        assert ctx["specification"]["stale_reason"] == "object_updated"
         assert ctx["specification"]["electrical_variant_id"] == str(er_id)
+        # Phantom snapshot / legacy report keys must not leak into payload.
+        assert "is_stale" not in ctx["specification"]
+        assert "excluded_from_output" not in ctx["specification"]
+        assert "is_partial" not in ctx["specification"]
+        assert "excluded_groups" not in ctx["specification"]
+        assert "blocked" not in ctx["specification"]
+        assert "status" not in ctx["specification"]
 
     async def test_preview_response_omits_context_data(self):
         pid = uuid.uuid4()
@@ -600,6 +669,10 @@ def _report_context(objects: list[dict], sections: list[str]) -> dict:
         },
         "objects": objects,
         "electrical": ReportService._build_electrical_context(objects),
-        "specification": {"items": []},
+        "specification": {
+            "state": "absent",
+            "electrical_variant_id": None,
+            "items": [],
+        },
         "sections": sections,
     }
