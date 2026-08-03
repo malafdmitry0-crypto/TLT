@@ -174,3 +174,22 @@ vi.mock('@/api/preferences', () => ({
   })),
   updateUserPreference: vi.fn(),
 }));
+
+// Кейс §5.9/§5.11: без сохранённых проектных настроек (version=0) страница
+// работает от localStorage; тесты project-sync переопределяют реализацию.
+vi.mock('@/api/displaySettings', () => ({
+  PROJECT_DISPLAY_SETTINGS_QUERY_KEY: 'project-display-settings',
+  getProjectDisplaySettings: vi.fn(async (projectId: string) => ({
+    project_id: projectId,
+    version: 0,
+    settings: {},
+  })),
+  updateProjectDisplaySettings: vi.fn(
+    async (projectId: string, expectedVersion: number, next: Record<string, unknown>) => ({
+      project_id: projectId,
+      version: expectedVersion + 1,
+      settings: next,
+    }),
+  ),
+  isDisplaySettingsVersionConflict: vi.fn(() => false),
+}));

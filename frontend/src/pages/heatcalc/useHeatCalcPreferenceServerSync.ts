@@ -1,11 +1,20 @@
 /**
  * Server-backed HeatCalc preference queries + mutations (P-BAND-01).
  * Keeps React Query wiring out of the composition owner.
+ * Гость (кейс §5.9/§5.11): настройки живут на проекте (display-settings),
+ * localStorage — офлайн-кэш и источник миграции первого запуска.
  */
+import { useCallback, useEffect, useRef } from 'react';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import { appMessage as antdMessage } from '@/feedback/appFeedback';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import {
+  PROJECT_DISPLAY_SETTINGS_QUERY_KEY,
+  getProjectDisplaySettings,
+  isDisplaySettingsVersionConflict,
+  updateProjectDisplaySettings,
+} from '@/api/displaySettings';
 import { getUserPreference, updateUserPreference } from '@/api/preferences';
 import {
   HEATCALC_TABLE_COLUMN_PREF_KEY,
@@ -40,6 +49,7 @@ type TableSettingsPreferenceMutation = {
 
 type UseHeatCalcPreferenceServerSyncOptions = {
   isRegisteredUser: boolean;
+  projectId?: string | null;
   onCloseSettingsModal?: () => void;
   setTableColumnSettings: Dispatch<SetStateAction<HeatCalcTableColumnSettings>>;
   setTableViewSettings: Dispatch<SetStateAction<HeatCalcTableViewSettings>>;
@@ -49,12 +59,61 @@ type UseHeatCalcPreferenceServerSyncOptions = {
 
 export function useHeatCalcPreferenceServerSync({
   isRegisteredUser,
+  projectId,
   onCloseSettingsModal,
   setTableColumnSettings,
   setTableViewSettings,
   setCalculationDetailsSettings,
   tableViewSettingsRef,
 }: UseHeatCalcPreferenceServerSyncOptions) {
+  const queryClient = useQueryClient();
+  const guestProjectSyncEnabled = !isRegisteredUser && !!projectId;
+
+  const { data: projectDisplaySettings } = useQuery({
+    queryKey: [PROJECT_DISPLAY_SETTINGS_QUERY_KEY, projectId],
+    queryFn: () => getProjectDisplaySettings(projectId!),
+    enabled: guestProjectSyncEnabled,
+    staleTime: 30_000,
+  });
+
+  const projectDisplayVersionRef = useRef(0);
+  useEffect(() => {
+    if (projectDisplaySettings) {
+      projectDisplayVersionRef.current = projectDisplaySettings.version;
+    }
+  }, [projectDisplaySettings]);
+
+  const updateGuestDisplaySettings = useMutation({
+    mutationFn: (section: Record<string, unknown>) =>
+      updateProjectDisplaySettings(projectId!, projectDisplayVersionRef.current, {
+        heatcalc: section,
+      }),
+    onSuccess: (response) => {
+      projectDisplayVersionRef.current = response.version;
+      queryClient.setQueryData([PROJECT_DISPLAY_SETTINGS_QUERY_KEY, projectId], response);
+    },
+    onError: async (error) => {
+      // Сетевые/офлайн ошибки молча переживаем: localStorage остаётся кэшем.
+      if (!isDisplaySettingsVersionConflict(error)) return;
+      try {
+        const fresh = await getProjectDisplaySettings(projectId!);
+        projectDisplayVersionRef.current = fresh.version;
+      } catch {
+        // Версия обновится при следующем успешном чтении.
+      }
+      antdMessage.warning(
+        'Настройки отображения изменены в другом окне. Сохраните ещё раз.',
+      );
+    },
+  });
+
+  // `.mutate` стабилен между рендерами (React Query) — колбэк не пересоздаётся,
+  // иначе эффект гидратации в owner-хуке зацикливается.
+  const { mutate: mutateGuestProjectDisplaySection } = updateGuestDisplaySettings;
+  const syncGuestProjectDisplaySection = useCallback((section: Record<string, unknown>) => {
+    if (!guestProjectSyncEnabled) return;
+    mutateGuestProjectDisplaySection(section);
+  }, [guestProjectSyncEnabled, mutateGuestProjectDisplaySection]);
   const { data: persistedTableColumnPreference } = useQuery({
     queryKey: ['preference', HEATCALC_TABLE_COLUMN_PREF_KEY],
     queryFn: () => getUserPreference<HeatCalcTableColumnSettings>(HEATCALC_TABLE_COLUMN_PREF_KEY),
@@ -179,6 +238,8 @@ export function useHeatCalcPreferenceServerSync({
     persistedTableColumnPreference,
     persistedTableViewPreference,
     persistedCalculationDetailsPreference,
+    projectDisplaySettings,
+    syncGuestProjectDisplaySection,
     updateTableColumnPreference,
     updateTableSettingsPreference,
     updateTableViewPreference,

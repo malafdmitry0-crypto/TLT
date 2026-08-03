@@ -234,6 +234,8 @@ class ProjectService:
             specification_settings_version=(
                 getattr(source, "specification_settings_version", 1) or 1
             ),
+            display_settings=copy.deepcopy(getattr(source, "display_settings", None)),
+            display_settings_version=(getattr(source, "display_settings_version", 0) or 0),
         )
         self.db.add(new_project)
         await self.db.flush()

@@ -8,6 +8,7 @@ from app.api.v1 import (
     auth,
     calc_jobs,
     calculations,
+    display_settings,
     electrical_settings,
     electrical_variants,
     objects,
@@ -27,6 +28,11 @@ api_router.include_router(
     electrical_settings.router,
     prefix="/projects",
     tags=["electrical-settings"],
+)
+api_router.include_router(
+    display_settings.router,
+    prefix="/projects",
+    tags=["display-settings"],
 )
 api_router.include_router(objects.router, prefix="/projects", tags=["objects"])
 api_router.include_router(

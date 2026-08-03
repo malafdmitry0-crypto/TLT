@@ -62,7 +62,8 @@ export function useHeatCalcPageModel() {
     closeColumnSettingsRef.current?.();
   }, []);
   const preferences = useHeatCalcPreferences({
-    isRegisteredUser, registeredUserId, onCloseSettingsModal: closeColumnSettings,
+    isRegisteredUser, registeredUserId, projectId: project?.id,
+    onCloseSettingsModal: closeColumnSettings,
   });
   const {
     tableColumnSettings, tableColumnSettingsRef, tableViewSettings, tableViewSettingsRef,

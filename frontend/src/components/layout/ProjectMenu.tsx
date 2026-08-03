@@ -4,6 +4,7 @@ import { appMessage as message, appModal } from '@/feedback/appFeedback';
 import { DownloadOutlined, FolderOpenOutlined, UploadOutlined } from '@ant-design/icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { TltButton, TltTextField } from '@/components/ui-kit';
+import { PROJECT_DISPLAY_SETTINGS_QUERY_KEY } from '@/api/displaySettings';
 import {
   createProject,
   exportProjectCsv,
@@ -69,6 +70,8 @@ export default function ProjectMenu() {
       // Broad invalidate so heat/electrical/spec tables reload after replace.
       qc.invalidateQueries({ queryKey: ['project', project.id, 'objects'] });
       qc.invalidateQueries({ queryKey: ['spec'] });
+      // Кейс §5.11: файл переносит настройки отображения — применяем сразу.
+      qc.invalidateQueries({ queryKey: [PROJECT_DISPLAY_SETTINGS_QUERY_KEY] });
       message.success(`Импортирован проект «${project.name}»`);
     },
     onError: (err: Error) => {

@@ -3,6 +3,7 @@ import { Row } from 'antd';
 import { appMessage as message } from '@/feedback/appFeedback';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { PROJECT_DISPLAY_SETTINGS_QUERY_KEY } from '@/api/displaySettings';
 import {
   createProject,
   deleteProject,
@@ -110,6 +111,8 @@ export default function ProjectsPage() {
     mutationFn: (file: File) => importProjectCsv(file),
     onSuccess: (p) => {
       qc.invalidateQueries({ queryKey: ['projects'] });
+      // Кейс §5.11: файл переносит настройки отображения — применяем сразу.
+      qc.invalidateQueries({ queryKey: [PROJECT_DISPLAY_SETTINGS_QUERY_KEY] });
       message.success(`Импортирован проект «${p.name}»`);
     },
     onError: (e: Error) => message.error(e.message),

@@ -9,11 +9,18 @@ import {
   normalizeCalculationDetailsSettings,
 } from '@/utils/heatCalcCalculationDetailsSettings';
 import {
+  getDefaultTableColumnSettings,
+  setTableColumnVisibility,
+} from '@/utils/heatCalcTableColumns';
+import {
+  buildGuestHeatcalcDisplaySection,
   hasCalculationDetailsSettingsChanged,
   hasTableViewSettingsChanged,
+  isDefaultTableColumnSettings,
   planGuestCalculationDetailsWrite,
   planGuestTableViewWrite,
   planPreferenceHydration,
+  resolveProjectHeatcalcSection,
 } from '@/pages/heatcalc/heatCalcPreferencesModel';
 
 describe('heatCalcPreferencesModel', () => {
@@ -81,5 +88,47 @@ describe('heatCalcPreferencesModel', () => {
       kind: 'write',
       settings: customDetails,
     });
+  });
+
+  it('builds canonical empty project display section for full defaults (сброс «По умолчанию»)', () => {
+    expect(buildGuestHeatcalcDisplaySection(
+      getDefaultTableColumnSettings(),
+      getDefaultTableViewSettings(),
+      getDefaultCalculationDetailsSettings(),
+    )).toEqual({});
+  });
+
+  it('includes only non-default parts in project display section', () => {
+    const columns = setTableColumnVisibility(
+      getDefaultTableColumnSettings(), 'pipe', 'pipe_dn', false,
+    );
+    expect(isDefaultTableColumnSettings(columns)).toBe(false);
+    const section = buildGuestHeatcalcDisplaySection(
+      columns,
+      getDefaultTableViewSettings(),
+      getDefaultCalculationDetailsSettings(),
+    );
+    expect(Object.keys(section)).toEqual(['tableColumns']);
+  });
+
+  it('resolves missing project section keys to defaults without server substitutes', () => {
+    const resolved = resolveProjectHeatcalcSection(undefined);
+    expect(resolved.columns).toEqual(getDefaultTableColumnSettings());
+    expect(resolved.view).toEqual(getDefaultTableViewSettings());
+    expect(resolved.details).toEqual(getDefaultCalculationDetailsSettings());
+  });
+
+  it('round-trips a non-default section through resolve', () => {
+    const columns = setTableColumnVisibility(
+      getDefaultTableColumnSettings(), 'pipe', 'pipe_dn', false,
+    );
+    const section = buildGuestHeatcalcDisplaySection(
+      columns,
+      getDefaultTableViewSettings(),
+      getDefaultCalculationDetailsSettings(),
+    );
+    const resolved = resolveProjectHeatcalcSection(section);
+    expect(resolved.columns).toEqual(columns);
+    expect(resolved.view).toEqual(getDefaultTableViewSettings());
   });
 });

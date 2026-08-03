@@ -16,9 +16,14 @@ from app.models.specification import Specification
 from app.models.user import User
 from app.schemas.calculation import ElectricalQueryRequest
 from app.schemas.project import ProjectObjectsQueryRequest
+from app.schemas.project_display_settings import (
+    ProjectDisplaySettingsPayload,
+    ProjectDisplaySettingsUpdateRequest,
+)
 from app.services.calculation_service import CalculationService
 from app.services.electrical_query_service import ElectricalQueryService
 from app.services.object_query_service import ObjectQueryService
+from app.services.project_display_settings_service import ProjectDisplaySettingsService
 from app.services.project_io_service import export_projects_bulk
 from app.services.project_service import ProjectService
 from app.tests.heat_fixtures import canonical_pipe_params, canonical_tank_params
@@ -540,10 +545,18 @@ async def test_bulk_project_csv_export_uses_constant_query_count(
             )
             for obj in objects
         )
+        variant = ElectricalVariant(
+            project_id=project.id,
+            name=f"ЭР {project_index}",
+            name_normalized=f"эр {project_index}",
+            sort_order=0,
+        )
+        db_session.add(variant)
+        await db_session.flush()
         db_session.add(
             Specification(
                 project_id=project.id,
-                variant_number=1,
+                electrical_variant_id=variant.id,
                 items=[{"name": f"Cable-{project_index}", "quantity": 1}],
             )
         )
@@ -566,6 +579,42 @@ async def test_bulk_project_csv_export_uses_constant_query_count(
     # 7 констант-запросов независимо от числа проектов: projects, objects,
     # electrical, specifications, variants, assignments, electrical_settings.
     _assert_query_count(statements, 7)
+
+
+async def test_display_settings_get_and_put_use_constant_query_count(
+    db_session: AsyncSession,
+    employee_user: User,
+    test_engine: AsyncEngine,
+):
+    project = Project(name="DisplaySettingsQueryCount", user_id=employee_user.id)
+    db_session.add(project)
+    await db_session.commit()
+    principal = _principal(employee_user)
+    service = ProjectDisplaySettingsService(db_session)
+
+    with count_sql(test_engine) as get_statements:
+        await service.get(project.id, principal)
+    # 1 запрос: SELECT проекта (настройки лежат на строке projects).
+    _assert_query_count(get_statements, 1)
+
+    request = ProjectDisplaySettingsUpdateRequest(
+        expected_version=0,
+        settings=ProjectDisplaySettingsPayload(heatcalc={"tableView": {"fontSize": "compact"}}),
+    )
+    with count_sql(test_engine) as put_statements:
+        await service.update(project.id, request, principal)
+    # 4 запроса: SELECT доступа, SELECT FOR UPDATE, UPDATE настроек, UPDATE touch.
+    _assert_query_count(put_statements, 4)
+
+    idempotent = ProjectDisplaySettingsUpdateRequest(
+        expected_version=1,
+        settings=ProjectDisplaySettingsPayload(heatcalc={"tableView": {"fontSize": "compact"}}),
+    )
+    with count_sql(test_engine) as repeat_statements:
+        response = await service.update(project.id, idempotent, principal)
+    assert response.version == 1
+    # Идемпотентный PUT не пишет: SELECT доступа + SELECT FOR UPDATE.
+    _assert_query_count(repeat_statements, 2)
 
 
 async def test_reorder_objects_uses_single_object_lookup(

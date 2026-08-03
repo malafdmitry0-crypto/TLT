@@ -35,6 +35,7 @@ import {
   clearRegisteredFieldInputCache,
 } from '@/utils/heatCalcFieldInputSettings';
 import {
+  buildGuestHeatcalcDisplaySection,
   hasCalculationDetailsSettingsChanged,
   hasTableViewSettingsChanged,
   normalizePreferenceBundle,
@@ -44,12 +45,14 @@ import {
   resolveInitialCalculationDetailsSettings,
   resolveInitialTableColumnSettings,
   resolveInitialTableViewSettings,
+  resolveProjectHeatcalcSection,
   type GuestSettingsWriteAction,
   type PreferenceUserContext,
 } from '@/pages/heatcalc/heatCalcPreferencesModel';
 import { useHeatCalcPreferenceServerSync } from '@/pages/heatcalc/useHeatCalcPreferenceServerSync';
 
 type UseHeatCalcPreferencesOptions = PreferenceUserContext & {
+  projectId?: string | null;
   onCloseSettingsModal?: () => void;
 };
 
@@ -65,6 +68,7 @@ function applyGuestWriteAction<T>(
 export function useHeatCalcPreferences({
   isRegisteredUser,
   registeredUserId,
+  projectId,
   onCloseSettingsModal,
 }: UseHeatCalcPreferencesOptions) {
   const userCtx: PreferenceUserContext = { isRegisteredUser, registeredUserId };
@@ -81,6 +85,11 @@ export function useHeatCalcPreferences({
     useState<HeatCalcCalculationDetailsSettings>(
       () => resolveInitialCalculationDetailsSettings(userCtx),
     );
+  const calculationDetailsSettingsRef = useRef(calculationDetailsSettings);
+
+  useEffect(() => {
+    calculationDetailsSettingsRef.current = calculationDetailsSettings;
+  }, [calculationDetailsSettings]);
 
   useEffect(() => {
     tableColumnSettingsRef.current = tableColumnSettings;
@@ -94,18 +103,63 @@ export function useHeatCalcPreferences({
     persistedTableColumnPreference,
     persistedTableViewPreference,
     persistedCalculationDetailsPreference,
+    projectDisplaySettings,
+    syncGuestProjectDisplaySection,
     updateTableColumnPreference,
     updateTableSettingsPreference,
     updateTableViewPreference,
     preferenceSavePending,
   } = useHeatCalcPreferenceServerSync({
     isRegisteredUser,
+    projectId,
     onCloseSettingsModal,
     setTableColumnSettings,
     setTableViewSettings,
     setCalculationDetailsSettings,
     tableViewSettingsRef,
   });
+
+  // Кейс §5.9/§5.11: гостю источник истины — проект. version>0 — применяем
+  // проектные настройки (и обновляем офлайн-кэш localStorage); version=0 —
+  // одноразовая миграция первого запуска из localStorage на проект.
+  const migratedDisplayProjectRef = useRef<string | null>(null);
+  const appliedDisplayRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (isRegisteredUser || !projectId || !projectDisplaySettings) return;
+    if (projectDisplaySettings.project_id !== projectId) return;
+    if (projectDisplaySettings.version > 0) {
+      const marker = `${projectId}:${projectDisplaySettings.version}`;
+      if (appliedDisplayRef.current === marker) return;
+      appliedDisplayRef.current = marker;
+      const resolved = resolveProjectHeatcalcSection(
+        projectDisplaySettings.settings?.heatcalc as Record<string, unknown> | undefined,
+      );
+      setTableColumnSettings(resolved.columns);
+      tableViewSettingsRef.current = resolved.view;
+      setTableViewSettings(resolved.view);
+      setCalculationDetailsSettings(resolved.details);
+      writeGuestTableColumnSettings(resolved.columns);
+      applyGuestWriteAction(
+        planGuestTableViewWrite(true, resolved.view),
+        writeGuestTableViewSettings,
+        clearGuestTableViewSettings,
+      );
+      applyGuestWriteAction(
+        planGuestCalculationDetailsWrite(true, resolved.details),
+        writeGuestCalculationDetailsSettings,
+        clearGuestCalculationDetailsSettings,
+      );
+      return;
+    }
+    if (migratedDisplayProjectRef.current === projectId) return;
+    migratedDisplayProjectRef.current = projectId;
+    const section = buildGuestHeatcalcDisplaySection(
+      tableColumnSettingsRef.current,
+      tableViewSettingsRef.current,
+      calculationDetailsSettingsRef.current,
+    );
+    if (Object.keys(section).length > 0) syncGuestProjectDisplaySection(section);
+  }, [isRegisteredUser, projectDisplaySettings, projectId, syncGuestProjectDisplaySection]);
 
   useEffect(() => {
     clearGuestFieldInputSettings();
@@ -198,9 +252,20 @@ export function useHeatCalcPreferences({
       return;
     }
     writeGuestTableColumnSettings(normalized);
+    syncGuestProjectDisplaySection(buildGuestHeatcalcDisplaySection(
+      normalized,
+      tableViewSettingsRef.current,
+      calculationDetailsSettingsRef.current,
+    ));
     if (options.closeModal) onCloseSettingsModal?.();
     if (options.showMessage !== false) antdMessage.success('Настройки таблицы сохранены');
-  }, [isRegisteredUser, onCloseSettingsModal, registeredUserId, updateTableColumnPreference]);
+  }, [
+    isRegisteredUser,
+    onCloseSettingsModal,
+    registeredUserId,
+    syncGuestProjectDisplaySection,
+    updateTableColumnPreference,
+  ]);
 
   const persistTableSettings = useCallback((
     columnSettings: HeatCalcTableColumnSettings,
@@ -243,6 +308,11 @@ export function useHeatCalcPreferences({
       writeGuestCalculationDetailsSettings,
       clearGuestCalculationDetailsSettings,
     );
+    syncGuestProjectDisplaySection(buildGuestHeatcalcDisplaySection(
+      normalizedColumns,
+      normalizedView,
+      normalizedDetails,
+    ));
     onCloseSettingsModal?.();
     antdMessage.success('Настройки таблицы сохранены');
   }, [
@@ -250,6 +320,7 @@ export function useHeatCalcPreferences({
     isRegisteredUser,
     onCloseSettingsModal,
     registeredUserId,
+    syncGuestProjectDisplaySection,
     tableViewSettings,
     updateTableSettingsPreference,
   ]);
@@ -268,7 +339,17 @@ export function useHeatCalcPreferences({
     } else {
       writeGuestTableViewSettings(normalizedView);
     }
-  }, [isRegisteredUser, registeredUserId, updateTableViewPreference]);
+    syncGuestProjectDisplaySection(buildGuestHeatcalcDisplaySection(
+      tableColumnSettingsRef.current,
+      normalizedView,
+      calculationDetailsSettingsRef.current,
+    ));
+  }, [
+    isRegisteredUser,
+    registeredUserId,
+    syncGuestProjectDisplaySection,
+    updateTableViewPreference,
+  ]);
 
   const updateTableColumnSettingsDraft = useCallback((
     updater: (settings: HeatCalcTableColumnSettings) => HeatCalcTableColumnSettings,

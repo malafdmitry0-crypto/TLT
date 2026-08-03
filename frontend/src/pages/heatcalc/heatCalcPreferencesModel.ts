@@ -157,3 +157,44 @@ export function normalizePreferenceBundle(
     details: normalizeCalculationDetailsSettings(calculationDetails),
   };
 }
+
+export function isDefaultTableColumnSettings(settings: HeatCalcTableColumnSettings): boolean {
+  return JSON.stringify(normalizeTableColumnSettings(settings))
+    === JSON.stringify(getDefaultTableColumnSettings());
+}
+
+/**
+ * Канонический heatcalc-раздел проектных настроек отображения (кейс §5.9/§5.11).
+ * Дефолтные значения опускаются, полный сброс «По умолчанию» — пустой объект:
+ * версия на сервере растёт, а конкретные дефолты не замораживаются в файле.
+ */
+export function buildGuestHeatcalcDisplaySection(
+  columnSettings: HeatCalcTableColumnSettings,
+  viewSettings: HeatCalcTableViewSettings,
+  calculationDetails: HeatCalcCalculationDetailsSettings,
+): Record<string, unknown> {
+  const section: Record<string, unknown> = {};
+  const columns = normalizeTableColumnSettings(columnSettings);
+  if (!isDefaultTableColumnSettings(columns)) section.tableColumns = columns;
+  const view = normalizeTableViewSettings(viewSettings);
+  if (!isDefaultTableViewSettings(view)) section.tableView = view;
+  const details = normalizeCalculationDetailsSettings(calculationDetails);
+  if (!isDefaultCalculationDetailsSettings(details)) section.calculationDetails = details;
+  return section;
+}
+
+/** Отсутствующий ключ раздела — дефолт; сервер значений не подменяет. */
+export function resolveProjectHeatcalcSection(section: Record<string, unknown> | undefined) {
+  const raw = section ?? {};
+  return {
+    columns: raw.tableColumns != null
+      ? normalizeTableColumnSettings(raw.tableColumns)
+      : getDefaultTableColumnSettings(),
+    view: raw.tableView != null
+      ? normalizeTableViewSettings(raw.tableView)
+      : getDefaultTableViewSettings(),
+    details: raw.calculationDetails != null
+      ? normalizeCalculationDetailsSettings(raw.calculationDetails)
+      : getDefaultCalculationDetailsSettings(),
+  };
+}

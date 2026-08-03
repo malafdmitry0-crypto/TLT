@@ -153,6 +153,25 @@ def _dump_project_to_writer(
                 getattr(project, "specification_settings_version", 1) or 1,
             ],
         )
+        # Кейс §5.11: настройки отображения входят в файл; NULL → пустая ячейка,
+        # чтобы импорт отличал «не задавались» от явного сброса (`{}`).
+        display_settings = getattr(project, "display_settings", None)
+        _write_row(
+            w,
+            [
+                "display_settings",
+                ""
+                if display_settings is None
+                else json.dumps(display_settings, ensure_ascii=False),
+            ],
+        )
+        _write_row(
+            w,
+            [
+                "display_settings_version",
+                getattr(project, "display_settings_version", 0) or 0,
+            ],
+        )
         _write_row(w, [])
 
     if electrical_settings is not None:
@@ -455,9 +474,12 @@ async def export_projects_bulk(
             "status",
             "specification_settings",
             "specification_settings_version",
+            "display_settings",
+            "display_settings_version",
         ],
     )
     for key, project in projects:
+        display_settings = getattr(project, "display_settings", None)
         _write_row(
             w,
             [
@@ -471,6 +493,10 @@ async def export_projects_bulk(
                     ensure_ascii=False,
                 ),
                 getattr(project, "specification_settings_version", 1) or 1,
+                ""
+                if display_settings is None
+                else json.dumps(display_settings, ensure_ascii=False),
+                getattr(project, "display_settings_version", 0) or 0,
             ],
         )
     _write_row(w, [])
@@ -708,6 +734,36 @@ def _apply_imported_specification_settings(
                 f"Некорректный specification_settings_version: {version_text!r}"
             ) from exc
         project.specification_settings_version = max(version, 1)
+
+
+def _apply_imported_display_settings(
+    project: Project,
+    settings_raw: str | None,
+    version_raw: str | None,
+) -> None:
+    """Кейс §5.11: восстановить настройки отображения из файла.
+
+    Колонки опциональные — файл v3 без них остаётся валидным. Payload храним
+    lossless (как specification_settings): whitelist применяется на PUT,
+    чтение фронтом защищено нормализацией. Пустая ячейка — «не задавались»
+    (NULL), `{}` — явный сброс.
+    """
+    if settings_raw is not None and settings_raw.strip():
+        payload = _parse_json_or_empty(settings_raw, {})
+        if not isinstance(payload, dict):
+            raise ProjectImportError(
+                "display_settings в файле проекта должен быть JSON-объектом"
+            )
+        project.display_settings = payload
+    version_text = (version_raw or "").strip()
+    if version_text:
+        try:
+            version = int(version_text)
+        except ValueError as exc:
+            raise ProjectImportError(
+                f"Некорректный display_settings_version: {version_text!r}"
+            ) from exc
+        project.display_settings_version = max(version, 0)
 
 
 def _apply_imported_electrical_settings(
@@ -1417,6 +1473,11 @@ async def import_project(db: AsyncSession, raw: bytes, principal: CurrentPrincip
         meta.get("specification_settings"),
         meta.get("specification_settings_version"),
     )
+    _apply_imported_display_settings(
+        project,
+        meta.get("display_settings"),
+        meta.get("display_settings_version"),
+    )
     db.add(project)
     await db.flush()
     _apply_imported_electrical_settings(db, project, electrical_settings_rows)
@@ -1510,6 +1571,11 @@ async def import_projects_bulk(
                     project,
                     row.get("specification_settings"),
                     row.get("specification_settings_version"),
+                )
+                _apply_imported_display_settings(
+                    project,
+                    row.get("display_settings"),
+                    row.get("display_settings_version"),
                 )
                 db.add(project)
                 await db.flush()

@@ -73,6 +73,18 @@ class Project(Base, TimestampMixin):
         default=1,
         server_default="1",
     )
+    # Кейс §5.9/§5.11: настройки отображения — проектные (гостю доступны через
+    # мутацию проекта, файл проекта их переносит). version=0 — «не задавались».
+    display_settings: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONB,
+        nullable=True,
+    )
+    display_settings_version: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
 
     objects: Mapped[list["ProjectObject"]] = relationship(
         back_populates="project",
