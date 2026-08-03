@@ -1260,21 +1260,6 @@ class ElectricalAssignmentService:
             )
             if count:
                 conflicts[model.__tablename__] = count
-        specification_count = int(
-            (
-                await self.db.execute(
-                    select(func.count(Specification.id)).where(
-                        Specification.project_id == project_id,
-                        Specification.variant_number == variant.legacy_variant_number,
-                        Specification.electrical_variant_id.is_distinct_from(variant.id),
-                    )
-                )
-            ).scalar_one()
-            or 0
-        )
-        if specification_count:
-            conflicts[Specification.__tablename__] = specification_count
-
         # Folder-item has two independent foreign keys.  Reject a corrupt
         # cross-ER/cross-object edge before any exact-ER graph deletion.
         folder_item_count = int(

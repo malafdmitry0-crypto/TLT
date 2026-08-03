@@ -111,6 +111,8 @@ def test_settings_routes_use_incomplete_canonical_options() -> None:
 def test_uuid_read_and_manual_routes_are_primary_data_plane() -> None:
     schema = app.openapi()
     paths = schema["paths"]
+    assert "/api/v1/specifications/{project_id}" not in paths
+    assert "/api/v1/specifications/{project_id}/items" not in paths
     uuid_get = paths["/api/v1/specifications/{project_id}/variants/{electrical_variant_id}"]["get"]
     uuid_put = paths[
         "/api/v1/specifications/{project_id}/variants/{electrical_variant_id}/items"
@@ -123,6 +125,21 @@ def test_uuid_read_and_manual_routes_are_primary_data_plane() -> None:
 
     # With field_serializer, OpenAPI may emit Input/Output variants.
     components = schema["components"]["schemas"]
+    assert "SpecificationOptions" not in components
+    assert "SpecificationGenerateResponse" not in components
+    specification = components["SpecificationResponse"]
+    specification_properties = specification["properties"]
+    assert "electrical_variant_id" in specification.get("required", [])
+    assert "snapshot" in specification_properties
+    assert not {
+        "variant_number",
+        "generation_mode",
+        "generation_options",
+        "is_partial",
+        "excluded_groups",
+        "skipped_objects",
+    } & set(specification_properties)
+
     item_keys = [key for key in components if key.startswith("SpecificationItem")]
     assert item_keys, "SpecificationItem schema missing from OpenAPI components"
     quantity_seen = False

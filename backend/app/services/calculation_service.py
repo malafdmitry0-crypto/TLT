@@ -2726,7 +2726,6 @@ class CalculationService:
             await self.db.execute(
                 delete(Specification).where(
                     Specification.project_id == project_id,
-                    Specification.variant_number == target_variant_number,
                     Specification.electrical_variant_id == target_electrical_variant_id,
                 )
             )

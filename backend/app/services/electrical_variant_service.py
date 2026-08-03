@@ -950,12 +950,13 @@ class ElectricalVariantService:
                 "specifications": 0,
             }
 
-        bound: dict[str, int] = {}
+        # Specification исключена: она UUID-only (electrical_variant_id NOT NULL,
+        # variant_number удалён) — непривязанных legacy-строк не бывает по построению.
+        bound: dict[str, int] = {Specification.__tablename__: 0}
         for model in (
             ElectricalCalculation,
             ElectricalCandidate,
             ElectricalCandidateFolder,
-            Specification,
         ):
             result = await self.db.execute(
                 update(model)
@@ -977,11 +978,11 @@ class ElectricalVariantService:
         if variant.legacy_variant_number is None:
             return
         conflicts: dict[str, list[str]] = {}
+        # Specification исключена: UUID-only модель без legacy variant_number.
         for model in (
             ElectricalCalculation,
             ElectricalCandidate,
             ElectricalCandidateFolder,
-            Specification,
         ):
             result = await self.db.execute(
                 select(model.id).where(

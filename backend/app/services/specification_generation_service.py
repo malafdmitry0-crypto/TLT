@@ -8,10 +8,13 @@ BOM materialization goes through :func:`materialize_specification_bom`.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from datetime import UTC, datetime
+from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import CurrentPrincipal
@@ -176,7 +179,7 @@ class SpecificationGenerationService:
                     if outcome.status is SpecificationGenerationStatus.GENERATED:
                         wrote_any = True
                     results.append(outcome)
-            except Exception as exc:  # noqa: BLE001 — fail closed for this ER only
+            except Exception as exc:
                 # Nested transaction rolled back; no partial auto rows for this ER.
                 results.append(
                     self._blocked(
@@ -282,7 +285,7 @@ class SpecificationGenerationService:
                 issues=list(exc.details.get("issues", [])),
             )
 
-        contributing, objects_by_id = await self._load_contributing_context(
+        contributing, objects_by_id, input_revisions = await self._load_contributing_context(
             project_id=project_id,
             electrical_variant_id=current.electrical_variant_id,
             excluded_unassigned_object_ids=current.excluded_unassigned_object_ids,
@@ -295,6 +298,26 @@ class SpecificationGenerationService:
                 "Нет contributing electrical results для формирования BOM",
             )
 
+        variant = await self.db.get(ElectricalVariant, current.electrical_variant_id)
+        project = await self.db.get(Project, project_id)
+        if variant is None or project is None:
+            return self._blocked(
+                current.electrical_variant_id,
+                current.electrical_variant_name,
+                SpecificationDiagnosticCode.GENERATION_CONFLICT,
+                "ЭР или проект исчезли до сохранения спецификации",
+                issues=[{"reason": "snapshot_owner_missing"}],
+            )
+        assert current.fingerprint_schema is not None
+        snapshot_context = {
+            "variant_revision": {
+                "updated_at": _snapshot_value(variant.updated_at),
+            },
+            "settings_revision": int(project.specification_settings_version),
+            "input_revisions": input_revisions,
+            "fingerprint_schema": current.fingerprint_schema,
+        }
+
         bom = materialize_specification_bom(
             electrical_variant_id=current.electrical_variant_id,
             contributing_results=contributing,
@@ -302,6 +325,7 @@ class SpecificationGenerationService:
             catalog=catalog,
             candidate_groups=current.candidate_groups,
             resolved_options=current.resolved_options,
+            snapshot_context=snapshot_context,
             preflight_fingerprint=current.input_fingerprint,
             excluded_unassigned_object_ids=current.excluded_unassigned_object_ids,
         )
@@ -320,21 +344,23 @@ class SpecificationGenerationService:
             project_id,
             electrical_variant_id=current.electrical_variant_id,
         )
-        manual_items = _extract_manual_items(existing)
+        try:
+            manual_items = _extract_manual_items(existing)
+        except ManualItemValidationError as exc:
+            return self._blocked(
+                current.electrical_variant_id,
+                current.electrical_variant_name,
+                SpecificationDiagnosticCode.FORMULA_INPUT_INVALID,
+                "Сохранённые ручные позиции повреждены; перегенерация отменена",
+                issues=exc.issues,
+            )
         all_items = list(bom.items) + manual_items
         items_payload = [item.model_dump(mode="json") for item in all_items]
 
-        variant_number = await self._resolve_variant_number(
-            project_id=project_id,
-            electrical_variant_id=current.electrical_variant_id,
-            existing=existing,
-        )
         await SpecificationService(self.db)._upsert_specification(
             project_id=project_id,
-            variant_number=variant_number,
             items_payload=items_payload,
-            generation_mode="full",
-            generation_options=bom.snapshot,
+            snapshot=bom.snapshot,
             electrical_variant_id=current.electrical_variant_id,
         )
 
@@ -355,7 +381,11 @@ class SpecificationGenerationService:
         project_id: UUID,
         electrical_variant_id: UUID,
         excluded_unassigned_object_ids: list[UUID],
-    ) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:
+    ) -> tuple[
+        list[dict[str, Any]],
+        dict[str, dict[str, Any]],
+        list[dict[str, Any]],
+    ]:
         """Load assignment-scoped calculation results + object params for BOM."""
         from sqlalchemy import and_
 
@@ -390,6 +420,7 @@ class SpecificationGenerationService:
 
         contributing: list[dict[str, Any]] = []
         objects_by_id: dict[str, dict[str, Any]] = {}
+        input_revisions: list[dict[str, Any]] = []
         for assignment, obj, calculation in result.all():
             objects_by_id[str(obj.id)] = {
                 "object_type": str(getattr(obj.object_type, "value", obj.object_type)),
@@ -397,6 +428,62 @@ class SpecificationGenerationService:
                 or (obj.params or {}).get("diameter"),
                 "params": dict(obj.params or {}),
             }
+            calculation_result = (
+                calculation.results
+                if calculation is not None and isinstance(calculation.results, Mapping)
+                else {}
+            )
+            provenance = calculation_result.get("provenance")
+            provenance = provenance if isinstance(provenance, Mapping) else {}
+            section_plan = calculation_result.get("section_plan")
+            section_plan = section_plan if isinstance(section_plan, Mapping) else None
+            input_revisions.append(
+                {
+                    "object": {
+                        "id": str(obj.id),
+                        "version": obj.version,
+                    },
+                    "assignment": {
+                        "id": str(assignment.id),
+                        "version": assignment.version,
+                        "object_version_snapshot": assignment.object_version_snapshot,
+                        "state": assignment.assignment_state,
+                        "system_type": assignment.system_type,
+                    },
+                    "electrical_result": (
+                        {
+                            "id": str(calculation.id),
+                            "updated_at": _snapshot_value(calculation.updated_at),
+                            "formula_version": provenance.get("formula_version"),
+                            "formula_fingerprint": provenance.get("formula_fingerprint"),
+                            "calculation_fingerprint": provenance.get(
+                                "calculation_fingerprint"
+                            ),
+                            "object_version": provenance.get("object_version"),
+                            "heat_result_version": provenance.get("heat_result_version"),
+                            "assignment_version": provenance.get("assignment_version"),
+                        }
+                        if calculation is not None
+                        else None
+                    ),
+                    "section_plan_revision": (
+                        {
+                            "payload": _snapshot_value(section_plan),
+                            "calculation_fingerprint": provenance.get(
+                                "calculation_fingerprint"
+                            ),
+                            "result_updated_at": (
+                                _snapshot_value(calculation.updated_at)
+                                if calculation is not None
+                                else None
+                            ),
+                        }
+                        if section_plan is not None
+                        else None
+                    ),
+                    "excluded": obj.id in excluded,
+                }
+            )
             if obj.id in excluded:
                 continue
             if assignment.assignment_state == "unassigned":
@@ -411,29 +498,7 @@ class SpecificationGenerationService:
                 "object_id": str(obj.id),
             }
             contributing.append(payload)
-        return contributing, objects_by_id
-
-    async def _resolve_variant_number(
-        self,
-        *,
-        project_id: UUID,
-        electrical_variant_id: UUID,
-        existing: Specification | None,
-    ) -> int:
-        """Prefer ER legacy slot, then existing row, else synthetic unique number."""
-        if existing is not None and existing.variant_number is not None:
-            return int(existing.variant_number)
-
-        variant = await self.db.get(ElectricalVariant, electrical_variant_id)
-        if variant is not None and variant.legacy_variant_number is not None:
-            return int(variant.legacy_variant_number)
-
-        max_number = await self.db.scalar(
-            select(func.coalesce(func.max(Specification.variant_number), 0)).where(
-                Specification.project_id == project_id
-            )
-        )
-        return int(max_number or 0) + 1
+        return contributing, objects_by_id, input_revisions
 
     @staticmethod
     def _blocked(
@@ -459,15 +524,46 @@ class SpecificationGenerationService:
         )
 
 
+class ManualItemValidationError(ValueError):
+    def __init__(self, issues: list[dict[str, Any]]) -> None:
+        super().__init__("stored manual specification items are invalid")
+        self.issues = issues
+
+
 def _extract_manual_items(existing: Specification | None) -> list[SpecificationItem]:
     if existing is None or not existing.items:
         return []
     manual: list[SpecificationItem] = []
-    for raw in existing.items:
+    issues: list[dict[str, Any]] = []
+    for index, raw in enumerate(existing.items):
         if not isinstance(raw, dict) or raw.get("source") != "manual":
             continue
         try:
             manual.append(SpecificationItem(**raw))
-        except Exception:
-            continue
+        except Exception as exc:  # Pydantic error is intentionally kept behind this boundary.
+            issues.append(
+                {
+                    "reason": "invalid_stored_manual_item",
+                    "item_index": index,
+                    "error": type(exc).__name__,
+                }
+            )
+    if issues:
+        raise ManualItemValidationError(issues)
     return manual
+
+
+def _snapshot_value(value: Any) -> Any:
+    if isinstance(value, datetime):
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("snapshot datetime must be timezone-aware")
+        return value.astimezone(UTC).isoformat().replace("+00:00", "Z")
+    if isinstance(value, UUID):
+        return str(value)
+    if isinstance(value, Decimal):
+        return str(value)
+    if isinstance(value, Mapping):
+        return {str(key): _snapshot_value(item) for key, item in value.items()}
+    if isinstance(value, list | tuple):
+        return [_snapshot_value(item) for item in value]
+    return value

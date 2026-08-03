@@ -34,6 +34,7 @@ from app.services.project_service import ProjectService
 from app.services.specification_candidate_service import (
     build_candidate_groups,
     candidate_groups_fingerprint_payload,
+    catalog_selections_for_variant,
 )
 from app.services.specification_catalog_service import (
     ResolvedSpecificationCatalog,
@@ -105,6 +106,11 @@ class SpecificationPreflightService:
         results: list[SpecificationVariantPreflightResult] = []
         for variant_id in request.variant_ids:
             variant = variants[variant_id]
+            variant_catalog_selections = catalog_selections_for_variant(
+                request.catalog_selections,
+                variant.id,
+                request.variant_ids,
+            )
             rows = rows_by_variant.get(variant_id, [])
             assignments = [_preflight_assignment(*row) for row in rows]
             base = evaluate_specification_preflight(
@@ -149,7 +155,7 @@ class SpecificationPreflightService:
                         electrical_variant_id=variant.id,
                         catalog=catalog,
                         contributing_results=contributing_results,
-                        catalog_selections=request.catalog_selections,
+                        catalog_selections=variant_catalog_selections,
                     )
                     candidate_groups = built.groups
                     diagnostics.extend(built.diagnostics)
@@ -168,7 +174,7 @@ class SpecificationPreflightService:
                     rows=rows,
                     resolved_options=resolved_options,
                     catalog=catalog_snapshot,
-                    catalog_selections=request.catalog_selections,
+                    catalog_selections=variant_catalog_selections,
                     candidate_groups=candidate_groups,
                     excluded_unassigned_object_ids=base.excluded_unassigned_object_ids,
                 )
@@ -185,7 +191,7 @@ class SpecificationPreflightService:
                     diagnostics=diagnostics,
                     resolved_options=resolved_options,
                     catalog=catalog_snapshot,
-                    catalog_selections=request.catalog_selections,
+                    catalog_selections=variant_catalog_selections,
                     candidate_groups=candidate_groups,
                     fingerprint_schema=_FINGERPRINT_SCHEMA if fingerprint else None,
                     input_fingerprint=fingerprint,
@@ -351,8 +357,8 @@ def _resolve_catalog_pin(
 ) -> tuple[UUID | str | None, str | None]:
     """Resolve catalog pin: request → project settings → unique active default.
 
-    ``None``/``None`` means the catalog service picks the unique active default
-    (builtin catalog_key). Stored JSON may keep catalog_id as a UUID string.
+    ``None``/``None`` means the catalog service picks the only active approved
+    complete catalog across keys. Stored JSON may keep catalog_id as a UUID string.
     """
     raw_stored = getattr(project, "specification_settings", None)
     stored = raw_stored if isinstance(raw_stored, Mapping) else {}

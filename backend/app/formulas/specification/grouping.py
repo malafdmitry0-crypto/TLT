@@ -29,6 +29,14 @@ MODE_MERGE_MATERIALS = "merge_materials"
 _VALID_MODES = frozenset({MODE_SEPARATE_BY_OBJECT_TYPE, MODE_MERGE_MATERIALS})
 
 
+def _require_identity(name: str, value: Any) -> Any:
+    if value is None or isinstance(value, bool):
+        raise ValueError(f"grouping identity field {name} is required")
+    if isinstance(value, str) and not value.strip():
+        raise ValueError(f"grouping identity field {name} must not be blank")
+    return value
+
+
 def _normalize_mode(mode: Any) -> str:
     """Accept string literals or enum-like objects with a ``.value`` attribute."""
     value = getattr(mode, "value", mode)
@@ -53,26 +61,38 @@ def grouping_key(
 ) -> tuple:
     """Return the exact immutable grouping key for the given mode.
 
-    Parameters are intentionally untyped (UUID / str / None are all accepted)
-    so callers can pass domain IDs without coupling this pure module to schemas.
+    Parameters are intentionally untyped so callers can pass domain IDs without
+    coupling this pure module to schemas. Missing/blank identity is rejected:
+    such rows cannot be safely grouped.
     """
     mode_value = _normalize_mode(mode)
+    identity = {
+        "electrical_variant_id": _require_identity(
+            "electrical_variant_id", electrical_variant_id
+        ),
+        "catalog_id": _require_identity("catalog_id", catalog_id),
+        "catalog_version": _require_identity("catalog_version", catalog_version),
+        "nomenclature_code": _require_identity(
+            "nomenclature_code", nomenclature_code
+        ),
+        "supply_unit": _require_identity("supply_unit", supply_unit),
+    }
     if mode_value == MODE_SEPARATE_BY_OBJECT_TYPE:
         return (
-            electrical_variant_id,
-            catalog_id,
-            catalog_version,
-            object_type_section,
-            nomenclature_code,
-            supply_unit,
+            identity["electrical_variant_id"],
+            identity["catalog_id"],
+            identity["catalog_version"],
+            _require_identity("object_type_section", object_type_section),
+            identity["nomenclature_code"],
+            identity["supply_unit"],
         )
     # merge_materials — object_type_section is intentionally excluded
     return (
-        electrical_variant_id,
-        catalog_id,
-        catalog_version,
-        nomenclature_code,
-        supply_unit,
+        identity["electrical_variant_id"],
+        identity["catalog_id"],
+        identity["catalog_version"],
+        identity["nomenclature_code"],
+        identity["supply_unit"],
     )
 
 

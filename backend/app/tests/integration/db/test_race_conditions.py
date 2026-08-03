@@ -12,6 +12,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.models.electrical_calculation import ElectricalCalculation
+from app.models.electrical_variant import ElectricalVariant
 from app.models.guest_session import GuestSession
 from app.models.project import Project
 from app.models.project_object import ProjectObject
@@ -91,12 +92,23 @@ class TestAtomicUpsertRaceConditions:
         db_session: AsyncSession,
     ):
         project = await _create_guest_project(db_session, "Spec race")
+        variant = ElectricalVariant(
+            project_id=project.id,
+            name="Race ER",
+            name_normalized="race er",
+            sort_order=0,
+            is_active=True,
+            legacy_variant_number=None,
+        )
+        db_session.add(variant)
+        await db_session.commit()
         session_factory = async_sessionmaker(test_engine, expire_on_commit=False)
 
         async def save_spec(index: int) -> None:
             async with session_factory() as session:
                 await SpecificationService(session).save_items(
                     project.id,
+                    variant.id,
                     [
                         SpecificationItem(
                             category="manual",
@@ -106,7 +118,6 @@ class TestAtomicUpsertRaceConditions:
                             source="manual",
                         )
                     ],
-                    variant_number=1,
                 )
 
         await asyncio.gather(*(save_spec(index) for index in range(10)))
@@ -116,7 +127,7 @@ class TestAtomicUpsertRaceConditions:
                 await db_session.execute(
                     select(Specification).where(
                         Specification.project_id == project.id,
-                        Specification.variant_number == 1,
+                        Specification.electrical_variant_id == variant.id,
                     )
                 )
             )

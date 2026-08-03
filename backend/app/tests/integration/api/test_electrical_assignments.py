@@ -935,14 +935,12 @@ class TestElectricalAssignmentApi:
                 other_folder,
                 Specification(
                     project_id=project_id,
-                    variant_number=1,
                     electrical_variant_id=UUID(first["id"]),
                     items=[{"name": "target-manual", "quantity": 1}],
                     is_stale=False,
                 ),
                 Specification(
                     project_id=project_id,
-                    variant_number=2,
                     electrical_variant_id=UUID(second["id"]),
                     items=[{"name": "other", "quantity": 1}],
                     is_stale=False,
@@ -1120,80 +1118,6 @@ class TestElectricalAssignmentApi:
         )
         assert unassigned.status_code == 200, unassigned.text
         assert unassigned.json()["assignments"][0]["system_type"] is None
-
-    async def test_dirty_null_spec_blocks_confirmed_unassign_without_cleanup(
-        self,
-        client: AsyncClient,
-        guest_session: str,
-        db_session: AsyncSession,
-    ):
-        project = await _guest_project(client, guest_session)
-        headers = {"X-Session-Id": guest_session}
-        obj = await _add_ready_pipe(client, project["id"], headers, name="Dirty spec")
-        variant = await _initialize(client, project["id"], headers)
-        assigned = await _patch_assignments(
-            client,
-            project["id"],
-            variant["id"],
-            headers,
-            system_type="self_regulating",
-            items=[{"object_id": obj["id"], "expected_version": 1}],
-        )
-        assert assigned.status_code == 200, assigned.text
-
-        spec = Specification(
-            project_id=UUID(project["id"]),
-            variant_number=1,
-            electrical_variant_id=UUID(variant["id"]),
-            items=[{"name": "legacy", "quantity": 1}],
-            is_stale=False,
-        )
-        db_session.add(spec)
-        await db_session.commit()
-        spec_id = spec.id
-        await db_session.execute(
-            text(
-                "ALTER TABLE specifications DISABLE TRIGGER " "trg_0027_sync_electrical_variant_id"
-            )
-        )
-        try:
-            await db_session.execute(
-                update(Specification)
-                .where(Specification.id == spec_id)
-                .values(electrical_variant_id=None)
-            )
-        finally:
-            await db_session.execute(
-                text(
-                    "ALTER TABLE specifications ENABLE TRIGGER "
-                    "trg_0027_sync_electrical_variant_id"
-                )
-            )
-        await db_session.commit()
-
-        blocked = await client.post(
-            f"/api/v1/projects/{project['id']}/electrical-variants/" f"{variant['id']}/unassign",
-            headers=headers,
-            json={
-                "confirm": True,
-                "items": [{"object_id": obj["id"], "expected_version": 2}],
-            },
-        )
-        assert blocked.status_code == 409
-        assert blocked.json()["detail"]["code"] == (
-            "ELECTRICAL_ASSIGNMENT_DOWNSTREAM_SCOPE_CONFLICT"
-        )
-        assert blocked.json()["detail"]["details"]["conflicts"]["specifications"] == 1
-        assignment = await db_session.scalar(
-            select(ElectricalVariantObject).where(
-                ElectricalVariantObject.electrical_variant_id == UUID(variant["id"]),
-                ElectricalVariantObject.object_id == UUID(obj["id"]),
-            )
-        )
-        assert assignment is not None
-        assert assignment.system_type == "self_regulating"
-        assert assignment.version == 2
-        assert await db_session.get(Specification, spec_id) is not None
 
     async def test_candidate_and_folder_require_live_compatible_assignment(
         self,
@@ -1758,14 +1682,12 @@ class TestElectricalAssignmentCalculationSync:
             [
                 Specification(
                     project_id=project_id,
-                    variant_number=1,
                     electrical_variant_id=UUID(first["id"]),
                     items=[{"name": "first", "quantity": 1}],
                     is_stale=False,
                 ),
                 Specification(
                     project_id=project_id,
-                    variant_number=2,
                     electrical_variant_id=UUID(second["id"]),
                     items=[{"name": "second", "quantity": 1}],
                     is_stale=False,

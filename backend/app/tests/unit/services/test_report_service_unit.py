@@ -210,7 +210,7 @@ class TestLoadContext:
         spec = SimpleNamespace(
             items=[{"name": "Кабель"}],
             is_stale=False,
-            generation_options={},
+            snapshot={},
             electrical_variant_id=uuid.uuid4(),
         )
         db = AsyncMock()
@@ -245,7 +245,7 @@ class TestLoadContext:
             stale_reason="object_updated",
             stale_at=None,
             stale_details={"reason": "object_updated"},
-            generation_options={"schema": "specification-generation"},
+            snapshot={"schema": "specification-generation"},
             electrical_variant_id=er_id,
         )
         db = AsyncMock()
@@ -327,6 +327,8 @@ class TestExport:
             None,
             principal=principal,
             variant_number=1,
+            electrical_variant_id=None,
+            electrical_variant_name=None,
         )
 
     async def test_export_trusted_skips_project_access_check(self, monkeypatch):
@@ -341,6 +343,8 @@ class TestExport:
             ["summary"],
             principal=None,
             variant_number=1,
+            electrical_variant_id=None,
+            electrical_variant_name=None,
         )
 
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from decimal import Decimal
+
 import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -298,10 +299,9 @@ async def test_settings_change_is_versioned_and_stales_every_spec_atomically(
         Specification(
             id=uuid.uuid4(),
             project_id=project.id,
-            variant_number=index,
             electrical_variant_id=variants[index - 1].id,
             items=[],
-            generation_options={"schema": "old"},
+            snapshot={"schema": "old"},
             is_stale=False,
         )
         for index in (1, 2)
@@ -409,6 +409,40 @@ async def test_ready_complete_catalog_generates_and_persists_by_uuid(
     assert connection.quantity == Decimal("5")  # ceil(9/2)
     assert result.snapshot is not None
     assert result.snapshot["schema"] == "specification-generation"
+    assert result.snapshot["settings_revision"] == 1
+    assert result.snapshot["variant_revision"]["updated_at"].endswith("Z")
+    assert result.snapshot["preflight_fingerprint_schema"] == (
+        "specification-preflight/v1"
+    )
+    assert result.snapshot["preflight_fingerprint"].startswith("sha256:")
+    revisions = result.snapshot["input_revisions"]
+    assert len(revisions) == 1
+    assert revisions[0]["object"] == {"id": str(_obj.id), "version": 4}
+    assert revisions[0]["assignment"]["version"] == 2
+    assert revisions[0]["assignment"]["object_version_snapshot"] == 4
+    assert revisions[0]["electrical_result"]["id"]
+    assert revisions[0]["electrical_result"]["formula_version"] == (
+        ELECTRICAL_TT_FORMULA_VERSION
+    )
+    assert revisions[0]["section_plan_revision"]["payload"] == {
+        "count": 9,
+        "length_m": 81.0,
+    }
+    normalized = result.snapshot["normalized_inputs"]["objects"]
+    assert normalized == [
+        {
+            "object_id": str(_obj.id),
+            "object_type_section": "pipe",
+            "cable_mark": "30ТТВ2-СР",
+            "temperature_group": "MEDIUM_HIGH",
+            "section_plan": {"count": "9", "length_m": "81.0"},
+            "layout": {
+                "actual_installed_length_m": "729.0",
+                "required_order_length_m": "801.9",
+            },
+            "outer_diameter_mm": "108.000",
+        }
+    ]
 
     persisted = (
         await db_session.execute(
@@ -421,8 +455,8 @@ async def test_ready_complete_catalog_generates_and_persists_by_uuid(
     assert persisted.electrical_variant_id == ready.id
     assert persisted.is_stale is False
     assert len(persisted.items) >= 1
-    assert persisted.generation_options is not None
-    assert persisted.generation_options["schema"] == "specification-generation"
+    assert persisted.snapshot is not None
+    assert persisted.snapshot["schema"] == "specification-generation"
 
 
 async def test_ready_and_blocked_mixed_writes_only_ready(
@@ -693,7 +727,6 @@ async def test_manual_items_preserved_on_regenerate(
         Specification(
             id=uuid.uuid4(),
             project_id=project.id,
-            variant_number=1,
             electrical_variant_id=ready.id,
             items=[
                 {
@@ -706,8 +739,7 @@ async def test_manual_items_preserved_on_regenerate(
                     "params": {},
                 }
             ],
-            generation_mode="full",
-            generation_options={"schema": "old"},
+            snapshot={"schema": "old"},
             is_stale=False,
         )
     )
@@ -729,3 +761,60 @@ async def test_manual_items_preserved_on_regenerate(
     manual = next(item for item in response.results[0].items if item.source == "manual")
     assert manual.name == "Ручная позиция"
     assert manual.quantity == Decimal("3")
+
+
+async def test_invalid_manual_item_blocks_regeneration_without_row_loss(
+    db_session: AsyncSession,
+    employee_user: User,
+) -> None:
+    project, variants, _obj = await _seed_ready_project(
+        db_session,
+        employee_user,
+        name="Reject invalid manual",
+    )
+    ready = variants[0]
+    stored_items = [
+        {
+            "category": "manual",
+            "name": "Повреждённая ручная позиция",
+            "article": "M-BROKEN",
+            "unit": "шт.",
+            "quantity": "not-a-decimal",
+            "source": "manual",
+            "params": {},
+        }
+    ]
+    previous_snapshot = {"schema": "old", "proof": "must-survive"}
+    specification = Specification(
+        id=uuid.uuid4(),
+        project_id=project.id,
+        electrical_variant_id=ready.id,
+        items=stored_items,
+        snapshot=previous_snapshot,
+        is_stale=False,
+    )
+    db_session.add(specification)
+    await db_session.commit()
+
+    response = await SpecificationGenerationService(db_session).generate(
+        project.id,
+        _principal(employee_user),
+        SpecificationGenerationRequest(
+            variant_ids=[ready.id],
+            options=SpecificationRequestedOptions(),
+        ),
+    )
+
+    result = response.results[0]
+    assert result.status is SpecificationGenerationStatus.BLOCKED
+    assert result.diagnostics[0].code is SpecificationDiagnosticCode.FORMULA_INPUT_INVALID
+    assert result.diagnostics[0].issues == [
+        {
+            "reason": "invalid_stored_manual_item",
+            "item_index": 0,
+            "error": "ValidationError",
+        }
+    ]
+    await db_session.refresh(specification)
+    assert specification.items == stored_items
+    assert specification.snapshot == previous_snapshot

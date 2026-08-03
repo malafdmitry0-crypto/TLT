@@ -8,8 +8,6 @@ from types import SimpleNamespace
 from typing import Any
 from uuid import UUID
 
-import pytest
-
 from app.schemas.specification import (
     SpecificationCandidateGroup,
     SpecificationDiagnosticCode,
@@ -75,6 +73,20 @@ def _options() -> SpecificationResolvedOptions:
             "R_gr": "1",
         }
     )
+
+
+def _snapshot_context(variant_id: UUID) -> dict[str, Any]:
+    return {
+        "variant_revision": {"updated_at": "2026-08-03T00:00:00Z"},
+        "settings_revision": 7,
+        "input_revisions": [
+            {
+                "object": {"id": str(variant_id), "version": 4},
+                "assignment": {"id": str(uuid.uuid4()), "version": 2},
+            }
+        ],
+        "fingerprint_schema": "specification-preflight/v1",
+    }
 
 
 def _group(
@@ -260,6 +272,7 @@ class TestBomBuilderGoldens:
             catalog=catalog,  # type: ignore[arg-type]
             candidate_groups=groups,
             resolved_options=_options(),
+            snapshot_context=_snapshot_context(variant_id),
             preflight_fingerprint=f"sha256:{'1' * 64}",
         )
         assert isinstance(bom, BomBuildSuccess)
@@ -280,6 +293,29 @@ class TestBomBuilderGoldens:
         assert bom.snapshot["schema_version"] == 1
         assert bom.snapshot["electrical_variant_id"] == str(variant_id)
         assert "formula_fingerprints" in bom.snapshot
+        assert bom.snapshot["formula_provenance"]["cable"] == {
+            "formula_id": "specification-calculators/cable",
+            "formula_version": "v1",
+            "formula_fingerprint": "specification-calculators/cable@v1",
+        }
+        assert bom.snapshot["settings_revision"] == 7
+        assert bom.snapshot["preflight_fingerprint_schema"] == (
+            "specification-preflight/v1"
+        )
+        assert bom.snapshot["normalized_inputs"]["objects"] == [
+            {
+                "object_id": object_id,
+                "object_type_section": "pipe",
+                "cable_mark": "30ТТВ2-СР",
+                "temperature_group": "MEDIUM_HIGH",
+                "section_plan": {"count": "9", "length_m": "81.0"},
+                "layout": {
+                    "actual_installed_length_m": "729.0",
+                    "required_order_length_m": "801.9",
+                },
+                "outer_diameter_mm": "108.000",
+            }
+        ]
         assert bom.snapshot["preflight_fingerprint"] == f"sha256:{'1' * 64}"
 
     def test_missing_selection_is_blocking_no_partial(self) -> None:
@@ -295,6 +331,7 @@ class TestBomBuilderGoldens:
             catalog=catalog,  # type: ignore[arg-type]
             candidate_groups=groups,
             resolved_options=_options(),
+            snapshot_context=_snapshot_context(variant_id),
         )
         assert isinstance(bom, BomBuildFailure)
         assert bom.diagnostics[0].code is SpecificationDiagnosticCode.ACCESSORY_SELECTION_REQUIRED
@@ -334,6 +371,7 @@ class TestBomBuilderGoldens:
             catalog=catalog,  # type: ignore[arg-type]
             candidate_groups=groups,
             resolved_options=_options(),
+            snapshot_context=_snapshot_context(variant_id),
         )
         assert isinstance(bom, BomBuildFailure)
         assert bom.diagnostics[0].code is SpecificationDiagnosticCode.BOX_EX_RGR_MATRIX_MISSING
@@ -356,6 +394,8 @@ class TestBomBuilderGoldens:
             catalog=catalog,  # type: ignore[arg-type]
             candidate_groups=groups,
             resolved_options=_options(),  # separate_by_object_type
+            snapshot_context=_snapshot_context(variant_id),
+            preflight_fingerprint=f"sha256:{'1' * 64}",
         )
         assert isinstance(bom, BomBuildSuccess)
         cable_rows = [item for item in bom.items if item.category == "cable"]
@@ -406,6 +446,8 @@ class TestBomBuilderGoldens:
             catalog=catalog,  # type: ignore[arg-type]
             candidate_groups=groups,
             resolved_options=options,
+            snapshot_context=_snapshot_context(variant_id),
+            preflight_fingerprint=f"sha256:{'1' * 64}",
         )
         assert isinstance(bom, BomBuildSuccess)
         cable_rows = [item for item in bom.items if item.category == "cable"]

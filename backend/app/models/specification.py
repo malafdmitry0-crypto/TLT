@@ -9,6 +9,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     String,
@@ -25,18 +26,16 @@ from app.models.base import Base, TimestampMixin
 class Specification(Base, TimestampMixin):
     __tablename__ = "specifications"
     __table_args__ = (
-        # UUID identity is canonical (CANON-06). variant_number is retained as a
-        # transitional column (unique per project) but no longer requires a
-        # legacy_variant_number slot on electrical_variants.
-        UniqueConstraint(
-            "project_id",
-            "variant_number",
-            name="uq_specifications_project_variant",
-        ),
         UniqueConstraint(
             "project_id",
             "electrical_variant_id",
             name="uq_specifications_project_electrical_variant",
+        ),
+        ForeignKeyConstraint(
+            ["electrical_variant_id", "project_id"],
+            ["electrical_variants.id", "electrical_variants.project_id"],
+            name="fk_specifications_electrical_variant_project",
+            ondelete="CASCADE",
         ),
         Index(
             "ix_specifications_electrical_variant_id",
@@ -51,17 +50,12 @@ class Specification(Base, TimestampMixin):
         nullable=False,
         index=True,
     )
-    variant_number: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     electrical_variant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("electrical_variants.id", ondelete="CASCADE"),
         nullable=False,
     )
     items: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False, default=list)
-    # Режим последней генерации ('basic'/'full') и её опции (R,гр, Ex, К1i/К2i/Кiu).
-    # Нужны, чтобы «Пересчитать» не подменял полный BOM базовым после перезагрузки UI.
-    generation_mode: Mapped[str | None] = mapped_column(String(10), nullable=True)
-    generation_options: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     is_stale: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,

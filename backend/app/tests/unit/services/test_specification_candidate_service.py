@@ -8,6 +8,7 @@ from app.models.specification import SpecificationCatalogItem, SpecificationCata
 from app.schemas.specification import SpecificationDiagnosticCode, SpecificationIssueKind
 from app.services.specification_candidate_service import (
     build_candidate_groups,
+    catalog_selections_for_variant,
     stable_group_key,
 )
 from app.services.specification_catalog_service import ResolvedSpecificationCatalog
@@ -227,6 +228,131 @@ def test_group_key_is_stable_for_same_inputs():
         conditions={"temperature_group": "LOW"},
     )
     assert other != first
+
+
+def test_selection_scope_keeps_own_er_and_ignores_another_er():
+    first_id = uuid.uuid4()
+    second_id = uuid.uuid4()
+    first_key = stable_group_key(
+        electrical_variant_id=first_id,
+        category="connection_kit",
+        conditions={"temperature_group": "MEDIUM_HIGH"},
+    )
+    second_key = stable_group_key(
+        electrical_variant_id=second_id,
+        category="connection_kit",
+        conditions={"temperature_group": "MEDIUM_HIGH"},
+    )
+    first_item = uuid.uuid4()
+    second_item = uuid.uuid4()
+
+    assert catalog_selections_for_variant(
+        {first_key: first_item, second_key: second_item},
+        first_id,
+        [first_id, second_id],
+    ) == {first_key: first_item}
+
+
+def test_selection_with_scope_outside_request_is_not_silently_ignored():
+    requested_id = uuid.uuid4()
+    foreign_key = stable_group_key(
+        electrical_variant_id=uuid.uuid4(),
+        category="connection_kit",
+        conditions={"temperature_group": "MEDIUM_HIGH"},
+    )
+    item_id = uuid.uuid4()
+
+    assert catalog_selections_for_variant(
+        {foreign_key: item_id},
+        requested_id,
+        [requested_id],
+    ) == {foreign_key: item_id}
+
+
+def test_stale_selection_from_same_er_is_still_reported():
+    catalog = _catalog_from_inputs(complete_specification_catalog_items())
+    variant_id = uuid.uuid4()
+    stale_key = stable_group_key(
+        electrical_variant_id=variant_id,
+        category="connection_kit",
+        conditions={"temperature_group": "LOW"},
+    )
+
+    built = build_candidate_groups(
+        electrical_variant_id=variant_id,
+        catalog=catalog,
+        contributing_results=[_result()],
+        catalog_selections={stale_key: uuid.uuid4()},
+    )
+
+    assert any(
+        issue == {"group_key": stale_key, "reason": "catalog_selection_stale_group"}
+        for diagnostic in built.diagnostics
+        for issue in diagnostic.issues
+    )
+
+
+def test_cable_candidate_requires_exact_mark_and_nomenclature_code():
+    inputs = complete_specification_catalog_items()
+    exact = next(item for item in inputs if item.item_key == "cable:30ТТВ2-СР")
+    same_mark_wrong_code = exact.model_copy(deep=True)
+    same_mark_wrong_code.item_key = "cable:30ТТВ2-СР:wrong-code"
+    same_mark_wrong_code.nomenclature_code = "WRONG-CODE"
+    catalog = _catalog_from_inputs([*inputs, same_mark_wrong_code])
+
+    built = build_candidate_groups(
+        electrical_variant_id=uuid.uuid4(),
+        catalog=catalog,
+        contributing_results=[_result()],
+    )
+
+    cable = next(group for group in built.groups if group.category == "cable")
+    assert [item.nomenclature_code for item in cable.candidates] == ["001-002-002"]
+
+
+def test_missing_explicit_cable_code_blocks_candidate_resolution():
+    result = _result()
+    result["cable"].pop("nomenclature_code")
+    catalog = _catalog_from_inputs(complete_specification_catalog_items())
+
+    built = build_candidate_groups(
+        electrical_variant_id=uuid.uuid4(),
+        catalog=catalog,
+        contributing_results=[result],
+    )
+
+    assert any(
+        diagnostic.code is SpecificationDiagnosticCode.CABLE_NOMENCLATURE_MISSING
+        and diagnostic.kind is SpecificationIssueKind.BLOCKING
+        for diagnostic in built.diagnostics
+    )
+
+
+def test_model_or_series_without_explicit_temperature_group_blocks():
+    result = _result()
+    result.pop("temperature_group")
+    result["series"] = "ТТВ"
+    catalog = _catalog_from_inputs(complete_specification_catalog_items())
+
+    built = build_candidate_groups(
+        electrical_variant_id=uuid.uuid4(),
+        catalog=catalog,
+        contributing_results=[result],
+    )
+
+    unresolved = [
+        diagnostic
+        for diagnostic in built.diagnostics
+        if any(
+            issue.get("reason") == "temperature_group_unresolved"
+            for issue in diagnostic.issues
+        )
+    ]
+    assert {diagnostic.details["category"] for diagnostic in unresolved} == {
+        "connection_kit",
+        "repair_kit",
+        "fiberglass_tape",
+    }
 
 
 def test_boxes_are_not_included_in_selection_protocol():

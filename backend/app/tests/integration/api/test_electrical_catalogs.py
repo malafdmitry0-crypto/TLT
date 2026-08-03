@@ -222,7 +222,6 @@ async def test_activation_stales_calculation_assignment_and_exact_variant_specif
     )
     spec = Specification(
         project_id=UUID(project["id"]),
-        variant_number=variant["legacy_variant_number"],
         electrical_variant_id=UUID(variant["id"]),
         items=[{"name": "old", "quantity": 1}],
         is_stale=False,

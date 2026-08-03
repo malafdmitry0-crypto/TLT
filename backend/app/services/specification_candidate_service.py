@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -40,6 +41,7 @@ _TEMP_FILTER_CATEGORIES = frozenset(
     {"connection_kit", "repair_kit", "fiberglass_tape"}
 )
 _MARK_FILTER_CATEGORIES = frozenset({"cable"})
+_GROUP_KEY_RE = re.compile(r"^cg_([0-9a-f]{32})_[0-9a-f]{40}$")
 
 
 @dataclass(frozen=True)
@@ -61,7 +63,10 @@ def build_candidate_groups(
     ``contributing_results`` must already exclude unassigned/confirmed-excluded
     objects. Empty contributing set yields empty groups (nothing to select for).
     """
-    selections = dict(catalog_selections or {})
+    selections = catalog_selections_for_variant(
+        catalog_selections or {},
+        electrical_variant_id,
+    )
     if not contributing_results:
         return CandidateBuildResult(groups=[], diagnostics=[])
 
@@ -72,6 +77,25 @@ def build_candidate_groups(
     for category in _SELECTION_CATEGORIES:
         slices = conditions_by_category.get(category) or [{}]
         for conditions in slices:
+            if conditions.get("_invalid_cable_identity"):
+                diagnostics.append(
+                    _diagnostic(
+                        SpecificationDiagnosticCode.CABLE_NOMENCLATURE_MISSING,
+                        SpecificationIssueKind.BLOCKING,
+                        "Не задана точная номенклатурная идентичность кабеля",
+                        issues=[
+                            {
+                                "reason": "cable_identity_unresolved",
+                                "required_fields": ["mark", "nomenclature_code"],
+                            }
+                        ],
+                        details={
+                            "electrical_variant_id": str(electrical_variant_id),
+                            "category": category,
+                        },
+                    )
+                )
+                continue
             if conditions.get("_invalid_temperature_group"):
                 diagnostics.append(
                     _diagnostic(
@@ -127,9 +151,7 @@ def build_candidate_groups(
 
     # Selections whose group_key is not among current groups are stale.
     known_keys = {group.group_key for group in groups}
-    stale = sorted(
-        key for key in selections if key not in known_keys
-    )
+    stale = sorted(key for key in selections if key not in known_keys)
     if stale:
         diagnostics.append(
             _diagnostic(
@@ -174,7 +196,35 @@ def stable_group_key(
             "utf-8"
         )
     ).hexdigest()
-    return f"cg_{digest[:40]}"
+    return f"cg_{electrical_variant_id.hex}_{digest[:40]}"
+
+
+def catalog_selections_for_variant(
+    selections: Mapping[str, UUID],
+    electrical_variant_id: UUID,
+    requested_variant_ids: Sequence[UUID] | None = None,
+) -> dict[str, UUID]:
+    """Keep this ER's opaque keys and malformed keys that must fail closed.
+
+    A valid key carries a backend-only UUID scope. Keys belonging to another
+    requested ER are ignored here and validated in that ER's own preflight.
+    Unparseable keys stay in scope so they cannot silently bypass stale
+    selection diagnostics.
+    """
+    known_scopes = {
+        item.hex for item in (requested_variant_ids or (electrical_variant_id,))
+    }
+    scoped: dict[str, UUID] = {}
+    for key, item_id in selections.items():
+        match = _GROUP_KEY_RE.fullmatch(key)
+        key_scope = match.group(1) if match is not None else None
+        if (
+            key_scope is None
+            or key_scope == electrical_variant_id.hex
+            or key_scope not in known_scopes
+        ):
+            scoped[key] = item_id
+    return scoped
 
 
 def candidate_groups_fingerprint_payload(
@@ -205,25 +255,31 @@ def candidate_groups_fingerprint_payload(
 def _conditions_for_categories(
     results: Sequence[Mapping[str, Any]],
 ) -> dict[str, list[dict[str, Any]]]:
-    marks: set[str] = set()
+    cable_identities: set[tuple[str, str]] = set()
     temperature_groups: set[str] = set()
     for result in results:
-        mark = _cable_mark(result)
-        if mark:
-            marks.add(mark)
+        identity = _cable_identity(result)
+        if identity is not None:
+            cable_identities.add(identity)
         temp = _normalized_temperature_group(result)
         if temp is not None:
             temperature_groups.add(temp.value)
 
+    invalid_cable_identity = any(_cable_identity(result) is None for result in results)
     # Temp-filtered categories need an explicit group from every contributing result.
     invalid_temp = any(_normalized_temperature_group(result) is None for result in results)
 
     out: dict[str, list[dict[str, Any]]] = {}
 
-    if marks:
-        out["cable"] = [{"mark": mark} for mark in sorted(marks)]
+    if invalid_cable_identity:
+        out["cable"] = [{"_invalid_cable_identity": True}]
+    elif cable_identities:
+        out["cable"] = [
+            {"mark": mark, "nomenclature_code": code}
+            for mark, code in sorted(cable_identities)
+        ]
     else:
-        out["cable"] = [{}]
+        out["cable"] = [{"_invalid_cable_identity": True}]
 
     if invalid_temp:
         for category in sorted(_TEMP_FILTER_CATEGORIES):
@@ -282,9 +338,13 @@ def _item_matches(
     applicability = item.applicability if isinstance(item.applicability, Mapping) else {}
     if category in _MARK_FILTER_CATEGORIES:
         mark = conditions.get("mark")
-        if mark is not None and item.mark != mark:
-            return False
-        return True
+        code = conditions.get("nomenclature_code")
+        return (
+            isinstance(mark, str)
+            and isinstance(code, str)
+            and item.mark == mark
+            and item.nomenclature_code == code
+        )
 
     if category in _TEMP_FILTER_CATEGORIES:
         required = conditions.get("temperature_group")
@@ -428,16 +488,22 @@ def _resolve_selection(
     return submitted, []
 
 
-def _cable_mark(result: Mapping[str, Any]) -> str | None:
+def _cable_identity(result: Mapping[str, Any]) -> tuple[str, str] | None:
     cable = result.get("cable")
+    mark: Any = None
+    code: Any = None
     if isinstance(cable, Mapping):
-        mark = cable.get("mark")
-        if isinstance(mark, str) and mark.strip():
-            return mark.strip()
-    mark = result.get("cable_mark")
-    if isinstance(mark, str) and mark.strip():
-        return mark.strip()
-    return None
+        mark = cable.get("mark") or cable.get("full_mark")
+        code = cable.get("nomenclature_code")
+    if not isinstance(mark, str) or not mark.strip():
+        mark = result.get("cable_mark")
+    if not isinstance(code, str) or not code.strip():
+        code = result.get("nomenclature_code")
+    if not isinstance(mark, str) or not mark.strip():
+        return None
+    if not isinstance(code, str) or not code.strip():
+        return None
+    return mark.strip(), code.strip()
 
 
 def _normalized_temperature_group(

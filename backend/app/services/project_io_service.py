@@ -3,8 +3,9 @@
 Формат: «секционный CSV» с маркерами `[SECTION];<имя>`.
 
 Export schema_version=3: metadata, objects, electrical_variants,
-electrical_assignments, electrical, specifications. Import accepts v2 (legacy
-variant_number slots) and v3 (named UUID-keyed ЭР). Для пакетного
+electrical_assignments, electrical, specifications. Import accepts v2 for the
+legacy electrical graph and v3 for named UUID-keyed ЭР; numeric v2
+specifications are rejected instead of being guessed. Для пакетного
 импорта/экспорта добавляется секция `projects` с `project_key`.
 
 Автоопределение разделителя (`;`, `,`, таб) — через `csv.Sniffer`.
@@ -317,39 +318,35 @@ def _dump_project_to_writer(
 
     if specifications:
         _write_section(w, "specifications")
-        # UUID-first: electrical_variant_id / variant_key identify the row;
-        # legacy_variant_number is transitional compatibility only.
         header = [
             "variant_key",
             "electrical_variant_id",
-            "legacy_variant_number",
             "items",
-            "generation_mode",
-            "generation_options",
+            "snapshot",
             "is_stale",
             "stale_reason",
+            "stale_at",
+            "stale_details",
         ]
         if project_key is not None:
             header = ["project_key", *header]
         _write_row(w, header)
         for spec in specifications:
-            variant_key = ""
-            spec_er_id = getattr(spec, "electrical_variant_id", None)
-            if spec_er_id is not None:
-                variant_key = variant_key_by_id.get(spec_er_id, str(spec_er_id))
-            elif getattr(spec, "variant_number", None) is not None:
-                variant_key = f"legacy-{spec.variant_number}"
+            spec_er_id = spec.electrical_variant_id
+            variant_key = variant_key_by_id.get(spec_er_id, str(spec_er_id))
             row = [
                 variant_key,
-                str(spec_er_id) if spec_er_id is not None else "",
-                getattr(spec, "variant_number", ""),
+                str(spec_er_id),
                 json.dumps(spec.items or [], ensure_ascii=False),
-                getattr(spec, "generation_mode", None) or "",
-                json.dumps(getattr(spec, "generation_options", None), ensure_ascii=False)
-                if getattr(spec, "generation_options", None) is not None
+                json.dumps(spec.snapshot, ensure_ascii=False)
+                if spec.snapshot is not None
                 else "",
-                "true" if getattr(spec, "is_stale", False) else "false",
-                getattr(spec, "stale_reason", None) or "",
+                "true" if spec.is_stale else "false",
+                spec.stale_reason or "",
+                spec.stale_at.isoformat() if spec.stale_at is not None else "",
+                json.dumps(spec.stale_details, ensure_ascii=False)
+                if spec.stale_details is not None
+                else "",
             ]
             _write_row(w, prefix + row)
         _write_row(w, [])
@@ -508,7 +505,7 @@ async def export_projects_bulk(
         specs_result = await db.execute(
             select(Specification)
             .where(Specification.project_id.in_(unique_project_ids))
-            .order_by(Specification.project_id, Specification.variant_number)
+            .order_by(Specification.project_id, Specification.electrical_variant_id)
         )
         for spec in specs_result.scalars():
             specs_by_project[spec.project_id].append(spec)
@@ -923,10 +920,15 @@ async def _apply_project_data(
     spec_rows: list[dict[str, str]],
 ) -> None:
     """Заполняет пустой `project` данными из распарсенных секций."""
+    if spec_rows:
+        raise ProjectImportError(
+            "Секция specifications schema_version=2 не поддерживается: "
+            "спецификация требует UUID ЭР и canonical snapshot"
+        )
     # Validate the complete v2 payload before staging graph writes. Electrical
     # rows with an unknown object_key retain the legacy "skip" behaviour and
     # therefore must not create an otherwise orphaned ER slot.
-    _occupied_legacy_slots(electrical_rows, spec_rows)
+    _occupied_legacy_slots(electrical_rows, [])
 
     # объекты
     obj_by_key: dict[str, ProjectObject] = {}
@@ -1000,9 +1002,6 @@ async def _apply_project_data(
         imported_electrical.append(imported)
 
     occupied_slots = {item.variant_number for item in imported_electrical}
-    occupied_slots.update(
-        _legacy_variant_number(row, section="specifications") for row in spec_rows
-    )
     variants_by_slot = await _create_imported_variants(db, project, occupied_slots)
 
     for variant_number, variant in variants_by_slot.items():
@@ -1045,29 +1044,6 @@ async def _apply_project_data(
                 results=imported.results,
             )
         )
-
-    # specifications
-    for row in spec_rows:
-        variant_number = _legacy_variant_number(row, section="specifications")
-        variant = variants_by_slot[variant_number]
-        spec = Specification(
-            project_id=project.id,
-            variant_number=variant_number,
-            electrical_variant_id=variant.id,
-            items=_parse_json_or_empty(row.get("items", ""), []),
-            is_stale=True,
-            stale_reason="electrical_sections_not_ready",
-            stale_at=datetime.now(UTC),
-            stale_details={
-                "import_schema_version": LEGACY_SCHEMA_VERSION,
-                "legacy_variant_number": variant_number,
-                "sections_status": "not_ready",
-                "error_code": SECTIONS_NOT_READY_CODE,
-            },
-        )
-        db.add(spec)
-
-
 
 async def _create_imported_variants_v3(
     db: AsyncSession,
@@ -1330,18 +1306,6 @@ async def _apply_project_data_v3(
 
     # UUID identity: resolve by variant_key (preferred) or electrical_variant_id.
     # Numeric specification section is not required as identity (CANON-07).
-    used_spec_numbers: set[int] = set()
-    for existing in variants_by_key.values():
-        if existing.legacy_variant_number is not None:
-            used_spec_numbers.add(int(existing.legacy_variant_number))
-
-    def _next_spec_variant_number() -> int:
-        candidate = 1
-        while candidate in used_spec_numbers:
-            candidate += 1
-        used_spec_numbers.add(candidate)
-        return candidate
-
     for row in spec_rows:
         variant_key = (row.get("variant_key") or "").strip()
         electrical_variant_id_raw = (row.get("electrical_variant_id") or "").strip()
@@ -1365,36 +1329,20 @@ async def _apply_project_data_v3(
                 f"specifications: неизвестный variant_key/electrical_variant_id "
                 f"{variant_key or electrical_variant_id_raw!r}"
             )
-        if variant.legacy_variant_number is not None:
-            variant_number = int(variant.legacy_variant_number)
-            used_spec_numbers.add(variant_number)
-        else:
-            legacy_raw = (row.get("legacy_variant_number") or "").strip()
-            if legacy_raw:
-                try:
-                    variant_number = int(legacy_raw)
-                except ValueError as exc:
-                    raise ProjectImportError(
-                        f"Некорректный legacy_variant_number в specifications: {legacy_raw!r}"
-                    ) from exc
-                if variant_number in used_spec_numbers:
-                    variant_number = _next_spec_variant_number()
-                else:
-                    used_spec_numbers.add(variant_number)
-            else:
-                variant_number = _next_spec_variant_number()
-        generation_mode = (row.get("generation_mode") or "").strip() or None
-        generation_options = _parse_json_or_empty(row.get("generation_options", ""), None)
+        items = _parse_json_or_empty(row.get("items", ""), [])
+        if not isinstance(items, list):
+            raise ProjectImportError("specifications.items должен быть JSON-массивом")
+        snapshot = _parse_json_or_empty(row.get("snapshot", ""), None)
+        if snapshot is not None and not isinstance(snapshot, dict):
+            raise ProjectImportError("specifications.snapshot должен быть JSON-объектом")
         # Phase 4 sections are not reconstructed from CSV; always mark stale.
-        # items/generation_options preserve snapshot + manual rows for re-generation.
+        # Items and snapshot remain available as history but cannot become current.
         db.add(
             Specification(
                 project_id=project.id,
-                variant_number=variant_number,
                 electrical_variant_id=variant.id,
-                items=_parse_json_or_empty(row.get("items", ""), []),
-                generation_mode=generation_mode,
-                generation_options=generation_options if isinstance(generation_options, dict) else None,
+                items=items,
+                snapshot=snapshot,
                 is_stale=True,
                 stale_reason="electrical_sections_not_ready",
                 stale_at=datetime.now(UTC),
@@ -1402,7 +1350,6 @@ async def _apply_project_data_v3(
                     "import_schema_version": SCHEMA_VERSION,
                     "variant_key": variant_key or electrical_variant_id_raw,
                     "electrical_variant_id": str(variant.id),
-                    "legacy_variant_number": variant.legacy_variant_number,
                     "sections_status": "not_ready",
                     "error_code": SECTIONS_NOT_READY_CODE,
                 },

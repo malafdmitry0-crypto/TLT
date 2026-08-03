@@ -6,45 +6,7 @@ explicit catalog/snapshot fields — never from prefix/suffix or row-order hacks
 
 from __future__ import annotations
 
-from functools import lru_cache
 from typing import Any
-
-from app.reference_data.loader import (
-    get_electrical_tt_bom_entry,
-    list_spec_accessory_rules,
-    list_tlt_cables,
-    list_tt_cables,
-)
-
-
-@lru_cache
-def _accessory_by_rule() -> dict[str, dict[str, Any]]:
-    out: dict[str, dict[str, Any]] = {}
-    for rule in list_spec_accessory_rules():
-        key = str(rule.get("rule") or "")
-        if key:
-            out[key] = dict(rule)
-    return out
-
-
-@lru_cache
-def _tt_by_model() -> dict[str, dict[str, Any]]:
-    out: dict[str, dict[str, Any]] = {}
-    for row in list_tt_cables():
-        model = str(row.get("model") or "").strip()
-        if model:
-            out[model] = dict(row)
-    return out
-
-
-@lru_cache
-def _tlt_by_model() -> dict[str, dict[str, Any]]:
-    out: dict[str, dict[str, Any]] = {}
-    for row in list_tlt_cables():
-        model = str(row.get("model") or "").strip()
-        if model:
-            out[model] = dict(row)
-    return out
 
 
 def accessory_identity(rule: dict[str, Any]) -> dict[str, Any] | None:
@@ -70,18 +32,17 @@ def accessory_identity(rule: dict[str, Any]) -> dict[str, Any] | None:
 
 
 def resolve_accessory_rule(rule_key: str) -> tuple[dict[str, Any] | None, str | None]:
-    """Lookup accessory by stable rule key (not row order)."""
-    rule = _accessory_by_rule().get(rule_key)
-    if rule is None:
-        return None, "CATALOG_RULE_NOT_FOUND"
-    identity = accessory_identity(rule)
-    if identity is None:
-        return None, "CATALOG_IDENTITY_INCOMPLETE"
-    return {**rule, **identity}, None
+    """Legacy lookup is fail-closed; canonical generation injects DB catalog rows.
+
+    Static accessory JSON is not an authoritative production source. The
+    canonical candidate/materialization pipeline never calls this adapter.
+    """
+    del rule_key
+    return None, "CATALOG_RULE_NOT_FOUND"
 
 
 def temperature_group_from_result(result: dict[str, Any]) -> str | None:
-    """Explicit temperature group only — no mark prefix inference (PDL-ER-33)."""
+    """Return only an explicit typed temperature group from the saved result."""
     snapshot = (
         result.get("cable_snapshot") if isinstance(result.get("cable_snapshot"), dict) else {}
     )
@@ -92,48 +53,14 @@ def temperature_group_from_result(result: dict[str, Any]) -> str | None:
     for source in (result, cable, snapshot, technical, selection):
         if not isinstance(source, dict):
             continue
-        raw = source.get("temperature_group") or source.get("temp_class")
-        if raw in {"low", "high"}:
-            return str(raw)
-        if raw in {"ТТН", "ТЛТ", "low", "LOW"}:
+        raw = source.get("temperature_group")
+        if not isinstance(raw, str):
+            continue
+        normalized = raw.strip().upper().replace("-", "_")
+        if normalized == "LOW":
             return "low"
-        if raw in {"ТТВ", "ТТХ", "high", "HIGH"}:
+        if normalized in {"MEDIUM", "MEDIUM_HIGH", "MED_HIGH", "HIGH"}:
             return "high"
-        series = source.get("series")
-        if series in {"ТТН", "ТЛТ"}:
-            return "low"
-        if series in {"ТТВ", "ТТХ"}:
-            return "high"
-
-    # Catalog lookup by explicit model field only (not mark suffix inference).
-    # selected_cable / cable_model are authoritative model keys from calculation.
-    model = (
-        result.get("cable_model")
-        or result.get("selected_cable")
-        or technical.get("model")
-        or selection.get("model")
-        or snapshot.get("cable_model")
-        or snapshot.get("selected_cable")
-    )
-    if isinstance(model, str) and model:
-        tt = _tt_by_model().get(model)
-        if tt is not None:
-            series = str(tt.get("series") or "")
-            if series in {"ТТН"}:
-                return "low"
-            if series in {"ТТВ", "ТТХ"}:
-                return "high"
-            explicit = tt.get("temperature_group")
-            if explicit in {"low", "high"}:
-                return str(explicit)
-        tlt = _tlt_by_model().get(model)
-        if tlt is not None:
-            explicit = tlt.get("temperature_group")
-            if explicit in {"low", "high"}:
-                return str(explicit)
-            # ТЛТ catalog is low-temp family by registered series field.
-            if str(tlt.get("brand") or tlt.get("series") or "") == "ТЛТ":
-                return "low"
 
     return None
 
@@ -142,8 +69,7 @@ def tt_catalog_issue_from_result(result: dict[str, Any]) -> dict[str, Any] | Non
     """Validate saved TT catalogs and their exact immutable BOM row."""
     cable = result.get("cable") if isinstance(result.get("cable"), dict) else {}
     mark = result.get("cable_mark") or cable.get("mark") or cable.get("full_mark")
-    if not isinstance(mark, str) or get_electrical_tt_bom_entry(mark) is None:
-        # Missing exact mark has its own SPEC_CABLE_NOMENCLATURE_MISSING diagnostic.
+    if not isinstance(mark, str) or not mark.strip():
         return None
     provenance = result.get("provenance")
     provenance = provenance if isinstance(provenance, dict) else {}
@@ -206,11 +132,6 @@ def cable_identity_from_result(result: dict[str, Any]) -> dict[str, Any] | None:
     technical = snapshot.get("technical") if isinstance(snapshot.get("technical"), dict) else {}
     cable_type = result.get("cable_type") or cable.get("type")
     if cable_type == "self_regulating_tt":
-        # The new TT calculation is procurement-safe only through the exact
-        # full-mark BOM catalog. Explicit result articles and approximate/base
-        # model matches are deliberately ignored at this boundary.
-        if get_electrical_tt_bom_entry(str(mark)) is None:
-            return None
         if tt_catalog_issue_from_result(result) is not None:
             return None
         provenance = result.get("provenance")
@@ -245,8 +166,9 @@ def cable_identity_from_result(result: dict[str, Any]) -> dict[str, Any] | None:
         or technical.get("nomenclature_code")
         or technical.get("article")
         or technical.get("code")
-        or mark  # Legacy non-TT compatibility only.
     )
+    if not isinstance(code, str) or not code.strip():
+        return None
     temp = temperature_group_from_result(result)
     supplier = (
         result.get("supplier")
@@ -268,7 +190,7 @@ def cable_identity_from_result(result: dict[str, Any]) -> dict[str, Any] | None:
         "nomenclature_code": str(code),
         "temperature_group": temp,
         "catalog_base": "heating_cable",
-        "catalog_source": snapshot.get("actual_catalog_source") or "builtin",
+        "catalog_source": snapshot.get("actual_catalog_source"),
         "catalog_entry_id": snapshot.get("catalog_entry_id"),
         "catalog_version": snapshot.get("schema_version"),
         "supplier": str(supplier),

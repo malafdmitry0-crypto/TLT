@@ -687,6 +687,57 @@ async def test_selection_from_wrong_group_is_rejected(monkeypatch):
     )
 
 
+async def test_two_er_selections_are_validated_only_in_their_own_scope(monkeypatch):
+    project_id = uuid.uuid4()
+    project = _project(project_id)
+    first = _variant(project_id, name="First")
+    second = _variant(project_id, name="Second")
+    rows = [_row(project_id, first.id), _row(project_id, second.id)]
+    catalog = _catalog(multi_connection=True)
+    _patch_read_boundaries(monkeypatch, project, catalog)
+
+    discovery = await SpecificationPreflightService(
+        _db_for([first, second], rows)
+    ).preflight_variants(
+        project_id,
+        CurrentPrincipal(role="employee", user_id=project.user_id),
+        _request([first.id, second.id]),
+    )
+    connection_groups = [
+        next(group for group in item.candidate_groups if group.category == "connection_kit")
+        for item in discovery
+    ]
+    selections = {
+        group.group_key: group.candidates[0].catalog_item_id
+        for group in connection_groups
+    }
+
+    resolved = await SpecificationPreflightService(
+        _db_for([first, second], rows)
+    ).preflight_variants(
+        project_id,
+        CurrentPrincipal(role="employee", user_id=project.user_id),
+        _request([first.id, second.id], selections=selections),
+    )
+
+    assert [item.status for item in resolved] == [
+        SpecificationPreflightStatus.READY,
+        SpecificationPreflightStatus.READY,
+    ]
+    assert resolved[0].catalog_selections == {
+        connection_groups[0].group_key: selections[connection_groups[0].group_key]
+    }
+    assert resolved[1].catalog_selections == {
+        connection_groups[1].group_key: selections[connection_groups[1].group_key]
+    }
+    assert not any(
+        issue.get("reason") == "catalog_selection_stale_group"
+        for item in resolved
+        for diagnostic in item.diagnostics
+        for issue in diagnostic.issues
+    )
+
+
 async def test_missing_or_foreign_variant_is_non_disclosing_and_stops_before_rows(
     monkeypatch,
 ):

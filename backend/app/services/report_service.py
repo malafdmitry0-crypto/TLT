@@ -87,16 +87,15 @@ class ReportService:
             "stale_details": None,
         }
         if "specification" in enabled_sections:
-            # Prefer UUID identity; legacy variant_number is fallback only.
             spec_stmt = select(Specification).where(Specification.project_id == project_id)
             if electrical_variant_id is not None:
                 spec_stmt = spec_stmt.where(
                     Specification.electrical_variant_id == electrical_variant_id
                 )
-            elif variant_number is not None:
-                spec_stmt = spec_stmt.where(Specification.variant_number == variant_number)
             else:
-                spec_stmt = spec_stmt.where(False)  # no selector → empty
+                # Specification data plane is UUID-only. A numeric report selector
+                # may still scope legacy electrical sections, never a BOM.
+                spec_stmt = spec_stmt.where(False)
             spec_result = await self.db.execute(spec_stmt)
             spec = spec_result.scalars().first()
             if spec:
@@ -104,21 +103,21 @@ class ReportService:
                 # PDL-ER-37 / CANON-07: stale or blocked BOM never enters current
                 # report/export procurement totals. Per-ER isolation via UUID selector.
                 raw_items = list(spec.items or [])
-                gen_opts = getattr(spec, "generation_options", None) or {}
+                snapshot = getattr(spec, "snapshot", None) or {}
                 is_partial = (
-                    bool(gen_opts.get("is_partial")) if isinstance(gen_opts, dict) else False
+                    bool(snapshot.get("is_partial")) if isinstance(snapshot, dict) else False
                 )
                 excluded_groups = (
-                    list(gen_opts.get("excluded_groups") or [])
-                    if isinstance(gen_opts, dict)
+                    list(snapshot.get("excluded_groups") or [])
+                    if isinstance(snapshot, dict)
                     else []
                 )
                 # Treat explicit blocked snapshots the same as stale for export totals.
                 is_blocked = (
-                    isinstance(gen_opts, dict)
+                    isinstance(snapshot, dict)
                     and (
-                        gen_opts.get("status") == "blocked"
-                        or gen_opts.get("blocked") is True
+                        snapshot.get("status") == "blocked"
+                        or snapshot.get("blocked") is True
                     )
                 )
                 exclude_from_totals = is_stale or is_blocked

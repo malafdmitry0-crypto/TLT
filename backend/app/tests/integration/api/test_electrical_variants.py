@@ -847,11 +847,7 @@ class TestElectricalVariantConcurrency:
             headers=headers,
         )
         stale_specification_read = await client.get(
-            f"/api/v1/specifications/{project['id']}",
-            params={
-                "variant": 2,
-                "electrical_variant_id": stale_variant["id"],
-            },
+            f"/api/v1/specifications/{project['id']}/variants/{stale_variant['id']}",
             headers=headers,
         )
         stale_report_read = await client.get(
@@ -894,8 +890,11 @@ class TestElectricalVariantConcurrency:
 
         assert stale_read.status_code == 404, stale_read.text
         assert stale_read.json()["detail"]["code"] == "ELECTRICAL_VARIANT_NOT_FOUND"
+        assert stale_specification_read.status_code == 404, stale_specification_read.text
+        assert stale_specification_read.json()["detail"]["code"] == (
+            "ELECTRICAL_VARIANT_NOT_FOUND"
+        )
         for response in (
-            stale_specification_read,
             stale_report_read,
             stale_write,
             stale_multi_write,
@@ -1693,10 +1692,8 @@ class TestElectricalVariantCopy:
         )
         specification = Specification(
             project_id=project_id,
-            variant_number=1,
             electrical_variant_id=source_id,
             items=[{"name": "Не копировать", "quantity": 1}],
-            generation_mode="full",
         )
         db_session.add_all([calculation, candidate, folder, specification])
         await db_session.flush()

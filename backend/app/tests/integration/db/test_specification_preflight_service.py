@@ -224,11 +224,9 @@ async def test_uuid_preflight_isolates_variants_and_preserves_previous_specifica
     previous_specification = Specification(
         id=uuid.uuid4(),
         project_id=project.id,
-        variant_number=2,
         electrical_variant_id=legacy_only_variant.id,
         items=[{"name": "previous", "quantity": 7}],
-        generation_mode="full",
-        generation_options={"snapshot": "unchanged"},
+        snapshot={"state": "unchanged"},
         is_stale=False,
     )
     catalog_id = uuid.uuid4()
@@ -300,7 +298,7 @@ async def test_uuid_preflight_isolates_variants_and_preserves_previous_specifica
 
     await db_session.refresh(previous_specification)
     assert previous_specification.items == [{"name": "previous", "quantity": 7}]
-    assert previous_specification.generation_options == {"snapshot": "unchanged"}
+    assert previous_specification.snapshot == {"state": "unchanged"}
     assert previous_specification.is_stale is False
     assert previous_specification.updated_at == previous_updated_at
 

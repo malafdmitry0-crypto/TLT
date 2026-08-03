@@ -194,7 +194,7 @@ async def test_activation_retires_previous_and_stales_specifications(
             headers=employee_headers,
         )
     ).json()
-    # Activation marks all non-stale specs globally.
+    # Activation marks only specs whose immutable snapshot uses this catalog key.
     from app.models.electrical_variant import ElectricalVariant
 
     variant = ElectricalVariant(
@@ -210,14 +210,31 @@ async def test_activation_retires_previous_and_stales_specifications(
     await db_session.flush()
     spec = Specification(
         project_id=UUID(project["id"]),
-        variant_number=1,
         electrical_variant_id=variant.id,
         items=[{"name": "old", "quantity": 1}],
+        snapshot={"catalog": {"catalog_key": "builtin-specification"}},
         is_stale=False,
     )
-    db_session.add(spec)
+    unrelated_variant = ElectricalVariant(
+        id=uuid4(),
+        project_id=UUID(project["id"]),
+        name="ЭР 2",
+        name_normalized="эр 2",
+        sort_order=1,
+        legacy_variant_number=2,
+        is_active=False,
+    )
+    unrelated_spec = Specification(
+        project_id=UUID(project["id"]),
+        electrical_variant_id=unrelated_variant.id,
+        items=[{"name": "unrelated", "quantity": 1}],
+        snapshot={"catalog": {"catalog_key": "another-owner-catalog"}},
+        is_stale=False,
+    )
+    db_session.add_all([spec, unrelated_variant, unrelated_spec])
     await db_session.commit()
     specification_id = spec.id
+    unrelated_specification_id = unrelated_spec.id
 
     first_activation = await client.post(
         f"/api/v1/admin/specification-catalogs/{first.json()['id']}/activate",
@@ -244,9 +261,12 @@ async def test_activation_retires_previous_and_stales_specifications(
 
     db_session.expire_all()
     refreshed = await db_session.get(Specification, specification_id)
+    unrelated_refreshed = await db_session.get(Specification, unrelated_specification_id)
     assert refreshed is not None
     assert refreshed.is_stale is True
     assert refreshed.stale_reason == "specification_catalog_activated"
+    assert unrelated_refreshed is not None
+    assert unrelated_refreshed.is_stale is False
 
 
 async def test_activate_nonexistent_and_non_draft_have_stable_codes(

@@ -11,14 +11,12 @@ from app.models.specification import (
     SpecificationCatalogItem,
     SpecificationCatalogVersion,
 )
-from app.services.electrical_variant_service import ElectricalVariantServiceError
 from app.services.specification_catalog_service import (
     SpecificationCatalogService,
     SpecificationCatalogServiceError,
     _canonical_checksum,
     validate_specification_catalog,
 )
-from app.services.specification_service import SpecificationService
 from app.tests.specification_catalog_fixtures import complete_specification_catalog_items
 
 
@@ -341,7 +339,7 @@ async def test_activation_reports_invalid_persisted_required_fields_as_domain_er
 
 async def test_resolve_active_fails_closed_when_no_active_catalog_exists():
     db = AsyncMock()
-    db.scalar = AsyncMock(return_value=None)
+    db.execute = AsyncMock(return_value=_items_result([]))
 
     with pytest.raises(SpecificationCatalogServiceError) as exc:
         await SpecificationCatalogService(db).resolve_active()
@@ -352,13 +350,83 @@ async def test_resolve_active_fails_closed_when_no_active_catalog_exists():
 
 async def test_resolve_explicit_inactive_version_has_stable_conflict_code():
     db = AsyncMock()
-    db.scalar = AsyncMock(return_value=None)
+    db.execute = AsyncMock(return_value=_items_result([]))
 
     with pytest.raises(SpecificationCatalogServiceError) as exc:
         await SpecificationCatalogService(db).resolve_active(catalog_version="draft-v1")
 
     assert exc.value.code == "SPEC_CATALOG_VERSION_INACTIVE"
     assert exc.value.status_code == 409
+
+
+async def test_resolve_default_uses_the_only_active_catalog_without_builtin_key():
+    items = _persisted_items()
+    version = SpecificationCatalogVersion(
+        id=items[0].catalog_version_id,
+        catalog_key="project-owner-catalog",
+        version="approved-v1",
+        status="active",
+        authority="approved",
+        source="owner registry",
+        source_checksum=f"sha256:{'a' * 64}",
+        payload_checksum=_payload_checksum(items),
+        schema_version=1,
+        item_count=len(items),
+        is_complete=True,
+        validation_issues=[],
+    )
+    db = AsyncMock()
+    db.execute = AsyncMock(
+        side_effect=[_items_result([version]), _items_result(items)]
+    )
+
+    resolved = await SpecificationCatalogService(db).resolve_active()
+
+    assert resolved.version.catalog_key == "project-owner-catalog"
+    first_query = str(db.execute.await_args_list[0].args[0])
+    assert "specification_catalog_versions.catalog_key =" not in first_query
+
+
+async def test_resolve_default_rejects_multiple_active_catalogs():
+    first = SpecificationCatalogVersion(
+        id=uuid.uuid4(),
+        catalog_key="owner-a",
+        version="v1",
+        status="active",
+        authority="approved",
+        source="owner registry",
+        source_checksum=f"sha256:{'a' * 64}",
+        payload_checksum=f"sha256:{'b' * 64}",
+        schema_version=1,
+        item_count=1,
+        is_complete=True,
+        validation_issues=[],
+    )
+    second = SpecificationCatalogVersion(
+        id=uuid.uuid4(),
+        catalog_key="owner-b",
+        version="v1",
+        status="active",
+        authority="approved",
+        source="owner registry",
+        source_checksum=f"sha256:{'c' * 64}",
+        payload_checksum=f"sha256:{'d' * 64}",
+        schema_version=1,
+        item_count=1,
+        is_complete=True,
+        validation_issues=[],
+    )
+    db = AsyncMock()
+    db.execute = AsyncMock(return_value=_items_result([first, second]))
+
+    with pytest.raises(SpecificationCatalogServiceError) as exc:
+        await SpecificationCatalogService(db).resolve_active()
+
+    assert exc.value.code == "SPEC_CATALOG_UNAVAILABLE"
+    assert exc.value.details == {
+        "reason": "multiple_active_catalogs",
+        "active_catalog_count": 2,
+    }
 
 
 async def test_resolve_active_accepts_uuid_string_catalog_id():
@@ -389,32 +457,6 @@ async def test_resolve_active_accepts_uuid_string_catalog_id():
 
     assert resolved.version.id == catalog_id
     assert len(resolved.items) == len(items)
-
-
-async def test_specification_preflight_blocks_before_reading_objects_without_catalog(
-    monkeypatch: pytest.MonkeyPatch,
-):
-    db = AsyncMock()
-    missing = SpecificationCatalogServiceError(
-        "SPEC_CATALOG_UNAVAILABLE",
-        "missing",
-        status_code=503,
-    )
-    monkeypatch.setattr(
-        SpecificationCatalogService,
-        "resolve_active",
-        AsyncMock(side_effect=missing),
-    )
-
-    with pytest.raises(ElectricalVariantServiceError) as exc:
-        await SpecificationService(db).preflight_variant(
-            uuid.uuid4(),
-            variant_number=1,
-            electrical_variant_id=uuid.uuid4(),
-        )
-
-    assert exc.value.code == "SPEC_CATALOG_UNAVAILABLE"
-    db.execute.assert_not_awaited()
 
 
 def test_error_detail_is_stable_and_repeatable():

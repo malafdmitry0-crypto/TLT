@@ -348,14 +348,42 @@ class TestDumpProjectToWriter:
 
     def test_writes_specifications_section(self):
         from types import SimpleNamespace
+        from uuid import uuid4
 
         from app.services.project_io_service import _dump_project_to_writer
 
-        spec = SimpleNamespace(variant_number=1, items=[{"name": "X", "quantity": 1}])
+        er_id = uuid4()
+        variant = SimpleNamespace(
+            id=er_id,
+            name="ЭР alpha",
+            sort_order=0,
+            is_active=True,
+            copied_from_id=None,
+            legacy_variant_number=None,
+        )
+        spec = SimpleNamespace(
+            electrical_variant_id=er_id,
+            items=[{"name": "X", "quantity": 1}],
+            snapshot={"catalog": {"catalog_key": "approved-2026"}},
+            is_stale=False,
+            stale_reason=None,
+            stale_at=None,
+            stale_details=None,
+        )
         buf, w = self._writer()
-        _dump_project_to_writer(w, self._project(), [], [], [spec])
+        _dump_project_to_writer(
+            w,
+            self._project(),
+            [],
+            [],
+            [spec],
+            variants=[variant],
+        )
         text = buf.getvalue()
         assert "[SECTION];specifications" in text
+        assert "variant_key;electrical_variant_id;items;snapshot" in text
+        assert str(er_id) in text
+        assert "approved-2026" in text
 
 
 class TestApplyProjectData:
@@ -614,54 +642,31 @@ class TestApplyProjectData:
         )
         db.add.assert_not_called()
 
-    async def test_specifications_added(self):
+    async def test_v2_specifications_are_rejected_without_writes(self):
         from types import SimpleNamespace
         from unittest.mock import AsyncMock, MagicMock
-        from uuid import uuid4
 
-        from app.models.electrical_variant import ElectricalVariant
-        from app.models.specification import Specification
         from app.services.project_io_service import _apply_project_data
 
         project = SimpleNamespace(id="pid")
-        added: list[object] = []
         db = AsyncMock()
-        db.add = MagicMock(side_effect=added.append)
+        db.add = MagicMock()
 
-        async def fake_flush():
-            for item in added:
-                if isinstance(item, ElectricalVariant) and item.id is None:
-                    item.id = uuid4()
+        with pytest.raises(ProjectImportError, match="schema_version=2 не поддерживается"):
+            await _apply_project_data(
+                db,
+                project,
+                objects_rows=[],
+                electrical_rows=[],
+                spec_rows=[
+                    {
+                        "variant_number": "1",
+                        "items": '[{"name": "X", "quantity": 1}]',
+                    }
+                ],
+            )
 
-        db.flush = AsyncMock(side_effect=fake_flush)
-        await _apply_project_data(
-            db,
-            project,
-            objects_rows=[],
-            electrical_rows=[],
-            spec_rows=[
-                {
-                    "variant_number": "1",
-                    "items": '[{"name": "X", "quantity": 1}]',
-                }
-            ],
-        )
-
-        variants = [item for item in added if isinstance(item, ElectricalVariant)]
-        specifications = [item for item in added if isinstance(item, Specification)]
-        assert len(variants) == len(specifications) == 1
-
-        variant = variants[0]
-        specification = specifications[0]
-        assert variant.name == "ЭР1"
-        assert variant.legacy_variant_number == 1
-        assert specification.variant_number == 1
-        assert specification.electrical_variant_id == variant.id
-        assert specification.items == [{"name": "X", "quantity": 1}]
-        assert specification.is_stale is True
-        assert specification.stale_reason == "electrical_sections_not_ready"
-        assert specification.stale_details["sections_status"] == "not_ready"
-        assert specification.stale_details["error_code"] == "ELECTRICAL_SECTIONS_NOT_READY"
+        db.add.assert_not_called()
 
 
 class TestSchemaV3Helpers:

@@ -357,57 +357,6 @@ class SpecificationGenerationResponse(BaseModel):
     results: list[SpecificationVariantGenerationResult]
 
 
-class SpecificationOptions(BaseModel):
-    """Legacy full-BOM options (pre-canonical).
-
-    Soft-deprecated: public generate uses :class:`SpecificationRequestedOptions`.
-    Kept for internal unit tests and the transitional formula builder path.
-    Not part of the unversioned generate OpenAPI contract.
-    """
-
-    reserve_coefficient: float = Field(
-        default=1.0,
-        ge=1.0,
-        le=3.0,
-        description="R,гр — коэффициент горячего резервирования секций",
-    )
-    ex_zone: bool = Field(
-        default=False,
-        description="Ex — взрывоопасная зона (бронированный кабельный ввод вместо пластикового)",
-    )
-    indication_on_boxes: bool = Field(
-        default=False, description="К1i — индикация питания на коробках"
-    )
-    end_section_indication: bool = Field(
-        default=False, description="К2i — доп. индикация в конце нагревательной секции"
-    )
-    top_indication: bool = Field(default=False, description="Кiu — доп. индикация сверху коробки")
-    min_length_for_end_indication: float = Field(
-        default=0.0,
-        ge=0.0,
-        description="L,К2i — мин. длина секции для применения К2i, м",
-    )
-    group_by: str = Field(
-        default="object_section",
-        description="PDL-ER-38: default grouping key for BOM presentation",
-    )
-    merge_identical: bool = Field(
-        default=False,
-        description="PDL-ER-38: merge identical catalog base+code after per-type calc",
-    )
-    # PDL-ER-44 / PDF §7.10: pick one connector kit capacity (sections per kit).
-    # 1 → default КСН-1 / КСВ-1; 2 → КСН-2 / КСВ-2. Not dual XLSX emission.
-    connector_kit_sections_per_kit: int = Field(
-        default=1,
-        ge=1,
-        le=2,
-        description=(
-            "PDF §7.10 / PDL-ER-44: sections covered by one connector kit "
-            "(1=КСН-1/КСВ-1 default, 2=КСН-2/КСВ-2). qty=ceil(Nсек/capacity)."
-        ),
-    )
-
-
 class SpecificationSettingsResponse(BaseModel):
     """Canonical, possibly incomplete, project specification settings."""
 
@@ -427,76 +376,33 @@ class SpecificationResponse(BaseModel):
 
     id: UUID
     project_id: UUID
-    variant_number: int
-    electrical_variant_id: UUID | None = None
+    electrical_variant_id: UUID
     items: list[dict[str, Any]]
-    # Режим и опции последней генерации — чтобы UI восстанавливал их после reload
-    generation_mode: str | None = None
-    generation_options: dict[str, Any] | None = None
+    snapshot: dict[str, Any] | None = None
     is_stale: bool
     stale_reason: str | None = None
     stale_at: datetime | None = None
     stale_details: dict[str, Any] | None = None
-    # FA-01/05: persisted partial diagnostics (also mirrored in generation_options)
-    is_partial: bool = False
-    excluded_groups: list[dict[str, Any]] = Field(default_factory=list)
-    skipped_objects: int = 0
     created_at: datetime
     updated_at: datetime
 
-    @model_validator(mode="after")
-    def _hydrate_partial_diagnostics(self) -> "SpecificationResponse":
-        """Expose generation_options partial fields as first-class GET fields.
 
-        FastAPI response serialization may not call a custom model_validate
-        override; mode='after' runs for all validation paths (FA-01/05).
-        """
-        opts = self.generation_options or {}
-        if not isinstance(opts, dict):
-            return self
-        if "is_partial" in opts:
-            self.is_partial = bool(opts.get("is_partial"))
-        if isinstance(opts.get("excluded_groups"), list):
-            self.excluded_groups = list(opts.get("excluded_groups") or [])
-        if opts.get("skipped_objects") is not None:
-            try:
-                self.skipped_objects = int(opts.get("skipped_objects") or 0)
-            except (TypeError, ValueError):
-                self.skipped_objects = 0
-        return self
-
-
-class SpecificationGenerateVariantResult(BaseModel):
-    """Per-variant row nested under manual-save envelopes (not a public generate body)."""
-
-    electrical_variant_id: UUID
-    items: list[SpecificationItem]
-    mode: str = "full"
-    skipped_objects: int = 0
-    partial: bool = False
-    excluded_groups: list[dict[str, Any]] = Field(default_factory=list)
-
-
-class SpecificationGenerateResponse(BaseModel):
-    """Manual PUT items envelope (UUID and legacy numeric adapters).
-
-    Public generate uses :class:`SpecificationGenerationResponse` only. This shape
-    remains for employee manual item saves.
-    """
+class SpecificationManualItemsResponse(BaseModel):
+    """UUID-scoped response after replacing manual rows of one specification."""
 
     project_id: UUID
+    electrical_variant_id: UUID
     items: list[SpecificationItem]
-    # Фактически применённый режим генерации (PDL-ER-29: full)
-    mode: str = "full"
-    # Объекты/группы без вклада в full BOM (partial diagnostics).
-    skipped_objects: int = 0
-    partial: bool = False
-    excluded_groups: list[dict[str, Any]] = Field(default_factory=list)
-    settings_version: int | None = None
-    electrical_variant_id: UUID | None = None
-    # Optional multi-ER diagnostic payload (not used by live generate).
-    results: list[SpecificationGenerateVariantResult] | None = None
 
 
 class SpecificationUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     items: list[SpecificationItem]
+
+    @field_validator("items")
+    @classmethod
+    def _items_are_manual(cls, value: list[SpecificationItem]) -> list[SpecificationItem]:
+        if any(item.source != "manual" for item in value):
+            raise ValueError("manual PUT accepts only source=manual items")
+        return value

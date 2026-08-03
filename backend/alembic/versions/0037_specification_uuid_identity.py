@@ -13,8 +13,9 @@ Policy for existing rows:
 from __future__ import annotations
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 revision: str = "0037"
 down_revision: str | None = "0036"
@@ -82,7 +83,7 @@ def upgrade() -> None:
 
     if deleted_auto:
         # Visible in alembic logs when running upgrade.
-        print(  # noqa: T201
+        print(
             f"0037_specification_uuid_identity: deleted {deleted_auto} "
             "unmapped auto specification row(s)"
         )
@@ -103,6 +104,29 @@ def upgrade() -> None:
         raise RuntimeError(
             f"0037_specification_uuid_identity: {remaining_null} specification "
             "row(s) still have null electrical_variant_id after backfill"
+        )
+
+    cross_project = conn.execute(
+        sa.text(
+            """
+            SELECT spec.id, spec.project_id, spec.electrical_variant_id,
+                   ev.project_id AS variant_project_id
+            FROM specifications AS spec
+            JOIN electrical_variants AS ev ON ev.id = spec.electrical_variant_id
+            WHERE ev.project_id <> spec.project_id
+            ORDER BY spec.id
+            """
+        )
+    ).mappings().all()
+    if cross_project:
+        raise RuntimeError(
+            "0037_specification_uuid_identity: electrical_variant_id must belong "
+            "to the same project as specification: "
+            + ", ".join(
+                f"{row['id']}:{row['project_id']}->{row['electrical_variant_id']}"
+                f"@{row['variant_project_id']}"
+                for row in cross_project
+            )
         )
 
     # Drop partial unique index if present; replace with hard unique constraint.
@@ -147,11 +171,11 @@ def upgrade() -> None:
     )
 
     op.create_foreign_key(
-        "fk_specifications_electrical_variant_id",
+        "fk_specifications_electrical_variant_project",
         "specifications",
         "electrical_variants",
-        ["electrical_variant_id"],
-        ["id"],
+        ["electrical_variant_id", "project_id"],
+        ["id", "project_id"],
         ondelete="CASCADE",
     )
 
@@ -161,11 +185,80 @@ def upgrade() -> None:
         ["electrical_variant_id"],
     )
 
+    # Specification storage is UUID-only after this cutover. The 0027 bridge
+    # trigger references variant_number and must be detached before the column
+    # is removed; the shared trigger function remains for other legacy tables.
+    op.execute(
+        "DROP TRIGGER IF EXISTS trg_0027_sync_electrical_variant_id ON specifications"
+    )
+    op.drop_constraint(
+        "uq_specifications_project_variant",
+        "specifications",
+        type_="unique",
+    )
+    op.drop_column("specifications", "variant_number")
+    op.drop_column("specifications", "generation_mode")
+    op.alter_column(
+        "specifications",
+        "generation_options",
+        new_column_name="snapshot",
+        existing_type=postgresql.JSONB(),
+        existing_nullable=True,
+    )
+
 
 def downgrade() -> None:
+    conn = op.get_bind()
+    op.alter_column(
+        "specifications",
+        "snapshot",
+        new_column_name="generation_options",
+        existing_type=postgresql.JSONB(),
+        existing_nullable=True,
+    )
+    op.add_column(
+        "specifications",
+        sa.Column("generation_mode", sa.String(length=10), nullable=True),
+    )
+    op.add_column(
+        "specifications",
+        sa.Column("variant_number", sa.Integer(), nullable=True),
+    )
+    conn.execute(
+        sa.text(
+            """
+            UPDATE specifications AS spec
+            SET variant_number = ev.legacy_variant_number
+            FROM electrical_variants AS ev
+            WHERE ev.id = spec.electrical_variant_id
+              AND ev.project_id = spec.project_id
+            """
+        )
+    )
+    missing_legacy_slot = conn.execute(
+        sa.text("SELECT id FROM specifications WHERE variant_number IS NULL ORDER BY id")
+    ).scalars().all()
+    if missing_legacy_slot:
+        raise RuntimeError(
+            "0037_specification_uuid_identity downgrade: UUID specifications have "
+            "no legacy variant slot: " + ", ".join(map(str, missing_legacy_slot))
+        )
+    op.alter_column(
+        "specifications",
+        "variant_number",
+        existing_type=sa.Integer(),
+        nullable=False,
+        server_default="1",
+    )
+    op.create_unique_constraint(
+        "uq_specifications_project_variant",
+        "specifications",
+        ["project_id", "variant_number"],
+    )
+
     op.drop_index("ix_specifications_electrical_variant_id", table_name="specifications")
     op.drop_constraint(
-        "fk_specifications_electrical_variant_id",
+        "fk_specifications_electrical_variant_project",
         "specifications",
         type_="foreignkey",
     )
@@ -194,4 +287,13 @@ def downgrade() -> None:
         ["electrical_variant_id", "project_id", "variant_number"],
         ["id", "project_id", "legacy_variant_number"],
         ondelete="CASCADE",
+    )
+    op.execute(
+        """
+        CREATE TRIGGER trg_0027_sync_electrical_variant_id
+        BEFORE INSERT OR UPDATE OF project_id, variant_number, electrical_variant_id
+        ON specifications
+        FOR EACH ROW
+        EXECUTE FUNCTION tlt_0027_sync_legacy_electrical_variant_id()
+        """
     )

@@ -51,11 +51,7 @@ class TestReportNoMixing:
         er = init.json()["variant"]
 
         save = await client.put(
-            f"/api/v1/specifications/{pid}/items",
-            params={
-                "variant": er.get("legacy_variant_number") or 1,
-                "electrical_variant_id": er["id"],
-            },
+            f"/api/v1/specifications/{pid}/variants/{er['id']}/items",
             json={
                 "items": [
                     {

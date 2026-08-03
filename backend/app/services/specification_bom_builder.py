@@ -6,6 +6,7 @@ No database, FastAPI, filesystem, or legacy full_builder.
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -86,6 +87,7 @@ def materialize_specification_bom(
     catalog: ResolvedSpecificationCatalog,
     candidate_groups: Sequence[SpecificationCandidateGroup],
     resolved_options: SpecificationResolvedOptions,
+    snapshot_context: Mapping[str, Any],
     preflight_fingerprint: str | None = None,
     excluded_unassigned_object_ids: Sequence[UUID] | None = None,
 ) -> BomBuildResult:
@@ -130,6 +132,9 @@ def materialize_specification_bom(
         preflight_fingerprint=preflight_fingerprint,
         excluded_unassigned_object_ids=excluded_unassigned_object_ids or (),
         selected=selected,
+        contributing_results=contributing_results,
+        objects_by_id=objects_by_id,
+        snapshot_context=snapshot_context,
     )
     return BomBuildSuccess(items=items, snapshot=snapshot)
 
@@ -873,7 +878,27 @@ def _build_snapshot(
     preflight_fingerprint: str | None,
     excluded_unassigned_object_ids: Sequence[UUID],
     selected: Mapping[str, SpecificationCatalogItem],
+    contributing_results: Sequence[Mapping[str, Any]],
+    objects_by_id: Mapping[str, Mapping[str, Any]],
+    snapshot_context: Mapping[str, Any],
 ) -> dict[str, Any]:
+    required_context = {
+        "variant_revision",
+        "settings_revision",
+        "input_revisions",
+        "fingerprint_schema",
+    }
+    missing_context = sorted(required_context - snapshot_context.keys())
+    if missing_context:
+        raise ValueError(
+            "snapshot context is incomplete: " + ", ".join(missing_context)
+        )
+    if snapshot_context["fingerprint_schema"] != "specification-preflight/v1":
+        raise ValueError("unknown preflight fingerprint schema")
+    if not isinstance(preflight_fingerprint, str) or not re.fullmatch(
+        r"sha256:[0-9a-f]{64}", preflight_fingerprint
+    ):
+        raise ValueError("snapshot requires a canonical preflight fingerprint")
     selections = {
         group.group_key: str(group.selected_catalog_item_id)
         for group in candidate_groups
@@ -883,7 +908,9 @@ def _build_snapshot(
         "schema": _GENERATION_SCHEMA,
         "schema_version": _GENERATION_SCHEMA_VERSION,
         "electrical_variant_id": str(electrical_variant_id),
+        "variant_revision": snapshot_context["variant_revision"],
         "resolved_options": resolved_options.model_dump(mode="json", by_alias=True),
+        "settings_revision": snapshot_context["settings_revision"],
         "catalog": {
             "id": str(catalog.version.id),
             "catalog_key": catalog.version.catalog_key,
@@ -897,12 +924,70 @@ def _build_snapshot(
             key: str(item.id) for key, item in sorted(selected.items())
         },
         "formula_fingerprints": dict(_FORMULA_FINGERPRINTS),
+        "formula_provenance": {
+            category: _formula_provenance(identity)
+            for category, identity in sorted(_FORMULA_FINGERPRINTS.items())
+        },
+        "normalized_inputs": {
+            "resolved_options": resolved_options.model_dump(mode="json", by_alias=True),
+            "objects": _normalized_formula_inputs(
+                contributing_results=contributing_results,
+                objects_by_id=objects_by_id,
+            ),
+        },
+        "input_revisions": snapshot_context["input_revisions"],
+        "preflight_fingerprint_schema": snapshot_context["fingerprint_schema"],
         "preflight_fingerprint": preflight_fingerprint,
         "excluded_unassigned_object_ids": [
             str(item) for item in sorted(excluded_unassigned_object_ids, key=str)
         ],
         "generated_at": datetime.now(UTC).isoformat(),
     }
+
+
+def _formula_provenance(identity: str) -> dict[str, str]:
+    formula_id, separator, version = identity.rpartition("@")
+    if not separator or not formula_id or not version:
+        raise ValueError(f"invalid formula identity: {identity!r}")
+    return {
+        "formula_id": formula_id,
+        "formula_version": version,
+        "formula_fingerprint": identity,
+    }
+
+
+def _normalized_formula_inputs(
+    *,
+    contributing_results: Sequence[Mapping[str, Any]],
+    objects_by_id: Mapping[str, Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    normalized: list[dict[str, Any]] = []
+    for result in contributing_results:
+        object_id = str(result.get("object_id") or "")
+        if not object_id:
+            raise ValueError("contributing result has no object_id")
+        obj = objects_by_id.get(object_id)
+        if obj is None:
+            raise ValueError(f"contributing object {object_id} is missing")
+        section_length, section_count = _section_facts(result)
+        row: dict[str, Any] = {
+            "object_id": object_id,
+            "object_type_section": _object_type_section(obj),
+            "cable_mark": _cable_mark(result),
+            "temperature_group": _temperature_group_key(result),
+            "section_plan": {
+                "count": str(_to_decimal(section_count)),
+                "length_m": str(_to_decimal(section_length)),
+            },
+            "layout": {
+                "actual_installed_length_m": str(_to_decimal(_actual_length(result))),
+                "required_order_length_m": str(_to_decimal(_order_length(result))),
+            },
+        }
+        if row["object_type_section"] == "pipe":
+            row["outer_diameter_mm"] = str(_outer_diameter_mm(obj))
+        normalized.append(row)
+    return sorted(normalized, key=lambda row: row["object_id"])
 
 
 def _pick_cable_item(
@@ -986,8 +1071,6 @@ def _temperature_group_key(result: Mapping[str, Any]) -> str | None:
 def _section_facts(result: Mapping[str, Any]) -> tuple[Any, Any]:
     section_plan = result.get("section_plan") if isinstance(result.get("section_plan"), Mapping) else {}
     sections = result.get("sections") if isinstance(result.get("sections"), Mapping) else {}
-    layout = result.get("layout") if isinstance(result.get("layout"), Mapping) else {}
-
     count = (
         section_plan.get("count")
         or result.get("section_count")

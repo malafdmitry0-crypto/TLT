@@ -1,627 +1,353 @@
-"""Integration-тесты спецификации."""
+"""Canonical UUID-only specification API regressions.
 
-from uuid import UUID
+The broader generation/settings contract lives in
+``test_specification_canonical_api.py``.  This module keeps the persistence,
+permission and stale-state scenarios that were previously hidden among the
+retired numeric/legacy API tests.
+"""
+
+from __future__ import annotations
+
+import uuid
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.electrical_variant import ElectricalVariant
+from app.models.electrical_variant import ElectricalVariant, ElectricalVariantObject
+from app.models.project import Project
 from app.models.specification import Specification
+from app.models.user import User
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
-MINERAL_WOOL = "mineral_wool_boards_120"
+
+async def _seed_project_with_variants(
+    db_session: AsyncSession,
+    *,
+    name: str,
+    user_id: uuid.UUID | None = None,
+    session_id: str | None = None,
+    count: int = 1,
+) -> tuple[Project, list[ElectricalVariant]]:
+    project = Project(name=name, user_id=user_id, session_id=session_id)
+    db_session.add(project)
+    await db_session.flush()
+    variants = [
+        ElectricalVariant(
+            project_id=project.id,
+            name=f"ER {index + 1}",
+            name_normalized=f"er {index + 1}",
+            sort_order=index,
+            is_active=index == 0,
+            legacy_variant_number=None,
+        )
+        for index in range(count)
+    ]
+    db_session.add_all(variants)
+    await db_session.commit()
+    return project, variants
 
 
-class TestSpecification:
-    async def _add_pipe(
-        self,
-        client: AsyncClient,
-        project_id: str,
-        headers: dict[str, str],
-    ) -> dict:
-        obj_resp = await client.post(
-            f"/api/v1/projects/{project_id}/objects",
-            json={
-                "object_type": "pipe",
-                "params": {
-                    "outer_diameter": 0.108,
-                    "wall_thickness": 0.004,
-                    "pipe_material": "carbon_steel",
-                    "insulation_layers": [{"thickness": 0.05, "material": MINERAL_WOOL}],
-                    "insulation_temperature_basis": "outdoor_winter",
-                    "ambient_temperature": -30,
-                    "process_temperature": 80,
-                    "pipe_length": 50,
-                    "placement": "outdoor",
-                    "wind_speed": 0.0,
-                },
+def _manual_item(name: str, quantity: str = "1") -> dict[str, object]:
+    return {
+        "category": "extra",
+        "name": name,
+        "article": None,
+        "unit": "шт.",
+        "quantity": quantity,
+        "params": {},
+        "source": "manual",
+    }
+
+
+def _auto_item(name: str) -> dict[str, object]:
+    return {
+        "category": "cable",
+        "name": name,
+        "article": "AUTO-1",
+        "unit": "м",
+        "quantity": "12.5",
+        "params": {"catalog_item_id": str(uuid.uuid4())},
+        "source": "auto",
+    }
+
+
+async def test_legacy_numeric_routes_and_payload_are_absent(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    employee_user: User,
+    employee_token: str,
+) -> None:
+    project, variants = await _seed_project_with_variants(
+        db_session,
+        name="No legacy specification API",
+        user_id=employee_user.id,
+    )
+    headers = {"Authorization": f"Bearer {employee_token}"}
+
+    legacy_get = await client.get(
+        f"/api/v1/specifications/{project.id}",
+        params={"variant_number": 1},
+        headers=headers,
+    )
+    legacy_put = await client.put(
+        f"/api/v1/specifications/{project.id}/items",
+        json={"items": [_manual_item("Legacy row")]},
+        headers=headers,
+    )
+    legacy_generate = await client.post(
+        f"/api/v1/specifications/{project.id}/generate",
+        json={
+            "electrical_variant_ids": [str(variants[0].id)],
+            "confirm_partial": True,
+            "mode": "full",
+        },
+        headers=headers,
+    )
+
+    assert legacy_get.status_code == 404
+    assert legacy_put.status_code == 404
+    assert legacy_generate.status_code == 422
+    assert legacy_generate.json()["detail"]["code"] == "SPEC_VARIANT_IDS_REQUIRED"
+
+
+async def test_manual_replace_preserves_auto_rows_and_replaces_only_manual_rows(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    employee_user: User,
+    employee_token: str,
+) -> None:
+    project, variants = await _seed_project_with_variants(
+        db_session,
+        name="Manual UUID replacement",
+        user_id=employee_user.id,
+    )
+    variant = variants[0]
+    auto = _auto_item("Generated cable")
+    db_session.add(
+        Specification(
+            project_id=project.id,
+            electrical_variant_id=variant.id,
+            items=[auto, _manual_item("Old manual")],
+            snapshot={"schema": "test-snapshot", "schema_version": 1},
+        )
+    )
+    await db_session.commit()
+    headers = {"Authorization": f"Bearer {employee_token}"}
+    url = f"/api/v1/specifications/{project.id}/variants/{variant.id}/items"
+
+    response = await client.put(
+        url,
+        json={"items": [_manual_item("New manual", "2.50")]},
+        headers=headers,
+    )
+
+    assert response.status_code == 200, response.text
+    assert [(item["source"], item["name"]) for item in response.json()["items"]] == [
+        ("auto", "Generated cable"),
+        ("manual", "New manual"),
+    ]
+    assert response.json()["items"][1]["quantity"] == "2.5"
+
+    loaded = await client.get(
+        f"/api/v1/specifications/{project.id}/variants/{variant.id}",
+        headers=headers,
+    )
+    assert loaded.status_code == 200, loaded.text
+    assert [item["name"] for item in loaded.json()["items"]] == [
+        "Generated cable",
+        "New manual",
+    ]
+    assert loaded.json()["snapshot"] == {"schema": "test-snapshot", "schema_version": 1}
+
+
+async def test_manual_put_rejects_backend_owned_source(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    employee_user: User,
+    employee_token: str,
+) -> None:
+    project, variants = await _seed_project_with_variants(
+        db_session,
+        name="Manual source boundary",
+        user_id=employee_user.id,
+    )
+    response = await client.put(
+        f"/api/v1/specifications/{project.id}/variants/{variants[0].id}/items",
+        json={"items": [_auto_item("Forged auto row")]},
+        headers={"Authorization": f"Bearer {employee_token}"},
+    )
+
+    assert response.status_code == 422, response.text
+    assert response.json()["error_code"] == "VALIDATION_ERROR"
+    assert "manual PUT accepts only source=manual items" in response.json()["fields"]["body.items"]
+
+
+async def test_stale_specification_remains_readable_but_manual_put_is_blocked(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    employee_user: User,
+    employee_token: str,
+) -> None:
+    project, variants = await _seed_project_with_variants(
+        db_session,
+        name="Stale UUID specification",
+        user_id=employee_user.id,
+    )
+    variant = variants[0]
+    db_session.add(
+        Specification(
+            project_id=project.id,
+            electrical_variant_id=variant.id,
+            items=[_manual_item("Historical row")],
+            is_stale=True,
+            stale_reason="object_params_updated",
+            stale_details={"object_ids": [str(uuid.uuid4())]},
+        )
+    )
+    await db_session.commit()
+    headers = {"Authorization": f"Bearer {employee_token}"}
+
+    readable = await client.get(
+        f"/api/v1/specifications/{project.id}/variants/{variant.id}",
+        headers=headers,
+    )
+    blocked = await client.put(
+        f"/api/v1/specifications/{project.id}/variants/{variant.id}/items",
+        json={"items": [_manual_item("Must not be saved")]},
+        headers=headers,
+    )
+
+    assert readable.status_code == 200, readable.text
+    assert readable.json()["is_stale"] is True
+    assert readable.json()["items"][0]["name"] == "Historical row"
+    assert blocked.status_code == 409, blocked.text
+    assert blocked.json()["detail"]["code"] == "SPECIFICATION_STALE_READ_ONLY"
+
+
+async def test_object_change_stales_only_the_assigned_er_specification(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    employee_user: User,
+    employee_token: str,
+) -> None:
+    project, variants = await _seed_project_with_variants(
+        db_session,
+        name="Per-ER object stale",
+        user_id=employee_user.id,
+        count=2,
+    )
+    headers = {"Authorization": f"Bearer {employee_token}"}
+    created = await client.post(
+        f"/api/v1/projects/{project.id}/objects",
+        json={
+            "object_type": "pipe",
+            "params": {
+                "outer_diameter": 0.108,
+                "wall_thickness": 0.004,
+                "pipe_material": "carbon_steel",
+                "insulation_layers": [{"thickness": 0.05, "material": "mineral_wool_boards_120"}],
+                "insulation_temperature_basis": "outdoor_winter",
+                "ambient_temperature": -30,
+                "process_temperature": 80,
+                "pipe_length": 50,
+                "placement": "outdoor",
+                "wind_speed": 0.0,
             },
-            headers=headers,
-        )
-        assert obj_resp.status_code in (200, 201), obj_resp.text
-        return obj_resp.json()
+        },
+        headers=headers,
+    )
+    assert created.status_code in (200, 201), created.text
+    object_data = created.json()
 
-    async def _create_project_with_pipe(
-        self, client: AsyncClient, headers: dict[str, str]
-    ) -> tuple[dict, dict]:
-        project = (
-            await client.post(
-                "/api/v1/projects", json={"name": "Spec stale project"}, headers=headers
-            )
-        ).json()
-        return project, await self._add_pipe(client, project["id"], headers)
-
-    async def _save_manual_spec(
-        self, client: AsyncClient, project_id: str, headers: dict[str, str]
-    ) -> None:
-        resp = await client.put(
-            f"/api/v1/specifications/{project_id}/items",
-            json={
-                "items": [
-                    {
-                        "category": "manual",
-                        "name": "Ручная позиция",
-                        "article": "MAN-1",
-                        "unit": "шт",
-                        "quantity": 1,
-                        "source": "manual",
-                    }
-                ]
-            },
-            headers=headers,
-        )
-        assert resp.status_code == 200, resp.text
-
-    async def test_generate_objectless_specification_is_readiness_blocked_atomically(
-        self,
-        client: AsyncClient,
-        guest_session: str,
-        db_session: AsyncSession,
-    ):
-        """PDL-ER-12: a downstream write cannot create the first ER before readiness."""
-        p = (
-            await client.get(
-                "/api/v1/projects",
-                headers={"X-Session-Id": guest_session},
-            )
-        ).json()[0]
-        resp = await client.post(
-            f"/api/v1/specifications/{p['id']}/generate",
-            json={"confirm_partial": True},
-            headers={"X-Session-Id": guest_session},
-        )
-        assert resp.status_code == 409, resp.text
-        assert resp.json()["detail"]["code"] == "ELECTRICAL_READINESS_FAILED"
-
-        project_id = UUID(p["id"])
-        variant_count = await db_session.scalar(
-            select(func.count(ElectricalVariant.id)).where(
-                ElectricalVariant.project_id == project_id
+    assignments = (
+        (
+            await db_session.execute(
+                select(ElectricalVariantObject).where(
+                    ElectricalVariantObject.project_id == project.id,
+                    ElectricalVariantObject.object_id == uuid.UUID(object_data["id"]),
+                )
             )
         )
-        specification_count = await db_session.scalar(
-            select(func.count(Specification.id)).where(Specification.project_id == project_id)
-        )
-        assert variant_count == 0
-        assert specification_count == 0
-
-    async def test_get_specification_after_generate(self, client: AsyncClient, guest_session: str):
-        p = (
-            await client.get(
-                "/api/v1/projects",
-                headers={"X-Session-Id": guest_session},
+        .scalars()
+        .all()
+    )
+    assert len(assignments) == 2
+    assigned = next(item for item in assignments if item.electrical_variant_id == variants[0].id)
+    assigned.system_type = "self_regulating"
+    assigned.assignment_state = "ready"
+    db_session.add_all(
+        [
+            Specification(
+                project_id=project.id,
+                electrical_variant_id=variant.id,
+                items=[_manual_item(f"History {index}")],
             )
-        ).json()[0]
-        await self._add_pipe(
-            client,
-            p["id"],
-            {"X-Session-Id": guest_session},
-        )
-        await client.post(
-            f"/api/v1/specifications/{p['id']}/generate",
-            json={"confirm_partial": True},
-            headers={"X-Session-Id": guest_session},
-        )
-        resp = await client.get(
-            f"/api/v1/specifications/{p['id']}",
-            headers={"X-Session-Id": guest_session},
-        )
-        assert resp.status_code == 200
-        assert resp.json() is not None
-
-    async def test_regenerate_preserves_manual_items(
-        self, client: AsyncClient, employee_token: str
-    ):
-        """При повторной генерации manual-позиции не теряются, авто-позиции пересчитываются."""
-        headers = {"Authorization": f"Bearer {employee_token}"}
-        p = (
-            await client.post("/api/v1/projects", json={"name": "Spec-MM"}, headers=headers)
-        ).json()
-        await self._add_pipe(client, p["id"], headers)
-        # Сначала генерируем базовую спецификацию готового проекта.
-        await client.post(
-            f"/api/v1/specifications/{p['id']}/generate",
-            json={"confirm_partial": True},
-            headers=headers,
-        )
-        # Сохраняем manual-позицию
-        await client.put(
-            f"/api/v1/specifications/{p['id']}/items",
-            json={
-                "items": [
-                    {
-                        "category": "extra",
-                        "name": "Доп. термостат",
-                        "article": "TS-100",
-                        "unit": "шт",
-                        "quantity": 2,
-                        "source": "manual",
-                    }
-                ]
-            },
-            headers=headers,
-        )
-        # Регенерируем — manual должен сохраниться
-        resp = await client.post(
-            f"/api/v1/specifications/{p['id']}/generate",
-            json={"confirm_partial": True},
-            headers=headers,
-        )
-        items = resp.json()["items"]
-        manual = [i for i in items if i.get("source") == "manual"]
-        assert any(m["article"] == "TS-100" for m in manual)
-
-    async def test_get_specification_404_for_unknown_variant(
-        self, client: AsyncClient, guest_session: str
-    ):
-        p = (await client.get("/api/v1/projects", headers={"X-Session-Id": guest_session})).json()[
-            0
+            for index, variant in enumerate(variants)
         ]
-        # Запрашиваем variant=99 — никогда не генерировался
-        resp = await client.get(
-            f"/api/v1/specifications/{p['id']}?variant_number=99",
-            headers={"X-Session-Id": guest_session},
-        )
-        assert resp.status_code in (200, 404)
-        # Если 200 — должен быть пустой массив, если 404 — нет данных
+    )
+    await db_session.commit()
 
-    async def test_guest_full_mode_allowed_manual_items_still_forbidden(
-        self, client: AsyncClient, guest_session: str
-    ):
-        """PDL-ER-04: guest may generate full automatic BOM; manual item write stays 403."""
-        headers = {"X-Session-Id": guest_session}
-        p = (await client.get("/api/v1/projects", headers=headers)).json()[0]
-        await self._add_pipe(client, p["id"], headers)
-        resp = await client.post(
-            f"/api/v1/specifications/{p['id']}/generate",
-            json={"mode": "full", "confirm_partial": True},
-            headers=headers,
-        )
-        assert resp.status_code == 201, resp.text
-        body = resp.json()
-        assert body["mode"] == "full"
+    updated = await client.put(
+        f"/api/v1/projects/{project.id}/objects/{object_data['id']}",
+        json={
+            "version": object_data["version"],
+            "params": {**object_data["params"], "pipe_length": 75},
+        },
+        headers=headers,
+    )
+    assert updated.status_code == 200, updated.text
 
-        manual = await client.put(
-            f"/api/v1/specifications/{p['id']}/items",
-            json={
-                "items": [
-                    {
-                        "category": "manual",
-                        "name": "Ручная позиция",
-                        "unit": "шт",
-                        "quantity": 1,
-                        "source": "manual",
-                    }
-                ]
-            },
-            headers=headers,
-        )
-        assert manual.status_code == 403
-
-    async def test_generate_requires_confirm_partial_when_exclusions(
-        self, client: AsyncClient, guest_session: str
-    ):
-        """PDL-ER-36: preflight blocks write until confirm_partial=true."""
-        headers = {"X-Session-Id": guest_session}
-        project = (await client.get("/api/v1/projects", headers=headers)).json()[0]
-        await self._add_pipe(client, project["id"], headers)
-        blocked = await client.post(
-            f"/api/v1/specifications/{project['id']}/generate",
-            json={"mode": "full", "confirm_partial": False},
-            headers=headers,
-        )
-        assert blocked.status_code == 409, blocked.text
-        detail = blocked.json()["detail"]
-        assert detail["code"] == "SPECIFICATION_PREFLIGHT_CONFIRMATION_REQUIRED"
-        assert detail["preflight"]["requires_confirmation"] is True
-        # FA-06: confirmation required for object skips AND/OR excluded BOM groups
-        # (sections catalog, boxes matrix) even when all objects contribute.
-        pf_variants = detail["preflight"].get("variants") or []
-        has_group_exclusions = any((v.get("excluded_groups") or []) for v in pf_variants)
-        assert detail["preflight"]["total_skipped_objects"] >= 1 or has_group_exclusions
-
-        confirmed = await client.post(
-            f"/api/v1/specifications/{project['id']}/generate",
-            json={"mode": "full", "confirm_partial": True},
-            headers=headers,
-        )
-        assert confirmed.status_code == 201, confirmed.text
-        body = confirmed.json()
-        assert body["mode"] == "full"
-        assert body.get("partial") is True
-
-    async def test_generate_basic_mode_coerced_to_full(
-        self, client: AsyncClient, guest_session: str
-    ):
-        """PDL-ER-29: deprecated basic input is normalized to full."""
-        headers = {"X-Session-Id": guest_session}
-        p = (await client.get("/api/v1/projects", headers=headers)).json()[0]
-        await self._add_pipe(client, p["id"], headers)
-        resp = await client.post(
-            f"/api/v1/specifications/{p['id']}/generate",
-            json={"mode": "basic", "confirm_partial": True},
-            headers=headers,
-        )
-        assert resp.status_code == 201, resp.text
-        assert resp.json()["mode"] == "full"
-
-    async def test_generate_response_reports_mode_and_persists_it(
-        self, client: AsyncClient, employee_token: str
-    ):
-        """Ответ содержит фактический режим; режим сохраняется и виден в GET."""
-        headers = {"Authorization": f"Bearer {employee_token}"}
-        p = (
-            await client.post("/api/v1/projects", json={"name": "Spec-Mode"}, headers=headers)
-        ).json()
-        await self._add_pipe(client, p["id"], headers)
-        resp = await client.post(
-            f"/api/v1/specifications/{p['id']}/generate",
-            json={"mode": "full", "options": {"reserve_coefficient": 1.2}, "confirm_partial": True},
-            headers=headers,
-        )
-        assert resp.status_code == 201, resp.text
-        body = resp.json()
-        assert body["mode"] == "full"
-        assert "skipped_objects" in body
-
-        spec = (await client.get(f"/api/v1/specifications/{p['id']}", headers=headers)).json()
-        assert spec["generation_mode"] == "full"
-        assert spec["generation_options"]["reserve_coefficient"] == 1.2
-        # PDL-ER-07: generation stores full versioned snapshot
-        assert "settings_version" in spec["generation_options"]
-        assert body.get("settings_version") == spec["generation_options"]["settings_version"]
-        # SEEDS-01/02 registered: generation may be full without SECTION/BOX missing codes.
-        assert "excluded_groups" in body or "partial" in body
-        assert isinstance(spec.get("excluded_groups"), list) or spec.get("is_partial") is not None
-        # FA-01/05: partial honesty fields remain present on GET even when complete.
-        assert "is_partial" in spec or "generation_options" in spec
-
-    async def test_project_settings_versioned_without_auto_regenerate(
-        self, client: AsyncClient, employee_token: str
-    ):
-        """PDL-ER-07: save defaults bumps version and stales other snapshot, no regenerate."""
-        headers = {"Authorization": f"Bearer {employee_token}"}
-        p = (
-            await client.post("/api/v1/projects", json={"name": "Spec-Settings"}, headers=headers)
-        ).json()
-        await self._add_pipe(client, p["id"], headers)
-
-        get0 = await client.get(f"/api/v1/specifications/{p['id']}/settings", headers=headers)
-        assert get0.status_code == 200, get0.text
-        assert get0.json()["version"] == 1
-
-        gen = await client.post(
-            f"/api/v1/specifications/{p['id']}/generate",
-            json={
-                "mode": "full",
-                "options": {"reserve_coefficient": 1.0, "ex_zone": False},
-                "confirm_partial": True,
-            },
-            headers=headers,
-        )
-        assert gen.status_code == 201, gen.text
-        before = (await client.get(f"/api/v1/specifications/{p['id']}", headers=headers)).json()
-        assert before["is_stale"] is False
-        before_items = before["items"]
-
-        put = await client.put(
-            f"/api/v1/specifications/{p['id']}/settings",
-            json={"settings": {"reserve_coefficient": 1.5, "ex_zone": True}},
-            headers=headers,
-        )
-        assert put.status_code == 200, put.text
-        assert put.json()["version"] == 2
-        assert put.json()["settings"]["reserve_coefficient"] == 1.5
-
-        after = (await client.get(f"/api/v1/specifications/{p['id']}", headers=headers)).json()
-        assert after["is_stale"] is True
-        assert after["stale_reason"] == "specification_settings_changed"
-        # Saving defaults must not rewrite BOM items.
-        assert after["items"] == before_items
-
-    async def test_save_items_replaces_completely(self, client: AsyncClient, employee_token: str):
-        headers = {"Authorization": f"Bearer {employee_token}"}
-        p = (
-            await client.post("/api/v1/projects", json={"name": "Spec-Replace"}, headers=headers)
-        ).json()
-        await self._add_pipe(client, p["id"], headers)
-        # Первый save — 2 позиции
-        await client.put(
-            f"/api/v1/specifications/{p['id']}/items",
-            json={
-                "items": [
-                    {"category": "a", "name": "A", "unit": "шт", "quantity": 1, "source": "manual"},
-                    {"category": "b", "name": "B", "unit": "шт", "quantity": 2, "source": "manual"},
-                ]
-            },
-            headers=headers,
-        )
-        # Второй save — 1 позиция (полностью замещает)
-        resp = await client.put(
-            f"/api/v1/specifications/{p['id']}/items",
-            json={
-                "items": [
-                    {"category": "c", "name": "C", "unit": "шт", "quantity": 3, "source": "manual"}
-                ]
-            },
-            headers=headers,
-        )
-        assert resp.status_code == 200
-        # Проверяем что теперь только одна
-        spec = (
-            await client.get(
-                f"/api/v1/specifications/{p['id']}",
-                headers=headers,
+    rows = {
+        item.electrical_variant_id: item
+        for item in (
+            (
+                await db_session.execute(
+                    select(Specification).where(Specification.project_id == project.id)
+                )
             )
-        ).json()
-        assert len(spec["items"]) == 1
-        assert spec["items"][0]["name"] == "C"
-
-    async def test_update_object_marks_saved_specification_stale(
-        self, client: AsyncClient, employee_token: str
-    ):
-        headers = {"Authorization": f"Bearer {employee_token}"}
-        project, obj = await self._create_project_with_pipe(client, headers)
-        await self._save_manual_spec(client, project["id"], headers)
-
-        update_resp = await client.put(
-            f"/api/v1/projects/{project['id']}/objects/{obj['id']}",
-            json={
-                "version": obj["version"],
-                "params": {**obj["params"], "pipe_length": 75},
-            },
-            headers=headers,
+            .scalars()
+            .all()
         )
-        assert update_resp.status_code == 200, update_resp.text
+    }
+    assert rows[variants[0].id].is_stale is True
+    assert rows[variants[0].id].stale_reason == "object_params_updated"
+    assert rows[variants[1].id].is_stale is False
 
-        spec = (await client.get(f"/api/v1/specifications/{project['id']}", headers=headers)).json()
-        assert spec["is_stale"] is True
-        assert spec["stale_reason"] == "object_params_updated"
-        assert spec["stale_details"]["object_ids"] == [obj["id"]]
-        assert spec["items"][0]["name"] == "Ручная позиция"
 
-        regen = await client.post(
-            f"/api/v1/specifications/{project['id']}/generate",
-            json={"confirm_partial": True},
-            headers=headers,
+async def test_guest_can_read_own_uuid_spec_but_cannot_write_manual_rows(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    guest_session: str,
+) -> None:
+    project, variants = await _seed_project_with_variants(
+        db_session,
+        name="Guest specification permissions",
+        session_id=guest_session,
+    )
+    variant = variants[0]
+    db_session.add(
+        Specification(
+            project_id=project.id,
+            electrical_variant_id=variant.id,
+            items=[_manual_item("Guest-readable history")],
         )
-        assert regen.status_code == 201, regen.text
-        fresh = (
-            await client.get(f"/api/v1/specifications/{project['id']}", headers=headers)
-        ).json()
-        assert fresh["is_stale"] is False
-        assert fresh["stale_reason"] is None
-        assert any(item["name"] == "Ручная позиция" for item in fresh["items"])
+    )
+    await db_session.commit()
+    headers = {"X-Session-Id": guest_session}
 
-    async def test_heat_loss_batch_marks_saved_specification_stale(
-        self, client: AsyncClient, employee_token: str
-    ):
-        headers = {"Authorization": f"Bearer {employee_token}"}
-        project, _obj = await self._create_project_with_pipe(client, headers)
-        await self._save_manual_spec(client, project["id"], headers)
+    readable = await client.get(
+        f"/api/v1/specifications/{project.id}/variants/{variant.id}",
+        headers=headers,
+    )
+    forbidden = await client.put(
+        f"/api/v1/specifications/{project.id}/variants/{variant.id}/items",
+        json={"items": [_manual_item("Guest write")]},
+        headers=headers,
+    )
 
-        batch_resp = await client.post(
-            "/api/v1/calc/heat-loss/batch",
-            params={"project_id": project["id"]},
-            headers=headers,
-        )
-        assert batch_resp.status_code == 200, batch_resp.text
-        assert batch_resp.json()["updated"] == 1
-
-        spec = (await client.get(f"/api/v1/specifications/{project['id']}", headers=headers)).json()
-        assert spec["is_stale"] is True
-        assert spec["stale_reason"] == "heat_loss_batch_recalculate"
-        assert spec["stale_details"]["operation"] == "batch_recalculate"
-        assert spec["items"][0]["name"] == "Ручная позиция"
-
-    async def test_delete_object_marks_saved_specification_stale(
-        self, client: AsyncClient, employee_token: str
-    ):
-        headers = {"Authorization": f"Bearer {employee_token}"}
-        project, obj = await self._create_project_with_pipe(client, headers)
-        await self._save_manual_spec(client, project["id"], headers)
-
-        delete_resp = await client.delete(
-            f"/api/v1/projects/{project['id']}/objects/{obj['id']}",
-            headers=headers,
-        )
-        assert delete_resp.status_code == 204, delete_resp.text
-
-        spec = (await client.get(f"/api/v1/specifications/{project['id']}", headers=headers)).json()
-        assert spec["is_stale"] is True
-        assert spec["stale_reason"] == "object_deleted"
-        assert spec["stale_details"]["object_ids"] == [obj["id"]]
-
-    async def test_save_items_rejects_stale_specification(
-        self, client: AsyncClient, employee_token: str
-    ):
-        """FA-07 / PDL-ER-37: stale snapshot is read-only — manual PUT returns 409."""
-        headers = {"Authorization": f"Bearer {employee_token}"}
-        project, obj = await self._create_project_with_pipe(client, headers)
-        await self._save_manual_spec(client, project["id"], headers)
-        await client.put(
-            f"/api/v1/projects/{project['id']}/objects/{obj['id']}",
-            json={
-                "version": obj["version"],
-                "params": {**obj["params"], "pipe_length": 75},
-            },
-            headers=headers,
-        )
-
-        stale_before = (
-            await client.get(f"/api/v1/specifications/{project['id']}", headers=headers)
-        ).json()
-        assert stale_before["is_stale"] is True
-
-        resp = await client.put(
-            f"/api/v1/specifications/{project['id']}/items",
-            json={
-                "items": [
-                    {
-                        "category": "manual",
-                        "name": "Новая ручная позиция",
-                        "unit": "шт",
-                        "quantity": 2,
-                        "source": "manual",
-                    }
-                ]
-            },
-            headers=headers,
-        )
-        assert resp.status_code == 409, resp.text
-        detail = resp.json()["detail"]
-        assert detail["code"] == "SPECIFICATION_STALE_READ_ONLY"
-
-        # Snapshot remains stale and unchanged.
-        spec = (await client.get(f"/api/v1/specifications/{project['id']}", headers=headers)).json()
-        assert spec["is_stale"] is True
-        assert any(i.get("name") != "Новая ручная позиция" for i in (spec.get("items") or [])) or (
-            not any(i.get("name") == "Новая ручная позиция" for i in (spec.get("items") or []))
-        )
-
-    async def test_multi_er_generate_is_atomic_and_scoped(
-        self, client: AsyncClient, employee_token: str
-    ):
-        """PDL-ER-01/14: explicit multi-ER generation creates independent specs."""
-        headers = {"Authorization": f"Bearer {employee_token}"}
-        project = (
-            await client.post("/api/v1/projects", json={"name": "Multi-ER Spec"}, headers=headers)
-        ).json()
-        await self._add_pipe(client, project["id"], headers)
-
-        init = await client.post(
-            f"/api/v1/projects/{project['id']}/electrical-variants/initialize",
-            headers=headers,
-        )
-        assert init.status_code in (200, 201), init.text
-        er1 = init.json()["variant"]
-
-        created = await client.post(
-            f"/api/v1/projects/{project['id']}/electrical-variants",
-            json={"name": "ЭР2-spec"},
-            headers={**headers, "Idempotency-Key": "spec-multi-er-create-2"},
-        )
-        assert created.status_code in (200, 201), created.text
-        er2 = created.json()
-        if "variant" in er2:
-            er2 = er2["variant"]
-
-        resp = await client.post(
-            f"/api/v1/specifications/{project['id']}/generate",
-            json={
-                "mode": "full",
-                "electrical_variant_ids": [er1["id"], er2["id"]],
-                "confirm_partial": True,
-            },
-            headers=headers,
-        )
-        assert resp.status_code == 201, resp.text
-        body = resp.json()
-        assert body["results"] is not None
-        assert len(body["results"]) == 2
-        ids = {str(item["electrical_variant_id"]) for item in body["results"]}
-        assert ids == {er1["id"], er2["id"]}
-
-        spec1 = (
-            await client.get(
-                f"/api/v1/specifications/{project['id']}",
-                params={
-                    "variant": er1["legacy_variant_number"],
-                    "electrical_variant_id": er1["id"],
-                },
-                headers=headers,
-            )
-        ).json()
-        spec2 = (
-            await client.get(
-                f"/api/v1/specifications/{project['id']}",
-                params={
-                    "variant": er2["legacy_variant_number"],
-                    "electrical_variant_id": er2["id"],
-                },
-                headers=headers,
-            )
-        ).json()
-        assert spec1 is not None and spec2 is not None
-        assert spec1["electrical_variant_id"] == er1["id"]
-        assert spec2["electrical_variant_id"] == er2["id"]
-
-
-class TestSpecAccessoryCountForAllObjects:
-    """PDL-ER-29: product generation is full-only; basic per-object accessory
-    scaling is no longer the canonical path.
-    """
-
-    async def _add_pipe(self, client: AsyncClient, project_id: str, session_id: str) -> dict:
-        resp = await client.post(
-            f"/api/v1/projects/{project_id}/objects",
-            json={
-                "object_type": "pipe",
-                "params": {
-                    "outer_diameter": 0.108,
-                    "wall_thickness": 0.004,
-                    "pipe_material": "carbon_steel",
-                    "insulation_layers": [{"thickness": 0.05, "material": MINERAL_WOOL}],
-                    "insulation_temperature_basis": "outdoor_winter",
-                    "ambient_temperature": -30,
-                    "process_temperature": 80,
-                    "pipe_length": 50,
-                    "placement": "outdoor",
-                    "wind_speed": 0.0,
-                },
-            },
-            headers={"X-Session-Id": session_id},
-        )
-        assert resp.status_code in (200, 201), resp.text
-        return resp.json()
-
-    async def test_generate_defaults_to_full_without_basic_accessory_scaling(
-        self, client: AsyncClient, guest_session: str
-    ):
-        """Full mode does not invent basic UZO-per-object rows without proven calcs."""
-        headers = {"X-Session-Id": guest_session}
-        p = (await client.get("/api/v1/projects", headers=headers)).json()[0]
-        for _ in range(3):
-            await self._add_pipe(client, p["id"], guest_session)
-
-        resp = await client.post(
-            f"/api/v1/specifications/{p['id']}/generate",
-            json={"confirm_partial": True},
-            headers=headers,
-        )
-        assert resp.status_code == 201, resp.text
-        body = resp.json()
-        assert body["mode"] == "full"
-        # Without successful electrical results contributing to full BOM, there
-        # is no basic-mode accessory multiplier over all project objects.
-        accessories = [i for i in body["items"] if i.get("category") != "Кабель"]
-        assert (
-            all(
-                "УЗО" not in (i.get("name") or "") or float(i.get("quantity") or 0) != 3
-                for i in accessories
-            )
-            or not accessories
-        )
+    assert readable.status_code == 200, readable.text
+    assert readable.json()["items"][0]["name"] == "Guest-readable history"
+    assert forbidden.status_code in (401, 403), forbidden.text

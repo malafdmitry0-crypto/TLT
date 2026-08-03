@@ -1767,7 +1767,6 @@ class TestElectricalCalculationContinued:
         db_session.add(
             Specification(
                 project_id=UUID(project["id"]),
-                variant_number=2,
                 electrical_variant_id=UUID(target_variant["id"]),
                 items=[
                     {
@@ -1798,8 +1797,7 @@ class TestElectricalCalculationContinued:
             "ELECTRICAL_VARIANT_SPECIFICATION_COPY_FORBIDDEN"
         )
         target_spec_before_copy = await client.get(
-            f"/api/v1/specifications/{project['id']}",
-            params={"variant": 2},
+            f"/api/v1/specifications/{project['id']}/variants/{target_variant['id']}",
             headers={"X-Session-Id": guest_session},
         )
         assert target_spec_before_copy.status_code == 200, target_spec_before_copy.text
@@ -1863,8 +1861,7 @@ class TestElectricalCalculationContinued:
         assert source.json()[0]["cable_mark"] == "ТЛТ-100"
 
         spec = await client.get(
-            f"/api/v1/specifications/{project['id']}",
-            params={"variant": 2},
+            f"/api/v1/specifications/{project['id']}/variants/{target_variant['id']}",
             headers={"X-Session-Id": guest_session},
         )
         assert spec.status_code == 200, spec.text

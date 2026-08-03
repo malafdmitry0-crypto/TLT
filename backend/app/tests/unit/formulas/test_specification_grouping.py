@@ -153,6 +153,48 @@ class TestGroupingKey:
         )
         assert key == (ER_A, CATALOG, VERSION_V1, CODE_TAPE, UNIT_M)
 
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("electrical_variant_id", None),
+            ("catalog_id", ""),
+            ("catalog_version", "   "),
+            ("nomenclature_code", None),
+            ("supply_unit", ""),
+        ],
+    )
+    def test_missing_material_identity_is_rejected(self, field: str, value: object) -> None:
+        fields = {
+            "electrical_variant_id": ER_A,
+            "catalog_id": CATALOG,
+            "catalog_version": VERSION_V1,
+            "object_type_section": SECTION_PIPE,
+            "nomenclature_code": CODE_TAPE,
+            "supply_unit": UNIT_M,
+        }
+        fields[field] = value
+        with pytest.raises(ValueError, match=f"grouping identity field {field}"):
+            grouping_key(MODE_MERGE_MATERIALS, **fields)
+
+    def test_missing_section_identity_is_rejected_only_in_separate_mode(self) -> None:
+        fields = {
+            "electrical_variant_id": ER_A,
+            "catalog_id": CATALOG,
+            "catalog_version": VERSION_V1,
+            "object_type_section": None,
+            "nomenclature_code": CODE_TAPE,
+            "supply_unit": UNIT_M,
+        }
+        with pytest.raises(ValueError, match="object_type_section"):
+            grouping_key(MODE_SEPARATE_BY_OBJECT_TYPE, **fields)
+        assert grouping_key(MODE_MERGE_MATERIALS, **fields) == (
+            ER_A,
+            CATALOG,
+            VERSION_V1,
+            CODE_TAPE,
+            UNIT_M,
+        )
+
 
 class TestMergeItemsSeparateByObjectType:
     def test_same_code_two_object_types_stay_separate(self) -> None:
@@ -201,6 +243,16 @@ class TestMergeItemsMergeMaterials:
 
 
 class TestNeverMergeDifferentIdentity:
+    def test_identityless_rows_are_rejected_instead_of_merged(self) -> None:
+        rows = [
+            _item(quantity=1),
+            _item(quantity=2),
+        ]
+        for row in rows:
+            row.pop("nomenclature_code")
+        with pytest.raises(ValueError, match="nomenclature_code"):
+            merge_items(rows, MODE_MERGE_MATERIALS)
+
     def test_different_catalog_version_never_merges(self) -> None:
         items = [
             _item(catalog_version=VERSION_V1, quantity=Decimal("2")),

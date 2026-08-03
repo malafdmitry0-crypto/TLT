@@ -28,7 +28,6 @@ from app.schemas.specification_catalog import (
     SpecificationCatalogItemInput,
 )
 
-DEFAULT_SPECIFICATION_CATALOG_KEY = "builtin-specification"
 _SHA256_RE = re.compile(r"sha256:[0-9a-f]{64}")
 _UNTRUSTED_SOURCE_TOKENS = ("provisional", "synthetic", "demo", "guess", "mock")
 _UNUSED = "unused"
@@ -764,7 +763,11 @@ class SpecificationCatalogService:
         await self.db.flush()
         stale_result = await self.db.execute(
             update(Specification)
-            .where(Specification.is_stale.is_(False))
+            .where(
+                Specification.is_stale.is_(False),
+                Specification.snapshot["catalog"]["catalog_key"].astext
+                == target.catalog_key,
+            )
             .values(
                 is_stale=True,
                 stale_reason="specification_catalog_activated",
@@ -794,15 +797,26 @@ class SpecificationCatalogService:
         filters = [SpecificationCatalogVersion.status == "active"]
         if isinstance(resolved_id, UUID):
             filters.append(SpecificationCatalogVersion.id == resolved_id)
-        else:
-            # catalog_key pin, or unique active default key when nothing requested.
-            filters.append(
-                SpecificationCatalogVersion.catalog_key
-                == (resolved_id or DEFAULT_SPECIFICATION_CATALOG_KEY)
-            )
+        elif isinstance(resolved_id, str):
+            filters.append(SpecificationCatalogVersion.catalog_key == resolved_id)
         if catalog_version is not None:
             filters.append(SpecificationCatalogVersion.version == catalog_version)
-        version = await self.db.scalar(select(SpecificationCatalogVersion).where(*filters))
+        query = select(SpecificationCatalogVersion).where(*filters)
+        if resolved_id is None:
+            versions = list((await self.db.execute(query)).scalars().all())
+            version = versions[0] if len(versions) == 1 else None
+            if len(versions) > 1:
+                raise SpecificationCatalogServiceError(
+                    "SPEC_CATALOG_UNAVAILABLE",
+                    "Неоднозначный active specification catalog: требуется явный catalog_id",
+                    status_code=503,
+                    details={
+                        "reason": "multiple_active_catalogs",
+                        "active_catalog_count": len(versions),
+                    },
+                )
+        else:
+            version = await self.db.scalar(query)
         if version is None:
             code = (
                 "SPEC_CATALOG_VERSION_INACTIVE"

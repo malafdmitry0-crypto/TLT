@@ -1,5 +1,8 @@
 """PDL-ER-33/34/35 unit coverage for catalog identity and PDF-first mapping."""
 
+import inspect
+
+import app.formulas.specification.catalog_identity as catalog_identity_module
 from app.formulas.specification.catalog_identity import (
     accessory_identity,
     cable_identity_from_result,
@@ -24,12 +27,18 @@ def test_all_accessory_rules_have_explicit_identity():
         assert identity["nomenclature_code"]
 
 
-def test_resolve_accessory_by_stable_rule_key_not_row_order():
+def test_legacy_static_accessory_lookup_is_fail_closed():
     resolved, err = resolve_accessory_rule("connector_kit_low_1")
-    assert err is None
-    assert resolved is not None
-    assert resolved["nomenclature_code"] == "001-004-001"
-    assert resolved["mark"] == "КСН-1"
+    assert resolved is None
+    assert err == "CATALOG_RULE_NOT_FOUND"
+
+
+def test_catalog_identity_boundary_has_no_static_reference_data_dependency():
+    source = inspect.getsource(catalog_identity_module)
+    assert "app.reference_data" not in source
+    assert "list_tt_cables" not in source
+    assert "list_tlt_cables" not in source
+    assert "list_spec_accessory_rules" not in source
 
 
 def test_temperature_group_requires_explicit_fields():
@@ -40,7 +49,7 @@ def test_temperature_group_requires_explicit_fields():
         )
         == "low"
     )
-    assert temperature_group_from_result({"selected_cable": "45ТТХ2", "series": "ТТХ"}) == "high"
+    assert temperature_group_from_result({"selected_cable": "45ТТХ2", "series": "ТТХ"}) is None
 
 
 def test_cable_identity_uses_explicit_nomenclature():
@@ -134,33 +143,33 @@ def test_tt_cable_identity_uses_saved_active_db_bom_version():
     assert identity["catalog_source"] == "approved-db-bom.xlsx"
 
 
-def test_tt_cable_identity_rejects_missing_full_mark_without_fallback():
-    assert (
-        cable_identity_from_result(
-            {
-                "cable_type": "self_regulating_tt",
-                "cable_mark": "30ТТВ2-СТ",
-                "selected_cable": "30ТТВ2",
-                "nomenclature_code": "SHOULD-NOT-BE-TRUSTED",
-                "catalogs": {
-                    "power": {"status": "active", "payload_checksum": "sha256:power"},
-                    "section": {
-                        "status": "active",
-                        "payload_checksum": "sha256:section",
-                    },
-                    "bom": {
-                        "status": "active",
-                        "payload_checksum": "sha256:bom",
-                        "row": {
-                            "full_mark": "30ТТВ2-СТ",
-                            "nomenclature_code": "SHOULD-NOT-BE-TRUSTED",
-                        },
+def test_tt_cable_identity_accepts_exact_saved_active_row_without_static_lookup():
+    identity = cable_identity_from_result(
+        {
+            "cable_type": "self_regulating_tt",
+            "cable_mark": "30ТТВ2-СТ",
+            "selected_cable": "30ТТВ2",
+            "nomenclature_code": "OUTDATED-TOP-LEVEL-CODE",
+            "catalogs": {
+                "power": {"status": "active", "payload_checksum": "sha256:power"},
+                "section": {
+                    "status": "active",
+                    "payload_checksum": "sha256:section",
+                },
+                "bom": {
+                    "status": "active",
+                    "payload_checksum": "sha256:bom",
+                    "row": {
+                        "full_mark": "30ТТВ2-СТ",
+                        "nomenclature_code": "DB-BOM-CODE",
                     },
                 },
-            }
-        )
-        is None
+            },
+        }
     )
+    assert identity is not None
+    assert identity["mark"] == "30ТТВ2-СТ"
+    assert identity["nomenclature_code"] == "DB-BOM-CODE"
 
 
 def test_box_matrix_registered_with_seeds():

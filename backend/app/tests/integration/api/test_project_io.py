@@ -154,9 +154,12 @@ async def _seed_sparse_v2_export_graph(
             ),
             Specification(
                 project_id=project.id,
-                variant_number=4,
                 electrical_variant_id=er4.id,
                 items=[{"name": "Legacy item", "quantity": 2}],
+                snapshot={
+                    "catalog": {"catalog_key": "approved-roundtrip"},
+                    "normalized_inputs": {"source": "canonical-roundtrip"},
+                },
             ),
         ]
     )
@@ -263,17 +266,19 @@ async def _assert_sparse_imported_graph(
     )
     assert len(specs) == 1
     spec = specs[0]
-    assert spec.variant_number == 4
     assert spec.electrical_variant_id == er4.id
-    assert spec.is_stale is True
-    assert spec.stale_reason == "electrical_sections_not_ready"
+    assert spec.snapshot == {
+        "catalog": {"catalog_key": "approved-roundtrip"},
+        "normalized_inputs": {"source": "canonical-roundtrip"},
+    }
     assert spec.is_stale is True
     assert spec.stale_reason == "electrical_sections_not_ready"
     assert spec.stale_details is not None
     assert spec.stale_details.get("sections_status") == "not_ready"
     assert spec.stale_details.get("error_code") == "ELECTRICAL_SECTIONS_NOT_READY"
-    assert spec.stale_details.get("import_schema_version") in {"2", "3"}
-    assert int(spec.stale_details.get("legacy_variant_number") or 0) == 4
+    assert spec.stale_details.get("import_schema_version") == "3"
+    assert spec.stale_details.get("variant_key")
+    assert spec.stale_details.get("electrical_variant_id") == str(er4.id)
 
 
 class TestSingleExportImport:
@@ -549,23 +554,30 @@ class TestSingleExportImport:
         assert variants == []
 
     @pytest.mark.parametrize(
-        "invalid_section",
+        ("invalid_section", "expected_error"),
         [
             (
                 "[SECTION];electrical\n"
                 "object_key;variant_number;cable_type;cable_type_source;"
                 "cable_mark;cable_mark_source;cable_snapshot;params;results\n"
-                "missing;6;self_regulating;auto;;auto;;{};\n"
+                "missing;6;self_regulating;auto;;auto;;{};\n",
+                "1..5",
             ),
-            ("[SECTION];specifications\n" "variant_number;items\n" "0;[]\n"),
+            (
+                "[SECTION];specifications\n"
+                "variant_number;items\n"
+                "1;[]\n",
+                "schema_version=2 не поддерживается",
+            ),
         ],
-        ids=["electrical-slot-6", "specification-slot-0"],
+        ids=["electrical-slot-6", "legacy-specification-section"],
     )
     async def test_guest_import_invalid_slot_is_atomic(
         self,
         client: AsyncClient,
         guest_session: str,
         invalid_section: str,
+        expected_error: str,
     ):
         headers = {"X-Session-Id": guest_session}
         original = (await client.get("/api/v1/projects", headers=headers)).json()
@@ -591,8 +603,7 @@ class TestSingleExportImport:
         )
 
         assert response.status_code == 422, response.text
-        # ER5 write cutover: допустимые legacy-слоты 1..5.
-        assert "1..5" in response.json()["detail"]
+        assert expected_error in response.json()["detail"]
         remaining = (await client.get("/api/v1/projects", headers=headers)).json()
         assert [project["id"] for project in remaining] == [original_id]
 
@@ -916,9 +927,9 @@ class TestBulkExportImport:
         assert resp.status_code == 422
 
     async def test_export_includes_electrical_and_specifications(
-        self, client: AsyncClient, employee_token: str
+        self, client: AsyncClient, employee_token: str, db_session: AsyncSession
     ):
-        """После batch_calc_electrical и generate spec — экспорт включает их секции."""
+        """После batch_calc_electrical и записи спецификации — экспорт включает их секции."""
         headers = {"Authorization": f"Bearer {employee_token}"}
         p = (
             await client.post(
@@ -934,11 +945,20 @@ class TestBulkExportImport:
             params={"project_id": p["id"]},
             headers=headers,
         )
-        # Генерируем спецификацию
-        await client.post(
-            f"/api/v1/specifications/{p['id']}/generate",
-            headers=headers,
+        # Каноническая генерация требует активный approved-каталог (иначе 503),
+        # предмет теста — экспорт: сеем спецификацию напрямую на ЭР батча.
+        variant_id = await db_session.scalar(
+            select(ElectricalVariant.id).where(ElectricalVariant.project_id == UUID(p["id"]))
         )
+        assert variant_id is not None
+        db_session.add(
+            Specification(
+                project_id=UUID(p["id"]),
+                electrical_variant_id=variant_id,
+                items=[{"name": "Cable", "quantity": 1}],
+            )
+        )
+        await db_session.commit()
         # Экспорт
         exp = await client.get(
             f"/api/v1/projects/{p['id']}/export-csv",

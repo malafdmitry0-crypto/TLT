@@ -1,9 +1,4 @@
-"""Repo lock: production generate path must not import legacy full_builder.
-
-SPEC-CANON-08: POST /generate is SpecificationGenerationService + BOM materializer.
-Legacy builders remain only for seeds/characterization under formulas/ and
-SpecificationService.generate* (soft-deprecated, not HTTP-mounted).
-"""
+"""Repo lock: no specification production module may retain a legacy builder path."""
 
 from __future__ import annotations
 
@@ -69,7 +64,9 @@ def _assert_no_legacy_builder_imports(path: Path) -> None:
 
 @pytest.mark.parametrize(
     "path",
-    _python_files_under("api") + _python_files_under("services", "specification_generation_service.py"),
+    _python_files_under("api")
+    + _python_files_under("services", "specification_generation_service.py")
+    + _python_files_under("services", "specification_service.py"),
     ids=lambda p: str(p.relative_to(_APP_ROOT)),
 )
 def test_production_modules_do_not_import_legacy_builders(path: Path) -> None:
@@ -95,3 +92,25 @@ def test_api_generate_route_calls_generation_service_only() -> None:
     assert "SpecificationService(db).generate" not in source
     assert "generate_for_electrical_variants" not in source
     assert "SpecificationGenerateRequest" not in source
+
+
+def test_specification_repository_has_no_legacy_generation_surface() -> None:
+    path = _APP_ROOT / "services" / "specification_service.py"
+    source = path.read_text(encoding="utf-8")
+    tree = ast.parse(source, filename=str(path))
+    service = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "SpecificationService"
+    )
+    method_names = {
+        node.name
+        for node in service.body
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
+    }
+    assert not {
+        "generate",
+        "generate_for_electrical_variants",
+        "preflight_variant",
+        "preflight_for_electrical_variants",
+    } & method_names

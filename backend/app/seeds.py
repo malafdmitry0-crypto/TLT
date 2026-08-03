@@ -29,7 +29,6 @@ from sqlalchemy import delete, select
 from app.core.database import AsyncSessionLocal
 from app.core.dependencies import CurrentPrincipal
 from app.core.security import hash_password
-from app.formulas.specification.builder import build_basic_specification
 from app.models.accessory import AccessoryExtended
 from app.models.cable import CableExtended
 from app.models.coefficient import CorrectionCoefficient
@@ -38,7 +37,6 @@ from app.models.electrical_variant import ElectricalVariantObject
 from app.models.insulation_material import InsulationMaterial
 from app.models.project import Project
 from app.models.project_object import ProjectObject
-from app.models.specification import Specification
 from app.models.user import User
 from app.reference_data.loader import (
     list_insulation_materials,
@@ -1658,62 +1656,6 @@ async def seed_objects_and_calculations(
         await db.flush()
 
 
-async def seed_specifications(
-    db,
-    projects: list[Project],
-    principal: CurrentPrincipal,
-) -> None:
-    """Генерирует спецификации для проектов, у которых есть электрорасчёты."""
-    for project in projects:
-        # Собираем результаты электрорасчётов
-        calcs_result = await db.execute(
-            select(ElectricalCalculation).where(ElectricalCalculation.project_id == project.id)
-        )
-        calcs = list(calcs_result.scalars().all())
-        if not calcs:
-            continue
-
-        electrical_variant = await ElectricalVariantService(db).prepare_legacy_variant_for_write(
-            project.id, principal, 1
-        )
-
-        electrical_results = [c.results or {} for c in calcs]
-        items = build_basic_specification(electrical_results)
-        items_payload = [i.model_dump() for i in items]
-
-        existing_result = await db.execute(
-            select(Specification).where(
-                Specification.project_id == project.id,
-                Specification.variant_number == 1,
-            )
-        )
-        existing = existing_result.scalar_one_or_none()
-        if existing is None:
-            spec = Specification(
-                project_id=project.id,
-                variant_number=1,
-                electrical_variant_id=electrical_variant.id,
-                items=items_payload,
-            )
-            db.add(spec)
-            logger.info(
-                "  + specification for '%s' (%d позиций)",
-                project.name,
-                len(items_payload),
-            )
-        else:
-            existing.electrical_variant_id = electrical_variant.id
-            if existing.items != items_payload:
-                existing.items = items_payload
-                logger.info(
-                    "  ~ refresh specification for '%s' (%d позиций)",
-                    project.name,
-                    len(items_payload),
-                )
-
-    await db.flush()
-
-
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
@@ -1756,9 +1698,6 @@ async def run_seeds() -> None:
             projects,
             seed_principal,
         )
-
-        logger.info("=== Seed: specifications ===")
-        await seed_specifications(db, projects, seed_principal)
 
         await db.commit()
         logger.info("=== Seeds complete ===")

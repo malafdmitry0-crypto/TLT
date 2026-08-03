@@ -259,7 +259,6 @@ _LEGACY_SYNC_TABLES = (
     "electrical_calculations",
     "electrical_candidates",
     "electrical_candidate_folders",
-    "specifications",
 )
 
 
