@@ -14,11 +14,31 @@ from app.schemas.specification import (
     SpecificationGroupingMode,
     SpecificationResolvedOptions,
 )
+from app.formulas.specification.catalog_conditions import match_condition, not_applicable
 from app.services.specification_bom_builder import (
     BomBuildFailure,
     BomBuildSuccess,
     materialize_specification_bom,
 )
+
+
+def _box_open_applicability(**overrides: object) -> dict[str, object]:
+    base: dict[str, object] = {
+        "d_ge_57": not_applicable("SPEC-OWNER-EX-RGR/test/d_ge_57"),
+        "K1i": not_applicable("SPEC-OWNER-EX-RGR/test/K1i"),
+        "K2i": not_applicable("SPEC-OWNER-EX-RGR/test/K2i"),
+        "Kiu": not_applicable("SPEC-OWNER-EX-RGR/test/Kiu"),
+        "L_sec_ge_L_K2i": not_applicable("SPEC-OWNER-EX-RGR/test/L_sec"),
+        "N_sec_ge_3": not_applicable("SPEC-OWNER-EX-RGR/test/N_sec"),
+        "Ex": not_applicable("SPEC-OWNER-EX-RGR/test/Ex"),
+        "R_gr": not_applicable("SPEC-OWNER-EX-RGR/test/R_gr"),
+    }
+    for key, value in overrides.items():
+        if isinstance(value, bool):
+            base[key] = match_condition(value=value)
+        else:
+            base[key] = value
+    return base
 
 
 def _catalog_item(
@@ -186,16 +206,7 @@ def _fixture_catalog_and_groups(
         mark="СКВ 1201",
         code="002-001-001",
         name="Соединительная коробка",
-        applicability={
-            "d_ge_57": "unused",
-            "K1i": "unused",
-            "K2i": "unused",
-            "Kiu": "unused",
-            "L_sec_ge_L_K2i": "unused",
-            "N_sec_ge_3": "unused",
-            "Ex": "unused",
-            "R_gr": "unused",
-        },
+        applicability=_box_open_applicability(),
         formula_parameters={
             "section_divider": "3",
             "rounding_mode": "up",
@@ -346,12 +357,12 @@ class TestBomBuilderGoldens:
             code="002-999-001",
             name="Bad box",
             applicability={
-                "d_ge_57": "unused",
-                "K1i": "unused",
-                "K2i": "unused",
-                "Kiu": "unused",
-                "L_sec_ge_L_K2i": "unused",
-                "N_sec_ge_3": "unused",
+                "d_ge_57": not_applicable("SPEC-OWNER-EX-RGR/test/d_ge_57"),
+                "K1i": not_applicable("SPEC-OWNER-EX-RGR/test/K1i"),
+                "K2i": not_applicable("SPEC-OWNER-EX-RGR/test/K2i"),
+                "Kiu": not_applicable("SPEC-OWNER-EX-RGR/test/Kiu"),
+                "L_sec_ge_L_K2i": not_applicable("SPEC-OWNER-EX-RGR/test/L_sec"),
+                "N_sec_ge_3": not_applicable("SPEC-OWNER-EX-RGR/test/N_sec"),
                 # Ex / R_gr intentionally missing
             },
             formula_parameters={

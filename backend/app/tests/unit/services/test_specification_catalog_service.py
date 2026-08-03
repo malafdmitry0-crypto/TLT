@@ -106,10 +106,90 @@ def test_missing_box_ex_or_r_gr_is_a_specific_production_blocker():
     matrix_issues = [
         issue for issue in validation.issues if issue["code"] == "SPEC_BOX_EX_RGR_MATRIX_MISSING"
     ]
-    assert {issue["reason"] for issue in matrix_issues} == {
+    assert {issue["reason"] for issue in matrix_issues} >= {
         "authoritative_Ex_condition_missing",
         "authoritative_R_gr_condition_missing",
     }
+
+
+def test_raw_unused_condition_is_rejected():
+    items = complete_specification_catalog_items()
+    first_box = next(item for item in items if item.category.value == "box")
+    first_box.applicability["Ex"] = "unused"
+
+    validation = validate_specification_catalog(items)
+
+    assert validation.is_complete is False
+    assert any(
+        issue["reason"] == "legacy_unused_condition_rejected" for issue in validation.issues
+    )
+
+
+def test_unresolved_condition_makes_catalog_incomplete_but_is_valid_shape():
+    items = complete_specification_catalog_items()
+    first_box = next(item for item in items if item.category.value == "box")
+    first_box.applicability["Ex"] = {"mode": "unresolved"}
+
+    validation = validate_specification_catalog(items)
+
+    assert validation.is_complete is False
+    assert any(issue["reason"] == "condition_unresolved" for issue in validation.issues)
+
+
+def test_not_applicable_without_decision_ref_blocks_completeness():
+    items = complete_specification_catalog_items()
+    first_box = next(item for item in items if item.category.value == "box")
+    first_box.applicability["R_gr"] = {"mode": "not_applicable"}
+
+    validation = validate_specification_catalog(items)
+
+    assert validation.is_complete is False
+    assert any(
+        issue["reason"] == "not_applicable_decision_ref_missing" for issue in validation.issues
+    )
+
+
+def test_all_not_applicable_ex_rgr_without_bool_discrimination_blocked():
+    from app.formulas.specification.catalog_conditions import not_applicable
+
+    items = complete_specification_catalog_items()
+    for item in items:
+        if item.category.value != "box":
+            continue
+        item.applicability = {
+            key: not_applicable(f"SPEC-OWNER-EX-RGR/test-all-na/{item.mark}/{key}")
+            for key in (
+                "d_ge_57",
+                "K1i",
+                "K2i",
+                "Kiu",
+                "L_sec_ge_L_K2i",
+                "N_sec_ge_3",
+                "Ex",
+                "R_gr",
+            )
+        }
+
+    validation = validate_specification_catalog(items)
+
+    assert validation.is_complete is False
+    assert any(
+        issue["reason"] == "all_boxes_ex_rgr_not_applicable_without_discrimination"
+        for issue in validation.issues
+    )
+
+
+def test_material_without_approval_reference_is_incomplete():
+    items = complete_specification_catalog_items()
+    sealant = next(item for item in items if item.category.value == "sealant")
+    sealant.source_ref = "owner registry without approval token"
+
+    validation = validate_specification_catalog(items)
+
+    assert validation.is_complete is False
+    assert any(
+        issue["reason"] == "material_approval_reference_missing" for issue in validation.issues
+    )
 
 
 def test_invalid_decimal_rounding_and_duplicate_code_are_rejected():

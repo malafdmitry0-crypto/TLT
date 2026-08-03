@@ -30,6 +30,7 @@ from app.formulas.specification.calculators import (
     row_conditions_match,
     validate_box_matrix_ex_r_gr,
 )
+from app.formulas.specification.catalog_conditions import match_condition, not_applicable
 
 GOLDENS_PATH = (
     Path(__file__).resolve().parents[2] / "fixtures" / "specification_normalized_goldens.json"
@@ -57,26 +58,34 @@ def goldens() -> dict[str, dict]:
     return _cases_by_id()
 
 
-def _unused_conditions(**overrides: object) -> BoxRowConditions:
-    base = {
-        "d_ge_57": BOX_CONDITION_UNUSED,
-        "K1i": BOX_CONDITION_UNUSED,
-        "K2i": BOX_CONDITION_UNUSED,
-        "Kiu": BOX_CONDITION_UNUSED,
-        "L_sec_ge_L_K2i": BOX_CONDITION_UNUSED,
-        "N_sec_ge_3": BOX_CONDITION_UNUSED,
-        "Ex": BOX_CONDITION_UNUSED,
-        "R_gr": BOX_CONDITION_UNUSED,
+def _na(field: str) -> dict[str, object]:
+    return not_applicable(f"SPEC-OWNER-EX-RGR/test-fixture/{field}")
+
+
+def _open_conditions(**overrides: object) -> BoxRowConditions:
+    """All conditions not_applicable except explicit overrides (match or objects)."""
+    base: dict[str, object] = {
+        "d_ge_57": _na("d_ge_57"),
+        "K1i": _na("K1i"),
+        "K2i": _na("K2i"),
+        "Kiu": _na("Kiu"),
+        "L_sec_ge_L_K2i": _na("L_sec_ge_L_K2i"),
+        "N_sec_ge_3": _na("N_sec_ge_3"),
+        "Ex": _na("Ex"),
+        "R_gr": _na("R_gr"),
     }
-    base.update(overrides)
+    for key, value in overrides.items():
+        if isinstance(value, bool):
+            base[key] = match_condition(value=value)
+        elif isinstance(value, (int, float, str, Decimal)) and key == "R_gr":
+            base[key] = match_condition(operator="eq", value=str(value))
+        else:
+            base[key] = value
     return BoxRowConditions(**base)  # type: ignore[arg-type]
 
 
 def _approved_pdf_base_rows() -> tuple[BoxRowInput, ...]:
-    """Test-scoped approved fixture: PDF §7.15 base rows with complete Ex/R_gr.
-
-    Ex/R_gr set to unused (explicitly registered, not invented per-row values).
-    """
+    """Test-scoped approved fixture: PDF §7.15 base rows with complete Ex/R_gr."""
     return (
         BoxRowInput(
             item_key="box:СКВ 1201",
@@ -85,7 +94,7 @@ def _approved_pdf_base_rows() -> tuple[BoxRowInput, ...]:
             section_divider="3",
             rounding_mode="up",
             min_quantity=1,
-            conditions=_unused_conditions(d_ge_57=True, K1i=False),
+            conditions=_open_conditions(d_ge_57=True, K1i=False),
         ),
         BoxRowInput(
             item_key="box:СКВ 1601",
@@ -94,7 +103,7 @@ def _approved_pdf_base_rows() -> tuple[BoxRowInput, ...]:
             section_divider="3",
             rounding_mode="down",
             min_quantity=1,
-            conditions=_unused_conditions(d_ge_57=True, K1i=False),
+            conditions=_open_conditions(d_ge_57=True, K1i=False),
         ),
         BoxRowInput(
             item_key="box:СКВ 1201-С1",
@@ -103,7 +112,7 @@ def _approved_pdf_base_rows() -> tuple[BoxRowInput, ...]:
             section_divider="1",
             rounding_mode="up",
             min_quantity=1,
-            conditions=_unused_conditions(
+            conditions=_open_conditions(
                 d_ge_57=True,
                 K2i=True,
                 Kiu=True,
@@ -221,9 +230,9 @@ class TestDiameterGate:
 
 
 class TestConditionMatching:
-    def test_unused_conditions_always_match(self) -> None:
+    def test_open_conditions_always_match(self) -> None:
         assert row_conditions_match(
-            _unused_conditions(),
+            _open_conditions(),
             outer_diameter_mm=32,
             section_count=1,
             section_length_m="10",
@@ -235,7 +244,7 @@ class TestConditionMatching:
         )
 
     def test_d_ge_57_true_requires_large(self) -> None:
-        cond = _unused_conditions(d_ge_57=True)
+        cond = _open_conditions(d_ge_57=True)
         assert row_conditions_match(
             cond,
             outer_diameter_mm=57,
@@ -260,7 +269,7 @@ class TestConditionMatching:
         )
 
     def test_n_sec_ge_3_inclusive(self) -> None:
-        cond = _unused_conditions(N_sec_ge_3=True)
+        cond = _open_conditions(N_sec_ge_3=True)
         assert row_conditions_match(
             cond,
             outer_diameter_mm=57,
@@ -285,7 +294,7 @@ class TestConditionMatching:
         )
 
     def test_l_sec_ge_l_k2i_inclusive(self) -> None:
-        cond = _unused_conditions(L_sec_ge_L_K2i=True)
+        cond = _open_conditions(L_sec_ge_L_K2i=True)
         assert row_conditions_match(
             cond,
             outer_diameter_mm=57,
@@ -310,7 +319,7 @@ class TestConditionMatching:
         )
 
     def test_boolean_flags_exact(self) -> None:
-        cond = _unused_conditions(K1i=True, Kiu=False)
+        cond = _open_conditions(K1i=True, Kiu=False)
         assert row_conditions_match(
             cond,
             outer_diameter_mm=57,
@@ -396,9 +405,9 @@ class TestExRgrFailClosed:
             section_divider=3,
             rounding_mode="up",
             conditions=BoxRowConditions(
-                d_ge_57=True,
+                d_ge_57=match_condition(value=True),
                 Ex=None,
-                R_gr=BOX_CONDITION_UNUSED,
+                R_gr=_na("R_gr"),
             ),
         )
         with pytest.raises(FormulaInputError) as exc:
@@ -411,8 +420,8 @@ class TestExRgrFailClosed:
             section_divider=3,
             rounding_mode="up",
             conditions=BoxRowConditions(
-                d_ge_57=True,
-                Ex=BOX_CONDITION_UNUSED,
+                d_ge_57=match_condition(value=True),
+                Ex=match_condition(value=False),
                 R_gr=None,
             ),
         )
@@ -430,7 +439,7 @@ class TestExRgrFailClosed:
             mark="СКВ 1201",
             section_divider=3,
             rounding_mode="up",
-            conditions=BoxRowConditions(d_ge_57=True),  # Ex/R_gr default None
+            conditions=BoxRowConditions(d_ge_57=match_condition(value=True)),
         )
         with pytest.raises(FormulaInputError) as exc:
             evaluate_box_matrix(
@@ -439,13 +448,28 @@ class TestExRgrFailClosed:
             )
         assert exc.value.code == SPEC_BOX_EX_RGR_MATRIX_MISSING
 
-    def test_explicit_unused_ex_r_gr_is_complete(self) -> None:
+    def test_explicit_not_applicable_ex_r_gr_is_complete(self) -> None:
         row = BoxRowInput(
             section_divider=3,
             rounding_mode="up",
-            conditions=_unused_conditions(d_ge_57=True),
+            conditions=_open_conditions(d_ge_57=True),
         )
         validate_box_matrix_ex_r_gr([row])  # does not raise
+
+    def test_legacy_unused_is_rejected(self) -> None:
+        row = BoxRowInput(
+            section_divider=3,
+            rounding_mode="up",
+            conditions=BoxRowConditions(
+                d_ge_57=match_condition(value=True),
+                Ex=BOX_CONDITION_UNUSED,
+                R_gr=_na("R_gr"),
+            ),
+        )
+        with pytest.raises(FormulaInputError) as exc:
+            validate_box_matrix_ex_r_gr([row])
+        assert exc.value.code == SPEC_BOX_EX_RGR_MATRIX_MISSING
+        assert "legacy_unused" in (exc.value.message or "")
 
     def test_require_false_allows_quantity_path_without_ex(self) -> None:
         """Unit-level quantity matrix without production gate (not for BOM)."""
@@ -473,14 +497,14 @@ class TestCatalogShapeAdapter:
                 "min_quantity": "1",
             },
             applicability={
-                "d_ge_57": True,
-                "K1i": False,
-                "K2i": "unused",
-                "Kiu": "unused",
-                "L_sec_ge_L_K2i": "unused",
-                "N_sec_ge_3": "unused",
-                "Ex": "unused",
-                "R_gr": "unused",
+                "d_ge_57": match_condition(value=True),
+                "K1i": match_condition(value=False),
+                "K2i": _na("K2i"),
+                "Kiu": _na("Kiu"),
+                "L_sec_ge_L_K2i": _na("L_sec_ge_L_K2i"),
+                "N_sec_ge_3": _na("N_sec_ge_3"),
+                "Ex": _na("Ex"),
+                "R_gr": _na("R_gr"),
             },
             item_key="box:СКВ 1601",
             mark="СКВ 1601",
@@ -503,10 +527,10 @@ class TestCatalogShapeAdapter:
                     "min_quantity": 1,
                 },
                 "applicability": {
-                    "d_ge_57": True,
-                    "K1i": False,
-                    "Ex": "unused",
-                    "R_gr": "unused",
+                    "d_ge_57": match_condition(value=True),
+                    "K1i": match_condition(value=False),
+                    "Ex": _na("Ex"),
+                    "R_gr": _na("R_gr"),
                 },
             }
         ]

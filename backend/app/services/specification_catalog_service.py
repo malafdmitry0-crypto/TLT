@@ -27,10 +27,18 @@ from app.schemas.specification_catalog import (
     SpecificationCatalogImportRequest,
     SpecificationCatalogItemInput,
 )
+from app.formulas.specification.catalog_conditions import (
+    BOX_BOOLEAN_CONDITION_KEYS,
+    BOX_CONDITION_KEYS,
+    BOX_EX_KEY,
+    BOX_R_GR_KEY,
+    condition_mode,
+    material_approval_reference_ok,
+    validate_condition_shape,
+)
 
 _SHA256_RE = re.compile(r"sha256:[0-9a-f]{64}")
 _UNTRUSTED_SOURCE_TOKENS = ("provisional", "synthetic", "demo", "guess", "mock")
-_UNUSED = "unused"
 
 _REQUIRED_CABLE_MARKS = {
     "10ТТН2-СТ",
@@ -69,13 +77,10 @@ _REQUIRED_BOX_MARKS = {
     "СКВ 1602-С1",
 }
 _TEMPERATURE_GROUPS = {"LOW", "MEDIUM_HIGH"}
-_BOX_BOOLEAN_CONDITIONS = {
-    "d_ge_57",
-    "K1i",
-    "K2i",
-    "Kiu",
-    "L_sec_ge_L_K2i",
-    "N_sec_ge_3",
+_MATERIAL_CATEGORIES = {
+    SpecificationCatalogCategory.SEALANT,
+    SpecificationCatalogCategory.FIBERGLASS_TAPE,
+    SpecificationCatalogCategory.ALUMINIUM_TAPE,
 }
 
 
@@ -205,13 +210,26 @@ def _validate_temperature_group(
         )
 
 
+def _attach_item(
+    raw_issues: list[dict[str, Any]],
+    item: SpecificationCatalogItemInput,
+) -> list[dict[str, Any]]:
+    attached: list[dict[str, Any]] = []
+    for raw in raw_issues:
+        issue = dict(raw)
+        issue["item_key"] = item.item_key
+        issue["category"] = item.category.value
+        attached.append(issue)
+    return attached
+
+
 def _validate_box_item(
     item: SpecificationCatalogItemInput,
     issues: list[dict[str, Any]],
 ) -> None:
-    for key in sorted(_BOX_BOOLEAN_CONDITIONS):
+    for key in BOX_BOOLEAN_CONDITION_KEYS:
         value = item.applicability.get(key)
-        if value not in (True, False, _UNUSED):
+        if key not in item.applicability:
             issues.append(
                 _issue(
                     "SPEC_ACCESSORY_CATALOG_INCOMPLETE",
@@ -219,10 +237,15 @@ def _validate_box_item(
                     item=item,
                 )
             )
+            continue
+        issues.extend(
+            _attach_item(
+                validate_condition_shape(value, field=key, kind="bool"),
+                item,
+            )
+        )
 
-    ex_value = item.applicability.get("Ex")
-    r_gr_value = item.applicability.get("R_gr")
-    if ex_value not in (True, False, _UNUSED):
+    if BOX_EX_KEY not in item.applicability:
         issues.append(
             _issue(
                 "SPEC_BOX_EX_RGR_MATRIX_MISSING",
@@ -230,12 +253,35 @@ def _validate_box_item(
                 item=item,
             )
         )
-    if r_gr_value != _UNUSED and _decimal(r_gr_value, positive=False) is None:
+    else:
+        issues.extend(
+            _attach_item(
+                validate_condition_shape(
+                    item.applicability.get(BOX_EX_KEY),
+                    field=BOX_EX_KEY,
+                    kind="ex",
+                ),
+                item,
+            )
+        )
+
+    if BOX_R_GR_KEY not in item.applicability:
         issues.append(
             _issue(
                 "SPEC_BOX_EX_RGR_MATRIX_MISSING",
                 "authoritative_R_gr_condition_missing",
                 item=item,
+            )
+        )
+    else:
+        issues.extend(
+            _attach_item(
+                validate_condition_shape(
+                    item.applicability.get(BOX_R_GR_KEY),
+                    field=BOX_R_GR_KEY,
+                    kind="r_gr",
+                ),
+                item,
             )
         )
 
@@ -263,6 +309,38 @@ def _validate_box_item(
                 "SPEC_FORMULA_INPUT_INVALID",
                 "box_rounding_mode_invalid",
                 item=item,
+            )
+        )
+
+
+def _validate_material_authority(
+    item: SpecificationCatalogItemInput,
+    issues: list[dict[str, Any]],
+) -> None:
+    """Sealant and tapes need confirmed nomenclature, unit, capacity, approval."""
+    if not item.nomenclature_code.strip():
+        issues.append(
+            _issue(
+                "SPEC_ACCESSORY_CATALOG_ITEM_MISSING",
+                "material_nomenclature_code_missing",
+                item=item,
+            )
+        )
+    if not item.supply_unit.strip():
+        issues.append(
+            _issue(
+                "SPEC_ACCESSORY_CATALOG_ITEM_MISSING",
+                "material_supply_unit_missing",
+                item=item,
+            )
+        )
+    if not material_approval_reference_ok(item.source_ref):
+        issues.append(
+            _issue(
+                "SPEC_ACCESSORY_CATALOG_ITEM_MISSING",
+                "material_approval_reference_missing",
+                item=item,
+                details={"required_pattern": "approval:SPEC-OWNER-MATERIALS/<ref>"},
             )
         )
 
@@ -431,6 +509,7 @@ def validate_specification_catalog(
                 issues,
                 parameter_group="package_parameters",
             )
+            _validate_material_authority(item, issues)
         elif item.category is SpecificationCatalogCategory.FIBERGLASS_TAPE:
             _validate_temperature_group(item, issues)
             _require_decimal_parameter(
@@ -439,6 +518,7 @@ def validate_specification_catalog(
                 issues,
                 parameter_group="package_parameters",
             )
+            _validate_material_authority(item, issues)
         elif item.category is SpecificationCatalogCategory.ALUMINIUM_TAPE:
             _require_decimal_parameter(item, "consumption_m_per_cable_m", issues)
             _require_decimal_parameter(
@@ -447,6 +527,7 @@ def validate_specification_catalog(
                 issues,
                 parameter_group="package_parameters",
             )
+            _validate_material_authority(item, issues)
         elif item.category is SpecificationCatalogCategory.BOX:
             _validate_box_item(item, issues)
 
@@ -492,7 +573,103 @@ def validate_specification_catalog(
             )
         )
 
+    box_items = by_category[SpecificationCatalogCategory.BOX]
+    if box_items:
+        issues.extend(_validate_box_matrix_authority(box_items))
+
     return SpecificationCatalogValidation(is_complete=not issues, issues=issues)
+
+
+def _condition_fingerprint(value: Any) -> str:
+    mode = condition_mode(value)
+    if mode == "match" and isinstance(value, dict):
+        return f"match:{value.get('operator')!s}:{value.get('value')!s}"
+    if mode == "not_applicable" and isinstance(value, dict):
+        return f"na:{value.get('decision_ref')!s}"
+    if mode == "unresolved":
+        return "unresolved"
+    return f"raw:{value!r}"
+
+
+def _validate_box_matrix_authority(
+    box_items: list[SpecificationCatalogItemInput],
+) -> list[dict[str, Any]]:
+    """Reject non-discriminating or silently duplicated box matrices."""
+    issues: list[dict[str, Any]] = []
+    marks = {item.mark for item in box_items}
+    missing_marks = sorted(_REQUIRED_BOX_MARKS - marks)
+    if missing_marks:
+        # Already reported via required marks; still continue for Ex/R_gr rules.
+        pass
+
+    fingerprints: dict[str, list[str]] = {}
+    ex_modes: list[str | None] = []
+    r_gr_modes: list[str | None] = []
+    for item in box_items:
+        parts = [
+            f"{key}={_condition_fingerprint(item.applicability.get(key))}"
+            for key in BOX_CONDITION_KEYS
+        ]
+        fingerprint = "|".join(parts)
+        fingerprints.setdefault(fingerprint, []).append(item.item_key)
+        ex_modes.append(condition_mode(item.applicability.get(BOX_EX_KEY)))
+        r_gr_modes.append(condition_mode(item.applicability.get(BOX_R_GR_KEY)))
+
+    duplicated = {
+        fingerprint: keys
+        for fingerprint, keys in fingerprints.items()
+        if len(keys) > 1
+    }
+    if duplicated:
+        issues.append(
+            _issue(
+                "SPEC_BOX_EX_RGR_MATRIX_MISSING",
+                "box_matrix_silently_duplicated_conditions",
+                details={
+                    "duplicate_groups": [
+                        {"fingerprint": key, "item_keys": values}
+                        for key, values in sorted(duplicated.items())
+                    ]
+                },
+            )
+        )
+
+    if box_items and all(mode == "not_applicable" for mode in ex_modes) and all(
+        mode == "not_applicable" for mode in r_gr_modes
+    ):
+        # All-not-applicable Ex/R_gr makes those axes non-discriminating.
+        # Only accept when every decision_ref is present (shape-validated) AND
+        # at least one boolean condition remains a match on some row.
+        any_bool_match = False
+        for item in box_items:
+            for key in BOX_BOOLEAN_CONDITION_KEYS:
+                if condition_mode(item.applicability.get(key)) == "match":
+                    any_bool_match = True
+                    break
+            if any_bool_match:
+                break
+        if not any_bool_match:
+            issues.append(
+                _issue(
+                    "SPEC_BOX_EX_RGR_MATRIX_MISSING",
+                    "all_boxes_ex_rgr_not_applicable_without_discrimination",
+                    details={
+                        "box_count": len(box_items),
+                        "owner_decision": "SPEC-OWNER-EX-RGR",
+                    },
+                )
+            )
+
+    if box_items and all(mode == "unresolved" for mode in (*ex_modes, *r_gr_modes)):
+        issues.append(
+            _issue(
+                "SPEC_BOX_EX_RGR_MATRIX_MISSING",
+                "all_boxes_ex_rgr_unresolved",
+                details={"box_count": len(box_items)},
+            )
+        )
+
+    return issues
 
 
 def _principal_reference(principal: CurrentPrincipal | None) -> str | None:
@@ -607,6 +784,33 @@ class SpecificationCatalogService:
             )
 
         validation = validate_specification_catalog(document.items)
+        hard_shape_issues = [
+            issue
+            for issue in validation.issues
+            if issue.get("reason")
+            in {
+                "legacy_unused_condition_rejected",
+                "condition_must_be_discriminated_object",
+                "condition_mode_invalid",
+                "condition_unknown_fields",
+                "unresolved_condition_forbids_operator_value",
+                "unresolved_condition_forbids_decision_ref",
+                "not_applicable_forbids_operator_value",
+                "match_condition_forbids_decision_ref",
+                "match_condition_requires_operator_and_value",
+                "match_operator_invalid_for_boolean",
+                "boolean_match_value_invalid",
+                "r_gr_match_operator_not_owner_approved",
+                "r_gr_match_value_invalid",
+            }
+        ]
+        if hard_shape_issues:
+            raise SpecificationCatalogServiceError(
+                "SPEC_CATALOG_IMPORT_INVALID",
+                "Specification catalog document has invalid condition shape",
+                status_code=422,
+                details={"issues": hard_shape_issues},
+            )
         canonical_items = sorted(
             (item.model_dump(mode="json") for item in document.items),
             key=lambda item: item["item_key"],

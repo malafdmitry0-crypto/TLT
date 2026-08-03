@@ -5,7 +5,8 @@ For each pipe:
   N_sec   = total section count
   L_sec   = equal section length
 
-For each approved matrix row, check ALL used conditions (``\"unused\"`` skipped).
+For each approved matrix row, check ALL used conditions
+(``mode=not_applicable`` skipped; ``mode=match`` evaluated).
 Inclusive boundaries: d>=57, L_sec>=L_K2i_m, N_sec>=3.
 
   raw = N_sec / section_divider
@@ -14,8 +15,8 @@ Inclusive boundaries: d>=57, L_sec>=L_K2i_m, N_sec>=3.
 
 Add ALL matching rows (not single-choice). ``section_divider`` must be > 0.
 
-Production evaluation requires complete per-row ``Ex`` / ``R_gr`` conditions;
-missing or incomplete values raise ``SPEC_BOX_EX_RGR_MATRIX_MISSING`` (do not invent).
+Production evaluation requires complete per-row ``Ex`` / ``R_gr`` conditions as
+discriminated objects; scalar ``\"unused\"`` is rejected (no invent / no compat).
 
 No database, FastAPI, filesystem, or static JSON imports.
 """
@@ -46,6 +47,9 @@ from app.formulas.specification.calculators.types import (
     BoxRowInput,
     BoxRowMatch,
     FormulaInputError,
+)
+from app.formulas.specification.catalog_conditions import (
+    evaluate_condition_for_match,
 )
 
 # Stable code aligned with schema / catalog validation (fail-closed).
@@ -116,7 +120,7 @@ def calculate_box_quantity(
     )
 
 
-def _is_unused(value: Any) -> bool:
+def _is_legacy_unused(value: Any) -> bool:
     if value is BOX_CONDITION_UNUSED:
         return True
     if isinstance(value, str) and value.strip().lower() == BOX_CONDITION_UNUSED:
@@ -124,21 +128,18 @@ def _is_unused(value: Any) -> bool:
     return False
 
 
-def _normalize_bool_condition(value: Any, *, field: str) -> bool | str:
-    """Return True/False or BOX_CONDITION_UNUSED; reject other shapes."""
-    if _is_unused(value):
-        return BOX_CONDITION_UNUSED
-    if isinstance(value, bool):
-        return value
-    raise FormulaInputError(
-        "INVALID_BOX_CONDITION",
-        f"{field}: expected true/false/'unused' (got {value!r})",
-        field=field,
-        value=value,
-    )
+def _reject_legacy_unused(value: Any, *, field: str, production: bool) -> None:
+    if _is_legacy_unused(value):
+        code = SPEC_BOX_EX_RGR_MATRIX_MISSING if production else "INVALID_BOX_CONDITION"
+        raise FormulaInputError(
+            code,
+            "legacy_unused_condition_rejected",
+            field=field,
+            value=value,
+        )
 
 
-def _validate_ex_condition(value: Any, *, field: str = "Ex") -> bool | str:
+def _validate_ex_condition(value: Any, *, field: str = "Ex") -> None:
     if value is None:
         raise FormulaInputError(
             SPEC_BOX_EX_RGR_MATRIX_MISSING,
@@ -146,19 +147,43 @@ def _validate_ex_condition(value: Any, *, field: str = "Ex") -> bool | str:
             field=field,
             value=value,
         )
-    if _is_unused(value):
-        return BOX_CONDITION_UNUSED
+    _reject_legacy_unused(value, field=field, production=True)
     if isinstance(value, bool):
-        return value
-    raise FormulaInputError(
-        SPEC_BOX_EX_RGR_MATRIX_MISSING,
-        "authoritative_Ex_condition_missing",
-        field=field,
-        value=value,
-    )
+        # Bare bool is incomplete under SPEC-FINAL-02; require discriminated object.
+        raise FormulaInputError(
+            SPEC_BOX_EX_RGR_MATRIX_MISSING,
+            "authoritative_Ex_condition_missing",
+            field=field,
+            value=value,
+        )
+    if not isinstance(value, Mapping) or value.get("mode") not in {
+        "match",
+        "not_applicable",
+    }:
+        if isinstance(value, Mapping) and value.get("mode") == "unresolved":
+            raise FormulaInputError(
+                SPEC_BOX_EX_RGR_MATRIX_MISSING,
+                "condition_unresolved",
+                field=field,
+                value=value,
+            )
+        raise FormulaInputError(
+            SPEC_BOX_EX_RGR_MATRIX_MISSING,
+            "authoritative_Ex_condition_missing",
+            field=field,
+            value=value,
+        )
+    if value.get("mode") == "match":
+        if value.get("operator") != "eq" or value.get("value") not in (True, False):
+            raise FormulaInputError(
+                SPEC_BOX_EX_RGR_MATRIX_MISSING,
+                "authoritative_Ex_condition_missing",
+                field=field,
+                value=value,
+            )
 
 
-def _validate_r_gr_condition(value: Any, *, field: str = "R_gr") -> Decimal | str:
+def _validate_r_gr_condition(value: Any, *, field: str = "R_gr") -> None:
     if value is None:
         raise FormulaInputError(
             SPEC_BOX_EX_RGR_MATRIX_MISSING,
@@ -166,19 +191,35 @@ def _validate_r_gr_condition(value: Any, *, field: str = "R_gr") -> Decimal | st
             field=field,
             value=value,
         )
-    if _is_unused(value):
-        return BOX_CONDITION_UNUSED
-    try:
-        # Non-negative Decimal (zero allowed); bool/NaN rejected via to_decimal.
-        return to_non_negative_decimal(value, name=field)
-    except FormulaInputError as exc:
+    _reject_legacy_unused(value, field=field, production=True)
+    if not isinstance(value, Mapping) or value.get("mode") not in {
+        "match",
+        "not_applicable",
+    }:
+        if isinstance(value, Mapping) and value.get("mode") == "unresolved":
+            raise FormulaInputError(
+                SPEC_BOX_EX_RGR_MATRIX_MISSING,
+                "condition_unresolved",
+                field=field,
+                value=value,
+            )
         raise FormulaInputError(
             SPEC_BOX_EX_RGR_MATRIX_MISSING,
             "authoritative_R_gr_condition_missing",
             field=field,
             value=value,
-            details={"cause": exc.code},
-        ) from exc
+        )
+    if value.get("mode") == "match":
+        try:
+            to_non_negative_decimal(value.get("value"), name=field)
+        except FormulaInputError as exc:
+            raise FormulaInputError(
+                SPEC_BOX_EX_RGR_MATRIX_MISSING,
+                "authoritative_R_gr_condition_missing",
+                field=field,
+                value=value,
+                details={"cause": exc.code},
+            ) from exc
 
 
 def validate_box_row_ex_r_gr(conditions: BoxRowConditions | Mapping[str, Any]) -> None:
@@ -286,8 +327,9 @@ def row_conditions_match(
 ) -> bool:
     """Return True if every *used* condition on the row matches pipe facts.
 
-    ``unused`` is not checked. When ``require_ex_r_gr`` is True, missing Ex/R_gr
-    raise ``SPEC_BOX_EX_RGR_MATRIX_MISSING`` instead of silently matching.
+    ``mode=not_applicable`` is not checked. Scalar ``\"unused\"`` is always rejected.
+    When ``require_ex_r_gr`` is True, missing Ex/R_gr raise
+    ``SPEC_BOX_EX_RGR_MATRIX_MISSING`` instead of silently matching.
     """
     diameter = to_non_negative_decimal(outer_diameter_mm, name="outer_diameter_mm")
     n_sec = to_non_negative_int(section_count, name="section_count")
@@ -308,44 +350,61 @@ def row_conditions_match(
         l_k2i_m=l_k2i,
     )
 
+    def _eval(raw: Any, *, field: str, kind: str, actual_bool: bool | None = None) -> bool:
+        if raw is None:
+            return True
+        _reject_legacy_unused(raw, field=field, production=require_ex_r_gr or field in {"Ex", "R_gr"})
+        # Bare bool still accepted only for non-production bool flags in unit fixtures.
+        if isinstance(raw, bool) and kind == "bool":
+            return raw is actual_bool
+        try:
+            if kind == "r_gr":
+                actual_decimal = (
+                    None
+                    if r_gr is None
+                    else to_non_negative_decimal(r_gr, name="r_gr")
+                )
+                outcome = evaluate_condition_for_match(
+                    raw,
+                    actual_decimal=actual_decimal,
+                    kind="r_gr",
+                )
+            else:
+                outcome = evaluate_condition_for_match(
+                    raw,
+                    actual_bool=actual_bool,
+                    kind=kind,
+                )
+        except ValueError as exc:
+            code = (
+                SPEC_BOX_EX_RGR_MATRIX_MISSING
+                if field in {"Ex", "R_gr"} or require_ex_r_gr
+                else "INVALID_BOX_CONDITION"
+            )
+            raise FormulaInputError(
+                code,
+                str(exc),
+                field=field,
+                value=raw,
+            ) from exc
+        if outcome is None:
+            return True
+        return bool(outcome)
+
     for key in BOX_BOOLEAN_CONDITION_KEYS:
         raw = _condition_value(conditions, key)
-        if raw is None or _is_unused(raw):
-            continue
-        required = _normalize_bool_condition(raw, field=key)
-        if required is BOX_CONDITION_UNUSED:
-            continue
-        if bool(required) is not actual[key]:
+        if not _eval(raw, field=key, kind="bool", actual_bool=actual[key]):
             return False
 
     ex_raw = _condition_value(conditions, "Ex")
-    if ex_raw is not None and not _is_unused(ex_raw):
-        if require_ex_r_gr:
-            ex_req = _validate_ex_condition(ex_raw)
-        else:
-            if not isinstance(ex_raw, bool):
-                raise FormulaInputError(
-                    "INVALID_BOX_CONDITION",
-                    f"Ex: expected true/false/'unused' (got {ex_raw!r})",
-                    field="Ex",
-                    value=ex_raw,
-                )
-            ex_req = ex_raw
-        if ex_req is not BOX_CONDITION_UNUSED and bool(ex_req) is not actual["Ex"]:
+    if ex_raw is not None or require_ex_r_gr:
+        if not _eval(ex_raw, field="Ex", kind="ex", actual_bool=actual["Ex"]):
             return False
 
     r_gr_raw = _condition_value(conditions, "R_gr")
-    if r_gr_raw is not None and not _is_unused(r_gr_raw):
-        if require_ex_r_gr:
-            required_r_gr = _validate_r_gr_condition(r_gr_raw)
-        else:
-            required_r_gr = to_non_negative_decimal(r_gr_raw, name="R_gr")
-        if required_r_gr is not BOX_CONDITION_UNUSED:
-            if r_gr is None:
-                return False
-            actual_r_gr = to_non_negative_decimal(r_gr, name="r_gr")
-            if actual_r_gr != required_r_gr:
-                return False
+    if r_gr_raw is not None or require_ex_r_gr:
+        if not _eval(r_gr_raw, field="R_gr", kind="r_gr"):
+            return False
 
     return True
 
@@ -393,12 +452,12 @@ def _coerce_row(row: BoxRowInput | Mapping[str, Any], *, index: int) -> BoxRowIn
         )
 
     conditions = BoxRowConditions(
-        d_ge_57=conditions_map.get("d_ge_57", BOX_CONDITION_UNUSED),
-        K1i=conditions_map.get("K1i", BOX_CONDITION_UNUSED),
-        K2i=conditions_map.get("K2i", BOX_CONDITION_UNUSED),
-        Kiu=conditions_map.get("Kiu", BOX_CONDITION_UNUSED),
-        L_sec_ge_L_K2i=conditions_map.get("L_sec_ge_L_K2i", BOX_CONDITION_UNUSED),
-        N_sec_ge_3=conditions_map.get("N_sec_ge_3", BOX_CONDITION_UNUSED),
+        d_ge_57=conditions_map.get("d_ge_57"),
+        K1i=conditions_map.get("K1i"),
+        K2i=conditions_map.get("K2i"),
+        Kiu=conditions_map.get("Kiu"),
+        L_sec_ge_L_K2i=conditions_map.get("L_sec_ge_L_K2i"),
+        N_sec_ge_3=conditions_map.get("N_sec_ge_3"),
         Ex=conditions_map.get("Ex"),
         R_gr=conditions_map.get("R_gr"),
     )

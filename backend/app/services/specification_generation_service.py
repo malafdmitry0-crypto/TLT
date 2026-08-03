@@ -540,12 +540,14 @@ def _extract_manual_items(existing: Specification | None) -> list[SpecificationI
             continue
         try:
             manual.append(SpecificationItem(**raw))
-        except Exception as exc:  # Pydantic error is intentionally kept behind this boundary.
+        except Exception:
+            # Public diagnostics use a stable boundary name; never leak
+            # pydantic/decimal exception class names (InvalidOperation vs ValidationError).
             issues.append(
                 {
                     "reason": "invalid_stored_manual_item",
                     "item_index": index,
-                    "error": type(exc).__name__,
+                    "error": "ValidationError",
                 }
             )
     if issues:

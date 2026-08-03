@@ -220,7 +220,8 @@ class BoxRoundingMode(str, Enum):
     DOWN = "down"
 
 
-# Catalog tri-state: condition active (bool) or "unused" (do not check).
+# Legacy scalar rejected by SPEC-FINAL-02 catalog/calculator authority boundary.
+# Kept only so old fixtures fail with a stable symbol rather than a magic string.
 BOX_CONDITION_UNUSED = "unused"
 
 # Boolean condition keys on approved box matrix / catalog applicability rows.
@@ -257,20 +258,24 @@ class BoxPipeInput:
 class BoxRowConditions:
     """Per-row applicability conditions (catalog ``applicability`` shape).
 
-    Boolean flags accept ``True`` / ``False`` / ``\"unused\"``.
-    ``Ex`` and ``R_gr`` are required for production evaluation: missing or
-    invalid values raise ``SPEC_BOX_EX_RGR_MATRIX_MISSING`` (do not invent).
-    ``R_gr`` is either ``\"unused\"`` or a non-negative numeric threshold/value.
+    Production shape is a discriminated condition object per key:
+
+    * ``{\"mode\": \"match\", \"operator\": \"eq\", \"value\": true}``
+    * ``{\"mode\": \"not_applicable\", \"decision_ref\": \"SPEC-OWNER-...\"}``
+    * ``{\"mode\": \"unresolved\"}`` (incomplete; blocks activation/production)
+
+    Scalar ``\"unused\"`` is rejected. Bare bools are only accepted as a thin
+    non-production convenience for pure matching unit tests.
     """
 
-    d_ge_57: bool | str = BOX_CONDITION_UNUSED
-    K1i: bool | str = BOX_CONDITION_UNUSED
-    K2i: bool | str = BOX_CONDITION_UNUSED
-    Kiu: bool | str = BOX_CONDITION_UNUSED
-    L_sec_ge_L_K2i: bool | str = BOX_CONDITION_UNUSED
-    N_sec_ge_3: bool | str = BOX_CONDITION_UNUSED
-    Ex: bool | str | None = None
-    R_gr: Decimal | int | str | float | None = None
+    d_ge_57: Any = None
+    K1i: Any = None
+    K2i: Any = None
+    Kiu: Any = None
+    L_sec_ge_L_K2i: Any = None
+    N_sec_ge_3: Any = None
+    Ex: Any = None
+    R_gr: Any = None
 
 
 @dataclass(frozen=True, slots=True)

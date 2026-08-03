@@ -1,8 +1,17 @@
-"""Complete in-memory catalog used only by backend tests."""
+"""Complete in-memory catalog used only by backend tests.
+
+Never used as a production/bundled seed payload (SPEC-FINAL-02).
+"""
 
 from __future__ import annotations
 
 from app.schemas.specification_catalog import SpecificationCatalogItemInput
+from app.formulas.specification.catalog_conditions import match_condition, not_applicable
+
+_TEST_SOURCE = (
+    "normalized backend test fixture; approval:SPEC-OWNER-MATERIALS/test-fixture"
+)
+_EX_RGR_NA = "SPEC-OWNER-EX-RGR/test-fixture/not-applicable"
 
 _CABLES = [
     ("10ТТН2-СТ", "001-001-001"),
@@ -34,19 +43,21 @@ _REPAIR_KITS = [
     ("КСР-1", "001-006-001", "LOW"),
     ("КСР-2", "001-006-002", "MEDIUM_HIGH"),
 ]
+# Each row gets a distinct condition fingerprint so the matrix discriminates.
 _BOXES = [
-    ("СКВ 1201", "002-001-001", "3", "up"),
-    ("СКВ 1202", "002-001-002", "3", "up"),
-    ("СКВ 1201-С", "002-001-003", "3", "up"),
-    ("СКВ 1201-С1", "002-001-004", "1", "up"),
-    ("СКВ 1202-С", "002-001-005", "1", "up"),
-    ("СКВ 1202-С1", "002-001-006", "1", "up"),
-    ("СКВ 1601", "002-001-007", "3", "down"),
-    ("СКВ 1602", "002-001-008", "3", "down"),
-    ("СКВ 1601-С", "002-001-009", "3", "up"),
-    ("СКВ 1601-С1", "002-001-010", "3", "up"),
-    ("СКВ 1602-С", "002-001-011", "3", "up"),
-    ("СКВ 1602-С1", "002-001-012", "3", "up"),
+    # mark, code, divider, rounding, d_ge_57, K1i, K2i, Kiu, N_sec_ge_3, Ex
+    ("СКВ 1201", "002-001-001", "3", "up", True, False, False, False, False, False),
+    ("СКВ 1202", "002-001-002", "3", "up", False, False, False, False, False, False),
+    ("СКВ 1201-С", "002-001-003", "3", "up", True, True, False, False, False, False),
+    ("СКВ 1201-С1", "002-001-004", "1", "up", True, True, False, True, False, False),
+    ("СКВ 1202-С", "002-001-005", "1", "up", False, True, False, False, False, False),
+    ("СКВ 1202-С1", "002-001-006", "1", "up", False, True, False, True, False, False),
+    ("СКВ 1601", "002-001-007", "3", "down", True, False, False, False, True, False),
+    ("СКВ 1602", "002-001-008", "3", "down", False, False, False, False, True, False),
+    ("СКВ 1601-С", "002-001-009", "3", "up", True, True, True, False, False, True),
+    ("СКВ 1601-С1", "002-001-010", "3", "up", True, True, True, True, False, True),
+    ("СКВ 1602-С", "002-001-011", "3", "up", False, True, True, False, False, True),
+    ("СКВ 1602-С1", "002-001-012", "3", "up", False, True, True, True, False, True),
 ]
 
 
@@ -63,7 +74,7 @@ def complete_specification_catalog_items() -> list[SpecificationCatalogItemInput
                 mark=mark,
                 nomenclature_code=code,
                 supply_unit="м",
-                source_ref="normalized backend test fixture",
+                source_ref=_TEST_SOURCE,
             )
         )
     for mark, code, temperature_group, capacity in _CONNECTION_KITS:
@@ -77,7 +88,7 @@ def complete_specification_catalog_items() -> list[SpecificationCatalogItemInput
                 supply_unit="шт.",
                 applicability={"temperature_group": temperature_group},
                 package_parameters={"sections_per_kit": capacity},
-                source_ref="normalized backend test fixture",
+                source_ref=_TEST_SOURCE,
             )
         )
     for mark, code, temperature_group in _REPAIR_KITS:
@@ -91,7 +102,7 @@ def complete_specification_catalog_items() -> list[SpecificationCatalogItemInput
                 supply_unit="шт.",
                 applicability={"temperature_group": temperature_group},
                 package_parameters={"cable_length_per_kit_m": "150"},
-                source_ref="normalized backend test fixture",
+                source_ref=_TEST_SOURCE,
             )
         )
     items.extend(
@@ -104,7 +115,7 @@ def complete_specification_catalog_items() -> list[SpecificationCatalogItemInput
                 nomenclature_code="TEST-003-001",
                 supply_unit="шт.",
                 package_parameters={"kits_per_sealant_unit": "7"},
-                source_ref="normalized backend test fixture",
+                source_ref=_TEST_SOURCE,
             ),
             SpecificationCatalogItemInput(
                 item_key="fiberglass:low",
@@ -115,7 +126,7 @@ def complete_specification_catalog_items() -> list[SpecificationCatalogItemInput
                 supply_unit="катушка",
                 applicability={"temperature_group": "LOW"},
                 package_parameters={"reel_length_m": "30"},
-                source_ref="normalized backend test fixture",
+                source_ref=_TEST_SOURCE,
             ),
             SpecificationCatalogItemInput(
                 item_key="fiberglass:medium-high",
@@ -126,7 +137,7 @@ def complete_specification_catalog_items() -> list[SpecificationCatalogItemInput
                 supply_unit="катушка",
                 applicability={"temperature_group": "MEDIUM_HIGH"},
                 package_parameters={"reel_length_m": "30"},
-                source_ref="normalized backend test fixture",
+                source_ref=_TEST_SOURCE,
             ),
             SpecificationCatalogItemInput(
                 item_key="aluminium:test-approved",
@@ -137,21 +148,22 @@ def complete_specification_catalog_items() -> list[SpecificationCatalogItemInput
                 supply_unit="катушка",
                 package_parameters={"reel_length_m": "50"},
                 formula_parameters={"consumption_m_per_cable_m": "1"},
-                source_ref="normalized backend test fixture",
+                source_ref=_TEST_SOURCE,
             ),
         ]
     )
-    box_conditions = {
-        "d_ge_57": "unused",
-        "K1i": "unused",
-        "K2i": "unused",
-        "Kiu": "unused",
-        "L_sec_ge_L_K2i": "unused",
-        "N_sec_ge_3": "unused",
-        "Ex": "unused",
-        "R_gr": "unused",
-    }
-    for mark, code, divider, rounding_mode in _BOXES:
+    for index, (
+        mark,
+        code,
+        divider,
+        rounding_mode,
+        d_ge_57,
+        k1i,
+        k2i,
+        kiu,
+        n_sec_ge_3,
+        ex,
+    ) in enumerate(_BOXES):
         items.append(
             SpecificationCatalogItemInput(
                 item_key=f"box:{mark}",
@@ -160,13 +172,23 @@ def complete_specification_catalog_items() -> list[SpecificationCatalogItemInput
                 mark=mark,
                 nomenclature_code=code,
                 supply_unit="шт.",
-                applicability=dict(box_conditions),
+                applicability={
+                    "d_ge_57": match_condition(value=d_ge_57),
+                    "K1i": match_condition(value=k1i),
+                    "K2i": match_condition(value=k2i),
+                    "Kiu": match_condition(value=kiu),
+                    "L_sec_ge_L_K2i": not_applicable(f"{_EX_RGR_NA}/L_sec/{index}"),
+                    "N_sec_ge_3": match_condition(value=n_sec_ge_3),
+                    "Ex": match_condition(value=ex),
+                    # Distinct R_gr thresholds so fingerprints differ and axis discriminates.
+                    "R_gr": match_condition(operator="lte", value=str(index + 1)),
+                },
                 formula_parameters={
                     "section_divider": divider,
                     "rounding_mode": rounding_mode,
                     "min_quantity": "1",
                 },
-                source_ref="normalized backend test fixture",
+                source_ref=_TEST_SOURCE,
             )
         )
     return items
