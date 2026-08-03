@@ -2,7 +2,7 @@
 
 Production entry for ``POST /api/v1/specifications/{project_id}/generate``.
 
-Does **not** import or call legacy ``full_builder`` / ``build_basic_specification``.
+Does not import or call the legacy specification builders.
 BOM materialization goes through :func:`materialize_specification_bom`.
 """
 
