@@ -8,10 +8,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.dependencies import CurrentPrincipal, require_any, require_employee
 from app.schemas.specification import (
-    SpecificationGenerateRequest,
     SpecificationGenerateResponse,
+    SpecificationGenerationRequestV2,
+    SpecificationGenerationResponseV2,
     SpecificationItem,
-    SpecificationPreflightResponse,
     SpecificationResponse,
     SpecificationSettingsResponse,
     SpecificationSettingsUpdateRequest,
@@ -27,6 +27,11 @@ from app.services.project_service import (
     ProjectNotFoundError,
     ProjectService,
 )
+from app.services.specification_generation_v2_service import (
+    SpecificationGenerationV2Service,
+    SpecificationProjectSettingsService,
+)
+from app.services.specification_preflight_service import SpecificationPreflightServiceError
 from app.services.specification_service import SpecificationService
 
 router = APIRouter()
@@ -49,12 +54,7 @@ async def get_specification_settings(
     except ProjectAccessError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
 
-    version, settings = await SpecificationService(db).get_project_settings(project_id)
-    return SpecificationSettingsResponse(
-        project_id=project_id,
-        version=version,
-        settings=settings,
-    )
+    return await SpecificationProjectSettingsService(db).get(project_id)
 
 
 @router.put(
@@ -75,23 +75,16 @@ async def update_specification_settings(
     except ProjectAccessError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
 
-    version, settings = await SpecificationService(db).update_project_settings(
-        project_id,
-        data.settings,
-    )
+    response = await SpecificationProjectSettingsService(db).update(project_id, data.settings)
     await AuditService(db).try_record(
         event_type="specification.settings_updated",
         category="specification",
         principal=principal,
         project_id=project_id,
-        details={"settings_version": version},
+        details={"settings_version": response.version},
         message="Обновлены project defaults спецификации",
     )
-    return SpecificationSettingsResponse(
-        project_id=project_id,
-        version=version,
-        settings=settings,
-    )
+    return response
 
 
 @router.get(
@@ -132,15 +125,13 @@ async def get_specification(
 
 @router.post(
     "/{project_id}/generate",
-    response_model=SpecificationGenerateResponse,
+    response_model=SpecificationGenerationResponseV2,
     status_code=status.HTTP_201_CREATED,
-    summary="Сгенерировать спецификацию",
+    summary="Сформировать спецификации выбранных ЭР (V2)",
 )
 async def generate_specification(
     project_id: UUID,
-    variant: int = 1,
-    electrical_variant_id: UUID | None = Query(default=None),
-    data: SpecificationGenerateRequest | None = None,
+    data: SpecificationGenerationRequestV2,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
@@ -151,161 +142,9 @@ async def generate_specification(
     except ProjectAccessError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
 
-    req = data or SpecificationGenerateRequest()
-    # PDL-ER-04: полный автоматический BOM доступен гостю; manual items — только
-    # сотруднику/админу (см. PUT /items + frontend canManuallyEdit).
-    # PDL-ER-29: канонический product mode = full; basic input is coerced.
-    generate_mode = "full" if req.mode in (None, "basic", "full") else "full"
-
     try:
-        # PDL-ER-01: explicit multi-ER list wins over single legacy slot params.
-        requested_ids = list(dict.fromkeys(req.electrical_variant_ids or []))
-        # Single-query compatibility: UUID param alone still works.
-        if (
-            electrical_variant_id is not None
-            and electrical_variant_id not in requested_ids
-            and not requested_ids
-        ):
-            requested_ids = [electrical_variant_id]
-
-        if requested_ids:
-            if len(requested_ids) > 5:
-                raise HTTPException(
-                    status_code=422,
-                    detail={
-                        "error_code": "ELECTRICAL_VARIANT_LIMIT_REACHED",
-                        "message": "Можно выбрать не более 5 ЭР для генерации",
-                    },
-                )
-            spec_service = SpecificationService(db)
-            preflight = await spec_service.preflight_for_electrical_variants(
-                project_id,
-                principal,
-                requested_ids,
-            )
-            total_skipped = sum(item.skipped_objects for item in preflight)
-            requires = any(item.requires_confirmation for item in preflight)
-            if requires and not req.confirm_partial:
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail={
-                        "code": "SPECIFICATION_PREFLIGHT_CONFIRMATION_REQUIRED",
-                        "message": (
-                            "Часть объектов или групп BOM будет исключена. "
-                            "Подтвердите неполную (partial) генерацию."
-                        ),
-                        "preflight": SpecificationPreflightResponse(
-                            project_id=project_id,
-                            requires_confirmation=True,
-                            total_skipped_objects=total_skipped,
-                            variants=[
-                                {
-                                    "electrical_variant_id": item.electrical_variant_id,
-                                    "electrical_variant_name": item.electrical_variant_name,
-                                    "total_objects": item.total_objects,
-                                    "contributing_objects": item.contributing_objects,
-                                    "skipped_objects": item.skipped_objects,
-                                    "excluded_object_ids": item.excluded_object_ids,
-                                    "excluded_groups": item.excluded_groups,
-                                }
-                                for item in preflight
-                            ],
-                        ).model_dump(mode="json"),
-                    },
-                )
-            results = await spec_service.generate_for_electrical_variants(
-                project_id,
-                principal,
-                requested_ids,
-                mode=generate_mode,
-                options=req.options,
-            )
-            primary = results[0]
-            await AuditService(db).try_record(
-                event_type="specification.generated",
-                category="specification",
-                principal=principal,
-                project_id=project_id,
-                details={
-                    "electrical_variant_ids": [str(item.electrical_variant_id) for item in results],
-                    "item_count": len(primary.items),
-                    "mode": primary.mode,
-                    "skipped_objects": primary.skipped_objects,
-                    "generated_count": len(results),
-                },
-                message="Сгенерирована спецификация (multi-ЭР)",
-            )
-            return SpecificationGenerateResponse(
-                project_id=project_id,
-                items=primary.items,
-                mode=primary.mode,
-                skipped_objects=primary.skipped_objects,
-                partial=primary.partial,
-                excluded_groups=primary.excluded_groups,
-                settings_version=primary.settings_version,
-                electrical_variant_id=primary.electrical_variant_id,
-                results=[
-                    {
-                        "electrical_variant_id": item.electrical_variant_id,
-                        "items": item.items,
-                        "mode": item.mode,
-                        "skipped_objects": item.skipped_objects,
-                        "partial": item.partial,
-                        "excluded_groups": item.excluded_groups,
-                    }
-                    for item in results
-                ],
-            )
-
-        electrical_variant = await ElectricalVariantService(db).prepare_legacy_variant_for_write(
-            project_id,
-            principal,
-            variant,
-            expected_electrical_variant_id=electrical_variant_id,
-        )
-        spec_service = SpecificationService(db)
-        preflight_one = await spec_service.preflight_variant(
-            project_id,
-            variant_number=electrical_variant.legacy_variant_number or variant,
-            electrical_variant_id=electrical_variant.id,
-            electrical_variant_name=electrical_variant.name,
-            options=req.options,
-        )
-        if preflight_one.requires_confirmation and not req.confirm_partial:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail={
-                    "code": "SPECIFICATION_PREFLIGHT_CONFIRMATION_REQUIRED",
-                    "message": (
-                        "Часть объектов или групп BOM будет исключена. "
-                        "Подтвердите неполную (partial) генерацию."
-                    ),
-                    "preflight": SpecificationPreflightResponse(
-                        project_id=project_id,
-                        requires_confirmation=True,
-                        total_skipped_objects=preflight_one.skipped_objects,
-                        variants=[
-                            {
-                                "electrical_variant_id": preflight_one.electrical_variant_id,
-                                "electrical_variant_name": preflight_one.electrical_variant_name,
-                                "total_objects": preflight_one.total_objects,
-                                "contributing_objects": preflight_one.contributing_objects,
-                                "skipped_objects": preflight_one.skipped_objects,
-                                "excluded_object_ids": preflight_one.excluded_object_ids,
-                                "excluded_groups": preflight_one.excluded_groups,
-                            }
-                        ],
-                    ).model_dump(mode="json"),
-                },
-            )
-        result = await spec_service.generate(
-            project_id,
-            variant,
-            mode=generate_mode,
-            options=req.options,
-            electrical_variant_id=electrical_variant.id,
-        )
-    except ElectricalVariantServiceError as exc:
+        response = await SpecificationGenerationV2Service(db).generate(project_id, principal, data)
+    except SpecificationPreflightServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     await AuditService(db).try_record(
         event_type="specification.generated",
@@ -313,24 +152,12 @@ async def generate_specification(
         principal=principal,
         project_id=project_id,
         details={
-            "variant": variant,
-            "electrical_variant_id": str(electrical_variant.id),
-            "item_count": len(result.items),
-            "mode": result.mode,
-            "skipped_objects": result.skipped_objects,
+            "electrical_variant_ids": [str(item) for item in data.variant_ids],
+            "generated_count": sum(result.status == "generated" for result in response.results),
         },
-        message="Сгенерирована спецификация",
+        message="Сформированы спецификации выбранных ЭР",
     )
-    return SpecificationGenerateResponse(
-        project_id=project_id,
-        items=result.items,
-        mode=result.mode,
-        skipped_objects=result.skipped_objects,
-        partial=result.partial,
-        excluded_groups=result.excluded_groups,
-        settings_version=result.settings_version,
-        electrical_variant_id=electrical_variant.id,
-    )
+    return response
 
 
 @router.put(

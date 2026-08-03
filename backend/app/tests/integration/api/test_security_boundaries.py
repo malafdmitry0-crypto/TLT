@@ -360,6 +360,7 @@ class TestEmployeeCannotEditOthersProjects:
 
         generate_resp = await client.post(
             f"/api/v1/specifications/{project['id']}/generate",
+            json={"variant_ids": ["00000000-0000-0000-0000-000000000001"]},
             headers=employee_headers,
         )
         save_resp = await client.put(

@@ -272,6 +272,12 @@ class SpecificationVariantGenerationResultV2(BaseModel):
     snapshot: dict[str, Any] | None = None
 
 
+class SpecificationGenerationResponseV2(BaseModel):
+    project_id: UUID
+    settings_version: int
+    results: list[SpecificationVariantGenerationResultV2]
+
+
 class SpecificationOptions(BaseModel):
     """Опции полного расчёта спецификации (ТНП BOM).
 
@@ -326,17 +332,17 @@ class SpecificationOptions(BaseModel):
 
 
 class SpecificationSettingsResponse(BaseModel):
-    """Project-level versioned specification defaults (PDL-ER-07)."""
+    """Canonical, possibly incomplete, project specification settings."""
 
     project_id: UUID
     version: int
-    settings: SpecificationOptions
+    settings: SpecificationRequestedOptions
 
 
 class SpecificationSettingsUpdateRequest(BaseModel):
-    """Update project defaults without regenerating specifications."""
+    """Explicitly update canonical project defaults without regenerating."""
 
-    settings: SpecificationOptions
+    settings: SpecificationRequestedOptions
 
 
 class SpecificationResponse(BaseModel):
