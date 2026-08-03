@@ -39,7 +39,11 @@ describe('specificationPageModelHelpers', () => {
       ['gone'],
       new Set(['keep']),
       'keep',
-      true,
     )).toEqual(['keep']);
+    expect(filterValidGenerateErIds(
+      ['gone'],
+      new Set(['uuid-only']),
+      'uuid-only',
+    )).toEqual(['uuid-only']);
   });
 });

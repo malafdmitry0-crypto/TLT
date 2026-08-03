@@ -7,19 +7,58 @@ from enum import StrEnum
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
 
 
 class SpecificationItem(BaseModel):
+    """Одна позиция BOM.
+
+    ``quantity`` хранится как ``Decimal`` и в JSON сериализуется строкой
+    (канонический Decimal-safe контракт). Вход принимает Decimal | str | int | float.
+    """
+
     category: str
     name: str
     article: str | None = None
     unit: str = "шт."
-    quantity: float
+    quantity: Decimal
     params: dict[str, Any] = Field(default_factory=dict)
     # 'auto' — построено генератором из электрорасчёта; 'manual' — добавлено сотрудником.
     # При перегенерации auto-позиции пересоздаются, manual — сохраняются.
     source: str | None = None
+
+    @field_validator("quantity", mode="before")
+    @classmethod
+    def _coerce_quantity(cls, value: object) -> Decimal:
+        if isinstance(value, Decimal):
+            return value
+        if isinstance(value, bool) or value is None:
+            raise ValueError("quantity must be a decimal number")
+        if isinstance(value, int):
+            return Decimal(value)
+        if isinstance(value, float):
+            return Decimal(str(value))
+        if isinstance(value, str):
+            text = value.strip()
+            if not text:
+                raise ValueError("quantity must not be blank")
+            return Decimal(text)
+        raise ValueError("quantity must be a decimal number")
+
+    @field_serializer("quantity")
+    def _serialize_quantity(self, value: Decimal) -> str:
+        # Normalize without scientific notation; keep exact decimal string form.
+        text = format(value, "f")
+        if "." in text:
+            text = text.rstrip("0").rstrip(".")
+        return text or "0"
 
 
 class SpecificationGroupingMode(StrEnum):
@@ -274,6 +313,8 @@ class SpecificationVariantGenerationResult(BaseModel):
     items: list[SpecificationItem] = Field(default_factory=list)
     excluded_unassigned_object_ids: list[UUID] = Field(default_factory=list)
     diagnostics: list[SpecificationDiagnostic] = Field(default_factory=list)
+    # CANON-03 will populate applicable catalog candidates; empty until then.
+    candidate_groups: list[dict[str, Any]] = Field(default_factory=list)
     snapshot: dict[str, Any] | None = None
 
 
@@ -284,13 +325,11 @@ class SpecificationGenerationResponse(BaseModel):
 
 
 class SpecificationOptions(BaseModel):
-    """Опции полного расчёта спецификации (ТНП BOM).
+    """Legacy full-BOM options (pre-canonical).
 
-    Параметры, которых пока нет в карточке объекта, берутся с дефолтами и могут
-    переопределяться сотрудником на странице спецификации.
-
-    PDL-ER-07: эти поля — project defaults; при генерации сохраняется snapshot.
-    PDL-ER-38: group_by / merge_identical — presentation defaults в snapshot.
+    Soft-deprecated: public generate uses :class:`SpecificationRequestedOptions`.
+    Kept for internal unit tests and the transitional formula builder path.
+    Not part of the unversioned generate OpenAPI contract.
     """
 
     reserve_coefficient: float = Field(
@@ -395,13 +434,10 @@ class SpecificationResponse(BaseModel):
 
 
 class SpecificationGenerateRequest(BaseModel):
-    """Тело запроса генерации спецификации.
+    """Legacy generate body (soft-deprecated, not mounted on public routes).
 
-    PDL-ER-29: канонический режим — full data-driven BOM. ``basic`` принимается
-    только как deprecated transitional input и нормализуется в ``full`` на API.
-
-    electrical_variant_ids — явный список UUID ЭР (PDL-ER-01). UI «Выбрать все»
-    разворачивается в полный список текущих UUID, а не в implicit all-on-open.
+    Public generate uses :class:`SpecificationGenerationRequest` (``variant_ids``).
+    Kept only so unit tests that import the old shape continue to import.
     """
 
     mode: str = Field(
@@ -425,6 +461,8 @@ class SpecificationGenerateRequest(BaseModel):
 
 
 class SpecificationGenerateVariantResult(BaseModel):
+    """Legacy per-variant generate row; soft-deprecated."""
+
     electrical_variant_id: UUID
     items: list[SpecificationItem]
     mode: str = "full"
@@ -434,6 +472,12 @@ class SpecificationGenerateVariantResult(BaseModel):
 
 
 class SpecificationGenerateResponse(BaseModel):
+    """Manual PUT / legacy generate envelope.
+
+    Generate itself uses :class:`SpecificationGenerationResponse`. This shape
+    remains for employee manual item saves (and transitional internal callers).
+    """
+
     project_id: UUID
     items: list[SpecificationItem]
     # Фактически применённый режим генерации (PDL-ER-29: full)
@@ -449,6 +493,8 @@ class SpecificationGenerateResponse(BaseModel):
 
 
 class SpecificationPreflightVariantResult(BaseModel):
+    """Legacy preflight row; soft-deprecated (canonical uses VariantPreflightResult)."""
+
     electrical_variant_id: UUID
     electrical_variant_name: str | None = None
     total_objects: int = 0
@@ -459,6 +505,8 @@ class SpecificationPreflightVariantResult(BaseModel):
 
 
 class SpecificationPreflightResponse(BaseModel):
+    """Legacy preflight envelope; soft-deprecated."""
+
     project_id: UUID
     requires_confirmation: bool
     total_skipped_objects: int = 0

@@ -33,15 +33,15 @@ export function useSpecificationQuerySession() {
   const qc = useQueryClient();
   const variantContext = useLegacyElectricalVariantContext(project?.id);
   const selectedElectricalVariant = variantContext.selectedVariant;
-  const variant = variantContext.legacyVariantNumber ?? 1;
-  const legacyDataPlaneEnabled = Boolean(
-    project && selectedElectricalVariant && variantContext.legacyVariantNumber != null,
+  const variant = variantContext.legacyVariantNumber ?? null;
+  /** UUID-scoped data plane: any project ER is loadable, including no legacy slot. */
+  const uuidDataPlaneEnabled = Boolean(
+    project && selectedElectricalVariant?.id && !variantContext.isLoading && !variantContext.isError,
   );
   const specificationQueryKey = [
     'spec',
     project?.id,
     selectedElectricalVariant?.id,
-    variant,
   ] as const;
 
   const {
@@ -55,10 +55,9 @@ export function useSpecificationQuerySession() {
     queryKey: specificationQueryKey,
     queryFn: () => getSpecification(
       project!.id,
-      variant,
       selectedElectricalVariant!.id,
     ),
-    enabled: legacyDataPlaneEnabled,
+    enabled: uuidDataPlaneEnabled,
   });
 
   const { data: projectSettings } = useQuery({
@@ -87,7 +86,9 @@ export function useSpecificationQuerySession() {
     variantContext,
     selectedElectricalVariant,
     variant,
-    legacyDataPlaneEnabled,
+    uuidDataPlaneEnabled,
+    /** @deprecated alias — same as uuidDataPlaneEnabled after UUID cutover */
+    legacyDataPlaneEnabled: uuidDataPlaneEnabled,
     specificationQueryKey,
     spec,
     refetch,

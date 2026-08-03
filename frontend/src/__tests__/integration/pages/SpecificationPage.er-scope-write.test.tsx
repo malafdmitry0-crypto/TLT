@@ -121,8 +121,9 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
       variantByProject: {},
     });
   });
-  it('не подменяет ЭР5 данными ЭР1, если legacy-привязки ещё нет', async () => {
+  it('loads UUID-only ER5 without Phase 5 block and does not fall back to ER1', async () => {
     const { getSpecification } = await import('@/api/specifications');
+    (getSpecification as ReturnType<typeof vi.fn>).mockResolvedValue(null);
     useCalculationVariantStore.getState().setSelectedVariantId(
       mockProject.id,
       fifthVariant.id,
@@ -132,23 +133,31 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText(/«ЭР5»: спецификация временно недоступна/i))
-        .toBeInTheDocument();
+      expect(getSpecification).toHaveBeenCalledWith(mockProject.id, fifthVariant.id);
     });
-    expect(getSpecification).not.toHaveBeenCalled();
+    expect(screen.queryByText(/временно недоступна/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Phase 5/i)).not.toBeInTheDocument();
+    expect(await screen.findByText(/Спецификация не сформирована/i)).toBeInTheDocument();
   });
   it('honors a direct fifth-ER deep link and never calls the ER1 specification endpoint', async () => {
     const { getSpecification } = await import('@/api/specifications');
-    (getSpecification as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: 'spec-er1', items: [{ category: 'cable', name: 'ER1', unit: 'м', quantity: 1 }],
-    });
+    (getSpecification as ReturnType<typeof vi.fn>).mockImplementation(
+      async (_projectId: string, electricalVariantId?: string) => (
+        electricalVariantId === firstVariant.id
+          ? { id: 'spec-er1', items: [{ category: 'cable', name: 'ER1', unit: 'м', quantity: 1 }] }
+          : null
+      ),
+    );
     useProjectStore.getState().setCurrentProject(mockProject);
     useCalculationVariantStore.getState().setSelectedVariantId(mockProject.id, firstVariant.id);
 
     renderPage(`/workspace/specification?er=${fifthVariant.id}`);
 
-    expect(await screen.findByText(/ЭР5.*временно недоступна/i)).toBeInTheDocument();
-    expect(getSpecification).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(getSpecification).toHaveBeenCalledWith(mockProject.id, fifthVariant.id);
+    });
+    expect(getSpecification).not.toHaveBeenCalledWith(mockProject.id, firstVariant.id);
+    expect(screen.queryByText('ER1')).not.toBeInTheDocument();
   });
   it('после ручного удаления инвалидирует exact cache выбранного UUID ЭР', async () => {
     const userEvent = (await import('@testing-library/user-event')).default;
@@ -156,6 +165,7 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
     const populated = {
       id: 's-1',
       project_id: mockProject.id,
+      electrical_variant_id: firstVariant.id,
       variant_number: 1,
       items: [
         {
@@ -202,9 +212,8 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
     await waitFor(() => {
       expect(saveSpecificationItems).toHaveBeenCalledWith(
         mockProject.id,
-        [],
-        1,
         firstVariant.id,
+        [],
       );
       expect(getSpecification).toHaveBeenCalledTimes(2);
     });

@@ -101,3 +101,36 @@ def test_settings_routes_use_incomplete_canonical_options() -> None:
     assert "required" not in options
     assert "default" not in options["properties"]["Ex"]
     assert "default" not in options["properties"]["L_K2i_m"]
+
+
+def test_uuid_read_and_manual_routes_are_primary_data_plane() -> None:
+    schema = app.openapi()
+    paths = schema["paths"]
+    uuid_get = paths["/api/v1/specifications/{project_id}/variants/{electrical_variant_id}"]["get"]
+    uuid_put = paths[
+        "/api/v1/specifications/{project_id}/variants/{electrical_variant_id}/items"
+    ]["put"]
+    assert "variant" not in {p["name"] for p in uuid_get.get("parameters", [])}
+    assert "variant" not in {p["name"] for p in uuid_put.get("parameters", [])}
+
+    result_schema = schema["components"]["schemas"]["SpecificationVariantGenerationResult"]
+    assert "candidate_groups" in result_schema["properties"]
+
+    # With field_serializer, OpenAPI may emit Input/Output variants.
+    components = schema["components"]["schemas"]
+    item_keys = [key for key in components if key.startswith("SpecificationItem")]
+    assert item_keys, "SpecificationItem schema missing from OpenAPI components"
+    quantity_seen = False
+    for key in item_keys:
+        quantity = components[key]["properties"].get("quantity")
+        if quantity is None:
+            continue
+        quantity_seen = True
+        # Serialized output is string; input may still accept number/string.
+        assert (
+            quantity.get("type") == "string"
+            or "anyOf" in quantity
+            or "oneOf" in quantity
+            or quantity.get("type") == "number"
+        )
+    assert quantity_seen

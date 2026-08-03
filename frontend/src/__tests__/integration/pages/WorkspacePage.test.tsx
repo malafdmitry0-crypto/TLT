@@ -185,8 +185,8 @@ describe('WorkspacePage', () => {
       }),
     );
     (getSpecification as ReturnType<typeof vi.fn>).mockImplementation(
-      async (_projectId: string, variantNumber?: number) => (
-        variantNumber === 1
+      async (_projectId: string, electricalVariantId?: string) => (
+        electricalVariantId === firstVariant.id
           ? { id: 'spec-er1', items: [{ category: 'cable', name: 'ER1', unit: 'м', quantity: 5 }] }
           : null
       ),
@@ -198,7 +198,7 @@ describe('WorkspacePage', () => {
 
     await waitFor(() => {
       expect(getObjectsSummary).toHaveBeenCalledWith(project.id, secondVariant.id);
-      expect(getSpecification).toHaveBeenCalledWith(project.id, 2, secondVariant.id);
+      expect(getSpecification).toHaveBeenCalledWith(project.id, secondVariant.id);
     });
     expect(screen.getAllByText('Расчёты не выполнены').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Не сформирована').length).toBeGreaterThan(0);

@@ -184,12 +184,15 @@ function buildBaseColumns(showCategory: boolean) {
       dataIndex: 'quantity' as const,
       width: 100,
       align: 'right' as const,
-      sorter: (a: Row, b: Row) => a.quantity - b.quantity,
-      render: (v: number) => (
-        <span className="spec-table-tabular">
-          {Number.isFinite(v) ? v.toLocaleString('ru-RU') : v}
-        </span>
-      ),
+      sorter: (a: Row, b: Row) => Number(a.quantity || 0) - Number(b.quantity || 0),
+      render: (v: number | string) => {
+        const n = Number(v);
+        return (
+          <span className="spec-table-tabular">
+            {Number.isFinite(n) ? n.toLocaleString('ru-RU') : String(v ?? '')}
+          </span>
+        );
+      },
     },
   ];
 }
@@ -288,7 +291,7 @@ export default function SpecTable({
         ? (SECTION_LABELS[groupValue] || groupValue)
         : groupValue,
     items: groupItems,
-    total: groupItems.reduce((acc, r) => acc + (r.quantity || 0), 0),
+    total: groupItems.reduce((acc, r) => acc + Number(r.quantity || 0), 0),
   }));
 
   const innerColumns =

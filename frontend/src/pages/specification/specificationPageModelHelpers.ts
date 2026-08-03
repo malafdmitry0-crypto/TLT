@@ -62,10 +62,9 @@ export function filterValidGenerateErIds(
   prev: string[],
   availableIds: Set<string>,
   selectedId: string | undefined,
-  selectedHasLegacy: boolean,
 ): string[] {
   if (prev.length === 0) return selectedId ? [selectedId] : [];
   const stillValid = prev.filter((id) => availableIds.has(id));
   if (stillValid.length > 0) return stillValid;
-  return selectedHasLegacy && selectedId ? [selectedId] : [];
+  return selectedId && availableIds.has(selectedId) ? [selectedId] : [];
 }

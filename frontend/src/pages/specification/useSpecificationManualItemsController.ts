@@ -16,7 +16,6 @@ type SpecificationMutationScope = {
   projectId: string;
   electricalVariantId: string;
   electricalVariantName: string;
-  legacyVariantNumber: number;
   queryKey: readonly unknown[];
 };
 
@@ -50,7 +49,6 @@ export function useSpecificationManualItemsController({
     mutationFn: ({
       projectId,
       electricalVariantId,
-      legacyVariantNumber,
       items,
     }: SaveSpecificationVariables) => {
       if (!canManuallyEdit) {
@@ -58,9 +56,8 @@ export function useSpecificationManualItemsController({
       }
       return saveSpecificationItems(
         projectId,
-        items,
-        legacyVariantNumber,
         electricalVariantId,
+        items,
       );
     },
     onSuccess: (_result, variables) => {

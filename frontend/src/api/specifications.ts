@@ -3,12 +3,10 @@ import type { Specification, SpecificationItem } from '@/types/specification';
 
 export async function getSpecification(
   projectId: string,
-  variant: number = 1,
-  electricalVariantId?: string,
+  electricalVariantId: string,
 ): Promise<Specification | null> {
   const { data } = await apiClient.get<Specification | null>(
-    `/specifications/${projectId}`,
-    { params: { variant, electrical_variant_id: electricalVariantId } }
+    `/specifications/${projectId}/variants/${electricalVariantId}`,
   );
   return data;
 }
@@ -93,6 +91,8 @@ export interface SpecificationGenerateVariantResult {
   items: SpecificationItem[];
   excluded_unassigned_object_ids: string[];
   diagnostics: SpecificationDiagnostic[];
+  /** Populated in CANON-03; empty list until candidate selection ships. */
+  candidate_groups?: Array<Record<string, unknown>>;
   snapshot: Record<string, unknown> | null;
 }
 
@@ -199,14 +199,12 @@ export async function generateSpecification(
 
 export async function saveSpecificationItems(
   projectId: string,
+  electricalVariantId: string,
   items: SpecificationItem[],
-  variant: number = 1,
-  electricalVariantId?: string,
-): Promise<{ project_id: string; items: SpecificationItem[] }> {
+): Promise<{ project_id: string; items: SpecificationItem[]; electrical_variant_id?: string }> {
   const { data } = await apiClient.put(
-    `/specifications/${projectId}/items`,
+    `/specifications/${projectId}/variants/${electricalVariantId}/items`,
     { items },
-    { params: { variant, electrical_variant_id: electricalVariantId } }
   );
   return data;
 }

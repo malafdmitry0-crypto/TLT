@@ -3,16 +3,20 @@ export interface SpecificationItem {
   name: string;
   article: string | null;
   unit: string;
-  quantity: number;
+  /** Decimal string from canonical API; number still accepted from transitional mocks. */
+  quantity: number | string;
   params: Record<string, unknown>;
-  /** Источник позиции: auto — из генератора, manual — добавлено вручную сотрудником. */
+  /** Источник позиции: auto — из генератора, manual — добавлено сотрудником. */
   source?: 'auto' | 'manual';
 }
 
 export interface Specification {
   id: string;
   project_id: string;
-  variant_number: number;
+  /** Primary scope identity (UUID ЭР). */
+  electrical_variant_id?: string | null;
+  /** Transitional numeric slot; optional until CANON-06 drops it. */
+  variant_number?: number;
   items: SpecificationItem[];
   /** Режим последней генерации ('basic' | 'full') — для восстановления UI после reload. */
   generation_mode?: 'basic' | 'full' | null;

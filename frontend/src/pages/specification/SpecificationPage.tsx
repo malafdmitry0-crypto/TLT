@@ -134,18 +134,6 @@ export default function SpecificationPage() {
     );
   }
 
-  if (variantContext.legacyVariantNumber == null) {
-    return (
-      <TltAlert
-        tone="warning"
-        title={`«${selectedElectricalVariant.name}»: спецификация временно недоступна`}
-        action={<TltButton onClick={() => navigate(ROUTES.elecCalc)}>Выбрать другой ЭР</TltButton>}
-      >
-        UUID-версия спецификации относится к Phase 5. Данные другого ЭР не подставляются.
-      </TltAlert>
-    );
-  }
-
   return (
     <div className="specification-page" data-testid="specification-page">
       {!canMutateProject && (

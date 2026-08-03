@@ -704,7 +704,7 @@ class SpecificationService:
         await self._upsert_specification(
             project_id=project_id,
             variant_number=variant_number,
-            items_payload=[i.model_dump() for i in items],
+            items_payload=[i.model_dump(mode="json") for i in items],
             generation_mode=mode,
             generation_options=options_snapshot,
             electrical_variant_id=electrical_variant_id,
@@ -749,7 +749,8 @@ class SpecificationService:
                 "требуется явная перегенерация (PDL-ER-37).",
                 status_code=409,
             )
-        payload = [i.model_dump() for i in items]
+        # mode=json keeps Decimal quantities as decimal strings for JSONB.
+        payload = [i.model_dump(mode="json") for i in items]
         await self._upsert_specification(
             project_id=project_id,
             variant_number=variant_number,

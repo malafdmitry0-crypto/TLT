@@ -35,7 +35,6 @@ type SpecificationMutationScope = {
   projectId: string;
   electricalVariantId: string;
   electricalVariantName: string;
-  legacyVariantNumber: number;
   queryKey: readonly unknown[];
 };
 
@@ -101,7 +100,7 @@ export function useSpecificationPageModel() {
   ]);
 
   const availableGenerateVariants = useMemo(
-    () => (variantContext.variants ?? []).filter((item) => item.legacy_variant_number != null),
+    () => variantContext.variants ?? [],
     [variantContext.variants],
   );
   useEffect(() => {
@@ -111,24 +110,21 @@ export function useSpecificationPageModel() {
       prev,
       availableIds,
       selectedElectricalVariant.id,
-      selectedElectricalVariant.legacy_variant_number != null,
     ));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- form.setSelectedGenerateErIds stable
-  }, [selectedElectricalVariant?.id, selectedElectricalVariant?.legacy_variant_number, availableGenerateVariants]);
+  }, [selectedElectricalVariant?.id, availableGenerateVariants]);
   const snapshotMutationScope = (): SpecificationMutationScope => {
-    if (!project || !selectedElectricalVariant || variantContext.legacyVariantNumber == null) {
+    if (!project || !selectedElectricalVariant?.id) {
       throw new Error('Выбранный ЭР недоступен для спецификации');
     }
     return {
       projectId: project.id,
       electricalVariantId: selectedElectricalVariant.id,
       electricalVariantName: selectedElectricalVariant.name,
-      legacyVariantNumber: variantContext.legacyVariantNumber,
       queryKey: [
         'spec',
         project.id,
         selectedElectricalVariant.id,
-        variantContext.legacyVariantNumber,
       ],
     };
   };
@@ -273,10 +269,8 @@ export function useSpecificationPageModel() {
 
   const erTabItems = variantContext.variants.map((item) => ({
     key: item.id,
-    label: item.legacy_variant_number != null
-      ? `Спецификация ${item.name}`
-      : item.name,
-    disabled: item.legacy_variant_number == null || scopeSwitchDisabled,
+    label: `Спецификация ${item.name}`,
+    disabled: scopeSwitchDisabled,
   }));
 
   return {

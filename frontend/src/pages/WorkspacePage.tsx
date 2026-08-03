@@ -25,7 +25,6 @@ export default function WorkspacePage() {
   const variantContext = useLegacyElectricalVariantContext(project?.id);
   const selectedElectricalVariant = variantContext.selectedVariant;
   const selectedElectricalVariantId = selectedElectricalVariant?.id ?? null;
-  const legacyVariantNumber = variantContext.legacyVariantNumber;
 
   const { data: summary } = useQuery({
     queryKey: [
@@ -47,17 +46,14 @@ export default function WorkspacePage() {
       'spec',
       project?.id,
       selectedElectricalVariantId,
-      legacyVariantNumber,
     ],
     queryFn: () => getSpecification(
       project!.id,
-      legacyVariantNumber!,
       selectedElectricalVariant!.id,
     ),
     enabled: Boolean(
       project
       && selectedElectricalVariantId
-      && legacyVariantNumber != null
       && !variantContext.isLoading
       && !variantContext.isError,
     ),
@@ -93,7 +89,7 @@ export default function WorkspacePage() {
   const failedCalcCount = selectedElectricalVariantId
     ? summary?.failed_electrical_calculations ?? 0
     : 0;
-  const hasSpec = legacyVariantNumber != null && (spec?.items?.length ?? 0) > 0;
+  const hasSpec = (spec?.items?.length ?? 0) > 0;
   const hasActualSpec = hasSpec && spec?.is_stale !== true;
 
   // Текущий шаг (0-based)
