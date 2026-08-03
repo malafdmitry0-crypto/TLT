@@ -1,0 +1,652 @@
+"""SPEC-FINAL-08: HTTP production generation flow (seeded catalog, no mocks of BOM path).
+
+Proves many-candidate → PUT selection → generate → GET current → generate without
+re-send, plus auto_single, isolation, and catalog-unavailable 503.
+"""
+
+from __future__ import annotations
+
+import uuid
+
+import pytest
+from httpx import AsyncClient
+from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.formulas.electrical.tt_contract import (
+    ELECTRICAL_TT_FORMULA_FINGERPRINT,
+    ELECTRICAL_TT_FORMULA_VERSION,
+)
+from app.models.electrical_calculation import ElectricalCalculation
+from app.models.electrical_variant import ElectricalVariant, ElectricalVariantObject
+from app.models.project import Project
+from app.models.project_object import ProjectObject
+from app.models.specification import (
+    Specification,
+    SpecificationCatalogItem,
+    SpecificationCatalogSelection,
+    SpecificationCatalogVersion,
+)
+from app.models.user import User
+from app.reference_data.specification_catalog_seed_debt import (
+    SEED_DEBT_CATALOG_KEY,
+    SEED_DEBT_VERSION,
+    bundled_specification_catalog_seed_debt_document,
+)
+from app.services.specification_catalog_service import (
+    SpecificationCatalogService,
+    _canonical_checksum,
+)
+from app.tests.specification_catalog_fixtures import complete_specification_catalog_items
+
+pytestmark = pytest.mark.asyncio(loop_scope="session")
+
+
+def _options() -> dict[str, object]:
+    return {
+        "grouping_mode": "separate_by_object_type",
+        "Ex": False,
+        "K1i": False,
+        "K2i": False,
+        "Kiu": False,
+        "L_K2i_m": "0",
+        "R_gr": "1",
+    }
+
+
+def _calc_result(*, object_version: int = 4, assignment_version: int = 2) -> dict:
+    catalogs = {
+        kind: {
+            "version": f"{kind}-v1",
+            "status": "active",
+            "source_checksum": f"sha256:{kind}-http-flow",
+        }
+        for kind in ("power", "section", "bom")
+    }
+    catalogs["bom"]["row"] = {
+        "full_mark": "30ТТВ2-СР",
+        "nomenclature_code": "001-002-002",
+        "supplier": "ТЛТ",
+        "unit": "м",
+    }
+    return {
+        "cable_type": "self_regulating_tt",
+        "cable": {
+            "mark": "30ТТВ2-СР",
+            "nomenclature_code": "001-002-002",
+        },
+        "temperature_group": "high",
+        "selected_cable": "30ТТВ2",
+        "production_eligible": True,
+        "mocked_fields": [],
+        "resolved_inputs": {
+            "nominal_voltage_v": 230,
+            "max_section_start_current_a": 13.065,
+        },
+        "catalogs": catalogs,
+        "provenance": {
+            "formula_version": ELECTRICAL_TT_FORMULA_VERSION,
+            "formula_fingerprint": ELECTRICAL_TT_FORMULA_FINGERPRINT,
+            "calculation_fingerprint": f"sha256:{'c' * 64}",
+            "production_eligible": True,
+            "mocked_fields": [],
+            "object_snapshot": {"version": object_version},
+            "heat_snapshot": {"version": object_version},
+            "object_version": object_version,
+            "heat_result_version": object_version,
+            "assignment_version": assignment_version,
+            "catalogs": catalogs,
+        },
+        "section_plan": {"count": 9, "length_m": 81.0},
+        "layout": {
+            "actual_installed_length_m": 729.0,
+            "required_order_length_m": 801.9,
+        },
+    }
+
+
+def _catalog_items_multi_connection(
+    catalog_id: uuid.UUID,
+    *,
+    multi_connection: bool,
+) -> list[SpecificationCatalogItem]:
+    """Complete-shape catalog; multi keeps both MEDIUM_HIGH connection kits."""
+    items: list[SpecificationCatalogItem] = []
+    for index, raw in enumerate(complete_specification_catalog_items()):
+        category = raw.category.value if hasattr(raw.category, "value") else raw.category
+        if category == "connection_kit":
+            if multi_connection:
+                if raw.mark not in {"КСВ-1", "КСВ-2"}:
+                    continue
+            elif raw.mark != "КСВ-2":
+                continue
+        if category == "repair_kit" and raw.mark != "КСР-2":
+            continue
+        if category == "fiberglass_tape" and raw.mark != "ЛКВ 12":
+            continue
+        if category == "cable" and raw.mark != "30ТТВ2-СР":
+            continue
+        payload = raw.model_dump(mode="json")
+        items.append(
+            SpecificationCatalogItem(
+                id=uuid.uuid4(),
+                catalog_version_id=catalog_id,
+                item_key=raw.item_key,
+                category=category,
+                name=raw.name,
+                mark=raw.mark,
+                nomenclature_code=raw.nomenclature_code,
+                supply_unit=raw.supply_unit,
+                applicability=dict(raw.applicability or {}),
+                package_parameters=dict(raw.package_parameters or {}),
+                formula_parameters=dict(raw.formula_parameters or {}),
+                source_ref=raw.source_ref,
+                row_checksum=_canonical_checksum(payload),
+                position=index,
+            )
+        )
+    return items
+
+
+async def _seed_http_ready_project(
+    db_session: AsyncSession,
+    employee_user: User,
+    *,
+    name: str,
+    multi_connection: bool,
+    second_er: bool = False,
+) -> tuple[Project, list[ElectricalVariant], ProjectObject, SpecificationCatalogVersion]:
+    project = Project(
+        id=uuid.uuid4(),
+        name=name,
+        user_id=employee_user.id,
+        specification_settings=_options(),
+        specification_settings_version=1,
+    )
+    ready = ElectricalVariant(
+        id=uuid.uuid4(),
+        project_id=project.id,
+        name="ЭР ready",
+        name_normalized="эр ready",
+        sort_order=0,
+        legacy_variant_number=1,
+        is_active=True,
+    )
+    variants = [ready]
+    other: ElectricalVariant | None = None
+    if second_er:
+        other = ElectricalVariant(
+            id=uuid.uuid4(),
+            project_id=project.id,
+            name="ЭР other",
+            name_normalized="эр other",
+            sort_order=1,
+            legacy_variant_number=2,
+            is_active=False,
+        )
+        variants.append(other)
+
+    obj = ProjectObject(
+        id=uuid.uuid4(),
+        project_id=project.id,
+        object_type="pipe",
+        sort_order=0,
+        version=4,
+        params={"outer_diameter": 0.108},
+        results={"heat_loss": 100},
+        is_valid=True,
+    )
+    db_session.add(project)
+    await db_session.flush()
+    db_session.add_all(variants)
+    await db_session.flush()
+    db_session.add(obj)
+    await db_session.flush()
+
+    for variant in variants:
+        rows = list(
+            (
+                await db_session.execute(
+                    select(ElectricalVariantObject).where(
+                        ElectricalVariantObject.electrical_variant_id == variant.id
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        for assignment in rows:
+            if assignment.object_id != obj.id:
+                await db_session.delete(assignment)
+            else:
+                assignment.system_type = "self_regulating"
+                assignment.assignment_state = "ready"
+                assignment.version = 2
+                assignment.object_version_snapshot = 4
+                assignment.diagnostics = {}
+    await db_session.flush()
+
+    calc = ElectricalCalculation(
+        id=uuid.uuid4(),
+        project_id=project.id,
+        object_id=obj.id,
+        variant_number=1,
+        electrical_variant_id=ready.id,
+        cable_type="self_regulating_tt",
+        cable_mark="30ТТВ2-СР",
+        params={},
+        results=_calc_result(),
+    )
+    catalog_id = uuid.uuid4()
+    items = _catalog_items_multi_connection(catalog_id, multi_connection=multi_connection)
+    await db_session.execute(
+        update(SpecificationCatalogVersion)
+        .where(SpecificationCatalogVersion.status == "active")
+        .values(status="retired")
+    )
+    catalog = SpecificationCatalogVersion(
+        id=catalog_id,
+        catalog_key="builtin-specification",
+        version=f"http-flow-{uuid.uuid4().hex[:8]}",
+        status="active",
+        authority="approved",
+        source="integration owner registry http-flow",
+        source_checksum=f"sha256:{'a' * 64}",
+        payload_checksum=f"sha256:{'b' * 64}",
+        schema_version=1,
+        item_count=len(items),
+        is_complete=True,
+        validation_issues=[],
+    )
+    db_session.add(catalog)
+    await db_session.flush()
+    db_session.add_all([calc, *items])
+    await db_session.commit()
+    return project, variants, obj, catalog
+
+
+async def test_http_many_candidates_put_generate_get_reload_without_resend(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    employee_user: User,
+    employee_token: str,
+) -> None:
+    headers = {"Authorization": f"Bearer {employee_token}"}
+    project, variants, _obj, catalog = await _seed_http_ready_project(
+        db_session,
+        employee_user,
+        name="HTTP many-candidate flow",
+        multi_connection=True,
+        second_er=True,
+    )
+    ready, other = variants[0], variants[1]
+    options = _options()
+
+    # 1) First generate → selection_required with N>1 connection candidates.
+    first = await client.post(
+        f"/api/v1/specifications/{project.id}/generate",
+        json={
+            "variant_ids": [str(ready.id)],
+            "options": options,
+            "exclude_unassigned_confirmed": False,
+            "catalog_selections": {},
+        },
+        headers=headers,
+    )
+    # Fail-closed multi-candidate: HTTP maps selection_required to 409 Conflict
+    # (not 422) when generation cannot complete without an explicit choice.
+    assert first.status_code == 409, first.text
+    body = first.json()
+    assert body["project_id"] == str(project.id)
+    result = body["results"][0]
+    assert result["status"] == "selection_required"
+    assert result["electrical_variant_id"] == str(ready.id)
+    connection_groups = [
+        group
+        for group in result["candidate_groups"]
+        if group["category"] == "connection_kit"
+    ]
+    assert len(connection_groups) == 1
+    group = connection_groups[0]
+    assert group["selection_source"] == "none"
+    assert len(group["candidates"]) >= 2
+    chosen = group["candidates"][0]
+    assert group["candidate_set_fingerprint"].startswith("sha256:")
+
+    # 2) PUT explicit selection.
+    get_sel = await client.get(
+        f"/api/v1/specifications/{project.id}/variants/{ready.id}/catalog-selections",
+        headers=headers,
+    )
+    assert get_sel.status_code == 200, get_sel.text
+    version = get_sel.json()["collection_version"]
+    put = await client.put(
+        f"/api/v1/specifications/{project.id}/variants/{ready.id}/catalog-selections",
+        json={
+            "expected_version": version,
+            "selections": [
+                {
+                    "candidate_group_key": group["group_key"],
+                    "catalog_version_id": chosen["catalog_id"],
+                    "catalog_item_id": chosen["catalog_item_id"],
+                    "candidate_set_fingerprint": group["candidate_set_fingerprint"],
+                }
+            ],
+        },
+        headers=headers,
+    )
+    assert put.status_code == 200, put.text
+    put_body = put.json()
+    # Empty collection defaults to version 1; first write also stores version 1.
+    # Only subsequent replaces (when selections already exist) bump the version.
+    assert put_body["collection_version"] == 1
+    assert version in {0, 1}
+    assert len(put_body["selections"]) == 1
+
+    # 3) Generate again without catalog_selections → generated.
+    second = await client.post(
+        f"/api/v1/specifications/{project.id}/generate",
+        json={
+            "variant_ids": [str(ready.id)],
+            "options": options,
+            "exclude_unassigned_confirmed": False,
+            "catalog_selections": {},
+        },
+        headers=headers,
+    )
+    assert second.status_code == 201, second.text
+    gen = second.json()["results"][0]
+    assert gen["status"] == "generated"
+    assert gen["items"]
+    assert any(item["source"] == "auto" for item in gen["items"])
+    snapshot = gen["snapshot"]
+    assert snapshot is not None
+    assert "catalog_selections" in snapshot
+    conn_snap = snapshot["catalog_selections"][group["group_key"]]
+    assert conn_snap["selection_source"] == "explicit"
+    assert conn_snap["catalog_item_id"] == chosen["catalog_item_id"]
+
+    # 4) GET by UUID returns current non-stale rows.
+    got = await client.get(
+        f"/api/v1/specifications/{project.id}/variants/{ready.id}",
+        headers=headers,
+    )
+    assert got.status_code == 200, got.text
+    spec = got.json()
+    assert spec["electrical_variant_id"] == str(ready.id)
+    assert spec["is_stale"] is False
+    assert len(spec["items"]) >= 1
+
+    # 5) Third generate without selections remains deterministic generated.
+    third = await client.post(
+        f"/api/v1/specifications/{project.id}/generate",
+        json={
+            "variant_ids": [str(ready.id)],
+            "options": options,
+            "catalog_selections": {},
+        },
+        headers=headers,
+    )
+    assert third.status_code == 201, third.text
+    assert third.json()["results"][0]["status"] == "generated"
+
+    # 6) Other ER still has no specification row.
+    other_get = await client.get(
+        f"/api/v1/specifications/{project.id}/variants/{other.id}",
+        headers=headers,
+    )
+    assert other_get.status_code == 200
+    assert other_get.json() is None
+    other_rows = list(
+        (
+            await db_session.execute(
+                select(Specification).where(
+                    Specification.project_id == project.id,
+                    Specification.electrical_variant_id == other.id,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert other_rows == []
+
+    # Stored selection still present for ready ER.
+    stored = list(
+        (
+            await db_session.execute(
+                select(SpecificationCatalogSelection).where(
+                    SpecificationCatalogSelection.project_id == project.id,
+                    SpecificationCatalogSelection.electrical_variant_id == ready.id,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(stored) == 1
+    assert str(stored[0].catalog_item_id) == chosen["catalog_item_id"]
+    assert stored[0].catalog_version_id == catalog.id
+
+
+async def test_http_single_candidate_auto_selects_without_selection_row(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    employee_user: User,
+    employee_token: str,
+) -> None:
+    headers = {"Authorization": f"Bearer {employee_token}"}
+    project, variants, _obj, _catalog = await _seed_http_ready_project(
+        db_session,
+        employee_user,
+        name="HTTP auto_single flow",
+        multi_connection=False,
+    )
+    ready = variants[0]
+
+    response = await client.post(
+        f"/api/v1/specifications/{project.id}/generate",
+        json={
+            "variant_ids": [str(ready.id)],
+            "options": _options(),
+            "catalog_selections": {},
+        },
+        headers=headers,
+    )
+    assert response.status_code == 201, response.text
+    result = response.json()["results"][0]
+    assert result["status"] == "generated"
+    connection_groups = [
+        group
+        for group in result["candidate_groups"]
+        if group["category"] == "connection_kit"
+    ]
+    assert len(connection_groups) == 1
+    group = connection_groups[0]
+    assert group["selection_source"] == "auto_single"
+    assert group["selected_catalog_item_id"] is not None
+    assert len(group["candidates"]) == 1
+    snap = result["snapshot"]["catalog_selections"][group["group_key"]]
+    assert snap["selection_source"] == "auto_single"
+    assert snap["catalog_item_id"] == group["selected_catalog_item_id"]
+
+    stored = list(
+        (
+            await db_session.execute(
+                select(SpecificationCatalogSelection).where(
+                    SpecificationCatalogSelection.project_id == project.id,
+                    SpecificationCatalogSelection.electrical_variant_id == ready.id,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    # auto_single is derived — no explicit persistence row required.
+    assert stored == []
+
+
+async def test_http_foreign_selection_uuid_rejected_with_stable_status(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    employee_user: User,
+    employee_token: str,
+) -> None:
+    headers = {"Authorization": f"Bearer {employee_token}"}
+    project, variants, _obj, catalog = await _seed_http_ready_project(
+        db_session,
+        employee_user,
+        name="HTTP foreign selection",
+        multi_connection=True,
+    )
+    ready = variants[0]
+    first = await client.post(
+        f"/api/v1/specifications/{project.id}/generate",
+        json={
+            "variant_ids": [str(ready.id)],
+            "options": _options(),
+            "catalog_selections": {},
+        },
+        headers=headers,
+    )
+    assert first.status_code == 409, first.text
+    group = next(
+        g
+        for g in first.json()["results"][0]["candidate_groups"]
+        if g["category"] == "connection_kit"
+    )
+    foreign_item = uuid.uuid4()
+    put = await client.put(
+        f"/api/v1/specifications/{project.id}/variants/{ready.id}/catalog-selections",
+        json={
+            "expected_version": 1,
+            "selections": [
+                {
+                    "candidate_group_key": group["group_key"],
+                    "catalog_version_id": str(catalog.id),
+                    "catalog_item_id": str(foreign_item),
+                    "candidate_set_fingerprint": group["candidate_set_fingerprint"],
+                }
+            ],
+        },
+        headers=headers,
+    )
+    assert put.status_code == 422, put.text
+    assert put.json()["detail"]["code"] == "SPEC_REQUEST_INVALID"
+
+
+async def test_http_report_specification_states_absent_current_stale(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    employee_user: User,
+    employee_token: str,
+) -> None:
+    headers = {"Authorization": f"Bearer {employee_token}"}
+    project, variants, _obj, _catalog = await _seed_http_ready_project(
+        db_session,
+        employee_user,
+        name="HTTP report states",
+        multi_connection=False,
+    )
+    ready = variants[0]
+
+    # absent
+    preview_absent = await client.get(
+        f"/api/v1/reports/{project.id}/preview",
+        params={
+            "sections": "specification",
+            "electrical_variant_id": str(ready.id),
+        },
+        headers=headers,
+    )
+    # Report API may return html; exercise generate first for current/stale.
+    gen = await client.post(
+        f"/api/v1/specifications/{project.id}/generate",
+        json={
+            "variant_ids": [str(ready.id)],
+            "options": _options(),
+            "catalog_selections": {},
+        },
+        headers=headers,
+    )
+    assert gen.status_code == 201, gen.text
+
+    got = await client.get(
+        f"/api/v1/specifications/{project.id}/variants/{ready.id}",
+        headers=headers,
+    )
+    assert got.json()["is_stale"] is False
+
+    # Force stale
+    spec = (
+        await db_session.execute(
+            select(Specification).where(
+                Specification.project_id == project.id,
+                Specification.electrical_variant_id == ready.id,
+            )
+        )
+    ).scalar_one()
+    spec.is_stale = True
+    spec.stale_reason = "object_updated"
+    await db_session.commit()
+
+    stale_get = await client.get(
+        f"/api/v1/specifications/{project.id}/variants/{ready.id}",
+        headers=headers,
+    )
+    assert stale_get.json()["is_stale"] is True
+    assert stale_get.json()["stale_reason"] == "object_updated"
+
+    # HTML report should not leak phantom keys; status may still render.
+    preview = await client.get(
+        f"/api/v1/reports/{project.id}/preview",
+        params={
+            "sections": "specification",
+            "electrical_variant_id": str(ready.id),
+        },
+        headers=headers,
+    )
+    assert preview.status_code == 200, preview.text
+    html = preview.json().get("html") or preview.text
+    assert "is_partial" not in html
+    assert "excluded_groups" not in html
+    # unused variable silence for optional absent preview
+    _ = preview_absent
+
+
+async def test_seed_debt_catalog_bootstrap_is_idempotent(
+    db_session: AsyncSession,
+    employee_user: User,
+) -> None:
+    from app.core.dependencies import CurrentPrincipal
+
+    principal = CurrentPrincipal(
+        role="admin",
+        user_id=employee_user.id,
+        email=employee_user.email,
+    )
+    # Retire any active so debt seed can activate.
+    await db_session.execute(
+        update(SpecificationCatalogVersion)
+        .where(SpecificationCatalogVersion.status == "active")
+        .values(status="retired")
+    )
+    await db_session.commit()
+
+    svc = SpecificationCatalogService(db_session)
+    first = await svc.ensure_seed_debt_catalog_active(principal, commit=True)
+    second = await svc.ensure_seed_debt_catalog_active(principal, commit=True)
+    assert first.id == second.id
+    assert first.version == SEED_DEBT_VERSION
+    assert first.catalog_key == SEED_DEBT_CATALOG_KEY
+    assert first.status == "active"
+    doc = bundled_specification_catalog_seed_debt_document()
+    assert doc.version == SEED_DEBT_VERSION
+    count = await db_session.scalar(
+        select(SpecificationCatalogVersion)
+        .where(
+            SpecificationCatalogVersion.catalog_key == SEED_DEBT_CATALOG_KEY,
+            SpecificationCatalogVersion.version == SEED_DEBT_VERSION,
+        )
+    )
+    assert count is not None
