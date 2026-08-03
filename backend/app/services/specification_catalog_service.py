@@ -36,6 +36,12 @@ from app.formulas.specification.catalog_conditions import (
     material_approval_reference_ok,
     validate_condition_shape,
 )
+from app.reference_data.specification_catalog_seed_debt import (
+    SEED_DEBT_CATALOG_KEY,
+    SEED_DEBT_VERSION,
+    bundled_specification_catalog_seed_debt_document,
+    seed_debt_is_tech_debt_source,
+)
 
 _SHA256_RE = re.compile(r"sha256:[0-9a-f]{64}")
 _UNTRUSTED_SOURCE_TOKENS = ("provisional", "synthetic", "demo", "guess", "mock")
@@ -763,6 +769,7 @@ class SpecificationCatalogService:
         document: SpecificationCatalogImportRequest,
         *,
         principal: CurrentPrincipal | None = None,
+        commit: bool = True,
     ) -> SpecificationCatalogVersion:
         if not _SHA256_RE.fullmatch(document.source_checksum):
             raise SpecificationCatalogServiceError(
@@ -850,8 +857,12 @@ class SpecificationCatalogService:
                     position=position,
                 )
             )
-        await self.db.commit()
-        await self.db.refresh(version)
+        if commit:
+            await self.db.commit()
+            await self.db.refresh(version)
+        else:
+            await self.db.flush()
+            await self.db.refresh(version)
         return version
 
     async def activate(
@@ -859,6 +870,7 @@ class SpecificationCatalogService:
         catalog_id: UUID,
         *,
         principal: CurrentPrincipal | None = None,
+        commit: bool = True,
     ) -> SpecificationCatalogActivationResult:
         target = await self.db.scalar(
             select(SpecificationCatalogVersion).where(SpecificationCatalogVersion.id == catalog_id)
@@ -937,7 +949,10 @@ class SpecificationCatalogService:
             or any(token in source_text for token in _UNTRUSTED_SOURCE_TOKENS)
             or not validation.is_complete
         ):
-            await self.db.commit()
+            if commit:
+                await self.db.commit()
+            else:
+                await self.db.flush()
             raise SpecificationCatalogServiceError(
                 "SPEC_CATALOG_VALIDATION_FAILED",
                 "Specification catalog не является полным авторитетным источником",
@@ -984,12 +999,89 @@ class SpecificationCatalogService:
             )
         )
         stale_count = int(getattr(stale_result, "rowcount", 0) or 0)
-        await self.db.commit()
+        if commit:
+            await self.db.commit()
+        else:
+            await self.db.flush()
         await self.db.refresh(target)
         return SpecificationCatalogActivationResult(
             catalog=target,
             stale_specification_count=stale_count,
         )
+
+    async def ensure_seed_debt_catalog_active(
+        self,
+        principal: CurrentPrincipal | None = None,
+        *,
+        commit: bool = True,
+    ) -> SpecificationCatalogVersion:
+        """Bootstrap temporary TECH-DEBT catalog for local generate (not owner-approved).
+
+        Idempotent:
+        * existing non-debt active approved complete version is left alone;
+        * seed-debt version is created once and re-used without mutation;
+        * incomplete/corrupt bundled document fails closed without partial write.
+        """
+        document = bundled_specification_catalog_seed_debt_document()
+        validation = validate_specification_catalog(document.items)
+        if not validation.is_complete:
+            raise SpecificationCatalogServiceError(
+                "SPEC_CATALOG_SEED_DEBT_INVALID",
+                "TECH-DEBT specification seed payload is incomplete",
+                status_code=500,
+                details={"issues": validation.issues, "tech_debt": True},
+            )
+
+        active = await self.db.scalar(
+            select(SpecificationCatalogVersion).where(
+                SpecificationCatalogVersion.catalog_key == SEED_DEBT_CATALOG_KEY,
+                SpecificationCatalogVersion.status == "active",
+            )
+        )
+        if active is not None:
+            # Never replace a user-owned active version that is not our debt seed.
+            if active.version != SEED_DEBT_VERSION and not seed_debt_is_tech_debt_source(
+                active.source
+            ):
+                return active
+            if active.version == SEED_DEBT_VERSION:
+                return active
+
+        existing = await self.db.scalar(
+            select(SpecificationCatalogVersion).where(
+                SpecificationCatalogVersion.catalog_key == document.catalog_key,
+                SpecificationCatalogVersion.version == document.version,
+            )
+        )
+        if existing is None:
+            existing = await self.import_draft(
+                document, principal=principal, commit=False
+            )
+        elif existing.status == "active":
+            if commit:
+                await self.db.commit()
+            return existing
+        elif existing.status != "draft":
+            raise SpecificationCatalogServiceError(
+                "SPEC_CATALOG_SEED_DEBT_CONFLICT",
+                "TECH-DEBT specification seed version exists but is not draft/active",
+                status_code=409,
+                details={
+                    "catalog_key": existing.catalog_key,
+                    "version": existing.version,
+                    "status": existing.status,
+                    "tech_debt": True,
+                },
+            )
+
+        if existing.status == "draft":
+            result = await self.activate(existing.id, principal=principal, commit=False)
+            existing = result.catalog
+
+        if commit:
+            await self.db.commit()
+            await self.db.refresh(existing)
+        return existing
 
     async def resolve_active(
         self,

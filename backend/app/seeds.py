@@ -3,20 +3,26 @@
 Запуск:
     python -m app.seeds
     python -m app.seeds --electrical-catalogs-only
+    python -m app.seeds --specification-catalog-only
 
 Идемпотентный: повторный запуск не создаёт дублей.
 
 Порядок выполнения:
   1. users (admin2 + 5 employees)
   2. electrical_catalog_versions (approved power/section/BOM authority)
-  3. correction_coefficients (расчётные и demo commercial политики)
-  4. insulation_materials (DB projection встроенного JSON-справочника)
-  5. cables_extended (встроенный технический каталог + demo commercial projection)
-  6. accessories_extended (demo accessory cost layer)
-  7. projects (10 проектов, привязаны к employees)
-  8. project_objects — только pipe/tank, с конкретными материалами изоляции
-  9. electrical_calculations — для каждого pipe-объекта
- 10. specifications — для каждого проекта с электрорасчётом
+  3. specification_catalog (TECH-DEBT temporary seed until owner Ex/R_gr+materials)
+  4. correction_coefficients (расчётные и demo commercial политики)
+  5. insulation_materials (DB projection встроенного JSON-справочника)
+  6. cables_extended (встроенный технический каталог + demo commercial projection)
+  7. accessories_extended (demo accessory cost layer)
+  8. projects (10 проектов, привязаны к employees)
+  9. project_objects — только pipe/tank, с конкретными материалами изоляции
+ 10. electrical_calculations — для каждого pipe-объекта
+ 11. specifications — для каждого проекта с электрорасчётом
+
+TECH DEBT: specification catalog seed is a temporary complete-shape payload so
+local generate works. It is not owner-approved production data
+(SPEC-OWNER-EX-RGR / SPEC-OWNER-MATERIALS still open).
 """
 
 import argparse
@@ -53,6 +59,7 @@ from app.services.electrical_catalog_service import ElectricalCatalogService
 from app.services.electrical_input_resolver import FRONTEND_MOCK_PROFILE
 from app.services.electrical_variant_service import ElectricalVariantService
 from app.services.project_service import ProjectService
+from app.services.specification_catalog_service import SpecificationCatalogService
 
 logger = logging.getLogger("seeds")
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -395,6 +402,38 @@ async def seed_electrical_catalogs(db, principal: CurrentPrincipal) -> None:
     )
 
 
+async def seed_specification_catalog(db, principal: CurrentPrincipal) -> None:
+    """Bootstrap TECH-DEBT specification catalog (temporary mock until owner data).
+
+    Not production-ready. Does not replace a non-debt user active version.
+    """
+    from app.reference_data.specification_catalog_seed_debt import (
+        SEED_DEBT_VERSION,
+        seed_debt_is_tech_debt_source,
+    )
+
+    version = await SpecificationCatalogService(db).ensure_seed_debt_catalog_active(
+        principal,
+        commit=False,
+    )
+    if version.version == SEED_DEBT_VERSION or seed_debt_is_tech_debt_source(
+        version.source
+    ):
+        logger.info(
+            "  + specification catalog TECH-DEBT seed active: key=%s version=%s "
+            "(MOCK debt — not owner-approved; replace when "
+            "SPEC-OWNER-EX-RGR/MATERIALS close)",
+            version.catalog_key,
+            version.version,
+        )
+    else:
+        logger.info(
+            "  = specification catalog already has non-debt active version=%s; "
+            "TECH-DEBT seed left untouched (will not overwrite)",
+            version.version,
+        )
+
+
 async def _existing_admin_principal(db) -> CurrentPrincipal:
     admin = await db.scalar(select(User).where(User.role == "admin").limit(1))
     if admin is None:
@@ -412,6 +451,20 @@ async def run_electrical_catalog_seed() -> None:
         principal = await _existing_admin_principal(db)
         await seed_electrical_catalogs(db, principal)
         await db.commit()
+
+
+async def run_specification_catalog_seed() -> None:
+    """Register TECH-DEBT specification catalog only (no project wipe)."""
+    async with AsyncSessionLocal() as db:
+        # Need at least one admin for principal; create users if empty.
+        admin = await db.scalar(select(User).where(User.role == "admin").limit(1))
+        if admin is None:
+            await seed_users(db)
+            await db.flush()
+        principal = await _existing_admin_principal(db)
+        await seed_specification_catalog(db, principal)
+        await db.commit()
+        logger.info("=== Specification catalog TECH-DEBT seed complete ===")
 
 
 async def seed_coefficients(db, admin_id: uuid.UUID) -> list[CorrectionCoefficient]:
@@ -1681,6 +1734,11 @@ async def run_seeds() -> None:
         logger.info("=== Seed: electrical_catalog_versions ===")
         await seed_electrical_catalogs(db, seed_principal)
 
+        logger.info(
+            "=== Seed: specification_catalog (TECH-DEBT temporary, not owner-approved) ==="
+        )
+        await seed_specification_catalog(db, seed_principal)
+
         logger.info("=== Seed: correction coefficients ===")
         await seed_coefficients(db, admin_id)
 
@@ -1714,8 +1772,25 @@ def main() -> None:
         action="store_true",
         help="register approved power/section/BOM versions without replacing demo projects",
     )
+    parser.add_argument(
+        "--specification-catalog-only",
+        action="store_true",
+        help=(
+            "register TECH-DEBT temporary specification BOM catalog "
+            "(not owner-approved; local generate only)"
+        ),
+    )
     args = parser.parse_args()
-    asyncio.run(run_electrical_catalog_seed() if args.electrical_catalogs_only else run_seeds())
+    if args.electrical_catalogs_only and args.specification_catalog_only:
+        parser.error(
+            "use only one of --electrical-catalogs-only / --specification-catalog-only"
+        )
+    if args.electrical_catalogs_only:
+        asyncio.run(run_electrical_catalog_seed())
+    elif args.specification_catalog_only:
+        asyncio.run(run_specification_catalog_seed())
+    else:
+        asyncio.run(run_seeds())
 
 
 if __name__ == "__main__":
