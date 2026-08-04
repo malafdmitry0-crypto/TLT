@@ -54,9 +54,9 @@
 .heatcalc-dual-forms--wide {
   --heatcalc-heat-pane-min: 440px;
   --heatcalc-cable-pane-min: 240px;
-  /* теплопотерям больше места: полей втрое больше, чем в панели кабеля */
+  /* теплопотери −10% от прежних 3:1, освободившееся уходит панели кабеля */
   grid-template-columns:
-    minmax(var(--heatcalc-heat-pane-min), 3fr)
+    minmax(var(--heatcalc-heat-pane-min), 2.08fr)
     minmax(var(--heatcalc-cable-pane-min), 1fr);
   justify-content: stretch;
 }

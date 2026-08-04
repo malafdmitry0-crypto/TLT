@@ -41,6 +41,7 @@
 
 .heat-object-fields .ant-input-number-input,
 .heat-object-fields .ant-input { font-size: 12px; /* кадр: значение 12px */ }
+.heat-object-fields--wide .ant-form-item-control { max-width: 95%; } /* поля −5% */
 
 .heat-object-fields.heat-object-fields--wide [data-slot="wide"] .ant-form-item-control { max-width: 240px; } /* текст: уже кадра, решение владельца; двойной класс — перебить max-width:100% соседа той же длины */
 
