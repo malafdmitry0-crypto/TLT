@@ -46,9 +46,8 @@ export const Pipe: Story = {
     await expect(canvas.getByText('Алгоритм выбора кабеля')).toBeInTheDocument();
 
 
-    // подсказка остаётся: это не та подпись, что снята в макетах (§3.5)
-    const hint = canvasElement.querySelector('.cable-algorithm-hint');
-    await expect(hint).toHaveTextContent('Электротехнический расчёт');
+    // подпись «Марка кабеля… на шаге ЭР» снята решением владельца
+    await expect(canvasElement.querySelector('.cable-algorithm-hint')).toBeNull();
 
     // горизонтальная строка: адаптер ant-form включён
     const grid = canvasElement.querySelector('.tlt-compact-field-grid');

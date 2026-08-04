@@ -225,10 +225,3 @@
 .object-wizard-cable-panel .cable-algorithm-fields > .ant-form-item:nth-child(even) .ant-select,
 .object-wizard-cable-panel .cable-algorithm-fields > .ant-form-item:nth-child(even) .ant-input-number,
 .object-wizard-cable-panel .cable-algorithm-fields > .ant-form-item:nth-child(even) .ant-input-number-group-wrapper { max-width: 59px; }
-.object-wizard-cable-panel .cable-algorithm-hint {
-  margin: 6px 0 8px;
-  padding: 0 10px;
-  color: var(--color-swatch-8a6a58);
-  font-size: var(--cable-hint-size);
-  line-height: 1.35;
-}

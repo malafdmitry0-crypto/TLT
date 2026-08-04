@@ -225,9 +225,6 @@ export default function CableAlgorithmPanel({
 
         </CompactFieldGrid>
       </div>
-      <p className="cable-algorithm-hint">
-        Марка кабеля, нитки и подбор — на шаге «Электротехнический расчёт».
-      </p>
       {/* Round-trip for steam_tracing (yes/no) — not part of the 8 TNP orange fields;
           vapor_temperature is the visible пропарки input. */}
       <Form.Item name="steam_tracing" hidden noStyle>
