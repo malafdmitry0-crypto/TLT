@@ -847,7 +847,10 @@ HEAT_ROWS_NEXT_ERR = [
 def heat_frame(name, y, mode="base", annotate=None, forms=True, rows=None,
                banner=None, banner_kind="info", banner2=None, banner2_kind="warn",
                blocks=None, chips=None, cols=None, layers=None):
-    W = 1440
+    # 1280 — минимальная поддерживаемая ширина (решение владельца 2026-08-05,
+    # поддержка 1000 снята). Кадр рисуем на худшем случае: сойдётся здесь —
+    # сойдётся на 1440 и 1920.
+    W = 1280
     H = {"base": 420, "group": 460, "columns": 460, "file-open": 460,
          "next-errors": 460, "import": 460}[mode] + (330 if forms else 0)
     f = FrameBuilder(name, 0, y, W, H)
@@ -856,12 +859,15 @@ def heat_frame(name, y, mode="base", annotate=None, forms=True, rows=None,
 
     if forms:
         # ДВЕ формы (Q1, бриф §6.3): параметры спецификации — в модалке настроек.
-        # Левая панель шире правой: у теплопотерь больше параметров.
-        left_w = 922
-        col2 = G + left_w + 16
-        right_w = W - G - col2
+        # Панели растут от центра к краям: зазор в середине фиксирован, обе
+        # упираются в поля страницы. Левая шире — у теплопотерь больше полей (2:1).
+        GAP = 16
+        avail = W - 2 * G - GAP
+        left_w = round(avail * 0.63)
+        right_w = avail - left_w
+        col2 = G + left_w + GAP
         blocks = blocks or [[(HEAT_TEXT, 2, 118, KIND_OPTS), (HEAT_NUM, 3, 132, KIND_OPTS)],
-                            [(CABLE_FIELDS, 2, 98, {"unit_suffix": True, "kinds": FIELD_KIND})]]
+                            [(CABLE_FIELDS, 2, 86, {"unit_suffix": True, "kinds": FIELD_KIND})]]
         left_b = f.form_panel(G, y2, left_w, "РАСЧЁТ ТЕПЛОПОТЕРЬ", blocks[0],
                               table_spec=("Слои изоляции", LAYER_COLS,
                                           layers or LAYER_ROWS))
@@ -942,11 +948,11 @@ def screen_heat(y0):
         cur, y = y, y + step + GAP
         return cur
 
-    cab = [(CABLE_FIELDS, 2, 98, {"unit_suffix": True, "kinds": FIELD_KIND})]
+    cab = [(CABLE_FIELDS, 2, 86, {"unit_suffix": True, "kinds": FIELD_KIND})]
 
     out.append(heat_frame("Исходные — труба (заполнено)", nxt(750), "base",
                           annotate="D-HEAT · труба, все параметры заданы · две формы; "
-                                   "третьей нет (Q1, бриф §6.3) · 230 RO · 1440"))
+                                   "третьей нет (Q1, бриф §6.3) · 230 RO · 1280"))
     out.append(heat_frame("Исходные — труба (новый объект)", nxt(750), "base",
                           blocks=[[(PIPE_TEXT_EMPTY, 2, 118, KIND_OPTS), (PIPE_NUM_EMPTY, 3, 132, KIND_OPTS)], cab],
                           rows=[], banner="Заполните обязательные поля и нажмите "
@@ -954,47 +960,47 @@ def screen_heat(y0):
                                           "оранжевой полосой.",
                           layers=LAYER_ROWS_EMPTY,
                           annotate="D-HEAT · §5.3: новый объект, значения не введены · "
-                                   "серые подсказки в полях · «Сохранить» неактивна · 1440"))
+                                   "серые подсказки в полях · «Сохранить» неактивна · 1280"))
     out.append(heat_frame("Исходные — труба в грунте", nxt(750), "base",
                           blocks=[[(PIPE_TEXT_GROUND, 2, 118, KIND_OPTS), (PIPE_NUM_GROUND, 3, 132, KIND_OPTS)], cab],
                           annotate="D-HEAT · размещение «В грунте» открывает грунтовые "
-                                   "параметры: тип грунта, λ грунта, глубина оси · 1440"))
+                                   "параметры: тип грунта, λ грунта, глубина оси · 1280"))
     out.append(heat_frame("Исходные — труба, ошибка параметра", nxt(750), "base",
                           rows=HEAT_ROWS_NEXT_ERR,
                           banner="Температура продукта должна быть выше температуры "
                                  "среды: у К-301 требуемая T не задана",
                           banner_kind="danger",
                           annotate="D-HEAT · §5.3: поле подсвечено, причина рядом; "
-                                   "введённые значения сохраняются · 1440"))
+                                   "введённые значения сохраняются · 1280"))
 
     out.append(heat_frame("Резервуар — цилиндрический", nxt(750), "base",
                           blocks=[[(TANK_TEXT_CYL, 2, 118, KIND_OPTS), (TANK_NUM_CYL, 3, 132, KIND_OPTS)], cab],
                           chips=TANK_CHIPS, cols=TANK_COLS, rows=TANK_ROWS,
                           layers=LAYER_ROWS_TANK,
                           annotate="D-HEAT · резервуар, форма «Цилиндрический»: диаметр "
-                                   "и высота · 1440"))
+                                   "и высота · 1280"))
     out.append(heat_frame("Резервуар — прямоугольный", nxt(750), "base",
                           blocks=[[(TANK_TEXT_RECT, 2, 118, KIND_OPTS), (TANK_NUM_RECT, 3, 132, KIND_OPTS)], cab],
                           chips=TANK_CHIPS, cols=TANK_COLS, rows=TANK_ROWS,
                           layers=LAYER_ROWS_TANK,
                           annotate="D-HEAT · форма «Прямоугольный»: вместо диаметра — "
-                                   "длина и ширина · 1440"))
+                                   "длина и ширина · 1280"))
     out.append(heat_frame("Резервуар — заглублённый", nxt(750), "base",
                           blocks=[[(TANK_TEXT_BURIED, 2, 118, KIND_OPTS), (TANK_NUM_BURIED, 3, 132, KIND_OPTS)], cab],
                           chips=TANK_CHIPS, cols=TANK_COLS, rows=TANK_ROWS,
                           layers=LAYER_ROWS_TANK,
                           annotate="D-HEAT · частично в грунте: высота заглубления и "
-                                   "λ грунта; температура среды берётся от грунта · 1440"))
+                                   "λ грунта; температура среды берётся от грунта · 1280"))
 
     out.append(heat_frame("Исходные — панель объектов", nxt(420), "base",
                           annotate="D-HEAT · именованные кнопки §5.5–5.9, "
-                                   "счётчики выбора/отображения · 1440"))
+                                   "счётчики выбора/отображения · 1280"))
     out.append(heat_frame("Исходные — групповая корректировка", nxt(460), "group",
                           annotate="D-HEAT · §5.8: один параметр за операцию; ошибки — "
-                                   "перечнем проблемных объектов · 1440"))
+                                   "перечнем проблемных объектов · 1280"))
     out.append(heat_frame("Исходные — настройки отображения", nxt(460), "columns",
                           annotate="D-HEAT · §5.9: показать/скрыть, «По умолчанию», "
-                                   "действует в рамках сессии · 1440"))
+                                   "действует в рамках сессии · 1280"))
     out.append(heat_frame("Исходные — открытие файла поверх данных", nxt(460),
                           "file-open",
                           annotate="D-HEAT · §5.11: предупреждение о замене данных + "
@@ -1006,7 +1012,7 @@ def screen_heat(y0):
                                  "температура",
                           banner_kind="danger",
                           annotate="D-HEAT · §5.13: ЭР не создаётся, проблемные строки "
-                                   "подсвечены, перечень ошибок показан · 1440"))
+                                   "подсвечены, перечень ошибок показан · 1280"))
     out.append(heat_frame("Исходные — импорт из Excel (результат)", nxt(460),
                           "import",
                           banner="Импортировано объектов: 12, дублей пропущено: 0",
@@ -1014,7 +1020,7 @@ def screen_heat(y0):
                           banner2="Пропущено строк: 2 — лист «Трубы», стр. 7, 11: не "
                                   "заполнен обязательный столбец «Диаметр»",
                           annotate="D-HEAT · §5.5: количество успешно загруженных + "
-                                   "причина пропуска · 1440"))
+                                   "причина пропуска · 1280"))
     return out
 
 
