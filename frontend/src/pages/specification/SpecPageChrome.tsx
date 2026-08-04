@@ -101,6 +101,8 @@ export type SpecPageChromeProps = {
     } | null,
   ) => void;
   confirmPartialGenerate: () => void;
+  /** Navigate to ER unassigned tab without confirming partial generate (case §7.3). */
+  fixUnassignedAssignments?: () => void;
   preflightSummary: string | null;
 };
 
@@ -116,7 +118,8 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
     items, categoriesCount, projectSettings, spec, mut, saveDefaultsMut, runGenerate,
     canManuallyEdit, hasItems, isSpecStale, setAddOpen, addOpen, handleAdd, saveMut,
     selectedAccessoryId, setSelectedAccessoryId, qty, setQty, accessories,
-    preflightOpen, setPreflightOpen, setPendingGenerate, confirmPartialGenerate, preflightSummary,
+    preflightOpen, setPreflightOpen, setPendingGenerate, confirmPartialGenerate,
+    fixUnassignedAssignments, preflightSummary,
   } = p;
   const missingFields = missingSpecGenerateFields({
     exZone,
@@ -422,10 +425,37 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
         okText="Подтвердить и сформировать"
         cancelText="Отмена"
         confirmLoading={mut.isPending}
+        footer={(_, { OkBtn, CancelBtn }) => (
+          <Space wrap>
+            <CancelBtn />
+            {fixUnassignedAssignments && (
+              <TltButton
+                data-testid="spec-preflight-fix"
+                onClick={() => fixUnassignedAssignments()}
+              >
+                Исправить
+              </TltButton>
+            )}
+            <OkBtn />
+          </Space>
+        )}
       >
-        <pre className="specification-preflight-summary">
-          {preflightSummary}
-        </pre>
+        {preflightSummary ? (
+          <TltAlert
+            tone="warning"
+            className="specification-preflight-summary"
+            data-testid="spec-preflight-summary"
+            title="Есть объекты без назначения в ЭР"
+          >
+            <div className="specification-preflight-summary__body">
+              {preflightSummary.split('\n').map((line) => (
+                <p key={line}>{line}</p>
+              ))}
+            </div>
+          </TltAlert>
+        ) : (
+          <Text type="secondary">Подтвердите исключение неназначенных объектов или исправьте назначения.</Text>
+        )}
       </Modal>
     </>
   );

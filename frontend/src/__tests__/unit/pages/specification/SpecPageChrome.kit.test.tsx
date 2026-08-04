@@ -75,6 +75,24 @@ describe('SpecPageChrome UI kit strangler (U2)', () => {
     expect(screen.queryByText('Стандартная активная версия')).not.toBeInTheDocument();
   });
 
+  it('shows Исправить on preflight modal and does not auto-confirm generate', async () => {
+    const fixUnassignedAssignments = vi.fn();
+    const confirmPartialGenerate = vi.fn();
+    renderChrome({
+      preflightOpen: true,
+      preflightSummary: 'Есть неназначенные объекты. (UNASSIGNED_CONFIRMATION_REQUIRED)',
+      fixUnassignedAssignments,
+      confirmPartialGenerate,
+    });
+
+    expect(screen.getByTestId('spec-preflight-summary')).toBeInTheDocument();
+    const fixBtn = screen.getByTestId('spec-preflight-fix');
+    expect(fixBtn).toHaveTextContent('Исправить');
+    fixBtn.click();
+    expect(fixUnassignedAssignments).toHaveBeenCalledTimes(1);
+    expect(confirmPartialGenerate).not.toHaveBeenCalled();
+  });
+
   it('shows the catalog identity resolved in the canonical snapshot', () => {
     renderChrome({
       spec: {

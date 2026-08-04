@@ -68,10 +68,38 @@ describe('SpecTable', () => {
     const pipeSection = document.querySelector('[data-spec-section="pipe"]')!;
     expect(within(pipeSection as HTMLElement).getByText('Саморегулирующийся кабель')).toBeInTheDocument();
 
-    // Empty tank section shows mockup-style placeholder
+    // Empty tank section: honest empty, not "unsupported"
+    expect(screen.getByText('Нет позиций в этой секции.')).toBeInTheDocument();
     expect(
-      screen.getByText(/Расчёт спецификации для данного типа объекта пока недоступен/i),
-    ).toBeInTheDocument();
+      screen.queryByText(/Расчёт спецификации для данного типа объекта пока недоступен/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it('places BE object_type_section=pipe rows under Трубы (SPEC-P0-a)', () => {
+    render(
+      <SpecTable
+        groupBy="object_section"
+        items={[
+          {
+            category: 'Кабель',
+            name: 'Греющий кабель TT',
+            article: '30ТТВ2-СР',
+            unit: 'м',
+            quantity: 100,
+            params: {
+              object_type_section: 'pipe',
+              object_type: 'common',
+              bom_section: 'common',
+            },
+          },
+        ]}
+      />,
+    );
+
+    const pipeSection = document.querySelector('[data-spec-section="pipe"]')!;
+    expect(within(pipeSection as HTMLElement).getByText('Греющий кабель TT')).toBeInTheDocument();
+    const commonSection = document.querySelector('[data-spec-section="common"]')!;
+    expect(within(commonSection as HTMLElement).queryByText('Греющий кабель TT')).not.toBeInTheDocument();
   });
 
   it('offers delete only for manual rows', () => {

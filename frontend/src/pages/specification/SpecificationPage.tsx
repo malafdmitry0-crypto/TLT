@@ -86,6 +86,7 @@ export default function SpecificationPage() {
     saveDefaultsMut,
     runGenerate,
     confirmPartialGenerate,
+    fixUnassignedAssignments,
     hasItems,
     handleAdd,
     handleDelete,
@@ -371,6 +372,7 @@ export default function SpecificationPage() {
         setPreflightOpen={setPreflightOpen}
         setPendingGenerate={setPendingGenerate}
         confirmPartialGenerate={confirmPartialGenerate}
+        fixUnassignedAssignments={fixUnassignedAssignments}
         preflightSummary={preflightSummary}
       />
     </div>

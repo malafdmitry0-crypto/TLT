@@ -2,6 +2,11 @@ import { Collapse, Space, Table } from 'antd';
 import { DeleteOutlined } from '@ant-design/icons';
 import { TltAlert, TltBadge, TltButton } from '@/components/ui-kit';
 import type { SpecificationItem } from '@/types/specification';
+import {
+  bomSectionOf,
+  specSectionEmptyTitle,
+  type SpecSectionEmptyKind,
+} from '@/pages/specification/specTableSectionModel';
 
 export type SpecGroupBy = 'none' | 'category' | 'unit' | 'object_section';
 
@@ -18,6 +23,11 @@ interface Props {
    * sections even if empty — matches mockup layout.
    */
   alwaysShowSections?: boolean;
+  /**
+   * How to explain empty always-shown sections.
+   * Default `no_items` — do not claim the object type is unsupported.
+   */
+  sectionEmptyKind?: SpecSectionEmptyKind;
 }
 
 type Row = SpecificationItem & { __index: number; __section: string };
@@ -30,28 +40,6 @@ const SECTION_LABELS: Record<string, string> = {
 };
 
 const SECTION_ORDER = ['pipe', 'tank', 'common'] as const;
-
-function bomSectionOf(item: SpecificationItem): string {
-  const raw = String(
-    (item.params as { bom_section?: string; object_type?: string } | undefined)?.bom_section
-      || (item.params as { object_type?: string } | undefined)?.object_type
-      || 'common',
-  ).toLowerCase();
-  if (raw === 'pipe' || raw === 'трубопровод' || raw === 'трубопроводы' || raw === 'трубы') {
-    return 'pipe';
-  }
-  if (
-    raw === 'tank'
-    || raw === 'ёмкость'
-    || raw === 'емкость'
-    || raw === 'ёмкости'
-    || raw === 'бочки'
-    || raw === 'бочка'
-  ) {
-    return 'tank';
-  }
-  return 'common';
-}
 
 function mergeRows(rows: Row[]): Row[] {
   const map = new Map<string, Row>();
@@ -205,6 +193,7 @@ export default function SpecTable({
   canDelete = false,
   isStale = false,
   alwaysShowSections = true,
+  sectionEmptyKind = 'no_items',
 }: Props) {
   let rows: Row[] = items.map((it, idx) => ({
     ...it,
@@ -336,7 +325,8 @@ export default function SpecTable({
                 <TltAlert
                   tone="info"
                   className="spec-section-empty"
-                  title="Расчёт спецификации для данного типа объекта пока недоступен."
+                  data-testid={`spec-section-empty-${g.key}`}
+                  title={specSectionEmptyTitle(sectionEmptyKind)}
                 />
               ) : (
                 <Table<Row>

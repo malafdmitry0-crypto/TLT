@@ -7,25 +7,16 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { appMessage as message } from '@/feedback/appFeedback';
 import { useMutation } from '@tanstack/react-query';
-
 import {
-  candidateGroupNeedsUserChoice,
   generateSpecification,
-  getCatalogSelections,
   getSpecificationErrorDetail,
-  putCatalogSelections,
   updateSpecificationSettings,
 } from '@/api/specifications';
-import type {
-  SpecificationCatalogSelectionEntry,
-  SpecificationOptions,
-} from '@/api/specifications';
+import type { SpecificationOptions } from '@/api/specifications';
 import { formatSpecTimestamp } from '@/pages/specification/specFormatModel';
 import { useSpecParamsPanelState } from '@/pages/specification/useSpecParamsPanelState';
 import { useSpecPageFormState } from '@/pages/specification/useSpecPageFormState';
-import {
-  buildSpecGenerateOptions,
-} from '@/pages/specification/specGenerateOptionsModel';
+import { buildSpecGenerateOptions } from '@/pages/specification/specGenerateOptionsModel';
 import { buildSpecSettingsFormSnapshot } from '@/pages/specification/specGenerationOptionsSyncModel';
 import { useSpecificationQuerySession } from '@/pages/specification/useSpecificationQuerySession';
 import { useSpecificationManualItemsController } from '@/pages/specification/useSpecificationManualItemsController';
@@ -35,7 +26,11 @@ import {
   resolveGenerateVariantIds,
 } from '@/pages/specification/specificationPageModelHelpers';
 import { buildSpecGenerationHydrate } from '@/pages/specification/specGenerationHydrateModel';
-
+import { persistSpecificationCatalogSelections } from '@/pages/specification/specificationCatalogSelectionPersistence';
+import { formatPreflightSummary } from '@/pages/specification/specTableSectionModel';
+import { ROUTES } from '@/routes/routes';
+import { ELECTRICAL_VARIANT_URL_PARAM } from '@/domain/electricalVariantSelectionModel';
+import type { ElectricalNavigationState } from '@/pages/electrical/elecCalcPageModel';
 type SpecificationMutationScope = {
   projectId: string;
   electricalVariantId: string;
@@ -161,9 +156,7 @@ export function useSpecificationPageModel() {
       const groups = unresolved.flatMap((item) => item.candidate_groups ?? []);
       form.setGenerationDiagnostics(diagnostics);
       form.setCandidateGroups(groups);
-      form.setPreflightSummary(
-        diagnostics.map((diagnostic) => `${diagnostic.code}: ${diagnostic.message}`).join('\n'),
-      );
+      form.setPreflightSummary(formatPreflightSummary(diagnostics));
       const confirmationRequired = unresolved.some(
         (item) => item.status === 'confirmation_required',
       );
@@ -175,16 +168,16 @@ export function useSpecificationPageModel() {
       if (!confirmationRequired && !selectionRequired) form.setPendingGenerate(null);
       if (selectionRequired) {
         // Keep draft empty — never preselect first candidate.
+        // Keep settings open so diagnostics remain visible (SPEC-P0-a WP4).
         form.setDraftCatalogSelections({});
-        toggleSettings(false);
         message.warning('Требуется выбор комплектующих из каталога');
       } else if (confirmationRequired) {
-        toggleSettings(false);
+        // Keep settings open while preflight modal is shown.
       } else if (blocked) {
         const firstBlocking = diagnostics.find((item) => item.kind === 'blocking');
         message.warning(
           firstBlocking
-            ? `${firstBlocking.code}: ${firstBlocking.message}`
+            ? (firstBlocking.message || firstBlocking.code)
             : 'Формирование заблокировано',
         );
       } else if (unresolved.length === 0 && generated.length > 0) {
@@ -341,6 +334,26 @@ export function useSpecificationPageModel() {
     });
   };
 
+  /** Case §7.3: leave preflight and open first problem ER on unassigned tab. */
+  const fixUnassignedAssignments = () => {
+    const erId = form.pendingGenerate?.generateVariantIds?.[0]
+      ?? selectedElectricalVariant?.id
+      ?? null;
+    form.setPreflightOpen(false);
+    form.setPendingGenerate(null);
+    const search = erId
+      ? `?${ELECTRICAL_VARIANT_URL_PARAM}=${encodeURIComponent(erId)}`
+      : '';
+    const state: ElectricalNavigationState = {
+      systemView: 'unassigned',
+      ...(erId ? { electricalVariantId: erId } : {}),
+    };
+    navigate(
+      { pathname: ROUTES.elecCalc, search },
+      { state },
+    );
+  };
+
   const selectCandidate = (groupKey: string, catalogItemId: string) => {
     form.setDraftCatalogSelections((prev) => ({ ...prev, [groupKey]: catalogItemId }));
   };
@@ -358,44 +371,21 @@ export function useSpecificationPageModel() {
     const options = form.pendingGenerate?.options ?? buildGenerateOptions();
     if (generateVariantIds.length === 0) return;
 
-    const byEr = new Map<string, SpecificationCatalogSelectionEntry[]>();
-
-    for (const group of form.candidateGroups) {
-      if (!candidateGroupNeedsUserChoice(group)) continue;
-      const itemId = form.draftCatalogSelections[group.group_key];
-      if (!itemId) continue;
-      const candidate = group.candidates.find((item) => item.catalog_item_id === itemId);
-      if (!candidate) continue;
-      const fingerprint = group.candidate_set_fingerprint;
-      if (!fingerprint || !fingerprint.startsWith('sha256:')) {
+    try {
+      const persistence = await persistSpecificationCatalogSelections({
+        projectId: project.id,
+        groups: form.candidateGroups,
+        draftSelections: form.draftCatalogSelections,
+      });
+      if (persistence === 'invalid_fingerprint') {
         message.error(
           'SPEC_REQUEST_INVALID: backend не вернул candidate_set_fingerprint для группы',
         );
         return;
       }
-      const entry: SpecificationCatalogSelectionEntry = {
-        candidate_group_key: group.group_key,
-        catalog_version_id: candidate.catalog_id,
-        catalog_item_id: itemId,
-        candidate_set_fingerprint: fingerprint,
-      };
-      const list = byEr.get(group.electrical_variant_id) ?? [];
-      list.push(entry);
-      byEr.set(group.electrical_variant_id, list);
-    }
-
-    if (byEr.size === 0) {
-      message.warning('Выберите позицию для каждой группы с несколькими кандидатами');
-      return;
-    }
-
-    try {
-      for (const [electricalVariantId, selections] of byEr) {
-        const current = await getCatalogSelections(project.id, electricalVariantId);
-        await putCatalogSelections(project.id, electricalVariantId, {
-          expected_version: current.collection_version,
-          selections,
-        });
+      if (persistence === 'no_selection') {
+        message.warning('Выберите позицию для каждой группы с несколькими кандидатами');
+        return;
       }
     } catch (error) {
       const detail = getSpecificationErrorDetail(error);
@@ -499,6 +489,7 @@ export function useSpecificationPageModel() {
     draftCatalogSelections: form.draftCatalogSelections,
     selectCandidate,
     confirmCatalogSelections,
+    fixUnassignedAssignments,
     settingsOpen,
     toggleSettings,
     spec,
