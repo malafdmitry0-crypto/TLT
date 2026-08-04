@@ -29,13 +29,13 @@
  * ════════════════════════════════════════════════════════════════════
  * ⛔ HARD RULE 2 — UNIFIED TYPE SCALE (эталон: Алгоритм выбора кабеля)
  * ════════════════════════════════════════════════════════════════════
- *    Один набор токенов dual-form на heat + cable + inline forms:
- *      label:   8.5px / line-height 1.0 / #53667b / weight 600
- *      control: 12px / height 26px
- *      banner:  9px
- *    Источник значений — глобальные --tlt-field-* токены (styles.css :root);
- *    --dual-form-* здесь только алиасы на них.
- *    Запрещено: локальные font-size 10–11px «для читаемости» на heat.
+ *    Значения — из кадров mockups/html/* («HTML — источник правды», владелец):
+ *      label:   10.5px / 600 / #26364a, колонки 118px (текст) и 132px (числа)
+ *      control: 36px / radius 6px, значение 12px, контрол текучий (1fr)
+ *    Задаёт остров heat-object-fields.css; :root не трогать — те же токены
+ *    питают электрорасчёт и спецификацию. --dual-form-* — алиасы.
+ *    Это описание ТЕКУЩЕГО контракта, не запрет на изменение: при расхождении
+ *    с кадром прав кадр, а шапка обновляется вместе со стилем.
  *
  * ════════════════════════════════════════════════════════════════════
  * ⛔ HARD RULE 3 — CONTENT-SIZED CONTROLS
@@ -45,11 +45,15 @@
  *    :root --tlt-field-ctrl-*). Не растягивать form-item на 1fr «для красоты».
  *
  * ════════════════════════════════════════════════════════════════════
- * ⛔ HARD RULE 4 — SEMANTIC GROUPS
+ * ⛔ HARD RULE 4 — ДВА БЛОКА ПО МАКЕТУ (wide)
  * ════════════════════════════════════════════════════════════════════
- *    Wide text/select идут первыми. Geometry и environment numeric живут
- *    в двух компактных колонках. Hidden-поле сжимает только свою группу;
- *    поля не мигрируют между группами.
+ *    Кадр `mockups/html/ishodnye-truba-zapolneno.html`:
+ *      блок 1 — текст и селекты, 2 колонки, заполнение построчно;
+ *      блок 2 — числовые, 3 колонки, построчно;
+ *      ниже — таблица слоёв на всю ширину панели.
+ *    Порядок полей внутри блоков задаёт кадр и собирает
+ *    ObjectWizardFormSlots.tsx; здесь только границы блоков.
+ *    Боковая раскладка (side) остаётся на трёх слотах — её кадра нет.
  *
  *    CSS: heat-object-fields.css only.
  *
@@ -91,6 +95,8 @@ export default function HeatCalcObjectFieldsPanel({
 }: HeatCalcObjectFieldsPanelProps) {
   /* wide: горизонтальные строки [label | control]; side: label над контролом */
   const labelPlacement = layout === 'wide' ? 'left' : 'top';
+  /* wide: 2 колонки текста и 3 числовых, построчно — как в кадре */
+  const wide = layout === 'wide';
   return (
     <div
       className={`heat-object-fields heat-object-fields--${layout}`}
@@ -104,7 +110,8 @@ export default function HeatCalcObjectFieldsPanel({
         className="heat-object-fields__geometry"
         data-slot={layout === 'wide' ? 'wide' : 'geometry'}
         density="compact"
-        flow="columns"
+        columns={wide ? 2 : 3}
+        flow={wide ? 'rows' : 'columns'}
         maxRowsPerColumn={5}
         antFormAdapter
         labelPlacement={labelPlacement}
@@ -115,14 +122,15 @@ export default function HeatCalcObjectFieldsPanel({
         className="heat-object-fields__climate"
         data-slot={layout === 'wide' ? 'geometry-numeric' : 'climate'}
         density="compact"
-        flow="columns"
+        columns={wide ? 3 : 3}
+        flow={wide ? 'rows' : 'columns'}
         maxRowsPerColumn={5}
         antFormAdapter
         labelPlacement={labelPlacement}
       >
         {climate}
       </CompactFieldGrid>
-      <CompactFieldGrid
+      {insulationSettings ? <CompactFieldGrid
         className="heat-object-fields__settings"
         data-slot={layout === 'wide' ? 'environment-numeric' : 'insulation-settings'}
         density="compact"
@@ -132,7 +140,7 @@ export default function HeatCalcObjectFieldsPanel({
         labelPlacement={labelPlacement}
       >
         {insulationSettings}
-      </CompactFieldGrid>
+      </CompactFieldGrid> : null}
     </div>
   );
 }

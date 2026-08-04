@@ -1,37 +1,20 @@
-import { Form } from 'antd';
-import { useMemo, type ReactElement } from 'react';
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import UnitInputNumber from '@/components/common/UnitInputNumber';
 import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
 import { getInsulation } from '@/api/references';
 import type { InsulationEntry } from '@/types/reference';
-import {
-  heatCalcCustomControlRequiredProps,
-  heatCalcFormFieldRules,
-  heatCalcNumberInputProps,
-} from '@/utils/heatCalcWizardFieldRules';
+import { heatCalcCustomControlRequiredProps } from '@/utils/heatCalcWizardFieldRules';
 import type { HeatCalcFieldInputSettings } from '@/utils/heatCalcFieldInputSettings';
 import type { HeatCalcObjectType } from '@/types/project';
-import {
-  getHeatCalcFieldDescription,
-  getHeatCalcFieldLabel,
-} from '@/domain/heatCalcFields';
+import { getHeatCalcFieldDescription } from '@/domain/heatCalcFields';
 import {
   buildInsulationReferenceOptions,
 } from '@/utils/referenceOptions';
-import HelpedControl from '../HelpedControl';
-import FieldLabel from '../FieldLabel';
+import { TltForm } from '@/components/ui-kit';
+import HeatFormField from '../HeatFormField';
 import InsulationConductivityField from '../InsulationConductivityField';
 import ReferencePicker, { type ReferencePickerOption } from '../ReferencePicker';
 import InsulationTemperatureRangeField from '../InsulationTemperatureRangeField';
-
-function withHelp(control: ReactElement, hint: string) {
-  return <HelpedControl hint={hint}>{control}</HelpedControl>;
-}
-
-function fieldLabel(fieldId: string, objectType: HeatCalcObjectType) {
-  return <FieldLabel text={getHeatCalcFieldLabel(fieldId, { context: 'form', objectType })} />;
-}
 
 function fieldHelp(fieldId: string, objectType: HeatCalcObjectType, mode?: string) {
   return getHeatCalcFieldDescription(fieldId, { objectType, mode });
@@ -62,10 +45,8 @@ export default function ThermalStep({
   onProgrammaticValuesChange,
   tableCells = false,
 }: Props) {
-  const form = Form.useFormInstance();
-  const numberInputProps = (fieldId: string) =>
-    heatCalcNumberInputProps(objectType, fieldId, { fieldInputSettings, form });
-  const insulationMaterial = Form.useWatch('insulation_material', form);
+  const form = TltForm.useFormInstance();
+  const insulationMaterial = TltForm.useWatch('insulation_material', form);
   const shouldLoadInsulation = !insulationMaterials || !insulationMaterialOptions;
   const { data: queriedMaterials = [], isError, isFetching } = useQuery({
     queryKey: referenceQueryKeys.insulation,
@@ -87,44 +68,32 @@ export default function ThermalStep({
   const selectedMaterial = materials.find((m) => m.material === insulationMaterial);
 
   const materialField = (
-    <Form.Item
+    <HeatFormField
+      id="insulation_material"
+      objectType={objectType}
       className="fixed-select-form-item reduced-select-form-item layer-material-form-item first-layer-material-form-item helped-form-item"
-      label={fieldLabel('insulation_material', objectType)}
-      name="insulation_material"
-      rules={heatCalcFormFieldRules(form, objectType, 'insulation_material')}
     >
-      {withHelp(
-        <ReferencePicker
-          data-testid="insulation-material-select"
-          options={effectiveMaterialOptions}
-          placeholder="Выберите материал"
-          modalTitle="Материал изоляции"
-          searchPlaceholder="Поиск материала"
-          loading={effectiveInsulationMaterialsFetching}
-          notFoundContent={effectiveInsulationMaterialsError ? 'Не удалось загрузить справочник' : 'Нет материалов'}
-          {...heatCalcCustomControlRequiredProps(form, objectType, 'insulation_material')}
-        />,
-        fieldHelp('insulation_material', objectType),
-      )}
-    </Form.Item>
+      <ReferencePicker
+        data-testid="insulation-material-select"
+        options={effectiveMaterialOptions}
+        placeholder="Выберите материал"
+        modalTitle="Материал изоляции"
+        searchPlaceholder="Поиск материала"
+        loading={effectiveInsulationMaterialsFetching}
+        notFoundContent={effectiveInsulationMaterialsError ? 'Не удалось загрузить справочник' : 'Нет материалов'}
+        {...heatCalcCustomControlRequiredProps(form, objectType, 'insulation_material')}
+      />
+    </HeatFormField>
   );
 
   const thicknessField = (
-    <Form.Item
+    <HeatFormField
+      id="insulation_thickness_mm"
+      objectType={objectType}
       className="numeric-form-item short-number-form-item helped-form-item"
-      label={fieldLabel('insulation_thickness_mm', objectType)}
-      name="insulation_thickness_mm"
-      rules={heatCalcFormFieldRules(form, objectType, 'insulation_thickness_mm')}
-    >
-      {withHelp(
-        <UnitInputNumber
-          data-testid="insulation-thickness-input"
-          {...numberInputProps('insulation_thickness_mm')}
-          unit="мм"
-        />,
-        fieldHelp('insulation_thickness_mm', objectType),
-      )}
-    </Form.Item>
+      testId="insulation-thickness-input"
+      fieldInputSettings={fieldInputSettings}
+    />
   );
 
   const lambdaField = (

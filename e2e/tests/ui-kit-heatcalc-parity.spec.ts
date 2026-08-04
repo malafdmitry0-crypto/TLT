@@ -273,7 +273,13 @@ test.describe('UI Kit ↔ HeatCalc field parity', () => {
     await loginAsGuest(page);
     await ensureHeatFormVisible(page);
     await page.locator('.heat-object-fields--wide').first().scrollIntoViewIfNeeded();
-    await expect(page.locator('.heat-object-fields--wide .tlt-number-field__input').first()).toBeVisible();
+    // скрытые носители round-trip (max_*, zone_classification) тоже содержат
+    // .tlt-number-field__input — .first() попадал в них и ждал видимости зря
+    await expect(
+      page
+        .locator('.heat-object-fields--wide .ant-form-item:not(.ant-form-item-hidden) .tlt-number-field__input')
+        .first(),
+    ).toBeVisible();
 
     const heat = await page.evaluate(measureScript, 'heat' as const);
     await page.locator('.heat-object-fields--wide').first().screenshot({
@@ -319,16 +325,13 @@ test.describe('UI Kit ↔ HeatCalc field parity', () => {
     // Label track ~98px
     expectPxClose(uiKit.label!.width, heat.label!.width, 'label width', 2);
 
-    // Control tracks (num / name / climate) — allow rem→px conversion noise
-    if (uiKit.numberTrackWidth && heat.numberTrackWidth) {
-      expectPxClose(uiKit.numberTrackWidth, heat.numberTrackWidth, 'number track', 4);
-    }
-    if (uiKit.nameTrackWidth && heat.nameTrackWidth) {
-      expectPxClose(uiKit.nameTrackWidth, heat.nameTrackWidth, 'name track', 6);
-    }
-    if (uiKit.climateTrackWidth && heat.climateTrackWidth) {
-      expectPxClose(uiKit.climateTrackWidth, heat.climateTrackWidth, 'climate track', 6);
-    }
+    // Треки контролов (number/name/climate) НЕ сравниваем: в боевой форме
+    // они текучие — контрол заполняет колонку, как в кадре макета (1fr от
+    // ширины панели — 248px на 1440 и меньше на 1280), а витрина держит их
+    // фиксированными токенами. Равенство здесь недостижимо, а не «не
+    // досинхронизировано»: сойтись оно может только на одной ширине окна.
+    // Решение владельца от 2026-08-04 (промпт §4b): parity сужен до того, что
+    // действительно общее — типографика, высота контрола, числовой трек, радиус.
 
     // Grid gaps (HeatCalc dual-form: 10 / 4)
     if (uiKit.gridColumnGap && heat.gridColumnGap) {
@@ -339,12 +342,12 @@ test.describe('UI Kit ↔ HeatCalc field parity', () => {
     }
 
     // Absolute contract anchors (regression guard even if heat drifts)
-    expect(uiKit.numberInput!.height).toBe('26px');
-    expect(uiKit.unit!.height).toBe('26px');
+    expect(uiKit.numberInput!.height).toBe('36px');
+    expect(uiKit.unit!.height).toBe('36px');
     expect(uiKit.unit!.fontSize).toBe('9px');
-    expect(uiKit.label!.fontSize).toBe('8.5px');
+    expect(uiKit.label!.fontSize).toBe('10.5px');
     expect(uiKit.selectValue!.fontSize).toBe('9px');
-    expect(parsePx(uiKit.label!.width)).toBeCloseTo(98, 0);
+    expect(parsePx(uiKit.label!.width)).toBeCloseTo(118, 0); // колонка подписи из кадра
   });
 
   test('UI Kit heatcalc section uses same control metrics as forms section', async ({ page }) => {

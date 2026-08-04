@@ -45,12 +45,16 @@ describe('ObjectWizard dependencies — layout-defaults', () => {
     expect(document.querySelector('.insulation-layers-table[data-protected="insulation-layers-table"]')).toBeInTheDocument();
     expect(document.querySelector('[data-slot="wide"]')).toHaveClass(
       'tlt-compact-field-grid',
-      'tlt-compact-field-grid--flow-columns',
+      // построчное заполнение — блоки кадра, а не колонки по смыслу
+      'tlt-compact-field-grid--flow-rows',
       'tlt-compact-field-grid--ant-form',
     );
     expect(document.querySelector('[data-slot="wide"]')).toHaveAttribute('data-density', 'compact');
+    // Раскладка по кадру: широкая форма — два блока, текст и числовые.
+    // Третьего слота больше нет, числовые собраны в один список в порядке
+    // макета (mockups/html/ishodnye-truba-zapolneno.html).
     expect(document.querySelector('[data-slot="geometry-numeric"]')).toBeInTheDocument();
-    expect(document.querySelector('[data-slot="environment-numeric"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-slot="environment-numeric"]')).not.toBeInTheDocument();
 
     cleanup();
     await mockReferences();

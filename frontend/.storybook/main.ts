@@ -6,7 +6,12 @@ import { mergeConfig } from 'vite';
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const config: StorybookConfig = {
-  stories: ['../src/components/ui-kit/**/*.stories.@(ts|tsx)'],
+  stories: [
+    '../src/components/ui-kit/**/*.stories.@(ts|tsx)',
+    // Зона heat: панели визарда рендерятся изолированно, без страницы и бэкенда.
+    // См. docs/tnp/cases/heat-frontend-restyle-prompt.md §4a.
+    '../src/components/wizard/**/*.stories.@(ts|tsx)',
+  ],
   addons: ['@storybook/addon-docs', '@storybook/addon-a11y', '@storybook/addon-mcp'],
   framework: {
     name: '@storybook/react-vite',

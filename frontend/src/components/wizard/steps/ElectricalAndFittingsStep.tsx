@@ -1,34 +1,13 @@
-import { Form } from 'antd';
-import type { ReactElement } from 'react';
-import UnitInputNumber from '@/components/common/UnitInputNumber';
-import {
-  heatCalcFormFieldRules,
-  heatCalcNumberInputProps,
-} from '@/utils/heatCalcWizardFieldRules';
+import { TltForm } from '@/components/ui-kit';
 import type { HeatCalcFieldInputSettings } from '@/utils/heatCalcFieldInputSettings';
 import type { HeatCalcObjectType } from '@/types/project';
-import {
-  getHeatCalcFieldDescription,
-  getHeatCalcFieldLabel,
-} from '@/domain/heatCalcFields';
-import HelpedControl from '../HelpedControl';
-import FieldLabel from '../FieldLabel';
-
-function withHelp(control: ReactElement, hint: string) {
-  return <HelpedControl hint={hint}>{control}</HelpedControl>;
-}
-
-function fieldLabel(fieldId: string, objectType: HeatCalcObjectType) {
-  return <FieldLabel text={getHeatCalcFieldLabel(fieldId, { context: 'form', objectType })} />;
-}
-
-function fieldHelp(fieldId: string, objectType: HeatCalcObjectType) {
-  return getHeatCalcFieldDescription(fieldId, { objectType });
-}
+import HeatFormField from '../HeatFormField';
 
 interface Props {
   objectType: HeatCalcObjectType;
   fieldInputSettings?: HeatCalcFieldInputSettings;
+  /** Пофилдовая выдача для числового блока широкой раскладки (порядок кадра). */
+  part?: 'all' | 'count' | 'equiv' | 'q';
 }
 
 /**
@@ -40,74 +19,45 @@ interface Props {
 export default function ElectricalAndFittingsStep({
   objectType,
   fieldInputSettings,
+  part = 'all',
 }: Props) {
-  const form = Form.useFormInstance();
+  const form = TltForm.useFormInstance();
   const localElementCount = Number(
-    Form.useWatch('num_local_elements', form) ?? form.getFieldValue('num_local_elements') ?? 0,
+    TltForm.useWatch('num_local_elements', form)
+      ?? form.getFieldValue('num_local_elements')
+      ?? 0,
   );
-  const numberInputProps = (
-    fieldId: string,
-    options: { includeStep?: boolean } = {},
-  ) => heatCalcNumberInputProps(objectType, fieldId, {
-    ...options,
-    fieldInputSettings,
-    form,
-  });
 
   return (
     <>
-      {objectType === 'tank' && (
-        <Form.Item
+      {objectType === 'tank' && (part === 'all' || part === 'q') && (
+        <HeatFormField
+          id="q_additional"
+          objectType={objectType}
           className="numeric-form-item coefficient-form-item tank-additional-heat-loss-form-item helped-form-item"
-          label={fieldLabel('q_additional', objectType)}
-          name="q_additional"
+          testId="q-additional-input"
+          fieldInputSettings={fieldInputSettings}
           preserve={false}
-          rules={heatCalcFormFieldRules(form, objectType, 'q_additional')}
-        >
-          {withHelp(
-            <UnitInputNumber
-              data-testid="q-additional-input"
-              {...numberInputProps('q_additional')}
-              unit="Вт"
-            />,
-            fieldHelp('q_additional', objectType),
-          )}
-        </Form.Item>
+        />
       )}
       {objectType === 'pipe' && (
         <>
-          <Form.Item
+          {(part === 'all' || part === 'count') && <HeatFormField
+            id="num_local_elements"
+            objectType={objectType}
             className="numeric-form-item fitting-count-form-item local-elements-count-form-item helped-form-item"
-            label={fieldLabel('num_local_elements', objectType)}
-            name="num_local_elements"
-            rules={heatCalcFormFieldRules(form, objectType, 'num_local_elements')}
-          >
-            {withHelp(
-              <UnitInputNumber
-                data-testid="local-elements-count-input"
-                {...numberInputProps('num_local_elements')}
-                unit="шт"
-              />,
-              fieldHelp('num_local_elements', objectType),
-            )}
-          </Form.Item>
-          {Number.isFinite(localElementCount) && localElementCount > 0 && (
-            <Form.Item
+            testId="local-elements-count-input"
+            fieldInputSettings={fieldInputSettings}
+          />}
+          {(part === 'all' || part === 'equiv') && Number.isFinite(localElementCount) && localElementCount > 0 && (
+            <HeatFormField
+              id="local_element_equiv_length"
+              objectType={objectType}
               className="numeric-form-item fitting-count-form-item local-element-equiv-length-form-item helped-form-item"
-              label={fieldLabel('local_element_equiv_length', objectType)}
-              name="local_element_equiv_length"
+              testId="local-element-equiv-length-input"
+              fieldInputSettings={fieldInputSettings}
               preserve={false}
-              rules={heatCalcFormFieldRules(form, objectType, 'local_element_equiv_length')}
-            >
-              {withHelp(
-                <UnitInputNumber
-                  data-testid="local-element-equiv-length-input"
-                  {...numberInputProps('local_element_equiv_length')}
-                  unit="м"
-                />,
-                fieldHelp('local_element_equiv_length', objectType),
-              )}
-            </Form.Item>
+            />
           )}
         </>
       )}

@@ -1,32 +1,9 @@
-import { Form } from 'antd';
-import type { ReactElement } from 'react';
-import UnitInputNumber from '@/components/common/UnitInputNumber';
-import {
-  heatCalcCustomControlRequiredProps,
-  heatCalcFormFieldRules,
-  heatCalcNumberInputProps,
-} from '@/utils/heatCalcWizardFieldRules';
+import { TltForm } from '@/components/ui-kit';
+import { heatCalcCustomControlRequiredProps } from '@/utils/heatCalcWizardFieldRules';
 import type { HeatCalcFieldInputSettings } from '@/utils/heatCalcFieldInputSettings';
 import type { ReferenceOption } from '@/utils/referenceOptions';
-import {
-  getHeatCalcFieldDescription,
-  getHeatCalcFieldLabel,
-} from '@/domain/heatCalcFields';
-import HelpedControl from '../HelpedControl';
-import FieldLabel from '../FieldLabel';
+import HeatFormField from '../HeatFormField';
 import ReferencePicker from '../ReferencePicker';
-
-function withHelp(control: ReactElement, hint: string) {
-  return <HelpedControl hint={hint}>{control}</HelpedControl>;
-}
-
-function fieldLabel(fieldId: string) {
-  return <FieldLabel text={getHeatCalcFieldLabel(fieldId, { context: 'form', objectType: 'pipe' })} />;
-}
-
-function fieldHelp(fieldId: string) {
-  return getHeatCalcFieldDescription(fieldId, { objectType: 'pipe' });
-}
 
 interface Props {
   fieldInputSettings?: HeatCalcFieldInputSettings;
@@ -34,40 +11,32 @@ interface Props {
   part?: 'all' | 'material' | 'thickness' | 'lambda';
 }
 
+/** Теплопроводность вводится руками только для материала «Другое». */
 export default function PipeWallMaterialStep({
   fieldInputSettings,
   pipeMaterialOptions,
   part = 'all',
 }: Props) {
-  const form = Form.useFormInstance();
-  const pipeMaterial = Form.useWatch('pipe_material', form);
-  const numberInputProps = (fieldId: string) =>
-    heatCalcNumberInputProps('pipe', fieldId, { fieldInputSettings, form });
+  const form = TltForm.useFormInstance();
+  const pipeMaterial = TltForm.useWatch('pipe_material', form);
 
   return (
     <>
-      {(part === 'all' || part === 'thickness') && <Form.Item
-        className="fit-label-form-item short-number-form-item wall-thickness-form-item helped-form-item"
-        label={fieldLabel('wall_thickness_mm')}
-        name="wall_thickness_mm"
-        rules={heatCalcFormFieldRules(form, 'pipe', 'wall_thickness_mm')}
-      >
-        {withHelp(
-          <UnitInputNumber
-            data-testid="wall-thickness-input"
-            {...numberInputProps('wall_thickness_mm')}
-            unit="мм"
-          />,
-          fieldHelp('wall_thickness_mm'),
-        )}
-      </Form.Item>}
-      {(part === 'all' || part === 'material') && <Form.Item
-        className="pipe-material-form-item reduced-select-form-item helped-form-item"
-        label={fieldLabel('pipe_material')}
-        name="pipe_material"
-        rules={heatCalcFormFieldRules(form, 'pipe', 'pipe_material')}
-      >
-        {withHelp(
+      {(part === 'all' || part === 'thickness') && (
+        <HeatFormField
+          id="wall_thickness_mm"
+          objectType="pipe"
+          className="fit-label-form-item short-number-form-item wall-thickness-form-item helped-form-item"
+          testId="wall-thickness-input"
+          fieldInputSettings={fieldInputSettings}
+        />
+      )}
+      {(part === 'all' || part === 'material') && (
+        <HeatFormField
+          id="pipe_material"
+          objectType="pipe"
+          className="pipe-material-form-item reduced-select-form-item helped-form-item"
+        >
           <ReferencePicker
             data-testid="pipe-material-select"
             options={pipeMaterialOptions}
@@ -75,27 +44,18 @@ export default function PipeWallMaterialStep({
             modalTitle="Материал трубы"
             searchPlaceholder="Поиск материала трубы"
             {...heatCalcCustomControlRequiredProps(form, 'pipe', 'pipe_material')}
-          />,
-          fieldHelp('pipe_material'),
-        )}
-      </Form.Item>}
+          />
+        </HeatFormField>
+      )}
       {(part === 'all' || part === 'lambda') && pipeMaterial === 'other' ? (
-        <Form.Item
+        <HeatFormField
+          id="pipe_lambda"
+          objectType="pipe"
           className="fit-label-form-item pipe-lambda-manual-form-item helped-form-item"
-          label={fieldLabel('pipe_lambda')}
-          name="pipe_lambda"
+          testId="pipe-lambda-input"
+          fieldInputSettings={fieldInputSettings}
           preserve={false}
-          rules={heatCalcFormFieldRules(form, 'pipe', 'pipe_lambda')}
-        >
-          {withHelp(
-            <UnitInputNumber
-              data-testid="pipe-lambda-input"
-              {...numberInputProps('pipe_lambda')}
-              unit="Вт/мК"
-            />,
-            fieldHelp('pipe_lambda'),
-          )}
-        </Form.Item>
+        />
       ) : null}
     </>
   );

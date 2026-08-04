@@ -15,7 +15,7 @@
   line-height: calc(var(--inline-control-height) - 2px);
   vertical-align: middle;
   box-sizing: border-box;
-  border-radius: 0 2px 2px 0;
+  border-radius: 0 var(--tlt-field-radius, 2px) var(--tlt-field-radius, 2px) 0;
   white-space: nowrap;
 }
 .inline-object-form .ant-form-item-explain,

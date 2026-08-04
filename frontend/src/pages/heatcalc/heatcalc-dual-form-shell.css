@@ -54,10 +54,11 @@
 .heatcalc-dual-forms--wide {
   --heatcalc-heat-pane-min: 440px;
   --heatcalc-cable-pane-min: 240px;
+  /* пропорция кадра ishodnye-truba-zapolneno: левая 922, правая 454 */
   grid-template-columns:
-    minmax(var(--heatcalc-heat-pane-min), max-content)
-    minmax(var(--heatcalc-cable-pane-min), max-content);
-  justify-content: space-around;
+    minmax(var(--heatcalc-heat-pane-min), 2fr)
+    minmax(var(--heatcalc-cable-pane-min), 1fr);
+  justify-content: stretch;
 }
 .heatcalc-dual-forms--side {
   grid-template-columns: minmax(0, 1fr);

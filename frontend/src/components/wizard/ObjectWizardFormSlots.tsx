@@ -108,7 +108,10 @@ export function buildObjectWizardFormSlots(input: ObjectWizardFormSlotsInput) {
       soilOptions={soilOptions}
     />
   );
-  const temperatureStep = (part: 'all' | 'wide' | 'temperatures' | 'wind') => (
+  const temperatureStep = (
+    part: 'all' | 'wide' | 'temperatures' | 'wind'
+    | 'ambient' | 'process' | 'wind-speed' | 'alpha',
+  ) => (
     <TemperatureEnvironmentStep
       objectType={heatCalcObjectType}
       part={part}
@@ -166,37 +169,67 @@ export function buildObjectWizardFormSlots(input: ObjectWizardFormSlotsInput) {
     </>
   );
 
-  const climate = layoutVariant === 'wide' ? (
-    <>
-      {objectType === 'pipe' ? (
-        <>
-          <PipeGeometryStep fieldInputSettings={fieldInputSettings} />
-          <PipeWallMaterialStep
-            part="thickness"
-            fieldInputSettings={fieldInputSettings}
-            pipeMaterialOptions={pipeMaterialOptions}
-          />
-          {electricalStep}
-          <PipeWallMaterialStep
-            part="lambda"
-            fieldInputSettings={fieldInputSettings}
-            pipeMaterialOptions={pipeMaterialOptions}
-          />
-        </>
-      ) : (
-        <TankGeometryStep part="numeric" fieldInputSettings={fieldInputSettings} />
-      )}
-    </>
-  ) : temperatureStep('all');
+  const wall = (part: 'thickness' | 'lambda') => (
+    <PipeWallMaterialStep
+      part={part}
+      fieldInputSettings={fieldInputSettings}
+      pipeMaterialOptions={pipeMaterialOptions}
+    />
+  );
 
-  const insulationSettings = layoutVariant === 'wide' ? (
+  /**
+   * Числовой блок широкой раскладки — один плоский список в порядке кадра
+   * (`mockups/html/ishodnye-truba-zapolneno.html`, `rezervuar-*.html`):
+   * размер · температура среды · размер · требуемая температура · остальное.
+   * Кадр чередует геометрию с температурами, поэтому поля берутся у шагов
+   * по одному. Условия видимости живут внутри шагов и не менялись.
+   */
+  const numericBlock = objectType === 'pipe' ? (
     <>
-      {temperatureStep('temperatures')}
-      {objectType === 'tank' ? electricalStep : null}
-      {temperatureStep('wind')}
+      <PipeGeometryStep part="diameter" fieldInputSettings={fieldInputSettings} />
+      {temperatureStep('ambient')}
+      <PipeGeometryStep part="length" fieldInputSettings={fieldInputSettings} />
+      {temperatureStep('process')}
+      {wall('thickness')}
+      {temperatureStep('wind-speed')}
+      <ElectricalAndFittingsStep
+        objectType={heatCalcObjectType}
+        fieldInputSettings={fieldInputSettings}
+        part="count"
+      />
+      {temperatureStep('alpha')}
+      {/* поля, которых на кадре нет, — следующими строками того же блока */}
+      <ElectricalAndFittingsStep
+        objectType={heatCalcObjectType}
+        fieldInputSettings={fieldInputSettings}
+        part="equiv"
+      />
+      {wall('lambda')}
       {placementStep('numeric')}
     </>
-  ) : insulationModeField;
+  ) : (
+    <>
+      <TankGeometryStep part="size-a" fieldInputSettings={fieldInputSettings} />
+      {temperatureStep('ambient')}
+      <TankGeometryStep part="size-b" fieldInputSettings={fieldInputSettings} />
+      {temperatureStep('process')}
+      <TankGeometryStep part="size-rest" fieldInputSettings={fieldInputSettings} />
+      {temperatureStep('wind-speed')}
+      <ElectricalAndFittingsStep
+        objectType={heatCalcObjectType}
+        fieldInputSettings={fieldInputSettings}
+        part="q"
+      />
+      {temperatureStep('alpha')}
+      {placementStep('numeric')}
+    </>
+  );
+
+  const climate = layoutVariant === 'wide' ? numericBlock : temperatureStep('all');
+
+  // в широкой раскладке числовые поля живут одним блоком (см. numericBlock),
+  // третий слот пуст — панель рисует два блока вместо трёх
+  const insulationSettings = layoutVariant === 'wide' ? null : insulationModeField;
 
   const insulationTable = (
     <InsulationLayersStep

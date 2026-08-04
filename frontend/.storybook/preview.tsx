@@ -12,6 +12,16 @@ import React from 'react';
 import '../src/styles/tokens.css';
 import '../src/styles/base.css';
 import '../src/styles/vendor-overrides.css';
+// `ObjectWizard` вешает класс `.inline-object-form`, но сам не импортирует ни
+// одного стиля: хром формы приходит из HeatCalcWorkspaceLayout. Без этих файлов
+// история показывает полураздетый компонент. Импорт живёт здесь, а не в фикстуре:
+// зависимость components → pages запрещена ратчетом слоёв. Порядок — как на
+// странице, от него зависит каскад; селекторы внутри ограничены зоной heat.
+import '../src/pages/heatcalc/heatcalc-dual-form-shell.css';
+import '../src/pages/heatcalc/heatcalc-side-form-layout.css';
+import '../src/pages/heatcalc/heatcalc-field-chrome-core.css';
+import '../src/pages/heatcalc/heatcalc-field-focus.css';
+import '../src/pages/heatcalc/heatcalc-field-chrome.css';
 import { appTheme } from '../src/theme/appTheme';
 
 const preview: Preview = {

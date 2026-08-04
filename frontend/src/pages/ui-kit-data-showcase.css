@@ -25,8 +25,8 @@
 .uikit-form-grid {
   padding: 10px 12px;
   /* HeatCalc dual-form column/row gaps */
-  --tlt-field-column-gap: 10px;
-  --tlt-field-row-gap: 4px;
+  --tlt-field-column-gap: 16px;
+  --tlt-field-row-gap: 8px;
   --tlt-field-gap: 4px;
   border: 1px solid var(--ui-border);
   border-radius: 2px;

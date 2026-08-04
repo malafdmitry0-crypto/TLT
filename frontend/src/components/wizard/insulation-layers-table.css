@@ -24,10 +24,11 @@
   --ins-col-range: 104px;
   --ins-cols: var(--ins-col-index) var(--ins-col-material) var(--ins-col-thickness) var(--ins-col-lambda) var(--ins-col-range);
   --ins-control-h: 28px;
+  --tlt-field-radius: 6px;
   /* Единый размер шрифта во всех ячейках таблицы = компактный размер формы
      (пикер материала на форме = 9px). Так текст таблицы совпадает с формой,
      а не крупнее её. */
-  --ins-font: 9px;
+  --ins-font: 12px; /* кадр: текст таблицы 12px */
   --field-input-min-width: 0px;
   --inline-control-height: var(--ins-control-h);
   --tlt-field-control-height: var(--ins-control-h);
@@ -49,7 +50,7 @@
   grid-template-columns: var(--ins-cols);
   width: 100%;
   min-width: 0;
-  color: var(--tlt-field-label-color);
+  color: var(--color-swatch-26364a);
   background: var(--color-swatch-f4f7fa);
   border: 1px solid var(--color-swatch-d1dce8);
   border-radius: 5px 5px 0 0;

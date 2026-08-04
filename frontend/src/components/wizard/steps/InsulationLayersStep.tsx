@@ -1,5 +1,5 @@
-import { Form } from 'antd';
 import { TltSelect } from '@/components/form-controls';
+import { TltForm } from '@/components/ui-kit';
 import { heatCalcSelectOptions } from '@/utils/heatCalcWizardFieldRules';
 import type { HeatCalcFieldInputSettings } from '@/utils/heatCalcFieldInputSettings';
 import type { HeatCalcObjectType } from '@/types/project';
@@ -79,12 +79,13 @@ export default function InsulationLayersStep({
         onProgrammaticValuesChange={onProgrammaticValuesChange}
       />
 
-      <Form.Item name="insulation_cover_material" hidden>
+      {/* скрытый носитель round-trip: ни подписи, ни правил — не поле формы */}
+      <TltForm.Item name="insulation_cover_material" hidden>
         <TltSelect
           data-testid="insulation-cover-material-select"
           options={heatCalcSelectOptions(objectType, 'insulation_cover_material')}
         />
-      </Form.Item>
+      </TltForm.Item>
     </>
   );
 }

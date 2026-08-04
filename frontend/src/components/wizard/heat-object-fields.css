@@ -1,6 +1,5 @@
 /**
- * CSS island: HeatCalcObjectFieldsPanel.
- * Wide DOM consists of three semantic slot wrappers in reading/tab order:
+ * CSS island: HeatCalcObjectFieldsPanel. Wide DOM = три слота в порядке чтения:
  * wide text/select → geometry numeric → environment numeric.
  */
 
@@ -12,20 +11,27 @@
   --dual-form-control-height: var(--tlt-field-control-height, 26px);
   --dual-form-control-font: var(--tlt-field-control-font-size, 12px);
   --dual-form-hint-size: 10px;
-  --hof-wide-label-width: 96px;
-  --hof-geometry-label-width: 88px;
+  /* колонки подписей — кадр ishodnye-truba-zapolneno: текст 118, числа 132 */
+  --hof-wide-label-width: 118px;
+  --hof-geometry-label-width: 132px;
   --hof-environment-label-width: 120px;
   --hof-label-control-gap: 8px;
-  --hof-geometry-control-width: 96px;
+  --hof-geometry-control-width: minmax(0, 1fr);
   --hof-environment-control-width: 92px;
   --field-input-min-width: 0px;
+  --tlt-field-control-height: 36px;
+  --form-label-size: 10.5px;
+  --tlt-field-label-font-size: 10.5px;
+  --tlt-field-unit-font-size: 12px;
+  --tlt-field-radius: 6px;
   --inline-control-height: var(--tlt-field-control-height, 26px);
   --tlt-field-gap: var(--hof-label-control-gap);
 
   isolation: isolate;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) max-content max-content;
-  gap: 4px 10px;
+  /* два блока друг под другом: текст сверху, числовые ниже (кадр макета) */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px 16px;
   align-items: start;
   width: 100%;
   max-width: 100%;
@@ -33,9 +39,14 @@
   box-sizing: border-box;
 }
 
+.heat-object-fields .ant-input-number-input,
+.heat-object-fields .ant-input { font-size: 12px; /* кадр: значение 12px */ }
+
+.heat-object-fields.heat-object-fields--wide [data-slot="wide"] .ant-form-item-control { max-width: 240px; } /* текст: уже кадра, решение владельца; двойной класс — перебить max-width:100% соседа той же длины */
+
 .heat-object-fields.heat-object-fields--wide[data-object-type="tank"] {
-  --hof-wide-label-width: 112px;
-  --hof-geometry-label-width: 120px;
+  --hof-wide-label-width: 118px;
+  --hof-geometry-label-width: 132px;
 }
 
 /* Each slot owns its vertical flow; hidden fields compact only that slot. */
@@ -43,20 +54,25 @@
 .heat-object-fields.heat-object-fields--wide > .heat-object-fields__climate,
 .heat-object-fields.heat-object-fields--wide > .heat-object-fields__settings {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
   grid-auto-flow: row;
-  grid-auto-rows: minmax(36px, auto);
-  gap: 4px;
-  align-items: start;
-  min-width: 0;
+  grid-auto-rows: minmax(28px, auto);
+  gap: 4px 16px;
+  align-items: start; min-width: 0;
 }
 
+/* кадр: текст и селекты в 2 колонки, числовые в 3, заполнение построчно */
 .heat-object-fields.heat-object-fields--wide > .heat-object-fields__geometry {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   width: 100%;
 }
 
-.heat-object-fields.heat-object-fields--wide > .heat-object-fields__climate,
+.heat-object-fields.heat-object-fields--wide > .heat-object-fields__climate {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: 100%;
+}
+
 .heat-object-fields.heat-object-fields--wide > .heat-object-fields__settings {
+  grid-template-columns: minmax(0, 1fr);
   width: max-content;
 }
 
@@ -76,11 +92,6 @@
   --tlt-compact-control-width: var(--hof-geometry-control-width);
 }
 
-.heat-object-fields.heat-object-fields--wide [data-slot="environment-numeric"] {
-  --tlt-compact-label-width: var(--hof-environment-label-width);
-  --tlt-compact-control-width: var(--hof-environment-control-width);
-}
-
 .heat-object-fields.heat-object-fields--wide [data-slot="wide"] .ant-form-item-row {
   grid-template-columns: var(--hof-wide-label-width) minmax(0, 1fr);
   column-gap: var(--hof-label-control-gap);
@@ -88,13 +99,7 @@
 }
 
 .heat-object-fields.heat-object-fields--wide [data-slot="geometry-numeric"] .ant-form-item-row {
-  grid-template-columns: var(--hof-geometry-label-width) var(--hof-geometry-control-width);
-  column-gap: var(--hof-label-control-gap);
-  width: max-content;
-}
-
-.heat-object-fields.heat-object-fields--wide [data-slot="environment-numeric"] .ant-form-item-row {
-  grid-template-columns: var(--hof-environment-label-width) var(--hof-environment-control-width);
+  grid-template-columns: var(--hof-geometry-label-width) minmax(0, 1fr);
   column-gap: var(--hof-label-control-gap);
   width: max-content;
 }
@@ -115,11 +120,7 @@
 }
 
 .heat-object-fields.heat-object-fields--wide [data-slot="geometry-numeric"] .ant-form-item-control {
-  width: var(--hof-geometry-control-width);
-}
-
-.heat-object-fields.heat-object-fields--wide [data-slot="environment-numeric"] .ant-form-item-control {
-  width: var(--hof-environment-control-width);
+  width: 100%;
 }
 
 .heat-object-fields.heat-object-fields--wide .insulation-settings-row {

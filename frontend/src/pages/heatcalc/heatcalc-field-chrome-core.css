@@ -212,7 +212,7 @@
   gap: 3px;
   min-height: 20px;
   height: auto;
-  color: var(--color-swatch-4a5b6c);
+  color: var(--color-swatch-26364a);
   font-size: var(--form-label-size);
   line-height: var(--form-label-line-height);
   margin-bottom: 0;
@@ -323,7 +323,7 @@
   height: var(--inline-control-height);
   padding: 0 4px;
   font-size: 10px;
-  border-radius: 2px;
+  border-radius: var(--tlt-field-radius, 2px);
   box-sizing: border-box;
   line-height: calc(var(--inline-control-height) - 2px);
 }
@@ -375,7 +375,7 @@
   flex: 1;
   padding: 0 4px;
   border: 1px solid var(--color-border);
-  border-radius: 2px;
+  border-radius: var(--tlt-field-radius, 2px);
   background: var(--color-surface);
   color: var(--color-text);
   box-sizing: border-box;
@@ -425,7 +425,7 @@
 .inline-object-form.inline-object-form .ant-select-single .ant-select-selector {
   height: var(--inline-control-height);
   padding: 0 4px;
-  border-radius: 2px;
+  border-radius: var(--tlt-field-radius, 2px);
   box-sizing: border-box;
 }
 .inline-object-form.inline-object-form .ant-select-selection-item,
@@ -470,7 +470,7 @@
   height: var(--inline-control-height);
   width: calc(var(--numeric-value-width, 6ch) + 22px);
   min-width: calc(var(--numeric-value-width, 6ch) + 22px);
-  border-radius: 2px;
+  border-radius: var(--tlt-field-radius, 2px);
   box-sizing: border-box;
 }
 .unit-input-number .tlt-number-field__input,

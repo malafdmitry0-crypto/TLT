@@ -13,9 +13,17 @@ import {
   Button,
   Card,
   Empty,
+  Form,
   Skeleton,
   Tag,
 } from 'antd';
+
+/**
+ * Form пробрасывается как есть: своей обёртки у формы нет, а импортировать antd
+ * напрямую новым файлам нельзя — ратчет прямых импортов валит любой новый файл-
+ * импортёр. Фасад уже в его базлайне, поэтому точка входа для формы — здесь.
+ */
+export { Form as TltForm };
 
 export type TltUiTone = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
 
