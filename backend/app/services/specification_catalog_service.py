@@ -15,18 +15,8 @@ from pydantic import ValidationError
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings as app_settings
 from app.core.dependencies import CurrentPrincipal
-from app.models.specification import (
-    Specification,
-    SpecificationCatalogItem,
-    SpecificationCatalogVersion,
-)
-from app.schemas.specification_catalog import (
-    SpecificationCatalogAuthority,
-    SpecificationCatalogCategory,
-    SpecificationCatalogImportRequest,
-    SpecificationCatalogItemInput,
-)
 from app.formulas.specification.catalog_conditions import (
     BOX_BOOLEAN_CONDITION_KEYS,
     BOX_CONDITION_KEYS,
@@ -36,15 +26,70 @@ from app.formulas.specification.catalog_conditions import (
     material_approval_reference_ok,
     validate_condition_shape,
 )
+from app.models.specification import (
+    Specification,
+    SpecificationCatalogItem,
+    SpecificationCatalogVersion,
+)
 from app.reference_data.specification_catalog_seed_debt import (
     SEED_DEBT_CATALOG_KEY,
     SEED_DEBT_VERSION,
     bundled_specification_catalog_seed_debt_document,
     seed_debt_is_tech_debt_source,
 )
+from app.schemas.specification_catalog import (
+    SpecificationCatalogAuthority,
+    SpecificationCatalogCategory,
+    SpecificationCatalogImportRequest,
+    SpecificationCatalogItemInput,
+)
 
 _SHA256_RE = re.compile(r"sha256:[0-9a-f]{64}")
 _UNTRUSTED_SOURCE_TOKENS = ("provisional", "synthetic", "demo", "guess", "mock")
+# TECH-DEBT seed may still look "approved" in local bootstrap; never treat as production authority.
+_SEED_DEBT_UNTRUSTED_TOKENS = ("tech-debt", "seed-debt", "seed debt")
+
+
+def _catalog_identity_text(version: SpecificationCatalogVersion) -> str:
+    return f"{version.catalog_key} {version.version} {version.source}".casefold()
+
+
+def is_seed_debt_catalog_version(version: SpecificationCatalogVersion) -> bool:
+    """True when version is the bundled temporary seed (not owner authority)."""
+    if version.version == SEED_DEBT_VERSION:
+        return True
+    if version.catalog_key == SEED_DEBT_CATALOG_KEY and seed_debt_is_tech_debt_source(
+        version.source
+    ):
+        return True
+    text = _catalog_identity_text(version)
+    return any(token in text for token in _SEED_DEBT_UNTRUSTED_TOKENS)
+
+
+def _reject_seed_debt_in_production(
+    version: SpecificationCatalogVersion,
+    *,
+    action: str,
+) -> None:
+    """SPEC-P0-b: production must not bootstrap or activate tech-debt catalogs."""
+    if not app_settings.is_production:
+        return
+    if not is_seed_debt_catalog_version(version):
+        return
+    raise SpecificationCatalogServiceError(
+        "SPEC_CATALOG_SEED_DEBT_FORBIDDEN",
+        "TECH-DEBT specification seed запрещён в production; "
+        "импортируйте owner-approved каталог (SPEC-OWNER-MATERIALS / EX-RGR)",
+        status_code=403,
+        details={
+            "action": action,
+            "catalog_key": version.catalog_key,
+            "version": version.version,
+            "tech_debt": True,
+            "app_env": app_settings.APP_ENV,
+        },
+    )
+
 
 _REQUIRED_CABLE_MARKS = {
     "10ТТН2-СТ",
@@ -943,7 +988,11 @@ class SpecificationCatalogService:
         target.item_count = len(items)
         target.is_complete = validation.is_complete
         target.validation_issues = validation.issues
-        source_text = f"{target.catalog_key} {target.version} {target.source}".casefold()
+        # Production must never activate TECH-DEBT seed even if authority looks approved.
+        _reject_seed_debt_in_production(target, action="activate")
+        source_text = _catalog_identity_text(target)
+        # In all environments block untrusted tokens; seed-debt tokens blocked in production only
+        # via _reject_seed_debt_in_production (local bootstrap still needs activate for seed).
         if (
             target.authority != SpecificationCatalogAuthority.APPROVED.value
             or any(token in source_text for token in _UNTRUSTED_SOURCE_TOKENS)
@@ -1021,7 +1070,18 @@ class SpecificationCatalogService:
         * existing non-debt active approved complete version is left alone;
         * seed-debt version is created once and re-used without mutation;
         * incomplete/corrupt bundled document fails closed without partial write.
+
+        SPEC-P0-b: forbidden in production (must import owner-approved catalog).
         """
+        if app_settings.is_production:
+            raise SpecificationCatalogServiceError(
+                "SPEC_CATALOG_SEED_DEBT_FORBIDDEN",
+                "TECH-DEBT specification seed bootstrap запрещён в production; "
+                "импортируйте owner-approved каталог",
+                status_code=403,
+                details={"action": "ensure_seed_debt_catalog_active", "tech_debt": True},
+            )
+
         document = bundled_specification_catalog_seed_debt_document()
         validation = validate_specification_catalog(document.items)
         if not validation.is_complete:
@@ -1129,6 +1189,18 @@ class SpecificationCatalogService:
                 "SPEC_CATALOG_UNAVAILABLE",
                 "Active specification catalog не прошёл production gate",
                 status_code=503,
+            )
+        # Production must not generate BOM from tech-debt seed even if already active.
+        if app_settings.is_production and is_seed_debt_catalog_version(version):
+            raise SpecificationCatalogServiceError(
+                "SPEC_CATALOG_SEED_DEBT_FORBIDDEN",
+                "Active specification catalog — TECH-DEBT seed; production generation blocked",
+                status_code=503,
+                details={
+                    "catalog_key": version.catalog_key,
+                    "version": version.version,
+                    "tech_debt": True,
+                },
             )
         items = tuple(
             (

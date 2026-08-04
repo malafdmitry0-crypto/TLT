@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from app.core.config import settings
 from app.reference_data.specification_catalog_seed_debt import (
     SEED_DEBT_CATALOG_KEY,
     SEED_DEBT_VERSION,
@@ -16,7 +17,7 @@ from app.reference_data.specification_catalog_seed_debt import (
 from app.services.specification_catalog_service import (
     SpecificationCatalogService,
     SpecificationCatalogServiceError,
-    _canonical_checksum,
+    is_seed_debt_catalog_version,
     validate_specification_catalog,
 )
 
@@ -45,6 +46,60 @@ def test_seed_debt_token_detection():
         "TECH-DEBT seed until SPEC-OWNER-EX-RGR and SPEC-OWNER-MATERIALS"
     )
     assert not seed_debt_is_tech_debt_source("owner-approved registry v3")
+
+
+def test_is_seed_debt_catalog_version_detects_bundled_identity():
+    debt = MagicMock()
+    debt.version = SEED_DEBT_VERSION
+    debt.catalog_key = SEED_DEBT_CATALOG_KEY
+    debt.source = "TECH-DEBT seed until SPEC-OWNER-EX-RGR"
+    assert is_seed_debt_catalog_version(debt) is True
+
+    owner = MagicMock()
+    owner.version = "owner-v9"
+    owner.catalog_key = "owner-specification"
+    owner.source = "owner approved registry"
+    assert is_seed_debt_catalog_version(owner) is False
+
+
+@pytest.mark.asyncio
+async def test_ensure_seed_debt_forbidden_in_production(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(settings, "APP_ENV", "production")
+    db = AsyncMock()
+    with pytest.raises(SpecificationCatalogServiceError) as exc:
+        await SpecificationCatalogService(db).ensure_seed_debt_catalog_active(
+            principal=None,
+            commit=False,
+        )
+    assert exc.value.code == "SPEC_CATALOG_SEED_DEBT_FORBIDDEN"
+    assert exc.value.status_code == 403
+    db.scalar.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_resolve_active_rejects_seed_debt_in_production(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr(settings, "APP_ENV", "production")
+    debt = MagicMock()
+    debt.id = uuid.uuid4()
+    debt.version = SEED_DEBT_VERSION
+    debt.catalog_key = SEED_DEBT_CATALOG_KEY
+    debt.source = "TECH-DEBT seed until SPEC-OWNER-EX-RGR"
+    debt.status = "active"
+    debt.authority = "approved"
+    debt.is_complete = True
+    debt.item_count = 0
+
+    db = AsyncMock()
+    result = MagicMock()
+    result.scalars.return_value.all.return_value = [debt]
+    db.execute = AsyncMock(return_value=result)
+    db.scalar = AsyncMock(return_value=None)
+
+    with pytest.raises(SpecificationCatalogServiceError) as exc:
+        await SpecificationCatalogService(db).resolve_active()
+    assert exc.value.code == "SPEC_CATALOG_SEED_DEBT_FORBIDDEN"
 
 
 @pytest.mark.asyncio

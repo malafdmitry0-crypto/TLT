@@ -406,11 +406,20 @@ async def seed_specification_catalog(db, principal: CurrentPrincipal) -> None:
     """Bootstrap TECH-DEBT specification catalog (temporary mock until owner data).
 
     Not production-ready. Does not replace a non-debt user active version.
+    SPEC-P0-b: skipped entirely when APP_ENV is production.
     """
+    from app.core.config import settings as app_settings
     from app.reference_data.specification_catalog_seed_debt import (
         SEED_DEBT_VERSION,
         seed_debt_is_tech_debt_source,
     )
+
+    if app_settings.is_production:
+        logger.warning(
+            "  ! specification catalog TECH-DEBT seed SKIPPED in production "
+            "(import owner-approved catalog via admin API)",
+        )
+        return
 
     version = await SpecificationCatalogService(db).ensure_seed_debt_catalog_active(
         principal,
