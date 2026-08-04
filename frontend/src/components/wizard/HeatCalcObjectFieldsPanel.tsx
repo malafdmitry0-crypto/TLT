@@ -110,7 +110,7 @@ export default function HeatCalcObjectFieldsPanel({
         className="heat-object-fields__geometry"
         data-slot={layout === 'wide' ? 'wide' : 'geometry'}
         density="compact"
-        columns={wide ? 2 : 3}
+        columns={wide ? 1 : 3}
         flow={wide ? 'rows' : 'columns'}
         maxRowsPerColumn={5}
         antFormAdapter

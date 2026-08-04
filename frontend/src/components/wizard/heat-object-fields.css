@@ -13,7 +13,7 @@
   --dual-form-hint-size: 10px;
   /* колонки подписей — кадр ishodnye-truba-zapolneno: текст 118, числа 132 */
   --hof-wide-label-width: 118px;
-  --hof-geometry-label-width: 132px;
+  --hof-geometry-label-width: 92px;
   --hof-environment-label-width: 120px;
   --hof-label-control-gap: 8px;
   --hof-geometry-control-width: minmax(0, 1fr);
@@ -29,9 +29,9 @@
 
   isolation: isolate;
   display: grid;
-  /* два блока друг под другом: текст сверху, числовые ниже (кадр макета) */
-  grid-template-columns: minmax(0, 1fr);
-  gap: 8px 16px;
+  /* текстовые одним столбцом слева, числовые тремя колонками справа */
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 8px 24px;
   align-items: start;
   width: 100%;
   max-width: 100%;
@@ -46,7 +46,7 @@
 
 .heat-object-fields.heat-object-fields--wide[data-object-type="tank"] {
   --hof-wide-label-width: 118px;
-  --hof-geometry-label-width: 132px;
+  --hof-geometry-label-width: 92px;
 }
 
 /* Each slot owns its vertical flow; hidden fields compact only that slot. */
@@ -62,13 +62,13 @@
 
 /* кадр: текст и селекты в 2 колонки, числовые в 3, заполнение построчно */
 .heat-object-fields.heat-object-fields--wide > .heat-object-fields__geometry {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr); /* текстовые — в один столбец */
   width: 100%;
 }
 
 .heat-object-fields.heat-object-fields--wide > .heat-object-fields__climate {
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  width: 100%;
+  column-gap: 12px; width: 100%;
 }
 
 .heat-object-fields.heat-object-fields--wide > .heat-object-fields__settings {
