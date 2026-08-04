@@ -215,10 +215,16 @@
 /* auto-fit + непустой минимум: в узком окне сетка переходит в одну колонку,
    а не сплющивает контрол (при minmax(0,…) он падал до 73px и резал «Нормальная»). */
 .object-wizard-cable-panel .cable-algorithm-fields {
-  /* две колонки, когда влезают; иначе одна — иначе значения селектов режутся */
+  /* две колонки, когда влезают; иначе одна — иначе значения селектов режутся.
+     Второй столбец уже первого на 40% — правилом ниже, а не треком сетки:
+     трек сломал бы перенос в одну колонку на узком окне. */
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 195px), 1fr));
   column-gap: 12px;
 }
+/* запас, навив, температурная группа, мин. температура — поля на 40% уже */
+.object-wizard-cable-panel .cable-algorithm-fields > .ant-form-item:nth-child(even) .ant-select,
+.object-wizard-cable-panel .cable-algorithm-fields > .ant-form-item:nth-child(even) .ant-input-number,
+.object-wizard-cable-panel .cable-algorithm-fields > .ant-form-item:nth-child(even) .ant-input-number-group-wrapper { max-width: 59px; }
 .object-wizard-cable-panel .cable-algorithm-hint {
   margin: 6px 0 8px;
   padding: 0 10px;
