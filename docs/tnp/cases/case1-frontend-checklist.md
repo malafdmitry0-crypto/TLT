@@ -7,7 +7,10 @@
 
 > **Errata:** см. [`case1-docs-verification.md`](./case1-docs-verification.md).  
 > Iдоп fail-closed на BE уже есть — FE gap = UI settings.  
-> Project download = schema v3 multi-section CSV, не «только объекты».
+> Project download = schema v3 multi-section CSV, не «только объекты».  
+> **Платформа (раз и навсегда):** мобильной версии **нет**. Приёмка и browser-matrix —
+> только desktop `1000×768 / 1280×800 / 1440×900`. `390×844` / tablet = N/A, не FAIL  
+> ([`../../frontend/viewport-policy.md`](../../frontend/viewport-policy.md) §0).
 
 > **Закрытие спецификации FE (2026-08-04, HEAD `a2f6e9d` / track `5038c56`):**  
 > - selection panel + PUT `catalog-selections` + generate без client store — **есть**;  
@@ -110,12 +113,14 @@ stale/partial-баннеры; отчёт — гостевой preview + печа
       PDF/DOCX/XLSX — сотрудник) (Slice 7).
 - [ ] Сохранение проекта в файл (кейс 4.2, 5.11–5.12): BE schema v3 CSV уже multi-section
       (objects/ЭР/spec/settings); FE labels «CSV» + нужен round-trip proof и copy «файл проекта».
-- [ ] Групповая корректировка (кейс 5.8): для выбранных объектов форма «один параметр → новое
-      значение → применить» с проверкой применимости ко всем выбранным. Как отдельной функции
-      нет; Excel-режим закрывает сценарий частично.
+- [ ] **[TD-HEAT-01]** Групповая корректировка (кейс 5.8): UI «параметр → значение → применить
+      к выбранным» на готовый `POST …/objects/group-update`. Как отдельной функции нет;
+      Excel-режим закрывает сценарий частично. → техдолг Heat.
 
 ## P1 — Heat-calc: доделки по контрактам
 
+- [ ] **[TD-HEAT-01]** Group-update UI (API готов) — см. техдолг в
+      [`case1-closure-slice-plan.md`](./case1-closure-slice-plan.md) § «Техдолг Heat».
 - [ ] Реализовать целевые grid-манифесты
       [`../../frontend/heatcalc-object-fields-grid.md`](../../frontend/heatcalc-object-fields-grid.md) и
       [`../../frontend/heatcalc-tank-fields-grid.md`](../../frontend/heatcalc-tank-fields-grid.md)
@@ -133,10 +138,11 @@ stale/partial-баннеры; отчёт — гостевой preview + печа
       `72 > 71`, CSS LOC caps (3 файла), breakpoints `999px`/`1399px`, пять `!important`,
       селекторы cable wizard вне owner root, root `AGENTS.md` vs `repoRootHygiene`
       (AF100-11+ / AF100-15).
-- [ ] Browser-matrix `1000×768 / 1280×800 / 1440×900`: home/help, гостевой проект, Heat, ЭР,
-      Спецификация, состояние «нет Iдоп», session recovery; geometry, page overflow, console,
-      failed requests. Плюс 19 приёмочных сценариев `AC-FE-01…19` (§13.2 ТЗ) — в свежих аудитах
-      помечены NOT RUN.
+- [ ] Browser-matrix **desktop only** `1000×768 / 1280×800 / 1440×900`: home/help, гостевой
+      проект, Heat, ЭР, Спецификация, состояние «нет Iдоп», session recovery; geometry,
+      page overflow, console, failed requests. Плюс 19 приёмочных сценариев `AC-FE-01…19`
+      (§13.2 ТЗ) — в свежих аудитах помечены NOT RUN.
+- [—] **Mobile / phone / tablet** (`390×844`, &lt;1000 px) — **вне scope**, не чек-лист кейса 1.
 
 ## Зависимости и оговорки
 

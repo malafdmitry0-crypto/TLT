@@ -114,15 +114,28 @@ Acceptance path: **met for engineering/demo**. Production authority: **not met**
 
 ## Slice 7 — heat-calc доделки (FE+BE) `[ ]`
 
-- [ ] **FE:** UI групповой корректировки — форма «параметр → значение → применить к выбранным»
-      на готовый `POST /objects/group-update`.
+- [ ] **FE [TD-HEAT-01]:** UI групповой корректировки — форма «параметр → значение → применить
+      к выбранным» на готовый `POST /objects/group-update` (API готов; UI нет).
 - [ ] **FE:** «Добавить копии выбранных» перевести с цикла одиночных POST на
       `POST /objects/duplicate-batch`.
-- [ ] **BE:** гейт невалидности после пересчёта для `tank` (сейчас только `pipe`).
+- [ ] **BE [TD-HEAT-02]:** гейт невалидности после пересчёта для `tank` (сейчас в основном
+      `pipe` — резервуар не получает полный post-recalc invalid gate).
 - [ ] **BE+FE:** согласовать верхнюю границу λ (UI 400 vs бэкенд без границы) — одно значение
       в обоих контрактах.
 - [ ] **FE:** удалить старый coordinate-путь раскладки (`useObjectWizardSectionResize`) по
       манифестам grid.
+
+## Техдолг Heat (зафиксировано 2026-08-04)
+
+Открытый engineering debt зоны HeatCalc. **Не** owner parking lot: API/контракт уже есть
+или поведение должно быть симметрично pipe.
+
+| ID | Зона | Что | Статус | Заметки |
+|---|---|---|---|---|
+| **TD-HEAT-01** | FE | **Group-update UI** | **OPEN** | Backend: `POST /api/v1/projects/{id}/objects/group-update` готов (см. `objects.py`, integration `test_objects_group_ops.py`). Нет продуктовой формы «параметр → значение → применить к выбранным» (кейс 5.8). Excel-режим закрывает сценарий **частично**, не заменяет UI. |
+| **TD-HEAT-02** | BE | **Tank invalid gate после пересчёта** | **OPEN** | Post-recalc invalidation / is_valid gate сейчас ориентирован в основном на **pipe**. Для `tank` после пересчёта нужна та же fail-closed семантика (невалидный результат не остаётся «как будто ок»). |
+
+Связанные пункты Slice 7 выше; при закрытии — отметить здесь и в checklist.
 
 ## Slice 8 — гостевая сессия (FE) `[ ]`
 
@@ -135,8 +148,9 @@ Acceptance path: **met for engineering/demo**. Production authority: **not met**
 
 - [ ] Console seal: circular-references warning Ant Form при первом сохранении трубы.
 - [ ] Семь красных архитектурных гейтов (AF100-11+/15).
-- [ ] Browser-matrix 1000×768 / 1280×800 / 1440×900 по всем экранам гостевого пути +
-      состояние «нет Iдоп» + session recovery.
+- [ ] Browser-matrix **desktop only** 1000×768 / 1280×800 / 1440×900 по всем экранам
+      гостевого пути + состояние «нет Iдоп» + session recovery.
+      (Mobile `390×844` — **N/A**, см. [`../../frontend/viewport-policy.md`](../../frontend/viewport-policy.md) §0.)
 - [ ] Прогон 19 сценариев `AC-FE-01…19` (§13.2 ТЗ).
 - [ ] Ручная приёмка 5.9/5.11 (display-settings) из
       [`project-display-settings-portability.md`](./project-display-settings-portability.md).

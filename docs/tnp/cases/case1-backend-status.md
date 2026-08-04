@@ -418,3 +418,15 @@ versioned-каталога (admin HTTP + seeds) — после этого сце
       1 — `test_no_double_safety.py`) и ~48 интеграционных в `test_calculations.py`
       (фикстуры без обязательного T3 `maintain_temperature`) — перевести на TT-вход
       или удалить вместе с legacy-семантикой.
+
+---
+
+## Техдолг Heat (2026-08-04)
+
+Зафиксировано явно (не owner parking lot). Полная таблица:
+[`case1-closure-slice-plan.md`](./case1-closure-slice-plan.md) § «Техдолг Heat».
+
+| ID | Что | Зона | Статус |
+|---|---|---|---|
+| **TD-HEAT-01** | Group-update **UI** (API `POST …/objects/group-update` готов) | FE | **OPEN** |
+| **TD-HEAT-02** | **Tank** invalid gate после пересчёта (сейчас в основном **pipe**) | BE | **OPEN** |
