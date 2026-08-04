@@ -29,6 +29,7 @@ export {
   TltCard,
   TltEmptyState,
   TltForm,
+  TltModal,
   TltSkeleton,
   TltTable,
   TltTabs,

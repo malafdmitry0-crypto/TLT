@@ -14,6 +14,7 @@ import {
   Card,
   Empty,
   Form,
+  Modal,
   Skeleton,
   Tag,
 } from 'antd';
@@ -24,6 +25,7 @@ import {
  * импортёр. Фасад уже в его базлайне, поэтому точка входа для формы — здесь.
  */
 export { Form as TltForm };
+export { Modal as TltModal };
 
 export type TltUiTone = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
 

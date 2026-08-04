@@ -33,6 +33,7 @@ import type {
 } from '@/utils/heatCalcCalculationDetailsSettings';
 
 const ColumnSettingsModal = lazy(() => import('@/components/heatcalc/ColumnSettingsModal'));
+const HeatCalcGroupUpdateModal = lazy(() => import('@/components/heatcalc/HeatCalcGroupUpdateModal'));
 
 type SaveDraftRowsResult = {
   ok: boolean;
@@ -41,6 +42,17 @@ type SaveDraftRowsResult = {
 
 /** Explicit modal state + events for Heat overlays (AF9-TYPE-HEAT-OVERLAYS-01). */
 export type HeatCalcPageOverlaysProps = {
+  /** §5.8: групповая корректировка одного параметра у выбранных объектов. */
+  groupUpdate: {
+    open: boolean;
+    objectType: 'pipe' | 'tank';
+    selectedCount: number;
+    applying: boolean;
+    problems: { object_id: string; name: string | null; error: string }[];
+    errorMessage: string | null;
+    onApply: (param: string, value: unknown) => void;
+    onClose: () => void;
+  };
   excelModeEnabled: boolean;
   excelContextMenu: HeatCalcExcelContextMenuState;
   excelSelectionRange: ExcelSelectionRange | null;
@@ -130,6 +142,7 @@ export function HeatCalcPageOverlays(p: HeatCalcPageOverlaysProps): ReactNode {
     removeSelectedObjects,
     resetSelectedExcelRows,
     columnSettingsDialog,
+    groupUpdate,
     preferenceSavePending,
     pendingWizardObject,
     inlineDraftSaving,
@@ -185,6 +198,20 @@ export function HeatCalcPageOverlays(p: HeatCalcPageOverlaysProps): ReactNode {
             onCalculationDetailsPresetChange={columnSettingsDialog.updateDraftCalculationDetailsPreset}
             onCalculationDetailMetricsChange={columnSettingsDialog.updateDraftCalculationDetailMetrics}
             onResetCalculationDetails={columnSettingsDialog.resetDraftCalculationDetails}
+          />
+        </Suspense>
+      )}
+      {groupUpdate.open && (
+        <Suspense fallback={null}>
+          <HeatCalcGroupUpdateModal
+            open={groupUpdate.open}
+            objectType={groupUpdate.objectType}
+            selectedCount={groupUpdate.selectedCount}
+            applying={groupUpdate.applying}
+            problems={groupUpdate.problems}
+            errorMessage={groupUpdate.errorMessage}
+            onApply={groupUpdate.onApply}
+            onClose={groupUpdate.onClose}
           />
         </Suspense>
       )}

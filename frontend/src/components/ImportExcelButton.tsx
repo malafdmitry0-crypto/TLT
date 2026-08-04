@@ -130,15 +130,16 @@ export default function ImportExcelButton({ projectId, existingObjectCount }: Pr
   return (
     <>
       <Space className="import-actions-compact" size={2} wrap>
-        <Tooltip title="Импорт XLSX/CSV">
+        <Tooltip title="Загрузить объекты из XLSX или CSV">
           <TltButton
-            className="action-icon-button action-secondary-button import-upload-button"
+            className="action-secondary-button import-upload-button"
             icon={<UploadOutlined />}
-            aria-label="Импорт XLSX/CSV"
-            size="icon"
+            aria-label="Загрузить из Excel"
             loading={importMut.isPending}
             onClick={onPick}
-          />
+          >
+            Загрузить из Excel
+          </TltButton>
         </Tooltip>
         <Tooltip title="Скачать шаблон XLSX">
           <TltButton

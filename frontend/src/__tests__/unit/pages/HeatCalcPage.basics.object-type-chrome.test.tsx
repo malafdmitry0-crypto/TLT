@@ -126,7 +126,7 @@ describe('HeatCalcPage basics — object type', () => {
       expect(await screen.findByTestId('tank-shape-select', {}, { timeout: HEATCALC_PAGE_TEST_TIMEOUT })).toBeInTheDocument();
     }, HEATCALC_PAGE_TEST_TIMEOUT);
 
-    it('основные действия toolbar доступны по имени при icon-only отображении', async () => {
+    it('основные действия toolbar доступны по имени и подписаны текстом (кейс §5.5–5.9)', async () => {
       useProjectStore.getState().setCurrentProject(mockProject);
       renderPage();
 
@@ -134,7 +134,7 @@ describe('HeatCalcPage basics — object type', () => {
       const tableFieldsButton = screen.getByRole('button', { name: 'Настройки отображения' });
       const saveButton = screen.getByRole('button', { name: 'Сохранить' });
       const deleteButton = screen.getByRole('button', { name: 'Удалить выбранные' });
-      const importButton = screen.getByRole('button', { name: 'Импорт XLSX/CSV' });
+      const importButton = screen.getByRole('button', { name: 'Загрузить из Excel' });
 
       const typeToolbar = screen.getByRole('toolbar', { name: 'Тип объекта и блок параметров' });
       const formActionsToolbar = screen.getByRole('toolbar', { name: 'Действия блока заполнения' });
@@ -154,14 +154,15 @@ describe('HeatCalcPage basics — object type', () => {
       expect(within(formActionsToolbar).getByRole('button', { name: 'Сохранить' })).toBe(saveButton);
       expect(within(formActionsToolbar).getByRole('button', { name: 'Удалить выбранные' })).toBe(deleteButton);
       expect(deleteButton).toBeDisabled();
-      expect(deleteButton).toHaveClass('action-icon-button');
-      expect(deleteButton).toHaveTextContent(/^$/);
+      // Кейс 1 §5.5–5.9 называет кнопки текстом — «Удалить» видна подписью,
+      // доступное имя «Удалить выбранные» её содержит (label-in-name).
+      expect(deleteButton).toHaveTextContent('Удалить');
       expect(saveButton.compareDocumentPosition(deleteButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(within(formActionsToolbar).queryByRole('button', { name: 'Сбросить' })).not.toBeInTheDocument();
       expect(within(tableActionsToolbar).getByRole('button', { name: 'Настройки отображения' })).toBe(tableFieldsButton);
-      expect(within(tableActionsToolbar).getByRole('button', { name: 'Добавить копии выбранных' })).toBeDisabled();
+      expect(within(tableActionsToolbar).getByRole('button', { name: 'Добавить на основании' })).toBeDisabled();
       expect(within(tableActionsToolbar).queryByRole('button', { name: 'Удалить выбранные' })).not.toBeInTheDocument();
-      expect(within(tableActionsToolbar).getByRole('button', { name: 'Импорт XLSX/CSV' })).toBe(importButton);
+      expect(within(tableActionsToolbar).getByRole('button', { name: 'Загрузить из Excel' })).toBe(importButton);
       // Excel mode is core HeatCalc editing (not commercial-gated).
       expect(within(tableActionsToolbar).getByText('Excel-режим')).toBeInTheDocument();
       expect(within(tableActionsToolbar).getByText('Обычный режим')).toBeInTheDocument();
@@ -174,8 +175,7 @@ describe('HeatCalcPage basics — object type', () => {
       expect(within(tableActionsToolbar).queryByRole('checkbox', { name: 'Показать блок заполнения параметров' })).not.toBeInTheDocument();
       expect(within(tableActionsToolbar).queryByText(/Все рассчитаны/)).not.toBeInTheDocument();
       expect(useWorkspaceHeaderStore.getState().context).toBeNull();
-      expect(tableFieldsButton).toHaveClass('action-icon-button');
-      expect(tableFieldsButton).toHaveTextContent(/^$/);
+      expect(tableFieldsButton).toHaveTextContent('Настройки отображения');
       expect(addButton).toHaveClass('action-add-button');
       expect(addButton).toHaveClass('action-icon-button');
       expect(addButton).toHaveTextContent(/^$/);
@@ -183,8 +183,7 @@ describe('HeatCalcPage basics — object type', () => {
       expect(saveButton).toHaveClass('action-icon-button');
       expect(saveButton).toHaveTextContent(/^$/);
       expect(saveButton).not.toBeDisabled();
-      expect(importButton).toHaveClass('action-icon-button');
-      expect(importButton).toHaveTextContent(/^$/);
+      expect(importButton).toHaveTextContent('Загрузить из Excel');
       expect(within(typeToolbar).getByRole('button', { name: /Трубопровод:\s*0/ })).toBeInTheDocument();
       expect(within(typeToolbar).getByRole('button', { name: /Резервуар:\s*0/ })).toBeInTheDocument();
       expect(within(typeToolbar).getByRole('button', { name: /Все:\s*0/ })).toBeInTheDocument();

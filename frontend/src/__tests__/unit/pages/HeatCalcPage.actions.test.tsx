@@ -239,7 +239,7 @@ describe('HeatCalcPage actions', () => {
       const table = getNormalGlideGrid();
       fireEvent.click(within(table).getByRole('checkbox', { name: 'Выбрать Труба DN100' }));
       fireEvent.click(within(table).getByRole('checkbox', { name: 'Выбрать Труба DN150' }));
-      fireEvent.click(screen.getByRole('button', { name: 'Добавить копии выбранных' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Добавить на основании' }));
 
       await waitFor(() => {
         expect(createObject).toHaveBeenCalledTimes(2);

@@ -69,6 +69,7 @@ export type HeatCalcPageToolbarsProps = {
   discardDraftRows: (rowIds?: string[]) => void;
   saveTargetIds: string[];
   duplicateSelectedObjects: () => void;
+  openGroupUpdate: () => void;
   projectId: string;
   projectName: string;
   projectObjectCount: number;
@@ -139,6 +140,7 @@ export function buildHeatCalcActionsBar(p: HeatCalcPageToolbarsProps): ReactNode
         onResetCurrentTableView: p.resetCurrentTableViewState,
         onDiscardDrafts: () => p.discardDraftRows(p.saveTargetIds),
         onDuplicateSelected: p.duplicateSelectedObjects,
+        onOpenGroupUpdate: p.openGroupUpdate,
       }}
       importExport={{
         projectId: p.projectId,

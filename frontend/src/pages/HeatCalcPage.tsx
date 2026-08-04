@@ -203,6 +203,7 @@ export default function HeatCalcPage() {
     discardDraftRows,
     saveTargetIds: m.saveTargetIds,
     duplicateSelectedObjects: m.duplicateSelectedObjects,
+    openGroupUpdate: m.openGroupUpdate,
     projectId: project.id,
     projectName: project.name,
     projectObjectCount: m.projectObjectCount,
@@ -278,6 +279,16 @@ export default function HeatCalcPage() {
       />
 
       <HeatCalcPageOverlays
+        groupUpdate={{
+          open: m.groupUpdateOpen,
+          objectType: activeObjectScope === 'tank' ? 'tank' : 'pipe',
+          selectedCount: m.selectedObjectCount,
+          applying: m.groupUpdateApplying,
+          problems: m.groupUpdateProblems,
+          errorMessage: m.groupUpdateError,
+          onApply: m.applyGroupUpdate,
+          onClose: m.closeGroupUpdate,
+        }}
         excelModeEnabled={excelModeEnabled}
         excelContextMenu={excelContextMenu}
         excelSelectionRange={excelSelectionRange}

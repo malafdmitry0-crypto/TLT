@@ -11,6 +11,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { appMessage as antdMessage } from '@/feedback/appFeedback';
 
 import { useHeatCalcBulkActions } from '@/pages/heatcalc/useHeatCalcBulkActions';
+import { useHeatCalcGroupUpdate } from './useHeatCalcGroupUpdate';
 import { useHeatCalcColumnSettingsDialog } from '@/pages/heatcalc/useHeatCalcColumnSettingsDialog';
 import { useHeatCalcContinueToElectrical } from '@/pages/heatcalc/useHeatCalcContinueToElectrical';
 import { useHeatCalcHeatLossJob } from '@/pages/heatcalc/useHeatCalcHeatLossJob';
@@ -109,6 +110,12 @@ export function useHeatCalcPageModel() {
     visibleTableObjects: workspace.visibleTableObjects, wizardState,
     applyWizardDraftValuesChange: workspace.applyWizardDraftValuesChange,
   });
+
+  // §5.8: групповая корректировка одного параметра у выбранных объектов
+  const groupUpdate = useHeatCalcGroupUpdate(
+    project?.id,
+    selectedRowKeys.map((key) => String(key)),
+  );
 
   const notifyBulkActionSuccess = useCallback((message: string) => {
     void antdMessage.success(message);
@@ -230,6 +237,7 @@ export function useHeatCalcPageModel() {
     cancelHeatLossJob, columnSettingsDialog, resetCurrentTableViewState,
     discardDraftRows: workspace.discardDraftRows, saveTargetIds: workspace.saveTargetIds,
     duplicateSelectedObjects, role, projectObjectCount: workspace.projectObjectCount,
+    ...groupUpdate,
     isSideFormPlacement, sideResizeVisible, workspaceLayoutStyle, sideWorkspaceRef,
     heatLossJobProgressLabel, selectedObject, calculationDetailsSettings,
     activeTypeTotalCount: workspace.activeTypeTotalCount,

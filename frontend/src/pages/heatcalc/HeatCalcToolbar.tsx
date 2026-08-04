@@ -10,6 +10,7 @@ import {
   CloseCircleOutlined,
   CopyOutlined,
   DeleteOutlined,
+  EditOutlined,
   PlusOutlined,
   ReloadOutlined,
   SaveOutlined,
@@ -83,6 +84,7 @@ export type HeatCalcActionsToolbarProps = {
     onResetCurrentTableView: () => void;
     onDiscardDrafts: () => void;
     onDuplicateSelected: () => void;
+    onOpenGroupUpdate: () => void;
   };
   importExport: {
     projectId: string;
@@ -230,12 +232,14 @@ export function HeatCalcActionsToolbar({
                   onConfirm={formActions.onDeleteSelected}
                 >
                   <TltButton variant="danger"
-                    className="action-icon-button action-secondary-button"
+                    className="action-secondary-button"
                     icon={<DeleteOutlined />}
                     aria-label="Удалить выбранные"
                     loading={formActions.deleteLoading}
                     disabled={formActions.deleteTargetCount === 0}
-                  />
+                  >
+                    Удалить
+                  </TltButton>
                 </Popconfirm>
               </span>
             </Tooltip>
@@ -293,11 +297,13 @@ export function HeatCalcActionsToolbar({
           <Tooltip title="Настройки отображения">
             <span className="action-tooltip-wrap">
               <TltButton
-                className="action-icon-button action-secondary-button"
+                className="action-secondary-button"
                 icon={<TableOutlined />}
                 aria-label="Настройки отображения"
                 onClick={tableActions.onOpenSettings}
-              />
+              >
+                Настройки отображения
+              </TltButton>
             </span>
           </Tooltip>
           {tableActions.tableFindabilityAvailable && (
@@ -336,13 +342,34 @@ export function HeatCalcActionsToolbar({
           >
             <span className="action-tooltip-wrap">
               <TltButton
-                className="action-icon-button action-secondary-button"
+                className="action-secondary-button"
                 icon={<CopyOutlined />}
-                aria-label="Добавить копии выбранных"
+                aria-label="Добавить на основании"
                 disabled={tableActions.selectedObjectCount === 0 || tableActions.duplicateLoading}
                 loading={tableActions.duplicateLoading}
                 onClick={tableActions.onDuplicateSelected}
-              />
+              >
+                Добавить на основании
+              </TltButton>
+            </span>
+          </Tooltip>
+          <Tooltip
+            title={
+              tableActions.selectedObjectCount > 0
+                ? 'Изменить один параметр у выбранных объектов'
+                : 'Выберите галочками объекты для групповой корректировки'
+            }
+          >
+            <span className="action-tooltip-wrap">
+              <TltButton
+                className="action-secondary-button"
+                icon={<EditOutlined />}
+                aria-label="Групповая корректировка"
+                disabled={tableActions.selectedObjectCount === 0}
+                onClick={tableActions.onOpenGroupUpdate}
+              >
+                Групповая корректировка
+              </TltButton>
             </span>
           </Tooltip>
           <ImportExcelButton

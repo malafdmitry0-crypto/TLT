@@ -39,8 +39,8 @@ test.describe('4.3 Расчёт тепловых потерь', () => {
     await expect(formActionsToolbar.getByRole('button', { name: 'Сохранить' })).toBeVisible();
     await expect(formActionsToolbar.getByRole('button', { name: 'Удалить выбранные' })).toBeDisabled();
     await expect(tableActionsToolbar.getByRole('button', { name: 'Настройки отображения' })).toBeVisible();
-    await expect(tableActionsToolbar.getByRole('button', { name: 'Добавить копии выбранных' })).toBeDisabled();
-    await expect(tableActionsToolbar.getByRole('button', { name: 'Импорт XLSX/CSV' })).toBeVisible();
+    await expect(tableActionsToolbar.getByRole('button', { name: 'Добавить на основании' })).toBeDisabled();
+    await expect(tableActionsToolbar.getByRole('button', { name: 'Загрузить из Excel' })).toBeVisible();
     await expect(tableActionsToolbar.getByRole('button', { name: 'Трубопровод' })).toHaveCount(0);
     await expect(tableActionsToolbar.getByRole('button', { name: 'Резервуар' })).toHaveCount(0);
     await expect(tableActionsToolbar.getByRole('checkbox', { name: 'Показать блок заполнения параметров' })).toHaveCount(0);

@@ -169,6 +169,26 @@ export async function reorderObjects(
   return data;
 }
 
+/** Кейс §5.8: один параметр у выбранных объектов, всё-или-ничего. */
+export interface GroupUpdateProblem {
+  object_id: string;
+  name: string | null;
+  error: string;
+}
+
+export async function groupUpdateObjects(
+  projectId: string,
+  objectIds: string[],
+  param: string,
+  value: unknown,
+): Promise<ProjectObject[]> {
+  const { data } = await apiClient.post<{ objects: ProjectObject[]; count: number }>(
+    `/projects/${projectId}/objects/group-update`,
+    { object_ids: objectIds, param, value },
+  );
+  return data.objects;
+}
+
 export type ImportMode = 'append' | 'merge' | 'replace';
 
 export interface ImportResult {
