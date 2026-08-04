@@ -93,8 +93,8 @@ tmp/
 /*.png
 /*.jpg
 /*.jpeg
-/screenshots/
-/mockups/
+# mockups и снимки current-state — ценные артефакты кейса 1, отслеживаются
+# (после случайного удаления папки 2026-08-05 восстановление шло из логов)
 
 # ---------------------------------------------------------------------------
 # Documentation (not product code) — keep local, do not ship in git
