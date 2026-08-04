@@ -9,7 +9,7 @@ describe('useElecCalcRecalculationParams', () => {
 
     expect(result.current.values).toEqual({
       selectionPolicy: 'technical_minimum',
-      supplyVoltage: 220,
+      supplyVoltage: 230,
       connectionType: 'line_1ph',
       windingCoefficient: 1,
       heatingHeight: null,

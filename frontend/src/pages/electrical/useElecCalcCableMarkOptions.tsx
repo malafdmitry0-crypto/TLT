@@ -18,7 +18,7 @@ import { mapBackendCableOptionsToSelectOptions } from '@/pages/electrical/elecCa
 import type { CableStatusRow } from '@/pages/electrical/elecCalcCableCatalogModel';
 import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
 import type { ElectricalCalcSummary } from '@/types/calculation';
-import type { CableTtEntry, ResistiveCablesReference } from '@/types/reference';
+import type { ResistiveCablesReference } from '@/types/reference';
 import {
   visibleCableRowsForSource,
 } from '@/utils/cableCatalogSourceLabels';
@@ -27,26 +27,22 @@ type UseElecCalcCableMarkOptionsOptions = {
   availableCableTypes: ReadonlySet<CableTypeKey>;
   cables: CableInfo[];
   builtinCables: CableInfo[];
-  /** @deprecated E7: TT manual list comes from GET /calc/cable-options, not client ttCables. */
-  ttCables: CableTtEntry[];
   resistiveCables?: ResistiveCablesReference;
   builtinResistiveCables?: ResistiveCablesReference;
   effectiveSource: CableSource;
-  aggressiveProduct: boolean;
   cableSizingEffectiveCableType: CableTypeKey;
 };
 
-export function useElecCalcCableMarkOptions({
-  availableCableTypes,
-  cables,
-  builtinCables,
-  ttCables,
-  resistiveCables,
-  builtinResistiveCables,
-  effectiveSource,
-  aggressiveProduct,
-  cableSizingEffectiveCableType,
-}: UseElecCalcCableMarkOptionsOptions) {
+export function useElecCalcCableMarkOptions(options: UseElecCalcCableMarkOptionsOptions) {
+  const {
+    availableCableTypes,
+    cables,
+    builtinCables,
+    resistiveCables,
+    builtinResistiveCables,
+    effectiveSource,
+    cableSizingEffectiveCableType,
+  } = options;
   const optionWithSourceLabel = useCallback((label: string, source?: CableMarkOptionSource | null) => {
     if (source !== 'extended' && source !== 'project') return label;
     const tag = source === 'extended'

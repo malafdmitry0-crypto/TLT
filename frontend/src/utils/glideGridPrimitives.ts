@@ -16,6 +16,7 @@ export const GLIDE_HEADER_CONTROL_PADDING = 6;
 export const GLIDE_HEADER_CONTROL_MUTED = '#7a8b99';
 export const GLIDE_HEADER_CONTROL_FAINT = '#b8c2cc';
 export const GLIDE_HEADER_CONTROL_ACTIVE = '#1a5276';
+const GLIDE_WARNING_ROW_BG = '#fffbe6';
 
 /** Shared canvas palette for all glide-data-grid consumers (owner of hex literals). */
 export const GLIDE_THEME = {
@@ -31,9 +32,9 @@ export const GLIDE_THEME = {
   actionBorder: '#b8c8d6',
   activeRowBg: '#d6e9f5',
   errorRowBg: '#fff1f0',
-  dirtyRowBg: '#fffbe6',
+  dirtyRowBg: GLIDE_WARNING_ROW_BG,
   /** Warning tint for stale electrical results (row-stale). Same family as dirty. */
-  staleRowBg: '#fffbe6',
+  staleRowBg: GLIDE_WARNING_ROW_BG,
   comparedRowBg: '#f7fbff',
   diffCellBg: '#fff7d6',
   statusOkFill: '#f6ffed',

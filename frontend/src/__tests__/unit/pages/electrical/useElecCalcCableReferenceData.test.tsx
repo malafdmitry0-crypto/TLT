@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   listCables,
   type CableInfo,
+  type CableOptionOut,
 } from '@/api/calculations';
 import { getCablesTt, getResistiveCables } from '@/api/references';
 import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
@@ -95,7 +96,6 @@ function renderReferenceData(
     ]),
     effectiveSource: 'all',
     visibleCableTypeControl: 'self_regulating',
-    aggressiveProduct: false,
     cableSizingEffectiveCableType: 'self_regulating',
     ...overrides,
   }), {
@@ -163,19 +163,40 @@ describe('useElecCalcCableReferenceData', () => {
 
   it('returns the composed catalog statuses and manual option builders', async () => {
     const { result } = renderReferenceData({
-      aggressiveProduct: true,
       cableSizingEffectiveCableType: 'self_regulating_tt',
     });
 
     await waitFor(() => {
       expect(result.current.manualCableOptionsForType('self_regulating')).toHaveLength(1);
-      expect(result.current.cableSizingManualOptions).toHaveLength(1);
+      expect(result.current.commercialDataStatus.label).toBe('Коммерческие данные есть');
     });
 
     expect(result.current.manualCableOptionsForType('self_regulating').map((option) => option.mark))
       .toEqual(['ТЛТ-30']);
-    // Агрессивная среда → -СР (первоисточник: Расчет_спецификации_трубы_самрег29_05_26.xlsx)
-    expect(result.current.cableSizingManualOptions[0].mark).toBe('30ТТВ2-СР');
+    // E7 / FE-25: TT marks are not reconstructed from client reference q1/q2.
+    // The sizing query supplies authoritative cable-options for the current object.
+    expect(result.current.cableSizingManualOptions).toEqual([]);
+    const backendOptions: CableOptionOut[] = [{
+      model: '30ТТВ2',
+      series: 'ТТВ',
+      base_model: '30ТТВ2',
+      full_mark_preview: '30ТТВ2-СР',
+      power_at_t3_w_per_m: 30.59,
+      eligible: true,
+      unavailable_reason: null,
+      temperature_group: 'high',
+      q1: -0.141,
+      q2: 32,
+      nominal_power: 30,
+      required_series: 'ТТВ',
+    }];
+    const ttOptions = result.current.manualCableOptionsForType(
+      'self_regulating_tt',
+      backendOptions,
+    );
+    expect(ttOptions).toHaveLength(1);
+    expect(ttOptions[0].mark).toBe('30ТТВ2');
+    expect(ttOptions[0].searchLabel).toContain('30ТТВ2-СР');
     expect(result.current.commercialDataStatus.label).toBe('Коммерческие данные есть');
     expect(result.current.technicalDataStatus.label).toBe('Техданные полные');
   });

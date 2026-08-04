@@ -493,11 +493,17 @@ class TestApplyProjectData:
         assert variant.is_active is True
         assert assignment.object_id == obj.id
         assert assignment.electrical_variant_id == variant.id
-        assert assignment.assignment_state == "ready"
+        # E9: legacy self_regulating / ТЛТ results import successfully but must
+        # be recalculated through the canonical TT / 230 V flow.
+        assert assignment.assignment_state == "stale"
+        assert assignment.system_type == "self_regulating"
         assert calculation.object_id == obj.id
         assert calculation.variant_number == 1
         assert calculation.electrical_variant_id == variant.id
         assert calculation.cable_mark == "ТЛТ-25"
+        assert calculation.results["stale"] is True
+        assert calculation.results["category"] == "stale"
+        assert calculation.results["stale_reason"] == "legacy_cable_mark"
 
     async def test_electrical_prefers_stable_object_key_over_duplicate_name(self):
         from types import SimpleNamespace
@@ -721,6 +727,7 @@ class TestSchemaV3Helpers:
             validation_errors=None,
         )
         from uuid import uuid4
+
         er_id = uuid4()
         variant = SimpleNamespace(
             id=er_id,

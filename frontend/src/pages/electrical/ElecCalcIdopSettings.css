@@ -1,0 +1,22 @@
+/* OWNER: ElecCalcIdopSettings — project-level current-limit form. */
+
+.elec-idop-settings__fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.elec-idop-settings__field {
+  min-width: 0;
+}
+
+.elec-idop-settings__label {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.elec-idop-settings__hint {
+  margin: 6px 0 0;
+  color: var(--color-text-secondary);
+}

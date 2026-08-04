@@ -20,6 +20,10 @@
   width: 100%;
 }
 
+.home-page-stack {
+  width: 100%;
+}
+
 .home-page-title {
   text-align: center;
   color: var(--color-primary);

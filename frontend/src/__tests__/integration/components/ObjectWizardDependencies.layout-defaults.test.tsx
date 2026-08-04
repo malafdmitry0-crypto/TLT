@@ -30,7 +30,8 @@ describe('ObjectWizard dependencies — layout-defaults', () => {
     expect(document.querySelector('.inline-object-form--wide .object-wizard-side-panel')).not.toBeInTheDocument();
     expect(document.querySelector('.inline-object-form--wide .form-grid-srs')).toBeInTheDocument();
     expect(document.querySelector('.inline-object-form--wide .side-form-grid-srs')).not.toBeInTheDocument();
-    // Structured heat: protected fields panel + protected layers table + cable panel.
+    // Object-scoped wizard owns heat fields/layers and the cable algorithm only.
+    // Specification generation is a separate ER-scoped workflow.
     expect(document.querySelector('[data-testid="heat-object-fields"]')).toBeInTheDocument();
     expect(document.querySelector('[data-testid="insulation-layers-table"]')).toBeInTheDocument();
     expect(document.querySelectorAll('.inline-object-form--wide .form-col-srs')).toHaveLength(1);
@@ -39,7 +40,7 @@ describe('ObjectWizard dependencies — layout-defaults', () => {
     expect(document.querySelectorAll('.inline-object-form--wide .form-col-resize-handle')).toHaveLength(0);
     expect([...document.querySelectorAll('.inline-object-form--wide .inline-form-section-banner')].map((title) =>
       title.textContent?.replace(/\s+/g, ' ').trim(),
-    )).toEqual(['Расчёт теплопотерь', 'Алгоритм выбора кабеля', 'Подбор спецификации']);
+    )).toEqual(['Расчёт теплопотерь', 'Алгоритм выбора кабеля']);
     expect(document.querySelector('.heat-object-fields[data-protected="heat-object-fields"]')).toBeInTheDocument();
     expect(document.querySelector('.insulation-layers-table[data-protected="insulation-layers-table"]')).toBeInTheDocument();
     expect(document.querySelector('[data-slot="wide"]')).toHaveClass(

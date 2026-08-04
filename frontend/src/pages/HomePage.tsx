@@ -36,7 +36,7 @@ export default function HomePage() {
           Расчёт тепловых потерь и подбор систем электрообогрева трубопроводов и резервуаров
         </Paragraph>
 
-        <Space direction="vertical" style={{ width: '100%' }} size={0}>
+        <Space direction="vertical" className="home-page-stack" size={0}>
           {/* Гость */}
           <div className="home-page-role-card">
             <Space align="start" className="home-page-role-header">

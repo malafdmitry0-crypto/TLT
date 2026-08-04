@@ -23,7 +23,9 @@ test.describe('electrical candidate selection — param change variants', () => 
     const pipe = await createCalculatedPipe(page, pipeName, {
       outer_diameter: 0.108,
       pipe_length: 12,
-      insulation_thickness: 0.03,
+      insulation_layers: [
+        { thickness: 0.03, material: 'mineral_wool_boards_120' },
+      ],
       ambient_temperature: 1,
       process_temperature: 65,
     });
@@ -50,7 +52,9 @@ test.describe('electrical candidate selection — param change variants', () => 
     const pipe = await createCalculatedPipe(page, pipeName, {
       outer_diameter: 0.108,
       pipe_length: 12,
-      insulation_thickness: 0.03,
+      insulation_layers: [
+        { thickness: 0.03, material: 'mineral_wool_boards_120' },
+      ],
       ambient_temperature: 1,
       process_temperature: 65,
     });
@@ -83,7 +87,9 @@ test.describe('electrical candidate selection — param change variants', () => 
     const pipe = await createCalculatedPipe(page, pipeName, {
       outer_diameter: 0.108,
       pipe_length: 12,
-      insulation_thickness: 0.03,
+      insulation_layers: [
+        { thickness: 0.03, material: 'mineral_wool_boards_120' },
+      ],
       ambient_temperature: 1,
       process_temperature: 65,
     });
@@ -110,7 +116,9 @@ test.describe('electrical candidate selection — param change variants', () => 
     const pipe = await createCalculatedPipe(page, pipeName, {
       outer_diameter: 0.108,
       pipe_length: 12,
-      insulation_thickness: 0.03,
+      insulation_layers: [
+        { thickness: 0.03, material: 'mineral_wool_boards_120' },
+      ],
       ambient_temperature: 1,
       process_temperature: 65,
     });

@@ -172,8 +172,9 @@ export async function createInvalidDeclaredThreeLayerPipe(page: Page, name: stri
         wall_thickness: 0.001,
         pipe_material: 'stainless_304',
         pipe_length: 5,
-        insulation_thickness: 0.02,
-        insulation_material: 'mineral_wool_boards_120',
+        insulation_layers: [
+          { thickness: 0.02, material: 'mineral_wool_boards_120' },
+        ],
         insulation_layer_count: '3',
         placement: 'underground',
         burial_depth: 0.4,
@@ -209,8 +210,9 @@ export async function createUndergroundPipeWithIndoorTm(page: Page, name: string
         wall_thickness: 0.0011,
         pipe_material: 'stainless_304',
         pipe_length: 6,
-        insulation_thickness: 0.02,
-        insulation_material: 'mineral_wool_boards_120',
+        insulation_layers: [
+          { thickness: 0.02, material: 'mineral_wool_boards_120' },
+        ],
         insulation_layer_count: '1',
         placement: 'underground',
         burial_depth: 0.4,

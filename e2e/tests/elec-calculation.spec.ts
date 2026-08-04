@@ -1,6 +1,11 @@
 import { test, expect, type Page } from '@playwright/test';
 
-import { createCalculatedPipe, currentGuestContext, loginAsGuest } from './helpers/workspace';
+import {
+  API_BASE,
+  createCalculatedPipe,
+  currentGuestContext,
+  loginAsGuest,
+} from './helpers/workspace';
 import {
   expectElectricalCalcForObject,
   expectElectricalGlideReady,
@@ -44,6 +49,56 @@ type ElectricalColumnKey = typeof ALL_ELECTRICAL_COLUMN_KEYS[number];
 async function recalculateAll(page: Page, variant = 1) {
   await page.getByRole('button', { name: new RegExp(`Пересчитать все СО${variant}`, 'i') }).click();
   await page.getByRole('button', { name: /Да, пересчитать все/i }).click();
+}
+
+async function recalculateCurrentEr(page: Page) {
+  await page.getByRole('button', { name: /Пересчитать все · ЭР1/i }).click();
+  await page.getByRole('button', { name: /Да, пересчитать все/i }).click();
+}
+
+async function createFirstElectricalVariantIfNeeded(page: Page) {
+  const createEr = page.getByRole('button', { name: /^Создать ЭР1$/i }).first();
+  const grid = page.locator('.electrical-spreadsheet--glide').first();
+  await expect(createEr.or(grid)).toBeVisible({ timeout: 10_000 });
+  if (await createEr.isVisible().catch(() => false)) {
+    await createEr.click();
+  }
+  await expectElectricalGlideReady(page);
+}
+
+async function assignObjectToFirstEr(page: Page, objectId: string) {
+  const { projectId, sessionId } = await currentGuestContext(page);
+  const headers = { 'X-Session-Id': sessionId };
+  const variantsResponse = await page.request.get(
+    `${API_BASE}/api/v1/projects/${projectId}/electrical-variants`,
+    { headers },
+  );
+  expect(variantsResponse.ok()).toBeTruthy();
+  const variants = await variantsResponse.json() as Array<{ id: string }>;
+  expect(variants[0]?.id).toBeTruthy();
+
+  const assignmentsResponse = await page.request.get(
+    `${API_BASE}/api/v1/projects/${projectId}/electrical-variants/${variants[0].id}/assignments`,
+    { headers },
+  );
+  expect(assignmentsResponse.ok()).toBeTruthy();
+  const assignments = await assignmentsResponse.json() as {
+    items: Array<{ object_id: string; version: number }>;
+  };
+  const assignment = assignments.items.find((item) => item.object_id === objectId);
+  expect(assignment).toBeTruthy();
+
+  const assignResponse = await page.request.patch(
+    `${API_BASE}/api/v1/projects/${projectId}/electrical-variants/${variants[0].id}/assignments`,
+    {
+      headers,
+      data: {
+        system_type: 'self_regulating',
+        items: [{ object_id: objectId, expected_version: assignment!.version }],
+      },
+    },
+  );
+  expect(assignResponse.ok()).toBeTruthy();
 }
 
 async function expectElectricalActionbarSingleLine(page: Page) {
@@ -139,7 +194,7 @@ test.describe('4.4 Электротехнический расчёт', () => {
     ]);
 
     await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
-    await expectElectricalGlideReady(page);
+    await createFirstElectricalVariantIfNeeded(page);
     await expect.poll(async () => {
       const rows = await fetchElectricalCalcs(page, projectId, sessionId);
       return rows.find((row) => row.object_id === pipe.id)?.cable_mark ?? null;
@@ -165,25 +220,39 @@ test.describe('4.4 Электротехнический расчёт', () => {
     const pipe = await createCalculatedPipe(page, pipeName);
 
     await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
+    await createFirstElectricalVariantIfNeeded(page);
     await expectElectricalHeaderControlsInline(page);
 
     await showAllElectricalColumns(page);
     await expectElectricalHeaderControlsInline(page);
 
-    await expect(page.getByText(/СО1 · тип по объектам · расчёт не выполнен/i)).toBeVisible();
+    await page.getByTestId('elec-idop-input').fill('80');
+    await page.getByTestId('elec-idop-save').click();
+    await expect(page.getByText('Iдоп не задан')).toHaveCount(0);
 
-    await recalculateAll(page);
+    await assignObjectToFirstEr(page, pipe.id);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('tab', { name: /Самрег 1 объект/i })).toBeVisible();
 
-    await expect(page.getByText(/СО1 — расчёт выполнен для всех объектов: 1/i)).toBeVisible({
-      timeout: 20_000,
-    });
-    await expect(page.getByText(/СО1 · тип по объектам · .*рассчитано: 1\/1/i)).toBeVisible();
+    await recalculateCurrentEr(page);
+
+    await expect(
+      page.getByTestId('elec-summary-self_regulating-objects').locator('.elec-summary-card__value'),
+    ).toHaveText('1', { timeout: 20_000 });
     const calc = await expectElectricalCalcForObject(page, projectId, sessionId, pipe.id);
-    expect(calc.cable_mark).toContain('ТЛТ-100');
+    expect(calc.cable_mark).toMatch(/ТТ[НВХ]/);
     expect(Number(calc.results?.order_cable_length ?? calc.results?.cable_length)).toBeGreaterThan(0);
     expect(Number(calc.results?.total_power)).toBeGreaterThan(0);
     expect(Number(calc.results?.current)).toBeGreaterThan(0);
-    await expect(page.getByText(/11,80 кВт|11\.80 кВт/i).first()).toBeVisible();
+    await expect(
+      page.getByTestId('elec-summary-self_regulating-length').locator('.elec-summary-card__value'),
+    ).not.toHaveText('0');
+    await expect(
+      page.getByTestId('elec-summary-self_regulating-power').locator('.elec-summary-card__value'),
+    ).not.toHaveText('0,0');
+    await expect(
+      page.getByTestId('elec-summary-self_regulating-start-current').locator('.elec-summary-card__value'),
+    ).not.toHaveText('0,0');
   });
 
   test('варианты СО изолированы: расчёт СО2 не подменяет статус СО1', async ({
@@ -195,6 +264,7 @@ test.describe('4.4 Электротехнический расчёт', () => {
     const pipe = await createCalculatedPipe(page, pipeName);
 
     await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
+    await createFirstElectricalVariantIfNeeded(page);
     await page.getByRole('button').filter({ hasText: /^СО2$/ }).click();
     await expect(page.getByText(/СО2 · тип по объектам · расчёт не выполнен/i)).toBeVisible();
 
@@ -230,6 +300,7 @@ test.describe('4.4 Электротехнический расчёт', () => {
     ]);
 
     await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
+    await createFirstElectricalVariantIfNeeded(page);
     await recalculateAll(page);
     await expect(page.getByText(/СО1 — расчёт выполнен для всех объектов: 1/i)).toBeVisible({
       timeout: 20_000,

@@ -188,8 +188,9 @@ test.describe('4.3 Расчёт тепловых потерь', () => {
     expect(savedObject?.is_valid).toBe(true);
     expect(savedObject?.params).toMatchObject({
       outer_diameter: 0.108,
-      insulation_thickness: 0.05,
-      insulation_material: 'mineral_wool_boards_120',
+      insulation_layers: [
+        { thickness: 0.05, material: 'mineral_wool_boards_120' },
+      ],
     });
     expect(savedObject?.results?.heat_loss_per_meter_base).toBeTruthy();
 

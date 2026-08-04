@@ -5,10 +5,11 @@
  * Selection host: useElectricalVariantSelection; commands: useElectricalVariantCommandsController (VAR2).
  */
 import type { ApiError } from '@/api/client';
+import { ELECTRICAL_VARIANT_URL_PARAM } from '@/domain/electricalVariantRouteModel';
 import { normalizeElectricalVariantId } from '@/store/calculationVariantStore';
 import type { ElectricalVariant } from '@/types/electricalVariant';
 
-export const ELECTRICAL_VARIANT_URL_PARAM = 'er';
+export { ELECTRICAL_VARIANT_URL_PARAM } from '@/domain/electricalVariantRouteModel';
 
 export function routeElectricalVariantSignature(search: string): string {
   const params = new URLSearchParams(search);

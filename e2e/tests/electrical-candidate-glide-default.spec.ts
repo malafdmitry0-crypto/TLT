@@ -192,7 +192,9 @@ test('Candidate Glide is default and keeps apply/folder/exclude mutations after 
   const { projectId, sessionId } = await currentGuestContext(page);
   const pipe = await createCalculatedPipe(page, `E2E default Glide candidate ${Date.now()}`, {
     pipe_length: 3,
-    insulation_thickness: 0.15,
+    insulation_layers: [
+      { thickness: 0.15, material: 'mineral_wool_boards_120' },
+    ],
     ambient_temperature: 29,
     process_temperature: 30,
   });

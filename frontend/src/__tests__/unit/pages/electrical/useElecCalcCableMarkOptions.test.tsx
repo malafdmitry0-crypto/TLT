@@ -7,7 +7,7 @@ import { AUTO_CABLE_MARK_VALUE } from '@/pages/electrical/elecCalcCableOptionMod
 import { useElecCalcCableMarkOptions } from '@/pages/electrical/useElecCalcCableMarkOptions';
 import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
 import type { ElectricalCalcSummary } from '@/types/calculation';
-import type { CableTtEntry, ResistiveCablesReference } from '@/types/reference';
+import type { ResistiveCablesReference } from '@/types/reference';
 
 const availableTypes = (...types: CableTypeKey[]) => new Set<CableTypeKey>(types);
 
@@ -19,20 +19,6 @@ function cable(overrides: Partial<CableInfo>): CableInfo {
     max_temperature: 65,
     min_temperature: -60,
     source: 'builtin',
-    ...overrides,
-  };
-}
-
-function ttCable(overrides: Partial<CableTtEntry> = {}): CableTtEntry {
-  return {
-    model: '30ТТВ2',
-    series: 'ТТВ',
-    nominal_power: 30,
-    q1: 1,
-    q2: 2,
-    max_product_temp: 80,
-    max_vapor_temp: 150,
-    voltage: 220,
     ...overrides,
   };
 }
@@ -58,10 +44,8 @@ function renderOptions(options: {
   available?: CableTypeKey[];
   cables?: CableInfo[];
   builtinCables?: CableInfo[];
-  ttCables?: CableTtEntry[];
   resistiveCables?: ResistiveCablesReference;
   builtinResistiveCables?: ResistiveCablesReference;
-  aggressiveProduct?: boolean;
   cableSizingEffectiveCableType?: CableTypeKey;
 } = {}) {
   return renderHook(
@@ -69,11 +53,9 @@ function renderOptions(options: {
       availableCableTypes: availableTypes(...props.available),
       cables: props.cables,
       builtinCables: props.builtinCables,
-      ttCables: props.ttCables,
       resistiveCables: props.resistiveCables,
       builtinResistiveCables: props.builtinResistiveCables,
       effectiveSource: 'all',
-      aggressiveProduct: props.aggressiveProduct,
       cableSizingEffectiveCableType: props.cableSizingEffectiveCableType,
     }),
     {
@@ -81,10 +63,8 @@ function renderOptions(options: {
         available: ['self_regulating'],
         cables: [],
         builtinCables: [],
-        ttCables: [],
         resistiveCables: { single_core: [], three_core: [], common: {} },
         builtinResistiveCables: { single_core: [], three_core: [], common: {} },
-        aggressiveProduct: false,
         cableSizingEffectiveCableType: 'self_regulating',
         ...options,
       },
@@ -114,8 +94,6 @@ describe('useElecCalcCableMarkOptions', () => {
   it('builds TT manual options only from backend cable-options (E7)', () => {
     const { result } = renderOptions({
       available: ['self_regulating_tt'],
-      ttCables: [ttCable()],
-      aggressiveProduct: true,
       cableSizingEffectiveCableType: 'self_regulating_tt',
     });
 
@@ -189,7 +167,6 @@ describe('useElecCalcCableMarkOptions', () => {
   it('returns no manual options for unavailable cable types', () => {
     const { result } = renderOptions({
       available: ['self_regulating'],
-      ttCables: [ttCable()],
     });
 
     expect(result.current.manualCableOptionsForType('self_regulating_tt')).toEqual([]);

@@ -108,7 +108,6 @@ export function useElecCalcWorkspaceCandidateCatalogDataPlane({
     availableCableTypes,
     effectiveSource,
     visibleCableTypeControl: cableTypes.visibleCableTypeControl,
-    aggressiveProduct: recalc.aggressiveProduct,
     cableSizingEffectiveCableType: cableSizingModal.effectiveCableType,
   });
 

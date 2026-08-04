@@ -34,6 +34,7 @@ function renderChrome(overrides: Record<string, unknown> = {}) {
     projectSettings: null,
     spec: null,
     mut: { isPending: false },
+    generationWorkflowPending: false,
     saveDefaultsMut: { isPending: false, mutate: vi.fn() },
     runGenerate: vi.fn(),
     canManuallyEdit: true,

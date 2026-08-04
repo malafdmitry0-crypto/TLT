@@ -2,7 +2,14 @@
  * Pure helpers for SpecTable section grouping and empty-state copy (SPEC-P0-a).
  */
 import type { SpecificationItem } from '@/types/specification';
-import type { SpecificationDiagnostic } from '@/api/specifications';
+
+type PreflightDiagnostic = {
+  code?: string | null;
+  details?: unknown;
+  issues?: unknown;
+  kind?: string | null;
+  message?: string | null;
+};
 
 export type SpecBomSection = 'pipe' | 'tank' | 'common';
 
@@ -62,7 +69,7 @@ export function specSectionEmptyTitle(
 
 /** Prefer human message; keep code as secondary line when useful. */
 export function formatPreflightDiagnosticLines(
-  diagnostics: readonly SpecificationDiagnostic[],
+  diagnostics: readonly PreflightDiagnostic[],
 ): string[] {
   if (diagnostics.length === 0) {
     return ['Есть неназначенные объекты. Подтвердите исключение или исправьте назначения.'];
@@ -80,7 +87,7 @@ export function formatPreflightDiagnosticLines(
 }
 
 export function formatPreflightSummary(
-  diagnostics: readonly SpecificationDiagnostic[],
+  diagnostics: readonly PreflightDiagnostic[],
 ): string {
   return formatPreflightDiagnosticLines(diagnostics).join('\n');
 }

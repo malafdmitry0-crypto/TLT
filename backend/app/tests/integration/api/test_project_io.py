@@ -389,6 +389,12 @@ class TestSingleExportImport:
         headers = {"X-Session-Id": guest_session}
         pid = (await client.get("/api/v1/projects", headers=headers)).json()[0]["id"]
         await _add_pipe(client, pid, headers)
+        settings = await client.patch(
+            f"/api/v1/projects/{pid}/electrical-settings",
+            json={"expected_version": 1, "max_section_start_current_a": "13.065"},
+            headers=headers,
+        )
+        assert settings.status_code == 200, settings.text
         init = await client.post(
             f"/api/v1/projects/{pid}/electrical-variants/initialize",
             headers=headers,
@@ -424,13 +430,16 @@ class TestSingleExportImport:
             "/api/v1/calc/electrical/select-cable",
             params={
                 "object_id": objects[0]["id"],
-                "cable_mark": "ТЛТ-60",
+                "cable_mark": "30ТТВ2",
                 "electrical_variant_id": er["id"],
                 "variant_number": er.get("legacy_variant_number") or 1,
+                "maintain_temperature": 10.0,
+                "aggressive_product": False,
             },
             headers=headers,
         )
         assert manual.status_code == 200, manual.text
+        exported_mark = manual.json()["cable_mark"]
 
         exp = await client.get(
             f"/api/v1/projects/{pid}/export-csv",
@@ -438,8 +447,13 @@ class TestSingleExportImport:
         )
         assert exp.status_code == 200
         text = exp.content.decode("utf-8-sig")
-        assert ";ТЛТ-60;manual;" in text
-        modified = text.replace(";ТЛТ-60;manual;", ";ТЛТ-60;Manuel;", 1)
+        source_token = f";{exported_mark};manual;"
+        assert source_token in text
+        modified = text.replace(
+            source_token,
+            f";{exported_mark};Manuel;",
+            1,
+        )
 
         other = (await client.post("/api/v1/auth/guest")).json()["session_id"]
         imported = await client.post(
@@ -472,7 +486,7 @@ class TestSingleExportImport:
                 headers={"X-Session-Id": other},
             )
         ).json()
-        assert listing[0]["cable_mark"] == "ТЛТ-60"
+        assert listing[0]["cable_mark"] == exported_mark
         assert listing[0]["cable_mark_source"] == "manual"
 
     async def test_roundtrip_sparse_legacy_slots_reconstructs_uuid_graph(
@@ -564,9 +578,7 @@ class TestSingleExportImport:
                 "1..5",
             ),
             (
-                "[SECTION];specifications\n"
-                "variant_number;items\n"
-                "1;[]\n",
+                "[SECTION];specifications\n" "variant_number;items\n" "1;[]\n",
                 "schema_version=2 не поддерживается",
             ),
         ],
@@ -628,7 +640,7 @@ class TestSingleExportImport:
             "\n"
             "[SECTION];specifications\n"
             "variant_key;electrical_variant_id;items;snapshot\n"
-            'er-a;er-b;[];{}\n'
+            "er-a;er-b;[];{}\n"
         ).encode()
 
         response = await client.post(
@@ -1225,9 +1237,7 @@ class TestProjectSettingsRoundtrip:
         assert imported_project.specification_settings_version == 2
 
         es = (
-            await client.get(
-                f"/api/v1/projects/{project_id}/electrical-settings", headers=headers
-            )
+            await client.get(f"/api/v1/projects/{project_id}/electrical-settings", headers=headers)
         ).json()
         assert float(es["max_section_start_current_a"]) == 25.0
 
@@ -1249,9 +1259,7 @@ class TestProjectSettingsRoundtrip:
             headers=headers,
         )
         assert imported.status_code == 201, imported.text
-        await self._assert_settings_restored(
-            client, headers, db_session, imported.json()["id"]
-        )
+        await self._assert_settings_restored(client, headers, db_session, imported.json()["id"])
 
     async def test_bulk_roundtrip_preserves_settings(
         self, client: AsyncClient, employee_token: str, db_session: AsyncSession
@@ -1259,14 +1267,11 @@ class TestProjectSettingsRoundtrip:
         headers = {"Authorization": f"Bearer {employee_token}"}
         pid = await self._prepare_project_with_settings(client, headers, db_session)
 
-        export = await client.get(
-            f"/api/v1/projects/export-csv-bulk?ids={pid}", headers=headers
-        )
+        export = await client.get(f"/api/v1/projects/export-csv-bulk?ids={pid}", headers=headers)
         assert export.status_code == 200
 
         before_ids = {
-            p["id"]
-            for p in (await client.get("/api/v1/projects", headers=headers)).json()
+            p["id"] for p in (await client.get("/api/v1/projects", headers=headers)).json()
         }
         imported = await client.post(
             "/api/v1/projects/import-csv-bulk",

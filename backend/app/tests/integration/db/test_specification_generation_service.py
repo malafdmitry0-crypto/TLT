@@ -193,12 +193,16 @@ async def _seed_ready_project(
     # Trim auto assignments to ready object only for ready variant.
     for variant in variants:
         rows = (
-            await db_session.execute(
-                select(ElectricalVariantObject).where(
-                    ElectricalVariantObject.electrical_variant_id == variant.id
+            (
+                await db_session.execute(
+                    select(ElectricalVariantObject).where(
+                        ElectricalVariantObject.electrical_variant_id == variant.id
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         for assignment in rows:
             if assignment.object_id != obj.id:
                 await db_session.delete(assignment)
@@ -411,9 +415,7 @@ async def test_ready_complete_catalog_generates_and_persists_by_uuid(
     assert result.snapshot["schema"] == "specification-generation"
     assert result.snapshot["settings_revision"] == 1
     assert result.snapshot["variant_revision"]["updated_at"].endswith("Z")
-    assert result.snapshot["preflight_fingerprint_schema"] == (
-        "specification-preflight/v1"
-    )
+    assert result.snapshot["preflight_fingerprint_schema"] == ("specification-preflight/v1")
     assert result.snapshot["preflight_fingerprint"].startswith("sha256:")
     revisions = result.snapshot["input_revisions"]
     assert len(revisions) == 1
@@ -421,9 +423,7 @@ async def test_ready_complete_catalog_generates_and_persists_by_uuid(
     assert revisions[0]["assignment"]["version"] == 2
     assert revisions[0]["assignment"]["object_version_snapshot"] == 4
     assert revisions[0]["electrical_result"]["id"]
-    assert revisions[0]["electrical_result"]["formula_version"] == (
-        ELECTRICAL_TT_FORMULA_VERSION
-    )
+    assert revisions[0]["electrical_result"]["formula_version"] == (ELECTRICAL_TT_FORMULA_VERSION)
     assert revisions[0]["section_plan_revision"]["payload"] == {
         "count": 9,
         "length_m": 81.0,
@@ -459,7 +459,7 @@ async def test_ready_complete_catalog_generates_and_persists_by_uuid(
     assert persisted.snapshot["schema"] == "specification-generation"
 
 
-async def test_ready_and_blocked_mixed_writes_only_ready(
+async def test_ready_and_blocked_mixed_writes_ready_bom_and_blocked_outcome(
     db_session: AsyncSession,
     employee_user: User,
 ) -> None:
@@ -484,13 +484,23 @@ async def test_ready_and_blocked_mixed_writes_only_ready(
     assert by_id[blocked.id].status is SpecificationGenerationStatus.BLOCKED
 
     rows = (
-        await db_session.execute(
-            select(Specification).where(Specification.project_id == project.id)
+        (
+            await db_session.execute(
+                select(Specification).where(Specification.project_id == project.id)
+            )
         )
-    ).scalars().all()
-    assert len(rows) == 1
-    assert rows[0].electrical_variant_id == ready.id
-    assert rows[0].items
+        .scalars()
+        .all()
+    )
+    assert len(rows) == 2
+    persisted_by_id = {row.electrical_variant_id: row for row in rows}
+    assert persisted_by_id[ready.id].items
+    assert persisted_by_id[ready.id].snapshot is not None
+    assert persisted_by_id[ready.id].generation_status == "generated"
+    assert persisted_by_id[blocked.id].items == []
+    assert persisted_by_id[blocked.id].snapshot is None
+    assert persisted_by_id[blocked.id].generation_status == "blocked"
+    assert persisted_by_id[blocked.id].generation_diagnostics
 
 
 async def test_exception_mid_er_rolls_back_only_that_savepoint(
@@ -590,16 +600,27 @@ async def test_exception_mid_er_rolls_back_only_that_savepoint(
     assert by_id[second.id].status is SpecificationGenerationStatus.BLOCKED
 
     rows = (
-        await db_session.execute(
-            select(Specification).where(Specification.project_id == project.id)
+        (
+            await db_session.execute(
+                select(Specification).where(Specification.project_id == project.id)
+            )
         )
-    ).scalars().all()
-    assert len(rows) == 1
-    assert rows[0].electrical_variant_id == variants[0].id
-    assert rows[0].items
+        .scalars()
+        .all()
+    )
+    assert len(rows) == 2
+    persisted_by_id = {row.electrical_variant_id: row for row in rows}
+    assert persisted_by_id[variants[0].id].items
+    assert persisted_by_id[variants[0].id].generation_status == "generated"
+    assert persisted_by_id[second.id].items == []
+    assert persisted_by_id[second.id].snapshot is None
+    assert persisted_by_id[second.id].generation_status == "blocked"
+    assert persisted_by_id[second.id].generation_diagnostics[0]["code"] == (
+        SpecificationDiagnosticCode.FORMULA_INPUT_INVALID.value
+    )
 
 
-async def test_fingerprint_race_returns_conflict_without_write(
+async def test_fingerprint_race_returns_conflict_without_bom_write(
     db_session: AsyncSession,
     employee_user: User,
     monkeypatch: pytest.MonkeyPatch,
@@ -624,11 +645,7 @@ async def test_fingerprint_race_returns_conflict_without_write(
         mutated = []
         for item in results:
             if item.status is SpecificationPreflightStatus.READY:
-                mutated.append(
-                    item.model_copy(
-                        update={"input_fingerprint": f"sha256:{'f' * 64}"}
-                    )
-                )
+                mutated.append(item.model_copy(update={"input_fingerprint": f"sha256:{'f' * 64}"}))
             else:
                 mutated.append(item)
         return mutated
@@ -650,15 +667,26 @@ async def test_fingerprint_race_returns_conflict_without_write(
     )
     assert response.results[0].status is SpecificationGenerationStatus.BLOCKED
     assert (
-        response.results[0].diagnostics[0].code
-        is SpecificationDiagnosticCode.GENERATION_CONFLICT
+        response.results[0].diagnostics[0].code is SpecificationDiagnosticCode.GENERATION_CONFLICT
     )
     rows = (
-        await db_session.execute(
-            select(Specification).where(Specification.project_id == project.id)
+        (
+            await db_session.execute(
+                select(Specification).where(Specification.project_id == project.id)
+            )
         )
-    ).scalars().all()
-    assert rows == []
+        .scalars()
+        .all()
+    )
+    assert len(rows) == 1
+    persisted = rows[0]
+    assert persisted.electrical_variant_id == ready.id
+    assert persisted.items == []
+    assert persisted.snapshot is None
+    assert persisted.generation_status == "blocked"
+    assert persisted.generation_diagnostics[0]["code"] == (
+        SpecificationDiagnosticCode.GENERATION_CONFLICT.value
+    )
 
 
 async def test_confirmed_unassigned_still_generates_when_gates_pass(

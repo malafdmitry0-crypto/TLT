@@ -7,6 +7,13 @@
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.dependencies import CurrentPrincipal
+from app.models.specification import Specification
+from app.models.user import User
+from app.services.specification_catalog_service import SpecificationCatalogService
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -163,58 +170,106 @@ class TestBatchCalcIdempotency:
 
 
 class TestSpecGenerateIdempotency:
-    """generate спецификации — replace, не append."""
+    """Повторный blocked generate обновляет один F5 outcome-row, не append."""
 
-    async def test_generate_twice_same_count(self, client: AsyncClient, employee_token: str):
+    async def test_blocked_generate_repeats_without_duplicate_rows(
+        self,
+        client: AsyncClient,
+        employee_token: str,
+        employee_user: User,
+        db_session: AsyncSession,
+    ):
         headers = {"Authorization": f"Bearer {employee_token}"}
-        proj = (
-            await client.post(
-                "/api/v1/projects",
-                json={"name": "Spec-Idem"},
-                headers=headers,
-            )
-        ).json()
-        await client.post(
-            f"/api/v1/projects/{proj['id']}/objects",
-            json={"object_type": "pipe", "sort_order": 0, "params": PIPE_PARAMS},
-            headers=headers,
+        await SpecificationCatalogService(db_session).ensure_seed_debt_catalog_active(
+            CurrentPrincipal(
+                role="admin",
+                user_id=employee_user.id,
+                email=employee_user.email,
+            ),
+            commit=True,
         )
-        await client.post(
+        prepared = await _prepare_assigned_pipe(
+            client,
+            headers,
+            project_name="Spec-Idem",
+        )
+        proj = prepared["project"]
+        variant = prepared["variant"]
+        calculated = await client.post(
             "/api/v1/calc/electrical/batch",
-            params={"project_id": proj["id"]},
+            params={
+                "project_id": proj["id"],
+                "electrical_variant_id": variant["id"],
+                "cable_type": "self_regulating_tt",
+            },
             headers=headers,
         )
+        assert calculated.status_code == 200, calculated.text
 
-        # Generate 3 раза
+        generate_payload = {
+            "variant_ids": [variant["id"]],
+            "options": {
+                "grouping_mode": "separate_by_object_type",
+                "Ex": False,
+                "K1i": False,
+                "K2i": False,
+                "Kiu": False,
+                "L_K2i_m": "0",
+                "R_gr": "1",
+            },
+        }
+
+        # The calculation fixture is intentionally not production-ready; repeat
+        # the canonical blocked request and prove F5 outcome upsert semantics.
         for _ in range(3):
             resp = await client.post(
                 f"/api/v1/specifications/{proj['id']}/generate",
+                json=generate_payload,
                 headers=headers,
             )
-            assert resp.status_code == 201
+            assert resp.status_code == 422, resp.text
+            assert resp.json()["results"][0]["status"] == "blocked"
 
-        spec = (
-            await client.get(
-                f"/api/v1/specifications/{proj['id']}",
-                headers=headers,
+        rows = (
+            (
+                await db_session.execute(
+                    select(Specification).where(
+                        Specification.project_id == proj["id"],
+                        Specification.electrical_variant_id == variant["id"],
+                    )
+                )
             )
-        ).json()
-        # Items не растут от повторов — каждый раз replace
-        first_count = len(spec["items"])
+            .scalars()
+            .all()
+        )
+        assert len(rows) == 1
+        first_id = rows[0].id
+        assert rows[0].items == []
+        assert rows[0].generation_status == "blocked"
+
         for _ in range(3):
-            await client.post(
+            resp = await client.post(
                 f"/api/v1/specifications/{proj['id']}/generate",
+                json=generate_payload,
                 headers=headers,
             )
-        spec2 = (
-            await client.get(
-                f"/api/v1/specifications/{proj['id']}",
-                headers=headers,
+            assert resp.status_code == 422, resp.text
+
+        repeated_rows = (
+            (
+                await db_session.execute(
+                    select(Specification).where(
+                        Specification.project_id == proj["id"],
+                        Specification.electrical_variant_id == variant["id"],
+                    )
+                )
             )
-        ).json()
-        assert (
-            len(spec2["items"]) == first_count
-        ), f"DUPLICATES: 3 повторных generate накатили {len(spec2['items'])} вместо {first_count}"
+            .scalars()
+            .all()
+        )
+        assert len(repeated_rows) == 1
+        assert repeated_rows[0].id == first_id
+        assert repeated_rows[0].items == []
 
 
 class TestObjectUpdateIdempotency:

@@ -6,7 +6,7 @@ import {
   formatPreflightSummary,
   resolveFirstGenerateErId,
   specSectionEmptyTitle,
-} from '@/pages/specification/specTableSectionModel';
+} from '@/domain/specification/specTableSectionModel';
 import type { SpecificationItem } from '@/types/specification';
 
 function item(params: Record<string, unknown>): SpecificationItem {

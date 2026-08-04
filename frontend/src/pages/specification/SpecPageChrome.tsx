@@ -78,6 +78,7 @@ export type SpecPageChromeProps = {
   projectSettings: SpecificationSettings | null | undefined;
   spec: Specification | null | undefined;
   mut: PendingMutation;
+  generationWorkflowPending: boolean;
   saveDefaultsMut: MutateMutation;
   runGenerate: (excludeUnassignedConfirmed?: boolean) => void;
   canManuallyEdit: boolean;
@@ -115,7 +116,8 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
     endSectionIndication, setEndSectionIndication, topIndication, setTopIndication,
     minLengthK2i, setMinLengthK2i, groupingMode, setGroupingMode, generationDiagnostics,
     groupBy, setGroupBy, mergeIdentical, setMergeIdentical,
-    items, categoriesCount, projectSettings, spec, mut, saveDefaultsMut, runGenerate,
+    items, categoriesCount, projectSettings, spec, mut, generationWorkflowPending,
+    saveDefaultsMut, runGenerate,
     canManuallyEdit, hasItems, isSpecStale, setAddOpen, addOpen, handleAdd, saveMut,
     selectedAccessoryId, setSelectedAccessoryId, qty, setQty, accessories,
     preflightOpen, setPreflightOpen, setPendingGenerate, confirmPartialGenerate,
@@ -133,6 +135,7 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
   const generationDisabled = !canMutateProject
     || selectedGenerateErIds.length === 0
     || missingFields.length > 0
+    || generationWorkflowPending
     || mut.isPending;
   const projectSettingsDisabled = !canMutateProject
     || missingFields.length > 0

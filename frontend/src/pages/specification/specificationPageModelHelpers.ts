@@ -1,6 +1,43 @@
 /**
  * Pure helpers for useSpecificationPageModel (P-BAND-22).
  */
+import { ELECTRICAL_VARIANT_URL_PARAM } from '@/domain/electricalVariantRouteModel';
+import { ROUTES } from '@/routes/routes';
+
+export type SpecificationMutationScope = {
+  projectId: string;
+  electricalVariantId: string;
+  electricalVariantName: string;
+  queryKey: readonly unknown[];
+};
+
+export function buildSpecificationMutationScope(
+  project: { id: string } | null | undefined,
+  variant: { id: string; name: string } | null | undefined,
+): SpecificationMutationScope {
+  if (!project || !variant?.id) {
+    throw new Error('Выбранный ЭР недоступен для спецификации');
+  }
+  return {
+    projectId: project.id,
+    electricalVariantId: variant.id,
+    electricalVariantName: variant.name,
+    queryKey: ['spec', project.id, variant.id],
+  };
+}
+
+export function buildFixUnassignedNavigation(electricalVariantId?: string | null) {
+  const search = electricalVariantId
+    ? `?${ELECTRICAL_VARIANT_URL_PARAM}=${encodeURIComponent(electricalVariantId)}`
+    : '';
+  return {
+    to: { pathname: ROUTES.elecCalc, search },
+    state: {
+      systemView: 'unassigned' as const,
+      ...(electricalVariantId ? { electricalVariantId } : {}),
+    },
+  };
+}
 
 export function buildSpecificationGeneratedToast(args: {
   hasUnresolved: boolean;

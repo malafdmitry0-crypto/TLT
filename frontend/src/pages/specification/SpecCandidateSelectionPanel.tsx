@@ -8,6 +8,7 @@ import {
   candidateGroupNeedsUserChoice,
   type SpecificationCandidateGroup,
 } from '@/api/specifications';
+import './specification-candidate-selection.css';
 
 const CATEGORY_LABELS: Record<string, string> = {
   cable: 'Кабель',

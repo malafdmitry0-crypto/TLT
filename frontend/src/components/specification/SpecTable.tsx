@@ -6,7 +6,7 @@ import {
   bomSectionOf,
   specSectionEmptyTitle,
   type SpecSectionEmptyKind,
-} from '@/pages/specification/specTableSectionModel';
+} from '@/domain/specification/specTableSectionModel';
 
 export type SpecGroupBy = 'none' | 'category' | 'unit' | 'object_section';
 

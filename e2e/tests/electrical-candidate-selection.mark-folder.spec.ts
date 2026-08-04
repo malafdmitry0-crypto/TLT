@@ -34,7 +34,9 @@ test.describe('electrical candidate selection — mark / folder', () => {
     const pipeName = `E2E candidate marker ${Date.now()}`;
     const pipe = await createCalculatedPipe(page, pipeName, {
       pipe_length: 3,
-      insulation_thickness: 0.15,
+      insulation_layers: [
+        { thickness: 0.15, material: 'mineral_wool_boards_120' },
+      ],
       ambient_temperature: 29,
       process_temperature: 30,
     });
@@ -94,7 +96,9 @@ test.describe('electrical candidate selection — mark / folder', () => {
     const pipeName = `E2E candidate folder ${Date.now()}`;
     const pipe = await createCalculatedPipe(page, pipeName, {
       pipe_length: 3,
-      insulation_thickness: 0.15,
+      insulation_layers: [
+        { thickness: 0.15, material: 'mineral_wool_boards_120' },
+      ],
       ambient_temperature: 29,
       process_temperature: 30,
     });

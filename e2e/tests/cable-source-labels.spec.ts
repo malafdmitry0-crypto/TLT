@@ -46,12 +46,18 @@ async function createEmployeePipe(page: Page, name: string): Promise<void> {
       params: {
         name,
         outer_diameter: 0.108,
+        wall_thickness: 0.006,
+        pipe_material: 'carbon_steel',
         pipe_length: 50,
-        insulation_thickness: 0.05,
-        insulation_material: 'mineral_wool_boards_120',
+        insulation_layers: [
+          { thickness: 0.05, material: 'mineral_wool_boards_120' },
+        ],
         insulation_temperature_basis: 'outdoor_winter',
         ambient_temperature: -30,
         process_temperature: 150,
+        placement: 'outdoor',
+        wind_speed: 3,
+        safety_factor: 1.1,
       },
     },
   });

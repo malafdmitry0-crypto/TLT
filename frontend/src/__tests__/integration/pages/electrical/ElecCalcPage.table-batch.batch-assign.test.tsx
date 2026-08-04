@@ -49,7 +49,7 @@ describe('ElecCalcPage table / batch — batch-assign', () => {
         1,
         'self_regulating_tt',
         expect.objectContaining({
-          supplyVoltage: 220,
+          supplyVoltage: 230,
           windingCoefficient: 1,
           layingStep: 0.1,
           objectIds: ['o-1'],

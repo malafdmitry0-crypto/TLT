@@ -1,11 +1,11 @@
 {
   "version": 2,
   "generatedAt": "2026-08-03",
-  "total": 54,
+  "total": 53,
   "byClass": {
     "static debt": 0,
     "runtime geometry": 31,
-    "third-party adapter": 23
+    "third-party adapter": 22
   },
   "fileCounts": {
     "src/components/common/PageSkeleton.tsx": 1,
@@ -26,7 +26,6 @@
     "src/components/shared/NormalGlideGrid.tsx": 3,
     "src/components/ui-kit/CompactField.tsx": 1,
     "src/components/ui-kit/CompactFieldGrid.tsx": 1,
-    "src/pages/HomePage.tsx": 1,
     "src/pages/electrical/ElecCalcCableMarkModal.tsx": 2,
     "src/pages/electrical/ElecCalcCableSizingModal.tsx": 1,
     "src/pages/electrical/ElecCalcProject.tsx": 1,
@@ -98,9 +97,6 @@
     },
     "src/components/ui-kit/CompactFieldGrid.tsx": {
       "runtime geometry": 1
-    },
-    "src/pages/HomePage.tsx": {
-      "third-party adapter": 1
     },
     "src/pages/electrical/ElecCalcCableMarkModal.tsx": {
       "third-party adapter": 2
@@ -443,15 +439,6 @@
       "text": "style={{ minWidth }}",
       "tag": "table",
       "owner": "shared"
-    },
-    {
-      "file": "src/pages/HomePage.tsx",
-      "line": 38,
-      "class": "third-party adapter",
-      "text": "style={{ width: '100%' }}",
-      "tag": "Space",
-      "owner": "shared",
-      "reason": "Ant Space style prop used for chrome geometry adapter"
     },
     {
       "file": "src/pages/electrical/ElecCalcCableMarkModal.tsx",

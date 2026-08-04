@@ -3,6 +3,7 @@
  */
 import type { ReactNode } from 'react';
 import { TltAlert, TltButton } from '@/components/ui-kit';
+import './elec-workspace-stale.css';
 
 export type ElecCalcStaleBannerProps = {
   staleCount: number;

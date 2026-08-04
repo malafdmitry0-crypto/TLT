@@ -2,10 +2,9 @@
 /**
  * AF100-14 — repo root stays a working entrypoint, not an artifact dump.
  *
- * Measured before the sweep: 70 tracked run artifacts in the repo root
- * (62 screenshots plus console/network dumps) and a tracked `tmp/` of 259
- * files, while the root had no AGENTS.md at all. An agent starting at the root
- * saw the artifacts first and the contract never.
+ * Root guidance can be injected as an environment-local AGENTS.md and is
+ * intentionally ignored. The tracked root stays limited to repository config;
+ * run artifacts still belong in dated audit folders.
  *
  * Keepers belong in a dated `docs/audit/YYYY-MM-DD-*` folder with an owner.
  *
@@ -13,6 +12,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { execFileSync } from 'node:child_process';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -68,8 +68,10 @@ describe('AF100-14 — repo root hygiene', () => {
     ).toEqual([]);
   });
 
-  it('keeps the root entrypoint tracked', () => {
-    expect(trackedRootFiles()).toContain('AGENTS.md');
+  it('keeps environment-local agent entrypoints out of tracked root files', () => {
+    const gitignore = fs.readFileSync(path.join(REPO_ROOT, '.gitignore'), 'utf8');
+    expect(gitignore).toContain('**/AGENTS.md');
+    expect(trackedRootFiles()).not.toContain('AGENTS.md');
   });
 
   it('detects an artifact name as an artifact (failure path)', () => {

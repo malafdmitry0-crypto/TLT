@@ -2,11 +2,9 @@
  * Project Iдоп (max section start current) — required for sectioning (E2 / FE-27).
  */
 import type { ReactNode } from 'react';
-import { Space, Typography } from 'antd';
 import { TltAlert, TltButton, TltNumberField } from '@/components/ui-kit';
 import type { ProjectElectricalSettingsController } from '@/pages/electrical/useProjectElectricalSettings';
-
-const { Text } = Typography;
+import './ElecCalcIdopSettings.css';
 
 export type ElecCalcIdopSettingsProps = {
   settings: ProjectElectricalSettingsController;
@@ -80,11 +78,11 @@ export function ElecCalcIdopSettings({
         className="elec-idop-settings__form"
         data-testid="elec-idop-settings-form"
       >
-        <Space wrap size={12} align="end">
-          <div>
-            <Text className="workflow-params-label" style={{ display: 'block', marginBottom: 4 }}>
+        <div className="elec-idop-settings__fields">
+          <div className="elec-idop-settings__field">
+            <span className="workflow-params-label elec-idop-settings__label">
               U, В (норматив)
-            </Text>
+            </span>
             <TltNumberField
               aria-label="Напряжение питания"
               disabled
@@ -93,10 +91,10 @@ export function ElecCalcIdopSettings({
               className="electrical-type-control electrical-type-control--w76"
             />
           </div>
-          <div>
-            <Text className="workflow-params-label" style={{ display: 'block', marginBottom: 4 }}>
+          <div className="elec-idop-settings__field">
+            <span className="workflow-params-label elec-idop-settings__label">
               Допустимый стартовый ток секции Iдоп, А
-            </Text>
+            </span>
             <TltNumberField
               id={`${formId}-input`}
               aria-label="Допустимый стартовый ток секции"
@@ -122,11 +120,11 @@ export function ElecCalcIdopSettings({
               Сохранить Iдоп
             </TltButton>
           )}
-        </Space>
-        <Text type="secondary" className="elec-idop-settings__hint" style={{ display: 'block', marginTop: 6 }}>
+        </div>
+        <p className="elec-idop-settings__hint">
           Настройка проекта. Нужна для нарезки длины кабеля на секции (Lток = Iдоп / Iст.уд),
           не для выбора марки ТТН/ТТВ/ТТХ.
-        </Text>
+        </p>
       </div>
     </div>
   );

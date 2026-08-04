@@ -354,6 +354,7 @@ export default function SpecificationPage() {
         projectSettings={projectSettings}
         spec={spec}
         mut={mut}
+        generationWorkflowPending={generationWorkflowPending}
         saveDefaultsMut={saveDefaultsMut}
         runGenerate={runGenerate}
         canManuallyEdit={canManuallyEdit}

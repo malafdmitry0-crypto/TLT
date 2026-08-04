@@ -43,12 +43,11 @@ export function cableOptionSelectMark(option: CableOptionOut): string | null {
 export function mapBackendCableOptionsToSelectOptions(
   options: readonly CableOptionOut[],
 ): CableMarkSelectOption[] {
-  return options
-    .map((option) => {
-      const mark = cableOptionSelectMark(option);
-      if (!mark) return null;
-      const searchLabel = formatCableOptionSearchLabel(option);
-      return {
+  return options.flatMap<CableMarkSelectOption>((option) => {
+    const mark = cableOptionSelectMark(option);
+    if (!mark) return [];
+    const searchLabel = formatCableOptionSearchLabel(option);
+    return [{
         value: cableMarkOptionValue('builtin', mark),
         label: searchLabel,
         searchLabel,
@@ -56,7 +55,6 @@ export function mapBackendCableOptionsToSelectOptions(
         optionSource: 'builtin' as const,
         cableSource: 'builtin' as const,
         disabled: !option.eligible,
-      };
-    })
-    .filter((option): option is CableMarkSelectOption => option != null);
+    }];
+  });
 }

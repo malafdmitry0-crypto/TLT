@@ -266,20 +266,3 @@
     grid-template-columns: var(--hof-wide-label-width) var(--hof-wide-control-tight, 240px);
   }
 }
-
-@container heat-fields (width < 600px) {
-  .heat-object-fields.heat-object-fields--wide {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-start;
-    gap: 4px 24px;
-  }
-
-  .heat-object-fields.heat-object-fields--wide > .heat-object-fields__geometry {
-    width: 100%;
-  }
-
-  .heat-object-fields.heat-object-fields--wide [data-slot="wide"] .ant-form-item-row {
-    grid-template-columns: var(--hof-wide-label-width) minmax(0, 380px);
-  }
-}

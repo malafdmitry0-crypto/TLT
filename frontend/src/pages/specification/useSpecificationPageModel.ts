@@ -21,22 +21,16 @@ import { buildSpecSettingsFormSnapshot } from '@/pages/specification/specGenerat
 import { useSpecificationQuerySession } from '@/pages/specification/useSpecificationQuerySession';
 import { useSpecificationManualItemsController } from '@/pages/specification/useSpecificationManualItemsController';
 import {
+  buildFixUnassignedNavigation,
+  buildSpecificationMutationScope,
   buildSpecificationGeneratedToast,
   filterValidGenerateErIds,
   resolveGenerateVariantIds,
+  type SpecificationMutationScope,
 } from '@/pages/specification/specificationPageModelHelpers';
 import { buildSpecGenerationHydrate } from '@/pages/specification/specGenerationHydrateModel';
 import { persistSpecificationCatalogSelections } from '@/pages/specification/specificationCatalogSelectionPersistence';
-import { formatPreflightSummary } from '@/pages/specification/specTableSectionModel';
-import { ROUTES } from '@/routes/routes';
-import { ELECTRICAL_VARIANT_URL_PARAM } from '@/domain/electricalVariantSelectionModel';
-import type { ElectricalNavigationState } from '@/pages/electrical/elecCalcPageModel';
-type SpecificationMutationScope = {
-  projectId: string;
-  electricalVariantId: string;
-  electricalVariantName: string;
-  queryKey: readonly unknown[];
-};
+import { formatPreflightSummary } from '@/domain/specification/specTableSectionModel';
 
 type GenerateSpecificationVariables = SpecificationMutationScope & {
   options: SpecificationOptions;
@@ -113,21 +107,9 @@ export function useSpecificationPageModel() {
     ));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- form.setSelectedGenerateErIds stable
   }, [selectedElectricalVariant?.id, availableGenerateVariants]);
-  const snapshotMutationScope = (): SpecificationMutationScope => {
-    if (!project || !selectedElectricalVariant?.id) {
-      throw new Error('Выбранный ЭР недоступен для спецификации');
-    }
-    return {
-      projectId: project.id,
-      electricalVariantId: selectedElectricalVariant.id,
-      electricalVariantName: selectedElectricalVariant.name,
-      queryKey: [
-        'spec',
-        project.id,
-        selectedElectricalVariant.id,
-      ],
-    };
-  };
+  const snapshotMutationScope = (): SpecificationMutationScope => (
+    buildSpecificationMutationScope(project, selectedElectricalVariant)
+  );
   const mut = useMutation({
     mutationFn: ({
       projectId,
@@ -341,17 +323,8 @@ export function useSpecificationPageModel() {
       ?? null;
     form.setPreflightOpen(false);
     form.setPendingGenerate(null);
-    const search = erId
-      ? `?${ELECTRICAL_VARIANT_URL_PARAM}=${encodeURIComponent(erId)}`
-      : '';
-    const state: ElectricalNavigationState = {
-      systemView: 'unassigned',
-      ...(erId ? { electricalVariantId: erId } : {}),
-    };
-    navigate(
-      { pathname: ROUTES.elecCalc, search },
-      { state },
-    );
+    const target = buildFixUnassignedNavigation(erId);
+    navigate(target.to, { state: target.state });
   };
 
   const selectCandidate = (groupKey: string, catalogItemId: string) => {

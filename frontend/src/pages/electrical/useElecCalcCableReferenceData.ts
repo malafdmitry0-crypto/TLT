@@ -16,7 +16,6 @@ type UseElecCalcCableReferenceDataOptions = {
   availableCableTypes: ReadonlySet<CableTypeKey>;
   effectiveSource: CableSource;
   visibleCableTypeControl: CableTypeKey | null;
-  aggressiveProduct: boolean;
   cableSizingEffectiveCableType: CableTypeKey;
 };
 
@@ -26,7 +25,6 @@ export function useElecCalcCableReferenceData({
   availableCableTypes,
   effectiveSource,
   visibleCableTypeControl,
-  aggressiveProduct,
   cableSizingEffectiveCableType,
 }: UseElecCalcCableReferenceDataOptions) {
   const { data: cables = [] } = useQuery({
@@ -83,11 +81,9 @@ export function useElecCalcCableReferenceData({
     availableCableTypes,
     cables,
     builtinCables,
-    ttCables,
     resistiveCables,
     builtinResistiveCables,
     effectiveSource,
-    aggressiveProduct,
     cableSizingEffectiveCableType,
   });
 
