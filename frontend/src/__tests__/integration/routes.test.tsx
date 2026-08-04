@@ -151,11 +151,19 @@ describe('AppRoutes', () => {
     expect(await screen.findByRole('heading', { name: 'Инженерный UI Kit' }, lazyRouteTimeout)).toBeInTheDocument();
   });
 
-  it('/help/guest рендерит GuestHelpPage', async () => {
+  it('/help/guest показывает текущий guest contract и project-file workflow', async () => {
     renderAt('/help/guest');
-    // Help-страницы — статичный текст
     await screen.findByText(/Гостевой режим/i, undefined, lazyRouteTimeout);
-    expect(document.body.textContent?.length).toBeGreaterThan(100);
+
+    const helpText = document.body.textContent ?? '';
+    expect(helpText).toContain('3 дня');
+    expect(helpText).toContain('500 объектов');
+    expect(helpText).toContain('один временный проект');
+    expect(helpText).toContain('Начать без регистрации');
+    expect(helpText).toContain('.tlt.csv');
+    expect(helpText).toContain('Это не то же самое, что импорт отдельных объектов');
+    expect(helpText).not.toMatch(/30 дней/i);
+    expect(helpText).not.toMatch(/(?:^|\D)50 объектов/i);
   });
 
   it('/help/employee рендерит EmployeeHelpPage', async () => {
