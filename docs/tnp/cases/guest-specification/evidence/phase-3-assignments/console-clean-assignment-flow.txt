@@ -1,0 +1,5 @@
+Total messages: 3 (Errors: 0, Warnings: 0)
+
+[DEBUG] [vite] connecting... @ http://localhost:5173/@vite/client:826
+[DEBUG] [vite] connected. @ http://localhost:5173/@vite/client:930
+[INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://localhost:5173/node_modules/.vite/deps/react-dom-CNDVFBRK.js?v=e68de86d:17232

@@ -1,0 +1,354 @@
+{
+  "url": "http://localhost:5173/workspace/elec-calc?er=da5ba553-473c-4b0c-9e27-35d415d9964c",
+  "viewport": {
+    "width": 1440,
+    "height": 1000,
+    "documentScrollWidth": 1440,
+    "documentClientWidth": 1440,
+    "bodyScrollWidth": 1440
+  },
+  "tabCount": 5,
+  "tabs": [
+    {
+      "tag": "button",
+      "id": "electrical-variant-tab-f53ea6d5-a5ca-42f4-9ebf-27e989fbcf69",
+      "role": "tab",
+      "aria": "ЭР1, активный ЭР",
+      "title": "ЭР1",
+      "accessibleFullName": "ЭР1",
+      "disabled": false,
+      "selected": "false",
+      "text": "ЭР1Активный",
+      "rect": {
+        "x": 21,
+        "y": 85.5,
+        "width": 120.96875,
+        "height": 30,
+        "right": 141.96875,
+        "bottom": 115.5
+      },
+      "client": {
+        "width": 119,
+        "height": 28
+      },
+      "scroll": {
+        "width": 119,
+        "height": 28
+      },
+      "overflow": {
+        "x": "visible",
+        "y": "visible"
+      },
+      "textOverflow": "clip",
+      "scrollAncestor": null
+    },
+    {
+      "tag": "button",
+      "id": "electrical-variant-tab-aa62cd0d-2d10-486d-80ae-5cf1015bdad9",
+      "role": "tab",
+      "aria": "ЭР2",
+      "title": "ЭР2",
+      "accessibleFullName": "ЭР2",
+      "disabled": false,
+      "selected": "false",
+      "text": "ЭР2",
+      "rect": {
+        "x": 149.96875,
+        "y": 85.5,
+        "width": 42.828125,
+        "height": 30,
+        "right": 192.796875,
+        "bottom": 115.5
+      },
+      "client": {
+        "width": 41,
+        "height": 28
+      },
+      "scroll": {
+        "width": 41,
+        "height": 28
+      },
+      "overflow": {
+        "x": "visible",
+        "y": "visible"
+      },
+      "textOverflow": "clip",
+      "scrollAncestor": null
+    },
+    {
+      "tag": "button",
+      "id": "electrical-variant-tab-13473aa6-5f08-473f-9d66-84d8baa670de",
+      "role": "tab",
+      "aria": "ЭР3",
+      "title": "ЭР3",
+      "accessibleFullName": "ЭР3",
+      "disabled": false,
+      "selected": "false",
+      "text": "ЭР3",
+      "rect": {
+        "x": 200.796875,
+        "y": 85.5,
+        "width": 43.0625,
+        "height": 30,
+        "right": 243.859375,
+        "bottom": 115.5
+      },
+      "client": {
+        "width": 41,
+        "height": 28
+      },
+      "scroll": {
+        "width": 41,
+        "height": 28
+      },
+      "overflow": {
+        "x": "visible",
+        "y": "visible"
+      },
+      "textOverflow": "clip",
+      "scrollAncestor": null
+    },
+    {
+      "tag": "button",
+      "id": "electrical-variant-tab-53312cf5-b814-4684-b7d5-eb166974058d",
+      "role": "tab",
+      "aria": "ЭР4",
+      "title": "ЭР4",
+      "accessibleFullName": "ЭР4",
+      "disabled": false,
+      "selected": "false",
+      "text": "ЭР4",
+      "rect": {
+        "x": 251.859375,
+        "y": 85.5,
+        "width": 43.03125,
+        "height": 30,
+        "right": 294.890625,
+        "bottom": 115.5
+      },
+      "client": {
+        "width": 41,
+        "height": 28
+      },
+      "scroll": {
+        "width": 41,
+        "height": 28
+      },
+      "overflow": {
+        "x": "visible",
+        "y": "visible"
+      },
+      "textOverflow": "clip",
+      "scrollAncestor": null
+    },
+    {
+      "tag": "button",
+      "id": "electrical-variant-tab-da5ba553-473c-4b0c-9e27-35d415d9964c",
+      "role": "tab",
+      "aria": "ЭР для северного участка — резервная линия с очень длинным названием",
+      "title": "ЭР для северного участка — резервная линия с очень длинным названием",
+      "accessibleFullName": "ЭР для северного участка — резервная линия с очень длинным названием",
+      "disabled": false,
+      "selected": "true",
+      "text": "ЭР для северного участка — резервная линия с очень длинным названием",
+      "rect": {
+        "x": 302.890625,
+        "y": 85.5,
+        "width": 394.84375,
+        "height": 30,
+        "right": 697.734375,
+        "bottom": 115.5
+      },
+      "client": {
+        "width": 393,
+        "height": 28
+      },
+      "scroll": {
+        "width": 393,
+        "height": 28
+      },
+      "overflow": {
+        "x": "visible",
+        "y": "visible"
+      },
+      "textOverflow": "clip",
+      "scrollAncestor": null
+    }
+  ],
+  "tablist": {
+    "tag": "div",
+    "id": null,
+    "role": "tablist",
+    "aria": "Электротехнические решения",
+    "title": null,
+    "accessibleFullName": null,
+    "disabled": false,
+    "selected": null,
+    "text": "ЭР1АктивныйЭР2ЭР3ЭР4ЭР для северного участка — резервная линия с очень длинным названием",
+    "rect": {
+      "x": 19,
+      "y": 83.5,
+      "width": 1402,
+      "height": 38,
+      "right": 1421,
+      "bottom": 121.5
+    },
+    "client": {
+      "width": 1402,
+      "height": 38
+    },
+    "scroll": {
+      "width": 1402,
+      "height": 38
+    },
+    "overflow": {
+      "x": "auto",
+      "y": "hidden"
+    },
+    "textOverflow": "clip",
+    "scrollAncestor": null
+  },
+  "selectedTabFullyVisible": true,
+  "tabpanel": [
+    {
+      "tag": "div",
+      "id": "electrical-variant-panel-da5ba553-473c-4b0c-9e27-35d415d9964c",
+      "role": "tabpanel",
+      "aria": null,
+      "title": null,
+      "accessibleFullName": null,
+      "disabled": false,
+      "selected": null,
+      "text": "«ЭР для северного участка — резервная линия с очень длинным названием»: расчётные действия временно недоступныДля этого ЭР ещё нет UUID-совместимого расчётного ",
+      "rect": {
+        "x": 6,
+        "y": 208.203125,
+        "width": 1428,
+        "height": 97.140625,
+        "right": 1434,
+        "bottom": 305.34375
+      },
+      "client": {
+        "width": 1428,
+        "height": 97
+      },
+      "scroll": {
+        "width": 1428,
+        "height": 97
+      },
+      "overflow": {
+        "x": "visible",
+        "y": "visible"
+      },
+      "textOverflow": "clip",
+      "scrollAncestor": null
+    }
+  ],
+  "clippedText": [],
+  "controlsOutsideViewport": [],
+  "controlsOutsideViewportUnexpected": [],
+  "unexpectedOverlaps": [],
+  "limitButtons": [
+    {
+      "tag": "button",
+      "id": null,
+      "role": null,
+      "aria": "Добавить пустой ЭР — достигнут лимит 5",
+      "title": null,
+      "accessibleFullName": null,
+      "disabled": true,
+      "selected": null,
+      "text": "Добавить пустой ЭР",
+      "rect": {
+        "x": 19,
+        "y": 164.8125,
+        "width": 123.1875,
+        "height": 22.390625,
+        "right": 142.1875,
+        "bottom": 187.203125
+      },
+      "client": {
+        "width": 121,
+        "height": 20
+      },
+      "scroll": {
+        "width": 121,
+        "height": 20
+      },
+      "overflow": {
+        "x": "visible",
+        "y": "visible"
+      },
+      "textOverflow": "clip",
+      "scrollAncestor": null
+    },
+    {
+      "tag": "button",
+      "id": null,
+      "role": null,
+      "aria": "Создать копию «ЭР для северного участка — резервная линия с очень длинным названием» — достигнут лимит 5",
+      "title": null,
+      "accessibleFullName": null,
+      "disabled": true,
+      "selected": null,
+      "text": "Создать копию",
+      "rect": {
+        "x": 150.1875,
+        "y": 164.8125,
+        "width": 97.5625,
+        "height": 22.390625,
+        "right": 247.75,
+        "bottom": 187.203125
+      },
+      "client": {
+        "width": 96,
+        "height": 20
+      },
+      "scroll": {
+        "width": 96,
+        "height": 20
+      },
+      "overflow": {
+        "x": "visible",
+        "y": "visible"
+      },
+      "textOverflow": "clip",
+      "scrollAncestor": null
+    }
+  ],
+  "failClosedText": [
+    {
+      "tag": "div",
+      "id": null,
+      "role": "alert",
+      "aria": null,
+      "title": null,
+      "accessibleFullName": null,
+      "disabled": false,
+      "selected": null,
+      "text": "«ЭР для северного участка — резервная линия с очень длинным названием»: расчётные действия временно недоступныДля этого ЭР ещё нет UUID-совместимого расчётного ",
+      "rect": {
+        "x": 6,
+        "y": 208.203125,
+        "width": 1428,
+        "height": 97.140625,
+        "right": 1434,
+        "bottom": 305.34375
+      },
+      "client": {
+        "width": 1426,
+        "height": 95
+      },
+      "scroll": {
+        "width": 1426,
+        "height": 95
+      },
+      "overflow": {
+        "x": "visible",
+        "y": "visible"
+      },
+      "textOverflow": "clip",
+      "scrollAncestor": null
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "url": "http://127.0.0.1:3003/workspace/elec-calc",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "document": {
+    "clientWidth": 390,
+    "scrollWidth": 390,
+    "clientHeight": 844,
+    "scrollHeight": 844
+  },
+  "pageHorizontalOverflow": false,
+  "tabs": [
+    {
+      "text": "СО1",
+      "x": 13,
+      "y": 405.5,
+      "width": 41.53125,
+      "height": 22,
+      "right": 54.53125,
+      "bottom": 427.5,
+      "visible": true,
+      "clippedByViewport": false,
+      "textOverflow": "clip",
+      "overflow": "visible"
+    },
+    {
+      "text": "СО2",
+      "x": 59.53125,
+      "y": 405.5,
+      "width": 43.21875,
+      "height": 22,
+      "right": 102.75,
+      "bottom": 427.5,
+      "visible": true,
+      "clippedByViewport": false,
+      "textOverflow": "clip",
+      "overflow": "visible"
+    },
+    {
+      "text": "СО3",
+      "x": 107.75,
+      "y": 405.5,
+      "width": 43.5,
+      "height": 22,
+      "right": 151.25,
+      "bottom": 427.5,
+      "visible": true,
+      "clippedByViewport": false,
+      "textOverflow": "clip",
+      "overflow": "visible"
+    },
+    {
+      "text": "СО4",
+      "x": 156.25,
+      "y": 405.5,
+      "width": 43.6875,
+      "height": 22,
+      "right": 199.9375,
+      "bottom": 427.5,
+      "visible": true,
+      "clippedByViewport": false,
+      "textOverflow": "clip",
+      "overflow": "visible"
+    }
+  ],
+  "tabCount": 4,
+  "allTabsPositiveSize": true,
+  "tabsClipped": [],
+  "overlaps": [],
+  "visibleZeroSizeButtons": 0
+}

@@ -142,7 +142,6 @@ Acceptance path: **met for engineering/demo**. Production authority: **not met**
 - [ ] Session recovery AUTH-05: при пересоздании гостевой сессии — `cancelQueries` +
       `removeQueries` ключей старого проекта до ретрая (`api/client.ts:134-141` + связка с
       queryClient); ноль 401/404 и console-ошибок после восстановления.
-- [ ] Сообщения о вместимости: показывать остаток до 500 до импорта/добавления.
 
 ## Slice 9 — качество и приёмка (FE) `[ ]`
 
