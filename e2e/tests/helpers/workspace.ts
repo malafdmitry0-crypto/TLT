@@ -40,6 +40,7 @@ export async function fetchProjectObjects(page: Page) {
     is_valid: boolean;
     params: Record<string, unknown>;
     results?: Record<string, unknown> | null;
+    validation_errors?: Record<string, unknown> | null;
   }>>;
 }
 
