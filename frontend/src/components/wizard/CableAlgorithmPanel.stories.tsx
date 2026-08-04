@@ -69,7 +69,7 @@ export const Pipe: Story = {
     await expectIslandScale(
       canvasElement.querySelector('.object-wizard-cable-panel'),
       '.ant-input-number',
-      { height: 36, radius: '6px', labelSize: '10.5px' },
+      { height: 36, radius: '6px', labelSize: '9px' },
     );
   },
 };

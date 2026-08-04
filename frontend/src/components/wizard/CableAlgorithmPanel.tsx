@@ -190,7 +190,23 @@ export default function CableAlgorithmPanel({
             )}
           </Form.Item>
 
-          {/* 7. min_switch_temperature */}
+          {/* 7. connection_type — в одном столбце со «Средой» */}
+          <Form.Item
+            className="cable-algorithm-field connection-type-form-item helped-form-item"
+            label={<FieldLabel text="Схема соединения" />}
+            name="connection_type"
+          >
+            {withHelp(
+              <TltSelect
+                data-testid="connection-type-select"
+                options={[...CABLE_CONNECTION_SCHEME_OPTIONS]}
+                allowClear
+                placeholder="Выберите схему"
+              />,
+              'Схема соединения нагревательной секции (ТНП: петля / линия / звезда / …).',
+            )}
+          </Form.Item>
+          {/* 8. min_switch_temperature */}
           <Form.Item
             className="cable-algorithm-field min-switch-temperature-form-item helped-form-item"
             label={fieldLabel('min_switch_temperature', objectType)}
@@ -207,22 +223,6 @@ export default function CableAlgorithmPanel({
             )}
           </Form.Item>
 
-          {/* 8. connection_type / схема соединения */}
-          <Form.Item
-            className="cable-algorithm-field connection-type-form-item helped-form-item"
-            label={<FieldLabel text="Схема соединения" />}
-            name="connection_type"
-          >
-            {withHelp(
-              <TltSelect
-                data-testid="connection-type-select"
-                options={[...CABLE_CONNECTION_SCHEME_OPTIONS]}
-                allowClear
-                placeholder="Выберите схему"
-              />,
-              'Схема соединения нагревательной секции (ТНП: петля / линия / звезда / …).',
-            )}
-          </Form.Item>
         </CompactFieldGrid>
       </div>
       <p className="cable-algorithm-hint">

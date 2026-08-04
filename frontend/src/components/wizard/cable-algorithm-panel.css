@@ -14,9 +14,9 @@
  */
 .object-wizard-cable-panel {
   /* Same dual-form chrome as the heat pane (heatcalc-field-chrome-core):
-     banner 8px uppercase, labels 8.5px, controls 28px, number 10px, select 9px. */
+     banner 8px uppercase, labels 9px, controls 36px, number 12px, select 9px. */
   --dual-form-banner-size: 8px;
-  --dual-form-label-size: 10.5px;
+  --dual-form-label-size: 9px;
   --dual-form-label-line-height: 1.05;
   --dual-form-label-color: var(--color-swatch-26364a);
   --dual-form-control-height: 36px;
@@ -34,9 +34,9 @@
   --tlt-field-radius: 6px;
   --tlt-field-control-height: var(--cable-control-height);
   --tlt-field-control-font-size: var(--cable-control-font);
-  --tlt-field-number-font-size: 11px;
-  --tlt-field-select-font-size: 11px;
-  --tlt-field-unit-font-size: 11px;
+  --tlt-field-number-font-size: 12px;
+  --tlt-field-select-font-size: 9px;
+  --tlt-field-unit-font-size: 9px;
   --dual-field-label-width: 88px;
   --cable-control-target-width: 222px;
   --cable-column-width: calc(var(--dual-field-label-width) + 8px + var(--cable-control-target-width));
@@ -85,7 +85,8 @@
 }
 .object-wizard-cable-panel .cable-algorithm-fields .ant-form-item-row {
   display: grid;
-  grid-template-columns: var(--dual-field-label-width) minmax(0, 1fr);
+  /* контрол не шире 99px (−40%, затем ещё −7% по решению владельца) */
+  grid-template-columns: var(--dual-field-label-width) minmax(0, 99px);
   column-gap: 8px;
   row-gap: 0;
   align-items: center;
@@ -177,7 +178,7 @@
 .object-wizard-cable-panel .cable-algorithm-fields .ant-input-number-input {
   height: var(--cable-control-height);
   padding: 0 3px;
-  font-size: 11px; /* frames.css .narrow .ctl */
+  font-size: 12px; /* как в теплопотерях */
 }
 .object-wizard-cable-panel .cable-algorithm-fields .tlt-select__trigger,
 .object-wizard-cable-panel .cable-algorithm-fields .reference-picker-control {
@@ -186,12 +187,12 @@
 }
 .object-wizard-cable-panel .cable-algorithm-fields .ant-select-selection-item,
 .object-wizard-cable-panel .cable-algorithm-fields .ant-select-selection-placeholder {
-  font-size: 11px;
+  font-size: 9px;
   line-height: calc(var(--cable-control-height) - 2px);
 }
 .object-wizard-cable-panel .cable-algorithm-fields .unit-input-number__addon {
   height: var(--cable-control-height);
-  font-size: 11px;
+  font-size: 9px;
   line-height: calc(var(--cable-control-height) - 2px);
 }
 .object-wizard-cable-panel .cable-algorithm-fields .cable-algorithm-number {
@@ -214,8 +215,8 @@
 /* auto-fit + непустой минимум: в узком окне сетка переходит в одну колонку,
    а не сплющивает контрол (при minmax(0,…) он падал до 73px и резал «Нормальная»). */
 .object-wizard-cable-panel .cable-algorithm-fields {
-  /* две текучие колонки, как в кадре: контрол заполняет остаток колонки */
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  /* две колонки, когда влезают; иначе одна — иначе значения селектов режутся */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 195px), 1fr));
   column-gap: 12px;
 }
 .object-wizard-cable-panel .cable-algorithm-hint {

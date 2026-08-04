@@ -20,8 +20,8 @@
   --hof-environment-control-width: 92px;
   --field-input-min-width: 0px;
   --tlt-field-control-height: 36px;
-  --form-label-size: 10.5px;
-  --tlt-field-label-font-size: 10.5px;
+  --form-label-size: 9px;
+  --tlt-field-label-font-size: 9px;
   --tlt-field-unit-font-size: 12px;
   --tlt-field-radius: 6px;
   --inline-control-height: var(--tlt-field-control-height, 26px);

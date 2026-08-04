@@ -100,7 +100,7 @@ export const Wide: Story = {
     await expectIslandScale(root, '.ant-input', {
       height: 36,
       radius: '6px',
-      labelSize: '10.5px',
+      labelSize: '9px',
     });
   },
 };
