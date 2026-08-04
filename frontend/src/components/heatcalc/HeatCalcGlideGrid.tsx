@@ -109,9 +109,33 @@ function HeatCalcGlideGrid({
     () => gridColumns.map((column) => column.key),
     [gridColumns],
   );
+  // таблица занимает всю ширину: остаток отдаём последней колонке
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
+  useEffect(() => {
+    const element = rootRef.current;
+    if (!element || typeof ResizeObserver === 'undefined') return undefined;
+    const update = () => setContainerWidth((current) => {
+      const next = Math.floor(element.getBoundingClientRect().width);
+      return current === next ? current : next;
+    });
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  const contentWidth = tableScrollX + GLIDE_ROW_MARKER_WIDTH;
+  const editorWidth = Math.max(contentWidth, containerWidth);
   const editorColumns = useMemo(
-    () => buildHeatEditorColumns(gridColumns),
-    [gridColumns],
+    () => {
+      const base = buildHeatEditorColumns(gridColumns);
+      const extra = containerWidth - contentWidth;
+      if (extra <= 0 || base.length === 0) return base;
+      return base.map((column, index) => (index === base.length - 1
+        ? { ...column, width: ('width' in column ? column.width : 0) + extra }
+        : column));
+    },
+    [containerWidth, contentWidth, gridColumns],
   );
   const glideTheme = useMemo(
     () => buildHeatGlideTheme(fontSize.fontSizePx),
@@ -273,11 +297,12 @@ function HeatCalcGlideGrid({
       onPointerDownCapture={handlePointerDownCapture}
       onPointerUpCapture={clearRowMarkerPointer}
       onPointerCancelCapture={clearRowMarkerPointer}
+      ref={rootRef}
     >
       <DataEditor
         ref={editorRef}
         className="heatcalc-glide-editor"
-        width={tableScrollX + GLIDE_ROW_MARKER_WIDTH}
+        width={editorWidth}
         height={tableScrollY}
         columns={editorColumns}
         rows={rows.length}

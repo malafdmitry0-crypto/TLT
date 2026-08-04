@@ -251,6 +251,7 @@ export default function HeatCalcObjectsTableCard({
             gridColumns={glideColumns}
             tableScrollX={tableScrollX}
             tableScrollY={tableScrollY}
+            fillAvailableWidth
             fontSizeKey={fontSizeKey}
             activeRowId={activeRowId}
             selectedRowKeys={selectedRowKeys}
