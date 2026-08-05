@@ -113,7 +113,7 @@ test.describe('§5.7–5.10 действия над объектами тепл�
     await loginAsGuest(page);
     const settings = page.getByRole('button', { name: 'Настройки отображения' });
     // §5.5–5.9: кнопка названа текстом, а не иконкой
-    await expect(settings).toContainText('Настройки отображения');
+    await expect(settings).toContainText('Настройки');
     await settings.click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();

@@ -168,20 +168,19 @@ describe('HeatCalcPage basics — object type', () => {
       expect(within(tableActionsToolbar).getByText('Обычный режим')).toBeInTheDocument();
       const resetFiltersButton = within(tableActionsToolbar).getByRole('button', { name: 'Сбросить фильтры таблицы' });
       expect(resetFiltersButton).toBeDisabled();
-      expect(resetFiltersButton).toHaveTextContent(/^$/);
+      expect(resetFiltersButton).toHaveTextContent('Сбросить фильтры');
       expect(within(tableActionsToolbar).queryByRole('button', { name: 'Трубопровод' })).not.toBeInTheDocument();
       expect(within(tableActionsToolbar).queryByRole('button', { name: 'Резервуар' })).not.toBeInTheDocument();
       expect(within(tableActionsToolbar).queryByText(/Режим:/)).not.toBeInTheDocument();
       expect(within(tableActionsToolbar).queryByRole('checkbox', { name: 'Показать блок заполнения параметров' })).not.toBeInTheDocument();
       expect(within(tableActionsToolbar).queryByText(/Все рассчитаны/)).not.toBeInTheDocument();
       expect(useWorkspaceHeaderStore.getState().context).toBeNull();
-      expect(tableFieldsButton).toHaveTextContent('Настройки отображения');
+      expect(tableFieldsButton).toHaveTextContent('Настройки');
+      // §5.5–5.9: кнопки названы текстом, иконка — дополнение к подписи
       expect(addButton).toHaveClass('action-add-button');
-      expect(addButton).toHaveClass('action-icon-button');
-      expect(addButton).toHaveTextContent(/^$/);
+      expect(addButton).toHaveTextContent('Добавить');
       expect(saveButton).toHaveClass('action-save-button');
-      expect(saveButton).toHaveClass('action-icon-button');
-      expect(saveButton).toHaveTextContent(/^$/);
+      expect(saveButton).toHaveTextContent('Сохранить');
       expect(saveButton).not.toBeDisabled();
       expect(importButton).toHaveTextContent('Загрузить из Excel');
       expect(within(typeToolbar).getByRole('button', { name: /Трубопровод:\s*0/ })).toBeInTheDocument();

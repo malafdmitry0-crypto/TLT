@@ -150,7 +150,7 @@ export default function ImportExcelButton({ projectId, existingObjectCount }: Pr
             className="template-download-button"
             onClick={() => downloadTemplate('xlsx')}
           >
-            .xlsx
+            Шаблон .xlsx
           </TltButton>
         </Tooltip>
         <Tooltip title="Скачать шаблон CSV">
@@ -162,7 +162,7 @@ export default function ImportExcelButton({ projectId, existingObjectCount }: Pr
             className="template-download-button"
             onClick={() => downloadTemplate('csv')}
           >
-            .csv
+            Шаблон .csv
           </TltButton>
         </Tooltip>
       </Space>

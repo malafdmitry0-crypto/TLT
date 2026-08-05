@@ -10,7 +10,7 @@
   background: var(--heatcalc-toolbar-background);
   border-radius: 4px;
   border: 1px solid var(--heatcalc-toolbar-border);
-  font-size: 12px;
+  font-size: 10px;
   line-height: 1.2;
 }
 .actionbar-group {
@@ -62,23 +62,23 @@
 }
 .actionbar-srs .ant-btn {
   border-radius: 3px;
-  font-size: 12px;
-  height: 22px;
-  padding-inline: 8px;
+  font-size: 10px;
+  height: 20px;
+  padding-inline: 6px;
   line-height: 1;
 }
 .actionbar-srs .ant-segmented {
-  font-size: 12px;
+  font-size: 10px;
   padding: 1px;
 }
 .actionbar-srs .ant-segmented-item {
-  min-height: 22px;
-  line-height: 22px;
-  padding: 0 8px;
+  min-height: 20px;
+  line-height: 20px;
+  padding: 0 6px;
 }
 .actionbar-srs .ant-segmented-item-label {
-  min-height: 22px;
-  line-height: 22px;
+  min-height: 20px;
+  line-height: 20px;
 }
 .actionbar-srs .action-tooltip-wrap {
   display: inline-flex;

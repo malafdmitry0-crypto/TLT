@@ -35,14 +35,15 @@ export default function ExportObjectsButton({ projectId, projectName, disabled }
     <Tooltip title={disabled ? 'Нет объектов для экспорта' : 'Экспорт в Excel'}>
       <span className="action-tooltip-wrap">
         <TltButton
-          className="action-icon-button"
+          className="action-secondary-button"
           icon={<FileExcelOutlined />}
           aria-label="Экспорт в Excel"
-          size="icon"
           loading={loading}
           disabled={disabled}
           onClick={handleExport}
-        />
+        >
+          Экспорт в Excel
+        </TltButton>
       </span>
     </Tooltip>
   );

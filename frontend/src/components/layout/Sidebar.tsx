@@ -27,11 +27,14 @@ function StepLabel({
   done?: boolean;
 }) {
   if (!count && !done) return <span className="heatcalc-step-label">{text}</span>;
+  // У Badge с count цвет задаётся именем пресета: 'success'/'processing' — это
+  // значения `status`, а не `color`, и antd молча рисует счётчик красным.
+  const countColor = badgeColor === 'processing' ? 'blue' : 'green';
   return (
     <span className="heatcalc-step-label">
       {text}
       {done && <CheckCircleFilled className="heatcalc-step-done" />}
-      {count ? <Badge count={count} color={badgeColor} size="small" /> : null}
+      {count ? <Badge count={count} color={countColor} size="small" /> : null}
     </span>
   );
 }

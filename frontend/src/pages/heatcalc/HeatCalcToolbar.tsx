@@ -201,23 +201,27 @@ export function HeatCalcActionsToolbar({
             <Tooltip title="Добавить">
               <TltButton
                 variant="primary"
-                className="action-icon-button action-add-button add"
+                className="action-add-button add"
                 icon={<PlusOutlined />}
                 aria-label="Добавить"
                 onClick={() => formActions.onAdd()}
-              />
+              >
+                Добавить
+              </TltButton>
             </Tooltip>
 
             <Tooltip title={formActions.saveTooltip}>
               <span className="action-tooltip-wrap">
                 <TltButton
-                  className="action-icon-button action-save-button save"
+                  className="action-save-button save"
                   icon={<SaveOutlined />}
                   aria-label="Сохранить"
                   disabled={formActions.saveDisabled}
                   loading={formActions.saveLoading}
                   onClick={formActions.onSave}
-                />
+                >
+                  Сохранить
+                </TltButton>
               </span>
             </Tooltip>
             <Tooltip title={formActions.deleteTargetCount === 0 ? 'Выберите строки для удаления' : 'Удалить выбранные'}>
@@ -260,13 +264,15 @@ export function HeatCalcActionsToolbar({
           <Tooltip title={tableActions.recalcTooltip}>
             <span className="action-tooltip-wrap">
               <TltButton
-                className="action-icon-button action-secondary-button"
+                className="action-secondary-button"
                 icon={<ReloadOutlined />}
                 aria-label={tableActions.recalcAriaLabel}
                 loading={tableActions.recalcLoading}
                 disabled={tableActions.recalcDisabled}
                 onClick={tableActions.onRecalcScoped}
-              />
+              >
+                Пересчитать
+              </TltButton>
             </span>
           </Tooltip>
           <Tooltip title={tableActions.recalcAllTooltip}>
@@ -286,12 +292,14 @@ export function HeatCalcActionsToolbar({
           {tableActions.jobActive && tableActions.jobId && (
             <Tooltip title="Отменить пересчёт теплопотерь">
               <TltButton variant="danger"
-                className="action-icon-button action-secondary-button"
+                className="action-secondary-button"
                 icon={<StopOutlined />}
                 aria-label="Отменить пересчёт теплопотерь"
                 loading={tableActions.cancelJobLoading}
                 onClick={tableActions.onCancelJob}
-              />
+              >
+                Отменить пересчёт
+              </TltButton>
             </Tooltip>
           )}
           <Tooltip title="Настройки отображения">
@@ -302,7 +310,7 @@ export function HeatCalcActionsToolbar({
                 aria-label="Настройки отображения"
                 onClick={tableActions.onOpenSettings}
               >
-                Настройки отображения
+                Настройки
               </TltButton>
             </span>
           </Tooltip>
@@ -310,12 +318,14 @@ export function HeatCalcActionsToolbar({
             <Tooltip title={tableActions.currentTableViewActive ? 'Сбросить фильтры и сортировку' : 'Фильтры не активны'}>
               <span className="action-tooltip-wrap">
                 <TltButton
-                  className="action-icon-button action-secondary-button"
+                  className="action-secondary-button"
                   icon={<CloseCircleOutlined />}
                   aria-label="Сбросить фильтры таблицы"
                   disabled={!tableActions.currentTableViewActive}
                   onClick={tableActions.onResetCurrentTableView}
-                />
+                >
+                  Сбросить фильтры
+                </TltButton>
               </span>
             </Tooltip>
           )}
