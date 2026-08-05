@@ -158,11 +158,9 @@ export default function SpecificationPage() {
       {!canMutateProject && (
         <TltAlert
           tone="info"
-          title="Режим просмотра"
+          title={<small>Режим просмотра</small>}
           className="specification-alert-gap"
-        >
-          Изменять или пересчитывать спецификацию может только владелец проекта или администратор.
-        </TltAlert>
+        />
       )}
 
       {/* Toolbar: ER tabs + Обновить + Настройки */}
