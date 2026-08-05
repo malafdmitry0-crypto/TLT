@@ -3,9 +3,8 @@
  * @owner electrical
  * Owns: column settings open state, preference load/mutations, column view model,
  *   main/candidate table view (filter/sort) state, column resize/persist,
- *   settings draft lifecycle, params panel visibility.
+ *   settings draft lifecycle.
  * Writes: user table/column preferences (preference API + guest storage),
- *   params panel localStorage.
  * Does-not: data plane queries, main table controller, candidate workflow,
  *   cable mark/selection mutations, presentation assembly.
  */
@@ -14,7 +13,6 @@ import { useState } from 'react';
 import { useElecCalcColumnPersistence } from '@/pages/electrical/useElecCalcColumnPersistence';
 import { useElecCalcColumnSettingsDraftState } from '@/pages/electrical/useElecCalcColumnSettingsDraftState';
 import { useElecCalcColumnViewModel } from '@/pages/electrical/useElecCalcColumnViewModel';
-import { useElecCalcParamsPanelState } from '@/pages/electrical/useElecCalcParamsPanelState';
 import { useElecCalcPreferenceSettings } from '@/pages/electrical/useElecCalcPreferenceSettings';
 import { useElecCalcTableViewState } from '@/pages/electrical/useElecCalcTableViewState';
 
@@ -84,8 +82,6 @@ export function useElecCalcWorkspaceColumnSettingsController({
     resetElectricalTablePage,
   });
 
-  const { paramsPanelVisible, toggleParamsPanel } = useElecCalcParamsPanelState();
-
   const columnPersistence = useElecCalcColumnPersistence({
     tableColumnSettings,
     candidateTableColumnSettings,
@@ -135,8 +131,6 @@ export function useElecCalcWorkspaceColumnSettingsController({
     resetCandidateColumnFilter,
     resetCandidateTableViewState,
     setCandidateTableSort,
-    paramsPanelVisible,
-    toggleParamsPanel,
     columnPersistence,
     columnDraft,
     updateTableColumnPreference,

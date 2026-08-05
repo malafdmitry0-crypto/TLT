@@ -260,7 +260,30 @@ def build_heat_loss_error_payload(
         hint = "Температура продукта должна быть выше температуры грунта."
     if isinstance(exc, ProjectObjectParamsError):
         missing_fields = _missing_fields_from_message(message)
-        if "неподдерживаемый тип объекта" in lower_message:
+        structured_fields = list(exc.fields)
+        if exc.reason == "process_temperature_not_above_ambient":
+            error_code = exc.reason
+            field = "process_temperature"
+            message = "Температура продукта должна быть выше температуры воздуха."
+            hint = message
+        elif exc.reason == "process_temperature_not_above_ground":
+            error_code = exc.reason
+            field = "process_temperature"
+            message = "Температура продукта должна быть выше температуры грунта."
+            hint = message
+        elif exc.code == "OBJECT_REQUIRED_FIELDS_MISSING":
+            error_code = "missing_required_fields"
+            field = structured_fields[0] if len(structured_fields) == 1 else None
+            extra["missing_fields"] = structured_fields
+            hint = "Заполните обязательные поля объекта."
+        elif exc.code == "OBJECT_PARAMS_INVALID":
+            field = structured_fields[0] if len(structured_fields) == 1 else None
+            if structured_fields:
+                extra["fields"] = {
+                    validation_field: message for validation_field in structured_fields
+                }
+            hint = "Проверьте формат и диапазоны значений."
+        elif "неподдерживаемый тип объекта" in lower_message:
             category = "unsupported"
             error_code = "unsupported_object_type"
             field = "object_type"

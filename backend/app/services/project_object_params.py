@@ -8,6 +8,8 @@ required fields must make the object invalid before formulas run.
 from collections.abc import Mapping
 from typing import Any
 
+from pydantic import ValidationError
+
 from app.schemas.calculation import StoredPipeHeatParams, StoredTankHeatParams
 from app.services.heat_contract import (
     COMMON_HEAT_PARAM_KEYS,
@@ -21,6 +23,23 @@ class ProjectObjectParamsError(ValueError):
 
     code: str | None = None
     fields: tuple[str, ...] = ()
+    reason: str | None = None
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        code: str | None = None,
+        fields: tuple[str, ...] = (),
+        reason: str | None = None,
+    ) -> None:
+        super().__init__(message)
+        if code is not None:
+            self.code = code
+        if fields:
+            self.fields = fields
+        if reason is not None:
+            self.reason = reason
 
 
 LEGACY_SPECIFICATION_OBJECT_PARAM_KEYS = frozenset(
@@ -205,13 +224,77 @@ def _validate_pipe_params(params: Mapping[str, Any], missing: list[str]) -> None
     heat_payload = {key: value for key, value in params.items() if key in heat_keys}
     try:
         StoredPipeHeatParams(**heat_payload)
-    except ValueError as exc:
-        raise ProjectObjectParamsError(str(exc)) from exc
+    except ValidationError as exc:
+        raise _project_object_params_validation_error(exc) from exc
 
 
 def _validate_tank_params(params: Mapping[str, Any], missing: list[str]) -> None:
     heat_keys = COMMON_HEAT_PARAM_KEYS | TANK_HEAT_PARAM_KEYS
     try:
         StoredTankHeatParams(**{key: value for key, value in params.items() if key in heat_keys})
-    except ValueError as exc:
-        raise ProjectObjectParamsError(str(exc)) from exc
+    except ValidationError as exc:
+        raise _project_object_params_validation_error(exc) from exc
+
+
+def _project_object_params_validation_error(exc: ValidationError) -> ProjectObjectParamsError:
+    errors = exc.errors()
+    fields = _validation_error_fields(errors)
+    reason = _validation_error_reason(errors)
+    only_missing = bool(errors) and all(error.get("type") == "missing" for error in errors)
+    if only_missing:
+        return ProjectObjectParamsError(
+            "Заполните обязательные поля объекта",
+            code="OBJECT_REQUIRED_FIELDS_MISSING",
+            fields=fields,
+            reason=reason,
+        )
+    return ProjectObjectParamsError(
+        "Проверьте параметры объекта",
+        code="OBJECT_PARAMS_INVALID",
+        fields=fields,
+        reason=reason,
+    )
+
+
+def _validation_error_fields(errors: list[dict[str, Any]]) -> tuple[str, ...]:
+    fields: list[str] = []
+    model_error_fields = (
+        ("режим tm", ("insulation_temperature_basis",)),
+        ("process_temperature_not_above", ("process_temperature",)),
+        ("для цилиндра требуются diameter и height", ("diameter", "height")),
+        (
+            "для параллелепипеда требуются length, width и height",
+            ("length", "width", "height"),
+        ),
+    )
+    for error in errors:
+        loc = error.get("loc")
+        context = error.get("ctx")
+        message = str(context.get("error", "")) if isinstance(context, dict) else ""
+        lower_message = message.lower()
+        if isinstance(loc, tuple | list) and loc:
+            path = ".".join(str(part) for part in loc)
+            if "неизвестный материал" in lower_message and path.startswith(
+                "insulation_layers."
+            ):
+                path = f"{path}.material"
+            fields.append(path)
+            continue
+        for marker, inferred_fields in model_error_fields:
+            if marker in lower_message:
+                fields.extend(inferred_fields)
+                break
+    return tuple(dict.fromkeys(fields))
+
+
+def _validation_error_reason(errors: list[dict[str, Any]]) -> str | None:
+    for error in errors:
+        context = error.get("ctx")
+        message = str(context.get("error", "")) if isinstance(context, dict) else ""
+        for reason in (
+            "process_temperature_not_above_ambient",
+            "process_temperature_not_above_ground",
+        ):
+            if reason in message:
+                return reason
+    return None

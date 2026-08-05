@@ -481,6 +481,7 @@ class TestObjectsLifecycle:
         self, client: AsyncClient, guest_session: str
     ):
         pid = await _project(client, guest_session)
+        headers = {"X-Session-Id": guest_session}
         resp = await client.post(
             f"/api/v1/projects/{pid}/objects",
             json={
@@ -498,10 +499,101 @@ class TestObjectsLifecycle:
                     "wind_speed": 0,
                 },
             },
-            headers={"X-Session-Id": guest_session},
+            headers=headers,
         )
         assert resp.status_code == 422, resp.text
-        assert "wall_thickness" in resp.text
+        assert resp.json()["detail"] == {
+            "code": "OBJECT_PARAMS_INVALID",
+            "message": "Проверьте параметры объекта",
+            "fields": ["wall_thickness"],
+        }
+        assert "validation error" not in resp.text
+        assert "Input should be" not in resp.text
+        objects = await client.get(
+            f"/api/v1/projects/{pid}/objects",
+            headers=headers,
+        )
+        assert objects.status_code == 200, objects.text
+        assert objects.json() == []
+
+    async def test_missing_pipe_fields_return_stable_error_envelope(
+        self, client: AsyncClient, guest_session: str
+    ):
+        pid = await _project(client, guest_session)
+        resp = await client.post(
+            f"/api/v1/projects/{pid}/objects",
+            json={"object_type": "pipe", "params": {}},
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert resp.status_code == 422, resp.text
+        assert resp.json()["detail"] == {
+            "code": "OBJECT_REQUIRED_FIELDS_MISSING",
+            "message": "Заполните обязательные поля объекта",
+            "fields": [
+                "outer_diameter",
+                "wall_thickness",
+                "insulation_layers",
+                "process_temperature",
+                "pipe_length",
+                "placement",
+            ],
+        }
+
+    async def test_invalid_update_keeps_object_data_and_version(
+        self, client: AsyncClient, guest_session: str
+    ):
+        pid = await _project(client, guest_session)
+        headers = {"X-Session-Id": guest_session}
+        created_response = await client.post(
+            f"/api/v1/projects/{pid}/objects",
+            json={
+                "object_type": "pipe",
+                "params": {
+                    "outer_diameter": 0.1,
+                    "wall_thickness": 0.004,
+                    "pipe_material": "carbon_steel",
+                    "insulation_layers": [
+                        {"thickness": 0.05, "material": MINERAL_WOOL}
+                    ],
+                    "insulation_temperature_basis": "outdoor_winter",
+                    "ambient_temperature": -20,
+                    "process_temperature": 80,
+                    "pipe_length": 10,
+                    "placement": "outdoor",
+                    "wind_speed": 0,
+                },
+            },
+            headers=headers,
+        )
+        assert created_response.status_code == 201, created_response.text
+        created = created_response.json()
+
+        rejected = await client.put(
+            f"/api/v1/projects/{pid}/objects/{created['id']}",
+            json={
+                "version": created["version"],
+                "params": {**created["params"], "wall_thickness": None},
+            },
+            headers=headers,
+        )
+
+        assert rejected.status_code == 422, rejected.text
+        assert rejected.json()["detail"] == {
+            "code": "OBJECT_PARAMS_INVALID",
+            "message": "Проверьте параметры объекта",
+            "fields": ["wall_thickness"],
+        }
+        objects_response = await client.get(
+            f"/api/v1/projects/{pid}/objects",
+            headers=headers,
+        )
+        assert objects_response.status_code == 200, objects_response.text
+        reloaded = next(
+            item for item in objects_response.json() if item["id"] == created["id"]
+        )
+        assert reloaded["version"] == created["version"]
+        assert reloaded["params"] == created["params"]
 
     async def test_non_indoor_pipe_with_indoor_tm_is_invalid(
         self, client: AsyncClient, guest_session: str
@@ -530,7 +622,11 @@ class TestObjectsLifecycle:
         )
 
         assert resp.status_code == 422, resp.text
-        assert "Режим tm" in resp.text
+        assert resp.json()["detail"] == {
+            "code": "OBJECT_PARAMS_INVALID",
+            "message": "Проверьте параметры объекта",
+            "fields": ["insulation_temperature_basis"],
+        }
 
     async def test_outdoor_pipe_with_attic_tm_is_invalid(
         self, client: AsyncClient, guest_session: str
@@ -556,7 +652,11 @@ class TestObjectsLifecycle:
         )
 
         assert resp.status_code == 422, resp.text
-        assert "Режим tm" in resp.text
+        assert resp.json()["detail"] == {
+            "code": "OBJECT_PARAMS_INVALID",
+            "message": "Проверьте параметры объекта",
+            "fields": ["insulation_temperature_basis"],
+        }
 
     @pytest.mark.parametrize(
         ("shape", "geometry"),
@@ -852,7 +952,11 @@ class TestObjectsLifecycle:
             headers={"X-Session-Id": guest_session},
         )
         assert resp.status_code == 422
-        assert "Неизвестный материал" in resp.text
+        assert resp.json()["detail"] == {
+            "code": "OBJECT_PARAMS_INVALID",
+            "message": "Проверьте параметры объекта",
+            "fields": ["insulation_layers.0.material"],
+        }
 
     async def test_pipe_preserves_climate_layers_and_returns_assumptions(
         self, client: AsyncClient, guest_session: str

@@ -70,7 +70,6 @@ export function heatCalcFormFieldRules(
     ...(required
       ? [{
         required: true,
-        warningOnly: true,
         message: '',
       }]
       : []),
