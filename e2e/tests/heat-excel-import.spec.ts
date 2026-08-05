@@ -91,11 +91,14 @@ test.describe('§5.5 загрузка объектов теплопотерь и
     const objects = await fetchProjectObjects(page);
     expect(objects.filter((item) => item.object_type === 'pipe')).toHaveLength(pipeRows);
     expect(objects.filter((item) => item.object_type === 'tank')).toHaveLength(tankRows);
-    // §5.5: теплопотери рассчитаны фоновой задачей
+    // §5.5: теплопотери рассчитаны фоновой задачей по всем строкам шаблона
     await expect.poll(async () => {
       const rows = await fetchProjectObjects(page);
-      return rows.filter((item) => item.object_type === 'pipe' && item.is_valid).length;
-    }, { timeout: 60_000 }).toBe(pipeRows);
+      return rows.filter((item) => item.is_valid && item.results != null).length;
+    }, { timeout: 60_000 }).toBe(dataRows.length);
+    for (const object of await fetchProjectObjects(page)) {
+      expect(Number(object.results?.total_heat_loss_design)).toBeGreaterThan(0);
+    }
 
     const typeToolbar = page.getByRole('toolbar', { name: 'Тип объекта и блок параметров' });
     await expect(typeToolbar.getByRole('button', { name: new RegExp(`Все:\\s*${dataRows.length}`) }))
@@ -103,26 +106,30 @@ test.describe('§5.5 загрузка объектов теплопотерь и
     fs.unlinkSync(template);
   });
 
-  test('резервуары из штатного шаблона приходят нерассчитанными: в шаблоне нет скорости ветра', async ({ page }) => {
+  test('резервуары из штатного шаблона рассчитываются: в шаблоне есть скорость ветра', async ({ page }) => {
     await loginAsGuest(page);
     const template = await downloadCsvTemplate(page);
+    // без колонки «Скорость ветра» размещение outdoor не считается — раньше
+    // все три примера бака приходили с is_valid=false
+    const header = fs.readFileSync(template, 'utf-8').replace(/^﻿/, '').split('\n')[0];
+    expect(header.split(';')).toContain('Скорость ветра, м/с');
+
     await uploadImportFile(page, template);
     await page.getByRole('dialog', { name: 'Результат импорта' })
       .getByRole('button', { name: 'OK' })
       .click();
 
-    // столбец «Скорость ветра» в примерах резервуаров пуст, а бэкенд требует
-    // его для размещения outdoor — расчёт таких строк не выполняется
     await expect.poll(async () => {
-      const objects = await fetchProjectObjects(page);
-      const tanks = objects.filter((item) => item.object_type === 'tank');
-      return tanks.length > 0 && tanks.every((item) => !item.is_valid);
+      const tanks = (await fetchProjectObjects(page)).filter((item) => item.object_type === 'tank');
+      return tanks.length > 0 && tanks.every((item) => item.is_valid && item.results != null);
     }, { timeout: 60_000 }).toBe(true);
 
     const tanks = (await fetchProjectObjects(page)).filter((item) => item.object_type === 'tank');
+    // цилиндр, параллелепипед и шар — все формы из шаблона
+    expect(tanks.length).toBeGreaterThanOrEqual(3);
     for (const tank of tanks) {
-      expect(String(tank.validation_errors?.message)).toContain('wind_speed');
-      expect(tank.results).toBeFalsy();
+      expect(tank.validation_errors).toBeFalsy();
+      expect(Number(tank.results?.total_heat_loss_design)).toBeGreaterThan(0);
     }
     fs.unlinkSync(template);
   });
@@ -132,8 +139,14 @@ test.describe('§5.5 загрузка объектов теплопотерь и
     const template = await downloadCsvTemplate(page);
     const lines = fs.readFileSync(template, 'utf-8').replace(/^﻿/, '').trim().split('\n');
     const header = lines[0];
+    const windColumn = header.split(';').indexOf('Скорость ветра, м/с');
     const pipeRow = lines.find((line) => line.startsWith('труба'))!;
-    const tankRow = lines.find((line) => line.startsWith('резервуар'))!;
+    // резервуар на улице без скорости ветра импортируется, но не считается —
+    // так получаем строку со статусом «ошибка» в таблице
+    const tankRow = lines.find((line) => line.startsWith('резервуар'))!
+      .split(';')
+      .map((cell, index) => (index === windColumn ? '' : cell))
+      .join(';');
     const mixed = path.join(os.tmpdir(), `tlt-heat-import-mixed-${Date.now()}.csv`);
     fs.writeFileSync(mixed, `﻿${header}\n${pipeRow}\n${tankRow}\n`, 'utf-8');
 

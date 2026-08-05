@@ -83,14 +83,20 @@ describe('ObjectWizard dependencies — validation-highlight', () => {
     expect(screen.queryByText('Выберите значение')).not.toBeInTheDocument();
   });
 
-  it('нажатие сохранить не подсвечивает пустые поля до backend-ошибки', async () => {
+  it('нажатие сохранить подсвечивает пустые обязательные поля, не дожидаясь бэкенда', async () => {
     const user = userEvent.setup();
-    renderWizard();
+    const onSubmit = vi.fn();
+    renderWizard({ onSubmit });
 
     const pipeLength = await screen.findByTestId('pipe-length-input');
     await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
 
-    expect(pipeLength.closest('.ant-form-item')).not.toHaveClass('ant-form-item-has-error');
+    // §5.3: поля помечены сразу; отправку не отменяем — статус считает сервер
+    await waitFor(() => {
+      expect(pipeLength.closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
+    });
+    expect(screen.getByTestId('outer-diameter-input').closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
+    expect(onSubmit).toHaveBeenCalledTimes(1);
   });
 
   it('пересчитывает локальную подсветку обязательного поля после backend-ошибки', async () => {

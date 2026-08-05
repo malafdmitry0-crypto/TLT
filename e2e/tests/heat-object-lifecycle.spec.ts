@@ -52,18 +52,18 @@ test.describe('§5.3–5.13 жизненный цикл объекта тепл�
     // диаметр/длина/толщина стенки не заполнены — объект создаваться не должен
     await page.locator('#inline-object-save').dispatchEvent('click');
 
-    // §5.3: пользователю показана причина. Текст не фиксируем: сейчас сюда
-    // попадает сырой ответ бэкенда, а §3.11 требует «поле + что исправить».
-    await expect(page.locator('.ant-message-error')).toBeVisible();
+    // §3.11: сообщение называет поле и что исправить, а не отдаёт дамп pydantic
+    const errorMessage = page.locator('.ant-message-error');
+    await expect(errorMessage).toContainText('Наружный диаметр: укажите число');
+    await expect(errorMessage).not.toContainText('validation error');
+    await expect(errorMessage).not.toContainText('Input should be');
     // §5.3: введённые данные остаются в формах
     await expect(page.getByTestId('object-name-input')).toHaveValue(objectName);
-    // §3.11: незаполненные обязательные поля остаются помеченными
-    const requiredChrome = await page.evaluate(() => {
-      const input = document.querySelector('[data-testid="outer-diameter-input"]');
-      const root = input?.closest('.tlt-number-field__input');
-      return root ? getComputedStyle(root).backgroundColor : null;
-    });
-    expect(requiredChrome).toBe('rgb(255, 253, 246)');
+    // §3.11: незаполненные обязательные поля подсвечены как ошибочные
+    await expect(
+      page.getByTestId('outer-diameter-input')
+        .locator('xpath=ancestor::*[contains(concat(" ", normalize-space(@class), " "), " ant-form-item ")][1]'),
+    ).toHaveClass(/ant-form-item-has-error/);
     // §5.3: объект не создан
     expect(await fetchProjectObjects(page)).toHaveLength(0);
   });
@@ -77,7 +77,6 @@ test.describe('§5.3–5.13 жизненный цикл объекта тепл�
     await selectOption(page, 'tank-shape-select', 'Цилиндрическая');
     await fillInput(page, 'tank-diameter-input', '2000');
     await fillInput(page, 'tank-height-input', '3000');
-    await fillInput(page, 'tank-wall-thickness-input', '5');
     await selectFirstOption(page, 'insulation-material-select');
     await fillInput(page, 'insulation-thickness-input', '80');
     await fillInput(page, 'ambient-temperature-input', '-20');
@@ -103,9 +102,7 @@ test.describe('§5.3–5.13 жизненный цикл объекта тепл�
   test('§5.4 клик по строке грузит объект в формы, «Сохранить» пересчитывает теплопотери', async ({ page }) => {
     await loginAsGuest(page);
     const objectName = `E2E правка ${Date.now()}`;
-    // supply_voltage задаём явно: значение по умолчанию (230) не сохраняется
-    // через форму — см. тест ниже про «Рабочее напряжение».
-    await createCalculatedPipe(page, objectName, { pipe_length: 50, supply_voltage: 220 });
+    await createCalculatedPipe(page, objectName, { pipe_length: 50 });
     await page.reload({ waitUntil: 'networkidle' });
 
     const before = await fetchProjectObjects(page);
@@ -136,7 +133,7 @@ test.describe('§5.3–5.13 жизненный цикл объекта тепл�
   test('§5.6 «Добавить» при открытом объекте возвращает формы в режим добавления', async ({ page }) => {
     await loginAsGuest(page);
     const objectName = `E2E основание ${Date.now()}`;
-    await createCalculatedPipe(page, objectName, { supply_voltage: 220 });
+    await createCalculatedPipe(page, objectName);
     await page.reload({ waitUntil: 'networkidle' });
 
     await openFirstNormalGlideRow(page);
@@ -156,23 +153,21 @@ test.describe('§5.3–5.13 жизненный цикл объекта тепл�
     expect(objects[0].params.name).toBe(objectName);
   });
 
-  test('объект с напряжением по умолчанию 230 В не сохраняется из формы', async ({ page }) => {
+  test('объект с нормативным напряжением 230 В сохраняется из формы', async ({ page }) => {
     await loginAsGuest(page);
-    // бэкенд подставляет supply_voltage=230 (DEC-11), а справочник поля
-    // предлагает только 220 и 380 — форма считает значение недопустимым
+    // бэкенд подставляет supply_voltage=230 (DEC-11) — справочник поля обязан
+    // предлагать это же значение, иначе «Сохранить» падает на нетронутом поле
     const created = await createCalculatedPipe(page, `E2E напряжение ${Date.now()}`);
     expect(created.params.supply_voltage).toBe(230);
     await page.reload({ waitUntil: 'networkidle' });
 
     await openFirstNormalGlideRow(page);
-    await formActions(page).getByRole('button', { name: 'Сохранить' }).click();
-
     const voltageItem = page.locator('.supply-voltage-form-item');
-    await expect(voltageItem).toHaveClass(/ant-form-item-has-error/);
-    await expect(voltageItem).toContainText('Выберите значение из списка');
-    // объект остаётся прежним: форма не отправила запрос
-    const [unchanged] = await fetchProjectObjects(page);
-    expect(unchanged.params.supply_voltage).toBe(230);
+    await expect(voltageItem).not.toHaveClass(/ant-form-item-has-error/);
+
+    const saved = await saveSelectedObjectAndWait(page);
+    expect(saved.is_valid).toBe(true);
+    expect(saved.params.supply_voltage).toBe(230);
   });
 
   test('§5.13 переход к электрорасчёту закрыт без объектов и открывается после расчёта', async ({ page }) => {

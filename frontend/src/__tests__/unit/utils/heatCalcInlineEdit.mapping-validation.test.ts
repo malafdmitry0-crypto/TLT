@@ -62,7 +62,9 @@ describe('heatCalcInlineEdit mapping and validation', () => {
       max: 400,
       step: 0.1,
     });
+    // 230 — норматив системы (DEC-11), его подставляет бэкенд новым объектам
     expect(heatCalcSelectOptions('pipe', 'supply_voltage')).toEqual([
+      { value: 230, label: '230' },
       { value: 220, label: '220' },
       { value: 380, label: '380' },
     ]);

@@ -1,11 +1,25 @@
 import {
   getHeatCalcFieldByColumn,
   getHeatCalcFieldDefinition,
+  getHeatCalcFieldLabel,
+  getHeatCalcFormFieldIds,
 } from '@/domain/heatCalcFields';
+import {
+  isHeatCalcFieldRequired,
+  isHeatCalcFieldVisible,
+} from '@/domain/heatCalcFieldRules';
+import { isRangeField } from '@/domain/heatCalcFieldVisibilityRules';
 import type { HeatCalcObjectType, ProjectObject } from '@/types/project';
 import { INSULATION_LAYER_FORM_FIELDS } from './objectWizardInsulationModel';
 
 const REQUIRED_FIELDS_ERROR_PREFIX = 'Не заполнены обязательные поля объекта:';
+
+/*
+ * Пара «толщина стенки ↔ λ стенки» резервуара: каждое поле обязательно только
+ * потому, что заполнено соседнее. Незавершённую пару маппер вычищает из payload,
+ * поэтому отправку она не блокирует.
+ */
+const PAIR_REQUIRED_FORM_FIELDS = new Set(['wall_thickness_mm', 'wall_lambda']);
 export const REQUIRED_FIELD_ERROR_MESSAGE = '';
 
 export type CalculationFieldError = {
@@ -246,6 +260,109 @@ export function normalizeFieldErrorsForForm(
     });
   });
   return result;
+}
+
+/**
+ * Обязательные поля объекта, оставшиеся пустыми, — §5.3 «Ошибка заполнения».
+ * Считаем по тем же предикатам, что рисуют палевую заливку обязательного поля,
+ * чтобы форма не отправляла заведомо отклоняемый запрос.
+ */
+export function missingRequiredFormFields(
+  objectType: HeatCalcObjectType,
+  values: Record<string, unknown>,
+): string[] {
+  const context = { objectType, values };
+  return getHeatCalcFormFieldIds(objectType).filter((fieldId) => (
+    !PAIR_REQUIRED_FORM_FIELDS.has(fieldId)
+      && !isRangeField(fieldId)
+      && isHeatCalcFieldVisible(fieldId, context)
+      && isHeatCalcFieldRequired(fieldId, context)
+      && isEmptyFormValue(values[fieldId])
+  ));
+}
+
+/*
+ * Бэкенд отдаёт в 422 текст pydantic-исключения: «6 validation errors for
+ * StoredPipeHeatParams\nouter_diameter\n  Input should be a valid number
+ * [type=float_type…]». §3.11 требует «поле + что исправить», поэтому дамп
+ * разбирается на пары (поле, причина) и переводится.
+ */
+const PYDANTIC_HEADER = /^\d+\s+validation errors?\s+for\s+(\S+)/i;
+const PYDANTIC_TYPE_SUFFIX = /\s*\[type=[^\]]*\]/g;
+const PYDANTIC_DOC_LINK = /For further information visit/i;
+const MAX_HUMANIZED_ERRORS = 4;
+
+const PYDANTIC_MESSAGE_RU: Array<[RegExp, string]> = [
+  [/^Field required$/i, 'заполните поле'],
+  [/^Input should be a valid number.*$/i, 'укажите число'],
+  [/^Input should be a valid integer.*$/i, 'укажите целое число'],
+  [/^Input should be a valid string.*$/i, 'укажите значение'],
+  [/^Input should be greater than or equal to (\S+)$/i, 'значение не меньше $1'],
+  [/^Input should be less than or equal to (\S+)$/i, 'значение не больше $1'],
+  [/^Input should be greater than (\S+)$/i, 'значение больше $1'],
+  [/^Input should be less than (\S+)$/i, 'значение меньше $1'],
+  [/^List should have at least (\d+) item.*$/i, 'заполните хотя бы $1 значение'],
+];
+
+function humanizePydanticReason(raw: string) {
+  let text = raw.replace(PYDANTIC_TYPE_SUFFIX, '').trim();
+  const valueError = text.match(/^Value error,\s*(.+)$/i);
+  if (valueError) text = valueError[1].trim();
+  // «process_temperature_not_above_ambient: температура продукта…» — код нам не нужен
+  const codePrefixed = text.match(/^[a-z][a-z0-9_]*:\s*(.+)$/);
+  if (codePrefixed && /[а-яё]/i.test(codePrefixed[1])) text = codePrefixed[1].trim();
+  const translation = PYDANTIC_MESSAGE_RU.find(([pattern]) => pattern.test(text));
+  return translation ? text.replace(translation[0], translation[1]) : text;
+}
+
+function fieldLabelForErrorKey(errorKey: string, objectType: HeatCalcObjectType) {
+  if (!errorKey) return '';
+  const [formFieldName] = formFieldNamesFromErrorKey(errorKey, objectType);
+  if (!formFieldName) return '';
+  return getHeatCalcFieldLabel(formFieldName, {
+    objectType,
+    context: 'form',
+    variant: 'full',
+  });
+}
+
+/** Превращает 422-ответ бэкенда в «Поле: что исправить»; чужой текст не трогает. */
+export function humanizeObjectParamsErrorMessage(
+  rawMessage: string,
+  fallbackObjectType: HeatCalcObjectType = 'pipe',
+): string {
+  const message = String(rawMessage ?? '').trim();
+  const header = message.match(PYDANTIC_HEADER);
+  if (!header) return message;
+  const objectType: HeatCalcObjectType = /tank/i.test(header[1])
+    ? 'tank'
+    : /pipe/i.test(header[1])
+      ? 'pipe'
+      : fallbackObjectType;
+
+  const reasonByKey = new Map<string, string>();
+  let errorKey = '';
+  message
+    .split('\n')
+    .slice(1)
+    .filter((line) => line.trim() && !PYDANTIC_DOC_LINK.test(line))
+    .forEach((line) => {
+      if (!/^\s/.test(line)) {
+        errorKey = line.trim();
+        return;
+      }
+      if (reasonByKey.has(errorKey)) return;
+      reasonByKey.set(errorKey, humanizePydanticReason(line.trim()));
+    });
+  if (reasonByKey.size === 0) return message;
+
+  const entries = [...reasonByKey.entries()];
+  const shown = entries.slice(0, MAX_HUMANIZED_ERRORS).map(([key, reason]) => {
+    const label = fieldLabelForErrorKey(key, objectType);
+    return label ? `${label}: ${reason}` : reason;
+  });
+  const hidden = entries.length - shown.length;
+  return hidden > 0 ? `${shown.join('; ')} и ещё ${hidden}` : shown.join('; ');
 }
 
 export function buildCalculationFieldErrors(

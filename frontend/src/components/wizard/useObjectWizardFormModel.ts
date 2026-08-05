@@ -27,7 +27,9 @@ import {
   numericFormValue,
 } from './objectWizardClimateModel';
 import {
+  REQUIRED_FIELD_ERROR_MESSAGE,
   buildCalculationFieldErrors,
+  missingRequiredFormFields,
   normalizeFieldErrorsForForm,
 } from './objectWizardValidationModel';
 import type { ObjectWizardLayoutVariant } from './ObjectWizardPanelTypes';
@@ -212,6 +214,23 @@ export function useObjectWizardFormModel({
     try {
       await form.validateFields();
       const vals = form.getFieldsValue(true);
+      /*
+       * §5.3 «поля подсвечены»: пустые обязательные поля помечаем сразу по
+       * нажатию, не дожидаясь ответа бэкенда. Отправку не отменяем — объект
+       * сохраняется невалидным, чтобы сервер посчитал статус (см. тест
+       * «позволяет сохранить для расчёта статуса»).
+       */
+      const missingFieldNames = missingRequiredFormFields(
+        heatCalcObjectType,
+        vals as Record<string, unknown>,
+      );
+      if (missingFieldNames.length > 0) {
+        form.setFields(missingFieldNames.map((fieldName) => ({
+          name: fieldName,
+          errors: [REQUIRED_FIELD_ERROR_MESSAGE],
+        })));
+        scrollToFirstError();
+      }
       const params =
         objectType === 'pipe'
           ? pipeFormToApiParams(vals)
