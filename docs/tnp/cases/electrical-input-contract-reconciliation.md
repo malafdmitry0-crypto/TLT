@@ -25,9 +25,10 @@
 6. `environment` («среда эксплуатации») и `aggressive_product` (`R`, агрессивный продукт) нельзя
    автоматически считать одним полем. Первоисточники описывают разные смыслы. Для `R` нужен
    отдельный объектный ввод и/или явный override ЭР.
-7. В новом TT-контракте напряжение равно `230 В`, а авторитетный ввод укладки -
-   `winding_pitch_mm`. Поля Heat-формы `supply_voltage=220/380` и `winding_coefficient` не должны
-   выглядеть как входы нового TT-расчёта.
+7. По решению владельца от 2026-08-05 напряжение полностью исключается из входов и логики выбора
+   кабеля. `230 В` остаётся backend-константой последующего расчёта токов и секционирования, но не
+   является canonical input, request override или полем TT-UI. Авторитетный ввод укладки pipe -
+   `winding_pitch_mm`; legacy `supply_voltage` и `winding_coefficient` не входят в новый контракт.
 8. По решению владельца от 2026-08-05 целевой контракт охватывает `pipe` и `tank`. Для резервуаров
    первоисточник задаёт электрическую раскладку только для `cylindrical` и `rectangular`; для
    `spherical` нельзя изобретать формулу - такой объект должен завершаться fail-closed ошибкой до
@@ -49,9 +50,9 @@
 где нормализованное ТЗ уже фиксирует решение по книге, это явно названо решением ТЗ, а не новой
 интерпретацией XLSX.
 
-Основное ТЗ пока называет формулу резервуара будущим расширением и ограничивает прежний MVP
-трубопроводом. Этот документ намеренно расширяет scope после явного решения владельца. Источник
-для расширения есть на странице 42 кейса:
+После выпуска основного ТЗ владелец явно изменил два решения: добавил резервуары в scope и убрал
+напряжение из алгоритма выбора кабеля. До синхронизации основного ТЗ этот документ является
+авторитетной delta только по этим двум пунктам. Источник tank-расширения есть на странице 42 кейса:
 
 ```text
 цилиндр:       perimeter = pi * diameter
@@ -110,7 +111,7 @@ Pоб = теплопотери
 | `environment=aggressive` обязательно означает `R=true` | Не подтверждено | Кейс: среда эксплуатации нужна для материалов/исполнения; алгоритм: `R` означает агрессивный продукт |
 | `number_of_threads` только выход | Частично не согласен | `applied thread count` - выход; `requested thread count` - допустимый ручной вход `1..3` |
 | Флаг `steam_tracing` можно игнорировать | Не согласен | Он не входит в формулу, но должен управлять обязательностью/очисткой `T2` |
-| Напряжение формы должно поддерживаться TT-формулой | Не согласен | Целевой MVP-контракт фиксирует серверные `230 В`; устаревшие варианты надо убрать из TT-UI |
+| Напряжение формы должно поддерживаться TT-формулой | Не согласен | Напряжение удаляется из выбора кабеля; backend использует `230 В` только после выбора для токов/секционирования |
 
 ## 4. Что фактически умеет текущий UI
 
@@ -126,6 +127,7 @@ Pоб = теплопотери
 | `thread_count` | Построчная колонка/модалка подбора | `null` корректен для auto; assignment resolver сейчас получает только `Iдоп` |
 | `manual_cable_model` | Выбор марки в строке/модалке | Manual-flow отправляет `cable_mark`; обычный batch по замыслу не задаёт модель |
 | Tank `heating_height` / `laying_step` | State и request-поля существуют | Для TT контролы скрыты веткой `isResistive`; request всё равно несёт скрытый `laying_step=0.1`, а backend подставляет полную высоту резервуара |
+| `supply_voltage` | Read-only `230 В`, но frontend всё равно отправляет поле | Лишний вход: удалить из TT-панели, state и request |
 
 Ключевые точки реализации:
 
@@ -139,7 +141,8 @@ Pоб = теплопотери
 `T2`, `T3`, шаг и число ниток физически отсутствуют в `ElectricalBatchJobRequest.model_fields_set`.
 При этом текущий boolean state всегда добавляет `aggressive_product=false`. Это проверено не только
 чтением TypeScript: `ElectricalBatchJobRequest.electrical_params()` на UI-подобном payload вернул
-только `supply_voltage`, `aggressive_product` и `selection_policy` из перечисленных здесь полей.
+`supply_voltage`, `aggressive_product` и `selection_policy` из перечисленных здесь полей. В целевом
+payload `supply_voltage` отсутствует.
 
 Resolver как общий компонент умеет precedence для любого assignment-поля, но фактический
 `CalculationService._prepare_self_regulating_tt_request()` передаёт из assignment только
@@ -151,7 +154,7 @@ Resolver как общий компонент умеет precedence для лю�
 Резервуар после этого требует отсутствующий `outer_diameter_mm`. В целевом UI трубный шаг навива
 для tank недоступен; tank получает отдельный шаг раскладки в метрах.
 
-## 5. Все 15 канонических входов: факт и целевой контракт
+## 5. Текущие 15 полей и целевой 14-полевой контракт
 
 Таблица специально разделяет текущий runtime и целевое состояние. Общий resolver поддерживает
 precedence `explicit -> assignment -> project -> object/Heat -> mock`, но сервис передаёт не все
@@ -173,13 +176,17 @@ precedence `explicit -> assignment -> project -> object/Heat -> mock`, но се
 | `base_length_m` | pipe: Heat `effective_length`, затем object `pipe_length`; tank: геометрия раскладки, но со скрытыми defaults | pipe source; tank `Lbase` из shape/dimensions + явных `heating_height`/`laying_step` | ошибка |
 | `outer_diameter_mm` | pipe object `outer_diameter * 1000`; для tank отсутствует | pipe object source; для tank всегда `null` | `null` допустим при прямой укладке pipe и для tank |
 | `heat_loss_per_meter_w` | pipe: Heat `heat_loss_per_meter_base`; tank сейчас использует `total_heat_loss_base / Lbase` и теряет `q_additional` | pipe как сейчас; tank `(total_heat_loss_design / safety_factor_applied) / Lbase` | ошибка |
-| `nominal_voltage_v` | backend constant `230`; иное явное значение отклоняется | backend constant | всегда `230` |
+| `nominal_voltage_v` | Текущее 15-е поле: backend принудительно ставит `230`, иное явное значение отклоняется | удалить из canonical inputs/overrides и selector request | неприменимо |
 
 Текущий object-to-canonical mapping находится в
 [calculation_service.py](../../../backend/app/services/calculation_service.py), а порядок источников - в
 [electrical_input_resolver.py](../../../backend/app/services/electrical_input_resolver.py).
 
-Tank-преобразование выполняется до 15-полевого resolver. Его upstream-входы (`shape`, размеры,
+После удаления `nominal_voltage_v` выбор кабеля разрешает 14 канонических входов. Напряжение не
+заменяется скрытым пятнадцатым input: модуль токов/секционирования отдельно использует системную
+константу `230 В` и сохраняет её в result/provenance.
+
+Tank-преобразование выполняется до 14-полевого target resolver. Его upstream-входы (`shape`, размеры,
 `heating_height`, `laying_step`) обязаны попасть в provenance и stale fingerprint, иначе одинаковые
 канонические числа невозможно доказуемо восстановить из исходных данных.
 
@@ -207,7 +214,7 @@ process_temperature` для ключа дедупликации старых к�
 
 ### 6.2 `steam_temperature_c` и `steam_tracing`
 
-`steam_tracing` - upstream-признак применимости, а не один из 15 входов формулы:
+`steam_tracing` - upstream-признак применимости, а не один из 14 входов формулы:
 
 - `steam_tracing=no` -> итоговый `T2=null`; сохранённый устаревший T2 должен быть очищен/проигнорирован;
 - `steam_tracing=yes` -> override текущего ЭР имеет приоритет, затем используется object
@@ -248,15 +255,23 @@ process_temperature` для ключа дедупликации старых к�
 
 ### 6.5 Напряжение
 
-Для текущего TT MVP:
+Решение владельца: в алгоритме выбора кабеля напряжения нет.
 
-- единственное значение - backend-authoritative `230 В`;
-- в панели ЭР оно показывается read-only;
-- варианты `220/380` удаляются из TT-части Heat-формы;
-- значение `supply_voltage` старого объекта не становится входом нового TT-расчёта.
+- удалить `nominal_voltage_v` из `CanonicalElectricalInputs` и `ElectricalInputOverrides`;
+- удалить aliases `supply_voltage -> nominal_voltage_v`, validation/error выбора кабеля и
+  provenance источника этого input;
+- удалить `supply_voltage` из новых TT request schemas, frontend state/payload и Heat/ЭР-панелей;
+- pure selector не принимает напряжение и не использует его для серии, модели, мощности при T3 или
+  числа ниток;
+- старое `params.supply_voltage` допускается только на read/migration boundary и не влияет на новый
+  результат.
 
-Поддержка других напряжений потребует отдельной версии формулы, каталогов секционирования и
-контракта; это не исправление маппинга.
+После выбора backend-модуль секционирования и расчёта токов использует собственную системную
+константу `SYSTEM_VOLTAGE_V=230`. Она сохраняется в result/provenance как применённое условие
+системы, но не попадает в `resolved_inputs` и не может быть переопределена клиентом.
+
+Если появятся другие напряжения, это будет новая версия системы секционирования/каталогов и
+контракта, а не новое значение прежнего input.
 
 ### 6.6 Резервуары
 
@@ -269,7 +284,7 @@ process_temperature` для ключа дедупликации старых к�
   формулы раскладки в источнике нет.
 
 `heating_height` и `laying_step` являются обязательными upstream-входами tank. Они не увеличивают
-15-полевой канонический набор: backend сначала вычисляет `base_length_m`, затем передаёт его
+14-полевой канонический набор: backend сначала вычисляет `base_length_m`, затем передаёт его
 resolver. Подстановка `heating_height=height` и скрытый UI-default `laying_step=0.1` недопустимы.
 Default разрешён только если он видим пользователю, сохранён как принятое значение и отражён в
 provenance.
@@ -304,12 +319,14 @@ downstream Qrequired = heat_loss_per_meter_w * safety_factor_applied
    pipe `winding_pitch_mm` и включить исходную геометрию в provenance/stale fingerprint.
 9. Исправить tank power mapping: использовать `total_heat_loss_design / K / Lbase`, сохранив
    `q_additional` и применив запас ровно один раз.
-10. Убрать из TT-формы ложные входы `220/380` и `winding_coefficient`, не затрагивая их возможных
-   legacy/resistive-потребителей.
-11. Для spherical tank вернуть типизированную unsupported-ошибку до создания результата.
-12. Обновить E2E для pipe и cylindrical/rectangular tank: объект без `T3` получает понятную ошибку;
+10. Удалить напряжение из canonical inputs/overrides, selector schemas и TT-UI/request; оставить
+    `230 В` только backend-константой токов/секционирования и полем result/provenance.
+11. Убрать из TT-формы `winding_coefficient`, не затрагивая его возможных
+    legacy/resistive-потребителей.
+12. Для spherical tank вернуть типизированную unsupported-ошибку до создания результата.
+13. Обновить E2E для pipe и cylindrical/rectangular tank: объект без `T3` получает понятную ошибку;
     после заполнения обязательных входов расчёт проходит.
-13. Удалить из `elec-calculation.spec.ts` ожидания старого контракта СО1-СО4; не переносить их в
+14. Удалить из `elec-calculation.spec.ts` ожидания старого контракта СО1-СО4; не переносить их в
     ЭР1 ради формального сохранения покрытия.
 
 ## 8. Минимальные критерии приёмки
@@ -338,7 +355,10 @@ downstream Qrequired = heat_loss_per_meter_w * safety_factor_applied
 - `environment=aggressive` само по себе не меняет `R`, пока это явно не утверждено отдельным
   бизнес-решением.
 - Для `ТТН` проверяются оба исполнения `-СТ/-СР`; для `ТТВ/ТТХ` сохраняется нормативное `-СР`.
-- Новый TT request и результат всегда используют `230 В`.
+- Новый TT request не содержит `supply_voltage`/`nominal_voltage_v`; `resolved_inputs` также не
+  содержит напряжение.
+- Result/provenance токов и секционирования фиксирует backend-константу `230 В`; legacy-напряжение
+  объекта не меняет выбор серии, модели или ниток.
 - E2E покрывает pipe, cylindrical tank и rectangular tank отдельными сценариями.
 - E2E не становится зелёным за счёт mock/fallback обязательного `T3`.
 
