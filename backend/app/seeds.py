@@ -1255,30 +1255,31 @@ def _heat_seed_config(
         "object_type": object_type,
         "seed_case": seed_case,
         "name": name,
-        "params": {"name": name, "seed_case": seed_case, **params},
+        "params": {
+            "name": name,
+            "seed_case": seed_case,
+            "min_switch_temperature": _ELECTRICAL_SEED_COLD_START_TEMPERATURE_C,
+            **params,
+        },
     }
 
 
 _MINERAL_WOOL = "mineral_wool_boards_120"
 _PERLITE = "expanded_perlite_sand_225"
-_ELECTRICAL_SEED_MAINTAIN_TEMPERATURE_C = 10.0
+_ELECTRICAL_SEED_COLD_START_TEMPERATURE_C = -20.0
+_ELECTRICAL_SEED_SUPPLY_VOLTAGE_V = Decimal("230")
 _ELECTRICAL_SEED_TANK_LAYING_STEP_M = 0.2
 _ELECTRICAL_SEED_MAX_SECTION_START_CURRENT_A = Decimal("13.065")
-_ELECTRICAL_SEED_AGGRESSIVE_CASES = {
-    "pipe_outdoor_reference_2_layers",
-    "tank_cylindrical_outdoor",
-}
 
 
 def _electrical_seed_overrides(
     object_type: str,
     params: dict[str, object],
 ) -> dict[str, object]:
-    """Return explicit ER1 inputs for the current TT contract."""
+    """Return assignment-scoped inputs supported by the current TT contract."""
 
     overrides: dict[str, object] = {
-        "maintain_temperature_c": _ELECTRICAL_SEED_MAINTAIN_TEMPERATURE_C,
-        "aggressive_product": params.get("seed_case") in _ELECTRICAL_SEED_AGGRESSIVE_CASES,
+        "supply_voltage_v": _ELECTRICAL_SEED_SUPPLY_VOLTAGE_V,
     }
     if object_type != "tank":
         return overrides
@@ -1557,7 +1558,11 @@ def _volume_seed(
         "object_type": object_type,
         "seed_case": "",
         "name": name,
-        "params": {"name": name, **params},
+        "params": {
+            "name": name,
+            "min_switch_temperature": _ELECTRICAL_SEED_COLD_START_TEMPERATURE_C,
+            **params,
+        },
     }
 
 
@@ -1856,16 +1861,16 @@ def _project_seed_plans() -> tuple[ProjectSeedPlan, ...]:
             "volume": (
                 _pipe_seed("Т-901 куст 1", outer_diameter_mm=89, wall_thickness_mm=5,
                            length_m=210, product_c=65, placement="outdoor",
-                           layers_mm=(60, 30), ambient_c=-45),
+                           layers_mm=(60, 30), ambient_c=-40),
                 _pipe_seed("Т-902 куст 2", outer_diameter_mm=89, wall_thickness_mm=5,
                            length_m=190, product_c=65, placement="outdoor",
-                           layers_mm=(60, 30), ambient_c=-45),
+                           layers_mm=(60, 30), ambient_c=-40),
                 _pipe_seed("Т-903 подземный переход", outer_diameter_mm=159,
                            wall_thickness_mm=6, length_m=75, product_c=70,
                            placement="underground", layers_mm=(60,), depth_m=2.0),
                 _tank_seed("Р-901 ёмкость на кусте", shape="cylindrical",
                            placement="outdoor", diameter_m=2.0, height_m=3.0,
-                           product_c=55, layers_mm=(90,), ambient_c=-45),
+                           product_c=55, layers_mm=(90,), ambient_c=-40),
             ),
         },
     )

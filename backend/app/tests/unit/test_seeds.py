@@ -1,4 +1,5 @@
 from app.reference_data.loader import list_insulation_materials, list_tt_cables
+from app.schemas.electrical_assignment import ElectricalAssignmentOverridesPatch
 from app.schemas.project import ProjectObjectCreate
 from app.seeds import (
     _HEAT_SEED_CONFIGS,
@@ -91,6 +92,7 @@ def test_heat_seeds_pass_the_same_create_and_storage_contract_as_api_objects():
 
         assert stored["seed_case"] == config["seed_case"]
         assert stored["name"] == config["name"]
+        assert stored["min_switch_temperature"] == -20.0
         assert stored.get("insulation_temperature_basis")
         assert set(_seed_insulation_materials(params)).issubset(selectable)
         assert DEPRECATED_HEAT_PARAM_KEYS.isdisjoint(stored)
@@ -139,29 +141,16 @@ def test_tank_seed_matrix_covers_shapes_placements_and_special_cases():
     assert metadata_volume["volume"] == 24.5
 
 
-def test_electrical_seed_matrix_uses_current_tt_inputs_for_pipes_and_supported_tanks():
+def test_electrical_seed_matrix_uses_only_current_assignment_overrides():
     planned = [
         (config, _electrical_seed_overrides(config["object_type"], config["params"]))
         for config in _HEAT_SEED_CONFIGS
     ]
-    supported = [(config, overrides) for config, overrides in planned if overrides is not None]
-
-    assert len(supported) == 10
-    assert {config["object_type"] for config, _overrides in supported} == {"pipe", "tank"}
-    assert all(overrides["maintain_temperature_c"] == 10.0 for _config, overrides in supported)
-    assert {overrides["aggressive_product"] for _config, overrides in supported} == {
-        False,
-        True,
-    }
-    assert all(
-        overrides["maintain_temperature_c"] != config["params"]["process_temperature"]
-        for config, overrides in supported
-    )
-
-    for config, overrides in supported:
+    for config, overrides in planned:
+        assert overrides["supply_voltage_v"] == 230
+        ElectricalAssignmentOverridesPatch(expected_version=1, **overrides)
         if config["object_type"] == "pipe":
-            assert "tank_heating_height_m" not in overrides
-            assert "tank_laying_step_m" not in overrides
+            assert set(overrides) == {"supply_voltage_v"}
             continue
         assert overrides["tank_heating_height_m"] == config["params"]["height"]
         assert overrides["tank_laying_step_m"] == 0.2
@@ -240,6 +229,7 @@ def test_project_seed_plan_objects_pass_the_write_contract():
             params = prepare_project_object_params(
                 config["object_type"], dict(config["params"])
             )
+            assert params["min_switch_temperature"] == -20.0
             forbidden = (
                 PIPE_FORBIDDEN_HEAT_PARAM_KEYS
                 if config["object_type"] == "pipe"
@@ -252,3 +242,16 @@ def test_project_seed_plan_objects_pass_the_write_contract():
                 sort_order=0,
                 params=params,
             )
+
+
+def test_project_seed_plan_stays_inside_the_tt_catalog_temperature_floor():
+    for plan in _project_seed_plans():
+        for config in plan["volume"]:
+            params = config["params"]
+            environment = (
+                params.get("ground_temperature")
+                if params.get("placement") == "underground" and config["object_type"] == "pipe"
+                else params.get("ambient_temperature")
+            )
+            assert isinstance(environment, int | float)
+            assert environment >= -40
