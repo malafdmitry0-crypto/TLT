@@ -153,7 +153,7 @@ export interface PipeFormValues {
 }
 
 export interface TankFormValues {
-  shape: 'cylindrical' | 'rectangular' | 'spherical';
+  shape: 'cylindrical' | 'rectangular';
   diameter_mm?: number;
   height_mm?: number;
   length_mm?: number;

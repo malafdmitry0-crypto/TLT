@@ -21,9 +21,6 @@ EXPECTED_HEAT_SEED_CASES = {
     "tank_cylindrical_outdoor",
     "tank_rectangular_indoor",
     "tank_rectangular_outdoor",
-    "tank_spherical_indoor",
-    "tank_spherical_outdoor",
-    "tank_spherical_outdoor_multilayer",
     "tank_cylindrical_underground_split_temperatures",
     "tank_rectangular_underground_split_temperatures",
     "tank_q_additional_after_safety_factor",
@@ -62,11 +59,11 @@ def test_tt_catalog_uses_the_supported_product_line():
 
 
 def test_heat_seed_matrix_is_exact_and_traceable():
-    assert len(_HEAT_SEED_CONFIGS) == 13
+    assert len(_HEAT_SEED_CONFIGS) == 10
     assert {config["seed_case"] for config in _HEAT_SEED_CONFIGS} == EXPECTED_HEAT_SEED_CASES
-    assert len({config["name"] for config in _HEAT_SEED_CONFIGS}) == 13
+    assert len({config["name"] for config in _HEAT_SEED_CONFIGS}) == 10
     assert [config["object_type"] for config in _HEAT_SEED_CONFIGS].count("pipe") == 3
-    assert [config["object_type"] for config in _HEAT_SEED_CONFIGS].count("tank") == 10
+    assert [config["object_type"] for config in _HEAT_SEED_CONFIGS].count("tank") == 7
 
 
 def test_heat_seeds_pass_the_same_create_and_storage_contract_as_api_objects():
@@ -127,13 +124,7 @@ def test_tank_seed_matrix_covers_shapes_placements_and_special_cases():
         ("rectangular", "indoor"),
         ("rectangular", "outdoor"),
         ("rectangular", "underground"),
-        ("spherical", "indoor"),
-        ("spherical", "outdoor"),
     }
-
-    spherical = [params for params in tanks if params["shape"] == "spherical"]
-    assert {len(params["insulation_layers"]) for params in spherical} == {1, 2}
-    assert all(params["placement"] != "underground" for params in spherical)
 
     underground = [params for params in tanks if params["placement"] == "underground"]
     assert {params["shape"] for params in underground} == {"cylindrical", "rectangular"}
@@ -176,16 +167,20 @@ def test_electrical_seed_matrix_uses_current_tt_inputs_for_pipes_and_supported_t
         assert overrides["tank_laying_step_m"] == 0.2
 
 
-def test_electrical_seed_matrix_explicitly_excludes_unsupported_spherical_tanks():
+def test_seed_data_contains_only_supported_tank_shapes():
+    tank_shapes = {
+        config["params"]["shape"]
+        for config in _HEAT_SEED_CONFIGS
+        if config["object_type"] == "tank"
+    }
     unsupported = [
         config
         for config in _HEAT_SEED_CONFIGS
         if _electrical_seed_overrides(config["object_type"], config["params"]) is None
     ]
 
-    assert len(unsupported) == 3
-    assert all(config["object_type"] == "tank" for config in unsupported)
-    assert all(config["params"]["shape"] == "spherical" for config in unsupported)
+    assert tank_shapes == {"cylindrical", "rectangular"}
+    assert unsupported == []
 
 
 def test_insulation_seed_row_preserves_reference_contract():

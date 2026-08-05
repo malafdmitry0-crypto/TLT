@@ -15,9 +15,6 @@ INSERT INTO expected_heat_seed_cases (seed_case, object_type) VALUES
     ('tank_cylindrical_outdoor', 'tank'),
     ('tank_rectangular_indoor', 'tank'),
     ('tank_rectangular_outdoor', 'tank'),
-    ('tank_spherical_indoor', 'tank'),
-    ('tank_spherical_outdoor', 'tank'),
-    ('tank_spherical_outdoor_multilayer', 'tank'),
     ('tank_cylindrical_underground_split_temperatures', 'tank'),
     ('tank_rectangular_underground_split_temperatures', 'tank'),
     ('tank_q_additional_after_safety_factor', 'tank');
@@ -26,7 +23,7 @@ DO $$
 DECLARE
     violations integer;
 BEGIN
-    -- Канонических объектов ровно 13 — по одному на кейс. Объекты наполнения
+    -- Канонических объектов ровно 10 — по одному на кейс. Объекты наполнения
     -- проектов (без seed_case) в этот счёт не входят, но все контрактные
     -- проверки ниже распространяются и на них.
     SELECT count(*)
@@ -34,8 +31,8 @@ BEGIN
     FROM project_objects
     WHERE object_type::text IN ('pipe', 'tank')
       AND NULLIF(params->>'seed_case', '') IS NOT NULL;
-    IF violations <> 13 THEN
-        RAISE EXCEPTION 'expected exactly 13 canonical heat objects, got %', violations;
+    IF violations <> 10 THEN
+        RAISE EXCEPTION 'expected exactly 10 canonical heat objects, got %', violations;
     END IF;
 
     SELECT count(*)
@@ -167,10 +164,7 @@ BEGIN
           OR (params->>'shape' = 'rectangular'
               AND (NOT params ? 'length' OR NOT params ? 'width' OR NOT params ? 'height'
                    OR params ? 'diameter'))
-          OR (params->>'shape' = 'spherical'
-              AND (NOT params ? 'diameter' OR params ?| ARRAY['height', 'length', 'width']
-                   OR params->>'placement' = 'underground'))
-          OR params->>'shape' NOT IN ('cylindrical', 'rectangular', 'spherical')
+          OR params->>'shape' NOT IN ('cylindrical', 'rectangular')
       );
     IF violations <> 0 THEN
         RAISE EXCEPTION 'tank shape/geometry contract violations: %', violations;

@@ -10,5 +10,4 @@ export const MATERIAL_LABELS: Record<string, string> = {
 export const SHAPE_LABELS: Record<string, string> = {
   cylindrical: 'Цилиндр',
   rectangular: 'Параллелепипед',
-  spherical: 'Шар',
 };

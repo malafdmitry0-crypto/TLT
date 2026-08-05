@@ -308,28 +308,6 @@ formulas:
           height: 3
         expected: 52
 
-  - id: tlt_tank_surface_area_spherical
-    expression: "S = 4 * pi * (diameter / 2)^2"
-    variables: [diameter]
-    output: surface_area_bare
-    tolerance:
-      absoluteTolerance: 0.001
-      relativeTolerance: 0.000001
-    constraints:
-      - "diameter > 0"
-    sourceRefs:
-      - "ТНП/Блок теплопотери и выбор кабеля/теплопротери в резервуарах 30.04.docx"
-    implementationRefs:
-      - "backend/app/formulas/heat_loss/tank.py"
-    oracle:
-      status: implemented
-    examples:
-      - id: tank-sphere-area-basic
-        kind: fixed
-        input:
-          diameter: 2
-        expected: 12.566370614359172
-
   - id: tlt_tank_external_resistance
     expression: "R_ext = 1 / alpha"
     variables: [alpha]

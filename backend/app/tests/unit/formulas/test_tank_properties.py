@@ -54,20 +54,3 @@ def test_invalid_wall_pair_and_shape_dimensions_are_rejected():
         _tank(length=1.0)
     with pytest.raises(ValueError, match="diameter"):
         _tank(shape="rectangular", diameter=2.0, length=2.0, width=2.0)
-
-
-def test_spherical_geometry_remains_schema_supported_but_not_underground():
-    spherical = TankHeatLossParams(
-        shape="spherical", diameter=3.0, placement="outdoor", ambient_temperature=-20,
-        process_temperature=80, wind_speed=0, safety_factor=1.1,
-        insulation_temperature_basis="outdoor_winter",
-        insulation_layers=[InsulationLayer(thickness=.06, material="mineral_wool_boards_120")],
-    )
-    assert spherical.diameter == 3.0
-    with pytest.raises(ValueError, match="spherical"):
-        TankHeatLossParams(
-            shape="spherical", diameter=3.0, placement="underground", ambient_temperature=-20,
-            ground_temperature=0, process_temperature=80, ground_conductivity=1.5,
-            tank_buried_height=1, safety_factor=1.1, insulation_temperature_basis="channel",
-            insulation_layers=[InsulationLayer(thickness=.06, material="mineral_wool_boards_120")],
-        )

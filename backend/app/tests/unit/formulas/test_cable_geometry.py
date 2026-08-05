@@ -119,16 +119,6 @@ class TestRectangularPerimeter:
 
 
 class TestUnsupportedShapes:
-    def test_spherical_raises(self):
-        """Сфера: укладка кабеля по поверхности неоднозначна — не поддерживаем."""
-        with pytest.raises(ValueError, match="не поддерживается|spherical"):
-            compute_tank_cable_length(
-                shape="spherical",
-                diameter=2.0,
-                heating_height=2.0,
-                laying_step=0.1,
-            )
-
     def test_unknown_shape_raises(self):
         with pytest.raises(ValueError):
             compute_tank_cable_length(

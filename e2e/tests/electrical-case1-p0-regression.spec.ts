@@ -5,6 +5,7 @@ import {
   currentGuestContext,
   loginAsGuest,
 } from './helpers/workspace';
+import { openTankForm } from './helpers/inline-form-dependencies';
 
 const DESKTOP_VIEWPORT = { width: 1440, height: 1000 };
 const LEGACY_SELECTOR_KEYS = [
@@ -802,28 +803,37 @@ test.describe('Case 1 P0: паспортный TT-selector', () => {
     }
   });
 
-  test('spherical tank завершается fail-closed без выдуманной раскладки', async ({ page }) => {
-    const sphere = await createCase1Tank(page, `Case1 sphere unsupported ${Date.now()}`, {
-      shape: 'spherical',
-      diameter: 3,
-      min_switch_temperature: -20,
-    });
-    await setProjectCurrentLimit(page);
-    const variant = await initializeElectricalVariant(page);
-    await assignObjects(page, variant.id, [sphere.id]);
+  test('сферический резервуар нельзя создать через UI или устаревший API-ввод', async ({ page }) => {
+    await openTankForm(page);
+    await page.getByTestId('tank-shape-select').click();
+    const dropdown = page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').last();
+    await expect(dropdown).toBeVisible();
+    const options = dropdown.locator('.ant-select-item-option');
+    await expect(options).toHaveCount(2);
+    await expect(options.nth(0)).toContainText('Цилиндрическая');
+    await expect(options.nth(1)).toContainText('Параллелепипед');
+    await expect(dropdown).not.toContainText('Сферическая');
 
-    const { response } = await selectTtCable(page, sphere.id, variant, {
-      heating_height: 2,
-      laying_step: 0.1,
-      supply_voltage: 230,
-    });
+    const { projectId, headers } = await guestHeaders(page);
+    const response = await page.request.post(
+      `${API_BASE}/api/v1/projects/${projectId}/objects`,
+      {
+        headers,
+        data: {
+          object_type: 'tank',
+          params: { name: 'Legacy tank', shape: 'spherical' },
+        },
+      },
+    );
     expect(response.status()).toBe(422);
-    const error = await response.json() as ElectricalError;
-    expect(error.detail).toEqual(expect.objectContaining({
-      code: 'ELECTRICAL_TANK_SHAPE_UNSUPPORTED',
-      message: expect.any(String),
-      issues: [],
-      details: expect.objectContaining({ shape: 'spherical' }),
-    }));
+    const error = await response.json() as {
+      detail?: { code?: string; message?: string; fields?: string[] };
+    };
+    expect(error.detail).toEqual({
+      code: 'TANK_SHAPE_UNSUPPORTED',
+      message:
+        "Форма резервуара 'spherical' больше не поддерживается. Допустимые формы: cylindrical, rectangular.",
+      fields: ['shape'],
+    });
   });
 });

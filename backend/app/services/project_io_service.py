@@ -41,7 +41,9 @@ from app.models.specification import (
 )
 from app.services.project_object_params import (
     LegacySpecificationObjectParamsError,
+    UnsupportedTankShapeError,
     reject_legacy_specification_object_params,
+    reject_unsupported_tank_shape,
 )
 from app.services.project_service import (
     ProjectAccessError,
@@ -768,6 +770,15 @@ def _reject_imported_legacy_specification_params(params: Any) -> None:
         raise ProjectImportError(f"{exc} (code={exc.code}; fields={fields})") from exc
 
 
+def _reject_imported_tank_shape(object_type: str, params: Any) -> None:
+    if not isinstance(params, dict):
+        return
+    try:
+        reject_unsupported_tank_shape(object_type, params)
+    except UnsupportedTankShapeError as exc:
+        raise ProjectImportError(str(exc)) from exc
+
+
 def _apply_imported_specification_settings(
     project: Project,
     settings_raw: str | None,
@@ -1310,6 +1321,8 @@ async def _apply_project_data(
     for idx, row in enumerate(objects_rows):
         params = _parse_json_or_empty(row.get("params", ""), {})
         _reject_imported_legacy_specification_params(params)
+        object_type = _normalize_object_type(row.get("type", ""))
+        _reject_imported_tank_shape(object_type, params)
         if row.get("name") and "name" not in params:
             params["name"] = row["name"]
         object_key = (row.get("object_key") or "").strip()
@@ -1322,7 +1335,7 @@ async def _apply_project_data(
             )
         obj = ProjectObject(
             project_id=project.id,
-            object_type=_normalize_object_type(row.get("type", "")),
+            object_type=object_type,
             sort_order=int(row.get("sort_order", idx) or idx),
             params=params,
             results=_parse_json_or_empty(row.get("results", ""), None),
@@ -1576,6 +1589,8 @@ async def _apply_project_data_v3(
     for idx, row in enumerate(objects_rows):
         params = _parse_json_or_empty(row.get("params", ""), {})
         _reject_imported_legacy_specification_params(params)
+        object_type = _normalize_object_type(row.get("type", ""))
+        _reject_imported_tank_shape(object_type, params)
         if row.get("name") and "name" not in params:
             params["name"] = row["name"]
         object_key = (row.get("object_key") or "").strip()
@@ -1588,7 +1603,7 @@ async def _apply_project_data_v3(
             )
         obj = ProjectObject(
             project_id=project.id,
-            object_type=_normalize_object_type(row.get("type", "")),
+            object_type=object_type,
             sort_order=int(row.get("sort_order", idx) or idx),
             params=params,
             results=_parse_json_or_empty(row.get("results", ""), None),

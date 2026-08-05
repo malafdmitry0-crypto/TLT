@@ -70,13 +70,13 @@ def test_power_too_high_does_not_suggest_threads_without_explicit_thread_context
     assert payload["suggested_actions"] == ["TRY_OTHER_CABLE_TYPE"]
 
 
-def test_spherical_tank_layout_is_unsupported_not_error():
+def test_unknown_tank_layout_is_unsupported_not_error():
     payload = build_electrical_error_payload(
         "CalculationError: Для электрорасчёта резервуара требуется геометрия укладки кабеля: "
         "цилиндр/параллелепипед, высота обогрева и шаг укладки",
         object_type="tank",
         cable_type="self_regulating",
-        request_data={"shape": "spherical"},
+        request_data={"shape": "hexagonal"},
     )
 
     assert payload["error_code"] == "unsupported_layout"

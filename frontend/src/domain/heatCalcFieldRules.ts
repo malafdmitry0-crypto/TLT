@@ -39,7 +39,7 @@ function fieldRequired(fieldId: string, context: HeatCalcFieldContext) {
   const fieldInput = input(fieldId, context);
   if (context.objectType === 'tank') {
     const shape = String(context.values.shape ?? '');
-    if (fieldId === 'diameter_mm') return shape === 'cylindrical' || shape === 'spherical';
+    if (fieldId === 'diameter_mm') return shape === 'cylindrical';
     if (fieldId === 'height_mm') return shape === 'cylindrical' || shape === 'rectangular';
     if (fieldId === 'length_mm' || fieldId === 'width_mm') return shape === 'rectangular';
     if (fieldId === 'wall_thickness_mm') return hasValue(context.values.wall_lambda);
@@ -156,14 +156,6 @@ export function validateHeatCalcField(
       const known = fieldInput.options?.some((item) => String(item.value) === String(value)) ?? false;
       if (!known) return 'Выберите значение из списка';
       if (
-        fieldId === 'placement'
-        && context.objectType === 'tank'
-        && context.values.shape === 'spherical'
-        && value === 'underground'
-      ) {
-        return 'Сферический резервуар нельзя рассчитывать в частично заглублённом размещении';
-      }
-      if (
         fieldId === 'insulation_temperature_basis'
         && !isInsulationTemperatureBasisAllowedForPlacement(value, context.values.placement)
       ) {
@@ -254,10 +246,6 @@ export function applyHeatCalcFieldValue(
   }
   if (fieldId === 'steam_tracing' && nextValues.steam_tracing !== 'yes') {
     delete nextValues.vapor_temperature;
-  }
-  if (fieldId === 'shape' && nextValues.shape === 'spherical') {
-    delete nextValues.heating_height;
-    delete nextValues.laying_step;
   }
   if (
     fieldId === 'placement'

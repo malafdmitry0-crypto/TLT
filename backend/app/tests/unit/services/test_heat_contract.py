@@ -26,12 +26,6 @@ def test_result_schemas_exactly_match_their_per_object_registries():
     assert set(TankHeatLossResult.model_fields) == TANK_CANONICAL_RESULT_KEYS
     assert PIPE_CANONICAL_RESULT_KEYS.isdisjoint(PIPE_DEPRECATED_RESULT_KEYS)
     assert TANK_CANONICAL_RESULT_KEYS.isdisjoint(TANK_DEPRECATED_RESULT_KEYS)
-    assert {
-        "thermal_resistance_total",
-        "wall_resistance_total",
-        "insulation_resistance_total",
-        "external_resistance_total",
-    }.issubset(TANK_CANONICAL_RESULT_KEYS)
 
 
 def test_volume_is_not_part_of_the_tank_formula_schema():

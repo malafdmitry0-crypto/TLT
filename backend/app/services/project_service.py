@@ -425,7 +425,7 @@ class ProjectService:
                 str(exc), code=exc.code, fields=exc.fields
             ) from exc
         except ProjectObjectParamsError as exc:
-            raise ProjectValidationError(str(exc)) from exc
+            raise ProjectValidationError(str(exc), code=exc.code, fields=exc.fields) from exc
         obj = ProjectObject(
             project_id=project_id,
             object_type=data.object_type,
@@ -486,7 +486,9 @@ class ProjectService:
                         obj.object_type, replaced_params
                     )
                 except ProjectObjectParamsError as exc:
-                    raise ProjectValidationError(str(exc)) from exc
+                    raise ProjectValidationError(
+                        str(exc), code=exc.code, fields=exc.fields
+                    ) from exc
             else:
                 merged_params = {**(obj.params or {}), **incoming_params}
                 update_data["params"] = normalize_project_object_params(

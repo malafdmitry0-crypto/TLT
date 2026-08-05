@@ -187,10 +187,6 @@ describe('heatCalcFieldRules', () => {
       objectType: 'tank',
       values: { shape: 'rectangular' },
     })).toBe(true);
-    expect(isHeatCalcFieldVisible('heating_height', {
-      objectType: 'tank',
-      values: { shape: 'spherical' },
-    })).toBe(false);
     expect(isHeatCalcFieldVisible('laying_step', {
       objectType: 'pipe',
       values: {},
@@ -217,20 +213,6 @@ describe('heatCalcFieldRules', () => {
       ...context,
       values: { ...context.values, process_temperature: 5 },
     })).toBe('Требуемая температура объекта должна быть выше температуры среды');
-  });
-
-  it('отклоняет неподдерживаемое сочетание сферического резервуара и заглубления', () => {
-    const context = {
-      objectType: 'tank' as const,
-      values: { shape: 'spherical', placement: 'underground' },
-    };
-
-    expect(validateHeatCalcField('placement', 'underground', context)).toBe(
-      'Сферический резервуар нельзя рассчитывать в частично заглублённом размещении',
-    );
-    expect(validateHeatCalcFormValues(context)).toMatchObject({
-      placement: 'Сферический резервуар нельзя рассчитывать в частично заглублённом размещении',
-    });
   });
 
   it('учитывает количество слоёв и материал other для λ и диапазона T', () => {

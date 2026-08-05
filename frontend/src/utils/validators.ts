@@ -25,7 +25,7 @@ export const pipeParamsSchema = z.object({
 });
 
 export const tankParamsSchema = z.object({
-  shape: z.enum(['cylindrical', 'rectangular', 'spherical']),
+  shape: z.enum(['cylindrical', 'rectangular']),
   diameter: z.number().min(0.1).max(30).optional(),
   height: z.number().min(0.1).max(50).optional(),
   length: z.number().min(0.1).max(100).optional(),

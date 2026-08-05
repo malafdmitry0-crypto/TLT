@@ -119,20 +119,6 @@ describe('generateTankName', () => {
     expect(name).toContain('прям.');
   });
 
-  it('шар содержит Ø', () => {
-    const name = generateTankName({
-      shape: 'spherical',
-      diameter_mm: 1500,
-      insulation_thickness_mm: 60,
-      insulation_material: 'polyurethane',
-      ambient_temperature: -20,
-      process_temperature: 60,
-    });
-    expect(name).toBe('Бак сфер. Ø1500 мм, δ=60 мм, ППУ, -20→+60°C');
-    expect(name).toContain('сфер.');
-    expect(name).toContain('Ø1500');
-  });
-
   it('принимает partial/empty inputs без type assertion (runtime throws, callers catch)', () => {
     const partial = { shape: 'cylindrical' as const, diameter_mm: 2000 };
     const empty = {};

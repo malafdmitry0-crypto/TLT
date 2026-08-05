@@ -30,31 +30,9 @@ from app.services.calculation_service import (
     BatchCancelledError,
     CalculationError,
     CalculationService,
-    build_heat_loss_error_payload,
 )
 
 MINERAL_WOOL = "mineral_wool_boards_120"
-
-
-def test_sphere_critical_radius_formula_rejection_has_structured_context():
-    payload = build_heat_loss_error_payload(
-        ValueError(
-            "sphere_below_critical_insulation_radius "
-            "router=0.81 rcritical=0.95 conductivity_outermost=0.18 "
-            "alpha_vnesh_applied=9.0"
-        ),
-        object_type="tank",
-    )
-
-    assert payload["error_code"] == "sphere_below_critical_insulation_radius"
-    assert payload["category"] == "validation"
-    assert payload["field"] == "insulation_layers"
-    assert payload["error_context"] == {
-        "router": 0.81,
-        "rcritical": 0.95,
-        "conductivity_outermost": 0.18,
-        "alpha_vnesh_applied": 9.0,
-    }
 
 
 def _mock_db_empty() -> AsyncMock:

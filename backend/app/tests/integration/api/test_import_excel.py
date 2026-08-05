@@ -375,7 +375,9 @@ class TestExcelImport:
         ).json()
         assert objects == []
 
-    async def test_import_tanks_all_shapes(self, client: AsyncClient, guest_session: str):
+    async def test_import_tanks_supported_shapes_and_rejects_legacy_shape(
+        self, client: AsyncClient, guest_session: str
+    ):
         pid = await _create_project(client, guest_session)
         xlsx = _build_xlsx(
             tanks=[
@@ -397,8 +399,10 @@ class TestExcelImport:
         )
         assert resp.status_code == 200
         body = resp.json()
-        assert body["created"] == 3
-        assert body["errors"] == []
+        assert body["created"] == 2
+        assert len(body["errors"]) == 1
+        assert body["errors"][0]["row"] == 4
+        assert "форма" in body["errors"][0]["message"].lower()
 
     async def test_import_reports_structural_row_errors(
         self, client: AsyncClient, guest_session: str

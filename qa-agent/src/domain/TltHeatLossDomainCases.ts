@@ -6,7 +6,7 @@ import type { ReportResult } from '../reporting/types';
 import { isRecord } from '../shared/types';
 
 export type TltHeatLossObjectType = 'pipe' | 'tank';
-export type TltTankShape = 'cylindrical' | 'rectangular' | 'spherical';
+export type TltTankShape = 'cylindrical' | 'rectangular';
 export type TltHeatLossCaseSource = 'fixture' | 'llm';
 
 export type TltRawDomainCase = {
@@ -176,26 +176,6 @@ const FIXTURE_CASES: TltRawDomainCase[] = [
       safety_factor: 1.1,
     },
   },
-  {
-    id: 'tank-spherical-heat-loss-only',
-    object_type: 'tank',
-    scenario: 'Spherical tank heat-loss case; electrical layout is intentionally unsupported later',
-    risk_tags: ['tank', 'spherical', 'heat_loss_only'],
-    params: {
-      shape: 'spherical',
-      diameter: 2.5,
-      wall_thickness: 0.005,
-      wall_lambda: 45,
-      insulation_thickness: 0.07,
-      insulation_material: 'mineral_wool_boards_120',
-      insulation_temperature_basis: 'outdoor_winter',
-      ambient_temperature: -25,
-      process_temperature: 50,
-      location: 'outdoor',
-      wind_speed: 2.5,
-      safety_factor: 1.1,
-    },
-  },
 ];
 
 function normalizeStringList(value: unknown, fallback: string[] = []): string[] {
@@ -341,9 +321,7 @@ function normalizeTankParams(params: Record<string, unknown>, warnings: string[]
   const { ambient, process } = normalizeTemperatures(params, warnings);
   const rawShape = params.shape;
   const shape: TltTankShape =
-    rawShape === 'rectangular' || rawShape === 'spherical' || rawShape === 'cylindrical'
-      ? rawShape
-      : 'cylindrical';
+    rawShape === 'rectangular' || rawShape === 'cylindrical' ? rawShape : 'cylindrical';
   if (rawShape !== undefined && rawShape !== shape) warnings.push(`defaulted unsupported shape to ${shape}`);
   const location = normalizeLocation(params.location);
   const normalized: Record<string, unknown> = {
@@ -565,7 +543,6 @@ function tankArea(params: Record<string, unknown>): number {
     return 2 * (length * width + length * height + width * height);
   }
   const diameter = asFiniteNumber(params.diameter) ?? 2;
-  if (shape === 'spherical') return 4 * Math.PI * (diameter / 2) ** 2;
   const height = asFiniteNumber(params.height) ?? 4;
   return Math.PI * diameter * height + 2 * Math.PI * (diameter / 2) ** 2;
 }

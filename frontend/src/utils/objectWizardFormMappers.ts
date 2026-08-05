@@ -93,7 +93,7 @@ export function tankFormToApiParams(
   };
   applyCommonObjectParams(params, v, { objectType: 'tank' });
   applyInsulationLayers(params, v);
-  if (v.shape === 'cylindrical' || v.shape === 'spherical') {
+  if (v.shape === 'cylindrical') {
     if (hasExplicitNumberValue(v.diameter_mm)) params.diameter = mmToMOrNull(v.diameter_mm);
   }
   if (v.shape === 'cylindrical' || v.shape === 'rectangular') {

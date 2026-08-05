@@ -92,7 +92,7 @@ function ConfirmStepInner({ objectType }: Props) {
       ) : (
         <Descriptions size="small" column={2} bordered className="wizard-confirm-block">
           <Descriptions.Item label="Форма">
-            {{ cylindrical: 'Цилиндрическая', rectangular: 'Параллелепипед', spherical: 'Сферическая' }[getVal('shape') as string] ?? String(getVal('shape'))}
+            {{ cylindrical: 'Цилиндрическая', rectangular: 'Параллелепипед' }[getVal('shape') as string] ?? String(getVal('shape'))}
           </Descriptions.Item>
           {getVal('diameter_mm') != null && (
             <Descriptions.Item label="Диаметр">{getVal('diameter_mm') as number} мм</Descriptions.Item>

@@ -167,10 +167,6 @@ SHAPE_ALIASES: dict[str, str] = {
     "прямоугольный": "rectangular",
     "прямоуг": "rectangular",
     "rectangular": "rectangular",
-    "шар": "spherical",
-    "сфера": "spherical",
-    "сферический": "spherical",
-    "spherical": "spherical",
 }
 
 
@@ -789,7 +785,11 @@ def _build_pipe_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
 def _build_tank_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str | None]:
     shape = _resolve_shape(row.get("shape"))
     if not shape and row.get("shape") not in (None, ""):
-        return None, "Не указана или не распознана форма (цилиндр / параллелепипед / шар)"
+        return (
+            None,
+            "Форма резервуара больше не поддерживается. "
+            "Допустимые формы: cylindrical, rectangular.",
+        )
 
     ins_mm = _to_float(row.get("insulation_thickness_mm"))
     material_resolution = _resolve_material_entry(row.get("insulation_material"))
@@ -828,11 +828,6 @@ def _build_tank_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
             params["width"] = W_mm / 1000.0
         if H_mm is not None:
             params["height"] = H_mm / 1000.0
-    elif shape == "spherical":
-        d_mm = _to_float(row.get("diameter_mm"))
-        if d_mm is not None:
-            params["diameter"] = d_mm / 1000.0
-
     layers = _canonical_tank_insulation_layers(
         row,
         first_thickness_mm=ins_mm,
@@ -1440,7 +1435,6 @@ def _material_label(material: Any) -> str:
 SHAPE_LABELS_RU: dict[str, str] = {
     "cylindrical": "Цилиндр",
     "rectangular": "Параллелепипед",
-    "spherical": "Шар",
 }
 
 

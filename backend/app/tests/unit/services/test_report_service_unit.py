@@ -111,9 +111,9 @@ class TestLoadContext:
         elec = SimpleNamespace(
             object_id=oid,
             variant_number=1,
-            cable_mark="ТЛТ-25",
+            cable_mark="30ТТВ2-СР",
             results={
-                "selected_cable": "ТЛТ-25",
+                "selected_cable": "30ТТВ2-СР",
                 "installed_cable_length": 50,
                 "order_cable_length": 55,
             },
@@ -131,7 +131,7 @@ class TestLoadContext:
         assert ctx["project"]["name"] == "P"
         assert ctx["variant_number"] == 1
         assert len(ctx["objects"]) == 1
-        assert ctx["objects"][0]["electrical"]["cable_mark"] == "ТЛТ-25"
+        assert ctx["objects"][0]["electrical"]["cable_mark"] == "30ТТВ2-СР"
         assert ctx["electrical"]["summary"]["successful"] == 1
         assert ctx["electrical"]["summary"]["total_cable"] == 55.0
         assert ctx["specification"]["items"] == [{"name": "Кабель"}]
@@ -146,16 +146,16 @@ class TestLoadContext:
         objects = [
             _object(ok_id, "OK"),
             _object(failed_id, "BAD"),
-            _object(unsupported_id, "SPHERE", object_type="tank"),
+            _object(unsupported_id, "UNSUPPORTED", object_type="tank"),
             _object(stale_id, "STALE"),
         ]
         spec = SimpleNamespace(items=[])
         calcs = [
             _electrical(
                 ok_id,
-                "ТЛТ-10",
+                "30ТТВ2-СР",
                 {
-                    "selected_cable": "ТЛТ-10",
+                    "selected_cable": "30ТТВ2-СР",
                     "message": "Служебное пояснение успешного подбора",
                     "total_power": 1000,
                     "installed_cable_length": 10,
@@ -180,14 +180,14 @@ class TestLoadContext:
                 {
                     "error_code": "unsupported_layout",
                     "category": "unsupported",
-                    "message": "Сферический резервуар не поддержан",
+                    "message": "Неизвестная геометрия резервуара не поддержана",
                 },
             ),
             _electrical(
                 stale_id,
-                "ТЛТ-20",
+                "40ТТВ2-СР",
                 {
-                    "selected_cable": "ТЛТ-20",
+                    "selected_cable": "40ТТВ2-СР",
                     "error_code": "stale_electrical_calculation",
                     "category": "stale",
                     "message": "Электрорасчёт требует пересчёта",
@@ -210,7 +210,7 @@ class TestLoadContext:
 
         assert [o["params"]["name"] for o in ctx["electrical"]["valid"]] == ["OK"]
         assert [o["params"]["name"] for o in ctx["electrical"]["failed"]] == ["BAD"]
-        assert [o["params"]["name"] for o in ctx["electrical"]["unsupported"]] == ["SPHERE"]
+        assert [o["params"]["name"] for o in ctx["electrical"]["unsupported"]] == ["UNSUPPORTED"]
         assert [o["params"]["name"] for o in ctx["electrical"]["stale"]] == ["STALE"]
         assert ctx["electrical"]["summary"] == {
             "total": 4,
@@ -502,37 +502,6 @@ class TestReportRendering:
         assert "Плиты минераловатные прошивные, 120 кг/м³" in html
         assert "250" in html
 
-    def test_spherical_tank_report_reads_exact_total_resistance(self):
-        objects = [
-            {
-                "id": "tank-sphere-1",
-                "object_type": "tank",
-                "params": {
-                    "name": "Сферический R1",
-                    "shape": "spherical",
-                    "diameter": 2.0,
-                    "insulation_layers": [{"thickness": 0.05, "material": "foam_glass"}],
-                    "ambient_temperature": -25,
-                    "process_temperature": 70,
-                },
-                "results": {
-                    "surface_area_bare": 12.57,
-                    "thermal_resistance_total": 0.12345,
-                    "thermal_resistance_areal_bare": 999.0,
-                    "heat_loss_per_m2_bare_base": 40.0,
-                    "q_additional_applied": 0.0,
-                    "total_heat_loss_design": 500.0,
-                },
-                "is_valid": True,
-            }
-        ]
-
-        html = render_html(_report_context(objects, sections=["tanks"]))
-
-        assert "RΣ" in html
-        assert "0.12345" in html
-        assert "999.00000" not in html
-
     def test_electrical_table_uses_tt_power_per_meter(self):
         objects = [
             {
@@ -601,7 +570,7 @@ class TestReportRendering:
             {
                 "id": "unsupported",
                 "object_type": "tank",
-                "params": {"name": "SPHERE"},
+                "params": {"name": "UNSUPPORTED"},
                 "results": {"total_heat_loss_design": 3000},
                 "is_valid": True,
                 "electrical": {
@@ -610,7 +579,7 @@ class TestReportRendering:
                     "results": {
                         "error_code": "unsupported_layout",
                         "category": "unsupported",
-                        "message": "Сферический резервуар не поддержан",
+                        "message": "Неизвестная геометрия резервуара не поддержана",
                     },
                 },
             },
@@ -645,7 +614,7 @@ class TestReportRendering:
         assert "17.00 кВт" not in html
         assert "Не включено в сводку электрорасчёта (3)" in html
         assert "BAD" in html
-        assert "SPHERE" in html
+        assert "UNSUPPORTED" in html
         assert "STALE" in html
         assert "Требует пересчёта" in html
 

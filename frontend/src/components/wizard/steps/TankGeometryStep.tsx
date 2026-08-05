@@ -22,7 +22,7 @@ interface Props {
 export default function TankGeometryStep({ fieldInputSettings, part = 'all' }: Props) {
   const form = TltForm.useFormInstance();
   const shape = TltForm.useWatch('shape', form) as string | undefined;
-  const needDiameter = shape === 'cylindrical' || shape === 'spherical';
+  const needDiameter = shape === 'cylindrical';
   const needHeight = shape === 'cylindrical' || shape === 'rectangular';
   const needLength = shape === 'rectangular';
   const needWidth = shape === 'rectangular';

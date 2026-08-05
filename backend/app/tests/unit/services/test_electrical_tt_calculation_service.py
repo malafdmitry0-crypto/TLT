@@ -226,7 +226,7 @@ async def test_tank_rejects_saved_pipe_winding_instead_of_silently_ignoring_it(
 
 def test_unsupported_tank_shape_is_typed_and_never_falls_back_to_pipe() -> None:
     with pytest.raises(ElectricalInputResolutionError) as raised:
-        CalculationService(AsyncMock())._tt_object_heat_inputs(_tank("spherical"), {})
+        CalculationService(AsyncMock())._tt_object_heat_inputs(_tank("hexagonal"), {})
 
     assert raised.value.code == "ELECTRICAL_TANK_SHAPE_UNSUPPORTED"
 

@@ -68,10 +68,13 @@ async def _create_tank_without_cable_layout(
         object_type="tank",
         sort_order=0,
         params={
-            "name": "Race spherical tank",
-            "shape": "spherical",
+            "name": "Race tank without layout",
+            "shape": "cylindrical",
+            "diameter": 2.0,
+            "height": 3.0,
             "ambient_temperature": -20,
             "process_temperature": 80,
+            "min_switch_temperature": -20,
         },
         results={
             "total_heat_loss_design": 300,
@@ -205,7 +208,8 @@ class TestAtomicUpsertRaceConditions:
 
         results = await asyncio.gather(*(batch() for _ in range(6)))
         assert all(result[:3] == (0, 1, 0) for result in results)
-        assert all(result[3][0]["error_code"] == "unsupported_layout" for result in results)
+        error_codes = [result[3][0]["error_code"] for result in results]
+        assert all(code == "ELECTRICAL_INPUT_REQUIRED" for code in error_codes), error_codes
 
         count = (
             await db_session.execute(
@@ -226,5 +230,5 @@ class TestAtomicUpsertRaceConditions:
 
         assert count == 1
         assert row.cable_mark is None
-        assert row.results["error_code"] == "unsupported_layout"
-        assert row.results["category"] == "unsupported"
+        assert row.results["error_code"] == "ELECTRICAL_INPUT_REQUIRED"
+        assert row.results["category"] == "validation"

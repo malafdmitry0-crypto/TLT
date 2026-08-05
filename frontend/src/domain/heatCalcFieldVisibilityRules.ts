@@ -183,7 +183,7 @@ export function isHeatCalcFieldVisible(fieldId: string, context: HeatCalcFieldCo
   if (THIRD_LAYER_FIELDS.has(fieldId)) return layerCount(context) >= 3;
   if (context.objectType === 'tank') {
     const shape = String(context.values.shape ?? '');
-    if (fieldId === 'diameter_mm') return shape === 'cylindrical' || shape === 'spherical';
+    if (fieldId === 'diameter_mm') return shape === 'cylindrical';
     if (fieldId === 'height_mm') return shape === 'cylindrical' || shape === 'rectangular';
     if (fieldId === 'length_mm' || fieldId === 'width_mm') return shape === 'rectangular';
     if (fieldId === 'heating_height' || fieldId === 'laying_step') {

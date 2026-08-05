@@ -27,7 +27,11 @@ async function openTankForm(page: Page) {
 
 async function selectTankShape(page: Page, label: string) {
   await page.getByTestId('tank-shape-select').click();
-  await page.getByRole('option', { name: label, exact: true }).click();
+  const dropdown = page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)');
+  await expect(dropdown).toHaveCount(1);
+  const option = dropdown.locator('.ant-select-item-option').filter({ hasText: label });
+  await expect(option).toHaveCount(1);
+  await option.click();
 }
 
 async function assertNoTankFieldOverlap(page: Page, ids: string[]) {
@@ -75,42 +79,75 @@ async function assertNoTankFieldOverlap(page: Page, ids: string[]) {
   expect(result.overlaps).toEqual(Object.fromEntries(Object.keys(result.overlaps).map((key) => [key, 0])));
 }
 
-test('wide tank form keeps geometry fields separate for cylinder and rectangular shapes', async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 1000 });
+test('desktop tank form keeps geometry fields separate for supported shapes', async ({ page }) => {
+  const consoleErrors: string[] = [];
+  const pageErrors: string[] = [];
+  const failedResponses: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error') consoleErrors.push(message.text());
+  });
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+  page.on('response', (response) => {
+    if (response.status() >= 400) {
+      failedResponses.push(`${response.status()} ${response.url()}`);
+    }
+  });
+
+  const viewports = [
+    { width: 1000, height: 768 },
+    { width: 1280, height: 800 },
+    { width: 1440, height: 900 },
+    { width: 1440, height: 1000 },
+  ];
+  await page.setViewportSize(viewports[0]);
   await openTankForm(page);
 
-  await selectTankShape(page, 'Цилиндрическая');
-  await assertNoTankFieldOverlap(page, [
-    'object-name-input',
-    'tank-shape-select',
-    'tank-diameter-input',
-    'tank-height-input',
-    'tank-wall-thickness-input',
-    'tank-wall-lambda-input',
-    'q-additional-input',
-    'placement-select',
-    'climate-select',
-    'ambient-temperature-input',
-    'process-temperature-input',
-    'wind-speed-input',
-  ]);
-  await page.screenshot({ path: 'test-results/ui-proof-heat-tank-layout/cylindrical-1440x1000.png' });
+  for (const [index, viewport] of viewports.entries()) {
+    await page.setViewportSize(viewport);
+    if (index > 0) {
+      await selectTankShape(page, 'Цилиндрическая');
+    }
+    await expect(page.getByTestId('tank-shape-select')).toContainText('Цилиндрическая');
+    await assertNoTankFieldOverlap(page, [
+      'object-name-input',
+      'tank-shape-select',
+      'tank-diameter-input',
+      'tank-height-input',
+      'tank-wall-thickness-input',
+      'tank-wall-lambda-input',
+      'q-additional-input',
+      'placement-select',
+      'climate-select',
+      'ambient-temperature-input',
+      'process-temperature-input',
+      'wind-speed-input',
+    ]);
+    await page.screenshot({
+      path: `test-results/ui-proof-heat-tank-layout/cylindrical-${viewport.width}x${viewport.height}.png`,
+    });
 
-  await selectTankShape(page, 'Параллелепипед');
-  await assertNoTankFieldOverlap(page, [
-    'object-name-input',
-    'tank-shape-select',
-    'tank-length-input',
-    'tank-width-input',
-    'tank-height-input',
-    'tank-wall-thickness-input',
-    'tank-wall-lambda-input',
-    'q-additional-input',
-    'placement-select',
-    'climate-select',
-    'ambient-temperature-input',
-    'process-temperature-input',
-    'wind-speed-input',
-  ]);
-  await page.screenshot({ path: 'test-results/ui-proof-heat-tank-layout/rectangular-1440x1000.png' });
+    await selectTankShape(page, 'Параллелепипед');
+    await assertNoTankFieldOverlap(page, [
+      'object-name-input',
+      'tank-shape-select',
+      'tank-length-input',
+      'tank-width-input',
+      'tank-height-input',
+      'tank-wall-thickness-input',
+      'tank-wall-lambda-input',
+      'q-additional-input',
+      'placement-select',
+      'climate-select',
+      'ambient-temperature-input',
+      'process-temperature-input',
+      'wind-speed-input',
+    ]);
+    await page.screenshot({
+      path: `test-results/ui-proof-heat-tank-layout/rectangular-${viewport.width}x${viewport.height}.png`,
+    });
+  }
+
+  expect(consoleErrors).toEqual([]);
+  expect(pageErrors).toEqual([]);
+  expect(failedResponses).toEqual([]);
 });

@@ -35,8 +35,7 @@ export default function HeatCalcAssumptionsPanel({
 
   const isPipe = selectedObject.object_type === 'pipe';
   const isUnderground = selectedParams?.placement === 'underground';
-  const isSphericalTank = !isPipe && selectedParams?.shape === 'spherical';
-  const tankResistanceUnit = isSphericalTank ? ' К/Вт' : ' м²·К/Вт';
+  const tankResistanceUnit = ' м²·К/Вт';
   const enabledMetrics = new Set(normalizeCalculationDetailsSettings(calculationDetailsSettings).visibleMetrics);
   const details: Array<{ key: string; label: string; value: string }> = [];
 
@@ -60,7 +59,7 @@ export default function HeatCalcAssumptionsPanel({
     isPipe ? 'Rиз' : `Rиз,${tankResistanceUnit}`,
     `${resultValue(isPipe
       ? 'insulation_resistance'
-      : isSphericalTank ? 'insulation_resistance_total' : 'insulation_resistance_areal_bare', 4)}${isPipe ? '' : tankResistanceUnit}`,
+      : 'insulation_resistance_areal_bare', 4)}${isPipe ? '' : tankResistanceUnit}`,
   );
 
   if (isPipe) {
@@ -72,7 +71,7 @@ export default function HeatCalcAssumptionsPanel({
     addDetail(
       'external_resistance',
       `Rвнеш,${tankResistanceUnit}`,
-      `${resultValue(isSphericalTank ? 'external_resistance_total' : 'external_resistance_areal_bare', 4)}${tankResistanceUnit}`,
+      `${resultValue('external_resistance_areal_bare', 4)}${tankResistanceUnit}`,
     );
     if (isUnderground) {
       addDetail('ground_resistance', 'Rгр', resultValue('ground_resistance_areal_bare', 4));
@@ -81,11 +80,8 @@ export default function HeatCalcAssumptionsPanel({
     addDetail(
       'wall_resistance',
       `Rст,${tankResistanceUnit}`,
-      `${resultValue(isSphericalTank ? 'wall_resistance_total' : 'wall_resistance_areal_bare', 4)}${tankResistanceUnit}`,
+      `${resultValue('wall_resistance_areal_bare', 4)}${tankResistanceUnit}`,
     );
-    if (isSphericalTank) {
-      addDetail('thermal_resistance', `RΣ,${tankResistanceUnit}`, `${resultValue('thermal_resistance_total', 4)}${tankResistanceUnit}`);
-    }
     if (isUnderground) {
       addDetail('air_surface_area', 'Sвозд', resultDetailValue('air_surface_area', 1, ' м²'));
       addDetail('ground_surface_area', 'Sгр', resultDetailValue('ground_surface_area', 1, ' м²'));

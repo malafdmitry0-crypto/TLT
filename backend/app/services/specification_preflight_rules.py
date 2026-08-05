@@ -198,12 +198,12 @@ def _assignment_diagnostics(
         "assignment_id": str(row.assignment_id),
         "calculation_id": str(row.calculation_id) if row.calculation_id else None,
     }
-    if row.object_type != "pipe":
+    if row.object_type not in {"pipe", "tank"}:
         return [
             _diagnostic(
                 SpecificationDiagnosticCode.UNSUPPORTED_OBJECT_TYPE,
                 SpecificationIssueKind.BLOCKING,
-                "Для спецификации поддерживаются только трубопроводы",
+                "Для спецификации поддерживаются только трубопроводы и резервуары",
                 details=details,
             )
         ]

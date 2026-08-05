@@ -16,7 +16,6 @@ export function insulationLayerCount(record: ProjectObject) {
 export function tankShapeLabel(shape: unknown) {
   if (shape === 'cylindrical') return 'Цилиндр';
   if (shape === 'rectangular') return 'Прямоуг.';
-  if (shape === 'spherical') return 'Сфера';
   return '—';
 }
 
@@ -154,9 +153,6 @@ export function tankDimensions(record: ProjectObject) {
   }
   if (shape === 'rectangular') {
     return `${mmParam(record, 'length')} × ${mmParam(record, 'width')} × ${mmParam(record, 'height')} мм`;
-  }
-  if (shape === 'spherical') {
-    return `Ø${mmParam(record, 'diameter')} мм`;
   }
   return '—';
 }

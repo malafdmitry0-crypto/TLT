@@ -598,13 +598,14 @@ class TestObjectsLifecycle:
         assert body["results"]["heat_loss_per_m2_bare_base"] > 0
         assert body["results"]["surface_area_bare"] > 0
 
-    async def test_add_spherical_tank_uses_exact_radial_formula(
+    async def test_create_and_update_reject_legacy_spherical_tank_shape(
         self,
         client: AsyncClient,
         guest_session: str,
     ):
         pid = await _project(client, guest_session)
-        resp = await client.post(
+        headers = {"X-Session-Id": guest_session}
+        rejected_create = await client.post(
             f"/api/v1/projects/{pid}/objects",
             json={
                 "object_type": "tank",
@@ -619,64 +620,53 @@ class TestObjectsLifecycle:
                     "wind_speed": 0,
                 },
             },
-            headers={"X-Session-Id": guest_session},
+            headers=headers,
         )
+        assert rejected_create.status_code == 422, rejected_create.text
+        assert rejected_create.json()["detail"] == {
+            "code": "TANK_SHAPE_UNSUPPORTED",
+            "message": (
+                "Форма резервуара 'spherical' больше не поддерживается. "
+                "Допустимые формы: cylindrical, rectangular."
+            ),
+            "fields": ["shape"],
+        }
 
-        assert resp.status_code == 201, resp.text
-        body = resp.json()
-        assert body["params"]["shape"] == "spherical"
-        assert body["is_valid"] is True
-        assert body["validation_errors"] is None
-        assert body["results"]["formula_model"] == "tank_heat_loss_spherical_radial"
-        assert body["results"]["formula_model_version"] == "4"
-        assert body["results"]["thermal_resistance_total"] > 0
-        assert body["results"]["wall_resistance_total"] == 0
-        assert body["results"]["insulation_resistance_total"] > 0
-        assert body["results"]["external_resistance_total"] > 0
-        assert body["results"]["critical_radius_check_passed"] is True
-
-    async def test_add_spherical_tank_below_critical_radius_has_structured_error(
-        self,
-        client: AsyncClient,
-        guest_session: str,
-    ):
-        pid = await _project(client, guest_session)
-        resp = await client.post(
+        created_response = await client.post(
             f"/api/v1/projects/{pid}/objects",
             json={
                 "object_type": "tank",
                 "params": {
-                    "shape": "spherical",
-                    "diameter": 0.1,
-                    "insulation_layers": [
-                        {
-                            "thickness": 0.001,
-                            "material": "other",
-                            "conductivity": 1.0,
-                            "temperature_range": [-100, 200],
-                        }
-                    ],
-                    "insulation_temperature_basis": "indoor",
+                    "shape": "cylindrical",
+                    "diameter": 3.0,
+                    "height": 5.0,
+                    "insulation_layers": [{"thickness": 0.08, "material": MINERAL_WOOL}],
+                    "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -20,
                     "process_temperature": 80,
-                    "placement": "indoor",
+                    "placement": "outdoor",
+                    "wind_speed": 0,
                 },
             },
-            headers={"X-Session-Id": guest_session},
+            headers=headers,
         )
+        assert created_response.status_code == 201, created_response.text
+        created = created_response.json()
 
-        assert resp.status_code == 201, resp.text
-        body = resp.json()
-        assert body["is_valid"] is False
-        assert body["results"] is None
-        error = body["validation_errors"]
-        assert error["error_code"] == "sphere_below_critical_insulation_radius"
-        assert error["field"] == "insulation_layers"
-        context = error["error_context"]
-        assert context["router"] == pytest.approx(0.051)
-        assert context["rcritical"] == pytest.approx(2 / 9)
-        assert context["conductivity_outermost"] == pytest.approx(1.0)
-        assert context["alpha_vnesh_applied"] == pytest.approx(9.0)
+        rejected_update = await client.put(
+            f"/api/v1/projects/{pid}/objects/{created['id']}",
+            json={
+                "version": created["version"],
+                "params": {
+                    **created["params"],
+                    "shape": "spherical",
+                    "height": None,
+                },
+            },
+            headers=headers,
+        )
+        assert rejected_update.status_code == 422, rejected_update.text
+        assert rejected_update.json()["detail"] == rejected_create.json()["detail"]
 
     async def test_add_large_tank_with_tank_dimensions_is_valid(
         self, client: AsyncClient, guest_session: str

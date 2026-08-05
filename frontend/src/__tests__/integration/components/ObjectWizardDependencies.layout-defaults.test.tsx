@@ -12,6 +12,7 @@ import {
   mockReferences,
   renderWizard,
 } from './ObjectWizardDependencies.test-harness';
+import { heatCalcSelectOptions } from '@/utils/heatCalcWizardFieldRules';
 
 describe('ObjectWizard dependencies — layout-defaults', () => {
   beforeEach(async () => {
@@ -116,6 +117,10 @@ describe('ObjectWizard dependencies — layout-defaults', () => {
 
     expect(await screen.findByTestId('tank-shape-select')).toBeVisible();
     expect(screen.getByTestId('tank-shape-select')).toHaveTextContent('Цилиндрическая');
+    expect(heatCalcSelectOptions('tank', 'shape')).toEqual([
+      { value: 'cylindrical', label: 'Цилиндрическая' },
+      { value: 'rectangular', label: 'Параллелепипед' },
+    ]);
     expect(screen.getByTestId('max-ambient-temperature-input')).toHaveValue('');
     expect(screen.getByTestId('max-process-temperature-input')).toHaveValue('');
     expect(screen.getByTestId('tank-diameter-input')).toHaveValue('');

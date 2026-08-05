@@ -96,7 +96,7 @@ export type PipeNameFields = Partial<{
 }>;
 
 export type TankNameFields = Partial<{
-  shape: 'cylindrical' | 'rectangular' | 'spherical';
+  shape: 'cylindrical' | 'rectangular';
   diameter_mm: number;
   height_mm: number;
   length_mm: number;
@@ -132,10 +132,6 @@ export function generateTankName(v: TankNameFields): string {
       .map((x) => formatWizardNameNumber(x!))
       .join('×');
     return `Бак прям. ${dims} мм, ${ins}, ${tAmb}→${tProc}°C`;
-  }
-  if (v.shape === 'spherical') {
-    const d = v.diameter_mm ? `Ø${formatWizardNameNumber(v.diameter_mm)} мм` : '';
-    return `Бак сфер. ${d}, ${ins}, ${tAmb}→${tProc}°C`;
   }
   return `Бак, ${ins}, ${tAmb}→${tProc}°C`;
 }

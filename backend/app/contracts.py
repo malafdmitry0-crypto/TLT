@@ -65,7 +65,6 @@ class TankShape(str, enum.Enum):
 
     CYLINDRICAL = "cylindrical"
     RECTANGULAR = "rectangular"
-    SPHERICAL = "spherical"
 
 
 class PipeMaterial(str, enum.Enum):

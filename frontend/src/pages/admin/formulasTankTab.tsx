@@ -38,13 +38,6 @@ export function FormulasTankTab() {
 
  const onCalc = async () => {
     const v = await form.validateFields();
-    if (v.shape === 'spherical' && v.placement === 'underground') {
-      form.setFields([{
-        name: 'placement',
-        errors: ['Сферический резервуар нельзя рассчитывать в частично заглублённом размещении'],
-      }]);
-      return;
-    }
     const layers = collectInsulationLayers(v);
     const p: Record<string, unknown> = {
       shape: v.shape,
@@ -65,9 +58,9 @@ export function FormulasTankTab() {
     }
     assignIfPresent(p, 'wind_speed', v.wind_speed);
     assignIfPresent(p, 'alpha_vnesh', v.alpha_vnesh);
-    if (v.shape === 'cylindrical' || v.shape === 'spherical') {
+    if (v.shape === 'cylindrical') {
       p.diameter = v.diameter_mm / 1000;
-      if (v.shape === 'cylindrical') p.height = v.height_mm / 1000;
+      p.height = v.height_mm / 1000;
     } else {
       p.length = v.length_mm / 1000;
       p.width = v.width_mm / 1000;
@@ -104,7 +97,6 @@ export function FormulasTankTab() {
                   options={[
                     { value: 'cylindrical', label: 'Цилиндр' },
                     { value: 'rectangular', label: 'Параллелепипед' },
-                    { value: 'spherical', label: 'Шар' },
                   ]}
                 />
               </Form.Item>
@@ -115,7 +107,7 @@ export function FormulasTankTab() {
                   options={[
                     { value: 'outdoor', label: 'Надземное' },
                     { value: 'indoor', label: 'В помещении' },
-                    { value: 'underground', label: 'Частично заглублённое', disabled: shape === 'spherical' },
+                    { value: 'underground', label: 'Частично заглублённое' },
                   ]}
                 />
               </Form.Item>
@@ -137,20 +129,18 @@ export function FormulasTankTab() {
               </Form.Item>
             </Col>
           </Row>
-          {(shape === 'cylindrical' || shape === 'spherical') && (
+          {shape === 'cylindrical' && (
             <Row gutter={12}>
               <Col span={12}>
                 <Form.Item name="diameter_mm" label="Диаметр, мм" rules={[{ required: true }]}>
                   <TltNumberField min={100} max={30000} className="tlt-field--fill" placeholder="2000" />
                 </Form.Item>
               </Col>
-              {shape === 'cylindrical' && (
-                <Col span={12}>
-                  <Form.Item name="height_mm" label="Высота, мм" rules={[{ required: true }]}>
-                    <TltNumberField min={100} max={50000} className="tlt-field--fill" placeholder="3000" />
-                  </Form.Item>
-                </Col>
-              )}
+              <Col span={12}>
+                <Form.Item name="height_mm" label="Высота, мм" rules={[{ required: true }]}>
+                  <TltNumberField min={100} max={50000} className="tlt-field--fill" placeholder="3000" />
+                </Form.Item>
+              </Col>
             </Row>
           )}
           {shape === 'rectangular' && (

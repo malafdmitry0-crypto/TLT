@@ -211,15 +211,6 @@ class TestTankShapeBoundaries:
         )
         assert r.total_heat_loss_design > 0
 
-    def test_spherical_tank_underground_is_rejected(self):
-        with pytest.raises(ValueError, match="spherical"):
-            _tank(
-                shape="spherical", height=None, placement="underground", ground_temperature=0,
-                ground_conductivity=1.5, tank_buried_height=1,
-                insulation_temperature_basis="channel",
-            )
-
-
 class TestTankPhysicalInvariants:
     def test_safety_factor_applies_to_tank(self):
         r0 = calc_tank_heat_loss(_tank(safety_factor=1.0))

@@ -9,8 +9,7 @@
     труба      цилиндрические оболочки, R = ln(r₂/r₁)/(2πλ);
                наружная теплоотдача R = 1/(2π·r·α);
                грунт R = arccosh(H/r)/(2π·λ_гр)
-    резервуар  плоская стенка на единицу площади, R = δ/λ, внешняя R = 1/α;
-               сфера — полные сопротивления оболочек R = (1/r₁−1/r₂)/(4πλ)
+    резервуар  плоская стенка на единицу площади, R = δ/λ, внешняя R = 1/α
 
 Во всех эталонах материал изоляции — `other` с явной λ: справочная λ зависит от
 tm, и эталон проверял бы уже справочник, а не формулу.
@@ -49,10 +48,6 @@ def _layer(thickness: float, conductivity: float) -> InsulationLayer:
 
 def _r_cyl(r_inner: float, r_outer: float, conductivity: float) -> float:
     return math.log(r_outer / r_inner) / (2.0 * math.pi * conductivity)
-
-
-def _r_sphere(r_inner: float, r_outer: float, conductivity: float) -> float:
-    return (1.0 / r_inner - 1.0 / r_outer) / (4.0 * math.pi * conductivity)
 
 
 # ---------------------------------------------------------------------------
@@ -348,37 +343,6 @@ class TestTankAnalyticReference:
 
         assert result.surface_area_bare == pytest.approx(area, **EXACT)
         assert result.total_heat_loss_base == pytest.approx(flux * area, **EXACT)
-
-    def test_spherical_uses_shell_resistances_and_critical_radius(self):
-        """Сфера считается полными сопротивлениями оболочек, r_кр = 2λ/α."""
-        diameter, thickness, lam_ins = 3.0, 0.12, 0.05
-        wind, t_process, t_ambient = 3.0, 80.0, -20.0
-
-        result = calc_tank_heat_loss(
-            TankHeatLossParams(
-                shape="spherical",
-                diameter=diameter,
-                insulation_layers=[_layer(thickness, lam_ins)],
-                insulation_temperature_basis="outdoor_winter",
-                placement="outdoor",
-                wind_speed=wind,
-                ambient_temperature=t_ambient,
-                process_temperature=t_process,
-                safety_factor=1.1,
-            )
-        )
-
-        r_inner = diameter / 2.0
-        r_outer = r_inner + thickness
-        alpha = 11.6 + 7.0 * math.sqrt(wind)
-        r_ins = _r_sphere(r_inner, r_outer, lam_ins)
-        r_ext = 1.0 / (alpha * 4.0 * math.pi * r_outer**2)
-        total = (t_process - t_ambient) / (r_ins + r_ext)
-
-        assert result.critical_insulation_radius == pytest.approx(2.0 * lam_ins / alpha, **EXACT)
-        assert result.outer_insulation_radius == pytest.approx(r_outer, **EXACT)
-        assert result.critical_radius_check_passed is True
-        assert result.total_heat_loss_base == pytest.approx(total, **EXACT)
 
     def test_partly_buried_splits_surface_and_temperature_difference(self):
         """Воздушная и подземная части считаются раздельно и складываются."""

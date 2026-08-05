@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 import {
   API_BASE,
   createCalculatedPipe,
+  createCalculatedTank,
   currentGuestContext,
   loginAsGuest,
 } from './helpers/workspace';
@@ -13,8 +14,15 @@ import {
 } from './helpers/phase5-api';
 
 type ElectricalVariant = { id: string };
+type PreparedObject = {
+  id: string;
+  electricalOverrides?: Record<string, unknown>;
+};
 
-async function prepareReadyElectricalVariant(page: Page, objectId: string): Promise<ElectricalVariant> {
+async function prepareReadyElectricalVariant(
+  page: Page,
+  objects: PreparedObject[],
+): Promise<ElectricalVariant> {
   const { projectId, sessionId } = await currentGuestContext(page);
   const headers = { 'X-Session-Id': sessionId };
 
@@ -51,10 +59,15 @@ async function prepareReadyElectricalVariant(page: Page, objectId: string): Prom
     { headers },
   );
   expect(assignments.ok()).toBeTruthy();
-  const assignment = (await assignments.json()).items.find(
-    (row: { object_id: string }) => row.object_id === objectId,
-  ) as { version: number } | undefined;
-  expect(assignment).toBeTruthy();
+  const assignmentRows = (await assignments.json()).items as Array<{
+    object_id: string;
+    version: number;
+  }>;
+  const assignedItems = objects.map((object) => {
+    const assignment = assignmentRows.find((row) => row.object_id === object.id);
+    expect(assignment, `assignment for ${object.id}`).toBeTruthy();
+    return { object_id: object.id, expected_version: assignment!.version };
+  });
 
   const assign = await page.request.patch(
     `${API_BASE}/api/v1/projects/${projectId}/electrical-variants/${variant.id}/assignments`,
@@ -62,17 +75,40 @@ async function prepareReadyElectricalVariant(page: Page, objectId: string): Prom
       headers,
       data: {
         system_type: 'self_regulating',
-        items: [{ object_id: objectId, expected_version: assignment!.version }],
+        items: assignedItems,
       },
     },
   );
   expect(assign.ok()).toBeTruthy();
 
+  for (const object of objects) {
+    if (!object.electricalOverrides) continue;
+    const currentAssignments = await page.request.get(
+      `${API_BASE}/api/v1/projects/${projectId}/electrical-variants/${variant.id}/assignments`,
+      { headers },
+    );
+    expect(currentAssignments.ok()).toBeTruthy();
+    const currentRow = ((await currentAssignments.json()).items as Array<{
+      object_id: string;
+      version: number;
+    }>).find((row) => row.object_id === object.id);
+    expect(currentRow, `current assignment for ${object.id}`).toBeTruthy();
+    const override = await page.request.patch(
+      `${API_BASE}/api/v1/projects/${projectId}/electrical-variants/${variant.id}`
+        + `/assignments/${object.id}/electrical-overrides`,
+      {
+        headers,
+        data: { expected_version: currentRow!.version, ...object.electricalOverrides },
+      },
+    );
+    expect(override.ok()).toBeTruthy();
+  }
+
   const calculation = await batchCalcElectrical(page, variant.id);
   expect(calculation.ok()).toBeTruthy();
   const calculationBody = await calculation.json() as { calculated?: number; errors?: unknown[] };
   expect(calculationBody.errors ?? []).toHaveLength(0);
-  expect(calculationBody.calculated ?? 0).toBeGreaterThan(0);
+  expect(calculationBody.calculated ?? 0).toBeGreaterThanOrEqual(objects.length);
 
   return variant;
 }
@@ -87,12 +123,45 @@ async function selectRequiredSetting(page: Page, label: string, option: string) 
 test.describe('Case 1 demo catalog: desktop specification', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test('гость формирует спецификацию по case1-demo-v1 без ошибки матрицы коробок', async ({ page }) => {
+  test('цилиндр и параллелепипед проходят Heat → Electrical → Specification', async ({ page }) => {
     await loginAsGuest(page);
     const pipe = await createCalculatedPipe(page, `E2E Case1 demo catalog ${Date.now()}`, {
       min_switch_temperature: -30,
     });
-    const variant = await prepareReadyElectricalVariant(page, pipe.id as string);
+    const cylinder = await createCalculatedTank(page, `E2E Case1 cylinder ${Date.now()}`, {
+      min_switch_temperature: -20,
+      insulation_layers: [
+        { thickness: 0.15, material: 'mineral_wool_boards_120' },
+      ],
+    });
+    const rectangular = await createCalculatedTank(page, `E2E Case1 rectangular ${Date.now()}`, {
+      shape: 'rectangular',
+      diameter: null,
+      length: 4,
+      width: 2,
+      height: 3,
+      min_switch_temperature: -20,
+      insulation_layers: [
+        { thickness: 0.15, material: 'mineral_wool_boards_120' },
+      ],
+    });
+    const variant = await prepareReadyElectricalVariant(page, [
+      { id: pipe.id as string },
+      {
+        id: cylinder.id as string,
+        electricalOverrides: {
+          tank_heating_height_m: 2.4,
+          tank_laying_step_m: 0.2,
+        },
+      },
+      {
+        id: rectangular.id as string,
+        electricalOverrides: {
+          tank_heating_height_m: 1.8,
+          tank_laying_step_m: 0.3,
+        },
+      },
+    ]);
 
     await page.getByRole('menuitem', { name: 'Спецификация' }).click();
     await page.getByRole('button', { name: /^Сформировать$/i }).first().click();
@@ -128,10 +197,26 @@ test.describe('Case 1 demo catalog: desktop specification', () => {
     expect(specification.status()).toBe(200);
     const body = await specification.json() as {
       items: Array<Record<string, unknown>>;
-      snapshot: { catalog?: Record<string, unknown> } | null;
+      snapshot: {
+        catalog?: Record<string, unknown>;
+        normalized_inputs?: {
+          objects?: Array<{ object_id?: string; object_type_section?: string }>;
+        };
+      } | null;
       generation_diagnostics?: Array<{ code?: string }>;
     };
     expect(body.items.length).toBeGreaterThan(0);
+    const normalizedObjects = body.snapshot?.normalized_inputs?.objects ?? [];
+    expect(normalizedObjects).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        object_id: cylinder.id,
+        object_type_section: 'tank',
+      }),
+      expect.objectContaining({
+        object_id: rectangular.id,
+        object_type_section: 'tank',
+      }),
+    ]));
     const nomenclatureCodes = body.items.map((item) => String(
       item.article ?? item.nomenclature_code ?? '',
     ));

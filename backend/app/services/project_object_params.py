@@ -19,6 +19,9 @@ from app.services.heat_contract import (
 class ProjectObjectParamsError(ValueError):
     """Object params are incomplete for a project object."""
 
+    code: str | None = None
+    fields: tuple[str, ...] = ()
+
 
 LEGACY_SPECIFICATION_OBJECT_PARAM_KEYS = frozenset(
     {
@@ -42,6 +45,22 @@ class LegacySpecificationObjectParamsError(ProjectObjectParamsError):
         self.fields = fields
 
 
+SUPPORTED_TANK_SHAPES = frozenset({"cylindrical", "rectangular"})
+
+
+class UnsupportedTankShapeError(ProjectObjectParamsError):
+    """A write or import used a tank shape removed from the product contract."""
+
+    code = "TANK_SHAPE_UNSUPPORTED"
+    fields = ("shape",)
+
+    def __init__(self, shape: object) -> None:
+        super().__init__(
+            f"Форма резервуара {shape!r} больше не поддерживается. "
+            "Допустимые формы: cylindrical, rectangular."
+        )
+
+
 def reject_legacy_specification_object_params(params: Mapping[str, Any] | None) -> None:
     """Reject legacy specification keys at object-write boundaries.
 
@@ -53,6 +72,19 @@ def reject_legacy_specification_object_params(params: Mapping[str, Any] | None) 
     fields = tuple(sorted(LEGACY_SPECIFICATION_OBJECT_PARAM_KEYS.intersection(params or {})))
     if fields:
         raise LegacySpecificationObjectParamsError(fields)
+
+
+def reject_unsupported_tank_shape(
+    object_type: str,
+    params: Mapping[str, Any] | None,
+) -> None:
+    """Reject removed or unknown tank shapes at every object-write boundary."""
+
+    if object_type != "tank" or "shape" not in (params or {}):
+        return
+    shape = (params or {}).get("shape")
+    if not isinstance(shape, str) or shape not in SUPPORTED_TANK_SHAPES:
+        raise UnsupportedTankShapeError(shape)
 
 
 COMMON_OBJECT_DEFAULTS: dict[str, Any] = {
@@ -84,6 +116,8 @@ def normalize_project_object_params(
     normalized = dict(params or {})
     if object_type not in ("pipe", "tank"):
         return normalized
+
+    reject_unsupported_tank_shape(object_type, normalized)
 
     _apply_defaults(normalized, COMMON_OBJECT_DEFAULTS)
     if "safety_factor" not in normalized:

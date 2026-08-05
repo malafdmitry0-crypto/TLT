@@ -80,27 +80,4 @@ describe('tankFormToApiParams', () => {
     });
   });
 
-  it('cleans incompatible geometry and incomplete wall pairs while preserving spherical UI support', () => {
-    const api = tankFormToApiParams({
-      shape: 'spherical', diameter_mm: 2000, height_mm: 3000, length_mm: 4000, width_mm: 5000,
-      wall_thickness_mm: 12, insulation_thickness_mm: 80, insulation_material: 'mineral_wool',
-      ambient_temperature: 20, process_temperature: 80,
-    });
-    expect(api).toMatchObject({ shape: 'spherical', diameter: 2, q_additional: 0 });
-    expect(api).not.toHaveProperty('height');
-    expect(api).not.toHaveProperty('length');
-    expect(api).not.toHaveProperty('width');
-    expect(api).not.toHaveProperty('wall_thickness');
-    expect(api).not.toHaveProperty('wall_lambda');
-  });
-
-  it('keeps spherical placement explicit for API validation instead of silently treating it as underground-capable', () => {
-    const api = tankFormToApiParams({
-      shape: 'spherical', diameter_mm: 2000,
-      insulation_thickness_mm: 80, insulation_material: 'mineral_wool',
-      ambient_temperature: 20, process_temperature: 80, placement: 'underground',
-    });
-    expect(api).toMatchObject({ shape: 'spherical', placement: 'underground', diameter: 2 });
-    expect(api).not.toHaveProperty('tank_buried_height');
-  });
 });

@@ -368,10 +368,7 @@ def _field_for_electrical_error(
 
 def _hint_for_electrical_error(error_code: ElectricalErrorCode) -> str | None:
     if error_code == "unsupported_layout":
-        return (
-            "Теплопотери доступны, но формула укладки кабеля для сферического "
-            "резервуара не утверждена."
-        )
+        return "Проверьте форму резервуара: для неё не определена укладка кабеля."
     if error_code == "MISSING_TANK_LAYOUT":
         return "Заполните высоту обогрева и шаг укладки для резервуара."
     if error_code == "MISSING_PROCESS_TEMPERATURE":
@@ -392,10 +389,7 @@ def _message_for_electrical_error(
     error_message: str,
 ) -> str:
     if error_code == "unsupported_layout":
-        return (
-            "Электрорасчёт укладки кабеля для сферического резервуара не применим: "
-            "формула укладки не определена."
-        )
+        return "Электрорасчёт не применим: форма резервуара не поддерживается."
     return clean_electrical_error_message(error_message)
 
 

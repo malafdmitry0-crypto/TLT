@@ -84,10 +84,11 @@ def _assignment(**overrides):
     return SpecificationPreflightAssignment(**values)
 
 
-def test_ready_uses_canonical_tt_snapshot_and_only_nonblocking_rows_contribute():
+@pytest.mark.parametrize("object_type", ["pipe", "tank"])
+def test_ready_uses_canonical_tt_snapshot_and_only_nonblocking_rows_contribute(object_type):
     result = evaluate_specification_preflight(
         electrical_variant_id=VARIANT_ID,
-        assignments=[_assignment()],
+        assignments=[_assignment(object_type=object_type)],
         catalog=_catalog(),
         exclude_unassigned_confirmed=False,
     )
@@ -96,6 +97,18 @@ def test_ready_uses_canonical_tt_snapshot_and_only_nonblocking_rows_contribute()
     assert result.total_objects == result.contributing_objects == 1
     assert result.fingerprint_schema == "specification-preflight/v1"
     assert result.input_fingerprint and result.input_fingerprint.startswith("sha256:")
+
+
+def test_unknown_object_type_is_rejected_by_specification_preflight():
+    result = evaluate_specification_preflight(
+        electrical_variant_id=VARIANT_ID,
+        assignments=[_assignment(object_type="pump")],
+        catalog=_catalog(),
+        exclude_unassigned_confirmed=False,
+    )
+
+    assert result.status is SpecificationPreflightStatus.BLOCKED
+    assert result.diagnostics[0].code is SpecificationDiagnosticCode.UNSUPPORTED_OBJECT_TYPE
 
 
 def test_legacy_identity_is_rejected_and_unassigned_details_use_canonical_key():

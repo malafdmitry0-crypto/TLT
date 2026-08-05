@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.formulas.heat_loss.insulation import (
     InsulationTemperatureBasis,
@@ -418,7 +418,7 @@ class TankHeatLossParams(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    shape: Literal["cylindrical", "rectangular", "spherical"] = "cylindrical"
+    shape: Literal["cylindrical", "rectangular"] = "cylindrical"
     diameter: float | None = Field(
         default=None,
         ge=TANK_DIAMETER_MIN,
@@ -489,6 +489,16 @@ class TankHeatLossParams(BaseModel):
         description="Q_доп — дополнительные теплопотери (днище, фланцы и пр.), Вт",
     )
 
+    @field_validator("shape", mode="before")
+    @classmethod
+    def check_supported_shape(cls, value: object) -> object:
+        if not isinstance(value, str) or value not in {"cylindrical", "rectangular"}:
+            raise ValueError(
+                f"Форма резервуара {value!r} больше не поддерживается. "
+                "Допустимые формы: cylindrical, rectangular."
+            )
+        return value
+
     @model_validator(mode="after")
     def check_ranges_and_layers(self) -> "TankHeatLossParams":
         _validate_insulation_temperature_basis_for_location(
@@ -511,8 +521,6 @@ class TankHeatLossParams(BaseModel):
                     label=f"материала изоляции #{index}",
                 )
         if self.placement == "underground":
-            if self.shape == "spherical":
-                raise ValueError("spherical + underground не поддерживается")
             if self.ground_temperature is None:
                 raise ValueError("Для underground требуется ground_temperature")
             if self.ground_conductivity is None:
@@ -543,7 +551,7 @@ class TankHeatLossParams(BaseModel):
         if (self.wall_thickness is None) != (self.wall_lambda is None):
             raise ValueError("wall_thickness и wall_lambda задаются парой")
         if (
-            self.shape in {"cylindrical", "spherical"}
+            self.shape == "cylindrical"
             and self.wall_thickness is not None
             and self.diameter is not None
             and self.wall_thickness >= self.diameter / 2
@@ -555,16 +563,10 @@ class TankHeatLossParams(BaseModel):
             self.length is None or self.width is None or self.height is None
         ):
             raise ValueError("Для параллелепипеда требуются length, width и height")
-        if self.shape == "spherical" and self.diameter is None:
-            raise ValueError("Для сферы требуется diameter")
         if self.shape == "cylindrical" and (self.length is not None or self.width is not None):
             raise ValueError("cylindrical не принимает length или width")
         if self.shape == "rectangular" and self.diameter is not None:
             raise ValueError("rectangular не принимает diameter")
-        if self.shape == "spherical" and any(
-            value is not None for value in (self.height, self.length, self.width)
-        ):
-            raise ValueError("spherical не принимает height, length или width")
         return self
 
 
@@ -605,20 +607,11 @@ class TankHeatLossResult(BaseModel):
     heat_loss_per_m2_bare_base: float
     heat_loss_per_m2_bare_design: float
     surface_area_bare: float
-    surface_area_outer: float | None = None
     thermal_resistance_areal_bare: float | None = None
     wall_resistance_areal_bare: float | None = None
     insulation_resistance_areal_bare: float | None = None
     external_resistance_areal_bare: float | None = None
     ground_resistance_areal_bare: float | None = None
-    thermal_resistance_total: float | None = None
-    wall_resistance_total: float | None = None
-    insulation_resistance_total: float | None = None
-    external_resistance_total: float | None = None
-    external_heat_flux_base: float | None = None
-    critical_insulation_radius: float | None = None
-    outer_insulation_radius: float | None = None
-    critical_radius_check_passed: bool | None = None
     air_surface_area: float | None = None
     ground_surface_area: float | None = None
     heat_loss_air_base: float | None = None

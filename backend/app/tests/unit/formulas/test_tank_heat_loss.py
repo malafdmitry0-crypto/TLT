@@ -37,16 +37,6 @@ def test_cylindrical_and_rectangular_surface_areas():
     assert calc_tank_heat_loss(_rect()).surface_area_bare == pytest.approx(40.0)
 
 
-def test_spherical_underground_is_rejected():
-    with pytest.raises(ValueError, match="spherical"):
-        TankHeatLossParams(
-            shape="spherical", diameter=3.0, placement="underground", ambient_temperature=-20,
-            ground_temperature=0, process_temperature=80, ground_conductivity=1.5,
-            tank_buried_height=1, safety_factor=1.1, insulation_temperature_basis="channel",
-            insulation_layers=[InsulationLayer(thickness=0.1, material="mineral_wool_boards_120")],
-        )
-
-
 def test_areal_external_resistance_and_manual_alpha():
     result = calc_tank_heat_loss(_cyl(alpha_vnesh=10.0, wind_speed=8.0))
     assert result.external_resistance_areal_bare == pytest.approx(0.1)

@@ -1273,13 +1273,8 @@ _ELECTRICAL_SEED_AGGRESSIVE_CASES = {
 def _electrical_seed_overrides(
     object_type: str,
     params: dict[str, object],
-) -> dict[str, object] | None:
-    """Return explicit ER1 inputs for the current TT contract.
-
-    T3 is deliberately independent from the Heat product temperature. Spherical
-    tank cable layout is not defined by the current algorithm and is therefore
-    excluded explicitly instead of being hidden behind a caught calculation error.
-    """
+) -> dict[str, object]:
+    """Return explicit ER1 inputs for the current TT contract."""
 
     overrides: dict[str, object] = {
         "maintain_temperature_c": _ELECTRICAL_SEED_MAINTAIN_TEMPERATURE_C,
@@ -1287,8 +1282,6 @@ def _electrical_seed_overrides(
     }
     if object_type != "tank":
         return overrides
-    if params.get("shape") not in {"cylindrical", "rectangular"}:
-        return None
     heating_height = params.get("height")
     if not isinstance(heating_height, int | float) or heating_height <= 0:
         raise RuntimeError("Supported tank seed requires a positive height")
@@ -1452,73 +1445,6 @@ _HEAT_SEED_CONFIGS: tuple[HeatSeedConfig, ...] = (
             "process_temperature": 80.0,
             "placement": "outdoor",
             "wind_speed": 3.0,
-            "ambient_temperature_source": "manual",
-            "wind_speed_source": "manual",
-            "safety_factor": 1.1,
-            "safety_factor_source": "manual",
-            "q_additional": 0.0,
-        },
-    ),
-    _heat_seed_config(
-        "tank",
-        "tank_spherical_indoor",
-        "Резервуар spherical indoor",
-        {
-            "shape": "spherical",
-            "diameter": 2.0,
-            "wall_thickness": 0.01,
-            "wall_lambda": 45.0,
-            "insulation_layers": [{"thickness": 0.1, "material": _MINERAL_WOOL}],
-            "insulation_temperature_basis": "indoor",
-            "ambient_temperature": 20.0,
-            "process_temperature": 100.0,
-            "placement": "indoor",
-            "ambient_temperature_source": "manual",
-            "safety_factor": 1.1,
-            "safety_factor_source": "manual",
-            "q_additional": 0.0,
-        },
-    ),
-    _heat_seed_config(
-        "tank",
-        "tank_spherical_outdoor",
-        "Резервуар spherical outdoor",
-        {
-            "shape": "spherical",
-            "diameter": 2.4,
-            "wall_thickness": 0.012,
-            "wall_lambda": 45.0,
-            "insulation_layers": [{"thickness": 0.08, "material": _MINERAL_WOOL}],
-            "insulation_temperature_basis": "outdoor_winter",
-            "ambient_temperature": -20.0,
-            "process_temperature": 80.0,
-            "placement": "outdoor",
-            "wind_speed": 2.0,
-            "ambient_temperature_source": "manual",
-            "wind_speed_source": "manual",
-            "safety_factor": 1.1,
-            "safety_factor_source": "manual",
-            "q_additional": 0.0,
-        },
-    ),
-    _heat_seed_config(
-        "tank",
-        "tank_spherical_outdoor_multilayer",
-        "Резервуар spherical outdoor — 2 слоя",
-        {
-            "shape": "spherical",
-            "diameter": 3.0,
-            "wall_thickness": 0.015,
-            "wall_lambda": 45.0,
-            "insulation_layers": [
-                {"thickness": 0.06, "material": _MINERAL_WOOL},
-                {"thickness": 0.04, "material": _PERLITE},
-            ],
-            "insulation_temperature_basis": "outdoor_winter",
-            "ambient_temperature": -30.0,
-            "process_temperature": 90.0,
-            "placement": "outdoor",
-            "wind_speed": 4.0,
             "ambient_temperature_source": "manual",
             "wind_speed_source": "manual",
             "safety_factor": 1.1,
@@ -1908,7 +1834,7 @@ def _project_seed_plans() -> tuple[ProjectSeedPlan, ...]:
         },
         {
             "project": "Факельная установка ФУ-7",
-            "canonical": ("tank_spherical_outdoor",),
+            "canonical": (),
             "volume": (
                 _pipe_seed("Т-701 жидкостная линия", outer_diameter_mm=114,
                            wall_thickness_mm=6, length_m=110, product_c=60,
@@ -1919,11 +1845,14 @@ def _project_seed_plans() -> tuple[ProjectSeedPlan, ...]:
                 _tank_seed("Р-701 сепаратор факельный", shape="cylindrical",
                            placement="outdoor", diameter_m=3.2, height_m=6.0,
                            product_c=55, layers_mm=(90,), ambient_c=-33),
+                _tank_seed("Р-702 дренажная ёмкость", shape="rectangular",
+                           placement="outdoor", length_m=2.5, width_m=1.8, height_m=2.0,
+                           product_c=50, layers_mm=(70,), ambient_c=-33),
             ),
         },
         {
             "project": "Объект «Северный» (реконструкция)",
-            "canonical": ("tank_spherical_indoor", "tank_spherical_outdoor_multilayer"),
+            "canonical": (),
             "volume": (
                 _pipe_seed("Т-901 куст 1", outer_diameter_mm=89, wall_thickness_mm=5,
                            length_m=210, product_c=65, placement="outdoor",
@@ -2024,13 +1953,6 @@ async def seed_objects_and_calculations(
         for obj in project_objects:
             object_type = str(getattr(obj.object_type, "value", obj.object_type))
             overrides = _electrical_seed_overrides(object_type, dict(obj.params or {}))
-            if overrides is None:
-                logger.info(
-                    "  = elec_calc skipped for unsupported tank shape '%s' (%s)",
-                    obj.params.get("shape"),
-                    obj.params.get("name", obj.id),
-                )
-                continue
             plans[obj.id] = overrides
 
         initialization = await ElectricalVariantService(db).initialize(project.id, principal)

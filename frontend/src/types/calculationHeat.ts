@@ -98,7 +98,7 @@ export interface PipeResult extends HeatResultTrace {
 }
 
 export interface TankParams {
-  shape: 'cylindrical' | 'rectangular' | 'spherical';
+  shape: 'cylindrical' | 'rectangular';
   diameter?: number;
   height?: number;
   length?: number;
@@ -140,22 +140,11 @@ export interface TankResult extends HeatResultTrace {
   heat_loss_per_m2_bare_base: number;
   heat_loss_per_m2_bare_design: number;
   surface_area_bare: number;
-  /** Outer insulated surface; emitted by the exact spherical branch. */
-  surface_area_outer?: number | null;
   thermal_resistance_areal_bare?: number | null;
   wall_resistance_areal_bare?: number | null;
   insulation_resistance_areal_bare?: number | null;
   external_resistance_areal_bare?: number | null;
   ground_resistance_areal_bare?: number | null;
-  /** Exact radial resistances of a spherical tank, in K/W. */
-  thermal_resistance_total?: number | null;
-  wall_resistance_total?: number | null;
-  insulation_resistance_total?: number | null;
-  external_resistance_total?: number | null;
-  external_heat_flux_base?: number | null;
-  critical_insulation_radius?: number | null;
-  outer_insulation_radius?: number | null;
-  critical_radius_check_passed?: boolean | null;
   air_surface_area?: number | null;
   ground_surface_area?: number | null;
   heat_loss_air_base?: number | null;

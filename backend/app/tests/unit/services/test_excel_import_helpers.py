@@ -479,9 +479,6 @@ class TestResolveShape:
             ("cylindrical", "cylindrical"),
             ("Параллелепипед", "rectangular"),
             ("прямоугольный", "rectangular"),
-            ("Шар", "spherical"),
-            ("сфера", "spherical"),
-            ("spherical", "spherical"),
         ],
     )
     def test_known(self, inp, expected):
@@ -675,7 +672,7 @@ class TestBuildTankParams:
         assert params["width"] == pytest.approx(3.0)
         assert params["height"] == pytest.approx(4.0)
 
-    def test_spherical_full(self):
+    def test_legacy_unsupported_shape_is_rejected(self):
         row = {
             "_row": 2,
             "shape": "Шар",
@@ -686,8 +683,9 @@ class TestBuildTankParams:
             "process_temperature": 50,
         }
         params, err = _build_tank_params(row)
-        assert err is None
-        assert params["diameter"] == pytest.approx(1.5)
+        assert params is None
+        assert err is not None
+        assert "форма" in err.lower()
 
     def test_missing_shape_keeps_partial_params(self):
         row = {"_row": 2, "insulation_thickness_mm": 60}
@@ -781,28 +779,6 @@ class TestBuildTankParams:
         for legacy_key in ("location", "burial_depth", "insulation_thickness", "insulation_material", "insulation_layer_count"):
             assert legacy_key not in params
 
-    def test_spherical_row_is_preserved_without_legacy_insulation_keys(self):
-        params, err = _build_tank_params(
-            {
-                "_row": 2,
-                "shape": "Шар",
-                "diameter_mm": 1500,
-                "insulation_thickness_mm": 60,
-                "insulation_material": "mineral_wool_boards_120",
-                "ambient_temperature": -20,
-                "process_temperature": 50,
-            }
-        )
-
-        assert err is None
-        assert params is not None
-        assert params["shape"] == "spherical"
-        assert params["diameter"] == pytest.approx(1.5)
-        assert params["placement"] == "outdoor"
-        assert params["insulation_layers"][0]["thickness"] == pytest.approx(0.06)
-        assert "insulation_thickness" not in params
-
-
 class TestParseCsv:
     def test_rejects_empty(self):
         with pytest.raises(ExcelImportError, match="пустой"):
@@ -887,7 +863,6 @@ class TestAliasTables:
             assert code in {
                 "cylindrical",
                 "rectangular",
-                "spherical",
             }, f"Алиас формы {alias!r} → {code!r} неизвестен"
 
 

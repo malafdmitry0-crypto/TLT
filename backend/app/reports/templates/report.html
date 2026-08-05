@@ -7,7 +7,7 @@
   'aerogel': 'Аэрогель',
   'calcium_silicate': 'Силикат кальция'
 } %}
-{% set SHAPES = {'cylindrical': 'Цилиндрический', 'rectangular': 'Параллелепипед', 'spherical': 'Сферический'} %}
+{% set SHAPES = {'cylindrical': 'Цилиндрический', 'rectangular': 'Параллелепипед'} %}
 {% set TYPES = {'pipe': 'Трубопровод', 'tank': 'Резервуар'} %}
 {% set POLICIES = {
   'technical_minimum': 'Технический',
@@ -159,7 +159,7 @@
         <th>Габариты</th>
         <th class="num">δ изол., мм</th><th>Материал</th>
         <th class="num">T₀, °C</th><th class="num">Tподд., °C</th>
-        <th class="num">S bare, м²</th><th class="num">RΣ, К/Вт или м²·К/Вт</th><th class="num">q base, Вт/м²</th><th class="num">Qдоп, Вт</th><th class="num">Q design, Вт</th>
+        <th class="num">S bare, м²</th><th class="num">RΣ, м²·К/Вт</th><th class="num">q base, Вт/м²</th><th class="num">Qдоп, Вт</th><th class="num">Q design, Вт</th>
         <th>Статус</th>
       </tr>
     </thead>
@@ -176,8 +176,6 @@
             Ø{{ mm(o.params.get('diameter')) }} × H{{ mm(o.params.get('height')) }} мм
           {% elif shape == 'rectangular' %}
             {{ mm(o.params.get('length')) }} × {{ mm(o.params.get('width')) }} × {{ mm(o.params.get('height')) }} мм
-          {% elif shape == 'spherical' %}
-            Ø{{ mm(o.params.get('diameter')) }} мм
           {% else %}—{% endif %}
         </td>
         <td class="num">{{ mm(insulation.get('thickness')) }}</td>
@@ -186,9 +184,7 @@
         <td class="num">{{ fmt(o.params.get('process_temperature'), 1) }}</td>
         <td class="num">{% if o.results %}{{ fmt(o.results.get('surface_area_bare'), 2) }}{% else %}—{% endif %}</td>
         <td class="num">
-          {% if o.results %}
-            {% if shape == 'spherical' %}{{ fmt(o.results.get('thermal_resistance_total'), 5) }}{% else %}{{ fmt(o.results.get('thermal_resistance_areal_bare'), 5) }}{% endif %}
-          {% else %}—{% endif %}
+          {% if o.results %}{{ fmt(o.results.get('thermal_resistance_areal_bare'), 5) }}{% else %}—{% endif %}
         </td>
         <td class="num">{% if o.results %}{{ fmt(o.results.get('heat_loss_per_m2_bare_base'), 1) }}{% else %}—{% endif %}</td>
         <td class="num">{% if o.results %}{{ fmt(o.results.get('q_additional_applied'), 0) }}{% else %}{{ fmt(o.params.get('q_additional'), 0) }}{% endif %}</td>
@@ -419,7 +415,7 @@
         <th>Габариты</th>
         <th class="num">δ изол., мм</th><th>Материал</th>
         <th class="num">T₀, °C</th><th class="num">Tподд., °C</th>
-        <th class="num">S bare, м²</th><th class="num">RΣ, К/Вт или м²·К/Вт</th><th class="num">q base, Вт/м²</th><th class="num">Qдоп, Вт</th><th class="num">Q design, Вт</th>
+        <th class="num">S bare, м²</th><th class="num">RΣ, м²·К/Вт</th><th class="num">q base, Вт/м²</th><th class="num">Qдоп, Вт</th><th class="num">Q design, Вт</th>
         <th>Статус</th>
       </tr>
     </thead>
@@ -436,8 +432,6 @@
             Ø{{ mm(o.params.get('diameter')) }} × H{{ mm(o.params.get('height')) }} мм
           {% elif shape == 'rectangular' %}
             {{ mm(o.params.get('length')) }} × {{ mm(o.params.get('width')) }} × {{ mm(o.params.get('height')) }} мм
-          {% elif shape == 'spherical' %}
-            Ø{{ mm(o.params.get('diameter')) }} мм
           {% else %}—{% endif %}
         </td>
         <td class="num">{{ mm(insulation.get('thickness')) }}</td>
@@ -446,9 +440,7 @@
         <td class="num">{{ fmt(o.params.get('process_temperature'), 1) }}</td>
         <td class="num">{% if o.results %}{{ fmt(o.results.get('surface_area_bare'), 2) }}{% else %}—{% endif %}</td>
         <td class="num">
-          {% if o.results %}
-            {% if shape == 'spherical' %}{{ fmt(o.results.get('thermal_resistance_total'), 5) }}{% else %}{{ fmt(o.results.get('thermal_resistance_areal_bare'), 5) }}{% endif %}
-          {% else %}—{% endif %}
+          {% if o.results %}{{ fmt(o.results.get('thermal_resistance_areal_bare'), 5) }}{% else %}—{% endif %}
         </td>
         <td class="num">{% if o.results %}{{ fmt(o.results.get('heat_loss_per_m2_bare_base'), 1) }}{% else %}—{% endif %}</td>
         <td class="num">{% if o.results %}{{ fmt(o.results.get('q_additional_applied'), 0) }}{% else %}{{ fmt(o.params.get('q_additional'), 0) }}{% endif %}</td>

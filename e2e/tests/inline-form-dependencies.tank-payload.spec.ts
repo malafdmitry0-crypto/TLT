@@ -17,10 +17,7 @@ test.describe('inline form dependencies — tank matrix / payload isolation', ()
     await loginAsGuest(page);
     await openTankForm(page);
 
-    await expect(page.getByTestId('tank-diameter-input')).toHaveCount(0);
-    await expect(page.getByTestId('tank-height-input')).toHaveCount(0);
-
-    await selectOption(page, 'tank-shape-select', 'Цилиндрическая');
+    await expect(page.getByTestId('tank-shape-select')).toContainText('Цилиндрическая');
     await expect(page.getByTestId('tank-diameter-input')).toBeVisible();
     await expect(page.getByTestId('tank-height-input')).toBeVisible();
     await expect(page.getByTestId('tank-length-input')).toHaveCount(0);
@@ -31,12 +28,6 @@ test.describe('inline form dependencies — tank matrix / payload isolation', ()
     await expect(page.getByTestId('tank-height-input')).toBeVisible();
     await expect(page.getByTestId('tank-length-input')).toBeVisible();
     await expect(page.getByTestId('tank-width-input')).toBeVisible();
-
-    await selectOption(page, 'tank-shape-select', 'Сферическая');
-    await expect(page.getByTestId('tank-diameter-input')).toBeVisible();
-    await expect(page.getByTestId('tank-height-input')).toHaveCount(0);
-    await expect(page.getByTestId('tank-length-input')).toHaveCount(0);
-    await expect(page.getByTestId('tank-width-input')).toHaveCount(0);
 
     await selectOption(page, 'placement-select', 'Подземно');
     await expect(page.getByTestId('burial-depth-input')).toBeVisible();

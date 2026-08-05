@@ -121,7 +121,6 @@ PLACEMENT_OPTIONS = (
 SHAPE_OPTIONS = (
     ("cylindrical", "Цилиндр"),
     ("rectangular", "Прямоуг."),
-    ("spherical", "Сфера"),
 )
 SOURCE_OPTIONS = (("manual", "вручную"), ("climate", "из климата"))
 CLIMATE_BASIS_OPTIONS = (
@@ -234,8 +233,6 @@ def _tank_dimensions(obj: ProjectObject) -> str | None:
             f"{_fmt_mm(obj.params.get('length'))} × {_fmt_mm(obj.params.get('width'))} "
             f"× {_fmt_mm(obj.params.get('height'))} мм"
         )
-    if shape == "spherical":
-        return f"Ø{_fmt_mm(obj.params.get('diameter'))} мм"
     return None
 
 

@@ -180,15 +180,6 @@ const TANK_VARIANTS: Variant[] = [
     },
   },
   {
-    name: 'сферический: проверка критического радиуса изоляции',
-    params: { shape: 'spherical', diameter: 3, height: null },
-    check: (r) => {
-      expectCalculated(r, 'total_heat_loss_design');
-      expect(r.critical_radius_check_passed).toBe(true);
-      expect(value(r, 'outer_insulation_radius')).toBeGreaterThan(0);
-    },
-  },
-  {
     name: 'подземный: поверхность делится на воздушную и грунтовую',
     params: {
       placement: 'underground',

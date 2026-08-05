@@ -207,7 +207,7 @@ class TankParamsDict(TypedDict, total=False):
     """Параметры резервуара."""
 
     name: str
-    shape: Literal["cylindrical", "rectangular", "spherical"]
+    shape: Literal["cylindrical", "rectangular"]
     diameter: float | None
     height: float | None
     length: float | None

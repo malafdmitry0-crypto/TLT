@@ -194,11 +194,11 @@ describe('ElecCalcPage table / batch — permissions-status', () => {
     const user = (await import('@testing-library/user-event')).default.setup();
     const firstObject = makeObject({
       id: 'o-error-1',
-      params: { name: 'Резервуар со сферой 1' },
+      params: { name: 'Резервуар с неизвестной геометрией' },
     });
     const secondObject = makeObject({
       id: 'o-error-2',
-      params: { name: 'Резервуар со сферой 2' },
+      params: { name: 'Резервуар с ошибкой мощности' },
     });
     (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(
       makeElectricalPage([firstObject, secondObject], [
@@ -212,9 +212,9 @@ describe('ElecCalcPage table / batch — permissions-status', () => {
             error_code: 'unsupported_layout',
             category: 'unsupported',
             message:
-              'Электрорасчёт укладки кабеля для сферического резервуара не применим: формула укладки не определена.',
+              'Электрорасчёт укладки кабеля для неизвестной геометрии резервуара не применим.',
             hint:
-              'Теплопотери доступны, но формула укладки кабеля для сферического резервуара не утверждена.',
+              'Формула укладки кабеля для этой геометрии резервуара не определена.',
             suggested_actions: [],
           },
         },
@@ -239,14 +239,14 @@ describe('ElecCalcPage table / batch — permissions-status', () => {
     const errorRegion = await screen.findByLabelText('Сообщения ошибок электрорасчёта');
     expect(screen.getByLabelText('Не применимо')).toBeInTheDocument();
     expect(errorRegion).toHaveTextContent('Ошибок: 1');
-    expect(errorRegion).not.toHaveTextContent('Резервуар со сферой 1');
+    expect(errorRegion).not.toHaveTextContent('Резервуар с неизвестной геометрией');
     expect(errorRegion).not.toHaveTextContent('геометрия укладки кабеля');
     expect(errorRegion).not.toHaveTextContent('CalculationError');
     expect(document.querySelector('.electrical-spreadsheet')?.textContent).not.toContain('Сообщение');
 
-    await user.click(screen.getByText('Резервуар со сферой 2'));
+    await user.click(screen.getByText('Резервуар с ошибкой мощности'));
     await waitFor(() => {
-      expect(errorRegion).not.toHaveTextContent('Резервуар со сферой 2');
+      expect(errorRegion).not.toHaveTextContent('Резервуар с ошибкой мощности');
       expect(errorRegion).toHaveTextContent('Не найден кабель с мощностью');
       expect(errorRegion).toHaveTextContent('Мощность выше линейки');
       expect(errorRegion).toHaveTextContent('Попробовать другой тип кабеля');

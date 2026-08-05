@@ -344,6 +344,71 @@ class TestSingleExportImport:
         )
         assert resp.status_code == 422
 
+    async def test_import_rejects_project_with_legacy_spherical_tank_atomically(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+    ):
+        source_headers = {"X-Session-Id": guest_session}
+        source_project_id = (await client.get("/api/v1/projects", headers=source_headers)).json()[
+            0
+        ]["id"]
+        created = await client.post(
+            f"/api/v1/projects/{source_project_id}/objects",
+            json={
+                "object_type": "tank",
+                "params": {
+                    "name": "Legacy sphere import fixture",
+                    "shape": "cylindrical",
+                    "diameter": 3.0,
+                    "height": 5.0,
+                    "insulation_layers": [
+                        {"thickness": 0.08, "material": "mineral_wool_boards_120"}
+                    ],
+                    "insulation_temperature_basis": "outdoor_winter",
+                    "ambient_temperature": -20,
+                    "process_temperature": 80,
+                    "placement": "outdoor",
+                    "wind_speed": 0,
+                },
+            },
+            headers=source_headers,
+        )
+        assert created.status_code == 201, created.text
+        exported = await client.get(
+            f"/api/v1/projects/{source_project_id}/export-csv",
+            headers=source_headers,
+        )
+        assert exported.status_code == 200, exported.text
+        legacy_payload = exported.content.replace(b"cylindrical", b"spherical")
+        assert legacy_payload != exported.content
+
+        target_session = (await client.post("/api/v1/auth/guest")).json()["session_id"]
+        target_headers = {"X-Session-Id": target_session}
+        target_before = (await client.get("/api/v1/projects", headers=target_headers)).json()
+
+        response = await client.post(
+            "/api/v1/projects/import-csv",
+            files={"file": ("legacy-sphere.tlt.csv", legacy_payload, "text/csv")},
+            headers=target_headers,
+        )
+
+        assert response.status_code == 422, response.text
+        assert response.json()["detail"] == (
+            "Форма резервуара 'spherical' больше не поддерживается. "
+            "Допустимые формы: cylindrical, rectangular."
+        )
+        target_after = (await client.get("/api/v1/projects", headers=target_headers)).json()
+        assert [project["id"] for project in target_after] == [
+            project["id"] for project in target_before
+        ]
+        target_objects = await client.get(
+            f"/api/v1/projects/{target_before[0]['id']}/objects",
+            headers=target_headers,
+        )
+        assert target_objects.status_code == 200
+        assert target_objects.json() == []
+
     async def test_roundtrip_export_import_with_json_commas(
         self, client: AsyncClient, guest_session: str
     ):

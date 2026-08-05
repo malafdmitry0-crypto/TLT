@@ -36,7 +36,7 @@ def test_string_enums_use_persisted_values():
         "skin",
     ]
     assert [item.value for item in Installation] == ["indoor", "outdoor"]
-    assert [item.value for item in TankShape] == ["cylindrical", "rectangular", "spherical"]
+    assert [item.value for item in TankShape] == ["cylindrical", "rectangular"]
     assert [item.value for item in PipeMaterial] == [
         "carbon_steel",
         "stainless_304",

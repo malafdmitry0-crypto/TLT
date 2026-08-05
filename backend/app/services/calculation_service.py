@@ -3,7 +3,6 @@
 import asyncio
 import copy
 import math
-import re
 import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -236,26 +235,6 @@ def _first_validation_field(exc: ValidationError) -> str | None:
     return None
 
 
-def _sphere_critical_radius_context(message: str) -> dict[str, float] | None:
-    """Parse the stable exact-sphere rejection emitted by the formula layer."""
-
-    if "sphere_below_critical_insulation_radius" not in message:
-        return None
-    names = (
-        "router",
-        "rcritical",
-        "conductivity_outermost",
-        "alpha_vnesh_applied",
-    )
-    context: dict[str, float] = {}
-    for name in names:
-        match = re.search(rf"\b{name}=([-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)", message)
-        if match is None:
-            return None
-        context[name] = float(match.group(1))
-    return context
-
-
 def build_heat_loss_error_payload(
     exc: Exception,
     *,
@@ -271,18 +250,6 @@ def build_heat_loss_error_payload(
     hint: str | None = "Проверьте параметры объекта и повторите расчёт."
     extra: dict[str, Any] = {}
 
-    sphere_context = _sphere_critical_radius_context(message)
-    if sphere_context is not None:
-        return {
-            "error_code": "sphere_below_critical_insulation_radius",
-            "category": category,
-            "message": message,
-            "field": "insulation_layers",
-            "hint": (
-                "Увеличьте толщину внешнего слоя изоляции до критического радиуса " "или выше."
-            ),
-            "error_context": sphere_context,
-        }
     if "process_temperature_not_above_ambient" in message:
         error_code = "process_temperature_not_above_ambient"
         field = "process_temperature"

@@ -68,10 +68,10 @@ describe('electricalErrorGuidance', () => {
 
   it('does not show error guidance for unsupported tank layout', () => {
     const guidance = getElectricalErrorGuidance({
-      error: 'Электрорасчёт укладки кабеля для сферического резервуара не применим',
+      error: 'Электрорасчёт укладки кабеля для неизвестной геометрии резервуара не применим',
       errorCode: 'unsupported_layout',
       cableType: 'self_regulating',
-      errorContext: { shape: 'spherical' },
+      errorContext: { shape: 'hexagonal' },
     });
 
     expect(guidance).toBeNull();

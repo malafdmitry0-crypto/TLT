@@ -34,7 +34,6 @@ const BUILTIN_FORMULAS: Record<string, FormulaFunction> = {
     Math.PI * diameter * height + 2 * Math.PI * (diameter / 2) ** 2,
   tlt_tank_surface_area_rectangular: ({ length, width, height }) =>
     2 * (length * width + length * height + width * height),
-  tlt_tank_surface_area_spherical: ({ diameter }) => 4 * Math.PI * (diameter / 2) ** 2,
   tlt_tank_external_resistance: ({ alpha }) => 1 / alpha,
   tlt_tank_flat_heat_flux: ({ deltaT, wallResistance, insulationResistance, externalResistance }) =>
     deltaT / (wallResistance + insulationResistance + externalResistance),

@@ -113,7 +113,6 @@ function objectValue(object: ProjectObject, field: string) {
       const length = formatMillimetersFromMeters(params.length);
       const width = formatMillimetersFromMeters(params.width);
       if (params.shape === 'rectangular') return `${length} × ${width} × ${height}`;
-      if (params.shape === 'spherical') return `сфера Ø ${diameter}`;
       if (params.shape === 'cylindrical') return `цилиндр Ø ${diameter}, H ${height}`;
       return valueText(params.shape);
     }

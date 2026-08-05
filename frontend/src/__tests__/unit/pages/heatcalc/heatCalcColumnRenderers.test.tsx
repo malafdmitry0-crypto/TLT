@@ -133,13 +133,12 @@ describe('heatCalcColumnRenderers', () => {
     expect(renderers.surface_area_bare.copyValue(record, 0)).toBe('11,2');
   });
 
-  it('reads exact total resistances for a spherical tank instead of areal keys', () => {
+  it('reads areal resistance for a tank', () => {
     const record = makeObject({
       object_type: 'tank',
-      params: { shape: 'spherical', diameter: 2 },
+      params: { shape: 'rectangular', length: 2, width: 1, height: 1 },
       results: {
-        thermal_resistance_total: 0.12345,
-        thermal_resistance_areal_bare: 99,
+        thermal_resistance_areal_bare: 0.12345,
       },
     });
 

@@ -152,7 +152,6 @@ A.3, A.6 и пункт 7 DoD.** Без него исполнитель прид�
 
 | Файл | Было | Станет |
 |---|---|---|
-| `test_objects.py::test_add_spherical_tank_below_critical_radius_has_structured_error` (`:636`) | 201 + `is_valid False` + `validation_errors` в теле | **422**, `detail.code == "sphere_below_critical_insulation_radius"`, `detail.fields == ["insulation_layers"]`, `detail.validation_errors.error_context` с прежними числами, объекта в проекте нет |
 | `test_projects.py:390` | копия `is_valid False`, `results None` | только если принято решение по A.3 |
 | `test_objects_group_ops.py` | прежний формат | конверт §2 (`objects[].message`, `code`, `fields`) |
 | `useHeatCalcMutations.test.tsx:45` | warning про невыполненный расчёт | удалить вместе с веткой |
@@ -312,7 +311,7 @@ PDF требует перечень — тост **заменяется** мод
 ## 6. Тест-план
 
 **Backend** — `docker exec heatcalc_backend pytest --no-cov`:
-- `test_objects.py`: create/update невалидной ёмкости → 422 + отсутствие записи/изменений; переписанный сферический тест (A.6).
+- `test_objects.py`: create/update невалидной ёмкости → 422 + отсутствие записи/изменений.
 - `test_objects_group_ops.py`: групповая корректировка, ломающая ёмкость → 422 по конверту §2, ни один объект не изменён.
 - `test_projects.py`: только если принято решение по A.3.
 
