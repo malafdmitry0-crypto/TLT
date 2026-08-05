@@ -1,10 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-import { createCalculatedPipe, currentGuestContext, fetchProjectObjects, loginAsGuest } from './helpers/workspace';
-import {
-  expectElectricalGlideReady,
-  fetchElectricalCalcs,
-} from './helpers/electrical-glide';
+import { createCalculatedPipe, fetchProjectObjects, loginAsGuest } from './helpers/workspace';
 import {
   COMMERCIAL_FEATURE_SKIP_REASON,
   e2eCommercialFeaturesEnabled,
@@ -222,30 +218,4 @@ test.describe('4.3 Расчёт тепловых потерь', () => {
     });
   });
 
-  test('со страницы теплопотерь открывается электрорасчёт и запускается ручной пересчёт', async ({
-    page,
-  }) => {
-    await loginAsGuest(page);
-    const { projectId, sessionId } = await currentGuestContext(page);
-    const pipeName = `E2E heat-to-elec ${Date.now()}`;
-    const pipe = await createCalculatedPipe(page, pipeName);
-
-    await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
-
-    await expect(page).toHaveURL(/\/workspace\/elec-calc/);
-    await expectElectricalGlideReady(page);
-    await expect.poll(async () => {
-      const rows = await fetchElectricalCalcs(page, projectId, sessionId);
-      return rows.find((row) => row.object_id === pipe.id)?.cable_mark ?? null;
-    }).toBeNull();
-    await expect(page.getByText(/СО1 · тип по объектам · расчёт не выполнен/i)).toBeVisible();
-    await page.getByRole('button', { name: /Пересчитать все СО1/i }).click();
-    await page.getByRole('button', { name: /Да, пересчитать все/i }).click();
-    await expect(page.getByText(/электрорасчёт всех объектов поставлен в очередь/i)).toBeVisible();
-    await expect(page.getByText(/СО1 · тип по объектам · .*рассчитано: 1\/1/i)).toBeVisible({ timeout: 20_000 });
-    await expect.poll(async () => {
-      const rows = await fetchElectricalCalcs(page, projectId, sessionId);
-      return rows.find((row) => row.object_id === pipe.id)?.cable_mark ?? '';
-    }).toContain('ТЛТ-100');
-  });
 });

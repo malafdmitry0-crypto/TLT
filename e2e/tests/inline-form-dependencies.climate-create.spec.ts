@@ -78,11 +78,11 @@ test.describe('inline form dependencies — climate / create pipeline', () => {
     await fillInput(page, 'wind-speed-input', '3');
     await fillInput(page, 'process-temperature-input', '80');
 
-    await selectSearchOption(page, 'insulation-material-select', 'Минеральная', /Минеральная/);
+    await selectSearchOption(page, 'insulation-material-select', 'минераловат', /минераловатные/i);
     await selectOption(page, 'insulation-layer-count-select', '3 слоя');
-    await selectSearchOption(page, 'second-insulation-material-select', 'Минеральная', /Минеральная/);
+    await selectSearchOption(page, 'second-insulation-material-select', 'минераловат', /минераловатные/i);
     await fillInput(page, 'second-insulation-thickness-input', '20');
-    await selectSearchOption(page, 'third-insulation-material-select', 'Минеральная', /Минеральная/);
+    await selectSearchOption(page, 'third-insulation-material-select', 'минераловат', /минераловатные/i);
     await fillInput(page, 'third-insulation-thickness-input', '10');
 
     await page.locator('#inline-object-save').dispatchEvent('click');
