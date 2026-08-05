@@ -167,7 +167,7 @@ describe('ElectricalVariantTabs — render-nav', () => {
     }
   });
 
-  it('enables specification navigation only when every assignment is ready', () => {
+  it('enables specification navigation when every assigned object is ready', () => {
     render(
       <MemoryRouter initialEntries={['/workspace/elec-calc']}>
         <ElectricalVariantTabs
@@ -185,8 +185,49 @@ describe('ElectricalVariantTabs — render-nav', () => {
     expect(screen.getByTestId('location-path')).toHaveTextContent('/workspace/specification');
   });
 
+  it('allows Case 1 confirmation flow when ready and unassigned objects coexist', () => {
+    const counts = assignmentCounts('ready', 2);
+    counts.total = 3;
+    counts.filtered = 3;
+    counts.by_system.unassigned = 1;
+    counts.by_state.unassigned = 1;
+
+    render(
+      <MemoryRouter initialEntries={['/workspace/elec-calc']}>
+        <ElectricalVariantTabs
+          controller={controller()}
+          assignmentReadiness={{ status: 'loaded', counts }}
+        />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    const action = screen.getByRole('button', { name: 'Сформировать спецификацию' });
+    expect(action).toBeEnabled();
+
+    fireEvent.click(action);
+    expect(screen.getByTestId('location-path')).toHaveTextContent('/workspace/specification');
+  });
+
+  it('keeps specification navigation disabled when every object is unassigned', () => {
+    render(
+      <MemoryRouter initialEntries={['/workspace/elec-calc']}>
+        <ElectricalVariantTabs
+          controller={controller()}
+          assignmentReadiness={{ status: 'loaded', counts: assignmentCounts('unassigned', 2) }}
+        />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    const action = screen.getByRole('button', { name: /\u0421\u0444\u043e\u0440\u043c\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0441\u043f\u0435\u0446\u0438\u0444\u0438\u043a\u0430\u0446\u0438\u044e/i });
+    expect(action).toBeDisabled();
+    expect(action).toHaveAccessibleName(
+      'Сформировать спецификацию — сначала распределите хотя бы один объект',
+    );
+  });
+
   it.each([
-    ['unassigned', 'Сначала распределите все объекты по системам обогрева'],
     ['stale', 'Пересчитайте устаревшие объекты'],
     ['error', 'Исправьте ошибки электрорасчёта'],
     ['unsupported', 'В электрорасчёте есть неподдерживаемые объекты'],
