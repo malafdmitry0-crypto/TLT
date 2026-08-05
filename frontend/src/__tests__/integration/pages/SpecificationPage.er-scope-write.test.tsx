@@ -467,6 +467,13 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
       expect(screen.getByRole('button', { name: 'Настройки' })).toBeDisabled();
     });
 
+    // A selection_required response must keep every required choice inside the
+    // active workflow dialog. Rendering the panel behind the modal makes the
+    // backend's fail-closed response impossible to resolve from the UI.
+    expect(within(settings).getByTestId('spec-candidate-selection')).toBeInTheDocument();
+    expect(within(settings).getByRole('button', { name: /Комплект ЭР1 B/i })).toBeInTheDocument();
+    expect(within(settings).getByRole('button', { name: /Ремкомплект ЭР2 A/i })).toBeInTheDocument();
+
     await user.click(await screen.findByRole('button', { name: /Комплект ЭР1 B/i }));
     await user.click(screen.getByRole('button', { name: /Ремкомплект ЭР2 A/i }));
     await user.click(screen.getByRole('button', { name: /Применить выбор и сформировать/i }));

@@ -69,6 +69,8 @@ export type SpecPageChromeProps = {
   groupingMode: SpecificationGroupingMode | null;
   setGroupingMode: (value: SpecificationGroupingMode | null) => void;
   generationDiagnostics: SpecificationDiagnostic[];
+  /** Required catalog choices for the active generation workflow. */
+  candidateSelection?: ReactNode;
   groupBy: GroupBy;
   setGroupBy: (value: GroupBy) => void;
   mergeIdentical: boolean;
@@ -115,6 +117,7 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
     exZone, setExZone, indicationOnBoxes, setIndicationOnBoxes,
     endSectionIndication, setEndSectionIndication, topIndication, setTopIndication,
     minLengthK2i, setMinLengthK2i, groupingMode, setGroupingMode, generationDiagnostics,
+    candidateSelection,
     groupBy, setGroupBy, mergeIdentical, setMergeIdentical,
     items, categoriesCount, projectSettings, spec, mut, generationWorkflowPending,
     saveDefaultsMut, runGenerate,
@@ -342,6 +345,7 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
                 </ul>
               </TltAlert>
             )}
+            {candidateSelection}
             <Space direction="vertical" className="tlt-field--fill" size={8}>
               <TltButton
                 variant="primary"

@@ -139,6 +139,20 @@ export default function SpecificationPage() {
     );
   }
 
+  const candidateSelectionRequired = candidateGroups.some(
+    (group) => group.candidates.length > 1 && !group.selected_catalog_item_id,
+  );
+  const candidateSelectionPanel = candidateSelectionRequired ? (
+    <SpecCandidateSelectionPanel
+      groups={candidateGroups}
+      draftSelections={draftCatalogSelections}
+      onSelect={selectCandidate}
+      onConfirm={confirmCatalogSelections}
+      confirming={mut.isPending}
+      disabled={!canMutateProject}
+    />
+  ) : null;
+
   return (
     <div className="specification-page" data-testid="specification-page">
       {!canMutateProject && (
@@ -232,18 +246,9 @@ export default function SpecificationPage() {
         </TltAlert>
       )}
 
-      {candidateGroups.some(
-        (group) => group.candidates.length > 1 && !group.selected_catalog_item_id,
-      ) && (
+      {candidateSelectionRequired && !settingsOpen && (
         <div className="specification-alert-gap">
-          <SpecCandidateSelectionPanel
-            groups={candidateGroups}
-            draftSelections={draftCatalogSelections}
-            onSelect={selectCandidate}
-            onConfirm={confirmCatalogSelections}
-            confirming={mut.isPending}
-            disabled={!canMutateProject}
-          />
+          {candidateSelectionPanel}
         </div>
       )}
 
@@ -335,6 +340,7 @@ export default function SpecificationPage() {
         groupingMode={groupingMode}
         setGroupingMode={setGroupingMode}
         generationDiagnostics={generationDiagnostics}
+        candidateSelection={settingsOpen ? candidateSelectionPanel : null}
         exZone={exZone}
         setExZone={setExZone}
         indicationOnBoxes={indicationOnBoxes}
