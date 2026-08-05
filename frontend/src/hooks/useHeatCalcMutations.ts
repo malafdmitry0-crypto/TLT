@@ -5,12 +5,7 @@ import {
   deleteObject,
   updateObject,
 } from '@/api/projects';
-import type { CreateObjectRequest, HeatCalcObjectType, ProjectObject } from '@/types/project';
-import { humanizeObjectParamsErrorMessage } from '@/components/wizard/objectWizardValidationModel';
-
-function heatCalcObjectTypeOf(objectType: string): HeatCalcObjectType {
-  return objectType === 'tank' ? 'tank' : 'pipe';
-}
+import type { CreateObjectRequest, ProjectObject } from '@/types/project';
 
 /**
  * Показывает пользователю результат add/edit-операции: success если расчёт
@@ -60,9 +55,7 @@ export function useHeatCalcMutations(
       notifyObjectResult(obj, 'added');
       onAddSuccess?.(obj);
     },
-    onError: (e: Error, payload) => message.error(
-      humanizeObjectParamsErrorMessage(e.message, heatCalcObjectTypeOf(payload.object_type)),
-    ),
+    onError: (e: Error) => message.error(e.message),
   });
 
   const edit = useMutation({
@@ -80,8 +73,7 @@ export function useHeatCalcMutations(
       notifyObjectResult(obj, 'updated');
       onEditSuccess?.(obj);
     },
-    // Тип объекта берётся из имени модели в тексте ошибки; здесь его нет.
-    onError: (e: Error) => message.error(humanizeObjectParamsErrorMessage(e.message)),
+    onError: (e: Error) => message.error(e.message),
   });
 
   const remove = useMutation({
