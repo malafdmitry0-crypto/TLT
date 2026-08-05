@@ -54,16 +54,11 @@ export default function TemperatureEnvironmentStep({
   const form = TltForm.useFormInstance();
   const placement = TltForm.useWatch('placement', form) ?? form.getFieldValue('placement');
   const isUndergroundPipe = objectType === 'pipe' && placement === 'underground';
-  const ambientValue = TltForm.useWatch('ambient_temperature', form)
-    ?? form.getFieldValue('ambient_temperature');
-  const ambientSourceValue = TltForm.useWatch('ambient_temperature_source', form)
-    ?? ambientTemperatureSourceFallback;
-  const windValue = TltForm.useWatch('wind_speed', form) ?? form.getFieldValue('wind_speed');
-  const windSourceValue = TltForm.useWatch('wind_speed_source', form) ?? windSpeedSourceFallback;
-  // У пустого поля источника нет: метка появляется только вместе со значением.
-  const filled = (value: unknown) => value != null && value !== '';
-  const ambientSource = filled(ambientValue) ? ambientSourceValue : undefined;
-  const windSource = filled(windValue) ? windSourceValue : undefined;
+  // Источник виден всегда: пустое или очищенное поле заполняет инженер вручную.
+  const ambientSource = TltForm.useWatch('ambient_temperature_source', form)
+    ?? ambientTemperatureSourceFallback ?? 'manual';
+  const windSource = TltForm.useWatch('wind_speed_source', form)
+    ?? windSpeedSourceFallback ?? 'manual';
   const wants = (field: 'ambient' | 'process' | 'wind-speed' | 'alpha') =>
     part === 'all'
     || part === field
