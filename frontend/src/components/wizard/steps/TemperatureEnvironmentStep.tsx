@@ -1,6 +1,6 @@
 import UnitInputNumber from '@/components/common/UnitInputNumber';
 import { TltSelect } from '@/components/form-controls';
-import { TltBadge, TltForm } from '@/components/ui-kit';
+import { TltForm } from '@/components/ui-kit';
 import { heatCalcSelectOptions } from '@/utils/heatCalcWizardFieldRules';
 import type { HeatCalcFieldInputSettings } from '@/utils/heatCalcFieldInputSettings';
 import type { HeatCalcObjectType } from '@/types/project';
@@ -14,8 +14,8 @@ import ReferencePicker, { type ReferencePickerOption } from '../ReferencePicker'
  * резервирует ~24px и ломает ритм строк [label | control].
  */
 function sourceTag(source: unknown) {
-  if (source === 'climate') return <TltBadge className="field-source-tag">из климата</TltBadge>;
-  if (source === 'manual') return <TltBadge className="field-source-tag">вручную</TltBadge>;
+  if (source === 'climate') return <span className="field-source-tag">из климата</span>;
+  if (source === 'manual') return <span className="field-source-tag">вручную</span>;
   return undefined;
 }
 

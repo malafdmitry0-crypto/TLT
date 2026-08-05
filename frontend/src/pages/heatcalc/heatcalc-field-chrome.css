@@ -23,14 +23,16 @@
   font-size: 9px;
   grid-column: 2;
 }
+/* Только подпись: ни овала, ни точки — решение владельца */
 .inline-object-form .field-source-tag {
+  display: inline;
   margin: 0;
-  padding: 0 3px;
+  padding: 0;
   font-size: 8px;
   line-height: 12px;
   color: var(--color-swatch-5d7180);
-  border-color: var(--color-swatch-d5dde3);
-  background: var(--color-swatch-f8fafb);
+  background: none;
+  border: 0;
 }
 .inline-object-form .fit-label-form-item {
   width: 100%;
