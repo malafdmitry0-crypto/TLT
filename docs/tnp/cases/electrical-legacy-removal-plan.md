@@ -1,321 +1,233 @@
-# Безопасное удаление legacy-контура электрорасчёта
+# План удаления только legacy-тестов электрорасчёта
 
-**Статус:** согласованный порядок очистки, не ACTIVE frontend-очередь
+**Статус:** план, не реализация
 
 **Дата:** 2026-08-05
+**Область:** только backend/frontend/E2E тесты старого электрического контракта
 
-**Область:** старые расчётные `cable_type`, 220-вольтовые схемы и старые
-справочники ТЛТ/резистива
-
-**Не является:** реализацией, миграцией данных или разрешением удалять чужой WIP
+Этот документ заменяет широкий план очистки runtime-кода. Удаление production-
+кода, API, таблиц, сидов, миграций, справочников и обратной совместимости этой
+задачей **не разрешено**.
 
 ## 1. Цель
 
-После выполнения плана новый электрический расчёт должен иметь один расчётный
-дискриминатор:
+Удалить тесты, которые требуют успешной работы старых расчётных путей:
 
 ```text
+cable_type = self_regulating   # старый ТЛТ, не system_type назначения
+cable_type = single_core       # старый ТТ R1
+cable_type = three_core        # старый ТТ R3
+formula_type = electrical      # старый formula-check ТЛТ
+formula_type = resistive_single / resistive_three
+```
+
+Актуальный расчётный контракт остаётся покрыт тестами:
+
+```text
+system_type = self_regulating
 cable_type = self_regulating_tt
+series = ТТН / ТТВ / ТТХ
 ```
 
-Подбор выполняется только по паспортным сериям `ТТН` / `ТТВ` / `ТТХ` и
-versioned-каталогам `power` / `section` / `bom`.
+Потеря покрытия именно старых успешных сценариев допустима. Потеря покрытия
+актуального TT-пути, общих правил RBAC/UUID/stale или запрета старого формата —
+нет.
 
-Обратная совместимость со следующими расчётными значениями не поддерживается:
+## 2. Жёсткие границы
 
-```text
-self_regulating  # старый cable_type ТЛТ, но не system_type назначения
-single_core
-three_core
-```
+В этом slice разрешены только:
 
-Старые значения не преобразуются в `self_regulating_tt`, не восстанавливаются
-как `ready` и не получают скрытых значений по умолчанию.
+- удаление целого legacy test case или целого файла, если все его сценарии
+  legacy;
+- удаление legacy-параметров из parametrized test;
+- очистка ставших неиспользуемыми test imports, fixtures, mocks и helpers;
+- переименование оставшегося `describe`, если старое имя стало неверным.
 
-## 2. Критическое различие имён
+Запрещены:
 
-| Значение | Решение | Почему |
+- любые изменения вне test-кода и этого документа;
+- изменение production-контракта ради прохождения оставшихся тестов;
+- удаление теста только потому, что в его fixture встречается `ТЛТ`,
+  `self_regulating` или слово `legacy`;
+- переписывание generic-теста на новый бизнес-сценарий в рамках удаления;
+- правка или удаление исторических миграций и их upgrade-тестов;
+- общий тестовый прогон и mobile E2E.
+
+Если generic-тест проверяет сортировку, RBAC, UUID, pagination, stale lifecycle,
+экспорт или идемпотентность и лишь использует старую марку как пример, он
+остаётся. Модернизация его fixture — отдельная задача.
+
+## 3. Правило классификации
+
+| Класс | Действие | Пример |
 |---|---|---|
-| `system_type = self_regulating` | **оставить** | Действующее назначение объекта в систему «Самрег» |
-| `cable_type = self_regulating_tt` | **оставить** | Единственный расчётный тип Case 1 |
-| `cable_type = self_regulating` | **удалить** | Старый расчёт и каталог условных марок ТЛТ |
-| `cable_type = single_core` | **удалить** | Старый одножильный резистивный контур |
-| `cable_type = three_core` | **удалить** | Старый трёхжильный резистивный контур |
-| `system_type = resistive` | **закрыть для новых назначений**, затем удалить после очистки данных | Ведёт только в удаляемые `single_core` / `three_core` |
-| `system_type = mineral/skin` | **не удалять в этой инициативе** | Это отдельные неподдержанные системы, а не старые схемы R1/R3 |
-| `supply_voltage = 230` | **оставить** | Нужно downstream для тока и секций; не участвует в выборе марки |
-| редактируемые/default `220 В` | **удалить** | Старый расчётный контракт |
+| Старый тип обязан успешно рассчитаться/отобразиться | удалить | R1/R3 успешно подбирается из UI |
+| В одном файле есть TT и legacy-сценарии | удалить только legacy cases | TT оставить, TLT/R1/R3 удалить |
+| Parametrize смешивает TT и legacy | удалить только legacy rows | сохранить `electrical_tt` |
+| Старый payload обязан стать stale/rejected | оставить | ТЛТ не считается успешным результатом |
+| `legacy` означает numeric ER slot или UUID bridge | оставить | запись по `variant_number` связывается с UUID |
+| Тест исторической миграции | оставить | fresh DB upgrade со старым enum |
+| Legacy относится к Heat/резервуарам/спецификации | вне scope | запрет старой формы резервуара |
+| Старый literal используется в generic fixture | оставить | отчёт исключает stale-строку |
 
-Файл
-`backend/app/formulas/electrical/self_regulating.py` нельзя удалять по имени:
-сейчас он владеет актуальной функцией `calc_self_regulating_tt`. Возможное
-переименование — отдельный механический slice после очистки.
+## 4. Исполнение по slice
 
-## 3. Что уже является каноническим
+### T0. Зафиксировать manifest
 
-- Public calc-схема принимает `self_regulating_tt`; старые расчётные типы уже
-  отсутствуют из `ElectricalCableType`.
-- Основной frontend предлагает только `self_regulating_tt`, но скрытые ветки
-  `single_core` / `three_core` всё ещё компилируются и делают reference-запросы.
-- Versioned electrical catalogs являются источником `power`, `section` и `bom`.
-- Старый DB commercial seed отключён и при штатном seed удаляет demo/test
-  строки неподдерживаемых типов.
-- Старые `SelfRegulatingParams`, `Resistive*Params`, frontend reference
-  plumbing, admin UI и недостижимое тело seed всё ещё находятся в source.
-- Project import пока сохраняет специальный soft-stale путь старых типов.
+Перед удалением:
 
-## 4. Инварианты очистки
+1. Выполнить `git status --short`.
+2. Не включать чужой WIP в staging; его фиксирует владелец соответствующего
+   slice.
+3. Для каждого кандидата записать одно предложение: какое именно legacy-
+   поведение требует assertion.
+4. Если такое предложение сформулировать нельзя, тест не удалять.
 
-1. Не менять формулы `self_regulating_tt`, выбор серии/марки, units и границы
-   температур.
-2. Не удалять `system_type=self_regulating` и не переименовывать его в
-   `self_regulating_tt`.
-3. Не удалять рабочее напряжение из результата, snapshot, расчёта тока или
-   секций. Удаляется только legacy-ввод/дефолт `220` и влияние напряжения на
-   выбор марки.
-4. Не выполнять silent remap старого типа в TT.
-5. Не редактировать исторические Alembic-миграции. Новое состояние оформляется
-   новой forward-only миграцией.
-6. Не смешивать очистку типов кабеля с удалением `variant_number` /
-   `legacy_variant_number`: UUID/slot bridge — отдельный риск и отдельный план.
-7. Не смешивать с формулами резервуаров, агрегацией спецификации или
-   production-каталогом.
-8. Один commit — один vertical slice и один owner. Перед каждым slice —
-   `git status --short`; чужой WIP сначала фиксируется его владельцем.
-9. Только focused backend/frontend/E2E проверки. Общий прогон — только по
-   отдельному запросу. Mobile-тесты не добавлять.
+### T1. Backend unit и API tests
 
-## 5. Порядок выполнения
+Удалить позитивное покрытие старых справочников и формул из смешанных файлов:
 
-### L0. Characterization и data gate
+- `backend/app/tests/unit/reference_data/test_loader.py`:
+  - все `test_resistive_*`;
+  - `test_tlt_cables_*`;
+  - весь `TestGetTltCableByMark`;
+- `backend/app/tests/unit/schemas/test_calculation_schemas.py`:
+  - весь `TestSelfRegulatingParams` старого ТЛТ;
+  - `test_resistive_tank_laying_step_bounds_match_source_document`;
+- `backend/app/tests/integration/api/test_admin.py`:
+  - `TestAdminCables`, обслуживающий старый `CableExtended`-контур;
+  - успешный старый `electrical` formula-check;
+  - успешные `resistive_single` и `resistive_three` formula-check;
+  - соответствующие legacy rows из mixed parametrization;
+- `backend/app/tests/unit/services/test_admin_service_unit.py`:
+  - `TestCables` старого admin cable CRUD;
+- `backend/app/tests/integration/api/test_references.py`:
+  - публичный ТЛТ-каталог;
+  - resistive R1/R3-каталог;
+  - commercial/extended проверки старых cable types;
+- `backend/app/tests/unit/services/test_cable_snapshot.py`:
+  - два теста resistive alias/fallback normalization;
+- `backend/app/tests/unit/services/test_electrical_candidate_dedupe.py`:
+  - только пять resistive-specific cases для connection type, voltage и
+    scheme priority;
+- `backend/app/tests/unit/services/test_electrical_error_guidance.py`:
+  - удалить resistive-ветку из смешанного structured-actions теста, сохранив
+    проверку unknown/current ошибок;
+- `backend/app/tests/unit/test_contracts.py`:
+  - убрать только assertion, закрепляющий старые значения `CableType`; остальные
+    persisted enums сохранить.
 
-**Цель:** доказать канонический путь и разрешить последующее удаление.
+Также удалить найденные при T0 тесты, если их основной assertion прямо требует
+успешный `self_regulating`, `single_core` или `three_core`. Файл целиком удалять
+только когда в нём нет ни одного текущего или общего контракта.
 
-Зафиксировать тестами до production-изменений:
+### T2. Frontend unit и integration tests
 
-- `system_type=self_regulating` запускает расчёт
-  `cable_type=self_regulating_tt`;
-- `self_regulating_tt` успешно проходит Heat → Electrical → Specification;
-- новые calc/candidate/batch requests со `self_regulating`, `single_core` и
-  `three_core` получают стабильный 422-код;
-- `220 В` не появляется как default TT-запроса;
-- legacy project import не может создать `ready`-результат.
+Удалить только assertions старого UI:
 
-До DB-slice выполнить read-only аудит как минимум для:
+- `frontend/src/__tests__/integration/pages/admin/FormulasPage.test.tsx`:
+  - таб «Саморег. ТЛТ»;
+  - таб «Резистивный»;
+  - legacy labels из проверки списка вкладок;
+- `frontend/src/__tests__/unit/pages/admin/ReferencesPage.test.tsx`:
+  - таб «Кабели ТЛТ» и оставшиеся только для него mock data;
+- `frontend/src/__tests__/unit/pages/admin/DatabasePage.test.tsx`:
+  - старый cable CRUD/table assertion; покрытие аксессуаров сохранить, если оно
+    независимо;
+- `ElecCalcElectricalTypeControls.test.tsx`:
+  - read-only old `self_regulating` control;
+  - resistive controls;
+- `elecCalcAssignAutoCalcModel.test.ts`:
+  - `resistive -> single_core` batch;
+- `elecCalcAssignmentScopeModel.test.ts`:
+  - нормализацию legacy cable types;
+  - свежий resistive assignment;
+- `elecCalcCableTypeModel.test.ts`:
+  - только resistive classification assertion; generic TT/default assertions
+    сохранить;
+- `useElecCalcCableReferenceData.test.tsx`:
+  - resistive query assertion; negative test «hidden TLT catalog не
+    запрашивается» сохранить;
+- `client.network-idempotency.test.ts`:
+  - сохранение voltage для resistive request;
+- `cableCatalogSourceLabels.test.ts`:
+  - три resistive signature/fallback cases;
+  - старый ТЛТ comparison удалять только если его цель — поддержка старого
+    каталога, а не generic source-label contract.
 
-```text
-cables_extended.cable_type
-electrical_calculations.cable_type
-electrical_calculation_revisions.cable_type
-electrical_candidates.cable_type
-electrical_variant_objects.system_type
-electrical_variant_objects.requested_cable_type
-background_tasks.payload
-specifications, построенных из затронутых ЭР
-```
+После удаления разрешена только механическая очистка test imports/mocks. Код
+компонентов, hooks, API clients и types не менять.
 
-**Hard stop:** неизвестные production-строки нельзя молча удалить. Для
-демо-данных разрешена очистка; для неизвестных данных требуется экспорт или
-явное подтверждение владельца.
+### T3. Desktop E2E
 
-### L1. Backend write cut
+Удалить legacy journeys:
 
-**Owner:** backend electrical contract.
+- `cable-business-flows.cable-types.spec.ts`:
+  - одножильный R1;
+  - трёхжильный R3;
+  - текущий TTН/TTВ/TTХ сценарий сохранить;
+- `cable-business-flows.catalog-spec-path.spec.ts`:
+  - старый builtin ТЛТ path с `cable_type=self_regulating`;
+  - path с `cable_type=three_core`;
+  - TT → specification/report сохранить;
+- `cable-business-flows.layout-glide.spec.ts`:
+  - резервуар через old ТЛТ batch;
+  - два generic layout-теста оставить;
+- `electrical-candidate-selection.param-change.spec.ts`:
+  - удалить файл целиком: все три сценария — old ТЛТ/R1/R3.
 
-Изменить только входные границы:
+Не удалять `elec-calculation.spec.ts`, `heat-to-electrical-flow.spec.ts` и
+`electrical-case1-p0-regression.spec.ts` по одному старому слову или старому
+названию helper. Их текущие TT/fail-closed assertions проверяются отдельно.
 
-- calc, candidates, batch и per-object override принимают только
-  `self_regulating_tt` как calculable `cable_type`;
-- assignment mutation принимает только `system_type=self_regulating` из
-  рассчитываемых систем;
-- `resistive` запрещается для новых назначений стабильной диагностикой;
-- import со старым `cable_type`, маркой ТЛТ или `system_type=resistive`
-  отклоняется; soft-stale compatibility удаляется;
-- query-параметры со старым типом дают стабильный 422, а не Pydantic-текст,
-  silent fallback или пустой успешный ответ.
+## 5. Тесты, которые явно остаются
 
-Read path пока сохраняется, чтобы можно было диагностировать и очистить
-существующие строки.
+- `backend/app/tests/unit/services/test_legacy_import_soft_stale.py` — старый
+  импорт не становится `ready`;
+- `backend/app/tests/unit/test_electrical_result_status.py` — untyped ТЛТ не
+  считается успешным;
+- `backend/app/tests/unit/api/test_canonical_path_no_legacy_builder.py` —
+  запрещает возврат удалённых builders;
+- `backend/app/tests/integration/api/test_legacy_electrical_variant_writes.py` —
+  тестирует numeric-to-UUID bridge и использует актуальный TT расчёт;
+- DB migration/upgrade tests со старыми enum и строками;
+- negative tests на unsupported/rejected cable type;
+- frontend tests numeric ER/UUID compatibility;
+- любые Heat, tank и specification legacy-rejection tests вне электрического
+  cable contract.
 
-**Focused proof:** HTTP-тесты на TT success и каждый запрещённый тип; import
-reject; assignment optimistic concurrency для Самрег остаётся зелёной.
+## 6. Точечные проверки
 
-**Rollback:** revert только этого commit возвращает writers; БД ещё не менялась.
+Общий прогон не выполнять.
 
-### L2. Frontend electrical runtime
+1. `git diff --check`.
+2. Backend: запустить только изменённые test-модули; сначала `--collect-only`,
+   затем обычный focused pytest.
+3. Frontend: запустить Vitest только по изменённым файлам.
+4. E2E: из `e2e/` выполнить `playwright test --list` для затронутых spec и один
+   сохранённый desktop TT-сценарий из каждого смешанного файла.
+5. Mobile projects не запускать и не создавать.
+6. Выполнить финальный `rg`-аудит. Остаточные legacy tokens разрешены только в
+   negative guards, migration/UUID tests и generic fixtures; каждый остаток
+   просмотреть вручную, а не требовать слепой нулевой счётчик.
 
-**Owner:** frontend electrical, отдельный vertical slice.
+## 7. Коммиты
 
-Удалить:
+Не смешивать владельцев и test runners:
 
-- `single_core` / `three_core` из `CableTypeKey`, request types и layout models;
-- ветки resistive в выборе марки, характеристиках, каталоге и params panel;
-- автоматический payload `resistive -> single_core`;
-- resistive assignment action/tab и связанные summary buckets из
-  пользовательского workflow;
-- фоновые запросы старого ТЛТ/resistive-каталога на странице ЭР;
-- error guidance, относящийся только к `RESISTIVE_SECTION_NOT_FOUND`.
+1. `test(backend): remove legacy electrical success cases`
+2. `test(frontend): remove legacy electrical UI cases`
+3. `test(e2e): remove legacy electrical journeys`
 
-Оставить:
+В каждый commit входят только тесты своего slice. Production-файлы и чужой WIP
+не добавляются даже как checkpoint.
 
-- `self_regulating` как тип назначения;
-- `self_regulating_tt` как тип расчёта;
-- `mineral/skin` read-only/unsupported состояние, пока отдельное решение не
-  разрешит их удаление;
-- TT manual cable options с backend.
+## 8. Критерий готовности
 
-**Focused proof:** typecheck, точные unit/integration тесты electrical owner,
-network assertion `cable_type=self_regulating_tt`, отсутствие legacy controls.
-
-**Desktop browser proof:** `1000`, `1280`, `1440x900`; assign Самрег, batch
-calc, manual mark, stale/recalc, disabled specification при невалидном ЭР;
-console/network без ошибок. Mobile не запускать.
-
-### L3. Admin UI и admin API
-
-**Owner:** admin; не смешивать с L2 из-за frontend PR budget.
-
-Удалить:
-
-- вкладку проверки резистивной формулы;
-- `resistive_single` / `resistive_three` из `FormulaCheckRequest`;
-- вкладки встроенных справочников «Кабели ТЛТ» и «Резистивные кабели»;
-- старые типы из формы `DatabaseCableModal`;
-- cable CRUD старой таблицы, если L0 подтверждает, что она не является
-  источником актуальных TT-каталогов.
-
-Администрирование актуальных TT-данных остаётся в versioned electrical catalog
-UI/API. Accessory CRUD не затрагивается.
-
-**Focused proof:** admin API 422 на удалённые formula types; frontend admin
-tests; desktop browser проверяет отсутствие legacy tabs и наличие versioned
-catalog page.
-
-### L4. Backend dead code и static data
-
-**Owner:** backend electrical/reference; при превышении размера разделить на
-`schemas+formula-check`, `references`, `seed plumbing`.
-
-Безопасные кандидаты после L1-L3:
-
-- `SelfRegulatingParams` / `SelfRegulatingResult` старого ТЛТ;
-- `ResistiveSingleCore*` и `ResistiveThreeCore*` schemas;
-- отключённый `seed_demo_commercial_catalog` и используемые только им helpers;
-- недостижимое тело `seed_cables` после unconditional `return`;
-- `cables_tlt.json` и `resistive_cables.json`;
-- соответствующие loader/cache/reference функции;
-- `load_cable_catalog`, `_extended_cable_catalog_entry`,
-  `_merge_commercial_cable_entry` и `tlt_catalog` plumbing, если consumer graph
-  после L3 пуст;
-- legacy commercial coefficients и tests, которые не читаются TT pipeline;
-- тесты старых формул и старые cable-business E2E-сценарии.
-
-Не удалять:
-
-```text
-cables_tt.json
-section_catalog.json
-electrical_tt_bom_v1.json
-electrical_catalog_versions
-calc_self_regulating_tt
-TT final gate / snapshots / history
-```
-
-Старый E2E-файл можно удалить только после переноса всех общих assertion
-(RBAC, UUID scope, stale lifecycle) в TT-сценарии. Потеря именно legacy coverage
-допустима; потеря общего контракта — нет.
-
-### L5. Data cleanup и schema drop
-
-**Owner:** backend migration. Выполнять последним runtime-slice.
-
-Рекомендуемая стратегия без обратной совместимости:
-
-1. Повторить L0 data audit непосредственно перед миграцией.
-2. Для затронутых legacy-ЭР сначала удалить/инвалидировать производные
-   specification rows и candidates.
-3. Удалить legacy calculation revisions и calculations.
-4. Assignment с `system_type=resistive` или старым `requested_cable_type`
-   перевести в `unassigned`, очистить requested type и записать явную
-   диагностическую причину `legacy_electrical_type_removed`.
-5. Удалить старые `CableExtended` rows.
-6. После доказанного отсутствия consumers удалить `cables_extended` и
-   PostgreSQL enum `cable_type` целиком. Канонические TT-каталоги используют
-   отдельную versioned-модель и от этой таблицы не зависят.
-
-Миграция должна fail closed при неожиданных строках, а не выбирать кабель за
-пользователя. Для demo-базы допустим полный purge производных legacy-данных;
-Heat, объекты и проекты сохраняются.
-
-**Focused proof:** upgrade на БД с каждым legacy-типом; идемпотентное конечное
-состояние; fresh DB upgrade; FK/cascade assertions; актуальный TT расчёт и
-спецификация после миграции.
-
-**Rollback:** schema drop считать необратимым. Перед ним обязательны backup и
-успешный dry-run миграции на копии БД. Исторические Alembic-файлы не править.
-
-### L6. Contract ratchet и документация
-
-После runtime и migration commits:
-
-- добавить scope-aware guard, запрещающий `single_core`, `three_core`, старый
-  расчётный `self_regulating` и TT-default `220` в production runtime;
-- исключить из guard исторические миграции и явно архивные документы;
-- не запрещать строку `system_type=self_regulating`;
-- актуализировать `case1-backend-status.md` и
-  `case1-section-checklists.md` по фактическому HEAD;
-- пометить старые execution prompts как superseded, не переписывать их под вид
-  изначально актуальных;
-- удалить stale утверждения о несуществующих заглушках, отсутствующих seed,
-  admin API и persistence.
-
-Этот docs-slice выполняется после кода, чтобы документация не объявляла
-удаление раньше времени.
-
-## 6. Отдельно не трогать
-
-Следующие совпадения слова `legacy` не относятся к этой инициативе:
-
-- `legacy_variant_number` и UUID bridge ЭР;
-- исторические Alembic migrations `0027`, `0029`, `0031`, `0037`;
-- тест `test_legacy_electrical_variant_writes.py`, пока он проверяет UUID/slot
-  identity, а не поддержку старых кабельных формул;
-- legacy fallback имён полей в read-only history, если он нужен для уже
-  канонических TT revisions;
-- spherical tank migration и другие Heat-задачи;
-- значение `legacy` в каталогах спецификации.
-
-Удаление numeric ER bridge требует отдельного data audit и отдельного плана.
-
-## 7. Финальная приёмка
-
-Очистка завершена только если одновременно доказано:
-
-1. Новый расчёт и кандидаты принимают только `self_regulating_tt`.
-2. Назначение «Самрег» продолжает использовать
-   `system_type=self_regulating`.
-3. Старые типы и марки получают стабильный reject; silent remap отсутствует.
-4. В пользовательском и admin UI нет ТЛТ/R1/R3 controls и фоновых запросов.
-5. В runtime source отсутствуют старые schemas, seed body, JSON-каталоги и
-   formula/reference branches.
-6. В БД нет старых расчётов, candidates, assignments и catalog rows.
-7. TT versioned catalogs, exact mark, 230 В downstream, sections, history и
-   specification остаются рабочими.
-8. Focused desktop E2E проходит Heat → Electrical → Specification.
-9. Полный test suite имеет статус `NOT RUN`, если пользователь отдельно его не
-   запросил.
-
-## 8. Рекомендуемая последовательность commits
-
-```text
-test(electrical): characterize TT-only cutover
-fix(backend): reject new legacy electrical writes
-refactor(frontend): remove legacy electrical runtime branches
-refactor(admin): remove legacy cable and formula surfaces
-refactor(backend): remove dead legacy schemas catalogs and seed plumbing
-refactor(db): purge legacy electrical data and drop obsolete catalog schema
-docs(electrical): reconcile Case 1 status after legacy removal
-```
-
-Каждый commit должен быть самостоятельно проверяемым и откатываемым до
-необратимого DB-slice. Широкий commit «удалить всё legacy» запрещён.
+- ни один оставшийся тест не требует успешного расчёта/выбора старого
+  ТЛТ/R1/R3;
+- актуальные `self_regulating_tt` тесты сохранены;
+- stale/reject, UUID bridge и migration tests сохранены;
+- изменены только test-файлы и этот план;
+- focused проверки зелёные;
+- общий прогон и mobile QA честно отмечены как `NOT RUN`.
