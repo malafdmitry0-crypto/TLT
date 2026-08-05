@@ -30,6 +30,12 @@ const ROW_MARKER_X = 26;
 const HEADER_HEIGHT = 38;
 const ROW_HEIGHT = 30;
 
+const viewportWidth = Number(process.env.E2E_VIEWPORT_WIDTH);
+const viewportHeight = Number(process.env.E2E_VIEWPORT_HEIGHT);
+if (Number.isFinite(viewportWidth) && Number.isFinite(viewportHeight)) {
+  test.use({ viewport: { width: viewportWidth, height: viewportHeight } });
+}
+
 async function markFirstRow(page: Page) {
   const canvas = page.locator('.calc-spreadsheet--normal-glide canvas').first();
   await expect(canvas).toBeVisible({ timeout: 20_000 });
@@ -43,20 +49,24 @@ function formActions(page: Page) {
 }
 
 test.describe('§5.3–5.13 жизненный цикл объекта теплопотерь', () => {
-  test('§5.3 ошибка заполнения: объект не создан, поля подсвечены, введённое сохранено', async ({ page }) => {
+  test('§5.3 ошибка заполнения: объект не создан, поля подсвечены, введённое сохранено', async ({ page }, testInfo) => {
     await loginAsGuest(page);
     await openPipeForm(page);
 
     const objectName = `E2E неполная труба ${Date.now()}`;
     await page.getByTestId('object-name-input').fill(objectName);
+    let objectWriteRequests = 0;
+    page.on('request', (request) => {
+      if (
+        /\/api\/v1\/projects\/[^/]+\/objects(?:\/[^/]+)?$/.test(request.url())
+        && ['POST', 'PUT'].includes(request.method())
+      ) {
+        objectWriteRequests += 1;
+      }
+    });
     // диаметр/длина/толщина стенки не заполнены — объект создаваться не должен
     await page.locator('#inline-object-save').dispatchEvent('click');
 
-    // §3.11: сообщение называет поле и что исправить, а не отдаёт дамп pydantic
-    const errorMessage = page.locator('.ant-message-error');
-    await expect(errorMessage).toContainText('Наружный диаметр: укажите число');
-    await expect(errorMessage).not.toContainText('validation error');
-    await expect(errorMessage).not.toContainText('Input should be');
     // §5.3: введённые данные остаются в формах
     await expect(page.getByTestId('object-name-input')).toHaveValue(objectName);
     // §3.11: незаполненные обязательные поля подсвечены как ошибочные
@@ -64,8 +74,16 @@ test.describe('§5.3–5.13 жизненный цикл объекта тепл�
       page.getByTestId('outer-diameter-input')
         .locator('xpath=ancestor::*[contains(concat(" ", normalize-space(@class), " "), " ant-form-item ")][1]'),
     ).toHaveClass(/ant-form-item-has-error/);
+    await expect(page.getByTestId('outer-diameter-input')).toBeFocused();
+    await expect(page.locator('.ant-message-error')).toHaveCount(0);
+    await page.waitForTimeout(300);
+    expect(objectWriteRequests).toBe(0);
     // §5.3: объект не создан
     expect(await fetchProjectObjects(page)).toHaveLength(0);
+    await page.screenshot({
+      path: testInfo.outputPath(`heat-invalid-${page.viewportSize()?.width ?? 'default'}.png`),
+      fullPage: true,
+    });
   });
 
   test('§5.3 резервуар создаётся через форму и получает теплопотери', async ({ page }) => {

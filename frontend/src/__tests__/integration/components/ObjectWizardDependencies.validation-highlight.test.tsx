@@ -89,14 +89,17 @@ describe('ObjectWizard dependencies — validation-highlight', () => {
     renderWizard({ onSubmit });
 
     const pipeLength = await screen.findByTestId('pipe-length-input');
+    const outerDiameter = screen.getByTestId('outer-diameter-input');
     await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
 
-    // §5.3: поля помечены сразу; отправку не отменяем — статус считает сервер
+    // §5.3: поля помечены сразу, первое получает фокус, невалидная форма не отправляется.
     await waitFor(() => {
       expect(pipeLength.closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
     });
-    expect(screen.getByTestId('outer-diameter-input').closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
-    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(outerDiameter.closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
+    expect(outerDiameter.closest('.ant-form-item')).not.toHaveClass('ant-form-item-has-warning');
+    await waitFor(() => expect(outerDiameter).toHaveFocus());
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 
   it('пересчитывает локальную подсветку обязательного поля после backend-ошибки', async () => {

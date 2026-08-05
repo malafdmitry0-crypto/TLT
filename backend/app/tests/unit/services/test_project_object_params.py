@@ -91,15 +91,21 @@ def test_normalization_keeps_existing_legacy_values_inert_for_compatibility_read
 
 
 def test_non_indoor_object_rejects_indoor_insulation_temperature_basis():
-    with pytest.raises(ProjectObjectParamsError, match="Режим tm"):
+    with pytest.raises(ProjectObjectParamsError) as exc:
         prepare_project_object_params(
             "pipe", _underground_pipe(insulation_temperature_basis="indoor")
         )
 
+    assert exc.value.code == "OBJECT_PARAMS_INVALID"
+    assert exc.value.fields == ("insulation_temperature_basis",)
+
 
 def test_outdoor_object_rejects_attic_insulation_temperature_basis():
-    with pytest.raises(ProjectObjectParamsError, match="Режим tm"):
+    with pytest.raises(ProjectObjectParamsError) as exc:
         prepare_project_object_params("pipe", _outdoor_pipe(insulation_temperature_basis="attic"))
+
+    assert exc.value.code == "OBJECT_PARAMS_INVALID"
+    assert exc.value.fields == ("insulation_temperature_basis",)
 
 
 def test_underground_object_accepts_channel_insulation_temperature_basis():
@@ -110,10 +116,13 @@ def test_underground_object_accepts_channel_insulation_temperature_basis():
 
 
 def test_underground_object_rejects_attic_insulation_temperature_basis():
-    with pytest.raises(ProjectObjectParamsError, match="Режим tm"):
+    with pytest.raises(ProjectObjectParamsError) as exc:
         prepare_project_object_params(
             "pipe", _underground_pipe(insulation_temperature_basis="attic")
         )
+
+    assert exc.value.code == "OBJECT_PARAMS_INVALID"
+    assert exc.value.fields == ("insulation_temperature_basis",)
 
 
 @pytest.mark.parametrize("basis", ["indoor", "attic", "basement"])
@@ -131,8 +140,45 @@ def test_indoor_object_accepts_building_insulation_temperature_basis(basis):
 
 
 def test_explicit_blank_pipe_wall_is_rejected():
-    with pytest.raises(ProjectObjectParamsError, match="wall_thickness"):
+    with pytest.raises(ProjectObjectParamsError) as exc:
         prepare_project_object_params("pipe", _outdoor_pipe(wall_thickness=None))
+
+    assert str(exc.value) == "Проверьте параметры объекта"
+    assert exc.value.code == "OBJECT_PARAMS_INVALID"
+    assert exc.value.fields == ("wall_thickness",)
+
+
+def test_missing_pipe_fields_have_stable_paths_without_pydantic_details():
+    with pytest.raises(ProjectObjectParamsError) as exc:
+        prepare_project_object_params("pipe", {})
+
+    assert str(exc.value) == "Заполните обязательные поля объекта"
+    assert exc.value.code == "OBJECT_REQUIRED_FIELDS_MISSING"
+    assert exc.value.fields == (
+        "outer_diameter",
+        "wall_thickness",
+        "insulation_layers",
+        "process_temperature",
+        "pipe_length",
+        "placement",
+    )
+
+
+def test_nested_missing_layer_field_uses_canonical_dot_path():
+    with pytest.raises(ProjectObjectParamsError) as exc:
+        prepare_project_object_params(
+            "pipe",
+            _outdoor_pipe(
+                insulation_layers=[
+                    {"thickness": 0.05, "material": "mineral_wool_boards_120"},
+                    {"thickness": 0.02},
+                ]
+            ),
+        )
+
+    assert str(exc.value) == "Заполните обязательные поля объекта"
+    assert exc.value.code == "OBJECT_REQUIRED_FIELDS_MISSING"
+    assert exc.value.fields == ("insulation_layers.1.material",)
 
 
 def test_climate_key_is_derived_from_region_and_city():
@@ -150,7 +196,7 @@ def test_climate_region_and_city_are_derived_from_key_when_missing():
 
 
 def test_second_insulation_layer_requires_material():
-    with pytest.raises(ProjectObjectParamsError):
+    with pytest.raises(ProjectObjectParamsError) as exc:
         prepare_project_object_params(
             "pipe",
             _outdoor_pipe(
@@ -161,9 +207,11 @@ def test_second_insulation_layer_requires_material():
             ),
         )
 
+    assert exc.value.fields == ("insulation_layers.1.material",)
+
 
 def test_tank_shape_geometry_is_required_after_defaults():
-    with pytest.raises(ProjectObjectParamsError, match="diameter и height"):
+    with pytest.raises(ProjectObjectParamsError) as exc:
         prepare_project_object_params(
             "tank",
             {
@@ -175,3 +223,6 @@ def test_tank_shape_geometry_is_required_after_defaults():
                 "wind_speed": 0,
             },
         )
+
+    assert exc.value.code == "OBJECT_PARAMS_INVALID"
+    assert exc.value.fields == ("diameter", "height")
