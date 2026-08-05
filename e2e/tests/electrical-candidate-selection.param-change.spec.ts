@@ -45,41 +45,6 @@ test.describe('electrical candidate selection — param change variants', () => 
     );
   });
 
-  test('изменение параметров ТТН/ТТВ/ТТХ-авторасчёта создаёт отдельный кандидат', async ({ page }) => {
-    await loginAsGuest(page);
-    const { projectId, sessionId } = await currentGuestContext(page);
-    const pipeName = `E2E TT controls ${Date.now()}`;
-    const pipe = await createCalculatedPipe(page, pipeName, {
-      outer_diameter: 0.108,
-      pipe_length: 12,
-      insulation_layers: [
-        { thickness: 0.03, material: 'mineral_wool_boards_120' },
-      ],
-      ambient_temperature: 1,
-      process_temperature: 65,
-    });
-
-    await expectAutoCandidateParamVariants(
-      page,
-      projectId,
-      sessionId,
-      pipe.id,
-      'self_regulating_tt',
-      {
-        supply_voltage: 220,
-        winding_coefficient: 1.1,
-        maintain_temperature: 5,
-        vapor_temperature: 80,
-        aggressive_product: false,
-      },
-      [
-        { maintain_temperature: 10 },
-        { vapor_temperature: 90 },
-        { aggressive_product: true },
-      ],
-    );
-  });
-
   test('изменение параметров резистивного авторасчёта создаёт отдельный кандидат', async ({ page }) => {
     await loginAsGuest(page);
     const { projectId, sessionId } = await currentGuestContext(page);

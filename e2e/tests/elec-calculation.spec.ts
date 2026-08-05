@@ -23,9 +23,7 @@ const ALL_ELECTRICAL_COLUMN_KEYS = [
   'laying_step',
   'heating_height',
   'connection_type',
-  'vapor_temperature',
-  'maintain_temperature',
-  'aggressive_product',
+  'supply_voltage',
   'installed_cable_length',
   'order_cable_length',
   'total_power',
@@ -42,6 +40,27 @@ const ALL_ELECTRICAL_COLUMN_KEYS = [
 ] as const;
 
 type ElectricalColumnKey = typeof ALL_ELECTRICAL_COLUMN_KEYS[number];
+
+const REMOVED_CASE1_HEAT_KEYS = [
+  'aggressive_product',
+  'winding_coefficient',
+  'connection_type',
+] as const;
+
+async function createCleanCase1Pipe(page: Page, name: string) {
+  const pipe = await createCalculatedPipe(page, name, {
+    min_switch_temperature: -30,
+    maintain_temperature: undefined,
+    winding_pitch: undefined,
+    number_of_threads: undefined,
+  });
+  const params = (pipe.params ?? {}) as Record<string, unknown>;
+  for (const key of REMOVED_CASE1_HEAT_KEYS) {
+    expect(params).not.toHaveProperty(key);
+  }
+  expect(Number(params.min_switch_temperature)).toBe(-30);
+  return pipe;
+}
 
 async function recalculateCurrentEr(page: Page) {
   await page.getByRole('button', { name: /Пересчитать все · ЭР1/i }).click();
@@ -141,7 +160,7 @@ test.describe('4.4 Электротехнический расчёт', () => {
     await loginAsGuest(page);
     const { projectId, sessionId } = await currentGuestContext(page);
     const pipeName = `E2E elec pipe ${Date.now()}`;
-    const pipe = await createCalculatedPipe(page, pipeName);
+    const pipe = await createCleanCase1Pipe(page, pipeName);
 
     await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
     await createFirstElectricalVariantIfNeeded(page);
@@ -157,13 +176,19 @@ test.describe('4.4 Электротехнический расчёт', () => {
     await assignObjectToFirstEr(page, pipe.id);
     await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('tab', { name: /Самрег 1 объект/i })).toBeVisible();
+    const supplyVoltage = page
+      .locator('input[role="spinbutton"][aria-label="Напряжение питания"]:not([disabled])')
+      .first();
+    await expect(supplyVoltage).toHaveValue('230');
+    await supplyVoltage.fill('380');
+    await expect(supplyVoltage).toHaveValue('380');
 
     const batchRequestPromise = page.waitForRequest((request) =>
       request.method() === 'POST' && request.url().includes('/api/v1/calc/electrical/batch/jobs'),
     );
     await recalculateCurrentEr(page);
     const batchPayload = (await batchRequestPromise).postDataJSON() as Record<string, unknown>;
-    expect(batchPayload).not.toHaveProperty('supply_voltage');
+    expect(batchPayload).toEqual(expect.objectContaining({ supply_voltage: 380 }));
     expect(batchPayload).not.toHaveProperty('nominal_voltage_v');
 
     await expect(
@@ -176,8 +201,17 @@ test.describe('4.4 Электротехнический расчёт', () => {
     expect(Number(calc.results?.current)).toBeGreaterThan(0);
     const resolvedInputs = (calc.results?.resolved_inputs ?? {}) as Record<string, unknown>;
     expect(Number(resolvedInputs.product_temperature_c)).toBe(80);
-    expect(Number(resolvedInputs.maintain_temperature_c)).toBe(10);
-    expect(resolvedInputs).not.toHaveProperty('nominal_voltage_v');
+    expect(Number(resolvedInputs.ambient_temperature_c)).toBe(-30);
+    expect(Number(resolvedInputs.cold_start_temperature_c)).toBe(-30);
+    expect(Number(resolvedInputs.nominal_voltage_v)).toBe(380);
+    expect(Number(calc.results?.voltage)).toBe(380);
+    expect(Number(calc.results?.current)).toBeCloseTo(
+      Number(calc.results?.total_power) / 380,
+      3,
+    );
+    for (const key of ['steam_temperature_c', 'maintain_temperature_c', 'aggressive_product']) {
+      expect(resolvedInputs).not.toHaveProperty(key);
+    }
     await expect(
       page.getByTestId('elec-summary-self_regulating-length').locator('.elec-summary-card__value'),
     ).not.toHaveText('0');
@@ -195,7 +229,7 @@ test.describe('4.4 Электротехнический расчёт', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await loginAsGuest(page);
     const { projectId, sessionId } = await currentGuestContext(page);
-    const pipe = await createCalculatedPipe(page, `E2E spec readiness ${Date.now()}`);
+    const pipe = await createCleanCase1Pipe(page, `E2E spec readiness ${Date.now()}`);
 
     await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
     await expect(page).toHaveURL(/\/workspace\/elec-calc/);
@@ -204,7 +238,7 @@ test.describe('4.4 Электротехнический расчёт', () => {
     const specificationAction = page.getByRole(
       'button',
       {
-        name: /Сформировать спецификацию — сначала распределите все объекты по системам обогрева/i,
+        name: /Сформировать спецификацию — сначала распределите хотя бы один объект/i,
       },
     );
     await expect(specificationAction).toBeVisible();

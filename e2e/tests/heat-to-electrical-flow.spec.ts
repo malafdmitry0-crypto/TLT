@@ -37,12 +37,14 @@ async function createPipeThroughForm(page: Page, name: string) {
   await selectOption(page, 'placement-select', 'На открытом воздухе');
   await fillInput(page, 'insulation-thickness-input', '40');
   await fillInput(page, 'ambient-temperature-input', '-25');
+  await fillInput(page, 'min-switch-temperature-input', '-25');
   await fillInput(page, 'wind-speed-input', '3');
   await fillInput(page, 'process-temperature-input', '80');
   await selectOption(page, 'steam-tracing-select', 'Нет');
   await expect(page.getByTestId('vapor-temperature-input')).toHaveCount(0);
   await fillInput(page, 'maintain-temperature-input', '10');
-  await selectOption(page, 'aggressive-product-select', 'Нет');
+  await expect(page.getByTestId('aggressive-product-select')).toHaveCount(0);
+  await expect(page.getByTestId('connection-type-select')).toHaveCount(0);
   await expect(page.getByTestId('supply-voltage-select')).toHaveCount(0);
   // материал изоляции выбираем последним: справочник отбирает материалы по
   // температуре продукта, до её ввода список пуст
@@ -56,9 +58,15 @@ async function createPipeThroughForm(page: Page, name: string) {
   };
   expect(createPayload.params).toEqual(expect.objectContaining({
     process_temperature: 80,
+    ambient_temperature: -25,
+    min_switch_temperature: -25,
+    steam_tracing: 'no',
     maintain_temperature: 10,
-    aggressive_product: false,
   }));
+  expect(createPayload.params).not.toHaveProperty('vapor_temperature');
+  expect(createPayload.params).not.toHaveProperty('aggressive_product');
+  expect(createPayload.params).not.toHaveProperty('connection_type');
+  expect(createPayload.params).not.toHaveProperty('winding_coefficient');
   expect(createPayload.params).not.toHaveProperty('supply_voltage');
   expect(createPayload.params).not.toHaveProperty('nominal_voltage_v');
 
@@ -158,14 +166,22 @@ test.describe('сквозной расчёт: теплопотери → эле�
     await assignToSelfRegulating(page, variantId, pipe.id);
     await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('tab', { name: /Самрег 1 объект/i })).toBeVisible();
+    await expect(
+      page.getByRole('spinbutton', { name: 'Напряжение питания' }).first(),
+    ).toHaveValue('230');
 
     const batchRequestPromise = page.waitForRequest((request) =>
       request.method() === 'POST' && request.url().includes('/api/v1/calc/electrical/batch/jobs'),
     );
     await recalculateCurrentEr(page);
     const batchPayload = (await batchRequestPromise).postDataJSON() as Record<string, unknown>;
-    expect(batchPayload).not.toHaveProperty('supply_voltage');
+    expect(batchPayload).toEqual(expect.objectContaining({ supply_voltage: 230 }));
     expect(batchPayload).not.toHaveProperty('nominal_voltage_v');
+    expect(batchPayload).not.toHaveProperty('maintain_temperature');
+    expect(batchPayload).not.toHaveProperty('vapor_temperature');
+    expect(batchPayload).not.toHaveProperty('aggressive_product');
+    expect(batchPayload).not.toHaveProperty('connection_type');
+    expect(batchPayload).not.toHaveProperty('winding_coefficient');
 
     const calc = await expectElectricalCalcForObject(page, projectId, sessionId, pipe.id);
     expect(calc.cable_mark, 'должна быть подобрана марка кабеля').toMatch(/ТТ[НВХ]/);
@@ -176,8 +192,12 @@ test.describe('сквозной расчёт: теплопотери → эле�
     expect(Number(results.current)).toBeGreaterThan(0);
     const resolvedInputs = (results.resolved_inputs ?? {}) as Record<string, unknown>;
     expect(Number(resolvedInputs.product_temperature_c)).toBe(80);
-    expect(Number(resolvedInputs.maintain_temperature_c)).toBe(10);
-    expect(resolvedInputs).not.toHaveProperty('nominal_voltage_v');
+    expect(Number(resolvedInputs.ambient_temperature_c)).toBe(-25);
+    expect(Number(resolvedInputs.cold_start_temperature_c)).toBe(-25);
+    expect(Number(resolvedInputs.nominal_voltage_v)).toBe(230);
+    for (const key of ['steam_temperature_c', 'maintain_temperature_c', 'aggressive_product']) {
+      expect(resolvedInputs).not.toHaveProperty(key);
+    }
     // кабель кладётся на трубу целиком: длина не меньше длины участка
     expect(cableLength).toBeGreaterThanOrEqual(30);
 
