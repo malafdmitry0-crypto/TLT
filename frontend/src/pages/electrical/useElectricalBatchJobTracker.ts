@@ -4,6 +4,7 @@ import { useQueries, useQueryClient } from '@tanstack/react-query';
 
 import { getCalcTask } from '@/api/calculations';
 import { electricalDataQueryKeys } from '@/api/electricalQueryKeys';
+import { electricalAssignmentQueryKeys } from '@/api/electricalVariants';
 import { isBatchElectricalResponse } from '@/pages/electrical/elecCalcApiResponseGuards';
 import type { ElectricalBatchScope } from '@/pages/electrical/elecCalcPageModel';
 import type { CalculationTaskResponse } from '@/types/calculation';
@@ -282,6 +283,12 @@ export function useElectricalBatchJobTracker() {
         }));
         void queryClient.invalidateQueries({
           queryKey: electricalDataQueryKeys.variant(
+            descriptor.projectId,
+            descriptor.electricalVariantId,
+          ),
+        });
+        void queryClient.invalidateQueries({
+          queryKey: electricalAssignmentQueryKeys.root(
             descriptor.projectId,
             descriptor.electricalVariantId,
           ),

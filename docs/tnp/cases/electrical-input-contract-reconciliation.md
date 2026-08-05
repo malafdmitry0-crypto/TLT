@@ -330,6 +330,23 @@ downstream Qrequired = heat_loss_per_meter_w * safety_factor_applied
 - если появится каталог, где минимальные cold-start внутри серии различаются, фильтр по `T_env`
   возвращается в пригодность до выбора кандидата - это изменение контракта, а не багфикс.
 
+### 6.8 Ревизия назначения и граница спецификации
+
+`ElectricalVariantObject.version` — не версия API и не механизм обратной совместимости. Это
+оптимистическая ревизия **входов назначения** текущего UUID ЭР. Она повышается при изменении типа
+системы, `Iдоп`, TT overrides и при invalidation из-за изменившихся исходных данных объекта.
+
+Синхронизация производных полей после расчёта (`assignment_state`, `requested_cable_type`,
+`diagnostics`, `object_version_snapshot`) ревизию входов не повышает. Результат фиксирует ту же
+ревизию в `provenance.assignment_version`, а preflight спецификации сравнивает её с текущей.
+Иначе каждый успешный расчёт сам создаёт ложный разъезд `N -> N+1` и немедленно становится stale.
+
+Отсутствие требования обратной совместимости позволяет выполнить clean cutover и полный пересев
+локальной БД, но не отменяет optimistic concurrency и проверку актуальности Heat/ЭР результата.
+Action-переход из экрана электрорасчёта активен только когда в выбранном UUID ЭР есть хотя бы
+одно назначение и все назначения имеют `assignment_state=ready`. При loading/error либо наличии
+`unassigned/stale/error/unsupported` action остаётся disabled с доступным объяснением.
+
 ## 7. Порядок исправления
 
 1. Удалить runtime fallback `T3=T1`; заменить только тест, который закрепляет эту подстановку.
@@ -353,6 +370,10 @@ downstream Qrequired = heat_loss_per_meter_w * safety_factor_applied
     после заполнения обязательных входов расчёт проходит.
 14. Удалить из `elec-calculation.spec.ts` ожидания старого контракта СО1-СО4; не переносить их в
     ЭР1 ради формального сохранения покрытия.
+15. Зафиксировать `assignment.version` как ревизию входов и не повышать её при derived sync
+    результата; закрыть реальным TT calculation -> preflight и повторным recalculation.
+16. Перевести demo seed с numeric legacy adapter на UUID ЭР1 service flow; рассчитывать трубы и
+    cylindrical/rectangular tank, а spherical явно оставлять unsupported.
 
 ## 8. Минимальные критерии приёмки
 
@@ -388,6 +409,12 @@ downstream Qrequired = heat_loss_per_meter_w * safety_factor_applied
   fail-closed ошибку, а не строку для более тёплой температуры (6.7).
 - E2E покрывает pipe, cylindrical tank и rectangular tank отдельными сценариями.
 - E2E не становится зелёным за счёт mock/fallback обязательного `T3`.
+- После успешного TT расчёта текущая ревизия назначения равна
+  `provenance.assignment_version`; повторный пересчёт без изменения входов её не повышает.
+- Fresh seed не вызывает numeric legacy adapter, не подставляет `T3=T1` и завершается с нулевым
+  дрейфом ревизий для всех готовых pipe/cylindrical/rectangular результатов.
+- Action «Сформировать спецификацию» disabled и не меняет URL при неготовом ЭР; после перехода
+  всех назначений выбранного UUID ЭР в `ready` он активируется и открывает спецификацию.
 
 ## 9. Граница этой сверки
 

@@ -189,18 +189,62 @@ test.describe('4.4 Электротехнический расчёт', () => {
     ).not.toHaveText('0,0');
   });
 
-  test('основное меню связывает электрорасчёт со страницами теплопотерь и спецификации', async ({
+  test('переход в спецификацию блокируется до ready ЭР и открывается после реального расчёта', async ({
     page,
   }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
     await loginAsGuest(page);
-    await createCalculatedPipe(page, `E2E nav pipe ${Date.now()}`);
+    const { projectId, sessionId } = await currentGuestContext(page);
+    const pipe = await createCalculatedPipe(page, `E2E spec readiness ${Date.now()}`);
 
     await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
-    await page.getByRole('menuitem', { name: /Расчёт тепловых потерь/i }).click();
-    await expect(page).toHaveURL(/\/workspace\/heat-calc/);
+    await expect(page).toHaveURL(/\/workspace\/elec-calc/);
+    await createFirstElectricalVariantIfNeeded(page);
 
-    await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
-    await page.getByRole('menuitem', { name: /Спецификация/i }).click();
+    const specificationAction = page.getByRole(
+      'button',
+      {
+        name: /Сформировать спецификацию — сначала распределите все объекты по системам обогрева/i,
+      },
+    );
+    await expect(specificationAction).toBeVisible();
+    await expect(specificationAction).toBeDisabled();
+    const electricalUrl = page.url();
+
+    await specificationAction.click({ force: true });
+    await expect(page).toHaveURL(electricalUrl);
+
+    await specificationAction.press('Enter');
+    await expect(page).toHaveURL(electricalUrl);
+    await specificationAction.press('Space');
+    await expect(page).toHaveURL(electricalUrl);
+    await expect(specificationAction).not.toBeFocused();
+
+    await page.getByTestId('elec-idop-input').fill('80');
+    await page.getByTestId('elec-idop-save').click();
+    await expect(page.getByText('Iдоп не задан')).toHaveCount(0);
+    await assignObjectToFirstEr(page, pipe.id);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('tab', { name: /Самрег 1 объект/i })).toBeVisible();
+
+    await recalculateCurrentEr(page);
+    await expect(
+      page.getByTestId('elec-summary-self_regulating-objects').locator('.elec-summary-card__value'),
+    ).toHaveText('1', { timeout: 20_000 });
+    const calculation = await expectElectricalCalcForObject(
+      page,
+      projectId,
+      sessionId,
+      pipe.id,
+    );
+    expect(calculation.cable_mark).toMatch(/ТТ[НВХ]/);
+
+    const enabledSpecificationAction = page.getByRole(
+      'button',
+      { name: /^Сформировать спецификацию$/i },
+    );
+    await expect(enabledSpecificationAction).toBeEnabled({ timeout: 20_000 });
+    await enabledSpecificationAction.click();
     await expect(page).toHaveURL(/\/workspace\/specification/);
   });
 });

@@ -21,6 +21,9 @@ import {
   useElectricalBatchJobTracker,
 } from '@/pages/electrical/useElectricalBatchJobTracker';
 import { ElecCalcWorkspace } from '@/pages/electrical/ElecCalcWorkspace';
+import type {
+  ElectricalSpecificationReadinessSnapshot,
+} from '@/pages/electrical/electricalSpecificationReadinessModel';
 
 export default function ElecCalcProject({
   projectId,
@@ -41,9 +44,20 @@ export default function ElecCalcProject({
   const setLegacyVariant = useCalculationVariantStore((state) => state.setVariant);
   const clearLegacyVariant = useCalculationVariantStore((state) => state.clearVariant);
   const selectedVariant = controller.selectedVariant;
+  const [assignmentReadinessReport, setAssignmentReadinessReport] = useState<{
+    electricalVariantId: string;
+    snapshot: ElectricalSpecificationReadinessSnapshot;
+  } | null>(null);
   const [assignmentDataEpoch, setAssignmentDataEpoch] = useState(0);
   const markAssignmentDataChanged = useCallback(() => {
+    setAssignmentReadinessReport(null);
     setAssignmentDataEpoch((current) => current + 1);
+  }, []);
+  const handleAssignmentReadinessChange = useCallback((
+    electricalVariantId: string,
+    snapshot: ElectricalSpecificationReadinessSnapshot,
+  ) => {
+    setAssignmentReadinessReport({ electricalVariantId, snapshot });
   }, []);
   const navigationActiveJobId =
     (location.state as ElectricalNavigationState | null | undefined)?.activeJobId ?? null;
@@ -74,9 +88,18 @@ export default function ElecCalcProject({
     setLegacyVariant(projectId, legacyVariantNumber);
   }, [clearLegacyVariant, projectId, selectedVariant?.legacy_variant_number, setLegacyVariant]);
 
+  const selectedAssignmentReadiness = assignmentReadinessReport
+    && assignmentReadinessReport.electricalVariantId === selectedVariant?.id
+    ? assignmentReadinessReport.snapshot
+    : null;
+
   return (
     <Space direction="vertical" size={8} style={{ width: '100%' }}>
-      <ElectricalVariantTabs controller={controller} canMutate={canMutate} />
+      <ElectricalVariantTabs
+        controller={controller}
+        canMutate={canMutate}
+        assignmentReadiness={selectedAssignmentReadiness}
+      />
       {selectedVariant?.legacy_variant_number == null && selectedVariant && (
         <div
           id={electricalVariantPanelId(selectedVariant.id)}
@@ -112,10 +135,10 @@ export default function ElecCalcProject({
             completion={completionByVariant[selectedVariant.id] ?? null}
             registerJob={registerJob}
             onAssignmentsChanged={markAssignmentDataChanged}
+            onAssignmentReadinessChange={handleAssignmentReadinessChange}
           />
         </div>
       )}
     </Space>
   );
 }
-

@@ -22,6 +22,10 @@ import {
     LoadingCard,
   MutationStatus,
 } from './ElectricalVariantTabsEmptyState';
+import {
+  resolveElectricalSpecificationReadiness,
+  type ElectricalSpecificationReadinessSnapshot,
+} from './electricalSpecificationReadinessModel';
 import { ignoreHandledError } from './electricalVariantAsyncHelpers';
 
 const MAX_ELECTRICAL_VARIANTS = 5;
@@ -37,11 +41,13 @@ export function electricalVariantPanelId(variantId: string): string {
 export interface ElectricalVariantTabsProps {
   controller: ElectricalVariantSelectionController;
   canMutate?: boolean;
+  assignmentReadiness?: ElectricalSpecificationReadinessSnapshot | null;
 }
 
 export default function ElectricalVariantTabs({
   controller,
   canMutate = true,
+  assignmentReadiness,
 }: ElectricalVariantTabsProps) {
   const navigate = useNavigate();
   const tablistRef = useRef<HTMLDivElement>(null);
@@ -132,6 +138,9 @@ export default function ElectricalVariantTabs({
   const reachedLimit = controller.variants.length >= MAX_ELECTRICAL_VARIANTS;
   const isLastVariant = controller.variants.length === 1;
   const lifecycleWriteLocked = controller.isMutating || isRenaming;
+  const specificationReadiness = resolveElectricalSpecificationReadiness(
+    assignmentReadiness,
+  );
 
   const handleTabKeyDown = (
     index: number,
@@ -360,15 +369,24 @@ export default function ElectricalVariantTabs({
               </TltButton>
             </Popconfirm>
 
-            <TltButton
-              size="compact"
-              className="electrical-variant-action electrical-variant-action--spec"
-              icon={<FileTextOutlined />}
-              onClick={() => navigate(ROUTES.specification)}
-              aria-label="Сформировать спецификацию"
-            >
-              Сформировать спецификацию
-            </TltButton>
+            <Tooltip title={specificationReadiness.disabledReason ?? undefined}>
+              <span>
+                <TltButton
+                  size="compact"
+                  className="electrical-variant-action electrical-variant-action--spec"
+                  icon={<FileTextOutlined />}
+                  disabled={!specificationReadiness.enabled}
+                  aria-label={specificationReadiness.disabledReason
+                    ? `Сформировать спецификацию — ${specificationReadiness.disabledReason.toLowerCase()}`
+                    : 'Сформировать спецификацию'}
+                  onClick={specificationReadiness.enabled
+                    ? () => navigate(ROUTES.specification)
+                    : undefined}
+                >
+                  Сформировать спецификацию
+                </TltButton>
+              </span>
+            </Tooltip>
           </div>
         </div>
       </Space>

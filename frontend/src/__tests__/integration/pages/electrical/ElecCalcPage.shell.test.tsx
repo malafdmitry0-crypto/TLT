@@ -5,7 +5,11 @@ import { useProjectStore } from '@/store/projectStore';
 import { getCalcJobRefetchInterval } from '@/utils/calcJobPolling';
 import { electricalDataQueryKeys } from '@/api/electricalQueryKeys';
 import { mockProject, makeObject, makeElectricalPage, makeCalcTask, renderPage } from '@/__tests__/integration/pages/electrical/elecCalcPageHarness';
-import { electricalAssignmentPanelMock, resetElecCalcIntegrationState } from '@/__tests__/integration/pages/electrical/elecCalcPageTestEnv';
+import {
+  electricalAssignmentPanelMock,
+  electricalVariantApiMocks,
+  resetElecCalcIntegrationState,
+} from '@/__tests__/integration/pages/electrical/elecCalcPageTestEnv';
 import '@/__tests__/integration/pages/electrical/elecCalcPageTestEnv';
 
 describe('ElecCalcPage shell / variants / polling', () => {
@@ -16,6 +20,16 @@ describe('ElecCalcPage shell / variants / polling', () => {
   it('показывает заглушку без проекта', () => {
     renderPage();
     expect(screen.getByText(/Проект не выбран/i)).toBeInTheDocument();
+  });
+
+  it('не падает до появления выбранного ЭР и держит спецификацию без readiness', () => {
+    electricalVariantApiMocks.list.mockImplementation(() => new Promise(() => undefined));
+    useProjectStore.getState().setCurrentProject(mockProject);
+
+    renderPage();
+
+    expect(screen.getByText('Загружаем список ЭР…')).toBeInTheDocument();
+    expect(screen.queryByText(/Cannot read properties of null/i)).not.toBeInTheDocument();
   });
 
   it('пустой проект — показывает alert «Нет объектов»', async () => {

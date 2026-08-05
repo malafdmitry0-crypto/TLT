@@ -8,7 +8,9 @@ import EmptyProjectState from '@/components/common/EmptyProjectState';
 import ElectricalSummary from '@/components/electrical/ElectricalSummary';
 import { TltAlert } from '@/components/ui-kit';
 import ElectricalBatchActionBar from '@/pages/electrical/ElectricalBatchActionBar';
-import ElectricalAssignmentPanel from '@/pages/electrical/ElectricalAssignmentPanel';
+import ElectricalAssignmentPanel, {
+  type ElectricalAssignmentPanelProps,
+} from '@/pages/electrical/ElectricalAssignmentPanel';
 import { buildAssignAutoCalcBatchPayload } from '@/pages/electrical/elecCalcAssignAutoCalcModel';
 import { ElectricalUnifiedTableCard } from '@/pages/electrical/ElectricalUnifiedTableCard';
 import { ElecCalcWorkspaceModals } from '@/pages/electrical/ElecCalcWorkspaceModals';
@@ -19,19 +21,27 @@ import { listStaleObjectIds } from '@/pages/electrical/elecCalcStaleModel';
 import { useProjectElectricalSettings } from '@/pages/electrical/useProjectElectricalSettings';
 import {
   useElecCalcWorkspaceModel,
-  type ElecCalcWorkspaceProps,
+  type ElecCalcWorkspaceModelProps,
 } from '@/pages/electrical/useElecCalcWorkspaceModel';
 import { useMemo } from 'react';
 import './elec-workspace-summary.css';
 import './elec-workspace.css';
 import '@/components/electrical/CablePickerCharacteristics.css';
 
-export type { ElecCalcWorkspaceProps };
+export type ElecCalcWorkspaceProps = ElecCalcWorkspaceModelProps & {
+  onAssignmentReadinessChange?: ElectricalAssignmentPanelProps['onAssignmentReadinessChange'];
+};
 
 export function ElecCalcWorkspace(props: ElecCalcWorkspaceProps) {
   const m = useElecCalcWorkspaceModel(props);
   const { project } = m;
-  const { canMutate, projectId, electricalVariant, onAssignmentsChanged } = props;
+  const {
+    canMutate,
+    projectId,
+    electricalVariant,
+    onAssignmentsChanged,
+    onAssignmentReadinessChange,
+  } = props;
   const electricalSettings = useProjectElectricalSettings(projectId, canMutate);
   const staleObjectIds = useMemo(
     () => listStaleObjectIds(
@@ -86,6 +96,7 @@ export function ElecCalcWorkspace(props: ElecCalcWorkspaceProps) {
             onSelectedObjectIdsChange={m.setSelectedRowKeys}
             versionByObjectId={m.versionByObjectId}
             onAssignmentsChanged={onAssignmentsChanged}
+            onAssignmentReadinessChange={onAssignmentReadinessChange}
             onAssignedNeedCalc={(systemType, objectIds) => {
               if (!canMutate) return;
               const payload = buildAssignAutoCalcBatchPayload({ systemType, objectIds });

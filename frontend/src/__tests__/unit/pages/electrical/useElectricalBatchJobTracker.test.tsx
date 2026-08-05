@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getCalcTask } from '@/api/calculations';
 import { electricalDataQueryKeys } from '@/api/electricalQueryKeys';
+import { electricalAssignmentQueryKeys } from '@/api/electricalVariants';
 import {
   useElectricalBatchJobTracker,
   type ElectricalBatchJobMetadata,
@@ -138,7 +139,7 @@ describe('useElectricalBatchJobTracker', () => {
     );
   });
 
-  it('invalidates only the exact UUID variant and project summary after success', async () => {
+  it('invalidates the exact UUID data, assignment summary, and project summary after success', async () => {
     const { queryClient, result } = setup();
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries').mockResolvedValue();
     const succeededTask = task('task-success', ER_TWO, 'succeeded', {
@@ -167,9 +168,12 @@ describe('useElectricalBatchJobTracker', () => {
       expect(result.current.trackedJobs).toHaveLength(0);
     });
 
-    expect(invalidate).toHaveBeenCalledTimes(2);
+    expect(invalidate).toHaveBeenCalledTimes(3);
     expect(invalidate).toHaveBeenCalledWith({
       queryKey: electricalDataQueryKeys.variant('project-1', ER_TWO),
+    });
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: electricalAssignmentQueryKeys.root('project-1', ER_TWO),
     });
     expect(invalidate).toHaveBeenCalledWith({
       queryKey: ['project', 'project-1', 'objects', 'summary'],

@@ -823,7 +823,10 @@ class ElectricalAssignmentService:
             assignment.requested_cable_type = cable_type or None
             assignment.object_version_snapshot = obj.version
             assignment.diagnostics = self._diagnostics_for_results(row.get("results"))
-            assignment.version += 1
+            # ``version`` is the revision of assignment inputs. Calculation
+            # readiness, diagnostics and object snapshot are derived outputs;
+            # changing them must not invalidate the assignment revision that
+            # was captured in the just-persisted TT result provenance.
             affected[assignment.electrical_variant_id].append(assignment.object_id)
 
         specification_service = SpecificationService(self.db)

@@ -35,6 +35,9 @@ import {
   type DropTargetId,
 } from '@/pages/electrical/useElectricalAssignmentController';
 import type { ElectricalVariant } from '@/types/electricalVariant';
+import type {
+  ElectricalSpecificationReadinessSnapshot,
+} from '@/pages/electrical/electricalSpecificationReadinessModel';
 
 export { ASSIGNMENT_DND_MIME, type AssignableSystem } from '@/pages/electrical/electricalAssignmentShared';
 
@@ -116,6 +119,10 @@ export interface ElectricalAssignmentPanelProps {
   /** Assignment versions from electrical query projection. */
   versionByObjectId: ReadonlyMap<string, number>;
   onAssignmentsChanged?: () => void;
+  onAssignmentReadinessChange?: (
+    electricalVariantId: string,
+    snapshot: ElectricalSpecificationReadinessSnapshot,
+  ) => void;
   /**
    * PDF-ER-08: after assign to Samreg/Resistive, run cable selection + sections.
    * Called with assigned object ids and system type.
@@ -138,6 +145,7 @@ export default function ElectricalAssignmentPanel({
   onSelectedObjectIdsChange,
   versionByObjectId,
   onAssignmentsChanged,
+  onAssignmentReadinessChange,
   onAssignedNeedCalc,
   tableDragging = false,
 }: ElectricalAssignmentPanelProps) {
@@ -150,6 +158,7 @@ export default function ElectricalAssignmentPanel({
     onSelectedObjectIdsChange,
     versionByObjectId,
     onAssignmentsChanged,
+    onAssignmentReadinessChange,
     onAssignedNeedCalc,
   });
 

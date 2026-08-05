@@ -2,6 +2,7 @@ from app.reference_data.loader import list_insulation_materials, list_tt_cables
 from app.schemas.project import ProjectObjectCreate
 from app.seeds import (
     _HEAT_SEED_CONFIGS,
+    _electrical_seed_overrides,
     _insulation_seed_row,
 )
 from app.services.heat_contract import (
@@ -144,6 +145,46 @@ def test_tank_seed_matrix_covers_shapes_placements_and_special_cases():
 
     metadata_volume = next(params for params in tanks if "volume" in params)
     assert metadata_volume["volume"] == 24.5
+
+
+def test_electrical_seed_matrix_uses_current_tt_inputs_for_pipes_and_supported_tanks():
+    planned = [
+        (config, _electrical_seed_overrides(config["object_type"], config["params"]))
+        for config in _HEAT_SEED_CONFIGS
+    ]
+    supported = [(config, overrides) for config, overrides in planned if overrides is not None]
+
+    assert len(supported) == 10
+    assert {config["object_type"] for config, _overrides in supported} == {"pipe", "tank"}
+    assert all(overrides["maintain_temperature_c"] == 10.0 for _config, overrides in supported)
+    assert {overrides["aggressive_product"] for _config, overrides in supported} == {
+        False,
+        True,
+    }
+    assert all(
+        overrides["maintain_temperature_c"] != config["params"]["process_temperature"]
+        for config, overrides in supported
+    )
+
+    for config, overrides in supported:
+        if config["object_type"] == "pipe":
+            assert "tank_heating_height_m" not in overrides
+            assert "tank_laying_step_m" not in overrides
+            continue
+        assert overrides["tank_heating_height_m"] == config["params"]["height"]
+        assert overrides["tank_laying_step_m"] == 0.2
+
+
+def test_electrical_seed_matrix_explicitly_excludes_unsupported_spherical_tanks():
+    unsupported = [
+        config
+        for config in _HEAT_SEED_CONFIGS
+        if _electrical_seed_overrides(config["object_type"], config["params"]) is None
+    ]
+
+    assert len(unsupported) == 3
+    assert all(config["object_type"] == "tank" for config in unsupported)
+    assert all(config["params"]["shape"] == "spherical" for config in unsupported)
 
 
 def test_insulation_seed_row_preserves_reference_contract():

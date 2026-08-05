@@ -1,8 +1,11 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import ElectricalVariantTabs from '@/pages/electrical/ElectricalVariantTabs';
 import type { ElectricalVariantSelectionController } from '@/hooks/useElectricalVariantSelection';
-import type { ElectricalVariant } from '@/types/electricalVariant';
+import type {
+  ElectricalAssignmentCounts,
+  ElectricalVariant,
+} from '@/types/electricalVariant';
 
 function tabsTree(
   ctrl: ElectricalVariantSelectionController,
@@ -20,6 +23,35 @@ function renderTabs(
   canMutate = true,
 ) {
   return render(tabsTree(ctrl, canMutate));
+}
+
+function LocationProbe() {
+  return <output data-testid="location-path">{useLocation().pathname}</output>;
+}
+
+function assignmentCounts(
+  state: keyof ElectricalAssignmentCounts['by_state'],
+  total = 1,
+): ElectricalAssignmentCounts {
+  return {
+    total,
+    filtered: total,
+    by_system: {
+      unassigned: state === 'unassigned' ? total : 0,
+      self_regulating: state === 'unassigned' ? 0 : total,
+      resistive: 0,
+      skin: 0,
+      mineral: 0,
+    },
+    by_state: {
+      unassigned: 0,
+      ready: 0,
+      unsupported: 0,
+      stale: 0,
+      error: 0,
+      [state]: total,
+    },
+  };
 }
 
 const PROJECT_ID = 'project-a';
@@ -134,4 +166,97 @@ describe('ElectricalVariantTabs — render-nav', () => {
       HTMLElement.prototype.scrollIntoView = originalScrollIntoView;
     }
   });
+
+  it('enables specification navigation only when every assignment is ready', () => {
+    render(
+      <MemoryRouter initialEntries={['/workspace/elec-calc']}>
+        <ElectricalVariantTabs
+          controller={controller()}
+          assignmentReadiness={{ status: 'loaded', counts: assignmentCounts('ready', 2) }}
+        />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    const action = screen.getByRole('button', { name: 'Сформировать спецификацию' });
+    expect(action).toBeEnabled();
+
+    fireEvent.click(action);
+    expect(screen.getByTestId('location-path')).toHaveTextContent('/workspace/specification');
+  });
+
+  it.each([
+    ['unassigned', 'Сначала распределите все объекты по системам обогрева'],
+    ['stale', 'Пересчитайте устаревшие объекты'],
+    ['error', 'Исправьте ошибки электрорасчёта'],
+    ['unsupported', 'В электрорасчёте есть неподдерживаемые объекты'],
+  ] as const)(
+    'keeps specification navigation disabled for %s assignments',
+    async (state, reason) => {
+      render(
+        <MemoryRouter initialEntries={['/workspace/elec-calc']}>
+          <ElectricalVariantTabs
+            controller={controller()}
+            assignmentReadiness={{ status: 'loaded', counts: assignmentCounts(state) }}
+          />
+          <LocationProbe />
+        </MemoryRouter>,
+      );
+
+      const action = screen.getByRole('button', { name: /Сформировать спецификацию/i });
+      expect(action).toBeDisabled();
+      expect(action).toHaveAccessibleName(
+        `Сформировать спецификацию — ${reason.toLowerCase()}`,
+      );
+
+      fireEvent.click(action);
+      expect(screen.getByTestId('location-path')).toHaveTextContent('/workspace/elec-calc');
+
+      fireEvent.mouseOver(action.parentElement as HTMLElement);
+      expect(await screen.findByRole('tooltip')).toHaveTextContent(reason);
+    },
+  );
+
+  it('keeps specification navigation disabled when the ER has no objects', () => {
+    render(
+      <MemoryRouter initialEntries={['/workspace/elec-calc']}>
+        <ElectricalVariantTabs
+          controller={controller()}
+          assignmentReadiness={{ status: 'loaded', counts: assignmentCounts('ready', 0) }}
+        />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    const action = screen.getByRole('button', { name: /Сформировать спецификацию/i });
+    expect(action).toBeDisabled();
+    expect(action).toHaveAccessibleName(
+      'Сформировать спецификацию — в электрорасчёте нет объектов',
+    );
+    fireEvent.click(action);
+    expect(screen.getByTestId('location-path')).toHaveTextContent('/workspace/elec-calc');
+  });
+
+  it.each([
+    ['loading', 'Проверяем готовность электрорасчёта'],
+    ['error', 'Не удалось проверить готовность электрорасчёта'],
+  ] as const)(
+    'keeps specification navigation disabled while readiness is %s',
+    async (status, reason) => {
+      render(
+        <MemoryRouter initialEntries={['/workspace/elec-calc']}>
+          <ElectricalVariantTabs controller={controller()} assignmentReadiness={{ status }} />
+          <LocationProbe />
+        </MemoryRouter>,
+      );
+
+      const action = screen.getByRole('button', { name: /Сформировать спецификацию/i });
+      expect(action).toBeDisabled();
+      expect(action).toHaveAccessibleName(
+        `Сформировать спецификацию — ${reason.toLowerCase()}`,
+      );
+      fireEvent.click(action);
+      expect(screen.getByTestId('location-path')).toHaveTextContent('/workspace/elec-calc');
+    },
+  );
 });

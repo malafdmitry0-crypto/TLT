@@ -1729,7 +1729,7 @@ class TestElectricalAssignmentCalculationSync:
         )
         assignments = {row.electrical_variant_id: row for row in assignment_rows}
         assert assignments[UUID(first["id"])].assignment_state == "error"
-        assert assignments[UUID(first["id"])].version == 3
+        assert assignments[UUID(first["id"])].version == 2
         assert assignments[UUID(second["id"])].assignment_state == "stale"
         assert assignments[UUID(second["id"])].version == 2
         specs = list(
@@ -1761,7 +1761,7 @@ class TestElectricalAssignmentCalculationSync:
         )
         assert {row.assignment_state for row in refreshed_assignments} == {"stale"}
         assert {row.electrical_variant_id: row.version for row in refreshed_assignments} == {
-            UUID(first["id"]): 4,
+            UUID(first["id"]): 3,
             UUID(second["id"]): 3,
         }
         refreshed_specs = list(
@@ -1815,7 +1815,7 @@ class TestElectricalAssignmentCalculationSync:
         assert assignment.system_type == "self_regulating"
         assert assignment.assignment_state == "error"
         assert assignment.requested_cable_type == "self_regulating"
-        assert assignment.version == 3
+        assert assignment.version == 2
 
         with pytest.raises(ElectricalAssignmentServiceError) as mismatch:
             await CalculationService(db_session)._bulk_upsert_electrical_calculations(

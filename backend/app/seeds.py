@@ -17,8 +17,8 @@
   7. accessories_extended (demo accessory cost layer)
   8. projects (10 проектов, привязаны к employees)
   9. project_objects — только pipe/tank, с конкретными материалами изоляции
- 10. electrical_calculations — для каждого pipe-объекта
- 11. specifications — для каждого проекта с электрорасчётом
+ 10. electrical_variants + assignments — через актуальный UUID ЭР-контракт
+ 11. electrical_calculations — для труб и поддерживаемых резервуаров
 
 TECH DEBT: specification catalog seed is a temporary complete-shape payload so
 local generate works. It is not owner-approved production data
@@ -31,6 +31,7 @@ import logging
 import re
 import uuid
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import Literal, TypedDict
 
 from sqlalchemy import delete, select
@@ -41,8 +42,6 @@ from app.core.security import hash_password
 from app.models.accessory import AccessoryExtended
 from app.models.cable import CableExtended
 from app.models.coefficient import CorrectionCoefficient
-from app.models.electrical_calculation import ElectricalCalculation
-from app.models.electrical_variant import ElectricalVariantObject
 from app.models.insulation_material import InsulationMaterial
 from app.models.project import Project
 from app.models.project_object import ProjectObject
@@ -53,10 +52,15 @@ from app.reference_data.loader import (
 from app.schemas.calculation import (
     ElectricalRequest,
 )
+from app.schemas.electrical_assignment import (
+    ElectricalAssignmentCurrentLimitPatch,
+    ElectricalAssignmentMutationItem,
+    ElectricalAssignmentOverridesPatch,
+)
 from app.schemas.project import ProjectObjectCreate
 from app.services.calculation_service import CalculationService
+from app.services.electrical_assignment_service import ElectricalAssignmentService
 from app.services.electrical_catalog_service import ElectricalCatalogService
-from app.services.electrical_input_resolver import FRONTEND_MOCK_PROFILE
 from app.services.electrical_variant_service import ElectricalVariantService
 from app.services.project_service import ProjectService
 from app.services.specification_catalog_service import SpecificationCatalogService
@@ -1264,6 +1268,42 @@ def _heat_seed_config(
 
 _MINERAL_WOOL = "mineral_wool_boards_120"
 _PERLITE = "expanded_perlite_sand_225"
+_ELECTRICAL_SEED_MAINTAIN_TEMPERATURE_C = 10.0
+_ELECTRICAL_SEED_TANK_LAYING_STEP_M = 0.2
+_ELECTRICAL_SEED_MAX_SECTION_START_CURRENT_A = Decimal("13.065")
+_ELECTRICAL_SEED_AGGRESSIVE_CASES = {
+    "pipe_outdoor_reference_2_layers",
+    "tank_cylindrical_outdoor",
+}
+
+
+def _electrical_seed_overrides(
+    object_type: str,
+    params: dict[str, object],
+) -> dict[str, object] | None:
+    """Return explicit ER1 inputs for the current TT contract.
+
+    T3 is deliberately independent from the Heat product temperature. Spherical
+    tank cable layout is not defined by the current algorithm and is therefore
+    excluded explicitly instead of being hidden behind a caught calculation error.
+    """
+
+    overrides: dict[str, object] = {
+        "maintain_temperature_c": _ELECTRICAL_SEED_MAINTAIN_TEMPERATURE_C,
+        "aggressive_product": params.get("seed_case") in _ELECTRICAL_SEED_AGGRESSIVE_CASES,
+    }
+    if object_type != "tank":
+        return overrides
+    if params.get("shape") not in {"cylindrical", "rectangular"}:
+        return None
+    heating_height = params.get("height")
+    if not isinstance(heating_height, int | float) or heating_height <= 0:
+        raise RuntimeError("Supported tank seed requires a positive height")
+    return {
+        **overrides,
+        "tank_heating_height_m": float(heating_height),
+        "tank_laying_step_m": _ELECTRICAL_SEED_TANK_LAYING_STEP_M,
+    }
 
 
 # Minimal Slice 5 matrix. Cases deliberately overlap business requirements
@@ -1617,112 +1657,137 @@ async def seed_objects_and_calculations(
     projects: list[Project],
     principal: CurrentPrincipal,
 ) -> None:
-    """Создаёт канонические heat-объекты и связанные демо-электрорасчёты."""
+    """Create Heat objects and current-contract UUID ER1 calculations."""
     await seed_heat_objects(db, projects, principal)
 
     for project in projects:
-        # Seed writes follow the same readiness-gated numeric compatibility
-        # adapter as the API.  This creates the project-scoped UUID variant and
-        # all object assignments before any downstream row is inserted.
-        electrical_variant = await ElectricalVariantService(db).prepare_legacy_variant_for_write(
-            project.id, principal, 1
-        )
-
-        # Электрорасчёт только для pipe-объектов этого проекта
-        pipe_objects_result = await db.execute(
+        object_result = await db.execute(
             select(ProjectObject).where(
                 ProjectObject.project_id == project.id,
-                ProjectObject.object_type == "pipe",
+                ProjectObject.object_type.in_(("pipe", "tank")),
                 ProjectObject.is_valid.is_(True),
             )
         )
-        pipe_objects = list(pipe_objects_result.scalars().all())
-
-        # Демо-объекты должны отражать готовый сценарий MVP из 1-го кейса:
-        # объект назначен на саморегулирующую систему, а его расчёт и секции
-        # построены по актуальному паспортному каталогу ТТ.
-        assignment_result = await db.execute(
-            select(ElectricalVariantObject).where(
-                ElectricalVariantObject.project_id == project.id,
-                ElectricalVariantObject.electrical_variant_id == electrical_variant.id,
-                ElectricalVariantObject.object_id.in_([obj.id for obj in pipe_objects]),
-            )
-        )
-        assignments_by_object_id = {
-            assignment.object_id: assignment for assignment in assignment_result.scalars().all()
-        }
-
-        electrical_calculation_service = CalculationService(db)
-        for pipe_obj in pipe_objects:
-            assignment = assignments_by_object_id.get(pipe_obj.id)
-            if assignment is None:
-                raise RuntimeError(f"Seed assignment is missing for pipe object {pipe_obj.id}")
-            assignment.system_type = "self_regulating"
-            assignment.assignment_state = "ready"
-            assignment.requested_cable_type = "self_regulating_tt"
-            assignment.object_version_snapshot = pipe_obj.version
-            assignment.max_section_start_current_a = (
-                FRONTEND_MOCK_PROFILE.max_section_start_current_a
-            )
-            assignment.diagnostics = {}
-
-            # Сид всегда отражает текущий shared TT pipeline и его immutable
-            # snapshots/provenance. Поэтому прежний результат демо-объекта
-            # заменяется независимо от типа.
-            existing_calc = await db.execute(
-                select(ElectricalCalculation).where(
-                    ElectricalCalculation.object_id == pipe_obj.id,
-                    ElectricalCalculation.variant_number == 1,
-                )
-            )
-            existing = existing_calc.scalar_one_or_none()
-            if existing is not None:
-                await db.delete(existing)
-                await db.flush()
-
-            process_temperature = pipe_obj.params.get("process_temperature", 80.0)
-
-            try:
-                max_section_start_current = float(assignment.max_section_start_current_a)
-                # Provide the complete canonical override set while leaving
-                # geometry and Heat values to their authoritative snapshots.
-                # The service owns 230 V, catalog resolution, sectioning and
-                # provenance exactly as it does for API-originated requests.
-                request = ElectricalRequest(
-                    object_id=pipe_obj.id,
-                    cable_type="self_regulating_tt",
-                    variant_number=1,
-                    electrical_variant_id=electrical_variant.id,
-                    data={
-                        "maintain_temperature_c": process_temperature,
-                        "steam_temperature_c": None,
-                        "aggressive_product": False,
-                        "winding_pitch_mm": None,
-                        "thread_count": None,
-                        "manual_cable_model": None,
-                        "max_section_start_current_a": max_section_start_current,
-                        "selection_policy": "technical_minimum",
-                        "nominal_voltage_v": 230,
-                    },
-                )
-                elec_calc = await electrical_calculation_service.calc_electrical(
-                    request,
-                    commit=False,
-                    electrical_variant_id=electrical_variant.id,
-                )
-                result = elec_calc.results or {}
+        project_objects = list(object_result.scalars().all())
+        plans: dict[uuid.UUID, dict[str, object]] = {}
+        objects_by_id = {obj.id: obj for obj in project_objects}
+        for obj in project_objects:
+            object_type = str(getattr(obj.object_type, "value", obj.object_type))
+            overrides = _electrical_seed_overrides(object_type, dict(obj.params or {}))
+            if overrides is None:
                 logger.info(
-                    "  + elec_calc '%s' → кабель %s, Lтреб %.1f м, Lфакт %.1f м",
-                    pipe_obj.params.get("outer_diameter", "?"),
-                    elec_calc.cable_mark,
-                    result.get("layout", {}).get("required_installed_length_m", 0),
-                    result.get("installed_cable_length", 0),
+                    "  = elec_calc skipped for unsupported tank shape '%s' (%s)",
+                    obj.params.get("shape"),
+                    obj.params.get("name", obj.id),
                 )
-            except Exception as exc:
-                logger.warning("  ! elec_calc error for object %s: %s", pipe_obj.id, exc)
                 continue
+            plans[obj.id] = overrides
 
-        await db.flush()
+        initialization = await ElectricalVariantService(db).initialize(project.id, principal)
+        variant_id = initialization.variant.id
+        if not plans:
+            continue
+
+        assignment_service = ElectricalAssignmentService(db)
+        initial = await assignment_service.list_assignments(
+            project.id,
+            variant_id,
+            principal,
+            page_size=200,
+        )
+        initial_by_id = {item.object_id: item for item in initial.items}
+        missing_assignments = [object_id for object_id in plans if object_id not in initial_by_id]
+        if missing_assignments:
+            raise RuntimeError(f"Seed assignments are missing for objects {missing_assignments}")
+
+        assigned = await assignment_service.assign(
+            project.id,
+            variant_id,
+            principal,
+            system_type="self_regulating",
+            items=[
+                ElectricalAssignmentMutationItem(
+                    object_id=object_id,
+                    expected_version=initial_by_id[object_id].version,
+                )
+                for object_id in plans
+            ],
+        )
+        assigned_by_id = {item.object_id: item for item in assigned.assignments}
+        result_assignment_versions: dict[uuid.UUID, int] = {}
+        electrical_calculation_service = CalculationService(db)
+
+        for object_id, overrides in plans.items():
+            obj = objects_by_id[object_id]
+            current = assigned_by_id[object_id]
+            current = await assignment_service.patch_electrical_overrides(
+                project.id,
+                variant_id,
+                object_id,
+                ElectricalAssignmentOverridesPatch(
+                    expected_version=current.version,
+                    **overrides,
+                ),
+                principal,
+            )
+            current = await assignment_service.patch_section_current_limit(
+                project.id,
+                variant_id,
+                object_id,
+                ElectricalAssignmentCurrentLimitPatch(
+                    expected_version=current.version,
+                    max_section_start_current_a=_ELECTRICAL_SEED_MAX_SECTION_START_CURRENT_A,
+                ),
+                principal,
+            )
+            request = ElectricalRequest(
+                object_id=object_id,
+                cable_type="self_regulating_tt",
+                electrical_variant_id=variant_id,
+                expected_assignment_version=current.version,
+                data={
+                    "_tt_explicit_overrides": {
+                        "selection_policy": "technical_minimum",
+                    }
+                },
+            )
+            elec_calc = await electrical_calculation_service.calc_electrical(
+                request,
+                electrical_variant_id=variant_id,
+            )
+            result = elec_calc.results or {}
+            provenance = result.get("provenance")
+            result_assignment_version = (
+                provenance.get("assignment_version") if isinstance(provenance, dict) else None
+            )
+            if not isinstance(result_assignment_version, int):
+                raise RuntimeError(
+                    f"Seed electrical result has no assignment revision: {object_id}"
+                )
+            result_assignment_versions[object_id] = result_assignment_version
+            logger.info(
+                "  + elec_calc [%s] '%s' → кабель %s, Lтреб %.1f м, Lфакт %.1f м",
+                obj.object_type,
+                obj.params.get("name", object_id),
+                elec_calc.cable_mark,
+                result.get("layout", {}).get("required_installed_length_m", 0),
+                result.get("installed_cable_length", 0),
+            )
+
+        refreshed = await assignment_service.list_assignments(
+            project.id,
+            variant_id,
+            principal,
+            page_size=200,
+        )
+        refreshed_by_id = {item.object_id: item for item in refreshed.items}
+        drifted = [
+            object_id
+            for object_id, result_version in result_assignment_versions.items()
+            if refreshed_by_id[object_id].version != result_version
+        ]
+        if drifted:
+            raise RuntimeError(f"Seed electrical assignment revisions drifted: {drifted}")
 
 
 # ---------------------------------------------------------------------------

@@ -32,7 +32,7 @@ import {
   type TrackedElectricalBatchJob,
 } from '@/pages/electrical/useElectricalBatchJobTracker';
 
-export type ElecCalcWorkspaceProps = {
+export type ElecCalcWorkspaceModelProps = {
   projectId: string;
   electricalVariant: ElectricalVariant;
   electricalVariants: ElectricalVariant[];
@@ -53,7 +53,7 @@ export function useElecCalcWorkspaceModel({
   completion,
   registerJob,
   onAssignmentsChanged,
-}: ElecCalcWorkspaceProps) {
+}: ElecCalcWorkspaceModelProps) {
   const {
     project,
     registeredUserId,

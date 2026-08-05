@@ -26,6 +26,9 @@ import type {
   ElectricalAssignmentSystemCounts,
   ElectricalVariant,
 } from '@/types/electricalVariant';
+import type {
+  ElectricalSpecificationReadinessSnapshot,
+} from '@/pages/electrical/electricalSpecificationReadinessModel';
 import {
   ASSIGNMENT_DND_MIME,
   type AssignableSystem,
@@ -116,6 +119,10 @@ export type UseElectricalAssignmentControllerOptions = {
   onSelectedObjectIdsChange?: (ids: string[]) => void;
   versionByObjectId: ReadonlyMap<string, number>;
   onAssignmentsChanged?: () => void;
+  onAssignmentReadinessChange?: (
+    electricalVariantId: string,
+    snapshot: ElectricalSpecificationReadinessSnapshot,
+  ) => void;
   onAssignedNeedCalc?: (systemType: AssignableSystem, objectIds: string[]) => void;
 };
 
@@ -128,6 +135,7 @@ export function useElectricalAssignmentController({
   onSelectedObjectIdsChange,
   versionByObjectId,
   onAssignmentsChanged,
+  onAssignmentReadinessChange,
   onAssignedNeedCalc,
 }: UseElectricalAssignmentControllerOptions) {
   const queryClient = useQueryClient();
@@ -157,6 +165,28 @@ export function useElectricalAssignmentController({
   useEffect(() => {
     if (countsQuery.data?.counts) setLastCounts(countsQuery.data.counts);
   }, [countsQuery.data?.counts]);
+
+  useEffect(() => {
+    if (!onAssignmentReadinessChange) return;
+    if (countsQuery.isError) {
+      onAssignmentReadinessChange(electricalVariant.id, { status: 'error' });
+      return;
+    }
+    if (countsQuery.isFetching || !countsQuery.data?.counts) {
+      onAssignmentReadinessChange(electricalVariant.id, { status: 'loading' });
+      return;
+    }
+    onAssignmentReadinessChange(electricalVariant.id, {
+      status: 'loaded',
+      counts: countsQuery.data.counts,
+    });
+  }, [
+    countsQuery.data?.counts,
+    countsQuery.isError,
+    countsQuery.isFetching,
+    electricalVariant.id,
+    onAssignmentReadinessChange,
+  ]);
 
   const resolveItems = (objectIds: string[]) => {
     const items: Array<{ object_id: string; expected_version: number }> = [];
