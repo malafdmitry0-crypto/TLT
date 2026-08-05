@@ -570,7 +570,10 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
 
     renderPage();
 
-    expect(await screen.findByText('Режим просмотра')).toBeInTheDocument();
+    expect((await screen.findByText('Режим просмотра')).tagName).toBe('SMALL');
+    expect(screen.queryByText(
+      'Изменять или пересчитывать спецификацию может только владелец проекта или администратор.',
+    )).not.toBeInTheDocument();
     expect(await screen.findByText('Чужая позиция')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Обновить' }))
       .toBeDisabled();
