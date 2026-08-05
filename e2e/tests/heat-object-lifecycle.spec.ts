@@ -50,6 +50,16 @@ function formActions(page: Page) {
 
 test.describe('§5.3–5.13 жизненный цикл объекта теплопотерь', () => {
   test('§5.3 ошибка заполнения: объект не создан, поля подсвечены, введённое сохранено', async ({ page }, testInfo) => {
+    const consoleErrors: string[] = [];
+    const failedApiResponses: string[] = [];
+    page.on('console', (message) => {
+      if (message.type() === 'error') consoleErrors.push(message.text());
+    });
+    page.on('response', (response) => {
+      if (response.url().includes('/api/') && response.status() >= 400) {
+        failedApiResponses.push(`${response.status()} ${response.url()}`);
+      }
+    });
     await loginAsGuest(page);
     await openPipeForm(page);
 
@@ -78,8 +88,21 @@ test.describe('§5.3–5.13 жизненный цикл объекта тепл�
     await expect(page.locator('.ant-message-error')).toHaveCount(0);
     await page.waitForTimeout(300);
     expect(objectWriteRequests).toBe(0);
+    expect(failedApiResponses).toEqual([]);
+    expect(consoleErrors).toEqual([]);
     // §5.3: объект не создан
     expect(await fetchProjectObjects(page)).toHaveLength(0);
+    const geometry = await page.evaluate(() => ({
+      clientWidth: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+    }));
+    const saveBox = await formActions(page).getByRole('button', { name: 'Сохранить' }).boundingBox();
+    const firstInvalidBox = await page.getByTestId('outer-diameter-input').boundingBox();
+    expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth);
+    expect(saveBox?.width).toBeGreaterThan(0);
+    expect(saveBox?.height).toBeGreaterThan(0);
+    expect(firstInvalidBox?.width).toBeGreaterThan(0);
+    expect(firstInvalidBox?.height).toBeGreaterThan(0);
     await page.screenshot({
       path: testInfo.outputPath(`heat-invalid-${page.viewportSize()?.width ?? 'default'}.png`),
       fullPage: true,
