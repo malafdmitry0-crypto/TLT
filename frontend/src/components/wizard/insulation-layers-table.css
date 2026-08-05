@@ -28,7 +28,7 @@
   /* Единый размер шрифта во всех ячейках таблицы = компактный размер формы
      (пикер материала на форме = 9px). Так текст таблицы совпадает с формой,
      а не крупнее её. */
-  --ins-font: 12px; /* кадр: текст таблицы 12px */
+  --ins-font: 9px;
   --field-input-min-width: 0px;
   --inline-control-height: var(--ins-control-h);
   --tlt-field-control-height: var(--ins-control-h);
