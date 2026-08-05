@@ -574,43 +574,11 @@ def test_tank_laying_step_changes_key():
     assert step_020 != step_025
 
 
-def test_tt_maintain_temperature_falls_back_to_process_temperature():
-    base_results = {
-        "cable_mark": "10ТТН2-СР",
-        "num_circuits": 1,
-        "winding_pitch": 0,
-        "winding_coefficient": 1.1,
-        "voltage": 220,
-    }
-    explicit = build_dedupe_key(
-        object_type="pipe",
-        cable_type="self_regulating_tt",
-        cable_source="builtin",
-        cable_mark="10ТТН2-СР",
-        results=base_results,
-        params={"maintain_temperature": 5, "process_temperature": 20},
-        cable_snapshot={"actual_catalog_source": "builtin"},
-        status="applicable",
-    )
-    fallback = build_dedupe_key(
-        object_type="pipe",
-        cable_type="self_regulating_tt",
-        cable_source="builtin",
-        cable_mark="10ТТН2-СР",
-        results=base_results,
-        params={"process_temperature": 5},
-        cable_snapshot={"actual_catalog_source": "builtin"},
-        status="applicable",
-    )
-    assert explicit == fallback
-
-
-def test_tt_requested_temperature_controls_change_key_when_auto_result_is_same():
+def test_tt_retired_t2_t3_and_aggressive_controls_do_not_change_variant_identity():
     results = {
         "cable_mark": "10ТТН2-СР",
         "num_circuits": 1,
         "winding_pitch": 0,
-        "winding_coefficient": 1.1,
         "voltage": 220,
     }
     base = build_dedupe_key(
@@ -619,15 +587,11 @@ def test_tt_requested_temperature_controls_change_key_when_auto_result_is_same()
         cable_source="builtin",
         cable_mark="10ТТН2-СР",
         results=results,
-        params={
-            "maintain_temperature": 5,
-            "vapor_temperature": 80,
-            "aggressive_product": False,
-        },
+        params={},
         cable_snapshot={"actual_catalog_source": "builtin"},
         status="applicable",
     )
-    changed_maintain = build_dedupe_key(
+    legacy_controls = build_dedupe_key(
         object_type="pipe",
         cable_type="self_regulating_tt",
         cable_source="builtin",
@@ -635,46 +599,16 @@ def test_tt_requested_temperature_controls_change_key_when_auto_result_is_same()
         results=results,
         params={
             "maintain_temperature": 10,
-            "vapor_temperature": 80,
-            "aggressive_product": False,
-        },
-        cable_snapshot={"actual_catalog_source": "builtin"},
-        status="applicable",
-    )
-    changed_vapor = build_dedupe_key(
-        object_type="pipe",
-        cable_type="self_regulating_tt",
-        cable_source="builtin",
-        cable_mark="10ТТН2-СР",
-        results=results,
-        params={
-            "maintain_temperature": 5,
             "vapor_temperature": 90,
-            "aggressive_product": False,
-        },
-        cable_snapshot={"actual_catalog_source": "builtin"},
-        status="applicable",
-    )
-    changed_aggressive = build_dedupe_key(
-        object_type="pipe",
-        cable_type="self_regulating_tt",
-        cable_source="builtin",
-        cable_mark="10ТТН2-СР",
-        results=results,
-        params={
-            "maintain_temperature": 5,
-            "vapor_temperature": 80,
             "aggressive_product": True,
         },
         cable_snapshot={"actual_catalog_source": "builtin"},
         status="applicable",
     )
-    assert base != changed_maintain
-    assert base != changed_vapor
-    assert base != changed_aggressive
+    assert base == legacy_controls
 
 
-def test_tt_voltage_does_not_participate_in_variant_identity():
+def test_tt_normalized_voltage_participates_in_variant_identity():
     results = {"cable_mark": "10ТТН2-СР", "num_circuits": 1, "voltage": 230}
     voltage_220 = build_dedupe_key(
         object_type="pipe",
@@ -682,7 +616,7 @@ def test_tt_voltage_does_not_participate_in_variant_identity():
         cable_source="builtin",
         cable_mark="10ТТН2-СР",
         results=results,
-        params={"maintain_temperature": 5, "supply_voltage": 220},
+        params={"supply_voltage": 220},
         cable_snapshot={"actual_catalog_source": "builtin"},
         status="applicable",
     )
@@ -692,16 +626,16 @@ def test_tt_voltage_does_not_participate_in_variant_identity():
         cable_source="builtin",
         cable_mark="10ТТН2-СР",
         results=results,
-        params={"maintain_temperature": 5, "supply_voltage": 380},
+        params={"supply_voltage": 380},
         cable_snapshot={"actual_catalog_source": "builtin"},
         status="applicable",
     )
 
-    assert voltage_220 == voltage_380
-    assert voltage_220.startswith("v2:")
+    assert voltage_220 != voltage_380
+    assert voltage_220.startswith("v3:")
 
 
-def test_tt_voltage_and_legacy_coefficient_do_not_participate_in_diagnostic_identity():
+def test_tt_diagnostic_identity_uses_voltage_but_not_retired_controls():
     common = {
         "object_type": "pipe",
         "cable_type": "self_regulating_tt",
@@ -714,14 +648,31 @@ def test_tt_voltage_and_legacy_coefficient_do_not_participate_in_diagnostic_iden
     }
     first = build_dedupe_key(
         **common,
-        params={"supply_voltage": 220, "winding_coefficient": 1.1},
+        params={
+            "supply_voltage": 220,
+            "winding_coefficient": 1.1,
+            "maintain_temperature": 5,
+            "vapor_temperature": 80,
+            "aggressive_product": False,
+        },
     )
-    second = build_dedupe_key(
+    changed_voltage = build_dedupe_key(
         **common,
-        params={"supply_voltage": 380, "winding_coefficient": 1.4},
+        params={"supply_voltage": 380, "winding_coefficient": 1.1},
+    )
+    changed_retired = build_dedupe_key(
+        **common,
+        params={
+            "supply_voltage": 220,
+            "winding_coefficient": 9,
+            "maintain_temperature": 50,
+            "vapor_temperature": 200,
+            "aggressive_product": True,
+        },
     )
 
-    assert first == second
+    assert first != changed_voltage
+    assert first == changed_retired
 
 
 def test_tt_tank_legacy_winding_coefficient_does_not_change_key():

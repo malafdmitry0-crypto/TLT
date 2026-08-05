@@ -130,7 +130,6 @@ STOCK_STATUS_OPTIONS = (
     ("on_order", "Под заказ"),
     ("unknown", "Неизвестно"),
 )
-BOOL_OPTIONS = ((True, "Да"), (False, "Нет"))
 CONNECTION_TYPE_OPTIONS = (
     ("line_1ph", "Линия"),
     ("loop_1ph", "Петля"),
@@ -688,40 +687,6 @@ FIELDS: tuple[FieldDef, ...] = (
         sort_type="number",
     ),
     FieldDef(
-        "vapor_temperature",
-        "Температура пропарки, °C",
-        "T проп., °C",
-        "number",
-        lambda row: _calc_param(row, "vapor_temperature"),
-        unit="°C",
-        filter_ops=("range",),
-        sortable=True,
-        sort_type="number",
-    ),
-    FieldDef(
-        "maintain_temperature",
-        "Температура поддержания T3, °C",
-        "T3, °C",
-        "number",
-        lambda row: _calc_param(row, "maintain_temperature"),
-        unit="°C",
-        filter_ops=("range",),
-        sortable=True,
-        sort_type="number",
-    ),
-    FieldDef(
-        "aggressive_product",
-        "Агрессивный продукт",
-        "Агр.",
-        "boolean",
-        lambda row: _calc_param(row, "aggressive_product"),
-        filter_ops=("equals",),
-        sortable=True,
-        sort_type="label",
-        options_mode="inline",
-        static_options=BOOL_OPTIONS,
-    ),
-    FieldDef(
         "required_installed_length_m",
         "Требуемая общая длина кабеля до секционирования, м",
         "Lтреб, м",
@@ -997,9 +962,6 @@ ELECTRICAL_SQL_EXPRESSIONS: dict[str, SqlExprFactory] = {
     "connection_type": lambda: _sql_calc_param_text("connection_type"),
     "supply_voltage": lambda: _sql_calc_param_number("supply_voltage"),
     "winding_coefficient": lambda: _sql_calc_param_number("winding_coefficient"),
-    "vapor_temperature": lambda: _sql_calc_param_number("vapor_temperature"),
-    "maintain_temperature": lambda: _sql_calc_param_number("maintain_temperature"),
-    "aggressive_product": lambda: _sql_calc_param_text("aggressive_product"),
     "required_installed_length_m": lambda: _sql_calc_result_number_fallback(
         ("layout", "required_installed_length_m"),
         ("required_installed_length_m",),
@@ -1054,9 +1016,6 @@ ELECTRICAL_CALC_PARAM_KEYS = frozenset(
         "connection_type",
         "supply_voltage",
         "winding_coefficient",
-        "vapor_temperature",
-        "maintain_temperature",
-        "aggressive_product",
         "cable_mark_source",
     }
 )
@@ -1573,6 +1532,7 @@ class ElectricalQueryService:
                 system_type=assignment.system_type,
                 assignment_state=assignment.assignment_state,
                 version=assignment.version,
+                electrical_overrides=assignment.electrical_overrides or {},
             )
             for assignment in result.scalars().all()
         }

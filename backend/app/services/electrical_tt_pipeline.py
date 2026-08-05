@@ -11,11 +11,10 @@ from typing import Any
 from app.electrical_domain import ElectricalFormulaError
 from app.formulas.electrical.decimal_math import SIX_PLACES, decimal_value, round_result
 from app.formulas.electrical.sections import compute_section_plan, section_catalog_meta
-from app.formulas.electrical.self_regulating import calc_self_regulating_tt, compute_winding_factor
+from app.formulas.electrical.self_regulating import calc_self_regulating_tt
 from app.formulas.electrical.tt_contract import (
     ELECTRICAL_TT_FORMULA_FINGERPRINT,
     ELECTRICAL_TT_FORMULA_VERSION,
-    SYSTEM_VOLTAGE_V,
 )
 from app.formulas.electrical.tt_final_gate import assert_electrical_tt_ready
 from app.reference_data.loader import (
@@ -63,14 +62,16 @@ def _power_catalog_snapshot(
     if catalog_rows is None:
         default.update(
             {
-                "version": "tt-power-v1-provisional",
-                "schema_version": 1,
+                "version": "tt-power-case1-v2-provisional",
+                "schema_version": 2,
                 "status": "provisional",
                 "source": "backend/app/reference_data/cables_tt.json",
                 "source_checksum": tt_cables_source_checksum(),
                 "imported_at": "2026-08-02T00:00:00Z",
                 "activated_at": None,
-                "diagnostics": ["Power coefficients require engineering source approval"],
+                "diagnostics": [
+                    "Passport power and product-temperature limits require approved DB authority"
+                ],
             }
         )
     default["row"] = dict(cable_row)
@@ -218,30 +219,16 @@ def calculate_electrical_tt(
         power_rows, power_metadata = _catalog_payload_rows(calculation_catalogs, "power")
         section_rows, section_metadata = _catalog_payload_rows(calculation_catalogs, "section")
         bom_rows, bom_metadata = _catalog_payload_rows(calculation_catalogs, "bom")
-    if values.winding_pitch_mm in (None, 0):
-        winding_factor = Decimal(1)
-    else:
-        if values.outer_diameter_mm is None:
-            raise ElectricalFormulaError(
-                "ELECTRICAL_WINDING_PITCH_INVALID",
-                "Для навива требуется наружный диаметр трубопровода",
-            )
-        winding_factor = compute_winding_factor(
-            outer_diameter_mm=float(values.outer_diameter_mm),
-            winding_pitch_mm=float(values.winding_pitch_mm),
-        )
-
     params = SelfRegulatingTTParams(
         required_power_per_meter=float(values.heat_loss_per_meter_w),
         pipe_length=float(values.base_length_m),
         process_temperature=float(values.product_temperature_c),
-        maintain_temperature=float(values.maintain_temperature_c),
+        ambient_temperature=float(values.ambient_temperature_c),
+        supply_voltage=float(values.nominal_voltage_v),
         max_start_current_per_section=float(values.max_section_start_current_a),
-        vapor_temperature=(
-            float(values.steam_temperature_c) if values.steam_temperature_c is not None else None
+        outer_diameter_mm=(
+            float(values.outer_diameter_mm) if values.outer_diameter_mm is not None else None
         ),
-        aggressive_product=values.aggressive_product,
-        winding_coefficient=float(winding_factor),
         winding_pitch=(
             float(values.winding_pitch_mm) if values.winding_pitch_mm is not None else None
         ),
@@ -249,7 +236,13 @@ def calculate_electrical_tt(
         cable_mark=values.manual_cable_model,
         safety_factor=float(values.safety_factor),
     ).model_copy(update={"selection_policy": values.selection_policy})
-    preliminary = calc_self_regulating_tt(params, catalog_rows=power_rows)
+    preliminary = calc_self_regulating_tt(
+        params,
+        catalog_rows=power_rows,
+        section_catalog_rows=section_rows,
+        bom_catalog_rows=bom_rows,
+    )
+    winding_factor = decimal_value(preliminary.winding_coefficient)
 
     selected_model = preliminary.cable_model or preliminary.selected_cable
     cable_row = (
@@ -261,15 +254,13 @@ def calculate_electrical_tt(
         raise ElectricalFormulaError(
             "ELECTRICAL_CABLE_NOT_FOUND", "Выбранная модель отсутствует в power-каталоге"
         )
-    power_exact = decimal_value(cable_row["q1"]) * values.maintain_temperature_c + decimal_value(
-        cable_row["q2"]
-    )
+    power_exact = decimal_value(cable_row["nominal_power"])
     required_length = values.base_length_m * winding_factor * Decimal(preliminary.num_circuits)
     plan = compute_section_plan(
         mark=preliminary.cable_mark,
         installed_cable_length_m=float(required_length),
         power_per_meter_w=float(power_exact),
-        voltage_v=SYSTEM_VOLTAGE_V,
+        voltage_v=float(values.nominal_voltage_v),
         cold_start_temp_c=float(values.cold_start_temperature_c),
         max_start_current_per_section_a=float(values.max_section_start_current_a),
         catalog_rows=section_rows,
@@ -329,7 +320,7 @@ def calculate_electrical_tt(
             "power_w": plan.power_per_section_w,
             "start_current_a": plan.start_current_per_section_a,
             "working_current_a": plan.working_current_per_section_a,
-            "voltage_v": SYSTEM_VOLTAGE_V,
+            "voltage_v": float(values.nominal_voltage_v),
         }
         for index in range(plan.section_count)
     ]
@@ -337,12 +328,12 @@ def calculate_electrical_tt(
     required_power = values.heat_loss_per_meter_w * values.safety_factor
     installed_power = power_exact * winding_factor * Decimal(applied_threads)
 
-    # §9.15 / E4: do not emit ready until final physical checks pass.
+    # Case 1 §6.14: do not emit ready until final physical checks pass.
     assert_electrical_tt_ready(
         cable_mark=preliminary.cable_mark,
         series=preliminary.series,
         threads=int(applied_threads),
-        voltage_v=SYSTEM_VOLTAGE_V,
+        voltage_v=values.nominal_voltage_v,
         required_power_per_meter_w=required_power,
         installed_power_per_meter_w=installed_power,
         plan=plan,
@@ -360,16 +351,20 @@ def calculate_electrical_tt(
             "mark": preliminary.cable_mark,
             "suffix": suffix,
             "nomenclature_code": bom_entry["nomenclature_code"],
-            "q1": cable_row["q1"],
-            "q2": cable_row["q2"],
-            "power_at_maintain_temperature_w_per_m": float(round_result(power_exact)),
+            "passport_power_w_per_m": float(round_result(power_exact)),
             "selection_source": "manual" if values.manual_cable_model else "auto",
             "selection_policy": values.selection_policy,
         },
         "layout": {
             "requested_threads": values.thread_count,
             "threads": applied_threads,
-            "thread_selection_source": "manual" if values.thread_count else "auto",
+            "thread_selection_source": (
+                "manual"
+                if values.thread_count is not None
+                else "manual_default"
+                if values.manual_cable_model
+                else "auto"
+            ),
             "winding_pitch_mm": (
                 float(values.winding_pitch_mm) if values.winding_pitch_mm is not None else None
             ),
@@ -393,7 +388,7 @@ def calculate_electrical_tt(
             "items": sections,
         },
         "electrical": {
-            "nominal_voltage_v": SYSTEM_VOLTAGE_V,
+            "nominal_voltage_v": float(values.nominal_voltage_v),
             "required_power_per_meter_w": float(round_result(required_power)),
             "installed_power_per_meter_w": float(round_result(installed_power)),
             "total_power_w": plan.total_power_w,
@@ -413,7 +408,7 @@ def calculate_electrical_tt(
             "legacy_aliases": list(resolved.legacy_aliases),
             "warnings": warnings,
             "production_eligible": production_eligible,
-            "system_voltage_v": SYSTEM_VOLTAGE_V,
+            "system_voltage_v": float(values.nominal_voltage_v),
             "formula_version": ELECTRICAL_TT_FORMULA_VERSION,
             "formula_fingerprint": ELECTRICAL_TT_FORMULA_FINGERPRINT,
             "calculation_fingerprint": calculation_fingerprint,
@@ -435,7 +430,7 @@ def calculate_electrical_tt(
         "order_cable_length": plan.order_cable_length_m,
         "total_power": plan.total_power_w,
         "current": plan.working_current_a,
-        "voltage": SYSTEM_VOLTAGE_V,
+        "voltage": float(values.nominal_voltage_v),
         "winding_pitch": (
             float(values.winding_pitch_mm) if values.winding_pitch_mm is not None else 0.0
         ),

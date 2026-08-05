@@ -140,7 +140,6 @@ def _mark_lookup_keys(mark: str) -> list[str]:
 def lookup_section_row(
     *,
     mark: str,
-    voltage_v: float,
     cold_start_temp_c: float,
     catalog_rows: Sequence[Mapping[str, Any]] | None = None,
 ) -> SectionCatalogRow | None:
@@ -155,8 +154,8 @@ def lookup_section_row(
         rows = [r for r in all_rows if r.mark == mark_key]
         if not rows:
             continue
-        # Imported rows may carry legacy 220 V; lookup is temperature/model based and
-        # the new calculation is normalized to 230 V at the formula boundary.
+        # Case 1 §6.14 lookup is model + temperature based. Working voltage is
+        # downstream input for current calculation, not a catalog eligibility key.
         colder = [r for r in rows if r.cold_start_temp_c <= cold_start_temp_c]
         if not colder:
             return None
@@ -170,18 +169,18 @@ def compute_section_plan(
     installed_cable_length_m: float,
     power_per_meter_w: float,
     working_current_total_a: float | None = None,
-    voltage_v: float = 230.0,
-    cold_start_temp_c: float = -20.0,
+    voltage_v: float,
+    cold_start_temp_c: float,
     max_start_current_per_section_a: float | None = None,
     catalog_rows: Sequence[Mapping[str, Any]] | None = None,
     catalog_metadata: Mapping[str, Any] | None = None,
 ) -> SectionPlan:
     """Compute equal fail-closed sections and totals from physical installed length."""
     del working_current_total_a  # preserved in the public signature; totals are authoritative here
-    if voltage_v != 230:
+    if voltage_v <= 0:
         raise ElectricalFormulaError(
-            "ELECTRICAL_NOMINAL_VOLTAGE_UNSUPPORTED",
-            "Новый электрический расчёт поддерживает только напряжение 230 В",
+            "ELECTRICAL_NOMINAL_VOLTAGE_INVALID",
+            "Рабочее напряжение должно быть положительным",
         )
     if installed_cable_length_m <= 0 or power_per_meter_w <= 0:
         raise ElectricalFormulaError(
@@ -189,7 +188,6 @@ def compute_section_plan(
         )
     row = lookup_section_row(
         mark=mark,
-        voltage_v=voltage_v,
         cold_start_temp_c=cold_start_temp_c,
         catalog_rows=catalog_rows,
     )
@@ -236,7 +234,8 @@ def compute_section_plan(
         )
     start_total = start_per_section * n
     power_per_section = decimal_value(power_per_meter_w) * l_sec
-    working_per_section = power_per_section / Decimal(230)
+    applied_voltage = decimal_value(voltage_v)
+    working_per_section = power_per_section / applied_voltage
     working_total = working_per_section * n
     meta = dict(catalog_metadata) if catalog_metadata is not None else section_catalog_meta()
 
@@ -260,7 +259,7 @@ def compute_section_plan(
         order_cable_length_m=float(order_length),
         catalog_source=str(meta.get("source") or ""),
         catalog_version=str(meta.get("version") or ""),
-        voltage_v=230.0,
+        voltage_v=float(applied_voltage),
         cold_start_temp_c=row.cold_start_temp_c,
     )
 
@@ -295,6 +294,7 @@ def section_plan_to_result_fields(plan: SectionPlan) -> dict[str, Any]:
                 "power_w": plan.power_per_section_w,
                 "start_current_a": plan.start_current_per_section_a,
                 "working_current_a": plan.working_current_per_section_a,
+                "voltage_v": plan.voltage_v,
             }
             for i in range(plan.section_count)
         ],

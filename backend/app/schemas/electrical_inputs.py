@@ -11,14 +11,13 @@ class ElectricalInputOverrides(BaseModel):
 
     Every field intentionally defaults to ``None``. Callers must use
     ``model_fields_set`` to distinguish an omitted field from an explicit null.
-    Legacy names are normalized before this model is constructed.
+    Public request names are normalized before this model is constructed.
     """
 
     product_temperature_c: Decimal | None = None
-    steam_temperature_c: Decimal | None = None
-    maintain_temperature_c: Decimal | None = None
+    ambient_temperature_c: Decimal | None = None
     cold_start_temperature_c: Decimal | None = None
-    aggressive_product: bool | None = None
+    nominal_voltage_v: Decimal | None = None
     winding_pitch_mm: Decimal | None = None
     thread_count: int | None = None
     manual_cable_model: str | None = None
@@ -32,10 +31,9 @@ class ElectricalInputOverrides(BaseModel):
 
 class CanonicalElectricalInputs(BaseModel):
     product_temperature_c: Decimal
-    steam_temperature_c: Decimal | None
-    maintain_temperature_c: Decimal
+    ambient_temperature_c: Decimal
     cold_start_temperature_c: Decimal
-    aggressive_product: bool
+    nominal_voltage_v: Decimal
     winding_pitch_mm: Decimal | None
     thread_count: int | None
     manual_cable_model: str | None

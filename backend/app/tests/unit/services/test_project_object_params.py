@@ -18,9 +18,7 @@ def _outdoor_pipe(**overrides):
         "wall_thickness": 0.004,
         "pipe_material": "carbon_steel",
         "pipe_length": 10,
-        "insulation_layers": [
-            {"thickness": 0.05, "material": "mineral_wool_boards_120"}
-        ],
+        "insulation_layers": [{"thickness": 0.05, "material": "mineral_wool_boards_120"}],
         "insulation_temperature_basis": "outdoor_winter",
         "ambient_temperature": -20,
         "process_temperature": 80,
@@ -46,14 +44,15 @@ def _underground_pipe(**overrides):
     return params
 
 
-def test_pipe_normalization_preserves_canonical_heat_fields_and_adds_non_heat_defaults():
+def test_pipe_normalization_does_not_invent_retired_or_required_electrical_inputs():
     params = normalize_project_object_params("pipe", _outdoor_pipe())
     assert params["wall_thickness"] == pytest.approx(0.004)
     assert params["pipe_material"] == "carbon_steel"
     assert params["placement"] == "outdoor"
     assert params["wind_speed"] == 0
     assert params["num_local_elements"] == 0
-    assert params["aggressive_product"] is False
+    assert "aggressive_product" not in params
+    assert "min_switch_temperature" not in params
     assert "supply_voltage" not in params
     assert params["insulation_layers"] == [
         {"thickness": 0.05, "material": "mineral_wool_boards_120"}
@@ -100,9 +99,7 @@ def test_non_indoor_object_rejects_indoor_insulation_temperature_basis():
 
 def test_outdoor_object_rejects_attic_insulation_temperature_basis():
     with pytest.raises(ProjectObjectParamsError, match="Режим tm"):
-        prepare_project_object_params(
-            "pipe", _outdoor_pipe(insulation_temperature_basis="attic")
-        )
+        prepare_project_object_params("pipe", _outdoor_pipe(insulation_temperature_basis="attic"))
 
 
 def test_underground_object_accepts_channel_insulation_temperature_basis():
@@ -170,9 +167,7 @@ def test_tank_shape_geometry_is_required_after_defaults():
         prepare_project_object_params(
             "tank",
             {
-                "insulation_layers": [
-                    {"thickness": 0.05, "material": "mineral_wool_boards_120"}
-                ],
+                "insulation_layers": [{"thickness": 0.05, "material": "mineral_wool_boards_120"}],
                 "insulation_temperature_basis": "outdoor_winter",
                 "ambient_temperature": -20,
                 "process_temperature": 80,

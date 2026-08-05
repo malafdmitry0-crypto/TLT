@@ -354,7 +354,7 @@ async def test_legacy_tt_snapshot_is_readable_but_excluded_from_ready_summary(
     body = page.json()
     visible = body["calculations"][0]["results"]
     assert visible["stale"] is True
-    assert visible["stale_reason"] == "legacy_or_missing_nominal_voltage"
+    assert visible["stale_reason"] == "formula_fingerprint_missing"
     assert body["summary"]["calculated_count"] == 0
     assert body["summary"]["total_cable_length"] == 0
     assert body["summary"]["total_power"] == 0

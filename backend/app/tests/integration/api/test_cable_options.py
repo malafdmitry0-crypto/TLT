@@ -42,6 +42,7 @@ async def _add_ready_pipe(
                 "insulation_layers": [{"thickness": 0.05, "material": MINERAL_WOOL}],
                 "insulation_temperature_basis": "outdoor_winter",
                 "ambient_temperature": -30.0,
+                "min_switch_temperature": -30.0,
                 "process_temperature": process_temperature,
                 "pipe_length": 50.0,
                 "placement": "outdoor",
@@ -74,10 +75,10 @@ async def test_cable_options_non_empty_tt_for_ready_pipe(
     assert all("model" in opt and "eligible" in opt for opt in options)
     eligible = [opt for opt in options if opt["eligible"]]
     assert eligible, "expected at least one eligible TT model"
-    assert all(opt["series"] == "ТТВ" for opt in eligible)
-    assert all(opt["required_series"] == "ТТВ" for opt in options)
-    assert all(isinstance(opt.get("power_at_t3_w_per_m"), int | float) for opt in eligible)
-    assert all(opt.get("full_mark_preview") for opt in eligible)
+    assert all(opt["series"] in {"ТТВ", "ТТХ"} for opt in eligible)
+    assert all(isinstance(opt.get("passport_power_w_per_m"), int | float) for opt in eligible)
+    assert all(opt.get("full_mark_preview") == opt.get("model") for opt in eligible)
+    assert all(opt.get("nomenclature_code") for opt in eligible)
 
 
 async def test_cable_options_accepts_electrical_variant_id_query(

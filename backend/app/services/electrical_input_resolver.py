@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from collections.abc import Mapping
 from decimal import Decimal
 from typing import Any, Literal
@@ -20,7 +19,6 @@ from app.schemas.electrical_inputs import (
 ElectricalMockMode = Literal["off", "test", "dev"]
 
 ELECTRICAL_FRONTEND_INPUTS_MOCKED = "ELECTRICAL_FRONTEND_INPUTS_MOCKED"
-ELECTRICAL_LEGACY_INPUT_ALIASES_USED = "ELECTRICAL_LEGACY_INPUT_ALIASES_USED"
 
 
 class ElectricalInputResolutionError(ValueError):
@@ -52,10 +50,9 @@ class ElectricalInputResolutionError(ValueError):
 class ElectricalFrontendMockProfile(BaseModel):
     """The single temporary dev/test profile from the electrical contract."""
 
-    steam_temperature_c: Decimal | None = None
-    maintain_temperature_c: Decimal = Decimal("10.0")
+    ambient_temperature_c: Decimal = Decimal("-20.0")
     cold_start_temperature_c: Decimal = Decimal("-20.0")
-    aggressive_product: bool = False
+    nominal_voltage_v: Decimal = Decimal("230")
     winding_pitch_mm: Decimal | None = None
     thread_count: int | None = None
     manual_cable_model: str | None = None
@@ -66,22 +63,31 @@ class ElectricalFrontendMockProfile(BaseModel):
 
 FRONTEND_MOCK_PROFILE = ElectricalFrontendMockProfile()
 
-_LEGACY_ALIASES = {
+_PUBLIC_ALIASES = {
     "process_temperature": "product_temperature_c",
-    "vapor_temperature": "steam_temperature_c",
-    "maintain_temperature": "maintain_temperature_c",
-    "ambient_temperature": "cold_start_temperature_c",
+    "ambient_temperature": "ambient_temperature_c",
     "min_switch_temperature": "cold_start_temperature_c",
+    "supply_voltage": "nominal_voltage_v",
+    "supply_voltage_v": "nominal_voltage_v",
     "winding_pitch": "winding_pitch_mm",
     "number_of_threads": "thread_count",
     "cable_mark": "manual_cable_model",
     "max_start_current_per_section": "max_section_start_current_a",
 }
-_ALLOWED_CABLE_SUFFIX = re.compile(r"\s*-\s*(?:СТ|СР|НР)\s*$", re.IGNORECASE)
-
+RETIRED_TT_INPUT_FIELDS = frozenset(
+    {
+        "maintain_temperature",
+        "maintain_temperature_c",
+        "vapor_temperature",
+        "steam_temperature_c",
+        "steam_tracing",
+        "aggressive_product",
+        "winding_coefficient",
+        "connection_type",
+    }
+)
 _FIELDS = tuple(CanonicalElectricalInputs.model_fields)
 _NULL_IS_VALUE = {
-    "steam_temperature_c",
     "winding_pitch_mm",
     "thread_count",
     "manual_cable_model",
@@ -91,28 +97,33 @@ _POSITIVE_FIELDS = {
     "heat_loss_per_meter_w",
     "safety_factor",
     "max_section_start_current_a",
+    "nominal_voltage_v",
 }
 
 
 def normalize_electrical_override_payload(
     payload: Mapping[str, Any],
 ) -> NormalizedElectricalOverrides:
-    """Translate legacy request names once, at the API boundary.
+    """Translate the public API vocabulary once at the canonical boundary.
 
-    Canonical names win when a payload contains both spellings. Only aliases
-    that actually supplied a canonical value are included in provenance.
+    Canonical names win when a payload contains both spellings. These names are
+    the supported public request contract and therefore do not emit a legacy
+    compatibility warning.
     """
 
+    retired_fields = sorted(RETIRED_TT_INPUT_FIELDS.intersection(payload))
+    if retired_fields:
+        raise ElectricalInputResolutionError(
+            "ELECTRICAL_INPUT_RETIRED",
+            "Request contains inputs retired from the Case 1 TT contract",
+            details={"fields": retired_fields},
+        )
+
     normalized = {key: value for key, value in payload.items() if key in _FIELDS}
-    used_aliases: list[str] = []
-    for alias, canonical in _LEGACY_ALIASES.items():
+    for alias, canonical in _PUBLIC_ALIASES.items():
         if alias not in payload or canonical in normalized:
             continue
-        value = payload[alias]
-        if alias == "cable_mark" and isinstance(value, str):
-            value = _ALLOWED_CABLE_SUFFIX.sub("", value).strip()
-        normalized[canonical] = value
-        used_aliases.append(f"{alias}->{canonical}")
+        normalized[canonical] = payload[alias]
 
     try:
         overrides = ElectricalInputOverrides.model_validate(normalized)
@@ -122,11 +133,10 @@ def normalize_electrical_override_payload(
             "Electrical input payload is invalid",
             details={"errors": exc.errors(include_url=False)},
         ) from exc
-    warnings = [ELECTRICAL_LEGACY_INPUT_ALIASES_USED] if used_aliases else []
     return NormalizedElectricalOverrides(
         overrides=overrides,
-        legacy_aliases=used_aliases,
-        warnings=warnings,
+        legacy_aliases=[],
+        warnings=[],
     )
 
 
@@ -191,10 +201,7 @@ class ElectricalInputResolver:
             if (
                 assignment_allowed
                 and field in assignment_fields
-                and (
-                    assignment_values.get(field) is not None
-                    or field in _NULL_IS_VALUE
-                )
+                and (assignment_values.get(field) is not None or field in _NULL_IS_VALUE)
             ):
                 values[field] = assignment_values.get(field)
                 sources[field] = "assignment_override"
@@ -218,13 +225,10 @@ class ElectricalInputResolver:
                 sources[field] = f"frontend_mock_{self.mock_mode}"
                 mocked_fields.append(field)
                 continue
-            # Для полей из `_NULL_IS_VALUE` пустота — это значение («пропарки
-            # нет», «навив не задан»), а не пробел во вводе. Раньше поле
-            # считалось заданным только когда ключ физически присутствовал в
-            # params: объект из формы теплопотерь без «Температуры пропарки»
-            # ключа не имел, и ЭР падал с ELECTRICAL_INPUT_REQUIRED, хотя
-            # пользователь ничего не пропускал. Ветка стоит после мока: в
-            # mock-режимах профиль по-прежнему заполняет эти поля сам.
+            # Optional layout/manual inputs have a meaningful empty state:
+            # straight laying, automatic thread selection, or automatic mark.
+            # The branch stays after the mock profile so test/dev defaults can
+            # still supply an explicit value when configured.
             if field in _NULL_IS_VALUE:
                 values[field] = None
                 sources[field] = "not_set"

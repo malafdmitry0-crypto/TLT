@@ -1,4 +1,4 @@
-"""§9.15 final acceptance gate for TT electrical results.
+"""Case 1 Revision 4 §6.14 final acceptance gate for TT electrical results.
 
 A result may be stored as ``status=ready`` only after these checks pass.
 Fails closed with ``ELECTRICAL_FINAL_GATE_FAILED``.
@@ -35,6 +35,10 @@ def _le(left: Decimal, right: Decimal, eps: Decimal) -> bool:
     return left <= right + eps
 
 
+def _eq(left: Decimal, right: Decimal, eps: Decimal) -> bool:
+    return abs(left - right) <= eps
+
+
 def assert_electrical_tt_ready(
     *,
     cable_mark: str | None,
@@ -47,7 +51,7 @@ def assert_electrical_tt_ready(
     sections: Sequence[Mapping[str, Any]],
     catalogs: Mapping[str, Any] | None = None,
 ) -> None:
-    """Raise if the TT result must not be marked ready (§9.15)."""
+    """Raise if the TT result must not be marked ready (§6.14)."""
     mark = str(cable_mark or "").strip()
     if not mark:
         _fail("cable_mark", "Марка кабеля не определена")
@@ -57,12 +61,20 @@ def assert_electrical_tt_ready(
         _fail("series", "Серия кабеля не определена")
 
     voltage = decimal_value(voltage_v)
-    if voltage != Decimal("230"):
+    if voltage <= 0:
         _fail(
             "nominal_voltage_v",
-            "Нормативное напряжение нового расчёта должно быть 230 В",
+            "Рабочее напряжение должно быть положительным",
             left=float(voltage),
-            right=230,
+            right="> 0",
+        )
+    plan_voltage = decimal_value(plan.voltage_v)
+    if not _eq(plan_voltage, voltage, _CURRENT_EPS):
+        _fail(
+            "plan_voltage_match",
+            "Напряжение плана секций не совпадает с входным напряжением",
+            left=float(plan_voltage),
+            right=float(voltage),
         )
 
     if not isinstance(threads, int) or threads < 1 or threads > 3:
@@ -117,19 +129,46 @@ def assert_electrical_tt_ready(
             right=plan.section_count,
         )
 
-    lengths = {decimal_value(item.get("length_m")) for item in sections}
-    if len(lengths) != 1 or next(iter(lengths)) != section_len:
-        _fail(
-            "equal_sections",
-            "Автоматические секции должны иметь одинаковую длину",
-            left=sorted(float(x) for x in lengths),
-            right=plan.section_length_m,
-        )
+    expected_section_values = {
+        "length_m": (section_len, _LENGTH_EPS),
+        "voltage_v": (voltage, _CURRENT_EPS),
+        "power_w": (decimal_value(plan.power_per_section_w), _POWER_EPS),
+        "working_current_a": (
+            decimal_value(plan.working_current_per_section_a),
+            _CURRENT_EPS,
+        ),
+        "start_current_a": (
+            decimal_value(plan.start_current_per_section_a),
+            _CURRENT_EPS,
+        ),
+    }
+    for index, item in enumerate(sections, start=1):
+        for field, (expected, tolerance) in expected_section_values.items():
+            try:
+                actual = decimal_value(item.get(field))
+            except (ArithmeticError, TypeError, ValueError):
+                _fail(
+                    "equal_sections",
+                    "Секция содержит отсутствующее или некорректное расчётное поле",
+                    left={"index": index, "field": field, "value": item.get(field)},
+                    right=float(expected),
+                )
+            if not _eq(actual, expected, tolerance):
+                _fail(
+                    "equal_sections",
+                    "Автоматические секции должны иметь одинаковые расчётные параметры",
+                    left={"index": index, "field": field, "value": float(actual)},
+                    right=float(expected),
+                )
 
     p_req = decimal_value(required_power_per_meter_w)
     p_inst = decimal_value(installed_power_per_meter_w)
     if p_req <= 0:
-        _fail("required_power", "Требуемая мощность на метр должна быть положительной", left=float(p_req))
+        _fail(
+            "required_power",
+            "Требуемая мощность на метр должна быть положительной",
+            left=float(p_req),
+        )
     if not _ge(p_inst, p_req, _POWER_EPS):
         _fail(
             "installed_power_ge_required",

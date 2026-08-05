@@ -1,5 +1,5 @@
 {
-  "description": "Саморегулирующиеся кабели серий ТТН/ТТВ/ТТХ. Формула мощности: q_б(T3) = q1 * T3 + q2 [Вт/м], где T3 = maintain_temperature",
+  "description": "Саморегулирующиеся кабели серий ТТН/ТТВ/ТТХ. Case 1 selector использует nominal_power и max_product_temp; q1, q2 и max_vapor_temp сохранены только как неиспользуемые legacy metadata.",
   "cables": [
     {"model": "10ТТН2", "series": "ТТН", "nominal_power": 10, "q1": -0.155, "q2": 10.5,
      "max_product_temp": 65, "max_vapor_temp": 85, "voltage": 230},

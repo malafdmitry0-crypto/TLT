@@ -1,5 +1,6 @@
 """Shared status rules for saved electrical calculation results."""
 
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from app.formulas.electrical.tt_contract import (
@@ -20,18 +21,29 @@ def _mapping(value: Any) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
+def _positive_number(value: Any) -> bool:
+    try:
+        number = Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError):
+        return False
+    return number.is_finite() and number > 0
+
+
 def electrical_result_stale_reason(
     cable_mark: str | None,
     results: dict[str, Any] | None,
 ) -> str | None:
-    """Classify a saved TT-v2 snapshot against the current immutable contract.
+    """Classify a saved TT-v3 snapshot against the current immutable contract.
 
-    Untyped historical rows remain compatible. Real TT rows carry
-    ``cable_type=self_regulating_tt`` in the saved result (and specification
-    consumers inject the database value), so only that data plane is subject
-    to the v2 lifecycle gate.
+    Legacy ``ТЛТ-*`` marks are stale even in untyped historical rows. Other
+    untyped/non-TT payloads remain outside this TT lifecycle gate.
     """
-    if not isinstance(results, dict) or results.get("cable_type") != "self_regulating_tt":
+    if not isinstance(results, dict):
+        return None
+    mark = str(_result_cable_mark(cable_mark, results) or "").strip().upper()
+    if mark.startswith("ТЛТ-"):
+        return "legacy_cable_mark"
+    if results.get("cable_type") != "self_regulating_tt":
         return None
     category = results.get("category")
     if (
@@ -41,17 +53,13 @@ def electrical_result_stale_reason(
         or results.get("stale") is True
     ):
         return None
-    mark = str(_result_cable_mark(cable_mark, results) or "").strip().upper()
-    if mark.startswith("ТЛТ-"):
-        return "legacy_cable_mark"
-
     electrical = _mapping(results.get("electrical"))
     resolved = _mapping(results.get("resolved_inputs"))
     voltage = electrical.get("nominal_voltage_v", resolved.get("nominal_voltage_v"))
     if voltage is None:
         voltage = results.get("voltage")
-    if voltage != 230:
-        return "legacy_or_missing_nominal_voltage"
+    if not _positive_number(voltage):
+        return "invalid_or_missing_nominal_voltage"
 
     provenance = _mapping(results.get("provenance"))
     formula_version = provenance.get("formula_version")

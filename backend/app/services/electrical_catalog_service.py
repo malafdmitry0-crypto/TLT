@@ -66,8 +66,8 @@ _BOM_MARKS = {
 }
 _CATALOG_LOCK_KEYS = {"power": 3401, "section": 3402, "bom": 3403}
 _BUNDLED_CATALOG_ORDER: tuple[ElectricalCatalogKind, ...] = ("power", "section", "bom")
-_BUNDLED_POWER_VERSION = "tt-power-approved-r1-2026-08-03-5ebb23d7"
-_BUNDLED_SECTION_VERSION = "tt-section-2026-07-20-230v-a7a37087"
+_BUNDLED_POWER_VERSION = "tt-power-case1-r2-2026-08-05-2de59c70"
+_BUNDLED_SECTION_VERSION = "tt-section-case1-r2-2026-08-05-a7a37087"
 _BUNDLED_BOM_VERSION = "selfreg-spec-2026-05-29-3f1556a4"
 _BUNDLED_APPROVAL_REFERENCE = "case-1-review-10-2026-08-03"
 
@@ -109,10 +109,9 @@ def bundled_electrical_catalog_documents() -> (
 ):
     """Build the immutable approved catalog set shipped with this release.
 
-    The power coefficients are registered exactly as supplied; no inferred
-    correction is applied to the anomalous 15ТТВ2 curve.  Section rows retain
-    the source-workbook checksum while their calculation voltage is normalized
-    to the canonical 230 V boundary.
+    Passport power and product-temperature limits are registered exactly as
+    supplied. Section rows retain the source-workbook checksum; working voltage
+    is a downstream user input and is not a cable-candidate criterion.
     """
     power_payload = {"rows": list_tt_cables()}
     section_payload = section_catalog_payload_snapshot()
@@ -140,14 +139,14 @@ def bundled_electrical_catalog_documents() -> (
             source="backend/app/reference_data/cables_tt.json",
             source_checksum=power_source_checksum,
             import_checksum=import_checksums["power"],
-            schema_version=1,
+            schema_version=2,
             payload=power_payload,
             production_approved=True,
             diagnostics=[
                 {
                     "code": "ELECTRICAL_BUNDLED_CATALOG_APPROVED",
                     "approval_reference": _BUNDLED_APPROVAL_REFERENCE,
-                    "normalized_voltage_v": 230,
+                    "selection_contract": "case1-r4-passport-power",
                 }
             ],
         ),
@@ -165,8 +164,9 @@ def bundled_electrical_catalog_documents() -> (
             production_approved=True,
             diagnostics=[
                 {
-                    "code": "ELECTRICAL_SECTION_VOLTAGE_NORMALIZED",
-                    "normalized_voltage_v": 230,
+                    "code": "ELECTRICAL_BUNDLED_CATALOG_APPROVED",
+                    "approval_reference": _BUNDLED_APPROVAL_REFERENCE,
+                    "lookup_contract": "case1-r4-mark-and-switch-temperature",
                 }
             ],
         ),
@@ -206,13 +206,6 @@ def _positive(value: Any) -> bool:
         return False
 
 
-def _numeric(value: Any) -> bool:
-    try:
-        return Decimal(str(value)).is_finite()
-    except (InvalidOperation, TypeError, ValueError):
-        return False
-
-
 def _validate_rows(kind: str, payload: Mapping[str, Any]) -> tuple[int, int, list[dict[str, Any]]]:
     rows = _rows(payload, kind)
     diagnostics: list[dict[str, Any]] = []
@@ -237,14 +230,10 @@ def _validate_rows(kind: str, payload: Mapping[str, Any]) -> tuple[int, int, lis
                 errors.append("model_required")
             elif primary not in _TT_MODELS:
                 errors.append("model_not_in_tt_mvp")
-            if not _numeric(row.get("q1")) or not _numeric(row.get("q2")):
-                errors.append("q_coefficients_required")
-            if not _positive(row.get("max_product_temp")) or not _positive(
-                row.get("max_vapor_temp")
-            ):
-                errors.append("temperature_limits_invalid")
-            if row.get("voltage") != 230:
-                errors.append("voltage_must_be_230")
+            if not _positive(row.get("nominal_power")):
+                errors.append("nominal_power_required")
+            if not _positive(row.get("max_product_temp")):
+                errors.append("max_product_temp_required")
             secondary = ""
         elif kind == "section":
             primary = str(row.get("base_model") or row.get("mark") or "").strip()
@@ -260,8 +249,6 @@ def _validate_rows(kind: str, payload: Mapping[str, Any]) -> tuple[int, int, lis
             )
             if not _positive(row.get("l_max_m")) or not _positive(specific_start_current):
                 errors.append("section_values_invalid")
-            if row.get("voltage_v", 230) != 230:
-                errors.append("voltage_must_be_230")
         else:
             primary = str(row.get("full_mark") or "").strip()
             secondary = str(row.get("nomenclature_code") or "").strip()
@@ -573,14 +560,21 @@ class ElectricalCatalogService:
         *,
         commit: bool = True,
     ) -> dict[str, ElectricalCatalogVersion]:
-        """Register missing bundled catalogs without replacing custom active versions."""
+        """Register bundled catalogs and roll forward an older bundled version.
+
+        A custom active source remains authoritative. A bundled active source is
+        upgraded to the release version so activation stales old calculations.
+        """
         documents = bundled_electrical_catalog_documents()
         active = await self._active_rows()
 
         for kind in _BUNDLED_CATALOG_ORDER:
-            if kind in active:
-                continue
             document = documents[kind]
+            current = active.get(kind)
+            if current is not None and (
+                current.version == document.version or current.source != document.source
+            ):
+                continue
             row = await self.db.scalar(
                 select(ElectricalCatalogVersion).where(
                     ElectricalCatalogVersion.kind == kind,
@@ -693,11 +687,11 @@ class ElectricalCatalogService:
         if kind == "power":
             rows = list_tt_cables()
             raw = {
-                "version": "tt-power-v1-provisional",
+                "version": "tt-power-case1-v2-provisional",
                 "status": "draft",
                 "source": "backend/app/reference_data/cables_tt.json",
                 "source_checksum": tt_cables_source_checksum(),
-                "schema_version": 1,
+                "schema_version": 2,
                 "production_approved": False,
                 "diagnostics": [{"code": "ELECTRICAL_POWER_CATALOG_PROVISIONAL"}],
             }

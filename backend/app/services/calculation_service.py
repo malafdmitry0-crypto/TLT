@@ -37,7 +37,7 @@ from app.electrical_result_status import (
 from app.formulas.electrical.cable_geometry import compute_tank_cable_length
 from app.formulas.electrical.tt_cable_options import (
     build_tt_cable_options,
-    extract_power_catalog_rows,
+    extract_tt_catalog_rows,
 )
 from app.formulas.electrical.tt_contract import (
     ELECTRICAL_TT_FORMULA_FINGERPRINT,
@@ -136,9 +136,6 @@ COPY_SELECTION_METADATA_KEYS = (
 )
 TT_ASSIGNMENT_CANONICAL_FIELDS = frozenset(
     {
-        "steam_temperature_c",
-        "maintain_temperature_c",
-        "aggressive_product",
         "winding_pitch_mm",
         "thread_count",
         "manual_cable_model",
@@ -1564,19 +1561,17 @@ class CalculationService:
                 target[canonical_key] = source.get(key)
                 return
 
-    @staticmethod
-    def _tt_steam_tracing_state(obj: ProjectObject) -> bool | None:
+    @classmethod
+    def _tt_ambient_temperature(cls, obj: ProjectObject) -> float | None:
         params = obj.params if isinstance(obj.params, dict) else {}
-        value = params.get("steam_tracing")
-        if isinstance(value, bool):
-            return value
-        if isinstance(value, str):
-            normalized = value.strip().lower()
-            if normalized in {"yes", "true", "1", "on"}:
-                return True
-            if normalized in {"no", "false", "0", "off"}:
-                return False
-        return None
+        ambient = cls._num(params.get("ambient_temperature"))
+        ground = cls._num(params.get("ground_temperature"))
+        if params.get("placement") != "underground":
+            return ambient if ambient is not None else ground
+        if obj.object_type == "tank":
+            available = [value for value in (ambient, ground) if value is not None]
+            return min(available) if available else None
+        return ground if ground is not None else ambient
 
     def _tt_object_heat_inputs(
         self,
@@ -1592,26 +1587,12 @@ class CalculationService:
         self._tt_optional_object_value(
             values, "product_temperature_c", params, "process_temperature"
         )
-        steam_tracing = self._tt_steam_tracing_state(obj)
-        if steam_tracing is False:
-            values["steam_temperature_c"] = None
-        else:
-            self._tt_optional_object_value(
-                values,
-                "steam_temperature_c",
-                params,
-                "vapor_temperature",
-            )
-        values["_steam_tracing"] = steam_tracing
-        self._tt_optional_object_value(
-            values, "maintain_temperature_c", params, "maintain_temperature"
-        )
+        ambient = self._tt_ambient_temperature(obj)
+        if ambient is not None:
+            values["ambient_temperature_c"] = ambient
         cold_start = params.get("min_switch_temperature")
-        if cold_start is None:
-            cold_start = params.get("ambient_temperature")
         if cold_start is not None:
             values["cold_start_temperature_c"] = cold_start
-        self._tt_optional_object_value(values, "aggressive_product", params, "aggressive_product")
         if obj.object_type != "tank":
             self._tt_optional_object_value(
                 values, "winding_pitch_mm", params, "winding_pitch", "winding_pitch_mm"
@@ -1818,14 +1799,11 @@ class CalculationService:
         snapshots: dict[str, dict[str, Any]],
     ) -> dict[str, Any]:
         return {
-            "voltage": 230,
-            "normalized_voltage_v": 230,
             "catalogs": snapshots,
             "production_eligible": False,
             "provenance": {
                 "formula_version": ELECTRICAL_TT_FORMULA_VERSION,
                 "formula_fingerprint": ELECTRICAL_TT_FORMULA_FINGERPRINT,
-                "normalized_voltage_v": 230,
                 "catalogs": snapshots,
                 "production_eligible": False,
             },
@@ -1935,22 +1913,24 @@ class CalculationService:
             )
         raw_marker = request.data.pop("_tt_explicit_overrides", None)
         explicit_payload = dict(raw_marker) if isinstance(raw_marker, dict) else dict(request.data)
-        steam_tracing = self._tt_steam_tracing_state(obj)
-        if steam_tracing is False:
-            explicit_payload.pop("steam_temperature_c", None)
-            explicit_payload.pop("vapor_temperature", None)
-        elif steam_tracing is True:
-            # An empty group override does not hide the object's required T2.
-            # If both are empty, the post-resolution readiness guard below
-            # returns the typed required-input error.
-            for key in ("steam_temperature_c", "vapor_temperature"):
-                if explicit_payload.get(key) is None:
-                    explicit_payload.pop(key, None)
         if obj.object_type == "tank":
             # A tank has its own layout in metres. Never reinterpret a pipe
             # winding pitch as tank laying_step or as canonical pipe winding.
+            object_params = obj.params if isinstance(obj.params, dict) else {}
+            unsupported_layout_fields = sorted(
+                field
+                for field in ("winding_pitch", "winding_pitch_mm", "outer_diameter_mm")
+                if explicit_payload.get(field) is not None or object_params.get(field) is not None
+            )
+            if unsupported_layout_fields:
+                raise ElectricalInputResolutionError(
+                    "ELECTRICAL_TANK_LAYOUT_INPUT_UNSUPPORTED",
+                    "Tank layout does not accept pipe winding inputs",
+                    details={"fields": unsupported_layout_fields},
+                )
             explicit_payload.pop("winding_pitch", None)
             explicit_payload.pop("winding_pitch_mm", None)
+            explicit_payload.pop("outer_diameter_mm", None)
         normalized = normalize_electrical_override_payload(explicit_payload)
         project_settings = await self._tt_project_settings(obj.project_id)
         assignment = await self._tt_assignment(
@@ -1963,8 +1943,23 @@ class CalculationService:
             if assignment is not None
             else {}
         )
+        if obj.object_type == "tank":
+            unsupported_assignment_fields = sorted(
+                field
+                for field in ("winding_pitch", "winding_pitch_mm", "outer_diameter_mm")
+                if assignment_overrides.get(field) is not None
+            )
+            if unsupported_assignment_fields:
+                raise ElectricalInputResolutionError(
+                    "ELECTRICAL_TANK_LAYOUT_INPUT_UNSUPPORTED",
+                    "Tank layout does not accept pipe winding inputs",
+                    details={"fields": unsupported_assignment_fields},
+                )
         project_values = (
-            {"max_section_start_current_a": (project_settings.max_section_start_current_a)}
+            {
+                "nominal_voltage_v": project_settings.nominal_voltage_v,
+                "max_section_start_current_a": project_settings.max_section_start_current_a,
+            }
             if project_settings is not None
             else {}
         )
@@ -1973,12 +1968,12 @@ class CalculationService:
             for field in TT_ASSIGNMENT_CANONICAL_FIELDS
             if field in assignment_overrides
         }
+        if assignment_overrides.get("supply_voltage_v") is not None:
+            assignment_values["nominal_voltage_v"] = assignment_overrides["supply_voltage_v"]
         if assignment is not None:
             assignment_values["max_section_start_current_a"] = (
                 assignment.max_section_start_current_a
             )
-        if steam_tracing is False:
-            assignment_values.pop("steam_temperature_c", None)
         if obj.object_type == "tank":
             assignment_values.pop("winding_pitch_mm", None)
         object_heat = self._tt_object_heat_inputs(
@@ -1999,12 +1994,6 @@ class CalculationService:
             base_length_source = tank_layout.get("base_length_source")
             if isinstance(base_length_source, str):
                 resolved.sources["base_length_m"] = base_length_source
-        if steam_tracing is True and resolved.values.steam_temperature_c is None:
-            raise ElectricalInputResolutionError(
-                "ELECTRICAL_INPUT_REQUIRED",
-                "Required electrical input is missing: steam_temperature_c",
-                details={"field": "steam_temperature_c"},
-            )
         if app_settings.is_production:
             require_production_eligible_inputs(resolved)
         current_limit_source = resolved.sources.get("max_section_start_current_a")
@@ -2026,6 +2015,18 @@ class CalculationService:
                     if source == "assignment_override"
                 )
         assignment_applied_fields = sorted(set(assignment_applied_fields))
+        effective_assignment_overrides = dict(assignment_overrides)
+        effective_assignment_version = assignment.version if assignment is not None else None
+        if (
+            assignment is not None
+            and resolved.sources.get("nominal_voltage_v") == "explicit_request"
+        ):
+            explicit_voltage = str(resolved.values.nominal_voltage_v)
+            if self._num(effective_assignment_overrides.get("supply_voltage_v")) != float(
+                resolved.values.nominal_voltage_v
+            ):
+                effective_assignment_overrides["supply_voltage_v"] = explicit_voltage
+                effective_assignment_version = assignment.version + 1
         assignment_snapshot = (
             {
                 "id": (
@@ -2033,12 +2034,12 @@ class CalculationService:
                     if getattr(assignment, "id", None) is not None
                     else None
                 ),
-                "version": assignment.version,
+                "version": effective_assignment_version,
                 "source": "electrical_variant_object",
                 "max_section_start_current_a": self._num(
                     assignment.max_section_start_current_a
                 ),
-                "electrical_overrides": assignment_overrides,
+                "electrical_overrides": effective_assignment_overrides,
                 "applied_fields": assignment_applied_fields,
             }
             if assignment is not None
@@ -2056,17 +2057,20 @@ class CalculationService:
                 "base_length_m": object_heat.get("base_length_m"),
                 "heat_loss_per_meter_w": object_heat.get("heat_loss_per_meter_w"),
                 "safety_factor": object_heat.get("safety_factor"),
-                "steam_tracing": object_heat.get("_steam_tracing"),
                 "tank_layout": object_heat.get("_tank_layout"),
             },
             "object_version": obj.version,
             "heat_result_version": obj.version,
             "project_settings_version": (
                 project_settings.version
-                if project_settings is not None and current_limit_source == "project_setting"
+                if project_settings is not None
+                and (
+                    current_limit_source == "project_setting"
+                    or resolved.sources.get("nominal_voltage_v") == "project_setting"
+                )
                 else None
             ),
-            "assignment_version": assignment.version if assignment is not None else None,
+            "assignment_version": effective_assignment_version,
             "assignment_snapshot": assignment_snapshot,
         }
         calculation_catalogs = await self._tt_calculation_catalogs()
@@ -2109,14 +2113,9 @@ class CalculationService:
             "required_power_per_meter": float(values.heat_loss_per_meter_w),
             "pipe_length": float(values.base_length_m),
             "process_temperature": float(values.product_temperature_c),
-            "maintain_temperature": float(values.maintain_temperature_c),
+            "ambient_temperature": float(values.ambient_temperature_c),
+            "supply_voltage": float(values.nominal_voltage_v),
             "max_start_current_per_section": float(values.max_section_start_current_a),
-            "vapor_temperature": (
-                float(values.steam_temperature_c)
-                if values.steam_temperature_c is not None
-                else None
-            ),
-            "aggressive_product": values.aggressive_product,
             "winding_coefficient": result_dict["winding_coefficient"],
             "winding_pitch": (
                 float(values.winding_pitch_mm) if values.winding_pitch_mm is not None else None
@@ -2130,7 +2129,6 @@ class CalculationService:
             "selection_policy": values.selection_policy,
             "safety_factor": float(values.safety_factor),
             "cold_start_temperature_c": float(values.cold_start_temperature_c),
-            "ambient_temperature": float(values.cold_start_temperature_c),
             "max_section_start_current_a": float(values.max_section_start_current_a),
             "outer_diameter_mm": (
                 float(values.outer_diameter_mm) if values.outer_diameter_mm is not None else None
@@ -2486,9 +2484,6 @@ class CalculationService:
             "add_length",
             "heating_height",
             "laying_step",
-            "maintain_temperature",
-            "vapor_temperature",
-            "aggressive_product",
         ):
             if overrides.get(key) is None and results.get(key) is not None:
                 overrides[key] = results.get(key)
@@ -3090,44 +3085,6 @@ class CalculationService:
             normalized["number_of_threads_source"] = THREAD_SOURCE_MANUAL
         return normalized
 
-    @staticmethod
-    def _max_winding_coefficient_for_diameter(diameter_m: float) -> float:
-        diameter_mm = diameter_m * 1000.0
-        if diameter_mm < 57.0:
-            return 1.0
-        if diameter_mm == 57.0:
-            return 1.1
-        if diameter_mm <= 75.0:
-            return 1.2
-        if diameter_mm <= 89.0:
-            return 1.3
-        if diameter_mm <= 108.0:
-            return 1.4
-        return 1.5
-
-    def _validate_winding_coefficient_limit(
-        self,
-        obj: ProjectObject,
-        params: dict[str, Any],
-        coefficient: float,
-    ) -> float:
-        if obj.object_type != "pipe":
-            return coefficient
-        diameter = self._num(params.get("outer_diameter"))
-        if diameter is None or diameter <= 0:
-            if coefficient <= 1.1 + 1e-9:
-                return coefficient
-            raise CalculationError(
-                "Для проверки максимального навива требуется наружный диаметр трубы"
-            )
-        max_coefficient = self._max_winding_coefficient_for_diameter(diameter)
-        if coefficient > max_coefficient + 1e-9:
-            raise ValueError(
-                f"Коэффициент навива {coefficient:.3f} превышает максимум "
-                f"{max_coefficient:.1f} для D={diameter * 1000.0:.0f} мм"
-            )
-        return coefficient
-
     def _winding_pitch_mm(
         self,
         overrides: dict[str, Any],
@@ -3139,38 +3096,6 @@ class CalculationService:
         if raw is None:
             raw = params.get("winding_pitch")
         return self._num(raw)
-
-    def _winding_coefficient(
-        self,
-        obj: ProjectObject,
-        overrides: dict[str, Any],
-        params: dict[str, Any],
-        default: float,
-    ) -> float:
-        pitch_mm = self._winding_pitch_mm(overrides, params)
-        if pitch_mm is not None:
-            if pitch_mm == 0:
-                return 1.0
-            if obj.object_type == "pipe":
-                diameter = self._positive(
-                    params.get("outer_diameter"),
-                    "Для навива требуется наружный диаметр трубы",
-                )
-                pitch_m = pitch_mm / 1000.0
-                if pitch_m <= diameter:
-                    raise ValueError("Шаг навива должен быть больше наружного диаметра трубы")
-                coefficient = math.sqrt(1.0 + (math.pi * diameter / pitch_m) ** 2)
-                return self._validate_winding_coefficient_limit(obj, params, coefficient)
-
-        raw_coefficient = overrides.get("winding_coefficient") or params.get("winding_coefficient")
-        if raw_coefficient is None:
-            if obj.object_type == "pipe":
-                diameter = self._num(params.get("outer_diameter"))
-                if diameter is not None and diameter > 0:
-                    return min(default, self._max_winding_coefficient_for_diameter(diameter))
-            return default
-        coefficient = self._num(raw_coefficient, default)
-        return self._validate_winding_coefficient_limit(obj, params, coefficient or default)
 
     def _tank_base_cable_length(
         self,
@@ -3280,8 +3205,6 @@ class CalculationService:
         data["cable_source"] = cable_source
         data["winding_pitch"] = self._winding_pitch_mm(overrides, params)
         if cable_type == "self_regulating_tt":
-            data.pop("supply_voltage", None)
-            data.pop("nominal_voltage_v", None)
             data.pop("winding_coefficient", None)
             if obj.object_type == "tank":
                 data.pop("winding_pitch", None)
@@ -3322,8 +3245,6 @@ class CalculationService:
         ):
             overrides["number_of_threads"] = results.get("num_circuits")
             overrides["number_of_threads_source"] = THREAD_SOURCE_PREVIOUS_RESULT
-        if results.get("winding_coefficient") is not None and "winding_pitch" not in overrides:
-            overrides["winding_coefficient"] = results.get("winding_coefficient")
         return overrides
 
     @staticmethod
@@ -4988,10 +4909,9 @@ class CalculationService:
         self,
         obj: ProjectObject,
         assignment_overrides: dict[str, Any] | None = None,
-    ) -> tuple[float, float | None, float, bool]:
+    ) -> tuple[float, float]:
         """Resolve option inputs from the object and the exact ER assignment."""
-        overrides = assignment_overrides or {}
-        object_heat = self._tt_object_heat_inputs(obj, {}, overrides)
+        object_heat = self._tt_object_heat_inputs(obj, {}, assignment_overrides or {})
 
         product = self._num(object_heat.get("product_temperature_c"))
         if product is None:
@@ -5001,46 +4921,15 @@ class CalculationService:
                 details={"field": "product_temperature_c", "object_id": str(obj.id)},
             )
 
-        maintain = object_heat.get("maintain_temperature_c")
-        if overrides.get("maintain_temperature_c") is not None:
-            maintain = overrides["maintain_temperature_c"]
-        if maintain is None:
+        ambient = self._num(object_heat.get("ambient_temperature_c"))
+        if ambient is None:
             raise ElectricalInputResolutionError(
                 "ELECTRICAL_INPUT_REQUIRED",
-                "Для списка моделей требуется температура поддержания (T3)",
-                details={"field": "maintain_temperature_c", "object_id": str(obj.id)},
+                "Для списка моделей требуется температура окружающей среды",
+                details={"field": "ambient_temperature_c", "object_id": str(obj.id)},
             )
 
-        aggressive = object_heat.get("aggressive_product")
-        if overrides.get("aggressive_product") is not None:
-            aggressive = overrides["aggressive_product"]
-        if aggressive is None:
-            raise ElectricalInputResolutionError(
-                "ELECTRICAL_INPUT_REQUIRED",
-                "Для списка моделей требуется признак агрессивного продукта (R)",
-                details={"field": "aggressive_product", "object_id": str(obj.id)},
-            )
-
-        steam_tracing = object_heat.get("_steam_tracing")
-        if steam_tracing is False:
-            steam = None
-        elif "steam_temperature_c" in overrides:
-            steam = overrides["steam_temperature_c"]
-        else:
-            steam = object_heat.get("steam_temperature_c")
-        if steam_tracing is True and steam is None:
-            raise ElectricalInputResolutionError(
-                "ELECTRICAL_INPUT_REQUIRED",
-                "Для списка моделей требуется температура пропарки (T2)",
-                details={"field": "steam_temperature_c", "object_id": str(obj.id)},
-            )
-
-        return (
-            product,
-            float(steam) if steam is not None else None,
-            float(maintain),
-            bool(aggressive),
-        )
+        return product, ambient
 
     async def get_cable_options(
         self,
@@ -5050,9 +4939,9 @@ class CalculationService:
     ) -> list[dict[str, Any]]:
         """TT power-catalog options for manual mark selection (B1 / E5).
 
-        Requires current heat results on the object. Uses the same series rule
-        and q1×T3+q2 curve as the TT calculation pipeline. Inputs persisted for
-        ``electrical_variant_id`` override object inputs only for that exact ER.
+        Requires current heat results on the object. Uses the same Case 1
+        passport-power and per-mark temperature eligibility as the calculation
+        pipeline. Assignment state is isolated to the exact ER UUID.
         """
         obj_result = await self.db.execute(
             select(ProjectObject).where(ProjectObject.id == object_id)
@@ -5078,28 +4967,42 @@ class CalculationService:
             else {}
         )
 
-        product_c, steam_c, maintain_c, aggressive = self._tt_cable_option_temperatures(
+        product_c, ambient_c = self._tt_cable_option_temperatures(
             obj,
             assignment_overrides,
         )
 
         catalogs = await self._tt_calculation_catalogs()
         power_catalog = catalogs.get("power") or {}
-        rows, meta = extract_power_catalog_rows(power_catalog)
-        if not rows:
+        rows, meta = extract_tt_catalog_rows(power_catalog, "power")
+        section_rows, _section_meta = extract_tt_catalog_rows(
+            catalogs.get("section") or {}, "section"
+        )
+        bom_rows, _bom_meta = extract_tt_catalog_rows(catalogs.get("bom") or {}, "bom")
+        if not rows or not section_rows or not bom_rows:
             raise ElectricalFormulaError(
                 "ELECTRICAL_CATALOG_SOURCE_UNREGISTERED",
-                "Активный power-каталог не содержит моделей кабеля",
-                details={"catalog_kind": "power"},
+                "Активный набор каталогов не содержит данных для выбора кабеля",
+                details={
+                    "missing_catalog_kinds": [
+                        kind
+                        for kind, values in (
+                            ("power", rows),
+                            ("section", section_rows),
+                            ("bom", bom_rows),
+                        )
+                        if not values
+                    ]
+                },
                 status_code=503,
             )
 
         return build_tt_cable_options(
             rows,
             product_temperature_c=product_c,
-            steam_temperature_c=steam_c,
-            maintain_temperature_c=maintain_c,
-            aggressive_product=aggressive,
+            ambient_temperature_c=ambient_c,
+            section_catalog_rows=section_rows,
+            bom_catalog_rows=bom_rows,
             catalog_meta=meta,
             strict_provisional=bool(app_settings.is_production),
         )

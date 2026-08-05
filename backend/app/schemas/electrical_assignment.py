@@ -57,9 +57,7 @@ class ElectricalAssignmentOverridesPatch(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     expected_version: int = Field(ge=1)
-    steam_temperature_c: Decimal | None = None
-    maintain_temperature_c: Decimal | None = None
-    aggressive_product: bool | None = None
+    supply_voltage_v: Decimal | None = Field(default=None, gt=0)
     winding_pitch_mm: Decimal | None = Field(default=None, gt=0)
     thread_count: int | None = Field(default=None, ge=1, le=3)
     manual_cable_model: str | None = Field(default=None, min_length=1, max_length=128)

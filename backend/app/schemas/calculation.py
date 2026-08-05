@@ -760,36 +760,32 @@ class SelfRegulatingResult(BaseModel):
 class SelfRegulatingTTParams(BaseModel):
     """Параметры расчёта саморегулирующегося кабеля серии ТТН/ТТВ/ТТХ."""
 
+    model_config = ConfigDict(extra="forbid")
+
     required_power_per_meter: float = Field(gt=0, description="Требуемая мощность, Вт/м")
     pipe_length: float = Field(gt=0, description="Длина трубопровода/секции, м")
     process_temperature: float = Field(
-        description="T1 — температура продукта для выбора серии ТТН/ТТВ/ТТХ, °C"
+        description="Температура продукта для проверки T_product <= T_max марки, °C"
     )
-    maintain_temperature: float | None = Field(
-        default=None,
-        description="T3 — обязательная температура поддержания для расчёта q_б(T3), °C",
+    ambient_temperature: float = Field(
+        description="Температура окружающей среды для проверки T_env >= T_min марки, °C"
+    )
+    supply_voltage: float = Field(
+        gt=0,
+        description="Рабочее напряжение downstream-расчёта тока и секций, В",
     )
     max_start_current_per_section: float | None = Field(
         default=None,
         gt=0,
         description=(
-            "Iдоп — допустимый стартовый ток одной нагревательной секции, А; "
-            "при отсутствии применяется паспортное Lмакс"
+            "Iдоп — обязательный downstream-вход для расчёта секций; "
+            "pure подбор марки §6.13 его не использует"
         ),
     )
-    vapor_temperature: float | None = Field(
+    outer_diameter_mm: float | None = Field(
         default=None,
-        description="T2 — температура пропарки для выбора серии ТТН/ТТВ/ТТХ, °C",
-    )
-    aggressive_product: bool = Field(
-        default=False,
-        description="Агрессивная среда → суффикс -СР; неагрессивная → -СТ в марке",
-    )
-    winding_coefficient: float = Field(
-        default=1.0,
-        ge=1.0,
-        le=10.0,
-        description="Расчётный Kнав; при отсутствии шага навива backend передаёт 1",
+        gt=0,
+        description="Наружный диаметр трубы D для системного расчёта Kнав, мм",
     )
     winding_pitch: float | None = Field(
         default=None, ge=0, description="Шаг навива, мм; 0 или null — прямая укладка"
@@ -800,7 +796,10 @@ class SelfRegulatingTTParams(BaseModel):
         le=3,
         description="Заданное пользователем количество ниток 1..3; null — автоподбор",
     )
-    cable_mark: str | None = Field(default=None, description="Марка кабеля; null — автоподбор")
+    cable_mark: str | None = Field(
+        default=None,
+        description="Exact full_mark из BOM-каталога; null — автоподбор",
+    )
     selection_policy: str = Field(
         default="technical_minimum",
         description="Для нового TT-расчёта поддерживается только technical_minimum",
@@ -815,6 +814,24 @@ class SelfRegulatingTTParams(BaseModel):
     tank_width: float | None = Field(default=None, gt=0)
     heating_height: float | None = Field(default=None, gt=0)
     laying_step: float | None = Field(default=None, ge=0.1, le=0.4)
+
+    @model_validator(mode="after")
+    def validate_tank_geometry(self) -> "SelfRegulatingTTParams":
+        if self.tank_shape is None:
+            return self
+        if self.heating_height is None or self.laying_step is None:
+            raise ValueError("Для резервуара требуются heating_height и laying_step")
+        if self.tank_shape == "cylindrical" and self.tank_diameter is None:
+            raise ValueError("Для цилиндрического резервуара требуется tank_diameter")
+        if self.tank_shape == "rectangular" and (
+            self.tank_length is None or self.tank_width is None
+        ):
+            raise ValueError(
+                "Для прямоугольного резервуара требуются tank_length и tank_width"
+            )
+        if self.winding_pitch not in (None, 0) or self.outer_diameter_mm is not None:
+            raise ValueError("Для резервуара Kнав=1; трубный шаг навива и D недопустимы")
+        return self
 
 
 class SelfRegulatingTTResult(BaseModel):
@@ -1146,15 +1163,14 @@ class CableOptionOut(BaseModel):
     series: str | None = None
     base_model: str | None = None
     full_mark_preview: str | None = None
-    power_at_t3_w_per_m: float | None = None
     eligible: bool = False
     unavailable_reason: str | None = None
     temperature_group: str | None = None
-    q1: float | None = None
-    q2: float | None = None
     nominal_power: float | None = None
+    passport_power_w_per_m: float | None = None
+    min_ambient_temperature_c: float | None = None
+    max_product_temperature_c: float | None = None
     nomenclature_code: str | None = None
-    required_series: str | None = None
     catalog: CableOptionCatalogMeta | None = None
 
 
@@ -1177,6 +1193,8 @@ class ElectricalCalcSummary(BaseModel):
 class ElectricalCableSelectionVariantsRequest(BaseModel):
     """Атомарное применение выбора кабеля к нескольким СО одного объекта."""
 
+    model_config = ConfigDict(extra="forbid")
+
     object_id: UUID
     cable_mark: str | None = None
     cable_source: ElectricalCableSource = "builtin"
@@ -1185,14 +1203,11 @@ class ElectricalCableSelectionVariantsRequest(BaseModel):
     cable_type: ElectricalCableType = "self_regulating_tt"
     selection_mode: Literal["auto", "manual"] | None = None
     connection_type: str | None = None
-    winding_coefficient: float | None = None
     winding_pitch: float | None = None
     number_of_threads: int | None = None
     heating_height: float | None = None
     laying_step: float | None = Field(default=None, ge=0.1, le=0.4)
-    maintain_temperature: float | None = None
-    vapor_temperature: float | None = None
-    aggressive_product: bool | None = None
+    supply_voltage: float | None = Field(default=None, gt=0)
     selection_policy: SelectionPolicy = "technical_minimum"
 
     @model_validator(mode="after")
@@ -1217,17 +1232,18 @@ class ElectricalCableSelectionVariantsRequest(BaseModel):
         values = {
             "selection_mode": self.selection_mode,
             "connection_type": self.connection_type,
-            "winding_coefficient": self.winding_coefficient,
             "winding_pitch": self.winding_pitch,
             "number_of_threads": self.number_of_threads,
             "heating_height": self.heating_height,
             "laying_step": self.laying_step,
-            "maintain_temperature": self.maintain_temperature,
-            "vapor_temperature": self.vapor_temperature,
-            "aggressive_product": self.aggressive_product,
+            "supply_voltage": self.supply_voltage,
             "selection_policy": self.selection_policy,
         }
-        return {key: value for key, value in values.items() if key in self.model_fields_set}
+        return {
+            key: value
+            for key, value in values.items()
+            if key == "selection_policy" or key in self.model_fields_set
+        }
 
 
 ElectricalCandidateMode = Literal["auto", "manual"]
@@ -1450,6 +1466,7 @@ class ElectricalQueryAssignment(BaseModel):
     system_type: ElectricalSystemType | None
     assignment_state: ElectricalAssignmentState
     version: int = Field(ge=1)
+    electrical_overrides: dict[str, Any] = Field(default_factory=dict)
 
 
 class ElectricalQueryResponse(BaseModel):
@@ -1529,6 +1546,8 @@ class ElectricalObjectBatchOverride(BaseModel):
 class ElectricalBatchJobRequest(BaseModel):
     """Запрос асинхронного пакетного электрорасчёта."""
 
+    model_config = ConfigDict(extra="forbid")
+
     project_id: UUID
     object_ids: list[UUID] | None = Field(default=None, min_length=1)
     cable_source: str = "builtin"
@@ -1539,14 +1558,11 @@ class ElectricalBatchJobRequest(BaseModel):
     object_overrides: list[ElectricalObjectBatchOverride] | None = None
     force_cable_type: bool = False
     connection_type: str | None = None
-    winding_coefficient: float | None = None
     winding_pitch: float | None = None
     number_of_threads: int | None = None
     heating_height: float | None = None
     laying_step: float | None = Field(default=None, ge=0.1, le=0.4)
-    maintain_temperature: float | None = None
-    vapor_temperature: float | None = None
-    aggressive_product: bool | None = None
+    supply_voltage: float | None = Field(default=None, gt=0)
     skip_manual: bool = True
     include_results: bool = False
     include_errors: bool = True
@@ -1566,17 +1582,18 @@ class ElectricalBatchJobRequest(BaseModel):
     def electrical_params(self) -> dict[str, Any]:
         values = {
             "connection_type": self.connection_type,
-            "winding_coefficient": self.winding_coefficient,
             "winding_pitch": self.winding_pitch,
             "number_of_threads": self.number_of_threads,
             "heating_height": self.heating_height,
             "laying_step": self.laying_step,
-            "maintain_temperature": self.maintain_temperature,
-            "vapor_temperature": self.vapor_temperature,
-            "aggressive_product": self.aggressive_product,
+            "supply_voltage": self.supply_voltage,
             "selection_policy": self.selection_policy,
         }
-        return {key: value for key, value in values.items() if key in self.model_fields_set}
+        return {
+            key: value
+            for key, value in values.items()
+            if key == "selection_policy" or key in self.model_fields_set
+        }
 
 
 class HeatLossBatchJobRequest(BaseModel):

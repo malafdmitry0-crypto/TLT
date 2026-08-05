@@ -7,7 +7,7 @@ from typing import Any
 from app.services.cable_snapshot import stable_hash
 
 DEDUPE_KEY_VERSION = "v1"
-TT_DEDUPE_KEY_VERSION = "v2"
+TT_DEDUPE_KEY_VERSION = "v3"
 UNSUPPORTED_CABLE_TYPES = {"mineral", "skin"}
 
 _DIAGNOSTIC_CONTROL_KEYS = (
@@ -18,10 +18,7 @@ _DIAGNOSTIC_CONTROL_KEYS = (
     "voltage",
     "heating_height",
     "laying_step",
-    "maintain_temperature",
     "process_temperature",
-    "vapor_temperature",
-    "aggressive_product",
     "connection_type",
     "scheme_count",
     "scheme_threads",
@@ -53,20 +50,6 @@ def _normalize_string(value: Any) -> str | None:
         return None
     text = str(value).strip()
     return text or None
-
-
-def _normalize_bool(value: Any) -> bool | None:
-    if value is None:
-        return None
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, str):
-        lowered = value.strip().lower()
-        if lowered in {"true", "1", "yes", "да"}:
-            return True
-        if lowered in {"false", "0", "no", "нет"}:
-            return False
-    return bool(value)
 
 
 def _normalize_number(value: Any, *, decimals: int) -> float | int | None:
@@ -159,16 +142,6 @@ def normalize_threads(results: dict[str, Any] | None, params: dict[str, Any] | N
     if requested is not None:
         return _normalize_number(requested, decimals=0)
     return None
-
-
-def normalize_maintain_temperature(
-    results: dict[str, Any] | None,
-    params: dict[str, Any] | None,
-) -> float | int | None:
-    value = _resolve(results, params, "maintain_temperature")
-    if value is None:
-        value = _resolve(results, params, "process_temperature")
-    return _normalize_number(value, decimals=3)
 
 
 def normalize_resistive_scheme(
@@ -310,18 +283,7 @@ def _variant_payload(
         )
 
     if cable_type == "self_regulating_tt":
-        payload.update(
-            {
-                "maintain_temperature_resolved": normalize_maintain_temperature(results, params),
-                "vapor_temperature": _normalize_number(
-                    _resolve(results, params, "vapor_temperature"),
-                    decimals=3,
-                ),
-                "aggressive_product": _normalize_bool(
-                    _resolve(results, params, "aggressive_product")
-                ),
-            }
-        )
+        payload["voltage"] = normalize_variant_voltage(results, params)
     if cable_type in {"single_core", "three_core"}:
         scheme = normalize_resistive_scheme(results, params)
         payload.update(
@@ -378,8 +340,6 @@ def build_identity_payload(
                 controls[key] = normalize_winding_pitch(value)
             elif key == "winding_coefficient":
                 controls[key] = _normalize_number(value, decimals=6)
-            elif key == "aggressive_product":
-                controls[key] = _normalize_bool(value)
             elif key == "number_of_threads":
                 controls[key] = _normalize_number(value, decimals=0)
             elif key in {"voltage", "supply_voltage"}:
@@ -388,14 +348,16 @@ def build_identity_payload(
                 controls[key] = _normalize_number(value, decimals=0)
             elif key in {
                 "heating_height",
-                "maintain_temperature",
                 "process_temperature",
-                "vapor_temperature",
                 "laying_step",
             }:
                 controls[key] = _normalize_number(value, decimals=3)
             else:
                 controls[key] = _normalize_string(value) or value
+        if cable_type == "self_regulating_tt":
+            voltage = normalize_variant_voltage(results, params)
+            if voltage is not None:
+                controls["voltage"] = voltage
         return {
             "kind": "diagnostic",
             "cable_type": cable_type,

@@ -16,9 +16,7 @@ MINERAL_WOOL = "mineral_wool_boards_120"
 STRICT_TT_BATCH_PARAMS: dict[str, Any] = {
     "cable_source": "builtin",
     "cable_type": "self_regulating_tt",
-    "supply_voltage": 230,
-    "maintain_temperature": 10,
-    "aggressive_product": False,
+    "supply_voltage": 380,
     "selection_policy": "technical_minimum",
 }
 
@@ -67,6 +65,7 @@ async def _add_ready_pipe(
                 "insulation_layers": [{"thickness": 0.05, "material": MINERAL_WOOL}],
                 "insulation_temperature_basis": "outdoor_winter",
                 "ambient_temperature": -30.0,
+                "min_switch_temperature": -30.0,
                 "process_temperature": process_temperature,
                 "pipe_length": 50.0,
                 "placement": "outdoor",
@@ -173,7 +172,7 @@ async def test_ac_be_25_batch_persists_success_and_typed_object_error(
         project["id"],
         headers,
         name="TT typed error",
-        process_temperature=150.0,
+        process_temperature=151.0,
     )
     await _set_project_current_limit(client, project["id"], headers)
     await _assign_objects(client, project["id"], [successful["id"], failed["id"]], headers)
@@ -195,8 +194,9 @@ async def test_ac_be_25_batch_persists_success_and_typed_object_error(
     assert error["message"]
     assert error["issues"] == []
     assert error["details"] == {
-        "product_temperature_c": 150.0,
-        "steam_temperature_c": None,
+        "product_temperature_c": 151.0,
+        "ambient_temperature_c": -30.0,
+        "manual_cable_model": None,
     }
 
     persisted = await _list_calculations(client, project["id"], headers)
@@ -208,8 +208,8 @@ async def test_ac_be_25_batch_persists_success_and_typed_object_error(
     assert persisted_by_object[failed["id"]]["results"]["issues"] == error["issues"]
     assert persisted_by_object[failed["id"]]["results"]["details"] == error["details"]
     failed_result = persisted_by_object[failed["id"]]["results"]
-    assert failed_result["voltage"] == 230
-    assert failed_result["normalized_voltage_v"] == 230
+    assert "voltage" not in failed_result
+    assert "normalized_voltage_v" not in failed_result
     assert set(failed_result["catalogs"]) == {"power", "section", "bom"}
     assert all("payload" not in item for item in failed_result["catalogs"].values())
     assert all(
@@ -218,8 +218,73 @@ async def test_ac_be_25_batch_persists_success_and_typed_object_error(
     )
     assert failed_result["provenance"]["formula_version"] == ELECTRICAL_TT_FORMULA_VERSION
     assert failed_result["provenance"]["formula_fingerprint"] == ELECTRICAL_TT_FORMULA_FINGERPRINT
-    assert failed_result["provenance"]["normalized_voltage_v"] == 230
+    assert "normalized_voltage_v" not in failed_result["provenance"]
     assert failed_result["provenance"]["catalogs"] == failed_result["catalogs"]
+
+    repeated_batch = await client.post(
+        "/api/v1/calc/electrical/batch",
+        headers=headers,
+        params={
+            "project_id": project["id"],
+            "cable_source": "builtin",
+            "cable_type": "self_regulating_tt",
+            "selection_policy": "technical_minimum",
+        },
+    )
+    assert repeated_batch.status_code == 200, repeated_batch.text
+    repeated_ready = next(
+        item
+        for item in repeated_batch.json()["results"]
+        if item["object_id"] == successful["id"]
+    )
+    assert repeated_ready["results"]["resolved_inputs"]["nominal_voltage_v"] == "380.0"
+    assert repeated_ready["results"]["input_sources"]["nominal_voltage_v"] == (
+        "assignment_override"
+    )
+
+    selected = await client.post(
+        "/api/v1/calc/electrical/select-cable",
+        headers=headers,
+        params={
+            "object_id": successful["id"],
+            "cable_type": "self_regulating_tt",
+            "cable_mark": body["results"][0]["cable_mark"],
+        },
+    )
+    assert selected.status_code == 200, selected.text
+    assert selected.json()["cable_mark"] == body["results"][0]["cable_mark"]
+    assert selected.json()["results"]["resolved_inputs"]["nominal_voltage_v"] == "380.0"
+    assert selected.json()["results"]["input_sources"]["nominal_voltage_v"] == (
+        "assignment_override"
+    )
+
+
+@pytest.mark.parametrize("field,value", [("winding_coefficient", 1.2), ("connection_type", "star")])
+async def test_batch_query_rejects_retired_tt_inputs_instead_of_ignoring_them(
+    client: AsyncClient,
+    guest_session: str,
+    field: str,
+    value: object,
+) -> None:
+    project = await _guest_project(client, guest_session)
+
+    response = await client.post(
+        "/api/v1/calc/electrical/batch",
+        headers=_headers(session_id=guest_session),
+        params={
+            "project_id": project["id"],
+            "cable_type": "self_regulating_tt",
+            field: value,
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == {
+        "code": "ELECTRICAL_INPUT_RETIRED",
+        "message": "Запрос содержит входы, удалённые из Case 1 TT-контракта",
+        "issues": [],
+        "details": {"fields": [field]},
+    }
 
 
 async def test_ac_be_28_guest_employee_canonical_tt_parity(

@@ -4,15 +4,16 @@
 
 import math
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from app.electrical_domain import ElectricalFormulaError
 from app.formulas.electrical.cable_geometry import compute_tank_cable_length
 from app.formulas.electrical.decimal_math import SIX_PLACES, decimal_value, round_result, round_up
-from app.formulas.electrical.tt_contract import SYSTEM_VOLTAGE_V
+from app.formulas.electrical.sections import section_catalog_payload_snapshot
 from app.reference_data.loader import (
-    get_tt_cable_by_model,
+    list_electrical_tt_bom_entries,
     list_tt_cables,
 )
 from app.schemas.calculation import (
@@ -20,43 +21,34 @@ from app.schemas.calculation import (
     SelfRegulatingTTResult,
 )
 
-CableRow = dict[str, Any]
 MAX_SELF_REG_AUTO_THREADS = 3
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 # ---------------------------------------------------------------------------
 # Расчёт кабелей серии ТТН / ТТВ / ТТХ
 # ---------------------------------------------------------------------------
 
-_SERIES_LIMITS: dict[str, dict[str, float]] = {
-    "ТТН": {"max_product_temp": 65.0, "max_vapor_temp": 85.0},
-    "ТТВ": {"max_product_temp": 120.0, "max_vapor_temp": 210.0},
-    "ТТХ": {"max_product_temp": 150.0, "max_vapor_temp": 250.0},
-}
+_TT_SERIES = frozenset({"ТТН", "ТТВ", "ТТХ"})
+
+
+@dataclass(frozen=True, slots=True)
+class TTCatalogCandidate:
+    power_row: Mapping[str, Any]
+    bom_row: Mapping[str, Any]
+    base_model: str
+    full_mark: str
+    series: str
+    passport_power: Decimal
+    min_ambient_temperature: Decimal
+    max_product_temperature: Decimal
 
 
 def _tt_row_series(row: Mapping[str, Any]) -> str:
     series = str(row.get("series") or "").strip().upper()
-    if series in _SERIES_LIMITS:
+    if series in _TT_SERIES:
         return series
     model = "".join(str(row.get("model") or "").split()).upper()
-    for candidate in _SERIES_LIMITS:
+    for candidate in _TT_SERIES:
         if candidate in model:
             return candidate
     raise ElectricalFormulaError(
@@ -69,31 +61,173 @@ def _tt_row_series(row: Mapping[str, Any]) -> str:
 def _tt_row_nominal_power(row: Mapping[str, Any]) -> Decimal:
     value = row.get("nominal_power")
     if value is None:
-        model = "".join(str(row.get("model") or "").split()).upper()
-        value = model.split("ТТ", 1)[0]
+        raise ElectricalFormulaError(
+            "ELECTRICAL_CATALOG_ROW_INVALID",
+            "Строка power-каталога не содержит паспортную мощность",
+            details={"model": row.get("model"), "missing_fields": ["nominal_power"]},
+        )
     try:
-        return decimal_value(value)
+        power = decimal_value(value)
     except (InvalidOperation, TypeError, ValueError) as exc:
         raise ElectricalFormulaError(
             "ELECTRICAL_CATALOG_ROW_INVALID",
-            "Строка power-каталога не содержит номинальную мощность модели",
-            details={"model": row.get("model")},
+            "Паспортная мощность строки power-каталога некорректна",
+            details={"model": row.get("model"), "invalid_fields": ["nominal_power"]},
         ) from exc
+    if not power.is_finite() or power <= 0:
+        raise ElectricalFormulaError(
+            "ELECTRICAL_CATALOG_ROW_INVALID",
+            "Паспортная мощность строки power-каталога должна быть положительной",
+            details={"model": row.get("model"), "invalid_fields": ["nominal_power"]},
+        )
+    return power
 
 
-def _select_tt_series(process_temp: float, vapor_temp: float | None) -> str:
-    """Выбирает минимальную подходящую серию ТТН→ТТВ→ТТХ."""
-    for series, limits in _SERIES_LIMITS.items():
-        if process_temp >= limits["max_product_temp"]:
-            continue
-        if vapor_temp is not None and vapor_temp >= limits["max_vapor_temp"]:
-            continue
-        return series
-    raise ElectricalFormulaError(
-        "ELECTRICAL_CABLE_TEMPERATURE_LIMIT_EXCEEDED",
-        "Температура продукта или пропарки превышает предел серии ТТХ",
-        details={"product_temperature_c": process_temp, "steam_temperature_c": vapor_temp},
-    )
+def _tt_row_max_product_temperature(row: Mapping[str, Any]) -> Decimal:
+    value = row.get("max_product_temp")
+    if value is None:
+        raise ElectricalFormulaError(
+            "ELECTRICAL_CATALOG_ROW_INVALID",
+            "Строка power-каталога не содержит T_max",
+            details={"model": row.get("model"), "missing_fields": ["max_product_temp"]},
+        )
+    try:
+        maximum = decimal_value(value)
+    except (InvalidOperation, TypeError, ValueError) as exc:
+        raise ElectricalFormulaError(
+            "ELECTRICAL_CATALOG_ROW_INVALID",
+            "T_max строки power-каталога некорректна",
+            details={"model": row.get("model"), "invalid_fields": ["max_product_temp"]},
+        ) from exc
+    if not maximum.is_finite():
+        raise ElectricalFormulaError(
+            "ELECTRICAL_CATALOG_ROW_INVALID",
+            "T_max строки power-каталога должна быть конечным числом",
+            details={"model": row.get("model"), "invalid_fields": ["max_product_temp"]},
+        )
+    return maximum
+
+
+def _section_row_model(row: Mapping[str, Any]) -> str:
+    return "".join(str(row.get("base_model") or row.get("mark") or "").split()).upper()
+
+
+def _section_row_temperature(row: Mapping[str, Any]) -> Decimal | None:
+    raw = row.get("cold_start_temperature_c", row.get("cold_start_temp_c"))
+    if raw is None:
+        return None
+    try:
+        temperature = decimal_value(raw)
+    except (InvalidOperation, TypeError, ValueError):
+        return None
+    return temperature if temperature.is_finite() else None
+
+
+def _tt_model_min_temperature(
+    model: str,
+    section_catalog_rows: Sequence[Mapping[str, Any]],
+) -> Decimal:
+    normalized_model = "".join(model.split()).upper()
+    temperatures = [
+        temperature
+        for row in section_catalog_rows
+        if _section_row_model(row) == normalized_model
+        and (temperature := _section_row_temperature(row)) is not None
+    ]
+    if not temperatures:
+        raise ElectricalFormulaError(
+            "ELECTRICAL_CATALOG_ROW_INVALID",
+            "Для модели отсутствует T_min из каталога секционирования",
+            details={"model": model, "missing_fields": ["min_temperature"]},
+        )
+    return min(temperatures)
+
+
+def _validated_tt_catalog_rows(
+    catalog_rows: Sequence[Mapping[str, Any]],
+    section_catalog_rows: Sequence[Mapping[str, Any]],
+) -> list[tuple[Mapping[str, Any], Decimal, Decimal, Decimal, str]]:
+    validated: list[tuple[Mapping[str, Any], Decimal, Decimal, Decimal, str]] = []
+    for row in catalog_rows:
+        model = "".join(str(row.get("model") or "").split()).upper()
+        if not model:
+            raise ElectricalFormulaError(
+                "ELECTRICAL_CATALOG_ROW_INVALID",
+                "Строка power-каталога не содержит модель",
+                details={"model": row.get("model"), "missing_fields": ["model"]},
+            )
+        series = _tt_row_series(row)
+        nominal_power = _tt_row_nominal_power(row)
+        max_product_temperature = _tt_row_max_product_temperature(row)
+        min_ambient_temperature = _tt_model_min_temperature(model, section_catalog_rows)
+        validated.append(
+            (
+                row,
+                nominal_power,
+                min_ambient_temperature,
+                max_product_temperature,
+                series,
+            )
+        )
+    return validated
+
+
+def build_tt_catalog_candidates(
+    power_catalog_rows: Sequence[Mapping[str, Any]],
+    section_catalog_rows: Sequence[Mapping[str, Any]],
+    bom_catalog_rows: Sequence[Mapping[str, Any]],
+) -> list[TTCatalogCandidate]:
+    """Join exact technical marks without synthesizing an undocumented suffix."""
+    validated = _validated_tt_catalog_rows(power_catalog_rows, section_catalog_rows)
+    candidates: list[TTCatalogCandidate] = []
+    seen_marks: set[str] = set()
+    for power_row, passport_power, t_min, t_max, series in validated:
+        base_model = "".join(str(power_row.get("model") or "").split()).upper()
+        matching_bom_rows = [
+            row
+            for row in bom_catalog_rows
+            if "".join(str(row.get("full_mark") or "").split()).upper().startswith(f"{base_model}-")
+        ]
+        if not matching_bom_rows:
+            raise ElectricalFormulaError(
+                "ELECTRICAL_CATALOG_ROW_INVALID",
+                "Для базовой модели отсутствует exact full_mark в BOM-каталоге",
+                details={"model": base_model, "missing_fields": ["full_mark"]},
+            )
+        for bom_row in matching_bom_rows:
+            full_mark = "".join(str(bom_row.get("full_mark") or "").split()).upper()
+            nomenclature_code = str(bom_row.get("nomenclature_code") or "").strip()
+            missing_fields = []
+            if not full_mark:
+                missing_fields.append("full_mark")
+            if not nomenclature_code:
+                missing_fields.append("nomenclature_code")
+            if missing_fields:
+                raise ElectricalFormulaError(
+                    "ELECTRICAL_CATALOG_ROW_INVALID",
+                    "BOM-строка технической марки неполна",
+                    details={"model": base_model, "missing_fields": missing_fields},
+                )
+            if full_mark in seen_marks:
+                raise ElectricalFormulaError(
+                    "ELECTRICAL_CATALOG_ROW_INVALID",
+                    "BOM-каталог содержит дублирующуюся техническую марку",
+                    details={"model": base_model, "duplicate_full_mark": full_mark},
+                )
+            seen_marks.add(full_mark)
+            candidates.append(
+                TTCatalogCandidate(
+                    power_row=power_row,
+                    bom_row=bom_row,
+                    base_model=base_model,
+                    full_mark=full_mark,
+                    series=series,
+                    passport_power=passport_power,
+                    min_ambient_temperature=t_min,
+                    max_product_temperature=t_max,
+                )
+            )
+    return candidates
 
 
 def compute_winding_factor(*, outer_diameter_mm: float, winding_pitch_mm: float | None) -> Decimal:
@@ -143,20 +277,13 @@ def calc_self_regulating_tt(
     params: SelfRegulatingTTParams,
     *,
     catalog_rows: Sequence[Mapping[str, Any]] | None = None,
+    section_catalog_rows: Sequence[Mapping[str, Any]] | None = None,
+    bom_catalog_rows: Sequence[Mapping[str, Any]] | None = None,
 ) -> SelfRegulatingTTResult:
-    """Подбор саморегулирующегося кабеля ТТН/ТТВ/ТТХ.
+    """Select one Case 1 cable candidate from passport catalog values.
 
-    Формула мощности: q_б(T3) = q1 × T3 + q2  [Вт/м]
-    Марка: <мощность>ТТН/ТТВ/ТТХ2-СТ (агрессивная среда → СР).
-    Суффикс по первоисточнику (Расчет_спецификации_трубы_самрег29_05_26.xlsx):
-    -СТ = среда не агрессивная, -СР = агрессивная.
-    Количество ниток: N = задано пользователем или
-    ceil(q_required / (q_б × k_навива))
-
-    Алгоритм серии: выбираем минимально подходящую по T1/T2 серию. Если
-    одной нитки недостаточно, берём максимальный номинал этой серии и считаем
-    N = ceil(q_required / (q_б × k_навива)) без эскалации серии только из-за
-    мощности.
+    Candidate coverage is ``P_cable * K_nav * N >= q * K``. ``P_cable`` is
+    ``nominal_power`` and T_min is sourced from the model's §6.14 section rows.
     """
     selection_policy = getattr(params, "selection_policy", "technical_minimum")
     if selection_policy != "technical_minimum":
@@ -165,49 +292,57 @@ def calc_self_regulating_tt(
             "В MVP поддерживается только политика technical_minimum",
             details={"selection_policy": selection_policy},
         )
-    if params.maintain_temperature is None:
-        raise ElectricalFormulaError(
-            "ELECTRICAL_CABLE_POWER_CURVE_INVALID", "Температура поддержания T3 обязательна"
-        )
     if params.number_of_threads is not None and params.number_of_threads not in {1, 2, 3}:
         raise ElectricalFormulaError(
             "ELECTRICAL_THREAD_COUNT_INVALID", "Число ниток должно быть от 1 до 3"
         )
 
-    series = _select_tt_series(params.process_temperature, params.vapor_temperature)
-    suffix = "СР" if series != "ТТН" or params.aggressive_product else "СТ"
     q_required = decimal_value(params.required_power_per_meter) * decimal_value(
         params.safety_factor
     )
-    # Canonical absence of pitch means straight laying. A non-unit legacy coefficient is ignored.
-    winding_factor = (
-        Decimal(1)
-        if params.winding_pitch is None or params.winding_pitch == 0
-        else decimal_value(params.winding_coefficient)
-    )
-    t3 = decimal_value(params.maintain_temperature)
-
-    def cable_power(cable_row: CableRow) -> Decimal:
-        try:
-            power = decimal_value(cable_row["q1"]) * t3 + decimal_value(cable_row["q2"])
-        except (InvalidOperation, KeyError, TypeError, ValueError) as exc:
+    is_tank = params.tank_shape is not None
+    if is_tank or params.winding_pitch in (None, 0):
+        winding_factor = Decimal(1)
+    else:
+        if params.outer_diameter_mm is None:
             raise ElectricalFormulaError(
-                "ELECTRICAL_CABLE_POWER_CURVE_INVALID",
-                "Строка power-каталога не содержит числовые коэффициенты q1/q2",
-                details={"model": cable_row.get("model")},
-            ) from exc
-        if not power.is_finite():
-            raise ElectricalFormulaError(
-                "ELECTRICAL_CABLE_POWER_CURVE_INVALID",
-                "Мощность кабеля при T3 должна быть конечным числом",
-                details={"model": cable_row.get("model")},
+                "ELECTRICAL_WINDING_PITCH_INVALID",
+                "Для системного расчёта Kнав требуется наружный диаметр трубы",
             )
-        return power
-
-    supplied_catalog = (
+        winding_factor = compute_winding_factor(
+            outer_diameter_mm=params.outer_diameter_mm,
+            winding_pitch_mm=params.winding_pitch,
+        )
+    power_catalog = (
         [dict(row) for row in catalog_rows if isinstance(row, Mapping)]
         if catalog_rows is not None
-        else None
+        else list_tt_cables()
+    )
+    raw_section_rows = (
+        [dict(row) for row in section_catalog_rows if isinstance(row, Mapping)]
+        if section_catalog_rows is not None
+        else section_catalog_payload_snapshot().get("rows")
+    )
+    resolved_section_rows = (
+        [dict(row) for row in raw_section_rows if isinstance(row, Mapping)]
+        if isinstance(raw_section_rows, list)
+        else []
+    )
+    if not power_catalog:
+        raise ElectricalFormulaError(
+            "ELECTRICAL_CATALOG_ROW_INVALID",
+            "Power-каталог не содержит строк",
+            details={"model": None, "missing_fields": ["catalog_rows"]},
+        )
+    raw_bom_rows = (
+        [dict(row) for row in bom_catalog_rows if isinstance(row, Mapping)]
+        if bom_catalog_rows is not None
+        else list_electrical_tt_bom_entries()
+    )
+    catalog = build_tt_catalog_candidates(
+        power_catalog,
+        resolved_section_rows,
+        raw_bom_rows,
     )
 
     if params.cable_mark is not None:
@@ -218,72 +353,70 @@ def calc_self_regulating_tt(
                 "Условные legacy-марки ТЛТ не поддерживаются в новом расчёте",
                 details={"requested_model": normalized_model},
             )
-        if normalized_model.endswith(("-СТ", "-СР", "-НР")):
-            raise ElectricalFormulaError(
-                "ELECTRICAL_CABLE_CONSTRUCTION_UNSUPPORTED",
-                "Ручной выбор принимает базовую модель без суффикса исполнения",
-            )
-        cable = (
-            next(
-                (
-                    row
-                    for row in supplied_catalog
-                    if "".join(str(row.get("model") or "").split()).upper() == normalized_model
-                ),
-                None,
-            )
-            if supplied_catalog is not None
-            else get_tt_cable_by_model(normalized_model)
-        )
-        if cable is None:
+        selected_rows = [item for item in catalog if item.full_mark == normalized_model]
+        if not selected_rows:
             raise ElectricalFormulaError(
                 "ELECTRICAL_CABLE_NOT_FOUND",
                 f"Кабель «{params.cable_mark}» не найден в справочнике",
             )
-        if _tt_row_series(cable) != series:
-            raise ElectricalFormulaError(
-                "ELECTRICAL_CABLE_SERIES_MISMATCH",
-                "Ручная модель не принадлежит вычисленной температурной серии",
-                details={"requested_model": normalized_model, "required_series": series},
-            )
-        candidate_rows = [cable]
     else:
-        catalog = supplied_catalog if supplied_catalog is not None else list_tt_cables()
-        candidate_rows = [row for row in catalog if _tt_row_series(row) == series]
+        selected_rows = catalog
 
-    positive_rows = [(power, row) for row in candidate_rows if (power := cable_power(row)) > 0]
-    if not positive_rows:
+    product_temperature = decimal_value(params.process_temperature)
+    ambient_temperature = decimal_value(params.ambient_temperature)
+    temperature_eligible = [
+        item
+        for item in selected_rows
+        if ambient_temperature >= item.min_ambient_temperature
+        and product_temperature <= item.max_product_temperature
+    ]
+    if not temperature_eligible:
         raise ElectricalFormulaError(
-            "ELECTRICAL_CABLE_POWER_CURVE_INVALID",
-            "В выбранной серии нет модели с положительной мощностью при T3",
+            "ELECTRICAL_CABLE_TEMPERATURE_LIMIT_EXCEEDED",
+            "Ни одна допустимая марка не проходит T_env/T_min и T_product/T_max",
+            details={
+                "product_temperature_c": float(product_temperature),
+                "ambient_temperature_c": float(ambient_temperature),
+                "manual_cable_model": params.cable_mark,
+            },
         )
 
-    requested_threads = (
-        [params.number_of_threads] if params.number_of_threads is not None else [1, 2, 3]
-    )
-    candidates: list[tuple[int, Decimal, CableRow]] = []
+    if params.number_of_threads is not None:
+        requested_threads = [params.number_of_threads]
+    elif params.cable_mark is not None:
+        requested_threads = [1]
+    else:
+        requested_threads = [1, 2, 3]
+    candidates: list[tuple[int, TTCatalogCandidate]] = []
     for threads in requested_threads:
-        for q_b_candidate, cable_candidate in positive_rows:
-            if q_b_candidate * winding_factor * threads >= q_required:
-                candidates.append((threads, q_b_candidate, cable_candidate))
+        for catalog_candidate in temperature_eligible:
+            if catalog_candidate.passport_power * winding_factor * threads >= q_required:
+                candidates.append((threads, catalog_candidate))
     if not candidates:
         raise ElectricalFormulaError(
             "ELECTRICAL_CABLE_POWER_INSUFFICIENT",
-            "Ни один кабель вычисленной серии не обеспечивает требуемую мощность",
-            details={"required_power_per_meter_w": float(q_required), "maximum_threads": 3},
+            "Ни одна допустимая марка не обеспечивает требуемую мощность",
+            details={
+                "required_power_per_meter_w": float(q_required),
+                "maximum_threads": requested_threads[-1],
+                "manual_cable_model": params.cable_mark,
+            },
         )
-    num_circuits, q_b, cable = min(
+    num_circuits, selected = min(
         candidates,
         key=lambda item: (
             item[0],
-            item[1] * item[0],
-            _tt_row_nominal_power(item[2]),
-            str(item[2]["model"]),
+            item[1].passport_power,
+            item[1].passport_power * item[0],
+            item[1].full_mark,
         ),
     )
-    cable_mark = f"{cable['model']}-{suffix}"
+    passport_power = selected.passport_power
+    cable = selected.power_row
+    series = selected.series
+    cable_mark = selected.full_mark
 
-    if params.tank_shape and params.heating_height and params.laying_step:
+    if is_tank:
         base_length = compute_tank_cable_length(
             shape=params.tank_shape,
             diameter=params.tank_diameter,
@@ -296,9 +429,9 @@ def calc_self_regulating_tt(
         base_length = params.pipe_length
     cable_length = decimal_value(base_length) * winding_factor * num_circuits
     order_cable_length = round_up(cable_length * Decimal("1.10"))
-    total_power = q_b * cable_length
-    installed_power_per_meter = q_b * winding_factor * num_circuits
-    applied_voltage = Decimal(SYSTEM_VOLTAGE_V)
+    total_power = passport_power * cable_length
+    installed_power_per_meter = passport_power * winding_factor * num_circuits
+    applied_voltage = decimal_value(params.supply_voltage)
 
     temp_group = "high" if series in {"ТТВ", "ТТХ"} else "low"
     return SelfRegulatingTTResult(
@@ -311,7 +444,7 @@ def calc_self_regulating_tt(
         installed_cable_length=float(round_result(cable_length)),
         order_cable_length=float(order_cable_length),
         num_circuits=num_circuits,
-        power_per_meter=float(round_result(q_b)),
+        power_per_meter=float(round_result(passport_power)),
         installed_power_per_meter=float(round_result(installed_power_per_meter)),
         total_power=float(round_result(total_power)),
         current=float(round_result(total_power / applied_voltage)),

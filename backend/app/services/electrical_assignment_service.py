@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 from collections import defaultdict
+from decimal import Decimal, InvalidOperation
 from time import perf_counter
 from typing import Any
 from uuid import UUID
@@ -53,9 +54,7 @@ _ELECTRICAL_TASK = "electrical_batch"
 _HEAT_TASK = "heat_loss_batch"
 _REPORT_TASK = "report_export"
 _ELECTRICAL_OVERRIDE_FIELDS = {
-    "steam_temperature_c",
-    "maintain_temperature_c",
-    "aggressive_product",
+    "supply_voltage_v",
     "winding_pitch_mm",
     "thread_count",
     "manual_cable_model",
@@ -63,8 +62,7 @@ _ELECTRICAL_OVERRIDE_FIELDS = {
     "tank_laying_step_m",
 }
 _OBJECT_FALLBACK_OVERRIDE_FIELDS = {
-    "maintain_temperature_c",
-    "aggressive_product",
+    "supply_voltage_v",
     "tank_heating_height_m",
     "tank_laying_step_m",
 }
@@ -820,13 +818,38 @@ class ElectricalAssignmentService:
                 row.get("cable_mark"),
                 row.get("results"),
             )
+            results = row.get("results")
+            if assignment.assignment_state == "ready" and isinstance(results, dict):
+                provenance = results.get("provenance")
+                input_sources = (
+                    provenance.get("input_sources") if isinstance(provenance, dict) else None
+                )
+                resolved_inputs = results.get("resolved_inputs")
+                if (
+                    isinstance(input_sources, dict)
+                    and input_sources.get("nominal_voltage_v") == "explicit_request"
+                    and isinstance(resolved_inputs, dict)
+                    and resolved_inputs.get("nominal_voltage_v") is not None
+                ):
+                    persisted = dict(assignment.electrical_overrides or {})
+                    voltage = resolved_inputs["nominal_voltage_v"]
+                    try:
+                        voltage_changed = Decimal(
+                            str(persisted.get("supply_voltage_v"))
+                        ) != Decimal(str(voltage))
+                    except (InvalidOperation, TypeError, ValueError):
+                        voltage_changed = True
+                    if voltage_changed:
+                        persisted["supply_voltage_v"] = voltage
+                        assignment.electrical_overrides = persisted
+                        assignment.version += 1
             assignment.requested_cable_type = cable_type or None
             assignment.object_version_snapshot = obj.version
             assignment.diagnostics = self._diagnostics_for_results(row.get("results"))
-            # ``version`` is the revision of assignment inputs. Calculation
-            # readiness, diagnostics and object snapshot are derived outputs;
-            # changing them must not invalidate the assignment revision that
-            # was captured in the just-persisted TT result provenance.
+            # ``version`` is the revision of assignment inputs. Ready-state and
+            # diagnostics are derived outputs and do not increment it; the one
+            # exception above persists an explicit public voltage and aligns
+            # the revision with the effective snapshot already in provenance.
             affected[assignment.electrical_variant_id].append(assignment.object_id)
 
         specification_service = SpecificationService(self.db)

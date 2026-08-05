@@ -56,7 +56,10 @@ from app.services.electrical_history_service import (
     ElectricalCalculationHistoryNotFoundError,
     ElectricalHistoryService,
 )
-from app.services.electrical_input_resolver import ElectricalInputResolutionError
+from app.services.electrical_input_resolver import (
+    RETIRED_TT_INPUT_FIELDS,
+    ElectricalInputResolutionError,
+)
 from app.services.electrical_query_service import (
     ElectricalQueryService,
     ElectricalQueryValidationError,
@@ -89,6 +92,23 @@ def _raise_project_error(exc: Exception) -> NoReturn:
     if isinstance(exc, ProjectAccessError):
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     raise exc
+
+
+def _reject_retired_tt_query_inputs(request: Request, cable_type: str) -> None:
+    """Reject known removed TT inputs that FastAPI would otherwise ignore."""
+    if cable_type != "self_regulating_tt":
+        return
+    fields = sorted(RETIRED_TT_INPUT_FIELDS.intersection(request.query_params.keys()))
+    if fields:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "ELECTRICAL_INPUT_RETIRED",
+                "message": "Запрос содержит входы, удалённые из Case 1 TT-контракта",
+                "issues": [],
+                "details": {"fields": fields},
+            },
+        )
 
 
 @router.get(
@@ -911,19 +931,17 @@ async def unapply_electrical_candidate(
 async def select_cable(
     object_id: UUID,
     cable_mark: str,
+    request: Request,
     cable_source: str = "builtin",
     variant_number: int = 1,
     electrical_variant_id: UUID | None = None,
     cable_type: str = "self_regulating_tt",
     connection_type: str | None = None,
-    winding_coefficient: float | None = None,
     winding_pitch: float | None = None,
     number_of_threads: int | None = None,
     heating_height: float | None = None,
     laying_step: float | None = None,
-    maintain_temperature: float | None = None,
-    vapor_temperature: float | None = None,
-    aggressive_product: bool | None = None,
+    supply_voltage: float | None = Query(None, gt=0),
     selection_policy: SelectionPolicy = "technical_minimum",
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
@@ -934,6 +952,7 @@ async def select_cable(
     результатов теплопотерь. Если кабель не подходит — 422 с текстом причины.
     На успех — upsert `ElectricalCalculation` и возврат новой записи.
     """
+    _reject_retired_tt_query_inputs(request, cable_type)
     if cable_source in ("extended", "all") and principal.role not in ("employee", "admin"):
         raise HTTPException(
             status_code=403, detail="Расширенный каталог доступен только сотрудникам"
@@ -947,24 +966,27 @@ async def select_cable(
             variant_number,
             expected_electrical_variant_id=electrical_variant_id,
         )
+        electrical_params = {
+            key: value
+            for key, value in {
+                "winding_pitch": winding_pitch,
+                "number_of_threads": number_of_threads,
+                "heating_height": heating_height,
+                "laying_step": laying_step,
+                "supply_voltage": supply_voltage,
+            }.items()
+            if value is not None
+        }
+        electrical_params["selection_policy"] = selection_policy
+        if cable_type != "self_regulating_tt" and connection_type is not None:
+            electrical_params["connection_type"] = connection_type
         calc = await service.select_cable_manual(
             object_id,
             cable_mark,
             cable_source,
             variant_number,
             cable_type,
-            {
-                "connection_type": connection_type,
-                "winding_coefficient": winding_coefficient,
-                "winding_pitch": winding_pitch,
-                "number_of_threads": number_of_threads,
-                "heating_height": heating_height,
-                "laying_step": laying_step,
-                "maintain_temperature": maintain_temperature,
-                "vapor_temperature": vapor_temperature,
-                "aggressive_product": aggressive_product,
-                "selection_policy": selection_policy,
-            },
+            electrical_params,
             electrical_variant_id=variant.id,
         )
     except ElectricalVariantServiceError as exc:
@@ -1086,14 +1108,11 @@ async def batch_calc_electrical(
     cable_type: str = "self_regulating_tt",
     force_cable_type: bool = False,
     connection_type: str | None = None,
-    winding_coefficient: float | None = None,
     winding_pitch: float | None = None,
     number_of_threads: int | None = None,
     heating_height: float | None = None,
     laying_step: float | None = None,
-    maintain_temperature: float | None = None,
-    vapor_temperature: float | None = None,
-    aggressive_product: bool | None = None,
+    supply_voltage: float | None = Query(None, gt=0),
     selection_policy: SelectionPolicy = "technical_minimum",
     skip_manual: bool = True,
     include_results: bool = True,
@@ -1120,6 +1139,7 @@ async def batch_calc_electrical(
         request,
         detail="Превышен лимит пакетных расчётов для пользователя и IP. Повторите через час.",
     )
+    _reject_retired_tt_query_inputs(request, cable_type)
     if cable_source in ("extended", "all") and principal.role not in ("employee", "admin"):
         raise HTTPException(
             status_code=403, detail="Расширенный каталог доступен только сотрудникам"
@@ -1133,23 +1153,26 @@ async def batch_calc_electrical(
             variant_number,
             expected_electrical_variant_id=electrical_variant_id,
         )
+        electrical_params = {
+            key: value
+            for key, value in {
+                "winding_pitch": winding_pitch,
+                "number_of_threads": number_of_threads,
+                "heating_height": heating_height,
+                "laying_step": laying_step,
+                "supply_voltage": supply_voltage,
+            }.items()
+            if value is not None
+        }
+        electrical_params["selection_policy"] = selection_policy
+        if cable_type != "self_regulating_tt" and connection_type is not None:
+            electrical_params["connection_type"] = connection_type
         calculated, skipped, heat_loss_failed, errors, calcs = await service.batch_calc_electrical(
             project_id,
             cable_source,
             variant_number,
             cable_type,
-            {
-                "connection_type": connection_type,
-                "winding_coefficient": winding_coefficient,
-                "winding_pitch": winding_pitch,
-                "number_of_threads": number_of_threads,
-                "heating_height": heating_height,
-                "laying_step": laying_step,
-                "maintain_temperature": maintain_temperature,
-                "vapor_temperature": vapor_temperature,
-                "aggressive_product": aggressive_product,
-                "selection_policy": selection_policy,
-            },
+            electrical_params,
             skip_manual=skip_manual,
             return_calcs=include_results,
             object_ids=selected_object_ids,
@@ -1203,7 +1226,7 @@ async def cable_options(
     object_id: UUID,
     electrical_variant_id: UUID | None = Query(
         None,
-        description="ЭР (UUID), чьи object-assignment overrides задают T2/T3/R",
+        description="ЭР (UUID), чьи object-assignment overrides задают входы Case 1",
     ),
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),

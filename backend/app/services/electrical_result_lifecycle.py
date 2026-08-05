@@ -12,7 +12,7 @@ from app.models.electrical_calculation import ElectricalCalculation
 
 
 def current_tt_result_sql_predicate():
-    """True for non-TT rows or TT rows carrying every current v2 fingerprint."""
+    """True for non-TT rows or TT rows carrying every current v3 fingerprint."""
     results = ElectricalCalculation.results
     mark = func.coalesce(
         ElectricalCalculation.cable_mark,
@@ -54,7 +54,9 @@ def current_tt_result_sql_predicate():
     ]
     current_tt = and_(
         func.upper(func.coalesce(mark, "")).not_like("ТЛТ-%"),
-        voltage.op("~")(r"^230(?:\.0+)?$"),
+        voltage.op("~")(
+            r"^(?:[0-9]*[1-9][0-9]*(?:\.[0-9]+)?|0*\.[0-9]*[1-9][0-9]*)$"
+        ),
         results["provenance"]["formula_version"].astext == ELECTRICAL_TT_FORMULA_VERSION,
         results["provenance"]["formula_fingerprint"].astext == ELECTRICAL_TT_FORMULA_FINGERPRINT,
         current_limit.is_not(None),

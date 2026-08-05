@@ -62,8 +62,6 @@ COMMON_OBJECT_DEFAULTS: dict[str, Any] = {
     "environment": "normal",
     "zone_classification": "safe",
     "temperature_group": "T1",
-    "min_switch_temperature": -20,
-    "aggressive_product": False,
     "steam_tracing": "no",
 }
 

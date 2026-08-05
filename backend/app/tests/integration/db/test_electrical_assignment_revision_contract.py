@@ -112,6 +112,7 @@ async def _seed_context(
         params={
             "name": "Revision pipe",
             "process_temperature": 80.0,
+            "ambient_temperature": -20.0,
             "min_switch_temperature": -20.0,
             "steam_tracing": False,
             "selection_policy": "technical_minimum",
@@ -151,8 +152,7 @@ async def _seed_context(
     assignment.version = 2
     assignment.object_version_snapshot = obj.version
     assignment.electrical_overrides = {
-        "maintain_temperature_c": "10.0",
-        "aggressive_product": False,
+        "supply_voltage_v": "380",
     }
     assignment.diagnostics = {}
 

@@ -22,10 +22,8 @@ _READY_PIPE_PARAMS = {
     "insulation_layers": [{"thickness": 0.05, "material": "mineral_wool_boards_120"}],
     "insulation_temperature_basis": "outdoor_winter",
     "ambient_temperature": -30.0,
+    "min_switch_temperature": -30.0,
     "process_temperature": 80.0,
-    "maintain_temperature": 10.0,
-    "aggressive_product": False,
-    "steam_tracing": False,
     "pipe_length": 50.0,
     "placement": "outdoor",
     "wind_speed": 0.0,
@@ -183,9 +181,7 @@ async def test_override_patch_is_exact_sparse_optimistic_and_marks_dependents_st
         headers=headers,
         json={
             "expected_version": first_assigned[target["id"]]["version"],
-            "steam_temperature_c": None,
-            "maintain_temperature_c": "10.5",
-            "aggressive_product": True,
+            "supply_voltage_v": "380",
             "winding_pitch_mm": None,
             "thread_count": None,
             "manual_cable_model": None,
@@ -198,9 +194,7 @@ async def test_override_patch_is_exact_sparse_optimistic_and_marks_dependents_st
     assert body["version"] == first_assigned[target["id"]]["version"] + 1
     assert body["assignment_state"] == "stale"
     assert body["electrical_overrides"] == {
-        "steam_temperature_c": None,
-        "maintain_temperature_c": "10.5",
-        "aggressive_product": True,
+        "supply_voltage_v": "380",
         "winding_pitch_mm": None,
         "thread_count": None,
         "manual_cable_model": None,
@@ -245,7 +239,7 @@ async def test_override_patch_is_exact_sparse_optimistic_and_marks_dependents_st
         headers=headers,
         json={
             "expected_version": first_assigned[target["id"]]["version"],
-            "maintain_temperature_c": 11,
+            "supply_voltage_v": 230,
         },
     )
     assert conflict.status_code == 409
@@ -256,15 +250,13 @@ async def test_override_patch_is_exact_sparse_optimistic_and_marks_dependents_st
         headers=headers,
         json={
             "expected_version": body["version"],
-            "maintain_temperature_c": None,
-            "aggressive_product": None,
+            "supply_voltage_v": None,
             "tank_heating_height_m": None,
             "tank_laying_step_m": None,
         },
     )
     assert cleared.status_code == 200, cleared.text
     assert cleared.json()["electrical_overrides"] == {
-        "steam_temperature_c": None,
         "winding_pitch_mm": None,
         "thread_count": None,
         "manual_cable_model": None,
