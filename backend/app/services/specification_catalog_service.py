@@ -31,11 +31,16 @@ from app.models.specification import (
     SpecificationCatalogItem,
     SpecificationCatalogVersion,
 )
-from app.reference_data.specification_catalog_seed_debt import (
-    SEED_DEBT_CATALOG_KEY,
-    SEED_DEBT_VERSION,
-    bundled_specification_catalog_seed_debt_document,
-    seed_debt_is_tech_debt_source,
+from app.reference_data.specification_catalog_case1_demo import (
+    CASE1_DEMO_BOX_NA_DECISION_REF,
+    CASE1_DEMO_CATALOG_KEY,
+    CASE1_DEMO_EX_RGR_NA_DECISION_REF,
+    CASE1_DEMO_SCHEMA_VERSION,
+    CASE1_DEMO_VERSION,
+    bundled_case1_demo_catalog_document,
+    case1_demo_payload_checksum,
+    is_case1_demo_item_source,
+    is_case1_demo_source,
 )
 from app.schemas.specification_catalog import (
     SpecificationCatalogAuthority,
@@ -46,46 +51,94 @@ from app.schemas.specification_catalog import (
 
 _SHA256_RE = re.compile(r"sha256:[0-9a-f]{64}")
 _UNTRUSTED_SOURCE_TOKENS = ("provisional", "synthetic", "demo", "guess", "mock")
-# TECH-DEBT seed may still look "approved" in local bootstrap; never treat as production authority.
-_SEED_DEBT_UNTRUSTED_TOKENS = ("tech-debt", "seed-debt", "seed debt")
 
 
 def _catalog_identity_text(version: SpecificationCatalogVersion) -> str:
     return f"{version.catalog_key} {version.version} {version.source}".casefold()
 
 
-def is_seed_debt_catalog_version(version: SpecificationCatalogVersion) -> bool:
-    """True when version is the bundled temporary seed (not owner authority)."""
-    if version.version == SEED_DEBT_VERSION:
-        return True
-    if version.catalog_key == SEED_DEBT_CATALOG_KEY and seed_debt_is_tech_debt_source(
-        version.source
-    ):
-        return True
-    text = _catalog_identity_text(version)
-    return any(token in text for token in _SEED_DEBT_UNTRUSTED_TOKENS)
+def is_case1_demo_catalog_version(version: SpecificationCatalogVersion) -> bool:
+    """True only for the exact immutable bundled Case 1 demo identity."""
+    document = bundled_case1_demo_catalog_document()
+    return (
+        version.catalog_key == CASE1_DEMO_CATALOG_KEY
+        and version.version == CASE1_DEMO_VERSION
+        and version.authority == SpecificationCatalogAuthority.DEMO.value
+        and is_case1_demo_source(version.source)
+        and version.source_checksum == document.source_checksum
+        and version.payload_checksum == case1_demo_payload_checksum()
+    )
 
 
-def _reject_seed_debt_in_production(
+def is_browser_qa_catalog_version(version: SpecificationCatalogVersion) -> bool:
+    """Browser QA fixtures are never specification catalog authority."""
+    return str(version.version or "").casefold().startswith("browser-qa-")
+
+
+def _has_untrusted_catalog_identity(version: SpecificationCatalogVersion) -> bool:
+    return any(token in _catalog_identity_text(version) for token in _UNTRUSTED_SOURCE_TOKENS)
+
+
+def _catalog_uses_case1_demo_markers(
+    item_inputs: list[tuple[SpecificationCatalogItem, SpecificationCatalogItemInput]]
+    | list[SpecificationCatalogItemInput],
+) -> bool:
+    """Keep bundled demo exceptions scoped to the exact immutable catalog."""
+    demo_refs = {
+        CASE1_DEMO_BOX_NA_DECISION_REF,
+        CASE1_DEMO_EX_RGR_NA_DECISION_REF,
+    }
+    for entry in item_inputs:
+        item = entry[1] if isinstance(entry, tuple) else entry
+        if is_case1_demo_item_source(item.source_ref):
+            return True
+        if any(
+            isinstance(condition, dict) and condition.get("decision_ref") in demo_refs
+            for condition in item.applicability.values()
+        ):
+            return True
+    return False
+
+
+def _catalog_demo_markers_compatible(
+    version: SpecificationCatalogVersion,
+    item_inputs: list[tuple[SpecificationCatalogItem, SpecificationCatalogItemInput]]
+    | list[SpecificationCatalogItemInput],
+) -> bool:
+    return not _catalog_uses_case1_demo_markers(item_inputs) or is_case1_demo_catalog_version(
+        version
+    )
+
+
+def _active_authority_allowed(version: SpecificationCatalogVersion) -> bool:
+    """Only owner-approved rows or the exact local bundled demo may be active."""
+    return version.authority == SpecificationCatalogAuthority.APPROVED.value or (
+        not app_settings.is_production
+        and version.authority == SpecificationCatalogAuthority.DEMO.value
+        and is_case1_demo_catalog_version(version)
+    )
+
+
+def _reject_case1_demo_in_production(
     version: SpecificationCatalogVersion,
     *,
     action: str,
 ) -> None:
-    """SPEC-P0-b: production must not bootstrap or activate tech-debt catalogs."""
+    """The bundled Case 1 catalog is explicitly non-production."""
     if not app_settings.is_production:
         return
-    if not is_seed_debt_catalog_version(version):
+    if not is_case1_demo_catalog_version(version):
         return
     raise SpecificationCatalogServiceError(
-        "SPEC_CATALOG_SEED_DEBT_FORBIDDEN",
-        "TECH-DEBT specification seed запрещён в production; "
-        "импортируйте owner-approved каталог (SPEC-OWNER-MATERIALS / EX-RGR)",
+        "SPEC_CATALOG_DEMO_FORBIDDEN",
+        "Демонстрационный specification catalog запрещён в production; "
+        "импортируйте производственный owner-approved каталог",
         status_code=403,
         details={
             "action": action,
             "catalog_key": version.catalog_key,
             "version": version.version,
-            "tech_debt": True,
+            "demo": True,
             "app_env": app_settings.APP_ENV,
         },
     )
@@ -385,7 +438,9 @@ def _validate_material_authority(
                 item=item,
             )
         )
-    if not material_approval_reference_ok(item.source_ref):
+    if not material_approval_reference_ok(item.source_ref) and not is_case1_demo_item_source(
+        item.source_ref
+    ):
         issues.append(
             _issue(
                 "SPEC_ACCESSORY_CATALOG_ITEM_MISSING",
@@ -528,7 +583,7 @@ def validate_specification_catalog(
         seen_codes.add(item.nomenclature_code)
         by_category[item.category].append(item)
 
-        if any(token in item.source_ref.casefold() for token in _UNTRUSTED_SOURCE_TOKENS):
+        if any(token in item.source_ref.casefold() for token in _UNTRUSTED_SOURCE_TOKENS) and not is_case1_demo_item_source(item.source_ref):
             issues.append(
                 _issue(
                     "SPEC_ACCESSORY_CATALOG_INCOMPLETE",
@@ -661,6 +716,17 @@ def _validate_box_matrix_authority(
             f"{key}={_condition_fingerprint(item.applicability.get(key))}"
             for key in BOX_CONDITION_KEYS
         ]
+        # Case 1 page 76 contains rows with the same applicability cells but
+        # different quantity rule (for example СКВ 1201 vs СКВ 1601).  A row
+        # is silently duplicated only when both its conditions *and* its
+        # declared calculation rule are identical.
+        parts.extend(
+            (
+                f"section_divider={item.formula_parameters.get('section_divider')!s}",
+                f"rounding_mode={item.formula_parameters.get('rounding_mode')!s}",
+                f"min_quantity={item.formula_parameters.get('min_quantity')!s}",
+            )
+        )
         fingerprint = "|".join(parts)
         fingerprints.setdefault(fingerprint, []).append(item.item_key)
         ex_modes.append(condition_mode(item.applicability.get(BOX_EX_KEY)))
@@ -685,8 +751,10 @@ def _validate_box_matrix_authority(
             )
         )
 
-    if box_items and all(mode == "not_applicable" for mode in ex_modes) and all(
-        mode == "not_applicable" for mode in r_gr_modes
+    if (
+        box_items
+        and all(mode == "not_applicable" for mode in ex_modes)
+        and all(mode == "not_applicable" for mode in r_gr_modes)
     ):
         # All-not-applicable Ex/R_gr makes those axes non-discriminating.
         # Only accept when every decision_ref is present (shape-validated) AND
@@ -754,6 +822,62 @@ def _as_catalog_id(value: UUID | str | None) -> UUID | str | None:
 class SpecificationCatalogService:
     def __init__(self, db: AsyncSession):
         self.db = db
+
+    async def _persisted_validation(
+        self,
+        version: SpecificationCatalogVersion,
+    ) -> tuple[SpecificationCatalogValidation, tuple[SpecificationCatalogItem, ...]]:
+        """Revalidate immutable rows before relying on an old ``is_complete`` flag."""
+        items = tuple(
+            (
+                await self.db.execute(
+                    select(SpecificationCatalogItem)
+                    .where(SpecificationCatalogItem.catalog_version_id == version.id)
+                    .order_by(SpecificationCatalogItem.position)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        item_inputs, persisted_item_issues = _persisted_item_inputs(list(items))
+        validation_issues = [
+            *persisted_item_issues,
+            *validate_specification_catalog([item for _, item in item_inputs]).issues,
+            *_validate_catalog_checksums(version, item_inputs),
+        ]
+        if not _active_authority_allowed(version):
+            validation_issues.append(
+                _issue(
+                    "SPEC_ACCESSORY_CATALOG_INCOMPLETE",
+                    "catalog_authority_not_compatible",
+                    details={"authority": version.authority},
+                )
+            )
+        if _has_untrusted_catalog_identity(version) and not is_case1_demo_catalog_version(version):
+            validation_issues.append(
+                _issue(
+                    "SPEC_ACCESSORY_CATALOG_INCOMPLETE",
+                    "catalog_source_not_compatible",
+                )
+            )
+        if not _catalog_demo_markers_compatible(version, item_inputs):
+            validation_issues.append(
+                _issue(
+                    "SPEC_ACCESSORY_CATALOG_INCOMPLETE",
+                    "catalog_demo_item_source_not_compatible",
+                )
+            )
+        return (
+            SpecificationCatalogValidation(
+                is_complete=(
+                    version.schema_version == CASE1_DEMO_SCHEMA_VERSION
+                    and len(items) == version.item_count
+                    and not validation_issues
+                ),
+                issues=validation_issues,
+            ),
+            items,
+        )
 
     async def list_versions(
         self,
@@ -981,6 +1105,24 @@ class SpecificationCatalogService:
             *shape_validation.issues,
             *_validate_catalog_checksums(target, item_inputs),
         ]
+        if target.schema_version != CASE1_DEMO_SCHEMA_VERSION:
+            validation_issues.append(
+                _issue(
+                    "SPEC_ACCESSORY_CATALOG_INCOMPLETE",
+                    "unsupported_catalog_schema_version",
+                    details={
+                        "actual": target.schema_version,
+                        "supported": CASE1_DEMO_SCHEMA_VERSION,
+                    },
+                )
+            )
+        if not _catalog_demo_markers_compatible(target, item_inputs):
+            validation_issues.append(
+                _issue(
+                    "SPEC_ACCESSORY_CATALOG_INCOMPLETE",
+                    "catalog_demo_item_source_not_compatible",
+                )
+            )
         validation = SpecificationCatalogValidation(
             is_complete=not validation_issues,
             issues=validation_issues,
@@ -988,14 +1130,18 @@ class SpecificationCatalogService:
         target.item_count = len(items)
         target.is_complete = validation.is_complete
         target.validation_issues = validation.issues
-        # Production must never activate TECH-DEBT seed even if authority looks approved.
-        _reject_seed_debt_in_production(target, action="activate")
+        # Production must never activate a demo seed even if authority looks approved.
+        _reject_case1_demo_in_production(target, action="activate")
         source_text = _catalog_identity_text(target)
-        # In all environments block untrusted tokens; seed-debt tokens blocked in production only
-        # via _reject_seed_debt_in_production (local bootstrap still needs activate for seed).
+        allow_bundled_demo = not app_settings.is_production and is_case1_demo_catalog_version(
+            target
+        )
         if (
-            target.authority != SpecificationCatalogAuthority.APPROVED.value
-            or any(token in source_text for token in _UNTRUSTED_SOURCE_TOKENS)
+            not _active_authority_allowed(target)
+            or (
+                any(token in source_text for token in _UNTRUSTED_SOURCE_TOKENS)
+                and not allow_bundled_demo
+            )
             or not validation.is_complete
         ):
             if commit:
@@ -1058,53 +1204,58 @@ class SpecificationCatalogService:
             stale_specification_count=stale_count,
         )
 
-    async def ensure_seed_debt_catalog_active(
+    async def ensure_case1_demo_catalog_active(
         self,
         principal: CurrentPrincipal | None = None,
         *,
         commit: bool = True,
     ) -> SpecificationCatalogVersion:
-        """Bootstrap temporary TECH-DEBT catalog for local generate (not owner-approved).
+        """Bootstrap the immutable Case 1 demo catalog in non-production only.
 
-        Idempotent:
-        * existing non-debt active approved complete version is left alone;
-        * seed-debt version is created once and re-used without mutation;
-        * incomplete/corrupt bundled document fails closed without partial write.
-
-        SPEC-P0-b: forbidden in production (must import owner-approved catalog).
+        A saved ``is_complete`` bit is never enough: browser-QA, legacy-schema,
+        and corrupted active versions are retired through normal activation and
+        replaced with this document.  A healthy non-demo catalog is left intact.
         """
         if app_settings.is_production:
             raise SpecificationCatalogServiceError(
-                "SPEC_CATALOG_SEED_DEBT_FORBIDDEN",
-                "TECH-DEBT specification seed bootstrap запрещён в production; "
-                "импортируйте owner-approved каталог",
+                "SPEC_CATALOG_DEMO_FORBIDDEN",
+                "Демонстрационный specification catalog bootstrap запрещён в production; "
+                "импортируйте производственный каталог",
                 status_code=403,
-                details={"action": "ensure_seed_debt_catalog_active", "tech_debt": True},
+                details={"action": "ensure_case1_demo_catalog_active", "demo": True},
             )
 
-        document = bundled_specification_catalog_seed_debt_document()
+        document = bundled_case1_demo_catalog_document()
         validation = validate_specification_catalog(document.items)
         if not validation.is_complete:
             raise SpecificationCatalogServiceError(
-                "SPEC_CATALOG_SEED_DEBT_INVALID",
-                "TECH-DEBT specification seed payload is incomplete",
+                "SPEC_CATALOG_DEMO_INVALID",
+                "Case 1 demo specification catalog payload is incomplete",
                 status_code=500,
-                details={"issues": validation.issues, "tech_debt": True},
+                details={"issues": validation.issues, "demo": True},
             )
 
         active = await self.db.scalar(
             select(SpecificationCatalogVersion).where(
-                SpecificationCatalogVersion.catalog_key == SEED_DEBT_CATALOG_KEY,
+                SpecificationCatalogVersion.catalog_key == CASE1_DEMO_CATALOG_KEY,
                 SpecificationCatalogVersion.status == "active",
             )
         )
         if active is not None:
-            # Never replace a user-owned active version that is not our debt seed.
-            if active.version != SEED_DEBT_VERSION and not seed_debt_is_tech_debt_source(
-                active.source
+            active_validation, _ = await self._persisted_validation(active)
+            if (
+                active.version == CASE1_DEMO_VERSION
+                and is_case1_demo_catalog_version(active)
+                and active_validation.is_complete
             ):
                 return active
-            if active.version == SEED_DEBT_VERSION:
+            # A healthy, current, non-demo catalog belongs to its importer.
+            # Explicit browser-qa, old schema, and validation failures are replaced.
+            if (
+                active_validation.is_complete
+                and not is_case1_demo_catalog_version(active)
+                and not is_browser_qa_catalog_version(active)
+            ):
                 return active
 
         existing = await self.db.scalar(
@@ -1123,14 +1274,14 @@ class SpecificationCatalogService:
             return existing
         elif existing.status != "draft":
             raise SpecificationCatalogServiceError(
-                "SPEC_CATALOG_SEED_DEBT_CONFLICT",
-                "TECH-DEBT specification seed version exists but is not draft/active",
+                "SPEC_CATALOG_DEMO_CONFLICT",
+                "Case 1 demo catalog version exists but is not draft/active",
                 status_code=409,
                 details={
                     "catalog_key": existing.catalog_key,
                     "version": existing.version,
                     "status": existing.status,
-                    "tech_debt": True,
+                    "demo": True,
                 },
             )
 
@@ -1184,39 +1335,59 @@ class SpecificationCatalogService:
                 "Нет подходящей active specification catalog версии",
                 status_code=409 if code == "SPEC_CATALOG_VERSION_INACTIVE" else 503,
             )
-        if version.authority != "approved" or not version.is_complete:
+        # Production must not generate BOM from a demo catalog even if it was
+        # already active before the environment switch.
+        if app_settings.is_production and is_case1_demo_catalog_version(version):
+            raise SpecificationCatalogServiceError(
+                "SPEC_CATALOG_DEMO_FORBIDDEN",
+                "Active specification catalog — demo version; production generation blocked",
+                status_code=503,
+                details={
+                    "catalog_key": version.catalog_key,
+                    "version": version.version,
+                    "demo": True,
+                },
+            )
+        if not _active_authority_allowed(version) or not version.is_complete:
             raise SpecificationCatalogServiceError(
                 "SPEC_CATALOG_UNAVAILABLE",
                 "Active specification catalog не прошёл production gate",
                 status_code=503,
             )
-        # Production must not generate BOM from tech-debt seed even if already active.
-        if app_settings.is_production and is_seed_debt_catalog_version(version):
-            raise SpecificationCatalogServiceError(
-                "SPEC_CATALOG_SEED_DEBT_FORBIDDEN",
-                "Active specification catalog — TECH-DEBT seed; production generation blocked",
-                status_code=503,
-                details={
-                    "catalog_key": version.catalog_key,
-                    "version": version.version,
-                    "tech_debt": True,
-                },
-            )
-        items = tuple(
-            (
-                await self.db.execute(
-                    select(SpecificationCatalogItem)
-                    .where(SpecificationCatalogItem.catalog_version_id == version.id)
-                    .order_by(SpecificationCatalogItem.position)
-                )
-            )
-            .scalars()
-            .all()
-        )
-        if len(items) != version.item_count:
+        if is_browser_qa_catalog_version(version):
             raise SpecificationCatalogServiceError(
                 "SPEC_CATALOG_UNAVAILABLE",
-                "Active specification catalog имеет повреждённый item snapshot",
+                "Active browser-QA catalog cannot be used for specification generation",
                 status_code=503,
+                details={"reason": "browser_qa_catalog_forbidden", "version": version.version},
+            )
+        if _has_untrusted_catalog_identity(version) and not is_case1_demo_catalog_version(version):
+            raise SpecificationCatalogServiceError(
+                "SPEC_CATALOG_UNAVAILABLE",
+                "Active specification catalog has an untrusted source identity",
+                status_code=503,
+                details={"reason": "catalog_source_not_compatible"},
+            )
+        if version.schema_version != CASE1_DEMO_SCHEMA_VERSION:
+            raise SpecificationCatalogServiceError(
+                "SPEC_CATALOG_UNAVAILABLE",
+                "Active specification catalog использует неподдерживаемую schema_version",
+                status_code=503,
+                details={
+                    "schema_version": version.schema_version,
+                    "supported_schema_version": CASE1_DEMO_SCHEMA_VERSION,
+                },
+            )
+        persisted_validation, items = await self._persisted_validation(version)
+        if not persisted_validation.is_complete:
+            raise SpecificationCatalogServiceError(
+                "SPEC_CATALOG_UNAVAILABLE",
+                "Active specification catalog несовместим, повреждён или не проходит текущую валидацию",
+                status_code=503,
+                details={
+                    "schema_version": version.schema_version,
+                    "supported_schema_version": CASE1_DEMO_SCHEMA_VERSION,
+                    "issues": persisted_validation.issues,
+                },
             )
         return ResolvedSpecificationCatalog(version=version, items=items)

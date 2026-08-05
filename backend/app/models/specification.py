@@ -104,7 +104,7 @@ class SpecificationCatalogVersion(Base):
             name="ck_specification_catalog_versions_item_count",
         ),
         CheckConstraint(
-            "status <> 'active' OR (authority = 'approved' AND is_complete IS TRUE)",
+            "status <> 'active' OR (authority IN ('approved', 'demo') AND is_complete IS TRUE)",
             name="ck_specification_catalog_versions_active_authoritative",
         ),
         CheckConstraint(

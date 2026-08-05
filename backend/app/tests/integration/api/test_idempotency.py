@@ -180,7 +180,7 @@ class TestSpecGenerateIdempotency:
         db_session: AsyncSession,
     ):
         headers = {"Authorization": f"Bearer {employee_token}"}
-        await SpecificationCatalogService(db_session).ensure_seed_debt_catalog_active(
+        await SpecificationCatalogService(db_session).ensure_case1_demo_catalog_active(
             CurrentPrincipal(
                 role="admin",
                 user_id=employee_user.id,

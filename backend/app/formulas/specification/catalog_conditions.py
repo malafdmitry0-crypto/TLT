@@ -19,6 +19,12 @@ from typing import Any
 _DECISION_REF_RE = re.compile(r"^SPEC-OWNER-[A-Z0-9-]+/.+")
 _EX_RGR_DECISION_PREFIX = "SPEC-OWNER-EX-RGR/"
 _MATERIAL_APPROVAL_RE = re.compile(r"approval:\s*SPEC-OWNER-MATERIALS/\S+", re.IGNORECASE)
+_CASE1_DEMO_DECISION_REFS = frozenset(
+    {
+        "DEMO-CASE1-BOX-v1",
+        "DEMO-CASE1-EX-RGR-NOT-APPLICABLE-v1",
+    }
+)
 
 # Operators accepted for R_gr match once the owner document supplies them.
 # Empty values are never invented here.
@@ -102,7 +108,7 @@ def validate_condition_shape(
         )
         return issues
 
-    if isinstance(value, bool) or isinstance(value, (int, float, Decimal)) or value is None:
+    if isinstance(value, bool | int | float | Decimal) or value is None:
         issues.append(
             _issue(
                 "SPEC_BOX_EX_RGR_MATRIX_MISSING"
@@ -197,7 +203,10 @@ def validate_condition_shape(
                     field=field,
                 )
             )
-        elif not _DECISION_REF_RE.fullmatch(decision_ref.strip()):
+        elif (
+            not _DECISION_REF_RE.fullmatch(decision_ref.strip())
+            and decision_ref.strip() not in _CASE1_DEMO_DECISION_REFS
+        ):
             issues.append(
                 _issue(
                     "SPEC_BOX_EX_RGR_MATRIX_MISSING"
@@ -208,7 +217,11 @@ def validate_condition_shape(
                     details={"decision_ref": decision_ref},
                 )
             )
-        elif kind in {"ex", "r_gr"} and not decision_ref.startswith(_EX_RGR_DECISION_PREFIX):
+        elif (
+            kind in {"ex", "r_gr"}
+            and not decision_ref.startswith(_EX_RGR_DECISION_PREFIX)
+            and decision_ref.strip() != "DEMO-CASE1-EX-RGR-NOT-APPLICABLE-v1"
+        ):
             issues.append(
                 _issue(
                     "SPEC_BOX_EX_RGR_MATRIX_MISSING",

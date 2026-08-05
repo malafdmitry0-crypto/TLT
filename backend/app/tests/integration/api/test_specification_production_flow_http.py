@@ -28,10 +28,10 @@ from app.models.specification import (
     SpecificationCatalogVersion,
 )
 from app.models.user import User
-from app.reference_data.specification_catalog_seed_debt import (
-    SEED_DEBT_CATALOG_KEY,
-    SEED_DEBT_VERSION,
-    bundled_specification_catalog_seed_debt_document,
+from app.reference_data.specification_catalog_case1_demo import (
+    CASE1_DEMO_CATALOG_KEY,
+    CASE1_DEMO_VERSION,
+    bundled_case1_demo_catalog_document,
 )
 from app.services.specification_catalog_service import (
     SpecificationCatalogService,
@@ -641,7 +641,7 @@ async def test_http_report_specification_states_absent_current_stale(
     _ = preview_absent
 
 
-async def test_seed_debt_catalog_bootstrap_is_idempotent(
+async def test_case1_demo_catalog_bootstrap_is_idempotent(
     db_session: AsyncSession,
     employee_user: User,
 ) -> None:
@@ -652,7 +652,7 @@ async def test_seed_debt_catalog_bootstrap_is_idempotent(
         user_id=employee_user.id,
         email=employee_user.email,
     )
-    # Retire any active so debt seed can activate.
+    # Retire any active so the demo catalog can activate.
     await db_session.execute(
         update(SpecificationCatalogVersion)
         .where(SpecificationCatalogVersion.status == "active")
@@ -661,22 +661,121 @@ async def test_seed_debt_catalog_bootstrap_is_idempotent(
     await db_session.commit()
 
     svc = SpecificationCatalogService(db_session)
-    first = await svc.ensure_seed_debt_catalog_active(principal, commit=True)
-    second = await svc.ensure_seed_debt_catalog_active(principal, commit=True)
+    first = await svc.ensure_case1_demo_catalog_active(principal, commit=True)
+    second = await svc.ensure_case1_demo_catalog_active(principal, commit=True)
     assert first.id == second.id
-    assert first.version == SEED_DEBT_VERSION
-    assert first.catalog_key == SEED_DEBT_CATALOG_KEY
+    assert first.version == CASE1_DEMO_VERSION
+    assert first.catalog_key == CASE1_DEMO_CATALOG_KEY
     assert first.status == "active"
-    doc = bundled_specification_catalog_seed_debt_document()
-    assert doc.version == SEED_DEBT_VERSION
+    doc = bundled_case1_demo_catalog_document()
+    assert doc.version == CASE1_DEMO_VERSION
     count = await db_session.scalar(
         select(SpecificationCatalogVersion)
         .where(
-            SpecificationCatalogVersion.catalog_key == SEED_DEBT_CATALOG_KEY,
-            SpecificationCatalogVersion.version == SEED_DEBT_VERSION,
+            SpecificationCatalogVersion.catalog_key == CASE1_DEMO_CATALOG_KEY,
+            SpecificationCatalogVersion.version == CASE1_DEMO_VERSION,
         )
     )
     assert count is not None
+
+
+async def test_http_case1_demo_catalog_generates_pipe_bom_without_ex_rgr_matrix_error(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    employee_user: User,
+    employee_token: str,
+) -> None:
+    """The bundled schema-2 Case 1 demo reaches a persisted pipe BOM."""
+    from app.core.dependencies import CurrentPrincipal
+
+    headers = {"Authorization": f"Bearer {employee_token}"}
+    project, variants, _obj, _legacy_catalog = await _seed_http_ready_project(
+        db_session,
+        employee_user,
+        name="HTTP Case 1 demo catalog pipe",
+        multi_connection=True,
+    )
+    ready = variants[0]
+    demo = await SpecificationCatalogService(db_session).ensure_case1_demo_catalog_active(
+        CurrentPrincipal(
+            role="admin",
+            user_id=employee_user.id,
+            email=employee_user.email,
+        ),
+        commit=True,
+    )
+
+    first = await client.post(
+        f"/api/v1/specifications/{project.id}/generate",
+        json={
+            "variant_ids": [str(ready.id)],
+            "options": _options(),
+            "catalog_selections": {},
+        },
+        headers=headers,
+    )
+    assert first.status_code == 409, first.text
+    pending = first.json()["results"][0]
+    group = next(
+        item
+        for item in pending["candidate_groups"]
+        if item["category"] == "connection_kit" and len(item["candidates"]) > 1
+    )
+    selected = group["candidates"][0]
+
+    collection = await client.get(
+        f"/api/v1/specifications/{project.id}/variants/{ready.id}/catalog-selections",
+        headers=headers,
+    )
+    assert collection.status_code == 200, collection.text
+    put = await client.put(
+        f"/api/v1/specifications/{project.id}/variants/{ready.id}/catalog-selections",
+        json={
+            "expected_version": collection.json()["collection_version"],
+            "selections": [
+                {
+                    "candidate_group_key": group["group_key"],
+                    "catalog_version_id": selected["catalog_id"],
+                    "catalog_item_id": selected["catalog_item_id"],
+                    "candidate_set_fingerprint": group["candidate_set_fingerprint"],
+                }
+            ],
+        },
+        headers=headers,
+    )
+    assert put.status_code == 200, put.text
+
+    generated = await client.post(
+        f"/api/v1/specifications/{project.id}/generate",
+        json={
+            "variant_ids": [str(ready.id)],
+            "options": _options(),
+            "catalog_selections": {},
+        },
+        headers=headers,
+    )
+    assert generated.status_code == 201, generated.text
+    result = generated.json()["results"][0]
+    assert result["status"] == "generated"
+    assert result["items"]
+    assert all(
+        diagnostic["code"] != "SPEC_BOX_EX_RGR_MATRIX_MISSING"
+        for diagnostic in result["diagnostics"]
+    )
+    assert any(
+        item["article"].startswith("DEMO-") for item in result["items"]
+    )
+    snapshot = result["snapshot"]
+    assert snapshot["catalog"] == {
+        "id": str(demo.id),
+        "catalog_key": CASE1_DEMO_CATALOG_KEY,
+        "version": CASE1_DEMO_VERSION,
+        "source_checksum": demo.source_checksum,
+        "payload_checksum": demo.payload_checksum,
+        "schema_version": 2,
+    }
+    assert snapshot["normalized_inputs"]["resolved_options"]["Ex"] is False
+    assert snapshot["normalized_inputs"]["resolved_options"]["R_gr"] == "1"
 
 
 async def test_http_zero_connection_candidates_blocks_without_bom_write(

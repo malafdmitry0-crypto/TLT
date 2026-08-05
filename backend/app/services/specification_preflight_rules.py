@@ -169,7 +169,9 @@ def _catalog_diagnostics(
                 details={"catalog_id": str(catalog.catalog_id), "catalog_version": catalog.version},
             )
         ]
-    if catalog.authority != "approved" or not catalog.is_complete:
+    # ``demo`` can arrive here only through SpecificationCatalogService,
+    # which admits the exact bundled Case 1 identity in non-production.
+    if catalog.authority not in {"approved", "demo"} or not catalog.is_complete:
         return [
             _diagnostic(
                 SpecificationDiagnosticCode.ACCESSORY_CATALOG_INCOMPLETE,

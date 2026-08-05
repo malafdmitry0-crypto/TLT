@@ -10,7 +10,7 @@
 Порядок выполнения:
   1. users (admin2 + 5 employees)
   2. electrical_catalog_versions (approved power/section/BOM authority)
-  3. specification_catalog (TECH-DEBT temporary seed until owner Ex/R_gr+materials)
+  3. specification_catalog (Case 1 DEMO, non-production and not for procurement)
   4. correction_coefficients (расчётные и demo commercial политики)
   5. insulation_materials (DB projection встроенного JSON-справочника)
   6. cables_extended (встроенный технический каталог + demo commercial projection)
@@ -407,42 +407,35 @@ async def seed_electrical_catalogs(db, principal: CurrentPrincipal) -> None:
 
 
 async def seed_specification_catalog(db, principal: CurrentPrincipal) -> None:
-    """Bootstrap TECH-DEBT specification catalog (temporary mock until owner data).
-
-    Not production-ready. Does not replace a non-debt user active version.
-    SPEC-P0-b: skipped entirely when APP_ENV is production.
-    """
+    """Bootstrap the immutable Case 1 demo catalog outside production only."""
     from app.core.config import settings as app_settings
-    from app.reference_data.specification_catalog_seed_debt import (
-        SEED_DEBT_VERSION,
-        seed_debt_is_tech_debt_source,
+    from app.reference_data.specification_catalog_case1_demo import (
+        CASE1_DEMO_VERSION,
+        is_case1_demo_source,
     )
 
     if app_settings.is_production:
         logger.warning(
-            "  ! specification catalog TECH-DEBT seed SKIPPED in production "
-            "(import owner-approved catalog via admin API)",
+            "  ! specification catalog Case 1 DEMO seed SKIPPED in production "
+            "(import production catalog via admin API)",
         )
         return
 
-    version = await SpecificationCatalogService(db).ensure_seed_debt_catalog_active(
+    version = await SpecificationCatalogService(db).ensure_case1_demo_catalog_active(
         principal,
         commit=False,
     )
-    if version.version == SEED_DEBT_VERSION or seed_debt_is_tech_debt_source(
-        version.source
-    ):
+    if version.version == CASE1_DEMO_VERSION and is_case1_demo_source(version.source):
         logger.info(
-            "  + specification catalog TECH-DEBT seed active: key=%s version=%s "
-            "(MOCK debt — not owner-approved; replace when "
-            "SPEC-OWNER-EX-RGR/MATERIALS close)",
+            "  + specification catalog Case 1 DEMO active: key=%s version=%s "
+            "(non-production only; not for procurement)",
             version.catalog_key,
             version.version,
         )
     else:
         logger.info(
-            "  = specification catalog already has non-debt active version=%s; "
-            "TECH-DEBT seed left untouched (will not overwrite)",
+            "  = specification catalog already has healthy non-demo active version=%s; "
+            "Case 1 DEMO left untouched",
             version.version,
         )
 
@@ -467,7 +460,7 @@ async def run_electrical_catalog_seed() -> None:
 
 
 async def run_specification_catalog_seed() -> None:
-    """Register TECH-DEBT specification catalog only (no project wipe)."""
+    """Register Case 1 demo specification catalog only (no project wipe)."""
     async with AsyncSessionLocal() as db:
         # Need at least one admin for principal; create users if empty.
         admin = await db.scalar(select(User).where(User.role == "admin").limit(1))
@@ -477,7 +470,7 @@ async def run_specification_catalog_seed() -> None:
         principal = await _existing_admin_principal(db)
         await seed_specification_catalog(db, principal)
         await db.commit()
-        logger.info("=== Specification catalog TECH-DEBT seed complete ===")
+        logger.info("=== Case 1 DEMO specification catalog seed complete ===")
 
 
 async def seed_coefficients(db, admin_id: uuid.UUID) -> list[CorrectionCoefficient]:
@@ -2166,7 +2159,7 @@ async def run_seeds() -> None:
         await seed_electrical_catalogs(db, seed_principal)
 
         logger.info(
-            "=== Seed: specification_catalog (TECH-DEBT temporary, not owner-approved) ==="
+            "=== Seed: specification_catalog (Case 1 DEMO, non-production; not for procurement) ==="
         )
         await seed_specification_catalog(db, seed_principal)
 
@@ -2207,8 +2200,8 @@ def main() -> None:
         "--specification-catalog-only",
         action="store_true",
         help=(
-            "register TECH-DEBT temporary specification BOM catalog "
-            "(not owner-approved; local generate only)"
+            "register Case 1 DEMO specification BOM catalog "
+            "(non-production only; not for procurement)"
         ),
     )
     args = parser.parse_args()
