@@ -22,41 +22,37 @@
   margin: 0 0 12px;
 }
 
+/* Плотный режим: высота карточки ужата ~на 40%; шрифт не ниже 12px. */
 .elec-summary-card.ant-card,
 .elec-summary-card.tlt-ui-card {
   border-radius: 10px;
   border-color: var(--color-swatch-e6edf5);
   box-shadow: none;
+  line-height: 1.25;
 }
 
 .elec-summary-card .ant-card-head,
 .elec-summary-card .tlt-ui-card__header {
-  min-height: 36px;
-  padding: 0 14px;
+  min-height: 0;
+  padding: 0 12px;
   border-bottom: 1px solid var(--color-swatch-eef2f6);
   text-align: center;
 }
 
 .elec-summary-card .ant-card-head-title,
 .elec-summary-card .tlt-ui-card__title {
-  padding: 8px 0;
-  justify-content: center;
+  padding: 3px 0;
 }
 
 .elec-summary-card__title {
-  font-size: 13px;
+  font-size: 12px;
+  line-height: 1.25;
   color: var(--color-swatch-334155);
 }
 
 .elec-summary-card .ant-card-body,
 .elec-summary-card .tlt-ui-card__body {
-  padding: 8px 14px 10px;
-}
-
-.elec-summary-card__body {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
+  padding: 2px 12px 3px;
 }
 
 .elec-summary-card__row {
@@ -64,7 +60,7 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 10px;
-  padding: 5px 0;
+  padding: 2px 0;
   border-bottom: 1px solid var(--color-swatch-f0f3f7);
   font-size: 12px;
 }
