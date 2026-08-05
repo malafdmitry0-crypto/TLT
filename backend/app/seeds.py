@@ -1608,6 +1608,347 @@ _HEAT_SEED_CONFIGS: tuple[HeatSeedConfig, ...] = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Наполнение проектов
+# ---------------------------------------------------------------------------
+# Канонические кейсы выше покрывают контракт расчёта — по одному объекту на
+# кейс, их проверяет scripts/heat-seed-audit.sql. Объекты ниже дают объём:
+# часть проектов состоит только из труб, часть только из резервуаров, часть
+# смешанная, чтобы страницы теплопотерь и электрорасчёта было на чём смотреть.
+
+_BASIS_BY_PLACEMENT = {
+    "indoor": "indoor",
+    "outdoor": "outdoor_winter",
+    "underground": "channel",
+}
+
+
+def _layers_mm(*thickness_mm: float, material: str = _MINERAL_WOOL) -> list[dict[str, object]]:
+    return [{"thickness": mm / 1000.0, "material": material} for mm in thickness_mm]
+
+
+def _volume_seed(
+    object_type: Literal["pipe", "tank"],
+    name: str,
+    params: dict[str, object],
+) -> HeatSeedConfig:
+    """Объект наполнения: без seed_case, чтобы не путать его с каноническим."""
+
+    return {
+        "object_type": object_type,
+        "seed_case": "",
+        "name": name,
+        "params": {"name": name, **params},
+    }
+
+
+def _pipe_seed(
+    name: str,
+    *,
+    outer_diameter_mm: float,
+    wall_thickness_mm: float,
+    length_m: float,
+    product_c: float,
+    placement: str,
+    layers_mm: tuple[float, ...],
+    ambient_c: float | None = None,
+    wind_ms: float = 5.0,
+    ground_c: float = 6.0,
+    ground_lambda: float = 1.4,
+    depth_m: float = 1.2,
+    material: str = "carbon_steel",
+    safety_factor: float = 1.1,
+    local_elements: int | None = None,
+) -> HeatSeedConfig:
+    params: dict[str, object] = {
+        "outer_diameter": outer_diameter_mm / 1000.0,
+        "wall_thickness": wall_thickness_mm / 1000.0,
+        "pipe_material": material,
+        "pipe_length": length_m,
+        "insulation_layers": _layers_mm(*layers_mm),
+        "insulation_temperature_basis": _BASIS_BY_PLACEMENT[placement],
+        "process_temperature": product_c,
+        "placement": placement,
+        "safety_factor": safety_factor,
+        "safety_factor_source": "manual",
+    }
+    if placement == "underground":
+        # Контракт: подземная труба живёт на температуре грунта, воздуха у неё нет.
+        params.update(
+            ground_temperature=ground_c,
+            ground_temperature_source="manual",
+            ground_conductivity=ground_lambda,
+            ground_conductivity_source="manual",
+            ground_type="dry_sand",
+            pipe_centerline_depth=depth_m,
+        )
+    else:
+        params.update(
+            ambient_temperature=ambient_c,
+            ambient_temperature_source="manual",
+        )
+        if placement == "outdoor":
+            params.update(wind_speed=wind_ms, wind_speed_source="manual")
+    if local_elements is not None:
+        params.update(num_local_elements=local_elements, local_element_equiv_length=1.5)
+    return _volume_seed("pipe", name, params)
+
+
+def _tank_seed(
+    name: str,
+    *,
+    shape: str,
+    placement: str,
+    product_c: float,
+    layers_mm: tuple[float, ...],
+    diameter_m: float | None = None,
+    height_m: float | None = None,
+    length_m: float | None = None,
+    width_m: float | None = None,
+    ambient_c: float = 20.0,
+    wind_ms: float = 5.0,
+    ground_c: float = 7.0,
+    ground_lambda: float = 1.1,
+    buried_height_m: float = 1.0,
+    safety_factor: float = 1.1,
+    q_additional: float = 0.0,
+) -> HeatSeedConfig:
+    params: dict[str, object] = {
+        "shape": shape,
+        "insulation_layers": _layers_mm(*layers_mm),
+        "insulation_temperature_basis": _BASIS_BY_PLACEMENT[placement],
+        "ambient_temperature": ambient_c,
+        "ambient_temperature_source": "manual",
+        "process_temperature": product_c,
+        "placement": placement,
+        "safety_factor": safety_factor,
+        "safety_factor_source": "manual",
+        "q_additional": q_additional,
+    }
+    if shape == "cylindrical":
+        params.update(diameter=diameter_m, height=height_m)
+    elif shape == "rectangular":
+        params.update(length=length_m, width=width_m, height=height_m)
+    else:
+        params.update(diameter=diameter_m)
+    if placement == "outdoor":
+        params.update(wind_speed=wind_ms, wind_speed_source="manual")
+    elif placement == "underground":
+        # У резервуара часть поверхности остаётся на воздухе, поэтому нужны обе
+        # температуры и высота заглубления.
+        params.update(
+            wind_speed=wind_ms,
+            wind_speed_source="manual",
+            ground_temperature=ground_c,
+            ground_temperature_source="manual",
+            ground_conductivity=ground_lambda,
+            ground_conductivity_source="manual",
+            ground_type="dry_sand",
+            tank_buried_height=buried_height_m,
+        )
+    return _volume_seed("tank", name, params)
+
+
+class ProjectSeedPlan(TypedDict):
+    project: str
+    canonical: tuple[str, ...]
+    volume: tuple[HeatSeedConfig, ...]
+
+
+def _project_seed_plans() -> tuple[ProjectSeedPlan, ...]:
+    """Раскладка объектов по проектам: трубные, резервуарные и смешанные."""
+
+    return (
+        # --- только трубы -------------------------------------------------
+        {
+            "project": "Трубопровод ДНС-1 (обогрев)",
+            "canonical": ("pipe_outdoor_reference_2_layers",),
+            "volume": (
+                _pipe_seed("Т-101 выкидная линия", outer_diameter_mm=89, wall_thickness_mm=5,
+                           length_m=140, product_c=70, placement="outdoor",
+                           layers_mm=(50,), ambient_c=-35, local_elements=4),
+                _pipe_seed("Т-102 линия к сепаратору", outer_diameter_mm=114, wall_thickness_mm=6,
+                           length_m=95, product_c=75, placement="outdoor",
+                           layers_mm=(60,), ambient_c=-35),
+                _pipe_seed("Т-103 перемычка", outer_diameter_mm=57, wall_thickness_mm=4,
+                           length_m=40, product_c=65, placement="outdoor",
+                           layers_mm=(40,), ambient_c=-35),
+                _pipe_seed("Т-104 обвязка насоса", outer_diameter_mm=159, wall_thickness_mm=6,
+                           length_m=60, product_c=80, placement="outdoor",
+                           layers_mm=(60, 30), ambient_c=-35, local_elements=6),
+                _pipe_seed("Т-105 дренаж", outer_diameter_mm=45, wall_thickness_mm=3.5,
+                           length_m=25, product_c=60, placement="outdoor",
+                           layers_mm=(40,), ambient_c=-35),
+            ),
+        },
+        {
+            "project": "Узел учёта нефти УУН-4",
+            "canonical": (),
+            "volume": (
+                _pipe_seed("Т-401 приборная линия", outer_diameter_mm=32, wall_thickness_mm=3,
+                           length_m=18, product_c=55, placement="indoor",
+                           layers_mm=(30,), ambient_c=16),
+                _pipe_seed("Т-402 приборная линия", outer_diameter_mm=32, wall_thickness_mm=3,
+                           length_m=22, product_c=55, placement="indoor",
+                           layers_mm=(30,), ambient_c=16),
+                _pipe_seed("Т-403 байпас", outer_diameter_mm=76, wall_thickness_mm=4,
+                           length_m=35, product_c=60, placement="indoor",
+                           layers_mm=(40,), ambient_c=16, local_elements=3),
+                _pipe_seed("Т-404 подвод к БИК", outer_diameter_mm=57, wall_thickness_mm=4,
+                           length_m=28, product_c=60, placement="indoor",
+                           layers_mm=(40,), ambient_c=16),
+                _pipe_seed("Т-405 линия отбора проб", outer_diameter_mm=25, wall_thickness_mm=3,
+                           length_m=12, product_c=55, placement="indoor",
+                           layers_mm=(30,), ambient_c=16),
+            ),
+        },
+        {
+            "project": "Площадка ПХГ-8",
+            "canonical": (),
+            "volume": (
+                _pipe_seed("Т-801 газопровод подземный", outer_diameter_mm=219,
+                           wall_thickness_mm=8, length_m=320, product_c=65,
+                           placement="underground", layers_mm=(50, 30), depth_m=1.6),
+                _pipe_seed("Т-802 газопровод подземный", outer_diameter_mm=273,
+                           wall_thickness_mm=8, length_m=210, product_c=65,
+                           placement="underground", layers_mm=(60,), depth_m=1.8),
+                _pipe_seed("Т-803 вывод на площадку", outer_diameter_mm=159,
+                           wall_thickness_mm=6, length_m=45, product_c=70,
+                           placement="outdoor", layers_mm=(50,), ambient_c=-28),
+                _pipe_seed("Т-804 линия метанола", outer_diameter_mm=45, wall_thickness_mm=3.5,
+                           length_m=90, product_c=60, placement="outdoor",
+                           layers_mm=(40,), ambient_c=-28, local_elements=5),
+            ),
+        },
+        # --- только резервуары ---------------------------------------------
+        {
+            "project": "Резервуарный парк РП-2",
+            "canonical": ("tank_cylindrical_outdoor", "tank_rectangular_outdoor"),
+            "volume": (
+                _tank_seed("Р-201 сырьевой", shape="cylindrical", placement="outdoor",
+                           diameter_m=6.0, height_m=8.0, product_c=60,
+                           layers_mm=(100,), ambient_c=-32),
+                _tank_seed("Р-202 сырьевой", shape="cylindrical", placement="outdoor",
+                           diameter_m=6.0, height_m=8.0, product_c=60,
+                           layers_mm=(100,), ambient_c=-32),
+                _tank_seed("Р-203 буферный", shape="cylindrical", placement="outdoor",
+                           diameter_m=3.0, height_m=4.0, product_c=55,
+                           layers_mm=(80,), ambient_c=-32),
+                _tank_seed("Р-204 дренажная ёмкость", shape="rectangular", placement="outdoor",
+                           length_m=3.0, width_m=2.0, height_m=2.0, product_c=50,
+                           layers_mm=(80,), ambient_c=-32),
+            ),
+        },
+        {
+            "project": "Установка подготовки нефти УПН-6",
+            "canonical": ("tank_rectangular_indoor", "tank_q_additional_after_safety_factor"),
+            "volume": (
+                _tank_seed("Р-601 отстойник", shape="rectangular", placement="indoor",
+                           length_m=5.0, width_m=3.0, height_m=3.0, product_c=70,
+                           layers_mm=(80,), ambient_c=18),
+                _tank_seed("Р-602 промежуточная ёмкость", shape="cylindrical",
+                           placement="indoor", diameter_m=2.5, height_m=3.5, product_c=65,
+                           layers_mm=(60,), ambient_c=18),
+                _tank_seed("Р-603 ёмкость реагента", shape="cylindrical", placement="indoor",
+                           diameter_m=1.2, height_m=1.8, product_c=45,
+                           layers_mm=(50,), ambient_c=18, q_additional=120.0),
+            ),
+        },
+        {
+            "project": "Производственная база ПБ-10",
+            "canonical": ("tank_rectangular_underground_split_temperatures",),
+            "volume": (
+                _tank_seed("Р-1001 бак горячей воды", shape="cylindrical", placement="indoor",
+                           diameter_m=2.0, height_m=2.5, product_c=65,
+                           layers_mm=(60,), ambient_c=15),
+                _tank_seed("Р-1002 накопитель", shape="rectangular", placement="indoor",
+                           length_m=2.5, width_m=1.5, height_m=2.0, product_c=55,
+                           layers_mm=(50,), ambient_c=15),
+                _tank_seed("Р-1003 подземная ёмкость", shape="cylindrical",
+                           placement="underground", diameter_m=2.5, height_m=3.0,
+                           product_c=50, layers_mm=(80,), ambient_c=-25, buried_height_m=2.0),
+            ),
+        },
+        # --- смешанные ------------------------------------------------------
+        {
+            "project": "Насосная станция НС-3",
+            "canonical": ("pipe_indoor_manual_lambda_1_layer", "tank_cylindrical_indoor"),
+            "volume": (
+                _pipe_seed("Т-301 всасывающий", outer_diameter_mm=219, wall_thickness_mm=8,
+                           length_m=55, product_c=65, placement="indoor",
+                           layers_mm=(60,), ambient_c=14),
+                _pipe_seed("Т-302 напорный", outer_diameter_mm=219, wall_thickness_mm=8,
+                           length_m=70, product_c=70, placement="indoor",
+                           layers_mm=(60,), ambient_c=14, local_elements=4),
+                _pipe_seed("Т-303 линия уплотнений", outer_diameter_mm=32,
+                           wall_thickness_mm=3, length_m=15, product_c=55,
+                           placement="indoor", layers_mm=(30,), ambient_c=14),
+                _tank_seed("Р-301 бак утечек", shape="cylindrical", placement="indoor",
+                           diameter_m=1.6, height_m=2.0, product_c=50,
+                           layers_mm=(50,), ambient_c=14),
+                _tank_seed("Р-302 бак масла", shape="rectangular", placement="indoor",
+                           length_m=2.0, width_m=1.2, height_m=1.5, product_c=45,
+                           layers_mm=(40,), ambient_c=14),
+            ),
+        },
+        {
+            "project": "Компрессорная станция КС-5",
+            "canonical": (
+                "pipe_underground_reference_3_layers",
+                "tank_cylindrical_underground_split_temperatures",
+            ),
+            "volume": (
+                _pipe_seed("Т-501 технологический", outer_diameter_mm=273,
+                           wall_thickness_mm=8, length_m=180, product_c=75,
+                           placement="outdoor", layers_mm=(70, 30), ambient_c=-30),
+                _pipe_seed("Т-502 технологический", outer_diameter_mm=325,
+                           wall_thickness_mm=10, length_m=150, product_c=75,
+                           placement="outdoor", layers_mm=(70,), ambient_c=-30),
+                _pipe_seed("Т-503 линия конденсата", outer_diameter_mm=57,
+                           wall_thickness_mm=4, length_m=60, product_c=60,
+                           placement="outdoor", layers_mm=(50,), ambient_c=-30,
+                           local_elements=3),
+                _tank_seed("Р-501 сепаратор", shape="cylindrical", placement="outdoor",
+                           diameter_m=2.4, height_m=5.0, product_c=60,
+                           layers_mm=(80,), ambient_c=-30),
+            ),
+        },
+        {
+            "project": "Факельная установка ФУ-7",
+            "canonical": ("tank_spherical_outdoor",),
+            "volume": (
+                _pipe_seed("Т-701 жидкостная линия", outer_diameter_mm=114,
+                           wall_thickness_mm=6, length_m=110, product_c=60,
+                           placement="outdoor", layers_mm=(60,), ambient_c=-33),
+                _pipe_seed("Т-702 дренаж факела", outer_diameter_mm=76, wall_thickness_mm=4,
+                           length_m=85, product_c=55, placement="outdoor",
+                           layers_mm=(50,), ambient_c=-33, local_elements=4),
+                _tank_seed("Р-701 сепаратор факельный", shape="cylindrical",
+                           placement="outdoor", diameter_m=3.2, height_m=6.0,
+                           product_c=55, layers_mm=(90,), ambient_c=-33),
+            ),
+        },
+        {
+            "project": "Объект «Северный» (реконструкция)",
+            "canonical": ("tank_spherical_indoor", "tank_spherical_outdoor_multilayer"),
+            "volume": (
+                _pipe_seed("Т-901 куст 1", outer_diameter_mm=89, wall_thickness_mm=5,
+                           length_m=210, product_c=65, placement="outdoor",
+                           layers_mm=(60, 30), ambient_c=-45),
+                _pipe_seed("Т-902 куст 2", outer_diameter_mm=89, wall_thickness_mm=5,
+                           length_m=190, product_c=65, placement="outdoor",
+                           layers_mm=(60, 30), ambient_c=-45),
+                _pipe_seed("Т-903 подземный переход", outer_diameter_mm=159,
+                           wall_thickness_mm=6, length_m=75, product_c=70,
+                           placement="underground", layers_mm=(60,), depth_m=2.0),
+                _tank_seed("Р-901 ёмкость на кусте", shape="cylindrical",
+                           placement="outdoor", diameter_m=2.0, height_m=3.0,
+                           product_c=55, layers_mm=(90,), ambient_c=-45),
+            ),
+        },
+    )
+
+
 async def seed_heat_objects(
     db,
     projects: list[Project],
@@ -1624,29 +1965,45 @@ async def seed_heat_objects(
     await db.flush()
     logger.info("  - purged %d legacy heat objects", deleted.rowcount or 0)
 
+    projects_by_name = {project.name: project for project in projects}
+    canonical_by_case = {config["seed_case"]: config for config in _HEAT_SEED_CONFIGS}
+    plans = _project_seed_plans()
+
+    unknown_projects = [plan["project"] for plan in plans if plan["project"] not in projects_by_name]
+    if unknown_projects:
+        raise RuntimeError(f"Seed plan references unknown projects: {unknown_projects}")
+    planned_cases = [case for plan in plans for case in plan["canonical"]]
+    if sorted(planned_cases) != sorted(canonical_by_case):
+        missing = sorted(set(canonical_by_case) - set(planned_cases))
+        extra = sorted(set(planned_cases) - set(canonical_by_case))
+        raise RuntimeError(f"Seed plan canonical mismatch: missing={missing}, extra={extra}")
+
     project_service = ProjectService(db)
     calculation_service = CalculationService(db)
-    sort_orders: dict[uuid.UUID, int] = {project.id: 0 for project in projects}
 
-    for index, config in enumerate(_HEAT_SEED_CONFIGS):
-        project = projects[index % len(projects)]
-        sort_order = sort_orders[project.id]
-        sort_orders[project.id] += 1
-        data = ProjectObjectCreate(
-            object_type=config["object_type"],
-            sort_order=sort_order,
-            params=config["params"],
-        )
-        obj = await project_service.add_object(project.id, data, principal)
-        await calculation_service.recalculate_object(obj)
-        if not obj.is_valid or obj.results is None:
-            detail = (obj.validation_errors or {}).get("message", "unknown heat seed error")
-            raise RuntimeError(f"Canonical heat seed {config['seed_case']} failed: {detail}")
+    for plan in plans:
+        project = projects_by_name[plan["project"]]
+        configs = [canonical_by_case[case] for case in plan["canonical"]]
+        configs.extend(plan["volume"])
+        for sort_order, config in enumerate(configs):
+            data = ProjectObjectCreate(
+                object_type=config["object_type"],
+                sort_order=sort_order,
+                params=config["params"],
+            )
+            obj = await project_service.add_object(project.id, data, principal)
+            await calculation_service.recalculate_object(obj)
+            if not obj.is_valid or obj.results is None:
+                detail = (obj.validation_errors or {}).get("message", "unknown heat seed error")
+                label = config["seed_case"] or config["name"]
+                raise RuntimeError(f"Heat seed '{label}' failed: {detail}")
+        types = {config["object_type"] for config in configs}
+        kind = "трубы" if types == {"pipe"} else "резервуары" if types == {"tank"} else "смешанный"
         logger.info(
-            "  + canonical heat object [%s] '%s' for '%s' → OK",
-            config["object_type"],
-            config["name"],
+            "  + project '%s': %d объектов (%s)",
             project.name,
+            len(configs),
+            kind,
         )
 
     await db.flush()

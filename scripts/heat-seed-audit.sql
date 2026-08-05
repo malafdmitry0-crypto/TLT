@@ -26,12 +26,16 @@ DO $$
 DECLARE
     violations integer;
 BEGIN
+    -- Канонических объектов ровно 13 — по одному на кейс. Объекты наполнения
+    -- проектов (без seed_case) в этот счёт не входят, но все контрактные
+    -- проверки ниже распространяются и на них.
     SELECT count(*)
     INTO violations
     FROM project_objects
-    WHERE object_type::text IN ('pipe', 'tank');
+    WHERE object_type::text IN ('pipe', 'tank')
+      AND NULLIF(params->>'seed_case', '') IS NOT NULL;
     IF violations <> 13 THEN
-        RAISE EXCEPTION 'expected exactly 13 heat objects, got %', violations;
+        RAISE EXCEPTION 'expected exactly 13 canonical heat objects, got %', violations;
     END IF;
 
     SELECT count(*)
@@ -52,6 +56,7 @@ BEGIN
         ON expected.seed_case = object.params->>'seed_case'
        AND expected.object_type = object.object_type::text
     WHERE object.object_type::text IN ('pipe', 'tank')
+      AND NULLIF(object.params->>'seed_case', '') IS NOT NULL
       AND expected.seed_case IS NULL;
     IF violations <> 0 THEN
         RAISE EXCEPTION 'unexpected or mistyped heat seed cases: %', violations;

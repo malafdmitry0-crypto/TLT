@@ -4,6 +4,7 @@ from app.seeds import (
     _HEAT_SEED_CONFIGS,
     _electrical_seed_overrides,
     _insulation_seed_row,
+    _project_seed_plans,
 )
 from app.services.heat_contract import (
     DEPRECATED_HEAT_PARAM_KEYS,
@@ -199,3 +200,60 @@ def test_insulation_seed_row_preserves_reference_contract():
     assert row["deprecated"] is True
     assert row["requires_material_reselection"] is True
     assert row["reselection_message"]
+
+
+def _plan_object_types(plan) -> set[str]:
+    canonical_by_case = {config["seed_case"]: config for config in _HEAT_SEED_CONFIGS}
+    types = {canonical_by_case[case]["object_type"] for case in plan["canonical"]}
+    return types | {config["object_type"] for config in plan["volume"]}
+
+
+def test_project_seed_plan_covers_every_canonical_case_exactly_once():
+    plans = _project_seed_plans()
+    planned = [case for plan in plans for case in plan["canonical"]]
+
+    assert sorted(planned) == sorted(EXPECTED_HEAT_SEED_CASES)
+    assert len(planned) == len(set(planned))
+
+
+def test_project_seed_plan_mixes_single_type_and_mixed_projects():
+    """Кейс 1 §5.2: страница живёт и на одном типе объектов, и на смеси."""
+
+    plans = _project_seed_plans()
+    compositions = {plan["project"]: _plan_object_types(plan) for plan in plans}
+
+    pipes_only = [name for name, types in compositions.items() if types == {"pipe"}]
+    tanks_only = [name for name, types in compositions.items() if types == {"tank"}]
+    mixed = [name for name, types in compositions.items() if types == {"pipe", "tank"}]
+
+    assert len(compositions) == len(plans)
+    assert 5 <= len(compositions) <= 10
+    assert len(pipes_only) >= 2, pipes_only
+    assert len(tanks_only) >= 2, tanks_only
+    assert len(mixed) >= 2, mixed
+    assert all(len(plan["canonical"]) + len(plan["volume"]) >= 4 for plan in plans)
+
+
+def test_project_seed_plan_objects_pass_the_write_contract():
+    """Каждый объект наполнения проходит тот же нормализатор, что и API."""
+
+    for plan in _project_seed_plans():
+        for config in plan["volume"]:
+            # seed_case остаётся только у канонических объектов — по нему их
+            # отличает scripts/heat-seed-audit.sql
+            assert "seed_case" not in config["params"]
+            params = prepare_project_object_params(
+                config["object_type"], dict(config["params"])
+            )
+            forbidden = (
+                PIPE_FORBIDDEN_HEAT_PARAM_KEYS
+                if config["object_type"] == "pipe"
+                else TANK_FORBIDDEN_HEAT_PARAM_KEYS
+            )
+            assert not forbidden.intersection(params)
+            assert not DEPRECATED_HEAT_PARAM_KEYS.intersection(params)
+            ProjectObjectCreate(
+                object_type=config["object_type"],
+                sort_order=0,
+                params=params,
+            )
