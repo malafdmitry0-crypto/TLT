@@ -15,7 +15,7 @@
   5. insulation_materials (DB projection встроенного JSON-справочника)
   6. cables_extended (встроенный технический каталог + demo commercial projection)
   7. accessories_extended (demo accessory cost layer)
-  8. projects (10 проектов, привязаны к employees)
+  8. projects (10 проектов, привязаны к employees, с demo-настройками спецификации)
   9. project_objects — только pipe/tank, с конкретными материалами изоляции
  10. electrical_variants + assignments — через актуальный UUID ЭР-контракт
  11. electrical_calculations — для труб и поддерживаемых резервуаров
@@ -1168,6 +1168,17 @@ async def seed_accessories(db) -> None:
     await db.flush()
 
 
+_DEMO_SPECIFICATION_SETTINGS: dict[str, object] = {
+    "grouping_mode": "separate_by_object_type",
+    "Ex": False,
+    "K1i": False,
+    "K2i": False,
+    "Kiu": False,
+    "L_K2i_m": "0",
+    "R_gr": "1",
+}
+
+
 async def seed_projects(db, users: list[User]) -> list[Project]:
     projects_data = [
         dict(
@@ -1228,9 +1239,20 @@ async def seed_projects(db, users: list[User]) -> list[Project]:
         project = result.scalar_one_or_none()
         if project is None:
             owner = employees[i % len(employees)]
-            project = Project(**data, user_id=owner.id)
+            project = Project(
+                **data,
+                user_id=owner.id,
+                specification_settings=dict(_DEMO_SPECIFICATION_SETTINGS),
+                specification_settings_version=1,
+            )
             db.add(project)
             logger.info("  + project '%s'", data["name"])
+        elif project.specification_settings != _DEMO_SPECIFICATION_SETTINGS:
+            project.specification_settings = dict(_DEMO_SPECIFICATION_SETTINGS)
+            project.specification_settings_version = int(
+                project.specification_settings_version or 1
+            ) + 1
+            logger.info("  ~ project specification settings '%s'", data["name"])
         projects.append(project)
     await db.flush()
     return projects

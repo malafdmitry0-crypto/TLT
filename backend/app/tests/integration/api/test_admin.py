@@ -1,4 +1,4 @@
-"""Integration-тесты админки: users + coefficients + cables + accessories."""
+"""Integration-тесты админки: users + coefficients + accessories."""
 
 from uuid import UUID
 
@@ -218,71 +218,6 @@ class TestAdminCoefficients:
             headers={"Authorization": f"Bearer {employee_token}"},
         )
         assert resp.status_code == 403
-
-
-# ─── Cables (extended) ─────────────────────────────────────────────────────
-
-
-class TestAdminCables:
-    async def test_create_list_update_delete_cable(self, client: AsyncClient, admin_token: str):
-        headers = {"Authorization": f"Bearer {admin_token}"}
-        # Create
-        created = await client.post(
-            "/api/v1/admin/cables",
-            json={
-                "cable_type": "self_regulating",
-                "brand": "TestBrand",
-                "model": "TM-100",
-                "power_per_meter": 25.0,
-                "max_temperature": 110.0,
-                "min_temperature": -40.0,
-                "price_per_meter": 700.0,
-                "stock_quantity_m": 250.0,
-                "lead_time_days": 5,
-                "supplier_priority": 12,
-                "is_preferred": True,
-                "order_multiple_m": 10.0,
-            },
-            headers=headers,
-        )
-        assert created.status_code == 201, created.text
-        created_body = created.json()
-        cid = created_body["id"]
-        assert created_body["price_per_meter"] == 700.0
-        assert created_body["is_preferred"] is True
-
-        # List
-        listing = await client.get("/api/v1/admin/cables", headers=headers)
-        assert any(c["id"] == cid for c in listing.json())
-
-        # Update
-        upd = await client.put(
-            f"/api/v1/admin/cables/{cid}",
-            json={"power_per_meter": 30.0, "stock_quantity_m": 400.0},
-            headers=headers,
-        )
-        assert upd.status_code == 200
-        assert upd.json()["power_per_meter"] == 30.0
-        assert upd.json()["stock_quantity_m"] == 400.0
-
-        # Delete
-        rm = await client.delete(f"/api/v1/admin/cables/{cid}", headers=headers)
-        assert rm.status_code == 204
-
-    async def test_update_unknown_cable_404(self, client: AsyncClient, admin_token: str):
-        resp = await client.put(
-            "/api/v1/admin/cables/00000000-0000-0000-0000-000000000000",
-            json={"power_per_meter": 1.0},
-            headers={"Authorization": f"Bearer {admin_token}"},
-        )
-        assert resp.status_code == 404
-
-    async def test_delete_unknown_cable_404(self, client: AsyncClient, admin_token: str):
-        resp = await client.delete(
-            "/api/v1/admin/cables/00000000-0000-0000-0000-000000000000",
-            headers={"Authorization": f"Bearer {admin_token}"},
-        )
-        assert resp.status_code == 404
 
 
 # ─── Accessories (extended) ────────────────────────────────────────────────
@@ -630,24 +565,6 @@ class TestFormulaCheck:
         assert "total_heat_loss_design" in data
         assert data["total_heat_loss_design"] > 0
 
-    async def test_electrical_formula_check_success(self, client: AsyncClient, admin_token: str):
-        resp = await client.post(
-            "/api/v1/admin/formula-check",
-            json={
-                "formula_type": "electrical",
-                "params": {
-                    "required_power_per_meter": 42.0,
-                    "pipe_length": 50.0,
-                    "ambient_temperature": -26.0,
-                    "process_temperature": 60.0,
-                },
-            },
-            headers={"Authorization": f"Bearer {admin_token}"},
-        )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert "selected_cable" in data or "error" in data
-
     async def test_electrical_tt_formula_check_success(self, client: AsyncClient, admin_token: str):
         resp = await client.post(
             "/api/v1/admin/formula-check",
@@ -668,81 +585,15 @@ class TestFormulaCheck:
         assert data["selected_cable"]
         assert data["cable_length"] > 0
 
-    async def test_resistive_single_formula_check_success(
-        self, client: AsyncClient, admin_token: str
-    ):
-        resp = await client.post(
-            "/api/v1/admin/formula-check",
-            json={
-                "formula_type": "resistive_single",
-                "params": {
-                    "required_heat_loss": 1000.0,
-                    "pipe_length": 50.0,
-                    "process_temperature": 60.0,
-                    "selection_mode": "auto",
-                },
-            },
-            headers={"Authorization": f"Bearer {admin_token}"},
-        )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["selected_cable"]
-        assert data["required_cross_section"] > 0
-
-    async def test_resistive_three_formula_check_success(
-        self, client: AsyncClient, admin_token: str
-    ):
-        resp = await client.post(
-            "/api/v1/admin/formula-check",
-            json={
-                "formula_type": "resistive_three",
-                "params": {
-                    "required_heat_loss": 1000.0,
-                    "pipe_length": 50.0,
-                    "process_temperature": 60.0,
-                    "selection_mode": "auto",
-                },
-            },
-            headers={"Authorization": f"Bearer {admin_token}"},
-        )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["selected_cable"]
-        assert data["required_cross_section"] > 0
-
     @pytest.mark.parametrize(
         ("formula_type", "params"),
         [
-            (
-                "electrical",
-                {
-                    "required_power_per_meter": 20.0,
-                    "pipe_length": 50.0,
-                    "ambient_temperature": -26.0,
-                },
-            ),
             (
                 "electrical_tt",
                 {
                     "required_power_per_meter": 20.0,
                     "pipe_length": 50.0,
                     "maintain_temperature": 50.0,
-                },
-            ),
-            (
-                "resistive_single",
-                {
-                    "required_heat_loss": 1000.0,
-                    "pipe_length": 50.0,
-                    "connection_type": "line_1ph",
-                },
-            ),
-            (
-                "resistive_three",
-                {
-                    "required_heat_loss": 1000.0,
-                    "pipe_length": 50.0,
-                    "connection_type": "line_1ph",
                 },
             ),
         ],

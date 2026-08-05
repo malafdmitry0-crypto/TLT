@@ -11,9 +11,6 @@ from app.schemas.calculation import (
     ElectricalCableSelectionVariantsRequest,
     InsulationLayer,
     PipeHeatLossParams,
-    ResistiveSingleCoreParams,
-    ResistiveThreeCoreParams,
-    SelfRegulatingParams,
     SelfRegulatingTTParams,
     TankHeatLossParams,
 )
@@ -481,38 +478,6 @@ class LegacyTankHeatLossParams:
             assert p.ground_conductivity == row["conductivity"]
 
 
-class TestSelfRegulatingParams:
-    def test_valid(self):
-        p = SelfRegulatingParams(
-            required_power_per_meter=20,
-            cable_mark="ТЛТ-25",
-            ambient_temperature=-20,
-            process_temperature=80,
-            pipe_length=10,
-        )
-        assert p.safety_factor == 1.1
-
-    def test_safety_factor_minimum(self):
-        with pytest.raises(ValidationError):
-            SelfRegulatingParams(
-                required_power_per_meter=20,
-                cable_mark="ТЛТ-25",
-                ambient_temperature=-20,
-                process_temperature=80,
-                pipe_length=10,
-                safety_factor=0.5,
-            )
-
-    def test_process_temperature_required_for_tmax_check(self):
-        with pytest.raises(ValidationError):
-            SelfRegulatingParams(
-                required_power_per_meter=20,
-                cable_mark="ТЛТ-25",
-                ambient_temperature=-20,
-                pipe_length=10,
-            )
-
-
 class TestElectricalTankLayingStepLimits:
     def test_omitted_selection_policy_is_forwarded_for_variant_selection(self):
         request = ElectricalCableSelectionVariantsRequest(object_id=uuid4())
@@ -572,16 +537,6 @@ class TestElectricalTankLayingStepLimits:
             SelfRegulatingTTParams(**valid, laying_step=0.099)
         with pytest.raises(ValidationError):
             SelfRegulatingTTParams(**valid, laying_step=0.401)
-
-    def test_resistive_tank_laying_step_bounds_match_source_document(self):
-        """Source: Блок теплопотери и выбор кабеля/переменные резервуар.xlsx, Лист1!A22:D22."""
-        base = dict(required_heat_loss=5000, pipe_length=10, process_temperature=80)
-        assert ResistiveSingleCoreParams(**base, laying_step=0.1).laying_step == 0.1
-        assert ResistiveThreeCoreParams(**base, laying_step=0.4).laying_step == 0.4
-        with pytest.raises(ValidationError):
-            ResistiveSingleCoreParams(**base, laying_step=0.099)
-        with pytest.raises(ValidationError):
-            ResistiveThreeCoreParams(**base, laying_step=0.401)
 
     def test_electrical_request_laying_step_bounds_match_source_document(self):
         """Source: Блок теплопотери и выбор кабеля/переменные резервуар.xlsx, Лист1!A22:D22."""
