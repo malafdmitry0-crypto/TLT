@@ -25,8 +25,7 @@ import {
 } from '@/pages/electrical/elecCalcVariantModel';
 import type { ElecCalcCableSizingParams } from '@/pages/electrical/useElecCalcCableSizingModalState';
 import {
-  baseManualCableModel,
-  isSteamTracingDisabled,
+  exactManualCableModel,
 } from '@/pages/electrical/elecCalcAssignmentOverrideModel';
 import {
   electricalAssignmentOverrideErrorMessage,
@@ -84,6 +83,15 @@ const CABLE_SELECTION_READ_ONLY_ERROR =
 
 function requireCableMutation(canMutate: boolean) {
   if (!canMutate) throw new Error(CABLE_SELECTION_READ_ONLY_ERROR);
+}
+
+function savedAssignmentSupplyVoltage(
+  assignment: ElectricalQueryAssignment | undefined,
+): number | null {
+  const raw = assignment?.electrical_overrides?.supply_voltage_v;
+  if (raw == null || raw === '') return null;
+  const parsed = typeof raw === 'number' ? raw : Number(raw);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
 export function useElecCalcCableSelectionMutationFlow({
@@ -156,24 +164,17 @@ export function useElecCalcCableSelectionMutationFlow({
   ) => {
     const effectiveCableType = normalizeAvailableCableType(cableType);
     const object = objectById.get(objectId);
-    const steamDisabled = object ? isSteamTracingDisabled(object) : false;
+    const assignment = assignmentByObjectId.get(objectId);
+    const supplyVoltage = savedAssignmentSupplyVoltage(assignment) ?? recalc.supplyVoltage;
     const cableSpecificOptions = effectiveCableType === 'self_regulating_tt'
       ? {
+          supplyVoltage,
           ...(object?.object_type === 'tank' && recalc.heatingHeight != null
             ? { heatingHeight: recalc.heatingHeight }
             : {}),
           ...(object?.object_type === 'tank' && recalc.layingStep != null
             ? { layingStep: recalc.layingStep }
             : {}),
-          ...(recalc.maintainTemperature == null
-            ? {}
-            : { maintainTemperature: recalc.maintainTemperature }),
-          ...(steamDisabled || recalc.vaporTemperature == null
-            ? {}
-            : { vaporTemperature: recalc.vaporTemperature }),
-          ...(recalc.aggressiveProduct === undefined
-            ? {}
-            : { aggressiveProduct: recalc.aggressiveProduct }),
         }
       : {
           supplyVoltage: recalc.supplyVoltage,
@@ -181,9 +182,6 @@ export function useElecCalcCableSelectionMutationFlow({
           windingCoefficient: recalc.windingCoefficient,
           heatingHeight: recalc.heatingHeight,
           layingStep: recalc.layingStep,
-          maintainTemperature: recalc.maintainTemperature,
-          vaporTemperature: recalc.vaporTemperature,
-          aggressiveProduct: recalc.aggressiveProduct,
         };
     return {
       effectiveCableType,
@@ -205,15 +203,13 @@ export function useElecCalcCableSelectionMutationFlow({
     };
   }, [
     normalizeAvailableCableType,
+    assignmentByObjectId,
     objectById,
-    recalc.aggressiveProduct,
     recalc.connectionType,
     recalc.heatingHeight,
     recalc.layingStep,
-    recalc.maintainTemperature,
     recalc.selectionPolicy,
     recalc.supplyVoltage,
-    recalc.vaporTemperature,
     recalc.windingCoefficient,
   ]);
 
@@ -235,7 +231,8 @@ export function useElecCalcCableSelectionMutationFlow({
       if (effectiveCableType === 'self_regulating_tt') {
         await persistTtOverrides({
           objectId,
-          manualCableModel: { value: baseManualCableModel(mark) },
+          supplyVoltage: options.supplyVoltage,
+          manualCableModel: { value: exactManualCableModel(mark) },
         });
       }
       const calculations = await selectCableForVariants(
@@ -274,6 +271,7 @@ export function useElecCalcCableSelectionMutationFlow({
       if (effectiveCableType === 'self_regulating_tt') {
         await persistTtOverrides({
           objectId,
+          supplyVoltage: options.supplyVoltage,
           manualCableModel: { value: null },
         });
       }
@@ -314,6 +312,7 @@ export function useElecCalcCableSelectionMutationFlow({
       if (effectiveCableType === 'self_regulating_tt') {
         await persistTtOverrides({
           objectId,
+          supplyVoltage: options.supplyVoltage,
           layout: { windingPitchMm, numberOfThreads },
         });
       }

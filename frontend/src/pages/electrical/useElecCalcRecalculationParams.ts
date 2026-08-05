@@ -4,15 +4,13 @@ import type { SelectionPolicy } from '@/api/calculations';
 
 export function useElecCalcRecalculationParams() {
   const [selectionPolicy, setSelectionPolicy] = useState<SelectionPolicy>('technical_minimum');
-  // DEC-11 / E1: normative voltage is 230 V; UI is read-only (FE-28).
+  // Case 1: 230 V is the initial value, but the user may change U. TT cable
+  // eligibility ignores U; the chosen value is used downstream for I/sections.
   const [supplyVoltage, setSupplyVoltage] = useState<number | null>(230);
   const [connectionType, setConnectionType] = useState<string>('line_1ph');
   const [windingCoefficient, setWindingCoefficient] = useState<number | null>(1);
   const [heatingHeight, setHeatingHeight] = useState<number | null>(null);
   const [layingStep, setLayingStep] = useState<number | null | undefined>(undefined);
-  const [maintainTemperature, setMaintainTemperature] = useState<number | null | undefined>(undefined);
-  const [vaporTemperature, setVaporTemperature] = useState<number | null | undefined>(undefined);
-  const [aggressiveProduct, setAggressiveProduct] = useState<boolean | undefined>(undefined);
 
   const values = useMemo(() => ({
     selectionPolicy,
@@ -21,18 +19,12 @@ export function useElecCalcRecalculationParams() {
     windingCoefficient,
     heatingHeight,
     layingStep,
-    maintainTemperature,
-    vaporTemperature,
-    aggressiveProduct,
   }), [
-    aggressiveProduct,
     connectionType,
     heatingHeight,
     layingStep,
-    maintainTemperature,
     selectionPolicy,
     supplyVoltage,
-    vaporTemperature,
     windingCoefficient,
   ]);
   const setters = useMemo(() => ({
@@ -42,9 +34,6 @@ export function useElecCalcRecalculationParams() {
     windingCoefficient: setWindingCoefficient,
     heatingHeight: setHeatingHeight,
     layingStep: setLayingStep,
-    maintainTemperature: setMaintainTemperature,
-    vaporTemperature: setVaporTemperature,
-    aggressiveProduct: setAggressiveProduct,
   }), []);
 
   return { values, setters };

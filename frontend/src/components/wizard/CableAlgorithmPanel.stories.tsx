@@ -21,9 +21,7 @@ const meta = {
         layout="vertical"
         requiredMark={false}
         initialValues={{
-          supply_voltage: 230,
           safety_factor: 1.1,
-          winding_coefficient: 1,
           environment: 'normal',
           temperature_group: 'T1',
           min_switch_temperature: -35,

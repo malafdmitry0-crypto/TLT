@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   ELECTRICAL_GUEST_CANDIDATE_TABLE_COLUMN_STORAGE_KEY,
   createElectricalCandidateTableColumnSettingsPatch,
+  getAvailableElectricalCandidateTableColumnKeys,
   getDefaultElectricalCandidateTableColumnSettings,
   getVisibleElectricalCandidateTableColumnMetas,
   normalizeElectricalCandidateTableColumnSettings,
@@ -25,6 +26,14 @@ describe('electricalCandidateTableColumns', () => {
     expect(defaults.visibleOrder).toContain('cable_mark');
     expect(defaults.visibleOrder).toContain('power_per_meter');
     expect(defaults.visibleOrder).not.toContain('object_name');
+  });
+
+  it('does not expose legacy T2/T3/R candidate columns', () => {
+    const keys = getAvailableElectricalCandidateTableColumnKeys();
+
+    expect(keys).not.toContain('vapor_temperature');
+    expect(keys).not.toContain('maintain_temperature');
+    expect(keys).not.toContain('aggressive_product');
   });
 
   it('normalizes unknown keys and keeps required action/cable columns visible', () => {

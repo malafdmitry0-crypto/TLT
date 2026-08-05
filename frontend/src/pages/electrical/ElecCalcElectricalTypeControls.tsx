@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { Checkbox, Typography } from 'antd';
+import { Typography } from 'antd';
 import type { ReactNode } from 'react';
 
 import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
@@ -35,7 +35,8 @@ function ElecCalcElectricalTypeControls({
   const wrap = (content: ReactNode) =>
     block ? <div className="electrical-type-controls">{content}</div> : content;
 
-  // E1 / FE-28: U is always 230 V read-only (DEC-11).
+  // Transitional non-TT controls retain their existing read-only voltage.
+  // The active Case 1 TT branch below exposes editable downstream U.
   const voltageControl = (
     <>
       <Text className="electrical-params-label">U, В:</Text>
@@ -57,31 +58,15 @@ function ElecCalcElectricalTypeControls({
   if (cableType === 'self_regulating_tt') {
     return wrap(
       <>
-        <Text className="electrical-params-label">T проп., °C:</Text>
+        <Text className="electrical-params-label">U, В:</Text>
         <TltNumberField
-          aria-label="T пропарки"
+          aria-label="Напряжение питания"
           disabled={disabled}
-          value={recalc.vaporTemperature}
-          onChange={setRecalc.vaporTemperature}
-          className="electrical-type-control electrical-type-control--w92"
+          min={1}
+          value={recalc.supplyVoltage}
+          onChange={setRecalc.supplyVoltage}
+          className="electrical-type-control electrical-type-control--w76"
         />
-        <Text className="electrical-params-label">T3, °C:</Text>
-        <TltNumberField
-          aria-label="T3 поддержания"
-          disabled={disabled}
-          value={recalc.maintainTemperature}
-          onChange={setRecalc.maintainTemperature}
-          className="electrical-type-control electrical-type-control--w92"
-        />
-        <Checkbox
-          disabled={disabled}
-          checked={recalc.aggressiveProduct === true}
-          indeterminate={recalc.aggressiveProduct === undefined}
-          aria-checked={recalc.aggressiveProduct === undefined ? 'mixed' : recalc.aggressiveProduct}
-          onChange={(event) => setRecalc.aggressiveProduct(event.target.checked)}
-        >
-          <span className="electrical-type-controls__aggr-label">агр.</span>
-        </Checkbox>
         <Text className="electrical-params-label">h рез., м:</Text>
         <TltNumberField
           aria-label="Высота обогрева резервуара"

@@ -76,9 +76,6 @@ export type MainElectricalColumnCopyContext = {
   connectionType: unknown;
   supplyVoltage: unknown;
   windingCoefficient: unknown;
-  vaporTemperature: unknown;
-  maintainTemperature: unknown;
-  aggressiveProduct: unknown;
 };
 
 export function objectDisplayName(obj: ProjectObject) {
@@ -205,12 +202,6 @@ export function mainElectricalColumnCopyValue(
       return valueText(calc?.params?.supply_voltage ?? context.supplyVoltage);
     case 'winding_coefficient':
       return valueText(calc?.params?.winding_coefficient ?? context.windingCoefficient);
-    case 'vapor_temperature':
-      return valueText(calc?.params?.vapor_temperature ?? context.vaporTemperature);
-    case 'maintain_temperature':
-      return valueText(calc?.params?.maintain_temperature ?? context.maintainTemperature);
-    case 'aggressive_product':
-      return valueText(calc?.params?.aggressive_product ?? context.aggressiveProduct);
     case 'order_cable_length':
       return valueText(orderCableLengthValue(currentCalc));
     case 'installed_cable_length':

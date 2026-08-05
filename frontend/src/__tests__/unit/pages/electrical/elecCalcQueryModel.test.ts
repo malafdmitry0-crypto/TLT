@@ -91,7 +91,6 @@ describe('elecCalcQueryModel', () => {
         object_name: { kind: 'text', value: 'P01' },
         current: { kind: 'numberRange', min: 1.5, max: 10, includeEmpty: true },
         cable_type: { kind: 'enum', values: ['self_regulating'], includeEmpty: false },
-        aggressive_product: { kind: 'boolean', value: 'empty' },
       },
       sort: { columnKey: 'current', direction: 'desc' },
     };
@@ -109,7 +108,6 @@ describe('elecCalcQueryModel', () => {
           capability('object_name', ['contains']),
           capability('current', ['range']),
           capability('cable_type', ['equals', 'in']),
-          capability('aggressive_product', ['equals'], { dataType: 'boolean' }),
         ],
       },
       {
@@ -149,12 +147,6 @@ describe('elecCalcQueryModel', () => {
           values: undefined,
           include_empty: false,
         },
-        {
-          key: 'aggressive_product',
-          op: 'equals',
-          value: null,
-          include_empty: true,
-        },
       ],
       sort: { key: 'current', dir: 'desc' },
     });
@@ -166,7 +158,6 @@ describe('elecCalcQueryModel', () => {
         object_name: { kind: 'text', value: '   ' },
         voltage: { kind: 'numberRange' },
         cable_type: { kind: 'enum', values: [], includeEmpty: false },
-        aggressive_product: { kind: 'boolean', value: undefined },
       },
       sort: { columnKey: 'voltage', direction: 'asc' },
     };
@@ -184,7 +175,6 @@ describe('elecCalcQueryModel', () => {
           capability('object_name', ['contains']),
           capability('voltage', ['range'], { sortEnabled: false }),
           capability('cable_type', ['in']),
-          capability('aggressive_product', ['equals'], { dataType: 'boolean' }),
         ],
       },
     );

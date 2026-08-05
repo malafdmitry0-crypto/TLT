@@ -102,8 +102,8 @@ export function useElecCalcCableMarkOptions(options: UseElecCalcCableMarkOptions
     if (!availableCableTypes.has(type)) return [];
     if (type === 'self_regulating') return cableOptions;
     if (type === 'self_regulating_tt') {
-      // E7 / FE-25: only backend cable-options (series, P@T3, eligibility).
-      // No client q1/q2 / ttCables rebuild for TT manual marks.
+      // Case 1: only backend cable-options (exact mark, passport power,
+      // Tmin/Tmax and eligibility). No client-side candidate reconstruction.
       if (!backendTtOptions) return [];
       return mapBackendCableOptionsToSelectOptions(backendTtOptions);
     }
@@ -182,9 +182,8 @@ export function useElecCalcCableMarkOptions(options: UseElecCalcCableMarkOptions
           savedSource ?? matchingCatalogOption?.cableSource ?? effectiveSource,
         )
       : null;
-    // Сохранённая марка может не совпасть ни с одной сгенерированной опцией
-    // (например, суффикс -СР/-СТ из расчёта при другом положении переключателя
-    // агрессивности) — без fallback модалка теряла кабель и характеристики.
+    // Историческая точная марка может отсутствовать в текущем техническом
+    // каталоге; fallback сохраняет доступ к записанному в ЭР результату.
     const savedMarkFallbackOption = mark && !matchingCatalogOption && !projectOption
       ? cableMarkOption(
           mark,

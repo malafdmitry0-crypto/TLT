@@ -140,14 +140,6 @@ export function candidateElectricalFieldValue(
       return candidate.params?.supply_voltage;
     case 'winding_coefficient':
       return candidate.params?.winding_coefficient;
-    case 'vapor_temperature':
-      return candidate.params?.vapor_temperature;
-    case 'maintain_temperature':
-      return candidate.params?.maintain_temperature ?? candidate.params?.process_temperature;
-    case 'aggressive_product':
-      return typeof candidate.params?.aggressive_product === 'boolean'
-        ? candidate.params.aggressive_product
-        : undefined;
     case 'installed_cable_length':
       return engineeringResultValueFromResults(candidate.results, 'installed_cable_length');
     case 'order_cable_length':
@@ -225,12 +217,6 @@ export function candidateCompareDisplayValue(
       return candidateNumberText(candidate.params?.supply_voltage, 0);
     case 'winding_coefficient':
       return candidateNumberText(candidate.params?.winding_coefficient, 2);
-    case 'vapor_temperature':
-      return candidateNumberText(candidate.params?.vapor_temperature, 1);
-    case 'maintain_temperature':
-      return candidateNumberText(candidate.params?.maintain_temperature ?? candidate.params?.process_temperature, 1);
-    case 'aggressive_product':
-      return candidateValueText(candidate.params?.aggressive_product);
     case 'installed_cable_length':
       return candidateNumberText(
         engineeringResultValueFromResults(candidate.results, 'installed_cable_length'),

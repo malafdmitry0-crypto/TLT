@@ -151,7 +151,7 @@ describe('ElecCalcPage shell / variants / polling', () => {
     }));
   });
 
-  it('запрашивает электрорасчёты только для выбранного варианта СО', async () => {
+  it('запрашивает электрорасчёты только для текущего ЭР', async () => {
     const { getElectricalPage } = await import('@/api/calculations');
     (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage([]));
     useProjectStore.getState().setCurrentProject(mockProject);

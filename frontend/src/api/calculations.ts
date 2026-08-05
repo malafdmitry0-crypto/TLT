@@ -68,21 +68,17 @@ export async function calcElectrical(
   return data;
 }
 
-/** One TT model from GET /calc/cable-options (E5/E7). */
+/** One exact Case 1 TT full-mark option from GET /calc/cable-options. */
 export type CableOptionOut = {
   model: string | null;
   series: string | null;
   base_model: string | null;
-  full_mark_preview: string | null;
-  power_at_t3_w_per_m: number | null;
+  passport_power_w_per_m: number | null;
+  min_ambient_temperature_c: number | null;
+  max_product_temperature_c: number | null;
   eligible: boolean;
   unavailable_reason: string | null;
-  temperature_group: string | null;
-  q1: number | null;
-  q2: number | null;
-  nominal_power: number | null;
   nomenclature_code?: string | null;
-  required_series?: string | null;
   catalog?: {
     kind?: string;
     version?: string | null;

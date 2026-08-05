@@ -41,16 +41,10 @@ export function isHeatCalcObjectType(value: string): value is HeatCalcObjectType
 export function baseFormValuesFromRecord(record: ProjectObject): Record<string, unknown> {
   if (record.object_type === 'pipe') {
     const values = pipeApiParamsToForm(record.params);
-    if (record.id.startsWith('new:') && values.aggressive_product == null) {
-      values.aggressive_product = 'no';
-    }
     return applyObjectFormDefaults('pipe', values);
   }
   if (record.object_type === 'tank') {
     const values = tankApiParamsToForm(record.params);
-    if (record.id.startsWith('new:') && values.aggressive_product == null) {
-      values.aggressive_product = 'no';
-    }
     return applyObjectFormDefaults('tank', values);
   }
   return { ...record.params };

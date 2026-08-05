@@ -18,7 +18,6 @@ describe('tankFormToApiParams', () => {
       ambient_temperature: -20,
       process_temperature: 80,
       maintain_temperature: 10,
-      aggressive_product: 'yes',
       steam_tracing: 'no',
       vapor_temperature: 140,
       heating_height: 2.5,
@@ -31,7 +30,7 @@ describe('tankFormToApiParams', () => {
     expect(api.length).toBeUndefined();
     expect(api.width).toBeUndefined();
     expect(api.maintain_temperature).toBe(10);
-    expect(api.aggressive_product).toBe(true);
+    expect(api).not.toHaveProperty('aggressive_product');
     expect(api.heating_height).toBe(2.5);
     expect(api.laying_step).toBe(0.2);
     expect(api).not.toHaveProperty('vapor_temperature');

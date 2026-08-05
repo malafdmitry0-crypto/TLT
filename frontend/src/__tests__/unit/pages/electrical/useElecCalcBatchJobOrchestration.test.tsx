@@ -61,9 +61,6 @@ function setup(overrides: Partial<Parameters<typeof useElecCalcBatchJobOrchestra
       windingCoefficient: 1.05,
       heatingHeight: 0.2,
       layingStep: 0.12,
-      maintainTemperature: 60,
-      vaporTemperature: 120,
-      aggressiveProduct: false,
     },
     selectedCableType: null,
     defaultCableType: 'single_core' as CableTypeKey,
@@ -136,9 +133,6 @@ describe('useElecCalcBatchJobOrchestration', () => {
         windingCoefficient: 1.05,
         heatingHeight: 0.2,
         layingStep: 0.12,
-        maintainTemperature: 60,
-        vaporTemperature: 120,
-        aggressiveProduct: false,
         skipManual: false,
         objectIds: ['object-1'],
         objectOverrides: [{ object_id: 'object-1', cable_type: 'three_core' }],
@@ -155,6 +149,37 @@ describe('useElecCalcBatchJobOrchestration', () => {
       },
     );
     expect(message.info).not.toHaveBeenCalled();
+  });
+
+  it('sends U downstream for TT without legacy T2/T3/R overrides', async () => {
+    const { result } = setup({
+      selectedCableType: 'self_regulating_tt',
+      defaultCableType: 'self_regulating_tt',
+    });
+
+    await act(async () => {
+      await result.current.batchMut.mutateAsync({
+        scope: 'selected',
+        objectIds: ['object-1'],
+      });
+    });
+
+    expect(enqueueElectricalVariantBatchJob).toHaveBeenCalledWith(
+      'project-1',
+      '11111111-1111-4111-8111-111111111111',
+      'builtin',
+      'self_regulating_tt',
+      expect.objectContaining({
+        supplyVoltage: 220,
+        selectionPolicy: 'technical_minimum',
+        heatingHeight: 0.2,
+        layingStep: 0.12,
+      }),
+    );
+    const options = vi.mocked(enqueueElectricalVariantBatchJob).mock.calls[0]?.[4];
+    expect(options).not.toHaveProperty('maintainTemperature');
+    expect(options).not.toHaveProperty('vaporTemperature');
+    expect(options).not.toHaveProperty('aggressiveProduct');
   });
 
   it('rejects a second enqueue while the exact ER already has a tracked job', async () => {

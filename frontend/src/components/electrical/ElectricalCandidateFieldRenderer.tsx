@@ -105,12 +105,6 @@ export function renderCandidateElectricalField(
       return numberText(candidate.params?.supply_voltage, 0);
     case 'winding_coefficient':
       return numberText(candidate.params?.winding_coefficient, 2);
-    case 'vapor_temperature':
-      return numberText(candidate.params?.vapor_temperature, 1);
-    case 'maintain_temperature':
-      return numberText(candidate.params?.maintain_temperature ?? candidate.params?.process_temperature, 1);
-    case 'aggressive_product':
-      return valueText(candidate.params?.aggressive_product);
     case 'installed_cable_length':
       return numberText(
         engineeringResultValueFromResults(candidate.results, 'installed_cable_length'),

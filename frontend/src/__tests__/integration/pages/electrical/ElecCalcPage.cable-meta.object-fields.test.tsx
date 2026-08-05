@@ -91,12 +91,14 @@ describe('ElecCalcPage cable metadata / source / inline — object-fields', () =
     expect(cableCharacteristics).not.toHaveTextContent('Склад:');
     expect(cableCharacteristics).not.toHaveTextContent('Остаток:');
     expect(cableCharacteristics).not.toHaveTextContent('Поставщик:');
-    expect(cableCharacteristics).toHaveTextContent('Q1:');
-    expect(cableCharacteristics).toHaveTextContent('-0,141 Вт/(м·°C)');
-    expect(cableCharacteristics).toHaveTextContent('Q2:');
-    expect(cableCharacteristics).toHaveTextContent('32,00 Вт/м');
-    expect(cableCharacteristics).toHaveTextContent('Макс. T проп.:');
-    expect(cableCharacteristics).toHaveTextContent('210 °C');
+    expect(cableCharacteristics).toHaveTextContent('Номинал:');
+    expect(cableCharacteristics).toHaveTextContent('30,00 Вт/м');
+    expect(cableCharacteristics).toHaveTextContent('Макс. T продукта:');
+    expect(cableCharacteristics).toHaveTextContent('120 °C');
+    expect(cableCharacteristics).not.toHaveTextContent('Q1:');
+    expect(cableCharacteristics).not.toHaveTextContent('Q2:');
+    expect(cableCharacteristics).not.toHaveTextContent('Макс. T проп.:');
+    expect(cableCharacteristics).not.toHaveTextContent('U:');
   });
   it('показывает фиксированный список характеристик резервуара без трубных полей', async () => {
     const { getElectricalPage, listCables } = await import('@/api/calculations');
@@ -196,11 +198,13 @@ describe('ElecCalcPage cable metadata / source / inline — object-fields', () =
 
     expect(cableCharacteristics).toHaveTextContent('Тип кабеля:');
     expect(cableCharacteristics).toHaveTextContent('ТТН/ТТВ/ТТХ');
-    expect(cableCharacteristics).toHaveTextContent('Q1:');
-    expect(cableCharacteristics).toHaveTextContent('-0,141 Вт/(м·°C)');
-    expect(cableCharacteristics).toHaveTextContent('Q2:');
-    expect(cableCharacteristics).toHaveTextContent('32,00 Вт/м');
-    expect(cableCharacteristics).toHaveTextContent('Макс. T проп.:');
-    expect(cableCharacteristics).toHaveTextContent('210 °C');
+    expect(cableCharacteristics).toHaveTextContent('Номинал:');
+    expect(cableCharacteristics).toHaveTextContent('30,00 Вт/м');
+    expect(cableCharacteristics).toHaveTextContent('Макс. T продукта:');
+    expect(cableCharacteristics).toHaveTextContent('120 °C');
+    expect(cableCharacteristics).not.toHaveTextContent('Q1:');
+    expect(cableCharacteristics).not.toHaveTextContent('Q2:');
+    expect(cableCharacteristics).not.toHaveTextContent('Макс. T проп.:');
+    expect(cableCharacteristics).not.toHaveTextContent('U:');
   });
 });

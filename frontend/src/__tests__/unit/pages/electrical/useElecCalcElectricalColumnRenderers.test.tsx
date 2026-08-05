@@ -58,13 +58,10 @@ function setup(
       projectSelected: true,
       canMutate: true,
       recalc: {
-        aggressiveProduct: false,
         connectionType: 'line_1ph',
         heatingHeight: null,
         layingStep: 0.1,
-        maintainTemperature: null,
         supplyVoltage: 220,
-        vaporTemperature: null,
         windingCoefficient: null,
       },
       openCableMarkModal,

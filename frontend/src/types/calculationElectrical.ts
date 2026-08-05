@@ -212,6 +212,10 @@ export interface ElectricalQueryAssignment {
   system_type?: ElectricalSystemType | null;
   assignment_state: ElectricalAssignmentState;
   version: number;
+  electrical_overrides?: {
+    supply_voltage_v?: number | string | null;
+    [key: string]: unknown;
+  };
 }
 
 export interface ElectricalQueryResponse extends ElectricalPageResponse {

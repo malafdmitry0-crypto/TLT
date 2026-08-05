@@ -187,7 +187,7 @@ describe('apiClient network retry and idempotency', () => {
     expect(getHeader(config.headers, 'Idempotency-Key')).toEqual(expect.any(String));
   });
 
-  it('omits voltage and untouched group overrides from TT requests but keeps explicit tank/R values', async () => {
+  it('sends downstream voltage and layout but omits legacy T2/T3/R from TT requests', async () => {
     const adapter = vi.fn(async (config) => ({
       config,
       data: { id: 'task-er', status: 'queued' },
@@ -206,7 +206,6 @@ describe('apiClient network retry and idempotency', () => {
         supplyVoltage: 380,
         layingStep: 0.2,
         heatingHeight: 2.5,
-        aggressiveProduct: false,
       },
     );
 
@@ -214,13 +213,13 @@ describe('apiClient network retry and idempotency', () => {
     const payload = typeof config.data === 'string' ? JSON.parse(config.data) : config.data;
     expect(payload).toMatchObject({
       cable_type: 'self_regulating_tt',
+      supply_voltage: 380,
       laying_step: 0.2,
       heating_height: 2.5,
-      aggressive_product: false,
     });
-    expect(payload).not.toHaveProperty('supply_voltage');
     expect(payload).not.toHaveProperty('maintain_temperature');
     expect(payload).not.toHaveProperty('vapor_temperature');
+    expect(payload).not.toHaveProperty('aggressive_product');
   });
 
   it('preserves voltage for a resistive request outside the TT contract', async () => {
@@ -288,11 +287,13 @@ describe('apiClient network retry and idempotency', () => {
     await getReportPreview('project-1', 2, 'er-2', ['summary']);
     await selectCableForVariants(
       'object-1',
-      null,
+      '30ТТВ2-СР',
       'builtin',
       [1, 2],
-      'self_regulating',
-      {},
+      'self_regulating_tt',
+      {
+        supplyVoltage: 380,
+      },
       { 1: 'er-1', 2: 'er-2' },
     );
 
@@ -317,9 +318,14 @@ describe('apiClient network retry and idempotency', () => {
       ? JSON.parse(selection.data)
       : selection.data;
     expect(selectionPayload).toMatchObject({
+      cable_mark: '30ТТВ2-СР',
+      supply_voltage: 380,
       variant_numbers: [1, 2],
       electrical_variant_ids: { 1: 'er-1', 2: 'er-2' },
     });
+    expect(selectionPayload).not.toHaveProperty('maintain_temperature');
+    expect(selectionPayload).not.toHaveProperty('vapor_temperature');
+    expect(selectionPayload).not.toHaveProperty('aggressive_product');
   });
 
   it('передаёт object_ids в async heat-loss job для точечного пересчёта', async () => {

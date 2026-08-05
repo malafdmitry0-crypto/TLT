@@ -1917,9 +1917,10 @@
       },
       "input": {
         "type": "number",
+        "required": true,
         "unit": "°C",
-        "min": -20,
-        "max": 5,
+        "min": -40,
+        "max": 10,
         "default_step": 0.1,
         "configurable_step": false,
         "input_unit": "raw",
@@ -1935,54 +1936,8 @@
         }
       },
       "definition_object_types": [
-        "pipe"
-      ]
-    },
-    "supply_voltage": {
-      "service_name": "supply_voltage",
-      "object_types": [
         "pipe",
         "tank"
-      ],
-      "group": "Электропараметры и арматура",
-      "labels": {
-        "full": "Рабочее напряжение",
-        "short": "U",
-        "compact": "U"
-      },
-      "contexts": {
-        "table_by_key": {
-          "supply_voltage": {
-            "label": "U, В",
-            "full_label": "Рабочее напряжение",
-            "tooltip": "Рабочее напряжение"
-          }
-        },
-        "settings_by_key": {
-          "supply_voltage": {
-            "label": "Рабочее напряжение"
-          }
-        }
-      },
-      "input": {
-        "type": "select",
-        "unit": "В",
-        "options": [
-          {
-            "value": 220,
-            "label": "220"
-          },
-          {
-            "value": 380,
-            "label": "380"
-          }
-        ],
-        "input_unit": "raw",
-        "display_digits": 0
-      },
-      "description": "Рабочее напряжение питания. Используется при расчёте тока в электротехническом расчёте.",
-      "definition_object_types": [
-        "pipe"
       ]
     },
     "safety_factor": {
@@ -2133,7 +2088,7 @@
         "input_unit": "raw",
         "display_digits": 0
       },
-      "description": "Температура пропарки, °C. Необязательный параметр объекта для электротехнического расчёта ТТ; общий T проп. на вкладке электрорасчёта переопределяет это значение.",
+      "description": "Смежный параметр карточки объекта по Case 1, стр. 26–27. Алгоритм выбора марки §6.13 температуру пропарки не использует.",
       "definition_object_types": [
         "pipe",
         "tank"
@@ -2148,12 +2103,12 @@
       "group": "Электропараметры и арматура",
       "labels": {
         "full": "Температура поддержания",
-        "short": "T3",
-        "compact": "T3"
+        "short": "T поддерж.",
+        "compact": "T подд."
       },
       "contexts": {
         "form": {
-          "label": "Температура поддержания (T3)"
+          "label": "Температура поддержания"
         }
       },
       "input": {
@@ -2163,44 +2118,10 @@
         "max": 600,
         "default_step": 0.1,
         "configurable_step": true,
-        "required": true,
         "input_unit": "raw",
         "display_digits": 1
       },
-      "description": "Самостоятельная температура T3, при которой определяется мощность саморегулирующегося кабеля. Не подставляется из температуры продукта."
-    },
-    "aggressive_product": {
-      "service_name": "aggressive_product",
-      "object_types": [
-        "pipe",
-        "tank"
-      ],
-      "group": "Электропараметры и арматура",
-      "labels": {
-        "full": "Агрессивный продукт",
-        "short": "Агр. продукт",
-        "compact": "R"
-      },
-      "contexts": {
-        "form": {
-          "label": "Агрессивный продукт (R)"
-        }
-      },
-      "input": {
-        "type": "select",
-        "required": true,
-        "options": [
-          {
-            "value": "no",
-            "label": "Нет"
-          },
-          {
-            "value": "yes",
-            "label": "Да"
-          }
-        ]
-      },
-      "description": "Отдельный вход R алгоритма выбора кабеля. Не является синонимом среды эксплуатации."
+      "description": "Смежный параметр карточки объекта по Case 1, стр. 26–27. Алгоритм выбора марки §6.13 температуру поддержания не использует."
     },
     "heating_height": {
       "service_name": "heating_height",
@@ -2258,15 +2179,6 @@
         "display_digits": 2
       },
       "description": "Явный шаг раскладки кабеля по резервуару, 0,1–0,4 м. Не является шагом навива трубы."
-    },
-    "winding_coefficient": {
-      "service_name": "winding_coefficient",
-      "object_types": ["pipe", "tank"],
-      "group": "Электропараметры и арматура",
-      "labels": { "full": "Коэффициент навива w", "short": "w", "compact": "w" },
-      "table_keys": { "pipe": "winding_coefficient", "tank": "winding_coefficient" },
-      "input": { "type": "number", "min": 1, "max": 1.5, "default_step": 0.05, "input_unit": "raw", "display_digits": 2 },
-      "description": "Коэффициент навива (1–1,5). Используется алгоритмом выбора кабеля (ТНП)."
     },
     "num_local_elements": {
       "service_name": "num_local_elements",
@@ -4913,8 +4825,6 @@
             "steam_tracing",
             "vapor_temperature",
             "maintain_temperature",
-            "aggressive_product",
-            "connection_type",
             "num_local_elements",
             "local_element_equiv_length"
           ]
@@ -4987,10 +4897,8 @@
             "steam_tracing",
             "vapor_temperature",
             "maintain_temperature",
-            "aggressive_product",
             "heating_height",
-            "laying_step",
-            "connection_type"
+            "laying_step"
           ]
         }
       ]

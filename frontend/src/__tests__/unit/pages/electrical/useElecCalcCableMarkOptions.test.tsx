@@ -103,41 +103,38 @@ describe('useElecCalcCableMarkOptions', () => {
 
     const manualOptions = result.current.manualCableOptionsForType('self_regulating_tt', [
       {
-        model: '30ТТВ2',
+        model: '30ТТВ2-СР',
         series: 'ТТВ',
         base_model: '30ТТВ2',
-        full_mark_preview: '30ТТВ2-СР',
-        power_at_t3_w_per_m: 30.59,
+        passport_power_w_per_m: 30,
+        min_ambient_temperature_c: -40,
+        max_product_temperature_c: 120,
         eligible: true,
         unavailable_reason: null,
-        temperature_group: 'high',
-        q1: -0.141,
-        q2: 32,
-        nominal_power: 30,
-        required_series: 'ТТВ',
+        nomenclature_code: 'CASE1-30-SR',
       },
       {
-        model: '25ТТН2',
+        model: '25ТТН2-СТ',
         series: 'ТТН',
         base_model: '25ТТН2',
-        full_mark_preview: '25ТТН2-СТ',
-        power_at_t3_w_per_m: 25.08,
+        passport_power_w_per_m: 25,
+        min_ambient_temperature_c: -40,
+        max_product_temperature_c: 65,
         eligible: false,
-        unavailable_reason: 'ELECTRICAL_CABLE_SERIES_MISMATCH',
-        temperature_group: 'low',
-        q1: -0.392,
-        q2: 29,
-        nominal_power: 25,
-        required_series: 'ТТВ',
+        unavailable_reason: 'ELECTRICAL_CABLE_TEMPERATURE_LIMIT_EXCEEDED',
+        nomenclature_code: 'CASE1-25-ST',
       },
     ]);
 
     expect(manualOptions).toHaveLength(2);
-    expect(manualOptions[0].mark).toBe('30ТТВ2');
+    expect(manualOptions[0].mark).toBe('30ТТВ2-СР');
     expect(manualOptions[0].disabled).toBe(false);
-    expect(manualOptions[0].searchLabel).toContain('30.59 Вт/м @T3');
+    expect(manualOptions[0].searchLabel).toContain('30.00 Вт/м');
+    expect(manualOptions[0].searchLabel).toContain('Tmin -40 °C');
+    expect(manualOptions[0].searchLabel).toContain('Tmax 120 °C');
+    expect(manualOptions[0].searchLabel).not.toContain('@T3');
     expect(manualOptions[1].disabled).toBe(true);
-    expect(manualOptions[1].searchLabel).toContain('серия не подходит');
+    expect(manualOptions[1].searchLabel).toContain('температурные пределы не подходят');
   });
 
   it('adds auto and project options before catalog options when snapshot is missing or changed', () => {

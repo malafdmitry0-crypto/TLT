@@ -56,7 +56,7 @@ describe('ElecCalcPage candidates / folders — display', () => {
     expect(await within(sizingDialog).findAllByText('ТЛТ-75')).toHaveLength(2);
   });
 
-  it('показывает TT-поля, которые различают визуально похожие варианты', async () => {
+  it('показывает точные марки TT без legacy-колонок T2/T3/R', async () => {
     const { getElectricalPage, listElectricalCandidates } = await import('@/api/calculations');
     const user = (await import('@testing-library/user-event')).default.setup();
     const base = {
@@ -86,26 +86,17 @@ describe('ElecCalcPage candidates / folders — display', () => {
     (listElectricalCandidates as ReturnType<typeof vi.fn>).mockResolvedValue([
       {
         ...base,
-        id: 'tt-fallback',
-        dedupe_key: 'v1:tt-fallback',
-        params: { process_temperature: 0.6, aggressive_product: false },
+        id: 'tt-sr',
+        dedupe_key: 'v1:tt-sr',
+        cable_mark: '10ТТН2-СР',
+        params: {},
       },
       {
         ...base,
-        id: 'tt-maintain',
-        dedupe_key: 'v1:tt-maintain',
-        params: { process_temperature: 0.6, maintain_temperature: -2, aggressive_product: false },
-      },
-      {
-        ...base,
-        id: 'tt-vapor-aggressive',
-        dedupe_key: 'v1:tt-vapor-aggressive',
-        params: {
-          process_temperature: 0.6,
-          maintain_temperature: -2,
-          vapor_temperature: -4,
-          aggressive_product: true,
-        },
+        id: 'tt-st',
+        dedupe_key: 'v1:tt-st',
+        cable_mark: '10ТТН2-СТ',
+        params: {},
       },
     ]);
     (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(
@@ -119,13 +110,11 @@ describe('ElecCalcPage candidates / folders — display', () => {
     await user.click(within(row).getByRole('button', { name: 'Подбор' }));
     const sizingDialog = await screen.findByRole('dialog', { name: /Подбор кабеля для/ });
 
-    expect(within(sizingDialog).getAllByText('T3, °C').length).toBeGreaterThan(0);
-    expect(within(sizingDialog).getAllByText('T проп., °C').length).toBeGreaterThan(0);
-    expect(within(sizingDialog).getAllByText('Агр.').length).toBeGreaterThan(0);
-    expect(within(sizingDialog).getByTestId('candidate-row-tt-fallback')).toHaveTextContent('0,6');
-    expect(within(sizingDialog).getByTestId('candidate-row-tt-maintain')).toHaveTextContent('-2');
-    expect(within(sizingDialog).getByTestId('candidate-row-tt-vapor-aggressive')).toHaveTextContent('-4');
-    expect(within(sizingDialog).getByTestId('candidate-row-tt-vapor-aggressive')).toHaveTextContent('Да');
+    expect(within(sizingDialog).queryByText('T3, °C')).not.toBeInTheDocument();
+    expect(within(sizingDialog).queryByText('T проп., °C')).not.toBeInTheDocument();
+    expect(within(sizingDialog).queryByText('Агр.')).not.toBeInTheDocument();
+    expect(within(sizingDialog).getByTestId('candidate-row-tt-sr')).toHaveTextContent('10ТТН2-СР');
+    expect(within(sizingDialog).getByTestId('candidate-row-tt-st')).toHaveTextContent('10ТТН2-СТ');
   });
 
   it('показывает выбранный кабель, пометки и компактные действия кандидатов', async () => {

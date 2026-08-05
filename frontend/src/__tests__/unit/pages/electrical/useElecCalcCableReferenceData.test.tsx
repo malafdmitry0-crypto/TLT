@@ -177,25 +177,22 @@ describe('useElecCalcCableReferenceData', () => {
     // The sizing query supplies authoritative cable-options for the current object.
     expect(result.current.cableSizingManualOptions).toEqual([]);
     const backendOptions: CableOptionOut[] = [{
-      model: '30ТТВ2',
+      model: '30ТТВ2-СР',
       series: 'ТТВ',
       base_model: '30ТТВ2',
-      full_mark_preview: '30ТТВ2-СР',
-      power_at_t3_w_per_m: 30.59,
+      passport_power_w_per_m: 30,
+      min_ambient_temperature_c: -40,
+      max_product_temperature_c: 120,
       eligible: true,
       unavailable_reason: null,
-      temperature_group: 'high',
-      q1: -0.141,
-      q2: 32,
-      nominal_power: 30,
-      required_series: 'ТТВ',
+      nomenclature_code: 'CASE1-30-SR',
     }];
     const ttOptions = result.current.manualCableOptionsForType(
       'self_regulating_tt',
       backendOptions,
     );
     expect(ttOptions).toHaveLength(1);
-    expect(ttOptions[0].mark).toBe('30ТТВ2');
+    expect(ttOptions[0].mark).toBe('30ТТВ2-СР');
     expect(ttOptions[0].searchLabel).toContain('30ТТВ2-СР');
     expect(result.current.commercialDataStatus.label).toBe('Коммерческие данные есть');
     expect(result.current.technicalDataStatus.label).toBe('Техданные полные');

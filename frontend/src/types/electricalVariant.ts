@@ -95,9 +95,7 @@ export interface ElectricalVariantErrorResponse {
 }
 
 export interface ElectricalAssignmentOverrides {
-  steam_temperature_c?: number | null;
-  maintain_temperature_c?: number | null;
-  aggressive_product?: boolean | null;
+  supply_voltage_v?: number | null;
   winding_pitch_mm?: number | null;
   thread_count?: number | null;
   manual_cable_model?: string | null;
@@ -108,9 +106,7 @@ export interface ElectricalAssignmentOverrides {
 
 export interface ElectricalAssignmentOverridesPatchRequest {
   expected_version: number;
-  steam_temperature_c?: number | null;
-  maintain_temperature_c?: number | null;
-  aggressive_product?: boolean | null;
+  supply_voltage_v?: number | null;
   winding_pitch_mm?: number | null;
   thread_count?: number | null;
   manual_cable_model?: string | null;

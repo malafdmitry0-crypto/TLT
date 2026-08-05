@@ -156,9 +156,6 @@ function setup(
       windingCoefficient: 1.1,
       heatingHeight: 0.25,
       layingStep: 0.12,
-      maintainTemperature: 80,
-      vaporTemperature: 140,
-      aggressiveProduct: true,
     },
     normalizeAvailableCableType: (type: CableTypeKey) => type,
     setElectricalQueryCalculation,
@@ -259,10 +256,8 @@ describe('useElecCalcCableSelectionMutationFlow — select-apply', () => {
       'object-1',
       {
         expected_version: 7,
-        steam_temperature_c: 140,
-        maintain_temperature_c: 80,
-        aggressive_product: true,
-        manual_cable_model: '30ТТВ2',
+        supply_voltage_v: 220,
+        manual_cable_model: '30ТТВ2-СР',
         tank_heating_height_m: 0.25,
         tank_laying_step_m: 0.12,
       },
@@ -278,11 +273,9 @@ describe('useElecCalcCableSelectionMutationFlow — select-apply', () => {
       {
         selectionMode: undefined,
         selectionPolicy: 'technical_minimum',
+        supplyVoltage: 220,
         heatingHeight: 0.25,
         layingStep: 0.12,
-        maintainTemperature: 80,
-        vaporTemperature: 140,
-        aggressiveProduct: true,
       },
       {
         2: ER_2_ID,
@@ -374,9 +367,7 @@ describe('useElecCalcCableSelectionMutationFlow — select-apply', () => {
       'object-1',
       {
         expected_version: 7,
-        steam_temperature_c: 140,
-        maintain_temperature_c: 80,
-        aggressive_product: true,
+        supply_voltage_v: 220,
         winding_pitch_mm: 400,
         thread_count: 2,
       },
@@ -390,11 +381,9 @@ describe('useElecCalcCableSelectionMutationFlow — select-apply', () => {
       {
         selectionMode: undefined,
         selectionPolicy: 'technical_minimum',
+        supplyVoltage: 220,
         windingPitchMm: 400,
         numberOfThreads: 2,
-        maintainTemperature: 80,
-        vaporTemperature: 140,
-        aggressiveProduct: true,
       },
       { 2: ER_2_ID },
     );
@@ -405,7 +394,7 @@ describe('useElecCalcCableSelectionMutationFlow — select-apply', () => {
     expect(message.success).toHaveBeenCalledWith('Параметры укладки сохранены, расчёт обновлён');
   });
 
-  it('clears stale T2 and manual model before auto TT selection when steam is disabled', async () => {
+  it('does not persist legacy T2/T3/R while clearing a manual TT model', async () => {
     const pipe = projectObject({
       params: { name: 'Труба-1', steam_tracing: 'no', vapor_temperature: 190 },
     });
@@ -419,9 +408,6 @@ describe('useElecCalcCableSelectionMutationFlow — select-apply', () => {
         windingCoefficient: 1,
         heatingHeight: null,
         layingStep: undefined,
-        maintainTemperature: undefined,
-        vaporTemperature: 190,
-        aggressiveProduct: undefined,
       },
     });
 
@@ -439,7 +425,7 @@ describe('useElecCalcCableSelectionMutationFlow — select-apply', () => {
       'object-1',
       {
         expected_version: 7,
-        steam_temperature_c: null,
+        supply_voltage_v: 230,
         manual_cable_model: null,
       },
     );
@@ -452,7 +438,54 @@ describe('useElecCalcCableSelectionMutationFlow — select-apply', () => {
       {
         selectionMode: undefined,
         selectionPolicy: 'technical_minimum',
+        supplyVoltage: 230,
       },
+      { 2: ER_2_ID },
+    );
+  });
+
+  it('preserves assignment U when a row action follows a page reload with default UI U', async () => {
+    const assignmentByObjectId = new Map([[
+      'object-1',
+      {
+        object_id: 'object-1',
+        system_type: 'self_regulating' as const,
+        assignment_state: 'ready' as const,
+        version: 7,
+        electrical_overrides: { supply_voltage_v: 380 },
+      },
+    ]]);
+    const { result } = setup({ assignmentByObjectId });
+
+    await act(async () => {
+      await result.current.electricalLayoutMut.mutateAsync({
+        objectId: 'object-1',
+        cableMark: null,
+        cableSource: 'all',
+        cableType: 'self_regulating_tt',
+        windingPitchMm: 350,
+        numberOfThreads: 2,
+      });
+    });
+
+    expect(patchElectricalAssignmentOverrides).toHaveBeenCalledWith(
+      'project-1',
+      ER_2_ID,
+      'object-1',
+      {
+        expected_version: 7,
+        supply_voltage_v: 380,
+        winding_pitch_mm: 350,
+        thread_count: 2,
+      },
+    );
+    expect(selectCableForVariants).toHaveBeenCalledWith(
+      'object-1',
+      null,
+      'all',
+      [2],
+      'self_regulating_tt',
+      expect.objectContaining({ supplyVoltage: 380 }),
       { 2: ER_2_ID },
     );
   });

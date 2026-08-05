@@ -73,10 +73,8 @@ export function hasTechnicalData(type: CableTypeKey, row: CableStatusRow) {
       && hasValue(row.min_temperature);
   }
   if (type === 'self_regulating_tt') {
-    return hasValue(row.q1)
-      && hasValue(row.q2)
-      && hasValue(row.max_product_temp)
-      && hasValue(row.max_vapor_temp);
+    return hasValue(row.nominal_power)
+      && hasValue(row.max_product_temp);
   }
   if (type === 'single_core' || type === 'three_core') {
     return hasValue(row.resistance_ohm_km)

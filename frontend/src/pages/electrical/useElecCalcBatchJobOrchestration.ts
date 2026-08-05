@@ -92,17 +92,9 @@ export function useElecCalcBatchJobOrchestration({
       const selectionMode = isResistiveCableType(effectiveCableType) ? 'auto' : undefined;
       const cableSpecificOptions = effectiveCableType === 'self_regulating_tt'
         ? {
+            supplyVoltage: recalc.supplyVoltage,
             ...(recalc.heatingHeight == null ? {} : { heatingHeight: recalc.heatingHeight }),
             ...(recalc.layingStep == null ? {} : { layingStep: recalc.layingStep }),
-            ...(recalc.maintainTemperature == null
-              ? {}
-              : { maintainTemperature: recalc.maintainTemperature }),
-            ...(recalc.vaporTemperature == null
-              ? {}
-              : { vaporTemperature: recalc.vaporTemperature }),
-            ...(recalc.aggressiveProduct === undefined
-              ? {}
-              : { aggressiveProduct: recalc.aggressiveProduct }),
           }
         : {
             supplyVoltage: recalc.supplyVoltage,
@@ -110,9 +102,6 @@ export function useElecCalcBatchJobOrchestration({
             windingCoefficient: recalc.windingCoefficient,
             heatingHeight: recalc.heatingHeight,
             layingStep: recalc.layingStep,
-            maintainTemperature: recalc.maintainTemperature,
-            vaporTemperature: recalc.vaporTemperature,
-            aggressiveProduct: recalc.aggressiveProduct,
           };
       return enqueueElectricalVariantBatchJob(
         projectId,

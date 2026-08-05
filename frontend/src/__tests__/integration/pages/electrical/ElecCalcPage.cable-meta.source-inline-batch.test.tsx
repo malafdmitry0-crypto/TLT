@@ -228,7 +228,7 @@ describe('ElecCalcPage cable metadata / source / inline — source-inline-batch'
     });
     // TltSelect shows selected value in trigger and may mirror label text elsewhere.
     expect(screen.getAllByText('ТТН/ТТВ/ТТХ').length).toBeGreaterThan(0);
-    await user.type(await screen.findByLabelText('T3 поддержания'), '50');
+    expect(screen.queryByLabelText('T3 поддержания')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /Пересчитать все · ЭР1/i }));
     await user.click(await screen.findByRole('button', { name: /Да, пересчитать все/i }));
 
@@ -239,14 +239,13 @@ describe('ElecCalcPage cable metadata / source / inline — source-inline-batch'
         1,
         'self_regulating_tt',
         expect.objectContaining({
-          maintainTemperature: 50,
+          supplyVoltage: 230,
           forceCableType: true,
           skipManual: true,
         }),
       );
     });
     const options = (enqueueElectricalBatchJob as ReturnType<typeof vi.fn>).mock.calls[0][4];
-    expect(options).not.toHaveProperty('supplyVoltage');
     expect(options).not.toHaveProperty('connectionType');
     expect(options).not.toHaveProperty('windingCoefficient');
     expect(options).not.toHaveProperty('aggressiveProduct');

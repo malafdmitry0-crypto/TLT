@@ -21,6 +21,7 @@ describe('pipeFormToApiParams', () => {
       top_of_box_indication: 'yes',
       min_length_for_k2i: 0,
       hot_reserve_coefficient: 1.2,
+      connection_type: 'loop',
     } as Parameters<typeof pipeFormToApiParams>[0]);
 
     expect(api).not.toHaveProperty('explosion_zone_type');
@@ -29,6 +30,7 @@ describe('pipeFormToApiParams', () => {
     expect(api).not.toHaveProperty('top_of_box_indication');
     expect(api).not.toHaveProperty('min_length_for_k2i');
     expect(api).not.toHaveProperty('hot_reserve_coefficient');
+    expect(api).not.toHaveProperty('connection_type');
   });
 
   it('keeps legacy values from an old object inert on edit and save', () => {
@@ -44,6 +46,7 @@ describe('pipeFormToApiParams', () => {
       top_of_box_indication: 'yes',
       min_length_for_k2i: 0,
       hot_reserve_coefficient: 1.2,
+      connection_type: 'star',
     });
 
     expect(form).not.toHaveProperty('explosion_zone_type');
@@ -79,6 +82,7 @@ describe('pipeFormToApiParams', () => {
     expect(api).not.toHaveProperty('top_of_box_indication');
     expect(api).not.toHaveProperty('min_length_for_k2i');
     expect(api).not.toHaveProperty('hot_reserve_coefficient');
+    expect(api).not.toHaveProperty('connection_type');
   });
 
   it('не добавляет tank-only location даже для незаполненной pipe-формы', () => {
@@ -177,9 +181,7 @@ describe('pipeFormToApiParams', () => {
       wind_speed_source: 'climate',
       safety_factor: 1.2,
       safety_factor_source: 'manual',
-      supply_voltage: 380,
       maintain_temperature: 15,
-      aggressive_product: 'yes',
       steam_tracing: 'yes',
       vapor_temperature: 140,
       num_local_elements: 6,
@@ -207,7 +209,7 @@ describe('pipeFormToApiParams', () => {
     expect(api.safety_factor_source).toBe('manual');
     expect(api).not.toHaveProperty('supply_voltage');
     expect(api.maintain_temperature).toBe(15);
-    expect(api.aggressive_product).toBe(true);
+    expect(api).not.toHaveProperty('aggressive_product');
     expect(api.steam_tracing).toBe('yes');
     expect(api.vapor_temperature).toBe(140);
     expect(api.insulation_cover_material).toBe('none');
@@ -229,16 +231,15 @@ describe('pipeFormToApiParams', () => {
       ambient_temperature: -20,
       process_temperature: 80,
       maintain_temperature: 15,
-      aggressive_product: 'no',
       steam_tracing: 'no',
       vapor_temperature: 140,
     });
 
     expect(api).toMatchObject({
       maintain_temperature: 15,
-      aggressive_product: false,
       steam_tracing: 'no',
     });
+    expect(api).not.toHaveProperty('aggressive_product');
     expect(api).not.toHaveProperty('vapor_temperature');
   });
 

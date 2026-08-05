@@ -14,6 +14,7 @@ describe('pipeApiParamsToForm и tankApiParamsToForm', () => {
       process_temperature: 80,
       maintain_temperature: 15,
       aggressive_product: true,
+      connection_type: 'loop',
       steam_tracing: 'yes',
       pipe_length: 50,
       vapor_temperature: 140,
@@ -26,7 +27,8 @@ describe('pipeApiParamsToForm и tankApiParamsToForm', () => {
     expect(form.outer_diameter_mm).toBe(108);
     expect(form.insulation_thickness_mm).toBe(50);
     expect(form.maintain_temperature).toBe(15);
-    expect(form.aggressive_product).toBe('yes');
+    expect(form).not.toHaveProperty('aggressive_product');
+    expect(form).not.toHaveProperty('connection_type');
     expect(form.steam_tracing).toBe('yes');
     expect(form.vapor_temperature).toBe(140);
     expect(form.climate_key).toBe('ХМАО|||Сургут');
@@ -78,6 +80,7 @@ describe('pipeApiParamsToForm и tankApiParamsToForm', () => {
       process_temperature: 80,
       maintain_temperature: 10,
       aggressive_product: false,
+      connection_type: 'star',
       heating_height: 2.5,
       laying_step: 0.2,
     });
@@ -87,7 +90,8 @@ describe('pipeApiParamsToForm и tankApiParamsToForm', () => {
     expect(form.wall_thickness_mm).toBe(12);
     expect(form.wall_lambda).toBe(45);
     expect(form.maintain_temperature).toBe(10);
-    expect(form.aggressive_product).toBe('no');
+    expect(form).not.toHaveProperty('aggressive_product');
+    expect(form).not.toHaveProperty('connection_type');
     expect(form.heating_height).toBe(2.5);
     expect(form.laying_step).toBe(0.2);
   });

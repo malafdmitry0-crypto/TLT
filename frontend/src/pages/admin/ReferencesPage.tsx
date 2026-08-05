@@ -180,11 +180,7 @@ export default function ReferencesPage() {
                   { title: 'Модель', dataIndex: 'model', key: 'model', width: 130 },
                   { title: 'Серия', dataIndex: 'series', key: 'series', width: 90, render: (v: string) => <TltBadge>{v}</TltBadge> },
                   { title: 'Номинал, Вт/м', dataIndex: 'nominal_power', key: 'nominal_power', width: 130 },
-                  { title: 'q₁', dataIndex: 'q1', key: 'q1', width: 90, render: (v: number) => v.toFixed(4) },
-                  { title: 'q₂', dataIndex: 'q2', key: 'q2', width: 90, render: (v: number) => v.toFixed(2) },
                   { title: 'T продукта макс., °C', dataIndex: 'max_product_temp', key: 'max_product_temp', width: 160 },
-                  { title: 'T пропарки макс., °C', dataIndex: 'max_vapor_temp', key: 'max_vapor_temp', width: 160 },
-                  { title: 'Напряжение, В', dataIndex: 'voltage', key: 'voltage', width: 120 },
                 ]}
               />
             ),

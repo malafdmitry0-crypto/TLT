@@ -157,9 +157,9 @@ describe('ElecCalcPage catalog / recalculation / selection — cable mark UI', (
     expect((await within(sizingDialog).findAllByText('Пометка')).length).toBeGreaterThan(0);
     expect(within(sizingDialog).getAllByText('Действия').length).toBeGreaterThan(0);
     expect(within(sizingDialog).queryByRole('columnheader', { name: 'Статус' })).not.toBeInTheDocument();
-    expect(within(sizingDialog).getAllByText('T3, °C').length).toBeGreaterThan(0);
-    expect(within(sizingDialog).getAllByText('T проп., °C').length).toBeGreaterThan(0);
-    expect(within(sizingDialog).getAllByText('Агр.').length).toBeGreaterThan(0);
+    expect(within(sizingDialog).queryByText('T3, °C')).not.toBeInTheDocument();
+    expect(within(sizingDialog).queryByText('T проп., °C')).not.toBeInTheDocument();
+    expect(within(sizingDialog).queryByText('Агр.')).not.toBeInTheDocument();
     expect(within(sizingDialog).getAllByText('Мощность, Вт').length).toBeGreaterThan(0);
     expect(within(sizingDialog).getAllByText('Ток, А').length).toBeGreaterThan(0);
     expect(within(sizingDialog).getAllByText('U расч., В').length).toBeGreaterThan(0);

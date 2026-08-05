@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { Checkbox, Typography } from 'antd';
+import { Typography } from 'antd';
 
 import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
 import {
@@ -87,7 +87,7 @@ function ElecCalcParamsPanel({
       </div>
 
       <div className="form-col-srs">
-        <h4 data-step={2}><span>Температуры и среда</span></h4>
+        <h4 data-step={2}><span>Расчётные входы</span></h4>
         {!isTt && row('Напряжение питания U, В', (
           <TltNumberField
             aria-label="Напряжение питания"
@@ -100,35 +100,25 @@ function ElecCalcParamsPanel({
         ))}
         {isTt && (
           <>
-            {row('Температура пропарки (T2), °C', (
+            {row('Напряжение питания U, В', (
               <TltNumberField
-                aria-label="T пропарки"
+                aria-label="Напряжение питания"
                 disabled={disabled}
-                value={recalc.vaporTemperature}
-                onChange={setRecalc.vaporTemperature}
+                min={1}
+                value={recalc.supplyVoltage}
+                onChange={setRecalc.supplyVoltage}
                 className="workflow-params-input"
               />
             ))}
-            {row('Температура поддержания (T3), °C', (
-              <TltNumberField
-                aria-label="T3 поддержания"
-                disabled={disabled}
-                value={recalc.maintainTemperature}
-                onChange={setRecalc.maintainTemperature}
-                className="workflow-params-input"
-              />
-            ))}
-            {row('Среда воздействия на кабель (продукт)', (
-              <Checkbox
-                disabled={disabled}
-                checked={recalc.aggressiveProduct === true}
-                indeterminate={recalc.aggressiveProduct === undefined}
-                aria-checked={recalc.aggressiveProduct === undefined ? 'mixed' : recalc.aggressiveProduct}
-                onChange={(event) => setRecalc.aggressiveProduct(event.target.checked)}
-              >
-                <span className="electrical-params-label">агрессивная (-СР)</span>
-              </Checkbox>
-            ))}
+            <Text className="workflow-params-hint">
+              Tокр, Tпрод и коэффициент запаса K берутся из исходных данных
+              Heat каждого объекта. Напряжение применяется после выбора марки —
+              для тока и секционирования.
+            </Text>
+            <Text className="workflow-params-hint">
+              Критерий подбора: Технический минимум. Коммерческие критерии
+              применяются отдельно только при наличии данных.
+            </Text>
           </>
         )}
       </div>
@@ -153,7 +143,7 @@ function ElecCalcParamsPanel({
               <TltNumberField
                 aria-label={isTt ? 'Высота обогрева резервуара' : 'Высота обогрева'}
                 disabled={disabled}
-                min={0}
+                min={isTt ? 0.001 : 0}
                 step={0.1}
                 value={recalc.heatingHeight}
                 onChange={setRecalc.heatingHeight}
@@ -172,6 +162,13 @@ function ElecCalcParamsPanel({
                 className="workflow-params-input"
               />
             ))}
+            {isTt && (
+              <Text className="workflow-params-hint">
+                Шаг навива и количество ниток задаются для каждой трубы в
+                таблице или в «Подборе»; для резервуара используются высота и
+                шаг укладки выше.
+              </Text>
+            )}
           </>
         ) : (
           <Text className="workflow-params-hint">

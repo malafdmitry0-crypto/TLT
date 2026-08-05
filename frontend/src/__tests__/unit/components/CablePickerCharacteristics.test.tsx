@@ -126,6 +126,23 @@ describe('cablePickerCharacteristicsModel', () => {
     expect(fields.find((f) => f.key === 'series')?.value).toBe('—');
   });
 
+  it('shows only Case 1 passport fields for TT and hides retired curve inputs', () => {
+    const keys = buildCableFields({
+      model: '30ТТВ2-СР',
+      cable_type: 'self_regulating_tt',
+      series: 'ТТВ',
+      nominal_power: 30,
+      max_product_temp: 120,
+      voltage: 230,
+      q1: -0.141,
+      q2: 32,
+      max_vapor_temp: 210,
+    }, 'self_regulating_tt').map((field) => field.key);
+
+    expect(keys).toEqual(expect.arrayContaining(['model', 'series', 'nominal_power', 'max_product_temp']));
+    expect(keys).not.toEqual(expect.arrayContaining(['voltage', 'q1', 'q2', 'max_vapor_temp']));
+  });
+
   it('splits items into non-empty columns', () => {
     const columns = splitIntoColumns([1, 2, 3, 4, 5], 2);
     expect(columns).toHaveLength(2);

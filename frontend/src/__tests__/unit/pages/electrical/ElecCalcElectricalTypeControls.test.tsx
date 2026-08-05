@@ -6,13 +6,10 @@ import ElecCalcElectricalTypeControls from '@/pages/electrical/ElecCalcElectrica
 
 function setup(overrides: Partial<Parameters<typeof ElecCalcElectricalTypeControls>[0]> = {}) {
   const setRecalc = {
-    aggressiveProduct: vi.fn(),
     connectionType: vi.fn(),
     heatingHeight: vi.fn(),
     layingStep: vi.fn(),
-    maintainTemperature: vi.fn(),
     supplyVoltage: vi.fn(),
-    vaporTemperature: vi.fn(),
     windingCoefficient: vi.fn(),
   };
   return {
@@ -21,13 +18,10 @@ function setup(overrides: Partial<Parameters<typeof ElecCalcElectricalTypeContro
       <ElecCalcElectricalTypeControls
         cableType="self_regulating_tt"
         recalc={{
-          aggressiveProduct: undefined,
           connectionType: 'line_1ph',
           heatingHeight: null,
           layingStep: undefined,
-          maintainTemperature: 80,
           supplyVoltage: 230,
-          vaporTemperature: 120,
           windingCoefficient: 1,
         }}
         setRecalc={setRecalc}
@@ -53,19 +47,21 @@ describe('ElecCalcElectricalTypeControls', () => {
     expect(setRecalc.supplyVoltage).not.toHaveBeenCalled();
   });
 
-  it('renders TT overrides without voltage and keeps undefined R distinct from explicit false', async () => {
+  it('renders editable downstream voltage and tank layout without legacy T2/T3/R controls', async () => {
     const { setRecalc } = setup();
 
-    expect(screen.getByLabelText('T пропарки')).toBeInTheDocument();
-    expect(screen.getByLabelText('T3 поддержания')).toBeInTheDocument();
-    expect(screen.queryByLabelText('Напряжение питания')).not.toBeInTheDocument();
+    const voltage = screen.getByLabelText('Напряжение питания');
+    expect(voltage).toBeEnabled();
+    expect(voltage).toHaveValue('230');
+    expect(screen.queryByLabelText('T пропарки')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('T3 поддержания')).not.toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: 'агр.' })).not.toBeInTheDocument();
     expect(screen.getByLabelText('Высота обогрева резервуара')).toBeInTheDocument();
     expect(screen.getByLabelText('Шаг укладки резервуара')).toHaveValue('');
 
-    const aggressive = screen.getByRole('checkbox', { name: 'агр.' });
-    expect(aggressive).toHaveAttribute('aria-checked', 'mixed');
-    await userEvent.click(aggressive);
-    expect(setRecalc.aggressiveProduct).toHaveBeenCalledWith(true);
+    await userEvent.clear(voltage);
+    await userEvent.type(voltage, '380');
+    expect(setRecalc.supplyVoltage).toHaveBeenLastCalledWith(380);
   });
 
   it('renders resistive controls and preserves block wrapper', () => {

@@ -18,9 +18,6 @@ export function useElecCalcElectricalColumnCopyValue({
   connectionType,
   supplyVoltage,
   windingCoefficient,
-  vaporTemperature,
-  maintainTemperature,
-  aggressiveProduct,
 }: UseElecCalcElectricalColumnCopyValueOptions) {
   return useCallback((
     key: ElectricalColumnKey,
@@ -35,20 +32,14 @@ export function useElecCalcElectricalColumnCopyValue({
     connectionType,
     supplyVoltage,
     windingCoefficient,
-    vaporTemperature,
-    maintainTemperature,
-    aggressiveProduct,
   }), [
-    aggressiveProduct,
     calcByObjectId,
     connectionType,
     electricalDisplayOffset,
     getCableTypeForObject,
     heatingHeight,
     layingStep,
-    maintainTemperature,
     supplyVoltage,
-    vaporTemperature,
     windingCoefficient,
   ]);
 }

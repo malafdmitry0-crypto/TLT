@@ -73,7 +73,6 @@ describe('elecCalcTableFilterModel', () => {
     expect(CANDIDATE_BOOLEAN_FILTER_KEYS.has('marked')).toBe(true);
 
     expect(filterKindForCandidateColumn('marked')).toBe('boolean');
-    expect(filterKindForCandidateColumn('aggressive_product')).toBe('boolean');
     expect(filterKindForCandidateColumn('lead_time_days')).toBe('numberRange');
     expect(filterKindForCandidateColumn('total_cost')).toBe('numberRange');
     expect(filterKindForCandidateColumn('mode')).toBe('enum');

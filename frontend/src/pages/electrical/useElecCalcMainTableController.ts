@@ -38,13 +38,10 @@ import type { HeatCalcColumnFilter, HeatCalcTableViewState } from '@/utils/heatC
 
 type EnumOpts = Array<{ value: string; label: string }>;
 type RecalcValues = {
-  aggressiveProduct: boolean | undefined;
   connectionType: string;
   heatingHeight: number | null;
   layingStep: number | null | undefined;
-  maintainTemperature: number | null | undefined;
   supplyVoltage: number | null;
-  vaporTemperature: number | null | undefined;
   windingCoefficient: number | null;
 };
 type LoadNextPage = (options: {
@@ -146,8 +143,7 @@ export function useElecCalcMainTableController(args: UseElecCalcMainTableControl
     getCableTypeForObject: getCalculatedCableTypeForObject,
     layingStep: recalc.layingStep, heatingHeight: recalc.heatingHeight,
     connectionType: recalc.connectionType, supplyVoltage: recalc.supplyVoltage,
-    windingCoefficient: recalc.windingCoefficient, vaporTemperature: recalc.vaporTemperature,
-    maintainTemperature: recalc.maintainTemperature, aggressiveProduct: recalc.aggressiveProduct,
+    windingCoefficient: recalc.windingCoefficient,
   });
 
   const {

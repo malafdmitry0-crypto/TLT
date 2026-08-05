@@ -41,7 +41,7 @@
       "group": "Кабель",
       "source": "electrical_calculations",
       "valueType": "input",
-      "description": "Тип кабеля, с которым выполнен расчёт варианта СО."
+      "description": "Тип кабеля, с которым выполнен расчёт текущего ЭР."
     },
     "cable_mark": {
       "labels": { "short": "Марка", "full": "Марка кабеля", "compact": "Марка" },
@@ -55,7 +55,7 @@
       "group": "Кабель",
       "source": "results",
       "valueType": "computed",
-      "description": "Паспортная/расчётная удельная мощность выбранного кабеля на метр. Для ТЛТ берётся из каталога, для ТТН/ТТВ/ТТХ — из расчёта qб(T3)."
+      "description": "Паспортная удельная мощность выбранной точной марки кабеля, Вт/м."
     },
     "cable_snapshot_status": {
       "labels": { "short": "Статус кабеля", "full": "Статус кабеля в базе", "compact": "Стат. каб." },
@@ -133,27 +133,6 @@
       "source": "params",
       "valueType": "input",
       "description": "Коэффициент навива для резистивного расчёта."
-    },
-    "vapor_temperature": {
-      "labels": { "short": "T проп., °C", "full": "Температура пропарки, °C", "compact": "T проп." },
-      "group": "Электропараметры",
-      "source": "params",
-      "valueType": "input",
-      "description": "Температура пропарки для ТТН/ТТВ/ТТХ. Может задаваться глобально или на объекте."
-    },
-    "maintain_temperature": {
-      "labels": { "short": "T3, °C", "full": "Температура поддержания T3, °C", "compact": "T3" },
-      "group": "Электропараметры",
-      "source": "params",
-      "valueType": "input",
-      "description": "Температура поддержания T3 для расчёта q_б(T3) у ТТН/ТТВ/ТТХ."
-    },
-    "aggressive_product": {
-      "labels": { "short": "Агр.", "full": "Агрессивный продукт", "compact": "Агр." },
-      "group": "Электропараметры",
-      "source": "params",
-      "valueType": "input",
-      "description": "Признак агрессивного продукта для выбора исполнения кабеля."
     },
     "installed_cable_length": {
       "labels": { "short": "L факт, м", "full": "Фактическая длина кабеля после секционирования, м", "compact": "L факт" },
@@ -333,9 +312,6 @@
       { "key": "connection_type", "defaultWidthPct": 10, "minWidthPx": 90 },
       { "key": "supply_voltage", "defaultWidthPct": 8, "minWidthPx": 74 },
       { "key": "winding_coefficient", "defaultWidthPct": 7, "minWidthPx": 64 },
-      { "key": "vapor_temperature", "defaultWidthPct": 10, "minWidthPx": 92 },
-      { "key": "maintain_temperature", "defaultWidthPct": 8, "minWidthPx": 78 },
-      { "key": "aggressive_product", "defaultWidthPct": 7, "minWidthPx": 64 },
       { "key": "installed_cable_length", "defaultWidthPct": 9, "minWidthPx": 70 },
       { "key": "order_cable_length", "defaultWidthPct": 9, "minWidthPx": 70 },
       { "key": "required_installed_length_m", "defaultWidthPct": 10, "minWidthPx": 86 },

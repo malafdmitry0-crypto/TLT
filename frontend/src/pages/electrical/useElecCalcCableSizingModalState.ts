@@ -24,9 +24,6 @@ export type ElecCalcCableSizingParams = {
   windingCoefficient: number | null;
   heatingHeight: number | null;
   layingStep: number | null | undefined;
-  maintainTemperature: number | null | undefined;
-  vaporTemperature: number | null | undefined;
-  aggressiveProduct: boolean | undefined;
 };
 
 type UseElecCalcCableSizingModalStateOptions = {
@@ -63,11 +60,12 @@ export function useElecCalcCableSizingModalState({
     if (effectiveCableType === 'self_regulating_tt') {
       return {
         ...shared,
-        heating_height: recalc.heatingHeight ?? undefined,
-        laying_step: recalc.layingStep ?? undefined,
-        maintain_temperature: recalc.maintainTemperature ?? undefined,
-        vapor_temperature: recalc.vaporTemperature ?? undefined,
-        aggressive_product: recalc.aggressiveProduct,
+        ...(recalc.heatingHeight == null
+          ? {}
+          : { heating_height: recalc.heatingHeight }),
+        ...(recalc.layingStep == null
+          ? {}
+          : { laying_step: recalc.layingStep }),
       };
     }
     return {
@@ -77,20 +75,14 @@ export function useElecCalcCableSizingModalState({
       winding_coefficient: recalc.windingCoefficient,
       heating_height: recalc.heatingHeight,
       laying_step: recalc.layingStep,
-      maintain_temperature: recalc.maintainTemperature,
-      vapor_temperature: recalc.vaporTemperature,
-      aggressive_product: recalc.aggressiveProduct,
     };
   }, [
     effectiveCableType,
-    recalc.aggressiveProduct,
     recalc.connectionType,
     recalc.heatingHeight,
     recalc.layingStep,
-    recalc.maintainTemperature,
     recalc.selectionPolicy,
     recalc.supplyVoltage,
-    recalc.vaporTemperature,
     recalc.windingCoefficient,
   ]);
   const candidatesQueryKey = useMemo(

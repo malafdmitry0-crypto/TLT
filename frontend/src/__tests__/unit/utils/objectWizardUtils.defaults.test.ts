@@ -10,13 +10,11 @@ describe('applyObjectFormDefaults', () => {
       // Runtime empty values must fall back to defaults (form may clear selects).
       placement: '' as unknown as 'outdoor',
       pipe_material: 'stainless_steel',
-      supply_voltage: 380,
     });
 
     expect(pipe.placement).toBe('outdoor');
     expect(pipe.pipe_material).toBe('stainless_steel');
     expect(pipe.pipe_lambda_mode).toBe('reference');
-    expect(pipe.supply_voltage).toBe(380);
     expect(pipe.insulation_layer_count).toBe('1');
     expect(pipe.insulation_temperature_basis).toBe('outdoor_winter');
 
@@ -31,15 +29,13 @@ describe('applyObjectFormDefaults', () => {
     expect(tank.pipe_material).toBeUndefined();
   });
 
-  it('defaults R=false only for a new object and preserves absence on legacy edit', () => {
+  it('does not inject removed selector fields into new or legacy forms', () => {
     const newPipe = applyObjectFormDefaults('pipe');
-    expect(newPipe.aggressive_product).toBe('no');
+    expect(newPipe).not.toHaveProperty('aggressive_product');
     expect(newPipe).not.toHaveProperty('supply_voltage');
+    expect(newPipe).not.toHaveProperty('winding_coefficient');
     expect(applyObjectFormDefaults('pipe', {
       process_temperature: 80,
     })).not.toHaveProperty('aggressive_product');
-    expect(applyObjectFormDefaults('pipe', {
-      aggressive_product: 'yes',
-    }).aggressive_product).toBe('yes');
   });
 });

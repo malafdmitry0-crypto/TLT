@@ -231,11 +231,6 @@ function applyCommonObjectParams(
   if (v.maintain_temperature != null) {
     params.maintain_temperature = v.maintain_temperature;
   }
-  if (v.aggressive_product === 'yes' || v.aggressive_product === 'no') {
-    params.aggressive_product = v.aggressive_product === 'yes';
-  }
-  if (v.winding_coefficient != null) params.winding_coefficient = v.winding_coefficient;
-  if (v.connection_type) params.connection_type = v.connection_type;
 }
 
 function applyInsulationLayers(

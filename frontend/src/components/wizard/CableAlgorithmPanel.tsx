@@ -28,17 +28,6 @@ import {
  * HeatCalcObjectFieldsPanel обязан совпадать с этим паттерном.
  * Не переводить cable-поля на vertical label→control.
  */
-/** TNP «Список переменных» — схемы соединения (алгоритм выбора кабеля). */
-export const CABLE_CONNECTION_SCHEME_OPTIONS = [
-  { value: 'line', label: 'Линия' },
-  { value: 'loop', label: 'Петля' },
-  { value: 'star', label: 'Звезда' },
-  { value: 'two_loops', label: 'Две петли' },
-  { value: 'two_stars', label: 'Две звезды' },
-  { value: 'three_loops', label: 'Три петли' },
-  { value: 'three_stars', label: 'Три звезды' },
-] as const;
-
 function withHelp(control: ReactElement, hint: string) {
   return <HelpedControl hint={hint}>{control}</HelpedControl>;
 }
@@ -148,22 +137,6 @@ export default function CableAlgorithmPanel({
             )}
           </Form.Item>
 
-          <Form.Item
-            className="cable-algorithm-field aggressive-product-form-item helped-form-item"
-            label={fieldLabel('aggressive_product', objectType)}
-            name="aggressive_product"
-            rules={heatCalcFormFieldRules(form, objectType, 'aggressive_product')}
-          >
-            {withHelp(
-              <TltSelect
-                data-testid="aggressive-product-select"
-                {...heatCalcSelectInputProps(objectType, 'aggressive_product', { form })}
-                options={heatCalcSelectOptions(objectType, 'aggressive_product')}
-              />,
-              fieldHelp('aggressive_product', objectType),
-            )}
-          </Form.Item>
-
           {/* 2. safety_factor K */}
           <Form.Item
             className="cable-algorithm-field safety-factor-form-item helped-form-item"
@@ -248,23 +221,7 @@ export default function CableAlgorithmPanel({
             )}
           </Form.Item>
 
-          {/* 7. connection_type — в одном столбце со «Средой» */}
-          <Form.Item
-            className="cable-algorithm-field connection-type-form-item helped-form-item"
-            label={<FieldLabel text="Схема соединения" />}
-            name="connection_type"
-          >
-            {withHelp(
-              <TltSelect
-                data-testid="connection-type-select"
-                options={[...CABLE_CONNECTION_SCHEME_OPTIONS]}
-                allowClear
-                placeholder="Выберите схему"
-              />,
-              'Схема соединения нагревательной секции (ТНП: петля / линия / звезда / …).',
-            )}
-          </Form.Item>
-          {/* 8. min_switch_temperature */}
+          {/* Tmin включения электрообогрева. */}
           <Form.Item
             className="cable-algorithm-field min-switch-temperature-form-item helped-form-item"
             label={fieldLabel('min_switch_temperature', objectType)}

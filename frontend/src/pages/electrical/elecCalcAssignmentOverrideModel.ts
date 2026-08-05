@@ -19,33 +19,23 @@ export type BuildElectricalAssignmentOverridePatchArgs = {
   expectedVersion: number;
   object: ProjectObject;
   recalc: ElecCalcCableSizingParams;
+  supplyVoltage?: number | null;
   layout?: ElectricalLayoutOverrideIntent;
   manualCableModel?: ElectricalManualCableOverrideIntent;
 };
 
-export function isSteamTracingDisabled(object: ProjectObject): boolean {
-  const value = object.params?.steam_tracing;
-  if (typeof value === 'boolean') return !value;
-  if (typeof value !== 'string') return false;
-  return ['no', 'false', '0', 'off'].includes(value.trim().toLowerCase());
-}
-
-export function baseManualCableModel(mark: string): string {
-  return mark.trim().replace(/-(?:СТ|СР)$/u, '');
+export function exactManualCableModel(mark: string): string {
+  return mark.trim();
 }
 
 export function buildElectricalAssignmentOverridePatch({
   expectedVersion,
   object,
   recalc,
+  supplyVoltage,
   layout,
   manualCableModel,
 }: BuildElectricalAssignmentOverridePatchArgs): ElectricalAssignmentOverridesPatchRequest {
-  const steamTemperature = isSteamTracingDisabled(object)
-    ? { steam_temperature_c: null }
-    : recalc.vaporTemperature == null
-      ? {}
-      : { steam_temperature_c: recalc.vaporTemperature };
   const tankLayout = object.object_type === 'tank'
     ? {
         ...(recalc.heatingHeight == null
@@ -71,13 +61,7 @@ export function buildElectricalAssignmentOverridePatch({
 
   return {
     expected_version: expectedVersion,
-    ...steamTemperature,
-    ...(recalc.maintainTemperature == null
-      ? {}
-      : { maintain_temperature_c: recalc.maintainTemperature }),
-    ...(recalc.aggressiveProduct === undefined
-      ? {}
-      : { aggressive_product: recalc.aggressiveProduct }),
+    ...(supplyVoltage == null ? {} : { supply_voltage_v: supplyVoltage }),
     ...tankLayout,
     ...rowLayout,
     ...(manualCableModel === undefined
@@ -102,6 +86,7 @@ export function updateElectricalQueryPageAssignment(
             system_type: updated.system_type,
             assignment_state: updated.assignment_state,
             version: updated.version,
+            electrical_overrides: updated.electrical_overrides,
           }
         : assignment
     )),

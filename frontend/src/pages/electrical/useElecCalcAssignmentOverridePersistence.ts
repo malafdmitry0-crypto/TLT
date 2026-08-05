@@ -27,6 +27,7 @@ export const ASSIGNMENT_VERSION_CONFLICT_MESSAGE =
 
 type PersistElectricalAssignmentOverridesArgs = {
   objectId: string;
+  supplyVoltage?: number | null;
   layout?: ElectricalLayoutOverrideIntent;
   manualCableModel?: ElectricalManualCableOverrideIntent;
 };
@@ -86,6 +87,7 @@ export function useElecCalcAssignmentOverridePersistence({
 
   const persistTtOverrides = useCallback(async ({
     objectId,
+    supplyVoltage,
     layout,
     manualCableModel,
   }: PersistElectricalAssignmentOverridesArgs) => {
@@ -104,6 +106,7 @@ export function useElecCalcAssignmentOverridePersistence({
           expectedVersion,
           object,
           recalc,
+          supplyVoltage,
           layout,
           manualCableModel,
         }),

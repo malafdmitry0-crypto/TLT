@@ -74,8 +74,6 @@ describe('elecCalcCandidateCompareModel', () => {
       cable_type: 'self_regulating_tt',
       params: {
         connection_type: 'star_3ph',
-        aggressive_product: true,
-        maintain_temperature: 80,
       },
       results: {
         selection_policy: 'lowest_cost',
@@ -95,8 +93,6 @@ describe('elecCalcCandidateCompareModel', () => {
     expect(candidateElectricalFieldValue('applied_selection_policy', row)).toBe('Ручной');
     expect(candidateElectricalFieldValue('connection_type', row)).toBe('Звезда');
     expect(candidateElectricalFieldValue('stock_status', row)).toBe('Ограничено');
-    expect(candidateElectricalFieldValue('aggressive_product', row)).toBe(true);
-    expect(candidateElectricalFieldValue('maintain_temperature', row)).toBe(80);
   });
 
   it('formats comparison display values and normalizes empty/service values', () => {

@@ -79,6 +79,7 @@ describe('ObjectWizard dependencies — layout-defaults', () => {
 
     expect(await screen.findByTestId('wall-thickness-input')).toHaveValue('');
     expect(screen.getByTestId('min-switch-temperature-input')).toHaveValue('');
+    expect(screen.getByTestId('min-switch-temperature-input')).toHaveAttribute('aria-required', 'true');
     expect(screen.getByTestId('safety-factor-input')).toBeInTheDocument();
     expect(screen.getByTestId('heat-cable-algorithm-form')).toBeInTheDocument();
     expect(screen.getByTestId('local-elements-count-input')).toHaveValue('');
@@ -97,11 +98,11 @@ describe('ObjectWizard dependencies — layout-defaults', () => {
     expect(screen.getByTestId('temperature-group-select')).toHaveTextContent('T1');
     expect(screen.queryByTestId('supply-voltage-select')).not.toBeInTheDocument();
     expect(screen.getByTestId('maintain-temperature-input')).toHaveValue('');
-    expect(screen.getByTestId('aggressive-product-select')).toHaveTextContent('Нет');
+    expect(screen.queryByTestId('aggressive-product-select')).not.toBeInTheDocument();
     expect(screen.getByTestId('steam-tracing-select')).toHaveTextContent('Нет');
     expect(screen.queryByTestId('vapor-temperature-input')).not.toBeInTheDocument();
     expect(screen.queryByTestId('winding-coefficient-input')).not.toBeInTheDocument();
-    expect(screen.getByTestId('connection-type-select')).toBeInTheDocument();
+    expect(screen.queryByTestId('connection-type-select')).not.toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByTestId('pipe-material-select')).toHaveTextContent('Сталь углеродистая');
     });
@@ -120,6 +121,8 @@ describe('ObjectWizard dependencies — layout-defaults', () => {
     expect(screen.getByTestId('tank-diameter-input')).toHaveValue('');
     expect(screen.getByTestId('tank-height-input')).toHaveValue('');
     expect(screen.getByTestId('q-additional-input')).toHaveValue('');
+    expect(screen.getByTestId('min-switch-temperature-input')).toHaveValue('');
+    expect(screen.getByTestId('min-switch-temperature-input')).toHaveAttribute('aria-required', 'true');
     expect(screen.getByTestId('tank-heating-height-input')).toHaveValue('');
     expect(screen.getByTestId('tank-laying-step-input')).toHaveValue('');
   });

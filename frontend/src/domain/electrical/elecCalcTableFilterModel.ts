@@ -21,8 +21,6 @@ export const CANDIDATE_NUMERIC_FILTER_KEYS = new Set<ElectricalCandidateColumnKe
   'heating_height',
   'supply_voltage',
   'winding_coefficient',
-  'vapor_temperature',
-  'maintain_temperature',
   'installed_cable_length',
   'order_cable_length',
   'total_power',
@@ -47,7 +45,6 @@ export const CANDIDATE_ENUM_FILTER_KEYS = new Set<ElectricalCandidateColumnKey>(
 
 export const CANDIDATE_BOOLEAN_FILTER_KEYS = new Set<ElectricalCandidateColumnKey>([
   'marked',
-  'aggressive_product',
 ]);
 
 const ELECTRICAL_NUMERIC_FILTER_KEYS = new Set<ElectricalColumnKey>([

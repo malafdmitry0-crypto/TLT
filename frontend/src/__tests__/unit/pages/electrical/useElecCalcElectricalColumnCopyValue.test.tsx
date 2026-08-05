@@ -28,9 +28,6 @@ function renderCopyValue(offset: number) {
     connectionType: 'star_3ph',
     supplyVoltage: 380,
     windingCoefficient: 1.1,
-    vaporTemperature: 120,
-    maintainTemperature: 60,
-    aggressiveProduct: false,
   }), {
     initialProps: { electricalDisplayOffset: offset },
   });

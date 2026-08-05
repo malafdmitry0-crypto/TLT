@@ -154,10 +154,8 @@ describe('electrical assignment API', () => {
       'object-1',
       {
         expected_version: 7,
-        steam_temperature_c: null,
-        maintain_temperature_c: 15,
-        aggressive_product: false,
-        manual_cable_model: '30ТТВ2',
+        supply_voltage_v: 380,
+        manual_cable_model: '30ТТВ2-СР',
       },
     );
 
@@ -168,10 +166,8 @@ describe('electrical assignment API', () => {
     });
     expect(JSON.parse(String(adapter.mock.calls[0][0].data))).toEqual({
       expected_version: 7,
-      steam_temperature_c: null,
-      maintain_temperature_c: 15,
-      aggressive_product: false,
-      manual_cable_model: '30ТТВ2',
+      supply_voltage_v: 380,
+      manual_cable_model: '30ТТВ2-СР',
     });
   });
 });

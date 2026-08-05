@@ -139,7 +139,7 @@ describe('ReferencesPage', () => {
     });
   });
 
-  it('переключается на таб Кабели ТТ и показывает формульные коэффициенты', async () => {
+  it('показывает в таблице ТТ только паспортные поля Case 1', async () => {
     await mockAll();
     renderPage();
     const tab = await screen.findByRole('tab', { name: /Кабели ТТ/i });
@@ -147,8 +147,13 @@ describe('ReferencesPage', () => {
     await waitFor(() => {
       expect(screen.getByText('5ТТН2')).toBeInTheDocument();
       expect(screen.getByText('ТТН')).toBeInTheDocument();
-      expect(screen.getByText('-0.0250')).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: 'Номинал, Вт/м' })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: 'T продукта макс., °C' })).toBeInTheDocument();
     });
+    expect(screen.queryByRole('columnheader', { name: 'q₁' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'q₂' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'T пропарки макс., °C' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'Напряжение, В' })).not.toBeInTheDocument();
   });
 
   it('переключается на таб Грунты и показывает данные', async () => {

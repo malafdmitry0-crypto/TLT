@@ -62,9 +62,6 @@ function copyContext(
     connectionType: 'line_1ph',
     supplyVoltage: 220,
     windingCoefficient: 1.1,
-    vaporTemperature: 120,
-    maintainTemperature: 60,
-    aggressiveProduct: false,
     ...overrides,
   };
 }
@@ -210,8 +207,6 @@ describe('elecCalcMainTableModel', () => {
     expect(mainElectricalColumnCopyValue('number_of_threads', object, 0, context)).toBe('2 (ручн.)');
     expect(mainElectricalColumnCopyValue('connection_type', object, 0, context)).toBe('Звезда');
     expect(mainElectricalColumnCopyValue('supply_voltage', object, 0, context)).toBe('380');
-    expect(mainElectricalColumnCopyValue('maintain_temperature', object, 0, context)).toBe('60');
-    expect(mainElectricalColumnCopyValue('aggressive_product', object, 0, context)).toBe('Нет');
     expect(mainElectricalColumnCopyValue('order_cable_length', object, 0, context)).toBe('55.5');
     expect(mainElectricalColumnCopyValue('power_per_meter', object, 0, context)).toBe('30');
     expect(mainElectricalColumnCopyValue('installed_power_per_meter', object, 0, context)).toBe('60');

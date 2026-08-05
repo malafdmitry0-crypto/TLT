@@ -10,50 +10,53 @@ import {
 
 function option(partial: Partial<CableOptionOut> = {}): CableOptionOut {
   return {
-    model: '30ТТВ2',
+    model: '30ТТВ2-СР',
     series: 'ТТВ',
     base_model: '30ТТВ2',
-    full_mark_preview: '30ТТВ2-СР',
-    power_at_t3_w_per_m: 30.59,
+    passport_power_w_per_m: 30,
+    min_ambient_temperature_c: -40,
+    max_product_temperature_c: 120,
     eligible: true,
     unavailable_reason: null,
-    temperature_group: 'high',
-    q1: -0.141,
-    q2: 32,
-    nominal_power: 30,
-    required_series: 'ТТВ',
+    nomenclature_code: 'CASE1-30-SR',
     ...partial,
   };
 }
 
 describe('elecCalcCableOptionsModel', () => {
-  it('maps eligible options to select marks without suffix', () => {
+  it('maps eligible options to exact technical full marks', () => {
     const mapped = mapBackendCableOptionsToSelectOptions([option()]);
     expect(mapped).toHaveLength(1);
-    expect(mapped[0].mark).toBe('30ТТВ2');
+    expect(mapped[0].mark).toBe('30ТТВ2-СР');
     expect(mapped[0].disabled).toBe(false);
-    expect(mapped[0].searchLabel).toContain('@T3');
+    expect(mapped[0].searchLabel).toContain('30.00 Вт/м');
+    expect(mapped[0].searchLabel).toContain('Tmin -40 °C');
+    expect(mapped[0].searchLabel).toContain('Tmax 120 °C');
+    expect(mapped[0].searchLabel).not.toContain('@T3');
   });
 
   it('disables ineligible options with human reason', () => {
     const mapped = mapBackendCableOptionsToSelectOptions([
       option({
         eligible: false,
-        unavailable_reason: 'ELECTRICAL_CABLE_SERIES_MISMATCH',
+        unavailable_reason: 'ELECTRICAL_CABLE_TEMPERATURE_LIMIT_EXCEEDED',
         series: 'ТТН',
-        model: '25ТТН2',
+        model: '25ТТН2-СТ',
         base_model: '25ТТН2',
-        full_mark_preview: '25ТТН2-СТ',
+        passport_power_w_per_m: 25,
+        max_product_temperature_c: 65,
       }),
     ]);
     expect(mapped[0].disabled).toBe(true);
-    expect(mapped[0].searchLabel).toContain('серия не подходит');
-    expect(cableOptionUnavailableLabel('ELECTRICAL_CABLE_POWER_CURVE_INVALID'))
-      .toBe('некорректная кривая мощности');
+    expect(mapped[0].searchLabel).toContain('температурные пределы не подходят');
+    expect(cableOptionUnavailableLabel('ELECTRICAL_CATALOG_ROW_INVALID'))
+      .toBe('строка каталога некорректна');
   });
 
-  it('prefers base_model for API mark', () => {
-    expect(cableOptionSelectMark(option({ model: 'x', base_model: '30ТТВ2' }))).toBe('30ТТВ2');
+  it('uses only the exact catalog full mark for API selection', () => {
+    expect(cableOptionSelectMark(option({ model: '30ТТВ2-СР', base_model: 'wrong' })))
+      .toBe('30ТТВ2-СР');
+    expect(cableOptionSelectMark(option({ model: null, base_model: '30ТТВ2' }))).toBeNull();
     expect(formatCableOptionSearchLabel(option())).toContain('30ТТВ2-СР');
   });
 });

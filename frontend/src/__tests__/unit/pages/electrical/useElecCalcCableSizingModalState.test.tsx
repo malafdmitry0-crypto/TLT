@@ -43,10 +43,7 @@ const recalc: ElecCalcCableSizingParams = {
   connectionType: 'line_1ph',
   windingCoefficient: 1,
   heatingHeight: null,
-  layingStep: 0.1,
-  maintainTemperature: null,
-  vaporTemperature: null,
-  aggressiveProduct: false,
+  layingStep: undefined,
 };
 
 describe('useElecCalcCableSizingModalState', () => {
@@ -110,7 +107,6 @@ describe('useElecCalcCableSizingModalState', () => {
       recalc: {
         ...recalc,
         supplyVoltage: 380,
-        aggressiveProduct: true,
       },
       getSavedCableTypeForObject: () => 'single_core',
       normalizeAvailableCableType,
@@ -126,7 +122,33 @@ describe('useElecCalcCableSizingModalState', () => {
       selection_mode: 'auto',
       selection_policy: 'technical_minimum',
       connection_type: 'line_1ph',
-      aggressive_product: true,
     });
+  });
+
+  it('keeps downstream voltage and legacy T2/T3/R out of pure TT candidate queries', () => {
+    const { result } = renderHook(() => useElecCalcCableSizingModalState({
+      projectId: 'project-1',
+      electricalVariantId: '11111111-1111-4111-8111-111111111111',
+      variant: 1,
+      objects: [],
+      calcByObjectId: {},
+      recalc: {
+        ...recalc,
+        supplyVoltage: 380,
+      },
+      getSavedCableTypeForObject: () => 'self_regulating_tt',
+      normalizeAvailableCableType: (type) => type,
+    }));
+
+    expect(result.current.candidateParams).toEqual({
+      selection_mode: undefined,
+      selection_policy: 'technical_minimum',
+    });
+    expect(result.current.candidateParams).not.toHaveProperty('heating_height');
+    expect(result.current.candidateParams).not.toHaveProperty('laying_step');
+    expect(result.current.candidateParams).not.toHaveProperty('supply_voltage');
+    expect(result.current.candidateParams).not.toHaveProperty('maintain_temperature');
+    expect(result.current.candidateParams).not.toHaveProperty('vapor_temperature');
+    expect(result.current.candidateParams).not.toHaveProperty('aggressive_product');
   });
 });

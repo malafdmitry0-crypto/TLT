@@ -64,6 +64,14 @@ describe('electricalTableColumns', () => {
     expect(getAvailableElectricalTableColumnKeys()).not.toContain('variant_number');
   });
 
+  it('не регистрирует legacy T2/T3/R как колонки Case 1 электрорасчёта', () => {
+    const availableKeys = getAvailableElectricalTableColumnKeys();
+
+    expect(availableKeys).not.toContain('vapor_temperature');
+    expect(availableKeys).not.toContain('maintain_temperature');
+    expect(availableKeys).not.toContain('aggressive_product');
+  });
+
   it('даёт включить удельную и установленную мощность кабеля', () => {
     const availableKeys = getAvailableElectricalTableColumnKeys();
 

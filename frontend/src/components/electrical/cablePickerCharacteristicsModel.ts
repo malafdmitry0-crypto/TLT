@@ -69,8 +69,6 @@ const CABLE_FIELD_LABELS: Record<string, string> = {
   price_per_meter: 'Цена/м',
   price_updated_at: 'Цена обновлена',
   protection: 'Защита',
-  q1: 'Q1',
-  q2: 'Q2',
   resistance_ohm_km: 'Сопротивление',
   resistance_per_meter: 'Сопротивление, Ом/м',
   series: 'Серия',
@@ -104,6 +102,9 @@ const SKIPPED_CABLE_FIELD_KEYS = new Set([
   'external_seed_kind',
   'technical_data_complete',
   'technical_data_missing',
+  // Case 1 selection uses passport power; q1/q2 remain backend-only legacy metadata.
+  'q1',
+  'q2',
 ]);
 
 const COMMON_CABLE_FIELD_ORDER = [
@@ -116,7 +117,7 @@ const COMMON_CABLE_FIELD_ORDER = [
 
 const CABLE_FIELD_ORDER_BY_TYPE: Record<string, string[]> = {
   self_regulating: [...COMMON_CABLE_FIELD_ORDER, 'power_per_meter', 'temperature_range', 'min_temperature', 'max_temperature', 'max_product_temp', 'max_vapor_temp', 'max_pipe_temp', 'protection'],
-  self_regulating_tt: [...COMMON_CABLE_FIELD_ORDER, 'nominal_power', 'q1', 'q2', 'max_product_temp', 'max_vapor_temp'],
+  self_regulating_tt: ['cable_type', 'model', 'brand', 'series', 'nominal_power', 'max_product_temp'],
   single_core: [...COMMON_CABLE_FIELD_ORDER, 'power_per_meter', 'resistance_ohm_km', 'resistance_per_meter', 'conductor_section_mm2', 'diameter_mm', 'nominal_section_length_m', 'mass_kg_km', 'min_bend_radius_mm', 'temperature_range', 'min_temperature', 'max_temperature'],
   three_core: [...COMMON_CABLE_FIELD_ORDER, 'power_per_meter', 'resistance_ohm_km', 'resistance_per_meter', 'conductor_section_mm2', 'nominal_size_mm', 'diameter_mm', 'mass_kg_km', 'min_bend_radius_mm', 'temperature_range', 'min_temperature', 'max_temperature'],
   mineral: [...COMMON_CABLE_FIELD_ORDER, 'power_per_meter', 'min_temperature', 'max_temperature', 'conductor_section_mm2', 'nominal_size_mm', 'diameter_mm'],
@@ -227,10 +228,6 @@ function cableValue(
       return formatTemperatureValue(cableRawValue(row, 'max_vapor_temp'));
     case 'max_pipe_temp':
       return formatTemperatureValue(cableRawValue(row, 'max_pipe_temp'));
-    case 'q1':
-      return formatUnitValue(cableRawValue(row, 'q1'), 'Вт/(м·°C)', 3);
-    case 'q2':
-      return formatUnitValue(cableRawValue(row, 'q2'), 'Вт/м', 2);
     case 'conductor_section_mm2':
       return formatUnitValue(
         firstValue(
@@ -315,7 +312,9 @@ export function buildCableFields(
   const items: CablePickerFieldItem[] = [];
 
   const addField = (key: string, force: boolean) => {
-    if (addedKeys.has(key) || SKIPPED_CABLE_FIELD_KEYS.has(key)) return;
+    const retiredTtField = cableType === 'self_regulating_tt'
+      && (key === 'voltage' || key === 'max_vapor_temp');
+    if (addedKeys.has(key) || SKIPPED_CABLE_FIELD_KEYS.has(key) || retiredTtField) return;
     const value = cableValue(row, key, cableType);
     if (!force && value === '—') return;
     addedKeys.add(key);

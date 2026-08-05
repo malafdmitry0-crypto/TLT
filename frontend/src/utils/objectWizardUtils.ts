@@ -38,7 +38,6 @@ export const COMMON_OBJECT_FORM_DEFAULTS: ObjectWizardFormValues = {
   zone_classification: 'safe',
   temperature_group: 'T1',
   steam_tracing: 'no',
-  winding_coefficient: 1,
 };
 
 export const PIPE_OBJECT_FORM_DEFAULTS: ObjectWizardFormValues = {
@@ -74,10 +73,7 @@ export function applyObjectFormDefaults(
   objectType: 'pipe' | 'tank',
   values?: ObjectWizardFormValues,
 ): ObjectWizardFormValues {
-  const defaults = {
-    ...formDefaultsForObjectType(objectType),
-    ...(values == null ? { aggressive_product: 'no' as const } : {}),
-  };
+  const defaults = formDefaultsForObjectType(objectType);
   const merged: ObjectWizardFormValues = { ...defaults, ...(values ?? {}) };
   // Restore empty default keys via spread (no heterogeneous index write).
   const next: ObjectWizardFormValues = {
@@ -147,17 +143,11 @@ export interface PipeFormValues {
   wind_speed_source?: 'manual' | 'climate';
   pipe_length: number;
   min_switch_temperature?: number;
-  supply_voltage?: number;
   safety_factor?: number;
   safety_factor_source?: SafetyFactorSource;
   steam_tracing?: 'yes' | 'no';
   vapor_temperature?: number;
   maintain_temperature?: number;
-  aggressive_product?: 'yes' | 'no';
-  /** Коэффициент навива w (алгоритм выбора кабеля, ТНП). */
-  winding_coefficient?: number;
-  /** Схема соединения (алгоритм выбора кабеля, ТНП). */
-  connection_type?: string;
   num_local_elements?: number;
   local_element_equiv_length?: number;
 }
@@ -212,21 +202,15 @@ export interface TankFormValues {
   ambient_temperature_source?: 'manual' | 'climate';
   wind_speed_source?: 'manual' | 'climate';
   min_switch_temperature?: number;
-  supply_voltage?: number;
   safety_factor?: number;
   safety_factor_source?: SafetyFactorSource;
   steam_tracing?: 'yes' | 'no';
   vapor_temperature?: number;
   maintain_temperature?: number;
-  aggressive_product?: 'yes' | 'no';
   /** Высота зоны электрического обогрева резервуара, м. */
   heating_height?: number;
   /** Шаг раскладки кабеля по резервуару, м. */
   laying_step?: number;
-  /** Коэффициент навива w (алгоритм выбора кабеля, ТНП). */
-  winding_coefficient?: number;
-  /** Схема соединения (алгоритм выбора кабеля, ТНП). */
-  connection_type?: string;
   q_additional?: number;
 }
 

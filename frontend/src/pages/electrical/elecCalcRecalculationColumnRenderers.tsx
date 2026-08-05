@@ -12,13 +12,10 @@ import {
 } from '@/domain/electrical/elecCalcResultValueModel';
 
 export type ElecCalcRendererRecalculationValues = {
-  aggressiveProduct: boolean | undefined;
   connectionType: string;
   heatingHeight: number | null;
   layingStep: number | null | undefined;
-  maintainTemperature: number | null | undefined;
   supplyVoltage: number | null;
-  vaporTemperature: number | null | undefined;
   windingCoefficient: number | null;
 };
 
@@ -55,24 +52,6 @@ export function buildElecCalcRecalculationColumnRenderers(
           calcByObjectId[obj.id]?.params?.winding_coefficient ?? recalc.windingCoefficient,
           2,
         ),
-    },
-    vapor_temperature: {
-      align: 'right',
-      render: (_: unknown, obj) =>
-        numberText(calcByObjectId[obj.id]?.params?.vapor_temperature ?? recalc.vaporTemperature, 1),
-    },
-    maintain_temperature: {
-      align: 'right',
-      render: (_: unknown, obj) =>
-        numberText(
-          calcByObjectId[obj.id]?.params?.maintain_temperature ?? recalc.maintainTemperature,
-          1,
-        ),
-    },
-    aggressive_product: {
-      align: 'center',
-      render: (_: unknown, obj) =>
-        valueText(calcByObjectId[obj.id]?.params?.aggressive_product ?? recalc.aggressiveProduct),
     },
   };
 }

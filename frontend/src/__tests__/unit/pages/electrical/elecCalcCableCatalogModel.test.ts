@@ -65,15 +65,11 @@ describe('elecCalcCableCatalogModel', () => {
     expect(hasTechnicalData('self_regulating', { technical_data_complete: true })).toBe(true);
 
     expect(hasTechnicalData('self_regulating_tt', {
-      q1: 10,
-      q2: 20,
+      nominal_power: 20,
       max_product_temp: 90,
-      max_vapor_temp: 120,
     })).toBe(true);
     expect(hasTechnicalData('self_regulating_tt', {
-      q1: 10,
-      q2: 20,
-      max_product_temp: 90,
+      nominal_power: 20,
     })).toBe(false);
 
     expect(hasTechnicalData('single_core', {

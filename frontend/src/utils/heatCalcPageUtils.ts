@@ -58,7 +58,6 @@ const NUMBER_FILTER_COLUMNS = new Set<HeatCalcColumnKey>([
   'ground_temperature',
   'ground_conductivity',
   'min_switch_temperature',
-  'supply_voltage',
   'safety_factor',
   'vapor_temperature',
   'num_local_elements',

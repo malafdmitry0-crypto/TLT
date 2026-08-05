@@ -160,13 +160,10 @@ function baseArgs(
     } as UseElecCalcMainTableControllerArgs['pageSummary'],
     projectSelected: true,
     recalc: {
-      aggressiveProduct: false,
       connectionType: 'line_1ph',
       heatingHeight: null,
       layingStep: null,
-      maintainTemperature: null,
       supplyVoltage: null,
-      vaporTemperature: null,
       windingCoefficient: null,
     },
     selectedRowKeys: [],

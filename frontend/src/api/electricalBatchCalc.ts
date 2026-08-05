@@ -33,9 +33,6 @@ export interface ElectricalBatchOptions {
   numberOfThreads?: number | null;
   heatingHeight?: number | null;
   layingStep?: number | null;
-  maintainTemperature?: number | null;
-  vaporTemperature?: number | null;
-  aggressiveProduct?: boolean;
   selectionPolicy?: SelectionPolicy;
   skipManual?: boolean;
   objectIds?: string[];
@@ -81,13 +78,13 @@ function electricalParams(
   if (cableType === 'self_regulating_tt') {
     return {
       ...sharedParams,
+      // Case 1: U is not a cable-candidate criterion. The full calculation
+      // still needs it downstream for current and section sizing.
+      supply_voltage: options.supplyVoltage ?? undefined,
       winding_pitch: options.windingPitchMm ?? undefined,
       number_of_threads: options.numberOfThreads ?? undefined,
       heating_height: options.heatingHeight ?? undefined,
       laying_step: options.layingStep ?? undefined,
-      maintain_temperature: options.maintainTemperature ?? undefined,
-      vapor_temperature: options.vaporTemperature ?? undefined,
-      aggressive_product: options.aggressiveProduct,
     };
   }
   return {
@@ -99,9 +96,6 @@ function electricalParams(
     number_of_threads: options.numberOfThreads ?? undefined,
     heating_height: options.heatingHeight ?? undefined,
     laying_step: options.layingStep ?? undefined,
-    maintain_temperature: options.maintainTemperature ?? undefined,
-    vapor_temperature: options.vaporTemperature ?? undefined,
-    aggressive_product: options.aggressiveProduct ?? undefined,
   };
 }
 
@@ -255,9 +249,6 @@ export async function selectCableForVariants(
         number_of_threads: options.numberOfThreads ?? null,
         heating_height: options.heatingHeight ?? null,
         laying_step: options.layingStep ?? null,
-        maintain_temperature: options.maintainTemperature ?? null,
-        vapor_temperature: options.vaporTemperature ?? null,
-        aggressive_product: options.aggressiveProduct ?? false,
         selection_policy: options.selectionPolicy ?? 'technical_minimum',
       };
   const { data } = await apiClient.post<ElectricalCalcSummary[]>(

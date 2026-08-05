@@ -73,6 +73,22 @@ describe('heatCalcFieldRules', () => {
   });
 
   it('ограничивает температурные и физические диапазоны из ТНП', () => {
+    expect(isHeatCalcFieldRequired('min_switch_temperature', {
+      objectType: 'pipe',
+      values: {},
+    })).toBe(true);
+    expect(isHeatCalcFieldRequired('min_switch_temperature', {
+      objectType: 'tank',
+      values: {},
+    })).toBe(true);
+    expect(validateHeatCalcField('min_switch_temperature', undefined, {
+      objectType: 'pipe',
+      values: {},
+    })).toBe('Укажите значение');
+    expect(validateHeatCalcField('min_switch_temperature', undefined, {
+      objectType: 'tank',
+      values: {},
+    })).toBe('Укажите значение');
     expect(validateHeatCalcField('vapor_temperature', 85, {
       objectType: 'pipe',
       values: { steam_tracing: 'yes' },
@@ -97,18 +113,34 @@ describe('heatCalcFieldRules', () => {
       objectType: 'pipe',
       values: { placement: 'underground' },
     })).toBeNull();
-    expect(validateHeatCalcField('min_switch_temperature', -25, {
+    expect(validateHeatCalcField('min_switch_temperature', -40, {
       objectType: 'pipe',
       values: {},
-    })).toBe('Минимальное значение — -20');
-    expect(validateHeatCalcField('min_switch_temperature', 0, {
-      objectType: 'pipe',
+    })).toBeNull();
+    expect(validateHeatCalcField('min_switch_temperature', -40, {
+      objectType: 'tank',
       values: {},
     })).toBeNull();
     expect(validateHeatCalcField('min_switch_temperature', 10, {
       objectType: 'pipe',
       values: {},
-    })).toBe('Максимальное значение — 5');
+    })).toBeNull();
+    expect(validateHeatCalcField('min_switch_temperature', 10, {
+      objectType: 'tank',
+      values: {},
+    })).toBeNull();
+    expect(validateHeatCalcField('min_switch_temperature', -40.1, {
+      objectType: 'pipe',
+      values: {},
+    })).toBe('Минимальное значение — -40');
+    expect(validateHeatCalcField('min_switch_temperature', 0, {
+      objectType: 'pipe',
+      values: {},
+    })).toBeNull();
+    expect(validateHeatCalcField('min_switch_temperature', 10.1, {
+      objectType: 'tank',
+      values: {},
+    })).toBe('Максимальное значение — 10');
     expect(validateHeatCalcField('insulation_thickness_mm', 0.005, {
       objectType: 'pipe',
       values: {},
@@ -117,14 +149,6 @@ describe('heatCalcFieldRules', () => {
       objectType: 'pipe',
       values: {},
     })).toBeNull();
-    expect(validateHeatCalcField('winding_coefficient', 1.25, {
-      objectType: 'pipe',
-      values: {},
-    })).toBeNull();
-    expect(validateHeatCalcField('winding_coefficient', 2, {
-      objectType: 'pipe',
-      values: {},
-    })).toBe('Максимальное значение — 1.5');
     expect(validateHeatCalcField('num_local_elements', 150, {
       objectType: 'pipe',
       values: {},
@@ -135,11 +159,11 @@ describe('heatCalcFieldRules', () => {
     })).toBeNull();
   });
 
-  it('requires T3 and applies steam temperature only when steam tracing is enabled', () => {
+  it('keeps maintenance optional and applies steam temperature only when steam tracing is enabled', () => {
     expect(isHeatCalcFieldRequired('maintain_temperature', {
       objectType: 'pipe',
       values: {},
-    })).toBe(true);
+    })).toBe(false);
     expect(isHeatCalcFieldVisible('vapor_temperature', {
       objectType: 'pipe',
       values: { steam_tracing: 'no' },

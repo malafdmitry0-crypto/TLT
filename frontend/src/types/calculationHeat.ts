@@ -72,7 +72,6 @@ export interface PipeParams {
   ground_conductivity_source?: 'manual' | 'reference' | null;
   num_local_elements: number;
   local_element_equiv_length?: number | null;
-  supply_voltage?: number | null;
   safety_factor: number;
   safety_factor_source?: 'default' | 'manual' | 'climate_policy' | null;
   climate_policy_rule?: 'pipe_diameter_ge_100' | 'pipe_diameter_lt_100' | null;
@@ -128,7 +127,6 @@ export interface TankParams {
   insulation_temperature_basis?: InsulationTemperatureBasis | null;
   ambient_temperature_source?: 'manual' | 'climate' | null;
   wind_speed_source?: 'manual' | 'climate' | null;
-  supply_voltage?: number | null;
   safety_factor: number;
   safety_factor_source?: 'default' | 'manual' | 'climate_policy' | null;
   q_additional: number;

@@ -1,6 +1,11 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { getHeatCalcFieldByColumn } from '@/domain/heatCalcFields';
+import {
+  getHeatCalcFieldByColumn,
+  getHeatCalcFieldDefinition,
+  getHeatCalcFieldDescription,
+  getHeatCalcFieldLabel,
+} from '@/domain/heatCalcFields';
 import {
   applyHeatCalcFieldValue,
   validateHeatCalcField,
@@ -8,6 +13,10 @@ import {
 import {
   getInlineEditFieldConfig,
 } from '@/utils/heatCalcInlineEdit';
+import {
+  projectPipeFormValuesFromRecord,
+  projectTankFormValuesFromRecord,
+} from '@/utils/heatCalcInlineFormProjection';
 import {
   heatCalcNumberInputProps,
   heatCalcSelectOptions,
@@ -23,7 +32,29 @@ describe('heatCalcInlineEdit mapping and validation', () => {
     expect(getInlineEditFieldConfig('tank', 'tank_shape')).toBeNull();
     expect(getInlineEditFieldConfig('pipe', 'insulation_material')).toBeNull();
     expect(getInlineEditFieldConfig('pipe', 'pipe_dn')).toBeNull();
+    expect(getHeatCalcFieldDefinition('supply_voltage', 'pipe')).toBeNull();
+    expect(getHeatCalcFieldDefinition('supply_voltage', 'tank')).toBeNull();
+    expect(getHeatCalcFieldDefinition('winding_coefficient', 'pipe')).toBeNull();
+    expect(getHeatCalcFieldDefinition('winding_coefficient', 'tank')).toBeNull();
+    expect(getHeatCalcFieldDefinition('aggressive_product', 'pipe')).toBeNull();
+    expect(getHeatCalcFieldDefinition('aggressive_product', 'tank')).toBeNull();
+    expect(getHeatCalcFieldDefinition('min_switch_temperature', 'tank')).toMatchObject({
+      id: 'min_switch_temperature',
+      required: true,
+      min: -40,
+      max: 10,
+    });
     expect(getInlineEditFieldConfig('pipe', 'supply_voltage')).toBeNull();
+    expect(projectPipeFormValuesFromRecord({ supply_voltage: 380 })).not.toHaveProperty('supply_voltage');
+    expect(projectTankFormValuesFromRecord({ supply_voltage: 380 })).not.toHaveProperty('supply_voltage');
+    expect(projectPipeFormValuesFromRecord({ winding_coefficient: 1.25 }))
+      .not.toHaveProperty('winding_coefficient');
+    expect(projectTankFormValuesFromRecord({ winding_coefficient: 1.25 }))
+      .not.toHaveProperty('winding_coefficient');
+    expect(projectPipeFormValuesFromRecord({ aggressive_product: 'yes' }))
+      .not.toHaveProperty('aggressive_product');
+    expect(projectTankFormValuesFromRecord({ aggressive_product: 'yes' }))
+      .not.toHaveProperty('aggressive_product');
   });
 
   it('uses shared validation for Phase 1 numeric ranges', () => {
@@ -47,6 +78,15 @@ describe('heatCalcInlineEdit mapping and validation', () => {
     })).toBeNull();
   });
 
+  it('labels T2/T3 as adjacent Heat-card fields outside the Case 1 selector', () => {
+    expect(getHeatCalcFieldLabel('maintain_temperature', { objectType: 'pipe' }))
+      .toBe('Температура поддержания');
+    expect(getHeatCalcFieldDescription('vapor_temperature', { objectType: 'pipe' }))
+      .toContain('Алгоритм выбора марки §6.13 температуру пропарки не использует');
+    expect(getHeatCalcFieldDescription('maintain_temperature', { objectType: 'tank' }))
+      .toContain('Алгоритм выбора марки §6.13 температуру поддержания не использует');
+  });
+
   it('exposes the same Phase 1 metadata to ObjectWizard inputs', () => {
     expect(heatCalcTextInputProps('pipe', 'name')).toMatchObject({
       maxLength: 200,
@@ -62,15 +102,19 @@ describe('heatCalcInlineEdit mapping and validation', () => {
       max: 400,
       step: 0.1,
     });
+    expect(heatCalcNumberInputProps('pipe', 'min_switch_temperature')).toMatchObject({
+      min: -40,
+      max: 10,
+    });
+    expect(heatCalcNumberInputProps('tank', 'min_switch_temperature')).toMatchObject({
+      min: -40,
+      max: 10,
+    });
     expect(heatCalcNumberInputProps('pipe', 'maintain_temperature')).toMatchObject({
       min: -90,
       max: 600,
       step: 0.1,
     });
-    expect(heatCalcSelectOptions('pipe', 'aggressive_product')).toEqual([
-      { value: 'no', label: 'Нет' },
-      { value: 'yes', label: 'Да' },
-    ]);
   });
 
   it('фильтрует режимы tm изоляции по размещению объекта', () => {

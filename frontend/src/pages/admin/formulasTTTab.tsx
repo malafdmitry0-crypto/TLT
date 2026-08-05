@@ -19,21 +19,22 @@ export function FormulasTTTab() {
  const tankShape = Form.useWatch('tank_shape', form);
 
  const onCalc = async () => {
-    const v = await form.validateFields();
-    const aggressive = v.aggressive_product === true || v.aggressive_product === 'true';
+    const v = await form.validateFields().catch(() => null);
+    if (!v) return;
     const p: Record<string, unknown> = {
       required_power_per_meter: v.required_power_per_meter,
       pipe_length: v.pipe_length,
       process_temperature: v.process_temperature,
-      maintain_temperature: v.maintain_temperature,
-      supply_voltage: v.supply_voltage ?? 220,
-      aggressive_product: aggressive,
-      winding_coefficient: v.winding_coefficient ?? 1.1,
-      safety_factor: v.safety_factor ?? 1.1,
+      ambient_temperature: v.ambient_temperature,
+      supply_voltage: v.supply_voltage,
+      safety_factor: v.safety_factor,
+      selection_policy: 'technical_minimum',
     };
-    assignIfPresent(p, 'vapor_temperature', v.vapor_temperature);
     assignIfPresent(p, 'cable_mark', v.cable_mark);
-    assignIfPresent(p, 'winding_pitch', v.winding_pitch);
+    if (!v.tank_shape) {
+      assignIfPresent(p, 'winding_pitch', v.winding_pitch);
+      assignIfPresent(p, 'outer_diameter_mm', v.outer_diameter_mm);
+    }
     assignIfPresent(p, 'number_of_threads', v.number_of_threads);
     assignIfPresent(p, 'tank_shape', v.tank_shape);
     assignIfPresent(p, 'tank_diameter', v.tank_diameter_mm, (x) => Number(x) / 1000);
@@ -49,7 +50,12 @@ export function FormulasTTTab() {
       <Col xs={24} lg={12}><TTFormulaDisplay /></Col>
       <Col xs={24} lg={12}>
         <Title level={5}>Проверить расчёт ТТ</Title>
-        <Form form={form} name="tt_formula_check" layout="vertical" initialValues={{ supply_voltage: 220, aggressive_product: 'false', winding_coefficient: 1.1, safety_factor: 1.1 }}>
+        <Form
+          form={form}
+          name="tt_formula_check"
+          layout="vertical"
+          initialValues={{ supply_voltage: 230, safety_factor: 1.1 }}
+        >
           <Row gutter={12}>
             <Col span={12}>
               <Form.Item name="required_power_per_meter" label="Требуемая мощность, Вт/м" rules={[{ required: true }]}>
@@ -69,61 +75,62 @@ export function FormulasTTTab() {
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="vapor_temperature" label="T пропарки, °C">
-                <TltNumberField className="tlt-field--fill" placeholder="85" />
+              <Form.Item name="ambient_temperature" label="T среды, °C" rules={[{ required: true }]}>
+                <TltNumberField min={-90} max={80} className="tlt-field--fill" placeholder="-20" />
               </Form.Item>
             </Col>
           </Row>
           <Row gutter={12}>
             <Col span={12}>
-              <Form.Item name="maintain_temperature" label="T3 поддержания, °C (необяз.)">
-                <TltNumberField min={-90} max={600} className="tlt-field--fill" placeholder="по умолчанию T продукта" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={12}>
-            <Col span={8}>
-              <Form.Item name="supply_voltage" label="U, В">
+              <Form.Item name="supply_voltage" label="U, В" rules={[{ required: true }]}>
                 <TltNumberField min={1} className="tlt-field--fill" />
               </Form.Item>
             </Col>
-            <Col span={8}>
+            <Col span={12}>
               <Form.Item name="safety_factor" label="K запаса">
                 <TltNumberField min={1} max={2} step={0.05} className="tlt-field--fill" />
               </Form.Item>
             </Col>
-            <Col span={8}>
-              <Form.Item name="aggressive_product" label="Среда">
-                <TltSelect
-                  options={[
-                    { value: 'false', label: 'Обычная' },
-                    { value: 'true', label: 'Агрессивная' },
-                  ]}
-                />
-              </Form.Item>
-            </Col>
           </Row>
           <Row gutter={12}>
-            <Col span={8}>
-              <Form.Item name="winding_coefficient" label="Коэф. укладки">
-                <TltNumberField min={1} max={10} step={0.1} className="tlt-field--fill" />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="winding_pitch" label="Шаг навива, мм">
-                <TltNumberField min={0} className="tlt-field--fill" />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
+            {!tankShape && (
+              <>
+                <Col span={8}>
+                  <Form.Item
+                    name="outer_diameter_mm"
+                    label="Наружный диаметр, мм"
+                    dependencies={['winding_pitch']}
+                    rules={[
+                      ({ getFieldValue }) => ({
+                        validator(_, value) {
+                          if (!getFieldValue('winding_pitch') || value != null) {
+                            return Promise.resolve();
+                          }
+                          return Promise.reject(new Error('Укажите диаметр для расчёта навива'));
+                        },
+                      }),
+                    ]}
+                  >
+                    <TltNumberField min={0.1} className="tlt-field--fill" placeholder="для навива" />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item name="winding_pitch" label="Шаг навива, мм">
+                    <TltNumberField min={0} className="tlt-field--fill" />
+                  </Form.Item>
+                </Col>
+              </>
+            )}
+            <Col span={tankShape ? 24 : 8}>
               <Form.Item name="number_of_threads" label="Нитки">
-                <TltNumberField min={1} max={100} className="tlt-field--fill" placeholder="авто" />
+                <TltNumberField min={1} max={3} className="tlt-field--fill" placeholder="авто: 1–3" />
               </Form.Item>
             </Col>
           </Row>
           <Row gutter={12}>
             <Col span={12}>
-              <Form.Item name="cable_mark" label="Марка кабеля">
-                <TltTextField placeholder="пусто = автоподбор" />
+              <Form.Item name="cable_mark" label="Точная марка кабеля">
+                <TltTextField placeholder="например, 30ТТВ2-СР; пусто = автоподбор" />
               </Form.Item>
             </Col>
             <Col span={12}>

@@ -14,9 +14,6 @@ describe('useElecCalcRecalculationParams', () => {
       windingCoefficient: 1,
       heatingHeight: null,
       layingStep: undefined,
-      maintainTemperature: undefined,
-      vaporTemperature: undefined,
-      aggressiveProduct: undefined,
     });
   });
 
@@ -30,9 +27,6 @@ describe('useElecCalcRecalculationParams', () => {
       result.current.setters.windingCoefficient(1.25);
       result.current.setters.heatingHeight(2.4);
       result.current.setters.layingStep(0.2);
-      result.current.setters.maintainTemperature(80);
-      result.current.setters.vaporTemperature(120);
-      result.current.setters.aggressiveProduct(true);
     });
 
     expect(result.current.values).toEqual({
@@ -42,9 +36,6 @@ describe('useElecCalcRecalculationParams', () => {
       windingCoefficient: 1.25,
       heatingHeight: 2.4,
       layingStep: 0.2,
-      maintainTemperature: 80,
-      vaporTemperature: 120,
-      aggressiveProduct: true,
     });
   });
 });
