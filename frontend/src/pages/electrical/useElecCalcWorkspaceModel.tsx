@@ -360,8 +360,6 @@ export function useElecCalcWorkspaceModel({
       setColumnSettingsOpen: columnSettings.setColumnSettingsOpen,
       updateTableColumnPreference: columnSettings.updateTableColumnPreference,
       updateTableSettingsPreference: columnSettings.updateTableSettingsPreference,
-      paramsPanelVisible: columnSettings.paramsPanelVisible,
-      toggleParamsPanel: columnSettings.toggleParamsPanel,
     },
     modals: {
       cableMarkModal,

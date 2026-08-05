@@ -1,7 +1,7 @@
 /**
  * Characterization for workspace column-settings controller surface.
  * Locks return keys and that preference → view model → table view →
- * persistence → draft → params panel are composed; sub-hooks are stubbed.
+ * persistence → draft are composed; sub-hooks are stubbed.
  */
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
@@ -10,7 +10,6 @@ const {
   stablePreference,
   stableColumnView,
   stableTableView,
-  stableParamsPanel,
   stablePersistence,
   stableDraft,
 } = vi.hoisted(() => {
@@ -53,10 +52,6 @@ const {
     resetCandidateTableViewState: vi.fn(),
     setCandidateTableSort: vi.fn(),
   };
-  const stableParamsPanel = {
-    paramsPanelVisible: false,
-    toggleParamsPanel: vi.fn(),
-  };
   const stablePersistence = {
     persistTableSettings: vi.fn(),
     persistCandidateTableColumnSettings: vi.fn(),
@@ -71,7 +66,6 @@ const {
     stablePreference,
     stableColumnView,
     stableTableView,
-    stableParamsPanel,
     stablePersistence,
     stableDraft,
   };
@@ -85,9 +79,6 @@ vi.mock('@/pages/electrical/useElecCalcColumnViewModel', () => ({
 }));
 vi.mock('@/pages/electrical/useElecCalcTableViewState', () => ({
   useElecCalcTableViewState: () => stableTableView,
-}));
-vi.mock('@/pages/electrical/useElecCalcParamsPanelState', () => ({
-  useElecCalcParamsPanelState: () => stableParamsPanel,
 }));
 vi.mock('@/pages/electrical/useElecCalcColumnPersistence', () => ({
   useElecCalcColumnPersistence: () => stablePersistence,
@@ -124,8 +115,6 @@ const COLUMN_SETTINGS_CONTROLLER_RETURN_KEYS = [
   'resetCandidateColumnFilter',
   'resetCandidateTableViewState',
   'setCandidateTableSort',
-  'paramsPanelVisible',
-  'toggleParamsPanel',
   'columnPersistence',
   'columnDraft',
   'updateTableColumnPreference',
@@ -171,8 +160,6 @@ describe('useElecCalcWorkspaceColumnSettingsController', () => {
     expect(result.current.resetCandidateTableViewState).toBe(
       stableTableView.resetCandidateTableViewState,
     );
-    expect(result.current.paramsPanelVisible).toBe(stableParamsPanel.paramsPanelVisible);
-    expect(result.current.toggleParamsPanel).toBe(stableParamsPanel.toggleParamsPanel);
     expect(result.current.columnPersistence).toBe(stablePersistence);
     expect(result.current.columnDraft).toBe(stableDraft);
     expect(result.current.updateTableColumnPreference).toBe(
@@ -211,7 +198,6 @@ describe('useElecCalcWorkspaceColumnSettingsController', () => {
       columnPersistence: result.current.columnPersistence,
       columnDraft: result.current.columnDraft,
       tableViewState: result.current.tableViewState,
-      toggleParamsPanel: result.current.toggleParamsPanel,
     };
 
     rerender(args);
@@ -219,6 +205,5 @@ describe('useElecCalcWorkspaceColumnSettingsController', () => {
     expect(result.current.columnPersistence).toBe(first.columnPersistence);
     expect(result.current.columnDraft).toBe(first.columnDraft);
     expect(result.current.tableViewState).toBe(first.tableViewState);
-    expect(result.current.toggleParamsPanel).toBe(first.toggleParamsPanel);
   });
 });
