@@ -21,7 +21,6 @@ def _params(**kwargs) -> SelfRegulatingTTParams:
         "pipe_length": 50.0,
         "process_temperature": 20.0,
         "maintain_temperature": 10.0,
-        "supply_voltage": 230.0,
         "safety_factor": 1.0,
         "winding_coefficient": 1.0,
     }
@@ -114,10 +113,8 @@ def test_formula_rejects_manual_thread_count_outside_one_to_three(threads):
     assert exc.value.code == "ELECTRICAL_THREAD_COUNT_INVALID"
 
 
-def test_new_calculation_requires_230_v():
-    with pytest.raises(ElectricalFormulaError) as exc:
-        calc_self_regulating_tt(_params(supply_voltage=220))
-    assert exc.value.code == "ELECTRICAL_NOMINAL_VOLTAGE_UNSUPPORTED"
+def test_voltage_is_not_a_selector_parameter():
+    assert "supply_voltage" not in SelfRegulatingTTParams.model_fields
 
 
 def test_only_technical_minimum_policy_is_accepted():

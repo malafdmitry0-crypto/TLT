@@ -21,10 +21,10 @@ function setup(overrides: Partial<Parameters<typeof ElecCalcElectricalTypeContro
       <ElecCalcElectricalTypeControls
         cableType="self_regulating_tt"
         recalc={{
-          aggressiveProduct: false,
+          aggressiveProduct: undefined,
           connectionType: 'line_1ph',
           heatingHeight: null,
-          layingStep: 0.1,
+          layingStep: undefined,
           maintainTemperature: 80,
           supplyVoltage: 230,
           vaporTemperature: 120,
@@ -53,16 +53,18 @@ describe('ElecCalcElectricalTypeControls', () => {
     expect(setRecalc.supplyVoltage).not.toHaveBeenCalled();
   });
 
-  it('renders TT controls (incl. read-only supply voltage) and keeps aggressive flag callback', async () => {
+  it('renders TT overrides without voltage and keeps undefined R distinct from explicit false', async () => {
     const { setRecalc } = setup();
 
     expect(screen.getByLabelText('T пропарки')).toBeInTheDocument();
     expect(screen.getByLabelText('T3 поддержания')).toBeInTheDocument();
-    const voltage = screen.getByLabelText('Напряжение питания');
-    expect(voltage).toBeInTheDocument();
-    expect(voltage).toBeDisabled();
+    expect(screen.queryByLabelText('Напряжение питания')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Высота обогрева резервуара')).toBeInTheDocument();
+    expect(screen.getByLabelText('Шаг укладки резервуара')).toHaveValue('');
 
-    await userEvent.click(screen.getByRole('checkbox', { name: 'агр.' }));
+    const aggressive = screen.getByRole('checkbox', { name: 'агр.' });
+    expect(aggressive).toHaveAttribute('aria-checked', 'mixed');
+    await userEvent.click(aggressive);
     expect(setRecalc.aggressiveProduct).toHaveBeenCalledWith(true);
   });
 

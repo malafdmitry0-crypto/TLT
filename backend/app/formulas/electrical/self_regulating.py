@@ -10,6 +10,7 @@ from typing import Any
 from app.electrical_domain import ElectricalFormulaError
 from app.formulas.electrical.cable_geometry import compute_tank_cable_length
 from app.formulas.electrical.decimal_math import SIX_PLACES, decimal_value, round_result, round_up
+from app.formulas.electrical.tt_contract import SYSTEM_VOLTAGE_V
 from app.reference_data.loader import (
     get_tt_cable_by_model,
     list_tt_cables,
@@ -164,12 +165,6 @@ def calc_self_regulating_tt(
             "В MVP поддерживается только политика technical_minimum",
             details={"selection_policy": selection_policy},
         )
-    if params.supply_voltage != 230:
-        raise ElectricalFormulaError(
-            "ELECTRICAL_NOMINAL_VOLTAGE_UNSUPPORTED",
-            "Новый электрический расчёт поддерживает только напряжение 230 В",
-            details={"nominal_voltage_v": params.supply_voltage},
-        )
     if params.maintain_temperature is None:
         raise ElectricalFormulaError(
             "ELECTRICAL_CABLE_POWER_CURVE_INVALID", "Температура поддержания T3 обязательна"
@@ -303,7 +298,7 @@ def calc_self_regulating_tt(
     order_cable_length = round_up(cable_length * Decimal("1.10"))
     total_power = q_b * cable_length
     installed_power_per_meter = q_b * winding_factor * num_circuits
-    applied_voltage = Decimal(230)
+    applied_voltage = Decimal(SYSTEM_VOLTAGE_V)
 
     temp_group = "high" if series in {"ТТВ", "ТТХ"} else "low"
     return SelfRegulatingTTResult(

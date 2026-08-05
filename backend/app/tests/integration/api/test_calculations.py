@@ -526,96 +526,6 @@ class TestElectricalCalculation:
         assert calc["params"]["supply_voltage"] == 220
         assert calc["results"]["voltage"] == 220
 
-    async def test_tt_rejects_non_compatibility_voltage(
-        self,
-        client: AsyncClient,
-        guest_session: str,
-        electrical_frontend_mock_mode: None,
-    ):
-        """Only 220 compatibility input may be forced to canonical 230 V."""
-        project = await _create_project(client, guest_session)
-        obj = await _create_pipe_object(client, project["id"], guest_session)
-        await _assign_electrical_object(client, project["id"], obj["id"], guest_session)
-
-        resp = await client.post(
-            "/api/v1/calc/electrical",
-            json={
-                "object_id": obj["id"],
-                "cable_type": "self_regulating_tt",
-                "data": {
-                    "required_power_per_meter": 10.0,
-                    "cable_mark": "30ТТВ2-СР",
-                    "pipe_length": 50.0,
-                    "process_temperature": 80.0,
-                    "maintain_temperature": 50.0,
-                    "safety_factor": 1.0,
-                    "supply_voltage": 380.0,
-                },
-            },
-            headers={"X-Session-Id": guest_session},
-        )
-
-        assert resp.status_code == 422, resp.text
-        assert resp.json()["detail"]["code"] == "ELECTRICAL_NOMINAL_VOLTAGE_UNSUPPORTED"
-
-    async def test_tt_strict_mode_rejects_legacy_220_voltage(
-        self,
-        client: AsyncClient,
-        guest_session: str,
-    ):
-        """AC-BE-20: mock-off rejects legacy 220 V after complete input resolution."""
-        project = await _create_project(client, guest_session)
-        obj = await _create_pipe_object(client, project["id"], guest_session)
-        await _assign_electrical_object(client, project["id"], obj["id"], guest_session)
-
-        resp = await client.post(
-            "/api/v1/calc/electrical",
-            json={
-                "object_id": obj["id"],
-                "cable_type": "self_regulating_tt",
-                "data": {
-                    "required_power_per_meter": 10.0,
-                    "pipe_length": 50.0,
-                    "process_temperature": 50.0,
-                    "vapor_temperature": None,
-                    "maintain_temperature": 10.0,
-                    "ambient_temperature": -20.0,
-                    "aggressive_product": False,
-                    "winding_pitch": None,
-                    "number_of_threads": None,
-                    "cable_mark": None,
-                    "max_start_current_per_section": 13.065,
-                    "selection_policy": "technical_minimum",
-                    "safety_factor": 1.1,
-                    "supply_voltage": 220.0,
-                },
-            },
-            headers={"X-Session-Id": guest_session},
-        )
-
-        assert resp.status_code == 422, resp.text
-        assert resp.json()["detail"] == {
-            "code": "ELECTRICAL_NOMINAL_VOLTAGE_UNSUPPORTED",
-            "message": "New electrical calculations support only 230 V",
-            "issues": [],
-            "details": {"requested_voltage_v": 220, "applied_voltage_v": 230},
-        }
-
-        persisted = await client.get(
-            "/api/v1/calc/electrical",
-            params={"project_id": project["id"], "variant_number": 1},
-            headers={"X-Session-Id": guest_session},
-        )
-        assert persisted.status_code == 200, persisted.text
-        calculations = persisted.json()
-        assert len(calculations) == 1
-        error_result = calculations[0]["results"]
-        assert error_result["error_code"] == "ELECTRICAL_NOMINAL_VOLTAGE_UNSUPPORTED"
-        assert error_result["voltage"] == 230
-        assert error_result["normalized_voltage_v"] == 230
-        assert set(error_result["catalogs"]) == {"power", "section", "bom"}
-        assert error_result["provenance"]["formula_version"] == "electrical-tt-v2"
-
     async def test_order_cable_length_includes_10_percent_factor(
         self, client: AsyncClient, guest_session: str
     ):
@@ -2272,20 +2182,6 @@ class TestElectricalCalculationContinued:
         assert aggressive_resp.status_code == 200, aggressive_resp.text
         aggressive_result = aggressive_resp.json()["result"]
         assert aggressive_result["cable_mark"].endswith("-СР")
-
-        invalid_voltage = await client.post(
-            "/api/v1/calc/electrical",
-            json={
-                "object_id": obj["id"],
-                "cable_type": "self_regulating_tt",
-                "data": {"supply_voltage": 240},
-            },
-            headers={"X-Session-Id": guest_session},
-        )
-        assert invalid_voltage.status_code == 422
-        assert invalid_voltage.json()["detail"]["code"] == (
-            "ELECTRICAL_NOMINAL_VOLTAGE_UNSUPPORTED"
-        )
 
     async def test_single_core_resistive_calc(self, client: AsyncClient, guest_session: str):
         """single_core: возвращает selected_cable и conductor_cross_section."""

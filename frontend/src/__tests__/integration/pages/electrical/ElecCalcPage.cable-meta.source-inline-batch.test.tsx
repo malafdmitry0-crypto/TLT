@@ -239,7 +239,6 @@ describe('ElecCalcPage cable metadata / source / inline — source-inline-batch'
         1,
         'self_regulating_tt',
         expect.objectContaining({
-          aggressiveProduct: false,
           maintainTemperature: 50,
           forceCableType: true,
           skipManual: true,
@@ -247,6 +246,10 @@ describe('ElecCalcPage cable metadata / source / inline — source-inline-batch'
       );
     });
     const options = (enqueueElectricalBatchJob as ReturnType<typeof vi.fn>).mock.calls[0][4];
+    expect(options).not.toHaveProperty('supplyVoltage');
+    expect(options).not.toHaveProperty('connectionType');
+    expect(options).not.toHaveProperty('windingCoefficient');
+    expect(options).not.toHaveProperty('aggressiveProduct');
     expect(options.objectOverrides).toBeUndefined();
   });
 });

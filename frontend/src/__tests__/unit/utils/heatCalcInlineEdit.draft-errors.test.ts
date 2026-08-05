@@ -108,7 +108,7 @@ describe('heatCalcInlineEdit draft and errors', () => {
     expect(params.environment).toBe('normal');
     expect(params.zone_classification).toBe('safe');
     expect(params.temperature_group).toBe('T1');
-    expect(params.supply_voltage).toBe(220);
+    expect(params).not.toHaveProperty('supply_voltage');
     expect(params.steam_tracing).toBe('no');
   });
 

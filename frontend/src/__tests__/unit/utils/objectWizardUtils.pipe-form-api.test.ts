@@ -178,6 +178,9 @@ describe('pipeFormToApiParams', () => {
       safety_factor: 1.2,
       safety_factor_source: 'manual',
       supply_voltage: 380,
+      maintain_temperature: 15,
+      aggressive_product: 'yes',
+      steam_tracing: 'yes',
       vapor_temperature: 140,
       num_local_elements: 6,
       local_element_equiv_length: 1.5,
@@ -202,7 +205,10 @@ describe('pipeFormToApiParams', () => {
     expect(api.wind_speed_source).toBeUndefined();
     expect(api.safety_factor).toBe(1.2);
     expect(api.safety_factor_source).toBe('manual');
-    expect(api.supply_voltage).toBe(380);
+    expect(api).not.toHaveProperty('supply_voltage');
+    expect(api.maintain_temperature).toBe(15);
+    expect(api.aggressive_product).toBe(true);
+    expect(api.steam_tracing).toBe('yes');
     expect(api.vapor_temperature).toBe(140);
     expect(api.insulation_cover_material).toBe('none');
     expect(api.max_ambient_temperature).toBe(30);
@@ -212,6 +218,28 @@ describe('pipeFormToApiParams', () => {
     expect(api).not.toHaveProperty('valve_count');
     expect(api).not.toHaveProperty('flange_count');
     expect(api).not.toHaveProperty('support_count');
+  });
+
+  it('clears stale steam temperature when steam tracing is disabled', () => {
+    const api = pipeFormToApiParams({
+      outer_diameter_mm: 108,
+      pipe_length: 50,
+      insulation_thickness_mm: 50,
+      insulation_material: 'mineral_wool',
+      ambient_temperature: -20,
+      process_temperature: 80,
+      maintain_temperature: 15,
+      aggressive_product: 'no',
+      steam_tracing: 'no',
+      vapor_temperature: 140,
+    });
+
+    expect(api).toMatchObject({
+      maintain_temperature: 15,
+      aggressive_product: false,
+      steam_tracing: 'no',
+    });
+    expect(api).not.toHaveProperty('vapor_temperature');
   });
 
   it('не затирает backend-дефолты локальных элементов пустыми нулями', () => {

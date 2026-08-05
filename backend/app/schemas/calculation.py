@@ -769,7 +769,6 @@ class SelfRegulatingTTParams(BaseModel):
         default=None,
         description="T3 — обязательная температура поддержания для расчёта q_б(T3), °C",
     )
-    supply_voltage: float = Field(default=230.0, gt=0, description="U — напряжение питания, В")
     max_start_current_per_section: float | None = Field(
         default=None,
         gt=0,
@@ -1185,7 +1184,6 @@ class ElectricalCableSelectionVariantsRequest(BaseModel):
     electrical_variant_ids: dict[int, UUID] = Field(default_factory=dict)
     cable_type: ElectricalCableType = "self_regulating_tt"
     selection_mode: Literal["auto", "manual"] | None = None
-    supply_voltage: float | None = None
     connection_type: str | None = None
     winding_coefficient: float | None = None
     winding_pitch: float | None = None
@@ -1218,7 +1216,6 @@ class ElectricalCableSelectionVariantsRequest(BaseModel):
     def electrical_params(self) -> dict[str, Any]:
         values = {
             "selection_mode": self.selection_mode,
-            "supply_voltage": self.supply_voltage,
             "connection_type": self.connection_type,
             "winding_coefficient": self.winding_coefficient,
             "winding_pitch": self.winding_pitch,
@@ -1541,7 +1538,6 @@ class ElectricalBatchJobRequest(BaseModel):
     selection_policy: SelectionPolicy = "technical_minimum"
     object_overrides: list[ElectricalObjectBatchOverride] | None = None
     force_cable_type: bool = False
-    supply_voltage: float | None = None
     connection_type: str | None = None
     winding_coefficient: float | None = None
     winding_pitch: float | None = None
@@ -1569,7 +1565,6 @@ class ElectricalBatchJobRequest(BaseModel):
 
     def electrical_params(self) -> dict[str, Any]:
         values = {
-            "supply_voltage": self.supply_voltage,
             "connection_type": self.connection_type,
             "winding_coefficient": self.winding_coefficient,
             "winding_pitch": self.winding_pitch,

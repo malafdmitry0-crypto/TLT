@@ -12,6 +12,9 @@ describe('pipeApiParamsToForm и tankApiParamsToForm', () => {
       insulation_layers: [{ thickness: 0.05, material: 'mineral_wool' }],
       ambient_temperature: -20,
       process_temperature: 80,
+      maintain_temperature: 15,
+      aggressive_product: true,
+      steam_tracing: 'yes',
       pipe_length: 50,
       vapor_temperature: 140,
       climate_key: 'ХМАО|||Сургут',
@@ -22,6 +25,9 @@ describe('pipeApiParamsToForm и tankApiParamsToForm', () => {
     });
     expect(form.outer_diameter_mm).toBe(108);
     expect(form.insulation_thickness_mm).toBe(50);
+    expect(form.maintain_temperature).toBe(15);
+    expect(form.aggressive_product).toBe('yes');
+    expect(form.steam_tracing).toBe('yes');
     expect(form.vapor_temperature).toBe(140);
     expect(form.climate_key).toBe('ХМАО|||Сургут');
     expect(form.local_element_equiv_length).toBe(1.2);
@@ -70,12 +76,20 @@ describe('pipeApiParamsToForm и tankApiParamsToForm', () => {
       insulation_material: 'mineral_wool',
       ambient_temperature: -20,
       process_temperature: 80,
+      maintain_temperature: 10,
+      aggressive_product: false,
+      heating_height: 2.5,
+      laying_step: 0.2,
     });
     expect(form.shape).toBe('cylindrical');
     expect(form.diameter_mm).toBe(2000);
     expect(form.height_mm).toBe(3000);
     expect(form.wall_thickness_mm).toBe(12);
     expect(form.wall_lambda).toBe(45);
+    expect(form.maintain_temperature).toBe(10);
+    expect(form.aggressive_product).toBe('no');
+    expect(form.heating_height).toBe(2.5);
+    expect(form.laying_step).toBe(0.2);
   });
 
   it('tank без shape → дефолт cylindrical', () => {

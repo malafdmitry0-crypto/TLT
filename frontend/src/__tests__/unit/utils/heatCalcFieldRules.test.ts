@@ -75,15 +75,15 @@ describe('heatCalcFieldRules', () => {
   it('ограничивает температурные и физические диапазоны из ТНП', () => {
     expect(validateHeatCalcField('vapor_temperature', 85, {
       objectType: 'pipe',
-      values: {},
+      values: { steam_tracing: 'yes' },
     })).toBe('Минимальное значение — 90');
     expect(validateHeatCalcField('vapor_temperature', 200, {
       objectType: 'pipe',
-      values: {},
+      values: { steam_tracing: 'yes' },
     })).toBeNull();
     expect(validateHeatCalcField('vapor_temperature', 250, {
       objectType: 'pipe',
-      values: {},
+      values: { steam_tracing: 'yes' },
     })).toBe('Максимальное значение — 200');
     expect(validateHeatCalcField('ground_conductivity', 0.49, {
       objectType: 'pipe',
@@ -133,6 +133,44 @@ describe('heatCalcFieldRules', () => {
       objectType: 'pipe',
       values: {},
     })).toBeNull();
+  });
+
+  it('requires T3 and applies steam temperature only when steam tracing is enabled', () => {
+    expect(isHeatCalcFieldRequired('maintain_temperature', {
+      objectType: 'pipe',
+      values: {},
+    })).toBe(true);
+    expect(isHeatCalcFieldVisible('vapor_temperature', {
+      objectType: 'pipe',
+      values: { steam_tracing: 'no' },
+    })).toBe(false);
+    expect(isHeatCalcFieldVisible('vapor_temperature', {
+      objectType: 'pipe',
+      values: { steam_tracing: 'yes' },
+    })).toBe(true);
+    expect(isHeatCalcFieldRequired('vapor_temperature', {
+      objectType: 'pipe',
+      values: { steam_tracing: 'yes' },
+    })).toBe(true);
+  });
+
+  it('requires explicit TT tank layout only for supported shapes', () => {
+    expect(isHeatCalcFieldRequired('heating_height', {
+      objectType: 'tank',
+      values: { shape: 'cylindrical' },
+    })).toBe(true);
+    expect(isHeatCalcFieldRequired('laying_step', {
+      objectType: 'tank',
+      values: { shape: 'rectangular' },
+    })).toBe(true);
+    expect(isHeatCalcFieldVisible('heating_height', {
+      objectType: 'tank',
+      values: { shape: 'spherical' },
+    })).toBe(false);
+    expect(isHeatCalcFieldVisible('laying_step', {
+      objectType: 'pipe',
+      values: {},
+    })).toBe(false);
   });
 
   it('для underground pipe сравнивает температуру продукта с грунтом, а не со скрытым воздухом', () => {

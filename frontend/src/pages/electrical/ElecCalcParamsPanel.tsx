@@ -87,8 +87,8 @@ function ElecCalcParamsPanel({
       </div>
 
       <div className="form-col-srs">
-        <h4 data-step={2}><span>Электропитание и температуры</span></h4>
-        {row('Напряжение питания U, В', (
+        <h4 data-step={2}><span>Температуры и среда</span></h4>
+        {!isTt && row('Напряжение питания U, В', (
           <TltNumberField
             aria-label="Напряжение питания"
             disabled
@@ -98,9 +98,6 @@ function ElecCalcParamsPanel({
             className="workflow-params-input"
           />
         ))}
-        <Text type="secondary" className="workflow-params-hint">
-          230 В — норматив системы (DEC-11); не редактируется
-        </Text>
         {isTt && (
           <>
             {row('Температура пропарки (T2), °C', (
@@ -124,7 +121,9 @@ function ElecCalcParamsPanel({
             {row('Среда воздействия на кабель (продукт)', (
               <Checkbox
                 disabled={disabled}
-                checked={recalc.aggressiveProduct}
+                checked={recalc.aggressiveProduct === true}
+                indeterminate={recalc.aggressiveProduct === undefined}
+                aria-checked={recalc.aggressiveProduct === undefined ? 'mixed' : recalc.aggressiveProduct}
                 onChange={(event) => setRecalc.aggressiveProduct(event.target.checked)}
               >
                 <span className="electrical-params-label">агрессивная (-СР)</span>
@@ -136,9 +135,9 @@ function ElecCalcParamsPanel({
 
       <div className="form-col-srs">
         <h4 data-step={3}><span>Укладка кабеля</span></h4>
-        {isResistive ? (
+        {isResistive || isTt ? (
           <>
-            {row('Коэффициент навива w (1–1,5)', (
+            {isResistive && row('Коэффициент навива w (1–1,5)', (
               <TltNumberField
                 aria-label="Коэффициент навива"
                 disabled={disabled}
@@ -150,9 +149,9 @@ function ElecCalcParamsPanel({
                 className="workflow-params-input"
               />
             ))}
-            {row('Высота обогрева h, м', (
+            {row(isTt ? 'Высота обогрева резервуара, м' : 'Высота обогрева h, м', (
               <TltNumberField
-                aria-label="Высота обогрева"
+                aria-label={isTt ? 'Высота обогрева резервуара' : 'Высота обогрева'}
                 disabled={disabled}
                 min={0}
                 step={0.1}
@@ -161,9 +160,9 @@ function ElecCalcParamsPanel({
                 className="workflow-params-input"
               />
             ))}
-            {row('Шаг укладки, м', (
+            {row(isTt ? 'Шаг укладки резервуара, м' : 'Шаг укладки, м', (
               <TltNumberField
-                aria-label="Шаг укладки"
+                aria-label={isTt ? 'Шаг укладки резервуара' : 'Шаг укладки'}
                 disabled={disabled}
                 min={0.1}
                 max={0.4}

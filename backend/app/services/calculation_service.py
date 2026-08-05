@@ -134,6 +134,16 @@ COPY_SELECTION_METADATA_KEYS = (
     "candidate_count",
     "warnings",
 )
+TT_ASSIGNMENT_CANONICAL_FIELDS = frozenset(
+    {
+        "steam_temperature_c",
+        "maintain_temperature_c",
+        "aggressive_product",
+        "winding_pitch_mm",
+        "thread_count",
+        "manual_cable_model",
+    }
+)
 
 
 class CalculationError(Exception):
@@ -1554,10 +1564,25 @@ class CalculationService:
                 target[canonical_key] = source.get(key)
                 return
 
+    @staticmethod
+    def _tt_steam_tracing_state(obj: ProjectObject) -> bool | None:
+        params = obj.params if isinstance(obj.params, dict) else {}
+        value = params.get("steam_tracing")
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"yes", "true", "1", "on"}:
+                return True
+            if normalized in {"no", "false", "0", "off"}:
+                return False
+        return None
+
     def _tt_object_heat_inputs(
         self,
         obj: ProjectObject,
         explicit_payload: dict[str, Any],
+        assignment_overrides: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Map authoritative object/Heat data without engineering defaults."""
         params = obj.params if isinstance(obj.params, dict) else {}
@@ -1567,7 +1592,17 @@ class CalculationService:
         self._tt_optional_object_value(
             values, "product_temperature_c", params, "process_temperature"
         )
-        self._tt_optional_object_value(values, "steam_temperature_c", params, "vapor_temperature")
+        steam_tracing = self._tt_steam_tracing_state(obj)
+        if steam_tracing is False:
+            values["steam_temperature_c"] = None
+        else:
+            self._tt_optional_object_value(
+                values,
+                "steam_temperature_c",
+                params,
+                "vapor_temperature",
+            )
+        values["_steam_tracing"] = steam_tracing
         self._tt_optional_object_value(
             values, "maintain_temperature_c", params, "maintain_temperature"
         )
@@ -1577,9 +1612,10 @@ class CalculationService:
         if cold_start is not None:
             values["cold_start_temperature_c"] = cold_start
         self._tt_optional_object_value(values, "aggressive_product", params, "aggressive_product")
-        self._tt_optional_object_value(
-            values, "winding_pitch_mm", params, "winding_pitch", "winding_pitch_mm"
-        )
+        if obj.object_type != "tank":
+            self._tt_optional_object_value(
+                values, "winding_pitch_mm", params, "winding_pitch", "winding_pitch_mm"
+            )
         self._tt_optional_object_value(values, "thread_count", params, "number_of_threads")
         self._tt_optional_object_value(values, "selection_policy", params, "selection_policy")
 
@@ -1590,12 +1626,20 @@ class CalculationService:
             values["safety_factor"] = safety_factor
 
         if obj.object_type == "tank":
-            base_length = self._tank_base_cable_length(obj, explicit_payload)
-            total_heat_loss_base = self._num(results.get("total_heat_loss_base"))
-            if base_length is not None:
-                values["base_length_m"] = base_length
-                if total_heat_loss_base is not None and base_length > 0:
-                    values["heat_loss_per_meter_w"] = total_heat_loss_base / base_length
+            tank_layout = self._tt_tank_layout(
+                obj,
+                explicit_payload,
+                assignment_overrides or {},
+            )
+            base_length = tank_layout["base_length_m"]
+            values["base_length_m"] = base_length
+            values["_tank_layout"] = tank_layout
+            if safety_factor is not None and self._num(safety_factor) not in (None, 0):
+                heat_loss_without_repeat = self._tank_heat_loss_without_double_safety(
+                    results,
+                    float(safety_factor),
+                )
+                values["heat_loss_per_meter_w"] = heat_loss_without_repeat / base_length
         else:
             base_length = self._num(results.get("effective_length"))
             if base_length is None:
@@ -1609,6 +1653,99 @@ class CalculationService:
             if outer_diameter_m is not None:
                 values["outer_diameter_mm"] = outer_diameter_m * 1000.0
         return values
+
+    def _tt_tank_layout(
+        self,
+        obj: ProjectObject,
+        explicit_payload: dict[str, Any],
+        assignment_overrides: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Resolve TT tank geometry without pipe aliases or hidden defaults."""
+        params = obj.params if isinstance(obj.params, dict) else {}
+        shape = params.get("shape")
+        if shape is None:
+            raise ElectricalInputResolutionError(
+                "ELECTRICAL_INPUT_REQUIRED",
+                "Required electrical input is missing: tank_shape",
+                details={"field": "tank_shape"},
+            )
+        if shape not in {"cylindrical", "rectangular"}:
+            raise ElectricalInputResolutionError(
+                "ELECTRICAL_TANK_SHAPE_UNSUPPORTED",
+                "TT cable layout is not defined for this tank shape",
+                details={"shape": shape},
+            )
+
+        layout_values: dict[str, float] = {}
+        layout_sources: dict[str, str] = {}
+        assignment_keys = {
+            "heating_height": "tank_heating_height_m",
+            "laying_step": "tank_laying_step_m",
+        }
+        for field, assignment_key in assignment_keys.items():
+            if explicit_payload.get(field) is not None:
+                raw_value = explicit_payload[field]
+                source = "explicit_request"
+            elif assignment_overrides.get(assignment_key) is not None:
+                raw_value = assignment_overrides[assignment_key]
+                source = "assignment_override"
+            else:
+                raw_value = params.get(field)
+                source = "object_heat"
+            value = self._num(raw_value)
+            if value is None:
+                raise ElectricalInputResolutionError(
+                    "ELECTRICAL_INPUT_REQUIRED",
+                    f"Required electrical input is missing: {field}",
+                    details={"field": field},
+                )
+            layout_values[field] = value
+            layout_sources[field] = source
+
+        unique_sources = set(layout_sources.values())
+        if unique_sources == {"explicit_request"}:
+            base_length_source = "explicit_request_layout"
+        elif unique_sources == {"assignment_override"}:
+            base_length_source = "assignment_layout"
+        elif unique_sources == {"object_heat"}:
+            base_length_source = "object_layout"
+        else:
+            base_length_source = "mixed_layout"
+
+        geometry: dict[str, float | str] = {
+            "tank_shape": shape,
+            **layout_values,
+        }
+        if shape == "cylindrical":
+            diameter = self._num(params.get("diameter"))
+            geometry["tank_diameter"] = diameter if diameter is not None else 0.0
+        else:
+            length = self._num(params.get("length"))
+            width = self._num(params.get("width"))
+            geometry["tank_length"] = length if length is not None else 0.0
+            geometry["tank_width"] = width if width is not None else 0.0
+
+        try:
+            base_length = compute_tank_cable_length(
+                shape=shape,
+                diameter=cast(float | None, geometry.get("tank_diameter")),
+                length=cast(float | None, geometry.get("tank_length")),
+                width=cast(float | None, geometry.get("tank_width")),
+                heating_height=layout_values["heating_height"],
+                laying_step=layout_values["laying_step"],
+            )
+        except ValueError as exc:
+            raise ElectricalInputResolutionError(
+                "ELECTRICAL_INPUT_INVALID",
+                "Tank cable layout inputs are invalid",
+                details={"shape": shape, "reason": str(exc)},
+            ) from exc
+        return {
+            **geometry,
+            "base_length_m": base_length,
+            "base_length_source": base_length_source,
+            "input_sources": layout_sources,
+        }
 
     async def _tt_project_settings(
         self,
@@ -1798,6 +1935,22 @@ class CalculationService:
             )
         raw_marker = request.data.pop("_tt_explicit_overrides", None)
         explicit_payload = dict(raw_marker) if isinstance(raw_marker, dict) else dict(request.data)
+        steam_tracing = self._tt_steam_tracing_state(obj)
+        if steam_tracing is False:
+            explicit_payload.pop("steam_temperature_c", None)
+            explicit_payload.pop("vapor_temperature", None)
+        elif steam_tracing is True:
+            # An empty group override does not hide the object's required T2.
+            # If both are empty, the post-resolution readiness guard below
+            # returns the typed required-input error.
+            for key in ("steam_temperature_c", "vapor_temperature"):
+                if explicit_payload.get(key) is None:
+                    explicit_payload.pop(key, None)
+        if obj.object_type == "tank":
+            # A tank has its own layout in metres. Never reinterpret a pipe
+            # winding pitch as tank laying_step or as canonical pipe winding.
+            explicit_payload.pop("winding_pitch", None)
+            explicit_payload.pop("winding_pitch_mm", None)
         normalized = normalize_electrical_override_payload(explicit_payload)
         project_settings = await self._tt_project_settings(obj.project_id)
         assignment = await self._tt_assignment(
@@ -1805,19 +1958,34 @@ class CalculationService:
             electrical_variant_id,
             obj.id,
         )
+        assignment_overrides = (
+            dict(getattr(assignment, "electrical_overrides", {}) or {})
+            if assignment is not None
+            else {}
+        )
         project_values = (
             {"max_section_start_current_a": (project_settings.max_section_start_current_a)}
             if project_settings is not None
             else {}
         )
-        assignment_values = (
-            {
-                "max_section_start_current_a": assignment.max_section_start_current_a,
-            }
-            if assignment is not None
-            else {}
+        assignment_values = {
+            field: assignment_overrides[field]
+            for field in TT_ASSIGNMENT_CANONICAL_FIELDS
+            if field in assignment_overrides
+        }
+        if assignment is not None:
+            assignment_values["max_section_start_current_a"] = (
+                assignment.max_section_start_current_a
+            )
+        if steam_tracing is False:
+            assignment_values.pop("steam_temperature_c", None)
+        if obj.object_type == "tank":
+            assignment_values.pop("winding_pitch_mm", None)
+        object_heat = self._tt_object_heat_inputs(
+            obj,
+            explicit_payload,
+            assignment_overrides,
         )
-        object_heat = self._tt_object_heat_inputs(obj, explicit_payload)
         resolved = configured_electrical_input_resolver().resolve(
             explicit=normalized.overrides,
             assignment=assignment_values,
@@ -1826,9 +1994,56 @@ class CalculationService:
             legacy_aliases=normalized.legacy_aliases,
             boundary_warnings=normalized.warnings,
         )
+        tank_layout = object_heat.get("_tank_layout")
+        if isinstance(tank_layout, dict):
+            base_length_source = tank_layout.get("base_length_source")
+            if isinstance(base_length_source, str):
+                resolved.sources["base_length_m"] = base_length_source
+        if steam_tracing is True and resolved.values.steam_temperature_c is None:
+            raise ElectricalInputResolutionError(
+                "ELECTRICAL_INPUT_REQUIRED",
+                "Required electrical input is missing: steam_temperature_c",
+                details={"field": "steam_temperature_c"},
+            )
         if app_settings.is_production:
             require_production_eligible_inputs(resolved)
         current_limit_source = resolved.sources.get("max_section_start_current_a")
+        assignment_applied_fields = sorted(
+            field
+            for field, source in resolved.sources.items()
+            if source == "assignment_override"
+        )
+        if isinstance(tank_layout, dict):
+            tank_sources = tank_layout.get("input_sources")
+            if isinstance(tank_sources, dict):
+                assignment_applied_fields.extend(
+                    (
+                        "tank_heating_height_m"
+                        if key == "heating_height"
+                        else "tank_laying_step_m"
+                    )
+                    for key, source in tank_sources.items()
+                    if source == "assignment_override"
+                )
+        assignment_applied_fields = sorted(set(assignment_applied_fields))
+        assignment_snapshot = (
+            {
+                "id": (
+                    str(assignment.id)
+                    if getattr(assignment, "id", None) is not None
+                    else None
+                ),
+                "version": assignment.version,
+                "source": "electrical_variant_object",
+                "max_section_start_current_a": self._num(
+                    assignment.max_section_start_current_a
+                ),
+                "electrical_overrides": assignment_overrides,
+                "applied_fields": assignment_applied_fields,
+            }
+            if assignment is not None
+            else None
+        )
         provenance = {
             "object_snapshot": {
                 "id": str(obj.id),
@@ -1841,6 +2056,8 @@ class CalculationService:
                 "base_length_m": object_heat.get("base_length_m"),
                 "heat_loss_per_meter_w": object_heat.get("heat_loss_per_meter_w"),
                 "safety_factor": object_heat.get("safety_factor"),
+                "steam_tracing": object_heat.get("_steam_tracing"),
+                "tank_layout": object_heat.get("_tank_layout"),
             },
             "object_version": obj.version,
             "heat_result_version": obj.version,
@@ -1850,6 +2067,7 @@ class CalculationService:
                 else None
             ),
             "assignment_version": assignment.version if assignment is not None else None,
+            "assignment_snapshot": assignment_snapshot,
         }
         calculation_catalogs = await self._tt_calculation_catalogs()
         result_dict = calculate_electrical_tt(
@@ -1857,6 +2075,15 @@ class CalculationService:
             provenance=provenance,
             calculation_catalogs=calculation_catalogs,
         )
+        if isinstance(tank_layout, dict):
+            result_dict["layout"]["tank"] = {
+                "shape": tank_layout.get("tank_shape"),
+                "heating_height_m": tank_layout.get("heating_height"),
+                "laying_step_m": tank_layout.get("laying_step"),
+                "base_length_m": tank_layout.get("base_length_m"),
+                "base_length_source": tank_layout.get("base_length_source"),
+                "input_sources": tank_layout.get("input_sources"),
+            }
         catalogs = result_dict.get("catalogs", {})
         catalogs_eligible, invalid_catalogs = electrical_tt_catalog_eligibility(catalogs)
         if app_settings.is_production and not catalogs_eligible:
@@ -1883,7 +2110,6 @@ class CalculationService:
             "pipe_length": float(values.base_length_m),
             "process_temperature": float(values.product_temperature_c),
             "maintain_temperature": float(values.maintain_temperature_c),
-            "supply_voltage": 230,
             "max_start_current_per_section": float(values.max_section_start_current_a),
             "vapor_temperature": (
                 float(values.steam_temperature_c)
@@ -3052,14 +3278,20 @@ class CalculationService:
         data: dict[str, Any] = dict(overrides)
         data["cable_mark"] = cable_mark
         data["cable_source"] = cable_source
-        data["supply_voltage"] = self._num(
-            overrides.get("supply_voltage") or params.get("supply_voltage"),
-            220.0,
-        )
         data["winding_pitch"] = self._winding_pitch_mm(overrides, params)
         if cable_type == "self_regulating_tt":
-            data["winding_coefficient"] = self._winding_coefficient(obj, overrides, params, 1.1)
+            data.pop("supply_voltage", None)
+            data.pop("nominal_voltage_v", None)
+            data.pop("winding_coefficient", None)
+            if obj.object_type == "tank":
+                data.pop("winding_pitch", None)
+                data.pop("winding_pitch_mm", None)
             data.update(self._number_of_threads_payload(overrides, params, None))
+        else:
+            data["supply_voltage"] = self._num(
+                overrides.get("supply_voltage") or params.get("supply_voltage"),
+                220.0,
+            )
         return data
 
     def _layout_overrides_from_existing(self, calc: ElectricalCalculation | None) -> dict[str, Any]:
@@ -4755,17 +4987,13 @@ class CalculationService:
     def _tt_cable_option_temperatures(
         self,
         obj: ProjectObject,
+        assignment_overrides: dict[str, Any] | None = None,
     ) -> tuple[float, float | None, float, bool]:
-        """Temps for series + P@T3 without full TT input resolve (no Iдоп required).
+        """Resolve option inputs from the object and the exact ER assignment."""
+        overrides = assignment_overrides or {}
+        object_heat = self._tt_object_heat_inputs(obj, {}, overrides)
 
-        T3 often lives only on the calc request (FE default 10 °C), not on the
-        object. For option P@T3 we prefer object param, else the same temporary
-        frontend mock profile default used by TT calc in test/dev.
-        """
-        from app.services.electrical_input_resolver import FRONTEND_MOCK_PROFILE
-
-        object_heat = self._tt_object_heat_inputs(obj, {})
-        product = object_heat.get("product_temperature_c")
+        product = self._num(object_heat.get("product_temperature_c"))
         if product is None:
             raise ElectricalInputResolutionError(
                 "ELECTRICAL_INPUT_REQUIRED",
@@ -4774,16 +5002,41 @@ class CalculationService:
             )
 
         maintain = object_heat.get("maintain_temperature_c")
-        aggressive = object_heat.get("aggressive_product")
+        if overrides.get("maintain_temperature_c") is not None:
+            maintain = overrides["maintain_temperature_c"]
         if maintain is None:
-            # Same default as FRONTEND_MOCK_PROFILE / FE recalc chrome (10 °C).
-            maintain = FRONTEND_MOCK_PROFILE.maintain_temperature_c
-        if aggressive is None:
-            aggressive = FRONTEND_MOCK_PROFILE.aggressive_product
+            raise ElectricalInputResolutionError(
+                "ELECTRICAL_INPUT_REQUIRED",
+                "Для списка моделей требуется температура поддержания (T3)",
+                details={"field": "maintain_temperature_c", "object_id": str(obj.id)},
+            )
 
-        steam = object_heat.get("steam_temperature_c")
+        aggressive = object_heat.get("aggressive_product")
+        if overrides.get("aggressive_product") is not None:
+            aggressive = overrides["aggressive_product"]
+        if aggressive is None:
+            raise ElectricalInputResolutionError(
+                "ELECTRICAL_INPUT_REQUIRED",
+                "Для списка моделей требуется признак агрессивного продукта (R)",
+                details={"field": "aggressive_product", "object_id": str(obj.id)},
+            )
+
+        steam_tracing = object_heat.get("_steam_tracing")
+        if steam_tracing is False:
+            steam = None
+        elif "steam_temperature_c" in overrides:
+            steam = overrides["steam_temperature_c"]
+        else:
+            steam = object_heat.get("steam_temperature_c")
+        if steam_tracing is True and steam is None:
+            raise ElectricalInputResolutionError(
+                "ELECTRICAL_INPUT_REQUIRED",
+                "Для списка моделей требуется температура пропарки (T2)",
+                details={"field": "steam_temperature_c", "object_id": str(obj.id)},
+            )
+
         return (
-            float(product),
+            product,
             float(steam) if steam is not None else None,
             float(maintain),
             bool(aggressive),
@@ -4798,9 +5051,8 @@ class CalculationService:
         """TT power-catalog options for manual mark selection (B1 / E5).
 
         Requires current heat results on the object. Uses the same series rule
-        and q1×T3+q2 curve as the TT calculation pipeline. ``electrical_variant_id``
-        is accepted for scope/provenance parity with calc endpoints (assignment
-        does not filter the series list for manual options).
+        and q1×T3+q2 curve as the TT calculation pipeline. Inputs persisted for
+        ``electrical_variant_id`` override object inputs only for that exact ER.
         """
         obj_result = await self.db.execute(
             select(ProjectObject).where(ProjectObject.id == object_id)
@@ -4815,11 +5067,21 @@ class CalculationService:
                 details={"object_id": str(obj.id)},
             )
 
-        if electrical_variant_id is not None:
-            # Touch assignment cache for ER-scoped callers without filtering options.
-            await self._tt_assignment(obj.project_id, electrical_variant_id, obj.id)
+        assignment = await self._tt_assignment(
+            obj.project_id,
+            electrical_variant_id,
+            obj.id,
+        )
+        assignment_overrides = (
+            dict(getattr(assignment, "electrical_overrides", {}) or {})
+            if assignment is not None
+            else {}
+        )
 
-        product_c, steam_c, maintain_c, aggressive = self._tt_cable_option_temperatures(obj)
+        product_c, steam_c, maintain_c, aggressive = self._tt_cable_option_temperatures(
+            obj,
+            assignment_overrides,
+        )
 
         catalogs = await self._tt_calculation_catalogs()
         power_catalog = catalogs.get("power") or {}

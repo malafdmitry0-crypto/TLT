@@ -19,7 +19,8 @@ const PIPE_FORM_PROJECTION_KEYS = [
   'ground_conductivity_source', 'wind_speed', 'alpha_vnesh', 'climate_city', 'climate_region',
   'climate_key', 'climate_temperature_basis', 'insulation_temperature_basis', 'ambient_temperature_source',
   'wind_speed_source', 'pipe_length', 'min_switch_temperature', 'supply_voltage', 'safety_factor',
-  'safety_factor_source', 'steam_tracing', 'vapor_temperature', 'winding_coefficient', 'connection_type',
+  'safety_factor_source', 'steam_tracing', 'vapor_temperature', 'maintain_temperature',
+  'aggressive_product', 'winding_coefficient', 'connection_type',
   'num_local_elements', 'local_element_equiv_length', 'name',
 ] as const satisfies readonly (keyof (PipeFormValues & { name?: string }))[];
 const TANK_FORM_PROJECTION_KEYS = [
@@ -36,7 +37,8 @@ const TANK_FORM_PROJECTION_KEYS = [
   'wind_speed', 'alpha_vnesh', 'climate_city', 'climate_region',
   'climate_key', 'climate_temperature_basis', 'insulation_temperature_basis', 'ambient_temperature_source',
   'wind_speed_source', 'min_switch_temperature', 'supply_voltage', 'safety_factor', 'safety_factor_source',
-  'steam_tracing', 'vapor_temperature', 'winding_coefficient', 'connection_type',
+  'steam_tracing', 'vapor_temperature', 'maintain_temperature', 'aggressive_product',
+  'heating_height', 'laying_step', 'winding_coefficient', 'connection_type',
   'q_additional', 'name',
 ] as const satisfies readonly (keyof (TankFormValues & { name?: string }))[];
 

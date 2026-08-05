@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 
 ELECTRICAL_TT_FORMULA_VERSION = "electrical-tt-v2"
+SYSTEM_VOLTAGE_V = 230
 
 _FORMULA_CONTRACT = (
     "T1/T2-strict;q1*T3+q2;technical-minimum;threads=1..3;"

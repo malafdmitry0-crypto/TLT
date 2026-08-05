@@ -187,6 +187,65 @@ describe('apiClient network retry and idempotency', () => {
     expect(getHeader(config.headers, 'Idempotency-Key')).toEqual(expect.any(String));
   });
 
+  it('omits voltage and untouched group overrides from TT requests but keeps explicit tank/R values', async () => {
+    const adapter = vi.fn(async (config) => ({
+      config,
+      data: { id: 'task-er', status: 'queued' },
+      headers: {},
+      status: 202,
+      statusText: 'Accepted',
+    }));
+    apiClient.defaults.adapter = adapter;
+
+    await enqueueElectricalVariantBatchJob(
+      'project-1',
+      '11111111-1111-4111-8111-111111111111',
+      'builtin',
+      'self_regulating_tt',
+      {
+        supplyVoltage: 380,
+        layingStep: 0.2,
+        heatingHeight: 2.5,
+        aggressiveProduct: false,
+      },
+    );
+
+    const config = adapter.mock.calls[0][0];
+    const payload = typeof config.data === 'string' ? JSON.parse(config.data) : config.data;
+    expect(payload).toMatchObject({
+      cable_type: 'self_regulating_tt',
+      laying_step: 0.2,
+      heating_height: 2.5,
+      aggressive_product: false,
+    });
+    expect(payload).not.toHaveProperty('supply_voltage');
+    expect(payload).not.toHaveProperty('maintain_temperature');
+    expect(payload).not.toHaveProperty('vapor_temperature');
+  });
+
+  it('preserves voltage for a resistive request outside the TT contract', async () => {
+    const adapter = vi.fn(async (config) => ({
+      config,
+      data: { id: 'task-er', status: 'queued' },
+      headers: {},
+      status: 202,
+      statusText: 'Accepted',
+    }));
+    apiClient.defaults.adapter = adapter;
+
+    await enqueueElectricalVariantBatchJob(
+      'project-1',
+      '11111111-1111-4111-8111-111111111111',
+      'builtin',
+      'single_core',
+      { supplyVoltage: 380 },
+    );
+
+    const config = adapter.mock.calls[0][0];
+    const payload = typeof config.data === 'string' ? JSON.parse(config.data) : config.data;
+    expect(payload).toMatchObject({ cable_type: 'single_core', supply_voltage: 380 });
+  });
+
   it('ставит export отчёта по UUID без deprecated variant_number', async () => {
     const adapter = vi.fn(async (config) => ({
       config,

@@ -117,6 +117,10 @@ export function pipeApiParamsToForm(p: Record<string, unknown>): Partial<PipeFor
     safety_factor_source: p.safety_factor_source as SafetyFactorSource | undefined,
     steam_tracing: p.steam_tracing as PipeFormValues['steam_tracing'],
     vapor_temperature: p.vapor_temperature as number | undefined,
+    maintain_temperature: p.maintain_temperature as number | undefined,
+    aggressive_product: typeof p.aggressive_product === 'boolean'
+      ? (p.aggressive_product ? 'yes' : 'no')
+      : undefined,
     winding_coefficient: p.winding_coefficient as number | undefined,
     connection_type: p.connection_type as string | undefined,
     num_local_elements: p.num_local_elements != null ? Number(p.num_local_elements) : undefined,
@@ -199,6 +203,12 @@ export function tankApiParamsToForm(p: Record<string, unknown>): Partial<TankFor
     safety_factor_source: p.safety_factor_source as SafetyFactorSource | undefined,
     steam_tracing: p.steam_tracing as TankFormValues['steam_tracing'],
     vapor_temperature: p.vapor_temperature as number | undefined,
+    maintain_temperature: p.maintain_temperature as number | undefined,
+    aggressive_product: typeof p.aggressive_product === 'boolean'
+      ? (p.aggressive_product ? 'yes' : 'no')
+      : undefined,
+    heating_height: p.heating_height as number | undefined,
+    laying_step: p.laying_step as number | undefined,
     winding_coefficient: p.winding_coefficient as number | undefined,
     connection_type: p.connection_type as string | undefined,
     q_additional: p.q_additional as number | undefined,

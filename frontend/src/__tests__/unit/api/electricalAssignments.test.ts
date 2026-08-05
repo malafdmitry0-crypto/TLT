@@ -5,6 +5,7 @@ import {
   assignElectricalVariantObjects,
   electricalAssignmentQueryKeys,
   listElectricalVariantAssignments,
+  patchElectricalAssignmentOverrides,
   unassignElectricalVariantObjects,
 } from '@/api/electricalVariants';
 
@@ -134,6 +135,43 @@ describe('electrical assignment API', () => {
     expect(unassignPayload).toEqual({
       confirm: true,
       items: [{ object_id: 'object-1', expected_version: 8 }],
+    });
+  });
+
+  it('PATCHes a sparse per-object TT override payload under the exact UUID ER', async () => {
+    const adapter = vi.fn(async (config) => ({
+      config,
+      data: { id: 'assignment-1', version: 8, electrical_overrides: {} },
+      headers: {},
+      status: 200,
+      statusText: 'OK',
+    }));
+    apiClient.defaults.adapter = adapter;
+
+    await patchElectricalAssignmentOverrides(
+      'project-1',
+      'er-2',
+      'object-1',
+      {
+        expected_version: 7,
+        steam_temperature_c: null,
+        maintain_temperature_c: 15,
+        aggressive_product: false,
+        manual_cable_model: '30ТТВ2',
+      },
+    );
+
+    expect(adapter).toHaveBeenCalledTimes(1);
+    expect(adapter.mock.calls[0][0]).toMatchObject({
+      method: 'patch',
+      url: '/projects/project-1/electrical-variants/er-2/assignments/object-1/electrical-overrides',
+    });
+    expect(JSON.parse(String(adapter.mock.calls[0][0].data))).toEqual({
+      expected_version: 7,
+      steam_temperature_c: null,
+      maintain_temperature_c: 15,
+      aggressive_product: false,
+      manual_cable_model: '30ТТВ2',
     });
   });
 });

@@ -170,13 +170,11 @@ class ElectricalVariantObject(Base, TimestampMixin):
             name="ck_electrical_variant_objects_unassigned_system_null",
         ),
         CheckConstraint(
-            "assignment_state <> 'ready' "
-            "OR system_type IN ('self_regulating', 'resistive')",
+            "assignment_state <> 'ready' " "OR system_type IN ('self_regulating', 'resistive')",
             name="ck_electrical_variant_objects_ready_supported_system",
         ),
         CheckConstraint(
-            "system_type NOT IN ('skin', 'mineral') "
-            "OR assignment_state = 'unsupported'",
+            "system_type NOT IN ('skin', 'mineral') " "OR assignment_state = 'unsupported'",
             name="ck_electrical_variant_objects_unsupported_system_state",
         ),
         ForeignKeyConstraint(
@@ -242,6 +240,12 @@ class ElectricalVariantObject(Base, TimestampMixin):
         server_default=text("1"),
     )
     diagnostics: Mapped[dict[str, Any]] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=dict,
+        server_default=text("'{}'::jsonb"),
+    )
+    electrical_overrides: Mapped[dict[str, Any]] = mapped_column(
         JSONB,
         nullable=False,
         default=dict,

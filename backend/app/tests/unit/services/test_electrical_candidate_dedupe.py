@@ -157,6 +157,7 @@ def test_self_regulating_requested_controls_change_key_when_auto_result_is_same(
         cable_snapshot={"actual_catalog_source": "builtin"},
         status="applicable",
     )
+    assert base.startswith("v1:")
     assert base != changed_voltage
     assert base != changed_winding
 
@@ -673,7 +674,57 @@ def test_tt_requested_temperature_controls_change_key_when_auto_result_is_same()
     assert base != changed_aggressive
 
 
-def test_tt_tank_winding_coefficient_changes_key():
+def test_tt_voltage_does_not_participate_in_variant_identity():
+    results = {"cable_mark": "10ТТН2-СР", "num_circuits": 1, "voltage": 230}
+    voltage_220 = build_dedupe_key(
+        object_type="pipe",
+        cable_type="self_regulating_tt",
+        cable_source="builtin",
+        cable_mark="10ТТН2-СР",
+        results=results,
+        params={"maintain_temperature": 5, "supply_voltage": 220},
+        cable_snapshot={"actual_catalog_source": "builtin"},
+        status="applicable",
+    )
+    voltage_380 = build_dedupe_key(
+        object_type="pipe",
+        cable_type="self_regulating_tt",
+        cable_source="builtin",
+        cable_mark="10ТТН2-СР",
+        results=results,
+        params={"maintain_temperature": 5, "supply_voltage": 380},
+        cable_snapshot={"actual_catalog_source": "builtin"},
+        status="applicable",
+    )
+
+    assert voltage_220 == voltage_380
+    assert voltage_220.startswith("v2:")
+
+
+def test_tt_voltage_and_legacy_coefficient_do_not_participate_in_diagnostic_identity():
+    common = {
+        "object_type": "pipe",
+        "cable_type": "self_regulating_tt",
+        "cable_source": "builtin",
+        "cable_mark": None,
+        "results": None,
+        "cable_snapshot": None,
+        "reason_code": "candidate_calculation_failed",
+        "status": "error",
+    }
+    first = build_dedupe_key(
+        **common,
+        params={"supply_voltage": 220, "winding_coefficient": 1.1},
+    )
+    second = build_dedupe_key(
+        **common,
+        params={"supply_voltage": 380, "winding_coefficient": 1.4},
+    )
+
+    assert first == second
+
+
+def test_tt_tank_legacy_winding_coefficient_does_not_change_key():
     base_results = {
         "cable_mark": "10ТТН2-СР",
         "num_circuits": 1,
@@ -709,7 +760,7 @@ def test_tt_tank_winding_coefficient_changes_key():
         cable_snapshot={"actual_catalog_source": "builtin"},
         status="applicable",
     )
-    assert coefficient_110 != coefficient_120
+    assert coefficient_110 == coefficient_120
 
 
 def test_resistive_scheme_is_primary_over_num_circuits():

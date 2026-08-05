@@ -169,6 +169,7 @@ export function isHeatCalcFieldVisible(fieldId: string, context: HeatCalcFieldCo
     return context.values.placement === 'underground';
   }
   if (fieldId === 'climate_temperature_basis') return hasValue(context.values.climate_key);
+  if (fieldId === 'vapor_temperature') return context.values.steam_tracing === 'yes';
   if (fieldId === 'wind_speed') {
     return context.values.placement === 'outdoor'
       || (context.objectType === 'tank' && context.values.placement === 'underground');
@@ -185,6 +186,9 @@ export function isHeatCalcFieldVisible(fieldId: string, context: HeatCalcFieldCo
     if (fieldId === 'diameter_mm') return shape === 'cylindrical' || shape === 'spherical';
     if (fieldId === 'height_mm') return shape === 'cylindrical' || shape === 'rectangular';
     if (fieldId === 'length_mm' || fieldId === 'width_mm') return shape === 'rectangular';
+    if (fieldId === 'heating_height' || fieldId === 'laying_step') {
+      return shape === 'cylindrical' || shape === 'rectangular';
+    }
   }
   return true;
 }

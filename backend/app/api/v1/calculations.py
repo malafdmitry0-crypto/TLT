@@ -915,7 +915,6 @@ async def select_cable(
     variant_number: int = 1,
     electrical_variant_id: UUID | None = None,
     cable_type: str = "self_regulating_tt",
-    supply_voltage: float | None = None,
     connection_type: str | None = None,
     winding_coefficient: float | None = None,
     winding_pitch: float | None = None,
@@ -955,7 +954,6 @@ async def select_cable(
             variant_number,
             cable_type,
             {
-                "supply_voltage": supply_voltage,
                 "connection_type": connection_type,
                 "winding_coefficient": winding_coefficient,
                 "winding_pitch": winding_pitch,
@@ -1087,7 +1085,6 @@ async def batch_calc_electrical(
     ),
     cable_type: str = "self_regulating_tt",
     force_cable_type: bool = False,
-    supply_voltage: float | None = None,
     connection_type: str | None = None,
     winding_coefficient: float | None = None,
     winding_pitch: float | None = None,
@@ -1142,7 +1139,6 @@ async def batch_calc_electrical(
             variant_number,
             cable_type,
             {
-                "supply_voltage": supply_voltage,
                 "connection_type": connection_type,
                 "winding_coefficient": winding_coefficient,
                 "winding_pitch": winding_pitch,
@@ -1207,7 +1203,7 @@ async def cable_options(
     object_id: UUID,
     electrical_variant_id: UUID | None = Query(
         None,
-        description="ЭР (UUID) — scope/provenance; не фильтрует список серии",
+        description="ЭР (UUID), чьи object-assignment overrides задают T2/T3/R",
     ),
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),

@@ -514,6 +514,11 @@ class TestSelfRegulatingParams:
 
 
 class TestElectricalTankLayingStepLimits:
+    def test_tt_selector_requests_do_not_expose_voltage(self):
+        assert "supply_voltage" not in SelfRegulatingTTParams.model_fields
+        assert "supply_voltage" not in ElectricalCableSelectionVariantsRequest.model_fields
+        assert "supply_voltage" not in ElectricalBatchJobRequest.model_fields
+
     def test_tank_laying_step_bounds_match_source_document(self):
         """Source: Блок теплопотери и выбор кабеля/переменные резервуар.xlsx, Лист1!A22:D22."""
         valid = dict(

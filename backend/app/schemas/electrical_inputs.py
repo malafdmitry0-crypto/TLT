@@ -3,7 +3,7 @@
 from decimal import Decimal
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class ElectricalInputOverrides(BaseModel):
@@ -28,7 +28,6 @@ class ElectricalInputOverrides(BaseModel):
     base_length_m: Decimal | None = None
     outer_diameter_mm: Decimal | None = None
     heat_loss_per_meter_w: Decimal | None = None
-    nominal_voltage_v: int | None = None
 
 
 class CanonicalElectricalInputs(BaseModel):
@@ -46,7 +45,6 @@ class CanonicalElectricalInputs(BaseModel):
     base_length_m: Decimal
     outer_diameter_mm: Decimal | None
     heat_loss_per_meter_w: Decimal
-    nominal_voltage_v: int = Field(default=230, frozen=True)
 
 
 class ResolvedElectricalInputs(BaseModel):

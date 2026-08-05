@@ -72,10 +72,27 @@ function electricalParams(
   cableType: CableType,
   options: ElectricalBatchOptions = {},
 ) {
-  return {
+  const sharedParams = {
     cable_type: cableType,
-    supply_voltage: options.supplyVoltage ?? undefined,
     selection_mode: options.selectionMode ?? undefined,
+    selection_policy: options.selectionPolicy ?? undefined,
+    skip_manual: options.skipManual ?? true,
+  };
+  if (cableType === 'self_regulating_tt') {
+    return {
+      ...sharedParams,
+      winding_pitch: options.windingPitchMm ?? undefined,
+      number_of_threads: options.numberOfThreads ?? undefined,
+      heating_height: options.heatingHeight ?? undefined,
+      laying_step: options.layingStep ?? undefined,
+      maintain_temperature: options.maintainTemperature ?? undefined,
+      vapor_temperature: options.vaporTemperature ?? undefined,
+      aggressive_product: options.aggressiveProduct,
+    };
+  }
+  return {
+    ...sharedParams,
+    supply_voltage: options.supplyVoltage ?? undefined,
     connection_type: options.connectionType ?? undefined,
     winding_coefficient: options.windingCoefficient ?? undefined,
     winding_pitch: options.windingPitchMm ?? undefined,
@@ -85,8 +102,6 @@ function electricalParams(
     maintain_temperature: options.maintainTemperature ?? undefined,
     vapor_temperature: options.vaporTemperature ?? undefined,
     aggressive_product: options.aggressiveProduct ?? undefined,
-    selection_policy: options.selectionPolicy ?? undefined,
-    skip_manual: options.skipManual ?? true,
   };
 }
 
@@ -225,6 +240,26 @@ export async function selectCableForVariants(
   options: ElectricalBatchOptions = {},
   electricalVariantIds: Record<number, string> = {},
 ): Promise<ElectricalCalcSummary[]> {
+  const ttSelectionParams = electricalParams(cableType, options);
+  const selectionParams = cableType === 'self_regulating_tt'
+    ? Object.fromEntries(
+        Object.entries(ttSelectionParams).filter(([key]) => key !== 'skip_manual'),
+      )
+    : {
+        cable_type: cableType,
+        selection_mode: options.selectionMode ?? null,
+        supply_voltage: options.supplyVoltage ?? null,
+        connection_type: options.connectionType ?? null,
+        winding_coefficient: options.windingCoefficient ?? null,
+        winding_pitch: options.windingPitchMm ?? null,
+        number_of_threads: options.numberOfThreads ?? null,
+        heating_height: options.heatingHeight ?? null,
+        laying_step: options.layingStep ?? null,
+        maintain_temperature: options.maintainTemperature ?? null,
+        vapor_temperature: options.vaporTemperature ?? null,
+        aggressive_product: options.aggressiveProduct ?? false,
+        selection_policy: options.selectionPolicy ?? 'technical_minimum',
+      };
   const { data } = await apiClient.post<ElectricalCalcSummary[]>(
     '/calc/electrical/select-cable/variants',
     {
@@ -233,19 +268,7 @@ export async function selectCableForVariants(
       cable_source: cableSource,
       variant_numbers: variantNumbers,
       electrical_variant_ids: electricalVariantIds,
-      cable_type: cableType,
-      selection_mode: options.selectionMode ?? null,
-      supply_voltage: options.supplyVoltage ?? null,
-      connection_type: options.connectionType ?? null,
-      winding_coefficient: options.windingCoefficient ?? null,
-      winding_pitch: options.windingPitchMm ?? null,
-      number_of_threads: options.numberOfThreads ?? null,
-      heating_height: options.heatingHeight ?? null,
-      laying_step: options.layingStep ?? null,
-      maintain_temperature: options.maintainTemperature ?? null,
-      vapor_temperature: options.vaporTemperature ?? null,
-      aggressive_product: options.aggressiveProduct ?? false,
-      selection_policy: options.selectionPolicy ?? 'technical_minimum',
+      ...selectionParams,
     },
   );
   return data;

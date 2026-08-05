@@ -36,6 +36,7 @@ describe('heatCalcInlineEdit layers and projection', () => {
 
   it('сохраняет parse-ошибку ячейки, если значение стало пустым из-за нечислового ввода', () => {
     const record = makePipe();
+    record.params.steam_tracing = 'yes';
     const draft = applyInlineFieldDraft(null, record, 'vapor_temperature', null)!;
     const parseErrorDraft = {
       ...draft,

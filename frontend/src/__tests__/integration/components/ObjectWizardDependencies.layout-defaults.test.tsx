@@ -95,8 +95,12 @@ describe('ObjectWizard dependencies — layout-defaults', () => {
     expect(screen.getByTestId('insulation-temperature-basis-select')).toHaveTextContent('Открытый воздух, зима');
     expect(screen.getByTestId('environment-select')).toHaveTextContent('Нормальная');
     expect(screen.getByTestId('temperature-group-select')).toHaveTextContent('T1');
-    expect(screen.getByTestId('supply-voltage-select')).toHaveTextContent('220');
-    expect(screen.getByTestId('winding-coefficient-input')).toBeInTheDocument();
+    expect(screen.queryByTestId('supply-voltage-select')).not.toBeInTheDocument();
+    expect(screen.getByTestId('maintain-temperature-input')).toHaveValue('');
+    expect(screen.getByTestId('aggressive-product-select')).toHaveTextContent('Нет');
+    expect(screen.getByTestId('steam-tracing-select')).toHaveTextContent('Нет');
+    expect(screen.queryByTestId('vapor-temperature-input')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('winding-coefficient-input')).not.toBeInTheDocument();
     expect(screen.getByTestId('connection-type-select')).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByTestId('pipe-material-select')).toHaveTextContent('Сталь углеродистая');
@@ -116,5 +120,7 @@ describe('ObjectWizard dependencies — layout-defaults', () => {
     expect(screen.getByTestId('tank-diameter-input')).toHaveValue('');
     expect(screen.getByTestId('tank-height-input')).toHaveValue('');
     expect(screen.getByTestId('q-additional-input')).toHaveValue('');
+    expect(screen.getByTestId('tank-heating-height-input')).toHaveValue('');
+    expect(screen.getByTestId('tank-laying-step-input')).toHaveValue('');
   });
 });

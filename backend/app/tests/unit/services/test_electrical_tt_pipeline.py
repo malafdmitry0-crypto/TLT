@@ -33,11 +33,9 @@ def _resolved(**updates) -> ResolvedElectricalInputs:
         "base_length_m": Decimal("200"),
         "outer_diameter_mm": Decimal("108"),
         "heat_loss_per_meter_w": Decimal("20"),
-        "nominal_voltage_v": 230,
     }
     values.update(updates)
     sources = {key: "object_heat" for key in values}
-    sources["nominal_voltage_v"] = "backend_constant_230"
     sources["max_section_start_current_a"] = "project_setting"
     return ResolvedElectricalInputs(
         values=CanonicalElectricalInputs(**values),
@@ -91,6 +89,8 @@ def test_pipeline_emits_exact_bom_sections_totals_and_provenance():
     assert result["num_sections"] == result["section_count"] == 3
     assert result["section_l_ogr_m"] == 67
     assert result["electrical"]["nominal_voltage_v"] == 230
+    assert "nominal_voltage_v" not in result["resolved_inputs"]
+    assert result["provenance"]["system_voltage_v"] == 230
     assert result["electrical"]["total_power_w"] == pytest.approx(30.59 * 201)
     assert result["electrical"]["working_current_a"] == pytest.approx(
         result["electrical"]["total_power_w"] / 230,

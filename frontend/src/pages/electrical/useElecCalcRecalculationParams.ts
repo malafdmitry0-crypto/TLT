@@ -9,10 +9,10 @@ export function useElecCalcRecalculationParams() {
   const [connectionType, setConnectionType] = useState<string>('line_1ph');
   const [windingCoefficient, setWindingCoefficient] = useState<number | null>(1);
   const [heatingHeight, setHeatingHeight] = useState<number | null>(null);
-  const [layingStep, setLayingStep] = useState<number | null>(0.1);
-  const [maintainTemperature, setMaintainTemperature] = useState<number | null>(null);
-  const [vaporTemperature, setVaporTemperature] = useState<number | null>(null);
-  const [aggressiveProduct, setAggressiveProduct] = useState(false);
+  const [layingStep, setLayingStep] = useState<number | null | undefined>(undefined);
+  const [maintainTemperature, setMaintainTemperature] = useState<number | null | undefined>(undefined);
+  const [vaporTemperature, setVaporTemperature] = useState<number | null | undefined>(undefined);
+  const [aggressiveProduct, setAggressiveProduct] = useState<boolean | undefined>(undefined);
 
   const values = useMemo(() => ({
     selectionPolicy,

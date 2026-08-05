@@ -20,6 +20,7 @@ import { ELECTRICAL_TABLE_ENGINE_STORAGE_KEY } from '@/utils/electricalTableEngi
 // Named imports also register all vi.mock side-effects in these modules.
 import {
   apiMocks,
+  defaultElectricalAssignmentOverridesPatchImplementation,
   defaultElectricalVariantListImplementation,
   electricalVariantApiMocks,
 } from './elecCalcPageTestEnv.apiMocks';
@@ -51,6 +52,12 @@ export function resetElecCalcIntegrationState(): void {
   electricalVariantApiMocks.listAssignments.mockClear();
   electricalVariantApiMocks.assignObjects.mockReset();
   electricalVariantApiMocks.unassignObjects.mockReset();
+  electricalVariantApiMocks.patchOverrides.mockReset();
+  if (defaultElectricalAssignmentOverridesPatchImplementation) {
+    electricalVariantApiMocks.patchOverrides.mockImplementation(
+      defaultElectricalAssignmentOverridesPatchImplementation,
+    );
+  }
   vi.unstubAllEnvs();
   vi.stubEnv('VITE_COMMERCIAL_FEATURES_ENABLED', 'true');
   electricalGlideGridMock.props = null;

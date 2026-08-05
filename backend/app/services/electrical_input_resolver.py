@@ -21,7 +21,6 @@ ElectricalMockMode = Literal["off", "test", "dev"]
 
 ELECTRICAL_FRONTEND_INPUTS_MOCKED = "ELECTRICAL_FRONTEND_INPUTS_MOCKED"
 ELECTRICAL_LEGACY_INPUT_ALIASES_USED = "ELECTRICAL_LEGACY_INPUT_ALIASES_USED"
-ELECTRICAL_NOMINAL_VOLTAGE_FORCED_230 = "ELECTRICAL_NOMINAL_VOLTAGE_FORCED_230"
 
 
 class ElectricalInputResolutionError(ValueError):
@@ -77,7 +76,6 @@ _LEGACY_ALIASES = {
     "number_of_threads": "thread_count",
     "cable_mark": "manual_cable_model",
     "max_start_current_per_section": "max_section_start_current_a",
-    "supply_voltage": "nominal_voltage_v",
 }
 _ALLOWED_CABLE_SUFFIX = re.compile(r"\s*-\s*(?:СТ|СР|НР)\s*$", re.IGNORECASE)
 
@@ -179,9 +177,6 @@ class ElectricalInputResolver:
         warnings = list(boundary_warnings or [])
 
         for field in _FIELDS:
-            if field == "nominal_voltage_v":
-                continue
-
             explicit_present = field in explicit_fields
             if explicit_present and (
                 explicit_values.get(field) is not None or field in _NULL_IS_VALUE
@@ -196,9 +191,12 @@ class ElectricalInputResolver:
             if (
                 assignment_allowed
                 and field in assignment_fields
-                and assignment_values.get(field) is not None
+                and (
+                    assignment_values.get(field) is not None
+                    or field in _NULL_IS_VALUE
+                )
             ):
-                values[field] = assignment_values[field]
+                values[field] = assignment_values.get(field)
                 sources[field] = "assignment_override"
                 continue
             project_value = project_values.get(field)
@@ -220,26 +218,18 @@ class ElectricalInputResolver:
                 sources[field] = f"frontend_mock_{self.mock_mode}"
                 mocked_fields.append(field)
                 continue
+            # Для полей из `_NULL_IS_VALUE` пустота — это значение («пропарки
+            # нет», «навив не задан»), а не пробел во вводе. Раньше поле
+            # считалось заданным только когда ключ физически присутствовал в
+            # params: объект из формы теплопотерь без «Температуры пропарки»
+            # ключа не имел, и ЭР падал с ELECTRICAL_INPUT_REQUIRED, хотя
+            # пользователь ничего не пропускал. Ветка стоит после мока: в
+            # mock-режимах профиль по-прежнему заполняет эти поля сам.
+            if field in _NULL_IS_VALUE:
+                values[field] = None
+                sources[field] = "not_set"
+                continue
             self._raise_missing(field)
-
-        requested_voltage = (
-            explicit_values.get("nominal_voltage_v")
-            if "nominal_voltage_v" in explicit_fields
-            else None
-        )
-        if requested_voltage not in (None, 230):
-            if requested_voltage == 220 and self.mock_mode in {"test", "dev"}:
-                warnings.append(ELECTRICAL_NOMINAL_VOLTAGE_FORCED_230)
-                sources["nominal_voltage_v"] = "backend_forced_230"
-            else:
-                raise ElectricalInputResolutionError(
-                    "ELECTRICAL_NOMINAL_VOLTAGE_UNSUPPORTED",
-                    "New electrical calculations support only 230 V",
-                    details={"requested_voltage_v": requested_voltage, "applied_voltage_v": 230},
-                )
-        else:
-            sources["nominal_voltage_v"] = "backend_constant_230"
-        values["nominal_voltage_v"] = 230
 
         self._validate(values)
         if mocked_fields:
@@ -259,9 +249,7 @@ class ElectricalInputResolver:
             mocked_fields=mocked_fields,
             legacy_aliases=list(legacy_aliases or []),
             warnings=warnings,
-            production_eligible=(
-                not mocked_fields and ELECTRICAL_NOMINAL_VOLTAGE_FORCED_230 not in warnings
-            ),
+            production_eligible=not mocked_fields,
         )
 
     @staticmethod

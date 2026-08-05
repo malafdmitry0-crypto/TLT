@@ -52,6 +52,7 @@ function fieldRequired(fieldId: string, context: HeatCalcFieldContext) {
     return context.values.placement === 'underground' && isCustomGroundType(context.values.ground_type);
   }
   if (fieldId === 'climate_temperature_basis') return false;
+  if (fieldId === 'vapor_temperature') return context.values.steam_tracing === 'yes';
   if (fieldId === 'local_element_equiv_length') return context.objectType === 'pipe' && localElementCount(context) > 0;
   if (isRangeField(fieldId)) return context.values[RANGE_FIELDS[fieldId].material] === 'other';
   const materialField = materialFieldForLambda(fieldId);
@@ -250,6 +251,13 @@ export function applyHeatCalcFieldValue(
         delete nextValues[fieldName];
       });
     }
+  }
+  if (fieldId === 'steam_tracing' && nextValues.steam_tracing !== 'yes') {
+    delete nextValues.vapor_temperature;
+  }
+  if (fieldId === 'shape' && nextValues.shape === 'spherical') {
+    delete nextValues.heating_height;
+    delete nextValues.laying_step;
   }
   if (
     fieldId === 'placement'

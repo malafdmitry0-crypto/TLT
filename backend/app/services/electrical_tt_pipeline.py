@@ -11,12 +11,13 @@ from typing import Any
 from app.electrical_domain import ElectricalFormulaError
 from app.formulas.electrical.decimal_math import SIX_PLACES, decimal_value, round_result
 from app.formulas.electrical.sections import compute_section_plan, section_catalog_meta
-from app.formulas.electrical.tt_final_gate import assert_electrical_tt_ready
 from app.formulas.electrical.self_regulating import calc_self_regulating_tt, compute_winding_factor
 from app.formulas.electrical.tt_contract import (
     ELECTRICAL_TT_FORMULA_FINGERPRINT,
     ELECTRICAL_TT_FORMULA_VERSION,
+    SYSTEM_VOLTAGE_V,
 )
+from app.formulas.electrical.tt_final_gate import assert_electrical_tt_ready
 from app.reference_data.loader import (
     get_electrical_tt_bom_entry,
     get_tt_cable_by_model,
@@ -235,7 +236,6 @@ def calculate_electrical_tt(
         pipe_length=float(values.base_length_m),
         process_temperature=float(values.product_temperature_c),
         maintain_temperature=float(values.maintain_temperature_c),
-        supply_voltage=230,
         max_start_current_per_section=float(values.max_section_start_current_a),
         vapor_temperature=(
             float(values.steam_temperature_c) if values.steam_temperature_c is not None else None
@@ -269,7 +269,7 @@ def calculate_electrical_tt(
         mark=preliminary.cable_mark,
         installed_cable_length_m=float(required_length),
         power_per_meter_w=float(power_exact),
-        voltage_v=230,
+        voltage_v=SYSTEM_VOLTAGE_V,
         cold_start_temp_c=float(values.cold_start_temperature_c),
         max_start_current_per_section_a=float(values.max_section_start_current_a),
         catalog_rows=section_rows,
@@ -329,7 +329,7 @@ def calculate_electrical_tt(
             "power_w": plan.power_per_section_w,
             "start_current_a": plan.start_current_per_section_a,
             "working_current_a": plan.working_current_per_section_a,
-            "voltage_v": 230,
+            "voltage_v": SYSTEM_VOLTAGE_V,
         }
         for index in range(plan.section_count)
     ]
@@ -342,7 +342,7 @@ def calculate_electrical_tt(
         cable_mark=preliminary.cable_mark,
         series=preliminary.series,
         threads=int(applied_threads),
-        voltage_v=230,
+        voltage_v=SYSTEM_VOLTAGE_V,
         required_power_per_meter_w=required_power,
         installed_power_per_meter_w=installed_power,
         plan=plan,
@@ -393,7 +393,7 @@ def calculate_electrical_tt(
             "items": sections,
         },
         "electrical": {
-            "nominal_voltage_v": 230,
+            "nominal_voltage_v": SYSTEM_VOLTAGE_V,
             "required_power_per_meter_w": float(round_result(required_power)),
             "installed_power_per_meter_w": float(round_result(installed_power)),
             "total_power_w": plan.total_power_w,
@@ -413,6 +413,7 @@ def calculate_electrical_tt(
             "legacy_aliases": list(resolved.legacy_aliases),
             "warnings": warnings,
             "production_eligible": production_eligible,
+            "system_voltage_v": SYSTEM_VOLTAGE_V,
             "formula_version": ELECTRICAL_TT_FORMULA_VERSION,
             "formula_fingerprint": ELECTRICAL_TT_FORMULA_FINGERPRINT,
             "calculation_fingerprint": calculation_fingerprint,
@@ -434,7 +435,7 @@ def calculate_electrical_tt(
         "order_cable_length": plan.order_cable_length_m,
         "total_power": plan.total_power_w,
         "current": plan.working_current_a,
-        "voltage": 230,
+        "voltage": SYSTEM_VOLTAGE_V,
         "winding_pitch": (
             float(values.winding_pitch_mm) if values.winding_pitch_mm is not None else 0.0
         ),

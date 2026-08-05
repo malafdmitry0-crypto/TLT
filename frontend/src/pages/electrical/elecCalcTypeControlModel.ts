@@ -18,23 +18,23 @@ export const THREE_CORE_CONNECTION_OPTIONS = [
 ];
 
 export type ElecCalcTypeControlValues = {
-  aggressiveProduct: boolean;
+  aggressiveProduct: boolean | undefined;
   connectionType: string;
   heatingHeight: number | null;
-  layingStep: number | null;
-  maintainTemperature: number | null;
+  layingStep: number | null | undefined;
+  maintainTemperature: number | null | undefined;
   supplyVoltage: number | null;
-  vaporTemperature: number | null;
+  vaporTemperature: number | null | undefined;
   windingCoefficient: number | null;
 };
 
 export type ElecCalcTypeControlSetters = {
-  aggressiveProduct: (value: boolean) => void;
+  aggressiveProduct: (value: boolean | undefined) => void;
   connectionType: (value: string) => void;
   heatingHeight: (value: number | null) => void;
-  layingStep: (value: number | null) => void;
-  maintainTemperature: (value: number | null) => void;
+  layingStep: (value: number | null | undefined) => void;
+  maintainTemperature: (value: number | null | undefined) => void;
   supplyVoltage: (value: number | null) => void;
-  vaporTemperature: (value: number | null) => void;
+  vaporTemperature: (value: number | null | undefined) => void;
   windingCoefficient: (value: number | null) => void;
 };

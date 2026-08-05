@@ -30,4 +30,16 @@ describe('applyObjectFormDefaults', () => {
     expect(tank.placement).toBe('outdoor');
     expect(tank.pipe_material).toBeUndefined();
   });
+
+  it('defaults R=false only for a new object and preserves absence on legacy edit', () => {
+    const newPipe = applyObjectFormDefaults('pipe');
+    expect(newPipe.aggressive_product).toBe('no');
+    expect(newPipe).not.toHaveProperty('supply_voltage');
+    expect(applyObjectFormDefaults('pipe', {
+      process_temperature: 80,
+    })).not.toHaveProperty('aggressive_product');
+    expect(applyObjectFormDefaults('pipe', {
+      aggressive_product: 'yes',
+    }).aggressive_product).toBe('yes');
+  });
 });

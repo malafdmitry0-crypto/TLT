@@ -23,7 +23,7 @@ describe('heatCalcInlineEdit mapping and validation', () => {
     expect(getInlineEditFieldConfig('tank', 'tank_shape')).toBeNull();
     expect(getInlineEditFieldConfig('pipe', 'insulation_material')).toBeNull();
     expect(getInlineEditFieldConfig('pipe', 'pipe_dn')).toBeNull();
-    expect(getInlineEditFieldConfig('pipe', 'supply_voltage')?.editor).toBe('select');
+    expect(getInlineEditFieldConfig('pipe', 'supply_voltage')).toBeNull();
   });
 
   it('uses shared validation for Phase 1 numeric ranges', () => {
@@ -37,7 +37,7 @@ describe('heatCalcInlineEdit mapping and validation', () => {
     })).toBeNull();
     expect(validateHeatCalcField('vapor_temperature', '—', {
       objectType: 'pipe',
-      values: { vapor_temperature: '—' },
+      values: { steam_tracing: 'yes', vapor_temperature: '—' },
     }, {
       enforceRequired: false,
     })).toBeNull();
@@ -62,11 +62,14 @@ describe('heatCalcInlineEdit mapping and validation', () => {
       max: 400,
       step: 0.1,
     });
-    // 230 — норматив системы (DEC-11), его подставляет бэкенд новым объектам
-    expect(heatCalcSelectOptions('pipe', 'supply_voltage')).toEqual([
-      { value: 230, label: '230' },
-      { value: 220, label: '220' },
-      { value: 380, label: '380' },
+    expect(heatCalcNumberInputProps('pipe', 'maintain_temperature')).toMatchObject({
+      min: -90,
+      max: 600,
+      step: 0.1,
+    });
+    expect(heatCalcSelectOptions('pipe', 'aggressive_product')).toEqual([
+      { value: 'no', label: 'Нет' },
+      { value: 'yes', label: 'Да' },
     ]);
   });
 

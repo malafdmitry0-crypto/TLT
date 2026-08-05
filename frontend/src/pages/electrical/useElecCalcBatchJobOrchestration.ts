@@ -90,22 +90,39 @@ export function useElecCalcBatchJobOrchestration({
           : cableTypeForRecalculation);
       const effectiveCableType = normalizeAvailableCableType(fallbackCableType);
       const selectionMode = isResistiveCableType(effectiveCableType) ? 'auto' : undefined;
+      const cableSpecificOptions = effectiveCableType === 'self_regulating_tt'
+        ? {
+            ...(recalc.heatingHeight == null ? {} : { heatingHeight: recalc.heatingHeight }),
+            ...(recalc.layingStep == null ? {} : { layingStep: recalc.layingStep }),
+            ...(recalc.maintainTemperature == null
+              ? {}
+              : { maintainTemperature: recalc.maintainTemperature }),
+            ...(recalc.vaporTemperature == null
+              ? {}
+              : { vaporTemperature: recalc.vaporTemperature }),
+            ...(recalc.aggressiveProduct === undefined
+              ? {}
+              : { aggressiveProduct: recalc.aggressiveProduct }),
+          }
+        : {
+            supplyVoltage: recalc.supplyVoltage,
+            connectionType: recalc.connectionType,
+            windingCoefficient: recalc.windingCoefficient,
+            heatingHeight: recalc.heatingHeight,
+            layingStep: recalc.layingStep,
+            maintainTemperature: recalc.maintainTemperature,
+            vaporTemperature: recalc.vaporTemperature,
+            aggressiveProduct: recalc.aggressiveProduct,
+          };
       return enqueueElectricalVariantBatchJob(
         projectId,
         electricalVariantId,
         effectiveSource,
         effectiveCableType,
         {
-          supplyVoltage: recalc.supplyVoltage,
           selectionMode,
           selectionPolicy: recalc.selectionPolicy,
-          connectionType: recalc.connectionType,
-          windingCoefficient: recalc.windingCoefficient,
-          heatingHeight: recalc.heatingHeight,
-          layingStep: recalc.layingStep,
-          maintainTemperature: recalc.maintainTemperature,
-          vaporTemperature: recalc.vaporTemperature,
-          aggressiveProduct: recalc.aggressiveProduct,
+          ...cableSpecificOptions,
           skipManual,
           objectIds: scope === 'selected' ? selectedObjectIds : undefined,
           forceCableType: scope === 'all' || cableTypeOverride != null,

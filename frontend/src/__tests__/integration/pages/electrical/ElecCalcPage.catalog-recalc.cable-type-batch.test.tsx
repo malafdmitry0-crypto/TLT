@@ -120,7 +120,6 @@ describe('ElecCalcPage catalog / recalculation / selection — cable type batch'
         1,
         'self_regulating_tt',
         expect.objectContaining({
-          aggressiveProduct: false,
           maintainTemperature: 50,
           forceCableType: true,
           skipManual: true,
@@ -128,6 +127,10 @@ describe('ElecCalcPage catalog / recalculation / selection — cable type batch'
       );
     });
     const options = (enqueueElectricalBatchJob as ReturnType<typeof vi.fn>).mock.calls[0][4];
+    expect(options).not.toHaveProperty('supplyVoltage');
+    expect(options).not.toHaveProperty('connectionType');
+    expect(options).not.toHaveProperty('windingCoefficient');
+    expect(options).not.toHaveProperty('aggressiveProduct');
     expect(options.objectIds).toBeUndefined();
     expect(options.objectOverrides).toBeUndefined();
   });

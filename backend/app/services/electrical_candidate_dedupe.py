@@ -7,6 +7,7 @@ from typing import Any
 from app.services.cable_snapshot import stable_hash
 
 DEDUPE_KEY_VERSION = "v1"
+TT_DEDUPE_KEY_VERSION = "v2"
 UNSUPPORTED_CABLE_TYPES = {"mineral", "skin"}
 
 _DIAGNOSTIC_CONTROL_KEYS = (
@@ -278,12 +279,17 @@ def _variant_payload(
             cable_mark=mark,
         ),
         "resolved_mark": mark,
-        "voltage": normalize_variant_voltage(results, params),
-        "winding_coefficient": _normalize_number(
-            _resolve_param_first(results, params, "winding_coefficient"),
-            decimals=6,
-        ),
     }
+    if cable_type != "self_regulating_tt":
+        payload.update(
+            {
+                "voltage": normalize_variant_voltage(results, params),
+                "winding_coefficient": _normalize_number(
+                    _resolve_param_first(results, params, "winding_coefficient"),
+                    decimals=6,
+                ),
+            }
+        )
 
     if cable_type in {"self_regulating", "self_regulating_tt"}:
         payload["threads"] = normalize_threads(results, params)
@@ -359,6 +365,12 @@ def build_identity_payload(
     if use_diagnostic:
         controls: dict[str, Any] = {}
         for key in _DIAGNOSTIC_CONTROL_KEYS:
+            if cable_type == "self_regulating_tt" and key in {
+                "voltage",
+                "supply_voltage",
+                "winding_coefficient",
+            }:
+                continue
             value = _resolve(results, params, key)
             if value is None:
                 continue
@@ -429,7 +441,8 @@ def build_dedupe_key(
         reason_code=reason_code,
         status=status,
     )
-    return f"{DEDUPE_KEY_VERSION}:{stable_hash(payload)}"
+    version = TT_DEDUPE_KEY_VERSION if cable_type == "self_regulating_tt" else DEDUPE_KEY_VERSION
+    return f"{version}:{stable_hash(payload)}"
 
 
 def merge_engineer_comments(*comments: str | None) -> str | None:

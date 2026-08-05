@@ -154,10 +154,54 @@ const electricalVariantApiMocks = vi.hoisted(() => ({
   })),
   assignObjects: vi.fn(),
   unassignObjects: vi.fn(),
+  patchOverrides: vi.fn().mockImplementation(async (
+    projectId: string,
+    electricalVariantId: string,
+    objectId: string,
+    payload: Record<string, unknown>,
+  ) => {
+    const expectedVersion = Number(payload.expected_version ?? 1);
+    const electricalOverrides = Object.fromEntries(
+      Object.entries(payload).filter(([key, value]) => (
+        key !== 'expected_version' && value !== undefined
+      )),
+    );
+    return {
+      id: `assignment-${electricalVariantId}-${objectId}`,
+      project_id: projectId,
+      electrical_variant_id: electricalVariantId,
+      object_id: objectId,
+      system_type: 'self_regulating',
+      assignment_state: 'stale',
+      requested_cable_type: 'self_regulating_tt',
+      max_section_start_current_a: null,
+      electrical_overrides: electricalOverrides,
+      object_version_snapshot: 1,
+      version: expectedVersion + 1,
+      diagnostics: {},
+      object: {
+        id: objectId,
+        project_id: projectId,
+        object_type: 'pipe',
+        sort_order: 0,
+        version: 1,
+        params: { name: 'Труба-1' },
+        results: { heat_loss_per_meter_base: 50, total_heat_loss_design: 5000 },
+        is_valid: true,
+        validation_errors: null,
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z',
+      },
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+    };
+  }),
 }));
 
 const defaultElectricalVariantListImplementation =
   electricalVariantApiMocks.list.getMockImplementation();
+const defaultElectricalAssignmentOverridesPatchImplementation =
+  electricalVariantApiMocks.patchOverrides.getMockImplementation();
 
 vi.mock('@/api/electricalVariants', () => ({
   electricalVariantQueryKeys: {
@@ -202,6 +246,7 @@ vi.mock('@/api/electricalVariants', () => ({
   listElectricalVariantAssignments: electricalVariantApiMocks.listAssignments,
   assignElectricalVariantObjects: electricalVariantApiMocks.assignObjects,
   unassignElectricalVariantObjects: electricalVariantApiMocks.unassignObjects,
+  patchElectricalAssignmentOverrides: electricalVariantApiMocks.patchOverrides,
 }));
 
 vi.mock('@/api/projects', () => ({
@@ -297,5 +342,6 @@ vi.mock('@/api/preferences', () => ({
 export {
   apiMocks,
   electricalVariantApiMocks,
+  defaultElectricalAssignmentOverridesPatchImplementation,
   defaultElectricalVariantListImplementation,
 };

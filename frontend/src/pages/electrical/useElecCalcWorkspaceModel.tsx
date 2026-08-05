@@ -184,6 +184,8 @@ export function useElecCalcWorkspaceModel({
     recalc,
     normalizeAvailableCableType: cableTypes.normalizeAvailableCableType,
     setElectricalQueryCalculation,
+    assignmentByObjectId: data.assignmentByObjectId,
+    objects,
     cableMarkModalObject: cableMarkModal.object,
     cableMarkModalCableType: cableMarkModal.cableType,
     cableMarkModalValue: cableMarkModal.value,

@@ -17,6 +17,12 @@ describe('tankFormToApiParams', () => {
       insulation_material: 'mineral_wool',
       ambient_temperature: -20,
       process_temperature: 80,
+      maintain_temperature: 10,
+      aggressive_product: 'yes',
+      steam_tracing: 'no',
+      vapor_temperature: 140,
+      heating_height: 2.5,
+      laying_step: 0.2,
     });
     expect(api.diameter).toBeCloseTo(2.0);
     expect(api.height).toBeCloseTo(3.0);
@@ -24,6 +30,11 @@ describe('tankFormToApiParams', () => {
     expect(api.wall_lambda).toBe(45);
     expect(api.length).toBeUndefined();
     expect(api.width).toBeUndefined();
+    expect(api.maintain_temperature).toBe(10);
+    expect(api.aggressive_product).toBe(true);
+    expect(api.heating_height).toBe(2.5);
+    expect(api.laying_step).toBe(0.2);
+    expect(api).not.toHaveProperty('vapor_temperature');
   });
 
   it('rectangular: все 3 размера в м', () => {

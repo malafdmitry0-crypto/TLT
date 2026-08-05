@@ -5,7 +5,7 @@ from decimal import Decimal
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.schemas.electrical_variant import (
     ElectricalAssignmentState,
@@ -46,6 +46,33 @@ class ElectricalAssignmentCurrentLimitPatch(BaseModel):
     max_section_start_current_a: Decimal | None = Field(gt=0)
 
 
+class ElectricalAssignmentOverridesPatch(BaseModel):
+    """Sparse patch for TT inputs persisted inside one exact UUID ER.
+
+    ``model_fields_set`` is part of the contract: omitted keys are unchanged,
+    while an explicit null either clears an object-fallback override or remains
+    a normative null, depending on the field.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    expected_version: int = Field(ge=1)
+    steam_temperature_c: Decimal | None = None
+    maintain_temperature_c: Decimal | None = None
+    aggressive_product: bool | None = None
+    winding_pitch_mm: Decimal | None = Field(default=None, gt=0)
+    thread_count: int | None = Field(default=None, ge=1, le=3)
+    manual_cable_model: str | None = Field(default=None, min_length=1, max_length=128)
+    tank_heating_height_m: Decimal | None = Field(default=None, gt=0)
+    tank_laying_step_m: Decimal | None = Field(default=None, ge=Decimal("0.1"), le=Decimal("0.4"))
+
+    @model_validator(mode="after")
+    def require_at_least_one_override(self) -> "ElectricalAssignmentOverridesPatch":
+        if self.model_fields_set == {"expected_version"}:
+            raise ValueError("at least one electrical override field is required")
+        return self
+
+
 class ElectricalAssignmentResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -57,6 +84,7 @@ class ElectricalAssignmentResponse(BaseModel):
     assignment_state: ElectricalAssignmentState
     requested_cable_type: str | None
     max_section_start_current_a: Decimal | None
+    electrical_overrides: dict[str, Any]
     object_version_snapshot: int
     version: int
     diagnostics: dict[str, Any]

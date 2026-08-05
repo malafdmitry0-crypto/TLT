@@ -13,10 +13,10 @@ describe('useElecCalcRecalculationParams', () => {
       connectionType: 'line_1ph',
       windingCoefficient: 1,
       heatingHeight: null,
-      layingStep: 0.1,
-      maintainTemperature: null,
-      vaporTemperature: null,
-      aggressiveProduct: false,
+      layingStep: undefined,
+      maintainTemperature: undefined,
+      vaporTemperature: undefined,
+      aggressiveProduct: undefined,
     });
   });
 

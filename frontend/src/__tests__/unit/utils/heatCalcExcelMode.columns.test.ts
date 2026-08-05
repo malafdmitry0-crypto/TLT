@@ -19,7 +19,7 @@ describe('heatCalcExcelMode — editable columns', () => {
 
     expect(keys).toContain('pipe_outer_diameter');
     expect(keys).toContain('pipe_length');
-    expect(keys).toContain('supply_voltage');
+    expect(keys).not.toContain('supply_voltage');
     expect(keys).not.toContain('index');
     expect(keys).not.toContain('heat_loss_status');
     expect(keys).not.toContain('heat_loss_per_meter_base');

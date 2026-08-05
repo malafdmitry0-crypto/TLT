@@ -31,6 +31,8 @@ function makeObject(overrides: Partial<ProjectObject> = {}): ProjectObject {
       insulation_layers: [{ thickness: 0.05, material: 'mineral_wool' }],
       wind_speed: 3,
       process_temperature: 60,
+      maintain_temperature: 15,
+      aggressive_product: false,
       ambient_temperature: -20,
       max_ambient_temperature: 35,
       max_process_temperature: 110,

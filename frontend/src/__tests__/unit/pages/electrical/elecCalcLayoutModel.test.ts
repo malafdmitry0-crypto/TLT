@@ -101,6 +101,14 @@ describe('elecCalcLayoutModel', () => {
     expect(isElectricalLayoutCellEditable(editabilityOptions({
       isCableMarkPending: true,
     }))).toBe(false);
+    expect(isElectricalLayoutCellEditable(editabilityOptions({
+      obj: projectObject({ object_type: 'tank' }),
+      columnKey: 'winding_pitch_mm',
+    }))).toBe(false);
+    expect(isElectricalLayoutCellEditable(editabilityOptions({
+      obj: projectObject({ object_type: 'tank' }),
+      columnKey: 'number_of_threads',
+    }))).toBe(true);
   });
 
   it('blocks layout editing without a current successful mark or for non-editable cable types', () => {
@@ -149,6 +157,12 @@ describe('elecCalcLayoutModel', () => {
   });
 
   it('validates winding pitch and preserves manual thread count when pitch changes', () => {
+    expect(validateElectricalLayoutCellCommit(commitOptions({
+      obj: projectObject({ object_type: 'tank' }),
+    }))).toEqual({
+      status: 'error',
+      error: 'Шаг навива применяется только к трубопроводу',
+    });
     expect(validateElectricalLayoutCellCommit(commitOptions({
       value: 'bad',
     }))).toEqual({ status: 'error', error: 'Введите число' });

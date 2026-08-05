@@ -103,6 +103,14 @@ export function tankFormToApiParams(
     if (hasExplicitNumberValue(v.length_mm)) params.length = mmToMOrNull(v.length_mm);
     if (hasExplicitNumberValue(v.width_mm)) params.width = mmToMOrNull(v.width_mm);
   }
+  if (v.shape === 'cylindrical' || v.shape === 'rectangular') {
+    if (hasExplicitNumberValue(v.heating_height)) {
+      params.heating_height = numberOrNull(v.heating_height);
+    }
+    if (hasExplicitNumberValue(v.laying_step)) {
+      params.laying_step = numberOrNull(v.laying_step);
+    }
+  }
   if (hasExplicitNumberValue(v.wall_thickness_mm) && hasExplicitNumberValue(v.wall_lambda)) {
     params.wall_thickness = mmToMOrNull(v.wall_thickness_mm);
     params.wall_lambda = numberOrNull(v.wall_lambda);
@@ -214,11 +222,18 @@ function applyCommonObjectParams(
   if (v.zone_classification) params.zone_classification = v.zone_classification;
   if (v.temperature_group) params.temperature_group = v.temperature_group;
   if (v.min_switch_temperature != null) params.min_switch_temperature = v.min_switch_temperature;
-  if (v.supply_voltage != null) params.supply_voltage = v.supply_voltage;
   if (v.safety_factor != null) params.safety_factor = v.safety_factor;
   if (v.safety_factor_source) params.safety_factor_source = v.safety_factor_source;
   if (v.steam_tracing) params.steam_tracing = v.steam_tracing;
-  if (v.vapor_temperature != null) params.vapor_temperature = v.vapor_temperature;
+  if (v.steam_tracing === 'yes' && v.vapor_temperature != null) {
+    params.vapor_temperature = v.vapor_temperature;
+  }
+  if (v.maintain_temperature != null) {
+    params.maintain_temperature = v.maintain_temperature;
+  }
+  if (v.aggressive_product === 'yes' || v.aggressive_product === 'no') {
+    params.aggressive_product = v.aggressive_product === 'yes';
+  }
   if (v.winding_coefficient != null) params.winding_coefficient = v.winding_coefficient;
   if (v.connection_type) params.connection_type = v.connection_type;
 }

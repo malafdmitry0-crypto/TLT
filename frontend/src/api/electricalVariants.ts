@@ -3,8 +3,10 @@ import type {
   ElectricalAssignmentListParams,
   ElectricalAssignmentListResponse,
   ElectricalAssignmentMutationResponse,
+  ElectricalAssignmentOverridesPatchRequest,
   ElectricalAssignmentUnassignRequest,
   ElectricalAssignmentUpdateRequest,
+  ElectricalAssignment,
   ElectricalReadinessResponse,
   ElectricalVariant,
   ElectricalVariantCopyRequest,
@@ -163,6 +165,19 @@ export async function unassignElectricalVariantObjects(
 ): Promise<ElectricalAssignmentMutationResponse> {
   const { data } = await apiClient.post<ElectricalAssignmentMutationResponse>(
     `/projects/${projectId}/electrical-variants/${electricalVariantId}/unassign`,
+    payload,
+  );
+  return data;
+}
+
+export async function patchElectricalAssignmentOverrides(
+  projectId: string,
+  electricalVariantId: string,
+  objectId: string,
+  payload: ElectricalAssignmentOverridesPatchRequest,
+): Promise<ElectricalAssignment> {
+  const { data } = await apiClient.patch<ElectricalAssignment>(
+    `/projects/${projectId}/electrical-variants/${electricalVariantId}/assignments/${objectId}/electrical-overrides`,
     payload,
   );
   return data;

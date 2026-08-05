@@ -7,7 +7,6 @@ from app.schemas.electrical_inputs import ElectricalInputOverrides
 from app.services.electrical_input_resolver import (
     ELECTRICAL_FRONTEND_INPUTS_MOCKED,
     ELECTRICAL_LEGACY_INPUT_ALIASES_USED,
-    ELECTRICAL_NOMINAL_VOLTAGE_FORCED_230,
     ElectricalInputResolutionError,
     ElectricalInputResolver,
     configured_electrical_input_resolver,
@@ -56,7 +55,9 @@ def test_mock_mode_defaults_off_and_strict_resolution_uses_no_mocks():
     result = resolver.resolve(**_strict_sources())
 
     assert resolver.mock_mode == "off"
-    assert result.values.nominal_voltage_v == 230
+    assert len(result.values.model_fields) == 14
+    assert "nominal_voltage_v" not in result.values.model_fields
+    assert "nominal_voltage_v" not in result.sources
     assert result.mocked_fields == []
     assert result.production_eligible is True
     assert result.sources["max_section_start_current_a"] == "project_setting"
@@ -183,6 +184,74 @@ def test_explicit_null_steam_is_not_replaced_by_assignment_or_mock():
     assert "steam_temperature_c" not in result.mocked_fields
 
 
+def test_assignment_null_steam_is_preserved_before_object_value():
+    result = ElectricalInputResolver(mock_mode="test").resolve(
+        assignment={"steam_temperature_c": None},
+        object_heat={
+            **_minimal_object_heat(),
+            "steam_temperature_c": Decimal("180"),
+        },
+    )
+
+    assert result.values.steam_temperature_c is None
+    assert result.sources["steam_temperature_c"] == "assignment_override"
+    assert "steam_temperature_c" not in result.mocked_fields
+
+
+def test_absent_steam_temperature_resolves_as_not_set():
+    """Объект из формы теплопотерь без «Температуры пропарки» считается расчётным.
+
+    Для полей из `_NULL_IS_VALUE` пустота — это значение, а не пробел во вводе.
+    Раньше поле считалось заданным только при физическом наличии ключа в params,
+    и объект, созданный формой без пропарки, ронял ЭР с ELECTRICAL_INPUT_REQUIRED.
+    """
+    sources = _strict_sources()
+    sources["explicit"] = ElectricalInputOverrides(selection_policy="technical_minimum")
+
+    result = ElectricalInputResolver().resolve(**sources)
+
+    assert result.values.steam_temperature_c is None
+    assert result.sources["steam_temperature_c"] == "not_set"
+    assert result.production_eligible is True
+
+
+@pytest.mark.parametrize(
+    "field", ["steam_temperature_c", "winding_pitch_mm", "thread_count", "manual_cable_model"]
+)
+def test_absent_nullable_inputs_do_not_break_strict_resolution(field: str):
+    sources = _strict_sources()
+    sources["explicit"] = ElectricalInputOverrides(selection_policy="technical_minimum")
+
+    result = ElectricalInputResolver().resolve(**sources)
+
+    assert getattr(result.values, field) is None
+    assert result.sources[field] == "not_set"
+
+
+def test_missing_maintain_temperature_never_falls_back_to_product_temperature():
+    sources = _strict_sources()
+    sources["explicit"] = ElectricalInputOverrides(selection_policy="technical_minimum")
+    sources["object_heat"].pop("maintain_temperature_c")
+
+    with pytest.raises(ElectricalInputResolutionError) as raised:
+        ElectricalInputResolver().resolve(**sources)
+
+    assert raised.value.code == "ELECTRICAL_INPUT_REQUIRED"
+    assert raised.value.details == {"field": "maintain_temperature_c"}
+
+
+def test_object_maintain_temperature_stays_distinct_from_product_temperature():
+    sources = _strict_sources()
+    sources["explicit"] = ElectricalInputOverrides(selection_policy="technical_minimum")
+    sources["object_heat"]["maintain_temperature_c"] = Decimal("12")
+
+    result = ElectricalInputResolver().resolve(**sources)
+
+    assert result.values.maintain_temperature_c == Decimal("12")
+    assert result.sources["maintain_temperature_c"] == "object_heat"
+    assert result.values.product_temperature_c == Decimal("40")
+
+
 def test_object_null_for_required_field_falls_through_to_mock():
     object_heat = _minimal_object_heat()
     object_heat["maintain_temperature_c"] = None
@@ -283,34 +352,21 @@ def test_aliases_are_normalized_only_at_boundary_and_cable_suffix_is_removed():
     assert normalized.overrides.product_temperature_c == Decimal("50")
     assert normalized.overrides.cold_start_temperature_c == Decimal("-10")
     assert normalized.overrides.manual_cable_model == "30ттв2"
-    assert normalized.overrides.nominal_voltage_v == 230
+    assert "nominal_voltage_v" not in normalized.overrides.model_fields
     assert normalized.legacy_aliases == [
         "process_temperature->product_temperature_c",
         "ambient_temperature->cold_start_temperature_c",
         "cable_mark->manual_cable_model",
-        "supply_voltage->nominal_voltage_v",
     ]
     assert normalized.warnings == [ELECTRICAL_LEGACY_INPUT_ALIASES_USED]
 
 
-def test_voltage_is_backend_230_and_legacy_220_is_only_dev_test_compatibility():
-    strict = _strict_sources()
-    strict["explicit"] = ElectricalInputOverrides(
-        **strict["explicit"].model_dump(exclude_unset=True),
-        nominal_voltage_v=220,
-    )
-    with pytest.raises(ElectricalInputResolutionError) as raised:
-        ElectricalInputResolver().resolve(**strict)
-    assert raised.value.code == "ELECTRICAL_NOMINAL_VOLTAGE_UNSUPPORTED"
+def test_legacy_voltage_is_not_a_selector_override_or_alias():
+    normalized = normalize_electrical_override_payload({"supply_voltage": 220})
 
-    compat = ElectricalInputResolver(mock_mode="dev").resolve(
-        explicit=ElectricalInputOverrides(nominal_voltage_v=220),
-        object_heat=_minimal_object_heat(),
-    )
-    assert compat.values.nominal_voltage_v == 230
-    assert compat.sources["nominal_voltage_v"] == "backend_forced_230"
-    assert ELECTRICAL_NOMINAL_VOLTAGE_FORCED_230 in compat.warnings
-    assert compat.production_eligible is False
+    assert normalized.overrides.model_fields_set == set()
+    assert normalized.legacy_aliases == []
+    assert normalized.warnings == []
 
 
 @pytest.mark.parametrize("thread_count", [0, 4])

@@ -53,9 +53,20 @@ def test_pipe_normalization_preserves_canonical_heat_fields_and_adds_non_heat_de
     assert params["placement"] == "outdoor"
     assert params["wind_speed"] == 0
     assert params["num_local_elements"] == 0
+    assert params["aggressive_product"] is False
+    assert "supply_voltage" not in params
     assert params["insulation_layers"] == [
         {"thickness": 0.05, "material": "mineral_wool_boards_120"}
     ]
+
+
+def test_explicit_aggressive_product_is_preserved():
+    params = normalize_project_object_params(
+        "pipe",
+        _outdoor_pipe(aggressive_product=True),
+    )
+
+    assert params["aggressive_product"] is True
 
 
 @pytest.mark.parametrize("legacy_key", sorted(LEGACY_SPECIFICATION_OBJECT_PARAM_KEYS))

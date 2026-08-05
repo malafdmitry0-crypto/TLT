@@ -9,12 +9,17 @@ import {
 } from '@/api/calculations';
 import { electricalDataQueryKeys } from '@/api/electricalQueryKeys';
 import {
+  electricalAssignmentQueryKeys,
+  patchElectricalAssignmentOverrides,
+} from '@/api/electricalVariants';
+import {
   cableMarkOptionValue,
   type CableMarkSelectOption,
 } from '@/pages/electrical/elecCalcCableOptionModel';
 import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
 import { useElecCalcCableSelectionMutationFlow } from '@/pages/electrical/useElecCalcCableSelectionMutationFlow';
 import type { ElectricalCalcSummary } from '@/types/calculation';
+import type { ElectricalAssignment } from '@/types/electricalVariant';
 import type { ProjectObject } from '@/types/project';
 
 vi.mock('@/feedback/appFeedback', () => ({
@@ -29,6 +34,11 @@ vi.mock('@/feedback/appFeedback', () => ({
 
 vi.mock('@/api/calculations', () => ({
   selectCableForVariants: vi.fn(),
+}));
+
+vi.mock('@/api/electricalVariants', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/api/electricalVariants')>(),
+  patchElectricalAssignmentOverrides: vi.fn(),
 }));
 
 const ER_1_ID = '11111111-1111-4111-8111-111111111111';
@@ -82,6 +92,29 @@ function calculation(overrides: Partial<ElectricalCalcSummary> = {}): Electrical
   };
 }
 
+function assignmentResponse(
+  overrides: Partial<ElectricalAssignment> = {},
+): ElectricalAssignment {
+  return {
+    id: 'assignment-1',
+    project_id: 'project-1',
+    electrical_variant_id: ER_2_ID,
+    object_id: 'object-1',
+    system_type: 'self_regulating',
+    assignment_state: 'stale',
+    requested_cable_type: 'self_regulating_tt',
+    max_section_start_current_a: null,
+    electrical_overrides: {},
+    object_version_snapshot: 1,
+    version: 8,
+    diagnostics: {},
+    object: projectObject(),
+    created_at: '2026-06-01T00:00:00Z',
+    updated_at: '2026-06-01T00:00:00Z',
+    ...overrides,
+  };
+}
+
 function option(
   source: 'builtin' | 'extended',
   mark: string,
@@ -129,6 +162,16 @@ function setup(
     },
     normalizeAvailableCableType: (type: CableTypeKey) => type,
     setElectricalQueryCalculation,
+    assignmentByObjectId: new Map([[
+      'object-1',
+      {
+        object_id: 'object-1',
+        system_type: 'self_regulating',
+        assignment_state: 'ready',
+        version: 7,
+      },
+    ]]),
+    objects: [projectObject()],
     cableMarkModalObject: projectObject(),
     cableMarkModalCableType: 'self_regulating_tt' as CableTypeKey,
     cableMarkModalValue: defaultOption[0],
@@ -151,9 +194,41 @@ describe('useElecCalcCableSelectionMutationFlow — select-apply', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(selectCableForVariants).mockResolvedValue([calculation()]);
+    vi.mocked(patchElectricalAssignmentOverrides).mockResolvedValue(assignmentResponse());
   });
   it('sends manual cable selection payload with target variants and selected source', async () => {
-    const { result, setElectricalQueryCalculation, queryClient } = setup();
+    const tank = projectObject({
+      object_type: 'tank',
+      params: { name: 'Резервуар-1', shape: 'cylindrical', steam_tracing: 'yes' },
+    });
+    const { result, setElectricalQueryCalculation, queryClient } = setup({
+      objects: [tank],
+      cableMarkModalObject: tank,
+    });
+    const currentQueryKey = [
+      ...electricalDataQueryKeys.queries('project-1', ER_2_ID),
+      { page: 1 },
+    ] as const;
+    const otherQueryKey = [
+      ...electricalDataQueryKeys.queries('project-1', ER_4_ID),
+      { page: 1 },
+    ] as const;
+    queryClient.setQueryData(currentQueryKey, {
+      assignments: [{
+        object_id: 'object-1',
+        system_type: 'self_regulating',
+        assignment_state: 'ready',
+        version: 7,
+      }],
+    });
+    queryClient.setQueryData(otherQueryKey, {
+      assignments: [{
+        object_id: 'object-1',
+        system_type: 'self_regulating',
+        assignment_state: 'ready',
+        version: 19,
+      }],
+    });
     queryClient.setQueryData(
       electricalDataQueryKeys.variant('project-1', ER_1_ID),
       { marker: 'unrelated' },
@@ -177,6 +252,23 @@ describe('useElecCalcCableSelectionMutationFlow — select-apply', () => {
       });
     });
 
+    expect(patchElectricalAssignmentOverrides).toHaveBeenCalledTimes(1);
+    expect(patchElectricalAssignmentOverrides).toHaveBeenCalledWith(
+      'project-1',
+      ER_2_ID,
+      'object-1',
+      {
+        expected_version: 7,
+        steam_temperature_c: 140,
+        maintain_temperature_c: 80,
+        aggressive_product: true,
+        manual_cable_model: '30ТТВ2',
+        tank_heating_height_m: 0.25,
+        tank_laying_step_m: 0.12,
+      },
+    );
+    expect(vi.mocked(patchElectricalAssignmentOverrides).mock.invocationCallOrder[0])
+      .toBeLessThan(vi.mocked(selectCableForVariants).mock.invocationCallOrder[0]);
     expect(selectCableForVariants).toHaveBeenCalledWith(
       'object-1',
       '30ТТВ2-СР',
@@ -184,11 +276,8 @@ describe('useElecCalcCableSelectionMutationFlow — select-apply', () => {
       [2, 4],
       'self_regulating_tt',
       {
-        supplyVoltage: 220,
         selectionMode: undefined,
         selectionPolicy: 'technical_minimum',
-        connectionType: 'line_1ph',
-        windingCoefficient: 1.1,
         heatingHeight: 0.25,
         layingStep: 0.12,
         maintainTemperature: 80,
@@ -200,6 +289,20 @@ describe('useElecCalcCableSelectionMutationFlow — select-apply', () => {
         4: ER_4_ID,
       },
     );
+    expect(queryClient.getQueryData(currentQueryKey)).toMatchObject({
+      assignments: [{
+        object_id: 'object-1',
+        assignment_state: 'stale',
+        version: 8,
+      }],
+    });
+    expect(queryClient.getQueryData(otherQueryKey)).toMatchObject({
+      assignments: [{
+        object_id: 'object-1',
+        assignment_state: 'ready',
+        version: 19,
+      }],
+    });
     expect(setElectricalQueryCalculation).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'calc-1' }),
       ER_2_TARGET,
@@ -241,6 +344,7 @@ describe('useElecCalcCableSelectionMutationFlow — select-apply', () => {
       }),
       { 2: ER_2_ID },
     );
+    expect(patchElectricalAssignmentOverrides).not.toHaveBeenCalled();
     expect(setElectricalQueryCalculation).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'calc-1' }),
       ER_2_TARGET,
@@ -258,24 +362,40 @@ describe('useElecCalcCableSelectionMutationFlow — select-apply', () => {
         objectId: 'object-1',
         cableMark: null,
         cableSource: 'all',
-        cableType: 'self_regulating',
+        cableType: 'self_regulating_tt',
         windingPitchMm: 400,
         numberOfThreads: 2,
       });
     });
 
+    expect(patchElectricalAssignmentOverrides).toHaveBeenCalledWith(
+      'project-1',
+      ER_2_ID,
+      'object-1',
+      {
+        expected_version: 7,
+        steam_temperature_c: 140,
+        maintain_temperature_c: 80,
+        aggressive_product: true,
+        winding_pitch_mm: 400,
+        thread_count: 2,
+      },
+    );
     expect(selectCableForVariants).toHaveBeenCalledWith(
       'object-1',
       null,
       'all',
       [2],
-      'self_regulating',
-      expect.objectContaining({
+      'self_regulating_tt',
+      {
+        selectionMode: undefined,
+        selectionPolicy: 'technical_minimum',
         windingPitchMm: 400,
         numberOfThreads: 2,
-        layingStep: 0.12,
+        maintainTemperature: 80,
+        vaporTemperature: 140,
         aggressiveProduct: true,
-      }),
+      },
       { 2: ER_2_ID },
     );
     expect(setElectricalQueryCalculation).toHaveBeenCalledWith(
@@ -283,5 +403,107 @@ describe('useElecCalcCableSelectionMutationFlow — select-apply', () => {
       ER_2_TARGET,
     );
     expect(message.success).toHaveBeenCalledWith('Параметры укладки сохранены, расчёт обновлён');
+  });
+
+  it('clears stale T2 and manual model before auto TT selection when steam is disabled', async () => {
+    const pipe = projectObject({
+      params: { name: 'Труба-1', steam_tracing: 'no', vapor_temperature: 190 },
+    });
+    const { result } = setup({
+      objects: [pipe],
+      cableMarkModalObject: pipe,
+      recalc: {
+        selectionPolicy: 'technical_minimum',
+        supplyVoltage: 230,
+        connectionType: 'line_1ph',
+        windingCoefficient: 1,
+        heatingHeight: null,
+        layingStep: undefined,
+        maintainTemperature: undefined,
+        vaporTemperature: 190,
+        aggressiveProduct: undefined,
+      },
+    });
+
+    await act(async () => {
+      await result.current.autoCableMut.mutateAsync({
+        objectId: 'object-1',
+        cableType: 'self_regulating_tt',
+        targetVariants: [ER_2_TARGET],
+      });
+    });
+
+    expect(patchElectricalAssignmentOverrides).toHaveBeenCalledWith(
+      'project-1',
+      ER_2_ID,
+      'object-1',
+      {
+        expected_version: 7,
+        steam_temperature_c: null,
+        manual_cable_model: null,
+      },
+    );
+    expect(selectCableForVariants).toHaveBeenCalledWith(
+      'object-1',
+      null,
+      'all',
+      [2],
+      'self_regulating_tt',
+      {
+        selectionMode: undefined,
+        selectionPolicy: 'technical_minimum',
+      },
+      { 2: ER_2_ID },
+    );
+  });
+
+  it('refetches only the current UUID ER and skips calculation on assignment version conflict', async () => {
+    const conflict = Object.assign(new Error('Версия assignment устарела'), {
+      status: 409,
+      code: 'ELECTRICAL_ASSIGNMENT_VERSION_CONFLICT',
+    });
+    vi.mocked(patchElectricalAssignmentOverrides).mockRejectedValueOnce(conflict);
+    const { result, queryClient } = setup();
+    const currentQueryKey = [
+      ...electricalDataQueryKeys.queries('project-1', ER_2_ID),
+      { page: 1 },
+    ] as const;
+    const otherQueryKey = [
+      ...electricalDataQueryKeys.queries('project-1', ER_4_ID),
+      { page: 1 },
+    ] as const;
+    queryClient.setQueryData(currentQueryKey, { assignments: [] });
+    queryClient.setQueryData(otherQueryKey, { assignments: [] });
+    queryClient.setQueryData(
+      electricalAssignmentQueryKeys.root('project-1', ER_2_ID),
+      { marker: 'current-assignments' },
+    );
+    queryClient.setQueryData(
+      electricalAssignmentQueryKeys.root('project-1', ER_4_ID),
+      { marker: 'other-assignments' },
+    );
+
+    await act(async () => {
+      await expect(result.current.manualCableMut.mutateAsync({
+        objectId: 'object-1',
+        mark: '30ТТВ2-СР',
+        cableType: 'self_regulating_tt',
+        cableSource: 'extended',
+        targetVariants: [ER_2_TARGET],
+      })).rejects.toBe(conflict);
+    });
+
+    expect(selectCableForVariants).not.toHaveBeenCalled();
+    expect(queryClient.getQueryState(currentQueryKey)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(otherQueryKey)?.isInvalidated).toBe(false);
+    expect(queryClient.getQueryState(
+      electricalAssignmentQueryKeys.root('project-1', ER_2_ID),
+    )?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(
+      electricalAssignmentQueryKeys.root('project-1', ER_4_ID),
+    )?.isInvalidated).toBe(false);
+    expect(message.error).toHaveBeenCalledWith(
+      'Данные текущего ЭР изменились. Обновили их — повторите действие.',
+    );
   });
 });

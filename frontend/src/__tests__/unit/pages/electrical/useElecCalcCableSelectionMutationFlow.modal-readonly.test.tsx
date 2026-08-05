@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   selectCableForVariants,
 } from '@/api/calculations';
+import { patchElectricalAssignmentOverrides } from '@/api/electricalVariants';
 import {
   AUTO_CABLE_MARK_VALUE,
   cableMarkOptionValue,
@@ -29,6 +30,11 @@ vi.mock('@/feedback/appFeedback', () => ({
 
 vi.mock('@/api/calculations', () => ({
   selectCableForVariants: vi.fn(),
+}));
+
+vi.mock('@/api/electricalVariants', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/api/electricalVariants')>(),
+  patchElectricalAssignmentOverrides: vi.fn(),
 }));
 
 const ER_2_ID = '22222222-2222-4222-8222-222222222222';
@@ -128,6 +134,16 @@ function setup(
     },
     normalizeAvailableCableType: (type: CableTypeKey) => type,
     setElectricalQueryCalculation,
+    assignmentByObjectId: new Map([[
+      'object-1',
+      {
+        object_id: 'object-1',
+        system_type: 'self_regulating',
+        assignment_state: 'ready',
+        version: 7,
+      },
+    ]]),
+    objects: [projectObject()],
     cableMarkModalObject: projectObject(),
     cableMarkModalCableType: 'self_regulating_tt' as CableTypeKey,
     cableMarkModalValue: defaultOption[0],
@@ -150,6 +166,23 @@ describe('useElecCalcCableSelectionMutationFlow — modal-readonly', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(selectCableForVariants).mockResolvedValue([calculation()]);
+    vi.mocked(patchElectricalAssignmentOverrides).mockResolvedValue({
+      id: 'assignment-1',
+      project_id: 'project-1',
+      electrical_variant_id: ER_2_ID,
+      object_id: 'object-1',
+      system_type: 'self_regulating',
+      assignment_state: 'stale',
+      requested_cable_type: 'self_regulating_tt',
+      max_section_start_current_a: null,
+      electrical_overrides: {},
+      object_version_snapshot: 1,
+      version: 8,
+      diagnostics: {},
+      object: projectObject(),
+      created_at: '2026-06-01T00:00:00Z',
+      updated_at: '2026-06-01T00:00:00Z',
+    });
   });
   it('applies selected modal mark and closes the modal only after success', async () => {
     const selected = option('extended', '30ТТВ2-СР');

@@ -35,6 +35,7 @@ export function isElectricalLayoutCellEditable({
   getCableTypeForObject,
 }: ElectricalLayoutCellEditabilityOptions) {
   if (!ELECTRICAL_LAYOUT_EDITABLE_COLUMNS.has(columnKey)) return false;
+  if (obj.object_type === 'tank' && columnKey === 'winding_pitch_mm') return false;
   if (!projectSelected || !obj.is_valid || isCableMarkPending) return false;
   const calc = currentElectricalCalc(calcByObjectId[obj.id]);
   if (!calc || !getCableMark(calc)) return false;
@@ -72,6 +73,9 @@ export function validateElectricalLayoutCellCommit({
   getCableTypeForObject,
 }: ElectricalLayoutCellCommitValidationOptions): ElectricalLayoutCellCommitValidationResult {
   if (!ELECTRICAL_LAYOUT_EDITABLE_COLUMNS.has(columnKey)) return { status: 'ignored' };
+  if (obj.object_type === 'tank' && columnKey === 'winding_pitch_mm') {
+    return { status: 'error', error: 'Шаг навива применяется только к трубопроводу' };
+  }
   if (!projectSelected) return { status: 'error', error: 'Проект не выбран' };
   if (!obj.is_valid) return { status: 'error', error: 'Теплопотери объекта не рассчитаны' };
   const calc = currentElectricalCalc(calcByObjectId[obj.id]);

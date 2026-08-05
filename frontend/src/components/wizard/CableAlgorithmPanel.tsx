@@ -18,6 +18,7 @@ import { TltNumberField, TltTextField } from '@/components/ui-kit';
 import {
   heatCalcFormFieldRules,
   heatCalcNumberInputProps,
+  heatCalcSelectInputProps,
   heatCalcSelectOptions,
 } from '@/utils/heatCalcWizardFieldRules';
 
@@ -65,6 +66,10 @@ export default function CableAlgorithmPanel({
   fieldInputSettings,
 }: CableAlgorithmPanelProps) {
   const form = Form.useFormInstance();
+  const steamTracing = Form.useWatch('steam_tracing', form);
+  const tankShape = Form.useWatch('shape', form);
+  const tankLayoutApplicable = objectType === 'tank'
+    && (tankShape === 'cylindrical' || tankShape === 'rectangular');
 
   const numberInputProps = (fieldId: string) => heatCalcNumberInputProps(objectType, fieldId, {
     fieldInputSettings,
@@ -87,24 +92,75 @@ export default function CableAlgorithmPanel({
           className="cable-algorithm-fields"
           columns={2}
           flow="rows"
-          maxRowsPerColumn={4}
+          maxRowsPerColumn={objectType === 'tank' ? 7 : 6}
           antFormAdapter
           labelPlacement="left"
         >
-            {/* 1. vapor_temperature */}
+          {/* Пропарка управляет применимостью и обязательностью T2. */}
           <Form.Item
-            className="cable-algorithm-field vapor-temperature-form-item helped-form-item"
-            label={fieldLabel('vapor_temperature', objectType)}
-            name="vapor_temperature"
-            rules={heatCalcFormFieldRules(form, objectType, 'vapor_temperature')}
+            className="cable-algorithm-field steam-tracing-form-item helped-form-item"
+            label={fieldLabel('steam_tracing', objectType)}
+            name="steam_tracing"
+            rules={heatCalcFormFieldRules(form, objectType, 'steam_tracing')}
+          >
+            {withHelp(
+              <TltSelect
+                data-testid="steam-tracing-select"
+                {...heatCalcSelectInputProps(objectType, 'steam_tracing', { form })}
+                options={heatCalcSelectOptions(objectType, 'steam_tracing')}
+              />,
+              fieldHelp('steam_tracing', objectType),
+            )}
+          </Form.Item>
+
+          {steamTracing === 'yes' && (
+            <Form.Item
+              className="cable-algorithm-field vapor-temperature-form-item helped-form-item"
+              label={fieldLabel('vapor_temperature', objectType)}
+              name="vapor_temperature"
+              preserve={false}
+              rules={heatCalcFormFieldRules(form, objectType, 'vapor_temperature')}
+            >
+              {withHelp(
+                <UnitInputNumber
+                  data-testid="vapor-temperature-input"
+                  {...numberInputProps('vapor_temperature')}
+                  unit="°C"
+                />,
+                fieldHelp('vapor_temperature', objectType),
+              )}
+            </Form.Item>
+          )}
+
+          <Form.Item
+            className="cable-algorithm-field maintain-temperature-form-item helped-form-item"
+            label={fieldLabel('maintain_temperature', objectType)}
+            name="maintain_temperature"
+            rules={heatCalcFormFieldRules(form, objectType, 'maintain_temperature')}
           >
             {withHelp(
               <UnitInputNumber
-                data-testid="vapor-temperature-input"
-                {...numberInputProps('vapor_temperature')}
+                data-testid="maintain-temperature-input"
+                {...numberInputProps('maintain_temperature')}
                 unit="°C"
               />,
-              fieldHelp('vapor_temperature', objectType),
+              fieldHelp('maintain_temperature', objectType),
+            )}
+          </Form.Item>
+
+          <Form.Item
+            className="cable-algorithm-field aggressive-product-form-item helped-form-item"
+            label={fieldLabel('aggressive_product', objectType)}
+            name="aggressive_product"
+            rules={heatCalcFormFieldRules(form, objectType, 'aggressive_product')}
+          >
+            {withHelp(
+              <TltSelect
+                data-testid="aggressive-product-select"
+                {...heatCalcSelectInputProps(objectType, 'aggressive_product', { form })}
+                options={heatCalcSelectOptions(objectType, 'aggressive_product')}
+              />,
+              fieldHelp('aggressive_product', objectType),
             )}
           </Form.Item>
 
@@ -125,38 +181,40 @@ export default function CableAlgorithmPanel({
             )}
           </Form.Item>
 
-          {/* 3. supply_voltage U */}
-          <Form.Item
-            className="cable-algorithm-field supply-voltage-form-item helped-form-item"
-            label={fieldLabel('supply_voltage', objectType)}
-            name="supply_voltage"
-            rules={heatCalcFormFieldRules(form, objectType, 'supply_voltage')}
-          >
-            {withHelp(
-              <TltSelect
-                data-testid="supply-voltage-select"
-                options={heatCalcSelectOptions(objectType, 'supply_voltage')}
-              />,
-              fieldHelp('supply_voltage', objectType),
-            )}
-          </Form.Item>
-
-          {/* 4. winding_coefficient w */}
-          <Form.Item
-            className="cable-algorithm-field winding-coefficient-form-item helped-form-item"
-            label={fieldLabel('winding_coefficient', objectType)}
-            name="winding_coefficient"
-            rules={heatCalcFormFieldRules(form, objectType, 'winding_coefficient')}
-          >
-            {withHelp(
-              <TltNumberField
-                data-testid="winding-coefficient-input"
-                {...numberInputProps('winding_coefficient')}
-                className="cable-algorithm-number"
-              />,
-              fieldHelp('winding_coefficient', objectType),
-            )}
-          </Form.Item>
+          {tankLayoutApplicable && (
+            <>
+              <Form.Item
+                className="cable-algorithm-field heating-height-form-item helped-form-item"
+                label={fieldLabel('heating_height', objectType)}
+                name="heating_height"
+                rules={heatCalcFormFieldRules(form, objectType, 'heating_height')}
+              >
+                {withHelp(
+                  <UnitInputNumber
+                    data-testid="tank-heating-height-input"
+                    {...numberInputProps('heating_height')}
+                    unit="м"
+                  />,
+                  fieldHelp('heating_height', objectType),
+                )}
+              </Form.Item>
+              <Form.Item
+                className="cable-algorithm-field laying-step-form-item helped-form-item"
+                label={fieldLabel('laying_step', objectType)}
+                name="laying_step"
+                rules={heatCalcFormFieldRules(form, objectType, 'laying_step')}
+              >
+                {withHelp(
+                  <UnitInputNumber
+                    data-testid="tank-laying-step-input"
+                    {...numberInputProps('laying_step')}
+                    unit="м"
+                  />,
+                  fieldHelp('laying_step', objectType),
+                )}
+              </Form.Item>
+            </>
+          )}
 
           {/* 5. environment */}
           <Form.Item
@@ -225,11 +283,6 @@ export default function CableAlgorithmPanel({
 
         </CompactFieldGrid>
       </div>
-      {/* Round-trip for steam_tracing (yes/no) — not part of the 8 TNP orange fields;
-          vapor_temperature is the visible пропарки input. */}
-      <Form.Item name="steam_tracing" hidden noStyle>
-        <TltTextField type="hidden" />
-      </Form.Item>
       <Form.Item name="zone_classification" hidden noStyle>
         <TltTextField type="hidden" />
       </Form.Item>

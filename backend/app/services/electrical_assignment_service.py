@@ -28,6 +28,7 @@ from app.schemas.electrical_assignment import (
     ElectricalAssignmentCounts,
     ElectricalAssignmentCurrentLimitPatch,
     ElectricalAssignmentMutationItem,
+    ElectricalAssignmentOverridesPatch,
     ElectricalAssignmentResponse,
     ElectricalAssignmentsListResponse,
     ElectricalAssignmentsMutationResponse,
@@ -51,6 +52,22 @@ _ACTIVE_TASK_STATUSES = ("queued", "enqueued", "running")
 _ELECTRICAL_TASK = "electrical_batch"
 _HEAT_TASK = "heat_loss_batch"
 _REPORT_TASK = "report_export"
+_ELECTRICAL_OVERRIDE_FIELDS = {
+    "steam_temperature_c",
+    "maintain_temperature_c",
+    "aggressive_product",
+    "winding_pitch_mm",
+    "thread_count",
+    "manual_cable_model",
+    "tank_heating_height_m",
+    "tank_laying_step_m",
+}
+_OBJECT_FALLBACK_OVERRIDE_FIELDS = {
+    "maintain_temperature_c",
+    "aggressive_product",
+    "tank_heating_height_m",
+    "tank_laying_step_m",
+}
 
 
 class ElectricalAssignmentServiceError(ElectricalVariantServiceError):
@@ -283,6 +300,118 @@ class ElectricalAssignmentService:
         except Exception:
             await self.db.rollback()
             raise
+
+    async def patch_electrical_overrides(
+        self,
+        project_id: UUID,
+        variant_id: UUID,
+        object_id: UUID,
+        data: ElectricalAssignmentOverridesPatch,
+        principal: CurrentPrincipal,
+    ) -> ElectricalAssignmentResponse:
+        """Optimistically patch persisted TT inputs for one exact UUID ER."""
+        try:
+            await self._guard_and_lock_project(project_id, principal)
+            await self._require_variant(project_id, variant_id)
+            item = ElectricalAssignmentMutationItem(
+                object_id=object_id,
+                expected_version=data.expected_version,
+            )
+            assignment, obj = (await self._lock_assignments(project_id, variant_id, [item]))[
+                object_id
+            ]
+            if assignment.system_type != "self_regulating":
+                raise ElectricalAssignmentServiceError(
+                    "ELECTRICAL_ASSIGNMENT_SYSTEM_MISMATCH",
+                    "Входы TT применяются только к саморегулирующемуся кабелю",
+                    status_code=409,
+                    details={"object_id": str(object_id)},
+                )
+            await self._require_no_active_job_conflict(project_id, variant_id, {object_id})
+
+            before = dict(assignment.electrical_overrides or {})
+            after = self._merge_electrical_overrides(before, data)
+            if before == after:
+                await self.db.commit()
+                await self.db.refresh(assignment)
+                return self._response(assignment, obj)
+
+            assignment.electrical_overrides = after
+            calculation_result = await self.db.execute(
+                select(ElectricalCalculation)
+                .where(
+                    ElectricalCalculation.project_id == project_id,
+                    ElectricalCalculation.electrical_variant_id == variant_id,
+                    ElectricalCalculation.object_id == object_id,
+                )
+                .with_for_update()
+            )
+            for calculation in calculation_result.scalars().all():
+                previous = dict(calculation.results or {})
+                calculation.results = {
+                    **previous,
+                    "stale": True,
+                    "category": "stale",
+                    "stale_reason": "electrical_overrides_changed",
+                    "error_code": "ELECTRICAL_RECALCULATION_REQUIRED",
+                    "message": "Входы электрического расчёта изменены",
+                }
+            await self.db.execute(
+                update(ElectricalCandidate)
+                .where(
+                    ElectricalCandidate.project_id == project_id,
+                    ElectricalCandidate.electrical_variant_id == variant_id,
+                    ElectricalCandidate.object_id == object_id,
+                )
+                .values(status="stale", is_applied=False)
+            )
+            await self.mark_assignments_stale(
+                project_id,
+                variant_id,
+                [object_id],
+                reason="electrical_overrides_changed",
+                operation="assignment_electrical_overrides_patch",
+            )
+            await AuditService(self.db).stage(
+                event_type="project.electrical_assignment.electrical_overrides_updated",
+                category="project",
+                principal=principal,
+                project_id=project_id,
+                object_id=object_id,
+                requirement_refs=["DEC-05", "BE-17"],
+                details={
+                    "electrical_variant_id": str(variant_id),
+                    "patched_fields": sorted(data.model_fields_set & _ELECTRICAL_OVERRIDE_FIELDS),
+                },
+                before_state={"electrical_overrides": before},
+                after_state={
+                    "electrical_overrides": after,
+                    "assignment_version": assignment.version,
+                },
+                message="Updated assignment electrical overrides",
+            )
+            await self.db.commit()
+            await self.db.refresh(assignment)
+            return self._response(assignment, obj)
+        except Exception:
+            await self.db.rollback()
+            raise
+
+    @staticmethod
+    def _merge_electrical_overrides(
+        current: dict[str, Any],
+        data: ElectricalAssignmentOverridesPatch,
+    ) -> dict[str, Any]:
+        next_values = dict(current)
+        patched_fields = data.model_fields_set & _ELECTRICAL_OVERRIDE_FIELDS
+        serialized = data.model_dump(mode="json", include=patched_fields)
+        for field in patched_fields:
+            value = serialized[field]
+            if value is None and field in _OBJECT_FALLBACK_OVERRIDE_FIELDS:
+                next_values.pop(field, None)
+            else:
+                next_values[field] = value
+        return next_values
 
     async def assign(
         self,
@@ -1525,6 +1654,7 @@ class ElectricalAssignmentService:
                 "assignment_state": assignment.assignment_state,
                 "requested_cable_type": assignment.requested_cable_type,
                 "max_section_start_current_a": assignment.max_section_start_current_a,
+                "electrical_overrides": assignment.electrical_overrides or {},
                 "object_version_snapshot": assignment.object_version_snapshot,
                 "version": assignment.version,
                 "diagnostics": assignment.diagnostics or {},

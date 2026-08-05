@@ -23,10 +23,10 @@ export type ElecCalcCableSizingParams = {
   connectionType: string;
   windingCoefficient: number | null;
   heatingHeight: number | null;
-  layingStep: number | null;
-  maintainTemperature: number | null;
-  vaporTemperature: number | null;
-  aggressiveProduct: boolean;
+  layingStep: number | null | undefined;
+  maintainTemperature: number | null | undefined;
+  vaporTemperature: number | null | undefined;
+  aggressiveProduct: boolean | undefined;
 };
 
 type UseElecCalcCableSizingModalStateOptions = {
@@ -55,18 +55,33 @@ export function useElecCalcCableSizingModalState({
   const [manualMark, setManualMark] = useState<string | null>(null);
 
   const effectiveCableType = normalizeAvailableCableType(cableType);
-  const candidateParams = useMemo(() => ({
-    supply_voltage: recalc.supplyVoltage,
-    selection_mode: isResistiveCableType(effectiveCableType) ? 'auto' : undefined,
-    selection_policy: recalc.selectionPolicy,
-    connection_type: recalc.connectionType,
-    winding_coefficient: recalc.windingCoefficient,
-    heating_height: recalc.heatingHeight,
-    laying_step: recalc.layingStep,
-    maintain_temperature: recalc.maintainTemperature,
-    vapor_temperature: recalc.vaporTemperature,
-    aggressive_product: recalc.aggressiveProduct,
-  }), [
+  const candidateParams = useMemo(() => {
+    const shared = {
+      selection_mode: isResistiveCableType(effectiveCableType) ? 'auto' : undefined,
+      selection_policy: recalc.selectionPolicy,
+    };
+    if (effectiveCableType === 'self_regulating_tt') {
+      return {
+        ...shared,
+        heating_height: recalc.heatingHeight ?? undefined,
+        laying_step: recalc.layingStep ?? undefined,
+        maintain_temperature: recalc.maintainTemperature ?? undefined,
+        vapor_temperature: recalc.vaporTemperature ?? undefined,
+        aggressive_product: recalc.aggressiveProduct,
+      };
+    }
+    return {
+      ...shared,
+      supply_voltage: recalc.supplyVoltage,
+      connection_type: recalc.connectionType,
+      winding_coefficient: recalc.windingCoefficient,
+      heating_height: recalc.heatingHeight,
+      laying_step: recalc.layingStep,
+      maintain_temperature: recalc.maintainTemperature,
+      vapor_temperature: recalc.vaporTemperature,
+      aggressive_product: recalc.aggressiveProduct,
+    };
+  }, [
     effectiveCableType,
     recalc.aggressiveProduct,
     recalc.connectionType,

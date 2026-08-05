@@ -75,12 +75,34 @@ function ElecCalcElectricalTypeControls({
         />
         <Checkbox
           disabled={disabled}
-          checked={recalc.aggressiveProduct}
+          checked={recalc.aggressiveProduct === true}
+          indeterminate={recalc.aggressiveProduct === undefined}
+          aria-checked={recalc.aggressiveProduct === undefined ? 'mixed' : recalc.aggressiveProduct}
           onChange={(event) => setRecalc.aggressiveProduct(event.target.checked)}
         >
           <span className="electrical-type-controls__aggr-label">агр.</span>
         </Checkbox>
-        {voltageControl}
+        <Text className="electrical-params-label">h рез., м:</Text>
+        <TltNumberField
+          aria-label="Высота обогрева резервуара"
+          disabled={disabled}
+          min={0.001}
+          step={0.1}
+          value={recalc.heatingHeight}
+          onChange={setRecalc.heatingHeight}
+          className="electrical-type-control electrical-type-control--w76"
+        />
+        <Text className="electrical-params-label">шаг рез., м:</Text>
+        <TltNumberField
+          aria-label="Шаг укладки резервуара"
+          disabled={disabled}
+          min={0.1}
+          max={0.4}
+          step={0.01}
+          value={recalc.layingStep}
+          onChange={setRecalc.layingStep}
+          className="electrical-type-control electrical-type-control--w76"
+        />
       </>,
     );
   }

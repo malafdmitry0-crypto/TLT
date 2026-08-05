@@ -36,4 +36,10 @@ describe('heatCalcFieldVisibilityRules', () => {
     expect(getHeatCalcTableColumnRegistry('tank').some((column) => column.key === 'tank_buried_height')).toBe(true);
     expect(getHeatCalcFieldConfig('burial_depth')).toBeNull();
   });
+
+  it('keeps voltage out of selectable Heat table columns', () => {
+    expect(getHeatCalcTableColumnRegistry('pipe').some((column) => column.key === 'supply_voltage')).toBe(false);
+    expect(getHeatCalcTableColumnRegistry('tank').some((column) => column.key === 'supply_voltage')).toBe(false);
+    expect(getHeatCalcFieldConfig('supply_voltage')?.table_keys).toBeUndefined();
+  });
 });

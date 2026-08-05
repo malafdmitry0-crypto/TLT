@@ -94,6 +94,30 @@ export interface ElectricalVariantErrorResponse {
   issues: ElectricalReadinessIssue[];
 }
 
+export interface ElectricalAssignmentOverrides {
+  steam_temperature_c?: number | null;
+  maintain_temperature_c?: number | null;
+  aggressive_product?: boolean | null;
+  winding_pitch_mm?: number | null;
+  thread_count?: number | null;
+  manual_cable_model?: string | null;
+  tank_heating_height_m?: number | null;
+  tank_laying_step_m?: number | null;
+  [key: string]: unknown;
+}
+
+export interface ElectricalAssignmentOverridesPatchRequest {
+  expected_version: number;
+  steam_temperature_c?: number | null;
+  maintain_temperature_c?: number | null;
+  aggressive_product?: boolean | null;
+  winding_pitch_mm?: number | null;
+  thread_count?: number | null;
+  manual_cable_model?: string | null;
+  tank_heating_height_m?: number | null;
+  tank_laying_step_m?: number | null;
+}
+
 export interface ElectricalAssignment {
   id: string;
   project_id: string;
@@ -102,6 +126,8 @@ export interface ElectricalAssignment {
   system_type: ElectricalSystemType | null;
   assignment_state: ElectricalAssignmentState;
   requested_cable_type: string | null;
+  max_section_start_current_a: number | null;
+  electrical_overrides: ElectricalAssignmentOverrides;
   object_version_snapshot: number;
   version: number;
   diagnostics: Record<string, unknown>;

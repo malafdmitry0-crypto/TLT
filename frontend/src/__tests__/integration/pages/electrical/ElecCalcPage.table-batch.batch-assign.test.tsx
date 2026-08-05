@@ -49,9 +49,6 @@ describe('ElecCalcPage table / batch — batch-assign', () => {
         1,
         'self_regulating_tt',
         expect.objectContaining({
-          supplyVoltage: 230,
-          windingCoefficient: 1,
-          layingStep: 0.1,
           objectIds: ['o-1'],
           skipManual: true,
         }),
@@ -65,6 +62,10 @@ describe('ElecCalcPage table / batch — batch-assign', () => {
       expect.any(Object),
     );
     const options = (enqueueElectricalBatchJob as ReturnType<typeof vi.fn>).mock.calls[0][4];
+    expect(options).not.toHaveProperty('supplyVoltage');
+    expect(options).not.toHaveProperty('connectionType');
+    expect(options).not.toHaveProperty('windingCoefficient');
+    expect(options).not.toHaveProperty('layingStep');
     expect(options.objectOverrides).toBeUndefined();
   });
   it('fail-closed ограничивает row actions и explicit selected payload назначениями ЭР', async () => {

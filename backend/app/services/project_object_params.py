@@ -63,7 +63,7 @@ COMMON_OBJECT_DEFAULTS: dict[str, Any] = {
     "zone_classification": "safe",
     "temperature_group": "T1",
     "min_switch_temperature": -20,
-    "supply_voltage": 230,  # DEC-11 / E0: normative TT voltage for new objects
+    "aggressive_product": False,
     "steam_tracing": "no",
 }
 

@@ -8,7 +8,10 @@ import {
 } from '@/api/calculations';
 import { electricalDataQueryKeys } from '@/api/electricalQueryKeys';
 import type { CalculationVariant } from '@/store/calculationVariantStore';
-import type { ElectricalCalcSummary } from '@/types/calculation';
+import type {
+  ElectricalCalcSummary,
+  ElectricalQueryAssignment,
+} from '@/types/calculation';
 import type { ProjectObject } from '@/types/project';
 import {
   AUTO_CABLE_MARK_VALUE,
@@ -21,6 +24,14 @@ import {
   type LegacyElectricalVariantTarget,
 } from '@/pages/electrical/elecCalcVariantModel';
 import type { ElecCalcCableSizingParams } from '@/pages/electrical/useElecCalcCableSizingModalState';
+import {
+  baseManualCableModel,
+  isSteamTracingDisabled,
+} from '@/pages/electrical/elecCalcAssignmentOverrideModel';
+import {
+  electricalAssignmentOverrideErrorMessage,
+  useElecCalcAssignmentOverridePersistence,
+} from '@/pages/electrical/useElecCalcAssignmentOverridePersistence';
 
 type ManualCableMutationArgs = {
   objectId: string;
@@ -58,6 +69,8 @@ type UseElecCalcCableSelectionMutationFlowOptions = {
     calculation: ElectricalCalcSummary,
     target?: LegacyElectricalVariantTarget,
   ) => void;
+  assignmentByObjectId: ReadonlyMap<string, ElectricalQueryAssignment>;
+  objects: readonly ProjectObject[];
   cableMarkModalObject: ProjectObject | null;
   cableMarkModalCableType: CableTypeKey | null;
   cableMarkModalValue: string | null;
@@ -83,6 +96,8 @@ export function useElecCalcCableSelectionMutationFlow({
   recalc,
   normalizeAvailableCableType,
   setElectricalQueryCalculation,
+  assignmentByObjectId,
+  objects,
   cableMarkModalObject,
   cableMarkModalCableType,
   cableMarkModalValue,
@@ -91,6 +106,13 @@ export function useElecCalcCableSelectionMutationFlow({
   closeCableMarkModal,
 }: UseElecCalcCableSelectionMutationFlowOptions) {
   const qc = useQueryClient();
+  const { objectById, persistTtOverrides } = useElecCalcAssignmentOverridePersistence({
+    projectId,
+    electricalVariantId,
+    assignmentByObjectId,
+    objects,
+    recalc,
+  });
 
   const currentTarget = useMemo<LegacyElectricalVariantTarget>(() => ({
     id: electricalVariantId,
@@ -126,30 +148,64 @@ export function useElecCalcCableSelectionMutationFlow({
 
   const buildSelectionOptions = useCallback((
     cableType: CableTypeKey,
+    objectId: string,
     overrides: {
       windingPitchMm?: number | null;
       numberOfThreads?: number | null;
     } = {},
   ) => {
     const effectiveCableType = normalizeAvailableCableType(cableType);
+    const object = objectById.get(objectId);
+    const steamDisabled = object ? isSteamTracingDisabled(object) : false;
+    const cableSpecificOptions = effectiveCableType === 'self_regulating_tt'
+      ? {
+          ...(object?.object_type === 'tank' && recalc.heatingHeight != null
+            ? { heatingHeight: recalc.heatingHeight }
+            : {}),
+          ...(object?.object_type === 'tank' && recalc.layingStep != null
+            ? { layingStep: recalc.layingStep }
+            : {}),
+          ...(recalc.maintainTemperature == null
+            ? {}
+            : { maintainTemperature: recalc.maintainTemperature }),
+          ...(steamDisabled || recalc.vaporTemperature == null
+            ? {}
+            : { vaporTemperature: recalc.vaporTemperature }),
+          ...(recalc.aggressiveProduct === undefined
+            ? {}
+            : { aggressiveProduct: recalc.aggressiveProduct }),
+        }
+      : {
+          supplyVoltage: recalc.supplyVoltage,
+          connectionType: recalc.connectionType,
+          windingCoefficient: recalc.windingCoefficient,
+          heatingHeight: recalc.heatingHeight,
+          layingStep: recalc.layingStep,
+          maintainTemperature: recalc.maintainTemperature,
+          vaporTemperature: recalc.vaporTemperature,
+          aggressiveProduct: recalc.aggressiveProduct,
+        };
     return {
       effectiveCableType,
       options: {
-        supplyVoltage: recalc.supplyVoltage,
         selectionMode: isResistiveCableType(effectiveCableType) ? 'auto' as const : undefined,
         selectionPolicy: recalc.selectionPolicy,
-        connectionType: recalc.connectionType,
-        windingCoefficient: recalc.windingCoefficient,
-        ...overrides,
-        heatingHeight: recalc.heatingHeight,
-        layingStep: recalc.layingStep,
-        maintainTemperature: recalc.maintainTemperature,
-        vaporTemperature: recalc.vaporTemperature,
-        aggressiveProduct: recalc.aggressiveProduct,
+        ...(effectiveCableType === 'self_regulating_tt'
+          ? {
+              ...(object?.object_type === 'pipe' && overrides.windingPitchMm !== undefined
+                ? { windingPitchMm: overrides.windingPitchMm }
+                : {}),
+              ...(overrides.numberOfThreads !== undefined
+                ? { numberOfThreads: overrides.numberOfThreads }
+                : {}),
+            }
+          : overrides),
+        ...cableSpecificOptions,
       },
     };
   }, [
     normalizeAvailableCableType,
+    objectById,
     recalc.aggressiveProduct,
     recalc.connectionType,
     recalc.heatingHeight,
@@ -175,7 +231,13 @@ export function useElecCalcCableSelectionMutationFlow({
       const expectedVariantIds = Object.fromEntries(
         targetsToUpdate.map((target) => [target.legacyVariantNumber, target.id]),
       );
-      const { effectiveCableType, options } = buildSelectionOptions(cableType);
+      const { effectiveCableType, options } = buildSelectionOptions(cableType, objectId);
+      if (effectiveCableType === 'self_regulating_tt') {
+        await persistTtOverrides({
+          objectId,
+          manualCableModel: { value: baseManualCableModel(mark) },
+        });
+      }
       const calculations = await selectCableForVariants(
         objectId,
         mark,
@@ -193,7 +255,7 @@ export function useElecCalcCableSelectionMutationFlow({
       const targetLabel = electricalVariantNamesLabel(variables.targetVariants);
       message.success(`Кабель выбран, расчёт обновлён${targetLabel ? `: ${targetLabel}` : ''}`);
     },
-    onError: (e: Error) => message.error(e.message),
+    onError: (error) => message.error(electricalAssignmentOverrideErrorMessage(error)),
   });
 
   const autoCableMut = useMutation({
@@ -208,7 +270,13 @@ export function useElecCalcCableSelectionMutationFlow({
       const expectedVariantIds = Object.fromEntries(
         targetsToUpdate.map((target) => [target.legacyVariantNumber, target.id]),
       );
-      const { effectiveCableType, options } = buildSelectionOptions(cableType);
+      const { effectiveCableType, options } = buildSelectionOptions(cableType, objectId);
+      if (effectiveCableType === 'self_regulating_tt') {
+        await persistTtOverrides({
+          objectId,
+          manualCableModel: { value: null },
+        });
+      }
       const calculations = await selectCableForVariants(
         objectId,
         null,
@@ -226,7 +294,7 @@ export function useElecCalcCableSelectionMutationFlow({
       const targetLabel = electricalVariantNamesLabel(variables.targetVariants);
       message.success(`Автоподбор выполнен${targetLabel ? `: ${targetLabel}` : ''}`);
     },
-    onError: (e: Error) => message.error(e.message),
+    onError: (error) => message.error(electricalAssignmentOverrideErrorMessage(error)),
   });
 
   const electricalLayoutMut = useMutation({
@@ -239,10 +307,16 @@ export function useElecCalcCableSelectionMutationFlow({
       numberOfThreads,
     }: ElectricalLayoutMutationArgs) => {
       requireCableMutation(canMutate);
-      const { effectiveCableType, options } = buildSelectionOptions(cableType, {
+      const { effectiveCableType, options } = buildSelectionOptions(cableType, objectId, {
         windingPitchMm,
         numberOfThreads,
       });
+      if (effectiveCableType === 'self_regulating_tt') {
+        await persistTtOverrides({
+          objectId,
+          layout: { windingPitchMm, numberOfThreads },
+        });
+      }
       return selectCableForVariants(
         objectId,
         cableMark,
@@ -258,7 +332,7 @@ export function useElecCalcCableSelectionMutationFlow({
       invalidateElectricalSidecars([currentTarget]);
       message.success('Параметры укладки сохранены, расчёт обновлён');
     },
-    onError: (e: Error) => message.error(e.message),
+    onError: (error) => message.error(electricalAssignmentOverrideErrorMessage(error)),
   });
 
   const applyCableMarkModal = useCallback(() => {
