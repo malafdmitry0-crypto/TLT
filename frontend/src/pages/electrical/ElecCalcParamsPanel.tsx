@@ -88,38 +88,15 @@ function ElecCalcParamsPanel({
 
       <div className="form-col-srs">
         <h4 data-step={2}><span>Расчётные входы</span></h4>
-        {!isTt && row('Напряжение питания U, В', (
-          <TltNumberField
-            aria-label="Напряжение питания"
-            disabled
-            readOnly
-            min={1}
-            value={recalc.supplyVoltage ?? 230}
-            className="workflow-params-input"
-          />
-        ))}
+        <Text className="workflow-params-hint">
+          Tокр, Tпрод и коэффициент запаса K берутся из исходных данных
+          Heat каждого объекта.
+        </Text>
         {isTt && (
-          <>
-            {row('Напряжение питания U, В', (
-              <TltNumberField
-                aria-label="Напряжение питания"
-                disabled={disabled}
-                min={1}
-                value={recalc.supplyVoltage}
-                onChange={setRecalc.supplyVoltage}
-                className="workflow-params-input"
-              />
-            ))}
-            <Text className="workflow-params-hint">
-              Tокр, Tпрод и коэффициент запаса K берутся из исходных данных
-              Heat каждого объекта. Напряжение применяется после выбора марки —
-              для тока и секционирования.
-            </Text>
-            <Text className="workflow-params-hint">
-              Критерий подбора: Технический минимум. Коммерческие критерии
-              применяются отдельно только при наличии данных.
-            </Text>
-          </>
+          <Text className="workflow-params-hint">
+            Критерий подбора: Технический минимум. Коммерческие критерии
+            применяются отдельно только при наличии данных.
+          </Text>
         )}
       </div>
 

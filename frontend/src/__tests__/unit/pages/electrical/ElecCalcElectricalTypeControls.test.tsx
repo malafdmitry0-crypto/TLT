@@ -37,31 +37,27 @@ describe('ElecCalcElectricalTypeControls', () => {
     expect(empty.container).toBeEmptyDOMElement();
   });
 
-  it('renders supply voltage as read-only 230 for self-regulating (E1 / FE-28)', () => {
-    const { setRecalc } = setup({ cableType: 'self_regulating' });
+  it('renders nothing for self-regulating: U is a constant with no control', () => {
+    const { container, setRecalc } = setup({ cableType: 'self_regulating' });
 
-    const voltage = screen.getByLabelText('Напряжение питания');
-    expect(voltage).toBeInTheDocument();
-    expect(screen.getByText('U, В:')).toBeInTheDocument();
-    expect(voltage).toBeDisabled();
+    expect(container).toBeEmptyDOMElement();
     expect(setRecalc.supplyVoltage).not.toHaveBeenCalled();
   });
 
-  it('renders editable downstream voltage and tank layout without legacy T2/T3/R controls', async () => {
+  it('renders tank layout without a U control and without legacy T2/T3/R controls', async () => {
     const { setRecalc } = setup();
 
-    const voltage = screen.getByLabelText('Напряжение питания');
-    expect(voltage).toBeEnabled();
-    expect(voltage).toHaveValue('230');
+    expect(screen.queryByLabelText('Напряжение питания')).not.toBeInTheDocument();
+    expect(screen.queryByText('U, В:')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('T пропарки')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('T3 поддержания')).not.toBeInTheDocument();
     expect(screen.queryByRole('checkbox', { name: 'агр.' })).not.toBeInTheDocument();
     expect(screen.getByLabelText('Высота обогрева резервуара')).toBeInTheDocument();
     expect(screen.getByLabelText('Шаг укладки резервуара')).toHaveValue('');
 
-    await userEvent.clear(voltage);
-    await userEvent.type(voltage, '380');
-    expect(setRecalc.supplyVoltage).toHaveBeenLastCalledWith(380);
+    await userEvent.type(screen.getByLabelText('Высота обогрева резервуара'), '3');
+    expect(setRecalc.heatingHeight).toHaveBeenLastCalledWith(3);
+    expect(setRecalc.supplyVoltage).not.toHaveBeenCalled();
   });
 
   it('renders resistive controls and preserves block wrapper', () => {
@@ -74,7 +70,7 @@ describe('ElecCalcElectricalTypeControls', () => {
     const connection = screen.getAllByLabelText('Схема подключения')[0];
     expect(connection).toBeInTheDocument();
     expect(connection).toHaveTextContent('Линия');
-    expect(screen.getByText('U:')).toBeInTheDocument();
+    expect(screen.queryByText('U:')).not.toBeInTheDocument();
     expect(screen.getByText('w:')).toBeInTheDocument();
     expect(screen.getByText('h:')).toBeInTheDocument();
     expect(screen.getByText('шаг:')).toBeInTheDocument();

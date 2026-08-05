@@ -176,19 +176,17 @@ test.describe('4.4 Электротехнический расчёт', () => {
     await assignObjectToFirstEr(page, pipe.id);
     await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('tab', { name: /Самрег 1 объект/i })).toBeVisible();
-    const supplyVoltage = page
-      .locator('input[role="spinbutton"][aria-label="Напряжение питания"]:not([disabled])')
-      .first();
-    await expect(supplyVoltage).toHaveValue('230');
-    await supplyVoltage.fill('380');
-    await expect(supplyVoltage).toHaveValue('380');
+    // U — системная константа: контрола в UI нет, в payload всегда 230 В
+    await expect(
+      page.locator('input[role="spinbutton"][aria-label="Напряжение питания"]'),
+    ).toHaveCount(0);
 
     const batchRequestPromise = page.waitForRequest((request) =>
       request.method() === 'POST' && request.url().includes('/api/v1/calc/electrical/batch/jobs'),
     );
     await recalculateCurrentEr(page);
     const batchPayload = (await batchRequestPromise).postDataJSON() as Record<string, unknown>;
-    expect(batchPayload).toEqual(expect.objectContaining({ supply_voltage: 380 }));
+    expect(batchPayload).toEqual(expect.objectContaining({ supply_voltage: 230 }));
     expect(batchPayload).not.toHaveProperty('nominal_voltage_v');
 
     await expect(
@@ -203,10 +201,10 @@ test.describe('4.4 Электротехнический расчёт', () => {
     expect(Number(resolvedInputs.product_temperature_c)).toBe(80);
     expect(Number(resolvedInputs.ambient_temperature_c)).toBe(-30);
     expect(Number(resolvedInputs.cold_start_temperature_c)).toBe(-30);
-    expect(Number(resolvedInputs.nominal_voltage_v)).toBe(380);
-    expect(Number(calc.results?.voltage)).toBe(380);
+    expect(Number(resolvedInputs.nominal_voltage_v)).toBe(230);
+    expect(Number(calc.results?.voltage)).toBe(230);
     expect(Number(calc.results?.current)).toBeCloseTo(
-      Number(calc.results?.total_power) / 380,
+      Number(calc.results?.total_power) / 230,
       3,
     );
     for (const key of ['steam_temperature_c', 'maintain_temperature_c', 'aggressive_product']) {

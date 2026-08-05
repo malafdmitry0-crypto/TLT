@@ -28,17 +28,17 @@ function makeSettings(
 }
 
 describe('ElecCalcIdopSettings', () => {
-  it('shows missing Iдоп banner and form when idop is not set', () => {
+  it('shows the form without a duplicate missing-Iдоп banner when idop is not set', () => {
     render(<ElecCalcIdopSettings settings={makeSettings()} />);
 
     expect(screen.getByTestId('elec-idop-settings')).toBeInTheDocument();
-    expect(screen.getByText('Iдоп не задан')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Задать Iдоп' })).toBeInTheDocument();
+    expect(screen.queryByText('Iдоп не задан')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Задать Iдоп' })).not.toBeInTheDocument();
     expect(screen.getByTestId('elec-idop-input')).toBeInTheDocument();
     expect(screen.getByTestId('elec-idop-save')).toBeDisabled();
   });
 
-  it('hides missing banner when Iдоп is saved and enables save when dirty', async () => {
+  it('enables save when Iдоп is dirty', async () => {
     const user = userEvent.setup();
     const onDraftChange = vi.fn();
     const save = vi.fn();
@@ -62,13 +62,28 @@ describe('ElecCalcIdopSettings', () => {
     expect(save).toHaveBeenCalled();
   });
 
+  it('keeps the settings load error and retry action', async () => {
+    const user = userEvent.setup();
+    const refetch = vi.fn();
+
+    render(
+      <ElecCalcIdopSettings
+        settings={makeSettings({ isError: true, refetch })}
+      />,
+    );
+
+    expect(screen.getByText('Не удалось загрузить электрические настройки')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Повторить' }));
+    expect(refetch).toHaveBeenCalledOnce();
+  });
+
   it('does not show save when view-only', () => {
     render(
       <ElecCalcIdopSettings
         settings={makeSettings({ canMutate: false, idopMissing: true })}
       />,
     );
-    expect(screen.getByText('Iдоп не задан')).toBeInTheDocument();
+    expect(screen.queryByText('Iдоп не задан')).not.toBeInTheDocument();
     expect(screen.queryByTestId('elec-idop-save')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Задать Iдоп' })).not.toBeInTheDocument();
   });

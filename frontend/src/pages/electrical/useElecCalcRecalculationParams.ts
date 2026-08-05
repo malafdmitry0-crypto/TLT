@@ -4,8 +4,10 @@ import type { SelectionPolicy } from '@/api/calculations';
 
 export function useElecCalcRecalculationParams() {
   const [selectionPolicy, setSelectionPolicy] = useState<SelectionPolicy>('technical_minimum');
-  // Case 1: 230 V is the initial value, but the user may change U. TT cable
-  // eligibility ignores U; the chosen value is used downstream for I/sections.
+  // Case 1: U is a system constant (project setting is CHECK-constrained to
+  // 230 V and import rejects anything else), so there is no UI control for it.
+  // The value still travels in the payload: TT eligibility ignores U, but
+  // downstream I/sections use it.
   const [supplyVoltage, setSupplyVoltage] = useState<number | null>(230);
   const [connectionType, setConnectionType] = useState<string>('line_1ph');
   const [windingCoefficient, setWindingCoefficient] = useState<number | null>(1);

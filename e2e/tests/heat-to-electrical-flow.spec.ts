@@ -166,9 +166,10 @@ test.describe('сквозной расчёт: теплопотери → эле�
     await assignToSelfRegulating(page, variantId, pipe.id);
     await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('tab', { name: /Самрег 1 объект/i })).toBeVisible();
+    // U — системная константа: контрола в UI нет, 230 В уходит в payload ниже
     await expect(
-      page.getByRole('spinbutton', { name: 'Напряжение питания' }).first(),
-    ).toHaveValue('230');
+      page.getByRole('spinbutton', { name: 'Напряжение питания' }),
+    ).toHaveCount(0);
 
     const batchRequestPromise = page.waitForRequest((request) =>
       request.method() === 'POST' && request.url().includes('/api/v1/calc/electrical/batch/jobs'),

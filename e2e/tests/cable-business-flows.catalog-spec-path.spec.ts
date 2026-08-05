@@ -171,7 +171,8 @@ test.describe('business flow: cable layout controls — catalog-spec-path', () =
 
     await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
     await selectCableType(page, 'Саморегулирующийся', 'Трёхж. пост. мощн.');
-    await expect(page.getByText('U:')).toBeVisible();
+    // U — системная константа 230 В, контрола для неё нет ни в одной ветке
+    await expect(page.getByText('U:')).toHaveCount(0);
     await expect(page.getByText('w:')).toBeVisible();
     await expect(page.getByText('h:')).toBeVisible();
 

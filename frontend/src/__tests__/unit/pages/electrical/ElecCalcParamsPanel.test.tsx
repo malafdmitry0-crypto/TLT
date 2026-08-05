@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import ElecCalcParamsPanel from '@/pages/electrical/ElecCalcParamsPanel';
 
 describe('ElecCalcParamsPanel — Case 1 TT inputs', () => {
-  it('shows downstream U and object-source guidance without legacy T2/T3/R', async () => {
+  it('shows object-source guidance without a U control and without legacy T2/T3/R', async () => {
     const setRecalc = {
       connectionType: vi.fn(),
       heatingHeight: vi.fn(),
@@ -30,11 +30,14 @@ describe('ElecCalcParamsPanel — Case 1 TT inputs', () => {
       />,
     );
 
-    const voltage = screen.getByLabelText('Напряжение питания');
-    expect(voltage).toBeEnabled();
-    await userEvent.clear(voltage);
-    await userEvent.type(voltage, '380');
-    expect(setRecalc.supplyVoltage).toHaveBeenLastCalledWith(380);
+    expect(screen.queryByLabelText('Напряжение питания')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Напряжение питания U, В/)).not.toBeInTheDocument();
+
+    const height = screen.getByLabelText('Высота обогрева резервуара');
+    await userEvent.clear(height);
+    await userEvent.type(height, '3');
+    expect(setRecalc.heatingHeight).toHaveBeenLastCalledWith(3);
+    expect(setRecalc.supplyVoltage).not.toHaveBeenCalled();
 
     expect(screen.getByText(/Tокр, Tпрод и коэффициент запаса K/)).toHaveTextContent(
       'берутся из исходных данных Heat каждого объекта',

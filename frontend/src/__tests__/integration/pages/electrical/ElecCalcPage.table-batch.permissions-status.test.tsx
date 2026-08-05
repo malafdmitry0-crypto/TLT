@@ -53,12 +53,15 @@ describe('ElecCalcPage table / batch — permissions-status', () => {
       || (el as HTMLButtonElement | HTMLInputElement).disabled === true;
     const cableTypeForRecalc = screen.getAllByLabelText('Тип кабеля для пересчёта')[0];
     expect(isTltSelectDisabled(cableTypeForRecalc)).toBeTruthy();
-    expect(screen.getAllByLabelText('Напряжение питания')[0]).toBeDisabled();
+    // U больше не контрол — проверяем блокировку на оставшихся полях укладки
+    expect(screen.queryByLabelText('Напряжение питания')).not.toBeInTheDocument();
+    expect(screen.getAllByLabelText('Высота обогрева резервуара')[0]).toBeDisabled();
 
     await user.click(screen.getByRole('checkbox', { name: 'Расширенные параметры' }));
     const cableTypeWide = screen.getAllByLabelText('Тип кабеля')[0];
     expect(isTltSelectDisabled(cableTypeWide)).toBeTruthy();
-    expect(screen.getAllByLabelText('Напряжение питания')[0]).toBeDisabled();
+    expect(screen.queryByLabelText('Напряжение питания')).not.toBeInTheDocument();
+    expect(screen.getAllByLabelText('Высота обогрева резервуара')[0]).toBeDisabled();
 
     await user.click(screen.getByText('Труба-1'));
     expect(await screen.findByRole('button', { name: 'Выбор' })).toBeDisabled();

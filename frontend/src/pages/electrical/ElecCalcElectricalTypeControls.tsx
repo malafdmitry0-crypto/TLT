@@ -35,38 +35,15 @@ function ElecCalcElectricalTypeControls({
   const wrap = (content: ReactNode) =>
     block ? <div className="electrical-type-controls">{content}</div> : content;
 
-  // Transitional non-TT controls retain their existing read-only voltage.
-  // The active Case 1 TT branch below exposes editable downstream U.
-  const voltageControl = (
-    <>
-      <Text className="electrical-params-label">U, В:</Text>
-      <TltNumberField
-        aria-label="Напряжение питания"
-        disabled
-        readOnly
-        min={1}
-        value={recalc.supplyVoltage ?? 230}
-        className="electrical-type-control electrical-type-control--w76"
-      />
-    </>
-  );
-
+  // U is a system constant (230 V, CHECK-constrained project setting) — no
+  // control is rendered for it in any branch.
   if (cableType === 'self_regulating') {
-    return wrap(voltageControl);
+    return null;
   }
 
   if (cableType === 'self_regulating_tt') {
     return wrap(
       <>
-        <Text className="electrical-params-label">U, В:</Text>
-        <TltNumberField
-          aria-label="Напряжение питания"
-          disabled={disabled}
-          min={1}
-          value={recalc.supplyVoltage}
-          onChange={setRecalc.supplyVoltage}
-          className="electrical-type-control electrical-type-control--w76"
-        />
         <Text className="electrical-params-label">h рез., м:</Text>
         <TltNumberField
           aria-label="Высота обогрева резервуара"
@@ -106,15 +83,6 @@ function ElecCalcElectricalTypeControls({
           }}
           options={connectionOptions}
           className="electrical-type-control electrical-type-control--w118"
-        />
-        <Text className="electrical-params-label">U:</Text>
-        <TltNumberField
-          disabled
-          readOnly
-          min={1}
-          value={recalc.supplyVoltage ?? 230}
-          className="electrical-type-control electrical-type-control--w76"
-          aria-label="Напряжение"
         />
         <Text className="electrical-params-label">w:</Text>
         <TltNumberField

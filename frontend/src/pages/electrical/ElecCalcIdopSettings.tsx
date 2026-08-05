@@ -8,7 +8,7 @@ import './ElecCalcIdopSettings.css';
 
 export type ElecCalcIdopSettingsProps = {
   settings: ProjectElectricalSettingsController;
-  /** Scroll/focus target for empty-state CTA */
+  /** Stable id base for the settings form and its input. */
   formId?: string;
 };
 
@@ -24,10 +24,8 @@ export function ElecCalcIdopSettings({
     onDraftChange,
     save,
     saving,
-    idopMissing,
     isDirty,
     canMutate,
-    nominalVoltage,
   } = settings;
 
   return (
@@ -36,29 +34,6 @@ export function ElecCalcIdopSettings({
       className="elec-idop-settings"
       data-testid="elec-idop-settings"
     >
-      {idopMissing && (
-        <TltAlert
-          tone="warning"
-          className="electrical-alert-gap"
-          title="Iдоп не задан"
-          action={canMutate ? (
-            <TltButton
-              size="compact"
-              variant="primary"
-              onClick={() => {
-                document.getElementById(`${formId}-input`)?.focus();
-              }}
-            >
-              Задать Iдоп
-            </TltButton>
-          ) : undefined}
-        >
-          Без допустимого стартового тока секции (Iдоп) система не может
-          рассчитать нагревательные секции. Укажите значение в амперах (настройка проекта)
-          и сохраните, затем назначьте Самрег или пересчитайте.
-        </TltAlert>
-      )}
-
       {isError && (
         <TltAlert
           tone="danger"
@@ -79,18 +54,6 @@ export function ElecCalcIdopSettings({
         data-testid="elec-idop-settings-form"
       >
         <div className="elec-idop-settings__fields">
-          <div className="elec-idop-settings__field">
-            <span className="workflow-params-label elec-idop-settings__label">
-              U, В (норматив)
-            </span>
-            <TltNumberField
-              aria-label="Напряжение питания"
-              disabled
-              readOnly
-              value={nominalVoltage}
-              className="electrical-type-control electrical-type-control--w76"
-            />
-          </div>
           <div className="elec-idop-settings__field">
             <span className="workflow-params-label elec-idop-settings__label">
               Допустимый стартовый ток секции Iдоп, А
