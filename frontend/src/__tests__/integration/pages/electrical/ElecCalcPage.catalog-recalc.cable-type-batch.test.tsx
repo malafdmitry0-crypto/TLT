@@ -35,11 +35,9 @@ describe('ElecCalcPage catalog / recalculation / selection — cable type batch'
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText(/Тип для пересчёта/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Пересчитать все · ЭР1/i })).toBeInTheDocument();
       expect(screen.getByText('Труба-1')).toBeInTheDocument();
     });
-    // TltSelect: selected value appears in trigger (and possibly list/option nodes).
-    expect(screen.getAllByText('ТТН/ТТВ/ТТХ').length).toBeGreaterThan(0);
     expect(getCablesTt).not.toHaveBeenCalled();
     expect(getResistiveCables).not.toHaveBeenCalled();
 
@@ -62,23 +60,19 @@ describe('ElecCalcPage catalog / recalculation / selection — cable type batch'
     });
   });
 
-  it('селектор типа кабеля оставляет доступным только подтверждённый ТТ-каталог', async () => {
+  it('не даёт выбирать тип кабеля в панели — система задаётся вкладкой распределения', async () => {
     const { getElectricalPage } = await import('@/api/calculations');
     (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage([makeObject()]));
     useProjectStore.getState().setCurrentProject(mockProject);
     renderPage();
     await waitFor(() => {
-      expect(screen.getByText(/Тип для пересчёта/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Пересчитать все · ЭР1/i })).toBeInTheDocument();
       expect(screen.getByText('Труба-1')).toBeInTheDocument();
     });
     const rowCheckbox = document.querySelector('tbody .ant-checkbox-input') as HTMLInputElement;
     fireEvent.click(rowCheckbox);
-    // TltSelect trigger (react-aria button), not ant-select-selector.
-    const selectors = document.querySelectorAll('.tlt-select__trigger, .tlt-select__value');
-    const cableTypeSelect = Array.from(selectors).find((el) =>
-      el.textContent?.includes('ТТН/ТТВ/ТТХ')
-    ) ?? screen.queryByRole('button', { name: /Тип кабеля для пересчёта/i });
-    expect(cableTypeSelect).toBeTruthy();
+    expect(screen.queryByLabelText('Тип кабеля для пересчёта')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Тип для пересчёта/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Однож. пост. мощн./i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Трёхж. пост. мощн./i)).not.toBeInTheDocument();
   });
@@ -105,10 +99,9 @@ describe('ElecCalcPage catalog / recalculation / selection — cable type batch'
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText(/Тип для пересчёта/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Пересчитать все · ЭР1/i })).toBeInTheDocument();
       expect(screen.getByText('Труба-1')).toBeInTheDocument();
     });
-    expect(screen.getAllByText('ТТН/ТТВ/ТТХ').length).toBeGreaterThan(0);
     expect(screen.queryByLabelText('T3 поддержания')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /Пересчитать все · ЭР1/i }));
     await user.click(await screen.findByRole('button', { name: /Да, пересчитать все/i }));

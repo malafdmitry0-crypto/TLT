@@ -217,17 +217,16 @@ describe('ElecCalcPage cable metadata / source / inline — source-inline-batch'
     const user = (await import('@testing-library/user-event')).default.setup();
     renderPage();
 
+    const recalcAll = () => screen.getByRole('button', { name: /Пересчитать все · ЭР1/i });
     await waitFor(() => {
-      expect(screen.getByText(/Тип для пересчёта/i)).toBeInTheDocument();
+      expect(recalcAll()).toBeInTheDocument();
       expect(screen.getByText('Труба-1')).toBeInTheDocument();
     });
     const rowCheckbox = document.querySelector('tbody .ant-checkbox-input') as HTMLInputElement;
     fireEvent.click(rowCheckbox);
     await waitFor(() => {
-      expect(screen.getByText(/Тип для пересчёта/i)).toBeInTheDocument();
+      expect(recalcAll()).toBeInTheDocument();
     });
-    // TltSelect shows selected value in trigger and may mirror label text elsewhere.
-    expect(screen.getAllByText('ТТН/ТТВ/ТТХ').length).toBeGreaterThan(0);
     expect(screen.queryByLabelText('T3 поддержания')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /Пересчитать все · ЭР1/i }));
     await user.click(await screen.findByRole('button', { name: /Да, пересчитать все/i }));

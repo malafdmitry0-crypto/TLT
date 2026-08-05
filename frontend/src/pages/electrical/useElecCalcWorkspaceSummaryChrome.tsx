@@ -10,7 +10,6 @@ import {
   buildElecCalcSummaryViewModel,
 } from '@/pages/electrical/elecCalcSummaryModel';
 import {
-  ELEC_CALC_CABLE_TYPE_CONTROL_LABEL,
   resolveActiveJobStatus,
   resolveTotalObjectsCount,
 } from '@/pages/electrical/elecCalcWorkspaceSummaryChromeModel';
@@ -148,6 +147,5 @@ export function useElecCalcWorkspaceSummaryChrome({
     onRecalculateAll,
     onRecalculateObjectIds,
     onCancelJob,
-    cableTypeControlLabel: ELEC_CALC_CABLE_TYPE_CONTROL_LABEL,
   };
 }

@@ -4,9 +4,8 @@ import {
   Space,
   Tooltip,
   Typography,
-  type SelectProps,
 } from 'antd';
-import { TltButton, TltSelect } from '@/components/ui-kit';
+import { TltButton } from '@/components/ui-kit';
 import {
   CloseCircleOutlined,
   ReloadOutlined,
@@ -24,9 +23,6 @@ const { Text } = Typography;
 interface ElectricalBatchActionBarProps {
   canMutate: boolean;
   variantName: string;
-  cableTypeControlLabel: string;
-  cableTypeOptions: SelectProps<CableTypeKey>['options'];
-  visibleCableTypeControl?: CableTypeKey | null;
   typeControls: ReactNode;
   isJobActive: boolean;
   selectedManualCableCount: number;
@@ -44,7 +40,6 @@ interface ElectricalBatchActionBarProps {
   cancelJobPending: boolean;
   currentTableViewActive: boolean;
   renderManualOverwriteControl: (manualCount: number) => ReactNode;
-  onCableTypeChange: (nextType: CableTypeKey) => void;
   onManualOverwritePromptOpen: () => void;
   onRecalculateSelected: (skipManual: boolean) => void;
   onRecalculateAll: (skipManual: boolean) => void;
@@ -56,9 +51,6 @@ interface ElectricalBatchActionBarProps {
 function ElectricalBatchActionBar({
   canMutate,
   variantName,
-  cableTypeControlLabel,
-  cableTypeOptions,
-  visibleCableTypeControl,
   typeControls,
   isJobActive,
   selectedManualCableCount,
@@ -76,7 +68,6 @@ function ElectricalBatchActionBar({
   cancelJobPending,
   currentTableViewActive,
   renderManualOverwriteControl,
-  onCableTypeChange,
   onManualOverwritePromptOpen,
   onRecalculateSelected,
   onRecalculateAll,
@@ -90,24 +81,8 @@ function ElectricalBatchActionBar({
 
   return (
     <div className="actionbar-srs electrical-actionbar">
+      {/* Тип кабеля выбирается вкладками распределения, не селектом. */}
       <div className="electrical-actionbar-row electrical-actionbar-row--setup">
-        <Text className="electrical-params-label">
-          {cableTypeControlLabel}
-        </Text>
-        <TltSelect
-          aria-label="Тип кабеля для пересчёта"
-          value={visibleCableTypeControl ?? undefined}
-          placeholder="Несколько типов"
-          disabled={!canMutate || isJobActive}
-          onChange={(value) => {
-            if (value != null) onCableTypeChange(value as CableTypeKey);
-          }}
-          options={(cableTypeOptions ?? []).map((option) => ({
-            value: option.value as string,
-            label: option.label ?? String(option.value),
-            disabled: option.disabled,
-          }))} className="tlt-field--w210"
-        />
         {typeControls}
       </div>
       <div className="electrical-actionbar-row electrical-actionbar-row--actions">

@@ -1,7 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import {
-  ELEC_CALC_CABLE_TYPE_CONTROL_LABEL,
   resolveActiveJobStatus,
   resolveTotalObjectsCount,
 } from '@/pages/electrical/elecCalcWorkspaceSummaryChromeModel';
@@ -30,11 +29,5 @@ describe('resolveTotalObjectsCount', () => {
   it('falls back to loaded objects length', () => {
     expect(resolveTotalObjectsCount(null, 7)).toBe(7);
     expect(resolveTotalObjectsCount(undefined, 0)).toBe(0);
-  });
-});
-
-describe('ELEC_CALC_CABLE_TYPE_CONTROL_LABEL', () => {
-  it('keeps the toolbar label stable', () => {
-    expect(ELEC_CALC_CABLE_TYPE_CONTROL_LABEL).toBe('Тип для пересчёта:');
   });
 });

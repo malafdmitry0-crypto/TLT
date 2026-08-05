@@ -13,9 +13,6 @@ function makeProps(
   return {
     canMutate: true,
     variantName: 'Основное ЭР',
-    cableTypeControlLabel: 'Тип для пересчёта:',
-    cableTypeOptions: [{ value: 'self_regulating' as const, label: 'Саморегулирующийся' }],
-    visibleCableTypeControl: 'self_regulating' as const,
     typeControls: null,
     isJobActive: false,
     selectedManualCableCount: 0,
@@ -38,7 +35,6 @@ function makeProps(
         <input type="checkbox" aria-label="Перезаписать ручные выборы" />
       </label>
     )),
-    onCableTypeChange: vi.fn(),
     onManualOverwritePromptOpen: vi.fn(),
     onRecalculateSelected: vi.fn(),
     onRecalculateAll: vi.fn(),
@@ -54,13 +50,15 @@ describe('ElectricalBatchActionBar', () => {
     vi.clearAllMocks();
   });
 
-  it('does not render lifecycle tabs or copy controls inside the calculation action bar', () => {
+  it('does not render lifecycle tabs, copy controls or a cable-type select inside the action bar', () => {
     const props = makeProps();
 
     render(<ElectricalBatchActionBar {...props} />);
 
     expect(screen.queryByRole('tab')).not.toBeInTheDocument();
     expect(screen.queryByText('Создать на основании')).not.toBeInTheDocument();
+    expect(screen.queryByText('Тип для пересчёта:')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Тип кабеля для пересчёта')).not.toBeInTheDocument();
     expect(props.onRecalculateSelected).not.toHaveBeenCalled();
     expect(props.onRecalculateAll).not.toHaveBeenCalled();
   });

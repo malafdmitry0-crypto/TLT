@@ -15,7 +15,6 @@ import type { useElecCalcColumnPersistence } from '@/pages/electrical/useElecCal
 import type { useElecCalcColumnSettingsDraftState } from '@/pages/electrical/useElecCalcColumnSettingsDraftState';
 import type { useElecCalcColumnViewModel } from '@/pages/electrical/useElecCalcColumnViewModel';
 import type { useElecCalcMainTableController } from '@/pages/electrical/useElecCalcMainTableController';
-import type { useElecCalcParamsPanelState } from '@/pages/electrical/useElecCalcParamsPanelState';
 import type { useElecCalcPreferenceSettings } from '@/pages/electrical/useElecCalcPreferenceSettings';
 import type { useElecCalcRecalculationParams } from '@/pages/electrical/useElecCalcRecalculationParams';
 import type { useElecCalcTableViewState } from '@/pages/electrical/useElecCalcTableViewState';
@@ -81,8 +80,6 @@ export type WorkspacePresentationSettings = {
   setColumnSettingsOpen: Dispatch<SetStateAction<boolean>>;
   updateTableColumnPreference: PreferenceSettings['updateTableColumnPreference'];
   updateTableSettingsPreference: PreferenceSettings['updateTableSettingsPreference'];
-  paramsPanelVisible: boolean;
-  toggleParamsPanel: ReturnType<typeof useElecCalcParamsPanelState>['toggleParamsPanel'];
 };
 
 export type CoreTablePresentationSource = {
@@ -107,7 +104,6 @@ export function mapCoreTableToPresentation(source: CoreTablePresentationSource) 
     activeElectricalErrorItem: table.summary.activeElectricalErrorItem,
     applyElectricalGlideColumnDraftWidth:
       settings.columnPersistence.applyElectricalGlideColumnDraftWidth,
-    cableTypeControlLabel: table.summary.cableTypeControlLabel,
     cableTypeOptions: catalog.cableTypeOptionsState.cableTypeOptions,
     calculatedCount: table.summary.calculatedCount,
     commitElectricalGlideColumnWidth:
@@ -142,7 +138,6 @@ export function mapCoreTableToPresentation(source: CoreTablePresentationSource) 
     onRecalculateSelected: table.summary.onRecalculateSelected,
     openColumnSettings: settings.columnDraft.openColumnSettings,
     overwriteManualChoices: catalog.overwriteManualChoices,
-    paramsPanelVisible: settings.paramsPanelVisible,
     recalc: catalog.recalc,
     renderManualOverwriteControl: table.summary.renderManualOverwriteControl,
     resetColumnFilter: table.resetColumnFilter,
@@ -164,7 +159,6 @@ export function mapCoreTableToPresentation(source: CoreTablePresentationSource) 
     tableDragging: table.tableDragging,
     tableScrollRegionsRef: table.tableScrollRegionsRef,
     tableViewState: table.tableViewState,
-    toggleParamsPanel: settings.toggleParamsPanel,
     totalCableLength: table.summary.totalCableLength,
     totalCurrent: table.summary.totalCurrent,
     totalObjects: table.summary.totalObjects,

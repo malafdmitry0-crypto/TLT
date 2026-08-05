@@ -41,27 +41,18 @@ describe('ElecCalcPage table / batch — permissions-status', () => {
     expect(screen.getByRole('button', { name: /Пересчитать выбранные \(0\)/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /Пересчитать все · ЭР1/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Настройки' })).not.toBeDisabled();
-    // Default: wide params panel off — compact controls in action bar.
-    // TltSelect (Ant): aria-label on root + combobox; disabled via data-disabled / ant-select-disabled.
-    const isTltSelectDisabled = (el: HTMLElement) =>
-      el.getAttribute('data-disabled') === 'true'
-      || el.getAttribute('aria-disabled') === 'true'
-      || el.classList.contains('ant-select-disabled')
-      || el.closest('.ant-select')?.classList.contains('ant-select-disabled') === true
-      || el.closest('[data-disabled="true"]') != null
-      || el.hasAttribute('disabled')
-      || (el as HTMLButtonElement | HTMLInputElement).disabled === true;
-    const cableTypeForRecalc = screen.getAllByLabelText('Тип кабеля для пересчёта')[0];
-    expect(isTltSelectDisabled(cableTypeForRecalc)).toBeTruthy();
+    // Recalculation inputs live only in the compact action bar.
+    // Селекта типа кабеля в панели нет — система задаётся вкладкой распределения
+    expect(screen.queryByLabelText('Тип кабеля для пересчёта')).not.toBeInTheDocument();
     // U больше не контрол — проверяем блокировку на оставшихся полях укладки
     expect(screen.queryByLabelText('Напряжение питания')).not.toBeInTheDocument();
     expect(screen.getAllByLabelText('Высота обогрева резервуара')[0]).toBeDisabled();
-
-    await user.click(screen.getByRole('checkbox', { name: 'Расширенные параметры' }));
-    const cableTypeWide = screen.getAllByLabelText('Тип кабеля')[0];
-    expect(isTltSelectDisabled(cableTypeWide)).toBeTruthy();
-    expect(screen.queryByLabelText('Напряжение питания')).not.toBeInTheDocument();
-    expect(screen.getAllByLabelText('Высота обогрева резервуара')[0]).toBeDisabled();
+    expect(screen.queryByRole('checkbox', { name: 'Расширенные параметры' }))
+      .not.toBeInTheDocument();
+    expect(screen.queryByTestId('eleccalc-params-panel')).not.toBeInTheDocument();
+    expect(screen.queryByText('Кабель и схема подключения')).not.toBeInTheDocument();
+    expect(screen.queryByText('Расчётные входы')).not.toBeInTheDocument();
+    expect(screen.queryByText('Укладка кабеля')).not.toBeInTheDocument();
 
     await user.click(screen.getByText('Труба-1'));
     expect(await screen.findByRole('button', { name: 'Выбор' })).toBeDisabled();

@@ -114,14 +114,6 @@ export function ElecCalcWorkspace(props: ElecCalcWorkspaceProps) {
           />
 
           <ElecCalcWorkspaceParamsChrome
-            canMutate={canMutate}
-            paramsPanelVisible={m.paramsPanelVisible}
-            toggleParamsPanel={m.toggleParamsPanel}
-            visibleCableTypeControl={m.cableTypes.visibleCableTypeControl}
-            cableTypeOptions={m.cableTypeOptions}
-            onCableTypeChange={m.handleCableTypeControlChange}
-            recalc={m.recalc}
-            setRecalc={m.setRecalc}
             failedCount={m.failedCount}
             activeRowId={m.activeRowId}
             activeElectricalErrorItem={m.activeElectricalErrorItem}
@@ -137,10 +129,7 @@ export function ElecCalcWorkspace(props: ElecCalcWorkspaceProps) {
           <ElectricalBatchActionBar
             canMutate={canMutate}
             variantName={m.electricalVariantName}
-            cableTypeControlLabel={m.cableTypeControlLabel}
-            cableTypeOptions={m.cableTypeOptions}
-            visibleCableTypeControl={m.cableTypes.visibleCableTypeControl}
-            typeControls={m.paramsPanelVisible ? null : m.defaultElectricalTypeControls}
+            typeControls={m.defaultElectricalTypeControls}
             isJobActive={m.isJobActive}
             selectedManualCableCount={m.selectedManualCableCount}
             selectedValidObjectsCount={m.selectedValidObjectsCount}
@@ -157,7 +146,6 @@ export function ElecCalcWorkspace(props: ElecCalcWorkspaceProps) {
             cancelJobPending={m.cancelJobMut.isPending}
             currentTableViewActive={m.currentTableViewActive}
             renderManualOverwriteControl={m.renderManualOverwriteControl}
-            onCableTypeChange={m.handleCableTypeControlChange}
             onManualOverwritePromptOpen={() => m.setOverwriteManualChoices(false)}
             onRecalculateSelected={m.onRecalculateSelected}
             onRecalculateAll={m.onRecalculateAll}

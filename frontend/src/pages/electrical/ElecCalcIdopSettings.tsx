@@ -84,10 +84,6 @@ export function ElecCalcIdopSettings({
             </TltButton>
           )}
         </div>
-        <p className="elec-idop-settings__hint">
-          Настройка проекта. Нужна для нарезки длины кабеля на секции (Lток = Iдоп / Iст.уд),
-          не для выбора марки ТТН/ТТВ/ТТХ.
-        </p>
       </div>
     </div>
   );

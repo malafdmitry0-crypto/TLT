@@ -30,5 +30,3 @@ export function resolveTotalObjectsCount(
 ): number {
   return pageTotalObjects ?? loadedObjectsCount;
 }
-
-export const ELEC_CALC_CABLE_TYPE_CONTROL_LABEL = 'Тип для пересчёта:';
