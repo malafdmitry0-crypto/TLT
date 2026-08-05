@@ -3959,7 +3959,7 @@ class CalculationService:
         object_id: UUID,
         variant_number: int = 1,
         electrical_variant_id: UUID | None = None,
-        cable_type: str = "self_regulating",
+        cable_type: str = "self_regulating_tt",
         cable_source: CableSource = "builtin",
         mode: str = "auto",
         cable_mark: str | None = None,
@@ -4420,7 +4420,7 @@ class CalculationService:
         cable_mark: str | None,
         cable_source: CableSource = "builtin",
         variant_numbers: list[int] | None = None,
-        cable_type: str = "self_regulating",
+        cable_type: str = "self_regulating_tt",
         electrical_params: dict[str, Any] | None = None,
         electrical_variant_ids: dict[int, UUID] | None = None,
     ) -> list[ElectricalCalculation]:
@@ -4459,7 +4459,7 @@ class CalculationService:
         cable_mark: str,
         cable_source: CableSource = "builtin",
         variant_number: int = 1,
-        cable_type: str = "self_regulating",
+        cable_type: str = "self_regulating_tt",
         electrical_params: dict[str, Any] | None = None,
         *,
         commit: bool = True,
@@ -4646,7 +4646,7 @@ class CalculationService:
         project_id: UUID,
         cable_source: CableSource = "builtin",
         variant_number: int = 1,
-        cable_type: str = "self_regulating",
+        cable_type: str = "self_regulating_tt",
         electrical_params: dict[str, Any] | None = None,
         skip_manual: bool = True,
         return_calcs: bool = True,
@@ -4973,7 +4973,7 @@ class CalculationService:
         obj: ProjectObject,
         error_message: str,
         variant_number: int = 1,
-        cable_type: str = "self_regulating",
+        cable_type: str = "self_regulating_tt",
     ) -> None:
         """Сохраняет или обновляет запись ElectricalCalculation с ошибкой."""
         await self._upsert_failed_electrical(

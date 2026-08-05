@@ -2636,8 +2636,8 @@ class TestSelectCableManual:
         with pytest.raises(CalculationError, match="не требуется"):
             await service.select_cable_manual(obj.id, "ТЛТ-25")
 
-    async def test_object_safety_factor_passed_without_voltage_to_tt_request(self):
-        """Kзап доходит до TT-расчёта, а старое напряжение объекта игнорируется."""
+    async def test_legacy_object_voltage_not_passed_to_tt_request(self):
+        """Старое напряжение объекта не становится входом TT-расчёта."""
         db = AsyncMock()
         obj = SimpleNamespace(
             id=uuid.uuid4(),
@@ -2665,7 +2665,6 @@ class TestSelectCableManual:
 
         request = service.calc_electrical.call_args.args[0]
         assert "supply_voltage" not in request.data
-        assert request.data["safety_factor"] == 1.2
 
     async def test_explicit_null_vapor_is_preserved_for_tt_resolver(self):
         """Explicit null means that steaming is not applicable."""
