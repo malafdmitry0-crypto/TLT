@@ -160,7 +160,8 @@ describe('ElectricalAssignmentPanel (system scope chrome)', () => {
     expect(screen.queryByRole('button', { name: 'Назначить: Резистив' })).not.toBeInTheDocument();
     // No dual assignment object grid
     expect(screen.queryByRole('columnheader', { name: 'Диагностика' })).not.toBeInTheDocument();
-    expect(screen.getByText(/только саморегулирующийся кабель/iu)).toBeInTheDocument();
+    expect(screen.queryByText(/только саморегулирующийся кабель/iu))
+      .not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Назначить Самрег выбранным' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Выбрать тип' })).toBeInTheDocument();
   });
@@ -240,7 +241,8 @@ describe('ElectricalAssignmentPanel (system scope chrome)', () => {
 
   it('disables mutation controls in read-only mode', async () => {
     renderPanel({ canMutate: false });
-    await screen.findByText('Режим просмотра');
+    await screen.findByTestId('electrical-assignment-panel');
+    expect(screen.queryByText('Режим просмотра')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Назначить: Самрег' })).toBeDisabled();
     expect(screen.queryByTestId('assignment-drop-zones')).not.toBeInTheDocument();
   });

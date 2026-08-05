@@ -156,7 +156,9 @@ describe('ElectricalVariantTabs — delete-limits-feedback', () => {
   it('keeps lifecycle controls read-only for a non-owner', () => {
     renderTabs(controller(), false);
 
-    expect(screen.getByText('Режим просмотра')).toBeInTheDocument();
+    expect(screen.getByText('Режим просмотра').tagName).toBe('SMALL');
+    expect(screen.queryByText(/Изменять ЭР может только владелец проекта/i))
+      .not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Добавить пустой ЭР' })).toBeDisabled();
     expect(screen.getByRole('button', { name: /Создать копию выбранного ЭР/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /Переименовать ЭР/i })).toBeDisabled();

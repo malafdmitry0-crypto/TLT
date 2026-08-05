@@ -104,9 +104,10 @@ export function EmptyElectricalVariantState({
     <Space direction="vertical" size={8} style={{ width: '100%' }}>
       <MutationStatus operation={controller.pendingOperation} />
       {!canMutate && (
-        <TltAlert tone="info" title="Режим просмотра">
-          Создать первый ЭР может только владелец проекта или администратор.
-        </TltAlert>
+        <TltAlert
+          tone="info"
+          title={<small>Режим просмотра</small>}
+        />
       )}
       {controller.mutationError != null && (
         <TltAlert

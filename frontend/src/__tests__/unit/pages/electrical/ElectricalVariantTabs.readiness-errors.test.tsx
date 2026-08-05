@@ -196,8 +196,9 @@ describe('ElectricalVariantTabs — readiness-errors', () => {
       },
     }), false);
 
-    expect(screen.getByText('Режим просмотра')).toBeInTheDocument();
-    expect(screen.getByText(/Создать первый ЭР может только владелец/i)).toBeInTheDocument();
+    expect(screen.getByText('Режим просмотра').tagName).toBe('SMALL');
+    expect(screen.queryByText(/Создать первый ЭР может только владелец/i))
+      .not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Создать ЭР1' })).toBeDisabled();
   });
 });
