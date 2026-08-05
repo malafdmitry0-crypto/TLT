@@ -10,14 +10,13 @@ function formWithValues(values: Record<string, unknown>) {
 }
 
 describe('heatCalcFormFieldRules', () => {
-  it('помечает обязательные поля как required для визуального маркера формы', () => {
+  it('делает обязательные поля блокирующими, а не предупреждающими', () => {
     const rules = heatCalcFormFieldRules(formWithValues({}), 'pipe', 'outer_diameter_mm');
 
-    expect(rules).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ required: true, warningOnly: true, message: '' }),
-      ]),
-    );
+    const requiredRule = rules.find((rule) => 'required' in rule && rule.required === true);
+
+    expect(requiredRule).toEqual(expect.objectContaining({ required: true, message: '' }));
+    expect(requiredRule).not.toHaveProperty('warningOnly');
   });
 
   it('не помечает необязательные поля как required', () => {
