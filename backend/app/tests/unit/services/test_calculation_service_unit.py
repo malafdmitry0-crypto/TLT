@@ -30,9 +30,44 @@ from app.services.calculation_service import (
     BatchCancelledError,
     CalculationError,
     CalculationService,
+    build_heat_loss_error_payload,
 )
+from app.services.project_object_params import ProjectObjectParamsError
 
 MINERAL_WOOL = "mineral_wool_boards_120"
+
+
+def test_heat_loss_error_payload_uses_structured_required_fields():
+    error = ProjectObjectParamsError(
+        "Заполните обязательные поля объекта",
+        code="OBJECT_REQUIRED_FIELDS_MISSING",
+        fields=("outer_diameter", "insulation_layers.1.material"),
+    )
+
+    payload = build_heat_loss_error_payload(error, object_type="pipe")
+
+    assert payload["error_code"] == "missing_required_fields"
+    assert payload["missing_fields"] == [
+        "outer_diameter",
+        "insulation_layers.1.material",
+    ]
+    assert payload["field"] is None
+
+
+def test_heat_loss_error_payload_uses_structured_invalid_fields():
+    error = ProjectObjectParamsError(
+        "Проверьте параметры объекта",
+        code="OBJECT_PARAMS_INVALID",
+        fields=("insulation_temperature_basis",),
+    )
+
+    payload = build_heat_loss_error_payload(error, object_type="pipe")
+
+    assert payload["error_code"] == "invalid_object_params"
+    assert payload["field"] == "insulation_temperature_basis"
+    assert payload["fields"] == {
+        "insulation_temperature_basis": "Проверьте параметры объекта"
+    }
 
 
 def _mock_db_empty() -> AsyncMock:

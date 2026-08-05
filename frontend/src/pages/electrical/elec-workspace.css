@@ -137,14 +137,6 @@
   width: 118px;
 }
 
-.electrical-params-chrome-end {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  min-height: 28px;
-}
-
 .electrical-empty-icon {
   margin-right: 8px;
   color: var(--color-workflow-elec);
