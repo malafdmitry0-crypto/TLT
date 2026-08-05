@@ -46,12 +46,22 @@ export function scrollToFirstError() {
   }, 0);
 }
 
+/**
+ * Значения из климатического справочника.
+ *
+ * Обеспеченность зависит от Ø трубы (≥100 мм → 0,92, <100 мм → абс. минимум),
+ * но ждать диаметр незачем: пока его нет, показываем 0,92, а при расчёте
+ * бэкенд всё равно выводит правило сам (`_apply_climate_policy`) и переписывает
+ * температуру — кроме введённой вручную. Ручной ввод не трогаем и здесь.
+ */
 export function buildClimateSyncValues(
   selectedClimate: ClimateEntry,
   climateBasis: ClimateBasis | null | undefined,
+  manualSources: { ambient?: boolean; wind?: boolean } = {},
 ): Record<string, unknown> {
-  const tAmbient = climateBasis ? climateTemperature(selectedClimate, climateBasis) : null;
-  const wind = climateWind(selectedClimate);
+  const previewBasis: ClimateBasis = climateBasis ?? 't_0_92';
+  const tAmbient = manualSources.ambient ? null : climateTemperature(selectedClimate, previewBasis);
+  const wind = manualSources.wind ? null : climateWind(selectedClimate);
   return {
     climate_city: selectedClimate.city ?? selectedClimate.region,
     climate_region: selectedClimate.region,

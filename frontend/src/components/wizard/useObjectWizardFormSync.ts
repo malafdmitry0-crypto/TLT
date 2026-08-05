@@ -192,7 +192,11 @@ export function useObjectWizardFormSync({
 
   useEffect(() => {
     if (!selectedClimate) return;
-    const nextValues = buildClimateSyncValues(selectedClimate, climateBasis);
+    // Ручной ввод климат не перебивает — то же правило, что у бэкенда.
+    const nextValues = buildClimateSyncValues(selectedClimate, climateBasis, {
+      ambient: form.getFieldValue('ambient_temperature_source') === 'manual',
+      wind: form.getFieldValue('wind_speed_source') === 'manual',
+    });
     form.setFieldsValue(nextValues);
     onDraftValuesChange?.(nextValues, form.getFieldsValue(true) as Record<string, unknown>);
   }, [climateBasis, form, onDraftValuesChange, selectedClimate]);

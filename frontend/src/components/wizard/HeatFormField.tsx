@@ -17,7 +17,7 @@
  *
  * См. docs/tnp/cases/heat-frontend-restyle-prompt.md §4.
  */
-import type { ReactElement } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { TltForm } from '@/components/ui-kit';
 import UnitInputNumber from '@/components/common/UnitInputNumber';
 import {
@@ -59,6 +59,13 @@ interface Props {
    * проверку, которой не было. Такие поля передают `rules={[]}`.
    */
   rules?: ReturnType<typeof heatCalcFormFieldRules>;
+  /**
+   * Видимая подсказка под контролом — слот antd `extra`. Живёт там же, где
+   * сообщения валидации (`compact-fields.css`: `.ant-form-item-extra`), поэтому
+   * новых стилей не требует. Для состояний «поле пустое не по ошибке
+   * пользователя, а потому что системе не хватает соседнего значения».
+   */
+  extra?: ReactNode;
   /** Нестандартный контрол: справочник, селект, что угодно со своими данными. */
   children?: ReactElement;
 }
@@ -73,6 +80,7 @@ export default function HeatFormField({
   preserve,
   dependencies,
   rules,
+  extra,
   children,
 }: Props) {
   const form = TltForm.useFormInstance();
@@ -97,6 +105,7 @@ export default function HeatFormField({
       name={name ?? id}
       preserve={preserve}
       dependencies={dependencies}
+      extra={extra}
       rules={rules ?? heatCalcFormFieldRules(form, objectType, id)}
     >
       <HelpedControl hint={getHeatCalcFieldDescription(id, { objectType })}>

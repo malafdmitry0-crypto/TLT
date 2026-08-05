@@ -12,16 +12,24 @@ import {
 } from './helpers/inline-form-dependencies';
 
 test.describe('inline form dependencies — climate / create pipeline', () => {
-  test('не рисует метки источника после выбора климата', async ({ page }) => {
+  /**
+   * §5 «Источник температуры»: значение из справочника помечено, ручной ввод
+   * перебивает метку. Обеспеченность при этом остаётся расчётной (hidden):
+   * для трубы её задаёт Ø, поэтому до диаметра подставлять нечего.
+   */
+  test('помечает источник температуры: из климата, затем вручную', async ({ page }) => {
     await loginAsGuest(page);
     await openPipeForm(page);
 
     await selectSearchOption(page, 'climate-select', 'Москва', /Москва/);
-
     await expect(page.getByTestId('climate-basis-select')).toHaveCount(0);
-    await expect(page.getByText('из климата')).toHaveCount(0);
-    await expect(page.getByText('вручную')).toHaveCount(0);
-    await expect(page.locator('.field-source-tag')).toHaveCount(0);
+
+    // обеспеченность для трубы задаёт Ø — до диаметра подставлять нечего
+    await fillInput(page, 'outer-diameter-input', '108');
+    await expect(page.getByText('из климата').first()).toBeVisible();
+
+    await fillInput(page, 'ambient-temperature-input', '-30');
+    await expect(page.getByText('вручную').first()).toBeVisible();
   });
 
   test('климат, подземное размещение, ручная λ и 3 слоя переключают реальные поля', async ({ page }) => {
@@ -35,9 +43,6 @@ test.describe('inline form dependencies — climate / create pipeline', () => {
 
     await selectSearchOption(page, 'climate-select', 'Москва', /Москва/);
     await expect(page.getByTestId('climate-basis-select')).toHaveCount(0);
-    await expect(page.getByText('из климата')).toHaveCount(0);
-    await expect(page.getByText('вручную')).toHaveCount(0);
-    await expect(page.locator('.field-source-tag')).toHaveCount(0);
 
     await selectOption(page, 'placement-select', 'Подземно');
     await expect(page.getByTestId('burial-depth-input')).toBeVisible();

@@ -23,6 +23,15 @@
   font-size: 9px;
   grid-column: 2;
 }
+.inline-object-form .field-source-tag {
+  margin: 0;
+  padding: 0 3px;
+  font-size: 8px;
+  line-height: 12px;
+  color: var(--color-swatch-5d7180);
+  border-color: var(--color-swatch-d5dde3);
+  background: var(--color-swatch-f8fafb);
+}
 .inline-object-form .fit-label-form-item {
   width: 100%;
   min-width: 0;
