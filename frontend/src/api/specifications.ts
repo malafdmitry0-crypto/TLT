@@ -150,6 +150,67 @@ export interface SpecificationGenerateResult {
   results: SpecificationGenerateVariantResult[];
 }
 
+export type SpecificationReadinessStatus =
+  | 'ready'
+  | 'blocked'
+  | 'confirmation_required'
+  | 'selection_required';
+
+export type SpecificationReadinessNextAction =
+  | 'recalculate_heat'
+  | 'open_electrical_variant'
+  | 'configure_specification'
+  | 'select_catalog_items'
+  | 'confirm_unassigned_exclusion'
+  | 'contact_catalog_admin'
+  | 'retry_generation';
+
+export interface SpecificationReadinessBlocker {
+  code: string;
+  kind: SpecificationDiagnosticKind;
+  message: string;
+  source_stage: 'heat' | 'electrical' | 'specification' | 'catalog';
+  scope: 'project' | 'electrical_variant' | 'catalog';
+  electrical_variant_id: string;
+  electrical_variant_name?: string | null;
+  reason: string;
+  count: number;
+  object_ids: string[];
+  next_action: SpecificationReadinessNextAction;
+}
+
+export interface SpecificationVariantReadinessResult {
+  electrical_variant_id: string;
+  electrical_variant_name?: string | null;
+  status: SpecificationReadinessStatus;
+  total_objects: number;
+  contributing_objects: number;
+  blockers: SpecificationReadinessBlocker[];
+}
+
+export interface SpecificationReadinessResponse {
+  project_id: string;
+  results: SpecificationVariantReadinessResult[];
+}
+
+export const specificationReadinessQueryKey = (
+  projectId: string | undefined,
+  variantIds: readonly string[] = [],
+) => ['spec-readiness', projectId, ...variantIds] as const;
+
+export async function getSpecificationReadiness(
+  projectId: string,
+  variantIds: readonly string[],
+): Promise<SpecificationReadinessResponse> {
+  const params = new URLSearchParams();
+  variantIds.forEach((variantId) => params.append('variant_ids', variantId));
+  const { data } = await apiClient.get<SpecificationReadinessResponse>(
+    `/specifications/${projectId}/readiness`,
+    { params },
+  );
+  return data;
+}
+
 const SPECIFICATION_GENERATION_STATUSES = new Set<SpecificationGenerateVariantResult['status']>([
   'generated',
   'blocked',

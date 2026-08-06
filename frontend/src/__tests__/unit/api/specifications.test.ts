@@ -5,6 +5,7 @@ import {
   generateSpecification,
   getCatalogSelections,
   getSpecification,
+  getSpecificationReadiness,
   getSpecificationErrorDetail,
   putCatalogSelections,
   saveSpecificationItems,
@@ -35,6 +36,18 @@ describe('specifications API', () => {
     expect(getMock).toHaveBeenCalledWith(
       '/specifications/project-id/variants/variant-id',
     );
+  });
+
+  it('loads live readiness with explicit repeated ER UUID params', async () => {
+    getMock.mockResolvedValueOnce({ data: { project_id: 'project-id', results: [] } });
+    await getSpecificationReadiness('project-id', ['er-1', 'er-2']);
+    const [, config] = getMock.mock.calls[0];
+    expect(getMock.mock.calls[0][0]).toBe('/specifications/project-id/readiness');
+    expect(config?.params).toBeInstanceOf(URLSearchParams);
+    expect([...(config?.params as URLSearchParams).entries()]).toEqual([
+      ['variant_ids', 'er-1'],
+      ['variant_ids', 'er-2'],
+    ]);
   });
 
   it('saves manual items on the UUID path', async () => {

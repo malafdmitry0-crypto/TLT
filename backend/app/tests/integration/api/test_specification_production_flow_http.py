@@ -122,9 +122,7 @@ def _catalog_items_multi_connection(
         if category == "connection_kit":
             high_temperature_marks: set[str] = set()
             if include_connection_kits:
-                high_temperature_marks = (
-                    {"КСВ-1", "КСВ-2"} if multi_connection else {"КСВ-2"}
-                )
+                high_temperature_marks = {"КСВ-1", "КСВ-2"} if multi_connection else {"КСВ-2"}
             raw = raw.model_copy(
                 update={
                     "applicability": {
@@ -281,6 +279,66 @@ async def _seed_http_ready_project(
     return project, variants, obj, catalog
 
 
+async def test_http_readiness_aggregates_upstream_blockers_per_er_without_generation_write(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    employee_user: User,
+    employee_token: str,
+) -> None:
+    headers = {"Authorization": f"Bearer {employee_token}"}
+    project, variants, obj, _catalog = await _seed_http_ready_project(
+        db_session,
+        employee_user,
+        name="HTTP live readiness",
+        multi_connection=False,
+        second_er=True,
+    )
+    ready, stale = variants
+    stale_assignment = await db_session.scalar(
+        select(ElectricalVariantObject).where(
+            ElectricalVariantObject.electrical_variant_id == stale.id,
+            ElectricalVariantObject.object_id == obj.id,
+        )
+    )
+    assert stale_assignment is not None
+    stale_assignment.assignment_state = "stale"
+    stale_assignment.diagnostics = {
+        "error_code": "ELECTRICAL_RECALCULATION_REQUIRED",
+        "stale_reason": "project_section_current_limit_changed",
+    }
+    await db_session.commit()
+
+    response = await client.get(
+        f"/api/v1/specifications/{project.id}/readiness",
+        params=[("variant_ids", str(ready.id)), ("variant_ids", str(stale.id))],
+        headers=headers,
+    )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["project_id"] == str(project.id)
+    assert [item["electrical_variant_id"] for item in body["results"]] == [
+        str(ready.id),
+        str(stale.id),
+    ]
+    assert body["results"][0]["status"] == "ready"
+    assert body["results"][0]["blockers"] == []
+    blocked = body["results"][1]
+    assert blocked["status"] == "blocked"
+    assert len(blocked["blockers"]) == 1
+    assert blocked["blockers"][0]["source_stage"] == "electrical"
+    assert blocked["blockers"][0]["reason"] == "project_section_current_limit_changed"
+    assert blocked["blockers"][0]["next_action"] == "open_electrical_variant"
+    assert blocked["blockers"][0]["count"] == 1
+    assert blocked["blockers"][0]["object_ids"] == [str(obj.id)]
+
+    # Readiness is strictly read-only and must not create generation outcome rows.
+    assert (
+        await db_session.scalar(select(Specification).where(Specification.project_id == project.id))
+        is None
+    )
+
+
 async def test_http_many_candidates_put_generate_get_reload_without_resend(
     client: AsyncClient,
     db_session: AsyncSession,
@@ -318,9 +376,7 @@ async def test_http_many_candidates_put_generate_get_reload_without_resend(
     assert result["status"] == "selection_required"
     assert result["electrical_variant_id"] == str(ready.id)
     connection_groups = [
-        group
-        for group in result["candidate_groups"]
-        if group["category"] == "connection_kit"
+        group for group in result["candidate_groups"] if group["category"] == "connection_kit"
     ]
     assert len(connection_groups) == 1
     group = connection_groups[0]
@@ -492,9 +548,7 @@ async def test_http_single_candidate_auto_selects_without_selection_row(
     result = response.json()["results"][0]
     assert result["status"] == "generated"
     connection_groups = [
-        group
-        for group in result["candidate_groups"]
-        if group["category"] == "connection_kit"
+        group for group in result["candidate_groups"] if group["category"] == "connection_kit"
     ]
     assert len(connection_groups) == 1
     group = connection_groups[0]
@@ -678,8 +732,7 @@ async def test_case1_demo_catalog_bootstrap_is_idempotent(
     doc = bundled_case1_demo_catalog_document()
     assert doc.version == CASE1_DEMO_VERSION
     count = await db_session.scalar(
-        select(SpecificationCatalogVersion)
-        .where(
+        select(SpecificationCatalogVersion).where(
             SpecificationCatalogVersion.catalog_key == CASE1_DEMO_CATALOG_KEY,
             SpecificationCatalogVersion.version == CASE1_DEMO_VERSION,
         )
@@ -772,9 +825,7 @@ async def test_http_case1_demo_catalog_generates_pipe_bom_without_ex_rgr_matrix_
         diagnostic["code"] != "SPEC_BOX_EX_RGR_MATRIX_MISSING"
         for diagnostic in result["diagnostics"]
     )
-    assert any(item["article"].startswith("DEMO-") for item in result["items"]), result[
-        "items"
-    ]
+    assert any(item["article"].startswith("DEMO-") for item in result["items"]), result["items"]
     snapshot = result["snapshot"]
     assert snapshot["catalog"] == {
         "id": str(demo.id),
@@ -818,9 +869,7 @@ async def test_http_zero_connection_candidates_blocks_without_bom_write(
     result = response.json()["results"][0]
     assert result["status"] == "blocked"
     assert result["items"] == []
-    assert any(
-        d["code"] == "SPEC_ACCESSORY_CATALOG_ITEM_MISSING" for d in result["diagnostics"]
-    )
+    assert any(d["code"] == "SPEC_ACCESSORY_CATALOG_ITEM_MISSING" for d in result["diagnostics"])
 
     got = await client.get(
         f"/api/v1/specifications/{project.id}/variants/{ready.id}",
@@ -832,8 +881,7 @@ async def test_http_zero_connection_candidates_blocks_without_bom_write(
     assert body["generation_status"] == "blocked"
     assert body["items"] == []
     assert any(
-        d["code"] == "SPEC_ACCESSORY_CATALOG_ITEM_MISSING"
-        for d in body["generation_diagnostics"]
+        d["code"] == "SPEC_ACCESSORY_CATALOG_ITEM_MISSING" for d in body["generation_diagnostics"]
     )
 
 
