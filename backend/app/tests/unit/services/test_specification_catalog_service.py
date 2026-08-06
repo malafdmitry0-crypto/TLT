@@ -277,7 +277,7 @@ async def test_activation_retires_previous_version_and_marks_specs_stale():
         source="owner registry",
         source_checksum=f"sha256:{'a' * 64}",
         payload_checksum=_payload_checksum(items),
-        schema_version=2,
+        schema_version=1,
         item_count=0,
         is_complete=False,
         validation_issues=[],
@@ -450,7 +450,7 @@ async def test_resolve_default_uses_the_only_active_catalog_without_builtin_key(
         source="owner registry",
         source_checksum=f"sha256:{'a' * 64}",
         payload_checksum=_payload_checksum(items),
-        schema_version=2,
+        schema_version=1,
         item_count=len(items),
         is_complete=True,
         validation_issues=[],
@@ -465,6 +465,34 @@ async def test_resolve_default_uses_the_only_active_catalog_without_builtin_key(
     assert resolved.version.catalog_key == "project-owner-catalog"
     first_query = str(db.execute.await_args_list[0].args[0])
     assert "specification_catalog_versions.catalog_key =" not in first_query
+
+
+async def test_resolve_rejects_schema_v2_without_compatibility_fallback():
+    version = SpecificationCatalogVersion(
+        id=uuid.uuid4(),
+        catalog_key="builtin-specification",
+        version="unsupported-v2",
+        status="active",
+        authority="approved",
+        source="owner registry",
+        source_checksum=f"sha256:{'a' * 64}",
+        payload_checksum=f"sha256:{'b' * 64}",
+        schema_version=2,
+        item_count=40,
+        is_complete=True,
+        validation_issues=[],
+    )
+    db = AsyncMock()
+    db.execute = AsyncMock(return_value=_items_result([version]))
+
+    with pytest.raises(SpecificationCatalogServiceError) as exc:
+        await SpecificationCatalogService(db).resolve_active()
+
+    assert exc.value.code == "SPEC_CATALOG_UNAVAILABLE"
+    assert exc.value.details == {
+        "schema_version": 2,
+        "supported_schema_version": 1,
+    }
 
 
 async def test_resolve_default_rejects_multiple_active_catalogs():
@@ -521,7 +549,7 @@ async def test_resolve_active_accepts_uuid_string_catalog_id():
         source="owner registry",
         source_checksum=f"sha256:{'a' * 64}",
         payload_checksum=_payload_checksum(items),
-        schema_version=2,
+        schema_version=1,
         item_count=len(items),
         is_complete=True,
         validation_issues=[],

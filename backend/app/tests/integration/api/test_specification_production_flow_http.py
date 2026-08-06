@@ -23,15 +23,20 @@ from app.models.project import Project
 from app.models.project_object import ProjectObject
 from app.models.specification import (
     Specification,
-    SpecificationCatalogItem,
     SpecificationCatalogSelection,
     SpecificationCatalogVersion,
 )
 from app.models.user import User
 from app.reference_data.specification_catalog_case1_demo import (
     CASE1_DEMO_CATALOG_KEY,
+    CASE1_DEMO_SCHEMA_VERSION,
     CASE1_DEMO_VERSION,
     bundled_case1_demo_catalog_document,
+)
+from app.schemas.specification_catalog import (
+    SpecificationCatalogAuthority,
+    SpecificationCatalogImportRequest,
+    SpecificationCatalogItemInput,
 )
 from app.services.specification_catalog_service import (
     SpecificationCatalogService,
@@ -106,49 +111,69 @@ def _calc_result(*, object_version: int = 4, assignment_version: int = 2) -> dic
 
 
 def _catalog_items_multi_connection(
-    catalog_id: uuid.UUID,
     *,
     multi_connection: bool,
     include_connection_kits: bool = True,
-) -> list[SpecificationCatalogItem]:
-    """Complete-shape catalog; multi keeps both MEDIUM_HIGH connection kits."""
-    items: list[SpecificationCatalogItem] = []
-    for index, raw in enumerate(complete_specification_catalog_items()):
+) -> list[SpecificationCatalogItemInput]:
+    """Return a complete schema-1 catalog with controlled connection candidates."""
+    items: list[SpecificationCatalogItemInput] = []
+    for raw in complete_specification_catalog_items():
         category = raw.category.value if hasattr(raw.category, "value") else raw.category
         if category == "connection_kit":
-            if not include_connection_kits:
-                continue
-            if multi_connection:
-                if raw.mark not in {"КСВ-1", "КСВ-2"}:
-                    continue
-            elif raw.mark != "КСВ-2":
-                continue
-        if category == "repair_kit" and raw.mark != "КСР-2":
-            continue
-        if category == "fiberglass_tape" and raw.mark != "ЛКВ 12":
-            continue
-        if category == "cable" and raw.mark != "30ТТВ2-СР":
-            continue
-        payload = raw.model_dump(mode="json")
-        items.append(
-            SpecificationCatalogItem(
-                id=uuid.uuid4(),
-                catalog_version_id=catalog_id,
-                item_key=raw.item_key,
-                category=category,
-                name=raw.name,
-                mark=raw.mark,
-                nomenclature_code=raw.nomenclature_code,
-                supply_unit=raw.supply_unit,
-                applicability=dict(raw.applicability or {}),
-                package_parameters=dict(raw.package_parameters or {}),
-                formula_parameters=dict(raw.formula_parameters or {}),
-                source_ref=raw.source_ref,
-                row_checksum=_canonical_checksum(payload),
-                position=index,
+            high_temperature_marks: set[str] = set()
+            if include_connection_kits:
+                high_temperature_marks = (
+                    {"КСВ-1", "КСВ-2"} if multi_connection else {"КСВ-2"}
+                )
+            raw = raw.model_copy(
+                update={
+                    "applicability": {
+                        "temperature_group": (
+                            "MEDIUM_HIGH" if raw.mark in high_temperature_marks else "LOW"
+                        )
+                    }
+                }
             )
-        )
+        items.append(raw)
     return items
+
+
+async def _import_http_flow_catalog(
+    db_session: AsyncSession,
+    *,
+    multi_connection: bool,
+    include_connection_kits: bool,
+) -> SpecificationCatalogVersion:
+    """Import and activate a complete catalog through the production lifecycle."""
+    items = _catalog_items_multi_connection(
+        multi_connection=multi_connection,
+        include_connection_kits=include_connection_kits,
+    )
+    version = f"http-flow-{uuid.uuid4().hex[:8]}"
+    canonical_items = sorted(
+        (item.model_dump(mode="json") for item in items),
+        key=lambda item: item["item_key"],
+    )
+    document = SpecificationCatalogImportRequest(
+        catalog_key="builtin-specification",
+        version=version,
+        authority=SpecificationCatalogAuthority.APPROVED,
+        source="integration owner registry http-flow",
+        source_checksum=_canonical_checksum(
+            {
+                "catalog_key": "builtin-specification",
+                "version": version,
+                "schema_version": CASE1_DEMO_SCHEMA_VERSION,
+                "items": canonical_items,
+            }
+        ),
+        schema_version=CASE1_DEMO_SCHEMA_VERSION,
+        items=items,
+    )
+    service = SpecificationCatalogService(db_session)
+    draft = await service.import_draft(document, commit=False)
+    activated = await service.activate(draft.id, commit=False)
+    return activated.catalog
 
 
 async def _seed_http_ready_project(
@@ -241,34 +266,17 @@ async def _seed_http_ready_project(
         params={},
         results=_calc_result(),
     )
-    catalog_id = uuid.uuid4()
-    items = _catalog_items_multi_connection(
-        catalog_id,
-        multi_connection=multi_connection,
-        include_connection_kits=include_connection_kits,
-    )
     await db_session.execute(
         update(SpecificationCatalogVersion)
         .where(SpecificationCatalogVersion.status == "active")
         .values(status="retired")
     )
-    catalog = SpecificationCatalogVersion(
-        id=catalog_id,
-        catalog_key="builtin-specification",
-        version=f"http-flow-{uuid.uuid4().hex[:8]}",
-        status="active",
-        authority="approved",
-        source="integration owner registry http-flow",
-        source_checksum=f"sha256:{'a' * 64}",
-        payload_checksum=f"sha256:{'b' * 64}",
-        schema_version=1,
-        item_count=len(items),
-        is_complete=True,
-        validation_issues=[],
+    catalog = await _import_http_flow_catalog(
+        db_session,
+        multi_connection=multi_connection,
+        include_connection_kits=include_connection_kits,
     )
-    db_session.add(catalog)
-    await db_session.flush()
-    db_session.add_all([calc, *items])
+    db_session.add(calc)
     await db_session.commit()
     return project, variants, obj, catalog
 
@@ -685,17 +693,19 @@ async def test_http_case1_demo_catalog_generates_pipe_bom_without_ex_rgr_matrix_
     employee_user: User,
     employee_token: str,
 ) -> None:
-    """The bundled schema-2 Case 1 demo reaches a persisted pipe BOM."""
+    """The bundled schema-1 Case 1 demo reaches a persisted pipe BOM."""
     from app.core.dependencies import CurrentPrincipal
 
     headers = {"Authorization": f"Bearer {employee_token}"}
-    project, variants, _obj, _legacy_catalog = await _seed_http_ready_project(
+    project, variants, _obj, http_flow_catalog = await _seed_http_ready_project(
         db_session,
         employee_user,
         name="HTTP Case 1 demo catalog pipe",
         multi_connection=True,
     )
     ready = variants[0]
+    http_flow_catalog.status = "retired"
+    await db_session.commit()
     demo = await SpecificationCatalogService(db_session).ensure_case1_demo_catalog_active(
         CurrentPrincipal(
             role="admin",
@@ -762,9 +772,9 @@ async def test_http_case1_demo_catalog_generates_pipe_bom_without_ex_rgr_matrix_
         diagnostic["code"] != "SPEC_BOX_EX_RGR_MATRIX_MISSING"
         for diagnostic in result["diagnostics"]
     )
-    assert any(
-        item["article"].startswith("DEMO-") for item in result["items"]
-    )
+    assert any(item["article"].startswith("DEMO-") for item in result["items"]), result[
+        "items"
+    ]
     snapshot = result["snapshot"]
     assert snapshot["catalog"] == {
         "id": str(demo.id),
@@ -772,7 +782,7 @@ async def test_http_case1_demo_catalog_generates_pipe_bom_without_ex_rgr_matrix_
         "version": CASE1_DEMO_VERSION,
         "source_checksum": demo.source_checksum,
         "payload_checksum": demo.payload_checksum,
-        "schema_version": 2,
+        "schema_version": CASE1_DEMO_SCHEMA_VERSION,
     }
     assert snapshot["normalized_inputs"]["resolved_options"]["Ex"] is False
     assert snapshot["normalized_inputs"]["resolved_options"]["R_gr"] == "1"

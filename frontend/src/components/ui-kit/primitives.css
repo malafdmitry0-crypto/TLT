@@ -101,15 +101,20 @@
   box-shadow: none;
 }
 
-.tlt-ui-button--danger {
+/* Doubled class + :not(:disabled) keeps the danger ink above Ant's own
+   dangerous-button rules and below the shared :disabled state. */
+.tlt-ui-button.tlt-ui-button--danger:not(:disabled) {
   border-color: var(--color-swatch-e58b8b);
   background: var(--color-surface);
   color: var(--tlt-ui-danger);
 }
 
-.tlt-ui-button--danger:hover:not(:disabled) {
+/* Ant's own dangerous-hover selector is five compounds wide; match its weight
+   so hover keeps the brand red instead of Ant's washed-out #ff7875. */
+.tlt-ui-button.tlt-ui-button--danger:not(:disabled):not([disabled]):hover {
   border-color: var(--tlt-ui-danger);
   background: var(--color-danger-bg);
+  color: var(--tlt-ui-danger);
 }
 
 .tlt-ui-button--link {
