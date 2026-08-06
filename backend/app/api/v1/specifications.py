@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -18,6 +18,7 @@ from app.schemas.specification import (
     SpecificationGenerationResponse,
     SpecificationItem,
     SpecificationManualItemsResponse,
+    SpecificationReadinessResponse,
     SpecificationResponse,
     SpecificationSettingsResponse,
     SpecificationSettingsUpdateRequest,
@@ -38,6 +39,7 @@ from app.services.specification_generation_service import (
     SpecificationProjectSettingsService,
 )
 from app.services.specification_preflight_service import SpecificationPreflightServiceError
+from app.services.specification_readiness_service import SpecificationReadinessService
 from app.services.specification_selection_service import SpecificationSelectionService
 from app.services.specification_service import SpecificationService
 
@@ -65,6 +67,39 @@ def _specification_http_error(
             message=message,
         ).model_dump(mode="json"),
     )
+
+
+@router.get(
+    "/{project_id}/readiness",
+    response_model=SpecificationReadinessResponse,
+    summary="Live Specification readiness for explicitly selected ER UUIDs",
+)
+async def get_specification_readiness(
+    project_id: UUID,
+    variant_ids: list[UUID] = Query(min_length=1, max_length=5),
+    principal: CurrentPrincipal = Depends(require_any()),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        return await SpecificationReadinessService(db).get(
+            project_id,
+            principal,
+            variant_ids,
+        )
+    except SpecificationPreflightServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
+    except ProjectNotFoundError as exc:
+        raise _specification_http_error(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code=SpecificationDiagnosticCode.PROJECT_NOT_FOUND,
+            message=str(exc),
+        ) from exc
+    except ProjectAccessError as exc:
+        raise _specification_http_error(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code=SpecificationDiagnosticCode.PROJECT_ACCESS_DENIED,
+            message=str(exc),
+        ) from exc
 
 
 @router.get(

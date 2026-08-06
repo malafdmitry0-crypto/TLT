@@ -89,6 +89,8 @@ class SpecificationPreflightService:
         project_id: UUID,
         principal: CurrentPrincipal,
         request: SpecificationGenerationRequest,
+        *,
+        include_candidate_selection: bool = True,
     ) -> list[SpecificationVariantPreflightResult]:
         project = await ProjectService(self.db).get_project_basic(project_id, principal)
         variants = await self._variants(project_id, request.variant_ids)
@@ -144,7 +146,11 @@ class SpecificationPreflightService:
             )
             # Selection protocol runs only when catalog is resolved and at least
             # one object contributes conditions (excluded unassigned stay out).
-            if catalog is not None and base.contributing_objects > 0:
+            if (
+                include_candidate_selection
+                and catalog is not None
+                and base.contributing_objects > 0
+            ):
                 contributing_results = _contributing_results(
                     assignments=assignments,
                     base_diagnostics=base.diagnostics,
@@ -342,6 +348,7 @@ def _preflight_assignment(
         object_version=obj.version,
         assignment_version=assignment.version,
         assignment_object_version=assignment.object_version_snapshot,
+        assignment_diagnostics=dict(assignment.diagnostics or {}),
         result=(dict(calculation.results or {}) if calculation is not None else None),
     )
 

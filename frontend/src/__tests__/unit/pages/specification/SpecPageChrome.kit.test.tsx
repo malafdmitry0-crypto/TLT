@@ -55,6 +55,9 @@ function renderChrome(overrides: Record<string, unknown> = {}) {
     setPendingGenerate: vi.fn(),
     confirmPartialGenerate: vi.fn(),
     preflightSummary: null,
+    readiness: { state: 'ready' as const, blockers: [], primaryBlocker: null },
+    retryReadiness: vi.fn(),
+    handleReadinessRecovery: vi.fn(),
     ...overrides,
   };
   return render(<SpecPageChrome {...props} />);
@@ -197,5 +200,45 @@ describe('SpecPageChrome UI kit strangler (U2)', () => {
     expect(addButton).toBeEnabled();
     expect(addButton).not.toHaveAccessibleDescription();
     expect(screen.queryByText(/Пересчитайте выбранную ЭР/)).not.toBeInTheDocument();
+  });
+
+  it('blocks only a definitive upstream blocker and exposes one recovery action', async () => {
+    const user = userEvent.setup();
+    const handleReadinessRecovery = vi.fn();
+    renderChrome({
+      readiness: {
+        state: 'blocked',
+        blockers: [],
+        primaryBlocker: {
+          code: 'SPEC_VARIANT_NOT_READY',
+          kind: 'blocking',
+          message: 'Назначение ЭР не готово',
+          source_stage: 'electrical',
+          scope: 'electrical_variant',
+          electrical_variant_id: 'er-1',
+          electrical_variant_name: 'ЭР1',
+          reason: 'project_section_current_limit_changed',
+          count: 6,
+          object_ids: [],
+          next_action: 'open_electrical_variant',
+        },
+      },
+      handleReadinessRecovery,
+    });
+
+    expect(screen.getByText('ЭР не готова к формированию спецификации')).toBeInTheDocument();
+    expect(screen.getByText(/Затронуто объектов: 6/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Сформировать' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Пересчитать ЭР' }));
+    expect(handleReadinessRecovery).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not block generation when readiness is unavailable', () => {
+    renderChrome({
+      readiness: { state: 'unavailable', blockers: [], primaryBlocker: null },
+    });
+
+    expect(screen.getByText('Не удалось проверить готовность ЭР')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Сформировать' })).toBeEnabled();
   });
 });
