@@ -48,6 +48,27 @@ export const Password: Story = {
   },
 };
 
+export const AssociatedLabel: Story = {
+  args: {
+    'aria-label': undefined,
+    id: 'employee-email',
+    name: 'email',
+    type: 'email',
+    defaultValue: undefined,
+    placeholder: undefined,
+  },
+  render: (args) => (
+    <>
+      <label htmlFor="employee-email">Email</label>
+      <TltTextField {...args} />
+    </>
+  ),
+  play: async ({ canvas }) => {
+    const input = canvas.getByRole('textbox', { name: 'Email' });
+    await expect(input).not.toHaveAttribute('aria-label');
+  },
+};
+
 export const Invalid: Story = {
   args: {
     'aria-invalid': true,

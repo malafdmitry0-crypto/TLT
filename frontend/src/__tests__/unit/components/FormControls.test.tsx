@@ -97,6 +97,19 @@ describe('form controls', () => {
     expect(input.closest('.tlt-text-field')).toHaveAttribute('data-invalid', 'true');
   });
 
+  it('lets an associated visible label name the text field instead of its technical id or name', () => {
+    render(
+      <>
+        <label htmlFor="employee-email">Email</label>
+        <TltTextField id="employee-email" name="email" type="email" />
+      </>,
+    );
+
+    const input = screen.getByRole('textbox', { name: 'Email' });
+
+    expect(input).not.toHaveAttribute('aria-label');
+  });
+
   it('renders select values and emits typed option values', async () => {
     const handleChange = vi.fn();
 

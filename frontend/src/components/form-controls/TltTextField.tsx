@@ -34,7 +34,7 @@ export interface TltTextFieldProps {
   inputClassName?: string;
   style?: CSSProperties;
   inputStyle?: CSSProperties;
-  /** Accessible name; falls back to placeholder / name / id. */
+  /** Explicit accessible name. Omit when the input is associated with a visible label. */
   'aria-label'?: string;
   'aria-required'?: boolean | 'true' | 'false';
   /** When true/`true`, applies error status styling. */
@@ -78,8 +78,6 @@ export default function TltTextField({
 }: TltTextFieldProps) {
   const isRequired = Boolean(required || ariaRequired === true || ariaRequired === 'true');
   const isInvalid = isInvalidValue(ariaInvalid);
-  const resolvedAriaLabel = ariaLabel ?? placeholder ?? name ?? id ?? 'Текстовое значение';
-
   return (
     <span
       className={joinClassNames('tlt-text-field', isInvalid ? 'tlt-text-field--invalid' : undefined, className)}
@@ -105,7 +103,7 @@ export default function TltTextField({
         className={joinClassNames('tlt-text-field__input', inputClassName)}
         style={inputStyle}
         data-testid={testId}
-        aria-label={resolvedAriaLabel}
+        aria-label={ariaLabel}
         aria-required={isRequired || undefined}
         aria-invalid={isInvalid || undefined}
         onChange={(event) => onChange?.(event.target.value)}
