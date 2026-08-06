@@ -20,8 +20,8 @@ from app.schemas.specification_catalog import (
 )
 
 CASE1_DEMO_CATALOG_KEY = "builtin-specification"
-CASE1_DEMO_VERSION = "case1-demo-v1"
-CASE1_DEMO_SCHEMA_VERSION = 2
+CASE1_DEMO_VERSION = "case1-demo-r4-v1"
+CASE1_DEMO_SCHEMA_VERSION = 1
 CASE1_DEMO_SOURCE = (
     "DEMO ONLY — Case 1 specification PDF, revision 4; "
     "non-production catalog, not for procurement"

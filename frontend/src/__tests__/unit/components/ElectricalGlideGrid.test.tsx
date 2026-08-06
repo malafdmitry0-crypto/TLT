@@ -112,6 +112,9 @@ describe('ElectricalGlideGrid', () => {
       onSetSort: vi.fn(),
       onPageChange: vi.fn(),
       onLoadMore: vi.fn(),
+      rowDragEnabled: false,
+      onRowDragStart: vi.fn(),
+      onRowDragEnd: vi.fn(),
       ...overrides,
     };
     render(<ElectricalGlideGrid {...props} />);
@@ -243,5 +246,37 @@ describe('ElectricalGlideGrid', () => {
     ) => void;
     act(() => onVisibleRegionChanged({ x: 0, y: 1, width: 1, height: 1 }));
     expect(onLoadMore).toHaveBeenCalledTimes(1);
+  });
+
+  it('starts assignment dragging from the matching Glide row and reports drag end', () => {
+    const onRowDragStart = vi.fn();
+    const onRowDragEnd = vi.fn();
+    renderGrid({
+      rowDragEnabled: true,
+      onRowDragStart,
+      onRowDragEnd,
+    });
+
+    expect(glideMock.props?.isDraggable).toBe('cell');
+
+    const dragEvent = {
+      kind: 'cell',
+      location: [0, 1] as const,
+      setData: vi.fn(),
+      preventDefault: vi.fn(),
+    };
+    const onDragStart = glideMock.props?.onDragStart as (
+      event: typeof dragEvent,
+    ) => void;
+    act(() => onDragStart(dragEvent));
+
+    expect(onRowDragStart).toHaveBeenCalledWith(dragEvent, 'row-2');
+
+    const dataTransfer = { effectAllowed: 'copyLink' };
+    fireEvent.dragStart(screen.getByTestId('electrical-glide-data-editor'), { dataTransfer });
+    expect(dataTransfer.effectAllowed).toBe('move');
+
+    fireEvent.dragEnd(document.querySelector('.electrical-spreadsheet--glide') as HTMLElement);
+    expect(onRowDragEnd).toHaveBeenCalledTimes(1);
   });
 });

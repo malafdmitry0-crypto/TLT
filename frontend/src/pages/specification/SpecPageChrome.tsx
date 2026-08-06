@@ -143,6 +143,11 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
   const projectSettingsDisabled = !canMutateProject
     || missingFields.length > 0
     || saveDefaultsMut.isPending;
+  const manualAddDisabledReason = isSpecStale
+    ? 'Эта спецификация устарела. Пересчитайте выбранную ЭР, чтобы добавить позиции вручную.'
+    : !hasItems
+      ? 'Сначала сформируйте спецификацию, чтобы добавить позиции вручную.'
+      : null;
   const catalogLabel = resolveSpecificationCatalogLabel(
     spec?.snapshot,
     projectSettings?.settings as Record<string, unknown> | undefined,
@@ -359,17 +364,32 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
                 Сохранить настройки проекта
               </TltButton>
               {canManuallyEdit && (
-                <TltButton
-                  icon={<PlusOutlined />}
-                  className="specification-settings-action"
-                  disabled={!hasItems || isSpecStale}
-                  onClick={() => {
-                    toggleSettings(false);
-                    setAddOpen(true);
-                  }}
-                >
-                  Добавить из БД
-                </TltButton>
+                <Space direction="vertical" className="tlt-field--fill" size={4}>
+                  <TltButton
+                    icon={<PlusOutlined />}
+                    className="specification-settings-action"
+                    disabled={manualAddDisabledReason !== null}
+                    aria-label="Добавить из БД"
+                    aria-describedby={manualAddDisabledReason
+                      ? 'specification-manual-add-disabled-reason'
+                      : undefined}
+                    onClick={() => {
+                      toggleSettings(false);
+                      setAddOpen(true);
+                    }}
+                  >
+                    Добавить из БД
+                  </TltButton>
+                  {manualAddDisabledReason && (
+                    <Text
+                      id="specification-manual-add-disabled-reason"
+                      type="secondary"
+                      className="specification-add-hint"
+                    >
+                      {manualAddDisabledReason}
+                    </Text>
+                  )}
+                </Space>
               )}
             </Space>
           </section>
