@@ -21,7 +21,7 @@ export type SpecSettingsFormSnapshot = {
 
 /**
  * Build local drawer state from a canonical snapshot or project settings payload.
- * Missing keys remain visibly unset; explicit false and zero are preserved.
+ * Missing binary checkbox keys default to false; other missing values remain unset.
  */
 export function buildSpecSettingsFormSnapshot(
   opts: Record<string, unknown>,
@@ -29,14 +29,14 @@ export function buildSpecSettingsFormSnapshot(
   const source = opts.resolved_options && typeof opts.resolved_options === 'object'
     ? opts.resolved_options as Record<string, unknown>
     : opts;
-  const booleanOrNull = (value: unknown) => typeof value === 'boolean' ? value : null;
+  const booleanOrFalse = (value: unknown) => typeof value === 'boolean' ? value : false;
   const decimalOrEmpty = (value: unknown) => value == null ? '' : String(value);
   const snapshot: SpecSettingsFormSnapshot = {
-    exZone: booleanOrNull(source.Ex),
+    exZone: booleanOrFalse(source.Ex),
     reserveCoeff: decimalOrEmpty(source.R_gr),
-    indicationOnBoxes: booleanOrNull(source.K1i),
-    endSectionIndication: booleanOrNull(source.K2i),
-    topIndication: booleanOrNull(source.Kiu),
+    indicationOnBoxes: booleanOrFalse(source.K1i),
+    endSectionIndication: booleanOrFalse(source.K2i),
+    topIndication: booleanOrFalse(source.Kiu),
     minLengthK2i: decimalOrEmpty(source.L_K2i_m),
     groupingMode: source.grouping_mode === 'separate_by_object_type'
       || source.grouping_mode === 'merge_materials'

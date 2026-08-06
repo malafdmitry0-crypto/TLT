@@ -33,12 +33,12 @@ export function useSpecPageFormState() {
   /** Draft UI picks only; never preselected from first candidate. */
   const [draftCatalogSelections, setDraftCatalogSelections] = useState<Record<string, string>>({});
   const [catalogSelections, setCatalogSelections] = useState<Record<string, string>>({});
-  const [exZone, setExZone] = useState<boolean | null>(null);
+  const [exZone, setExZone] = useState<boolean | null>(false);
   const [reserveCoeff, setReserveCoeff] = useState('');
   // Опции индикации ТНП: К1i / К2i / Кiu / L,К2i
-  const [indicationOnBoxes, setIndicationOnBoxes] = useState<boolean | null>(null);
-  const [endSectionIndication, setEndSectionIndication] = useState<boolean | null>(null);
-  const [topIndication, setTopIndication] = useState<boolean | null>(null);
+  const [indicationOnBoxes, setIndicationOnBoxes] = useState<boolean | null>(false);
+  const [endSectionIndication, setEndSectionIndication] = useState<boolean | null>(false);
+  const [topIndication, setTopIndication] = useState<boolean | null>(false);
   const [minLengthK2i, setMinLengthK2i] = useState('');
   const [groupingMode, setGroupingMode] = useState<SpecificationGroupingMode | null>(null);
 
