@@ -171,7 +171,6 @@ describe('useElecCalcCableSelectionMutationFlow — modal-readonly', () => {
       system_type: 'self_regulating',
       assignment_state: 'stale',
       requested_cable_type: 'self_regulating_tt',
-      max_section_start_current_a: null,
       electrical_overrides: {},
       object_version_snapshot: 1,
       version: 8,

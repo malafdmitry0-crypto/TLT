@@ -363,7 +363,6 @@ def _calc_provenance_summary(row: ElectricalQueryRow) -> str | None:
     winding_source = input_sources.get("winding_pitch_mm") or input_sources.get(
         "winding_coefficient"
     )
-    current_limit_source = input_sources.get("max_section_start_current_a")
     catalog_source = section_catalog.get("source") or section_catalog.get("authority")
     catalog_version = section_catalog.get("version") or section_catalog.get("id")
     formula_version = provenance.get("formula_version")
@@ -372,8 +371,6 @@ def _calc_provenance_summary(row: ElectricalQueryRow) -> str | None:
         parts.append(f"нитки: {thread_source}")
     if winding_source:
         parts.append(f"укладка: {winding_source}")
-    if current_limit_source:
-        parts.append(f"Iдоп: {current_limit_source}")
     if catalog_source or catalog_version:
         catalog_label = "/".join(str(value) for value in (catalog_source, catalog_version) if value)
         parts.append(f"секции: {catalog_label}")

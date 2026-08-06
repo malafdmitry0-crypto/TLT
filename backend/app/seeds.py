@@ -53,15 +53,16 @@ from app.schemas.calculation import (
     ElectricalRequest,
 )
 from app.schemas.electrical_assignment import (
-    ElectricalAssignmentCurrentLimitPatch,
     ElectricalAssignmentMutationItem,
     ElectricalAssignmentOverridesPatch,
 )
 from app.schemas.project import ProjectObjectCreate
+from app.schemas.project_electrical_settings import ProjectElectricalSettingsPatch
 from app.services.calculation_service import CalculationService
 from app.services.electrical_assignment_service import ElectricalAssignmentService
 from app.services.electrical_catalog_service import ElectricalCatalogService
 from app.services.electrical_variant_service import ElectricalVariantService
+from app.services.project_electrical_settings_service import ProjectElectricalSettingsService
 from app.services.project_service import ProjectService
 from app.services.specification_catalog_service import SpecificationCatalogService
 
@@ -1967,6 +1968,16 @@ async def seed_objects_and_calculations(
     await seed_heat_objects(db, projects, principal)
 
     for project in projects:
+        settings_service = ProjectElectricalSettingsService(db)
+        electrical_settings = await settings_service.get(project.id, principal)
+        await settings_service.patch(
+            project.id,
+            ProjectElectricalSettingsPatch(
+                expected_version=electrical_settings.version,
+                max_section_start_current_a=_ELECTRICAL_SEED_MAX_SECTION_START_CURRENT_A,
+            ),
+            principal,
+        )
         object_result = await db.execute(
             select(ProjectObject).where(
                 ProjectObject.project_id == project.id,
@@ -2026,16 +2037,6 @@ async def seed_objects_and_calculations(
                 ElectricalAssignmentOverridesPatch(
                     expected_version=current.version,
                     **overrides,
-                ),
-                principal,
-            )
-            current = await assignment_service.patch_section_current_limit(
-                project.id,
-                variant_id,
-                object_id,
-                ElectricalAssignmentCurrentLimitPatch(
-                    expected_version=current.version,
-                    max_section_start_current_a=_ELECTRICAL_SEED_MAX_SECTION_START_CURRENT_A,
                 ),
                 principal,
             )

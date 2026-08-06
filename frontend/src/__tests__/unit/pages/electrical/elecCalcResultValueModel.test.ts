@@ -122,7 +122,7 @@ describe('elecCalcResultValueModel', () => {
       section_plan: { l_ogr_m: 18 },
       section_l_ogr_m: 17,
       provenance: {
-        input_sources: { thread_count: 'manual', max_section_start_current_a: 'catalog' },
+        input_sources: { thread_count: 'manual' },
         catalogs: { section: { authority: 'database', version: 'approved-8' } },
         formula_version: 'electrical-tt-v2',
         formula_fingerprint: 'abcdef1234567890',
