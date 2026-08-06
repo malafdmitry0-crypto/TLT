@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { SpecPageChrome } from '@/pages/specification/SpecPageChrome';
 
 function renderChrome(overrides: Record<string, unknown> = {}) {
@@ -74,6 +75,40 @@ describe('SpecPageChrome UI kit strangler (U2)', () => {
     expect(screen.getByText('Не определена — backend разрешит при формировании'))
       .toBeInTheDocument();
     expect(screen.queryByText('Стандартная активная версия')).not.toBeInTheDocument();
+  });
+
+  it('renders boolean TNP parameters as controlled checkboxes', async () => {
+    const user = userEvent.setup();
+    const setExZone = vi.fn();
+    const setIndicationOnBoxes = vi.fn();
+    const setEndSectionIndication = vi.fn();
+    const setTopIndication = vi.fn();
+    renderChrome({
+      setExZone,
+      setIndicationOnBoxes,
+      setEndSectionIndication,
+      setTopIndication,
+    });
+
+    const ex = screen.getByRole('checkbox', { name: 'Параметр Ex' });
+    const k1i = screen.getByRole('checkbox', { name: 'Параметр К1i' });
+    const k2i = screen.getByRole('checkbox', { name: 'Параметр К2i' });
+    const kiu = screen.getByRole('checkbox', { name: 'Параметр Кiu' });
+
+    expect(ex).not.toBeChecked();
+    expect(k1i).not.toBeChecked();
+    expect(k2i).toBeChecked();
+    expect(kiu).not.toBeChecked();
+
+    await user.click(ex);
+    await user.click(k1i);
+    await user.click(k2i);
+    await user.click(kiu);
+
+    expect(setExZone).toHaveBeenCalledWith(true);
+    expect(setIndicationOnBoxes).toHaveBeenCalledWith(true);
+    expect(setEndSectionIndication).toHaveBeenCalledWith(false);
+    expect(setTopIndication).toHaveBeenCalledWith(true);
   });
 
   it('shows Исправить on preflight modal and does not auto-confirm generate', async () => {

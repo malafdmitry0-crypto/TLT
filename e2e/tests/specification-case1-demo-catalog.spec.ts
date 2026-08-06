@@ -170,7 +170,7 @@ test.describe('Case 1 demo catalog: desktop specification', () => {
 
     await selectRequiredSetting(page, 'Режим группировки спецификации', 'Раздельно по типу объекта');
     for (const label of ['Параметр Ex', 'Параметр К1i', 'Параметр К2i', 'Параметр Кiu']) {
-      await selectRequiredSetting(page, label, 'Нет');
+      await dialog.getByRole('checkbox', { name: label, exact: true }).uncheck();
     }
     await dialog.getByRole('spinbutton', { name: 'Параметр L К2i' }).fill('0');
     await dialog.getByRole('spinbutton', { name: 'Параметр R гр' }).fill('1');
