@@ -8,6 +8,7 @@ import { appModal } from '@/feedback/appFeedback';
 import { useCallback, useMemo, type ReactNode } from 'react';
 
 import type { SelectionPolicy } from '@/api/calculations';
+import type { NormalGlideRowDragEvent } from '@/components/shared/NormalGlideGrid';
 import type { ElectricalCandidateFolder } from '@/types/calculation';
 import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
 import { ASSIGNMENT_DND_MIME } from '@/pages/electrical/ElectricalAssignmentPanel';
@@ -134,7 +135,7 @@ export function useElecCalcWorkspaceUiHelpers({
   );
 
   const handleTableRowDragStart = useCallback((
-    event: React.DragEvent,
+    event: NormalGlideRowDragEvent,
     objectId: string,
   ) => {
     if (!canMutate) {
@@ -145,9 +146,9 @@ export function useElecCalcWorkspaceUiHelpers({
       ? selectedRowKeys
       : [objectId];
     const payload = JSON.stringify(ids);
-    event.dataTransfer.setData(ASSIGNMENT_DND_MIME, payload);
-    event.dataTransfer.setData('text/plain', payload);
-    event.dataTransfer.effectAllowed = 'move';
+    event.setData(ASSIGNMENT_DND_MIME, payload);
+    event.setData('text/plain', payload);
+    event.setMoveEffect?.();
     setTableDragging(true);
   }, [canMutate, selectedRowKeys, setTableDragging]);
 

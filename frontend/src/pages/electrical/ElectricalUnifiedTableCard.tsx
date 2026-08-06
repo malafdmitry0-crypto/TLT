@@ -64,7 +64,7 @@ export type ElectricalUnifiedTableCardProps = {
   isElectricalPageFetching: boolean;
   handleElectricalTableChange: TableProps<ProjectObject>['onChange'];
   canMutate: boolean;
-  handleTableRowDragStart: (event: React.DragEvent, objectId: string) => void;
+  handleTableRowDragStart: NonNullable<ElectricalGlideGridProps['onRowDragStart']>;
   handleTableRowDragEnd: () => void;
   activateRowId: (id: string) => void;
   assignmentByObjectId: ReadonlyMap<string, ElectricalQueryAssignment>;
@@ -182,6 +182,9 @@ export function ElectricalUnifiedTableCard(props: ElectricalUnifiedTableCardProp
             onCellAction={handleElectricalGlideCellAction}
             onStartCellEdit={handleElectricalGlideStartCellEdit}
             onCommitCell={handleElectricalGlideCommitCell}
+            rowDragEnabled={canMutate}
+            onRowDragStart={handleTableRowDragStart}
+            onRowDragEnd={handleTableRowDragEnd}
           />
         </Suspense>
       ) : (
@@ -197,7 +200,13 @@ export function ElectricalUnifiedTableCard(props: ElectricalUnifiedTableCardProp
           rowClassName={electricalRowClassName}
           onRow={(obj) => ({
             draggable: canMutate,
-            onDragStart: (event) => handleTableRowDragStart(event, obj.id),
+            onDragStart: (event) => handleTableRowDragStart({
+              preventDefault: () => event.preventDefault(),
+              setData: (mime, payload) => event.dataTransfer.setData(mime, payload),
+              setMoveEffect: () => {
+                event.dataTransfer.effectAllowed = 'move';
+              },
+            }, obj.id),
             onDragEnd: handleTableRowDragEnd,
             onClick: (event) => {
               if ((event.target as HTMLElement).closest('.ant-table-selection-column')) return;

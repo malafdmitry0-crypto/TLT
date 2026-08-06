@@ -227,8 +227,8 @@ test.describe('Case 1 demo catalog: desktop specification', () => {
     );
     expect(body.snapshot?.catalog).toMatchObject({
       catalog_key: 'builtin-specification',
-      version: 'case1-demo-v1',
-      schema_version: 2,
+      version: 'case1-demo-r4-v1',
+      schema_version: 1,
     });
   });
 });
