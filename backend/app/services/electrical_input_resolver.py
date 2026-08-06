@@ -56,7 +56,6 @@ class ElectricalFrontendMockProfile(BaseModel):
     winding_pitch_mm: Decimal | None = None
     thread_count: int | None = None
     manual_cable_model: str | None = None
-    max_section_start_current_a: Decimal = Decimal("13.065")
     selection_policy: str = "technical_minimum"
     safety_factor: Decimal = Decimal("1.1")
 
@@ -72,10 +71,11 @@ _PUBLIC_ALIASES = {
     "winding_pitch": "winding_pitch_mm",
     "number_of_threads": "thread_count",
     "cable_mark": "manual_cable_model",
-    "max_start_current_per_section": "max_section_start_current_a",
 }
 RETIRED_TT_INPUT_FIELDS = frozenset(
     {
+        "max_section_start_current_a",
+        "max_start_current_per_section",
         "maintain_temperature",
         "maintain_temperature_c",
         "vapor_temperature",
@@ -187,6 +187,14 @@ class ElectricalInputResolver:
         warnings = list(boundary_warnings or [])
 
         for field in _FIELDS:
+            if field == "max_section_start_current_a":
+                project_value = project_values.get(field)
+                if field in project_fields and project_value is not None:
+                    values[field] = project_value
+                    sources[field] = "project_setting"
+                    continue
+                self._raise_missing(field)
+
             explicit_present = field in explicit_fields
             if explicit_present and (
                 explicit_values.get(field) is not None or field in _NULL_IS_VALUE
@@ -261,7 +269,7 @@ class ElectricalInputResolver:
         if field == "max_section_start_current_a":
             raise ElectricalInputResolutionError(
                 "SECTION_CURRENT_LIMIT_REQUIRED",
-                "A project or assignment section current limit is required",
+                "A project section current limit is required",
                 details={"field": field},
             )
         if field in {"base_length_m", "heat_loss_per_meter_w"}:

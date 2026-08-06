@@ -34,7 +34,9 @@ describe('ElecCalcIdopSettings', () => {
     expect(screen.getByTestId('elec-idop-settings')).toBeInTheDocument();
     expect(screen.queryByText('Iдоп не задан')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Задать Iдоп' })).not.toBeInTheDocument();
-    expect(screen.getByTestId('elec-idop-input')).toBeInTheDocument();
+    expect(screen.getByRole('spinbutton', {
+      name: 'Iдоп проекта — допустимый стартовый ток одной секции, А',
+    })).toBeInTheDocument();
     expect(screen.getByTestId('elec-idop-save')).toBeDisabled();
   });
 

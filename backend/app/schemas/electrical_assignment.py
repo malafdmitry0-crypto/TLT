@@ -39,13 +39,6 @@ class ElectricalAssignmentsUnassignRequest(BaseModel):
     items: list[ElectricalAssignmentMutationItem] = Field(min_length=1, max_length=500)
 
 
-class ElectricalAssignmentCurrentLimitPatch(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    expected_version: int = Field(ge=1)
-    max_section_start_current_a: Decimal | None = Field(gt=0)
-
-
 class ElectricalAssignmentOverridesPatch(BaseModel):
     """Sparse patch for TT inputs persisted inside one exact UUID ER.
 
@@ -81,7 +74,6 @@ class ElectricalAssignmentResponse(BaseModel):
     system_type: ElectricalSystemType | None
     assignment_state: ElectricalAssignmentState
     requested_cable_type: str | None
-    max_section_start_current_a: Decimal | None
     electrical_overrides: dict[str, Any]
     object_version_snapshot: int
     version: int
