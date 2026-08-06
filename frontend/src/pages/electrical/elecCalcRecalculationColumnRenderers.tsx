@@ -13,8 +13,6 @@ import {
 
 export type ElecCalcRendererRecalculationValues = {
   connectionType: string;
-  heatingHeight: number | null;
-  layingStep: number | null | undefined;
   supplyVoltage: number | null;
   windingCoefficient: number | null;
 };
@@ -27,12 +25,12 @@ export function buildElecCalcRecalculationColumnRenderers(
     laying_step: {
       align: 'right',
       render: (_: unknown, obj) =>
-        numberText(calcByObjectId[obj.id]?.params?.laying_step ?? recalc.layingStep, 2),
+        numberText(calcByObjectId[obj.id]?.params?.laying_step, 2),
     },
     heating_height: {
       align: 'right',
       render: (_: unknown, obj) =>
-        numberText(calcByObjectId[obj.id]?.params?.heating_height ?? recalc.heatingHeight, 1),
+        numberText(calcByObjectId[obj.id]?.params?.heating_height, 1),
     },
     connection_type: {
       render: (_: unknown, obj) => {

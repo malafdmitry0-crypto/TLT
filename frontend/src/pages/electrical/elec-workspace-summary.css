@@ -45,7 +45,7 @@
 }
 
 .elec-summary-card__title {
-  font-size: 12px;
+  font-size: 9px;
   line-height: 1.25;
   color: var(--color-swatch-334155);
 }
@@ -62,7 +62,7 @@
   gap: 10px;
   padding: 2px 0;
   border-bottom: 1px solid var(--color-swatch-f0f3f7);
-  font-size: 12px;
+  font-size: 9px;
 }
 
 .elec-summary-card__row:last-child {
@@ -88,7 +88,13 @@
 
 /* ER tabs + actions on one toolbar row (mockup). */
 .electrical-variant-tabs {
-  margin-bottom: 4px;
+  margin-bottom: 0;
+}
+
+/* antd Space — inline-flex, ловит baseline-отступ под строкой ЭР. */
+#electrical-variant-workspace > .ant-space,
+.electrical-variant-tabs > .ant-space {
+  display: flex;
 }
 
 .electrical-variant-tabs__row {
@@ -109,9 +115,9 @@
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
   border: 1px solid var(--color-swatch-e6edf5);
-  border-radius: 8px;
+  border-radius: 6px;
   background: var(--color-surface-soft);
-  padding: 3px;
+  padding: 1px;
 }
 
 .electrical-variant-tab {
@@ -119,13 +125,14 @@
   border: none;
   background: transparent;
   color: var(--color-swatch-475569);
-  font-size: 13px;
-  font-weight: 500;
-  padding: 6px 16px;
-  border-radius: 6px;
+  height: 16px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 0 10px;
+  border-radius: 4px;
   cursor: pointer;
   white-space: nowrap;
-  line-height: 1.3;
+  line-height: 1;
 }
 
 .electrical-variant-tab:hover {
@@ -154,34 +161,26 @@
   flex: 0 0 auto;
 }
 
-.electrical-variant-action--create,
-.electrical-variant-action--copy {
-  color: var(--color-swatch-0f766e);
-  border-color: var(--color-swatch-99f6e4);
-  background: var(--color-swatch-f0fdfa);
+/* Действия ЭР — штатный primary ui-kit, без локальных перекрасок.
+   Метрики как у кнопок .actionbar-srs (эталон «Далее → Электротехнический расчёт»). */
+.electrical-variant-tabs__actions .tlt-ui-button,
+.electrical-variant-tabs__rename .tlt-ui-button {
+  height: 20px;
+  padding-inline: 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  line-height: 1;
 }
 
-.electrical-variant-action--create:hover,
-.electrical-variant-action--copy:hover {
-  color: var(--color-swatch-0f766e);
-  border-color: var(--color-swatch-5eead4);
-  background: var(--color-swatch-ccfbf1);
+/* Браузер поднимает шрифт до своего минимума (у владельца 12px), поэтому
+   надпись уменьшаем zoom-ом — font-size ниже порога не работает. */
+.electrical-variant-tabs__actions .tlt-ui-button__label,
+.electrical-variant-tabs__rename .tlt-ui-button__label {
+  zoom: 0.85;
 }
 
 .electrical-variant-action--delete {
   border-color: var(--color-swatch-fecaca);
-}
-
-.electrical-variant-action--spec {
-  color: var(--color-swatch-0f766e);
-  border-color: var(--color-swatch-99f6e4);
-  background: var(--color-swatch-f0fdfa);
-}
-
-.electrical-variant-action--spec:hover {
-  color: var(--color-swatch-0f766e);
-  border-color: var(--color-swatch-5eead4);
-  background: var(--color-swatch-ccfbf1);
 }
 
 @media (max-width: 1200px) {

@@ -93,8 +93,6 @@ export function useElecCalcBatchJobOrchestration({
       const cableSpecificOptions = effectiveCableType === 'self_regulating_tt'
         ? {
             supplyVoltage: recalc.supplyVoltage,
-            ...(recalc.heatingHeight == null ? {} : { heatingHeight: recalc.heatingHeight }),
-            ...(recalc.layingStep == null ? {} : { layingStep: recalc.layingStep }),
           }
         : {
             supplyVoltage: recalc.supplyVoltage,
