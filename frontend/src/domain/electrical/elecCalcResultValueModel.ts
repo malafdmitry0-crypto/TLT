@@ -173,7 +173,6 @@ export function compactProvenanceFromResults(results: Record<string, unknown> | 
     : {};
   const threadSource = layoutRecord.thread_selection_source ?? sources.thread_count;
   const layingSource = sources.winding_pitch_mm ?? sources.winding_coefficient;
-  const currentLimitSource = sources.max_section_start_current_a;
   const catalogSource = sectionCatalog.source ?? sectionCatalog.authority;
   const catalogVersion = sectionCatalog.version ?? sectionCatalog.id;
   const formulaVersion = provenance.formula_version;
@@ -188,7 +187,6 @@ export function compactProvenanceFromResults(results: Record<string, unknown> | 
   return [
     threadSource && `нитки: ${String(threadSource)}`,
     layingSource && `укладка: ${String(layingSource)}`,
-    currentLimitSource && `Iдоп: ${String(currentLimitSource)}`,
     sectionCatalogLabel && `секции: ${sectionCatalogLabel}`,
     formula && `формула: ${formula}`,
   ]

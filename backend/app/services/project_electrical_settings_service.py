@@ -112,13 +112,12 @@ class ProjectElectricalSettingsService:
         return settings
 
     async def _mark_current_limit_dependents_stale(self, project_id: UUID) -> None:
-        """Stale only assignments which inherit Iдоп from the project setting."""
+        """Stale every self-regulating calculation that uses project Iдоп."""
         assignment_result = await self.db.execute(
             select(ElectricalVariantObject)
             .where(
                 ElectricalVariantObject.project_id == project_id,
                 ElectricalVariantObject.system_type == "self_regulating",
-                ElectricalVariantObject.max_section_start_current_a.is_(None),
             )
             .order_by(
                 ElectricalVariantObject.electrical_variant_id,
@@ -145,12 +144,7 @@ class ProjectElectricalSettingsService:
             )
             .with_for_update()
         )
-        stale_pairs = set(pairs)
         for calculation in calculation_result.scalars().all():
-            pair = (calculation.electrical_variant_id, calculation.object_id)
-            if not self._uses_project_current_limit(calculation.results):
-                stale_pairs.discard(pair)
-                continue
             previous = dict(calculation.results or {})
             calculation.results = {
                 **previous,
@@ -173,15 +167,11 @@ class ProjectElectricalSettingsService:
             .with_for_update()
         )
         for candidate in candidate_result.scalars().all():
-            if not self._uses_project_current_limit(candidate.results):
-                continue
             candidate.status = "stale"
             candidate.is_applied = False
 
-        if not stale_pairs:
-            return
         by_variant: dict[UUID, list[UUID]] = defaultdict(list)
-        for variant_id, object_id in stale_pairs:
+        for variant_id, object_id in pairs:
             by_variant[variant_id].append(object_id)
         assignment_service = ElectricalAssignmentService(self.db)
         for variant_id, affected_object_ids in by_variant.items():
@@ -192,20 +182,3 @@ class ProjectElectricalSettingsService:
                 reason="project_section_current_limit_changed",
                 operation="project_electrical_settings_patch",
             )
-
-    @staticmethod
-    def _uses_project_current_limit(result: dict | None) -> bool:
-        """Treat unknown/legacy provenance as dependent; exempt proven overrides."""
-        if not isinstance(result, dict):
-            return True
-        provenance = result.get("provenance")
-        provenance = provenance if isinstance(provenance, dict) else {}
-        sources = result.get("input_sources")
-        if not isinstance(sources, dict):
-            sources = provenance.get("input_sources")
-        if not isinstance(sources, dict):
-            return True
-        return sources.get("max_section_start_current_a") not in {
-            "assignment_override",
-            "explicit_request",
-        }

@@ -122,7 +122,6 @@ export interface ElectricalAssignment {
   system_type: ElectricalSystemType | null;
   assignment_state: ElectricalAssignmentState;
   requested_cable_type: string | null;
-  max_section_start_current_a: number | null;
   electrical_overrides: ElectricalAssignmentOverrides;
   object_version_snapshot: number;
   version: number;
