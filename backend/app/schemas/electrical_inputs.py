@@ -21,7 +21,6 @@ class ElectricalInputOverrides(BaseModel):
     winding_pitch_mm: Decimal | None = None
     thread_count: int | None = None
     manual_cable_model: str | None = None
-    max_section_start_current_a: Decimal | None = None
     selection_policy: str | None = None
     safety_factor: Decimal | None = None
     base_length_m: Decimal | None = None

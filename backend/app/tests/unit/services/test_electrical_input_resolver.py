@@ -103,6 +103,16 @@ def test_assignment_voltage_precedes_project_and_is_resolved_as_assignment_sourc
     assert result.sources["nominal_voltage_v"] == "assignment_override"
 
 
+def test_project_current_limit_is_the_only_resolved_source() -> None:
+    sources = _sources()
+    sources["assignment"] = {"max_section_start_current_a": Decimal("99")}
+
+    result = ElectricalInputResolver().resolve(**sources)
+
+    assert result.values.max_section_start_current_a == Decimal("16")
+    assert result.sources["max_section_start_current_a"] == "project_setting"
+
+
 def test_explicit_null_voltage_clears_assignment_and_resumes_project_resolution() -> None:
     sources = _sources()
     sources["explicit"] = ElectricalInputOverrides(
@@ -168,6 +178,18 @@ def test_public_request_vocabulary_maps_without_legacy_warning_or_mark_rewrite()
 
 @pytest.mark.parametrize(
     "field",
+    ["max_section_start_current_a", "max_start_current_per_section"],
+)
+def test_request_current_limit_is_rejected_instead_of_silently_ignored(field: str) -> None:
+    with pytest.raises(ElectricalInputResolutionError) as raised:
+        normalize_electrical_override_payload({field: 13.065})
+
+    assert raised.value.code == "ELECTRICAL_INPUT_RETIRED"
+    assert raised.value.details == {"fields": [field]}
+
+
+@pytest.mark.parametrize(
+    "field",
     [
         "maintain_temperature",
         "maintain_temperature_c",
@@ -191,7 +213,6 @@ def test_retired_tt_request_inputs_are_rejected_instead_of_silently_ignored(
 
 def test_mock_profile_is_explicitly_non_production() -> None:
     sources = _sources()
-    sources["project_settings"] = {}
     sources["object_heat"].pop("cold_start_temperature_c")
     result = ElectricalInputResolver(mock_mode="test").resolve(**sources)
 

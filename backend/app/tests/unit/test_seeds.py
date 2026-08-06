@@ -1,9 +1,12 @@
+from decimal import Decimal
+
 from app.reference_data.loader import list_insulation_materials, list_tt_cables
 from app.schemas.electrical_assignment import ElectricalAssignmentOverridesPatch
 from app.schemas.project import ProjectObjectCreate
 from app.schemas.specification import SpecificationRequestedOptions
 from app.seeds import (
     _DEMO_SPECIFICATION_SETTINGS,
+    _ELECTRICAL_SEED_MAX_SECTION_START_CURRENT_A,
     _HEAT_SEED_CONFIGS,
     _electrical_seed_overrides,
     _insulation_seed_row,
@@ -151,12 +154,14 @@ def test_tank_seed_matrix_covers_shapes_placements_and_special_cases():
     assert metadata_volume["volume"] == 24.5
 
 
-def test_electrical_seed_matrix_uses_only_current_assignment_overrides():
+def test_electrical_seed_matrix_uses_project_idop_and_supported_assignment_overrides():
+    assert Decimal("13.065") == _ELECTRICAL_SEED_MAX_SECTION_START_CURRENT_A
     planned = [
         (config, _electrical_seed_overrides(config["object_type"], config["params"]))
         for config in _HEAT_SEED_CONFIGS
     ]
     for config, overrides in planned:
+        assert "max_section_start_current_a" not in overrides
         assert overrides["supply_voltage_v"] == 230
         ElectricalAssignmentOverridesPatch(expected_version=1, **overrides)
         if config["object_type"] == "pipe":

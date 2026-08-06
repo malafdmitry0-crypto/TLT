@@ -410,7 +410,7 @@
 - [x] Агрегаты объекта: длина, токи, мощность × N
 - [~] Финальный гейт §9.15 / «Рассчитано» vs «Требуется корректировка» — partial
 - [~] Колонки таблицы: марка, нитки, L, токи, мощность — partial set
-- [ ] **FE UI:** project Iдоп + object override + blocking empty «Задать Iдоп» + CTA в настройки
+- [x] **FE UI:** единый project Iдоп + blocking empty «Задать Iдоп» + CTA в настройки
 
 ### 6.15–6.17 Unassign / manual edit / unassign confirm
 

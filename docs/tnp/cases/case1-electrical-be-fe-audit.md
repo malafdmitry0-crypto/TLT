@@ -90,7 +90,7 @@
 2. **Assignments** — atomic assign, version optimistic concurrency, unassign+confirm, cleanup legacy, RBAC guest/owner.  
 3. **Iдоп**  
    - `GET/PATCH /projects/{id}/electrical-settings` (`max_section_start_current_a`, `nominal_voltage_v=230`)  
-   - `PATCH .../assignments/{oid}/section-current-limit`  
+   - единственный источник — project settings; object/request override отсутствует
    - sections formula: `SECTION_CURRENT_LIMIT_REQUIRED` if missing  
 4. **TT calc path** — `self_regulating_tt` only for real formulas; legacy types → `ELECTRICAL_LEGACY_CABLE_TYPE_UNSUPPORTED`.  
 5. **Batch** — UUID job path `/calc/electrical/batch/jobs` + Idempotency-Key; catalogs seeded active.  

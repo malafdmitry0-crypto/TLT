@@ -56,11 +56,11 @@ export function ElecCalcIdopSettings({
         <div className="elec-idop-settings__fields">
           <div className="elec-idop-settings__field">
             <span className="workflow-params-label elec-idop-settings__label">
-              Допустимый стартовый ток секции Iдоп, А
+              Iдоп проекта — допустимый стартовый ток одной секции, А
             </span>
             <TltNumberField
               id={`${formId}-input`}
-              aria-label="Допустимый стартовый ток секции"
+              aria-label="Iдоп проекта — допустимый стартовый ток одной секции, А"
               data-testid="elec-idop-input"
               disabled={!canMutate || isLoading || saving}
               min={0.001}

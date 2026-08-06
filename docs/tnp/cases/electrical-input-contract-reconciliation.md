@@ -47,7 +47,7 @@
 | `thread_count` | ЭР: строка/окно подбора | `1…3`; `null` означает автоподбор, кроме ручной марки, где `null => 1` |
 | `manual_cable_model` | ЭР: точная марка из backend options | Это полный `full_mark`, включая исполнение; сокращение до базовой модели запрещено |
 | `nominal_voltage_v` | ЭР, с сохранением в assignment | Начальное проектное значение `230 В`, пользователь может задать любое положительное `U`; на выбор марки не влияет |
-| `max_section_start_current_a` | Настройка проекта/assignment | Обязательный `Iдоп` для §6.14; скрытого значения нет |
+| `max_section_start_current_a` | Настройка проекта | Обязательный `Iдоп` для §6.14; object/request override и скрытого значения нет |
 | `selection_policy` | ЭР | В P0 разрешён только `technical_minimum` |
 | `tank_shape`, размеры, `heating_height`, `laying_step` | Геометрия Heat + явная раскладка резервуара в UI | Поддержаны `cylindrical` и `rectangular`; трубные `D`/шаг навива для резервуара отклоняются |
 
@@ -71,7 +71,8 @@ Heat удалены.
 Если клиент всё же передаёт в TT query/internal override старые selector-поля
 `maintain_temperature(_c)`, `vapor_temperature`, `steam_temperature_c`,
 `steam_tracing`, `aggressive_product`, `winding_coefficient` или
-`connection_type`, backend отвечает `ELECTRICAL_INPUT_RETIRED`. Эти имена не
+`connection_type`, `max_section_start_current_a` или
+`max_start_current_per_section`, backend отвечает `ELECTRICAL_INPUT_RETIRED`. Эти имена не
 игнорируются и не преобразуются в новые входы. В типизированном JSON body те же
 удалённые поля отсекаются схемой `extra="forbid"` как ошибка валидации запроса.
 
@@ -248,7 +249,8 @@ Heat:
 - получает точные марки и паспортные `P/Tmin/Tmax` только от backend;
 - позволяет задать трубный шаг навива, `N`, точную ручную марку и раскладку
   резервуара;
-- сохраняет `U` и per-object overrides в assignment конкретного UUID ЭР.
+- сохраняет `U` и поддерживаемые per-object overrides в assignment конкретного UUID ЭР;
+- читает `Iдоп` только из project electrical settings.
 
 ## Допуск в спецификацию, §6.18
 
