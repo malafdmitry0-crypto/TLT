@@ -23,8 +23,6 @@ function renderCopyValue(offset: number) {
     calcByObjectId: {},
     electricalDisplayOffset,
     getCableTypeForObject: () => 'three_core',
-    layingStep: 5,
-    heatingHeight: 0.3,
     connectionType: 'star_3ph',
     supplyVoltage: 380,
     windingCoefficient: 1.1,
@@ -46,10 +44,11 @@ describe('useElecCalcElectricalColumnCopyValue', () => {
     expect(result.current('index', object, 2)).toBe(43);
   });
 
-  it('delegates fallback recalculation params when calculation params are absent', () => {
+  it('does not expose shared tank-layout params when calculation params are absent', () => {
     const { result } = renderCopyValue(0);
 
-    expect(result.current('laying_step', object, 0)).toBe('5');
+    expect(result.current('laying_step', object, 0)).toBe('—');
+    expect(result.current('heating_height', object, 0)).toBe('—');
     expect(result.current('connection_type', object, 0)).toBe('Звезда');
     expect(result.current('supply_voltage', object, 0)).toBe('380');
   });

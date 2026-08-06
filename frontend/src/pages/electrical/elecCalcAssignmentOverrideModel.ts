@@ -1,4 +1,3 @@
-import type { ElecCalcCableSizingParams } from '@/pages/electrical/useElecCalcCableSizingModalState';
 import type { ElectricalQueryResponse } from '@/types/calculation';
 import type {
   ElectricalAssignment,
@@ -18,7 +17,6 @@ export type ElectricalManualCableOverrideIntent = {
 export type BuildElectricalAssignmentOverridePatchArgs = {
   expectedVersion: number;
   object: ProjectObject;
-  recalc: ElecCalcCableSizingParams;
   supplyVoltage?: number | null;
   layout?: ElectricalLayoutOverrideIntent;
   manualCableModel?: ElectricalManualCableOverrideIntent;
@@ -31,21 +29,10 @@ export function exactManualCableModel(mark: string): string {
 export function buildElectricalAssignmentOverridePatch({
   expectedVersion,
   object,
-  recalc,
   supplyVoltage,
   layout,
   manualCableModel,
 }: BuildElectricalAssignmentOverridePatchArgs): ElectricalAssignmentOverridesPatchRequest {
-  const tankLayout = object.object_type === 'tank'
-    ? {
-        ...(recalc.heatingHeight == null
-          ? {}
-          : { tank_heating_height_m: recalc.heatingHeight }),
-        ...(recalc.layingStep == null
-          ? {}
-          : { tank_laying_step_m: recalc.layingStep }),
-      }
-    : {};
   const rowLayout = layout
     ? {
         ...(object.object_type === 'pipe'
@@ -62,7 +49,6 @@ export function buildElectricalAssignmentOverridePatch({
   return {
     expected_version: expectedVersion,
     ...(supplyVoltage == null ? {} : { supply_voltage_v: supplyVoltage }),
-    ...tankLayout,
     ...rowLayout,
     ...(manualCableModel === undefined
       ? {}

@@ -161,8 +161,6 @@ function baseArgs(
     projectSelected: true,
     recalc: {
       connectionType: 'line_1ph',
-      heatingHeight: null,
-      layingStep: null,
       supplyVoltage: null,
       windingCoefficient: null,
     },

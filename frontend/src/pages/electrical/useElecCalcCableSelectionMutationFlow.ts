@@ -119,7 +119,6 @@ export function useElecCalcCableSelectionMutationFlow({
     electricalVariantId,
     assignmentByObjectId,
     objects,
-    recalc,
   });
 
   const currentTarget = useMemo<LegacyElectricalVariantTarget>(() => ({
@@ -167,15 +166,7 @@ export function useElecCalcCableSelectionMutationFlow({
     const assignment = assignmentByObjectId.get(objectId);
     const supplyVoltage = savedAssignmentSupplyVoltage(assignment) ?? recalc.supplyVoltage;
     const cableSpecificOptions = effectiveCableType === 'self_regulating_tt'
-      ? {
-          supplyVoltage,
-          ...(object?.object_type === 'tank' && recalc.heatingHeight != null
-            ? { heatingHeight: recalc.heatingHeight }
-            : {}),
-          ...(object?.object_type === 'tank' && recalc.layingStep != null
-            ? { layingStep: recalc.layingStep }
-            : {}),
-        }
+      ? { supplyVoltage }
       : {
           supplyVoltage: recalc.supplyVoltage,
           connectionType: recalc.connectionType,

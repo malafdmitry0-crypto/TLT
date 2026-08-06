@@ -59,8 +59,6 @@ function setup(
       canMutate: true,
       recalc: {
         connectionType: 'line_1ph',
-        heatingHeight: null,
-        layingStep: 0.1,
         supplyVoltage: 220,
         windingCoefficient: null,
       },
@@ -178,5 +176,26 @@ describe('useElecCalcElectricalColumnRenderers', () => {
     render(<>{result.current.number_of_threads.render(undefined, projectObject(), 0)}</>);
     expect(screen.getByText('2')).toBeInTheDocument();
     expect(screen.getByText('ручн.')).toBeInTheDocument();
+  });
+
+  it('renders tank layout only from the row calculation params', () => {
+    const row = projectObject({ object_type: 'tank' });
+    const { result } = setup({
+      calcByObjectId: {
+        'object-1': calc({
+          params: {
+            heating_height: 2.5,
+            laying_step: 0.15,
+          },
+        }),
+      },
+    });
+
+    const height = render(<>{result.current.heating_height.render(undefined, row, 0)}</>);
+    expect(screen.getByText('2,5')).toBeInTheDocument();
+    height.unmount();
+
+    render(<>{result.current.laying_step.render(undefined, row, 0)}</>);
+    expect(screen.getByText('0,15')).toBeInTheDocument();
   });
 });

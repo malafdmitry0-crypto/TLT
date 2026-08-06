@@ -39,8 +39,6 @@ import type { HeatCalcColumnFilter, HeatCalcTableViewState } from '@/utils/heatC
 type EnumOpts = Array<{ value: string; label: string }>;
 type RecalcValues = {
   connectionType: string;
-  heatingHeight: number | null;
-  layingStep: number | null | undefined;
   supplyVoltage: number | null;
   windingCoefficient: number | null;
 };
@@ -141,7 +139,6 @@ export function useElecCalcMainTableController(args: UseElecCalcMainTableControl
   const electricalColumnCopyValue = useElecCalcElectricalColumnCopyValue({
     calcByObjectId, electricalDisplayOffset,
     getCableTypeForObject: getCalculatedCableTypeForObject,
-    layingStep: recalc.layingStep, heatingHeight: recalc.heatingHeight,
     connectionType: recalc.connectionType, supplyVoltage: recalc.supplyVoltage,
     windingCoefficient: recalc.windingCoefficient,
   });

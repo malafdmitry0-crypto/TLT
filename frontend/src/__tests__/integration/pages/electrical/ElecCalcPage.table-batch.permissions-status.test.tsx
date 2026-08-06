@@ -44,9 +44,10 @@ describe('ElecCalcPage table / batch — permissions-status', () => {
     // Recalculation inputs live only in the compact action bar.
     // Селекта типа кабеля в панели нет — система задаётся вкладкой распределения
     expect(screen.queryByLabelText('Тип кабеля для пересчёта')).not.toBeInTheDocument();
-    // U больше не контрол — проверяем блокировку на оставшихся полях укладки
+    // TT inputs are object/ER values and do not live in the shared action bar.
     expect(screen.queryByLabelText('Напряжение питания')).not.toBeInTheDocument();
-    expect(screen.getAllByLabelText('Высота обогрева резервуара')[0]).toBeDisabled();
+    expect(screen.queryByLabelText('Высота обогрева резервуара')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Шаг укладки резервуара')).not.toBeInTheDocument();
     expect(screen.queryByRole('checkbox', { name: 'Расширенные параметры' }))
       .not.toBeInTheDocument();
     expect(screen.queryByTestId('eleccalc-params-panel')).not.toBeInTheDocument();
