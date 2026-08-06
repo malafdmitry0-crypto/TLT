@@ -5,13 +5,13 @@ import {
 } from '@/pages/specification/specGenerationOptionsSyncModel';
 
 describe('buildSpecSettingsFormSnapshot (B7)', () => {
-  it('keeps missing keys unset', () => {
+  it('defaults missing checkbox values to false', () => {
     expect(buildSpecSettingsFormSnapshot({})).toEqual({
-      exZone: null,
+      exZone: false,
       reserveCoeff: '',
-      indicationOnBoxes: null,
-      endSectionIndication: null,
-      topIndication: null,
+      indicationOnBoxes: false,
+      endSectionIndication: false,
+      topIndication: false,
       minLengthK2i: '',
       groupingMode: null,
     });
