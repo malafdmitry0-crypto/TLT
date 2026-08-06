@@ -143,14 +143,6 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
   const projectSettingsDisabled = !canMutateProject
     || missingFields.length > 0
     || saveDefaultsMut.isPending;
-  const triStateOptions = [
-    { value: 'true', label: 'Да' },
-    { value: 'false', label: 'Нет' },
-  ];
-  const triStateValue = (value: boolean | null) => value == null ? null : String(value);
-  const parseTriState = (value: string | number | null) => (
-    value == null ? null : value === 'true'
-  );
   const catalogLabel = resolveSpecificationCatalogLabel(
     spec?.snapshot,
     projectSettings?.settings as Record<string, unknown> | undefined,
@@ -240,13 +232,12 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
                 ['Кiu — индикация сверху коробки', topIndication, setTopIndication, 'Параметр Кiu'],
               ].map(([label, value, setter, ariaLabel]) => (
                 <CompactField key={String(ariaLabel)} layout="vertical" label={String(label)} controlWidth="100%">
-                  <TltSelect
-                    value={triStateValue(value as boolean | null)}
-                    allowClear
-                    placeholder="Не задано"
+                  <Checkbox
+                    checked={value === true}
                     disabled={!canMutateProject}
-                    onChange={(next) => (setter as (value: boolean | null) => void)(parseTriState(next))}
-                    options={triStateOptions}
+                    onChange={(event) => (
+                      setter as (nextValue: boolean | null) => void
+                    )(event.target.checked)}
                     aria-label={String(ariaLabel)}
                   />
                 </CompactField>
