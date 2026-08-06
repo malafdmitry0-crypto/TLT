@@ -32,6 +32,8 @@ import type {
 import { missingSpecGenerateFields } from '@/pages/specification/specGenerateOptionsModel';
 import { resolveSpecificationCatalogLabel } from '@/pages/specification/specGenerationOptionsSyncModel';
 import type { Specification, SpecificationItem } from '@/types/specification';
+import { SpecificationReadinessAlert } from '@/pages/specification/SpecificationReadinessAlert';
+import type { SpecificationReadinessView } from '@/pages/specification/specificationReadinessModel';
 import '../workflow-params.css';
 import './specification-page.css';
 import './specification-settings-modal.css';
@@ -107,6 +109,9 @@ export type SpecPageChromeProps = {
   /** Navigate to ER unassigned tab without confirming partial generate (case §7.3). */
   fixUnassignedAssignments?: () => void;
   preflightSummary: string | null;
+  readiness: SpecificationReadinessView;
+  retryReadiness: () => unknown;
+  handleReadinessRecovery: () => void;
 };
 
 export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
@@ -125,6 +130,7 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
     selectedAccessoryId, setSelectedAccessoryId, qty, setQty, accessories,
     preflightOpen, setPreflightOpen, setPendingGenerate, confirmPartialGenerate,
     fixUnassignedAssignments, preflightSummary,
+    readiness, retryReadiness, handleReadinessRecovery,
   } = p;
   const missingFields = missingSpecGenerateFields({
     exZone,
@@ -138,6 +144,8 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
   const generationDisabled = !canMutateProject
     || selectedGenerateErIds.length === 0
     || missingFields.length > 0
+    || readiness.state === 'blocked'
+    || readiness.state === 'calculating'
     || generationWorkflowPending
     || mut.isPending;
   const projectSettingsDisabled = !canMutateProject
@@ -314,6 +322,12 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
           </section>
 
           <section className="specification-settings-section">
+            <SpecificationReadinessAlert
+              state={readiness.state}
+              blocker={readiness.primaryBlocker}
+              onRecovery={handleReadinessRecovery}
+              onRetry={() => { void retryReadiness(); }}
+            />
             {(selectedGenerateErIds.length === 0 || missingFields.length > 0) && (
               <TltAlert
                 tone="warning"
@@ -332,7 +346,7 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
               >
                 <ul>
                   {generationDiagnostics.map((diagnostic) => (
-                    <li key={`${diagnostic.kind}:${diagnostic.code}`}>
+                    <li key={`${diagnostic.kind}:${diagnostic.code}:${String(diagnostic.details.reason ?? '')}`}>
                       <strong>{diagnostic.code}</strong>
                       {' — '}
                       {diagnostic.message}

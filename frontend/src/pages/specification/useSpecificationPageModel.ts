@@ -17,7 +17,6 @@ import { formatSpecTimestamp } from '@/pages/specification/specFormatModel';
 import { useSpecParamsPanelState } from '@/pages/specification/useSpecParamsPanelState';
 import { useSpecPageFormState } from '@/pages/specification/useSpecPageFormState';
 import { buildSpecGenerateOptions } from '@/pages/specification/specGenerateOptionsModel';
-import { buildSpecSettingsFormSnapshot } from '@/pages/specification/specGenerationOptionsSyncModel';
 import { useSpecificationQuerySession } from '@/pages/specification/useSpecificationQuerySession';
 import { useSpecificationManualItemsController } from '@/pages/specification/useSpecificationManualItemsController';
 import {
@@ -31,6 +30,9 @@ import {
 import { buildSpecGenerationHydrate } from '@/pages/specification/specGenerationHydrateModel';
 import { persistSpecificationCatalogSelections } from '@/pages/specification/specificationCatalogSelectionPersistence';
 import { formatPreflightSummary } from '@/domain/specification/specTableSectionModel';
+import { deduplicateSpecificationDiagnostics } from '@/pages/specification/specificationReadinessModel';
+import { useSpecificationReadiness } from '@/pages/specification/useSpecificationReadiness';
+import { useSpecSettingsFormHydration } from '@/pages/specification/useSpecSettingsFormHydration';
 
 type GenerateSpecificationVariables = SpecificationMutationScope & {
   options: SpecificationOptions;
@@ -69,29 +71,7 @@ export function useSpecificationPageModel() {
   /** Единое modal-окно настроек формирования. */
   const { settingsOpen, toggleSettings } = useSpecParamsPanelState();
 
-  // PDL-ER-07: load project defaults first; canonical snapshot from last generation only
-  // for the currently viewed ER (does not rewrite project defaults).
-  // Must re-run when snapshot content changes (same spec id after regenerate).
-  useEffect(() => {
-    const opts = spec?.snapshot?.resolved_options
-      ?? (projectSettings?.settings as Record<string, unknown> | undefined)
-      ?? {};
-    const snapshot = buildSpecSettingsFormSnapshot(opts);
-    form.setExZone(snapshot.exZone);
-    form.setReserveCoeff(snapshot.reserveCoeff);
-    form.setIndicationOnBoxes(snapshot.indicationOnBoxes);
-    form.setEndSectionIndication(snapshot.endSectionIndication);
-    form.setTopIndication(snapshot.topIndication);
-    form.setMinLengthK2i(snapshot.minLengthK2i);
-    form.setGroupingMode(snapshot.groupingMode);
-    // form setters are stable (useState); omit form object to avoid effect loops
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- form.* setters only
-  }, [
-    spec?.id,
-    spec?.snapshot?.resolved_options,
-    projectSettings?.version,
-    projectSettings?.settings,
-  ]);
+  useSpecSettingsFormHydration(spec, projectSettings, form);
 
   const availableGenerateVariants = useMemo(
     () => variantContext.variants ?? [],
@@ -134,7 +114,9 @@ export function useSpecificationPageModel() {
     onSuccess: (result, variables) => {
       const generated = result.results.filter((item) => item.status === 'generated');
       const unresolved = result.results.filter((item) => item.status !== 'generated');
-      const diagnostics = unresolved.flatMap((item) => item.diagnostics);
+      const diagnostics = deduplicateSpecificationDiagnostics(
+        unresolved.flatMap((item) => item.diagnostics),
+      );
       const groups = unresolved.flatMap((item) => item.candidate_groups ?? []);
       form.setGenerationDiagnostics(diagnostics);
       form.setCandidateGroups(groups);
@@ -185,6 +167,10 @@ export function useSpecificationPageModel() {
           exact: false,
         });
       }
+      qc.invalidateQueries({
+        queryKey: ['spec-readiness', variables.projectId],
+        exact: false,
+      });
     },
     onError: (error) => {
       form.setPendingGenerate(null);
@@ -269,6 +255,7 @@ export function useSpecificationPageModel() {
       );
       qc.invalidateQueries({ queryKey: ['spec-settings', project?.id], exact: true });
       qc.invalidateQueries({ queryKey: ['spec', project?.id], exact: false });
+      qc.invalidateQueries({ queryKey: ['spec-readiness', project?.id], exact: false });
     },
     onError: (error) => {
       const detail = getSpecificationErrorDetail(error);
@@ -409,6 +396,14 @@ export function useSpecificationPageModel() {
     label: `Спецификация ${item.name}`,
     disabled: scopeSwitchDisabled,
   }));
+  const { readiness, retryReadiness, handleReadinessRecovery } = useSpecificationReadiness({
+    projectId: project?.id,
+    variantIds: form.selectedGenerateErIds,
+    generationPending: mut.isPending,
+    generationFailed: mut.isError,
+    navigate,
+    openSettings: () => toggleSettings(true),
+  });
 
   return {
     project,
@@ -492,5 +487,8 @@ export function useSpecificationPageModel() {
     generateButtonLabel,
     scopeSwitchDisabled,
     erTabItems,
+    readiness,
+    retryReadiness,
+    handleReadinessRecovery,
   };
 }

@@ -56,6 +56,7 @@ class SpecificationPreflightAssignment:
     object_version: int
     assignment_version: int
     assignment_object_version: int
+    assignment_diagnostics: Mapping[str, Any] | None = None
     result: Mapping[str, Any] | None = None
 
 
@@ -198,6 +199,14 @@ def _assignment_diagnostics(
         "assignment_id": str(row.assignment_id),
         "calculation_id": str(row.calculation_id) if row.calculation_id else None,
     }
+    assignment_diagnostics = row.assignment_diagnostics
+    if isinstance(assignment_diagnostics, Mapping):
+        reason = assignment_diagnostics.get("reason") or assignment_diagnostics.get("stale_reason")
+        if isinstance(reason, str) and reason:
+            details["reason"] = reason
+        error_code = assignment_diagnostics.get("error_code")
+        if isinstance(error_code, str) and error_code:
+            details["upstream_error_code"] = error_code
     if row.object_type not in {"pipe", "tank"}:
         return [
             _diagnostic(

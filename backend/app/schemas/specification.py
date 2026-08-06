@@ -90,6 +90,23 @@ class SpecificationGenerationStatus(StrEnum):
     SELECTION_REQUIRED = "selection_required"
 
 
+class SpecificationReadinessSourceStage(StrEnum):
+    HEAT = "heat"
+    ELECTRICAL = "electrical"
+    SPECIFICATION = "specification"
+    CATALOG = "catalog"
+
+
+class SpecificationReadinessNextAction(StrEnum):
+    RECALCULATE_HEAT = "recalculate_heat"
+    OPEN_ELECTRICAL_VARIANT = "open_electrical_variant"
+    CONFIGURE_SPECIFICATION = "configure_specification"
+    SELECT_CATALOG_ITEMS = "select_catalog_items"
+    CONFIRM_UNASSIGNED_EXCLUSION = "confirm_unassigned_exclusion"
+    CONTACT_CATALOG_ADMIN = "contact_catalog_admin"
+    RETRY_GENERATION = "retry_generation"
+
+
 class SpecificationDiagnosticCode(StrEnum):
     """Stable codes утверждённого backend-контракта спецификации."""
 
@@ -365,6 +382,36 @@ class SpecificationGenerationResponse(BaseModel):
     project_id: UUID
     settings_version: int
     results: list[SpecificationVariantGenerationResult]
+
+
+class SpecificationReadinessBlocker(BaseModel):
+    """Aggregated recovery hint; generation diagnostics remain authoritative."""
+
+    code: SpecificationDiagnosticCode
+    kind: SpecificationIssueKind
+    message: str
+    source_stage: SpecificationReadinessSourceStage
+    scope: Literal["project", "electrical_variant", "catalog"]
+    electrical_variant_id: UUID
+    electrical_variant_name: str | None = None
+    reason: str
+    count: int = Field(ge=1)
+    object_ids: list[UUID] = Field(default_factory=list)
+    next_action: SpecificationReadinessNextAction
+
+
+class SpecificationVariantReadinessResult(BaseModel):
+    electrical_variant_id: UUID
+    electrical_variant_name: str | None = None
+    status: SpecificationPreflightStatus
+    total_objects: int = Field(default=0, ge=0)
+    contributing_objects: int = Field(default=0, ge=0)
+    blockers: list[SpecificationReadinessBlocker] = Field(default_factory=list)
+
+
+class SpecificationReadinessResponse(BaseModel):
+    project_id: UUID
+    results: list[SpecificationVariantReadinessResult]
 
 
 class SpecificationSettingsResponse(BaseModel):
