@@ -19,6 +19,7 @@ import { ROUTES } from '@/routes/routes';
 import { useSpecificationPageModel } from '@/pages/specification/useSpecificationPageModel';
 import { SpecPageChrome } from '@/pages/specification/SpecPageChrome';
 import { SpecCandidateSelectionPanel } from '@/pages/specification/SpecCandidateSelectionPanel';
+import { readinessActionLabel } from '@/pages/specification/specificationReadinessModel';
 import './specification-page.css';
 
 const { Text } = Typography;
@@ -96,6 +97,9 @@ export default function SpecificationPage() {
     scopeSwitchDisabled,
     erTabItems,
     navigate,
+    readiness,
+    retryReadiness,
+    handleReadinessRecovery,
   } = m;
 
   if (!project) {
@@ -211,6 +215,7 @@ export default function SpecificationPage() {
                 : 'не сформирована'}
             {' · '}
             позиций: {items.length}
+            {readiness.state === 'blocked' && ' · ЭР требует перерасчёта'}
             {isEmployee && hasItems && (
               <>
                 {' · '}
@@ -233,9 +238,13 @@ export default function SpecificationPage() {
               icon={<ReloadOutlined />}
               loading={mut.isPending}
               disabled={!canMutateProject || generationWorkflowPending}
-              onClick={() => toggleSettings(true)}
+              onClick={readiness.state === 'blocked'
+                ? handleReadinessRecovery
+                : () => toggleSettings(true)}
             >
-              Сформировать заново
+              {readiness.state === 'blocked' && readiness.primaryBlocker
+                ? readinessActionLabel(readiness.primaryBlocker)
+                : 'Сформировать заново'}
             </TltButton>
           }
         >
@@ -379,6 +388,9 @@ export default function SpecificationPage() {
         confirmPartialGenerate={confirmPartialGenerate}
         fixUnassignedAssignments={fixUnassignedAssignments}
         preflightSummary={preflightSummary}
+        readiness={readiness}
+        retryReadiness={retryReadiness}
+        handleReadinessRecovery={handleReadinessRecovery}
       />
     </div>
   );
