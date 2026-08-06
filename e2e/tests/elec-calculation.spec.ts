@@ -77,6 +77,32 @@ async function createFirstElectricalVariantIfNeeded(page: Page) {
   await expectElectricalGlideReady(page);
 }
 
+async function dragFirstElectricalGlideRowTo(page: Page, targetTestId: string) {
+  const source = page.locator('.electrical-spreadsheet--glide .dvn-scroller');
+  const target = page.getByTestId(targetTestId);
+  await expect(source).toHaveAttribute('draggable', 'true');
+  await expect(target).toHaveAttribute('data-disabled', 'false');
+
+  const sourceBox = await source.boundingBox();
+  const targetBox = await target.boundingBox();
+  expect(sourceBox).toBeTruthy();
+  expect(targetBox).toBeTruthy();
+
+  const rowHeight = Number(
+    await page.locator('.electrical-spreadsheet--glide').getAttribute('data-glide-row-height'),
+  ) || 44;
+  const sourceX = sourceBox!.x + 180;
+  const sourceY = sourceBox!.y + rowHeight + 8 + rowHeight / 2;
+  const targetX = targetBox!.x + targetBox!.width / 2;
+  const targetY = targetBox!.y + targetBox!.height / 2;
+
+  await page.mouse.move(sourceX, sourceY);
+  await page.mouse.down();
+  await page.mouse.move(sourceX + 10, sourceY + 10, { steps: 3 });
+  await page.mouse.move(targetX, targetY, { steps: 12 });
+  await page.mouse.up();
+}
+
 async function assignObjectToFirstEr(page: Page, objectId: string) {
   const { projectId, sessionId } = await currentGuestContext(page);
   const headers = { 'X-Session-Id': sessionId };
@@ -154,6 +180,45 @@ async function showElectricalColumns(
 }
 
 test.describe('4.4 Электротехнический расчёт', () => {
+  test('назначает и возвращает объект перетаскиванием из основной Glide-таблицы', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await loginAsGuest(page);
+    await createCleanCase1Pipe(page, `E2E Glide DnD ${Date.now()}`);
+
+    await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
+    await createFirstElectricalVariantIfNeeded(page);
+
+    const assignResponsePromise = page.waitForResponse((response) =>
+      response.request().method() === 'PATCH'
+      && response.url().includes('/assignments'),
+    );
+    await dragFirstElectricalGlideRowTo(page, 'assignment-drop-zone-self_regulating');
+    expect((await assignResponsePromise).ok()).toBeTruthy();
+
+    const selfRegulatingTab = page.getByRole('tab', { name: /Самрег 1 объект/i });
+    await expect(selfRegulatingTab).toBeVisible();
+    await selfRegulatingTab.click();
+    await expectElectricalGlideReady(page);
+
+    await dragFirstElectricalGlideRowTo(page, 'assignment-drop-zone-unassigned');
+    const confirmation = page.getByRole('dialog', {
+      name: /Вернуть в нераспределённые: 1\?/i,
+    });
+    await expect(confirmation).toBeVisible();
+
+    const unassignResponsePromise = page.waitForResponse((response) =>
+      response.request().method() === 'POST'
+      && response.url().includes('/unassign'),
+    );
+    await confirmation.getByRole('button', { name: 'Вернуть', exact: true }).click();
+    expect((await unassignResponsePromise).ok()).toBeTruthy();
+
+    await page.getByRole('tab', { name: /Нераспределённые объекты/i }).click();
+    await expectElectricalGlideReady(page);
+  });
+
   test('после расчёта объекта показывает марку кабеля, длину, мощность и ток', async ({
     page,
   }) => {
