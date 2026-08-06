@@ -401,7 +401,8 @@ export function useSpecificationPageModel() {
   });
   const formedAt = formatSpecTimestamp(spec?.updated_at ?? spec?.created_at);
   const generateButtonLabel = hasItems ? 'Обновить' : 'Сформировать';
-  const scopeSwitchDisabled = mut.isPending || saveMut.isPending || form.pendingGenerate != null;
+  // selection_required is resumable per ER; lock scope only during actual writes.
+  const scopeSwitchDisabled = mut.isPending || saveMut.isPending;
 
   const erTabItems = variantContext.variants.map((item) => ({
     key: item.id,
