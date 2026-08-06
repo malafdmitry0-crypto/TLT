@@ -34,7 +34,7 @@ export default function LoginPage() {
 
   return (
     <div className="login-page">
-      <TltCard className="login-page-card">
+      <TltCard as="div" padding="comfortable" className="login-page-card">
         <Title level={3} className="login-page-title">
           {loginRole === 'admin' ? 'Вход администратора' : 'Вход сотрудника'}
         </Title>
@@ -47,14 +47,23 @@ export default function LoginPage() {
               { type: 'email', message: 'Некорректный email' },
             ]}
           >
-            <TltTextField type="email" autoComplete="email" autoFocus />
+            <TltTextField
+              type="email"
+              autoComplete="email"
+              autoFocus
+              className="tlt-field--fill"
+            />
           </Form.Item>
           <Form.Item
             label="Пароль"
             name="password"
             rules={[{ required: true, message: 'Введите пароль' }]}
           >
-            <TltTextField type="password" autoComplete="current-password" />
+            <TltTextField
+              type="password"
+              autoComplete="current-password"
+              className="tlt-field--fill"
+            />
           </Form.Item>
           <TltButton variant="primary" type="submit" className="login-page-submit">
             Войти

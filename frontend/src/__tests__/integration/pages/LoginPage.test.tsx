@@ -37,8 +37,13 @@ describe('LoginPage', () => {
 
   it('renders email and password fields', () => {
     renderAt('/login?role=employee');
-    expect(screen.getByLabelText('Email')).toBeInTheDocument();
-    expect(screen.getByLabelText('Пароль')).toBeInTheDocument();
+    const email = screen.getByLabelText('Email');
+    const password = screen.getByLabelText('Пароль');
+
+    expect(email).toBeInTheDocument();
+    expect(password).toBeInTheDocument();
+    expect(email.closest('.tlt-text-field')).toHaveClass('tlt-field--fill');
+    expect(password.closest('.tlt-text-field')).toHaveClass('tlt-field--fill');
     expect(screen.getByRole('button', { name: 'Войти' })).toBeInTheDocument();
   });
 
