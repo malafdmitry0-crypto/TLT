@@ -584,7 +584,7 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
       .not.toBeInTheDocument();
   });
 
-  it('hydrates selection_required candidate panel from GET after F5 (no re-generate)', async () => {
+  it('hydrates selection_required after F5 and permits an ER tab round trip before choice', async () => {
     const user = (await import('@testing-library/user-event')).default.setup();
     const {
       getSpecification,
@@ -592,7 +592,7 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
       generateSpecification,
     } = await import('@/api/specifications');
     const fp = `sha256:${'b'.repeat(64)}`;
-    (getSpecification as ReturnType<typeof vi.fn>).mockResolvedValue({
+    const selectionRequiredSpec = {
       id: 'spec-outcome-1',
       project_id: mockProject.id,
       electrical_variant_id: firstVariant.id,
@@ -641,7 +641,13 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
       }],
       created_at: '2026-08-04T10:00:00Z',
       updated_at: '2026-08-04T10:00:00Z',
-    });
+    };
+    listElectricalVariantsMock.mockResolvedValue([firstVariant, secondVariant]);
+    (getSpecification as ReturnType<typeof vi.fn>).mockImplementation(
+      async (_projectId: string, electricalVariantId?: string) => (
+        electricalVariantId === firstVariant.id ? selectionRequiredSpec : null
+      ),
+    );
     (generateSpecification as ReturnType<typeof vi.fn>).mockResolvedValue({
       project_id: mockProject.id,
       settings_version: 1,
@@ -666,6 +672,18 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
     // Panel appears from GET hydrate — generate was never called.
     expect(await screen.findByRole('button', { name: /Комплект F5 B/i })).toBeInTheDocument();
     expect(generateSpecification).not.toHaveBeenCalled();
+
+    const er1Tab = screen.getByRole('tab', { name: /Спецификация ЭР1/i });
+    const er2Tab = screen.getByRole('tab', { name: /Спецификация ЭР2/i });
+    expect(er2Tab).not.toHaveAttribute('aria-disabled', 'true');
+    await user.click(er2Tab);
+    await waitFor(() => {
+      expect(getSpecification).toHaveBeenCalledWith(mockProject.id, secondVariant.id);
+    });
+    expect(screen.queryByRole('button', { name: /Комплект F5 B/i })).not.toBeInTheDocument();
+
+    await user.click(er1Tab);
+    expect(await screen.findByRole('button', { name: /Комплект F5 B/i })).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /Комплект F5 B/i }));
     await user.click(screen.getByRole('button', { name: /Применить выбор и сформировать/i }));
