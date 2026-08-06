@@ -71,8 +71,6 @@ export type MainElectricalColumnCopyContext = {
   calcByObjectId: Record<string, ElectricalCalcSummary | undefined>;
   electricalDisplayOffset: number;
   getCableTypeForObject: (objectId: string) => string | null | undefined;
-  layingStep: unknown;
-  heatingHeight: unknown;
   connectionType: unknown;
   supplyVoltage: unknown;
   windingCoefficient: unknown;
@@ -190,9 +188,9 @@ export function mainElectricalColumnCopyValue(
         return source ? `${value} (${source.label})` : value;
       }
     case 'laying_step':
-      return valueText(calc?.params?.laying_step ?? context.layingStep);
+      return valueText(calc?.params?.laying_step);
     case 'heating_height':
-      return valueText(calc?.params?.heating_height ?? context.heatingHeight);
+      return valueText(calc?.params?.heating_height);
     case 'connection_type':
       {
         const value = calc?.params?.connection_type ?? context.connectionType;

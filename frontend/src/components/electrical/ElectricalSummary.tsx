@@ -71,8 +71,8 @@ type SummaryCardDef = {
 
 // E1 / FE-28: MVP summary shows Samreg + Total only (Resistive/Skin hidden).
 const SUMMARY_CARDS: readonly SummaryCardDef[] = [
-  { key: 'self_regulating', title: 'Саммари Самрег', testId: 'elec-summary-card-self_regulating' },
-  { key: 'total', title: 'Саммари Итого', testId: 'elec-summary-card-total' },
+  { key: 'self_regulating', title: 'Самрег', testId: 'elec-summary-card-self_regulating' },
+  { key: 'total', title: 'Итого', testId: 'elec-summary-card-total' },
 ] as const;
 
 function MetricRow({

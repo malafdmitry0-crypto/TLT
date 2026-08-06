@@ -58,15 +58,7 @@ export function useElecCalcCableSizingModalState({
       selection_policy: recalc.selectionPolicy,
     };
     if (effectiveCableType === 'self_regulating_tt') {
-      return {
-        ...shared,
-        ...(recalc.heatingHeight == null
-          ? {}
-          : { heating_height: recalc.heatingHeight }),
-        ...(recalc.layingStep == null
-          ? {}
-          : { laying_step: recalc.layingStep }),
-      };
+      return shared;
     }
     return {
       ...shared,

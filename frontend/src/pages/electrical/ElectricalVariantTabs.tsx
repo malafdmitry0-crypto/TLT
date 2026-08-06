@@ -300,7 +300,8 @@ export default function ElectricalVariantTabs({
               <span>
                 <TltButton
                   size="compact"
-                  className="electrical-variant-action electrical-variant-action--create"
+                  variant="primary"
+                  className="electrical-variant-action"
                   loading={controller.pendingOperation === 'create'}
                   disabled={!canMutate || reachedLimit || lifecycleWriteLocked}
                   aria-label={
@@ -319,7 +320,8 @@ export default function ElectricalVariantTabs({
               <span>
                 <TltButton
                   size="compact"
-                  className="electrical-variant-action electrical-variant-action--copy"
+                  variant="primary"
+                  className="electrical-variant-action"
                   loading={controller.pendingOperation === 'copy'}
                   disabled={!canMutate || reachedLimit || lifecycleWriteLocked}
                   aria-label={
@@ -336,7 +338,8 @@ export default function ElectricalVariantTabs({
 
             <TltButton
               size="compact"
-              variant="link"
+              variant="primary"
+              className="electrical-variant-action"
               loading={controller.pendingOperation === 'rename'}
               disabled={!canMutate || lifecycleWriteLocked}
               aria-label={`Переименовать ЭР «${selected.name}»`}
@@ -374,7 +377,8 @@ export default function ElectricalVariantTabs({
               <span>
                 <TltButton
                   size="compact"
-                  className="electrical-variant-action electrical-variant-action--spec"
+                  variant="primary"
+                  className="electrical-variant-action"
                   icon={<FileTextOutlined />}
                   disabled={!specificationReadiness.enabled}
                   aria-label={specificationReadiness.disabledReason

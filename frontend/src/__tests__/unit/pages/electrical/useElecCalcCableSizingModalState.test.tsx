@@ -107,6 +107,8 @@ describe('useElecCalcCableSizingModalState', () => {
       recalc: {
         ...recalc,
         supplyVoltage: 380,
+        heatingHeight: 2.5,
+        layingStep: 0.15,
       },
       getSavedCableTypeForObject: () => 'single_core',
       normalizeAvailableCableType,
@@ -135,6 +137,8 @@ describe('useElecCalcCableSizingModalState', () => {
       recalc: {
         ...recalc,
         supplyVoltage: 380,
+        heatingHeight: 2.5,
+        layingStep: 0.15,
       },
       getSavedCableTypeForObject: () => 'self_regulating_tt',
       normalizeAvailableCableType: (type) => type,

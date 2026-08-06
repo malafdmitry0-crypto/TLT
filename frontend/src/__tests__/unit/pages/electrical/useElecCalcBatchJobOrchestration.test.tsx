@@ -151,7 +151,7 @@ describe('useElecCalcBatchJobOrchestration', () => {
     expect(message.info).not.toHaveBeenCalled();
   });
 
-  it('sends U downstream for TT without legacy T2/T3/R overrides', async () => {
+  it('sends TT batch without shared tank-layout overrides', async () => {
     const { result } = setup({
       selectedCableType: 'self_regulating_tt',
       defaultCableType: 'self_regulating_tt',
@@ -172,14 +172,32 @@ describe('useElecCalcBatchJobOrchestration', () => {
       expect.objectContaining({
         supplyVoltage: 220,
         selectionPolicy: 'technical_minimum',
-        heatingHeight: 0.2,
-        layingStep: 0.12,
       }),
     );
     const options = vi.mocked(enqueueElectricalVariantBatchJob).mock.calls[0]?.[4];
+    expect(options).not.toHaveProperty('heatingHeight');
+    expect(options).not.toHaveProperty('layingStep');
     expect(options).not.toHaveProperty('maintainTemperature');
     expect(options).not.toHaveProperty('vaporTemperature');
     expect(options).not.toHaveProperty('aggressiveProduct');
+  });
+
+  it('keeps shared tank-layout overrides out of an all-scope TT batch', async () => {
+    const { result } = setup({ cableTypeForRecalculation: 'self_regulating_tt' });
+
+    await act(async () => {
+      await result.current.batchMut.mutateAsync({ scope: 'all' });
+    });
+
+    const options = vi.mocked(enqueueElectricalVariantBatchJob).mock.calls[0]?.[4];
+    expect(options).toEqual(expect.objectContaining({
+      supplyVoltage: 220,
+      selectionPolicy: 'technical_minimum',
+      forceCableType: true,
+    }));
+    expect(options).not.toHaveProperty('heatingHeight');
+    expect(options).not.toHaveProperty('layingStep');
+    expect(options?.objectIds).toBeUndefined();
   });
 
   it('rejects a second enqueue while the exact ER already has a tracked job', async () => {

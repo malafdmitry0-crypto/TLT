@@ -37,36 +37,8 @@ function ElecCalcElectricalTypeControls({
 
   // U is a system constant (230 V, CHECK-constrained project setting) — no
   // control is rendered for it in any branch.
-  if (cableType === 'self_regulating') {
+  if (cableType === 'self_regulating' || cableType === 'self_regulating_tt') {
     return null;
-  }
-
-  if (cableType === 'self_regulating_tt') {
-    return wrap(
-      <>
-        <Text className="electrical-params-label">h рез., м:</Text>
-        <TltNumberField
-          aria-label="Высота обогрева резервуара"
-          disabled={disabled}
-          min={0.001}
-          step={0.1}
-          value={recalc.heatingHeight}
-          onChange={setRecalc.heatingHeight}
-          className="electrical-type-control electrical-type-control--w76"
-        />
-        <Text className="electrical-params-label">шаг рез., м:</Text>
-        <TltNumberField
-          aria-label="Шаг укладки резервуара"
-          disabled={disabled}
-          min={0.1}
-          max={0.4}
-          step={0.01}
-          value={recalc.layingStep}
-          onChange={setRecalc.layingStep}
-          className="electrical-type-control electrical-type-control--w76"
-        />
-      </>,
-    );
   }
   if (cableType === 'single_core' || cableType === 'three_core') {
     const connectionOptions = cableType === 'single_core'
