@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildElectricalVariantNavigation,
   buildSpecificationGeneratedToast,
   filterValidGenerateErIds,
   resolveGenerateVariantIds,
@@ -34,5 +35,12 @@ describe('specificationPageModelHelpers', () => {
       new Set(['uuid-only']),
       'uuid-only',
     )).toEqual(['uuid-only']);
+  });
+
+  it('builds an exact UUID recovery target for the blocked ER', () => {
+    expect(buildElectricalVariantNavigation('er-2')).toEqual({
+      to: { pathname: '/workspace/elec-calc', search: '?er=er-2' },
+      state: { electricalVariantId: 'er-2' },
+    });
   });
 });

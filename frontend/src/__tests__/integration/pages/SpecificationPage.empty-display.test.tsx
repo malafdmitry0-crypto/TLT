@@ -29,6 +29,21 @@ vi.mock('@/api/electricalVariants', () => ({
 }));
 
 vi.mock('@/api/specifications', () => ({
+  specificationReadinessQueryKey: (projectId: string, variantIds: string[]) => (
+    ['spec-readiness', projectId, ...variantIds]
+  ),
+  getSpecificationReadiness: vi.fn().mockImplementation(
+    async (projectId: string, variantIds: string[]) => ({
+      project_id: projectId,
+      results: variantIds.map((id) => ({
+        electrical_variant_id: id,
+        status: 'ready',
+        total_objects: 1,
+        contributing_objects: 1,
+        blockers: [],
+      })),
+    }),
+  ),
   getSpecification: vi.fn(),
   getSpecificationErrorDetail: vi.fn((error: { detail?: unknown }) => error?.detail ?? null),
   generateSpecification: vi.fn(),

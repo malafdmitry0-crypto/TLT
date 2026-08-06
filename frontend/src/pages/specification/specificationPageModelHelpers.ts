@@ -39,6 +39,16 @@ export function buildFixUnassignedNavigation(electricalVariantId?: string | null
   };
 }
 
+export function buildElectricalVariantNavigation(electricalVariantId?: string | null) {
+  const search = electricalVariantId
+    ? `?${ELECTRICAL_VARIANT_URL_PARAM}=${encodeURIComponent(electricalVariantId)}`
+    : '';
+  return {
+    to: { pathname: ROUTES.elecCalc, search },
+    state: electricalVariantId ? { electricalVariantId } : undefined,
+  };
+}
+
 export function buildSpecificationGeneratedToast(args: {
   hasUnresolved: boolean;
   generatedCount: number;
