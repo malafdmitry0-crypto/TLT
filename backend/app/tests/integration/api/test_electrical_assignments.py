@@ -1,7 +1,6 @@
 """Focused Phase 3 contract tests for object assignments inside named ERs."""
 
 import asyncio
-from decimal import Decimal
 from uuid import UUID, uuid4
 
 import pytest
@@ -115,7 +114,7 @@ async def _patch_assignments(
 
 
 class TestElectricalAssignmentApi:
-    async def test_assignment_section_current_limit_is_uuid_scoped_and_optimistic(
+    async def test_assignment_section_current_limit_endpoint_and_response_are_removed(
         self,
         client: AsyncClient,
         guest_session: str,
@@ -140,13 +139,13 @@ class TestElectricalAssignmentApi:
         )
         assert assigned.status_code == 200, assigned.text
         assignment = assigned.json()["assignments"][0]
-        assert assignment["max_section_start_current_a"] is None
+        assert "max_section_start_current_a" not in assignment
 
         url = (
             f"/api/v1/projects/{project['id']}/electrical-variants/{variant['id']}"
             f"/assignments/{obj['id']}/section-current-limit"
         )
-        patched = await client.patch(
+        removed = await client.patch(
             url,
             headers=headers,
             json={
@@ -154,30 +153,9 @@ class TestElectricalAssignmentApi:
                 "max_section_start_current_a": "17.500",
             },
         )
-        assert patched.status_code == 200, patched.text
-        assert Decimal(patched.json()["max_section_start_current_a"]) == Decimal("17.500")
-        assert patched.json()["version"] == assignment["version"] + 1
-        assert patched.json()["assignment_state"] == "stale"
+        assert removed.status_code == 404
 
-        conflict = await client.patch(
-            url,
-            headers=headers,
-            json={
-                "expected_version": assignment["version"],
-                "max_section_start_current_a": "18",
-            },
-        )
-        assert conflict.status_code == 409
-        assert conflict.json()["detail"]["code"] == ("ELECTRICAL_ASSIGNMENT_VERSION_CONFLICT")
-
-        missing_value = await client.patch(
-            url,
-            headers=headers,
-            json={"expected_version": patched.json()["version"]},
-        )
-        assert missing_value.status_code == 422
-
-    async def test_project_current_change_stales_only_inheriting_assignments(
+    async def test_project_current_change_stales_all_self_regulating_assignments(
         self,
         client: AsyncClient,
         guest_session: str,
@@ -186,10 +164,8 @@ class TestElectricalAssignmentApi:
         project = await _guest_project(client, guest_session)
         headers = {"X-Session-Id": guest_session}
         inherited_obj = await _add_ready_pipe(client, project["id"], headers, name="project-Iдоп")
-        overridden_obj = await _add_ready_pipe(
-            client, project["id"], headers, name="assignment-Iдоп"
-        )
-        explicit_obj = await _add_ready_pipe(client, project["id"], headers, name="explicit-Iдоп")
+        overridden_obj = await _add_ready_pipe(client, project["id"], headers, name="old-source")
+        explicit_obj = await _add_ready_pipe(client, project["id"], headers, name="old-explicit")
         variant = await _initialize(client, project["id"], headers)
         initial = await _assignments(client, project["id"], variant["id"], headers)
         assigned = await _patch_assignments(
@@ -207,21 +183,6 @@ class TestElectricalAssignmentApi:
             ],
         )
         assert assigned.status_code == 200, assigned.text
-        assigned_by_object = {item["object_id"]: item for item in assigned.json()["assignments"]}
-        override_url = (
-            f"/api/v1/projects/{project['id']}/electrical-variants/{variant['id']}"
-            f"/assignments/{overridden_obj['id']}/section-current-limit"
-        )
-        overridden = await client.patch(
-            override_url,
-            headers=headers,
-            json={
-                "expected_version": assigned_by_object[overridden_obj["id"]]["version"],
-                "max_section_start_current_a": "17.5",
-            },
-        )
-        assert overridden.status_code == 200, overridden.text
-
         await db_session.execute(
             update(ElectricalVariantObject)
             .where(
@@ -287,11 +248,8 @@ class TestElectricalAssignmentApi:
         )
         current_by_object = {str(row.object_id): row for row in assignment_rows}
         assert current_by_object[inherited_obj["id"]].assignment_state == "stale"
-        assert current_by_object[overridden_obj["id"]].assignment_state == "ready"
-        assert current_by_object[explicit_obj["id"]].assignment_state == "ready"
-        assert current_by_object[overridden_obj["id"]].max_section_start_current_a == Decimal(
-            "17.500"
-        )
+        assert current_by_object[overridden_obj["id"]].assignment_state == "stale"
+        assert current_by_object[explicit_obj["id"]].assignment_state == "stale"
 
         calculation_rows = list(
             (
@@ -306,8 +264,8 @@ class TestElectricalAssignmentApi:
         )
         result_by_object = {str(row.object_id): dict(row.results or {}) for row in calculation_rows}
         assert result_by_object[inherited_obj["id"]]["stale"] is True
-        assert result_by_object[overridden_obj["id"]].get("stale") is not True
-        assert result_by_object[explicit_obj["id"]].get("stale") is not True
+        assert result_by_object[overridden_obj["id"]]["stale"] is True
+        assert result_by_object[explicit_obj["id"]]["stale"] is True
 
     async def test_get_assign_and_same_system_noop_have_authoritative_readback(
         self,

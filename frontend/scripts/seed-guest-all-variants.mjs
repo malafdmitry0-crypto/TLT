@@ -5,6 +5,7 @@ import path from 'node:path';
 
 const DEFAULT_FRONTEND_URL = 'http://127.0.0.1:3003';
 const DEFAULT_API_BASE_URL = 'http://127.0.0.1:8000/api/v1';
+const SEED_PROJECT_IDOP_A = 13.065;
 
 function usage() {
   console.log(`Seed a guest HeatCalc project with pipe/tank variants.
@@ -1265,6 +1266,16 @@ async function main() {
         `Объекты: ${expectedUiRows.pipe} трубопроводов и ${expectedUiRows.tank} резервуаров.`,
       ].join(' '),
       task_number: 'PW-GUEST-ALL',
+    });
+
+    const electricalSettings = await apiFetch(
+      api,
+      'GET',
+      `/projects/${project.id}/electrical-settings`,
+    );
+    await apiFetch(api, 'PATCH', `/projects/${project.id}/electrical-settings`, {
+      expected_version: electricalSettings.version,
+      max_section_start_current_a: SEED_PROJECT_IDOP_A,
     });
 
     for (const [index, item] of seedObjects.entries()) {

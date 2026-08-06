@@ -25,7 +25,7 @@
 Не начинать backend TT/Iдоп/catalogs с нуля. Уже есть:
 
 - `self_regulating_tt` pipeline, 230 В, threads 1..3 в TT schema, Iдоп fail-closed  
-- Project `electrical-settings` + object section-current-limit  
+- Project `electrical-settings`; object section-current-limit удалён
 - ER UUID lifecycle, assign/unassign, max 5  
 - Summary Lфакт / sections / currents  
 - Legacy calc type guard `ELECTRICAL_LEGACY_CABLE_TYPE_UNSUPPORTED`  
@@ -112,7 +112,7 @@ E0 (quick) ──► E1 (FE MVP chrome) ──► E2 (Iдоп UI) ──► E3 (
 - system_type assignment: self_regulating (MVP); resistive/skin/mineral — hide в UI; BE assign resistive optional later reject
 - U = 230 read-only (ТЗ DEC-11); не предлагать 220
 - Нитки 1..3 (DEC-06)
-- Iдоп: project settings + optional object override; без Iдоп — blocking UI + BE SECTION_CURRENT_LIMIT_REQUIRED (уже есть)
+- Iдоп: только project settings; без Iдоп — blocking UI + BE SECTION_CURRENT_LIMIT_REQUIRED (уже есть)
 - Manual options: только backend cable-options (после E5); без FE q1/q2
 - Auto после assign Самрег: cable_type self_regulating_tt (не self_regulating)
 
@@ -189,7 +189,7 @@ E0 (quick) ──► E1 (FE MVP chrome) ──► E2 (Iдоп UI) ──► E3 (
 | # | Работа | Файлы |
 |---|---|---|
 | E2.1 | API client: `getProjectElectricalSettings`, `patchProjectElectricalSettings` | **new** `frontend/src/api/electricalSettings.ts` |
-| E2.2 | Optional: `patchAssignmentSectionCurrentLimit` | `electricalVariants.ts` or settings module |
+| E2.2 | Object-level `Iдоп` отсутствует | assignment API/type/UI не добавлять |
 | E2.3 | UI: project Iдоп field in electrical settings / params chrome | new modal or `ElecCalcParamsPanel` / settings drawer |
 | E2.4 | Blocking empty: если BE error `SECTION_CURRENT_LIMIT_REQUIRED` **или** settings Iдоп null → banner «Задать допустимый стартовый ток» + CTA | workspace chrome |
 | E2.5 | Optimistic version on patch (409 conflict → refetch) | as BE returns |
@@ -198,7 +198,6 @@ E0 (quick) ──► E1 (FE MVP chrome) ──► E2 (Iдоп UI) ──► E3 (
 **BE dependency:** **none** — endpoints already:
 
 - `GET/PATCH /projects/{id}/electrical-settings`  
-- `PATCH .../assignments/{oid}/section-current-limit`  
 
 **Acceptance:**
 

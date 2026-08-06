@@ -1960,10 +1960,6 @@ class CalculationService:
         }
         if assignment_overrides.get("supply_voltage_v") is not None:
             assignment_values["nominal_voltage_v"] = assignment_overrides["supply_voltage_v"]
-        if assignment is not None:
-            assignment_values["max_section_start_current_a"] = (
-                assignment.max_section_start_current_a
-            )
         if obj.object_type == "tank":
             assignment_values.pop("winding_pitch_mm", None)
         object_heat = self._tt_object_heat_inputs(
@@ -2026,9 +2022,6 @@ class CalculationService:
                 ),
                 "version": effective_assignment_version,
                 "source": "electrical_variant_object",
-                "max_section_start_current_a": self._num(
-                    assignment.max_section_start_current_a
-                ),
                 "electrical_overrides": effective_assignment_overrides,
                 "applied_fields": assignment_applied_fields,
             }

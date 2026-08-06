@@ -79,8 +79,8 @@ Acceptance path: **met for engineering/demo**. Production authority: **not met**
 
 - [ ] 230 В read-only: убрать редактируемое поле U (дефолт 220) и select 220/380 из мастера;
       показывать константу с источником. → **E1**
-- [ ] Iдоп-UI: настройка проекта (`/projects/{id}/electrical-settings` — бэкенд готов) +
-      object override; блокирующее состояние «Задать допустимый стартовый ток»
+- [ ] Iдоп-UI: единственная настройка проекта (`/projects/{id}/electrical-settings`) и
+      блокирующее состояние «Задать допустимый стартовый ток»
       (`SECTION_CURRENT_LIMIT_REQUIRED`). → **E2**
 - [ ] Скрыть Резистив/Скин/Минеральный: вкладки, drop-зоны, кнопки «Назначить», пункты меню,
       саммари-карточки; удалить мёртвое `tab.key === 'skin' && false`. → **E1**

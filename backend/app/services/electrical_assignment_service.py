@@ -27,7 +27,6 @@ from app.models.project_object import ProjectObject
 from app.models.specification import Specification
 from app.schemas.electrical_assignment import (
     ElectricalAssignmentCounts,
-    ElectricalAssignmentCurrentLimitPatch,
     ElectricalAssignmentMutationItem,
     ElectricalAssignmentOverridesPatch,
     ElectricalAssignmentResponse,
@@ -208,96 +207,6 @@ class ElectricalAssignmentService:
                 next_cursor=next_cursor,
             ),
         )
-
-    async def patch_section_current_limit(
-        self,
-        project_id: UUID,
-        variant_id: UUID,
-        object_id: UUID,
-        data: ElectricalAssignmentCurrentLimitPatch,
-        principal: CurrentPrincipal,
-    ) -> ElectricalAssignmentResponse:
-        """Optimistically update the object-level Iдоп override for one exact ER."""
-        try:
-            await self._guard_and_lock_project(project_id, principal)
-            await self._require_variant(project_id, variant_id)
-            item = ElectricalAssignmentMutationItem(
-                object_id=object_id,
-                expected_version=data.expected_version,
-            )
-            assignment, obj = (await self._lock_assignments(project_id, variant_id, [item]))[
-                object_id
-            ]
-            if assignment.system_type != "self_regulating":
-                raise ElectricalAssignmentServiceError(
-                    "ELECTRICAL_ASSIGNMENT_SYSTEM_MISMATCH",
-                    "Iдоп секции применяется только к саморегулирующемуся кабелю",
-                    status_code=409,
-                    details={"object_id": str(object_id)},
-                )
-            await self._require_no_active_job_conflict(project_id, variant_id, {object_id})
-            if assignment.max_section_start_current_a == data.max_section_start_current_a:
-                await self.db.commit()
-                await self.db.refresh(assignment)
-                return self._response(assignment, obj)
-
-            before = assignment.max_section_start_current_a
-            assignment.max_section_start_current_a = data.max_section_start_current_a
-            calculation_result = await self.db.execute(
-                select(ElectricalCalculation)
-                .where(
-                    ElectricalCalculation.project_id == project_id,
-                    ElectricalCalculation.electrical_variant_id == variant_id,
-                    ElectricalCalculation.object_id == object_id,
-                )
-                .with_for_update()
-            )
-            for calculation in calculation_result.scalars().all():
-                previous = dict(calculation.results or {})
-                calculation.results = {
-                    **previous,
-                    "stale": True,
-                    "category": "stale",
-                    "stale_reason": "section_current_limit_changed",
-                    "error_code": "ELECTRICAL_RECALCULATION_REQUIRED",
-                    "message": "Допустимый стартовый ток секции изменён",
-                }
-            await self.db.execute(
-                update(ElectricalCandidate)
-                .where(
-                    ElectricalCandidate.project_id == project_id,
-                    ElectricalCandidate.electrical_variant_id == variant_id,
-                    ElectricalCandidate.object_id == object_id,
-                )
-                .values(status="stale", is_applied=False)
-            )
-            await self.mark_assignments_stale(
-                project_id,
-                variant_id,
-                [object_id],
-                reason="section_current_limit_changed",
-                operation="assignment_current_limit_patch",
-            )
-            await AuditService(self.db).stage(
-                event_type="project.electrical_assignment.current_limit_updated",
-                category="project",
-                principal=principal,
-                project_id=project_id,
-                object_id=object_id,
-                requirement_refs=["DEC-05", "BE-17"],
-                before_state={"max_section_start_current_a": before},
-                after_state={
-                    "max_section_start_current_a": data.max_section_start_current_a,
-                    "assignment_version": assignment.version,
-                },
-                message="Updated assignment section current limit",
-            )
-            await self.db.commit()
-            await self.db.refresh(assignment)
-            return self._response(assignment, obj)
-        except Exception:
-            await self.db.rollback()
-            raise
 
     async def patch_electrical_overrides(
         self,
@@ -1679,7 +1588,6 @@ class ElectricalAssignmentService:
                 "system_type": assignment.system_type,
                 "assignment_state": assignment.assignment_state,
                 "requested_cable_type": assignment.requested_cable_type,
-                "max_section_start_current_a": assignment.max_section_start_current_a,
                 "electrical_overrides": assignment.electrical_overrides or {},
                 "object_version_snapshot": assignment.object_version_snapshot,
                 "version": assignment.version,

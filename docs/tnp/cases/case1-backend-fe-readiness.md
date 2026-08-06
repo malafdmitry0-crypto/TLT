@@ -69,7 +69,7 @@
 | US-ELEC-04 DnD | same assign API | **READY** | FE DnD only |
 | US-ELEC-05 summary | page/query summary Lфакт, sections, I | **READY** | |
 | US-ELEC-06 threads 1..3 | TT request schema **le=3**; some legacy schemas le=100 | **PARTIAL** | FE maxThreads TT=100; align leftovers le=100 |
-| US-ELEC-07 Iдоп UI | GET/PATCH electrical-settings; PATCH assignment section-current-limit; formula fail-closed | **READY** | FE must call APIs |
+| US-ELEC-07 Iдоп UI | GET/PATCH project electrical-settings; formula fail-closed | **READY** | Единственный источник — настройка проекта |
 | US-ELEC-08 manual mark/winding | candidates + apply + layout fields | **PARTIAL** | **GET cable-options → `[]`** techdebt |
 | US-ELEC-09 unassign | `POST .../unassign` + confirm | **READY** | |
 | US-ELEC-10 stale after heat | mark assignments stale on object change | **PARTIAL** | query maps stale→`not_calculated`; no distinct «Требуется перерасчёт» string for FE table |
@@ -107,12 +107,10 @@ GET  /projects/{id}/electrical-settings
 PATCH /projects/{id}/electrical-settings
   body: { max_section_start_current_a, expected_version? }
   nominal_voltage_v = 230 (model check)
-
-PATCH /projects/{id}/electrical-variants/{vid}/assignments/{oid}/section-current-limit
-  object-level override
 ```
 
-Секционирование: `SECTION_CURRENT_LIMIT_REQUIRED` если Iдоп отсутствует.
+Секционирование: `SECTION_CURRENT_LIMIT_REQUIRED` если проектный Iдоп отсутствует.
+Object/request override не поддерживается; старый assignment endpoint удалён.
 
 **FE задача:** форма + empty state из макета; не ждать backend feature.
 

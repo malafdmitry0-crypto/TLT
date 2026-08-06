@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.dependencies import CurrentPrincipal, require_any
 from app.schemas.electrical_assignment import (
-    ElectricalAssignmentCurrentLimitPatch,
     ElectricalAssignmentOverridesPatch,
     ElectricalAssignmentResponse,
     ElectricalAssignmentsListResponse,
@@ -151,31 +150,6 @@ async def assign_electrical_objects(
             principal,
             system_type=data.system_type,
             items=data.items,
-        )
-    except (ElectricalVariantServiceError, ProjectNotFoundError, ProjectAccessError) as exc:
-        _raise_service_error(exc)
-
-
-@router.patch(
-    "/{project_id}/electrical-variants/{variant_id}/assignments/{object_id}/section-current-limit",
-    response_model=ElectricalAssignmentResponse,
-    summary="Изменить Iдоп секции для объекта внутри точного ЭР",
-)
-async def patch_assignment_section_current_limit(
-    project_id: UUID,
-    variant_id: UUID,
-    object_id: UUID,
-    data: ElectricalAssignmentCurrentLimitPatch,
-    principal: CurrentPrincipal = Depends(_require_any),
-    db: AsyncSession = Depends(get_db),
-) -> ElectricalAssignmentResponse:
-    try:
-        return await ElectricalAssignmentService(db).patch_section_current_limit(
-            project_id,
-            variant_id,
-            object_id,
-            data,
-            principal,
         )
     except (ElectricalVariantServiceError, ProjectNotFoundError, ProjectAccessError) as exc:
         _raise_service_error(exc)

@@ -126,7 +126,6 @@ ELECTRICAL_FRONTEND_MOCK_MODE=off|test|dev
 | `winding_pitch_mm` | `null` | Прямая укладка, `Kнав = 1` |
 | `thread_count` | `null` | Автоподбор `1..3` |
 | `manual_cable_model` | `null` | Автоматический выбор |
-| `max_section_start_current_a` | `13.065` | Временный `Iдоп` только для dev/test |
 | `selection_policy` | `technical_minimum` | Единственная политика MVP |
 
 Не mock-ай идентификаторы проекта, объекта, UUID ЭР, assignment version, теплопотери, длину, диаметр или `T1`, если их нет в базе: это признаки неготового объекта, которые должны завершаться readiness/domain error.
@@ -135,7 +134,7 @@ ELECTRICAL_FRONTEND_MOCK_MODE=off|test|dev
 
 Если safety factor отсутствует в существующих object/project data, разреши `1.1` только в том же dev/test mock-профиле и обязательно пометь источник. В production отсутствие однозначного значения должно быть ошибкой, а запас нельзя применить дважды.
 
-### Совместимость с текущим frontend без его изменения
+### Нормализация имён на API-boundary
 
 На API-boundary временно распознавай текущие имена полей и преобразуй их в канонические:
 
@@ -145,10 +144,13 @@ ELECTRICAL_FRONTEND_MOCK_MODE=off|test|dev
 - `ambient_temperature` или `min_switch_temperature` → `cold_start_temperature_c`;
 - `winding_pitch` → `winding_pitch_mm`;
 - `number_of_threads` → `thread_count`;
-- `cable_mark` → `manual_cable_model`, но только после удаления разрешённого суффикса на boundary;
-- `max_start_current_per_section` → `max_section_start_current_a`.
+- `cable_mark` → `manual_cable_model`, но только после удаления разрешённого суффикса на boundary.
 
 Legacy aliases не должны проникать в формулы. Фиксируй их в provenance/warnings.
+
+`max_section_start_current_a` задаётся только через project electrical settings.
+Одноимённое поле и `max_start_current_per_section` в request payload являются retired inputs
+и должны завершаться `ELECTRICAL_INPUT_RETIRED`; mock/assignment fallback для Iдоп отсутствует.
 
 Различай отсутствующее поле и явный `null` по исходному payload/Pydantic `model_fields_set`:
 

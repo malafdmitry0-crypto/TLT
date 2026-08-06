@@ -174,7 +174,6 @@ const electricalVariantApiMocks = vi.hoisted(() => ({
       system_type: 'self_regulating',
       assignment_state: 'stale',
       requested_cable_type: 'self_regulating_tt',
-      max_section_start_current_a: null,
       electrical_overrides: electricalOverrides,
       object_version_snapshot: 1,
       version: expectedVersion + 1,

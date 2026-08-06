@@ -255,7 +255,7 @@ AC = Acceptance Criteria (Given/When/Then или чек-лист).
 **P0** · §6.14
 
 **Как** инженер,  
-**я хочу** задать допустимый стартовый ток секции (проект / объект) в интерфейсе,  
+**я хочу** задать допустимый стартовый ток секции проекта в интерфейсе,
 **чтобы** пройти секционирование (без Iдоп BE возвращает `SECTION_CURRENT_LIMIT_REQUIRED`).
 
 **Зависимость BE:** fail-closed в `sections.py` **уже есть**. Не дублировать backend work.
@@ -263,9 +263,8 @@ AC = Acceptance Criteria (Given/When/Then или чек-лист).
 **AC**
 
 - [ ] UI настроек проекта: `max_section_start_current_a` (Iдоп), API electrical-settings.
-- [ ] Optional override на объекте/assignment (если BE отдаёт поле).
 - [ ] Без Iдоп: blocking UI «Задать допустимый стартовый ток» + CTA в настройки; не маскировать как success.
-- [ ] С Iдоп: Lогр / Nсек / токи согласованы с расчётом; source Iдоп виден (project/object/catalog).
+- [ ] С Iдоп: Lогр / Nсек / токи согласованы с расчётом; объектного редактора и иерархии источников нет.
 
 ---
 
