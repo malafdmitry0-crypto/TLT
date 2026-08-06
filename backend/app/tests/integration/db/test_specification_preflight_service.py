@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 
 import pytest
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import CurrentPrincipal
@@ -17,11 +17,7 @@ from app.models.electrical_calculation import ElectricalCalculation
 from app.models.electrical_variant import ElectricalVariant, ElectricalVariantObject
 from app.models.project import Project
 from app.models.project_object import ProjectObject
-from app.models.specification import (
-    Specification,
-    SpecificationCatalogItem,
-    SpecificationCatalogVersion,
-)
+from app.models.specification import Specification
 from app.models.user import User
 from app.schemas.specification import (
     SpecificationDiagnosticCode,
@@ -29,6 +25,9 @@ from app.schemas.specification import (
     SpecificationPreflightStatus,
 )
 from app.services.specification_preflight_service import SpecificationPreflightService
+from app.tests.specification_catalog_fixtures import (
+    import_and_activate_complete_specification_catalog,
+)
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -76,44 +75,6 @@ def _result(*, object_version: int, assignment_version: int) -> dict:
             "required_order_length_m": 11.0,
         },
     }
-
-
-def _single_choice_catalog_items(catalog_id: uuid.UUID) -> list[SpecificationCatalogItem]:
-    """One candidate per selection category so READY path auto-selects."""
-    from app.tests.specification_catalog_fixtures import complete_specification_catalog_items
-
-    items: list[SpecificationCatalogItem] = []
-    for index, raw in enumerate(complete_specification_catalog_items()):
-        category = raw.category.value if hasattr(raw.category, "value") else raw.category
-        if category == "box":
-            continue
-        if category == "connection_kit" and raw.mark != "КСВ-1":
-            continue
-        if category == "repair_kit" and raw.mark != "КСР-2":
-            continue
-        if category == "fiberglass_tape" and raw.mark != "ЛКВ 12":
-            continue
-        if category == "cable" and raw.mark != "30ТТВ2-СР":
-            continue
-        items.append(
-            SpecificationCatalogItem(
-                id=uuid.uuid4(),
-                catalog_version_id=catalog_id,
-                item_key=raw.item_key,
-                category=category,
-                name=raw.name,
-                mark=raw.mark,
-                nomenclature_code=raw.nomenclature_code,
-                supply_unit=raw.supply_unit,
-                applicability=dict(raw.applicability or {}),
-                package_parameters=dict(raw.package_parameters or {}),
-                formula_parameters=dict(raw.formula_parameters or {}),
-                source_ref=raw.source_ref,
-                row_checksum=f"sha256:{index:064x}",
-                position=index,
-            )
-        )
-    return items
 
 
 async def test_uuid_preflight_isolates_variants_and_preserves_previous_specification(
@@ -229,34 +190,15 @@ async def test_uuid_preflight_isolates_variants_and_preserves_previous_specifica
         snapshot={"state": "unchanged"},
         is_stale=False,
     )
-    catalog_id = uuid.uuid4()
-    catalog_items = _single_choice_catalog_items(catalog_id)
-    await db_session.execute(
-        update(SpecificationCatalogVersion)
-        .where(SpecificationCatalogVersion.status == "active")
-        .values(status="retired")
+    await import_and_activate_complete_specification_catalog(
+        db_session,
+        version_prefix="integration-v1",
+        high_temperature_connection_marks={"КСВ-1"},
     )
-    catalog_version = SpecificationCatalogVersion(
-        id=catalog_id,
-        catalog_key="builtin-specification",
-        version=f"integration-v1-{uuid.uuid4()}",
-        status="active",
-        authority="approved",
-        source="integration owner registry",
-        source_checksum=f"sha256:{'a' * 64}",
-        payload_checksum=f"sha256:{'b' * 64}",
-        schema_version=1,
-        item_count=len(catalog_items),
-        is_complete=True,
-        validation_issues=[],
-    )
-    db_session.add(catalog_version)
-    await db_session.flush()
     db_session.add_all(
         [
             exact_calculation,
             previous_specification,
-            *catalog_items,
         ]
     )
     await db_session.commit()
@@ -301,43 +243,6 @@ async def test_uuid_preflight_isolates_variants_and_preserves_previous_specifica
     assert previous_specification.snapshot == {"state": "unchanged"}
     assert previous_specification.is_stale is False
     assert previous_specification.updated_at == previous_updated_at
-
-
-def _multi_connection_catalog_items(catalog_id: uuid.UUID) -> list[SpecificationCatalogItem]:
-    from app.tests.specification_catalog_fixtures import complete_specification_catalog_items
-
-    items: list[SpecificationCatalogItem] = []
-    for index, raw in enumerate(complete_specification_catalog_items()):
-        category = raw.category.value if hasattr(raw.category, "value") else raw.category
-        if category == "box":
-            continue
-        if category == "connection_kit" and raw.mark not in {"КСВ-1", "КСВ-2"}:
-            continue
-        if category == "repair_kit" and raw.mark != "КСР-2":
-            continue
-        if category == "fiberglass_tape" and raw.mark != "ЛКВ 12":
-            continue
-        if category == "cable" and raw.mark != "30ТТВ2-СР":
-            continue
-        items.append(
-            SpecificationCatalogItem(
-                id=uuid.uuid4(),
-                catalog_version_id=catalog_id,
-                item_key=raw.item_key,
-                category=category,
-                name=raw.name,
-                mark=raw.mark,
-                nomenclature_code=raw.nomenclature_code,
-                supply_unit=raw.supply_unit,
-                applicability=dict(raw.applicability or {}),
-                package_parameters=dict(raw.package_parameters or {}),
-                formula_parameters=dict(raw.formula_parameters or {}),
-                source_ref=raw.source_ref,
-                row_checksum=f"sha256:{(index + 100):064x}",
-                position=index,
-            )
-        )
-    return items
 
 
 async def _seed_ready_project(
@@ -391,30 +296,12 @@ async def _seed_ready_project(
     assignment.version = 2
     assignment.object_version_snapshot = 4
     assignment.diagnostics = {}
-    catalog_id = uuid.uuid4()
-    items = (
-        _multi_connection_catalog_items(catalog_id)
-        if multi_connection
-        else _single_choice_catalog_items(catalog_id)
-    )
-    await db_session.execute(
-        update(SpecificationCatalogVersion)
-        .where(SpecificationCatalogVersion.status == "active")
-        .values(status="retired")
-    )
-    catalog_version = SpecificationCatalogVersion(
-        id=catalog_id,
-        catalog_key="builtin-specification",
-        version=f"canon03-{uuid.uuid4()}",
-        status="active",
-        authority="approved",
-        source="integration multi kit",
-        source_checksum=f"sha256:{'c' * 64}",
-        payload_checksum=f"sha256:{'d' * 64}",
-        schema_version=1,
-        item_count=len(items),
-        is_complete=True,
-        validation_issues=[],
+    await import_and_activate_complete_specification_catalog(
+        db_session,
+        version_prefix="canon03",
+        high_temperature_connection_marks=(
+            {"КСВ-1", "КСВ-2"} if multi_connection else {"КСВ-1"}
+        ),
     )
     calculation = ElectricalCalculation(
         id=uuid.uuid4(),
@@ -427,9 +314,7 @@ async def _seed_ready_project(
         params={},
         results=_result(object_version=4, assignment_version=2),
     )
-    db_session.add(catalog_version)
-    await db_session.flush()
-    db_session.add_all([calculation, *items])
+    db_session.add(calculation)
     await db_session.commit()
     return project, variant
 

@@ -5,8 +5,21 @@ Never used as a production/bundled seed payload (SPEC-FINAL-02).
 
 from __future__ import annotations
 
-from app.schemas.specification_catalog import SpecificationCatalogItemInput
+import uuid
+
+from sqlalchemy import update
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.formulas.specification.catalog_conditions import match_condition, not_applicable
+from app.models.specification import SpecificationCatalogVersion
+from app.schemas.specification_catalog import (
+    SpecificationCatalogImportRequest,
+    SpecificationCatalogItemInput,
+)
+from app.services.specification_catalog_service import (
+    SpecificationCatalogService,
+    _canonical_checksum,
+)
 
 _TEST_SOURCE = (
     "normalized backend test fixture; approval:SPEC-OWNER-MATERIALS/test-fixture"
@@ -192,3 +205,54 @@ def complete_specification_catalog_items() -> list[SpecificationCatalogItemInput
             )
         )
     return items
+
+
+async def import_and_activate_complete_specification_catalog(
+    db_session: AsyncSession,
+    *,
+    version_prefix: str,
+    high_temperature_connection_marks: set[str],
+) -> SpecificationCatalogVersion:
+    """Create a controllable complete catalog through the production lifecycle."""
+    items: list[SpecificationCatalogItemInput] = []
+    for raw in complete_specification_catalog_items():
+        if raw.category.value == "connection_kit":
+            applicability = dict(raw.applicability or {})
+            applicability["temperature_group"] = (
+                "MEDIUM_HIGH"
+                if raw.mark in high_temperature_connection_marks
+                else "LOW"
+            )
+            raw = raw.model_copy(update={"applicability": applicability})
+        items.append(raw)
+
+    version = f"{version_prefix}-{uuid.uuid4()}"
+    canonical_items = sorted(
+        (item.model_dump(mode="json") for item in items),
+        key=lambda item: item["item_key"],
+    )
+    document = SpecificationCatalogImportRequest(
+        catalog_key="builtin-specification",
+        version=version,
+        authority="approved",
+        source="integration owner registry",
+        source_checksum=_canonical_checksum(
+            {
+                "catalog_key": "builtin-specification",
+                "version": version,
+                "schema_version": 1,
+                "items": canonical_items,
+            }
+        ),
+        schema_version=1,
+        items=items,
+    )
+    await db_session.execute(
+        update(SpecificationCatalogVersion)
+        .where(SpecificationCatalogVersion.status == "active")
+        .values(status="retired")
+    )
+    service = SpecificationCatalogService(db_session)
+    draft = await service.import_draft(document, commit=False)
+    activated = await service.activate(draft.id, commit=False)
+    return activated.catalog

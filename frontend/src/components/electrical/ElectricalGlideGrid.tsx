@@ -2,7 +2,10 @@ import { memo, useCallback, type ReactNode } from 'react';
 import type { TableProps } from 'antd';
 
 import HeatCalcNormalGlideGrid from '@/components/shared/NormalGlideGrid';
-import type { HeatCalcNormalInfiniteLoading } from '@/components/shared/NormalGlideGrid';
+import type {
+  HeatCalcNormalInfiniteLoading,
+  NormalGlideRowDragEvent,
+} from '@/components/shared/NormalGlideGrid';
 import ElectricalGlideColumnFilterDropdown from '@/components/electrical/ElectricalGlideColumnFilterDropdown';
 import type { ProjectObject } from '@/types/project';
 import type {
@@ -44,6 +47,9 @@ export type ElectricalGlideGridProps = {
   onCellAction?: (record: ProjectObject, columnKey: string, actionKey: string) => void;
   onStartCellEdit?: (record: ProjectObject, columnKey: string) => void;
   onCommitCell?: (record: ProjectObject, columnKey: string, value: unknown) => string | null;
+  rowDragEnabled: boolean;
+  onRowDragStart: (event: NormalGlideRowDragEvent, objectId: string) => void;
+  onRowDragEnd: () => void;
 };
 
 function ElectricalGlideGrid({
@@ -72,6 +78,9 @@ function ElectricalGlideGrid({
   onCellAction,
   onStartCellEdit,
   onCommitCell,
+  rowDragEnabled,
+  onRowDragStart,
+  onRowDragEnd,
 }: ElectricalGlideGridProps) {
   const renderFilterDropdown = useCallback(({
     column,
@@ -125,6 +134,9 @@ function ElectricalGlideGrid({
       onPageChange={onPageChange}
       onLoadMore={onLoadMore}
       onCellAction={onCellAction}
+      rowDragEnabled={rowDragEnabled}
+      onRowDragStart={onRowDragStart}
+      onRowDragEnd={onRowDragEnd}
       fillAvailableWidth
       renderFilterDropdown={renderFilterDropdown}
     />

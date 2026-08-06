@@ -220,7 +220,7 @@ async def test_resolve_rejects_valid_looking_browser_qa_catalog_before_bom():
         version="browser-qa-2026-08-03",
         authority="approved",
         is_complete=True,
-        schema_version=2,
+        schema_version=CASE1_DEMO_SCHEMA_VERSION,
         catalog_key=CASE1_DEMO_CATALOG_KEY,
         source="owner registry",
     )
@@ -236,12 +236,12 @@ async def test_resolve_rejects_valid_looking_browser_qa_catalog_before_bom():
 
 
 @pytest.mark.asyncio
-async def test_resolve_rejects_schema_two_catalog_with_untrusted_source_before_bom():
+async def test_resolve_rejects_current_schema_catalog_with_untrusted_source_before_bom():
     untrusted = MagicMock(
         version="owner-v1",
         authority="approved",
         is_complete=True,
-        schema_version=2,
+        schema_version=CASE1_DEMO_SCHEMA_VERSION,
         catalog_key=CASE1_DEMO_CATALOG_KEY,
         source="mock generated registry",
     )
@@ -284,7 +284,7 @@ async def test_resolve_exact_case1_demo_is_forbidden_in_production(
         payload_checksum=case1_demo_payload_checksum(),
         authority="demo",
         is_complete=True,
-        schema_version=2,
+        schema_version=CASE1_DEMO_SCHEMA_VERSION,
     )
     result = MagicMock()
     result.scalars.return_value.all.return_value = [demo]
