@@ -221,7 +221,13 @@
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 195px), 1fr));
   column-gap: 12px;
 }
-/* запас, навив, температурная группа, мин. температура — поля на 40% уже */
-.object-wizard-cable-panel .cable-algorithm-fields > .ant-form-item:nth-child(even) .ant-select,
+/* Числовые поля во второй колонке остаются компактными внутри общего трека.
+   Селекты занимают трек целиком, чтобы «Среда» не была уже соседних контролов. */
 .object-wizard-cable-panel .cable-algorithm-fields > .ant-form-item:nth-child(even) .ant-input-number,
 .object-wizard-cable-panel .cable-algorithm-fields > .ant-form-item:nth-child(even) .ant-input-number-group-wrapper { max-width: 59px; }
+/* Левая колонка на 25% компактнее остальных контролов: 99px → 74.25px. */
+.object-wizard-cable-panel .steam-tracing-form-item .field-control-with-help,
+.object-wizard-cable-panel .safety-factor-form-item .field-control-with-help,
+.object-wizard-cable-panel .temperature-group-form-item .field-control-with-help {
+  max-width: 74.25px;
+}

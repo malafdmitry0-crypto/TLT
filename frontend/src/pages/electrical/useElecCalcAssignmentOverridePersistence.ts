@@ -13,7 +13,6 @@ import {
   type ElectricalManualCableOverrideIntent,
   updateElectricalQueryPageAssignment,
 } from '@/pages/electrical/elecCalcAssignmentOverrideModel';
-import type { ElecCalcCableSizingParams } from '@/pages/electrical/useElecCalcCableSizingModalState';
 import type {
   ElectricalQueryAssignment,
   ElectricalQueryResponse,
@@ -37,7 +36,6 @@ type UseElecCalcAssignmentOverridePersistenceOptions = {
   electricalVariantId: string;
   assignmentByObjectId: ReadonlyMap<string, ElectricalQueryAssignment>;
   objects: readonly ProjectObject[];
-  recalc: ElecCalcCableSizingParams;
 };
 
 export function isAssignmentVersionConflict(error: unknown): boolean {
@@ -56,7 +54,6 @@ export function useElecCalcAssignmentOverridePersistence({
   electricalVariantId,
   assignmentByObjectId,
   objects,
-  recalc,
 }: UseElecCalcAssignmentOverridePersistenceOptions) {
   const qc = useQueryClient();
   const objectById = useMemo(
@@ -105,7 +102,6 @@ export function useElecCalcAssignmentOverridePersistence({
         buildElectricalAssignmentOverridePatch({
           expectedVersion,
           object,
-          recalc,
           supplyVoltage,
           layout,
           manualCableModel,
@@ -136,7 +132,6 @@ export function useElecCalcAssignmentOverridePersistence({
     objectById,
     projectId,
     qc,
-    recalc,
   ]);
 
   return { objectById, persistTtOverrides };

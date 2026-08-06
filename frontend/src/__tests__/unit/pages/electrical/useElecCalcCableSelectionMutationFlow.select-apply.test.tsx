@@ -200,6 +200,19 @@ describe('useElecCalcCableSelectionMutationFlow — select-apply', () => {
     const { result, setElectricalQueryCalculation, queryClient } = setup({
       objects: [tank],
       cableMarkModalObject: tank,
+      assignmentByObjectId: new Map([[
+        'object-1',
+        {
+          object_id: 'object-1',
+          system_type: 'self_regulating',
+          assignment_state: 'ready',
+          version: 7,
+          electrical_overrides: {
+            tank_heating_height_m: 2.5,
+            tank_laying_step_m: 0.15,
+          },
+        },
+      ]]),
     });
     const currentQueryKey = [
       ...electricalDataQueryKeys.queries('project-1', ER_2_ID),
@@ -257,8 +270,6 @@ describe('useElecCalcCableSelectionMutationFlow — select-apply', () => {
         expected_version: 7,
         supply_voltage_v: 220,
         manual_cable_model: '30ТТВ2-СР',
-        tank_heating_height_m: 0.25,
-        tank_laying_step_m: 0.12,
       },
     );
     expect(vi.mocked(patchElectricalAssignmentOverrides).mock.invocationCallOrder[0])
@@ -273,14 +284,15 @@ describe('useElecCalcCableSelectionMutationFlow — select-apply', () => {
         selectionMode: undefined,
         selectionPolicy: 'technical_minimum',
         supplyVoltage: 220,
-        heatingHeight: 0.25,
-        layingStep: 0.12,
       },
       {
         2: ER_2_ID,
         4: ER_4_ID,
       },
     );
+    const selectionOptions = vi.mocked(selectCableForVariants).mock.calls[0]?.[5];
+    expect(selectionOptions).not.toHaveProperty('heatingHeight');
+    expect(selectionOptions).not.toHaveProperty('layingStep');
     expect(queryClient.getQueryData(currentQueryKey)).toMatchObject({
       assignments: [{
         object_id: 'object-1',

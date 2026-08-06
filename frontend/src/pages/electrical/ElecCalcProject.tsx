@@ -94,7 +94,7 @@ export default function ElecCalcProject({
     : null;
 
   return (
-    <Space direction="vertical" size={8} style={{ width: '100%' }}>
+    <Space direction="vertical" size={4} style={{ width: '100%' }}>
       <ElectricalVariantTabs
         controller={controller}
         canMutate={canMutate}
