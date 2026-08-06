@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -80,7 +80,16 @@ describe('SpecCandidateSelectionPanel', () => {
     expect(screen.queryByText('Герметик')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Применить выбор/i })).toBeDisabled();
 
-    await user.click(screen.getByRole('button', { name: /Комплект A/i }));
+    const candidateA = screen.getByRole('button', { name: /Комплект A/i });
+    const candidateB = screen.getByRole('button', { name: /Комплект B/i });
+    expect(candidateA).toHaveAttribute('aria-pressed', 'false');
+    expect(candidateB).toHaveAttribute('aria-pressed', 'false');
+    expect(candidateA).not.toHaveAccessibleName(/Выбрать/i);
+    expect(candidateB).not.toHaveAccessibleName(/Выбрать/i);
+    expect(within(candidateA).getByText('Выбрать')).toBeInTheDocument();
+    expect(within(candidateB).getByText('Выбрать')).toBeInTheDocument();
+
+    await user.click(candidateA);
     expect(onSelect).toHaveBeenCalledWith('cg_connection', 'item-a');
   });
 
@@ -96,6 +105,14 @@ describe('SpecCandidateSelectionPanel', () => {
       />,
     );
     const confirm = screen.getByRole('button', { name: /Применить выбор/i });
+    const candidateA = screen.getByRole('button', { name: /Комплект A/i });
+    const candidateB = screen.getByRole('button', { name: /Комплект B/i });
+
+    expect(candidateA).toHaveAttribute('aria-pressed', 'false');
+    expect(within(candidateA).getByText('Выбрать')).toBeInTheDocument();
+    expect(candidateB).toHaveAttribute('aria-pressed', 'true');
+    expect(candidateB).not.toHaveAccessibleName(/Выбрано/i);
+    expect(within(candidateB).getByText('✓ Выбрано')).toBeInTheDocument();
     expect(confirm).not.toBeDisabled();
     await user.click(confirm);
     expect(onConfirm).toHaveBeenCalled();

@@ -119,6 +119,12 @@ export function SpecCandidateSelectionPanel({
                         disabled={disabled || confirming}
                         onClick={() => onSelect(group.group_key, candidate.catalog_item_id)}
                       >
+                        <span
+                          className="specification-candidate-option-state"
+                          aria-hidden="true"
+                        >
+                          {isSelected ? '✓ Выбрано' : 'Выбрать'}
+                        </span>
                         <span className="specification-candidate-option-name">
                           {candidate.name}
                         </span>
