@@ -1,15 +1,15 @@
 /* OWNER: LoginPage — static chrome colors moved from LoginPage.tsx */
 
 .login-page {
-  min-height: 100vh;
+  box-sizing: border-box; min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-primary);
+  padding: 24px; background: var(--color-primary);
 }
 
 .login-page-card {
-  width: 420px;
+  width: min(420px, 100%);
 }
 
 .login-page-title {
