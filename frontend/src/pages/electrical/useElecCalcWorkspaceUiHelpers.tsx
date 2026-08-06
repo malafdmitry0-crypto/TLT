@@ -33,6 +33,15 @@ export function candidateFolderEmptyText(
   return 'Вариантов пока нет. Запустите авторасчёт или ручной расчёт.';
 }
 
+export function resolveElectricalAssignmentDragIds(
+  objectId: string,
+  selectedRowKeys: string[],
+): string[] {
+  return selectedRowKeys.includes(objectId) && selectedRowKeys.length > 0
+    ? selectedRowKeys
+    : [objectId];
+}
+
 export type UseElecCalcWorkspaceUiHelpersArgs = {
   canMutate: boolean;
   visibleCableTypeControl: CableTypeKey | null;
@@ -142,9 +151,7 @@ export function useElecCalcWorkspaceUiHelpers({
       event.preventDefault();
       return;
     }
-    const ids = selectedRowKeys.includes(objectId) && selectedRowKeys.length > 0
-      ? selectedRowKeys
-      : [objectId];
+    const ids = resolveElectricalAssignmentDragIds(objectId, selectedRowKeys);
     const payload = JSON.stringify(ids);
     event.setData(ASSIGNMENT_DND_MIME, payload);
     event.setData('text/plain', payload);
