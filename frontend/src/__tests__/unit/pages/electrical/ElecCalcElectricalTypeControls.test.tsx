@@ -1,5 +1,4 @@
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import ElecCalcElectricalTypeControls from '@/pages/electrical/ElecCalcElectricalTypeControls';
@@ -44,19 +43,14 @@ describe('ElecCalcElectricalTypeControls', () => {
     expect(setRecalc.supplyVoltage).not.toHaveBeenCalled();
   });
 
-  it('renders tank layout without a U control and without legacy T2/T3/R controls', async () => {
-    const { setRecalc } = setup();
+  it('renders no shared controls for TT because tank layout belongs to an object in an ER', () => {
+    const { container, setRecalc } = setup();
 
-    expect(screen.queryByLabelText('Напряжение питания')).not.toBeInTheDocument();
-    expect(screen.queryByText('U, В:')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('T пропарки')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('T3 поддержания')).not.toBeInTheDocument();
-    expect(screen.queryByRole('checkbox', { name: 'агр.' })).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Высота обогрева резервуара')).toBeInTheDocument();
-    expect(screen.getByLabelText('Шаг укладки резервуара')).toHaveValue('');
-
-    await userEvent.type(screen.getByLabelText('Высота обогрева резервуара'), '3');
-    expect(setRecalc.heatingHeight).toHaveBeenLastCalledWith(3);
+    expect(container).toBeEmptyDOMElement();
+    expect(screen.queryByLabelText('Высота обогрева резервуара')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Шаг укладки резервуара')).not.toBeInTheDocument();
+    expect(setRecalc.heatingHeight).not.toHaveBeenCalled();
+    expect(setRecalc.layingStep).not.toHaveBeenCalled();
     expect(setRecalc.supplyVoltage).not.toHaveBeenCalled();
   });
 

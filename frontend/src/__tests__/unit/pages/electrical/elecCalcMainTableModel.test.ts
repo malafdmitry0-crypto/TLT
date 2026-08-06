@@ -57,8 +57,6 @@ function copyContext(
     calcByObjectId,
     electricalDisplayOffset: 50,
     getCableTypeForObject: () => 'self_regulating',
-    layingStep: 0.2,
-    heatingHeight: 1.5,
     connectionType: 'line_1ph',
     supplyVoltage: 220,
     windingCoefficient: 1.1,
@@ -173,6 +171,8 @@ describe('elecCalcMainTableModel', () => {
       params: {
         connection_type: 'star_3ph',
         supply_voltage: 380,
+        heating_height: 2.5,
+        laying_step: 0.15,
       },
       results: {
         selected_cable: 'ТЛТ-30',
@@ -207,6 +207,8 @@ describe('elecCalcMainTableModel', () => {
     expect(mainElectricalColumnCopyValue('number_of_threads', object, 0, context)).toBe('2 (ручн.)');
     expect(mainElectricalColumnCopyValue('connection_type', object, 0, context)).toBe('Звезда');
     expect(mainElectricalColumnCopyValue('supply_voltage', object, 0, context)).toBe('380');
+    expect(mainElectricalColumnCopyValue('heating_height', object, 0, context)).toBe('2.5');
+    expect(mainElectricalColumnCopyValue('laying_step', object, 0, context)).toBe('0.15');
     expect(mainElectricalColumnCopyValue('order_cable_length', object, 0, context)).toBe('55.5');
     expect(mainElectricalColumnCopyValue('power_per_meter', object, 0, context)).toBe('30');
     expect(mainElectricalColumnCopyValue('installed_power_per_meter', object, 0, context)).toBe('60');

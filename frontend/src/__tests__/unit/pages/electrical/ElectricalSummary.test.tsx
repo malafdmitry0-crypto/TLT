@@ -43,10 +43,10 @@ describe('ElectricalSummary', () => {
     render(<ElectricalSummary systems={systems} />);
 
     expect(screen.getByTestId('elec-summary-table')).toBeInTheDocument();
-    expect(screen.getByText('Саммари Самрег')).toBeInTheDocument();
-    expect(screen.getByText('Саммари Итого')).toBeInTheDocument();
-    expect(screen.queryByText('Саммари Резистив')).not.toBeInTheDocument();
-    expect(screen.queryByText('Саммари Скин')).not.toBeInTheDocument();
+    expect(screen.getByText('Самрег')).toBeInTheDocument();
+    expect(screen.getByText('Итого')).toBeInTheDocument();
+    expect(screen.queryByText('Резистив')).not.toBeInTheDocument();
+    expect(screen.queryByText('Скин')).not.toBeInTheDocument();
 
     // Objects
     expect(screen.getByTestId('elec-summary-self_regulating-objects')).toHaveTextContent('2');
