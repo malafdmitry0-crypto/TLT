@@ -163,4 +163,39 @@ describe('SpecPageChrome UI kit strangler (U2)', () => {
     expect(screen.getByRole('button', { name: 'Сформировать' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Сохранить настройки проекта' })).toBeDisabled();
   });
+
+  it('explains that a stale specification must be recalculated before manual editing', () => {
+    renderChrome({ hasItems: true, isSpecStale: true });
+
+    const addButton = screen.getByRole('button', { name: /Добавить из БД/ });
+    expect(addButton).toBeDisabled();
+    expect(addButton).toHaveAccessibleDescription(
+      'Эта спецификация устарела. Пересчитайте выбранную ЭР, чтобы добавить позиции вручную.',
+    );
+    expect(screen.getByText(
+      'Эта спецификация устарела. Пересчитайте выбранную ЭР, чтобы добавить позиции вручную.',
+    )).toBeInTheDocument();
+  });
+
+  it('explains that a specification must be generated before manual positions are available', () => {
+    renderChrome({ hasItems: false, isSpecStale: false });
+
+    const addButton = screen.getByRole('button', { name: /Добавить из БД/ });
+    expect(addButton).toBeDisabled();
+    expect(addButton).toHaveAccessibleDescription(
+      'Сначала сформируйте спецификацию, чтобы добавить позиции вручную.',
+    );
+    expect(screen.getByText(
+      'Сначала сформируйте спецификацию, чтобы добавить позиции вручную.',
+    )).toBeInTheDocument();
+  });
+
+  it('keeps manual adding enabled without a warning for an up-to-date specification', () => {
+    renderChrome({ hasItems: true, isSpecStale: false });
+
+    const addButton = screen.getByRole('button', { name: 'Добавить из БД' });
+    expect(addButton).toBeEnabled();
+    expect(addButton).not.toHaveAccessibleDescription();
+    expect(screen.queryByText(/Пересчитайте выбранную ЭР/)).not.toBeInTheDocument();
+  });
 });

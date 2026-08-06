@@ -1,6 +1,6 @@
-import { memo, type ReactNode } from 'react';
+import { memo, useCallback, type DragEvent, type ReactNode } from 'react';
 import { Pagination, type TableProps } from 'antd';
-import { DataEditor } from '@glideapps/glide-data-grid';
+import { DataEditor, type GridDragEventArgs } from '@glideapps/glide-data-grid';
 import '@glideapps/glide-data-grid/dist/index.css';
 
 import ColumnFilterDropdown from '@/components/heatcalc/HeatCalcColumnFilterDropdown';
@@ -27,6 +27,13 @@ import { GLIDE_THEME } from '@/utils/glideGridPrimitives';
 export type HeatCalcNormalInfiniteLoading = NormalGlideInfiniteLoading;
 export type { HeatCalcNormalGlideDraftInvalidator };
 export type { NormalGlideInfiniteLoading };
+
+export type NormalGlideRowDragEvent = Pick<
+  GridDragEventArgs,
+  'preventDefault' | 'setData'
+> & {
+  setMoveEffect?: () => void;
+};
 
 interface HeatCalcNormalGlideGridProps {
   className?: string;
@@ -62,6 +69,9 @@ interface HeatCalcNormalGlideGridProps {
   onRegisterDraftInvalidator?: (invalidateRows: HeatCalcNormalGlideDraftInvalidator) => () => void;
   /** PDF-HEAT-08: Glide row drag → new visual order indices (visible rows). */
   onRowMoved?: (startIndex: number, endIndex: number) => void;
+  rowDragEnabled?: boolean;
+  onRowDragStart?: (event: NormalGlideRowDragEvent, objectId: string) => void;
+  onRowDragEnd?: () => void;
   fillAvailableWidth?: boolean;
   renderFilterDropdown?: (props: {
     column: HeatCalcGlideGridColumn;
@@ -101,6 +111,9 @@ function HeatCalcNormalGlideGrid({
   onCellAction,
   onRegisterDraftInvalidator,
   onRowMoved,
+  rowDragEnabled = false,
+  onRowDragStart,
+  onRowDragEnd,
   fillAvailableWidth = false,
   renderFilterDropdown,
 }: HeatCalcNormalGlideGridProps) {
@@ -168,6 +181,19 @@ function HeatCalcNormalGlideGrid({
 
   const rootClassName = `calc-spreadsheet heatcalc-spreadsheet calc-spreadsheet--${fontSizeKey} calc-spreadsheet--glide calc-spreadsheet--normal-glide${className ? ` ${className}` : ''}`;
 
+  const handleRowDragStart = useCallback((event: GridDragEventArgs) => {
+    const objectId = rows[event.location[1]]?.id;
+    if (!objectId || !onRowDragStart) {
+      event.preventDefault();
+      return;
+    }
+    onRowDragStart(event, objectId);
+  }, [onRowDragStart, rows]);
+
+  const handleNativeDragStart = useCallback((event: DragEvent<HTMLDivElement>) => {
+    event.dataTransfer.effectAllowed = 'move';
+  }, []);
+
   if (rows.length === 0) {
     return (
       <div ref={rootRef} className={rootClassName}>
@@ -185,6 +211,8 @@ function HeatCalcNormalGlideGrid({
       data-glide-row-marker-width={NORMAL_ROW_MARKER_WIDTH}
       data-glide-row-height={rowHeight}
       data-glide-visible-columns={visibleColumnWidthSignature}
+      onDragStart={rowDragEnabled ? handleNativeDragStart : undefined}
+      onDragEnd={rowDragEnabled ? onRowDragEnd : undefined}
     >
       <DataEditor
         className="heatcalc-glide-editor"
@@ -225,6 +253,8 @@ function HeatCalcNormalGlideGrid({
         rangeSelect="cell"
         columnSelect="none"
         onRowMoved={onRowMoved}
+        isDraggable={rowDragEnabled ? 'cell' : false}
+        onDragStart={rowDragEnabled ? handleRowDragStart : undefined}
         getRowThemeOverride={getRowThemeOverride}
         theme={{
           accentColor: GLIDE_THEME.accent,

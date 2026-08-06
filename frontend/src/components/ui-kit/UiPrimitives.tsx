@@ -57,7 +57,8 @@ const buttonTypeMap: Record<TltButtonVariant, 'primary' | 'default' | 'text' | '
   primary: 'primary',
   secondary: 'default',
   ghost: 'text',
-  danger: 'primary',
+  // Outlined, not solid: the danger look is white surface + red ink (see primitives.css).
+  danger: 'default',
   link: 'link',
 };
 
