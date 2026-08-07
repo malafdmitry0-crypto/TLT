@@ -1,4 +1,9 @@
-"""Durable saga for heat -> electrical -> specification generation."""
+"""Durable saga for electrical calculation -> specification generation.
+
+Persisted heat-loss results are inputs owned by explicit heat operations and
+object writes.  This workflow must not recalculate them as a hidden side
+effect of an electrical calculation request.
+"""
 
 from __future__ import annotations
 
@@ -148,13 +153,12 @@ class CalculationWorkflowService:
             request_payload=payload,
             result_payload={"checkpoints": {"electrical": {}}},
             progress_current=0,
-            progress_total=2 + len(request.variant_ids),
+            progress_total=1 + len(request.variant_ids),
             progress_phase="queued",
             workflow_stage="queued",
             workflow_version=1,
             idempotency_key=dedupe_key,
-            queue_deadline_at=now
-            + timedelta(seconds=settings.WORKFLOW_QUEUE_TIMEOUT_SECONDS),
+            queue_deadline_at=now + timedelta(seconds=settings.WORKFLOW_QUEUE_TIMEOUT_SECONDS),
         )
         self.db.add(task)
         try:
@@ -249,9 +253,7 @@ class CalculationWorkflowService:
                 "WORKFLOW_IDEMPOTENCY_KEY_REQUIRED",
                 "Idempotency-Key обязателен",
             )
-        request_fingerprint = hashlib.sha256(
-            request.model_dump_json().encode("utf-8")
-        ).hexdigest()
+        request_fingerprint = hashlib.sha256(request.model_dump_json().encode("utf-8")).hexdigest()
         current_payload = dict(task.request_payload or {})
         if current_payload.get("last_resume_idempotency_key") == normalized_key:
             if current_payload.get("last_resume_request_fingerprint") != request_fingerprint:
@@ -266,7 +268,9 @@ class CalculationWorkflowService:
                 "Workflow не ожидает пользовательский ответ",
             )
         self._require_version(task, request.expected_workflow_version)
-        if task.interaction_deadline_at is None or task.interaction_deadline_at <= datetime.now(UTC):
+        if task.interaction_deadline_at is None or task.interaction_deadline_at <= datetime.now(
+            UTC
+        ):
             await self._set_terminal_locked(task, "timed_out", "Истекло время ожидания ответа")
             raise CalculationWorkflowConflictError(
                 "WORKFLOW_INTERACTION_TIMEOUT",
@@ -317,11 +321,13 @@ class CalculationWorkflowService:
             )
         self._require_version(task, request.expected_workflow_version)
         now = datetime.now(UTC)
-        # A terminal workflow releases the project. Recompute from heat after
-        # reacquiring it; retaining old domain rows is safe, skipping them is not.
+        # A terminal workflow releases the project. Retry the electrical and
+        # specification stages from saved heat inputs without retaining partial
+        # execution checkpoints from the failed attempt.
         task.result_payload = {"checkpoints": {"electrical": {}}}
         task.status = "queued"
         task.progress_current = 0
+        task.progress_total = 1 + len((task.request_payload or {}).get("variant_ids") or [])
         task.progress_phase = "queued"
         task.workflow_stage = "queued"
         task.workflow_version += 1
@@ -362,16 +368,10 @@ class CalculationWorkflowService:
             payload = dict(task.request_payload or {})
             project_id = UUID(str(payload["project_id"]))
             variant_ids = [UUID(str(value)) for value in payload["variant_ids"]]
-            checkpoints = dict((task.result_payload or {}).get("checkpoints") or {})
-
-            if "heat" not in checkpoints:
-                await self._run_heat(task_id, project_id, attempt, worker_id)
             for variant_id in variant_ids:
                 refreshed = await self._task_snapshot(task_id)
                 electrical = dict(
-                    ((refreshed.result_payload or {}).get("checkpoints") or {}).get(
-                        "electrical"
-                    )
+                    ((refreshed.result_payload or {}).get("checkpoints") or {}).get("electrical")
                     or {}
                 )
                 if str(variant_id) not in electrical:
@@ -410,36 +410,6 @@ class CalculationWorkflowService:
                 f"{type(exc).__name__}: {exc}",
             )
 
-    async def _run_heat(
-        self,
-        task_id: UUID,
-        project_id: UUID,
-        attempt: int,
-        worker_id: str,
-    ) -> None:
-        async with self.session_factory() as db:
-            budget = await self._stage_budget(
-                task_id,
-                settings.WORKFLOW_HEAT_TIMEOUT_SECONDS,
-            )
-            with fail_after(budget):
-                updated, failed, errors = await CalculationService(db).batch_recalculate(
-                    project_id,
-                    should_cancel=lambda: self._should_cancel(task_id, attempt, worker_id),
-                    commit=False,
-                )
-            await self._checkpoint_in_transaction(
-                db,
-                task_id,
-                attempt,
-                worker_id,
-                stage="electrical",
-                checkpoint_key="heat",
-                value={"updated": updated, "failed": failed, "errors": errors},
-                progress_increment=1,
-            )
-            await db.commit()
-
     async def _run_electrical(
         self,
         task_id: UUID,
@@ -465,19 +435,19 @@ class CalculationWorkflowService:
                 settings.WORKFLOW_ELECTRICAL_TIMEOUT_SECONDS,
             )
             with fail_after(budget):
-                calculated, skipped, heat_failed, errors, _ = (
-                    await CalculationService(db).batch_calc_electrical(
-                        project_id,
-                        cable_source="builtin",
-                        variant_number=variant.legacy_variant_number,
-                        cable_type="self_regulating_tt",
-                        electrical_params={"selection_policy": "technical_minimum"},
-                        skip_manual=True,
-                        return_calcs=False,
-                        should_cancel=lambda: self._should_cancel(task_id, attempt, worker_id),
-                        electrical_variant_id=variant_id,
-                        commit=False,
-                    )
+                calculated, skipped, heat_failed, errors, _ = await CalculationService(
+                    db
+                ).batch_calc_electrical(
+                    project_id,
+                    cable_source="builtin",
+                    variant_number=variant.legacy_variant_number,
+                    cable_type="self_regulating_tt",
+                    electrical_params={"selection_policy": "technical_minimum"},
+                    skip_manual=True,
+                    return_calcs=False,
+                    should_cancel=lambda: self._should_cancel(task_id, attempt, worker_id),
+                    electrical_variant_id=variant_id,
+                    commit=False,
                 )
             await self._checkpoint_in_transaction(
                 db,
@@ -623,9 +593,7 @@ class CalculationWorkflowService:
             raise CalculationWorkflowNotFoundError("Workflow не связан с проектом")
         async with self.session_factory() as db:
             await db.execute(
-                select(Project.id)
-                .where(Project.id == snapshot.project_id)
-                .with_for_update()
+                select(Project.id).where(Project.id == snapshot.project_id).with_for_update()
             )
             task = await self._fenced_task(db, task_id, attempt, worker_id)
             result_payload = dict(task.result_payload or {})
