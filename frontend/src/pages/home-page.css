@@ -3,25 +3,21 @@
 .home-page {
   min-height: 100vh;
   display: flex;
-  align-items: center;
+  align-items: safe center;
   justify-content: center;
+  box-sizing: border-box;
+  padding: 16px;
   background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
 }
 
-.home-page-card {
-  width: 560px;
-}
+.home-page > .tlt-ui-card-host { width: min(560px, 100%); min-width: 0; }
+
+.home-page-card,
+.home-page-full-width,
+.home-page-stack { width: 100%; }
 
 .home-page-card.tlt-ui-card--padding-none .tlt-ui-card__body {
   padding: 40px;
-}
-
-.home-page-full-width {
-  width: 100%;
-}
-
-.home-page-stack {
-  width: 100%;
 }
 
 .home-page-title {
@@ -47,9 +43,10 @@
   margin-top: 16px;
 }
 
-.home-page-role-header {
-  margin-bottom: 12px;
-}
+.home-page-role-header { margin-bottom: 12px; }
+
+.home-page-role-header,
+.home-page-role-header > .ant-space-item:last-child { min-width: 0; }
 
 .home-page-role-icon {
   font-size: 20px;
@@ -75,6 +72,7 @@
 .home-page-role-desc {
   font-size: 13px;
   color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
 }
 
 .home-page-help-link {
@@ -82,6 +80,4 @@
   color: var(--color-primary);
 }
 
-.home-page-divider {
-  margin: 16px 0;
-}
+.home-page-divider { margin: 16px 0; }
