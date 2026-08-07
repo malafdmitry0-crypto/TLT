@@ -1,7 +1,7 @@
 .PHONY: help dev prod down restart logs \
         migrate migrate-new \
         seed setup setup-fresh \
-        test test-backend test-frontend test-e2e \
+        test test-backend test-frontend test-e2e test-compose-readiness \
         test-formulas test-formulas-full test-formulas-mutation \
         audit-docs audit-contracts audit-mcp audit-db-invariants audit-smoke audit-calc \
         audit-mutation audit-business audit-user-flows audit-layout audit-accessibility \
@@ -37,10 +37,10 @@ dev: ## Start dev environment (hot-reload)
 	$(COMPOSE_DEV) up --build
 
 dev-d: ## Start dev environment in background
-	$(COMPOSE_DEV) up --build -d
+	$(COMPOSE_DEV) up --build --wait --wait-timeout 180 -d
 
 prod: ## Start production environment (uses docker-compose.prod.yml overrides)
-	$(COMPOSE_PROD) up --build -d
+	$(COMPOSE_PROD) up --build --wait --wait-timeout 180 -d
 
 prod-down: ## Stop production environment
 	$(COMPOSE_PROD) down
@@ -53,6 +53,7 @@ down-v: ## Stop all containers and remove volumes (DANGER: deletes DB data)
 
 restart: ## Restart all containers
 	$(COMPOSE_DEV) restart
+	$(COMPOSE_DEV) up -d --wait --wait-timeout 180
 
 ps: ## Show running containers
 	$(COMPOSE_DEV) ps
@@ -197,8 +198,11 @@ test-frontend-cov: ## Run frontend tests with coverage
 	$(FRONTEND_CTR) npm run test:coverage
 
 test-e2e: ## Run E2E tests (Playwright)
-	$(COMPOSE_E2E) up --build --wait -d
+	$(COMPOSE_E2E) up --build --wait --wait-timeout 180 -d
 	cd e2e && PLAYWRIGHT_CHROMIUM_CHANNEL=$${PLAYWRIGHT_CHROMIUM_CHANNEL:-chrome} E2E_BASE_URL=$${E2E_BASE_URL:-http://127.0.0.1:3001} E2E_API_BASE=$${E2E_API_BASE:-http://127.0.0.1:8001} npx playwright test --reporter=list; status=$$?; cd ..; $(COMPOSE_E2E) down; exit $$status
+
+test-compose-readiness: ## Validate worker readiness wiring in every Compose variant
+	python3 scripts/test-compose-readiness.py
 
 # ─── Lint ─────────────────────────────────────────────────────────────────────
 lint: lint-backend lint-frontend ## Run all linters

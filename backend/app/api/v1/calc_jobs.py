@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.dependencies import CurrentPrincipal, require_any
 from app.core.rate_limit import enforce_principal_rate_limit, job_enqueue_limiter
+from app.core.worker_dependency import require_worker_ready
 from app.schemas.calculation import (
     BatchCalcResponse,
     BatchElectricalResponse,
@@ -58,6 +59,7 @@ def _raise_task_error(exc: Exception) -> None:
     response_model=CalculationTaskResponse,
     status_code=status.HTTP_202_ACCEPTED,
     summary="Поставить пакетный пересчёт теплопотерь в очередь",
+    dependencies=[Depends(require_worker_ready)],
 )
 async def enqueue_heat_loss_batch_job(
     request: HeatLossBatchJobRequest,
@@ -112,6 +114,7 @@ async def enqueue_heat_loss_batch_job(
     response_model=CalculationTaskResponse,
     status_code=status.HTTP_202_ACCEPTED,
     summary="Поставить пакетный электрорасчёт в очередь",
+    dependencies=[Depends(require_worker_ready)],
 )
 async def enqueue_electrical_batch_job(
     request: ElectricalBatchJobRequest,

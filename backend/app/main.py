@@ -24,6 +24,8 @@ from app.core.security import hash_password
 from app.models.user import User
 from app.reference_data.loader import preload_all
 from app.services.auth_service import AuthService
+from app.services.task_recovery import TaskRecoveryCoordinator
+from app.services.worker_readiness import readiness_snapshot
 
 configure_logging()
 logger = logging.getLogger("heatcalc")
@@ -101,6 +103,28 @@ async def _periodic_guest_cleanup() -> None:
             logger.warning("Периодический cleanup упал: %s", exc)
 
 
+async def _periodic_task_recovery() -> None:
+    """Recover durable tasks even when no calculation consumer is running."""
+    interval = max(5, settings.WORKER_RECOVERY_INTERVAL_SECONDS)
+    coordinator: TaskRecoveryCoordinator | None = None
+    try:
+        while True:
+            try:
+                if coordinator is None:
+                    coordinator = TaskRecoveryCoordinator()
+                recovered = await coordinator.run_once()
+                if recovered:
+                    logger.info("Independent recovery processed %s background tasks", recovered)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                logger.warning("Independent task recovery failed: %s", exc)
+            await asyncio.sleep(interval)
+    finally:
+        if coordinator is not None:
+            await coordinator.close()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Инициализация при старте: справочники, первый админ, cleanup сессий.
@@ -116,12 +140,16 @@ async def lifespan(app: FastAPI):
         logger.warning("Не удалось создать первого админа: %s", exc)
     await cleanup_guest_sessions()
     cleanup_task = asyncio.create_task(_periodic_guest_cleanup())
+    recovery_task = asyncio.create_task(_periodic_task_recovery())
     try:
         yield
     finally:
         cleanup_task.cancel()
+        recovery_task.cancel()
         with suppress(asyncio.CancelledError, Exception):
             await cleanup_task
+        with suppress(asyncio.CancelledError, Exception):
+            await recovery_task
         await close_redis()
 
 
@@ -361,6 +389,58 @@ async def validation_exception_handler(
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
 
-@app.get("/health", tags=["system"], summary="Проверка здоровья")
-async def health() -> dict[str, str]:
+@app.get("/health", tags=["system"], summary="Проверка liveness")
+@app.get("/health/live", tags=["system"], summary="Проверка liveness")
+async def health_live() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/health/ready", tags=["system"], summary="Проверка готовности приложения")
+@app.get(
+    f"{settings.API_V1_PREFIX}/health/ready",
+    tags=["system"],
+    summary="Проверка готовности приложения",
+)
+async def health_ready() -> JSONResponse:
+    database_ready = False
+    redis_ready = False
+    active_consumers = 0
+    last_heartbeat_at: str | None = None
+    worker_reason: str | None = "starting"
+
+    try:
+        async with AsyncSessionLocal() as db:
+            await db.execute(select(1))
+        database_ready = True
+    except Exception as exc:
+        logger.warning("Readiness database probe failed: %s", exc)
+
+    try:
+        redis = get_redis()
+        await redis.ping()
+        redis_ready = True
+        snapshot = await readiness_snapshot(redis)
+        active_consumers = snapshot.active_consumers
+        last_heartbeat_at = snapshot.last_heartbeat_at
+        worker_reason = None if snapshot.ready else "no_consumer"
+    except Exception as exc:
+        worker_reason = "redis_unavailable"
+        logger.warning("Readiness Redis/worker probe failed: %s", exc)
+
+    ready = database_ready and redis_ready and active_consumers > 0
+    content = {
+        "status": "ready" if ready else "not_ready",
+        "database": {"ready": database_ready},
+        "redis": {"ready": redis_ready},
+        "worker": {
+            "ready": active_consumers > 0,
+            "active_consumers": active_consumers,
+            "last_heartbeat_at": last_heartbeat_at,
+            "heartbeat_max_age_seconds": settings.WORKER_HEARTBEAT_TTL_SECONDS,
+            "reason": worker_reason,
+        },
+    }
+    return JSONResponse(
+        status_code=status.HTTP_200_OK if ready else status.HTTP_503_SERVICE_UNAVAILABLE,
+        content=content,
+    )
