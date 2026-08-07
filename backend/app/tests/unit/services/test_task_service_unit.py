@@ -1315,6 +1315,39 @@ class TestTaskStateTransitions:
         service._run_heat_loss_batch.assert_not_awaited()
         mock_db.commit.assert_not_awaited()
 
+    async def test_run_task_does_not_dispatch_terminal_project_pipeline_again(
+        self,
+        mock_db,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        task = BackgroundTask(
+            id=uuid.uuid4(),
+            type=TASK_PROJECT_PIPELINE,
+            status="succeeded",
+            project_id=uuid.uuid4(),
+            session_id="sid",
+            request_payload={"project_id": str(uuid.uuid4()), "variant_ids": []},
+            progress_current=1,
+            progress_total=1,
+            cancel_requested=False,
+            attempts=1,
+        )
+        mock_db.execute = AsyncMock(return_value=ResultRows([]))
+        mock_db.get = AsyncMock(return_value=task)
+        workflow_service = MagicMock()
+        workflow_service.run_claimed_task = AsyncMock()
+        workflow_service_type = MagicMock(return_value=workflow_service)
+        monkeypatch.setattr(
+            "app.services.calculation_workflow_service.CalculationWorkflowService",
+            workflow_service_type,
+        )
+
+        await TaskService(mock_db).run_task(task.id, worker_id="worker-2")
+
+        workflow_service_type.assert_not_called()
+        workflow_service.run_claimed_task.assert_not_awaited()
+        mock_db.commit.assert_not_awaited()
+
     async def test_run_heat_loss_batch_marks_succeeded(
         self,
         mock_db,
@@ -1725,9 +1758,7 @@ class TestAttemptFencing:
             attempts=2,
             locked_by="worker-new",
         )
-        mock_db.execute = AsyncMock(
-            side_effect=(ResultRows([]), ResultRows([task]))
-        )
+        mock_db.execute = AsyncMock(side_effect=(ResultRows([]), ResultRows([task])))
         service = TaskService(mock_db)
         service._record_task_audit = AsyncMock()  # type: ignore[method-assign]
 
