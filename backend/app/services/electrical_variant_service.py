@@ -1,7 +1,7 @@
 """Transactional lifecycle service for project-scoped named electrical variants.
 
 The project row is the serialization point for every mutation.  That makes the
-five-variant limit, the single-active invariant, name uniqueness and delete
+four-variant limit, the single-active invariant, name uniqueness and delete
 fallback one atomic project-level decision instead of unrelated row updates.
 """
 
@@ -21,6 +21,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import CurrentPrincipal
+from app.electrical_variant_limits import (
+    LEGACY_VARIANT_NUMBERS,
+    MAX_ELECTRICAL_VARIANTS,
+)
 from app.models.background_task import BackgroundTask
 from app.models.electrical_calculation import ElectricalCalculation
 from app.models.electrical_candidate import ElectricalCandidate
@@ -42,9 +46,7 @@ from app.schemas.electrical_variant import (
 from app.services.audit_service import AuditService
 from app.services.project_service import ProjectService
 
-MAX_ELECTRICAL_VARIANTS = 5
-# ER5 write cutover: five numeric compatibility slots map 1:1 to five named ERs.
-_LEGACY_VARIANT_NUMBERS = range(1, 6)
+_LEGACY_VARIANT_NUMBERS = LEGACY_VARIANT_NUMBERS
 _SUPPORTED_OBJECT_TYPES = {"pipe", "tank"}
 _T = TypeVar("_T")
 logger = logging.getLogger(__name__)
@@ -608,7 +610,7 @@ class ElectricalVariantService:
         if legacy_variant_number is None and graph.has_legacy_scoped_rows:
             raise ElectricalVariantServiceError(
                 "ELECTRICAL_VARIANT_COPY_REQUIRES_UUID_CUTOVER",
-                "Расчётный граф нельзя скопировать в пятый ЭР до UUID-only cutover",
+                "Расчётный граф нельзя скопировать в ЭР без compatibility-слота",
                 status_code=409,
             )
 
@@ -1093,7 +1095,7 @@ class ElectricalVariantService:
         if len(variants) >= MAX_ELECTRICAL_VARIANTS:
             raise ElectricalVariantServiceError(
                 "ELECTRICAL_VARIANT_LIMIT_REACHED",
-                "В проекте допускается не более пяти ЭР",
+                f"В проекте допускается не более {MAX_ELECTRICAL_VARIANTS} ЭР",
                 status_code=409,
             )
 

@@ -16,6 +16,8 @@ from pydantic import (
     model_validator,
 )
 
+from app.electrical_variant_limits import MAX_ELECTRICAL_VARIANTS
+
 
 class SpecificationItem(BaseModel):
     """Одна позиция BOM.
@@ -216,7 +218,10 @@ class SpecificationGenerationRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    variant_ids: list[UUID] = Field(min_length=1, max_length=5)
+    variant_ids: list[UUID] = Field(
+        min_length=1,
+        max_length=MAX_ELECTRICAL_VARIANTS,
+    )
     options: SpecificationRequestedOptions = Field(default_factory=SpecificationRequestedOptions)
     exclude_unassigned_confirmed: bool = False
     catalog_selections: dict[str, UUID] = Field(default_factory=dict)

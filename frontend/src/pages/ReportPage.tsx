@@ -152,8 +152,11 @@ export default function ReportPage() {
         content: `Отчёт для «${scope.electricalVariantName}» готов`,
         key: 'report-export',
       });
-    } catch {
-      message.error({ content: 'Не удалось скачать отчёт', key: 'report-export' });
+    } catch (error) {
+      message.error({
+        content: error instanceof Error ? error.message : 'Не удалось скачать отчёт',
+        key: 'report-export',
+      });
     } finally {
       setExportingFormat(null);
     }

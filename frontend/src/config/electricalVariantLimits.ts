@@ -1,0 +1,1 @@
+export const MAX_ELECTRICAL_VARIANTS = 4;

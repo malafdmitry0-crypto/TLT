@@ -29,6 +29,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import CurrentPrincipal
+from app.electrical_variant_limits import (
+    LEGACY_VARIANT_NUMBERS,
+    MAX_ELECTRICAL_VARIANTS,
+)
 from app.models.electrical_calculation import ElectricalCalculation
 from app.models.electrical_variant import ElectricalVariant, ElectricalVariantObject
 from app.models.project import Project
@@ -60,8 +64,6 @@ SUPPORTED_SCHEMA_VERSIONS = {LEGACY_SCHEMA_VERSION, SCHEMA_VERSION}
 DELIMITER = ";"  # экспорт всегда `;`; импорт определяет сам
 VALID_CABLE_TYPE_SOURCES = {"auto", "manual", "bulk"}
 VALID_CABLE_MARK_SOURCES = {"auto", "manual"}
-# ER5 write cutover: CSV/import legacy slots align with DB 1..5.
-LEGACY_VARIANT_NUMBERS = range(1, 6)
 SECTIONS_NOT_READY_CODE = "ELECTRICAL_SECTIONS_NOT_READY"
 VALID_ASSIGNMENT_SYSTEM_TYPES = {
     "self_regulating",
@@ -1120,7 +1122,8 @@ def _legacy_variant_number(row: dict[str, str], *, section: str) -> int:
         ) from exc
     if variant_number not in LEGACY_VARIANT_NUMBERS:
         raise ProjectImportError(
-            f"variant_number в секции {section} должен быть в диапазоне 1..5: "
+            f"variant_number в секции {section} должен быть в диапазоне "
+            f"1..{MAX_ELECTRICAL_VARIANTS}: "
             f"получено {variant_number}"
         )
     return variant_number
@@ -1445,8 +1448,10 @@ async def _create_imported_variants_v3(
     """Create named ЭР from v3 electrical_variants section."""
     if not variant_rows:
         return {}
-    if len(variant_rows) > 5:
-        raise ProjectImportError("В секции electrical_variants больше 5 ЭР")
+    if len(variant_rows) > MAX_ELECTRICAL_VARIANTS:
+        raise ProjectImportError(
+            f"В секции electrical_variants больше {MAX_ELECTRICAL_VARIANTS} ЭР"
+        )
 
     variants_by_key: dict[str, ElectricalVariant] = {}
     seen_names: set[str] = set()
@@ -1481,7 +1486,8 @@ async def _create_imported_variants_v3(
                 ) from exc
             if legacy_number not in LEGACY_VARIANT_NUMBERS:
                 raise ProjectImportError(
-                    f"legacy_variant_number должен быть 1..5 или пустым: {legacy_number}"
+                    "legacy_variant_number должен быть "
+                    f"1..{MAX_ELECTRICAL_VARIANTS} или пустым: {legacy_number}"
                 )
 
         try:
@@ -1712,8 +1718,8 @@ async def _apply_project_data_v3(
         variant = variants_by_key[variant_key]
         legacy_number = variant.legacy_variant_number
         if legacy_number is None:
-            # Expand-window ER5 without legacy slot cannot persist calculation yet
-            # under composite FK constraints — fail the whole project import.
+            # A UUID-only ER cannot persist calculation under the compatibility
+            # composite FK yet, so fail the whole project import.
             raise ProjectImportError(
                 f"ЭР {variant_key!r} без legacy_variant_number не может импортировать "
                 "electrical до UUID-only cutover (Phase 5 residual)"

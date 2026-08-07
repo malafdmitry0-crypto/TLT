@@ -1,4 +1,4 @@
-import apiClient, { withIdempotencyKey } from './client';
+import apiClient, { withIdempotencyKey, type ApiError } from './client';
 import type { CalculationTaskResponse } from '@/types/calculation';
 
 export type ReportSection = 'summary' | 'pipes' | 'tanks' | 'electrical' | 'specification';
@@ -26,6 +26,42 @@ export interface ReportPreview {
   variant_number: number | null;
   electrical_variant_id?: string | null;
   electrical_variant_name?: string | null;
+}
+
+const reportTaskStorageKey = (
+  projectId: string,
+  format: 'pdf' | 'docx' | 'xlsx',
+  electricalVariantId: string,
+  sections: ReportSection[] | undefined,
+) => `tlt:report-export-task:${projectId}:${electricalVariantId}:${format}:${
+  [...(sections ?? [])].sort().join(',')
+}`;
+
+function readReportTaskId(storageKey: string): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.sessionStorage.getItem(storageKey);
+  } catch {
+    return null;
+  }
+}
+
+function persistReportTaskId(storageKey: string, taskId: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.sessionStorage.setItem(storageKey, taskId);
+  } catch {
+    // The export can still finish in this page even when storage is unavailable.
+  }
+}
+
+function clearReportTaskId(storageKey: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.sessionStorage.removeItem(storageKey);
+  } catch {
+    // The server-side terminal status remains authoritative.
+  }
 }
 
 function reportParams(
@@ -72,14 +108,32 @@ export async function exportReport(
   electricalVariantId: string,
   sections?: ReportSection[],
 ): Promise<Blob> {
-  const task = await enqueueReportExportJob(projectId, format, electricalVariantId, sections);
-  const completed = await waitReportExportTask(task.id);
+  const storageKey = reportTaskStorageKey(projectId, format, electricalVariantId, sections);
+  const persistedTaskId = readReportTaskId(storageKey);
+  let task: CalculationTaskResponse;
+  if (persistedTaskId) {
+    try {
+      task = await getReportExportTask(persistedTaskId);
+    } catch (error) {
+      if ((error as ApiError).status !== 404) throw error;
+      clearReportTaskId(storageKey);
+      task = await enqueueReportExportJob(projectId, format, electricalVariantId, sections);
+    }
+  } else {
+    task = await enqueueReportExportJob(projectId, format, electricalVariantId, sections);
+  }
+  persistReportTaskId(storageKey, task.id);
+  const completed = ['succeeded', 'failed', 'cancelled'].includes(task.status)
+    ? task
+    : await waitReportExportTask(task.id);
   if (completed.status !== 'succeeded') {
+    clearReportTaskId(storageKey);
     throw new Error(completed.error_message || 'Не удалось сформировать отчёт');
   }
   const { data } = await apiClient.get(`/reports/jobs/${completed.id}/download`, {
     responseType: 'blob',
   });
+  clearReportTaskId(storageKey);
   return data as Blob;
 }
 

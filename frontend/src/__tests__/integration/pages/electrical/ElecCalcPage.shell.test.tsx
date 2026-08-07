@@ -15,6 +15,7 @@ import '@/__tests__/integration/pages/electrical/elecCalcPageTestEnv';
 describe('ElecCalcPage shell / variants / polling', () => {
   beforeEach(() => {
     resetElecCalcIntegrationState();
+    window.sessionStorage.clear();
   });
 
   it('показывает заглушку без проекта', () => {
@@ -61,12 +62,14 @@ describe('ElecCalcPage shell / variants / polling', () => {
         'task-er-1',
         '11111111-1111-4111-8111-111111111111',
         'running',
+        { created_at: new Date().toISOString() },
       ))
       .mockResolvedValueOnce(makeCalcTask(
         'task-er-1',
         '11111111-1111-4111-8111-111111111111',
         'succeeded',
         {
+          created_at: new Date().toISOString(),
           finished_at: '2026-01-01T00:00:02Z',
           result: {
             scope: 'all',
@@ -114,6 +117,7 @@ describe('ElecCalcPage shell / variants / polling', () => {
     expect(getCalcJobRefetchInterval('enqueued', false)).toBe(2000);
     expect(getCalcJobRefetchInterval('running', false)).toBe(1000);
     expect(getCalcJobRefetchInterval('running', true)).toBe(15000);
+    expect(getCalcJobRefetchInterval('queued', false, true)).toBe(15000);
     expect(getCalcJobRefetchInterval('succeeded', false)).toBe(false);
   });
 

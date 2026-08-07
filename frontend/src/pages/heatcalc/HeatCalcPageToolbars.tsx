@@ -155,13 +155,18 @@ export function buildHeatCalcActionsBar(p: HeatCalcPageToolbarsProps): ReactNode
 export function buildHeatCalcJobAlert(
   isHeatLossJobActive: boolean,
   heatLossJobProgressLabel: string,
+  heatLossJobIssue: string | null = null,
 ): ReactNode {
   if (!isHeatLossJobActive) return null;
   return (
     <TltAlert
-      tone="info"
+      tone={heatLossJobIssue ? 'warning' : 'info'}
       className="heatcalc-job-alert"
-      title={`Пересчёт теплопотерь выполняется · ${heatLossJobProgressLabel}`}
-    />
+      title={heatLossJobIssue
+        ? 'Состояние фонового пересчёта требует внимания'
+        : `Пересчёт теплопотерь выполняется · ${heatLossJobProgressLabel || 'проверяем состояние'}`}
+    >
+      {heatLossJobIssue}
+    </TltAlert>
   );
 }

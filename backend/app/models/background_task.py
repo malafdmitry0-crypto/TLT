@@ -18,6 +18,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.electrical_variant_limits import MAX_ELECTRICAL_VARIANTS
 from app.models.base import Base, TimestampMixin
 
 
@@ -36,6 +37,8 @@ class BackgroundTask(Base, TimestampMixin):
         CheckConstraint(
             "type NOT IN ('electrical_batch', 'report_export') OR ("
             "electrical_variant_id IS NOT NULL AND ("
+            "request_payload ->> 'variant_number' IS NULL OR "
+            f"(request_payload ->> 'variant_number') ~ '^[1-{MAX_ELECTRICAL_VARIANTS}]$') AND ("
             "request_payload ->> 'payload_version' IS DISTINCT FROM '3' OR ("
             "project_id IS NOT NULL AND "
             "request_payload ->> 'project_id' IS NOT NULL AND "
