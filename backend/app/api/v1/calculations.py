@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.dependencies import CurrentPrincipal, require_any
 from app.core.rate_limit import batch_limiter, enforce_principal_rate_limit
+from app.electrical_variant_limits import MAX_ELECTRICAL_VARIANTS
 from app.electrical_domain import ElectricalFormulaError
 from app.models.electrical_calculation import ElectricalCalculation
 from app.schemas.calculation import (
@@ -534,7 +535,9 @@ async def copy_electrical_variant(
 async def list_electrical_candidates(
     project_id: UUID,
     object_id: UUID | None = None,
-    variant_number: int | None = Query(default=None, ge=1, le=5),
+    variant_number: int | None = Query(
+        default=None, ge=1, le=MAX_ELECTRICAL_VARIANTS
+    ),
     electrical_variant_id: UUID | None = None,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
@@ -678,7 +681,7 @@ async def update_electrical_candidate(
 async def list_electrical_candidate_folders(
     project_id: UUID,
     object_id: UUID,
-    variant_number: int = Query(default=1, ge=1, le=5),
+    variant_number: int = Query(default=1, ge=1, le=MAX_ELECTRICAL_VARIANTS),
     electrical_variant_id: UUID | None = None,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),

@@ -83,13 +83,14 @@ function setup() {
   );
   return {
     queryClient,
-    ...renderHook(() => useElectricalBatchJobTracker(), { wrapper }),
+    ...renderHook(() => useElectricalBatchJobTracker('project-1'), { wrapper }),
   };
 }
 
 describe('useElectricalBatchJobTracker', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.sessionStorage.clear();
   });
 
   it('tracks two concurrent ER jobs in parent-local state with stable registration methods', () => {
@@ -250,7 +251,7 @@ describe('useElectricalBatchJobTracker', () => {
     expect(getCalcTask).toHaveBeenCalledTimes(2);
   });
 
-  it('releases the ER after bounded lookup failures instead of deadlocking controls', async () => {
+  it('keeps the ER active after bounded lookup failures because the server task may still run', async () => {
     const { result } = setup();
     vi.mocked(getCalcTask).mockRejectedValue(new Error('task endpoint unavailable'));
 
@@ -259,19 +260,47 @@ describe('useElectricalBatchJobTracker', () => {
     });
 
     await waitFor(() => {
-      expect(result.current.completionByVariant[ER_ONE]).toEqual(expect.objectContaining({
-        taskId: 'task-unavailable',
-        status: 'failed',
-        task: null,
-      }));
-      expect(result.current.trackedJobs).toHaveLength(0);
+      expect(result.current.completionByVariant[ER_ONE]).toBeUndefined();
+      expect(result.current.trackedJobs).toEqual([
+        expect.objectContaining({
+          taskId: 'task-unavailable',
+          error: expect.objectContaining({ message: 'task endpoint unavailable' }),
+        }),
+      ]);
     }, { timeout: 3_000 });
 
     expect(getCalcTask).toHaveBeenCalledTimes(3);
     expect(message.error).toHaveBeenCalledWith(
       'Основной ЭР · не удалось получить состояние расчёта всех объектов: '
-      + 'task endpoint unavailable',
+      + 'task endpoint unavailable. Задача остаётся активной',
     );
+  });
+
+  it('restores an active descriptor after remount and resumes status polling', async () => {
+    vi.mocked(getCalcTask).mockResolvedValue(task('task-restored', ER_ONE, 'running'));
+    const first = setup();
+
+    act(() => {
+      first.result.current.registerJob(
+        task('task-restored', ER_ONE, 'queued'),
+        metadata(ER_ONE, 'Основной ЭР'),
+      );
+    });
+    await waitFor(() => {
+      expect(window.sessionStorage.getItem(
+        'tlt:active-electrical-batch-jobs:project-1',
+      )).toContain('task-restored');
+    });
+    first.unmount();
+    vi.mocked(getCalcTask).mockClear();
+
+    const restored = setup();
+    await waitFor(() => {
+      expect(getCalcTask).toHaveBeenCalledWith('task-restored');
+      expect(restored.result.current.trackedJobs).toEqual([
+        expect.objectContaining({ taskId: 'task-restored' }),
+      ]);
+    });
   });
 
   it('rejects a registered task from another project before tracking or announcing it', () => {

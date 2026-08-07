@@ -165,7 +165,7 @@ runtime-код и тесты: другой поток мог уже закрыт
 
 ## Утверждённые бизнес-решения
 
-1. Формируются только UUID из явного непустого `variant_ids`, максимум 5; implicit all запрещён.
+1. Формируются только UUID из явного непустого `variant_ids`, максимум 4; implicit all запрещён.
 2. Для каждого выбранного ЭР сохраняется отдельная спецификация. Строки разных ЭР не объединяются.
 3. `Ex`, `K1i`, `K2i`, `Kiu`, `L_K2i_m`, `R_gr` принадлежат request/project specification
    settings, а не объекту и не отдельному ЭР.
@@ -674,7 +674,7 @@ L_K2i_m/R_gr`. Не возвращай эти поля в Heat.
 - все доступные ЭР выбираются по UUID, независимо от `legacy_variant_number`;
 - query key одного ЭР содержит project UUID + electrical variant UUID, без numeric slot;
 - GET/manual PUT используют UUID path;
-- request хранит один options object и до 5 explicit variant IDs;
+- request хранит один options object и до 4 explicit variant IDs;
 - `catalog_selections` хранит только opaque backend group key → item UUID;
 - TanStack invalidation после generation затрагивает только generated/staled UUIDs и settings
   consumers; смена активной вкладки не запускает generation;

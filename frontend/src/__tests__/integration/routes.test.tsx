@@ -173,6 +173,7 @@ describe('AppRoutes', () => {
     const helpText = document.body.textContent ?? '';
     expect(helpText).toContain('3 дня');
     expect(helpText).toContain('500 объектов');
+    expect(helpText).toContain('до 4 вариантов электрорасчёта');
     expect(helpText).toContain('один временный проект');
     expect(helpText).toContain('Начать без регистрации');
     expect(helpText).toContain('.tlt.csv');

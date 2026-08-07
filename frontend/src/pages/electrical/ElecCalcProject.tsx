@@ -39,7 +39,7 @@ export default function ElecCalcProject({
     registerJobId,
     trackedJobs,
     completionByVariant,
-  } = useElectricalBatchJobTracker();
+  } = useElectricalBatchJobTracker(projectId);
   const registeredNavigationJobIdsRef = useRef(new Set<string>());
   const setLegacyVariant = useCalculationVariantStore((state) => state.setVariant);
   const clearLegacyVariant = useCalculationVariantStore((state) => state.clearVariant);

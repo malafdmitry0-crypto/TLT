@@ -15,6 +15,7 @@ from app.core.dependencies import (
 )
 from app.core.rate_limit import enforce_principal_rate_limit, job_enqueue_limiter, report_limiter
 from app.core.worker_dependency import require_worker_ready
+from app.electrical_variant_limits import MAX_ELECTRICAL_VARIANTS
 from app.schemas.calculation import CalculationTaskResponse
 from app.schemas.report import ReportExportJobRequest, ReportPreviewResponse
 from app.services.audit_service import AuditService
@@ -82,7 +83,9 @@ async def preview(
     project_id: UUID,
     request: Request,
     sections: list[str] | None = Query(default=None),
-    variant_number: int | None = Query(default=None, ge=1, le=5),
+    variant_number: int | None = Query(
+        default=None, ge=1, le=MAX_ELECTRICAL_VARIANTS
+    ),
     electrical_variant_id: UUID | None = Query(default=None),
     electrical_variant_ids: list[UUID] | None = Query(default=None),
     principal: CurrentPrincipal = Depends(require_any()),
@@ -105,10 +108,12 @@ async def preview(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="electrical_variant_id(s) or variant_number is required",
             )
-        if len(requested_ids) > 5:
+        if len(requested_ids) > MAX_ELECTRICAL_VARIANTS:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail="Можно выбрать не более 5 ЭР для отчёта",
+                detail=(
+                    f"Можно выбрать не более {MAX_ELECTRICAL_VARIANTS} ЭР для отчёта"
+                ),
             )
 
         # PDL-ER-39: multi-ЭР → independent chapters, no cross-sums.
@@ -193,7 +198,7 @@ async def export(
     format: str,
     request: Request,
     sections: list[str] | None = Query(default=None),
-    variant_number: int = Query(..., ge=1, le=5),
+    variant_number: int = Query(..., ge=1, le=MAX_ELECTRICAL_VARIANTS),
     electrical_variant_id: UUID | None = Query(default=None),
     principal: CurrentPrincipal = Depends(require_employee()),
     db: AsyncSession = Depends(get_db),
@@ -269,7 +274,12 @@ async def enqueue_export_job(
     request: Request,
     sections: list[str] | None = Query(default=None),
     electrical_variant_id: UUID | None = Query(default=None),
-    variant_number: int | None = Query(default=None, ge=1, le=5, deprecated=True),
+    variant_number: int | None = Query(
+        default=None,
+        ge=1,
+        le=MAX_ELECTRICAL_VARIANTS,
+        deprecated=True,
+    ),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     principal: CurrentPrincipal = Depends(require_employee()),
     db: AsyncSession = Depends(get_db),

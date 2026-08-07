@@ -6,6 +6,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.electrical_variant_limits import MAX_ELECTRICAL_VARIANTS
 from app.formulas.heat_loss.insulation import (
     InsulationTemperatureBasis,
     validate_insulation_temperature_basis_for_placement,
@@ -1191,7 +1192,11 @@ class ElectricalCableSelectionVariantsRequest(BaseModel):
     object_id: UUID
     cable_mark: str | None = None
     cable_source: ElectricalCableSource = "builtin"
-    variant_numbers: list[int] = Field(default_factory=lambda: [1], min_length=1, max_length=5)
+    variant_numbers: list[int] = Field(
+        default_factory=lambda: [1],
+        min_length=1,
+        max_length=MAX_ELECTRICAL_VARIANTS,
+    )
     electrical_variant_ids: dict[int, UUID] = Field(default_factory=dict)
     cable_type: ElectricalCableType = "self_regulating_tt"
     selection_mode: Literal["auto", "manual"] | None = None
@@ -1206,9 +1211,15 @@ class ElectricalCableSelectionVariantsRequest(BaseModel):
     @model_validator(mode="after")
     def normalize_variants_and_mark(self) -> "ElectricalCableSelectionVariantsRequest":
         normalized_variants = list(dict.fromkeys(int(value) for value in self.variant_numbers))
-        invalid = [value for value in normalized_variants if value < 1 or value > 5]
+        invalid = [
+            value
+            for value in normalized_variants
+            if value < 1 or value > MAX_ELECTRICAL_VARIANTS
+        ]
         if invalid:
-            raise ValueError("variant_numbers должны быть от 1 до 5")
+            raise ValueError(
+                f"variant_numbers должны быть от 1 до {MAX_ELECTRICAL_VARIANTS}"
+            )
         if not normalized_variants:
             raise ValueError("Нужно выбрать хотя бы одно СО")
         self.variant_numbers = normalized_variants
@@ -1248,7 +1259,7 @@ class ElectricalCandidateCreateRequest(BaseModel):
 
     project_id: UUID
     object_id: UUID
-    variant_number: int = Field(default=1, ge=1, le=5)
+    variant_number: int = Field(default=1, ge=1, le=MAX_ELECTRICAL_VARIANTS)
     electrical_variant_id: UUID | None = None
     cable_type: ElectricalCableType = "self_regulating_tt"
     cable_source: ElectricalCableSource = "builtin"
@@ -1327,7 +1338,7 @@ class ElectricalCandidateFolderCreateRequest(BaseModel):
 
     project_id: UUID
     object_id: UUID
-    variant_number: int = Field(default=1, ge=1, le=5)
+    variant_number: int = Field(default=1, ge=1, le=MAX_ELECTRICAL_VARIANTS)
     electrical_variant_id: UUID | None = None
     name: str = Field(min_length=1, max_length=64)
     color: str | None = Field(default=None, max_length=32)
@@ -1503,8 +1514,8 @@ class CopyElectricalVariantRequest(BaseModel):
     """Legacy-запрос копирования расчётов и назначений одного ЭР в другой."""
 
     project_id: UUID
-    source_variant_number: int = Field(ge=1, le=5)
-    target_variant_number: int = Field(ge=1, le=5)
+    source_variant_number: int = Field(ge=1, le=MAX_ELECTRICAL_VARIANTS)
+    target_variant_number: int = Field(ge=1, le=MAX_ELECTRICAL_VARIANTS)
     overwrite: bool = False
     regenerate_specification: bool = False
 
@@ -1526,7 +1537,16 @@ class CopyElectricalVariantResponse(BaseModel):
     preserved_without_validation_count: int = 0
 
 
-TaskStatus = Literal["queued", "enqueued", "running", "succeeded", "failed", "cancelled"]
+TaskStatus = Literal[
+    "queued",
+    "enqueued",
+    "running",
+    "waiting_input",
+    "succeeded",
+    "failed",
+    "cancelled",
+    "timed_out",
+]
 
 
 class ElectricalObjectBatchOverride(BaseModel):
@@ -1545,7 +1565,12 @@ class ElectricalBatchJobRequest(BaseModel):
     object_ids: list[UUID] | None = Field(default=None, min_length=1)
     cable_source: str = "builtin"
     electrical_variant_id: UUID | None = None
-    variant_number: int | None = Field(default=1, ge=1, le=5, deprecated=True)
+    variant_number: int | None = Field(
+        default=1,
+        ge=1,
+        le=MAX_ELECTRICAL_VARIANTS,
+        deprecated=True,
+    )
     cable_type: ElectricalCableType = "self_regulating_tt"
     selection_policy: SelectionPolicy = "technical_minimum"
     object_overrides: list[ElectricalObjectBatchOverride] | None = None

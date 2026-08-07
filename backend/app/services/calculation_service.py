@@ -22,6 +22,7 @@ from sqlalchemy.orm import load_only
 
 from app.core.config import settings as app_settings
 from app.core.database import use_fast_commit_for_current_transaction
+from app.electrical_variant_limits import MAX_ELECTRICAL_VARIANTS
 from app.electrical_domain import ElectricalFormulaError
 from app.electrical_input_validation import (
     PROCESS_TEMPERATURE_REQUIRED_CABLE_TYPES,
@@ -3453,8 +3454,10 @@ class CalculationService:
         created_by_user_id: UUID | None,
         created_by_session_id: str | None,
     ) -> dict[str, Any]:
-        if variant_number < 1 or variant_number > 5:
-            raise CalculationError("variant_number должен быть от 1 до 5")
+        if variant_number < 1 or variant_number > MAX_ELECTRICAL_VARIANTS:
+            raise CalculationError(
+                f"variant_number должен быть от 1 до {MAX_ELECTRICAL_VARIANTS}"
+            )
         if electrical_variant_id is None:
             raise ElectricalAssignmentServiceError(
                 "ELECTRICAL_ASSIGNMENT_REQUIRED",
@@ -3875,8 +3878,10 @@ class CalculationService:
         electrical_params: dict[str, Any] | None = None,
     ) -> tuple[ElectricalCandidate, str]:
         """Считает и upsert-ит кандидат кабеля, не применяя его в ElectricalCalculation."""
-        if variant_number < 1 or variant_number > 5:
-            raise CalculationError("variant_number должен быть от 1 до 5")
+        if variant_number < 1 or variant_number > MAX_ELECTRICAL_VARIANTS:
+            raise CalculationError(
+                f"variant_number должен быть от 1 до {MAX_ELECTRICAL_VARIANTS}"
+            )
         if mode not in {"auto", "manual"}:
             raise CalculationError("mode должен быть auto или manual")
         if mode == "manual" and not cable_mark:

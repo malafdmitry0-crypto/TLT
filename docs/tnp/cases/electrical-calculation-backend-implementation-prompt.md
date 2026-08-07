@@ -321,7 +321,7 @@ Lзаказ = ceil(Lфакт * 1.10 * 1000) / 1000
 - Пересчёт одного UUID ЭР не должен снимать stale с других ЭР.
 - Legacy snapshot с `220 В`, условной маркой, отсутствующим fingerprint или без `Iдоп` остаётся доступным для чтения/экспорта истории, но исключается из ready summary и новой BOM до явного пересчёта.
 - Не переписывай старый инженерный результат на месте; свяжи новый результат через `supersedes_result_id` или существующий эквивалент.
-- Сохрани существующие UUID/lifecycle guarantees: 1–5 ЭР, idempotency create/copy, assignment optimistic concurrency и scoped batch.
+- Сохрани существующие UUID/lifecycle guarantees: 1–4 ЭР, idempotency create/copy, assignment optimistic concurrency и scoped batch.
 
 ### 8. Спецификация
 

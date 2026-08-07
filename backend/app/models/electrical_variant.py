@@ -19,6 +19,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.electrical_variant_limits import MAX_ELECTRICAL_VARIANTS
 from app.models.base import Base, TimestampMixin
 
 if TYPE_CHECKING:
@@ -44,7 +45,8 @@ class ElectricalVariant(Base, TimestampMixin):
         ),
         CheckConstraint(
             "legacy_variant_number IS NULL "
-            "OR (legacy_variant_number >= 1 AND legacy_variant_number <= 5)",
+            "OR (legacy_variant_number >= 1 AND "
+            f"legacy_variant_number <= {MAX_ELECTRICAL_VARIANTS})",
             name="ck_electrical_variants_legacy_number",
         ),
         CheckConstraint(
@@ -372,10 +374,57 @@ _CREATE_SYNC_TRIGGER_DDLS.extend(
             EXECUTE FUNCTION tlt_0027_sync_project_object_assignments()
             """
         ),
+        _postgresql_ddl(
+            f"""
+            CREATE OR REPLACE FUNCTION tlt_0047_enforce_electrical_variant_limit()
+            RETURNS trigger
+            LANGUAGE plpgsql
+            AS $function$
+            BEGIN
+                PERFORM 1 FROM projects WHERE id = NEW.project_id FOR UPDATE;
+                IF (
+                    SELECT count(*)
+                    FROM electrical_variants AS variant
+                    WHERE variant.project_id = NEW.project_id
+                      AND variant.id IS DISTINCT FROM NEW.id
+                ) >= {MAX_ELECTRICAL_VARIANTS} THEN
+                    RAISE EXCEPTION
+                        'A project may contain no more than four electrical variants'
+                        USING ERRCODE = '23514',
+                              CONSTRAINT = 'ck_electrical_variants_project_limit';
+                END IF;
+                RETURN NEW;
+            END
+            $function$
+            """
+        ),
+        _postgresql_ddl(
+            """
+            DROP TRIGGER IF EXISTS trg_0047_enforce_electrical_variant_limit
+            ON electrical_variants
+            """
+        ),
+        _postgresql_ddl(
+            """
+            CREATE TRIGGER trg_0047_enforce_electrical_variant_limit
+            BEFORE INSERT OR UPDATE OF project_id ON electrical_variants
+            FOR EACH ROW
+            EXECUTE FUNCTION tlt_0047_enforce_electrical_variant_limit()
+            """
+        ),
     )
 )
 
 _DROP_SYNC_TRIGGER_DDLS = [
+    _postgresql_ddl(
+        """
+        DROP TRIGGER IF EXISTS trg_0047_enforce_electrical_variant_limit
+        ON electrical_variants
+        """
+    ),
+    _postgresql_ddl(
+        "DROP FUNCTION IF EXISTS tlt_0047_enforce_electrical_variant_limit()"
+    ),
     _postgresql_ddl(
         """
         DROP TRIGGER IF EXISTS trg_0027_sync_project_object_assignments

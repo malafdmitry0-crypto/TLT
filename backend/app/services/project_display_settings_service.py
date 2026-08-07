@@ -90,7 +90,11 @@ class ProjectDisplaySettingsService:
         principal: CurrentPrincipal,
     ) -> ProjectDisplaySettingsResponse:
         service = ProjectService(self.db)
-        await service.get_project_for_write(project_id, principal)
+        await service.get_project_for_write(
+            project_id,
+            principal,
+            guard_calculation=False,
+        )
         await self.db.execute(
             select(Project)
             .where(Project.id == project_id)

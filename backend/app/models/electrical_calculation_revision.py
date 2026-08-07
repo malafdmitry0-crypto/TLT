@@ -10,6 +10,7 @@ from sqlalchemy import BigInteger, CheckConstraint, DateTime, ForeignKey, Index,
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.electrical_variant_limits import MAX_ELECTRICAL_VARIANTS
 from app.models.base import Base
 
 
@@ -23,7 +24,7 @@ class ElectricalCalculationRevision(Base):
             name="ck_electrical_calculation_revisions_number",
         ),
         CheckConstraint(
-            "variant_number >= 1 AND variant_number <= 5",
+            f"variant_number >= 1 AND variant_number <= {MAX_ELECTRICAL_VARIANTS}",
             name="ck_electrical_calculation_revisions_variant_number",
         ),
         CheckConstraint(

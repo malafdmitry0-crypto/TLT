@@ -1,7 +1,7 @@
 # Активный аудит: электрорасчёт (BE + FE)
 
 **Дата:** 2026-08-04  
-**Scope:** Кейс 1 §6 + guest-electrical TZ MVP (TT-only, 230 В, Iдоп, 5 ЭР)  
+**Scope:** Кейс 1 §6 + guest-electrical TZ MVP (TT-only, 230 В, Iдоп, 4 ЭР)
 **Метод:** чтение API/сервисов/схем, FE pages/api/models, unit-тесты (vitest), сверка контрактов.  
 **Не гонялось:** live HTTP e2e, pytest (в окружении нет pytest-модуля).
 
@@ -62,7 +62,7 @@
 
 | Требование | BE | FE | Gap |
 |---|---|---|---|
-| §6.3–6.7 ER lifecycle ≤5 | READY `MAX_ELECTRICAL_VARIANTS=5` | READY tabs/copy/rename/delete | — |
+| §6.3–6.7 ER lifecycle ≤4 | READY `MAX_ELECTRICAL_VARIANTS=4` | READY tabs/copy/rename/delete | — |
 | §6.8 summary Lфакт, sections, I | READY page summary | READY cards (но **3 лишние** Резистив/Скин) | FE hide |
 | §6.9 unassigned tab | READY counts/state | READY | — |
 | §6.10 assign Samreg | READY `system_type=self_regulating` | READY + auto-calc | auto cable type messy |

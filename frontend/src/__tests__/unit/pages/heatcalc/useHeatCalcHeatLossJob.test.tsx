@@ -82,6 +82,7 @@ function setupHook(
 describe('useHeatCalcHeatLossJob', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.sessionStorage.clear();
     (enqueueHeatLossBatchJob as ReturnType<typeof vi.fn>).mockResolvedValue(makeTask());
     (getCalcTask as ReturnType<typeof vi.fn>).mockResolvedValue(makeTask({
       status: 'running',
@@ -174,6 +175,21 @@ describe('useHeatCalcHeatLossJob', () => {
     expect(result.current.activeHeatLossJobId).toBe('heat-task-1');
     expect(result.current.heatLossJobProgressLabel).toBe('1/2 (50%)');
     expect(result.current.heatLossRecalcDisabled).toBe(true);
+  });
+
+  it('restores a persisted job after remount and keeps controls locked during lookup failure', async () => {
+    window.sessionStorage.setItem('tlt:active-calc-job:heat-loss:project-1', 'heat-restored');
+    (getCalcTask as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('status unavailable'));
+
+    const { result } = setupHook();
+
+    await waitFor(() => {
+      expect(getCalcTask).toHaveBeenCalledWith('heat-restored');
+      expect(result.current.activeHeatLossJobId).toBe('heat-restored');
+      expect(result.current.isHeatLossJobActive).toBe(true);
+      expect(result.current.heatLossRecalcDisabled).toBe(true);
+      expect(result.current.heatLossJobIssue).toMatch(/остаётся активной/i);
+    });
   });
 
   it('invalidates dependent project data and clears the job after success', async () => {

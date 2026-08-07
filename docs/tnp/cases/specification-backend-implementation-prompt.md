@@ -218,7 +218,7 @@ environment из чистых calculator-функций.
 Канонический запрос генерации должен семантически содержать:
 
 ```text
-variant_ids: non-empty list[UUID], max 5
+variant_ids: non-empty list[UUID], max 4
 catalog_id: UUID or stable catalog key
 catalog_version: immutable active version
 grouping_mode: separate_by_object_type | merge_materials
