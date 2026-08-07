@@ -81,6 +81,23 @@ class FakeRedisFactory:
         return self.redis
 
 
+def test_task_queue_uses_bounded_socket_timeout(monkeypatch: pytest.MonkeyPatch):
+    fake = FakeRedis()
+    captured: dict[str, object] = {}
+
+    def factory(*args, **kwargs):
+        captured.update(kwargs)
+        return fake
+
+    monkeypatch.setattr("app.services.task_queue.Redis.from_url", factory)
+    monkeypatch.setattr("app.services.task_queue.settings.WORKER_POLL_TIMEOUT_MS", 5_000)
+    queue = TaskQueue("redis://test")
+
+    assert queue.redis is fake
+    assert captured["socket_connect_timeout"] == 3
+    assert captured["socket_timeout"] == 7.0
+
+
 async def test_task_queue_requires_redis_url(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr("app.services.task_queue.settings.REDIS_URL", None)
     with pytest.raises(TaskQueueError):
