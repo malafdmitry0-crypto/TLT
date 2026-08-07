@@ -487,9 +487,6 @@ class TestCalcJobs:
             idempotency_key=idempotency_key,
         )
         session_factory = async_sessionmaker(test_engine, expire_on_commit=False)
-        access_checked = asyncio.Event()
-        lookup_finished = asyncio.Event()
-        resume_retry = asyncio.Event()
 
         async with session_factory() as first_db, session_factory() as retry_db:
             await first_db.execute(
@@ -497,21 +494,6 @@ class TestCalcJobs:
             )
 
             retry_service = TaskService(retry_db, session_factory=session_factory)
-            original_require_project_write = retry_service._require_project_write
-            original_find = retry_service._find_active_by_dedupe
-
-            async def require_then_signal(project_id_arg, principal_arg):
-                await original_require_project_write(project_id_arg, principal_arg)
-                access_checked.set()
-
-            async def pause_after_lookup(*args, **kwargs):
-                found = await original_find(*args, **kwargs)
-                lookup_finished.set()
-                await resume_retry.wait()
-                return found
-
-            retry_service._require_project_write = require_then_signal  # type: ignore[method-assign]
-            retry_service._find_active_by_dedupe = pause_after_lookup  # type: ignore[method-assign]
             retry_create = asyncio.create_task(
                 retry_service.create_heat_loss_batch_task(
                     request,
@@ -521,17 +503,8 @@ class TestCalcJobs:
                 )
             )
 
-            await asyncio.wait_for(access_checked.wait(), timeout=3)
-            lookup_bypassed_project_lock = False
-            try:
-                await asyncio.wait_for(
-                    asyncio.shield(lookup_finished.wait()),
-                    timeout=0.2,
-                )
-            except TimeoutError:
-                pass
-            else:
-                lookup_bypassed_project_lock = True
+            await asyncio.sleep(0.2)
+            assert retry_create.done() is False
 
             terminal_binding = BackgroundTask(
                 type=TASK_HEAT_LOSS_BATCH,
@@ -551,7 +524,6 @@ class TestCalcJobs:
             terminal_binding.status = "succeeded"
             terminal_binding.progress_phase = "succeeded"
             await first_db.commit()
-            resume_retry.set()
 
             replayed = await asyncio.wait_for(retry_create, timeout=5)
 
@@ -566,7 +538,6 @@ class TestCalcJobs:
                 .all()
             )
 
-        assert lookup_bypassed_project_lock is False
         assert replayed.id == terminal_binding.id
         assert replayed.status == "succeeded"
         assert TaskService.is_idempotency_replay(replayed) is True

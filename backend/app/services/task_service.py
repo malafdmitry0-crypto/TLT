@@ -56,8 +56,9 @@ logger = logging.getLogger("heatcalc.worker")
 TASK_ELECTRICAL_BATCH = "electrical_batch"
 TASK_HEAT_LOSS_BATCH = "heat_loss_batch"
 TASK_REPORT_EXPORT = "report_export"
-ACTIVE_STATUSES = ("queued", "enqueued", "running")
-TERMINAL_STATUSES = ("succeeded", "failed", "cancelled")
+TASK_PROJECT_PIPELINE = "project_pipeline"
+ACTIVE_STATUSES = ("queued", "enqueued", "running", "waiting_input")
+TERMINAL_STATUSES = ("succeeded", "failed", "cancelled", "timed_out")
 MAX_TASK_ERROR_MESSAGE_LENGTH = 4_000
 MAX_AUDIT_MESSAGE_LENGTH = 1_000
 ELECTRICAL_VARIANT_NOT_FOUND = "ELECTRICAL_VARIANT_NOT_FOUND"
@@ -197,6 +198,8 @@ class TaskService:
             return "success"
         if task.status == "failed":
             return "failure"
+        if task.status == "timed_out":
+            return "failure"
         if task.status == "cancelled":
             return "cancelled"
         raise ValueError(f"Unsupported background task status: {task.status}")
@@ -214,9 +217,19 @@ class TaskService:
         self,
         project_id: UUID,
         principal: CurrentPrincipal,
+        *,
+        calculation_owner_task_id: UUID | None = None,
     ) -> None:
         try:
-            await ProjectService(self.db).get_project_for_write(project_id, principal)
+            project_service = ProjectService(self.db)
+            if calculation_owner_task_id is None:
+                await project_service.get_project_for_write(project_id, principal)
+            else:
+                await project_service.get_project_for_write(
+                    project_id,
+                    principal,
+                    calculation_owner_task_id=calculation_owner_task_id,
+                )
         except ProjectNotFoundError as exc:
             raise TaskNotFoundError(str(exc)) from exc
         except ProjectAccessError as exc:
@@ -296,7 +309,17 @@ class TaskService:
         queue: TaskQueue | None = None,
         idempotency_key: str | None = None,
     ) -> BackgroundTask:
-        await self._require_project_write(request.project_id, principal)
+        existing_binding = await self._explicit_idempotency_binding(
+            TASK_ELECTRICAL_BATCH,
+            request.project_id,
+            principal,
+            idempotency_key,
+        )
+        await self._require_project_write(
+            request.project_id,
+            principal,
+            calculation_owner_task_id=(existing_binding.id if existing_binding else None),
+        )
         if request.cable_source in ("extended", "all") and principal.role not in (
             "employee",
             "admin",
@@ -309,11 +332,20 @@ class TaskService:
         if request.electrical_variant_id is None:
             if legacy_variant_number is None:
                 raise ValueError("ELECTRICAL_VARIANT_SELECTOR_REQUIRED")
-            variant = await self._prepare_legacy_variant_for_enqueue(
-                request.project_id,
-                principal,
-                legacy_variant_number,
-            )
+            if existing_binding is not None and existing_binding.electrical_variant_id is not None:
+                variant = await self._resolve_electrical_variant(
+                    request.project_id,
+                    electrical_variant_id=existing_binding.electrical_variant_id,
+                    legacy_variant_number=None,
+                )
+                if variant.legacy_variant_number != legacy_variant_number:
+                    raise TaskIdempotencyConflictError
+            else:
+                variant = await self._prepare_legacy_variant_for_enqueue(
+                    request.project_id,
+                    principal,
+                    legacy_variant_number,
+                )
         else:
             await self._lock_project_for_electrical_task(request.project_id)
             variant = await self._resolve_electrical_variant(
@@ -470,7 +502,17 @@ class TaskService:
         queue: TaskQueue | None = None,
         idempotency_key: str | None = None,
     ) -> BackgroundTask:
-        await self._require_project_write(request.project_id, principal)
+        existing_binding = await self._explicit_idempotency_binding(
+            TASK_HEAT_LOSS_BATCH,
+            request.project_id,
+            principal,
+            idempotency_key,
+        )
+        await self._require_project_write(
+            request.project_id,
+            principal,
+            calculation_owner_task_id=(existing_binding.id if existing_binding else None),
+        )
         # Keep the dedupe lookup and insert in one project-scoped critical
         # section. Otherwise an explicit-key retry can observe no active
         # binding after the first request turns terminal and create a duplicate.
@@ -674,12 +716,16 @@ class TaskService:
     ) -> BackgroundTask:
         task = await self.get_task_for_principal(task_id, principal)
         if task.project_id is not None:
-            await self._require_project_write(task.project_id, principal)
+            await self._require_project_write(
+                task.project_id,
+                principal,
+                calculation_owner_task_id=task.id,
+            )
         if task.status in TERMINAL_STATUSES:
             return task
         now = datetime.now(UTC)
         task.cancel_requested = True
-        if task.status in ("queued", "enqueued"):
+        if task.status in ("queued", "enqueued", "waiting_input"):
             task.status = "cancelled"
             task.progress_phase = "cancelled"
             task.finished_at = now
@@ -719,7 +765,12 @@ class TaskService:
             ):
                 await self._mark_cancelled(task_id)
             return
-        if task.type not in (TASK_ELECTRICAL_BATCH, TASK_HEAT_LOSS_BATCH, TASK_REPORT_EXPORT):
+        if task.type not in (
+            TASK_ELECTRICAL_BATCH,
+            TASK_HEAT_LOSS_BATCH,
+            TASK_REPORT_EXPORT,
+            TASK_PROJECT_PIPELINE,
+        ):
             await self._mark_failed(
                 task_id,
                 f"Неизвестный тип задачи: {task.type}",
@@ -728,7 +779,18 @@ class TaskService:
             )
             return
 
-        if task.type == TASK_HEAT_LOSS_BATCH:
+        if task.type == TASK_PROJECT_PIPELINE:
+            from app.services.calculation_workflow_service import CalculationWorkflowService
+
+            await CalculationWorkflowService(
+                self.db,
+                session_factory=self.session_factory,
+            ).run_claimed_task(
+                task_id,
+                attempt=task.attempts,
+                worker_id=worker_id,
+            )
+        elif task.type == TASK_HEAT_LOSS_BATCH:
             await self._run_heat_loss_batch(task_id, attempt=task.attempts, worker_id=worker_id)
         elif task.type == TASK_ELECTRICAL_BATCH:
             await self._run_electrical_batch(task_id, attempt=task.attempts, worker_id=worker_id)
@@ -831,6 +893,10 @@ class TaskService:
                 started_at=func.coalesce(BackgroundTask.started_at, now),
                 heartbeat_at=now,
                 progress_phase="running",
+                execution_deadline_at=func.coalesce(
+                    BackgroundTask.execution_deadline_at,
+                    now + timedelta(seconds=settings.WORKFLOW_EXECUTION_TIMEOUT_SECONDS),
+                ),
             )
             .returning(BackgroundTask)
         )
@@ -866,8 +932,41 @@ class TaskService:
                 await self._mark_cancelled(task.id)
                 recovered += 1
                 continue
+            if (
+                task.type == TASK_PROJECT_PIPELINE
+                and task.queue_deadline_at is not None
+                and task.queue_deadline_at <= now
+            ):
+                task.status = "timed_out"
+                task.progress_phase = "timed_out"
+                task.workflow_stage = "timed_out"
+                task.error_message = "Истекло время ожидания в очереди"
+                task.finished_at = now
+                await self.db.commit()
+                recovered += 1
+                continue
             await self.enqueue_existing_task(task, queue=queue)
             recovered += 1
+
+        waiting_result = await self.db.execute(
+            select(BackgroundTask).where(
+                BackgroundTask.status == "waiting_input",
+                BackgroundTask.interaction_deadline_at.is_not(None),
+                BackgroundTask.interaction_deadline_at <= now,
+            )
+        )
+        expired_waiting = list(waiting_result.scalars().all())
+        for task in expired_waiting:
+            task.status = "timed_out"
+            task.progress_phase = "timed_out"
+            task.error_message = "Истекло время ожидания ответа пользователя"
+            task.finished_at = now
+            task.interaction_deadline_at = None
+            task.locked_by = None
+            task.lock_expires_at = None
+            recovered += 1
+        if expired_waiting:
+            await self.db.commit()
 
         if recovered >= limit:
             return recovered
@@ -945,7 +1044,12 @@ class TaskService:
             raise TaskNotFoundError("Задача из dead-letter записи не найдена")
         if task_type and task.type != task_type:
             raise ValueError("Тип задачи в dead-letter записи не совпадает с БД")
-        if task.type not in (TASK_ELECTRICAL_BATCH, TASK_HEAT_LOSS_BATCH, TASK_REPORT_EXPORT):
+        if task.type not in (
+            TASK_ELECTRICAL_BATCH,
+            TASK_HEAT_LOSS_BATCH,
+            TASK_REPORT_EXPORT,
+            TASK_PROJECT_PIPELINE,
+        ):
             raise ValueError(f"Неизвестный тип задачи: {task.type}")
         if task.status in ACTIVE_STATUSES:
             raise TaskLimitError("Задача уже находится в очереди или выполняется")
@@ -1601,6 +1705,31 @@ class TaskService:
             stmt = stmt.where(BackgroundTask.status.in_(ACTIVE_STATUSES))
         result = await self.db.execute(stmt.order_by(BackgroundTask.created_at.desc()).limit(1))
         return result.scalar_one_or_none()
+
+    async def _explicit_idempotency_binding(
+        self,
+        task_type: str,
+        project_id: UUID,
+        principal: CurrentPrincipal,
+        idempotency_key: str | None,
+    ) -> BackgroundTask | None:
+        if not idempotency_key:
+            return None
+        # Authenticate without taking the calculation gate first: an exact
+        # replay must be allowed to address the task that already owns it.
+        await ProjectService(self.db).get_project_for_write(
+            project_id,
+            principal,
+            guard_calculation=False,
+        )
+        dedupe_key = self._dedupe_key(
+            task_type=task_type,
+            project_id=project_id,
+            principal=principal,
+            payload={},
+            idempotency_key=idempotency_key,
+        )
+        return await self._find_active_by_dedupe(dedupe_key, include_terminal=True)
 
     @staticmethod
     def _require_matching_idempotency_binding(
