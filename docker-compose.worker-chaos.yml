@@ -1,0 +1,56 @@
+services:
+  db:
+    container_name: !reset null
+    ports: !reset []
+
+  redis:
+    container_name: !reset null
+    ports: !reset []
+
+  backend:
+    container_name: !reset null
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    environment:
+      APP_ENV: test
+      DATABASE_URL: postgresql+asyncpg://heatcalc:heatcalc_pass@db:5432/heatcalc_db
+      TEST_DATABASE_URL: postgresql+asyncpg://heatcalc:heatcalc_pass@db:5432/heatcalc_test
+      SECRET_KEY: worker-chaos-secret
+      REDIS_URL: redis://redis:6379/14
+      WORKER_HEARTBEAT_INTERVAL_SECONDS: "1"
+      WORKER_HEARTBEAT_TTL_SECONDS: "4"
+      WORKER_RECOVERY_INTERVAL_SECONDS: "2"
+    ports: !override
+      - "127.0.0.1:${WORKER_CHAOS_BACKEND_PORT:-18001}:8000"
+    volumes:
+      - ./backend:/app
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    command: python -m app.worker
+    environment:
+      APP_ENV: test
+      DATABASE_URL: postgresql+asyncpg://heatcalc:heatcalc_pass@db:5432/heatcalc_db
+      SECRET_KEY: worker-chaos-secret
+      REDIS_URL: redis://redis:6379/14
+      WORKER_QUEUE_CONSUMER: worker-chaos
+      WORKER_HEARTBEAT_INTERVAL_SECONDS: "1"
+      WORKER_HEARTBEAT_TTL_SECONDS: "4"
+      WORKER_RECOVERY_INTERVAL_SECONDS: "2"
+      WORKER_TASK_STALE_SECONDS: "3"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+
+  frontend:
+    profiles: ["worker-chaos-disabled"]
