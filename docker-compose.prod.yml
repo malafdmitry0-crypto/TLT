@@ -32,6 +32,10 @@ services:
     # В проде backend ходит только через nginx-фронтенд, не пробрасываем наружу
     ports: !reset []
 
+  worker:
+    image: heatcalc-backend:${IMAGE_TAG:-1.3.0-prod}
+    restart: always
+
   frontend:
     image: heatcalc-frontend:${IMAGE_TAG:-1.3.0-prod}
     restart: always
@@ -40,7 +44,7 @@ services:
     healthcheck:
       # 127.0.0.1 явно вместо localhost — иначе wget пытается IPv6 (::1),
       # а nginx:alpine слушает только IPv4 → healthcheck вечно unhealthy
-      test: ["CMD-SHELL", "wget --quiet --spider http://127.0.0.1/ || exit 1"]
+      test: ["CMD-SHELL", "wget --quiet --spider http://127.0.0.1/ && wget --quiet --spider http://backend:8000/health/ready || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -63,7 +67,7 @@ services:
       frontend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--spider", "--no-check-certificate", "https://localhost/"]
+      test: ["CMD-SHELL", "wget --quiet --spider --no-check-certificate https://localhost/ && wget --quiet --spider http://backend:8000/health/ready || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3

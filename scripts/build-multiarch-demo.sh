@@ -17,13 +17,13 @@
 #
 # Использование:
 #   ./scripts/build-multiarch-demo.sh
-#   VERSION=1.2.1-demo ./scripts/build-multiarch-demo.sh
+#   VERSION=1.3.0-demo ./scripts/build-multiarch-demo.sh
 #   ARCHS="amd64" ./scripts/build-multiarch-demo.sh    # только одна арка
 # =====================================================================
 
 set -euo pipefail
 
-VERSION="${VERSION:-1.2.1-demo}"
+VERSION="${VERSION:-1.3.0-demo}"
 ARCHS="${ARCHS:-amd64 arm64}"
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -74,4 +74,4 @@ echo "✓ Готово."
 ls -lh "${OUT_DIR}/heatcalc-"*"-${VERSION}-"*.tar.gz
 echo
 echo "У заказчика:"
-echo "  cd demo && ./load.sh && docker compose up -d"
+echo "  cd demo && ./load.sh && docker compose up -d --wait --wait-timeout 180"

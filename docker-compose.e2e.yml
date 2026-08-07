@@ -5,8 +5,8 @@ services:
       POSTGRES_USER: test
       POSTGRES_PASSWORD: test
       POSTGRES_DB: heatcalc_test
-    ports:
-      - "5433:5432"
+    ports: !override
+      - "${E2E_POSTGRES_PORT:-5434}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U test -d heatcalc_test"]
       interval: 5s
@@ -43,7 +43,7 @@ services:
     ports:
       - "8001:8000"
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/docs', timeout=3).status==200 else 1)"]
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health/live', timeout=3).status==200 else 1)"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -52,6 +52,7 @@ services:
   worker:
     command: sh -c "alembic upgrade head && python -m app.worker"
     environment:
+      APP_ENV: test
       DATABASE_URL: postgresql+asyncpg://test:test@db-test:5432/heatcalc_test
       SECRET_KEY: test-secret
       REDIS_URL: redis://redis:6379/1
@@ -60,7 +61,7 @@ services:
       WORKER_DEAD_LETTER_STREAM: heatcalc:tasks:cpu:dead
       GUEST_MAX_SESSIONS_PER_IP: "500"
       GUEST_MAX_OBJECTS_PER_PROJECT: "500"
-    depends_on:
+    depends_on: !override
       db-test:
         condition: service_healthy
       redis:
@@ -77,10 +78,12 @@ services:
     depends_on:
       backend-test:
         condition: service_healthy
+      worker:
+        condition: service_healthy
     ports:
       - "3001:3000"
     healthcheck:
-      test: ["CMD-SHELL", "wget --quiet --spider http://127.0.0.1:3000/ || exit 1"]
+      test: ["CMD-SHELL", "wget --quiet --spider http://127.0.0.1:3000/ && wget --quiet --spider http://backend-test:8000/health/ready || exit 1"]
       interval: 5s
       timeout: 5s
       retries: 20
