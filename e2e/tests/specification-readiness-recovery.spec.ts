@@ -4,6 +4,8 @@ import {
   batchCalcElectrical,
   CANONICAL_SPECIFICATION_OPTIONS,
   ensureElectricalInitialized,
+  generateSpecification,
+  getSpecificationForVariant,
   updateSpecificationSettings,
 } from './helpers/phase5-api';
 import {
@@ -159,5 +161,56 @@ test.describe('Specification readiness recovery', () => {
     await recovery.click();
 
     await expect(page).toHaveURL(new RegExp(`/workspace/elec-calc\\?er=${erId}$`));
+
+    const recalculation = await batchCalcElectrical(page, erId);
+    expect(await recalculation.json()).toMatchObject({ calculated: 1, errors: [] });
+    const recovered = await getReadiness(page, projectId, sessionId, erId);
+    expect(recovered.results[0]).toMatchObject({
+      electrical_variant_id: erId,
+      status: 'ready',
+      blockers: [],
+    });
+
+    await page.getByRole('menuitem', { name: 'Спецификация' }).click();
+    const recoveredDialog = page.locator('.ant-modal:visible');
+    if (!await recoveredDialog.isVisible()) {
+      await page.getByRole('button', { name: /^Сформировать$/i }).first().click();
+    }
+    await expect(recoveredDialog).toBeVisible();
+    await expect(recoveredDialog.getByRole('button', { name: 'Пересчитать ЭР' })).toHaveCount(0);
+    await recoveredDialog.locator('.ant-modal-close').click();
+
+    const preflight = await generateSpecification(page, {
+      variantIds: [erId],
+      options: CANONICAL_SPECIFICATION_OPTIONS,
+    });
+    expect(preflight.status()).toBe(409);
+    const preflightBody = await preflight.json() as {
+      results: Array<{
+        status: string;
+        candidate_groups: Array<{
+          group_key: string;
+          selected_catalog_item_id: string | null;
+          candidates: Array<{ catalog_item_id: string }>;
+        }>;
+      }>;
+    };
+    expect(preflightBody.results[0].status).toBe('selection_required');
+    const catalogSelections = Object.fromEntries(
+      preflightBody.results[0].candidate_groups
+        .filter((group) => group.selected_catalog_item_id === null)
+        .map((group) => [group.group_key, group.candidates[0].catalog_item_id]),
+    );
+    expect(Object.keys(catalogSelections).length).toBeGreaterThan(0);
+    const generated = await generateSpecification(page, {
+      variantIds: [erId],
+      options: CANONICAL_SPECIFICATION_OPTIONS,
+      catalogSelections,
+    });
+    expect(generated.status()).toBe(201);
+
+    const specification = await getSpecificationForVariant(page, erId);
+    expect(specification.status()).toBe(200);
+    expect(await specification.json()).not.toBeNull();
   });
 });
