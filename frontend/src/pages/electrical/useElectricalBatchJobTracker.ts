@@ -354,6 +354,9 @@ export function useElectricalBatchJobTracker(projectId: string) {
         void queryClient.invalidateQueries({
           queryKey: ['project', descriptor.projectId, 'objects', 'summary'],
         });
+        void queryClient.invalidateQueries({
+          queryKey: ['spec-readiness', descriptor.projectId],
+        });
 
         const result = isBatchElectricalResponse(latestTask.result)
           ? latestTask.result

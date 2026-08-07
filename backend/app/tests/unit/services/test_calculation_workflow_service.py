@@ -52,3 +52,40 @@ class TestCalculationWorkflowFencing:
 
         statement = str(db.execute.await_args.args[0])
         assert "background_tasks.cancel_requested IS false" in statement
+
+
+class TestCalculationWorkflowElectricalStage:
+    async def test_supplies_the_required_default_selection_policy(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        db = AsyncMock()
+        db.scalar.return_value = SimpleNamespace(legacy_variant_number=1)
+        session = MagicMock()
+        session.__aenter__ = AsyncMock(return_value=db)
+        session.__aexit__ = AsyncMock(return_value=None)
+        session_factory = MagicMock(return_value=session)
+        calculation_service = MagicMock()
+        calculation_service.batch_calc_electrical = AsyncMock(return_value=(1, 0, 0, [], []))
+        monkeypatch.setattr(
+            "app.services.calculation_workflow_service.CalculationService",
+            MagicMock(return_value=calculation_service),
+        )
+        service = CalculationWorkflowService(
+            MagicMock(),
+            session_factory=session_factory,
+        )
+        service._stage_budget = AsyncMock(return_value=30)  # type: ignore[method-assign]
+        service._checkpoint_in_transaction = AsyncMock()  # type: ignore[method-assign]
+
+        await service._run_electrical(
+            uuid4(),
+            uuid4(),
+            uuid4(),
+            1,
+            "worker-a",
+        )
+
+        assert calculation_service.batch_calc_electrical.await_args.kwargs["electrical_params"] == {
+            "selection_policy": "technical_minimum"
+        }
