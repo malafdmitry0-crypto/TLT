@@ -123,15 +123,27 @@ class WorkerHeartbeat:
         self._paused.clear()
         self._wake.set()
 
+    @property
+    def is_paused(self) -> bool:
+        return self._paused.is_set()
+
     def _publish_once(self, redis: SyncRedis) -> bool:
         if self._paused.is_set():
             return False
         key = worker_readiness_key(self.consumer)
-        redis.set(
-            key,
-            _heartbeat_value(),
-            ex=settings.WORKER_HEARTBEAT_TTL_SECONDS,
-        )
+        try:
+            redis.set(
+                key,
+                _heartbeat_value(),
+                ex=settings.WORKER_HEARTBEAT_TTL_SECONDS,
+            )
+        except Exception:
+            # Do not let this independent connection restore readiness by
+            # itself. The consumer loop must successfully reprobe Redis and
+            # PostgreSQL, then call resume().
+            self._paused.set()
+            self._wake.set()
+            raise
         if self._paused.is_set():
             # Close the set-vs-pause race: a publish already in flight when
             # runtime readiness is withdrawn must not resurrect the key.
