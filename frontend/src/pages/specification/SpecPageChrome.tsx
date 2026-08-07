@@ -152,7 +152,7 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
     || missingFields.length > 0
     || saveDefaultsMut.isPending;
   const manualAddDisabledReason = isSpecStale
-    ? 'Эта спецификация устарела. Пересчитайте выбранную ЭР, чтобы добавить позиции вручную.'
+    ? 'Эта спецификация устарела. Сформируйте её заново, чтобы добавить позиции вручную.'
     : !hasItems
       ? 'Сначала сформируйте спецификацию, чтобы добавить позиции вручную.'
       : null;

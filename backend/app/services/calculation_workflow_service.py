@@ -446,6 +446,7 @@ class CalculationWorkflowService:
                         cable_source="builtin",
                         variant_number=variant.legacy_variant_number,
                         cable_type="self_regulating_tt",
+                        electrical_params={"selection_policy": "technical_minimum"},
                         skip_manual=True,
                         return_calcs=False,
                         should_cancel=lambda: self._should_cancel(task_id, attempt, worker_id),

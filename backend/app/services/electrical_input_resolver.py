@@ -99,6 +99,17 @@ _POSITIVE_FIELDS = {
     "max_section_start_current_a",
     "nominal_voltage_v",
 }
+_INPUT_FIELD_LABELS = {
+    "ambient_temperature_c": "температура окружающей среды",
+    "cold_start_temperature_c": "минимальная температура пуска",
+    "nominal_voltage_v": "напряжение питания",
+    "outer_diameter_mm": "наружный диаметр объекта",
+    "product_temperature_c": "температура продукта",
+    "selection_policy": "режим подбора кабеля",
+    "tank_shape": "форма ёмкости",
+    "heating_height": "высота обогрева",
+    "laying_step": "шаг укладки кабеля",
+}
 
 
 def normalize_electrical_override_payload(
@@ -286,7 +297,7 @@ class ElectricalInputResolver:
             )
         raise ElectricalInputResolutionError(
             "ELECTRICAL_INPUT_REQUIRED",
-            f"Required electrical input is missing: {field}",
+            f"Не задан обязательный параметр: {_INPUT_FIELD_LABELS.get(field, field)}",
             details={"field": field},
         )
 
