@@ -1,7 +1,7 @@
 .PHONY: help dev prod down restart logs \
         migrate migrate-new \
         seed setup setup-fresh \
-        test test-backend test-frontend test-e2e test-compose-readiness \
+        test test-backend test-frontend test-e2e test-compose-readiness test-worker-chaos \
         test-formulas test-formulas-full test-formulas-mutation \
         audit-docs audit-contracts audit-mcp audit-db-invariants audit-smoke audit-calc \
         audit-mutation audit-business audit-user-flows audit-layout audit-accessibility \
@@ -203,6 +203,9 @@ test-e2e: ## Run E2E tests (Playwright)
 
 test-compose-readiness: ## Validate worker readiness wiring in every Compose variant
 	python3 scripts/test-compose-readiness.py
+
+test-worker-chaos: ## Run isolated live Redis/PostgreSQL worker fault-injection contracts
+	scripts/test-worker-chaos.sh
 
 # ─── Lint ─────────────────────────────────────────────────────────────────────
 lint: lint-backend lint-frontend ## Run all linters
