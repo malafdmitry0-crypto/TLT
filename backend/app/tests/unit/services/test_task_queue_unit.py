@@ -15,6 +15,7 @@ class FakeRedis:
         self.fail_group = fail_group
         self.closed = False
         self.calls: list[tuple[str, object]] = []
+        self.eval_indexes: dict[str, str] = {}
 
     async def xgroup_create(self, stream, group, id="0", mkstream=True):
         self.calls.append(("xgroup_create", (stream, group, id, mkstream)))
@@ -26,6 +27,20 @@ class FakeRedis:
     async def xadd(self, stream, fields, maxlen=None, approximate=True):
         self.calls.append(("xadd", (stream, fields, maxlen, approximate)))
         return "1-0"
+
+    async def eval(self, script, numkeys, stream, dedupe_key, maxlen, ttl, *field_args):
+        del script, numkeys, ttl
+        if dedupe_key in self.eval_indexes:
+            return self.eval_indexes[dedupe_key]
+        fields = dict(zip(field_args[::2], field_args[1::2], strict=True))
+        stream_id = await self.xadd(
+            stream,
+            fields,
+            maxlen=int(maxlen),
+            approximate=True,
+        )
+        self.eval_indexes[dedupe_key] = stream_id
+        return stream_id
 
     async def xreadgroup(self, group, consumer, *, streams, count, block):
         self.calls.append(("xreadgroup", (group, consumer, streams, count, block)))
@@ -152,6 +167,21 @@ async def test_task_queue_dead_letters_original_payload(
     ]
     warning.assert_called_once()
     assert warning.call_args.args[0] == "Task moved to dead-letter stream"
+
+
+async def test_task_queue_dead_letter_is_idempotent_by_original_stream_id(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    fake = FakeRedis()
+    monkeypatch.setattr("app.services.task_queue.Redis.from_url", FakeRedisFactory(fake))
+    queue = TaskQueue("redis://test")
+    fields = {"task_id": "task-1", "type": "electrical_batch"}
+
+    first = await queue.dead_letter("1-0", fields, reason="worker_attempts_exhausted")
+    second = await queue.dead_letter("1-0", fields, reason="worker_attempts_exhausted")
+
+    assert first == second
+    assert [call[0] for call in fake.calls].count("xadd") == 1
 
 
 async def test_task_queue_reads_and_deletes_dead_letter_entries(

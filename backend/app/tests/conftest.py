@@ -20,6 +20,7 @@ from app.core.rate_limit import (
     report_limiter,
 )
 from app.core.security import hash_password
+from app.core.worker_dependency import require_worker_ready
 from app.main import app
 from app.models import Base
 from app.models.user import User
@@ -91,6 +92,9 @@ async def client(db_session) -> AsyncGenerator[AsyncClient, None]:
     async def override_get_db():
         yield db_session
 
+    async def override_worker_ready() -> None:
+        return None
+
     for limiter in (
         guest_session_limiter,
         login_limiter,
@@ -101,6 +105,7 @@ async def client(db_session) -> AsyncGenerator[AsyncClient, None]:
     ):
         limiter.reset()
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[require_worker_ready] = override_worker_ready
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         yield c

@@ -15,6 +15,7 @@ from app.core.dependencies import (
 )
 from app.core.rate_limit import enforce_principal_rate_limit, import_limiter, report_limiter
 from app.core.uploads import read_upload_with_limit
+from app.core.worker_dependency import require_worker_ready
 from app.schemas.project import (
     ObjectQueryCapabilitiesResponse,
     ObjectsBatchResponse,
@@ -412,6 +413,7 @@ async def import_template(
 @router.post(
     "/{project_id}/objects/import-excel",
     summary="Импорт объектов (трубопроводы, резервуары) из Excel или CSV",
+    dependencies=[Depends(require_worker_ready)],
 )
 async def import_excel(
     project_id: UUID,
