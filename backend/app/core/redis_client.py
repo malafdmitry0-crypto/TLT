@@ -37,6 +37,7 @@ def get_redis() -> Redis:
             max_connections=settings.REDIS_MAX_CONNECTIONS,
             socket_keepalive=True,
             socket_connect_timeout=5,
+            socket_timeout=5,
             retry_on_timeout=True,
             health_check_interval=30,
         )
@@ -46,7 +47,7 @@ def get_redis() -> Redis:
 
 async def close_redis() -> None:
     global _redis, _redis_loop
-    if _redis is not None:
-        await _redis.aclose()
-        _redis = None
-        _redis_loop = None
+    redis, _redis = _redis, None
+    _redis_loop = None
+    if redis is not None:
+        await redis.aclose()

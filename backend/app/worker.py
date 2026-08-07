@@ -12,8 +12,9 @@ from uuid import UUID
 from sqlalchemy import select
 
 from app.core.config import settings
-from app.core.database import AsyncSessionLocal
+from app.core.database import AsyncSessionLocal, engine
 from app.core.logging_config import configure_logging
+from app.core.redis_client import close_redis, get_redis
 from app.reference_data.loader import preload_all
 from app.services.task_queue import TaskQueue
 from app.services.task_service import TaskService
@@ -26,6 +27,7 @@ from app.services.worker_readiness import (
 
 configure_logging()
 logger = logging.getLogger("heatcalc.worker")
+_DEPENDENCY_PROBE_TIMEOUT_SECONDS = 5
 
 
 class CalculationWorker:
@@ -56,6 +58,12 @@ class CalculationWorker:
             backoff_seconds = 1
             runtime_ready = True
             while True:
+                if runtime_ready and heartbeat.is_paused:
+                    # A heartbeat transport failure is also a readiness
+                    # failure. Only the full dependency probe below may make
+                    # the consumer visible again.
+                    runtime_ready = False
+                    await self._reset_runtime_connections()
                 if not runtime_ready:
                     try:
                         await self._probe_runtime_dependencies()
@@ -95,6 +103,7 @@ class CalculationWorker:
                     heartbeat.pause()
                     with suppress(Exception):
                         await clear_worker_ready(self.queue.redis, self.consumer)
+                    await self._reset_runtime_connections()
                     logger.exception(
                         "Worker loop failed; retrying in %s seconds",
                         backoff_seconds,
@@ -117,8 +126,23 @@ class CalculationWorker:
             await self.queue.close()
 
     async def _probe_database(self) -> None:
-        async with AsyncSessionLocal() as db:
-            await db.execute(select(1))
+        async with asyncio.timeout(_DEPENDENCY_PROBE_TIMEOUT_SECONDS):
+            async with AsyncSessionLocal() as db:
+                await db.execute(select(1))
+
+    async def _reset_runtime_connections(self) -> None:
+        for name, close in (
+            ("queue Redis", self.queue.close),
+            ("shared Redis", close_redis),
+        ):
+            try:
+                async with asyncio.timeout(3):
+                    await close()
+            except Exception as exc:
+                logger.warning("Failed to close stale %s pool during recovery: %s", name, exc)
+        # Do not wait for black-holed PostgreSQL sockets to close. Detach the
+        # stale pool immediately; the next probe creates a fresh one.
+        await engine.dispose(close=False)
 
     def _retry_delay(self, base_seconds: int) -> float:
         upper = min(
@@ -131,6 +155,9 @@ class CalculationWorker:
     async def _probe_runtime_dependencies(self) -> None:
         await self.queue.ensure_group()
         await self.queue.redis.ping()
+        # Calculation/cache paths use the shared client rather than TaskQueue's
+        # dedicated pool. Readiness covers both transports.
+        await get_redis().ping()
         await self._probe_database()
 
     async def _tick_event_loop(self, heartbeat: WorkerHeartbeat) -> None:
