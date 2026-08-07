@@ -25,7 +25,8 @@ class BackgroundTask(Base, TimestampMixin):
     __tablename__ = "background_tasks"
     __table_args__ = (
         CheckConstraint(
-            "status IN ('queued', 'enqueued', 'running', 'succeeded', 'failed', 'cancelled')",
+            "status IN ('queued', 'enqueued', 'running', 'waiting_input', "
+            "'succeeded', 'failed', 'cancelled', 'timed_out')",
             name="ck_background_tasks_status",
         ),
         CheckConstraint(
@@ -53,7 +54,18 @@ class BackgroundTask(Base, TimestampMixin):
             "idempotency_key",
             unique=True,
             postgresql_where=text(
-                "idempotency_key IS NOT NULL " "AND status IN ('queued', 'enqueued', 'running')"
+                "idempotency_key IS NOT NULL AND status IN "
+                "('queued', 'enqueued', 'running', 'waiting_input')"
+            ),
+        ),
+        Index(
+            "uq_background_tasks_active_calculation_project",
+            "project_id",
+            unique=True,
+            postgresql_where=text(
+                "project_id IS NOT NULL AND type IN "
+                "('heat_loss_batch', 'electrical_batch', 'project_pipeline') AND status IN "
+                "('queued', 'enqueued', 'running', 'waiting_input')"
             ),
         ),
     )
@@ -104,3 +116,19 @@ class BackgroundTask(Base, TimestampMixin):
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    workflow_stage: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    workflow_version: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=1,
+        server_default="1",
+    )
+    queue_deadline_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    execution_deadline_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    interaction_deadline_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )

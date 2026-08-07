@@ -30,6 +30,7 @@ from app.services.heat_contract import (
     TANK_FORBIDDEN_HEAT_PARAM_KEYS,
     replace_heat_owned_params,
 )
+from app.services.project_calculation_guard import ProjectCalculationGuard
 from app.services.project_object_params import (
     LegacySpecificationObjectParamsError,
     ProjectObjectParamsError,
@@ -162,9 +163,21 @@ class ProjectService:
         self._check_access(project, principal)
         return project
 
-    async def get_project_for_write(self, project_id: UUID, principal: CurrentPrincipal) -> Project:
+    async def get_project_for_write(
+        self,
+        project_id: UUID,
+        principal: CurrentPrincipal,
+        *,
+        calculation_owner_task_id: UUID | None = None,
+        guard_calculation: bool = True,
+    ) -> Project:
         project = await self.get_project_basic(project_id, principal)
         self._check_owner(project, principal)
+        if guard_calculation:
+            await ProjectCalculationGuard(self.db).lock_and_check(
+                project_id,
+                owner_task_id=calculation_owner_task_id,
+            )
         return project
 
     async def get_object_for_read(
@@ -180,6 +193,7 @@ class ProjectService:
         obj, project = await self._get_object_with_project(object_id)
         self._check_access(project, principal)
         self._check_owner(project, principal)
+        await ProjectCalculationGuard(self.db).lock_and_check(project.id)
         return obj
 
     async def get_project_summary(self, project_id: UUID, principal: CurrentPrincipal) -> Project:
@@ -190,8 +204,7 @@ class ProjectService:
     async def update_project(
         self, project_id: UUID, data: ProjectUpdate, principal: CurrentPrincipal
     ) -> Project:
-        project = await self.get_project_basic(project_id, principal)
-        self._check_owner(project, principal)
+        project = await self.get_project_for_write(project_id, principal)
         update_data = data.model_dump(exclude_unset=True)
         for key, value in update_data.items():
             setattr(project, key, value)
@@ -200,8 +213,7 @@ class ProjectService:
         return project
 
     async def delete_project(self, project_id: UUID, principal: CurrentPrincipal) -> None:
-        project = await self.get_project_basic(project_id, principal)
-        self._check_owner(project, principal)
+        project = await self.get_project_for_write(project_id, principal)
         await self.db.delete(project)
         await self.db.commit()
 
@@ -390,6 +402,7 @@ class ProjectService:
     ) -> ProjectObject:
         project = await self.get_project_basic(project_id, principal)
         self._check_owner(project, principal)
+        await ProjectCalculationGuard(self.db).lock_and_check(project_id)
         # Лимит объектов в проекте
         count_result = await self.db.execute(
             select(func.count())
@@ -453,6 +466,7 @@ class ProjectService:
         """
         project = await self.get_project_basic(project_id, principal)
         self._check_owner(project, principal)
+        await ProjectCalculationGuard(self.db).lock_and_check(project_id)
         await self.db.execute(
             select(Project)
             .where(Project.id == project_id)
@@ -523,6 +537,7 @@ class ProjectService:
     ) -> None:
         project = await self.get_project_basic(project_id, principal)
         self._check_owner(project, principal)
+        await ProjectCalculationGuard(self.db).lock_and_check(project_id)
         await self.db.execute(
             select(Project)
             .where(Project.id == project_id)
@@ -542,6 +557,7 @@ class ProjectService:
     ) -> list[ProjectObject]:
         project = await self.get_project_basic(project_id, principal)
         self._check_owner(project, principal)
+        await ProjectCalculationGuard(self.db).lock_and_check(project_id)
         result = await self.db.execute(
             select(ProjectObject)
             .where(ProjectObject.project_id == project_id)
@@ -594,6 +610,7 @@ class ProjectService:
         """
         project = await self.get_project_basic(project_id, principal)
         self._check_owner(project, principal)
+        await ProjectCalculationGuard(self.db).lock_and_check(project_id)
         await self.db.execute(
             select(Project)
             .where(Project.id == project_id)
@@ -664,6 +681,7 @@ class ProjectService:
         """
         project = await self.get_project_basic(project_id, principal)
         self._check_owner(project, principal)
+        await ProjectCalculationGuard(self.db).lock_and_check(project_id)
         await self.db.execute(
             select(Project)
             .where(Project.id == project_id)

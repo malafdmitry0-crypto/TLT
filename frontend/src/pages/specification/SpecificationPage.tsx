@@ -29,6 +29,7 @@ export default function SpecificationPage() {
   const {
     project,
     canMutateProject,
+    canRespondToWorkflow,
     canManuallyEdit,
     isEmployee,
     variantContext,
@@ -153,7 +154,7 @@ export default function SpecificationPage() {
       onSelect={selectCandidate}
       onConfirm={confirmCatalogSelections}
       confirming={mut.isPending}
-      disabled={!canMutateProject}
+      disabled={!canMutateProject && !canRespondToWorkflow}
     />
   ) : null;
 
