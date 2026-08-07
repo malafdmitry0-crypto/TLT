@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     DB_MAX_OVERFLOW: int = 5
     DB_POOL_RECYCLE_SECONDS: int = 3600
     DB_STATEMENT_TIMEOUT_MS: int = 30_000
+    DB_CALCULATION_LOCK_TIMEOUT_MS: int = 2_000
+    DB_IDLE_IN_TRANSACTION_TIMEOUT_MS: int = 90_000
 
     # JWT / Security
     APP_ENV: str = "development"
@@ -130,6 +132,12 @@ class Settings(BaseSettings):
     MAX_ACTIVE_TASKS_PER_PROJECT: int = 3
     MAX_ACTIVE_TASKS_PER_PRINCIPAL: int = 5
     MAX_ACTIVE_TASKS_GLOBAL: int = 200
+    WORKFLOW_QUEUE_TIMEOUT_SECONDS: int = 300
+    WORKFLOW_EXECUTION_TIMEOUT_SECONDS: int = 600
+    WORKFLOW_INTERACTION_TIMEOUT_SECONDS: int = 300
+    WORKFLOW_HEAT_TIMEOUT_SECONDS: int = 60
+    WORKFLOW_ELECTRICAL_TIMEOUT_SECONDS: int = 60
+    WORKFLOW_SPECIFICATION_TIMEOUT_SECONDS: int = 30
 
     @property
     def trusted_proxy_ips_list(self) -> list[str]:

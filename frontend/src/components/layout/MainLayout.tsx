@@ -1,13 +1,17 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Layout, Space } from 'antd';
 import { DatabaseOutlined, FireFilled, LogoutOutlined, QuestionCircleOutlined } from '@ant-design/icons';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import ProjectMenu from './ProjectMenu';
 import { RouteErrorBoundary } from '@/components/common/ErrorBoundary';
 import { TltAlert, TltButton } from '@/components/ui-kit';
+import { ProjectCalculationWorkflowBanner } from '@/components/workflow/ProjectCalculationWorkflowBanner';
+import { CalculationWorkflowLockBoundary } from '@/components/workflow/CalculationWorkflowLockBoundary';
 import { logout as logoutApi } from '@/api/auth';
+import { useProjectCalculationWorkflow } from '@/hooks/useProjectCalculationWorkflow';
 import { useAuthStore } from '@/store/authStore';
+import { useProjectStore } from '@/store/projectStore';
 import { useWorkspaceHeaderStore } from '@/store/workspaceHeaderStore';
 import './layout-chrome.css';
 
@@ -66,6 +70,18 @@ function WorkspaceHeaderContextRow() {
 
 export default function MainLayout({ children }: Props) {
   const [narrowViewport, setNarrowViewport] = useState(false);
+  const location = useLocation();
+  const projectId = useProjectStore((state) => state.currentProject?.id);
+  const {
+    workflow,
+    isCalculationLocked,
+    cancelWorkflow,
+    cancelPending,
+  } = useProjectCalculationWorkflow(projectId);
+  const contentLocked = isCalculationLocked && !(
+    workflow?.status === 'waiting_input'
+    && location.pathname.startsWith('/workspace/specification')
+  );
 
   useEffect(() => {
     const update = () => {
@@ -94,6 +110,13 @@ export default function MainLayout({ children }: Props) {
         </div>
         <WorkspaceHeaderContextRow />
       </Header>
+      {workflow && isCalculationLocked && (
+        <ProjectCalculationWorkflowBanner
+          workflow={workflow}
+          cancelPending={cancelPending}
+          onCancel={() => void cancelWorkflow(workflow.id)}
+        />
+      )}
       {narrowViewport && (
         <TltAlert
           className="viewport-min-width-warning"
@@ -106,7 +129,9 @@ export default function MainLayout({ children }: Props) {
       )}
       <Layout className="heatcalc-main-layout">
         <Content className="heatcalc-content">
-          <RouteErrorBoundary>{children ?? <Outlet />}</RouteErrorBoundary>
+          <CalculationWorkflowLockBoundary locked={contentLocked}>
+            <RouteErrorBoundary>{children ?? <Outlet />}</RouteErrorBoundary>
+          </CalculationWorkflowLockBoundary>
         </Content>
       </Layout>
     </Layout>
