@@ -639,15 +639,15 @@ class TestSingleExportImport:
                 "[SECTION];electrical\n"
                 "object_key;variant_number;cable_type;cable_type_source;"
                 "cable_mark;cable_mark_source;cable_snapshot;params;results\n"
-                "missing;6;self_regulating;auto;;auto;;{};\n",
-                "1..5",
+                "missing;5;self_regulating;auto;;auto;;{};\n",
+                "1..4",
             ),
             (
                 "[SECTION];specifications\n" "variant_number;items\n" "1;[]\n",
                 "schema_version=2 не поддерживается",
             ),
         ],
-        ids=["electrical-slot-6", "legacy-specification-section"],
+        ids=["electrical-slot-5", "legacy-specification-section"],
     )
     async def test_guest_import_invalid_slot_is_atomic(
         self,
@@ -875,7 +875,7 @@ class TestBulkExportImport:
             "[SECTION];electrical\n"
             "project_key;object_key;variant_number;cable_type;cable_type_source;"
             "cable_mark;cable_mark_source;cable_snapshot;params;results\n"
-            "bad;missing;6;self_regulating;auto;;auto;;{};\n"
+            "bad;missing;5;self_regulating;auto;;auto;;{};\n"
         ).encode()
         headers = {"Authorization": f"Bearer {employee_token}"}
 
@@ -887,12 +887,12 @@ class TestBulkExportImport:
 
         assert response.status_code == 200, response.text
         assert response.json()["imported"] == 1
-        # ER5 write cutover: допустимые legacy-слоты 1..5.
+        # Product contract: допустимые legacy-слоты 1..4.
         assert response.json()["errors"] == [
             {
                 "project_key": "bad",
                 "error": "variant_number в секции electrical должен быть "
-                "в диапазоне 1..5: получено 6",
+                "в диапазоне 1..4: получено 5",
             }
         ]
 

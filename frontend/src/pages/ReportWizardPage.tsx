@@ -153,8 +153,11 @@ export default function ReportWizardPage() {
         content: `Файл для «${scope.electricalVariantName}» скачан`,
         key: 'report-export',
       });
-    } catch {
-      message.error({ content: 'Не удалось скачать отчёт', key: 'report-export' });
+    } catch (error) {
+      message.error({
+        content: error instanceof Error ? error.message : 'Не удалось скачать отчёт',
+        key: 'report-export',
+      });
     } finally {
       setExporting(false);
     }

@@ -8,7 +8,11 @@ import { electricalAssignmentQueryKeys } from '@/api/electricalVariants';
 import { isBatchElectricalResponse } from '@/pages/electrical/elecCalcApiResponseGuards';
 import type { ElectricalBatchScope } from '@/pages/electrical/elecCalcPageModel';
 import type { CalculationTaskResponse } from '@/types/calculation';
-import { getCalcJobRefetchInterval, isActiveCalcJobStatus } from '@/utils/calcJobPolling';
+import {
+  getCalcJobRefetchInterval,
+  isActiveCalcJobStatus,
+  isCalcJobStale,
+} from '@/utils/calcJobPolling';
 
 const calcTaskQueryKey = (taskId: string) => ['calc-job', taskId] as const;
 
@@ -29,6 +33,44 @@ type ElectricalBatchJobDescriptor = Omit<ElectricalBatchJobMetadata, 'objectIds'
   taskId: string;
   objectIds: readonly string[];
 };
+
+const persistedJobsKey = (projectId: string) => `tlt:active-electrical-batch-jobs:${projectId}`;
+
+function readPersistedDescriptors(projectId: string): ElectricalBatchJobDescriptor[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const value: unknown = JSON.parse(
+      window.sessionStorage.getItem(persistedJobsKey(projectId)) ?? '[]',
+    );
+    if (!Array.isArray(value)) return [];
+    return value.filter((item): item is ElectricalBatchJobDescriptor => {
+      if (!item || typeof item !== 'object') return false;
+      const candidate = item as Partial<ElectricalBatchJobDescriptor>;
+      return typeof candidate.taskId === 'string'
+        && candidate.projectId === projectId
+        && typeof candidate.electricalVariantId === 'string'
+        && typeof candidate.electricalVariantName === 'string'
+        && (candidate.scope === 'all' || candidate.scope === 'selected')
+        && Array.isArray(candidate.objectIds)
+        && candidate.objectIds.every((id) => typeof id === 'string');
+    });
+  } catch {
+    return [];
+  }
+}
+
+function persistDescriptors(projectId: string, descriptors: ElectricalBatchJobDescriptor[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    if (descriptors.length === 0) {
+      window.sessionStorage.removeItem(persistedJobsKey(projectId));
+    } else {
+      window.sessionStorage.setItem(persistedJobsKey(projectId), JSON.stringify(descriptors));
+    }
+  } catch {
+    // Session persistence is best-effort; task scope is verified by the API.
+  }
+}
 
 export type ElectricalBatchJobCompletionStatus =
   | 'succeeded'
@@ -110,15 +152,33 @@ function upsertDescriptor(
   return next;
 }
 
-export function useElectricalBatchJobTracker() {
+export function useElectricalBatchJobTracker(projectId: string) {
   const queryClient = useQueryClient();
-  const [descriptors, setDescriptors] = useState<ElectricalBatchJobDescriptor[]>([]);
+  const [descriptors, setDescriptors] = useState<ElectricalBatchJobDescriptor[]>(
+    () => readPersistedDescriptors(projectId),
+  );
   const [completionByVariant, setCompletionByVariant] = useState<
     Record<string, ElectricalBatchJobCompletion>
   >({});
   const announcedTaskIdsRef = useRef(new Set<string>());
   const processedOutcomesRef = useRef(new Set<string>());
   const rejectedTaskIdsRef = useRef(new Set<string>());
+  const descriptorProjectRef = useRef(projectId);
+
+  useEffect(() => {
+    if (descriptorProjectRef.current === projectId) return;
+    descriptorProjectRef.current = projectId;
+    announcedTaskIdsRef.current.clear();
+    processedOutcomesRef.current.clear();
+    rejectedTaskIdsRef.current.clear();
+    setCompletionByVariant({});
+    setDescriptors(readPersistedDescriptors(projectId));
+  }, [projectId]);
+
+  useEffect(() => {
+    if (descriptors.some((descriptor) => descriptor.projectId !== projectId)) return;
+    persistDescriptors(projectId, descriptors);
+  }, [descriptors, projectId]);
 
   const clearPreviousCompletion = useCallback((descriptor: ElectricalBatchJobDescriptor) => {
     setCompletionByVariant((previous) => {
@@ -187,8 +247,15 @@ export function useElectricalBatchJobTracker() {
       retry: 2,
       retryDelay: (attemptIndex: number) => 250 * (attemptIndex + 1),
       staleTime: Infinity,
-      refetchInterval: (query: { state: { data?: CalculationTaskResponse } }) =>
-        getCalcJobRefetchInterval(query.state.data?.status),
+      refetchInterval: (query: {
+        state: { data?: CalculationTaskResponse; error?: unknown };
+      }) =>
+        getCalcJobRefetchInterval(
+          query.state.data?.status ?? 'queued',
+          undefined,
+          !!query.state.error
+            || isCalcJobStale(query.state.data?.status, query.state.data?.created_at),
+        ),
       refetchIntervalInBackground: true,
     })),
   });
@@ -229,23 +296,14 @@ export function useElectricalBatchJobTracker() {
         return;
       }
 
-      if (error && !latestTask) {
+      if (error) {
         const outcomeKey = `${descriptor.taskId}:poll-error:${error.message}`;
         if (processedOutcomesRef.current.has(outcomeKey)) return;
         processedOutcomesRef.current.add(outcomeKey);
-        setCompletionByVariant((previous) => ({
-          ...previous,
-          [descriptor.electricalVariantId]: completionFrom(
-            descriptor,
-            'failed',
-            null,
-          ),
-        }));
         message.error(
           `${descriptor.electricalVariantName} · не удалось получить состояние расчёта `
-          + `${scopeLabel(descriptor)}: ${error.message}`,
+          + `${scopeLabel(descriptor)}: ${error.message}. Задача остаётся активной`,
         );
-        removeJob(descriptor.taskId);
         return;
       }
 

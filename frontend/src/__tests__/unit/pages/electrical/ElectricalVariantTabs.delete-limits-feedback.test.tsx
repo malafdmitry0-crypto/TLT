@@ -126,14 +126,14 @@ describe('ElectricalVariantTabs — delete-limits-feedback', () => {
     expect(screen.getByRole('button', { name: /Удалить.*Альтернатива Ω/i })).toBeEnabled();
   });
 
-  it('disables create and copy at the five-ER limit', () => {
-    const variants = Array.from({ length: 5 }, (_, index) =>
+  it('disables create and copy at the four-ER limit', () => {
+    const variants = Array.from({ length: 4 }, (_, index) =>
       variant(`${index + 1}`.repeat(8) + '-1111-4111-8111-111111111111', `ЭР ${index + 1}`, index, index === 0),
     );
     renderTabs(controller({ variants, selectedVariant: variants[0] }));
 
-    expect(screen.getByRole('button', { name: /Добавить пустой ЭР.*лимит 5/i })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /Создать копию.*лимит 5/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Добавить пустой ЭР.*лимит 4/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Создать копию.*лимит 4/i })).toBeDisabled();
   });
 
   it('announces the exact pending lifecycle operation', () => {

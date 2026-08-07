@@ -1,76 +1,248 @@
 {
   "schema_version": 1,
   "authority": "test_fixture_only",
-  "source_sections": ["7.9", "7.10", "7.11", "7.12", "7.13", "7.14", "7.15"],
+  "source_sections": [
+    "7.9",
+    "7.10",
+    "7.11",
+    "7.12",
+    "7.13",
+    "7.14",
+    "7.15",
+    "algorithm-§10",
+    "SPEC-DEC-02"
+  ],
+  "aliases": {
+    "SPEC-CTRL-CABLE-FACT": "SPEC-GOLDEN-CABLE-ACTUAL",
+    "SPEC-CTRL-CONN-KSN2": "SPEC-BE-12",
+    "SPEC-CTRL-REPAIR": "SPEC-BE-13",
+    "SPEC-CTRL-SEALANT": "SPEC-BE-14",
+    "SPEC-CTRL-FIBER-REELS": "SPEC-BE-15",
+    "SPEC-CTRL-ALU": "SPEC-BE-16",
+    "SPEC-CTRL-BOX-D57": "SPEC-BE-19",
+    "SPEC-CTRL-BOX-MIN1": "SPEC-BE-21"
+  },
   "cases": [
     {
       "id": "SPEC-GOLDEN-CABLE-ACTUAL",
       "category": "cable",
+      "source": "PDF §7.9 / algorithm §10",
       "inputs": {"section_length_m": "60", "section_count": 2},
       "expected": {"actual_installed_length_m": "120"}
     },
     {
       "id": "SPEC-BE-12",
       "category": "connection_kit",
+      "source": "PDF §7.10 / algorithm §10",
       "inputs": {"section_count": 9, "sections_per_kit": 2},
       "expected": {"quantity": 5, "rounding": "up"}
     },
     {
       "id": "SPEC-BE-13",
       "category": "repair_kit",
+      "source": "PDF §7.11 / algorithm §10",
       "inputs": {"actual_installed_length_m": "729", "cable_length_per_kit_m": "150"},
       "expected": {"quantity": 5, "rounding": "up"}
     },
     {
       "id": "SPEC-BE-14",
       "category": "sealant",
+      "source": "PDF §7.12 / algorithm §10",
       "inputs": {"connection_kits": 9, "repair_kits": 5, "kits_per_unit": 7},
       "expected": {"quantity": 2, "rounding": "up"}
     },
     {
       "id": "SPEC-BE-15",
       "category": "fiberglass_tape",
+      "source": "PDF §7.13 / algorithm §10",
       "inputs": {"total_required_length_m": "8939", "reel_length_m": "30"},
       "expected": {"quantity": 298, "rounding": "up"}
     },
     {
       "id": "SPEC-BE-16",
       "category": "aluminium_tape",
+      "source": "PDF §7.14 / algorithm §10",
       "inputs": {
         "actual_installed_length_m": "729",
         "consumption_m_per_cable_m": "1",
         "reel_length_m": "50"
       },
-      "expected": {"quantity": 15, "rounding": "up"}
+      "expected": {"quantity": 15, "rounding": "up", "total_required_length_m": "729"}
     },
     {
       "id": "SPEC-BE-19",
       "category": "box_diameter_boundary",
+      "source": "PDF §7.15 / algorithm §10",
       "inputs": {"outer_diameter_mm": "57"},
       "expected": {"d_ge_57": true}
     },
     {
       "id": "SPEC-BE-20-UP",
       "category": "box",
+      "source": "PDF §7.15 example 1 (СКВ 1201)",
       "inputs": {"section_count": 5, "section_divider": "3", "rounding": "up"},
       "expected": {"quantity": 2}
     },
     {
       "id": "SPEC-BE-20-DOWN",
       "category": "box",
+      "source": "PDF §7.15 example 1 (СКВ 1601)",
       "inputs": {"section_count": 5, "section_divider": "3", "rounding": "down"},
       "expected": {"quantity": 1}
     },
     {
       "id": "SPEC-BE-21",
       "category": "box",
+      "source": "PDF §7.15 example 2 / algorithm §10",
       "inputs": {
         "section_count": 2,
         "section_divider": "3",
         "rounding": "down",
         "min_quantity": 1
       },
-      "expected": {"quantity": 1}
+      "expected": {"quantity": 1, "calculated": 0}
+    },
+    {
+      "id": "SPEC-CTRL-CABLE-ORDER",
+      "category": "cable_order",
+      "source": "SPEC-DEC-02 / algorithm §2 / §6.13",
+      "notes": "10% reserve applied once in ER as required_order_length_m; specification sums order lengths and does not re-multiply accessories by 1.10",
+      "inputs": {
+        "section_length_m": "60",
+        "section_count": 2,
+        "reserve_factor": "1.10",
+        "required_order_length_m": "132.000"
+      },
+      "expected": {
+        "actual_installed_length_m": "120",
+        "l_mark_order": "132.000",
+        "er_order_from_actual": "132.000"
+      }
+    },
+    {
+      "id": "SPEC-CTRL-CABLE-MULTI-MARK",
+      "category": "cable_multi_mark",
+      "source": "PDF §7.9 multi-object example",
+      "inputs": {
+        "marks": [
+          {
+            "mark": "ТТН-20",
+            "groups": [
+              {"section_length_m": "60", "section_count": 2},
+              {"section_length_m": "45", "section_count": 3}
+            ]
+          },
+          {
+            "mark": "ТТН-30",
+            "groups": [{"section_length_m": "70", "section_count": 2}]
+          }
+        ]
+      },
+      "expected": {
+        "by_mark_actual": {
+          "ТТН-20": "255",
+          "ТТН-30": "140"
+        }
+      }
+    },
+    {
+      "id": "SPEC-CTRL-BOX-PDF-EX1",
+      "category": "box_matrix",
+      "source": "PDF §7.15 example 1",
+      "inputs": {
+        "outer_diameter_mm": "60",
+        "section_count": 5,
+        "section_length_m": "40",
+        "k1i": false,
+        "k2i": false,
+        "kiu": false,
+        "rows": [
+          {
+            "mark": "СКВ 1201",
+            "nomenclature_code": "002-001-001",
+            "section_divider": "3",
+            "rounding_mode": "up",
+            "min_quantity": 1,
+            "conditions": {"d_ge_57": true, "K1i": false}
+          },
+          {
+            "mark": "СКВ 1601",
+            "nomenclature_code": "002-001-007",
+            "section_divider": "3",
+            "rounding_mode": "down",
+            "min_quantity": 1,
+            "conditions": {"d_ge_57": true, "K1i": false}
+          }
+        ]
+      },
+      "expected": {
+        "d_ge_57": true,
+        "by_mark": {"СКВ 1201": 2, "СКВ 1601": 1}
+      }
+    },
+    {
+      "id": "SPEC-CTRL-BOX-PDF-EX3",
+      "category": "box_matrix",
+      "source": "PDF §7.15 example 3",
+      "inputs": {
+        "outer_diameter_mm": "60",
+        "section_count": 5,
+        "section_length_m": "40",
+        "k1i": false,
+        "k2i": true,
+        "kiu": true,
+        "l_k2i_m": "30",
+        "rows": [
+          {
+            "mark": "СКВ 1201-С1",
+            "nomenclature_code": "002-001-004",
+            "section_divider": "1",
+            "rounding_mode": "up",
+            "min_quantity": 1,
+            "conditions": {
+              "d_ge_57": true,
+              "K2i": true,
+              "Kiu": true,
+              "L_sec_ge_L_K2i": true
+            }
+          }
+        ]
+      },
+      "expected": {
+        "d_ge_57": true,
+        "by_mark": {"СКВ 1201-С1": 5}
+      }
+    },
+    {
+      "id": "SPEC-CTRL-ER-ISOLATION",
+      "category": "grouping_er_isolation",
+      "source": "algorithm §10 / §7.5-7.6",
+      "inputs": {
+        "nomenclature_code": "001-004-002",
+        "supply_unit": "шт.",
+        "quantities_by_er": {
+          "er-aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa": "3",
+          "er-bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb": "5"
+        }
+      },
+      "expected": {
+        "merged_row_count": 2,
+        "quantities_sorted": ["3", "5"]
+      }
+    },
+    {
+      "id": "SPEC-CTRL-FIBER-OBJECT-FORMULA",
+      "category": "fiberglass_object",
+      "source": "PDF §7.13 formula",
+      "inputs": {
+        "outer_diameter_mm": "108",
+        "actual_installed_length_m": "100",
+        "reel_length_m": "30"
+      },
+      "expected": {
+        "reserve_applied_once": true,
+        "formula": "((pi * d_mm * 2.5 / 1000) * (L / 0.3)) * 1.1"
+      }
     }
   ],
   "production_blockers": [
