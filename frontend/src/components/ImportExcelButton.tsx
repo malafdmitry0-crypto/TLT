@@ -3,7 +3,7 @@ import { Modal, Space, Tooltip, Typography } from 'antd';
 import { appMessage as message } from '@/feedback/appFeedback';
 import { DownloadOutlined, UploadOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { TltButton } from '@/components/ui-kit';
+import { TltAlert, TltButton } from '@/components/ui-kit';
 import { getCalcTask } from '@/api/calculations';
 import {
   downloadImportTemplate,
@@ -11,7 +11,17 @@ import {
   type ImportMode,
   type ImportResult,
 } from '@/api/projects';
-import { getCalcJobRefetchInterval, isActiveCalcJobStatus } from '@/utils/calcJobPolling';
+import {
+  getCalcJobRefetchInterval,
+  isActiveCalcJobStatus,
+  isCalcJobStale,
+} from '@/utils/calcJobPolling';
+import {
+  clearPersistedCalcJobId,
+  importHeatLossJobScope,
+  persistCalcJobId,
+  readPersistedCalcJobId,
+} from '@/utils/calcJobPersistence';
 import './ImportExcelButton.css';
 
 const { Text } = Typography;
@@ -27,17 +37,28 @@ export default function ImportExcelButton({ projectId, existingObjectCount }: Pr
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const persistenceScope = importHeatLossJobScope(projectId);
 
-  const { data: activeTask } = useQuery({
+  useEffect(() => {
+    setActiveTaskId(readPersistedCalcJobId(persistenceScope));
+  }, [persistenceScope]);
+
+  const { data: activeTask, error: activeTaskError } = useQuery({
     queryKey: ['calc-job', activeTaskId],
     queryFn: () => getCalcTask(activeTaskId!),
     enabled: !!activeTaskId,
-    refetchInterval: (query) => getCalcJobRefetchInterval(query.state.data?.status),
+    refetchInterval: (query) => getCalcJobRefetchInterval(
+      query.state.data?.status ?? (activeTaskId ? 'queued' : undefined),
+      undefined,
+      !!query.state.error
+        || isCalcJobStale(query.state.data?.status, query.state.data?.created_at),
+    ),
     refetchIntervalInBackground: true,
   });
 
   useEffect(() => {
     if (!activeTask || isActiveCalcJobStatus(activeTask.status)) return;
+    if (activeTask.project_id !== projectId) return;
     qc.invalidateQueries({ queryKey: ['project', projectId, 'objects', 'query'] });
     qc.invalidateQueries({ queryKey: ['project', projectId, 'objects', 'summary'] });
     qc.invalidateQueries({ queryKey: ['spec', projectId] });
@@ -56,7 +77,8 @@ export default function ImportExcelButton({ projectId, existingObjectCount }: Pr
       message.error(activeTask.error_message || 'Пересчёт теплопотерь завершился ошибкой');
     }
     setActiveTaskId(null);
-  }, [activeTask, projectId, qc]);
+    clearPersistedCalcJobId(persistenceScope);
+  }, [activeTask, persistenceScope, projectId, qc]);
 
   const importMut = useMutation({
     mutationFn: ({ file, mode }: { file: File; mode: ImportMode }) =>
@@ -68,6 +90,7 @@ export default function ImportExcelButton({ projectId, existingObjectCount }: Pr
       qc.invalidateQueries({ queryKey: ['spec', projectId] });
       if (res.heat_loss_task) {
         setActiveTaskId(res.heat_loss_task.id);
+        persistCalcJobId(persistenceScope, res.heat_loss_task.id);
         qc.invalidateQueries({ queryKey: ['calc-job', res.heat_loss_task.id] });
         message.info('Пересчёт теплопотерь поставлен в очередь');
       }
@@ -173,6 +196,17 @@ export default function ImportExcelButton({ projectId, existingObjectCount }: Pr
         className="import-excel-file-input"
         onChange={onFileChange}
       />
+
+      {activeTaskId && (activeTaskError || isCalcJobStale(activeTask?.status, activeTask?.created_at)) && (
+        <TltAlert
+          tone="warning"
+          title="Состояние пересчёта после импорта требует внимания"
+        >
+          {activeTaskError
+            ? 'Не удалось проверить состояние задачи. Проверка продолжится автоматически.'
+            : 'Задача слишком долго не завершается. Она будет восстановлена после перезагрузки страницы.'}
+        </TltAlert>
+      )}
 
       <Modal
         open={!!pendingFile}

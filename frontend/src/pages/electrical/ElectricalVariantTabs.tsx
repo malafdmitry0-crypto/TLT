@@ -12,6 +12,7 @@ import {
   TltAlert,
   TltButton,
 } from '@/components/ui-kit';
+import { MAX_ELECTRICAL_VARIANTS } from '@/config/electricalVariantLimits';
 import { ROUTES } from '@/routes/routes';
 import type {
   ElectricalVariantSelectionController,
@@ -27,8 +28,6 @@ import {
   type ElectricalSpecificationReadinessSnapshot,
 } from './electricalSpecificationReadinessModel';
 import { ignoreHandledError } from './electricalVariantAsyncHelpers';
-
-const MAX_ELECTRICAL_VARIANTS = 5;
 
 export function electricalVariantTabId(variantId: string): string {
   return `electrical-variant-tab-${variantId}`;
@@ -296,7 +295,9 @@ export default function ElectricalVariantTabs({
           </div>
 
           <div className="electrical-variant-tabs__actions">
-            <Tooltip title={reachedLimit ? 'В проекте уже создано 5 ЭР' : undefined}>
+            <Tooltip
+              title={reachedLimit ? `В проекте уже создано ${MAX_ELECTRICAL_VARIANTS} ЭР` : undefined}
+            >
               <span>
                 <TltButton
                   size="compact"
@@ -306,7 +307,7 @@ export default function ElectricalVariantTabs({
                   disabled={!canMutate || reachedLimit || lifecycleWriteLocked}
                   aria-label={
                     reachedLimit
-                      ? 'Добавить пустой ЭР — достигнут лимит 5'
+                      ? `Добавить пустой ЭР — достигнут лимит ${MAX_ELECTRICAL_VARIANTS}`
                       : 'Добавить пустой ЭР'
                   }
                   onClick={() => ignoreHandledError(controller.createVariant())}
@@ -316,7 +317,9 @@ export default function ElectricalVariantTabs({
               </span>
             </Tooltip>
 
-            <Tooltip title={reachedLimit ? 'В проекте уже создано 5 ЭР' : undefined}>
+            <Tooltip
+              title={reachedLimit ? `В проекте уже создано ${MAX_ELECTRICAL_VARIANTS} ЭР` : undefined}
+            >
               <span>
                 <TltButton
                   size="compact"
@@ -326,7 +329,7 @@ export default function ElectricalVariantTabs({
                   disabled={!canMutate || reachedLimit || lifecycleWriteLocked}
                   aria-label={
                     reachedLimit
-                      ? `Создать копию «${selected.name}» — достигнут лимит 5`
+                      ? `Создать копию «${selected.name}» — достигнут лимит ${MAX_ELECTRICAL_VARIANTS}`
                       : `Создать копию выбранного ЭР «${selected.name}»`
                   }
                   onClick={() => ignoreHandledError(controller.copySelectedVariant())}

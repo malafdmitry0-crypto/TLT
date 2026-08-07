@@ -21,6 +21,7 @@ from app.core.logging_config import configure_logging
 from app.core.redis_client import close_redis, get_redis
 from app.core.request_context import reset_request_id, set_request_id
 from app.core.security import hash_password
+from app.electrical_variant_limits import MAX_ELECTRICAL_VARIANTS
 from app.models.user import User
 from app.reference_data.loader import preload_all
 from app.services.auth_service import AuthService
@@ -343,17 +344,13 @@ async def validation_exception_handler(
 ) -> JSONResponse:
     errors = exc.errors()
     is_specification_generate = (
-        request.url.path.endswith("/generate")
-        and "/specifications/" in request.url.path
+        request.url.path.endswith("/generate") and "/specifications/" in request.url.path
     )
     variant_ids_required = any(
         tuple(error["loc"][-2:]) == ("body", "variant_ids")
         and (
             error["type"] == "missing"
-            or (
-                error["type"] == "too_short"
-                and error.get("ctx", {}).get("actual_length") == 0
-            )
+            or (error["type"] == "too_short" and error.get("ctx", {}).get("actual_length") == 0)
         )
         for error in errors
     )
@@ -371,7 +368,9 @@ async def validation_exception_handler(
             content={
                 "detail": {
                     "code": "SPEC_VARIANT_IDS_REQUIRED",
-                    "message": "variant_ids must contain from one to five UUIDs",
+                    "message": (
+                        "variant_ids must contain from one to " f"{MAX_ELECTRICAL_VARIANTS} UUIDs"
+                    ),
                     "issues": issues,
                     "details": {},
                 }

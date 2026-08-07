@@ -10,9 +10,9 @@ from app.services.project_io_service import LEGACY_VARIANT_NUMBERS as IO_LEGACY
 
 
 def test_expand_window_slot_contracts_aligned():
-    assert MAX_ELECTRICAL_VARIANTS == 5
-    assert list(_LEGACY_VARIANT_NUMBERS) == [1, 2, 3, 4, 5]
-    assert list(IO_LEGACY) == [1, 2, 3, 4, 5]
+    assert MAX_ELECTRICAL_VARIANTS == 4
+    assert list(_LEGACY_VARIANT_NUMBERS) == [1, 2, 3, 4]
+    assert list(IO_LEGACY) == [1, 2, 3, 4]
 
 
 def test_cutover_prep_doc_exists():

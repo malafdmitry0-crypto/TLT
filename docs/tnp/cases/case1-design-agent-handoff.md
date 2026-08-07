@@ -56,7 +56,7 @@
 2. All unassigned  
 3. Iдоп не задан (blocking empty/error + CTA в настройки)  
 4. Stale after heat: подсветка строк + «Пересчитать»  
-5. Max 5 ЭР (disabled create + tooltip)  
+5. Max 4 ЭР (disabled create + tooltip)
 6. Delete ER confirm  
 
 **Обязательные UI-решения на макете:**
@@ -91,7 +91,7 @@
 
 ### P1 — если остаётся время
 
-- D-HELP: 3 дня, 500 obj, 5 ЭР, «Начать без регистрации», файл проекта  
+- D-HELP: 3 дня, 500 obj, 4 ЭР, «Начать без регистрации», файл проекта
 - D-SESSION: одно сообщение «сессия истекла, новый проект»  
 - D-HEAT: group update modal
 - D-HOME: copy 3 дня + CTA  
@@ -159,7 +159,7 @@ mockups/current-state/      # прежние HTML-кадры 01–03 как base
 |---|---|
 | D-ELEC MVP (hide legacy, 230, threads) | US-ELEC-01, 06; US-HEAT-05 |
 | D-ELEC Iдоп / stale / unassign | US-ELEC-07, 09, 10 |
-| D-ELEC variants max 5 | US-ELEC-02 |
+| D-ELEC variants max 4 | US-ELEC-02 |
 | D-SPEC sections + empty | US-SPEC-03 |
 | D-SPEC generate / stale | US-SPEC-01, 07 |
 | D-SPEC unassigned Fix/Proceed | US-SPEC-02 |

@@ -51,7 +51,7 @@ class TestCanonicalGenerationRequest:
         with pytest.raises(ValidationError):
             SpecificationGenerationRequest.model_validate({"variant_ids": []})
 
-    def test_rejects_duplicate_or_more_than_five_variants(self):
+    def test_rejects_duplicate_or_more_than_four_variants(self):
         variant_id = uuid4()
         with pytest.raises(ValidationError, match="must be unique"):
             SpecificationGenerationRequest.model_validate(
@@ -59,7 +59,7 @@ class TestCanonicalGenerationRequest:
             )
         with pytest.raises(ValidationError):
             SpecificationGenerationRequest.model_validate(
-                {"variant_ids": [uuid4() for _ in range(6)]}
+                {"variant_ids": [uuid4() for _ in range(5)]}
             )
 
     def test_preserves_canonical_option_names_and_decimal_values(self):
@@ -210,7 +210,8 @@ class TestTypedDiagnostics:
 def test_normalized_golden_fixture_is_complete_and_explicitly_non_production():
     payload = json.loads(GOLDENS_PATH.read_text(encoding="utf-8"))
     assert payload["authority"] == "test_fixture_only"
-    assert payload["source_sections"] == [
+    # Baseline PDF formula sections plus algorithm control-example tags.
+    assert {
         "7.9",
         "7.10",
         "7.11",
@@ -218,7 +219,9 @@ def test_normalized_golden_fixture_is_complete_and_explicitly_non_production():
         "7.13",
         "7.14",
         "7.15",
-    ]
+        "algorithm-§10",
+        "SPEC-DEC-02",
+    } <= set(payload["source_sections"])
     case_ids = {case["id"] for case in payload["cases"]}
     assert {
         "SPEC-GOLDEN-CABLE-ACTUAL",
@@ -231,7 +234,16 @@ def test_normalized_golden_fixture_is_complete_and_explicitly_non_production():
         "SPEC-BE-20-UP",
         "SPEC-BE-20-DOWN",
         "SPEC-BE-21",
+        "SPEC-CTRL-CABLE-ORDER",
+        "SPEC-CTRL-CABLE-MULTI-MARK",
+        "SPEC-CTRL-BOX-PDF-EX1",
+        "SPEC-CTRL-BOX-PDF-EX3",
+        "SPEC-CTRL-ER-ISOLATION",
+        "SPEC-CTRL-FIBER-OBJECT-FORMULA",
     } <= case_ids
+    aliases = payload.get("aliases") or {}
+    assert aliases.get("SPEC-CTRL-CABLE-FACT") == "SPEC-GOLDEN-CABLE-ACTUAL"
+    assert aliases.get("SPEC-CTRL-CONN-KSN2") == "SPEC-BE-12"
     assert payload["production_blockers"] == [
         "sealant.nomenclature_code",
         "fiberglass_tape.nomenclature_code",

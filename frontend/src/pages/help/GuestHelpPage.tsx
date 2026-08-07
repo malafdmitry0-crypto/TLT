@@ -1,5 +1,6 @@
 import { Steps, Typography, Divider } from 'antd';
 import { TltAlert, TltBadge, TltButton, TltCard } from '@/components/ui-kit';
+import { MAX_ELECTRICAL_VARIANTS } from '@/config/electricalVariantLimits';
 import { useNavigate } from 'react-router-dom';
 import {
   CalculatorOutlined,
@@ -44,7 +45,7 @@ export default function GuestHelpPage() {
             <ul>
               <li>Рассчитывать тепловые потери для <Text strong>трубопроводов</Text> и <Text strong>ёмкостей</Text></li>
               <li>Добавлять до <Text strong>500 объектов</Text> в автоматически созданный временный проект</li>
-              <li>Создавать до 5 вариантов электрорасчёта</li>
+              <li>Создавать до {MAX_ELECTRICAL_VARIANTS} вариантов электрорасчёта</li>
               <li><Text strong>Импортировать объекты</Text> из Excel или CSV — до 100 строк за раз</li>
               <li>Работать с таблицей объектов: поиск, фильтры, сортировка, выбор строк и TSV-копирование</li>
               <li>Получать автоматический подбор греющего кабеля ТЛТ</li>

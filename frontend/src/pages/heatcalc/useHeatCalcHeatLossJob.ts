@@ -4,7 +4,17 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { cancelCalcTask, enqueueHeatLossBatchJob, getCalcTask } from '@/api/calculations';
 import type { ProjectObject } from '@/types/project';
-import { getCalcJobRefetchInterval, isActiveCalcJobStatus } from '@/utils/calcJobPolling';
+import {
+  getCalcJobRefetchInterval,
+  isActiveCalcJobStatus,
+  isCalcJobStale,
+} from '@/utils/calcJobPolling';
+import {
+  clearPersistedCalcJobId,
+  heatLossJobScope,
+  persistCalcJobId,
+  readPersistedCalcJobId,
+} from '@/utils/calcJobPersistence';
 import type { HeatCalcIndexedTableRow } from '@/utils/heatCalcTableFindability';
 import { isBatchHeatLossResponse } from '@/utils/heatCalcPageUtils';
 
@@ -27,16 +37,22 @@ export function useHeatCalcHeatLossJob({
 }: UseHeatCalcHeatLossJobOptions) {
   const queryClient = useQueryClient();
   const [activeHeatLossJobId, setActiveHeatLossJobId] = useState<string | null>(null);
+  const persistenceScope = projectId ? heatLossJobScope(projectId) : null;
 
   useEffect(() => {
-    setActiveHeatLossJobId(null);
-  }, [projectId]);
+    setActiveHeatLossJobId(persistenceScope ? readPersistedCalcJobId(persistenceScope) : null);
+  }, [persistenceScope]);
 
-  const { data: activeHeatLossJob } = useQuery({
+  const { data: activeHeatLossJob, error: activeHeatLossJobError } = useQuery({
     queryKey: ['calc-job', activeHeatLossJobId],
     queryFn: () => getCalcTask(activeHeatLossJobId!),
     enabled: !!activeHeatLossJobId,
-    refetchInterval: (query) => getCalcJobRefetchInterval(query.state.data?.status),
+    refetchInterval: (query) => getCalcJobRefetchInterval(
+      query.state.data?.status ?? (activeHeatLossJobId ? 'queued' : undefined),
+      undefined,
+      !!query.state.error
+        || isCalcJobStale(query.state.data?.status, query.state.data?.created_at),
+    ),
     refetchIntervalInBackground: true,
   });
 
@@ -52,6 +68,7 @@ export function useHeatCalcHeatLossJob({
     mutationFn: (objectIds?: string[]) => enqueueHeatLossBatchJob(projectId!, true, objectIds),
     onSuccess: (task) => {
       setActiveHeatLossJobId(task.id);
+      if (persistenceScope) persistCalcJobId(persistenceScope, task.id);
       queryClient.invalidateQueries({ queryKey: ['calc-job', task.id] });
       antdMessage.info('Пересчёт теплопотерь поставлен в очередь');
     },
@@ -73,6 +90,7 @@ export function useHeatCalcHeatLossJob({
 
   useEffect(() => {
     if (!activeHeatLossJob) return;
+    if (activeHeatLossJob.project_id !== projectId) return;
     if (activeHeatLossJob.status === 'succeeded') {
       invalidateHeatLossProjectData();
       const result = isBatchHeatLossResponse(activeHeatLossJob.result) ? activeHeatLossJob.result : null;
@@ -87,18 +105,29 @@ export function useHeatCalcHeatLossJob({
         antdMessage.success('Пересчёт теплопотерь завершён');
       }
       setActiveHeatLossJobId(null);
+      if (persistenceScope) clearPersistedCalcJobId(persistenceScope);
     }
     if (activeHeatLossJob.status === 'failed') {
       antdMessage.error(activeHeatLossJob.error_message || 'Пересчёт теплопотерь завершился ошибкой');
       setActiveHeatLossJobId(null);
+      if (persistenceScope) clearPersistedCalcJobId(persistenceScope);
     }
     if (activeHeatLossJob.status === 'cancelled') {
       setActiveHeatLossJobId(null);
+      if (persistenceScope) clearPersistedCalcJobId(persistenceScope);
     }
-  }, [activeHeatLossJob, invalidateHeatLossProjectData]);
+  }, [activeHeatLossJob, invalidateHeatLossProjectData, persistenceScope, projectId]);
 
   const activeHeatLossJobStatus = activeHeatLossJob?.status ?? null;
-  const isHeatLossJobActive = isActiveCalcJobStatus(activeHeatLossJobStatus);
+  const isHeatLossJobActive = !!activeHeatLossJobId
+    && (!activeHeatLossJob || isActiveCalcJobStatus(activeHeatLossJobStatus));
+  const heatLossJobIssue = activeHeatLossJobError
+    ? 'Не удалось проверить состояние пересчёта. Задача остаётся активной; повторяем проверку.'
+    : isCalcJobStale(activeHeatLossJobStatus, activeHeatLossJob?.created_at)
+      ? activeHeatLossJobStatus === 'running'
+        ? 'Пересчёт выполняется дольше ожидаемого. Можно отменить задачу или дождаться восстановления.'
+        : 'Задача слишком долго ожидает worker. Можно отменить её или дождаться восстановления.'
+      : null;
   const heatLossJobProgress = activeHeatLossJob?.progress;
   const heatLossJobProgressLabel = heatLossJobProgress?.total
     ? `${heatLossJobProgress.current}/${heatLossJobProgress.total}` +
@@ -158,6 +187,7 @@ export function useHeatCalcHeatLossJob({
     activeHeatLossJobId,
     isHeatLossJobActive,
     heatLossJobProgressLabel,
+    heatLossJobIssue,
     heatLossRecalcObjectIds,
     heatLossRecalcDisabled,
     heatLossScopedRecalcDisabled,

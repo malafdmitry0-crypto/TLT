@@ -42,6 +42,7 @@ export default function HeatCalcPage() {
     sideWorkspaceRef,
     isHeatLossJobActive,
     heatLossJobProgressLabel,
+    heatLossJobIssue,
     selectedObject,
     calculationDetailsSettings,
     activeObjectScope,
@@ -273,7 +274,11 @@ export default function HeatCalcPage() {
         sideWorkspaceRef={sideWorkspaceRef}
         typeBar={buildHeatCalcTypeBar(toolbarProps)}
         actionsBar={buildHeatCalcActionsBar(toolbarProps)}
-        jobAlert={buildHeatCalcJobAlert(isHeatLossJobActive, heatLossJobProgressLabel)}
+        jobAlert={buildHeatCalcJobAlert(
+          isHeatLossJobActive,
+          heatLossJobProgressLabel,
+          heatLossJobIssue,
+        )}
         formPanel={formPanel}
         tablePane={tablePane}
         errorsOverlay={<HeatCalcSelectedRowErrorsOverlay messages={selectedRowErrorMessages} />}
