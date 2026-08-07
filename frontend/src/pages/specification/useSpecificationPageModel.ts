@@ -363,16 +363,17 @@ export function useSpecificationPageModel() {
 
   const confirmCatalogSelections = async () => {
     if (mut.isPending || !project) return;
+    const catalogSelections = form.getDraftCatalogSelections();
     const requiredGroups = form.candidateGroups.filter(
       (group) => group.candidates.length > 1 && !group.selected_catalog_item_id,
     );
-    if (requiredGroups.some((group) => !form.draftCatalogSelections[group.group_key])) {
+    if (requiredGroups.some((group) => !catalogSelections[group.group_key])) {
       message.warning('Выберите позицию для каждой группы с несколькими кандидатами');
       return;
     }
     resumeWorkflowMut.mutate({
       excludeUnassignedConfirmed: false,
-      catalogSelections: form.draftCatalogSelections,
+      catalogSelections: { ...catalogSelections },
     });
   };
 

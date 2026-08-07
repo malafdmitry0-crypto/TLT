@@ -34,12 +34,17 @@ export async function createCandidate(
       project_id: projectId,
       object_id: objectId,
       variant_number: 1,
-      cable_type: 'self_regulating',
+      cable_type: 'self_regulating_tt',
       cable_source: 'builtin',
       ...data,
     },
   });
-  expect(response.ok()).toBeTruthy();
+  if (!response.ok()) {
+    const body = await response.text();
+    throw new Error(
+      `Candidate creation failed: ${response.status()} ${response.statusText()} — ${body}`,
+    );
+  }
   return response.json() as Promise<CandidateUpsertResponse>;
 }
 

@@ -123,23 +123,20 @@ class CalculationWorkflowService:
             "principal_role": principal.role,
         }
         dedupe_key = self._dedupe_key(project_id, principal, normalized_key)
-        existing = (
-            await self.db.execute(
-                select(BackgroundTask)
-                .where(BackgroundTask.idempotency_key == dedupe_key)
-                .order_by(BackgroundTask.created_at.desc())
-                .limit(1)
-            )
-        ).scalar_one_or_none()
+        existing = await self._task_for_idempotency_key(dedupe_key)
         if existing is not None:
-            if existing.type != TASK_PROJECT_PIPELINE or existing.request_payload != payload:
-                raise CalculationWorkflowConflictError(
-                    "WORKFLOW_IDEMPOTENCY_KEY_REUSED",
-                    "Idempotency-Key уже связан с другим workflow",
-                )
+            self._require_matching_idempotent_start(existing, payload)
             return existing
 
-        await ProjectCalculationGuard(self.db).lock_and_check(project_id)
+        try:
+            await ProjectCalculationGuard(self.db).lock_and_check(project_id)
+        except ProjectCalculationBusyError:
+            await self.db.rollback()
+            existing = await self._task_for_idempotency_key(dedupe_key)
+            if existing is not None:
+                self._require_matching_idempotent_start(existing, payload)
+                return existing
+            raise
 
         now = datetime.now(UTC)
         task = BackgroundTask(
@@ -164,6 +161,13 @@ class CalculationWorkflowService:
             await self.db.commit()
         except IntegrityError as exc:
             await self.db.rollback()
+            # Another identical request may have passed the initial lookup
+            # before this transaction committed. Resolve the database race by
+            # the durable idempotency binding before reporting a project lock.
+            existing = await self._task_for_idempotency_key(dedupe_key)
+            if existing is not None:
+                self._require_matching_idempotent_start(existing, payload)
+                return existing
             active = await ProjectCalculationGuard(self.db).active_task(project_id)
             if active is not None:
                 raise ProjectCalculationBusyError(
@@ -180,6 +184,27 @@ class CalculationWorkflowService:
 
         await TaskService(self.db).enqueue_existing_task(task, queue=queue or TaskQueue())
         return task
+
+    async def _task_for_idempotency_key(self, dedupe_key: str) -> BackgroundTask | None:
+        return (
+            await self.db.execute(
+                select(BackgroundTask)
+                .where(BackgroundTask.idempotency_key == dedupe_key)
+                .order_by(BackgroundTask.created_at.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+
+    @staticmethod
+    def _require_matching_idempotent_start(
+        task: BackgroundTask,
+        payload: dict[str, Any],
+    ) -> None:
+        if task.type != TASK_PROJECT_PIPELINE or task.request_payload != payload:
+            raise CalculationWorkflowConflictError(
+                "WORKFLOW_IDEMPOTENCY_KEY_REUSED",
+                "Idempotency-Key уже связан с другим workflow",
+            )
 
     async def active_for_project(
         self,
