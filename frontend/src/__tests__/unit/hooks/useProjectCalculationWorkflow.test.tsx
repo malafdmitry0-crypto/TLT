@@ -119,4 +119,46 @@ describe('useProjectCalculationWorkflow', () => {
     await waitFor(() => expect(result.current.workflow).toBeNull());
     expect(result.current.isCalculationLocked).toBe(false);
   });
+
+  it('releases a stale detail lock when the server reports no active workflow', async () => {
+    const runningWorkflow: CalculationWorkflow = {
+      id: 'workflow-reload',
+      project_id: 'project-1',
+      status: 'running',
+      stage: 'electrical',
+      workflow_version: 1,
+      variant_ids: ['variant-1'],
+      progress: { current: 1, total: 3, percent: 33.3 },
+      queue_deadline_at: null,
+      execution_deadline_at: '2026-08-07T10:10:00Z',
+      interaction_deadline_at: null,
+      waiting_results: [],
+      result: null,
+      error_message: null,
+      cancel_requested: false,
+      created_at: '2026-08-07T10:00:00Z',
+      started_at: '2026-08-07T10:00:01Z',
+      finished_at: null,
+      status_url: '/api/v1/calculation-workflows/workflow-reload',
+      cancel_url: '/api/v1/calculation-workflows/workflow-reload/cancel',
+      resume_url: '/api/v1/calculation-workflows/workflow-reload/resume',
+      retry_url: '/api/v1/calculation-workflows/workflow-reload/retry',
+    };
+    vi.mocked(getActiveCalculationWorkflow)
+      .mockResolvedValueOnce(runningWorkflow)
+      .mockResolvedValue(null);
+    vi.mocked(getCalculationWorkflow).mockResolvedValue(runningWorkflow);
+
+    const { result } = renderHook(
+      () => useProjectCalculationWorkflow('project-1'),
+      { wrapper },
+    );
+    await waitFor(() => expect(result.current.isCalculationLocked).toBe(true));
+
+    await result.current.query.refetch();
+
+    await waitFor(() => expect(result.current.query.data).toBeNull());
+    expect(result.current.workflow).toBeNull();
+    expect(result.current.isCalculationLocked).toBe(false);
+  });
 });
