@@ -29,8 +29,9 @@ export function useProjectCalculationWorkflow(projectId?: string) {
     refetchInterval: 2_000,
   });
   useEffect(() => {
-    if (activeQuery.data?.id) setTrackedWorkflowId(activeQuery.data.id);
-  }, [activeQuery.data?.id]);
+    if (!activeQuery.isSuccess) return;
+    setTrackedWorkflowId(activeQuery.data?.id ?? null);
+  }, [activeQuery.data?.id, activeQuery.isSuccess]);
   const detailQuery = useQuery({
     queryKey: calculationWorkflowDetailQueryKey(trackedWorkflowId),
     queryFn: ({ signal }) => getCalculationWorkflow(trackedWorkflowId!, signal),
