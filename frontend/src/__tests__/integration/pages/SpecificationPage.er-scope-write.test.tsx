@@ -8,8 +8,21 @@ import { useCalculationVariantStore } from '@/store/calculationVariantStore';
 import { useProjectStore } from '@/store/projectStore';
 import type { Project } from '@/types/project';
 import type { ElectricalVariant } from '@/types/electricalVariant';
+import type { CalculationWorkflow } from '@/api/calculationWorkflows';
 
 const listElectricalVariantsMock = vi.hoisted(() => vi.fn());
+const getActiveCalculationWorkflowMock = vi.hoisted(() => vi.fn());
+const getCalculationWorkflowMock = vi.hoisted(() => vi.fn());
+const startCalculationWorkflowMock = vi.hoisted(() => vi.fn());
+const resumeCalculationWorkflowMock = vi.hoisted(() => vi.fn());
+
+vi.mock('@/api/calculationWorkflows', () => ({
+  cancelCalculationWorkflow: vi.fn(),
+  getActiveCalculationWorkflow: getActiveCalculationWorkflowMock,
+  getCalculationWorkflow: getCalculationWorkflowMock,
+  startCalculationWorkflow: startCalculationWorkflowMock,
+  resumeCalculationWorkflow: resumeCalculationWorkflowMock,
+}));
 
 vi.mock('@/api/electricalVariants', () => ({
   electricalVariantQueryKeys: {
@@ -139,6 +152,36 @@ const fifthVariant: ElectricalVariant = {
   legacy_variant_number: null,
 };
 
+function makeWorkflow(
+  status: CalculationWorkflow['status'],
+  overrides: Partial<CalculationWorkflow> = {},
+): CalculationWorkflow {
+  return {
+    id: 'workflow-1',
+    project_id: mockProject.id,
+    status,
+    stage: status === 'waiting_input' ? 'waiting_input' : 'specification',
+    workflow_version: 1,
+    variant_ids: [firstVariant.id],
+    progress: { current: 1, total: 3, percent: 33.3 },
+    queue_deadline_at: null,
+    execution_deadline_at: null,
+    interaction_deadline_at: status === 'waiting_input' ? '2026-08-07T10:05:00Z' : null,
+    waiting_results: [],
+    result: null,
+    error_message: null,
+    cancel_requested: false,
+    created_at: '2026-08-07T10:00:00Z',
+    started_at: '2026-08-07T10:00:01Z',
+    finished_at: null,
+    status_url: '/api/v1/calculation-workflows/workflow-1',
+    cancel_url: '/api/v1/calculation-workflows/workflow-1/cancel',
+    resume_url: '/api/v1/calculation-workflows/workflow-1/resume',
+    retry_url: '/api/v1/calculation-workflows/workflow-1/retry',
+    ...overrides,
+  };
+}
+
 function renderPage(initialEntry = '/workspace/specification') {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -154,6 +197,8 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     listElectricalVariantsMock.mockResolvedValue([firstVariant, fifthVariant]);
+    getActiveCalculationWorkflowMock.mockResolvedValue(null);
+    getCalculationWorkflowMock.mockResolvedValue(makeWorkflow('running'));
     useProjectStore.getState().setCurrentProject(null);
     useAuthStore.setState({
       role: 'guest',
@@ -275,22 +320,14 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
   });
   it('фиксирует UUID ЭР на время генерации и блокирует смену scope', async () => {
     const user = (await import('@testing-library/user-event')).default.setup();
-    const { generateSpecification, getSpecification } = await import('@/api/specifications');
-    let resolveGeneration!: (value: {
-      project_id: string;
-      settings_version: number;
-      results: [];
-    }) => void;
-    const pendingGeneration = new Promise<{
-      project_id: string;
-      settings_version: number;
-      results: [];
-    }>((resolve) => {
+    const { getSpecification } = await import('@/api/specifications');
+    let resolveGeneration!: (value: CalculationWorkflow) => void;
+    const pendingGeneration = new Promise<CalculationWorkflow>((resolve) => {
       resolveGeneration = resolve;
     });
     listElectricalVariantsMock.mockResolvedValue([firstVariant, secondVariant]);
     (getSpecification as ReturnType<typeof vi.fn>).mockResolvedValue(null);
-    (generateSpecification as ReturnType<typeof vi.fn>).mockReturnValue(pendingGeneration);
+    startCalculationWorkflowMock.mockReturnValue(pendingGeneration);
     useProjectStore.getState().setCurrentProject(mockProject);
     renderPage();
 
@@ -298,7 +335,7 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Настройки формирования спецификации' });
     await user.click(within(dialog).getByRole('checkbox', { name: 'ЭР2' }));
     await user.click(within(dialog).getByRole('button', { name: 'Сформировать' }));
-    expect(generateSpecification).toHaveBeenCalledWith(
+    expect(startCalculationWorkflowMock).toHaveBeenCalledWith(
       mockProject.id,
       {
         variant_ids: [firstVariant.id, secondVariant.id],
@@ -311,8 +348,6 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
           L_K2i_m: '0',
           R_gr: '1',
         },
-        exclude_unassigned_confirmed: false,
-        catalog_selections: {},
       },
     );
     // ER tabs are disabled while generation is in flight
@@ -321,58 +356,47 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
     expect(er1Tab).toHaveAttribute('aria-disabled', 'true');
     expect(er2Tab).toHaveAttribute('aria-disabled', 'true');
 
-    resolveGeneration({
-      project_id: mockProject.id,
-      settings_version: 1,
-      results: [],
-    });
+    resolveGeneration(makeWorkflow('succeeded', {
+      variant_ids: [firstVariant.id, secondVariant.id],
+      progress: { current: 4, total: 4, percent: 100 },
+      result: { project_id: mockProject.id, settings_version: 1, results: [] },
+    }));
     await waitFor(() => {
       expect(er1Tab).not.toHaveAttribute('aria-disabled', 'true');
     });
   });
   it('unlocks generation after a typed backend failure so the user can retry', async () => {
     const user = (await import('@testing-library/user-event')).default.setup();
-    const { generateSpecification, getSpecification } = await import('@/api/specifications');
+    const { getSpecification } = await import('@/api/specifications');
     (getSpecification as ReturnType<typeof vi.fn>).mockResolvedValue(null);
-    (generateSpecification as ReturnType<typeof vi.fn>).mockRejectedValue({
-      detail: {
-        code: 'SPEC_CATALOG_UNAVAILABLE',
-        message: 'Активный утверждённый каталог недоступен',
-        issues: [],
-        details: {},
-      },
-    });
+    startCalculationWorkflowMock.mockRejectedValue(
+      new Error('Активный утверждённый каталог недоступен'),
+    );
     useProjectStore.getState().setCurrentProject(mockProject);
     renderPage();
 
+    await screen.findByText(/Спецификация не сформирована/i);
     await user.click(await screen.findByRole('button', { name: 'Сформировать' }));
     const settings = await screen.findByRole('dialog', { name: 'Настройки формирования спецификации' });
     const generate = within(settings).getByRole('button', { name: 'Сформировать' });
     await user.click(generate);
 
     await waitFor(() => expect(generate).not.toBeDisabled());
-    expect(generateSpecification).toHaveBeenCalledTimes(1);
+    expect(startCalculationWorkflowMock).toHaveBeenCalledTimes(1);
   });
   it('keeps multi-ER catalog choices opaque and asks for unassigned confirmation separately', async () => {
     const user = (await import('@testing-library/user-event')).default.setup();
-    const {
-      generateSpecification,
-      getSpecification,
-      getCatalogSelections,
-      putCatalogSelections,
-    } = await import('@/api/specifications');
+    const { getSpecification } = await import('@/api/specifications');
     listElectricalVariantsMock.mockResolvedValue([firstVariant, secondVariant]);
     (getSpecification as ReturnType<typeof vi.fn>).mockResolvedValue(null);
     const fp = `sha256:${'a'.repeat(64)}`;
-    (generateSpecification as ReturnType<typeof vi.fn>)
-      .mockResolvedValueOnce({
-        project_id: mockProject.id,
-        settings_version: 1,
-        results: [
+    const waitingResults = [
           {
             electrical_variant_id: firstVariant.id,
             status: 'selection_required',
-            items: [],
+            total_objects: 1,
+            contributing_objects: 1,
+            unassigned_object_ids: [],
             excluded_unassigned_object_ids: [],
             diagnostics: [],
             candidate_groups: [{
@@ -396,12 +420,14 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
               ],
               selected_catalog_item_id: null,
             }],
-            snapshot: null,
+            catalog_selections: {},
           },
           {
             electrical_variant_id: secondVariant.id,
             status: 'confirmation_required',
-            items: [],
+            total_objects: 1,
+            contributing_objects: 0,
+            unassigned_object_ids: ['object-er2'],
             excluded_unassigned_object_ids: ['object-er2'],
             diagnostics: [{
               code: 'SPEC_UNASSIGNED_CONFIRMATION_REQUIRED',
@@ -431,42 +457,29 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
               ],
               selected_catalog_item_id: null,
             }],
-            snapshot: null,
+            catalog_selections: {},
           },
-        ],
-      })
-      .mockResolvedValueOnce({
-        project_id: mockProject.id,
-        settings_version: 1,
-        results: [{
-          electrical_variant_id: secondVariant.id,
-          status: 'confirmation_required',
-          items: [],
-          excluded_unassigned_object_ids: ['object-er2'],
-          diagnostics: [{
-            code: 'SPEC_UNASSIGNED_CONFIRMATION_REQUIRED',
-            kind: 'confirmable',
-            message: 'ЭР2 содержит неназначенный объект',
-            issues: [],
-            details: {},
-          }],
-          candidate_groups: [],
-          snapshot: null,
-        }],
-      })
-      .mockResolvedValueOnce({
-        project_id: mockProject.id,
-        settings_version: 1,
-        results: [{
-          electrical_variant_id: secondVariant.id,
-          status: 'generated',
-          items: [],
-          excluded_unassigned_object_ids: ['object-er2'],
-          diagnostics: [],
-          candidate_groups: [],
-          snapshot: {},
-        }],
-      });
+        ];
+    startCalculationWorkflowMock.mockResolvedValue(makeWorkflow('waiting_input', {
+      variant_ids: [firstVariant.id, secondVariant.id],
+      waiting_results: waitingResults as CalculationWorkflow['waiting_results'],
+    }));
+    getCalculationWorkflowMock.mockResolvedValue(makeWorkflow('waiting_input', {
+      variant_ids: [firstVariant.id, secondVariant.id],
+      waiting_results: waitingResults as CalculationWorkflow['waiting_results'],
+    }));
+    resumeCalculationWorkflowMock
+      .mockResolvedValueOnce(makeWorkflow('waiting_input', {
+        workflow_version: 2,
+        variant_ids: [firstVariant.id, secondVariant.id],
+        waiting_results: [waitingResults[1]] as CalculationWorkflow['waiting_results'],
+      }))
+      .mockResolvedValueOnce(makeWorkflow('succeeded', {
+        workflow_version: 3,
+        variant_ids: [firstVariant.id, secondVariant.id],
+        progress: { current: 4, total: 4, percent: 100 },
+        result: { project_id: mockProject.id, settings_version: 1, results: [] },
+      }));
     useProjectStore.getState().setCurrentProject(mockProject);
     renderPage();
 
@@ -494,52 +507,27 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
     await user.click(screen.getByRole('button', { name: /Применить выбор и сформировать/i }));
 
     await waitFor(() => {
-      expect(putCatalogSelections).toHaveBeenCalled();
+      expect(resumeCalculationWorkflowMock).toHaveBeenNthCalledWith(
+        1,
+        'workflow-1',
+        expect.objectContaining({
+          expected_workflow_version: 1,
+          catalog_selections: {
+            'opaque:er-1:connection': 'item-er1-b',
+            'opaque:er-2:repair': 'item-er2-a',
+          },
+        }),
+      );
     });
-    // One PUT per ER with multi-candidate choice; generate does not re-send client store.
-    expect(putCatalogSelections).toHaveBeenCalledWith(
-      mockProject.id,
-      firstVariant.id,
-      expect.objectContaining({
-        selections: [
-          expect.objectContaining({
-            candidate_group_key: 'opaque:er-1:connection',
-            catalog_item_id: 'item-er1-b',
-          }),
-        ],
-      }),
-    );
-    expect(putCatalogSelections).toHaveBeenCalledWith(
-      mockProject.id,
-      secondVariant.id,
-      expect.objectContaining({
-        selections: [
-          expect.objectContaining({
-            candidate_group_key: 'opaque:er-2:repair',
-            catalog_item_id: 'item-er2-a',
-          }),
-        ],
-      }),
-    );
-    expect(generateSpecification).toHaveBeenNthCalledWith(
-      2,
-      mockProject.id,
-      expect.objectContaining({
-        variant_ids: [firstVariant.id, secondVariant.id],
-        exclude_unassigned_confirmed: false,
-        catalog_selections: {},
-      }),
-    );
-    expect(getCatalogSelections).toHaveBeenCalled();
-    expect(generateSpecification).toHaveBeenCalledTimes(2);
+    expect(startCalculationWorkflowMock).toHaveBeenCalledTimes(1);
 
     await screen.findByText('Подтверждение исключения неназначенных объектов');
     await user.click(screen.getByRole('button', { name: 'Подтвердить и сформировать' }));
-    expect(generateSpecification).toHaveBeenNthCalledWith(
-      3,
-      mockProject.id,
+    expect(resumeCalculationWorkflowMock).toHaveBeenNthCalledWith(
+      2,
+      'workflow-1',
       expect.objectContaining({
-        variant_ids: [firstVariant.id, secondVariant.id],
+        expected_workflow_version: 2,
         exclude_unassigned_confirmed: true,
         catalog_selections: {},
       }),
@@ -601,11 +589,7 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
 
   it('hydrates selection_required after F5 and permits an ER tab round trip before choice', async () => {
     const user = (await import('@testing-library/user-event')).default.setup();
-    const {
-      getSpecification,
-      putCatalogSelections,
-      generateSpecification,
-    } = await import('@/api/specifications');
+    const { getSpecification } = await import('@/api/specifications');
     const fp = `sha256:${'b'.repeat(64)}`;
     const selectionRequiredSpec = {
       id: 'spec-outcome-1',
@@ -663,19 +647,25 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
         electricalVariantId === firstVariant.id ? selectionRequiredSpec : null
       ),
     );
-    (generateSpecification as ReturnType<typeof vi.fn>).mockResolvedValue({
-      project_id: mockProject.id,
-      settings_version: 1,
-      results: [{
+    const waitingWorkflow = makeWorkflow('waiting_input', {
+      waiting_results: [{
         electrical_variant_id: firstVariant.id,
-        status: 'generated',
-        items: [],
+        status: 'selection_required',
+        total_objects: 1,
+        contributing_objects: 1,
+        unassigned_object_ids: [],
         excluded_unassigned_object_ids: [],
-        diagnostics: [],
-        candidate_groups: [],
-        snapshot: {},
+        diagnostics: selectionRequiredSpec.generation_diagnostics as CalculationWorkflow['waiting_results'][number]['diagnostics'],
+        candidate_groups: selectionRequiredSpec.generation_candidate_groups as CalculationWorkflow['waiting_results'][number]['candidate_groups'],
+        catalog_selections: {},
       }],
     });
+    getActiveCalculationWorkflowMock.mockResolvedValue(waitingWorkflow);
+    getCalculationWorkflowMock.mockResolvedValue(waitingWorkflow);
+    resumeCalculationWorkflowMock.mockResolvedValue(makeWorkflow('succeeded', {
+      workflow_version: 2,
+      result: { project_id: mockProject.id, settings_version: 1, results: [] },
+    }));
     useProjectStore.getState().setCurrentProject(mockProject);
     useCalculationVariantStore.getState().setSelectedVariantId(
       mockProject.id,
@@ -684,9 +674,9 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
 
     renderPage();
 
-    // Panel appears from GET hydrate — generate was never called.
+    // Panel is restored from the durable workflow after F5 — no new start is issued.
     expect(await screen.findByRole('button', { name: /Комплект F5 B/i })).toBeInTheDocument();
-    expect(generateSpecification).not.toHaveBeenCalled();
+    expect(startCalculationWorkflowMock).not.toHaveBeenCalled();
 
     const er1Tab = screen.getByRole('tab', { name: /Спецификация ЭР1/i });
     const er2Tab = screen.getByRole('tab', { name: /Спецификация ЭР2/i });
@@ -704,25 +694,13 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
     await user.click(screen.getByRole('button', { name: /Применить выбор и сформировать/i }));
 
     await waitFor(() => {
-      expect(putCatalogSelections).toHaveBeenCalledWith(
-        mockProject.id,
-        firstVariant.id,
+      expect(resumeCalculationWorkflowMock).toHaveBeenCalledWith(
+        'workflow-1',
         expect.objectContaining({
-          selections: [
-            expect.objectContaining({
-              candidate_group_key: 'opaque:er-1:connection',
-              catalog_item_id: 'item-b',
-            }),
-          ],
+          expected_workflow_version: 1,
+          catalog_selections: { 'opaque:er-1:connection': 'item-b' },
         }),
       );
     });
-    expect(generateSpecification).toHaveBeenCalledWith(
-      mockProject.id,
-      expect.objectContaining({
-        variant_ids: [firstVariant.id],
-        catalog_selections: {},
-      }),
-    );
   });
 });

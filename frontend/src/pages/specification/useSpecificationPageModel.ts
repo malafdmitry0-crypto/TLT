@@ -8,11 +8,14 @@ import { useEffect, useMemo, useRef } from 'react';
 import { appMessage as message } from '@/feedback/appFeedback';
 import { useMutation } from '@tanstack/react-query';
 import {
-  generateSpecification,
   getSpecificationErrorDetail,
   updateSpecificationSettings,
 } from '@/api/specifications';
 import type { SpecificationOptions } from '@/api/specifications';
+import {
+  resumeCalculationWorkflow,
+  startCalculationWorkflow,
+} from '@/api/calculationWorkflows';
 import { formatSpecTimestamp } from '@/pages/specification/specFormatModel';
 import { useSpecParamsPanelState } from '@/pages/specification/useSpecParamsPanelState';
 import { useSpecPageFormState } from '@/pages/specification/useSpecPageFormState';
@@ -28,11 +31,15 @@ import {
   type SpecificationMutationScope,
 } from '@/pages/specification/specificationPageModelHelpers';
 import { buildSpecGenerationHydrate } from '@/pages/specification/specGenerationHydrateModel';
-import { persistSpecificationCatalogSelections } from '@/pages/specification/specificationCatalogSelectionPersistence';
 import { formatPreflightSummary } from '@/domain/specification/specTableSectionModel';
 import { deduplicateSpecificationDiagnostics } from '@/pages/specification/specificationReadinessModel';
 import { useSpecificationReadiness } from '@/pages/specification/useSpecificationReadiness';
 import { useSpecSettingsFormHydration } from '@/pages/specification/useSpecSettingsFormHydration';
+import {
+  calculationWorkflowDetailQueryKey,
+  projectCalculationWorkflowQueryKey,
+  useProjectCalculationWorkflow,
+} from '@/hooks/useProjectCalculationWorkflow';
 
 type GenerateSpecificationVariables = SpecificationMutationScope & {
   options: SpecificationOptions;
@@ -48,7 +55,7 @@ export function useSpecificationPageModel() {
     userId,
     sessionId,
     isEmployee,
-    canMutateProject,
+    canMutateProject: projectCanMutate,
     canManuallyEdit,
     navigate,
     qc,
@@ -66,13 +73,13 @@ export function useSpecificationPageModel() {
     projectSettings,
     accessories,
   } = useSpecificationQuerySession();
-
+  const projectWorkflow = useProjectCalculationWorkflow(project?.id);
+  const canMutateProject = projectCanMutate && !projectWorkflow.isCalculationLocked;
+  const canRespondToWorkflow = projectCanMutate
+    && projectWorkflow.workflow?.status === 'waiting_input';
   const form = useSpecPageFormState();
-  /** Единое modal-окно настроек формирования. */
   const { settingsOpen, toggleSettings } = useSpecParamsPanelState();
-
   useSpecSettingsFormHydration(spec, projectSettings, form);
-
   const availableGenerateVariants = useMemo(
     () => variantContext.variants ?? [],
     [variantContext.variants],
@@ -90,100 +97,145 @@ export function useSpecificationPageModel() {
   const snapshotMutationScope = (): SpecificationMutationScope => (
     buildSpecificationMutationScope(project, selectedElectricalVariant)
   );
-  const mut = useMutation({
-    mutationFn: ({
-      projectId,
-      options,
-      generateVariantIds,
-      excludeUnassignedConfirmed,
-      catalogSelections,
-    }: GenerateSpecificationVariables) => {
+  const workflowVariablesRef = useRef<GenerateSpecificationVariables | null>(null);
+  const handledWorkflowStateRef = useRef<string | null>(null);
+  const startWorkflowMut = useMutation({
+    mutationFn: (variables: GenerateSpecificationVariables) => {
+      const {
+        projectId,
+        options,
+        generateVariantIds,
+        excludeUnassignedConfirmed,
+        catalogSelections,
+      } = variables;
       if (!canMutateProject) {
         throw new Error('Недостаточно прав для изменения спецификации');
       }
-      return generateSpecification(
-        projectId,
-        {
-          variant_ids: generateVariantIds,
-          options,
-          exclude_unassigned_confirmed: excludeUnassignedConfirmed,
-          catalog_selections: catalogSelections,
-        },
-      );
+      if (excludeUnassignedConfirmed || Object.keys(catalogSelections).length > 0) {
+        throw new Error('Ответ выбора допустим только для ожидающего workflow');
+      }
+      workflowVariablesRef.current = variables;
+      return startCalculationWorkflow(projectId, {
+        variant_ids: generateVariantIds,
+        options,
+      });
     },
-    onSuccess: (result, variables) => {
-      const generated = result.results.filter((item) => item.status === 'generated');
-      const unresolved = result.results.filter((item) => item.status !== 'generated');
-      const diagnostics = deduplicateSpecificationDiagnostics(
-        unresolved.flatMap((item) => item.diagnostics),
+    onSuccess: (workflow, variables) => {
+      qc.setQueryData(
+        projectCalculationWorkflowQueryKey(variables.projectId),
+        workflow,
       );
-      const groups = unresolved.flatMap((item) => item.candidate_groups ?? []);
-      form.setGenerationDiagnostics(diagnostics);
-      form.setCandidateGroups(groups);
-      form.setPreflightSummary(formatPreflightSummary(diagnostics));
-      const confirmationRequired = unresolved.some(
-        (item) => item.status === 'confirmation_required',
-      );
-      const selectionRequired = unresolved.some(
-        (item) => item.status === 'selection_required',
-      );
-      const blocked = unresolved.some((item) => item.status === 'blocked');
-      form.setPreflightOpen(confirmationRequired && !selectionRequired);
-      if (!confirmationRequired && !selectionRequired) form.setPendingGenerate(null);
-      if (selectionRequired) {
-        // Keep draft empty — never preselect first candidate.
-        // Keep settings open so diagnostics remain visible (SPEC-P0-a WP4).
-        form.setDraftCatalogSelections({});
-        message.warning('Требуется выбор комплектующих из каталога');
-      } else if (confirmationRequired) {
-        // Keep settings open while preflight modal is shown.
-      } else if (blocked) {
-        const firstBlocking = diagnostics.find((item) => item.kind === 'blocking');
-        message.warning(
-          firstBlocking
-            ? (firstBlocking.message || firstBlocking.code)
-            : 'Формирование заблокировано',
-        );
-      } else if (unresolved.length === 0 && generated.length > 0) {
-        form.setCandidateGroups([]);
-        form.setDraftCatalogSelections({});
-        form.setCatalogSelections({});
-        toggleSettings(false);
-      }
-      const generatedCount = generated.length;
-      const toast = buildSpecificationGeneratedToast({
-        hasUnresolved: unresolved.length > 0,
-        generatedCount,
-        electricalVariantName: variables.electricalVariantName,
-      });
-      if (!selectionRequired && !blocked) {
-        if (unresolved.length > 0) message.warning(toast);
-        else message.success(toast);
-      }
-      // Invalidate every attempted ER so GET carries last generation_status (F5 / ER switch).
-      for (const id of result.results.map((item) => item.electrical_variant_id)) {
-        qc.invalidateQueries({
-          queryKey: ['spec', variables.projectId, id],
-          exact: false,
-        });
-      }
-      qc.invalidateQueries({
-        queryKey: ['spec-readiness', variables.projectId],
-        exact: false,
-      });
+      qc.setQueryData(calculationWorkflowDetailQueryKey(workflow.id), workflow);
+      message.info('Полный расчёт поставлен в очередь');
     },
     onError: (error) => {
       form.setPendingGenerate(null);
       form.setPreflightOpen(false);
       form.setCandidateGroups([]);
       form.setDraftCatalogSelections({});
-      const detail = getSpecificationErrorDetail(error);
-      message.error(detail ? `${detail.code}: ${detail.message}` : 'Не удалось сформировать спецификацию');
+      message.error(error instanceof Error ? error.message : 'Не удалось запустить полный расчёт');
     },
   });
+  const resumeWorkflowMut = useMutation({
+    mutationFn: ({
+      excludeUnassignedConfirmed,
+      catalogSelections,
+    }: {
+      excludeUnassignedConfirmed: boolean;
+      catalogSelections: Record<string, string>;
+    }) => {
+      const workflow = projectWorkflow.workflow;
+      if (!workflow || workflow.status !== 'waiting_input') {
+        throw new Error('Workflow больше не ожидает ответ; обновите состояние');
+      }
+      return resumeCalculationWorkflow(workflow.id, {
+        expected_workflow_version: workflow.workflow_version,
+        exclude_unassigned_confirmed: excludeUnassignedConfirmed,
+        catalog_selections: catalogSelections,
+      });
+    },
+    onSuccess: (workflow) => {
+      qc.setQueryData(projectCalculationWorkflowQueryKey(project?.id), workflow);
+      qc.setQueryData(calculationWorkflowDetailQueryKey(workflow.id), workflow);
+      form.setPreflightOpen(false);
+      form.setDraftCatalogSelections({});
+      message.info('Ответ принят, расчёт продолжен');
+    },
+    onError: (error) => {
+      message.error(error instanceof Error ? error.message : 'Не удалось продолжить workflow');
+    },
+  });
+  const workflowOperationPending = startWorkflowMut.isPending
+    || resumeWorkflowMut.isPending
+    || ['queued', 'enqueued', 'running'].includes(projectWorkflow.workflow?.status ?? '');
+  const mut = {
+    isPending: workflowOperationPending,
+    isError: startWorkflowMut.isError
+      || resumeWorkflowMut.isError
+      || projectWorkflow.workflow?.status === 'failed'
+      || projectWorkflow.workflow?.status === 'timed_out',
+  };
 
-  // SPEC-REM-05: restore last generation status/candidates from GET after F5 / ER switch.
-  // Deps are outcome identity only — do not re-clear drafts when the user edits form options.
+  useEffect(() => {
+    const workflow = projectWorkflow.workflow;
+    if (!workflow) return;
+    const stateKey = `${workflow.id}:${workflow.status}:${workflow.workflow_version}`;
+    if (handledWorkflowStateRef.current === stateKey) return;
+    handledWorkflowStateRef.current = stateKey;
+
+    if (workflow.status === 'waiting_input') {
+      const diagnostics = deduplicateSpecificationDiagnostics(
+        workflow.waiting_results.flatMap((item) => item.diagnostics),
+      );
+      const groups = workflow.waiting_results.flatMap((item) => item.candidate_groups ?? []);
+      form.setGenerationDiagnostics(diagnostics);
+      form.setCandidateGroups(groups);
+      form.setPreflightSummary(formatPreflightSummary(diagnostics));
+      form.setPendingGenerate({
+        generateVariantIds: workflow.variant_ids,
+        options: workflowVariablesRef.current?.options ?? buildGenerateOptions(),
+      });
+      const selectionRequired = workflow.waiting_results.some(
+        (item) => item.status === 'selection_required',
+      );
+      form.setPreflightOpen(!selectionRequired);
+      if (selectionRequired) {
+        form.setDraftCatalogSelections({});
+        message.warning('Требуется выбор комплектующих из каталога');
+      }
+      return;
+    }
+    if (workflow.status === 'succeeded') {
+      form.setPendingGenerate(null);
+      form.setCandidateGroups([]);
+      form.setDraftCatalogSelections({});
+      form.setCatalogSelections({});
+      toggleSettings(false);
+      for (const id of workflow.variant_ids) {
+        qc.invalidateQueries({ queryKey: ['spec', workflow.project_id, id], exact: false });
+      }
+      qc.invalidateQueries({
+        queryKey: ['spec-readiness', workflow.project_id],
+        exact: false,
+      });
+      const generatedCount = workflow.result?.results.filter(
+        (item) => item.status === 'generated',
+      ).length ?? 0;
+      message.success(buildSpecificationGeneratedToast({
+        hasUnresolved: false,
+        generatedCount,
+        electricalVariantName: workflowVariablesRef.current?.electricalVariantName ?? '',
+      }));
+      return;
+    }
+    if (workflow.status === 'failed' || workflow.status === 'timed_out') {
+      form.setPendingGenerate(null);
+      message.error(workflow.error_message || 'Полный расчёт не завершён');
+    }
+    // form setters and query client are stable; stateKey is the transition identity.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectWorkflow.workflow]);
+
   const hydratedErRef = useRef<string | null>(null);
   useEffect(() => {
     if (mut.isPending) return;
@@ -278,7 +330,7 @@ export function useSpecificationPageModel() {
     if (!excludeUnassignedConfirmed) {
       form.setPendingGenerate({ generateVariantIds, options });
     }
-    mut.mutate({
+    startWorkflowMut.mutate({
       ...scope,
       generateVariantIds,
       options,
@@ -288,16 +340,7 @@ export function useSpecificationPageModel() {
   };
 
   const confirmPartialGenerate = () => {
-    if (!form.pendingGenerate) {
-      runGenerate(true);
-      return;
-    }
-    const scope = snapshotMutationScope();
-    // Selections already on server after PUT; do not re-send from client cache.
-    mut.mutate({
-      ...scope,
-      generateVariantIds: form.pendingGenerate.generateVariantIds,
-      options: form.pendingGenerate.options,
+    resumeWorkflowMut.mutate({
       excludeUnassignedConfirmed: true,
       catalogSelections: {},
     });
@@ -318,57 +361,18 @@ export function useSpecificationPageModel() {
     form.setDraftCatalogSelections((prev) => ({ ...prev, [groupKey]: catalogItemId }));
   };
 
-  /**
-   * Persist multi-candidate choices on the server (PUT), then generate without
-   * relying on long-lived client selection state. Backend merges stored choices.
-   */
   const confirmCatalogSelections = async () => {
     if (mut.isPending || !project) return;
-    const scope = snapshotMutationScope();
-    // After F5, pendingGenerate is restored from GET hydrate; otherwise from last generate.
-    const generateVariantIds = form.pendingGenerate?.generateVariantIds
-      ?? (selectedElectricalVariant?.id ? [selectedElectricalVariant.id] : []);
-    const options = form.pendingGenerate?.options ?? buildGenerateOptions();
-    if (generateVariantIds.length === 0) return;
-
-    try {
-      const persistence = await persistSpecificationCatalogSelections({
-        projectId: project.id,
-        groups: form.candidateGroups,
-        draftSelections: form.draftCatalogSelections,
-      });
-      if (persistence === 'invalid_fingerprint') {
-        message.error(
-          'SPEC_REQUEST_INVALID: backend не вернул candidate_set_fingerprint для группы',
-        );
-        return;
-      }
-      if (persistence === 'no_selection') {
-        message.warning('Выберите позицию для каждой группы с несколькими кандидатами');
-        return;
-      }
-    } catch (error) {
-      const detail = getSpecificationErrorDetail(error);
-      message.error(
-        detail
-          ? `${detail.code}: ${detail.message}`
-          : 'Не удалось сохранить выбор комплектующих на сервере',
-      );
+    const requiredGroups = form.candidateGroups.filter(
+      (group) => group.candidates.length > 1 && !group.selected_catalog_item_id,
+    );
+    if (requiredGroups.some((group) => !form.draftCatalogSelections[group.group_key])) {
+      message.warning('Выберите позицию для каждой группы с несколькими кандидатами');
       return;
     }
-
-    // Client cache is not the long-term store; generate relies on server merge.
-    form.setCatalogSelections({});
-    form.setDraftCatalogSelections({});
-    if (!form.pendingGenerate) {
-      form.setPendingGenerate({ generateVariantIds, options });
-    }
-    mut.mutate({
-      ...scope,
-      generateVariantIds,
-      options,
+    resumeWorkflowMut.mutate({
       excludeUnassignedConfirmed: false,
-      catalogSelections: {},
+      catalogSelections: form.draftCatalogSelections,
     });
   };
 
@@ -388,7 +392,6 @@ export function useSpecificationPageModel() {
   });
   const formedAt = formatSpecTimestamp(spec?.updated_at ?? spec?.created_at);
   const generateButtonLabel = hasItems ? 'Обновить' : 'Сформировать';
-  // selection_required is resumable per ER; lock scope only during actual writes.
   const scopeSwitchDisabled = mut.isPending || saveMut.isPending;
 
   const erTabItems = variantContext.variants.map((item) => ({
@@ -412,6 +415,7 @@ export function useSpecificationPageModel() {
     sessionId,
     isEmployee,
     canMutateProject,
+    canRespondToWorkflow,
     canManuallyEdit,
     navigate,
     qc,

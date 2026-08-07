@@ -203,6 +203,31 @@ const RULES = [
     notes: 'Browser optional unless UI layout changed.',
   },
   {
+    id: 'calculation-workflow',
+    test: (p) =>
+      p.startsWith(`components/workflow${sep}`)
+      || p === 'hooks/useProjectCalculationWorkflow.ts'
+      || p === 'api/calculationWorkflows.ts',
+    owner: 'shared',
+    zone: 'project-calculation-workflow',
+    publicEntrypoint: 'workflow banner + project calculation hook',
+    stateOwner: 'server-authoritative background task via react-query',
+    focusedProof: [
+      { cwd: 'frontend', argv: ['npx', 'vitest', 'run', '--project', 'unit', 'src/__tests__/unit/hooks/useProjectCalculationWorkflow.test.tsx', 'src/__tests__/unit/components/workflow'] },
+      { cwd: 'frontend', argv: ['npm', 'run', 'typecheck'] },
+      { cwd: 'frontend', argv: ['npm', 'run', 'test:agent-gates'] },
+    ],
+    focusedTests: [
+      'npx vitest run --project unit src/__tests__/unit/hooks/useProjectCalculationWorkflow.test.tsx src/__tests__/unit/components/workflow',
+      'npm run typecheck',
+      'npm run test:agent-gates',
+    ],
+    architectureGates: ['featureBoundaries', 'test:agent-gates'],
+    browserRequired: true,
+    browserProfiles: BROWSER_PROFILES,
+    notes: 'Cross-cutting project lock; backend remains authoritative.',
+  },
+  {
     id: 'auth-shell',
     test: (p) =>
       p.startsWith(`pages/Login`)
@@ -465,6 +490,7 @@ const RULES = [
     test: (p) =>
       p === 'package.json'
       || p === 'package-lock.json'
+      || p === 'nginx.conf'
       || p === 'eslint.config.js'
       || p === 'vite.config.ts'
       || p.startsWith('tsconfig')
@@ -492,6 +518,7 @@ const DEFAULT_PROOF_LEVEL_BY_RULE_ID = new Map([
   ['specification', 'owner'],
   ['reports', 'owner'],
   ['admin', 'owner'],
+  ['calculation-workflow', 'owner'],
   ['auth-shell', 'owner'],
   ['projects', 'owner'],
   ['common-shared-components', 'owner'],

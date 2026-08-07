@@ -127,6 +127,8 @@ class SpecificationGenerationService:
         project_id: UUID,
         principal: CurrentPrincipal,
         request: SpecificationGenerationRequest,
+        *,
+        commit: bool = True,
     ) -> SpecificationGenerationResponse:
         preflight = await SpecificationPreflightService(self.db).preflight_variants(
             project_id, principal, request
@@ -195,7 +197,10 @@ class SpecificationGenerationService:
                 results.append(outcome)
 
         if recorded_any:
-            await self.db.commit()
+            if commit:
+                await self.db.commit()
+            else:
+                await self.db.flush()
 
         return SpecificationGenerationResponse(
             project_id=project_id,

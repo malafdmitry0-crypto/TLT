@@ -1354,6 +1354,8 @@ class CalculationService:
         progress_callback: ProgressCallback | None = None,
         should_cancel: CancelChecker | None = None,
         object_ids: list[UUID] | None = None,
+        *,
+        commit: bool = True,
     ) -> tuple[int, int, list[dict[str, Any]]]:
         async def emit_progress(progress: BatchProgress) -> None:
             if progress_callback is not None:
@@ -1443,8 +1445,11 @@ class CalculationService:
                 heat_loss_failed=failed,
             )
         )
-        await use_fast_commit_for_current_transaction(self.db)
-        await self.db.commit()
+        if commit:
+            await use_fast_commit_for_current_transaction(self.db)
+            await self.db.commit()
+        else:
+            await self.db.flush()
         await emit_progress(
             BatchProgress(
                 current=processed,
@@ -4560,6 +4565,8 @@ class CalculationService:
         object_overrides: list[dict[str, Any]] | None = None,
         force_cable_type: bool = False,
         electrical_variant_id: UUID | None = None,
+        *,
+        commit: bool = True,
     ) -> tuple[int, int, int, list[dict[str, Any]], list[ElectricalCalculation]]:
         """Автоподбор кабеля для всех валидных объектов проекта (cable_mark=None)."""
 
@@ -4804,8 +4811,11 @@ class CalculationService:
                 heat_loss_failed=heat_loss_failed,
             )
         )
-        await use_fast_commit_for_current_transaction(self.db)
-        await self.db.commit()
+        if commit:
+            await use_fast_commit_for_current_transaction(self.db)
+            await self.db.commit()
+        else:
+            await self.db.flush()
         await emit_progress(
             BatchProgress(
                 current=total_valid,

@@ -23,6 +23,7 @@ from app.services.task_service import (
     MAX_TASK_ERROR_MESSAGE_LENGTH,
     TASK_ELECTRICAL_BATCH,
     TASK_HEAT_LOSS_BATCH,
+    TASK_PROJECT_PIPELINE,
     TASK_REPORT_EXPORT,
     ProgressThrottler,
     ProgressWritePolicy,
@@ -180,7 +181,7 @@ def mock_db():
     return db
 
 
-async def _allow_project_write(self, project_id, principal):
+async def _allow_project_write(self, project_id, principal, **_kwargs):
     return SimpleNamespace(id=project_id)
 
 
@@ -1027,7 +1028,7 @@ class TestTaskCreation:
         service = TaskService(mock_db)
         service._lock_project_for_electrical_task = AsyncMock()  # type: ignore[method-assign]
         service._find_active_by_dedupe = AsyncMock(  # type: ignore[method-assign]
-            side_effect=[None, existing]
+            side_effect=[None, None, existing]
         )
         _allow_active_task_limits(service)
         mock_db.commit.side_effect = [IntegrityError("duplicate", {}, Exception())]
@@ -1042,7 +1043,7 @@ class TestTaskCreation:
         assert task is existing
         assert TaskService.is_idempotency_replay(task) is True
         mock_db.rollback.assert_awaited_once()
-        assert service._find_active_by_dedupe.await_count == 2  # type: ignore[attr-defined]
+        assert service._find_active_by_dedupe.await_count == 3  # type: ignore[attr-defined]
 
     async def test_create_report_export_task_enqueues_and_persists_payload(
         self,
@@ -1648,7 +1649,9 @@ class TestTaskStateTransitions:
             attempts=99,
             heartbeat_at=datetime.now(UTC) - timedelta(minutes=10),
         )
-        mock_db.execute = AsyncMock(side_effect=[ResultRows([queued]), ResultRows([stale])])
+        mock_db.execute = AsyncMock(
+            side_effect=[ResultRows([queued]), ResultRows([]), ResultRows([stale])]
+        )
         service = TaskService(mock_db)
         service.enqueue_existing_task = AsyncMock()  # type: ignore[method-assign]
         service._mark_failed = AsyncMock()  # type: ignore[method-assign]
@@ -1671,7 +1674,9 @@ class TestTaskStateTransitions:
             locked_by="worker-a",
             heartbeat_at=datetime.now(UTC) - timedelta(minutes=10),
         )
-        mock_db.execute = AsyncMock(side_effect=[ResultRows([]), ResultRows([stale])])
+        mock_db.execute = AsyncMock(
+            side_effect=[ResultRows([]), ResultRows([]), ResultRows([stale])]
+        )
         service = TaskService(mock_db)
         service.enqueue_existing_task = AsyncMock()  # type: ignore[method-assign]
         queue = QueueOk()
@@ -1681,6 +1686,30 @@ class TestTaskStateTransitions:
 
         assert recovered == 0
         queue.is_worker_ready.assert_awaited_once_with("worker-a")  # type: ignore[attr-defined]
+        service.enqueue_existing_task.assert_not_awaited()
+
+    async def test_recovery_times_out_expired_pipeline_queue_budget(self, mock_db):
+        expired = BackgroundTask(
+            id=uuid.uuid4(),
+            type=TASK_PROJECT_PIPELINE,
+            status="queued",
+            session_id="sid",
+            request_payload={},
+            progress_current=0,
+            queue_deadline_at=datetime.now(UTC) - timedelta(seconds=1),
+        )
+        mock_db.execute = AsyncMock(
+            side_effect=[ResultRows([expired]), ResultRows([]), ResultRows([])]
+        )
+        service = TaskService(mock_db)
+        service.enqueue_existing_task = AsyncMock()  # type: ignore[method-assign]
+
+        recovered = await service.recover_stuck_tasks(queue=QueueOk())
+
+        assert recovered == 1
+        assert expired.status == "timed_out"
+        assert expired.workflow_stage == "timed_out"
+        assert expired.finished_at is not None
         service.enqueue_existing_task.assert_not_awaited()
 
 

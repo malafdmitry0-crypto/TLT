@@ -24,6 +24,7 @@ from app.core.security import hash_password
 from app.models.user import User
 from app.reference_data.loader import preload_all
 from app.services.auth_service import AuthService
+from app.services.project_calculation_guard import ProjectCalculationBusyError
 from app.services.task_recovery import TaskRecoveryCoordinator
 from app.services.worker_readiness import readiness_snapshot
 
@@ -322,6 +323,18 @@ class CsrfCookieMiddleware:
 
 app.add_middleware(CsrfCookieMiddleware)
 app.add_middleware(MaxBodySizeMiddleware)
+
+
+@app.exception_handler(ProjectCalculationBusyError)
+async def project_calculation_busy_handler(
+    _request: Request,
+    exc: ProjectCalculationBusyError,
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_423_LOCKED,
+        content={"detail": exc.as_detail()},
+        headers={"Retry-After": str(exc.busy.retry_after_seconds)},
+    )
 
 
 @app.exception_handler(RequestValidationError)
