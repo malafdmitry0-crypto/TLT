@@ -167,16 +167,16 @@ describe('SpecPageChrome UI kit strangler (U2)', () => {
     expect(screen.getByRole('button', { name: 'Сохранить настройки проекта' })).toBeDisabled();
   });
 
-  it('explains that a stale specification must be recalculated before manual editing', () => {
+  it('explains that a stale specification must be regenerated before manual editing', () => {
     renderChrome({ hasItems: true, isSpecStale: true });
 
     const addButton = screen.getByRole('button', { name: /Добавить из БД/ });
     expect(addButton).toBeDisabled();
     expect(addButton).toHaveAccessibleDescription(
-      'Эта спецификация устарела. Пересчитайте выбранную ЭР, чтобы добавить позиции вручную.',
+      'Эта спецификация устарела. Сформируйте её заново, чтобы добавить позиции вручную.',
     );
     expect(screen.getByText(
-      'Эта спецификация устарела. Пересчитайте выбранную ЭР, чтобы добавить позиции вручную.',
+      'Эта спецификация устарела. Сформируйте её заново, чтобы добавить позиции вручную.',
     )).toBeInTheDocument();
   });
 
@@ -199,7 +199,7 @@ describe('SpecPageChrome UI kit strangler (U2)', () => {
     const addButton = screen.getByRole('button', { name: 'Добавить из БД' });
     expect(addButton).toBeEnabled();
     expect(addButton).not.toHaveAccessibleDescription();
-    expect(screen.queryByText(/Пересчитайте выбранную ЭР/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Сформируйте её заново/)).not.toBeInTheDocument();
   });
 
   it('blocks only a definitive upstream blocker and exposes one recovery action', async () => {

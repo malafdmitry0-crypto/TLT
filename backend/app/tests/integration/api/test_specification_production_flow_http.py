@@ -13,6 +13,7 @@ from httpx import AsyncClient
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.dependencies import CurrentPrincipal
 from app.formulas.electrical.tt_contract import (
     ELECTRICAL_TT_FORMULA_FINGERPRINT,
     ELECTRICAL_TT_FORMULA_VERSION,
@@ -38,6 +39,7 @@ from app.schemas.specification_catalog import (
     SpecificationCatalogImportRequest,
     SpecificationCatalogItemInput,
 )
+from app.services.electrical_catalog_service import ElectricalCatalogService
 from app.services.specification_catalog_service import (
     SpecificationCatalogService,
     _canonical_checksum,
@@ -337,6 +339,158 @@ async def test_http_readiness_aggregates_upstream_blockers_per_er_without_genera
         await db_session.scalar(select(Specification).where(Specification.project_id == project.id))
         is None
     )
+
+
+async def test_http_real_electrical_recalculation_unlocks_specification_generation(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    admin_user: User,
+    employee_token: str,
+) -> None:
+    """A successful public ER batch must immediately satisfy specification preflight."""
+    headers = {"Authorization": f"Bearer {employee_token}"}
+    await ElectricalCatalogService(db_session).ensure_bundled_catalogs_active(
+        CurrentPrincipal(
+            role="admin",
+            user_id=admin_user.id,
+            email=admin_user.email,
+        ),
+        commit=True,
+    )
+    project_response = await client.post(
+        "/api/v1/projects",
+        json={"name": "HTTP real ER to specification"},
+        headers=headers,
+    )
+    assert project_response.status_code == 201, project_response.text
+    project = project_response.json()
+    settings_defaults_response = await client.put(
+        f"/api/v1/specifications/{project['id']}/settings",
+        headers=headers,
+        json={"settings": _options()},
+    )
+    assert settings_defaults_response.status_code == 200, settings_defaults_response.text
+
+    object_response = await client.post(
+        f"/api/v1/projects/{project['id']}/objects",
+        headers=headers,
+        json={
+            "object_type": "pipe",
+            "params": {
+                "name": "Трубопровод для спецификации",
+                "outer_diameter": 0.108,
+                "wall_thickness": 0.004,
+                "pipe_material": "carbon_steel",
+                "insulation_layers": [{"thickness": 0.05, "material": "mineral_wool_boards_120"}],
+                "insulation_temperature_basis": "outdoor_winter",
+                "ambient_temperature": -30.0,
+                "min_switch_temperature": -30.0,
+                "process_temperature": 80.0,
+                "pipe_length": 50.0,
+                "placement": "outdoor",
+                "wind_speed": 0.0,
+            },
+        },
+    )
+    assert object_response.status_code == 201, object_response.text
+    obj = object_response.json()
+    assert obj["is_valid"] is True
+
+    settings_response = await client.patch(
+        f"/api/v1/projects/{project['id']}/electrical-settings",
+        headers=headers,
+        json={"expected_version": 1, "max_section_start_current_a": "13.065"},
+    )
+    assert settings_response.status_code == 200, settings_response.text
+
+    initialize_response = await client.post(
+        f"/api/v1/projects/{project['id']}/electrical-variants/initialize",
+        headers=headers,
+    )
+    assert initialize_response.status_code == 200, initialize_response.text
+    variant = initialize_response.json()["variant"]
+    assignments_response = await client.get(
+        f"/api/v1/projects/{project['id']}/electrical-variants/" f"{variant['id']}/assignments",
+        headers=headers,
+    )
+    assert assignments_response.status_code == 200, assignments_response.text
+    assignment = next(
+        item for item in assignments_response.json()["items"] if item["object_id"] == obj["id"]
+    )
+    assign_response = await client.patch(
+        f"/api/v1/projects/{project['id']}/electrical-variants/" f"{variant['id']}/assignments",
+        headers=headers,
+        json={
+            "system_type": "self_regulating",
+            "items": [{"object_id": obj["id"], "expected_version": assignment["version"]}],
+        },
+    )
+    assert assign_response.status_code == 200, assign_response.text
+
+    await db_session.execute(
+        update(SpecificationCatalogVersion)
+        .where(SpecificationCatalogVersion.status == "active")
+        .values(status="retired")
+    )
+    await _import_http_flow_catalog(
+        db_session,
+        multi_connection=False,
+        include_connection_kits=True,
+    )
+    await db_session.commit()
+
+    batch_response = await client.post(
+        "/api/v1/calc/electrical/batch",
+        headers=headers,
+        params={
+            "project_id": project["id"],
+            "variant_number": 1,
+            "electrical_variant_id": variant["id"],
+        },
+    )
+    assert batch_response.status_code == 200, batch_response.text
+    assert batch_response.json()["calculated"] == 1, batch_response.text
+
+    readiness_response = await client.get(
+        f"/api/v1/specifications/{project['id']}/readiness",
+        headers=headers,
+        params=[("variant_ids", variant["id"])],
+    )
+    assert readiness_response.status_code == 200, readiness_response.text
+    readiness = readiness_response.json()["results"][0]
+    calculation = await db_session.scalar(
+        select(ElectricalCalculation).where(
+            ElectricalCalculation.project_id == uuid.UUID(project["id"]),
+            ElectricalCalculation.object_id == uuid.UUID(obj["id"]),
+        )
+    )
+    assert calculation is not None
+    assert calculation.results.get("mocked_fields") == [], calculation.results.get("mocked_fields")
+    assert calculation.results["provenance"].get("mocked_fields") == [], calculation.results[
+        "provenance"
+    ]
+    assert calculation.results.get("production_eligible") is True, calculation.results
+    assert (
+        calculation.results["provenance"].get("production_eligible") is True
+    ), calculation.results["provenance"]
+    assert readiness["status"] == "ready", {
+        "readiness": readiness,
+        "result": calculation.results,
+    }
+    assert readiness["blockers"] == []
+
+    generation_response = await client.post(
+        f"/api/v1/specifications/{project['id']}/generate",
+        headers=headers,
+        json={
+            "variant_ids": [variant["id"]],
+            "options": _options(),
+            "exclude_unassigned_confirmed": False,
+            "catalog_selections": {},
+        },
+    )
+    assert generation_response.status_code == 201, generation_response.text
+    assert generation_response.json()["results"][0]["status"] == "generated"
 
 
 async def test_http_many_candidates_put_generate_get_reload_without_resend(
