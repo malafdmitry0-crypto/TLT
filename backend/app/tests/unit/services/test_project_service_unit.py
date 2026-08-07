@@ -8,12 +8,23 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from app.services.project_calculation_guard import ProjectCalculationGuard
 from app.services.project_service import (
     ProjectAccessError,
     ProjectConflictError,
     ProjectNotFoundError,
     ProjectService,
 )
+
+
+@pytest.fixture(autouse=True)
+def _allow_project_calculation_guard(monkeypatch: pytest.MonkeyPatch):
+    """These CRUD units mock SQL order; lock behavior has integration coverage."""
+
+    async def allow(_self, _project_id, *, owner_task_id=None):
+        return None
+
+    monkeypatch.setattr(ProjectCalculationGuard, "lock_and_check", allow)
 
 
 def _principal(role="guest", session_id=None, user_id=None):
