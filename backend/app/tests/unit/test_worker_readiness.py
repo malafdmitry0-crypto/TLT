@@ -45,6 +45,11 @@ class FakeDbContext:
         return None
 
 
+class FailingDbContext(FakeDbContext):
+    async def execute(self, _statement) -> None:
+        raise RuntimeError("database unavailable")
+
+
 async def test_readiness_snapshot_reports_active_consumers() -> None:
     snapshot = await readiness_snapshot(
         FakeAsyncRedis(
@@ -63,6 +68,7 @@ async def test_readiness_snapshot_reports_active_consumers() -> None:
 async def test_enqueue_dependency_rejects_when_no_consumer(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setattr("app.core.worker_dependency.AsyncSessionLocal", FakeDbContext)
     monkeypatch.setattr("app.core.worker_dependency.get_redis", lambda: FakeAsyncRedis())
 
     with pytest.raises(HTTPException) as raised:
@@ -80,10 +86,26 @@ async def test_enqueue_dependency_rejects_when_no_consumer(
 async def test_enqueue_dependency_allows_ready_consumer(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setattr("app.core.worker_dependency.AsyncSessionLocal", FakeDbContext)
     redis = FakeAsyncRedis({"heatcalc:workers:ready:a": "2026-08-07T10:00:00+00:00"})
     monkeypatch.setattr("app.core.worker_dependency.get_redis", lambda: redis)
 
     await require_worker_ready()
+
+
+async def test_enqueue_dependency_rejects_when_database_is_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("app.core.worker_dependency.AsyncSessionLocal", FailingDbContext)
+    redis = FakeAsyncRedis({"heatcalc:workers:ready:a": "2026-08-07T10:00:00+00:00"})
+    monkeypatch.setattr("app.core.worker_dependency.get_redis", lambda: redis)
+
+    with pytest.raises(HTTPException) as raised:
+        await require_worker_ready()
+
+    assert raised.value.status_code == 503
+    assert raised.value.headers == {"Retry-After": "5"}
+    assert raised.value.detail["reason"] == "database_unavailable"
 
 
 async def test_health_ready_returns_stable_ready_payload(
@@ -199,6 +221,21 @@ def test_paused_heartbeat_withdraws_key_and_does_not_refresh(
     assert redis.set_count == set_count_after_pause
 
     heartbeat.stop()
+
+
+def test_heartbeat_transport_error_requires_consumer_reprobe() -> None:
+    class FailingRedis:
+        def set(self, *_args, **_kwargs) -> None:
+            raise ConnectionError("partition")
+
+    heartbeat = WorkerHeartbeat("redis://test", "worker-a")
+
+    with pytest.raises(ConnectionError, match="partition"):
+        heartbeat._publish_once(FailingRedis())  # type: ignore[arg-type]
+
+    assert heartbeat.is_paused is True
+    heartbeat.resume()
+    assert heartbeat.is_paused is False
 
 
 def test_worker_healthcheck_uses_exact_consumer_heartbeat(

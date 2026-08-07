@@ -46,13 +46,26 @@ class TaskQueue:
     @property
     def redis(self) -> Redis:
         if self._redis is None:
-            self._redis = Redis.from_url(self.redis_url, decode_responses=True)
+            # XREADGROUP is intentionally blocking, but its socket must not
+            # remain wedged forever after a Docker/network partition. Keep the
+            # transport timeout above the normal block window so the worker
+            # can withdraw readiness, reconnect, and resume consumption.
+            socket_timeout = max(
+                3.0,
+                (settings.WORKER_POLL_TIMEOUT_MS / 1000) + 2.0,
+            )
+            self._redis = Redis.from_url(
+                self.redis_url,
+                decode_responses=True,
+                socket_connect_timeout=3,
+                socket_timeout=socket_timeout,
+            )
         return self._redis
 
     async def close(self) -> None:
-        if self._redis is not None:
-            await self._redis.aclose()
-            self._redis = None
+        redis, self._redis = self._redis, None
+        if redis is not None:
+            await redis.aclose()
 
     async def ensure_group(self) -> None:
         try:

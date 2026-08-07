@@ -88,6 +88,10 @@ class FakeHeartbeat:
         self.paused = False
         self.events.append("resume")
 
+    @property
+    def is_paused(self) -> bool:
+        return self.paused
+
 
 def _patch_ready_startup(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
@@ -127,6 +131,33 @@ async def test_ready_log_boundary_is_after_preload_and_consumer_group(
 
 async def _noop() -> None:
     return None
+
+
+async def test_runtime_reset_discards_redis_and_database_pools(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    queue = StartupQueue()
+    disposed: list[str] = []
+
+    class FakeEngine:
+        async def dispose(self, *, close: bool) -> None:
+            disposed.append(f"database:close={close}")
+
+    monkeypatch.setattr("app.worker.engine", FakeEngine())
+    monkeypatch.setattr(
+        "app.worker.close_redis",
+        lambda: _record_async(disposed, "shared-redis"),
+    )
+    worker = _bare_worker(queue)
+
+    await worker._reset_runtime_connections()
+
+    assert queue.events == ["close"]
+    assert disposed == ["shared-redis", "database:close=False"]
+
+
+async def _record_async(events: list[str], value: str) -> None:
+    events.append(value)
 
 
 def test_retry_jitter_is_injectable_and_bounded(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -178,6 +209,7 @@ async def test_transient_queue_read_error_does_not_terminate_worker(
 
     assert queue.read_count == 2
     assert queue.events[-1] == "close"
+    assert queue.events.count("close") == 2
     assert probes == ["probe", "probe"]
     assert published == ["ready", "ready"]
     assert FakeHeartbeat.instances[0].events == ["start", "pause", "resume", "stop"]
