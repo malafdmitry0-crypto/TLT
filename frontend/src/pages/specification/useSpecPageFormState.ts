@@ -3,7 +3,8 @@
  * @owner specification
  * Transient UI + generation form state for SpecificationPage.
  */
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 import type {
   SpecificationCandidateGroup,
   SpecificationDiagnostic,
@@ -31,7 +32,22 @@ export function useSpecPageFormState() {
   const [generationDiagnostics, setGenerationDiagnostics] = useState<SpecificationDiagnostic[]>([]);
   const [candidateGroups, setCandidateGroups] = useState<SpecificationCandidateGroup[]>([]);
   /** Draft UI picks only; never preselected from first candidate. */
-  const [draftCatalogSelections, setDraftCatalogSelections] = useState<Record<string, string>>({});
+  const [draftCatalogSelections, setDraftCatalogSelectionsState] = useState<Record<string, string>>({});
+  const draftCatalogSelectionsRef = useRef<Record<string, string>>({});
+  const setDraftCatalogSelections: Dispatch<SetStateAction<Record<string, string>>> = useCallback(
+    (next) => {
+      const value = typeof next === 'function'
+        ? next(draftCatalogSelectionsRef.current)
+        : next;
+      draftCatalogSelectionsRef.current = value;
+      setDraftCatalogSelectionsState(value);
+    },
+    [],
+  );
+  const getDraftCatalogSelections = useCallback(
+    () => draftCatalogSelectionsRef.current,
+    [],
+  );
   const [catalogSelections, setCatalogSelections] = useState<Record<string, string>>({});
   const [exZone, setExZone] = useState<boolean | null>(false);
   const [reserveCoeff, setReserveCoeff] = useState('');
@@ -67,6 +83,7 @@ export function useSpecPageFormState() {
     setCandidateGroups,
     draftCatalogSelections,
     setDraftCatalogSelections,
+    getDraftCatalogSelections,
     catalogSelections,
     setCatalogSelections,
     exZone,

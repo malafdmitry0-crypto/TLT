@@ -1,13 +1,18 @@
 """Integration contract for project-wide calculation workflow locking."""
 
+import asyncio
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.core.dependencies import CurrentPrincipal
 from app.models.background_task import BackgroundTask
+from app.schemas.calculation_workflow import CalculationWorkflowStartRequest
+from app.services.calculation_workflow_service import CalculationWorkflowService
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -165,6 +170,46 @@ class TestCalculationWorkflows:
         )
         assert cancelled.status_code == 200, cancelled.text
         assert cancelled.json()["status"] == "cancelled"
+
+    async def test_concurrent_idempotent_start_returns_one_workflow(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+        db_session: AsyncSession,
+        test_engine,
+    ) -> None:
+        FakeTaskQueue.enqueued = []
+        project = await _project(client, guest_session)
+        variant = await _variant(client, project["id"], guest_session)
+        await db_session.rollback()
+        session_factory = async_sessionmaker(test_engine, expire_on_commit=False)
+        request = CalculationWorkflowStartRequest(variant_ids=[UUID(variant["id"])])
+        principal = CurrentPrincipal(role="guest", session_id=guest_session)
+
+        async def create_workflow() -> BackgroundTask:
+            async with session_factory() as session:
+                return await CalculationWorkflowService(session).create(
+                    UUID(project["id"]),
+                    request,
+                    principal,
+                    idempotency_key="workflow-concurrent-click-1",
+                    queue=FakeTaskQueue(),
+                )
+
+        tasks = await asyncio.gather(*(create_workflow() for _ in range(5)))
+
+        task_ids = {task.id for task in tasks}
+        assert len(task_ids) == 1
+        await db_session.rollback()
+        persisted = await db_session.scalar(
+            select(func.count(BackgroundTask.id)).where(
+                BackgroundTask.idempotency_key.is_not(None),
+                BackgroundTask.project_id == UUID(project["id"]),
+            )
+        )
+        await db_session.rollback()
+        assert persisted == 1
+        assert len(FakeTaskQueue.enqueued) == 1
 
     async def test_expired_waiting_input_releases_project(
         self,
