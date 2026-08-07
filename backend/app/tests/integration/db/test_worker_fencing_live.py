@@ -22,6 +22,9 @@ async def _task(
 ) -> BackgroundTask:
     session_id = f"worker-live-{uuid.uuid4().hex}"
     db.add(GuestSession(session_id=session_id))
+    # BackgroundTask references GuestSession by session_id without an ORM
+    # relationship, so make the parent row durable before inserting the task.
+    await db.flush()
     task = BackgroundTask(
         type="heat_loss_batch",
         status=status,
