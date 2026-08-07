@@ -8,8 +8,19 @@ from redis.asyncio import Redis
 from redis.exceptions import ResponseError
 
 from app.core.config import settings
+from app.services.worker_readiness import worker_is_ready
 
 logger = logging.getLogger("heatcalc.task_queue")
+
+_DEAD_LETTER_LUA = """
+local existing = redis.call('GET', KEYS[2])
+if existing then
+  return existing
+end
+local id = redis.call('XADD', KEYS[1], 'MAXLEN', '~', ARGV[1], '*', unpack(ARGV, 3))
+redis.call('SET', KEYS[2], id, 'EX', ARGV[2])
+return id
+"""
 
 
 class TaskQueueError(RuntimeError):
@@ -79,6 +90,9 @@ class TaskQueue:
     async def ack(self, stream_id: str) -> None:
         await self.redis.xack(self.stream, self.group, stream_id)
 
+    async def is_worker_ready(self, consumer: str) -> bool:
+        return await worker_is_ready(self.redis, consumer)
+
     async def reclaim_pending(
         self,
         *,
@@ -111,11 +125,16 @@ class TaskQueue:
         payload = dict(fields)
         payload["original_stream_id"] = stream_id
         payload["dead_letter_reason"] = reason
-        dead_id = await self.redis.xadd(
+        field_args = [item for pair in payload.items() for item in pair]
+        dedupe_key = f"{settings.WORKER_DEAD_LETTER_STREAM}:dedupe:{stream_id}"
+        dead_id = await self.redis.eval(
+            _DEAD_LETTER_LUA,
+            2,
             settings.WORKER_DEAD_LETTER_STREAM,
-            payload,
-            maxlen=settings.WORKER_DEAD_LETTER_MAXLEN,
-            approximate=True,
+            dedupe_key,
+            str(settings.WORKER_DEAD_LETTER_MAXLEN),
+            str(settings.WORKER_DEAD_LETTER_DEDUPE_TTL_SECONDS),
+            *field_args,
         )
         logger.warning(
             "Task moved to dead-letter stream",

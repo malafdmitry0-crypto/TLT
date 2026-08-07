@@ -47,7 +47,7 @@ from app.services.project_service import (
     ProjectNotFoundError,
     ProjectService,
 )
-from app.services.report_artifact_service import write_report_artifact
+from app.services.report_artifact_service import delete_report_artifact, write_report_artifact
 from app.services.report_service import ReportService
 from app.services.task_queue import TaskQueue
 
@@ -704,6 +704,7 @@ class TaskService:
             task.last_enqueue_error = None
             task.next_retry_at = None
             task.progress_phase = "enqueued"
+            task.heartbeat_at = now
         await self.db.commit()
         await self.db.refresh(task)
 
@@ -719,15 +720,20 @@ class TaskService:
                 await self._mark_cancelled(task_id)
             return
         if task.type not in (TASK_ELECTRICAL_BATCH, TASK_HEAT_LOSS_BATCH, TASK_REPORT_EXPORT):
-            await self._mark_failed(task_id, f"Неизвестный тип задачи: {task.type}")
+            await self._mark_failed(
+                task_id,
+                f"Неизвестный тип задачи: {task.type}",
+                attempt=task.attempts,
+                worker_id=worker_id,
+            )
             return
 
         if task.type == TASK_HEAT_LOSS_BATCH:
-            await self._run_heat_loss_batch(task_id)
+            await self._run_heat_loss_batch(task_id, attempt=task.attempts, worker_id=worker_id)
         elif task.type == TASK_ELECTRICAL_BATCH:
-            await self._run_electrical_batch(task_id)
+            await self._run_electrical_batch(task_id, attempt=task.attempts, worker_id=worker_id)
         else:
-            await self._run_report_export(task_id)
+            await self._run_report_export(task_id, attempt=task.attempts, worker_id=worker_id)
 
     async def record_worker_exception(
         self,
@@ -742,11 +748,20 @@ class TaskService:
         in a terminal DB state. This covers infrastructure or runtime failures
         that would otherwise leave the Redis Stream entry in PEL forever.
         """
-        task = await self.db.get(BackgroundTask, task_id)
+        task = (
+            await self.db.execute(
+                select(BackgroundTask)
+                .where(
+                    BackgroundTask.id == task_id,
+                    BackgroundTask.status == "running",
+                    BackgroundTask.locked_by == worker_id,
+                )
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
+        ).scalar_one_or_none()
         if task is None:
-            return "ack"
-        await self.db.refresh(task)
-        if task.status in TERMINAL_STATUSES:
+            await self.db.rollback()
             return "ack"
 
         now = datetime.now(UTC)
@@ -763,9 +778,11 @@ class TaskService:
             return "ack"
 
         if task.attempts >= settings.WORKER_MAX_ATTEMPTS:
-            task.status = "failed"
-            task.progress_phase = "failed"
-            task.finished_at = now
+            # Keep the task non-terminal until its DLQ entry is durable. The
+            # worker retries only the DLQ transfer, never the calculation.
+            task.status = "enqueued"
+            task.progress_phase = "dead_letter_pending"
+            task.finished_at = None
             await self.db.commit()
             return "dead_letter"
 
@@ -774,6 +791,23 @@ class TaskService:
         task.next_retry_at = None
         await self.db.commit()
         return "retry"
+
+    async def is_dead_letter_pending(self, task_id: UUID) -> bool:
+        task = await self.db.get(BackgroundTask, task_id)
+        return bool(
+            task is not None
+            and task.status == "enqueued"
+            and task.progress_phase == "dead_letter_pending"
+        )
+
+    async def finalize_dead_letter(self, task_id: UUID) -> None:
+        task = await self.db.get(BackgroundTask, task_id)
+        if task is None or task.progress_phase != "dead_letter_pending":
+            return
+        await self._mark_failed(
+            task_id,
+            task.error_message or "Задача исчерпала лимит повторов",
+        )
 
     async def _claim_task_for_run(
         self,
@@ -855,6 +889,24 @@ class TaskService:
             if task.cancel_requested:
                 await self._mark_cancelled(task.id)
                 recovered += 1
+                continue
+            if task.progress_phase == "dead_letter_pending":
+                await queue.dead_letter(
+                    task.arq_job_id or "postgres-recovery",
+                    {"task_id": str(task.id), "type": task.type},
+                    reason="worker_attempts_exhausted",
+                )
+                await self.finalize_dead_letter(task.id)
+                recovered += 1
+                continue
+            if (
+                task.status == "running"
+                and task.locked_by
+                and await queue.is_worker_ready(task.locked_by)
+            ):
+                # A separate heartbeat thread proves the owning process is
+                # alive even when its asyncio loop is busy. Requeueing here
+                # would allow two attempts to mutate the same calculation.
                 continue
             if task.attempts >= settings.WORKER_MAX_ATTEMPTS:
                 await self._mark_failed(task.id, "Задача зависла и исчерпала лимит повторов")
@@ -981,13 +1033,24 @@ class TaskService:
         payload.pop("variant_number", None)
         task.request_payload = payload
 
-    async def _run_electrical_batch(self, task_id: UUID) -> None:
+    async def _run_electrical_batch(
+        self,
+        task_id: UUID,
+        *,
+        attempt: int,
+        worker_id: str,
+    ) -> None:
         task = await self.db.get(BackgroundTask, task_id)
         if task is None:
             return
         payload = dict(task.request_payload or {})
         progress_throttler = ProgressThrottler(
-            persist=lambda progress: self._update_progress(task_id, progress)
+            persist=lambda progress: self._update_progress(
+                task_id,
+                progress,
+                attempt=attempt,
+                worker_id=worker_id,
+            )
         )
         try:
             object_ids = [
@@ -1026,7 +1089,11 @@ class TaskService:
                     skip_manual=bool(payload.get("skip_manual", True)),
                     return_calcs=bool(payload.get("include_results", False)),
                     progress_callback=progress_throttler.offer,
-                    should_cancel=lambda: self._should_cancel(task_id),
+                    should_cancel=lambda: self._should_cancel(
+                        task_id,
+                        attempt=attempt,
+                        worker_id=worker_id,
+                    ),
                     object_ids=object_ids,
                     object_overrides=object_overrides,
                     force_cable_type=bool(payload.get("force_cable_type", False)),
@@ -1034,11 +1101,16 @@ class TaskService:
                 )
         except BatchCancelledError:
             await progress_throttler.flush()
-            await self._mark_cancelled(task_id)
+            await self._mark_cancelled(task_id, attempt=attempt, worker_id=worker_id)
             return
         except Exception as exc:
             await progress_throttler.flush()
-            await self._mark_failed(task_id, f"{type(exc).__name__}: {exc}")
+            await self._mark_failed(
+                task_id,
+                f"{type(exc).__name__}: {exc}",
+                attempt=attempt,
+                worker_id=worker_id,
+            )
             return
 
         await progress_throttler.flush()
@@ -1076,15 +1148,31 @@ class TaskService:
             if include_results
             else [],
         }
-        await self._mark_succeeded(task_id, result_payload)
+        await self._mark_succeeded(
+            task_id,
+            result_payload,
+            attempt=attempt,
+            worker_id=worker_id,
+        )
 
-    async def _run_heat_loss_batch(self, task_id: UUID) -> None:
+    async def _run_heat_loss_batch(
+        self,
+        task_id: UUID,
+        *,
+        attempt: int,
+        worker_id: str,
+    ) -> None:
         task = await self.db.get(BackgroundTask, task_id)
         if task is None:
             return
         payload = dict(task.request_payload or {})
         progress_throttler = ProgressThrottler(
-            persist=lambda progress: self._update_progress(task_id, progress)
+            persist=lambda progress: self._update_progress(
+                task_id,
+                progress,
+                attempt=attempt,
+                worker_id=worker_id,
+            )
         )
         try:
             object_ids = [
@@ -1094,16 +1182,25 @@ class TaskService:
                 updated, failed, errors = await CalculationService(calc_db).batch_recalculate(
                     UUID(payload["project_id"]),
                     progress_callback=progress_throttler.offer,
-                    should_cancel=lambda: self._should_cancel(task_id),
+                    should_cancel=lambda: self._should_cancel(
+                        task_id,
+                        attempt=attempt,
+                        worker_id=worker_id,
+                    ),
                     object_ids=object_ids,
                 )
         except BatchCancelledError:
             await progress_throttler.flush()
-            await self._mark_cancelled(task_id)
+            await self._mark_cancelled(task_id, attempt=attempt, worker_id=worker_id)
             return
         except Exception as exc:
             await progress_throttler.flush()
-            await self._mark_failed(task_id, f"{type(exc).__name__}: {exc}")
+            await self._mark_failed(
+                task_id,
+                f"{type(exc).__name__}: {exc}",
+                attempt=attempt,
+                worker_id=worker_id,
+            )
             return
 
         await progress_throttler.flush()
@@ -1113,9 +1210,20 @@ class TaskService:
             "failed": failed,
             "errors": errors if include_errors else [],
         }
-        await self._mark_succeeded(task_id, result_payload)
+        await self._mark_succeeded(
+            task_id,
+            result_payload,
+            attempt=attempt,
+            worker_id=worker_id,
+        )
 
-    async def _run_report_export(self, task_id: UUID) -> None:
+    async def _run_report_export(
+        self,
+        task_id: UUID,
+        *,
+        attempt: int,
+        worker_id: str,
+    ) -> None:
         task = await self.db.get(BackgroundTask, task_id)
         if task is None:
             return
@@ -1124,9 +1232,14 @@ class TaskService:
             project_id = UUID(payload["project_id"])
             fmt = payload["format"]
             sections = payload.get("sections")
-            await self._update_progress(task_id, BatchProgress(current=1, total=3, phase="load"))
-            if await self._should_cancel(task_id):
-                await self._mark_cancelled(task_id)
+            await self._update_progress(
+                task_id,
+                BatchProgress(current=1, total=3, phase="load"),
+                attempt=attempt,
+                worker_id=worker_id,
+            )
+            if await self._should_cancel(task_id, attempt=attempt, worker_id=worker_id):
+                await self._mark_cancelled(task_id, attempt=attempt, worker_id=worker_id)
                 return
             async with self.session_factory() as report_db:
                 (
@@ -1144,16 +1257,26 @@ class TaskService:
                     sections,
                     variant_number=variant_number,
                 )
-            await self._update_progress(task_id, BatchProgress(current=2, total=3, phase="write"))
-            if await self._should_cancel(task_id):
-                await self._mark_cancelled(task_id)
+            await self._update_progress(
+                task_id,
+                BatchProgress(current=2, total=3, phase="write"),
+                attempt=attempt,
+                worker_id=worker_id,
+            )
+            if await self._should_cancel(task_id, attempt=attempt, worker_id=worker_id):
+                await self._mark_cancelled(task_id, attempt=attempt, worker_id=worker_id)
                 return
-            artifact = write_report_artifact(task_id, fmt, data)
+            artifact = write_report_artifact(task_id, fmt, data, attempt=attempt)
         except BatchCancelledError:
-            await self._mark_cancelled(task_id)
+            await self._mark_cancelled(task_id, attempt=attempt, worker_id=worker_id)
             return
         except Exception as exc:
-            await self._mark_failed(task_id, f"{type(exc).__name__}: {exc}")
+            await self._mark_failed(
+                task_id,
+                f"{type(exc).__name__}: {exc}",
+                attempt=attempt,
+                worker_id=worker_id,
+            )
             return
 
         filename = f"report.{fmt}"
@@ -1169,7 +1292,14 @@ class TaskService:
             "download_url": f"{settings.API_V1_PREFIX}/reports/jobs/{task_id}/download",
             **artifact,
         }
-        await self._mark_succeeded(task_id, result_payload)
+        published = await self._mark_succeeded(
+            task_id,
+            result_payload,
+            attempt=attempt,
+            worker_id=worker_id,
+        )
+        if not published:
+            delete_report_artifact(str(artifact["artifact_name"]))
 
     async def _resolve_worker_electrical_variant(
         self,
@@ -1211,12 +1341,39 @@ class TaskService:
         assert variant.legacy_variant_number is not None
         return variant.legacy_variant_number, variant.id
 
-    async def _update_progress(self, task_id: UUID, progress: BatchProgress) -> None:
+    async def _update_progress(
+        self,
+        task_id: UUID,
+        progress: BatchProgress,
+        *,
+        attempt: int | None = None,
+        worker_id: str | None = None,
+    ) -> None:
         async with self.session_factory() as db:
+            now = datetime.now(UTC)
+            if attempt is not None and worker_id is not None:
+                await db.execute(
+                    update(BackgroundTask)
+                    .where(
+                        BackgroundTask.id == task_id,
+                        BackgroundTask.status == "running",
+                        BackgroundTask.attempts == attempt,
+                        BackgroundTask.locked_by == worker_id,
+                    )
+                    .values(
+                        progress_current=progress.current,
+                        progress_total=progress.total,
+                        progress_phase=progress.phase,
+                        heartbeat_at=now,
+                        lock_expires_at=now
+                        + timedelta(seconds=settings.WORKER_TASK_STALE_SECONDS),
+                    )
+                )
+                await db.commit()
+                return
             task = await db.get(BackgroundTask, task_id)
             if task is None or task.status in TERMINAL_STATUSES:
                 return
-            now = datetime.now(UTC)
             task.progress_current = progress.current
             task.progress_total = progress.total
             task.progress_phase = progress.phase
@@ -1224,24 +1381,76 @@ class TaskService:
             task.lock_expires_at = now + timedelta(seconds=settings.WORKER_TASK_STALE_SECONDS)
             await db.commit()
 
-    async def _should_cancel(self, task_id: UUID) -> bool:
+    async def _should_cancel(
+        self,
+        task_id: UUID,
+        *,
+        attempt: int | None = None,
+        worker_id: str | None = None,
+    ) -> bool:
         async with self.session_factory() as db:
+            filters = [BackgroundTask.id == task_id]
+            if attempt is not None and worker_id is not None:
+                filters.extend(
+                    (
+                        BackgroundTask.status == "running",
+                        BackgroundTask.attempts == attempt,
+                        BackgroundTask.locked_by == worker_id,
+                    )
+                )
             row = (
                 await db.execute(
-                    select(BackgroundTask.cancel_requested, BackgroundTask.status).where(
-                        BackgroundTask.id == task_id
-                    )
+                    select(BackgroundTask.cancel_requested, BackgroundTask.status).where(*filters)
                 )
             ).one_or_none()
             if row is None:
                 return True
             return bool(row[0]) or row[1] == "cancelled"
 
-    async def _mark_succeeded(self, task_id: UUID, result_payload: dict[str, Any]) -> None:
-        task = await self.db.get(BackgroundTask, task_id)
+    async def _task_for_terminal_transition(
+        self,
+        task_id: UUID,
+        *,
+        attempt: int | None,
+        worker_id: str | None,
+    ) -> BackgroundTask | None:
+        if attempt is None or worker_id is None:
+            task = await self.db.get(BackgroundTask, task_id)
+            if task is not None:
+                await self.db.refresh(task)
+            return task
+        task = (
+            await self.db.execute(
+                select(BackgroundTask)
+                .where(
+                    BackgroundTask.id == task_id,
+                    BackgroundTask.status == "running",
+                    BackgroundTask.attempts == attempt,
+                    BackgroundTask.locked_by == worker_id,
+                )
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
+        ).scalar_one_or_none()
         if task is None:
-            return
-        await self.db.refresh(task)
+            await self.db.rollback()
+        return task
+
+    async def _mark_succeeded(
+        self,
+        task_id: UUID,
+        result_payload: dict[str, Any],
+        *,
+        attempt: int | None = None,
+        worker_id: str | None = None,
+    ) -> bool:
+        task = await self._task_for_terminal_transition(
+            task_id,
+            attempt=attempt,
+            worker_id=worker_id,
+        )
+        if task is None:
+            return False
         now = datetime.now(UTC)
         task.status = "succeeded"
         task.result_payload = result_payload
@@ -1255,12 +1464,23 @@ class TaskService:
         task.finished_at = now
         await self._record_task_audit(task, "succeeded", result_payload=result_payload)
         await self.db.commit()
+        return True
 
-    async def _mark_failed(self, task_id: UUID, error_message: str) -> None:
-        task = await self.db.get(BackgroundTask, task_id)
+    async def _mark_failed(
+        self,
+        task_id: UUID,
+        error_message: str,
+        *,
+        attempt: int | None = None,
+        worker_id: str | None = None,
+    ) -> bool:
+        task = await self._task_for_terminal_transition(
+            task_id,
+            attempt=attempt,
+            worker_id=worker_id,
+        )
         if task is None:
-            return
-        await self.db.refresh(task)
+            return False
         now = datetime.now(UTC)
         task.status = "failed"
         task.error_message = compact_task_error_message(error_message)
@@ -1280,12 +1500,22 @@ class TaskService:
             message=audit_message,
         )
         await self.db.commit()
+        return True
 
-    async def _mark_cancelled(self, task_id: UUID) -> None:
-        task = await self.db.get(BackgroundTask, task_id)
+    async def _mark_cancelled(
+        self,
+        task_id: UUID,
+        *,
+        attempt: int | None = None,
+        worker_id: str | None = None,
+    ) -> bool:
+        task = await self._task_for_terminal_transition(
+            task_id,
+            attempt=attempt,
+            worker_id=worker_id,
+        )
         if task is None:
-            return
-        await self.db.refresh(task)
+            return False
         now = datetime.now(UTC)
         task.status = "cancelled"
         task.cancel_requested = True
@@ -1296,6 +1526,7 @@ class TaskService:
         task.finished_at = now
         await self._record_task_audit(task, "cancelled")
         await self.db.commit()
+        return True
 
     async def _record_task_audit(
         self,
