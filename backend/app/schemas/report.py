@@ -5,11 +5,13 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.electrical_variant_limits import MAX_ELECTRICAL_VARIANTS
+
 
 class ReportChapterMeta(BaseModel):
     electrical_variant_id: UUID | None = None
     electrical_variant_name: str | None = None
-    variant_number: int | None = Field(default=None, ge=1, le=5)
+    variant_number: int | None = Field(default=None, ge=1, le=MAX_ELECTRICAL_VARIANTS)
 
 
 class ReportPreviewResponse(BaseModel):
@@ -17,7 +19,7 @@ class ReportPreviewResponse(BaseModel):
     html: str
     sections: list[str]
     # Legacy slot may be null for dynamic ЭР without expand mapping (Phase 5).
-    variant_number: int | None = Field(default=None, ge=1, le=5)
+    variant_number: int | None = Field(default=None, ge=1, le=MAX_ELECTRICAL_VARIANTS)
     electrical_variant_id: UUID | None = None
     electrical_variant_name: str | None = None
     chapters: list[ReportChapterMeta] | None = None
@@ -31,7 +33,12 @@ class ReportExportJobRequest(BaseModel):
     format: ReportFormat
     sections: list[str] | None = Field(default=None)
     electrical_variant_id: UUID | None = None
-    variant_number: int | None = Field(default=None, ge=1, le=5, deprecated=True)
+    variant_number: int | None = Field(
+        default=None,
+        ge=1,
+        le=MAX_ELECTRICAL_VARIANTS,
+        deprecated=True,
+    )
 
     @model_validator(mode="after")
     def require_electrical_variant_selector(self) -> "ReportExportJobRequest":
@@ -47,7 +54,7 @@ class ReportExportTaskResult(BaseModel):
     project_id: UUID
     format: ReportFormat
     electrical_variant_id: UUID | None = None
-    variant_number: int = Field(ge=1, le=5)
+    variant_number: int = Field(ge=1, le=MAX_ELECTRICAL_VARIANTS)
     filename: str
     media_type: str
     size_bytes: int

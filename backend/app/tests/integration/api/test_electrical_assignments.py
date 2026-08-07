@@ -1018,16 +1018,16 @@ class TestElectricalAssignmentApi:
         assert refreshed_obj.results == heat_before
         assert refreshed_obj.version == object_version_before
 
-    async def test_fifth_er_assignment_and_cross_guest_rbac(
+    async def test_fourth_er_assignment_and_cross_guest_rbac(
         self,
         client: AsyncClient,
         guest_session: str,
     ):
         project = await _guest_project(client, guest_session)
         headers = {"X-Session-Id": guest_session}
-        obj = await _add_ready_pipe(client, project["id"], headers, name="ER5")
+        obj = await _add_ready_pipe(client, project["id"], headers, name="ER4")
         variants = [await _initialize(client, project["id"], headers)]
-        for number in range(2, 6):
+        for number in range(2, 5):
             response = await client.post(
                 f"/api/v1/projects/{project['id']}/electrical-variants",
                 headers=headers,
@@ -1035,13 +1035,13 @@ class TestElectricalAssignmentApi:
             )
             assert response.status_code == 201, response.text
             variants.append(response.json())
-        fifth = variants[-1]
-        assert fifth["legacy_variant_number"] == 5
+        fourth = variants[-1]
+        assert fourth["legacy_variant_number"] == 4
 
         assigned = await _patch_assignments(
             client,
             project["id"],
-            fifth["id"],
+            fourth["id"],
             headers,
             system_type="resistive",
             items=[{"object_id": obj["id"], "expected_version": 1}],
@@ -1052,14 +1052,14 @@ class TestElectricalAssignmentApi:
         other_session = (await client.post("/api/v1/auth/guest")).json()["session_id"]
         forbidden_headers = {"X-Session-Id": other_session}
         forbidden_get = await client.get(
-            f"/api/v1/projects/{project['id']}/electrical-variants/" f"{fifth['id']}/assignments",
+            f"/api/v1/projects/{project['id']}/electrical-variants/" f"{fourth['id']}/assignments",
             headers=forbidden_headers,
         )
         assert forbidden_get.status_code == 403
         forbidden_patch = await _patch_assignments(
             client,
             project["id"],
-            fifth["id"],
+            fourth["id"],
             forbidden_headers,
             system_type="resistive",
             items=[{"object_id": obj["id"], "expected_version": 2}],
@@ -1067,7 +1067,7 @@ class TestElectricalAssignmentApi:
         assert forbidden_patch.status_code == 403
 
         unassigned = await client.post(
-            f"/api/v1/projects/{project['id']}/electrical-variants/" f"{fifth['id']}/unassign",
+            f"/api/v1/projects/{project['id']}/electrical-variants/" f"{fourth['id']}/unassign",
             headers=headers,
             json={
                 "confirm": True,

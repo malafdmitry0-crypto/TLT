@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import CurrentPrincipal, require_any, require_employee
+from app.electrical_variant_limits import MAX_ELECTRICAL_VARIANTS
 from app.schemas.specification import (
     SpecificationCatalogSelectionEntry,
     SpecificationCatalogSelectionsPutRequest,
@@ -76,7 +77,10 @@ def _specification_http_error(
 )
 async def get_specification_readiness(
     project_id: UUID,
-    variant_ids: list[UUID] = Query(min_length=1, max_length=5),
+    variant_ids: list[UUID] = Query(
+        min_length=1,
+        max_length=MAX_ELECTRICAL_VARIANTS,
+    ),
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):

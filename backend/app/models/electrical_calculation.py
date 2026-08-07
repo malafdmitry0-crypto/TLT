@@ -15,6 +15,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.electrical_variant_limits import MAX_ELECTRICAL_VARIANTS
 from app.models.base import Base, TimestampMixin
 
 
@@ -22,7 +23,7 @@ class ElectricalCalculation(Base, TimestampMixin):
     __tablename__ = "electrical_calculations"
     __table_args__ = (
         CheckConstraint(
-            "variant_number >= 1 AND variant_number <= 5",
+            f"variant_number >= 1 AND variant_number <= {MAX_ELECTRICAL_VARIANTS}",
             name="ck_electrical_calculations_variant_number",
         ),
         ForeignKeyConstraint(

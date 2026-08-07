@@ -160,7 +160,8 @@ export function useHeatCalcPageModel() {
   });
 
   const {
-    activeHeatLossJobId, isHeatLossJobActive, heatLossJobProgressLabel, heatLossRecalcDisabled,
+    activeHeatLossJobId, isHeatLossJobActive, heatLossJobProgressLabel, heatLossJobIssue,
+    heatLossRecalcDisabled,
     heatLossScopedRecalcDisabled, heatLossRecalcTooltip, heatLossRecalcAriaLabel,
     heatLossRecalcAllTooltip, heatLossBatchPending, cancelHeatLossJobPending,
     recalcScoped: recalcHeatLossScoped, recalcAll: recalcHeatLossAll, cancelJob: cancelHeatLossJob,
@@ -239,7 +240,7 @@ export function useHeatCalcPageModel() {
     duplicateSelectedObjects, role, projectObjectCount: workspace.projectObjectCount,
     ...groupUpdate,
     isSideFormPlacement, sideResizeVisible, workspaceLayoutStyle, sideWorkspaceRef,
-    heatLossJobProgressLabel, selectedObject, calculationDetailsSettings,
+    heatLossJobProgressLabel, heatLossJobIssue, selectedObject, calculationDetailsSettings,
     activeTypeTotalCount: workspace.activeTypeTotalCount,
     visibleTableObjects: workspace.visibleTableObjects, excelSelectionRange,
     resolvedTableFontSize: workspace.resolvedTableFontSize,

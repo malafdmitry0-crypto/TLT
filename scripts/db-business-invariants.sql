@@ -27,10 +27,10 @@ BEGIN
     RAISE EXCEPTION 'DB invariant failed: valid project_objects without results: %', violations;
   END IF;
 
-  -- ER5 write cutover: compatibility slots 1..5 (migration 0031).
+  -- Product contract: compatibility slots are limited to 1..4.
   SELECT COUNT(*) INTO violations
   FROM electrical_calculations
-  WHERE variant_number IS NULL OR variant_number < 1 OR variant_number > 5;
+  WHERE variant_number IS NULL OR variant_number < 1 OR variant_number > 4;
   IF violations > 0 THEN
     RAISE EXCEPTION 'DB invariant failed: electrical_calculations variant out of range: %', violations;
   END IF;
@@ -62,10 +62,10 @@ BEGIN
     SELECT project_id
     FROM electrical_variants
     GROUP BY project_id
-    HAVING COUNT(*) > 5
+    HAVING COUNT(*) > 4
   ) invalid_projects;
   IF violations > 0 THEN
-    RAISE EXCEPTION 'DB invariant failed: projects with more than five electrical variants: %', violations;
+    RAISE EXCEPTION 'DB invariant failed: projects with more than four electrical variants: %', violations;
   END IF;
 
   SELECT COUNT(*) INTO violations
@@ -182,42 +182,31 @@ BEGIN
   SELECT COUNT(*) INTO violations
   FROM specifications s
   LEFT JOIN electrical_variants ev ON ev.id = s.electrical_variant_id
-  WHERE s.electrical_variant_id IS NOT NULL
-    AND (
-      ev.id IS NULL
-      OR ev.project_id IS DISTINCT FROM s.project_id
-      OR ev.legacy_variant_number IS DISTINCT FROM s.variant_number
-    );
+  WHERE ev.id IS NULL
+     OR ev.project_id IS DISTINCT FROM s.project_id;
   IF violations > 0 THEN
-    RAISE EXCEPTION 'DB invariant failed: specifications UUID/project/legacy variant mismatch: %', violations;
+    RAISE EXCEPTION 'DB invariant failed: specifications UUID/project variant mismatch: %', violations;
   END IF;
 
+  -- UUID-only generation snapshot stores the project settings revision.
   SELECT COUNT(*) INTO violations
   FROM specifications
-  WHERE variant_number IS NULL OR variant_number < 1 OR variant_number > 5;
-  IF violations > 0 THEN
-    RAISE EXCEPTION 'DB invariant failed: specifications variant out of range: %', violations;
-  END IF;
-
-  -- Phase 5: generation snapshot may store settings_version (PDL-ER-07).
-  SELECT COUNT(*) INTO violations
-  FROM specifications
-  WHERE generation_options IS NOT NULL
-    AND jsonb_typeof(generation_options) = 'object'
-    AND generation_options ? 'settings_version'
+  WHERE snapshot IS NOT NULL
+    AND jsonb_typeof(snapshot) = 'object'
+    AND snapshot ? 'settings_revision'
     AND (
-      jsonb_typeof(generation_options -> 'settings_version') <> 'number'
-      OR (generation_options ->> 'settings_version')::int < 1
+      jsonb_typeof(snapshot -> 'settings_revision') <> 'number'
+      OR (snapshot ->> 'settings_revision')::int < 1
     );
   IF violations > 0 THEN
-    RAISE EXCEPTION 'DB invariant failed: specifications.generation_options.settings_version invalid: %', violations;
+    RAISE EXCEPTION 'DB invariant failed: specifications.snapshot.settings_revision invalid: %', violations;
   END IF;
 
-  -- Phase 5: legacy_variant_number must stay in 1..5 when present.
+  -- Product contract: legacy_variant_number must stay in 1..4 when present.
   SELECT COUNT(*) INTO violations
   FROM electrical_variants
   WHERE legacy_variant_number IS NOT NULL
-    AND (legacy_variant_number < 1 OR legacy_variant_number > 5);
+    AND (legacy_variant_number < 1 OR legacy_variant_number > 4);
   IF violations > 0 THEN
     RAISE EXCEPTION 'DB invariant failed: electrical_variants.legacy_variant_number out of range: %', violations;
   END IF;
@@ -330,7 +319,7 @@ FROM (
   SELECT project_id
   FROM electrical_variants
   GROUP BY project_id
-  HAVING COUNT(*) > 5
+  HAVING COUNT(*) > 4
 ) invalid_projects
 UNION ALL
 SELECT 'electrical_variants_active_count_invalid', COUNT(*)
@@ -417,16 +406,18 @@ UNION ALL
 SELECT 'specifications_variant_scope_mismatch', COUNT(*)
 FROM specifications s
 LEFT JOIN electrical_variants ev ON ev.id = s.electrical_variant_id
-WHERE s.electrical_variant_id IS NOT NULL
-  AND (
-    ev.id IS NULL
-    OR ev.project_id IS DISTINCT FROM s.project_id
-    OR ev.legacy_variant_number IS DISTINCT FROM s.variant_number
-  )
+WHERE ev.id IS NULL
+   OR ev.project_id IS DISTINCT FROM s.project_id
 UNION ALL
-SELECT 'specification_variant_out_of_range', COUNT(*)
+SELECT 'specification_snapshot_settings_revision_invalid', COUNT(*)
 FROM specifications
-WHERE variant_number IS NULL OR variant_number < 1 OR variant_number > 4
+WHERE snapshot IS NOT NULL
+  AND jsonb_typeof(snapshot) = 'object'
+  AND snapshot ? 'settings_revision'
+  AND (
+    jsonb_typeof(snapshot -> 'settings_revision') <> 'number'
+    OR (snapshot ->> 'settings_revision')::int < 1
+  )
 UNION ALL
 SELECT 'specification_items_not_array', COUNT(*)
 FROM specifications

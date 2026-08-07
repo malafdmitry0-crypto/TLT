@@ -284,13 +284,13 @@ async def _seed_ready_project_objects(
     return project
 
 
-async def _create_five_variants(
+async def _create_four_variants(
     service: ElectricalVariantService,
     project: Project,
     principal: CurrentPrincipal,
 ) -> None:
     await service.initialize(project.id, principal)
-    for number in range(2, 6):
+    for number in range(2, 5):
         await service.create_empty(project.id, principal, name=f"ЭР{number}")
 
 
@@ -652,20 +652,19 @@ class TestElectricalVariantLifecycle:
         assert blank.status_code == 422
         assert blank.json()["detail"]["code"] == "ELECTRICAL_VARIANT_NAME_EMPTY"
 
-        for name in ("Четвёртый", "Пятый"):
-            response = await client.post(
-                f"/api/v1/projects/{project['id']}/electrical-variants",
-                json={"name": name},
-                headers=headers,
-            )
-            assert response.status_code == 201, response.text
-        sixth = await client.post(
+        fourth = await client.post(
             f"/api/v1/projects/{project['id']}/electrical-variants",
-            json={"name": "Шестой"},
+            json={"name": "Четвёртый"},
             headers=headers,
         )
-        assert sixth.status_code == 409
-        assert sixth.json()["detail"]["code"] == "ELECTRICAL_VARIANT_LIMIT_REACHED"
+        assert fourth.status_code == 201, fourth.text
+        fifth = await client.post(
+            f"/api/v1/projects/{project['id']}/electrical-variants",
+            json={"name": "Пятый"},
+            headers=headers,
+        )
+        assert fifth.status_code == 409
+        assert fifth.json()["detail"]["code"] == "ELECTRICAL_VARIANT_LIMIT_REACHED"
 
     async def test_active_delete_chooses_next_then_previous_and_forbids_last(
         self,
@@ -1576,7 +1575,7 @@ class TestElectricalVariantConcurrency:
         assert variant_count == 1
         assert assignment_count == 1
 
-    async def test_concurrent_create_at_limit_allows_exactly_one_fifth_variant(
+    async def test_concurrent_create_at_limit_allows_exactly_one_fourth_variant(
         self,
         client: AsyncClient,
         guest_session: str,
@@ -1587,7 +1586,7 @@ class TestElectricalVariantConcurrency:
         headers = {"X-Session-Id": guest_session}
         await _add_ready_pipe(client, project["id"], headers)
         await _initialize(client, project["id"], headers)
-        for name in ("ЭР2", "ЭР3", "ЭР4"):
+        for name in ("ЭР2", "ЭР3"):
             response = await client.post(
                 f"/api/v1/projects/{project['id']}/electrical-variants",
                 json={"name": name},
@@ -1598,8 +1597,8 @@ class TestElectricalVariantConcurrency:
 
         async with _client_with_request_scoped_sessions(test_engine) as concurrent_client:
             responses = await asyncio.gather(
-                concurrent_client.post(url, json={"name": "Пятый A"}, headers=headers),
-                concurrent_client.post(url, json={"name": "Пятый B"}, headers=headers),
+                concurrent_client.post(url, json={"name": "Четвёртый A"}, headers=headers),
+                concurrent_client.post(url, json={"name": "Четвёртый B"}, headers=headers),
             )
 
         assert sorted(response.status_code for response in responses) == [201, 409]
@@ -1610,11 +1609,11 @@ class TestElectricalVariantConcurrency:
             .select_from(ElectricalVariant)
             .where(ElectricalVariant.project_id == UUID(project["id"]))
         )
-        assert variant_count == 5
+        assert variant_count == 4
 
 
 class TestElectricalVariantScale:
-    async def test_five_variants_for_500_objects_have_constant_statement_count(
+    async def test_four_variants_for_500_objects_have_constant_statement_count(
         self,
         db_session: AsyncSession,
         employee_user: User,
@@ -1638,9 +1637,9 @@ class TestElectricalVariantScale:
         service = ElectricalVariantService(db_session)
 
         with _count_sql(test_engine) as small_statements:
-            await _create_five_variants(service, small_project, principal)
+            await _create_four_variants(service, small_project, principal)
         with _count_sql(test_engine) as large_statements:
-            await _create_five_variants(service, large_project, principal)
+            await _create_four_variants(service, large_project, principal)
 
         variant_count = await db_session.scalar(
             select(func.count())
@@ -1653,10 +1652,10 @@ class TestElectricalVariantScale:
             .where(ElectricalVariantObject.project_id == large_project.id)
         )
 
-        assert variant_count == 5
-        assert assignment_count == 2500
+        assert variant_count == 4
+        assert assignment_count == 2000
         # One-object and 500-object projects must execute the same fixed lifecycle
-        # graph. The ceiling leaves room for the documented five mutations while
+        # graph. The ceiling leaves room for the documented four mutations while
         # still failing decisively if assignment creation regresses to N+1.
         assert len(large_statements) == len(small_statements), "\n\n".join(large_statements)
         assert len(large_statements) <= 80, "\n\n".join(large_statements)
@@ -1810,13 +1809,13 @@ class TestElectricalVariantCopy:
         await db_session.refresh(copied_variant)
         assert copied_variant.copied_from_id is None
 
-    async def test_fifth_graph_copy_uses_legacy_slot_five_after_cutover(
+    async def test_fourth_graph_copy_uses_legacy_slot_four(
         self,
         client: AsyncClient,
         guest_session: str,
         db_session: AsyncSession,
     ):
-        """ER5 write cutover: fifth ER gets legacy slot 5 and can copy graph rows."""
+        """The fourth ER receives slot 4 and can copy the complete graph."""
         project = await _guest_project(client, guest_session)
         headers = {"X-Session-Id": guest_session}
         obj = await _add_ready_pipe(client, project["id"], headers)
@@ -1833,7 +1832,7 @@ class TestElectricalVariantCopy:
             )
         )
         await db_session.commit()
-        for name in ("ЭР2", "ЭР3", "ЭР4"):
+        for name in ("ЭР2", "ЭР3"):
             created = await client.post(
                 f"/api/v1/projects/{project['id']}/electrical-variants",
                 json={"name": name},
@@ -1843,18 +1842,18 @@ class TestElectricalVariantCopy:
 
         response = await client.post(
             f"/api/v1/projects/{project['id']}/electrical-variants/{source['id']}/copy",
-            json={"name": "ЭР5"},
-            headers={**headers, "Idempotency-Key": "fifth-copy"},
+            json={"name": "ЭР4"},
+            headers={**headers, "Idempotency-Key": "fourth-copy"},
         )
         assert response.status_code == 201, response.text
         body = response.json()
-        assert body["legacy_variant_number"] == 5
+        assert body["legacy_variant_number"] == 4
         count = await db_session.scalar(
             select(func.count())
             .select_from(ElectricalVariant)
             .where(ElectricalVariant.project_id == UUID(project["id"]))
         )
-        assert count == 5
+        assert count == 4
         copied_calcs = await db_session.scalar(
             select(func.count())
             .select_from(ElectricalCalculation)
