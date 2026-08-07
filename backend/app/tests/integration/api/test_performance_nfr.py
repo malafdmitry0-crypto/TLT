@@ -24,11 +24,80 @@ PIPE_PARAMS = {
     "insulation_layers": [{"thickness": 0.05, "material": MINERAL_WOOL}],
     "insulation_temperature_basis": "outdoor_winter",
     "ambient_temperature": -20.0,
+    "min_switch_temperature": -30.0,
     "process_temperature": 80.0,
     "pipe_length": 50.0,
     "placement": "outdoor",
     "wind_speed": 0,
 }
+
+
+async def _assign_all_objects_to_self_regulating(
+    client: AsyncClient,
+    project_id: str,
+    headers: dict[str, str],
+) -> str:
+    """Prepare the real assignment scope outside the measured batch interval."""
+    settings_response = await client.get(
+        f"/api/v1/projects/{project_id}/electrical-settings",
+        headers=headers,
+    )
+    assert settings_response.status_code == 200, settings_response.text
+    settings_payload = settings_response.json()
+    assert settings_payload["nominal_voltage_v"] == 230
+    settings_response = await client.patch(
+        f"/api/v1/projects/{project_id}/electrical-settings",
+        headers=headers,
+        json={
+            "expected_version": settings_payload["version"],
+            "max_section_start_current_a": "13.065",
+        },
+    )
+    assert settings_response.status_code == 200, settings_response.text
+
+    initialized = await client.post(
+        f"/api/v1/projects/{project_id}/electrical-variants/initialize",
+        headers=headers,
+    )
+    assert initialized.status_code == 200, initialized.text
+    variant_id = initialized.json()["variant"]["id"]
+
+    assignments: list[dict] = []
+    page = 1
+    while True:
+        response = await client.get(
+            f"/api/v1/projects/{project_id}/electrical-variants/" f"{variant_id}/assignments",
+            params={"page": page, "page_size": 200},
+            headers=headers,
+        )
+        assert response.status_code == 200, response.text
+        payload = response.json()
+        assignments.extend(payload["items"])
+        if not payload["page_info"]["has_next_page"]:
+            assert len(assignments) == payload["counts"]["total"]
+            break
+        page += 1
+
+    for offset in range(0, len(assignments), 500):
+        chunk = assignments[offset : offset + 500]
+        response = await client.patch(
+            f"/api/v1/projects/{project_id}/electrical-variants/" f"{variant_id}/assignments",
+            headers=headers,
+            json={
+                "system_type": "self_regulating",
+                "items": [
+                    {
+                        "object_id": assignment["object_id"],
+                        "expected_version": assignment["version"],
+                    }
+                    for assignment in chunk
+                ],
+            },
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["changed_count"] == len(chunk)
+
+    return variant_id
 
 
 class TestSingleObjectLatency:
@@ -117,18 +186,24 @@ class TestBatchRecalcLatency:
                 headers=headers,
             )
 
+        variant_id = await _assign_all_objects_to_self_regulating(client, proj["id"], headers)
+
         # Меряем batch_calc_electrical
         start = time.perf_counter()
         resp = await client.post(
             "/api/v1/calc/electrical/batch",
-            params={"project_id": proj["id"]},
+            params={
+                "project_id": proj["id"],
+                "variant_number": 1,
+                "electrical_variant_id": variant_id,
+            },
             headers=headers,
         )
         elapsed_s = time.perf_counter() - start
 
         assert resp.status_code == 200
         body = resp.json()
-        assert body["calculated"] == 50
+        assert body["calculated"] == 50, body
         # NFR норматив 5 с, тестовый порог 10 с (БД тестовая медленнее)
         assert elapsed_s < 10.0, (
             f"NFR-PERF-02 регрессия: batch для 50 объектов занял {elapsed_s:.1f} с "
@@ -230,16 +305,23 @@ class TestStressLargeProjects:
                 headers=headers,
             )
 
+        variant_id = await _assign_all_objects_to_self_regulating(client, proj["id"], headers)
+
         start = time.perf_counter()
         resp = await client.post(
             "/api/v1/calc/electrical/batch",
-            params={"project_id": proj["id"]},
+            params={
+                "project_id": proj["id"],
+                "variant_number": 1,
+                "electrical_variant_id": variant_id,
+            },
             headers=headers,
         )
         elapsed_s = time.perf_counter() - start
 
         assert resp.status_code == 200
-        assert resp.json()["calculated"] == 100
+        body = resp.json()
+        assert body["calculated"] == 100, body
         # 100 объектов: NFR-02 для 50 = 5с, лимит 15с ловит экспоненциальный рост
         assert elapsed_s < 15.0, f"Stress 100: {elapsed_s:.1f}с — нелинейный рост?"
 
@@ -300,6 +382,7 @@ class TestStress1000Objects:
         "insulation_layers": [{"thickness": 0.05, "material": MINERAL_WOOL}],
         "insulation_temperature_basis": "outdoor_winter",
         "ambient_temperature": -20.0,
+        "min_switch_temperature": -30.0,
         "process_temperature": 80.0,
         "pipe_length": 50.0,
         "placement": "outdoor",
@@ -326,7 +409,12 @@ class TestStress1000Objects:
         from app.formulas.heat_loss.pipe import calc_pipe_heat_loss
         from app.schemas.calculation import PipeHeatLossParams
 
-        pipe_params_api = {k: v for k, v in self._PIPE_PARAMS.items() if k != "name"}
+        electrical_only_fields = {"min_switch_temperature"}
+        pipe_params_api = {
+            key: value
+            for key, value in self._PIPE_PARAMS.items()
+            if key != "name" and key not in electrical_only_fields
+        }
         heat_result = calc_pipe_heat_loss(
             PipeHeatLossParams(**pipe_params_api),
             coefficients={"safety_factor": 1.0},
@@ -335,6 +423,7 @@ class TestStress1000Objects:
             "heat_loss_per_meter_base": heat_result.heat_loss_per_meter_base,
             "total_heat_loss_design": heat_result.total_heat_loss_design,
             "thermal_resistance": heat_result.thermal_resistance,
+            "safety_factor_applied": 1.0,
         }
         objs = [
             ProjectObject(
@@ -400,10 +489,15 @@ class TestStress1000Objects:
         proj = await self._seed_project_with_n_objects(db_session, employee_user, 1000)
 
         headers = {"Authorization": f"Bearer {employee_token}"}
+        variant_id = await _assign_all_objects_to_self_regulating(client, str(proj.id), headers)
         start = time.perf_counter()
         resp = await client.post(
             "/api/v1/calc/electrical/batch",
-            params={"project_id": str(proj.id)},
+            params={
+                "project_id": str(proj.id),
+                "variant_number": 1,
+                "electrical_variant_id": variant_id,
+            },
             headers=headers,
             timeout=120,
         )
