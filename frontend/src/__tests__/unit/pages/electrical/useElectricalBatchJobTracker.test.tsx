@@ -140,7 +140,7 @@ describe('useElectricalBatchJobTracker', () => {
     );
   });
 
-  it('invalidates the exact UUID data, assignment summary, and project summary after success', async () => {
+  it('invalidates ER data and specification readiness after success', async () => {
     const { queryClient, result } = setup();
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries').mockResolvedValue();
     const succeededTask = task('task-success', ER_TWO, 'succeeded', {
@@ -169,7 +169,7 @@ describe('useElectricalBatchJobTracker', () => {
       expect(result.current.trackedJobs).toHaveLength(0);
     });
 
-    expect(invalidate).toHaveBeenCalledTimes(3);
+    expect(invalidate).toHaveBeenCalledTimes(4);
     expect(invalidate).toHaveBeenCalledWith({
       queryKey: electricalDataQueryKeys.variant('project-1', ER_TWO),
     });
@@ -178,6 +178,9 @@ describe('useElectricalBatchJobTracker', () => {
     });
     expect(invalidate).toHaveBeenCalledWith({
       queryKey: ['project', 'project-1', 'objects', 'summary'],
+    });
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: ['spec-readiness', 'project-1'],
     });
     expect(invalidate).not.toHaveBeenCalledWith({
       queryKey: electricalDataQueryKeys.variant('project-1', ER_ONE),

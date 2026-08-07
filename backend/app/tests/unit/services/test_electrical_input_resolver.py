@@ -93,6 +93,14 @@ def test_required_case1_input_never_uses_an_implicit_fallback(
     assert raised.value.details == {"field": field}
 
 
+def test_missing_selection_policy_has_an_actionable_user_message() -> None:
+    with pytest.raises(ElectricalInputResolutionError) as raised:
+        ElectricalInputResolver._raise_missing("selection_policy")
+
+    assert raised.value.code == "ELECTRICAL_INPUT_REQUIRED"
+    assert raised.value.message == "Не задан обязательный параметр: режим подбора кабеля"
+
+
 def test_assignment_voltage_precedes_project_and_is_resolved_as_assignment_source() -> None:
     sources = _sources()
     sources["assignment"] = {"nominal_voltage_v": Decimal("380")}
