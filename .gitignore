@@ -59,8 +59,10 @@ pnpm-debug.log*
 *.zip
 *.7z
 
-# Демо-поставка (compose, README, образы) — собирается локально, не нужна в репо
-demo/
+# Демо-образы собираются локально; воспроизводимые launch manifests храним в репо.
+demo/*
+!demo/docker-compose.yml
+!demo/load.sh
 demo*.zip
 
 # Nested WIP / separate checkout (has its own .git)

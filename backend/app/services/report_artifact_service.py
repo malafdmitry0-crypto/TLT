@@ -9,8 +9,9 @@ from app.core.config import settings
 from app.schemas.report import ReportFormat
 
 
-def report_artifact_name(task_id: UUID, fmt: ReportFormat) -> str:
-    return f"{task_id}.{fmt}"
+def report_artifact_name(task_id: UUID, fmt: ReportFormat, *, attempt: int | None = None) -> str:
+    attempt_suffix = f".attempt-{attempt}" if attempt is not None else ""
+    return f"{task_id}{attempt_suffix}.{fmt}"
 
 
 def report_artifact_path(artifact_name: str) -> Path:
@@ -21,8 +22,14 @@ def report_artifact_path(artifact_name: str) -> Path:
     return path
 
 
-def write_report_artifact(task_id: UUID, fmt: ReportFormat, data: bytes) -> dict:
-    artifact_name = report_artifact_name(task_id, fmt)
+def write_report_artifact(
+    task_id: UUID,
+    fmt: ReportFormat,
+    data: bytes,
+    *,
+    attempt: int | None = None,
+) -> dict:
+    artifact_name = report_artifact_name(task_id, fmt, attempt=attempt)
     path = report_artifact_path(artifact_name)
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp_path = path.with_suffix(path.suffix + ".tmp")
@@ -32,3 +39,8 @@ def write_report_artifact(task_id: UUID, fmt: ReportFormat, data: bytes) -> dict
         "artifact_name": artifact_name,
         "size_bytes": len(data),
     }
+
+
+def delete_report_artifact(artifact_name: str) -> None:
+    """Remove an unpublished attempt artifact without touching another generation."""
+    report_artifact_path(artifact_name).unlink(missing_ok=True)

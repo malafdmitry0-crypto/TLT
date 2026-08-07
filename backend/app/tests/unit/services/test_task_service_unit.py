@@ -52,6 +52,9 @@ class QueueOk:
     async def enqueue(self, task_id, task_type: str) -> str:
         return f"stream:{task_id}:{task_type}"
 
+    async def is_worker_ready(self, _consumer: str) -> bool:
+        return False
+
 
 class QueueFail:
     async def enqueue(self, task_id, task_type: str) -> str:
@@ -286,7 +289,7 @@ class TestWorkerFailureRecording:
             attempts=1,
             locked_by="worker-a",
         )
-        mock_db.get = AsyncMock(return_value=task)
+        mock_db.execute = AsyncMock(return_value=ResultRows([task]))
         monkeypatch.setattr("app.services.task_service.settings.WORKER_MAX_ATTEMPTS", 3)
 
         action = await TaskService(mock_db).record_worker_exception(
@@ -317,7 +320,7 @@ class TestWorkerFailureRecording:
             attempts=3,
             locked_by="worker-a",
         )
-        mock_db.get = AsyncMock(return_value=task)
+        mock_db.execute = AsyncMock(return_value=ResultRows([task]))
         monkeypatch.setattr("app.services.task_service.settings.WORKER_MAX_ATTEMPTS", 3)
 
         action = await TaskService(mock_db).record_worker_exception(
@@ -327,11 +330,43 @@ class TestWorkerFailureRecording:
         )
 
         assert action == "dead_letter"
+        assert task.status == "enqueued"
+        assert task.progress_phase == "dead_letter_pending"
+        assert task.finished_at is None
+        assert task.locked_by is None
+        mock_db.commit.assert_awaited_once()
+
+    async def test_stale_worker_exception_cannot_mutate_new_attempt(self, mock_db):
+        mock_db.execute = AsyncMock(return_value=ResultRows([]))
+
+        action = await TaskService(mock_db).record_worker_exception(
+            uuid.uuid4(),
+            worker_id="worker-old",
+            error_message="RuntimeError: late failure",
+        )
+
+        assert action == "ack"
+        mock_db.rollback.assert_awaited_once()
+        mock_db.commit.assert_not_awaited()
+
+    async def test_finalize_dead_letter_marks_pending_task_failed(self, mock_db):
+        task = BackgroundTask(
+            id=uuid.uuid4(),
+            type=TASK_ELECTRICAL_BATCH,
+            status="enqueued",
+            session_id="sid",
+            request_payload={},
+            attempts=3,
+            progress_phase="dead_letter_pending",
+            error_message="RuntimeError: permanent bug",
+        )
+        mock_db.get = AsyncMock(return_value=task)
+
+        await TaskService(mock_db).finalize_dead_letter(task.id)
+
         assert task.status == "failed"
         assert task.progress_phase == "failed"
         assert task.finished_at is not None
-        assert task.locked_by is None
-        mock_db.commit.assert_awaited_once()
 
 
 class TestDeadLetterReplay:
@@ -1223,7 +1258,11 @@ class TestTaskStateTransitions:
 
         assert task.status == "running"
         assert task.locked_by == "worker"
-        service._run_heat_loss_batch.assert_awaited_once_with(task.id)
+        service._run_heat_loss_batch.assert_awaited_once_with(
+            task.id,
+            attempt=1,
+            worker_id="worker",
+        )
         mock_db.commit.assert_awaited_once()
 
     async def test_run_task_dispatches_report_export(self, mock_db):
@@ -1247,7 +1286,11 @@ class TestTaskStateTransitions:
 
         await service.run_task(task.id, worker_id="worker")
 
-        service._run_report_export.assert_awaited_once_with(task.id)
+        service._run_report_export.assert_awaited_once_with(
+            task.id,
+            attempt=1,
+            worker_id="worker",
+        )
         mock_db.commit.assert_awaited_once()
 
     async def test_run_task_does_not_dispatch_if_claim_lost(self, mock_db):
@@ -1293,6 +1336,7 @@ class TestTaskStateTransitions:
         )
         mock_db.get = AsyncMock(return_value=task)
         expected_object_ids = [uuid.UUID(value) for value in task.request_payload["object_ids"]]
+        mock_db.execute = AsyncMock(return_value=ResultRows([task]))
 
         class FakeCalculationService:
             def __init__(self, db) -> None:
@@ -1315,9 +1359,11 @@ class TestTaskStateTransitions:
 
         monkeypatch.setattr("app.services.task_service.CalculationService", FakeCalculationService)
 
-        await TaskService(
-            mock_db, session_factory=StaticSessionFactory(mock_db)
-        )._run_heat_loss_batch(task.id)
+        service = TaskService(mock_db, session_factory=StaticSessionFactory(mock_db))
+        service._task_for_terminal_transition = AsyncMock(  # type: ignore[method-assign]
+            return_value=task
+        )
+        await service._run_heat_loss_batch(task.id, attempt=1, worker_id="worker-a")
 
         assert task.status == "succeeded"
         assert task.result_payload == {
@@ -1344,6 +1390,7 @@ class TestTaskStateTransitions:
             progress_current=0,
         )
         mock_db.get = AsyncMock(return_value=task)
+        mock_db.execute = AsyncMock(return_value=ResultRows([task]))
 
         class FakeCalculationService:
             def __init__(self, db) -> None:
@@ -1354,9 +1401,11 @@ class TestTaskStateTransitions:
 
         monkeypatch.setattr("app.services.task_service.CalculationService", FakeCalculationService)
 
-        await TaskService(
-            mock_db, session_factory=StaticSessionFactory(mock_db)
-        )._run_heat_loss_batch(task.id)
+        service = TaskService(mock_db, session_factory=StaticSessionFactory(mock_db))
+        service._task_for_terminal_transition = AsyncMock(  # type: ignore[method-assign]
+            return_value=task
+        )
+        await service._run_heat_loss_batch(task.id, attempt=1, worker_id="worker-a")
 
         assert task.status == "succeeded"
         assert task.result_payload == {"updated": 0, "failed": 1, "errors": []}
@@ -1377,6 +1426,7 @@ class TestTaskStateTransitions:
             progress_current=0,
         )
         mock_db.get = AsyncMock(return_value=task)
+        mock_db.execute = AsyncMock(return_value=ResultRows([task]))
 
         class FakeCalculationService:
             def __init__(self, db) -> None:
@@ -1389,9 +1439,11 @@ class TestTaskStateTransitions:
 
         monkeypatch.setattr("app.services.task_service.CalculationService", FakeCalculationService)
 
-        await TaskService(
-            mock_db, session_factory=StaticSessionFactory(mock_db)
-        )._run_heat_loss_batch(task.id)
+        service = TaskService(mock_db, session_factory=StaticSessionFactory(mock_db))
+        service._task_for_terminal_transition = AsyncMock(  # type: ignore[method-assign]
+            return_value=task
+        )
+        await service._run_heat_loss_batch(task.id, attempt=1, worker_id="worker-a")
 
         assert task.status == "cancelled"
         assert task.cancel_requested is True
@@ -1412,6 +1464,7 @@ class TestTaskStateTransitions:
             progress_current=0,
         )
         mock_db.get = AsyncMock(return_value=task)
+        mock_db.execute = AsyncMock(return_value=ResultRows([task]))
 
         class FakeCalculationService:
             def __init__(self, db) -> None:
@@ -1422,9 +1475,11 @@ class TestTaskStateTransitions:
 
         monkeypatch.setattr("app.services.task_service.CalculationService", FakeCalculationService)
 
-        await TaskService(
-            mock_db, session_factory=StaticSessionFactory(mock_db)
-        )._run_heat_loss_batch(task.id)
+        service = TaskService(mock_db, session_factory=StaticSessionFactory(mock_db))
+        service._task_for_terminal_transition = AsyncMock(  # type: ignore[method-assign]
+            return_value=task
+        )
+        await service._run_heat_loss_batch(task.id, attempt=1, worker_id="worker-a")
 
         assert task.status == "failed"
         assert task.error_message == "RuntimeError: boom"
@@ -1451,6 +1506,7 @@ class TestTaskStateTransitions:
             progress_total=3,
         )
         mock_db.get = AsyncMock(return_value=task)
+        mock_db.execute = AsyncMock(return_value=ResultRows([task]))
 
         class FakeReportService:
             def __init__(self, db) -> None:
@@ -1474,15 +1530,18 @@ class TestTaskStateTransitions:
         monkeypatch.setattr("app.services.task_service.ReportService", FakeReportService)
         monkeypatch.setattr(
             "app.services.task_service.write_report_artifact",
-            lambda task_id, fmt, data: {
+            lambda task_id, fmt, data, *, attempt=None: {
                 "artifact_name": f"{task_id}.{fmt}",
                 "size_bytes": len(data),
             },
         )
         service = TaskService(mock_db, session_factory=StaticSessionFactory(mock_db))
         service._should_cancel = AsyncMock(return_value=False)  # type: ignore[method-assign]
+        service._task_for_terminal_transition = AsyncMock(  # type: ignore[method-assign]
+            return_value=task
+        )
 
-        await service._run_report_export(task.id)
+        await service._run_report_export(task.id, attempt=1, worker_id="worker-a")
 
         assert task.status == "succeeded"
         assert task.result_payload == {
@@ -1534,6 +1593,21 @@ class TestTaskStateTransitions:
         assert "RuntimeError" in (task.last_enqueue_error or "")
         assert task.next_retry_at is not None
 
+    async def test_enqueue_records_transport_heartbeat(self, mock_db):
+        task = BackgroundTask(
+            id=uuid.uuid4(),
+            type=TASK_ELECTRICAL_BATCH,
+            status="queued",
+            session_id="sid",
+            request_payload={},
+            progress_current=0,
+        )
+
+        await TaskService(mock_db).enqueue_existing_task(task, queue=QueueOk())
+
+        assert task.status == "enqueued"
+        assert task.heartbeat_at is not None
+
     async def test_cancel_terminal_task_is_noop(
         self,
         mock_db,
@@ -1584,6 +1658,104 @@ class TestTaskStateTransitions:
         assert recovered == 2
         service.enqueue_existing_task.assert_awaited_once_with(queued, queue=ANY)
         service._mark_failed.assert_awaited_once()
+
+    async def test_recovery_does_not_requeue_task_owned_by_live_worker(self, mock_db):
+        stale = BackgroundTask(
+            id=uuid.uuid4(),
+            type=TASK_ELECTRICAL_BATCH,
+            status="running",
+            session_id="sid",
+            request_payload={},
+            progress_current=0,
+            attempts=1,
+            locked_by="worker-a",
+            heartbeat_at=datetime.now(UTC) - timedelta(minutes=10),
+        )
+        mock_db.execute = AsyncMock(side_effect=[ResultRows([]), ResultRows([stale])])
+        service = TaskService(mock_db)
+        service.enqueue_existing_task = AsyncMock()  # type: ignore[method-assign]
+        queue = QueueOk()
+        queue.is_worker_ready = AsyncMock(return_value=True)  # type: ignore[method-assign]
+
+        recovered = await service.recover_stuck_tasks(queue=queue)
+
+        assert recovered == 0
+        queue.is_worker_ready.assert_awaited_once_with("worker-a")  # type: ignore[attr-defined]
+        service.enqueue_existing_task.assert_not_awaited()
+
+
+class TestAttemptFencing:
+    async def test_stale_attempt_cannot_publish_after_new_attempt_wins(self, mock_db):
+        task = BackgroundTask(
+            id=uuid.uuid4(),
+            type=TASK_HEAT_LOSS_BATCH,
+            status="running",
+            session_id="sid",
+            request_payload={},
+            progress_current=0,
+            attempts=2,
+            locked_by="worker-new",
+        )
+        mock_db.execute = AsyncMock(
+            side_effect=(ResultRows([]), ResultRows([task]))
+        )
+        service = TaskService(mock_db)
+        service._record_task_audit = AsyncMock()  # type: ignore[method-assign]
+
+        stale_published = await service._mark_succeeded(
+            task.id,
+            {"winner": "stale"},
+            attempt=1,
+            worker_id="worker-old",
+        )
+        current_published = await service._mark_succeeded(
+            task.id,
+            {"winner": "current"},
+            attempt=2,
+            worker_id="worker-new",
+        )
+
+        assert stale_published is False
+        assert current_published is True
+        assert task.status == "succeeded"
+        assert task.result_payload == {"winner": "current"}
+        mock_db.rollback.assert_awaited_once()
+        mock_db.commit.assert_awaited_once()
+
+    async def test_stale_attempt_progress_is_guarded_by_database_cas(self, mock_db):
+        mock_db.execute = AsyncMock(return_value=ResultRows([]))
+        service = TaskService(mock_db, session_factory=StaticSessionFactory(mock_db))
+
+        await service._update_progress(
+            uuid.uuid4(),
+            BatchProgress(current=7, total=10, phase="calculate"),
+            attempt=3,
+            worker_id="worker-old",
+        )
+
+        statement = mock_db.execute.await_args.args[0]
+        sql = str(statement)
+        params = statement.compile().params.values()
+        assert "background_tasks.status" in sql
+        assert "background_tasks.attempts" in sql
+        assert "background_tasks.locked_by" in sql
+        assert 3 in params
+        assert "worker-old" in params
+        mock_db.commit.assert_awaited_once()
+
+    async def test_lost_attempt_observes_cancellation_barrier(self, mock_db):
+        result = MagicMock()
+        result.one_or_none.return_value = None
+        mock_db.execute = AsyncMock(return_value=result)
+        service = TaskService(mock_db, session_factory=StaticSessionFactory(mock_db))
+
+        should_stop = await service._should_cancel(
+            uuid.uuid4(),
+            attempt=1,
+            worker_id="worker-old",
+        )
+
+        assert should_stop is True
 
 
 class TestTaskResponse:

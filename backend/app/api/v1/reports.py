@@ -14,6 +14,7 @@ from app.core.dependencies import (
     require_employee,
 )
 from app.core.rate_limit import enforce_principal_rate_limit, job_enqueue_limiter, report_limiter
+from app.core.worker_dependency import require_worker_ready
 from app.schemas.calculation import CalculationTaskResponse
 from app.schemas.report import ReportExportJobRequest, ReportPreviewResponse
 from app.services.audit_service import AuditService
@@ -260,6 +261,7 @@ async def export(
     response_model=CalculationTaskResponse,
     status_code=status.HTTP_202_ACCEPTED,
     summary="Поставить экспорт отчёта в очередь worker'а",
+    dependencies=[Depends(require_worker_ready)],
 )
 async def enqueue_export_job(
     project_id: UUID,
