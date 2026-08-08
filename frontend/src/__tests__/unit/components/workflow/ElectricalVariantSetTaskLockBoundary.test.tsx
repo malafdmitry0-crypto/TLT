@@ -1,14 +1,14 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { CalculationWorkflowLockBoundary } from '@/components/workflow/CalculationWorkflowLockBoundary';
+import { ElectricalVariantSetTaskLockBoundary } from '@/components/workflow/ElectricalVariantSetTaskLockBoundary';
 
-describe('CalculationWorkflowLockBoundary', () => {
+describe('ElectricalVariantSetTaskLockBoundary', () => {
   it('uses native inert while the server-authoritative workflow lock is active', () => {
     const view = render(
-      <CalculationWorkflowLockBoundary locked>
+      <ElectricalVariantSetTaskLockBoundary locked>
         <button type="button">Изменить</button>
-      </CalculationWorkflowLockBoundary>,
+      </ElectricalVariantSetTaskLockBoundary>,
     );
     const boundary = screen.getByRole('button', { name: 'Изменить', hidden: true }).parentElement!;
 
@@ -16,9 +16,9 @@ describe('CalculationWorkflowLockBoundary', () => {
     expect(boundary).toHaveAttribute('aria-disabled', 'true');
 
     view.rerender(
-      <CalculationWorkflowLockBoundary locked={false}>
+      <ElectricalVariantSetTaskLockBoundary locked={false}>
         <button type="button">Изменить</button>
-      </CalculationWorkflowLockBoundary>,
+      </ElectricalVariantSetTaskLockBoundary>,
     );
     expect(boundary.inert).toBe(false);
     expect(boundary).not.toHaveAttribute('aria-disabled');
