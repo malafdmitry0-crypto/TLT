@@ -67,20 +67,13 @@ export function buildSpecificationGeneratedToast(args: {
 
 export function resolveGenerateVariantIds(
   selectedGenerateErIds: string[],
-  fallbackElectricalVariantId: string,
 ): string[] {
-  return selectedGenerateErIds.length > 0
-    ? selectedGenerateErIds
-    : [fallbackElectricalVariantId];
+  return [...selectedGenerateErIds];
 }
 
 export function filterValidGenerateErIds(
   prev: string[],
   availableIds: Set<string>,
-  selectedId: string | undefined,
 ): string[] {
-  if (prev.length === 0) return selectedId ? [selectedId] : [];
-  const stillValid = prev.filter((id) => availableIds.has(id));
-  if (stillValid.length > 0) return stillValid;
-  return selectedId && availableIds.has(selectedId) ? [selectedId] : [];
+  return prev.filter((id) => availableIds.has(id));
 }

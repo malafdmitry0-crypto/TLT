@@ -12,8 +12,8 @@ import {
   buildHeatCalcTypeBar,
 } from '@/pages/heatcalc/HeatCalcPageToolbars';
 import { useHeatCalcPageModel } from '@/pages/heatcalc/useHeatCalcPageModel';
-import { CalculationWorkflowLockBoundary } from '@/components/workflow/CalculationWorkflowLockBoundary';
-import { useProjectCalculationWorkflow } from '@/hooks/useProjectCalculationWorkflow';
+import { ElectricalVariantSetTaskLockBoundary } from '@/components/workflow/ElectricalVariantSetTaskLockBoundary';
+import { useProjectElectricalVariantSetTask } from '@/hooks/useProjectElectricalVariantSetTask';
 
 export default function HeatCalcPage() {
   const m = useHeatCalcPageModel();
@@ -106,7 +106,7 @@ export default function HeatCalcPage() {
     forceOpenEditWizard,
     workspaceLoadState,
   } = m;
-  const { isCalculationLocked } = useProjectCalculationWorkflow(project?.id);
+  const { isCalculationLocked } = useProjectElectricalVariantSetTask(project?.id);
   if (!project) {
     return <HeatCalcEmptyProjectState />;
   }
@@ -265,7 +265,7 @@ export default function HeatCalcPage() {
   );
 
   return (
-    <CalculationWorkflowLockBoundary locked={isCalculationLocked}>
+    <ElectricalVariantSetTaskLockBoundary locked={isCalculationLocked}>
       <HeatCalcWorkspaceLayout
         formPlacement={formPlacement}
         isSideFormPlacement={isSideFormPlacement}
@@ -321,6 +321,6 @@ export default function HeatCalcPage() {
         setPendingWizardObject={setPendingWizardObject}
         forceOpenEditWizard={forceOpenEditWizard}
       />
-    </CalculationWorkflowLockBoundary>
+    </ElectricalVariantSetTaskLockBoundary>
   );
 }
