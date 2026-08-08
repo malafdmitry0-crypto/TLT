@@ -366,7 +366,9 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
                 onClick={() => runGenerate(false)}
                 aria-label={hasItems ? 'Пересчитать' : 'Сформировать'}
               >
-                {hasItems ? 'Пересчитать' : 'Сформировать'}
+                {hasItems
+                  ? `Пересчитать выбранные ЭР (${selectedGenerateErIds.length})`
+                  : `Сформировать выбранные ЭР (${selectedGenerateErIds.length})`}
               </TltButton>
               <TltButton
                 className="specification-settings-action"

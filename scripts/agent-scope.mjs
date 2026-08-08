@@ -203,22 +203,21 @@ const RULES = [
     notes: 'Browser optional unless UI layout changed.',
   },
   {
-    id: 'calculation-workflow',
+    id: 'electrical-variant-set-task',
     test: (p) =>
       p.startsWith(`components/workflow${sep}`)
-      || p === 'hooks/useProjectCalculationWorkflow.ts'
-      || p === 'api/calculationWorkflows.ts',
+      || p === 'hooks/useProjectElectricalVariantSetTask.ts',
     owner: 'shared',
-    zone: 'project-calculation-workflow',
-    publicEntrypoint: 'workflow banner + project calculation hook',
+    zone: 'electrical-variant-set-task',
+    publicEntrypoint: 'explicit ER-set task banner + project calculation lock hook',
     stateOwner: 'server-authoritative background task via react-query',
     focusedProof: [
-      { cwd: 'frontend', argv: ['npx', 'vitest', 'run', '--project', 'unit', 'src/__tests__/unit/hooks/useProjectCalculationWorkflow.test.tsx', 'src/__tests__/unit/components/workflow'] },
+      { cwd: 'frontend', argv: ['npx', 'vitest', 'run', '--project', 'unit', 'src/__tests__/unit/hooks/useProjectElectricalVariantSetTask.test.tsx', 'src/__tests__/unit/components/workflow'] },
       { cwd: 'frontend', argv: ['npm', 'run', 'typecheck'] },
       { cwd: 'frontend', argv: ['npm', 'run', 'test:agent-gates'] },
     ],
     focusedTests: [
-      'npx vitest run --project unit src/__tests__/unit/hooks/useProjectCalculationWorkflow.test.tsx src/__tests__/unit/components/workflow',
+      'npx vitest run --project unit src/__tests__/unit/hooks/useProjectElectricalVariantSetTask.test.tsx src/__tests__/unit/components/workflow',
       'npm run typecheck',
       'npm run test:agent-gates',
     ],
@@ -518,7 +517,7 @@ const DEFAULT_PROOF_LEVEL_BY_RULE_ID = new Map([
   ['specification', 'owner'],
   ['reports', 'owner'],
   ['admin', 'owner'],
-  ['calculation-workflow', 'owner'],
+  ['electrical-variant-set-task', 'owner'],
   ['auth-shell', 'owner'],
   ['projects', 'owner'],
   ['common-shared-components', 'owner'],
@@ -599,6 +598,10 @@ function matchRules(relFromSrc) {
 /** Resolve hits to a single owner rule or classify failure. */
 function resolveOwnerHits(hits) {
   if (hits.length === 0) return { status: 'unowned', rule: null, owners: [] };
+  const storybookRule = hits.find((hit) => hit.id === 'storybook-config');
+  if (storybookRule) {
+    return { status: 'ok', rule: storybookRule, owners: [storybookRule.owner], hits };
+  }
   const owners = [...new Set(hits.map((h) => h.owner))];
   if (owners.length > 1) {
     return { status: 'ambiguous', rule: null, owners, hits };
@@ -653,6 +656,11 @@ function testProjectForPath(relFromSrc) {
 function focusedProofForPath(rule, relFromSrc) {
   if (rule.id !== 'tests') return rule.focusedProof ?? [];
   const testTarget = join('src', relFromSrc);
+  if (allowMissing && !existsSync(join(FRONTEND, testTarget))) {
+    // Deleted tests cannot be valid Vitest targets. The changed-scope planner
+    // still requires the architecture gate and proof for replacement tests.
+    return [{ cwd: 'frontend', argv: ['npm', 'run', 'test:agent-gates'] }];
+  }
   return [
     {
       cwd: 'frontend',

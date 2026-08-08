@@ -56,7 +56,7 @@ logger = logging.getLogger("heatcalc.worker")
 TASK_ELECTRICAL_BATCH = "electrical_batch"
 TASK_HEAT_LOSS_BATCH = "heat_loss_batch"
 TASK_REPORT_EXPORT = "report_export"
-TASK_PROJECT_PIPELINE = "project_pipeline"
+TASK_ELECTRICAL_VARIANT_SET = "electrical_variant_set"
 ACTIVE_STATUSES = ("queued", "enqueued", "running", "waiting_input")
 TERMINAL_STATUSES = ("succeeded", "failed", "cancelled", "timed_out")
 MAX_TASK_ERROR_MESSAGE_LENGTH = 4_000
@@ -769,7 +769,7 @@ class TaskService:
             TASK_ELECTRICAL_BATCH,
             TASK_HEAT_LOSS_BATCH,
             TASK_REPORT_EXPORT,
-            TASK_PROJECT_PIPELINE,
+            TASK_ELECTRICAL_VARIANT_SET,
         ):
             await self._mark_failed(
                 task_id,
@@ -779,10 +779,12 @@ class TaskService:
             )
             return
 
-        if task.type == TASK_PROJECT_PIPELINE:
-            from app.services.calculation_workflow_service import CalculationWorkflowService
+        if task.type == TASK_ELECTRICAL_VARIANT_SET:
+            from app.services.electrical_variant_set_task_service import (
+                ElectricalVariantSetTaskService,
+            )
 
-            await CalculationWorkflowService(
+            await ElectricalVariantSetTaskService(
                 self.db,
                 session_factory=self.session_factory,
             ).run_claimed_task(
@@ -933,7 +935,7 @@ class TaskService:
                 recovered += 1
                 continue
             if (
-                task.type == TASK_PROJECT_PIPELINE
+                task.type == TASK_ELECTRICAL_VARIANT_SET
                 and task.queue_deadline_at is not None
                 and task.queue_deadline_at <= now
             ):
@@ -1048,7 +1050,7 @@ class TaskService:
             TASK_ELECTRICAL_BATCH,
             TASK_HEAT_LOSS_BATCH,
             TASK_REPORT_EXPORT,
-            TASK_PROJECT_PIPELINE,
+            TASK_ELECTRICAL_VARIANT_SET,
         ):
             raise ValueError(f"Неизвестный тип задачи: {task.type}")
         if task.status in ACTIVE_STATUSES:

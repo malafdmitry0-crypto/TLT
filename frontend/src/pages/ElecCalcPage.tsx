@@ -4,8 +4,8 @@ import EmptyProjectState from '@/components/common/EmptyProjectState';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import ElecCalcProject from '@/pages/electrical/ElecCalcProject';
-import { CalculationWorkflowLockBoundary } from '@/components/workflow/CalculationWorkflowLockBoundary';
-import { useProjectCalculationWorkflow } from '@/hooks/useProjectCalculationWorkflow';
+import { ElectricalVariantSetTaskLockBoundary } from '@/components/workflow/ElectricalVariantSetTaskLockBoundary';
+import { useProjectElectricalVariantSetTask } from '@/hooks/useProjectElectricalVariantSetTask';
 import '@/pages/electrical/elec-workspace.css';
 
 export default function ElecCalcPage() {
@@ -13,7 +13,7 @@ export default function ElecCalcPage() {
   const role = useAuthStore((state) => state.role);
   const userId = useAuthStore((state) => state.user?.id ?? null);
   const sessionId = useAuthStore((state) => state.sessionId);
-  const { isCalculationLocked } = useProjectCalculationWorkflow(project?.id);
+  const { isCalculationLocked } = useProjectElectricalVariantSetTask(project?.id);
 
   if (!project) {
     return (
@@ -30,12 +30,12 @@ export default function ElecCalcPage() {
     || (role === 'guest' && project.session_id === sessionId);
 
   return (
-    <CalculationWorkflowLockBoundary locked={isCalculationLocked}>
+    <ElectricalVariantSetTaskLockBoundary locked={isCalculationLocked}>
       <ElecCalcProject
         key={project.id}
         projectId={project.id}
         canMutate={canMutate && !isCalculationLocked}
       />
-    </CalculationWorkflowLockBoundary>
+    </ElectricalVariantSetTaskLockBoundary>
   );
 }
