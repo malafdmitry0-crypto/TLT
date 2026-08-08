@@ -22,8 +22,8 @@ from app.services.task_service import (
     ELECTRICAL_VARIANT_NOT_FOUND,
     MAX_TASK_ERROR_MESSAGE_LENGTH,
     TASK_ELECTRICAL_BATCH,
+    TASK_ELECTRICAL_VARIANT_SET,
     TASK_HEAT_LOSS_BATCH,
-    TASK_PROJECT_PIPELINE,
     TASK_REPORT_EXPORT,
     ProgressThrottler,
     ProgressWritePolicy,
@@ -1315,18 +1315,18 @@ class TestTaskStateTransitions:
         service._run_heat_loss_batch.assert_not_awaited()
         mock_db.commit.assert_not_awaited()
 
-    async def test_run_task_does_not_dispatch_terminal_project_pipeline_again(
+    async def test_run_task_does_not_dispatch_terminal_electrical_variant_set_again(
         self,
         mock_db,
         monkeypatch: pytest.MonkeyPatch,
     ):
         task = BackgroundTask(
             id=uuid.uuid4(),
-            type=TASK_PROJECT_PIPELINE,
+            type=TASK_ELECTRICAL_VARIANT_SET,
             status="succeeded",
             project_id=uuid.uuid4(),
             session_id="sid",
-            request_payload={"project_id": str(uuid.uuid4()), "variant_ids": []},
+            request_payload={"project_id": str(uuid.uuid4()), "electrical_variant_ids": []},
             progress_current=1,
             progress_total=1,
             cancel_requested=False,
@@ -1334,18 +1334,18 @@ class TestTaskStateTransitions:
         )
         mock_db.execute = AsyncMock(return_value=ResultRows([]))
         mock_db.get = AsyncMock(return_value=task)
-        workflow_service = MagicMock()
-        workflow_service.run_claimed_task = AsyncMock()
-        workflow_service_type = MagicMock(return_value=workflow_service)
+        task_service_mock = MagicMock()
+        task_service_mock.run_claimed_task = AsyncMock()
+        task_service_mock_type = MagicMock(return_value=task_service_mock)
         monkeypatch.setattr(
-            "app.services.calculation_workflow_service.CalculationWorkflowService",
-            workflow_service_type,
+            "app.services.electrical_variant_set_task_service.ElectricalVariantSetTaskService",
+            task_service_mock_type,
         )
 
         await TaskService(mock_db).run_task(task.id, worker_id="worker-2")
 
-        workflow_service_type.assert_not_called()
-        workflow_service.run_claimed_task.assert_not_awaited()
+        task_service_mock_type.assert_not_called()
+        task_service_mock.run_claimed_task.assert_not_awaited()
         mock_db.commit.assert_not_awaited()
 
     async def test_run_heat_loss_batch_marks_succeeded(
@@ -1721,10 +1721,10 @@ class TestTaskStateTransitions:
         queue.is_worker_ready.assert_awaited_once_with("worker-a")  # type: ignore[attr-defined]
         service.enqueue_existing_task.assert_not_awaited()
 
-    async def test_recovery_times_out_expired_pipeline_queue_budget(self, mock_db):
+    async def test_recovery_times_out_expired_electrical_variant_set_queue_budget(self, mock_db):
         expired = BackgroundTask(
             id=uuid.uuid4(),
-            type=TASK_PROJECT_PIPELINE,
+            type=TASK_ELECTRICAL_VARIANT_SET,
             status="queued",
             session_id="sid",
             request_payload={},

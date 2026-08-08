@@ -14,7 +14,7 @@ from app.models.background_task import BackgroundTask
 from app.models.project import Project
 
 ACTIVE_CALCULATION_STATUSES = ("queued", "enqueued", "running", "waiting_input")
-CALCULATION_TASK_TYPES = ("heat_loss_batch", "electrical_batch", "project_pipeline")
+CALCULATION_TASK_TYPES = ("heat_loss_batch", "electrical_batch", "electrical_variant_set")
 
 
 @dataclass(frozen=True)
@@ -45,7 +45,13 @@ class ProjectCalculationBusyError(Exception):
             "stage": self.busy.stage,
             "retry_after_seconds": self.busy.retry_after_seconds,
             "status_url": (
-                f"/api/v1/calculation-workflows/{task_id}" if task_id is not None else None
+                (
+                    f"/api/v1/electrical-variant-set-tasks/{task_id}"
+                    if self.busy.task_type == "electrical_variant_set"
+                    else f"/api/v1/calc/jobs/{task_id}"
+                )
+                if task_id is not None
+                else None
             ),
         }
 
