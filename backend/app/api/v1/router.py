@@ -7,7 +7,7 @@ from app.api.v1 import (
     audit,
     auth,
     calc_jobs,
-    calculation_workflows,
+    electrical_variant_set_tasks,
     calculations,
     display_settings,
     electrical_settings,
@@ -43,7 +43,7 @@ api_router.include_router(
 )
 api_router.include_router(calculations.router, prefix="/calc", tags=["calc"])
 api_router.include_router(calc_jobs.router, prefix="/calc", tags=["calc"])
-api_router.include_router(calculation_workflows.router, tags=["calculation-workflows"])
+api_router.include_router(electrical_variant_set_tasks.router, tags=["electrical-variant-set-tasks"])
 api_router.include_router(specifications.router, prefix="/specifications", tags=["specifications"])
 api_router.include_router(reports.router, prefix="/reports", tags=["reports"])
 api_router.include_router(references.router, prefix="/references", tags=["references"])

@@ -23,18 +23,16 @@ describe('specificationPageModelHelpers', () => {
   });
 
   it('resolves generate ER ids and filters stale selections', () => {
-    expect(resolveGenerateVariantIds(['a', 'b'], 'fallback')).toEqual(['a', 'b']);
-    expect(resolveGenerateVariantIds([], 'fallback')).toEqual(['fallback']);
+    expect(resolveGenerateVariantIds(['a', 'b'])).toEqual(['a', 'b']);
+    expect(resolveGenerateVariantIds([])).toEqual([]);
     expect(filterValidGenerateErIds(
       ['gone'],
       new Set(['keep']),
-      'keep',
-    )).toEqual(['keep']);
+    )).toEqual([]);
     expect(filterValidGenerateErIds(
       ['gone'],
       new Set(['uuid-only']),
-      'uuid-only',
-    )).toEqual(['uuid-only']);
+    )).toEqual([]);
   });
 
   it('builds an exact UUID recovery target for the blocked ER', () => {

@@ -8,14 +8,11 @@ import { useEffect, useMemo, useRef } from 'react';
 import { appMessage as message } from '@/feedback/appFeedback';
 import { useMutation } from '@tanstack/react-query';
 import {
+  generateSpecification,
   getSpecificationErrorDetail,
   updateSpecificationSettings,
 } from '@/api/specifications';
-import type { SpecificationOptions } from '@/api/specifications';
-import {
-  resumeCalculationWorkflow,
-  startCalculationWorkflow,
-} from '@/api/calculationWorkflows';
+import type { SpecificationGenerateResult, SpecificationOptions } from '@/api/specifications';
 import { formatSpecTimestamp } from '@/pages/specification/specFormatModel';
 import { useSpecParamsPanelState } from '@/pages/specification/useSpecParamsPanelState';
 import { useSpecPageFormState } from '@/pages/specification/useSpecPageFormState';
@@ -35,11 +32,6 @@ import { formatPreflightSummary } from '@/domain/specification/specTableSectionM
 import { deduplicateSpecificationDiagnostics } from '@/pages/specification/specificationReadinessModel';
 import { useSpecificationReadiness } from '@/pages/specification/useSpecificationReadiness';
 import { useSpecSettingsFormHydration } from '@/pages/specification/useSpecSettingsFormHydration';
-import {
-  calculationWorkflowDetailQueryKey,
-  projectCalculationWorkflowQueryKey,
-  useProjectCalculationWorkflow,
-} from '@/hooks/useProjectCalculationWorkflow';
 
 type GenerateSpecificationVariables = SpecificationMutationScope & {
   options: SpecificationOptions;
@@ -73,10 +65,8 @@ export function useSpecificationPageModel() {
     projectSettings,
     accessories,
   } = useSpecificationQuerySession();
-  const projectWorkflow = useProjectCalculationWorkflow(project?.id);
-  const canMutateProject = projectCanMutate && !projectWorkflow.isCalculationLocked;
-  const canRespondToWorkflow = projectCanMutate
-    && projectWorkflow.workflow?.status === 'waiting_input';
+  const canMutateProject = projectCanMutate;
+  const canRespondToWorkflow = false;
   const form = useSpecPageFormState();
   const { settingsOpen, toggleSettings } = useSpecParamsPanelState();
   useSpecSettingsFormHydration(spec, projectSettings, form);
@@ -85,21 +75,58 @@ export function useSpecificationPageModel() {
     [variantContext.variants],
   );
   useEffect(() => {
-    if (!selectedElectricalVariant?.id) return;
     const availableIds = new Set(availableGenerateVariants.map((item) => item.id));
     form.setSelectedGenerateErIds((prev) => filterValidGenerateErIds(
       prev,
       availableIds,
-      selectedElectricalVariant.id,
     ));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- form.setSelectedGenerateErIds stable
-  }, [selectedElectricalVariant?.id, availableGenerateVariants]);
+  }, [availableGenerateVariants]);
   const snapshotMutationScope = (): SpecificationMutationScope => (
     buildSpecificationMutationScope(project, selectedElectricalVariant)
   );
-  const workflowVariablesRef = useRef<GenerateSpecificationVariables | null>(null);
-  const handledWorkflowStateRef = useRef<string | null>(null);
-  const startWorkflowMut = useMutation({
+  const handleGenerateResult = (
+    result: SpecificationGenerateResult,
+    variables: GenerateSpecificationVariables,
+  ) => {
+    const diagnostics = deduplicateSpecificationDiagnostics(
+      result.results.flatMap((item) => item.diagnostics),
+    );
+    const groups = result.results.flatMap((item) => item.candidate_groups ?? []);
+    const unresolved = result.results.filter((item) => item.status !== 'generated');
+    form.setGenerationDiagnostics(diagnostics);
+    form.setCandidateGroups(groups);
+    form.setPreflightSummary(formatPreflightSummary(diagnostics));
+    if (unresolved.length > 0) {
+      form.setPendingGenerate({
+        generateVariantIds: [...variables.generateVariantIds],
+        options: variables.options,
+      });
+      const selectionRequired = unresolved.some((item) => item.status === 'selection_required');
+      form.setPreflightOpen(!selectionRequired);
+      if (selectionRequired) {
+        form.setDraftCatalogSelections({});
+        message.warning('Требуется выбор комплектующих из каталога');
+      }
+      return;
+    }
+    form.setPendingGenerate(null);
+    form.setPreflightOpen(false);
+    form.setCandidateGroups([]);
+    form.setDraftCatalogSelections({});
+    form.setCatalogSelections({});
+    toggleSettings(false);
+    for (const id of variables.generateVariantIds) {
+      qc.invalidateQueries({ queryKey: ['spec', variables.projectId, id], exact: false });
+    }
+    qc.invalidateQueries({ queryKey: ['spec-readiness', variables.projectId], exact: false });
+    message.success(buildSpecificationGeneratedToast({
+      hasUnresolved: false,
+      generatedCount: result.results.length,
+      electricalVariantName: variables.electricalVariantName,
+    }));
+  };
+  const generateMut = useMutation({
     mutationFn: (variables: GenerateSpecificationVariables) => {
       const {
         projectId,
@@ -111,130 +138,23 @@ export function useSpecificationPageModel() {
       if (!canMutateProject) {
         throw new Error('Недостаточно прав для изменения спецификации');
       }
-      if (excludeUnassignedConfirmed || Object.keys(catalogSelections).length > 0) {
-        throw new Error('Ответ выбора допустим только для ожидающего workflow');
-      }
-      workflowVariablesRef.current = variables;
-      return startCalculationWorkflow(projectId, {
+      return generateSpecification(projectId, {
         variant_ids: generateVariantIds,
         options,
-      });
-    },
-    onSuccess: (workflow, variables) => {
-      qc.setQueryData(
-        projectCalculationWorkflowQueryKey(variables.projectId),
-        workflow,
-      );
-      qc.setQueryData(calculationWorkflowDetailQueryKey(workflow.id), workflow);
-      message.info('Полный расчёт поставлен в очередь');
-    },
-    onError: (error) => {
-      form.setPendingGenerate(null);
-      form.setPreflightOpen(false);
-      form.setCandidateGroups([]);
-      form.setDraftCatalogSelections({});
-      message.error(error instanceof Error ? error.message : 'Не удалось запустить полный расчёт');
-    },
-  });
-  const resumeWorkflowMut = useMutation({
-    mutationFn: ({
-      excludeUnassignedConfirmed,
-      catalogSelections,
-    }: {
-      excludeUnassignedConfirmed: boolean;
-      catalogSelections: Record<string, string>;
-    }) => {
-      const workflow = projectWorkflow.workflow;
-      if (!workflow || workflow.status !== 'waiting_input') {
-        throw new Error('Workflow больше не ожидает ответ; обновите состояние');
-      }
-      return resumeCalculationWorkflow(workflow.id, {
-        expected_workflow_version: workflow.workflow_version,
         exclude_unassigned_confirmed: excludeUnassignedConfirmed,
         catalog_selections: catalogSelections,
       });
     },
-    onSuccess: (workflow) => {
-      qc.setQueryData(projectCalculationWorkflowQueryKey(project?.id), workflow);
-      qc.setQueryData(calculationWorkflowDetailQueryKey(workflow.id), workflow);
-      form.setPreflightOpen(false);
-      form.setDraftCatalogSelections({});
-      message.info('Ответ принят, расчёт продолжен');
-    },
+    onSuccess: handleGenerateResult,
     onError: (error) => {
-      message.error(error instanceof Error ? error.message : 'Не удалось продолжить workflow');
+      form.setPendingGenerate(null);
+      message.error(error instanceof Error ? error.message : 'Не удалось сформировать спецификацию');
     },
   });
-  const workflowOperationPending = startWorkflowMut.isPending
-    || resumeWorkflowMut.isPending
-    || ['queued', 'enqueued', 'running'].includes(projectWorkflow.workflow?.status ?? '');
   const mut = {
-    isPending: workflowOperationPending,
-    isError: startWorkflowMut.isError
-      || resumeWorkflowMut.isError
-      || projectWorkflow.workflow?.status === 'failed'
-      || projectWorkflow.workflow?.status === 'timed_out',
+    isPending: generateMut.isPending,
+    isError: generateMut.isError,
   };
-
-  useEffect(() => {
-    const workflow = projectWorkflow.workflow;
-    if (!workflow) return;
-    const stateKey = `${workflow.id}:${workflow.status}:${workflow.workflow_version}`;
-    if (handledWorkflowStateRef.current === stateKey) return;
-    handledWorkflowStateRef.current = stateKey;
-
-    if (workflow.status === 'waiting_input') {
-      const diagnostics = deduplicateSpecificationDiagnostics(
-        workflow.waiting_results.flatMap((item) => item.diagnostics),
-      );
-      const groups = workflow.waiting_results.flatMap((item) => item.candidate_groups ?? []);
-      form.setGenerationDiagnostics(diagnostics);
-      form.setCandidateGroups(groups);
-      form.setPreflightSummary(formatPreflightSummary(diagnostics));
-      form.setPendingGenerate({
-        generateVariantIds: workflow.variant_ids,
-        options: workflowVariablesRef.current?.options ?? buildGenerateOptions(),
-      });
-      const selectionRequired = workflow.waiting_results.some(
-        (item) => item.status === 'selection_required',
-      );
-      form.setPreflightOpen(!selectionRequired);
-      if (selectionRequired) {
-        form.setDraftCatalogSelections({});
-        message.warning('Требуется выбор комплектующих из каталога');
-      }
-      return;
-    }
-    if (workflow.status === 'succeeded') {
-      form.setPendingGenerate(null);
-      form.setCandidateGroups([]);
-      form.setDraftCatalogSelections({});
-      form.setCatalogSelections({});
-      toggleSettings(false);
-      for (const id of workflow.variant_ids) {
-        qc.invalidateQueries({ queryKey: ['spec', workflow.project_id, id], exact: false });
-      }
-      qc.invalidateQueries({
-        queryKey: ['spec-readiness', workflow.project_id],
-        exact: false,
-      });
-      const generatedCount = workflow.result?.results.filter(
-        (item) => item.status === 'generated',
-      ).length ?? 0;
-      message.success(buildSpecificationGeneratedToast({
-        hasUnresolved: false,
-        generatedCount,
-        electricalVariantName: workflowVariablesRef.current?.electricalVariantName ?? '',
-      }));
-      return;
-    }
-    if (workflow.status === 'failed' || workflow.status === 'timed_out') {
-      form.setPendingGenerate(null);
-      message.error(workflow.error_message || 'Полный расчёт не завершён');
-    }
-    // form setters and query client are stable; stateKey is the transition identity.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectWorkflow.workflow]);
 
   const hydratedErRef = useRef<string | null>(null);
   useEffect(() => {
@@ -323,14 +243,13 @@ export function useSpecificationPageModel() {
     const scope = snapshotMutationScope();
     const generateVariantIds = resolveGenerateVariantIds(
       form.selectedGenerateErIds,
-      scope.electricalVariantId,
     );
     const options = buildGenerateOptions();
     const catalogSelections = nextCatalogSelections ?? form.catalogSelections;
     if (!excludeUnassignedConfirmed) {
       form.setPendingGenerate({ generateVariantIds, options });
     }
-    startWorkflowMut.mutate({
+    generateMut.mutate({
       ...scope,
       generateVariantIds,
       options,
@@ -340,7 +259,12 @@ export function useSpecificationPageModel() {
   };
 
   const confirmPartialGenerate = () => {
-    resumeWorkflowMut.mutate({
+    const pending = form.pendingGenerate;
+    if (!pending) return;
+    generateMut.mutate({
+      ...snapshotMutationScope(),
+      generateVariantIds: [...pending.generateVariantIds],
+      options: pending.options,
       excludeUnassignedConfirmed: true,
       catalogSelections: {},
     });
@@ -371,7 +295,12 @@ export function useSpecificationPageModel() {
       message.warning('Выберите позицию для каждой группы с несколькими кандидатами');
       return;
     }
-    resumeWorkflowMut.mutate({
+    const pending = form.pendingGenerate;
+    if (!pending) return;
+    generateMut.mutate({
+      ...snapshotMutationScope(),
+      generateVariantIds: [...pending.generateVariantIds],
+      options: pending.options,
       excludeUnassignedConfirmed: false,
       catalogSelections: { ...catalogSelections },
     });

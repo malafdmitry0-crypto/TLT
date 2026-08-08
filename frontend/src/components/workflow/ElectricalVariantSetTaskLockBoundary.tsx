@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 
-export function CalculationWorkflowLockBoundary({
+export function ElectricalVariantSetTaskLockBoundary({
   locked,
   children,
 }: {

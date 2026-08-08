@@ -1,15 +1,15 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Layout, Space } from 'antd';
 import { DatabaseOutlined, FireFilled, LogoutOutlined, QuestionCircleOutlined } from '@ant-design/icons';
-import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Outlet, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import ProjectMenu from './ProjectMenu';
 import { RouteErrorBoundary } from '@/components/common/ErrorBoundary';
 import { TltAlert, TltButton } from '@/components/ui-kit';
-import { ProjectCalculationWorkflowBanner } from '@/components/workflow/ProjectCalculationWorkflowBanner';
-import { CalculationWorkflowLockBoundary } from '@/components/workflow/CalculationWorkflowLockBoundary';
+import { ElectricalVariantSetTaskBanner } from '@/components/workflow/ElectricalVariantSetTaskBanner';
+import { ElectricalVariantSetTaskLockBoundary } from '@/components/workflow/ElectricalVariantSetTaskLockBoundary';
 import { logout as logoutApi } from '@/api/auth';
-import { useProjectCalculationWorkflow } from '@/hooks/useProjectCalculationWorkflow';
+import { useProjectElectricalVariantSetTask } from '@/hooks/useProjectElectricalVariantSetTask';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useWorkspaceHeaderStore } from '@/store/workspaceHeaderStore';
@@ -70,18 +70,14 @@ function WorkspaceHeaderContextRow() {
 
 export default function MainLayout({ children }: Props) {
   const [narrowViewport, setNarrowViewport] = useState(false);
-  const location = useLocation();
   const projectId = useProjectStore((state) => state.currentProject?.id);
   const {
-    workflow,
+    task,
     isCalculationLocked,
-    cancelWorkflow,
+    cancelTask,
     cancelPending,
-  } = useProjectCalculationWorkflow(projectId);
-  const contentLocked = isCalculationLocked && !(
-    workflow?.status === 'waiting_input'
-    && location.pathname.startsWith('/workspace/specification')
-  );
+  } = useProjectElectricalVariantSetTask(projectId);
+  const contentLocked = isCalculationLocked;
 
   useEffect(() => {
     const update = () => {
@@ -110,11 +106,11 @@ export default function MainLayout({ children }: Props) {
         </div>
         <WorkspaceHeaderContextRow />
       </Header>
-      {workflow && isCalculationLocked && (
-        <ProjectCalculationWorkflowBanner
-          workflow={workflow}
+      {task && isCalculationLocked && (
+        <ElectricalVariantSetTaskBanner
+          task={task}
           cancelPending={cancelPending}
-          onCancel={() => void cancelWorkflow(workflow.id)}
+          onCancel={() => void cancelTask(task.id)}
         />
       )}
       {narrowViewport && (
@@ -129,9 +125,9 @@ export default function MainLayout({ children }: Props) {
       )}
       <Layout className="heatcalc-main-layout">
         <Content className="heatcalc-content">
-          <CalculationWorkflowLockBoundary locked={contentLocked}>
+          <ElectricalVariantSetTaskLockBoundary locked={contentLocked}>
             <RouteErrorBoundary>{children ?? <Outlet />}</RouteErrorBoundary>
-          </CalculationWorkflowLockBoundary>
+          </ElectricalVariantSetTaskLockBoundary>
         </Content>
       </Layout>
     </Layout>
