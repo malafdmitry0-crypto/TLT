@@ -167,8 +167,15 @@ test.describe('Case 1 demo catalog: desktop specification', () => {
     await page.getByRole('button', { name: /^Сформировать$/i }).first().click();
     const dialog = page.getByRole('dialog', { name: 'Настройки формирования спецификации' });
     await expect(dialog).toBeVisible();
+    await expect(dialog.getByText('Отображение')).toHaveCount(0);
+    await expect(dialog.getByText('Объединить одинаковые (base+код)')).toHaveCount(0);
 
-    await selectRequiredSetting(page, 'Режим группировки спецификации', 'Раздельно по типу объекта');
+    await dialog.getByRole('button', { name: 'Выбрать все' }).click();
+    await selectRequiredSetting(
+      page,
+      'Способ формирования спецификации по типам объектов',
+      'Разделять по типам объектов',
+    );
     for (const label of ['Параметр Ex', 'Параметр К1i', 'Параметр К2i', 'Параметр Кiu']) {
       await dialog.getByRole('checkbox', { name: label, exact: true }).uncheck();
     }
@@ -192,6 +199,9 @@ test.describe('Case 1 demo catalog: desktop specification', () => {
     }).click();
     await expect(dialog).toBeHidden({ timeout: 30_000 });
     await expect(page.getByText('SPEC_BOX_EX_RGR_MATRIX_MISSING')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /Трубы/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Бочки/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Общие материалы/ })).toBeVisible();
 
     const specification = await getSpecificationForVariant(page, variant.id);
     expect(specification.status()).toBe(200);

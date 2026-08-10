@@ -8,7 +8,7 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
-from pydantic import ValidationError
+from pydantic import TypeAdapter, ValidationError
 
 from app.schemas.specification import (
     SpecificationDiagnostic,
@@ -19,9 +19,14 @@ from app.schemas.specification import (
     SpecificationGroupingMode,
     SpecificationIssueKind,
     SpecificationPreflightStatus,
+    SpecificationReadinessBlocker,
     SpecificationResolvedOptions,
     SpecificationVariantGenerationResult,
     SpecificationVariantPreflightResult,
+)
+from app.services.specification_generation_service import (
+    SpecificationOptionsValidationError,
+    _validate_generation_options,
 )
 
 GOLDENS_PATH = Path(__file__).parents[2] / "fixtures" / "specification_normalized_goldens.json"
@@ -72,10 +77,22 @@ class TestCanonicalGenerationRequest:
         assert dumped["options"]["L_K2i_m"] == "0"
         assert dumped["options"]["R_gr"] == "1"
 
-    def test_missing_options_stay_unresolved_instead_of_becoming_mocks(self):
+    def test_empty_form_defaults_binary_options_to_no_only(self):
         request = SpecificationGenerationRequest(variant_ids=[uuid4()])
-        assert request.options.ex is None
+        assert request.options.ex is False
+        assert request.options.k1i is False
+        assert request.options.k2i is False
+        assert request.options.kiu is False
+        assert request.options.grouping_mode is None
+        assert request.options.l_k2i_m is None
         assert request.options.r_gr is None
+        with pytest.raises(SpecificationOptionsValidationError) as exc_info:
+            _validate_generation_options(request.options)
+        assert {issue["field"] for issue in exc_info.value.diagnostic.issues} == {
+            "grouping_mode",
+            "L_K2i_m",
+            "R_gr",
+        }
         with pytest.raises(ValidationError):
             SpecificationResolvedOptions.model_validate(
                 {
@@ -114,6 +131,26 @@ class TestCanonicalGenerationRequest:
                 {
                     "variant_ids": [variant_id],
                     "catalog_selections": {" connection.low ": item_id},
+                }
+            )
+
+
+class TestReadinessBlockers:
+    def test_global_blocker_rejects_fabricated_er_identity(self):
+        with pytest.raises(ValidationError):
+            TypeAdapter(SpecificationReadinessBlocker).validate_python(
+                {
+                    "code": "SPEC_CATALOG_UNAVAILABLE",
+                    "kind": "blocking",
+                    "message": "Каталог недоступен",
+                    "issues": [],
+                    "source_stage": "catalog",
+                    "scope": "catalog",
+                    "electrical_variant_id": str(uuid4()),
+                    "reason": "spec_catalog_unavailable",
+                    "count": 1,
+                    "object_ids": [],
+                    "next_action": "contact_catalog_admin",
                 }
             )
 

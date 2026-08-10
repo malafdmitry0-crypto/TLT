@@ -93,11 +93,13 @@ vi.mock('@/api/calculations', () => ({
 }));
 vi.mock('@/api/specifications', () => ({
   specificationReadinessQueryKey: (projectId: string, variantIds: string[]) => (
-    ['spec-readiness', projectId, ...variantIds]
+    ['spec-readiness', projectId, variantIds]
   ),
   getSpecificationReadiness: vi.fn().mockImplementation(
     async (projectId: string, variantIds: string[]) => ({
       project_id: projectId,
+      status: 'ready',
+      blockers: [],
       results: variantIds.map((id) => ({
         electrical_variant_id: id,
         status: 'ready',

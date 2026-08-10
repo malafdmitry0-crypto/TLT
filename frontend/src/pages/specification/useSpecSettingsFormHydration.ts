@@ -3,7 +3,6 @@
  * @owner specification
  */
 import { useEffect } from 'react';
-import type { SpecificationSettings } from '@/api/specifications';
 import { buildSpecSettingsFormSnapshot } from '@/pages/specification/specGenerationOptionsSyncModel';
 import type { useSpecPageFormState } from '@/pages/specification/useSpecPageFormState';
 import type { Specification } from '@/types/specification';
@@ -12,13 +11,10 @@ type SpecForm = ReturnType<typeof useSpecPageFormState>;
 
 export function useSpecSettingsFormHydration(
   spec: Specification | null | undefined,
-  projectSettings: SpecificationSettings | undefined,
   form: SpecForm,
 ) {
   useEffect(() => {
-    const opts = spec?.snapshot?.resolved_options
-      ?? (projectSettings?.settings as Record<string, unknown> | undefined)
-      ?? {};
+    const opts = spec?.snapshot?.resolved_options ?? {};
     const snapshot = buildSpecSettingsFormSnapshot(opts);
     form.setExZone(snapshot.exZone);
     form.setReserveCoeff(snapshot.reserveCoeff);
@@ -31,7 +27,5 @@ export function useSpecSettingsFormHydration(
   }, [
     spec?.id,
     spec?.snapshot?.resolved_options,
-    projectSettings?.version,
-    projectSettings?.settings,
   ]);
 }

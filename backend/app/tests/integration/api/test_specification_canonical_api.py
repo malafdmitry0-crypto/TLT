@@ -10,7 +10,7 @@ from httpx import AsyncClient
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 
-async def test_settings_preserve_unset_false_and_zero_without_defaults(
+async def test_project_specification_settings_routes_are_removed(
     client: AsyncClient,
     employee_token: str,
 ) -> None:
@@ -24,38 +24,10 @@ async def test_settings_preserve_unset_false_and_zero_without_defaults(
     ).json()
     url = f"/api/v1/specifications/{project['id']}/settings"
 
-    initial = await client.get(url, headers=headers)
-    assert initial.status_code == 200, initial.text
-    assert initial.json()["version"] == 1
-    assert all(value is None for value in initial.json()["settings"].values())
-
-    payload = {
-        "settings": {
-            "grouping_mode": "separate_by_object_type",
-            "Ex": False,
-            "K1i": False,
-            "K2i": True,
-            "Kiu": False,
-            "L_K2i_m": "0",
-            "R_gr": "1.1",
-        }
-    }
-    updated = await client.put(url, json=payload, headers=headers)
-    assert updated.status_code == 200, updated.text
-    assert updated.json()["version"] == 2
-    assert updated.json()["settings"]["Ex"] is False
-    assert updated.json()["settings"]["L_K2i_m"] == "0"
-
-    repeated = await client.put(url, json=payload, headers=headers)
-    assert repeated.status_code == 200, repeated.text
-    assert repeated.json()["version"] == 2
-
-    legacy = await client.put(
-        url,
-        json={"settings": {"reserve_coefficient": 1.5, "ex_zone": True}},
-        headers=headers,
-    )
-    assert legacy.status_code == 422
+    assert (await client.get(url, headers=headers)).status_code == 404
+    assert (
+        await client.put(url, json={"settings": {}}, headers=headers)
+    ).status_code == 404
 
 
 async def test_generate_returns_typed_error_for_unknown_explicit_uuid(
@@ -189,7 +161,18 @@ async def test_generate_without_active_catalog_is_exact_typed_503(
 
     response = await client.post(
         f"/api/v1/specifications/{project['id']}/generate",
-        json={"variant_ids": [variant_id]},
+        json={
+            "variant_ids": [variant_id],
+            "options": {
+                "grouping_mode": "separate_by_object_type",
+                "Ex": False,
+                "K1i": False,
+                "K2i": False,
+                "Kiu": False,
+                "L_K2i_m": "0",
+                "R_gr": "0",
+            },
+        },
         headers=headers,
     )
 

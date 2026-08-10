@@ -10,6 +10,7 @@ import {
 export type SpecificationReadinessAlertProps = {
   state: SpecificationReadinessViewState;
   blocker: SpecificationReadinessBlocker | null;
+  blockers?: SpecificationReadinessBlocker[];
   onRecovery: () => void;
   onRetry: () => void;
 };
@@ -17,6 +18,7 @@ export type SpecificationReadinessAlertProps = {
 export function SpecificationReadinessAlert({
   state,
   blocker,
+  blockers = [],
   onRecovery,
   onRetry,
 }: SpecificationReadinessAlertProps): ReactNode {
@@ -25,7 +27,9 @@ export function SpecificationReadinessAlert({
     return (
       <TltAlert
         tone="info"
-        title={state === 'calculating' ? 'Формируем спецификацию…' : 'Проверяем готовность ЭР…'}
+        title={state === 'calculating'
+          ? 'Формируем спецификацию…'
+          : 'Проверяем готовность к формированию спецификации…'}
       />
     );
   }
@@ -33,7 +37,7 @@ export function SpecificationReadinessAlert({
     return (
       <TltAlert
         tone="warning"
-        title="Не удалось проверить готовность ЭР"
+        title="Не удалось проверить готовность к формированию спецификации"
         action={<TltButton size="compact" onClick={onRetry}>Проверить снова</TltButton>}
       >
         Формирование не заблокировано: backend повторно проверит данные перед расчётом.
@@ -50,17 +54,28 @@ export function SpecificationReadinessAlert({
     );
   }
   if (!blocker) return null;
+  const title = blocker.scope === 'catalog'
+      ? 'Каталог не готов к формированию спецификации'
+      : 'ЭР не готова к формированию спецификации';
   return (
     <TltAlert
       tone="danger"
-      title="ЭР не готова к формированию спецификации"
+      title={title}
       action={(
         <TltButton size="compact" variant="primary" onClick={onRecovery}>
           {readinessActionLabel(blocker)}
         </TltButton>
       )}
     >
-      {readinessBlockerMessage(blocker)}
+      {blockers.length > 1 ? (
+        <ul>
+          {blockers.map((item) => (
+            <li key={`${item.scope}:${item.code}:${item.reason}:${item.scope === 'electrical_variant' ? item.electrical_variant_id : ''}`}>
+              {readinessBlockerMessage(item)}
+            </li>
+          ))}
+        </ul>
+      ) : readinessBlockerMessage(blocker)}
     </TltAlert>
   );
 }

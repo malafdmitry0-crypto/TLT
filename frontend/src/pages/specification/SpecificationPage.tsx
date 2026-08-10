@@ -36,10 +36,6 @@ export default function SpecificationPage() {
     selectedElectricalVariant,
     settingsOpen,
     toggleSettings,
-    groupBy,
-    setGroupBy,
-    mergeIdentical,
-    setMergeIdentical,
     addOpen,
     setAddOpen,
     selectedAccessoryId,
@@ -78,21 +74,18 @@ export default function SpecificationPage() {
     specError,
     specErrorObj,
     specFetching,
-    projectSettings,
     accessories,
     availableGenerateVariants,
     mut,
     saveMut,
     items,
     isSpecStale,
-    saveDefaultsMut,
     runGenerate,
     confirmPartialGenerate,
     fixUnassignedAssignments,
     hasItems,
     handleAdd,
     handleDelete,
-    categoriesCount,
     formedAt,
     generateButtonLabel,
     scopeSwitchDisabled,
@@ -216,7 +209,9 @@ export default function SpecificationPage() {
                 : 'не сформирована'}
             {' · '}
             позиций: {items.length}
-            {readiness.state === 'blocked' && ' · ЭР требует перерасчёта'}
+            {readiness.state === 'blocked'
+              && readiness.blockers.some((blocker) => blocker.scope === 'electrical_variant')
+              && ' · ЭР требует перерасчёта'}
             {isEmployee && hasItems && (
               <>
                 {' · '}
@@ -231,7 +226,7 @@ export default function SpecificationPage() {
         <TltAlert
           className="specification-empty-alert specification-stale-banner specification-alert-gap"
           tone="danger"
-          title="Спецификация устарела — не для закупки / печати / отчёта"
+          title="Настройки проекта изменились после формирования спецификации. Для получения актуального результата сформируйте спецификацию повторно"
           action={
             <TltButton
               size="compact"
@@ -307,8 +302,6 @@ export default function SpecificationPage() {
           <div className={isSpecStale ? 'spec-table-print-exclude' : undefined}>
             <SpecTable
               items={items}
-              groupBy={groupBy}
-              mergeIdentical={mergeIdentical}
               canDelete={canManuallyEdit && hasItems && !isSpecStale}
               isStale={isSpecStale}
               onDelete={handleDelete}
@@ -335,7 +328,7 @@ export default function SpecificationPage() {
         </TltButton>
       </div>
 
-      {/* Settings drawer — параметры генерации и группировки */}
+      {/* Settings drawer — параметры формирования спецификации */}
       <SpecPageChrome
         settingsOpen={settingsOpen}
         toggleSettings={toggleSettings}
@@ -359,17 +352,9 @@ export default function SpecificationPage() {
         setTopIndication={setTopIndication}
         minLengthK2i={minLengthK2i}
         setMinLengthK2i={setMinLengthK2i}
-        groupBy={groupBy}
-        setGroupBy={setGroupBy}
-        mergeIdentical={mergeIdentical}
-        setMergeIdentical={setMergeIdentical}
-        items={items}
-        categoriesCount={categoriesCount}
-        projectSettings={projectSettings}
         spec={spec}
         mut={mut}
         generationWorkflowPending={generationWorkflowPending}
-        saveDefaultsMut={saveDefaultsMut}
         runGenerate={runGenerate}
         canManuallyEdit={canManuallyEdit}
         hasItems={hasItems}

@@ -30,11 +30,13 @@ vi.mock('@/api/electricalVariants', () => ({
 
 vi.mock('@/api/specifications', () => ({
   specificationReadinessQueryKey: (projectId: string, variantIds: string[]) => (
-    ['spec-readiness', projectId, ...variantIds]
+    ['spec-readiness', projectId, variantIds]
   ),
   getSpecificationReadiness: vi.fn().mockImplementation(
     async (projectId: string, variantIds: string[]) => ({
       project_id: projectId,
+      status: 'ready',
+      blockers: [],
       results: variantIds.map((id) => ({
         electrical_variant_id: id,
         status: 'ready',
@@ -49,8 +51,6 @@ vi.mock('@/api/specifications', () => ({
   generateSpecification: vi.fn(),
   saveSpecificationItems: vi.fn(),
   listAccessoriesExtended: vi.fn().mockResolvedValue([]),
-  getSpecificationSettings: vi.fn().mockResolvedValue({ version: 1, settings: {} }),
-  updateSpecificationSettings: vi.fn(),
 }));
 
 const mockProject: Project = {
@@ -211,7 +211,9 @@ describe('SpecificationPage (integration) — empty-display', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText(/Спецификация устарела/i)).toBeInTheDocument();
+      expect(screen.getByText(
+        'Настройки проекта изменились после формирования спецификации. Для получения актуального результата сформируйте спецификацию повторно',
+      )).toBeInTheDocument();
       expect(screen.getByText('Старая позиция')).toBeInTheDocument();
     });
     expect(screen.getByRole('button', { name: /Сформировать заново/i })).toBeInTheDocument();
