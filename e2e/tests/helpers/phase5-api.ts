@@ -229,36 +229,6 @@ export async function saveManualSpecificationItemsForVariant(
   );
 }
 
-export async function getSpecificationSettings(page: Page) {
-  const { projectId, sessionId } = await currentGuestContext(page);
-  const resp = await page.request.get(
-    `${API_BASE}/api/v1/specifications/${projectId}/settings`,
-    { headers: { 'X-Session-Id': sessionId } },
-  );
-  expect(resp.status()).toBe(200);
-  return resp.json() as Promise<{
-    project_id: string;
-    version: number;
-    settings: Record<string, unknown>;
-  }>;
-}
-
-export async function updateSpecificationSettings(
-  page: Page,
-  settings: Record<string, unknown>,
-) {
-  const { projectId, sessionId } = await currentGuestContext(page);
-  const resp = await page.request.put(
-    `${API_BASE}/api/v1/specifications/${projectId}/settings`,
-    {
-      headers: { 'X-Session-Id': sessionId },
-      data: { settings },
-    },
-  );
-  expect(resp.status()).toBe(200);
-  return resp.json() as Promise<{ version: number; settings: Record<string, unknown> }>;
-}
-
 export async function reportPreview(
   page: Page,
   electricalVariantIds: string[],

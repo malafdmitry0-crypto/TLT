@@ -8,13 +8,8 @@ import {
   type SpecSectionEmptyKind,
 } from '@/domain/specification/specTableSectionModel';
 
-export type SpecGroupBy = 'none' | 'category' | 'unit' | 'object_section';
-
 interface Props {
   items: SpecificationItem[];
-  groupBy?: SpecGroupBy;
-  /** PDL-ER-38: merge rows with same catalog base + code/article after per-type calc. */
-  mergeIdentical?: boolean;
   onDelete?: (index: number) => void;
   canDelete?: boolean;
   isStale?: boolean;
@@ -41,39 +36,11 @@ const SECTION_LABELS: Record<string, string> = {
 
 const SECTION_ORDER = ['pipe', 'tank', 'common'] as const;
 
-function mergeRows(rows: Row[]): Row[] {
-  const map = new Map<string, Row>();
-  for (const row of rows) {
-    const code = String(
-      row.article
-      || (row.params as { code?: string } | undefined)?.code
-      || '',
-    );
-    const base = String(
-      (row.params as { catalog_base?: string } | undefined)?.catalog_base
-      || row.name,
-    );
-    // PDL-ER-38: merge only when both base and nomenclature code match.
-    if (!code) {
-      map.set(`no-code-${row.__index}`, row);
-      continue;
-    }
-    const key = `${row.__section}|${base}|${code}|${row.unit}`;
-    const existing = map.get(key);
-    if (!existing) {
-      map.set(key, { ...row });
-      continue;
-    }
-    existing.quantity = Number(existing.quantity || 0) + Number(row.quantity || 0);
-  }
-  return [...map.values()];
-}
-
 function EmptyCell() {
   return <span className="spec-table-muted">—</span>;
 }
 
-function buildBaseColumns(showCategory: boolean) {
+function buildBaseColumns() {
   return [
     {
       title: '№',
@@ -81,14 +48,6 @@ function buildBaseColumns(showCategory: boolean) {
       width: 48,
       render: (_: unknown, __: Row, index: number) => index + 1,
     },
-    ...(showCategory
-      ? [{
-          title: 'Категория',
-          dataIndex: 'category' as const,
-          width: 120,
-          sorter: (a: Row, b: Row) => a.category.localeCompare(b.category),
-        }]
-      : []),
     {
       title: 'Наименование',
       dataIndex: 'name' as const,
@@ -187,27 +146,19 @@ function buildBaseColumns(showCategory: boolean) {
 
 export default function SpecTable({
   items,
-  groupBy = 'object_section',
-  mergeIdentical = false,
   onDelete,
   canDelete = false,
   isStale = false,
   alwaysShowSections = true,
   sectionEmptyKind = 'no_items',
 }: Props) {
-  let rows: Row[] = items.map((it, idx) => ({
+  const rows: Row[] = items.map((it, idx) => ({
     ...it,
     __index: idx,
     __section: bomSectionOf(it),
   }));
-  if (mergeIdentical) {
-    rows = mergeRows(rows);
-  }
-
   // PDF §7.1 / UI-PDF-05: № · Наименование · Марка · Код · Поставщик · Ед. поставки · Кол-во
-  // «Категория» — только вне группировки по разделам object_section.
-  const showCategory = groupBy !== 'object_section';
-  const baseColumns = buildBaseColumns(showCategory);
+  const baseColumns = buildBaseColumns();
 
   const actionColumn = canDelete
     ? [
@@ -229,68 +180,35 @@ export default function SpecTable({
       ]
     : [];
 
-  if (groupBy === 'none') {
-    return (
-      <Table<Row>
-        className="spec-table"
-        rowKey={(r) => `${r.__index}-${r.category}-${r.name}`}
-        dataSource={rows}
-        pagination={false}
-        size="small"
-        rowClassName={isStale ? 'specification-stale-row' : undefined}
-        columns={[...baseColumns, ...actionColumn]}
-      />
-    );
-  }
-
   const groups = new Map<string, Row[]>();
   for (const r of rows) {
-    let key: string;
-    if (groupBy === 'object_section') {
-      key = r.__section;
-    } else if (groupBy === 'category') {
-      key = r.category;
-    } else {
-      key = r.unit;
-    }
+    const key = r.__section;
     const list = groups.get(key) ?? [];
     list.push(r);
     groups.set(key, list);
   }
 
-  if (groupBy === 'object_section' && alwaysShowSections) {
+  if (alwaysShowSections) {
     for (const key of SECTION_ORDER) {
       if (!groups.has(key)) groups.set(key, []);
     }
   }
 
-  const order = groupBy === 'object_section' ? [...SECTION_ORDER] : undefined;
+  const order = [...SECTION_ORDER];
   const entries = [...groups.entries()].sort(([a], [b]) => {
-    if (order) {
-      const ia = order.indexOf(a as (typeof SECTION_ORDER)[number]);
-      const ib = order.indexOf(b as (typeof SECTION_ORDER)[number]);
-      if (ia !== -1 || ib !== -1) return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
-    }
+    const ia = order.indexOf(a as (typeof SECTION_ORDER)[number]);
+    const ib = order.indexOf(b as (typeof SECTION_ORDER)[number]);
+    if (ia !== -1 || ib !== -1) return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
     return a.localeCompare(b);
   });
 
   const grouped = entries.map(([groupValue, groupItems]) => ({
     key: groupValue,
     groupValue,
-    label:
-      groupBy === 'object_section'
-        ? (SECTION_LABELS[groupValue] || groupValue)
-        : groupValue,
+    label: SECTION_LABELS[groupValue] || groupValue,
     items: groupItems,
     total: groupItems.reduce((acc, r) => acc + Number(r.quantity || 0), 0),
   }));
-
-  const innerColumns =
-    groupBy === 'category'
-      ? baseColumns.filter((c) => !('dataIndex' in c && c.dataIndex === 'category'))
-      : groupBy === 'unit'
-        ? baseColumns.filter((c) => !('dataIndex' in c && c.dataIndex === 'unit'))
-        : baseColumns;
 
   const defaultOpen = grouped.map((g) => g.key);
 
@@ -305,15 +223,10 @@ export default function SpecTable({
           key: g.key,
           label: (
             <span className="spec-section-title">
-              {groupBy === 'object_section'
-                ? g.label
-                : groupBy === 'category'
-                  ? `Категория: ${g.groupValue}`
-                  : `Ед.: ${g.groupValue}`}
+              {g.label}
               {g.items.length > 0 && (
                 <span className="spec-section-meta">
                   {g.items.length}
-                  {groupBy === 'category' ? '' : ''}
                 </span>
               )}
             </span>
@@ -337,7 +250,7 @@ export default function SpecTable({
                   size="small"
                   showHeader
                   rowClassName={isStale ? 'specification-stale-row' : undefined}
-                  columns={[...innerColumns, ...actionColumn]}
+                  columns={[...baseColumns, ...actionColumn]}
                 />
               )}
             </div>

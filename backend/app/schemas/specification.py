@@ -4,7 +4,7 @@ import re
 from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from pydantic import (
@@ -102,7 +102,6 @@ class SpecificationReadinessSourceStage(StrEnum):
 class SpecificationReadinessNextAction(StrEnum):
     RECALCULATE_HEAT = "recalculate_heat"
     OPEN_ELECTRICAL_VARIANT = "open_electrical_variant"
-    CONFIGURE_SPECIFICATION = "configure_specification"
     SELECT_CATALOG_ITEMS = "select_catalog_items"
     CONFIRM_UNASSIGNED_EXCLUSION = "confirm_unassigned_exclusion"
     CONTACT_CATALOG_ADMIN = "contact_catalog_admin"
@@ -142,11 +141,10 @@ class SpecificationDiagnosticCode(StrEnum):
 
 
 class SpecificationRequestedOptions(BaseModel):
-    """Опции до resolution из versioned project settings.
+    """Текущие значения формы одного запуска формирования.
 
-    ``None`` означает «разрешить из project settings», а не подставить mock или
-    неявный business-default. После resolution сервис обязан получить
-    :class:`SpecificationResolvedOptions` либо вернуть domain error.
+    Четыре бинарных поля всегда двухсостояниевые и по умолчанию равны ``Нет``.
+    Остальные пользовательские поля остаются неразрешёнными до явной отправки.
     """
 
     model_config = ConfigDict(
@@ -158,10 +156,10 @@ class SpecificationRequestedOptions(BaseModel):
     catalog_id: UUID | str | None = None
     catalog_version: str | None = Field(default=None, min_length=1)
     grouping_mode: SpecificationGroupingMode | None = None
-    ex: bool | None = Field(default=None, alias="Ex")
-    k1i: bool | None = Field(default=None, alias="K1i")
-    k2i: bool | None = Field(default=None, alias="K2i")
-    kiu: bool | None = Field(default=None, alias="Kiu")
+    ex: bool = Field(default=False, alias="Ex")
+    k1i: bool = Field(default=False, alias="K1i")
+    k2i: bool = Field(default=False, alias="K2i")
+    kiu: bool = Field(default=False, alias="Kiu")
     l_k2i_m: Decimal | None = Field(default=None, ge=0, alias="L_K2i_m")
     r_gr: Decimal | None = Field(default=None, alias="R_gr")
 
@@ -389,20 +387,38 @@ class SpecificationGenerationResponse(BaseModel):
     results: list[SpecificationVariantGenerationResult]
 
 
-class SpecificationReadinessBlocker(BaseModel):
-    """Aggregated recovery hint; generation diagnostics remain authoritative."""
+class SpecificationReadinessBlockerBase(BaseModel):
+    model_config = ConfigDict(extra="forbid")
 
     code: SpecificationDiagnosticCode
     kind: SpecificationIssueKind
     message: str
+    issues: list[dict[str, Any]] = Field(default_factory=list)
     source_stage: SpecificationReadinessSourceStage
-    scope: Literal["project", "electrical_variant", "catalog"]
-    electrical_variant_id: UUID
-    electrical_variant_name: str | None = None
     reason: str
     count: int = Field(ge=1)
     object_ids: list[UUID] = Field(default_factory=list)
     next_action: SpecificationReadinessNextAction
+
+
+class SpecificationGlobalReadinessBlocker(SpecificationReadinessBlockerBase):
+    """Project/catalog blocker without a fabricated ER identity."""
+
+    scope: Literal["project", "catalog"]
+
+
+class SpecificationVariantReadinessBlocker(SpecificationReadinessBlockerBase):
+    """Blocker causally owned by one electrical variant."""
+
+    scope: Literal["electrical_variant"]
+    electrical_variant_id: UUID
+    electrical_variant_name: str | None = None
+
+
+SpecificationReadinessBlocker = Annotated[
+    SpecificationGlobalReadinessBlocker | SpecificationVariantReadinessBlocker,
+    Field(discriminator="scope"),
+]
 
 
 class SpecificationVariantReadinessResult(BaseModel):
@@ -416,21 +432,9 @@ class SpecificationVariantReadinessResult(BaseModel):
 
 class SpecificationReadinessResponse(BaseModel):
     project_id: UUID
+    status: SpecificationPreflightStatus
+    blockers: list[SpecificationGlobalReadinessBlocker] = Field(default_factory=list)
     results: list[SpecificationVariantReadinessResult]
-
-
-class SpecificationSettingsResponse(BaseModel):
-    """Canonical, possibly incomplete, project specification settings."""
-
-    project_id: UUID
-    version: int
-    settings: SpecificationRequestedOptions
-
-
-class SpecificationSettingsUpdateRequest(BaseModel):
-    """Explicitly update canonical project defaults without regenerating."""
-
-    settings: SpecificationRequestedOptions
 
 
 class SpecificationResponse(BaseModel):
