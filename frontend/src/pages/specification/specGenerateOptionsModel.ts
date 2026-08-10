@@ -30,6 +30,26 @@ export type SpecGenerateField =
 
 export type SpecGenerateFieldErrors = Partial<Record<SpecGenerateField, string>>;
 
+const requiredFieldMessages: Record<SpecGenerateField, string> = {
+  groupingMode: 'Выберите группировку строк',
+  exZone: 'Выберите значение Ex',
+  indicationOnBoxes: 'Выберите значение К1i',
+  endSectionIndication: 'Выберите значение К2i',
+  topIndication: 'Выберите значение Кiu',
+  minLengthK2i: 'Укажите минимальную длину секции',
+  reserveCoeff: 'Укажите коэффициент горячего резервирования',
+};
+
+const invalidFieldMessages: Record<SpecGenerateField, string> = {
+  groupingMode: 'Выберите доступную группировку строк',
+  exZone: 'Недопустимое значение параметра Ex',
+  indicationOnBoxes: 'Недопустимое значение параметра К1i',
+  endSectionIndication: 'Недопустимое значение параметра К2i',
+  topIndication: 'Недопустимое значение параметра Кiu',
+  minLengthK2i: 'Укажите длину секции не меньше 0',
+  reserveCoeff: 'Укажите числовой коэффициент горячего резервирования',
+};
+
 /** Canonical request/project options. Empty values remain absent. */
 export function buildSpecGenerateOptions(input: SpecGenerateOptionsInput): SpecificationOptions {
   return {
@@ -60,14 +80,12 @@ export function specificationBackendFieldErrors(
     const field = typeof issue.field === 'string' ? fieldMap[issue.field] : undefined;
     if (!field) return;
     if (typeof issue.message === 'string' && issue.message.trim() !== '') {
-      errors[field] = issue.message;
+      errors[field] = issue.message.trim();
       return;
     }
     errors[field] = issue.reason === 'required_option_unresolved'
-      ? 'Обязательное поле не заполнено'
-      : issue.reason === 'resolved_option_invalid'
-        ? 'Недопустимое значение'
-        : 'Проверьте значение';
+      ? requiredFieldMessages[field]
+      : invalidFieldMessages[field];
   });
   return errors;
 }

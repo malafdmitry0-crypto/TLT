@@ -202,15 +202,18 @@ describe('SpecPageChrome UI kit strangler (U2)', () => {
       }],
     });
 
-    expect(screen.getAllByText('Обязательное поле не заполнено')).toHaveLength(3);
+    expect(screen.getByText('Выберите группировку строк')).toBeInTheDocument();
+    expect(screen.getByText('Укажите минимальную длину секции')).toBeInTheDocument();
+    expect(screen.getByText('Укажите коэффициент горячего резервирования'))
+      .toBeInTheDocument();
     const grouping = screen.getByRole('combobox', {
       name: 'Группировка строк при формировании',
     });
-    expect(grouping).toHaveAccessibleDescription('Обязательное поле не заполнено');
+    expect(grouping).toHaveAccessibleDescription('Выберите группировку строк');
     expect(screen.getByRole('spinbutton', { name: 'Параметр L К2i' }))
-      .toHaveAccessibleDescription('Обязательное поле не заполнено');
+      .toHaveAccessibleDescription('Укажите минимальную длину секции');
     expect(screen.getByRole('spinbutton', { name: 'Параметр R гр' }))
-      .toHaveAccessibleDescription('Обязательное поле не заполнено');
+      .toHaveAccessibleDescription('Укажите коэффициент горячего резервирования');
     await waitFor(() => expect(grouping).toHaveFocus());
   });
 
