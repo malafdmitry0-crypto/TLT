@@ -178,7 +178,7 @@ describe('ElectricalVariantTabs — render-nav', () => {
       </MemoryRouter>,
     );
 
-    const action = screen.getByRole('button', { name: 'Сформировать спецификацию' });
+    const action = screen.getByRole('button', { name: 'Перейти к спецификации' });
     expect(action).toBeEnabled();
 
     fireEvent.click(action);
@@ -202,7 +202,7 @@ describe('ElectricalVariantTabs — render-nav', () => {
       </MemoryRouter>,
     );
 
-    const action = screen.getByRole('button', { name: 'Сформировать спецификацию' });
+    const action = screen.getByRole('button', { name: 'Перейти к спецификации' });
     expect(action).toBeEnabled();
 
     fireEvent.click(action);
@@ -220,10 +220,10 @@ describe('ElectricalVariantTabs — render-nav', () => {
       </MemoryRouter>,
     );
 
-    const action = screen.getByRole('button', { name: /\u0421\u0444\u043e\u0440\u043c\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0441\u043f\u0435\u0446\u0438\u0444\u0438\u043a\u0430\u0446\u0438\u044e/i });
+    const action = screen.getByRole('button', { name: /Перейти к спецификации/i });
     expect(action).toBeDisabled();
     expect(action).toHaveAccessibleName(
-      'Сформировать спецификацию — сначала распределите хотя бы один объект',
+      'Перейти к спецификации — сначала распределите хотя бы один объект',
     );
   });
 
@@ -244,10 +244,10 @@ describe('ElectricalVariantTabs — render-nav', () => {
         </MemoryRouter>,
       );
 
-      const action = screen.getByRole('button', { name: /Сформировать спецификацию/i });
+      const action = screen.getByRole('button', { name: /Перейти к спецификации/i });
       expect(action).toBeDisabled();
       expect(action).toHaveAccessibleName(
-        `Сформировать спецификацию — ${reason.toLowerCase()}`,
+        `Перейти к спецификации — ${reason.toLowerCase()}`,
       );
 
       fireEvent.click(action);
@@ -269,10 +269,10 @@ describe('ElectricalVariantTabs — render-nav', () => {
       </MemoryRouter>,
     );
 
-    const action = screen.getByRole('button', { name: /Сформировать спецификацию/i });
+    const action = screen.getByRole('button', { name: /Перейти к спецификации/i });
     expect(action).toBeDisabled();
     expect(action).toHaveAccessibleName(
-      'Сформировать спецификацию — в электрорасчёте нет объектов',
+      'Перейти к спецификации — в электрорасчёте нет объектов',
     );
     fireEvent.click(action);
     expect(screen.getByTestId('location-path')).toHaveTextContent('/workspace/elec-calc');
@@ -291,10 +291,10 @@ describe('ElectricalVariantTabs — render-nav', () => {
         </MemoryRouter>,
       );
 
-      const action = screen.getByRole('button', { name: /Сформировать спецификацию/i });
+      const action = screen.getByRole('button', { name: /Перейти к спецификации/i });
       expect(action).toBeDisabled();
       expect(action).toHaveAccessibleName(
-        `Сформировать спецификацию — ${reason.toLowerCase()}`,
+        `Перейти к спецификации — ${reason.toLowerCase()}`,
       );
       fireEvent.click(action);
       expect(screen.getByTestId('location-path')).toHaveTextContent('/workspace/elec-calc');
