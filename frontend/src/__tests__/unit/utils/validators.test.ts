@@ -45,6 +45,18 @@ describe('pipeParamsSchema', () => {
       pipeParamsSchema.safeParse({ ...valid, outer_diameter: -1 }).success
     ).toBe(false);
   });
+  it('кратко объясняет связь температур', () => {
+    const result = pipeParamsSchema.safeParse({
+      ...valid,
+      ambient_temperature: 20,
+      process_temperature: 20,
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toBe('Выше T среды');
+    }
+  });
 });
 
 describe('validateRequired', () => {
