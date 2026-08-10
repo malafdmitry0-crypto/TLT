@@ -7,18 +7,36 @@
   gap: 12px;
 }
 
-/* Лейбл слева, поле справа — одной строкой. */
+/* Лейбл и поле остаются рядом, пока для них достаточно места. */
 .elec-idop-settings__field {
   display: flex;
+  flex: 0 1 500px;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   min-width: 0;
+  max-width: 100%;
 }
 
 .elec-idop-settings__fields .elec-idop-settings__label {
-  flex: 0 0 auto;
+  flex: 1 1 280px;
   min-width: 0;
   margin-bottom: 0;
   font-size: 12px;
-  white-space: nowrap;
+  white-space: normal;
+}
+
+.elec-idop-settings__field .tlt-number-field {
+  flex: 0 0 118px;
+}
+
+.elec-idop-settings__required,
+.elec-idop-settings__error {
+  color: var(--color-danger);
+}
+
+.elec-idop-settings__error {
+  display: block;
+  font-size: 12px;
+  line-height: 20px;
 }

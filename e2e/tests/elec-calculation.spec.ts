@@ -180,6 +180,30 @@ async function showElectricalColumns(
 }
 
 test.describe('4.4 Электротехнический расчёт', () => {
+  test('требует сохранить проектный Iдоп до запуска пересчёта', async ({ page }) => {
+    await loginAsGuest(page);
+    const pipe = await createCleanCase1Pipe(page, `E2E required Iдоп ${Date.now()}`);
+
+    await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
+    await createFirstElectricalVariantIfNeeded(page);
+    await assignObjectToFirstEr(page, pipe.id);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+
+    const idop = page.getByTestId('elec-idop-input');
+    await expect(idop).toHaveAttribute('aria-required', 'true');
+    await expect(idop).toHaveAttribute('aria-invalid', 'true');
+    await expect(page.getByRole('alert').filter({ hasText: 'Укажите Iдоп проекта' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Пересчитать все · ЭР1/i })).toBeDisabled();
+    await expect(page.getByRole('button', { name: /Пересчитать выбранные ЭР/i })).toBeDisabled();
+
+    await idop.fill('13');
+    await page.getByTestId('elec-idop-save').click();
+
+    await expect(idop).not.toHaveAttribute('aria-invalid');
+    await expect(page.getByText('Укажите Iдоп проекта')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /Пересчитать все · ЭР1/i })).toBeEnabled();
+  });
+
   test('назначает и возвращает объект перетаскиванием из основной Glide-таблицы', async ({
     page,
   }) => {

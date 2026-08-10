@@ -60,6 +60,10 @@ describe('useProjectElectricalSettings', () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.idopMissing).toBe(true);
     expect(result.current.savedIdop).toBeNull();
+    expect(result.current.validationError).toBe('Укажите Iдоп проекта');
+    expect(result.current.calculationBlockedReason).toBe(
+      'Сначала укажите и сохраните Iдоп проекта',
+    );
     expect(result.current.nominalVoltage).toBe(230);
   });
 
@@ -97,5 +101,29 @@ describe('useProjectElectricalSettings', () => {
     });
     await waitFor(() => expect(result.current.idopMissing).toBe(false));
     expect(result.current.savedIdop).toBe(13);
+  });
+
+  it('does not allow clearing required Iдоп', async () => {
+    apiMocks.get.mockResolvedValue({
+      project_id: 'p1',
+      nominal_voltage_v: 230,
+      max_section_start_current_a: '13.0',
+      version: 1,
+      updated_by: null,
+      created_at: '2026-08-04T00:00:00Z',
+      updated_at: '2026-08-04T00:00:00Z',
+    });
+    const { result } = renderHook(
+      () => useProjectElectricalSettings('p1', true),
+      { wrapper: wrapper() },
+    );
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    act(() => result.current.onDraftChange(null));
+    expect(result.current.validationError).toBe('Укажите Iдоп проекта');
+    expect(result.current.canSave).toBe(false);
+    act(() => result.current.save());
+
+    expect(apiMocks.patch).not.toHaveBeenCalled();
   });
 });
