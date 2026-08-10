@@ -22,6 +22,7 @@ export default function ElecCalcErrorSummary({
   guidance,
 }: ElecCalcErrorSummaryProps) {
   if (failedCount <= 0) return null;
+  const displayError = guidance?.message ?? item?.error;
   return (
     <div className="electrical-error-summary" aria-label="Сообщения ошибок электрорасчёта">
       <div className="electrical-error-summary__header">
@@ -29,14 +30,14 @@ export default function ElecCalcErrorSummary({
           <CloseCircleFilled /> Ошибок: {failedCount}
         </TltBadge>
       </div>
-      {item?.error ? (
+      {displayError ? (
         <div className="electrical-error-summary__record">
-          <Tooltip title={item.error}>
+          <Tooltip title={displayError}>
             <Text type="secondary" ellipsis className="electrical-error-summary__message">
-              {item.error}
+              {displayError}
             </Text>
           </Tooltip>
-          {item.fallback && (
+          {item?.fallback && (
             <Text type="secondary" className="electrical-error-summary__hint">
               Показана первая ошибка на текущей странице. Выберите строку, чтобы переключить сообщение.
             </Text>

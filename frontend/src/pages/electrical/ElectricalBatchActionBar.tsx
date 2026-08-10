@@ -35,6 +35,7 @@ interface ElectricalBatchActionBarProps {
   overwriteManualChoices: boolean;
   selectedRecalcDisabled: boolean;
   selectedRecalcTooltip: ReactNode;
+  calculationBlockedReason: string | null;
   selectedRecalcCountLabel: ReactNode;
   batchPending: boolean;
   validObjectsCount: number;
@@ -64,6 +65,7 @@ function ElectricalBatchActionBar({
   overwriteManualChoices,
   selectedRecalcDisabled,
   selectedRecalcTooltip,
+  calculationBlockedReason,
   selectedRecalcCountLabel,
   batchPending,
   validObjectsCount,
@@ -79,6 +81,9 @@ function ElectricalBatchActionBar({
   onOpenColumnSettings,
   onResetFilters,
 }: ElectricalBatchActionBarProps) {
+  const recalculationBlocked = Boolean(calculationBlockedReason);
+  const selectedDisabled = selectedRecalcDisabled || recalculationBlocked;
+  const selectedTooltip = calculationBlockedReason ?? selectedRecalcTooltip;
   const resetManualOverwriteWhenOpen = (open: boolean) => {
     if (open) onManualOverwritePromptOpen();
   };
@@ -111,16 +116,17 @@ function ElectricalBatchActionBar({
             cancelText="Отмена"
             onOpenChange={resetManualOverwriteWhenOpen}
             onConfirm={() => onRecalculateSelected(!overwriteManualChoices)}
-            disabled={!canMutate || selectedRecalcDisabled}
+            disabled={!canMutate || selectedDisabled}
           >
-            <Tooltip title={canMutate ? selectedRecalcTooltip : 'Только владелец проекта или администратор может пересчитывать ЭР'}>
+            <Tooltip title={canMutate ? selectedTooltip : 'Только владелец проекта или администратор может пересчитывать ЭР'}>
               <span>
                 <TltButton
                   size="compact"
                   variant="primary"
                   icon={<ReloadOutlined />}
                   loading={batchPending || isJobActive}
-                  disabled={!canMutate || selectedRecalcDisabled}
+                  disabled={!canMutate || selectedDisabled}
+                  title={calculationBlockedReason ?? undefined}
                 >
                   Пересчитать выбранные ({selectedRecalcCountLabel})
                 </TltButton>
@@ -128,14 +134,15 @@ function ElectricalBatchActionBar({
             </Tooltip>
           </Popconfirm>
         ) : (
-          <Tooltip title={canMutate ? selectedRecalcTooltip : 'Только владелец проекта или администратор может пересчитывать ЭР'}>
+          <Tooltip title={canMutate ? selectedTooltip : 'Только владелец проекта или администратор может пересчитывать ЭР'}>
             <span>
               <TltButton
                 size="compact"
                 variant="primary"
                 icon={<ReloadOutlined />}
                 loading={batchPending || isJobActive}
-                disabled={!canMutate || selectedRecalcDisabled}
+                disabled={!canMutate || selectedDisabled}
+                title={calculationBlockedReason ?? undefined}
                 onClick={() => onRecalculateSelected(true)}
               >
                 Пересчитать выбранные ({selectedRecalcCountLabel})
@@ -163,14 +170,15 @@ function ElectricalBatchActionBar({
           cancelText="Отмена"
           onOpenChange={resetManualOverwriteWhenOpen}
           onConfirm={() => onRecalculateAll(!overwriteManualChoices)}
-          disabled={!canMutate || validObjectsCount === 0 || isJobActive}
+          disabled={!canMutate || validObjectsCount === 0 || isJobActive || recalculationBlocked}
         >
           <TltButton
             size="compact"
             variant="danger"
             icon={<ReloadOutlined />}
             loading={batchPending || isJobActive}
-            disabled={!canMutate || validObjectsCount === 0 || isJobActive}
+            disabled={!canMutate || validObjectsCount === 0 || isJobActive || recalculationBlocked}
+            title={calculationBlockedReason ?? undefined}
           >
             Пересчитать все · {variantName}
           </TltButton>

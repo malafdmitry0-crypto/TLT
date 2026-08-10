@@ -45,6 +45,7 @@ export function ElecCalcWorkspace(props: ElecCalcWorkspaceProps) {
     onAssignmentReadinessChange,
   } = props;
   const electricalSettings = useProjectElectricalSettings(projectId, canMutate);
+  const calculationBlockedReason = electricalSettings.calculationBlockedReason;
   const staleObjectIds = useMemo(
     () => listStaleObjectIds(
       m.scopedObjects.map((obj) => obj.id),
@@ -84,8 +85,11 @@ export function ElecCalcWorkspace(props: ElecCalcWorkspaceProps) {
             canMutate={canMutate}
             isJobActive={m.isJobActive}
             batchPending={m.batchMut.isPending}
+            recalculationBlockedReason={calculationBlockedReason}
             onSelectStale={() => m.setSelectedRowKeys(staleObjectIds)}
-            onRecalculateStale={() => m.onRecalculateObjectIds(staleObjectIds, true)}
+            onRecalculateStale={() => {
+              if (!calculationBlockedReason) m.onRecalculateObjectIds(staleObjectIds, true);
+            }}
           />
 
           <ElectricalAssignmentPanel
@@ -100,7 +104,7 @@ export function ElecCalcWorkspace(props: ElecCalcWorkspaceProps) {
             onAssignmentsChanged={onAssignmentsChanged}
             onAssignmentReadinessChange={onAssignmentReadinessChange}
             onAssignedNeedCalc={(systemType, objectIds) => {
-              if (!canMutate) return;
+              if (!canMutate || calculationBlockedReason) return;
               const payload = buildAssignAutoCalcBatchPayload({ systemType, objectIds });
               if (!payload) return;
               m.setSystemView(payload.nextSystemView);
@@ -137,7 +141,8 @@ export function ElecCalcWorkspace(props: ElecCalcWorkspaceProps) {
                 projectId={projectId}
                 variants={props.electricalVariants}
                 canMutate={canMutate}
-                disabled={m.isJobActive || m.batchMut.isPending}
+                disabled={m.isJobActive || m.batchMut.isPending || Boolean(calculationBlockedReason)}
+                disabledReason={calculationBlockedReason}
               />
             )}
             isJobActive={m.isJobActive}
@@ -148,6 +153,7 @@ export function ElecCalcWorkspace(props: ElecCalcWorkspaceProps) {
             overwriteManualChoices={m.overwriteManualChoices}
             selectedRecalcDisabled={m.selectedRecalcDisabled}
             selectedRecalcTooltip={m.selectedRecalcTooltip}
+            calculationBlockedReason={calculationBlockedReason}
             selectedRecalcCountLabel={m.selectedRecalcCountLabel}
             batchPending={m.batchMut.isPending}
             validObjectsCount={m.validObjectsCount}
@@ -157,8 +163,12 @@ export function ElecCalcWorkspace(props: ElecCalcWorkspaceProps) {
             currentTableViewActive={m.currentTableViewActive}
             renderManualOverwriteControl={m.renderManualOverwriteControl}
             onManualOverwritePromptOpen={() => m.setOverwriteManualChoices(false)}
-            onRecalculateSelected={m.onRecalculateSelected}
-            onRecalculateAll={m.onRecalculateAll}
+            onRecalculateSelected={(skipManual) => {
+              if (!calculationBlockedReason) m.onRecalculateSelected(skipManual);
+            }}
+            onRecalculateAll={(skipManual) => {
+              if (!calculationBlockedReason) m.onRecalculateAll(skipManual);
+            }}
             onCancelJob={m.onCancelJob}
             onOpenColumnSettings={m.openColumnSettings}
             onResetFilters={m.resetCurrentTableViewState}
