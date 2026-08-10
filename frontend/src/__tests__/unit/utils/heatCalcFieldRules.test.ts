@@ -208,11 +208,15 @@ describe('heatCalcFieldRules', () => {
     expect(validateHeatCalcField('ground_temperature', 20, {
       ...context,
       values: { ...context.values, ground_temperature: 20 },
-    })).toBe('Температура грунта должна быть ниже требуемой температуры объекта');
+    })).toBe('Ниже T объекта');
     expect(validateHeatCalcField('process_temperature', 5, {
       ...context,
       values: { ...context.values, process_temperature: 5 },
-    })).toBe('Требуемая температура объекта должна быть выше температуры среды');
+    })).toBe('Выше T среды');
+    expect(validateHeatCalcField('ambient_temperature', 20, {
+      objectType: 'pipe',
+      values: { placement: 'outdoor', ambient_temperature: 20, process_temperature: 20 },
+    })).toBe('Ниже T объекта');
   });
 
   it('учитывает количество слоёв и материал other для λ и диапазона T', () => {

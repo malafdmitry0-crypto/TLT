@@ -20,7 +20,7 @@ export const pipeParamsSchema = z.object({
   pipe_length: z.number().min(0.5).max(200_000),
   location: z.enum(['indoor', 'outdoor', 'underground']).optional(),
 }).refine((v) => v.process_temperature > v.ambient_temperature, {
-  message: 'Требуемая температура должна быть выше температуры окружающей среды',
+  message: 'Выше T среды',
   path: ['process_temperature'],
 });
 
@@ -35,7 +35,7 @@ export const tankParamsSchema = z.object({
   ambient_temperature: z.number().min(-70).max(70),
   process_temperature: z.number().min(-90).max(600),
 }).refine((v) => v.process_temperature > v.ambient_temperature, {
-  message: 'Требуемая температура должна быть выше температуры окружающей среды',
+  message: 'Выше T среды',
   path: ['process_temperature'],
 });
 
