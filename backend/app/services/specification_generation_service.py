@@ -19,7 +19,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import CurrentPrincipal
 from app.models.electrical_variant import ElectricalVariant
-from app.models.project import Project
 from app.models.project_object import ProjectObject
 from app.models.specification import Specification
 from app.schemas.specification import (
@@ -32,7 +31,6 @@ from app.schemas.specification import (
     SpecificationItem,
     SpecificationPreflightStatus,
     SpecificationRequestedOptions,
-    SpecificationSettingsResponse,
     SpecificationVariantGenerationResult,
     SpecificationVariantPreflightResult,
 )
@@ -52,70 +50,29 @@ from app.services.specification_preflight_service import (
 from app.services.specification_service import SpecificationService
 
 
-def _settings_payload(settings: SpecificationRequestedOptions) -> dict[str, Any]:
-    return settings.model_dump(mode="json", by_alias=True, exclude_none=True)
+class SpecificationOptionsValidationError(Exception):
+    def __init__(self, diagnostic: SpecificationDiagnostic) -> None:
+        super().__init__(diagnostic.message)
+        self.diagnostic = diagnostic
 
 
-def _canonical_stored_settings(raw: object) -> dict[str, Any]:
-    """Read canonical project settings without turning missing values into defaults."""
-    if not isinstance(raw, dict):
-        return {}
-    return {
-        key: raw[key]
-        for key in ("catalog_id", "catalog_version", "grouping_mode", "Ex", "K1i", "K2i", "Kiu", "L_K2i_m", "R_gr")
-        if key in raw and raw[key] is not None
-    }
-
-
-class SpecificationProjectSettingsService:
-    def __init__(self, db: AsyncSession) -> None:
-        self.db = db
-
-    async def get(self, project_id: UUID) -> SpecificationSettingsResponse:
-        project = await self.db.get(Project, project_id)
-        if project is None:
-            raise ValueError(f"Project {project_id} not found")
-        settings = SpecificationRequestedOptions.model_validate(
-            _canonical_stored_settings(project.specification_settings)
+def _validate_generation_options(settings: SpecificationRequestedOptions) -> None:
+    values = settings.model_dump(mode="json", by_alias=True)
+    required = ("grouping_mode", "L_K2i_m", "R_gr")
+    missing = [field for field in required if values.get(field) is None]
+    if not missing:
+        return
+    raise SpecificationOptionsValidationError(
+        SpecificationDiagnostic(
+            code=SpecificationDiagnosticCode.FORMULA_INPUT_INVALID,
+            kind=SpecificationIssueKind.BLOCKING,
+            message="Не заполнены обязательные настройки спецификации",
+            issues=[
+                {"reason": "required_option_unresolved", "field": field}
+                for field in missing
+            ],
         )
-        return SpecificationSettingsResponse(
-            project_id=project_id,
-            version=int(project.specification_settings_version or 1),
-            settings=settings,
-        )
-
-    async def update(
-        self,
-        project_id: UUID,
-        settings: SpecificationRequestedOptions,
-    ) -> SpecificationSettingsResponse:
-        await self.db.execute(
-            select(Project)
-            .where(Project.id == project_id)
-            .with_for_update()
-            .execution_options(populate_existing=True)
-        )
-        project = await self.db.get(Project, project_id)
-        if project is None:
-            raise ValueError(f"Project {project_id} not found")
-        payload = _settings_payload(settings)
-        old_payload = _canonical_stored_settings(project.specification_settings)
-        version = int(project.specification_settings_version or 1)
-        if payload != old_payload:
-            version += 1
-            project.specification_settings = payload
-            project.specification_settings_version = version
-            await SpecificationService(self.db).mark_project_specifications_stale(
-                project_id,
-                "specification_settings_changed",
-                operation="settings_update",
-            )
-            await self.db.commit()
-        return SpecificationSettingsResponse(
-            project_id=project_id,
-            version=version,
-            settings=settings,
-        )
+    )
 
 
 class SpecificationGenerationService:
@@ -133,6 +90,7 @@ class SpecificationGenerationService:
         preflight = await SpecificationPreflightService(self.db).preflight_variants(
             project_id, principal, request
         )
+        _validate_generation_options(request.options)
         if all(
             any(
                 diagnostic.code is SpecificationDiagnosticCode.CATALOG_UNAVAILABLE
@@ -145,9 +103,7 @@ class SpecificationGenerationService:
                 "Нет разрешимой active approved complete версии каталога спецификации",
                 status_code=503,
             )
-        project = await self.db.get(Project, project_id)
-        assert project is not None
-        settings_version = int(project.specification_settings_version or 1)
+        settings_version = 1
         results: list[SpecificationVariantGenerationResult] = []
 
         # Always lock: non-ready outcomes also persist last-generation status (F5).
@@ -323,13 +279,12 @@ class SpecificationGenerationService:
             )
 
         variant = await self.db.get(ElectricalVariant, current.electrical_variant_id)
-        project = await self.db.get(Project, project_id)
-        if variant is None or project is None:
+        if variant is None:
             return self._blocked(
                 current.electrical_variant_id,
                 current.electrical_variant_name,
                 SpecificationDiagnosticCode.GENERATION_CONFLICT,
-                "ЭР или проект исчезли до сохранения спецификации",
+                "ЭР исчезла до сохранения спецификации",
                 issues=[{"reason": "snapshot_owner_missing"}],
             )
         assert current.fingerprint_schema is not None
@@ -337,7 +292,7 @@ class SpecificationGenerationService:
             "variant_revision": {
                 "updated_at": _snapshot_value(variant.updated_at),
             },
-            "settings_revision": int(project.specification_settings_version),
+            "settings_revision": 1,
             "input_revisions": input_revisions,
             "fingerprint_schema": current.fingerprint_schema,
         }

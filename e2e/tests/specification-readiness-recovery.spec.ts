@@ -6,7 +6,6 @@ import {
   ensureElectricalInitialized,
   generateSpecification,
   getSpecificationForVariant,
-  updateSpecificationSettings,
 } from './helpers/phase5-api';
 import {
   API_BASE,
@@ -35,10 +34,9 @@ type ReadinessResponse = {
 
 async function getReadiness(page: Page, projectId: string, sessionId: string, erId: string) {
   const response = await page.request.get(
-    `${API_BASE}/api/v1/specifications/${projectId}/readiness`,
+    `${API_BASE}/api/v1/specifications/${projectId}/readiness?variant_ids=${encodeURIComponent(erId)}`,
     {
       headers: { 'X-Session-Id': sessionId },
-      params: { variant_ids: erId },
     },
   );
   expect(response.status()).toBe(200);
@@ -82,7 +80,6 @@ test.describe('Specification readiness recovery', () => {
       },
     );
     expect(assignResponse.status()).toBe(200);
-    await updateSpecificationSettings(page, CANONICAL_SPECIFICATION_OPTIONS);
     const initialElectricalSettings = await page.request.get(
       `${API_BASE}/api/v1/projects/${projectId}/electrical-settings`,
       { headers: { 'X-Session-Id': sessionId } },

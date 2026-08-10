@@ -15,5 +15,3 @@ export function formatSpecTimestamp(iso: string | undefined | null): string | nu
     minute: '2-digit',
   });
 }
-
-export type SpecGroupBy = 'none' | 'category' | 'unit' | 'object_section';

@@ -11,7 +11,7 @@ import uuid
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select, update
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.dependencies import CurrentPrincipal
 from app.formulas.electrical.tt_contract import (
@@ -319,6 +319,8 @@ async def test_http_readiness_aggregates_upstream_blockers_per_er_without_genera
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["project_id"] == str(project.id)
+    assert body["status"] == "blocked"
+    assert body["blockers"] == []
     assert [item["electrical_variant_id"] for item in body["results"]] == [
         str(ready.id),
         str(stale.id),
@@ -333,6 +335,28 @@ async def test_http_readiness_aggregates_upstream_blockers_per_er_without_genera
     assert blocked["blockers"][0]["next_action"] == "open_electrical_variant"
     assert blocked["blockers"][0]["count"] == 1
     assert blocked["blockers"][0]["object_ids"] == [str(obj.id)]
+
+    invalid_generate = await client.post(
+        f"/api/v1/specifications/{project.id}/generate",
+        json={
+            "variant_ids": [str(ready.id)],
+            "options": {"Ex": False, "K1i": False, "K2i": False, "Kiu": False},
+        },
+        headers=headers,
+    )
+    assert invalid_generate.status_code == 422, invalid_generate.text
+    assert {
+        issue["field"] for issue in invalid_generate.json()["detail"]["issues"]
+    } == {"grouping_mode", "L_K2i_m", "R_gr"}
+
+    persisted = await client.get(
+        f"/api/v1/specifications/{project.id}/readiness",
+        params=[("variant_ids", str(ready.id)), ("variant_ids", str(stale.id))],
+        headers=headers,
+    )
+    assert persisted.status_code == 200, persisted.text
+    assert persisted.json()["blockers"] == []
+    assert [item["status"] for item in persisted.json()["results"]] == ["ready", "blocked"]
 
     # Readiness is strictly read-only and must not create generation outcome rows.
     assert (
@@ -364,13 +388,6 @@ async def test_http_real_electrical_recalculation_unlocks_specification_generati
     )
     assert project_response.status_code == 201, project_response.text
     project = project_response.json()
-    settings_defaults_response = await client.put(
-        f"/api/v1/specifications/{project['id']}/settings",
-        headers=headers,
-        json={"settings": _options()},
-    )
-    assert settings_defaults_response.status_code == 200, settings_defaults_response.text
-
     object_response = await client.post(
         f"/api/v1/projects/{project['id']}/objects",
         headers=headers,
@@ -454,7 +471,7 @@ async def test_http_real_electrical_recalculation_unlocks_specification_generati
     readiness_response = await client.get(
         f"/api/v1/specifications/{project['id']}/readiness",
         headers=headers,
-        params=[("variant_ids", variant["id"])],
+        params={"variant_ids": variant["id"]},
     )
     assert readiness_response.status_code == 200, readiness_response.text
     readiness = readiness_response.json()["results"][0]
@@ -991,6 +1008,38 @@ async def test_http_case1_demo_catalog_generates_pipe_bom_without_ex_rgr_matrix_
     }
     assert snapshot["normalized_inputs"]["resolved_options"]["Ex"] is False
     assert snapshot["normalized_inputs"]["resolved_options"]["R_gr"] == "1"
+    assert snapshot["resolved_options"] == {
+        **_options(),
+        "catalog_id": str(demo.id),
+        "catalog_version": CASE1_DEMO_VERSION,
+    }
+
+    # A separate GET reads the committed DB outcome; it does not depend on the
+    # mutation response or frontend/process memory.
+    persisted_response = await client.get(
+        f"/api/v1/specifications/{project.id}/variants/{ready.id}",
+        headers=headers,
+    )
+    assert persisted_response.status_code == 200, persisted_response.text
+    persisted = persisted_response.json()
+    assert persisted["items"] == result["items"]
+    assert persisted["snapshot"] == snapshot
+    assert persisted["generation_status"] == "generated"
+    assert persisted["generation_at"] is not None
+
+    project_id = project.id
+    ready_id = ready.id
+    session_factory = async_sessionmaker(db_session.bind, expire_on_commit=False)
+    async with session_factory() as fresh_session:
+        stored = await fresh_session.scalar(
+            select(Specification).where(
+                Specification.project_id == project_id,
+                Specification.electrical_variant_id == ready_id,
+            )
+        )
+        assert stored is not None
+        assert stored.items == result["items"]
+        assert stored.snapshot == snapshot
 
 
 async def test_http_zero_connection_candidates_blocks_without_bom_write(

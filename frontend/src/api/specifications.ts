@@ -27,12 +27,6 @@ export interface SpecificationOptions {
   R_gr?: string | null;
 }
 
-export interface SpecificationSettings {
-  project_id: string;
-  version: number;
-  settings: SpecificationOptions;
-}
-
 export type SpecificationDiagnosticKind =
   | 'blocking'
   | 'confirmable'
@@ -82,6 +76,23 @@ export function getSpecificationErrorDetail(error: unknown): SpecificationErrorD
   if (typeof response !== 'object' || response == null || !('data' in response)) return null;
   const data = response.data;
   if (typeof data !== 'object' || data == null || !('detail' in data)) return null;
+  if (Array.isArray(data.detail)) {
+    return {
+      code: 'SPEC_REQUEST_INVALID',
+      message: 'Переданные настройки не прошли валидацию',
+      issues: data.detail.map((issue) => {
+        if (typeof issue !== 'object' || issue == null) return { reason: 'invalid' };
+        const record = issue as Record<string, unknown>;
+        const loc = Array.isArray(record.loc) ? record.loc : [];
+        const field = [...loc].reverse().find((item) => typeof item === 'string');
+        return {
+          reason: typeof record.type === 'string' ? record.type : 'invalid',
+          ...(typeof field === 'string' ? { field } : {}),
+        };
+      }),
+      details: {},
+    };
+  }
   return normalizeSpecificationErrorDetail(data.detail);
 }
 
@@ -159,25 +170,36 @@ export type SpecificationReadinessStatus =
 export type SpecificationReadinessNextAction =
   | 'recalculate_heat'
   | 'open_electrical_variant'
-  | 'configure_specification'
   | 'select_catalog_items'
   | 'confirm_unassigned_exclusion'
   | 'contact_catalog_admin'
   | 'retry_generation';
 
-export interface SpecificationReadinessBlocker {
+interface SpecificationReadinessBlockerBase {
   code: string;
   kind: SpecificationDiagnosticKind;
   message: string;
+  issues?: Array<Record<string, unknown>>;
   source_stage: 'heat' | 'electrical' | 'specification' | 'catalog';
-  scope: 'project' | 'electrical_variant' | 'catalog';
-  electrical_variant_id: string;
-  electrical_variant_name?: string | null;
   reason: string;
   count: number;
   object_ids: string[];
   next_action: SpecificationReadinessNextAction;
 }
+
+export interface SpecificationGlobalReadinessBlocker extends SpecificationReadinessBlockerBase {
+  scope: 'project' | 'catalog';
+}
+
+export interface SpecificationVariantReadinessBlocker extends SpecificationReadinessBlockerBase {
+  scope: 'electrical_variant';
+  electrical_variant_id: string;
+  electrical_variant_name?: string | null;
+}
+
+export type SpecificationReadinessBlocker =
+  | SpecificationGlobalReadinessBlocker
+  | SpecificationVariantReadinessBlocker;
 
 export interface SpecificationVariantReadinessResult {
   electrical_variant_id: string;
@@ -190,23 +212,27 @@ export interface SpecificationVariantReadinessResult {
 
 export interface SpecificationReadinessResponse {
   project_id: string;
+  status: SpecificationReadinessStatus;
+  blockers: SpecificationGlobalReadinessBlocker[];
   results: SpecificationVariantReadinessResult[];
 }
 
 export const specificationReadinessQueryKey = (
   projectId: string | undefined,
   variantIds: readonly string[] = [],
-) => ['spec-readiness', projectId, ...variantIds] as const;
+) => [
+  'spec-readiness',
+  projectId,
+  [...variantIds].sort(),
+] as const;
 
 export async function getSpecificationReadiness(
   projectId: string,
   variantIds: readonly string[],
 ): Promise<SpecificationReadinessResponse> {
-  const params = new URLSearchParams();
-  variantIds.forEach((variantId) => params.append('variant_ids', variantId));
+  const params = variantIds.map((id) => `variant_ids=${encodeURIComponent(id)}`).join('&');
   const { data } = await apiClient.get<SpecificationReadinessResponse>(
-    `/specifications/${projectId}/readiness`,
-    { params },
+    `/specifications/${projectId}/readiness?${params}`,
   );
   return data;
 }
@@ -271,26 +297,6 @@ export interface SpecificationPreflight {
   requires_confirmation: boolean;
   total_skipped_objects: number;
   variants: SpecificationPreflightVariant[];
-}
-
-export async function getSpecificationSettings(
-  projectId: string,
-): Promise<SpecificationSettings> {
-  const { data } = await apiClient.get<SpecificationSettings>(
-    `/specifications/${projectId}/settings`,
-  );
-  return data;
-}
-
-export async function updateSpecificationSettings(
-  projectId: string,
-  settings: SpecificationOptions,
-): Promise<SpecificationSettings> {
-  const { data } = await apiClient.put<SpecificationSettings>(
-    `/specifications/${projectId}/settings`,
-    { settings },
-  );
-  return data;
 }
 
 export async function generateSpecification(

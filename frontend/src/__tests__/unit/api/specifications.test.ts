@@ -9,6 +9,7 @@ import {
   getSpecificationErrorDetail,
   putCatalogSelections,
   saveSpecificationItems,
+  specificationReadinessQueryKey,
 } from '@/api/specifications';
 
 vi.mock('@/api/client', () => ({
@@ -38,16 +39,20 @@ describe('specifications API', () => {
     );
   });
 
-  it('loads live readiness with explicit repeated ER UUID params', async () => {
-    getMock.mockResolvedValueOnce({ data: { project_id: 'project-id', results: [] } });
+  it('loads persisted readiness with explicit ER UUIDs', async () => {
+    getMock.mockResolvedValueOnce({
+      data: { project_id: 'project-id', status: 'ready', blockers: [], results: [] },
+    });
     await getSpecificationReadiness('project-id', ['er-1', 'er-2']);
-    const [, config] = getMock.mock.calls[0];
-    expect(getMock.mock.calls[0][0]).toBe('/specifications/project-id/readiness');
-    expect(config?.params).toBeInstanceOf(URLSearchParams);
-    expect([...(config?.params as URLSearchParams).entries()]).toEqual([
-      ['variant_ids', 'er-1'],
-      ['variant_ids', 'er-2'],
-    ]);
+    expect(getMock).toHaveBeenCalledWith(
+      '/specifications/project-id/readiness?variant_ids=er-1&variant_ids=er-2',
+    );
+    expect(postMock).not.toHaveBeenCalled();
+  });
+
+  it('keys readiness only by project and canonical ER scope', () => {
+    expect(specificationReadinessQueryKey('project-id', ['er-2', 'er-1']))
+      .toEqual(specificationReadinessQueryKey('project-id', ['er-1', 'er-2']));
   });
 
   it('saves manual items on the UUID path', async () => {

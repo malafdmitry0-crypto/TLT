@@ -10,10 +10,8 @@ import {
   exportProjectCsv,
   generateSpecification,
   getSpecificationForVariant,
-  getSpecificationSettings,
   listElectricalVariants,
   reportPreview,
-  updateSpecificationSettings,
 } from './helpers/phase5-api';
 
 /**
@@ -58,26 +56,6 @@ test.describe('Phase 5 specification proof pack', () => {
     await page.setViewportSize({ width: 1100, height: 800 });
     await loginAsGuest(page);
     await expect(page.getByText(/1280/i).first()).toBeVisible({ timeout: 10_000 });
-  });
-
-  test('5.3 defaults settings API versioned without generation (PDL-ER-07)', async ({ page }) => {
-    await loginAsGuest(page);
-    await createSpecificationReadyPipe(page);
-    await ensureElectricalInitialized(page);
-    const before = await getSpecificationSettings(page);
-    expect(before.version).toBeGreaterThanOrEqual(1);
-    const after = await updateSpecificationSettings(page, {
-      grouping_mode: 'separate_by_object_type',
-      Ex: true,
-      K1i: false,
-      K2i: false,
-      Kiu: false,
-      L_K2i_m: '0',
-      R_gr: '1.2',
-    });
-    expect(after.version).toBe(before.version + 1);
-    expect(after.settings.R_gr).toBe('1.2');
-    expect(after.settings.Ex).toBe(true);
   });
 
   test('5.4 UUID generation request rejects unknown ER with the exact canonical envelope', async ({ page }) => {

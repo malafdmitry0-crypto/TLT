@@ -16,14 +16,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.dependencies import CurrentPrincipal
 from app.models.electrical_calculation import ElectricalCalculation
 from app.models.electrical_variant import ElectricalVariant, ElectricalVariantObject
-from app.models.project import Project
 from app.models.project_object import ProjectObject
 from app.schemas.specification import (
     SpecificationCatalogSnapshot,
     SpecificationDiagnostic,
     SpecificationDiagnosticCode,
     SpecificationGenerationRequest,
-    SpecificationGroupingMode,
     SpecificationIssueKind,
     SpecificationPreflightStatus,
     SpecificationRequestedOptions,
@@ -92,15 +90,14 @@ class SpecificationPreflightService:
         *,
         include_candidate_selection: bool = True,
     ) -> list[SpecificationVariantPreflightResult]:
-        project = await ProjectService(self.db).get_project_basic(project_id, principal)
+        await ProjectService(self.db).get_project_basic(project_id, principal)
         variants = await self._variants(project_id, request.variant_ids)
         rows_by_variant = await self._assignment_rows(project_id, request.variant_ids)
 
-        catalog, catalog_error = await self._catalog(project, request.options)
+        catalog, catalog_error = await self._catalog(request.options)
         catalog_snapshot = _catalog_snapshot(catalog) if catalog is not None else None
         immutable_catalog = _immutable_catalog(catalog) if catalog is not None else None
         resolved_options, options_diagnostic = _resolve_options(
-            project,
             request.options,
             catalog,
         )
@@ -206,9 +203,6 @@ class SpecificationPreflightService:
                 assert resolved_options is not None
                 fingerprint = _input_fingerprint(
                     project_id=project_id,
-                    project_settings_version=int(
-                        getattr(project, "specification_settings_version", 1) or 1
-                    ),
                     variant_id=variant.id,
                     rows=rows,
                     resolved_options=resolved_options,
@@ -306,10 +300,9 @@ class SpecificationPreflightService:
 
     async def _catalog(
         self,
-        project: Project,
         options: SpecificationRequestedOptions,
     ) -> tuple[ResolvedSpecificationCatalog | None, SpecificationDiagnostic | None]:
-        catalog_id, catalog_version = _resolve_catalog_pin(project, options)
+        catalog_id, catalog_version = _resolve_catalog_pin(options)
         try:
             catalog = await SpecificationCatalogService(self.db).resolve_active(
                 catalog_id=catalog_id,
@@ -392,86 +385,30 @@ def _immutable_catalog(
 
 
 def _resolve_catalog_pin(
-    project: Project,
     requested: SpecificationRequestedOptions,
 ) -> tuple[UUID | str | None, str | None]:
-    """Resolve catalog pin: request → project settings → unique active default.
-
-    ``None``/``None`` means the catalog service picks the only active approved
-    complete catalog across keys. Stored JSON may keep catalog_id as a UUID string.
-    """
-    raw_stored = getattr(project, "specification_settings", None)
-    stored = raw_stored if isinstance(raw_stored, Mapping) else {}
+    """Resolve request catalog pin; empty means the unique active default."""
     catalog_id = requested.catalog_id
-    if catalog_id is None:
-        catalog_id = _option(None, stored, "catalog_id")
     catalog_version = requested.catalog_version
-    if catalog_version is None:
-        catalog_version = _option(None, stored, "catalog_version")
     if isinstance(catalog_version, str):
         catalog_version = catalog_version.strip() or None
     return catalog_id, catalog_version
 
 
 def _resolve_options(
-    project: Project,
     requested: SpecificationRequestedOptions,
     catalog: ResolvedSpecificationCatalog | None,
 ) -> tuple[SpecificationResolvedOptions | None, SpecificationDiagnostic | None]:
-    raw_stored = getattr(project, "specification_settings", None)
-    stored = raw_stored if isinstance(raw_stored, Mapping) else {}
-    grouping_mode = requested.grouping_mode
-    if grouping_mode is None:
-        stored_grouping = stored.get("grouping_mode")
-        if stored_grouping is not None:
-            grouping_mode = stored_grouping
-        elif "merge_identical" in stored:
-            grouping_mode = (
-                SpecificationGroupingMode.MERGE_MATERIALS
-                if stored.get("merge_identical") is True
-                else SpecificationGroupingMode.SEPARATE_BY_OBJECT_TYPE
-            )
-
     values: dict[str, Any] = {
         "catalog_id": catalog.version.id if catalog is not None else None,
         "catalog_version": catalog.version.version if catalog is not None else None,
-        "grouping_mode": grouping_mode,
-        "Ex": _option(requested.ex, stored, "Ex", "ex", "ex_zone"),
-        "K1i": _option(
-            requested.k1i,
-            stored,
-            "K1i",
-            "k1i",
-            "indication_on_boxes",
-        ),
-        "K2i": _option(
-            requested.k2i,
-            stored,
-            "K2i",
-            "k2i",
-            "end_section_indication",
-        ),
-        "Kiu": _option(
-            requested.kiu,
-            stored,
-            "Kiu",
-            "kiu",
-            "top_indication",
-        ),
-        "L_K2i_m": _option(
-            requested.l_k2i_m,
-            stored,
-            "L_K2i_m",
-            "l_k2i_m",
-            "min_length_for_end_indication",
-        ),
-        "R_gr": _option(
-            requested.r_gr,
-            stored,
-            "R_gr",
-            "r_gr",
-            "reserve_coefficient",
-        ),
+        "grouping_mode": requested.grouping_mode,
+        "Ex": requested.ex,
+        "K1i": requested.k1i,
+        "K2i": requested.k2i,
+        "Kiu": requested.kiu,
+        "L_K2i_m": requested.l_k2i_m,
+        "R_gr": requested.r_gr,
     }
     missing = sorted(key for key, value in values.items() if value is None)
     if missing:
@@ -480,9 +417,6 @@ def _resolve_options(
             SpecificationIssueKind.BLOCKING,
             "Не разрешены обязательные настройки спецификации",
             issues=[{"reason": "required_option_unresolved", "field": field} for field in missing],
-            details={
-                "settings_version": int(getattr(project, "specification_settings_version", 1) or 1)
-            },
         )
     try:
         return SpecificationResolvedOptions.model_validate(values), None
@@ -499,19 +433,6 @@ def _resolve_options(
             "Настройки спецификации не прошли валидацию",
             issues=[{"reason": "resolved_option_invalid", "field": field} for field in fields],
         )
-
-
-def _option(
-    explicit: Any,
-    stored: Mapping[str, Any],
-    *keys: str,
-) -> Any:
-    if explicit is not None:
-        return explicit
-    for key in keys:
-        if key in stored and stored[key] is not None:
-            return stored[key]
-    return None
 
 
 def _contributing_results(
@@ -544,7 +465,6 @@ def _contributing_results(
 def _input_fingerprint(
     *,
     project_id: UUID,
-    project_settings_version: int,
     variant_id: UUID,
     rows: Sequence[tuple[ElectricalVariantObject, ProjectObject, ElectricalCalculation | None]],
     resolved_options: SpecificationResolvedOptions,
@@ -562,7 +482,6 @@ def _input_fingerprint(
         {
             "fingerprint_schema": _FINGERPRINT_SCHEMA,
             "project_id": project_id,
-            "project_settings_version": project_settings_version,
             "electrical_variant_id": variant_id,
             "resolved_options": resolved_options.model_dump(mode="json", by_alias=True),
             "specification_catalog": catalog.model_dump(mode="json"),

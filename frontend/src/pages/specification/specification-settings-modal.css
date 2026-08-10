@@ -9,3 +9,9 @@
   flex-wrap: wrap;
   gap: 8px 16px;
 }
+
+.specification-settings-modal .tlt-compact-field-grid--sizing-equal > .tlt-compact-field,
+.specification-settings-modal .tlt-compact-field--vertical .tlt-compact-field__control,
+.specification-settings-modal .tlt-compact-field--vertical .tlt-compact-field__label {
+  width: 100%;
+}

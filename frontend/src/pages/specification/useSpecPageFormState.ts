@@ -11,11 +11,8 @@ import type {
   SpecificationGroupingMode,
   SpecificationOptions,
 } from '@/api/specifications';
-import type { SpecGroupBy as GroupBy } from '@/pages/specification/specFormatModel';
 
 export function useSpecPageFormState() {
-  const [groupBy, setGroupBy] = useState<GroupBy>('object_section');
-  const [mergeIdentical, setMergeIdentical] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [selectedAccessoryId, setSelectedAccessoryId] = useState<string | null>(null);
   const [qty, setQty] = useState<number>(1);
@@ -49,20 +46,16 @@ export function useSpecPageFormState() {
     [],
   );
   const [catalogSelections, setCatalogSelections] = useState<Record<string, string>>({});
-  const [exZone, setExZone] = useState<boolean | null>(false);
+  const [exZone, setExZone] = useState(false);
   const [reserveCoeff, setReserveCoeff] = useState('');
   // Опции индикации ТНП: К1i / К2i / Кiu / L,К2i
-  const [indicationOnBoxes, setIndicationOnBoxes] = useState<boolean | null>(false);
-  const [endSectionIndication, setEndSectionIndication] = useState<boolean | null>(false);
-  const [topIndication, setTopIndication] = useState<boolean | null>(false);
+  const [indicationOnBoxes, setIndicationOnBoxes] = useState(false);
+  const [endSectionIndication, setEndSectionIndication] = useState(false);
+  const [topIndication, setTopIndication] = useState(false);
   const [minLengthK2i, setMinLengthK2i] = useState('');
   const [groupingMode, setGroupingMode] = useState<SpecificationGroupingMode | null>(null);
 
   return {
-    groupBy,
-    setGroupBy,
-    mergeIdentical,
-    setMergeIdentical,
     addOpen,
     setAddOpen,
     selectedAccessoryId,
