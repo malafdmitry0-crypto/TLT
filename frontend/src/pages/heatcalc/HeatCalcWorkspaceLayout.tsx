@@ -19,6 +19,7 @@ import './heatcalc-field-focus.css';
 import './heatcalc-field-chrome.css';
 import './heatcalc-workspace-table.css';
 import './heatcalc-insulation-page.css';
+import './heatcalc-validation-ux.css';
 import './heatcalc-glide-chrome.css';
 
 export type HeatCalcWorkspaceLayoutProps = {

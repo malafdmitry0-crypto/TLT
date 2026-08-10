@@ -3,11 +3,10 @@ import {
   getHeatCalcFieldDefinition,
 } from '@/domain/heatCalcFields';
 import type { HeatCalcObjectType, ProjectObject } from '@/types/project';
+import { heatCalcRequiredFieldMessage } from '@/domain/heatCalcFieldRules';
 import { INSULATION_LAYER_FORM_FIELDS } from './objectWizardInsulationModel';
 
 const REQUIRED_FIELDS_ERROR_PREFIX = 'Не заполнены обязательные поля объекта:';
-export const REQUIRED_FIELD_ERROR_MESSAGE = '';
-
 export type CalculationFieldError = {
   message: string;
   required?: boolean;
@@ -260,7 +259,7 @@ export function buildCalculationFieldErrors(
       ...structuredErrors,
       ...Object.fromEntries(requiredFieldNames.map((fieldName) => [
         fieldName,
-        { message: REQUIRED_FIELD_ERROR_MESSAGE, required: true },
+        { message: heatCalcRequiredFieldMessage(fieldName, objectType), required: true },
       ])),
     };
   }

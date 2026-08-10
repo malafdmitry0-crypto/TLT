@@ -170,8 +170,8 @@ describe('useObjectWizardFormSync', () => {
       vi.runOnlyPendingTimers();
     });
 
-    // Required re-sync replaces message with REQUIRED_FIELD_ERROR_MESSAGE ('').
-    expect(getForm().getFieldError('pipe_length')).toEqual(['']);
+    // Required re-sync replaces the backend wording with the local actionable message.
+    expect(getForm().getFieldError('pipe_length')).toEqual(['Укажите значение']);
 
     act(() => {
       getForm().setFieldsValue({ pipe_length: 12 });

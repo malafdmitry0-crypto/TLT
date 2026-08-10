@@ -98,6 +98,14 @@ describe('ObjectWizard dependencies — validation-highlight', () => {
     });
     expect(outerDiameter.closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
     expect(outerDiameter.closest('.ant-form-item')).not.toHaveClass('ant-form-item-has-warning');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Исправьте ошибки в форме');
+    expect((await screen.findAllByText('Укажите значение')).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('Выберите значение')).length).toBeGreaterThan(0);
+    expect(outerDiameter).toHaveAttribute('aria-invalid', 'true');
+    await waitFor(() => expect(outerDiameter).toHaveAttribute('aria-describedby'));
+    const insulationMaterial = screen.getByTestId('insulation-material-select');
+    expect(insulationMaterial).toHaveAttribute('aria-invalid', 'true');
+    expect(insulationMaterial).toHaveAttribute('aria-describedby');
     await waitFor(() => expect(outerDiameter).toHaveFocus());
     expect(onSubmit).not.toHaveBeenCalled();
   });
@@ -146,7 +154,10 @@ describe('ObjectWizard dependencies — validation-highlight', () => {
     expect(screen.queryByTestId('heatcalc-object-diagnostic')).not.toBeInTheDocument();
     expect(screen.queryByText('Расчёт не выполнен')).not.toBeInTheDocument();
     expect(screen.queryByText('Заполните обязательные поля')).not.toBeInTheDocument();
-    expect(screen.queryByText('Выберите значение')).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId('outer-diameter-input').closest('.ant-form-item')).toHaveTextContent('Укажите значение');
+      expect(screen.getByTestId('pipe-length-input').closest('.ant-form-item')).toHaveTextContent('Укажите значение');
+    });
   });
 
   it('подсвечивает наружный диаметр, когда backend-ошибка пришла после открытия формы', async () => {
@@ -217,7 +228,7 @@ describe('ObjectWizard dependencies — validation-highlight', () => {
     expect(screen.getByTestId('insulation-material-select').closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
   });
 
-  it('подсвечивает незаполненные поля второго слоя без текста обязательности', async () => {
+  it('подсвечивает незаполненные поля второго слоя с понятным текстом обязательности', async () => {
     renderWizard({
       initialParams: {
         ...basePipeParams,
@@ -232,7 +243,10 @@ describe('ObjectWizard dependencies — validation-highlight', () => {
       expect(screen.getByTestId('second-insulation-thickness-input').closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
     });
     expect(screen.getByTestId('second-insulation-material-select').closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
-    expect(screen.queryByText('Обязательное поле')).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId('second-insulation-thickness-input').closest('.ant-form-item')).toHaveTextContent('Укажите значение');
+      expect(screen.getByTestId('second-insulation-material-select').closest('.ant-form-item')).toHaveTextContent('Выберите значение');
+    });
     expect(screen.queryByTestId('heatcalc-object-diagnostic')).not.toBeInTheDocument();
   });
 

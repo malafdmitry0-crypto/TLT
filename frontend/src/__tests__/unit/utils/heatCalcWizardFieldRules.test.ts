@@ -10,13 +10,22 @@ function formWithValues(values: Record<string, unknown>) {
 }
 
 describe('heatCalcFormFieldRules', () => {
-  it('делает обязательные поля блокирующими, а не предупреждающими', () => {
+  it('делает обязательные поля блокирующими и объясняет, что ввести', () => {
     const rules = heatCalcFormFieldRules(formWithValues({}), 'pipe', 'outer_diameter_mm');
 
     const requiredRule = rules.find((rule) => 'required' in rule && rule.required === true);
 
-    expect(requiredRule).toEqual(expect.objectContaining({ required: true, message: '' }));
+    expect(requiredRule).toEqual(expect.objectContaining({ required: true, message: 'Укажите значение' }));
     expect(requiredRule).not.toHaveProperty('warningOnly');
+  });
+
+  it('просит выбрать значение для обязательного поля выбора', () => {
+    const rules = heatCalcFormFieldRules(formWithValues({}), 'pipe', 'placement');
+
+    expect(rules).toContainEqual(expect.objectContaining({
+      required: true,
+      message: 'Выберите значение',
+    }));
   });
 
   it('не помечает необязательные поля как required', () => {

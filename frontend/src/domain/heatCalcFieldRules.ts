@@ -34,6 +34,16 @@ export interface HeatCalcFieldValidationOptions {
   enforceRequired?: boolean;
 }
 
+export function heatCalcRequiredFieldMessage(
+  fieldId: string,
+  objectType: HeatCalcFieldContext['objectType'],
+) {
+  const inputType = getHeatCalcFieldInputConfig(fieldId, objectType)?.type;
+  return inputType === 'select' || inputType === 'reference'
+    ? 'Выберите значение'
+    : 'Укажите значение';
+}
+
 function fieldRequired(fieldId: string, context: HeatCalcFieldContext) {
   if (!isHeatCalcFieldVisible(fieldId, context)) return false;
   const fieldInput = input(fieldId, context);

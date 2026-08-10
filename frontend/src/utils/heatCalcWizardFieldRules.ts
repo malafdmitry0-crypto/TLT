@@ -6,6 +6,7 @@ import {
 } from '@/domain/heatCalcFields';
 import {
   allowedInsulationTemperatureBasisValues,
+  heatCalcRequiredFieldMessage,
   isHeatCalcFieldRequired,
   normalizeHeatCalcFieldValue,
   validateHeatCalcField,
@@ -66,11 +67,12 @@ export function heatCalcFormFieldRules(
   fieldId: string,
 ) {
   const required = heatCalcFieldRequired(form, objectType, fieldId);
+  const requiredMessage = heatCalcRequiredFieldMessage(fieldId, objectType);
   return [
     ...(required
       ? [{
         required: true,
-        message: '',
+        message: requiredMessage,
       }]
       : []),
     {

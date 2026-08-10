@@ -1,0 +1,69 @@
+/**
+ * OWNER: HeatCalc validation feedback and narrow invalid-state flow.
+ * Keeps actionable errors visible without changing field or calculation rules.
+ */
+.heatcalc-form-validation-summary {
+  margin: 0 0 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--color-danger-border);
+  border-radius: 6px;
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.inline-object-form .insulation-layers-table .ant-form-item-explain {
+  display: block;
+  margin-top: 2px;
+  font-size: 9px;
+  line-height: 1.2;
+}
+
+@media (max-width: 768px) {
+  .heatcalc-dual-forms--wide {
+    --heatcalc-heat-pane-min: 0px;
+    --heatcalc-cable-pane-min: 0px;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .inline-object-form .insulation-layers-table[data-layout="wide"] .insulation-layers-header {
+    display: none;
+  }
+
+  .inline-object-form .insulation-layers-table[data-layout="wide"] .insulation-layer-group {
+    display: flex;
+    flex-direction: column;
+    padding: 8px;
+    border-radius: 6px;
+  }
+
+  .inline-object-form .insulation-layers-table[data-layout="wide"] .insulation-layer-cell {
+    border-left: 0;
+    border-top: 1px solid var(--color-swatch-e0e7ef);
+  }
+
+  .inline-object-form .insulation-layers-table[data-layout="wide"] .insulation-layer-cell:first-child {
+    border-top: 0;
+  }
+
+  .inline-object-form .insulation-layers-table[data-layout="wide"] .insulation-layer-index {
+    justify-content: flex-start;
+  }
+
+  .inline-object-form .insulation-layers-table[data-layout="wide"] .insulation-layer-index::before {
+    content: "Слой ";
+    margin-right: 4px;
+  }
+
+  .inline-object-form .insulation-layers-table[data-layout="wide"] .ant-form-item-label {
+    position: static;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+    clip: auto;
+    clip-path: none;
+    white-space: normal;
+  }
+}
