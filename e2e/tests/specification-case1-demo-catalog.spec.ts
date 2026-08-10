@@ -114,7 +114,11 @@ async function prepareReadyElectricalVariant(
 }
 
 async function selectRequiredSetting(page: Page, label: string, option: string) {
-  await page.getByRole('combobox', { name: label, exact: true }).click();
+  const input = page.getByRole('combobox', { name: label, exact: true });
+  await input
+    .locator('xpath=ancestor::*[contains(concat(" ", normalize-space(@class), " "), " ant-select ")][1]')
+    .locator('.ant-select-selector')
+    .click();
   const dropdown = page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').last();
   await expect(dropdown).toBeVisible();
   await dropdown.getByText(option, { exact: true }).click();
@@ -173,11 +177,11 @@ test.describe('Case 1 demo catalog: desktop specification', () => {
     await dialog.getByRole('button', { name: 'Выбрать все' }).click();
     await selectRequiredSetting(
       page,
-      'Способ формирования спецификации по типам объектов',
+      'Группировка строк при формировании',
       'Разделять по типам объектов',
     );
     for (const label of ['Параметр Ex', 'Параметр К1i', 'Параметр К2i', 'Параметр Кiu']) {
-      await dialog.getByRole('checkbox', { name: label, exact: true }).uncheck();
+      await selectRequiredSetting(page, label, 'Нет');
     }
     await dialog.getByRole('spinbutton', { name: 'Параметр L К2i' }).fill('0');
     await dialog.getByRole('spinbutton', { name: 'Параметр R гр' }).fill('1');

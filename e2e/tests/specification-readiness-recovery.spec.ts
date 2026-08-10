@@ -150,6 +150,7 @@ test.describe('Specification readiness recovery', () => {
     const dialog = page.getByRole('dialog', {
       name: 'Настройки формирования спецификации',
     });
+    await dialog.getByRole('checkbox', { name: 'ЭР1' }).check();
     await expect(dialog.getByText('ЭР не готова к формированию спецификации')).toBeVisible();
     await expect(dialog.getByText('ЭР1: электрорасчёт не готов к формированию спецификации.'))
       .toBeVisible();
