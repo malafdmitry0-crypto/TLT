@@ -1,7 +1,31 @@
 .specification-settings-modal .ant-modal-body {
-  max-height: min(72vh, 650px);
+  max-height: min(55vh, 560px);
   overflow-y: auto;
   padding-inline-end: 6px;
+}
+
+/* Ant keeps the footer outside its scrolling body; this is the modal action owner. */
+.specification-settings-modal .ant-modal-footer {
+  border-block-start: 1px solid var(--color-border);
+  margin-block-start: 0;
+  padding-block-start: 12px;
+}
+
+.specification-settings-footer {
+  display: grid;
+  gap: 8px;
+  text-align: start;
+}
+
+.specification-settings-footer-feedback {
+  display: grid;
+  gap: 8px;
+  max-height: min(24vh, 220px);
+  overflow-y: auto;
+}
+
+.specification-settings-footer-feedback:empty {
+  display: none;
 }
 
 .specification-settings-modal .specification-settings-er-checkbox-group {

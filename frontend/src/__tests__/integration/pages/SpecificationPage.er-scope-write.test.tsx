@@ -279,7 +279,7 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
     await user.click(within(dialog).getByRole('checkbox', { name: 'ЭР1' }));
     await user.click(within(dialog).getByRole('checkbox', { name: 'ЭР2' }));
     const groupingInput = within(dialog).getByRole('combobox', {
-      name: 'Способ формирования спецификации по типам объектов',
+      name: 'Группировка строк при формировании',
     });
     fireEvent.mouseDown(
       groupingInput.closest('.ant-select')?.querySelector('.ant-select-selector')
