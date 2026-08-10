@@ -385,13 +385,13 @@ export default function ElectricalVariantTabs({
                   icon={<FileTextOutlined />}
                   disabled={!specificationReadiness.enabled}
                   aria-label={specificationReadiness.disabledReason
-                    ? `Сформировать спецификацию — ${specificationReadiness.disabledReason.toLowerCase()}`
-                    : 'Сформировать спецификацию'}
+                    ? `Перейти к спецификации — ${specificationReadiness.disabledReason.toLowerCase()}`
+                    : 'Перейти к спецификации'}
                   onClick={specificationReadiness.enabled
                     ? () => navigate(ROUTES.specification)
                     : undefined}
                 >
-                  Сформировать спецификацию
+                  Перейти к спецификации
                 </TltButton>
               </span>
             </Tooltip>
