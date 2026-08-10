@@ -58,7 +58,16 @@ export function specificationBackendFieldErrors(
   const errors: SpecGenerateFieldErrors = {};
   diagnostics.flatMap((item) => item.issues ?? []).forEach((issue) => {
     const field = typeof issue.field === 'string' ? fieldMap[issue.field] : undefined;
-    if (field) errors[field] = 'Проверьте значение';
+    if (!field) return;
+    if (typeof issue.message === 'string' && issue.message.trim() !== '') {
+      errors[field] = issue.message;
+      return;
+    }
+    errors[field] = issue.reason === 'required_option_unresolved'
+      ? 'Обязательное поле не заполнено'
+      : issue.reason === 'resolved_option_invalid'
+        ? 'Недопустимое значение'
+        : 'Проверьте значение';
   });
   return errors;
 }
