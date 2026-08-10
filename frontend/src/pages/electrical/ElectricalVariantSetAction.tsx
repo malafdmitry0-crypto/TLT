@@ -14,11 +14,13 @@ export function ElectricalVariantSetAction({
   variants,
   canMutate,
   disabled,
+  disabledReason,
 }: {
   projectId: string;
   variants: ElectricalVariant[];
   canMutate: boolean;
   disabled: boolean;
+  disabledReason?: string | null;
 }) {
   const queryClient = useQueryClient();
   const submitInFlightRef = useRef(false);
@@ -49,6 +51,7 @@ export function ElectricalVariantSetAction({
         icon={<ReloadOutlined />}
         aria-label={`Пересчитать выбранные ЭР (${selectedIds.length})`}
         disabled={!canMutate || disabled || available.length === 0}
+        title={disabledReason ?? undefined}
         loading={mutation.isPending}
         onClick={() => setOpen(true)}
       >
