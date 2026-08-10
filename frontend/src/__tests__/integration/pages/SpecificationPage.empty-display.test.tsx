@@ -138,6 +138,11 @@ describe('SpecificationPage (integration) — empty-display', () => {
     await waitFor(() => {
       expect(screen.getByText(/Спецификация не сформирована/i)).toBeInTheDocument();
     });
+    expect(screen.getByText(
+      'Откройте настройки формирования, выберите ЭР и заполните обязательные параметры.',
+    )).toBeInTheDocument();
+    expect(screen.queryByText(/Убедитесь, что для всех объектов выполнен электрорасчёт/i))
+      .not.toBeInTheDocument();
     // Кнопка «Сформировать» в тулбаре (и в empty-alert)
     const buttons = screen.getAllByRole('button');
     expect(
