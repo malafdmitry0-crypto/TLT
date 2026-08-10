@@ -192,13 +192,13 @@ export function validateHeatCalcField(
       const value = numericValue(temperature);
       return typeof value === 'number' && Number.isFinite(value) && numberValue <= value;
     })) {
-      return 'Требуемая температура объекта должна быть выше температуры среды';
+      return 'Выше T среды';
     }
   }
   if (fieldId === 'ambient_temperature') {
     const process = numericValue(context.values.process_temperature);
     if (typeof process === 'number' && Number.isFinite(process) && process <= numberValue) {
-      return 'Температура среды должна быть ниже требуемой температуры объекта';
+      return 'Ниже T объекта';
     }
   }
   if (
@@ -208,7 +208,7 @@ export function validateHeatCalcField(
   ) {
     const process = numericValue(context.values.process_temperature);
     if (typeof process === 'number' && Number.isFinite(process) && process <= numberValue) {
-      return 'Температура грунта должна быть ниже требуемой температуры объекта';
+      return 'Ниже T объекта';
     }
   }
   return null;
