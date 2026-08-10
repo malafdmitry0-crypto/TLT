@@ -33,7 +33,10 @@ def test_generate_route_exposes_only_canonical_body() -> None:
         "exclude_unassigned_confirmed",
         "catalog_selections",
     }
-    option_properties = components["SpecificationRequestedOptions-Input"]["properties"]
+    options_schema_name = next(
+        name for name in components if name.startswith("SpecificationRequestedOptions")
+    )
+    option_properties = components[options_schema_name]["properties"]
     assert {"Ex", "K1i", "K2i", "Kiu", "L_K2i_m", "R_gr"} <= set(option_properties)
     assert not {
         "electrical_variant_ids",
@@ -96,16 +99,9 @@ def test_generation_http_status_uses_per_er_precedence() -> None:
     )
 
 
-def test_settings_routes_use_incomplete_canonical_options() -> None:
+def test_project_specification_settings_routes_are_not_exposed() -> None:
     schema = app.openapi()
-    settings_path = schema["paths"]["/api/v1/specifications/{project_id}/settings"]
-    update_ref = settings_path["put"]["requestBody"]["content"]["application/json"]["schema"]
-    assert update_ref["$ref"].endswith("/SpecificationSettingsUpdateRequest")
-
-    options = schema["components"]["schemas"]["SpecificationRequestedOptions-Input"]
-    assert "required" not in options
-    assert "default" not in options["properties"]["Ex"]
-    assert "default" not in options["properties"]["L_K2i_m"]
+    assert "/api/v1/specifications/{project_id}/settings" not in schema["paths"]
 
 
 def test_uuid_read_and_manual_routes_are_primary_data_plane() -> None:

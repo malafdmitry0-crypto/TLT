@@ -56,6 +56,7 @@ export function useSpecificationReadiness({
       return;
     }
     if (blocker.next_action === 'open_electrical_variant') {
+      if (blocker.scope !== 'electrical_variant') return;
       const target = buildElectricalVariantNavigation(blocker.electrical_variant_id);
       navigate(target.to, { state: target.state });
       return;

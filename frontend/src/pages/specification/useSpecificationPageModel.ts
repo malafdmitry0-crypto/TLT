@@ -10,7 +10,6 @@ import { useMutation } from '@tanstack/react-query';
 import {
   generateSpecification,
   getSpecificationErrorDetail,
-  updateSpecificationSettings,
 } from '@/api/specifications';
 import type { SpecificationGenerateResult, SpecificationOptions } from '@/api/specifications';
 import { formatSpecTimestamp } from '@/pages/specification/specFormatModel';
@@ -62,14 +61,13 @@ export function useSpecificationPageModel() {
     specError,
     specErrorObj,
     specFetching,
-    projectSettings,
     accessories,
   } = useSpecificationQuerySession();
   const canMutateProject = projectCanMutate;
   const canRespondToWorkflow = false;
   const form = useSpecPageFormState();
   const { settingsOpen, toggleSettings } = useSpecParamsPanelState();
-  useSpecSettingsFormHydration(spec, projectSettings, form);
+  useSpecSettingsFormHydration(spec, form);
   const availableGenerateVariants = useMemo(
     () => variantContext.variants ?? [],
     [variantContext.variants],
@@ -148,7 +146,16 @@ export function useSpecificationPageModel() {
     onSuccess: handleGenerateResult,
     onError: (error) => {
       form.setPendingGenerate(null);
-      message.error(error instanceof Error ? error.message : 'Не удалось сформировать спецификацию');
+      const detail = getSpecificationErrorDetail(error);
+      if (detail) {
+        form.setGenerationDiagnostics([{
+          ...detail,
+          kind: 'blocking',
+        }]);
+      }
+      message.error(detail?.message ?? (
+        error instanceof Error ? error.message : 'Не удалось сформировать спецификацию'
+      ));
     },
   });
   const mut = {
@@ -212,27 +219,6 @@ export function useSpecificationPageModel() {
     topIndication: form.topIndication,
     minLengthK2i: form.minLengthK2i,
     groupingMode: form.groupingMode,
-  });
-
-  const saveDefaultsMut = useMutation({
-    mutationFn: () => {
-      if (!project || !canMutateProject) {
-        throw new Error('Недостаточно прав для сохранения defaults');
-      }
-      return updateSpecificationSettings(project.id, buildGenerateOptions());
-    },
-    onSuccess: (result) => {
-      message.success(
-        `Defaults сохранены (v${result.version}). Спецификации с другим snapshot помечены stale — перегенерируйте выбранные ЭР.`,
-      );
-      qc.invalidateQueries({ queryKey: ['spec-settings', project?.id], exact: true });
-      qc.invalidateQueries({ queryKey: ['spec', project?.id], exact: false });
-      qc.invalidateQueries({ queryKey: ['spec-readiness', project?.id], exact: false });
-    },
-    onError: (error) => {
-      const detail = getSpecificationErrorDetail(error);
-      message.error(detail ? `${detail.code}: ${detail.message}` : 'Не удалось сохранить настройки спецификации');
-    },
   });
 
   const runGenerate = (
@@ -312,7 +298,6 @@ export function useSpecificationPageModel() {
     handleAdd,
     handleDelete,
     hasItems,
-    categoriesCount,
   } = useSpecificationManualItemsController({
     canManuallyEdit,
     accessories,
@@ -354,10 +339,6 @@ export function useSpecificationPageModel() {
     variant,
     legacyDataPlaneEnabled,
     specificationQueryKey,
-    groupBy: form.groupBy,
-    setGroupBy: form.setGroupBy,
-    mergeIdentical: form.mergeIdentical,
-    setMergeIdentical: form.setMergeIdentical,
     addOpen: form.addOpen,
     setAddOpen: form.setAddOpen,
     selectedAccessoryId: form.selectedAccessoryId,
@@ -401,7 +382,6 @@ export function useSpecificationPageModel() {
     specError,
     specErrorObj,
     specFetching,
-    projectSettings,
     accessories,
     availableGenerateVariants,
     snapshotMutationScope,
@@ -410,13 +390,11 @@ export function useSpecificationPageModel() {
     items,
     isSpecStale,
     buildGenerateOptions,
-    saveDefaultsMut,
     runGenerate,
     confirmPartialGenerate,
     hasItems,
     handleAdd,
     handleDelete,
-    categoriesCount,
     formedAt,
     generateButtonLabel,
     scopeSwitchDisabled,

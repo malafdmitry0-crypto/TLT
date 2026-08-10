@@ -398,7 +398,7 @@ async def test_missing_options_block_instead_of_using_hidden_defaults(monkeypatc
     }
 
 
-async def test_resolution_uses_request_then_project_and_preserves_false_and_zero(monkeypatch):
+async def test_resolution_uses_only_request_and_preserves_false_and_zero(monkeypatch):
     project_id = uuid.uuid4()
     project = _project(
         project_id,
@@ -428,15 +428,21 @@ async def test_resolution_uses_request_then_project_and_preserves_false_and_zero
         request,
     )
 
-    resolved = result[0].resolved_options
-    assert resolved is not None
-    assert resolved.ex is False
-    assert resolved.l_k2i_m == 0
-    assert resolved.k1i is True
-    assert resolved.r_gr == pytest.approx(1.25)
+    assert result[0].resolved_options is None
+    diagnostic = next(
+        item
+        for item in result[0].diagnostics
+        if item.code is SpecificationDiagnosticCode.FORMULA_INPUT_INVALID
+    )
+    assert {issue["field"] for issue in diagnostic.issues} == {
+        "R_gr",
+        "grouping_mode",
+    }
+    assert "Ex" not in {issue["field"] for issue in diagnostic.issues}
+    assert "L_K2i_m" not in {issue["field"] for issue in diagnostic.issues}
 
 
-async def test_catalog_pin_uses_request_then_project_settings_then_default(monkeypatch):
+async def test_catalog_pin_uses_request_then_unique_active_default(monkeypatch):
     project_id = uuid.uuid4()
     project_catalog_id = uuid.uuid4()
     request_catalog_id = uuid.uuid4()
@@ -468,14 +474,14 @@ async def test_catalog_pin_uses_request_then_project_settings_then_default(monke
         AsyncMock(return_value={}),
     )
 
-    # Project settings only when request leaves catalog fields unset.
+    # Project specification settings are not a generation input.
     await SpecificationPreflightService(db).preflight_variants(
         project_id,
         CurrentPrincipal(role="employee", user_id=project.user_id),
         _request([variant.id]),
     )
-    assert str(resolve.await_args.kwargs["catalog_id"]) == str(project_catalog_id)
-    assert resolve.await_args.kwargs["catalog_version"] == "project-pinned-v1"
+    assert resolve.await_args.kwargs["catalog_id"] is None
+    assert resolve.await_args.kwargs["catalog_version"] is None
 
     # Request pin wins over project settings.
     resolve.reset_mock()
@@ -518,7 +524,7 @@ async def test_catalog_pin_uses_request_then_project_settings_then_default(monke
     assert resolve.await_args.kwargs["catalog_version"] is None
 
 
-async def test_conflicting_legacy_object_options_never_affect_shared_resolution(monkeypatch):
+async def test_conflicting_legacy_object_options_never_supply_generation_options(monkeypatch):
     project_id = uuid.uuid4()
     project = _project(
         project_id,
@@ -565,14 +571,11 @@ async def test_conflicting_legacy_object_options_never_affect_shared_resolution(
         _request([first.id, second.id], explicit_options=False),
     )
 
-    assert all(item.status is SpecificationPreflightStatus.READY for item in result)
-    assert result[0].resolved_options == result[1].resolved_options
-    assert result[0].resolved_options is not None
-    assert result[0].resolved_options.ex is False
-    assert result[0].resolved_options.l_k2i_m == 0
+    assert all(item.status is SpecificationPreflightStatus.BLOCKED for item in result)
+    assert all(item.resolved_options is None for item in result)
 
 
-async def test_legacy_object_options_do_not_unblock_missing_request_and_project_settings(
+async def test_legacy_object_options_do_not_supply_missing_generation_fields(
     monkeypatch,
 ):
     project_id = uuid.uuid4()
@@ -611,10 +614,6 @@ async def test_legacy_object_options_do_not_unblock_missing_request_and_project_
         if item.code is SpecificationDiagnosticCode.FORMULA_INPUT_INVALID
     )
     assert {issue["field"] for issue in diagnostic.issues} == {
-        "Ex",
-        "K1i",
-        "K2i",
-        "Kiu",
         "L_K2i_m",
         "R_gr",
         "grouping_mode",

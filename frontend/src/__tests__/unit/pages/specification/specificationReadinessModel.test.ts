@@ -2,11 +2,14 @@ import { describe, expect, it } from 'vitest';
 import type { SpecificationDiagnostic, SpecificationReadinessResponse } from '@/api/specifications';
 import {
   deduplicateSpecificationDiagnostics,
+  readinessBlockerMessage,
   resolveSpecificationReadinessView,
 } from '@/pages/specification/specificationReadinessModel';
 
 const blocked: SpecificationReadinessResponse = {
   project_id: 'project-1',
+  status: 'blocked',
+  blockers: [],
   results: [{
     electrical_variant_id: 'er-1',
     electrical_variant_name: 'ЭР1',
@@ -79,5 +82,36 @@ describe('specificationReadinessModel', () => {
         object_ids: ['object-1', 'object-2'],
       },
     }]);
+  });
+
+  it('keeps a global catalog blocker separate from the ER blocker', () => {
+    const mixed: SpecificationReadinessResponse = {
+      ...blocked,
+      blockers: [{
+        code: 'SPEC_CATALOG_UNAVAILABLE',
+        kind: 'blocking',
+        message: 'Каталог недоступен',
+        source_stage: 'catalog',
+        scope: 'catalog',
+        reason: 'spec_catalog_unavailable',
+        count: 1,
+        object_ids: [],
+        next_action: 'contact_catalog_admin',
+      }],
+    };
+
+    const view = resolveSpecificationReadinessView({
+      enabled: true,
+      isLoading: false,
+      isError: false,
+      generationPending: false,
+      generationFailed: false,
+      data: mixed,
+    });
+
+    expect(view.blockers).toHaveLength(2);
+    expect(view.primaryBlocker?.scope).toBe('catalog');
+    expect(readinessBlockerMessage(view.blockers[0])).not.toContain('ЭР1');
+    expect(readinessBlockerMessage(view.blockers[1])).toContain('ЭР1');
   });
 });

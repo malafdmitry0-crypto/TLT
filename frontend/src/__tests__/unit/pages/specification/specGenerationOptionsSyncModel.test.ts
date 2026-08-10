@@ -5,7 +5,7 @@ import {
 } from '@/pages/specification/specGenerationOptionsSyncModel';
 
 describe('buildSpecSettingsFormSnapshot (B7)', () => {
-  it('defaults missing checkbox values to false', () => {
+  it('defaults missing binary values to explicit Нет', () => {
     expect(buildSpecSettingsFormSnapshot({})).toEqual({
       exZone: false,
       reserveCoeff: '',
@@ -65,11 +65,8 @@ describe('buildSpecSettingsFormSnapshot (B7)', () => {
   it('shows resolved catalog identity and never invents an active default', () => {
     expect(resolveSpecificationCatalogLabel({
       catalog: { catalog_key: 'tnp-approved', version: '2026.08' },
-    }, {})).toBe('tnp-approved · 2026.08');
-    expect(resolveSpecificationCatalogLabel(null, {
-      catalog_version: 'project-v3',
-    })).toBe('Настройка проекта · project-v3');
-    expect(resolveSpecificationCatalogLabel(null, {}))
+    })).toBe('tnp-approved · 2026.08');
+    expect(resolveSpecificationCatalogLabel(null))
       .toBe('Не определена — backend разрешит при формировании');
   });
 });

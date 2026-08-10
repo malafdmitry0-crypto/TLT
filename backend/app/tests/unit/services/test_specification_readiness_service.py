@@ -9,7 +9,11 @@ from app.schemas.specification import (
     SpecificationReadinessNextAction,
     SpecificationReadinessSourceStage,
 )
-from app.services.specification_readiness_service import _aggregate_blockers
+from app.services.specification_readiness_service import (
+    _aggregate_blockers,
+    _is_generation_form_diagnostic,
+    _status_for,
+)
 
 
 def _diagnostic(
@@ -98,4 +102,35 @@ def test_catalog_failure_is_project_independent_catalog_recovery() -> None:
     assert len(blockers) == 1
     assert blockers[0].source_stage is SpecificationReadinessSourceStage.CATALOG
     assert blockers[0].scope == "catalog"
+    assert not hasattr(blockers[0], "electrical_variant_id")
+    assert not hasattr(blockers[0], "electrical_variant_name")
     assert blockers[0].next_action is SpecificationReadinessNextAction.CONTACT_CATALOG_ADMIN
+
+
+def test_generation_form_diagnostic_is_excluded_from_readiness() -> None:
+    diagnostic = SpecificationDiagnostic(
+        code=SpecificationDiagnosticCode.FORMULA_INPUT_INVALID,
+        kind=SpecificationIssueKind.BLOCKING,
+        message="Не разрешены обязательные настройки спецификации",
+        issues=[
+            {"reason": "required_option_unresolved", "field": "grouping_mode"}
+        ],
+    )
+    assert _is_generation_form_diagnostic(diagnostic) is True
+
+
+def test_confirmation_and_selection_keep_their_status_semantics() -> None:
+    confirmable = SpecificationDiagnostic(
+        code=SpecificationDiagnosticCode.UNASSIGNED_CONFIRMATION_REQUIRED,
+        kind=SpecificationIssueKind.CONFIRMABLE,
+        message="Требуется подтверждение",
+    )
+    selection = SpecificationDiagnostic(
+        code=SpecificationDiagnosticCode.ACCESSORY_SELECTION_REQUIRED,
+        kind=SpecificationIssueKind.SELECTION_REQUIRED,
+        message="Требуется выбор",
+    )
+
+    assert _status_for([confirmable]).value == "confirmation_required"
+    assert _status_for([selection]).value == "selection_required"
+    assert _status_for([confirmable, selection]).value == "selection_required"

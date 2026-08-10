@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SpecPageChrome } from '@/pages/specification/SpecPageChrome';
 
@@ -13,7 +13,7 @@ function renderChrome(overrides: Record<string, unknown> = {}) {
     availableGenerateVariants: [{ id: 'er-1', name: 'ЭР1' }],
     reserveCoeff: '1.2',
     setReserveCoeff: vi.fn(),
-    exZone: false as boolean | null,
+    exZone: false,
     setExZone: vi.fn(),
     indicationOnBoxes: false,
     setIndicationOnBoxes: vi.fn(),
@@ -26,17 +26,9 @@ function renderChrome(overrides: Record<string, unknown> = {}) {
     groupingMode: 'separate_by_object_type' as const,
     setGroupingMode: vi.fn(),
     generationDiagnostics: [],
-    groupBy: 'object_section' as const,
-    setGroupBy: vi.fn(),
-    mergeIdentical: false,
-    setMergeIdentical: vi.fn(),
-    items: [],
-    categoriesCount: 0,
-    projectSettings: null,
     spec: null,
     mut: { isPending: false },
     generationWorkflowPending: false,
-    saveDefaultsMut: { isPending: false, mutate: vi.fn() },
     runGenerate: vi.fn(),
     canManuallyEdit: true,
     hasItems: false,
@@ -64,6 +56,25 @@ function renderChrome(overrides: Record<string, unknown> = {}) {
 }
 
 describe('SpecPageChrome UI kit strangler (U2)', () => {
+  it('exposes only the Case 1 specification formation mode', async () => {
+    const user = userEvent.setup();
+    renderChrome();
+
+    const groupingMode = screen.getByRole('combobox', {
+      name: 'Способ формирования спецификации по типам объектов',
+    });
+    expect(groupingMode).toBeInTheDocument();
+
+    await user.click(groupingMode);
+    expect(screen.getByRole('option', { name: 'Разделять по типам объектов' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Объединять материалы' })).toBeInTheDocument();
+
+    expect(screen.queryByText('Отображение')).not.toBeInTheDocument();
+    expect(screen.queryByText('Объединить одинаковые (base+код)')).not.toBeInTheDocument();
+    expect(screen.queryByText('Кат.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Ед.')).not.toBeInTheDocument();
+  });
+
   it('renders settings param rows via CompactField + kit controls', () => {
     renderChrome();
 
@@ -80,8 +91,7 @@ describe('SpecPageChrome UI kit strangler (U2)', () => {
     expect(screen.queryByText('Стандартная активная версия')).not.toBeInTheDocument();
   });
 
-  it('renders boolean TNP parameters as controlled checkboxes', async () => {
-    const user = userEvent.setup();
+  it('renders boolean TNP parameters as explicit Да / Нет selects', async () => {
     const setExZone = vi.fn();
     const setIndicationOnBoxes = vi.fn();
     const setEndSectionIndication = vi.fn();
@@ -93,25 +103,30 @@ describe('SpecPageChrome UI kit strangler (U2)', () => {
       setTopIndication,
     });
 
-    const ex = screen.getByRole('checkbox', { name: 'Параметр Ex' });
-    const k1i = screen.getByRole('checkbox', { name: 'Параметр К1i' });
-    const k2i = screen.getByRole('checkbox', { name: 'Параметр К2i' });
-    const kiu = screen.getByRole('checkbox', { name: 'Параметр Кiu' });
+    const ex = screen.getByRole('combobox', { name: 'Параметр Ex' });
+    const k1i = screen.getByRole('combobox', { name: 'Параметр К1i' });
+    const k2i = screen.getByRole('combobox', { name: 'Параметр К2i' });
+    const kiu = screen.getByRole('combobox', { name: 'Параметр Кiu' });
 
-    expect(ex).not.toBeChecked();
-    expect(k1i).not.toBeChecked();
-    expect(k2i).toBeChecked();
-    expect(kiu).not.toBeChecked();
+    expect(ex.closest('.ant-select')).toHaveTextContent('Нет');
+    expect(k1i.closest('.ant-select')).toHaveTextContent('Нет');
+    expect(k2i.closest('.ant-select')).toHaveTextContent('Да');
+    expect(kiu.closest('.ant-select')).toHaveTextContent('Нет');
 
-    await user.click(ex);
-    await user.click(k1i);
-    await user.click(k2i);
-    await user.click(kiu);
+    const trigger = ex.closest('.ant-select');
+    const selector = trigger?.querySelector('.ant-select-selector') ?? ex;
+    fireEvent.mouseDown(selector);
+    const optionElement = screen.getAllByTitle('Да').find((element) => (
+      element.classList.contains('ant-select-item-option')
+    ));
+    if (!optionElement) throw new Error('Option Да not found');
+    fireEvent.mouseDown(optionElement);
+    fireEvent.click(optionElement);
 
     expect(setExZone).toHaveBeenCalledWith(true);
-    expect(setIndicationOnBoxes).toHaveBeenCalledWith(true);
-    expect(setEndSectionIndication).toHaveBeenCalledWith(false);
-    expect(setTopIndication).toHaveBeenCalledWith(true);
+    expect(setIndicationOnBoxes).not.toHaveBeenCalled();
+    expect(setEndSectionIndication).not.toHaveBeenCalled();
+    expect(setTopIndication).not.toHaveBeenCalled();
   });
 
   it('shows Исправить on preflight modal and does not auto-confirm generate', async () => {
@@ -150,21 +165,47 @@ describe('SpecPageChrome UI kit strangler (U2)', () => {
     expect(screen.getByText('tnp-approved · 2026.08')).toBeInTheDocument();
   });
 
-  it('keeps canonical unset state visible and disables writes until it is complete', () => {
+  it('submits incomplete settings to authoritative backend validation', async () => {
+    const user = userEvent.setup();
+    const runGenerate = vi.fn();
     renderChrome({
-      selectedGenerateErIds: [],
       reserveCoeff: '',
-      exZone: null,
-      indicationOnBoxes: null,
-      endSectionIndication: null,
-      topIndication: null,
+      exZone: false,
+      indicationOnBoxes: false,
+      endSectionIndication: false,
+      topIndication: false,
       minLengthK2i: '',
       groupingMode: null,
+      runGenerate,
     });
 
-    expect(screen.getByText('Заполните обязательные параметры')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Сформировать' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Сохранить настройки проекта' })).toBeDisabled();
+    expect(screen.queryByText('Заполните обязательные параметры')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Сохранить настройки проекта' }))
+      .not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Сформировать' }));
+    expect(runGenerate).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Заполните обязательные параметры')).not.toBeInTheDocument();
+  });
+
+  it('renders backend field issues and focuses the first rejected field', async () => {
+    renderChrome({
+      generationDiagnostics: [{
+        code: 'SPEC_FORMULA_INPUT_INVALID',
+        kind: 'blocking',
+        message: 'Настройки не прошли валидацию',
+        issues: [
+          { field: 'grouping_mode', reason: 'required_option_unresolved' },
+          { field: 'L_K2i_m', reason: 'required_option_unresolved' },
+          { field: 'R_gr', reason: 'required_option_unresolved' },
+        ],
+        details: {},
+      }],
+    });
+
+    expect(screen.getAllByText('Проверьте значение')).toHaveLength(3);
+    await waitFor(() => expect(screen.getByRole('combobox', {
+      name: 'Способ формирования спецификации по типам объектов',
+    })).toHaveFocus());
   });
 
   it('explains that a stale specification must be regenerated before manual editing', () => {
@@ -233,12 +274,51 @@ describe('SpecPageChrome UI kit strangler (U2)', () => {
     expect(handleReadinessRecovery).toHaveBeenCalledTimes(1);
   });
 
+  it('shows catalog and ER blockers together without assigning catalog to an ER', () => {
+    const projectBlocker = {
+      code: 'SPEC_CATALOG_UNAVAILABLE',
+      kind: 'blocking' as const,
+      message: 'Каталог недоступен',
+      source_stage: 'catalog' as const,
+      scope: 'catalog' as const,
+      reason: 'spec_catalog_unavailable',
+      count: 1,
+      object_ids: [],
+      next_action: 'contact_catalog_admin' as const,
+    };
+    const variantBlocker = {
+      code: 'SPEC_VARIANT_NOT_READY',
+      kind: 'blocking' as const,
+      message: 'Назначение ЭР не готово',
+      source_stage: 'electrical' as const,
+      scope: 'electrical_variant' as const,
+      electrical_variant_id: 'er-1',
+      electrical_variant_name: 'ЭР1',
+      reason: 'result_stale',
+      count: 1,
+      object_ids: [],
+      next_action: 'open_electrical_variant' as const,
+    };
+    renderChrome({
+      readiness: {
+        state: 'blocked',
+        blockers: [projectBlocker, variantBlocker],
+        primaryBlocker: projectBlocker,
+      },
+    });
+
+    expect(screen.getByText('Каталог не готов к формированию спецификации'))
+      .toBeInTheDocument();
+    expect(screen.getByText(/ЭР1: электрорасчёт не готов/)).toBeInTheDocument();
+  });
+
   it('does not block generation when readiness is unavailable', () => {
     renderChrome({
       readiness: { state: 'unavailable', blockers: [], primaryBlocker: null },
     });
 
-    expect(screen.getByText('Не удалось проверить готовность ЭР')).toBeInTheDocument();
+    expect(screen.getByText('Не удалось проверить готовность к формированию спецификации'))
+      .toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Сформировать' })).toBeEnabled();
   });
 });
