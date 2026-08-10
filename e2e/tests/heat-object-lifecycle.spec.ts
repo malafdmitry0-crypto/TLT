@@ -133,6 +133,9 @@ test.describe('§5.3–5.13 жизненный цикл объекта тепл�
     await fillInput(page, 'ambient-temperature-input', '-20');
     await fillInput(page, 'process-temperature-input', '80');
     await fillInput(page, 'wind-speed-input', '3');
+    await fillInput(page, 'tank-heating-height-input', '2.4');
+    await fillInput(page, 'tank-laying-step-input', '0.2');
+    await fillInput(page, 'min-switch-temperature-input', '-30');
 
     await page.locator('#inline-object-save').dispatchEvent('click');
 
@@ -204,21 +207,22 @@ test.describe('§5.3–5.13 жизненный цикл объекта тепл�
     expect(objects[0].params.name).toBe(objectName);
   });
 
-  test('объект с нормативным напряжением 230 В сохраняется из формы', async ({ page }) => {
+  test('тепловой объект сохраняется без собственного напряжения питания', async ({ page }) => {
     await loginAsGuest(page);
-    // бэкенд подставляет supply_voltage=230 (DEC-11) — справочник поля обязан
-    // предлагать это же значение, иначе «Сохранить» падает на нетронутом поле
-    const created = await createCalculatedPipe(page, `E2E напряжение ${Date.now()}`);
-    expect(created.params.supply_voltage).toBe(230);
+    const created = await createCalculatedPipe(
+      page,
+      `E2E напряжение ${Date.now()}`,
+      { min_switch_temperature: -30 },
+    );
+    expect(created.params).not.toHaveProperty('supply_voltage');
     await page.reload({ waitUntil: 'networkidle' });
 
     await openFirstNormalGlideRow(page);
-    const voltageItem = page.locator('.supply-voltage-form-item');
-    await expect(voltageItem).not.toHaveClass(/ant-form-item-has-error/);
+    await expect(page.getByTestId('supply-voltage-select')).toHaveCount(0);
 
     const saved = await saveSelectedObjectAndWait(page);
     expect(saved.is_valid).toBe(true);
-    expect(saved.params.supply_voltage).toBe(230);
+    expect(saved.params).not.toHaveProperty('supply_voltage');
   });
 
   test('§5.13 переход к электрорасчёту закрыт без объектов и открывается после расчёта', async ({ page }) => {
