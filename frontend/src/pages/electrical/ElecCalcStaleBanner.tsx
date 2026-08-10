@@ -10,6 +10,7 @@ export type ElecCalcStaleBannerProps = {
   canMutate: boolean;
   isJobActive?: boolean;
   batchPending?: boolean;
+  recalculationBlockedReason?: string | null;
   onRecalculateStale: () => void;
   onSelectStale?: () => void;
 };
@@ -19,6 +20,7 @@ export function ElecCalcStaleBanner({
   canMutate,
   isJobActive = false,
   batchPending = false,
+  recalculationBlockedReason = null,
   onRecalculateStale,
   onSelectStale,
 }: ElecCalcStaleBannerProps): ReactNode {
@@ -49,7 +51,8 @@ export function ElecCalcStaleBanner({
             size="compact"
             variant="primary"
             loading={batchPending || isJobActive}
-            disabled={isJobActive}
+            disabled={isJobActive || Boolean(recalculationBlockedReason)}
+            title={recalculationBlockedReason ?? undefined}
             onClick={onRecalculateStale}
             data-testid="elec-stale-recalc"
           >

@@ -3,6 +3,7 @@ export type ElectricalErrorKind =
   | 'power_too_high'
   | 'temperature_too_high'
   | 'resistive_section_not_found'
+  | 'section_current_limit_required'
   | 'unknown';
 
 export type ElectricalErrorCode =
@@ -10,6 +11,7 @@ export type ElectricalErrorCode =
   | 'POWER_TOO_HIGH'
   | 'TEMPERATURE_TOO_HIGH'
   | 'RESISTIVE_SECTION_NOT_FOUND'
+  | 'SECTION_CURRENT_LIMIT_REQUIRED'
   | 'UNKNOWN';
 
 export type ElectricalSuggestedAction =
@@ -29,12 +31,14 @@ export type ElectricalSuggestedAction =
   | 'CHECK_AMBIENT_TEMPERATURE'
   | 'CHECK_VAPOR_TEMPERATURE'
   | 'CHECK_OBJECT_PARAMS'
+  | 'SET_PROJECT_CURRENT_LIMIT'
   | 'TRY_OTHER_CABLE_TYPE';
 
 export type ElectricalErrorGuidance = {
   kind: ElectricalErrorKind;
   errorCode: ElectricalErrorCode;
   label: string;
+  message?: string;
   suggestedActions: ElectricalSuggestedAction[];
   suggestions: string[];
   tagColor: string;
@@ -53,6 +57,7 @@ const ERROR_CODE_BY_KIND: Record<ElectricalErrorKind, ElectricalErrorCode> = {
   power_too_high: 'POWER_TOO_HIGH',
   temperature_too_high: 'TEMPERATURE_TOO_HIGH',
   resistive_section_not_found: 'RESISTIVE_SECTION_NOT_FOUND',
+  section_current_limit_required: 'SECTION_CURRENT_LIMIT_REQUIRED',
   unknown: 'UNKNOWN',
 };
 
@@ -61,10 +66,14 @@ const ERROR_KIND_BY_CODE: Record<ElectricalErrorCode, ElectricalErrorKind> = {
   POWER_TOO_HIGH: 'power_too_high',
   TEMPERATURE_TOO_HIGH: 'temperature_too_high',
   RESISTIVE_SECTION_NOT_FOUND: 'resistive_section_not_found',
+  SECTION_CURRENT_LIMIT_REQUIRED: 'section_current_limit_required',
   UNKNOWN: 'unknown',
 };
 
-const ERROR_META: Record<ElectricalErrorKind, Pick<ElectricalErrorGuidance, 'label' | 'tagColor'>> = {
+const ERROR_META: Record<
+  ElectricalErrorKind,
+  Pick<ElectricalErrorGuidance, 'label' | 'message' | 'tagColor'>
+> = {
   missing_tank_layout: {
     label: 'Нет геометрии укладки',
     tagColor: 'volcano',
@@ -81,6 +90,11 @@ const ERROR_META: Record<ElectricalErrorKind, Pick<ElectricalErrorGuidance, 'lab
     label: 'Нет секции кабеля',
     tagColor: 'magenta',
   },
+  section_current_limit_required: {
+    label: 'Не задан Iдоп проекта',
+    message: 'Задайте допустимый стартовый ток одной секции в настройках проекта',
+    tagColor: 'red',
+  },
   unknown: {
     label: 'Ошибка подбора',
     tagColor: 'default',
@@ -92,6 +106,7 @@ const DEFAULT_ACTIONS_BY_KIND: Record<ElectricalErrorKind, ElectricalSuggestedAc
   power_too_high: ['TRY_OTHER_CABLE_TYPE'],
   temperature_too_high: ['CHECK_PROCESS_TEMPERATURE', 'CHECK_VAPOR_TEMPERATURE', 'TRY_OTHER_CABLE_TYPE'],
   resistive_section_not_found: ['TRY_OTHER_CONNECTION', 'CHECK_VOLTAGE', 'TRY_OTHER_CABLE_TYPE'],
+  section_current_limit_required: ['SET_PROJECT_CURRENT_LIMIT'],
   unknown: ['CHECK_OBJECT_PARAMS', 'TRY_OTHER_CABLE_TYPE'],
 };
 
@@ -112,6 +127,7 @@ const ACTION_LABELS: Record<ElectricalSuggestedAction, string> = {
   CHECK_AMBIENT_TEMPERATURE: 'Проверить T среды',
   CHECK_VAPOR_TEMPERATURE: 'Проверить T проп.',
   CHECK_OBJECT_PARAMS: 'Проверить параметры объекта',
+  SET_PROJECT_CURRENT_LIMIT: 'Задать Iдоп проекта',
   TRY_OTHER_CABLE_TYPE: 'Попробовать другой тип кабеля',
 };
 
@@ -186,6 +202,10 @@ function fallbackActionsForKind(
     const actions: ElectricalSuggestedAction[] = ['TRY_OTHER_CONNECTION', 'CHECK_VOLTAGE'];
     appendUnique(actions, 'TRY_OTHER_CABLE_TYPE');
     return actions;
+  }
+
+  if (kind === 'section_current_limit_required') {
+    return ['SET_PROJECT_CURRENT_LIMIT'];
   }
 
   return DEFAULT_ACTIONS_BY_KIND[kind];

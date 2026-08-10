@@ -13,6 +13,9 @@ import {
   PROJECT_ELECTRICAL_SETTINGS_QUERY_KEY,
 } from '@/api/electricalSettings';
 
+export const IDOP_REQUIRED_MESSAGE = 'Укажите Iдоп проекта';
+export const IDOP_CALCULATION_BLOCKED_MESSAGE = 'Сначала укажите и сохраните Iдоп проекта';
+
 export function useProjectElectricalSettings(
   projectId: string | undefined,
   canMutate: boolean,
@@ -82,13 +85,29 @@ export function useProjectElectricalSettings(
     setDraftIdop(value);
   }, []);
 
+  const validationError = query.isLoading || query.isError
+    ? null
+    : draftIdop == null
+    ? IDOP_REQUIRED_MESSAGE
+    : draftIdop > 0
+      ? null
+      : 'Iдоп должен быть больше 0';
+
   const save = useCallback(() => {
-    if (!canMutate) return;
+    if (!canMutate || validationError) return;
     mutation.mutate(draftIdop);
-  }, [canMutate, draftIdop, mutation]);
+  }, [canMutate, draftIdop, mutation, validationError]);
 
   const idopMissing = savedIdop == null;
   const isDirty = draftTouched && draftIdop !== savedIdop;
+  const canSave = canMutate && !query.isLoading && !mutation.isPending && isDirty && !validationError;
+  const calculationBlockedReason = query.isLoading
+    ? 'Дождитесь загрузки Iдоп проекта'
+    : query.isError
+      ? 'Сначала загрузите электрические настройки проекта'
+      : idopMissing
+        ? IDOP_CALCULATION_BLOCKED_MESSAGE
+        : null;
 
   return {
     settings: query.data,
@@ -103,6 +122,9 @@ export function useProjectElectricalSettings(
     saving: mutation.isPending,
     idopMissing,
     isDirty,
+    validationError,
+    canSave,
+    calculationBlockedReason,
     canMutate,
     nominalVoltage: query.data?.nominal_voltage_v ?? 230,
   };

@@ -39,6 +39,26 @@ const variants: ElectricalVariant[] = [
 ];
 
 describe('ElectricalVariantSetAction', () => {
+  it('explains why multi-ER recalculation is blocked', () => {
+    const client = new QueryClient();
+    render(
+      <QueryClientProvider client={client}>
+        <ElectricalVariantSetAction
+          projectId="project-1"
+          variants={variants}
+          canMutate
+          disabled
+          disabledReason="Сначала укажите и сохраните Iдоп проекта"
+        />
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByRole('button', { name: 'Пересчитать выбранные ЭР (0)' })).toHaveAttribute(
+      'title',
+      'Сначала укажите и сохраните Iдоп проекта',
+    );
+  });
+
   it('submits only explicitly checked ER UUIDs in selection order', async () => {
     const user = userEvent.setup();
     vi.mocked(startElectricalVariantSetTask).mockResolvedValue({
