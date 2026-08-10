@@ -325,7 +325,7 @@ test.describe('4.4 Электротехнический расчёт', () => {
     const specificationAction = page.getByRole(
       'button',
       {
-        name: /Сформировать спецификацию — сначала распределите хотя бы один объект/i,
+        name: /Перейти к спецификации — сначала распределите хотя бы один объект/i,
       },
     );
     await expect(specificationAction).toBeVisible();
@@ -362,7 +362,7 @@ test.describe('4.4 Электротехнический расчёт', () => {
 
     const enabledSpecificationAction = page.getByRole(
       'button',
-      { name: /^Сформировать спецификацию$/i },
+      { name: /^Перейти к спецификации$/i },
     );
     await expect(enabledSpecificationAction).toBeEnabled({ timeout: 20_000 });
     await enabledSpecificationAction.click();
