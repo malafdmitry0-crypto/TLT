@@ -7,6 +7,7 @@ import {
   type ReactElement,
   type ReactNode,
 } from 'react';
+import { TltForm } from '@/components/ui-kit';
 
 type HelpedControlProps = {
   hint: string;
@@ -24,6 +25,13 @@ export default function HelpedControl({
 }: HelpedControlProps & Record<string, unknown>) {
   const rootRef = useRef<HTMLSpanElement>(null);
   const child = Children.only(children) as ReactNode;
+  const { status } = TltForm.Item.useStatus();
+  const controlId = typeof controlProps.id === 'string' ? controlProps.id : undefined;
+  const invalid = status === 'error'
+    || controlProps['aria-invalid'] === true
+    || controlProps['aria-invalid'] === 'true';
+  const describedBy = controlProps['aria-describedby']
+    ?? (invalid && controlId ? `${controlId}_help` : undefined);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -134,7 +142,10 @@ export default function HelpedControl({
 
   return (
     <span ref={rootRef} className="field-control-with-help">
-      {isValidElement(child) ? cloneElement(child, controlProps) : child}
+      {isValidElement(child) ? cloneElement(child, {
+        ...controlProps,
+        'aria-describedby': describedBy,
+      }) : child}
     </span>
   );
 }
