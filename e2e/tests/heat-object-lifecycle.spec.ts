@@ -80,11 +80,21 @@ test.describe('§5.3–5.13 жизненный цикл объекта тепл�
     // §5.3: введённые данные остаются в формах
     await expect(page.getByTestId('object-name-input')).toHaveValue(objectName);
     // §3.11: незаполненные обязательные поля подсвечены как ошибочные
+    const outerDiameterItem = page.getByTestId('outer-diameter-input')
+      .locator('xpath=ancestor::*[contains(concat(" ", normalize-space(@class), " "), " ant-form-item ")][1]');
+    await expect(outerDiameterItem).toHaveClass(/ant-form-item-has-error/);
+    await expect(outerDiameterItem).toContainText('Укажите значение');
+    const outerDiameter = page.getByTestId('outer-diameter-input');
+    await expect(outerDiameter).toBeFocused();
+    await expect(outerDiameter).toHaveAttribute('aria-invalid', 'true');
+    const describedBy = await outerDiameter.getAttribute('aria-describedby');
+    expect(describedBy).toBeTruthy();
+    await expect(page.locator(`#${describedBy}`)).toContainText('Укажите значение');
+    await expect(page.getByTestId('heatcalc-form-validation-summary')).toHaveText('Исправьте ошибки в форме');
     await expect(
-      page.getByTestId('outer-diameter-input')
+      page.getByTestId('insulation-material-select')
         .locator('xpath=ancestor::*[contains(concat(" ", normalize-space(@class), " "), " ant-form-item ")][1]'),
-    ).toHaveClass(/ant-form-item-has-error/);
-    await expect(page.getByTestId('outer-diameter-input')).toBeFocused();
+    ).toContainText('Выберите значение');
     await expect(page.locator('.ant-message-error')).toHaveCount(0);
     await page.waitForTimeout(300);
     expect(objectWriteRequests).toBe(0);

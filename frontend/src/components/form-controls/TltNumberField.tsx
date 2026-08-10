@@ -44,6 +44,7 @@ export interface TltNumberFieldProps {
   'aria-label'?: string;
   'aria-required'?: boolean | 'true' | 'false';
   'aria-invalid'?: boolean | 'true' | 'false' | 'grammar' | 'spelling';
+  'aria-describedby'?: string;
   'data-testid'?: string;
 }
 
@@ -97,6 +98,7 @@ export default function TltNumberField({
   'aria-label': ariaLabel,
   'aria-required': ariaRequired,
   'aria-invalid': ariaInvalid,
+  'aria-describedby': ariaDescribedBy,
   'data-testid': testId,
 }: TltNumberFieldProps) {
   const isRequired = Boolean(required || ariaRequired === true || ariaRequired === 'true');
@@ -130,6 +132,7 @@ export default function TltNumberField({
       aria-label={resolvedAriaLabel}
       aria-required={isRequired || undefined}
       aria-invalid={isInvalid || undefined}
+      aria-describedby={ariaDescribedBy}
       // Comma as decimal separator (RU locale).
       // Empty input must return '' (not NaN) so rc-input-number commits null on clear.
       parser={(display) => {

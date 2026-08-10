@@ -7,8 +7,8 @@
  * Form ownership bag for ObjectWizard: form instance, watched values,
  * reference queries, sync handlers, and submit.
  */
-import { useEffect, useMemo, useRef } from 'react';
-import { Form } from 'antd';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Form, type FormProps } from 'antd';
 
 import type { ObjectType } from '@/constants/objectTypes';
 import {
@@ -97,6 +97,8 @@ export function useObjectWizardFormModel({
   onDraftValuesChange,
 }: UseObjectWizardFormModelInput) {
   const [form] = Form.useForm();
+  const [showValidationSummary, setShowValidationSummary] = useState(false);
+  const submitAttemptedRef = useRef(false);
   const heatCalcObjectType = objectType as HeatCalcObjectType;
   const { formGridRef } = useObjectWizardSectionResize({
     formSectionWeights,
@@ -211,6 +213,8 @@ export function useObjectWizardFormModel({
   async function handleFinish() {
     try {
       await form.validateFields();
+      submitAttemptedRef.current = false;
+      setShowValidationSummary(false);
       const vals = form.getFieldsValue(true);
       const params =
         objectType === 'pipe'
@@ -218,9 +222,18 @@ export function useObjectWizardFormModel({
           : tankFormToApiParams(vals);
       onSubmit(params);
     } catch {
+      submitAttemptedRef.current = true;
+      setShowValidationSummary(true);
       scrollToFirstError();
     }
   }
+
+  const handleFieldsChange: NonNullable<FormProps['onFieldsChange']> = (_changedFields, allFields) => {
+    if (!submitAttemptedRef.current) return;
+    const hasErrors = allFields.some((field) => (field.errors?.length ?? 0) > 0);
+    setShowValidationSummary(hasErrors);
+    if (!hasErrors) submitAttemptedRef.current = false;
+  };
 
   return {
     form,
@@ -247,6 +260,8 @@ export function useObjectWizardFormModel({
     selectedThirdInsulation,
     requestClimateReference,
     requestSoilReference,
+    showValidationSummary,
+    handleFieldsChange,
     handleValuesChange,
     syncProgrammaticValuesChange,
     handleFinish,
