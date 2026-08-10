@@ -196,7 +196,7 @@ describe('HeatCalcPage inline edit', () => {
       expect(screen.queryByLabelText('Ошибки в Excel-таблице')).not.toBeInTheDocument();
       const selectedRowErrors = await screen.findByLabelText('Ошибки выбранной строки');
       expect(selectedRowErrors).toHaveTextContent(
-        /Температура поддержания: Требуемая температура объекта должна быть выше температуры среды/,
+        /Температура поддержания: Выше T среды/,
       );
       expect(screen.queryByText('Исправьте ошибки в строке перед сохранением')).not.toBeInTheDocument();
     }, HEATCALC_PAGE_TEST_TIMEOUT);
