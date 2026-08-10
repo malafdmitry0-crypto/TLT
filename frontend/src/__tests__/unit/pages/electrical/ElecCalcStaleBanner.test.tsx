@@ -64,4 +64,21 @@ describe('ElecCalcStaleBanner', () => {
     expect(screen.queryByTestId('elec-stale-recalc')).not.toBeInTheDocument();
     expect(screen.queryByTestId('elec-stale-select')).not.toBeInTheDocument();
   });
+
+  it('blocks stale recalculation when project Iдоп is missing', async () => {
+    const user = userEvent.setup();
+    const onRecalculateStale = vi.fn();
+    render(
+      <ElecCalcStaleBanner
+        staleCount={1}
+        canMutate
+        recalculationBlockedReason="Сначала укажите и сохраните Iдоп проекта"
+        onRecalculateStale={onRecalculateStale}
+      />,
+    );
+
+    expect(screen.getByTestId('elec-stale-recalc')).toBeDisabled();
+    await user.click(screen.getByTestId('elec-stale-recalc'));
+    expect(onRecalculateStale).not.toHaveBeenCalled();
+  });
 });

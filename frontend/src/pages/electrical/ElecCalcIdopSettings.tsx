@@ -24,7 +24,8 @@ export function ElecCalcIdopSettings({
     onDraftChange,
     save,
     saving,
-    isDirty,
+    validationError,
+    canSave,
     canMutate,
   } = settings;
 
@@ -57,18 +58,23 @@ export function ElecCalcIdopSettings({
           <div className="elec-idop-settings__field">
             <span className="workflow-params-label elec-idop-settings__label">
               Iдоп проекта — допустимый стартовый ток одной секции, А
+              <span className="elec-idop-settings__required" aria-hidden="true"> *</span>
             </span>
             <TltNumberField
               id={`${formId}-input`}
               aria-label="Iдоп проекта — допустимый стартовый ток одной секции, А"
               data-testid="elec-idop-input"
               disabled={!canMutate || isLoading || saving}
+              required
+              status={validationError ? 'error' : ''}
+              aria-invalid={Boolean(validationError)}
+              aria-describedby={validationError ? `${formId}-error` : undefined}
               min={0.001}
               step={0.1}
               value={draftIdop}
               onChange={onDraftChange}
               placeholder="например 13"
-              className="electrical-type-control electrical-type-control--w120"
+              className="electrical-type-control electrical-type-control--w118"
             />
           </div>
           {canMutate && (
@@ -76,7 +82,7 @@ export function ElecCalcIdopSettings({
               variant="primary"
               size="compact"
               loading={saving}
-              disabled={isLoading || !isDirty}
+              disabled={!canSave}
               onClick={save}
               data-testid="elec-idop-save"
             >
@@ -84,6 +90,11 @@ export function ElecCalcIdopSettings({
             </TltButton>
           )}
         </div>
+        {validationError && (
+          <span id={`${formId}-error`} className="elec-idop-settings__error" role="alert">
+            {validationError}
+          </span>
+        )}
       </div>
     </div>
   );

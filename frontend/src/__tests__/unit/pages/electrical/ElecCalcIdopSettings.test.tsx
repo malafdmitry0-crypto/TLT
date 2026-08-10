@@ -21,6 +21,9 @@ function makeSettings(
     saving: false,
     idopMissing: true,
     isDirty: false,
+    validationError: 'Укажите Iдоп проекта',
+    canSave: false,
+    calculationBlockedReason: 'Сначала укажите и сохраните Iдоп проекта',
     canMutate: true,
     nominalVoltage: 230,
     ...overrides,
@@ -28,7 +31,7 @@ function makeSettings(
 }
 
 describe('ElecCalcIdopSettings', () => {
-  it('shows the form without a duplicate missing-Iдоп banner when idop is not set', () => {
+  it('marks Iдоп as required and explains a missing value', () => {
     render(<ElecCalcIdopSettings settings={makeSettings()} />);
 
     expect(screen.getByTestId('elec-idop-settings')).toBeInTheDocument();
@@ -36,7 +39,11 @@ describe('ElecCalcIdopSettings', () => {
     expect(screen.queryByRole('button', { name: 'Задать Iдоп' })).not.toBeInTheDocument();
     expect(screen.getByRole('spinbutton', {
       name: 'Iдоп проекта — допустимый стартовый ток одной секции, А',
-    })).toBeInTheDocument();
+    })).toHaveAttribute('aria-required', 'true');
+    expect(screen.getByRole('spinbutton', {
+      name: 'Iдоп проекта — допустимый стартовый ток одной секции, А',
+    })).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByRole('alert')).toHaveTextContent('Укажите Iдоп проекта');
     expect(screen.getByTestId('elec-idop-save')).toBeDisabled();
   });
 
@@ -51,6 +58,8 @@ describe('ElecCalcIdopSettings', () => {
           savedIdop: 13,
           draftIdop: 13,
           isDirty: true,
+          validationError: null,
+          canSave: true,
           onDraftChange,
           save,
         })}

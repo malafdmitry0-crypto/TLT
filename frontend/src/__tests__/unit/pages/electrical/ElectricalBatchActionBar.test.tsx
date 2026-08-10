@@ -22,6 +22,7 @@ function makeProps(
     overwriteManualChoices: false,
     selectedRecalcDisabled: false,
     selectedRecalcTooltip: 'Можно пересчитать',
+    calculationBlockedReason: null,
     selectedRecalcCountLabel: '2',
     batchPending: false,
     validObjectsCount: 5,
@@ -148,5 +149,22 @@ describe('ElectricalBatchActionBar', () => {
     expect(props.onRecalculateSelected).not.toHaveBeenCalled();
     expect(props.onRecalculateAll).not.toHaveBeenCalled();
     expect(props.onCancelJob).not.toHaveBeenCalled();
+  });
+
+  it('blocks recalculation until required project Iдоп is saved', () => {
+    const props = makeProps({
+      calculationBlockedReason: 'Сначала укажите и сохраните Iдоп проекта',
+    });
+
+    render(<ElectricalBatchActionBar {...props} />);
+
+    expect(buttonByText(/Пересчитать выбранные/)).toBeDisabled();
+    expect(buttonByText(/Пересчитать все/)).toBeDisabled();
+    expect(buttonByText(/Пересчитать выбранные/)).toHaveAttribute(
+      'title',
+      'Сначала укажите и сохраните Iдоп проекта',
+    );
+    expect(props.onRecalculateSelected).not.toHaveBeenCalled();
+    expect(props.onRecalculateAll).not.toHaveBeenCalled();
   });
 });

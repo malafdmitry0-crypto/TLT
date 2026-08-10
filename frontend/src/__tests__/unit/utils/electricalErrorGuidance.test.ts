@@ -76,4 +76,18 @@ describe('electricalErrorGuidance', () => {
 
     expect(guidance).toBeNull();
   });
+
+  it('localizes missing project Iдоп and points to project settings', () => {
+    const guidance = getElectricalErrorGuidance({
+      error: 'SECTION_CURRENT_LIMIT_REQUIRED',
+      errorCode: 'SECTION_CURRENT_LIMIT_REQUIRED',
+    });
+
+    expect(guidance).toMatchObject({
+      kind: 'section_current_limit_required',
+      label: 'Не задан Iдоп проекта',
+      message: 'Задайте допустимый стартовый ток одной секции в настройках проекта',
+      suggestions: ['Задать Iдоп проекта'],
+    });
+  });
 });
