@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildSpecGenerateOptions,
+  specificationBackendFieldErrors,
 } from '@/pages/specification/specGenerateOptionsModel';
 
 describe('specGenerateOptionsModel', () => {
@@ -40,6 +41,20 @@ describe('specGenerateOptionsModel', () => {
       K1i: false,
       K2i: false,
       Kiu: false,
+    });
+  });
+
+  it('maps backend issues to field-specific messages and preserves backend copy', () => {
+    expect(specificationBackendFieldErrors([{
+      issues: [
+        { field: 'grouping_mode', reason: 'required_option_unresolved' },
+        { field: 'L_K2i_m', reason: 'resolved_option_invalid' },
+        { field: 'R_gr', reason: 'invalid', message: 'Коэффициент должен быть не меньше нуля' },
+      ],
+    }])).toEqual({
+      groupingMode: 'Обязательное поле не заполнено',
+      minLengthK2i: 'Недопустимое значение',
+      reserveCoeff: 'Коэффициент должен быть не меньше нуля',
     });
   });
 });

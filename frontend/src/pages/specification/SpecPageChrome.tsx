@@ -164,7 +164,49 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
         width={720}
         open={settingsOpen}
         onCancel={() => toggleSettings(false)}
-        footer={null}
+        footer={(
+          <div className="specification-settings-footer">
+            <div className="specification-settings-footer-feedback" aria-live="polite">
+              <SpecificationReadinessAlert
+                state={readiness.state}
+                blocker={readiness.primaryBlocker}
+                blockers={readiness.blockers}
+                onRecovery={handleReadinessRecovery}
+                onRetry={() => { void retryReadiness(); }}
+              />
+              {generationDiagnostics.length > 0 && (
+                <TltAlert
+                  tone="danger"
+                  title="Backend заблокировал формирование"
+                  className="specification-settings-diagnostics"
+                >
+                  <ul>
+                    {generationDiagnostics.map((diagnostic) => (
+                      <li key={`${diagnostic.kind}:${diagnostic.code}:${String(diagnostic.details.reason ?? '')}`}>
+                        <strong>{diagnostic.code}</strong>
+                        {' — '}
+                        {diagnostic.message}
+                      </li>
+                    ))}
+                  </ul>
+                </TltAlert>
+              )}
+            </div>
+            <TltButton
+              variant="primary"
+              icon={<ReloadOutlined />}
+              className="specification-settings-action"
+              disabled={generationDisabled}
+              loading={mut.isPending}
+              onClick={() => runGenerate(false)}
+              aria-label={hasItems ? 'Пересчитать' : 'Сформировать'}
+            >
+              {hasItems
+                ? `Пересчитать выбранные ЭР (${selectedGenerateErIds.length})`
+                : `Сформировать выбранные ЭР (${selectedGenerateErIds.length})`}
+            </TltButton>
+          </div>
+        )}
         destroyOnHidden={false}
         className="specification-settings-modal"
       >
@@ -213,16 +255,21 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
               </CompactField>
               <CompactField
                 layout="vertical"
-                label="Способ формирования спецификации по типам объектов"
+                label="Группировка строк при формировании"
                 controlWidth="100%"
                 required
-                error={visibleErrors.groupingMode}
+                error={visibleErrors.groupingMode
+                  ? <span id="spec-grouping-mode-error">{visibleErrors.groupingMode}</span>
+                  : undefined}
               >
                 <TltSelect
                   id="spec-grouping-mode"
                   className="specification-settings-field-full"
                   required
                   status={visibleErrors.groupingMode ? 'error' : ''}
+                  aria-describedby={visibleErrors.groupingMode
+                    ? 'spec-grouping-mode-error'
+                    : undefined}
                   value={groupingMode}
                   allowClear
                   placeholder="Не задано"
@@ -236,7 +283,7 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
                     { value: 'separate_by_object_type', label: 'Разделять по типам объектов' },
                     { value: 'merge_materials', label: 'Объединять материалы' },
                   ]}
-                  aria-label="Способ формирования спецификации по типам объектов"
+                  aria-label="Группировка строк при формировании"
                 />
               </CompactField>
             </CompactFieldGrid>
@@ -260,46 +307,9 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
             />
           </section>
 
-          <section className="specification-settings-section">
-            <SpecificationReadinessAlert
-              state={readiness.state}
-              blocker={readiness.primaryBlocker}
-              blockers={readiness.blockers}
-              onRecovery={handleReadinessRecovery}
-              onRetry={() => { void retryReadiness(); }}
-            />
-            {generationDiagnostics.length > 0 && (
-              <TltAlert
-                tone="danger"
-                title="Backend заблокировал формирование"
-                className="specification-settings-diagnostics"
-              >
-                <ul>
-                  {generationDiagnostics.map((diagnostic) => (
-                    <li key={`${diagnostic.kind}:${diagnostic.code}:${String(diagnostic.details.reason ?? '')}`}>
-                      <strong>{diagnostic.code}</strong>
-                      {' — '}
-                      {diagnostic.message}
-                    </li>
-                  ))}
-                </ul>
-              </TltAlert>
-            )}
-            {candidateSelection}
-            <Space direction="vertical" className="tlt-field--fill" size={8}>
-              <TltButton
-                variant="primary"
-                icon={<ReloadOutlined />}
-                className="specification-settings-action"
-                disabled={generationDisabled}
-                loading={mut.isPending}
-                onClick={() => runGenerate(false)}
-                aria-label={hasItems ? 'Пересчитать' : 'Сформировать'}
-              >
-                {hasItems
-                  ? `Пересчитать выбранные ЭР (${selectedGenerateErIds.length})`
-                  : `Сформировать выбранные ЭР (${selectedGenerateErIds.length})`}
-              </TltButton>
+          {(candidateSelection || canManuallyEdit) && (
+            <section className="specification-settings-section">
+              {candidateSelection}
               {canManuallyEdit && (
                 <Space direction="vertical" className="tlt-field--fill" size={4}>
                   <TltButton
@@ -328,8 +338,8 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
                   )}
                 </Space>
               )}
-            </Space>
-          </section>
+            </section>
+          )}
         </div>
       </Modal>
 

@@ -55,8 +55,10 @@ export function SpecificationReadinessAlert({
   }
   if (!blocker) return null;
   const title = blocker.scope === 'catalog'
-      ? 'Каталог не готов к формированию спецификации'
-      : 'ЭР не готова к формированию спецификации';
+    ? 'Каталог не готов к формированию спецификации'
+    : blocker.scope === 'electrical_variant'
+      ? 'ЭР не готова к формированию спецификации'
+      : 'Формирование спецификации заблокировано';
   return (
     <TltAlert
       tone="danger"

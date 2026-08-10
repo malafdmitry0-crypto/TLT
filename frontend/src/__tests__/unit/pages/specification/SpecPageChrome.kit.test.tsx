@@ -61,7 +61,7 @@ describe('SpecPageChrome UI kit strangler (U2)', () => {
     renderChrome();
 
     const groupingMode = screen.getByRole('combobox', {
-      name: 'Способ формирования спецификации по типам объектов',
+      name: 'Группировка строк при формировании',
     });
     expect(groupingMode).toBeInTheDocument();
 
@@ -202,10 +202,34 @@ describe('SpecPageChrome UI kit strangler (U2)', () => {
       }],
     });
 
-    expect(screen.getAllByText('Проверьте значение')).toHaveLength(3);
-    await waitFor(() => expect(screen.getByRole('combobox', {
-      name: 'Способ формирования спецификации по типам объектов',
-    })).toHaveFocus());
+    expect(screen.getAllByText('Обязательное поле не заполнено')).toHaveLength(3);
+    const grouping = screen.getByRole('combobox', {
+      name: 'Группировка строк при формировании',
+    });
+    expect(grouping).toHaveAccessibleDescription('Обязательное поле не заполнено');
+    expect(screen.getByRole('spinbutton', { name: 'Параметр L К2i' }))
+      .toHaveAccessibleDescription('Обязательное поле не заполнено');
+    expect(screen.getByRole('spinbutton', { name: 'Параметр R гр' }))
+      .toHaveAccessibleDescription('Обязательное поле не заполнено');
+    await waitFor(() => expect(grouping).toHaveFocus());
+  });
+
+  it('keeps final validation and the primary action outside the scrolling modal body', () => {
+    renderChrome({
+      generationDiagnostics: [{
+        code: 'SPEC_FORMULA_INPUT_INVALID',
+        kind: 'blocking',
+        message: 'Не заполнены обязательные настройки спецификации',
+        issues: [{ field: 'grouping_mode', reason: 'required_option_unresolved' }],
+        details: {},
+      }],
+    });
+
+    const action = screen.getByRole('button', { name: 'Сформировать' });
+    expect(action.closest('.ant-modal-footer')).not.toBeNull();
+    const validation = screen.getByRole('alert');
+    expect(validation).toHaveTextContent('Не заполнены обязательные настройки спецификации');
+    expect(validation.closest('.ant-modal-footer')).not.toBeNull();
   });
 
   it('explains that a stale specification must be regenerated before manual editing', () => {
@@ -272,6 +296,29 @@ describe('SpecPageChrome UI kit strangler (U2)', () => {
     expect(screen.getByRole('button', { name: 'Сформировать' })).toBeDisabled();
     await user.click(screen.getByRole('button', { name: 'Пересчитать ЭР' }));
     expect(handleReadinessRecovery).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not label a project blocker as an electrical-variant failure', () => {
+    renderChrome({
+      readiness: {
+        state: 'blocked',
+        blockers: [],
+        primaryBlocker: {
+          code: 'SPEC_PROJECT_BLOCKED',
+          kind: 'blocking',
+          message: 'Формирование временно недоступно',
+          source_stage: 'specification',
+          scope: 'project',
+          reason: 'project_blocked',
+          count: 1,
+          object_ids: [],
+          next_action: 'review_specification_settings',
+        },
+      },
+    });
+
+    expect(screen.getByText('Формирование спецификации заблокировано')).toBeInTheDocument();
+    expect(screen.queryByText('ЭР не готова к формированию спецификации')).not.toBeInTheDocument();
   });
 
   it('shows catalog and ER blockers together without assigning catalog to an ER', () => {
