@@ -27,8 +27,11 @@ export function resolveSpecificationReadinessView(args: {
   generationFailed: boolean;
   data?: SpecificationReadinessResponse;
 }): SpecificationReadinessView {
-  const blockers = args.data?.results.flatMap((result) => result.blockers) ?? [];
-  const blocked = args.data?.results.some((result) => result.status === 'blocked') === true;
+  const blockers = [
+    ...(args.data?.blockers ?? []),
+    ...(args.data?.results.flatMap((result) => result.blockers) ?? []),
+  ];
+  const blocked = args.data?.status === 'blocked';
   if (args.generationPending) return { state: 'calculating', blockers, primaryBlocker: blockers[0] ?? null };
   if (blocked) return { state: 'blocked', blockers, primaryBlocker: blockers[0] ?? null };
   if (args.generationFailed) return { state: 'failed', blockers, primaryBlocker: blockers[0] ?? null };
@@ -39,6 +42,13 @@ export function resolveSpecificationReadinessView(args: {
 }
 
 export function readinessBlockerMessage(blocker: SpecificationReadinessBlocker): string {
+  if (blocker.scope === 'project') {
+    return 'Заполните обязательные параметры формирования спецификации.';
+  }
+  if (blocker.scope === 'catalog') {
+    return 'Рабочий каталог спецификации недоступен. Обратитесь к администратору.';
+  }
+  if (blocker.scope !== 'electrical_variant') return blocker.message;
   const erName = blocker.electrical_variant_name || 'Выбранная ЭР';
   const objectCount = blocker.count > 1 ? ` Затронуто объектов: ${blocker.count}.` : '';
   if (blocker.source_stage === 'electrical') {
@@ -46,9 +56,6 @@ export function readinessBlockerMessage(blocker: SpecificationReadinessBlocker):
   }
   if (blocker.source_stage === 'heat') {
     return `${erName}: сначала исправьте или пересчитайте тепловые данные.${objectCount}`;
-  }
-  if (blocker.source_stage === 'catalog') {
-    return 'Рабочий каталог спецификации недоступен. Обратитесь к администратору.';
   }
   return `${erName}: ${blocker.message}${objectCount}`;
 }
@@ -59,8 +66,6 @@ export function readinessActionLabel(blocker: SpecificationReadinessBlocker): st
       return 'К теплорасчёту';
     case 'open_electrical_variant':
       return 'Пересчитать ЭР';
-    case 'configure_specification':
-      return 'Проверить настройки';
     case 'select_catalog_items':
       return 'Выбрать комплектующие';
     case 'confirm_unassigned_exclusion':

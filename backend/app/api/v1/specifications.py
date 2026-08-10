@@ -21,8 +21,6 @@ from app.schemas.specification import (
     SpecificationManualItemsResponse,
     SpecificationReadinessResponse,
     SpecificationResponse,
-    SpecificationSettingsResponse,
-    SpecificationSettingsUpdateRequest,
     SpecificationUpdateRequest,
 )
 from app.services.audit_service import AuditService
@@ -37,7 +35,7 @@ from app.services.project_service import (
 )
 from app.services.specification_generation_service import (
     SpecificationGenerationService,
-    SpecificationProjectSettingsService,
+    SpecificationOptionsValidationError,
 )
 from app.services.specification_preflight_service import SpecificationPreflightServiceError
 from app.services.specification_readiness_service import SpecificationReadinessService
@@ -70,10 +68,25 @@ def _specification_http_error(
     )
 
 
+def _settings_validation_http_error(
+    exc: SpecificationOptionsValidationError,
+) -> HTTPException:
+    diagnostic = exc.diagnostic
+    return HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        detail=SpecificationErrorDetail(
+            code=diagnostic.code,
+            message=diagnostic.message,
+            issues=diagnostic.issues,
+            details=diagnostic.details,
+        ).model_dump(mode="json"),
+    )
+
+
 @router.get(
     "/{project_id}/readiness",
     response_model=SpecificationReadinessResponse,
-    summary="Live Specification readiness for explicitly selected ER UUIDs",
+    summary="Persisted Specification readiness for explicitly selected ER UUIDs",
 )
 async def get_specification_readiness(
     project_id: UUID,
@@ -104,72 +117,6 @@ async def get_specification_readiness(
             code=SpecificationDiagnosticCode.PROJECT_ACCESS_DENIED,
             message=str(exc),
         ) from exc
-
-
-@router.get(
-    "/{project_id}/settings",
-    response_model=SpecificationSettingsResponse,
-    summary="Project specification defaults (PDL-ER-07)",
-)
-async def get_specification_settings(
-    project_id: UUID,
-    principal: CurrentPrincipal = Depends(require_any()),
-    db: AsyncSession = Depends(get_db),
-):
-    try:
-        await ProjectService(db).get_project_basic(project_id, principal)
-    except ProjectNotFoundError as exc:
-        raise _specification_http_error(
-            status_code=status.HTTP_404_NOT_FOUND,
-            code=SpecificationDiagnosticCode.PROJECT_NOT_FOUND,
-            message=str(exc),
-        ) from exc
-    except ProjectAccessError as exc:
-        raise _specification_http_error(
-            status_code=status.HTTP_403_FORBIDDEN,
-            code=SpecificationDiagnosticCode.PROJECT_ACCESS_DENIED,
-            message=str(exc),
-        ) from exc
-
-    return await SpecificationProjectSettingsService(db).get(project_id)
-
-
-@router.put(
-    "/{project_id}/settings",
-    response_model=SpecificationSettingsResponse,
-    summary="Save project specification defaults without regenerating (PDL-ER-07)",
-)
-async def update_specification_settings(
-    project_id: UUID,
-    data: SpecificationSettingsUpdateRequest,
-    principal: CurrentPrincipal = Depends(require_any()),
-    db: AsyncSession = Depends(get_db),
-):
-    try:
-        await ProjectService(db).get_project_for_write(project_id, principal)
-    except ProjectNotFoundError as exc:
-        raise _specification_http_error(
-            status_code=status.HTTP_404_NOT_FOUND,
-            code=SpecificationDiagnosticCode.PROJECT_NOT_FOUND,
-            message=str(exc),
-        ) from exc
-    except ProjectAccessError as exc:
-        raise _specification_http_error(
-            status_code=status.HTTP_403_FORBIDDEN,
-            code=SpecificationDiagnosticCode.PROJECT_ACCESS_DENIED,
-            message=str(exc),
-        ) from exc
-
-    response = await SpecificationProjectSettingsService(db).update(project_id, data.settings)
-    await AuditService(db).try_record(
-        event_type="specification.settings_updated",
-        category="specification",
-        principal=principal,
-        project_id=project_id,
-        details={"settings_version": response.version},
-        message="Обновлены project defaults спецификации",
-    )
-    return response
 
 
 @router.get(
@@ -432,6 +379,8 @@ async def generate_specification(
 
     try:
         generated = await SpecificationGenerationService(db).generate(project_id, principal, data)
+    except SpecificationOptionsValidationError as exc:
+        raise _settings_validation_http_error(exc) from exc
     except SpecificationPreflightServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     generated_count = sum(result.status == "generated" for result in generated.results)

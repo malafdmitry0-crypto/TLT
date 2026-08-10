@@ -3,9 +3,7 @@ from decimal import Decimal
 from app.reference_data.loader import list_insulation_materials, list_tt_cables
 from app.schemas.electrical_assignment import ElectricalAssignmentOverridesPatch
 from app.schemas.project import ProjectObjectCreate
-from app.schemas.specification import SpecificationRequestedOptions
 from app.seeds import (
-    _DEMO_SPECIFICATION_SETTINGS,
     _ELECTRICAL_SEED_MAX_SECTION_START_CURRENT_A,
     _HEAT_SEED_CONFIGS,
     _electrical_seed_overrides,
@@ -62,14 +60,6 @@ def test_tt_catalog_uses_the_supported_product_line():
         "75ТТХ2",
         "90ТТХ2",
     ]
-
-
-def test_demo_specification_settings_are_complete_and_canonical():
-    settings = SpecificationRequestedOptions.model_validate(_DEMO_SPECIFICATION_SETTINGS)
-
-    assert settings.model_dump(mode="json", by_alias=True, exclude_none=True) == (
-        _DEMO_SPECIFICATION_SETTINGS
-    )
 
 
 def test_heat_seed_matrix_is_exact_and_traceable():

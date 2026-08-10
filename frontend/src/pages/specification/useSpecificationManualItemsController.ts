@@ -117,6 +117,5 @@ export function useSpecificationManualItemsController({
     handleAdd,
     handleDelete,
     hasItems: items.length > 0,
-    categoriesCount: new Set(items.map((i) => i.category)).size,
   };
 }

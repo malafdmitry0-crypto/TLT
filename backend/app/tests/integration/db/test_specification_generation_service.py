@@ -29,7 +29,6 @@ from app.schemas.specification import (
 )
 from app.services.specification_generation_service import (
     SpecificationGenerationService,
-    SpecificationProjectSettingsService,
 )
 from app.services.specification_preflight_service import SpecificationPreflightService
 from app.tests.specification_catalog_fixtures import (
@@ -206,125 +205,18 @@ def _principal(user: User) -> CurrentPrincipal:
     return CurrentPrincipal(role="employee", user_id=user.id, email=user.email)
 
 
-async def test_settings_change_is_versioned_and_stales_every_spec_atomically(
-    db_session: AsyncSession,
-    employee_user: User,
-) -> None:
-    project = Project(
-        id=uuid.uuid4(),
-        name="Canonical specification settings",
-        user_id=employee_user.id,
-        specification_settings={},
-        specification_settings_version=1,
-    )
-    variants = [
-        ElectricalVariant(
-            id=uuid.uuid4(),
-            project_id=project.id,
-            name=f"ЭР {index}",
-            name_normalized=f"эр {index}",
-            sort_order=index,
-            legacy_variant_number=index,
-            is_active=index == 1,
-        )
-        for index in (1, 2)
-    ]
-    obj = ProjectObject(
-        id=uuid.uuid4(),
-        project_id=project.id,
-        object_type="pipe",
-        sort_order=0,
-        version=1,
-        params={"outer_diameter": 0.108},
-        results={},
-        is_valid=True,
-    )
-    db_session.add(project)
-    await db_session.flush()
-    db_session.add_all(variants)
-    await db_session.flush()
-    specs = [
-        Specification(
-            id=uuid.uuid4(),
-            project_id=project.id,
-            electrical_variant_id=variants[index - 1].id,
-            items=[],
-            snapshot={"schema": "old"},
-            is_stale=False,
-        )
-        for index in (1, 2)
-    ]
-    db_session.add_all([obj, *specs])
-    await db_session.commit()
-
-    service = SpecificationProjectSettingsService(db_session)
-    initial = await service.get(project.id)
-    assert initial.version == 1
-    assert initial.settings.model_dump(exclude_none=True) == {}
-
-    requested = SpecificationRequestedOptions.model_validate(
+def _generation_options() -> SpecificationRequestedOptions:
+    return SpecificationRequestedOptions.model_validate(
         {
             "grouping_mode": "separate_by_object_type",
             "Ex": False,
             "K1i": False,
-            "K2i": True,
+            "K2i": False,
             "Kiu": False,
             "L_K2i_m": "0",
-            "R_gr": "1.1",
+            "R_gr": "1",
         }
     )
-    updated = await service.update(project.id, requested)
-    assert updated.version == 2
-    assert updated.settings.ex is False
-    assert str(updated.settings.l_k2i_m) == "0"
-
-    await db_session.refresh(project)
-    await db_session.refresh(obj)
-    for spec in specs:
-        await db_session.refresh(spec)
-        assert spec.is_stale is True
-        assert spec.stale_reason == "specification_settings_changed"
-    assert project.specification_settings == {
-        "grouping_mode": "separate_by_object_type",
-        "Ex": False,
-        "K1i": False,
-        "K2i": True,
-        "Kiu": False,
-        "L_K2i_m": "0",
-        "R_gr": "1.1",
-    }
-    assert obj.params == {"outer_diameter": 0.108}
-
-    repeated = await service.update(project.id, requested)
-    assert repeated.version == 2
-
-
-async def test_settings_reader_ignores_legacy_values(
-    db_session: AsyncSession,
-    employee_user: User,
-) -> None:
-    project = Project(
-        id=uuid.uuid4(),
-        name="Legacy settings reader",
-        user_id=employee_user.id,
-        specification_settings={
-            "ex_zone": False,
-            "min_length_for_end_indication": 0,
-            "reserve_coefficient": 1.25,
-            "connector_kit_sections_per_kit": 2,
-        },
-        specification_settings_version=7,
-    )
-    db_session.add(project)
-    await db_session.commit()
-
-    response = await SpecificationProjectSettingsService(db_session).get(project.id)
-    assert response.version == 7
-    assert response.settings.ex is None
-    assert response.settings.l_k2i_m is None
-    assert response.settings.r_gr is None
-    assert response.settings.k1i is None
-    assert "connector_kit_sections_per_kit" not in response.settings.model_dump()
 
 
 async def test_ready_complete_catalog_generates_and_persists_by_uuid(
@@ -339,7 +231,7 @@ async def test_ready_complete_catalog_generates_and_persists_by_uuid(
     ready = variants[0]
     request = SpecificationGenerationRequest(
         variant_ids=[ready.id],
-        options=SpecificationRequestedOptions(),
+        options=_generation_options(),
     )
     response = await SpecificationGenerationService(db_session).generate(
         project.id,
@@ -416,7 +308,7 @@ async def test_ready_and_blocked_mixed_writes_ready_bom_and_blocked_outcome(
     ready, blocked = variants
     request = SpecificationGenerationRequest(
         variant_ids=[ready.id, blocked.id],
-        options=SpecificationRequestedOptions(),
+        options=_generation_options(),
     )
     response = await SpecificationGenerationService(db_session).generate(
         project.id,
@@ -532,7 +424,7 @@ async def test_exception_mid_er_rolls_back_only_that_savepoint(
 
     request = SpecificationGenerationRequest(
         variant_ids=[variants[0].id, second.id],
-        options=SpecificationRequestedOptions(),
+        options=_generation_options(),
     )
     response = await SpecificationGenerationService(db_session).generate(
         project.id,
@@ -602,7 +494,7 @@ async def test_fingerprint_race_returns_conflict_without_bom_write(
 
     request = SpecificationGenerationRequest(
         variant_ids=[ready.id],
-        options=SpecificationRequestedOptions(),
+        options=_generation_options(),
     )
     response = await SpecificationGenerationService(db_session).generate(
         project.id,
@@ -670,7 +562,7 @@ async def test_confirmed_unassigned_still_generates_when_gates_pass(
 
     request = SpecificationGenerationRequest(
         variant_ids=[ready.id],
-        options=SpecificationRequestedOptions(),
+        options=_generation_options(),
         exclude_unassigned_confirmed=True,
     )
     response = await SpecificationGenerationService(db_session).generate(
@@ -719,7 +611,7 @@ async def test_manual_items_preserved_on_regenerate(
 
     request = SpecificationGenerationRequest(
         variant_ids=[ready.id],
-        options=SpecificationRequestedOptions(),
+        options=_generation_options(),
     )
     response = await SpecificationGenerationService(db_session).generate(
         project.id,
@@ -773,7 +665,7 @@ async def test_invalid_manual_item_blocks_regeneration_without_row_loss(
         _principal(employee_user),
         SpecificationGenerationRequest(
             variant_ids=[ready.id],
-            options=SpecificationRequestedOptions(),
+            options=_generation_options(),
         ),
     )
 

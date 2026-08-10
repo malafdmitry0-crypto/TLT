@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildSpecGenerateOptions,
-  missingSpecGenerateFields,
 } from '@/pages/specification/specGenerateOptionsModel';
 
 describe('specGenerateOptionsModel', () => {
@@ -26,19 +25,21 @@ describe('specGenerateOptionsModel', () => {
     });
   });
 
-  it('does not materialize missing values', () => {
+  it('always materializes the four binary options as Да or Нет', () => {
     const input = {
-      exZone: null,
+      exZone: false,
       reserveCoeff: '',
-      indicationOnBoxes: null,
-      endSectionIndication: null,
-      topIndication: null,
+      indicationOnBoxes: false,
+      endSectionIndication: false,
+      topIndication: false,
       minLengthK2i: '',
       groupingMode: null,
     } as const;
-    expect(buildSpecGenerateOptions(input)).toEqual({});
-    expect(missingSpecGenerateFields(input)).toEqual([
-      'режим группировки', 'Ex', 'К1i', 'К2i', 'Кiu', 'L,К2i', 'R,гр',
-    ]);
+    expect(buildSpecGenerateOptions(input)).toEqual({
+      Ex: false,
+      K1i: false,
+      K2i: false,
+      Kiu: false,
+    });
   });
 });

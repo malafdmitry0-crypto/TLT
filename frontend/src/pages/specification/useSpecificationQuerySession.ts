@@ -1,7 +1,7 @@
 /**
  * @module specification/query-session
  * @owner specification
- * Project/variant identity + specification/settings/accessories query session.
+ * Project/variant identity + saved specification/accessories query session.
  * Mutations and generation orchestration stay in useSpecificationPageModel.
  */
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -9,7 +9,6 @@ import { useNavigate } from 'react-router-dom';
 
 import {
   getSpecification,
-  getSpecificationSettings,
   listAccessoriesExtended,
 } from '@/api/specifications';
 import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
@@ -60,12 +59,6 @@ export function useSpecificationQuerySession() {
     enabled: uuidDataPlaneEnabled,
   });
 
-  const { data: projectSettings } = useQuery({
-    queryKey: ['spec-settings', project?.id],
-    queryFn: () => getSpecificationSettings(project!.id),
-    enabled: Boolean(project?.id),
-  });
-
   const { data: accessories = [] } = useQuery({
     queryKey: referenceQueryKeys.accessoriesExtended,
     queryFn: listAccessoriesExtended,
@@ -96,7 +89,6 @@ export function useSpecificationQuerySession() {
     specError,
     specErrorObj,
     specFetching,
-    projectSettings,
     accessories,
   };
 }

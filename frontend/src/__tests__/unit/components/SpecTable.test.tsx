@@ -22,10 +22,9 @@ describe('SpecTable', () => {
     expect(screen.getByText('50')).toBeInTheDocument();
   });
 
-  it('PDF object_section: columns without Категория, with supplier and sections', () => {
+  it('renders the canonical PDF sections and columns without a display grouping mode', () => {
     render(
       <SpecTable
-        groupBy="object_section"
         items={[
           {
             category: 'Кабель',
@@ -78,7 +77,6 @@ describe('SpecTable', () => {
   it('places BE object_type_section=pipe rows under Трубы (SPEC-P0-a)', () => {
     render(
       <SpecTable
-        groupBy="object_section"
         items={[
           {
             category: 'Кабель',
@@ -102,10 +100,32 @@ describe('SpecTable', () => {
     expect(within(commonSection as HTMLElement).queryByText('Греющий кабель TT')).not.toBeInTheDocument();
   });
 
+  it('renders backend rows as-is without client-side merging', () => {
+    render(
+      <SpecTable
+        items={[
+          {
+            category: 'Комплект', name: 'Комплект A', article: 'KIT-A', unit: 'шт.',
+            quantity: 5, params: { object_type_section: 'pipe', nomenclature_code: 'KIT-A' },
+          },
+          {
+            category: 'Комплект', name: 'Комплект A', article: 'KIT-A', unit: 'шт.',
+            quantity: 3, params: { object_type_section: 'pipe', nomenclature_code: 'KIT-A' },
+          },
+        ]}
+      />,
+    );
+
+    const pipeSection = document.querySelector('[data-spec-section="pipe"]')!;
+    expect(within(pipeSection as HTMLElement).getAllByText('Комплект A')).toHaveLength(2);
+    expect(within(pipeSection as HTMLElement).getByText('5')).toBeInTheDocument();
+    expect(within(pipeSection as HTMLElement).getByText('3')).toBeInTheDocument();
+    expect(within(pipeSection as HTMLElement).queryByText('8')).not.toBeInTheDocument();
+  });
+
   it('offers delete only for manual rows', () => {
     render(
       <SpecTable
-        groupBy="none"
         canDelete
         onDelete={vi.fn()}
         items={[

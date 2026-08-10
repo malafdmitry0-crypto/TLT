@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import TestMemoryRouter from '@/__tests__/utils/TestMemoryRouter';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import SpecificationPage from '@/pages/SpecificationPage';
@@ -29,11 +29,13 @@ vi.mock('@/api/electricalVariants', () => ({
 
 vi.mock('@/api/specifications', () => ({
   specificationReadinessQueryKey: (projectId: string, variantIds: string[]) => (
-    ['spec-readiness', projectId, ...variantIds]
+    ['spec-readiness', projectId, variantIds]
   ),
   getSpecificationReadiness: vi.fn().mockImplementation(
     async (projectId: string, variantIds: string[]) => ({
       project_id: projectId,
+      status: 'ready',
+      blockers: [],
       results: variantIds.map((id) => ({
         electrical_variant_id: id,
         status: 'ready',
@@ -78,19 +80,6 @@ vi.mock('@/api/specifications', () => ({
     if (group.selection_source === 'explicit' && group.selected_catalog_item_id) return false;
     return !group.selected_catalog_item_id;
   },
-  getSpecificationSettings: vi.fn().mockResolvedValue({
-    version: 1,
-    settings: {
-      grouping_mode: 'separate_by_object_type',
-      Ex: false,
-      K1i: false,
-      K2i: false,
-      Kiu: false,
-      L_K2i_m: '0',
-      R_gr: '1',
-    },
-  }),
-  updateSpecificationSettings: vi.fn(),
 }));
 
 const mockProject: Project = {
@@ -289,6 +278,18 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Настройки формирования спецификации' });
     await user.click(within(dialog).getByRole('checkbox', { name: 'ЭР1' }));
     await user.click(within(dialog).getByRole('checkbox', { name: 'ЭР2' }));
+    const groupingInput = within(dialog).getByRole('combobox', {
+      name: 'Способ формирования спецификации по типам объектов',
+    });
+    fireEvent.mouseDown(
+      groupingInput.closest('.ant-select')?.querySelector('.ant-select-selector')
+        ?? groupingInput,
+    );
+    const groupingOption = await screen.findByTitle('Разделять по типам объектов');
+    fireEvent.mouseDown(groupingOption);
+    fireEvent.click(groupingOption);
+    await user.type(within(dialog).getByRole('spinbutton', { name: 'Параметр L К2i' }), '0');
+    await user.type(within(dialog).getByRole('spinbutton', { name: 'Параметр R гр' }), '1');
     await user.click(within(dialog).getByRole('button', { name: 'Сформировать' }));
     expect(generateSpecification).toHaveBeenCalledWith(
       mockProject.id,
