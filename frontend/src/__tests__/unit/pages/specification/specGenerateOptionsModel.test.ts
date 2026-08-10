@@ -50,11 +50,13 @@ describe('specGenerateOptionsModel', () => {
         { field: 'grouping_mode', reason: 'required_option_unresolved' },
         { field: 'L_K2i_m', reason: 'resolved_option_invalid' },
         { field: 'R_gr', reason: 'invalid', message: 'Коэффициент должен быть не меньше нуля' },
+        { field: 'Ex', reason: 'unexpected_backend_reason' },
       ],
     }])).toEqual({
-      groupingMode: 'Обязательное поле не заполнено',
-      minLengthK2i: 'Недопустимое значение',
+      groupingMode: 'Выберите группировку строк',
+      minLengthK2i: 'Укажите длину секции не меньше 0',
       reserveCoeff: 'Коэффициент должен быть не меньше нуля',
+      exZone: 'Недопустимое значение параметра Ex',
     });
   });
 });
