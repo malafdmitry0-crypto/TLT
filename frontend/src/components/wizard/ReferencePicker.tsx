@@ -32,6 +32,8 @@ interface ReferencePickerProps {
   'data-testid'?: string;
   'aria-label'?: string;
   'aria-required'?: boolean;
+  'aria-invalid'?: boolean | 'true' | 'false' | 'grammar' | 'spelling';
+  'aria-describedby'?: string;
 }
 
 function nodeText(node: ReactNode): string {
@@ -62,6 +64,8 @@ export default function ReferencePicker({
   'data-testid': dataTestId,
   'aria-label': ariaLabel,
   'aria-required': ariaRequired,
+  'aria-invalid': ariaInvalid,
+  'aria-describedby': ariaDescribedBy,
 }: ReferencePickerProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -137,6 +141,8 @@ export default function ReferencePicker({
         aria-expanded={open}
         aria-label={ariaLabel ?? modalTitle}
         aria-required={ariaRequired}
+        aria-invalid={ariaInvalid}
+        aria-describedby={ariaDescribedBy}
         aria-disabled={disabled}
         tabIndex={disabled ? -1 : 0}
         title={selectedText || placeholder}

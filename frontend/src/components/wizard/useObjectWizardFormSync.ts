@@ -22,11 +22,11 @@ import {
 import {
   isHeatCalcFieldRequired,
   isHeatCalcFieldVisible,
+  heatCalcRequiredFieldMessage,
 } from '@/domain/heatCalcFieldRules';
 import type { ClimateBasis } from './objectWizardClimateModel';
 import {
   isEmptyFormValue,
-  REQUIRED_FIELD_ERROR_MESSAGE,
   type CalculationFieldError,
 } from './objectWizardValidationModel';
 import {
@@ -132,7 +132,7 @@ export function useObjectWizardFormSync({
       })),
       ...nextFieldNames.map((fieldName) => ({
         name: fieldName,
-        errors: [REQUIRED_FIELD_ERROR_MESSAGE],
+        errors: [heatCalcRequiredFieldMessage(fieldName, heatCalcObjectType)],
         warnings: [] as string[],
       })),
     ];
