@@ -42,6 +42,7 @@ export interface TltSelectProps {
   'aria-label'?: string;
   'aria-required'?: boolean | 'true' | 'false';
   'aria-invalid'?: boolean | 'true' | 'false' | 'grammar' | 'spelling';
+  'aria-describedby'?: string;
   'data-testid'?: string;
 }
 
@@ -82,6 +83,7 @@ export default function TltSelect({
   'aria-label': ariaLabel,
   'aria-required': ariaRequired,
   'aria-invalid': ariaInvalid,
+  'aria-describedby': ariaDescribedBy,
   'data-testid': testId,
 }: TltSelectProps) {
   const shellRef = useRef<HTMLSpanElement>(null);
@@ -99,7 +101,9 @@ export default function TltSelect({
     setOrRemoveAttr(combobox, 'aria-required', isRequired);
     setOrRemoveAttr(combobox, 'aria-invalid', isInvalid);
     if (resolvedAriaLabel) combobox.setAttribute('aria-label', resolvedAriaLabel);
-  }, [isRequired, isInvalid, resolvedAriaLabel, controlled, disabled, options.length]);
+    if (ariaDescribedBy) combobox.setAttribute('aria-describedby', ariaDescribedBy);
+    else combobox.removeAttribute('aria-describedby');
+  }, [isRequired, isInvalid, ariaDescribedBy, resolvedAriaLabel, controlled, disabled, options.length]);
 
   return (
     <span

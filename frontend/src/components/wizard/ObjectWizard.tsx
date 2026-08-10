@@ -73,6 +73,8 @@ export default function ObjectWizard({
     formGridRef,
     isEditMode,
     formInitialValues,
+    showValidationSummary,
+    handleFieldsChange,
     handleValuesChange,
     handleFinish,
   } = model;
@@ -113,6 +115,7 @@ export default function ObjectWizard({
       initialValues={formInitialValues}
       className={`inline-object-form inline-object-form--${layoutVariant}`}
       data-layout={layoutVariant}
+      onFieldsChange={handleFieldsChange}
       onValuesChange={handleValuesChange}
     >
       <Form.Item name="climate_city" hidden noStyle>
@@ -133,6 +136,16 @@ export default function ObjectWizard({
       <Form.Item name="safety_factor_source" hidden noStyle>
         <TltTextField type="hidden" />
       </Form.Item>
+      {showValidationSummary ? (
+        <div
+          className="heatcalc-form-validation-summary"
+          role="alert"
+          aria-live="polite"
+          data-testid="heatcalc-form-validation-summary"
+        >
+          Исправьте ошибки в форме
+        </div>
+      ) : null}
       {layoutVariant === 'side' ? (
         <div
           className="heatcalc-dual-forms heatcalc-dual-forms--side"
