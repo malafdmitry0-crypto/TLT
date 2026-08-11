@@ -90,4 +90,20 @@ describe('electricalErrorGuidance', () => {
       suggestions: ['Задать Iдоп проекта'],
     });
   });
+
+  it('localizes pipe layout inputs rejected for a tank', () => {
+    const guidance = getElectricalErrorGuidance({
+      error: 'Tank layout does not accept pipe winding inputs',
+      errorCode: 'ELECTRICAL_TANK_LAYOUT_INPUT_UNSUPPORTED',
+      suggestedActions: ['SET_TANK_LAYOUT'],
+      cableType: 'self_regulating_tt',
+    });
+
+    expect(guidance).toMatchObject({
+      kind: 'tank_layout_input_unsupported',
+      label: 'Неверная укладка резервуара',
+      message: 'Для резервуара нельзя задавать трубный шаг намотки',
+      suggestions: ['Выбрать геометрию укладки'],
+    });
+  });
 });
