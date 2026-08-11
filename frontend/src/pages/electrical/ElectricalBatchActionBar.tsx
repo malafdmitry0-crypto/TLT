@@ -18,15 +18,12 @@ import {
   type CableTypeKey,
 } from '@/domain/electrical/elecCalcMainTableModel';
 
-export { ElectricalVariantSetAction } from '@/pages/electrical/ElectricalVariantSetAction';
-
 const { Text } = Typography;
 
 interface ElectricalBatchActionBarProps {
   canMutate: boolean;
   variantName: string;
   typeControls: ReactNode;
-  multiVariantAction?: ReactNode;
   isJobActive: boolean;
   selectedManualCableCount: number;
   selectedValidObjectsCount: number;
@@ -56,7 +53,6 @@ function ElectricalBatchActionBar({
   canMutate,
   variantName,
   typeControls,
-  multiVariantAction,
   isJobActive,
   selectedManualCableCount,
   selectedValidObjectsCount,
@@ -183,7 +179,6 @@ function ElectricalBatchActionBar({
             Пересчитать все · {variantName}
           </TltButton>
         </Popconfirm>
-        {multiVariantAction}
         {isJobActive && activeJobId && (
           <TltButton
             size="compact"

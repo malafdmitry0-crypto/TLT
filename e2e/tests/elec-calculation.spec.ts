@@ -194,7 +194,7 @@ test.describe('4.4 Электротехнический расчёт', () => {
     await expect(idop).toHaveAttribute('aria-invalid', 'true');
     await expect(page.getByRole('alert').filter({ hasText: 'Укажите Iдоп проекта' })).toBeVisible();
     await expect(page.getByRole('button', { name: /Пересчитать все · ЭР1/i })).toBeDisabled();
-    await expect(page.getByRole('button', { name: /Пересчитать выбранные ЭР/i })).toBeDisabled();
+    await expect(page.getByRole('button', { name: /Пересчитать выбранные ЭР/i })).toHaveCount(0);
 
     await idop.fill('13');
     await page.getByTestId('elec-idop-save').click();

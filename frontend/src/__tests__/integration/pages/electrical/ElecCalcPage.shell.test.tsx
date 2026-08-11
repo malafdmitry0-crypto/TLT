@@ -202,6 +202,7 @@ describe('ElecCalcPage shell / variants / polling', () => {
       expect(screen.getByText('Труба-1')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /Пересчитать выбранные \(0\)/i })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /Пересчитать все · ЭР1/i })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Пересчитать выбранные ЭР/i })).not.toBeInTheDocument();
     });
   });
 
