@@ -1,5 +1,6 @@
 export type ElectricalErrorKind =
   | 'missing_tank_layout'
+  | 'tank_layout_input_unsupported'
   | 'power_too_high'
   | 'temperature_too_high'
   | 'resistive_section_not_found'
@@ -8,6 +9,7 @@ export type ElectricalErrorKind =
 
 export type ElectricalErrorCode =
   | 'MISSING_TANK_LAYOUT'
+  | 'ELECTRICAL_TANK_LAYOUT_INPUT_UNSUPPORTED'
   | 'POWER_TOO_HIGH'
   | 'TEMPERATURE_TOO_HIGH'
   | 'RESISTIVE_SECTION_NOT_FOUND'
@@ -54,6 +56,7 @@ export type ElectricalErrorGuidanceInput = {
 
 const ERROR_CODE_BY_KIND: Record<ElectricalErrorKind, ElectricalErrorCode> = {
   missing_tank_layout: 'MISSING_TANK_LAYOUT',
+  tank_layout_input_unsupported: 'ELECTRICAL_TANK_LAYOUT_INPUT_UNSUPPORTED',
   power_too_high: 'POWER_TOO_HIGH',
   temperature_too_high: 'TEMPERATURE_TOO_HIGH',
   resistive_section_not_found: 'RESISTIVE_SECTION_NOT_FOUND',
@@ -63,6 +66,7 @@ const ERROR_CODE_BY_KIND: Record<ElectricalErrorKind, ElectricalErrorCode> = {
 
 const ERROR_KIND_BY_CODE: Record<ElectricalErrorCode, ElectricalErrorKind> = {
   MISSING_TANK_LAYOUT: 'missing_tank_layout',
+  ELECTRICAL_TANK_LAYOUT_INPUT_UNSUPPORTED: 'tank_layout_input_unsupported',
   POWER_TOO_HIGH: 'power_too_high',
   TEMPERATURE_TOO_HIGH: 'temperature_too_high',
   RESISTIVE_SECTION_NOT_FOUND: 'resistive_section_not_found',
@@ -77,6 +81,11 @@ const ERROR_META: Record<
   missing_tank_layout: {
     label: 'Нет геометрии укладки',
     tagColor: 'volcano',
+  },
+  tank_layout_input_unsupported: {
+    label: 'Неверная укладка резервуара',
+    message: 'Для резервуара нельзя задавать трубный шаг намотки',
+    tagColor: 'red',
   },
   power_too_high: {
     label: 'Мощность выше линейки',
@@ -103,6 +112,7 @@ const ERROR_META: Record<
 
 const DEFAULT_ACTIONS_BY_KIND: Record<ElectricalErrorKind, ElectricalSuggestedAction[]> = {
   missing_tank_layout: ['SET_HEATING_HEIGHT', 'SET_LAYING_STEP', 'SET_TANK_LAYOUT'],
+  tank_layout_input_unsupported: ['SET_TANK_LAYOUT'],
   power_too_high: ['TRY_OTHER_CABLE_TYPE'],
   temperature_too_high: ['CHECK_PROCESS_TEMPERATURE', 'CHECK_VAPOR_TEMPERATURE', 'TRY_OTHER_CABLE_TYPE'],
   resistive_section_not_found: ['TRY_OTHER_CONNECTION', 'CHECK_VOLTAGE', 'TRY_OTHER_CABLE_TYPE'],

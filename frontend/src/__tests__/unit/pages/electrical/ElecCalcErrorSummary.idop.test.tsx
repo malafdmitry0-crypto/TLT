@@ -38,6 +38,41 @@ describe('ElecCalcErrorSummary Iдоп guidance', () => {
     expect(screen.queryByText('SECTION_CURRENT_LIMIT_REQUIRED')).not.toBeInTheDocument();
   });
 
+  it('replaces the tank pipe-layout backend error with actionable Russian copy', () => {
+    const backendError = 'Tank layout does not accept pipe winding inputs';
+    const guidance = getElectricalErrorGuidance({
+      error: backendError,
+      errorCode: 'ELECTRICAL_TANK_LAYOUT_INPUT_UNSUPPORTED',
+      suggestedActions: ['SET_TANK_LAYOUT'],
+    });
+
+    render(
+      <ElecCalcErrorSummary
+        failedCount={1}
+        activeRowId="tank-1"
+        item={{
+          stage: 'electrical',
+          objectId: 'tank-1',
+          rowNumber: 3,
+          objectName: 'Р-601 отстойник',
+          error: backendError,
+          cableType: 'self_regulating_tt',
+          errorContext: { fields: ['winding_pitch'] },
+          errorCode: 'ELECTRICAL_TANK_LAYOUT_INPUT_UNSUPPORTED',
+          suggestedActions: ['SET_TANK_LAYOUT'],
+        }}
+        guidance={guidance}
+      />,
+    );
+
+    const region = screen.getByLabelText('Сообщения об ошибках объектов');
+    expect(region).toHaveTextContent('Для резервуара нельзя задавать трубный шаг намотки');
+    expect(region).toHaveTextContent('Неверная укладка резервуара');
+    expect(region).toHaveTextContent('Выбрать геометрию укладки');
+    expect(region).not.toHaveTextContent(backendError);
+    expect(region).not.toHaveTextContent('Проверить параметры объекта');
+  });
+
   it('shows the object, heat stage, backend reason and recovery action', () => {
     render(
       <ElecCalcErrorSummary
