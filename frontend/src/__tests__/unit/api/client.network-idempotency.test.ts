@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import apiClient, { withIdempotencyKey } from '@/api/client';
 import {
-  copyElectricalVariant,
   enqueueElectricalBatchJob,
   enqueueElectricalVariantBatchJob,
   enqueueHeatLossBatchJob,
@@ -66,16 +65,16 @@ describe('apiClient network retry and idempotency', () => {
   it('сохраняет structured error code из detail object', async () => {
     const adapter = vi.fn(async (config) => {
       throw httpError(config, 409, {
-        code: 'target_not_empty',
-        message: 'СО2 уже содержит расчёты',
+        code: 'ELECTRICAL_VARIANT_NAME_CONFLICT',
+        message: 'ЭР с таким именем уже существует',
       });
     });
     apiClient.defaults.adapter = adapter;
 
-    await expect(apiClient.post('/calc/electrical/variants/copy', {})).rejects.toMatchObject({
-      message: 'СО2 уже содержит расчёты',
+    await expect(apiClient.patch('/projects/project-1/electrical-variants/variant-2', {})).rejects.toMatchObject({
+      message: 'ЭР с таким именем уже существует',
       status: 409,
-      code: 'target_not_empty',
+      code: 'ELECTRICAL_VARIANT_NAME_CONFLICT',
     });
   });
 
@@ -147,19 +146,11 @@ describe('apiClient network retry and idempotency', () => {
     await enqueueElectricalBatchJob('project-1');
     await enqueueHeatLossBatchJob('project-1');
     await enqueueReportExportJob('project-1', 'pdf', 'er-1', ['summary']);
-    await copyElectricalVariant({
-      project_id: 'project-1',
-      source_variant_number: 1,
-      target_variant_number: 2,
-    });
 
-    expect(adapter).toHaveBeenCalledTimes(4);
+    expect(adapter).toHaveBeenCalledTimes(3);
     for (const [config] of adapter.mock.calls) {
       expect(getHeader(config.headers, 'Idempotency-Key')).toEqual(expect.any(String));
     }
-    expect(JSON.parse(String(adapter.mock.calls[3]?.[0]?.data))).toMatchObject({
-      regenerate_specification: false,
-    });
   });
 
   it('ставит электрический batch job по UUID без deprecated variant_number', async () => {

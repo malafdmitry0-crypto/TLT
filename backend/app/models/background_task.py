@@ -67,7 +67,7 @@ class BackgroundTask(Base, TimestampMixin):
             unique=True,
             postgresql_where=text(
                 "project_id IS NOT NULL AND type IN "
-                "('heat_loss_batch', 'electrical_batch', 'electrical_variant_set') AND status IN "
+                "('heat_loss_batch', 'electrical_batch') AND status IN "
                 "('queued', 'enqueued', 'running', 'waiting_input')"
             ),
         ),
