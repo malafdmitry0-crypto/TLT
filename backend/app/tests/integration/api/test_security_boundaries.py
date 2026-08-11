@@ -145,7 +145,12 @@ class TestGuestIsolation:
 
         resp = await client.post(
             "/api/v1/calc/electrical",
-            json={"object_id": obj["id"], "cable_type": "self_regulating", "data": {}},
+            json={
+                "object_id": obj["id"],
+                "cable_type": "self_regulating_tt",
+                "variant_number": 1,
+                "data": {},
+            },
             headers={"X-Session-Id": sid_b},
         )
         assert resp.status_code in (403, 404)
@@ -267,7 +272,8 @@ class TestGuestCannotAccessEmployeeFeatures:
         sid_g = (await client.post("/api/v1/auth/guest")).json()["session_id"]
         proj = (await client.get("/api/v1/projects", headers={"X-Session-Id": sid_g})).json()[0]
         resp = await client.put(
-            f"/api/v1/specifications/{proj['id']}/items",
+            f"/api/v1/specifications/{proj['id']}/variants/"
+            "00000000-0000-0000-0000-000000000001/items",
             json={"items": []},
             headers={"X-Session-Id": sid_g},
         )
@@ -351,9 +357,25 @@ class TestEmployeeCannotEditOthersProjects:
                 headers=admin_headers,
             )
         ).json()
+        ready_object = await client.post(
+            f"/api/v1/projects/{project['id']}/objects",
+            json={
+                "object_type": "pipe",
+                "sort_order": 0,
+                "params": canonical_pipe_params(),
+            },
+            headers=admin_headers,
+        )
+        assert ready_object.status_code in (200, 201), ready_object.text
+        initialized = await client.post(
+            f"/api/v1/projects/{project['id']}/electrical-variants/initialize",
+            headers=admin_headers,
+        )
+        assert initialized.status_code == 200, initialized.text
+        variant_id = initialized.json()["variant"]["id"]
 
         read_resp = await client.get(
-            f"/api/v1/specifications/{project['id']}",
+            f"/api/v1/specifications/{project['id']}/variants/{variant_id}",
             headers=employee_headers,
         )
         assert read_resp.status_code == 200
@@ -364,7 +386,7 @@ class TestEmployeeCannotEditOthersProjects:
             headers=employee_headers,
         )
         save_resp = await client.put(
-            f"/api/v1/specifications/{project['id']}/items",
+            f"/api/v1/specifications/{project['id']}/variants/{variant_id}/items",
             json={"items": []},
             headers=employee_headers,
         )
@@ -373,7 +395,7 @@ class TestEmployeeCannotEditOthersProjects:
         assert save_resp.status_code == 403
 
         read_after = await client.get(
-            f"/api/v1/specifications/{project['id']}",
+            f"/api/v1/specifications/{project['id']}/variants/{variant_id}",
             headers=employee_headers,
         )
         assert read_after.status_code == 200

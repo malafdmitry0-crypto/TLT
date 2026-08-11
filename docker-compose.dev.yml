@@ -6,6 +6,7 @@ services:
     image: heatcalc-backend-dev:${IMAGE_TAG:-latest}
     volumes:
       - ./backend:/app
+      - ./scripts:/scripts:ro
     command: sh -c "alembic upgrade head && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
     environment:
       # dev → guard выключен, Secure-cookie выключен (локальный HTTP)
@@ -24,6 +25,7 @@ services:
     image: heatcalc-backend-dev:${IMAGE_TAG:-latest}
     volumes:
       - ./backend:/app
+      - ./scripts:/scripts:ro
     command: sh -c "alembic upgrade head && watchfiles --filter python 'python -m app.worker' app"
     environment:
       APP_ENV: development

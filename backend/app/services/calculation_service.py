@@ -58,10 +58,7 @@ from app.models.project import Project
 from app.models.project_electrical_settings import ProjectElectricalSettings
 from app.models.project_object import ProjectObject
 from app.models.specification import Specification
-from app.reference_data.loader import (
-    get_climate_entry,
-    list_tt_cables,
-)
+from app.reference_data.loader import get_climate_entry
 from app.result import Err, Ok, Result
 from app.schemas.calculation import (
     ElectricalCalcSummary,
@@ -510,41 +507,22 @@ class CalculationService:
         catalog_source: CableSource = "builtin",
     ) -> dict[UUID, dict[str, Any]]:
         statuses: dict[UUID, dict[str, Any]] = {}
-        catalog_cache: dict[tuple[str, str], list[dict[str, Any]]] = {}
-        source = (
-            catalog_source
-            if catalog_source in ("builtin", "commercial", "extended", "all")
-            else "builtin"
-        )
+        _ = catalog_source  # TT authority is resolved from DB, then bundled fallback.
+        catalogs = await self._tt_calculation_catalogs()
+        power_catalog = catalogs.get("power")
         for calc in calculations:
             snapshot = calc.cable_snapshot
             if not isinstance(snapshot, dict):
                 statuses[calc.id] = compare_cable_snapshot(None, None)
                 continue
-            cache_key = (calc.cable_type, source)
-            if cache_key not in catalog_cache:
-                catalog_cache[cache_key] = await self._load_catalog_for_snapshot_status(
-                    calc.cable_type,
-                    source,
-                )
             mark = calc.cable_mark or snapshot.get("cable_mark")
-            current_row = lookup_cable_row_for_snapshot(
-                catalog_cache[cache_key],
-                mark,
-                calc.cable_type,
-                snapshot,
+            current_row = (
+                self._snapshot_row_from_power_catalog(power_catalog, mark, snapshot=snapshot)
+                if calc.cable_type == "self_regulating_tt"
+                else None
             )
             statuses[calc.id] = compare_cable_snapshot(snapshot, current_row)
         return statuses
-
-    async def _load_catalog_for_snapshot_status(
-        self,
-        cable_type: str,
-        source: CableSource,
-    ) -> list[dict[str, Any]]:
-        if cable_type == "self_regulating_tt":
-            return [{**c, "source": "builtin", "cable_type": cable_type} for c in list_tt_cables()]
-        return []
 
     async def electrical_project_page(
         self,
@@ -983,9 +961,6 @@ class CalculationService:
         if source == "extended":
             return extended
         return builtin + extended
-
-
-
 
     async def calc_heat_loss(self, object_type: str, data: dict[str, Any]) -> HeatLossResultDict:
         """Возвращает результат теплорасчёта в формате, совпадающем с JSONB.
@@ -1996,19 +1971,13 @@ class CalculationService:
             require_production_eligible_inputs(resolved)
         current_limit_source = resolved.sources.get("max_section_start_current_a")
         assignment_applied_fields = sorted(
-            field
-            for field, source in resolved.sources.items()
-            if source == "assignment_override"
+            field for field, source in resolved.sources.items() if source == "assignment_override"
         )
         if isinstance(tank_layout, dict):
             tank_sources = tank_layout.get("input_sources")
             if isinstance(tank_sources, dict):
                 assignment_applied_fields.extend(
-                    (
-                        "tank_heating_height_m"
-                        if key == "heating_height"
-                        else "tank_laying_step_m"
-                    )
+                    ("tank_heating_height_m" if key == "heating_height" else "tank_laying_step_m")
                     for key, source in tank_sources.items()
                     if source == "assignment_override"
                 )
@@ -2027,11 +1996,7 @@ class CalculationService:
                 effective_assignment_version = assignment.version + 1
         assignment_snapshot = (
             {
-                "id": (
-                    str(assignment.id)
-                    if getattr(assignment, "id", None) is not None
-                    else None
-                ),
+                "id": (str(assignment.id) if getattr(assignment, "id", None) is not None else None),
                 "version": effective_assignment_version,
                 "source": "electrical_variant_object",
                 "electrical_overrides": effective_assignment_overrides,
@@ -2174,10 +2139,7 @@ class CalculationService:
             result_dict = prepared_result
             cable_mark = str(result_dict["cable_mark"])
             return cable_mark, result_dict
-        raise CalculationError(
-            f"Для типа кабеля «{cable_type}» расчётная формула не реализована"
-        )
-
+        raise CalculationError(f"Для типа кабеля «{cable_type}» расчётная формула не реализована")
 
     def _build_cable_snapshot_for_result(
         self,
@@ -2205,7 +2167,10 @@ class CalculationService:
             cable_type,
             cable_mark,
             request_data,
+            result_dict,
         )
+        if cable_type == "self_regulating_tt" and cable_row is None:
+            return None
         cable_mark_source = self._resolve_cable_mark_source(request_data)
         return build_cable_snapshot(
             cable_type=cable_type,
@@ -2216,22 +2181,93 @@ class CalculationService:
             result_dict=result_dict,
         )
 
-    @staticmethod
     def _snapshot_cable_row(
+        self,
         cable_type: str,
         cable_mark: str | None,
         request_data: dict[str, Any],
+        result_dict: dict[str, Any] | None,
     ) -> dict[str, Any] | None:
         if not cable_mark:
             return None
         if cable_type == "self_regulating_tt":
-            catalog = [
-                {**c, "source": "builtin", "cable_type": cable_type} for c in list_tt_cables()
-            ]
-            return lookup_cable_row(catalog, cable_mark, cable_type)
+            catalogs = result_dict.get("catalogs") if isinstance(result_dict, dict) else None
+            power_catalog = catalogs.get("power") if isinstance(catalogs, dict) else None
+            if isinstance(power_catalog, dict):
+                exact_row = power_catalog.get("row")
+                if isinstance(exact_row, dict):
+                    return self._snapshot_row_with_catalog_identity(exact_row, power_catalog)
+            return self._snapshot_row_from_power_catalog(
+                self._tt_calculation_catalogs_cache,
+                cable_mark,
+            )
         catalog_value = request_data.get("cable_catalog")
         catalog = catalog_value if isinstance(catalog_value, list) else None
         return lookup_cable_row(catalog, cable_mark, cable_type)
+
+    @staticmethod
+    def _snapshot_catalog_identity(catalog: dict[str, Any]) -> dict[str, Any]:
+        return {
+            key: catalog.get(key)
+            for key in (
+                "id",
+                "kind",
+                "version",
+                "authority",
+                "source",
+                "source_checksum",
+                "payload_checksum",
+                "schema_version",
+                "production_approved",
+            )
+        }
+
+    @classmethod
+    def _snapshot_row_with_catalog_identity(
+        cls,
+        row: dict[str, Any],
+        catalog: dict[str, Any],
+    ) -> dict[str, Any]:
+        return {
+            **row,
+            "_catalog_identity": cls._snapshot_catalog_identity(catalog),
+        }
+
+    @classmethod
+    def _snapshot_row_from_power_catalog(
+        cls,
+        catalog: dict[str, Any] | None,
+        cable_mark: str | None,
+        *,
+        snapshot: dict[str, Any] | None = None,
+    ) -> dict[str, Any] | None:
+        power_catalog = (
+            catalog
+            if isinstance(catalog, dict) and isinstance(catalog.get("payload"), dict)
+            else catalog.get("power")
+            if isinstance(catalog, dict)
+            else None
+        )
+        if not isinstance(power_catalog, dict):
+            return None
+        payload = power_catalog.get("payload")
+        rows_value = payload.get("rows") if isinstance(payload, dict) else None
+        if rows_value is None and isinstance(payload, dict):
+            rows_value = payload.get("cables")
+        rows = (
+            [dict(row) for row in rows_value if isinstance(row, dict)]
+            if isinstance(rows_value, list)
+            else []
+        )
+        row = lookup_cable_row_for_snapshot(
+            rows,
+            cable_mark,
+            "self_regulating_tt",
+            snapshot,
+        )
+        return (
+            cls._snapshot_row_with_catalog_identity(row, power_catalog) if row is not None else None
+        )
 
     async def _upsert_electrical_calculation(
         self,
@@ -2377,7 +2413,6 @@ class CalculationService:
     @staticmethod
     def _compact_electrical_params(data: dict[str, Any]) -> dict[str, Any]:
         return {key: value for key, value in data.items() if key != "cable_catalog"}
-
 
     async def _bulk_upsert_electrical_calculation_chunk(
         self,
@@ -2938,8 +2973,6 @@ class CalculationService:
                     return CalculationService._num(source.get(candidate_key), fallback)
         return fallback
 
-
-
     @staticmethod
     def _bool_policy_value(value: Any) -> bool:
         if isinstance(value, bool):
@@ -2949,7 +2982,6 @@ class CalculationService:
         if isinstance(value, str):
             return value.strip().lower() in {"1", "true", "yes", "approved", "on"}
         return False
-
 
     @staticmethod
     def _positive_heat_loss(value: Any) -> float:
@@ -3134,8 +3166,6 @@ class CalculationService:
         total = self._positive_heat_loss(results.get("total_heat_loss_design"))
         k = float(results.get("safety_factor_applied") or fallback_safety_factor or 1.1)
         return total / k
-
-
 
     def _build_electrical_data(
         self,
@@ -3403,9 +3433,7 @@ class CalculationService:
         created_by_session_id: str | None,
     ) -> dict[str, Any]:
         if variant_number < 1 or variant_number > MAX_ELECTRICAL_VARIANTS:
-            raise CalculationError(
-                f"variant_number должен быть от 1 до {MAX_ELECTRICAL_VARIANTS}"
-            )
+            raise CalculationError(f"variant_number должен быть от 1 до {MAX_ELECTRICAL_VARIANTS}")
         if electrical_variant_id is None:
             raise ElectricalAssignmentServiceError(
                 "ELECTRICAL_ASSIGNMENT_REQUIRED",
@@ -3827,9 +3855,7 @@ class CalculationService:
     ) -> tuple[ElectricalCandidate, str]:
         """Считает и upsert-ит кандидат кабеля, не применяя его в ElectricalCalculation."""
         if variant_number < 1 or variant_number > MAX_ELECTRICAL_VARIANTS:
-            raise CalculationError(
-                f"variant_number должен быть от 1 до {MAX_ELECTRICAL_VARIANTS}"
-            )
+            raise CalculationError(f"variant_number должен быть от 1 до {MAX_ELECTRICAL_VARIANTS}")
         if mode not in {"auto", "manual"}:
             raise CalculationError("mode должен быть auto или manual")
         if mode == "manual" and not cable_mark:

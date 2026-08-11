@@ -13,7 +13,6 @@ from app.services.electrical_catalog_service import (
     _BOM_MARKS,
     _TT_MODELS,
     ElectricalCatalogService,
-    ElectricalCatalogServiceError,
     _canonical_checksum,
     _validate_rows,
     bundled_electrical_catalog_documents,
@@ -126,7 +125,7 @@ def test_static_calculation_fallback_is_explicit_and_carries_payload():
         assert catalog["payload_checksum"] == _canonical_checksum(catalog["payload"])
 
 
-async def test_production_calculation_catalogs_fail_closed_without_three_db_active(
+async def test_production_calculation_catalogs_use_approved_builtin_fallback_without_db_active(
     monkeypatch: pytest.MonkeyPatch,
 ):
     monkeypatch.setattr(settings, "APP_ENV", "production")
@@ -135,15 +134,25 @@ async def test_production_calculation_catalogs_fail_closed_without_three_db_acti
     result.scalars.return_value.all.return_value = []
     db.execute.return_value = result
 
-    with pytest.raises(ElectricalCatalogServiceError) as exc:
-        await ElectricalCatalogService(db).active_calculation_catalogs()
+    catalogs = await ElectricalCatalogService(db).active_calculation_catalogs()
 
-    assert exc.value.code == "ELECTRICAL_CATALOG_SOURCE_UNREGISTERED"
-    assert exc.value.status_code == 503
-    assert exc.value.details["missing_active_kinds"] == ["power", "section", "bom"]
+    assert set(catalogs) == {"power", "section", "bom"}
+    assert all(catalog["authority"] == "static_fallback" for catalog in catalogs.values())
+    assert all(catalog["production_approved"] is True for catalog in catalogs.values())
     assert db.execute.await_count == 4
     lock_statements = [str(call.args[0]) for call in db.execute.await_args_list[:3]]
     assert all("pg_advisory_xact_lock_shared" in statement for statement in lock_statements)
+
+
+async def test_calculation_catalog_database_error_never_falls_back_to_builtin():
+    db = AsyncMock()
+    lock_result = MagicMock()
+    db.execute.side_effect = [lock_result, lock_result, lock_result, RuntimeError("db unavailable")]
+
+    with pytest.raises(RuntimeError, match="db unavailable"):
+        await ElectricalCatalogService(db).active_calculation_catalogs()
+
+    assert db.execute.await_count == 4
 
 
 @pytest.mark.parametrize(
@@ -266,9 +275,7 @@ async def test_catalog_activation_marks_an_old_calculation_result_stale():
     db.execute.return_value = query_result
     service = ElectricalCatalogService(db)
 
-    counts = await service._mark_dependents_stale(
-        SimpleNamespace(id=uuid4(), kind="power")
-    )
+    counts = await service._mark_dependents_stale(SimpleNamespace(id=uuid4(), kind="power"))
 
     assert counts == (1, 0, 0)
     assert calculation.results["category"] == "stale"

@@ -337,7 +337,7 @@ class TestProjectDuplicate:
         assert duplicate_audit.details["legacy_variant_number"] == 1
         assert duplicate_audit.details["electrical_readiness_issue_codes"] == []
 
-    async def test_employee_duplicate_not_ready_remains_heat_only_project(
+    async def test_employee_duplicate_not_ready_initializes_unassigned_er_container(
         self,
         client: AsyncClient,
         employee_token: str,
@@ -357,8 +357,7 @@ class TestProjectDuplicate:
             sort_order=0,
             params=canonical_pipe_params(
                 ambient_temperature=-20.0,
-                pipe_length=10.0,
-                wall_thickness=None,
+                pipe_length=None,
             ),
             is_valid=False,
             results=None,
@@ -366,7 +365,7 @@ class TestProjectDuplicate:
                 "error_code": "test_not_ready",
                 "category": "validation",
                 "message": "Synthetic not-ready state for duplicate readiness proof",
-                "field": "wall_thickness",
+                "field": "pipe_length",
                 "hint": None,
             },
         )
@@ -405,8 +404,8 @@ class TestProjectDuplicate:
                 ElectricalCalculation.project_id == duplicate_project_id
             )
         )
-        assert variant_count == 0
-        assert assignment_count == 0
+        assert variant_count == 1
+        assert assignment_count == 1
         assert calculation_count == 0
 
         duplicate_audit = await db_session.scalar(
@@ -416,12 +415,12 @@ class TestProjectDuplicate:
             )
         )
         assert duplicate_audit is not None
-        assert duplicate_audit.details["electrical_status"] == "skipped_not_ready"
-        assert duplicate_audit.details["electrical_variant_id"] is None
-        assert duplicate_audit.details["legacy_variant_number"] is None
+        assert duplicate_audit.details["electrical_status"] == "initialized_unassigned"
+        assert duplicate_audit.details["electrical_variant_id"] is not None
         assert duplicate_audit.details["electrical_readiness_issue_codes"] == [
             "ELECTRICAL_OBJECT_NOT_READY"
         ]
+        assert duplicate_audit.details["legacy_variant_number"] == 1
 
     async def test_duplicate_nonexistent_returns_404(
         self, client: AsyncClient, employee_token: str

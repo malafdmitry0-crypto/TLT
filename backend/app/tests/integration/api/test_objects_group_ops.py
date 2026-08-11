@@ -165,7 +165,7 @@ class TestGroupUpdate:
         assert updated[first["id"]]["params"]["name"] == "ГК Труба 1"
         assert updated[second["id"]]["params"]["pipe_length"] == 75.0
 
-    async def test_all_or_nothing_on_invalid_value(
+    async def test_invalid_value_is_persisted_with_structured_validation_state(
         self, client: AsyncClient, guest_session: str
     ):
         headers = _headers(guest_session)
@@ -184,24 +184,15 @@ class TestGroupUpdate:
             },
             headers=headers,
         )
-        assert resp.status_code == 422, resp.text
-        detail = resp.json()["detail"]
-        assert detail["message"]
-        assert len(detail["objects"]) == 2
-        assert {item["object_id"] for item in detail["objects"]} == {
-            first["id"],
-            second["id"],
-        }
-        assert all(item["error"] for item in detail["objects"])
-
-        # Данные не изменились.
-        listing = await client.get(
-            f"/api/v1/projects/{project['id']}/objects", headers=headers
-        )
-        by_id = {o["id"]: o for o in listing.json()}
-        assert by_id[first["id"]]["params"]["pipe_length"] == 50.0
-        assert by_id[first["id"]]["version"] == first["version"]
-        assert by_id[second["id"]]["version"] == second["version"]
+        assert resp.status_code == 200, resp.text
+        by_id = {item["id"]: item for item in resp.json()["objects"]}
+        for source in (first, second):
+            updated = by_id[source["id"]]
+            assert updated["params"]["pipe_length"] == -5
+            assert updated["version"] == source["version"] + 1
+            assert updated["is_valid"] is False
+            assert updated["validation_errors"]["error_code"] == "invalid_object_params"
+            assert updated["validation_errors"]["field"] == "pipe_length"
 
     async def test_wrong_type_param_lists_problem_objects(
         self, client: AsyncClient, guest_session: str

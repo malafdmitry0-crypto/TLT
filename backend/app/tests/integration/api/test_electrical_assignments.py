@@ -40,6 +40,7 @@ READY_PIPE_PARAMS = {
     "insulation_layers": [{"thickness": 0.05, "material": MINERAL_WOOL}],
     "insulation_temperature_basis": "outdoor_winter",
     "ambient_temperature": -30.0,
+    "min_switch_temperature": -30.0,
     "process_temperature": 80.0,
     "pipe_length": 50.0,
     "placement": "outdoor",
@@ -713,11 +714,10 @@ class TestElectricalAssignmentApi:
             system_type="self_regulating",
             items=[{"object_id": obj["id"], "expected_version": 1}],
         )
-        assert blocked.status_code == 409
-        assert blocked.json()["detail"]["code"] == "ELECTRICAL_ASSIGNMENT_JOB_CONFLICT"
-        assert (
-            blocked.json()["detail"]["details"]["blocking_tasks"][0]["cancel_requested"] == "true"
-        )
+        assert blocked.status_code == 423
+        assert blocked.json()["detail"]["code"] == "PROJECT_CALCULATION_BUSY"
+        assert blocked.json()["detail"]["operation_type"] == "electrical_batch"
+        assert blocked.json()["detail"]["status"] == "running"
 
     async def test_candidate_only_downstream_requires_cleanup_before_assignment(
         self,
@@ -1388,6 +1388,19 @@ class TestElectricalAssignmentApi:
             items=[{"object_id": obj["id"], "expected_version": 1}],
         )
         assert assigned.status_code == 200, assigned.text
+        current_settings = await client.get(
+            f"/api/v1/projects/{project['id']}/electrical-settings",
+            headers=headers,
+        )
+        settings_response = await client.patch(
+            f"/api/v1/projects/{project['id']}/electrical-settings",
+            json={
+                "expected_version": current_settings.json()["version"],
+                "max_section_start_current_a": "13.065",
+            },
+            headers=headers,
+        )
+        assert settings_response.status_code == 200, settings_response.text
         project_id = UUID(project["id"])
         object_id = UUID(obj["id"])
         variant_id = UUID(variant["id"])
@@ -1438,14 +1451,9 @@ class TestElectricalAssignmentApi:
                         data={
                             "required_power_per_meter": 20,
                             "cable_mark": "30ТТВ2-СР",
+                            "number_of_threads": 3,
                             "supply_voltage": 230,
-                            "maintain_temperature": 50.0,
                             "ambient_temperature": -30,
-                            "steam_temperature_c": None,
-                            "aggressive_product": False,
-                            "winding_pitch_mm": None,
-                            "thread_count": None,
-                            "max_section_start_current_a": 13.065,
                             "selection_policy": "technical_minimum",
                             "pipe_length": 50,
                             "safety_factor": 1.1,

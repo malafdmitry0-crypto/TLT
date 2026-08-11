@@ -252,3 +252,33 @@ def test_typed_electrical_error_keeps_stable_code_and_details():
     assert payload["message"] == "Недостаточно мощности трёх ниток"
     assert payload["details"] == {"maximum_threads": 3}
     assert payload["issues"] == []
+
+
+def test_typed_temperature_error_exposes_specific_actions():
+    error = ElectricalFormulaError(
+        "ELECTRICAL_CABLE_TEMPERATURE_LIMIT_EXCEEDED",
+        "Температуры объекта находятся вне допустимого диапазона кабелей",
+        details={
+            "ambient_temperature_c": -41,
+            "minimum_supported_ambient_temperature_c": -40,
+            "product_temperature_c": 201,
+            "maximum_supported_product_temperature_c": 200,
+            "violations": ["ambient_below_minimum", "product_above_maximum"],
+        },
+    )
+
+    payload = build_electrical_error_payload(
+        error,
+        object_type="pipe",
+        cable_type="self_regulating_tt",
+    )
+
+    assert payload["suggested_actions"] == [
+        "CHECK_AMBIENT_TEMPERATURE",
+        "CHECK_PROCESS_TEMPERATURE",
+        "TRY_OTHER_CABLE_TYPE",
+    ]
+    assert payload["error_context"]["violations"] == [
+        "ambient_below_minimum",
+        "product_above_maximum",
+    ]
