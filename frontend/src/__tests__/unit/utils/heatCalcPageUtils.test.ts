@@ -147,6 +147,21 @@ describe('heatCalcPageUtils', () => {
     );
   });
 
+  it('показывает все незаполненные backend-поля понятными названиями', () => {
+    const failed = makeObject({
+      object_type: 'tank',
+      validation_errors: {
+        message: 'Заполните обязательные поля объекта',
+        missing_fields: ['heating_height', 'laying_step'],
+      },
+    });
+
+    const text = heatLossErrorText(failed);
+    expect(text).toContain('Заполните обязательные поля объекта');
+    expect(text).toContain('Высота обогрева');
+    expect(text).toContain('Шаг укладки');
+  });
+
   it('распознаёт batch-ответ теплопотерь', () => {
     expect(isBatchHeatLossResponse({ updated: 1, failed: 0 })).toBe(true);
     expect(isBatchHeatLossResponse({ calculated: 1, failed: 0 })).toBe(false);

@@ -5,7 +5,9 @@ semantics: fields with form defaults must be persisted, and non-defaultable
 required fields must make the object invalid before formulas run.
 """
 
+import math
 from collections.abc import Mapping
+from numbers import Real
 from typing import Any
 
 from pydantic import ValidationError
@@ -185,19 +187,83 @@ def prepare_project_object_params(
 def validate_project_object_params(object_type: str, params: Mapping[str, Any]) -> None:
     """Validate object-level required fields before heat-loss formulas run."""
 
-    missing: list[str] = []
-    if object_type == "pipe":
-        _validate_pipe_params(params, missing)
-    elif object_type == "tank":
-        _validate_tank_params(params, missing)
-    else:
-        raise ProjectObjectParamsError(f"Неподдерживаемый тип объекта: {object_type}")
+    missing, invalid = _validate_downstream_required_inputs(object_type, params)
+    schema_error: ProjectObjectParamsError | None = None
+    try:
+        if object_type == "pipe":
+            _validate_pipe_params(params, [])
+        elif object_type == "tank":
+            _validate_tank_params(params, [])
+        else:
+            raise ProjectObjectParamsError(f"Неподдерживаемый тип объекта: {object_type}")
+    except ProjectObjectParamsError as exc:
+        schema_error = exc
 
-    if missing:
-        unique_missing = list(dict.fromkeys(missing))
+    if schema_error is not None:
+        fields = tuple(dict.fromkeys((*schema_error.fields, *missing, *invalid)))
+        has_invalid = schema_error.code != "OBJECT_REQUIRED_FIELDS_MISSING" or bool(invalid)
         raise ProjectObjectParamsError(
-            "Не заполнены обязательные поля объекта: " + ", ".join(unique_missing)
+            "Проверьте параметры объекта" if has_invalid else "Заполните обязательные поля объекта",
+            code="OBJECT_PARAMS_INVALID" if has_invalid else "OBJECT_REQUIRED_FIELDS_MISSING",
+            fields=fields,
+            reason=schema_error.reason,
+        ) from schema_error
+
+    if invalid:
+        raise ProjectObjectParamsError(
+            "Проверьте параметры объекта",
+            code="OBJECT_PARAMS_INVALID",
+            fields=tuple(dict.fromkeys((*missing, *invalid))),
         )
+    if missing:
+        raise ProjectObjectParamsError(
+            "Заполните обязательные поля объекта",
+            code="OBJECT_REQUIRED_FIELDS_MISSING",
+            fields=tuple(dict.fromkeys(missing)),
+        )
+
+
+def _validate_downstream_required_inputs(
+    object_type: str,
+    params: Mapping[str, Any],
+) -> tuple[list[str], list[str]]:
+    """Validate required object-card inputs used after the heat formula."""
+
+    required_ranges: dict[str, tuple[float | None, float | None]] = {
+        "min_switch_temperature": (-40.0, 10.0),
+    }
+    if object_type == "tank":
+        required_ranges.update(
+            {
+                "heating_height": (0.0, None),
+                "laying_step": (0.1, 0.4),
+            }
+        )
+
+    missing: list[str] = []
+    invalid: list[str] = []
+    for field, (minimum, maximum) in required_ranges.items():
+        value = params.get(field)
+        if value is None or value == "":
+            missing.append(field)
+            continue
+        if isinstance(value, bool) or not isinstance(value, Real):
+            invalid.append(field)
+            continue
+        numeric = float(value)
+        if not math.isfinite(numeric):
+            invalid.append(field)
+            continue
+        if minimum is not None:
+            if field == "heating_height" and numeric <= minimum:
+                invalid.append(field)
+                continue
+            if field != "heating_height" and numeric < minimum:
+                invalid.append(field)
+                continue
+        if maximum is not None and numeric > maximum:
+            invalid.append(field)
+    return missing, invalid
 
 
 def _apply_defaults(params: dict[str, Any], defaults: Mapping[str, Any]) -> None:
