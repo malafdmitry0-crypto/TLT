@@ -60,7 +60,6 @@ export interface PipeParams {
   ground_type?: string | null;
   ground_conductivity?: number | null;
   wind_speed?: number | null;
-  alpha_vnesh?: number | null;
   climate_city?: string | null;
   climate_region?: string | null;
   climate_key?: string | null;
@@ -119,7 +118,6 @@ export interface TankParams {
   ground_conductivity?: number | null;
   ground_conductivity_source?: 'manual' | 'reference' | null;
   wind_speed?: number | null;
-  alpha_vnesh?: number | null;
   climate_city?: string | null;
   climate_region?: string | null;
   climate_key?: string | null;

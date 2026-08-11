@@ -238,12 +238,6 @@ class PipeHeatLossParams(BaseModel):
     wind_speed: float | None = Field(
         default=None, ge=0.0, le=20.0, description="v — скорость ветра, м/с"
     )
-    alpha_vnesh: float | None = Field(
-        default=None,
-        ge=7.0,
-        le=52.0,
-        description="alpha — коэф. наружной теплоотдачи, Вт/(м²·К) — рассчитывается из v если не задан",
-    )
     ground_conductivity: float | None = Field(
         default=None,
         ge=GROUND_CONDUCTIVITY_MIN,
@@ -294,8 +288,8 @@ class PipeHeatLossParams(BaseModel):
                 raise ValueError("Для underground требуется ground_conductivity")
             if self.ambient_temperature is not None:
                 raise ValueError("ambient_temperature запрещена для underground pipe")
-            if self.wind_speed is not None or self.alpha_vnesh is not None:
-                raise ValueError("wind_speed и alpha_vnesh запрещены для underground pipe")
+            if self.wind_speed is not None:
+                raise ValueError("wind_speed запрещена для underground pipe")
             if self.process_temperature <= self.ground_temperature:
                 raise ValueError(
                     "process_temperature_not_above_ground: температура продукта должна быть выше температуры грунта"
@@ -318,7 +312,7 @@ class PipeHeatLossParams(BaseModel):
                 raise ValueError("pipe_centerline_depth допустима только для underground")
             if self.ground_temperature is not None or self.ground_conductivity is not None:
                 raise ValueError("Грунтовые параметры допустимы только для underground")
-            if self.placement == "outdoor" and self.alpha_vnesh is None and self.wind_speed is None:
+            if self.placement == "outdoor" and self.wind_speed is None:
                 raise ValueError("Для outdoor auto требуется wind_speed")
         return self
 
@@ -473,12 +467,6 @@ class TankHeatLossParams(BaseModel):
         le=20.0,
         description="v — скорость ветра, м/с",
     )
-    alpha_vnesh: float | None = Field(
-        default=None,
-        ge=7.0,
-        le=52.0,
-        description="alpha — ручной коэф. наружной теплоотдачи, Вт/(м²·К)",
-    )
     safety_factor: float = Field(
         ge=1.0,
         le=1.7,
@@ -536,7 +524,7 @@ class TankHeatLossParams(BaseModel):
                 raise ValueError("process_temperature_not_above_ambient")
             if self.process_temperature <= self.ground_temperature:
                 raise ValueError("process_temperature_not_above_ground")
-            if self.alpha_vnesh is None and self.wind_speed is None:
+            if self.wind_speed is None:
                 raise ValueError("Для underground tank auto требуется wind_speed")
         else:
             if self.ambient_temperature is None:
@@ -547,7 +535,7 @@ class TankHeatLossParams(BaseModel):
                 raise ValueError("Грунтовые параметры допустимы только для underground")
             if self.tank_buried_height is not None:
                 raise ValueError("tank_buried_height допустима только для underground")
-            if self.placement == "outdoor" and self.alpha_vnesh is None and self.wind_speed is None:
+            if self.placement == "outdoor" and self.wind_speed is None:
                 raise ValueError("Для outdoor auto требуется wind_speed")
         if (self.wall_thickness is None) != (self.wall_lambda is None):
             raise ValueError("wall_thickness и wall_lambda задаются парой")

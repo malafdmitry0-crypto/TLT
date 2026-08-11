@@ -27,14 +27,14 @@ describe('ObjectWizard dependencies — visibility-matrix', () => {
       {
         objectType: 'pipe' as const,
         placement: 'outdoor',
-        visible: ['ambient-temperature-input', 'wind-speed-input', 'alpha-vnesh-input'],
-        hidden: ['burial-depth-input', 'ground-type-select', 'ground-conductivity-input'],
+        visible: ['ambient-temperature-input', 'wind-speed-input'],
+        hidden: ['alpha-vnesh-input', 'burial-depth-input', 'ground-type-select', 'ground-conductivity-input'],
       },
       {
         objectType: 'pipe' as const,
         placement: 'indoor',
-        visible: ['ambient-temperature-input', 'alpha-vnesh-input'],
-        hidden: ['wind-speed-input', 'burial-depth-input', 'ground-type-select', 'ground-conductivity-input'],
+        visible: ['ambient-temperature-input'],
+        hidden: ['alpha-vnesh-input', 'wind-speed-input', 'burial-depth-input', 'ground-type-select', 'ground-conductivity-input'],
       },
       {
         objectType: 'pipe' as const,

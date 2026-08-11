@@ -112,7 +112,7 @@ export function buildObjectWizardFormSlots(input: ObjectWizardFormSlotsInput) {
   );
   const temperatureStep = (
     part: 'all' | 'wide' | 'temperatures' | 'wind'
-    | 'ambient' | 'process' | 'wind-speed' | 'alpha',
+    | 'ambient' | 'process' | 'wind-speed',
   ) => (
     <TemperatureEnvironmentStep
       objectType={heatCalcObjectType}
@@ -201,7 +201,6 @@ export function buildObjectWizardFormSlots(input: ObjectWizardFormSlotsInput) {
         fieldInputSettings={fieldInputSettings}
         part="count"
       />
-      {temperatureStep('alpha')}
       {/* поля, которых на кадре нет, — следующими строками того же блока */}
       <ElectricalAndFittingsStep
         objectType={heatCalcObjectType}
@@ -224,7 +223,6 @@ export function buildObjectWizardFormSlots(input: ObjectWizardFormSlotsInput) {
         fieldInputSettings={fieldInputSettings}
         part="q"
       />
-      {temperatureStep('alpha')}
       {placementStep('numeric')}
     </>
   );

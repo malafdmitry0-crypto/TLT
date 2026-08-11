@@ -218,7 +218,6 @@ class TestPipeAnalyticReference:
                 {"placement": "indoor", "wind_speed": None, "insulation_temperature_basis": "indoor"},
                 id="indoor",
             ),
-            pytest.param({"alpha_vnesh": 15.0, "wind_speed": None}, id="manual-alpha"),
             pytest.param(
                 {"num_local_elements": 3, "local_element_equiv_length": 2.0},
                 id="local-elements",

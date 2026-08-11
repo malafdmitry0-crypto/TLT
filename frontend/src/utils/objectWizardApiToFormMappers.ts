@@ -93,7 +93,6 @@ export function pipeApiParamsToForm(p: Record<string, unknown>): Partial<PipeFor
     ground_conductivity_source:
       p.ground_conductivity_source as PipeFormValues['ground_conductivity_source'],
     wind_speed: p.wind_speed as number | undefined,
-    alpha_vnesh: p.alpha_vnesh as number | undefined,
     climate_city: p.climate_city as string | undefined,
     climate_region: p.climate_region as string | undefined,
     climate_key:
@@ -174,7 +173,6 @@ export function tankApiParamsToForm(p: Record<string, unknown>): Partial<TankFor
     ground_conductivity_source:
       p.ground_conductivity_source as TankFormValues['ground_conductivity_source'],
     wind_speed: p.wind_speed as number | undefined,
-    alpha_vnesh: p.alpha_vnesh as number | undefined,
     climate_city: p.climate_city as string | undefined,
     climate_region: p.climate_region as string | undefined,
     climate_key:

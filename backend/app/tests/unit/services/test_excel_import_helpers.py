@@ -237,7 +237,7 @@ class TestBuildObjectsXlsxSafety:
         ):
             assert forbidden not in params
 
-    def test_pipe_export_round_trips_manual_alpha_and_manual_insulation(self):
+    def test_pipe_export_omits_manual_alpha_and_round_trips_manual_insulation(self):
         from types import SimpleNamespace
 
         from app.services.project_object_params import prepare_project_object_params
@@ -261,6 +261,7 @@ class TestBuildObjectsXlsxSafety:
             "min_switch_temperature": -20.0,
             "placement": "outdoor",
             "alpha_vnesh": 18.5,
+            "wind_speed": 4.0,
             "insulation_temperature_basis": "outdoor_winter",
             "insulation_cover_material": "aluminum",
             "num_local_elements": 0,
@@ -275,8 +276,8 @@ class TestBuildObjectsXlsxSafety:
         assert built is not None
         prepared = prepare_project_object_params("pipe", built)
 
-        assert prepared["alpha_vnesh"] == 18.5
-        assert "wind_speed" not in prepared
+        assert "alpha_vnesh" not in prepared
+        assert prepared["wind_speed"] == 4.0
         assert prepared["insulation_cover_material"] == "aluminum"
         assert prepared["insulation_layers"] == [
             {
@@ -316,7 +317,7 @@ class TestBuildObjectsXlsxSafety:
             "tank_buried_height": 1.25,
             "ground_type": "dry_sand",
             "ground_conductivity": 1.2,
-            "alpha_vnesh": 12.0,
+            "wind_speed": 0.0,
             "safety_factor": 1.15,
             "q_additional": 0.0,
             "min_switch_temperature": -30.0,
@@ -760,7 +761,7 @@ class TestBuildTankParams:
                 "tank_buried_height": 1.5,
                 "ground_type": "dry_sand",
                 "ground_conductivity": 1.2,
-                "alpha_vnesh": 12,
+                "wind_speed": 0,
             }
         )
 
