@@ -138,7 +138,10 @@ export function useHeatCalcDraftSaveModel({
 
     if (targetRows.length === 0) return { ok: true, saved: [] };
     const validationByRowId = Object.fromEntries(
-      targetRows.map((row) => [row.objectId, getDraftRowValidationErrors(row)]),
+      targetRows.map((row) => [
+        row.objectId,
+        getDraftRowValidationErrors(row, { enforceRequired: true }),
+      ]),
     ) as Record<string, Record<string, string>>;
     const invalidRows = targetRows.filter((row) => Object.keys(validationByRowId[row.objectId] ?? {}).length > 0);
     const validRows = targetRows.filter((row) => Object.keys(validationByRowId[row.objectId] ?? {}).length === 0);
@@ -180,7 +183,7 @@ export function useHeatCalcDraftSaveModel({
     await Promise.all(validRows.map(async (row, index) => {
       try {
         const isNewRow = isExcelNewRowId(row.objectId);
-        const params = buildDraftRowParams(row);
+        const params = buildDraftRowParams(row, { enforceRequired: true });
         const savedObject = isNewRow
           ? await createObjectRequest(project.id, {
             object_type: row.objectType,
