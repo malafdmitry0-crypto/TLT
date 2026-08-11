@@ -26,7 +26,7 @@ describe('specGenerateOptionsModel', () => {
     });
   });
 
-  it('always materializes the four binary options as Да or Нет', () => {
+  it('always materializes the binary options and default grouping mode', () => {
     const input = {
       exZone: false,
       reserveCoeff: '',
@@ -37,6 +37,7 @@ describe('specGenerateOptionsModel', () => {
       groupingMode: null,
     } as const;
     expect(buildSpecGenerateOptions(input)).toEqual({
+      grouping_mode: 'separate_by_object_type',
       Ex: false,
       K1i: false,
       K2i: false,

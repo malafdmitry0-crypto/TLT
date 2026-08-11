@@ -434,10 +434,7 @@ async def test_resolution_uses_only_request_and_preserves_false_and_zero(monkeyp
         for item in result[0].diagnostics
         if item.code is SpecificationDiagnosticCode.FORMULA_INPUT_INVALID
     )
-    assert {issue["field"] for issue in diagnostic.issues} == {
-        "R_gr",
-        "grouping_mode",
-    }
+    assert {issue["field"] for issue in diagnostic.issues} == {"R_gr"}
     assert "Ex" not in {issue["field"] for issue in diagnostic.issues}
     assert "L_K2i_m" not in {issue["field"] for issue in diagnostic.issues}
 
@@ -616,7 +613,6 @@ async def test_legacy_object_options_do_not_supply_missing_generation_fields(
     assert {issue["field"] for issue in diagnostic.issues} == {
         "L_K2i_m",
         "R_gr",
-        "grouping_mode",
     }
 
 
