@@ -1255,6 +1255,14 @@ def _heat_seed_config(
 ) -> HeatSeedConfig:
     """Build one traceable canonical seed payload with non-heat metadata."""
 
+    tank_inputs = (
+        {
+            "heating_height": params.get("height"),
+            "laying_step": _ELECTRICAL_SEED_TANK_LAYING_STEP_M,
+        }
+        if object_type == "tank"
+        else {}
+    )
     return {
         "object_type": object_type,
         "seed_case": seed_case,
@@ -1263,6 +1271,7 @@ def _heat_seed_config(
             "name": name,
             "seed_case": seed_case,
             "min_switch_temperature": _ELECTRICAL_SEED_COLD_START_TEMPERATURE_C,
+            **tank_inputs,
             **params,
         },
     }
@@ -1558,6 +1567,14 @@ def _volume_seed(
 ) -> HeatSeedConfig:
     """Объект наполнения: без seed_case, чтобы не путать его с каноническим."""
 
+    tank_inputs = (
+        {
+            "heating_height": params.get("height"),
+            "laying_step": _ELECTRICAL_SEED_TANK_LAYING_STEP_M,
+        }
+        if object_type == "tank"
+        else {}
+    )
     return {
         "object_type": object_type,
         "seed_case": "",
@@ -1565,6 +1582,7 @@ def _volume_seed(
         "params": {
             "name": name,
             "min_switch_temperature": _ELECTRICAL_SEED_COLD_START_TEMPERATURE_C,
+            **tank_inputs,
             **params,
         },
     }

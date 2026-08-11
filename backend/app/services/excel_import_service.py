@@ -25,7 +25,9 @@ from app.models.project import Project
 from app.models.project_object import ProjectObject
 from app.models.specification import Specification
 from app.reference_data.loader import list_insulation_materials
+from app.services.calculation_service import build_heat_loss_error_payload
 from app.services.project_object_params import (
+    ProjectObjectParamsError,
     normalize_project_object_params,
     prepare_project_object_params,
     reject_legacy_specification_object_params,
@@ -373,6 +375,10 @@ TANK_HEADERS: dict[str, str] = {
     "мин. t включения, °c": "min_switch_temperature",
     "мин t включения": "min_switch_temperature",
     "минимальная температура включения": "min_switch_temperature",
+    "высота обогрева, м": "heating_height",
+    "высота обогрева": "heating_height",
+    "шаг укладки, м": "laying_step",
+    "шаг укладки": "laying_step",
     "климатический регион": "climate_region",
     "регион климата": "climate_region",
     "климатический город": "climate_city",
@@ -890,6 +896,8 @@ def _build_tank_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
         "max_ambient_temperature",
         "max_process_temperature",
         "min_switch_temperature",
+        "heating_height",
+        "laying_step",
         "supply_voltage",
     ):
         value = _to_float(row.get(field))
@@ -1195,11 +1203,7 @@ async def _add_rows(
             continue
         try:
             reject_legacy_specification_object_params(params)
-            normalized_params = (
-                prepare_project_object_params(object_type, params)
-                if object_type == "pipe"
-                else normalize_project_object_params(object_type, params)
-            )
+            normalized_params = normalize_project_object_params(object_type, params)
             if dedupe_keys is not None:
                 key = _dedupe_key(object_type, normalized_params)
                 if key in dedupe_keys:
@@ -1212,6 +1216,14 @@ async def _add_rows(
                 sort_order=next_sort,
                 params=normalized_params,
             )
+            try:
+                obj.params = prepare_project_object_params(object_type, normalized_params)
+            except ProjectObjectParamsError as exc:
+                obj.is_valid = False
+                obj.validation_errors = build_heat_loss_error_payload(
+                    exc,
+                    object_type=object_type,
+                )
             batch.append((obj, row))
             current_count += 1
             next_sort += 1
@@ -1539,6 +1551,8 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
         "Обеспеченность климата",
         "Kзап",
         "Мин. T включения, °C",
+        "Высота обогрева, м",
+        "Шаг укладки, м",
         "Q доп., Вт",
         "Толщина стенки, мм",
         "λ стенки",
@@ -1661,6 +1675,8 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
                     params.get("climate_temperature_basis", ""),
                     params.get("safety_factor", ""),
                     params.get("min_switch_temperature", ""),
+                    params.get("heating_height", ""),
+                    params.get("laying_step", ""),
                     params.get("q_additional", ""),
                     to_mm("wall_thickness"),
                     params.get("wall_lambda", ""),
@@ -1817,6 +1833,8 @@ def build_template_xlsx() -> bytes:
         "Обеспеченность климата",
         "Kзап",
         "Мин. T включения, °C",
+        "Высота обогрева, м",
+        "Шаг укладки, м",
         "Q доп., Вт",
     ]
     for c, h in enumerate(tank_cols, start=1):
@@ -1839,6 +1857,8 @@ def build_template_xlsx() -> bytes:
             "Режим температуры изоляции": "outdoor_winter",
             "Kзап": 1.1,
             "Мин. T включения, °C": -20,
+            "Высота обогрева, м": 3,
+            "Шаг укладки, м": 0.2,
             "Q доп., Вт": 0,
         },
         {
@@ -1857,6 +1877,8 @@ def build_template_xlsx() -> bytes:
             "Режим температуры изоляции": "outdoor_winter",
             "Kзап": 1.1,
             "Мин. T включения, °C": -20,
+            "Высота обогрева, м": 4,
+            "Шаг укладки, м": 0.2,
             "Q доп., Вт": 0,
         },
         {
@@ -1941,6 +1963,8 @@ def build_template_csv() -> bytes:
         "Обеспеченность климата",
         "Kзап",
         "Мин. T включения, °C",
+        "Высота обогрева, м",
+        "Шаг укладки, м",
         "Толщина стенки, мм",
         "Материал трубы",
         "Скорость ветра, м/с",
@@ -2008,6 +2032,8 @@ def build_template_csv() -> bytes:
             "Режим температуры изоляции": "outdoor_winter",
             "Kзап": 1.1,
             "Мин. T включения, °C": -20,
+            "Высота обогрева, м": 3,
+            "Шаг укладки, м": 0.2,
             "Скорость ветра, м/с": 0,
             "Q доп., Вт": 0,
         },
@@ -2027,6 +2053,8 @@ def build_template_csv() -> bytes:
             "Режим температуры изоляции": "outdoor_winter",
             "Kзап": 1.1,
             "Мин. T включения, °C": -20,
+            "Высота обогрева, м": 4,
+            "Шаг укладки, м": 0.2,
             "Скорость ветра, м/с": 0,
             "Q доп., Вт": 0,
         },

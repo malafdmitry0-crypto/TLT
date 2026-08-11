@@ -138,9 +138,42 @@ export function heatLossErrorText(record: ProjectObject) {
   const errors = record.validation_errors;
   if (!errors) return 'Ошибка расчёта';
   if (typeof errors === 'object' && errors !== null) {
-    const message = (errors as { message?: unknown }).message;
+    const payload = errors as {
+      message?: unknown;
+      missing_fields?: unknown;
+      fields?: unknown;
+    };
+    const message = payload.message;
     if (typeof message === 'string' && message.trim()) {
-      return formatInsulationHotSideTemperatureError(message) ?? message;
+      const formattedMessage = formatInsulationHotSideTemperatureError(message) ?? message;
+      const objectType = record.object_type === 'pipe' || record.object_type === 'tank'
+        ? record.object_type
+        : undefined;
+      const details: string[] = [];
+      if (Array.isArray(payload.missing_fields)) {
+        const labels = payload.missing_fields
+          .filter((field): field is string => typeof field === 'string')
+          .map((field) => getHeatCalcFieldLabel(field, {
+            context: 'form',
+            objectType,
+            variant: 'full',
+          }));
+        if (labels.length > 0) details.push(`Не заполнено: ${labels.join(', ')}`);
+      }
+      if (typeof payload.fields === 'object' && payload.fields !== null && !Array.isArray(payload.fields)) {
+        const fieldMessages = Object.entries(payload.fields as Record<string, unknown>)
+          .filter((entry): entry is [string, string] => typeof entry[1] === 'string')
+          .map(([field, fieldMessage]) => {
+            const label = getHeatCalcFieldLabel(field, {
+              context: 'form',
+              objectType,
+              variant: 'full',
+            });
+            return `${label}: ${fieldMessage}`;
+          });
+        details.push(...fieldMessages);
+      }
+      return uniqueErrorMessages([formattedMessage, ...details]).join('\n');
     }
   }
   return JSON.stringify(errors);

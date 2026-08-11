@@ -68,6 +68,7 @@ export async function createCalculatedPipe(
           insulation_temperature_basis: 'outdoor_winter',
           ambient_temperature: -30,
           process_temperature: 80,
+          min_switch_temperature: -20,
           // vapor_temperature не задаём: при steam_tracing=no поле пустое, а
           // диапазон поля в реестре 90…200 — seed на 80 делал форму невалидной
           maintain_temperature: 10,
@@ -109,6 +110,9 @@ export async function createCalculatedTank(
           insulation_temperature_basis: 'outdoor_winter',
           ambient_temperature: -20,
           process_temperature: 80,
+          min_switch_temperature: -20,
+          heating_height: 3,
+          laying_step: 0.2,
           placement: 'outdoor',
           wind_speed: 3,
           safety_factor: 1.1,

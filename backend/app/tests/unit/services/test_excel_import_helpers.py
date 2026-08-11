@@ -258,6 +258,7 @@ class TestBuildObjectsXlsxSafety:
             ],
             "ambient_temperature": -20.0,
             "process_temperature": 80.0,
+            "min_switch_temperature": -20.0,
             "placement": "outdoor",
             "alpha_vnesh": 18.5,
             "insulation_temperature_basis": "outdoor_winter",
@@ -501,6 +502,7 @@ class TestBuildPipeParams:
             "insulation_material": "mineral_wool_boards_120",
             "ambient_temperature": -20,
             "process_temperature": 80,
+            "min_switch_temperature": -20,
         }
         params, err = _build_pipe_params(row)
         assert err is None
@@ -965,6 +967,7 @@ class TestAddRowsHelper:
             "insulation_temperature_basis": "outdoor_winter",
             "ambient_temperature": -20,
             "process_temperature": 80,
+            "min_switch_temperature": -20,
             "wall_thickness_mm": 4,
             "pipe_material": "carbon_steel",
             "placement": "outdoor",

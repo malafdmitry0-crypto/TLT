@@ -5,6 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import StreamingResponse
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -16,6 +17,7 @@ from app.core.dependencies import (
 from app.core.rate_limit import enforce_principal_rate_limit, import_limiter, report_limiter
 from app.core.uploads import read_upload_with_limit
 from app.core.worker_dependency import require_worker_ready
+from app.models.project_object import ProjectObject
 from app.schemas.project import (
     ObjectQueryCapabilitiesResponse,
     ObjectsBatchResponse,
@@ -164,10 +166,6 @@ async def add_object(
         obj = await project_service.add_object(project_id, data, principal)
         calc_service = CalculationService(db)
         await calc_service.recalculate_object(obj)
-        if obj.object_type == "pipe" and not obj.is_valid:
-            detail = (obj.validation_errors or {}).get("message", "Некорректные параметры трубы")
-            await db.rollback()
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=detail)
         # New object is not yet assigned to any ER → no specification is affected.
         # Precise per-ER staling happens on assignment / heat / calculation mutations.
         # Аудит кладём в ту же транзакцию (stage до commit) — один round-trip
@@ -309,29 +307,8 @@ async def group_update_objects(
             project_id, data.object_ids, data.param, data.value, principal
         )
         calc_service = CalculationService(db)
-        recalc_problems: list[dict[str, str | None]] = []
         for obj in objects:
             await calc_service.recalculate_object(obj)
-            if obj.object_type == "pipe" and not obj.is_valid:
-                obj_name = (obj.params or {}).get("name")
-                recalc_problems.append(
-                    {
-                        "object_id": str(obj.id),
-                        "name": str(obj_name) if obj_name is not None else None,
-                        "error": (obj.validation_errors or {}).get(
-                            "message", "Некорректные параметры трубы"
-                        ),
-                    }
-                )
-        if recalc_problems:
-            await db.rollback()
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail={
-                    "message": "Значение нельзя применить ко всем выбранным объектам",
-                    "objects": recalc_problems,
-                },
-            )
         changed_ids = [obj.id for obj in objects]
         # Per-ER via assignments inside mark_electrical_calculations_stale.
         await calc_service.mark_electrical_calculations_stale(
@@ -450,13 +427,32 @@ async def import_excel(
         else:
             result = await import_objects_from_excel(db, project_id, principal, content, mode=mode)
         created_object_ids = result.pop("created_object_ids", [])
+        calculation_object_ids: list[UUID] = []
         if created_object_ids:
+            validation_rows = await db.execute(
+                select(ProjectObject.id, ProjectObject.validation_errors).where(
+                    ProjectObject.project_id == project_id,
+                    ProjectObject.id.in_(created_object_ids),
+                )
+            )
+            validation_by_id = {
+                object_id: validation_errors
+                for object_id, validation_errors in validation_rows.all()
+            }
+            calculation_object_ids = [
+                object_id
+                for object_id in created_object_ids
+                if validation_by_id.get(object_id) is None
+            ]
+            result["valid"] = len(calculation_object_ids)
+            result["invalid"] = len(created_object_ids) - len(calculation_object_ids)
+        if calculation_object_ids:
             # Imported objects are unassigned; no ER BOM is invalidated until assign.
             task = await TaskService(db).create_heat_loss_batch_task(
                 HeatLossBatchJobRequest(
                     project_id=project_id,
                     include_errors=True,
-                    object_ids=created_object_ids,
+                    object_ids=calculation_object_ids,
                 ),
                 principal,
             )
@@ -554,10 +550,6 @@ async def update_object(
         obj = await project_service.update_object(project_id, object_id, data, principal)
         calc_service = CalculationService(db)
         await calc_service.recalculate_object(obj)
-        if obj.object_type == "pipe" and not obj.is_valid:
-            detail = (obj.validation_errors or {}).get("message", "Некорректные параметры трубы")
-            await db.rollback()
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=detail)
         if params_changed:
             # Marks electrical results + only specs of ERs that assign this object.
             await calc_service.mark_electrical_calculations_stale(
