@@ -7,6 +7,7 @@
 import {
   type DragEvent as ReactDragEvent,
   type ReactNode,
+  useId,
 } from 'react';
 import {
   Dropdown,
@@ -149,6 +150,7 @@ export default function ElectricalAssignmentPanel({
   onAssignedNeedCalc,
   tableDragging = false,
 }: ElectricalAssignmentPanelProps) {
+  const assignDisabledHintId = useId();
   const c = useElectricalAssignmentController({
     projectId,
     electricalVariant,
@@ -246,6 +248,8 @@ export default function ElectricalAssignmentPanel({
                 size="compact"
                 icon={<ApartmentOutlined />}
                 disabled={c.assignDisabled}
+                title={c.assignDisabledReason ?? undefined}
+                aria-describedby={systemView !== 'unassigned' ? assignDisabledHintId : undefined}
                 loading={c.busy && c.mutation.variables?.kind === 'assign'
                   && c.mutation.variables.systemType === 'self_regulating'}
                 onClick={() => c.runAssign('self_regulating', selectedObjectIds)}
@@ -316,6 +320,8 @@ export default function ElectricalAssignmentPanel({
         <TltButton
           variant="primary"
           disabled={c.assignDisabled}
+          title={c.assignDisabledReason ?? undefined}
+          aria-describedby={systemView !== 'unassigned' ? assignDisabledHintId : undefined}
           loading={c.busy && c.mutation.variables?.kind === 'assign'
             && c.mutation.variables.systemType === 'self_regulating'}
           onClick={() => c.runAssign('self_regulating', selectedObjectIds)}
@@ -330,6 +336,15 @@ export default function ElectricalAssignmentPanel({
         >
           Вернуть в нераспределённые
         </TltButton>
+        {systemView !== 'unassigned' && (
+          <Typography.Text
+            id={assignDisabledHintId}
+            type="secondary"
+            className="electrical-system-scope__note"
+          >
+            Объекты в этой вкладке уже назначены в Самрег. Для смены системы верните их в нераспределённые.
+          </Typography.Text>
+        )}
       </div>
 
     </div>

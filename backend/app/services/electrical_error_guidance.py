@@ -425,6 +425,21 @@ def build_electrical_error_payload(
         if is_tank_pipe_layout:
             fields = details.get("fields")
             field = fields[0] if isinstance(fields, list) and fields else None
+        is_temperature_limit = (
+            typed_code == "ELECTRICAL_CABLE_TEMPERATURE_LIMIT_EXCEEDED"
+        )
+        temperature_violations = details.get("violations")
+        temperature_actions: list[str] = []
+        if is_temperature_limit and isinstance(temperature_violations, list):
+            if "ambient_below_minimum" in temperature_violations:
+                temperature_actions.append("CHECK_AMBIENT_TEMPERATURE")
+            if "product_above_maximum" in temperature_violations:
+                temperature_actions.append("CHECK_PROCESS_TEMPERATURE")
+            if "temperature_combination_unsupported" in temperature_violations:
+                temperature_actions.extend(
+                    ["CHECK_AMBIENT_TEMPERATURE", "CHECK_PROCESS_TEMPERATURE"]
+                )
+            temperature_actions.append("TRY_OTHER_CABLE_TYPE")
         payload: ElectricalErrorPayload = {
             "error_code": typed_code,
             "code": typed_code,
@@ -444,10 +459,18 @@ def build_electrical_error_payload(
             "hint": (
                 "Удалите шаг намотки трубы и задайте высоту обогрева и шаг укладки резервуара."
                 if is_tank_pipe_layout
-                else "Проверьте параметры электротехнического расчёта."
+                else (
+                    "Проверьте температуры объекта или выберите кабель с подходящим диапазоном."
+                    if is_temperature_limit
+                    else "Проверьте параметры электротехнического расчёта."
+                )
             ),
             "suggested_actions": (
-                ["SET_TANK_LAYOUT"] if is_tank_pipe_layout else ["CHECK_OBJECT_PARAMS"]
+                ["SET_TANK_LAYOUT"]
+                if is_tank_pipe_layout
+                else temperature_actions
+                if is_temperature_limit
+                else ["CHECK_OBJECT_PARAMS"]
             ),
             "error_context": context,
         }

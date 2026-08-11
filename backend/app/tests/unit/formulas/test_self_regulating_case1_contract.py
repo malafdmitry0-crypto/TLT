@@ -81,6 +81,33 @@ def test_ambient_below_model_section_catalog_minimum_is_typed_temperature_error(
         _calculate(ambient_temperature=-41)
 
     assert raised.value.code == "ELECTRICAL_CABLE_TEMPERATURE_LIMIT_EXCEEDED"
+    assert raised.value.details == {
+        "product_temperature_c": 20.0,
+        "ambient_temperature_c": -41.0,
+        "minimum_supported_ambient_temperature_c": -40.0,
+        "maximum_supported_product_temperature_c": 120.0,
+        "violations": ["ambient_below_minimum"],
+        "manual_cable_model": None,
+    }
+
+
+def test_product_above_catalog_maximum_exposes_supported_limit() -> None:
+    with pytest.raises(ElectricalFormulaError) as raised:
+        _calculate(process_temperature=201)
+
+    assert raised.value.details["violations"] == ["product_above_maximum"]
+    assert raised.value.details["product_temperature_c"] == 201.0
+    assert raised.value.details["maximum_supported_product_temperature_c"] == 120.0
+
+
+def test_both_temperature_limits_are_reported_separately() -> None:
+    with pytest.raises(ElectricalFormulaError) as raised:
+        _calculate(ambient_temperature=-41, process_temperature=201)
+
+    assert raised.value.details["violations"] == [
+        "ambient_below_minimum",
+        "product_above_maximum",
+    ]
 
 
 def test_manual_mark_without_threads_means_exactly_one_thread_without_fallback() -> None:

@@ -200,7 +200,13 @@ def electrical_tt_catalog_eligibility(
         catalog = raw if isinstance(raw, Mapping) else {}
         status = catalog.get("status")
         checksum = catalog.get("source_checksum") or catalog.get("payload_checksum")
-        if status not in allowed_statuses or not checksum:
+        authority = str(catalog.get("authority") or "").strip().lower()
+        approved_static = (
+            authority in {"static", "static_fallback", "builtin"}
+            and status == "active"
+            and catalog.get("production_approved") is True
+        )
+        if (status not in allowed_statuses and not approved_static) or not checksum:
             invalid.append(
                 {
                     "kind": kind,

@@ -202,6 +202,30 @@ const defaultElectricalVariantListImplementation =
 const defaultElectricalAssignmentOverridesPatchImplementation =
   electricalVariantApiMocks.patchOverrides.getMockImplementation();
 
+vi.mock('@/api/electricalVariantSetTasks', () => ({
+  getActiveElectricalVariantSetTask: vi.fn().mockResolvedValue(null),
+  getElectricalVariantSetTask: vi.fn().mockResolvedValue(null),
+  startElectricalVariantSetTask: vi.fn(),
+  cancelElectricalVariantSetTask: vi.fn(),
+}));
+
+vi.mock('@/api/electricalSettings', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/api/electricalSettings')>();
+  return {
+    ...actual,
+    getProjectElectricalSettings: vi.fn().mockResolvedValue({
+      project_id: 'p-1',
+      nominal_voltage_v: 230,
+      max_section_start_current_a: 13.065,
+      version: 1,
+      updated_by: null,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+    }),
+    patchProjectElectricalSettings: vi.fn(),
+  };
+});
+
 vi.mock('@/api/electricalVariants', () => ({
   electricalVariantQueryKeys: {
     list: (projectId: string) => ['project', projectId, 'electrical-variants'] as const,

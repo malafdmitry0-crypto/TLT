@@ -62,7 +62,7 @@ describe('ElecCalcPage table / batch — batch-assign', () => {
       expect.any(Object),
     );
     const options = (enqueueElectricalBatchJob as ReturnType<typeof vi.fn>).mock.calls[0][4];
-    expect(options).not.toHaveProperty('supplyVoltage');
+    expect(options.supplyVoltage).toBe(230);
     expect(options).not.toHaveProperty('connectionType');
     expect(options).not.toHaveProperty('windingCoefficient');
     expect(options).not.toHaveProperty('layingStep');
@@ -94,6 +94,8 @@ describe('ElecCalcPage table / batch — batch-assign', () => {
       object_id: object.id,
       cable_type: object.id === 'o-three-core' ? 'three_core' : 'self_regulating',
       cable_mark: object.id === 'o-three-core' ? 'ТТ Р3 x 0,5-0,6' : 'ТЛТ-20',
+      cable_type_source: 'auto',
+      cable_mark_source: 'auto',
       variant_number: 1,
       results: { selected_cable: 'ТЛТ-20' },
     }));
@@ -173,7 +175,11 @@ describe('ElecCalcPage table / batch — batch-assign', () => {
     const compatibleRowAfterSwitch = await screen.findByRole('row', { name: /Совместимый объект/ });
     const compatibleCheckboxAfterSwitch = within(compatibleRowAfterSwitch).getByRole('checkbox');
     fireEvent.click(compatibleCheckboxAfterSwitch);
-    await user.click(screen.getByRole('button', { name: /Пересчитать выбранные \(1\)/i }));
+    const recalculateSelected = screen.getByRole('button', {
+      name: /Пересчитать выбранные \(1\)/i,
+    });
+    await waitFor(() => expect(recalculateSelected).toBeEnabled());
+    await user.click(recalculateSelected);
 
     await waitFor(() => {
       expect(apiMocks.enqueueVariantBatch).toHaveBeenCalledWith(

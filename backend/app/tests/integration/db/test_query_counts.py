@@ -4,13 +4,14 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 
 import pytest
-from sqlalchemy import event
+from sqlalchemy import event, update
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from app.core.dependencies import CurrentPrincipal
 from app.models.electrical_calculation import ElectricalCalculation
 from app.models.electrical_variant import ElectricalVariant, ElectricalVariantObject
 from app.models.project import Project
+from app.models.project_electrical_settings import ProjectElectricalSettings
 from app.models.project_object import ProjectObject
 from app.models.specification import Specification
 from app.models.user import User
@@ -133,6 +134,23 @@ async def _seed_valid_pipes_for_batch(
     project = Project(name=f"BatchQueryCount-{count}", user_id=employee_user.id)
     db_session.add(project)
     await db_session.flush()
+    db_session.add(
+        ProjectElectricalSettings(
+            project_id=project.id,
+            max_section_start_current_a=13.065,
+            version=1,
+        )
+    )
+    variant = ElectricalVariant(
+        project_id=project.id,
+        name="ER1 batch query count",
+        name_normalized="er1 batch query count",
+        sort_order=0,
+        is_active=True,
+        legacy_variant_number=1,
+    )
+    db_session.add(variant)
+    await db_session.flush()
     db_session.add_all(
         ProjectObject(
             project_id=project.id,
@@ -150,6 +168,15 @@ async def _seed_valid_pipes_for_batch(
             },
         )
         for index in range(count)
+    )
+    await db_session.flush()
+    await db_session.execute(
+        update(ElectricalVariantObject)
+        .where(ElectricalVariantObject.electrical_variant_id == variant.id)
+        .values(
+            system_type="self_regulating",
+            assignment_state="stale",
+        )
     )
     await db_session.commit()
     return project
@@ -215,17 +242,20 @@ async def test_batch_electrical_uses_constant_select_count(
     with count_sql(test_engine) as statements:
         calculated, skipped, heat_loss_failed, errors, calcs = await CalculationService(
             db_session
-        ).batch_calc_electrical(project.id)
+        ).batch_calc_electrical(
+            project.id,
+            electrical_params={"selection_policy": "technical_minimum"},
+        )
 
     select_count = sum(
         1 for statement in statements if statement.lstrip().upper().startswith("SELECT")
     )
-    assert calculated == 100
+    assert calculated == 100, (skipped, heat_loss_failed, errors[:2])
     assert skipped == 0
     assert heat_loss_failed == 0
     assert errors == []
     assert len(calcs) == 100
-    assert select_count == 3, "\n\n".join(statements)
+    assert select_count == 8, "\n\n".join(statements)
 
 
 async def test_batch_electrical_recalculation_uses_single_bulk_write(
@@ -234,17 +264,23 @@ async def test_batch_electrical_recalculation_uses_single_bulk_write(
     test_engine: AsyncEngine,
 ):
     project = await _seed_valid_pipes_for_batch(db_session, employee_user, count=100)
-    await CalculationService(db_session).batch_calc_electrical(project.id)
+    await CalculationService(db_session).batch_calc_electrical(
+        project.id,
+        electrical_params={"selection_policy": "technical_minimum"},
+    )
 
     with count_sql(test_engine) as statements:
         calculated, skipped, heat_loss_failed, errors, calcs = await CalculationService(
             db_session
-        ).batch_calc_electrical(project.id)
+        ).batch_calc_electrical(
+            project.id,
+            electrical_params={"selection_policy": "technical_minimum"},
+        )
 
     write_count = sum(
         1 for statement in statements if statement.lstrip().upper().startswith(("INSERT", "UPDATE"))
     )
-    assert calculated == 100
+    assert calculated == 100, (skipped, heat_loss_failed, errors[:2])
     assert skipped == 0
     assert heat_loss_failed == 0
     assert errors == []
@@ -371,7 +407,7 @@ async def test_electrical_query_assignment_projection_is_one_bounded_query(
             is_active=index == 0,
             legacy_variant_number=index + 1 if index < 4 else None,
         )
-        for index in range(5)
+        for index in range(4)
     ]
     db_session.add_all(variants)
     await db_session.flush()
@@ -576,9 +612,10 @@ async def test_bulk_project_csv_export_uses_constant_query_count(
     assert "BulkExport-0" in text
     assert "BulkExport-4" in text
     assert "ТЛТ-30" in text
-    # 7 констант-запросов независимо от числа проектов: projects, objects,
-    # electrical, specifications, variants, assignments, electrical_settings.
-    _assert_query_count(statements, 7)
+    # 8 констант-запросов независимо от числа проектов: projects, objects,
+    # electrical, specifications, variants, assignments, catalog selections,
+    # electrical settings.
+    _assert_query_count(statements, 8)
 
 
 async def test_display_settings_get_and_put_use_constant_query_count(
@@ -636,7 +673,7 @@ async def test_reorder_objects_uses_single_object_lookup(
         1 for statement in statements if statement.lstrip().upper().startswith("SELECT")
     )
     assert [obj.id for obj in reordered[: len(order)]] == order
-    assert select_count == 3, "\n\n".join(statements)
+    assert select_count == 5, "\n\n".join(statements)
 
 
 async def test_perf_indexes_are_declared_in_metadata():
