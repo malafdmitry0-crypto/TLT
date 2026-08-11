@@ -48,6 +48,41 @@ function calc(overrides: Partial<ElectricalCalcSummary> = {}): ElectricalCalcSum
 }
 
 describe('elecCalcErrorSummaryModel', () => {
+  it('reports backend heat validation details before any electrical calculation', () => {
+    const invalid = projectObject({
+      is_valid: false,
+      results: null,
+      validation_errors: {
+        category: 'validation',
+        error_code: 'missing_required_fields',
+        message: 'Заполните обязательные поля объекта',
+        missing_fields: ['outer_diameter', 'pipe_length'],
+      },
+    });
+    const unsupported = projectObject({
+      id: 'unsupported-object',
+      is_valid: false,
+      results: null,
+      validation_errors: { category: 'unsupported', message: 'Не применимо' },
+    });
+
+    const items = buildElectricalErrorItems({
+      objects: [invalid, unsupported],
+      electricalDisplayOffset: 0,
+      calcByObjectId: {},
+    });
+
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      objectId: invalid.id,
+      stage: 'heat',
+      errorCode: 'missing_required_fields',
+      error: expect.stringContaining('Заполните обязательные поля объекта'),
+    });
+    expect(items[0]?.error).toContain('Наружный диаметр');
+    expect(items[0]?.error).toContain('Длина трубопровода');
+  });
+
   it('builds only failed non-stale and non-unsupported error items', () => {
     const failed = projectObject({ id: 'failed-object', params: { name: 'Ошибка' } });
     const unsupported = projectObject({ id: 'unsupported-object', params: { name: 'Не применимо' } });
