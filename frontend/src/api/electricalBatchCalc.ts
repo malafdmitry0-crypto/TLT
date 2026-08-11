@@ -1,5 +1,5 @@
 /**
- * Electrical batch calc / variant copy / manual cable selection endpoints.
+ * Electrical batch calc and manual cable selection endpoints.
  */
 import apiClient, { withIdempotencyKey } from './client';
 import type {
@@ -41,28 +41,6 @@ export interface ElectricalBatchOptions {
     object_id: string;
     cable_type?: CableType | null;
   }>;
-}
-
-export interface CopyElectricalVariantRequest {
-  project_id: string;
-  source_variant_number: number;
-  target_variant_number: number;
-  overwrite?: boolean;
-}
-
-export interface CopyElectricalVariantResponse {
-  project_id: string;
-  source_variant_number: number;
-  target_variant_number: number;
-  copied_count: number;
-  project_objects_count: number;
-  not_copied_uncalculated_count?: number;
-  deleted_target_count: number;
-  overwrite_applied: boolean;
-  specification_regenerated: boolean;
-  validated_count?: number;
-  validation_failed_count?: number;
-  preserved_without_validation_count?: number;
 }
 
 function electricalParams(
@@ -178,21 +156,6 @@ export async function enqueueElectricalVariantBatchJob(
       object_ids: options.objectIds,
       force_cable_type: options.forceCableType,
       object_overrides: options.objectOverrides,
-    },
-    withIdempotencyKey(),
-  );
-  return data;
-}
-
-export async function copyElectricalVariant(
-  payload: CopyElectricalVariantRequest,
-): Promise<CopyElectricalVariantResponse> {
-  const { data } = await apiClient.post<CopyElectricalVariantResponse>(
-    '/calc/electrical/variants/copy',
-    {
-      ...payload,
-      // PDL-ER-13: an ER/calculation copy never carries or regenerates a BOM.
-      regenerate_specification: false,
     },
     withIdempotencyKey(),
   );

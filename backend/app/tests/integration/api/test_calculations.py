@@ -557,56 +557,29 @@ class TestElectricalCalculationContinued:
         assert variants.status_code == 200, variants.text
         assert [item["legacy_variant_number"] for item in variants.json()] == [1, 4]
 
-    async def test_legacy_copy_prepares_target_er4_without_er2_or_er3(
-        self,
-        client: AsyncClient,
-        guest_session: str,
-    ):
-        project = await _create_project(client, guest_session)
-        obj = await _create_pipe_object(client, project["id"], guest_session)
-        await _assign_electrical_object(client, project["id"], obj["id"], guest_session)
-        batch = await client.post(
-            "/api/v1/calc/electrical/batch",
-            params={"project_id": project["id"], "variant_number": 1},
-            headers={"X-Session-Id": guest_session},
-        )
-        assert batch.status_code == 200, batch.text
-
-        response = await client.post(
-            "/api/v1/calc/electrical/variants/copy",
-            json={
-                "project_id": project["id"],
-                "source_variant_number": 1,
-                "target_variant_number": 4,
-            },
-            headers={"X-Session-Id": guest_session},
-        )
-
-        assert response.status_code == 200, response.text
-        variants = await client.get(
-            f"/api/v1/projects/{project['id']}/electrical-variants",
-            headers={"X-Session-Id": guest_session},
-        )
-        assert [item["legacy_variant_number"] for item in variants.json()] == [1, 4]
-
-    async def test_copy_electrical_variant_empty_source_returns_422(
+    async def test_retired_cross_er_calculation_routes_are_not_registered(
         self, client: AsyncClient, guest_session: str
     ):
         project = await _create_project(client, guest_session)
-        await _create_pipe_object(client, project["id"], guest_session)
+        headers = {"X-Session-Id": guest_session, "Idempotency-Key": "retired-route"}
 
-        resp = await client.post(
+        variant_set = await client.post(
+            f"/api/v1/projects/{project['id']}/electrical-variant-set-tasks",
+            json={"electrical_variant_ids": []},
+            headers=headers,
+        )
+        numeric_copy = await client.post(
             "/api/v1/calc/electrical/variants/copy",
             json={
                 "project_id": project["id"],
                 "source_variant_number": 1,
                 "target_variant_number": 2,
             },
-            headers={"X-Session-Id": guest_session},
+            headers=headers,
         )
 
-        assert resp.status_code == 422
-        assert resp.json()["detail"]["code"] == "source_empty"
+        assert variant_set.status_code == 404
+        assert numeric_copy.status_code == 404
 
     async def test_unsupported_cable_type_returns_400(
         self, client: AsyncClient, guest_session: str

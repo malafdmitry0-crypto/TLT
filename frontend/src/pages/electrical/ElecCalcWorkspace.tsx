@@ -7,9 +7,7 @@ import { ThunderboltOutlined } from '@ant-design/icons';
 import EmptyProjectState from '@/components/common/EmptyProjectState';
 import ElectricalSummary from '@/components/electrical/ElectricalSummary';
 import { TltAlert } from '@/components/ui-kit';
-import ElectricalBatchActionBar, {
-  ElectricalVariantSetAction,
-} from '@/pages/electrical/ElectricalBatchActionBar';
+import ElectricalBatchActionBar from '@/pages/electrical/ElectricalBatchActionBar';
 import ElectricalAssignmentPanel, {
   type ElectricalAssignmentPanelProps,
 } from '@/pages/electrical/ElectricalAssignmentPanel';
@@ -136,15 +134,6 @@ export function ElecCalcWorkspace(props: ElecCalcWorkspaceProps) {
             canMutate={canMutate}
             variantName={m.electricalVariantName}
             typeControls={m.defaultElectricalTypeControls}
-            multiVariantAction={(
-              <ElectricalVariantSetAction
-                projectId={projectId}
-                variants={props.electricalVariants}
-                canMutate={canMutate}
-                disabled={m.isJobActive || m.batchMut.isPending || Boolean(calculationBlockedReason)}
-                disabledReason={calculationBlockedReason}
-              />
-            )}
             isJobActive={m.isJobActive}
             selectedManualCableCount={m.selectedManualCableCount}
             selectedValidObjectsCount={m.selectedValidObjectsCount}

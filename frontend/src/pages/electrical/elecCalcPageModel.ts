@@ -27,11 +27,6 @@ export type ElectricalBatchMutationArgs = {
   }>;
 };
 
-export type CopyElectricalVariantMutationArgs = {
-  targetVariant: number;
-  overwrite?: boolean;
-};
-
 export type ElectricalNavigationState = {
   activeJobId?: string;
   /** Open this system tab after navigation (e.g. from Spec «Исправить»). */
