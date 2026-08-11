@@ -231,7 +231,7 @@ describe('ElecCalcPage table / batch — permissions-status', () => {
     useProjectStore.getState().setCurrentProject(mockProject);
     renderPage();
 
-    const errorRegion = await screen.findByLabelText('Сообщения ошибок электрорасчёта');
+    const errorRegion = await screen.findByLabelText('Сообщения об ошибках объектов');
     expect(screen.getByLabelText('Не применимо')).toBeInTheDocument();
     expect(errorRegion).toHaveTextContent('Ошибок: 1');
     expect(errorRegion).not.toHaveTextContent('Резервуар с неизвестной геометрией');
@@ -241,7 +241,7 @@ describe('ElecCalcPage table / batch — permissions-status', () => {
 
     await user.click(screen.getByText('Резервуар с ошибкой мощности'));
     await waitFor(() => {
-      expect(errorRegion).not.toHaveTextContent('Резервуар с ошибкой мощности');
+      expect(errorRegion).toHaveTextContent('Объект 2: Резервуар с ошибкой мощности');
       expect(errorRegion).toHaveTextContent('Не найден кабель с мощностью');
       expect(errorRegion).toHaveTextContent('Мощность выше линейки');
       expect(errorRegion).toHaveTextContent('Попробовать другой тип кабеля');
