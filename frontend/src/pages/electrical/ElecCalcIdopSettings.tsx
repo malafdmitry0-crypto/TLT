@@ -58,7 +58,6 @@ export function ElecCalcIdopSettings({
           <div className="elec-idop-settings__field">
             <span className="workflow-params-label elec-idop-settings__label">
               Iдоп проекта — допустимый стартовый ток одной секции, А
-              <span className="elec-idop-settings__required" aria-hidden="true"> *</span>
             </span>
             <TltNumberField
               id={`${formId}-input`}

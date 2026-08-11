@@ -30,7 +30,6 @@
   flex: 0 0 118px;
 }
 
-.elec-idop-settings__required,
 .elec-idop-settings__error {
   color: var(--color-danger);
 }

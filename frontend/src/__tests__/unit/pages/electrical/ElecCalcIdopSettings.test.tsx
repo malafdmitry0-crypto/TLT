@@ -35,6 +35,7 @@ describe('ElecCalcIdopSettings', () => {
     render(<ElecCalcIdopSettings settings={makeSettings()} />);
 
     expect(screen.getByTestId('elec-idop-settings')).toBeInTheDocument();
+    expect(screen.getByTestId('elec-idop-settings')).not.toHaveTextContent('*');
     expect(screen.queryByText('Iдоп не задан')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Задать Iдоп' })).not.toBeInTheDocument();
     expect(screen.getByRole('spinbutton', {
