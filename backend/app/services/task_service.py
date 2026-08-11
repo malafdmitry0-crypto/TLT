@@ -56,7 +56,6 @@ logger = logging.getLogger("heatcalc.worker")
 TASK_ELECTRICAL_BATCH = "electrical_batch"
 TASK_HEAT_LOSS_BATCH = "heat_loss_batch"
 TASK_REPORT_EXPORT = "report_export"
-TASK_ELECTRICAL_VARIANT_SET = "electrical_variant_set"
 ACTIVE_STATUSES = ("queued", "enqueued", "running", "waiting_input")
 TERMINAL_STATUSES = ("succeeded", "failed", "cancelled", "timed_out")
 MAX_TASK_ERROR_MESSAGE_LENGTH = 4_000
@@ -779,7 +778,6 @@ class TaskService:
             TASK_ELECTRICAL_BATCH,
             TASK_HEAT_LOSS_BATCH,
             TASK_REPORT_EXPORT,
-            TASK_ELECTRICAL_VARIANT_SET,
         ):
             await self._mark_failed(
                 task_id,
@@ -789,20 +787,7 @@ class TaskService:
             )
             return
 
-        if task.type == TASK_ELECTRICAL_VARIANT_SET:
-            from app.services.electrical_variant_set_task_service import (
-                ElectricalVariantSetTaskService,
-            )
-
-            await ElectricalVariantSetTaskService(
-                self.db,
-                session_factory=self.session_factory,
-            ).run_claimed_task(
-                task_id,
-                attempt=task.attempts,
-                worker_id=worker_id,
-            )
-        elif task.type == TASK_HEAT_LOSS_BATCH:
+        if task.type == TASK_HEAT_LOSS_BATCH:
             await self._run_heat_loss_batch(task_id, attempt=task.attempts, worker_id=worker_id)
         elif task.type == TASK_ELECTRICAL_BATCH:
             await self._run_electrical_batch(task_id, attempt=task.attempts, worker_id=worker_id)
@@ -944,19 +929,6 @@ class TaskService:
                 await self._mark_cancelled(task.id)
                 recovered += 1
                 continue
-            if (
-                task.type == TASK_ELECTRICAL_VARIANT_SET
-                and task.queue_deadline_at is not None
-                and task.queue_deadline_at <= now
-            ):
-                task.status = "timed_out"
-                task.progress_phase = "timed_out"
-                task.workflow_stage = "timed_out"
-                task.error_message = "Истекло время ожидания в очереди"
-                task.finished_at = now
-                await self.db.commit()
-                recovered += 1
-                continue
             await self.enqueue_existing_task(task, queue=queue)
             recovered += 1
 
@@ -1060,7 +1032,6 @@ class TaskService:
             TASK_ELECTRICAL_BATCH,
             TASK_HEAT_LOSS_BATCH,
             TASK_REPORT_EXPORT,
-            TASK_ELECTRICAL_VARIANT_SET,
         ):
             raise ValueError(f"Неизвестный тип задачи: {task.type}")
         if task.status in ACTIVE_STATUSES:

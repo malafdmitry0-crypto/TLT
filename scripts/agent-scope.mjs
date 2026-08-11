@@ -203,36 +203,13 @@ const RULES = [
     notes: 'Browser optional unless UI layout changed.',
   },
   {
-    id: 'electrical-variant-set-task',
-    test: (p) =>
-      p.startsWith(`components/workflow${sep}`)
-      || p === 'hooks/useProjectElectricalVariantSetTask.ts',
-    owner: 'shared',
-    zone: 'electrical-variant-set-task',
-    publicEntrypoint: 'explicit ER-set task banner + project calculation lock hook',
-    stateOwner: 'server-authoritative background task via react-query',
-    focusedProof: [
-      { cwd: 'frontend', argv: ['npx', 'vitest', 'run', '--project', 'unit', 'src/__tests__/unit/hooks/useProjectElectricalVariantSetTask.test.tsx', 'src/__tests__/unit/components/workflow'] },
-      { cwd: 'frontend', argv: ['npm', 'run', 'typecheck'] },
-      { cwd: 'frontend', argv: ['npm', 'run', 'test:agent-gates'] },
-    ],
-    focusedTests: [
-      'npx vitest run --project unit src/__tests__/unit/hooks/useProjectElectricalVariantSetTask.test.tsx src/__tests__/unit/components/workflow',
-      'npm run typecheck',
-      'npm run test:agent-gates',
-    ],
-    architectureGates: ['featureBoundaries', 'test:agent-gates'],
-    browserRequired: true,
-    browserProfiles: BROWSER_PROFILES,
-    notes: 'Cross-cutting project lock; backend remains authoritative.',
-  },
-  {
     id: 'auth-shell',
     test: (p) =>
       p.startsWith(`pages/Login`)
       || p.startsWith(`pages/Home`)
       || p.startsWith(`store/auth`)
       || p.startsWith(`components/layout${sep}`)
+      || p.startsWith(`components/workflow${sep}`)
       || p === 'App.tsx'
       || p === 'main.tsx'
       || p === 'routes.tsx'
@@ -517,7 +494,6 @@ const DEFAULT_PROOF_LEVEL_BY_RULE_ID = new Map([
   ['specification', 'owner'],
   ['reports', 'owner'],
   ['admin', 'owner'],
-  ['electrical-variant-set-task', 'owner'],
   ['auth-shell', 'owner'],
   ['projects', 'owner'],
   ['common-shared-components', 'owner'],

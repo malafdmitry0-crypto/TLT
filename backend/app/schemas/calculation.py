@@ -1469,33 +1469,6 @@ class BatchElectricalResponse(BaseModel):
     results: list[ElectricalCalcSummary] = Field(default_factory=list)
 
 
-class CopyElectricalVariantRequest(BaseModel):
-    """Legacy-запрос копирования расчётов и назначений одного ЭР в другой."""
-
-    project_id: UUID
-    source_variant_number: int = Field(ge=1, le=MAX_ELECTRICAL_VARIANTS)
-    target_variant_number: int = Field(ge=1, le=MAX_ELECTRICAL_VARIANTS)
-    overwrite: bool = False
-    regenerate_specification: bool = False
-
-
-class CopyElectricalVariantResponse(BaseModel):
-    """Результат legacy-копирования ЭР без копирования спецификации."""
-
-    project_id: UUID
-    source_variant_number: int
-    target_variant_number: int
-    copied_count: int
-    project_objects_count: int
-    not_copied_uncalculated_count: int = 0
-    deleted_target_count: int
-    overwrite_applied: bool
-    specification_regenerated: bool
-    validated_count: int = 0
-    validation_failed_count: int = 0
-    preserved_without_validation_count: int = 0
-
-
 TaskStatus = Literal[
     "queued",
     "enqueued",

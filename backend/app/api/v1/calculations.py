@@ -18,8 +18,6 @@ from app.schemas.calculation import (
     BatchCalcResponse,
     BatchElectricalResponse,
     CableOptionOut,
-    CopyElectricalVariantRequest,
-    CopyElectricalVariantResponse,
     ElectricalCalcSummary,
     ElectricalCandidateApplyResponse,
     ElectricalCandidateCreateRequest,
@@ -49,7 +47,6 @@ from app.services.calculation_service import (
     CalculationService,
     ElectricalCalcConcurrencyError,
     ElectricalCandidateApplyError,
-    ElectricalVariantCopyError,
 )
 from app.services.electrical_catalog_service import ElectricalCatalogService
 from app.services.electrical_history_service import (
@@ -436,94 +433,6 @@ async def query_electrical(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ProjectAccessError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
-
-
-@router.post(
-    "/electrical/variants/copy",
-    response_model=CopyElectricalVariantResponse,
-    summary="Создать CO-вариант электрорасчёта на основании другого CO",
-)
-async def copy_electrical_variant(
-    data: CopyElectricalVariantRequest,
-    principal: CurrentPrincipal = Depends(require_any()),
-    db: AsyncSession = Depends(get_db),
-):
-    if data.regenerate_specification:
-        raise HTTPException(
-            status_code=409,
-            detail={
-                "code": "ELECTRICAL_VARIANT_SPECIFICATION_COPY_FORBIDDEN",
-                "message": (
-                    "Спецификация не копируется и не регенерируется вместе с ЭР. "
-                    "Сформируйте её отдельно после проверки расчётов."
-                ),
-            },
-        )
-    try:
-        variants = await ElectricalVariantService(db).prepare_legacy_variants_for_write(
-            data.project_id,
-            principal,
-            [data.source_variant_number, data.target_variant_number],
-        )
-        result = await CalculationService(db).copy_electrical_variant(
-            data.project_id,
-            source_variant_number=data.source_variant_number,
-            target_variant_number=data.target_variant_number,
-            source_electrical_variant_id=variants[data.source_variant_number].id,
-            target_electrical_variant_id=variants[data.target_variant_number].id,
-            overwrite=data.overwrite,
-            regenerate_specification=data.regenerate_specification,
-        )
-    except ElectricalVariantServiceError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
-    except (ProjectNotFoundError, ProjectAccessError) as exc:
-        _raise_project_error(exc)
-    except ElectricalVariantCopyError as exc:
-        raise HTTPException(
-            status_code=exc.status_code,
-            detail={
-                "code": exc.code,
-                "message": exc.message,
-                **exc.details,
-            },
-        ) from exc
-
-    await AuditService(db).try_record(
-        event_type="calculation.electrical.variant_copied",
-        category="calculation",
-        principal=principal,
-        project_id=data.project_id,
-        details={
-            "source_variant_number": result.source_variant_number,
-            "target_variant_number": result.target_variant_number,
-            "source_electrical_variant_id": str(variants[result.source_variant_number].id),
-            "target_electrical_variant_id": str(variants[result.target_variant_number].id),
-            "copied_count": result.copied_count,
-            "project_objects_count": result.project_objects_count,
-            "not_copied_uncalculated_count": result.not_copied_uncalculated_count,
-            "deleted_target_count": result.deleted_target_count,
-            "overwrite": data.overwrite,
-            "regenerate_specification": data.regenerate_specification,
-            "validated_count": result.validated_count,
-            "validation_failed_count": result.validation_failed_count,
-            "preserved_without_validation_count": result.preserved_without_validation_count,
-        },
-        message="CO-вариант электрорасчёта создан на основании другого CO",
-    )
-    return CopyElectricalVariantResponse(
-        project_id=result.project_id,
-        source_variant_number=result.source_variant_number,
-        target_variant_number=result.target_variant_number,
-        copied_count=result.copied_count,
-        project_objects_count=result.project_objects_count,
-        not_copied_uncalculated_count=result.not_copied_uncalculated_count,
-        deleted_target_count=result.deleted_target_count,
-        overwrite_applied=result.overwrite_applied,
-        specification_regenerated=result.specification_regenerated,
-        validated_count=result.validated_count,
-        validation_failed_count=result.validation_failed_count,
-        preserved_without_validation_count=result.preserved_without_validation_count,
-    )
 
 
 @router.get(
