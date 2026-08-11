@@ -8,6 +8,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import CurrentPrincipal, require_any
+from app.electrical_domain import ElectricalFormulaError
+from app.schemas.calculation import (
+    ElectricalCableSelectionRequest,
+    ElectricalCableSelectionResponse,
+)
 from app.schemas.electrical_assignment import (
     ElectricalAssignmentOverridesPatch,
     ElectricalAssignmentResponse,
@@ -27,12 +32,19 @@ from app.schemas.electrical_variant import (
     ElectricalVariantRenameRequest,
     ElectricalVariantResponse,
 )
+from app.services.audit_service import AuditService
+from app.services.calculation_service import (
+    CalculationError,
+    CalculationService,
+    ElectricalCalcConcurrencyError,
+)
 from app.services.electrical_assignment_service import ElectricalAssignmentService
+from app.services.electrical_input_resolver import ElectricalInputResolutionError
 from app.services.electrical_variant_service import (
     ElectricalVariantService,
     ElectricalVariantServiceError,
 )
-from app.services.project_service import ProjectAccessError, ProjectNotFoundError
+from app.services.project_service import ProjectAccessError, ProjectNotFoundError, ProjectService
 
 router = APIRouter()
 _require_any = require_any()  # type: ignore[no-untyped-call]
@@ -178,6 +190,67 @@ async def patch_assignment_electrical_overrides(
         )
     except (ElectricalVariantServiceError, ProjectNotFoundError, ProjectAccessError) as exc:
         _raise_service_error(exc)
+
+
+@router.post(
+    "/{project_id}/electrical-variants/{variant_id}/objects/{object_id}/cable-selection",
+    response_model=ElectricalCableSelectionResponse,
+    summary="Атомарно выбрать кабель для объекта текущего ЭР",
+)
+async def select_assignment_cable(
+    project_id: UUID,
+    variant_id: UUID,
+    object_id: UUID,
+    data: ElectricalCableSelectionRequest,
+    principal: CurrentPrincipal = Depends(_require_any),
+    db: AsyncSession = Depends(get_db),
+) -> ElectricalCableSelectionResponse:
+    if data.cable_source in ("extended", "all") and principal.role not in (
+        "employee",
+        "admin",
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Расширенный каталог доступен только сотрудникам",
+        )
+    try:
+        await ProjectService(db).get_project_for_write(project_id, principal)
+        service = CalculationService(db)
+        calc, assignment, obj = await service.select_cable_for_assignment(
+            project_id=project_id,
+            electrical_variant_id=variant_id,
+            object_id=object_id,
+            data=data,
+        )
+        calculation = (await service.electrical_calc_summaries([calc], data.cable_source))[0]
+        assignment_response = ElectricalAssignmentService.response_for(assignment, obj)
+        await AuditService(db).try_record(
+            event_type="calculation.electrical.cable_selected",
+            category="calculation",
+            principal=principal,
+            project_id=project_id,
+            object_id=object_id,
+            details={
+                "electrical_variant_id": str(variant_id),
+                "mode": data.mode,
+                "cable_mark": data.cable_mark,
+                "cable_source": data.cable_source,
+                "assignment_version": assignment.version,
+            },
+            message="Выбор кабеля текущего ЭР сохранён атомарно",
+        )
+        return ElectricalCableSelectionResponse(
+            assignment=assignment_response,
+            calculation=calculation,
+        )
+    except (ElectricalVariantServiceError, ElectricalCalcConcurrencyError) as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
+    except (ProjectNotFoundError, ProjectAccessError) as exc:
+        _raise_service_error(exc)
+    except (ElectricalFormulaError, ElectricalInputResolutionError) as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
+    except CalculationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post(

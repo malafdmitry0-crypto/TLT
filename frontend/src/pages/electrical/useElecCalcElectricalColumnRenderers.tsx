@@ -46,7 +46,6 @@ type UseElecCalcElectricalColumnRenderersOptions = {
   recalc: ElecCalcRendererRecalculationValues;
   getObjectActionDisabledReason?: (obj: ProjectObject) => string | null;
   openCableMarkModal: (obj: ProjectObject) => void;
-  openCableSizingModal: (obj: ProjectObject) => void;
 };
 
 export function useElecCalcElectricalColumnRenderers({
@@ -60,7 +59,6 @@ export function useElecCalcElectricalColumnRenderers({
   recalc,
   getObjectActionDisabledReason = () => null,
   openCableMarkModal,
-  openCableSizingModal,
 }: UseElecCalcElectricalColumnRenderersOptions) {
   return useMemo<Record<ElectricalColumnKey, ElectricalColumnRenderSpec>>(() => ({
     index: {
@@ -137,22 +135,6 @@ export function useElecCalcElectricalColumnRenderers({
                     onClick={() => openCableMarkModal(obj)}
                   >
                     Выбор
-                  </TltButton>
-                </span>
-              </Tooltip>
-              <Tooltip title={assignmentDisabledReason ?? undefined}>
-                <span>
-                  <TltButton
-                    className="electrical-cable-mark-action"
-                    size="compact"
-                    disabled={
-                      !obj.is_valid
-                      || !projectSelected
-                      || assignmentDisabledReason != null
-                    }
-                    onClick={() => openCableSizingModal(obj)}
-                  >
-                    Подбор
                   </TltButton>
                 </span>
               </Tooltip>
@@ -252,7 +234,6 @@ export function useElecCalcElectricalColumnRenderers({
     getObjectActionDisabledReason,
     isCableMarkPending,
     openCableMarkModal,
-    openCableSizingModal,
     projectSelected,
     recalc,
   ]);

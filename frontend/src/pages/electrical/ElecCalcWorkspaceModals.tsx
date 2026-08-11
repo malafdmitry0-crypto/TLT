@@ -2,35 +2,25 @@
  * @module electrical/workspace-modals
  * @owner electrical
  */
-import { lazy, Suspense, type ComponentProps, type ReactNode } from 'react';
-import { Modal } from 'antd';
+import { lazy, Suspense, type ReactNode } from 'react';
 
 import ElecCalcCableMarkModal from '@/pages/electrical/ElecCalcCableMarkModal';
-import ElecCalcCableSizingModal from '@/pages/electrical/ElecCalcCableSizingModal';
 import type { ProjectObject } from '@/types/project';
 import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
 import type { CableMarkSelectOption } from '@/pages/electrical/elecCalcCableOptionModel';
 import type { CableStatusRow } from '@/pages/electrical/elecCalcCableCatalogModel';
+import type { ElecCalcAutoAvailability } from '@/pages/electrical/elecCalcAutoAvailabilityModel';
 import type { CableTypeSelectOption } from '@/pages/electrical/elecCalcCableTypeOptionsModel';
-import type { ElectricalVariantTargetOption } from '@/pages/electrical/elecCalcVariantModel';
-import type {
-  ElectricalCandidateColumnKey,
-  ElectricalCandidateTableColumnSettings,
-} from '@/utils/electricalCandidateTableColumns';
 import type {
   ElectricalColumnKey,
   ElectricalTableColumnSettings,
 } from '@/utils/electricalTableColumns';
-import {  TltTextField  } from '@/components/ui-kit';
 import type {
   ElectricalTableFontSize,
   ElectricalTableLabelFormat,
   ElectricalTableViewSettings,
 } from '@/utils/electricalTableViewSettings';
 
-const ElectricalCandidateColumnSettingsModal = lazy(
-  () => import('@/components/electrical/ElectricalCandidateColumnSettingsModal'),
-);
 const ElectricalColumnSettingsModal = lazy(
   () => import('@/components/electrical/ElectricalColumnSettingsModal'),
 );
@@ -38,8 +28,6 @@ const ElectricalColumnSettingsModal = lazy(
 type PendingMutation = {
   isPending: boolean;
 };
-
-type CableSizingModalProps = ComponentProps<typeof ElecCalcCableSizingModal>;
 
 /**
  * Explicit modal lifecycle + selection contract (AF9-TYPE-ELEC-MODALS-01).
@@ -56,81 +44,20 @@ export type ElecCalcWorkspaceModalsProps = {
   cableMarkModalAssignmentReason: string | null;
   isCableMarkPending: boolean;
   cableMarkModalValue: string | null;
+  cableMarkModalThreadCountValue: 'auto' | '1' | '2' | '3';
   cableMarkModalOptions: CableMarkSelectOption[];
-  cableMarkModalTargetVariants: string[];
-  cableMarkModalTargetVariantOptions: ElectricalVariantTargetOption[];
+  cableMarkModalAutoAvailability: ElecCalcAutoAvailability;
+  retryCableMarkModalAutoAvailability: () => void;
+  electricalVariantName: string;
   renderElectricalTypeControls: (
     cableType: CableTypeKey | null,
     options?: { block?: boolean },
   ) => ReactNode;
   changeCableMarkModalCableType: (nextType: CableTypeKey) => void;
   setCableMarkModalValue: (nextValue: string) => void;
-  setCableMarkModalTargetVariantsFromValues: (values: readonly unknown[]) => void;
+  setCableMarkModalThreadCountValue: (nextValue: 'auto' | '1' | '2' | '3') => void;
   applyCableMarkModal: () => void;
   closeCableMarkModal: () => void;
-  cableSizingModalAssignmentReason: string | null;
-  cableSizingModal: CableSizingModalProps['cableSizingModal'];
-  candidate: CableSizingModalProps['candidate'];
-  cableSizingModalSelectedCable: CableStatusRow | null;
-  cableSizingModalCableTypeOptions: CableTypeSelectOption[];
-  cableSizingManualOptions: CableSizingModalProps['cableSizingManualOptions'];
-  cableSizingCandidateTableScrollX: number;
-  resolvedTableFontSize: { key: string };
-  electricalCandidateGlideColumns: CableSizingModalProps['electricalCandidateGlideColumns'];
-  candidateTableViewState: CableSizingModalProps['candidateTableViewState'];
-  candidateTableViewActive: boolean;
-  cableTypes: {
-    normalizeAvailableCableType: (type: CableTypeKey) => CableTypeKey;
-  };
-  closeCableSizingModal: () => void;
-  setRecalc: {
-    connectionType: (value: string) => void;
-  };
-  openCandidateColumnSettings: () => void;
-  resetCandidateTableViewState: () => void;
-  candidateFolderEmptyText: CableSizingModalProps['candidateFolderEmptyText'];
-  showDeleteCandidateFolderConfirm: CableSizingModalProps['onDeleteCandidateFolder'];
-  getElectricalCandidateGlideCellState: CableSizingModalProps['getCandidateCellState'];
-  handleElectricalCandidateGlideCellAction: CableSizingModalProps['onCandidateCellAction'];
-  getElectricalCandidateGlideActionMenuItems: CableSizingModalProps['getCandidateActionMenuItems'];
-  setCandidateColumnFilter: CableSizingModalProps['onSetCandidateColumnFilter'];
-  resetCandidateColumnFilter: CableSizingModalProps['onResetCandidateColumnFilter'];
-  setCandidateTableSort: CableSizingModalProps['onSetCandidateSort'];
-  applyElectricalCandidateGlideColumnDraftWidth: CableSizingModalProps['onCandidateColumnResize'];
-  commitElectricalCandidateGlideColumnWidth: CableSizingModalProps['onCandidateColumnResizeEnd'];
-  candidateFolderModalOpen: boolean;
-  candidateFolderModalMode: 'create' | 'rename' | string;
-  createCandidateFolderMut: PendingMutation;
-  updateCandidateFolderMut: PendingMutation;
-  candidateFolderName: string;
-  submitCandidateFolderModal: () => void;
-  closeCandidateFolderModal: () => void;
-  setCandidateFolderName: (name: string) => void;
-  candidateColumnSettingsOpen: boolean;
-  setCandidateColumnSettingsOpen: (open: boolean) => void;
-  draftCandidateTableColumnSettings: ElectricalCandidateTableColumnSettings;
-  normalizedTableViewSettings: { settingsLabelFormat: ElectricalTableLabelFormat };
-  updateCandidateTableColumnPreference: PendingMutation;
-  applyCandidateColumnSettings: () => void;
-  selectAllDraftCandidateColumns: () => void;
-  resetDraftCandidateColumns: () => void;
-  updateDraftCandidateColumn: (
-    key: ElectricalCandidateColumnKey,
-    checked: boolean,
-  ) => void;
-  updateDraftCandidateColumnOrder: (
-    key: ElectricalCandidateColumnKey,
-    order: number,
-  ) => void;
-  reorderDraftCandidateColumn: (
-    activeKey: ElectricalCandidateColumnKey,
-    overKey: ElectricalCandidateColumnKey,
-  ) => void;
-  updateDraftCandidateColumnWidth: (
-    key: ElectricalCandidateColumnKey,
-    widthPct: number,
-  ) => void;
-  resetDraftCandidateColumnWidth: (key: ElectricalCandidateColumnKey) => void;
   columnSettingsOpen: boolean;
   setColumnSettingsOpen: (open: boolean) => void;
   draftTableColumnSettings: ElectricalTableColumnSettings;
@@ -168,62 +95,17 @@ export function ElecCalcWorkspaceModals(p: ElecCalcWorkspaceModalsProps): ReactN
     cableMarkModalAssignmentReason,
     isCableMarkPending,
     cableMarkModalValue,
+    cableMarkModalThreadCountValue,
     cableMarkModalOptions,
-    cableMarkModalTargetVariants,
-    cableMarkModalTargetVariantOptions,
+    cableMarkModalAutoAvailability,
+    retryCableMarkModalAutoAvailability,
+    electricalVariantName,
     renderElectricalTypeControls,
     changeCableMarkModalCableType,
     setCableMarkModalValue,
-    setCableMarkModalTargetVariantsFromValues,
+    setCableMarkModalThreadCountValue,
     applyCableMarkModal,
     closeCableMarkModal,
-    cableSizingModalAssignmentReason,
-    cableSizingModal,
-    candidate,
-    cableSizingModalSelectedCable,
-    cableSizingModalCableTypeOptions,
-    cableSizingManualOptions,
-    cableSizingCandidateTableScrollX,
-    resolvedTableFontSize,
-    electricalCandidateGlideColumns,
-    candidateTableViewState,
-    candidateTableViewActive,
-    cableTypes,
-    closeCableSizingModal,
-    setRecalc,
-    openCandidateColumnSettings,
-    resetCandidateTableViewState,
-    candidateFolderEmptyText,
-    showDeleteCandidateFolderConfirm,
-    getElectricalCandidateGlideCellState,
-    handleElectricalCandidateGlideCellAction,
-    getElectricalCandidateGlideActionMenuItems,
-    setCandidateColumnFilter,
-    resetCandidateColumnFilter,
-    setCandidateTableSort,
-    applyElectricalCandidateGlideColumnDraftWidth,
-    commitElectricalCandidateGlideColumnWidth,
-    candidateFolderModalOpen,
-    candidateFolderModalMode,
-    createCandidateFolderMut,
-    updateCandidateFolderMut,
-    candidateFolderName,
-    submitCandidateFolderModal,
-    closeCandidateFolderModal,
-    setCandidateFolderName,
-    candidateColumnSettingsOpen,
-    setCandidateColumnSettingsOpen,
-    draftCandidateTableColumnSettings,
-    normalizedTableViewSettings,
-    updateCandidateTableColumnPreference,
-    applyCandidateColumnSettings,
-    selectAllDraftCandidateColumns,
-    resetDraftCandidateColumns,
-    updateDraftCandidateColumn,
-    updateDraftCandidateColumnOrder,
-    reorderDraftCandidateColumn,
-    updateDraftCandidateColumnWidth,
-    resetDraftCandidateColumnWidth,
     columnSettingsOpen,
     setColumnSettingsOpen,
     draftTableColumnSettings,
@@ -261,89 +143,19 @@ export function ElecCalcWorkspaceModals(p: ElecCalcWorkspaceModalsProps): ReactN
         }
         pending={isCableMarkPending}
         value={cableMarkModalValue}
+        threadCountValue={cableMarkModalThreadCountValue}
         markOptions={cableMarkModalOptions}
-        targetVariants={cableMarkModalTargetVariants}
-        targetVariantOptions={cableMarkModalTargetVariantOptions}
+        electricalVariantName={electricalVariantName}
+        autoAvailability={cableMarkModalAutoAvailability}
         renderTypeControls={(nextCableType) =>
           renderElectricalTypeControls(nextCableType, { block: true })}
         onCableTypeChange={changeCableMarkModalCableType}
         onMarkChange={setCableMarkModalValue}
-        onTargetVariantsChange={setCableMarkModalTargetVariantsFromValues}
+        onThreadCountChange={setCableMarkModalThreadCountValue}
         onApply={applyCableMarkModal}
+        onRetryAutoAvailability={retryCableMarkModalAutoAvailability}
         onCancel={closeCableMarkModal}
       />
-      <ElecCalcCableSizingModal
-        canMutate={canMutate && cableSizingModalAssignmentReason == null}
-        cableSizingModal={cableSizingModal}
-        candidate={candidate}
-        selectedCable={cableSizingModalSelectedCable}
-        commercialFeaturesAvailable={commercialFeaturesAvailable}
-        cableTypeOptions={cableSizingModalCableTypeOptions}
-        cableSizingManualOptions={cableSizingManualOptions}
-        candidateTableScrollX={cableSizingCandidateTableScrollX}
-        candidateFontSizeKey={resolvedTableFontSize.key}
-        electricalCandidateGlideColumns={electricalCandidateGlideColumns}
-        candidateTableViewState={candidateTableViewState}
-        candidateTableViewActive={candidateTableViewActive}
-        normalizeAvailableCableType={cableTypes.normalizeAvailableCableType}
-        onClose={closeCableSizingModal}
-        onResetConnectionType={() => setRecalc.connectionType('line_1ph')}
-        onOpenCandidateColumnSettings={openCandidateColumnSettings}
-        onResetCandidateTableViewState={resetCandidateTableViewState}
-        renderTypeControls={renderElectricalTypeControls}
-        candidateFolderEmptyText={candidateFolderEmptyText}
-        onDeleteCandidateFolder={showDeleteCandidateFolderConfirm}
-        getCandidateCellState={getElectricalCandidateGlideCellState}
-        onCandidateCellAction={handleElectricalCandidateGlideCellAction}
-        getCandidateActionMenuItems={getElectricalCandidateGlideActionMenuItems}
-        onSetCandidateColumnFilter={setCandidateColumnFilter}
-        onResetCandidateColumnFilter={resetCandidateColumnFilter}
-        onSetCandidateSort={setCandidateTableSort}
-        onCandidateColumnResize={applyElectricalCandidateGlideColumnDraftWidth}
-        onCandidateColumnResizeEnd={commitElectricalCandidateGlideColumnWidth}
-      />
-      <Modal
-        open={candidateFolderModalOpen}
-        title={candidateFolderModalMode === 'rename' ? 'Переименовать папку' : 'Новая папка'}
-        okText={candidateFolderModalMode === 'rename' ? 'Сохранить' : 'Создать'}
-        cancelText="Отмена"
-        confirmLoading={createCandidateFolderMut.isPending || updateCandidateFolderMut.isPending}
-        okButtonProps={{ disabled: !canMutate || candidateFolderName.trim().length === 0 }}
-        onOk={submitCandidateFolderModal}
-        onCancel={closeCandidateFolderModal}
-      >
-        <TltTextField
-          autoFocus
-          maxLength={64}
-          value={candidateFolderName}
-          placeholder="Название папки"
-          aria-label="Название папки вариантов"
-          disabled={!canMutate}
-          onChange={setCandidateFolderName}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') submitCandidateFolderModal();
-          }}
-        />
-      </Modal>
-      {candidateColumnSettingsOpen && (
-        <Suspense fallback={null}>
-          <ElectricalCandidateColumnSettingsModal
-            open={candidateColumnSettingsOpen}
-            settings={draftCandidateTableColumnSettings}
-            settingsLabelFormat={normalizedTableViewSettings.settingsLabelFormat}
-            confirmLoading={updateCandidateTableColumnPreference.isPending}
-            onOk={applyCandidateColumnSettings}
-            onCancel={() => setCandidateColumnSettingsOpen(false)}
-            onSelectAllColumns={selectAllDraftCandidateColumns}
-            onResetColumns={resetDraftCandidateColumns}
-            onVisibleChange={updateDraftCandidateColumn}
-            onOrderChange={updateDraftCandidateColumnOrder}
-            onColumnReorder={reorderDraftCandidateColumn}
-            onWidthChange={updateDraftCandidateColumnWidth}
-            onResetWidth={resetDraftCandidateColumnWidth}
-          />
-        </Suspense>
-      )}
       {columnSettingsOpen && (
         <Suspense fallback={null}>
           <ElectricalColumnSettingsModal

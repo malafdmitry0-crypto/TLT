@@ -54,7 +54,7 @@ describe('elecCalcAssignmentScopeModel', () => {
     );
   });
 
-  it('открывает manual/candidate flow для свежего resistive assignment и выбирает безопасный тип', () => {
+  it('открывает выбор марки для свежего resistive assignment и выбирает безопасный тип', () => {
     const freshResistive = assignment('resistive-fresh', 'resistive', 'stale', 2);
 
     expect(electricalAssignmentAvailabilityReason(freshResistive)).toBeNull();
@@ -109,4 +109,3 @@ describe('elecCalcAssignmentScopeModel', () => {
     expect([...electricalAssignmentVersionsMap(byObject).entries()]).toEqual([['a', 3]]);
   });
 });
-

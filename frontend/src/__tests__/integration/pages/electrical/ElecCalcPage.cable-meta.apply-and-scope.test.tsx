@@ -17,7 +17,8 @@ describe('ElecCalcPage cable metadata / source / inline — apply-and-scope', ()
     resetElecCalcIntegrationState();
   });
   it('закрывает модалку выбора марки после успешного применения', async () => {
-    const { getElectricalPage, listCables, selectCableForVariants } = await import('@/api/calculations');
+    const { getElectricalPage, listCables } = await import('@/api/calculations');
+    const { selectElectricalAssignmentCable: selectCableForVariants } = await import('@/api/electricalVariants');
     const user = (await import('@testing-library/user-event')).default.setup();
     (listCables as ReturnType<typeof vi.fn>).mockResolvedValue([
       {
@@ -37,14 +38,6 @@ describe('ElecCalcPage cable metadata / source / inline — apply-and-scope', ()
         },
       },
     ]);
-    (selectCableForVariants as ReturnType<typeof vi.fn>).mockResolvedValue([{
-      id: 'c-1',
-      object_id: 'o-1',
-      cable_type: 'self_regulating',
-      cable_mark: 'ТЛТ-30',
-      variant_number: 1,
-      results: { selected_cable: 'ТЛТ-30' },
-    }]);
     (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(
       makeElectricalPage([makeObject()], [
         {
@@ -80,8 +73,9 @@ describe('ElecCalcPage cable metadata / source / inline — apply-and-scope', ()
       expect(screen.queryByRole('dialog', { name: /Выбор марки кабеля/ })).not.toBeInTheDocument();
     });
   });
-  it('по умолчанию сохраняет выбор марки в открытое СО и позволяет отметить другие СО', async () => {
-    const { getElectricalPage, listCables, selectCableForVariants } = await import('@/api/calculations');
+  it('сохраняет выбор марки строго в открытый текущий ЭР без multi-ЭР управления', async () => {
+    const { getElectricalPage, listCables } = await import('@/api/calculations');
+    const { selectElectricalAssignmentCable: selectCableForVariants } = await import('@/api/electricalVariants');
     const user = (await import('@testing-library/user-event')).default.setup();
     (listCables as ReturnType<typeof vi.fn>).mockResolvedValue([
       {
@@ -95,14 +89,6 @@ describe('ElecCalcPage cable metadata / source / inline — apply-and-scope', ()
         voltage: 220,
       },
     ]);
-    (selectCableForVariants as ReturnType<typeof vi.fn>).mockResolvedValue([{
-      id: 'c-1',
-      object_id: 'o-1',
-      cable_type: 'self_regulating',
-      cable_mark: 'ТЛТ-30',
-      variant_number: 2,
-      results: { selected_cable: 'ТЛТ-30' },
-    }]);
     (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(
       makeElectricalPage([makeObject()], [
         {
@@ -133,20 +119,18 @@ describe('ElecCalcPage cable metadata / source / inline — apply-and-scope', ()
     await user.click(within(row).getByRole('button', { name: 'Выбор' }));
     const dialog = await screen.findByRole('dialog', { name: /Выбор марки кабеля/ });
 
-    expect(within(dialog).getByRole('checkbox', { name: 'ЭР1' })).not.toBeChecked();
-    expect(within(dialog).getByRole('checkbox', { name: 'ЭР2' })).toBeChecked();
-    await user.click(within(dialog).getByRole('checkbox', { name: 'ЭР4' }));
+    expect(within(dialog).queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(within(dialog).getByText(/только к текущему ЭР: ЭР2/)).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
 
     await waitFor(() => {
       expect(selectCableForVariants).toHaveBeenCalledTimes(1);
     });
-    expect((selectCableForVariants as ReturnType<typeof vi.fn>).mock.calls[0][3])
-      .toEqual([2, 4]);
-    expect((selectCableForVariants as ReturnType<typeof vi.fn>).mock.calls[0][6])
-      .toEqual({
-        2: '22222222-2222-4222-8222-222222222222',
-        4: '44444444-4444-4444-8444-444444444444',
-      });
+    expect(selectCableForVariants).toHaveBeenCalledWith(
+      'p-1',
+      '22222222-2222-4222-8222-222222222222',
+      'o-1',
+      expect.objectContaining({ mode: 'manual', cable_mark: 'ТЛТ-30', thread_count: 1 }),
+    );
   });
 });

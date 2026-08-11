@@ -1,4 +1,5 @@
 import type { ProjectObject } from '@/types/project';
+import type { ElectricalCalcSummary } from '@/types/calculation';
 
 export type ElectricalSystemType =
   | 'self_regulating'
@@ -112,6 +113,23 @@ export interface ElectricalAssignmentOverridesPatchRequest {
   manual_cable_model?: string | null;
   tank_heating_height_m?: number | null;
   tank_laying_step_m?: number | null;
+}
+
+export type ElectricalCableSelectionMode = 'auto' | 'manual';
+
+export interface ElectricalCableSelectionRequest {
+  expected_assignment_version: number;
+  mode: ElectricalCableSelectionMode;
+  cable_mark: string | null;
+  cable_source?: 'builtin' | 'commercial' | 'extended' | 'all';
+  selection_policy?: 'technical_minimum' | 'min_total_cost';
+  thread_count?: number | null;
+  winding_pitch_mm?: number | null;
+}
+
+export interface ElectricalCableSelectionResponse {
+  assignment: ElectricalAssignment;
+  calculation: ElectricalCalcSummary;
 }
 
 export interface ElectricalAssignment {

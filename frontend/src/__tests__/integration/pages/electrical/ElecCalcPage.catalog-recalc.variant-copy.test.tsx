@@ -16,8 +16,8 @@ describe('ElecCalcPage catalog / recalculation / selection — variant copy', ()
       getElectricalPage,
       listElectricalCandidateFolders,
       listElectricalCandidates,
-      selectCableForVariants,
     } = await import('@/api/calculations');
+    const { selectElectricalAssignmentCable: selectCableForVariants } = await import('@/api/electricalVariants');
     (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage(
       [makeObject()],
       [
