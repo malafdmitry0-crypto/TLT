@@ -82,6 +82,7 @@ export function EmptyElectricalVariantState({
   if (!readiness) {
     return <LoadingCard text="Проверяем готовность к созданию ЭР…" />;
   }
+  const hasObjectIssues = readiness.issues.length > 0;
 
   const readinessDescription = (
     <Space direction="vertical" size={4} style={{ width: '100%' }}>
@@ -128,11 +129,15 @@ export function EmptyElectricalVariantState({
         </TltAlert>
       )}
       <TltAlert
-        tone={readiness.ready ? 'info' : 'warning'}
+        tone={readiness.ready && !hasObjectIssues ? 'info' : 'warning'}
         title={
-          readiness.ready
-            ? 'Можно создать первый электротехнический расчёт'
-            : 'ЭР пока нельзя создать'
+          !readiness.ready
+            ? 'ЭР пока нельзя создать'
+            : hasObjectIssues
+              ? readiness.ready_objects === 0
+                ? 'ЭР можно создать, но объекты пока не готовы'
+                : 'ЭР можно создать, но часть объектов не готова'
+              : 'Можно создать первый электротехнический расчёт'
         }
         action={(
           <TltButton

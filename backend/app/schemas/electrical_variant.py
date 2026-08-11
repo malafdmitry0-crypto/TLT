@@ -12,7 +12,7 @@ ElectricalSpecificationState = Literal["not_generated", "generated", "stale"]
 
 
 class ElectricalReadinessIssue(BaseModel):
-    """A stable, machine-readable reason why initialization is blocked."""
+    """A stable diagnostic; object-level issues need not block initialization."""
 
     code: str
     message: str
@@ -21,6 +21,8 @@ class ElectricalReadinessIssue(BaseModel):
 
 
 class ElectricalReadinessResponse(BaseModel):
+    """Eligibility of the ER container plus diagnostics for its individual parts."""
+
     project_id: UUID
     ready: bool
     total_objects: int
