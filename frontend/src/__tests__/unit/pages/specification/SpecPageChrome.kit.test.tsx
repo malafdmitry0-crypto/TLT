@@ -75,6 +75,16 @@ describe('SpecPageChrome UI kit strangler (U2)', () => {
     expect(screen.queryByText('Ед.')).not.toBeInTheDocument();
   });
 
+  it('does not allow clearing the specification grouping mode', () => {
+    renderChrome();
+
+    const groupingMode = screen.getByRole('combobox', {
+      name: 'Группировка строк при формировании',
+    });
+    expect(groupingMode.closest('.ant-select')).not.toHaveClass('ant-select-allow-clear');
+    expect(document.querySelector('.ant-select-clear')).not.toBeInTheDocument();
+  });
+
   it('renders settings param rows via CompactField + kit controls', () => {
     renderChrome();
 

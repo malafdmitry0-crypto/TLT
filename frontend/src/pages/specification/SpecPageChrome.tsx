@@ -21,16 +21,19 @@ import {
   TltNumberField,
   TltSelect,
 } from '@/components/ui-kit';
-import type {
-  AccessoryExtendedInfo,
-  SpecificationDiagnostic,
-  SpecificationGroupingMode,
+import {
+  type AccessoryExtendedInfo,
+  type SpecificationDiagnostic,
+  type SpecificationGroupingMode,
 } from '@/api/specifications';
 import {
   specificationBackendFieldErrors,
   type SpecGenerateField,
 } from '@/pages/specification/specGenerateOptionsModel';
-import { resolveSpecificationCatalogLabel } from '@/pages/specification/specGenerationOptionsSyncModel';
+import {
+  DEFAULT_SPECIFICATION_GROUPING_MODE,
+  resolveSpecificationCatalogLabel,
+} from '@/pages/specification/specGenerationOptionsSyncModel';
 import type { Specification } from '@/types/specification';
 import { SpecificationReadinessAlert } from '@/pages/specification/SpecificationReadinessAlert';
 import { SpecificationTnpFields } from '@/pages/specification/SpecificationTnpFields';
@@ -65,8 +68,8 @@ export type SpecPageChromeProps = {
   setTopIndication: (value: boolean) => void;
   minLengthK2i: string;
   setMinLengthK2i: (value: string) => void;
-  groupingMode: SpecificationGroupingMode | null;
-  setGroupingMode: (value: SpecificationGroupingMode | null) => void;
+  groupingMode: SpecificationGroupingMode;
+  setGroupingMode: (value: SpecificationGroupingMode) => void;
   generationDiagnostics: SpecificationDiagnostic[];
   /** Required catalog choices for the active generation workflow. */
   candidateSelection?: ReactNode;
@@ -270,15 +273,13 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
                   aria-describedby={visibleErrors.groupingMode
                     ? 'spec-grouping-mode-error'
                     : undefined}
-                  value={groupingMode}
-                  allowClear
-                  placeholder="Не задано"
+                  value={groupingMode ?? DEFAULT_SPECIFICATION_GROUPING_MODE}
                   disabled={!canMutateProject}
-                  onChange={(value) => setGroupingMode(
-                    value === 'separate_by_object_type' || value === 'merge_materials'
-                      ? value
-                      : null,
-                  )}
+                  onChange={(value) => {
+                    if (value === 'separate_by_object_type' || value === 'merge_materials') {
+                      setGroupingMode(value);
+                    }
+                  }}
                   options={[
                     { value: 'separate_by_object_type', label: 'Разделять по типам объектов' },
                     { value: 'merge_materials', label: 'Объединять материалы' },
