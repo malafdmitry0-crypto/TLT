@@ -8,7 +8,7 @@ from pydantic import ValidationError
 from app.reference_data.loader import list_soil_conductivity
 from app.schemas.calculation import (
     ElectricalBatchJobRequest,
-    ElectricalCableSelectionVariantsRequest,
+    ElectricalCableSelectionRequest,
     InsulationLayer,
     PipeHeatLossParams,
     SelfRegulatingTTParams,
@@ -479,11 +479,6 @@ class LegacyTankHeatLossParams:
 
 
 class TestElectricalTankLayingStepLimits:
-    def test_omitted_selection_policy_is_forwarded_for_variant_selection(self):
-        request = ElectricalCableSelectionVariantsRequest(object_id=uuid4())
-
-        assert request.electrical_params() == {"selection_policy": "technical_minimum"}
-
     def test_omitted_selection_policy_is_forwarded_for_batch_job(self):
         request = ElectricalBatchJobRequest(project_id=uuid4())
 
@@ -492,13 +487,11 @@ class TestElectricalTankLayingStepLimits:
     def test_case1_tt_requests_expose_voltage_but_not_external_winding_factor(self):
         for schema in (
             SelfRegulatingTTParams,
-            ElectricalCableSelectionVariantsRequest,
             ElectricalBatchJobRequest,
         ):
             assert "supply_voltage" in schema.model_fields
             assert "winding_coefficient" not in schema.model_fields
         for removed in ("steam_temperature_c", "maintain_temperature_c", "aggressive_product"):
-            assert removed not in ElectricalCableSelectionVariantsRequest.model_fields
             assert removed not in ElectricalBatchJobRequest.model_fields
 
         direct = {
@@ -510,11 +503,6 @@ class TestElectricalTankLayingStepLimits:
         }
         with pytest.raises(ValidationError):
             SelfRegulatingTTParams(**direct, winding_coefficient=1.2)
-        with pytest.raises(ValidationError):
-            ElectricalCableSelectionVariantsRequest(
-                object_id=uuid4(),
-                maintain_temperature_c=10,
-            )
         with pytest.raises(ValidationError):
             ElectricalBatchJobRequest(
                 project_id=uuid4(),
@@ -540,20 +528,6 @@ class TestElectricalTankLayingStepLimits:
 
     def test_electrical_request_laying_step_bounds_match_source_document(self):
         """Source: Блок теплопотери и выбор кабеля/переменные резервуар.xlsx, Лист1!A22:D22."""
-        object_id = uuid4()
-        assert ElectricalCableSelectionVariantsRequest(
-            object_id=object_id,
-            laying_step=0.1,
-        ).laying_step == 0.1
-        assert ElectricalCableSelectionVariantsRequest(
-            object_id=object_id,
-            laying_step=0.4,
-        ).laying_step == 0.4
-        with pytest.raises(ValidationError):
-            ElectricalCableSelectionVariantsRequest(object_id=object_id, laying_step=0.099)
-        with pytest.raises(ValidationError):
-            ElectricalCableSelectionVariantsRequest(object_id=object_id, laying_step=0.401)
-
         project_id = uuid4()
         assert ElectricalBatchJobRequest(project_id=project_id, laying_step=0.1).laying_step == 0.1
         assert ElectricalBatchJobRequest(project_id=project_id, laying_step=0.4).laying_step == 0.4
@@ -561,3 +535,34 @@ class TestElectricalTankLayingStepLimits:
             ElectricalBatchJobRequest(project_id=project_id, laying_step=0.099)
         with pytest.raises(ValidationError):
             ElectricalBatchJobRequest(project_id=project_id, laying_step=0.401)
+
+
+class TestElectricalCableSelectionRequest:
+    def test_manual_requires_exact_mark(self):
+        with pytest.raises(ValidationError):
+            ElectricalCableSelectionRequest(
+                expected_assignment_version=1,
+                mode="manual",
+                thread_count=1,
+            )
+        with pytest.raises(ValidationError):
+            ElectricalCableSelectionRequest(
+                expected_assignment_version=1,
+                mode="manual",
+                cable_mark="ТЛТ-25",
+            )
+
+    def test_auto_forbids_mark_and_accepts_explicit_auto_threads(self):
+        request = ElectricalCableSelectionRequest(
+            expected_assignment_version=3,
+            mode="auto",
+            cable_mark=None,
+            thread_count=None,
+        )
+        assert request.thread_count is None
+        with pytest.raises(ValidationError):
+            ElectricalCableSelectionRequest(
+                expected_assignment_version=3,
+                mode="auto",
+                cable_mark="ТЛТ-25",
+            )

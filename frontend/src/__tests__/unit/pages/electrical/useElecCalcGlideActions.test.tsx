@@ -25,18 +25,15 @@ function setup(
   options: Partial<Parameters<typeof useElecCalcGlideActions>[0]> = {},
 ) {
   const onOpenCableMarkModal = vi.fn();
-  const onOpenCableSizingModal = vi.fn();
 
   return {
     onOpenCableMarkModal,
-    onOpenCableSizingModal,
     ...renderHook(() => useElecCalcGlideActions({
       activeRowId: 'object-1',
       projectSelected: true,
       canMutate: true,
       isCableMarkPending: false,
       onOpenCableMarkModal,
-      onOpenCableSizingModal,
       ...options,
     })),
   };
@@ -51,7 +48,6 @@ describe('useElecCalcGlideActions', () => {
       .toBeUndefined();
     expect(result.current.getElectricalGlideCellActions(projectObject(), 'cable_mark')).toEqual([
       { key: 'choose', label: 'Выбор', disabled: false },
-      { key: 'size', label: 'Подбор', disabled: false },
     ]);
   });
 
@@ -61,38 +57,35 @@ describe('useElecCalcGlideActions', () => {
       'cable_mark',
     )).toEqual([
       { key: 'choose', label: 'Выбор', disabled: true },
-      { key: 'size', label: 'Подбор', disabled: true },
     ]);
 
     expect(setup({
       projectSelected: false,
     }).result.current.getElectricalGlideCellActions(projectObject(), 'cable_mark')).toEqual([
       { key: 'choose', label: 'Выбор', disabled: true },
-      { key: 'size', label: 'Подбор', disabled: true },
     ]);
 
     expect(setup({
       isCableMarkPending: true,
     }).result.current.getElectricalGlideCellActions(projectObject(), 'cable_mark')).toEqual([
       { key: 'choose', label: 'Выбор', disabled: true },
-      { key: 'size', label: 'Подбор', disabled: false },
     ]);
   });
 
-  it('routes choose and size actions to page callbacks without building payloads', () => {
+  it('routes the cable choice action to the page callback without building payloads', () => {
     const row = projectObject();
-    const { result, onOpenCableMarkModal, onOpenCableSizingModal } = setup();
+    const { result, onOpenCableMarkModal } = setup();
 
     result.current.handleElectricalGlideCellAction(row, 'cable_mark', 'choose');
     expect(onOpenCableMarkModal).toHaveBeenCalledWith(row);
 
     result.current.handleElectricalGlideCellAction(row, 'cable_mark', 'size');
-    expect(onOpenCableSizingModal).toHaveBeenCalledWith(row);
+    expect(onOpenCableMarkModal).toHaveBeenCalledTimes(1);
   });
 
   it('keeps guards for action routing', () => {
     const row = projectObject();
-    const { result, onOpenCableMarkModal, onOpenCableSizingModal } = setup({
+    const { result, onOpenCableMarkModal } = setup({
       projectSelected: false,
     });
 
@@ -101,7 +94,6 @@ describe('useElecCalcGlideActions', () => {
     result.current.handleElectricalGlideCellAction(row, 'diameter_mm', 'choose');
 
     expect(onOpenCableMarkModal).not.toHaveBeenCalled();
-    expect(onOpenCableSizingModal).not.toHaveBeenCalled();
 
     const pending = setup({ isCableMarkPending: true });
     pending.result.current.handleElectricalGlideCellAction(row, 'cable_mark', 'choose');
@@ -113,24 +105,20 @@ describe('useElecCalcGlideActions', () => {
     }), 'cable_mark', 'size');
 
     expect(pending.onOpenCableMarkModal).not.toHaveBeenCalled();
-    expect(pending.onOpenCableSizingModal).not.toHaveBeenCalled();
   });
 
-  it('keeps sizing inspection available but blocks cable writes in read-only mode', () => {
+  it('blocks cable choice in read-only mode', () => {
     const row = projectObject();
-    const { result, onOpenCableMarkModal, onOpenCableSizingModal } = setup({
+    const { result, onOpenCableMarkModal } = setup({
       canMutate: false,
     });
 
     expect(result.current.getElectricalGlideCellActions(row, 'cable_mark')).toEqual([
       { key: 'choose', label: 'Выбор', disabled: true },
-      { key: 'size', label: 'Подбор', disabled: false },
     ]);
 
     result.current.handleElectricalGlideCellAction(row, 'cable_mark', 'choose');
-    result.current.handleElectricalGlideCellAction(row, 'cable_mark', 'size');
 
     expect(onOpenCableMarkModal).not.toHaveBeenCalled();
-    expect(onOpenCableSizingModal).toHaveBeenCalledWith(row);
   });
 });

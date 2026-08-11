@@ -44,7 +44,6 @@ export {
   enqueueElectricalVariantBatchJob,
   copyElectricalVariant,
   selectCableManual,
-  selectCableForVariants,
 } from './electricalBatchCalc';
 
 export async function calcHeatLoss(
@@ -76,6 +75,8 @@ export type CableOptionOut = {
   passport_power_w_per_m: number | null;
   min_ambient_temperature_c: number | null;
   max_product_temperature_c: number | null;
+  object_ambient_temperature_c?: number | null;
+  object_product_temperature_c?: number | null;
   eligible: boolean;
   unavailable_reason: string | null;
   nomenclature_code?: string | null;

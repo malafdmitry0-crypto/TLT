@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import {
-  Checkbox,
   Modal,
   Space,
   Typography,
@@ -13,12 +12,12 @@ import {
   type CableMarkSelectOption,
 } from '@/pages/electrical/elecCalcCableOptionModel';
 import type { CableStatusRow } from '@/pages/electrical/elecCalcCableCatalogModel';
+import type { ElecCalcAutoAvailability } from '@/pages/electrical/elecCalcAutoAvailabilityModel';
 import {
   objectDisplayName,
   type CableTypeKey,
 } from '@/domain/electrical/elecCalcMainTableModel';
-import type { ElectricalVariantTargetOption } from '@/pages/electrical/elecCalcVariantModel';
-import { TltSelect } from '@/components/ui-kit';
+import { TltAlert, TltButton, TltSelect } from '@/components/ui-kit';
 
 const { Text } = Typography;
 
@@ -36,14 +35,16 @@ type ElecCalcCableMarkModalProps = {
   projectSelected: boolean;
   pending: boolean;
   value: string | null;
+  threadCountValue: 'auto' | '1' | '2' | '3';
   markOptions: CableMarkSelectOption[];
-  targetVariants: string[];
-  targetVariantOptions: ElectricalVariantTargetOption[];
+  electricalVariantName: string;
+  autoAvailability: ElecCalcAutoAvailability;
   renderTypeControls: (cableType: CableTypeKey) => ReactNode;
   onCableTypeChange: (nextType: CableTypeKey) => void;
   onMarkChange: (nextValue: string) => void;
-  onTargetVariantsChange: (values: readonly unknown[]) => void;
+  onThreadCountChange: (nextValue: 'auto' | '1' | '2' | '3') => void;
   onApply: () => void;
+  onRetryAutoAvailability: () => void;
   onCancel: () => void;
 };
 
@@ -56,21 +57,20 @@ export default function ElecCalcCableMarkModal({
   projectSelected,
   pending,
   value,
+  threadCountValue,
   markOptions,
-  targetVariants,
-  targetVariantOptions,
+  electricalVariantName,
+  autoAvailability,
   renderTypeControls,
   onCableTypeChange,
   onMarkChange,
-  onTargetVariantsChange,
+  onThreadCountChange,
   onApply,
+  onRetryAutoAvailability,
   onCancel,
 }: ElecCalcCableMarkModalProps) {
-  const allTargetsAreSubmittable = targetVariants.length > 0 && targetVariants.every(
-    (targetVariantId) =>
-    targetVariantOptions.some((option) =>
-      option.value === targetVariantId && !option.disabled),
-  );
+  const selectedValue = value ?? AUTO_CABLE_MARK_VALUE;
+  const autoBlocked = selectedValue === AUTO_CABLE_MARK_VALUE && autoAvailability.blocked;
   const title = (
     <div className="electrical-cable-picker-title">
       <span className="electrical-cable-picker-title-text">Выбор марки кабеля</span>
@@ -96,7 +96,7 @@ export default function ElecCalcCableMarkModal({
       cancelText="Отмена"
       confirmLoading={pending}
       okButtonProps={{
-        disabled: !projectSelected || !object?.is_valid || !value || !allTargetsAreSubmittable,
+        disabled: !projectSelected || !object?.is_valid || !value || autoBlocked,
       }}
       onOk={onApply}
       onCancel={onCancel}
@@ -143,32 +143,40 @@ export default function ElecCalcCableMarkModal({
           />
         </div>
         <div>
-          <Text id="electrical-cable-target-variants-label" type="secondary">
-            Сохранить в ЭР
-          </Text>
-          <div
-            role="group"
-            aria-labelledby="electrical-cable-target-variants-label"
-            aria-describedby="electrical-cable-target-variants-help"
-          >
-            <Checkbox.Group<string>
-              options={targetVariantOptions}
-              value={targetVariants}
-              disabled={!projectSelected || pending}
-              onChange={onTargetVariantsChange}
-              className="electrical-radio-row"
-            />
-          </div>
+          <Text type="secondary">Количество ниток</Text>
+          <TltSelect
+            aria-label="Количество ниток"
+            value={threadCountValue}
+            options={selectedValue === AUTO_CABLE_MARK_VALUE
+              ? [{ value: 'auto', label: 'Авто' }]
+              : [1, 2, 3].map((count) => ({ value: String(count), label: String(count) }))}
+            disabled={!object?.is_valid || !projectSelected || pending}
+            className="tlt-field--fill-mt"
+            onChange={(nextValue) => {
+              if (nextValue === 'auto' || nextValue === '1' || nextValue === '2' || nextValue === '3') {
+                onThreadCountChange(nextValue);
+              }
+            }}
+          />
         </div>
         <Text
-          id="electrical-cable-target-variants-help"
           type="secondary"
           className="electrical-radio-hint"
         >
-          «Авто» запустит автоподбор для выбранных ЭР. Выбор конкретной марки сохранит
-          ручной подбор в отмеченных ЭР. Недоступные ЭР ещё не поддерживают перенос
-          марки в текущем расчётном сервисе.
+          Изменения будут применены только к текущему ЭР: {electricalVariantName}.
         </Text>
+        {autoBlocked && (
+          <TltAlert
+            tone={autoAvailability.tone}
+            action={autoAvailability.canRetry ? (
+              <TltButton size="compact" onClick={onRetryAutoAvailability}>
+                Повторить проверку
+              </TltButton>
+            ) : undefined}
+          >
+            {autoAvailability.message}
+          </TltAlert>
+        )}
       </Space>
     </Modal>
   );

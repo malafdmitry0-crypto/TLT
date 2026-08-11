@@ -155,7 +155,8 @@ describe('ElecCalcPage cable metadata / source / inline — source-inline-batch'
     });
   });
   it('не пересчитывает объект из inline-полей таблицы', async () => {
-    const { getElectricalPage, selectCableForVariants } = await import('@/api/calculations');
+    const { getElectricalPage } = await import('@/api/calculations');
+    const { selectElectricalAssignmentCable: selectCableForVariants } = await import('@/api/electricalVariants');
     (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(
       makeElectricalPage([makeObject()], [
         {
