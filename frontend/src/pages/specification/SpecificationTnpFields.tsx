@@ -6,8 +6,8 @@
 import {
   CompactField,
   CompactFieldGrid,
+  TltButton,
   TltNumberField,
-  TltSelect,
 } from '@/components/ui-kit';
 import type {
   SpecGenerateField,
@@ -53,21 +53,37 @@ export function SpecificationTnpFields({
           required
           error={errors[field] ? <span id={`${id}-error`}>{errors[field]}</span> : undefined}
         >
-          <TltSelect
+          <div
             id={id}
-            className="specification-settings-field-full"
-            required
-            status={errors[field] ? 'error' : ''}
-            aria-describedby={errors[field] ? `${id}-error` : undefined}
-            value={value ? 'yes' : 'no'}
-            disabled={disabled}
-            onChange={(next) => setValue(next === 'yes')}
-            options={[
-              { value: 'yes', label: 'Да' },
-              { value: 'no', label: 'Нет' },
-            ]}
+            className="specification-settings-binary-toggle"
+            role="group"
             aria-label={ariaLabel}
-          />
+            aria-required="true"
+            aria-describedby={errors[field] ? `${id}-error` : undefined}
+          >
+            <TltButton
+              className="specification-settings-binary-option"
+              variant={value ? 'primary' : 'secondary'}
+              disabled={disabled}
+              aria-pressed={value}
+              onClick={() => {
+                if (!value) setValue(true);
+              }}
+            >
+              Да
+            </TltButton>
+            <TltButton
+              className="specification-settings-binary-option"
+              variant={value ? 'secondary' : 'primary'}
+              disabled={disabled}
+              aria-pressed={!value}
+              onClick={() => {
+                if (value) setValue(false);
+              }}
+            >
+              Нет
+            </TltButton>
+          </div>
         </CompactField>
       ))}
       <CompactField

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SpecPageChrome } from '@/pages/specification/SpecPageChrome';
 
@@ -91,7 +91,8 @@ describe('SpecPageChrome UI kit strangler (U2)', () => {
     expect(screen.queryByText('Стандартная активная версия')).not.toBeInTheDocument();
   });
 
-  it('renders boolean TNP parameters as explicit Да / Нет selects', async () => {
+  it('renders boolean TNP parameters as two-button Да / Нет switches', async () => {
+    const user = userEvent.setup();
     const setExZone = vi.fn();
     const setIndicationOnBoxes = vi.fn();
     const setEndSectionIndication = vi.fn();
@@ -103,30 +104,52 @@ describe('SpecPageChrome UI kit strangler (U2)', () => {
       setTopIndication,
     });
 
-    const ex = screen.getByRole('combobox', { name: 'Параметр Ex' });
-    const k1i = screen.getByRole('combobox', { name: 'Параметр К1i' });
-    const k2i = screen.getByRole('combobox', { name: 'Параметр К2i' });
-    const kiu = screen.getByRole('combobox', { name: 'Параметр Кiu' });
+    const groups = [
+      screen.getByRole('group', { name: 'Параметр Ex' }),
+      screen.getByRole('group', { name: 'Параметр К1i' }),
+      screen.getByRole('group', { name: 'Параметр К2i' }),
+      screen.getByRole('group', { name: 'Параметр Кiu' }),
+    ];
+    const expectedValues = [false, false, true, false];
+    groups.forEach((group, index) => {
+      const yes = within(group).getByRole('button', { name: 'Да' });
+      const no = within(group).getByRole('button', { name: 'Нет' });
+      expect(yes).toHaveAttribute('aria-pressed', String(expectedValues[index]));
+      expect(no).toHaveAttribute('aria-pressed', String(!expectedValues[index]));
+      expect(within(group).getAllByRole('button', { pressed: true })).toHaveLength(1);
+    });
+    expect(screen.queryByRole('combobox', { name: 'Параметр Ex' })).not.toBeInTheDocument();
 
-    expect(ex.closest('.ant-select')).toHaveTextContent('Нет');
-    expect(k1i.closest('.ant-select')).toHaveTextContent('Нет');
-    expect(k2i.closest('.ant-select')).toHaveTextContent('Да');
-    expect(kiu.closest('.ant-select')).toHaveTextContent('Нет');
+    const exYes = within(groups[0]).getByRole('button', { name: 'Да' });
+    const exNo = within(groups[0]).getByRole('button', { name: 'Нет' });
+    await user.click(exNo);
+    expect(setExZone).not.toHaveBeenCalled();
 
-    const trigger = ex.closest('.ant-select');
-    const selector = trigger?.querySelector('.ant-select-selector') ?? ex;
-    fireEvent.mouseDown(selector);
-    const optionElement = screen.getAllByTitle('Да').find((element) => (
-      element.classList.contains('ant-select-item-option')
-    ));
-    if (!optionElement) throw new Error('Option Да not found');
-    fireEvent.mouseDown(optionElement);
-    fireEvent.click(optionElement);
+    await user.click(exYes);
 
     expect(setExZone).toHaveBeenCalledWith(true);
     expect(setIndicationOnBoxes).not.toHaveBeenCalled();
-    expect(setEndSectionIndication).not.toHaveBeenCalled();
     expect(setTopIndication).not.toHaveBeenCalled();
+
+    await user.click(within(groups[2]).getByRole('button', { name: 'Нет' }));
+    expect(setEndSectionIndication).toHaveBeenCalledWith(false);
+
+    exYes.focus();
+    await user.keyboard('{Enter}');
+    expect(setExZone).toHaveBeenLastCalledWith(true);
+  });
+
+  it('disables both binary choices when specification settings are read-only', () => {
+    renderChrome({ canMutateProject: false });
+
+    const groups = screen.getAllByRole('group', { name: /Параметр (Ex|К1i|К2i|Кiu)/ });
+    expect(groups).toHaveLength(4);
+    groups.forEach((group) => {
+      expect(within(group).getAllByRole('button')).toHaveLength(2);
+      within(group).getAllByRole('button').forEach((button) => {
+        expect(button).toBeDisabled();
+      });
+    });
   });
 
   it('shows Исправить on preflight modal and does not auto-confirm generate', async () => {
