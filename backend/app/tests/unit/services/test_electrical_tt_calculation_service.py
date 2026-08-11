@@ -168,6 +168,10 @@ async def test_tank_uses_same_selector_after_geometry_and_forces_direct_layout()
     assert result["resolved_inputs"]["cold_start_temperature_c"] == "-35.0"
     assert result["layout"]["winding_factor"] == 1
     assert result["layout"]["tank"]["shape"] == "cylindrical"
+    assert "winding_pitch" not in result
+    assert "winding_pitch_mm" not in result["layout"]
+    assert "winding_pitch" not in request.data
+    assert "outer_diameter_mm" not in request.data
 
 
 async def test_tank_rejects_explicit_pipe_winding_instead_of_silently_ignoring_it() -> None:

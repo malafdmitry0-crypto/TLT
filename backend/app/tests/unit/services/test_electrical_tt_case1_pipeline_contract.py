@@ -8,7 +8,7 @@ import pytest
 from app.electrical_domain import ElectricalFormulaError
 from app.schemas.electrical_inputs import CanonicalElectricalInputs, ResolvedElectricalInputs
 from app.services.electrical_catalog_service import ElectricalCatalogService
-from app.services.electrical_tt_pipeline import calculate_electrical_tt
+from app.services.electrical_tt_pipeline import PipeElectricalLayout, calculate_electrical_tt
 
 
 def _catalogs() -> dict[str, dict]:
@@ -57,8 +57,20 @@ def _resolved(**updates: object) -> ResolvedElectricalInputs:
     )
 
 
+def _calculate(
+    resolved: ResolvedElectricalInputs,
+    *,
+    calculation_catalogs: dict[str, dict] | None = None,
+) -> dict:
+    return calculate_electrical_tt(
+        resolved,
+        layout=PipeElectricalLayout(),
+        calculation_catalogs=calculation_catalogs,
+    )
+
+
 def test_pipeline_uses_passport_power_and_user_voltage_downstream() -> None:
-    result = calculate_electrical_tt(_resolved(), calculation_catalogs=_catalogs())
+    result = _calculate(_resolved(), calculation_catalogs=_catalogs())
 
     assert result["cable"]["base_model"] == "25ТТН2"
     assert result["cable"]["passport_power_w_per_m"] == 25
@@ -73,13 +85,13 @@ def test_pipeline_uses_passport_power_and_user_voltage_downstream() -> None:
 
 
 def test_pipeline_selection_is_stable_across_voltage() -> None:
-    baseline = calculate_electrical_tt(
+    baseline = _calculate(
         _resolved(
             nominal_voltage_v=Decimal("220"),
         ),
         calculation_catalogs=_catalogs(),
     )
-    changed = calculate_electrical_tt(_resolved(), calculation_catalogs=_catalogs())
+    changed = _calculate(_resolved(), calculation_catalogs=_catalogs())
 
     assert baseline["cable"]["base_model"] == changed["cable"]["base_model"]
     assert baseline["layout"]["threads"] == changed["layout"]["threads"]
@@ -100,7 +112,7 @@ def test_pipeline_fails_closed_when_power_model_has_no_section_temperature_rows(
     ]
 
     with pytest.raises(ElectricalFormulaError) as raised:
-        calculate_electrical_tt(_resolved(), calculation_catalogs=catalogs)
+        _calculate(_resolved(), calculation_catalogs=catalogs)
 
     assert raised.value.code == "ELECTRICAL_CATALOG_ROW_INVALID"
     assert raised.value.details == {
@@ -111,7 +123,7 @@ def test_pipeline_fails_closed_when_power_model_has_no_section_temperature_rows(
 
 def test_ambient_and_cold_start_drive_distinct_temperature_gates() -> None:
     with pytest.raises(ElectricalFormulaError) as section_error:
-        calculate_electrical_tt(
+        _calculate(
             _resolved(
                 ambient_temperature_c=Decimal("-20"),
                 cold_start_temperature_c=Decimal("-41"),
@@ -121,7 +133,7 @@ def test_ambient_and_cold_start_drive_distinct_temperature_gates() -> None:
     assert section_error.value.code == "ELECTRICAL_SECTION_CATALOG_ROW_NOT_FOUND"
 
     with pytest.raises(ElectricalFormulaError) as selector_error:
-        calculate_electrical_tt(
+        _calculate(
             _resolved(
                 ambient_temperature_c=Decimal("-41"),
                 cold_start_temperature_c=Decimal("-20"),
