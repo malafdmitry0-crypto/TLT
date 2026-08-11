@@ -145,7 +145,11 @@ export function useElecCalcElectricalColumnRenderers({
                   <TltButton
                     className="electrical-cable-mark-action"
                     size="compact"
-                    disabled={!projectSelected || assignmentDisabledReason != null}
+                    disabled={
+                      !obj.is_valid
+                      || !projectSelected
+                      || assignmentDisabledReason != null
+                    }
                     onClick={() => openCableSizingModal(obj)}
                   >
                     Подбор

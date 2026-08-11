@@ -25,6 +25,7 @@ from app.models.electrical_candidate import ElectricalCandidate
 from app.models.electrical_variant import ElectricalVariantObject
 from app.models.project import Project
 from app.models.project_object import ProjectObject
+from app.schemas.calculation import ElectricalRequest
 from app.services.calculation_service import (
     BatchCancelChecker,
     BatchCancelledError,
@@ -1372,6 +1373,59 @@ class TestGetCableOptions:
         assert exc.value.code == "ELECTRICAL_HEAT_LOSS_REQUIRED"
 
 
+class TestCalcElectricalEligibility:
+    async def test_invalid_heat_object_does_not_create_electrical_calculation(self):
+        object_id = uuid.uuid4()
+        project_id = uuid.uuid4()
+        scope_result = MagicMock()
+        scope_result.one_or_none.return_value = SimpleNamespace(project_id=project_id)
+        object_result = MagicMock()
+        object_result.scalar_one_or_none.return_value = SimpleNamespace(
+            id=object_id,
+            project_id=project_id,
+            object_type="pipe",
+            params={},
+            results=None,
+            is_valid=False,
+        )
+        db = AsyncMock()
+        db.execute = AsyncMock(side_effect=[scope_result, MagicMock(), object_result])
+        service = CalculationService(db)
+        service._prepare_self_regulating_tt_request = AsyncMock()  # type: ignore[method-assign]
+        service._upsert_electrical_calculation = AsyncMock()  # type: ignore[method-assign]
+        service._upsert_failed_electrical = AsyncMock()  # type: ignore[method-assign]
+
+        with pytest.raises(CalculationError, match="не рассчитаны"):
+            await service.calc_electrical(
+                ElectricalRequest(
+                    object_id=object_id,
+                    cable_type="self_regulating_tt",
+                    data={},
+                )
+            )
+
+        service._prepare_self_regulating_tt_request.assert_not_awaited()
+        service._upsert_electrical_calculation.assert_not_awaited()
+        service._upsert_failed_electrical.assert_not_awaited()
+        db.commit.assert_not_awaited()
+
+    async def test_batch_loader_selects_only_valid_heat_objects(self):
+        db = AsyncMock()
+        result = MagicMock()
+        result.scalars.return_value.all.return_value = []
+        db.execute = AsyncMock(return_value=result)
+
+        await CalculationService(db)._load_valid_project_object_chunk(
+            uuid.uuid4(),
+            limit=100,
+            after_sort_order=None,
+            after_id=None,
+        )
+
+        statement = str(db.execute.await_args.args[0])
+        assert "project_objects.is_valid = true" in statement
+
+
 class TestSelectCableManual:
     async def test_object_not_found_raises(self):
         service = CalculationService(_mock_db_empty())
@@ -1453,7 +1507,7 @@ class TestSelectCableManual:
         db.rollback.assert_awaited_once()
 
     async def test_invalid_object_raises(self):
-        """Если is_valid=False или results пусты — нельзя выбрать кабель."""
+        """Если is_valid=False — нельзя выбрать кабель."""
         db = AsyncMock()
         obj = SimpleNamespace(
             id=uuid.uuid4(),
@@ -1468,3 +1522,19 @@ class TestSelectCableManual:
         service = CalculationService(db)
         with pytest.raises(CalculationError, match="не рассчитан"):
             await service.select_cable_manual(obj.id, "ТЛТ-25")
+
+    async def test_missing_heat_results_are_not_selectable(self):
+        obj = SimpleNamespace(
+            id=uuid.uuid4(),
+            object_type="pipe",
+            params={},
+            results=None,
+            is_valid=True,
+        )
+        result = MagicMock()
+        result.scalar_one_or_none.return_value = obj
+        db = AsyncMock()
+        db.execute = AsyncMock(return_value=result)
+
+        with pytest.raises(CalculationError, match="не рассчитан"):
+            await CalculationService(db)._load_selectable_object(obj.id)

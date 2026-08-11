@@ -42,7 +42,7 @@ export function useElecCalcGlideActions({
       {
         key: 'size',
         label: 'Подбор',
-        disabled: !projectSelected || assignmentDisabledReason != null,
+        disabled: !obj.is_valid || !projectSelected || assignmentDisabledReason != null,
       },
     ];
   }, [
@@ -66,7 +66,7 @@ export function useElecCalcGlideActions({
       return;
     }
     if (actionKey === 'size') {
-      if (!projectSelected) return;
+      if (!obj.is_valid || !projectSelected) return;
       onOpenCableSizingModal(obj);
     }
   }, [

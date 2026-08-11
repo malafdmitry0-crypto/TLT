@@ -101,7 +101,7 @@ describe('useElecCalcElectricalColumnRenderers', () => {
       <>{invalid.result.current.cable_mark.render(undefined, projectObject({ is_valid: false }), 0)}</>,
     );
     expect(screen.getByRole('button', { name: 'Выбор' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Подбор' })).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Подбор' })).toBeDisabled();
     invalidRender.unmount();
 
     const noProject = setup({
