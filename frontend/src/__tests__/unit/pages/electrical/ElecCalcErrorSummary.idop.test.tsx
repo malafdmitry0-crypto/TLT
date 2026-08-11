@@ -16,6 +16,7 @@ describe('ElecCalcErrorSummary Iдоп guidance', () => {
         failedCount={1}
         activeRowId="object-1"
         item={{
+          stage: 'electrical',
           objectId: 'object-1',
           rowNumber: 1,
           objectName: 'Труба 1',
@@ -35,5 +36,32 @@ describe('ElecCalcErrorSummary Iдоп guidance', () => {
     expect(screen.getByText('Задать Iдоп проекта')).toBeInTheDocument();
     expect(screen.queryByText('Проверить параметры объекта')).not.toBeInTheDocument();
     expect(screen.queryByText('SECTION_CURRENT_LIMIT_REQUIRED')).not.toBeInTheDocument();
+  });
+
+  it('shows the object, heat stage, backend reason and recovery action', () => {
+    render(
+      <ElecCalcErrorSummary
+        failedCount={1}
+        activeRowId="object-2"
+        item={{
+          stage: 'heat',
+          objectId: 'object-2',
+          rowNumber: 2,
+          objectName: 'Труба без диаметра',
+          error: 'Заполните обязательные поля объекта\nНе заполнено: Наружный диаметр',
+          cableType: null,
+          errorContext: null,
+          errorCode: 'missing_required_fields',
+          suggestedActions: null,
+        }}
+        guidance={null}
+      />,
+    );
+
+    const region = screen.getByLabelText('Сообщения об ошибках объектов');
+    expect(region).toHaveTextContent('Тепловой расчёт');
+    expect(region).toHaveTextContent('Объект 2: Труба без диаметра');
+    expect(region).toHaveTextContent('Не заполнено: Наружный диаметр');
+    expect(region).toHaveTextContent('Исправить исходные данные и выполнить расчёт теплопотерь');
   });
 });

@@ -14,7 +14,7 @@ type ElecCalcErrorSummaryProps = {
   guidance: ElectricalErrorGuidance | null;
 };
 
-/** Баннер сообщений об ошибках электрорасчёта на текущей странице таблицы. */
+/** Баннер ошибок тепловых объектов и электрорасчёта на текущей странице. */
 export default function ElecCalcErrorSummary({
   failedCount,
   activeRowId,
@@ -24,7 +24,7 @@ export default function ElecCalcErrorSummary({
   if (failedCount <= 0) return null;
   const displayError = guidance?.message ?? item?.error;
   return (
-    <div className="electrical-error-summary" aria-label="Сообщения ошибок электрорасчёта">
+    <div className="electrical-error-summary" aria-label="Сообщения об ошибках объектов">
       <div className="electrical-error-summary__header">
         <TltBadge tone="danger">
           <CloseCircleFilled /> Ошибок: {failedCount}
@@ -32,9 +32,19 @@ export default function ElecCalcErrorSummary({
       </div>
       {displayError ? (
         <div className="electrical-error-summary__record">
+          {item && (
+            <div className="electrical-error-summary__suggestions">
+              <TltBadge tone={item.stage === 'heat' ? 'danger' : 'warning'}>
+                {item.stage === 'heat' ? 'Тепловой расчёт' : 'Электротехнический расчёт'}
+              </TltBadge>
+              <Text type="secondary" className="electrical-error-summary__suggestion-label">
+                Объект {item.rowNumber}: {item.objectName}
+              </Text>
+            </div>
+          )}
           <Tooltip title={displayError}>
-            <Text type="secondary" ellipsis className="electrical-error-summary__message">
-              {displayError}
+            <Text type="secondary" className="electrical-error-summary__message">
+              {displayError.replace(/\n/g, ' · ')}
             </Text>
           </Tooltip>
           {item?.fallback && (
@@ -75,6 +85,16 @@ export default function ElecCalcErrorSummary({
                   {suggestion}
                 </TltBadge>
               ))}
+            </div>
+          )}
+          {item?.stage === 'heat' && (
+            <div className="electrical-error-summary__suggestions" aria-label="Как исправить ошибку теплового объекта">
+              <Text type="secondary" className="electrical-error-summary__suggestion-label">
+                Что сделать:
+              </Text>
+              <Text strong type="secondary" className="electrical-error-summary__suggestion-label">
+                Исправить исходные данные и выполнить расчёт теплопотерь
+              </Text>
             </div>
           )}
         </div>
