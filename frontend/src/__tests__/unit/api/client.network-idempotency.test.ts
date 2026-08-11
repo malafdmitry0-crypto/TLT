@@ -6,8 +6,8 @@ import {
   enqueueElectricalVariantBatchJob,
   enqueueHeatLossBatchJob,
   getElectricalQueryCapabilities,
-  selectCableForVariants,
 } from '@/api/calculations';
+import { selectElectricalAssignmentCable } from '@/api/electricalVariants';
 import { getSpecification } from '@/api/specifications';
 import { enqueueReportExportJob, getReportPreview } from '@/api/reports';
 import { useProjectStore } from '@/store/projectStore';
@@ -273,8 +273,8 @@ describe('apiClient network retry and idempotency', () => {
         ? { fields: [] }
         : config.url?.includes('/preview')
           ? { project_id: 'project-1', html: '', sections: [], variant_number: 2 }
-          : config.url?.includes('/select-cable/variants')
-            ? []
+          : config.url?.includes('/cable-selection')
+            ? { assignment: {}, calculation: {} }
             : null,
       headers: {},
       status: 200,
@@ -285,17 +285,13 @@ describe('apiClient network retry and idempotency', () => {
     await getElectricalQueryCapabilities('project-1', 2, 'er-2');
     await getSpecification('project-1', 'er-2');
     await getReportPreview('project-1', 2, 'er-2', ['summary']);
-    await selectCableForVariants(
-      'object-1',
-      '30ТТВ2-СР',
-      'builtin',
-      [1, 2],
-      'self_regulating_tt',
-      {
-        supplyVoltage: 380,
-      },
-      { 1: 'er-1', 2: 'er-2' },
-    );
+    await selectElectricalAssignmentCable('project-1', 'er-2', 'object-1', {
+      expected_assignment_version: 7,
+      mode: 'manual',
+      cable_mark: '30ТТВ2-СР',
+      cable_source: 'builtin',
+      thread_count: 2,
+    });
 
     const [capabilities, specification, preview, selection] = adapter.mock.calls.map(
       ([config]) => config,
@@ -318,14 +314,16 @@ describe('apiClient network retry and idempotency', () => {
       ? JSON.parse(selection.data)
       : selection.data;
     expect(selectionPayload).toMatchObject({
+      expected_assignment_version: 7,
+      mode: 'manual',
       cable_mark: '30ТТВ2-СР',
-      supply_voltage: 380,
-      variant_numbers: [1, 2],
-      electrical_variant_ids: { 1: 'er-1', 2: 'er-2' },
+      thread_count: 2,
     });
-    expect(selectionPayload).not.toHaveProperty('maintain_temperature');
-    expect(selectionPayload).not.toHaveProperty('vapor_temperature');
-    expect(selectionPayload).not.toHaveProperty('aggressive_product');
+    expect(selection.url).toBe(
+      '/projects/project-1/electrical-variants/er-2/objects/object-1/cable-selection',
+    );
+    expect(selectionPayload).not.toHaveProperty('variant_numbers');
+    expect(selectionPayload).not.toHaveProperty('electrical_variant_ids');
   });
 
   it('передаёт object_ids в async heat-loss job для точечного пересчёта', async () => {

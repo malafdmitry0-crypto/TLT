@@ -11,8 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.dependencies import CurrentPrincipal, require_any
 from app.core.rate_limit import batch_limiter, enforce_principal_rate_limit
-from app.electrical_variant_limits import MAX_ELECTRICAL_VARIANTS
 from app.electrical_domain import ElectricalFormulaError
+from app.electrical_variant_limits import MAX_ELECTRICAL_VARIANTS
 from app.models.electrical_calculation import ElectricalCalculation
 from app.schemas.calculation import (
     BatchCalcResponse,
@@ -20,7 +20,6 @@ from app.schemas.calculation import (
     CableOptionOut,
     CopyElectricalVariantRequest,
     CopyElectricalVariantResponse,
-    ElectricalCableSelectionVariantsRequest,
     ElectricalCalcSummary,
     ElectricalCandidateApplyResponse,
     ElectricalCandidateCreateRequest,
@@ -1021,77 +1020,6 @@ async def select_cable(
         message="Выполнен ручной выбор кабеля",
     )
     return summary
-
-
-@router.post(
-    "/electrical/select-cable/variants",
-    response_model=list[ElectricalCalcSummary],
-    summary="Атомарный выбор кабеля для объекта в нескольких СО",
-)
-async def select_cable_variants(
-    data: ElectricalCableSelectionVariantsRequest,
-    principal: CurrentPrincipal = Depends(require_any()),
-    db: AsyncSession = Depends(get_db),
-):
-    """Одной транзакцией применяет выбор марки или «Авто» к нескольким СО.
-
-    Если хотя бы один вариант не проходит расчёт, ни один из отмеченных СО не
-    сохраняется.
-    """
-    if data.cable_source in ("extended", "all") and principal.role not in ("employee", "admin"):
-        raise HTTPException(
-            status_code=403, detail="Расширенный каталог доступен только сотрудникам"
-        )
-    service = CalculationService(db)
-    try:
-        obj = await ProjectService(db).get_object_for_write(data.object_id, principal)
-        variants = await ElectricalVariantService(db).prepare_legacy_variants_for_write(
-            obj.project_id,
-            principal,
-            data.variant_numbers,
-            expected_electrical_variant_ids=data.electrical_variant_ids or None,
-        )
-        calcs = await service.select_cable_for_variants(
-            data.object_id,
-            data.cable_mark,
-            data.cable_source,
-            data.variant_numbers,
-            data.cable_type,
-            data.electrical_params(),
-            electrical_variant_ids={number: variants[number].id for number in data.variant_numbers},
-        )
-    except ElectricalVariantServiceError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
-    except (ProjectNotFoundError, ProjectAccessError) as exc:
-        _raise_project_error(exc)
-    except (ElectricalFormulaError, ElectricalInputResolutionError) as exc:
-        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
-    except (ValueError, ValidationError) as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-    except CalculationError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    summaries = await service.electrical_calc_summaries(calcs, data.cable_source)
-    await AuditService(db).try_record(
-        event_type="calculation.electrical.cable_selected_variants",
-        category="calculation",
-        principal=principal,
-        project_id=obj.project_id,
-        object_id=data.object_id,
-        details={
-            "cable_mark": data.cable_mark,
-            "cable_source": data.cable_source,
-            "cable_type": data.cable_type,
-            "variant_numbers": data.variant_numbers,
-            "electrical_variant_ids": {
-                str(number): str(variants[number].id) for number in data.variant_numbers
-            },
-            "atomic": True,
-            "result_categories": [(calc.results or {}).get("category") for calc in calcs],
-            "error_codes": [(calc.results or {}).get("error_code") for calc in calcs],
-        },
-        message="Выполнен атомарный выбор кабеля для нескольких СО",
-    )
-    return summaries
 
 
 @router.post(
