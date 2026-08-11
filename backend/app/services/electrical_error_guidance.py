@@ -12,6 +12,7 @@ from app.electrical_input_validation import (
 
 ElectricalErrorCode = Literal[
     "unsupported_layout",
+    "ELECTRICAL_TANK_LAYOUT_INPUT_UNSUPPORTED",
     "MISSING_TANK_LAYOUT",
     "MISSING_PROCESS_TEMPERATURE",
     "INVALID_PROCESS_TEMPERATURE",
@@ -63,6 +64,7 @@ SUGGESTED_ACTIONS_BY_ERROR_CODE: Final[
     dict[ElectricalErrorCode, list[ElectricalSuggestedAction]]
 ] = {
     "unsupported_layout": [],
+    "ELECTRICAL_TANK_LAYOUT_INPUT_UNSUPPORTED": ["SET_TANK_LAYOUT"],
     "MISSING_TANK_LAYOUT": [
         "SET_HEATING_HEIGHT",
         "SET_LAYING_STEP",
@@ -419,16 +421,34 @@ def build_electrical_error_payload(
         _add_context_value(context, "object_type", object_type)
         context.update(details)
         field = details.get("field")
+        is_tank_pipe_layout = typed_code == "ELECTRICAL_TANK_LAYOUT_INPUT_UNSUPPORTED"
+        if is_tank_pipe_layout:
+            fields = details.get("fields")
+            field = fields[0] if isinstance(fields, list) and fields else None
         payload: ElectricalErrorPayload = {
             "error_code": typed_code,
             "code": typed_code,
-            "category": "validation" if typed_code.endswith("_REQUIRED") else "formula",
-            "message": message,
+            "category": (
+                "validation"
+                if typed_code.endswith("_REQUIRED") or is_tank_pipe_layout
+                else "formula"
+            ),
+            "message": (
+                "Для резервуара нельзя задавать трубный шаг намотки"
+                if is_tank_pipe_layout
+                else message
+            ),
             "issues": [],
             "details": details,
             "field": str(field) if field is not None else None,
-            "hint": "Проверьте параметры электротехнического расчёта.",
-            "suggested_actions": ["CHECK_OBJECT_PARAMS"],
+            "hint": (
+                "Удалите шаг намотки трубы и задайте высоту обогрева и шаг укладки резервуара."
+                if is_tank_pipe_layout
+                else "Проверьте параметры электротехнического расчёта."
+            ),
+            "suggested_actions": (
+                ["SET_TANK_LAYOUT"] if is_tank_pipe_layout else ["CHECK_OBJECT_PARAMS"]
+            ),
             "error_context": context,
         }
         if object_type is not None:
