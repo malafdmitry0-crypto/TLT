@@ -495,11 +495,10 @@ class TestSingleExportImport:
             "/api/v1/calc/electrical/select-cable",
             params={
                 "object_id": objects[0]["id"],
-                "cable_mark": "30ТТВ2",
+                "cable_mark": "30ТТВ2-СР",
+                "number_of_threads": 3,
                 "electrical_variant_id": er["id"],
                 "variant_number": er.get("legacy_variant_number") or 1,
-                "maintain_temperature": 10.0,
-                "aggressive_product": False,
             },
             headers=headers,
         )

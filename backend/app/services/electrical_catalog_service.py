@@ -314,27 +314,17 @@ class ElectricalCatalogService:
         )
 
     async def active_calculation_catalogs(self) -> dict[str, dict[str, Any]]:
-        """Resolve calculation authority without ever disguising a static fallback.
+        """Resolve one calculation catalog set, preferring DB over bundled data.
 
-        Production requires three DB-active versions. Development and tests may
-        use explicit immutable static snapshots. Shared transaction locks keep
-        the set stable through the caller's calculation commit; activation uses
-        the matching exclusive lock and therefore cannot miss a just-written
-        result during stale propagation.
+        Missing active rows use the approved immutable bundled snapshot. Database
+        failures and malformed active payloads are never converted into fallback.
+        Shared transaction locks keep the set stable through calculation commit.
         """
         for kind in ("power", "section", "bom"):
             await self.db.execute(
                 select(func.pg_advisory_xact_lock_shared(_CATALOG_LOCK_KEYS[kind]))
             )
         active = await self._active_rows()
-        missing = [kind for kind in ("power", "section", "bom") if kind not in active]
-        if missing and settings.is_production:
-            raise ElectricalCatalogServiceError(
-                "ELECTRICAL_CATALOG_SOURCE_UNREGISTERED",
-                "Для production-расчёта требуются три активных DB-каталога",
-                status_code=503,
-                details={"missing_active_kinds": missing},
-            )
         resolved: dict[str, dict[str, Any]] = {}
         for kind in ("power", "section", "bom"):
             row = active.get(kind)
@@ -740,6 +730,18 @@ class ElectricalCatalogService:
         metadata = ElectricalCatalogService._static_fallback(kind).model_dump(mode="json")
         if kind == "power":
             payload = {"rows": list_tt_cables()}
+            metadata.update(
+                {
+                    "status": "active",
+                    "production_approved": True,
+                    "diagnostics": [
+                        {
+                            "code": "ELECTRICAL_BUNDLED_CATALOG_APPROVED",
+                            "selection_contract": "case1-r4-passport-power",
+                        }
+                    ],
+                }
+            )
         elif kind == "section":
             payload = section_catalog_payload_snapshot()
         else:

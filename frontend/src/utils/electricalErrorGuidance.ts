@@ -3,6 +3,7 @@ export type ElectricalErrorKind =
   | 'tank_layout_input_unsupported'
   | 'power_too_high'
   | 'temperature_too_high'
+  | 'cable_temperature_limit_exceeded'
   | 'resistive_section_not_found'
   | 'section_current_limit_required'
   | 'unknown';
@@ -12,6 +13,7 @@ export type ElectricalErrorCode =
   | 'ELECTRICAL_TANK_LAYOUT_INPUT_UNSUPPORTED'
   | 'POWER_TOO_HIGH'
   | 'TEMPERATURE_TOO_HIGH'
+  | 'ELECTRICAL_CABLE_TEMPERATURE_LIMIT_EXCEEDED'
   | 'RESISTIVE_SECTION_NOT_FOUND'
   | 'SECTION_CURRENT_LIMIT_REQUIRED'
   | 'UNKNOWN';
@@ -59,6 +61,7 @@ const ERROR_CODE_BY_KIND: Record<ElectricalErrorKind, ElectricalErrorCode> = {
   tank_layout_input_unsupported: 'ELECTRICAL_TANK_LAYOUT_INPUT_UNSUPPORTED',
   power_too_high: 'POWER_TOO_HIGH',
   temperature_too_high: 'TEMPERATURE_TOO_HIGH',
+  cable_temperature_limit_exceeded: 'ELECTRICAL_CABLE_TEMPERATURE_LIMIT_EXCEEDED',
   resistive_section_not_found: 'RESISTIVE_SECTION_NOT_FOUND',
   section_current_limit_required: 'SECTION_CURRENT_LIMIT_REQUIRED',
   unknown: 'UNKNOWN',
@@ -69,6 +72,7 @@ const ERROR_KIND_BY_CODE: Record<ElectricalErrorCode, ElectricalErrorKind> = {
   ELECTRICAL_TANK_LAYOUT_INPUT_UNSUPPORTED: 'tank_layout_input_unsupported',
   POWER_TOO_HIGH: 'power_too_high',
   TEMPERATURE_TOO_HIGH: 'temperature_too_high',
+  ELECTRICAL_CABLE_TEMPERATURE_LIMIT_EXCEEDED: 'cable_temperature_limit_exceeded',
   RESISTIVE_SECTION_NOT_FOUND: 'resistive_section_not_found',
   SECTION_CURRENT_LIMIT_REQUIRED: 'section_current_limit_required',
   UNKNOWN: 'unknown',
@@ -95,6 +99,10 @@ const ERROR_META: Record<
     label: 'Температура вне допуска',
     tagColor: 'red',
   },
+  cable_temperature_limit_exceeded: {
+    label: 'Температура вне допуска',
+    tagColor: 'red',
+  },
   resistive_section_not_found: {
     label: 'Нет секции кабеля',
     tagColor: 'magenta',
@@ -115,6 +123,7 @@ const DEFAULT_ACTIONS_BY_KIND: Record<ElectricalErrorKind, ElectricalSuggestedAc
   tank_layout_input_unsupported: ['SET_TANK_LAYOUT'],
   power_too_high: ['TRY_OTHER_CABLE_TYPE'],
   temperature_too_high: ['CHECK_PROCESS_TEMPERATURE', 'CHECK_VAPOR_TEMPERATURE', 'TRY_OTHER_CABLE_TYPE'],
+  cable_temperature_limit_exceeded: ['CHECK_AMBIENT_TEMPERATURE', 'CHECK_PROCESS_TEMPERATURE', 'TRY_OTHER_CABLE_TYPE'],
   resistive_section_not_found: ['TRY_OTHER_CONNECTION', 'CHECK_VOLTAGE', 'TRY_OTHER_CABLE_TYPE'],
   section_current_limit_required: ['SET_PROJECT_CURRENT_LIMIT'],
   unknown: ['CHECK_OBJECT_PARAMS', 'TRY_OTHER_CABLE_TYPE'],
@@ -133,9 +142,9 @@ const ACTION_LABELS: Record<ElectricalSuggestedAction, string> = {
   TRY_SELF_REGULATING: 'Попробовать саморегулирующийся',
   TRY_OTHER_CONNECTION: 'Попробовать другую схему',
   CHECK_VOLTAGE: 'Проверить напряжение',
-  CHECK_PROCESS_TEMPERATURE: 'Проверить T продукта',
-  CHECK_AMBIENT_TEMPERATURE: 'Проверить T среды',
-  CHECK_VAPOR_TEMPERATURE: 'Проверить T проп.',
+  CHECK_PROCESS_TEMPERATURE: 'Проверить температуру продукта',
+  CHECK_AMBIENT_TEMPERATURE: 'Проверить температуру среды',
+  CHECK_VAPOR_TEMPERATURE: 'Проверить температуру пропарки',
   CHECK_OBJECT_PARAMS: 'Проверить параметры объекта',
   SET_PROJECT_CURRENT_LIMIT: 'Задать Iдоп проекта',
   TRY_OTHER_CABLE_TYPE: 'Попробовать другой тип кабеля',
@@ -162,6 +171,64 @@ function contextValue(input: ElectricalErrorGuidanceInput, key: string): unknown
 function contextString(input: ElectricalErrorGuidanceInput, key: string): string | null {
   const value = contextValue(input, key);
   return value === null || value === undefined || value === '' ? null : String(value);
+}
+
+function contextNumber(input: ElectricalErrorGuidanceInput, key: string): number | null {
+  const value = contextValue(input, key);
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function contextStringArray(input: ElectricalErrorGuidanceInput, key: string): string[] {
+  const value = contextValue(input, key);
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string')
+    : [];
+}
+
+const TEMPERATURE_FORMATTER = new Intl.NumberFormat('ru-RU', {
+  maximumFractionDigits: 2,
+});
+
+function formatTemperature(value: number): string {
+  return `${TEMPERATURE_FORMATTER.format(value)} °C`;
+}
+
+function cableTemperatureLimitMessage(input: ElectricalErrorGuidanceInput): string | undefined {
+  const ambient = contextNumber(input, 'ambient_temperature_c');
+  const minimumAmbient = contextNumber(input, 'minimum_supported_ambient_temperature_c');
+  const product = contextNumber(input, 'product_temperature_c');
+  const maximumProduct = contextNumber(input, 'maximum_supported_product_temperature_c');
+  const violations = contextStringArray(input, 'violations');
+  const reasons: string[] = [];
+
+  if (
+    violations.includes('ambient_below_minimum')
+    && ambient != null
+    && minimumAmbient != null
+  ) {
+    reasons.push(
+      `Температура окружающей среды ${formatTemperature(ambient)} ниже допустимой для доступных марок кабеля: минимум ${formatTemperature(minimumAmbient)}.`,
+    );
+  }
+  if (
+    violations.includes('product_above_maximum')
+    && product != null
+    && maximumProduct != null
+  ) {
+    reasons.push(
+      `Температура продукта ${formatTemperature(product)} выше допустимой для доступных марок кабеля: максимум ${formatTemperature(maximumProduct)}.`,
+    );
+  }
+  if (violations.includes('temperature_combination_unsupported')) {
+    reasons.push(
+      ambient != null && product != null
+        ? `Для сочетания температур среды ${formatTemperature(ambient)} и продукта ${formatTemperature(product)} нет подходящей марки кабеля.`
+        : 'Для заданного сочетания температур среды и продукта нет подходящей марки кабеля.',
+    );
+  }
+  return reasons.length > 0 ? reasons.join(' ') : undefined;
 }
 
 function hasPositiveContextNumber(input: ElectricalErrorGuidanceInput, key: string): boolean {
@@ -245,11 +312,15 @@ export function getElectricalErrorGuidance(
   const suggestedActions = actionsFromBackend?.length
     ? actionsFromBackend
     : fallbackActionsForKind(kind, normalizedInput);
+  const contextualMessage = kind === 'cable_temperature_limit_exceeded'
+    ? cableTemperatureLimitMessage(normalizedInput)
+    : undefined;
 
   return {
     kind,
     errorCode: resolvedCode,
     ...ERROR_META[kind],
+    ...(contextualMessage ? { message: contextualMessage } : {}),
     suggestedActions,
     suggestions: suggestedActions.map((action) => ACTION_LABELS[action]),
   };

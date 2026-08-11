@@ -347,7 +347,7 @@ async def test_http_readiness_aggregates_upstream_blockers_per_er_without_genera
     assert invalid_generate.status_code == 422, invalid_generate.text
     assert {
         issue["field"] for issue in invalid_generate.json()["detail"]["issues"]
-    } == {"grouping_mode", "L_K2i_m", "R_gr"}
+    } == {"L_K2i_m", "R_gr"}
 
     persisted = await client.get(
         f"/api/v1/specifications/{project.id}/readiness",

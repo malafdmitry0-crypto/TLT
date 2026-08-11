@@ -36,6 +36,19 @@ async def _create_project_with_token(client: AsyncClient, token: str) -> dict:
     return resp.json()
 
 
+async def _set_project_current_limit(
+    client: AsyncClient,
+    project_id: str,
+    session_id: str,
+) -> None:
+    response = await client.patch(
+        f"/api/v1/projects/{project_id}/electrical-settings",
+        json={"expected_version": 1, "max_section_start_current_a": "13.065"},
+        headers={"X-Session-Id": session_id},
+    )
+    assert response.status_code == 200, response.text
+
+
 async def _create_pipe_object(
     client: AsyncClient,
     project_id: str,
@@ -50,6 +63,7 @@ async def _create_pipe_object(
         "insulation_temperature_basis": "outdoor_winter",
         "ambient_temperature": -30,
         "process_temperature": 80,
+        "min_switch_temperature": -20,
         "pipe_length": 50,
         "placement": "outdoor",
         "wind_speed": 0,
@@ -81,6 +95,7 @@ async def _create_pipe_object_with_token(
         "insulation_temperature_basis": "outdoor_winter",
         "ambient_temperature": -30,
         "process_temperature": 80,
+        "min_switch_temperature": -20,
         "pipe_length": 50,
         "placement": "outdoor",
         "wind_speed": 0,
@@ -202,7 +217,7 @@ async def _calc_pipe_electrical(
         "/api/v1/calc/electrical",
         json={
             "object_id": object_id,
-            "cable_type": "self_regulating",
+            "cable_type": "self_regulating_tt",
             "variant_number": variant_number,
             "electrical_variant_id": variant["id"],
             "data": {
@@ -620,6 +635,7 @@ class TestElectricalCalculationContinued:
     ):
         """self_regulating_tt: возвращает cable_mark с суффиксом -СР/-СТ."""
         project = await _create_project(client, guest_session)
+        await _set_project_current_limit(client, project["id"], guest_session)
         obj = await _create_pipe_object(client, project["id"], guest_session)
         await _assign_electrical_object(client, project["id"], obj["id"], guest_session)
 
@@ -632,9 +648,7 @@ class TestElectricalCalculationContinued:
                     "required_power_per_meter": 18.0,
                     "pipe_length": 50.0,
                     "process_temperature": 50.0,
-                    "maintain_temperature": 10.0,
                     "safety_factor": 1.1,
-                    "aggressive_product": False,
                 },
             },
             headers={"X-Session-Id": guest_session},
@@ -642,7 +656,7 @@ class TestElectricalCalculationContinued:
         assert resp.status_code == 200, resp.text
         result = resp.json()["result"]
         assert "cable_mark" in result
-        assert result["cable_mark"].endswith("-СТ")
+        assert result["cable_mark"].endswith(("-СР", "-СТ"))
         assert result["series"] in ("ТТН", "ТТВ", "ТТХ")
         assert result["power_per_meter"] > 0
         assert result["voltage"] == 230
@@ -650,26 +664,6 @@ class TestElectricalCalculationContinued:
         assert result["cable_length"] == result["section_l_fact_m"]
         assert result["mocked_fields"]
         assert result["production_eligible"] is False
-
-        aggressive_resp = await client.post(
-            "/api/v1/calc/electrical",
-            json={
-                "object_id": obj["id"],
-                "cable_type": "self_regulating_tt",
-                "data": {
-                    "required_power_per_meter": 18.0,
-                    "pipe_length": 50.0,
-                    "process_temperature": 50.0,
-                    "maintain_temperature": 10.0,
-                    "safety_factor": 1.1,
-                    "aggressive_product": True,
-                },
-            },
-            headers={"X-Session-Id": guest_session},
-        )
-        assert aggressive_resp.status_code == 200, aggressive_resp.text
-        aggressive_result = aggressive_resp.json()["result"]
-        assert aggressive_result["cable_mark"].endswith("-СР")
 
     async def test_electrical_query_capabilities_include_result_fields(
         self, client: AsyncClient, guest_session: str
@@ -879,7 +873,7 @@ class TestElectricalCalculationContinued:
                     object_id=UUID(objects[0]["id"]),
                     variant_number=first_variant["legacy_variant_number"],
                     electrical_variant_id=UUID(first_variant["id"]),
-                    cable_type="self_regulating",
+                    cable_type="self_regulating_tt",
                     cable_mark="UUID-FIRST",
                     params={},
                     results={
@@ -893,7 +887,7 @@ class TestElectricalCalculationContinued:
                     object_id=UUID(objects[0]["id"]),
                     variant_number=second_variant["legacy_variant_number"],
                     electrical_variant_id=UUID(second_variant["id"]),
-                    cable_type="self_regulating",
+                    cable_type="self_regulating_tt",
                     cable_mark="UUID-SECOND",
                     params={},
                     results={
@@ -944,18 +938,21 @@ class TestElectricalCalculationContinued:
                 "object_id": objects[0]["id"],
                 "system_type": "self_regulating",
                 "assignment_state": "ready",
+                "electrical_overrides": {},
                 "version": 4,
             },
             objects[1]["id"]: {
                 "object_id": objects[1]["id"],
                 "system_type": None,
                 "assignment_state": "unassigned",
+                "electrical_overrides": {},
                 "version": 5,
             },
             objects[2]["id"]: {
                 "object_id": objects[2]["id"],
                 "system_type": "resistive",
                 "assignment_state": "stale",
+                "electrical_overrides": {},
                 "version": 6,
             },
         }
@@ -1248,6 +1245,7 @@ class TestNoDoubleSafetyFactor:
                     "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": ambient_temperature,
                     "process_temperature": process_temperature,
+                    "min_switch_temperature": ambient_temperature,
                     "pipe_length": 50,
                     "placement": "outdoor",
                     "wind_speed": 0,

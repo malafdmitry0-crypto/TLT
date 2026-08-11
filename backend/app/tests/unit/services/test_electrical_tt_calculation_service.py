@@ -1,5 +1,6 @@
 """Case 1 calculation-service adapter tests."""
 
+from copy import deepcopy
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 from uuid import uuid4
@@ -80,6 +81,30 @@ def _service(obj: SimpleNamespace, *, overrides: dict | None = None):
     return service, variant_id
 
 
+def _database_catalogs_with_custom_power(power_w_per_m: float) -> dict[str, dict]:
+    catalogs = {
+        kind: ElectricalCatalogService._static_calculation_fallback(kind)
+        for kind in ("power", "section", "bom")
+    }
+    power = deepcopy(catalogs["power"])
+    row = next(item for item in power["payload"]["rows"] if item["model"] == "25ТТН2")
+    row["nominal_power"] = power_w_per_m
+    power.update(
+        {
+            "id": str(uuid4()),
+            "version": "custom-power-v1",
+            "status": "active",
+            "authority": "database",
+            "source": "owner/custom-power-v1.json",
+            "source_checksum": "sha256:" + "1" * 64,
+            "payload_checksum": "sha256:" + "2" * 64,
+            "production_approved": True,
+        }
+    )
+    catalogs["power"] = power
+    return catalogs
+
+
 async def test_second_calculation_resolves_persisted_assignment_voltage_without_request_u() -> None:
     obj = _pipe()
     service, variant_id = _service(obj, overrides={"supply_voltage_v": "380"})
@@ -100,6 +125,125 @@ async def test_second_calculation_resolves_persisted_assignment_voltage_without_
     assert result["input_sources"]["nominal_voltage_v"] == "assignment_override"
     assert result["voltage"] == 380
     assert result["current"] == pytest.approx(result["total_power"] / 380, abs=0.001)
+
+
+async def test_snapshot_uses_exact_custom_database_row_selected_by_pipeline() -> None:
+    obj = _pipe()
+    service, variant_id = _service(obj)
+    service._tt_calculation_catalogs_cache = _database_catalogs_with_custom_power(26)
+    request = ElectricalRequest(
+        object_id=obj.id,
+        cable_type="self_regulating_tt",
+        data={"_tt_explicit_overrides": {"selection_policy": "technical_minimum"}},
+    )
+
+    await service._prepare_self_regulating_tt_request(
+        request,
+        obj,
+        electrical_variant_id=variant_id,
+    )
+    cable_mark, result = service._calculate_electrical_result(request)
+    snapshot = service._build_cable_snapshot_for_result(
+        request=request,
+        cable_mark=cable_mark,
+        result_dict=result,
+    )
+
+    assert cable_mark == "25ТТН2-СР"
+    assert result["power_per_meter"] == 26
+    assert snapshot is not None
+    assert snapshot["technical"]["nominal_power"] == 26
+    assert snapshot["actual_catalog_source"] == "database"
+    assert snapshot["catalog_identity"]["version"] == "custom-power-v1"
+    assert snapshot["catalog_identity"]["payload_checksum"] == "sha256:" + "2" * 64
+
+
+async def test_snapshot_uses_builtin_row_when_database_catalog_is_absent() -> None:
+    obj = _pipe()
+    service, variant_id = _service(obj)
+    request = ElectricalRequest(
+        object_id=obj.id,
+        cable_type="self_regulating_tt",
+        data={"_tt_explicit_overrides": {"selection_policy": "technical_minimum"}},
+    )
+
+    await service._prepare_self_regulating_tt_request(
+        request,
+        obj,
+        electrical_variant_id=variant_id,
+    )
+    cable_mark, result = service._calculate_electrical_result(request)
+    snapshot = service._build_cable_snapshot_for_result(
+        request=request,
+        cable_mark=cable_mark,
+        result_dict=result,
+    )
+
+    assert snapshot is not None
+    assert snapshot["technical"]["nominal_power"] == result["power_per_meter"]
+    assert snapshot["actual_catalog_source"] == "builtin"
+    assert snapshot["catalog_identity"]["authority"] == "static_fallback"
+
+
+async def test_snapshot_status_uses_current_resolved_catalog_identity() -> None:
+    obj = _pipe()
+    service, variant_id = _service(obj)
+    service._tt_calculation_catalogs_cache = _database_catalogs_with_custom_power(26)
+    request = ElectricalRequest(
+        object_id=obj.id,
+        cable_type="self_regulating_tt",
+        data={"_tt_explicit_overrides": {"selection_policy": "technical_minimum"}},
+    )
+    await service._prepare_self_regulating_tt_request(
+        request,
+        obj,
+        electrical_variant_id=variant_id,
+    )
+    cable_mark, result = service._calculate_electrical_result(request)
+    snapshot = service._build_cable_snapshot_for_result(
+        request=request,
+        cable_mark=cable_mark,
+        result_dict=result,
+    )
+    assert snapshot is not None
+
+    current = deepcopy(service._tt_calculation_catalogs_cache)
+    current["power"]["version"] = "custom-power-v2"
+    current["power"]["payload_checksum"] = "sha256:" + "3" * 64
+    service._tt_calculation_catalogs_cache = current
+    calc_id = uuid4()
+
+    statuses = await service.cable_snapshot_statuses(
+        [
+            SimpleNamespace(
+                id=calc_id,
+                cable_type="self_regulating_tt",
+                cable_mark=cable_mark,
+                cable_snapshot=snapshot,
+            )
+        ]
+    )
+
+    assert statuses[calc_id]["technical_status"] == "changed"
+    assert statuses[calc_id]["severity"] == "critical"
+    assert "catalog.payload_checksum" in statuses[calc_id]["changed_fields"]
+
+
+def test_tt_snapshot_is_not_partially_built_without_resolved_catalog_row() -> None:
+    service = CalculationService(AsyncMock())
+    request = ElectricalRequest(
+        object_id=uuid4(),
+        cable_type="self_regulating_tt",
+        data={"cable_mark_source": "manual"},
+    )
+
+    snapshot = service._build_cable_snapshot_for_result(
+        request=request,
+        cable_mark="25ТТН2-СР",
+        result_dict=None,
+    )
+
+    assert snapshot is None
 
 
 async def test_explicit_voltage_is_reflected_in_effective_assignment_provenance() -> None:
@@ -138,9 +282,7 @@ def test_object_adapter_keeps_ambient_and_cold_start_as_distinct_case1_inputs() 
 
     assert values["ambient_temperature_c"] == -15
     assert values["cold_start_temperature_c"] == -30
-    assert not {"steam_temperature_c", "maintain_temperature_c", "aggressive_product"} & set(
-        values
-    )
+    assert not {"steam_temperature_c", "maintain_temperature_c", "aggressive_product"} & set(values)
 
 
 async def test_tank_uses_same_selector_after_geometry_and_forces_direct_layout() -> None:

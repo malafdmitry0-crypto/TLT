@@ -268,6 +268,15 @@ export function useElectricalAssignmentController({
   const selectedCount = selectedObjectIds.length;
   const actionsDisabled = !canMutate || busy || selectedCount === 0;
   const assignDisabled = actionsDisabled || systemView !== 'unassigned';
+  const assignDisabledReason = !canMutate
+    ? 'Назначение доступно только владельцу проекта или администратору'
+    : busy
+      ? 'Дождитесь завершения изменения назначения'
+      : systemView !== 'unassigned'
+        ? 'Объекты в этой вкладке уже назначены в Самрег'
+        : selectedCount === 0
+          ? 'Выберите объект во вкладке «Нераспределённые объекты»'
+          : null;
 
   const runAssign = (systemType: AssignableSystem, objectIds: string[]) => {
     if (!canMutate || busy || objectIds.length === 0) return;
@@ -391,6 +400,7 @@ export function useElectricalAssignmentController({
     selectedCount,
     actionsDisabled,
     assignDisabled,
+    assignDisabledReason,
     overZone,
     setOverZone,
     conflictNotice,

@@ -37,7 +37,11 @@ describe('ObjectWizard dependencies — payload-fields', () => {
         insulation_temperature_basis: 'outdoor_winter',
         ambient_temperature: -20,
         process_temperature: 70,
+        min_switch_temperature: -20,
+        heating_height: 2,
+        laying_step: 0.2,
         placement: 'outdoor',
+        wind_speed: 0,
         q_additional: 250}});
 
     const input = await screen.findByTestId('q-additional-input');
@@ -101,7 +105,7 @@ describe('ObjectWizard dependencies — payload-fields', () => {
     expect(screen.queryByTestId('alpha-vnesh-input')).not.toBeInTheDocument();
   });
 
-  it('помечает λ грунта только для ручного грунта, но позволяет сохранить для расчёта статуса', async () => {
+  it('помечает λ грунта обязательной для ручного грунта и блокирует неполное сохранение', async () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
     renderWizard({
@@ -110,6 +114,7 @@ describe('ObjectWizard dependencies — payload-fields', () => {
         ...basePipeParams,
         placement: 'underground',
         burial_depth: 1.2,
+        ground_temperature: 5,
         ground_type: 'custom',
         ground_conductivity: undefined}});
 
@@ -117,9 +122,8 @@ describe('ObjectWizard dependencies — payload-fields', () => {
     expect(screen.getByTestId('ground-conductivity-input')).toHaveAttribute('aria-required', 'true');
 
     await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
-    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
-    const payload = onSubmit.mock.calls[0][0] as Record<string, unknown>;
-    expect(payload.ground_conductivity).toBeUndefined();
+    await waitFor(() => expect(screen.getByText('Укажите значение')).toBeVisible());
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 
   it('стенка резервуара отображается и уходит в payload', async () => {
@@ -139,7 +143,11 @@ describe('ObjectWizard dependencies — payload-fields', () => {
         insulation_temperature_basis: 'outdoor_winter',
         ambient_temperature: -20,
         process_temperature: 70,
-        placement: 'outdoor'}});
+        min_switch_temperature: -20,
+        heating_height: 2,
+        laying_step: 0.2,
+        placement: 'outdoor',
+        wind_speed: 0}});
 
     expect(await screen.findByTestId('tank-wall-thickness-input')).toBeVisible();
     expect(screen.getByTestId('tank-wall-lambda-input')).toBeVisible();
@@ -151,7 +159,7 @@ describe('ObjectWizard dependencies — payload-fields', () => {
     expect(payload.wall_lambda).toBe(45);
   });
 
-  it('cleans an incomplete tank wall pair before saving', async () => {
+  it('blocks saving an incomplete tank wall pair', async () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
     renderWizard({
@@ -168,15 +176,18 @@ describe('ObjectWizard dependencies — payload-fields', () => {
         insulation_temperature_basis: 'outdoor_winter',
         ambient_temperature: -20,
         process_temperature: 70,
-        placement: 'outdoor'}});
+        min_switch_temperature: -20,
+        heating_height: 2,
+        laying_step: 0.2,
+        placement: 'outdoor',
+        wind_speed: 0}});
 
-    expect(await screen.findByTestId('tank-wall-lambda-input')).toHaveAttribute('aria-required', 'true');
+    const wallLambdaInput = await screen.findByTestId('tank-wall-lambda-input');
+    expect(wallLambdaInput).toHaveAttribute('aria-required', 'true');
 
     await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
-    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
-    const payload = onSubmit.mock.calls[0][0] as Record<string, unknown>;
-    expect(payload.wall_thickness).toBeUndefined();
-    expect(payload.wall_lambda).toBeUndefined();
+    await waitFor(() => expect(wallLambdaInput).toHaveAttribute('aria-invalid', 'true'));
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 
   it('отправляет ручную λ трубы и три слоя изоляции', async () => {

@@ -371,12 +371,34 @@ def calc_self_regulating_tt(
         and product_temperature <= item.max_product_temperature
     ]
     if not temperature_eligible:
+        minimum_supported_ambient = min(
+            item.min_ambient_temperature for item in selected_rows
+        )
+        maximum_supported_product = max(
+            item.max_product_temperature for item in selected_rows
+        )
+        violations: list[str] = []
+        if ambient_temperature < minimum_supported_ambient:
+            violations.append("ambient_below_minimum")
+        if product_temperature > maximum_supported_product:
+            violations.append("product_above_maximum")
+        if not violations:
+            # Каждое ограничение по отдельности достижимо, но в каталоге нет
+            # одной марки, которая одновременно удовлетворяет обоим.
+            violations.append("temperature_combination_unsupported")
         raise ElectricalFormulaError(
             "ELECTRICAL_CABLE_TEMPERATURE_LIMIT_EXCEEDED",
-            "Ни одна допустимая марка не проходит T_env/T_min и T_product/T_max",
+            "Температуры объекта находятся вне допустимого диапазона кабелей",
             details={
                 "product_temperature_c": float(product_temperature),
                 "ambient_temperature_c": float(ambient_temperature),
+                "minimum_supported_ambient_temperature_c": float(
+                    minimum_supported_ambient
+                ),
+                "maximum_supported_product_temperature_c": float(
+                    maximum_supported_product
+                ),
+                "violations": violations,
                 "manual_cable_model": params.cable_mark,
             },
         )

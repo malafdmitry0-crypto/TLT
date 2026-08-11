@@ -8,7 +8,7 @@
 
 - [`case1-design-review.md`](./case1-design-review.md) — **ревью v1.0 и существующих макетов; основание правок этой версии**
 - [`specification-designer-residual-prompt.md`](./specification-designer-residual-prompt.md) — **детализация D-SPEC**: состояния diagnostics по kind, badges на вкладках ЭР, provenance строки, «выбор устарел». Подчинён этому брифу: при расхождении побеждает бриф
-- [`electrical-designer-residual-prompt.md`](./electrical-designer-residual-prompt.md) — **детализация D-ELEC** после cutover E0–E9: карта статус → тон, ручной выбор марки с P@T3, защита ручных марок при пересчёте, конфликт 409, колонки L\*, keyboard-assign. Подчинён этому брифу
+- [`electrical-input-contract-reconciliation.md`](./electrical-input-contract-reconciliation.md) — действующий контракт подбора Case1-r4
 - [`case1-docs-verification.md`](./case1-docs-verification.md) — errata / что перепроверено
 - [`case1-frontend-user-stories.md`](./case1-frontend-user-stories.md) — FE user stories + AC
 - [`case1-section-checklists.md`](./case1-section-checklists.md) — чек-лист соответствия
@@ -119,7 +119,7 @@
 | D-HOME | Home: CTA «Начать без регистрации» / «Войти с паролем» | P1 | Уже есть; сверить copy с help |
 | D-HELP | Справка гостя (лимиты, сессия, файлы, отчёты) | P1 | Сейчас «30 дней», устаревшие лимиты |
 | D-HEAT | Исходные данные — расширено до §5.2–5.13 | **P1→P0 частично** | См. §4.3: три из шести обязательных элементов панели объектов отсутствуют |
-| D-ELEC | Электрорасчёт — **основной** объём | **P0** | Legacy UI vs MVP. Детализация состояний после cutover — [`electrical-designer-residual-prompt.md`](./electrical-designer-residual-prompt.md) (D-ELEC-01…12) |
+| D-ELEC | Электрорасчёт — **основной** объём | **P0** | UI должен следовать действующему [`Case1-r4`](./electrical-input-contract-reconciliation.md) |
 | D-SPEC | Спецификация — **основной** объём | **P0** | Секции, diagnostics, selection. Детализация состояний — [`specification-designer-residual-prompt.md`](./specification-designer-residual-prompt.md) (D-SPEC-01…06) |
 | D-REPORT | Отчёт: guest preview/print vs employee export | P2 | Clarification copy |
 | D-SESSION | Восстановление / истечение сессии | P1 | Без «битого» UI после 401 |

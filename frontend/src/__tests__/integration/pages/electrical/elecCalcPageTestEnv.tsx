@@ -67,6 +67,7 @@ export function resetElecCalcIntegrationState(): void {
   // harness explicitly performs the same tab change a user would.
   electricalAssignmentPanelMock.initialSystemView = 'self_regulating';
   localStorage.clear();
+  sessionStorage.clear();
   // Main table uses AntD DOM here; candidate table is mocked through its Glide props.
   localStorage.setItem(ELECTRICAL_TABLE_ENGINE_STORAGE_KEY, 'table');
   useAuthStore.getState().logout();

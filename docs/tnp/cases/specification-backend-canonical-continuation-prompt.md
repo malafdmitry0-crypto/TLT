@@ -245,7 +245,7 @@ specification data plane.
    [`../../frontend/agent-development-standard.md`](../../frontend/agent-development-standard.md),
    выбранный proof/viewport/UI contract.
 3. [`guest-specification-calculation-algorithm.md`](./guest-specification-calculation-algorithm.md).
-4. [`guest-electrical-calculation-tz.md`](./guest-electrical-calculation-tz.md).
+4. [`electrical-input-contract-reconciliation.md`](./electrical-input-contract-reconciliation.md).
 5. Бизнес-PDF «1 Кейс», редакция 4, §§6.18–6.20 и §§7.1–7.15, страницы 52–81.
 6. Выполненный [`specification-settings-scope-rewrite-prompt.md`](./specification-settings-scope-rewrite-prompt.md).
 7. Фактические production files, migrations и tests на текущем `HEAD`.

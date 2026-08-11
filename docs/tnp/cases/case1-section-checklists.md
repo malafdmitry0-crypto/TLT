@@ -396,8 +396,8 @@
 - [x] Batch recalc не трогает manual без флага
 - [x] Spec берёт только successful cable rows
 - [—] Коммерческие критерии (дешевле/быстрее/наличие) — вне MVP FE-28
-- [ ] `GET /cable-options` → TT-модели с P@T3 (сейчас [] / techdebt)
-- [~] Provenance: марка, Lфакт/Lзаказ, токи; полный view (серия, catalog ver, P@T3) partial
+- [ ] `GET /cable-options` → точные TT-марки с паспортной мощностью и температурными пределами
+- [~] Provenance: марка, Lфакт/Lзаказ, токи; полный view (серия, catalog ver, nominal_power) partial
 
 ### 6.14 Секционирование
 

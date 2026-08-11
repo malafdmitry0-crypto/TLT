@@ -21,7 +21,7 @@
 Парный документ по фронту: [`case1-frontend-checklist.md`](./case1-frontend-checklist.md).
 План закрытия: [`case1-closure-slice-plan.md`](./case1-closure-slice-plan.md).
 
-**Источники:** кейс 1 ред. 4 от 07.07.2026; [`guest-electrical-calculation-tz.md`](./guest-electrical-calculation-tz.md);
+**Источники:** кейс 1 ред. 4 от 07.07.2026; [`electrical-input-contract-reconciliation.md`](./electrical-input-contract-reconciliation.md);
 [`guest-specification-calculation-algorithm.md`](./guest-specification-calculation-algorithm.md);
 [`specification-backend-implementation-prompt.md`](./specification-backend-implementation-prompt.md);
 ревизия кода `backend/app` рабочей копии от 2026-08-03 (включая незакоммиченные правки:
@@ -118,8 +118,9 @@ multi-ЭР — savepoint per ER. HTTP-endpoints admin import/activate катал
 seeds переведены на канонический pipeline 230 В (`seeds.py:1602-1652`) и до расчётов
 регистрируют active/approved версии существующих power/section/BOM-каталогов.
 
-Ядро стабильно с прошлой оценки: TT-pipeline (230 В форсировано, нитки 1..3, обязательный T3,
-fail-closed `Iдоп` project+object, серия `q1·T3+q2`, СТ/СР, fingerprint + чексуммы трёх каталогов);
+Ядро стабильно с прошлой оценки: TT-pipeline (проектное положительное напряжение, нитки 1..3,
+паспортная мощность `nominal_power`, fail-closed проектный `Iдоп`, точные марки СТ/СР,
+fingerprint + чексуммы трёх каталогов);
 секционирование по кейсу 6.12–6.14 буквально (`Lогр = min(Lмакс, Lток)` округлением вниз,
 равные секции, `Lфакт ≥ Lтреб`, `Lзаказ = Lфакт × 1.10`); 27 доменных кодов; staleness-каналы
 с изоляцией по UUID ЭР.
@@ -283,28 +284,11 @@ select-cable/batch/candidates, `GET /cable-options` — заглушка на к
 8. Фронт (зеркально, §17.3 пп.1-2,5-6): единственный тип MVP, 230 В read-only, селекторы
    без legacy-марок.
 
-Документальное основание — [`guest-electrical-calculation-tz.md`](./guest-electrical-calculation-tz.md):
-
-- **§1.1/§3 DEC-07**: марки с префиксом «ТЛТ» — условные legacy-данные, «не могут
-  использоваться для нового расчёта»; обязательный MVP — только серии `ТТН`/`ТТВ`/`ТТХ`,
-  мощность по кривой `q1·T3+q2`.
-- **§3 DEC-11**: нормативное напряжение — 230 В; 220 В допустимо только при чтении
-  legacy snapshot и требует пересчёта.
-- **BE-16 (§8)**: legacy-марки не принимаются ни в auto-, ни в manual-режиме;
-  автосопоставление legacy-марки с ТТ-моделью запрещено. Код ошибки §10.3:
-  `ELECTRICAL_LEGACY_CABLE_MARK_UNSUPPORTED` (422); приёмка AC-BE-21.
-- **FE-28 (§7), AC-FE-19**: UI не предлагает 220 В, legacy-марки, серии `ТТС*` и
-  коммерческие стратегии вне MVP.
-- **§9 (таблица API)**: `GET /calc/cable-options/{object_id}?electrical_variant_id=...` →
-  «модели допустимой серии, расчётная мощность при T3, причина недоступности».
-- **§17.2 п.1** (миграция backend): «Закрыть вход нового расчёта для legacy-линейки,
-  напряжения не 230 В, неподдерживаемых серий и коммерческих политик» — первый пункт
-  плана; **§17.3 пп.1–2, 5–6** — зеркальные шаги фронта (единственный тип
-  `self_regulating_tt`, 230 В read-only, manual options с backend, legacy не показывать).
-
-### Про напряжение: 230 В — требование ТЗ, кейс нейтрален
-
-Кейс нигде не фиксирует 230 В: напряжение питания — пользовательский ввод, ток считается
+Действующее документальное основание —
+[`electrical-input-contract-reconciliation.md`](./electrical-input-contract-reconciliation.md):
+точная марка выбирается по паспортным `nominal_power`, `Tmin` и `Tmax`, старые
+`q1/q2/T3/R` не входят в selector, а положительное проектное напряжение передаётся
+в последующие расчёты тока.
 `current = total_power / supply_voltage` (§6.13). Нормализация 230 В — из ТЗ §17.1.
 Следствия: TT power/section-каталоги уже нормализованы до 230 В; поле `"voltage": 220` в
 `cables_tlt.json` — косметика; а вот дефолт объекта `supply_voltage: 220` — реальный вход
@@ -398,10 +382,8 @@ versioned-каталога (admin HTTP + seeds) — после этого сце
 
 **Техдолг №8 (отложено решением владельца 2026-08-03 «остальное отключи»):**
 
-- [ ] `/cable-options` → TT-модели активного power-каталога: серия, температурная
-      группа, мощность при T3 (`q1·T3+q2`), причина недоступности, параметр ЭР
-      (§9/§17.3.5 ТЗ). Series-хелперы готовы (`_select_tt_series`, `_tt_row_series`);
-      маппинг серия→группа: ТТН→low, ТТВ/ТТХ→high.
+- [ ] `/cable-options` → точные TT-марки активного power-каталога: паспортная
+      мощность, температурные пределы, причина недоступности, параметр ЭР.
 - [ ] Удалить plumbing `tlt_catalog`/`load_cable_catalog` и `cables_tlt.json`,
       `resistive_cables.json`, `list_tlt_cables`/`list_resistive_cables`/
       `get_tlt_cable_by_mark` из loader; `seed_demo_commercial_catalog` +
@@ -416,7 +398,7 @@ versioned-каталога (admin HTTP + seeds) — после этого сце
 - [ ] Тестовый sweep: 45 юнит-падений (38 — `test_calculation_service_unit.py`,
       legacy-механика; 4 — `test_reports_helpers.py`; 2 — `test_spec_builder.py`;
       1 — `test_no_double_safety.py`) и ~48 интеграционных в `test_calculations.py`
-      (фикстуры без обязательного T3 `maintain_temperature`) — перевести на TT-вход
+      (фикстуры со снятыми входами старого контракта) — перевести на Case1-r4
       или удалить вместе с legacy-семантикой.
 
 ---

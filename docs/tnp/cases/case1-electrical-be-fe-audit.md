@@ -1,11 +1,11 @@
 # Активный аудит: электрорасчёт (BE + FE)
 
 **Дата:** 2026-08-04  
-**Scope:** Кейс 1 §6 + guest-electrical TZ MVP (TT-only, 230 В, Iдоп, 4 ЭР)
+**Scope:** Кейс 1 §6 + действующий Case1-r4 (TT-only, проектные напряжение и Iдоп, 4 ЭР)
 **Метод:** чтение API/сервисов/схем, FE pages/api/models, unit-тесты (vitest), сверка контрактов.  
 **Не гонялось:** live HTTP e2e, pytest (в окружении нет pytest-модуля).
 
-**Связано:** [`case1-backend-fe-readiness.md`](./case1-backend-fe-readiness.md), [`case1-frontend-user-stories.md`](./case1-frontend-user-stories.md) (EP-ELEC), [`guest-electrical-calculation-tz.md`](./guest-electrical-calculation-tz.md).
+**Связано:** [`case1-backend-fe-readiness.md`](./case1-backend-fe-readiness.md), [`case1-frontend-user-stories.md`](./case1-frontend-user-stories.md) (EP-ELEC), [`electrical-input-contract-reconciliation.md`](./electrical-input-contract-reconciliation.md).
 
 ---
 
@@ -239,7 +239,7 @@ Heat ready objects
 
 ### P1 — BE
 
-8. Implement `GET cable-options` TT models (series, P@T3, reasons, ER param).  
+8. Implement `GET cable-options` TT models (точная марка, паспортная мощность, температурные пределы, reasons, ER param).
 9. Expose distinct `electrical_status=stale` in query (no collapse).  
 10. Clean residual le=100 thread schemas / legacy defaults in FE batch helpers.
 
@@ -332,5 +332,5 @@ Sprint C (depth)
 
 *Конец аудита. Обновлять при закрытии FE-E1…E6 или BE-E1.*
 
-**Исполнение:** единый agent prompt со слайсами E0–E9 —  
-[`electrical-mvp-cutover-agent-prompt.md`](./electrical-mvp-cutover-agent-prompt.md).
+**Действующий контракт:**
+[`electrical-input-contract-reconciliation.md`](./electrical-input-contract-reconciliation.md).
