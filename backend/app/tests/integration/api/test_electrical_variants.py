@@ -42,6 +42,7 @@ READY_PIPE_PARAMS = {
     "insulation_layers": [{"thickness": 0.05, "material": MINERAL_WOOL}],
     "insulation_temperature_basis": "outdoor_winter",
     "ambient_temperature": -30.0,
+    "min_switch_temperature": -30.0,
     "process_temperature": 80.0,
     "pipe_length": 50.0,
     "placement": "outdoor",
@@ -77,6 +78,23 @@ async def _add_ready_pipe(
     body = response.json()
     assert body["is_valid"] is True
     assert body["results"]["total_heat_loss_design"] > 0
+    return body
+
+
+async def _add_invalid_pipe(
+    client: AsyncClient,
+    project_id: str,
+    headers: dict[str, str],
+) -> dict:
+    response = await client.post(
+        f"/api/v1/projects/{project_id}/objects",
+        json={"object_type": "pipe", "params": {"name": "Невалидный трубопровод"}},
+        headers=headers,
+    )
+    assert response.status_code == 201, response.text
+    body = response.json()
+    assert body["is_valid"] is False
+    assert body["validation_errors"]
     return body
 
 
@@ -379,7 +397,7 @@ class TestElectricalReadinessAndInitialization:
         )
         assert count == 0
 
-    async def test_empty_heat_result_is_not_meaningful_readiness(
+    async def test_empty_heat_result_is_reported_but_does_not_block_initialization(
         self,
         client: AsyncClient,
         guest_session: str,
@@ -400,10 +418,79 @@ class TestElectricalReadinessAndInitialization:
         )
         assert response.status_code == 200
         body = response.json()
-        assert body["ready"] is False
+        assert body["ready"] is True
         assert body["ready_objects"] == 0
         assert body["issues"][0]["code"] == "ELECTRICAL_OBJECT_NOT_READY"
         assert body["issues"][0]["details"]["total_heat_loss_design"] is None
+
+    async def test_all_invalid_objects_initialize_assignments_without_calculations(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+        db_session: AsyncSession,
+    ):
+        project = await _guest_project(client, guest_session)
+        headers = {"X-Session-Id": guest_session}
+        obj = await _add_invalid_pipe(client, project["id"], headers)
+
+        readiness = await client.get(
+            f"/api/v1/projects/{project['id']}/electrical-readiness",
+            headers=headers,
+        )
+        assert readiness.status_code == 200
+        assert readiness.json()["ready"] is True
+        assert readiness.json()["ready_objects"] == 0
+        assert readiness.json()["issues"][0]["object_id"] == obj["id"]
+
+        initialized = await _initialize(client, project["id"], headers)
+        variant_id = UUID(initialized["variant"]["id"])
+        assignments = (
+            await db_session.execute(
+                select(ElectricalVariantObject).where(
+                    ElectricalVariantObject.electrical_variant_id == variant_id
+                )
+            )
+        ).scalars().all()
+        calculations_count = await db_session.scalar(
+            select(func.count()).select_from(ElectricalCalculation).where(
+                ElectricalCalculation.electrical_variant_id == variant_id
+            )
+        )
+        assert len(assignments) == 1
+        assert assignments[0].object_id == UUID(obj["id"])
+        assert assignments[0].assignment_state == "unassigned"
+        assert calculations_count == 0
+
+    async def test_mixed_heat_state_reports_issue_without_blocking_initialization(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+        db_session: AsyncSession,
+    ):
+        project = await _guest_project(client, guest_session)
+        headers = {"X-Session-Id": guest_session}
+        await _add_ready_pipe(client, project["id"], headers)
+        invalid = await _add_invalid_pipe(client, project["id"], headers)
+
+        readiness = await client.get(
+            f"/api/v1/projects/{project['id']}/electrical-readiness",
+            headers=headers,
+        )
+        body = readiness.json()
+        assert readiness.status_code == 200
+        assert body["ready"] is True
+        assert body["total_objects"] == 2
+        assert body["ready_objects"] == 1
+        assert [issue["object_id"] for issue in body["issues"]] == [invalid["id"]]
+
+        initialized = await _initialize(client, project["id"], headers)
+        assignments_count = await db_session.scalar(
+            select(func.count()).select_from(ElectricalVariantObject).where(
+                ElectricalVariantObject.electrical_variant_id
+                == UUID(initialized["variant"]["id"])
+            )
+        )
+        assert assignments_count == 2
 
     async def test_initialize_is_idempotent_and_creates_unassigned_assignment(
         self,
