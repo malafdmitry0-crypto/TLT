@@ -77,19 +77,21 @@ class TestCanonicalGenerationRequest:
         assert dumped["options"]["L_K2i_m"] == "0"
         assert dumped["options"]["R_gr"] == "1"
 
-    def test_empty_form_defaults_binary_options_to_no_only(self):
+    def test_empty_form_defaults_binary_options_to_no_and_grouping_to_object_types(self):
         request = SpecificationGenerationRequest(variant_ids=[uuid4()])
         assert request.options.ex is False
         assert request.options.k1i is False
         assert request.options.k2i is False
         assert request.options.kiu is False
-        assert request.options.grouping_mode is None
+        assert (
+            request.options.grouping_mode
+            is SpecificationGroupingMode.SEPARATE_BY_OBJECT_TYPE
+        )
         assert request.options.l_k2i_m is None
         assert request.options.r_gr is None
         with pytest.raises(SpecificationOptionsValidationError) as exc_info:
             _validate_generation_options(request.options)
         assert {issue["field"] for issue in exc_info.value.diagnostic.issues} == {
-            "grouping_mode",
             "L_K2i_m",
             "R_gr",
         }
@@ -100,6 +102,19 @@ class TestCanonicalGenerationRequest:
                     "catalog_version": "2026-08-03",
                     "grouping_mode": "merge_materials",
                 }
+            )
+
+    def test_null_grouping_mode_uses_case_one_default(self):
+        request = SpecificationGenerationRequest.model_validate(
+            {"variant_ids": [uuid4()], "options": {"grouping_mode": None}}
+        )
+        assert (
+            request.options.grouping_mode
+            is SpecificationGroupingMode.SEPARATE_BY_OBJECT_TYPE
+        )
+        with pytest.raises(ValidationError):
+            SpecificationGenerationRequest.model_validate(
+                {"variant_ids": [uuid4()], "options": {"grouping_mode": ""}}
             )
 
     def test_legacy_frontend_field_is_not_part_of_canonical_contract(self):
