@@ -29,7 +29,7 @@ interface Props {
    */
   part?:
     | 'all' | 'wide' | 'temperatures' | 'wind'
-    | 'ambient' | 'process' | 'wind-speed' | 'alpha';
+    | 'ambient' | 'process' | 'wind-speed';
   fieldInputSettings?: HeatCalcFieldInputSettings;
   climateOptions: ReferencePickerOption[];
   isClimateFetching: boolean;
@@ -59,11 +59,11 @@ export default function TemperatureEnvironmentStep({
     ?? ambientTemperatureSourceFallback ?? 'manual';
   const windSource = TltForm.useWatch('wind_speed_source', form)
     ?? windSpeedSourceFallback ?? 'manual';
-  const wants = (field: 'ambient' | 'process' | 'wind-speed' | 'alpha') =>
+  const wants = (field: 'ambient' | 'process' | 'wind-speed') =>
     part === 'all'
     || part === field
     || (part === 'temperatures' && (field === 'ambient' || field === 'process'))
-    || (part === 'wind' && (field === 'wind-speed' || field === 'alpha'));
+    || (part === 'wind' && field === 'wind-speed');
 
   return (
     <>
@@ -117,16 +117,6 @@ export default function TemperatureEnvironmentStep({
           fieldInputSettings={fieldInputSettings}
           preserve={false}
           extra={sourceTag(windSource)}
-        />
-      )}
-      {wants('alpha') && objectType === 'pipe' && !isUndergroundPipe && (
-        <HeatFormField
-          id="alpha_vnesh"
-          objectType={objectType}
-          className="numeric-form-item coefficient-form-item alpha-vnesh-form-item helped-form-item"
-          testId="alpha-vnesh-input"
-          fieldInputSettings={fieldInputSettings}
-          preserve={false}
         />
       )}
       {/* max_* и zone — не входы теплопотерь; round-trip в params.

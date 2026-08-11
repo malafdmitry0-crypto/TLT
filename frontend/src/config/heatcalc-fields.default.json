@@ -1308,51 +1308,6 @@
         "type": "computed"
       }
     },
-    "alpha_vnesh": {
-      "service_name": "alpha_vnesh",
-      "object_types": [
-        "pipe",
-        "tank"
-      ],
-      "group": "Температура и среда",
-      "labels": {
-        "full": "α внеш",
-        "short": "α внеш",
-        "compact": "α"
-      },
-      "contexts": {
-        "table_by_key": {
-          "alpha_vnesh": {
-            "label": "α внеш",
-            "full_label": "α внеш",
-            "tooltip": "α внеш"
-          }
-        },
-        "settings_by_key": {
-          "alpha_vnesh": {
-            "label": "α внеш"
-          }
-        },
-        "form": {
-          "label": "Коэффициент наружной теплоотдачи α"
-        }
-      },
-      "table_keys": {
-        "pipe": "alpha_vnesh",
-        "tank": "alpha_vnesh"
-      },
-      "input": {
-        "type": "number",
-        "unit": "Вт/м²К",
-        "min": 7,
-        "max": 52,
-        "default_step": 0.1,
-        "configurable_step": false,
-        "input_unit": "raw",
-        "display_digits": 1
-      },
-      "description": "Ручное значение коэффициента внешней теплоотдачи. Если пусто, backend рассчитывает α из скорости ветра и размещения."
-    },
     "environment": {
       "service_name": "environment",
       "object_types": [
@@ -3682,18 +3637,6 @@
           "field": "wind_speed_source"
         },
         {
-          "key": "alpha_vnesh",
-          "group": "Температура и среда",
-          "defaultWidthPct": 8.2,
-          "minWidthPx": 64,
-          "valueType": "number",
-          "defaultVisible": false,
-          "sortable": true,
-          "filterable": true,
-          "resizable": true,
-          "field": "alpha_vnesh"
-        },
-        {
           "key": "environment",
           "group": "Температура и среда",
           "defaultWidthPct": 11.2,
@@ -4390,18 +4333,6 @@
           "field": "wind_speed_source"
         },
         {
-          "key": "alpha_vnesh",
-          "group": "Температура и среда",
-          "defaultWidthPct": 8.2,
-          "minWidthPx": 64,
-          "valueType": "number",
-          "defaultVisible": false,
-          "sortable": true,
-          "filterable": true,
-          "resizable": true,
-          "field": "alpha_vnesh"
-        },
-        {
           "key": "environment",
           "group": "Температура и среда",
           "defaultWidthPct": 11.2,
@@ -4804,7 +4735,6 @@
             "ground_temperature",
             "process_temperature",
             "wind_speed",
-            "alpha_vnesh",
             "max_ambient_temperature",
             "max_process_temperature",
             "environment",
@@ -4875,7 +4805,6 @@
             "ambient_temperature",
             "process_temperature",
             "wind_speed",
-            "alpha_vnesh",
             "max_ambient_temperature",
             "max_process_temperature",
             "environment",

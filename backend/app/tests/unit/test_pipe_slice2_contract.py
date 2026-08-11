@@ -67,10 +67,9 @@ def test_stored_pipe_rejects_every_legacy_input_without_alias(legacy):
         StoredPipeHeatParams(**_air(**legacy))
 
 
-@pytest.mark.parametrize("alpha", [6.999, 52.001])
-def test_manual_alpha_keeps_product_range(alpha):
-    with pytest.raises(ValidationError):
-        StoredPipeHeatParams(**_air(alpha_vnesh=alpha))
+def test_stored_pipe_rejects_manual_alpha() -> None:
+    with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+        StoredPipeHeatParams(**_air(alpha_vnesh=15.0))
 
 
 def test_pipe_ground_conductivity_matches_frontend_product_range():
@@ -158,12 +157,9 @@ def test_air_branches_resolve_alpha_and_preserve_pipe_dimensions():
         )
     )
     outdoor = calc_pipe_heat_loss(PipeHeatLossParams(**_air()))
-    manual = calc_pipe_heat_loss(PipeHeatLossParams(**_air(alpha_vnesh=15.0)))
-
     assert indoor.alpha_vnesh_applied == 9.0
     assert outdoor.alpha_vnesh_applied == pytest.approx(11.6 + 7 * math.sqrt(4.0))
-    assert manual.alpha_vnesh_applied == 15.0
-    assert manual.wind_speed_applied is None
+    assert outdoor.wind_speed_applied == 4.0
     assert outdoor.applied_units["thermal_resistance"] == "m*K/W"
     assert outdoor.applied_units["heat_loss_per_meter_base"] == "W/m"
     assert outdoor.applied_units["total_heat_loss_base"] == "W"

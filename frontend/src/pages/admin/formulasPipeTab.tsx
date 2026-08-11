@@ -59,7 +59,6 @@ export function FormulasPipeTab() {
     assignIfPresent(p, 'local_element_equiv_length', v.local_element_equiv_length);
     if (p.placement !== 'underground') {
       assignIfPresent(p, 'wind_speed', v.wind_speed);
-      assignIfPresent(p, 'alpha_vnesh', v.alpha_vnesh);
     }
     assignIfPresent(p, 'safety_factor', v.safety_factor);
     run(p);
@@ -178,11 +177,6 @@ export function FormulasPipeTab() {
                     { value: 'underground', label: 'Подземное' },
                   ]}
                 />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="alpha_vnesh" label="α вручную">
-                <TltNumberField min={7} max={52} className="tlt-field--fill" placeholder="из ветра" />
               </Form.Item>
             </Col>
             <Col span={8}>

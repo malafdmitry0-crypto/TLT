@@ -18,7 +18,6 @@ COMMON_HEAT_PARAM_KEYS = frozenset(
         "ambient_temperature",
         "ground_temperature",
         "wind_speed",
-        "alpha_vnesh",
         "safety_factor",
         "insulation_temperature_basis",
         "insulation_layers",
@@ -95,6 +94,7 @@ DEPRECATED_HEAT_PARAM_KEYS = frozenset(
         "valve_count",
         "flange_count",
         "support_count",
+        "alpha_vnesh",
     }
 )
 

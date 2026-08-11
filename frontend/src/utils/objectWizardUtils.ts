@@ -133,7 +133,6 @@ export interface PipeFormValues {
   ground_conductivity?: number;
   ground_conductivity_source?: 'manual' | 'reference';
   wind_speed?: number;
-  alpha_vnesh?: number;
   climate_city?: string;
   climate_region?: string;
   climate_key?: string;
@@ -193,7 +192,6 @@ export interface TankFormValues {
   ground_conductivity?: number;
   ground_conductivity_source?: 'manual' | 'reference';
   wind_speed?: number;
-  alpha_vnesh?: number;
   climate_city?: string;
   climate_region?: string;
   climate_key?: string;
