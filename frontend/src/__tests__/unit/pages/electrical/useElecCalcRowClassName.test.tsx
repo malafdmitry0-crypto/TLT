@@ -2,6 +2,7 @@ import { renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import type { ElectricalCalcSummary } from '@/types/calculation';
+import type { ProjectObject } from '@/types/project';
 import {
   resolveElectricalRowClassName,
   useElecCalcRowClassName,
@@ -16,6 +17,13 @@ function calc(results: Record<string, unknown>): ElectricalCalcSummary {
     variant_number: 1,
     results,
   };
+}
+
+function objectRow(
+  id: string,
+  overrides: Partial<Pick<ProjectObject, 'is_valid' | 'validation_errors'>> = {},
+): Pick<ProjectObject, 'id' | 'is_valid' | 'validation_errors'> {
+  return { id, is_valid: true, validation_errors: null, ...overrides };
 }
 
 describe('resolveElectricalRowClassName', () => {
@@ -83,6 +91,40 @@ describe('resolveElectricalRowClassName', () => {
 });
 
 describe('useElecCalcRowClassName', () => {
+  it('marks a backend-invalid heat object even when no electrical calculation exists', () => {
+    const { result } = renderHook(() => useElecCalcRowClassName({
+      activeRowId: null,
+      calcByObjectId: {},
+    }));
+    const invalidObject = objectRow('object-1', {
+      is_valid: false,
+      validation_errors: {
+        message: 'Заполните обязательные поля объекта',
+        missing_fields: ['outer_diameter'],
+      },
+    });
+
+    expect(result.current(invalidObject)).toBe('row-invalid');
+  });
+
+  it('keeps backend-invalid selection red but leaves unsupported objects neutral', () => {
+    const { result } = renderHook(() => useElecCalcRowClassName({
+      activeRowId: 'invalid-object',
+      calcByObjectId: {},
+    }));
+    const invalidObject = objectRow('invalid-object', {
+      is_valid: false,
+      validation_errors: { category: 'validation', message: 'Ошибка исходных данных' },
+    });
+    const unsupportedObject = objectRow('unsupported-object', {
+      is_valid: false,
+      validation_errors: { category: 'unsupported', message: 'Не применимо' },
+    });
+
+    expect(result.current(invalidObject)).toBe('row-invalid electrical-row-active');
+    expect(result.current(unsupportedObject)).toBe('');
+  });
+
   it('returns a stable row class callback wired to active row and calc map', () => {
     const calcByObjectId = {
       'object-1': calc({ message: 'Ошибка' }),
@@ -93,7 +135,7 @@ describe('useElecCalcRowClassName', () => {
       calcByObjectId,
     }));
 
-    expect(result.current({ id: 'object-1' })).toBe('row-invalid');
-    expect(result.current({ id: 'object-2' })).toBe('electrical-row-active');
+    expect(result.current(objectRow('object-1'))).toBe('row-invalid');
+    expect(result.current(objectRow('object-2'))).toBe('electrical-row-active');
   });
 });

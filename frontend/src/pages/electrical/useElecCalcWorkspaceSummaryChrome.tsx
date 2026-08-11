@@ -114,6 +114,7 @@ export function useElecCalcWorkspaceSummaryChrome({
   ), [canMutate, overwriteManualChoices, setOverwriteManualChoices]);
 
   const {
+    electricalErrorItems,
     activeElectricalErrorItem,
     activeElectricalErrorGuidance,
   } = useElecCalcErrorSummaryState({
@@ -139,6 +140,10 @@ export function useElecCalcWorkspaceSummaryChrome({
 
   return {
     ...summary,
+    // The diagnostics panel describes the loaded table page, so its counter
+    // must include exactly the actionable items it can explain. In particular,
+    // unsupported objects stay neutral instead of inflating the error count.
+    failedCount: electricalErrorItems.length,
     totalObjects,
     renderManualOverwriteControl,
     activeElectricalErrorItem,
