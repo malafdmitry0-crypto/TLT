@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Mapping
+from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
 
@@ -32,6 +33,23 @@ _PRODUCTION_CATALOG_STATUSES = {
     "section": {"active", "registered"},
     "bom": {"active"},
 }
+
+
+@dataclass(frozen=True, slots=True)
+class PipeElectricalLayout:
+    """Pipe-only layout contract for the shared TT physics pipeline."""
+
+
+@dataclass(frozen=True, slots=True)
+class TankElectricalLayout:
+    """Tank-only layout contract; pipe winding fields cannot be represented."""
+
+    shape: str
+    heating_height_m: float
+    laying_step_m: float
+    base_length_m: float
+    base_length_source: str
+    input_sources: Mapping[str, str]
 
 
 def _stable_hash(value: Any) -> str:
@@ -197,6 +215,7 @@ def electrical_tt_catalog_eligibility(
 def calculate_electrical_tt(
     resolved: ResolvedElectricalInputs,
     *,
+    layout: PipeElectricalLayout | TankElectricalLayout,
     provenance: Mapping[str, Any] | None = None,
     calculation_catalogs: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
@@ -207,6 +226,13 @@ def calculate_electrical_tt(
     its versioned payloads are the sole power/section/BOM calculation authority.
     """
     values = resolved.values
+    if isinstance(layout, TankElectricalLayout) and (
+        values.winding_pitch_mm is not None or values.outer_diameter_mm is not None
+    ):
+        raise ElectricalFormulaError(
+            "ELECTRICAL_TANK_LAYOUT_INPUT_UNSUPPORTED",
+            "Tank layout does not accept pipe winding inputs",
+        )
     source_provenance = dict(provenance or {})
     if calculation_catalogs is None:
         power_rows = None
@@ -341,7 +367,37 @@ def calculate_electrical_tt(
         catalogs=catalogs,
     )
 
-    return {
+    layout_result: dict[str, Any] = {
+        "requested_threads": values.thread_count,
+        "threads": applied_threads,
+        "thread_selection_source": (
+            "manual"
+            if values.thread_count is not None
+            else "manual_default"
+            if values.manual_cable_model
+            else "auto"
+        ),
+        "winding_factor": float(round_result(winding_factor, SIX_PLACES)),
+        "required_installed_length_m": float(round_result(required_length)),
+        "actual_installed_length_m": plan.l_fact_m,
+        "excess_installed_length_m": plan.l_excess_m,
+        "required_order_length_m": plan.order_cable_length_m,
+    }
+    if isinstance(layout, PipeElectricalLayout):
+        layout_result["winding_pitch_mm"] = (
+            float(values.winding_pitch_mm) if values.winding_pitch_mm is not None else None
+        )
+    else:
+        layout_result["tank"] = {
+            "shape": layout.shape,
+            "heating_height_m": layout.heating_height_m,
+            "laying_step_m": layout.laying_step_m,
+            "base_length_m": layout.base_length_m,
+            "base_length_source": layout.base_length_source,
+            "input_sources": dict(layout.input_sources),
+        }
+
+    result = {
         "status": "ready",
         "inputs": resolved_values,
         "cable": {
@@ -355,25 +411,7 @@ def calculate_electrical_tt(
             "selection_source": "manual" if values.manual_cable_model else "auto",
             "selection_policy": values.selection_policy,
         },
-        "layout": {
-            "requested_threads": values.thread_count,
-            "threads": applied_threads,
-            "thread_selection_source": (
-                "manual"
-                if values.thread_count is not None
-                else "manual_default"
-                if values.manual_cable_model
-                else "auto"
-            ),
-            "winding_pitch_mm": (
-                float(values.winding_pitch_mm) if values.winding_pitch_mm is not None else None
-            ),
-            "winding_factor": float(round_result(winding_factor, SIX_PLACES)),
-            "required_installed_length_m": float(round_result(required_length)),
-            "actual_installed_length_m": plan.l_fact_m,
-            "excess_installed_length_m": plan.l_excess_m,
-            "required_order_length_m": plan.order_cable_length_m,
-        },
+        "layout": layout_result,
         "section_plan": {
             "count": plan.section_count,
             "length_m": plan.section_length_m,
@@ -431,9 +469,6 @@ def calculate_electrical_tt(
         "total_power": plan.total_power_w,
         "current": plan.working_current_a,
         "voltage": float(values.nominal_voltage_v),
-        "winding_pitch": (
-            float(values.winding_pitch_mm) if values.winding_pitch_mm is not None else 0.0
-        ),
         "winding_coefficient": float(round_result(winding_factor, SIX_PLACES)),
         "num_sections": plan.section_count,
         "section_count": plan.section_count,
@@ -456,3 +491,8 @@ def calculate_electrical_tt(
         "warnings": warnings,
         "production_eligible": production_eligible,
     }
+    if isinstance(layout, PipeElectricalLayout):
+        result["winding_pitch"] = (
+            float(values.winding_pitch_mm) if values.winding_pitch_mm is not None else 0.0
+        )
+    return result
