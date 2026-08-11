@@ -22,6 +22,7 @@ def _outdoor_pipe(**overrides):
         "insulation_temperature_basis": "outdoor_winter",
         "ambient_temperature": -20,
         "process_temperature": 80,
+        "min_switch_temperature": -20,
         "placement": "outdoor",
         "wind_speed": 0,
     }
@@ -44,7 +45,7 @@ def _underground_pipe(**overrides):
     return params
 
 
-def test_pipe_normalization_does_not_invent_retired_or_required_electrical_inputs():
+def test_pipe_normalization_preserves_required_downstream_inputs_without_inventing_values():
     params = normalize_project_object_params("pipe", _outdoor_pipe())
     assert params["wall_thickness"] == pytest.approx(0.004)
     assert params["pipe_material"] == "carbon_steel"
@@ -52,7 +53,7 @@ def test_pipe_normalization_does_not_invent_retired_or_required_electrical_input
     assert params["wind_speed"] == 0
     assert params["num_local_elements"] == 0
     assert "aggressive_product" not in params
-    assert "min_switch_temperature" not in params
+    assert params["min_switch_temperature"] == -20
     assert "supply_voltage" not in params
     assert params["insulation_layers"] == [
         {"thickness": 0.05, "material": "mineral_wool_boards_120"}
@@ -161,6 +162,7 @@ def test_missing_pipe_fields_have_stable_paths_without_pydantic_details():
         "process_temperature",
         "pipe_length",
         "placement",
+        "min_switch_temperature",
     )
 
 
@@ -219,6 +221,9 @@ def test_tank_shape_geometry_is_required_after_defaults():
                 "insulation_temperature_basis": "outdoor_winter",
                 "ambient_temperature": -20,
                 "process_temperature": 80,
+                "min_switch_temperature": -20,
+                "heating_height": 3,
+                "laying_step": 0.2,
                 "placement": "outdoor",
                 "wind_speed": 0,
             },
@@ -226,3 +231,30 @@ def test_tank_shape_geometry_is_required_after_defaults():
 
     assert exc.value.code == "OBJECT_PARAMS_INVALID"
     assert exc.value.fields == ("diameter", "height")
+
+
+def test_tank_requires_all_downstream_inputs_before_heat_formula():
+    with pytest.raises(ProjectObjectParamsError) as exc:
+        prepare_project_object_params(
+            "tank",
+            {
+                "shape": "cylindrical",
+                "diameter": 2,
+                "height": 3,
+                "insulation_layers": [
+                    {"thickness": 0.05, "material": "mineral_wool_boards_120"}
+                ],
+                "insulation_temperature_basis": "outdoor_winter",
+                "ambient_temperature": -20,
+                "process_temperature": 80,
+                "placement": "outdoor",
+                "wind_speed": 0,
+            },
+        )
+
+    assert exc.value.code == "OBJECT_REQUIRED_FIELDS_MISSING"
+    assert exc.value.fields == (
+        "min_switch_temperature",
+        "heating_height",
+        "laying_step",
+    )

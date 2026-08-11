@@ -46,6 +46,7 @@ class TestExcelRoundTrip:
                 "insulation_temperature_basis": "outdoor_winter",
                 "ambient_temperature": -20.0,
                 "process_temperature": 80.0,
+                "min_switch_temperature": -20.0,
                 "pipe_length": 50.0,
                 "placement": "outdoor",
                 "wind_speed": 0.0,
@@ -60,6 +61,7 @@ class TestExcelRoundTrip:
                 "insulation_temperature_basis": "outdoor_winter",
                 "ambient_temperature": -10.0,
                 "process_temperature": 60.0,
+                "min_switch_temperature": -20.0,
                 "pipe_length": 25.0,
                 "placement": "outdoor",
                 "wind_speed": 0.0,
@@ -108,7 +110,7 @@ class TestExcelRoundTrip:
     async def test_csv_pipe_with_missing_required_field_reports_row_error(
         self, client: AsyncClient, guest_session: str
     ):
-        """Строгий pipe-контракт не сохраняет неполные строки."""
+        """Неполные строки сохраняются рядом с валидными для последующего исправления."""
         pid = (
             await client.get("/api/v1/projects", headers={"X-Session-Id": guest_session})
         ).json()[0]["id"]
@@ -116,9 +118,10 @@ class TestExcelRoundTrip:
         csv = (
             "Тип;Наименование;Диаметр, мм;Длина, м;Толщина изоляции, мм;"
             "Материал изоляции;T° среды;T° продукта;Толщина стенки, мм;"
-            "Материал трубы;Размещение;Скорость ветра, м/с;Режим температуры изоляции\n"
-            f"труба;Good;108;50;50;{MINERAL_WOOL};-20;80;4;carbon_steel;outdoor;0;outdoor_winter\n"
-            f"труба;Bad;;30;40;{MINERAL_WOOL};-20;80;4;carbon_steel;outdoor;0;outdoor_winter\n"
+            "Материал трубы;Размещение;Скорость ветра, м/с;Режим температуры изоляции;"
+            "Мин. T включения, °C\n"
+            f"труба;Good;108;50;50;{MINERAL_WOOL};-20;80;4;carbon_steel;outdoor;0;outdoor_winter;-20\n"
+            f"труба;Bad;;30;40;{MINERAL_WOOL};-20;80;4;carbon_steel;outdoor;0;outdoor_winter;-20\n"
         ).encode()
         resp = await client.post(
             f"/api/v1/projects/{pid}/objects/import-excel",
@@ -127,9 +130,10 @@ class TestExcelRoundTrip:
         )
         assert resp.status_code == 200, resp.text
         body = resp.json()
-        assert body["created"] == 1
-        assert len(body["errors"]) == 1
-        assert body["errors"][0]["row"] == 3
+        assert body["created"] == 2
+        assert body["valid"] == 1
+        assert body["invalid"] == 1
+        assert body["errors"] == []
         assert body["heat_loss_task"]["type"] == "heat_loss_batch"
 
     async def test_roundtrip_preserves_material_and_dimensions(
@@ -246,10 +250,11 @@ def _build_xlsx(pipes: list[list] | None = None, tanks: list[list] | None = None
                 "Размещение",
                 "Скорость ветра, м/с",
                 "Режим температуры изоляции",
+                "Мин. T включения, °C",
             ]
         )
         for row in pipes:
-            ws.append(row)
+            ws.append([*row, -20])
     if tanks is not None:
         ws = wb.create_sheet("Резервуары")
         ws.append(
@@ -264,10 +269,14 @@ def _build_xlsx(pipes: list[list] | None = None, tanks: list[list] | None = None
                 "Материал изоляции",
                 "T° среды",
                 "T° продукта",
+                "Скорость ветра, м/с",
+                "Мин. T включения, °C",
+                "Высота обогрева, м",
+                "Шаг укладки, м",
             ]
         )
         for row in tanks:
-            ws.append(row)
+            ws.append([*row, 0, -20, 2.0, 0.2])
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()
@@ -364,16 +373,19 @@ class TestExcelImport:
 
         assert resp.status_code == 200
         body = resp.json()
-        assert body["created"] == 0
-        assert [error["row"] for error in body["errors"]] == [2, 3]
-        assert all("insulation_layers" in error["message"] for error in body["errors"])
+        assert body["created"] == 2
+        assert body["valid"] == 0
+        assert body["invalid"] == 2
+        assert body["errors"] == []
         objects = (
             await client.get(
                 f"/api/v1/projects/{pid}/objects",
                 headers={"X-Session-Id": guest_session},
             )
         ).json()
-        assert objects == []
+        assert len(objects) == 2
+        assert all(item["is_valid"] is False for item in objects)
+        assert all(item["validation_errors"] for item in objects)
 
     async def test_import_tanks_supported_shapes_and_rejects_legacy_shape(
         self, client: AsyncClient, guest_session: str
@@ -410,8 +422,8 @@ class TestExcelImport:
         pid = await _create_project(client, guest_session)
         xlsx = _build_xlsx(
             tanks=[
-                ["OK", "Цилиндр", 2000, "", "", 3000, 80, "Минеральная вата", -20, 80],
-                ["Неизвестная форма 1", "Куб", 2000, "", "", 3000, 80, "Минеральная вата", -20, 80],
+                ["OK", "Цилиндр", 2000, "", "", 3000, 80, MINERAL_WOOL, -20, 80],
+                ["Неизвестная форма 1", "Куб", 2000, "", "", 3000, 80, MINERAL_WOOL, -20, 80],
                 [
                     "Неизвестная форма 2",
                     "Конус",
@@ -420,7 +432,7 @@ class TestExcelImport:
                     "",
                     3000,
                     80,
-                    "Минеральная вата",
+                    MINERAL_WOOL,
                     -20,
                     80,
                 ],
@@ -441,6 +453,7 @@ class TestExcelImport:
         body = resp.json()
         assert body["created"] == 1
         assert len(body["errors"]) == 2
+        assert body["valid"] == 1, body
         assert body["heat_loss_task"]["type"] == "heat_loss_batch"
         # Номера строк в Excel: 3 и 4 (заголовок — 1, OK — 2)
         rows_with_errors = sorted(e["row"] for e in body["errors"])
@@ -512,9 +525,10 @@ class TestCsvImport:
         csv_body = (
             "\ufeffТип;Наименование;Форма;Диаметр, мм;Длина, мм;Ширина, мм;Высота, мм;"
             "Длина, м;Толщина изоляции, мм;Материал изоляции;T° среды;T° продукта;Толщина стенки, мм;"
-            "Материал трубы;Размещение;Скорость ветра, м/с;Режим температуры изоляции\n"
-            f"труба;Пример;;108;;;;50;50;{MINERAL_WOOL};-20;80;4;carbon_steel;outdoor;0;outdoor_winter\n"
-            "резервуар;Бак;Цилиндр;2000;;;3000;;80;Минеральная вата;-20;80;;;;;\n"
+            "Материал трубы;Размещение;Скорость ветра, м/с;Режим температуры изоляции;"
+            "Мин. T включения, °C;Высота обогрева, м;Шаг укладки, м\n"
+            f"труба;Пример;;108;;;;50;50;{MINERAL_WOOL};-20;80;4;carbon_steel;outdoor;0;outdoor_winter;-20;;\n"
+            "резервуар;Бак;Цилиндр;2000;;;3000;;80;Минеральная вата;-20;80;;;;;-20;3;0.2\n"
         ).encode()
         resp = await client.post(
             f"/api/v1/projects/{pid}/objects/import-excel",
