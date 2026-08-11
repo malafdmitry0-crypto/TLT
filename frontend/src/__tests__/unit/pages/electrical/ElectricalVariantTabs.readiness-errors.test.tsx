@@ -112,11 +112,11 @@ describe('ElectricalVariantTabs — readiness-errors', () => {
     expect(screen.getByText('Имя уже занято')).toBeInTheDocument();
   });
 
-  it('shows readiness details for an empty project and initializes only when ready', async () => {
+  it('keeps object issues visible without blocking ER initialization', async () => {
     const user = userEvent.setup();
-    const blockedReadiness: ElectricalReadinessResponse = {
+    const partialReadiness: ElectricalReadinessResponse = {
       project_id: PROJECT_ID,
-      ready: false,
+      ready: true,
       total_objects: 2,
       ready_objects: 1,
       issues: [{
@@ -130,22 +130,47 @@ describe('ElectricalVariantTabs — readiness-errors', () => {
           variants: [],
           selectedVariant: null,
           isEmpty: true,
-          readiness: blockedReadiness,
+          readiness: partialReadiness,
         }));
 
     expect(screen.getByText('Пересчитайте теплопотери ёмкости')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Создать ЭР1/i })).toBeDisabled();
+    expect(screen.getByText('ЭР можно создать, но часть объектов не готова')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Создать ЭР1' })).toBeEnabled();
 
     const initializeVariant = vi.fn().mockResolvedValue(ER_1);
     rerender(tabsTree(controller({
-          variants: [],
-          selectedVariant: null,
-          isEmpty: true,
-          readiness: { ...blockedReadiness, ready: true, ready_objects: 2, issues: [] },
-          initializeVariant,
-        })));
+      variants: [],
+      selectedVariant: null,
+      isEmpty: true,
+      readiness: partialReadiness,
+      initializeVariant,
+    })));
     await user.click(screen.getByRole('button', { name: /Создать ЭР1/i }));
     expect(initializeVariant).toHaveBeenCalled();
+  });
+
+  it('allows an ER container when every object is still unready', () => {
+    renderTabs(controller({
+      variants: [],
+      selectedVariant: null,
+      isEmpty: true,
+      readiness: {
+        project_id: PROJECT_ID,
+        ready: true,
+        total_objects: 2,
+        ready_objects: 0,
+        issues: [{
+          code: 'HEAT_NOT_READY',
+          message: 'Сначала исправьте данные объекта',
+          object_id: ER_2_ID,
+          details: {},
+        }],
+      },
+    }));
+
+    expect(screen.getByText('ЭР можно создать, но объекты пока не готовы')).toBeInTheDocument();
+    expect(screen.getByText('Сначала исправьте данные объекта')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Создать ЭР1' })).toBeEnabled();
   });
 
   it('keeps initialize disabled while authoritative readiness is refetching', () => {
