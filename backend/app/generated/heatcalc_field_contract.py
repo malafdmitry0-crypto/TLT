@@ -12,7 +12,6 @@ HEATCALC_FIELD_INPUT_VERSION = 2
 
 HEATCALC_TABLE_COLUMN_KEYS: dict[str, frozenset[str]] = {
     "pipe": frozenset((
-        "alpha_vnesh",
         "ambient_temperature",
         "ambient_temperature_source",
         "applied_alpha_vnesh",
@@ -57,7 +56,6 @@ HEATCALC_TABLE_COLUMN_KEYS: dict[str, frozenset[str]] = {
         "second_insulation_material",
         "second_insulation_thickness",
         "steam_tracing",
-        "supply_voltage",
         "temperature_group",
         "thermal_resistance",
         "third_insulation_lambda",
@@ -73,7 +71,6 @@ HEATCALC_TABLE_COLUMN_KEYS: dict[str, frozenset[str]] = {
     )),
     "tank": frozenset((
         "air_surface_area",
-        "alpha_vnesh",
         "ambient_temperature",
         "ambient_temperature_source",
         "applied_alpha_vnesh",
@@ -109,7 +106,6 @@ HEATCALC_TABLE_COLUMN_KEYS: dict[str, frozenset[str]] = {
         "second_insulation_material",
         "second_insulation_thickness",
         "steam_tracing",
-        "supply_voltage",
         "surface_area_bare",
         "tank_buried_height",
         "tank_diameter",
@@ -134,7 +130,6 @@ HEATCALC_TABLE_COLUMN_KEYS: dict[str, frozenset[str]] = {
     )),
     "all": frozenset((
         "air_surface_area",
-        "alpha_vnesh",
         "ambient_temperature",
         "ambient_temperature_source",
         "applied_alpha_vnesh",
@@ -183,7 +178,6 @@ HEATCALC_TABLE_COLUMN_KEYS: dict[str, frozenset[str]] = {
         "second_insulation_material",
         "second_insulation_thickness",
         "steam_tracing",
-        "supply_voltage",
         "surface_area_bare",
         "tank_buried_height",
         "tank_diameter",
@@ -213,6 +207,7 @@ HEATCALC_FIELD_INPUT_FIELD_KEYS: dict[str, frozenset[str]] = {
     "pipe": frozenset((
         "ambient_temperature",
         "insulation_thickness_mm",
+        "maintain_temperature",
         "min_switch_temperature",
         "outer_diameter_mm",
         "pipe_length",
@@ -224,9 +219,12 @@ HEATCALC_FIELD_INPUT_FIELD_KEYS: dict[str, frozenset[str]] = {
     "tank": frozenset((
         "ambient_temperature",
         "diameter_mm",
+        "heating_height",
         "height_mm",
         "insulation_thickness_mm",
+        "laying_step",
         "length_mm",
+        "maintain_temperature",
         "process_temperature",
         "q_additional",
         "vapor_temperature",

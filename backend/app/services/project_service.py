@@ -415,22 +415,27 @@ class ProjectService:
             )
         try:
             reject_legacy_specification_object_params(data.params)
+            incoming_params = {
+                key: value for key, value in data.params.items() if key != "alpha_vnesh"
+            }
             forbidden_keys = (
                 PIPE_FORBIDDEN_HEAT_PARAM_KEYS
                 if data.object_type == "pipe"
                 else TANK_FORBIDDEN_HEAT_PARAM_KEYS
             )
-            if data.object_type in ("pipe", "tank") and forbidden_keys.intersection(data.params):
-                forbidden = sorted(forbidden_keys.intersection(data.params))
+            if data.object_type in ("pipe", "tank") and forbidden_keys.intersection(
+                incoming_params
+            ):
+                forbidden = sorted(forbidden_keys.intersection(incoming_params))
                 raise ProjectObjectParamsError(
                     f"Forbidden {data.object_type} heat params: " + ", ".join(forbidden)
                 )
             params = (
                 normalize_project_object_params(
-                    data.object_type, replace_heat_owned_params({}, data.params)
+                    data.object_type, replace_heat_owned_params({}, incoming_params)
                 )
                 if data.object_type in ("pipe", "tank")
-                else normalize_project_object_params(data.object_type, data.params)
+                else normalize_project_object_params(data.object_type, incoming_params)
             )
         except LegacySpecificationObjectParamsError as exc:
             raise ProjectValidationError(
@@ -483,6 +488,11 @@ class ProjectService:
                     str(exc), code=exc.code, fields=exc.fields
                 ) from exc
             if obj.object_type in ("pipe", "tank"):
+                incoming_params = {
+                    key: value
+                    for key, value in incoming_params.items()
+                    if key != "alpha_vnesh"
+                }
                 forbidden_keys = (
                     PIPE_FORBIDDEN_HEAT_PARAM_KEYS
                     if obj.object_type == "pipe"
@@ -713,13 +723,16 @@ class ProjectService:
                         if obj.object_type == "pipe"
                         else TANK_FORBIDDEN_HEAT_PARAM_KEYS
                     )
-                    if param in forbidden_keys:
+                    if param in forbidden_keys and param != "alpha_vnesh":
                         raise ProjectObjectParamsError(
                             f"Forbidden {obj.object_type} heat params: {param}"
                         )
                     # Merge, не полный replace heat-фрагмента: групповая
                     # корректировка меняет ровно один параметр (§5.8).
-                    merged = {**(obj.params or {}), param: value}
+                    merged = dict(obj.params or {})
+                    merged.pop("alpha_vnesh", None)
+                    if param != "alpha_vnesh":
+                        merged[param] = value
                     prepared_params[obj.id] = normalize_project_object_params(
                         obj.object_type, merged
                     )

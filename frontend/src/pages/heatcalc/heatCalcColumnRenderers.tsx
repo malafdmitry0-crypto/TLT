@@ -167,10 +167,6 @@ export function buildHeatCalcColumnRenderers({
       render: (_: unknown, r: ProjectObject) => sourceText(r.params?.wind_speed_source),
       copyValue: (r) => sourceText(r.params?.wind_speed_source),
     },
-    alpha_vnesh: {
-      render: (_: unknown, r: ProjectObject) => formatParamNumber(r, 'alpha_vnesh', 1),
-      copyValue: (r) => formatParamNumber(r, 'alpha_vnesh', 1),
-    },
     environment: {
       render: (_: unknown, r: ProjectObject) => environmentLabel(r.params?.environment),
       copyValue: (r) => environmentLabel(r.params?.environment),

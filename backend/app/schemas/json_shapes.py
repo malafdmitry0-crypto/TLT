@@ -190,7 +190,6 @@ class PipeParamsDict(TypedDict, total=False):
     num_local_elements: int
     local_element_equiv_length: float | None
     wind_speed: float | None
-    alpha_vnesh: float | None
     ground_conductivity: float | None
     safety_factor: float
     environment: Literal["normal", "aggressive"] | None
@@ -237,7 +236,6 @@ class TankParamsDict(TypedDict, total=False):
     wall_thickness: float | None
     wall_lambda: float | None
     wind_speed: float | None
-    alpha_vnesh: float | None
     safety_factor: float
     q_additional: float
     environment: Literal["normal", "aggressive"] | None

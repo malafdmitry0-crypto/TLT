@@ -50,7 +50,7 @@ export class DraftRowValidationError extends Error {
 
 const PIPE_REPLACED_PARAM_KEYS = new Set([
   'process_temperature', 'placement', 'ambient_temperature', 'ground_temperature',
-  'wind_speed', 'alpha_vnesh', 'safety_factor', 'insulation_temperature_basis',
+  'wind_speed', 'safety_factor', 'insulation_temperature_basis',
   'insulation_layers', 'ground_type', 'ground_conductivity', 'climate_key',
   'climate_city', 'climate_region', 'climate_temperature_basis',
   'ambient_temperature_source', 'ground_temperature_source', 'wind_speed_source',

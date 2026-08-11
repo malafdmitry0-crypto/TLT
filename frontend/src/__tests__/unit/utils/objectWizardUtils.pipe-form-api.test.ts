@@ -197,7 +197,7 @@ describe('pipeFormToApiParams', () => {
     expect(api.pipe_centerline_depth).toBe(1.2);
     expect(api.ambient_temperature).toBeUndefined();
     expect(api.wind_speed).toBeUndefined();
-    expect(api.alpha_vnesh).toBeUndefined();
+    expect(api).not.toHaveProperty('alpha_vnesh');
     expect(api.ground_type).toBe('clay');
     expect(api.ground_conductivity).toBe(1.7);
     expect(api.ground_conductivity_source).toBe('reference');
