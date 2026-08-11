@@ -4,10 +4,11 @@
  * @depends none
  * @does-not heat, electrical page modules
  */
-import type {
-  SpecificationGroupingMode,
-  SpecificationOptions,
+import {
+  type SpecificationGroupingMode,
+  type SpecificationOptions,
 } from '@/api/specifications';
+import { DEFAULT_SPECIFICATION_GROUPING_MODE } from '@/pages/specification/specGenerationOptionsSyncModel';
 
 export type SpecGenerateOptionsInput = {
   exZone: boolean;
@@ -53,7 +54,7 @@ const invalidFieldMessages: Record<SpecGenerateField, string> = {
 /** Canonical request/project options. Empty values remain absent. */
 export function buildSpecGenerateOptions(input: SpecGenerateOptionsInput): SpecificationOptions {
   return {
-    ...(input.groupingMode == null ? {} : { grouping_mode: input.groupingMode }),
+    grouping_mode: input.groupingMode ?? DEFAULT_SPECIFICATION_GROUPING_MODE,
     Ex: input.exZone,
     K1i: input.indicationOnBoxes,
     K2i: input.endSectionIndication,

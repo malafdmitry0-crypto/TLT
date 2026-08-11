@@ -144,7 +144,8 @@ class SpecificationRequestedOptions(BaseModel):
     """Текущие значения формы одного запуска формирования.
 
     Четыре бинарных поля всегда двухсостояниевые и по умолчанию равны ``Нет``.
-    Остальные пользовательские поля остаются неразрешёнными до явной отправки.
+    Группировка всегда имеет каноническое значение Case 1. Числовые поля
+    остаются неразрешёнными до явной отправки.
     """
 
     model_config = ConfigDict(
@@ -155,13 +156,26 @@ class SpecificationRequestedOptions(BaseModel):
 
     catalog_id: UUID | str | None = None
     catalog_version: str | None = Field(default=None, min_length=1)
-    grouping_mode: SpecificationGroupingMode | None = None
+    grouping_mode: SpecificationGroupingMode = (
+        SpecificationGroupingMode.SEPARATE_BY_OBJECT_TYPE
+    )
     ex: bool = Field(default=False, alias="Ex")
     k1i: bool = Field(default=False, alias="K1i")
     k2i: bool = Field(default=False, alias="K2i")
     kiu: bool = Field(default=False, alias="Kiu")
     l_k2i_m: Decimal | None = Field(default=None, ge=0, alias="L_K2i_m")
     r_gr: Decimal | None = Field(default=None, alias="R_gr")
+
+    @field_validator("grouping_mode", mode="before")
+    @classmethod
+    def _default_grouping_mode(
+        cls, value: SpecificationGroupingMode | str | None
+    ) -> SpecificationGroupingMode | str:
+        return (
+            SpecificationGroupingMode.SEPARATE_BY_OBJECT_TYPE
+            if value is None
+            else value
+        )
 
     @field_validator("catalog_id")
     @classmethod
