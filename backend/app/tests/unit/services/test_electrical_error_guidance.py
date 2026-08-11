@@ -7,6 +7,24 @@ from app.services.electrical_error_guidance import (
     clean_electrical_error_message,
     suggested_actions_for_electrical_error,
 )
+from app.services.electrical_input_resolver import ElectricalInputResolutionError
+
+
+def test_tank_pipe_layout_error_is_localized_and_points_to_tank_layout():
+    payload = build_electrical_error_payload(
+        ElectricalInputResolutionError(
+            "ELECTRICAL_TANK_LAYOUT_INPUT_UNSUPPORTED",
+            "Tank layout does not accept pipe winding inputs",
+            details={"fields": ["winding_pitch"]},
+        ),
+        object_type="tank",
+    )
+
+    assert payload["error_code"] == "ELECTRICAL_TANK_LAYOUT_INPUT_UNSUPPORTED"
+    assert payload["category"] == "validation"
+    assert payload["message"] == "Для резервуара нельзя задавать трубный шаг намотки"
+    assert payload["field"] == "winding_pitch"
+    assert payload["suggested_actions"] == ["SET_TANK_LAYOUT"]
 
 
 def test_builds_power_too_high_payload_with_actions_and_context():

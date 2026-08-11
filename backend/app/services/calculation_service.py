@@ -101,6 +101,8 @@ from app.services.electrical_input_resolver import (
 )
 from app.services.electrical_result_lifecycle import current_tt_result_sql_predicate
 from app.services.electrical_tt_pipeline import (
+    PipeElectricalLayout,
+    TankElectricalLayout,
     calculate_electrical_tt,
     electrical_tt_catalog_eligibility,
 )
@@ -2067,20 +2069,23 @@ class CalculationService:
             "assignment_snapshot": assignment_snapshot,
         }
         calculation_catalogs = await self._tt_calculation_catalogs()
+        if isinstance(tank_layout, dict):
+            layout_contract: PipeElectricalLayout | TankElectricalLayout = TankElectricalLayout(
+                shape=str(tank_layout["tank_shape"]),
+                heating_height_m=float(tank_layout["heating_height"]),
+                laying_step_m=float(tank_layout["laying_step"]),
+                base_length_m=float(tank_layout["base_length_m"]),
+                base_length_source=str(tank_layout["base_length_source"]),
+                input_sources=cast(dict[str, str], tank_layout["input_sources"]),
+            )
+        else:
+            layout_contract = PipeElectricalLayout()
         result_dict = calculate_electrical_tt(
             resolved,
+            layout=layout_contract,
             provenance=provenance,
             calculation_catalogs=calculation_catalogs,
         )
-        if isinstance(tank_layout, dict):
-            result_dict["layout"]["tank"] = {
-                "shape": tank_layout.get("tank_shape"),
-                "heating_height_m": tank_layout.get("heating_height"),
-                "laying_step_m": tank_layout.get("laying_step"),
-                "base_length_m": tank_layout.get("base_length_m"),
-                "base_length_source": tank_layout.get("base_length_source"),
-                "input_sources": tank_layout.get("input_sources"),
-            }
         catalogs = result_dict.get("catalogs", {})
         catalogs_eligible, invalid_catalogs = electrical_tt_catalog_eligibility(catalogs)
         if app_settings.is_production and not catalogs_eligible:
@@ -2101,7 +2106,7 @@ class CalculationService:
             for key, value in request.data.items()
             if key in {"cable_source", "cable_type_source", "cable_mark_source"}
         }
-        request.data = {
+        request_data = {
             **preserved,
             "required_power_per_meter": float(values.heat_loss_per_meter_w),
             "pipe_length": float(values.base_length_m),
@@ -2110,9 +2115,6 @@ class CalculationService:
             "supply_voltage": float(values.nominal_voltage_v),
             "max_start_current_per_section": float(values.max_section_start_current_a),
             "winding_coefficient": result_dict["winding_coefficient"],
-            "winding_pitch": (
-                float(values.winding_pitch_mm) if values.winding_pitch_mm is not None else None
-            ),
             "number_of_threads": values.thread_count,
             "requested_number_of_threads": values.thread_count,
             "number_of_threads_source": (
@@ -2123,11 +2125,16 @@ class CalculationService:
             "safety_factor": float(values.safety_factor),
             "cold_start_temperature_c": float(values.cold_start_temperature_c),
             "max_section_start_current_a": float(values.max_section_start_current_a),
-            "outer_diameter_mm": (
-                float(values.outer_diameter_mm) if values.outer_diameter_mm is not None else None
-            ),
             "_tt_pipeline_result": result_dict,
         }
+        if isinstance(layout_contract, PipeElectricalLayout):
+            request_data["winding_pitch"] = (
+                float(values.winding_pitch_mm) if values.winding_pitch_mm is not None else None
+            )
+            request_data["outer_diameter_mm"] = (
+                float(values.outer_diameter_mm) if values.outer_diameter_mm is not None else None
+            )
+        request.data = request_data
 
     def _hydrate_electrical_request_from_object(
         self,
@@ -2465,29 +2472,6 @@ class CalculationService:
         calc: ElectricalCalculation,
     ) -> dict[str, Any]:
         overrides = copy.deepcopy(calc.params or {})
-        results = calc.results if isinstance(calc.results, dict) else {}
-
-        for key in (
-            "supply_voltage",
-            "connection_type",
-            "winding_pitch",
-            "winding_coefficient",
-            "selection_policy",
-            "selection_mode",
-            "add_length",
-            "heating_height",
-            "laying_step",
-        ):
-            if overrides.get(key) is None and results.get(key) is not None:
-                overrides[key] = results.get(key)
-
-        if overrides.get("number_of_threads") is None and results.get("num_circuits") is not None:
-            overrides["number_of_threads"] = results.get("num_circuits")
-            overrides["number_of_threads_source"] = THREAD_SOURCE_PREVIOUS_RESULT
-
-        if overrides.get("supply_voltage") is None and results.get("voltage") is not None:
-            overrides["supply_voltage"] = results.get("voltage")
-
         return self._base_overrides_with_sources(overrides)
 
     async def _copy_validation_request_data(
@@ -3209,46 +3193,6 @@ class CalculationService:
                 220.0,
             )
         return data
-
-    def _layout_overrides_from_existing(self, calc: ElectricalCalculation | None) -> dict[str, Any]:
-        if calc is None or not calc.results:
-            return {}
-        results = calc.results
-        overrides: dict[str, Any] = {}
-        is_auto_resistive = (
-            getattr(calc, "cable_type", None) in ("single_core", "three_core")
-            and results.get("selection_mode") == "auto"
-        )
-        calc_params = getattr(calc, "params", None)
-        params_source = (
-            (calc_params or {}).get("number_of_threads_source")
-            if isinstance(calc_params, dict)
-            else None
-        )
-        thread_source = self._normalize_thread_source(
-            results.get("number_of_threads_source") or params_source
-        )
-        if results.get("winding_pitch") is not None:
-            overrides["winding_pitch"] = results.get("winding_pitch")
-        should_reuse_threads = thread_source not in (THREAD_SOURCE_AUTO, THREAD_SOURCE_DEFAULT)
-        if (
-            results.get("num_circuits") is not None
-            and not is_auto_resistive
-            and should_reuse_threads
-        ):
-            overrides["number_of_threads"] = results.get("num_circuits")
-            overrides["number_of_threads_source"] = THREAD_SOURCE_PREVIOUS_RESULT
-        return overrides
-
-    @staticmethod
-    def _merge_electrical_overrides(
-        base: dict[str, Any],
-        saved_layout: dict[str, Any],
-    ) -> dict[str, Any]:
-        merged = dict(saved_layout)
-        for key, value in base.items():
-            merged[key] = value
-        return merged
 
     async def _require_clean_candidate_scope(
         self,
@@ -4704,10 +4648,7 @@ class CalculationService:
                     ):
                         skipped += 1
                         continue
-                    overrides = self._merge_electrical_overrides(
-                        base_overrides,
-                        self._layout_overrides_from_existing(existing_calc),
-                    )
+                    overrides = dict(base_overrides)
                     if (
                         overrides.get("selection_policy") == "balanced"
                         and electrical_coefficients is None
