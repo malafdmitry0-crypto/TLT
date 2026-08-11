@@ -309,6 +309,16 @@ class TaskService:
         queue: TaskQueue | None = None,
         idempotency_key: str | None = None,
     ) -> BackgroundTask:
+        # Serialize explicit idempotency binding lookup with task creation.
+        # Without the common project lock two equal requests can both miss the
+        # binding; the second then sees the first task as a foreign calculation
+        # and incorrectly returns 423 instead of replaying the same task.
+        await ProjectService(self.db).get_project_for_write(
+            request.project_id,
+            principal,
+            guard_calculation=False,
+        )
+        await self._lock_project_for_electrical_task(request.project_id)
         existing_binding = await self._explicit_idempotency_binding(
             TASK_ELECTRICAL_BATCH,
             request.project_id,

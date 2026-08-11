@@ -37,11 +37,11 @@ describe('ElecCalcPage catalog / recalculation / selection — variant copy', ()
       ],
       { total_objects: 2, electrical_calculations_total: 1 },
     ));
-    const fifthVariant = {
+    const copiedVariant = {
       id: '55555555-5555-4555-8555-555555555555',
       project_id: 'p-1',
       name: 'Копия ЭР1',
-      sort_order: 4,
+      sort_order: 3,
       is_active: false,
       copied_from_id: '11111111-1111-4111-8111-111111111111',
       legacy_variant_number: null,
@@ -50,13 +50,13 @@ describe('ElecCalcPage catalog / recalculation / selection — variant copy', ()
       updated_at: '2026-07-18T10:00:00Z',
     };
     const defaultList = electricalVariantApiMocks.list.getMockImplementation();
-    const initialVariants = await defaultList!();
+    const initialVariants = (await defaultList!()).slice(0, 3);
     let copyCreated = false;
     electricalVariantApiMocks.list.mockImplementation(async () =>
-      copyCreated ? [...initialVariants, fifthVariant] : initialVariants);
+      copyCreated ? [...initialVariants, copiedVariant] : initialVariants);
     electricalVariantApiMocks.copy.mockImplementation(async () => {
       copyCreated = true;
-      return fifthVariant;
+      return copiedVariant;
     });
     useProjectStore.getState().setCurrentProject(mockProject);
     const user = (await import('@testing-library/user-event')).default.setup();
@@ -105,6 +105,9 @@ describe('ElecCalcPage catalog / recalculation / selection — variant copy', ()
   it('показывает lifecycle error и не повторяет copy с новой семантикой', async () => {
     const { getElectricalPage } = await import('@/api/calculations');
     (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage([makeObject()]));
+    const defaultList = electricalVariantApiMocks.list.getMockImplementation();
+    const initialVariants = (await defaultList!()).slice(0, 3);
+    electricalVariantApiMocks.list.mockResolvedValue(initialVariants);
     electricalVariantApiMocks.copy.mockRejectedValueOnce(
       new Error('Копирование требует UUID cutover'),
     );

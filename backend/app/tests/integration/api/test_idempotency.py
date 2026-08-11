@@ -28,6 +28,7 @@ PIPE_PARAMS = {
     "insulation_layers": [{"thickness": 0.05, "material": MINERAL_WOOL}],
     "insulation_temperature_basis": "outdoor_winter",
     "ambient_temperature": -20.0,
+    "min_switch_temperature": -20.0,
     "process_temperature": 80.0,
     "pipe_length": 50.0,
     "placement": "outdoor",

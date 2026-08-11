@@ -106,6 +106,12 @@ class TestLegacyElectricalVariantWrites:
             obj["id"],
             headers,
         )
+        settings_response = await client.patch(
+            f"/api/v1/projects/{project['id']}/electrical-settings",
+            json={"expected_version": 1, "max_section_start_current_a": 13.065},
+            headers=headers,
+        )
+        assert settings_response.status_code == 200, settings_response.text
 
         direct_calc = await client.post(
             "/api/v1/calc/electrical",
@@ -116,15 +122,10 @@ class TestLegacyElectricalVariantWrites:
                 "data": {
                     "required_power_per_meter": 20,
                     "cable_mark": "30ТТВ2-СР",
+                    "number_of_threads": 3,
                     "supply_voltage": 230,
                     "process_temperature": 80.0,
-                    "maintain_temperature": 50.0,
                     "ambient_temperature": -30.0,
-                    "steam_temperature_c": None,
-                    "aggressive_product": False,
-                    "winding_pitch_mm": None,
-                    "thread_count": None,
-                    "max_section_start_current_a": 13.065,
                     "selection_policy": "technical_minimum",
                     "pipe_length": 50,
                     "safety_factor": 1.1,
@@ -162,22 +163,13 @@ class TestLegacyElectricalVariantWrites:
         assert folder_response.status_code == 200, folder_response.text
         folder_id = folder_response.json()["id"]
 
-        # Iдоп секции select-cable наследует из проектных электронастроек.
-        section_limit = await client.patch(
-            f"/api/v1/projects/{project['id']}/electrical-settings",
-            json={"expected_version": 1, "max_section_start_current_a": "13.065"},
-            headers=headers,
-        )
-        assert section_limit.status_code == 200, section_limit.text
-
+        # Iдоп секции select-cable наследует из настроек, сохранённых выше.
         manual_calc = await client.post(
             "/api/v1/calc/electrical/select-cable",
             params={
                 "object_id": obj["id"],
                 "variant_number": 4,
-                "cable_mark": "30ТТВ2-СР",
-                "maintain_temperature": 50.0,
-                "aggressive_product": False,
+                "cable_mark": "60ТТВ2-СР",
             },
             headers=headers,
         )

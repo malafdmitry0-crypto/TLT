@@ -65,5 +65,7 @@ export const basePipeParams = {
   insulation_layers: [{ thickness: 0.05, material: 'mineral_wool' }],
   ambient_temperature: -25,
   process_temperature: 80,
+  min_switch_temperature: -20,
   placement: 'outdoor',
+  wind_speed: 0,
 };

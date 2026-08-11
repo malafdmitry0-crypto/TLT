@@ -177,10 +177,6 @@ async def _prepare_and_assign_legacy_variant(
 
 CANDIDATE_ELECTRICAL_PARAMS = {
     "supply_voltage": 230,
-    "maintain_temperature": 50.0,
-    # null — валидное значение (пар/навивка отсутствуют), но ключ обязан присутствовать.
-    "vapor_temperature": None,
-    "aggressive_product": False,
     "winding_pitch": None,
     "number_of_threads": None,
     "selection_policy": "technical_minimum",
@@ -224,7 +220,10 @@ async def _create_slot_two_candidate(
             "cable_source": "builtin",
             "mode": "manual",
             "cable_mark": "30ТТВ2-СР",
-            "electrical_params": CANDIDATE_ELECTRICAL_PARAMS,
+            "electrical_params": {
+                **CANDIDATE_ELECTRICAL_PARAMS,
+                "number_of_threads": 3,
+            },
         },
         headers=headers,
     )
@@ -1372,7 +1371,10 @@ class TestElectricalVariantConcurrency:
                 "cable_source": "builtin",
                 "mode": "manual",
                 "cable_mark": "30ТТВ2-СР",
-                "electrical_params": CANDIDATE_ELECTRICAL_PARAMS,
+                "electrical_params": {
+                    **CANDIDATE_ELECTRICAL_PARAMS,
+                    "number_of_threads": 3,
+                },
             },
             headers=headers,
         )

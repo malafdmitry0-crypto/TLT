@@ -5,6 +5,50 @@ import ElecCalcErrorSummary from '@/pages/electrical/ElecCalcErrorSummary';
 import { getElectricalErrorGuidance } from '@/utils/electricalErrorGuidance';
 
 describe('ElecCalcErrorSummary Iдоп guidance', () => {
+  it('shows concrete cable temperature limits instead of formula symbols', () => {
+    const backendError = 'Температуры объекта находятся вне допустимого диапазона кабелей';
+    const errorContext = {
+      ambient_temperature_c: -41,
+      minimum_supported_ambient_temperature_c: -40,
+      product_temperature_c: 151,
+      maximum_supported_product_temperature_c: 150,
+      violations: ['ambient_below_minimum', 'product_above_maximum'],
+    };
+    const guidance = getElectricalErrorGuidance({
+      error: backendError,
+      errorCode: 'ELECTRICAL_CABLE_TEMPERATURE_LIMIT_EXCEEDED',
+      errorContext,
+      suggestedActions: ['CHECK_AMBIENT_TEMPERATURE', 'CHECK_PROCESS_TEMPERATURE'],
+    });
+
+    render(
+      <ElecCalcErrorSummary
+        failedCount={1}
+        activeRowId="pipe-1"
+        item={{
+          stage: 'electrical',
+          objectId: 'pipe-1',
+          rowNumber: 2,
+          objectName: 'Труба 2',
+          error: backendError,
+          cableType: 'self_regulating_tt',
+          errorContext,
+          errorCode: 'ELECTRICAL_CABLE_TEMPERATURE_LIMIT_EXCEEDED',
+          suggestedActions: ['CHECK_AMBIENT_TEMPERATURE', 'CHECK_PROCESS_TEMPERATURE'],
+        }}
+        guidance={guidance}
+      />,
+    );
+
+    const region = screen.getByLabelText('Сообщения об ошибках объектов');
+    expect(region).toHaveTextContent('Температура окружающей среды -41 °C');
+    expect(region).toHaveTextContent('минимум -40 °C');
+    expect(region).toHaveTextContent('Температура продукта 151 °C');
+    expect(region).toHaveTextContent('максимум 150 °C');
+    expect(region).not.toHaveTextContent('T_env');
+    expect(region).not.toHaveTextContent('T_product');
+  });
+
   it('shows a Russian project-level explanation instead of the backend code', () => {
     const guidance = getElectricalErrorGuidance({
       error: 'SECTION_CURRENT_LIMIT_REQUIRED',
