@@ -163,7 +163,7 @@ describe('ElecCalcPage table / batch — batch-assign', () => {
     expect(within(unassignedRow).getByRole('checkbox')).toBeEnabled();
     await user.click(within(unassignedRow).getByText('Нераспределённый объект'));
     expect(within(unassignedRow).getByRole('button', { name: 'Выбор' })).toBeDisabled();
-    expect(within(unassignedRow).getByRole('button', { name: 'Подбор' })).toBeDisabled();
+    expect(within(unassignedRow).queryByRole('button', { name: 'Подбор' })).not.toBeInTheDocument();
 
     act(() => electricalAssignmentPanelMock.props?.onSystemViewChange?.('resistive'));
     const otherSystemRow = await screen.findByRole('row', { name: /Объект другой системы/ });

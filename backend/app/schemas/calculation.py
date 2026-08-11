@@ -12,6 +12,7 @@ from app.formulas.heat_loss.insulation import (
     validate_insulation_temperature_basis_for_placement,
 )
 from app.reference_data.loader import get_insulation_temperature_range
+from app.schemas.electrical_assignment import ElectricalAssignmentResponse
 from app.schemas.electrical_variant import (
     ElectricalAssignmentState,
     ElectricalSystemType,
@@ -1152,6 +1153,8 @@ class CableOptionOut(BaseModel):
     passport_power_w_per_m: float | None = None
     min_ambient_temperature_c: float | None = None
     max_product_temperature_c: float | None = None
+    object_ambient_temperature_c: float | None = None
+    object_product_temperature_c: float | None = None
     nomenclature_code: str | None = None
     catalog: CableOptionCatalogMeta | None = None
 
@@ -1172,70 +1175,38 @@ class ElectricalCalcSummary(BaseModel):
     results: dict[str, Any] | None
 
 
-class ElectricalCableSelectionVariantsRequest(BaseModel):
-    """Атомарное применение выбора кабеля к нескольким СО одного объекта."""
+ElectricalCableSelectionMode = Literal["auto", "manual"]
+
+
+class ElectricalCableSelectionRequest(BaseModel):
+    """Atomic cable selection for one object inside one exact UUID ER."""
 
     model_config = ConfigDict(extra="forbid")
 
-    object_id: UUID
-    cable_mark: str | None = None
+    expected_assignment_version: int = Field(ge=1)
+    mode: ElectricalCableSelectionMode
+    cable_mark: str | None = Field(default=None, max_length=128)
     cable_source: ElectricalCableSource = "builtin"
-    variant_numbers: list[int] = Field(
-        default_factory=lambda: [1],
-        min_length=1,
-        max_length=MAX_ELECTRICAL_VARIANTS,
-    )
-    electrical_variant_ids: dict[int, UUID] = Field(default_factory=dict)
-    cable_type: ElectricalCableType = "self_regulating_tt"
-    selection_mode: Literal["auto", "manual"] | None = None
-    connection_type: str | None = None
-    winding_pitch: float | None = None
-    number_of_threads: int | None = None
-    heating_height: float | None = None
-    laying_step: float | None = Field(default=None, ge=0.1, le=0.4)
-    supply_voltage: float | None = Field(default=None, gt=0)
     selection_policy: SelectionPolicy = "technical_minimum"
+    thread_count: int | None = Field(default=None, ge=1, le=3)
+    winding_pitch_mm: float | None = Field(default=None, gt=0)
 
     @model_validator(mode="after")
-    def normalize_variants_and_mark(self) -> "ElectricalCableSelectionVariantsRequest":
-        normalized_variants = list(dict.fromkeys(int(value) for value in self.variant_numbers))
-        invalid = [
-            value
-            for value in normalized_variants
-            if value < 1 or value > MAX_ELECTRICAL_VARIANTS
-        ]
-        if invalid:
-            raise ValueError(
-                f"variant_numbers должны быть от 1 до {MAX_ELECTRICAL_VARIANTS}"
-            )
-        if not normalized_variants:
-            raise ValueError("Нужно выбрать хотя бы одно СО")
-        self.variant_numbers = normalized_variants
-        if self.electrical_variant_ids and set(self.electrical_variant_ids) != set(
-            normalized_variants
-        ):
-            raise ValueError("electrical_variant_ids должны точно соответствовать variant_numbers")
+    def validate_selection(self) -> "ElectricalCableSelectionRequest":
         if isinstance(self.cable_mark, str):
-            mark = self.cable_mark.strip()
-            self.cable_mark = mark or None
+            self.cable_mark = self.cable_mark.strip() or None
+        if self.mode == "manual" and self.cable_mark is None:
+            raise ValueError("Для ручного выбора укажите точную марку кабеля")
+        if self.mode == "manual" and self.thread_count is None:
+            raise ValueError("Для ручного выбора укажите количество ниток от 1 до 3")
+        if self.mode == "auto" and self.cable_mark is not None:
+            raise ValueError("Автоматический выбор выполняется без ручной марки")
         return self
 
-    def electrical_params(self) -> dict[str, Any]:
-        values = {
-            "selection_mode": self.selection_mode,
-            "connection_type": self.connection_type,
-            "winding_pitch": self.winding_pitch,
-            "number_of_threads": self.number_of_threads,
-            "heating_height": self.heating_height,
-            "laying_step": self.laying_step,
-            "supply_voltage": self.supply_voltage,
-            "selection_policy": self.selection_policy,
-        }
-        return {
-            key: value
-            for key, value in values.items()
-            if key == "selection_policy" or key in self.model_fields_set
-        }
+
+class ElectricalCableSelectionResponse(BaseModel):
+    assignment: ElectricalAssignmentResponse
+    calculation: ElectricalCalcSummary
 
 
 ElectricalCandidateMode = Literal["auto", "manual"]

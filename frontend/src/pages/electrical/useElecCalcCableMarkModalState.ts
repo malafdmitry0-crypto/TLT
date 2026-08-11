@@ -7,7 +7,6 @@ import {
   type CableSource,
 } from '@/api/calculations';
 import type { ElectricalCalcSummary } from '@/types/calculation';
-import type { ElectricalVariant } from '@/types/electricalVariant';
 import type { ProjectObject } from '@/types/project';
 import {
   AUTO_CABLE_MARK_VALUE,
@@ -18,20 +17,17 @@ import {
   type CableStatusRow,
 } from '@/pages/electrical/elecCalcCableCatalogModel';
 import {
+  calcLayoutValues,
   currentElectricalCalc,
   getCableMark,
+  getThreadSource,
 } from '@/domain/electrical/elecCalcResultValueModel';
-import {
-  electricalVariantTargetOptions,
-  legacyElectricalVariantTargetsForIds,
-  normalizeElectricalVariantIdList,
-} from '@/pages/electrical/elecCalcVariantModel';
 import type { CableTypeKey } from '@/domain/electrical/elecCalcMainTableModel';
+import { buildElecCalcAutoAvailability } from '@/pages/electrical/elecCalcAutoAvailabilityModel';
 
 type UseElecCalcCableMarkModalStateOptions = {
   objects: readonly ProjectObject[];
   calcByObjectId: Record<string, ElectricalCalcSummary | undefined>;
-  electricalVariants: readonly ElectricalVariant[];
   electricalVariantId: string;
   getSavedCableTypeForObject: (objectId: string) => CableTypeKey;
   normalizeAvailableCableType: (type: CableTypeKey) => CableTypeKey;
@@ -59,7 +55,6 @@ type UseElecCalcCableMarkModalStateOptions = {
 export function useElecCalcCableMarkModalState({
   objects,
   calcByObjectId,
-  electricalVariants,
   electricalVariantId,
   getSavedCableTypeForObject,
   normalizeAvailableCableType,
@@ -72,7 +67,7 @@ export function useElecCalcCableMarkModalState({
   const [objectId, setObjectId] = useState<string | null>(null);
   const [cableType, setCableType] = useState<CableTypeKey | null>(null);
   const [value, setValue] = useState<string | null>(null);
-  const [targetVariants, setTargetVariants] = useState<string[]>([]);
+  const [threadCountValue, setThreadCountValue] = useState<'auto' | '1' | '2' | '3'>('auto');
 
   const object = objectId
     ? objects.find((candidateObject) => candidateObject.id === objectId) ?? null
@@ -89,7 +84,20 @@ export function useElecCalcCableMarkModalState({
     enabled: Boolean(objectId && needsBackendTtOptions),
     staleTime: 30_000,
   });
-  const backendTtOptions = backendTtQuery.data ?? null;
+  const {
+    data: backendTtQueryData,
+    status: backendTtQueryStatus,
+    refetch: refetchBackendTtOptions,
+  } = backendTtQuery;
+  const backendTtOptions = backendTtQueryData ?? null;
+  const autoAvailability = useMemo(() => buildElecCalcAutoAvailability({
+    enabled: cableType === 'self_regulating_tt',
+    status: backendTtQueryStatus,
+    options: backendTtQueryData,
+  }), [backendTtQueryData, backendTtQueryStatus, cableType]);
+  const retryAutoAvailability = useCallback(() => {
+    void refetchBackendTtOptions();
+  }, [refetchBackendTtOptions]);
   const options = useMemo(
     () => (
       cableType
@@ -120,56 +128,47 @@ export function useElecCalcCableMarkModalState({
       selectedOption.cableSource,
     );
   }, [cableType, calc, findCableRowForMark, selectedOption]);
-  const targetVariantOptions = useMemo(
-    () => electricalVariantTargetOptions(electricalVariants),
-    [electricalVariants],
-  );
-  const targetVariantsForSubmit = useMemo(
-    () => legacyElectricalVariantTargetsForIds(
-      targetVariants,
-      electricalVariants,
-    ),
-    [electricalVariants, targetVariants],
-  );
-
   const close = useCallback(() => {
     setObjectId(null);
     setCableType(null);
     setValue(null);
-    setTargetVariants([]);
+    setThreadCountValue('auto');
   }, []);
   const open = useCallback((nextObject: ProjectObject) => {
     const nextCalc = calcByObjectId[nextObject.id];
     const currentCalc = currentElectricalCalc(nextCalc);
     const nextType = getSavedCableTypeForObject(nextObject.id);
-    const selectedVariantExists = electricalVariants.some(
-      (electricalVariant) => electricalVariant.id === electricalVariantId,
+    const nextMarkValue = cableMarkValueForCalc(
+      nextType,
+      getCableMark(currentCalc),
+      currentCalc,
     );
     onOpenObject?.(nextObject);
     setObjectId(nextObject.id);
     setCableType(nextType);
-    setTargetVariants(selectedVariantExists ? [electricalVariantId] : []);
-    setValue(cableMarkValueForCalc(nextType, getCableMark(currentCalc), currentCalc));
+    setValue(nextMarkValue);
+    const threadSource = getThreadSource(currentCalc);
+    const threads = Math.round(calcLayoutValues(currentCalc).numberOfThreads);
+    setThreadCountValue(
+      (threadSource === 'manual' || threadSource === 'previous_result') && threads >= 1 && threads <= 3
+        ? String(threads) as '1' | '2' | '3'
+        : nextMarkValue === AUTO_CABLE_MARK_VALUE ? 'auto' : '1',
+    );
   }, [
     calcByObjectId,
     cableMarkValueForCalc,
-    electricalVariantId,
-    electricalVariants,
     getSavedCableTypeForObject,
     onOpenObject,
   ]);
   const changeCableType = useCallback((nextType: CableTypeKey) => {
     setCableType(normalizeAvailableCableType(nextType));
     setValue(AUTO_CABLE_MARK_VALUE);
+    setThreadCountValue('auto');
     onCableTypeChange?.();
   }, [normalizeAvailableCableType, onCableTypeChange]);
   const normalizeSelectedCableType = useCallback(() => {
     setCableType((current) => current == null ? null : normalizeAvailableCableType(current));
   }, [normalizeAvailableCableType]);
-  const setTargetVariantsFromValues = useCallback((values: readonly unknown[]) => {
-    setTargetVariants(normalizeElectricalVariantIdList(values, electricalVariants));
-  }, [electricalVariants]);
-
   return {
     objectId,
     object,
@@ -177,10 +176,16 @@ export function useElecCalcCableMarkModalState({
     cableType,
     setCableType,
     value,
-    setValue,
-    targetVariants,
-    setTargetVariants,
-    targetVariantsForSubmit,
+    setValue: (nextValue: string) => {
+      setValue(nextValue);
+      if (nextValue === AUTO_CABLE_MARK_VALUE) {
+        setThreadCountValue('auto');
+      } else {
+        setThreadCountValue((current) => current === 'auto' ? '1' : current);
+      }
+    },
+    threadCountValue,
+    setThreadCountValue,
     savedType,
     currentMark,
     options,
@@ -188,11 +193,11 @@ export function useElecCalcCableMarkModalState({
     selectedMark,
     selectedOption,
     selectedCable,
-    targetVariantOptions,
+    autoAvailability,
+    retryAutoAvailability,
     close,
     open,
     changeCableType,
     normalizeSelectedCableType,
-    setTargetVariantsFromValues,
   };
 }

@@ -151,6 +151,7 @@ test.describe('PDF-ER-14 manual mark and pitch', () => {
     const pipe = await createCalculatedPipe(page, `E2E ER14 mark ${Date.now()}`);
     const { projectId, sessionId } = await prepareAssignedCalculatedObject(page, pipe.id);
 
+    await expect(page.getByRole('button', { name: /^Подбор$/i })).toHaveCount(0);
     const chooseBtn = page.getByRole('button', { name: /^Выбор$/i }).first();
     if (!(await chooseBtn.isVisible({ timeout: 5_000 }).catch(() => false))) {
       // Glide draws action chips on canvas — still prove mark exists after batch.

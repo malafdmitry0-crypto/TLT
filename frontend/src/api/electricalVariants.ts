@@ -7,6 +7,8 @@ import type {
   ElectricalAssignmentUnassignRequest,
   ElectricalAssignmentUpdateRequest,
   ElectricalAssignment,
+  ElectricalCableSelectionRequest,
+  ElectricalCableSelectionResponse,
   ElectricalReadinessResponse,
   ElectricalVariant,
   ElectricalVariantCopyRequest,
@@ -178,6 +180,19 @@ export async function patchElectricalAssignmentOverrides(
 ): Promise<ElectricalAssignment> {
   const { data } = await apiClient.patch<ElectricalAssignment>(
     `/projects/${projectId}/electrical-variants/${electricalVariantId}/assignments/${objectId}/electrical-overrides`,
+    payload,
+  );
+  return data;
+}
+
+export async function selectElectricalAssignmentCable(
+  projectId: string,
+  electricalVariantId: string,
+  objectId: string,
+  payload: ElectricalCableSelectionRequest,
+): Promise<ElectricalCableSelectionResponse> {
+  const { data } = await apiClient.post<ElectricalCableSelectionResponse>(
+    `/projects/${projectId}/electrical-variants/${electricalVariantId}/objects/${objectId}/cable-selection`,
     payload,
   );
   return data;

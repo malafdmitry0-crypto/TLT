@@ -10,7 +10,6 @@ type UseElecCalcGlideActionsOptions = {
   isCableMarkPending: boolean;
   getObjectActionDisabledReason?: (obj: ProjectObject) => string | null;
   onOpenCableMarkModal: (obj: ProjectObject) => void;
-  onOpenCableSizingModal: (obj: ProjectObject) => void;
 };
 
 export function useElecCalcGlideActions({
@@ -20,7 +19,6 @@ export function useElecCalcGlideActions({
   isCableMarkPending,
   getObjectActionDisabledReason = () => null,
   onOpenCableMarkModal,
-  onOpenCableSizingModal,
 }: UseElecCalcGlideActionsOptions) {
   const getElectricalGlideCellActions = useCallback((
     obj: ProjectObject,
@@ -28,23 +26,16 @@ export function useElecCalcGlideActions({
   ): HeatCalcGlideGridCellAction[] | undefined => {
     if (columnKey !== 'cable_mark' || activeRowId !== obj.id) return undefined;
     const assignmentDisabledReason = getObjectActionDisabledReason(obj);
-    return [
-      {
-        key: 'choose',
-        label: 'Выбор',
-        disabled:
-          !canMutate
-          || !obj.is_valid
-          || !projectSelected
-          || isCableMarkPending
-          || assignmentDisabledReason != null,
-      },
-      {
-        key: 'size',
-        label: 'Подбор',
-        disabled: !obj.is_valid || !projectSelected || assignmentDisabledReason != null,
-      },
-    ];
+    return [{
+      key: 'choose',
+      label: 'Выбор',
+      disabled:
+        !canMutate
+        || !obj.is_valid
+        || !projectSelected
+        || isCableMarkPending
+        || assignmentDisabledReason != null,
+    }];
   }, [
     activeRowId,
     canMutate,
@@ -65,16 +56,11 @@ export function useElecCalcGlideActions({
       onOpenCableMarkModal(obj);
       return;
     }
-    if (actionKey === 'size') {
-      if (!obj.is_valid || !projectSelected) return;
-      onOpenCableSizingModal(obj);
-    }
   }, [
     canMutate,
     getObjectActionDisabledReason,
     isCableMarkPending,
     onOpenCableMarkModal,
-    onOpenCableSizingModal,
     projectSelected,
   ]);
 

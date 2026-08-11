@@ -44,11 +44,9 @@ function setup(
   options: Partial<Parameters<typeof useElecCalcElectricalColumnRenderers>[0]> = {},
 ) {
   const openCableMarkModal = vi.fn();
-  const openCableSizingModal = vi.fn();
 
   return {
     openCableMarkModal,
-    openCableSizingModal,
     ...renderHook(() => useElecCalcElectricalColumnRenderers({
       activeRowId: null,
       calcByObjectId: { 'object-1': calc() },
@@ -63,7 +61,6 @@ function setup(
         windingCoefficient: null,
       },
       openCableMarkModal,
-      openCableSizingModal,
       ...options,
     })),
   };
@@ -80,18 +77,17 @@ describe('useElecCalcElectricalColumnRenderers', () => {
     expect(screen.queryByRole('button', { name: 'Подбор' })).not.toBeInTheDocument();
   });
 
-  it('routes active cable mark buttons through page callbacks', async () => {
+  it('routes the active cable mark button through the page callback', async () => {
     const row = projectObject();
-    const { result, openCableMarkModal, openCableSizingModal } = setup({
+    const { result, openCableMarkModal } = setup({
       activeRowId: row.id,
     });
 
     render(<>{result.current.cable_mark.render(undefined, row, 0)}</>);
     await userEvent.click(screen.getByRole('button', { name: 'Выбор' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Подбор' }));
 
     expect(openCableMarkModal).toHaveBeenCalledWith(row);
-    expect(openCableSizingModal).toHaveBeenCalledWith(row);
+    expect(screen.queryByRole('button', { name: 'Подбор' })).not.toBeInTheDocument();
   });
 
   it('preserves disabled states for invalid rows and missing project', () => {
@@ -101,7 +97,6 @@ describe('useElecCalcElectricalColumnRenderers', () => {
       <>{invalid.result.current.cable_mark.render(undefined, projectObject({ is_valid: false }), 0)}</>,
     );
     expect(screen.getByRole('button', { name: 'Выбор' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Подбор' })).toBeDisabled();
     invalidRender.unmount();
 
     const noProject = setup({
@@ -110,12 +105,11 @@ describe('useElecCalcElectricalColumnRenderers', () => {
     });
     render(<>{noProject.result.current.cable_mark.render(undefined, projectObject(), 0)}</>);
     expect(screen.getByRole('button', { name: 'Выбор' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Подбор' })).toBeDisabled();
   });
 
-  it('disables cable writes but keeps candidate inspection for read-only projects', async () => {
+  it('disables cable choice for read-only projects', async () => {
     const row = projectObject();
-    const { result, openCableMarkModal, openCableSizingModal } = setup({
+    const { result, openCableMarkModal } = setup({
       activeRowId: row.id,
       canMutate: false,
     });
@@ -123,15 +117,11 @@ describe('useElecCalcElectricalColumnRenderers', () => {
     render(<>{result.current.cable_mark.render(undefined, row, 0)}</>);
 
     const choose = screen.getByRole('button', { name: 'Выбор' });
-    const sizing = screen.getByRole('button', { name: 'Подбор' });
     expect(choose).toBeDisabled();
-    expect(sizing).not.toBeDisabled();
 
     await userEvent.click(choose);
-    await userEvent.click(sizing);
 
     expect(openCableMarkModal).not.toHaveBeenCalled();
-    expect(openCableSizingModal).toHaveBeenCalledWith(row);
   });
 
   it('keeps electrical status labels for success, unsupported, stale, error and empty states', () => {

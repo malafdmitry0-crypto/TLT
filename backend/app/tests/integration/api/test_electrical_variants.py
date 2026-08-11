@@ -557,6 +557,77 @@ class TestElectricalReadinessAndInitialization:
 
 
 class TestElectricalVariantLifecycle:
+    async def test_cable_selection_is_atomic_and_scoped_to_current_variant(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+    ):
+        project = await _guest_project(client, guest_session)
+        headers = {"X-Session-Id": guest_session}
+        obj = await _add_ready_pipe(client, project["id"], headers)
+        variant = (await _initialize(client, project["id"], headers))["variant"]
+        await _assign_variant_object(
+            client,
+            project["id"],
+            variant["id"],
+            obj["id"],
+            headers,
+        )
+        await _set_project_section_current_limit(client, project["id"], headers)
+
+        assignments = await client.get(
+            f"/api/v1/projects/{project['id']}/electrical-variants/{variant['id']}/assignments",
+            headers=headers,
+        )
+        before = next(
+            item for item in assignments.json()["items"] if item["object_id"] == obj["id"]
+        )
+        selected = await client.post(
+            f"/api/v1/projects/{project['id']}/electrical-variants/{variant['id']}"
+            f"/objects/{obj['id']}/cable-selection",
+            json={
+                "expected_assignment_version": before["version"],
+                "mode": "auto",
+                "cable_mark": None,
+                "cable_source": "builtin",
+                "thread_count": None,
+            },
+            headers=headers,
+        )
+        assert selected.status_code == 200, selected.text
+        body = selected.json()
+        assert body["assignment"]["electrical_variant_id"] == variant["id"]
+        assert body["assignment"]["object_id"] == obj["id"]
+        assert body["assignment"]["electrical_overrides"]["manual_cable_model"] is None
+        assert body["assignment"]["electrical_overrides"]["thread_count"] is None
+        assert body["calculation"]["object_id"] == obj["id"]
+
+        failed = await client.post(
+            f"/api/v1/projects/{project['id']}/electrical-variants/{variant['id']}"
+            f"/objects/{obj['id']}/cable-selection",
+            json={
+                "expected_assignment_version": body["assignment"]["version"],
+                "mode": "manual",
+                "cable_mark": "НЕСУЩЕСТВУЮЩАЯ-МАРКА",
+                "cable_source": "builtin",
+                "thread_count": 2,
+            },
+            headers=headers,
+        )
+        assert failed.status_code in (400, 422), failed.text
+
+        assignments_after = await client.get(
+            f"/api/v1/projects/{project['id']}/electrical-variants/{variant['id']}/assignments",
+            headers=headers,
+        )
+        after = next(
+            item
+            for item in assignments_after.json()["items"]
+            if item["object_id"] == obj["id"]
+        )
+        assert after["version"] == body["assignment"]["version"]
+        assert after["electrical_overrides"] == body["assignment"]["electrical_overrides"]
+
     async def test_object_summary_is_exact_variant_scoped_and_rejects_foreign_uuid(
         self,
         client: AsyncClient,
@@ -924,7 +995,7 @@ class TestElectricalVariantConcurrency:
         project = await _guest_project(client, guest_session)
         headers = {"X-Session-Id": guest_session}
         obj = await _add_ready_pipe(client, project["id"], headers)
-        first_variant = (await _initialize(client, project["id"], headers))["variant"]
+        await _initialize(client, project["id"], headers)
         stale_variant_response = await client.post(
             f"/api/v1/projects/{project['id']}/electrical-variants",
             json={"name": "Удаляемый ЭР"},
@@ -984,22 +1055,6 @@ class TestElectricalVariantConcurrency:
             },
             headers=headers,
         )
-        stale_multi_write = await client.post(
-            "/api/v1/calc/electrical/select-cable/variants",
-            json={
-                "object_id": obj["id"],
-                "cable_mark": None,
-                "cable_source": "builtin",
-                "variant_numbers": [1, 2],
-                "electrical_variant_ids": {
-                    "1": first_variant["id"],
-                    "2": stale_variant["id"],
-                },
-                "cable_type": "self_regulating_tt",
-            },
-            headers=headers,
-        )
-
         assert stale_read.status_code == 404, stale_read.text
         assert stale_read.json()["detail"]["code"] == "ELECTRICAL_VARIANT_NOT_FOUND"
         assert stale_specification_read.status_code == 404, stale_specification_read.text
@@ -1009,7 +1064,6 @@ class TestElectricalVariantConcurrency:
         for response in (
             stale_report_read,
             stale_write,
-            stale_multi_write,
         ):
             assert response.status_code == 409, response.text
             assert response.json()["detail"]["code"] == ("ELECTRICAL_VARIANT_SCOPE_MISMATCH")

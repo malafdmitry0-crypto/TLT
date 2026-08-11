@@ -154,7 +154,6 @@ function baseArgs(
       },
     ],
     openCableMarkModal: vi.fn(),
-    openCableSizingModal: vi.fn(),
     pageSummary: {
       total_objects: 42,
     } as UseElecCalcMainTableControllerArgs['pageSummary'],

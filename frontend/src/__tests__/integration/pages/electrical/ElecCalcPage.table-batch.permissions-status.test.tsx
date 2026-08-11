@@ -13,11 +13,8 @@ describe('ElecCalcPage table / batch — permissions-status', () => {
   });
   it('сохраняет таблицы и настройки, но блокирует project-write действия для чужого employee', async () => {
     const user = (await import('@testing-library/user-event')).default.setup();
-    const {
-      createElectricalCandidate,
-      getElectricalPage,
-      selectCableForVariants,
-    } = await import('@/api/calculations');
+    const { getElectricalPage } = await import('@/api/calculations');
+    const { selectElectricalAssignmentCable: selectCableForVariants } = await import('@/api/electricalVariants');
     (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(
       makeElectricalPage([makeObject()]),
     );
@@ -57,19 +54,10 @@ describe('ElecCalcPage table / batch — permissions-status', () => {
 
     await user.click(screen.getByText('Труба-1'));
     expect(await screen.findByRole('button', { name: 'Выбор' })).toBeDisabled();
-    const sizing = screen.getByRole('button', { name: 'Подбор' });
-    expect(sizing).not.toBeDisabled();
-    await user.click(sizing);
-
-    expect(await screen.findByRole('dialog', { name: /Подбор кабеля для Труба-1/ }))
-      .toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Запустить авторасчёт' })).toBeDisabled();
-    expect(screen.getByLabelText('Комментарий к выбранному кандидату')).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Настройки таблицы' })).not.toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Подбор' })).not.toBeInTheDocument();
 
     expect(apiMocks.enqueueVariantBatch).not.toHaveBeenCalled();
     expect(selectCableForVariants).not.toHaveBeenCalled();
-    expect(createElectricalCandidate).not.toHaveBeenCalled();
   });
   it('показывает ошибку теплопотерь круглым icon-tag, а не текстовым badge', async () => {
     const { getElectricalPage } = await import('@/api/calculations');
@@ -102,8 +90,8 @@ describe('ElecCalcPage table / batch — permissions-status', () => {
       batchCalcElectrical,
       enqueueElectricalBatchJob,
       getElectricalPage,
-      selectCableForVariants,
     } = await import('@/api/calculations');
+    const { selectElectricalAssignmentCable: selectCableForVariants } = await import('@/api/electricalVariants');
     localStorage.setItem(ELECTRICAL_GUEST_TABLE_COLUMN_STORAGE_KEY, JSON.stringify({
       version: 1,
       visibleOrder: [
