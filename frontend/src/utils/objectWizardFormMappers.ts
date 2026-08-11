@@ -185,7 +185,6 @@ function applyCommonObjectParams(
       ?? (v.ground_type === 'custom' ? 'manual' : 'reference');
   }
   if ((!isPipe || placement !== 'underground') && v.wind_speed != null) params.wind_speed = v.wind_speed;
-  if ((!isPipe || placement !== 'underground') && v.alpha_vnesh != null) params.alpha_vnesh = v.alpha_vnesh;
   const hasClimateKeyField = Object.prototype.hasOwnProperty.call(v, 'climate_key');
   if (v.climate_key) {
     params.climate_key = v.climate_key;

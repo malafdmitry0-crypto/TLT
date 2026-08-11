@@ -109,7 +109,7 @@ describe('ObjectWizard dependencies — layout-defaults', () => {
     });
     expect(screen.queryByTestId('pipe-lambda-input')).not.toBeInTheDocument();
     expect(screen.getByTestId('wind-speed-input')).toHaveValue('');
-    expect(screen.getByTestId('alpha-vnesh-input')).toHaveValue('');
+    expect(screen.queryByTestId('alpha-vnesh-input')).not.toBeInTheDocument();
   });
 
   it('дефолтит форму нового резервуара, но не подставляет размеры', async () => {

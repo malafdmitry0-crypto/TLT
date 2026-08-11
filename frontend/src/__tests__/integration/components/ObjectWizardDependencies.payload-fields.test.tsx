@@ -88,30 +88,17 @@ describe('ObjectWizard dependencies — payload-fields', () => {
     expect(screen.getByTestId('local-element-equiv-length-input')).toHaveAttribute('aria-required', 'true');
   });
 
-  it('передаёт ручной alpha_vnesh и удаляет его после очистки поля', async () => {
-    const onSubmit = vi.fn();
-    const user = userEvent.setup();
+  it('не показывает ручной коэффициент наружной теплоотдачи', async () => {
     renderWizard({
-      onSubmit,
       initialParams: {
         ...basePipeParams,
         placement: 'outdoor',
         wind_speed: 4,
-        alpha_vnesh: 15,
       },
     });
 
-    const alphaInput = await screen.findByTestId('alpha-vnesh-input');
-    expect(alphaInput).toHaveValue('15');
-    await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
-    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
-    expect(onSubmit.mock.calls[0][0]).toMatchObject({ alpha_vnesh: 15, wind_speed: 4 });
-
-    await user.clear(alphaInput);
-    await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
-    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(2));
-    expect(onSubmit.mock.calls[1][0]).not.toHaveProperty('alpha_vnesh');
-    expect(onSubmit.mock.calls[1][0]).toMatchObject({ wind_speed: 4 });
+    expect(await screen.findByTestId('wind-speed-input')).toHaveValue('4');
+    expect(screen.queryByTestId('alpha-vnesh-input')).not.toBeInTheDocument();
   });
 
   it('помечает λ грунта только для ручного грунта, но позволяет сохранить для расчёта статуса', async () => {

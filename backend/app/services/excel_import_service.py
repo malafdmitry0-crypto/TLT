@@ -257,8 +257,6 @@ PIPE_HEADERS: dict[str, str] = {
     "t° грунта": "ground_temperature",
     "скорость ветра, м/с": "wind_speed",
     "скорость ветра": "wind_speed",
-    "α внешней теплоотдачи": "alpha_vnesh",
-    "alpha_vnesh": "alpha_vnesh",
     "kзап": "safety_factor",
     "k зап": "safety_factor",
     "коэффициент запаса": "safety_factor",
@@ -366,8 +364,6 @@ TANK_HEADERS: dict[str, str] = {
     "t° грунта": "ground_temperature",
     "скорость ветра, м/с": "wind_speed",
     "скорость ветра": "wind_speed",
-    "α внешней теплоотдачи": "alpha_vnesh",
-    "alpha_vnesh": "alpha_vnesh",
     "kзап": "safety_factor",
     "k зап": "safety_factor",
     "коэффициент запаса": "safety_factor",
@@ -748,10 +744,6 @@ def _build_pipe_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
     wind_speed = _to_float(row.get("wind_speed"))
     if wind_speed is not None:
         params["wind_speed"] = wind_speed
-    alpha_vnesh = _to_float(row.get("alpha_vnesh"))
-    if alpha_vnesh is not None:
-        params["alpha_vnesh"] = alpha_vnesh
-
     safety_factor = _to_float(row.get("safety_factor"))
     if safety_factor is not None:
         params["safety_factor"] = safety_factor
@@ -872,9 +864,6 @@ def _build_tank_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
     if wind_speed is not None:
         params["wind_speed"] = wind_speed
         params["wind_speed_source"] = "manual"
-    alpha_vnesh = _to_float(row.get("alpha_vnesh"))
-    if alpha_vnesh is not None:
-        params["alpha_vnesh"] = alpha_vnesh
     safety_factor = _to_float(row.get("safety_factor"))
     if safety_factor is not None:
         params["safety_factor"] = safety_factor
@@ -1510,7 +1499,6 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
         "Грунт",
         "λ грунта",
         "Скорость ветра, м/с",
-        "α внешней теплоотдачи",
         "Режим температуры изоляции",
         "Материал покрытия",
         "Климатический регион",
@@ -1561,7 +1549,6 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
         "Грунт",
         "λ грунта",
         "Скорость ветра, м/с",
-        "α внешней теплоотдачи",
         "λ 1-го слоя",
         "Диапазон температур 1-го слоя, °C",
         "Толщина 2-го слоя, мм",
@@ -1625,7 +1612,6 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
                     params.get("ground_type", ""),
                     params.get("ground_conductivity", ""),
                     params.get("wind_speed", ""),
-                    params.get("alpha_vnesh", ""),
                     params.get("insulation_temperature_basis", ""),
                     params.get("insulation_cover_material", ""),
                     params.get("climate_region", ""),
@@ -1685,7 +1671,6 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
                     params.get("ground_type", ""),
                     params.get("ground_conductivity", ""),
                     params.get("wind_speed", ""),
-                    params.get("alpha_vnesh", ""),
                     tank_layer_value(0, "conductivity"),
                     _format_temperature_range(tank_layer_value(0, "temperature_range")),
                     _to_export_mm(tank_layer_value(1, "thickness")),
@@ -1748,7 +1733,6 @@ def build_template_xlsx() -> bytes:
         "Грунт",
         "λ грунта",
         "Скорость ветра, м/с",
-        "α внешней теплоотдачи",
         "Режим температуры изоляции",
         "Материал покрытия",
         "Климатический регион",

@@ -35,7 +35,7 @@ def _cylindrical(**overrides: object) -> TankHeatLossParams:
         "process_temperature": 80.0,
         "insulation_temperature_basis": "outdoor_winter",
         "placement": "outdoor",
-        "alpha_vnesh": 10.0,
+        "wind_speed": 0.0,
         "safety_factor": 1.2,
         "q_additional": 50.0,
     }
@@ -59,7 +59,7 @@ def _buried_rectangular(**overrides: object) -> TankHeatLossParams:
         "placement": "underground",
         "tank_buried_height": 1.0,
         "ground_conductivity": 2.0,
-        "alpha_vnesh": 10.0,
+        "wind_speed": 0.0,
         "safety_factor": 1.2,
         "q_additional": 50.0,
     }
@@ -76,15 +76,17 @@ def test_tank_schema_is_strict_and_rejects_legacy_tank_keys() -> None:
         _cylindrical(insulation_thickness=0.1)
     with pytest.raises(ValidationError):
         _cylindrical(insulation_material="mineral_wool_boards_120")
+    with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+        _cylindrical(alpha_vnesh=10.0)
 
 
-def test_cylindrical_air_manual_alpha_golden_uses_areal_resistances_and_area_once() -> None:
+def test_cylindrical_air_auto_alpha_golden_uses_areal_resistances_and_area_once() -> None:
     result = calc_tank_heat_loss(_cylindrical())
 
     area = 8.0 * math.pi
     r_wall = 0.01 / 0.5
     r_insulation = 0.1 / 0.05
-    r_external = 1.0 / 10.0
+    r_external = 1.0 / 11.6
     q_base = 100.0 / (r_wall + r_insulation + r_external)
     q_base_total = q_base * area
     q_design = q_base_total * 1.2 + 50.0
@@ -103,7 +105,7 @@ def test_partially_buried_rectangular_golden_uses_separate_temperatures_and_area
 
     air_area, ground_area = 32.0, 20.0
     r_common = 0.01 / 0.5 + 0.1 / 0.05
-    q_air = (80.0 - (-20.0)) / (r_common + 1.0 / 10.0)
+    q_air = (80.0 - (-20.0)) / (r_common + 1.0 / 11.6)
     q_ground = (80.0 - 0.0) / (r_common + 1.0 / 2.0)
     air_loss = q_air * air_area
     ground_loss = q_ground * ground_area
@@ -154,10 +156,10 @@ def test_buried_height_equal_to_tank_height_is_valid_boundary() -> None:
 
 def test_partly_buried_auto_alpha_requires_explicit_wind_speed() -> None:
     with pytest.raises(ValidationError, match="wind_speed"):
-        _buried_rectangular(alpha_vnesh=None, wind_speed=None)
+        _buried_rectangular(wind_speed=None)
 
     result = calc_tank_heat_loss(
-        _buried_rectangular(alpha_vnesh=None, wind_speed=0.0)
+        _buried_rectangular(wind_speed=0.0)
     )
 
     assert result.alpha_vnesh_applied == pytest.approx(11.6)

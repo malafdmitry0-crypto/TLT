@@ -14,6 +14,7 @@
 import math
 
 import pytest
+from pydantic import ValidationError
 
 from app.formulas.heat_loss.pipe import (
     calc_alpha_vnesh,
@@ -87,11 +88,11 @@ class TestBasicProperties:
         assert layer.conductivity_source == "reference_data"
         assert layer.resistance_unit == "m*K/W"
 
-    def test_manual_alpha_does_not_claim_wind_was_applied(self):
-        result = calc_pipe_heat_loss(_params(alpha_vnesh=15.0, wind_speed=8.0))
+    def test_outdoor_alpha_is_resolved_from_wind(self):
+        result = calc_pipe_heat_loss(_params(wind_speed=8.0))
 
-        assert result.alpha_vnesh_applied == pytest.approx(15.0)
-        assert result.wind_speed_applied is None
+        assert result.alpha_vnesh_applied == pytest.approx(11.6 + 7 * math.sqrt(8.0))
+        assert result.wind_speed_applied == 8.0
 
     def test_effective_length_default_equals_pipe_length(self):
         params = _params(pipe_length=80.0)
@@ -590,13 +591,9 @@ class TestAlphaVnesh:
         a2 = calc_alpha_vnesh(wind_speed=8.0, placement="outdoor")
         assert a2 > a1
 
-    def test_explicit_alpha_overrides_wind(self):
-        params = _params(wind_speed=20.0, alpha_vnesh=15.0)
-        r = calc_pipe_heat_loss(params)
-        # При alpha=15 потери меньше чем при alpha от v=20 (~48 Вт/м²К)
-        params_high_alpha = _params(wind_speed=20.0)  # α ≈ 42.9 Вт/(м²·К)
-        r_high = calc_pipe_heat_loss(params_high_alpha)
-        assert r.heat_loss_per_meter_base < r_high.heat_loss_per_meter_base
+    def test_explicit_alpha_is_rejected(self):
+        with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+            _params(wind_speed=20.0, alpha_vnesh=15.0)
 
 
 # ---------------------------------------------------------------------------

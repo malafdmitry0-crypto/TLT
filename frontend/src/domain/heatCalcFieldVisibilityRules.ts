@@ -174,11 +174,6 @@ export function isHeatCalcFieldVisible(fieldId: string, context: HeatCalcFieldCo
     return context.values.placement === 'outdoor'
       || (context.objectType === 'tank' && context.values.placement === 'underground');
   }
-  if (fieldId === 'alpha_vnesh') {
-    return context.values.placement === 'outdoor'
-      || context.values.placement === 'indoor'
-      || (context.objectType === 'tank' && context.values.placement === 'underground');
-  }
   if (SECOND_LAYER_FIELDS.has(fieldId)) return layerCount(context) >= 2;
   if (THIRD_LAYER_FIELDS.has(fieldId)) return layerCount(context) >= 3;
   if (context.objectType === 'tank') {
