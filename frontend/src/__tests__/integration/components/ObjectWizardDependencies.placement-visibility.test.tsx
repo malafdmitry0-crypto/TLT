@@ -57,8 +57,7 @@ describe('ObjectWizard dependencies — placement-visibility', () => {
         burial_depth: 1.5,
         ground_type: 'dry_sand:na:0',
         ground_conductivity: 0.8,
-        wind_speed: 3.1,
-        alpha_vnesh: 12}});
+        wind_speed: 3.1}});
 
     expect(await screen.findByTestId('burial-depth-input')).toBeVisible();
     expect(screen.getByTestId('ground-type-select')).toBeVisible();

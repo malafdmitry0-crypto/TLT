@@ -48,7 +48,6 @@ def calc_alpha_vnesh(wind_speed: float | None, placement: str) -> float:
 
     Для помещения: α = 9.0 (свободная конвекция)
     Для улицы: α = 11,6 + 7·√v  (SNiP 41-03-2003, формула для трубопроводов)
-    Отдельный ручной ``alpha_vnesh`` допускается параметрическим контрактом.
     """
     if placement == "indoor":
         return 9.0
@@ -305,11 +304,7 @@ def calc_pipe_heat_loss(
         lambda_gr = params.ground_conductivity
         r_external = _r_ground(r_outer_total, params.pipe_centerline_depth, lambda_gr)
     else:
-        alpha = (
-            params.alpha_vnesh
-            if params.alpha_vnesh is not None
-            else calc_alpha_vnesh(params.wind_speed, params.placement)
-        )
+        alpha = calc_alpha_vnesh(params.wind_speed, params.placement)
         r_external = _r_external(r_outer_total, alpha)
 
     r_total = r_pipe_wall + r_ins + r_external
@@ -363,8 +358,6 @@ def calc_pipe_heat_loss(
         input_units["ambient_temperature"] = "degC"
         if params.wind_speed is not None:
             input_units["wind_speed"] = "m/s"
-        if params.alpha_vnesh is not None:
-            input_units["alpha_vnesh"] = "W/(m2*K)"
 
     model_assumptions = [
         "steady_state_one_dimensional_radial_heat_flow",
@@ -374,7 +367,7 @@ def calc_pipe_heat_loss(
     if params.placement == "underground":
         model_assumptions.append("direct_buried_pipe_in_homogeneous_ground")
         source_corrections.append("ground_temperature_used_for_underground_pipe")
-    elif params.placement == "outdoor" and params.alpha_vnesh is None:
+    elif params.placement == "outdoor":
         source_corrections.append("outdoor_auto_alpha_requires_explicit_wind_speed")
 
     return PipeHeatLossResult(
@@ -389,11 +382,7 @@ def calc_pipe_heat_loss(
         insulation_resistance=round(r_ins, 6),
         external_resistance=round(r_external, 6),
         alpha_vnesh_applied=round(alpha, 3) if alpha is not None else None,
-        wind_speed_applied=(
-            params.wind_speed
-            if alpha is not None and params.alpha_vnesh is None and params.placement == "outdoor"
-            else None
-        ),
+        wind_speed_applied=(params.wind_speed if params.placement == "outdoor" else None),
         ground_conductivity_applied=(round(lambda_gr, 3) if lambda_gr is not None else None),
         safety_factor_applied=round(k, 3),
         local_elements_count_applied=n_i,

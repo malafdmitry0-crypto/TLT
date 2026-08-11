@@ -57,7 +57,6 @@ export function FormulasTankTab() {
       assignIfPresent(p, 'ground_conductivity', v.ground_conductivity);
     }
     assignIfPresent(p, 'wind_speed', v.wind_speed);
-    assignIfPresent(p, 'alpha_vnesh', v.alpha_vnesh);
     if (v.shape === 'cylindrical') {
       p.diameter = v.diameter_mm / 1000;
       p.height = v.height_mm / 1000;
@@ -217,11 +216,6 @@ export function FormulasTankTab() {
             <Col span={8}>
               <Form.Item name="wind_speed" label="Скорость ветра, м/с">
                 <TltNumberField min={0} max={20} className="tlt-field--fill" placeholder="5" />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="alpha_vnesh" label="α вручную">
-                <TltNumberField min={7} max={52} className="tlt-field--fill" placeholder="из ветра" />
               </Form.Item>
             </Col>
             <Col span={8}>

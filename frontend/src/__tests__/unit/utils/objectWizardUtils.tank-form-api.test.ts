@@ -60,7 +60,7 @@ describe('tankFormToApiParams', () => {
       insulation_layer_count: '2', second_insulation_thickness_mm: 40, second_insulation_material: 'other',
       second_insulation_lambda: 0.04, ambient_temperature: 15, ground_temperature: 4,
       process_temperature: 80, placement: 'underground', tank_buried_height: 1.5,
-      ground_conductivity: 1.2, wind_speed: 4, alpha_vnesh: 17, q_additional: 0,
+      ground_conductivity: 1.2, wind_speed: 4, q_additional: 0,
     });
     expect(api).toMatchObject({
       placement: 'underground', ambient_temperature: 15, ground_temperature: 4,

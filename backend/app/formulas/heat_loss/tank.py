@@ -142,10 +142,7 @@ def _calc_alpha(params: TankHeatLossParams) -> float:
 
     α = 11,6 + 7·√v  (SNiP 41-03-2003, формула ТНП)
     Помещение: α = 9.0
-    Ручной ``alpha_vnesh`` сохраняется как разрешённый параметрический ввод.
     """
-    if params.alpha_vnesh is not None:
-        return params.alpha_vnesh
     if params.placement == "indoor":
         return 9.0
     if params.wind_speed is None:
@@ -318,11 +315,7 @@ def calc_tank_heat_loss(
         external_resistance_areal_bare=r_ext,
         ground_resistance_areal_bare=r_ground,
         alpha_vnesh_applied=alpha,
-        wind_speed_applied=(
-            params.wind_speed
-            if params.alpha_vnesh is None and params.placement != "indoor"
-            else None
-        ),
+        wind_speed_applied=(params.wind_speed if params.placement != "indoor" else None),
         ground_conductivity_applied=lambda_gr,
         safety_factor_applied=k,
         q_additional_applied=q_additional,
@@ -367,7 +360,6 @@ def calc_tank_heat_loss(
             "tank_buried_height": "m",
             "ground_temperature": "degC",
             "wind_speed": "m/s",
-            "alpha_vnesh": "W/(m2*K)",
             "ground_conductivity": "W/(m*K)",
             "safety_factor": "1",
             "q_additional": "W",

@@ -1,5 +1,6 @@
 """Integration-тесты объектов проекта с автопересчётом."""
 
+import math
 from uuid import UUID
 
 import pytest
@@ -1041,6 +1042,7 @@ class TestObjectsLifecycle:
         body = resp.json()
         assert body["is_valid"] is True
         assert body["params"]["climate_city"] == "Москва"
+        assert "alpha_vnesh" not in body["params"]
         assert len(body["params"]["insulation_layers"]) == 3
 
         results = body["results"]
@@ -1049,8 +1051,10 @@ class TestObjectsLifecycle:
         assert results["wall_resistance"] > 0
         assert results["insulation_resistance"] > 0
         assert results["external_resistance"] > 0
-        assert results["alpha_vnesh_applied"] == 14.0
-        assert results["wind_speed_applied"] is None
+        assert results["alpha_vnesh_applied"] == pytest.approx(
+            round(11.6 + 7 * math.sqrt(4.2), 3)
+        )
+        assert results["wind_speed_applied"] == pytest.approx(4.2)
         assert results["safety_factor_applied"] == 1.2
         assert results["local_elements_count_applied"] == 3
         assert results["local_element_equiv_length_applied"] == 1.1
@@ -1120,7 +1124,6 @@ class TestObjectsLifecycle:
                     "ground_type": "dry_sand",
                     "ground_conductivity": 0.8,
                     "wind_speed": 4.2,
-                    "alpha_vnesh": 12.0,
                     "safety_factor": 1.15,
                 },
             },
@@ -1141,7 +1144,8 @@ class TestObjectsLifecycle:
         assert results["heat_loss_ground_base"] > 0
         assert results["ground_resistance_areal_bare"] > 0
         assert results["ground_conductivity_applied"] == 0.8
-        assert results["alpha_vnesh_applied"] == 12.0
+        assert results["alpha_vnesh_applied"] == pytest.approx(11.6 + 7 * math.sqrt(4.2))
+        assert results["wind_speed_applied"] == pytest.approx(4.2)
         assert results["safety_factor_applied"] == 1.15
 
     async def test_tank_heat_update_replaces_hidden_heat_fields_and_preserves_volume(
@@ -1174,7 +1178,7 @@ class TestObjectsLifecycle:
                     "tank_buried_height": 1.0,
                     "ground_type": "dry_sand",
                     "ground_conductivity": 0.8,
-                    "alpha_vnesh": 12.0,
+                    "wind_speed": 0.0,
                     "safety_factor": 1.15,
                     "q_additional": 100,
                 },

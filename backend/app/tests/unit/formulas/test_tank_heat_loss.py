@@ -37,11 +37,12 @@ def test_cylindrical_and_rectangular_surface_areas():
     assert calc_tank_heat_loss(_rect()).surface_area_bare == pytest.approx(40.0)
 
 
-def test_areal_external_resistance_and_manual_alpha():
-    result = calc_tank_heat_loss(_cyl(alpha_vnesh=10.0, wind_speed=8.0))
-    assert result.external_resistance_areal_bare == pytest.approx(0.1)
-    assert result.alpha_vnesh_applied == pytest.approx(10.0)
-    assert result.wind_speed_applied is None
+def test_areal_external_resistance_uses_wind_alpha():
+    result = calc_tank_heat_loss(_cyl(wind_speed=8.0))
+    expected_alpha = 11.6 + 7 * math.sqrt(8.0)
+    assert result.external_resistance_areal_bare == pytest.approx(1 / expected_alpha)
+    assert result.alpha_vnesh_applied == pytest.approx(expected_alpha)
+    assert result.wind_speed_applied == 8.0
 
 
 def test_auto_alpha_indoor_and_outdoor():
