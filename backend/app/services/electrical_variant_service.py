@@ -899,7 +899,9 @@ class ElectricalVariantService:
 
         return ElectricalReadinessResponse(
             project_id=project_id,
-            ready=not issues,
+            # Object-level issues describe parts of the future ER. They do not
+            # invalidate the ER container or block its initialization.
+            ready=True,
             total_objects=len(objects),
             ready_objects=ready_objects,
             issues=issues,
