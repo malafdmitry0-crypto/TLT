@@ -35,7 +35,6 @@ from app.services.project_object_params import (
     LegacySpecificationObjectParamsError,
     ProjectObjectParamsError,
     normalize_project_object_params,
-    prepare_project_object_params,
     reject_legacy_specification_object_params,
 )
 
@@ -427,7 +426,7 @@ class ProjectService:
                     f"Forbidden {data.object_type} heat params: " + ", ".join(forbidden)
                 )
             params = (
-                prepare_project_object_params(
+                normalize_project_object_params(
                     data.object_type, replace_heat_owned_params({}, data.params)
                 )
                 if data.object_type in ("pipe", "tank")
@@ -496,7 +495,7 @@ class ProjectService:
                     )
                 replaced_params = replace_heat_owned_params(obj.params, incoming_params)
                 try:
-                    update_data["params"] = prepare_project_object_params(
+                    update_data["params"] = normalize_project_object_params(
                         obj.object_type, replaced_params
                     )
                 except ProjectObjectParamsError as exc:
@@ -721,7 +720,7 @@ class ProjectService:
                     # Merge, не полный replace heat-фрагмента: групповая
                     # корректировка меняет ровно один параметр (§5.8).
                     merged = {**(obj.params or {}), param: value}
-                    prepared_params[obj.id] = prepare_project_object_params(
+                    prepared_params[obj.id] = normalize_project_object_params(
                         obj.object_type, merged
                     )
                 else:

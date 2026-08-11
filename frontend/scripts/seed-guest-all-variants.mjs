@@ -1018,6 +1018,12 @@ const additionalTankObjects = [
 
 seedObjects.push(...additionalPipeObjects, ...additionalTankObjects);
 
+for (const object of seedObjects) {
+  if (object.object_type !== 'tank') continue;
+  object.params.heating_height ??= object.params.height;
+  object.params.laying_step ??= 0.2;
+}
+
 function cloneSeedObject(object) {
   return JSON.parse(JSON.stringify(object));
 }

@@ -81,6 +81,7 @@ class TestObjectsLifecycle:
                     "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -20,
                     "process_temperature": 80,
+                    "min_switch_temperature": -20,
                     "pipe_length": 50,
                     "placement": "outdoor",
                     "wind_speed": 0,
@@ -127,6 +128,7 @@ class TestObjectsLifecycle:
                     "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -20,
                     "process_temperature": 80,
+                    "min_switch_temperature": -20,
                     "pipe_length": 50,
                     "placement": "outdoor",
                     "wind_speed": 0,
@@ -195,6 +197,7 @@ class TestObjectsLifecycle:
                     "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -20,
                     "process_temperature": 80,
+                    "min_switch_temperature": -20,
                     "pipe_length": 10,
                     "placement": "outdoor",
                     "wind_speed": 0,
@@ -239,12 +242,15 @@ class TestObjectsLifecycle:
                 "object_type": "tank",
                 "params": {
                     "shape": "cylindrical",
+                    "heating_height": 2.0,
+                    "laying_step": 0.2,
                     "diameter": 2,
                     "height": 3,
                     "insulation_layers": [{"thickness": 0.05, "material": MINERAL_WOOL}],
                     "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -20,
                     "process_temperature": 80,
+                    "min_switch_temperature": -20,
                     "placement": "outdoor",
                     "wind_speed": 0,
                 },
@@ -281,6 +287,7 @@ class TestObjectsLifecycle:
                     "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -20,
                     "process_temperature": 80,
+                    "min_switch_temperature": -20,
                     "pipe_length": 10,
                     "placement": "outdoor",
                     "wind_speed": 0,
@@ -319,6 +326,7 @@ class TestObjectsLifecycle:
                     "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -20,
                     "process_temperature": 80,
+                    "min_switch_temperature": -20,
                     "pipe_length": 10,
                     "placement": "outdoor",
                     "wind_speed": 0,
@@ -381,6 +389,7 @@ class TestObjectsLifecycle:
                     "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -20,
                     "process_temperature": 80,
+                    "min_switch_temperature": -20,
                     "pipe_length": 10,
                     "placement": "outdoor",
                     "wind_speed": 0,
@@ -421,6 +430,7 @@ class TestObjectsLifecycle:
                     "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -20,
                     "process_temperature": 80,
+                    "min_switch_temperature": -20,
                     "pipe_length": 10,
                     "placement": "outdoor",
                     "wind_speed": 0,
@@ -435,7 +445,7 @@ class TestObjectsLifecycle:
         assert body["params"]["pipe_material"] == "carbon_steel"
         assert body["params"]["placement"] == "outdoor"
         assert "aggressive_product" not in body["params"]
-        assert "min_switch_temperature" not in body["params"]
+        assert body["params"]["min_switch_temperature"] == -20
         assert "supply_voltage" not in body["params"]
         assert body["params"]["safety_factor"] == pytest.approx(1.1)
         assert body["params"]["num_local_elements"] == 0
@@ -461,6 +471,7 @@ class TestObjectsLifecycle:
                     "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -20,
                     "process_temperature": 80,
+                    "min_switch_temperature": -20,
                     "pipe_length": 10,
                     "num_local_elements": 6,
                     "local_element_equiv_length": 1.1,
@@ -494,6 +505,7 @@ class TestObjectsLifecycle:
                     "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -20,
                     "process_temperature": 80,
+                    "min_switch_temperature": -20,
                     "pipe_length": 10,
                     "placement": "outdoor",
                     "wind_speed": 0,
@@ -501,11 +513,12 @@ class TestObjectsLifecycle:
             },
             headers=headers,
         )
-        assert resp.status_code == 422, resp.text
-        assert resp.json()["detail"] == {
-            "code": "OBJECT_PARAMS_INVALID",
-            "message": "Проверьте параметры объекта",
-            "fields": ["wall_thickness"],
+        assert resp.status_code == 201, resp.text
+        body = resp.json()
+        assert body["is_valid"] is False
+        assert body["results"] is None
+        assert body["validation_errors"]["fields"] == {
+            "wall_thickness": "Проверьте параметры объекта"
         }
         assert "validation error" not in resp.text
         assert "Input should be" not in resp.text
@@ -514,7 +527,8 @@ class TestObjectsLifecycle:
             headers=headers,
         )
         assert objects.status_code == 200, objects.text
-        assert objects.json() == []
+        assert len(objects.json()) == 1
+        assert objects.json()[0]["id"] == body["id"]
 
     async def test_missing_pipe_fields_return_stable_error_envelope(
         self, client: AsyncClient, guest_session: str
@@ -526,19 +540,19 @@ class TestObjectsLifecycle:
             headers={"X-Session-Id": guest_session},
         )
 
-        assert resp.status_code == 422, resp.text
-        assert resp.json()["detail"] == {
-            "code": "OBJECT_REQUIRED_FIELDS_MISSING",
-            "message": "Заполните обязательные поля объекта",
-            "fields": [
+        assert resp.status_code == 201, resp.text
+        body = resp.json()
+        assert body["is_valid"] is False
+        assert body["results"] is None
+        assert body["validation_errors"]["missing_fields"] == [
                 "outer_diameter",
                 "wall_thickness",
                 "insulation_layers",
                 "process_temperature",
                 "pipe_length",
                 "placement",
-            ],
-        }
+                "min_switch_temperature",
+        ]
 
     async def test_invalid_update_keeps_object_data_and_version(
         self, client: AsyncClient, guest_session: str
@@ -559,6 +573,7 @@ class TestObjectsLifecycle:
                     "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -20,
                     "process_temperature": 80,
+                    "min_switch_temperature": -20,
                     "pipe_length": 10,
                     "placement": "outdoor",
                     "wind_speed": 0,
@@ -569,7 +584,7 @@ class TestObjectsLifecycle:
         assert created_response.status_code == 201, created_response.text
         created = created_response.json()
 
-        rejected = await client.put(
+        updated_response = await client.put(
             f"/api/v1/projects/{pid}/objects/{created['id']}",
             json={
                 "version": created["version"],
@@ -578,11 +593,12 @@ class TestObjectsLifecycle:
             headers=headers,
         )
 
-        assert rejected.status_code == 422, rejected.text
-        assert rejected.json()["detail"] == {
-            "code": "OBJECT_PARAMS_INVALID",
-            "message": "Проверьте параметры объекта",
-            "fields": ["wall_thickness"],
+        assert updated_response.status_code == 200, updated_response.text
+        updated = updated_response.json()
+        assert updated["is_valid"] is False
+        assert updated["results"] is None
+        assert updated["validation_errors"]["fields"] == {
+            "wall_thickness": "Проверьте параметры объекта"
         }
         objects_response = await client.get(
             f"/api/v1/projects/{pid}/objects",
@@ -592,8 +608,8 @@ class TestObjectsLifecycle:
         reloaded = next(
             item for item in objects_response.json() if item["id"] == created["id"]
         )
-        assert reloaded["version"] == created["version"]
-        assert reloaded["params"] == created["params"]
+        assert reloaded["version"] == created["version"] + 1
+        assert reloaded["params"]["wall_thickness"] is None
 
     async def test_non_indoor_pipe_with_indoor_tm_is_invalid(
         self, client: AsyncClient, guest_session: str
@@ -611,6 +627,7 @@ class TestObjectsLifecycle:
                     "insulation_layers": [{"thickness": 0.02, "material": MINERAL_WOOL}],
                     "insulation_temperature_basis": "indoor",
                     "process_temperature": 1,
+                    "min_switch_temperature": -20,
                     "placement": "underground",
                     "pipe_centerline_depth": 0.4,
                     "ground_temperature": 0,
@@ -621,12 +638,11 @@ class TestObjectsLifecycle:
             headers={"X-Session-Id": guest_session},
         )
 
-        assert resp.status_code == 422, resp.text
-        assert resp.json()["detail"] == {
-            "code": "OBJECT_PARAMS_INVALID",
-            "message": "Проверьте параметры объекта",
-            "fields": ["insulation_temperature_basis"],
-        }
+        assert resp.status_code == 201, resp.text
+        body = resp.json()
+        assert body["is_valid"] is False
+        assert body["results"] is None
+        assert body["validation_errors"]["field"] == "insulation_temperature_basis"
 
     async def test_outdoor_pipe_with_attic_tm_is_invalid(
         self, client: AsyncClient, guest_session: str
@@ -645,18 +661,18 @@ class TestObjectsLifecycle:
                     "insulation_temperature_basis": "attic",
                     "ambient_temperature": -30,
                     "process_temperature": 80,
+                    "min_switch_temperature": -20,
                     "placement": "outdoor",
                 },
             },
             headers={"X-Session-Id": guest_session},
         )
 
-        assert resp.status_code == 422, resp.text
-        assert resp.json()["detail"] == {
-            "code": "OBJECT_PARAMS_INVALID",
-            "message": "Проверьте параметры объекта",
-            "fields": ["insulation_temperature_basis"],
-        }
+        assert resp.status_code == 201, resp.text
+        body = resp.json()
+        assert body["is_valid"] is False
+        assert body["results"] is None
+        assert body["validation_errors"]["field"] == "insulation_temperature_basis"
 
     @pytest.mark.parametrize(
         ("shape", "geometry"),
@@ -681,11 +697,14 @@ class TestObjectsLifecycle:
                 "params": {
                     "name": f"Резервуар {shape}",
                     "shape": shape,
+                    "heating_height": 2.0,
+                    "laying_step": 0.2,
                     **geometry,
                     "insulation_layers": [{"thickness": 0.08, "material": MINERAL_WOOL}],
                     "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -20,
                     "process_temperature": 80,
+                    "min_switch_temperature": -20,
                     "placement": "outdoor",
                     "wind_speed": 0,
                 },
@@ -711,11 +730,14 @@ class TestObjectsLifecycle:
                 "object_type": "tank",
                 "params": {
                     "shape": "spherical",
+                    "heating_height": 2.0,
+                    "laying_step": 0.2,
                     "diameter": 3.0,
                     "insulation_layers": [{"thickness": 0.08, "material": MINERAL_WOOL}],
                     "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -20,
                     "process_temperature": 80,
+                    "min_switch_temperature": -20,
                     "placement": "outdoor",
                     "wind_speed": 0,
                 },
@@ -738,12 +760,15 @@ class TestObjectsLifecycle:
                 "object_type": "tank",
                 "params": {
                     "shape": "cylindrical",
+                    "heating_height": 2.0,
+                    "laying_step": 0.2,
                     "diameter": 3.0,
                     "height": 5.0,
                     "insulation_layers": [{"thickness": 0.08, "material": MINERAL_WOOL}],
                     "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -20,
                     "process_temperature": 80,
+                    "min_switch_temperature": -20,
                     "placement": "outdoor",
                     "wind_speed": 0,
                 },
@@ -760,6 +785,8 @@ class TestObjectsLifecycle:
                 "params": {
                     **created["params"],
                     "shape": "spherical",
+                    "heating_height": 2.0,
+                    "laying_step": 0.2,
                     "height": None,
                 },
             },
@@ -778,12 +805,15 @@ class TestObjectsLifecycle:
                 "object_type": "tank",
                 "params": {
                     "shape": "cylindrical",
+                    "heating_height": 2.0,
+                    "laying_step": 0.2,
                     "diameter": 12.0,
                     "height": 20.0,
                     "insulation_layers": [{"thickness": 0.1, "material": MINERAL_WOOL}],
                     "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -20,
                     "process_temperature": 80,
+                    "min_switch_temperature": -20,
                     "placement": "outdoor",
                     "wind_speed": 0,
                 },
@@ -808,6 +838,7 @@ class TestObjectsLifecycle:
                         "insulation_temperature_basis": "outdoor_winter",
                         "ambient_temperature": -20,
                         "process_temperature": 80,
+                        "min_switch_temperature": -20,
                     "pipe_length": 10,
                     "placement": "outdoor",
                     "wind_speed": 0,
@@ -851,6 +882,7 @@ class TestObjectsLifecycle:
                     "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -20,
                     "process_temperature": 80,
+                    "min_switch_temperature": -20,
                     "pipe_length": 10,
                     "placement": "outdoor",
                     "wind_speed": 0,
@@ -912,6 +944,7 @@ class TestObjectsLifecycle:
                         "insulation_temperature_basis": "outdoor_winter",
                         "ambient_temperature": -20,
                         "process_temperature": 80,
+                        "min_switch_temperature": -20,
                     "pipe_length": 10,
                     "placement": "outdoor",
                     "wind_speed": 0,
@@ -944,6 +977,7 @@ class TestObjectsLifecycle:
                     "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -20,
                     "process_temperature": 80,
+                    "min_switch_temperature": -20,
                     "pipe_length": 10,
                     "placement": "outdoor",
                     "wind_speed": 0,
@@ -951,11 +985,12 @@ class TestObjectsLifecycle:
             },
             headers={"X-Session-Id": guest_session},
         )
-        assert resp.status_code == 422
-        assert resp.json()["detail"] == {
-            "code": "OBJECT_PARAMS_INVALID",
-            "message": "Проверьте параметры объекта",
-            "fields": ["insulation_layers.0.material"],
+        assert resp.status_code == 201
+        body = resp.json()
+        assert body["is_valid"] is False
+        assert body["results"] is None
+        assert body["validation_errors"]["fields"] == {
+            "insulation_layers.0.material": "Проверьте параметры объекта"
         }
 
     async def test_pipe_preserves_climate_layers_and_returns_assumptions(
@@ -985,6 +1020,7 @@ class TestObjectsLifecycle:
                     ],
                     "ambient_temperature": -25,
                     "process_temperature": 80,
+                    "min_switch_temperature": -20,
                     "wind_speed": 4.2,
                     "alpha_vnesh": 14.0,
                     "safety_factor": 1.2,
@@ -1037,6 +1073,7 @@ class TestObjectsLifecycle:
                     "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -10,
                     "process_temperature": 80,
+                    "min_switch_temperature": -20,
                     "climate_city": "Славгород",
                     "climate_region": "Могилёвская область",
                     "climate_temperature_basis": "t_0_92",
@@ -1068,6 +1105,8 @@ class TestObjectsLifecycle:
                 "params": {
                     "name": "Buried tank",
                     "shape": "cylindrical",
+                    "heating_height": 2.0,
+                    "laying_step": 0.2,
                     "diameter": 2.0,
                     "height": 4.0,
                     "insulation_layers": [{"thickness": 0.08, "material": MINERAL_WOOL}],
@@ -1075,6 +1114,7 @@ class TestObjectsLifecycle:
                     "ambient_temperature": -25,
                     "ground_temperature": 5,
                     "process_temperature": 70,
+                    "min_switch_temperature": -20,
                     "placement": "underground",
                     "tank_buried_height": 1.5,
                     "ground_type": "dry_sand",
@@ -1117,6 +1157,8 @@ class TestObjectsLifecycle:
                     "name": "Canonical tank",
                     "volume": 24.5,
                     "shape": "rectangular",
+                    "heating_height": 2.0,
+                    "laying_step": 0.2,
                     "length": 4.0,
                     "width": 2.0,
                     "height": 3.0,
@@ -1127,6 +1169,7 @@ class TestObjectsLifecycle:
                     "ambient_temperature": -20,
                     "ground_temperature": 5,
                     "process_temperature": 80,
+                    "min_switch_temperature": -20,
                     "placement": "underground",
                     "tank_buried_height": 1.0,
                     "ground_type": "dry_sand",
@@ -1148,6 +1191,8 @@ class TestObjectsLifecycle:
                 "params": {
                     "name": "Canonical tank",
                     "shape": "cylindrical",
+                    "heating_height": 2.0,
+                    "laying_step": 0.2,
                     "diameter": 2.0,
                     "height": 3.0,
                     "insulation_layers": [
@@ -1156,6 +1201,7 @@ class TestObjectsLifecycle:
                     "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -15,
                     "process_temperature": 75,
+                    "min_switch_temperature": -20,
                     "placement": "outdoor",
                     "wind_speed": 0,
                     "safety_factor": 1.1,
