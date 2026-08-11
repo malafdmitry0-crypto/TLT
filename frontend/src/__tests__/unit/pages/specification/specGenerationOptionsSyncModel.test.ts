@@ -5,7 +5,7 @@ import {
 } from '@/pages/specification/specGenerationOptionsSyncModel';
 
 describe('buildSpecSettingsFormSnapshot (B7)', () => {
-  it('defaults missing binary values to explicit Нет', () => {
+  it('defaults missing binary values to explicit Нет and grouping to object types', () => {
     expect(buildSpecSettingsFormSnapshot({})).toEqual({
       exZone: false,
       reserveCoeff: '',
@@ -13,8 +13,10 @@ describe('buildSpecSettingsFormSnapshot (B7)', () => {
       endSectionIndication: false,
       topIndication: false,
       minLengthK2i: '',
-      groupingMode: null,
+      groupingMode: 'separate_by_object_type',
     });
+    expect(buildSpecSettingsFormSnapshot({ grouping_mode: null }).groupingMode)
+      .toBe('separate_by_object_type');
   });
 
   it('hydrates full canonical snapshot including display prefs', () => {

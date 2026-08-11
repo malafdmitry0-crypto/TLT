@@ -5,12 +5,13 @@
  */
 import { useCallback, useRef, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import type {
-  SpecificationCandidateGroup,
-  SpecificationDiagnostic,
-  SpecificationGroupingMode,
-  SpecificationOptions,
+import {
+  type SpecificationCandidateGroup,
+  type SpecificationDiagnostic,
+  type SpecificationGroupingMode,
+  type SpecificationOptions,
 } from '@/api/specifications';
+import { DEFAULT_SPECIFICATION_GROUPING_MODE } from '@/pages/specification/specGenerationOptionsSyncModel';
 
 export function useSpecPageFormState() {
   const [addOpen, setAddOpen] = useState(false);
@@ -53,7 +54,9 @@ export function useSpecPageFormState() {
   const [endSectionIndication, setEndSectionIndication] = useState(false);
   const [topIndication, setTopIndication] = useState(false);
   const [minLengthK2i, setMinLengthK2i] = useState('');
-  const [groupingMode, setGroupingMode] = useState<SpecificationGroupingMode | null>(null);
+  const [groupingMode, setGroupingMode] = useState<SpecificationGroupingMode>(
+    DEFAULT_SPECIFICATION_GROUPING_MODE,
+  );
 
   return {
     addOpen,

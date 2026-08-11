@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import TestMemoryRouter from '@/__tests__/utils/TestMemoryRouter';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import SpecificationPage from '@/pages/SpecificationPage';
@@ -281,13 +281,7 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
     const groupingInput = within(dialog).getByRole('combobox', {
       name: 'Группировка строк при формировании',
     });
-    fireEvent.mouseDown(
-      groupingInput.closest('.ant-select')?.querySelector('.ant-select-selector')
-        ?? groupingInput,
-    );
-    const groupingOption = await screen.findByTitle('Разделять по типам объектов');
-    fireEvent.mouseDown(groupingOption);
-    fireEvent.click(groupingOption);
+    expect(groupingInput.closest('.ant-select')).toHaveTextContent('Разделять по типам объектов');
     await user.type(within(dialog).getByRole('spinbutton', { name: 'Параметр L К2i' }), '0');
     await user.type(within(dialog).getByRole('spinbutton', { name: 'Параметр R гр' }), '1');
     await user.click(within(dialog).getByRole('button', { name: 'Сформировать' }));

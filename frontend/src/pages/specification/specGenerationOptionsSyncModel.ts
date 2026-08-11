@@ -6,6 +6,9 @@
 
 import type { SpecificationGroupingMode } from '@/api/specifications';
 
+export const DEFAULT_SPECIFICATION_GROUPING_MODE: SpecificationGroupingMode =
+  'separate_by_object_type';
+
 export type SpecSettingsFormSnapshot = {
   exZone: boolean;
   reserveCoeff: string;
@@ -13,13 +16,13 @@ export type SpecSettingsFormSnapshot = {
   endSectionIndication: boolean;
   topIndication: boolean;
   minLengthK2i: string;
-  groupingMode: SpecificationGroupingMode | null;
+  groupingMode: SpecificationGroupingMode;
 };
 
 /**
  * Build local drawer state from a canonical specification snapshot.
- * Missing binary values use the explicit «Нет» default. Numeric and grouping
- * values remain unset until supplied by settings or the user.
+ * Missing binary values use the explicit «Нет» default. Missing or invalid
+ * grouping uses the canonical Case 1 mode; numeric values remain unset.
  */
 export function buildSpecSettingsFormSnapshot(
   opts: Record<string, unknown>,
@@ -39,7 +42,7 @@ export function buildSpecSettingsFormSnapshot(
     groupingMode: source.grouping_mode === 'separate_by_object_type'
       || source.grouping_mode === 'merge_materials'
       ? source.grouping_mode
-      : null,
+      : DEFAULT_SPECIFICATION_GROUPING_MODE,
   };
   return snapshot;
 }
