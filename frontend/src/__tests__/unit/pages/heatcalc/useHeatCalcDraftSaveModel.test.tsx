@@ -279,6 +279,35 @@ describe('useHeatCalcDraftSaveModel', () => {
     expect(notifyError).toHaveBeenCalledWith('Исправьте ошибки в строках перед сохранением');
   });
 
+  it('does not save a manually edited row while a required field is empty', async () => {
+    const source = makeObject({
+      params: {
+        ...makeObject().params,
+        min_switch_temperature: undefined,
+      },
+    });
+    const draft = draftFromInline(source, 'name', 'Труба с изменённым именем');
+    const {
+      createObjectRequest,
+      notifyError,
+      result,
+      updateObjectRequest,
+    } = setupHook({
+      draftRowsById: makeDraftRows([draft]),
+      visibleTableObjects: [source],
+    });
+
+    await act(async () => {
+      await result.current.saveDraftRows();
+    });
+
+    expect(createObjectRequest).not.toHaveBeenCalled();
+    expect(updateObjectRequest).not.toHaveBeenCalled();
+    expect(result.current.draftRowsById[source.id].errors.min_switch_temperature)
+      .toBe('Укажите значение');
+    expect(notifyError).toHaveBeenCalledWith('Исправьте ошибки в строках перед сохранением');
+  });
+
   it('keeps failed rows with row errors while clearing successfully saved rows', async () => {
     const first = makeObject({ id: 'pipe-1', sort_order: 0 });
     const second = makeObject({ id: 'pipe-2', sort_order: 1 });

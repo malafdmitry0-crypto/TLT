@@ -22,7 +22,6 @@ from sqlalchemy.orm import load_only
 
 from app.core.config import settings as app_settings
 from app.core.database import use_fast_commit_for_current_transaction
-from app.electrical_variant_limits import MAX_ELECTRICAL_VARIANTS
 from app.electrical_domain import ElectricalFormulaError
 from app.electrical_input_validation import (
     PROCESS_TEMPERATURE_REQUIRED_CABLE_TYPES,
@@ -34,6 +33,7 @@ from app.electrical_result_status import (
     FAILED_ELECTRICAL_CATEGORIES,
     electrical_result_with_lifecycle,
 )
+from app.electrical_variant_limits import MAX_ELECTRICAL_VARIANTS
 from app.formulas.electrical.cable_geometry import compute_tank_cable_length
 from app.formulas.electrical.tt_cable_options import (
     build_tt_cable_options,
@@ -1495,6 +1495,10 @@ class CalculationService:
         obj = obj_result.scalar_one_or_none()
         if obj is None:
             raise CalculationError("Объект не найден")
+        if not obj.is_valid:
+            raise CalculationError(
+                "Теплопотери объекта не рассчитаны — электротехнический расчёт недоступен"
+            )
 
         resolved_variant_id = electrical_variant_id or request.electrical_variant_id
         await self._assert_expected_assignment_version(

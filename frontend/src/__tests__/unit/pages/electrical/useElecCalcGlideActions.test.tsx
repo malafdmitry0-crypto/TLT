@@ -55,13 +55,13 @@ describe('useElecCalcGlideActions', () => {
     ]);
   });
 
-  it('keeps choose disabled for invalid objects, missing project or pending mark action', () => {
+  it('disables electrical actions for invalid objects, missing project or pending mark action', () => {
     expect(setup().result.current.getElectricalGlideCellActions(
       projectObject({ is_valid: false }),
       'cable_mark',
     )).toEqual([
       { key: 'choose', label: 'Выбор', disabled: true },
-      { key: 'size', label: 'Подбор', disabled: false },
+      { key: 'size', label: 'Подбор', disabled: true },
     ]);
 
     expect(setup({
@@ -108,8 +108,12 @@ describe('useElecCalcGlideActions', () => {
     pending.result.current.handleElectricalGlideCellAction(projectObject({
       is_valid: false,
     }), 'cable_mark', 'choose');
+    pending.result.current.handleElectricalGlideCellAction(projectObject({
+      is_valid: false,
+    }), 'cable_mark', 'size');
 
     expect(pending.onOpenCableMarkModal).not.toHaveBeenCalled();
+    expect(pending.onOpenCableSizingModal).not.toHaveBeenCalled();
   });
 
   it('keeps sizing inspection available but blocks cable writes in read-only mode', () => {
