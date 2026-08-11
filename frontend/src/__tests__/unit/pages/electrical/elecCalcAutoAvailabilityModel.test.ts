@@ -85,6 +85,6 @@ describe('buildElecCalcAutoAvailability', () => {
     });
     expect(result.kind).toBe('unknown');
     expect(result.message).not.toContain('SOME_INTERNAL_CODE');
-    expect(result.message).toContain('backend не разрешил');
+    expect(result.message).toContain('сервер расчёта не разрешил');
   });
 });

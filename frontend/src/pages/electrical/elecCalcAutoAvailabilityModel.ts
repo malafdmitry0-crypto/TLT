@@ -122,7 +122,7 @@ export function buildElecCalcAutoAvailability({
   const hasUnknownReason = reasons.some((reason) => !reason || !REASON_MESSAGES[reason]);
   if (knownReasons.length > 0 && (knownReasons.length > 1 || hasUnknownReason)) {
     const descriptions = hasUnknownReason
-      ? [...knownReasons, 'другая причина, возвращённая backend']
+      ? [...knownReasons, 'другая причина, определённая сервером расчёта']
       : knownReasons;
     return blocked(
       'mixed',
@@ -132,6 +132,6 @@ export function buildElecCalcAutoAvailability({
 
   return blocked(
     'unknown',
-    'Автоподбор недоступен: backend не разрешил ни одну марку. Выберите марку вручную или проверьте каталог.',
+    'Автоподбор недоступен: сервер расчёта не разрешил ни одну марку. Выберите марку вручную или проверьте каталог.',
   );
 }
