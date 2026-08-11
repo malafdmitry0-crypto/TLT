@@ -72,7 +72,6 @@ export type UseElecCalcMainTableControllerArgs = {
   nextElectricalPageCursor?: ProjectObjectsPageCursor | null;
   objects: readonly ProjectObject[];
   openCableMarkModal: (obj: ProjectObject) => void;
-  openCableSizingModal: (obj: ProjectObject) => void;
   pageSummary?: ElectricalPageSummary;
   projectSelected: boolean;
   recalc: RecalcValues;
@@ -99,7 +98,7 @@ export function useElecCalcMainTableController(args: UseElecCalcMainTableControl
     enumOptionsByColumn, fieldCapabilityByKey, filteredCount, getCalculatedCableTypeForObject,
     getObjectActionDisabledReason, getObjectCalculationDisabledReason, getSavedCableTypeForObject,
     hasNextPage, isCableMarkPending, isElectricalPageFetching, loadNextElectricalGlidePage,
-    nextElectricalPageCursor, objects, openCableMarkModal, openCableSizingModal, pageSummary,
+    nextElectricalPageCursor, objects, openCableMarkModal, pageSummary,
     projectSelected, recalc, selectedRowKeys, setColumnFilter, setTablePage, setTablePageSize,
     setTableViewState, startColumnResize, resetColumnFilter, tablePage, tablePageSize,
     tableViewState, visibleElectricalColumnMetas,
@@ -112,7 +111,7 @@ export function useElecCalcMainTableController(args: UseElecCalcMainTableControl
   const electricalColumnRenderers = useElecCalcElectricalColumnRenderers({
     activeRowId, calcByObjectId, electricalDisplayOffset, getCalculatedCableTypeForObject,
     isCableMarkPending, projectSelected, canMutate, recalc, getObjectActionDisabledReason,
-    openCableMarkModal, openCableSizingModal,
+    openCableMarkModal,
   });
 
   const electricalColumns = useElecCalcElectricalColumns({
@@ -158,7 +157,7 @@ export function useElecCalcMainTableController(args: UseElecCalcMainTableControl
     handleElectricalGlideCellAction,
   } = useElecCalcGlideActions({
     activeRowId, projectSelected, canMutate, isCableMarkPending, getObjectActionDisabledReason,
-    onOpenCableMarkModal: openCableMarkModal, onOpenCableSizingModal: openCableSizingModal,
+    onOpenCableMarkModal: openCableMarkModal,
   });
 
   const getElectricalGlideCellState = useElecCalcGlideCellState({

@@ -260,6 +260,7 @@
   gap: 4px;
   width: 100%;
   min-width: 0;
+  box-sizing: border-box;
   padding-right: 58px;
 }
 
@@ -278,6 +279,7 @@
 }
 
 .electrical-cable-picker-title-object {
+  flex: 1 1 auto;
   min-width: 0;
   color: var(--color-swatch-1f2933);
   font-size: 14px;

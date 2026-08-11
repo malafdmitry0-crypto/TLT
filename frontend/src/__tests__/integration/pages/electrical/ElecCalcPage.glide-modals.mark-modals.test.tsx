@@ -14,7 +14,8 @@ describe('ElecCalcPage glide / modal actions — mark-modals', () => {
     resetElecCalcIntegrationState();
   });
   it('делает шаг навива и количество ниток редактируемыми в Glide-таблице SC-04', async () => {
-    const { getElectricalPage, selectCableForVariants } = await import('@/api/calculations');
+    const { getElectricalPage } = await import('@/api/calculations');
+    const { selectElectricalAssignmentCable: selectCableForVariants } = await import('@/api/electricalVariants');
     localStorage.setItem(ELECTRICAL_TABLE_ENGINE_STORAGE_KEY, 'glide');
     (getElectricalPage as ReturnType<typeof vi.fn>).mockReset();
     (selectCableForVariants as ReturnType<typeof vi.fn>).mockReset();
@@ -43,12 +44,20 @@ describe('ElecCalcPage glide / modal actions — mark-modals', () => {
       },
     };
     (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage([object], [calc]));
-    (selectCableForVariants as ReturnType<typeof vi.fn>).mockResolvedValue([
-      {
+    (selectCableForVariants as ReturnType<typeof vi.fn>).mockResolvedValue({
+      assignment: {
+        id: 'a-1', project_id: 'p-1',
+        electrical_variant_id: '11111111-1111-4111-8111-111111111111',
+        object_id: 'o-1', system_type: 'self_regulating', assignment_state: 'ready',
+        requested_cable_type: 'self_regulating_tt', electrical_overrides: {},
+        object_version_snapshot: 1, version: 2, diagnostics: {}, object,
+        created_at: '', updated_at: '',
+      },
+      calculation: {
         ...calc,
         results: { ...calc.results, winding_pitch: 400, num_circuits: 2, number_of_threads_source: 'manual' },
       },
-    ]);
+    });
     useProjectStore.getState().setCurrentProject(mockProject);
     renderPage();
 
@@ -95,36 +104,36 @@ describe('ElecCalcPage glide / modal actions — mark-modals', () => {
     expect(onCommitCell(object, 'winding_pitch_mm', '400')).toBeNull();
     await waitFor(() => {
       expect(selectCableForVariants).toHaveBeenLastCalledWith(
+        'p-1',
+        '11111111-1111-4111-8111-111111111111',
         'o-1',
-        null,
-        'builtin',
-        [1],
-        'self_regulating_tt',
         expect.objectContaining({
-          windingPitchMm: 400,
-          numberOfThreads: null,
+          cable_mark: null,
+          cable_source: 'builtin',
+          mode: 'auto',
+          winding_pitch_mm: 400,
+          thread_count: null,
         }),
-        { 1: '11111111-1111-4111-8111-111111111111' },
       );
     });
     (selectCableForVariants as ReturnType<typeof vi.fn>).mockClear();
     expect(onCommitCell(object, 'number_of_threads', '2')).toBeNull();
     await waitFor(() => {
       expect(selectCableForVariants).toHaveBeenLastCalledWith(
+        'p-1',
+        '11111111-1111-4111-8111-111111111111',
         'o-1',
-        null,
-        'builtin',
-        [1],
-        'self_regulating_tt',
         expect.objectContaining({
-          numberOfThreads: 2,
+          cable_mark: null,
+          mode: 'auto',
+          thread_count: 2,
         }),
-        { 1: '11111111-1111-4111-8111-111111111111' },
       );
     });
   });
   it('не закрывает модалку выбора марки при ошибке ручного применения', async () => {
-    const { getElectricalPage, listCables, selectCableForVariants } = await import('@/api/calculations');
+    const { getElectricalPage, listCables } = await import('@/api/calculations');
+    const { selectElectricalAssignmentCable: selectCableForVariants } = await import('@/api/electricalVariants');
     const user = (await import('@testing-library/user-event')).default.setup();
     (listCables as ReturnType<typeof vi.fn>).mockResolvedValue([
       {
@@ -182,7 +191,8 @@ describe('ElecCalcPage glide / modal actions — mark-modals', () => {
     expect(within(dialog).getAllByText(/ТЛТ-30/).length).toBeGreaterThan(0);
   });
   it('не закрывает модалку выбора марки при ошибке автоподбора', async () => {
-    const { getElectricalPage, selectCableForVariants } = await import('@/api/calculations');
+    const { getElectricalPage } = await import('@/api/calculations');
+    const { selectElectricalAssignmentCable: selectCableForVariants } = await import('@/api/electricalVariants');
     const user = (await import('@testing-library/user-event')).default.setup();
     (selectCableForVariants as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('auto failed'));
     (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage([makeObject()]));

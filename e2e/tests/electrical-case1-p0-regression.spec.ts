@@ -341,7 +341,7 @@ async function cableOptions(
   objectId: string,
   electricalVariantId: string,
 ): Promise<CableOption[]> {
-  const { headers } = await guestHeaders(page);
+  const { projectId, headers } = await guestHeaders(page);
   const response = await page.request.get(
     `${API_BASE}/api/v1/calc/cable-options/${objectId}`,
     {
@@ -369,21 +369,53 @@ async function selectTtCable(
   overrides: SelectorOverrides,
 ): Promise<{ payload: Record<string, unknown>; response: APIResponse }> {
   expect(variant.legacy_variant_number).toBeTruthy();
-  const { headers } = await guestHeaders(page);
-  const variantNumber = variant.legacy_variant_number!;
+  const { projectId, headers } = await guestHeaders(page);
+  const assignmentsResponse = await page.request.get(
+    `${API_BASE}/api/v1/projects/${projectId}/electrical-variants/${variant.id}/assignments`,
+    { headers },
+  );
+  expect(assignmentsResponse.status()).toBe(200);
+  const assignments = await assignmentsResponse.json() as {
+    items: Array<{ object_id: string; version: number }>;
+  };
+  const assignment = assignments.items.find((item) => item.object_id === objectId);
+  expect(assignment).toBeTruthy();
+  const overrideResponse = await page.request.patch(
+    `${API_BASE}/api/v1/projects/${projectId}/electrical-variants/${variant.id}`
+      + `/assignments/${objectId}/electrical-overrides`,
+    {
+      headers,
+      data: {
+        expected_version: assignment!.version,
+        supply_voltage_v: overrides.supply_voltage,
+        ...(overrides.number_of_threads !== undefined
+          ? { thread_count: overrides.number_of_threads }
+          : {}),
+        ...(overrides.heating_height !== undefined
+          ? { tank_heating_height_m: overrides.heating_height }
+          : {}),
+        ...(overrides.laying_step !== undefined
+          ? { tank_laying_step_m: overrides.laying_step }
+          : {}),
+      },
+    },
+  );
+  expect(overrideResponse.status()).toBe(200);
+  const updatedAssignment = await overrideResponse.json() as { version: number };
+  const cableMark = overrides.cable_mark ?? null;
   const payload: Record<string, unknown> = {
-    object_id: objectId,
-    cable_mark: null,
+    expected_assignment_version: updatedAssignment.version,
+    mode: overrides.selection_mode ?? (cableMark ? 'manual' : 'auto'),
+    cable_mark: cableMark,
     cable_source: 'builtin',
-    cable_type: 'self_regulating_tt',
-    variant_numbers: [variantNumber],
-    electrical_variant_ids: { [variantNumber]: variant.id },
-    selection_mode: 'auto',
     selection_policy: 'technical_minimum',
-    ...overrides,
+    ...(overrides.number_of_threads !== undefined
+      ? { thread_count: overrides.number_of_threads }
+      : {}),
   };
   const response = await page.request.post(
-    `${API_BASE}/api/v1/calc/electrical/select-cable/variants`,
+    `${API_BASE}/api/v1/projects/${projectId}/electrical-variants/${variant.id}`
+      + `/objects/${objectId}/cable-selection`,
     { headers, data: payload },
   );
   return { payload, response };
@@ -391,10 +423,9 @@ async function selectTtCable(
 
 async function successfulCalculation(response: APIResponse): Promise<ElectricalCalculation> {
   expect(response.status()).toBe(200);
-  const payload = await response.json() as ElectricalCalculation[];
-  expect(payload).toHaveLength(1);
-  expect(payload[0]?.cable_mark).toMatch(/ТТ[НВХ]/);
-  return payload[0]!;
+  const payload = await response.json() as { calculation: ElectricalCalculation };
+  expect(payload.calculation.cable_mark).toMatch(/ТТ[НВХ]/);
+  return payload.calculation;
 }
 
 function expectedPassportCandidate(

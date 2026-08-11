@@ -75,6 +75,21 @@ class ElectricalAssignmentService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
+    async def require_no_active_calculation_job(
+        self,
+        project_id: UUID,
+        variant_id: UUID,
+        object_id: UUID,
+    ) -> None:
+        await self._require_no_active_job_conflict(project_id, variant_id, {object_id})
+
+    @staticmethod
+    def response_for(
+        assignment: ElectricalVariantObject,
+        obj: ProjectObject,
+    ) -> ElectricalAssignmentResponse:
+        return ElectricalAssignmentService._response(assignment, obj)
+
     async def list_assignments(
         self,
         project_id: UUID,

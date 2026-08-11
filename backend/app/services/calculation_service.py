@@ -61,6 +61,7 @@ from app.models.specification import Specification
 from app.reference_data.loader import get_climate_entry
 from app.result import Err, Ok, Result
 from app.schemas.calculation import (
+    ElectricalCableSelectionRequest,
     ElectricalCalcSummary,
     ElectricalRequest,
     PipeHeatLossParams,
@@ -4278,6 +4279,141 @@ class CalculationService:
             electrical_variant_id=electrical_variant_id,
         )
 
+    async def select_cable_for_assignment(
+        self,
+        *,
+        project_id: UUID,
+        electrical_variant_id: UUID,
+        object_id: UUID,
+        data: ElectricalCableSelectionRequest,
+    ) -> tuple[ElectricalCalculation, ElectricalVariantObject, ProjectObject]:
+        """Atomically persist one ER assignment intent and its calculation."""
+        try:
+            project = (
+                await self.db.execute(
+                    select(Project)
+                    .where(Project.id == project_id)
+                    .with_for_update()
+                    .execution_options(populate_existing=True)
+                )
+            ).scalar_one_or_none()
+            if project is None:
+                raise CalculationError("Проект не найден")
+            variant = (
+                await self.db.execute(
+                    select(ElectricalVariant)
+                    .where(
+                        ElectricalVariant.project_id == project_id,
+                        ElectricalVariant.id == electrical_variant_id,
+                    )
+                    .with_for_update()
+                    .execution_options(populate_existing=True)
+                )
+            ).scalar_one_or_none()
+            if variant is None:
+                raise ElectricalAssignmentServiceError(
+                    "ELECTRICAL_VARIANT_NOT_FOUND",
+                    "ЭР не найден в указанном проекте",
+                    status_code=404,
+                    details={"electrical_variant_id": str(electrical_variant_id)},
+                )
+            if variant.legacy_variant_number is None:
+                raise ElectricalAssignmentServiceError(
+                    "ELECTRICAL_VARIANT_LEGACY_SLOT_REQUIRED",
+                    "Текущий расчётный сервис требует compatibility-номер ЭР",
+                    status_code=409,
+                    details={"electrical_variant_id": str(electrical_variant_id)},
+                )
+            obj = (
+                await self.db.execute(
+                    select(ProjectObject)
+                    .where(
+                        ProjectObject.project_id == project_id,
+                        ProjectObject.id == object_id,
+                    )
+                    .with_for_update()
+                    .execution_options(populate_existing=True)
+                )
+            ).scalar_one_or_none()
+            if obj is None:
+                raise CalculationError("Объект не найден")
+            assignment = (
+                await self.db.execute(
+                    select(ElectricalVariantObject)
+                    .where(
+                        ElectricalVariantObject.project_id == project_id,
+                        ElectricalVariantObject.electrical_variant_id == electrical_variant_id,
+                        ElectricalVariantObject.object_id == object_id,
+                    )
+                    .with_for_update()
+                    .execution_options(populate_existing=True)
+                )
+            ).scalar_one_or_none()
+            if assignment is None:
+                raise ElectricalAssignmentServiceError(
+                    "ELECTRICAL_ASSIGNMENT_REQUIRED",
+                    "Для выбранного объекта отсутствует assignment текущего ЭР",
+                    status_code=409,
+                    details={"object_id": str(object_id)},
+                )
+            if assignment.version != data.expected_assignment_version:
+                raise ElectricalCalcConcurrencyError(
+                    code="ELECTRICAL_ASSIGNMENT_VERSION_CONFLICT",
+                    message="Assignment был изменён другим запросом; обновите данные",
+                    details={
+                        "conflicts": [{
+                            "object_id": str(object_id),
+                            "expected_version": data.expected_assignment_version,
+                            "current_version": assignment.version,
+                        }]
+                    },
+                )
+            if assignment.system_type != "self_regulating":
+                raise ElectricalAssignmentServiceError(
+                    "ELECTRICAL_ASSIGNMENT_SYSTEM_MISMATCH",
+                    "Выбор TT-кабеля доступен только для объекта в системе Самрег",
+                    status_code=409,
+                    details={"object_id": str(object_id)},
+                )
+            await ElectricalAssignmentService(self.db).require_no_active_calculation_job(
+                project_id,
+                electrical_variant_id,
+                object_id,
+            )
+
+            before = dict(assignment.electrical_overrides or {})
+            after = dict(before)
+            after["manual_cable_model"] = data.cable_mark if data.mode == "manual" else None
+            if "thread_count" in data.model_fields_set or data.mode == "auto":
+                after["thread_count"] = data.thread_count
+            if "winding_pitch_mm" in data.model_fields_set:
+                if data.winding_pitch_mm is None:
+                    after.pop("winding_pitch_mm", None)
+                else:
+                    after["winding_pitch_mm"] = data.winding_pitch_mm
+            if after != before:
+                assignment.electrical_overrides = after
+                assignment.version += 1
+
+            self._tt_assignment_cache[(project_id, electrical_variant_id, object_id)] = assignment
+            calc = await self._select_cable_for_object(
+                obj,
+                cable_mark=data.cable_mark if data.mode == "manual" else None,
+                cable_source=data.cable_source,
+                variant_number=variant.legacy_variant_number,
+                cable_type="self_regulating_tt",
+                electrical_params={"selection_policy": data.selection_policy},
+                commit=False,
+                electrical_variant_id=electrical_variant_id,
+            )
+            await self.db.commit()
+            await self.db.refresh(assignment)
+            await self.db.refresh(calc)
+            return calc, assignment, obj
+        except Exception:
+            await self.db.rollback()
+            raise
+
     async def _load_selectable_object(self, object_id: UUID) -> ProjectObject:
         obj_result = await self.db.execute(
             select(ProjectObject)
@@ -4291,55 +4427,6 @@ class CalculationService:
         if not obj.is_valid or not obj.results:
             raise CalculationError("Теплопотери объекта не рассчитаны — невозможно выбрать кабель")
         return obj
-
-    @staticmethod
-    def _normalize_selection_variant_numbers(variant_numbers: list[int]) -> list[int]:
-        normalized = list(dict.fromkeys(int(value) for value in variant_numbers))
-        if not normalized:
-            raise CalculationError("Нужно выбрать хотя бы одно СО")
-        invalid = [value for value in normalized if value < 1 or value > 4]
-        if invalid:
-            raise CalculationError("variant_numbers должны быть от 1 до 4")
-        return normalized
-
-    async def select_cable_for_variants(
-        self,
-        object_id: UUID,
-        cable_mark: str | None,
-        cable_source: CableSource = "builtin",
-        variant_numbers: list[int] | None = None,
-        cable_type: str = "self_regulating_tt",
-        electrical_params: dict[str, Any] | None = None,
-        electrical_variant_ids: dict[int, UUID] | None = None,
-    ) -> list[ElectricalCalculation]:
-        """Атомарно применяет ручной выбор или автоподбор к нескольким СО."""
-        obj = await self._load_selectable_object(object_id)
-        variants = self._normalize_selection_variant_numbers(variant_numbers or [1])
-        normalized_mark = cable_mark.strip() if isinstance(cable_mark, str) else None
-        if normalized_mark == "":
-            normalized_mark = None
-        calcs: list[ElectricalCalculation] = []
-        try:
-            for variant_number in variants:
-                calcs.append(
-                    await self._select_cable_for_object(
-                        obj,
-                        cable_mark=normalized_mark,
-                        cable_source=cable_source,
-                        variant_number=variant_number,
-                        cable_type=cable_type,
-                        electrical_params=electrical_params,
-                        commit=False,
-                        electrical_variant_id=(electrical_variant_ids or {}).get(variant_number),
-                    )
-                )
-            await self.db.commit()
-        except Exception:
-            await self.db.rollback()
-            raise
-        for calc in calcs:
-            await self.db.refresh(calc)
-        return calcs
 
     async def select_cable_manual(
         self,
@@ -4966,7 +5053,7 @@ class CalculationService:
                 status_code=503,
             )
 
-        return build_tt_cable_options(
+        options = build_tt_cable_options(
             rows,
             product_temperature_c=product_c,
             ambient_temperature_c=ambient_c,
@@ -4975,3 +5062,7 @@ class CalculationService:
             catalog_meta=meta,
             strict_provisional=bool(app_settings.is_production),
         )
+        for option in options:
+            option["object_product_temperature_c"] = product_c
+            option["object_ambient_temperature_c"] = ambient_c
+        return options
