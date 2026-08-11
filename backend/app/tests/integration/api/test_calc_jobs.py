@@ -47,6 +47,7 @@ async def _create_pipe(client: AsyncClient, project_id: str, session_id: str) ->
                 "insulation_temperature_basis": "outdoor_winter",
                 "ambient_temperature": -20,
                 "process_temperature": 80,
+                "min_switch_temperature": -20,
                 "pipe_length": 25,
                 "placement": "outdoor",
                 "wind_speed": 0,

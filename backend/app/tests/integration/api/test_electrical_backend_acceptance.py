@@ -196,6 +196,9 @@ async def test_ac_be_25_batch_persists_success_and_typed_object_error(
     assert error["details"] == {
         "product_temperature_c": 151.0,
         "ambient_temperature_c": -30.0,
+        "minimum_supported_ambient_temperature_c": -40.0,
+        "maximum_supported_product_temperature_c": 150.0,
+        "violations": ["product_above_maximum"],
         "manual_cable_model": None,
     }
 

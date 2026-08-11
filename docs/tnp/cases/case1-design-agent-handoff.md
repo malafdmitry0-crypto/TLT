@@ -20,7 +20,7 @@
 | **2** | [`case1-designer-brief.md`](./case1-designer-brief.md) | **Главное ТЗ дизайна** (v1.1): §0 базис и правила R1/R2, экраны P0/P1, states, microcopy, отклонения |
 | **3** | [`case1-design-review.md`](./case1-design-review.md) | **Ревью существующих макетов**: что переиспользуем, что исправляем (§2, §0.3 брифа) |
 | **4** | [`case1-docs-verification.md`](./case1-docs-verification.md) | Что в брифе уже перепроверено / где не врать |
-| **5** | [`electrical-designer-residual-prompt.md`](./electrical-designer-residual-prompt.md) | **Детализация D-ELEC** (D-ELEC-01…12) после cutover E0–E9: статус → тон, ручная марка с P@T3, защита ручных марок, конфликт 409, колонки L\*. Подчинён брифу. **Содержит блокирующий вопрос EQ5** |
+| **5** | [`electrical-input-contract-reconciliation.md`](./electrical-input-contract-reconciliation.md) | Действующий контракт подбора Case1-r4; старые `q1/q2/T3/R` не являются входами selector |
 | **6** | [`specification-designer-residual-prompt.md`](./specification-designer-residual-prompt.md) | **Детализация D-SPEC** (D-SPEC-01…06): diagnostics по kind, badges на вкладках ЭР, provenance строки, «выбор устарел». Подчинён брифу |
 | **7** | [`case1-frontend-user-stories.md`](./case1-frontend-user-stories.md) | User stories FE (AC) — макеты закрывают P0 stories UI |
 | **8** | PDF UI-референсы | `guest-specification/assets/pdf/page-21-input-ui.png`, `page-35-electrical-ui.png`, `page-49-section-ui.png`, `page-56-specification-ui.png` |
@@ -61,8 +61,8 @@
 
 **Обязательные UI-решения на макете:**
 
-- Только **Самрег** активен. Судьба Резистива и Скина — **открытый вопрос EQ5**: бриф §4.1 и правило R2 требуют показать их `disabled` («Скоро»), а продукт после cutover E1 их **скрыл**. До ответа владельца эта часть кадров черновая; расклад — [`electrical-designer-residual-prompt.md`](./electrical-designer-residual-prompt.md) §8.1. В любом варианте кнопки «Назначить: Резистив» быть не должно  
-- **230 В read-only** (не select 220) — пометка: требование **ТЗ**, не буква PDF  
+- Только **Самрег** активен; кнопок назначения других систем быть не должно
+- Показывать положительное проектное напряжение из действующего контракта
 - Нитки **1…3**  
 - Статусы строки: Рассчитано / Требуется перерасчёт / Требуется корректировка  
 - «Вернуть в нераспределённые» — confirm copy  

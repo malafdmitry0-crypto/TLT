@@ -14,7 +14,6 @@ from app.models.electrical_variant import ElectricalVariant, ElectricalVariantOb
 from app.models.project import Project
 from app.models.project_electrical_settings import ProjectElectricalSettings
 from app.models.project_object import ProjectObject
-from app.models.specification import SpecificationCatalogItem, SpecificationCatalogVersion
 from app.models.user import User
 from app.schemas.calculation import ElectricalRequest
 from app.schemas.specification import (
@@ -24,7 +23,9 @@ from app.schemas.specification import (
 from app.seeds import seed_electrical_catalogs
 from app.services.calculation_service import CalculationService
 from app.services.specification_preflight_service import SpecificationPreflightService
-from app.tests.specification_catalog_fixtures import complete_specification_catalog_items
+from app.tests.specification_catalog_fixtures import (
+    import_and_activate_complete_specification_catalog,
+)
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -36,43 +37,7 @@ class _RevisionContext:
     obj: ProjectObject
     assignment: ElectricalVariantObject
     principal: CurrentPrincipal
-
-
-def _single_choice_specification_items(
-    catalog_id: uuid.UUID,
-) -> list[SpecificationCatalogItem]:
-    items: list[SpecificationCatalogItem] = []
-    for index, raw in enumerate(complete_specification_catalog_items()):
-        category = raw.category.value if hasattr(raw.category, "value") else raw.category
-        if category == "box":
-            continue
-        if category == "connection_kit" and raw.mark != "КСВ-1":
-            continue
-        if category == "repair_kit" and raw.mark != "КСР-2":
-            continue
-        if category == "fiberglass_tape" and raw.mark != "ЛКВ 12":
-            continue
-        if category == "cable" and raw.mark != "30ТТВ2-СР":
-            continue
-        items.append(
-            SpecificationCatalogItem(
-                id=uuid.uuid4(),
-                catalog_version_id=catalog_id,
-                item_key=raw.item_key,
-                category=category,
-                name=raw.name,
-                mark=raw.mark,
-                nomenclature_code=raw.nomenclature_code,
-                supply_unit=raw.supply_unit,
-                applicability=dict(raw.applicability or {}),
-                package_parameters=dict(raw.package_parameters or {}),
-                formula_parameters=dict(raw.formula_parameters or {}),
-                source_ref=raw.source_ref,
-                row_checksum=f"sha256:{index:064x}",
-                position=index,
-            )
-        )
-    return items
+    specification_catalog_version: str
 
 
 async def _seed_context(
@@ -156,26 +121,11 @@ async def _seed_context(
     }
     assignment.diagnostics = {}
 
-    catalog_id = uuid.uuid4()
-    spec_items = _single_choice_specification_items(catalog_id)
-    db_session.add(
-        SpecificationCatalogVersion(
-            id=catalog_id,
-            catalog_key="builtin-specification",
-            version=f"assignment-revision-{uuid.uuid4().hex[:8]}",
-            status="active",
-            authority="approved",
-            source="assignment revision integration fixture",
-            source_checksum=f"sha256:{'a' * 64}",
-            payload_checksum=f"sha256:{'b' * 64}",
-            schema_version=1,
-            item_count=len(spec_items),
-            is_complete=True,
-            validation_issues=[],
-        )
+    specification_catalog = await import_and_activate_complete_specification_catalog(
+        db_session,
+        version_prefix="assignment-revision",
+        high_temperature_connection_marks={"КСВ-1", "КСВ-2"},
     )
-    await db_session.flush()
-    db_session.add_all(spec_items)
     await db_session.commit()
 
     return _RevisionContext(
@@ -188,6 +138,7 @@ async def _seed_context(
             user_id=employee_user.id,
             email=employee_user.email,
         ),
+        specification_catalog_version=specification_catalog.version,
     )
 
 
@@ -210,25 +161,40 @@ async def _preflight(
     db_session: AsyncSession,
     context: _RevisionContext,
 ):
-    request = SpecificationGenerationRequest.model_validate(
-        {
-            "variant_ids": [context.variant.id],
-            "options": {
-                "grouping_mode": "separate_by_object_type",
-                "Ex": False,
-                "K1i": False,
-                "K2i": False,
-                "Kiu": False,
-                "L_K2i_m": "0",
-                "R_gr": "1",
-            },
-        }
-    )
-    return (
-        await SpecificationPreflightService(db_session).preflight_variants(
+    payload = {
+        "variant_ids": [context.variant.id],
+        "options": {
+            "grouping_mode": "separate_by_object_type",
+            "Ex": False,
+            "K1i": False,
+            "K2i": False,
+            "Kiu": False,
+            "L_K2i_m": "0",
+            "R_gr": "1",
+            "catalog_id": "builtin-specification",
+            "catalog_version": context.specification_catalog_version,
+        },
+    }
+    service = SpecificationPreflightService(db_session)
+    discovery = (
+        await service.preflight_variants(
             context.project.id,
             context.principal,
-            request,
+            SpecificationGenerationRequest.model_validate(payload),
+        )
+    )[0]
+    if not discovery.candidate_groups:
+        return discovery
+    payload["catalog_selections"] = {
+        group.group_key: group.candidates[0].catalog_item_id
+        for group in discovery.candidate_groups
+        if group.candidates
+    }
+    return (
+        await service.preflight_variants(
+            context.project.id,
+            context.principal,
+            SpecificationGenerationRequest.model_validate(payload),
         )
     )[0]
 
@@ -248,7 +214,9 @@ async def test_real_tt_upsert_sync_keeps_input_revision_and_preflight_ready(
     assert context.assignment.version == input_revision
     assert calculation.results["provenance"]["assignment_version"] == input_revision
     preflight = await _preflight(db_session, context)
-    assert preflight.status is SpecificationPreflightStatus.READY
+    assert preflight.status is SpecificationPreflightStatus.READY, [
+        item.model_dump() for item in preflight.diagnostics
+    ]
     assert preflight.diagnostics == []
 
 
@@ -268,4 +236,7 @@ async def test_recalculation_does_not_drift_assignment_revision(
     assert context.assignment.version == input_revision
     assert first.results["provenance"]["assignment_version"] == input_revision
     assert second.results["provenance"]["assignment_version"] == input_revision
-    assert (await _preflight(db_session, context)).status is SpecificationPreflightStatus.READY
+    preflight = await _preflight(db_session, context)
+    assert preflight.status is SpecificationPreflightStatus.READY, [
+        item.model_dump() for item in preflight.diagnostics
+    ]

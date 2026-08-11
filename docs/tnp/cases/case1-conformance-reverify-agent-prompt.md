@@ -36,7 +36,7 @@
 | Приоритет | Документ | Зачем |
 |---|---|---|
 | 1 | PDF кейса 1 Rev.4 «Расчёт спецификации для неавторизованных» | UX/сценарий §3–7 |
-| 1 | [`guest-electrical-calculation-tz.md`](./guest-electrical-calculation-tz.md) | Норматив ЭР MVP (DEC, FE-*, BE-*) |
+| 1 | [`electrical-input-contract-reconciliation.md`](./electrical-input-contract-reconciliation.md) | Действующий контракт подбора Case1-r4 |
 | 2 | [`guest-specification-calculation-algorithm.md`](./guest-specification-calculation-algorithm.md) | Spec algorithm |
 | 2 | [`case1-frontend-user-stories.md`](./case1-frontend-user-stories.md) | US-ELEC / US-SPEC AC |
 
@@ -48,10 +48,8 @@
 | [`case1-backend-fe-readiness.md`](./case1-backend-fe-readiness.md) | Частично устарел (cable-options `[]`, Iдоп FE) |
 | [`case1-section-checklists.md`](./case1-section-checklists.md) | Оценка ~70–75% от 03.08 — baseline, не SoT |
 | [`case1-closure-slice-plan.md`](./case1-closure-slice-plan.md) | Slice 0–6; статусы слайсов могут лагать |
-| [`electrical-mvp-cutover-agent-prompt.md`](./electrical-mvp-cutover-agent-prompt.md) | План E0–E9 + статус (docs gitignored) |
-| [`electrical-slice6-polish-plan.md`](./electrical-slice6-polish-plan.md) | BE polish WP |
 | [`case1-docs-verification.md`](./case1-docs-verification.md) | Errata по help/Iдоп/IO |
-| [`case1-designer-brief.md`](./case1-designer-brief.md) + [`electrical-designer-residual-prompt.md`](./electrical-designer-residual-prompt.md) | Design residual |
+| [`case1-designer-brief.md`](./case1-designer-brief.md) | Design brief |
 | [`specification-designer-residual-prompt.md`](./specification-designer-residual-prompt.md) | Spec UI residual |
 
 ### Код (обязательно смотреть в HEAD, не в audit)
@@ -162,8 +160,7 @@
 
 ### E. Документы
 
-- Designer prompt: [`electrical-designer-residual-prompt.md`](./electrical-designer-residual-prompt.md) (**gitignored**, локально)
-- Cutover status docs often gitignored under `/docs/`
+- Действующий контракт: [`electrical-input-contract-reconciliation.md`](./electrical-input-contract-reconciliation.md)
 
 ### F. Что агент **не** заявлял зелёным
 
@@ -295,8 +292,7 @@ cd frontend && npx vitest run --project unit \
 | Файл | Содержание |
 |---|---|
 | Этот файл | Промпт перепроверки |
-| [`electrical-mvp-cutover-agent-prompt.md`](./electrical-mvp-cutover-agent-prompt.md) | Слайсы E0–E9 + статус |
-| [`electrical-designer-residual-prompt.md`](./electrical-designer-residual-prompt.md) | Задание дизайнеру D-ELEC |
+| [`electrical-input-contract-reconciliation.md`](./electrical-input-contract-reconciliation.md) | Действующий контракт Case1-r4 |
 | [`case1-electrical-be-fe-audit.md`](./case1-electrical-be-fe-audit.md) | Старый аудит (до cutover FE) |
 
 *Конец промпта.*

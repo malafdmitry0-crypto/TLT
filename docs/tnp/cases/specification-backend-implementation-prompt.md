@@ -63,7 +63,7 @@
 1. `/Users/dmalafey/Desktop/TLT/AGENTS.md`.
 2. `/Users/dmalafey/Desktop/TLT/docs/tnp/cases/guest-specification-calculation-algorithm.md`
    - утверждённый 2026-08-03 нормализованный алгоритм.
-3. `/Users/dmalafey/Desktop/TLT/docs/tnp/cases/guest-electrical-calculation-tz.md`
+3. `/Users/dmalafey/Desktop/TLT/docs/tnp/cases/electrical-input-contract-reconciliation.md`
    - контракт ЭР, секций, закупочной длины, provenance и stale.
 4. `/Users/dmalafey/Desktop/TLT/ТНП/1_Кейс_«Расчёт_спецификации_для_неавторизованных_пользователей» (1).pdf`,
    особенно §§ 6.18-6.20 и 7.1-7.15, страницы 52-81.
@@ -76,7 +76,7 @@
 
 1. Утверждённые решения этого prompt и
    `guest-specification-calculation-algorithm.md`.
-2. `guest-electrical-calculation-tz.md`.
+2. `electrical-input-contract-reconciliation.md`.
 3. Первичный бизнес-PDF как источник workflow и исходных формул.
 4. Авторитетные технические PDF/XLSX как источник явно разрешённых каталоговых
    значений.

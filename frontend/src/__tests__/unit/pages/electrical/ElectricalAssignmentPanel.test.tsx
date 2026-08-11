@@ -226,6 +226,16 @@ describe('ElectricalAssignmentPanel (system scope chrome)', () => {
       .toHaveAttribute('data-disabled', 'true');
     expect(screen.getByTestId('assignment-drop-zone-unassigned'))
       .toHaveAttribute('data-disabled', 'false');
+    expect(screen.getByRole('button', { name: 'Назначить: Самрег' })).toHaveAttribute(
+      'title',
+      'Объекты в этой вкладке уже назначены в Самрег',
+    );
+    const assignmentHint = screen.getByText(
+      'Объекты в этой вкладке уже назначены в Самрег. Для смены системы верните их в нераспределённые.',
+    );
+    expect(screen.getByRole('button', { name: 'Назначить: Самрег' }))
+      .toHaveAttribute('aria-describedby', assignmentHint.id);
+    expect(screen.getByRole('button', { name: 'Вернуть в нераспределённые' })).toBeEnabled();
 
     await user.click(screen.getByRole('button', { name: 'Вернуть в нераспределённые' }));
     const dialog = await screen.findByRole('dialog');

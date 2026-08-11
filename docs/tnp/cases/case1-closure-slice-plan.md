@@ -73,12 +73,11 @@ Acceptance path: **met for engineering/demo**. Production authority: **not met**
 
 ## Slice 5 — ЭР: конформность ТЗ §17.3 (FE) `[ ]`
 
-**Исполняемый agent prompt + слайсы E0–E3:**  
-[`electrical-mvp-cutover-agent-prompt.md`](./electrical-mvp-cutover-agent-prompt.md)  
+**Действующий контракт:**
+[`electrical-input-contract-reconciliation.md`](./electrical-input-contract-reconciliation.md)
 **Аудит gaps:** [`case1-electrical-be-fe-audit.md`](./case1-electrical-be-fe-audit.md).
 
-- [ ] 230 В read-only: убрать редактируемое поле U (дефолт 220) и select 220/380 из мастера;
-      показывать константу с источником. → **E1**
+- [ ] Показывать и валидировать положительное проектное напряжение. → **E1**
 - [ ] Iдоп-UI: единственная настройка проекта (`/projects/{id}/electrical-settings`) и
       блокирующее состояние «Задать допустимый стартовый ток»
       (`SECTION_CURRENT_LIMIT_REQUIRED`). → **E2**
@@ -88,7 +87,7 @@ Acceptance path: **met for engineering/demo**. Production authority: **not met**
       переименовать в «Назначить Самрег выбранным». → **E1**
 - [ ] DnD в glide-движке (drag-источник есть только в AntD-ветке) + клавиатурная
       альтернатива drop-зон. → **E3**
-- [ ] T2/T3: required-правила, управляемая применимость пропарки, бейджи источника значений.
+- [ ] Показывать фактические температурные ограничения марки и источники значений.
 - [ ] Provenance: включить L-метрики в `default_visible`, вернуть номенклатурный код в
       характеристики кабеля, тултип/модалка вместо сжатой строки. → **E7** (после B1)
 - [ ] Stale per-объект: подсветка строки, построчная кнопка «Пересчитать», счётчик stale в
@@ -97,12 +96,11 @@ Acceptance path: **met for engineering/demo**. Production authority: **not met**
 
 ## Slice 6 — ЭР: зачистка бэкенда (BE) `[ ]`
 
-**Детальный план:** [`electrical-slice6-polish-plan.md`](./electrical-slice6-polish-plan.md)  
-**Слайсы E4–E9 в agent prompt:** [`electrical-mvp-cutover-agent-prompt.md`](./electrical-mvp-cutover-agent-prompt.md).
+**Контракт:** [`electrical-input-contract-reconciliation.md`](./electrical-input-contract-reconciliation.md).
 
 - [ ] Закрыть вход legacy `cable_type` (только `self_regulating_tt`), убрать дефолты
       `"self_regulating"`, вырезать legacy-ветки из прод-пути.
-- [ ] `GET /calc/cable-options` → TT-модели (серия, мощность при T3, причины недоступности,
+- [ ] `GET /calc/cable-options` → точные TT-марки (паспортная мощность, температурные пределы, причины недоступности,
       параметр ЭР).
 - [ ] `electrical_variant_id` + `Idempotency-Key` + `expected_assignment_version` в
       `/calc/electrical`, `/batch`, `/page` (UUID-first).

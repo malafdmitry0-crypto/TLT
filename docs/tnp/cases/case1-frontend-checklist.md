@@ -22,7 +22,7 @@
 **Источники:**
 
 - Кейс 1, редакция 4 от 07.07.2026 (`ТНП/1_Кейс_«Расчёт_спецификации_для_неавторизованных_пользователей» (1).pdf`);
-- [`guest-electrical-calculation-tz.md`](./guest-electrical-calculation-tz.md) (§7, §12.5, §13.2, §17.3, §18);
+- [`electrical-input-contract-reconciliation.md`](./electrical-input-contract-reconciliation.md);
 - [`guest-specification-calculation-algorithm.md`](./guest-specification-calculation-algorithm.md);
 - [`specification-backend-implementation-prompt.md`](./specification-backend-implementation-prompt.md);
 - [`specification-frontend-follow-up.md`](./specification-frontend-follow-up.md);
@@ -87,11 +87,11 @@ stale/partial-баннеры; отчёт — гостевой preview + печа
 - [ ] Починить drag-and-drop назначение: drop-зоны есть, но drag-источник реализован только в
       AntD-ветке таблицы, а движок по умолчанию — glide → в дефолтной конфигурации перетаскивание
       не работает. Плюс обязательная клавиатурная альтернатива (FE-12).
-- [ ] Provenance view: полный маркоразмер, серия, база модели, мощность при T3, номенклатурный
+- [ ] Provenance view: полный маркоразмер, серия, база модели, паспортная мощность, номенклатурный
       код, версии каталога/формулы; отображение `Lтреб / Lфакт / Lдоп / Lзаказ`; manual options
       только с бэкенда (во фронте нет копий `q1/q2`, `Lмакс`, `Iст.уд`).
-- [ ] Управляемая применимость T2 (пропарка), обязательный T3, показ источника значений
-      (override vs Heat).
+- [ ] Показать фактические температурные ограничения марки и источник значений
+      (активный каталог / Heat / проектная настройка).
 - [ ] «Применить правило к группе»: сейчас жёстко зашитый массовый «Назначить Самрег» —
       привести к семантике ТЗ или переименовать.
 - [ ] Статус «Требуется перерасчёт» per-объект после изменения исходных данных (кейс 6.19,

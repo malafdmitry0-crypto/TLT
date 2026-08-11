@@ -15,6 +15,7 @@ from app.models.electrical_calculation import ElectricalCalculation
 from app.models.electrical_variant import ElectricalVariant
 from app.models.guest_session import GuestSession
 from app.models.project import Project
+from app.models.project_electrical_settings import ProjectElectricalSettings
 from app.models.project_object import ProjectObject
 from app.models.specification import Specification
 from app.schemas.calculation import ElectricalRequest
@@ -30,6 +31,14 @@ async def _create_guest_project(db_session: AsyncSession, name: str) -> Project:
     db_session.add(GuestSession(session_id=session_id))
     project = Project(name=name, session_id=session_id)
     db_session.add(project)
+    await db_session.flush()
+    db_session.add(
+        ProjectElectricalSettings(
+            project_id=project.id,
+            max_section_start_current_a=13.065,
+            version=1,
+        )
+    )
     await db_session.commit()
     await db_session.refresh(project)
     return project
@@ -43,6 +52,7 @@ async def _create_valid_pipe(db_session: AsyncSession, project_id: uuid.UUID) ->
         params={
             "name": "Race pipe",
             "ambient_temperature": -30,
+            "min_switch_temperature": -30,
             "process_temperature": 80,
             "pipe_length": 50,
         },
@@ -150,22 +160,24 @@ class TestAtomicUpsertRaceConditions:
         project = await _create_guest_project(db_session, "Single electrical race")
         obj = await _create_valid_pipe(db_session, project.id)
         session_factory = async_sessionmaker(test_engine, expire_on_commit=False)
-        marks = ["ТЛТ-25", "ТЛТ-40", "ТЛТ-60", "ТЛТ-75"]
+        marks = ["15ТТВ2-СР", "30ТТВ2-СР", "45ТТВ2-СР", "60ТТВ2-СР"]
 
         async def calc(mark: str) -> None:
             async with session_factory() as session:
                 await CalculationService(session).calc_electrical(
                     ElectricalRequest(
                         object_id=obj.id,
-                        cable_type="self_regulating",
+                        cable_type="self_regulating_tt",
                         variant_number=1,
                         data={
                             "required_power_per_meter": 20,
                             "cable_mark": mark,
+                            "number_of_threads": 2,
                             "supply_voltage": 220,
                             "ambient_temperature": -30,
                             "pipe_length": 50,
                             "safety_factor": 1.1,
+                            "selection_policy": "technical_minimum",
                         },
                     )
                 )
@@ -187,7 +199,7 @@ class TestAtomicUpsertRaceConditions:
         assert len(rows) == 1
         assert rows[0].project_id == project.id
         assert rows[0].cable_mark in marks
-        assert rows[0].results["selected_cable"] == rows[0].cable_mark
+        assert rows[0].results["cable_mark"] == rows[0].cable_mark
 
     async def test_parallel_failed_electrical_batch_keeps_single_failure_row(
         self,

@@ -16,12 +16,13 @@ def _temperature_group(series: str) -> str:
 
 
 def is_power_catalog_provisional(catalog_meta: Mapping[str, Any] | None) -> bool:
-    """True when power catalog is not an approved active DB authority."""
+    """True when power catalog is not an approved active authority."""
     if not catalog_meta:
         return True
     status = str(catalog_meta.get("status") or "").strip().lower()
     authority = str(catalog_meta.get("authority") or "").strip().lower()
-    if status == "active" and authority in {"database", "db"}:
+    approved = catalog_meta.get("production_approved") is True
+    if status == "active" and (authority in {"database", "db"} or approved):
         return False
     if status == "provisional":
         return True
@@ -49,8 +50,7 @@ def build_tt_cable_options(
         "kind": "power",
         "version": metadata.get("version"),
         "status": metadata.get("status"),
-        "source_checksum": metadata.get("source_checksum")
-        or metadata.get("payload_checksum"),
+        "source_checksum": metadata.get("source_checksum") or metadata.get("payload_checksum"),
         "authority": metadata.get("authority"),
         "production_approved": not provisional,
     }
@@ -61,10 +61,9 @@ def build_tt_cable_options(
     )
     options: list[dict[str, Any]] = []
     for candidate in candidates:
-        temperature_eligible = (
-            ambient_temperature_c >= float(candidate.min_ambient_temperature)
-            and product_temperature_c <= float(candidate.max_product_temperature)
-        )
+        temperature_eligible = ambient_temperature_c >= float(
+            candidate.min_ambient_temperature
+        ) and product_temperature_c <= float(candidate.max_product_temperature)
         provisional_blocked = provisional and strict_provisional
         options.append(
             {
@@ -110,7 +109,11 @@ def extract_tt_catalog_rows(
     raw_rows = payload.get("entries") if kind == "bom" else payload.get("rows")
     if kind == "power" and raw_rows is None:
         raw_rows = payload.get("cables")
-    rows = [dict(row) for row in raw_rows if isinstance(row, Mapping)] if isinstance(raw_rows, list) else []
+    rows = (
+        [dict(row) for row in raw_rows if isinstance(row, Mapping)]
+        if isinstance(raw_rows, list)
+        else []
+    )
     meta = {key: value for key, value in catalog.items() if key != "payload"}
     return rows, meta
 

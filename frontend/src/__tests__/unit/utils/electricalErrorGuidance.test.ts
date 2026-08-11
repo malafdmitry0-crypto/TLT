@@ -106,4 +106,59 @@ describe('electricalErrorGuidance', () => {
       suggestions: ['Выбрать геометрию укладки'],
     });
   });
+
+  it('explains an ambient temperature below the catalog limit', () => {
+    const guidance = getElectricalErrorGuidance({
+      errorCode: 'ELECTRICAL_CABLE_TEMPERATURE_LIMIT_EXCEEDED',
+      error: 'backend fallback',
+      errorContext: {
+        ambient_temperature_c: -41,
+        minimum_supported_ambient_temperature_c: -40,
+        product_temperature_c: 20,
+        maximum_supported_product_temperature_c: 200,
+        violations: ['ambient_below_minimum'],
+      },
+    });
+
+    expect(guidance?.message).toBe(
+      'Температура окружающей среды -41 °C ниже допустимой для доступных марок кабеля: минимум -40 °C.',
+    );
+    expect(guidance?.suggestions).toContain('Проверить температуру среды');
+  });
+
+  it('explains a product temperature above the catalog limit', () => {
+    const guidance = getElectricalErrorGuidance({
+      errorCode: 'ELECTRICAL_CABLE_TEMPERATURE_LIMIT_EXCEEDED',
+      error: 'backend fallback',
+      errorContext: {
+        ambient_temperature_c: -20,
+        minimum_supported_ambient_temperature_c: -40,
+        product_temperature_c: 201,
+        maximum_supported_product_temperature_c: 200,
+        violations: ['product_above_maximum'],
+      },
+    });
+
+    expect(guidance?.message).toBe(
+      'Температура продукта 201 °C выше допустимой для доступных марок кабеля: максимум 200 °C.',
+    );
+    expect(guidance?.suggestions).toContain('Проверить температуру продукта');
+  });
+
+  it('shows both independent temperature violations', () => {
+    const guidance = getElectricalErrorGuidance({
+      errorCode: 'ELECTRICAL_CABLE_TEMPERATURE_LIMIT_EXCEEDED',
+      error: 'backend fallback',
+      errorContext: {
+        ambient_temperature_c: -41,
+        minimum_supported_ambient_temperature_c: -40,
+        product_temperature_c: 201,
+        maximum_supported_product_temperature_c: 200,
+        violations: ['ambient_below_minimum', 'product_above_maximum'],
+      },
+    });
+
+    expect(guidance?.message).toContain('Температура окружающей среды -41 °C');
+    expect(guidance?.message).toContain('Температура продукта 201 °C');
+  });
 });

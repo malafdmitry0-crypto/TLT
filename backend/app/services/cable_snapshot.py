@@ -232,7 +232,18 @@ def build_cable_snapshot(
     selection = _pick(result, SELECTION_KEYS)
     selection["cable_mark_source"] = cable_mark_source
 
-    actual_source = row.get("source") or row.get("catalog_source") or "builtin"
+    catalog_identity_raw = row.get("_catalog_identity")
+    catalog_identity = (
+        _compact(catalog_identity_raw) if isinstance(catalog_identity_raw, dict) else {}
+    )
+    authority = str(catalog_identity.get("authority") or "").strip().lower()
+    actual_source = (
+        "database"
+        if authority in {"database", "db"}
+        else "builtin"
+        if authority in {"static", "static_fallback", "builtin"}
+        else row.get("source") or row.get("catalog_source") or "builtin"
+    )
     fingerprint = {
         "technical_hash": stable_hash(technical),
         "commercial_hash": stable_hash(commercial),
@@ -242,6 +253,7 @@ def build_cable_snapshot(
             "cable_type": cable_type,
             "cable_mark": cable_mark,
             "actual_catalog_source": actual_source,
+            "catalog_identity": catalog_identity,
             "technical": technical,
             "commercial": commercial,
         }
@@ -256,6 +268,7 @@ def build_cable_snapshot(
         "cable_mark_source": cable_mark_source,
         "requested_catalog_source": requested_catalog_source or "builtin",
         "actual_catalog_source": actual_source,
+        "catalog_identity": catalog_identity,
         "catalog_entry_id": row.get("id"),
         "technical": technical,
         "commercial": commercial,
@@ -298,14 +311,21 @@ def compare_cable_snapshot(
         COMMERCIAL_KEYS,
     )
 
-    technical_changed = stable_hash(snapshot_technical) != stable_hash(current_technical)
+    catalog_fields = _changed_catalog_identity_fields(snapshot, current_row)
+    technical_changed = stable_hash(snapshot_technical) != stable_hash(current_technical) or bool(
+        catalog_fields
+    )
     commercial_changed = stable_hash(snapshot_commercial) != stable_hash(current_commercial)
     technical_fields = _changed_fields("technical", snapshot_technical, current_technical)
     commercial_fields = _changed_fields("commercial", snapshot_commercial, current_commercial)
 
     if technical_changed:
         severity = "critical"
-        message = "Кабель найден в базе, но технические параметры изменились."
+        message = (
+            "Источник или версия каталога кабеля изменились."
+            if catalog_fields
+            else "Кабель найден в базе, но технические параметры изменились."
+        )
     elif commercial_changed:
         severity = "warning"
         message = "Кабель найден в базе, но коммерческие данные изменились."
@@ -317,9 +337,38 @@ def compare_cable_snapshot(
         "technical_status": "changed" if technical_changed else "current",
         "commercial_status": "changed" if commercial_changed else "current",
         "severity": severity,
-        "changed_fields": technical_fields + commercial_fields,
+        "changed_fields": catalog_fields + technical_fields + commercial_fields,
         "message": message,
     }
+
+
+def _changed_catalog_identity_fields(
+    snapshot: dict[str, Any],
+    current_row: dict[str, Any],
+) -> list[str]:
+    current_raw = current_row.get("_catalog_identity")
+    current = current_raw if isinstance(current_raw, dict) else {}
+    saved_raw = snapshot.get("catalog_identity")
+    saved = saved_raw if isinstance(saved_raw, dict) else {}
+    fields: list[str] = []
+    if saved and current:
+        for key in ("id", "version", "authority", "source_checksum", "payload_checksum"):
+            if json_ready(saved.get(key)) != json_ready(current.get(key)):
+                fields.append(f"catalog.{key}")
+        return fields
+
+    saved_source = str(snapshot.get("actual_catalog_source") or "").strip().lower()
+    current_authority = str(current.get("authority") or "").strip().lower()
+    current_source = (
+        "database"
+        if current_authority in {"database", "db"}
+        else "builtin"
+        if current_authority in {"static", "static_fallback", "builtin"}
+        else ""
+    )
+    if saved_source and current_source and saved_source != current_source:
+        fields.append("catalog.authority")
+    return fields
 
 
 def _changed_fields(prefix: str, left: dict[str, Any], right: dict[str, Any]) -> list[str]:

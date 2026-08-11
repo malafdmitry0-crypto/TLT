@@ -33,6 +33,7 @@ from app.services.calculation_service import (
     CalculationService,
     build_heat_loss_error_payload,
 )
+from app.services.electrical_catalog_service import ElectricalCatalogService
 from app.services.project_object_params import ProjectObjectParamsError
 
 MINERAL_WOOL = "mineral_wool_boards_120"
@@ -66,9 +67,7 @@ def test_heat_loss_error_payload_uses_structured_invalid_fields():
 
     assert payload["error_code"] == "invalid_object_params"
     assert payload["field"] == "insulation_temperature_basis"
-    assert payload["fields"] == {
-        "insulation_temperature_basis": "Проверьте параметры объекта"
-    }
+    assert payload["fields"] == {"insulation_temperature_basis": "Проверьте параметры объекта"}
 
 
 def _mock_db_empty() -> AsyncMock:
@@ -168,6 +167,7 @@ def _minimal_pipe_params() -> dict[str, object]:
         "insulation_layers": [{"thickness": 0.05, "material": MINERAL_WOOL}],
         "insulation_temperature_basis": "outdoor_winter",
         "ambient_temperature": -10,
+        "min_switch_temperature": -30,
         "process_temperature": 60,
         "pipe_length": 10,
         "placement": "outdoor",
@@ -332,7 +332,10 @@ class TestRecalculateObject:
                 "insulation_layers": [{"thickness": 0.06, "material": MINERAL_WOOL}],
                 "insulation_temperature_basis": "outdoor_winter",
                 "ambient_temperature": -10,
+                "min_switch_temperature": -30,
                 "process_temperature": 60,
+                "heating_height": 1.5,
+                "laying_step": 0.2,
                 "placement": "outdoor",
                 "wind_speed": 0,
                 "safety_factor": 1.1,
@@ -606,6 +609,7 @@ class TestCableLayoutMapping:
         )
 
         assert data["_tt_explicit_overrides"] == {"cable_mark": None}
+
 
 class TestCableSourceNormalization:
     def test_source_normalizers_accept_case_and_whitespace(self):
@@ -1139,6 +1143,7 @@ class TestLoadCableCatalog:
         assert cables[0]["price_per_meter"] == 500.0
         assert cables[0]["is_preferred"] is True
 
+
 class TestCoefficientsCaching:
     """Кэш коэффициентов — ключ-инвалидация работает, второй вызов не идёт в БД."""
 
@@ -1176,6 +1181,10 @@ class TestSaveFailedElectrical:
         db = AsyncMock()
         db.commit = AsyncMock()
         service = CalculationService(db)
+        service._tt_calculation_catalogs_cache = {
+            kind: ElectricalCatalogService._static_calculation_fallback(kind)
+            for kind in ("power", "section", "bom")
+        }
         service._bulk_upsert_electrical_calculations = AsyncMock(return_value=[SimpleNamespace()])  # type: ignore[method-assign]
 
         await service._save_failed_electrical(obj, "TestError")
@@ -1199,6 +1208,10 @@ class TestSaveFailedElectrical:
         db = AsyncMock()
         db.commit = AsyncMock()
         service = CalculationService(db)
+        service._tt_calculation_catalogs_cache = {
+            kind: ElectricalCatalogService._static_calculation_fallback(kind)
+            for kind in ("power", "section", "bom")
+        }
         service._bulk_upsert_electrical_calculations = AsyncMock(return_value=[SimpleNamespace()])  # type: ignore[method-assign]
 
         await service._save_failed_electrical(obj, "Some error")
@@ -1229,6 +1242,10 @@ class TestSaveFailedElectrical:
         db = AsyncMock()
         db.commit = AsyncMock()
         service = CalculationService(db)
+        service._tt_calculation_catalogs_cache = {
+            kind: ElectricalCatalogService._static_calculation_fallback(kind)
+            for kind in ("power", "section", "bom")
+        }
         service._bulk_upsert_electrical_calculations = AsyncMock(return_value=[SimpleNamespace()])  # type: ignore[method-assign]
 
         await service._save_failed_electrical(obj, "boom", variant_number=2)
@@ -1250,9 +1267,9 @@ class TestGetCableOptions:
             is_valid=True,
             params={
                 "process_temperature": 80.0,
+                "ambient_temperature": -30.0,
+                "min_switch_temperature": -30.0,
                 "outer_diameter": 0.108,
-                "maintain_temperature": 10.0,
-                "aggressive_product": False,
             },
             results={
                 "heat_loss_per_meter_base": 20.0,
@@ -1276,8 +1293,8 @@ class TestGetCableOptions:
         assert all(opt.get("model") for opt in options)
         eligible = [opt for opt in options if opt["eligible"]]
         assert eligible
-        assert all(opt["series"] == "ТТВ" for opt in eligible)
-        assert all(opt["required_series"] == "ТТВ" for opt in options)
+        assert {opt["series"] for opt in eligible} == {"ТТВ", "ТТХ"}
+        assert all("required_series" not in opt for opt in options)
 
     async def test_requires_heat_results(self):
         from app.services.calculation_service import CalculationService
