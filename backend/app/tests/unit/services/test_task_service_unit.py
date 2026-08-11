@@ -22,7 +22,6 @@ from app.services.task_service import (
     ELECTRICAL_VARIANT_NOT_FOUND,
     MAX_TASK_ERROR_MESSAGE_LENGTH,
     TASK_ELECTRICAL_BATCH,
-    TASK_ELECTRICAL_VARIANT_SET,
     TASK_HEAT_LOSS_BATCH,
     TASK_REPORT_EXPORT,
     ProgressThrottler,
@@ -1315,39 +1314,6 @@ class TestTaskStateTransitions:
         service._run_heat_loss_batch.assert_not_awaited()
         mock_db.commit.assert_not_awaited()
 
-    async def test_run_task_does_not_dispatch_terminal_electrical_variant_set_again(
-        self,
-        mock_db,
-        monkeypatch: pytest.MonkeyPatch,
-    ):
-        task = BackgroundTask(
-            id=uuid.uuid4(),
-            type=TASK_ELECTRICAL_VARIANT_SET,
-            status="succeeded",
-            project_id=uuid.uuid4(),
-            session_id="sid",
-            request_payload={"project_id": str(uuid.uuid4()), "electrical_variant_ids": []},
-            progress_current=1,
-            progress_total=1,
-            cancel_requested=False,
-            attempts=1,
-        )
-        mock_db.execute = AsyncMock(return_value=ResultRows([]))
-        mock_db.get = AsyncMock(return_value=task)
-        task_service_mock = MagicMock()
-        task_service_mock.run_claimed_task = AsyncMock()
-        task_service_mock_type = MagicMock(return_value=task_service_mock)
-        monkeypatch.setattr(
-            "app.services.electrical_variant_set_task_service.ElectricalVariantSetTaskService",
-            task_service_mock_type,
-        )
-
-        await TaskService(mock_db).run_task(task.id, worker_id="worker-2")
-
-        task_service_mock_type.assert_not_called()
-        task_service_mock.run_claimed_task.assert_not_awaited()
-        mock_db.commit.assert_not_awaited()
-
     async def test_run_heat_loss_batch_marks_succeeded(
         self,
         mock_db,
@@ -1719,30 +1685,6 @@ class TestTaskStateTransitions:
 
         assert recovered == 0
         queue.is_worker_ready.assert_awaited_once_with("worker-a")  # type: ignore[attr-defined]
-        service.enqueue_existing_task.assert_not_awaited()
-
-    async def test_recovery_times_out_expired_electrical_variant_set_queue_budget(self, mock_db):
-        expired = BackgroundTask(
-            id=uuid.uuid4(),
-            type=TASK_ELECTRICAL_VARIANT_SET,
-            status="queued",
-            session_id="sid",
-            request_payload={},
-            progress_current=0,
-            queue_deadline_at=datetime.now(UTC) - timedelta(seconds=1),
-        )
-        mock_db.execute = AsyncMock(
-            side_effect=[ResultRows([expired]), ResultRows([]), ResultRows([])]
-        )
-        service = TaskService(mock_db)
-        service.enqueue_existing_task = AsyncMock()  # type: ignore[method-assign]
-
-        recovered = await service.recover_stuck_tasks(queue=QueueOk())
-
-        assert recovered == 1
-        assert expired.status == "timed_out"
-        assert expired.workflow_stage == "timed_out"
-        assert expired.finished_at is not None
         service.enqueue_existing_task.assert_not_awaited()
 
 

@@ -34,15 +34,12 @@ export type {
   CableSource,
   CableType,
   ElectricalBatchOptions,
-  CopyElectricalVariantRequest,
-  CopyElectricalVariantResponse,
 } from './electricalBatchCalc';
 
 export {
   batchCalcElectrical,
   enqueueElectricalBatchJob,
   enqueueElectricalVariantBatchJob,
-  copyElectricalVariant,
   selectCableManual,
 } from './electricalBatchCalc';
 

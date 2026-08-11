@@ -6,12 +6,8 @@ import Sidebar from './Sidebar';
 import ProjectMenu from './ProjectMenu';
 import { RouteErrorBoundary } from '@/components/common/ErrorBoundary';
 import { TltAlert, TltButton } from '@/components/ui-kit';
-import { ElectricalVariantSetTaskBanner } from '@/components/workflow/ElectricalVariantSetTaskBanner';
-import { ElectricalVariantSetTaskLockBoundary } from '@/components/workflow/ElectricalVariantSetTaskLockBoundary';
 import { logout as logoutApi } from '@/api/auth';
-import { useProjectElectricalVariantSetTask } from '@/hooks/useProjectElectricalVariantSetTask';
 import { useAuthStore } from '@/store/authStore';
-import { useProjectStore } from '@/store/projectStore';
 import { useWorkspaceHeaderStore } from '@/store/workspaceHeaderStore';
 import './layout-chrome.css';
 
@@ -70,14 +66,6 @@ function WorkspaceHeaderContextRow() {
 
 export default function MainLayout({ children }: Props) {
   const [narrowViewport, setNarrowViewport] = useState(false);
-  const projectId = useProjectStore((state) => state.currentProject?.id);
-  const {
-    task,
-    isCalculationLocked,
-    cancelTask,
-    cancelPending,
-  } = useProjectElectricalVariantSetTask(projectId);
-  const contentLocked = isCalculationLocked;
 
   useEffect(() => {
     const update = () => {
@@ -106,13 +94,6 @@ export default function MainLayout({ children }: Props) {
         </div>
         <WorkspaceHeaderContextRow />
       </Header>
-      {task && isCalculationLocked && (
-        <ElectricalVariantSetTaskBanner
-          task={task}
-          cancelPending={cancelPending}
-          onCancel={() => void cancelTask(task.id)}
-        />
-      )}
       {narrowViewport && (
         <TltAlert
           className="viewport-min-width-warning"
@@ -125,9 +106,7 @@ export default function MainLayout({ children }: Props) {
       )}
       <Layout className="heatcalc-main-layout">
         <Content className="heatcalc-content">
-          <ElectricalVariantSetTaskLockBoundary locked={contentLocked}>
-            <RouteErrorBoundary>{children ?? <Outlet />}</RouteErrorBoundary>
-          </ElectricalVariantSetTaskLockBoundary>
+          <RouteErrorBoundary>{children ?? <Outlet />}</RouteErrorBoundary>
         </Content>
       </Layout>
     </Layout>
