@@ -23,6 +23,8 @@ FormulaValidationCode: TypeAlias = Literal[
     "above_max_exclusive",
     "sequence_too_short",
     "sequence_too_long",
+    "invalid_temperature_interval",
+    "temperature_outside_interval",
 ]
 
 
