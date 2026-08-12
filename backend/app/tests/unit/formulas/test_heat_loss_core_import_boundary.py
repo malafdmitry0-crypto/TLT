@@ -79,3 +79,4 @@ def test_heat_loss_core_import_smoke() -> None:
     assert callable(core.validate_pipe_input_ranges)
     assert callable(core.validate_pipe_formula_domain)
     assert callable(core.validate_tank_formula_domain)
+    assert callable(core.validate_tank_input_ranges)

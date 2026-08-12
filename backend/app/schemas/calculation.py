@@ -12,12 +12,12 @@ from pydantic_core import InitErrorDetails, PydanticCustomError
 from app.electrical_variant_limits import MAX_ELECTRICAL_VARIANTS
 from app.formulas.heat_loss.core.insulation_validation import (
     validate_insulation_conductivity,
-    validate_insulation_layer_count,
     validate_insulation_thickness,
 )
 from app.formulas.heat_loss.core.pipe import validate_pipe_formula_domain
 from app.formulas.heat_loss.core.pipe_validation import validate_pipe_input_ranges
 from app.formulas.heat_loss.core.tank import validate_tank_formula_domain
+from app.formulas.heat_loss.core.tank_validation import validate_tank_input_ranges
 from app.formulas.heat_loss.core.validation import (
     INSULATION_CONDUCTIVITY_RANGE,
     INSULATION_LAYER_COUNT_RANGE,
@@ -35,6 +35,19 @@ from app.formulas.heat_loss.core.validation import (
     PIPE_SAFETY_FACTOR_RANGE,
     PIPE_WALL_THICKNESS_RANGE,
     PIPE_WIND_SPEED_RANGE,
+    TANK_ADDITIONAL_HEAT_LOSS_RANGE,
+    TANK_AMBIENT_TEMPERATURE_RANGE,
+    TANK_BURIED_HEIGHT_RANGE,
+    TANK_DIAMETER_RANGE,
+    TANK_GROUND_CONDUCTIVITY_RANGE,
+    TANK_GROUND_TEMPERATURE_RANGE,
+    TANK_HEIGHT_RANGE,
+    TANK_PROCESS_TEMPERATURE_RANGE,
+    TANK_SAFETY_FACTOR_RANGE,
+    TANK_SIDE_RANGE,
+    TANK_WALL_CONDUCTIVITY_RANGE,
+    TANK_WALL_THICKNESS_RANGE,
+    TANK_WIND_SPEED_RANGE,
     FormulaValidationReport,
 )
 from app.formulas.heat_loss.insulation import (
@@ -67,14 +80,6 @@ from app.schemas.report import ReportExportTaskResult
 
 # ---------- Heat loss ----------
 
-GROUND_CONDUCTIVITY_MIN = 0.5
-GROUND_CONDUCTIVITY_MAX = 3.0
-TANK_DIAMETER_MIN = 0.1
-TANK_DIAMETER_MAX = 30.0
-TANK_HEIGHT_MIN = 0.1
-TANK_HEIGHT_MAX = 50.0
-TANK_SIDE_MIN = 0.1
-TANK_SIDE_MAX = 100.0
 RESISTIVE_DEFAULT_MIN_ADJUSTED_VOLTAGE = 40.0
 RESISTIVE_DEFAULT_VOLTAGE_STEP = 5.0
 
@@ -283,6 +288,58 @@ PipeGroundTemperature = Annotated[
 PipeSafetyFactor = Annotated[
     float,
     numeric_range_json_schema(PIPE_SAFETY_FACTOR_RANGE, schema_type="number"),
+]
+TankDiameter = Annotated[
+    float,
+    numeric_range_json_schema(TANK_DIAMETER_RANGE, schema_type="number"),
+]
+TankHeight = Annotated[
+    float,
+    numeric_range_json_schema(TANK_HEIGHT_RANGE, schema_type="number"),
+]
+TankSide = Annotated[
+    float,
+    numeric_range_json_schema(TANK_SIDE_RANGE, schema_type="number"),
+]
+TankAmbientTemperature = Annotated[
+    float,
+    numeric_range_json_schema(TANK_AMBIENT_TEMPERATURE_RANGE, schema_type="number"),
+]
+TankGroundTemperature = Annotated[
+    float,
+    numeric_range_json_schema(TANK_GROUND_TEMPERATURE_RANGE, schema_type="number"),
+]
+TankProcessTemperature = Annotated[
+    float,
+    numeric_range_json_schema(TANK_PROCESS_TEMPERATURE_RANGE, schema_type="number"),
+]
+TankWallThickness = Annotated[
+    float,
+    numeric_range_json_schema(TANK_WALL_THICKNESS_RANGE, schema_type="number"),
+]
+TankWallConductivity = Annotated[
+    float,
+    numeric_range_json_schema(TANK_WALL_CONDUCTIVITY_RANGE, schema_type="number"),
+]
+TankBuriedHeight = Annotated[
+    float,
+    numeric_range_json_schema(TANK_BURIED_HEIGHT_RANGE, schema_type="number"),
+]
+TankGroundConductivity = Annotated[
+    float,
+    numeric_range_json_schema(TANK_GROUND_CONDUCTIVITY_RANGE, schema_type="number"),
+]
+TankWindSpeed = Annotated[
+    float,
+    numeric_range_json_schema(TANK_WIND_SPEED_RANGE, schema_type="number"),
+]
+TankSafetyFactor = Annotated[
+    float,
+    numeric_range_json_schema(TANK_SAFETY_FACTOR_RANGE, schema_type="number"),
+]
+TankAdditionalHeatLoss = Annotated[
+    float,
+    numeric_range_json_schema(TANK_ADDITIONAL_HEAT_LOSS_RANGE, schema_type="number"),
 ]
 
 
@@ -621,21 +678,19 @@ class TankHeatLossParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     shape: Literal["cylindrical", "rectangular"] = "cylindrical"
-    diameter: float | None = Field(
+    diameter: TankDiameter | None = Field(
         default=None,
-        ge=TANK_DIAMETER_MIN,
-        le=TANK_DIAMETER_MAX,
         description="d_р — наружный диаметр резервуара, м",
     )
-    height: float | None = Field(default=None, ge=TANK_HEIGHT_MIN, le=TANK_HEIGHT_MAX)
-    length: float | None = Field(default=None, ge=TANK_SIDE_MIN, le=TANK_SIDE_MAX)
-    width: float | None = Field(default=None, ge=TANK_SIDE_MIN, le=TANK_SIDE_MAX)
+    height: TankHeight | None = Field(default=None)
+    length: TankSide | None = Field(default=None)
+    width: TankSide | None = Field(default=None)
     insulation_layers: list[InsulationLayer] = Field(
         json_schema_extra=sequence_length_schema_extra(INSULATION_LAYER_COUNT_RANGE)
     )
-    ambient_temperature: float | None = Field(default=None, ge=-70.0, le=70.0)
-    ground_temperature: float | None = Field(default=None, ge=-70.0, le=70.0)
-    process_temperature: float = Field(ge=-90.0, le=600.0)
+    ambient_temperature: TankAmbientTemperature | None = Field(default=None)
+    ground_temperature: TankGroundTemperature | None = Field(default=None)
+    process_temperature: TankProcessTemperature
     insulation_temperature_basis: InsulationTemperatureBasis | None = Field(
         default=None,
         description=(
@@ -645,53 +700,66 @@ class TankHeatLossParams(BaseModel):
     )
     placement: Literal["indoor", "outdoor", "underground"]
     # --- Стенка резервуара ---
-    wall_thickness: float | None = Field(
+    wall_thickness: TankWallThickness | None = Field(
         default=None,
-        ge=0.001,
-        le=0.5,
         description="δ_р — толщина стенки резервуара, м",
     )
-    wall_lambda: float | None = Field(
+    wall_lambda: TankWallConductivity | None = Field(
         default=None,
-        gt=0,
-        le=500,
         description="λ_р — теплопроводность стенки резервуара, Вт/(м·К)",
     )
-    tank_buried_height: float | None = Field(
+    tank_buried_height: TankBuriedHeight | None = Field(
         default=None,
-        gt=0.0,
-        le=TANK_HEIGHT_MAX,
         description="h — высота подземной части резервуара, м",
     )
-    ground_conductivity: float | None = Field(
+    ground_conductivity: TankGroundConductivity | None = Field(
         default=None,
-        ge=GROUND_CONDUCTIVITY_MIN,
-        le=GROUND_CONDUCTIVITY_MAX,
         description="lambda_gr — теплопроводность грунта, Вт/(м·К)",
     )
     # --- Внешние условия ---
-    wind_speed: float | None = Field(
+    wind_speed: TankWindSpeed | None = Field(
         default=None,
-        ge=0.0,
-        le=20.0,
         description="v — скорость ветра, м/с",
     )
-    safety_factor: float = Field(
-        ge=1.0,
-        le=1.7,
+    safety_factor: TankSafetyFactor = Field(
         description="K — коэффициент запаса",
     )
-    q_additional: float = Field(
+    q_additional: TankAdditionalHeatLoss = Field(
         default=0.0,
-        ge=0,
         description="Q_доп — дополнительные теплопотери (днище, фланцы и пр.), Вт",
     )
 
-    @field_validator("insulation_layers")
+    @model_validator(mode="wrap")
     @classmethod
-    def check_insulation_layer_count(cls, value: list[InsulationLayer]) -> list[InsulationLayer]:
-        raise_range_field_error(validate_insulation_layer_count(len(value)))
-        return value
+    def check_input_ranges(
+        cls,
+        data: object,
+        handler: ModelWrapValidatorHandler["TankHeatLossParams"],
+    ) -> "TankHeatLossParams":
+        instance = handler(data)
+        report = validate_tank_input_ranges(
+            diameter=instance.diameter,
+            height=instance.height,
+            length=instance.length,
+            width=instance.width,
+            insulation_layer_count=len(instance.insulation_layers),
+            ambient_temperature=instance.ambient_temperature,
+            ground_temperature=instance.ground_temperature,
+            process_temperature=instance.process_temperature,
+            wall_thickness=instance.wall_thickness,
+            wall_lambda=instance.wall_lambda,
+            tank_buried_height=instance.tank_buried_height,
+            ground_conductivity=instance.ground_conductivity,
+            wind_speed=instance.wind_speed,
+            safety_factor=instance.safety_factor,
+            q_additional=instance.q_additional,
+        )
+        raise_range_validation_errors(
+            model_name=cls.__name__,
+            report=report,
+            inputs=_raw_range_inputs(data),
+        )
+        return instance
 
     @field_validator("shape", mode="before")
     @classmethod
