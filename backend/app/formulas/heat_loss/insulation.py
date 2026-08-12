@@ -6,6 +6,8 @@ the average of product and ambient temperatures.
 
 from typing import Literal
 
+from app.formulas.heat_loss.core.thermal import arithmetic_mean, quotient
+
 InsulationTemperatureBasis = Literal[
     "indoor",
     "outdoor_summer",
@@ -95,8 +97,7 @@ def validate_insulation_temperature_basis_for_placement(
         placement=placement,
     )
     allowed_labels = ", ".join(
-        INSULATION_TEMPERATURE_BASIS_LABELS[item]
-        for item in sorted(allowed)
+        INSULATION_TEMPERATURE_BASIS_LABELS[item] for item in sorted(allowed)
     )
     basis_label = INSULATION_TEMPERATURE_BASIS_LABELS.get(basis, str(basis))
     placement_label = INSULATION_TEMPERATURE_PLACEMENT_LABELS.get(
@@ -139,7 +140,7 @@ def resolve_insulation_tm(
         placement=placement,
     )
     if resolved == "outdoor_winter":
-        return process_temperature / 2.0
+        return quotient(process_temperature, divisor=2.0)
     if resolved in WARM_40_BASES:
-        return (process_temperature + 40.0) / 2.0
+        return arithmetic_mean(process_temperature, 40.0)
     raise ValueError(f"Неизвестный режим температуры изоляции: {resolved}")
