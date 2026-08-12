@@ -489,7 +489,7 @@ const additionalPipeObjects = [
     object_type: 'pipe',
     params: {
       ...common({ ambient_temperature: -40, process_temperature: 45, wind_speed: 6.5, temperature_group: 'T1' }),
-      name: 'P07 · труба · outdoor · DN15 · ветер · холодный климат',
+      name: 'P07 · труба · outdoor · Ø21 мм · ветер · холодный климат',
       placement: 'outdoor',
       location: 'outdoor',
       outer_diameter: 0.0213,
@@ -532,7 +532,7 @@ const additionalPipeObjects = [
     object_type: 'pipe',
     params: {
       ...common({ ambient_temperature: -10, process_temperature: 120, safety_factor: 1.35, temperature_group: 'T3' }),
-      name: 'P09 · труба · underground · DN250 · длинная трасса',
+      name: 'P09 · труба · underground · Ø273 мм · длинная трасса',
       placement: 'underground',
       location: 'outdoor',
       outer_diameter: 0.273,
@@ -688,7 +688,7 @@ const additionalPipeObjects = [
     object_type: 'pipe',
     params: {
       ...common({ ambient_temperature: -28, process_temperature: 150, safety_factor: 1.5, temperature_group: 'T3' }),
-      name: 'P15 · труба · underground · DN500 · тяжелый режим',
+      name: 'P15 · труба · underground · Ø508 мм · тяжелый режим',
       placement: 'underground',
       location: 'outdoor',
       outer_diameter: 0.508,

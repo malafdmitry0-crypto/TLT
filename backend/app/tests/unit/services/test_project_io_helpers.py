@@ -212,6 +212,8 @@ class TestDumpProjectToWriter:
             description=kw.get("description", "Desc"),
             task_number=kw.get("task_number", "T-1"),
             status=kw.get("status", "draft"),
+            display_settings=kw.get("display_settings"),
+            display_settings_version=kw.get("display_settings_version", 0),
         )
 
     def test_metadata_section_when_no_project_key(self):
@@ -232,6 +234,35 @@ class TestDumpProjectToWriter:
         text = buf.getvalue()
         assert "[SECTION];metadata" not in text
         assert "[SECTION];objects" in text
+
+    def test_retired_dn_setting_is_not_exported(self):
+        from app.services.project_io_service import _dump_project_to_writer
+
+        project = self._project(
+            display_settings={
+                "heatcalc": {
+                    "tableColumns": {
+                        "types": {
+                            "pipe": {
+                                "visibleOrder": ["pipe_dn", "pipe_outer_diameter"],
+                                "columns": {
+                                    "pipe_dn": {"widthPct": 5.8},
+                                    "pipe_outer_diameter": {"widthPct": 7.6},
+                                },
+                            }
+                        }
+                    }
+                }
+            },
+            display_settings_version=9,
+        )
+
+        buf, writer = self._writer()
+        _dump_project_to_writer(writer, project, [], [], [])
+
+        exported = buf.getvalue()
+        assert "pipe_dn" not in exported
+        assert "pipe_outer_diameter" in exported
 
     def test_writes_objects_with_json_params(self):
         from types import SimpleNamespace

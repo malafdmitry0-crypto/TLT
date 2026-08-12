@@ -119,7 +119,7 @@ function ConfirmStepInner({ objectType }: Props) {
         rules={[{ required: true, message: 'Укажите наименование объекта' }]}
         extra="Наименование генерируется автоматически из параметров. Вы можете изменить его."
       >
-        <TltTextField placeholder="Напр.: Труба DN100 участок 1" />
+        <TltTextField placeholder="Напр.: Труба Ø114 мм, участок 1" />
       </Form.Item>
     </>
   );

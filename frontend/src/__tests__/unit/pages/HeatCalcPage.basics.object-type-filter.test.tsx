@@ -45,7 +45,8 @@ describe('HeatCalcPage basics — object type', () => {
         expect(screen.getByText('Труба DN100')).toBeInTheDocument();
       });
       expect(screen.queryByText('Резервуар прямоугольный')).not.toBeInTheDocument();
-      expect(screen.getAllByText('DN').length).toBeGreaterThan(0);
+      expect(screen.queryByText('DN')).not.toBeInTheDocument();
+      expect(screen.getAllByText('Ø, мм').length).toBeGreaterThan(0);
       expect(screen.getAllByText('L, м').length).toBeGreaterThan(0);
       expect(screen.getAllByText('q до K, Вт/м').length).toBeGreaterThan(0);
       expect(screen.getAllByText('Q проект., Вт').length).toBeGreaterThan(0);

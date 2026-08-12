@@ -67,7 +67,6 @@ describe('heatCalcColumnRenderers', () => {
     expect(renderers.type.copyValue(record, 0)).toBe('Труба');
     expect(renderers.name.copyValue(record, 0)).toBe('Труба DN100');
     expect(renderers.pipe_outer_diameter.copyValue(record, 0)).toBe('114');
-    expect(renderers.pipe_dn.copyValue(record, 0)).toBe('DN100');
     expect(renderers.pipe_length.copyValue(record, 0)).toBe('50,3');
     expect(renderers.pipe_wall_thickness.copyValue(record, 0)).toBe('6');
     expect(renderers.insulation_material.copyValue(record, 0)).toBe('label:mineral_wool_boards_120');
