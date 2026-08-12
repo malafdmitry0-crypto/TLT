@@ -437,6 +437,61 @@ class TestExcelImport:
             "process_temperature_not_above_ambient"
         )
 
+    async def test_import_preserves_pipe_with_core_scalar_range_error(
+        self, client: AsyncClient, guest_session: str
+    ):
+        """Import may persist invalid input, but it must retain canonical validation state."""
+
+        pid = await _create_project(client, guest_session)
+        xlsx = _build_xlsx(
+            pipes=[
+                [
+                    "Недопустимая длина",
+                    108,
+                    0.1,
+                    50,
+                    MINERAL_WOOL,
+                    -20,
+                    80,
+                    4,
+                    "carbon_steel",
+                    "outdoor",
+                    0,
+                    "outdoor_winter",
+                ],
+            ]
+        )
+
+        resp = await client.post(
+            f"/api/v1/projects/{pid}/objects/import-excel",
+            files={
+                "file": (
+                    "core-range-invalid.xlsx",
+                    xlsx,
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                )
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["created"] == 1
+        assert resp.json()["valid"] == 0
+        assert resp.json()["invalid"] == 1
+        objects = (
+            await client.get(
+                f"/api/v1/projects/{pid}/objects",
+                headers={"X-Session-Id": guest_session},
+            )
+        ).json()
+        assert len(objects) == 1
+        assert objects[0]["params"]["pipe_length"] == 0.1
+        assert objects[0]["is_valid"] is False
+        assert objects[0]["results"] is None
+        assert objects[0]["validation_errors"]["error_code"] == "invalid_object_params"
+        assert objects[0]["validation_errors"]["field"] == "pipe_length"
+        assert objects[0]["validation_errors"]["message"] == "Проверьте параметры объекта"
+
     async def test_import_tanks_supported_shapes_and_rejects_legacy_shape(
         self, client: AsyncClient, guest_session: str
     ):
