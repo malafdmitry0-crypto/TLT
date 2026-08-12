@@ -11,6 +11,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, cast
 
+from app.formulas.heat_loss.core.thermal import affine_value, piecewise_constant
+
 _BASE_DIR = Path(__file__).parent
 _ELECTRICAL_CATALOG_FILES = {
     "power": "cables_tt.json",
@@ -418,12 +420,12 @@ def _resolve_warm_insulation_conductivity(value: Any, temperature: float) -> flo
             return values[0]
         if len(values) >= 2:
             a, b = values[0], values[1]
-            return a + b * temperature
+            return affine_value(temperature, intercept=a, slope=b)
     if isinstance(value, dict):
         a = value.get("a")
         b = value.get("b")
         if a is not None and b is not None:
-            return float(a) + float(b) * temperature
+            return affine_value(temperature, intercept=float(a), slope=float(b))
         constant = value.get("value")
         if constant is not None:
             return float(constant)
@@ -440,7 +442,12 @@ def _resolve_cold_insulation_conductivity(value: Any, temperature: float) -> flo
         if len(values) == 1:
             return values[0]
         if len(values) >= 2:
-            return values[0] if temperature >= -60 else values[1]
+            return piecewise_constant(
+                temperature,
+                threshold=-60.0,
+                at_or_above=values[0],
+                below=values[1],
+            )
     return None
 
 
@@ -452,7 +459,10 @@ def get_pipe_material_lambda(material: str | None, temperature: float) -> float:
         if entry["material"] == material:
             a = float(entry["a"])
             b = float(entry["b"])
-            return max(a + b * (temperature + 40), 0.001)
+            return max(
+                affine_value(temperature + 40.0, intercept=a, slope=b),
+                0.001,
+            )
     allowed = [entry["material"] for entry in _pipe_materials()]
     raise ValueError(f"Неизвестный материал трубы: '{material}'. Допустимые: {allowed}")
 
