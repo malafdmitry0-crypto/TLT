@@ -10,6 +10,7 @@ from .insulation_validation import (
 from .pipe import validate_pipe_formula_domain
 from .pipe_validation import validate_pipe_input_ranges
 from .tank import validate_tank_formula_domain
+from .tank_validation import validate_tank_input_ranges
 from .validation import (
     FormulaValidationCode,
     FormulaValidationIssue,
@@ -42,4 +43,5 @@ __all__ = [
     "validate_range_checks",
     "validate_sequence_length",
     "validate_tank_formula_domain",
+    "validate_tank_input_ranges",
 ]
