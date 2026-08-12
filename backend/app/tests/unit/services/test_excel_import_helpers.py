@@ -1417,7 +1417,7 @@ class TestAddRowsHelper:
         def boom_prepare(*args, **kwargs):
             raise RuntimeError("bad prepare")
 
-        monkeypatch.setattr(mod, "prepare_project_object_params", boom_prepare)
+        monkeypatch.setattr(mod, "validate_and_canonicalize_project_object_params", boom_prepare)
         db = AsyncMock()
         created, _, current_count, errors, object_ids, skipped, skipped_limit = await _add_rows(
             db,
