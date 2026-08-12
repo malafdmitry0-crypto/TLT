@@ -25,16 +25,38 @@ FormulaValidationCode: TypeAlias = Literal[
     "sequence_too_long",
     "invalid_temperature_interval",
     "temperature_outside_interval",
+    "insulation_basis_not_allowed_for_placement",
+    "manual_layer_conductivity_required",
+    "manual_layer_temperature_range_required",
+    "reference_layer_has_manual_properties",
+    "pipe_conductivity_source_xor",
+    "local_elements_require_equivalent_length",
+    "underground_field_required",
+    "underground_forbids_ambient_temperature",
+    "underground_forbids_wind_speed",
+    "air_pipe_ambient_temperature_required",
+    "air_pipe_forbids_centerline_depth",
+    "air_pipe_forbids_ground_parameters",
+    "outdoor_wind_speed_required",
+    "air_tank_ambient_temperature_required",
+    "air_tank_forbids_ground_parameters",
+    "air_tank_forbids_buried_height",
+    "tank_wall_properties_must_be_paired",
+    "cylindrical_tank_requires_diameter_and_height",
+    "rectangular_tank_requires_length_width_and_height",
+    "cylindrical_tank_forbids_length_and_width",
+    "rectangular_tank_forbids_diameter",
+    "unsupported_tank_shape",
 ]
 
 
 @dataclass(frozen=True)
 class FormulaValidationIssue:
-    """One policy-free mathematical-domain violation.
+    """One pure formula-input or mathematical-domain violation.
 
-    Field names and user-facing text intentionally do not belong to the formula
-    library.  ``details`` contains only numerical evidence needed by a caller
-    to present or log the violation without parsing exception text.
+    User-facing text and application dependencies intentionally do not belong
+    to the formula library. ``details`` contains only numerical evidence needed
+    by a caller to present or log the violation without parsing exception text.
     """
 
     code: FormulaValidationCode
