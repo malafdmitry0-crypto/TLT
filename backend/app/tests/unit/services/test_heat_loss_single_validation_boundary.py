@@ -9,6 +9,7 @@ import pytest
 
 from app.formulas.heat_loss.evaluator import evaluate_validated_heat_loss
 from app.models.project_object import ProjectObject
+from app.schemas import calculation as calculation_schemas
 from app.schemas.calculation import (
     StoredPipeHeatParams,
     StoredTankHeatParams,
@@ -60,17 +61,19 @@ def _tank() -> dict[str, object]:
 
 
 @pytest.mark.parametrize(
-    ("object_type", "constructor_name", "stored_type", "payload"),
+    ("object_type", "constructor_name", "validator_name", "stored_type", "payload"),
     [
         (
             "pipe",
             "StoredPipeHeatParams",
+            "validate_pipe_formula_domain",
             StoredPipeHeatParams,
             _pipe(),
         ),
         (
             "tank",
             "StoredTankHeatParams",
+            "validate_tank_formula_domain",
             StoredTankHeatParams,
             _tank(),
         ),
@@ -80,6 +83,7 @@ async def test_recalculate_runs_one_stored_model_and_reuses_that_instance(
     monkeypatch: pytest.MonkeyPatch,
     object_type: str,
     constructor_name: str,
+    validator_name: str,
     stored_type: type[StoredPipeHeatParams] | type[StoredTankHeatParams],
     payload: dict[str, object],
 ) -> None:
@@ -91,8 +95,10 @@ async def test_recalculate_runs_one_stored_model_and_reuses_that_instance(
         return instance
 
     constructor = MagicMock(side_effect=construct_once)
+    validator = MagicMock(wraps=getattr(calculation_schemas, validator_name))
     evaluator_mock = MagicMock(side_effect=evaluate_validated_heat_loss)
     monkeypatch.setattr(project_params_module, constructor_name, constructor)
+    monkeypatch.setattr(calculation_schemas, validator_name, validator)
     monkeypatch.setattr(
         calculation_service_module,
         "evaluate_validated_heat_loss",
@@ -114,6 +120,7 @@ async def test_recalculate_runs_one_stored_model_and_reuses_that_instance(
 
     assert outcome.is_ok is True
     assert constructor.call_count == 1
+    assert validator.call_count == 1
     assert len(instances) == 1
     assert evaluator_mock.call_count == 1
     assert evaluator_mock.call_args.args[0] is instances[0]
@@ -170,6 +177,65 @@ def test_final_report_collects_schema_and_downstream_issues_without_raising() ->
     with pytest.raises(ProjectObjectParamsError) as exc_info:
         prepare_project_object_params("pipe", payload)
     assert getattr(exc_info.value, "fields", ()) == prepared.report.fields
+
+
+async def test_core_domain_report_preserves_all_fields_and_stops_formula(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = {
+        **_pipe(),
+        "outer_diameter": 0.0108,
+        "wall_thickness": 0.04,
+        "process_temperature": 5.0,
+        "placement": "underground",
+        "insulation_temperature_basis": "channel",
+        "ambient_temperature": None,
+        "wind_speed": None,
+        "ground_temperature": 5.0,
+        "pipe_centerline_depth": 0.05,
+        "ground_conductivity": 1.5,
+    }
+    normalized = normalize_project_object_params("pipe", payload)
+
+    prepared = validate_and_canonicalize_project_object_params("pipe", normalized)
+
+    assert prepared.report.fields == (
+        "wall_thickness",
+        "process_temperature",
+        "pipe_centerline_depth",
+    )
+    assert [issue.code for issue in prepared.report.issues] == [
+        "wall_exceeds_pipe_radius",
+        "process_temperature_not_above_ground",
+        "ground_centerline_inside_pipe",
+    ]
+    assert [issue.reason for issue in prepared.report.issues] == [
+        "wall_exceeds_pipe_radius",
+        "process_temperature_not_above_ground",
+        "ground_centerline_inside_pipe",
+    ]
+
+    evaluator = MagicMock(name="evaluate_validated_heat_loss")
+    monkeypatch.setattr(calculation_service_module, "evaluate_validated_heat_loss", evaluator)
+    obj = cast(
+        ProjectObject,
+        SimpleNamespace(
+            id=uuid4(),
+            object_type="pipe",
+            params=payload,
+            results={"stale": True},
+            is_valid=True,
+            validation_errors=None,
+        ),
+    )
+
+    outcome = await CalculationService(AsyncMock()).try_recalculate(obj, coefficients={})
+
+    assert outcome.is_err is True
+    assert obj.results is None
+    assert obj.is_valid is False
+    assert obj.validation_errors["category"] == "validation"
+    evaluator.assert_not_called()
 
 
 async def test_unsupported_object_keeps_existing_external_error_category() -> None:

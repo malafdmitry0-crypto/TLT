@@ -1,11 +1,9 @@
 """Unit tests for policy-free thermal math primitives."""
 
 import math
-from unittest.mock import MagicMock
 
 import pytest
 
-from app.formulas.heat_loss.core import thermal as thermal_core
 from app.formulas.heat_loss.core.errors import FormulaDomainError
 from app.formulas.heat_loss.core.thermal import (
     affine_value,
@@ -67,27 +65,7 @@ def test_alpha_from_wind_uses_supplied_coefficients() -> None:
     assert alpha_from_wind(4.0, intercept=11.6, sqrt_coefficient=7.0) == pytest.approx(25.6)
 
 
-def test_input_guards_are_dormant_on_thermal_primitive_paths(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    for name in (
-        "_validate_finite_input",
-        "_validate_quotient_input",
-        "_validate_wind_input",
-    ):
-        monkeypatch.setattr(
-            thermal_core,
-            name,
-            MagicMock(side_effect=AssertionError(f"production called dormant guard {name}")),
-        )
-
-    assert arithmetic_mean(80.0, 40.0) == 60.0
-    assert quotient(80.0, divisor=2.0) == 40.0
-    assert affine_value(35.0, intercept=0.04, slope=0.0003) == pytest.approx(0.0505)
-    assert clamp_minimum(-2.0, minimum=0.0) == 0.0
-    assert higher_temperature(-20.0, 80.0) == 80.0
-    assert multiply_factors(10.0, (1.1, 1.2)) == pytest.approx(13.2)
-    assert alpha_from_wind(4.0, intercept=11.6, sqrt_coefficient=7.0) == pytest.approx(25.6)
+def test_backend_policy_paths_keep_using_core_thermal_primitives() -> None:
     assert resolve_insulation_tm(
         process_temperature=80.0,
         basis="outdoor_winter",
@@ -134,20 +112,3 @@ def test_thermal_primitives_reject_nonfinite_results(call) -> None:
     with pytest.raises(FormulaDomainError) as exc_info:
         call()
     assert exc_info.value.code == "non_finite_result"
-
-
-@pytest.mark.parametrize(
-    ("call", "code"),
-    [
-        (lambda: thermal_core._validate_quotient_input(1.0, 0.0), "zero_divisor"),
-        (
-            lambda: thermal_core._validate_wind_input(-1.0, 11.6, 7.0),
-            "negative_wind_speed",
-        ),
-        (lambda: thermal_core._validate_finite_input(float("inf")), "non_finite_input"),
-    ],
-)
-def test_dormant_thermal_guards_preserve_domain_errors(call, code: str) -> None:
-    with pytest.raises(FormulaDomainError) as exc_info:
-        call()
-    assert exc_info.value.code == code
