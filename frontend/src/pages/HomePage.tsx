@@ -29,8 +29,13 @@ export default function HomePage() {
   return (
     <div className="home-page">
       <TltCard className="home-page-card" padding="none">
+        <img
+          className="home-page-logo"
+          src="/alfa-heat-design-logo.jpg"
+          alt="Alfa Heat Desin"
+        />
         <Title level={2} className="home-page-title">
-          HeatCalc
+          Alfa Heat Desin
         </Title>
         <Paragraph className="home-page-subtitle">
           Расчёт тепловых потерь и подбор систем электрообогрева трубопроводов и резервуаров

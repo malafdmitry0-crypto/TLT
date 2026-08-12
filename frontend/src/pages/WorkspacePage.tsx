@@ -63,7 +63,7 @@ export default function WorkspacePage() {
     return (
       <div className="workspace-page">
       <TltCard>
-        <Title level={3} className="workspace-page-title">Добро пожаловать в HeatCalc</Title>
+        <Title level={3} className="workspace-page-title">Добро пожаловать в Alfa Heat Desin</Title>
         <Paragraph type="secondary">
           Система для расчёта тепловых потерь и подбора систем электрообогрева
           трубопроводов и резервуаров. Работайте по шагам: теплопотери → электрорасчёт → спецификация → отчёт.
