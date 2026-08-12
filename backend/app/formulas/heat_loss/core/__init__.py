@@ -7,6 +7,11 @@ from .insulation_validation import (
     validate_insulation_layer_ranges,
     validate_insulation_thickness,
 )
+from .material_validation import (
+    validate_hot_side_temperature_in_interval,
+    validate_temperature_in_interval,
+    validate_temperature_interval,
+)
 from .pipe import validate_pipe_formula_domain
 from .pipe_validation import validate_pipe_input_ranges
 from .tank import validate_tank_formula_domain
@@ -37,6 +42,7 @@ __all__ = [
     "validate_insulation_layer_count",
     "validate_insulation_layer_ranges",
     "validate_insulation_thickness",
+    "validate_hot_side_temperature_in_interval",
     "validate_numeric_range",
     "validate_pipe_formula_domain",
     "validate_pipe_input_ranges",
@@ -44,4 +50,6 @@ __all__ = [
     "validate_sequence_length",
     "validate_tank_formula_domain",
     "validate_tank_input_ranges",
+    "validate_temperature_in_interval",
+    "validate_temperature_interval",
 ]

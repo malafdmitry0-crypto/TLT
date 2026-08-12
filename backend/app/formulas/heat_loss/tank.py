@@ -17,6 +17,9 @@ from dataclasses import dataclass
 from typing import Any, cast
 
 from app.formulas.heat_loss.core.errors import FormulaDomainError
+from app.formulas.heat_loss.core.material_validation import (
+    validate_hot_side_temperature_in_interval,
+)
 from app.formulas.heat_loss.core.tank import (
     AirTankHeatLossInput,
     BuriedTankHeatLossInput,
@@ -27,7 +30,7 @@ from app.formulas.heat_loss.core.tank import (
     calculate_air_tank_heat_loss,
     calculate_buried_tank_heat_loss,
 )
-from app.formulas.heat_loss.core.thermal import alpha_from_wind, clamp_minimum, higher_temperature
+from app.formulas.heat_loss.core.thermal import alpha_from_wind, clamp_minimum
 from app.formulas.heat_loss.insulation import resolve_insulation_tm
 from app.reference_data.loader import get_insulation_conductivity, get_insulation_temperature_range
 from app.schemas.calculation import InsulationLayer, TankHeatLossParams, TankHeatLossResult
@@ -60,9 +63,15 @@ def _validate_layer_temperature_interval(
     t_cold: float,
 ) -> None:
     min_temp, max_temp = _layer_temperature_range(layer)
-    layer_hot_side = higher_temperature(t_hot, t_cold)
-    if min_temp <= layer_hot_side <= max_temp:
+    report = validate_hot_side_temperature_in_interval(
+        first_side_c=t_hot,
+        second_side_c=t_cold,
+        minimum_c=min_temp,
+        maximum_c=max_temp,
+    )
+    if report.is_valid:
         return
+    layer_hot_side = float(report.issues[0].details_dict()["temperature_c"])
     raise ValueError(
         f"Температура горячей стороны слоя изоляции #{index + 1} "
         f"({_fmt_temp(layer_hot_side)} °C) вне диапазона "
