@@ -36,7 +36,7 @@ export const TextAndSelect: Story = {
   render: () => (
     <CompactFieldGrid columns={2} density="compact">
       <CompactField label="Наименование" controlWidth="var(--tlt-field-ctrl-name)">
-        <TltTextField aria-label="Наименование" defaultValue="Труба DN100" />
+        <TltTextField aria-label="Наименование" defaultValue="Труба Ø114 мм" />
       </CompactField>
       <CompactField label="Материал" required controlWidth="var(--tlt-field-ctrl-climate)">
         <TltSelect

@@ -120,7 +120,8 @@ describe('HeatCalcPage inline edit', () => {
         expect(localStorage.getItem(HEATCALC_REGISTERED_FIELD_INPUT_CACHE_KEY)).toBeNull();
       });
       await waitFor(() => {
-        expect(screen.getAllByText('DN').length).toBeGreaterThan(0);
+        expect(screen.queryByText('DN')).not.toBeInTheDocument();
+        expect(screen.getAllByText('Ø, мм').length).toBeGreaterThan(0);
         expect(screen.getByTestId('outer-diameter-input')).toHaveAttribute('step', '1');
       });
     });
@@ -150,7 +151,7 @@ describe('HeatCalcPage inline edit', () => {
 
       await screen.findByText('Труба DN100');
       const dialog = await openTableSettingsDialog(user);
-      await user.click(within(dialog).getByRole('checkbox', { name: 'DN' }));
+      await user.click(within(dialog).getByRole('checkbox', { name: 'Длина трубопровода' }));
       expect(within(dialog).queryByText('Шаг')).not.toBeInTheDocument();
       expect(within(dialog).queryByRole('spinbutton', { name: /^Шаг:/ })).not.toBeInTheDocument();
       await openTableSettingsOtherTab(user, dialog);
@@ -172,17 +173,15 @@ describe('HeatCalcPage inline edit', () => {
         ([key]) => key === HEATCALC_TABLE_COLUMN_PREF_KEY,
       )?.[1];
       expect(preferencePayload).toBeDefined();
-      expect(preferencePayload.types.pipe.visibleOrder).not.toContain('pipe_dn');
-      expect(preferencePayload.types.pipe.columns.pipe_dn).not.toHaveProperty('visible');
-      expect(preferencePayload.types.pipe.columns.pipe_dn).not.toHaveProperty('order');
+      expect(preferencePayload.types.pipe.visibleOrder).not.toContain('pipe_length');
+      expect(preferencePayload.types.pipe.columns).not.toHaveProperty('pipe_dn');
       await waitFor(() => {
         expect(screen.queryAllByRole('columnheader').map((header) => header.textContent)).not.toContain('DN');
       });
       const cached = JSON.parse(localStorage.getItem(HEATCALC_REGISTERED_TABLE_COLUMN_CACHE_KEY) ?? '{}');
       expect(cached.userId).toBe('user-test-1');
-      expect(cached.settings.types.pipe.visibleOrder).not.toContain('pipe_dn');
-      expect(cached.settings.types.pipe.columns.pipe_dn).not.toHaveProperty('visible');
-      expect(cached.settings.types.pipe.columns.pipe_dn).not.toHaveProperty('order');
+      expect(cached.settings.types.pipe.visibleOrder).not.toContain('pipe_length');
+      expect(cached.settings.types.pipe.columns).not.toHaveProperty('pipe_dn');
       const viewCached = JSON.parse(localStorage.getItem(HEATCALC_REGISTERED_TABLE_VIEW_CACHE_KEY) ?? '{}');
       expect(viewCached.userId).toBe('user-test-1');
       expect(viewCached.settings).toEqual({

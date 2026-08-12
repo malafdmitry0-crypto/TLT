@@ -23,7 +23,7 @@ ignore = [
 # Формулы: физические величины (A, B, L, K, R) — по ТЗ/formules.md
 "app/formulas/**" = ["N806"]
 "app/services/excel_import_service.py" = ["N806"]
-# Тесты: физические имена в кейсах (DN100, K, L_times_K), compact-стиль
+# Тесты: физические имена в кейсах (K, L_times_K), compact-стиль
 "app/tests/**" = ["N802", "N806", "E702", "E402", "B017", "B023", "N817", "RUF012"]
 
 [tool.ruff.format]

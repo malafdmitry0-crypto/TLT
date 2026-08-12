@@ -33,7 +33,7 @@ describe('HeatCalcPage settings — project display-settings sync (guest)', () =
 
     await screen.findByText('Труба DN100');
     const dialog = await openTableSettingsDialog(user);
-    await user.click(within(dialog).getByRole('checkbox', { name: 'DN' }));
+    await user.click(within(dialog).getByRole('checkbox', { name: 'Длина трубопровода' }));
     await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
 
     await waitFor(() => {
@@ -48,7 +48,7 @@ describe('HeatCalcPage settings — project display-settings sync (guest)', () =
       tableColumns?: { types: { pipe: { visibleOrder: string[] } } };
     };
     expect(section.tableColumns).toBeDefined();
-    expect(section.tableColumns!.types.pipe.visibleOrder).not.toContain('pipe_dn');
+    expect(section.tableColumns!.types.pipe.visibleOrder).not.toContain('pipe_length');
   }, HEATCALC_PAGE_TEST_TIMEOUT);
 
   it('применяет проектные настройки при чистом localStorage (перенос файла на другую машину)', async () => {
@@ -58,7 +58,7 @@ describe('HeatCalcPage settings — project display-settings sync (guest)', () =
     );
     (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([makeObject()]);
     const savedColumns = setTableColumnVisibility(
-      getDefaultTableColumnSettings(), 'pipe', 'pipe_dn', false,
+      getDefaultTableColumnSettings(), 'pipe', 'pipe_length', false,
     );
     (getProjectDisplaySettings as ReturnType<typeof vi.fn>).mockResolvedValue({
       project_id: mockProject.id,

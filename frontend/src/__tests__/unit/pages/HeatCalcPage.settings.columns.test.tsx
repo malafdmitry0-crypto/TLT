@@ -28,7 +28,8 @@ describe('HeatCalcPage settings — columns', () => {
       renderPage();
 
       await screen.findByText('Труба DN100');
-      expect(screen.getAllByText('DN').length).toBeGreaterThan(0);
+      expect(screen.queryAllByRole('columnheader').map((header) => header.textContent))
+        .not.toContain('DN');
       expect(localStorage.getItem(HEATCALC_GUEST_TABLE_COLUMN_STORAGE_KEY)).toBeNull();
     });
 
@@ -65,7 +66,7 @@ describe('HeatCalcPage settings — columns', () => {
       expect(within(dialog).queryByRole('button', { name: /^Сбросить шаг:/ })).not.toBeInTheDocument();
       expect(within(rowByKey('name')).getByText('Вводится')).toBeInTheDocument();
       expect(within(rowByKey('pipe_material')).getByText('Вводится')).toBeInTheDocument();
-      expect(within(rowByKey('pipe_dn')).getByText('Вычисляется')).toBeInTheDocument();
+      expect(dialog.querySelector('.column-layout-row[data-column-key="pipe_dn"]')).toBeNull();
       expect(within(rowByKey('total_heat_loss_design')).getByText('Вычисляется')).toBeInTheDocument();
       expect(within(rowByKey('total_heat_loss_design')).getByText('Итог')).toBeInTheDocument();
       expect(within(rowByKey('thermal_resistance')).getByText('Вычисляется')).toBeInTheDocument();
@@ -76,16 +77,15 @@ describe('HeatCalcPage settings — columns', () => {
         expect(within(rowByKey(serviceKey)).queryByText('Вводится')).not.toBeInTheDocument();
         expect(within(rowByKey(serviceKey)).queryByText('Вычисляется')).not.toBeInTheDocument();
       }
-      await user.click(within(dialog).getByRole('checkbox', { name: 'DN' }));
+      await user.click(within(dialog).getByRole('checkbox', { name: 'Длина трубопровода' }));
       await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
 
       await waitFor(() => {
         expect(screen.queryAllByRole('columnheader').map((header) => header.textContent)).not.toContain('DN');
       });
       const saved = JSON.parse(localStorage.getItem(HEATCALC_GUEST_TABLE_COLUMN_STORAGE_KEY) ?? '{}');
-      expect(saved.types.pipe.visibleOrder).not.toContain('pipe_dn');
-      expect(saved.types.pipe.columns.pipe_dn).not.toHaveProperty('visible');
-      expect(saved.types.pipe.columns.pipe_dn).not.toHaveProperty('order');
+      expect(saved.types.pipe.visibleOrder).not.toContain('pipe_length');
+      expect(saved.types.pipe.columns).not.toHaveProperty('pipe_dn');
       expect(saved.types.tank.visibleOrder).toContain('tank_dimensions');
 
       await user.click(screen.getByRole('button', { name: /Резервуар:/ }));
@@ -109,8 +109,8 @@ describe('HeatCalcPage settings — columns', () => {
           .map((row) => row.getAttribute('data-column-key'));
 
       // TltNumberField (Ant InputNumber) exposes spinbutton
-      const orderInput = within(dialog).getByRole('spinbutton', { name: 'Порядок: DN' });
-      const widthInput = within(dialog).getByRole('spinbutton', { name: 'Ширина: DN' });
+      const orderInput = within(dialog).getByRole('spinbutton', { name: 'Порядок: Длина трубопровода' });
+      const widthInput = within(dialog).getByRole('spinbutton', { name: 'Ширина: Длина трубопровода' });
       fireEvent.change(orderInput, { target: { value: '3' } });
       expect(visibleColumnKeys().slice(0, 7)).toEqual([
         'heat_loss_status',
@@ -119,14 +119,14 @@ describe('HeatCalcPage settings — columns', () => {
         'name',
         'placement',
         'pipe_outer_diameter',
-        'pipe_dn',
+        'pipe_length',
       ]);
       fireEvent.blur(orderInput);
       await waitFor(() => {
         expect(visibleColumnKeys().slice(0, 7)).toEqual([
           'heat_loss_status',
           'heat_loss_per_meter_base',
-          'pipe_dn',
+          'pipe_length',
           'total_heat_loss_design',
           'name',
           'placement',
@@ -142,15 +142,14 @@ describe('HeatCalcPage settings — columns', () => {
         'index',
         'heat_loss_status',
         'heat_loss_per_meter_base',
-        'pipe_dn',
+        'pipe_length',
         'total_heat_loss_design',
         'name',
         'placement',
         'pipe_outer_diameter',
       ]);
-      expect(saved.types.pipe.columns.pipe_dn).toMatchObject({ widthPct: 12.5 });
-      expect(saved.types.pipe.columns.pipe_dn).not.toHaveProperty('visible');
-      expect(saved.types.pipe.columns.pipe_dn).not.toHaveProperty('order');
+      expect(saved.types.pipe.columns.pipe_length).toMatchObject({ widthPct: 12.5 });
+      expect(saved.types.pipe.columns).not.toHaveProperty('pipe_dn');
     }, HEATCALC_PAGE_TEST_TIMEOUT);
     it('не показывает выбор размера текста и принудительно использует compact для старых guest-настроек', async () => {
       const { listObjects } = await import('@/api/projects');

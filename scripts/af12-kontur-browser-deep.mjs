@@ -220,7 +220,7 @@ for (const vp of DENSE) {
 
 // seed pipe + tank
 const pipeParams = {
-  name: 'AF12 Deep Труба DN100',
+  name: 'AF12 Deep Труба Ø114 мм',
   outer_diameter: 0.108,
   pipe_length: 50,
   insulation_thickness: 0.05,

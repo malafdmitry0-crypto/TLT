@@ -8,21 +8,21 @@ from openpyxl.styles import Font, PatternFill
 random.seed(42)
 
 MATERIALS = ["Минеральная вата", "Пеностекло", "Пенополиуретан", "Пенополистирол", "Аэрогель", "Силикат кальция"]
-# Стандартные DN для труб (наружный диаметр, мм)
-DN_DIAMETERS = [21, 27, 34, 42, 48, 57, 76, 89, 108, 114, 133, 159, 219, 273, 325, 426]
+# Наружные диаметры труб, мм
+PIPE_OUTER_DIAMETERS = [21, 27, 34, 42, 48, 57, 76, 89, 108, 114, 133, 159, 219, 273, 325, 426]
 SHAPES = ["Цилиндр", "Параллелепипед", "Шар"]
 
 
 def gen_pipes(n: int) -> list[list]:
     rows = []
     for i in range(1, n + 1):
-        d = random.choice(DN_DIAMETERS)
+        d = random.choice(PIPE_OUTER_DIAMETERS)
         L = round(random.uniform(5, 500), 1)
         ins = random.choice([30, 40, 50, 60, 80, 100])
         mat = random.choice(MATERIALS)
         t_amb = random.choice([-40, -30, -25, -20, -15, -10, 0, 5, 10])
         t_proc = random.choice([40, 50, 60, 70, 80, 90, 100, 110, 120])
-        name = f"Труба DN{d} №{i}"
+        name = f"Труба Ø{d} мм №{i}"
         rows.append([name, d, L, ins, mat, t_amb, t_proc])
     return rows
 

@@ -17,15 +17,18 @@ import {
 
 describe('heatCalcTableColumns', () => {
   it('берёт названия и дефолтные размеры колонок из JSON registry', () => {
-    const pipeDn = HEATCALC_TABLE_COLUMN_CATALOG.pipe.find((column) => column.key === 'pipe_dn');
+    const outerDiameter = HEATCALC_TABLE_COLUMN_CATALOG.pipe
+      .find((column) => column.key === 'pipe_outer_diameter');
 
-    expect(pipeDn).toMatchObject({
-      labels: { short: 'DN', full: 'DN', compact: 'DN' },
-      title: 'DN',
-      label: 'DN',
-      defaultWidthPct: 5.8,
+    expect(outerDiameter).toMatchObject({
+      labels: { short: 'Ø, мм', full: 'Наружный диаметр', compact: 'Ø' },
+      title: 'Ø, мм',
+      label: 'Наружный диаметр',
+      defaultWidthPct: 7.6,
     });
-    expect(pipeDn?.minWidthPx).toBeGreaterThan(0);
+    expect(outerDiameter?.minWidthPx).toBeGreaterThan(0);
+    expect(HEATCALC_TABLE_COLUMN_CATALOG.pipe.map((column) => column.key))
+      .not.toContain('pipe_dn');
   });
 
   it('подставляет выбранный формат названия без изменения настроек колонок', () => {
@@ -56,7 +59,7 @@ describe('heatCalcTableColumns', () => {
     const settings = normalizeTableColumnSettings({
       version: 1,
       table: {
-        pipe: ['pipe_dn'],
+        pipe: ['pipe_outer_diameter'],
         tank: ['tank_shape'],
       },
     });
@@ -80,13 +83,13 @@ describe('heatCalcTableColumns', () => {
 
   it('нормализует порядок без дублей и перемещает колонку по номеру', () => {
     const settings = getDefaultTableColumnSettings();
-    const moved = moveTableColumnToOrder(settings, 'pipe', 'pipe_dn', 3);
+    const moved = moveTableColumnToOrder(settings, 'pipe', 'pipe_length', 3);
     const keys = getAllTableColumnMetas('pipe', moved).map((column) => column.key);
 
     expect(keys.slice(0, 7)).toEqual([
       'index',
       'heat_loss_status',
-      'pipe_dn',
+      'pipe_length',
       'heat_loss_per_meter_base',
       'total_heat_loss_design',
       'name',
@@ -95,7 +98,7 @@ describe('heatCalcTableColumns', () => {
     expect(moved.types.pipe.visibleOrder.slice(0, 7)).toEqual([
       'index',
       'heat_loss_status',
-      'pipe_dn',
+      'pipe_length',
       'heat_loss_per_meter_base',
       'total_heat_loss_design',
       'name',
@@ -106,12 +109,12 @@ describe('heatCalcTableColumns', () => {
 
   it('drag-and-drop reorder использует тот же order, что и числовой порядок', () => {
     const settings = getDefaultTableColumnSettings();
-    const moved = reorderTableColumn(settings, 'pipe', 'pipe_dn', 'pipe_outer_diameter');
+    const moved = reorderTableColumn(settings, 'pipe', 'pipe_length', 'pipe_outer_diameter');
 
     expect(moved.types.pipe.visibleOrder.slice(4, 8)).toEqual([
       'name',
       'placement',
-      'pipe_dn',
+      'pipe_length',
       'pipe_outer_diameter',
     ]);
   });
@@ -143,21 +146,21 @@ describe('heatCalcTableColumns', () => {
       version: HEATCALC_TABLE_COLUMNS_VERSION,
       types: {
         pipe: {
-          visibleOrder: ['index', 'name', 'ground_type', 'climate_key'],
-          columns: { ground_type: { widthPct: 24 }, climate_key: { widthPct: 24 } },
+          visibleOrder: ['index', 'name', 'pipe_dn', 'ground_type', 'climate_key'],
+          columns: { pipe_dn: { widthPct: 12 }, ground_type: { widthPct: 24 }, climate_key: { widthPct: 24 } },
         },
         tank: {
           visibleOrder: ['index', 'name', 'ground_type', 'climate_key'],
           columns: { ground_type: { widthPct: 24 }, climate_key: { widthPct: 24 } },
         },
         all: {
-          visibleOrder: ['index', 'type', 'name', 'ground_type', 'climate_key'],
-          columns: { ground_type: { widthPct: 24 }, climate_key: { widthPct: 24 } },
+          visibleOrder: ['index', 'type', 'name', 'pipe_dn', 'ground_type', 'climate_key'],
+          columns: { pipe_dn: { widthPct: 12 }, ground_type: { widthPct: 24 }, climate_key: { widthPct: 24 } },
         },
       },
     });
 
-    const hiddenServiceColumns = ['ground_type', 'climate_key'];
+    const hiddenServiceColumns = ['pipe_dn', 'ground_type', 'climate_key'];
     for (const type of ['pipe', 'tank', 'all'] as const) {
       const visibleKeys = getVisibleTableColumnMetas(type, settings).map((column) => column.key);
       const allKeys = getAllTableColumnMetas(type, settings).map((column) => column.key);
@@ -239,7 +242,6 @@ describe('heatCalcTableColumns', () => {
     expect(all.slice(0, HEATCALC_ALL_OBJECT_COLUMN_KEYS.length)).toEqual(HEATCALC_ALL_OBJECT_COLUMN_KEYS);
     expect(new Set(all).size).toBe(all.length);
     expect(all).toEqual(expect.arrayContaining([
-      'pipe_dn',
       'pipe_length',
       'tank_shape',
       'tank_dimensions',
@@ -248,7 +250,7 @@ describe('heatCalcTableColumns', () => {
       'surface_area_bare',
     ]));
     expect(visible).toContain('type');
-    expect(visible).not.toContain('pipe_dn');
+    expect(all).not.toContain('pipe_dn');
     expect(visible).not.toContain('tank_shape');
     expect(visible).not.toContain('delta_t');
   });
@@ -257,13 +259,13 @@ describe('heatCalcTableColumns', () => {
     const settings = setTableColumnWidthPct(
       getDefaultTableColumnSettings(),
       'pipe',
-      'pipe_dn',
+      'pipe_length',
       12.5,
     );
 
-    expect(settings.types.pipe.columns.pipe_dn.widthPct).toBe(12.5);
-    const reset = resetTableColumnWidth(settings, 'pipe', 'pipe_dn');
-    expect(reset.types.pipe.columns.pipe_dn.widthPct).toBe(5.8);
+    expect(settings.types.pipe.columns.pipe_length.widthPct).toBe(12.5);
+    const reset = resetTableColumnWidth(settings, 'pipe', 'pipe_length');
+    expect(reset.types.pipe.columns.pipe_length.widthPct).toBe(7.4);
   });
 
   it('не позволяет скрыть обязательное наименование', () => {
@@ -283,17 +285,17 @@ describe('heatCalcTableColumns', () => {
     const hidden = setTableColumnVisibility(
       getDefaultTableColumnSettings(),
       'pipe',
-      'pipe_dn',
+      'pipe_length',
       false,
     );
 
-    expect(hidden.types.pipe.visibleOrder).not.toContain('pipe_dn');
-    expect(hidden.types.pipe.columns.pipe_dn).not.toHaveProperty('order');
+    expect(hidden.types.pipe.visibleOrder).not.toContain('pipe_length');
+    expect(hidden.types.pipe.columns.pipe_length).not.toHaveProperty('order');
 
-    const restored = setTableColumnVisibility(hidden, 'pipe', 'pipe_dn', true);
+    const restored = setTableColumnVisibility(hidden, 'pipe', 'pipe_length', true);
 
-    expect(restored.types.pipe.visibleOrder.at(-1)).toBe('pipe_dn');
-    expect(restored.types.pipe.columns.pipe_dn).not.toHaveProperty('visible');
-    expect(restored.types.pipe.columns.pipe_dn).not.toHaveProperty('order');
+    expect(restored.types.pipe.visibleOrder.at(-1)).toBe('pipe_length');
+    expect(restored.types.pipe.columns.pipe_length).not.toHaveProperty('visible');
+    expect(restored.types.pipe.columns.pipe_length).not.toHaveProperty('order');
   });
 });
