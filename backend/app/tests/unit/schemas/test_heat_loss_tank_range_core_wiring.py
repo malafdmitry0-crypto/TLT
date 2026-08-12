@@ -1,11 +1,11 @@
-"""Prove tank scalar ranges are owned by and delegated to the pure core."""
+"""Prove tank validation uses its unified pure-core contract once."""
 
 from unittest.mock import MagicMock
 
 import pytest
 from pydantic import ValidationError
 
-from app.formulas.heat_loss.core.tank_validation import validate_tank_input_ranges
+from app.formulas.heat_loss.core.tank_contract import validate_tank_contract
 from app.schemas import calculation as calculation_schemas
 from app.schemas.calculation import StoredTankHeatParams, TankHeatLossParams
 
@@ -31,45 +31,42 @@ def _tank(**updates: object) -> dict[str, object]:
 
 
 @pytest.mark.parametrize("model", [TankHeatLossParams, StoredTankHeatParams])
-def test_tank_and_stored_tank_call_the_aggregate_core_validator_once(
+def test_tank_and_stored_tank_call_the_unified_core_contract_once(
     monkeypatch: pytest.MonkeyPatch,
     model: type[TankHeatLossParams] | type[StoredTankHeatParams],
 ) -> None:
-    range_spy = MagicMock(wraps=validate_tank_input_ranges)
-    monkeypatch.setattr(calculation_schemas, "validate_tank_input_ranges", range_spy)
+    contract_spy = MagicMock(wraps=validate_tank_contract)
+    monkeypatch.setattr(calculation_schemas, "validate_tank_contract", contract_spy)
 
     params = model.model_validate(_tank())
 
     assert params.diameter == 2.0
-    range_spy.assert_called_once()
+    contract_spy.assert_called_once()
 
 
-def test_tank_range_failure_stops_later_formula_domain_validation(
+def test_tank_range_failure_runs_the_unified_contract_once(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    range_spy = MagicMock(wraps=validate_tank_input_ranges)
-    formula_domain_spy = MagicMock(wraps=calculation_schemas.validate_tank_formula_domain)
-    monkeypatch.setattr(calculation_schemas, "validate_tank_input_ranges", range_spy)
-    monkeypatch.setattr(calculation_schemas, "validate_tank_formula_domain", formula_domain_spy)
+    contract_spy = MagicMock(wraps=validate_tank_contract)
+    monkeypatch.setattr(calculation_schemas, "validate_tank_contract", contract_spy)
 
     with pytest.raises(ValidationError):
         TankHeatLossParams.model_validate(_tank(diameter=0.0))
 
-    range_spy.assert_called_once()
-    formula_domain_spy.assert_not_called()
+    contract_spy.assert_called_once()
 
 
-def test_tank_parse_failure_never_calls_aggregate_core_validator(
+def test_tank_parse_failure_never_calls_the_unified_core_contract(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    range_spy = MagicMock(wraps=validate_tank_input_ranges)
-    monkeypatch.setattr(calculation_schemas, "validate_tank_input_ranges", range_spy)
+    contract_spy = MagicMock(wraps=validate_tank_contract)
+    monkeypatch.setattr(calculation_schemas, "validate_tank_contract", contract_spy)
 
     with pytest.raises(ValidationError) as exc_info:
         TankHeatLossParams.model_validate(_tank(diameter="not-a-number"))
 
     assert exc_info.value.errors(include_url=False)[0]["type"] == "float_parsing"
-    range_spy.assert_not_called()
+    contract_spy.assert_not_called()
 
 
 def test_tank_multiple_range_errors_keep_legacy_order_shape_and_raw_inputs() -> None:

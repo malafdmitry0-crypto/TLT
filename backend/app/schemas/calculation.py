@@ -10,18 +10,22 @@ from pydantic.functional_validators import ModelWrapValidatorHandler
 from pydantic_core import InitErrorDetails, PydanticCustomError
 
 from app.electrical_variant_limits import MAX_ELECTRICAL_VARIANTS
-from app.formulas.heat_loss.core.insulation_validation import (
-    validate_insulation_conductivity,
-    validate_insulation_thickness,
+from app.formulas.heat_loss.core.insulation_contract import (
+    ALLOWED_INSULATION_BASES_BY_PLACEMENT,
+    InsulationContractInput,
+    validate_insulation_contract,
 )
-from app.formulas.heat_loss.core.material_validation import (
-    validate_temperature_in_interval,
-    validate_temperature_interval,
+from app.formulas.heat_loss.core.pipe_contract import (
+    PipeContractInput,
+    PipeLayerContract,
+    validate_pipe_contract,
 )
-from app.formulas.heat_loss.core.pipe import validate_pipe_formula_domain
-from app.formulas.heat_loss.core.pipe_validation import validate_pipe_input_ranges
-from app.formulas.heat_loss.core.tank import validate_tank_formula_domain
-from app.formulas.heat_loss.core.tank_validation import validate_tank_input_ranges
+from app.formulas.heat_loss.core.tank_contract import (
+    TankContractInput,
+    TankContractLayer,
+    validate_tank_contract,
+    validate_tank_shape,
+)
 from app.formulas.heat_loss.core.validation import (
     INSULATION_CONDUCTIVITY_RANGE,
     INSULATION_LAYER_COUNT_RANGE,
@@ -52,11 +56,14 @@ from app.formulas.heat_loss.core.validation import (
     TANK_WALL_CONDUCTIVITY_RANGE,
     TANK_WALL_THICKNESS_RANGE,
     TANK_WIND_SPEED_RANGE,
+    FormulaValidationIssue,
     FormulaValidationReport,
 )
 from app.formulas.heat_loss.insulation import (
+    INSULATION_TEMPERATURE_BASIS_LABELS,
+    INSULATION_TEMPERATURE_BASIS_PLACEMENT_MESSAGE,
+    INSULATION_TEMPERATURE_PLACEMENT_LABELS,
     InsulationTemperatureBasis,
-    validate_insulation_temperature_basis_for_placement,
 )
 from app.reference_data.loader import get_insulation_temperature_range
 from app.schemas.electrical_assignment import ElectricalAssignmentResponse
@@ -66,7 +73,6 @@ from app.schemas.electrical_variant import (
 )
 from app.schemas.heat_loss_core_validation import (
     numeric_range_json_schema,
-    raise_range_field_error,
     raise_range_validation_errors,
     sequence_length_schema_extra,
 )
@@ -168,72 +174,148 @@ def _fmt_temp(value: float) -> str:
     return f"{value:g}"
 
 
-def _validate_temperature_range_shape(
-    temperature_range: tuple[float, float],
-    *,
-    label: str,
-) -> tuple[float, float]:
-    min_temp = float(temperature_range[0])
-    max_temp = float(temperature_range[1])
-    report = validate_temperature_interval(minimum_c=min_temp, maximum_c=max_temp)
-    if not report.is_valid:
-        raise ValueError(f"{label}: нижняя граница должна быть меньше верхней")
-    return min_temp, max_temp
+def _insulation_basis_error_message(*, basis: str | None, placement: str) -> str:
+    allowed = ALLOWED_INSULATION_BASES_BY_PLACEMENT[cast(Any, placement)]
+    allowed_labels = ", ".join(
+        INSULATION_TEMPERATURE_BASIS_LABELS[item] for item in sorted(allowed)
+    )
+    basis_label = INSULATION_TEMPERATURE_BASIS_LABELS.get(str(basis), str(basis))
+    placement_label = INSULATION_TEMPERATURE_PLACEMENT_LABELS.get(placement, placement)
+    return (
+        f"{INSULATION_TEMPERATURE_BASIS_PLACEMENT_MESSAGE}: "
+        f"{basis_label} не подходит для размещения {placement_label}; "
+        f"выберите {allowed_labels}"
+    )
 
 
-def _validate_temperature_in_material_range(
+def _reference_temperature_interval(material: str) -> tuple[float, float]:
+    minimum_c, maximum_c = get_insulation_temperature_range(material)
+    return float(minimum_c), float(maximum_c)
+
+
+def _resolve_insulation_material(material: str) -> None:
+    """Resolve catalog identity without owning any validation predicate."""
+
+    get_insulation_temperature_range(material)
+
+
+def _raise_contract_issue(
     *,
-    material: str,
-    process_temperature: float,
-    temperature_range: tuple[float, float],
-    label: str,
+    model: BaseModel,
+    issue: FormulaValidationIssue,
 ) -> None:
-    min_temp, max_temp = _validate_temperature_range_shape(
-        temperature_range,
-        label=f"Температурный диапазон {label}",
-    )
-    report = validate_temperature_in_interval(
-        temperature_c=process_temperature,
-        minimum_c=min_temp,
-        maximum_c=max_temp,
-    )
+    """Translate one non-range core contract issue to the legacy API text."""
+
+    code = issue.code
+    index = next((part for part in issue.path if isinstance(part, int)), None)
+    layer_number = (index + 1) if index is not None else None
+    if code == "insulation_basis_not_allowed_for_placement":
+        raise ValueError(
+            _insulation_basis_error_message(
+                basis=getattr(model, "insulation_temperature_basis", None),
+                placement=cast(str, model.placement),  # type: ignore[attr-defined]
+            )
+        )
+    if code == "manual_layer_conductivity_required":
+        raise ValueError("Для материала изоляции 'other' необходимо задать λ слоя")
+    if code == "manual_layer_temperature_range_required":
+        raise ValueError("Для материала изоляции 'other' необходимо задать temperature_range слоя")
+    if code == "invalid_temperature_interval":
+        raise ValueError(
+            "Температурный диапазон материала изоляции 'other': "
+            "нижняя граница должна быть меньше верхней"
+        )
+    if code == "pipe_conductivity_source_xor":
+        raise ValueError("Задайте ровно один источник λ трубы: pipe_material или pipe_lambda")
+    if code == "reference_layer_has_manual_properties":
+        raise ValueError(
+            f"Справочный слой #{layer_number} не должен содержать ручные "
+            "conductivity/temperature_range"
+        )
+    if code == "temperature_outside_interval":
+        assert index is not None
+        layer = cast(Any, model.insulation_layers)[index]  # type: ignore[attr-defined]
+        details = issue.details_dict()
+        raise ValueError(
+            f"Температура продукта {_fmt_temp(float(details['temperature_c']))} °C вне диапазона "
+            f"материала изоляции #{layer_number} '{layer.material}': "
+            f"{_fmt_temp(float(details['minimum_c']))}…"
+            f"{_fmt_temp(float(details['maximum_c']))} °C"
+        )
+    if code == "local_elements_require_equivalent_length":
+        raise ValueError("Для num_local_elements > 0 требуется local_element_equiv_length")
+    if code == "underground_field_required":
+        field = cast(str, issue.path[-1])
+        if field == "wind_speed" and isinstance(model, TankHeatLossParams):
+            raise ValueError("Для underground tank auto требуется wind_speed")
+        raise ValueError(f"Для underground требуется {field}")
+    if code == "underground_forbids_ambient_temperature":
+        raise ValueError("ambient_temperature запрещена для underground pipe")
+    if code == "underground_forbids_wind_speed":
+        raise ValueError("wind_speed запрещена для underground pipe")
+    if code == "air_pipe_ambient_temperature_required":
+        raise ValueError("Для воздушной трубы требуется ambient_temperature")
+    if code == "air_pipe_forbids_centerline_depth":
+        raise ValueError("pipe_centerline_depth допустима только для underground")
+    if code == "air_pipe_forbids_ground_parameters":
+        raise ValueError("Грунтовые параметры допустимы только для underground")
+    if code == "air_tank_ambient_temperature_required":
+        raise ValueError("Для воздушного резервуара требуется ambient_temperature")
+    if code == "air_tank_forbids_ground_parameters":
+        raise ValueError("Грунтовые параметры допустимы только для underground")
+    if code == "air_tank_forbids_buried_height":
+        raise ValueError("tank_buried_height допустима только для underground")
+    if code == "outdoor_wind_speed_required":
+        raise ValueError("Для outdoor auto требуется wind_speed")
+    if code == "tank_wall_properties_must_be_paired":
+        raise ValueError("wall_thickness и wall_lambda задаются парой")
+    if code == "cylindrical_tank_requires_diameter_and_height":
+        raise ValueError("Для цилиндра требуются diameter и height")
+    if code == "rectangular_tank_requires_length_width_and_height":
+        raise ValueError("Для параллелепипеда требуются length, width и height")
+    if code == "cylindrical_tank_forbids_length_and_width":
+        raise ValueError("cylindrical не принимает length или width")
+    if code == "rectangular_tank_forbids_diameter":
+        raise ValueError("rectangular не принимает diameter")
+    raise RuntimeError(f"Нет backend-маппинга для core-ошибки {code!r}")
+
+
+def _raise_heat_contract_errors(
+    *,
+    model_name: str,
+    model: BaseModel,
+    report: FormulaValidationReport,
+    raw_inputs: Mapping[tuple[str | int, ...], object],
+    formula_presentations: dict[str, tuple[str, str]],
+) -> None:
     if report.is_valid:
         return
-    raise ValueError(
-        f"Температура продукта {_fmt_temp(process_temperature)} °C вне диапазона "
-        f"{label} '{material}': {_fmt_temp(min_temp)}…{_fmt_temp(max_temp)} °C"
-    )
-
-
-def _validate_reference_insulation_temperature(
-    *,
-    material: str,
-    process_temperature: float,
-    label: str,
-) -> None:
-    if material == "other":
-        raise ValueError(
-            f"Для {label} 'other' задайте insulation_layers с conductivity и temperature_range"
+    range_codes = {
+        "below_min_inclusive",
+        "below_min_exclusive",
+        "above_max_inclusive",
+        "above_max_exclusive",
+        "not_finite",
+        "sequence_too_short",
+        "sequence_too_long",
+    }
+    if all(issue.code in range_codes for issue in report.issues):
+        raise_range_validation_errors(
+            model_name=model_name,
+            report=report,
+            inputs=raw_inputs,
         )
-    _validate_temperature_in_material_range(
-        material=material,
-        process_temperature=process_temperature,
-        temperature_range=get_insulation_temperature_range(material),
-        label=label,
-    )
-
-
-def _validate_insulation_temperature_basis_for_location(
-    *,
-    basis: InsulationTemperatureBasis | None,
-    location: str | None,
-    placement: str | None,
-) -> None:
-    validate_insulation_temperature_basis_for_placement(
-        basis=basis,
-        location=location,
-        placement=placement,
-    )
+        return
+    if all(issue.code in formula_presentations for issue in report.issues):
+        _raise_formula_domain_errors(
+            model=model,
+            report=report,
+            presentations=formula_presentations,
+        )
+        return
+    if len(report.issues) != 1:  # pragma: no cover - architecture invariant
+        raise RuntimeError("Core contract mixed incompatible validation phases")
+    _raise_contract_issue(model=model, issue=report.issues[0])
 
 
 InsulationThickness = Annotated[
@@ -369,35 +451,34 @@ class InsulationLayer(BaseModel):
         description="Температурный диапазон применения слоя, °C — справочные метаданные",
     )
 
-    @field_validator("thickness")
+    @model_validator(mode="wrap")
     @classmethod
-    def check_thickness_range(cls, value: float) -> float:
-        raise_range_field_error(validate_insulation_thickness(value))
-        return value
-
-    @field_validator("conductivity")
-    @classmethod
-    def check_conductivity_range(cls, value: float | None) -> float | None:
-        if value is not None:
-            raise_range_field_error(validate_insulation_conductivity(value))
-        return value
-
-    @model_validator(mode="after")
-    def check_material_contract(self) -> "InsulationLayer":
-        if self.material == "other":
-            if self.conductivity is None:
-                raise ValueError("Для материала изоляции 'other' необходимо задать λ слоя")
-            if self.temperature_range is None:
-                raise ValueError(
-                    "Для материала изоляции 'other' необходимо задать temperature_range слоя"
-                )
-            _validate_temperature_range_shape(
-                self.temperature_range,
-                label="Температурный диапазон материала изоляции 'other'",
+    def check_contract(
+        cls,
+        data: object,
+        handler: ModelWrapValidatorHandler["InsulationLayer"],
+    ) -> "InsulationLayer":
+        instance = handler(data)
+        if instance.material != "other":
+            _resolve_insulation_material(instance.material)
+        report = validate_insulation_contract(
+            InsulationContractInput(
+                thickness_m=instance.thickness,
+                source="manual" if instance.material == "other" else "reference",
+                conductivity_w_mk=instance.conductivity,
+                temperature_range_c=instance.temperature_range,
+                conductivity_supplied=instance.conductivity is not None,
+                temperature_range_supplied=instance.temperature_range is not None,
             )
-            return self
-        get_insulation_temperature_range(self.material)
-        return self
+        )
+        _raise_heat_contract_errors(
+            model_name=cls.__name__,
+            model=instance,
+            report=report,
+            raw_inputs=_raw_range_inputs(data),
+            formula_presentations={},
+        )
+        return instance
 
 
 class InsulationLayerApplied(BaseModel):
@@ -486,109 +567,54 @@ class PipeHeatLossParams(BaseModel):
 
     @model_validator(mode="wrap")
     @classmethod
-    def check_input_ranges(
+    def check_contract(
         cls,
         data: object,
         handler: ModelWrapValidatorHandler["PipeHeatLossParams"],
     ) -> "PipeHeatLossParams":
         instance = handler(data)
-        report = validate_pipe_input_ranges(
-            outer_diameter=instance.outer_diameter,
-            wall_thickness=instance.wall_thickness,
-            pipe_lambda=instance.pipe_lambda,
-            ambient_temperature=instance.ambient_temperature,
-            process_temperature=instance.process_temperature,
-            pipe_length=instance.pipe_length,
-            pipe_centerline_depth=instance.pipe_centerline_depth,
-            num_local_elements=instance.num_local_elements,
-            local_element_equiv_length=instance.local_element_equiv_length,
-            wind_speed=instance.wind_speed,
-            ground_conductivity=instance.ground_conductivity,
-            ground_temperature=instance.ground_temperature,
-            safety_factor=instance.safety_factor,
-            insulation_layer_count=len(instance.insulation_layers),
+        report = validate_pipe_contract(
+            PipeContractInput(
+                outer_diameter=instance.outer_diameter,
+                wall_thickness=instance.wall_thickness,
+                pipe_lambda=instance.pipe_lambda,
+                has_pipe_material=instance.pipe_material is not None,
+                layers=tuple(
+                    PipeLayerContract(
+                        thickness_m=layer.thickness,
+                        source="manual" if layer.material == "other" else "reference",
+                        conductivity_supplied=layer.conductivity is not None,
+                        manual_temperature_range_c=layer.temperature_range,
+                        reference_temperature_interval_c=(
+                            None
+                            if layer.material == "other"
+                            else _reference_temperature_interval(layer.material)
+                        ),
+                    )
+                    for layer in instance.insulation_layers
+                ),
+                ambient_temperature=instance.ambient_temperature,
+                process_temperature=instance.process_temperature,
+                pipe_length=instance.pipe_length,
+                pipe_centerline_depth=instance.pipe_centerline_depth,
+                num_local_elements=instance.num_local_elements,
+                local_element_equiv_length=instance.local_element_equiv_length,
+                wind_speed=instance.wind_speed,
+                ground_conductivity=instance.ground_conductivity,
+                ground_temperature=instance.ground_temperature,
+                safety_factor=instance.safety_factor,
+                placement=instance.placement,
+                insulation_temperature_basis=instance.insulation_temperature_basis,
+            )
         )
-        raise_range_validation_errors(
+        _raise_heat_contract_errors(
             model_name=cls.__name__,
+            model=instance,
             report=report,
-            inputs=_raw_range_inputs(data),
+            raw_inputs=_raw_range_inputs(data),
+            formula_presentations=_PIPE_FORMULA_DOMAIN_PRESENTATIONS,
         )
         return instance
-
-    @model_validator(mode="after")
-    def check_canonical_contract(self) -> "PipeHeatLossParams":
-        _validate_insulation_temperature_basis_for_location(
-            basis=self.insulation_temperature_basis,
-            location=None,
-            placement=self.placement,
-        )
-        if (self.pipe_material is None) == (self.pipe_lambda is None):
-            raise ValueError("Задайте ровно один источник λ трубы: pipe_material или pipe_lambda")
-        for index, layer in enumerate(self.insulation_layers, start=1):
-            if layer.material != "other" and (
-                layer.conductivity is not None or layer.temperature_range is not None
-            ):
-                raise ValueError(
-                    f"Справочный слой #{index} не должен содержать ручные conductivity/temperature_range"
-                )
-            if layer.material != "other":
-                _validate_reference_insulation_temperature(
-                    material=layer.material,
-                    process_temperature=self.process_temperature,
-                    label=f"материала изоляции #{index}",
-                )
-        if self.num_local_elements > 0 and self.local_element_equiv_length is None:
-            raise ValueError("Для num_local_elements > 0 требуется local_element_equiv_length")
-        environment: Literal["ambient", "ground"]
-        environment_temperature: float
-        centerline_depth: float | None
-        if self.placement == "underground":
-            if self.ground_temperature is None:
-                raise ValueError("Для underground требуется ground_temperature")
-            if self.pipe_centerline_depth is None:
-                raise ValueError("Для underground требуется pipe_centerline_depth")
-            if self.ground_conductivity is None:
-                raise ValueError("Для underground требуется ground_conductivity")
-            if self.ambient_temperature is not None:
-                raise ValueError("ambient_temperature запрещена для underground pipe")
-            if self.wind_speed is not None:
-                raise ValueError("wind_speed запрещена для underground pipe")
-            environment = "ground"
-            environment_temperature = self.ground_temperature
-            centerline_depth = self.pipe_centerline_depth
-        else:
-            if self.ambient_temperature is None:
-                raise ValueError("Для воздушной трубы требуется ambient_temperature")
-            if self.pipe_centerline_depth is not None:
-                raise ValueError("pipe_centerline_depth допустима только для underground")
-            if self.ground_temperature is not None or self.ground_conductivity is not None:
-                raise ValueError("Грунтовые параметры допустимы только для underground")
-            if self.placement == "outdoor" and self.wind_speed is None:
-                raise ValueError("Для outdoor auto требуется wind_speed")
-            environment = "ambient"
-            environment_temperature = self.ambient_temperature
-            centerline_depth = None
-
-        formula_report = validate_pipe_formula_domain(
-            outer_diameter_m=self.outer_diameter,
-            wall_thickness_m=self.wall_thickness,
-            insulation_layer_thicknesses_m=(
-                tuple(layer.thickness for layer in self.insulation_layers)
-                if environment == "ground"
-                else ()
-            ),
-            process_temperature_c=self.process_temperature,
-            environment_temperature_c=environment_temperature,
-            environment=environment,
-            centerline_depth_m=centerline_depth,
-        )
-        if not formula_report.is_valid:
-            _raise_formula_domain_errors(
-                model=self,
-                report=formula_report,
-                presentations=_PIPE_FORMULA_DOMAIN_PRESENTATIONS,
-            )
-        return self
 
 
 class StoredPipeHeatParams(PipeHeatLossParams):
@@ -741,120 +767,64 @@ class TankHeatLossParams(BaseModel):
 
     @model_validator(mode="wrap")
     @classmethod
-    def check_input_ranges(
+    def check_contract(
         cls,
         data: object,
         handler: ModelWrapValidatorHandler["TankHeatLossParams"],
     ) -> "TankHeatLossParams":
         instance = handler(data)
-        report = validate_tank_input_ranges(
-            diameter=instance.diameter,
-            height=instance.height,
-            length=instance.length,
-            width=instance.width,
-            insulation_layer_count=len(instance.insulation_layers),
-            ambient_temperature=instance.ambient_temperature,
-            ground_temperature=instance.ground_temperature,
-            process_temperature=instance.process_temperature,
-            wall_thickness=instance.wall_thickness,
-            wall_lambda=instance.wall_lambda,
-            tank_buried_height=instance.tank_buried_height,
-            ground_conductivity=instance.ground_conductivity,
-            wind_speed=instance.wind_speed,
-            safety_factor=instance.safety_factor,
-            q_additional=instance.q_additional,
+        report = validate_tank_contract(
+            TankContractInput(
+                shape=instance.shape,
+                placement=instance.placement,
+                insulation_temperature_basis=instance.insulation_temperature_basis,
+                diameter=instance.diameter,
+                height=instance.height,
+                length=instance.length,
+                width=instance.width,
+                insulation_layers=tuple(
+                    TankContractLayer(
+                        source="manual" if layer.material == "other" else "reference",
+                        conductivity_supplied=layer.conductivity is not None,
+                        manual_temperature_range_c=layer.temperature_range,
+                        reference_temperature_range_c=(
+                            None
+                            if layer.material == "other"
+                            else _reference_temperature_interval(layer.material)
+                        ),
+                    )
+                    for layer in instance.insulation_layers
+                ),
+                ambient_temperature=instance.ambient_temperature,
+                ground_temperature=instance.ground_temperature,
+                process_temperature=instance.process_temperature,
+                wall_thickness=instance.wall_thickness,
+                wall_lambda=instance.wall_lambda,
+                tank_buried_height=instance.tank_buried_height,
+                ground_conductivity=instance.ground_conductivity,
+                wind_speed=instance.wind_speed,
+                safety_factor=instance.safety_factor,
+                q_additional=instance.q_additional,
+            )
         )
-        raise_range_validation_errors(
+        _raise_heat_contract_errors(
             model_name=cls.__name__,
+            model=instance,
             report=report,
-            inputs=_raw_range_inputs(data),
+            raw_inputs=_raw_range_inputs(data),
+            formula_presentations=_TANK_FORMULA_DOMAIN_PRESENTATIONS,
         )
         return instance
 
     @field_validator("shape", mode="before")
     @classmethod
     def check_supported_shape(cls, value: object) -> object:
-        if not isinstance(value, str) or value not in {"cylindrical", "rectangular"}:
+        if not validate_tank_shape(value).is_valid:
             raise ValueError(
                 f"Форма резервуара {value!r} больше не поддерживается. "
                 "Допустимые формы: cylindrical, rectangular."
             )
         return value
-
-    @model_validator(mode="after")
-    def check_ranges_and_layers(self) -> "TankHeatLossParams":
-        _validate_insulation_temperature_basis_for_location(
-            basis=self.insulation_temperature_basis,
-            location="indoor" if self.placement == "indoor" else "outdoor",
-            placement=self.placement,
-        )
-        for index, layer in enumerate(self.insulation_layers, start=1):
-            if layer.material != "other" and (
-                layer.conductivity is not None or layer.temperature_range is not None
-            ):
-                raise ValueError(
-                    f"Справочный слой #{index} не должен содержать ручные "
-                    "conductivity/temperature_range"
-                )
-            if layer.material != "other":
-                _validate_reference_insulation_temperature(
-                    material=layer.material,
-                    process_temperature=self.process_temperature,
-                    label=f"материала изоляции #{index}",
-                )
-        if self.placement == "underground":
-            if self.ground_temperature is None:
-                raise ValueError("Для underground требуется ground_temperature")
-            if self.ground_conductivity is None:
-                raise ValueError("Для underground требуется ground_conductivity")
-            if self.tank_buried_height is None:
-                raise ValueError("Для underground требуется tank_buried_height")
-            if self.ambient_temperature is None:
-                raise ValueError("Для underground требуется ambient_temperature")
-            if self.wind_speed is None:
-                raise ValueError("Для underground tank auto требуется wind_speed")
-        else:
-            if self.ambient_temperature is None:
-                raise ValueError("Для воздушного резервуара требуется ambient_temperature")
-            if self.ground_temperature is not None or self.ground_conductivity is not None:
-                raise ValueError("Грунтовые параметры допустимы только для underground")
-            if self.tank_buried_height is not None:
-                raise ValueError("tank_buried_height допустима только для underground")
-            if self.placement == "outdoor" and self.wind_speed is None:
-                raise ValueError("Для outdoor auto требуется wind_speed")
-        if (self.wall_thickness is None) != (self.wall_lambda is None):
-            raise ValueError("wall_thickness и wall_lambda задаются парой")
-        if self.shape == "cylindrical" and (self.diameter is None or self.height is None):
-            raise ValueError("Для цилиндра требуются diameter и height")
-        if self.shape == "rectangular" and (
-            self.length is None or self.width is None or self.height is None
-        ):
-            raise ValueError("Для параллелепипеда требуются length, width и height")
-        if self.shape == "cylindrical" and (self.length is not None or self.width is not None):
-            raise ValueError("cylindrical не принимает length или width")
-        if self.shape == "rectangular" and self.diameter is not None:
-            raise ValueError("rectangular не принимает diameter")
-
-        formula_report = validate_tank_formula_domain(
-            cylindrical_diameter_m=(self.diameter if self.shape == "cylindrical" else None),
-            height_m=cast(float, self.height),
-            wall_thickness_m=self.wall_thickness or 0.0,
-            process_temperature_c=self.process_temperature,
-            ambient_temperature_c=self.ambient_temperature,
-            ground_temperature_c=(
-                self.ground_temperature if self.placement == "underground" else None
-            ),
-            buried_height_m=(
-                self.tank_buried_height if self.placement == "underground" else None
-            ),
-        )
-        if not formula_report.is_valid:
-            _raise_formula_domain_errors(
-                model=self,
-                report=formula_report,
-                presentations=_TANK_FORMULA_DOMAIN_PRESENTATIONS,
-            )
-        return self
 
 
 class StoredTankHeatParams(TankHeatLossParams):

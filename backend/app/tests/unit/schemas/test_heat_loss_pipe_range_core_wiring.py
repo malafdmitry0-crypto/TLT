@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 import pytest
 from pydantic import ValidationError
 
-from app.formulas.heat_loss.core.pipe_validation import validate_pipe_input_ranges
+from app.formulas.heat_loss.core.pipe_contract import validate_pipe_contract
 from app.schemas import calculation as calculation_schemas
 from app.schemas.calculation import PipeHeatLossParams, StoredPipeHeatParams
 
@@ -32,45 +32,51 @@ def _pipe(**updates: object) -> dict[str, object]:
 
 
 @pytest.mark.parametrize("model", [PipeHeatLossParams, StoredPipeHeatParams])
-def test_pipe_and_stored_pipe_call_the_aggregate_core_validator_once(
+def test_pipe_and_stored_pipe_call_the_unified_core_contract_once(
     monkeypatch: pytest.MonkeyPatch,
     model: type[PipeHeatLossParams] | type[StoredPipeHeatParams],
 ) -> None:
-    range_spy = MagicMock(wraps=validate_pipe_input_ranges)
-    monkeypatch.setattr(calculation_schemas, "validate_pipe_input_ranges", range_spy)
+    contract_spy = MagicMock(wraps=validate_pipe_contract)
+    monkeypatch.setattr(calculation_schemas, "validate_pipe_contract", contract_spy)
 
     params = model.model_validate(_pipe())
 
     assert params.outer_diameter == 0.108
-    range_spy.assert_called_once()
+    contract_spy.assert_called_once()
 
 
-def test_pipe_range_failure_stops_later_formula_domain_validation(
+def test_pipe_range_failure_is_returned_by_the_unified_contract(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    range_spy = MagicMock(wraps=validate_pipe_input_ranges)
-    formula_domain_spy = MagicMock(wraps=calculation_schemas.validate_pipe_formula_domain)
-    monkeypatch.setattr(calculation_schemas, "validate_pipe_input_ranges", range_spy)
-    monkeypatch.setattr(calculation_schemas, "validate_pipe_formula_domain", formula_domain_spy)
+    contract_spy = MagicMock(wraps=validate_pipe_contract)
+    monkeypatch.setattr(calculation_schemas, "validate_pipe_contract", contract_spy)
 
-    with pytest.raises(ValidationError):
+    with pytest.raises(ValidationError) as exc_info:
         PipeHeatLossParams.model_validate(_pipe(outer_diameter=0.0))
 
-    range_spy.assert_called_once()
-    formula_domain_spy.assert_not_called()
+    assert exc_info.value.errors(include_url=False) == [
+        {
+            "type": "greater_than_equal",
+            "loc": ("outer_diameter",),
+            "msg": "Input should be greater than or equal to 0.0108",
+            "input": 0.0,
+            "ctx": {"ge": 0.0108},
+        }
+    ]
+    contract_spy.assert_called_once()
 
 
 def test_pipe_parse_failure_never_calls_aggregate_core_validator(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    range_spy = MagicMock(wraps=validate_pipe_input_ranges)
-    monkeypatch.setattr(calculation_schemas, "validate_pipe_input_ranges", range_spy)
+    contract_spy = MagicMock(wraps=validate_pipe_contract)
+    monkeypatch.setattr(calculation_schemas, "validate_pipe_contract", contract_spy)
 
     with pytest.raises(ValidationError) as exc_info:
         PipeHeatLossParams.model_validate(_pipe(outer_diameter="not-a-number"))
 
     assert exc_info.value.errors(include_url=False)[0]["type"] == "float_parsing"
-    range_spy.assert_not_called()
+    contract_spy.assert_not_called()
 
 
 def test_pipe_multiple_range_errors_keep_legacy_order_shape_and_raw_inputs() -> None:
