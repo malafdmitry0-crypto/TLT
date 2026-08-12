@@ -7,9 +7,9 @@ from pydantic import ValidationError
 
 from app.formulas.heat_loss.core.insulation_validation import (
     validate_insulation_conductivity,
-    validate_insulation_layer_count,
     validate_insulation_thickness,
 )
+from app.formulas.heat_loss.core.pipe_validation import validate_pipe_input_ranges
 from app.schemas import calculation as calculation_schemas
 from app.schemas.calculation import InsulationLayer, PipeHeatLossParams
 
@@ -51,23 +51,24 @@ def test_layer_calls_each_applicable_core_range_validator_once(
     conductivity_spy.assert_called_once_with(0.04)
 
 
-def test_parent_reuses_prebuilt_layer_and_only_validates_collection_count(
+def test_parent_reuses_prebuilt_layer_and_calls_only_the_pipe_aggregate(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     layer = InsulationLayer(thickness=0.05, material=MINERAL_WOOL)
     thickness_spy = MagicMock(wraps=validate_insulation_thickness)
     conductivity_spy = MagicMock(wraps=validate_insulation_conductivity)
-    count_spy = MagicMock(wraps=validate_insulation_layer_count)
+    pipe_range_spy = MagicMock(wraps=validate_pipe_input_ranges)
     monkeypatch.setattr(calculation_schemas, "validate_insulation_thickness", thickness_spy)
     monkeypatch.setattr(calculation_schemas, "validate_insulation_conductivity", conductivity_spy)
-    monkeypatch.setattr(calculation_schemas, "validate_insulation_layer_count", count_spy)
+    monkeypatch.setattr(calculation_schemas, "validate_pipe_input_ranges", pipe_range_spy)
 
     params = PipeHeatLossParams.model_validate(_pipe(layer))
 
     assert params.insulation_layers[0] is layer
     thickness_spy.assert_not_called()
     conductivity_spy.assert_not_called()
-    count_spy.assert_called_once_with(1)
+    pipe_range_spy.assert_called_once()
+    assert pipe_range_spy.call_args.kwargs["insulation_layer_count"] == 1
 
 
 @pytest.mark.parametrize(
