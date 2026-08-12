@@ -14,9 +14,9 @@ R_внеш (помещение): R = 1 / 9.0
 """
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
-from app.formulas.heat_loss.common import validate_positive, validate_temperature_range
+from app.formulas.heat_loss.common import validate_positive
 from app.formulas.heat_loss.core.errors import FormulaDomainError
 from app.formulas.heat_loss.core.tank import (
     AirTankHeatLossInput,
@@ -99,10 +99,9 @@ def _calc_alpha(params: TankHeatLossParams) -> float:
     """
     if params.placement == "indoor":
         return 9.0
-    if params.wind_speed is None:
-        raise ValueError("Для автоматического alpha_vnesh требуется wind_speed")
+    wind_speed = cast(float, params.wind_speed)
     return alpha_from_wind(
-        max(params.wind_speed, 0.0),
+        max(wind_speed, 0.0),
         intercept=11.6,
         sqrt_coefficient=7.0,
     )
@@ -116,15 +115,14 @@ def _tank_geometry(
     params: TankHeatLossParams,
 ) -> CylindricalTankGeometry | RectangularTankGeometry:
     if params.shape == "cylindrical":
-        if params.diameter is None or params.height is None:
-            raise ValueError("Для цилиндра требуются diameter и height")
-        return CylindricalTankGeometry(diameter_m=params.diameter, height_m=params.height)
-    if params.length is None or params.width is None or params.height is None:
-        raise ValueError("Для параллелепипеда требуются length, width, height")
+        return CylindricalTankGeometry(
+            diameter_m=cast(float, params.diameter),
+            height_m=cast(float, params.height),
+        )
     return RectangularTankGeometry(
-        length_m=params.length,
-        width_m=params.width,
-        height_m=params.height,
+        length_m=cast(float, params.length),
+        width_m=cast(float, params.width),
+        height_m=cast(float, params.height),
     )
 
 
@@ -134,11 +132,8 @@ def _resolve_layer_resistances(
 ) -> list[tuple[InsulationLayer, float, str]]:
     resolved_layers: list[tuple[InsulationLayer, float, str]] = []
     for i, layer in enumerate(layers):
-        validate_positive(f"Толщина изоляции слоя {i + 1}", layer.thickness)
         if layer.material == "other":
-            if layer.conductivity is None:
-                raise ValueError("Для материала изоляции 'other' необходимо задать λ слоя")
-            lambda_ins = layer.conductivity
+            lambda_ins = cast(float, layer.conductivity)
             conductivity_source = "manual"
         else:
             lambda_ins = get_insulation_conductivity(
@@ -177,29 +172,23 @@ def calc_tank_heat_loss(
         geometric surface area.
 
     Raises:
-        ValueError: невалидная форма, отсутствие обязательной геометрии,
-            невалидные температуры/толщины.
+        ValueError: ошибка справочных данных, допустимости рассчитанной
+            температуры слоя или численной области формулы.
 
     See Also:
         backend formula unit tests / golden cases
     """
-    if params.ambient_temperature is None:
-        raise ValueError("Для резервуара требуется ambient_temperature")
-    validate_temperature_range(params.ambient_temperature, params.process_temperature)
+    ambient_temperature = cast(float, params.ambient_temperature)
 
-    # The facade keeps form validation and reference-data resolution.  The core
-    # receives only resolved numeric SI values.
+    # The facade keeps reference-data resolution. The core receives only
+    # resolved numeric SI values.
     wall_thickness = 0.0
     wall_conductivity = 1.0
     if params.wall_thickness is not None and params.wall_lambda is not None:
-        validate_positive("Толщина стенки резервуара", params.wall_thickness)
-        validate_positive("Теплопроводность стенки резервуара", params.wall_lambda)
         wall_thickness = params.wall_thickness
         wall_conductivity = params.wall_lambda
 
     layers = _resolve_layers(params)
-    if len(layers) > 3:
-        raise ValueError("Максимальное количество слоёв изоляции: 3 (N_iz ≤ 3)")
     insulation_tm = resolve_insulation_tm(
         process_temperature=params.process_temperature,
         basis=params.insulation_temperature_basis,
@@ -216,11 +205,8 @@ def calc_tank_heat_loss(
     buried_height = params.tank_buried_height or 0.0
     q_additional = getattr(params, "q_additional", 0.0) or 0.0
     if buried_height > 0:
-        if params.ground_temperature is None:
-            raise ValueError("Для underground требуется ground_temperature")
-        if params.ground_conductivity is None:
-            raise ValueError("Для underground требуется ground_conductivity")
-        validate_positive("Теплопроводность грунта", params.ground_conductivity)
+        ground_temperature = cast(float, params.ground_temperature)
+        ground_conductivity = cast(float, params.ground_conductivity)
         try:
             core_result = calculate_buried_tank_heat_loss(
                 BuriedTankHeatLossInput(
@@ -229,11 +215,11 @@ def calc_tank_heat_loss(
                     wall_conductivity_w_mk=wall_conductivity,
                     insulation_layers=numeric_layers,
                     process_temperature_c=params.process_temperature,
-                    ambient_temperature_c=params.ambient_temperature,
-                    ground_temperature_c=params.ground_temperature,
+                    ambient_temperature_c=ambient_temperature,
+                    ground_temperature_c=ground_temperature,
                     external_alpha_w_m2k=alpha,
                     buried_height_m=buried_height,
-                    ground_conductivity_w_mk=params.ground_conductivity,
+                    ground_conductivity_w_mk=ground_conductivity,
                     safety_factor=k,
                     additional_heat_loss_w=q_additional,
                 )
@@ -249,7 +235,7 @@ def calc_tank_heat_loss(
                     wall_conductivity_w_mk=wall_conductivity,
                     insulation_layers=numeric_layers,
                     process_temperature_c=params.process_temperature,
-                    ambient_temperature_c=params.ambient_temperature,
+                    ambient_temperature_c=ambient_temperature,
                     external_alpha_w_m2k=alpha,
                     safety_factor=k,
                     additional_heat_loss_w=q_additional,
