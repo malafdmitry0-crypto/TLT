@@ -109,7 +109,7 @@ describe('WorkspacePage', () => {
 
   it('без проекта показывает приветствие', () => {
     renderPage();
-    expect(screen.getByText(/Добро пожаловать в HeatCalc/i)).toBeInTheDocument();
+    expect(screen.getByText(/Добро пожаловать в Alfa Heat Desin/i)).toBeInTheDocument();
     expect(screen.getByText(/Начните с выбора или создания проекта/i)).toBeInTheDocument();
   });
 

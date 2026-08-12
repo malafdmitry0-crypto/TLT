@@ -16,7 +16,7 @@ export default function AdminLayout() {
   return (
     <Layout className="admin-layout">
       <Header className="heatcalc-header">
-        <h2 className="admin-layout-title">HeatCalc — Администрирование</h2>
+        <h2 className="admin-layout-title">Alfa Heat Desin — Администрирование</h2>
         <a
           onClick={async () => {
             await logoutApi().catch(() => undefined);

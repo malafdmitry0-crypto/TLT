@@ -20,8 +20,8 @@
   padding: 40px;
 }
 
-.home-page-title {
-  text-align: center;
+.home-page-logo { display: block; width: 112px; height: 112px; margin: 0 auto 10px; border-radius: 50%; object-fit: cover; }
+.home-page-title { text-align: center;
   color: var(--color-primary);
   margin-bottom: 4px;
 }
