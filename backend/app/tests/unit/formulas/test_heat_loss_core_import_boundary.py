@@ -71,3 +71,6 @@ def test_heat_loss_core_import_smoke() -> None:
     core = importlib.import_module("app.formulas.heat_loss.core")
 
     assert core.FormulaDomainError.__module__ == "app.formulas.heat_loss.core.errors"
+    assert core.FormulaValidationReport.__module__ == "app.formulas.heat_loss.core.validation"
+    assert callable(core.validate_pipe_formula_domain)
+    assert callable(core.validate_tank_formula_domain)
