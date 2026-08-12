@@ -6,6 +6,9 @@ the average of product and ambient temperatures.
 
 from typing import Literal
 
+from app.formulas.heat_loss.core.insulation_contract import (
+    ALLOWED_INSULATION_BASES_BY_PLACEMENT,
+)
 from app.formulas.heat_loss.core.insulation_temperature import (
     calculate_insulation_temperature,
 )
@@ -42,12 +45,6 @@ INSULATION_TEMPERATURE_BASIS_LABELS: dict[str, str] = {
     "basement": "подвал",
 }
 
-ALLOWED_INSULATION_TEMPERATURE_BASES_BY_PLACEMENT: dict[str, set[str]] = {
-    "indoor": {"indoor", "attic", "basement"},
-    "outdoor": {"outdoor_summer", "outdoor_winter"},
-    "underground": {"channel", "tunnel", "technical_subfloor"},
-}
-
 INSULATION_TEMPERATURE_BASIS_PLACEMENT_MESSAGE = (
     "Режим tm изоляции не соответствует размещению объекта"
 )
@@ -64,7 +61,7 @@ def effective_insulation_temperature_placement(
     location: str | None,
     placement: str | None,
 ) -> str:
-    if placement in ALLOWED_INSULATION_TEMPERATURE_BASES_BY_PLACEMENT:
+    if placement in ALLOWED_INSULATION_BASES_BY_PLACEMENT:
         return placement
     if location == "indoor":
         return "indoor"
@@ -75,12 +72,12 @@ def allowed_insulation_temperature_bases(
     *,
     location: str | None,
     placement: str | None,
-) -> set[str]:
+) -> frozenset[str]:
     effective_placement = effective_insulation_temperature_placement(
         location=location,
         placement=placement,
     )
-    return ALLOWED_INSULATION_TEMPERATURE_BASES_BY_PLACEMENT[effective_placement]
+    return ALLOWED_INSULATION_BASES_BY_PLACEMENT[effective_placement]  # type: ignore[index]
 
 
 def validate_insulation_temperature_basis_for_placement(

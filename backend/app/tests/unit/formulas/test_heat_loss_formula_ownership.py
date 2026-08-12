@@ -6,8 +6,8 @@ import pytest
 from pydantic import ValidationError
 
 from app.formulas.heat_loss import pipe as pipe_facade
-from app.formulas.heat_loss.core.pipe import validate_pipe_formula_domain
-from app.formulas.heat_loss.core.tank import validate_tank_formula_domain
+from app.formulas.heat_loss.core.pipe_contract import validate_pipe_contract
+from app.formulas.heat_loss.core.tank_contract import validate_tank_contract
 from app.formulas.heat_loss.core.thermal import affine_value, clamp_minimum
 from app.reference_data import loader as reference_loader
 from app.schemas import calculation as calculation_schemas
@@ -51,39 +51,37 @@ def _tank(**overrides: object) -> dict[str, object]:
     return values
 
 
-def test_pipe_schema_calls_public_core_formula_validator_once(
+def test_pipe_schema_calls_public_core_contract_once(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    validation_spy = MagicMock(wraps=validate_pipe_formula_domain)
-    monkeypatch.setattr(calculation_schemas, "validate_pipe_formula_domain", validation_spy)
+    validation_spy = MagicMock(wraps=validate_pipe_contract)
+    monkeypatch.setattr(calculation_schemas, "validate_pipe_contract", validation_spy)
 
     PipeHeatLossParams.model_validate(_air_pipe())
 
     validation_spy.assert_called_once()
-    assert validation_spy.call_args.kwargs == {
-        "outer_diameter_m": 0.108,
-        "wall_thickness_m": 0.004,
-        "insulation_layer_thicknesses_m": (),
-        "process_temperature_c": 80.0,
-        "environment_temperature_c": -20.0,
-        "environment": "ambient",
-        "centerline_depth_m": None,
-    }
+    contract = validation_spy.call_args.args[0]
+    assert contract.outer_diameter == pytest.approx(0.108)
+    assert contract.wall_thickness == pytest.approx(0.004)
+    assert contract.process_temperature == pytest.approx(80.0)
+    assert contract.ambient_temperature == pytest.approx(-20.0)
+    assert contract.placement == "outdoor"
 
 
-def test_tank_schema_calls_public_core_formula_validator_once(
+def test_tank_schema_calls_public_core_contract_once(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    validation_spy = MagicMock(wraps=validate_tank_formula_domain)
-    monkeypatch.setattr(calculation_schemas, "validate_tank_formula_domain", validation_spy)
+    validation_spy = MagicMock(wraps=validate_tank_contract)
+    monkeypatch.setattr(calculation_schemas, "validate_tank_contract", validation_spy)
 
     TankHeatLossParams.model_validate(_tank(wall_thickness=0.02, wall_lambda=45.0))
 
     validation_spy.assert_called_once()
-    assert validation_spy.call_args.kwargs["wall_thickness_m"] == pytest.approx(0.02)
-    assert validation_spy.call_args.kwargs["process_temperature_c"] == pytest.approx(80.0)
-    assert validation_spy.call_args.kwargs["ambient_temperature_c"] == pytest.approx(-20.0)
-    assert validation_spy.call_args.kwargs["ground_temperature_c"] is None
+    contract = validation_spy.call_args.args[0]
+    assert contract.wall_thickness == pytest.approx(0.02)
+    assert contract.process_temperature == pytest.approx(80.0)
+    assert contract.ambient_temperature == pytest.approx(-20.0)
+    assert contract.ground_temperature is None
 
 
 def test_core_issue_codes_become_field_errors_without_message_parsing() -> None:

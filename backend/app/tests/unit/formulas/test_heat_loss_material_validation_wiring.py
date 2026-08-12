@@ -9,11 +9,12 @@ from pydantic import ValidationError
 
 from app.formulas.heat_loss import pipe as pipe_formulas
 from app.formulas.heat_loss import tank as tank_formulas
+from app.formulas.heat_loss.core.insulation_contract import validate_insulation_contract
 from app.formulas.heat_loss.core.material_validation import (
     validate_hot_side_temperature_in_interval,
-    validate_temperature_in_interval,
-    validate_temperature_interval,
 )
+from app.formulas.heat_loss.core.pipe_contract import validate_pipe_contract
+from app.formulas.heat_loss.core.tank_contract import validate_tank_contract
 from app.schemas import calculation as calculation_schemas
 from app.schemas.calculation import InsulationLayer, PipeHeatLossParams, TankHeatLossParams
 
@@ -53,8 +54,8 @@ def _tank() -> TankHeatLossParams:
 def test_manual_material_interval_shape_delegates_to_core_once(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    validator = MagicMock(wraps=validate_temperature_interval)
-    monkeypatch.setattr(calculation_schemas, "validate_temperature_interval", validator)
+    validator = MagicMock(wraps=validate_insulation_contract)
+    monkeypatch.setattr(calculation_schemas, "validate_insulation_contract", validator)
 
     layer = InsulationLayer(
         thickness=0.05,
@@ -64,7 +65,9 @@ def test_manual_material_interval_shape_delegates_to_core_once(
     )
 
     assert layer.temperature_range == (-90.0, 600.0)
-    validator.assert_called_once_with(minimum_c=-90.0, maximum_c=600.0)
+    validator.assert_called_once()
+    contract = validator.call_args.args[0]
+    assert contract.temperature_range_c == (-90.0, 600.0)
 
 
 def test_invalid_manual_interval_keeps_existing_pydantic_error() -> None:
@@ -88,17 +91,33 @@ def test_invalid_manual_interval_keeps_existing_pydantic_error() -> None:
     )
 
 
-@pytest.mark.parametrize("factory", [_pipe, _tank])
+@pytest.mark.parametrize(
+    ("factory", "validator_name", "validator"),
+    [
+        (_pipe, "validate_pipe_contract", validate_pipe_contract),
+        (_tank, "validate_tank_contract", validate_tank_contract),
+    ],
+)
 def test_reference_material_temperature_check_delegates_to_core(
     monkeypatch: pytest.MonkeyPatch,
     factory: Callable[[], Any],
+    validator_name: str,
+    validator: Callable[[Any], Any],
 ) -> None:
-    validator = MagicMock(wraps=validate_temperature_in_interval)
-    monkeypatch.setattr(calculation_schemas, "validate_temperature_in_interval", validator)
+    validator_spy = MagicMock(wraps=validator)
+    monkeypatch.setattr(calculation_schemas, validator_name, validator_spy)
 
     factory()
 
-    validator.assert_called_once()
+    validator_spy.assert_called_once()
+    contract = validator_spy.call_args.args[0]
+    layers = getattr(contract, "layers", getattr(contract, "insulation_layers", ()))
+    interval = getattr(
+        layers[0],
+        "reference_temperature_interval_c",
+        getattr(layers[0], "reference_temperature_range_c", None),
+    )
+    assert interval == (-60.0, 400.0)
 
 
 @pytest.mark.parametrize(

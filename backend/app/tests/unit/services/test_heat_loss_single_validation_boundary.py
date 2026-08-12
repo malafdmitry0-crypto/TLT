@@ -66,14 +66,14 @@ def _tank() -> dict[str, object]:
         (
             "pipe",
             "StoredPipeHeatParams",
-            "validate_pipe_formula_domain",
+            "validate_pipe_contract",
             StoredPipeHeatParams,
             _pipe(),
         ),
         (
             "tank",
             "StoredTankHeatParams",
-            "validate_tank_formula_domain",
+            "validate_tank_contract",
             StoredTankHeatParams,
             _tank(),
         ),
