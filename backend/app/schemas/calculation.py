@@ -1,10 +1,12 @@
 """Схемы расчётов: вход/выход формул и API."""
 
+from collections.abc import Mapping
 from datetime import datetime
 from typing import Annotated, Any, Literal, cast
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
+from pydantic.functional_validators import ModelWrapValidatorHandler
 from pydantic_core import InitErrorDetails, PydanticCustomError
 
 from app.electrical_variant_limits import MAX_ELECTRICAL_VARIANTS
@@ -14,11 +16,25 @@ from app.formulas.heat_loss.core.insulation_validation import (
     validate_insulation_thickness,
 )
 from app.formulas.heat_loss.core.pipe import validate_pipe_formula_domain
+from app.formulas.heat_loss.core.pipe_validation import validate_pipe_input_ranges
 from app.formulas.heat_loss.core.tank import validate_tank_formula_domain
 from app.formulas.heat_loss.core.validation import (
     INSULATION_CONDUCTIVITY_RANGE,
     INSULATION_LAYER_COUNT_RANGE,
     INSULATION_THICKNESS_RANGE,
+    PIPE_AMBIENT_TEMPERATURE_RANGE,
+    PIPE_CENTERLINE_DEPTH_RANGE,
+    PIPE_CONDUCTIVITY_RANGE,
+    PIPE_GROUND_CONDUCTIVITY_RANGE,
+    PIPE_GROUND_TEMPERATURE_RANGE,
+    PIPE_LENGTH_RANGE,
+    PIPE_LOCAL_ELEMENT_EQUIVALENT_LENGTH_RANGE,
+    PIPE_LOCAL_ELEMENTS_COUNT_RANGE,
+    PIPE_OUTER_DIAMETER_RANGE,
+    PIPE_PROCESS_TEMPERATURE_RANGE,
+    PIPE_SAFETY_FACTOR_RANGE,
+    PIPE_WALL_THICKNESS_RANGE,
+    PIPE_WIND_SPEED_RANGE,
     FormulaValidationReport,
 )
 from app.formulas.heat_loss.insulation import (
@@ -34,6 +50,7 @@ from app.schemas.electrical_variant import (
 from app.schemas.heat_loss_core_validation import (
     numeric_range_json_schema,
     raise_range_field_error,
+    raise_range_validation_errors,
     sequence_length_schema_extra,
 )
 from app.schemas.project import (
@@ -130,6 +147,14 @@ def _raise_formula_domain_errors(
     raise ValidationError.from_exception_data(type(model).__name__, line_errors)
 
 
+def _raw_range_inputs(data: object) -> dict[tuple[str | int, ...], object]:
+    """Preserve submitted scalar values for native-shaped Pydantic errors."""
+
+    if not isinstance(data, Mapping):
+        return {}
+    return {(str(field),): value for field, value in data.items()}
+
+
 def _fmt_temp(value: float) -> str:
     return f"{value:g}"
 
@@ -204,6 +229,61 @@ InsulationConductivity = Annotated[
     float,
     numeric_range_json_schema(INSULATION_CONDUCTIVITY_RANGE, schema_type="number"),
 ]
+PipeOuterDiameter = Annotated[
+    float,
+    numeric_range_json_schema(PIPE_OUTER_DIAMETER_RANGE, schema_type="number"),
+]
+PipeWallThickness = Annotated[
+    float,
+    numeric_range_json_schema(PIPE_WALL_THICKNESS_RANGE, schema_type="number"),
+]
+PipeConductivity = Annotated[
+    float,
+    numeric_range_json_schema(PIPE_CONDUCTIVITY_RANGE, schema_type="number"),
+]
+PipeAmbientTemperature = Annotated[
+    float,
+    numeric_range_json_schema(PIPE_AMBIENT_TEMPERATURE_RANGE, schema_type="number"),
+]
+PipeProcessTemperature = Annotated[
+    float,
+    numeric_range_json_schema(PIPE_PROCESS_TEMPERATURE_RANGE, schema_type="number"),
+]
+PipeLength = Annotated[
+    float,
+    numeric_range_json_schema(PIPE_LENGTH_RANGE, schema_type="number"),
+]
+PipeCenterlineDepth = Annotated[
+    float,
+    numeric_range_json_schema(PIPE_CENTERLINE_DEPTH_RANGE, schema_type="number"),
+]
+PipeLocalElementsCount = Annotated[
+    int,
+    numeric_range_json_schema(PIPE_LOCAL_ELEMENTS_COUNT_RANGE, schema_type="integer"),
+]
+PipeLocalElementEquivalentLength = Annotated[
+    float,
+    numeric_range_json_schema(
+        PIPE_LOCAL_ELEMENT_EQUIVALENT_LENGTH_RANGE,
+        schema_type="number",
+    ),
+]
+PipeWindSpeed = Annotated[
+    float,
+    numeric_range_json_schema(PIPE_WIND_SPEED_RANGE, schema_type="number"),
+]
+PipeGroundConductivity = Annotated[
+    float,
+    numeric_range_json_schema(PIPE_GROUND_CONDUCTIVITY_RANGE, schema_type="number"),
+]
+PipeGroundTemperature = Annotated[
+    float,
+    numeric_range_json_schema(PIPE_GROUND_TEMPERATURE_RANGE, schema_type="number"),
+]
+PipeSafetyFactor = Annotated[
+    float,
+    numeric_range_json_schema(PIPE_SAFETY_FACTOR_RANGE, schema_type="number"),
+]
 
 
 class InsulationLayer(BaseModel):
@@ -273,24 +353,18 @@ class PipeHeatLossParams(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    outer_diameter: float = Field(
-        ge=0.0108,
-        le=3.0,
+    outer_diameter: PipeOuterDiameter = Field(
         description="d_tp — наружный диаметр трубы, м",
     )
-    wall_thickness: float = Field(
-        ge=0.0001,
-        le=0.04,
+    wall_thickness: PipeWallThickness = Field(
         description="delta_tp — толщина стенки трубы, м (0.1–40 мм)",
     )
     pipe_material: str | None = Field(
         default=None,
         description="Материал трубы: carbon_steel, stainless_304, copper, aluminum, plastic",
     )
-    pipe_lambda: float | None = Field(
+    pipe_lambda: PipeConductivity | None = Field(
         default=None,
-        gt=0,
-        le=400,
         description="lambda_tp — ручное задание теплопроводности трубы, Вт/(м·К)",
     )
 
@@ -300,15 +374,11 @@ class PipeHeatLossParams(BaseModel):
     )
 
     # --- Температуры ---
-    ambient_temperature: float | None = Field(
+    ambient_temperature: PipeAmbientTemperature | None = Field(
         default=None,
-        ge=-70.0,
-        le=70.0,
         description="T_os — температура окружающей среды, °C",
     )
-    process_temperature: float = Field(
-        ge=-90.0,
-        le=600.0,
+    process_temperature: PipeProcessTemperature = Field(
         description="T_zh — температура жидкости, °C",
     )
     insulation_temperature_basis: InsulationTemperatureBasis | None = Field(
@@ -319,53 +389,64 @@ class PipeHeatLossParams(BaseModel):
         ),
     )
 
-    pipe_length: float = Field(
-        ge=0.5,
-        le=200_000.0,
+    pipe_length: PipeLength = Field(
         description="L — длина трубопровода / секции, м",
     )
-    pipe_centerline_depth: float | None = Field(
+    pipe_centerline_depth: PipeCenterlineDepth | None = Field(
         default=None,
-        ge=0.0,
-        le=200.0,
         description="H — глубина заложения трубы, м",
     )
-    num_local_elements: int = Field(
+    num_local_elements: PipeLocalElementsCount = Field(
         default=0,
-        ge=0,
-        le=100,
         description="n_i — количество локальных элементов (фланцы и др.)",
     )
-    local_element_equiv_length: float | None = Field(
+    local_element_equiv_length: PipeLocalElementEquivalentLength | None = Field(
         default=None,
-        ge=0.1,
-        le=6.9,
         description="L_ekv — эквивалентная длина одного локального элемента, м",
     )
 
-    wind_speed: float | None = Field(
-        default=None, ge=0.0, le=20.0, description="v — скорость ветра, м/с"
-    )
-    ground_conductivity: float | None = Field(
+    wind_speed: PipeWindSpeed | None = Field(default=None, description="v — скорость ветра, м/с")
+    ground_conductivity: PipeGroundConductivity | None = Field(
         default=None,
-        ge=GROUND_CONDUCTIVITY_MIN,
-        le=GROUND_CONDUCTIVITY_MAX,
         description="lambda_gr — теплопроводность грунта, Вт/(м·К)",
     )
-    ground_temperature: float | None = Field(default=None, ge=-70.0, le=70.0)
-    safety_factor: float | None = Field(
+    ground_temperature: PipeGroundTemperature | None = Field(default=None)
+    safety_factor: PipeSafetyFactor | None = Field(
         default=None,
-        ge=1.0,
-        le=1.7,
         description="K — коэффициент запаса",
     )
     placement: Literal["indoor", "outdoor", "underground"]
 
-    @field_validator("insulation_layers")
+    @model_validator(mode="wrap")
     @classmethod
-    def check_insulation_layer_count(cls, value: list[InsulationLayer]) -> list[InsulationLayer]:
-        raise_range_field_error(validate_insulation_layer_count(len(value)))
-        return value
+    def check_input_ranges(
+        cls,
+        data: object,
+        handler: ModelWrapValidatorHandler["PipeHeatLossParams"],
+    ) -> "PipeHeatLossParams":
+        instance = handler(data)
+        report = validate_pipe_input_ranges(
+            outer_diameter=instance.outer_diameter,
+            wall_thickness=instance.wall_thickness,
+            pipe_lambda=instance.pipe_lambda,
+            ambient_temperature=instance.ambient_temperature,
+            process_temperature=instance.process_temperature,
+            pipe_length=instance.pipe_length,
+            pipe_centerline_depth=instance.pipe_centerline_depth,
+            num_local_elements=instance.num_local_elements,
+            local_element_equiv_length=instance.local_element_equiv_length,
+            wind_speed=instance.wind_speed,
+            ground_conductivity=instance.ground_conductivity,
+            ground_temperature=instance.ground_temperature,
+            safety_factor=instance.safety_factor,
+            insulation_layer_count=len(instance.insulation_layers),
+        )
+        raise_range_validation_errors(
+            model_name=cls.__name__,
+            report=report,
+            inputs=_raw_range_inputs(data),
+        )
+        return instance
 
     @model_validator(mode="after")
     def check_canonical_contract(self) -> "PipeHeatLossParams":
@@ -446,7 +527,7 @@ class PipeHeatLossParams(BaseModel):
 class StoredPipeHeatParams(PipeHeatLossParams):
     """Strict stored heat-owned pipe payload, including provenance metadata."""
 
-    safety_factor: float = Field(ge=1.0, le=1.7)
+    safety_factor: PipeSafetyFactor
     ground_type: str | None = None
     climate_key: str | None = None
     climate_city: str | None = None
