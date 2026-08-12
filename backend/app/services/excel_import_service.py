@@ -27,10 +27,9 @@ from app.models.specification import Specification
 from app.reference_data.loader import list_insulation_materials
 from app.services.calculation_service import build_heat_loss_error_payload
 from app.services.project_object_params import (
-    ProjectObjectParamsError,
     normalize_project_object_params,
-    prepare_project_object_params,
     reject_legacy_specification_object_params,
+    validate_and_canonicalize_project_object_params,
 )
 from app.services.project_service import (
     ProjectAccessError,
@@ -1205,12 +1204,16 @@ async def _add_rows(
                 sort_order=next_sort,
                 params=normalized_params,
             )
-            try:
-                obj.params = prepare_project_object_params(object_type, normalized_params)
-            except ProjectObjectParamsError as exc:
+            prepared = validate_and_canonicalize_project_object_params(
+                object_type,
+                normalized_params,
+            )
+            obj.params = prepared.params
+            if not prepared.report.is_valid:
+                validation_error = prepared.report.to_legacy_error()
                 obj.is_valid = False
                 obj.validation_errors = build_heat_loss_error_payload(
-                    exc,
+                    validation_error,
                     object_type=object_type,
                 )
             batch.append((obj, row))
