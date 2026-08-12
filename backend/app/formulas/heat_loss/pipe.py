@@ -11,13 +11,9 @@ q_total  = q_linear · L_eff · K  [Вт]
 """
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
-from app.formulas.heat_loss.common import (
-    merge_coefficients,
-    validate_positive,
-    validate_temperature_range,
-)
+from app.formulas.heat_loss.common import merge_coefficients
 from app.formulas.heat_loss.core.errors import FormulaDomainError
 from app.formulas.heat_loss.core.pipe import (
     AbovegroundPipeInput,
@@ -192,26 +188,23 @@ def calc_pipe_heat_loss(
         (L_eff), and `thermal_resistance` (R_total).
 
     Raises:
-        ValueError: невалидные входы (отрицательные/нулевые размеры, слишком
-            толстая стенка, H < r_out для подземной прокладки).
+        ValueError: ошибка справочных данных, допустимости рассчитанной
+            температуры слоя или численной области формулы.
 
     See Also:
         golden cases in unit tests
         docs/context/formulas-summary.md — краткий справочник
     """
-    validate_positive("Наружный диаметр", params.outer_diameter)
-    validate_positive("Длина трубы", params.pipe_length)
     layers = _resolve_layers(params)
-    for i, layer in enumerate(layers):
-        validate_positive(f"Толщина слоя изоляции #{i + 1}", layer.thickness)
 
-    environment_temperature = (
-        params.ground_temperature
-        if params.placement == "underground"
-        else params.ambient_temperature
+    environment_temperature = cast(
+        float,
+        (
+            params.ground_temperature
+            if params.placement == "underground"
+            else params.ambient_temperature
+        ),
     )
-    assert environment_temperature is not None
-    validate_temperature_range(environment_temperature, params.process_temperature)
     t_mean = (params.process_temperature + environment_temperature) / 2.0
     wall_conductivity = (
         params.pipe_lambda
@@ -227,9 +220,7 @@ def calc_pipe_heat_loss(
     resolved_layers: list[tuple[InsulationLayer, float, str]] = []
     for layer in layers:
         if layer.material == "other":
-            if layer.conductivity is None:
-                raise ValueError("Для материала изоляции 'other' необходимо задать λ слоя")
-            conductivity = layer.conductivity
+            conductivity = cast(float, layer.conductivity)
             conductivity_source = "manual"
         else:
             conductivity = get_insulation_conductivity(layer.material, insulation_tm)
@@ -245,10 +236,9 @@ def calc_pipe_heat_loss(
         for layer, conductivity, _ in resolved_layers
     )
     if params.placement == "underground":
-        assert params.pipe_centerline_depth is not None
-        assert params.ground_conductivity is not None
-        assert params.ground_temperature is not None
-        lambda_gr = params.ground_conductivity
+        centerline_depth = cast(float, params.pipe_centerline_depth)
+        ground_temperature = cast(float, params.ground_temperature)
+        lambda_gr = cast(float, params.ground_conductivity)
         try:
             core_result = calculate_underground_pipe(
                 UndergroundPipeInput(
@@ -257,19 +247,19 @@ def calc_pipe_heat_loss(
                     wall_conductivity_w_mk=wall_conductivity,
                     insulation_layers=numeric_layers,
                     process_temperature_c=params.process_temperature,
-                    ground_temperature_c=params.ground_temperature,
+                    ground_temperature_c=ground_temperature,
                     pipe_length_m=params.pipe_length,
                     local_elements_count=params.num_local_elements,
                     local_element_equiv_length_m=params.local_element_equiv_length or 0.0,
                     safety_factor=k,
-                    centerline_depth_m=params.pipe_centerline_depth,
+                    centerline_depth_m=centerline_depth,
                     ground_conductivity_w_mk=lambda_gr,
                 )
             )
         except FormulaDomainError as exc:
             _raise_pipe_core_error(exc)
     else:
-        assert params.ambient_temperature is not None
+        ambient_temperature = cast(float, params.ambient_temperature)
         alpha = calc_alpha_vnesh(params.wind_speed, params.placement)
         try:
             core_result = calculate_aboveground_pipe(
@@ -279,7 +269,7 @@ def calc_pipe_heat_loss(
                     wall_conductivity_w_mk=wall_conductivity,
                     insulation_layers=numeric_layers,
                     process_temperature_c=params.process_temperature,
-                    ambient_temperature_c=params.ambient_temperature,
+                    ambient_temperature_c=ambient_temperature,
                     pipe_length_m=params.pipe_length,
                     local_elements_count=params.num_local_elements,
                     local_element_equiv_length_m=params.local_element_equiv_length or 0.0,
