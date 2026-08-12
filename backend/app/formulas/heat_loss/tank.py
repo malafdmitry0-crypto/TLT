@@ -16,7 +16,6 @@ R_внеш (помещение): R = 1 / 9.0
 from dataclasses import dataclass
 from typing import Any, cast
 
-from app.formulas.heat_loss.common import validate_positive
 from app.formulas.heat_loss.core.errors import FormulaDomainError
 from app.formulas.heat_loss.core.tank import (
     AirTankHeatLossInput,
@@ -28,7 +27,7 @@ from app.formulas.heat_loss.core.tank import (
     calculate_air_tank_heat_loss,
     calculate_buried_tank_heat_loss,
 )
-from app.formulas.heat_loss.core.thermal import alpha_from_wind
+from app.formulas.heat_loss.core.thermal import alpha_from_wind, clamp_minimum, higher_temperature
 from app.formulas.heat_loss.insulation import resolve_insulation_tm
 from app.reference_data.loader import get_insulation_conductivity, get_insulation_temperature_range
 from app.schemas.calculation import InsulationLayer, TankHeatLossParams, TankHeatLossResult
@@ -48,11 +47,7 @@ def _fmt_temp(value: float) -> str:
 
 def _layer_temperature_range(layer: InsulationLayer) -> tuple[float, float]:
     if layer.material == "other":
-        if layer.temperature_range is None:
-            raise ValueError(
-                "Для материала изоляции 'other' необходимо задать temperature_range слоя"
-            )
-        min_temp, max_temp = layer.temperature_range
+        min_temp, max_temp = cast(tuple[float, float], layer.temperature_range)
         return float(min_temp), float(max_temp)
     return get_insulation_temperature_range(layer.material)
 
@@ -65,7 +60,7 @@ def _validate_layer_temperature_interval(
     t_cold: float,
 ) -> None:
     min_temp, max_temp = _layer_temperature_range(layer)
-    layer_hot_side = max(t_hot, t_cold)
+    layer_hot_side = higher_temperature(t_hot, t_cold)
     if min_temp <= layer_hot_side <= max_temp:
         return
     raise ValueError(
@@ -101,7 +96,7 @@ def _calc_alpha(params: TankHeatLossParams) -> float:
         return 9.0
     wind_speed = cast(float, params.wind_speed)
     return alpha_from_wind(
-        max(wind_speed, 0.0),
+        clamp_minimum(wind_speed, minimum=0.0),
         intercept=11.6,
         sqrt_coefficient=7.0,
     )
@@ -131,7 +126,7 @@ def _resolve_layer_resistances(
     insulation_tm: float,
 ) -> list[tuple[InsulationLayer, float, str]]:
     resolved_layers: list[tuple[InsulationLayer, float, str]] = []
-    for i, layer in enumerate(layers):
+    for layer in layers:
         if layer.material == "other":
             lambda_ins = cast(float, layer.conductivity)
             conductivity_source = "manual"
@@ -141,7 +136,6 @@ def _resolve_layer_resistances(
                 temperature=insulation_tm,
             )
             conductivity_source = "reference_data"
-        validate_positive(f"Теплопроводность изоляции слоя {i + 1}", lambda_ins)
         resolved_layers.append((layer, lambda_ins, conductivity_source))
     return resolved_layers
 

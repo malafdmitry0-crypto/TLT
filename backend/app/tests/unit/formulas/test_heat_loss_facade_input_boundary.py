@@ -79,7 +79,14 @@ def _underground_tank(**updates: object) -> dict[str, object]:
 
 INVALID_INPUTS = [
     pytest.param("pipe", _pipe(outer_diameter=0.0), id="pipe-outer-diameter"),
+    pytest.param("pipe", _pipe(outer_diameter="invalid"), id="pipe-outer-diameter-type"),
+    pytest.param(
+        "pipe",
+        _pipe(outer_diameter=0.108, wall_thickness=0.06),
+        id="pipe-wall-exceeds-radius",
+    ),
     pytest.param("pipe", _pipe(pipe_length=0.0), id="pipe-length"),
+    pytest.param("pipe", _pipe(safety_factor="invalid"), id="pipe-safety-factor-type"),
     pytest.param(
         "pipe",
         _pipe(insulation_layers=[{"thickness": 0.0, "material": "mineral_wool_boards_120"}]),
@@ -115,6 +122,11 @@ INVALID_INPUTS = [
     ),
     pytest.param(
         "pipe",
+        _underground_pipe(pipe_centerline_depth=0.09),
+        id="pipe-underground-shallow-depth",
+    ),
+    pytest.param(
+        "pipe",
         _underground_pipe(ground_conductivity=None),
         id="pipe-underground-ground-conductivity",
     ),
@@ -127,6 +139,11 @@ INVALID_INPUTS = [
         "pipe",
         _pipe(ambient_temperature=None),
         id="pipe-air-ambient-temperature",
+    ),
+    pytest.param(
+        "pipe",
+        _pipe(ambient_temperature="invalid", ambient_temperature_source="manual"),
+        id="pipe-manual-ambient-temperature-type",
     ),
     pytest.param(
         "tank",
@@ -192,6 +209,11 @@ INVALID_INPUTS = [
     ),
     pytest.param(
         "tank",
+        _underground_tank(tank_buried_height=3.1),
+        id="tank-buried-height-within-geometry",
+    ),
+    pytest.param(
+        "tank",
         _tank(diameter=None),
         id="tank-cylindrical-geometry",
     ),
@@ -205,6 +227,12 @@ INVALID_INPUTS = [
         _tank(wind_speed=None),
         id="tank-outdoor-wind",
     ),
+    pytest.param(
+        "tank",
+        _tank(wind_speed=-1.0),
+        id="tank-negative-wind",
+    ),
+    pytest.param("tank", _tank(safety_factor="invalid"), id="tank-safety-factor-type"),
 ]
 
 
@@ -220,10 +248,8 @@ async def test_invalid_raw_input_is_rejected_before_formula_facade(
     with pytest.raises(ValidationError):
         schema.model_validate(payload)
 
-    pipe_facade = MagicMock(name="calc_pipe_heat_loss")
-    tank_facade = MagicMock(name="calc_tank_heat_loss")
-    monkeypatch.setattr(calculation_service_module, "calc_pipe_heat_loss", pipe_facade)
-    monkeypatch.setattr(calculation_service_module, "calc_tank_heat_loss", tank_facade)
+    evaluator = MagicMock(name="evaluate_validated_heat_loss")
+    monkeypatch.setattr(calculation_service_module, "evaluate_validated_heat_loss", evaluator)
 
     project_payload = deepcopy(payload)
     project_payload["min_switch_temperature"] = -20.0
@@ -246,8 +272,7 @@ async def test_invalid_raw_input_is_rejected_before_formula_facade(
     assert obj.validation_errors is not None
     assert obj.validation_errors["category"] == "validation"
     assert obj.validation_errors["error_code"] == "invalid_object_params"
-    pipe_facade.assert_not_called()
-    tank_facade.assert_not_called()
+    evaluator.assert_not_called()
 
 
 def test_zero_values_allowed_by_the_contract_still_reach_facades(
@@ -259,10 +284,8 @@ def test_zero_values_allowed_by_the_contract_still_reach_facades(
     pipe_result.model_dump.return_value = {"kind": "pipe"}
     tank_result = MagicMock()
     tank_result.model_dump.return_value = {"kind": "tank"}
-    pipe_facade = MagicMock(return_value=pipe_result)
-    tank_facade = MagicMock(return_value=tank_result)
-    monkeypatch.setattr(calculation_service_module, "calc_pipe_heat_loss", pipe_facade)
-    monkeypatch.setattr(calculation_service_module, "calc_tank_heat_loss", tank_facade)
+    evaluator = MagicMock(side_effect=[pipe_result, tank_result])
+    monkeypatch.setattr(calculation_service_module, "evaluate_validated_heat_loss", evaluator)
     service = CalculationService(AsyncMock())
 
     pipe_payload = _pipe(num_local_elements=0, wind_speed=0.0)
@@ -274,8 +297,8 @@ def test_zero_values_allowed_by_the_contract_still_reach_facades(
     assert service._calc_heat_loss_with_coefficients(
         "tank", tank_payload, {}, apply_climate_policy=False
     ) == {"kind": "tank"}
-    passed_pipe = pipe_facade.call_args.args[0]
-    passed_tank = tank_facade.call_args.args[0]
+    passed_pipe = evaluator.call_args_list[0].args[0]
+    passed_tank = evaluator.call_args_list[1].args[0]
     assert passed_pipe.num_local_elements == 0
     assert passed_pipe.wind_speed == 0.0
     assert passed_tank.wind_speed == 0.0

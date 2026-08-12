@@ -22,8 +22,7 @@ from app.electrical_input_validation import (
 )
 from app.formulas.electrical.cable_geometry import compute_tank_cable_length
 from app.formulas.electrical.self_regulating import calc_self_regulating_tt
-from app.formulas.heat_loss.pipe import calc_pipe_heat_loss
-from app.formulas.heat_loss.tank import calc_tank_heat_loss
+from app.formulas.heat_loss.evaluator import evaluate_validated_heat_loss
 from app.models.background_task import BackgroundTask
 from app.schemas.calculation import (
     CalculationTaskResponse,
@@ -716,11 +715,11 @@ async def formula_check(
         if data.formula_type in PROCESS_TEMPERATURE_REQUIRED_FORMULA_TYPES:
             ensure_process_temperature(params_data)
         if data.formula_type == "pipe":
-            params = PipeHeatLossParams(**params_data)
-            result = calc_pipe_heat_loss(params).model_dump()
+            pipe_params = PipeHeatLossParams(**params_data)
+            result = evaluate_validated_heat_loss(pipe_params).model_dump()
         elif data.formula_type == "tank":
-            params = TankHeatLossParams(**params_data)
-            result = calc_tank_heat_loss(params).model_dump()
+            tank_params = TankHeatLossParams(**params_data)
+            result = evaluate_validated_heat_loss(tank_params).model_dump()
         elif data.formula_type == "electrical_tt":
             params = SelfRegulatingTTParams(**params_data)
             result = calc_self_regulating_tt(params).model_dump()
