@@ -13,11 +13,22 @@ R_внеш (помещение): R = 1 / 9.0
   q_ground = ΔT / (δ_р/λ_р + Σδ_из/λ_из + h/λ_гр)
 """
 
-import math
 from dataclasses import dataclass
 from typing import Any
 
 from app.formulas.heat_loss.common import validate_positive, validate_temperature_range
+from app.formulas.heat_loss.core.errors import FormulaDomainError
+from app.formulas.heat_loss.core.tank import (
+    AirTankHeatLossInput,
+    BuriedTankHeatLossInput,
+    CylindricalTankGeometry,
+    RectangularTankGeometry,
+    TankInsulationLayer,
+    TankLayerBoundaryTemperature,
+    calculate_air_tank_heat_loss,
+    calculate_buried_tank_heat_loss,
+)
+from app.formulas.heat_loss.core.thermal import alpha_from_wind
 from app.formulas.heat_loss.insulation import resolve_insulation_tm
 from app.reference_data.loader import get_insulation_conductivity, get_insulation_temperature_range
 from app.schemas.calculation import InsulationLayer, TankHeatLossParams, TankHeatLossResult
@@ -67,74 +78,17 @@ def _validate_layer_temperature_interval(
 def _validate_layer_temperatures(
     layer_resistances: list[_LayerResistance],
     *,
-    heat_flux: float,
-    hot_side_temperature: float,
+    layer_boundary_temperatures: tuple[TankLayerBoundaryTemperature, ...],
 ) -> None:
-    current_temperature = hot_side_temperature
-    for index, layer_resistance in enumerate(layer_resistances):
-        next_temperature = current_temperature - heat_flux * layer_resistance.resistance
+    for index, (layer_resistance, boundary) in enumerate(
+        zip(layer_resistances, layer_boundary_temperatures, strict=True)
+    ):
         _validate_layer_temperature_interval(
             layer_resistance.layer,
             index=index,
-            t_hot=current_temperature,
-            t_cold=next_temperature,
+            t_hot=boundary.hot_side_c,
+            t_cold=boundary.cold_side_c,
         )
-        current_temperature = next_temperature
-
-
-def _surface_area(params: TankHeatLossParams) -> float:
-    """Площадь внешней поверхности ёмкости, м².
-
-    Цилиндр:       S = π·d·H + 2·π·(d/2)²   (боковая + 2 крышки)
-    Параллелепипед: S = 2·(L·W + L·H + W·H)
-    """
-    if params.shape == "cylindrical":
-        if params.diameter is None or params.height is None:
-            raise ValueError("Для цилиндра требуются diameter и height")
-        d, h = params.diameter, params.height
-        return math.pi * d * h + 2 * math.pi * (d / 2) ** 2
-    if params.shape == "rectangular":
-        if not all([params.length, params.width, params.height]):
-            raise ValueError("Для параллелепипеда требуются length, width, height")
-        assert params.length and params.width and params.height
-        length, w, h = params.length, params.width, params.height
-        return 2 * (length * w + length * h + w * h)
-    raise ValueError(f"Неизвестная форма ёмкости: {params.shape}")
-
-
-def _surface_area_split(params: TankHeatLossParams, buried_height: float) -> tuple[float, float]:
-    """Площади надземной и подземной частей резервуара по ТНП.
-
-    Возвращает `(S_air, S_ground)`.
-    """
-    if params.height is None:
-        raise ValueError("Для подземного резервуара требуется height")
-    h_total = params.height
-    if buried_height > h_total:
-        raise ValueError("Высота подземной части не может превышать высоту резервуара")
-
-    h_air = h_total - buried_height
-    if params.shape == "cylindrical":
-        if params.diameter is None:
-            raise ValueError("Для цилиндра требуется diameter")
-        d = params.diameter
-        cap_area = math.pi * d**2 / 4
-        return cap_area + math.pi * d * h_air, cap_area + math.pi * d * buried_height
-
-    if params.shape == "rectangular":
-        if params.length is None or params.width is None:
-            raise ValueError("Для параллелепипеда требуются length, width, height")
-        length, width = params.length, params.width
-        cap_area = length * width
-        perimeter_area_factor = 2 * (length + width)
-        return (
-            perimeter_area_factor * h_air + cap_area,
-            perimeter_area_factor * buried_height + cap_area,
-        )
-
-    raise ValueError(
-        "Подземный расчёт резервуара задан в ТНП для круглого и прямоугольного сечения"
-    )
 
 
 def _calc_alpha(params: TankHeatLossParams) -> float:
@@ -147,20 +101,38 @@ def _calc_alpha(params: TankHeatLossParams) -> float:
         return 9.0
     if params.wind_speed is None:
         raise ValueError("Для автоматического alpha_vnesh требуется wind_speed")
-    v = max(params.wind_speed, 0.0)
-    return 11.6 + 7.0 * math.sqrt(v)
+    return alpha_from_wind(
+        max(params.wind_speed, 0.0),
+        intercept=11.6,
+        sqrt_coefficient=7.0,
+    )
 
 
 def _resolve_layers(params: TankHeatLossParams) -> list[InsulationLayer]:
     return list(params.insulation_layers)
 
 
-def _r_insulation_layers(
+def _tank_geometry(
+    params: TankHeatLossParams,
+) -> CylindricalTankGeometry | RectangularTankGeometry:
+    if params.shape == "cylindrical":
+        if params.diameter is None or params.height is None:
+            raise ValueError("Для цилиндра требуются diameter и height")
+        return CylindricalTankGeometry(diameter_m=params.diameter, height_m=params.height)
+    if params.length is None or params.width is None or params.height is None:
+        raise ValueError("Для параллелепипеда требуются length, width, height")
+    return RectangularTankGeometry(
+        length_m=params.length,
+        width_m=params.width,
+        height_m=params.height,
+    )
+
+
+def _resolve_layer_resistances(
     layers: list[InsulationLayer],
     insulation_tm: float,
-) -> tuple[float, list[_LayerResistance]]:
-    r_ins = 0.0
-    layer_resistances: list[_LayerResistance] = []
+) -> list[tuple[InsulationLayer, float, str]]:
+    resolved_layers: list[tuple[InsulationLayer, float, str]] = []
     for i, layer in enumerate(layers):
         validate_positive(f"Толщина изоляции слоя {i + 1}", layer.thickness)
         if layer.material == "other":
@@ -175,17 +147,8 @@ def _r_insulation_layers(
             )
             conductivity_source = "reference_data"
         validate_positive(f"Теплопроводность изоляции слоя {i + 1}", lambda_ins)
-        resistance = layer.thickness / lambda_ins
-        r_ins += resistance
-        layer_resistances.append(
-            _LayerResistance(
-                layer=layer,
-                resistance=resistance,
-                conductivity=lambda_ins,
-                conductivity_source=conductivity_source,
-            )
-        )
-    return r_ins, layer_resistances
+        resolved_layers.append((layer, lambda_ins, conductivity_source))
+    return resolved_layers
 
 
 def calc_tank_heat_loss(
@@ -224,15 +187,16 @@ def calc_tank_heat_loss(
         raise ValueError("Для резервуара требуется ambient_temperature")
     validate_temperature_range(params.ambient_temperature, params.process_temperature)
 
-    # --- 1. Сопротивление стенки резервуара ---
-    r_wall = 0.0
+    # The facade keeps form validation and reference-data resolution.  The core
+    # receives only resolved numeric SI values.
+    wall_thickness = 0.0
+    wall_conductivity = 1.0
     if params.wall_thickness is not None and params.wall_lambda is not None:
         validate_positive("Толщина стенки резервуара", params.wall_thickness)
         validate_positive("Теплопроводность стенки резервуара", params.wall_lambda)
-        r_wall = params.wall_thickness / params.wall_lambda
+        wall_thickness = params.wall_thickness
+        wall_conductivity = params.wall_lambda
 
-    # --- 2. Сопротивление изоляции (плоская стенка) ---
-    r_ins = 0.0
     layers = _resolve_layers(params)
     if len(layers) > 3:
         raise ValueError("Максимальное количество слоёв изоляции: 3 (N_iz ≤ 3)")
@@ -242,91 +206,101 @@ def calc_tank_heat_loss(
         location="indoor" if params.placement == "indoor" else "outdoor",
         placement=params.placement,
     )
-    r_ins, layer_resistances = _r_insulation_layers(layers, insulation_tm)
-
-    # --- 3. Внешнее сопротивление ---
+    resolved_layers = _resolve_layer_resistances(layers, insulation_tm)
+    numeric_layers = tuple(
+        TankInsulationLayer(thickness_m=layer.thickness, conductivity_w_mk=conductivity)
+        for layer, conductivity, _ in resolved_layers
+    )
     alpha = _calc_alpha(params)
-    r_ext = 1.0 / alpha
-
-    # --- 7. Коэффициент запаса ---
     k = params.safety_factor
-
-    r_common = r_wall + r_ins
     buried_height = params.tank_buried_height or 0.0
-    lambda_gr: float | None = None
-    r_ground: float | None = None
-    s_air: float | None = None
-    s_ground: float | None = None
-    q_air: float | None = None
-    q_ground: float | None = None
+    q_additional = getattr(params, "q_additional", 0.0) or 0.0
     if buried_height > 0:
         if params.ground_temperature is None:
             raise ValueError("Для underground требуется ground_temperature")
         if params.ground_conductivity is None:
             raise ValueError("Для underground требуется ground_conductivity")
-        lambda_gr = params.ground_conductivity
-        validate_positive("Теплопроводность грунта", lambda_gr)
-        s_air, s_ground = _surface_area_split(params, buried_height)
-        q_air = (params.process_temperature - params.ambient_temperature) / (r_common + r_ext)
-        r_ground = buried_height / lambda_gr
-        q_ground = (params.process_temperature - params.ground_temperature) / (r_common + r_ground)
-        for heat_flux in (q_air, q_ground):
-            _validate_layer_temperatures(
-                layer_resistances,
-                heat_flux=heat_flux,
-                hot_side_temperature=params.process_temperature - heat_flux * r_wall,
+        validate_positive("Теплопроводность грунта", params.ground_conductivity)
+        try:
+            core_result = calculate_buried_tank_heat_loss(
+                BuriedTankHeatLossInput(
+                    geometry=_tank_geometry(params),
+                    wall_thickness_m=wall_thickness,
+                    wall_conductivity_w_mk=wall_conductivity,
+                    insulation_layers=numeric_layers,
+                    process_temperature_c=params.process_temperature,
+                    ambient_temperature_c=params.ambient_temperature,
+                    ground_temperature_c=params.ground_temperature,
+                    external_alpha_w_m2k=alpha,
+                    buried_height_m=buried_height,
+                    ground_conductivity_w_mk=params.ground_conductivity,
+                    safety_factor=k,
+                    additional_heat_loss_w=q_additional,
+                )
             )
-        area = s_air + s_ground
-        q_base_total = q_air * s_air + q_ground * s_ground
-        q_total = q_base_total * k
-        q_per_m2 = q_base_total / area
-        effective_resistance = (params.process_temperature - params.ambient_temperature) / q_per_m2
+        except FormulaDomainError as exc:
+            raise ValueError(str(exc)) from exc
     else:
-        # --- 4–5. Тепловой поток на м² ---
-        r_total = r_common + r_ext
-        delta_t = params.process_temperature - params.ambient_temperature
-        q_per_m2 = delta_t / r_total
+        try:
+            core_result = calculate_air_tank_heat_loss(
+                AirTankHeatLossInput(
+                    geometry=_tank_geometry(params),
+                    wall_thickness_m=wall_thickness,
+                    wall_conductivity_w_mk=wall_conductivity,
+                    insulation_layers=numeric_layers,
+                    process_temperature_c=params.process_temperature,
+                    ambient_temperature_c=params.ambient_temperature,
+                    external_alpha_w_m2k=alpha,
+                    safety_factor=k,
+                    additional_heat_loss_w=q_additional,
+                )
+            )
+        except FormulaDomainError as exc:
+            raise ValueError(str(exc)) from exc
+
+    layer_resistances = [
+        _LayerResistance(
+            layer=layer,
+            resistance=resistance,
+            conductivity=conductivity,
+            conductivity_source=conductivity_source,
+        )
+        for (layer, conductivity, conductivity_source), resistance in zip(
+            resolved_layers,
+            core_result.layer_resistances_areal_m2k_w,
+            strict=True,
+        )
+    ]
+    _validate_layer_temperatures(
+        layer_resistances,
+        layer_boundary_temperatures=core_result.air_layer_boundary_temperatures,
+    )
+    if buried_height > 0:
         _validate_layer_temperatures(
             layer_resistances,
-            heat_flux=q_per_m2,
-            hot_side_temperature=params.process_temperature - q_per_m2 * r_wall,
+            layer_boundary_temperatures=core_result.ground_layer_boundary_temperatures,
         )
 
-        # --- 6. Площадь ---
-        area = _surface_area(params)
-
-        # --- 8. Итоговые теплопотери ---
-        q_base_total = q_per_m2 * area
-        q_total = q_base_total * k
-        effective_resistance = r_total
-
-    q_additional = getattr(params, "q_additional", 0.0) or 0.0
-    q_total += q_additional
-
     return TankHeatLossResult(
-        total_heat_loss_base=q_base_total,
-        total_heat_loss_design=q_total,
-        heat_loss_per_m2_bare_base=q_per_m2,
-        heat_loss_per_m2_bare_design=q_total / area,
-        surface_area_bare=area,
-        thermal_resistance_areal_bare=None if buried_height > 0 else effective_resistance,
-        wall_resistance_areal_bare=r_wall,
-        insulation_resistance_areal_bare=r_ins,
-        external_resistance_areal_bare=r_ext,
-        ground_resistance_areal_bare=r_ground,
+        total_heat_loss_base=core_result.total_heat_loss_base_w,
+        total_heat_loss_design=core_result.total_heat_loss_design_w,
+        heat_loss_per_m2_bare_base=core_result.heat_loss_per_m2_base_w_m2,
+        heat_loss_per_m2_bare_design=core_result.heat_loss_per_m2_design_w_m2,
+        surface_area_bare=core_result.surface_area_m2,
+        thermal_resistance_areal_bare=core_result.thermal_resistance_areal_m2k_w,
+        wall_resistance_areal_bare=core_result.wall_resistance_areal_m2k_w,
+        insulation_resistance_areal_bare=core_result.insulation_resistance_areal_m2k_w,
+        external_resistance_areal_bare=core_result.external_resistance_areal_m2k_w,
+        ground_resistance_areal_bare=core_result.ground_resistance_areal_m2k_w,
         alpha_vnesh_applied=alpha,
         wind_speed_applied=(params.wind_speed if params.placement != "indoor" else None),
-        ground_conductivity_applied=lambda_gr,
+        ground_conductivity_applied=(params.ground_conductivity if buried_height > 0 else None),
         safety_factor_applied=k,
         q_additional_applied=q_additional,
-        air_surface_area=s_air,
-        ground_surface_area=s_ground,
-        heat_loss_air_base=(
-            q_air * s_air if q_air is not None and s_air is not None else None
-        ),
-        heat_loss_ground_base=(
-            q_ground * s_ground if q_ground is not None and s_ground is not None else None
-        ),
+        air_surface_area=core_result.air_surface_area_m2,
+        ground_surface_area=core_result.ground_surface_area_m2,
+        heat_loss_air_base=core_result.heat_loss_air_base_w,
+        heat_loss_ground_base=core_result.heat_loss_ground_base_w,
         formula_model="tank_heat_loss",
         formula_model_version="3",
         model_assumptions=["plane_wall_resistance_for_cylindrical_and_rectangular_tank"],
