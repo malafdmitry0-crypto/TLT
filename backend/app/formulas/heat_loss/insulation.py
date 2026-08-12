@@ -6,7 +6,9 @@ the average of product and ambient temperatures.
 
 from typing import Literal
 
-from app.formulas.heat_loss.core.thermal import arithmetic_mean, quotient
+from app.formulas.heat_loss.core.insulation_temperature import (
+    calculate_insulation_temperature,
+)
 
 InsulationTemperatureBasis = Literal[
     "indoor",
@@ -140,7 +142,14 @@ def resolve_insulation_tm(
         placement=placement,
     )
     if resolved == "outdoor_winter":
-        return quotient(process_temperature, divisor=2.0)
+        return calculate_insulation_temperature(
+            process_temperature,
+            formula="half_process",
+        )
     if resolved in WARM_40_BASES:
-        return arithmetic_mean(process_temperature, 40.0)
+        return calculate_insulation_temperature(
+            process_temperature,
+            formula="mean_with_reference",
+            reference_temperature_c=40.0,
+        )
     raise ValueError(f"Неизвестный режим температуры изоляции: {resolved}")
