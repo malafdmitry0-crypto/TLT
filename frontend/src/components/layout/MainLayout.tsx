@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Layout, Space } from 'antd';
-import { DatabaseOutlined, FireFilled, LogoutOutlined, QuestionCircleOutlined } from '@ant-design/icons';
+import { DatabaseOutlined, LogoutOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import { Outlet, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import ProjectMenu from './ProjectMenu';
@@ -80,9 +80,14 @@ export default function MainLayout({ children }: Props) {
     <Layout className="main-layout">
       <Header className="heatcalc-header">
         <div className="heatcalc-primary-row">
-          <div className="heatcalc-brand" aria-label="HeatCalc">
-            <FireFilled className="heatcalc-brand-icon" />
-            <h2 className="heatcalc-title">HeatCalc</h2>
+          <div className="heatcalc-brand" aria-label="Alfa Heat Desin">
+            <img
+              className="heatcalc-brand-logo"
+              src="/alfa-heat-design-logo.jpg"
+              alt=""
+              aria-hidden="true"
+            />
+            <h2 className="heatcalc-title">Alfa Heat Desin</h2>
           </div>
           <nav className="heatcalc-primary-nav" aria-label="Разделы проекта">
             <Sidebar />

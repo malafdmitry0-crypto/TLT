@@ -36,6 +36,20 @@ describe('HomePage', () => {
     expect(screen.getAllByText(/как администратор/i)[0]).toBeInTheDocument();
   });
 
+  it('shows the Alfa Heat Desin brand', () => {
+    render(
+      <TestMemoryRouter>
+        <HomePage />
+      </TestMemoryRouter>
+    );
+
+    expect(screen.getByRole('img', { name: /Alfa Heat Desin/i })).toHaveAttribute(
+      'src',
+      '/alfa-heat-design-logo.jpg'
+    );
+    expect(screen.getByRole('heading', { name: 'Alfa Heat Desin' })).toBeInTheDocument();
+  });
+
   it('FA-11 / PDL-ER-42: guest TTL 3 days; temporary server project, not account catalog', () => {
     render(
       <TestMemoryRouter>
