@@ -127,8 +127,8 @@ def test_numeric_schema_metadata_keeps_bounds_in_optional_numeric_branch() -> No
 
     schema = Model.model_json_schema()
     assert schema["properties"]["required_number"] == {
-        "exclusiveMinimum": 1,
-        "maximum": 3,
+        "exclusiveMinimum": 1.0,
+        "maximum": 3.0,
         "title": "Required Number",
         "type": "number",
     }
