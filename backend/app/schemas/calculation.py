@@ -1,16 +1,26 @@
 """Схемы расчётов: вход/выход формул и API."""
 
 from datetime import datetime
-from typing import Any, Literal, cast
+from typing import Annotated, Any, Literal, cast
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 from pydantic_core import InitErrorDetails, PydanticCustomError
 
 from app.electrical_variant_limits import MAX_ELECTRICAL_VARIANTS
+from app.formulas.heat_loss.core.insulation_validation import (
+    validate_insulation_conductivity,
+    validate_insulation_layer_count,
+    validate_insulation_thickness,
+)
 from app.formulas.heat_loss.core.pipe import validate_pipe_formula_domain
 from app.formulas.heat_loss.core.tank import validate_tank_formula_domain
-from app.formulas.heat_loss.core.validation import FormulaValidationReport
+from app.formulas.heat_loss.core.validation import (
+    INSULATION_CONDUCTIVITY_RANGE,
+    INSULATION_LAYER_COUNT_RANGE,
+    INSULATION_THICKNESS_RANGE,
+    FormulaValidationReport,
+)
 from app.formulas.heat_loss.insulation import (
     InsulationTemperatureBasis,
     validate_insulation_temperature_basis_for_placement,
@@ -20,6 +30,11 @@ from app.schemas.electrical_assignment import ElectricalAssignmentResponse
 from app.schemas.electrical_variant import (
     ElectricalAssignmentState,
     ElectricalSystemType,
+)
+from app.schemas.heat_loss_core_validation import (
+    numeric_range_json_schema,
+    raise_range_field_error,
+    sequence_length_schema_extra,
 )
 from app.schemas.project import (
     ObjectQueryDefaultSort,
@@ -181,23 +196,44 @@ def _validate_insulation_temperature_basis_for_location(
     )
 
 
+InsulationThickness = Annotated[
+    float,
+    numeric_range_json_schema(INSULATION_THICKNESS_RANGE, schema_type="number"),
+]
+InsulationConductivity = Annotated[
+    float,
+    numeric_range_json_schema(INSULATION_CONDUCTIVITY_RANGE, schema_type="number"),
+]
+
+
 class InsulationLayer(BaseModel):
     """Один слой тепловой изоляции (для многослойного расчёта)."""
 
     model_config = ConfigDict(extra="forbid")
 
-    thickness: float = Field(gt=0, le=0.5, description="Толщина слоя, м (до 500 мм)")
+    thickness: InsulationThickness = Field(description="Толщина слоя, м (до 500 мм)")
     material: str = Field(min_length=1, description="Код материала из справочника")
-    conductivity: float | None = Field(
+    conductivity: InsulationConductivity | None = Field(
         default=None,
-        gt=0,
-        le=400.0,
         description="λ слоя, Вт/(м·К) — используется только для материала 'other'",
     )
     temperature_range: tuple[float, float] | None = Field(
         default=None,
         description="Температурный диапазон применения слоя, °C — справочные метаданные",
     )
+
+    @field_validator("thickness")
+    @classmethod
+    def check_thickness_range(cls, value: float) -> float:
+        raise_range_field_error(validate_insulation_thickness(value))
+        return value
+
+    @field_validator("conductivity")
+    @classmethod
+    def check_conductivity_range(cls, value: float | None) -> float | None:
+        if value is not None:
+            raise_range_field_error(validate_insulation_conductivity(value))
+        return value
 
     @model_validator(mode="after")
     def check_material_contract(self) -> "InsulationLayer":
@@ -259,9 +295,8 @@ class PipeHeatLossParams(BaseModel):
     )
 
     insulation_layers: list[InsulationLayer] = Field(
-        min_length=1,
-        max_length=3,
         description="N_iz — единственный канонический список слоёв изоляции (1–3)",
+        json_schema_extra=sequence_length_schema_extra(INSULATION_LAYER_COUNT_RANGE),
     )
 
     # --- Температуры ---
@@ -325,6 +360,12 @@ class PipeHeatLossParams(BaseModel):
         description="K — коэффициент запаса",
     )
     placement: Literal["indoor", "outdoor", "underground"]
+
+    @field_validator("insulation_layers")
+    @classmethod
+    def check_insulation_layer_count(cls, value: list[InsulationLayer]) -> list[InsulationLayer]:
+        raise_range_field_error(validate_insulation_layer_count(len(value)))
+        return value
 
     @model_validator(mode="after")
     def check_canonical_contract(self) -> "PipeHeatLossParams":
@@ -508,7 +549,9 @@ class TankHeatLossParams(BaseModel):
     height: float | None = Field(default=None, ge=TANK_HEIGHT_MIN, le=TANK_HEIGHT_MAX)
     length: float | None = Field(default=None, ge=TANK_SIDE_MIN, le=TANK_SIDE_MAX)
     width: float | None = Field(default=None, ge=TANK_SIDE_MIN, le=TANK_SIDE_MAX)
-    insulation_layers: list[InsulationLayer] = Field(min_length=1, max_length=3)
+    insulation_layers: list[InsulationLayer] = Field(
+        json_schema_extra=sequence_length_schema_extra(INSULATION_LAYER_COUNT_RANGE)
+    )
     ambient_temperature: float | None = Field(default=None, ge=-70.0, le=70.0)
     ground_temperature: float | None = Field(default=None, ge=-70.0, le=70.0)
     process_temperature: float = Field(ge=-90.0, le=600.0)
@@ -562,6 +605,12 @@ class TankHeatLossParams(BaseModel):
         ge=0,
         description="Q_доп — дополнительные теплопотери (днище, фланцы и пр.), Вт",
     )
+
+    @field_validator("insulation_layers")
+    @classmethod
+    def check_insulation_layer_count(cls, value: list[InsulationLayer]) -> list[InsulationLayer]:
+        raise_range_field_error(validate_insulation_layer_count(len(value)))
+        return value
 
     @field_validator("shape", mode="before")
     @classmethod

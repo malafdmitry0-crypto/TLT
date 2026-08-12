@@ -66,6 +66,10 @@ def test_numeric_range_rejects_non_finite_values(value: float) -> None:
 
     assert [issue.code for issue in report.issues] == ["not_finite"]
     reported_value = report.issues[0].details_dict()["value"]
+    assert report.issues[0].details_dict()["minimum"] == -90
+    assert report.issues[0].details_dict()["maximum"] == 600
+    assert report.issues[0].details_dict()["minimum_inclusive"] == 1
+    assert report.issues[0].details_dict()["maximum_inclusive"] == 1
     if math.isnan(value):
         assert math.isnan(reported_value)
     else:
