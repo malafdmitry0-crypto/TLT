@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 from typing import Any
 from uuid import UUID
@@ -44,13 +45,38 @@ class ProjectDisplaySettingsTooLargeError(Exception):
         self.limit_bytes = limit_bytes
 
 
+def strip_retired_heatcalc_columns(settings: dict[str, Any]) -> dict[str, Any]:
+    """Remove retired table keys while preserving every unrelated display setting."""
+    canonical = copy.deepcopy(settings)
+    heatcalc = canonical.get("heatcalc")
+    if not isinstance(heatcalc, dict):
+        return canonical
+    table_columns = heatcalc.get("tableColumns")
+    if not isinstance(table_columns, dict):
+        return canonical
+    types = table_columns.get("types")
+    if not isinstance(types, dict):
+        return canonical
+    for type_settings in types.values():
+        if not isinstance(type_settings, dict):
+            continue
+        visible_order = type_settings.get("visibleOrder")
+        if isinstance(visible_order, list):
+            type_settings["visibleOrder"] = [key for key in visible_order if key != "pipe_dn"]
+        columns = type_settings.get("columns")
+        if isinstance(columns, dict):
+            columns.pop("pipe_dn", None)
+    return canonical
+
+
 def canonicalize_display_settings(payload: ProjectDisplaySettingsPayload) -> dict[str, Any]:
     """Канонический payload: только заданные области, без серверных дефолтов.
 
     Пустой dict области (`{}`) сохраняется — это явный сброс, не отсутствие.
     """
     data = payload.model_dump(mode="json")
-    return {key: data[key] for key in DISPLAY_SETTINGS_WORKSPACES if data.get(key) is not None}
+    present = {key: data[key] for key in DISPLAY_SETTINGS_WORKSPACES if data.get(key) is not None}
+    return strip_retired_heatcalc_columns(present)
 
 
 def display_settings_canonical_size(canonical: dict[str, Any]) -> int:
@@ -80,7 +106,7 @@ class ProjectDisplaySettingsService:
         return ProjectDisplaySettingsResponse(
             project_id=project_id,
             version=int(project.display_settings_version or 0),
-            settings=dict(project.display_settings or {}),
+            settings=strip_retired_heatcalc_columns(dict(project.display_settings or {})),
         )
 
     async def update(

@@ -47,7 +47,7 @@ function SampleFields() {
         <TltNumberField aria-label="Давление" unit="МПа" defaultValue={1.2} />
       </CompactField>
       <CompactField label="Наименование" controlWidth="var(--tlt-field-ctrl-name)">
-        <TltTextField aria-label="Наименование" defaultValue="Труба DN100" />
+        <TltTextField aria-label="Наименование" defaultValue="Труба Ø114 мм" />
       </CompactField>
       <CompactField label="Материал" required controlWidth="var(--tlt-field-ctrl-climate)">
         <TltSelect

@@ -1,7 +1,6 @@
 import type { HeatCalcTableColumnRenderSpec } from '@/hooks/useHeatCalcTableColumns';
 import type { ProjectObject } from '@/types/project';
 import { formatNumber } from '@/utils/formatters';
-import { findDN } from '@/utils/objectWizardUtils';
 import type { HeatCalcColumnKey } from '@/utils/heatCalcTableColumns';
 import {
   booleanChoiceLabel,
@@ -39,14 +38,6 @@ function outerDiameterMm(record: ProjectObject) {
   return Number.isFinite(value) ? value : null;
 }
 
-function dnValue(record: ProjectObject) {
-  if (record.object_type !== 'pipe') return '—';
-  const diameter = outerDiameterMm(record);
-  if (diameter == null) return '—';
-  const dn = findDN(diameter);
-  return dn != null ? `DN${dn}` : '—';
-}
-
 export function buildHeatCalcColumnRenderers({
   insulationLabel,
 }: HeatCalcColumnRendererDeps): Record<HeatCalcColumnKey, HeatCalcTableColumnRenderSpec> {
@@ -61,10 +52,6 @@ export function buildHeatCalcColumnRenderers({
         const diameter = outerDiameterMm(r);
         return diameter != null ? formatNumber(diameter, 0) : '—';
       },
-    },
-    pipe_dn: {
-      render: (_: unknown, r: ProjectObject) => dnValue(r),
-      copyValue: (r) => dnValue(r),
     },
     pipe_length: {
       render: (_: unknown, r: ProjectObject) => formatParamNumber(r, 'pipe_length', 1),

@@ -80,39 +80,6 @@ class SqlOrderSpec:
     order_by: list[Any]
 
 
-DN_TABLE: tuple[tuple[float, int], ...] = (
-    (10.2, 6),
-    (13.5, 8),
-    (17.2, 10),
-    (21.3, 15),
-    (26.9, 20),
-    (33.7, 25),
-    (42.3, 32),
-    (48.3, 40),
-    (60.3, 50),
-    (76.1, 65),
-    (88.9, 80),
-    (101.6, 90),
-    (114.3, 100),
-    (127.0, 110),
-    (139.7, 125),
-    (168.3, 150),
-    (193.7, 175),
-    (219.1, 200),
-    (244.5, 225),
-    (273.0, 250),
-    (323.9, 300),
-    (355.6, 350),
-    (406.4, 400),
-    (457.0, 450),
-    (508.0, 500),
-    (610.0, 600),
-    (711.0, 700),
-    (813.0, 800),
-    (914.0, 900),
-    (1016.0, 1000),
-)
-
 PLACEMENT_OPTIONS = (
     ("outdoor", "Открыто"),
     ("indoor", "В помещении"),
@@ -204,24 +171,6 @@ def _layer_m_as_mm(index: int, key: str) -> Callable[[ProjectObject], Any]:
 def _insulation_layer_count(obj: ProjectObject) -> int:
     layers = obj.params.get("insulation_layers")
     return len(layers) if isinstance(layers, list) else 0
-
-
-def _find_dn(outer_diameter_mm: float | None) -> int | None:
-    if outer_diameter_mm is None or outer_diameter_mm <= 0:
-        return None
-    best_dn: int | None = None
-    best_diff = float("inf")
-    for od_mm, dn in DN_TABLE:
-        diff = abs(od_mm - outer_diameter_mm)
-        if diff < best_diff:
-            best_diff = diff
-            best_dn = dn
-    return best_dn if best_diff <= 5 else None
-
-
-def _pipe_dn(obj: ProjectObject) -> int | None:
-    outer_diameter = _to_float(obj.params.get("outer_diameter"))
-    return _find_dn(outer_diameter * 1000 if outer_diameter is not None else None)
 
 
 def _tank_dimensions(obj: ProjectObject) -> str | None:
@@ -371,8 +320,6 @@ def _soil_options() -> tuple[tuple[Any, str], ...]:
 
 
 def _field_label(field: FieldDef, value: Any) -> str:
-    if field.key == "pipe_dn":
-        return f"DN{value}" if value is not None else ""
     if field.static_options:
         return _label_from_options(value, field.static_options)
     return "" if _is_empty(value) else str(value)
@@ -900,18 +847,6 @@ PIPE_FIELDS: tuple[FieldDef, ...] = (
         sort_type="number",
     ),
     FieldDef(
-        "pipe_dn",
-        "DN",
-        "DN",
-        ("pipe",),
-        "enum",
-        _pipe_dn,
-        filter_ops=("in",),
-        sortable=True,
-        sort_type="number",
-        options_mode="derived",
-    ),
-    FieldDef(
         "pipe_length",
         "Длина трубопровода",
         "L, м",
@@ -1139,7 +1074,6 @@ FIELDS_BY_TYPE: dict[str, tuple[FieldDef, ...]] = {"pipe": PIPE_FIELDS, "tank": 
 DEFAULT_SEARCH_COLUMNS = {
     "pipe": (
         "name",
-        "pipe_dn",
         "pipe_material",
         "placement",
         "insulation_material",

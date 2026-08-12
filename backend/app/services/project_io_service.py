@@ -43,6 +43,7 @@ from app.models.specification import (
     SpecificationCatalogItem,
     SpecificationCatalogSelection,
 )
+from app.services.project_display_settings_service import strip_retired_heatcalc_columns
 from app.services.project_object_params import (
     LegacySpecificationObjectParamsError,
     UnsupportedTankShapeError,
@@ -166,6 +167,8 @@ def _dump_project_to_writer(
         # Кейс §5.11: настройки отображения входят в файл; NULL → пустая ячейка,
         # чтобы импорт отличал «не задавались» от явного сброса (`{}`).
         display_settings = getattr(project, "display_settings", None)
+        if isinstance(display_settings, dict):
+            display_settings = strip_retired_heatcalc_columns(display_settings)
         _write_row(
             w,
             [
@@ -532,6 +535,8 @@ async def export_projects_bulk(
     )
     for key, project in projects:
         display_settings = getattr(project, "display_settings", None)
+        if isinstance(display_settings, dict):
+            display_settings = strip_retired_heatcalc_columns(display_settings)
         _write_row(
             w,
             [
@@ -829,7 +834,7 @@ def _apply_imported_display_settings(
             raise ProjectImportError(
                 "display_settings в файле проекта должен быть JSON-объектом"
             )
-        project.display_settings = payload
+        project.display_settings = strip_retired_heatcalc_columns(payload)
     version_text = (version_raw or "").strip()
     if version_text:
         try:

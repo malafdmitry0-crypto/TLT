@@ -100,7 +100,7 @@ describe('heatCalcPreferencesModel', () => {
 
   it('includes only non-default parts in project display section', () => {
     const columns = setTableColumnVisibility(
-      getDefaultTableColumnSettings(), 'pipe', 'pipe_dn', false,
+      getDefaultTableColumnSettings(), 'pipe', 'pipe_length', false,
     );
     expect(isDefaultTableColumnSettings(columns)).toBe(false);
     const section = buildGuestHeatcalcDisplaySection(
@@ -120,7 +120,7 @@ describe('heatCalcPreferencesModel', () => {
 
   it('round-trips a non-default section through resolve', () => {
     const columns = setTableColumnVisibility(
-      getDefaultTableColumnSettings(), 'pipe', 'pipe_dn', false,
+      getDefaultTableColumnSettings(), 'pipe', 'pipe_length', false,
     );
     const section = buildGuestHeatcalcDisplaySection(
       columns,
