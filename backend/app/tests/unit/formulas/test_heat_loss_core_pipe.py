@@ -1,9 +1,11 @@
 """Focused unit tests for the pure numeric pipe heat-loss core."""
 
 import math
+from unittest.mock import MagicMock
 
 import pytest
 
+from app.formulas.heat_loss.core import pipe as pipe_core
 from app.formulas.heat_loss.core.errors import FormulaDomainError
 from app.formulas.heat_loss.core.pipe import (
     AbovegroundPipeInput,
@@ -91,24 +93,26 @@ def test_underground_pipe_preserves_log_sqrt_ground_resistance() -> None:
     assert result.external_resistance_mk_w == pytest.approx(expected_ground)
 
 
-@pytest.mark.parametrize(
-    ("input_factory", "code"),
-    [
-        (lambda: _air_input(wall_thickness_m=0.05), "wall_exceeds_pipe_radius"),
-        (
-            lambda: _air_input(insulation_layers=(PipeInsulationLayer(0.0, 0.05),)),
-            "nonpositive_layer_thickness",
-        ),
-    ],
-)
-def test_air_core_rejects_invalid_numeric_domain(input_factory, code: str) -> None:
-    with pytest.raises(FormulaDomainError) as exc_info:
-        calculate_aboveground_pipe(input_factory())
-    assert exc_info.value.code == code
+def test_input_guards_are_dormant_on_the_core_calculation_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    guard_names = (
+        "_validate_pipe_input",
+        "_validate_ground_input",
+        "_validate_insulation_outer_radius_input",
+        "_validate_external_resistance_input",
+        "_validate_cylindrical_resistance_input",
+        "_validate_thermal_resistance_input",
+    )
+    for name in guard_names:
+        monkeypatch.setattr(
+            pipe_core,
+            name,
+            MagicMock(side_effect=AssertionError(f"production called dormant guard {name}")),
+        )
 
-
-def test_underground_core_rejects_centerline_inside_outer_radius() -> None:
-    data = UndergroundPipeInput(
+    assert calculate_aboveground_pipe(_air_input()).total_heat_loss_design_w > 0
+    underground = UndergroundPipeInput(
         outer_diameter_m=0.1,
         wall_thickness_m=0.004,
         wall_conductivity_w_mk=45.0,
@@ -119,17 +123,40 @@ def test_underground_core_rejects_centerline_inside_outer_radius() -> None:
         local_elements_count=0,
         local_element_equiv_length_m=0.0,
         safety_factor=1.1,
-        centerline_depth_m=0.09,
+        centerline_depth_m=1.0,
         ground_conductivity_w_mk=1.5,
     )
+    assert calculate_underground_pipe(underground).total_heat_loss_design_w > 0
 
+
+def test_dormant_pipe_guard_preserves_wall_domain_error() -> None:
+    data = _air_input(wall_thickness_m=0.05)
     with pytest.raises(FormulaDomainError) as exc_info:
-        calculate_underground_pipe(data)
+        pipe_core._validate_pipe_input(
+            outer_diameter_m=data.outer_diameter_m,
+            wall_thickness_m=data.wall_thickness_m,
+            wall_conductivity_w_mk=data.wall_conductivity_w_mk,
+            insulation_layers=data.insulation_layers,
+            process_temperature_c=data.process_temperature_c,
+            environment_temperature_c=data.ambient_temperature_c,
+            pipe_length_m=data.pipe_length_m,
+            local_elements_count=data.local_elements_count,
+            local_element_equiv_length_m=data.local_element_equiv_length_m,
+            safety_factor=data.safety_factor,
+            external_resistance_mk_w=0.1,
+        )
+    assert exc_info.value.code == "wall_exceeds_pipe_radius"
+
+
+def test_dormant_pipe_guard_preserves_ground_domain_error() -> None:
+    with pytest.raises(FormulaDomainError) as exc_info:
+        pipe_core._validate_ground_input(0.1, 0.09, 1.5)
     assert exc_info.value.code == "ground_centerline_inside_pipe"
 
 
-def test_core_rejects_non_finite_computed_result_fields() -> None:
-    """Finite inputs may still overflow a layer resistance and boundary temperature."""
+def test_pipe_result_guard_rejects_nonfinite_computed_fields() -> None:
+    """Finite inputs may still overflow a derived resistance or temperature."""
+
     with pytest.raises(FormulaDomainError) as exc_info:
         calculate_aboveground_pipe(
             _air_input(
@@ -137,6 +164,12 @@ def test_core_rejects_non_finite_computed_result_fields() -> None:
             )
         )
     assert exc_info.value.code == "non_finite_result"
+
+
+def test_dormant_pipe_resistance_guard_preserves_zero_error() -> None:
+    with pytest.raises(FormulaDomainError) as exc_info:
+        pipe_core._validate_thermal_resistance_input(0.0)
+    assert exc_info.value.code == "zero_thermal_resistance"
 
 
 def test_wind_alpha_requires_explicit_coefficients() -> None:

@@ -7,10 +7,12 @@ required fields must make the object invalid before formulas run.
 
 import math
 from collections.abc import Mapping
+from dataclasses import dataclass
 from numbers import Real
-from typing import Any
+from typing import Any, TypeAlias
 
 from pydantic import ValidationError
+from pydantic_core import ErrorDetails
 
 from app.schemas.calculation import StoredPipeHeatParams, StoredTankHeatParams
 from app.services.heat_contract import (
@@ -18,6 +20,68 @@ from app.services.heat_contract import (
     PIPE_HEAT_PARAM_KEYS,
     TANK_HEAT_PARAM_KEYS,
 )
+
+StoredHeatParams: TypeAlias = StoredPipeHeatParams | StoredTankHeatParams
+
+
+@dataclass(frozen=True)
+class ValidationIssue:
+    """One structured object-input problem found at the final backend boundary."""
+
+    code: str
+    field: str | None
+    message: str
+    category: str = "validation"
+    reason: str | None = None
+
+
+@dataclass(frozen=True)
+class ValidationReport:
+    """Complete validation outcome without using expected invalidity as control flow."""
+
+    issues: tuple[ValidationIssue, ...] = ()
+
+    @property
+    def is_valid(self) -> bool:
+        return not self.issues
+
+    @property
+    def fields(self) -> tuple[str, ...]:
+        return tuple(dict.fromkeys(issue.field for issue in self.issues if issue.field is not None))
+
+    def to_legacy_error(self) -> "ProjectObjectParamsError":
+        """Adapt the internal report to the existing exception/error-JSON contract."""
+
+        if self.is_valid:
+            raise RuntimeError("Нельзя преобразовать валидный отчёт в ошибку")
+        unsupported = next(
+            (issue for issue in self.issues if issue.category == "unsupported"),
+            None,
+        )
+        if unsupported is not None:
+            return ProjectObjectParamsError(
+                unsupported.message,
+                code=unsupported.code,
+                fields=self.fields,
+                reason=unsupported.reason,
+            )
+        has_invalid = any(issue.code != "OBJECT_REQUIRED_FIELDS_MISSING" for issue in self.issues)
+        reason = next((issue.reason for issue in self.issues if issue.reason is not None), None)
+        return ProjectObjectParamsError(
+            "Проверьте параметры объекта" if has_invalid else "Заполните обязательные поля объекта",
+            code="OBJECT_PARAMS_INVALID" if has_invalid else "OBJECT_REQUIRED_FIELDS_MISSING",
+            fields=self.fields,
+            reason=reason,
+        )
+
+
+@dataclass(frozen=True)
+class PreparedProjectObjectParams:
+    """Normalized params, their report, and a trusted formula input when valid."""
+
+    params: dict[str, Any]
+    report: ValidationReport
+    heat_params: StoredHeatParams | None
 
 
 class ProjectObjectParamsError(ValueError):
@@ -159,68 +223,110 @@ def normalize_project_object_params(
 def prepare_project_object_params(
     object_type: str, params: Mapping[str, Any] | None
 ) -> dict[str, Any]:
-    """Normalize params and raise when required project-object fields are missing."""
+    """Compatibility wrapper around the report-based preparation boundary."""
 
     normalized = normalize_project_object_params(object_type, params)
-    validate_project_object_params(object_type, normalized)
+    prepared = validate_and_canonicalize_project_object_params(object_type, normalized)
+    if not prepared.report.is_valid:
+        raise prepared.report.to_legacy_error()
+    return prepared.params
+
+
+def build_stored_heat_params(
+    object_type: str,
+    params: Mapping[str, Any],
+) -> StoredHeatParams:
+    """Run the canonical heat-input Pydantic contract exactly once."""
+
     if object_type == "pipe":
         heat_keys = COMMON_HEAT_PARAM_KEYS | PIPE_HEAT_PARAM_KEYS
-        stored = StoredPipeHeatParams(
-            **{key: value for key, value in normalized.items() if key in heat_keys}
+        return StoredPipeHeatParams(
+            **{key: value for key, value in params.items() if key in heat_keys}
         )
-        normalized = {
-            **{key: value for key, value in normalized.items() if key not in heat_keys},
-            **stored.model_dump(exclude_none=True),
-        }
-    elif object_type == "tank":
+    if object_type == "tank":
         heat_keys = COMMON_HEAT_PARAM_KEYS | TANK_HEAT_PARAM_KEYS
-        stored = StoredTankHeatParams(
-            **{key: value for key, value in normalized.items() if key in heat_keys}
+        return StoredTankHeatParams(
+            **{key: value for key, value in params.items() if key in heat_keys}
         )
-        normalized = {
-            **{key: value for key, value in normalized.items() if key not in heat_keys},
-            **stored.model_dump(exclude_none=True),
-        }
-    return normalized
+    raise ProjectObjectParamsError(
+        f"Неподдерживаемый тип объекта: {object_type}",
+        code="OBJECT_TYPE_UNSUPPORTED",
+    )
 
 
-def validate_project_object_params(object_type: str, params: Mapping[str, Any]) -> None:
-    """Validate object-level required fields before heat-loss formulas run."""
+def validate_and_canonicalize_project_object_params(
+    object_type: str,
+    params: Mapping[str, Any],
+) -> PreparedProjectObjectParams:
+    """Return the one final report and canonical formula input without raising."""
+
+    stored: StoredHeatParams | None = None
+    issues: list[ValidationIssue] = []
+    try:
+        stored = build_stored_heat_params(object_type, params)
+    except ValidationError as exc:
+        issues.extend(_pydantic_validation_issues(exc))
+    except ProjectObjectParamsError as exc:
+        issues.append(
+            ValidationIssue(
+                code=exc.code or "OBJECT_PARAMS_INVALID",
+                field=exc.fields[0] if len(exc.fields) == 1 else None,
+                message=str(exc),
+                category="unsupported" if exc.code == "OBJECT_TYPE_UNSUPPORTED" else "validation",
+                reason=exc.reason,
+            )
+        )
 
     missing, invalid = _validate_downstream_required_inputs(object_type, params)
-    schema_error: ProjectObjectParamsError | None = None
-    try:
-        if object_type == "pipe":
-            _validate_pipe_params(params, [])
-        elif object_type == "tank":
-            _validate_tank_params(params, [])
-        else:
-            raise ProjectObjectParamsError(f"Неподдерживаемый тип объекта: {object_type}")
-    except ProjectObjectParamsError as exc:
-        schema_error = exc
-
-    if schema_error is not None:
-        fields = tuple(dict.fromkeys((*schema_error.fields, *missing, *invalid)))
-        has_invalid = schema_error.code != "OBJECT_REQUIRED_FIELDS_MISSING" or bool(invalid)
-        raise ProjectObjectParamsError(
-            "Проверьте параметры объекта" if has_invalid else "Заполните обязательные поля объекта",
-            code="OBJECT_PARAMS_INVALID" if has_invalid else "OBJECT_REQUIRED_FIELDS_MISSING",
-            fields=fields,
-            reason=schema_error.reason,
-        ) from schema_error
-
-    if invalid:
-        raise ProjectObjectParamsError(
-            "Проверьте параметры объекта",
-            code="OBJECT_PARAMS_INVALID",
-            fields=tuple(dict.fromkeys((*missing, *invalid))),
-        )
-    if missing:
-        raise ProjectObjectParamsError(
-            "Заполните обязательные поля объекта",
+    issues.extend(
+        ValidationIssue(
             code="OBJECT_REQUIRED_FIELDS_MISSING",
-            fields=tuple(dict.fromkeys(missing)),
+            field=field,
+            message="Заполните обязательные поля объекта",
         )
+        for field in missing
+    )
+    issues.extend(
+        ValidationIssue(
+            code="OBJECT_PARAMS_INVALID",
+            field=field,
+            message="Проверьте параметры объекта",
+        )
+        for field in invalid
+    )
+
+    report = ValidationReport(tuple(issues))
+    if stored is None or not report.is_valid:
+        return PreparedProjectObjectParams(params=dict(params), report=report, heat_params=None)
+
+    heat_keys = (
+        COMMON_HEAT_PARAM_KEYS | PIPE_HEAT_PARAM_KEYS
+        if object_type == "pipe"
+        else COMMON_HEAT_PARAM_KEYS | TANK_HEAT_PARAM_KEYS
+    )
+    canonical = {
+        **{key: value for key, value in params.items() if key not in heat_keys},
+        **stored.model_dump(exclude_none=True),
+    }
+    return PreparedProjectObjectParams(
+        params=canonical,
+        report=report,
+        heat_params=stored,
+    )
+
+
+def validate_project_object_params(
+    object_type: str,
+    params: Mapping[str, Any],
+) -> StoredHeatParams:
+    """Compatibility wrapper returning the trusted model or the legacy exception."""
+
+    prepared = validate_and_canonicalize_project_object_params(object_type, params)
+    if not prepared.report.is_valid:
+        raise prepared.report.to_legacy_error()
+    if prepared.heat_params is None:  # pragma: no cover - guarded by report.is_valid
+        raise RuntimeError("Валидный отчёт не содержит formula input")
+    return prepared.heat_params
 
 
 def _validate_downstream_required_inputs(
@@ -285,44 +391,36 @@ def _normalize_climate_key(params: dict[str, Any]) -> None:
     params["climate_key"] = f"{region}|||{city}"
 
 
-def _validate_pipe_params(params: Mapping[str, Any], missing: list[str]) -> None:
-    heat_keys = COMMON_HEAT_PARAM_KEYS | PIPE_HEAT_PARAM_KEYS
-    heat_payload = {key: value for key, value in params.items() if key in heat_keys}
-    try:
-        StoredPipeHeatParams(**heat_payload)
-    except ValidationError as exc:
-        raise _project_object_params_validation_error(exc) from exc
+def _pydantic_validation_issues(exc: ValidationError) -> tuple[ValidationIssue, ...]:
+    """Preserve every Pydantic issue instead of collapsing to the first error."""
 
-
-def _validate_tank_params(params: Mapping[str, Any], missing: list[str]) -> None:
-    heat_keys = COMMON_HEAT_PARAM_KEYS | TANK_HEAT_PARAM_KEYS
-    try:
-        StoredTankHeatParams(**{key: value for key, value in params.items() if key in heat_keys})
-    except ValidationError as exc:
-        raise _project_object_params_validation_error(exc) from exc
-
-
-def _project_object_params_validation_error(exc: ValidationError) -> ProjectObjectParamsError:
-    errors = exc.errors()
-    fields = _validation_error_fields(errors)
-    reason = _validation_error_reason(errors)
-    only_missing = bool(errors) and all(error.get("type") == "missing" for error in errors)
-    if only_missing:
-        return ProjectObjectParamsError(
-            "Заполните обязательные поля объекта",
-            code="OBJECT_REQUIRED_FIELDS_MISSING",
-            fields=fields,
-            reason=reason,
+    issues: list[ValidationIssue] = []
+    for error in exc.errors():
+        code = (
+            "OBJECT_REQUIRED_FIELDS_MISSING"
+            if error.get("type") == "missing"
+            else "OBJECT_PARAMS_INVALID"
         )
-    return ProjectObjectParamsError(
-        "Проверьте параметры объекта",
-        code="OBJECT_PARAMS_INVALID",
-        fields=fields,
-        reason=reason,
-    )
+        fields = _validation_error_fields([error]) or (None,)
+        reason = _validation_error_reason([error])
+        context = error.get("ctx")
+        context_message = (
+            str(context.get("error", "")) if isinstance(context, dict) else ""
+        ).strip()
+        message = context_message or str(error.get("msg") or "Проверьте параметры объекта")
+        issues.extend(
+            ValidationIssue(
+                code=code,
+                field=field,
+                message=message,
+                reason=reason,
+            )
+            for field in fields
+        )
+    return tuple(issues)
 
 
-def _validation_error_fields(errors: list[dict[str, Any]]) -> tuple[str, ...]:
+def _validation_error_fields(errors: list[ErrorDetails]) -> tuple[str, ...]:
     fields: list[str] = []
     model_error_fields = (
         ("режим tm", ("insulation_temperature_basis",)),
@@ -340,9 +438,7 @@ def _validation_error_fields(errors: list[dict[str, Any]]) -> tuple[str, ...]:
         lower_message = message.lower()
         if isinstance(loc, tuple | list) and loc:
             path = ".".join(str(part) for part in loc)
-            if "неизвестный материал" in lower_message and path.startswith(
-                "insulation_layers."
-            ):
+            if "неизвестный материал" in lower_message and path.startswith("insulation_layers."):
                 path = f"{path}.material"
             fields.append(path)
             continue
@@ -353,7 +449,7 @@ def _validation_error_fields(errors: list[dict[str, Any]]) -> tuple[str, ...]:
     return tuple(dict.fromkeys(fields))
 
 
-def _validation_error_reason(errors: list[dict[str, Any]]) -> str | None:
+def _validation_error_reason(errors: list[ErrorDetails]) -> str | None:
     for error in errors:
         context = error.get("ctx")
         message = str(context.get("error", "")) if isinstance(context, dict) else ""

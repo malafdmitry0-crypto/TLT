@@ -23,7 +23,12 @@ from app.formulas.heat_loss.core.pipe import (
     calculate_aboveground_pipe,
     calculate_underground_pipe,
 )
-from app.formulas.heat_loss.core.thermal import alpha_from_wind
+from app.formulas.heat_loss.core.thermal import (
+    alpha_from_wind,
+    arithmetic_mean,
+    clamp_minimum,
+    higher_temperature,
+)
 from app.formulas.heat_loss.insulation import resolve_insulation_tm
 from app.reference_data.loader import (
     get_insulation_conductivity,
@@ -59,7 +64,7 @@ def calc_alpha_vnesh(wind_speed: float | None, placement: str) -> float:
     if wind_speed is None:
         raise ValueError("Для outdoor auto требуется wind_speed")
     return alpha_from_wind(
-        max(wind_speed, 0.0),
+        clamp_minimum(wind_speed, minimum=0.0),
         intercept=11.6,
         sqrt_coefficient=7.0,
     )
@@ -89,11 +94,7 @@ def _fmt_temp(value: float) -> str:
 
 def _layer_temperature_range(layer: InsulationLayer) -> tuple[float, float]:
     if layer.material == "other":
-        if layer.temperature_range is None:
-            raise ValueError(
-                "Для материала изоляции 'other' необходимо задать temperature_range слоя"
-            )
-        min_temp, max_temp = layer.temperature_range
+        min_temp, max_temp = cast(tuple[float, float], layer.temperature_range)
         return float(min_temp), float(max_temp)
     return get_insulation_temperature_range(layer.material)
 
@@ -106,7 +107,7 @@ def _validate_layer_temperature_interval(
     t_cold: float,
 ) -> None:
     min_temp, max_temp = _layer_temperature_range(layer)
-    layer_hot_side = max(t_hot, t_cold)
+    layer_hot_side = higher_temperature(t_hot, t_cold)
     if min_temp <= layer_hot_side <= max_temp:
         return
     raise ValueError(
@@ -205,7 +206,7 @@ def calc_pipe_heat_loss(
             else params.ambient_temperature
         ),
     )
-    t_mean = (params.process_temperature + environment_temperature) / 2.0
+    t_mean = arithmetic_mean(params.process_temperature, environment_temperature)
     wall_conductivity = (
         params.pipe_lambda
         if params.pipe_lambda is not None
@@ -260,7 +261,15 @@ def calc_pipe_heat_loss(
             _raise_pipe_core_error(exc)
     else:
         ambient_temperature = cast(float, params.ambient_temperature)
-        alpha = calc_alpha_vnesh(params.wind_speed, params.placement)
+        alpha = (
+            9.0
+            if params.placement == "indoor"
+            else alpha_from_wind(
+                cast(float, params.wind_speed),
+                intercept=11.6,
+                sqrt_coefficient=7.0,
+            )
+        )
         try:
             core_result = calculate_aboveground_pipe(
                 AbovegroundPipeInput(

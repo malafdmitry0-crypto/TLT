@@ -1,9 +1,11 @@
 """Focused unit tests for the pure numeric tank heat-loss core."""
 
 import math
+from unittest.mock import MagicMock
 
 import pytest
 
+from app.formulas.heat_loss.core import tank as tank_core
 from app.formulas.heat_loss.core.errors import FormulaDomainError
 from app.formulas.heat_loss.core.tank import (
     AirTankHeatLossInput,
@@ -113,24 +115,28 @@ def test_core_returns_layer_boundaries_for_both_buried_branches() -> None:
     )
 
 
-@pytest.mark.parametrize(
-    ("input_factory", "code"),
-    [
-        (lambda: _air_input(external_alpha_w_m2k=0.0), "nonpositive_external_alpha"),
-        (
-            lambda: _air_input(insulation_layers=(TankInsulationLayer(1e308, 0.05),)),
-            "non_finite_result",
-        ),
-    ],
-)
-def test_air_core_rejects_invalid_or_nonfinite_numeric_domain(input_factory, code: str) -> None:
-    with pytest.raises(FormulaDomainError) as exc_info:
-        calculate_air_tank_heat_loss(input_factory())
-    assert exc_info.value.code == code
+def test_input_guards_are_dormant_on_the_core_calculation_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    guard_names = (
+        "_validate_air_tank_input",
+        "_validate_buried_tank_input",
+        "_validate_common_resistance_input",
+        "_validate_surface_area_split_input",
+        "_validate_positive_geometry",
+        "_validate_positive",
+        "_validate_design_inputs",
+        "_validate_finite",
+    )
+    for name in guard_names:
+        monkeypatch.setattr(
+            tank_core,
+            name,
+            MagicMock(side_effect=AssertionError(f"production called dormant guard {name}")),
+        )
 
-
-def test_buried_core_rejects_buried_height_outside_geometry() -> None:
-    data = BuriedTankHeatLossInput(
+    assert calculate_air_tank_heat_loss(_air_input()).total_heat_loss_design_w > 0
+    buried = BuriedTankHeatLossInput(
         geometry=CylindricalTankGeometry(diameter_m=2.0, height_m=3.0),
         wall_thickness_m=0.0,
         wall_conductivity_w_mk=1.0,
@@ -139,12 +145,30 @@ def test_buried_core_rejects_buried_height_outside_geometry() -> None:
         ambient_temperature_c=-20.0,
         ground_temperature_c=5.0,
         external_alpha_w_m2k=20.0,
-        buried_height_m=3.1,
+        buried_height_m=1.0,
         ground_conductivity_w_mk=1.5,
         safety_factor=1.1,
         additional_heat_loss_w=0.0,
     )
+    assert calculate_buried_tank_heat_loss(buried).total_heat_loss_design_w > 0
 
+
+def test_dormant_tank_guard_preserves_external_alpha_domain_error() -> None:
     with pytest.raises(FormulaDomainError) as exc_info:
-        calculate_buried_tank_heat_loss(data)
+        tank_core._validate_air_tank_input(_air_input(external_alpha_w_m2k=0.0))
+    assert exc_info.value.code == "nonpositive_external_alpha"
+
+
+def test_dormant_tank_guard_preserves_buried_height_domain_error() -> None:
+    geometry = CylindricalTankGeometry(diameter_m=2.0, height_m=3.0)
+    with pytest.raises(FormulaDomainError) as exc_info:
+        tank_core._validate_surface_area_split_input(geometry, 3.1)
     assert exc_info.value.code == "invalid_buried_height"
+
+
+def test_tank_result_guard_rejects_nonfinite_computed_fields() -> None:
+    with pytest.raises(FormulaDomainError) as exc_info:
+        calculate_air_tank_heat_loss(
+            _air_input(insulation_layers=(TankInsulationLayer(1e308, 0.05),))
+        )
+    assert exc_info.value.code == "non_finite_result"

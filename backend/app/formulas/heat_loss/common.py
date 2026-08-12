@@ -2,6 +2,8 @@
 
 from typing import Any
 
+from app.formulas.heat_loss.core.thermal import multiply_factors
+
 DEFAULT_COEFFICIENTS: dict[str, float] = {
     "safety_factor": 1.1,
 }
@@ -15,11 +17,8 @@ def apply_coefficients(
     """Применяет заданные коэффициенты мультипликативно."""
     if not coefficients:
         return base_value
-    value = base_value
-    for key in keys:
-        if key in coefficients:
-            value *= coefficients[key]
-    return value
+    factors = tuple(coefficients[key] for key in keys if key in coefficients)
+    return multiply_factors(base_value, factors)
 
 
 def validate_positive(name: str, value: float) -> None:
