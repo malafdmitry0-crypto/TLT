@@ -74,31 +74,6 @@ def alpha_from_wind(
     return _finite_result(intercept + sqrt_coefficient * math.sqrt(wind_speed_m_s))
 
 
-def _validate_quotient_input(dividend: float, divisor: float) -> None:
-    """Dormant division guard retained outside the production path."""
-
-    _validate_finite_input(dividend, divisor)
-    if divisor == 0:
-        raise FormulaDomainError("zero_divisor")
-
-
-def _validate_wind_input(
-    wind_speed_m_s: float,
-    intercept: float,
-    sqrt_coefficient: float,
-) -> None:
-    """Dormant wind-relation guard retained outside the production path."""
-
-    _validate_finite_input(wind_speed_m_s, intercept, sqrt_coefficient)
-    if wind_speed_m_s < 0:
-        raise FormulaDomainError("negative_wind_speed", wind_speed_m_s=wind_speed_m_s)
-
-
-def _validate_finite_input(*values: float) -> None:
-    if not all(math.isfinite(value) for value in values):
-        raise FormulaDomainError("non_finite_input")
-
-
 def _finite_result(value: float) -> float:
     if not math.isfinite(value):
         raise FormulaDomainError("non_finite_result")

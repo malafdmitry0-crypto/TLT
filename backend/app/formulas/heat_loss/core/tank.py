@@ -11,6 +11,11 @@ from dataclasses import dataclass
 
 from .errors import FormulaDomainError
 from .geometry import radius_from_diameter
+from .validation import (
+    VALID_FORMULA_VALIDATION_REPORT,
+    FormulaValidationIssue,
+    FormulaValidationReport,
+)
 
 
 @dataclass(frozen=True)
@@ -89,6 +94,61 @@ class TankCoreResult:
     layer_resistances_areal_m2k_w: tuple[float, ...]
     air_layer_boundary_temperatures: tuple[TankLayerBoundaryTemperature, ...]
     ground_layer_boundary_temperatures: tuple[TankLayerBoundaryTemperature, ...]
+
+
+def validate_tank_formula_domain(
+    *,
+    cylindrical_diameter_m: float | None,
+    height_m: float,
+    wall_thickness_m: float,
+    process_temperature_c: float,
+    ambient_temperature_c: float,
+    ground_temperature_c: float | None = None,
+    buried_height_m: float | None = None,
+) -> FormulaValidationReport:
+    """Validate all derived constraints of the selected tank formula once."""
+
+    issues: tuple[FormulaValidationIssue, ...] = ()
+    if cylindrical_diameter_m is not None and wall_thickness_m > 0:
+        tank_outer_radius_m = radius_from_diameter(cylindrical_diameter_m)
+        if wall_thickness_m >= tank_outer_radius_m:
+            issues += (
+                FormulaValidationIssue.with_details(
+                    "wall_exceeds_tank_radius",
+                    diameter_m=cylindrical_diameter_m,
+                    wall_thickness_m=wall_thickness_m,
+                    outer_radius_m=tank_outer_radius_m,
+                ),
+            )
+
+    if process_temperature_c <= ambient_temperature_c:
+        issues += (
+            FormulaValidationIssue.with_details(
+                "process_temperature_not_above_ambient",
+                process_temperature_c=process_temperature_c,
+                environment_temperature_c=ambient_temperature_c,
+            ),
+        )
+    if ground_temperature_c is not None and process_temperature_c <= ground_temperature_c:
+        issues += (
+            FormulaValidationIssue.with_details(
+                "process_temperature_not_above_ground",
+                process_temperature_c=process_temperature_c,
+                environment_temperature_c=ground_temperature_c,
+            ),
+        )
+    if buried_height_m is not None and (buried_height_m <= 0 or buried_height_m > height_m):
+        issues += (
+            FormulaValidationIssue.with_details(
+                "invalid_buried_height",
+                buried_height_m=buried_height_m,
+                height_m=height_m,
+            ),
+        )
+
+    if not issues:
+        return VALID_FORMULA_VALIDATION_REPORT
+    return FormulaValidationReport(issues)
 
 
 def calculate_air_tank_heat_loss(data: AirTankHeatLossInput) -> TankCoreResult:
@@ -252,101 +312,6 @@ def _layer_boundaries(
     return tuple(boundaries)
 
 
-def _validate_air_tank_input(data: AirTankHeatLossInput) -> None:
-    """Dormant air-tank input guard retained while Pydantic owns admission."""
-
-    _validate_finite(
-        data.process_temperature_c,
-        data.ambient_temperature_c,
-        data.external_alpha_w_m2k,
-        data.safety_factor,
-        data.additional_heat_loss_w,
-    )
-    if data.process_temperature_c <= data.ambient_temperature_c:
-        raise FormulaDomainError("nonpositive_temperature_difference")
-    if data.external_alpha_w_m2k <= 0:
-        raise FormulaDomainError("nonpositive_external_alpha")
-    _validate_design_inputs(data.safety_factor, data.additional_heat_loss_w)
-
-
-def _validate_buried_tank_input(data: BuriedTankHeatLossInput) -> None:
-    """Dormant buried-tank input guard retained outside the production path."""
-
-    _validate_finite(
-        data.process_temperature_c,
-        data.ambient_temperature_c,
-        data.ground_temperature_c,
-        data.external_alpha_w_m2k,
-        data.buried_height_m,
-        data.ground_conductivity_w_mk,
-        data.safety_factor,
-        data.additional_heat_loss_w,
-    )
-    if data.process_temperature_c <= data.ambient_temperature_c:
-        raise FormulaDomainError("nonpositive_air_temperature_difference")
-    if data.process_temperature_c <= data.ground_temperature_c:
-        raise FormulaDomainError("nonpositive_ground_temperature_difference")
-    if data.external_alpha_w_m2k <= 0:
-        raise FormulaDomainError("nonpositive_external_alpha")
-    if data.ground_conductivity_w_mk <= 0:
-        raise FormulaDomainError("nonpositive_ground_conductivity")
-    _validate_design_inputs(data.safety_factor, data.additional_heat_loss_w)
-
-
-def _validate_common_resistance_input(
-    *,
-    geometry: TankGeometry,
-    wall_thickness_m: float,
-    wall_conductivity_w_mk: float,
-    layers: tuple[TankInsulationLayer, ...],
-) -> None:
-    """Dormant material/geometry guard retained outside the production path."""
-
-    if isinstance(geometry, CylindricalTankGeometry):
-        _validate_positive_geometry(geometry.diameter_m, geometry.height_m)
-    else:
-        _validate_positive_geometry(geometry.length_m, geometry.width_m, geometry.height_m)
-    _validate_finite(wall_thickness_m, wall_conductivity_w_mk)
-    if wall_thickness_m < 0:
-        raise FormulaDomainError("negative_wall_thickness")
-    if wall_conductivity_w_mk <= 0:
-        raise FormulaDomainError("nonpositive_wall_conductivity")
-    for layer in layers:
-        _validate_finite(layer.thickness_m, layer.conductivity_w_mk)
-        if layer.thickness_m <= 0:
-            raise FormulaDomainError("nonpositive_layer_thickness")
-        if layer.conductivity_w_mk <= 0:
-            raise FormulaDomainError("nonpositive_layer_conductivity")
-
-
-def _validate_surface_area_split_input(geometry: TankGeometry, buried_height_m: float) -> None:
-    """Dormant buried-height guard retained outside the production path."""
-
-    _validate_finite(buried_height_m)
-    if buried_height_m <= 0 or buried_height_m > geometry.height_m:
-        raise FormulaDomainError("invalid_buried_height")
-
-
-def _validate_positive_geometry(*values: float) -> None:
-    _validate_finite(*values)
-    if any(value <= 0 for value in values):
-        raise FormulaDomainError("nonpositive_geometry")
-
-
-def _validate_positive(code: str, value: float) -> None:
-    if not math.isfinite(value):
-        raise FormulaDomainError("non_finite_result")
-    if value <= 0:
-        raise FormulaDomainError(code)
-
-
-def _validate_design_inputs(safety_factor: float, additional_heat_loss_w: float) -> None:
-    if safety_factor <= 0:
-        raise FormulaDomainError("nonpositive_safety_factor")
-    if additional_heat_loss_w < 0:
-        raise FormulaDomainError("negative_additional_heat_loss")
-
-
 def _validate_result(result: TankCoreResult) -> None:
     values = [
         result.total_heat_loss_base_w,
@@ -374,11 +339,6 @@ def _validate_result(result: TankCoreResult) -> None:
     ):
         values.extend((boundary.hot_side_c, boundary.cold_side_c))
     _validate_finite_result(*values)
-
-
-def _validate_finite(*values: float) -> None:
-    if not all(math.isfinite(value) for value in values):
-        raise FormulaDomainError("non_finite_input")
 
 
 def _validate_finite_result(*values: float) -> None:
