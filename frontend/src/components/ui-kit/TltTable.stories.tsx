@@ -4,9 +4,9 @@ import { TltTable } from './UiPrimitives';
 type Row = { id: string; name: string; status: string };
 
 const rows: Row[] = [
-  { id: '1', name: 'Труба DN100', status: 'Готово' },
+  { id: '1', name: 'Труба Ø114 мм', status: 'Готово' },
   { id: '2', name: 'Ёмкость V1', status: 'Черновик' },
-  { id: '3', name: 'Труба DN50', status: 'Ошибка' },
+  { id: '3', name: 'Труба Ø60 мм', status: 'Ошибка' },
 ];
 
 const meta = {

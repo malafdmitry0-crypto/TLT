@@ -498,11 +498,18 @@ def test_template_builder_roundtrip():
     wb = load_workbook(io.BytesIO(data))
     assert "Трубопроводы" in wb.sheetnames
     assert "Резервуары" in wb.sheetnames
+    assert all(
+        "DN" not in str(cell.value or "")
+        for sheet in wb.worksheets
+        for row in sheet.iter_rows()
+        for cell in row
+    )
 
 
 def test_csv_template_has_type_column():
     data = build_template_csv()
     text = data.decode("utf-8-sig")
+    assert "DN" not in text
     first_line = text.splitlines()[0]
     assert "Тип" in first_line
 

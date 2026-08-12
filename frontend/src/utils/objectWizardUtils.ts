@@ -5,12 +5,11 @@
  *   Form fields use mm for diameters / thicknesses (more intuitive for engineers).
  *   API params use metres (as required by the backend).
  *
- * Naming / DN: pure helpers live in objectWizardNaming.ts and are re-exported here
+ * Naming helpers live in objectWizardNaming.ts and are re-exported here
  * for stable public import paths.
  */
 
 export {
-  findDN,
   generatePipeName,
   generateTankName,
   formatWizardNameNumber,

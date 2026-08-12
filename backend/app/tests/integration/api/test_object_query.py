@@ -103,6 +103,7 @@ class TestObjectQuery:
 
         assert resp.status_code == 200, resp.text
         fields = {field["key"]: field for field in resp.json()["fields"]}
+        assert "pipe_dn" not in fields
         assert fields["pipe_outer_diameter"]["filter"]["ops"] == ["range"]
         assert fields["pipe_outer_diameter"]["sort"]["enabled"] is True
         assert fields["heat_loss_per_meter_base"]["filter"]["ops"] == ["range"]
@@ -417,6 +418,21 @@ class TestObjectQuery:
             json={
                 "object_type": "pipe",
                 "filters": [{"key": "params.anything", "op": "contains", "value": "x"}],
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert resp.status_code == 422
+
+    async def test_query_rejects_retired_pipe_dn_filter(
+        self, client: AsyncClient, guest_session: str
+    ):
+        pid = await _project(client, guest_session)
+        resp = await client.post(
+            f"/api/v1/projects/{pid}/objects/query",
+            json={
+                "object_type": "pipe",
+                "filters": [{"key": "pipe_dn", "op": "in", "values": ["100"]}],
             },
             headers={"X-Session-Id": guest_session},
         )
