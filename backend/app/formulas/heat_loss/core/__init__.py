@@ -1,7 +1,14 @@
 """Pure numeric heat-loss core with no application-layer dependencies."""
 
 from .errors import FormulaDomainError
+from .insulation_validation import (
+    validate_insulation_conductivity,
+    validate_insulation_layer_count,
+    validate_insulation_layer_ranges,
+    validate_insulation_thickness,
+)
 from .pipe import validate_pipe_formula_domain
+from .pipe_validation import validate_pipe_input_ranges
 from .tank import validate_tank_formula_domain
 from .validation import (
     FormulaValidationCode,
@@ -25,8 +32,13 @@ __all__ = [
     "NumericRangeSpec",
     "SequenceLengthCheck",
     "SequenceLengthSpec",
+    "validate_insulation_conductivity",
+    "validate_insulation_layer_count",
+    "validate_insulation_layer_ranges",
+    "validate_insulation_thickness",
     "validate_numeric_range",
     "validate_pipe_formula_domain",
+    "validate_pipe_input_ranges",
     "validate_range_checks",
     "validate_sequence_length",
     "validate_tank_formula_domain",
