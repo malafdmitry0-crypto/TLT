@@ -83,9 +83,11 @@ def numeric_range_json_schema(
 
     schema: dict[str, object] = {"type": schema_type}
     if spec.minimum is not None:
-        schema["minimum" if spec.minimum_inclusive else "exclusiveMinimum"] = spec.minimum
+        minimum = float(spec.minimum) if schema_type == "number" else spec.minimum
+        schema["minimum" if spec.minimum_inclusive else "exclusiveMinimum"] = minimum
     if spec.maximum is not None:
-        schema["maximum" if spec.maximum_inclusive else "exclusiveMaximum"] = spec.maximum
+        maximum = float(spec.maximum) if schema_type == "number" else spec.maximum
+        schema["maximum" if spec.maximum_inclusive else "exclusiveMaximum"] = maximum
     return WithJsonSchema(schema)
 
 
