@@ -43,8 +43,7 @@ from app.formulas.electrical.tt_contract import (
     ELECTRICAL_TT_FORMULA_FINGERPRINT,
     ELECTRICAL_TT_FORMULA_VERSION,
 )
-from app.formulas.heat_loss.pipe import calc_pipe_heat_loss
-from app.formulas.heat_loss.tank import calc_tank_heat_loss
+from app.formulas.heat_loss.evaluator import evaluate_validated_heat_loss
 from app.models.cable import CableExtended
 from app.models.coefficient import CorrectionCoefficient
 from app.models.electrical_calculation import ElectricalCalculation
@@ -63,10 +62,8 @@ from app.schemas.calculation import (
     ElectricalCableSelectionRequest,
     ElectricalCalcSummary,
     ElectricalRequest,
-    PipeHeatLossParams,
     StoredPipeHeatParams,
     StoredTankHeatParams,
-    TankHeatLossParams,
 )
 from app.schemas.json_shapes import (
     HeatLossResultDict,
@@ -104,15 +101,15 @@ from app.services.electrical_tt_pipeline import (
     electrical_tt_catalog_eligibility,
 )
 from app.services.heat_contract import (
-    COMMON_HEAT_PARAM_KEYS,
     PIPE_FORBIDDEN_HEAT_PARAM_KEYS,
-    PIPE_HEAT_PARAM_KEYS,
     TANK_FORBIDDEN_HEAT_PARAM_KEYS,
-    TANK_HEAT_PARAM_KEYS,
 )
 from app.services.project_object_params import (
     ProjectObjectParamsError,
-    prepare_project_object_params,
+    StoredHeatParams,
+    build_stored_heat_params,
+    normalize_project_object_params,
+    validate_and_canonicalize_project_object_params,
 )
 
 # Источник каталога кабелей. Значения заданы для совместимости с текущим API;
@@ -939,6 +936,7 @@ class CalculationService:
         coefficients: dict[str, float],
         *,
         apply_climate_policy: bool = True,
+        validated_params: StoredHeatParams | None = None,
     ) -> HeatLossResultDict:
         if apply_climate_policy:
             data = self._apply_climate_policy(object_type, data)
@@ -946,47 +944,32 @@ class CalculationService:
             forbidden = sorted(PIPE_FORBIDDEN_HEAT_PARAM_KEYS.intersection(data))
             if forbidden:
                 raise ValueError("Forbidden pipe heat params: " + ", ".join(forbidden))
-            stored = StoredPipeHeatParams(
-                **{
-                    key: value
-                    for key, value in data.items()
-                    if key in COMMON_HEAT_PARAM_KEYS | PIPE_HEAT_PARAM_KEYS
-                }
+            stored = (
+                validated_params
+                if validated_params is not None
+                else build_stored_heat_params(object_type, data)
             )
-            params = PipeHeatLossParams(
-                **self._heat_loss_formula_input(PipeHeatLossParams, stored.model_dump())
-            )
-            pipe_result = calc_pipe_heat_loss(params, coefficients=coefficients)
+            if not isinstance(stored, StoredPipeHeatParams):
+                raise CalculationError("Тип валидированных параметров не соответствует pipe")
+            pipe_result = evaluate_validated_heat_loss(stored, coefficients=coefficients)
             result = pipe_result.model_dump()
             return cast(PipeHeatLossResultDict, result)
         elif object_type == "tank":
             forbidden = sorted(TANK_FORBIDDEN_HEAT_PARAM_KEYS.intersection(data))
             if forbidden:
                 raise ValueError("Forbidden tank heat params: " + ", ".join(forbidden))
-            stored_tank = StoredTankHeatParams(
-                **{
-                    key: value
-                    for key, value in data.items()
-                    if key in COMMON_HEAT_PARAM_KEYS | TANK_HEAT_PARAM_KEYS
-                }
+            stored_tank = (
+                validated_params
+                if validated_params is not None
+                else build_stored_heat_params(object_type, data)
             )
-            params_t = TankHeatLossParams(
-                **self._heat_loss_formula_input(TankHeatLossParams, stored_tank.model_dump())
-            )
-            tank_result = calc_tank_heat_loss(params_t, coefficients=coefficients)
+            if not isinstance(stored_tank, StoredTankHeatParams):
+                raise CalculationError("Тип валидированных параметров не соответствует tank")
+            tank_result = evaluate_validated_heat_loss(stored_tank, coefficients=coefficients)
             result = tank_result.model_dump()
             return cast(TankHeatLossResultDict, result)
         else:
             raise CalculationError(f"Неподдерживаемый тип объекта: {object_type}")
-
-    @staticmethod
-    def _heat_loss_formula_input(
-        schema: type[PipeHeatLossParams] | type[TankHeatLossParams],
-        data: dict[str, Any],
-    ) -> dict[str, Any]:
-        """Project full object params to the strict formula schema contract."""
-
-        return {key: value for key, value in data.items() if key in schema.model_fields}
 
     async def recalculate_object(self, obj: ProjectObject) -> ProjectObject:
         """Автопересчёт объекта при изменении параметров (мутирует obj).
@@ -1117,8 +1100,24 @@ class CalculationService:
             >>> # obj.is_valid / obj.validation_errors всё равно обновлены
         """
         try:
-            obj.params = prepare_project_object_params(obj.object_type, obj.params)
-            obj.params = self._apply_climate_policy(obj.object_type, obj.params)
+            normalized = normalize_project_object_params(obj.object_type, obj.params)
+            resolved = self._apply_climate_policy(obj.object_type, normalized)
+            prepared = validate_and_canonicalize_project_object_params(
+                obj.object_type,
+                resolved,
+            )
+            obj.params = prepared.params
+            if not prepared.report.is_valid:
+                validation_error = prepared.report.to_legacy_error()
+                obj.results = None
+                obj.is_valid = False
+                obj.validation_errors = build_heat_loss_error_payload(
+                    validation_error,
+                    object_type=obj.object_type,
+                )
+                return Err(_clean_exception_message(validation_error))
+            if prepared.heat_params is None:  # pragma: no cover - report/model invariant
+                raise RuntimeError("Валидный отчёт не содержит formula input")
             resolved_coefficients = (
                 coefficients if coefficients is not None else await self.get_coefficients()
             )
@@ -1127,6 +1126,7 @@ class CalculationService:
                 obj.params,
                 resolved_coefficients,
                 apply_climate_policy=False,
+                validated_params=prepared.heat_params,
             )
             obj.results = cast(dict[str, Any], result)
             obj.is_valid = True
@@ -1169,16 +1169,23 @@ class CalculationService:
         """
         normalized = dict(data)
         climate = cls._climate_entry(normalized)
-        safety_factor = cls._num(normalized.get("safety_factor"))
         safety_factor_source = normalized.get("safety_factor_source")
-        explicit_safety_factor = safety_factor is not None and safety_factor_source not in (
-            "default",
-            "climate_policy",
+        safety_factor_present = "safety_factor" in normalized
+        try:
+            parsed_safety_factor = cls._num(normalized.get("safety_factor"))
+        except (TypeError, ValueError):
+            parsed_safety_factor = None
+        explicit_safety_factor = safety_factor_present and (
+            safety_factor_source not in ("default", "climate_policy")
+            or parsed_safety_factor is None
         )
         safety_factor_from_policy = False
 
         if object_type == "pipe":
-            diameter = cls._num(normalized.get("outer_diameter"))
+            try:
+                diameter = cls._num(normalized.get("outer_diameter"))
+            except (TypeError, ValueError):
+                diameter = None
             if diameter is None or diameter <= 0:
                 normalized.pop("climate_temperature_basis", None)
                 return normalized
@@ -1207,7 +1214,7 @@ class CalculationService:
         climate_temperature = cls._climate_temperature(climate, basis)
         manual_ambient_temperature = (
             normalized.get("ambient_temperature_source") == "manual"
-            and cls._num(normalized.get("ambient_temperature")) is not None
+            and "ambient_temperature" in normalized
         )
         uses_air_temperature = not (
             object_type == "pipe" and normalized.get("placement") == "underground"

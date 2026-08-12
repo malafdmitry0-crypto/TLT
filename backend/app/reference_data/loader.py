@@ -11,7 +11,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, cast
 
-from app.formulas.heat_loss.core.thermal import affine_value, piecewise_constant
+from app.formulas.heat_loss.core.thermal import affine_value, clamp_minimum, piecewise_constant
 
 _BASE_DIR = Path(__file__).parent
 _ELECTRICAL_CATALOG_FILES = {
@@ -457,11 +457,16 @@ def get_pipe_material_lambda(material: str | None, temperature: float) -> float:
         raise ValueError("Не задан материал трубы для расчёта λ(T)")
     for entry in _pipe_materials():
         if entry["material"] == material:
-            a = float(entry["a"])
-            b = float(entry["b"])
-            return max(
-                affine_value(temperature + 40.0, intercept=a, slope=b),
-                0.001,
+            intercept = float(entry["a"])
+            slope = float(entry["b"])
+            return clamp_minimum(
+                affine_value(
+                    temperature,
+                    intercept=intercept,
+                    slope=slope,
+                    variable_offset=40.0,
+                ),
+                minimum=0.001,
             )
     allowed = [entry["material"] for entry in _pipe_materials()]
     raise ValueError(f"Неизвестный материал трубы: '{material}'. Допустимые: {allowed}")

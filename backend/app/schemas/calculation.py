@@ -7,6 +7,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.electrical_variant_limits import MAX_ELECTRICAL_VARIANTS
+from app.formulas.heat_loss.core.geometry import layered_outer_radius, radius_from_diameter
 from app.formulas.heat_loss.insulation import (
     InsulationTemperatureBasis,
     validate_insulation_temperature_basis_for_placement,
@@ -263,7 +264,7 @@ class PipeHeatLossParams(BaseModel):
         )
         if (self.pipe_material is None) == (self.pipe_lambda is None):
             raise ValueError("Задайте ровно один источник λ трубы: pipe_material или pipe_lambda")
-        if self.wall_thickness >= self.outer_diameter / 2:
+        if self.wall_thickness >= radius_from_diameter(self.outer_diameter):
             raise ValueError("wall_thickness должна быть меньше половины outer_diameter")
         for index, layer in enumerate(self.insulation_layers, start=1):
             if layer.material != "other" and (
@@ -295,8 +296,9 @@ class PipeHeatLossParams(BaseModel):
                 raise ValueError(
                     "process_temperature_not_above_ground: температура продукта должна быть выше температуры грунта"
                 )
-            outer_radius = self.outer_diameter / 2 + sum(
-                layer.thickness for layer in self.insulation_layers
+            outer_radius = layered_outer_radius(
+                self.outer_diameter,
+                tuple(layer.thickness for layer in self.insulation_layers),
             )
             if self.pipe_centerline_depth <= outer_radius:
                 raise ValueError(
@@ -544,7 +546,7 @@ class TankHeatLossParams(BaseModel):
             self.shape == "cylindrical"
             and self.wall_thickness is not None
             and self.diameter is not None
-            and self.wall_thickness >= self.diameter / 2
+            and self.wall_thickness >= radius_from_diameter(self.diameter)
         ):
             raise ValueError("wall_thickness должна быть меньше половины diameter")
         if self.shape == "cylindrical" and (self.diameter is None or self.height is None):
