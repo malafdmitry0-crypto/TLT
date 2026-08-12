@@ -1,6 +1,7 @@
 """Pure numeric heat-loss core with no application-layer dependencies."""
 
 from .errors import FormulaDomainError
+from .insulation_temperature import calculate_insulation_temperature
 from .insulation_validation import (
     validate_insulation_conductivity,
     validate_insulation_layer_count,
@@ -38,6 +39,7 @@ __all__ = [
     "NumericRangeSpec",
     "SequenceLengthCheck",
     "SequenceLengthSpec",
+    "calculate_insulation_temperature",
     "validate_insulation_conductivity",
     "validate_insulation_layer_count",
     "validate_insulation_layer_ranges",

@@ -76,6 +76,7 @@ def test_heat_loss_core_import_smoke() -> None:
     assert callable(core.validate_range_checks)
     assert callable(core.validate_sequence_length)
     assert callable(core.validate_insulation_layer_ranges)
+    assert callable(core.calculate_insulation_temperature)
     assert callable(core.validate_hot_side_temperature_in_interval)
     assert callable(core.validate_pipe_input_ranges)
     assert callable(core.validate_pipe_formula_domain)
