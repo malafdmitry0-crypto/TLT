@@ -396,14 +396,19 @@ def _pydantic_validation_issues(exc: ValidationError) -> tuple[ValidationIssue, 
 
     issues: list[ValidationIssue] = []
     for error in exc.errors():
-        code = (
+        context = error.get("ctx")
+        formula_code = (
+            str(context["formula_code"])
+            if isinstance(context, dict) and context.get("formula_code")
+            else None
+        )
+        code = formula_code or (
             "OBJECT_REQUIRED_FIELDS_MISSING"
             if error.get("type") == "missing"
             else "OBJECT_PARAMS_INVALID"
         )
         fields = _validation_error_fields([error]) or (None,)
         reason = _validation_error_reason([error])
-        context = error.get("ctx")
         context_message = (
             str(context.get("error", "")) if isinstance(context, dict) else ""
         ).strip()
@@ -452,6 +457,8 @@ def _validation_error_fields(errors: list[ErrorDetails]) -> tuple[str, ...]:
 def _validation_error_reason(errors: list[ErrorDetails]) -> str | None:
     for error in errors:
         context = error.get("ctx")
+        if isinstance(context, dict) and context.get("formula_code"):
+            return str(context["formula_code"])
         message = str(context.get("error", "")) if isinstance(context, dict) else ""
         for reason in (
             "process_temperature_not_above_ambient",

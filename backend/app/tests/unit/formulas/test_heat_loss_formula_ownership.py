@@ -3,9 +3,11 @@
 from unittest.mock import MagicMock
 
 import pytest
+from pydantic import ValidationError
 
 from app.formulas.heat_loss import pipe as pipe_facade
-from app.formulas.heat_loss.core.geometry import layered_outer_radius, radius_from_diameter
+from app.formulas.heat_loss.core.pipe import validate_pipe_formula_domain
+from app.formulas.heat_loss.core.tank import validate_tank_formula_domain
 from app.formulas.heat_loss.core.thermal import affine_value, clamp_minimum
 from app.reference_data import loader as reference_loader
 from app.schemas import calculation as calculation_schemas
@@ -49,37 +51,69 @@ def _tank(**overrides: object) -> dict[str, object]:
     return values
 
 
-def test_wall_geometry_validators_delegate_radius_formula_to_core(
+def test_pipe_schema_calls_public_core_formula_validator_once(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    radius_spy = MagicMock(wraps=radius_from_diameter)
-    monkeypatch.setattr(calculation_schemas, "radius_from_diameter", radius_spy)
+    validation_spy = MagicMock(wraps=validate_pipe_formula_domain)
+    monkeypatch.setattr(calculation_schemas, "validate_pipe_formula_domain", validation_spy)
 
     PipeHeatLossParams.model_validate(_air_pipe())
-    TankHeatLossParams.model_validate(_tank(wall_thickness=0.02, wall_lambda=45.0))
 
-    assert radius_spy.call_args_list[0].args == (0.108,)
-    assert radius_spy.call_args_list[1].args == (2.0,)
+    validation_spy.assert_called_once()
+    assert validation_spy.call_args.kwargs == {
+        "outer_diameter_m": 0.108,
+        "wall_thickness_m": 0.004,
+        "insulation_layer_thicknesses_m": (),
+        "process_temperature_c": 80.0,
+        "environment_temperature_c": -20.0,
+        "environment": "ambient",
+        "centerline_depth_m": None,
+    }
 
 
-def test_underground_pipe_validator_delegates_layered_radius_formula_to_core(
+def test_tank_schema_calls_public_core_formula_validator_once(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    radius_spy = MagicMock(wraps=layered_outer_radius)
-    monkeypatch.setattr(calculation_schemas, "layered_outer_radius", radius_spy)
+    validation_spy = MagicMock(wraps=validate_tank_formula_domain)
+    monkeypatch.setattr(calculation_schemas, "validate_tank_formula_domain", validation_spy)
+
+    TankHeatLossParams.model_validate(_tank(wall_thickness=0.02, wall_lambda=45.0))
+
+    validation_spy.assert_called_once()
+    assert validation_spy.call_args.kwargs["wall_thickness_m"] == pytest.approx(0.02)
+    assert validation_spy.call_args.kwargs["process_temperature_c"] == pytest.approx(80.0)
+    assert validation_spy.call_args.kwargs["ambient_temperature_c"] == pytest.approx(-20.0)
+    assert validation_spy.call_args.kwargs["ground_temperature_c"] is None
+
+
+def test_core_issue_codes_become_field_errors_without_message_parsing() -> None:
     payload = _air_pipe(
+        outer_diameter=0.0108,
+        wall_thickness=0.04,
+        process_temperature=5.0,
         placement="underground",
         insulation_temperature_basis="channel",
         ambient_temperature=None,
         wind_speed=None,
         ground_temperature=5.0,
-        pipe_centerline_depth=1.0,
+        pipe_centerline_depth=0.05,
         ground_conductivity=1.5,
     )
 
-    PipeHeatLossParams.model_validate(payload)
+    with pytest.raises(ValidationError) as exc_info:
+        PipeHeatLossParams.model_validate(payload)
 
-    radius_spy.assert_called_once_with(0.108, (0.05,))
+    errors = exc_info.value.errors()
+    assert [error["loc"] for error in errors] == [
+        ("wall_thickness",),
+        ("process_temperature",),
+        ("pipe_centerline_depth",),
+    ]
+    assert [error["ctx"]["formula_code"] for error in errors] == [
+        "wall_exceeds_pipe_radius",
+        "process_temperature_not_above_ground",
+        "ground_centerline_inside_pipe",
+    ]
 
 
 def test_pipe_facade_delegates_mean_wall_temperature_to_core(
