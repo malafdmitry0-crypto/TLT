@@ -14,6 +14,10 @@ from app.formulas.heat_loss.core.insulation_validation import (
     validate_insulation_conductivity,
     validate_insulation_thickness,
 )
+from app.formulas.heat_loss.core.material_validation import (
+    validate_temperature_in_interval,
+    validate_temperature_interval,
+)
 from app.formulas.heat_loss.core.pipe import validate_pipe_formula_domain
 from app.formulas.heat_loss.core.pipe_validation import validate_pipe_input_ranges
 from app.formulas.heat_loss.core.tank import validate_tank_formula_domain
@@ -171,7 +175,8 @@ def _validate_temperature_range_shape(
 ) -> tuple[float, float]:
     min_temp = float(temperature_range[0])
     max_temp = float(temperature_range[1])
-    if min_temp >= max_temp:
+    report = validate_temperature_interval(minimum_c=min_temp, maximum_c=max_temp)
+    if not report.is_valid:
         raise ValueError(f"{label}: нижняя граница должна быть меньше верхней")
     return min_temp, max_temp
 
@@ -187,7 +192,12 @@ def _validate_temperature_in_material_range(
         temperature_range,
         label=f"Температурный диапазон {label}",
     )
-    if min_temp <= process_temperature <= max_temp:
+    report = validate_temperature_in_interval(
+        temperature_c=process_temperature,
+        minimum_c=min_temp,
+        maximum_c=max_temp,
+    )
+    if report.is_valid:
         return
     raise ValueError(
         f"Температура продукта {_fmt_temp(process_temperature)} °C вне диапазона "
