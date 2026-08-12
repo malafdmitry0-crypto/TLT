@@ -121,9 +121,17 @@ def validate_numeric_range(
     or validated by a different branch before constructing this check.
     """
 
+    non_finite_details: dict[str, FormulaValidationNumber] = {"value": value}
+    if spec.minimum is not None:
+        non_finite_details["minimum"] = spec.minimum
+        non_finite_details["minimum_inclusive"] = int(spec.minimum_inclusive)
+    if spec.maximum is not None:
+        non_finite_details["maximum"] = spec.maximum
+        non_finite_details["maximum_inclusive"] = int(spec.maximum_inclusive)
+
     if math.isnan(value):
         return FormulaValidationReport(
-            (FormulaValidationIssue.with_details("not_finite", path=path, value=value),)
+            (FormulaValidationIssue.with_details("not_finite", path=path, **non_finite_details),)
         )
     if math.isinf(value):
         infinity_is_allowed = (value > 0 and spec.allow_positive_infinity) or (
@@ -132,7 +140,7 @@ def validate_numeric_range(
         if infinity_is_allowed:
             return VALID_FORMULA_VALIDATION_REPORT
         return FormulaValidationReport(
-            (FormulaValidationIssue.with_details("not_finite", path=path, value=value),)
+            (FormulaValidationIssue.with_details("not_finite", path=path, **non_finite_details),)
         )
 
     issues: tuple[FormulaValidationIssue, ...] = ()
