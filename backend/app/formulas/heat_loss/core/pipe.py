@@ -9,9 +9,16 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from typing import Literal
 
 from .errors import FormulaDomainError
 from .geometry import layered_outer_radius, outer_radius_after_layer, radius_from_diameter
+from .validation import (
+    VALID_FORMULA_VALIDATION_REPORT,
+    FormulaValidationCode,
+    FormulaValidationIssue,
+    FormulaValidationReport,
+)
 
 
 @dataclass(frozen=True)
@@ -82,6 +89,68 @@ class PipeCoreResult:
     insulation_outer_radius_m: float
     layer_resistances_mk_w: tuple[float, ...]
     layer_boundary_temperatures: tuple[PipeLayerBoundaryTemperature, ...]
+
+
+def validate_pipe_formula_domain(
+    *,
+    outer_diameter_m: float,
+    wall_thickness_m: float,
+    insulation_layer_thicknesses_m: tuple[float, ...],
+    process_temperature_c: float,
+    environment_temperature_c: float,
+    environment: Literal["ambient", "ground"],
+    centerline_depth_m: float | None = None,
+) -> FormulaValidationReport:
+    """Validate derived constraints of the selected pipe formula once.
+
+    Scalar parsing, product ranges, required fields, and selection of the air
+    or ground branch belong to the caller.  This function owns relationships
+    that are defined by the formula itself and returns every applicable issue.
+    """
+
+    issues: tuple[FormulaValidationIssue, ...] = ()
+    pipe_outer_radius_m = radius_from_diameter(outer_diameter_m)
+    if wall_thickness_m >= pipe_outer_radius_m:
+        issues += (
+            FormulaValidationIssue.with_details(
+                "wall_exceeds_pipe_radius",
+                outer_diameter_m=outer_diameter_m,
+                wall_thickness_m=wall_thickness_m,
+                outer_radius_m=pipe_outer_radius_m,
+            ),
+        )
+
+    temperature_code: FormulaValidationCode = (
+        "process_temperature_not_above_ambient"
+        if environment == "ambient"
+        else "process_temperature_not_above_ground"
+    )
+    if process_temperature_c <= environment_temperature_c:
+        issues += (
+            FormulaValidationIssue.with_details(
+                temperature_code,
+                process_temperature_c=process_temperature_c,
+                environment_temperature_c=environment_temperature_c,
+            ),
+        )
+
+    if environment == "ground" and centerline_depth_m is not None:
+        insulation_outer_radius_m = layered_outer_radius(
+            outer_diameter_m,
+            insulation_layer_thicknesses_m,
+        )
+        if centerline_depth_m <= insulation_outer_radius_m:
+            issues += (
+                FormulaValidationIssue.with_details(
+                    "ground_centerline_inside_pipe",
+                    centerline_depth_m=centerline_depth_m,
+                    outer_radius_m=insulation_outer_radius_m,
+                ),
+            )
+
+    if not issues:
+        return VALID_FORMULA_VALIDATION_REPORT
+    return FormulaValidationReport(issues)
 
 
 def calculate_aboveground_pipe(data: AbovegroundPipeInput) -> PipeCoreResult:
@@ -261,147 +330,6 @@ def _layer_boundary_temperatures(
         )
         current_temperature = next_temperature
     return tuple(boundaries)
-
-
-def _validate_pipe_input(
-    *,
-    outer_diameter_m: float,
-    wall_thickness_m: float,
-    wall_conductivity_w_mk: float,
-    insulation_layers: tuple[PipeInsulationLayer, ...],
-    process_temperature_c: float,
-    environment_temperature_c: float,
-    pipe_length_m: float,
-    local_elements_count: int,
-    local_element_equiv_length_m: float,
-    safety_factor: float,
-    external_resistance_mk_w: float,
-) -> None:
-    """Dormant input guard retained while Pydantic owns production admission."""
-
-    _validate_finite(
-        outer_diameter_m,
-        wall_thickness_m,
-        wall_conductivity_w_mk,
-        process_temperature_c,
-        environment_temperature_c,
-        pipe_length_m,
-        local_element_equiv_length_m,
-        safety_factor,
-        external_resistance_mk_w,
-    )
-    if outer_diameter_m <= 0:
-        raise FormulaDomainError("nonpositive_outer_diameter", outer_diameter_m=outer_diameter_m)
-    if wall_thickness_m <= 0:
-        raise FormulaDomainError("nonpositive_wall_thickness", wall_thickness_m=wall_thickness_m)
-    if wall_conductivity_w_mk <= 0:
-        raise FormulaDomainError(
-            "nonpositive_wall_conductivity", conductivity_w_mk=wall_conductivity_w_mk
-        )
-    if pipe_length_m <= 0:
-        raise FormulaDomainError("nonpositive_pipe_length", pipe_length_m=pipe_length_m)
-    if local_elements_count < 0:
-        raise FormulaDomainError(
-            "negative_local_elements", local_elements_count=local_elements_count
-        )
-    if local_element_equiv_length_m < 0:
-        raise FormulaDomainError(
-            "negative_local_element_length", length_m=local_element_equiv_length_m
-        )
-    if safety_factor <= 0:
-        raise FormulaDomainError("nonpositive_safety_factor", safety_factor=safety_factor)
-    if process_temperature_c <= environment_temperature_c:
-        raise FormulaDomainError("nonpositive_temperature_difference")
-
-    r_outer_pipe = radius_from_diameter(outer_diameter_m)
-    if wall_thickness_m >= r_outer_pipe:
-        raise FormulaDomainError(
-            "wall_exceeds_pipe_radius",
-            wall_thickness_m=wall_thickness_m,
-            outer_radius_m=r_outer_pipe,
-        )
-    for layer in insulation_layers:
-        if not math.isfinite(layer.thickness_m) or layer.thickness_m <= 0:
-            raise FormulaDomainError("nonpositive_layer_thickness", thickness_m=layer.thickness_m)
-        if not math.isfinite(layer.conductivity_w_mk) or layer.conductivity_w_mk <= 0:
-            raise FormulaDomainError(
-                "nonpositive_layer_conductivity",
-                conductivity_w_mk=layer.conductivity_w_mk,
-            )
-
-
-def _validate_ground_input(
-    outer_radius_m: float,
-    centerline_depth_m: float,
-    ground_conductivity_w_mk: float,
-) -> None:
-    """Dormant buried-pipe input guard retained outside the production path."""
-
-    _validate_finite(outer_radius_m, centerline_depth_m, ground_conductivity_w_mk)
-    if outer_radius_m <= 0 or centerline_depth_m <= 0:
-        raise FormulaDomainError("invalid_ground_geometry")
-    if ground_conductivity_w_mk <= 0:
-        raise FormulaDomainError(
-            "nonpositive_ground_conductivity",
-            conductivity_w_mk=ground_conductivity_w_mk,
-        )
-    if centerline_depth_m < outer_radius_m:
-        raise FormulaDomainError(
-            "ground_centerline_inside_pipe",
-            centerline_depth_m=centerline_depth_m,
-            outer_radius_m=outer_radius_m,
-        )
-
-
-def _validate_insulation_outer_radius_input(
-    outer_diameter_m: float,
-    wall_thickness_m: float,
-    layers: tuple[PipeInsulationLayer, ...],
-) -> None:
-    """Dormant geometry guard retained outside the production path."""
-
-    if not math.isfinite(outer_diameter_m) or not math.isfinite(wall_thickness_m):
-        raise FormulaDomainError("non_finite_input")
-    if outer_diameter_m <= 0 or wall_thickness_m <= 0:
-        raise FormulaDomainError("invalid_pipe_geometry")
-    for layer in layers:
-        if not math.isfinite(layer.thickness_m) or layer.thickness_m <= 0:
-            raise FormulaDomainError("nonpositive_layer_thickness", thickness_m=layer.thickness_m)
-
-
-def _validate_external_resistance_input(alpha_w_m2k: float) -> None:
-    """Dormant air-film guard retained outside the production path."""
-
-    if not math.isfinite(alpha_w_m2k) or alpha_w_m2k <= 0:
-        raise FormulaDomainError("nonpositive_external_alpha", alpha_w_m2k=alpha_w_m2k)
-
-
-def _validate_cylindrical_resistance_input(
-    r_in_m: float,
-    r_out_m: float,
-    conductivity_w_mk: float,
-) -> None:
-    """Dormant cylindrical-domain guard retained outside the production path."""
-
-    if r_in_m <= 0 or r_out_m <= 0 or r_out_m <= r_in_m:
-        raise FormulaDomainError("invalid_cylindrical_geometry")
-    if conductivity_w_mk <= 0:
-        raise FormulaDomainError(
-            "nonpositive_conductivity",
-            conductivity_w_mk=conductivity_w_mk,
-        )
-
-
-def _validate_thermal_resistance_input(thermal_resistance_mk_w: float) -> None:
-    """Dormant aggregate-resistance guard retained outside the production path."""
-
-    if thermal_resistance_mk_w == 0:
-        raise FormulaDomainError("zero_thermal_resistance")
-
-
-def _validate_finite(*values: float) -> None:
-    if not all(math.isfinite(value) for value in values):
-        raise FormulaDomainError("non_finite_input")
 
 
 def _validate_result_finite(*values: float) -> None:

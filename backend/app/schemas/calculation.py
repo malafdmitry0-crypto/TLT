@@ -1,13 +1,16 @@
 """Схемы расчётов: вход/выход формул и API."""
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any, Literal, cast
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
+from pydantic_core import InitErrorDetails, PydanticCustomError
 
 from app.electrical_variant_limits import MAX_ELECTRICAL_VARIANTS
-from app.formulas.heat_loss.core.geometry import layered_outer_radius, radius_from_diameter
+from app.formulas.heat_loss.core.pipe import validate_pipe_formula_domain
+from app.formulas.heat_loss.core.tank import validate_tank_formula_domain
+from app.formulas.heat_loss.core.validation import FormulaValidationReport
 from app.formulas.heat_loss.insulation import (
     InsulationTemperatureBasis,
     validate_insulation_temperature_basis_for_placement,
@@ -42,6 +45,74 @@ TANK_SIDE_MIN = 0.1
 TANK_SIDE_MAX = 100.0
 RESISTIVE_DEFAULT_MIN_ADJUSTED_VOLTAGE = 40.0
 RESISTIVE_DEFAULT_VOLTAGE_STEP = 5.0
+
+_PIPE_FORMULA_DOMAIN_PRESENTATIONS = {
+    "wall_exceeds_pipe_radius": (
+        "wall_thickness",
+        "wall_thickness должна быть меньше половины outer_diameter",
+    ),
+    "process_temperature_not_above_ambient": (
+        "process_temperature",
+        "process_temperature_not_above_ambient: температура продукта должна быть выше температуры среды",
+    ),
+    "process_temperature_not_above_ground": (
+        "process_temperature",
+        "process_temperature_not_above_ground: температура продукта должна быть выше температуры грунта",
+    ),
+    "ground_centerline_inside_pipe": (
+        "pipe_centerline_depth",
+        "Глубина заложения pipe_centerline_depth должна быть больше наружного радиуса изоляции",
+    ),
+}
+
+_TANK_FORMULA_DOMAIN_PRESENTATIONS = {
+    "wall_exceeds_tank_radius": (
+        "wall_thickness",
+        "wall_thickness должна быть меньше половины diameter",
+    ),
+    "process_temperature_not_above_ambient": (
+        "process_temperature",
+        "process_temperature_not_above_ambient",
+    ),
+    "process_temperature_not_above_ground": (
+        "process_temperature",
+        "process_temperature_not_above_ground",
+    ),
+    "invalid_buried_height": (
+        "tank_buried_height",
+        "tank_buried_height должна быть в диапазоне (0, height]",
+    ),
+}
+
+
+def _raise_formula_domain_errors(
+    *,
+    model: BaseModel,
+    report: FormulaValidationReport,
+    presentations: dict[str, tuple[str, str]],
+) -> None:
+    """Translate pure core issue codes to stable Pydantic field errors."""
+
+    if report.is_valid:
+        return
+    line_errors: list[InitErrorDetails] = []
+    for issue in report.issues:
+        try:
+            field, message = presentations[issue.code]
+        except KeyError as exc:  # pragma: no cover - architecture invariant
+            raise RuntimeError(f"Нет backend-маппинга для core-ошибки {issue.code!r}") from exc
+        context: dict[str, object] = {
+            "formula_code": issue.code,
+            **issue.details_dict(),
+        }
+        line_errors.append(
+            InitErrorDetails(
+                type=PydanticCustomError("formula_domain", message, context),
+                loc=(field,),
+                input=getattr(model, field, None),
+            )
+        )
+    raise ValidationError.from_exception_data(type(model).__name__, line_errors)
 
 
 def _fmt_temp(value: float) -> str:
@@ -264,8 +335,6 @@ class PipeHeatLossParams(BaseModel):
         )
         if (self.pipe_material is None) == (self.pipe_lambda is None):
             raise ValueError("Задайте ровно один источник λ трубы: pipe_material или pipe_lambda")
-        if self.wall_thickness >= radius_from_diameter(self.outer_diameter):
-            raise ValueError("wall_thickness должна быть меньше половины outer_diameter")
         for index, layer in enumerate(self.insulation_layers, start=1):
             if layer.material != "other" and (
                 layer.conductivity is not None or layer.temperature_range is not None
@@ -281,6 +350,9 @@ class PipeHeatLossParams(BaseModel):
                 )
         if self.num_local_elements > 0 and self.local_element_equiv_length is None:
             raise ValueError("Для num_local_elements > 0 требуется local_element_equiv_length")
+        environment: Literal["ambient", "ground"]
+        environment_temperature: float
+        centerline_depth: float | None
         if self.placement == "underground":
             if self.ground_temperature is None:
                 raise ValueError("Для underground требуется ground_temperature")
@@ -292,31 +364,41 @@ class PipeHeatLossParams(BaseModel):
                 raise ValueError("ambient_temperature запрещена для underground pipe")
             if self.wind_speed is not None:
                 raise ValueError("wind_speed запрещена для underground pipe")
-            if self.process_temperature <= self.ground_temperature:
-                raise ValueError(
-                    "process_temperature_not_above_ground: температура продукта должна быть выше температуры грунта"
-                )
-            outer_radius = layered_outer_radius(
-                self.outer_diameter,
-                tuple(layer.thickness for layer in self.insulation_layers),
-            )
-            if self.pipe_centerline_depth <= outer_radius:
-                raise ValueError(
-                    "Глубина заложения pipe_centerline_depth должна быть больше наружного радиуса изоляции"
-                )
+            environment = "ground"
+            environment_temperature = self.ground_temperature
+            centerline_depth = self.pipe_centerline_depth
         else:
             if self.ambient_temperature is None:
                 raise ValueError("Для воздушной трубы требуется ambient_temperature")
-            if self.process_temperature <= self.ambient_temperature:
-                raise ValueError(
-                    "process_temperature_not_above_ambient: температура продукта должна быть выше температуры среды"
-                )
             if self.pipe_centerline_depth is not None:
                 raise ValueError("pipe_centerline_depth допустима только для underground")
             if self.ground_temperature is not None or self.ground_conductivity is not None:
                 raise ValueError("Грунтовые параметры допустимы только для underground")
             if self.placement == "outdoor" and self.wind_speed is None:
                 raise ValueError("Для outdoor auto требуется wind_speed")
+            environment = "ambient"
+            environment_temperature = self.ambient_temperature
+            centerline_depth = None
+
+        formula_report = validate_pipe_formula_domain(
+            outer_diameter_m=self.outer_diameter,
+            wall_thickness_m=self.wall_thickness,
+            insulation_layer_thicknesses_m=(
+                tuple(layer.thickness for layer in self.insulation_layers)
+                if environment == "ground"
+                else ()
+            ),
+            process_temperature_c=self.process_temperature,
+            environment_temperature_c=environment_temperature,
+            environment=environment,
+            centerline_depth_m=centerline_depth,
+        )
+        if not formula_report.is_valid:
+            _raise_formula_domain_errors(
+                model=self,
+                report=formula_report,
+                presentations=_PIPE_FORMULA_DOMAIN_PRESENTATIONS,
+            )
         return self
 
 
@@ -519,21 +601,13 @@ class TankHeatLossParams(BaseModel):
                 raise ValueError("Для underground требуется ground_conductivity")
             if self.tank_buried_height is None:
                 raise ValueError("Для underground требуется tank_buried_height")
-            if self.height is None or self.tank_buried_height > self.height:
-                raise ValueError("tank_buried_height должна быть в диапазоне (0, height]")
             if self.ambient_temperature is None:
                 raise ValueError("Для underground требуется ambient_temperature")
-            if self.process_temperature <= self.ambient_temperature:
-                raise ValueError("process_temperature_not_above_ambient")
-            if self.process_temperature <= self.ground_temperature:
-                raise ValueError("process_temperature_not_above_ground")
             if self.wind_speed is None:
                 raise ValueError("Для underground tank auto требуется wind_speed")
         else:
             if self.ambient_temperature is None:
                 raise ValueError("Для воздушного резервуара требуется ambient_temperature")
-            if self.process_temperature <= self.ambient_temperature:
-                raise ValueError("process_temperature_not_above_ambient")
             if self.ground_temperature is not None or self.ground_conductivity is not None:
                 raise ValueError("Грунтовые параметры допустимы только для underground")
             if self.tank_buried_height is not None:
@@ -542,13 +616,6 @@ class TankHeatLossParams(BaseModel):
                 raise ValueError("Для outdoor auto требуется wind_speed")
         if (self.wall_thickness is None) != (self.wall_lambda is None):
             raise ValueError("wall_thickness и wall_lambda задаются парой")
-        if (
-            self.shape == "cylindrical"
-            and self.wall_thickness is not None
-            and self.diameter is not None
-            and self.wall_thickness >= radius_from_diameter(self.diameter)
-        ):
-            raise ValueError("wall_thickness должна быть меньше половины diameter")
         if self.shape == "cylindrical" and (self.diameter is None or self.height is None):
             raise ValueError("Для цилиндра требуются diameter и height")
         if self.shape == "rectangular" and (
@@ -559,6 +626,26 @@ class TankHeatLossParams(BaseModel):
             raise ValueError("cylindrical не принимает length или width")
         if self.shape == "rectangular" and self.diameter is not None:
             raise ValueError("rectangular не принимает diameter")
+
+        formula_report = validate_tank_formula_domain(
+            cylindrical_diameter_m=(self.diameter if self.shape == "cylindrical" else None),
+            height_m=cast(float, self.height),
+            wall_thickness_m=self.wall_thickness or 0.0,
+            process_temperature_c=self.process_temperature,
+            ambient_temperature_c=self.ambient_temperature,
+            ground_temperature_c=(
+                self.ground_temperature if self.placement == "underground" else None
+            ),
+            buried_height_m=(
+                self.tank_buried_height if self.placement == "underground" else None
+            ),
+        )
+        if not formula_report.is_valid:
+            _raise_formula_domain_errors(
+                model=self,
+                report=formula_report,
+                presentations=_TANK_FORMULA_DOMAIN_PRESENTATIONS,
+            )
         return self
 
 

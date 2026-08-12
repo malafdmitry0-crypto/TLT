@@ -387,6 +387,56 @@ class TestExcelImport:
         assert all(item["is_valid"] is False for item in objects)
         assert all(item["validation_errors"] for item in objects)
 
+    async def test_import_preserves_pipe_with_formula_domain_error(
+        self, client: AsyncClient, guest_session: str
+    ):
+        pid = await _create_project(client, guest_session)
+        xlsx = _build_xlsx(
+            pipes=[
+                [
+                    "Невалидная температура",
+                    108,
+                    50,
+                    50,
+                    MINERAL_WOOL,
+                    5,
+                    5,
+                    4,
+                    "carbon_steel",
+                    "outdoor",
+                    0,
+                    "outdoor_winter",
+                ],
+            ]
+        )
+
+        resp = await client.post(
+            f"/api/v1/projects/{pid}/objects/import-excel",
+            files={
+                "file": (
+                    "formula-domain-invalid.xlsx",
+                    xlsx,
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                )
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert resp.status_code == 200
+        assert resp.json()["created"] == 1
+        objects = (
+            await client.get(
+                f"/api/v1/projects/{pid}/objects",
+                headers={"X-Session-Id": guest_session},
+            )
+        ).json()
+        assert len(objects) == 1
+        assert objects[0]["is_valid"] is False
+        assert objects[0]["results"] is None
+        assert objects[0]["validation_errors"]["error_code"] == (
+            "process_temperature_not_above_ambient"
+        )
+
     async def test_import_tanks_supported_shapes_and_rejects_legacy_shape(
         self, client: AsyncClient, guest_session: str
     ):

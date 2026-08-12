@@ -1,7 +1,6 @@
 """Focused unit tests for the pure numeric tank heat-loss core."""
 
 import math
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -15,6 +14,7 @@ from app.formulas.heat_loss.core.tank import (
     TankInsulationLayer,
     calculate_air_tank_heat_loss,
     calculate_buried_tank_heat_loss,
+    validate_tank_formula_domain,
 )
 
 
@@ -115,25 +115,17 @@ def test_core_returns_layer_boundaries_for_both_buried_branches() -> None:
     )
 
 
-def test_input_guards_are_dormant_on_the_core_calculation_path(
+def test_formula_domain_validation_is_explicit_not_part_of_calculation(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    guard_names = (
-        "_validate_air_tank_input",
-        "_validate_buried_tank_input",
-        "_validate_common_resistance_input",
-        "_validate_surface_area_split_input",
-        "_validate_positive_geometry",
-        "_validate_positive",
-        "_validate_design_inputs",
-        "_validate_finite",
+    def fail_if_called(**_: object) -> None:
+        raise AssertionError("calculation revalidated input")
+
+    monkeypatch.setattr(
+        tank_core,
+        "validate_tank_formula_domain",
+        fail_if_called,
     )
-    for name in guard_names:
-        monkeypatch.setattr(
-            tank_core,
-            name,
-            MagicMock(side_effect=AssertionError(f"production called dormant guard {name}")),
-        )
 
     assert calculate_air_tank_heat_loss(_air_input()).total_heat_loss_design_w > 0
     buried = BuriedTankHeatLossInput(
@@ -153,17 +145,41 @@ def test_input_guards_are_dormant_on_the_core_calculation_path(
     assert calculate_buried_tank_heat_loss(buried).total_heat_loss_design_w > 0
 
 
-def test_dormant_tank_guard_preserves_external_alpha_domain_error() -> None:
-    with pytest.raises(FormulaDomainError) as exc_info:
-        tank_core._validate_air_tank_input(_air_input(external_alpha_w_m2k=0.0))
-    assert exc_info.value.code == "nonpositive_external_alpha"
+def test_tank_formula_domain_collects_all_derived_issues_with_numeric_details() -> None:
+    report = validate_tank_formula_domain(
+        cylindrical_diameter_m=0.1,
+        height_m=0.1,
+        wall_thickness_m=0.05,
+        process_temperature_c=5.0,
+        ambient_temperature_c=5.0,
+        ground_temperature_c=5.0,
+        buried_height_m=0.2,
+    )
+
+    assert [issue.code for issue in report.issues] == [
+        "wall_exceeds_tank_radius",
+        "process_temperature_not_above_ambient",
+        "process_temperature_not_above_ground",
+        "invalid_buried_height",
+    ]
+    assert report.issues[0].details_dict()["outer_radius_m"] == pytest.approx(0.05)
+    assert report.issues[-1].details_dict() == {
+        "buried_height_m": 0.2,
+        "height_m": 0.1,
+    }
 
 
-def test_dormant_tank_guard_preserves_buried_height_domain_error() -> None:
-    geometry = CylindricalTankGeometry(diameter_m=2.0, height_m=3.0)
-    with pytest.raises(FormulaDomainError) as exc_info:
-        tank_core._validate_surface_area_split_input(geometry, 3.1)
-    assert exc_info.value.code == "invalid_buried_height"
+def test_valid_tank_formula_domain_returns_empty_report() -> None:
+    report = validate_tank_formula_domain(
+        cylindrical_diameter_m=None,
+        height_m=3.0,
+        wall_thickness_m=0.01,
+        process_temperature_c=80.0,
+        ambient_temperature_c=-20.0,
+    )
+
+    assert report.is_valid is True
+    assert report.issues == ()
 
 
 def test_tank_result_guard_rejects_nonfinite_computed_fields() -> None:
