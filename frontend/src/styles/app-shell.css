@@ -39,10 +39,10 @@
   flex: 0 0 auto;
   min-width: 0;
 }
-.heatcalc-brand-icon {
-  color: var(--color-swatch-2457d6);
-  font-size: 15px;
-  line-height: 1;
+.heatcalc-brand-logo {
+  display: block;
+  width: 22px; height: 22px;
+  border-radius: 50%; object-fit: cover;
 }
 .heatcalc-title {
   color: var(--color-swatch-162234);
