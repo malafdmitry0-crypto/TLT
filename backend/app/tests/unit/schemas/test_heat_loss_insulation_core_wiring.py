@@ -1,19 +1,19 @@
-"""Prove Pydantic delegates insulation ranges to core exactly once."""
+"""Prove Pydantic delegates each insulation layer to core exactly once."""
 
+from __future__ import annotations
+
+import ast
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 from pydantic import ValidationError
 
-from app.formulas.heat_loss.core.insulation_validation import (
-    validate_insulation_conductivity,
-    validate_insulation_thickness,
-)
-from app.formulas.heat_loss.core.pipe_validation import validate_pipe_input_ranges
 from app.schemas import calculation as calculation_schemas
 from app.schemas.calculation import InsulationLayer, PipeHeatLossParams
 
 MINERAL_WOOL = "mineral_wool_boards_120"
+_CALCULATION_SCHEMA_PATH = Path(calculation_schemas.__file__)
 
 
 def _pipe(layer: InsulationLayer | dict[str, object]) -> dict[str, object]:
@@ -31,13 +31,11 @@ def _pipe(layer: InsulationLayer | dict[str, object]) -> dict[str, object]:
     }
 
 
-def test_layer_calls_each_applicable_core_range_validator_once(
+def test_raw_layer_calls_the_unified_core_contract_once(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    thickness_spy = MagicMock(wraps=validate_insulation_thickness)
-    conductivity_spy = MagicMock(wraps=validate_insulation_conductivity)
-    monkeypatch.setattr(calculation_schemas, "validate_insulation_thickness", thickness_spy)
-    monkeypatch.setattr(calculation_schemas, "validate_insulation_conductivity", conductivity_spy)
+    contract_spy = MagicMock(wraps=calculation_schemas.validate_insulation_contract)
+    monkeypatch.setattr(calculation_schemas, "validate_insulation_contract", contract_spy)
 
     layer = InsulationLayer(
         thickness=0.05,
@@ -47,28 +45,25 @@ def test_layer_calls_each_applicable_core_range_validator_once(
     )
 
     assert layer.thickness == 0.05
-    thickness_spy.assert_called_once_with(0.05)
-    conductivity_spy.assert_called_once_with(0.04)
+    contract_spy.assert_called_once()
 
 
-def test_parent_reuses_prebuilt_layer_and_calls_only_the_pipe_aggregate(
+def test_parent_reuses_prebuilt_layer_and_calls_each_public_contract_once(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     layer = InsulationLayer(thickness=0.05, material=MINERAL_WOOL)
-    thickness_spy = MagicMock(wraps=validate_insulation_thickness)
-    conductivity_spy = MagicMock(wraps=validate_insulation_conductivity)
-    pipe_range_spy = MagicMock(wraps=validate_pipe_input_ranges)
-    monkeypatch.setattr(calculation_schemas, "validate_insulation_thickness", thickness_spy)
-    monkeypatch.setattr(calculation_schemas, "validate_insulation_conductivity", conductivity_spy)
-    monkeypatch.setattr(calculation_schemas, "validate_pipe_input_ranges", pipe_range_spy)
+    insulation_contract_spy = MagicMock(wraps=calculation_schemas.validate_insulation_contract)
+    pipe_contract_spy = MagicMock(wraps=calculation_schemas.validate_pipe_contract)
+    monkeypatch.setattr(
+        calculation_schemas, "validate_insulation_contract", insulation_contract_spy
+    )
+    monkeypatch.setattr(calculation_schemas, "validate_pipe_contract", pipe_contract_spy)
 
     params = PipeHeatLossParams.model_validate(_pipe(layer))
 
     assert params.insulation_layers[0] is layer
-    thickness_spy.assert_not_called()
-    conductivity_spy.assert_not_called()
-    pipe_range_spy.assert_called_once()
-    assert pipe_range_spy.call_args.kwargs["insulation_layer_count"] == 1
+    insulation_contract_spy.assert_called_once()
+    pipe_contract_spy.assert_called_once()
 
 
 @pytest.mark.parametrize(
@@ -124,17 +119,17 @@ def test_nested_layer_error_keeps_parent_location() -> None:
     assert error["input"] == "0"
 
 
-def test_type_parsing_failure_does_not_call_core_range_validator(
+def test_type_parsing_failure_does_not_call_unified_core_contract(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    thickness_spy = MagicMock(wraps=validate_insulation_thickness)
-    monkeypatch.setattr(calculation_schemas, "validate_insulation_thickness", thickness_spy)
+    contract_spy = MagicMock(wraps=calculation_schemas.validate_insulation_contract)
+    monkeypatch.setattr(calculation_schemas, "validate_insulation_contract", contract_spy)
 
     with pytest.raises(ValidationError) as exc_info:
         InsulationLayer(thickness="not-a-number", material=MINERAL_WOOL)
 
     assert exc_info.value.errors(include_url=False)[0]["type"] == "float_parsing"
-    thickness_spy.assert_not_called()
+    contract_spy.assert_not_called()
 
 
 def test_range_failure_stops_later_material_contract() -> None:
@@ -144,3 +139,26 @@ def test_range_failure_stops_later_material_contract() -> None:
     errors = exc_info.value.errors(include_url=False)
     assert [error["loc"] for error in errors] == [("thickness",)]
     assert [error["type"] for error in errors] == ["greater_than"]
+
+
+def test_insulation_layer_has_one_unified_contract_call_only() -> None:
+    module = ast.parse(_CALCULATION_SCHEMA_PATH.read_text())
+    layer = next(
+        node
+        for node in module.body
+        if isinstance(node, ast.ClassDef) and node.name == "InsulationLayer"
+    )
+    calls = [
+        node.func.id
+        for node in ast.walk(layer)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+    ]
+
+    assert calls.count("validate_insulation_contract") == 1
+    assert {
+        "validate_insulation_thickness",
+        "validate_insulation_conductivity",
+        "validate_insulation_layer_ranges",
+        "validate_temperature_interval",
+        "get_insulation_temperature_range",
+    }.isdisjoint(calls)
