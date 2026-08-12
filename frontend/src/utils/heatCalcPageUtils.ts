@@ -75,7 +75,6 @@ const NUMBER_FILTER_COLUMNS = new Set<HeatCalcColumnKey>([
 
 const ENUM_FILTER_COLUMNS = new Set<HeatCalcColumnKey>([
   'type',
-  'pipe_dn',
   'pipe_material',
   'pipe_lambda_mode',
   'placement',

@@ -187,42 +187,10 @@
         "input_unit": "mm",
         "display_digits": 0
       },
-      "description": "Наружный диаметр трубопровода Ø, мм. Диапазон ТНП: 10,8–3000 мм. Стандартные размеры DN10–DN1000.",
+      "description": "Наружный диаметр трубопровода Ø, мм. Диапазон ТНП: 10,8–3000 мм.",
       "definition_object_types": [
         "pipe"
       ]
-    },
-    "nominal_diameter": {
-      "service_name": "nominal_diameter",
-      "object_types": [
-        "pipe"
-      ],
-      "group": "Геометрия",
-      "labels": {
-        "full": "DN",
-        "short": "DN",
-        "compact": "DN"
-      },
-      "contexts": {
-        "table_by_key": {
-          "pipe_dn": {
-            "label": "DN",
-            "full_label": "DN",
-            "tooltip": "DN"
-          }
-        },
-        "settings_by_key": {
-          "pipe_dn": {
-            "label": "DN"
-          }
-        }
-      },
-      "table_keys": {
-        "pipe": "pipe_dn"
-      },
-      "input": {
-        "type": "computed"
-      }
     },
     "pipe_length": {
       "service_name": "pipe_length",
@@ -3332,18 +3300,6 @@
           "field": "outer_diameter_mm"
         },
         {
-          "key": "pipe_dn",
-          "group": "Геометрия",
-          "defaultWidthPct": 5.8,
-          "minWidthPx": 48,
-          "valueType": "enum",
-          "defaultVisible": true,
-          "sortable": true,
-          "filterable": true,
-          "resizable": true,
-          "field": "nominal_diameter"
-        },
-        {
           "key": "pipe_length",
           "group": "Геометрия",
           "defaultWidthPct": 7.4,
@@ -4633,7 +4589,6 @@
         "name",
         "placement",
         "pipe_outer_diameter",
-        "pipe_dn",
         "pipe_length",
         "insulation_layer_count",
         "insulation_thickness",

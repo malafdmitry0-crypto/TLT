@@ -16,7 +16,7 @@ const meta = {
   args: {
     'aria-label': 'Наименование',
     placeholder: 'Введите значение',
-    defaultValue: 'Труба DN100',
+    defaultValue: 'Труба Ø114 мм',
     onChange: fn(),
   },
   argTypes: {

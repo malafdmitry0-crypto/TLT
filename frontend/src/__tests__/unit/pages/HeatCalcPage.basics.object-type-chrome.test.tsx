@@ -66,26 +66,26 @@ describe('HeatCalcPage basics — object type', () => {
       await user.click(await within(typeToolbar).findByRole('button', { name: /Все:/ }));
       expect(await screen.findByText('Труба DN100')).toBeInTheDocument();
       expect(await screen.findByText('Резервуар прямоугольный')).toBeInTheDocument();
-      expect(getNormalGlideHeaderTexts()).not.toContain('DN');
+      expect(getNormalGlideHeaderTexts()).not.toContain('L, м');
       expect(getNormalGlideHeaderTexts()).not.toContain('Форма');
 
       const dialog = await openTableSettingsDialog(user);
-      expect(within(dialog).getByRole('checkbox', { name: 'DN' })).not.toBeChecked();
+      expect(within(dialog).getByRole('checkbox', { name: 'Длина трубопровода' })).not.toBeChecked();
       expect(within(dialog).getByRole('checkbox', { name: 'Форма резервуара' })).not.toBeChecked();
-      await user.click(within(dialog).getByRole('checkbox', { name: 'DN' }));
+      await user.click(within(dialog).getByRole('checkbox', { name: 'Длина трубопровода' }));
       await user.click(within(dialog).getByRole('checkbox', { name: 'Форма резервуара' }));
       await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
 
       const table = getNormalGlideGrid();
       await waitFor(() => {
         const headerTexts = getNormalGlideHeaderTexts();
-        expect(headerTexts).toContain('DN');
+        expect(headerTexts).toContain('L, м');
         expect(headerTexts).toContain('Форма');
       });
       const headerTexts = getNormalGlideHeaderTexts();
-      const dnIndex = headerTexts.findIndex((text) => text === 'DN');
+      const lengthIndex = headerTexts.findIndex((text) => text === 'L, м');
       const shapeIndex = headerTexts.findIndex((text) => text === 'Форма');
-      expect(dnIndex).toBeGreaterThan(-1);
+      expect(lengthIndex).toBeGreaterThan(-1);
       expect(shapeIndex).toBeGreaterThan(-1);
 
       const pipeRow = within(table).getByText('Труба DN100').closest('[data-testid="normal-glide-row"]') as HTMLElement | null;
@@ -95,14 +95,14 @@ describe('HeatCalcPage basics — object type', () => {
       const pipeCells = getNormalGlideRowCells(pipeRow!);
       const tankCells = getNormalGlideRowCells(tankRow!);
 
-      expect(pipeCells[dnIndex]).toBe('DN100');
+      expect(pipeCells[lengthIndex]).toBe('25,0');
       expect(pipeCells[shapeIndex]).toBe('—');
-      expect(tankCells[dnIndex]).toBe('—');
+      expect(tankCells[lengthIndex]).toBe('—');
       expect(tankCells[shapeIndex]).toBe('Прямоуг.');
 
       const saved = JSON.parse(localStorage.getItem(HEATCALC_GUEST_TABLE_COLUMN_STORAGE_KEY) ?? '{}');
-      expect(saved.types.all.visibleOrder).toEqual(expect.arrayContaining(['pipe_dn', 'tank_shape']));
-      expect(saved.types.pipe.visibleOrder).toContain('pipe_dn');
+      expect(saved.types.all.visibleOrder).toEqual(expect.arrayContaining(['pipe_length', 'tank_shape']));
+      expect(saved.types.pipe.visibleOrder).toContain('pipe_length');
       expect(saved.types.tank.visibleOrder).toContain('tank_shape');
     }, HEATCALC_PAGE_TEST_TIMEOUT);
 

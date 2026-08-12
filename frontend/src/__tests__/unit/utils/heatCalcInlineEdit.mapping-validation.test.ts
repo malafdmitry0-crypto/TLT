@@ -31,7 +31,6 @@ describe('heatCalcInlineEdit mapping and validation', () => {
     expect(getInlineEditFieldConfig('pipe', 'placement')).toBeNull();
     expect(getInlineEditFieldConfig('tank', 'tank_shape')).toBeNull();
     expect(getInlineEditFieldConfig('pipe', 'insulation_material')).toBeNull();
-    expect(getInlineEditFieldConfig('pipe', 'pipe_dn')).toBeNull();
     expect(getHeatCalcFieldDefinition('supply_voltage', 'pipe')).toBeNull();
     expect(getHeatCalcFieldDefinition('supply_voltage', 'tank')).toBeNull();
     expect(getHeatCalcFieldDefinition('winding_coefficient', 'pipe')).toBeNull();

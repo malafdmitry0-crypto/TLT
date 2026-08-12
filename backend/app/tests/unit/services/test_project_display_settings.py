@@ -13,6 +13,7 @@ from app.services.project_display_settings_service import (
     canonicalize_display_settings,
     display_settings_canonical_size,
     ensure_display_settings_size,
+    strip_retired_heatcalc_columns,
 )
 
 
@@ -31,6 +32,52 @@ def test_canonical_payload_preserves_explicit_reset_empty_dict():
 
 def test_canonical_payload_of_empty_request_is_empty_dict():
     assert canonicalize_display_settings(ProjectDisplaySettingsPayload()) == {}
+
+
+def test_retired_pipe_dn_is_removed_without_losing_other_column_settings():
+    source = {
+        "heatcalc": {
+            "tableColumns": {
+                "types": {
+                    "pipe": {
+                        "visibleOrder": ["name", "pipe_dn", "pipe_outer_diameter"],
+                        "columns": {
+                            "name": {"widthPct": 24},
+                            "pipe_dn": {"widthPct": 5.8},
+                            "pipe_outer_diameter": {"widthPct": 7.6},
+                        },
+                    },
+                    "all": {
+                        "visibleOrder": ["type", "pipe_dn", "name"],
+                        "columns": {"pipe_dn": {"widthPct": 5.8}},
+                    },
+                }
+            },
+            "tableView": {"fontSize": "compact"},
+        },
+        "electrical": {"columns": ["cable_mark"]},
+    }
+
+    cleaned = strip_retired_heatcalc_columns(source)
+
+    assert cleaned["heatcalc"]["tableColumns"]["types"]["pipe"] == {
+        "visibleOrder": ["name", "pipe_outer_diameter"],
+        "columns": {
+            "name": {"widthPct": 24},
+            "pipe_outer_diameter": {"widthPct": 7.6},
+        },
+    }
+    assert cleaned["heatcalc"]["tableColumns"]["types"]["all"] == {
+        "visibleOrder": ["type", "name"],
+        "columns": {},
+    }
+    assert cleaned["heatcalc"]["tableView"] == {"fontSize": "compact"}
+    assert cleaned["electrical"] == {"columns": ["cable_mark"]}
+    assert source["heatcalc"]["tableColumns"]["types"]["pipe"]["visibleOrder"] == [
+        "name",
+        "pipe_dn",
+        "pipe_outer_diameter",
+    ]
 
 
 def test_workspace_whitelist_rejects_unknown_top_level_key():

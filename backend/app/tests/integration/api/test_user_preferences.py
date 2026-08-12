@@ -27,10 +27,10 @@ def heatcalc_table_columns_value(
         "version": HEATCALC_TABLE_COLUMNS_VERSION,
         "types": {
             "pipe": {
-                "visibleOrder": pipe_visible or ["name", "pipe_dn"],
+                "visibleOrder": pipe_visible or ["name", "pipe_outer_diameter"],
                 "columns": {
                     "name": {"widthPct": 24},
-                    "pipe_dn": {"widthPct": 5.8},
+                    "pipe_outer_diameter": {"widthPct": 7.6},
                 },
             },
             "tank": {
@@ -159,7 +159,10 @@ class TestUserPreferencesApi:
             headers=headers,
         )
         assert first.status_code == 200, first.text
-        assert first.json()["value"]["types"]["pipe"]["visibleOrder"] == ["name", "pipe_dn"]
+        assert first.json()["value"]["types"]["pipe"]["visibleOrder"] == [
+            "name",
+            "pipe_outer_diameter",
+        ]
 
         update = await client.put(
             f"/api/v1/preferences/{HEATCALC_TABLE_COLUMNS_PREF_KEY}",
@@ -674,6 +677,21 @@ class TestUserPreferencesApi:
         employee_token: str,
     ):
         value = heatcalc_table_columns_value(["name", "unknown_key"], ["name"])
+
+        resp = await client.put(
+            f"/api/v1/preferences/{HEATCALC_TABLE_COLUMNS_PREF_KEY}",
+            json={"value": value},
+            headers={"Authorization": f"Bearer {employee_token}"},
+        )
+
+        assert resp.status_code == 422
+
+    async def test_heatcalc_table_columns_rejects_retired_pipe_dn_key(
+        self,
+        client: AsyncClient,
+        employee_token: str,
+    ):
+        value = heatcalc_table_columns_value(["name", "pipe_dn"], ["name"])
 
         resp = await client.put(
             f"/api/v1/preferences/{HEATCALC_TABLE_COLUMNS_PREF_KEY}",
