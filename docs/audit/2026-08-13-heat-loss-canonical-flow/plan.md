@@ -1,8 +1,8 @@
 # Heat-loss canonical flow
 
-**Статус:** ACTIVE execution plan  
-**Дата:** 2026-08-13  
-**HEAD на открытии:** `03f6ef3` (`refactor(heat-loss): extract standalone calculation core`)  
+**Статус:** ACTIVE execution plan
+**Дата:** 2026-08-13
+**HEAD на открытии:** `03f6ef3` (`refactor(heat-loss): extract standalone calculation core`)
 **Очередь:** этот файл. Snapshot-ы не маршрутизируют работу.
 
 План фиксирует способ вынести единый поток «подготовка → одна проверка → тот же input в формулу» без переписывания уравнений. Динамические числа (LOC, тайминги, число красных тестов) живут только в `snapshot.md` того же каталога.
@@ -176,7 +176,7 @@ fallback pipe. Ключи БД сами по себе не расширяют к
 Критерий: JSON результатов совпадает байт-в-байт с characterization, без новых
 ключей. Сигнатуры `calc_pipe_heat_loss` / `calc_tank_heat_loss` сохраняются.
 
-Pipe: обычный пересчёт, admin preview, прямой facade, импорт.  
+Pipe: обычный пересчёт, admin preview, прямой facade, импорт.
 Tank: cylindrical/rectangular, indoor/outdoor/underground, частичное заглубление,
 Qдоп, стенка задана/не задана, все варианты изоляции.
 

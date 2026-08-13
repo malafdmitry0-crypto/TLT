@@ -1,9 +1,9 @@
 # Heat-loss canonical flow — baseline snapshot
 
-**UTC:** 2026-08-13T06:21:03Z  
-**HEAD:** `03f6ef388e411fe8558873bb5e1ae66f13d76c1a`  
-`refactor(heat-loss): extract standalone calculation core`  
-**Host:** darwin arm64 · backend container `heatcalc_backend` · Python 3.11  
+**UTC:** 2026-08-13T06:21:03Z
+**HEAD:** `03f6ef388e411fe8558873bb5e1ae66f13d76c1a`
+`refactor(heat-loss): extract standalone calculation core`
+**Host:** darwin arm64 · backend container `heatcalc_backend` · Python 3.11
 **Worktree at collection:** plan + slice-1 characterization tests uncommitted
 
 This snapshot holds dynamic evidence only. Rules live in `plan.md`.

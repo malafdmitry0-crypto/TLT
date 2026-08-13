@@ -415,6 +415,20 @@ def get_insulation_conductivity_law(material: str) -> ConductivityLaw:
     return _insulation_conductivity_law(entry)
 
 
+def resolve_reference_insulation(material: str) -> tuple[ConductivityLaw, tuple[float, float]]:
+    """Load law and temperature interval from one catalog record."""
+
+    raw = _insulation_by_material().get(material)
+    if raw is None:
+        raise ValueError(f"Неизвестный материал изоляции: {material}")
+    entry = _with_insulation_catalog_flags(raw)
+    _ensure_selectable_insulation_material(entry)
+    value = entry.get("temperature_range")
+    if not isinstance(value, Sequence) or isinstance(value, str | bytes) or len(value) < 2:
+        raise ValueError(f"Для материала изоляции '{material}' не задан температурный диапазон")
+    return _insulation_conductivity_law(entry), (float(value[0]), float(value[1]))
+
+
 def _ensure_selectable_insulation_material(entry: dict[str, Any]) -> None:
     if entry.get("selectable") is False or entry.get("deprecated") is True:
         material = entry.get("material", "")
