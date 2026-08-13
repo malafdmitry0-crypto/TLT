@@ -228,19 +228,21 @@ class TestMultiLayerInsulation:
 
     def test_layer_temperature_above_material_range_raises(self):
         with pytest.raises(ValueError, match="вне диапазона"):
-            PipeHeatLossParams(
-                outer_diameter=0.108,
-                wall_thickness=0.004,
-                pipe_material="carbon_steel",
-                insulation_layers=[
-                    InsulationLayer(thickness=0.02, material="polystyrene_products_50"),
-                ],
-                ambient_temperature=-20.0,
-                process_temperature=500.0,
-                pipe_length=100.0,
-                insulation_temperature_basis="outdoor_winter",
-                placement="outdoor",
-                wind_speed=0.0,
+            calc_pipe_heat_loss(
+                PipeHeatLossParams(
+                    outer_diameter=0.108,
+                    wall_thickness=0.004,
+                    pipe_material="carbon_steel",
+                    insulation_layers=[
+                        InsulationLayer(thickness=0.02, material="polystyrene_products_50"),
+                    ],
+                    ambient_temperature=-20.0,
+                    process_temperature=500.0,
+                    pipe_length=100.0,
+                    insulation_temperature_basis="outdoor_winter",
+                    placement="outdoor",
+                    wind_speed=0.0,
+                )
             )
 
     def test_outer_layer_is_checked_by_actual_layer_temperature(self):
@@ -666,9 +668,9 @@ class TestSchemaValidation:
             )
 
     def test_unknown_insulation_raises(self):
-        from pydantic import ValidationError
-
-        with pytest.raises(ValidationError, match="Неизвестный материал"):
-            _params(
-                insulation_layers=[InsulationLayer(thickness=0.05, material="unobtanium")]
+        with pytest.raises(ValueError, match="Неизвестный материал"):
+            calc_pipe_heat_loss(
+                _params(
+                    insulation_layers=[InsulationLayer(thickness=0.05, material="unobtanium")]
+                )
             )

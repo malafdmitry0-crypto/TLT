@@ -16,6 +16,7 @@ from heatcalc_heat_loss_core.errors import FormulaDomainError
 from heatcalc_heat_loss_core.profile import resolve_external_alpha
 from heatcalc_heat_loss_core.validation import FormulaValidationReport
 
+from app.formulas.heat_loss.catalog_preparation import unavailable_conductivity_error
 from app.formulas.heat_loss.outcome_errors import raise_heat_formula_report
 from app.formulas.heat_loss.pipe_preparation import run_validated_pipe_formula
 from app.reference_data.loader import (
@@ -111,9 +112,10 @@ def _raise_pipe_core_error(
         index = int(error.details["layer_index"])
         layer = layers[index]
         temperature = float(error.details["temperature_c"])
-        raise ValueError(
-            f"Для материала изоляции '{layer.material}' не задана расчётная λ(tm) "
-            f"при tm={_fmt_temp(temperature)} °C"
+        raise unavailable_conductivity_error(
+            material=layer.material,
+            index=index,
+            temperature_c=temperature,
         ) from error
     if error.code == "wall_exceeds_pipe_radius":
         wall_thickness = float(error.details["wall_thickness_m"])

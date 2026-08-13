@@ -228,6 +228,29 @@ describe('ObjectWizard dependencies — validation-highlight', () => {
     expect(screen.getByTestId('insulation-material-select').closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
   });
 
+  it('подсвечивает material второго слоя по fields.insulation_layers.1.material', async () => {
+    renderWizard({
+      initialParams: {
+        ...basePipeParams,
+        insulation_layers: [
+          { thickness: 0.05, material: 'mineral_wool' },
+          { thickness: 0.04, material: 'not_a_catalog_material' },
+        ]},
+      validationErrors: {
+        error_code: 'unknown_insulation_material',
+        category: 'validation',
+        field: 'insulation_layers.1.material',
+        fields: {
+          'insulation_layers.1.material': 'Неизвестный материал изоляции: not_a_catalog_material'},
+        message: 'Неизвестный материал изоляции: not_a_catalog_material'}});
+
+    await waitFor(() => {
+      expect(screen.getByTestId('second-insulation-material-select').closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
+    });
+    expect(screen.getByTestId('insulation-material-select').closest('.ant-form-item')).not.toHaveClass('ant-form-item-has-error');
+    expect(await screen.findByText('Неизвестный материал изоляции: not_a_catalog_material')).toBeInTheDocument();
+  });
+
   it('подсвечивает незаполненные поля второго слоя с понятным текстом обязательности', async () => {
     renderWizard({
       initialParams: {

@@ -5,6 +5,7 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 
+from app.formulas.heat_loss.pipe import calc_pipe_heat_loss
 from app.reference_data.loader import list_soil_conductivity
 from app.schemas.calculation import (
     ElectricalBatchJobRequest,
@@ -140,11 +141,12 @@ class TestPipeHeatLossParams:
         assert p.wall_thickness == 0.04
 
     def test_reference_insulation_temperature_range_is_enforced(self):
-        with pytest.raises(ValidationError, match="вне диапазона"):
-            _outdoor_pipe(
-                insulation_layers=[InsulationLayer(thickness=0.05, material=POLYURETHANE)],
-                process_temperature=450,
-            )
+        params = _outdoor_pipe(
+            insulation_layers=[InsulationLayer(thickness=0.05, material=POLYURETHANE)],
+            process_temperature=450,
+        )
+        with pytest.raises(ValueError, match="вне диапазона"):
+            calc_pipe_heat_loss(params)
 
     def test_reference_insulation_temperature_range_accepts_boundary(self):
         p = _outdoor_pipe(
