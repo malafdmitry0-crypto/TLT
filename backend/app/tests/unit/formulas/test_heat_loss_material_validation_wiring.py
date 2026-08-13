@@ -9,7 +9,9 @@ from heatcalc_heat_loss_core.conductivity import UnavailableConductivity
 from pydantic import ValidationError
 
 from app.formulas.heat_loss import pipe as pipe_formulas
+from app.formulas.heat_loss import pipe_preparation as pipe_preparation
 from app.formulas.heat_loss import tank as tank_formulas
+from app.formulas.heat_loss import tank_preparation as tank_preparation
 from app.formulas.heat_loss.core.insulation_contract import validate_insulation_contract
 from app.formulas.heat_loss.core.pipe_contract import validate_pipe_contract
 from app.formulas.heat_loss.core.tank_contract import validate_tank_contract
@@ -121,12 +123,12 @@ def test_reference_material_temperature_check_delegates_to_core(
 @pytest.mark.parametrize(
     ("module", "calculate", "factory", "evaluator_name"),
     [
-        (pipe_formulas, pipe_formulas.calc_pipe_heat_loss, _pipe, "evaluate_pipe"),
+        (pipe_formulas, pipe_formulas.calc_pipe_heat_loss, _pipe, "run_validated_pipe_formula"),
         (
             tank_formulas,
             tank_formulas.calc_tank_heat_loss,
             _tank,
-            "evaluate_resolved_air_tank",
+            "run_validated_tank_formula",
         ),
     ],
 )
@@ -167,8 +169,11 @@ def test_facade_preserves_reference_lambda_error_for_selected_unavailable_branch
     calculate: Callable[[Any], Any],
     factory: Callable[[], Any],
 ) -> None:
+    lookup_owner = pipe_preparation if module is pipe_formulas else tank_preparation
     monkeypatch.setattr(
-        module, "get_insulation_conductivity_law", lambda _material: UnavailableConductivity()
+        lookup_owner,
+        "get_insulation_conductivity_law",
+        lambda _material: UnavailableConductivity(),
     )
 
     with pytest.raises(
