@@ -3,9 +3,8 @@
 import math
 
 import pytest
-
-from app.formulas.heat_loss.core.errors import FormulaDomainError
-from app.formulas.heat_loss.core.material_validation import (
+from heatcalc_heat_loss_core.errors import FormulaDomainError
+from heatcalc_heat_loss_core.material_validation import (
     validate_hot_side_temperature_in_interval,
     validate_temperature_in_interval,
     validate_temperature_interval,

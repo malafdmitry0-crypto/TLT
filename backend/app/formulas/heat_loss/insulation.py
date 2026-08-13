@@ -4,35 +4,14 @@ Internal reference docs define λ for insulation as a function of `tm`, not as
 the average of product and ambient temperatures.
 """
 
-from typing import Literal
+from heatcalc_heat_loss_core.profile import (
+    InsulationTemperatureBasis as InsulationTemperatureBasis,
+)
+from heatcalc_heat_loss_core.profile import resolve_insulation_temperature
 
 from app.formulas.heat_loss.core.insulation_contract import (
     ALLOWED_INSULATION_BASES_BY_PLACEMENT,
 )
-from app.formulas.heat_loss.core.insulation_temperature import (
-    calculate_insulation_temperature,
-)
-
-InsulationTemperatureBasis = Literal[
-    "indoor",
-    "outdoor_summer",
-    "outdoor_winter",
-    "channel",
-    "tunnel",
-    "technical_subfloor",
-    "attic",
-    "basement",
-]
-
-WARM_40_BASES: set[str] = {
-    "indoor",
-    "outdoor_summer",
-    "channel",
-    "tunnel",
-    "technical_subfloor",
-    "attic",
-    "basement",
-}
 
 INSULATION_TEMPERATURE_BASIS_LABELS: dict[str, str] = {
     "indoor": "помещение",
@@ -138,15 +117,7 @@ def resolve_insulation_tm(
         location=location,
         placement=placement,
     )
-    if resolved == "outdoor_winter":
-        return calculate_insulation_temperature(
-            process_temperature,
-            formula="half_process",
-        )
-    if resolved in WARM_40_BASES:
-        return calculate_insulation_temperature(
-            process_temperature,
-            formula="mean_with_reference",
-            reference_temperature_c=40.0,
-        )
-    raise ValueError(f"Неизвестный режим температуры изоляции: {resolved}")
+    return resolve_insulation_temperature(
+        process_temperature,
+        basis=resolved,
+    )

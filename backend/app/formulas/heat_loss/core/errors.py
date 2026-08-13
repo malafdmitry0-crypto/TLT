@@ -1,10 +1,3 @@
-"""Technical errors for invalid mathematical domains."""
+"""Compatibility re-export for :mod:`heatcalc_heat_loss_core.errors`."""
 
-
-class FormulaDomainError(ValueError):
-    """A numeric input cannot be evaluated by the selected formula."""
-
-    def __init__(self, code: str, /, **details: float | int) -> None:
-        self.code = code
-        self.details = details
-        super().__init__(code)
+from heatcalc_heat_loss_core.errors import *  # noqa: F403

@@ -3,9 +3,8 @@
 import math
 
 import pytest
-
-from app.formulas.heat_loss.core.tank_validation import validate_tank_input_ranges
-from app.formulas.heat_loss.core.validation import FormulaValidationReport
+from heatcalc_heat_loss_core.tank_validation import validate_tank_input_ranges
+from heatcalc_heat_loss_core.validation import FormulaValidationReport
 
 
 def _validate(**overrides: object) -> FormulaValidationReport:

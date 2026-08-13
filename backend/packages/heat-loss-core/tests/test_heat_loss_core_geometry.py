@@ -1,9 +1,10 @@
 """Unit tests for shared pure geometry formulas."""
 
-import pytest
+from collections.abc import Callable
 
-from app.formulas.heat_loss.core.errors import FormulaDomainError
-from app.formulas.heat_loss.core.geometry import (
+import pytest
+from heatcalc_heat_loss_core.errors import FormulaDomainError
+from heatcalc_heat_loss_core.geometry import (
     layered_outer_radius,
     outer_radius_after_layer,
     radius_from_diameter,
@@ -30,7 +31,7 @@ def test_outer_radius_after_layer_is_the_shared_radial_step() -> None:
         lambda: layered_outer_radius(1.7e308, (1.7e308,)),
     ],
 )
-def test_geometry_formulas_reject_nonfinite_results(call) -> None:
+def test_geometry_formulas_reject_nonfinite_results(call: Callable[[], float]) -> None:
     with pytest.raises(FormulaDomainError) as exc_info:
         call()
     assert exc_info.value.code == "non_finite_result"

@@ -7,6 +7,40 @@ on:
   workflow_dispatch:
 
 jobs:
+  heat-loss-core:
+    name: Heat-loss core package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install package test tools
+        run: python -m pip install 'setuptools>=68' pytest==9.0.3 ruff==0.6.9 mypy==1.11.2 mutmut==3.5.0
+      - name: Build wheel
+        working-directory: backend/packages/heat-loss-core
+        run: python -m pip wheel --no-deps --no-build-isolation --wheel-dir dist .
+      - name: Install wheel in an isolated environment and import public API
+        run: |
+          python -m venv /tmp/heat-loss-core-venv
+          /tmp/heat-loss-core-venv/bin/pip install --no-deps backend/packages/heat-loss-core/dist/*.whl
+          env -u PYTHONPATH /tmp/heat-loss-core-venv/bin/python -I -c 'import heatcalc_heat_loss_core as core; assert core.__all__; assert all(hasattr(core, name) for name in core.__all__)'
+      - name: Package tests, lint, and types
+        working-directory: backend/packages/heat-loss-core
+        run: |
+          python -m pip install -e .
+          python -m pytest tests
+          ruff check src tests
+          mypy src tests
+      - name: Standalone core mutation score
+        working-directory: backend/packages/heat-loss-core
+        run: mutmut run
+      - name: Enforce standalone core mutation floor
+        working-directory: backend
+        env:
+          MUTMUT_SCOPE: core
+        run: python scripts/mutmut_score_gate.py
+
   frontend-dod:
     name: Frontend full DoD (test:agent-dod:dual-safe)
     runs-on: ubuntu-latest

@@ -10,7 +10,8 @@
 # Использование:
 #   scripts/formula-qa.sh quick      # быстрый локальный gate
 #   scripts/formula-qa.sh full       # quick + API/object integration
-#   scripts/formula-qa.sh mutation   # mutmut по backend/app/formulas
+#   scripts/formula-qa.sh mutation   # отдельные mutmut-прогоны backend и canonical heat-loss core
+#   scripts/formula-qa.sh heat-loss-core-mutation # только standalone heat-loss core
 #   scripts/formula-qa.sh all        # full + mutation
 # =====================================================================
 
@@ -46,10 +47,19 @@ run_backend() {
   docker exec -e SECRET_KEY="$TEST_SECRET_KEY" heatcalc_backend "$@"
 }
 
+run_heat_loss_core() {
+  docker exec \
+    -e SECRET_KEY="$TEST_SECRET_KEY" \
+    -w /app/packages/heat-loss-core \
+    heatcalc_backend "$@"
+}
+
 run_formula_unit() {
   ensure_dev_stack
-  echo "▶ Formula unit/golden/metamorphic tests"
+  echo "▶ Backend formula unit/golden/metamorphic tests"
   run_backend pytest app/tests/unit/formulas -q --tb=short --no-cov
+  echo "▶ Standalone heat-loss core tests"
+  run_heat_loss_core python -m pytest tests -q --tb=short
 }
 
 run_formula_service_guards() {
@@ -84,9 +94,81 @@ run_mutation() {
     exit 2
   fi
 
+  # mutmut 3 reuses its generated sandbox and does not remove files deleted
+  # from the source tree. Preserve the repository's existing sandbox while a
+  # fresh one is generated, then restore it even when mutmut exits with an
+  # error. This prevents stale tests from participating without dirtying the
+  # worktree.
+  local backend_mutation_sandbox="$ROOT/backend/mutants"
+  local core_mutation_sandbox="$ROOT/backend/packages/heat-loss-core/mutants"
+  local mutation_backup
+  mutation_backup="$(mktemp -d "${TMPDIR:-/tmp}/heatcalc-mutmut.XXXXXX")"
+
+  restore_mutation_sandboxes() {
+    if [[ -e "$backend_mutation_sandbox" ]]; then
+      mv "$backend_mutation_sandbox" "$mutation_backup/generated-backend"
+    fi
+    if [[ -e "$core_mutation_sandbox" ]]; then
+      mv "$core_mutation_sandbox" "$mutation_backup/generated-core"
+    fi
+    if [[ -e "$mutation_backup/original-backend" ]]; then
+      mv "$mutation_backup/original-backend" "$backend_mutation_sandbox"
+    fi
+    if [[ -e "$mutation_backup/original-core" ]]; then
+      mv "$mutation_backup/original-core" "$core_mutation_sandbox"
+    fi
+    rm -rf "$mutation_backup"
+  }
+
+  if [[ -e "$backend_mutation_sandbox" ]]; then
+    mv "$backend_mutation_sandbox" "$mutation_backup/original-backend"
+  fi
+  if [[ -e "$core_mutation_sandbox" ]]; then
+    mv "$core_mutation_sandbox" "$mutation_backup/original-core"
+  fi
+  trap restore_mutation_sandboxes EXIT
+
   run_backend mutmut run
-  run_backend mutmut results
+  run_heat_loss_core mutmut run
   run_backend python scripts/mutmut_score_gate.py
+
+  restore_mutation_sandboxes
+  trap - EXIT
+}
+
+run_heat_loss_core_mutation() {
+  ensure_dev_stack
+  echo "▶ Standalone heat-loss core mutation testing"
+  if ! run_backend python -c "import mutmut" >/dev/null 2>&1; then
+    echo "mutmut не установлен в backend-контейнере." >&2
+    echo "Пересоберите dev-образ после обновления requirements-dev.txt: make build" >&2
+    exit 2
+  fi
+
+  local core_mutation_sandbox="$ROOT/backend/packages/heat-loss-core/mutants"
+  local mutation_backup
+  mutation_backup="$(mktemp -d "${TMPDIR:-/tmp}/heatcalc-core-mutmut.XXXXXX")"
+
+  restore_core_mutation_sandbox() {
+    if [[ -e "$core_mutation_sandbox" ]]; then
+      mv "$core_mutation_sandbox" "$mutation_backup/generated-core"
+    fi
+    if [[ -e "$mutation_backup/original-core" ]]; then
+      mv "$mutation_backup/original-core" "$core_mutation_sandbox"
+    fi
+    rm -rf "$mutation_backup"
+  }
+
+  if [[ -e "$core_mutation_sandbox" ]]; then
+    mv "$core_mutation_sandbox" "$mutation_backup/original-core"
+  fi
+  trap restore_core_mutation_sandbox EXIT
+
+  run_heat_loss_core mutmut run
+  run_backend env MUTMUT_SCOPE=core python scripts/mutmut_score_gate.py
+
+  restore_core_mutation_sandbox
+  trap - EXIT
 }
 
 case "$TARGET" in
@@ -102,6 +184,9 @@ case "$TARGET" in
   mutation)
     run_mutation
     ;;
+  heat-loss-core-mutation)
+    run_heat_loss_core_mutation
+    ;;
   all)
     run_formula_unit
     run_formula_service_guards
@@ -110,7 +195,7 @@ case "$TARGET" in
     ;;
   *)
     echo "Неизвестная цель: $TARGET" >&2
-    echo "Доступно: quick | full | mutation | all" >&2
+    echo "Доступно: quick | full | mutation | heat-loss-core-mutation | all" >&2
     exit 1
     ;;
 esac

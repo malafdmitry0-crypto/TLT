@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "heatcalc-heat-loss-core"
+version = "0.1.0"
+description = "Pure heat-loss calculation and validation core"
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+
+[tool.mutmut]
+paths_to_mutate = ["src/heatcalc_heat_loss_core/"]
+pytest_add_cli_args = ["--no-cov"]
+tests_dir = ["tests"]
+backup = false
+
+[tool.setuptools.package-data]
+heatcalc_heat_loss_core = ["py.typed"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
