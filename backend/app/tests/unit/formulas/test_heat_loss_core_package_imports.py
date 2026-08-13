@@ -101,6 +101,14 @@ def test_canonical_package_exposes_calculations_and_input_result_models() -> Non
         "resolve_safety_factor",
         "validate_pipe_contract",
         "validate_tank_contract",
+        "PipePreparationInput",
+        "PipePreparationLayer",
+        "PipeFormulaOutcome",
+        "run_pipe_formula",
+        "TankPreparationInput",
+        "TankPreparationLayer",
+        "TankFormulaOutcome",
+        "run_tank_formula",
     }
 
     assert expected.issubset(canonical.__all__)

@@ -13,14 +13,59 @@ The package owns:
   conductivity laws;
 - validation of finite calculation results.
 
-The caller remains responsible for persistence, catalog record selection,
-climate and project policy, Pydantic/API adaptation, localized messages,
-rounding for presentation, and result serialization.
+The package does not know about the HeatCalc app, insulation catalog, or
+database. The caller supplies resolved `ConductivityLaw` values, temperature
+intervals, and an optional `HeatLossFormulaProfile`. The standard Case 1
+profile is used only when a custom profile is not passed.
 
-Public entry points are exported from `heatcalc_heat_loss_core`. The main
-resolved calculation APIs are `evaluate_pipe`, `evaluate_resolved_air_tank`,
-and `evaluate_resolved_buried_tank`. Inputs contain resolved numerical laws and
-temperature intervals rather than database or catalog identifiers.
+## Recommended API
+
+Use preparation input plus `validate_*_contract` / `run_*_formula`:
+
+```python
+from heatcalc_heat_loss_core import (
+    PipePreparationInput,
+    PipePreparationLayer,
+    PipeFormulaOutcome,
+    run_pipe_formula,
+    TankPreparationInput,
+    TankPreparationLayer,
+    TankFormulaOutcome,
+    run_tank_formula,
+)
+
+outcome = run_pipe_formula(prepared_input)
+if outcome.result is None:
+    report = outcome.report
+else:
+    result = outcome.result
+```
+
+`run_*_formula` validates the catalog-free contract, assembles a prepared
+calculation, and returns `FormulaOutcome`: a result XOR a validation report.
+
+Prepared assembly types (`PreparedPipeCalculation`, `evaluate_prepared_pipe`,
+and the tank equivalents) remain available as advanced module-level APIs. They
+are not the recommended root entrypoint.
+
+## Compatibility API
+
+The previous resolved evaluators stay public:
+
+- `evaluate_pipe`
+- `evaluate_resolved_air_tank`
+- `evaluate_resolved_buried_tank`
+
+They accept already-resolved numerical laws and intervals. `evaluate_pipe`
+keeps its historical `resolve_safety_factor` semantics, including treating
+primary `0` as missing. Prefer the recommended preparation path for new
+callers.
+
+## Advanced API
+
+Low-level `calculate_*` functions, contract validators, conductivity laws, and
+thermal primitives remain exported for specialized use. They are not a second
+application entrypoint.
 
 Run the standalone checks from this directory:
 
