@@ -1,8 +1,7 @@
 """Build a pipe preparation input from a validated backend facade payload.
 
-InsulationLayer.model_validate() remains a public contract, so this adapter
-does not strip layer-level catalog checks. It only chooses the effective K
-and assembles the new package preparation object for one calculation.
+InsulationLayer.model_validate() stays catalog-free. This adapter chooses
+the effective K and resolves each reference material once.
 """
 
 from __future__ import annotations
@@ -20,10 +19,8 @@ from heatcalc_heat_loss_core.pipe_formula import (
 from heatcalc_heat_loss_core.profile import InsulationTemperatureBasis
 from heatcalc_heat_loss_core.validation import FormulaValidationReport
 
-from app.reference_data.loader import (
-    get_pipe_material_conductivity_law,
-    resolve_reference_insulation,
-)
+from app.formulas.heat_loss.catalog_preparation import resolve_reference_layer
+from app.reference_data.loader import get_pipe_material_conductivity_law
 from app.schemas.calculation import InsulationLayer, PipeHeatLossParams
 
 
@@ -61,7 +58,10 @@ def build_pipe_preparation(
         wall_thickness=params.wall_thickness,
         pipe_lambda=params.pipe_lambda,
         has_pipe_material=params.pipe_material is not None,
-        layers=tuple(_preparation_layer(layer) for layer in params.insulation_layers),
+        layers=tuple(
+            _preparation_layer(layer, index, params.process_temperature)
+            for index, layer in enumerate(params.insulation_layers)
+        ),
         ambient_temperature=params.ambient_temperature,
         process_temperature=params.process_temperature,
         pipe_length=params.pipe_length,
@@ -84,7 +84,11 @@ def build_pipe_preparation(
     )
 
 
-def _preparation_layer(layer: InsulationLayer) -> PipePreparationLayer:
+def _preparation_layer(
+    layer: InsulationLayer,
+    index: int,
+    process_temperature: float,
+) -> PipePreparationLayer:
     manual = layer.material == "other"
     if manual:
         return PipePreparationLayer(
@@ -95,7 +99,11 @@ def _preparation_layer(layer: InsulationLayer) -> PipePreparationLayer:
             reference_temperature_interval_c=None,
             conductivity_law=ConstantConductivity(cast(float, layer.conductivity)),
         )
-    law, interval = resolve_reference_insulation(layer.material)
+    law, interval = resolve_reference_layer(
+        material=layer.material,
+        index=index,
+        process_temperature=process_temperature,
+    )
     return PipePreparationLayer(
         thickness_m=layer.thickness,
         source="reference",
