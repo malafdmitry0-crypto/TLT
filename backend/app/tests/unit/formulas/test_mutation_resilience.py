@@ -69,7 +69,9 @@ class TestReferenceValuesNotRegressed:
         """Та же труба + safety K=1.1 → total × 1.1."""
         r0 = calc_pipe_heat_loss(PIPE, coefficients={"safety_factor": 1.0})
         r1 = calc_pipe_heat_loss(PIPE, coefficients={"safety_factor": 1.1})
-        assert r1.total_heat_loss_design == pytest.approx(r0.total_heat_loss_design * 1.1, rel=0.001)
+        assert r1.total_heat_loss_design == pytest.approx(
+            r0.total_heat_loss_design * 1.1, rel=0.001
+        )
 
     def test_tank_cylindrical_DN2000_H3000_80mm(self):
         """Эталон: бак цилиндр Ø2м×H3м, 80мм минвата, -20→+80°C."""
@@ -123,9 +125,7 @@ class TestMutationCoverage:
         thin = calc_pipe_heat_loss(
             PIPE.model_copy(
                 update={
-                    "insulation_layers": [
-                        InsulationLayer(thickness=0.01, material=MINERAL_WOOL)
-                    ]
+                    "insulation_layers": [InsulationLayer(thickness=0.01, material=MINERAL_WOOL)]
                 }
             ),
             coefficients={"safety_factor": 1.0},
@@ -133,9 +133,7 @@ class TestMutationCoverage:
         thick = calc_pipe_heat_loss(
             PIPE.model_copy(
                 update={
-                    "insulation_layers": [
-                        InsulationLayer(thickness=0.2, material=MINERAL_WOOL)
-                    ]
+                    "insulation_layers": [InsulationLayer(thickness=0.2, material=MINERAL_WOOL)]
                 }
             ),
             coefficients={"safety_factor": 1.0},
@@ -147,11 +145,13 @@ class TestMutationCoverage:
 
     def test_pipe_safety_factor_multiplied_not_divided(self):
         """Если safety стал бы делителем (K вместо ×K) — total стало бы МЕНЬШЕ.
-        Проверяем что K=2 даёт total в 2 раза БОЛЬШЕ."""
+        Проверяем что максимальный допустимый K=1.7 масштабирует total в 1.7 раза."""
         r1 = calc_pipe_heat_loss(PIPE, coefficients={"safety_factor": 1.0})
-        r2 = calc_pipe_heat_loss(PIPE, coefficients={"safety_factor": 2.0})
-        assert r2.total_heat_loss_design > r1.total_heat_loss_design
-        assert r2.total_heat_loss_design == pytest.approx(r1.total_heat_loss_design * 2, rel=0.01)
+        r_max = calc_pipe_heat_loss(PIPE, coefficients={"safety_factor": 1.7})
+        assert r_max.total_heat_loss_design > r1.total_heat_loss_design
+        assert r_max.total_heat_loss_design == pytest.approx(
+            r1.total_heat_loss_design * 1.7, rel=0.01
+        )
 
     def test_pipe_length_linear_not_squared(self):
         """Q линейно от L. Если кто-то ошибётся L² → проверим quadratic vs linear."""
@@ -191,9 +191,7 @@ class TestMutationCoverage:
         thin = calc_pipe_heat_loss(
             PIPE.model_copy(
                 update={
-                    "insulation_layers": [
-                        InsulationLayer(thickness=0.01, material=MINERAL_WOOL)
-                    ]
+                    "insulation_layers": [InsulationLayer(thickness=0.01, material=MINERAL_WOOL)]
                 }
             ),
             coefficients={"safety_factor": 1.0},
@@ -201,9 +199,7 @@ class TestMutationCoverage:
         thick = calc_pipe_heat_loss(
             PIPE.model_copy(
                 update={
-                    "insulation_layers": [
-                        InsulationLayer(thickness=0.1, material=MINERAL_WOOL)
-                    ]
+                    "insulation_layers": [InsulationLayer(thickness=0.1, material=MINERAL_WOOL)]
                 }
             ),
             coefficients={"safety_factor": 1.0},
@@ -218,9 +214,7 @@ class TestMutationCoverage:
         mw = calc_pipe_heat_loss(
             PIPE.model_copy(
                 update={
-                    "insulation_layers": [
-                        InsulationLayer(thickness=0.05, material=MINERAL_WOOL)
-                    ]
+                    "insulation_layers": [InsulationLayer(thickness=0.05, material=MINERAL_WOOL)]
                 }
             ),
             coefficients={"safety_factor": 1.0},
@@ -228,15 +222,15 @@ class TestMutationCoverage:
         pu = calc_pipe_heat_loss(
             PIPE.model_copy(
                 update={
-                    "insulation_layers": [
-                        InsulationLayer(thickness=0.05, material=POLYURETHANE)
-                    ]
+                    "insulation_layers": [InsulationLayer(thickness=0.05, material=POLYURETHANE)]
                 }
             ),
             coefficients={"safety_factor": 1.0},
         )
         # ППУ имеет МЕНЬШЕ λ → БОЛЬШЕ R → МЕНЬШЕ Q
-        assert pu.heat_loss_per_meter_base < mw.heat_loss_per_meter_base, "MUTATION: λ перепутана с 1/λ"
+        assert (
+            pu.heat_loss_per_meter_base < mw.heat_loss_per_meter_base
+        ), "MUTATION: λ перепутана с 1/λ"
 
 
 # ─── Метаданные о формуле ───────────────────────────────────────────────────
@@ -270,9 +264,7 @@ class TestFormulaInvariantsDocumented:
         r1 = calc_pipe_heat_loss(
             PIPE.model_copy(
                 update={
-                    "insulation_layers": [
-                        InsulationLayer(thickness=0.05, material=MINERAL_WOOL)
-                    ]
+                    "insulation_layers": [InsulationLayer(thickness=0.05, material=MINERAL_WOOL)]
                 }
             ),
             coefficients={"safety_factor": 1.0},
@@ -280,9 +272,7 @@ class TestFormulaInvariantsDocumented:
         r2 = calc_pipe_heat_loss(
             PIPE.model_copy(
                 update={
-                    "insulation_layers": [
-                        InsulationLayer(thickness=0.1, material=MINERAL_WOOL)
-                    ]
+                    "insulation_layers": [InsulationLayer(thickness=0.1, material=MINERAL_WOOL)]
                 }
             ),
             coefficients={"safety_factor": 1.0},
