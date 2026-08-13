@@ -179,9 +179,9 @@ def calc_pipe_heat_loss(
     Args:
         params: валидированные параметры трубопровода. Инварианты: наличие
             insulation_layers (1–3 слоя), ΔT > 0, L > 0.
-        coefficients: `safety_factor` и `ground_conductivity`. Приоритет:
-            `params.safety_factor` > coefficients >
-            DEFAULT_COEFFICIENTS.
+        coefficients: опциональный admin-словарь. Используется только ключ
+            `safety_factor` как fallback, если `params.safety_factor` не задан.
+            `ground_conductivity` и прочие ключи из этого dict не применяются.
 
     Returns:
         PipeHeatLossResult: base/design values for q and Q, `effective_length`
