@@ -22,6 +22,7 @@ from app.electrical_input_validation import (
 )
 from app.formulas.electrical.cable_geometry import compute_tank_cable_length
 from app.formulas.electrical.self_regulating import calc_self_regulating_tt
+from app.formulas.heat_loss.catalog_preparation import HeatLossPreparationError
 from app.formulas.heat_loss.evaluator import evaluate_validated_heat_loss
 from app.models.background_task import BackgroundTask
 from app.schemas.calculation import (
@@ -737,6 +738,8 @@ async def formula_check(
             message="Администратор выполнил пробный расчёт формулы",
         )
         return result
+    except HeatLossPreparationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     except PydanticValidationError as exc:
         # exc.errors() содержит ctx["error"] = ValueError — не сериализуется напрямую
         msgs = "; ".join(e.get("msg", "") for e in exc.errors())

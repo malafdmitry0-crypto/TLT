@@ -216,6 +216,8 @@ def build_heat_loss_error_payload(
 ) -> dict[str, Any]:
     """Structured `project_objects.validation_errors`."""
 
+    from app.formulas.heat_loss.catalog_preparation import HeatLossPreparationError
+
     message = _clean_exception_message(exc)
     lower_message = message.lower()
     category = "validation"
@@ -223,6 +225,16 @@ def build_heat_loss_error_payload(
     field: str | None = None
     hint: str | None = "Проверьте параметры объекта и повторите расчёт."
     extra: dict[str, Any] = {}
+
+    if isinstance(exc, HeatLossPreparationError):
+        return {
+            "error_code": exc.code,
+            "category": exc.category,
+            "message": exc.message,
+            "field": exc.path,
+            "fields": {exc.path: exc.message},
+            "hint": hint,
+        }
 
     if "process_temperature_not_above_ambient" in message:
         error_code = "process_temperature_not_above_ambient"

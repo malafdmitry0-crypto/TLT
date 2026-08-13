@@ -12,9 +12,8 @@ from heatcalc_heat_loss_core.tank_contract import validate_tank_contract
 from pydantic import ValidationError
 
 from app.formulas.heat_loss import pipe as pipe_formulas
-from app.formulas.heat_loss import pipe_preparation as pipe_preparation
 from app.formulas.heat_loss import tank as tank_formulas
-from app.formulas.heat_loss import tank_preparation as tank_preparation
+from app.formulas.heat_loss.catalog_preparation import HeatLossPreparationError
 from app.schemas import calculation as calculation_schemas
 from app.schemas.calculation import InsulationLayer, PipeHeatLossParams, TankHeatLossParams
 
@@ -117,7 +116,7 @@ def test_reference_material_temperature_check_delegates_to_core(
         "reference_temperature_interval_c",
         getattr(layers[0], "reference_temperature_range_c", None),
     )
-    assert interval == (-60.0, 400.0)
+    assert interval is None
 
 
 @pytest.mark.parametrize(
@@ -169,16 +168,16 @@ def test_facade_preserves_reference_lambda_error_for_selected_unavailable_branch
     calculate: Callable[[Any], Any],
     factory: Callable[[], Any],
 ) -> None:
-    lookup_owner = pipe_preparation if module is pipe_formulas else tank_preparation
     monkeypatch.setattr(
-        lookup_owner,
-        "resolve_reference_insulation",
+        "app.formulas.heat_loss.catalog_preparation.resolve_reference_insulation",
         lambda _material: (UnavailableConductivity(), (-60.0, 400.0)),
     )
 
     with pytest.raises(
-        ValueError,
+        HeatLossPreparationError,
         match=r"Для материала изоляции 'mineral_wool_boards_120' "
         r"не задана расчётная λ\(tm\) при tm=40 °C",
-    ):
+    ) as caught:
         calculate(factory())
+    assert caught.value.path == "insulation_layers.0.material"
+    assert caught.value.code == "unavailable_conductivity_branch"
