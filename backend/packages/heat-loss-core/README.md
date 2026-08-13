@@ -1,71 +1,52 @@
 # Heat-loss core
 
 `heatcalc-heat-loss-core` is the dependency-free calculation and validation
-library used by HeatCalc's backend. It is intended to be reusable by other
-Python applications, including a desktop client.
+library used by HeatCalc's backend and reusable Python clients.
 
-The package owns:
+The package owns heat-loss formulas, mathematical validation, physical
+profiles, conductivity laws, and finite-result checks. It does not know about
+the HeatCalc application, catalogs, database, API, or UI. The caller resolves
+catalog records into conductivity laws and temperature intervals before the
+call.
 
-- pipe and tank heat-loss equations;
-- derived geometry and thermal primitives;
-- numerical ranges and cross-field calculation contracts;
-- insulation-temperature, external-heat-transfer, safety-factor, and
-  conductivity laws;
-- validation of finite calculation results.
+## Public API
 
-The package does not know about the HeatCalc app, insulation catalog, or
-database. The caller supplies resolved `ConductivityLaw` values, temperature
-intervals, and an optional `HeatLossFormulaProfile`. The standard Case 1
-profile is used only when a custom profile is not passed.
-
-## Recommended API
-
-Use preparation input plus `validate_*_contract` / `run_*_formula`:
+There is one recommended entrypoint per calculation domain:
 
 ```python
 from heatcalc_heat_loss_core import (
     PipePreparationInput,
     PipePreparationLayer,
-    PipeFormulaOutcome,
-    run_pipe_formula,
     TankPreparationInput,
     TankPreparationLayer,
-    TankFormulaOutcome,
+    run_pipe_formula,
     run_tank_formula,
 )
 
-outcome = run_pipe_formula(prepared_input)
-if outcome.result is None:
-    report = outcome.report
+pipe_outcome = run_pipe_formula(pipe_input)
+tank_outcome = run_tank_formula(tank_input)
+
+if pipe_outcome.result is None:
+    report = pipe_outcome.report
 else:
-    result = outcome.result
+    result = pipe_outcome.result
 ```
 
-`run_*_formula` validates the catalog-free contract, assembles a prepared
-calculation, and returns `FormulaOutcome`: a result XOR a validation report.
+Each `run_*_formula` validates its catalog-free input, prepares the resolved
+calculation, executes exactly one numerical kernel, and returns either a result
+or a non-empty validation report. A successful outcome never contains blocking
+errors.
 
-Prepared assembly types (`PreparedPipeCalculation`, `evaluate_prepared_pipe`,
-and the tank equivalents) remain available as advanced module-level APIs. They
-are not the recommended root entrypoint.
+Pipe has one `safety_factor: float | None`: `None` selects the profile default,
+while every number—including `0.0`—is treated as explicitly supplied and then
+validated against the pipe range. Tank requires an explicit safety factor.
 
-## Compatibility API
+`heatcalc_heat_loss_core.api.__all__` and the package-root `__all__` are the
+same stable high-level interface. Low-level `calculate_*`, contract validators,
+and prepared execution kernels remain available from their owning submodules
+for advanced use, but are not alternative public application entrypoints.
 
-The previous resolved evaluators stay public:
-
-- `evaluate_pipe`
-- `evaluate_resolved_air_tank`
-- `evaluate_resolved_buried_tank`
-
-They accept already-resolved numerical laws and intervals. `evaluate_pipe`
-keeps its historical `resolve_safety_factor` semantics, including treating
-primary `0` as missing. Prefer the recommended preparation path for new
-callers.
-
-## Advanced API
-
-Low-level `calculate_*` functions, contract validators, conductivity laws, and
-thermal primitives remain exported for specialized use. They are not a second
-application entrypoint.
+## Development
 
 Run the standalone checks from this directory:
 

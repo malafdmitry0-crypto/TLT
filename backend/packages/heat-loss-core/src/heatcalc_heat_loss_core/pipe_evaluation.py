@@ -1,4 +1,4 @@
-"""High-level pure evaluation of catalog-resolved pipe heat-loss inputs."""
+"""Internal execution kernel for prepared pipe heat-loss inputs."""
 
 from __future__ import annotations
 
@@ -24,21 +24,11 @@ from .profile import (
     InsulationTemperatureBasis,
     resolve_external_alpha,
     resolve_insulation_temperature,
-    resolve_safety_factor,
 )
 from .thermal import arithmetic_mean
 from .validation import FormulaValidationIssue, FormulaValidationReport
 
 AirPlacement = Literal["indoor", "outdoor"]
-
-
-@dataclass(frozen=True)
-class PipeEvaluationLayer:
-    """One catalog-resolved insulation layer without a material identity."""
-
-    thickness_m: float
-    conductivity_law: ConductivityLaw
-    temperature_interval_c: tuple[float, float]
 
 
 @dataclass(frozen=True)
@@ -91,26 +81,7 @@ class PreparedPipeCalculation:
 
 
 @dataclass(frozen=True)
-class PipeEvaluationInput:
-    """Fully resolved pipe data, ready for a pure high-level calculation."""
-
-    outer_diameter_m: float
-    wall_thickness_m: float
-    wall_conductivity_law: ConductivityLaw
-    insulation_layers: tuple[PipeEvaluationLayer, ...]
-    process_temperature_c: float
-    insulation_temperature_basis: InsulationTemperatureBasis
-    pipe_length_m: float
-    local_elements_count: int
-    local_element_equiv_length_m: float
-    safety_factor_primary: float | None
-    safety_factor_override: float | None
-    environment: PipeEvaluationEnvironment
-    profile: HeatLossFormulaProfile = CASE_1_PROFILE
-
-
-@dataclass(frozen=True)
-class PipeEvaluationLayerResult:
+class PipeFormulaLayerResult:
     """Unrounded resolved values and boundary temperatures for one layer."""
 
     conductivity_w_mk: float
@@ -119,7 +90,7 @@ class PipeEvaluationLayerResult:
 
 
 @dataclass(frozen=True)
-class PipeEvaluationResult:
+class PipeFormulaResult:
     """Pure, unrounded pipe result plus resolved trace values."""
 
     core_result: PipeCoreResult
@@ -128,7 +99,7 @@ class PipeEvaluationResult:
     safety_factor: float
     external_alpha_w_m2k: float | None
     ground_conductivity_w_mk: float | None
-    layer_results: tuple[PipeEvaluationLayerResult, ...]
+    layer_results: tuple[PipeFormulaLayerResult, ...]
     layer_temperature_report: FormulaValidationReport
     formula_model: str = "pipe_heat_loss"
     formula_model_version: str = "2"
@@ -139,7 +110,7 @@ class PipeEvaluationResult:
     source_corrections: tuple[str, ...] = ("base_and_design_heat_losses_reported_separately",)
 
 
-def execute_prepared_pipe(data: PreparedPipeCalculation) -> PipeEvaluationResult:
+def execute_prepared_pipe(data: PreparedPipeCalculation) -> PipeFormulaResult:
     """Single pipe execution kernel. Expects resolved laws and a concrete K."""
 
     environment_temperature_c = _environment_temperature(data.environment)
@@ -221,7 +192,7 @@ def execute_prepared_pipe(data: PreparedPipeCalculation) -> PipeEvaluationResult
         )
 
     layer_results = tuple(
-        PipeEvaluationLayerResult(
+        PipeFormulaLayerResult(
             conductivity_w_mk=conductivity,
             resistance_mk_w=resistance,
             boundary_temperatures=boundary,
@@ -233,7 +204,7 @@ def execute_prepared_pipe(data: PreparedPipeCalculation) -> PipeEvaluationResult
             strict=True,
         )
     )
-    return PipeEvaluationResult(
+    return PipeFormulaResult(
         core_result=core_result,
         wall_conductivity_w_mk=wall_conductivity_w_mk,
         insulation_temperature_c=insulation_temperature_c,
@@ -244,40 +215,6 @@ def execute_prepared_pipe(data: PreparedPipeCalculation) -> PipeEvaluationResult
         layer_temperature_report=_validate_layer_temperatures(data.layers, layer_results),
         model_assumptions=model_assumptions,
         source_corrections=source_corrections,
-    )
-
-
-def evaluate_pipe(data: PipeEvaluationInput) -> PipeEvaluationResult:
-    """Legacy adapter: keep old K resolution, then enter the prepared kernel."""
-
-    safety_factor = resolve_safety_factor(
-        primary=data.safety_factor_primary,
-        override=data.safety_factor_override,
-        profile=data.profile,
-    )
-    return execute_prepared_pipe(
-        PreparedPipeCalculation(
-            outer_diameter_m=data.outer_diameter_m,
-            wall_thickness_m=data.wall_thickness_m,
-            wall_conductivity_law=data.wall_conductivity_law,
-            layers=tuple(
-                PreparedPipeLayer(
-                    thickness_m=layer.thickness_m,
-                    source="reference",
-                    conductivity_law=layer.conductivity_law,
-                    temperature_interval_c=layer.temperature_interval_c,
-                )
-                for layer in data.insulation_layers
-            ),
-            process_temperature_c=data.process_temperature_c,
-            insulation_temperature_basis=data.insulation_temperature_basis,
-            pipe_length_m=data.pipe_length_m,
-            local_elements_count=data.local_elements_count,
-            local_element_equiv_length_m=data.local_element_equiv_length_m,
-            safety_factor=safety_factor,
-            environment=data.environment,
-            profile=data.profile,
-        )
     )
 
 
@@ -309,7 +246,7 @@ def _layer_conductivities(
 
 def _validate_layer_temperatures(
     layers: tuple[PreparedPipeLayer, ...],
-    layer_results: tuple[PipeEvaluationLayerResult, ...],
+    layer_results: tuple[PipeFormulaLayerResult, ...],
 ) -> FormulaValidationReport:
     """Collect all hotter-boundary interval violations in layer order."""
 

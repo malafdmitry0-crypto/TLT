@@ -1,4 +1,4 @@
-"""Preparation and calculation-ready tank inputs for the new high-level path."""
+"""Canonical high-level input and outcome for tank heat-loss calculation."""
 
 from __future__ import annotations
 
@@ -26,8 +26,8 @@ from .tank_evaluation import AirTankFormulaEnvironment as AirTankFormulaEnvironm
 from .tank_evaluation import BuriedTankFormulaEnvironment as BuriedTankFormulaEnvironment
 from .tank_evaluation import PreparedTankCalculation as PreparedTankCalculation
 from .tank_evaluation import PreparedTankLayer as PreparedTankLayer
-from .tank_evaluation import TankEvaluationResult as TankEvaluationResult
 from .tank_evaluation import TankFormulaEnvironment as TankFormulaEnvironment
+from .tank_evaluation import TankFormulaResult as TankFormulaResult
 from .validation import (
     TANK_SAFETY_FACTOR_RANGE,
     VALID_FORMULA_VALIDATION_REPORT,
@@ -36,7 +36,7 @@ from .validation import (
     validate_numeric_range,
 )
 
-TankFormulaOutcome = FormulaOutcome[TankEvaluationResult]
+TankFormulaOutcome = FormulaOutcome[TankFormulaResult]
 
 
 @dataclass(frozen=True)
