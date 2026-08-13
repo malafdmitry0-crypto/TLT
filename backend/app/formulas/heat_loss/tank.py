@@ -25,6 +25,7 @@ from heatcalc_heat_loss_core.tank import (
 from heatcalc_heat_loss_core.tank_evaluation import ResolvedTankLayer
 from heatcalc_heat_loss_core.validation import FormulaValidationReport
 
+from app.formulas.heat_loss.catalog_preparation import unavailable_conductivity_error
 from app.formulas.heat_loss.outcome_errors import raise_heat_formula_report
 from app.formulas.heat_loss.tank_preparation import run_validated_tank_formula
 from app.reference_data.loader import (
@@ -126,9 +127,10 @@ def _raise_tank_core_error(
     if error.code in {"conductivity_law_unavailable", "conductivity_not_positive"}:
         index = int(error.details["layer_index"])
         temperature = float(error.details["temperature_c"])
-        raise ValueError(
-            f"Для материала изоляции '{layers[index].material}' не задана расчётная λ(tm) "
-            f"при tm={_fmt_temp(temperature)} °C"
+        raise unavailable_conductivity_error(
+            material=layers[index].material,
+            index=index,
+            temperature_c=temperature,
         ) from error
     raise ValueError(str(error)) from error
 

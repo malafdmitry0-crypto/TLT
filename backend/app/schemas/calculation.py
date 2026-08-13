@@ -65,7 +65,6 @@ from app.formulas.heat_loss.insulation import (
     INSULATION_TEMPERATURE_PLACEMENT_LABELS,
     InsulationTemperatureBasis,
 )
-from app.reference_data.loader import get_insulation_temperature_range
 from app.schemas.electrical_assignment import ElectricalAssignmentResponse
 from app.schemas.electrical_variant import (
     ElectricalAssignmentState,
@@ -186,17 +185,6 @@ def _insulation_basis_error_message(*, basis: str | None, placement: str) -> str
         f"{basis_label} не подходит для размещения {placement_label}; "
         f"выберите {allowed_labels}"
     )
-
-
-def _reference_temperature_interval(material: str) -> tuple[float, float]:
-    minimum_c, maximum_c = get_insulation_temperature_range(material)
-    return float(minimum_c), float(maximum_c)
-
-
-def _resolve_insulation_material(material: str) -> None:
-    """Resolve catalog identity without owning any validation predicate."""
-
-    get_insulation_temperature_range(material)
 
 
 def _raise_contract_issue(
@@ -459,8 +447,6 @@ class InsulationLayer(BaseModel):
         handler: ModelWrapValidatorHandler["InsulationLayer"],
     ) -> "InsulationLayer":
         instance = handler(data)
-        if instance.material != "other":
-            _resolve_insulation_material(instance.material)
         report = validate_insulation_contract(
             InsulationContractInput(
                 thickness_m=instance.thickness,
@@ -585,11 +571,7 @@ class PipeHeatLossParams(BaseModel):
                         source="manual" if layer.material == "other" else "reference",
                         conductivity_supplied=layer.conductivity is not None,
                         manual_temperature_range_c=layer.temperature_range,
-                        reference_temperature_interval_c=(
-                            None
-                            if layer.material == "other"
-                            else _reference_temperature_interval(layer.material)
-                        ),
+                        reference_temperature_interval_c=None,
                     )
                     for layer in instance.insulation_layers
                 ),
@@ -787,11 +769,7 @@ class TankHeatLossParams(BaseModel):
                         source="manual" if layer.material == "other" else "reference",
                         conductivity_supplied=layer.conductivity is not None,
                         manual_temperature_range_c=layer.temperature_range,
-                        reference_temperature_range_c=(
-                            None
-                            if layer.material == "other"
-                            else _reference_temperature_interval(layer.material)
-                        ),
+                        reference_temperature_range_c=None,
                     )
                     for layer in instance.insulation_layers
                 ),

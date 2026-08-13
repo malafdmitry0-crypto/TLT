@@ -991,8 +991,12 @@ class TestObjectsLifecycle:
         assert body["is_valid"] is False
         assert body["results"] is None
         assert body["validation_errors"]["fields"] == {
-            "insulation_layers.0.material": "Проверьте параметры объекта"
+            "insulation_layers.0.material": "Неизвестный материал изоляции: unknown_material"
         }
+        assert body["validation_errors"]["field"] == "insulation_layers.0.material"
+        assert body["validation_errors"]["message"] == (
+            "Неизвестный материал изоляции: unknown_material"
+        )
 
     async def test_pipe_preserves_climate_layers_and_returns_assumptions(
         self, client: AsyncClient, guest_session: str
