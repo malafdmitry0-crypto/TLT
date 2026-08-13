@@ -3,9 +3,9 @@
 from unittest.mock import MagicMock
 
 import pytest
+from heatcalc_heat_loss_core.pipe_contract import validate_pipe_contract
 from pydantic import ValidationError
 
-from app.formulas.heat_loss.core.pipe_contract import validate_pipe_contract
 from app.schemas import calculation as calculation_schemas
 from app.schemas.calculation import PipeHeatLossParams, StoredPipeHeatParams
 

@@ -1,60 +1,67 @@
-"""Compatibility identities for the standalone heat-loss core package."""
+"""Architecture ratchet: no backend shim namespace for the heat-loss core."""
+
+from __future__ import annotations
+
+import ast
+from pathlib import Path
 
 import heatcalc_heat_loss_core as canonical
 
-from app.formulas.heat_loss.core import pipe as legacy_pipe
-from app.formulas.heat_loss.core import tank as legacy_tank
-from app.formulas.heat_loss.core.conductivity import (
-    AffineConductivity as LegacyAffineConductivity,
-)
-from app.formulas.heat_loss.core.conductivity import (
-    evaluate_conductivity as legacy_evaluate_conductivity,
-)
-from app.formulas.heat_loss.core.errors import FormulaDomainError as LegacyFormulaDomainError
-from app.formulas.heat_loss.core.insulation_contract import (
-    InsulationContractInput as LegacyInsulationContractInput,
-)
-from app.formulas.heat_loss.core.pipe_contract import PipeContractInput as LegacyPipeContractInput
-from app.formulas.heat_loss.core.pipe_evaluation import (
-    PipeEvaluationInput as LegacyPipeEvaluationInput,
-)
-from app.formulas.heat_loss.core.pipe_evaluation import (
-    evaluate_pipe as legacy_evaluate_pipe,
-)
-from app.formulas.heat_loss.core.profile import (
-    HeatLossFormulaProfile as LegacyHeatLossFormulaProfile,
-)
-from app.formulas.heat_loss.core.profile import (
-    resolve_external_alpha as legacy_resolve_external_alpha,
-)
-from app.formulas.heat_loss.core.tank_contract import TankContractInput as LegacyTankContractInput
-from app.formulas.heat_loss.core.tank_evaluation import (
-    ResolvedAirTankEvaluationInput as LegacyResolvedAirTankEvaluationInput,
-)
-from app.formulas.heat_loss.core.tank_evaluation import (
-    evaluate_resolved_air_tank as legacy_evaluate_resolved_air_tank,
-)
-from app.formulas.heat_loss.core.validation import FormulaValidationReport as LegacyReport
+BACKEND_ROOT = Path(__file__).resolve().parents[4]
+SHIM_DIRECTORY = BACKEND_ROOT / "app" / "formulas" / "heat_loss" / "core"
+FORBIDDEN_PREFIX = "app.formulas.heat_loss.core"
+SCAN_SKIP_PARTS = {".git", "mutants", "__pycache__", ".venv", "dist", "build"}
 
 
-def test_legacy_modules_reexport_canonical_objects_by_identity() -> None:
-    assert legacy_pipe.calculate_aboveground_pipe is canonical.calculate_aboveground_pipe
-    assert legacy_pipe.PipeCoreResult is canonical.PipeCoreResult
-    assert legacy_tank.calculate_air_tank_heat_loss is canonical.calculate_air_tank_heat_loss
-    assert legacy_tank.TankCoreResult is canonical.TankCoreResult
-    assert LegacyFormulaDomainError is canonical.FormulaDomainError
-    assert LegacyInsulationContractInput is canonical.InsulationContractInput
-    assert LegacyPipeContractInput is canonical.PipeContractInput
-    assert LegacyTankContractInput is canonical.TankContractInput
-    assert LegacyReport is canonical.FormulaValidationReport
-    assert LegacyHeatLossFormulaProfile is canonical.HeatLossFormulaProfile
-    assert legacy_resolve_external_alpha is canonical.resolve_external_alpha
-    assert LegacyAffineConductivity is canonical.AffineConductivity
-    assert legacy_evaluate_conductivity is canonical.evaluate_conductivity
-    assert LegacyPipeEvaluationInput is canonical.PipeEvaluationInput
-    assert legacy_evaluate_pipe is canonical.evaluate_pipe
-    assert LegacyResolvedAirTankEvaluationInput is canonical.ResolvedAirTankEvaluationInput
-    assert legacy_evaluate_resolved_air_tank is canonical.evaluate_resolved_air_tank
+def _is_forbidden_module(module: str | None) -> bool:
+    if module is None:
+        return False
+    return module == FORBIDDEN_PREFIX or module.startswith(f"{FORBIDDEN_PREFIX}.")
+
+
+def _shim_import_violations(source: Path) -> list[str]:
+    tree = ast.parse(source.read_text(encoding="utf-8"), filename=str(source))
+    violations: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if _is_forbidden_module(alias.name):
+                    violations.append(f"{source}: import {alias.name}")
+        elif isinstance(node, ast.ImportFrom):
+            if _is_forbidden_module(node.module):
+                rendered = f"{'.' * node.level}{node.module or ''}"
+                violations.append(f"{source}: from {rendered} import")
+            elif node.module == "app.formulas.heat_loss" and any(
+                alias.name == "core" for alias in node.names
+            ):
+                violations.append(f"{source}: from app.formulas.heat_loss import core")
+    return violations
+
+
+def _executable_python_files() -> list[Path]:
+    files: list[Path] = []
+    for root_name in ("app", "packages", "scripts"):
+        root = BACKEND_ROOT / root_name
+        if not root.exists():
+            continue
+        for path in root.rglob("*.py"):
+            if SCAN_SKIP_PARTS & set(path.parts):
+                continue
+            files.append(path)
+    return files
+
+
+def test_backend_core_shim_directory_is_absent() -> None:
+    assert not SHIM_DIRECTORY.exists()
+
+
+def test_executable_python_does_not_import_heat_loss_core_shim() -> None:
+    sources = _executable_python_files()
+    assert sources
+    violations = [
+        violation for source in sources for violation in _shim_import_violations(source)
+    ]
+    assert not violations, "Forbidden shim imports:\n" + "\n".join(violations)
 
 
 def test_canonical_package_exposes_calculations_and_input_result_models() -> None:
