@@ -47,6 +47,7 @@ FormulaValidationCode: TypeAlias = Literal[
     "cylindrical_tank_forbids_length_and_width",
     "rectangular_tank_forbids_diameter",
     "unsupported_tank_shape",
+    "conductivity_law_required",
 ]
 
 
