@@ -12,16 +12,8 @@ q_total  = q_linear · L_eff · K  [Вт]
 
 from typing import Any, cast
 
-from heatcalc_heat_loss_core.conductivity import ConstantConductivity
 from heatcalc_heat_loss_core.errors import FormulaDomainError
-from heatcalc_heat_loss_core.pipe_evaluation import (
-    AirPipeEvaluationInput,
-    PipeEvaluationInput,
-    PipeEvaluationLayer,
-    UndergroundPipeEvaluationInput,
-    evaluate_pipe,
-)
-from heatcalc_heat_loss_core.profile import InsulationTemperatureBasis, resolve_external_alpha
+from heatcalc_heat_loss_core.profile import resolve_external_alpha
 from heatcalc_heat_loss_core.validation import FormulaValidationReport
 
 from app.formulas.heat_loss.outcome_errors import raise_heat_formula_report
@@ -31,17 +23,6 @@ from app.reference_data.loader import (
     get_pipe_material_lambda,
 )
 from app.schemas.calculation import InsulationLayer, PipeHeatLossParams, PipeHeatLossResult
-
-# Compatibility names used by characterization and callers of the old facade surface.
-_COMPAT = (
-    AirPipeEvaluationInput,
-    ConstantConductivity,
-    InsulationTemperatureBasis,
-    PipeEvaluationInput,
-    PipeEvaluationLayer,
-    UndergroundPipeEvaluationInput,
-    evaluate_pipe,
-)
 
 
 def pipe_material_lambda(material: str | None, temperature: float) -> float:
