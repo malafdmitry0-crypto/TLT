@@ -14,13 +14,12 @@ from heatcalc_heat_loss_core.tank_formula import (
     TankFormulaOutcome,
     TankPreparationInput,
     TankPreparationLayer,
-    run_tank_formula,
+    assemble_prepared_tank,
+    evaluate_prepared_tank,
 )
+from heatcalc_heat_loss_core.validation import FormulaValidationReport
 
-from app.reference_data.loader import (
-    get_insulation_conductivity_law,
-    get_insulation_temperature_range,
-)
+from app.reference_data.loader import resolve_reference_insulation
 from app.schemas.calculation import InsulationLayer, TankHeatLossParams
 
 
@@ -29,7 +28,10 @@ def run_validated_tank_formula(
     coefficients: dict[str, Any] | None = None,
 ) -> TankFormulaOutcome:
     del coefficients
-    return run_tank_formula(build_tank_preparation(params))
+    prepared = assemble_prepared_tank(build_tank_preparation(params))
+    if isinstance(prepared, FormulaValidationReport):
+        return TankFormulaOutcome(result=None, report=prepared)
+    return evaluate_prepared_tank(prepared)
 
 
 def build_tank_preparation(params: TankHeatLossParams) -> TankPreparationInput:
@@ -64,17 +66,21 @@ def build_tank_preparation(params: TankHeatLossParams) -> TankPreparationInput:
 
 def _preparation_layer(layer: InsulationLayer) -> TankPreparationLayer:
     manual = layer.material == "other"
+    if manual:
+        return TankPreparationLayer(
+            thickness_m=layer.thickness,
+            source="manual",
+            conductivity_supplied=layer.conductivity is not None,
+            manual_temperature_range_c=layer.temperature_range,
+            reference_temperature_range_c=None,
+            conductivity_law=ConstantConductivity(cast(float, layer.conductivity)),
+        )
+    law, interval = resolve_reference_insulation(layer.material)
     return TankPreparationLayer(
         thickness_m=layer.thickness,
-        source="manual" if manual else "reference",
+        source="reference",
         conductivity_supplied=layer.conductivity is not None,
-        manual_temperature_range_c=layer.temperature_range if manual else None,
-        reference_temperature_range_c=(
-            None if manual else get_insulation_temperature_range(layer.material)
-        ),
-        conductivity_law=(
-            ConstantConductivity(cast(float, layer.conductivity))
-            if manual
-            else get_insulation_conductivity_law(layer.material)
-        ),
+        manual_temperature_range_c=None,
+        reference_temperature_range_c=interval,
+        conductivity_law=law,
     )
