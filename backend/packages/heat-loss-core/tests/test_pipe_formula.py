@@ -11,11 +11,13 @@ from heatcalc_heat_loss_core.pipe_evaluation import (
     AirPipeEvaluationInput,
     PipeEvaluationInput,
     PipeEvaluationLayer,
+    UndergroundPipeEvaluationInput,
     evaluate_pipe,
 )
 from heatcalc_heat_loss_core.pipe_formula import (
     PipePreparationInput,
     PipePreparationLayer,
+    assemble_prepared_pipe,
     evaluate_prepared_pipe,
     prepare_pipe_calculation,
     run_pipe_formula,
@@ -87,6 +89,42 @@ def test_missing_safety_factor_uses_profile_default() -> None:
     assert prepared.safety_factor == pytest.approx(1.1)
 
 
+def test_invalid_profile_default_is_a_structured_preparation_error() -> None:
+    outcome = run_pipe_formula(
+        _prep(
+            safety_factor=None,
+            profile=HeatLossFormulaProfile(default_safety_factor=0.0),
+        )
+    )
+
+    assert outcome.result is None
+    assert outcome.report.issues[0].code == "below_min_inclusive"
+    assert outcome.report.issues[0].path == ("profile", "default_safety_factor")
+
+
+def test_standalone_pipe_path_does_not_call_late_bound_assembler(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def unexpected_assembler(
+        data: PipePreparationInput,
+    ) -> object:
+        del data
+        raise AssertionError("standalone path repeated late-bound validation")
+
+    monkeypatch.setattr(
+        "heatcalc_heat_loss_core.pipe_formula.assemble_prepared_pipe",
+        unexpected_assembler,
+    )
+
+    assert run_pipe_formula(_prep()).is_success
+
+
+def test_direct_pipe_assembler_still_rejects_invalid_late_bound_k() -> None:
+    report = assemble_prepared_pipe(_prep(safety_factor=2.0))
+    assert isinstance(report, FormulaValidationReport)
+    assert report.issues[0].code == "above_max_inclusive"
+
+
 def test_run_pipe_formula_matches_old_evaluate_pipe_and_has_no_error_payload() -> None:
     outcome = run_pipe_formula(_prep())
     assert outcome.is_success
@@ -116,9 +154,7 @@ def test_run_pipe_formula_matches_old_evaluate_pipe_and_has_no_error_payload() -
 
 
 def test_layer_temperature_failure_is_not_a_successful_result() -> None:
-    outcome = run_pipe_formula(
-        _prep(layers=(_layer(manual_temperature_range_c=(-10.0, 10.0)),))
-    )
+    outcome = run_pipe_formula(_prep(layers=(_layer(manual_temperature_range_c=(-10.0, 10.0)),)))
     assert outcome.result is None
     assert [issue.code for issue in outcome.report.issues] == ["temperature_outside_interval"]
     with pytest.raises(ValueError, match="successful formula result cannot carry"):
@@ -177,9 +213,31 @@ def test_new_pipe_path_has_one_effective_safety_factor_and_no_admin_vocabulary()
 def test_prepared_pipe_derives_environment_from_the_same_scalars() -> None:
     prepared = prepare_pipe_calculation(_prep())
     assert not isinstance(prepared, FormulaValidationReport)
-    assert prepared.ambient_temperature_c == pytest.approx(-20.0)
-    assert prepared.wind_speed_m_s == pytest.approx(3.0)
-    assert "environment" not in prepared.__dataclass_fields__
+    assert isinstance(prepared.environment, AirPipeEvaluationInput)
+    assert prepared.environment.ambient_temperature_c == pytest.approx(-20.0)
+    assert prepared.environment.wind_speed_m_s == pytest.approx(3.0)
+    assert "ambient_temperature_c" not in prepared.__dataclass_fields__
+    assert "ground_temperature_c" not in prepared.__dataclass_fields__
+
+
+def test_prepared_underground_pipe_contains_required_ground_environment() -> None:
+    prepared = prepare_pipe_calculation(
+        _prep(
+            placement="underground",
+            insulation_temperature_basis="channel",
+            ambient_temperature=None,
+            wind_speed=None,
+            ground_temperature=5.0,
+            ground_conductivity=1.5,
+            pipe_centerline_depth=1.2,
+            num_local_elements=0,
+            local_element_equiv_length=None,
+        )
+    )
+    assert not isinstance(prepared, FormulaValidationReport)
+    assert isinstance(prepared.environment, UndergroundPipeEvaluationInput)
+    assert prepared.environment.ground_temperature_c == pytest.approx(5.0)
+    assert prepared.environment.centerline_depth_m == pytest.approx(1.2)
 
 
 def test_custom_profile_supplies_default_k_and_indoor_alpha() -> None:

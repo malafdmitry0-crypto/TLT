@@ -27,7 +27,12 @@ from .pipe_evaluation import (
     UndergroundPipeEvaluationInput,
     evaluate_pipe,
 )
-from .profile import CASE_1_PROFILE, HeatLossFormulaProfile, InsulationTemperatureBasis
+from .profile import (
+    CASE_1_PROFILE,
+    HeatLossFormulaProfile,
+    InsulationTemperatureBasis,
+    validate_heat_loss_formula_profile,
+)
 from .validation import (
     PIPE_SAFETY_FACTOR_RANGE,
     VALID_FORMULA_VALIDATION_REPORT,
@@ -100,12 +105,7 @@ class PreparedPipeCalculation:
     local_elements_count: int
     local_element_equiv_length_m: float
     safety_factor: float
-    placement: PipePlacement
-    ambient_temperature_c: float | None
-    wind_speed_m_s: float | None
-    ground_temperature_c: float | None
-    centerline_depth_m: float | None
-    ground_conductivity_w_mk: float | None
+    environment: PipeEvaluationEnvironment
     profile: HeatLossFormulaProfile = CASE_1_PROFILE
 
 
@@ -132,10 +132,7 @@ def assemble_prepared_pipe(
         )
         if not range_report.is_valid:
             return range_report
-    law_report = _require_pipe_laws(data)
-    if not law_report.is_valid:
-        return law_report
-    return _to_prepared_pipe(data)
+    return _assemble_validated_pipe(data)
 
 
 def prepare_pipe_calculation(
@@ -146,7 +143,7 @@ def prepare_pipe_calculation(
     contract_report = validate_pipe_preparation(data)
     if not contract_report.is_valid:
         return contract_report
-    return assemble_prepared_pipe(data)
+    return _assemble_validated_pipe(data)
 
 
 def evaluate_prepared_pipe(data: PreparedPipeCalculation) -> PipeFormulaOutcome:
@@ -225,6 +222,18 @@ def _require_pipe_laws(data: PipePreparationInput) -> FormulaValidationReport:
     return VALID_FORMULA_VALIDATION_REPORT
 
 
+def _assemble_validated_pipe(
+    data: PipePreparationInput,
+) -> PreparedPipeCalculation | FormulaValidationReport:
+    profile_report = validate_heat_loss_formula_profile(data.profile)
+    if not profile_report.is_valid:
+        return profile_report
+    law_report = _require_pipe_laws(data)
+    if not law_report.is_valid:
+        return law_report
+    return _to_prepared_pipe(data)
+
+
 def _layer_interval(layer: PipePreparationLayer) -> tuple[float, float] | None:
     if layer.source == "manual":
         return layer.manual_temperature_range_c
@@ -265,12 +274,14 @@ def _to_prepared_pipe(data: PipePreparationInput) -> PreparedPipeCalculation:
         local_elements_count=data.num_local_elements,
         local_element_equiv_length_m=data.local_element_equiv_length or 0.0,
         safety_factor=safety_factor,
-        placement=data.placement,
-        ambient_temperature_c=data.ambient_temperature,
-        wind_speed_m_s=data.wind_speed,
-        ground_temperature_c=data.ground_temperature,
-        centerline_depth_m=data.pipe_centerline_depth,
-        ground_conductivity_w_mk=data.ground_conductivity,
+        environment=pipe_environment_from_fields(
+            placement=data.placement,
+            ambient_temperature=data.ambient_temperature,
+            wind_speed=data.wind_speed,
+            ground_temperature=data.ground_temperature,
+            centerline_depth=data.pipe_centerline_depth,
+            ground_conductivity=data.ground_conductivity,
+        ),
         profile=data.profile,
     )
 
@@ -287,14 +298,18 @@ def pipe_environment_from_fields(
     """Derive the evaluation environment from the same scalars the contract saw."""
 
     if placement == "underground":
+        if ground_temperature is None or centerline_depth is None or ground_conductivity is None:
+            raise ValueError("validated underground pipe requires ground environment fields")
         return UndergroundPipeEvaluationInput(
-            ground_temperature_c=float(ground_temperature),
-            centerline_depth_m=float(centerline_depth),
-            ground_conductivity_w_mk=float(ground_conductivity),
+            ground_temperature_c=ground_temperature,
+            centerline_depth_m=centerline_depth,
+            ground_conductivity_w_mk=ground_conductivity,
         )
+    if ambient_temperature is None:
+        raise ValueError("validated air pipe requires ambient_temperature")
     return AirPipeEvaluationInput(
         placement=placement,
-        ambient_temperature_c=float(ambient_temperature),
+        ambient_temperature_c=ambient_temperature,
         wind_speed_m_s=wind_speed,
     )
 
@@ -319,13 +334,6 @@ def _to_evaluation_input(data: PreparedPipeCalculation) -> PipeEvaluationInput:
         local_element_equiv_length_m=data.local_element_equiv_length_m,
         safety_factor_primary=data.safety_factor,
         safety_factor_override=None,
-        environment=pipe_environment_from_fields(
-            placement=data.placement,
-            ambient_temperature=data.ambient_temperature_c,
-            wind_speed=data.wind_speed_m_s,
-            ground_temperature=data.ground_temperature_c,
-            centerline_depth=data.centerline_depth_m,
-            ground_conductivity=data.ground_conductivity_w_mk,
-        ),
+        environment=data.environment,
         profile=data.profile,
     )
