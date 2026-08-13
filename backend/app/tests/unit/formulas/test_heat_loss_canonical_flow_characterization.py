@@ -13,8 +13,14 @@ from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
+from heatcalc_heat_loss_core.conductivity import ConstantConductivity
 from heatcalc_heat_loss_core.pipe_contract import validate_pipe_formula_domain
-from heatcalc_heat_loss_core.pipe_evaluation import evaluate_pipe
+from heatcalc_heat_loss_core.pipe_evaluation import (
+    AirPipeEvaluationInput,
+    PipeEvaluationInput,
+    PipeEvaluationLayer,
+    evaluate_pipe,
+)
 from pydantic import ValidationError
 
 from app.formulas.heat_loss import pipe as pipe_facade
@@ -281,14 +287,14 @@ def test_pipe_zero_safety_factor_is_rejected_by_range_before_resolver() -> None:
 
 def test_old_evaluate_pipe_still_treats_zero_primary_as_missing() -> None:
     params = PipeHeatLossParams.model_validate(_pipe_payload(safety_factor=1.2))
-    evaluation = pipe_facade.evaluate_pipe(
-        pipe_facade.PipeEvaluationInput(
+    evaluation = evaluate_pipe(
+        PipeEvaluationInput(
             outer_diameter_m=params.outer_diameter,
             wall_thickness_m=params.wall_thickness,
-            wall_conductivity_law=pipe_facade.ConstantConductivity(45.0),
+            wall_conductivity_law=ConstantConductivity(45.0),
             insulation_layers=(
-                pipe_facade.PipeEvaluationLayer(
-                    0.05, pipe_facade.ConstantConductivity(0.04), (-70.0, 200.0)
+                PipeEvaluationLayer(
+                    0.05, ConstantConductivity(0.04), (-70.0, 200.0)
                 ),
             ),
             process_temperature_c=params.process_temperature,
@@ -298,7 +304,7 @@ def test_old_evaluate_pipe_still_treats_zero_primary_as_missing() -> None:
             local_element_equiv_length_m=0.0,
             safety_factor_primary=0.0,
             safety_factor_override=1.4,
-            environment=pipe_facade.AirPipeEvaluationInput("outdoor", -20.0, 0.0),
+            environment=AirPipeEvaluationInput("outdoor", -20.0, 0.0),
         )
     )
     assert evaluation.safety_factor == pytest.approx(1.4)
@@ -343,14 +349,14 @@ def test_pipe_rounds_facade_json_tank_does_not() -> None:
     pipe_params = PipeHeatLossParams.model_validate(_pipe_payload())
     pipe_result = pipe_facade.calc_pipe_heat_loss(pipe_params)
     pipe_eval = evaluate_pipe(
-        pipe_facade.PipeEvaluationInput(
+        PipeEvaluationInput(
             outer_diameter_m=pipe_params.outer_diameter,
             wall_thickness_m=pipe_params.wall_thickness,
             wall_conductivity_law=reference_loader.get_pipe_material_conductivity_law(
                 pipe_params.pipe_material
             ),
             insulation_layers=(
-                pipe_facade.PipeEvaluationLayer(
+                PipeEvaluationLayer(
                     0.05,
                     reference_loader.get_insulation_conductivity_law(MINERAL_WOOL),
                     reference_loader.get_insulation_temperature_range(MINERAL_WOOL),
@@ -363,7 +369,7 @@ def test_pipe_rounds_facade_json_tank_does_not() -> None:
             local_element_equiv_length_m=0.0,
             safety_factor_primary=1.1,
             safety_factor_override=None,
-            environment=pipe_facade.AirPipeEvaluationInput("outdoor", -20.0, 0.0),
+            environment=AirPipeEvaluationInput("outdoor", -20.0, 0.0),
         )
     )
     assert pipe_result.heat_loss_per_meter_base == round(
