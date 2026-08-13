@@ -1,4 +1,4 @@
-"""High-level pure evaluation of fully resolved tank heat-loss inputs."""
+"""Internal execution kernel for prepared tank heat-loss inputs."""
 
 from __future__ import annotations
 
@@ -27,16 +27,6 @@ from .tank import (
 )
 from .tank_contract import TankLayerSource
 from .validation import FormulaValidationIssue, FormulaValidationReport
-
-
-@dataclass(frozen=True)
-class ResolvedTankLayer:
-    """A layer with a pure conductivity law and already-resolved temperature limits."""
-
-    thickness_m: float
-    conductivity_law: ConductivityLaw
-    temperature_min_c: float
-    temperature_max_c: float
 
 
 @dataclass(frozen=True)
@@ -89,46 +79,7 @@ class PreparedTankCalculation:
 
 
 @dataclass(frozen=True)
-class ResolvedAirTankEvaluationInput:
-    """Fully resolved numeric input for an air-exposed tank."""
-
-    geometry: TankGeometry
-    wall_thickness_m: float
-    wall_conductivity_w_mk: float
-    insulation_layers: tuple[ResolvedTankLayer, ...]
-    process_temperature_c: float
-    ambient_temperature_c: float
-    placement: ExternalAlphaPlacement
-    wind_speed_m_s: float | None
-    insulation_temperature_basis: InsulationTemperatureBasis
-    safety_factor: float
-    additional_heat_loss_w: float
-    profile: HeatLossFormulaProfile = CASE_1_PROFILE
-
-
-@dataclass(frozen=True)
-class ResolvedBuriedTankEvaluationInput:
-    """Fully resolved numeric input for a partially buried tank."""
-
-    geometry: TankGeometry
-    wall_thickness_m: float
-    wall_conductivity_w_mk: float
-    insulation_layers: tuple[ResolvedTankLayer, ...]
-    process_temperature_c: float
-    ambient_temperature_c: float
-    ground_temperature_c: float
-    buried_height_m: float
-    ground_conductivity_w_mk: float
-    placement: ExternalAlphaPlacement
-    wind_speed_m_s: float | None
-    insulation_temperature_basis: InsulationTemperatureBasis
-    safety_factor: float
-    additional_heat_loss_w: float
-    profile: HeatLossFormulaProfile = CASE_1_PROFILE
-
-
-@dataclass(frozen=True)
-class TankEvaluationResult:
+class TankFormulaResult:
     """Core result plus all resolved formula quantities and layer checks."""
 
     core_result: TankCoreResult
@@ -151,7 +102,7 @@ class TankEvaluationResult:
     )
 
 
-def execute_prepared_tank(data: PreparedTankCalculation) -> TankEvaluationResult:
+def execute_prepared_tank(data: PreparedTankCalculation) -> TankFormulaResult:
     """Single tank execution kernel. Expects resolved laws and a concrete K."""
 
     insulation_temperature = resolve_insulation_temperature(
@@ -208,68 +159,6 @@ def execute_prepared_tank(data: PreparedTankCalculation) -> TankEvaluationResult
     )
 
 
-def evaluate_resolved_air_tank(data: ResolvedAirTankEvaluationInput) -> TankEvaluationResult:
-    """Legacy adapter: map the resolved air DTO onto the prepared kernel."""
-
-    return execute_prepared_tank(
-        PreparedTankCalculation(
-            geometry=data.geometry,
-            insulation_temperature_basis=data.insulation_temperature_basis,
-            layers=_prepared_layers(data.insulation_layers),
-            process_temperature_c=data.process_temperature_c,
-            wall_thickness_m=data.wall_thickness_m,
-            wall_conductivity_w_mk=data.wall_conductivity_w_mk,
-            safety_factor=data.safety_factor,
-            additional_heat_loss_w=data.additional_heat_loss_w,
-            environment=AirTankFormulaEnvironment(
-                placement=data.placement,
-                ambient_temperature_c=data.ambient_temperature_c,
-                wind_speed_m_s=data.wind_speed_m_s,
-            ),
-            profile=data.profile,
-        )
-    )
-
-
-def evaluate_resolved_buried_tank(data: ResolvedBuriedTankEvaluationInput) -> TankEvaluationResult:
-    """Legacy adapter: map the resolved buried DTO onto the prepared kernel."""
-
-    return execute_prepared_tank(
-        PreparedTankCalculation(
-            geometry=data.geometry,
-            insulation_temperature_basis=data.insulation_temperature_basis,
-            layers=_prepared_layers(data.insulation_layers),
-            process_temperature_c=data.process_temperature_c,
-            wall_thickness_m=data.wall_thickness_m,
-            wall_conductivity_w_mk=data.wall_conductivity_w_mk,
-            safety_factor=data.safety_factor,
-            additional_heat_loss_w=data.additional_heat_loss_w,
-            environment=BuriedTankFormulaEnvironment(
-                placement="underground",
-                ambient_temperature_c=data.ambient_temperature_c,
-                ground_temperature_c=data.ground_temperature_c,
-                buried_height_m=data.buried_height_m,
-                ground_conductivity_w_mk=data.ground_conductivity_w_mk,
-                wind_speed_m_s=data.wind_speed_m_s,
-            ),
-            profile=data.profile,
-        )
-    )
-
-
-def _prepared_layers(layers: tuple[ResolvedTankLayer, ...]) -> tuple[PreparedTankLayer, ...]:
-    return tuple(
-        PreparedTankLayer(
-            thickness_m=layer.thickness_m,
-            source="reference",
-            conductivity_law=layer.conductivity_law,
-            temperature_min_c=layer.temperature_min_c,
-            temperature_max_c=layer.temperature_max_c,
-        )
-        for layer in layers
-    )
-
-
 def _conductivities(
     layers: tuple[PreparedTankLayer, ...], temperature_c: float
 ) -> tuple[float, ...]:
@@ -306,7 +195,7 @@ def _result(
     safety_factor: float,
     additional_heat_loss_w: float,
     core_result: TankCoreResult,
-) -> TankEvaluationResult:
+) -> TankFormulaResult:
     issues: tuple[FormulaValidationIssue, ...] = ()
     for boundaries in (
         core_result.air_layer_boundary_temperatures,
@@ -322,7 +211,7 @@ def _result(
                 maximum_c=layer.temperature_max_c,
                 path=("insulation_layers", index),
             ).issues
-    return TankEvaluationResult(
+    return TankFormulaResult(
         core_result=core_result,
         insulation_temperature_c=insulation_temperature_c,
         external_alpha_w_m2k=alpha_w_m2k,
