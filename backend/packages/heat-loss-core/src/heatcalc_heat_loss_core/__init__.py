@@ -65,6 +65,7 @@ from .profile import (
     resolve_external_alpha,
     resolve_insulation_temperature,
     resolve_safety_factor,
+    validate_heat_loss_formula_profile,
 )
 from .tank import (
     AirTankHeatLossInput,
@@ -197,6 +198,7 @@ __all__ = [
     "resolve_insulation_temperature",
     "resolve_safety_factor",
     "validate_hot_side_temperature_in_interval",
+    "validate_heat_loss_formula_profile",
     "validate_insulation_basis_for_placement",
     "validate_insulation_conductivity",
     "validate_insulation_contract",
