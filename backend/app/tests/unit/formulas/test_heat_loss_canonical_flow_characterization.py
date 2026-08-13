@@ -1,0 +1,438 @@
+"""Freeze current heat-loss flow before the canonical-input cutover.
+
+This suite characterizes behavior that later slices must not change unless the
+plan explicitly allows a contract change. It complements existing facade and
+range snapshots instead of replacing them.
+"""
+
+from __future__ import annotations
+
+from types import SimpleNamespace
+from typing import Any, cast
+from unittest.mock import AsyncMock, MagicMock
+from uuid import uuid4
+
+import pytest
+from heatcalc_heat_loss_core.pipe_contract import validate_pipe_formula_domain
+from heatcalc_heat_loss_core.pipe_evaluation import evaluate_pipe
+from pydantic import ValidationError
+
+from app.formulas.heat_loss import pipe as pipe_facade
+from app.formulas.heat_loss import pipe_preparation as pipe_preparation
+from app.formulas.heat_loss import tank as tank_facade
+from app.models.project_object import ProjectObject
+from app.reference_data import loader as reference_loader
+from app.schemas import calculation as calculation_schemas
+from app.schemas.calculation import InsulationLayer, PipeHeatLossParams, TankHeatLossParams
+from app.services.calculation_service import CalculationService
+
+MINERAL_WOOL = "mineral_wool_boards_120"
+
+
+def _pipe_payload(**overrides: object) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "outer_diameter": 0.108,
+        "wall_thickness": 0.004,
+        "pipe_material": "carbon_steel",
+        "pipe_length": 10.0,
+        "insulation_layers": [{"thickness": 0.05, "material": MINERAL_WOOL}],
+        "insulation_temperature_basis": "outdoor_winter",
+        "ambient_temperature": -20.0,
+        "process_temperature": 80.0,
+        "placement": "outdoor",
+        "wind_speed": 0.0,
+        "safety_factor": 1.1,
+    }
+    payload.update(overrides)
+    return payload
+
+
+def _tank_payload(**overrides: object) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "shape": "cylindrical",
+        "diameter": 2.0,
+        "height": 3.0,
+        "insulation_layers": [{"thickness": 0.08, "material": MINERAL_WOOL}],
+        "insulation_temperature_basis": "outdoor_winter",
+        "ambient_temperature": -20.0,
+        "process_temperature": 80.0,
+        "placement": "outdoor",
+        "wind_speed": 0.0,
+        "safety_factor": 1.1,
+    }
+    payload.update(overrides)
+    return payload
+
+
+def _error_fields(error: ValidationError) -> list[dict[str, Any]]:
+    return [
+        {
+            "loc": item["loc"],
+            "type": item["type"],
+            "msg": item["msg"],
+            "input": item.get("input"),
+            "error_text": str(item.get("ctx", {}).get("error", "")),
+        }
+        for item in error.errors(include_url=False)
+    ]
+
+
+def test_insulation_layer_model_validate_is_a_supported_public_contract() -> None:
+    """Direct layer validation is part of the public schema, not an internal helper."""
+
+    valid = InsulationLayer.model_validate({"thickness": 0.05, "material": MINERAL_WOOL})
+    assert valid.material == MINERAL_WOOL
+    assert valid.conductivity is None
+
+
+def test_insulation_layer_unknown_material_error_shape_is_frozen() -> None:
+    payload = {"thickness": 0.05, "material": "not_a_catalog_material"}
+
+    with pytest.raises(ValidationError) as caught:
+        InsulationLayer.model_validate(payload)
+
+    assert _error_fields(caught.value) == [
+        {
+            "loc": (),
+            "type": "value_error",
+            "msg": "Value error, Неизвестный материал изоляции: not_a_catalog_material",
+            "input": payload,
+            "error_text": "Неизвестный материал изоляции: not_a_catalog_material",
+        }
+    ]
+
+
+def test_insulation_layer_manual_and_reference_contract_errors_are_frozen() -> None:
+    missing_lambda = {
+        "thickness": 0.05,
+        "material": "other",
+        "temperature_range": [-90.0, 600.0],
+    }
+    with pytest.raises(ValidationError) as missing:
+        InsulationLayer.model_validate(missing_lambda)
+    assert _error_fields(missing.value) == [
+        {
+            "loc": (),
+            "type": "value_error",
+            "msg": "Value error, Для материала изоляции 'other' необходимо задать λ слоя",
+            "input": missing_lambda,
+            "error_text": "Для материала изоляции 'other' необходимо задать λ слоя",
+        }
+    ]
+
+    # Layer-only validation currently accepts a reference material plus manual λ.
+    # The parent pipe/tank contract rejects that combination.
+    reference_with_manual = {"thickness": 0.05, "material": MINERAL_WOOL, "conductivity": 0.04}
+    assert InsulationLayer.model_validate(reference_with_manual).conductivity == pytest.approx(0.04)
+    with pytest.raises(ValidationError) as extra:
+        PipeHeatLossParams.model_validate(
+            _pipe_payload(insulation_layers=[reference_with_manual])
+        )
+    assert _error_fields(extra.value) == [
+        {
+            "loc": (),
+            "type": "value_error",
+            "msg": (
+                "Value error, Справочный слой #1 не должен содержать "
+                "ручные conductivity/temperature_range"
+            ),
+            "input": _pipe_payload(insulation_layers=[reference_with_manual]),
+            "error_text": (
+                "Справочный слой #1 не должен содержать ручные conductivity/temperature_range"
+            ),
+        }
+    ]
+
+
+def test_process_temperature_outside_material_range_fails_before_formula(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    facade = MagicMock(name="calc_pipe_heat_loss")
+    monkeypatch.setattr(pipe_facade, "calc_pipe_heat_loss", facade)
+
+    payload = _pipe_payload(process_temperature=500.0)
+    with pytest.raises(ValidationError) as caught:
+        PipeHeatLossParams.model_validate(payload)
+
+    assert _error_fields(caught.value) == [
+        {
+            "loc": (),
+            "type": "value_error",
+            "msg": (
+                "Value error, Температура продукта 500 °C вне диапазона материала "
+                "изоляции #1 'mineral_wool_boards_120': -60…400 °C"
+            ),
+            "input": payload,
+            "error_text": (
+                "Температура продукта 500 °C вне диапазона материала "
+                "изоляции #1 'mineral_wool_boards_120': -60…400 °C"
+            ),
+        }
+    ]
+    facade.assert_not_called()
+
+
+def test_air_pipe_domain_check_receives_empty_insulation_thicknesses(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    spy = MagicMock(wraps=validate_pipe_formula_domain)
+    monkeypatch.setattr(
+        "heatcalc_heat_loss_core.pipe_contract.validate_pipe_formula_domain",
+        spy,
+    )
+
+    PipeHeatLossParams.model_validate(_pipe_payload())
+
+    spy.assert_called_once()
+    assert spy.call_args.kwargs["insulation_layer_thicknesses_m"] == ()
+    assert spy.call_args.kwargs["environment"] == "ambient"
+
+
+def test_underground_pipe_domain_check_receives_actual_layer_thicknesses(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    spy = MagicMock(wraps=validate_pipe_formula_domain)
+    monkeypatch.setattr(
+        "heatcalc_heat_loss_core.pipe_contract.validate_pipe_formula_domain",
+        spy,
+    )
+
+    PipeHeatLossParams.model_validate(
+        _pipe_payload(
+            placement="underground",
+            insulation_temperature_basis="channel",
+            ambient_temperature=None,
+            wind_speed=None,
+            ground_temperature=5.0,
+            ground_conductivity=1.5,
+            pipe_centerline_depth=1.2,
+        )
+    )
+
+    spy.assert_called_once()
+    assert spy.call_args.kwargs["insulation_layer_thicknesses_m"] == (0.05,)
+    assert spy.call_args.kwargs["environment"] == "ground"
+
+
+def test_pipe_facade_catalog_lookup_count_for_one_reference_layer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    range_spy = MagicMock(wraps=reference_loader.get_insulation_temperature_range)
+    law_spy = MagicMock(wraps=reference_loader.get_insulation_conductivity_law)
+    wall_spy = MagicMock(wraps=reference_loader.get_pipe_material_conductivity_law)
+    monkeypatch.setattr(calculation_schemas, "get_insulation_temperature_range", range_spy)
+    monkeypatch.setattr(pipe_preparation, "get_insulation_conductivity_law", law_spy)
+    monkeypatch.setattr(pipe_preparation, "get_pipe_material_conductivity_law", wall_spy)
+
+    params = PipeHeatLossParams.model_validate(_pipe_payload())
+    pipe_facade.calc_pipe_heat_loss(params)
+
+    assert range_spy.call_count == 2
+    assert law_spy.call_count == 1
+    assert wall_spy.call_count == 1
+
+
+def test_pipe_user_safety_factor_wins_over_admin_coefficient() -> None:
+    params = PipeHeatLossParams.model_validate(_pipe_payload(safety_factor=1.2))
+    result = pipe_facade.calc_pipe_heat_loss(params, coefficients={"safety_factor": 1.4})
+    assert result.safety_factor_applied == pytest.approx(1.2)
+
+
+def test_pipe_admin_safety_factor_applies_only_when_user_value_is_absent() -> None:
+    params = PipeHeatLossParams.model_validate(_pipe_payload(safety_factor=None))
+    result = pipe_facade.calc_pipe_heat_loss(params, coefficients={"safety_factor": 1.4})
+    assert result.safety_factor_applied == pytest.approx(1.4)
+
+
+def test_pipe_profile_default_applies_when_user_and_admin_are_absent() -> None:
+    params = PipeHeatLossParams.model_validate(_pipe_payload(safety_factor=None))
+    result = pipe_facade.calc_pipe_heat_loss(params, coefficients={})
+    assert result.safety_factor_applied == pytest.approx(1.1)
+
+
+def test_pipe_zero_safety_factor_is_rejected_by_range_before_resolver() -> None:
+    with pytest.raises(ValidationError) as caught:
+        PipeHeatLossParams.model_validate(_pipe_payload(safety_factor=0.0))
+
+    error = next(item for item in caught.value.errors(include_url=False) if item["loc"] == ("safety_factor",))
+    assert error["type"] == "greater_than_equal"
+    assert error["input"] == 0.0
+    assert error["ctx"] == {"ge": 1.0}
+
+
+def test_old_evaluate_pipe_still_treats_zero_primary_as_missing() -> None:
+    params = PipeHeatLossParams.model_validate(_pipe_payload(safety_factor=1.2))
+    evaluation = pipe_facade.evaluate_pipe(
+        pipe_facade.PipeEvaluationInput(
+            outer_diameter_m=params.outer_diameter,
+            wall_thickness_m=params.wall_thickness,
+            wall_conductivity_law=pipe_facade.ConstantConductivity(45.0),
+            insulation_layers=(
+                pipe_facade.PipeEvaluationLayer(
+                    0.05, pipe_facade.ConstantConductivity(0.04), (-70.0, 200.0)
+                ),
+            ),
+            process_temperature_c=params.process_temperature,
+            insulation_temperature_basis="outdoor_winter",
+            pipe_length_m=params.pipe_length,
+            local_elements_count=0,
+            local_element_equiv_length_m=0.0,
+            safety_factor_primary=0.0,
+            safety_factor_override=1.4,
+            environment=pipe_facade.AirPipeEvaluationInput("outdoor", -20.0, 0.0),
+        )
+    )
+    assert evaluation.safety_factor == pytest.approx(1.4)
+
+
+def test_admin_ground_conductivity_does_not_change_pipe_result() -> None:
+    params = PipeHeatLossParams.model_validate(
+        _pipe_payload(
+            placement="underground",
+            insulation_temperature_basis="channel",
+            ambient_temperature=None,
+            wind_speed=None,
+            ground_temperature=5.0,
+            ground_conductivity=1.5,
+            pipe_centerline_depth=1.2,
+        )
+    )
+    baseline = pipe_facade.calc_pipe_heat_loss(params)
+    overridden = pipe_facade.calc_pipe_heat_loss(params, coefficients={"ground_conductivity": 2.9})
+    assert overridden.model_dump() == baseline.model_dump()
+    assert overridden.ground_conductivity_applied == pytest.approx(1.5)
+
+
+def test_tank_ignores_admin_coefficients() -> None:
+    params = TankHeatLossParams.model_validate(_tank_payload(safety_factor=1.1))
+    result = tank_facade.calc_tank_heat_loss(
+        params,
+        coefficients={"safety_factor": 1.4, "ground_conductivity": 2.9},
+    )
+    assert result.safety_factor_applied == pytest.approx(1.1)
+
+
+def test_tank_requires_safety_factor() -> None:
+    payload = _tank_payload()
+    payload.pop("safety_factor")
+    with pytest.raises(ValidationError) as caught:
+        TankHeatLossParams.model_validate(payload)
+    assert any(item["loc"] == ("safety_factor",) for item in caught.value.errors(include_url=False))
+
+
+def test_pipe_rounds_facade_json_tank_does_not() -> None:
+    pipe_params = PipeHeatLossParams.model_validate(_pipe_payload())
+    pipe_result = pipe_facade.calc_pipe_heat_loss(pipe_params)
+    pipe_eval = evaluate_pipe(
+        pipe_facade.PipeEvaluationInput(
+            outer_diameter_m=pipe_params.outer_diameter,
+            wall_thickness_m=pipe_params.wall_thickness,
+            wall_conductivity_law=reference_loader.get_pipe_material_conductivity_law(
+                pipe_params.pipe_material
+            ),
+            insulation_layers=(
+                pipe_facade.PipeEvaluationLayer(
+                    0.05,
+                    reference_loader.get_insulation_conductivity_law(MINERAL_WOOL),
+                    reference_loader.get_insulation_temperature_range(MINERAL_WOOL),
+                ),
+            ),
+            process_temperature_c=pipe_params.process_temperature,
+            insulation_temperature_basis="outdoor_winter",
+            pipe_length_m=pipe_params.pipe_length,
+            local_elements_count=0,
+            local_element_equiv_length_m=0.0,
+            safety_factor_primary=1.1,
+            safety_factor_override=None,
+            environment=pipe_facade.AirPipeEvaluationInput("outdoor", -20.0, 0.0),
+        )
+    )
+    assert pipe_result.heat_loss_per_meter_base == round(
+        pipe_eval.core_result.heat_loss_per_meter_base_w_m, 3
+    )
+    assert pipe_result.thermal_resistance == round(
+        pipe_eval.core_result.thermal_resistance_mk_w, 6
+    )
+
+    tank_params = TankHeatLossParams.model_validate(_tank_payload())
+    tank_result = tank_facade.calc_tank_heat_loss(tank_params)
+    dumped = tank_result.model_dump()
+    assert dumped["total_heat_loss_base"] == tank_result.total_heat_loss_base
+    assert dumped["total_heat_loss_base"] != round(tank_result.total_heat_loss_base, 3)
+
+
+def test_indoor_outdoor_and_three_layer_pipe_paths_stay_distinct() -> None:
+    indoor = pipe_facade.calc_pipe_heat_loss(
+        PipeHeatLossParams.model_validate(
+            _pipe_payload(placement="indoor", wind_speed=None, insulation_temperature_basis="indoor")
+        )
+    )
+    outdoor = pipe_facade.calc_pipe_heat_loss(PipeHeatLossParams.model_validate(_pipe_payload()))
+    three_layers = pipe_facade.calc_pipe_heat_loss(
+        PipeHeatLossParams.model_validate(
+            _pipe_payload(
+                insulation_layers=[
+                    {"thickness": 0.03, "material": MINERAL_WOOL},
+                    {"thickness": 0.02, "material": MINERAL_WOOL},
+                    {"thickness": 0.01, "material": MINERAL_WOOL},
+                ]
+            )
+        )
+    )
+
+    assert indoor.alpha_vnesh_applied == pytest.approx(9.0)
+    assert outdoor.alpha_vnesh_applied != indoor.alpha_vnesh_applied
+    assert outdoor.wind_speed_applied == pytest.approx(0.0)
+    assert indoor.wind_speed_applied is None
+    assert len(three_layers.insulation_layers_applied) == 3
+    assert three_layers.heat_loss_per_meter_base != outdoor.heat_loss_per_meter_base
+
+
+async def test_recalculate_keeps_climate_k_and_ignores_admin_when_k_already_set() -> None:
+    obj = cast(
+        ProjectObject,
+        SimpleNamespace(
+            id=uuid4(),
+            object_type="pipe",
+            params=_pipe_payload(
+                safety_factor=1.1,
+                safety_factor_source="climate_policy",
+                min_switch_temperature=-20.0,
+            ),
+            results=None,
+            is_valid=False,
+            validation_errors=None,
+        ),
+    )
+
+    outcome = await CalculationService(AsyncMock()).try_recalculate(
+        obj, coefficients={"safety_factor": 1.4}
+    )
+
+    assert outcome.is_ok is True
+    assert obj.is_valid is True
+    assert obj.validation_errors is None
+    assert obj.results is not None
+    assert obj.results["safety_factor_applied"] == pytest.approx(1.1)
+
+
+async def test_invalid_recalculate_clears_results_and_keeps_object() -> None:
+    obj = cast(
+        ProjectObject,
+        SimpleNamespace(
+            id=uuid4(),
+            object_type="pipe",
+            params=_pipe_payload(safety_factor=0.0, min_switch_temperature=-20.0),
+            results={"stale": True},
+            is_valid=True,
+            validation_errors=None,
+        ),
+    )
+
+    outcome = await CalculationService(AsyncMock()).try_recalculate(obj, coefficients={})
+
+    assert outcome.is_err is True
+    assert obj.is_valid is False
+    assert obj.results is None
+    assert obj.validation_errors is not None
+    assert obj.validation_errors["category"] == "validation"
