@@ -4,9 +4,8 @@ import math
 from collections.abc import Callable
 
 import pytest
-
-from app.formulas.heat_loss.core.errors import FormulaDomainError
-from app.formulas.heat_loss.core.insulation_temperature import (
+from heatcalc_heat_loss_core.errors import FormulaDomainError
+from heatcalc_heat_loss_core.insulation_temperature import (
     calculate_insulation_temperature,
 )
 

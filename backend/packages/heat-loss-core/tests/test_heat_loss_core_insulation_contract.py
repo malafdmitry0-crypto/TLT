@@ -5,8 +5,7 @@ from __future__ import annotations
 from dataclasses import FrozenInstanceError
 
 import pytest
-
-from app.formulas.heat_loss.core.insulation_contract import (
+from heatcalc_heat_loss_core.insulation_contract import (
     InsulationContractInput,
     validate_insulation_contract,
 )
