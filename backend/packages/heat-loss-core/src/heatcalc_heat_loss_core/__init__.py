@@ -56,6 +56,12 @@ from .pipe_evaluation import (
     UndergroundPipeEvaluationInput,
     evaluate_pipe,
 )
+from .pipe_formula import (
+    PipeFormulaOutcome,
+    PipePreparationInput,
+    PipePreparationLayer,
+    run_pipe_formula,
+)
 from .pipe_validation import validate_pipe_input_ranges
 from .profile import (
     CASE_1_PROFILE,
@@ -96,6 +102,12 @@ from .tank_evaluation import (
     TankEvaluationResult,
     evaluate_resolved_air_tank,
     evaluate_resolved_buried_tank,
+)
+from .tank_formula import (
+    TankFormulaOutcome,
+    TankPreparationInput,
+    TankPreparationLayer,
+    run_tank_formula,
 )
 from .tank_validation import validate_tank_input_ranges
 from .thermal import (
@@ -152,7 +164,10 @@ __all__ = [
     "PipeEvaluationLayer",
     "PipeEvaluationLayerResult",
     "PipeEvaluationResult",
+    "PipeFormulaOutcome",
     "PipeInsulationLayer",
+    "PipePreparationInput",
+    "PipePreparationLayer",
     "PipeLayerBoundaryTemperature",
     "PipeLayerContract",
     "PipeLayerSource",
@@ -167,7 +182,10 @@ __all__ = [
     "TankContractLayer",
     "TankCoreResult",
     "TankEvaluationResult",
+    "TankFormulaOutcome",
     "TankGeometry",
+    "TankPreparationInput",
+    "TankPreparationLayer",
     "TankInsulationLayer",
     "TankLayerBoundaryTemperature",
     "TankLayerSource",
@@ -189,6 +207,8 @@ __all__ = [
     "evaluate_pipe",
     "evaluate_resolved_air_tank",
     "evaluate_resolved_buried_tank",
+    "run_pipe_formula",
+    "run_tank_formula",
     "higher_temperature",
     "multiply_factors",
     "piecewise_constant",
