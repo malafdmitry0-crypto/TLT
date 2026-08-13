@@ -5,28 +5,23 @@ from datetime import datetime
 from typing import Annotated, Any, Literal, cast
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
-from pydantic.functional_validators import ModelWrapValidatorHandler
-from pydantic_core import InitErrorDetails, PydanticCustomError
-
-from app.electrical_variant_limits import MAX_ELECTRICAL_VARIANTS
-from app.formulas.heat_loss.core.insulation_contract import (
+from heatcalc_heat_loss_core.insulation_contract import (
     ALLOWED_INSULATION_BASES_BY_PLACEMENT,
     InsulationContractInput,
     validate_insulation_contract,
 )
-from app.formulas.heat_loss.core.pipe_contract import (
+from heatcalc_heat_loss_core.pipe_contract import (
     PipeContractInput,
     PipeLayerContract,
     validate_pipe_contract,
 )
-from app.formulas.heat_loss.core.tank_contract import (
+from heatcalc_heat_loss_core.tank_contract import (
     TankContractInput,
     TankContractLayer,
     validate_tank_contract,
     validate_tank_shape,
 )
-from app.formulas.heat_loss.core.validation import (
+from heatcalc_heat_loss_core.validation import (
     INSULATION_CONDUCTIVITY_RANGE,
     INSULATION_LAYER_COUNT_RANGE,
     INSULATION_THICKNESS_RANGE,
@@ -59,6 +54,11 @@ from app.formulas.heat_loss.core.validation import (
     FormulaValidationIssue,
     FormulaValidationReport,
 )
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
+from pydantic.functional_validators import ModelWrapValidatorHandler
+from pydantic_core import InitErrorDetails, PydanticCustomError
+
+from app.electrical_variant_limits import MAX_ELECTRICAL_VARIANTS
 from app.formulas.heat_loss.insulation import (
     INSULATION_TEMPERATURE_BASIS_LABELS,
     INSULATION_TEMPERATURE_BASIS_PLACEMENT_MESSAGE,

@@ -4,11 +4,11 @@ from unittest.mock import MagicMock
 
 import pytest
 from heatcalc_heat_loss_core import pipe_evaluation
+from heatcalc_heat_loss_core.pipe_contract import validate_pipe_contract
+from heatcalc_heat_loss_core.tank_contract import validate_tank_contract
 from pydantic import ValidationError
 
 from app.formulas.heat_loss import pipe as pipe_facade
-from app.formulas.heat_loss.core.pipe_contract import validate_pipe_contract
-from app.formulas.heat_loss.core.tank_contract import validate_tank_contract
 from app.reference_data import loader as reference_loader
 from app.schemas import calculation as calculation_schemas
 from app.schemas.calculation import PipeHeatLossParams, TankHeatLossParams
