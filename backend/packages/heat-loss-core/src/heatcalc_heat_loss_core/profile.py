@@ -138,22 +138,3 @@ def resolve_external_alpha(
         intercept=profile.outdoor_alpha_intercept_w_m2k,
         sqrt_coefficient=profile.outdoor_alpha_sqrt_coefficient,
     )
-
-
-def resolve_safety_factor(
-    *,
-    primary: float | None,
-    override: float | None = None,
-    profile: HeatLossFormulaProfile = CASE_1_PROFILE,
-) -> float:
-    """Preserve pipe legacy precedence: truthy primary, then present override.
-
-    This is equivalent to ``primary or merged.get('safety_factor', default)``:
-    zero primary falls through, while a present zero override is retained.
-    """
-
-    if primary:
-        return primary
-    if override is not None:
-        return override
-    return profile.default_safety_factor

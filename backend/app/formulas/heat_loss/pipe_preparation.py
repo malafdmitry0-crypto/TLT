@@ -33,7 +33,7 @@ def effective_pipe_safety_factor(
     if params.safety_factor is not None:
         return params.safety_factor
     if coefficients is not None and "safety_factor" in coefficients:
-        return coefficients["safety_factor"]
+        return cast(float, coefficients["safety_factor"])
     return None
 
 

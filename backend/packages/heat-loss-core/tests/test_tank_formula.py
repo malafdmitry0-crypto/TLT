@@ -1,16 +1,10 @@
-"""New tank preparation/prepared path without changing existing evaluators."""
+"""Canonical tank formula interface."""
 
 from __future__ import annotations
 
 import pytest
 from heatcalc_heat_loss_core.conductivity import ConstantConductivity
 from heatcalc_heat_loss_core.profile import HeatLossFormulaProfile
-from heatcalc_heat_loss_core.tank import CylindricalTankGeometry
-from heatcalc_heat_loss_core.tank_evaluation import (
-    ResolvedAirTankEvaluationInput,
-    ResolvedTankLayer,
-    evaluate_resolved_air_tank,
-)
 from heatcalc_heat_loss_core.tank_formula import (
     AirTankFormulaEnvironment,
     BuriedTankFormulaEnvironment,
@@ -96,26 +90,14 @@ def test_tank_safety_factor_stays_required_on_preparation() -> None:
         )
 
 
-def test_run_tank_formula_matches_old_air_evaluator() -> None:
+def test_run_tank_formula_returns_unrounded_result_without_error_payload() -> None:
     outcome = run_tank_formula(_prep())
     assert outcome.is_success
     assert outcome.result is not None
-    legacy = evaluate_resolved_air_tank(
-        ResolvedAirTankEvaluationInput(
-            geometry=CylindricalTankGeometry(2.0, 3.0),
-            wall_thickness_m=0.008,
-            wall_conductivity_w_mk=50.0,
-            insulation_layers=(ResolvedTankLayer(0.08, ConstantConductivity(0.04), -90.0, 600.0),),
-            process_temperature_c=70.0,
-            ambient_temperature_c=-30.0,
-            placement="outdoor",
-            wind_speed_m_s=3.0,
-            insulation_temperature_basis="outdoor_winter",
-            safety_factor=1.1,
-            additional_heat_loss_w=0.0,
-        )
-    )
-    assert outcome.result.core_result == legacy.core_result
+    assert outcome.report.is_valid
+    assert outcome.result.formula_model == "tank_heat_loss"
+    assert outcome.result.formula_model_version == "3"
+    assert outcome.result.safety_factor_applied == pytest.approx(1.1)
 
 
 def test_tank_layer_temperature_failure_clears_result() -> None:

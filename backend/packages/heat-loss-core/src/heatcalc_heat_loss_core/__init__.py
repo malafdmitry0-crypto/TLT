@@ -1,240 +1,32 @@
-"""Pure, dependency-free heat-loss calculations and input contracts."""
+"""Recommended public API for dependency-free heat-loss calculations."""
 
-from .conductivity import (
-    AffineConductivity,
-    ConductivityLaw,
-    ConstantConductivity,
-    PiecewiseConductivity,
-    UnavailableConductivity,
-    evaluate_conductivity,
-)
-from .errors import FormulaDomainError
-from .insulation_contract import (
-    InsulationContractInput,
-    InsulationPlacement,
-    InsulationSource,
-    validate_insulation_basis_for_placement,
-    validate_insulation_contract,
-)
-from .insulation_temperature import InsulationTemperatureFormula, calculate_insulation_temperature
-from .insulation_validation import (
-    validate_insulation_conductivity,
-    validate_insulation_layer_count,
-    validate_insulation_layer_ranges,
-    validate_insulation_thickness,
-)
-from .material_validation import (
-    validate_hot_side_temperature_in_interval,
-    validate_temperature_in_interval,
-    validate_temperature_interval,
-)
-from .pipe import (
-    AbovegroundPipeInput,
-    PipeCoreResult,
-    PipeInsulationLayer,
-    PipeLayerBoundaryTemperature,
-    UndergroundPipeInput,
-    calculate_aboveground_pipe,
-    calculate_underground_pipe,
-    validate_pipe_formula_domain,
-)
-from .pipe_contract import (
-    PipeContractInput,
-    PipeLayerContract,
-    PipeLayerSource,
-    PipePlacement,
-    validate_pipe_contract,
-)
-from .pipe_evaluation import (
-    AirPipeEvaluationInput,
-    AirPlacement,
-    PipeEvaluationEnvironment,
-    PipeEvaluationInput,
-    PipeEvaluationLayer,
-    PipeEvaluationLayerResult,
-    PipeEvaluationResult,
-    UndergroundPipeEvaluationInput,
-    evaluate_pipe,
-)
-from .pipe_formula import (
-    PipeFormulaOutcome,
-    PipePreparationInput,
-    PipePreparationLayer,
-    run_pipe_formula,
-)
-from .pipe_validation import validate_pipe_input_ranges
-from .profile import (
-    CASE_1_PROFILE,
-    ExternalAlphaPlacement,
-    HeatLossFormulaProfile,
-    InsulationTemperatureBasis,
-    resolve_external_alpha,
-    resolve_insulation_temperature,
-    resolve_safety_factor,
-    validate_heat_loss_formula_profile,
-)
-from .tank import (
-    AirTankHeatLossInput,
-    BuriedTankHeatLossInput,
-    CylindricalTankGeometry,
-    RectangularTankGeometry,
-    TankCoreResult,
-    TankGeometry,
-    TankInsulationLayer,
-    TankLayerBoundaryTemperature,
-    calculate_air_tank_heat_loss,
-    calculate_buried_tank_heat_loss,
-    validate_tank_formula_domain,
-)
-from .tank_contract import (
-    TankContractInput,
-    TankContractLayer,
-    TankLayerSource,
-    TankPlacement,
-    TankShape,
-    validate_tank_contract,
-    validate_tank_shape,
-)
-from .tank_evaluation import (
-    ResolvedAirTankEvaluationInput,
-    ResolvedBuriedTankEvaluationInput,
-    ResolvedTankLayer,
-    TankEvaluationResult,
-    evaluate_resolved_air_tank,
-    evaluate_resolved_buried_tank,
-)
-from .tank_formula import (
-    TankFormulaOutcome,
-    TankPreparationInput,
-    TankPreparationLayer,
-    run_tank_formula,
-)
-from .tank_validation import validate_tank_input_ranges
-from .thermal import (
-    affine_value,
-    alpha_from_wind,
-    arithmetic_mean,
-    clamp_minimum,
-    higher_temperature,
-    multiply_factors,
-    piecewise_constant,
-    quotient,
-)
-from .validation import (
-    FormulaValidationCode,
-    FormulaValidationIssue,
-    FormulaValidationReport,
-    NumericRangeCheck,
-    NumericRangeSpec,
-    SequenceLengthCheck,
-    SequenceLengthSpec,
-    validate_numeric_range,
-    validate_range_checks,
-    validate_sequence_length,
-)
-
-__all__ = [
-    "AbovegroundPipeInput",
-    "AffineConductivity",
-    "AirPipeEvaluationInput",
-    "AirPlacement",
-    "AirTankHeatLossInput",
-    "BuriedTankHeatLossInput",
-    "CylindricalTankGeometry",
-    "CASE_1_PROFILE",
-    "ConductivityLaw",
-    "ConstantConductivity",
-    "ExternalAlphaPlacement",
-    "FormulaDomainError",
-    "FormulaValidationCode",
-    "FormulaValidationIssue",
-    "FormulaValidationReport",
-    "HeatLossFormulaProfile",
-    "InsulationContractInput",
-    "InsulationPlacement",
-    "InsulationSource",
-    "InsulationTemperatureBasis",
-    "InsulationTemperatureFormula",
-    "NumericRangeCheck",
-    "NumericRangeSpec",
-    "PipeContractInput",
-    "PipeCoreResult",
-    "PipeEvaluationEnvironment",
-    "PipeEvaluationInput",
-    "PipeEvaluationLayer",
-    "PipeEvaluationLayerResult",
-    "PipeEvaluationResult",
-    "PipeFormulaOutcome",
-    "PipeInsulationLayer",
-    "PipePreparationInput",
-    "PipePreparationLayer",
-    "PipeLayerBoundaryTemperature",
-    "PipeLayerContract",
-    "PipeLayerSource",
-    "PipePlacement",
-    "RectangularTankGeometry",
-    "ResolvedAirTankEvaluationInput",
-    "ResolvedBuriedTankEvaluationInput",
-    "ResolvedTankLayer",
-    "SequenceLengthCheck",
-    "SequenceLengthSpec",
-    "TankContractInput",
-    "TankContractLayer",
-    "TankCoreResult",
-    "TankEvaluationResult",
-    "TankFormulaOutcome",
-    "TankGeometry",
-    "TankPreparationInput",
-    "TankPreparationLayer",
-    "TankInsulationLayer",
-    "TankLayerBoundaryTemperature",
-    "TankLayerSource",
-    "TankPlacement",
-    "TankShape",
-    "UndergroundPipeInput",
-    "UndergroundPipeEvaluationInput",
-    "UnavailableConductivity",
-    "affine_value",
-    "alpha_from_wind",
-    "arithmetic_mean",
-    "calculate_aboveground_pipe",
-    "calculate_air_tank_heat_loss",
-    "calculate_buried_tank_heat_loss",
-    "calculate_insulation_temperature",
-    "calculate_underground_pipe",
-    "clamp_minimum",
-    "evaluate_conductivity",
-    "evaluate_pipe",
-    "evaluate_resolved_air_tank",
-    "evaluate_resolved_buried_tank",
-    "run_pipe_formula",
-    "run_tank_formula",
-    "higher_temperature",
-    "multiply_factors",
-    "piecewise_constant",
-    "PiecewiseConductivity",
-    "quotient",
-    "resolve_external_alpha",
-    "resolve_insulation_temperature",
-    "resolve_safety_factor",
-    "validate_hot_side_temperature_in_interval",
-    "validate_heat_loss_formula_profile",
-    "validate_insulation_basis_for_placement",
-    "validate_insulation_conductivity",
-    "validate_insulation_contract",
-    "validate_insulation_layer_count",
-    "validate_insulation_layer_ranges",
-    "validate_insulation_thickness",
-    "validate_numeric_range",
-    "validate_pipe_contract",
-    "validate_pipe_formula_domain",
-    "validate_pipe_input_ranges",
-    "validate_range_checks",
-    "validate_sequence_length",
-    "validate_tank_contract",
-    "validate_tank_formula_domain",
-    "validate_tank_input_ranges",
-    "validate_tank_shape",
-    "validate_temperature_in_interval",
-    "validate_temperature_interval",
-]
+from .api import CASE_1_PROFILE as CASE_1_PROFILE
+from .api import AffineConductivity as AffineConductivity
+from .api import ConductivityLaw as ConductivityLaw
+from .api import ConstantConductivity as ConstantConductivity
+from .api import FormulaDomainError as FormulaDomainError
+from .api import FormulaValidationCode as FormulaValidationCode
+from .api import FormulaValidationIssue as FormulaValidationIssue
+from .api import FormulaValidationReport as FormulaValidationReport
+from .api import HeatLossFormulaProfile as HeatLossFormulaProfile
+from .api import InsulationTemperatureBasis as InsulationTemperatureBasis
+from .api import PiecewiseConductivity as PiecewiseConductivity
+from .api import PipeFormulaOutcome as PipeFormulaOutcome
+from .api import PipeFormulaResult as PipeFormulaResult
+from .api import PipeLayerSource as PipeLayerSource
+from .api import PipePlacement as PipePlacement
+from .api import PipePreparationInput as PipePreparationInput
+from .api import PipePreparationLayer as PipePreparationLayer
+from .api import TankFormulaOutcome as TankFormulaOutcome
+from .api import TankFormulaResult as TankFormulaResult
+from .api import TankLayerSource as TankLayerSource
+from .api import TankPlacement as TankPlacement
+from .api import TankPreparationInput as TankPreparationInput
+from .api import TankPreparationLayer as TankPreparationLayer
+from .api import TankShape as TankShape
+from .api import UnavailableConductivity as UnavailableConductivity
+from .api import __all__ as __all__
+from .api import evaluate_conductivity as evaluate_conductivity
+from .api import run_pipe_formula as run_pipe_formula
+from .api import run_tank_formula as run_tank_formula
+from .api import validate_heat_loss_formula_profile as validate_heat_loss_formula_profile

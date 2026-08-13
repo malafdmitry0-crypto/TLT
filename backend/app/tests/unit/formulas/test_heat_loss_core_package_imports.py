@@ -6,6 +6,7 @@ import ast
 from pathlib import Path
 
 import heatcalc_heat_loss_core as canonical
+import heatcalc_heat_loss_core.api as public_api
 
 BACKEND_ROOT = Path(__file__).resolve().parents[4]
 SHIM_DIRECTORY = BACKEND_ROOT / "app" / "formulas" / "heat_loss" / "core"
@@ -64,52 +65,54 @@ def test_executable_python_does_not_import_heat_loss_core_shim() -> None:
     assert not violations, "Forbidden shim imports:\n" + "\n".join(violations)
 
 
-def test_canonical_package_exposes_calculations_and_input_result_models() -> None:
+def test_canonical_package_exposes_only_the_recommended_high_level_api() -> None:
     expected = {
-        "AbovegroundPipeInput",
-        "AirTankHeatLossInput",
-        "BuriedTankHeatLossInput",
-        "CASE_1_PROFILE",
         "AffineConductivity",
-        "AirPipeEvaluationInput",
+        "CASE_1_PROFILE",
         "ConductivityLaw",
         "ConstantConductivity",
+        "FormulaDomainError",
+        "FormulaValidationCode",
+        "FormulaValidationIssue",
+        "FormulaValidationReport",
         "HeatLossFormulaProfile",
-        "PipeCoreResult",
-        "PipeEvaluationInput",
-        "PipeEvaluationResult",
-        "PipeInsulationLayer",
+        "InsulationTemperatureBasis",
         "PiecewiseConductivity",
-        "ResolvedAirTankEvaluationInput",
-        "ResolvedBuriedTankEvaluationInput",
-        "ResolvedTankLayer",
-        "TankCoreResult",
-        "TankEvaluationResult",
-        "TankInsulationLayer",
-        "UndergroundPipeInput",
         "UnavailableConductivity",
-        "calculate_aboveground_pipe",
-        "calculate_air_tank_heat_loss",
-        "calculate_buried_tank_heat_loss",
-        "calculate_underground_pipe",
         "evaluate_conductivity",
-        "evaluate_pipe",
-        "evaluate_resolved_air_tank",
-        "evaluate_resolved_buried_tank",
-        "resolve_external_alpha",
-        "resolve_insulation_temperature",
-        "resolve_safety_factor",
-        "validate_pipe_contract",
-        "validate_tank_contract",
         "PipePreparationInput",
         "PipePreparationLayer",
+        "PipeFormulaResult",
         "PipeFormulaOutcome",
+        "PipeLayerSource",
+        "PipePlacement",
         "run_pipe_formula",
         "TankPreparationInput",
         "TankPreparationLayer",
+        "TankFormulaResult",
         "TankFormulaOutcome",
+        "TankLayerSource",
+        "TankPlacement",
+        "TankShape",
         "run_tank_formula",
+        "validate_heat_loss_formula_profile",
     }
 
-    assert expected.issubset(canonical.__all__)
+    assert set(canonical.__all__) == expected
+    assert canonical.__all__ == public_api.__all__
     assert all(hasattr(canonical, name) for name in expected)
+
+
+def test_removed_high_level_legacy_names_are_not_exposed() -> None:
+    removed = {
+        "evaluate_pipe",
+        "evaluate_resolved_air_tank",
+        "evaluate_resolved_buried_tank",
+        "resolve_safety_factor",
+        "PipeEvaluationInput",
+        "ResolvedAirTankEvaluationInput",
+        "ResolvedBuriedTankEvaluationInput",
+    }
+
+    assert removed.isdisjoint(canonical.__all__)
+    assert all(not hasattr(canonical, name) for name in removed)

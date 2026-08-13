@@ -15,35 +15,18 @@ R_внеш (помещение): R = 1 / 9.0
 
 from typing import Any, cast
 
-from heatcalc_heat_loss_core.conductivity import ConstantConductivity
 from heatcalc_heat_loss_core.errors import FormulaDomainError
 from heatcalc_heat_loss_core.profile import resolve_external_alpha
-from heatcalc_heat_loss_core.tank import (
-    CylindricalTankGeometry,
-    RectangularTankGeometry,
-)
-from heatcalc_heat_loss_core.tank_evaluation import ResolvedTankLayer
 from heatcalc_heat_loss_core.validation import FormulaValidationReport
 
 from app.formulas.heat_loss.catalog_preparation import unavailable_conductivity_error
 from app.formulas.heat_loss.outcome_errors import raise_heat_formula_report
 from app.formulas.heat_loss.tank_preparation import run_validated_tank_formula
-from app.reference_data.loader import (
-    get_insulation_conductivity_law,
-    get_insulation_temperature_range,
-)
 from app.schemas.calculation import InsulationLayer, TankHeatLossParams, TankHeatLossResult
 
 
 def _fmt_temp(value: float) -> str:
     return f"{value:g}"
-
-
-def _layer_temperature_range(layer: InsulationLayer) -> tuple[float, float]:
-    if layer.material == "other":
-        min_temp, max_temp = cast(tuple[float, float], layer.temperature_range)
-        return float(min_temp), float(max_temp)
-    return get_insulation_temperature_range(layer.material)
 
 
 def _calc_alpha(params: TankHeatLossParams) -> float:
@@ -60,43 +43,6 @@ def _calc_alpha(params: TankHeatLossParams) -> float:
 
 def _resolve_layers(params: TankHeatLossParams) -> list[InsulationLayer]:
     return list(params.insulation_layers)
-
-
-def _tank_geometry(
-    params: TankHeatLossParams,
-) -> CylindricalTankGeometry | RectangularTankGeometry:
-    if params.shape == "cylindrical":
-        return CylindricalTankGeometry(
-            diameter_m=cast(float, params.diameter),
-            height_m=cast(float, params.height),
-        )
-    return RectangularTankGeometry(
-        length_m=cast(float, params.length),
-        width_m=cast(float, params.width),
-        height_m=cast(float, params.height),
-    )
-
-
-def _resolved_layers(layers: list[InsulationLayer]) -> tuple[ResolvedTankLayer, ...]:
-    """Resolve catalog identity at the facade before pure evaluation."""
-
-    resolved: list[ResolvedTankLayer] = []
-    for layer in layers:
-        law = (
-            ConstantConductivity(cast(float, layer.conductivity))
-            if layer.material == "other"
-            else get_insulation_conductivity_law(layer.material)
-        )
-        minimum_c, maximum_c = _layer_temperature_range(layer)
-        resolved.append(
-            ResolvedTankLayer(
-                thickness_m=layer.thickness,
-                conductivity_law=law,
-                temperature_min_c=minimum_c,
-                temperature_max_c=maximum_c,
-            )
-        )
-    return tuple(resolved)
 
 
 def _raise_first_layer_temperature_error(
@@ -180,6 +126,7 @@ def calc_tank_heat_loss(
         if any(issue.code == "temperature_outside_interval" for issue in outcome.report.issues):
             _raise_first_layer_temperature_error(outcome.report, layers)
         raise_heat_formula_report(outcome.report)
+        raise AssertionError("invalid heat-loss outcome")
     evaluation = outcome.result
     core_result = evaluation.core_result
 
