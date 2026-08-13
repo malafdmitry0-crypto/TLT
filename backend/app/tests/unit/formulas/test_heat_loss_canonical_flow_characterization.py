@@ -90,9 +90,7 @@ def test_insulation_layer_unknown_material_is_catalog_free() -> None:
     layer = InsulationLayer.model_validate(payload)
     assert layer.material == "not_a_catalog_material"
 
-    params = PipeHeatLossParams.model_validate(
-        _pipe_payload(insulation_layers=[payload])
-    )
+    params = PipeHeatLossParams.model_validate(_pipe_payload(insulation_layers=[payload]))
     with pytest.raises(HeatLossPreparationError) as caught:
         pipe_facade.calc_pipe_heat_loss(params)
     assert caught.value.code == "unknown_insulation_material"
@@ -123,9 +121,7 @@ def test_insulation_layer_manual_and_reference_contract_errors_are_frozen() -> N
     reference_with_manual = {"thickness": 0.05, "material": MINERAL_WOOL, "conductivity": 0.04}
     assert InsulationLayer.model_validate(reference_with_manual).conductivity == pytest.approx(0.04)
     with pytest.raises(ValidationError) as extra:
-        PipeHeatLossParams.model_validate(
-            _pipe_payload(insulation_layers=[reference_with_manual])
-        )
+        PipeHeatLossParams.model_validate(_pipe_payload(insulation_layers=[reference_with_manual]))
     assert _error_fields(extra.value) == [
         {
             "loc": (),
@@ -267,7 +263,9 @@ def test_pipe_zero_safety_factor_is_rejected_by_range_before_resolver() -> None:
     with pytest.raises(ValidationError) as caught:
         PipeHeatLossParams.model_validate(_pipe_payload(safety_factor=0.0))
 
-    error = next(item for item in caught.value.errors(include_url=False) if item["loc"] == ("safety_factor",))
+    error = next(
+        item for item in caught.value.errors(include_url=False) if item["loc"] == ("safety_factor",)
+    )
     assert error["type"] == "greater_than_equal"
     assert error["input"] == 0.0
     assert error["ctx"] == {"ge": 1.0}
@@ -317,9 +315,7 @@ def test_pipe_rounds_facade_json_tank_does_not() -> None:
     assert pipe_result.heat_loss_per_meter_base == round(
         pipe_eval.core_result.heat_loss_per_meter_base_w_m, 3
     )
-    assert pipe_result.thermal_resistance == round(
-        pipe_eval.core_result.thermal_resistance_mk_w, 6
-    )
+    assert pipe_result.thermal_resistance == round(pipe_eval.core_result.thermal_resistance_mk_w, 6)
 
     tank_params = TankHeatLossParams.model_validate(_tank_payload())
     tank_result = tank_facade.calc_tank_heat_loss(tank_params)
@@ -331,7 +327,9 @@ def test_pipe_rounds_facade_json_tank_does_not() -> None:
 def test_indoor_outdoor_and_three_layer_pipe_paths_stay_distinct() -> None:
     indoor = pipe_facade.calc_pipe_heat_loss(
         PipeHeatLossParams.model_validate(
-            _pipe_payload(placement="indoor", wind_speed=None, insulation_temperature_basis="indoor")
+            _pipe_payload(
+                placement="indoor", wind_speed=None, insulation_temperature_basis="indoor"
+            )
         )
     )
     outdoor = pipe_facade.calc_pipe_heat_loss(PipeHeatLossParams.model_validate(_pipe_payload()))
