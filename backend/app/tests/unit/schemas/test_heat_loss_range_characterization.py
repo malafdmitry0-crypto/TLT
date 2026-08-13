@@ -203,7 +203,9 @@ def test_pipe_ranges_are_inclusive_or_exclusive_at_exact_thresholds(
             model(**payload(**{field: value}))
         except ValidationError as caught:
             field_errors = [
-                item for item in caught.errors(include_url=False) if item["loc"] == (field,)
+                item
+                for item in caught.errors(include_url=False)
+                if item["loc"] == (field,) and item["type"] in {_min_type, _max_type}
             ]
             if target == "minimum":
                 minimum_error = field_errors
@@ -320,7 +322,13 @@ def test_tank_ranges_are_inclusive_or_exclusive_at_exact_thresholds(
         try:
             TankHeatLossParams(**_tank_payload(**{field: value}))
         except ValidationError as caught:
-            errors = [item for item in caught.errors(include_url=False) if item["loc"] == (field,)]
+            errors = [
+                item
+                for item in caught.errors(include_url=False)
+                if item["loc"] == (field,)
+                and item["type"]
+                in {"greater_than", "greater_than_equal", "less_than", "less_than_equal"}
+            ]
             assert bool(errors) is is_exclusive
 
 

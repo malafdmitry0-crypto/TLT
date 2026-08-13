@@ -26,9 +26,9 @@ from pydantic import ValidationError
 from app.formulas.heat_loss import pipe as pipe_facade
 from app.formulas.heat_loss import pipe_preparation as pipe_preparation
 from app.formulas.heat_loss import tank as tank_facade
+from app.formulas.heat_loss.catalog_preparation import HeatLossPreparationError
 from app.models.project_object import ProjectObject
 from app.reference_data import loader as reference_loader
-from app.schemas import calculation as calculation_schemas
 from app.schemas.calculation import InsulationLayer, PipeHeatLossParams, TankHeatLossParams
 from app.services.calculation_service import CalculationService
 
@@ -91,21 +91,20 @@ def test_insulation_layer_model_validate_is_a_supported_public_contract() -> Non
     assert valid.conductivity is None
 
 
-def test_insulation_layer_unknown_material_error_shape_is_frozen() -> None:
+def test_insulation_layer_unknown_material_is_catalog_free() -> None:
     payload = {"thickness": 0.05, "material": "not_a_catalog_material"}
 
-    with pytest.raises(ValidationError) as caught:
-        InsulationLayer.model_validate(payload)
+    layer = InsulationLayer.model_validate(payload)
+    assert layer.material == "not_a_catalog_material"
 
-    assert _error_fields(caught.value) == [
-        {
-            "loc": (),
-            "type": "value_error",
-            "msg": "Value error, Неизвестный материал изоляции: not_a_catalog_material",
-            "input": payload,
-            "error_text": "Неизвестный материал изоляции: not_a_catalog_material",
-        }
-    ]
+    params = PipeHeatLossParams.model_validate(
+        _pipe_payload(insulation_layers=[payload])
+    )
+    with pytest.raises(HeatLossPreparationError) as caught:
+        pipe_facade.calc_pipe_heat_loss(params)
+    assert caught.value.code == "unknown_insulation_material"
+    assert caught.value.path == "insulation_layers.0.material"
+    assert str(caught.value) == "Неизвестный материал изоляции: not_a_catalog_material"
 
 
 def test_insulation_layer_manual_and_reference_contract_errors_are_frozen() -> None:
@@ -153,29 +152,23 @@ def test_insulation_layer_manual_and_reference_contract_errors_are_frozen() -> N
 def test_process_temperature_outside_material_range_fails_before_formula(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    facade = MagicMock(name="calc_pipe_heat_loss")
-    monkeypatch.setattr(pipe_facade, "calc_pipe_heat_loss", facade)
+    from heatcalc_heat_loss_core import pipe_evaluation
+
+    calculate_spy = MagicMock(wraps=pipe_evaluation.calculate_aboveground_pipe)
+    monkeypatch.setattr(pipe_evaluation, "calculate_aboveground_pipe", calculate_spy)
 
     payload = _pipe_payload(process_temperature=500.0)
-    with pytest.raises(ValidationError) as caught:
-        PipeHeatLossParams.model_validate(payload)
+    params = PipeHeatLossParams.model_validate(payload)
+    with pytest.raises(HeatLossPreparationError) as caught:
+        pipe_facade.calc_pipe_heat_loss(params)
 
-    assert _error_fields(caught.value) == [
-        {
-            "loc": (),
-            "type": "value_error",
-            "msg": (
-                "Value error, Температура продукта 500 °C вне диапазона материала "
-                "изоляции #1 'mineral_wool_boards_120': -60…400 °C"
-            ),
-            "input": payload,
-            "error_text": (
-                "Температура продукта 500 °C вне диапазона материала "
-                "изоляции #1 'mineral_wool_boards_120': -60…400 °C"
-            ),
-        }
-    ]
-    facade.assert_not_called()
+    assert caught.value.code == "process_temperature_outside_interval"
+    assert caught.value.path == "insulation_layers.0.material"
+    assert str(caught.value) == (
+        "Температура продукта 500 °C вне диапазона материала "
+        "изоляции #1 'mineral_wool_boards_120': -60…400 °C"
+    )
+    calculate_spy.assert_not_called()
 
 
 def test_air_pipe_domain_check_receives_empty_insulation_thicknesses(
@@ -226,15 +219,17 @@ def test_pipe_facade_catalog_lookup_count_for_one_reference_layer(
     range_spy = MagicMock(wraps=reference_loader.get_insulation_temperature_range)
     resolve_spy = MagicMock(wraps=reference_loader.resolve_reference_insulation)
     wall_spy = MagicMock(wraps=reference_loader.get_pipe_material_conductivity_law)
-    monkeypatch.setattr(calculation_schemas, "get_insulation_temperature_range", range_spy)
     monkeypatch.setattr(reference_loader, "get_insulation_temperature_range", range_spy)
-    monkeypatch.setattr(pipe_preparation, "resolve_reference_insulation", resolve_spy)
+    monkeypatch.setattr(
+        "app.formulas.heat_loss.catalog_preparation.resolve_reference_insulation",
+        resolve_spy,
+    )
     monkeypatch.setattr(pipe_preparation, "get_pipe_material_conductivity_law", wall_spy)
 
     params = PipeHeatLossParams.model_validate(_pipe_payload())
     pipe_facade.calc_pipe_heat_loss(params)
 
-    assert range_spy.call_count == 2
+    assert range_spy.call_count == 0
     assert resolve_spy.call_count == 1
     assert wall_spy.call_count == 1
 

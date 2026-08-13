@@ -19,7 +19,7 @@ from heatcalc_heat_loss_core.tank_formula import (
 )
 from heatcalc_heat_loss_core.validation import FormulaValidationReport
 
-from app.reference_data.loader import resolve_reference_insulation
+from app.formulas.heat_loss.catalog_preparation import resolve_reference_layer
 from app.schemas.calculation import InsulationLayer, TankHeatLossParams
 
 
@@ -45,7 +45,10 @@ def build_tank_preparation(params: TankHeatLossParams) -> TankPreparationInput:
         height=params.height,
         length=params.length,
         width=params.width,
-        layers=tuple(_preparation_layer(layer) for layer in params.insulation_layers),
+        layers=tuple(
+            _preparation_layer(layer, index, params.process_temperature)
+            for index, layer in enumerate(params.insulation_layers)
+        ),
         ambient_temperature=params.ambient_temperature,
         ground_temperature=params.ground_temperature,
         process_temperature=params.process_temperature,
@@ -64,7 +67,11 @@ def build_tank_preparation(params: TankHeatLossParams) -> TankPreparationInput:
     )
 
 
-def _preparation_layer(layer: InsulationLayer) -> TankPreparationLayer:
+def _preparation_layer(
+    layer: InsulationLayer,
+    index: int,
+    process_temperature: float,
+) -> TankPreparationLayer:
     manual = layer.material == "other"
     if manual:
         return TankPreparationLayer(
@@ -75,7 +82,11 @@ def _preparation_layer(layer: InsulationLayer) -> TankPreparationLayer:
             reference_temperature_range_c=None,
             conductivity_law=ConstantConductivity(cast(float, layer.conductivity)),
         )
-    law, interval = resolve_reference_insulation(layer.material)
+    law, interval = resolve_reference_layer(
+        material=layer.material,
+        index=index,
+        process_temperature=process_temperature,
+    )
     return TankPreparationLayer(
         thickness_m=layer.thickness,
         source="reference",

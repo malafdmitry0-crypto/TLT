@@ -511,6 +511,34 @@ class TestFormulaCheck:
         assert data["heat_loss_per_meter_base"] > 0
         assert data["total_heat_loss_design"] > 0
 
+    async def test_pipe_formula_check_unknown_material_is_422(
+        self, client: AsyncClient, admin_token: str
+    ):
+        resp = await client.post(
+            "/api/v1/admin/formula-check",
+            json={
+                "formula_type": "pipe",
+                "params": {
+                    "outer_diameter": 0.108,
+                    "wall_thickness": 0.004,
+                    "pipe_material": "carbon_steel",
+                    "insulation_layers": [
+                        {"material": MINERAL_WOOL, "thickness": 0.05},
+                        {"material": "not_a_catalog_material", "thickness": 0.04},
+                    ],
+                    "insulation_temperature_basis": "outdoor_winter",
+                    "ambient_temperature": -26.0,
+                    "process_temperature": 80.0,
+                    "pipe_length": 50.0,
+                    "wind_speed": 4.9,
+                    "placement": "outdoor",
+                },
+            },
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        assert resp.status_code == 422
+        assert resp.json()["detail"] == "Неизвестный материал изоляции: not_a_catalog_material"
+
     async def test_pipe_formula_check_accepts_canonical_local_element_count(
         self, client: AsyncClient, admin_token: str
     ):
