@@ -32,6 +32,7 @@ from heatcalc_heat_loss_core.tank_evaluation import (
 )
 from heatcalc_heat_loss_core.validation import FormulaValidationReport
 
+from app.formulas.heat_loss.outcome_errors import raise_heat_formula_report
 from app.formulas.heat_loss.tank_preparation import run_validated_tank_formula
 from app.reference_data.loader import (
     get_insulation_conductivity_law,
@@ -198,8 +199,7 @@ def calc_tank_heat_loss(
     if outcome.result is None:
         if any(issue.code == "temperature_outside_interval" for issue in outcome.report.issues):
             _raise_first_layer_temperature_error(outcome.report, layers)
-        issue = outcome.report.issues[0]
-        raise ValueError(f"{issue.code}: {issue.path}")
+        raise_heat_formula_report(outcome.report)
     evaluation = outcome.result
     core_result = evaluation.core_result
 

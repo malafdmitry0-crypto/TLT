@@ -218,24 +218,43 @@ def test_pipe_facade_catalog_lookup_count_for_one_reference_layer(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     range_spy = MagicMock(wraps=reference_loader.get_insulation_temperature_range)
-    law_spy = MagicMock(wraps=reference_loader.get_insulation_conductivity_law)
+    resolve_spy = MagicMock(wraps=reference_loader.resolve_reference_insulation)
     wall_spy = MagicMock(wraps=reference_loader.get_pipe_material_conductivity_law)
     monkeypatch.setattr(calculation_schemas, "get_insulation_temperature_range", range_spy)
-    monkeypatch.setattr(pipe_preparation, "get_insulation_conductivity_law", law_spy)
+    monkeypatch.setattr(reference_loader, "get_insulation_temperature_range", range_spy)
+    monkeypatch.setattr(pipe_preparation, "resolve_reference_insulation", resolve_spy)
     monkeypatch.setattr(pipe_preparation, "get_pipe_material_conductivity_law", wall_spy)
 
     params = PipeHeatLossParams.model_validate(_pipe_payload())
     pipe_facade.calc_pipe_heat_loss(params)
 
     assert range_spy.call_count == 2
-    assert law_spy.call_count == 1
+    assert resolve_spy.call_count == 1
     assert wall_spy.call_count == 1
+
+
+def test_pipe_facade_does_not_repeat_core_contract_validation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from heatcalc_heat_loss_core import pipe_formula as pipe_formula_module
+
+    params = PipeHeatLossParams.model_validate(_pipe_payload())
+    spy = MagicMock(wraps=pipe_formula_module.validate_pipe_contract)
+    monkeypatch.setattr(pipe_formula_module, "validate_pipe_contract", spy)
+    pipe_facade.calc_pipe_heat_loss(params)
+    spy.assert_not_called()
 
 
 def test_pipe_user_safety_factor_wins_over_admin_coefficient() -> None:
     params = PipeHeatLossParams.model_validate(_pipe_payload(safety_factor=1.2))
     result = pipe_facade.calc_pipe_heat_loss(params, coefficients={"safety_factor": 1.4})
     assert result.safety_factor_applied == pytest.approx(1.2)
+
+
+def test_pipe_admin_zero_safety_factor_raises_user_facing_range_error() -> None:
+    params = PipeHeatLossParams.model_validate(_pipe_payload(safety_factor=None))
+    with pytest.raises(ValueError, match="safety_factor должно быть не меньше 1"):
+        pipe_facade.calc_pipe_heat_loss(params, coefficients={"safety_factor": 0.0})
 
 
 def test_pipe_admin_safety_factor_applies_only_when_user_value_is_absent() -> None:
