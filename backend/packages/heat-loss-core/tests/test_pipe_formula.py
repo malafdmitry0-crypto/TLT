@@ -11,7 +11,6 @@ from heatcalc_heat_loss_core.pipe_evaluation import (
     AirPipeEvaluationInput,
     PipeEvaluationInput,
     PipeEvaluationLayer,
-    UndergroundPipeEvaluationInput,
     evaluate_pipe,
 )
 from heatcalc_heat_loss_core.pipe_formula import (
@@ -57,7 +56,6 @@ def _prep(**changes: object) -> PipePreparationInput:
         "safety_factor": 1.2,
         "placement": "outdoor",
         "insulation_temperature_basis": "outdoor_winter",
-        "environment": AirPipeEvaluationInput("outdoor", -20.0, 3.0),
         "wall_conductivity_law": ConstantConductivity(45.0),
     }
     values.update(changes)
@@ -161,7 +159,6 @@ def test_underground_preparation_uses_ground_environment() -> None:
             pipe_centerline_depth=1.2,
             num_local_elements=0,
             local_element_equiv_length=None,
-            environment=UndergroundPipeEvaluationInput(5.0, 1.2, 1.5),
         )
     )
     assert outcome.is_success
@@ -173,7 +170,16 @@ def test_underground_preparation_uses_ground_environment() -> None:
 def test_new_pipe_path_has_one_effective_safety_factor_and_no_admin_vocabulary() -> None:
     assert "safety_factor_primary" not in PipePreparationInput.__dataclass_fields__
     assert "safety_factor_override" not in PipePreparationInput.__dataclass_fields__
+    assert "environment" not in PipePreparationInput.__dataclass_fields__
     assert "admin" not in PipePreparationInput.__doc__.lower()  # type: ignore[union-attr]
+
+
+def test_prepared_pipe_derives_environment_from_the_same_scalars() -> None:
+    prepared = prepare_pipe_calculation(_prep())
+    assert not isinstance(prepared, FormulaValidationReport)
+    assert prepared.ambient_temperature_c == pytest.approx(-20.0)
+    assert prepared.wind_speed_m_s == pytest.approx(3.0)
+    assert "environment" not in prepared.__dataclass_fields__
 
 
 def test_custom_profile_supplies_default_k_and_indoor_alpha() -> None:
@@ -187,7 +193,6 @@ def test_custom_profile_supplies_default_k_and_indoor_alpha() -> None:
             insulation_temperature_basis="indoor",
             wind_speed=None,
             safety_factor=None,
-            environment=AirPipeEvaluationInput("indoor", -20.0, None),
             profile=profile,
         )
     )

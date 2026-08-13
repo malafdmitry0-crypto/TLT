@@ -24,6 +24,7 @@ from heatcalc_heat_loss_core.pipe_evaluation import (
 from heatcalc_heat_loss_core.profile import InsulationTemperatureBasis, resolve_external_alpha
 from heatcalc_heat_loss_core.validation import FormulaValidationReport
 
+from app.formulas.heat_loss.outcome_errors import raise_heat_formula_report
 from app.formulas.heat_loss.pipe_preparation import run_validated_pipe_formula
 from app.reference_data.loader import (
     get_insulation_temperature_range,
@@ -203,8 +204,7 @@ def calc_pipe_heat_loss(
     if outcome.result is None:
         if any(issue.code == "temperature_outside_interval" for issue in outcome.report.issues):
             _raise_first_layer_temperature_error(layers, outcome.report)
-        issue = outcome.report.issues[0]
-        raise ValueError(f"{issue.code}: {issue.path}")
+        raise_heat_formula_report(outcome.report)
     evaluation = outcome.result
     core_result = evaluation.core_result
     alpha = evaluation.external_alpha_w_m2k
