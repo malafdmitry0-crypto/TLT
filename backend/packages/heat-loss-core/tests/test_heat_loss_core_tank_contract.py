@@ -3,13 +3,12 @@
 import math
 
 import pytest
-
-from app.formulas.heat_loss.core.tank_contract import (
+from heatcalc_heat_loss_core.tank_contract import (
     TankContractInput,
     TankContractLayer,
     validate_tank_contract,
 )
-from app.formulas.heat_loss.core.validation import FormulaValidationIssue
+from heatcalc_heat_loss_core.validation import FormulaValidationIssue
 
 
 def _data(**changes: object) -> TankContractInput:

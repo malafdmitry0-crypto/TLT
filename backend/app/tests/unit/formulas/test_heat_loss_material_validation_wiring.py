@@ -5,14 +5,12 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
+from heatcalc_heat_loss_core.conductivity import UnavailableConductivity
 from pydantic import ValidationError
 
 from app.formulas.heat_loss import pipe as pipe_formulas
 from app.formulas.heat_loss import tank as tank_formulas
 from app.formulas.heat_loss.core.insulation_contract import validate_insulation_contract
-from app.formulas.heat_loss.core.material_validation import (
-    validate_hot_side_temperature_in_interval,
-)
 from app.formulas.heat_loss.core.pipe_contract import validate_pipe_contract
 from app.formulas.heat_loss.core.tank_contract import validate_tank_contract
 from app.schemas import calculation as calculation_schemas
@@ -121,21 +119,61 @@ def test_reference_material_temperature_check_delegates_to_core(
 
 
 @pytest.mark.parametrize(
+    ("module", "calculate", "factory", "evaluator_name"),
+    [
+        (pipe_formulas, pipe_formulas.calc_pipe_heat_loss, _pipe, "evaluate_pipe"),
+        (
+            tank_formulas,
+            tank_formulas.calc_tank_heat_loss,
+            _tank,
+            "evaluate_resolved_air_tank",
+        ),
+    ],
+)
+def test_facade_calls_its_canonical_evaluator_once_without_direct_material_validation(
+    monkeypatch: pytest.MonkeyPatch,
+    module: Any,
+    calculate: Callable[[Any], Any],
+    factory: Callable[[], Any],
+    evaluator_name: str,
+) -> None:
+    evaluator = getattr(module, evaluator_name)
+    evaluator_spy = MagicMock(wraps=evaluator)
+    monkeypatch.setattr(module, evaluator_name, evaluator_spy)
+    direct_validator = getattr(module, "validate_hot_side_temperature_in_interval", None)
+    if direct_validator is not None:
+        direct_validator_spy = MagicMock(wraps=direct_validator)
+        monkeypatch.setattr(
+            module, "validate_hot_side_temperature_in_interval", direct_validator_spy
+        )
+
+    calculate(factory())
+
+    evaluator_spy.assert_called_once()
+    if direct_validator is not None:
+        direct_validator_spy.assert_not_called()
+
+
+@pytest.mark.parametrize(
     ("module", "calculate", "factory"),
     [
         (pipe_formulas, pipe_formulas.calc_pipe_heat_loss, _pipe),
         (tank_formulas, tank_formulas.calc_tank_heat_loss, _tank),
     ],
 )
-def test_facade_layer_temperature_check_delegates_to_core(
+def test_facade_preserves_reference_lambda_error_for_selected_unavailable_branch(
     monkeypatch: pytest.MonkeyPatch,
     module: Any,
     calculate: Callable[[Any], Any],
     factory: Callable[[], Any],
 ) -> None:
-    validator = MagicMock(wraps=validate_hot_side_temperature_in_interval)
-    monkeypatch.setattr(module, "validate_hot_side_temperature_in_interval", validator)
+    monkeypatch.setattr(
+        module, "get_insulation_conductivity_law", lambda _material: UnavailableConductivity()
+    )
 
-    calculate(factory())
-
-    validator.assert_called_once()
+    with pytest.raises(
+        ValueError,
+        match=r"Для материала изоляции 'mineral_wool_boards_120' "
+        r"не задана расчётная λ\(tm\) при tm=40 °C",
+    ):
+        calculate(factory())

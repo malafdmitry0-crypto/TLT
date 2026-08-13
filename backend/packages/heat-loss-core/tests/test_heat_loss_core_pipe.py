@@ -3,10 +3,9 @@
 import math
 
 import pytest
-
-from app.formulas.heat_loss.core import pipe as pipe_core
-from app.formulas.heat_loss.core.errors import FormulaDomainError
-from app.formulas.heat_loss.core.pipe import (
+from heatcalc_heat_loss_core import pipe as pipe_core
+from heatcalc_heat_loss_core.errors import FormulaDomainError
+from heatcalc_heat_loss_core.pipe import (
     AbovegroundPipeInput,
     PipeInsulationLayer,
     UndergroundPipeInput,
@@ -14,7 +13,7 @@ from app.formulas.heat_loss.core.pipe import (
     calculate_underground_pipe,
     validate_pipe_formula_domain,
 )
-from app.formulas.heat_loss.core.thermal import alpha_from_wind
+from heatcalc_heat_loss_core.thermal import alpha_from_wind
 
 
 def _layers() -> tuple[PipeInsulationLayer, ...]:

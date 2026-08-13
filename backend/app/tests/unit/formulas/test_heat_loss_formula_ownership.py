@@ -3,12 +3,12 @@
 from unittest.mock import MagicMock
 
 import pytest
+from heatcalc_heat_loss_core import pipe_evaluation
 from pydantic import ValidationError
 
 from app.formulas.heat_loss import pipe as pipe_facade
 from app.formulas.heat_loss.core.pipe_contract import validate_pipe_contract
 from app.formulas.heat_loss.core.tank_contract import validate_tank_contract
-from app.formulas.heat_loss.core.thermal import affine_value, clamp_minimum
 from app.reference_data import loader as reference_loader
 from app.schemas import calculation as calculation_schemas
 from app.schemas.calculation import PipeHeatLossParams, TankHeatLossParams
@@ -117,8 +117,8 @@ def test_core_issue_codes_become_field_errors_without_message_parsing() -> None:
 def test_pipe_facade_delegates_mean_wall_temperature_to_core(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    mean_spy = MagicMock(wraps=pipe_facade.arithmetic_mean)
-    monkeypatch.setattr(pipe_facade, "arithmetic_mean", mean_spy)
+    mean_spy = MagicMock(wraps=pipe_evaluation.arithmetic_mean)
+    monkeypatch.setattr(pipe_evaluation, "arithmetic_mean", mean_spy)
     params = PipeHeatLossParams.model_validate(_air_pipe())
 
     pipe_facade.calc_pipe_heat_loss(params)
@@ -129,13 +129,15 @@ def test_pipe_facade_delegates_mean_wall_temperature_to_core(
 def test_pipe_material_loader_delegates_lambda_arithmetic_to_core(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    affine_spy = MagicMock(wraps=affine_value)
-    clamp_spy = MagicMock(wraps=clamp_minimum)
-    monkeypatch.setattr(reference_loader, "affine_value", affine_spy)
-    monkeypatch.setattr(reference_loader, "clamp_minimum", clamp_spy)
+    evaluate_spy = MagicMock(wraps=reference_loader.evaluate_conductivity)
+    monkeypatch.setattr(reference_loader, "evaluate_conductivity", evaluate_spy)
 
     conductivity = reference_loader.get_pipe_material_lambda("carbon_steel", 30.0)
 
     assert conductivity > 0.0
-    assert affine_spy.call_args.kwargs["variable_offset"] == 40.0
-    assert clamp_spy.call_args.kwargs == {"minimum": 0.001}
+    evaluate_spy.assert_called_once()
+    law, temperature = evaluate_spy.call_args.args
+    assert isinstance(law, reference_loader.AffineConductivity)
+    assert law.temperature_offset_c == 40.0
+    assert law.minimum_w_mk == 0.001
+    assert temperature == 30.0

@@ -4,8 +4,7 @@ import math
 from dataclasses import FrozenInstanceError
 
 import pytest
-
-from app.formulas.heat_loss.core.validation import (
+from heatcalc_heat_loss_core.validation import (
     INSULATION_LAYER_COUNT_RANGE,
     PIPE_OUTER_DIAMETER_RANGE,
     TANK_ADDITIONAL_HEAT_LOSS_RANGE,

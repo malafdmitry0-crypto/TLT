@@ -12,6 +12,7 @@ from app.reference_data.loader import (
     get_climate_by_key,
     get_climate_entry,
     get_insulation_conductivity,
+    get_insulation_conductivity_law,
     get_insulation_material,
     get_insulation_temperature_range,
     get_pipe_material_lambda,
@@ -150,6 +151,31 @@ class TestGetInsulationConductivity:
     def test_unknown_material_raises(self):
         with pytest.raises(ValueError, match="Неизвестный материал"):
             get_insulation_conductivity("vacuum", 20)
+
+    def test_typed_law_preserves_lazy_branch_selection(self, monkeypatch):
+        clear_cache()
+        material = "warm_only"
+        entry = {
+            "material": material,
+            "selectable": True,
+            "deprecated": False,
+            "conductivity_20_plus": 0.04,
+            "conductivity_19_minus": None,
+        }
+        with monkeypatch.context() as context:
+            context.setattr(
+                "app.reference_data.loader._insulation_by_material",
+                lambda: {material: entry},
+            )
+            assert get_insulation_conductivity(material, 20.0) == 0.04
+            law = get_insulation_conductivity_law(material)
+            assert law is not None
+            with pytest.raises(
+                ValueError,
+                match=r"не задана расчётная λ\(tm\) при tm=-1 °C",
+            ):
+                get_insulation_conductivity(material, -1.0)
+        clear_cache()
 
     def test_insulation_indexes_are_reused_after_first_lookup(self, monkeypatch):
         clear_cache()
