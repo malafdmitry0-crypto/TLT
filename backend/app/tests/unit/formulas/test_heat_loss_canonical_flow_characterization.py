@@ -13,14 +13,7 @@ from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
-from heatcalc_heat_loss_core.conductivity import ConstantConductivity
 from heatcalc_heat_loss_core.pipe_contract import validate_pipe_formula_domain
-from heatcalc_heat_loss_core.pipe_evaluation import (
-    AirPipeEvaluationInput,
-    PipeEvaluationInput,
-    PipeEvaluationLayer,
-    evaluate_pipe,
-)
 from pydantic import ValidationError
 
 from app.formulas.heat_loss import pipe as pipe_facade
@@ -280,31 +273,6 @@ def test_pipe_zero_safety_factor_is_rejected_by_range_before_resolver() -> None:
     assert error["ctx"] == {"ge": 1.0}
 
 
-def test_old_evaluate_pipe_still_treats_zero_primary_as_missing() -> None:
-    params = PipeHeatLossParams.model_validate(_pipe_payload(safety_factor=1.2))
-    evaluation = evaluate_pipe(
-        PipeEvaluationInput(
-            outer_diameter_m=params.outer_diameter,
-            wall_thickness_m=params.wall_thickness,
-            wall_conductivity_law=ConstantConductivity(45.0),
-            insulation_layers=(
-                PipeEvaluationLayer(
-                    0.05, ConstantConductivity(0.04), (-70.0, 200.0)
-                ),
-            ),
-            process_temperature_c=params.process_temperature,
-            insulation_temperature_basis="outdoor_winter",
-            pipe_length_m=params.pipe_length,
-            local_elements_count=0,
-            local_element_equiv_length_m=0.0,
-            safety_factor_primary=0.0,
-            safety_factor_override=1.4,
-            environment=AirPipeEvaluationInput("outdoor", -20.0, 0.0),
-        )
-    )
-    assert evaluation.safety_factor == pytest.approx(1.4)
-
-
 def test_admin_ground_conductivity_does_not_change_pipe_result() -> None:
     params = PipeHeatLossParams.model_validate(
         _pipe_payload(
@@ -343,30 +311,9 @@ def test_tank_requires_safety_factor() -> None:
 def test_pipe_rounds_facade_json_tank_does_not() -> None:
     pipe_params = PipeHeatLossParams.model_validate(_pipe_payload())
     pipe_result = pipe_facade.calc_pipe_heat_loss(pipe_params)
-    pipe_eval = evaluate_pipe(
-        PipeEvaluationInput(
-            outer_diameter_m=pipe_params.outer_diameter,
-            wall_thickness_m=pipe_params.wall_thickness,
-            wall_conductivity_law=reference_loader.get_pipe_material_conductivity_law(
-                pipe_params.pipe_material
-            ),
-            insulation_layers=(
-                PipeEvaluationLayer(
-                    0.05,
-                    reference_loader.get_insulation_conductivity_law(MINERAL_WOOL),
-                    reference_loader.get_insulation_temperature_range(MINERAL_WOOL),
-                ),
-            ),
-            process_temperature_c=pipe_params.process_temperature,
-            insulation_temperature_basis="outdoor_winter",
-            pipe_length_m=pipe_params.pipe_length,
-            local_elements_count=0,
-            local_element_equiv_length_m=0.0,
-            safety_factor_primary=1.1,
-            safety_factor_override=None,
-            environment=AirPipeEvaluationInput("outdoor", -20.0, 0.0),
-        )
-    )
+    pipe_outcome = pipe_preparation.run_validated_pipe_formula(pipe_params)
+    assert pipe_outcome.result is not None
+    pipe_eval = pipe_outcome.result
     assert pipe_result.heat_loss_per_meter_base == round(
         pipe_eval.core_result.heat_loss_per_meter_base_w_m, 3
     )

@@ -1,4 +1,4 @@
-"""Tests for high-level resolved pipe evaluation."""
+"""Tests for the internal prepared pipe execution kernel."""
 
 from __future__ import annotations
 
@@ -17,39 +17,37 @@ from heatcalc_heat_loss_core.pipe import (
     AbovegroundPipeInput,
     PipeInsulationLayer,
     calculate_aboveground_pipe,
+    calculate_underground_pipe,
 )
 from heatcalc_heat_loss_core.pipe_evaluation import (
     AirPipeEvaluationInput,
-    PipeEvaluationInput,
-    PipeEvaluationLayer,
+    PreparedPipeCalculation,
+    PreparedPipeLayer,
     UndergroundPipeEvaluationInput,
-    evaluate_pipe,
+    execute_prepared_pipe,
 )
 
 
-def _input(**changes: object) -> PipeEvaluationInput:
+def _input(**changes: object) -> PreparedPipeCalculation:
     values: dict[str, object] = {
         "outer_diameter_m": 0.108,
         "wall_thickness_m": 0.004,
         "wall_conductivity_law": ConstantConductivity(45.0),
-        "insulation_layers": (
-            PipeEvaluationLayer(0.05, ConstantConductivity(0.04), (-70.0, 200.0)),
-        ),
+        "layers": (PreparedPipeLayer(0.05, "manual", ConstantConductivity(0.04), (-70.0, 200.0)),),
         "process_temperature_c": 80.0,
         "insulation_temperature_basis": "outdoor_winter",
         "pipe_length_m": 50.0,
         "local_elements_count": 2,
         "local_element_equiv_length_m": 1.5,
-        "safety_factor_primary": 1.2,
-        "safety_factor_override": 1.1,
+        "safety_factor": 1.2,
         "environment": AirPipeEvaluationInput("outdoor", -20.0, 3.0),
     }
     values.update(changes)
-    return PipeEvaluationInput(**values)  # type: ignore[arg-type]
+    return PreparedPipeCalculation(**values)  # type: ignore[arg-type]
 
 
 def test_outdoor_result_matches_exact_direct_low_level_calculation() -> None:
-    result = evaluate_pipe(_input())
+    result = execute_prepared_pipe(_input())
     direct = calculate_aboveground_pipe(
         AbovegroundPipeInput(
             outer_diameter_m=0.108,
@@ -77,14 +75,16 @@ def test_outdoor_result_matches_exact_direct_low_level_calculation() -> None:
 
 
 def test_indoor_uses_constant_alpha_without_wind() -> None:
-    result = evaluate_pipe(_input(environment=AirPipeEvaluationInput("indoor", -20.0, None)))
+    result = execute_prepared_pipe(
+        _input(environment=AirPipeEvaluationInput("indoor", -20.0, None))
+    )
 
     assert result.external_alpha_w_m2k == 9.0
     assert result.source_corrections == ("base_and_design_heat_losses_reported_separately",)
 
 
 def test_underground_uses_ground_profile_and_warm_tm() -> None:
-    result = evaluate_pipe(
+    result = execute_prepared_pipe(
         _input(
             environment=UndergroundPipeEvaluationInput(5.0, 1.2, 1.5),
             insulation_temperature_basis="channel",
@@ -100,11 +100,16 @@ def test_underground_uses_ground_profile_and_warm_tm() -> None:
 
 
 def test_affine_laws_use_wall_mean_and_resolved_tm() -> None:
-    result = evaluate_pipe(
+    result = execute_prepared_pipe(
         _input(
             wall_conductivity_law=AffineConductivity(10.0, 1.0),
-            insulation_layers=(
-                PipeEvaluationLayer(0.05, AffineConductivity(0.01, 0.001), (-70.0, 200.0)),
+            layers=(
+                PreparedPipeLayer(
+                    0.05,
+                    "manual",
+                    AffineConductivity(0.01, 0.001),
+                    (-70.0, 200.0),
+                ),
             ),
         )
     )
@@ -113,23 +118,12 @@ def test_affine_laws_use_wall_mean_and_resolved_tm() -> None:
     assert result.layer_results[0].conductivity_w_mk == pytest.approx(0.05)
 
 
-def test_safety_factor_primary_then_override_precedence() -> None:
-    assert (
-        evaluate_pipe(_input(safety_factor_primary=1.3, safety_factor_override=1.4)).safety_factor
-        == 1.3
-    )
-    assert (
-        evaluate_pipe(_input(safety_factor_primary=0.0, safety_factor_override=1.4)).safety_factor
-        == 1.4
-    )
-
-
 def test_layer_temperature_report_collects_all_issues_in_layer_order() -> None:
-    result = evaluate_pipe(
+    result = execute_prepared_pipe(
         _input(
-            insulation_layers=(
-                PipeEvaluationLayer(0.05, ConstantConductivity(0.04), (-10.0, 10.0)),
-                PipeEvaluationLayer(0.04, ConstantConductivity(0.04), (-10.0, 10.0)),
+            layers=(
+                PreparedPipeLayer(0.05, "manual", ConstantConductivity(0.04), (-10.0, 10.0)),
+                PreparedPipeLayer(0.04, "manual", ConstantConductivity(0.04), (-10.0, 10.0)),
             )
         )
     )
@@ -151,27 +145,51 @@ def test_evaluation_calls_each_law_and_low_level_branch_once(
     implementation = cast(Any, pipe_evaluation)
     conductivity_spy = MagicMock(wraps=implementation.evaluate_conductivity)
     calculate_spy = MagicMock(wraps=implementation.calculate_aboveground_pipe)
+    underground_spy = MagicMock(wraps=implementation.calculate_underground_pipe)
     monkeypatch.setattr(pipe_evaluation, "evaluate_conductivity", conductivity_spy)
     monkeypatch.setattr(pipe_evaluation, "calculate_aboveground_pipe", calculate_spy)
+    monkeypatch.setattr(pipe_evaluation, "calculate_underground_pipe", underground_spy)
 
-    evaluate_pipe(_input())
+    execute_prepared_pipe(_input())
 
     assert conductivity_spy.call_count == 2
     calculate_spy.assert_called_once()
+    underground_spy.assert_not_called()
+
+
+def test_underground_execution_calls_only_underground_branch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from heatcalc_heat_loss_core import pipe_evaluation
+
+    aboveground_spy = MagicMock(wraps=calculate_aboveground_pipe)
+    underground_spy = MagicMock(wraps=calculate_underground_pipe)
+    monkeypatch.setattr(pipe_evaluation, "calculate_aboveground_pipe", aboveground_spy)
+    monkeypatch.setattr(pipe_evaluation, "calculate_underground_pipe", underground_spy)
+
+    execute_prepared_pipe(
+        _input(
+            environment=UndergroundPipeEvaluationInput(5.0, 1.2, 1.5),
+            insulation_temperature_basis="channel",
+        )
+    )
+
+    aboveground_spy.assert_not_called()
+    underground_spy.assert_called_once()
 
 
 @pytest.mark.parametrize("value", [math.nan, math.inf, -math.inf])
 def test_nonfinite_law_result_is_rejected(value: float) -> None:
     with pytest.raises(FormulaDomainError, match="non_finite_result"):
-        evaluate_pipe(_input(wall_conductivity_law=ConstantConductivity(value)))
+        execute_prepared_pipe(_input(wall_conductivity_law=ConstantConductivity(value)))
 
 
 def test_unavailable_layer_law_reports_layer_and_temperature() -> None:
     with pytest.raises(FormulaDomainError, match="conductivity_law_unavailable") as exc_info:
-        evaluate_pipe(
+        execute_prepared_pipe(
             _input(
-                insulation_layers=(
-                    PipeEvaluationLayer(0.05, UnavailableConductivity(), (-70.0, 200.0)),
+                layers=(
+                    PreparedPipeLayer(0.05, "manual", UnavailableConductivity(), (-70.0, 200.0)),
                 )
             )
         )

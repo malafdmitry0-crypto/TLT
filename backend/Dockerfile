@@ -88,7 +88,7 @@ COPY --from=builder /build/wheels /tmp/wheels
 COPY requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked,id=pip-runtime-${TARGETARCH} \
     pip install --no-index --find-links=/tmp/wheels -r requirements.txt \
-    && pip install --no-index --find-links=/tmp/wheels heatcalc-heat-loss-core==0.1.0 \
+    && pip install --no-index --find-links=/tmp/wheels heatcalc-heat-loss-core==0.2.0 \
     && rm -rf /tmp/wheels
 
 # Копируем код приложения (тесты исключены через .dockerignore)

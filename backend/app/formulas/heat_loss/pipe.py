@@ -188,6 +188,7 @@ def calc_pipe_heat_loss(
         if any(issue.code == "temperature_outside_interval" for issue in outcome.report.issues):
             _raise_first_layer_temperature_error(layers, outcome.report)
         raise_heat_formula_report(outcome.report)
+        raise AssertionError("invalid heat-loss outcome")
     evaluation = outcome.result
     core_result = evaluation.core_result
     alpha = evaluation.external_alpha_w_m2k

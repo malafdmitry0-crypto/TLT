@@ -19,7 +19,6 @@ from heatcalc_heat_loss_core.profile import (
     HeatLossFormulaProfile,
     resolve_external_alpha,
     resolve_insulation_temperature,
-    resolve_safety_factor,
     validate_heat_loss_formula_profile,
 )
 
@@ -69,13 +68,6 @@ def test_profile_resolvers_reject_unknown_modes_with_domain_codes() -> None:
         resolve_external_alpha(placement="unknown", wind_speed_m_s=0.0)  # type: ignore[arg-type]
     with pytest.raises(FormulaDomainError, match="wind_speed_required"):
         resolve_external_alpha(placement="outdoor", wind_speed_m_s=None)
-
-
-def test_safety_factor_preserves_truthy_primary_then_present_override_precedence() -> None:
-    assert resolve_safety_factor(primary=1.2, override=1.3) == 1.2
-    assert resolve_safety_factor(primary=0.0, override=1.3) == 1.3
-    assert resolve_safety_factor(primary=0.0, override=0.0) == 0.0
-    assert resolve_safety_factor(primary=None) == 1.1
 
 
 @pytest.mark.parametrize(
