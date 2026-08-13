@@ -1,11 +1,11 @@
 """Tests for pure scalar pipe input-range validation."""
 
 import math
+from typing import TypedDict, cast
 
 import pytest
-
-from app.formulas.heat_loss.core.pipe_validation import validate_pipe_input_ranges
-from app.formulas.heat_loss.core.validation import (
+from heatcalc_heat_loss_core.pipe_validation import validate_pipe_input_ranges
+from heatcalc_heat_loss_core.validation import (
     PIPE_AMBIENT_TEMPERATURE_RANGE,
     PIPE_CENTERLINE_DEPTH_RANGE,
     PIPE_CONDUCTIVITY_RANGE,
@@ -23,7 +23,24 @@ from app.formulas.heat_loss.core.validation import (
 )
 
 
-def _valid_input(**overrides: float | int | None) -> dict[str, float | int | None]:
+class _PipeRangeInput(TypedDict):
+    outer_diameter: float
+    wall_thickness: float
+    pipe_lambda: float | None
+    ambient_temperature: float | None
+    process_temperature: float
+    pipe_length: float
+    pipe_centerline_depth: float | None
+    num_local_elements: int
+    local_element_equiv_length: float | None
+    wind_speed: float | None
+    ground_conductivity: float | None
+    ground_temperature: float | None
+    safety_factor: float | None
+    insulation_layer_count: int
+
+
+def _valid_input(**overrides: float | int | None) -> _PipeRangeInput:
     values: dict[str, float | int | None] = {
         "outer_diameter": 0.108,
         "wall_thickness": 0.004,
@@ -41,7 +58,7 @@ def _valid_input(**overrides: float | int | None) -> dict[str, float | int | Non
         "insulation_layer_count": 2,
     }
     values.update(overrides)
-    return values
+    return cast(_PipeRangeInput, values)
 
 
 @pytest.mark.parametrize(

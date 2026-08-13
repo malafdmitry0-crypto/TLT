@@ -4,7 +4,9 @@ import ast
 import importlib
 from pathlib import Path
 
-CORE_ROOT = Path(__file__).parents[3] / "formulas" / "heat_loss" / "core"
+CORE_ROOT = (
+    Path(__file__).parents[4] / "packages" / "heat-loss-core" / "src" / "heatcalc_heat_loss_core"
+)
 FORBIDDEN_ROOTS = {
     "app",
     "fastapi",
@@ -68,10 +70,10 @@ def test_heat_loss_core_has_no_backend_or_filesystem_imports() -> None:
 
 
 def test_heat_loss_core_import_smoke() -> None:
-    core = importlib.import_module("app.formulas.heat_loss.core")
+    core = importlib.import_module("heatcalc_heat_loss_core")
 
-    assert core.FormulaDomainError.__module__ == "app.formulas.heat_loss.core.errors"
-    assert core.FormulaValidationReport.__module__ == "app.formulas.heat_loss.core.validation"
+    assert core.FormulaDomainError.__module__ == "heatcalc_heat_loss_core.errors"
+    assert core.FormulaValidationReport.__module__ == "heatcalc_heat_loss_core.validation"
     assert callable(core.validate_numeric_range)
     assert callable(core.validate_range_checks)
     assert callable(core.validate_sequence_length)

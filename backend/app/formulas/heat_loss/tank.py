@@ -13,35 +13,29 @@ R_внеш (помещение): R = 1 / 9.0
   q_ground = ΔT / (δ_р/λ_р + Σδ_из/λ_из + h/λ_гр)
 """
 
-from dataclasses import dataclass
 from typing import Any, cast
 
-from app.formulas.heat_loss.core.errors import FormulaDomainError
-from app.formulas.heat_loss.core.material_validation import (
-    validate_hot_side_temperature_in_interval,
-)
-from app.formulas.heat_loss.core.tank import (
-    AirTankHeatLossInput,
-    BuriedTankHeatLossInput,
+from heatcalc_heat_loss_core.conductivity import ConstantConductivity
+from heatcalc_heat_loss_core.errors import FormulaDomainError
+from heatcalc_heat_loss_core.profile import InsulationTemperatureBasis, resolve_external_alpha
+from heatcalc_heat_loss_core.tank import (
     CylindricalTankGeometry,
     RectangularTankGeometry,
-    TankInsulationLayer,
-    TankLayerBoundaryTemperature,
-    calculate_air_tank_heat_loss,
-    calculate_buried_tank_heat_loss,
 )
-from app.formulas.heat_loss.core.thermal import alpha_from_wind, clamp_minimum
-from app.formulas.heat_loss.insulation import resolve_insulation_tm
-from app.reference_data.loader import get_insulation_conductivity, get_insulation_temperature_range
+from heatcalc_heat_loss_core.tank_evaluation import (
+    ResolvedAirTankEvaluationInput,
+    ResolvedBuriedTankEvaluationInput,
+    ResolvedTankLayer,
+    TankEvaluationResult,
+    evaluate_resolved_air_tank,
+    evaluate_resolved_buried_tank,
+)
+
+from app.reference_data.loader import (
+    get_insulation_conductivity_law,
+    get_insulation_temperature_range,
+)
 from app.schemas.calculation import InsulationLayer, TankHeatLossParams, TankHeatLossResult
-
-
-@dataclass(frozen=True)
-class _LayerResistance:
-    layer: InsulationLayer
-    resistance: float
-    conductivity: float
-    conductivity_source: str
 
 
 def _fmt_temp(value: float) -> str:
@@ -55,59 +49,15 @@ def _layer_temperature_range(layer: InsulationLayer) -> tuple[float, float]:
     return get_insulation_temperature_range(layer.material)
 
 
-def _validate_layer_temperature_interval(
-    layer: InsulationLayer,
-    *,
-    index: int,
-    t_hot: float,
-    t_cold: float,
-) -> None:
-    min_temp, max_temp = _layer_temperature_range(layer)
-    report = validate_hot_side_temperature_in_interval(
-        first_side_c=t_hot,
-        second_side_c=t_cold,
-        minimum_c=min_temp,
-        maximum_c=max_temp,
-    )
-    if report.is_valid:
-        return
-    layer_hot_side = float(report.issues[0].details_dict()["temperature_c"])
-    raise ValueError(
-        f"Температура горячей стороны слоя изоляции #{index + 1} "
-        f"({_fmt_temp(layer_hot_side)} °C) вне диапазона "
-        f"материала '{layer.material}': {_fmt_temp(min_temp)}…{_fmt_temp(max_temp)} °C"
-    )
-
-
-def _validate_layer_temperatures(
-    layer_resistances: list[_LayerResistance],
-    *,
-    layer_boundary_temperatures: tuple[TankLayerBoundaryTemperature, ...],
-) -> None:
-    for index, (layer_resistance, boundary) in enumerate(
-        zip(layer_resistances, layer_boundary_temperatures, strict=True)
-    ):
-        _validate_layer_temperature_interval(
-            layer_resistance.layer,
-            index=index,
-            t_hot=boundary.hot_side_c,
-            t_cold=boundary.cold_side_c,
-        )
-
-
 def _calc_alpha(params: TankHeatLossParams) -> float:
     """Коэффициент наружной теплоотдачи α, Вт/(м²·К).
 
     α = 11,6 + 7·√v  (SNiP 41-03-2003, формула ТНП)
     Помещение: α = 9.0
     """
-    if params.placement == "indoor":
-        return 9.0
-    wind_speed = cast(float, params.wind_speed)
-    return alpha_from_wind(
-        clamp_minimum(wind_speed, minimum=0.0),
-        intercept=11.6,
-        sqrt_coefficient=7.0,
+    return resolve_external_alpha(
+        placement=params.placement,
+        wind_speed_m_s=params.wind_speed,
     )
 
 
@@ -130,23 +80,61 @@ def _tank_geometry(
     )
 
 
-def _resolve_layer_resistances(
-    layers: list[InsulationLayer],
-    insulation_tm: float,
-) -> list[tuple[InsulationLayer, float, str]]:
-    resolved_layers: list[tuple[InsulationLayer, float, str]] = []
+def _resolved_layers(layers: list[InsulationLayer]) -> tuple[ResolvedTankLayer, ...]:
+    """Resolve catalog identity at the facade before pure evaluation."""
+
+    resolved: list[ResolvedTankLayer] = []
     for layer in layers:
-        if layer.material == "other":
-            lambda_ins = cast(float, layer.conductivity)
-            conductivity_source = "manual"
-        else:
-            lambda_ins = get_insulation_conductivity(
-                material=layer.material,
-                temperature=insulation_tm,
+        law = (
+            ConstantConductivity(cast(float, layer.conductivity))
+            if layer.material == "other"
+            else get_insulation_conductivity_law(layer.material)
+        )
+        minimum_c, maximum_c = _layer_temperature_range(layer)
+        resolved.append(
+            ResolvedTankLayer(
+                thickness_m=layer.thickness,
+                conductivity_law=law,
+                temperature_min_c=minimum_c,
+                temperature_max_c=maximum_c,
             )
-            conductivity_source = "reference_data"
-        resolved_layers.append((layer, lambda_ins, conductivity_source))
-    return resolved_layers
+        )
+    return tuple(resolved)
+
+
+def _raise_first_layer_temperature_error(
+    evaluation: TankEvaluationResult,
+    layers: list[InsulationLayer],
+) -> None:
+    if evaluation.layer_temperature_report.is_valid:
+        return
+    issue = evaluation.layer_temperature_report.issues[0]
+    index = cast(int, issue.path[1])
+    layer = layers[index]
+    details = issue.details_dict()
+    minimum_c = float(details["minimum_c"])
+    maximum_c = float(details["maximum_c"])
+    layer_hot_side = float(details["temperature_c"])
+    raise ValueError(
+        f"Температура горячей стороны слоя изоляции #{index + 1} "
+        f"({_fmt_temp(layer_hot_side)} °C) вне диапазона "
+        f"материала '{layer.material}': {_fmt_temp(minimum_c)}…{_fmt_temp(maximum_c)} °C"
+    )
+
+
+def _raise_tank_core_error(
+    error: FormulaDomainError,
+    *,
+    layers: list[InsulationLayer],
+) -> None:
+    if error.code in {"conductivity_law_unavailable", "conductivity_not_positive"}:
+        index = int(error.details["layer_index"])
+        temperature = float(error.details["temperature_c"])
+        raise ValueError(
+            f"Для материала изоляции '{layers[index].material}' не задана расчётная λ(tm) "
+            f"при tm={_fmt_temp(temperature)} °C"
+        ) from error
+    raise ValueError(str(error)) from error
 
 
 def calc_tank_heat_loss(
@@ -192,18 +180,7 @@ def calc_tank_heat_loss(
         wall_conductivity = params.wall_lambda
 
     layers = _resolve_layers(params)
-    insulation_tm = resolve_insulation_tm(
-        process_temperature=params.process_temperature,
-        basis=params.insulation_temperature_basis,
-        location="indoor" if params.placement == "indoor" else "outdoor",
-        placement=params.placement,
-    )
-    resolved_layers = _resolve_layer_resistances(layers, insulation_tm)
-    numeric_layers = tuple(
-        TankInsulationLayer(thickness_m=layer.thickness, conductivity_w_mk=conductivity)
-        for layer, conductivity, _ in resolved_layers
-    )
-    alpha = _calc_alpha(params)
+    resolved_layers = _resolved_layers(layers)
     k = params.safety_factor
     buried_height = params.tank_buried_height or 0.0
     q_additional = getattr(params, "q_additional", 0.0) or 0.0
@@ -211,64 +188,54 @@ def calc_tank_heat_loss(
         ground_temperature = cast(float, params.ground_temperature)
         ground_conductivity = cast(float, params.ground_conductivity)
         try:
-            core_result = calculate_buried_tank_heat_loss(
-                BuriedTankHeatLossInput(
+            evaluation = evaluate_resolved_buried_tank(
+                ResolvedBuriedTankEvaluationInput(
                     geometry=_tank_geometry(params),
                     wall_thickness_m=wall_thickness,
                     wall_conductivity_w_mk=wall_conductivity,
-                    insulation_layers=numeric_layers,
+                    insulation_layers=resolved_layers,
                     process_temperature_c=params.process_temperature,
                     ambient_temperature_c=ambient_temperature,
                     ground_temperature_c=ground_temperature,
-                    external_alpha_w_m2k=alpha,
                     buried_height_m=buried_height,
                     ground_conductivity_w_mk=ground_conductivity,
+                    placement=params.placement,
+                    wind_speed_m_s=params.wind_speed,
+                    insulation_temperature_basis=cast(
+                        InsulationTemperatureBasis,
+                        params.insulation_temperature_basis,
+                    ),
                     safety_factor=k,
                     additional_heat_loss_w=q_additional,
                 )
             )
         except FormulaDomainError as exc:
-            raise ValueError(str(exc)) from exc
+            _raise_tank_core_error(exc, layers=layers)
     else:
         try:
-            core_result = calculate_air_tank_heat_loss(
-                AirTankHeatLossInput(
+            evaluation = evaluate_resolved_air_tank(
+                ResolvedAirTankEvaluationInput(
                     geometry=_tank_geometry(params),
                     wall_thickness_m=wall_thickness,
                     wall_conductivity_w_mk=wall_conductivity,
-                    insulation_layers=numeric_layers,
+                    insulation_layers=resolved_layers,
                     process_temperature_c=params.process_temperature,
                     ambient_temperature_c=ambient_temperature,
-                    external_alpha_w_m2k=alpha,
+                    placement=params.placement,
+                    wind_speed_m_s=params.wind_speed,
+                    insulation_temperature_basis=cast(
+                        InsulationTemperatureBasis,
+                        params.insulation_temperature_basis,
+                    ),
                     safety_factor=k,
                     additional_heat_loss_w=q_additional,
                 )
             )
         except FormulaDomainError as exc:
-            raise ValueError(str(exc)) from exc
+            _raise_tank_core_error(exc, layers=layers)
 
-    layer_resistances = [
-        _LayerResistance(
-            layer=layer,
-            resistance=resistance,
-            conductivity=conductivity,
-            conductivity_source=conductivity_source,
-        )
-        for (layer, conductivity, conductivity_source), resistance in zip(
-            resolved_layers,
-            core_result.layer_resistances_areal_m2k_w,
-            strict=True,
-        )
-    ]
-    _validate_layer_temperatures(
-        layer_resistances,
-        layer_boundary_temperatures=core_result.air_layer_boundary_temperatures,
-    )
-    if buried_height > 0:
-        _validate_layer_temperatures(
-            layer_resistances,
-            layer_boundary_temperatures=core_result.ground_layer_boundary_temperatures,
-        )
+    core_result = evaluation.core_result
+    _raise_first_layer_temperature_error(evaluation, layers)
 
     return TankHeatLossResult(
         total_heat_loss_base=core_result.total_heat_loss_base_w,
@@ -281,7 +248,7 @@ def calc_tank_heat_loss(
         insulation_resistance_areal_bare=core_result.insulation_resistance_areal_m2k_w,
         external_resistance_areal_bare=core_result.external_resistance_areal_m2k_w,
         ground_resistance_areal_bare=core_result.ground_resistance_areal_m2k_w,
-        alpha_vnesh_applied=alpha,
+        alpha_vnesh_applied=evaluation.external_alpha_w_m2k,
         wind_speed_applied=(params.wind_speed if params.placement != "indoor" else None),
         ground_conductivity_applied=(params.ground_conductivity if buried_height > 0 else None),
         safety_factor_applied=k,
@@ -290,24 +257,34 @@ def calc_tank_heat_loss(
         ground_surface_area=core_result.ground_surface_area_m2,
         heat_loss_air_base=core_result.heat_loss_air_base_w,
         heat_loss_ground_base=core_result.heat_loss_ground_base_w,
-        formula_model="tank_heat_loss",
-        formula_model_version="3",
-        model_assumptions=["plane_wall_resistance_for_cylindrical_and_rectangular_tank"],
+        formula_model=evaluation.formula_model,
+        formula_model_version=evaluation.formula_model_version,
+        model_assumptions=list(evaluation.model_assumptions),
         process_temperature_applied=params.process_temperature,
         ambient_temperature_applied=params.ambient_temperature,
         ground_temperature_applied=params.ground_temperature if buried_height > 0 else None,
         insulation_layers_applied=[
             {
                 "index": index,
-                "thickness": layer_resistance.layer.thickness,
-                "material": layer_resistance.layer.material,
-                "conductivity_applied": layer_resistance.conductivity,
-                "conductivity_source": layer_resistance.conductivity_source,
-                "conductivity_temperature_applied": insulation_tm,
-                "resistance": layer_resistance.resistance,
+                "thickness": layer.thickness,
+                "material": layer.material,
+                "conductivity_applied": conductivity,
+                "conductivity_source": (
+                    "manual" if layer.material == "other" else "reference_data"
+                ),
+                "conductivity_temperature_applied": evaluation.insulation_temperature_c,
+                "resistance": resistance,
                 "resistance_unit": "m2*K/W",
             }
-            for index, layer_resistance in enumerate(layer_resistances, start=1)
+            for index, (layer, conductivity, resistance) in enumerate(
+                zip(
+                    layers,
+                    evaluation.layer_conductivities_w_mk,
+                    core_result.layer_resistances_areal_m2k_w,
+                    strict=True,
+                ),
+                start=1,
+            )
         ],
         input_units={
             "diameter": "m",
@@ -348,9 +325,5 @@ def calc_tank_heat_loss(
             "safety_factor_applied": "1",
             "q_additional_applied": "W",
         },
-        source_corrections=[
-            "tank_external_resistance_is_areal_inverse_alpha",
-            "tank_air_and_ground_temperatures_are_separate",
-            "tank_additional_load_is_applied_after_safety_factor",
-        ],
+        source_corrections=list(evaluation.source_corrections),
     )

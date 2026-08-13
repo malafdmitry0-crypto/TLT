@@ -11,7 +11,15 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, cast
 
-from app.formulas.heat_loss.core.thermal import affine_value, clamp_minimum, piecewise_constant
+from heatcalc_heat_loss_core.conductivity import (
+    AffineConductivity,
+    ConductivityLaw,
+    ConstantConductivity,
+    PiecewiseConductivity,
+    UnavailableConductivity,
+    evaluate_conductivity,
+)
+from heatcalc_heat_loss_core.errors import FormulaDomainError
 
 _BASE_DIR = Path(__file__).parent
 _ELECTRICAL_CATALOG_FILES = {
@@ -377,21 +385,34 @@ def get_insulation_conductivity(material: str, temperature: float) -> float:
     - conductivity_19_minus: [λ(-60..19), λ(<-60)] или одиночное значение
     """
     raw = _insulation_by_material().get(material)
-    if raw is not None:
-        m = _with_insulation_catalog_flags(raw)
-        _ensure_selectable_insulation_material(m)
-        if temperature >= 20:
-            return _positive_reference_lambda(
-                _resolve_warm_insulation_conductivity(m.get("conductivity_20_plus"), temperature),
-                material,
-                temperature,
-            )
-        return _positive_reference_lambda(
-            _resolve_cold_insulation_conductivity(m.get("conductivity_19_minus"), temperature),
-            material,
-            temperature,
-        )
-    raise ValueError(f"Неизвестный материал изоляции: {material}")
+    if raw is None:
+        raise ValueError(f"Неизвестный материал изоляции: {material}")
+    entry = _with_insulation_catalog_flags(raw)
+    _ensure_selectable_insulation_material(entry)
+    law = (
+        _warm_insulation_conductivity_law(entry.get("conductivity_20_plus"))
+        if temperature >= 20
+        else _cold_insulation_conductivity_law(entry.get("conductivity_19_minus"))
+    )
+    try:
+        value = evaluate_conductivity(law, temperature) if law is not None else None
+    except FormulaDomainError as error:
+        if error.code not in {"conductivity_law_unavailable", "conductivity_not_positive"}:
+            raise
+        value = None
+    return _positive_reference_lambda(value, material, temperature)
+
+
+@lru_cache
+def get_insulation_conductivity_law(material: str) -> ConductivityLaw:
+    """Resolve a catalog record to a pure, reusable conductivity law."""
+
+    raw = _insulation_by_material().get(material)
+    if raw is None:
+        raise ValueError(f"Неизвестный материал изоляции: {material}")
+    entry = _with_insulation_catalog_flags(raw)
+    _ensure_selectable_insulation_material(entry)
+    return _insulation_conductivity_law(entry)
 
 
 def _ensure_selectable_insulation_material(entry: dict[str, Any]) -> None:
@@ -409,64 +430,77 @@ def _positive_reference_lambda(value: float | None, material: str, temperature: 
     )
 
 
-def _resolve_warm_insulation_conductivity(value: Any, temperature: float) -> float | None:
+def _insulation_conductivity_law(entry: dict[str, Any]) -> ConductivityLaw:
+    warm = _warm_insulation_conductivity_law(entry.get("conductivity_20_plus"))
+    cold = _cold_insulation_conductivity_law(entry.get("conductivity_19_minus"))
+    return PiecewiseConductivity(
+        threshold_c=20.0,
+        at_or_above=warm or UnavailableConductivity(),
+        below=cold or UnavailableConductivity(),
+    )
+
+
+def _warm_insulation_conductivity_law(value: Any) -> ConductivityLaw | None:
     if value is None:
         return None
     if isinstance(value, int | float):
-        return float(value)
+        return ConstantConductivity(float(value))
     if isinstance(value, Sequence) and not isinstance(value, str | bytes):
         values = [float(v) for v in value]
         if len(values) == 1:
-            return values[0]
+            return ConstantConductivity(values[0])
         if len(values) >= 2:
-            a, b = values[0], values[1]
-            return affine_value(temperature, intercept=a, slope=b)
+            return AffineConductivity(values[0], values[1])
     if isinstance(value, dict):
-        a = value.get("a")
-        b = value.get("b")
-        if a is not None and b is not None:
-            return affine_value(temperature, intercept=float(a), slope=float(b))
-        constant = value.get("value")
+        mapping = cast(dict[str, Any], value)
+        raw_intercept = mapping.get("a")
+        raw_slope = mapping.get("b")
+        if raw_intercept is not None and raw_slope is not None:
+            return AffineConductivity(float(raw_intercept), float(raw_slope))
+        constant = mapping.get("value")
         if constant is not None:
-            return float(constant)
+            return ConstantConductivity(float(constant))
     return None
 
 
-def _resolve_cold_insulation_conductivity(value: Any, temperature: float) -> float | None:
+def _cold_insulation_conductivity_law(value: Any) -> ConductivityLaw | None:
     if value is None:
         return None
     if isinstance(value, int | float):
-        return float(value)
+        return ConstantConductivity(float(value))
     if isinstance(value, Sequence) and not isinstance(value, str | bytes):
         values = [float(v) for v in value]
         if len(values) == 1:
-            return values[0]
+            return ConstantConductivity(values[0])
         if len(values) >= 2:
-            return piecewise_constant(
-                temperature,
-                threshold=-60.0,
-                at_or_above=values[0],
-                below=values[1],
+            return PiecewiseConductivity(
+                threshold_c=-60.0,
+                at_or_above=ConstantConductivity(values[0]),
+                below=ConstantConductivity(values[1]),
             )
     return None
 
 
 def get_pipe_material_lambda(material: str | None, temperature: float) -> float:
     """Возвращает λ(T) материала трубы из внутреннего справочника."""
+    return evaluate_conductivity(get_pipe_material_conductivity_law(material), temperature)
+
+
+@lru_cache
+def get_pipe_material_conductivity_law(material: str | None) -> ConductivityLaw:
+    """Resolve a pipe material record to its pure conductivity law."""
+
     if material is None:
         raise ValueError("Не задан материал трубы для расчёта λ(T)")
     for entry in _pipe_materials():
         if entry["material"] == material:
             intercept = float(entry["a"])
             slope = float(entry["b"])
-            return clamp_minimum(
-                affine_value(
-                    temperature,
-                    intercept=intercept,
-                    slope=slope,
-                    variable_offset=40.0,
-                ),
-                minimum=0.001,
+            return AffineConductivity(
+                intercept_w_mk=intercept,
+                slope_w_mk_per_c=slope,
+                temperature_offset_c=40.0,
+                minimum_w_mk=0.001,
             )
     allowed = [entry["material"] for entry in _pipe_materials()]
     raise ValueError(f"Неизвестный материал трубы: '{material}'. Допустимые: {allowed}")
@@ -486,10 +520,12 @@ def clear_cache() -> None:
     _climate_by_unique_city.cache_clear()
     _insulation.cache_clear()
     _insulation_by_material.cache_clear()
+    get_insulation_conductivity_law.cache_clear()
     _cables_tlt.cache_clear()
     _tlt_cables_by_mark.cache_clear()
     _accessories.cache_clear()
     _pipe_materials.cache_clear()
+    get_pipe_material_conductivity_law.cache_clear()
     pipe_heat_loss_materials_version.cache_clear()
     tank_heat_loss_materials_version.cache_clear()
     _soil_conductivity.cache_clear()
