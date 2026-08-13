@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from . import pipe_evaluation
 from .conductivity import ConductivityLaw
 from .formula_outcome import FormulaOutcome
 from .pipe_contract import (
@@ -19,13 +20,16 @@ from .pipe_contract import (
     validate_pipe_contract,
 )
 from .pipe_evaluation import (
-    AirPipeEvaluationInput,
-    PipeEvaluationEnvironment,
-    PipeEvaluationInput,
-    PipeEvaluationLayer,
-    PipeEvaluationResult,
-    UndergroundPipeEvaluationInput,
-    evaluate_pipe,
+    AirPipeEvaluationInput as AirPipeEvaluationInput,
+)
+from .pipe_evaluation import (
+    PipeEvaluationEnvironment as PipeEvaluationEnvironment,
+)
+from .pipe_evaluation import PipeEvaluationResult as PipeEvaluationResult
+from .pipe_evaluation import PreparedPipeCalculation as PreparedPipeCalculation
+from .pipe_evaluation import PreparedPipeLayer as PreparedPipeLayer
+from .pipe_evaluation import (
+    UndergroundPipeEvaluationInput as UndergroundPipeEvaluationInput,
 )
 from .profile import (
     CASE_1_PROFILE,
@@ -81,34 +85,6 @@ class PipePreparationInput:
     profile: HeatLossFormulaProfile = CASE_1_PROFILE
 
 
-@dataclass(frozen=True)
-class PreparedPipeLayer:
-    """Layer that already has everything the numeric formula needs."""
-
-    thickness_m: float
-    source: PipeLayerSource
-    conductivity_law: ConductivityLaw
-    temperature_interval_c: tuple[float, float]
-
-
-@dataclass(frozen=True)
-class PreparedPipeCalculation:
-    """Immutable pipe input with required laws and a concrete safety factor."""
-
-    outer_diameter_m: float
-    wall_thickness_m: float
-    wall_conductivity_law: ConductivityLaw
-    layers: tuple[PreparedPipeLayer, ...]
-    process_temperature_c: float
-    insulation_temperature_basis: InsulationTemperatureBasis
-    pipe_length_m: float
-    local_elements_count: int
-    local_element_equiv_length_m: float
-    safety_factor: float
-    environment: PipeEvaluationEnvironment
-    profile: HeatLossFormulaProfile = CASE_1_PROFILE
-
-
 def validate_pipe_preparation(data: PipePreparationInput) -> FormulaValidationReport:
     """Reuse the existing fail-fast contract; do not rewrite pipe rules."""
 
@@ -149,7 +125,7 @@ def prepare_pipe_calculation(
 def evaluate_prepared_pipe(data: PreparedPipeCalculation) -> PipeFormulaOutcome:
     """Calculate one prepared pipe. Layer temperature failures are blocking."""
 
-    evaluation = evaluate_pipe(_to_evaluation_input(data))
+    evaluation = pipe_evaluation.execute_prepared_pipe(data)
     if not evaluation.layer_temperature_report.is_valid:
         return PipeFormulaOutcome(result=None, report=evaluation.layer_temperature_report)
     return PipeFormulaOutcome(result=evaluation, report=VALID_FORMULA_VALIDATION_REPORT)
@@ -311,29 +287,4 @@ def pipe_environment_from_fields(
         placement=placement,
         ambient_temperature_c=ambient_temperature,
         wind_speed_m_s=wind_speed,
-    )
-
-
-def _to_evaluation_input(data: PreparedPipeCalculation) -> PipeEvaluationInput:
-    return PipeEvaluationInput(
-        outer_diameter_m=data.outer_diameter_m,
-        wall_thickness_m=data.wall_thickness_m,
-        wall_conductivity_law=data.wall_conductivity_law,
-        insulation_layers=tuple(
-            PipeEvaluationLayer(
-                thickness_m=layer.thickness_m,
-                conductivity_law=layer.conductivity_law,
-                temperature_interval_c=layer.temperature_interval_c,
-            )
-            for layer in data.layers
-        ),
-        process_temperature_c=data.process_temperature_c,
-        insulation_temperature_basis=data.insulation_temperature_basis,
-        pipe_length_m=data.pipe_length_m,
-        local_elements_count=data.local_elements_count,
-        local_element_equiv_length_m=data.local_element_equiv_length_m,
-        safety_factor_primary=data.safety_factor,
-        safety_factor_override=None,
-        environment=data.environment,
-        profile=data.profile,
     )
