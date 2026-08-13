@@ -24,13 +24,23 @@ from heatcalc_heat_loss_core.pipe_evaluation import (
 from heatcalc_heat_loss_core.profile import InsulationTemperatureBasis, resolve_external_alpha
 from heatcalc_heat_loss_core.validation import FormulaValidationReport
 
+from app.formulas.heat_loss.pipe_preparation import run_validated_pipe_formula
 from app.reference_data.loader import (
-    get_insulation_conductivity_law,
     get_insulation_temperature_range,
-    get_pipe_material_conductivity_law,
     get_pipe_material_lambda,
 )
 from app.schemas.calculation import InsulationLayer, PipeHeatLossParams, PipeHeatLossResult
+
+# Compatibility names used by characterization and callers of the old facade surface.
+_COMPAT = (
+    AirPipeEvaluationInput,
+    ConstantConductivity,
+    InsulationTemperatureBasis,
+    PipeEvaluationInput,
+    PipeEvaluationLayer,
+    UndergroundPipeEvaluationInput,
+    evaluate_pipe,
+)
 
 
 def pipe_material_lambda(material: str | None, temperature: float) -> float:
@@ -185,61 +195,17 @@ def calc_pipe_heat_loss(
         docs/context/formulas-summary.md — краткий справочник
     """
     layers = _resolve_layers(params)
-
-    evaluation_layers = tuple(
-        PipeEvaluationLayer(
-            thickness_m=layer.thickness,
-            conductivity_law=(
-                ConstantConductivity(cast(float, layer.conductivity))
-                if layer.material == "other"
-                else get_insulation_conductivity_law(layer.material)
-            ),
-            temperature_interval_c=_layer_temperature_range(layer),
-        )
-        for layer in layers
-    )
-    environment: AirPipeEvaluationInput | UndergroundPipeEvaluationInput
-    if params.placement == "underground":
-        environment = UndergroundPipeEvaluationInput(
-            ground_temperature_c=cast(float, params.ground_temperature),
-            centerline_depth_m=cast(float, params.pipe_centerline_depth),
-            ground_conductivity_w_mk=cast(float, params.ground_conductivity),
-        )
-    else:
-        environment = AirPipeEvaluationInput(
-            placement=params.placement,
-            ambient_temperature_c=cast(float, params.ambient_temperature),
-            wind_speed_m_s=params.wind_speed,
-        )
     try:
-        evaluation = evaluate_pipe(
-            PipeEvaluationInput(
-                outer_diameter_m=params.outer_diameter,
-                wall_thickness_m=params.wall_thickness,
-                wall_conductivity_law=(
-                    ConstantConductivity(params.pipe_lambda)
-                    if params.pipe_lambda is not None
-                    else get_pipe_material_conductivity_law(params.pipe_material)
-                ),
-                insulation_layers=evaluation_layers,
-                process_temperature_c=params.process_temperature,
-                insulation_temperature_basis=cast(
-                    InsulationTemperatureBasis, params.insulation_temperature_basis
-                ),
-                pipe_length_m=params.pipe_length,
-                local_elements_count=params.num_local_elements,
-                local_element_equiv_length_m=params.local_element_equiv_length or 0.0,
-                safety_factor_primary=params.safety_factor,
-                safety_factor_override=(
-                    coefficients.get("safety_factor") if coefficients is not None else None
-                ),
-                environment=environment,
-            )
-        )
+        outcome = run_validated_pipe_formula(params, coefficients)
     except FormulaDomainError as exc:
         _raise_pipe_core_error(exc, layers=layers)
-
-    _raise_first_layer_temperature_error(layers, evaluation.layer_temperature_report)
+        raise
+    if outcome.result is None:
+        if any(issue.code == "temperature_outside_interval" for issue in outcome.report.issues):
+            _raise_first_layer_temperature_error(layers, outcome.report)
+        issue = outcome.report.issues[0]
+        raise ValueError(f"{issue.code}: {issue.path}")
+    evaluation = outcome.result
     core_result = evaluation.core_result
     alpha = evaluation.external_alpha_w_m2k
     lambda_gr = evaluation.ground_conductivity_w_mk
