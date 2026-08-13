@@ -4,14 +4,13 @@ Internal reference docs define λ for insulation as a function of `tm`, not as
 the average of product and ambient temperatures.
 """
 
+from heatcalc_heat_loss_core.insulation_contract import (
+    ALLOWED_INSULATION_BASES_BY_PLACEMENT,
+)
 from heatcalc_heat_loss_core.profile import (
     InsulationTemperatureBasis as InsulationTemperatureBasis,
 )
 from heatcalc_heat_loss_core.profile import resolve_insulation_temperature
-
-from app.formulas.heat_loss.core.insulation_contract import (
-    ALLOWED_INSULATION_BASES_BY_PLACEMENT,
-)
 
 INSULATION_TEMPERATURE_BASIS_LABELS: dict[str, str] = {
     "indoor": "помещение",

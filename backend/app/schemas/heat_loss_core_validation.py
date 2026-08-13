@@ -5,17 +5,16 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any, Literal, TypeAlias
 
-from pydantic import ValidationError
-from pydantic.json_schema import WithJsonSchema
-from pydantic_core import InitErrorDetails, PydanticKnownError
-
-from app.formulas.heat_loss.core.validation import (
+from heatcalc_heat_loss_core.validation import (
     FormulaValidationIssue,
     FormulaValidationPath,
     FormulaValidationReport,
     NumericRangeSpec,
     SequenceLengthSpec,
 )
+from pydantic import ValidationError
+from pydantic.json_schema import WithJsonSchema
+from pydantic_core import InitErrorDetails, PydanticKnownError
 
 PydanticRangeErrorType: TypeAlias = Literal[
     "greater_than_equal",

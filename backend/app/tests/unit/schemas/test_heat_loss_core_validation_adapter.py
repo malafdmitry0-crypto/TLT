@@ -4,10 +4,7 @@ import math
 from typing import Annotated
 
 import pytest
-from pydantic import BaseModel, Field, FiniteFloat, ValidationError
-from pydantic_core import ErrorDetails
-
-from app.formulas.heat_loss.core.validation import (
+from heatcalc_heat_loss_core.validation import (
     FormulaValidationIssue,
     FormulaValidationPath,
     FormulaValidationReport,
@@ -16,6 +13,9 @@ from app.formulas.heat_loss.core.validation import (
     validate_numeric_range,
     validate_sequence_length,
 )
+from pydantic import BaseModel, Field, FiniteFloat, ValidationError
+from pydantic_core import ErrorDetails
+
 from app.schemas.heat_loss_core_validation import (
     numeric_range_json_schema,
     raise_range_validation_errors,
