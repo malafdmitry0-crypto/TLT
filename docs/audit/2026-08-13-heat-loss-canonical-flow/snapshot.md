@@ -315,6 +315,88 @@ C4 benchmark (`evidence/c4-facade-benchmark.json`), same 9 × 20 protocol:
 
 No reproducible slowdown versus C0.
 
-## NEXT
+## CF final regression
 
-C5 — catalog lookup only in application preparation.
+**UTC:** 2026-08-13T10:46:49Z
+**HEAD:** `3870611acbf5cfadb6ea479f80bd70c69c52d07a`
+`docs(heat-loss-core): publish canonical formula API`
+**Worktree:** clean before this snapshot update
+
+### Architecture
+
+- `common.py` absent
+- `app/formulas/heat_loss/core/` absent
+- `_COMPAT` absent under `backend/app/formulas/heat_loss`
+- executable shim imports absent except the C2 ratchet forbidden-prefix string
+- `calculation.py` has no insulation catalog/loader imports
+- package remains dependency-free (import-boundary tests + isolated wheel)
+
+### Package
+
+325 passed, ruff pass, mypy 41 files pass. Isolated wheel `__all__` import: 103 names, including recommended `run_pipe_formula` / `run_tank_formula`.
+
+### formula-qa
+
+- `scripts/formula-qa.sh full`: stopped on the known C0 ID
+  `test_pipe_safety_factor_multiplied_not_divided` (K=2 outside 1.0…1.7).
+  Remaining full parts were run separately: service guards PASS, API/object
+  integration PASS.
+- `scripts/formula-qa.sh heat-loss-core-mutation`: **NOT RUN**. mutmut 3.5.0
+  is installed in the container; a full mutation campaign was not completed
+  in CF. This is not a mutation PASS.
+
+### Full backend vs C0
+
+Same 14 failed + 6 error nodeids. Passed 2240 vs C0 2255 because C1 deleted
+`test_heat_loss_common.py` and later slices added focused tests.
+`evidence/cf-backend-suite.json`.
+
+An earlier C5 suite also showed
+`test_concurrent_enqueue_and_delete_never_orphans_task`; that ID is absent
+here and passed in isolation. Classified as an unrelated electrical flake,
+not a cleanup regression.
+
+### Benchmark
+
+`evidence/cf-facade-benchmark.json`, same 9 × 20 protocol.
+
+| Round | seconds |
+|---|---|
+| 1 | 0.18150737500400282 |
+| 2 | 0.15861529199173674 |
+| 3 | 0.1946312499931082 |
+| 4 | 0.16887691599549726 |
+| 5 | 0.190566665987717 |
+| 6 | 0.1562165830109734 |
+| 7 | 0.17429679198539816 |
+| 8 | 0.1531210000102874 |
+| 9 | 0.16053008299786597 |
+
+- median: **0.16887691599549726 s**
+- C0 median: 0.17873079201672226 s
+- absolute delta: −0.009853876021225 s
+
+No reproducible slowdown.
+
+### Facade characterization
+
+Focused facade + canonical-flow suite PASS. JSON, hot-side literal, K matrix,
+process-T pre-check, hot-side post-check, import invalid, and lookup counts
+remain covered by those tests after C5.
+
+### Frontend vs C0
+
+Only
+`frontend/src/__tests__/integration/components/ObjectWizardDependencies.validation-highlight.test.tsx`
+changed (consumer proof for `insulation_layers.1.material`). Production
+frontend was not changed. agent:scope/plan/run/check vs C0:
+`evidence/cf-frontend-proof.json`. No browser proof: no visible production
+UX change.
+
+`docs/frontend/refactor-backlog.md` was not changed by this cleanup.
+
+### Verdict
+
+**PASS WITH BASELINE DEBT**
+
+Same C0 failed/error nodeids. Mutation campaign NOT RUN.
