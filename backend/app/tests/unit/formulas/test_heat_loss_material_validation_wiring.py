@@ -6,15 +6,15 @@ from unittest.mock import MagicMock
 
 import pytest
 from heatcalc_heat_loss_core.conductivity import UnavailableConductivity
+from heatcalc_heat_loss_core.insulation_contract import validate_insulation_contract
+from heatcalc_heat_loss_core.pipe_contract import validate_pipe_contract
+from heatcalc_heat_loss_core.tank_contract import validate_tank_contract
 from pydantic import ValidationError
 
 from app.formulas.heat_loss import pipe as pipe_formulas
 from app.formulas.heat_loss import pipe_preparation as pipe_preparation
 from app.formulas.heat_loss import tank as tank_formulas
 from app.formulas.heat_loss import tank_preparation as tank_preparation
-from app.formulas.heat_loss.core.insulation_contract import validate_insulation_contract
-from app.formulas.heat_loss.core.pipe_contract import validate_pipe_contract
-from app.formulas.heat_loss.core.tank_contract import validate_tank_contract
 from app.schemas import calculation as calculation_schemas
 from app.schemas.calculation import InsulationLayer, PipeHeatLossParams, TankHeatLossParams
 
