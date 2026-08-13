@@ -1,0 +1,43 @@
+{
+  "head_at_collection_note": "uncommitted C4 working tree on top of eead53a",
+  "result": {
+    "failed": 14,
+    "passed": 2235,
+    "skipped": 1,
+    "errors": 6,
+    "warnings": 265,
+    "duration_seconds": 763.84
+  },
+  "failed_nodeids": [
+    "app/tests/integration/api/test_idempotency.py::TestSpecGenerateIdempotency::test_blocked_generate_repeats_without_duplicate_rows",
+    "app/tests/integration/db/test_query_counts.py::test_electrical_query_search_uses_sql_page_not_python_project_fallback",
+    "app/tests/integration/db/test_query_counts.py::test_electrical_query_assignment_projection_is_one_bounded_query",
+    "app/tests/integration/db/test_query_counts.py::test_electrical_query_sorted_next_page_uses_keyset_without_offset",
+    "app/tests/unit/api/test_reports_helpers.py::test_preview_maps_project_errors",
+    "app/tests/unit/api/test_reports_helpers.py::test_preview_maps_report_errors",
+    "app/tests/unit/api/test_reports_helpers.py::test_preview_records_audit_on_success",
+    "app/tests/unit/api/test_reports_helpers.py::test_preview_requires_variant_after_project_access",
+    "app/tests/unit/formulas/test_mutation_resilience.py::TestMutationCoverage::test_pipe_safety_factor_multiplied_not_divided",
+    "app/tests/unit/services/test_task_service_unit.py::TestTaskCreation::test_enqueue_guards_then_locks_project_before_variant_resolution",
+    "app/tests/unit/services/test_task_service_unit.py::TestTaskCreation::test_create_electrical_batch_task_enqueues_and_persists_payload",
+    "app/tests/unit/test_pipe_slice2_contract.py::test_pipe_heat_replacement_preserves_non_heat_and_volume_and_removes_legacy",
+    "app/tests/unit/test_pipe_slice2_contract.py::test_invalid_pipe_formula_rolls_back_api_transaction[create]",
+    "app/tests/unit/test_pipe_slice2_contract.py::test_invalid_pipe_formula_rolls_back_api_transaction[update]"
+  ],
+  "error_nodeids": [
+    "app/tests/integration/worker/test_worker_redis_live.py::test_real_xautoclaim_moves_pending_entry_to_second_worker",
+    "app/tests/integration/worker/test_worker_redis_live.py::test_real_dlq_write_is_idempotent_after_finalize_crash",
+    "app/tests/integration/worker/test_worker_redis_live.py::test_real_readiness_tracks_late_and_multiple_workers",
+    "app/tests/integration/worker/test_worker_redis_live.py::test_real_readiness_expires_after_worker_disappears",
+    "app/tests/integration/worker/test_worker_sigkill_live.py::test_sigkill_after_claim_is_recovered_from_postgres",
+    "app/tests/integration/worker/test_worker_sigkill_live.py::test_sigkill_after_success_commit_before_ack_is_safe_on_redelivery"
+  ],
+  "vs_c0": {
+    "new_failed": [],
+    "gone_failed": [],
+    "new_errors": [],
+    "gone_errors": [],
+    "passed_delta": -20,
+    "passed_delta_reason": "C1 deleted test_heat_loss_common.py (~20 tests). Not a C4 regression."
+  }
+}
