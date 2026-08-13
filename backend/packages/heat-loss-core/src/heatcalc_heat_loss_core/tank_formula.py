@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
 
 from .conductivity import ConductivityLaw
 from .formula_outcome import FormulaOutcome
 from .profile import (
     CASE_1_PROFILE,
-    ExternalAlphaPlacement,
     HeatLossFormulaProfile,
     InsulationTemperatureBasis,
+    validate_heat_loss_formula_profile,
 )
 from .tank import CylindricalTankGeometry, RectangularTankGeometry, TankGeometry
 from .tank_contract import (
@@ -88,23 +89,42 @@ class PreparedTankLayer:
 
 
 @dataclass(frozen=True)
+class AirTankFormulaEnvironment:
+    """Required conditions for an indoor or outdoor tank calculation."""
+
+    placement: Literal["indoor", "outdoor"]
+    ambient_temperature_c: float
+    wind_speed_m_s: float | None
+
+
+@dataclass(frozen=True)
+class BuriedTankFormulaEnvironment:
+    """Required air and ground conditions for a partially buried tank."""
+
+    placement: Literal["underground"]
+    ambient_temperature_c: float
+    ground_temperature_c: float
+    buried_height_m: float
+    ground_conductivity_w_mk: float
+    wind_speed_m_s: float
+
+
+TankFormulaEnvironment = AirTankFormulaEnvironment | BuriedTankFormulaEnvironment
+
+
+@dataclass(frozen=True)
 class PreparedTankCalculation:
     """Immutable tank input with required laws. Safety factor stays required."""
 
     geometry: TankGeometry
-    placement: ExternalAlphaPlacement
     insulation_temperature_basis: InsulationTemperatureBasis
     layers: tuple[PreparedTankLayer, ...]
     process_temperature_c: float
-    ambient_temperature_c: float
-    ground_temperature_c: float | None
     wall_thickness_m: float
     wall_conductivity_w_mk: float
-    buried_height_m: float
-    ground_conductivity_w_mk: float | None
-    wind_speed_m_s: float | None
     safety_factor: float
     additional_heat_loss_w: float
+    environment: TankFormulaEnvironment
     profile: HeatLossFormulaProfile = CASE_1_PROFILE
 
 
@@ -124,10 +144,7 @@ def assemble_prepared_tank(
     )
     if not range_report.is_valid:
         return range_report
-    law_report = _require_tank_laws(data)
-    if not law_report.is_valid:
-        return law_report
-    return _to_prepared_tank(data)
+    return _assemble_validated_tank(data)
 
 
 def prepare_tank_calculation(
@@ -136,7 +153,7 @@ def prepare_tank_calculation(
     contract_report = validate_tank_preparation(data)
     if not contract_report.is_valid:
         return contract_report
-    return assemble_prepared_tank(data)
+    return _assemble_validated_tank(data)
 
 
 def evaluate_prepared_tank(data: PreparedTankCalculation) -> TankFormulaOutcome:
@@ -213,6 +230,18 @@ def _require_tank_laws(data: TankPreparationInput) -> FormulaValidationReport:
     return VALID_FORMULA_VALIDATION_REPORT
 
 
+def _assemble_validated_tank(
+    data: TankPreparationInput,
+) -> PreparedTankCalculation | FormulaValidationReport:
+    profile_report = validate_heat_loss_formula_profile(data.profile)
+    if not profile_report.is_valid:
+        return profile_report
+    law_report = _require_tank_laws(data)
+    if not law_report.is_valid:
+        return law_report
+    return _to_prepared_tank(data)
+
+
 def _layer_interval(layer: TankPreparationLayer) -> tuple[float, float] | None:
     if layer.source == "manual":
         return layer.manual_temperature_range_c
@@ -222,8 +251,6 @@ def _layer_interval(layer: TankPreparationLayer) -> tuple[float, float] | None:
 def _to_prepared_tank(data: TankPreparationInput) -> PreparedTankCalculation:
     if data.insulation_temperature_basis is None:
         raise ValueError("validated tank preparation must include insulation_temperature_basis")
-    if data.ambient_temperature is None:
-        raise ValueError("validated tank preparation must include ambient_temperature")
     prepared_layers: list[PreparedTankLayer] = []
     for layer in data.layers:
         if layer.conductivity_law is None:
@@ -240,17 +267,7 @@ def _to_prepared_tank(data: TankPreparationInput) -> PreparedTankCalculation:
                 temperature_max_c=interval[1],
             )
         )
-    if data.shape == "cylindrical":
-        geometry: TankGeometry = CylindricalTankGeometry(
-            diameter_m=float(data.diameter),
-            height_m=float(data.height),
-        )
-    else:
-        geometry = RectangularTankGeometry(
-            length_m=float(data.length),
-            width_m=float(data.width),
-            height_m=float(data.height),
-        )
+    geometry = _tank_geometry(data)
     wall_thickness = 0.0
     wall_conductivity = 1.0
     if data.wall_thickness is not None and data.wall_lambda is not None:
@@ -258,20 +275,57 @@ def _to_prepared_tank(data: TankPreparationInput) -> PreparedTankCalculation:
         wall_conductivity = data.wall_lambda
     return PreparedTankCalculation(
         geometry=geometry,
-        placement=data.placement,
         insulation_temperature_basis=data.insulation_temperature_basis,
         layers=tuple(prepared_layers),
         process_temperature_c=data.process_temperature,
-        ambient_temperature_c=data.ambient_temperature,
-        ground_temperature_c=data.ground_temperature,
         wall_thickness_m=wall_thickness,
         wall_conductivity_w_mk=wall_conductivity,
-        buried_height_m=data.tank_buried_height or 0.0,
-        ground_conductivity_w_mk=data.ground_conductivity,
-        wind_speed_m_s=data.wind_speed,
         safety_factor=data.safety_factor,
         additional_heat_loss_w=data.q_additional,
+        environment=_tank_environment(data),
         profile=data.profile,
+    )
+
+
+def _tank_geometry(data: TankPreparationInput) -> TankGeometry:
+    if data.height is None:
+        raise ValueError("validated tank preparation must include height")
+    if data.shape == "cylindrical":
+        if data.diameter is None:
+            raise ValueError("validated cylindrical tank requires diameter")
+        return CylindricalTankGeometry(diameter_m=data.diameter, height_m=data.height)
+    if data.length is None or data.width is None:
+        raise ValueError("validated rectangular tank requires length and width")
+    return RectangularTankGeometry(
+        length_m=data.length,
+        width_m=data.width,
+        height_m=data.height,
+    )
+
+
+def _tank_environment(data: TankPreparationInput) -> TankFormulaEnvironment:
+    if data.ambient_temperature is None:
+        raise ValueError("validated tank preparation must include ambient_temperature")
+    if data.placement == "underground":
+        if (
+            data.ground_temperature is None
+            or data.tank_buried_height is None
+            or data.ground_conductivity is None
+            or data.wind_speed is None
+        ):
+            raise ValueError("validated underground tank requires ground environment fields")
+        return BuriedTankFormulaEnvironment(
+            placement="underground",
+            ambient_temperature_c=data.ambient_temperature,
+            ground_temperature_c=data.ground_temperature,
+            buried_height_m=data.tank_buried_height,
+            ground_conductivity_w_mk=data.ground_conductivity,
+            wind_speed_m_s=data.wind_speed,
+        )
+    return AirTankFormulaEnvironment(
+        placement=data.placement,
+        ambient_temperature_c=data.ambient_temperature,
+        wind_speed_m_s=data.wind_speed,
     )
 
 
@@ -285,9 +339,7 @@ def _evaluate_prepared_tank(data: PreparedTankCalculation) -> TankEvaluationResu
         )
         for layer in data.layers
     )
-    if data.buried_height_m > 0:
-        if data.ground_temperature_c is None or data.ground_conductivity_w_mk is None:
-            raise ValueError("buried tank requires ground temperature and conductivity")
+    if isinstance(data.environment, BuriedTankFormulaEnvironment):
         return evaluate_resolved_buried_tank(
             ResolvedBuriedTankEvaluationInput(
                 geometry=data.geometry,
@@ -295,12 +347,12 @@ def _evaluate_prepared_tank(data: PreparedTankCalculation) -> TankEvaluationResu
                 wall_conductivity_w_mk=data.wall_conductivity_w_mk,
                 insulation_layers=resolved_layers,
                 process_temperature_c=data.process_temperature_c,
-                ambient_temperature_c=data.ambient_temperature_c,
-                ground_temperature_c=data.ground_temperature_c,
-                buried_height_m=data.buried_height_m,
-                ground_conductivity_w_mk=data.ground_conductivity_w_mk,
-                placement=data.placement,
-                wind_speed_m_s=data.wind_speed_m_s,
+                ambient_temperature_c=data.environment.ambient_temperature_c,
+                ground_temperature_c=data.environment.ground_temperature_c,
+                buried_height_m=data.environment.buried_height_m,
+                ground_conductivity_w_mk=data.environment.ground_conductivity_w_mk,
+                placement=data.environment.placement,
+                wind_speed_m_s=data.environment.wind_speed_m_s,
                 insulation_temperature_basis=data.insulation_temperature_basis,
                 safety_factor=data.safety_factor,
                 additional_heat_loss_w=data.additional_heat_loss_w,
@@ -314,9 +366,9 @@ def _evaluate_prepared_tank(data: PreparedTankCalculation) -> TankEvaluationResu
             wall_conductivity_w_mk=data.wall_conductivity_w_mk,
             insulation_layers=resolved_layers,
             process_temperature_c=data.process_temperature_c,
-            ambient_temperature_c=data.ambient_temperature_c,
-            placement=data.placement,
-            wind_speed_m_s=data.wind_speed_m_s,
+            ambient_temperature_c=data.environment.ambient_temperature_c,
+            placement=data.environment.placement,
+            wind_speed_m_s=data.environment.wind_speed_m_s,
             insulation_temperature_basis=data.insulation_temperature_basis,
             safety_factor=data.safety_factor,
             additional_heat_loss_w=data.additional_heat_loss_w,
