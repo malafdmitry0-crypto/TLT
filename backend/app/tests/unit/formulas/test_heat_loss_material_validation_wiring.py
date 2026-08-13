@@ -172,8 +172,8 @@ def test_facade_preserves_reference_lambda_error_for_selected_unavailable_branch
     lookup_owner = pipe_preparation if module is pipe_formulas else tank_preparation
     monkeypatch.setattr(
         lookup_owner,
-        "get_insulation_conductivity_law",
-        lambda _material: UnavailableConductivity(),
+        "resolve_reference_insulation",
+        lambda _material: (UnavailableConductivity(), (-60.0, 400.0)),
     )
 
     with pytest.raises(

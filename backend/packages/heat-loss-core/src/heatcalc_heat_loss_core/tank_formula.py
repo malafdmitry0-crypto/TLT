@@ -30,9 +30,11 @@ from .tank_evaluation import (
     evaluate_resolved_buried_tank,
 )
 from .validation import (
+    TANK_SAFETY_FACTOR_RANGE,
     VALID_FORMULA_VALIDATION_REPORT,
     FormulaValidationIssue,
     FormulaValidationReport,
+    validate_numeric_range,
 )
 
 TankFormulaOutcome = FormulaOutcome[TankEvaluationResult]
@@ -110,16 +112,31 @@ def validate_tank_preparation(data: TankPreparationInput) -> FormulaValidationRe
     return validate_tank_contract(_to_tank_contract(data))
 
 
+def assemble_prepared_tank(
+    data: TankPreparationInput,
+) -> PreparedTankCalculation | FormulaValidationReport:
+    """Build the calculation input without repeating contract validation."""
+
+    range_report = validate_numeric_range(
+        path=("safety_factor",),
+        value=data.safety_factor,
+        spec=TANK_SAFETY_FACTOR_RANGE,
+    )
+    if not range_report.is_valid:
+        return range_report
+    law_report = _require_tank_laws(data)
+    if not law_report.is_valid:
+        return law_report
+    return _to_prepared_tank(data)
+
+
 def prepare_tank_calculation(
     data: TankPreparationInput,
 ) -> PreparedTankCalculation | FormulaValidationReport:
     contract_report = validate_tank_preparation(data)
     if not contract_report.is_valid:
         return contract_report
-    law_report = _require_tank_laws(data)
-    if not law_report.is_valid:
-        return law_report
-    return _to_prepared_tank(data)
+    return assemble_prepared_tank(data)
 
 
 def evaluate_prepared_tank(data: PreparedTankCalculation) -> TankFormulaOutcome:
