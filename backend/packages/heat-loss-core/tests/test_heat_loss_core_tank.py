@@ -3,10 +3,9 @@
 import math
 
 import pytest
-
-from app.formulas.heat_loss.core import tank as tank_core
-from app.formulas.heat_loss.core.errors import FormulaDomainError
-from app.formulas.heat_loss.core.tank import (
+from heatcalc_heat_loss_core import tank as tank_core
+from heatcalc_heat_loss_core.errors import FormulaDomainError
+from heatcalc_heat_loss_core.tank import (
     AirTankHeatLossInput,
     BuriedTankHeatLossInput,
     CylindricalTankGeometry,

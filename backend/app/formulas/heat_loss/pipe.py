@@ -10,31 +10,24 @@ q_total  = q_linear · L_eff · K  [Вт]
 Источник: спецификация параметров теплотехнических расчётов, таблица 1–2.
 """
 
-from dataclasses import dataclass
 from typing import Any, cast
 
-from app.formulas.heat_loss.common import merge_coefficients
-from app.formulas.heat_loss.core.errors import FormulaDomainError
-from app.formulas.heat_loss.core.material_validation import (
-    validate_hot_side_temperature_in_interval,
+from heatcalc_heat_loss_core.conductivity import ConstantConductivity
+from heatcalc_heat_loss_core.errors import FormulaDomainError
+from heatcalc_heat_loss_core.pipe_evaluation import (
+    AirPipeEvaluationInput,
+    PipeEvaluationInput,
+    PipeEvaluationLayer,
+    UndergroundPipeEvaluationInput,
+    evaluate_pipe,
 )
-from app.formulas.heat_loss.core.pipe import (
-    AbovegroundPipeInput,
-    PipeInsulationLayer,
-    PipeLayerBoundaryTemperature,
-    UndergroundPipeInput,
-    calculate_aboveground_pipe,
-    calculate_underground_pipe,
-)
-from app.formulas.heat_loss.core.thermal import (
-    alpha_from_wind,
-    arithmetic_mean,
-    clamp_minimum,
-)
-from app.formulas.heat_loss.insulation import resolve_insulation_tm
+from heatcalc_heat_loss_core.profile import InsulationTemperatureBasis, resolve_external_alpha
+from heatcalc_heat_loss_core.validation import FormulaValidationReport
+
 from app.reference_data.loader import (
-    get_insulation_conductivity,
+    get_insulation_conductivity_law,
     get_insulation_temperature_range,
+    get_pipe_material_conductivity_law,
     get_pipe_material_lambda,
 )
 from app.schemas.calculation import InsulationLayer, PipeHeatLossParams, PipeHeatLossResult
@@ -62,13 +55,12 @@ def calc_alpha_vnesh(wind_speed: float | None, placement: str) -> float:
     Для улицы: α = 11,6 + 7·√v  (SNiP 41-03-2003, формула для трубопроводов)
     """
     if placement == "indoor":
-        return 9.0
+        return resolve_external_alpha(placement="indoor", wind_speed_m_s=wind_speed)
     if wind_speed is None:
         raise ValueError("Для outdoor auto требуется wind_speed")
-    return alpha_from_wind(
-        clamp_minimum(wind_speed, minimum=0.0),
-        intercept=11.6,
-        sqrt_coefficient=7.0,
+    return resolve_external_alpha(
+        placement="outdoor",
+        wind_speed_m_s=wind_speed,
     )
 
 
@@ -82,14 +74,6 @@ def _resolve_layers(params: PipeHeatLossParams) -> list[InsulationLayer]:
     return list(params.insulation_layers)
 
 
-@dataclass(frozen=True)
-class _LayerResistance:
-    layer: InsulationLayer
-    resistance: float
-    conductivity: float
-    conductivity_source: str
-
-
 def _fmt_temp(value: float) -> str:
     return f"{value:g}"
 
@@ -101,48 +85,44 @@ def _layer_temperature_range(layer: InsulationLayer) -> tuple[float, float]:
     return get_insulation_temperature_range(layer.material)
 
 
-def _validate_layer_temperature_interval(
-    layer: InsulationLayer,
-    *,
-    index: int,
-    t_hot: float,
-    t_cold: float,
+def _raise_first_layer_temperature_error(
+    layers: list[InsulationLayer],
+    report: FormulaValidationReport,
 ) -> None:
-    min_temp, max_temp = _layer_temperature_range(layer)
-    report = validate_hot_side_temperature_in_interval(
-        first_side_c=t_hot,
-        second_side_c=t_cold,
-        minimum_c=min_temp,
-        maximum_c=max_temp,
-    )
+    """Adapt the canonical aggregate report to the established facade error."""
     if report.is_valid:
         return
-    layer_hot_side = float(report.issues[0].details_dict()["temperature_c"])
+    issue = report.issues[0]
+    index = cast(int, issue.path[1])
+    details = issue.details_dict()
+    min_temp = float(details["minimum_c"])
+    max_temp = float(details["maximum_c"])
+    layer_hot_side = float(details["temperature_c"])
     raise ValueError(
         f"Температура горячей стороны слоя изоляции #{index + 1} "
         f"({_fmt_temp(layer_hot_side)} °C) вне диапазона "
-        f"материала '{layer.material}': {_fmt_temp(min_temp)}…{_fmt_temp(max_temp)} °C"
+        f"материала '{layers[index].material}': {_fmt_temp(min_temp)}…{_fmt_temp(max_temp)} °C"
     )
 
 
-def _validate_layer_temperatures(
-    layer_resistances: list[_LayerResistance],
+def _raise_pipe_core_error(
+    error: FormulaDomainError,
     *,
-    layer_boundary_temperatures: tuple[PipeLayerBoundaryTemperature, ...],
+    layers: list[InsulationLayer] | None = None,
 ) -> None:
-    for index, (layer_resistance, boundary) in enumerate(
-        zip(layer_resistances, layer_boundary_temperatures, strict=True)
-    ):
-        _validate_layer_temperature_interval(
-            layer_resistance.layer,
-            index=index,
-            t_hot=boundary.hot_side_c,
-            t_cold=boundary.cold_side_c,
-        )
-
-
-def _raise_pipe_core_error(error: FormulaDomainError) -> None:
     """Translate numeric-domain failures back to the established facade errors."""
+    if (
+        error.code in {"conductivity_law_unavailable", "conductivity_not_positive"}
+        and "layer_index" in error.details
+        and layers is not None
+    ):
+        index = int(error.details["layer_index"])
+        layer = layers[index]
+        temperature = float(error.details["temperature_c"])
+        raise ValueError(
+            f"Для материала изоляции '{layer.material}' не задана расчётная λ(tm) "
+            f"при tm={_fmt_temp(temperature)} °C"
+        ) from error
     if error.code == "wall_exceeds_pipe_radius":
         wall_thickness = float(error.details["wall_thickness_m"])
         outer_radius = float(error.details["outer_radius_m"])
@@ -206,114 +186,65 @@ def calc_pipe_heat_loss(
     """
     layers = _resolve_layers(params)
 
-    environment_temperature = cast(
-        float,
-        (
-            params.ground_temperature
-            if params.placement == "underground"
-            else params.ambient_temperature
-        ),
+    evaluation_layers = tuple(
+        PipeEvaluationLayer(
+            thickness_m=layer.thickness,
+            conductivity_law=(
+                ConstantConductivity(cast(float, layer.conductivity))
+                if layer.material == "other"
+                else get_insulation_conductivity_law(layer.material)
+            ),
+            temperature_interval_c=_layer_temperature_range(layer),
+        )
+        for layer in layers
     )
-    t_mean = arithmetic_mean(params.process_temperature, environment_temperature)
-    wall_conductivity = (
-        params.pipe_lambda
-        if params.pipe_lambda is not None
-        else pipe_material_lambda(params.pipe_material, t_mean)
-    )
-    insulation_tm = resolve_insulation_tm(
-        process_temperature=params.process_temperature,
-        basis=params.insulation_temperature_basis,
-        location=None,
-        placement=params.placement,
-    )
-    resolved_layers: list[tuple[InsulationLayer, float, str]] = []
-    for layer in layers:
-        if layer.material == "other":
-            conductivity = cast(float, layer.conductivity)
-            conductivity_source = "manual"
-        else:
-            conductivity = get_insulation_conductivity(layer.material, insulation_tm)
-            conductivity_source = "reference_data"
-        resolved_layers.append((layer, conductivity, conductivity_source))
-
-    merged_coeffs = merge_coefficients(coefficients)
-    alpha: float | None = None
-    lambda_gr: float | None = None
-    k = params.safety_factor or merged_coeffs.get("safety_factor", 1.1)
-    numeric_layers = tuple(
-        PipeInsulationLayer(thickness_m=layer.thickness, conductivity_w_mk=conductivity)
-        for layer, conductivity, _ in resolved_layers
-    )
+    environment: AirPipeEvaluationInput | UndergroundPipeEvaluationInput
     if params.placement == "underground":
-        centerline_depth = cast(float, params.pipe_centerline_depth)
-        ground_temperature = cast(float, params.ground_temperature)
-        lambda_gr = cast(float, params.ground_conductivity)
-        try:
-            core_result = calculate_underground_pipe(
-                UndergroundPipeInput(
-                    outer_diameter_m=params.outer_diameter,
-                    wall_thickness_m=params.wall_thickness,
-                    wall_conductivity_w_mk=wall_conductivity,
-                    insulation_layers=numeric_layers,
-                    process_temperature_c=params.process_temperature,
-                    ground_temperature_c=ground_temperature,
-                    pipe_length_m=params.pipe_length,
-                    local_elements_count=params.num_local_elements,
-                    local_element_equiv_length_m=params.local_element_equiv_length or 0.0,
-                    safety_factor=k,
-                    centerline_depth_m=centerline_depth,
-                    ground_conductivity_w_mk=lambda_gr,
-                )
-            )
-        except FormulaDomainError as exc:
-            _raise_pipe_core_error(exc)
+        environment = UndergroundPipeEvaluationInput(
+            ground_temperature_c=cast(float, params.ground_temperature),
+            centerline_depth_m=cast(float, params.pipe_centerline_depth),
+            ground_conductivity_w_mk=cast(float, params.ground_conductivity),
+        )
     else:
-        ambient_temperature = cast(float, params.ambient_temperature)
-        alpha = (
-            9.0
-            if params.placement == "indoor"
-            else alpha_from_wind(
-                cast(float, params.wind_speed),
-                intercept=11.6,
-                sqrt_coefficient=7.0,
+        environment = AirPipeEvaluationInput(
+            placement=params.placement,
+            ambient_temperature_c=cast(float, params.ambient_temperature),
+            wind_speed_m_s=params.wind_speed,
+        )
+    try:
+        evaluation = evaluate_pipe(
+            PipeEvaluationInput(
+                outer_diameter_m=params.outer_diameter,
+                wall_thickness_m=params.wall_thickness,
+                wall_conductivity_law=(
+                    ConstantConductivity(params.pipe_lambda)
+                    if params.pipe_lambda is not None
+                    else get_pipe_material_conductivity_law(params.pipe_material)
+                ),
+                insulation_layers=evaluation_layers,
+                process_temperature_c=params.process_temperature,
+                insulation_temperature_basis=cast(
+                    InsulationTemperatureBasis, params.insulation_temperature_basis
+                ),
+                pipe_length_m=params.pipe_length,
+                local_elements_count=params.num_local_elements,
+                local_element_equiv_length_m=params.local_element_equiv_length or 0.0,
+                safety_factor_primary=params.safety_factor,
+                safety_factor_override=(
+                    coefficients.get("safety_factor") if coefficients is not None else None
+                ),
+                environment=environment,
             )
         )
-        try:
-            core_result = calculate_aboveground_pipe(
-                AbovegroundPipeInput(
-                    outer_diameter_m=params.outer_diameter,
-                    wall_thickness_m=params.wall_thickness,
-                    wall_conductivity_w_mk=wall_conductivity,
-                    insulation_layers=numeric_layers,
-                    process_temperature_c=params.process_temperature,
-                    ambient_temperature_c=ambient_temperature,
-                    pipe_length_m=params.pipe_length,
-                    local_elements_count=params.num_local_elements,
-                    local_element_equiv_length_m=params.local_element_equiv_length or 0.0,
-                    safety_factor=k,
-                    external_alpha_w_m2k=alpha,
-                )
-            )
-        except FormulaDomainError as exc:
-            _raise_pipe_core_error(exc)
+    except FormulaDomainError as exc:
+        _raise_pipe_core_error(exc, layers=layers)
 
-    layer_resistances = [
-        _LayerResistance(
-            layer=layer,
-            resistance=resistance,
-            conductivity=conductivity,
-            conductivity_source=conductivity_source,
-        )
-        for (layer, conductivity, conductivity_source), resistance in zip(
-            resolved_layers,
-            core_result.layer_resistances_mk_w,
-            strict=True,
-        )
-    ]
-    _validate_layer_temperatures(
-        layer_resistances,
-        layer_boundary_temperatures=core_result.layer_boundary_temperatures,
-    )
+    _raise_first_layer_temperature_error(layers, evaluation.layer_temperature_report)
+    core_result = evaluation.core_result
+    alpha = evaluation.external_alpha_w_m2k
+    lambda_gr = evaluation.ground_conductivity_w_mk
+    insulation_tm = evaluation.insulation_temperature_c
+    k = evaluation.safety_factor
 
     input_units = {
         "outer_diameter": "m",
@@ -342,17 +273,6 @@ def calc_pipe_heat_loss(
         if params.wind_speed is not None:
             input_units["wind_speed"] = "m/s"
 
-    model_assumptions = [
-        "steady_state_one_dimensional_radial_heat_flow",
-        "uniform_equivalent_length_per_local_element",
-    ]
-    source_corrections = ["base_and_design_heat_losses_reported_separately"]
-    if params.placement == "underground":
-        model_assumptions.append("direct_buried_pipe_in_homogeneous_ground")
-        source_corrections.append("ground_temperature_used_for_underground_pipe")
-    elif params.placement == "outdoor":
-        source_corrections.append("outdoor_auto_alpha_requires_explicit_wind_speed")
-
     return PipeHeatLossResult(
         heat_loss_per_meter_base=round(core_result.heat_loss_per_meter_base_w_m, 3),
         heat_loss_per_meter_design=round(core_result.heat_loss_per_meter_design_w_m, 3),
@@ -370,9 +290,9 @@ def calc_pipe_heat_loss(
         safety_factor_applied=round(k, 3),
         local_elements_count_applied=params.num_local_elements,
         local_element_equiv_length_applied=round(params.local_element_equiv_length or 0.0, 3),
-        formula_model="pipe_heat_loss",
-        formula_model_version="2",
-        model_assumptions=model_assumptions,
+        formula_model=evaluation.formula_model,
+        formula_model_version=evaluation.formula_model_version,
+        model_assumptions=list(evaluation.model_assumptions),
         process_temperature_applied=params.process_temperature,
         ambient_temperature_applied=(
             params.ambient_temperature if params.placement != "underground" else None
@@ -383,15 +303,20 @@ def calc_pipe_heat_loss(
         insulation_layers_applied=[
             {
                 "index": index,
-                "thickness": layer_resistance.layer.thickness,
-                "material": layer_resistance.layer.material,
-                "conductivity_applied": layer_resistance.conductivity,
-                "conductivity_source": layer_resistance.conductivity_source,
+                "thickness": layer.thickness,
+                "material": layer.material,
+                "conductivity_applied": layer_result.conductivity_w_mk,
+                "conductivity_source": (
+                    "manual" if layer.material == "other" else "reference_data"
+                ),
                 "conductivity_temperature_applied": insulation_tm,
-                "resistance": layer_resistance.resistance,
+                "resistance": layer_result.resistance_mk_w,
                 "resistance_unit": "m*K/W",
             }
-            for index, layer_resistance in enumerate(layer_resistances, start=1)
+            for index, (layer, layer_result) in enumerate(
+                zip(layers, evaluation.layer_results, strict=True),
+                start=1,
+            )
         ],
         input_units=input_units,
         applied_units={
@@ -409,5 +334,5 @@ def calc_pipe_heat_loss(
             "ground_conductivity_applied": "W/(m*K)",
             "safety_factor_applied": "1",
         },
-        source_corrections=source_corrections,
+        source_corrections=list(evaluation.source_corrections),
     )

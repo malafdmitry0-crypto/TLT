@@ -1,8 +1,7 @@
 """Tests for pure numeric insulation-layer validation."""
 
 import pytest
-
-from app.formulas.heat_loss.core.insulation_validation import (
+from heatcalc_heat_loss_core.insulation_validation import (
     validate_insulation_layer_count,
     validate_insulation_layer_ranges,
 )

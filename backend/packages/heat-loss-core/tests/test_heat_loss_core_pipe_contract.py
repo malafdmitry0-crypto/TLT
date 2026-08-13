@@ -3,13 +3,12 @@
 import math
 
 import pytest
-
-from app.formulas.heat_loss.core.pipe_contract import (
+from heatcalc_heat_loss_core.pipe_contract import (
     PipeContractInput,
     PipeLayerContract,
     validate_pipe_contract,
 )
-from app.formulas.heat_loss.core.validation import FormulaValidationIssue
+from heatcalc_heat_loss_core.validation import FormulaValidationIssue
 
 
 def _data(**changes: object) -> PipeContractInput:
