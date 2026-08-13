@@ -17,19 +17,12 @@ from typing import Any, cast
 
 from heatcalc_heat_loss_core.conductivity import ConstantConductivity
 from heatcalc_heat_loss_core.errors import FormulaDomainError
-from heatcalc_heat_loss_core.profile import InsulationTemperatureBasis, resolve_external_alpha
+from heatcalc_heat_loss_core.profile import resolve_external_alpha
 from heatcalc_heat_loss_core.tank import (
     CylindricalTankGeometry,
     RectangularTankGeometry,
 )
-from heatcalc_heat_loss_core.tank_evaluation import (
-    ResolvedAirTankEvaluationInput,
-    ResolvedBuriedTankEvaluationInput,
-    ResolvedTankLayer,
-    TankEvaluationResult,
-    evaluate_resolved_air_tank,
-    evaluate_resolved_buried_tank,
-)
+from heatcalc_heat_loss_core.tank_evaluation import ResolvedTankLayer
 from heatcalc_heat_loss_core.validation import FormulaValidationReport
 
 from app.formulas.heat_loss.outcome_errors import raise_heat_formula_report
@@ -39,21 +32,6 @@ from app.reference_data.loader import (
     get_insulation_temperature_range,
 )
 from app.schemas.calculation import InsulationLayer, TankHeatLossParams, TankHeatLossResult
-
-_COMPAT = (
-    ConstantConductivity,
-    InsulationTemperatureBasis,
-    CylindricalTankGeometry,
-    RectangularTankGeometry,
-    ResolvedAirTankEvaluationInput,
-    ResolvedBuriedTankEvaluationInput,
-    ResolvedTankLayer,
-    TankEvaluationResult,
-    evaluate_resolved_air_tank,
-    evaluate_resolved_buried_tank,
-    get_insulation_conductivity_law,
-    resolve_external_alpha,
-)
 
 
 def _fmt_temp(value: float) -> str:
