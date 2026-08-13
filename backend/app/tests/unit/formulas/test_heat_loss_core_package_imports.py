@@ -59,9 +59,7 @@ def test_backend_core_shim_directory_is_absent() -> None:
 def test_executable_python_does_not_import_heat_loss_core_shim() -> None:
     sources = _executable_python_files()
     assert sources
-    violations = [
-        violation for source in sources for violation in _shim_import_violations(source)
-    ]
+    violations = [violation for source in sources for violation in _shim_import_violations(source)]
     assert not violations, "Forbidden shim imports:\n" + "\n".join(violations)
 
 

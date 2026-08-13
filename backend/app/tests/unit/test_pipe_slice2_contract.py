@@ -6,7 +6,6 @@ from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
-from fastapi import HTTPException
 from pydantic import ValidationError
 
 from app.formulas.heat_loss.pipe import calc_pipe_heat_loss
@@ -247,6 +246,7 @@ def test_pipe_heat_replacement_preserves_non_heat_and_volume_and_removes_legacy(
     existing = {
         "volume": 12.5,
         "supply_voltage": 380,
+        "min_switch_temperature": -20.0,
         "location": "outdoor",
         "burial_depth": 1.2,
         "insulation_thickness": 0.05,
@@ -296,14 +296,17 @@ def test_underground_climate_policy_never_injects_ambient_temperature():
 
 
 @pytest.mark.parametrize("operation", ["create", "update"])
-async def test_invalid_pipe_formula_rolls_back_api_transaction(monkeypatch, operation):
+async def test_invalid_pipe_formula_persists_api_validation_state(monkeypatch, operation):
     from app.api.v1 import objects as objects_api
 
     obj = SimpleNamespace(
         id=uuid4(),
         object_type="pipe",
+        params=_air(),
+        results=None,
         is_valid=True,
         validation_errors=None,
+        version=1,
     )
     project_service = SimpleNamespace(
         add_object=AsyncMock(return_value=obj),
@@ -318,26 +321,42 @@ async def test_invalid_pipe_formula_rolls_back_api_transaction(monkeypatch, oper
             target.is_valid = False
             target.validation_errors = {"message": "formula-time invalid"}
 
+        async def mark_electrical_calculations_stale(self, *_args, **_kwargs):
+            return 0
+
+    class FakeAuditService:
+        def __init__(self, _db):
+            pass
+
+        async def stage(self, **_kwargs):
+            return None
+
     monkeypatch.setattr(objects_api, "ProjectService", lambda _db: project_service)
     monkeypatch.setattr(objects_api, "CalculationService", FakeCalculationService)
-    db = SimpleNamespace(rollback=AsyncMock())
+    monkeypatch.setattr(objects_api, "AuditService", FakeAuditService)
+    db = SimpleNamespace(commit=AsyncMock(), refresh=AsyncMock(), rollback=AsyncMock())
 
-    with pytest.raises(HTTPException) as exc_info:
-        if operation == "create":
-            await objects_api.add_object(
-                uuid4(),
-                ProjectObjectCreate(object_type="pipe", params=_air()),
-                principal=object(),
-                db=db,
-            )
-        else:
-            await objects_api.update_object(
-                uuid4(),
-                obj.id,
-                ProjectObjectUpdate(version=1, params=_air()),
-                principal=object(),
-                db=db,
-            )
+    project_id = uuid4()
+    if operation == "create":
+        result = await objects_api.add_object(
+            project_id,
+            ProjectObjectCreate(object_type="pipe", params=_air()),
+            principal=object(),
+            db=db,
+        )
+    else:
+        result = await objects_api.update_object(
+            project_id,
+            obj.id,
+            ProjectObjectUpdate(version=1, params=_air()),
+            principal=object(),
+            db=db,
+        )
 
-    assert exc_info.value.status_code == 422
-    db.rollback.assert_awaited_once()
+    assert result is obj
+    assert obj.is_valid is False
+    assert obj.results is None
+    assert obj.validation_errors == {"message": "formula-time invalid"}
+    db.commit.assert_awaited_once()
+    db.refresh.assert_awaited_once_with(obj)
+    db.rollback.assert_not_awaited()
