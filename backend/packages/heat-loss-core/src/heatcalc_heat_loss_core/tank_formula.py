@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
 
+from . import tank_evaluation
 from .conductivity import ConductivityLaw
 from .formula_outcome import FormulaOutcome
 from .profile import (
@@ -22,14 +22,12 @@ from .tank_contract import (
     TankShape,
     validate_tank_contract,
 )
-from .tank_evaluation import (
-    ResolvedAirTankEvaluationInput,
-    ResolvedBuriedTankEvaluationInput,
-    ResolvedTankLayer,
-    TankEvaluationResult,
-    evaluate_resolved_air_tank,
-    evaluate_resolved_buried_tank,
-)
+from .tank_evaluation import AirTankFormulaEnvironment as AirTankFormulaEnvironment
+from .tank_evaluation import BuriedTankFormulaEnvironment as BuriedTankFormulaEnvironment
+from .tank_evaluation import PreparedTankCalculation as PreparedTankCalculation
+from .tank_evaluation import PreparedTankLayer as PreparedTankLayer
+from .tank_evaluation import TankEvaluationResult as TankEvaluationResult
+from .tank_evaluation import TankFormulaEnvironment as TankFormulaEnvironment
 from .validation import (
     TANK_SAFETY_FACTOR_RANGE,
     VALID_FORMULA_VALIDATION_REPORT,
@@ -79,55 +77,6 @@ class TankPreparationInput:
     profile: HeatLossFormulaProfile = CASE_1_PROFILE
 
 
-@dataclass(frozen=True)
-class PreparedTankLayer:
-    thickness_m: float
-    source: TankLayerSource
-    conductivity_law: ConductivityLaw
-    temperature_min_c: float
-    temperature_max_c: float
-
-
-@dataclass(frozen=True)
-class AirTankFormulaEnvironment:
-    """Required conditions for an indoor or outdoor tank calculation."""
-
-    placement: Literal["indoor", "outdoor"]
-    ambient_temperature_c: float
-    wind_speed_m_s: float | None
-
-
-@dataclass(frozen=True)
-class BuriedTankFormulaEnvironment:
-    """Required air and ground conditions for a partially buried tank."""
-
-    placement: Literal["underground"]
-    ambient_temperature_c: float
-    ground_temperature_c: float
-    buried_height_m: float
-    ground_conductivity_w_mk: float
-    wind_speed_m_s: float
-
-
-TankFormulaEnvironment = AirTankFormulaEnvironment | BuriedTankFormulaEnvironment
-
-
-@dataclass(frozen=True)
-class PreparedTankCalculation:
-    """Immutable tank input with required laws. Safety factor stays required."""
-
-    geometry: TankGeometry
-    insulation_temperature_basis: InsulationTemperatureBasis
-    layers: tuple[PreparedTankLayer, ...]
-    process_temperature_c: float
-    wall_thickness_m: float
-    wall_conductivity_w_mk: float
-    safety_factor: float
-    additional_heat_loss_w: float
-    environment: TankFormulaEnvironment
-    profile: HeatLossFormulaProfile = CASE_1_PROFILE
-
-
 def validate_tank_preparation(data: TankPreparationInput) -> FormulaValidationReport:
     return validate_tank_contract(_to_tank_contract(data))
 
@@ -157,7 +106,7 @@ def prepare_tank_calculation(
 
 
 def evaluate_prepared_tank(data: PreparedTankCalculation) -> TankFormulaOutcome:
-    evaluation = _evaluate_prepared_tank(data)
+    evaluation = tank_evaluation.execute_prepared_tank(data)
     if not evaluation.layer_temperature_report.is_valid:
         return TankFormulaOutcome(result=None, report=evaluation.layer_temperature_report)
     return TankFormulaOutcome(result=evaluation, report=VALID_FORMULA_VALIDATION_REPORT)
@@ -326,52 +275,4 @@ def _tank_environment(data: TankPreparationInput) -> TankFormulaEnvironment:
         placement=data.placement,
         ambient_temperature_c=data.ambient_temperature,
         wind_speed_m_s=data.wind_speed,
-    )
-
-
-def _evaluate_prepared_tank(data: PreparedTankCalculation) -> TankEvaluationResult:
-    resolved_layers = tuple(
-        ResolvedTankLayer(
-            thickness_m=layer.thickness_m,
-            conductivity_law=layer.conductivity_law,
-            temperature_min_c=layer.temperature_min_c,
-            temperature_max_c=layer.temperature_max_c,
-        )
-        for layer in data.layers
-    )
-    if isinstance(data.environment, BuriedTankFormulaEnvironment):
-        return evaluate_resolved_buried_tank(
-            ResolvedBuriedTankEvaluationInput(
-                geometry=data.geometry,
-                wall_thickness_m=data.wall_thickness_m,
-                wall_conductivity_w_mk=data.wall_conductivity_w_mk,
-                insulation_layers=resolved_layers,
-                process_temperature_c=data.process_temperature_c,
-                ambient_temperature_c=data.environment.ambient_temperature_c,
-                ground_temperature_c=data.environment.ground_temperature_c,
-                buried_height_m=data.environment.buried_height_m,
-                ground_conductivity_w_mk=data.environment.ground_conductivity_w_mk,
-                placement=data.environment.placement,
-                wind_speed_m_s=data.environment.wind_speed_m_s,
-                insulation_temperature_basis=data.insulation_temperature_basis,
-                safety_factor=data.safety_factor,
-                additional_heat_loss_w=data.additional_heat_loss_w,
-                profile=data.profile,
-            )
-        )
-    return evaluate_resolved_air_tank(
-        ResolvedAirTankEvaluationInput(
-            geometry=data.geometry,
-            wall_thickness_m=data.wall_thickness_m,
-            wall_conductivity_w_mk=data.wall_conductivity_w_mk,
-            insulation_layers=resolved_layers,
-            process_temperature_c=data.process_temperature_c,
-            ambient_temperature_c=data.environment.ambient_temperature_c,
-            placement=data.environment.placement,
-            wind_speed_m_s=data.environment.wind_speed_m_s,
-            insulation_temperature_basis=data.insulation_temperature_basis,
-            safety_factor=data.safety_factor,
-            additional_heat_loss_w=data.additional_heat_loss_w,
-            profile=data.profile,
-        )
     )

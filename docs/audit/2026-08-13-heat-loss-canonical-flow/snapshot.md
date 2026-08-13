@@ -267,7 +267,54 @@ JSON: `evidence/c0-facade-benchmark.json`.
 This is the C0 comparison point for C4/CF. The 2026-08-12 audit median
 (0.058 s) is a different HEAD and is not the cleanup baseline.
 
+## C4 execution kernels
+
+**UTC:** 2026-08-13T09:48:21Z
+**Parent HEAD:** `eead53aac0fe6dc5967ebd806b6d3af09fe4800c`
+
+Call graph after C4:
+
+```text
+run_*_formula / assemble_prepared_*
+  └─ evaluate_prepared_*
+        └─ execute_prepared_pipe | execute_prepared_tank
+
+evaluate_pipe
+  └─ resolve_safety_factor  (legacy 0-primary semantics)
+        └─ execute_prepared_pipe
+
+evaluate_resolved_air_tank | evaluate_resolved_buried_tank
+  └─ execute_prepared_tank
+```
+
+Prepared types live next to the kernel and are re-exported from `*_formula`
+by identity. Package tests: **325 passed**. Focused backend characterization
+suite: **PASS**.
+
+Full backend vs C0: same 14 failed + 6 error nodeids. Passed 2235 vs C0 2255
+because C1 deleted `test_heat_loss_common.py`. Machine copy:
+`evidence/c4-backend-suite.json`.
+
+C4 benchmark (`evidence/c4-facade-benchmark.json`), same 9 × 20 protocol:
+
+| Round | seconds |
+|---|---|
+| 1 | 0.18286733300192282 |
+| 2 | 0.17908091697609052 |
+| 3 | 0.19164762500440702 |
+| 4 | 0.14096970797982067 |
+| 5 | 0.15921995899407193 |
+| 6 | 0.18214562500361353 |
+| 7 | 0.1767744589888025 |
+| 8 | 0.16354958299780264 |
+| 9 | 0.13680387500789948 |
+
+- median: **0.1767744589888025 s** (C0 0.17873079201672226 s)
+- minimum: 0.13680387500789948 s
+- median µs / operation: 51.68843830081945
+
+No reproducible slowdown versus C0.
+
 ## NEXT
 
-C1 — delete unused `common.py` and its test; fix the stale pipe facade
-docstring about `DEFAULT_COEFFICIENTS`.
+C5 — catalog lookup only in application preparation.
