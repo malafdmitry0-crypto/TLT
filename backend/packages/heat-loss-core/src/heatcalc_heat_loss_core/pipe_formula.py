@@ -1,9 +1,4 @@
-"""Preparation and calculation-ready pipe inputs for the new high-level path.
-
-Old ``PipeContractInput`` / ``PipeEvaluationInput`` / ``evaluate_pipe`` stay
-unchanged. This module adds a candidate input that may lack conductivity laws
-and a prepared input that the formula can accept.
-"""
+"""Canonical high-level input and outcome for pipe heat-loss calculation."""
 
 from __future__ import annotations
 
@@ -25,7 +20,7 @@ from .pipe_evaluation import (
 from .pipe_evaluation import (
     PipeEvaluationEnvironment as PipeEvaluationEnvironment,
 )
-from .pipe_evaluation import PipeEvaluationResult as PipeEvaluationResult
+from .pipe_evaluation import PipeFormulaResult as PipeFormulaResult
 from .pipe_evaluation import PreparedPipeCalculation as PreparedPipeCalculation
 from .pipe_evaluation import PreparedPipeLayer as PreparedPipeLayer
 from .pipe_evaluation import (
@@ -45,7 +40,7 @@ from .validation import (
     validate_numeric_range,
 )
 
-PipeFormulaOutcome = FormulaOutcome[PipeEvaluationResult]
+PipeFormulaOutcome = FormulaOutcome[PipeFormulaResult]
 
 
 @dataclass(frozen=True)

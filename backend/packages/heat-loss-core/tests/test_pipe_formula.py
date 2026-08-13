@@ -1,4 +1,4 @@
-"""New pipe preparation/prepared path without changing evaluate_pipe."""
+"""Canonical pipe formula interface."""
 
 from __future__ import annotations
 
@@ -9,10 +9,7 @@ from heatcalc_heat_loss_core.conductivity import ConstantConductivity
 from heatcalc_heat_loss_core.formula_outcome import FormulaOutcome
 from heatcalc_heat_loss_core.pipe_evaluation import (
     AirPipeEvaluationInput,
-    PipeEvaluationInput,
-    PipeEvaluationLayer,
     UndergroundPipeEvaluationInput,
-    evaluate_pipe,
 )
 from heatcalc_heat_loss_core.pipe_formula import (
     PipePreparationInput,
@@ -125,32 +122,16 @@ def test_direct_pipe_assembler_still_rejects_invalid_late_bound_k() -> None:
     assert report.issues[0].code == "above_max_inclusive"
 
 
-def test_run_pipe_formula_matches_old_evaluate_pipe_and_has_no_error_payload() -> None:
+def test_run_pipe_formula_returns_unrounded_result_without_error_payload() -> None:
     outcome = run_pipe_formula(_prep())
     assert outcome.is_success
     assert outcome.result is not None
     assert outcome.report.is_valid
 
-    legacy = evaluate_pipe(
-        PipeEvaluationInput(
-            outer_diameter_m=0.108,
-            wall_thickness_m=0.004,
-            wall_conductivity_law=ConstantConductivity(45.0),
-            insulation_layers=(
-                PipeEvaluationLayer(0.05, ConstantConductivity(0.04), (-90.0, 600.0)),
-            ),
-            process_temperature_c=80.0,
-            insulation_temperature_basis="outdoor_winter",
-            pipe_length_m=50.0,
-            local_elements_count=2,
-            local_element_equiv_length_m=1.5,
-            safety_factor_primary=1.2,
-            safety_factor_override=None,
-            environment=AirPipeEvaluationInput("outdoor", -20.0, 3.0),
-        )
-    )
-    assert outcome.result.core_result == legacy.core_result
     assert outcome.result.external_alpha_w_m2k == pytest.approx(11.6 + 7.0 * math.sqrt(3.0))
+    assert outcome.result.safety_factor == pytest.approx(1.2)
+    assert outcome.result.formula_model == "pipe_heat_loss"
+    assert outcome.result.formula_model_version == "2"
 
 
 def test_layer_temperature_failure_is_not_a_successful_result() -> None:
@@ -159,28 +140,6 @@ def test_layer_temperature_failure_is_not_a_successful_result() -> None:
     assert [issue.code for issue in outcome.report.issues] == ["temperature_outside_interval"]
     with pytest.raises(ValueError, match="successful formula result cannot carry"):
         FormulaOutcome(result=object(), report=outcome.report)
-
-
-def test_old_evaluate_pipe_still_treats_zero_primary_as_missing() -> None:
-    result = evaluate_pipe(
-        PipeEvaluationInput(
-            outer_diameter_m=0.108,
-            wall_thickness_m=0.004,
-            wall_conductivity_law=ConstantConductivity(45.0),
-            insulation_layers=(
-                PipeEvaluationLayer(0.05, ConstantConductivity(0.04), (-90.0, 600.0)),
-            ),
-            process_temperature_c=80.0,
-            insulation_temperature_basis="outdoor_winter",
-            pipe_length_m=50.0,
-            local_elements_count=0,
-            local_element_equiv_length_m=0.0,
-            safety_factor_primary=0.0,
-            safety_factor_override=1.4,
-            environment=AirPipeEvaluationInput("outdoor", -20.0, 3.0),
-        )
-    )
-    assert result.safety_factor == pytest.approx(1.4)
 
 
 def test_underground_preparation_uses_ground_environment() -> None:

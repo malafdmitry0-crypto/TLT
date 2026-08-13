@@ -24,7 +24,7 @@ jobs:
         run: |
           python -m venv /tmp/heat-loss-core-venv
           /tmp/heat-loss-core-venv/bin/pip install --no-deps backend/packages/heat-loss-core/dist/*.whl
-          env -u PYTHONPATH /tmp/heat-loss-core-venv/bin/python -I -c 'import heatcalc_heat_loss_core as core; assert core.__all__; assert all(hasattr(core, name) for name in core.__all__)'
+          env -u PYTHONPATH /tmp/heat-loss-core-venv/bin/python -I -c 'import heatcalc_heat_loss_core as core; import heatcalc_heat_loss_core.api as api; removed = {"evaluate_pipe", "evaluate_resolved_air_tank", "evaluate_resolved_buried_tank", "resolve_safety_factor"}; assert core.__all__ == api.__all__; assert all(hasattr(core, name) for name in core.__all__); assert all(not hasattr(core, name) for name in removed)'
       - name: Package tests, lint, and types
         working-directory: backend/packages/heat-loss-core
         run: |
