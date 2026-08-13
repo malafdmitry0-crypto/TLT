@@ -30,12 +30,29 @@ from heatcalc_heat_loss_core.tank_evaluation import (
     evaluate_resolved_air_tank,
     evaluate_resolved_buried_tank,
 )
+from heatcalc_heat_loss_core.validation import FormulaValidationReport
 
+from app.formulas.heat_loss.tank_preparation import run_validated_tank_formula
 from app.reference_data.loader import (
     get_insulation_conductivity_law,
     get_insulation_temperature_range,
 )
 from app.schemas.calculation import InsulationLayer, TankHeatLossParams, TankHeatLossResult
+
+_COMPAT = (
+    ConstantConductivity,
+    InsulationTemperatureBasis,
+    CylindricalTankGeometry,
+    RectangularTankGeometry,
+    ResolvedAirTankEvaluationInput,
+    ResolvedBuriedTankEvaluationInput,
+    ResolvedTankLayer,
+    TankEvaluationResult,
+    evaluate_resolved_air_tank,
+    evaluate_resolved_buried_tank,
+    get_insulation_conductivity_law,
+    resolve_external_alpha,
+)
 
 
 def _fmt_temp(value: float) -> str:
@@ -103,12 +120,12 @@ def _resolved_layers(layers: list[InsulationLayer]) -> tuple[ResolvedTankLayer, 
 
 
 def _raise_first_layer_temperature_error(
-    evaluation: TankEvaluationResult,
+    report: FormulaValidationReport,
     layers: list[InsulationLayer],
 ) -> None:
-    if evaluation.layer_temperature_report.is_valid:
+    if report.is_valid:
         return
-    issue = evaluation.layer_temperature_report.issues[0]
+    issue = report.issues[0]
     index = cast(int, issue.path[1])
     layer = layers[index]
     details = issue.details_dict()
@@ -169,73 +186,22 @@ def calc_tank_heat_loss(
     See Also:
         backend formula unit tests / golden cases
     """
-    ambient_temperature = cast(float, params.ambient_temperature)
-
-    # The facade keeps reference-data resolution. The core receives only
-    # resolved numeric SI values.
-    wall_thickness = 0.0
-    wall_conductivity = 1.0
-    if params.wall_thickness is not None and params.wall_lambda is not None:
-        wall_thickness = params.wall_thickness
-        wall_conductivity = params.wall_lambda
-
     layers = _resolve_layers(params)
-    resolved_layers = _resolved_layers(layers)
     k = params.safety_factor
     buried_height = params.tank_buried_height or 0.0
     q_additional = getattr(params, "q_additional", 0.0) or 0.0
-    if buried_height > 0:
-        ground_temperature = cast(float, params.ground_temperature)
-        ground_conductivity = cast(float, params.ground_conductivity)
-        try:
-            evaluation = evaluate_resolved_buried_tank(
-                ResolvedBuriedTankEvaluationInput(
-                    geometry=_tank_geometry(params),
-                    wall_thickness_m=wall_thickness,
-                    wall_conductivity_w_mk=wall_conductivity,
-                    insulation_layers=resolved_layers,
-                    process_temperature_c=params.process_temperature,
-                    ambient_temperature_c=ambient_temperature,
-                    ground_temperature_c=ground_temperature,
-                    buried_height_m=buried_height,
-                    ground_conductivity_w_mk=ground_conductivity,
-                    placement=params.placement,
-                    wind_speed_m_s=params.wind_speed,
-                    insulation_temperature_basis=cast(
-                        InsulationTemperatureBasis,
-                        params.insulation_temperature_basis,
-                    ),
-                    safety_factor=k,
-                    additional_heat_loss_w=q_additional,
-                )
-            )
-        except FormulaDomainError as exc:
-            _raise_tank_core_error(exc, layers=layers)
-    else:
-        try:
-            evaluation = evaluate_resolved_air_tank(
-                ResolvedAirTankEvaluationInput(
-                    geometry=_tank_geometry(params),
-                    wall_thickness_m=wall_thickness,
-                    wall_conductivity_w_mk=wall_conductivity,
-                    insulation_layers=resolved_layers,
-                    process_temperature_c=params.process_temperature,
-                    ambient_temperature_c=ambient_temperature,
-                    placement=params.placement,
-                    wind_speed_m_s=params.wind_speed,
-                    insulation_temperature_basis=cast(
-                        InsulationTemperatureBasis,
-                        params.insulation_temperature_basis,
-                    ),
-                    safety_factor=k,
-                    additional_heat_loss_w=q_additional,
-                )
-            )
-        except FormulaDomainError as exc:
-            _raise_tank_core_error(exc, layers=layers)
-
+    try:
+        outcome = run_validated_tank_formula(params, coefficients)
+    except FormulaDomainError as exc:
+        _raise_tank_core_error(exc, layers=layers)
+        raise
+    if outcome.result is None:
+        if any(issue.code == "temperature_outside_interval" for issue in outcome.report.issues):
+            _raise_first_layer_temperature_error(outcome.report, layers)
+        issue = outcome.report.issues[0]
+        raise ValueError(f"{issue.code}: {issue.path}")
+    evaluation = outcome.result
     core_result = evaluation.core_result
-    _raise_first_layer_temperature_error(evaluation, layers)
 
     return TankHeatLossResult(
         total_heat_loss_base=core_result.total_heat_loss_base_w,
