@@ -8,6 +8,13 @@ from typing import Literal
 from .errors import FormulaDomainError
 from .insulation_temperature import calculate_insulation_temperature
 from .thermal import alpha_from_wind, clamp_minimum
+from .validation import (
+    PIPE_SAFETY_FACTOR_RANGE,
+    FormulaValidationReport,
+    NumericRangeCheck,
+    NumericRangeSpec,
+    validate_range_checks,
+)
 
 InsulationTemperatureBasis = Literal[
     "indoor",
@@ -35,6 +42,10 @@ class HeatLossFormulaProfile:
 
 CASE_1_PROFILE = HeatLossFormulaProfile()
 
+_POSITIVE_PROFILE_CONSTANT = NumericRangeSpec(minimum=0, minimum_inclusive=False)
+_NON_NEGATIVE_PROFILE_CONSTANT = NumericRangeSpec(minimum=0)
+_FINITE_PROFILE_CONSTANT = NumericRangeSpec()
+
 WARM_INSULATION_TEMPERATURE_BASES: frozenset[InsulationTemperatureBasis] = frozenset(
     {
         "indoor",
@@ -46,6 +57,47 @@ WARM_INSULATION_TEMPERATURE_BASES: frozenset[InsulationTemperatureBasis] = froze
         "basement",
     }
 )
+
+
+def validate_heat_loss_formula_profile(
+    profile: HeatLossFormulaProfile,
+) -> FormulaValidationReport:
+    """Validate every constant supplied by a reusable formula profile.
+
+    A profile is an atomic set of physical defaults.  Rejecting an invalid
+    unused constant prevents the same profile from behaving differently when
+    another placement or temperature basis is selected later.
+    """
+
+    return validate_range_checks(
+        (
+            NumericRangeCheck(
+                path=("profile", "indoor_external_alpha_w_m2k"),
+                value=profile.indoor_external_alpha_w_m2k,
+                spec=_POSITIVE_PROFILE_CONSTANT,
+            ),
+            NumericRangeCheck(
+                path=("profile", "outdoor_alpha_intercept_w_m2k"),
+                value=profile.outdoor_alpha_intercept_w_m2k,
+                spec=_POSITIVE_PROFILE_CONSTANT,
+            ),
+            NumericRangeCheck(
+                path=("profile", "outdoor_alpha_sqrt_coefficient"),
+                value=profile.outdoor_alpha_sqrt_coefficient,
+                spec=_NON_NEGATIVE_PROFILE_CONSTANT,
+            ),
+            NumericRangeCheck(
+                path=("profile", "default_safety_factor"),
+                value=profile.default_safety_factor,
+                spec=PIPE_SAFETY_FACTOR_RANGE,
+            ),
+            NumericRangeCheck(
+                path=("profile", "warm_insulation_reference_temperature_c"),
+                value=profile.warm_insulation_reference_temperature_c,
+                spec=_FINITE_PROFILE_CONSTANT,
+            ),
+        )
+    )
 
 
 def resolve_insulation_temperature(

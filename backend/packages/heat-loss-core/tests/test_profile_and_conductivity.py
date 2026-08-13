@@ -20,6 +20,7 @@ from heatcalc_heat_loss_core.profile import (
     resolve_external_alpha,
     resolve_insulation_temperature,
     resolve_safety_factor,
+    validate_heat_loss_formula_profile,
 )
 
 
@@ -75,6 +76,91 @@ def test_safety_factor_preserves_truthy_primary_then_present_override_precedence
     assert resolve_safety_factor(primary=0.0, override=1.3) == 1.3
     assert resolve_safety_factor(primary=0.0, override=0.0) == 0.0
     assert resolve_safety_factor(primary=None) == 1.1
+
+
+@pytest.mark.parametrize(
+    ("changes", "expected_code", "expected_path"),
+    [
+        (
+            {"indoor_external_alpha_w_m2k": 0.0},
+            "below_min_exclusive",
+            ("profile", "indoor_external_alpha_w_m2k"),
+        ),
+        (
+            {"indoor_external_alpha_w_m2k": math.nan},
+            "not_finite",
+            ("profile", "indoor_external_alpha_w_m2k"),
+        ),
+        (
+            {"outdoor_alpha_intercept_w_m2k": -1.0},
+            "below_min_exclusive",
+            ("profile", "outdoor_alpha_intercept_w_m2k"),
+        ),
+        (
+            {"outdoor_alpha_intercept_w_m2k": math.inf},
+            "not_finite",
+            ("profile", "outdoor_alpha_intercept_w_m2k"),
+        ),
+        (
+            {"outdoor_alpha_sqrt_coefficient": -1.0},
+            "below_min_inclusive",
+            ("profile", "outdoor_alpha_sqrt_coefficient"),
+        ),
+        (
+            {"outdoor_alpha_sqrt_coefficient": math.nan},
+            "not_finite",
+            ("profile", "outdoor_alpha_sqrt_coefficient"),
+        ),
+        (
+            {"default_safety_factor": 0.0},
+            "below_min_inclusive",
+            ("profile", "default_safety_factor"),
+        ),
+        (
+            {"default_safety_factor": math.inf},
+            "not_finite",
+            ("profile", "default_safety_factor"),
+        ),
+        (
+            {"warm_insulation_reference_temperature_c": math.nan},
+            "not_finite",
+            ("profile", "warm_insulation_reference_temperature_c"),
+        ),
+        (
+            {"warm_insulation_reference_temperature_c": -math.inf},
+            "not_finite",
+            ("profile", "warm_insulation_reference_temperature_c"),
+        ),
+    ],
+)
+def test_formula_profile_reports_invalid_constants(
+    changes: dict[str, float],
+    expected_code: str,
+    expected_path: tuple[str, str],
+) -> None:
+    values = {
+        "indoor_external_alpha_w_m2k": 9.0,
+        "outdoor_alpha_intercept_w_m2k": 11.6,
+        "outdoor_alpha_sqrt_coefficient": 7.0,
+        "default_safety_factor": 1.1,
+        "warm_insulation_reference_temperature_c": 40.0,
+    }
+    values.update(changes)
+
+    report = validate_heat_loss_formula_profile(HeatLossFormulaProfile(**values))
+
+    assert not report.is_valid
+    assert report.issues[0].code == expected_code
+    assert report.issues[0].path == expected_path
+
+
+def test_case_1_profile_passes_public_profile_validation() -> None:
+    assert validate_heat_loss_formula_profile(CASE_1_PROFILE).is_valid
+
+
+def test_zero_outdoor_sqrt_coefficient_is_a_valid_constant_profile() -> None:
+    profile = HeatLossFormulaProfile(outdoor_alpha_sqrt_coefficient=0.0)
+    assert validate_heat_loss_formula_profile(profile).is_valid
 
 
 def test_affine_law_supports_offset_and_floor() -> None:
