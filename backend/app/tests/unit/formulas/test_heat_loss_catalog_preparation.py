@@ -11,7 +11,7 @@ from app.formulas.heat_loss import pipe as pipe_facade
 from app.formulas.heat_loss.catalog_preparation import HeatLossPreparationError
 from app.reference_data import loader as reference_loader
 from app.schemas.calculation import InsulationLayer, PipeHeatLossParams, TankHeatLossParams
-from app.services.calculation_service import build_heat_loss_error_payload
+from app.services.heat_loss_application import build_heat_loss_error_payload
 
 MINERAL_WOOL = "mineral_wool_boards_120"
 

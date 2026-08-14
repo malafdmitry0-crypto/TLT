@@ -31,9 +31,12 @@ from app.services.calculation_service import (
     BatchCancelledError,
     CalculationError,
     CalculationService,
-    build_heat_loss_error_payload,
 )
 from app.services.electrical_catalog_service import ElectricalCatalogService
+from app.services.heat_loss_application import (
+    apply_climate_policy,
+    build_heat_loss_error_payload,
+)
 from app.services.project_object_params import ProjectObjectParamsError
 
 MINERAL_WOOL = "mineral_wool_boards_120"
@@ -390,7 +393,7 @@ class TestGetCoefficients:
 
 class TestClimatePolicy:
     def test_pipe_ge_100_uses_cold_fiveday_and_k_1_1(self):
-        normalized = CalculationService._apply_climate_policy(
+        normalized = apply_climate_policy(
             "pipe",
             {
                 "outer_diameter": 0.1,
@@ -404,7 +407,7 @@ class TestClimatePolicy:
         assert normalized["climate_policy_rule"] == "pipe_diameter_ge_100"
 
     def test_pipe_lt_100_uses_absolute_minimum_and_k_1_12(self):
-        normalized = CalculationService._apply_climate_policy(
+        normalized = apply_climate_policy(
             "pipe",
             {
                 "outer_diameter": 0.099,
@@ -418,7 +421,7 @@ class TestClimatePolicy:
         assert normalized["climate_policy_rule"] == "pipe_diameter_lt_100"
 
     def test_non_pipe_uses_cold_fiveday_0_92_and_k_1_1(self):
-        normalized = CalculationService._apply_climate_policy(
+        normalized = apply_climate_policy(
             "tank",
             {
                 "ambient_temperature": -10,
@@ -431,7 +434,7 @@ class TestClimatePolicy:
         assert normalized["climate_policy_rule"] == "non_pipe_cold_fiveday_0_92"
 
     def test_backend_overrides_frontend_climate_basis_for_small_pipe(self):
-        normalized = CalculationService._apply_climate_policy(
+        normalized = apply_climate_policy(
             "pipe",
             {
                 "outer_diameter": 0.099,
@@ -446,7 +449,7 @@ class TestClimatePolicy:
         assert normalized["climate_policy_rule"] == "pipe_diameter_lt_100"
 
     def test_backend_preserves_manual_ambient_temperature_with_climate_city(self):
-        normalized = CalculationService._apply_climate_policy(
+        normalized = apply_climate_policy(
             "pipe",
             {
                 "outer_diameter": 0.108,
@@ -462,7 +465,7 @@ class TestClimatePolicy:
         assert normalized["climate_policy_rule"] == "pipe_diameter_ge_100"
 
     def test_backend_treats_default_safety_factor_as_overridable(self):
-        normalized = CalculationService._apply_climate_policy(
+        normalized = apply_climate_policy(
             "pipe",
             {
                 "outer_diameter": 0.099,
@@ -478,7 +481,7 @@ class TestClimatePolicy:
         assert normalized["safety_factor_source"] == "climate_policy"
 
     def test_backend_preserves_manual_safety_factor(self):
-        normalized = CalculationService._apply_climate_policy(
+        normalized = apply_climate_policy(
             "pipe",
             {
                 "outer_diameter": 0.099,
@@ -492,7 +495,7 @@ class TestClimatePolicy:
         assert normalized["safety_factor_source"] == "manual"
 
     def test_backend_preserves_manual_safety_factor_equal_to_default_without_source(self):
-        normalized = CalculationService._apply_climate_policy(
+        normalized = apply_climate_policy(
             "pipe",
             {
                 "outer_diameter": 0.099,
@@ -507,7 +510,7 @@ class TestClimatePolicy:
         assert normalized["climate_policy_rule"] == "pipe_diameter_lt_100"
 
     def test_backend_drops_frontend_climate_basis_when_climate_not_applied(self):
-        normalized = CalculationService._apply_climate_policy(
+        normalized = apply_climate_policy(
             "pipe",
             {
                 "outer_diameter": 0.108,
@@ -522,7 +525,7 @@ class TestClimatePolicy:
         assert normalized["climate_policy_rule"] == "pipe_diameter_ge_100"
 
     def test_backend_drops_frontend_climate_basis_when_pipe_diameter_is_missing(self):
-        normalized = CalculationService._apply_climate_policy(
+        normalized = apply_climate_policy(
             "pipe",
             {
                 "ambient_temperature": -10,
@@ -536,7 +539,7 @@ class TestClimatePolicy:
         assert "climate_policy_rule" not in normalized
 
     def test_backend_uses_climate_key_to_disambiguate_duplicate_city(self):
-        hmao = CalculationService._apply_climate_policy(
+        hmao = apply_climate_policy(
             "pipe",
             {
                 "outer_diameter": 0.099,
@@ -546,7 +549,7 @@ class TestClimatePolicy:
                 "climate_region": "Ханты-Мансийский автономный округ – Югра",
             },
         )
-        chelyabinsk = CalculationService._apply_climate_policy(
+        chelyabinsk = apply_climate_policy(
             "pipe",
             {
                 "outer_diameter": 0.099,

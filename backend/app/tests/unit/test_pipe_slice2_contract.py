@@ -13,6 +13,7 @@ from app.schemas.calculation import PipeHeatLossParams, StoredPipeHeatParams
 from app.schemas.project import ProjectObjectCreate, ProjectObjectUpdate
 from app.services.calculation_service import CalculationService
 from app.services.heat_contract import replace_heat_owned_params
+from app.services.heat_loss_application import apply_climate_policy
 from app.services.project_object_params import prepare_project_object_params
 
 MINERAL_WOOL = "mineral_wool_boards_120"
@@ -279,7 +280,7 @@ def test_calculation_service_projects_shared_object_params_to_formula_only():
 
 
 def test_underground_climate_policy_never_injects_ambient_temperature():
-    result = CalculationService._apply_climate_policy(
+    result = apply_climate_policy(
         "pipe",
         {
             **_underground(),

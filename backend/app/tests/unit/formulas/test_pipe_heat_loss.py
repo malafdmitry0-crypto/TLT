@@ -22,7 +22,7 @@ from app.formulas.heat_loss.pipe import (
     pipe_material_lambda,
 )
 from app.schemas.calculation import InsulationLayer, PipeHeatLossParams
-from app.services.calculation_service import pipe_params_with_effective_safety_factor
+from app.services.heat_loss_application import pipe_params_with_effective_safety_factor
 
 # ---------------------------------------------------------------------------
 # Фабрика параметров по умолчанию
