@@ -396,3 +396,236 @@ These freeze current housing; they do not change A0 failed IDs.
 - `test_heat_loss_error_payload_characterization.py`
 - `test_heat_loss_application_housing_characterization.py`
 - `test_heat_loss_schema_housing_characterization.py`
+
+## AF — final regression (HL-APP-AF)
+
+**Slice:** HL-APP-AF
+**UTC:** 2026-08-14T02:08:51Z
+**HEAD:** `0ecb39edc277a38cd2a3291b842cb5e8612e9d73`
+`refactor(heat-loss): extract CalculationError from service cycle`
+**Host:** darwin arm64 · backend container `heatcalc_backend` · Python 3.11.16
+**Worktree at collection:** clean except the AF snapshot/evidence files created here.
+Production and test code: **NOT TOUCHED**.
+Frontend: **NOT TOUCHED / NOT RUN**.
+`docs/frontend/refactor-backlog.md`: **unchanged** vs `c98bfda` (`git diff` / `git log` empty).
+
+Isolated wheel rebuild: **NOT RUN** (not in the AF command list; package pytest/ruff/mypy below were run).
+
+### Architecture checklist
+
+Search notes: `evidence/af-architecture.md`.
+
+| Check | Result |
+|---|---|
+| production `app.*` except tests and `calculation.py` re-export imports formula models from `app.schemas.heat_loss` | **PASS** — ratchet suite passed; production heat facades / application / admin / `project_object_params` import `app.schemas.heat_loss`. API wrappers stay on `calculation`. |
+| `calc_pipe_heat_loss` / `calc_tank_heat_loss` / `evaluate_validated_heat_loss` have no `coefficients` | **PASS** — no `coefficients` in `app/formulas/heat_loss`; signatures are params-only. |
+| `calc_alpha_vnesh` / `tank._calc_alpha` absent in `app/` | **PASS** — no matches. |
+| `build_heat_loss_error_payload` and `apply_climate_policy` live in `heat_loss_application` | **PASS** — defined there; `calculation_service` only re-exports. |
+| `HeatLossPreparationError` handled first in the payload builder | **PASS** — structured return on `exc.code` / `path`; no message parse. |
+| residual substring markers in `heat_loss_application.py` for non-facade exceptions | **existing A6 housing** — not changed in AF. |
+| `_catalog_error_code` in `catalog_preparation` | **allowed** — present. |
+| `heat_loss_application` does not import `calculation_service` | **PASS** — `CalculationError` comes from `calculation_errors`. |
+| `heatcalc-heat-loss-core` has no `app.*` imports | **PASS**. |
+| no `app.formulas.heat_loss.core` shim | **PASS** — directory has no `core` module. |
+
+### Package gate
+
+cwd=`/app/packages/heat-loss-core` in `heatcalc_backend`:
+
+```bash
+python -m pytest tests -q --no-cov
+ruff check src tests
+mypy src tests
+```
+
+Result (`evidence/af-package-gate.log`):
+
+- pytest: **315 passed** in 0.40 s
+- ruff: All checks passed
+- mypy: Success, 43 source files
+
+### Focused facade + canonical-flow + catalog + single-validation
+
+Command:
+
+```bash
+docker exec -e SECRET_KEY=codex-test-secret-key-at-least-32-chars \
+  -w /app heatcalc_backend pytest \
+    app/tests/unit/formulas/test_heat_loss_canonical_flow_characterization.py \
+    app/tests/unit/formulas/test_heat_loss_facade_characterization.py \
+    app/tests/unit/formulas/test_heat_loss_validation_entrypoint_characterization.py \
+    app/tests/unit/schemas/test_heat_loss_range_characterization.py \
+    app/tests/unit/formulas/test_heat_loss_formula_ownership.py \
+    app/tests/unit/formulas/test_heat_loss_catalog_preparation.py \
+    app/tests/unit/services/test_heat_loss_single_validation_boundary.py \
+    app/tests/unit/formulas/test_heat_loss_schema_import_ratchet.py \
+    app/tests/unit/formulas/test_heat_loss_application_housing_characterization.py \
+    -q --tb=line --no-cov
+```
+
+Result: **PASS** · **261** tests collected and passed · exit 0.
+(`evidence/af-focused-suite.log` — pytest 9 `-q` file redirect printed progress dots and no short summary line; `--collect-only` confirmed 261.)
+
+Collected by file:
+
+- `test_heat_loss_canonical_flow_characterization.py`: 20
+- `test_heat_loss_facade_characterization.py`: 7
+- `test_heat_loss_validation_entrypoint_characterization.py`: 3
+- `test_heat_loss_range_characterization.py`: 203
+- `test_heat_loss_formula_ownership.py`: 5
+- `test_heat_loss_catalog_preparation.py`: 4
+- `test_heat_loss_single_validation_boundary.py`: 8
+- `test_heat_loss_schema_import_ratchet.py`: 5
+- `test_heat_loss_application_housing_characterization.py`: 6
+
+### Full backend suite
+
+Same A0 command (live-worker files ignored):
+
+```bash
+docker exec \
+  -e SECRET_KEY=codex-test-secret-key-at-least-32-chars \
+  -e TEST_DATABASE_URL=postgresql+asyncpg://heatcalc:heatcalc_pass@db:5432/heatcalc_test \
+  -w /app heatcalc_backend \
+  pytest app/tests --no-cov -q --tb=no --override-ini='addopts=' \
+    --ignore=app/tests/integration/worker/test_worker_redis_live.py \
+    --ignore=app/tests/integration/worker/test_worker_sigkill_live.py
+```
+
+Result: **completed** · **11 failed**, **2288 passed**, **1 skipped**,
+**0 errors**, **0 collection errors**, 266 warnings, **954.74 s**.
+Machine copy: `evidence/af-backend-suite.json`.
+Stdout: `evidence/af-backend-suite.log`.
+
+Live-worker tests were **not collected**. They are **not** baseline debt.
+
+A5b on the import rewrite (10 failed / 2241 passed) does **not** replace this AF run.
+
+#### Failed (AF set)
+
+```
+app/tests/integration/api/test_electrical_variants.py::TestElectricalVariantConcurrency::test_concurrent_enqueue_and_delete_never_orphans_task
+app/tests/integration/api/test_idempotency.py::TestSpecGenerateIdempotency::test_blocked_generate_repeats_without_duplicate_rows
+app/tests/integration/db/test_query_counts.py::test_electrical_query_search_uses_sql_page_not_python_project_fallback
+app/tests/integration/db/test_query_counts.py::test_electrical_query_assignment_projection_is_one_bounded_query
+app/tests/integration/db/test_query_counts.py::test_electrical_query_sorted_next_page_uses_keyset_without_offset
+app/tests/unit/api/test_reports_helpers.py::test_preview_maps_project_errors
+app/tests/unit/api/test_reports_helpers.py::test_preview_maps_report_errors
+app/tests/unit/api/test_reports_helpers.py::test_preview_records_audit_on_success
+app/tests/unit/api/test_reports_helpers.py::test_preview_requires_variant_after_project_access
+app/tests/unit/services/test_task_service_unit.py::TestTaskCreation::test_enqueue_guards_then_locks_project_before_variant_resolution
+app/tests/unit/services/test_task_service_unit.py::TestTaskCreation::test_create_electrical_batch_task_enqueues_and_persists_payload
+```
+
+#### Versus A0 failed IDs
+
+A0's 10 electrical/reports/task IDs are still present.
+
+**New failed ID (BLOCKER, not ⊆ A0):**
+
+```
+app/tests/integration/api/test_electrical_variants.py::TestElectricalVariantConcurrency::test_concurrent_enqueue_and_delete_never_orphans_task
+```
+
+Assertion: `assert (202, 423) in ((202, 409), (404, 200))`.
+This is an electrical-variant concurrency test, not a heat-loss facade / catalog / persist ID.
+AF did not invent a corrective slice.
+
+Reviewer re-runs of the same nodeid on HEAD `0ecb39e` (not a second full suite):
+
+- standalone after AF: **passed** (1.59 s)
+- retry 1: **failed** again with `(202, 423)` — enqueue 202, delete 423
+- retry 2: **passed** (2.35 s)
+- retry 3: **passed** (1.58 s)
+
+`423` is `ProjectCalculationBusyError` (`main.py` handler). Enqueue created an active `electrical_batch` task; delete then hit the project calculation lock. That is a valid “do not mutate a busy project” outcome. The test only accepts `(202, 409)` or `(404, 200)`, so the lock race fails the assertion without orphaning a task. A5b full backend on the import rewrite did not hit this ID. It is not a heat-loss facade/schema/application regression and is not A0 baseline debt.
+
+#### Errors
+
+```
+(none)
+```
+
+#### Collection errors
+
+```
+(none)
+```
+
+#### Skipped
+
+Count: **1**.
+
+```
+app/tests/integration/api/test_performance_nfr.py::TestImportPerformance::test_import_100_csv_under_15s
+```
+
+Same missing-`sample_import.csv` skip as A0. Not part of the failed comparison set.
+
+#### Persist contract
+
+`test_invalid_pipe_formula_persists_api_validation_state` (`create` / `update`) **exists** and **passed** in this full suite.
+
+### Oracle scripts (must match A0 before probes)
+
+`docker cp` into `heatcalc_backend:/tmp/` (docs folder is not bind-mounted).
+
+| File | container SHA-256 |
+|---|---|
+| `/tmp/facade_behavior_probe.py` | `daff97959029c91989bf46fb8492d712fbe1b5ef88d2b185d0d1b0bc85b158ec` |
+| `/tmp/facade_benchmark.py` | `2d708edd5cd7a48c060222877937a99aa1012d64e0ad44d7b03303881555952e` |
+
+Matches A0 snapshot SHAs. `ruff check` and `ruff format --check`: **passed**.
+
+### Facade contract
+
+`evidence/af-facade-contract.json`
+
+- size: **563849** bytes
+- SHA-256: `e5d41eb04ea25d398d952fa93d789895115fb41f5945a037ce59f8d4b8465947`
+- `cmp` vs `evidence/a0-facade-contract.json`: **identical**
+
+No key-level diff (byte-identical). Same environment class: container `heatcalc_backend`.
+
+### Facade benchmark
+
+`evidence/af-facade-benchmark.json` · SHA-256
+`f3424b88e554a28e5be6530acc3428041232388de37c005f2bea1ac8a3b6b279`
+
+Protocol: 9 rounds × 20 loops, 3420 ops/round. Same container as A0.
+
+| Round | seconds |
+|---|---|
+| 1 | 0.15010395800345577 |
+| 2 | 0.1787768339854665 |
+| 3 | 0.16935466701397672 |
+| 4 | 0.1660047079785727 |
+| 5 | 0.16890316701028496 |
+| 6 | 0.16321287502069026 |
+| 7 | 0.1643449589901138 |
+| 8 | 0.16564841699437238 |
+| 9 | 0.16333908299566247 |
+
+- AF median: **0.16564841699437238 s**
+- A0 median: **0.16814633400645107 s**
+- AF / A0: **0.9851443861274856**
+- AF minimum: 0.15010395800345577 s
+- AF median µs / operation: 48.43520964747731
+- gate: AF.median_seconds > 0.19336828410741873 → **not exceeded**
+
+### Frontend
+
+```bash
+git diff --name-only c98bfda..HEAD -- frontend
+git status --short -- frontend
+```
+
+Empty → **NOT TOUCHED / NOT RUN**.
+
+### Verdict
+
+**FAIL**
+
+Reason: full backend produced a new assertion-failed nodeid that is not in the A0 comparison set. Contract SHA matched, oracle script SHAs matched, benchmark stayed under +15%, package/focused gates passed, error/collection sets are empty — none of that can override a new failed ID.
+
+No corrective slice was opened inside AF. Repeating isolated retries show the extra ID is an electrical project-lock race (`423 Locked`), not a heat-loss contract break. Closing this queue still requires either a green full-suite set ⊆ A0 or an explicit out-of-queue decision on that electrical test.

@@ -1,0 +1,49 @@
+{
+  "head": "0ecb39edc277a38cd2a3291b842cb5e8612e9d73",
+  "utc": "2026-08-14T02:06:00Z",
+  "completed": true,
+  "command": "docker exec -e SECRET_KEY=codex-test-secret-key-at-least-32-chars -e TEST_DATABASE_URL=postgresql+asyncpg://heatcalc:heatcalc_pass@db:5432/heatcalc_test -w /app heatcalc_backend pytest app/tests --no-cov -q --tb=no --override-ini='addopts=' --ignore=app/tests/integration/worker/test_worker_redis_live.py --ignore=app/tests/integration/worker/test_worker_sigkill_live.py",
+  "result": {
+    "failed": 11,
+    "passed": 2288,
+    "skipped": 1,
+    "errors": 0,
+    "collection_errors": 0,
+    "warnings": 266,
+    "duration_seconds": 954.74
+  },
+  "failed_nodeids": [
+    "app/tests/integration/api/test_electrical_variants.py::TestElectricalVariantConcurrency::test_concurrent_enqueue_and_delete_never_orphans_task",
+    "app/tests/integration/api/test_idempotency.py::TestSpecGenerateIdempotency::test_blocked_generate_repeats_without_duplicate_rows",
+    "app/tests/integration/db/test_query_counts.py::test_electrical_query_search_uses_sql_page_not_python_project_fallback",
+    "app/tests/integration/db/test_query_counts.py::test_electrical_query_assignment_projection_is_one_bounded_query",
+    "app/tests/integration/db/test_query_counts.py::test_electrical_query_sorted_next_page_uses_keyset_without_offset",
+    "app/tests/unit/api/test_reports_helpers.py::test_preview_maps_project_errors",
+    "app/tests/unit/api/test_reports_helpers.py::test_preview_maps_report_errors",
+    "app/tests/unit/api/test_reports_helpers.py::test_preview_records_audit_on_success",
+    "app/tests/unit/api/test_reports_helpers.py::test_preview_requires_variant_after_project_access",
+    "app/tests/unit/services/test_task_service_unit.py::TestTaskCreation::test_enqueue_guards_then_locks_project_before_variant_resolution",
+    "app/tests/unit/services/test_task_service_unit.py::TestTaskCreation::test_create_electrical_batch_task_enqueues_and_persists_payload"
+  ],
+  "new_failed_nodeids_vs_a0": [
+    "app/tests/integration/api/test_electrical_variants.py::TestElectricalVariantConcurrency::test_concurrent_enqueue_and_delete_never_orphans_task"
+  ],
+  "error_nodeids": [],
+  "collection_errors": [],
+  "skipped_nodeids": [
+    "app/tests/integration/api/test_performance_nfr.py::TestImportPerformance::test_import_100_csv_under_15s"
+  ],
+  "persist_invalid_pipe_formula": {
+    "create": "passed",
+    "update": "passed",
+    "nodeids": [
+      "app/tests/unit/test_pipe_slice2_contract.py::test_invalid_pipe_formula_persists_api_validation_state[create]",
+      "app/tests/unit/test_pipe_slice2_contract.py::test_invalid_pipe_formula_persists_api_validation_state[update]"
+    ]
+  },
+  "live_worker_ignored": [
+    "app/tests/integration/worker/test_worker_redis_live.py",
+    "app/tests/integration/worker/test_worker_sigkill_live.py"
+  ],
+  "note": "A0 comparison set is failed_nodeids only. AF has one extra failed ID versus A0 (electrical variant concurrency: got (202, 423), expected (202, 409) or (404, 200)). That ID is a BLOCKER. Live-worker files were ignored. The one skip is sample_import.csv missing in the container. Persist-invalid pipe create/update passed."
+}
