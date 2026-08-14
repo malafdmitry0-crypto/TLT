@@ -257,7 +257,7 @@ export function useSpecificationPageModel() {
 
   const confirmPartialGenerate = () => {
     const variables = resumePendingGenerationVariables(
-      pendingContextStore, snapshotMutationScope(), selectedElectricalVariant?.id, true, {},
+      pendingContextStore, snapshotMutationScope(), selectedElectricalVariant?.id, true,
     );
     if (!variables) {
       toggleSettings(true);
