@@ -7,9 +7,10 @@ from uuid import UUID
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.audit_event import AuditEvent
 from app.models.electrical_calculation import ElectricalCalculation
 from app.models.electrical_variant import ElectricalVariant, ElectricalVariantObject
 from app.models.project import Project
@@ -35,6 +36,24 @@ async def _add_pipe(client: AsyncClient, project_id: str, headers: dict):
         json={"object_type": "pipe", "sort_order": 0, "params": PIPE_PARAMS},
         headers=headers,
     )
+
+
+def _with_single_project_name(raw: bytes, project_name: str) -> bytes:
+    """Return a single-project export with a different metadata name."""
+    lines = raw.decode("utf-8-sig").splitlines(keepends=True)
+    in_metadata = False
+    for index, line in enumerate(lines):
+        row = line.rstrip("\r\n")
+        newline = line[len(row) :]
+        if row == "[SECTION];metadata":
+            in_metadata = True
+            continue
+        if in_metadata and row.startswith("[SECTION];"):
+            break
+        if in_metadata and row.startswith("name;"):
+            lines[index] = f"name;{project_name}{newline}"
+            return ("\ufeff" + "".join(lines)).encode("utf-8")
+    raise AssertionError("Single-project CSV does not contain metadata name")
 
 
 async def _seed_sparse_v2_export_graph(
@@ -304,9 +323,10 @@ class TestSingleExportImport:
     ):
         """Пользователь: импорт замещает авто-проект (GUEST_MAX_PROJECTS=1)."""
         # Экспортируем авто-проект с объектом (на запас, чтобы CSV точно был валидный)
-        pid = (
+        source = (
             await client.get("/api/v1/projects", headers={"X-Session-Id": guest_session})
-        ).json()[0]["id"]
+        ).json()[0]
+        pid = source["id"]
         await _add_pipe(client, pid, {"X-Session-Id": guest_session})
         csv_bytes = (
             await client.get(
@@ -315,19 +335,16 @@ class TestSingleExportImport:
             )
         ).content
 
-        # Меняем имя в CSV — чтобы убедиться что новый проект создаётся из него
-        text = csv_bytes.decode("utf-8-sig").replace("name;", "name_placeholder;", 1)
-        modified = text.replace("name_placeholder;Мой проект", "name;Импортированный")
-        modified_bytes = ("\ufeff" + modified).encode("utf-8")
-
         resp = await client.post(
             "/api/v1/projects/import-csv",
-            files={"file": ("p.csv", modified_bytes, "text/csv")},
+            files={"file": ("p.csv", csv_bytes, "text/csv")},
             headers={"X-Session-Id": guest_session},
         )
         assert resp.status_code == 201, resp.text
         body = resp.json()
         assert body["session_id"] == guest_session
+        assert body["id"] != pid
+        assert body["name"] == source["name"]
 
         # Авто-проект должен быть замещён — у пользователя снова ровно 1 проект
         listing = (
@@ -335,6 +352,112 @@ class TestSingleExportImport:
         ).json()
         assert len(listing) == 1
         assert listing[0]["id"] == body["id"]
+
+    async def test_employee_rejects_import_when_owned_project_name_exists(
+        self,
+        client: AsyncClient,
+        employee_token: str,
+        db_session: AsyncSession,
+    ):
+        headers = {"Authorization": f"Bearer {employee_token}"}
+        name = f"Конфликт импорта {uuid.uuid4().hex[:8]}"
+        created = await client.post(
+            "/api/v1/projects",
+            json={"name": name},
+            headers=headers,
+        )
+        assert created.status_code == 201, created.text
+        source = created.json()
+        owner_id = UUID(source["user_id"])
+        await _add_pipe(client, source["id"], headers)
+        exported = await client.get(
+            f"/api/v1/projects/{source['id']}/export-csv",
+            headers=headers,
+        )
+        assert exported.status_code == 200, exported.text
+
+        project_count_before = await db_session.scalar(
+            select(func.count()).select_from(Project).where(Project.user_id == owner_id)
+        )
+        object_count_before = await db_session.scalar(
+            select(func.count())
+            .select_from(ProjectObject)
+            .join(Project)
+            .where(Project.user_id == owner_id)
+        )
+        audit_count_before = await db_session.scalar(
+            select(func.count())
+            .select_from(AuditEvent)
+            .where(AuditEvent.event_type == "project.imported.csv")
+        )
+
+        response = await client.post(
+            "/api/v1/projects/import-csv",
+            files={"file": ("same-name.tlt.csv", exported.content, "text/csv")},
+            headers=headers,
+        )
+
+        assert response.status_code == 409, response.text
+        assert response.json()["detail"] == (
+            f"Проект с именем «{name}» уже существует. "
+            "Переименуйте существующий проект или измените имя в CSV-файле."
+        )
+        assert (
+            await db_session.scalar(
+                select(func.count()).select_from(Project).where(Project.user_id == owner_id)
+            )
+            == project_count_before
+        )
+        assert (
+            await db_session.scalar(
+                select(func.count())
+                .select_from(ProjectObject)
+                .join(Project)
+                .where(Project.user_id == owner_id)
+            )
+            == object_count_before
+        )
+        assert (
+            await db_session.scalar(
+                select(func.count())
+                .select_from(AuditEvent)
+                .where(AuditEvent.event_type == "project.imported.csv")
+            )
+            == audit_count_before
+        )
+
+    async def test_employee_allows_import_when_name_belongs_to_another_owner(
+        self,
+        client: AsyncClient,
+        admin_token: str,
+        employee_token: str,
+    ):
+        name = f"Передаваемый проект {uuid.uuid4().hex[:8]}"
+        admin_headers = {"Authorization": f"Bearer {admin_token}"}
+        employee_headers = {"Authorization": f"Bearer {employee_token}"}
+        created = await client.post(
+            "/api/v1/projects",
+            json={"name": name},
+            headers=admin_headers,
+        )
+        assert created.status_code == 201, created.text
+        source = created.json()
+        exported = await client.get(
+            f"/api/v1/projects/{source['id']}/export-csv",
+            headers=admin_headers,
+        )
+        assert exported.status_code == 200, exported.text
+
+        response = await client.post(
+            "/api/v1/projects/import-csv",
+            files={"file": ("other-owner.tlt.csv", exported.content, "text/csv")},
+            headers=employee_headers,
+        )
+
+        assert response.status_code == 201, response.text
+        imported = response.json()
+        assert imported["name"] == name
+        assert imported["user_id"] != source["user_id"]
 
     async def test_import_rejects_bad_csv(self, client: AsyncClient, guest_session: str):
         resp = await client.post(
@@ -579,7 +702,13 @@ class TestSingleExportImport:
 
         imported = await client.post(
             "/api/v1/projects/import-csv",
-            files={"file": ("sparse.csv", exported.content, "text/csv")},
+            files={
+                "file": (
+                    "sparse.csv",
+                    _with_single_project_name(exported.content, f"{source.name} import"),
+                    "text/csv",
+                )
+            },
             headers=headers,
         )
         assert imported.status_code == 201, imported.text
@@ -613,7 +742,13 @@ class TestSingleExportImport:
         assert exported.status_code == 200, exported.text
         imported = await client.post(
             "/api/v1/projects/import-csv",
-            files={"file": ("empty-er.csv", exported.content, "text/csv")},
+            files={
+                "file": (
+                    "empty-er.csv",
+                    _with_single_project_name(exported.content, f"{source.name} import"),
+                    "text/csv",
+                )
+            },
             headers=headers,
         )
         assert imported.status_code == 201, imported.text
@@ -1018,7 +1153,13 @@ class TestBulkExportImport:
         )
         resp = await client.post(
             "/api/v1/projects/import-csv",
-            files={"file": ("p.csv", exp.content, "text/csv")},
+            files={
+                "file": (
+                    "p.csv",
+                    _with_single_project_name(exp.content, "CSV-params import"),
+                    "text/csv",
+                )
+            },
             headers=headers,
         )
         assert resp.status_code == 201
@@ -1319,7 +1460,16 @@ class TestProjectSettingsRoundtrip:
 
         imported = await client.post(
             "/api/v1/projects/import-csv",
-            files={"file": ("proj.tlt.csv", export.content, "text/csv")},
+            files={
+                "file": (
+                    "proj.tlt.csv",
+                    _with_single_project_name(
+                        export.content,
+                        f"Настройки RT import {uuid.uuid4().hex[:8]}",
+                    ),
+                    "text/csv",
+                )
+            },
             headers=headers,
         )
         assert imported.status_code == 201, imported.text
