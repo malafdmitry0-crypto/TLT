@@ -27,9 +27,7 @@ from app.formulas.heat_loss.evaluator import evaluate_validated_heat_loss
 from app.models.background_task import BackgroundTask
 from app.schemas.calculation import (
     CalculationTaskResponse,
-    PipeHeatLossParams,
     SelfRegulatingTTParams,
-    TankHeatLossParams,
 )
 from app.schemas.coefficient import CoefficientResponse, CoefficientUpdate
 from app.schemas.electrical_catalog import (
@@ -38,6 +36,7 @@ from app.schemas.electrical_catalog import (
     ElectricalCatalogKind,
     ElectricalCatalogVersionResponse,
 )
+from app.schemas.heat_loss import PipeHeatLossParams, TankHeatLossParams
 from app.schemas.reference import (
     AccessoryExtendedCreate,
     AccessoryExtendedResponse,

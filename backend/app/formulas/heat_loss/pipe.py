@@ -20,7 +20,7 @@ from app.formulas.heat_loss.pipe_preparation import run_validated_pipe_formula
 from app.reference_data.loader import (
     get_pipe_material_lambda,
 )
-from app.schemas.calculation import InsulationLayer, PipeHeatLossParams, PipeHeatLossResult
+from app.schemas.heat_loss import InsulationLayer, PipeHeatLossParams, PipeHeatLossResult
 
 
 def pipe_material_lambda(material: str | None, temperature: float) -> float:

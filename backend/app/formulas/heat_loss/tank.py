@@ -20,7 +20,7 @@ from app.formulas.heat_loss.outcome_errors import (
     raise_heat_formula_report,
 )
 from app.formulas.heat_loss.tank_preparation import run_validated_tank_formula
-from app.schemas.calculation import InsulationLayer, TankHeatLossParams, TankHeatLossResult
+from app.schemas.heat_loss import InsulationLayer, TankHeatLossParams, TankHeatLossResult
 
 
 def _resolve_layers(params: TankHeatLossParams) -> list[InsulationLayer]:

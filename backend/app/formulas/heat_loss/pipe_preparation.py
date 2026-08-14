@@ -21,7 +21,7 @@ from heatcalc_heat_loss_core.validation import FormulaValidationReport
 
 from app.formulas.heat_loss.catalog_preparation import resolve_reference_layer
 from app.reference_data.loader import get_pipe_material_conductivity_law
-from app.schemas.calculation import InsulationLayer, PipeHeatLossParams
+from app.schemas.heat_loss import InsulationLayer, PipeHeatLossParams
 
 
 def run_validated_pipe_formula(params: PipeHeatLossParams) -> PipeFormulaOutcome:
