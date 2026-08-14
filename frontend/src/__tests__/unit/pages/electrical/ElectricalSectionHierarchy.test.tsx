@@ -9,6 +9,9 @@ describe('ElectricalSectionHierarchy', () => {
     expect(screen.getByTestId('section-hierarchy-shell')).toHaveTextContent(
       'Секции появятся после успешного электрорасчёта',
     );
+    expect(screen.getByTestId('section-hierarchy-shell')).toHaveTextContent(
+      'Lмакс / I доп / Iст.уд',
+    );
   });
 
   it('renders section rows from results', () => {

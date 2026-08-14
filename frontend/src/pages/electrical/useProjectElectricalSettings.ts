@@ -1,5 +1,5 @@
 /**
- * Load/save project Iдоп (max section start current).
+ * Load/save project I доп (max section start current).
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -13,8 +13,8 @@ import {
   PROJECT_ELECTRICAL_SETTINGS_QUERY_KEY,
 } from '@/api/electricalSettings';
 
-export const IDOP_REQUIRED_MESSAGE = 'Укажите Iдоп проекта';
-export const IDOP_CALCULATION_BLOCKED_MESSAGE = 'Сначала укажите и сохраните Iдоп проекта';
+export const IDOP_REQUIRED_MESSAGE = 'Укажите I доп проекта';
+export const IDOP_CALCULATION_BLOCKED_MESSAGE = 'Сначала укажите и сохраните I доп проекта';
 
 export function useProjectElectricalSettings(
   projectId: string | undefined,
@@ -47,7 +47,7 @@ export function useProjectElectricalSettings(
       if (!projectId) throw new Error('Проект не выбран');
       if (!query.data) throw new Error('Настройки ещё не загружены');
       if (nextIdop != null && !(nextIdop > 0)) {
-        throw new Error('Iдоп должен быть больше 0');
+        throw new Error('I доп должен быть больше 0');
       }
       return patchProjectElectricalSettings(projectId, {
         expected_version: query.data.version,
@@ -63,8 +63,8 @@ export function useProjectElectricalSettings(
       setDraftIdop(parseIdopAmps(data.max_section_start_current_a));
       message.success(
         data.max_section_start_current_a == null
-          ? 'Iдоп сброшен'
-          : 'Iдоп сохранён',
+          ? 'I доп сброшен'
+          : 'I доп сохранён',
       );
     },
     onError: async (error: unknown) => {
@@ -76,7 +76,7 @@ export function useProjectElectricalSettings(
         message.warning('Настройки изменились. Данные обновлены — сохраните снова.');
         return;
       }
-      message.error(extractApiErrorMessage(error, 'Не удалось сохранить Iдоп'));
+      message.error(extractApiErrorMessage(error, 'Не удалось сохранить I доп'));
     },
   });
 
@@ -91,7 +91,7 @@ export function useProjectElectricalSettings(
     ? IDOP_REQUIRED_MESSAGE
     : draftIdop > 0
       ? null
-      : 'Iдоп должен быть больше 0';
+      : 'I доп должен быть больше 0';
 
   const save = useCallback(() => {
     if (!canMutate || validationError) return;
@@ -102,7 +102,7 @@ export function useProjectElectricalSettings(
   const isDirty = draftTouched && draftIdop !== savedIdop;
   const canSave = canMutate && !query.isLoading && !mutation.isPending && isDirty && !validationError;
   const calculationBlockedReason = query.isLoading
-    ? 'Дождитесь загрузки Iдоп проекта'
+    ? 'Дождитесь загрузки I доп проекта'
     : query.isError
       ? 'Сначала загрузите электрические настройки проекта'
       : idopMissing
