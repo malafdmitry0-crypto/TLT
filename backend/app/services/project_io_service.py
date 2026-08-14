@@ -97,6 +97,15 @@ class ProjectImportError(Exception):
     """Ошибка импорта проекта."""
 
 
+class ProjectImportNameConflictError(ProjectImportError):
+    """У владельца уже есть проект с именем из импортируемого файла."""
+
+    def __init__(self, project_name: str) -> None:
+        super().__init__(
+            f"Проект с именем «{project_name}» уже существует. "
+            "Переименуйте существующий проект или измените имя в CSV-файле."
+        )
+
 
 # ----------------------------------------------------------------------------
 # Экспорт
@@ -1801,7 +1810,8 @@ async def import_project(db: AsyncSession, raw: bytes, principal: CurrentPrincip
     sections = _parse_sections(raw)
     schema_version = _require_schema_version(sections, "metadata")
     meta = _section_key_values(sections, "metadata")
-    if not meta.get("name"):
+    project_name = meta.get("name", "")
+    if not project_name:
         raise ProjectImportError("В секции [SECTION];metadata пустое имя проекта")
 
     objects_rows = _rows_to_dicts(sections.get("objects", []))
@@ -1856,15 +1866,25 @@ async def import_project(db: AsyncSession, raw: bytes, principal: CurrentPrincip
                     await db.delete(p)
                 await db.flush()
                 project = Project(
-                    name=meta.get("name", "Импорт"),
+                    name=project_name,
                     description=meta.get("description") or None,
                     task_number=meta.get("task_number") or None,
                     status=meta.get("status", "draft") or "draft",
                     session_id=principal.session_id,
                 )
             elif principal.role in ("employee", "admin"):
+                existing_project_id = await db.scalar(
+                    select(Project.id)
+                    .where(
+                        Project.user_id == principal.user_id,
+                        Project.name == project_name,
+                    )
+                    .limit(1)
+                )
+                if existing_project_id is not None:
+                    raise ProjectImportNameConflictError(project_name)
                 project = Project(
-                    name=meta.get("name", "Импорт"),
+                    name=project_name,
                     description=meta.get("description") or None,
                     task_number=meta.get("task_number") or None,
                     status=meta.get("status", "draft") or "draft",
