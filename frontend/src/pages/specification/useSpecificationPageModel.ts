@@ -11,7 +11,7 @@ import {
   generateSpecification,
   getSpecificationErrorDetail,
 } from '@/api/specifications';
-import type { SpecificationGenerateResult, SpecificationOptions } from '@/api/specifications';
+import type { SpecificationGenerateResult } from '@/api/specifications';
 import { formatSpecTimestamp } from '@/pages/specification/specFormatModel';
 import { useSpecParamsPanelState } from '@/pages/specification/useSpecParamsPanelState';
 import { useSpecPageFormState } from '@/pages/specification/useSpecPageFormState';
@@ -31,20 +31,19 @@ import { formatPreflightSummary } from '@/domain/specification/specTableSectionM
 import { deduplicateSpecificationDiagnostics } from '@/pages/specification/specificationReadinessModel';
 import { useSpecificationReadiness } from '@/pages/specification/useSpecificationReadiness';
 import { useSpecSettingsFormHydration } from '@/pages/specification/useSpecSettingsFormHydration';
-
-type GenerateSpecificationVariables = SpecificationMutationScope & {
-  options: SpecificationOptions;
-  generateVariantIds: string[];
-  excludeUnassignedConfirmed: boolean;
-  catalogSelections: Record<string, string>;
-};
+import {
+  createBrowserPendingGenerationContextStore,
+  hydratePendingGenerationContext,
+  rememberPendingGenerationContext,
+  resetPendingGenerationContext,
+  resumePendingGenerationVariables,
+  settlePendingGenerationContext,
+  type GenerateSpecificationVariables,
+} from '@/pages/specification/specPendingGenerationContext';
 
 export function useSpecificationPageModel() {
   const {
     project,
-    role,
-    userId,
-    sessionId,
     isEmployee,
     canMutateProject: projectCanMutate,
     canManuallyEdit,
@@ -52,9 +51,6 @@ export function useSpecificationPageModel() {
     qc,
     variantContext,
     selectedElectricalVariant,
-    variant,
-    legacyDataPlaneEnabled,
-    specificationQueryKey,
     spec,
     refetch,
     specLoading,
@@ -67,6 +63,13 @@ export function useSpecificationPageModel() {
   const canRespondToWorkflow = false;
   const form = useSpecPageFormState();
   const { settingsOpen, toggleSettings } = useSpecParamsPanelState();
+  const pendingContextStore = useMemo(() => createBrowserPendingGenerationContextStore(), []);
+  const setPendingGenerate = (value: typeof form.pendingGenerate) => {
+    if (value == null) resetPendingGenerationContext(
+      pendingContextStore, project?.id, selectedElectricalVariant?.id,
+    );
+    form.setPendingGenerate(value);
+  };
   useSpecSettingsFormHydration(spec, form);
   const availableGenerateVariants = useMemo(
     () => variantContext.variants ?? [],
@@ -87,6 +90,7 @@ export function useSpecificationPageModel() {
     result: SpecificationGenerateResult,
     variables: GenerateSpecificationVariables,
   ) => {
+    settlePendingGenerationContext(pendingContextStore, variables, result.results.map((item) => item.status));
     const diagnostics = deduplicateSpecificationDiagnostics(
       result.results.flatMap((item) => item.diagnostics),
     );
@@ -162,7 +166,6 @@ export function useSpecificationPageModel() {
     isPending: generateMut.isPending,
     isError: generateMut.isError,
   };
-
   const hydratedErRef = useRef<string | null>(null);
   useEffect(() => {
     if (mut.isPending) return;
@@ -197,7 +200,12 @@ export function useSpecificationPageModel() {
     form.setGenerationDiagnostics(hydrate.generationDiagnostics);
     form.setCandidateGroups(hydrate.candidateGroups);
     form.setPreflightOpen(hydrate.preflightOpen);
-    form.setPendingGenerate(hydrate.pendingGenerate);
+    form.setPendingGenerate(hydratePendingGenerationContext(
+      pendingContextStore,
+      project?.id,
+      erId,
+      hydrate.generationStatus,
+    ));
     if (hydrate.clearDraftSelections) {
       form.setDraftCatalogSelections({});
     }
@@ -206,6 +214,7 @@ export function useSpecificationPageModel() {
     spec?.id,
     spec?.generation_status,
     spec?.generation_at,
+    project?.id,
     selectedElectricalVariant?.id,
     mut.isPending,
   ]);
@@ -232,28 +241,29 @@ export function useSpecificationPageModel() {
     );
     const options = buildGenerateOptions();
     const catalogSelections = nextCatalogSelections ?? form.catalogSelections;
-    if (!excludeUnassignedConfirmed) {
-      form.setPendingGenerate({ generateVariantIds, options });
-    }
-    generateMut.mutate({
+    const variables = {
       ...scope,
       generateVariantIds,
       options,
       excludeUnassignedConfirmed,
       catalogSelections,
-    });
+    };
+    rememberPendingGenerationContext(pendingContextStore, variables);
+    if (!excludeUnassignedConfirmed) {
+      form.setPendingGenerate({ generateVariantIds, options });
+    }
+    generateMut.mutate(variables);
   };
 
   const confirmPartialGenerate = () => {
-    const pending = form.pendingGenerate;
-    if (!pending) return;
-    generateMut.mutate({
-      ...snapshotMutationScope(),
-      generateVariantIds: [...pending.generateVariantIds],
-      options: pending.options,
-      excludeUnassignedConfirmed: true,
-      catalogSelections: {},
-    });
+    const variables = resumePendingGenerationVariables(
+      pendingContextStore, snapshotMutationScope(), selectedElectricalVariant?.id, true, {},
+    );
+    if (!variables) {
+      toggleSettings(true);
+      return;
+    }
+    generateMut.mutate(variables);
   };
 
   /** Case §7.3: leave preflight and open first problem ER on unassigned tab. */
@@ -262,7 +272,7 @@ export function useSpecificationPageModel() {
       ?? selectedElectricalVariant?.id
       ?? null;
     form.setPreflightOpen(false);
-    form.setPendingGenerate(null);
+    setPendingGenerate(null);
     const target = buildFixUnassignedNavigation(erId);
     navigate(target.to, { state: target.state });
   };
@@ -281,15 +291,15 @@ export function useSpecificationPageModel() {
       message.warning('Выберите позицию для каждой группы с несколькими кандидатами');
       return;
     }
-    const pending = form.pendingGenerate;
-    if (!pending) return;
-    generateMut.mutate({
-      ...snapshotMutationScope(),
-      generateVariantIds: [...pending.generateVariantIds],
-      options: pending.options,
-      excludeUnassignedConfirmed: false,
-      catalogSelections: { ...catalogSelections },
-    });
+    const variables = resumePendingGenerationVariables(
+      pendingContextStore,
+      snapshotMutationScope(), selectedElectricalVariant?.id, false, catalogSelections,
+    );
+    if (!variables) {
+      toggleSettings(true);
+      return;
+    }
+    generateMut.mutate(variables);
   };
 
   const {
@@ -325,9 +335,6 @@ export function useSpecificationPageModel() {
 
   return {
     project,
-    role,
-    userId,
-    sessionId,
     isEmployee,
     canMutateProject,
     canRespondToWorkflow,
@@ -336,9 +343,6 @@ export function useSpecificationPageModel() {
     qc,
     variantContext,
     selectedElectricalVariant,
-    variant,
-    legacyDataPlaneEnabled,
-    specificationQueryKey,
     addOpen: form.addOpen,
     setAddOpen: form.setAddOpen,
     selectedAccessoryId: form.selectedAccessoryId,
@@ -350,10 +354,8 @@ export function useSpecificationPageModel() {
     preflightOpen: form.preflightOpen,
     setPreflightOpen: form.setPreflightOpen,
     preflightSummary: form.preflightSummary,
-    setPreflightSummary: form.setPreflightSummary,
-    pendingGenerate: form.pendingGenerate,
     generationWorkflowPending: form.pendingGenerate != null,
-    setPendingGenerate: form.setPendingGenerate,
+    setPendingGenerate,
     exZone: form.exZone,
     setExZone: form.setExZone,
     reserveCoeff: form.reserveCoeff,
@@ -384,12 +386,10 @@ export function useSpecificationPageModel() {
     specFetching,
     accessories,
     availableGenerateVariants,
-    snapshotMutationScope,
     mut,
     saveMut,
     items,
     isSpecStale,
-    buildGenerateOptions,
     runGenerate,
     confirmPartialGenerate,
     hasItems,
