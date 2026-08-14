@@ -18,9 +18,10 @@
 from __future__ import annotations
 
 import pytest
+from heatcalc_heat_loss_core.errors import FormulaDomainError
+from heatcalc_heat_loss_core.profile import resolve_external_alpha
 
 from app.formulas.heat_loss.pipe import (
-    calc_alpha_vnesh,
     calc_pipe_heat_loss,
     pipe_material_lambda,
 )
@@ -271,22 +272,30 @@ class TestGoldenFromFormulesMd:
         """α_внеш = 11.6 + 7·√v  (SNiP 41-03-2003)."""
         import math
 
-        with pytest.raises(ValueError, match="wind_speed"):
-            calc_alpha_vnesh(None, "outdoor")
-        assert calc_alpha_vnesh(0, "outdoor") == pytest.approx(11.6)
-        assert calc_alpha_vnesh(3, "outdoor") == pytest.approx(11.6 + 7 * math.sqrt(3), rel=1e-4)
-        assert calc_alpha_vnesh(5, "outdoor") == pytest.approx(11.6 + 7 * math.sqrt(5), rel=1e-4)
-        assert calc_alpha_vnesh(100, "outdoor") == pytest.approx(11.6 + 7 * math.sqrt(100))
+        with pytest.raises(FormulaDomainError, match="wind_speed_required"):
+            resolve_external_alpha(placement="outdoor", wind_speed_m_s=None)
+        assert resolve_external_alpha(placement="outdoor", wind_speed_m_s=0) == pytest.approx(11.6)
+        assert resolve_external_alpha(placement="outdoor", wind_speed_m_s=3) == pytest.approx(
+            11.6 + 7 * math.sqrt(3), rel=1e-4
+        )
+        assert resolve_external_alpha(placement="outdoor", wind_speed_m_s=5) == pytest.approx(
+            11.6 + 7 * math.sqrt(5), rel=1e-4
+        )
+        assert resolve_external_alpha(placement="outdoor", wind_speed_m_s=100) == pytest.approx(
+            11.6 + 7 * math.sqrt(100)
+        )
 
     def test_alpha_indoor_is_9(self):
         """В помещении α = 9.0 Вт/(м²·К)."""
-        assert calc_alpha_vnesh(None, "indoor") == 9.0
-        assert calc_alpha_vnesh(10, "indoor") == 9.0, "В помещении ветер не учитывается"
+        assert resolve_external_alpha(placement="indoor", wind_speed_m_s=None) == 9.0
+        assert resolve_external_alpha(placement="indoor", wind_speed_m_s=10) == 9.0, (
+            "В помещении ветер не учитывается"
+        )
 
     def test_alpha_lower_cap_11_6(self):
         """Минимум α_внеш = 11.6 (штиль)."""
         # Отрицательный ветер не допустим по Pydantic, но формула должна clamp'нуть
-        assert calc_alpha_vnesh(-5, "outdoor") == pytest.approx(11.6)
+        assert resolve_external_alpha(placement="outdoor", wind_speed_m_s=-5) == pytest.approx(11.6)
 
 
 # ═══════════════════════════════════════════════════════════════════════════

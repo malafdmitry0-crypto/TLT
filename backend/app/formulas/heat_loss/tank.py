@@ -16,7 +16,6 @@ R_внеш (помещение): R = 1 / 9.0
 from typing import Any, cast
 
 from heatcalc_heat_loss_core.errors import FormulaDomainError
-from heatcalc_heat_loss_core.profile import resolve_external_alpha
 from heatcalc_heat_loss_core.validation import FormulaValidationReport
 
 from app.formulas.heat_loss.catalog_preparation import unavailable_conductivity_error
@@ -27,18 +26,6 @@ from app.schemas.calculation import InsulationLayer, TankHeatLossParams, TankHea
 
 def _fmt_temp(value: float) -> str:
     return f"{value:g}"
-
-
-def _calc_alpha(params: TankHeatLossParams) -> float:
-    """Коэффициент наружной теплоотдачи α, Вт/(м²·К).
-
-    α = 11,6 + 7·√v  (SNiP 41-03-2003, формула ТНП)
-    Помещение: α = 9.0
-    """
-    return resolve_external_alpha(
-        placement=params.placement,
-        wind_speed_m_s=params.wind_speed,
-    )
 
 
 def _resolve_layers(params: TankHeatLossParams) -> list[InsulationLayer]:
