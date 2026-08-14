@@ -613,3 +613,126 @@ the ownership plan/prompts/snapshot belong to this corrective commit.
 `test(heat-loss): align final proofs with ownership contracts`, then start a
 fresh BF retry. That retry has exactly one full backend run; the completed
 blocked-BF full above remains preserved and is not rerun inside BC.
+
+---
+
+# BF retry final regression — PASS WITH BASELINE DEBT
+
+**Slice:** `HL-OWN-BF`
+
+**Final parent HEAD:** `b51448d3b5e55b3fe232fcba99da8c878f795dda`
+(`test(heat-loss): align final proofs with ownership contracts`)
+
+**Evidence captured through UTC:** `2026-08-14T12:58:59Z`
+
+**Environment:** Darwin 23.6.0 arm64 · `heatcalc_backend` running/healthy ·
+Python 3.11.16
+
+The retry started with no ownership/backend/frontend WIP on the committed BC
+HEAD. The unrelated staged
+`docs/tnp/cases/case1-client-feedback-heat-decisions.md` remained outside the
+slice and was not read, modified, unstaged, checked, or included.
+
+## Closing gates
+
+The final read-only AST audit and repository ratchets found:
+
+- no production climate/payload/K import from `calculation_service`;
+- no direct normalize/climate/payload/formula call in `try_recalculate`;
+- all production heat HTTP envelope imports owned by `app.schemas.heat_loss`;
+- no heat-formula import in admin;
+- no `_catalog_error_code`;
+- no message substring classifier in the payload builder;
+- no formula-model binding in `app.schemas.calculation`;
+- no ORM/service/SQLAlchemy import in the application owner;
+- no backend `app.*` import or shim in the core package;
+- params-only pipe/tank/evaluator facades, with no `coefficients` argument.
+
+Current file/line citations and the exact AST inventory are in
+`evidence/bf-gates.md`.
+
+The package gate is green: **315 passed**, Ruff PASS, mypy PASS for 43 source
+files, fresh 35,876-byte wheel, clean venv install, and isolated `python -I`
+with 29 public names and all four removed internals absent.
+
+The final focused heat/ownership/ratchet set, explicitly including corrected
+`TestBatchRecalculate::test_mixed_success_and_failure`, completed with
+**457 outcomes** and exit 0. The protected 201/200/admin-422/hot-side/K command
+reported **12 passed** in 5.23 s. Canonical collect-only reported
+**2374 tests collected** in 3.85 s with no collection error.
+
+## Final facade proof
+
+Before probes:
+
+- behavior oracle SHA-256 was the exact BC value
+  `9ab1a858a53663cd41adeb87b86382ed4b2b95b36e2cbe829b26515678b12e1e`;
+- its complete diff from B0 was exactly the one
+  `app.schemas.calculation` → `app.schemas.heat_loss` owner-import line;
+- benchmark oracle SHA-256 remained the exact B0 value
+  `2d708edd5cd7a48c060222877937a99aa1012d64e0ad44d7b03303881555952e`;
+- host/container hashes matched and both scripts passed Ruff and format check.
+
+`evidence/bf-facade-contract.json` is **563849 bytes**, SHA-256
+`e5d41eb04ea25d398d952fa93d789895115fb41f5945a037ce59f8d4b8465947`,
+and binary-identical to the B0 contract.
+
+Immediately before the one final benchmark, no pytest was running and backend
+CPU was **0.24%**. The exact 9 × 20 run completed once:
+
+```text
+0.1521360829938203
+0.17367220800952055
+0.20342574999085627
+0.16501120800967328
+0.16455624997615814
+0.1565013329964131
+0.16284379200078547
+0.1634420830232557
+0.1568126670026686
+```
+
+- BF median: **0.1634420830232557 s**;
+- B0 median: **0.16819650001707487 s**;
+- BF/B0: **0.971732961189225** (**−2.8267038810775%**);
+- allowed ceiling: **0.19342597501963607 s**;
+- result: PASS.
+
+Artifact: `evidence/bf-facade-benchmark.json`, 462 bytes, SHA-256
+`96201c5424fb55e8962e538cfa6c34b163f19c86b144a440cf435589254c676c`.
+
+## The one retry full backend
+
+Immediately before the full run, the container `/proc` audit reported no
+pytest. Exactly one full backend command ran with both live-worker ignores. It
+completed normally and was not repeated.
+
+Run window: `2026-08-14T12:40:19Z`–`2026-08-14T12:58:03Z`.
+Result in **1059.00 s**:
+
+- **10 failed**;
+- **2363 passed**;
+- **1 skipped**;
+- **266 warnings**;
+- **0 errors**;
+- **0 setup errors**;
+- **0 collection errors**.
+
+The failed set is exactly equal to the ten-nodeid B0 debt set: no new failed
+nodeid and no missing B0 nodeid. Machine comparison:
+`evidence/bf-backend-suite.json`. Complete raw log:
+`evidence/bf-backend-suite.log`, 6792 bytes, 84 lines, SHA-256
+`87eb9469251dd810e92397ef634731d1dba0eb2f9d193f872a1ff3e9c5b664d8`.
+The post-run `/proc` audit again found no pytest.
+
+## Scope and verdict
+
+The committed diffs from B0 parent through final parent are empty for both
+`frontend/` and `docs/frontend/refactor-backlog.md`. Frontend:
+**NOT TOUCHED / NOT RUN**. BF retry changed no production backend, test,
+package, frontend, plan, or prompts file; only this snapshot and new canonical
+`bf-*` evidence belong to the slice.
+
+**PASS WITH BASELINE DEBT.** All ownership closing gates pass. The only full
+suite failures are exactly the ten assertion failures captured in B0, with no
+new regression and no setup/collection error.

@@ -1,0 +1,72 @@
+{
+  "head": "b51448d3b5e55b3fe232fcba99da8c878f795dda",
+  "started_utc": "2026-08-14T12:40:19Z",
+  "finished_utc": "2026-08-14T12:58:03Z",
+  "completed": true,
+  "exit_code": 1,
+  "full_runs_in_bf_retry": 1,
+  "command": "docker exec -e SECRET_KEY=codex-test-secret-key-at-least-32-chars -e TEST_DATABASE_URL=postgresql+asyncpg://heatcalc:heatcalc_pass@db:5432/heatcalc_test -w /app heatcalc_backend pytest app/tests --no-cov -q --tb=no --override-ini='addopts=' --ignore=app/tests/integration/worker/test_worker_redis_live.py --ignore=app/tests/integration/worker/test_worker_sigkill_live.py",
+  "capture_note": "The same environment, working directory, pytest executable, and argv were run through container sh -c only to redirect complete stdout/stderr to /tmp/bf-backend-suite.log and write start/finish/exit metadata. No pytest argument differs from the canonical command.",
+  "result": {
+    "failed": 10,
+    "passed": 2363,
+    "skipped": 1,
+    "errors": 0,
+    "setup_errors": 0,
+    "collection_errors": 0,
+    "warnings": 266,
+    "duration_seconds": 1059.0,
+    "wrapper_elapsed_seconds": 1064
+  },
+  "failed_nodeids": [
+    "app/tests/integration/api/test_idempotency.py::TestSpecGenerateIdempotency::test_blocked_generate_repeats_without_duplicate_rows",
+    "app/tests/integration/db/test_query_counts.py::test_electrical_query_search_uses_sql_page_not_python_project_fallback",
+    "app/tests/integration/db/test_query_counts.py::test_electrical_query_assignment_projection_is_one_bounded_query",
+    "app/tests/integration/db/test_query_counts.py::test_electrical_query_sorted_next_page_uses_keyset_without_offset",
+    "app/tests/unit/api/test_reports_helpers.py::test_preview_maps_project_errors",
+    "app/tests/unit/api/test_reports_helpers.py::test_preview_maps_report_errors",
+    "app/tests/unit/api/test_reports_helpers.py::test_preview_records_audit_on_success",
+    "app/tests/unit/api/test_reports_helpers.py::test_preview_requires_variant_after_project_access",
+    "app/tests/unit/services/test_task_service_unit.py::TestTaskCreation::test_enqueue_guards_then_locks_project_before_variant_resolution",
+    "app/tests/unit/services/test_task_service_unit.py::TestTaskCreation::test_create_electrical_batch_task_enqueues_and_persists_payload"
+  ],
+  "error_nodeids": [],
+  "setup_error_nodeids": [],
+  "collection_errors": [],
+  "skipped_nodeids": [],
+  "skipped_nodeids_note": "The quiet full-suite log reports one skip but does not emit its nodeid; skipped tests are not part of the B0 assertion-failure comparison set.",
+  "live_worker_ignored": [
+    "app/tests/integration/worker/test_worker_redis_live.py",
+    "app/tests/integration/worker/test_worker_sigkill_live.py"
+  ],
+  "b0_comparison": {
+    "baseline_failed_count": 10,
+    "matched_baseline_failed_nodeids": [
+      "app/tests/integration/api/test_idempotency.py::TestSpecGenerateIdempotency::test_blocked_generate_repeats_without_duplicate_rows",
+      "app/tests/integration/db/test_query_counts.py::test_electrical_query_search_uses_sql_page_not_python_project_fallback",
+      "app/tests/integration/db/test_query_counts.py::test_electrical_query_assignment_projection_is_one_bounded_query",
+      "app/tests/integration/db/test_query_counts.py::test_electrical_query_sorted_next_page_uses_keyset_without_offset",
+      "app/tests/unit/api/test_reports_helpers.py::test_preview_maps_project_errors",
+      "app/tests/unit/api/test_reports_helpers.py::test_preview_maps_report_errors",
+      "app/tests/unit/api/test_reports_helpers.py::test_preview_records_audit_on_success",
+      "app/tests/unit/api/test_reports_helpers.py::test_preview_requires_variant_after_project_access",
+      "app/tests/unit/services/test_task_service_unit.py::TestTaskCreation::test_enqueue_guards_then_locks_project_before_variant_resolution",
+      "app/tests/unit/services/test_task_service_unit.py::TestTaskCreation::test_create_electrical_batch_task_enqueues_and_persists_payload"
+    ],
+    "new_failed_nodeids": [],
+    "missing_baseline_failed_nodeids": [],
+    "failed_ids_subset_of_b0": true,
+    "failed_ids_equal_b0": true,
+    "errors_empty": true,
+    "setup_errors_empty": true,
+    "collection_errors_empty": true,
+    "classification": "BASELINE_DEBT_ONLY"
+  },
+  "raw_log": {
+    "path": "evidence/bf-backend-suite.log",
+    "sha256": "87eb9469251dd810e92397ef634731d1dba0eb2f9d193f872a1ff3e9c5b664d8",
+    "bytes": 6792,
+    "lines": 84
+  },
+  "verdict": "PASS WITH BASELINE DEBT"
+}
