@@ -17,6 +17,7 @@ import './heatcalc-side-form-layout.css';
 import './heatcalc-field-chrome-core.css';
 import './heatcalc-field-focus.css';
 import './heatcalc-field-chrome.css';
+import './heatcalc-field-source.css';
 import './heatcalc-workspace-table.css';
 import './heatcalc-insulation-page.css';
 import './heatcalc-validation-ux.css';
