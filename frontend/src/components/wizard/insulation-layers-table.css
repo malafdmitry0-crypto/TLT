@@ -347,13 +347,6 @@
   display: none;
 }
 
-.insulation-layers-table .field-source-form-item .ant-form-item-extra {
-  display: block;
-  margin-top: 1px;
-  font-size: 8px;
-  line-height: 1;
-}
-
 @media (max-width: 1200px) {
   .insulation-layers-table[data-layout="side"] {
     --ins-col-index: 52px;

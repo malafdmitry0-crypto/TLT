@@ -1,0 +1,11 @@
+/* Value provenance is a compact caption, not a status badge. */
+.inline-object-form .field-source-tag {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  font-size: 8px;
+  line-height: 12px;
+  color: var(--color-swatch-5d7180);
+  background: none;
+  border: 0;
+}
