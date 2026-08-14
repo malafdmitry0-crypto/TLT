@@ -8,6 +8,7 @@ import {
   allowedInsulationTemperatureBasisValues,
   heatCalcRequiredFieldMessage,
   isHeatCalcFieldRequired,
+  isHeatCalcFieldVisible,
   normalizeHeatCalcFieldValue,
   validateHeatCalcField,
 } from '@/domain/heatCalcFieldRules';
@@ -112,6 +113,7 @@ export function heatCalcNumberInputProps(
   return {
     min: input?.min,
     max: input?.max,
+    preserveOutOfRangeDraft: true,
     'aria-label': getHeatCalcFieldLabel(fieldId, {
       objectType,
       context: 'form',
@@ -122,6 +124,43 @@ export function heatCalcNumberInputProps(
       ? undefined
       : resolveHeatCalcFieldStep(objectType, fieldId, options.fieldInputSettings) ?? input?.default_step,
   };
+}
+
+/**
+ * Group update has no single object context, so only registry-owned numeric
+ * bounds are safe to validate locally. Relation and heterogeneous visibility
+ * checks remain at the atomic backend boundary.
+ */
+export function heatCalcNumberRangeError(
+  objectType: HeatCalcObjectType,
+  fieldId: string,
+  value: unknown,
+): string | null {
+  const fieldInput = getHeatCalcFieldInputConfig(fieldId, objectType);
+  if (fieldInput?.type !== 'number') return null;
+
+  const context = {
+    objectType,
+    values: { [fieldId]: value },
+  };
+  const normalizedValue = normalizeHeatCalcFieldValue(fieldId, value, context);
+  if (typeof normalizedValue !== 'number') return null;
+
+  const belowMin = fieldInput.min != null && normalizedValue < fieldInput.min;
+  const aboveMax = fieldInput.max != null && normalizedValue > fieldInput.max;
+  if (!belowMin && !aboveMax) return null;
+
+  // Never surface a false visibility/relation error from a context-free batch.
+  // For visible numeric fields the domain validator checks bounds before any
+  // relation, and therefore remains the sole owner of the displayed message.
+  const normalizedContext = {
+    objectType,
+    values: { [fieldId]: normalizedValue },
+  };
+  if (!isHeatCalcFieldVisible(fieldId, normalizedContext)) return null;
+  return validateHeatCalcField(fieldId, normalizedValue, normalizedContext, {
+    enforceRequired: false,
+  });
 }
 
 export function heatCalcTextInputProps(objectType: HeatCalcObjectType, fieldId: string) {

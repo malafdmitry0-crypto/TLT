@@ -4,10 +4,46 @@
  * Проверяется контракт формы: один параметр за операцию, «Применить» недоступна
  * без выбора, перечень проблемных объектов из ответа 422 виден пользователю.
  */
-import { render, screen, cleanup } from '@testing-library/react';
+import {
+  cleanup, render, screen, waitFor,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import HeatCalcGroupUpdateModal from '@/components/heatcalc/HeatCalcGroupUpdateModal';
+
+vi.mock('@/components/ui-kit', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/ui-kit')>();
+  return {
+    ...actual,
+    TltSelect: ({
+      options = [],
+      onChange,
+      placeholder,
+      value,
+      'aria-label': ariaLabel,
+      'data-testid': testId,
+    }: {
+      options?: Array<{ label: React.ReactNode; value: string | number }>;
+      onChange?: (value: string | number | null) => void;
+      placeholder?: string;
+      value?: string | number | null;
+      'aria-label'?: string;
+      'data-testid'?: string;
+    }) => (
+      <select
+        aria-label={ariaLabel ?? placeholder}
+        data-testid={testId}
+        value={value == null ? '' : String(value)}
+        onChange={(event) => onChange?.(event.target.value || null)}
+      >
+        <option value="">{placeholder}</option>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>{option.label}</option>
+        ))}
+      </select>
+    ),
+  };
+});
 
 afterEach(cleanup);
 
@@ -28,6 +64,10 @@ function renderModal(overrides: Partial<React.ComponentProps<typeof HeatCalcGrou
     />,
   );
   return { onApply, onClose };
+}
+
+async function selectParam(value: string) {
+  await userEvent.selectOptions(screen.getByTestId('group-update-param'), value);
 }
 
 describe('HeatCalcGroupUpdateModal — кейс §5.8', () => {
@@ -68,5 +108,77 @@ describe('HeatCalcGroupUpdateModal — кейс §5.8', () => {
     const { onClose } = renderModal();
     await userEvent.click(screen.getByRole('button', { name: 'Отмена' }));
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it.each([
+    {
+      draft: '999',
+      message: 'Максимальное значение — 70',
+      boundary: '70',
+      expected: 70,
+    },
+    {
+      draft: '-71',
+      message: 'Минимальное значение — -70',
+      boundary: '-70',
+      expected: -70,
+    },
+  ])('keeps ambient draft $draft, blocks Apply, and sends corrected boundary', async ({
+    draft,
+    message,
+    boundary,
+    expected,
+  }) => {
+    const user = userEvent.setup();
+    const { onApply } = renderModal();
+
+    await selectParam('ambient_temperature');
+
+    const valueInput = screen.getByTestId('group-update-value');
+    await user.type(valueInput, draft);
+    await user.tab();
+
+    expect(valueInput).toHaveValue(draft);
+    const error = await screen.findByText(message);
+    expect(valueInput).toHaveAttribute('aria-invalid', 'true');
+    const errorId = valueInput.getAttribute('aria-describedby');
+    expect(errorId).toBeTruthy();
+    expect(document.getElementById(errorId!)).toContainElement(error);
+
+    const apply = screen.getByRole('button', { name: 'Применить' });
+    expect(apply).toBeDisabled();
+    await user.click(apply);
+    expect(onApply).not.toHaveBeenCalled();
+
+    await user.clear(valueInput);
+    await user.type(valueInput, boundary);
+    await user.tab();
+
+    await waitFor(() => expect(screen.queryByText(message)).not.toBeInTheDocument());
+    expect(valueInput).toHaveValue(boundary);
+    expect(valueInput).not.toHaveAttribute('aria-invalid');
+    expect(apply).toBeEnabled();
+
+    await user.click(apply);
+    expect(onApply).toHaveBeenCalledWith('ambient_temperature', expected);
+  });
+
+  it('clears the numeric draft and its error when the parameter changes', async () => {
+    const user = userEvent.setup();
+    renderModal();
+
+    await selectParam('ambient_temperature');
+    const ambientInput = screen.getByTestId('group-update-value');
+    await user.type(ambientInput, '999');
+    await user.tab();
+    expect(await screen.findByText('Максимальное значение — 70')).toBeInTheDocument();
+
+    await selectParam('pipe_centerline_depth');
+
+    const burialDepthInput = screen.getByTestId('group-update-value');
+    expect(burialDepthInput).toHaveValue('');
+    expect(burialDepthInput).not.toHaveAttribute('aria-invalid');
+    expect(screen.queryByText('Максимальное значение — 70')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Применить' })).toBeDisabled();
   });
 });
