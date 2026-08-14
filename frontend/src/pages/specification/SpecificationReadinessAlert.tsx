@@ -40,7 +40,7 @@ export function SpecificationReadinessAlert({
         title="Не удалось проверить готовность к формированию спецификации"
         action={<TltButton size="compact" onClick={onRetry}>Проверить снова</TltButton>}
       >
-        Формирование не заблокировано: backend повторно проверит данные перед расчётом.
+        Формирование не заблокировано: перед расчётом данные будут проверены повторно.
       </TltAlert>
     );
   }
