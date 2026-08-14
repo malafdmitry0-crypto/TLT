@@ -16,6 +16,7 @@ import {
   getHeatCalcFieldLabel,
   getHeatCalcFormFieldIds,
 } from '@/domain/heatCalcFields';
+import { heatCalcNumberRangeError } from '@/utils/heatCalcWizardFieldRules';
 import type { HeatCalcObjectType } from '@/types/project';
 import type { GroupUpdateProblem } from '@/api/projects';
 
@@ -59,6 +60,14 @@ export default function HeatCalcGroupUpdateModal({
     [objectType],
   );
   const input = param ? getHeatCalcFieldInputConfig(param, objectType) : null;
+  const valueError = useMemo(
+    () => (param && input?.type === 'number'
+      ? heatCalcNumberRangeError(objectType, param, value)
+      : null),
+    [input?.type, objectType, param, value],
+  );
+  const valueMissing = value == null || value === '';
+  const valueErrorId = valueError && param ? `group-update-${param}-error` : undefined;
 
   const handleParam = (next: string | number | null) => {
     setParam(next == null ? undefined : String(next));
@@ -77,8 +86,10 @@ export default function HeatCalcGroupUpdateModal({
           key="apply"
           variant="primary"
           loading={applying}
-          disabled={!param || value === undefined || value === ''}
-          onClick={() => param && onApply(param, value)}
+          disabled={!param || valueMissing || Boolean(valueError)}
+          onClick={() => {
+            if (param && !valueMissing && !valueError) onApply(param, value);
+          }}
         >
           Применить
         </TltButton>,
@@ -99,35 +110,45 @@ export default function HeatCalcGroupUpdateModal({
         </label>
 
         {param && (
-          <label>
-            <span className="heat-group-update__label">Новое значение</span>
-            {input?.type === 'number' ? (
-              <TltNumberField
-                data-testid="group-update-value"
-                value={value as number | undefined}
-                unit={input.unit}
-                min={input.min}
-                max={input.max}
-                onChange={(next) => setValue(next)}
-              />
-            ) : input?.options?.length ? (
-              <TltSelect
-                data-testid="group-update-value"
-                value={value as string | undefined}
-                options={input.options.map((option) => ({
-                  value: String(option.value),
-                  label: String(option.label ?? option.value),
-                }))}
-                onChange={(next) => setValue(next)}
-              />
-            ) : (
-              <TltTextField
-                data-testid="group-update-value"
-                value={value as string | undefined}
-                onChange={(next) => setValue(next)}
-              />
+          <div>
+            <label>
+              <span className="heat-group-update__label">Новое значение</span>
+              {input?.type === 'number' ? (
+                <TltNumberField
+                  data-testid="group-update-value"
+                  value={value as number | undefined}
+                  unit={input.unit}
+                  min={input.min}
+                  max={input.max}
+                  preserveOutOfRangeDraft
+                  status={valueError ? 'error' : undefined}
+                  aria-label={getHeatCalcFieldLabel(param, { context: 'form', objectType })}
+                  aria-invalid={valueError ? true : undefined}
+                  aria-describedby={valueErrorId}
+                  onChange={(next) => setValue(next)}
+                />
+              ) : input?.options?.length ? (
+                <TltSelect
+                  data-testid="group-update-value"
+                  value={value as string | undefined}
+                  options={input.options.map((option) => ({
+                    value: String(option.value),
+                    label: String(option.label ?? option.value),
+                  }))}
+                  onChange={(next) => setValue(next)}
+                />
+              ) : (
+                <TltTextField
+                  data-testid="group-update-value"
+                  value={value as string | undefined}
+                  onChange={(next) => setValue(next)}
+                />
+              )}
+            </label>
+            {valueError && (
+              <TltAlert id={valueErrorId} tone="danger" title={valueError} />
             )}
-          </label>
+          </div>
         )}
 
         <p className="heat-group-update__note">За одну операцию изменяется один параметр (§5.8).</p>
