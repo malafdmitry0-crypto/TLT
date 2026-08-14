@@ -82,6 +82,37 @@ describe('HeatCalcGroupUpdateModal — кейс §5.8', () => {
     expect(screen.getByRole('button', { name: 'Применить' })).toBeDisabled();
   });
 
+  it('применяет температуру грунта к выбранным резервуарам', async () => {
+    const user = userEvent.setup();
+    const { onApply } = renderModal({ objectType: 'tank' });
+
+    expect(screen.getByRole('option', { name: 'Температура грунта' })).toHaveValue('ground_temperature');
+    await selectParam('ground_temperature');
+
+    const valueInput = screen.getByTestId('group-update-value');
+    expect(screen.getByText('°C')).toBeInTheDocument();
+    await user.type(valueInput, '5');
+    await user.click(screen.getByRole('button', { name: 'Применить' }));
+
+    expect(onApply).toHaveBeenCalledWith('ground_temperature', 5);
+  });
+
+  it('блокирует температуру грунта выше реестровой границы', async () => {
+    const user = userEvent.setup();
+    const { onApply } = renderModal({ objectType: 'tank' });
+
+    await selectParam('ground_temperature');
+    const valueInput = screen.getByTestId('group-update-value');
+    await user.type(valueInput, '71');
+    await user.tab();
+
+    expect(await screen.findByText('Максимальное значение — 70')).toBeInTheDocument();
+    const apply = screen.getByRole('button', { name: 'Применить' });
+    expect(apply).toBeDisabled();
+    await user.click(apply);
+    expect(onApply).not.toHaveBeenCalled();
+  });
+
   it('в списке параметров только вводимые поля — вычисляемых там нет', () => {
     renderModal();
     // поле значения появляется только после выбора параметра
