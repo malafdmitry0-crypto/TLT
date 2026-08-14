@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.services.admin_service import AdminError, AdminService
+from app.services.admin_service import AdminError, AdminService, CoefficientNotFoundError
 
 
 def _mock_db(scalar=None, scalars_all=None):
@@ -122,18 +122,24 @@ class TestCoefficients:
         db = _mock_db(scalars_all=rows)
         assert await AdminService(db).list_coefficients() == rows
 
-    async def test_upsert_creates_new_when_missing(self):
+    async def test_update_missing_raises_without_write_side_effects(self, monkeypatch):
         from app.schemas.coefficient import CoefficientUpdate
 
         db = _mock_db(scalar=None)
-        coeff = await AdminService(db).upsert_coefficient(
-            "new_k", CoefficientUpdate(value=1.5, description="d"), uuid.uuid4()
-        )
-        assert coeff.key == "new_k"
-        assert coeff.value == 1.5
-        db.add.assert_called_once()
+        invalidate = AsyncMock()
+        monkeypatch.setattr("app.core.cache.cache.ainvalidate", invalidate)
 
-    async def test_upsert_updates_existing(self):
+        with pytest.raises(CoefficientNotFoundError, match="Коэффициент typo_k не найден"):
+            await AdminService(db).update_coefficient(
+                "typo_k", CoefficientUpdate(value=1.5, description="d"), uuid.uuid4()
+            )
+
+        db.add.assert_not_called()
+        db.commit.assert_not_awaited()
+        db.refresh.assert_not_awaited()
+        invalidate.assert_not_awaited()
+
+    async def test_update_existing_commits_refreshes_and_invalidates_cache(self, monkeypatch):
         from app.schemas.coefficient import CoefficientUpdate
 
         existing = SimpleNamespace(
@@ -143,16 +149,21 @@ class TestCoefficients:
             updated_by=None,
         )
         db = _mock_db(scalar=existing)
+        invalidate = AsyncMock()
+        monkeypatch.setattr("app.core.cache.cache.ainvalidate", invalidate)
         u_id = uuid.uuid4()
-        result = await AdminService(db).upsert_coefficient(
+        result = await AdminService(db).update_coefficient(
             "k", CoefficientUpdate(value=2.0, description="new"), u_id
         )
         assert result.value == 2.0
         assert result.description == "new"
         assert result.updated_by == u_id
         db.add.assert_not_called()
+        db.commit.assert_awaited_once_with()
+        db.refresh.assert_awaited_once_with(existing)
+        invalidate.assert_awaited_once_with("coefficients")
 
-    async def test_upsert_keeps_description_if_not_provided(self):
+    async def test_update_keeps_description_if_not_provided(self, monkeypatch):
         from app.schemas.coefficient import CoefficientUpdate
 
         existing = SimpleNamespace(
@@ -162,17 +173,51 @@ class TestCoefficients:
             updated_by=None,
         )
         db = _mock_db(scalar=existing)
-        await AdminService(db).upsert_coefficient("k", CoefficientUpdate(value=3.0), uuid.uuid4())
+        monkeypatch.setattr("app.core.cache.cache.ainvalidate", AsyncMock())
+
+        await AdminService(db).update_coefficient(
+            "k", CoefficientUpdate(value=3.0), uuid.uuid4()
+        )
+
         assert existing.description == "keep_me"
 
-    async def test_create_coefficient_delegates_to_upsert(self):
+    async def test_create_coefficient_is_explicit_internal_operation(self, monkeypatch):
         from app.schemas.coefficient import CoefficientCreate
 
         db = _mock_db(scalar=None)
+        invalidate = AsyncMock()
+        monkeypatch.setattr("app.core.cache.cache.ainvalidate", invalidate)
+        user_id = uuid.uuid4()
         result = await AdminService(db).create_coefficient(
-            CoefficientCreate(key="cc", value=0.5, description="x"), uuid.uuid4()
+            CoefficientCreate(key="cc", value=0.5, description="x"), user_id
         )
+
         assert result.key == "cc"
+        assert result.value == 0.5
+        assert result.description == "x"
+        assert result.updated_by == user_id
+        db.add.assert_called_once_with(result)
+        db.commit.assert_awaited_once_with()
+        db.refresh.assert_awaited_once_with(result)
+        invalidate.assert_awaited_once_with("coefficients")
+
+    async def test_create_coefficient_rejects_duplicate_without_write(self, monkeypatch):
+        from app.schemas.coefficient import CoefficientCreate
+
+        existing = SimpleNamespace(key="cc", value=0.5)
+        db = _mock_db(scalar=existing)
+        invalidate = AsyncMock()
+        monkeypatch.setattr("app.core.cache.cache.ainvalidate", invalidate)
+
+        with pytest.raises(AdminError, match="Коэффициент cc уже существует"):
+            await AdminService(db).create_coefficient(
+                CoefficientCreate(key="cc", value=0.7), uuid.uuid4()
+            )
+
+        db.add.assert_not_called()
+        db.commit.assert_not_awaited()
+        db.refresh.assert_not_awaited()
+        invalidate.assert_not_awaited()
 
 
 # ─── Accessories ───────────────────────────────────────────────────────────

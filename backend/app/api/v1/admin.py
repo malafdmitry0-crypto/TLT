@@ -44,7 +44,7 @@ from app.schemas.reference import (
 )
 from app.schemas.user import UserCreate, UserResponse, UserUpdate
 from app.services import heat_loss_application
-from app.services.admin_service import AdminError, AdminService
+from app.services.admin_service import AdminError, AdminService, CoefficientNotFoundError
 from app.services.audit_service import AuditService
 from app.services.electrical_catalog_service import (
     ElectricalCatalogService,
@@ -271,7 +271,9 @@ async def update_coefficient(
     db: AsyncSession = Depends(get_db),
 ):
     try:
-        coefficient = await AdminService(db).upsert_coefficient(key, data, principal.user_id)
+        coefficient = await AdminService(db).update_coefficient(key, data, principal.user_id)
+    except CoefficientNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
     except AdminError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     await AuditService(db).try_record(
