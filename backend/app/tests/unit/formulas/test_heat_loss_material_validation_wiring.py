@@ -14,7 +14,7 @@ from pydantic import ValidationError
 from app.formulas.heat_loss import pipe as pipe_formulas
 from app.formulas.heat_loss import tank as tank_formulas
 from app.formulas.heat_loss.catalog_preparation import HeatLossPreparationError
-from app.schemas import calculation as calculation_schemas
+from app.schemas import heat_loss as heat_loss_schemas
 from app.schemas.calculation import InsulationLayer, PipeHeatLossParams, TankHeatLossParams
 
 MINERAL_WOOL = "mineral_wool_boards_120"
@@ -54,7 +54,7 @@ def test_manual_material_interval_shape_delegates_to_core_once(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     validator = MagicMock(wraps=validate_insulation_contract)
-    monkeypatch.setattr(calculation_schemas, "validate_insulation_contract", validator)
+    monkeypatch.setattr(heat_loss_schemas, "validate_insulation_contract", validator)
 
     layer = InsulationLayer(
         thickness=0.05,
@@ -104,7 +104,7 @@ def test_reference_material_temperature_check_delegates_to_core(
     validator: Callable[[Any], Any],
 ) -> None:
     validator_spy = MagicMock(wraps=validator)
-    monkeypatch.setattr(calculation_schemas, validator_name, validator_spy)
+    monkeypatch.setattr(heat_loss_schemas, validator_name, validator_spy)
 
     factory()
 
