@@ -15,6 +15,7 @@ import math
 
 import pytest
 
+from app.formulas.heat_loss.catalog_preparation import HeatLossPreparationError
 from app.formulas.heat_loss.pipe import calc_pipe_heat_loss
 from app.formulas.heat_loss.tank import calc_tank_heat_loss
 from app.schemas.heat_loss import InsulationLayer, PipeHeatLossParams, TankHeatLossParams
@@ -113,15 +114,18 @@ class TestPipeTemperatureExtremes:
         )
         assert r.heat_loss_per_meter_base > 50  # Большая дельта → большие потери
 
-    def test_arctic_extreme_ambient(self):
-        """Граница ТНП: -70°C среда, 80°C продукт."""
-        r = calc_pipe_heat_loss(
-            _pipe(
-                ambient_temperature=-70,
-                process_temperature=80,
+    def test_arctic_extreme_rejects_material_below_cold_boundary(self):
+        """Среда допустима, но поверхность выбранной минваты холоднее её минимума."""
+        with pytest.raises(HeatLossPreparationError, match="Температура холодной стороны") as caught:
+            calc_pipe_heat_loss(
+                _pipe(
+                    ambient_temperature=-70,
+                    process_temperature=80,
+                )
             )
-        )
-        assert r.heat_loss_per_meter_base > 0
+
+        assert caught.value.code == "temperature_outside_interval"
+        assert caught.value.path == "insulation_layers.0"
 
     def test_zero_delta_t_rejected_by_formula(self):
         """ΔT=0 — формула отклоняет."""

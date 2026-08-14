@@ -12,7 +12,7 @@ from .conductivity import (
     evaluate_insulation_conductivity,
 )
 from .errors import FormulaDomainError
-from .material_validation import validate_hot_side_temperature_in_interval
+from .material_validation import validate_layer_boundary_temperatures_in_interval
 from .pipe import (
     AbovegroundPipeInput,
     PipeCoreResult,
@@ -269,12 +269,12 @@ def _validate_layer_temperatures(
     layers: tuple[PreparedPipeLayer, ...],
     layer_results: tuple[PipeFormulaLayerResult, ...],
 ) -> FormulaValidationReport:
-    """Collect all hotter-boundary interval violations in layer order."""
+    """Collect layer-boundary interval violations in layer order."""
 
     issues: tuple[FormulaValidationIssue, ...] = ()
     for index, (layer, result) in enumerate(zip(layers, layer_results, strict=True)):
         minimum_c, maximum_c = layer.temperature_interval_c
-        report = validate_hot_side_temperature_in_interval(
+        report = validate_layer_boundary_temperatures_in_interval(
             first_side_c=result.boundary_temperatures.hot_side_c,
             second_side_c=result.boundary_temperatures.cold_side_c,
             minimum_c=minimum_c,

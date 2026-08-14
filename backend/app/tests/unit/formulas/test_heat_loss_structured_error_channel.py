@@ -132,6 +132,26 @@ def test_tank_hot_side_is_structured_without_material_suffix() -> None:
     assert payload["fields"] == {"insulation_layers.0": TANK_HOT_SIDE_MESSAGE}
 
 
+def test_cold_side_error_uses_the_boundary_name_in_russian() -> None:
+    issue = FormulaValidationIssue.with_details(
+        "temperature_outside_interval",
+        path=("insulation_layers", 0),
+        temperature_c=-67.2,
+        minimum_c=-60.0,
+        maximum_c=400.0,
+    )
+
+    error = heat_loss_error_from_report(
+        FormulaValidationReport((issue,)),
+        layers=(SimpleNamespace(material="mineral_wool_boards_120"),),
+    )
+
+    assert error.message == (
+        "Температура холодной стороны слоя изоляции #1 (-67.2 °C) вне диапазона "
+        "материала 'mineral_wool_boards_120': -60…400 °C"
+    )
+
+
 def test_second_layer_hot_side_uses_zero_based_path_and_one_based_message() -> None:
     params = PipeHeatLossParams.model_validate(
         _pipe_payload(
