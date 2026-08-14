@@ -153,6 +153,7 @@ export function useHeatCalcDraftSaveModel({
             next[row.objectId] = {
               ...next[row.objectId],
               saving: false,
+              validationAttempted: true,
               errors: validationByRowId[row.objectId] ?? {},
             };
           }
@@ -169,7 +170,13 @@ export function useHeatCalcDraftSaveModel({
     setDraftRowsById((current) => {
       const next = { ...current };
       targetIds.forEach((id) => {
-        if (next[id]) next[id] = { ...next[id], saving: true };
+        if (next[id]) {
+          next[id] = {
+            ...next[id],
+            saving: true,
+            validationAttempted: true,
+          };
+        }
       });
       return next;
     });
