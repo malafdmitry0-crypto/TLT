@@ -7,6 +7,7 @@ import {
   selectSpecificationGenerationOutcome,
   type SpecificationGenerationUiState,
 } from '@/pages/specification/specificationGenerationOutcomeModel';
+import { presentSpecificationDiagnostic } from '@/pages/specification/specificationDiagnosticPresentationModel';
 
 type GenerateStatus = SpecificationGenerateVariantResult['status'];
 
@@ -297,7 +298,9 @@ describe('SpecPageChrome UI kit strangler (U2)', () => {
     const action = screen.getByRole('button', { name: 'Сформировать' });
     expect(action.closest('.ant-modal-footer')).not.toBeNull();
     const validation = screen.getByRole('alert');
-    expect(validation).toHaveTextContent('Не заполнены обязательные настройки спецификации');
+    expect(validation).toHaveTextContent('Не удалось сформировать спецификацию');
+    expect(validation).toHaveTextContent('Исправьте отмеченные поля');
+    expect(validation.textContent).not.toMatch(/Backend|SPEC_[A-Z_]+/);
     expect(validation.closest('.ant-modal-footer')).not.toBeNull();
   });
 
@@ -480,5 +483,17 @@ describe('SpecPageChrome UI kit strangler (U2)', () => {
     expect(outcome.blockingDiagnostics.map((diagnostic) => diagnostic.code))
       .toEqual(expectedIds('blocked').map((id) => `blocked:${id}`));
     expect(outcome.generatedVariantIds).toEqual(expectedIds('generated'));
+  });
+  it.each([
+    [{ code: 'SPEC_VARIANT_NOT_READY' }, 'Перейдите в ЭР'],
+    [{ code: 'SPEC_ACCESSORY_SELECTION_REQUIRED' }, 'Выберите комплектующие'],
+    [{ code: 'SPEC_UNASSIGNED_CONFIRMATION_REQUIRED' }, 'исправьте назначения'],
+    [{ code: 'SPEC_UNKNOWN' }, 'Проверьте настройки'],
+    [{ code: 'SPEC_FORMULA_INPUT_INVALID', issues: [{ field: 'catalog_item_id' }] }, 'Проверьте настройки и состояние'],
+  ])('presents a diagnostic without exposing its machine code', (diagnostic, expected) => {
+    const presentation = presentSpecificationDiagnostic(diagnostic);
+    const visibleCopy = `${presentation.title} ${presentation.message}`;
+    expect(visibleCopy).toContain(expected);
+    expect(visibleCopy).not.toContain(diagnostic.code);
   });
 });

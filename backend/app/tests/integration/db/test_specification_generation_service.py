@@ -222,6 +222,7 @@ def _generation_options() -> SpecificationRequestedOptions:
 async def test_ready_complete_catalog_generates_and_persists_by_uuid(
     db_session: AsyncSession,
     employee_user: User,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     project, variants, _obj = await _seed_ready_project(
         db_session,
@@ -293,6 +294,17 @@ async def test_ready_complete_catalog_generates_and_persists_by_uuid(
     assert len(persisted.items) >= 1
     assert persisted.snapshot is not None
     assert persisted.snapshot["schema"] == "specification-generation"
+
+    async def no_contributing(*_args, **_kwargs):  # type: ignore[no-untyped-def]
+        return [], {}, []
+
+    monkeypatch.setattr(SpecificationGenerationService, "_load_contributing_context", no_contributing)
+    blocked = await SpecificationGenerationService(db_session).generate(
+        project.id, _principal(employee_user), request
+    )
+    assert blocked.results[0].diagnostics[0].message == (
+        "Нет результатов электротехнического расчёта для включения в спецификацию"
+    )
 
 
 async def test_ready_and_blocked_mixed_writes_ready_bom_and_blocked_outcome(

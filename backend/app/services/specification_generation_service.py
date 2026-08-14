@@ -275,7 +275,7 @@ class SpecificationGenerationService:
                 current.electrical_variant_id,
                 current.electrical_variant_name,
                 SpecificationDiagnosticCode.VARIANT_NOT_READY,
-                "Нет contributing electrical results для формирования BOM",
+                "Нет результатов электротехнического расчёта для включения в спецификацию",
             )
 
         variant = await self.db.get(ElectricalVariant, current.electrical_variant_id)
