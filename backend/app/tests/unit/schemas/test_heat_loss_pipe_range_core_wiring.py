@@ -7,7 +7,7 @@ from heatcalc_heat_loss_core.pipe_contract import validate_pipe_contract
 from pydantic import ValidationError
 
 from app.schemas import heat_loss as heat_loss_schemas
-from app.schemas.calculation import PipeHeatLossParams, StoredPipeHeatParams
+from app.schemas.heat_loss import PipeHeatLossParams, StoredPipeHeatParams
 
 MINERAL_WOOL = "mineral_wool_boards_120"
 

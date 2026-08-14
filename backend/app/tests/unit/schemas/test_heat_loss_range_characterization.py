@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 from pydantic import BaseModel, ValidationError
 
-from app.schemas.calculation import (
+from app.schemas.heat_loss import (
     InsulationLayer,
     PipeHeatLossParams,
     StoredPipeHeatParams,

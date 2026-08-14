@@ -10,9 +10,11 @@ from app.reference_data.loader import list_soil_conductivity
 from app.schemas.calculation import (
     ElectricalBatchJobRequest,
     ElectricalCableSelectionRequest,
+    SelfRegulatingTTParams,
+)
+from app.schemas.heat_loss import (
     InsulationLayer,
     PipeHeatLossParams,
-    SelfRegulatingTTParams,
     TankHeatLossParams,
 )
 

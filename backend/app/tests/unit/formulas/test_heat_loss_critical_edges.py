@@ -17,7 +17,7 @@ import pytest
 
 from app.formulas.heat_loss.pipe import calc_pipe_heat_loss
 from app.formulas.heat_loss.tank import calc_tank_heat_loss
-from app.schemas.calculation import InsulationLayer, PipeHeatLossParams, TankHeatLossParams
+from app.schemas.heat_loss import InsulationLayer, PipeHeatLossParams, TankHeatLossParams
 
 MINERAL_WOOL = "mineral_wool_boards_120"
 LOW_LAMBDA_INSULATION = "polyurethane_products_40"

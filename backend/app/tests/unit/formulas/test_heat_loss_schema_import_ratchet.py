@@ -8,6 +8,7 @@ from pathlib import Path
 BACKEND_APP = Path(__file__).resolve().parents[3]
 CALCULATION_MODULE = "app.schemas.calculation"
 SCHEMAS_PACKAGE = "app.schemas"
+CALCULATION_PATH = BACKEND_APP / "schemas" / "calculation.py"
 FORMULA_NAMES = frozenset(
     {
         "InsulationLayer",
@@ -30,13 +31,67 @@ HTTP_NAMES = frozenset(
 )
 HEAT_NAMES = FORMULA_NAMES | HTTP_NAMES
 SKIP_PARTS = {"tests", "mutants", "__pycache__"}
-ALLOWED_FILES = frozenset(
+FORMULA_OWNER_FILES = frozenset(
     {
-        BACKEND_APP / "schemas" / "calculation.py",
+        BACKEND_APP / "schemas" / "heat_loss.py",
+    }
+)
+HTTP_COMPATIBILITY_FILES = frozenset(
+    {
+        CALCULATION_PATH,
         BACKEND_APP / "schemas" / "heat_loss.py",
         BACKEND_APP / "schemas" / "heat_loss_http.py",
     }
 )
+
+
+_NESTED_SCOPES = (
+    ast.AsyncFunctionDef,
+    ast.ClassDef,
+    ast.DictComp,
+    ast.FunctionDef,
+    ast.GeneratorExp,
+    ast.Lambda,
+    ast.ListComp,
+    ast.SetComp,
+)
+
+
+def _module_scope_nodes(tree: ast.AST) -> list[ast.AST]:
+    found: list[ast.AST] = []
+    pending = [tree]
+    while pending:
+        node = pending.pop()
+        found.append(node)
+        if node is not tree and isinstance(node, _NESTED_SCOPES):
+            continue
+        pending.extend(ast.iter_child_nodes(node))
+    return found
+
+
+def _formula_owner_violations(tree: ast.AST, label: str) -> list[str]:
+    bindings: set[str] = set()
+    imported_names: set[str] = set()
+    for node in _module_scope_nodes(tree):
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+            bindings.add(node.id)
+        elif isinstance(node, ast.Import):
+            bindings.update(
+                alias.asname or alias.name.split(".", maxsplit=1)[0] for alias in node.names
+            )
+        elif isinstance(node, ast.ImportFrom):
+            if any(alias.name == "*" for alias in node.names):
+                bindings.update(FORMULA_NAMES)
+                imported_names.update(FORMULA_NAMES)
+            bindings.update(alias.asname or alias.name for alias in node.names)
+            imported_names.update(alias.name for alias in node.names)
+        elif isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef) or (
+            isinstance(node, ast.ExceptHandler) and node.name is not None
+        ):
+            bindings.add(node.name)
+
+    forbidden = FORMULA_NAMES & (bindings | imported_names)
+    return [f"{label}: {name}" for name in sorted(forbidden)]
 
 
 def _dotted_name(node: ast.AST) -> str | None:
@@ -107,21 +162,34 @@ def _calculation_module_references(tree: ast.AST) -> frozenset[str]:
     return frozenset(references)
 
 
-def _violations_in_tree(tree: ast.AST, label: str) -> list[str]:
+def _violations_in_tree(
+    tree: ast.AST,
+    label: str,
+    forbidden_names: frozenset[str] = HEAT_NAMES,
+) -> list[str]:
     found: list[str] = []
     calculation_references = _calculation_module_references(tree)
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom) and _imports_calculation_module(node):
             for alias in node.names:
-                if alias.name == "*" or alias.name in HEAT_NAMES:
+                if alias.name == "*" or alias.name in forbidden_names:
                     found.append(f"{label}: {alias.name}")
         elif (
             isinstance(node, ast.Attribute)
-            and node.attr in HEAT_NAMES
+            and node.attr in forbidden_names
             and (_dotted_name(node.value) or "") in calculation_references
         ):
             found.append(f"{label}: {_dotted_name(node)}")
     return found
+
+
+def _forbidden_names_for(path: Path) -> frozenset[str]:
+    forbidden: set[str] = set()
+    if path not in FORMULA_OWNER_FILES:
+        forbidden.update(FORMULA_NAMES)
+    if path not in HTTP_COMPATIBILITY_FILES:
+        forbidden.update(HTTP_NAMES)
+    return frozenset(forbidden)
 
 
 def _violations() -> list[str]:
@@ -129,10 +197,20 @@ def _violations() -> list[str]:
     for path in BACKEND_APP.rglob("*.py"):
         if SKIP_PARTS & set(path.parts):
             continue
-        if path in ALLOWED_FILES:
+        forbidden_names = _forbidden_names_for(path)
+        if not forbidden_names:
             continue
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        found.extend(_violations_in_tree(tree, str(path.relative_to(BACKEND_APP))))
+        label = str(path.relative_to(BACKEND_APP))
+        if path == CALCULATION_PATH:
+            found.extend(_formula_owner_violations(tree, label))
+        found.extend(
+            _violations_in_tree(
+                tree,
+                label,
+                forbidden_names,
+            )
+        )
     return found
 
 
@@ -140,10 +218,43 @@ def test_production_does_not_import_heat_schemas_from_calculation() -> None:
     assert _violations() == []
 
 
+def test_calculation_compatibility_module_exports_no_formula_models() -> None:
+    tree = ast.parse(
+        CALCULATION_PATH.read_text(encoding="utf-8"),
+        filename=str(CALCULATION_PATH),
+    )
+
+    assert _forbidden_names_for(CALCULATION_PATH) == FORMULA_NAMES
+    assert _formula_owner_violations(tree, "calculation.py") == []
+
+
+def test_owner_ratchet_flags_formula_reexport_and_assignment() -> None:
+    reexport = ast.parse(
+        "from app.schemas.heat_loss import " "PipeHeatLossParams as PipeHeatLossParams\n"
+    )
+    assignment = ast.parse(
+        "from app.schemas import heat_loss\n" "TankHeatLossResult = heat_loss.TankHeatLossResult\n"
+    )
+
+    assert _formula_owner_violations(reexport, "reexport") == ["reexport: PipeHeatLossParams"]
+    assert _formula_owner_violations(assignment, "assignment") == ["assignment: TankHeatLossResult"]
+
+
+def test_owner_ratchet_allows_http_compatibility_reexports() -> None:
+    tree = ast.parse("from app.schemas.heat_loss import HeatLossRequest as HeatLossRequest\n")
+
+    assert _formula_owner_violations(tree, "snippet") == []
+
+
+def test_ratchet_flags_direct_formula_import() -> None:
+    tree = ast.parse("from app.schemas.calculation import InsulationLayer as Layer\n")
+
+    assert _violations_in_tree(tree, "snippet") == ["snippet: InsulationLayer"]
+
+
 def test_ratchet_flags_full_module_attribute_access() -> None:
     tree = ast.parse(
-        "import app.schemas.calculation\n"
-        "_ = app.schemas.calculation.PipeHeatLossParams\n"
+        "import app.schemas.calculation\n" "_ = app.schemas.calculation.PipeHeatLossParams\n"
     )
     assert _violations_in_tree(tree, "snippet") == [
         "snippet: app.schemas.calculation.PipeHeatLossParams"
@@ -151,19 +262,21 @@ def test_ratchet_flags_full_module_attribute_access() -> None:
 
 
 def test_ratchet_flags_from_schemas_import_calculation() -> None:
-    tree = ast.parse(
-        "from app.schemas import calculation\n_ = calculation.TankHeatLossParams\n"
-    )
-    assert _violations_in_tree(tree, "snippet") == [
-        "snippet: calculation.TankHeatLossParams"
-    ]
+    tree = ast.parse("from app.schemas import calculation\n_ = calculation.TankHeatLossParams\n")
+    assert _violations_in_tree(tree, "snippet") == ["snippet: calculation.TankHeatLossParams"]
 
 
 def test_ratchet_flags_aliased_package_import() -> None:
-    tree = ast.parse(
-        "from app.schemas import calculation as calc\n_ = calc.StoredPipeHeatParams\n"
-    )
+    tree = ast.parse("from app.schemas import calculation as calc\n_ = calc.StoredPipeHeatParams\n")
     assert _violations_in_tree(tree, "snippet") == ["snippet: calc.StoredPipeHeatParams"]
+
+
+def test_ratchet_flags_formula_models_via_relative_imports() -> None:
+    direct = ast.parse("from ..schemas.calculation import PipeHeatLossResult\n")
+    module = ast.parse("from ..schemas import calculation as calc\n_ = calc.TankHeatLossResult\n")
+
+    assert _violations_in_tree(direct, "direct") == ["direct: PipeHeatLossResult"]
+    assert _violations_in_tree(module, "module") == ["module: calc.TankHeatLossResult"]
 
 
 def test_ratchet_flags_http_envelope_from_calculation() -> None:
