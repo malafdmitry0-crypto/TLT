@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 
-from app.api.v1 import admin as admin_api
 from app.formulas.heat_loss.evaluator import evaluate_validated_heat_loss
 from app.schemas.calculation import PipeHeatLossParams, TankHeatLossParams
+from app.services import heat_loss_application
 
 
 def _pipe() -> dict[str, object]:
@@ -57,7 +57,7 @@ def test_evaluator_requires_a_prevalidated_pydantic_model() -> None:
         pytest.param("tank", _tank(), TankHeatLossParams, "TankHeatLossParams", id="tank"),
     ],
 )
-async def test_admin_formula_check_constructs_pydantic_model_before_evaluation(
+def test_application_preview_constructs_pydantic_model_before_evaluation(
     monkeypatch: pytest.MonkeyPatch,
     formula_type: str,
     payload: dict[str, object],
@@ -77,21 +77,15 @@ async def test_admin_formula_check_constructs_pydantic_model_before_evaluation(
     evaluator_result = MagicMock()
     evaluator_result.model_dump.return_value = {"formula_model": formula_type}
     evaluator = MagicMock(return_value=evaluator_result)
-    audit_service = MagicMock()
-    audit_service.try_record = AsyncMock()
+    monkeypatch.setattr(heat_loss_application, constructor_name, constructor)
+    monkeypatch.setattr(heat_loss_application, "evaluate_validated_heat_loss", evaluator)
 
-    monkeypatch.setattr(admin_api, constructor_name, constructor)
-    monkeypatch.setattr(admin_api, "evaluate_validated_heat_loss", evaluator)
-    monkeypatch.setattr(admin_api, "AuditService", MagicMock(return_value=audit_service))
-
-    response = await admin_api.formula_check(
-        admin_api.FormulaCheckRequest(formula_type=formula_type, params=payload),
-        principal=MagicMock(),
-        db=MagicMock(),
+    response = heat_loss_application.preview_validated_heat_formula(
+        formula_type,  # type: ignore[arg-type]
+        payload,
     )
 
     assert response == {"formula_model": formula_type}
     assert constructor.call_count == 1
     assert evaluator.call_count == 1
     assert evaluator.call_args.args[0] is models[0]
-    audit_service.try_record.assert_awaited_once()
