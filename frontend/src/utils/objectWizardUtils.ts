@@ -36,6 +36,8 @@ export const COMMON_OBJECT_FORM_DEFAULTS: ObjectWizardFormValues = {
   environment: 'normal',
   zone_classification: 'safe',
   temperature_group: 'T1',
+  min_switch_temperature: -20,
+  safety_factor: 1.1,
   steam_tracing: 'no',
 };
 
@@ -72,6 +74,7 @@ export function applyObjectFormDefaults(
   objectType: 'pipe' | 'tank',
   values?: ObjectWizardFormValues,
 ): ObjectWizardFormValues {
+  const usesDefaultSafetyFactor = isEmptyFormValue(values?.safety_factor);
   const defaults = formDefaultsForObjectType(objectType);
   const merged: ObjectWizardFormValues = { ...defaults, ...(values ?? {}) };
   // Restore empty default keys via spread (no heterogeneous index write).
@@ -85,6 +88,9 @@ export function applyObjectFormDefaults(
   };
   if (isEmptyFormValue(next.insulation_temperature_basis)) {
     next.insulation_temperature_basis = defaultInsulationTemperatureBasisForPlacement(next.placement);
+  }
+  if (usesDefaultSafetyFactor) {
+    next.safety_factor_source = 'default';
   }
   return next;
 }
