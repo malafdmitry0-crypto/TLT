@@ -55,6 +55,9 @@ function fieldRequired(fieldId: string, context: HeatCalcFieldContext) {
     if (fieldId === 'wall_thickness_mm') return hasValue(context.values.wall_lambda);
     if (fieldId === 'wall_lambda') return hasValue(context.values.wall_thickness_mm);
   }
+  if (fieldId === 'wind_speed' && context.objectType === 'pipe') {
+    return context.values.placement === 'outdoor';
+  }
   if (fieldId === 'pipe_material') return context.objectType === 'pipe';
   if (fieldId === 'pipe_lambda') return context.objectType === 'pipe' && context.values.pipe_material === 'other';
   if (fieldId === 'burial_depth' || fieldId === 'pipe_centerline_depth' || fieldId === 'tank_buried_height' || fieldId === 'ground_type' || fieldId === 'ground_temperature') return context.values.placement === 'underground';
