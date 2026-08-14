@@ -4,7 +4,7 @@
 import type { ElectricalCalcSummary, ElectricalQueryAssignment } from '@/types/calculation';
 import { isElectricalCalcStale } from '@/utils/calcStatus';
 
-/** Assignment-level or calc-level stale (heat/Iдоп/catalog change). */
+/** Assignment-level or calc-level stale (heat/I доп/catalog change). */
 export function isElectricalObjectStale(
   calc: ElectricalCalcSummary | null | undefined,
   assignment: ElectricalQueryAssignment | null | undefined,

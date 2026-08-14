@@ -65,14 +65,14 @@ describe('ElecCalcStaleBanner', () => {
     expect(screen.queryByTestId('elec-stale-select')).not.toBeInTheDocument();
   });
 
-  it('blocks stale recalculation when project Iдоп is missing', async () => {
+  it('blocks stale recalculation when project I доп is missing', async () => {
     const user = userEvent.setup();
     const onRecalculateStale = vi.fn();
     render(
       <ElecCalcStaleBanner
         staleCount={1}
         canMutate
-        recalculationBlockedReason="Сначала укажите и сохраните Iдоп проекта"
+        recalculationBlockedReason="Сначала укажите и сохраните I доп проекта"
         onRecalculateStale={onRecalculateStale}
       />,
     );

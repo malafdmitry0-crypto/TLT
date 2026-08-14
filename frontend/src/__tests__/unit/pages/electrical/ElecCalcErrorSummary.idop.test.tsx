@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import ElecCalcErrorSummary from '@/pages/electrical/ElecCalcErrorSummary';
 import { getElectricalErrorGuidance } from '@/utils/electricalErrorGuidance';
 
-describe('ElecCalcErrorSummary Iдоп guidance', () => {
+describe('ElecCalcErrorSummary I доп guidance', () => {
   it('shows concrete cable temperature limits instead of formula symbols', () => {
     const backendError = 'Температуры объекта находятся вне допустимого диапазона кабелей';
     const errorContext = {
@@ -77,7 +77,7 @@ describe('ElecCalcErrorSummary Iдоп guidance', () => {
     expect(screen.getByText(
       'Задайте допустимый стартовый ток одной секции в настройках проекта',
     )).toBeInTheDocument();
-    expect(screen.getByText('Задать Iдоп проекта')).toBeInTheDocument();
+    expect(screen.getByText('Задать I доп проекта')).toBeInTheDocument();
     expect(screen.queryByText('Проверить параметры объекта')).not.toBeInTheDocument();
     expect(screen.queryByText('SECTION_CURRENT_LIMIT_REQUIRED')).not.toBeInTheDocument();
   });

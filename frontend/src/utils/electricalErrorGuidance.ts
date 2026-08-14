@@ -108,7 +108,7 @@ const ERROR_META: Record<
     tagColor: 'magenta',
   },
   section_current_limit_required: {
-    label: 'Не задан Iдоп проекта',
+    label: 'Не задан I доп проекта',
     message: 'Задайте допустимый стартовый ток одной секции в настройках проекта',
     tagColor: 'red',
   },
@@ -146,7 +146,7 @@ const ACTION_LABELS: Record<ElectricalSuggestedAction, string> = {
   CHECK_AMBIENT_TEMPERATURE: 'Проверить температуру среды',
   CHECK_VAPOR_TEMPERATURE: 'Проверить температуру пропарки',
   CHECK_OBJECT_PARAMS: 'Проверить параметры объекта',
-  SET_PROJECT_CURRENT_LIMIT: 'Задать Iдоп проекта',
+  SET_PROJECT_CURRENT_LIMIT: 'Задать I доп проекта',
   TRY_OTHER_CABLE_TYPE: 'Попробовать другой тип кабеля',
 };
 

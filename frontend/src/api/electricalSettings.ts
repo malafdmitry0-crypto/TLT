@@ -1,5 +1,5 @@
 /**
- * Project electrical settings (Iдоп / nominal voltage).
+ * Project electrical settings (I доп / nominal voltage).
  * Backend: GET/PATCH /projects/{id}/electrical-settings
  */
 import apiClient, { type ApiError } from './client';
@@ -9,7 +9,7 @@ export const PROJECT_ELECTRICAL_SETTINGS_QUERY_KEY = 'project-electrical-setting
 export type ProjectElectricalSettings = {
   project_id: string;
   nominal_voltage_v: number;
-  /** Project-level Iдоп (A). null = not set → sectioning blocked. */
+  /** Project-level I доп (A). null = not set → sectioning blocked. */
   max_section_start_current_a: number | string | null;
   version: number;
   updated_by: string | null;
