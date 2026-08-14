@@ -180,9 +180,9 @@ async function showElectricalColumns(
 }
 
 test.describe('4.4 Электротехнический расчёт', () => {
-  test('требует сохранить проектный Iдоп до запуска пересчёта', async ({ page }) => {
+  test('требует сохранить проектный I доп до запуска пересчёта', async ({ page }) => {
     await loginAsGuest(page);
-    const pipe = await createCleanCase1Pipe(page, `E2E required Iдоп ${Date.now()}`);
+    const pipe = await createCleanCase1Pipe(page, `E2E required I доп ${Date.now()}`);
 
     await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
     await createFirstElectricalVariantIfNeeded(page);
@@ -192,7 +192,7 @@ test.describe('4.4 Электротехнический расчёт', () => {
     const idop = page.getByTestId('elec-idop-input');
     await expect(idop).toHaveAttribute('aria-required', 'true');
     await expect(idop).toHaveAttribute('aria-invalid', 'true');
-    await expect(page.getByRole('alert').filter({ hasText: 'Укажите Iдоп проекта' })).toBeVisible();
+    await expect(page.getByRole('alert').filter({ hasText: 'Укажите I доп проекта' })).toBeVisible();
     await expect(page.getByRole('button', { name: /Пересчитать все · ЭР1/i })).toBeDisabled();
     await expect(page.getByRole('button', { name: /Пересчитать выбранные ЭР/i })).toHaveCount(0);
 
@@ -200,7 +200,7 @@ test.describe('4.4 Электротехнический расчёт', () => {
     await page.getByTestId('elec-idop-save').click();
 
     await expect(idop).not.toHaveAttribute('aria-invalid');
-    await expect(page.getByText('Укажите Iдоп проекта')).toHaveCount(0);
+    await expect(page.getByText('Укажите I доп проекта')).toHaveCount(0);
     await expect(page.getByRole('button', { name: /Пересчитать все · ЭР1/i })).toBeEnabled();
   });
 
@@ -260,7 +260,7 @@ test.describe('4.4 Электротехнический расчёт', () => {
 
     await page.getByTestId('elec-idop-input').fill('80');
     await page.getByTestId('elec-idop-save').click();
-    await expect(page.getByText('Iдоп не задан')).toHaveCount(0);
+    await expect(page.getByText('Не задан I доп проекта')).toHaveCount(0);
 
     await assignObjectToFirstEr(page, pipe.id);
     await page.reload({ waitUntil: 'domcontentloaded' });
@@ -343,7 +343,7 @@ test.describe('4.4 Электротехнический расчёт', () => {
 
     await page.getByTestId('elec-idop-input').fill('80');
     await page.getByTestId('elec-idop-save').click();
-    await expect(page.getByText('Iдоп не задан')).toHaveCount(0);
+    await expect(page.getByText('Не задан I доп проекта')).toHaveCount(0);
     await assignObjectToFirstEr(page, pipe.id);
     await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('tab', { name: /Самрег 1 объект/i })).toBeVisible();

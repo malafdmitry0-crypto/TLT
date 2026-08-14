@@ -51,7 +51,7 @@ describe('useProjectElectricalSettings', () => {
     });
   });
 
-  it('loads settings and reports missing Iдоп', async () => {
+  it('loads settings and reports missing I доп', async () => {
     const { result } = renderHook(
       () => useProjectElectricalSettings('p1', true),
       { wrapper: wrapper() },
@@ -60,14 +60,14 @@ describe('useProjectElectricalSettings', () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.idopMissing).toBe(true);
     expect(result.current.savedIdop).toBeNull();
-    expect(result.current.validationError).toBe('Укажите Iдоп проекта');
+    expect(result.current.validationError).toBe('Укажите I доп проекта');
     expect(result.current.calculationBlockedReason).toBe(
-      'Сначала укажите и сохраните Iдоп проекта',
+      'Сначала укажите и сохраните I доп проекта',
     );
     expect(result.current.nominalVoltage).toBe(230);
   });
 
-  it('saves draft Iдоп via PATCH', async () => {
+  it('saves draft I доп via PATCH', async () => {
     apiMocks.patch.mockResolvedValue({
       project_id: 'p1',
       nominal_voltage_v: 230,
@@ -103,7 +103,7 @@ describe('useProjectElectricalSettings', () => {
     expect(result.current.savedIdop).toBe(13);
   });
 
-  it('does not allow clearing required Iдоп', async () => {
+  it('does not allow clearing required I доп', async () => {
     apiMocks.get.mockResolvedValue({
       project_id: 'p1',
       nominal_voltage_v: 230,
@@ -120,7 +120,7 @@ describe('useProjectElectricalSettings', () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     act(() => result.current.onDraftChange(null));
-    expect(result.current.validationError).toBe('Укажите Iдоп проекта');
+    expect(result.current.validationError).toBe('Укажите I доп проекта');
     expect(result.current.canSave).toBe(false);
     act(() => result.current.save());
 

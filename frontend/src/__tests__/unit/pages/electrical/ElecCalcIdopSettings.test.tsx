@@ -21,9 +21,9 @@ function makeSettings(
     saving: false,
     idopMissing: true,
     isDirty: false,
-    validationError: 'Укажите Iдоп проекта',
+    validationError: 'Укажите I доп проекта',
     canSave: false,
-    calculationBlockedReason: 'Сначала укажите и сохраните Iдоп проекта',
+    calculationBlockedReason: 'Сначала укажите и сохраните I доп проекта',
     canMutate: true,
     nominalVoltage: 230,
     ...overrides,
@@ -31,24 +31,25 @@ function makeSettings(
 }
 
 describe('ElecCalcIdopSettings', () => {
-  it('marks Iдоп as required and explains a missing value', () => {
+  it('marks I доп as required and explains a missing value', () => {
     render(<ElecCalcIdopSettings settings={makeSettings()} />);
 
     expect(screen.getByTestId('elec-idop-settings')).toBeInTheDocument();
     expect(screen.getByTestId('elec-idop-settings')).not.toHaveTextContent('*');
-    expect(screen.queryByText('Iдоп не задан')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Задать Iдоп' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Не задан I доп проекта')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Задать I доп проекта' })).not.toBeInTheDocument();
     expect(screen.getByRole('spinbutton', {
-      name: 'Iдоп проекта — допустимый стартовый ток одной секции, А',
+      name: 'I доп проекта — допустимый стартовый ток одной секции, А',
     })).toHaveAttribute('aria-required', 'true');
     expect(screen.getByRole('spinbutton', {
-      name: 'Iдоп проекта — допустимый стартовый ток одной секции, А',
+      name: 'I доп проекта — допустимый стартовый ток одной секции, А',
     })).toHaveAttribute('aria-invalid', 'true');
-    expect(screen.getByRole('alert')).toHaveTextContent('Укажите Iдоп проекта');
+    expect(screen.getByRole('button', { name: 'Сохранить I доп' })).toBeDisabled();
+    expect(screen.getByRole('alert')).toHaveTextContent('Укажите I доп проекта');
     expect(screen.getByTestId('elec-idop-save')).toBeDisabled();
   });
 
-  it('enables save when Iдоп is dirty', async () => {
+  it('enables save when I доп is dirty', async () => {
     const user = userEvent.setup();
     const onDraftChange = vi.fn();
     const save = vi.fn();
@@ -67,7 +68,7 @@ describe('ElecCalcIdopSettings', () => {
       />,
     );
 
-    expect(screen.queryByText('Iдоп не задан')).not.toBeInTheDocument();
+    expect(screen.queryByText('Не задан I доп проекта')).not.toBeInTheDocument();
     const saveBtn = screen.getByTestId('elec-idop-save');
     expect(saveBtn).not.toBeDisabled();
     await user.click(saveBtn);
@@ -95,8 +96,8 @@ describe('ElecCalcIdopSettings', () => {
         settings={makeSettings({ canMutate: false, idopMissing: true })}
       />,
     );
-    expect(screen.queryByText('Iдоп не задан')).not.toBeInTheDocument();
+    expect(screen.queryByText('Не задан I доп проекта')).not.toBeInTheDocument();
     expect(screen.queryByTestId('elec-idop-save')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Задать Iдоп' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Задать I доп проекта' })).not.toBeInTheDocument();
   });
 });
