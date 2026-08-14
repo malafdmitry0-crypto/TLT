@@ -99,6 +99,59 @@ def test_ready_uses_canonical_tt_snapshot_and_only_nonblocking_rows_contribute(o
     assert result.input_fingerprint and result.input_fingerprint.startswith("sha256:")
 
 
+@pytest.mark.parametrize(
+    ("assignments", "expected_status", "expected_contributing", "expected_code"),
+    [
+        pytest.param(
+            [_assignment(assignment_state="unassigned", system_type=None)],
+            SpecificationPreflightStatus.BLOCKED,
+            0,
+            SpecificationDiagnosticCode.VARIANT_NOT_READY,
+            id="all-unassigned-is-blocked",
+        ),
+        pytest.param(
+            [
+                _assignment(object_id=uuid4()),
+                _assignment(
+                    object_id=uuid4(),
+                    assignment_state="unassigned",
+                    system_type=None,
+                ),
+            ],
+            SpecificationPreflightStatus.CONFIRMATION_REQUIRED,
+            1,
+            SpecificationDiagnosticCode.UNASSIGNED_CONFIRMATION_REQUIRED,
+            id="partial-is-confirmable",
+        ),
+        pytest.param(
+            [_assignment(object_id=uuid4()), _assignment(object_id=uuid4())],
+            SpecificationPreflightStatus.READY,
+            2,
+            None,
+            id="all-contributing-is-ready",
+        ),
+    ],
+)
+def test_contribution_matrix_prioritizes_no_contributing_over_confirmation(
+    assignments,
+    expected_status,
+    expected_contributing,
+    expected_code,
+):
+    result = evaluate_specification_preflight(
+        electrical_variant_id=VARIANT_ID,
+        assignments=assignments,
+        catalog=_catalog(),
+        exclude_unassigned_confirmed=False,
+    )
+
+    assert result.status is expected_status
+    assert result.contributing_objects == expected_contributing
+    assert [diagnostic.code for diagnostic in result.diagnostics] == (
+        [expected_code] if expected_code is not None else []
+    )
+
+
 def test_unknown_object_type_is_rejected_by_specification_preflight():
     result = evaluate_specification_preflight(
         electrical_variant_id=VARIANT_ID,
@@ -141,7 +194,7 @@ def test_legacy_identity_is_rejected_and_unassigned_details_use_canonical_key():
 
     confirmation = evaluate_specification_preflight(
         electrical_variant_id=VARIANT_ID,
-        assignments=[unassigned],
+        assignments=[_assignment(object_id=uuid4()), unassigned],
         catalog=_catalog(),
         exclude_unassigned_confirmed=False,
     )
@@ -230,6 +283,7 @@ def test_missing_calculation_and_heat_revision_drift_are_fail_closed():
     )
 
     assert missing_result.diagnostics[0].code is SpecificationDiagnosticCode.VARIANT_NOT_READY
+    assert missing_result.status is SpecificationPreflightStatus.BLOCKED
     assert missing_result.contributing_objects == 0
     assert stale_result.diagnostics[0].code is SpecificationDiagnosticCode.RESULT_STALE
 
