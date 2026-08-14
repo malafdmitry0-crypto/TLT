@@ -131,7 +131,7 @@ describe('heatCalcPageUtils', () => {
     expect(heatLossErrorText(structuredFailed)).toBe('Понятная ошибка');
     expect(heatLossCalcStatus(unsupported)).toBe('unsupported');
     expect(heatLossStatusLabel(heatLossCalcStatus(unsupported))).toBe('Не применимо');
-    expect(heatLossErrorText(rawFailed)).toBe('{"field":"required"}');
+    expect(heatLossErrorText(rawFailed)).toBe('Параметр объекта: Проверьте значение');
     expect(heatLossStatusLabel(heatLossCalcStatus(makeObject()))).toBe('Не рассчитан');
   });
 
@@ -160,6 +160,57 @@ describe('heatCalcPageUtils', () => {
     expect(text).toContain('Заполните обязательные поля объекта');
     expect(text).toContain('Высота обогрева');
     expect(text).toContain('Шаг укладки');
+  });
+
+  it('показывает structured ошибку толщины стенки без backend-ключа', () => {
+    const failed = makeObject({
+      validation_errors: {
+        error_code: 'wall_exceeds_pipe_radius',
+        category: 'validation',
+        field: 'wall_thickness',
+        fields: {
+          wall_thickness: 'Толщина стенки должна быть меньше половины наружного диаметра',
+        },
+        message: 'Проверьте параметры объекта wall_thickness',
+      },
+    });
+
+    const text = heatLossErrorText(failed);
+    expect(text).toBe('Толщина стенки: Толщина стенки должна быть меньше половины наружного диаметра');
+    expect(text).not.toContain('wall_thickness');
+  });
+
+  it('не раскрывает неизвестный structured backend-ключ', () => {
+    const failed = makeObject({
+      validation_errors: {
+        error_code: 'unknown_relation',
+        field: 'internal_storage_key',
+        fields: {
+          internal_storage_key: 'Проверьте internal_storage_key',
+        },
+        message: 'Проверьте параметры объекта internal_storage_key',
+      },
+    });
+
+    const text = heatLossErrorText(failed);
+    expect(text).toBe('Параметр объекта: Проверьте значение');
+    expect(text).not.toContain('internal_storage_key');
+  });
+
+  it('сохраняет message и missing_fields для error_code без полевой структуры', () => {
+    const failed = makeObject({
+      object_type: 'tank',
+      validation_errors: {
+        error_code: 'required_fields_missing',
+        message: 'Заполните обязательные поля объекта',
+        missing_fields: ['heating_height', 'laying_step'],
+      },
+    });
+
+    expect(heatLossErrorText(failed)).toBe([
+      'Заполните обязательные поля объекта',
+      'Не заполнено: Высота обогрева резервуара, Шаг укладки резервуара',
+    ].join('\n'));
   });
 
   it('распознаёт batch-ответ теплопотерь', () => {
