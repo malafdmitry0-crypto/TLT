@@ -93,11 +93,7 @@ from app.services.electrical_tt_pipeline import (
     calculate_electrical_tt,
     electrical_tt_catalog_eligibility,
 )
-from app.services.project_object_params import (
-    StoredHeatParams,
-    normalize_project_object_params,
-    validate_and_canonicalize_project_object_params,
-)
+from app.services.project_object_params import StoredHeatParams
 
 # Источник каталога кабелей. Значения заданы для совместимости с текущим API;
 # внутри функций валидируется через проверку, не enum (чтобы случайная строка
@@ -930,48 +926,28 @@ class CalculationService:
             ...     log.warning("Объект не пересчитан: %s", r.error)
             >>> # obj.is_valid / obj.validation_errors всё равно обновлены
         """
-        try:
-            normalized = normalize_project_object_params(obj.object_type, obj.params)
-            resolved = heat_loss_application.apply_climate_policy(obj.object_type, normalized)
-            prepared = validate_and_canonicalize_project_object_params(
-                obj.object_type,
-                resolved,
-            )
-            obj.params = prepared.params
-            if not prepared.report.is_valid:
-                validation_error = prepared.report.to_legacy_error()
-                obj.results = None
-                obj.is_valid = False
-                obj.validation_errors = heat_loss_application.build_heat_loss_error_payload(
-                    validation_error,
-                    object_type=obj.object_type,
-                )
-                return Err(_clean_exception_message(validation_error))
-            if prepared.heat_params is None:  # pragma: no cover - report/model invariant
-                raise RuntimeError("Валидный отчёт не содержит formula input")
-            resolved_coefficients = (
-                coefficients if coefficients is not None else await self.get_coefficients()
-            )
-            result = self._calc_heat_loss_with_coefficients(
+        if coefficients is None:
+            outcome = await heat_loss_application.evaluate_project_object_heat(
                 obj.object_type,
                 obj.params,
-                resolved_coefficients,
-                apply_climate_policy=False,
-                validated_params=prepared.heat_params,
+                load_coefficients=self.get_coefficients,
             )
-            obj.results = cast(dict[str, Any], result)
-            obj.is_valid = True
-            obj.validation_errors = None
+        else:
+            outcome = await heat_loss_application.evaluate_project_object_heat(
+                obj.object_type,
+                obj.params,
+                coefficients=coefficients,
+            )
+        if outcome.params_to_persist is not None:
+            obj.params = outcome.params_to_persist
+        obj.results = outcome.results
+        obj.is_valid = outcome.is_valid
+        obj.validation_errors = outcome.validation_errors
+        if outcome.is_valid:
             return Ok(obj)
-        except Exception as exc:
-            message = _clean_exception_message(exc)
-            obj.results = None
-            obj.is_valid = False
-            obj.validation_errors = heat_loss_application.build_heat_loss_error_payload(
-                exc,
-                object_type=obj.object_type,
-            )
-            return Err(message)
+        if outcome.error_message is None:  # pragma: no cover - outcome invariant
+            raise RuntimeError("Невалидный теплорасчёт не содержит описание ошибки")
+        return Err(outcome.error_message)
 
     async def _heat_batch_count(
         self,
