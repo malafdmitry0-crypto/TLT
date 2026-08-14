@@ -12,6 +12,7 @@ import type { InsulationEntry } from '@/types/reference';
 import { formatInsulationTemperatureRange } from '@/utils/referenceOptions';
 import HelpedControl from './HelpedControl';
 import FieldLabel from './FieldLabel';
+import { FieldSourceTag } from './FieldSourceTag';
 import { TltTextField } from '@/components/ui-kit';
 
 function withHelp(control: ReactElement, hint: string) {
@@ -177,10 +178,12 @@ function InsulationTemperatureRangeEditable({
           'fit-label-form-item',
           'insulation-temperature-range-form-item',
           'helped-form-item',
+          required ? 'field-source-form-item' : '',
         ].filter(Boolean).join(' ')}
         label={fieldLabel(labelFieldId)}
         name={minName}
         preserve={false}
+        extra={required ? <FieldSourceTag source="manual" /> : undefined}
         rules={[rangeValidator(minName)]}
       >
         {withHelp(
