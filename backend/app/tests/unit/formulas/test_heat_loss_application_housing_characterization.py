@@ -94,7 +94,7 @@ def test_facade_and_evaluator_signatures_are_params_only() -> None:
 
 
 def test_application_applies_admin_safety_factor_when_user_k_absent() -> None:
-    from app.services.calculation_service import pipe_params_with_effective_safety_factor
+    from app.services.heat_loss_application import pipe_params_with_effective_safety_factor
 
     params = PipeHeatLossParams.model_validate(_pipe(safety_factor=None))
     coefficients = _KeyReadDict(

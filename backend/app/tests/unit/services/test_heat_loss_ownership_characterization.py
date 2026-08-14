@@ -41,6 +41,117 @@ from app.services.project_object_params import (
 MINERAL_WOOL = "mineral_wool_boards_120"
 DEFAULT_VALIDATION_HINT = "Проверьте параметры объекта и повторите расчёт."
 FORMULA_ERROR_HINT = "Расчётная формула завершилась ошибкой; проверьте исходные данные."
+BACKEND_APP = Path(__file__).resolve().parents[3]
+CALCULATION_SERVICE_MODULE = "app.services.calculation_service"
+SERVICES_PACKAGE = "app.services"
+FORBIDDEN_CALCULATION_SERVICE_HEAT_NAMES = frozenset(
+    {
+        "apply_climate_policy",
+        "build_heat_loss_error_payload",
+        "pipe_params_with_effective_safety_factor",
+        "effective_pipe_safety_factor",
+    }
+)
+PRODUCTION_SCAN_SKIP_PARTS = frozenset({"tests", "mutants", "__pycache__"})
+
+
+def _dotted_name(node: ast.AST) -> str | None:
+    parts: list[str] = []
+    current = node
+    while True:
+        if isinstance(current, ast.Name):
+            parts.append(current.id)
+            return ".".join(reversed(parts))
+        if isinstance(current, ast.Attribute):
+            parts.append(current.attr)
+            current = current.value
+            continue
+        return None
+
+
+def _imports_calculation_service(node: ast.ImportFrom) -> bool:
+    if node.module == CALCULATION_SERVICE_MODULE:
+        return True
+    return bool(
+        node.level
+        and node.module
+        and (node.module == "calculation_service" or node.module.endswith(".calculation_service"))
+    )
+
+
+def _imports_services_package(node: ast.ImportFrom) -> bool:
+    if node.module == SERVICES_PACKAGE:
+        return True
+    return bool(
+        node.level
+        and node.module
+        and (node.module == "services" or node.module.endswith(".services"))
+    )
+
+
+def _calculation_service_references(tree: ast.AST) -> frozenset[str]:
+    references = {CALCULATION_SERVICE_MODULE}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name == CALCULATION_SERVICE_MODULE:
+                    references.add(alias.asname or alias.name)
+                elif alias.name == SERVICES_PACKAGE:
+                    prefix = alias.asname or alias.name
+                    references.add(f"{prefix}.calculation_service")
+                elif alias.name == "app":
+                    prefix = alias.asname or alias.name
+                    references.add(f"{prefix}.services.calculation_service")
+        elif isinstance(node, ast.ImportFrom):
+            if _imports_services_package(node):
+                for alias in node.names:
+                    if alias.name == "calculation_service":
+                        references.add(alias.asname or alias.name)
+            elif node.level and node.module is None:
+                for alias in node.names:
+                    if alias.name == "calculation_service":
+                        references.add(alias.asname or alias.name)
+                    elif alias.name == "services":
+                        prefix = alias.asname or alias.name
+                        references.add(f"{prefix}.calculation_service")
+            elif node.module == "app":
+                for alias in node.names:
+                    if alias.name == "services":
+                        prefix = alias.asname or alias.name
+                        references.add(f"{prefix}.calculation_service")
+    return frozenset(references)
+
+
+def _calculation_service_heat_violations_in_tree(tree: ast.AST, label: str) -> list[str]:
+    violations: list[str] = []
+    service_references = _calculation_service_references(tree)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and _imports_calculation_service(node):
+            for alias in node.names:
+                if alias.name == "*" or alias.name in FORBIDDEN_CALCULATION_SERVICE_HEAT_NAMES:
+                    violations.append(f"{label}: {alias.name}")
+        elif (
+            isinstance(node, ast.Attribute)
+            and node.attr in FORBIDDEN_CALCULATION_SERVICE_HEAT_NAMES
+            and (_dotted_name(node.value) or "") in service_references
+        ):
+            violations.append(f"{label}: {_dotted_name(node)}")
+    return violations
+
+
+def _production_calculation_service_heat_violations() -> list[str]:
+    violations: list[str] = []
+    for path in BACKEND_APP.rglob("*.py"):
+        if PRODUCTION_SCAN_SKIP_PARTS & set(path.parts):
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        violations.extend(
+            _calculation_service_heat_violations_in_tree(
+                tree,
+                str(path.relative_to(BACKEND_APP)),
+            )
+        )
+    return violations
 
 
 def _pipe(**overrides: object) -> dict[str, object]:
@@ -131,8 +242,36 @@ def _formula_validation_error(
         "effective_pipe_safety_factor",
     ],
 )
-def test_calculation_service_reexports_application_helpers_by_identity(name: str) -> None:
-    assert getattr(calculation_service_module, name) is getattr(heat_loss_application_module, name)
+def test_calculation_service_does_not_reexport_application_helpers(name: str) -> None:
+    assert hasattr(heat_loss_application_module, name)
+    assert not hasattr(calculation_service_module, name)
+
+
+def test_production_does_not_import_heat_helpers_from_calculation_service() -> None:
+    assert _production_calculation_service_heat_violations() == []
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "from app.services.calculation_service import apply_climate_policy as climate\n",
+        "import app.services.calculation_service\n"
+        "_ = app.services.calculation_service.build_heat_loss_error_payload\n",
+        "import app.services.calculation_service as calc\n"
+        "_ = calc.pipe_params_with_effective_safety_factor\n",
+        "from app.services import calculation_service as calc\n"
+        "_ = calc.effective_pipe_safety_factor\n",
+        "import app.services as services\n_ = services.calculation_service.apply_climate_policy\n",
+        "from ..services.calculation_service import apply_climate_policy\n",
+        "from ..services import calculation_service as calc\n"
+        "_ = calc.build_heat_loss_error_payload\n",
+    ],
+)
+def test_calculation_service_heat_import_ratchet_flags_dotted_and_aliased_forms(
+    source: str,
+) -> None:
+    tree = ast.parse(source)
+    assert _calculation_service_heat_violations_in_tree(tree, "snippet")
 
 
 async def test_try_recalculate_orders_climate_canonicalization_and_formula(
@@ -186,7 +325,7 @@ async def test_try_recalculate_orders_climate_canonicalization_and_formula(
         return {"formula_model": "pipe_heat_loss"}
 
     monkeypatch.setattr(calculation_service_module, "normalize_project_object_params", normalize)
-    monkeypatch.setattr(calculation_service_module, "apply_climate_policy", apply_climate)
+    monkeypatch.setattr(heat_loss_application_module, "apply_climate_policy", apply_climate)
     monkeypatch.setattr(
         calculation_service_module,
         "validate_and_canonicalize_project_object_params",
@@ -279,7 +418,7 @@ async def test_invalid_report_stops_before_coefficients_and_formula(
         MagicMock(return_value={"stage": "normalized"}),
     )
     monkeypatch.setattr(
-        calculation_service_module,
+        heat_loss_application_module,
         "apply_climate_policy",
         MagicMock(return_value={"stage": "climate"}),
     )
@@ -324,7 +463,7 @@ async def test_coefficient_provider_exception_is_an_invalid_canonical_outcome(
         MagicMock(return_value={"stage": "normalized"}),
     )
     monkeypatch.setattr(
-        calculation_service_module,
+        heat_loss_application_module,
         "apply_climate_policy",
         MagicMock(return_value={"stage": "climate"}),
     )
@@ -372,7 +511,7 @@ async def test_early_preparation_exception_keeps_original_params(
     )
     canonicalize = MagicMock()
     monkeypatch.setattr(calculation_service_module, "normalize_project_object_params", normalize)
-    monkeypatch.setattr(calculation_service_module, "apply_climate_policy", climate)
+    monkeypatch.setattr(heat_loss_application_module, "apply_climate_policy", climate)
     monkeypatch.setattr(
         calculation_service_module,
         "validate_and_canonicalize_project_object_params",
@@ -451,7 +590,7 @@ async def test_formula_and_catalog_exceptions_keep_canonical_params(
         MagicMock(return_value={"stage": "normalized"}),
     )
     monkeypatch.setattr(
-        calculation_service_module,
+        heat_loss_application_module,
         "apply_climate_policy",
         MagicMock(return_value={"stage": "climate"}),
     )
