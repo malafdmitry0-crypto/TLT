@@ -25,7 +25,7 @@ from app.models.project import Project
 from app.models.project_object import ProjectObject
 from app.models.specification import Specification
 from app.reference_data.loader import list_insulation_materials
-from app.services.calculation_service import build_heat_loss_error_payload
+from app.services.heat_loss_application import build_heat_loss_error_payload
 from app.services.project_object_params import (
     normalize_project_object_params,
     reject_legacy_specification_object_params,

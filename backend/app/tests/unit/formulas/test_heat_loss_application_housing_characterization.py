@@ -21,7 +21,7 @@ from app.formulas.heat_loss.evaluator import evaluate_validated_heat_loss
 from app.formulas.heat_loss.pipe import calc_pipe_heat_loss
 from app.formulas.heat_loss.tank import calc_tank_heat_loss
 from app.schemas.calculation import PipeHeatLossParams, TankHeatLossParams
-from app.services import calculation_service as calculation_service_module
+from app.services import heat_loss_application as heat_loss_application_module
 from app.services.calculation_service import CalculationService
 
 MINERAL_WOOL = "mineral_wool_boards_120"
@@ -113,7 +113,7 @@ def test_application_applies_admin_safety_factor_when_user_k_absent() -> None:
 
 def test_calc_heat_loss_and_admin_formula_check_import_the_same_evaluator() -> None:
     assert admin_api.evaluate_validated_heat_loss is evaluate_validated_heat_loss
-    assert calculation_service_module.evaluate_validated_heat_loss is evaluate_validated_heat_loss
+    assert heat_loss_application_module.evaluate_validated_heat_loss is evaluate_validated_heat_loss
 
 
 async def test_calc_heat_loss_and_admin_formula_check_call_evaluate_validated_heat_loss(
@@ -124,7 +124,7 @@ async def test_calc_heat_loss_and_admin_formula_check_call_evaluate_validated_he
     result.model_dump.return_value = dumped
     evaluator = MagicMock(return_value=result)
     monkeypatch.setattr(admin_api, "evaluate_validated_heat_loss", evaluator)
-    monkeypatch.setattr(calculation_service_module, "evaluate_validated_heat_loss", evaluator)
+    monkeypatch.setattr(heat_loss_application_module, "evaluate_validated_heat_loss", evaluator)
 
     coefficients = {"safety_factor": 1.2}
     service = CalculationService(AsyncMock())
