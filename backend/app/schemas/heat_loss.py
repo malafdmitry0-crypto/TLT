@@ -1,7 +1,8 @@
-"""Схемы формулы теплопотерь: params, stored и result."""
+"""Схемы теплопотерь: HTTP-конверты, params, stored и result."""
 
 from collections.abc import Mapping
 from typing import Annotated, Any, Literal, cast
+from uuid import UUID
 
 from heatcalc_heat_loss_core.insulation_contract import (
     ALLOWED_INSULATION_BASES_BY_PLACEMENT,
@@ -67,6 +68,36 @@ from app.schemas.heat_loss_core_validation import (
     raise_range_validation_errors,
     sequence_length_schema_extra,
 )
+
+
+class HeatLossRequest(BaseModel):
+    """Унифицированный запрос расчёта теплопотерь."""
+
+    project_id: UUID
+    object_type: Literal["pipe", "tank"]
+    data: dict[str, Any]
+
+
+class HeatLossResponse(BaseModel):
+    object_type: str
+    result: dict[str, Any]
+
+
+class BatchCalcResponse(BaseModel):
+    """Результат пакетного пересчёта теплопотерь всех объектов проекта."""
+
+    updated: int
+    failed: int
+    errors: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class HeatLossBatchJobRequest(BaseModel):
+    """Запрос асинхронного пакетного пересчёта теплопотерь."""
+
+    project_id: UUID
+    include_errors: bool = True
+    object_ids: list[UUID] | None = None
+
 
 _PIPE_FORMULA_DOMAIN_PRESENTATIONS = {
     "wall_exceeds_pipe_radius": (

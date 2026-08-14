@@ -12,6 +12,10 @@ from app.schemas.electrical_variant import (
     ElectricalAssignmentState,
     ElectricalSystemType,
 )
+from app.schemas.heat_loss import BatchCalcResponse as BatchCalcResponse
+from app.schemas.heat_loss import HeatLossBatchJobRequest as HeatLossBatchJobRequest
+from app.schemas.heat_loss import HeatLossRequest as HeatLossRequest
+from app.schemas.heat_loss import HeatLossResponse as HeatLossResponse
 from app.schemas.heat_loss import InsulationLayer as InsulationLayer
 from app.schemas.heat_loss import InsulationLayerApplied as InsulationLayerApplied
 from app.schemas.heat_loss import PipeHeatLossParams as PipeHeatLossParams
@@ -32,31 +36,8 @@ from app.schemas.project import (
 )
 from app.schemas.report import ReportExportTaskResult
 
-# ---------- Heat loss ----------
-
 RESISTIVE_DEFAULT_MIN_ADJUSTED_VOLTAGE = 40.0
 RESISTIVE_DEFAULT_VOLTAGE_STEP = 5.0
-
-
-class HeatLossRequest(BaseModel):
-    """Унифицированный запрос расчёта теплопотерь."""
-
-    project_id: UUID
-    object_type: Literal["pipe", "tank"]
-    data: dict[str, Any]
-
-
-class HeatLossResponse(BaseModel):
-    object_type: str
-    result: dict[str, Any]
-
-
-class BatchCalcResponse(BaseModel):
-    """Результат пакетного пересчёта теплопотерь всех объектов проекта."""
-
-    updated: int
-    failed: int
-    errors: list[dict[str, Any]] = Field(default_factory=list)
 
 
 # ---------- Electrical ----------
@@ -961,14 +942,6 @@ class ElectricalBatchJobRequest(BaseModel):
             for key, value in values.items()
             if key == "selection_policy" or key in self.model_fields_set
         }
-
-
-class HeatLossBatchJobRequest(BaseModel):
-    """Запрос асинхронного пакетного пересчёта теплопотерь."""
-
-    project_id: UUID
-    include_errors: bool = True
-    object_ids: list[UUID] | None = None
 
 
 class CalculationTaskProgress(BaseModel):
