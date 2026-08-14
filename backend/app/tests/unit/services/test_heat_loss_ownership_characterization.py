@@ -21,12 +21,8 @@ from app.api.v1 import admin as admin_api
 from app.formulas.heat_loss import catalog_preparation
 from app.formulas.heat_loss.catalog_preparation import HeatLossPreparationError
 from app.models.project_object import ProjectObject
-from app.schemas.calculation import (
-    BatchCalcResponse,
-    HeatLossBatchJobRequest,
-    HeatLossRequest,
-    HeatLossResponse,
-)
+from app.schemas import calculation as calculation_schemas
+from app.schemas import heat_loss as heat_loss_schemas
 from app.schemas.heat_loss import PipeHeatLossParams, TankHeatLossParams
 from app.services import calculation_service as calculation_service_module
 from app.services import heat_loss_application as heat_loss_application_module
@@ -726,11 +722,16 @@ async def test_admin_heat_preview_calls_only_the_validated_evaluator(
 
 
 @pytest.mark.parametrize(
-    "schema",
-    [HeatLossRequest, HeatLossResponse, HeatLossBatchJobRequest, BatchCalcResponse],
+    "schema_name",
+    ["HeatLossRequest", "HeatLossResponse", "HeatLossBatchJobRequest", "BatchCalcResponse"],
 )
-def test_heat_http_envelopes_are_defined_in_calculation_schema(schema: type[object]) -> None:
-    assert schema.__module__ == "app.schemas.calculation"
+def test_heat_http_envelopes_are_defined_in_heat_loss_schema(schema_name: str) -> None:
+    calculation_schema = getattr(calculation_schemas, schema_name)
+    heat_loss_schema = getattr(heat_loss_schemas, schema_name)
+
+    assert calculation_schema is heat_loss_schema
+    assert heat_loss_schema.__module__ == "app.schemas.heat_loss"
+    assert heat_loss_schema.__name__ == schema_name
 
 
 @pytest.mark.parametrize(
