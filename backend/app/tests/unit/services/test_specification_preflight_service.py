@@ -344,10 +344,10 @@ async def test_blocked_er_does_not_change_ready_status_of_another(monkeypatch):
     assert result[1].diagnostics[0].code is SpecificationDiagnosticCode.VARIANT_NOT_READY
 
 
-async def test_confirmation_excludes_only_this_er_unassigned_ids(monkeypatch):
+async def test_zero_contributing_variant_is_blocked_without_confirmation(monkeypatch):
     project_id = uuid.uuid4()
     project = _project(project_id)
-    variant = _variant(project_id, name="Confirm")
+    variant = _variant(project_id, name="Empty")
     unassigned = _row(
         project_id,
         variant.id,
@@ -356,13 +356,63 @@ async def test_confirmation_excludes_only_this_er_unassigned_ids(monkeypatch):
     )
     _patch_read_boundaries(monkeypatch, project, _catalog())
 
-    first_db = _db_for([variant], [unassigned])
+    db = _db_for([variant], [unassigned])
+    result = await SpecificationPreflightService(db).preflight_variants(
+        project_id,
+        CurrentPrincipal(role="employee", user_id=project.user_id),
+        _request([variant.id]),
+    )
+
+    assert result[0].status is SpecificationPreflightStatus.BLOCKED
+    assert result[0].contributing_objects == 0
+    assert [diagnostic.code for diagnostic in result[0].diagnostics] == [
+        SpecificationDiagnosticCode.VARIANT_NOT_READY
+    ]
+    assert result[0].excluded_unassigned_object_ids == []
+
+
+async def test_variant_without_assignment_snapshot_keeps_not_ready_blocker(monkeypatch):
+    project_id = uuid.uuid4()
+    project = _project(project_id)
+    variant = _variant(project_id, name="No project objects")
+    db = _db_for([variant], [])
+    _patch_read_boundaries(monkeypatch, project, _catalog())
+
+    result = await SpecificationPreflightService(db).preflight_variants(
+        project_id,
+        CurrentPrincipal(role="employee", user_id=project.user_id),
+        _request([variant.id]),
+    )
+
+    assert result[0].status is SpecificationPreflightStatus.BLOCKED
+    assert result[0].total_objects == 0
+    assert result[0].contributing_objects == 0
+    assert [diagnostic.code for diagnostic in result[0].diagnostics] == [
+        SpecificationDiagnosticCode.VARIANT_NOT_READY
+    ]
+    assert result[0].diagnostics[0].issues == [{"reason": "variant_has_no_assignments"}]
+
+
+async def test_confirmation_excludes_only_this_er_unassigned_ids(monkeypatch):
+    project_id = uuid.uuid4()
+    project = _project(project_id)
+    variant = _variant(project_id, name="Confirm")
+    ready = _row(project_id, variant.id)
+    unassigned = _row(
+        project_id,
+        variant.id,
+        state="unassigned",
+        with_calculation=False,
+    )
+    _patch_read_boundaries(monkeypatch, project, _catalog())
+
+    first_db = _db_for([variant], [ready, unassigned])
     first = await SpecificationPreflightService(first_db).preflight_variants(
         project_id,
         CurrentPrincipal(role="employee", user_id=project.user_id),
         _request([variant.id]),
     )
-    confirmed_db = _db_for([variant], [unassigned])
+    confirmed_db = _db_for([variant], [ready, unassigned])
     confirmed = await SpecificationPreflightService(confirmed_db).preflight_variants(
         project_id,
         CurrentPrincipal(role="employee", user_id=project.user_id),
