@@ -1,7 +1,8 @@
 # Heat-loss application boundary — актуальная очередь
 
-**Статус:** ACTIVE — backend application housing; это не frontend-очередь
-и не повторный extract формул
+**Статус:** ACTIVE — AF записан как FAIL (лишний electrical concurrency
+ID, не теплопотери). Housing A0–A5b + CalculationError extract сидят
+на `main`. Это не frontend-очередь и не повторный extract формул.
 
 **Дата:** 2026-08-14
 
@@ -388,6 +389,8 @@ docker cp heatcalc_backend:/tmp/a0-facade-benchmark.json \
 
 ## NEXT
 
-**A0 — переснять snapshot на фактическом committed HEAD.**
-Не стартовать, пока в дереве чужой package WIP. Документы этой очереди,
-`.gitignore` и CLOSED-указатель 2026-08-13 входят в A0.
+**AF FAIL не закрывает очередь.** Повторить полный backend без live-worker
+на том же HEAD после решения по
+`test_concurrent_enqueue_and_delete_never_orphans_task`
+(`(202, 423)` = project calculation lock). Не чинить теплопотери «заодно»
+и не класть этот ID в baseline debt.
