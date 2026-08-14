@@ -936,9 +936,9 @@ class TestBatchRecalculate:
 
         climate_calls = 0
 
-        from app.services import calculation_service as calculation_service_module
+        from app.services import heat_loss_application as heat_loss_application_module
 
-        original_get_climate_entry = calculation_service_module.get_climate_entry
+        original_get_climate_entry = heat_loss_application_module.get_climate_entry
 
         def counting_get_climate_entry(**kwargs):
             nonlocal climate_calls
@@ -946,7 +946,7 @@ class TestBatchRecalculate:
             return original_get_climate_entry(**kwargs)
 
         monkeypatch.setattr(
-            "app.services.calculation_service.get_climate_entry",
+            "app.services.heat_loss_application.get_climate_entry",
             counting_get_climate_entry,
         )
 
