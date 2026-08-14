@@ -1,6 +1,7 @@
-"""Heat-loss application service: climate, K, formula run, validation_errors."""
+"""Heat-loss application service: object preparation, climate, K, and formulas."""
 
-from collections.abc import Mapping
+from collections.abc import Awaitable, Callable, Mapping
+from dataclasses import dataclass
 from typing import Any, cast
 
 from pydantic import ValidationError
@@ -27,7 +28,22 @@ from app.services.project_object_params import (
     ProjectObjectParamsError,
     StoredHeatParams,
     build_stored_heat_params,
+    normalize_project_object_params,
+    validate_and_canonicalize_project_object_params,
 )
+
+CoefficientProvider = Callable[[], Awaitable[Mapping[str, Any]]]
+
+
+@dataclass(frozen=True)
+class ProjectObjectHeatOutcome:
+    """Heat evaluation state that a persistence owner can apply to its object."""
+
+    params_to_persist: dict[str, Any] | None
+    is_valid: bool
+    results: dict[str, Any] | None
+    validation_errors: dict[str, Any] | None
+    error_message: str | None
 
 
 def _calculation_error(message: str) -> Exception:
@@ -176,6 +192,22 @@ def build_heat_loss_error_payload(
         "hint": hint,
         **extra,
     }
+
+
+def _invalid_project_object_heat_outcome(
+    exc: Exception,
+    *,
+    object_type: str,
+    params_to_persist: dict[str, Any] | None,
+) -> ProjectObjectHeatOutcome:
+    message = _clean_exception_message(exc)
+    return ProjectObjectHeatOutcome(
+        params_to_persist=params_to_persist,
+        is_valid=False,
+        results=None,
+        validation_errors=build_heat_loss_error_payload(exc, object_type=object_type),
+        error_message=message,
+    )
 
 
 def effective_pipe_safety_factor(
@@ -339,3 +371,76 @@ def calc_heat_loss(
         result = tank_result.model_dump()
         return cast(TankHeatLossResultDict, result)
     raise _calculation_error(f"Неподдерживаемый тип объекта: {object_type}")
+
+
+async def evaluate_project_object_heat(
+    object_type: str,
+    params: Mapping[str, Any] | None,
+    *,
+    coefficients: Mapping[str, Any] | None = None,
+    load_coefficients: CoefficientProvider | None = None,
+) -> ProjectObjectHeatOutcome:
+    """Prepare and evaluate heat loss without knowing the persistence model.
+
+    Normalization and climate failures leave persistence params untouched. Once
+    canonical validation finishes, every outcome carries those canonical params.
+    Coefficients are loaded lazily, after the final validation report succeeds.
+    """
+
+    try:
+        normalized = normalize_project_object_params(object_type, params)
+        climate_resolved = apply_climate_policy(object_type, normalized)
+    except Exception as exc:
+        return _invalid_project_object_heat_outcome(
+            exc,
+            object_type=object_type,
+            params_to_persist=None,
+        )
+
+    try:
+        prepared = validate_and_canonicalize_project_object_params(
+            object_type,
+            climate_resolved,
+        )
+    except Exception as exc:
+        return _invalid_project_object_heat_outcome(
+            exc,
+            object_type=object_type,
+            params_to_persist=None,
+        )
+
+    canonical_params = prepared.params
+    if not prepared.report.is_valid:
+        return _invalid_project_object_heat_outcome(
+            prepared.report.to_legacy_error(),
+            object_type=object_type,
+            params_to_persist=canonical_params,
+        )
+
+    try:
+        if prepared.heat_params is None:  # pragma: no cover - report/model invariant
+            raise RuntimeError("Валидный отчёт не содержит formula input")
+        resolved_coefficients = coefficients
+        if resolved_coefficients is None and load_coefficients is not None:
+            resolved_coefficients = await load_coefficients()
+        result = calc_heat_loss(
+            object_type,
+            canonical_params,
+            coefficients=resolved_coefficients,
+            apply_climate=False,
+            stored=prepared.heat_params,
+        )
+    except Exception as exc:
+        return _invalid_project_object_heat_outcome(
+            exc,
+            object_type=object_type,
+            params_to_persist=canonical_params,
+        )
+
+    return ProjectObjectHeatOutcome(
+        params_to_persist=canonical_params,
+        is_valid=True,
+        results=cast(dict[str, Any], result),
+        validation_errors=None,
+        error_message=None,
+    )
