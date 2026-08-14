@@ -1,6 +1,7 @@
 import { Steps, Typography, Divider, Table } from 'antd';
 import { TltBadge, TltButton, TltCard } from '@/components/ui-kit';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useAuthStore } from '@/store/authStore';
 import {
   CalculatorOutlined,
   FolderOpenOutlined,
@@ -14,6 +15,16 @@ const { Title, Paragraph, Text } = Typography;
 
 export default function EmployeeHelpPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const role = useAuthStore((state) => state.role);
+
+  const handleBack = () => {
+    if (location.key !== 'default') {
+      navigate(-1);
+      return;
+    }
+    navigate(role === 'employee' ? '/projects' : '/login', { replace: true });
+  };
 
   const accessColumns = [
     { title: 'Функция', dataIndex: 'feature', key: 'feature' },
@@ -35,7 +46,12 @@ export default function EmployeeHelpPage() {
   return (
     <div className="help-page">
       <div className="help-page-inner help-page-inner--employee">
-        <TltButton icon={<ArrowLeftOutlined />} onClick={() => navigate('/login')} className="help-page-back">
+        <TltButton
+          aria-label="Назад"
+          icon={<ArrowLeftOutlined />}
+          onClick={handleBack}
+          className="help-page-back"
+        >
           Назад
         </TltButton>
 
