@@ -186,7 +186,7 @@ describe('pipeFormToApiParams', () => {
       vapor_temperature: 140,
       num_local_elements: 6,
       local_element_equiv_length: 1.5,
-    });
+    } as Parameters<typeof pipeFormToApiParams>[0]);
 
     expect(api.wall_thickness).toBeCloseTo(0.004);
     expect(api.pipe_material).toBeUndefined();
@@ -213,7 +213,7 @@ describe('pipeFormToApiParams', () => {
     expect(api.steam_tracing).toBe('yes');
     expect(api.vapor_temperature).toBe(140);
     expect(api.insulation_cover_material).toBe('none');
-    expect(api.max_ambient_temperature).toBe(30);
+    expect(api).not.toHaveProperty('max_ambient_temperature');
     expect(api.max_process_temperature).toBe(90);
     expect(api.num_local_elements).toBe(6);
     expect(api.local_element_equiv_length).toBe(1.5);

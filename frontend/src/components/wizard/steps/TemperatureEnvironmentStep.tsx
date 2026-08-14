@@ -107,13 +107,10 @@ export default function TemperatureEnvironmentStep({
           source={windSource}
         />
       )}
-      {/* max_* и zone — не входы теплопотерь; round-trip в params.
+      {/* max T продукта и zone — не входы теплопотерь; round-trip в params.
           environment / temperature_group / электро-поля — в CableAlgorithmPanel. */}
       {(part === 'all' || part === 'wide') && (
         <>
-          <TltForm.Item name="max_ambient_temperature" hidden>
-            <UnitInputNumber data-testid="max-ambient-temperature-input" unit="°C" />
-          </TltForm.Item>
           <TltForm.Item name="max_process_temperature" hidden>
             <UnitInputNumber data-testid="max-process-temperature-input" unit="°C" />
           </TltForm.Item>

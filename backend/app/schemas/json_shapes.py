@@ -170,7 +170,6 @@ class PipeParamsDict(TypedDict, total=False):
     ambient_temperature: float | None
     ground_temperature: float | None
     process_temperature: float
-    max_ambient_temperature: float | None
     max_process_temperature: float | None
     pipe_length: float
     placement: Literal["indoor", "outdoor", "underground"]
@@ -217,7 +216,6 @@ class TankParamsDict(TypedDict, total=False):
     ambient_temperature: float | None
     ground_temperature: float | None
     process_temperature: float
-    max_ambient_temperature: float | None
     max_process_temperature: float | None
     placement: Literal["indoor", "outdoor", "underground"]
     tank_buried_height: float | None
