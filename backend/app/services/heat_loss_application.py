@@ -2,7 +2,7 @@
 
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 from pydantic import ValidationError
 
@@ -13,6 +13,7 @@ from app.schemas.heat_loss import (
     PipeHeatLossParams,
     StoredPipeHeatParams,
     StoredTankHeatParams,
+    TankHeatLossParams,
 )
 from app.schemas.json_shapes import (
     HeatLossResultDict,
@@ -236,6 +237,22 @@ def pipe_params_with_effective_safety_factor(
 
 
 resolve_pipe_admin_safety_factor = effective_pipe_safety_factor
+
+
+def preview_validated_heat_formula(
+    formula_type: Literal["pipe", "tank"],
+    params: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Validate and evaluate an admin heat preview without climate or coefficients."""
+
+    params_data = dict(params)
+    if formula_type == "pipe":
+        validated = PipeHeatLossParams(**params_data)
+    elif formula_type == "tank":
+        validated = TankHeatLossParams(**params_data)
+    else:
+        raise ValueError(f"Unsupported heat-loss formula type: {formula_type}")
+    return evaluate_validated_heat_loss(validated).model_dump()
 
 
 def _num(value: Any, default: float | None = None) -> float | None:
