@@ -162,7 +162,8 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
 
   return (
     <>
-      <Modal
+      {!preflightOpen && (
+        <Modal
         title="Настройки формирования спецификации"
         width={720}
         open={settingsOpen}
@@ -342,7 +343,8 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
             </section>
           )}
         </div>
-      </Modal>
+        </Modal>
+      )}
 
       <Modal
         title="Добавить позицию из расширенной БД"
@@ -380,9 +382,10 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
           </Text>
         </Space>
       </Modal>
-      <Modal
+      {preflightOpen && (
+        <Modal
         title="Подтверждение исключения неназначенных объектов"
-        open={preflightOpen}
+        open
         onCancel={() => {
           setPreflightOpen(false);
           setPendingGenerate(null);
@@ -422,7 +425,8 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
         ) : (
           <Text type="secondary">Подтвердите исключение неназначенных объектов или исправьте назначения.</Text>
         )}
-      </Modal>
+        </Modal>
+      )}
     </>
   );
 }
