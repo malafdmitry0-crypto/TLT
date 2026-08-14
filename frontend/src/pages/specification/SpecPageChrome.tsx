@@ -38,6 +38,7 @@ import type { Specification } from '@/types/specification';
 import { SpecificationReadinessAlert } from '@/pages/specification/SpecificationReadinessAlert';
 import { SpecificationTnpFields } from '@/pages/specification/SpecificationTnpFields';
 import type { SpecificationReadinessView } from '@/pages/specification/specificationReadinessModel';
+import { presentSpecificationDiagnostic } from '@/pages/specification/specificationDiagnosticPresentationModel';
 import '../workflow-params.css';
 import './specification-page.css';
 import './specification-settings-modal.css';
@@ -181,17 +182,20 @@ export function SpecPageChrome(p: SpecPageChromeProps): ReactNode {
               {generationDiagnostics.length > 0 && (
                 <TltAlert
                   tone="danger"
-                  title="Backend заблокировал формирование"
+                  title="Не удалось сформировать спецификацию"
                   className="specification-settings-diagnostics"
                 >
                   <ul>
-                    {generationDiagnostics.map((diagnostic) => (
-                      <li key={`${diagnostic.kind}:${diagnostic.code}:${String(diagnostic.details.reason ?? '')}`}>
-                        <strong>{diagnostic.code}</strong>
-                        {' — '}
-                        {diagnostic.message}
-                      </li>
-                    ))}
+                    {generationDiagnostics.map((diagnostic, index) => {
+                      const presentation = presentSpecificationDiagnostic(diagnostic);
+                      return (
+                        <li key={`${presentation.title}:${index}`}>
+                          <strong>{presentation.title}</strong>
+                          {' — '}
+                          {presentation.message}
+                        </li>
+                      );
+                    })}
                   </ul>
                 </TltAlert>
               )}
