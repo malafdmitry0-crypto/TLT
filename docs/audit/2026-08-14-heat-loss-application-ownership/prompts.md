@@ -45,8 +45,12 @@ DECISION NEEDED. Не используй git add .; только адресны�
 Незапущенная проверка = NOT RUN, не PASS.
 Без frontend-diff: frontend NOT TOUCHED / NOT RUN.
 
-Полный backend — B0, B3, B4b, B5, B6, B7, B8, BF. Всегда
---ignore live-worker файлов из plan.md.
+Полный backend — только B0 и BF. B1–B8 не запускают промежуточный full:
+B1 использует characterization focused; B2–B8 — свой focused proof,
+canonical collect-only и статические gates.
+Для collect-only и full всегда --ignore live-worker файлов из plan.md.
+Если pytest был прерван, до следующего прогона проверь, что процесс
+действительно завершён, а не только закрылась exec-сессия.
 Collection/setup/infrastructure error не записывать как baseline debt.
 
 Failed nodeids сравниваются с B0 snapshot ЭТОЙ папки, не с A0
@@ -316,7 +320,8 @@ FOCUSED_PROOF:
   поиск: apply_climate_policy / build_heat_loss_error_payload /
     normalize_project_object_params не вызываются из тела
     try_recalculate (только через application).
-  Затем full backend командой B0. IDs vs B0.
+  Затем canonical collect-only. Full backend: NOT RUN по политике,
+    сравнение с B0 выполняется один раз в BF.
 Frontend: NOT TOUCHED / NOT RUN, если payload field/fields не менялись.
 COMMIT: refactor(heat-loss): move object evaluation out of CalculationService
 ```
@@ -396,7 +401,7 @@ FOCUSED_PROOF:
     app/tests/integration/api/test_calc_jobs.py \
     app/tests/unit/services/test_task_service_unit.py \
     -q --tb=line --no-cov
-  collect-only; затем full backend vs B0.
+  canonical collect-only. Full backend: NOT RUN по политике; один full в BF.
   ruff; git diff --check.
 Frontend: NOT TOUCHED / NOT RUN.
 COMMIT: refactor(heat-loss): import HTTP envelopes from heat_loss
@@ -438,7 +443,8 @@ FOCUSED_PROOF:
     app/tests/unit/services/test_heat_loss_ownership_characterization.py \
     app/tests/integration/api/test_admin.py \
     -q --tb=line --no-cov
-  Затем full backend vs B0.
+  Затем canonical collect-only. Full backend: NOT RUN по политике;
+    один full в BF.
 Frontend: NOT TOUCHED / NOT RUN.
 COMMIT: refactor(heat-loss): route admin formula-check through application
 ```
@@ -487,7 +493,8 @@ FOCUSED_PROOF:
   поиск: _catalog_error_code отсутствует;
   сообщения неизвестного материала / interval / reselection —
     посимвольно как в B1.
-  Затем full backend vs B0.
+  Затем canonical collect-only. Full backend: NOT RUN по политике;
+    один full в BF.
   Если field/fields payload не менялись: frontend NOT TOUCHED / NOT RUN.
   Если менялись — frontend proof vitest из plan.md.
 COMMIT: fix(heat-loss): give insulation catalog a structured code
@@ -541,7 +548,8 @@ FOCUSED_PROOF:
     -q --tb=line --no-cov
   поиск: в heat_loss_application.py нет маркеров
     требует/долж/диапазон/положитель как классификаторов payload.
-  Затем full backend vs B0.
+  Затем canonical collect-only. Full backend: NOT RUN по политике;
+    один full в BF.
   Frontend: если fields/field не менялись для catalog/hot-side —
     NOT TOUCHED / NOT RUN; иначе vitest highlight.
 COMMIT: fix(heat-loss): drop leftover payload substring markers
@@ -577,14 +585,14 @@ NON-GOALS: удаление HTTP re-export, если он ещё нужен те
 
 FOCUSED_PROOF:
   ratchet PASS (включая attribute / from app.schemas import calculation);
-  collect-only;
   docker exec ... pytest \
     app/tests/unit/formulas/test_heat_loss_schema_import_ratchet.py \
     app/tests/unit/schemas/test_heat_loss_schema_housing_characterization.py \
     app/tests/unit/formulas/test_heat_loss_canonical_flow_characterization.py \
     app/tests/unit/schemas/test_heat_loss_range_characterization.py \
     -q --tb=line --no-cov
-  Затем full backend vs B0.
+  Затем canonical collect-only. Full backend: NOT RUN по политике;
+    один full в BF.
 Frontend: NOT TOUCHED / NOT RUN.
 COMMIT: refactor(heat-loss): drop formula reexports from calculation
 ```

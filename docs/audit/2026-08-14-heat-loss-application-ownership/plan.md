@@ -211,6 +211,17 @@ B0 служебно сравнивается с предыдущим AF: есл�
 
 ### Full backend и debt
 
+Полный backend запускается только в двух опорных точках очереди: B0
+(baseline) и BF (финальная регрессия). B1 использует characterization focused;
+B2–B8 — свой focused proof, canonical collect-only и статические gates.
+После уже выполненного B0 остаётся ровно один full — в BF. Промежуточный full
+не добавляет новой приёмочной информации до BF, но повторно занимает около
+18 минут и конфликтует за состояние тестовой БД с другими pytest-процессами.
+
+Если full был прерван, до следующего pytest обязательно убедиться, что его
+процесс действительно завершён. Закрытая exec-сессия сама по себе этого не
+доказывает.
+
 Команда без live-worker:
 
 ```text
@@ -243,19 +254,19 @@ npm --prefix frontend run test:run -- --project integration \
 
 ## Очередь
 
-| # | Слайс | Суть | Full backend |
+| # | Слайс | Суть | Regression gate |
 |---|---|---|---|
-| **B0** | Baseline | HEAD, failed IDs, inventory гостей, contract/benchmark | да |
-| **B1** | Characterization | Зафиксировать re-export, try_recalculate, admin, catalog prefix, payload ветки | нет |
-| **B2** | Сервис без тепловых aliases | Импорты из `heat_loss_application`; сервис не реэкспортирует climate/payload/K | collect-only |
-| **B3** | Persist outcome | `evaluate_project_object_heat`; сервис только пишет поля объекта | да |
-| **B4** | HTTP-конверты | `HeatLossRequest` / Response / Batch* в heat_loss + re-export | collect-only |
-| **B4b** | Импорты конвертов | Production больше не берёт тепловые HTTP-типы из тела calculation | collect-only + да |
-| **B5** | Admin preview | Admin pipe/tank не импортирует фасад; без climate / без admin K | да |
-| **B6** | Catalog code | Loader → typed `code`; prefix-parse удалён | да |
-| **B7** | Payload leftover | Нет русских маркеров на unknown Exception | да |
-| **B8** | Снять formula re-export | `calculation.py` без восьми formula-имён | collect-only + да |
-| **BF** | Финальная регрессия | Сравнение с B0 | да |
+| **B0** | Baseline | HEAD, failed IDs, inventory гостей, contract/benchmark | full baseline |
+| **B1** | Characterization | Зафиксировать re-export, try_recalculate, admin, catalog prefix, payload ветки | focused |
+| **B2** | Сервис без тепловых aliases | Импорты из `heat_loss_application`; сервис не реэкспортирует climate/payload/K | focused + collect-only |
+| **B3** | Persist outcome | `evaluate_project_object_heat`; сервис только пишет поля объекта | focused + collect-only |
+| **B4** | HTTP-конверты | `HeatLossRequest` / Response / Batch* в heat_loss + re-export | focused + collect-only |
+| **B4b** | Импорты конвертов | Production больше не берёт тепловые HTTP-типы из тела calculation | focused + collect-only |
+| **B5** | Admin preview | Admin pipe/tank не импортирует фасад; без climate / без admin K | focused + collect-only |
+| **B6** | Catalog code | Loader → typed `code`; prefix-parse удалён | focused + collect-only |
+| **B7** | Payload leftover | Нет русских маркеров на unknown Exception | focused + collect-only |
+| **B8** | Снять formula re-export | `calculation.py` без восьми formula-имён | focused + collect-only |
+| **BF** | Финальная регрессия | Сравнение с B0 | один финальный full |
 
 Слайсы строго по порядку. B4 и B4b — отдельные коммиты. B6 не смешивать
 с B7. B2 не смешивать с B3.
@@ -304,7 +315,7 @@ docker exec -e SECRET_KEY=codex-test-secret-key-at-least-32-chars \
     -q --tb=line --no-cov
 ```
 
-Collect-only / full backend — те же ignore live-worker, что выше.
+Collect-only / финальный full backend — те же ignore live-worker, что выше.
 
 Collect-only backend:
 
@@ -318,7 +329,7 @@ docker exec \
     --ignore=app/tests/integration/worker/test_worker_sigkill_live.py
 ```
 
-Full backend:
+Full backend (только B0 и BF):
 
 ```text
 docker exec \
