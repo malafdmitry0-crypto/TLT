@@ -22,7 +22,7 @@ from app.api.v1 import admin as admin_api
 from app.formulas.heat_loss.evaluator import evaluate_validated_heat_loss
 from app.formulas.heat_loss.pipe import calc_pipe_heat_loss
 from app.formulas.heat_loss.tank import calc_tank_heat_loss
-from app.schemas.calculation import PipeHeatLossParams, TankHeatLossParams
+from app.schemas.heat_loss import PipeHeatLossParams, TankHeatLossParams
 from app.services import heat_loss_application as heat_loss_application_module
 from app.services.calculation_service import CalculationService
 

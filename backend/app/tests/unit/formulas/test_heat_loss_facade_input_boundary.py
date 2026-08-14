@@ -11,7 +11,7 @@ import pytest
 from pydantic import ValidationError
 
 import app.services.heat_loss_application as heat_loss_application_module
-from app.schemas.calculation import PipeHeatLossParams, TankHeatLossParams
+from app.schemas.heat_loss import PipeHeatLossParams, TankHeatLossParams
 from app.services.calculation_service import CalculationService
 
 

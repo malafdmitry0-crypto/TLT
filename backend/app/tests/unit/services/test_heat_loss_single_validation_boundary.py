@@ -10,7 +10,7 @@ import pytest
 from app.formulas.heat_loss.evaluator import evaluate_validated_heat_loss
 from app.models.project_object import ProjectObject
 from app.schemas import heat_loss as heat_loss_schemas
-from app.schemas.calculation import (
+from app.schemas.heat_loss import (
     StoredPipeHeatParams,
     StoredTankHeatParams,
 )

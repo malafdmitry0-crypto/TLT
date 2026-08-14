@@ -5,7 +5,7 @@ import math
 import pytest
 
 from app.formulas.heat_loss.tank import calc_tank_heat_loss
-from app.schemas.calculation import InsulationLayer, TankHeatLossParams
+from app.schemas.heat_loss import InsulationLayer, TankHeatLossParams
 
 
 def _cyl(**overrides: object) -> TankHeatLossParams:

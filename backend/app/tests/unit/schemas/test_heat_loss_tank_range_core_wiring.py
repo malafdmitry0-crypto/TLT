@@ -7,7 +7,7 @@ from heatcalc_heat_loss_core.tank_contract import validate_tank_contract
 from pydantic import ValidationError
 
 from app.schemas import heat_loss as heat_loss_schemas
-from app.schemas.calculation import StoredTankHeatParams, TankHeatLossParams
+from app.schemas.heat_loss import StoredTankHeatParams, TankHeatLossParams
 
 MINERAL_WOOL = "mineral_wool_boards_120"
 
