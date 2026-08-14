@@ -26,8 +26,8 @@ from app.formulas.heat_loss.pipe import calc_pipe_heat_loss
 from app.formulas.heat_loss.tank import calc_tank_heat_loss
 from app.models.project_object import ProjectObject
 from app.schemas.calculation import PipeHeatLossParams, TankHeatLossParams
-from app.services.calculation_service import (
-    CalculationService,
+from app.services.calculation_service import CalculationService
+from app.services.heat_loss_application import (
     build_heat_loss_error_payload,
     pipe_params_with_effective_safety_factor,
 )
