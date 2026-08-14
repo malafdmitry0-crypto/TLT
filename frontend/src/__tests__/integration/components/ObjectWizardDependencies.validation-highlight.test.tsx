@@ -69,6 +69,36 @@ describe('ObjectWizard dependencies — validation-highlight', () => {
     expect(screen.getByTestId('local-elements-count-input')).not.toHaveAttribute('aria-required');
   });
 
+  it('блокирует сохранение наружной трубы без скорости ветра и принимает 0 м/с', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    renderWizard({
+      onSubmit,
+      initialParams: {
+        ...basePipeParams,
+        wind_speed: undefined,
+      },
+    });
+
+    const windSpeed = await screen.findByTestId('wind-speed-input');
+    const windField = windSpeed.closest('.ant-form-item');
+    expect(windSpeed).toHaveAttribute('aria-required', 'true');
+    expect(windSpeed.closest('.tlt-number-field')).toHaveAttribute('data-required', 'true');
+
+    await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
+
+    await waitFor(() => expect(windField).toHaveClass('ant-form-item-has-error'));
+    expect(windField).toHaveTextContent('Укажите значение');
+    expect(onSubmit).not.toHaveBeenCalled();
+
+    await user.type(windSpeed, '0');
+    await waitFor(() => expect(windField).not.toHaveClass('ant-form-item-has-error'));
+    await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit.mock.calls[0][0]).toEqual(expect.objectContaining({ wind_speed: 0 }));
+  });
+
   it('не подсвечивает пустые обязательные поля новой трубы до backend-ошибки', async () => {
     renderWizard();
 
