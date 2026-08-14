@@ -68,6 +68,7 @@ from app.services.cable_snapshot import (
     lookup_cable_row,
     lookup_cable_row_for_snapshot,
 )
+from app.services.calculation_errors import CalculationError as CalculationError
 from app.services.electrical_assignment_service import (
     ElectricalAssignmentService,
     ElectricalAssignmentServiceError,
@@ -130,10 +131,6 @@ TT_ASSIGNMENT_CANONICAL_FIELDS = frozenset(
         "manual_cable_model",
     }
 )
-
-
-class CalculationError(Exception):
-    pass
 
 
 class BatchCancelledError(CalculationError):

@@ -10,7 +10,9 @@ evaluate_validated_heat_loss.
 
 from __future__ import annotations
 
+import ast
 import inspect
+from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
@@ -158,3 +160,27 @@ def test_tank_facade_ignores_admin_coefficients() -> None:
     result = calc_tank_heat_loss(params)
 
     assert result.safety_factor_applied == 1.1
+
+
+def test_calculation_error_is_shared_without_importing_the_service() -> None:
+    from app.services.calculation_errors import CalculationError as NeutralError
+    from app.services.calculation_service import CalculationError as ServiceError
+
+    assert NeutralError is ServiceError
+    assert isinstance(
+        heat_loss_application_module._calculation_error("boom"),
+        NeutralError,
+    )
+
+    tree = ast.parse(
+        Path(heat_loss_application_module.__file__).read_text(encoding="utf-8")
+    )
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module == "app.services.calculation_service":
+            raise AssertionError("heat_loss_application imports calculation_service")
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name == "app.services.calculation_service" or alias.name.startswith(
+                    "app.services.calculation_service."
+                ):
+                    raise AssertionError("heat_loss_application imports calculation_service")

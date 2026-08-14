@@ -18,6 +18,7 @@ from app.schemas.json_shapes import (
     PipeHeatLossResultDict,
     TankHeatLossResultDict,
 )
+from app.services.calculation_errors import CalculationError
 from app.services.heat_contract import (
     PIPE_FORBIDDEN_HEAT_PARAM_KEYS,
     TANK_FORBIDDEN_HEAT_PARAM_KEYS,
@@ -30,8 +31,6 @@ from app.services.project_object_params import (
 
 
 def _calculation_error(message: str) -> Exception:
-    from app.services.calculation_service import CalculationError
-
     return CalculationError(message)
 
 
