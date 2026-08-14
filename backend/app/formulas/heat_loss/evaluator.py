@@ -5,8 +5,6 @@ this boundary; reference-data and policy resolution remain in the compatible
 pipe/tank facades; numeric equations live in ``heat_loss.core``.
 """
 
-from typing import Any
-
 from app.formulas.heat_loss.pipe import calc_pipe_heat_loss
 from app.formulas.heat_loss.tank import calc_tank_heat_loss
 from app.schemas.calculation import (
@@ -19,12 +17,11 @@ from app.schemas.calculation import (
 
 def evaluate_validated_heat_loss(
     params: PipeHeatLossParams | TankHeatLossParams,
-    coefficients: dict[str, Any] | None = None,
 ) -> PipeHeatLossResult | TankHeatLossResult:
     """Evaluate one validated heat model without constructing another model."""
 
     if isinstance(params, PipeHeatLossParams):
-        return calc_pipe_heat_loss(params, coefficients=coefficients)
+        return calc_pipe_heat_loss(params)
     if isinstance(params, TankHeatLossParams):
-        return calc_tank_heat_loss(params, coefficients=coefficients)
+        return calc_tank_heat_loss(params)
     raise TypeError(f"Unsupported heat-loss parameter model: {type(params).__name__}")

@@ -13,7 +13,7 @@ R_внеш (помещение): R = 1 / 9.0
   q_ground = ΔT / (δ_р/λ_р + Σδ_из/λ_из + h/λ_гр)
 """
 
-from typing import Any, cast
+from typing import cast
 
 from heatcalc_heat_loss_core.errors import FormulaDomainError
 from heatcalc_heat_loss_core.validation import FormulaValidationReport
@@ -68,10 +68,7 @@ def _raise_tank_core_error(
     raise ValueError(str(error)) from error
 
 
-def calc_tank_heat_loss(
-    params: TankHeatLossParams,
-    coefficients: dict[str, Any] | None = None,
-) -> TankHeatLossResult:
+def calc_tank_heat_loss(params: TankHeatLossParams) -> TankHeatLossResult:
     """Рассчитать теплопотери резервуара по модели, соответствующей форме.
 
     Алгоритм cylindrical/rectangular:
@@ -87,7 +84,7 @@ def calc_tank_heat_loss(
     Args:
         params: валидированные параметры ёмкости. Требует указать геометрию,
             подходящую под `shape`: cylinder (d+h), rectangular (l+w+h).
-        coefficients: аналогично `calc_pipe_heat_loss`.
+            Читает только `params.safety_factor`.
 
     Returns:
         TankHeatLossResult: base/design values for q and Q and the bare
@@ -105,7 +102,7 @@ def calc_tank_heat_loss(
     buried_height = params.tank_buried_height or 0.0
     q_additional = getattr(params, "q_additional", 0.0) or 0.0
     try:
-        outcome = run_validated_tank_formula(params, coefficients)
+        outcome = run_validated_tank_formula(params)
     except FormulaDomainError as exc:
         _raise_tank_core_error(exc, layers=layers)
         raise
