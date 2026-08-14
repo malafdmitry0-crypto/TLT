@@ -5,7 +5,7 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-SCHEMA_SOURCE = Path(__file__).resolve().parents[3] / "schemas" / "calculation.py"
+SCHEMA_SOURCE = Path(__file__).resolve().parents[3] / "schemas" / "heat_loss.py"
 
 RANGE_FIELDS_BY_MODEL = {
     "InsulationLayer": {

@@ -1,8 +1,8 @@
-"""Freeze which heat-loss formula models live in app.schemas.calculation today."""
+"""Freeze heat-loss formula models in heat_loss, re-exported from calculation."""
 
 from __future__ import annotations
 
-from app.schemas import calculation
+from app.schemas import calculation, heat_loss
 from app.schemas.calculation import (
     InsulationLayer,
     InsulationLayerApplied,
@@ -32,7 +32,7 @@ HEAT_HTTP_ENVELOPE_NAMES = (
 )
 
 
-def test_heat_formula_contract_names_import_from_calculation_today() -> None:
+def test_heat_formula_contract_names_are_identity_reexports() -> None:
     imported = {
         "InsulationLayer": InsulationLayer,
         "InsulationLayerApplied": InsulationLayerApplied,
@@ -46,14 +46,17 @@ def test_heat_formula_contract_names_import_from_calculation_today() -> None:
 
     assert tuple(imported) == HEAT_FORMULA_CONTRACT_NAMES
     for name in HEAT_FORMULA_CONTRACT_NAMES:
-        symbol = getattr(calculation, name)
-        assert imported[name] is symbol
-        assert symbol.__module__ == "app.schemas.calculation"
-        assert symbol.__name__ == name
+        calculation_symbol = getattr(calculation, name)
+        heat_loss_symbol = getattr(heat_loss, name)
+        assert imported[name] is calculation_symbol
+        assert calculation_symbol is heat_loss_symbol
+        assert heat_loss_symbol.__module__ == "app.schemas.heat_loss"
+        assert calculation_symbol.__name__ == name
 
 
-def test_heat_http_envelopes_also_live_in_calculation_today() -> None:
+def test_heat_http_envelopes_remain_defined_in_calculation() -> None:
     for name in HEAT_HTTP_ENVELOPE_NAMES:
         symbol = getattr(calculation, name)
         assert symbol.__module__ == "app.schemas.calculation"
         assert symbol.__name__ == name
+        assert not hasattr(heat_loss, name)

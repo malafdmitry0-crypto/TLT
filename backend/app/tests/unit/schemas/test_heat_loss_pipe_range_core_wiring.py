@@ -6,7 +6,7 @@ import pytest
 from heatcalc_heat_loss_core.pipe_contract import validate_pipe_contract
 from pydantic import ValidationError
 
-from app.schemas import calculation as calculation_schemas
+from app.schemas import heat_loss as heat_loss_schemas
 from app.schemas.calculation import PipeHeatLossParams, StoredPipeHeatParams
 
 MINERAL_WOOL = "mineral_wool_boards_120"
@@ -37,7 +37,7 @@ def test_pipe_and_stored_pipe_call_the_unified_core_contract_once(
     model: type[PipeHeatLossParams] | type[StoredPipeHeatParams],
 ) -> None:
     contract_spy = MagicMock(wraps=validate_pipe_contract)
-    monkeypatch.setattr(calculation_schemas, "validate_pipe_contract", contract_spy)
+    monkeypatch.setattr(heat_loss_schemas, "validate_pipe_contract", contract_spy)
 
     params = model.model_validate(_pipe())
 
@@ -49,7 +49,7 @@ def test_pipe_range_failure_is_returned_by_the_unified_contract(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     contract_spy = MagicMock(wraps=validate_pipe_contract)
-    monkeypatch.setattr(calculation_schemas, "validate_pipe_contract", contract_spy)
+    monkeypatch.setattr(heat_loss_schemas, "validate_pipe_contract", contract_spy)
 
     with pytest.raises(ValidationError) as exc_info:
         PipeHeatLossParams.model_validate(_pipe(outer_diameter=0.0))
@@ -70,7 +70,7 @@ def test_pipe_parse_failure_never_calls_aggregate_core_validator(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     contract_spy = MagicMock(wraps=validate_pipe_contract)
-    monkeypatch.setattr(calculation_schemas, "validate_pipe_contract", contract_spy)
+    monkeypatch.setattr(heat_loss_schemas, "validate_pipe_contract", contract_spy)
 
     with pytest.raises(ValidationError) as exc_info:
         PipeHeatLossParams.model_validate(_pipe(outer_diameter="not-a-number"))
