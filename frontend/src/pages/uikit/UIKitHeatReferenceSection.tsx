@@ -44,6 +44,7 @@ import {
   type HeatScope,
 } from '@/pages/uikit/uiKitModel';
 import '@/components/wizard/insulation-layers-table.css';
+import '@/components/wizard/insulation-field-source.css';
 
 /* Иконка-статус как в реальной таблице HeatCalc (heatloss-status-icon-tag) */
 function HeatLossStatusTag({ status }: { status: string }) {
