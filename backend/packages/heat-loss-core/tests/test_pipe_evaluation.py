@@ -174,7 +174,7 @@ def test_evaluation_calls_each_law_and_low_level_branch_once(
     monkeypatch.setattr(pipe_evaluation, "calculate_aboveground_pipe", calculate_spy)
     monkeypatch.setattr(pipe_evaluation, "calculate_underground_pipe", underground_spy)
 
-    execute_prepared_pipe(_input())
+    execute_prepared_pipe(_input(layers=(_reference_layer(),)))
 
     assert wall_conductivity_spy.call_count == 1
     assert layer_conductivity_spy.call_count == 1
@@ -267,6 +267,29 @@ def test_prepared_pipe_keeps_manual_constant_conductivity() -> None:
     result = execute_prepared_pipe(
         _input(
             layers=(PreparedPipeLayer(0.05, "manual", ConstantConductivity(0.04), (-90.0, 600.0)),),
+            process_temperature_c=30.0,
+        )
+    )
+
+    assert result.insulation_temperature_c == pytest.approx(15.0)
+    assert result.layer_results[0].conductivity_w_mk == 0.04
+
+
+def test_prepared_pipe_keeps_manual_piecewise_tm_semantics() -> None:
+    result = execute_prepared_pipe(
+        _input(
+            layers=(
+                PreparedPipeLayer(
+                    0.05,
+                    "manual",
+                    PiecewiseConductivity(
+                        threshold_c=20.0,
+                        at_or_above=ConstantConductivity(0.05),
+                        below=ConstantConductivity(0.04),
+                    ),
+                    (-90.0, 600.0),
+                ),
+            ),
             process_temperature_c=30.0,
         )
     )
