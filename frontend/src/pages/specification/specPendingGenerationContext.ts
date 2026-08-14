@@ -148,13 +148,12 @@ export function pendingGenerationContextStorageKey(
 
 export function buildPendingGenerationContext(
   variables: GenerateSpecificationVariables,
-  catalogSelections: Record<string, string>,
 ): PendingGenerationContext {
   return {
     version: CONTEXT_VERSION,
     generateVariantIds: [...variables.generateVariantIds],
     options: { ...variables.options },
-    catalogSelections: { ...catalogSelections },
+    catalogSelections: { ...variables.catalogSelections },
   };
 }
 
@@ -162,7 +161,7 @@ export function rememberPendingGenerationContext(
   store: PendingGenerationContextStore,
   variables: GenerateSpecificationVariables,
 ): PendingGenerationContext {
-  const context = buildPendingGenerationContext(variables, {});
+  const context = buildPendingGenerationContext(variables);
   store.save(variables.projectId, context);
   return context;
 }
@@ -202,7 +201,7 @@ export function resumePendingGenerationVariables(
   scope: SpecificationMutationScope,
   electricalVariantId: string | null | undefined,
   excludeUnassignedConfirmed: boolean,
-  catalogSelections: Record<string, string>,
+  catalogSelections?: Record<string, string>,
 ): GenerateSpecificationVariables | null {
   if (!electricalVariantId) return null;
   const context = store.load(scope.projectId, electricalVariantId);
@@ -212,7 +211,7 @@ export function resumePendingGenerationVariables(
     generateVariantIds: [...context.generateVariantIds],
     options: context.options,
     excludeUnassignedConfirmed,
-    catalogSelections: { ...catalogSelections },
+    catalogSelections: { ...(catalogSelections ?? context.catalogSelections) },
   };
   rememberPendingGenerationContext(store, variables);
   return variables;
