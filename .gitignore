@@ -101,7 +101,13 @@ tmp/
 # ---------------------------------------------------------------------------
 # Documentation (not product code) — keep local, do not ship in git
 # ---------------------------------------------------------------------------
-/docs/
+/docs/*
+!/docs/audit/
+/docs/audit/*
+!/docs/audit/2026-08-14-heat-loss-application-boundary/
+!/docs/audit/2026-08-14-heat-loss-application-boundary/**
+/docs/audit/2026-08-14-heat-loss-application-boundary/**/__pycache__/
+/docs/audit/2026-08-14-heat-loss-application-boundary/**/*.py[cod]
 /demo-doc/
 /reports/
 /codex-workspace/
