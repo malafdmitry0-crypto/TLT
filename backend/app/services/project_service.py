@@ -37,7 +37,6 @@ from app.services.project_object_params import (
     ProjectObjectParamsError,
     normalize_project_object_params,
     reject_legacy_specification_object_params,
-    strip_retired_project_object_params,
 )
 
 
@@ -271,9 +270,7 @@ class ProjectService:
                     project_id=new_project.id,
                     object_type=src_obj.object_type,
                     sort_order=src_obj.sort_order,
-                    params=strip_retired_project_object_params(
-                        copy.deepcopy(src_obj.params)
-                    ),
+                    params=copy.deepcopy(src_obj.params),
                 )
             )
         await self.db.commit()
@@ -667,9 +664,7 @@ class ProjectService:
                     project_id=project_id,
                     object_type=source.object_type,
                     sort_order=next_sort + idx,
-                    params=strip_retired_project_object_params(
-                        copy.deepcopy(source.params)
-                    ),
+                    params=copy.deepcopy(source.params or {}),
                 )
             )
         self.db.add_all(copies)

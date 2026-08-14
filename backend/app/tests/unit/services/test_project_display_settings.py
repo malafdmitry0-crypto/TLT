@@ -34,36 +34,22 @@ def test_canonical_payload_of_empty_request_is_empty_dict():
     assert canonicalize_display_settings(ProjectDisplaySettingsPayload()) == {}
 
 
-def test_retired_heatcalc_columns_are_removed_without_losing_other_settings():
+def test_retired_pipe_dn_is_removed_without_losing_other_column_settings():
     source = {
         "heatcalc": {
             "tableColumns": {
                 "types": {
                     "pipe": {
-                        "visibleOrder": [
-                            "name",
-                            "pipe_dn",
-                            "max_ambient_temperature",
-                            "pipe_outer_diameter",
-                        ],
+                        "visibleOrder": ["name", "pipe_dn", "pipe_outer_diameter"],
                         "columns": {
                             "name": {"widthPct": 24},
                             "pipe_dn": {"widthPct": 5.8},
-                            "max_ambient_temperature": {"widthPct": 9.8},
                             "pipe_outer_diameter": {"widthPct": 7.6},
                         },
                     },
                     "all": {
-                        "visibleOrder": [
-                            "type",
-                            "pipe_dn",
-                            "max_ambient_temperature",
-                            "name",
-                        ],
-                        "columns": {
-                            "pipe_dn": {"widthPct": 5.8},
-                            "max_ambient_temperature": {"widthPct": 9.8},
-                        },
+                        "visibleOrder": ["type", "pipe_dn", "name"],
+                        "columns": {"pipe_dn": {"widthPct": 5.8}},
                     },
                 }
             },
@@ -90,7 +76,6 @@ def test_retired_heatcalc_columns_are_removed_without_losing_other_settings():
     assert source["heatcalc"]["tableColumns"]["types"]["pipe"]["visibleOrder"] == [
         "name",
         "pipe_dn",
-        "max_ambient_temperature",
         "pipe_outer_diameter",
     ]
 

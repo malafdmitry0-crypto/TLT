@@ -60,15 +60,6 @@ def test_pipe_normalization_preserves_required_downstream_inputs_without_inventi
     ]
 
 
-def test_pipe_normalization_drops_retired_max_ambient_temperature():
-    params = normalize_project_object_params(
-        "pipe",
-        _outdoor_pipe(max_ambient_temperature=30),
-    )
-
-    assert "max_ambient_temperature" not in params
-
-
 def test_explicit_aggressive_product_is_preserved():
     params = normalize_project_object_params(
         "pipe",

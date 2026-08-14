@@ -167,7 +167,6 @@ describe('pipeFormToApiParams', () => {
       insulation_cover_material: 'none',
       ambient_temperature: -20,
       process_temperature: 80,
-      max_ambient_temperature: 30,
       max_process_temperature: 90,
       placement: 'underground',
       ground_temperature: 8,
@@ -186,7 +185,7 @@ describe('pipeFormToApiParams', () => {
       vapor_temperature: 140,
       num_local_elements: 6,
       local_element_equiv_length: 1.5,
-    } as Parameters<typeof pipeFormToApiParams>[0]);
+    });
 
     expect(api.wall_thickness).toBeCloseTo(0.004);
     expect(api.pipe_material).toBeUndefined();
