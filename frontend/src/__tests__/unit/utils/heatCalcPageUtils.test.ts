@@ -341,6 +341,14 @@ describe('heatCalcPageUtils', () => {
     expect(normalizeGlideCellAlign(undefined)).toBeUndefined();
   });
 
+  it('использует полное имя толщины изоляции в ошибке выбранной строки', () => {
+    expect(draftErrorMessages('pipe', {
+      insulation_thickness_mm: 'Укажите значение',
+    })).toEqual([
+      'Толщина изоляции: Укажите значение',
+    ]);
+  });
+
   it('удаляет пустые и повторяющиеся сообщения ошибок без изменения первого текста', () => {
     expect(uniqueErrorMessages([
       '',
