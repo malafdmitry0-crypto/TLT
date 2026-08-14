@@ -8,7 +8,7 @@ from pydantic import ValidationError
 from app.formulas.heat_loss.catalog_preparation import HeatLossPreparationError
 from app.formulas.heat_loss.evaluator import evaluate_validated_heat_loss
 from app.reference_data.loader import get_climate_entry
-from app.schemas.calculation import (
+from app.schemas.heat_loss import (
     PipeHeatLossParams,
     StoredPipeHeatParams,
     StoredTankHeatParams,

@@ -14,7 +14,7 @@ from typing import Any, TypeAlias
 from pydantic import ValidationError
 from pydantic_core import ErrorDetails
 
-from app.schemas.calculation import StoredPipeHeatParams, StoredTankHeatParams
+from app.schemas.heat_loss import StoredPipeHeatParams, StoredTankHeatParams
 from app.services.heat_contract import (
     COMMON_HEAT_PARAM_KEYS,
     PIPE_HEAT_PARAM_KEYS,
