@@ -1,0 +1,822 @@
+"""Characterize the remaining heat-loss guests before ownership moves.
+
+These assertions intentionally freeze legacy housing and orchestration. Later
+HL-OWN slices may move the code, but must preserve the observed outcomes.
+"""
+
+from __future__ import annotations
+
+import ast
+from pathlib import Path
+from types import SimpleNamespace
+from typing import Any, cast
+from unittest.mock import AsyncMock, MagicMock
+from uuid import uuid4
+
+import pytest
+from pydantic import ValidationError
+from pydantic_core import InitErrorDetails, PydanticCustomError
+
+from app.api.v1 import admin as admin_api
+from app.formulas.heat_loss import catalog_preparation
+from app.formulas.heat_loss.catalog_preparation import HeatLossPreparationError
+from app.models.project_object import ProjectObject
+from app.schemas.calculation import (
+    BatchCalcResponse,
+    HeatLossBatchJobRequest,
+    HeatLossRequest,
+    HeatLossResponse,
+)
+from app.schemas.heat_loss import PipeHeatLossParams, TankHeatLossParams
+from app.services import calculation_service as calculation_service_module
+from app.services import heat_loss_application as heat_loss_application_module
+from app.services.calculation_service import CalculationService
+from app.services.project_object_params import (
+    PreparedProjectObjectParams,
+    ProjectObjectParamsError,
+    ValidationIssue,
+    ValidationReport,
+)
+
+MINERAL_WOOL = "mineral_wool_boards_120"
+DEFAULT_VALIDATION_HINT = "Проверьте параметры объекта и повторите расчёт."
+FORMULA_ERROR_HINT = "Расчётная формула завершилась ошибкой; проверьте исходные данные."
+
+
+def _pipe(**overrides: object) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "outer_diameter": 0.108,
+        "wall_thickness": 0.004,
+        "pipe_material": "carbon_steel",
+        "pipe_length": 10.0,
+        "insulation_layers": [{"thickness": 0.05, "material": MINERAL_WOOL}],
+        "insulation_temperature_basis": "outdoor_winter",
+        "ambient_temperature": -20.0,
+        "process_temperature": 80.0,
+        "placement": "outdoor",
+        "wind_speed": 0.0,
+        "safety_factor": 1.1,
+    }
+    payload.update(overrides)
+    return payload
+
+
+def _tank(**overrides: object) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "shape": "cylindrical",
+        "diameter": 2.0,
+        "height": 3.0,
+        "insulation_layers": [{"thickness": 0.08, "material": MINERAL_WOOL}],
+        "insulation_temperature_basis": "outdoor_winter",
+        "ambient_temperature": -20.0,
+        "process_temperature": 80.0,
+        "placement": "outdoor",
+        "wind_speed": 0.0,
+        "safety_factor": 1.1,
+    }
+    payload.update(overrides)
+    return payload
+
+
+def _object(params: dict[str, object], *, object_type: str = "pipe") -> ProjectObject:
+    return cast(
+        ProjectObject,
+        SimpleNamespace(
+            id=uuid4(),
+            object_type=object_type,
+            params=params,
+            results={"stale": True},
+            is_valid=True,
+            validation_errors=None,
+        ),
+    )
+
+
+def _valid_prepared(params: dict[str, Any]) -> PreparedProjectObjectParams:
+    return PreparedProjectObjectParams(
+        params=params,
+        report=ValidationReport(),
+        heat_params=cast(Any, object()),
+    )
+
+
+def _formula_validation_error(
+    code: str,
+    *,
+    field: str,
+    message: str,
+) -> ValidationError:
+    return ValidationError.from_exception_data(
+        "HeatLossParams",
+        [
+            InitErrorDetails(
+                type=PydanticCustomError(
+                    "formula_domain",
+                    message,
+                    {"formula_code": code},
+                ),
+                loc=(field,),
+                input=0.0,
+            )
+        ],
+    )
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "apply_climate_policy",
+        "build_heat_loss_error_payload",
+        "pipe_params_with_effective_safety_factor",
+        "effective_pipe_safety_factor",
+    ],
+)
+def test_calculation_service_reexports_application_helpers_by_identity(name: str) -> None:
+    assert getattr(calculation_service_module, name) is getattr(heat_loss_application_module, name)
+
+
+async def test_try_recalculate_orders_climate_canonicalization_and_formula(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    events: list[str] = []
+    original = _pipe()
+    normalized = {**original, "stage": "normalized"}
+    climate_resolved = {
+        **normalized,
+        "safety_factor": 1.12,
+        "safety_factor_source": "climate_policy",
+        "climate_policy_rule": "pipe_diameter_lt_100",
+    }
+    canonical = {**climate_resolved, "stage": "canonical"}
+    prepared = _valid_prepared(canonical)
+    coefficients = {"safety_factor": 1.4}
+
+    def normalize(object_type: str, params: dict[str, object]) -> dict[str, object]:
+        events.append("normalize")
+        assert object_type == "pipe"
+        assert params is original
+        return normalized
+
+    def apply_climate(object_type: str, params: dict[str, object]) -> dict[str, object]:
+        events.append("climate")
+        assert object_type == "pipe"
+        assert params is normalized
+        return climate_resolved
+
+    def canonicalize(object_type: str, params: dict[str, object]) -> PreparedProjectObjectParams:
+        events.append("canonicalize")
+        assert object_type == "pipe"
+        assert params is climate_resolved
+        return prepared
+
+    def calculate(
+        object_type: str,
+        params: dict[str, object],
+        supplied_coefficients: dict[str, float],
+        **kwargs: object,
+    ) -> dict[str, object]:
+        events.append("formula")
+        assert object_type == "pipe"
+        assert params is canonical
+        assert supplied_coefficients is coefficients
+        assert kwargs == {
+            "apply_climate_policy": False,
+            "validated_params": prepared.heat_params,
+        }
+        return {"formula_model": "pipe_heat_loss"}
+
+    monkeypatch.setattr(calculation_service_module, "normalize_project_object_params", normalize)
+    monkeypatch.setattr(calculation_service_module, "apply_climate_policy", apply_climate)
+    monkeypatch.setattr(
+        calculation_service_module,
+        "validate_and_canonicalize_project_object_params",
+        canonicalize,
+    )
+    service = CalculationService(AsyncMock())
+    service.get_coefficients = AsyncMock(side_effect=AssertionError("provider must stay lazy"))  # type: ignore[method-assign]
+    service._calc_heat_loss_with_coefficients = MagicMock(side_effect=calculate)  # type: ignore[method-assign]
+    obj = _object(original)
+
+    outcome = await service.try_recalculate(obj, coefficients=coefficients)
+
+    assert outcome.is_ok is True
+    assert events == ["normalize", "climate", "canonicalize", "formula"]
+    assert obj.params is canonical
+    assert {
+        key: obj.params[key]
+        for key in ("safety_factor", "safety_factor_source", "climate_policy_rule")
+    } == {
+        "safety_factor": 1.12,
+        "safety_factor_source": "climate_policy",
+        "climate_policy_rule": "pipe_diameter_lt_100",
+    }
+    assert obj.results == {"formula_model": "pipe_heat_loss"}
+    assert obj.is_valid is True
+    assert obj.validation_errors is None
+    service.get_coefficients.assert_not_awaited()
+
+
+async def test_try_recalculate_persists_current_climate_k_snapshot() -> None:
+    params = _pipe(
+        outer_diameter=0.099,
+        min_switch_temperature=-20.0,
+        ambient_temperature=-10.0,
+        ambient_temperature_source="climate",
+        climate_city="Славгород",
+        climate_region="Могилёвская область",
+    )
+    params.pop("safety_factor")
+    service = CalculationService(AsyncMock())
+    service.get_coefficients = AsyncMock(side_effect=AssertionError("explicit coefficients lost"))  # type: ignore[method-assign]
+    obj = _object(params)
+
+    outcome = await service.try_recalculate(obj, coefficients={})
+
+    assert outcome.is_ok is True
+    assert {
+        key: obj.params[key]
+        for key in (
+            "safety_factor",
+            "safety_factor_source",
+            "climate_policy_rule",
+            "ambient_temperature",
+            "ambient_temperature_source",
+            "climate_temperature_basis",
+        )
+    } == {
+        "safety_factor": 1.12,
+        "safety_factor_source": "climate_policy",
+        "climate_policy_rule": "pipe_diameter_lt_100",
+        "ambient_temperature": -48.0,
+        "ambient_temperature_source": "climate",
+        "climate_temperature_basis": "t_abs_min",
+    }
+    assert obj.results is not None
+    assert obj.results["safety_factor_applied"] == pytest.approx(1.12)
+    service.get_coefficients.assert_not_awaited()
+
+
+async def test_invalid_report_stops_before_coefficients_and_formula(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    canonical = {"outer_diameter": None, "stage": "canonical"}
+    prepared = PreparedProjectObjectParams(
+        params=canonical,
+        report=ValidationReport(
+            (
+                ValidationIssue(
+                    code="OBJECT_REQUIRED_FIELDS_MISSING",
+                    field="outer_diameter",
+                    message="Поле обязательно",
+                ),
+            )
+        ),
+        heat_params=None,
+    )
+    monkeypatch.setattr(
+        calculation_service_module,
+        "normalize_project_object_params",
+        MagicMock(return_value={"stage": "normalized"}),
+    )
+    monkeypatch.setattr(
+        calculation_service_module,
+        "apply_climate_policy",
+        MagicMock(return_value={"stage": "climate"}),
+    )
+    monkeypatch.setattr(
+        calculation_service_module,
+        "validate_and_canonicalize_project_object_params",
+        MagicMock(return_value=prepared),
+    )
+    service = CalculationService(AsyncMock())
+    service.get_coefficients = AsyncMock(side_effect=AssertionError("invalid input reads DB"))  # type: ignore[method-assign]
+    service._calc_heat_loss_with_coefficients = MagicMock(  # type: ignore[method-assign]
+        side_effect=AssertionError("invalid input reaches formula")
+    )
+    obj = _object(_pipe())
+
+    outcome = await service.try_recalculate(obj)
+
+    assert outcome.is_err is True
+    assert outcome.error == "Заполните обязательные поля объекта"
+    assert obj.params is canonical
+    assert obj.results is None
+    assert obj.is_valid is False
+    assert obj.validation_errors == {
+        "error_code": "missing_required_fields",
+        "category": "validation",
+        "message": "Заполните обязательные поля объекта",
+        "field": "outer_diameter",
+        "hint": "Заполните обязательные поля объекта.",
+        "missing_fields": ["outer_diameter"],
+    }
+    service.get_coefficients.assert_not_awaited()
+    service._calc_heat_loss_with_coefficients.assert_not_called()
+
+
+async def test_coefficient_provider_exception_is_an_invalid_canonical_outcome(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    canonical = {"stage": "canonical", "safety_factor": 1.1}
+    monkeypatch.setattr(
+        calculation_service_module,
+        "normalize_project_object_params",
+        MagicMock(return_value={"stage": "normalized"}),
+    )
+    monkeypatch.setattr(
+        calculation_service_module,
+        "apply_climate_policy",
+        MagicMock(return_value={"stage": "climate"}),
+    )
+    monkeypatch.setattr(
+        calculation_service_module,
+        "validate_and_canonicalize_project_object_params",
+        MagicMock(return_value=_valid_prepared(canonical)),
+    )
+    service = CalculationService(AsyncMock())
+    service.get_coefficients = AsyncMock(side_effect=RuntimeError("coefficient cache unavailable"))  # type: ignore[method-assign]
+    service._calc_heat_loss_with_coefficients = MagicMock()  # type: ignore[method-assign]
+    obj = _object(_pipe())
+
+    outcome = await service.try_recalculate(obj)
+
+    assert outcome.is_err is True
+    assert outcome.error == "coefficient cache unavailable"
+    assert obj.params is canonical
+    assert obj.results is None
+    assert obj.is_valid is False
+    assert obj.validation_errors == {
+        "error_code": "heat_loss_formula_error",
+        "category": "formula",
+        "message": "coefficient cache unavailable",
+        "field": None,
+        "hint": FORMULA_ERROR_HINT,
+    }
+    service.get_coefficients.assert_awaited_once_with()
+    service._calc_heat_loss_with_coefficients.assert_not_called()
+
+
+@pytest.mark.parametrize("failing_stage", ["normalize", "climate"])
+async def test_early_preparation_exception_keeps_original_params(
+    monkeypatch: pytest.MonkeyPatch,
+    failing_stage: str,
+) -> None:
+    original = _pipe()
+    normalized = {**original, "stage": "normalized"}
+    normalize = MagicMock(
+        return_value=normalized,
+        side_effect=RuntimeError("normalize exploded") if failing_stage == "normalize" else None,
+    )
+    climate = MagicMock(
+        side_effect=RuntimeError("climate exploded") if failing_stage == "climate" else None
+    )
+    canonicalize = MagicMock()
+    monkeypatch.setattr(calculation_service_module, "normalize_project_object_params", normalize)
+    monkeypatch.setattr(calculation_service_module, "apply_climate_policy", climate)
+    monkeypatch.setattr(
+        calculation_service_module,
+        "validate_and_canonicalize_project_object_params",
+        canonicalize,
+    )
+    service = CalculationService(AsyncMock())
+    service.get_coefficients = AsyncMock()  # type: ignore[method-assign]
+    service._calc_heat_loss_with_coefficients = MagicMock()  # type: ignore[method-assign]
+    obj = _object(original)
+
+    outcome = await service.try_recalculate(obj)
+
+    message = f"{failing_stage} exploded"
+    assert outcome.is_err is True
+    assert outcome.error == message
+    assert obj.params is original
+    assert obj.results is None
+    assert obj.is_valid is False
+    assert obj.validation_errors == {
+        "error_code": "heat_loss_formula_error",
+        "category": "formula",
+        "message": message,
+        "field": None,
+        "hint": FORMULA_ERROR_HINT,
+    }
+    if failing_stage == "normalize":
+        climate.assert_not_called()
+    canonicalize.assert_not_called()
+    service.get_coefficients.assert_not_awaited()
+    service._calc_heat_loss_with_coefficients.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("error", "expected_payload"),
+    [
+        pytest.param(
+            RuntimeError("formula exploded"),
+            {
+                "error_code": "heat_loss_formula_error",
+                "category": "formula",
+                "message": "formula exploded",
+                "field": None,
+                "hint": FORMULA_ERROR_HINT,
+            },
+            id="formula",
+        ),
+        pytest.param(
+            HeatLossPreparationError(
+                code="unknown_insulation_material",
+                message="Неизвестный материал изоляции: missing",
+                path="insulation_layers.0.material",
+            ),
+            {
+                "error_code": "unknown_insulation_material",
+                "category": "validation",
+                "message": "Неизвестный материал изоляции: missing",
+                "field": "insulation_layers.0.material",
+                "fields": {
+                    "insulation_layers.0.material": "Неизвестный материал изоляции: missing"
+                },
+                "hint": DEFAULT_VALIDATION_HINT,
+            },
+            id="catalog",
+        ),
+    ],
+)
+async def test_formula_and_catalog_exceptions_keep_canonical_params(
+    monkeypatch: pytest.MonkeyPatch,
+    error: Exception,
+    expected_payload: dict[str, object],
+) -> None:
+    canonical = {"stage": "canonical", "safety_factor": 1.1}
+    monkeypatch.setattr(
+        calculation_service_module,
+        "normalize_project_object_params",
+        MagicMock(return_value={"stage": "normalized"}),
+    )
+    monkeypatch.setattr(
+        calculation_service_module,
+        "apply_climate_policy",
+        MagicMock(return_value={"stage": "climate"}),
+    )
+    monkeypatch.setattr(
+        calculation_service_module,
+        "validate_and_canonicalize_project_object_params",
+        MagicMock(return_value=_valid_prepared(canonical)),
+    )
+    service = CalculationService(AsyncMock())
+    service.get_coefficients = AsyncMock(side_effect=AssertionError("explicit coefficients lost"))  # type: ignore[method-assign]
+    service._calc_heat_loss_with_coefficients = MagicMock(side_effect=error)  # type: ignore[method-assign]
+    obj = _object(_pipe())
+
+    outcome = await service.try_recalculate(obj, coefficients={})
+
+    assert outcome.is_err is True
+    assert outcome.error == str(error)
+    assert obj.params is canonical
+    assert obj.results is None
+    assert obj.is_valid is False
+    assert obj.validation_errors == expected_payload
+    service.get_coefficients.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    ("formula_type", "payload", "params_type"),
+    [
+        pytest.param("pipe", _pipe(), PipeHeatLossParams, id="pipe"),
+        pytest.param("tank", _tank(), TankHeatLossParams, id="tank"),
+    ],
+)
+async def test_admin_heat_preview_calls_only_the_validated_evaluator(
+    monkeypatch: pytest.MonkeyPatch,
+    formula_type: str,
+    payload: dict[str, object],
+    params_type: type[PipeHeatLossParams] | type[TankHeatLossParams],
+) -> None:
+    formula_result = MagicMock()
+    formula_result.model_dump.return_value = {"formula_model": f"{formula_type}_heat_loss"}
+    evaluator = MagicMock(return_value=formula_result)
+    climate = MagicMock(side_effect=AssertionError("admin preview applied climate"))
+    audit_service = MagicMock()
+    audit_service.try_record = AsyncMock()
+    monkeypatch.setattr(admin_api, "evaluate_validated_heat_loss", evaluator)
+    monkeypatch.setattr(heat_loss_application_module, "apply_climate_policy", climate)
+    monkeypatch.setattr(admin_api, "AuditService", MagicMock(return_value=audit_service))
+
+    result = await admin_api.formula_check(
+        admin_api.FormulaCheckRequest(formula_type=cast(Any, formula_type), params=payload),
+        principal=MagicMock(),
+        db=MagicMock(),
+    )
+
+    assert result == {"formula_model": f"{formula_type}_heat_loss"}
+    evaluator.assert_called_once()
+    call = evaluator.call_args
+    assert call is not None
+    assert len(call.args) == 1
+    assert isinstance(call.args[0], params_type)
+    assert call.kwargs == {}
+    climate.assert_not_called()
+    audit_service.try_record.assert_awaited_once()
+
+
+@pytest.mark.parametrize(
+    "schema",
+    [HeatLossRequest, HeatLossResponse, HeatLossBatchJobRequest, BatchCalcResponse],
+)
+def test_heat_http_envelopes_are_defined_in_calculation_schema(schema: type[object]) -> None:
+    assert schema.__module__ == "app.schemas.calculation"
+
+
+@pytest.mark.parametrize(
+    ("material", "loader_message", "expected_code"),
+    [
+        pytest.param(
+            "missing",
+            "Неизвестный материал изоляции: missing",
+            "unknown_insulation_material",
+            id="unknown-material",
+        ),
+        pytest.param(
+            "without_range",
+            "Для материала изоляции 'without_range' не задан температурный диапазон",
+            "missing_insulation_interval",
+            id="missing-interval",
+        ),
+        pytest.param(
+            "mineral_wool",
+            (
+                "Уточните конкретный материал и плотность из справочника теплоизоляции: "
+                "mineral_wool"
+            ),
+            "unselectable_insulation_material",
+            id="unselectable-material",
+        ),
+    ],
+)
+def test_catalog_valueerror_prefix_maps_to_current_structured_error(
+    monkeypatch: pytest.MonkeyPatch,
+    material: str,
+    loader_message: str,
+    expected_code: str,
+) -> None:
+    resolver = MagicMock(side_effect=ValueError(loader_message))
+    monkeypatch.setattr(catalog_preparation, "resolve_reference_insulation", resolver)
+
+    with pytest.raises(HeatLossPreparationError) as caught:
+        catalog_preparation.resolve_reference_layer(
+            material=material,
+            index=1,
+            process_temperature=80.0,
+        )
+
+    error = caught.value
+    assert type(error) is HeatLossPreparationError
+    assert error.code == expected_code
+    assert error.path == "insulation_layers.1.material"
+    assert error.message == loader_message
+    assert str(error) == loader_message
+    resolver.assert_called_once_with(material)
+
+
+@pytest.mark.parametrize(
+    ("error", "expected"),
+    [
+        pytest.param(
+            ProjectObjectParamsError(
+                "Неподдерживаемый тип объекта: pump",
+                code="OBJECT_TYPE_UNSUPPORTED",
+                fields=("object_type",),
+            ),
+            {
+                "error_code": "unsupported_object_type",
+                "category": "unsupported",
+                "message": "Неподдерживаемый тип объекта: pump",
+                "field": "object_type",
+                "hint": "Для теплорасчёта поддерживаются только трубопроводы и резервуары.",
+            },
+            id="unsupported-object-type",
+        ),
+        pytest.param(
+            ProjectObjectParamsError(
+                "Заполните обязательные поля объекта",
+                code="OBJECT_REQUIRED_FIELDS_MISSING",
+                fields=("outer_diameter", "insulation_layers.1.material"),
+            ),
+            {
+                "error_code": "missing_required_fields",
+                "category": "validation",
+                "message": "Заполните обязательные поля объекта",
+                "field": None,
+                "hint": "Заполните обязательные поля объекта.",
+                "missing_fields": ["outer_diameter", "insulation_layers.1.material"],
+            },
+            id="required-fields",
+        ),
+        pytest.param(
+            ProjectObjectParamsError(
+                "Проверьте параметры объекта",
+                code="OBJECT_PARAMS_INVALID",
+                fields=("insulation_temperature_basis",),
+            ),
+            {
+                "error_code": "invalid_object_params",
+                "category": "validation",
+                "message": "Проверьте параметры объекта",
+                "field": "insulation_temperature_basis",
+                "hint": "Проверьте формат и диапазоны значений.",
+                "fields": {"insulation_temperature_basis": "Проверьте параметры объекта"},
+            },
+            id="invalid-fields",
+        ),
+        pytest.param(
+            ProjectObjectParamsError(
+                "process_temperature_not_above_ambient",
+                code="OBJECT_PARAMS_INVALID",
+                fields=("process_temperature",),
+                reason="process_temperature_not_above_ambient",
+            ),
+            {
+                "error_code": "process_temperature_not_above_ambient",
+                "category": "validation",
+                "message": "Температура продукта должна быть выше температуры воздуха.",
+                "field": "process_temperature",
+                "hint": "Температура продукта должна быть выше температуры воздуха.",
+            },
+            id="process-temperature-ambient",
+        ),
+        pytest.param(
+            ProjectObjectParamsError(
+                "process_temperature_not_above_ground",
+                code="OBJECT_PARAMS_INVALID",
+                fields=("process_temperature",),
+                reason="process_temperature_not_above_ground",
+            ),
+            {
+                "error_code": "process_temperature_not_above_ground",
+                "category": "validation",
+                "message": "Температура продукта должна быть выше температуры грунта.",
+                "field": "process_temperature",
+                "hint": "Температура продукта должна быть выше температуры грунта.",
+            },
+            id="process-temperature-ground",
+        ),
+    ],
+)
+def test_project_object_params_payload_branches_are_frozen(
+    error: ProjectObjectParamsError,
+    expected: dict[str, object],
+) -> None:
+    assert (
+        heat_loss_application_module.build_heat_loss_error_payload(error, object_type="pipe")
+        == expected
+    )
+
+
+@pytest.mark.parametrize(
+    ("code", "message", "hint"),
+    [
+        pytest.param(
+            "process_temperature_not_above_ambient",
+            (
+                "process_temperature_not_above_ambient: температура продукта должна быть "
+                "выше температуры среды"
+            ),
+            "Температура продукта должна быть выше температуры воздуха.",
+            id="ambient",
+        ),
+        pytest.param(
+            "process_temperature_not_above_ground",
+            (
+                "process_temperature_not_above_ground: температура продукта должна быть "
+                "выше температуры грунта"
+            ),
+            "Температура продукта должна быть выше температуры грунта.",
+            id="ground",
+        ),
+    ],
+)
+def test_process_temperature_validation_error_payload_is_frozen(
+    code: str,
+    message: str,
+    hint: str,
+) -> None:
+    error = _formula_validation_error(code, field="process_temperature", message=message)
+
+    payload = heat_loss_application_module.build_heat_loss_error_payload(
+        error,
+        object_type="pipe",
+    )
+
+    assert payload == {
+        "error_code": code,
+        "category": "validation",
+        "message": str(error),
+        "field": "process_temperature",
+        "hint": hint,
+    }
+
+
+def test_other_formula_code_validation_error_uses_schema_payload() -> None:
+    error = _formula_validation_error(
+        "wall_exceeds_pipe_radius",
+        field="wall_thickness",
+        message="wall_thickness должна быть меньше половины outer_diameter",
+    )
+
+    payload = heat_loss_application_module.build_heat_loss_error_payload(
+        error,
+        object_type="pipe",
+    )
+
+    assert payload == {
+        "error_code": "schema_validation_error",
+        "category": "validation",
+        "message": str(error),
+        "field": "wall_thickness",
+        "hint": "Проверьте формат и диапазоны значений.",
+    }
+
+
+def test_ordinary_validation_error_uses_schema_payload() -> None:
+    with pytest.raises(ValidationError) as caught:
+        PipeHeatLossParams.model_validate(_pipe(outer_diameter="not-a-number"))
+
+    payload = heat_loss_application_module.build_heat_loss_error_payload(
+        caught.value,
+        object_type="pipe",
+    )
+
+    assert payload == {
+        "error_code": "schema_validation_error",
+        "category": "validation",
+        "message": str(caught.value),
+        "field": "outer_diameter",
+        "hint": "Проверьте формат и диапазоны значений.",
+    }
+
+
+@pytest.mark.parametrize(
+    ("message", "expected"),
+    [
+        pytest.param(
+            "Неподдерживаемый тип объекта: pump",
+            {
+                "error_code": "unsupported_object_type",
+                "category": "unsupported",
+                "message": "Неподдерживаемый тип объекта: pump",
+                "field": "object_type",
+                "hint": "Выберите поддерживаемый тип или форму объекта.",
+            },
+            id="unsupported-object",
+        ),
+        pytest.param(
+            "Неизвестная форма резервуара: sphere",
+            {
+                "error_code": "unsupported_shape",
+                "category": "unsupported",
+                "message": "Неизвестная форма резервуара: sphere",
+                "field": "shape",
+                "hint": "Выберите поддерживаемый тип или форму объекта.",
+            },
+            id="unknown-shape",
+        ),
+        pytest.param(
+            "Диаметр должен быть положительным",
+            {
+                "error_code": "invalid_object_params",
+                "category": "validation",
+                "message": "Диаметр должен быть положительным",
+                "field": None,
+                "hint": DEFAULT_VALIDATION_HINT,
+            },
+            id="russian-marker",
+        ),
+    ],
+)
+def test_generic_exception_payload_branches_are_frozen(
+    message: str,
+    expected: dict[str, object],
+) -> None:
+    assert (
+        heat_loss_application_module.build_heat_loss_error_payload(
+            Exception(message),
+            object_type="pipe",
+        )
+        == expected
+    )
+
+
+def test_heat_loss_application_has_no_model_or_calculation_service_imports() -> None:
+    source_path = Path(heat_loss_application_module.__file__)
+    tree = ast.parse(source_path.read_text(encoding="utf-8"), filename=str(source_path))
+    forbidden_roots = ("app.models", "app.services.calculation_service")
+    imported: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module:
+            imported.append(node.module)
+        elif isinstance(node, ast.Import):
+            imported.extend(alias.name for alias in node.names)
+
+    violations = sorted(
+        module
+        for module in imported
+        if any(module == root or module.startswith(f"{root}.") for root in forbidden_roots)
+    )
+    assert violations == []
