@@ -400,7 +400,7 @@ async def import_excel(
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
-    from app.schemas.calculation import HeatLossBatchJobRequest
+    from app.schemas.heat_loss import HeatLossBatchJobRequest
     from app.services.excel_import_service import (
         ExcelImportError,
         import_objects_from_csv,
