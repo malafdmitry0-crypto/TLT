@@ -24,6 +24,7 @@ import {
 import { Form } from 'antd';
 import { MinusOutlined, PlusOutlined } from '@ant-design/icons';
 import './insulation-layers-table.css';
+import './insulation-field-source.css';
 import './insulation-layers-table-wide.css';
 import type { HeatCalcFieldInputSettings } from '@/utils/heatCalcFieldInputSettings';
 import type { HeatCalcObjectType } from '@/types/project';

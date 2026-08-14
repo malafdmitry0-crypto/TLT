@@ -1,0 +1,13 @@
+/* Doubled class + :not(:disabled) keeps danger ink above Ant rules. */
+.tlt-ui-button.tlt-ui-button--danger:not(:disabled) {
+  border-color: var(--color-swatch-e58b8b);
+  background: var(--color-surface);
+  color: var(--tlt-ui-danger);
+}
+
+/* Match Ant's dangerous-hover weight so the brand red remains stable. */
+.tlt-ui-button.tlt-ui-button--danger:not(:disabled):not([disabled]):hover {
+  border-color: var(--tlt-ui-danger);
+  background: var(--color-danger-bg);
+  color: var(--tlt-ui-danger);
+}

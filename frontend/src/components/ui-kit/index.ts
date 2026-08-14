@@ -1,5 +1,6 @@
 import './compact-fields.css';
 import './primitives.css';
+import './button-danger.css';
 
 export { default as CompactField } from './CompactField';
 export type { CompactFieldProps } from './CompactField';
