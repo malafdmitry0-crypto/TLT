@@ -10,16 +10,14 @@ q_total  = q_linear · L_eff · K  [Вт]
 Источник: спецификация параметров теплотехнических расчётов, таблица 1–2.
 """
 
-from typing import cast
-
 from heatcalc_heat_loss_core.errors import FormulaDomainError
-from heatcalc_heat_loss_core.validation import FormulaValidationReport
 
-from app.formulas.heat_loss.catalog_preparation import unavailable_conductivity_error
-from app.formulas.heat_loss.outcome_errors import raise_heat_formula_report
+from app.formulas.heat_loss.outcome_errors import (
+    raise_heat_formula_domain_error,
+    raise_heat_formula_report,
+)
 from app.formulas.heat_loss.pipe_preparation import run_validated_pipe_formula
 from app.reference_data.loader import (
-    get_insulation_temperature_range,
     get_pipe_material_lambda,
 )
 from app.schemas.calculation import InsulationLayer, PipeHeatLossParams, PipeHeatLossResult
@@ -43,73 +41,6 @@ def pipe_material_lambda(material: str | None, temperature: float) -> float:
 def _resolve_layers(params: PipeHeatLossParams) -> list[InsulationLayer]:
     """Return the canonical non-empty insulation layer list."""
     return list(params.insulation_layers)
-
-
-def _fmt_temp(value: float) -> str:
-    return f"{value:g}"
-
-
-def _layer_temperature_range(layer: InsulationLayer) -> tuple[float, float]:
-    if layer.material == "other":
-        min_temp, max_temp = cast(tuple[float, float], layer.temperature_range)
-        return float(min_temp), float(max_temp)
-    return get_insulation_temperature_range(layer.material)
-
-
-def _raise_first_layer_temperature_error(
-    layers: list[InsulationLayer],
-    report: FormulaValidationReport,
-) -> None:
-    """Adapt the canonical aggregate report to the established facade error."""
-    if report.is_valid:
-        return
-    issue = report.issues[0]
-    index = cast(int, issue.path[1])
-    details = issue.details_dict()
-    min_temp = float(details["minimum_c"])
-    max_temp = float(details["maximum_c"])
-    layer_hot_side = float(details["temperature_c"])
-    raise ValueError(
-        f"Температура горячей стороны слоя изоляции #{index + 1} "
-        f"({_fmt_temp(layer_hot_side)} °C) вне диапазона "
-        f"материала '{layers[index].material}': {_fmt_temp(min_temp)}…{_fmt_temp(max_temp)} °C"
-    )
-
-
-def _raise_pipe_core_error(
-    error: FormulaDomainError,
-    *,
-    layers: list[InsulationLayer] | None = None,
-) -> None:
-    """Translate numeric-domain failures back to the established facade errors."""
-    if (
-        error.code in {"conductivity_law_unavailable", "conductivity_not_positive"}
-        and "layer_index" in error.details
-        and layers is not None
-    ):
-        index = int(error.details["layer_index"])
-        layer = layers[index]
-        temperature = float(error.details["temperature_c"])
-        raise unavailable_conductivity_error(
-            material=layer.material,
-            index=index,
-            temperature_c=temperature,
-        ) from error
-    if error.code == "wall_exceeds_pipe_radius":
-        wall_thickness = float(error.details["wall_thickness_m"])
-        outer_radius = float(error.details["outer_radius_m"])
-        raise ValueError(
-            f"Толщина стенки ({wall_thickness * 1000:.1f} мм) превышает радиус трубы "
-            f"({outer_radius * 1000:.1f} мм)"
-        ) from error
-    if error.code == "ground_centerline_inside_pipe":
-        centerline_depth = float(error.details["centerline_depth_m"])
-        outer_radius = float(error.details["outer_radius_m"])
-        raise ValueError(
-            f"Глубина оси H={centerline_depth:.2f} м меньше наружного радиуса изоляции "
-            f"r={outer_radius:.3f} м — труба не помещается в грунт"
-        ) from error
-    raise ValueError(str(error)) from error
 
 
 # ---------------------------------------------------------------------------
@@ -155,12 +86,10 @@ def calc_pipe_heat_loss(params: PipeHeatLossParams) -> PipeHeatLossResult:
     try:
         outcome = run_validated_pipe_formula(params)
     except FormulaDomainError as exc:
-        _raise_pipe_core_error(exc, layers=layers)
+        raise_heat_formula_domain_error(exc, layers=layers)
         raise
     if outcome.result is None:
-        if any(issue.code == "temperature_outside_interval" for issue in outcome.report.issues):
-            _raise_first_layer_temperature_error(layers, outcome.report)
-        raise_heat_formula_report(outcome.report)
+        raise_heat_formula_report(outcome.report, layers=layers)
         raise AssertionError("invalid heat-loss outcome")
     evaluation = outcome.result
     core_result = evaluation.core_result

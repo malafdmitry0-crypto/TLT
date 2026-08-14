@@ -5,6 +5,7 @@ import math
 
 import pytest
 
+from app.formulas.heat_loss.catalog_preparation import HeatLossPreparationError
 from app.formulas.heat_loss.insulation import resolve_insulation_tm
 from app.formulas.heat_loss.pipe import calc_pipe_heat_loss
 from app.formulas.heat_loss.tank import calc_tank_heat_loss
@@ -202,7 +203,10 @@ def test_public_facade_model_dump_is_frozen(calculate, params_factory, snapshot:
     ],
 )
 def test_public_facade_layer_temperature_errors_are_frozen(calculate, params, message: str) -> None:
-    with pytest.raises(ValueError) as error:
+    with pytest.raises(HeatLossPreparationError) as error:
         calculate(params)
 
     assert str(error.value) == message
+    assert error.value.code == "temperature_outside_interval"
+    assert error.value.path == "insulation_layers.0"
+    assert error.value.message == message

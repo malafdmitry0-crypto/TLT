@@ -13,59 +13,18 @@ R_внеш (помещение): R = 1 / 9.0
   q_ground = ΔT / (δ_р/λ_р + Σδ_из/λ_из + h/λ_гр)
 """
 
-from typing import cast
-
 from heatcalc_heat_loss_core.errors import FormulaDomainError
-from heatcalc_heat_loss_core.validation import FormulaValidationReport
 
-from app.formulas.heat_loss.catalog_preparation import unavailable_conductivity_error
-from app.formulas.heat_loss.outcome_errors import raise_heat_formula_report
+from app.formulas.heat_loss.outcome_errors import (
+    raise_heat_formula_domain_error,
+    raise_heat_formula_report,
+)
 from app.formulas.heat_loss.tank_preparation import run_validated_tank_formula
 from app.schemas.calculation import InsulationLayer, TankHeatLossParams, TankHeatLossResult
 
 
-def _fmt_temp(value: float) -> str:
-    return f"{value:g}"
-
-
 def _resolve_layers(params: TankHeatLossParams) -> list[InsulationLayer]:
     return list(params.insulation_layers)
-
-
-def _raise_first_layer_temperature_error(
-    report: FormulaValidationReport,
-    layers: list[InsulationLayer],
-) -> None:
-    if report.is_valid:
-        return
-    issue = report.issues[0]
-    index = cast(int, issue.path[1])
-    layer = layers[index]
-    details = issue.details_dict()
-    minimum_c = float(details["minimum_c"])
-    maximum_c = float(details["maximum_c"])
-    layer_hot_side = float(details["temperature_c"])
-    raise ValueError(
-        f"Температура горячей стороны слоя изоляции #{index + 1} "
-        f"({_fmt_temp(layer_hot_side)} °C) вне диапазона "
-        f"материала '{layer.material}': {_fmt_temp(minimum_c)}…{_fmt_temp(maximum_c)} °C"
-    )
-
-
-def _raise_tank_core_error(
-    error: FormulaDomainError,
-    *,
-    layers: list[InsulationLayer],
-) -> None:
-    if error.code in {"conductivity_law_unavailable", "conductivity_not_positive"}:
-        index = int(error.details["layer_index"])
-        temperature = float(error.details["temperature_c"])
-        raise unavailable_conductivity_error(
-            material=layers[index].material,
-            index=index,
-            temperature_c=temperature,
-        ) from error
-    raise ValueError(str(error)) from error
 
 
 def calc_tank_heat_loss(params: TankHeatLossParams) -> TankHeatLossResult:
@@ -104,12 +63,10 @@ def calc_tank_heat_loss(params: TankHeatLossParams) -> TankHeatLossResult:
     try:
         outcome = run_validated_tank_formula(params)
     except FormulaDomainError as exc:
-        _raise_tank_core_error(exc, layers=layers)
+        raise_heat_formula_domain_error(exc, layers=layers)
         raise
     if outcome.result is None:
-        if any(issue.code == "temperature_outside_interval" for issue in outcome.report.issues):
-            _raise_first_layer_temperature_error(outcome.report, layers)
-        raise_heat_formula_report(outcome.report)
+        raise_heat_formula_report(outcome.report, layers=layers)
         raise AssertionError("invalid heat-loss outcome")
     evaluation = outcome.result
     core_result = evaluation.core_result
