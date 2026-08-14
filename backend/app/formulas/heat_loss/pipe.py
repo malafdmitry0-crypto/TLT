@@ -13,7 +13,6 @@ q_total  = q_linear · L_eff · K  [Вт]
 from typing import Any, cast
 
 from heatcalc_heat_loss_core.errors import FormulaDomainError
-from heatcalc_heat_loss_core.profile import resolve_external_alpha
 from heatcalc_heat_loss_core.validation import FormulaValidationReport
 
 from app.formulas.heat_loss.catalog_preparation import unavailable_conductivity_error
@@ -34,27 +33,6 @@ def pipe_material_lambda(material: str | None, temperature: float) -> float:
         temperature: средняя температура стенки, °C
     """
     return get_pipe_material_lambda(material, temperature)
-
-
-# ---------------------------------------------------------------------------
-# Коэффициент наружной теплоотдачи из скорости ветра
-# ---------------------------------------------------------------------------
-
-
-def calc_alpha_vnesh(wind_speed: float | None, placement: str) -> float:
-    """Коэффициент наружной теплоотдачи α, Вт/(м²·К).
-
-    Для помещения: α = 9.0 (свободная конвекция)
-    Для улицы: α = 11,6 + 7·√v  (SNiP 41-03-2003, формула для трубопроводов)
-    """
-    if placement == "indoor":
-        return resolve_external_alpha(placement="indoor", wind_speed_m_s=wind_speed)
-    if wind_speed is None:
-        raise ValueError("Для outdoor auto требуется wind_speed")
-    return resolve_external_alpha(
-        placement="outdoor",
-        wind_speed_m_s=wind_speed,
-    )
 
 
 # ---------------------------------------------------------------------------
