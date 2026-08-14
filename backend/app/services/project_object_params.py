@@ -119,8 +119,6 @@ LEGACY_SPECIFICATION_OBJECT_PARAM_KEYS = frozenset(
     }
 )
 
-RETIRED_PROJECT_OBJECT_PARAM_KEYS = frozenset({"max_ambient_temperature"})
-
 
 class LegacySpecificationObjectParamsError(ProjectObjectParamsError):
     """A write attempted to put project-scoped specification options on an object."""
@@ -199,7 +197,7 @@ def normalize_project_object_params(
     fields.
     """
 
-    normalized = strip_retired_project_object_params(params)
+    normalized = dict(params or {})
     if object_type not in ("pipe", "tank"):
         return normalized
 
@@ -219,18 +217,6 @@ def normalize_project_object_params(
         _apply_defaults(normalized, TANK_OBJECT_DEFAULTS)
 
     return normalized
-
-
-def strip_retired_project_object_params(
-    params: Mapping[str, Any] | None,
-) -> dict[str, Any]:
-    """Return object params without keys removed from the product contract."""
-
-    return {
-        key: value
-        for key, value in (params or {}).items()
-        if key not in RETIRED_PROJECT_OBJECT_PARAM_KEYS
-    }
 
 
 def prepare_project_object_params(
