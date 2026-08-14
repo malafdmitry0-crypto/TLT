@@ -1,7 +1,39 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { SpecificationGenerateVariantResult } from '@/api/specifications';
 import { SpecPageChrome } from '@/pages/specification/SpecPageChrome';
+import {
+  selectSpecificationGenerationOutcome,
+  type SpecificationGenerationUiState,
+} from '@/pages/specification/specificationGenerationOutcomeModel';
+
+type GenerateStatus = SpecificationGenerateVariantResult['status'];
+
+function generationResult(status: GenerateStatus, id: string): SpecificationGenerateVariantResult {
+  const kind = status === 'blocked'
+    ? 'blocking'
+    : status === 'confirmation_required'
+      ? 'confirmable'
+      : status === 'selection_required'
+        ? 'selection_required'
+        : null;
+  return {
+    electrical_variant_id: id,
+    status,
+    items: [],
+    excluded_unassigned_object_ids: [],
+    diagnostics: kind ? [{ code: `${status}:${id}`, kind, message: status, issues: [], details: {} }] : [],
+    candidate_groups: status === 'selection_required' ? [{
+      group_key: `group:${id}`,
+      electrical_variant_id: id,
+      category: 'connection_kit',
+      conditions: {},
+      candidates: [],
+    }] : [],
+    snapshot: null,
+  };
+}
 
 function renderChrome(overrides: Record<string, unknown> = {}) {
   const props = {
@@ -172,6 +204,7 @@ describe('SpecPageChrome UI kit strangler (U2)', () => {
       confirmPartialGenerate,
     });
 
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
     expect(screen.getByTestId('spec-preflight-summary')).toBeInTheDocument();
     const fixBtn = screen.getByTestId('spec-preflight-fix');
     expect(fixBtn).toHaveTextContent('Исправить');
@@ -403,5 +436,49 @@ describe('SpecPageChrome UI kit strangler (U2)', () => {
     expect(screen.getByText('Не удалось проверить готовность к формированию спецификации'))
       .toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Сформировать' })).toBeEnabled();
+  });
+
+  const outcomeMatrix: Array<[GenerateStatus[], SpecificationGenerationUiState]> = [
+    [['generated'], 'generated'],
+    [['selection_required'], 'selection'],
+    [['confirmation_required'], 'confirmation'],
+    [['blocked'], 'blocked'],
+    [['generated', 'selection_required'], 'selection'],
+    [['generated', 'confirmation_required'], 'confirmation'],
+    [['generated', 'blocked'], 'blocked'],
+    [['selection_required', 'confirmation_required'], 'selection'],
+    [['selection_required', 'blocked'], 'selection'],
+    [['confirmation_required', 'blocked'], 'confirmation'],
+    [['generated', 'selection_required', 'confirmation_required'], 'selection'],
+    [['generated', 'selection_required', 'blocked'], 'selection'],
+    [['generated', 'confirmation_required', 'blocked'], 'confirmation'],
+    [['selection_required', 'confirmation_required', 'blocked'], 'selection'],
+    [['generated', 'selection_required', 'confirmation_required', 'blocked'], 'selection'],
+  ];
+
+  it.each(outcomeMatrix)('routes generation results %j to %s', (statuses, expectedState) => {
+    const results = statuses.map((status, index) => generationResult(status, `er-${index}`));
+    const outcome = selectSpecificationGenerationOutcome(results);
+    const expectedIds = (status: GenerateStatus) => results
+      .filter((result) => result.status === status)
+      .map((result) => result.electrical_variant_id);
+
+    expect(outcome).toMatchObject({
+      state: expectedState,
+      openSelection: expectedState === 'selection',
+      openConfirmation: expectedState === 'confirmation',
+      closeSettings: expectedState === 'generated',
+      pendingTransition: ['selection', 'confirmation'].includes(expectedState) ? 'retain' : 'clear',
+      clearDraftSelections: expectedState !== 'confirmation',
+      clearCatalogSelections: ['generated', 'blocked'].includes(expectedState),
+      hasUnresolved: statuses.some((status) => status !== 'generated'),
+    });
+    expect(outcome.candidateGroups.map((group) => group.electrical_variant_id))
+      .toEqual(expectedIds('selection_required'));
+    expect(outcome.confirmationDiagnostics.map((diagnostic) => diagnostic.code))
+      .toEqual(expectedIds('confirmation_required').map((id) => `confirmation_required:${id}`));
+    expect(outcome.blockingDiagnostics.map((diagnostic) => diagnostic.code))
+      .toEqual(expectedIds('blocked').map((id) => `blocked:${id}`));
+    expect(outcome.generatedVariantIds).toEqual(expectedIds('generated'));
   });
 });
