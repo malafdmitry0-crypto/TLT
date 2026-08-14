@@ -10,7 +10,7 @@ from pydantic import ValidationError
 
 from app.formulas.heat_loss import pipe as pipe_facade
 from app.reference_data import loader as reference_loader
-from app.schemas import calculation as calculation_schemas
+from app.schemas import heat_loss as heat_loss_schemas
 from app.schemas.calculation import PipeHeatLossParams, TankHeatLossParams
 
 MINERAL_WOOL = "mineral_wool_boards_120"
@@ -55,7 +55,7 @@ def test_pipe_schema_calls_public_core_contract_once(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     validation_spy = MagicMock(wraps=validate_pipe_contract)
-    monkeypatch.setattr(calculation_schemas, "validate_pipe_contract", validation_spy)
+    monkeypatch.setattr(heat_loss_schemas, "validate_pipe_contract", validation_spy)
 
     PipeHeatLossParams.model_validate(_air_pipe())
 
@@ -72,7 +72,7 @@ def test_tank_schema_calls_public_core_contract_once(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     validation_spy = MagicMock(wraps=validate_tank_contract)
-    monkeypatch.setattr(calculation_schemas, "validate_tank_contract", validation_spy)
+    monkeypatch.setattr(heat_loss_schemas, "validate_tank_contract", validation_spy)
 
     TankHeatLossParams.model_validate(_tank(wall_thickness=0.02, wall_lambda=45.0))
 
