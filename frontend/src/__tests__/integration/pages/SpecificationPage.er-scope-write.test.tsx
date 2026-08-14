@@ -284,8 +284,10 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
       name: 'Группировка строк при формировании',
     });
     expect(groupingInput.closest('.ant-select')).toHaveTextContent('Разделять по типам объектов');
-    await user.type(within(dialog).getByRole('spinbutton', { name: 'Параметр L К2i' }), '0');
-    await user.type(within(dialog).getByRole('spinbutton', { name: 'Параметр R гр' }), '1');
+    expect(within(dialog).getByRole('spinbutton', { name: 'Параметр L К2i' }))
+      .toHaveValue('1');
+    expect(within(dialog).getByRole('spinbutton', { name: 'Параметр R гр' }))
+      .toHaveValue('1');
     await user.click(within(dialog).getByRole('button', { name: 'Сформировать' }));
     expect(generateSpecification).toHaveBeenCalledWith(
       mockProject.id,
@@ -297,7 +299,7 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
           K1i: false,
           K2i: false,
           Kiu: false,
-          L_K2i_m: '0',
+          L_K2i_m: '1',
           R_gr: '1',
         },
         exclude_unassigned_confirmed: false,
@@ -314,6 +316,35 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
     await waitFor(() => {
       expect(er1Tab).not.toHaveAttribute('aria-disabled', 'true');
     });
+  });
+  it('keeps edited numeric settings when the modal is closed and reopened', async () => {
+    const user = (await import('@testing-library/user-event')).default.setup();
+    const { getSpecification } = await import('@/api/specifications');
+    (getSpecification as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+    useProjectStore.getState().setCurrentProject(mockProject);
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: 'Сформировать' }));
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Настройки формирования спецификации',
+    });
+    const minLength = within(dialog).getByRole('spinbutton', { name: 'Параметр L К2i' });
+    const reserve = within(dialog).getByRole('spinbutton', { name: 'Параметр R гр' });
+    await user.clear(minLength);
+    await user.type(minLength, '12.5');
+    await user.clear(reserve);
+    await user.type(reserve, '1.25');
+
+    await user.click(within(dialog).getByRole('button', { name: 'Close' }));
+    await user.click(screen.getByRole('button', { name: 'Настройки' }));
+    const reopened = await screen.findByRole('dialog', {
+      name: 'Настройки формирования спецификации',
+    });
+
+    expect(within(reopened).getByRole('spinbutton', { name: 'Параметр L К2i' }))
+      .toHaveValue('12,5');
+    expect(within(reopened).getByRole('spinbutton', { name: 'Параметр R гр' }))
+      .toHaveValue('1,25');
   });
   it('unlocks generation after a typed backend failure so the user can retry', async () => {
     const user = (await import('@testing-library/user-event')).default.setup();
@@ -423,14 +454,12 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
     const settings = await screen.findByRole('dialog', { name: 'Настройки формирования спецификации' });
     await user.click(within(settings).getByRole('checkbox', { name: 'ЭР1' }));
     await user.click(within(settings).getByRole('checkbox', { name: 'ЭР2' }));
-    await user.type(
-      within(settings).getByRole('spinbutton', { name: 'Параметр L К2i' }),
-      '0',
-    );
-    await user.type(
-      within(settings).getByRole('spinbutton', { name: 'Параметр R гр' }),
-      '1',
-    );
+    const minLength = within(settings).getByRole('spinbutton', { name: 'Параметр L К2i' });
+    const reserve = within(settings).getByRole('spinbutton', { name: 'Параметр R гр' });
+    await user.clear(minLength);
+    await user.type(minLength, '0');
+    await user.clear(reserve);
+    await user.type(reserve, '1');
     await user.click(within(settings).getByRole('button', { name: 'Сформировать' }));
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Настройки' })).toBeDisabled());
@@ -638,14 +667,12 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
       name: 'Настройки формирования спецификации',
     });
     await user.click(within(settings).getByRole('checkbox', { name: 'ЭР1' }));
-    await user.type(
-      within(settings).getByRole('spinbutton', { name: 'Параметр L К2i' }),
-      '12.5',
-    );
-    await user.type(
-      within(settings).getByRole('spinbutton', { name: 'Параметр R гр' }),
-      '1.25',
-    );
+    const minLength = within(settings).getByRole('spinbutton', { name: 'Параметр L К2i' });
+    const reserve = within(settings).getByRole('spinbutton', { name: 'Параметр R гр' });
+    await user.clear(minLength);
+    await user.type(minLength, '12.5');
+    await user.clear(reserve);
+    await user.type(reserve, '1.25');
     await user.click(within(settings).getByRole('button', { name: 'Сформировать' }));
     expect(await screen.findByRole('button', { name: /Комплект F5 B/i })).toBeInTheDocument();
 
