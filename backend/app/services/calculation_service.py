@@ -228,6 +228,8 @@ def build_heat_loss_error_payload(
     extra: dict[str, Any] = {}
 
     if isinstance(exc, HeatLossPreparationError):
+        if not exc.path:
+            raise RuntimeError("HeatLossPreparationError.path is required")
         return {
             "error_code": exc.code,
             "category": exc.category,
