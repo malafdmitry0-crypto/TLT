@@ -17,6 +17,22 @@ import {
   basePipeParams,
 } from './ObjectWizardDependencies.test-harness';
 
+function formItemFor(testId: string) {
+  const item = screen.getByTestId(testId).closest('.ant-form-item');
+  if (!(item instanceof HTMLElement)) throw new Error(`Form item not found for ${testId}`);
+  return item;
+}
+
+function expectFieldSource(testId: string, source?: string) {
+  const tag = formItemFor(testId).querySelector('.field-source-tag');
+  if (source == null) {
+    expect(tag).toBeNull();
+    return;
+  }
+  expect(tag).toHaveTextContent(source);
+  expect(tag).toBeVisible();
+}
+
 describe('ObjectWizard dependencies — validation-highlight', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -67,6 +83,68 @@ describe('ObjectWizard dependencies — validation-highlight', () => {
     expect(screen.getByTestId('pipe-length-input')).toHaveAttribute('aria-required', 'true');
     expect(screen.getByTestId('wall-thickness-input')).toHaveAttribute('aria-required', 'true');
     expect(screen.getByTestId('local-elements-count-input')).not.toHaveAttribute('aria-required');
+  });
+
+  it('связывает «вручную» с каждым обязательным прямым полем наружной трубы', async () => {
+    renderWizard();
+
+    await screen.findByTestId('outer-diameter-input');
+    [
+      'outer-diameter-input',
+      'pipe-length-input',
+      'wall-thickness-input',
+      'ambient-temperature-input',
+      'process-temperature-input',
+      'wind-speed-input',
+      'insulation-thickness-input',
+    ].forEach((testId) => expectFieldSource(testId, 'вручную'));
+
+    expectFieldSource('local-elements-count-input');
+    expectFieldSource('placement-select');
+    expectFieldSource('pipe-material-select');
+    expectFieldSource('insulation-material-select');
+  });
+
+  it('пересчитывает ручной источник для грунтовых полей и не помечает справочник', async () => {
+    renderWizard({
+      initialParams: {
+        ...basePipeParams,
+        placement: 'underground',
+        burial_depth: undefined,
+        ground_type: 'dry_sand:na:0',
+        ground_temperature: undefined,
+      },
+    });
+
+    await screen.findByTestId('burial-depth-input');
+    expectFieldSource('burial-depth-input', 'вручную');
+    expectFieldSource('ground-temperature-input', 'вручную');
+    expectFieldSource('ground-type-select');
+    expectFieldSource('ground-conductivity-input');
+    expect(screen.queryByTestId('wind-speed-input')).not.toBeInTheDocument();
+  });
+
+  it('не помечает необязательные числовые поля резервуара как ручные', async () => {
+    const user = userEvent.setup();
+    renderWizard({ objectType: 'tank' });
+
+    await screen.findByTestId('tank-diameter-input');
+    expectFieldSource('tank-diameter-input', 'вручную');
+    expectFieldSource('tank-height-input', 'вручную');
+    expectFieldSource('ambient-temperature-input', 'вручную');
+    expectFieldSource('process-temperature-input', 'вручную');
+    expectFieldSource('insulation-thickness-input', 'вручную');
+    expectFieldSource('tank-wall-thickness-input');
+    expectFieldSource('tank-wall-lambda-input');
+    expectFieldSource('wind-speed-input');
+    expectFieldSource('tank-shape-select');
+
+    await user.type(screen.getByTestId('tank-wall-thickness-input'), '12');
+
+    await waitFor(() => {
+      expect(screen.getByTestId('tank-wall-lambda-input')).toHaveAttribute('aria-required', 'true');
+    });
+    expectFieldSource('tank-wall-lambda-input', 'вручную');
   });
 
   it('блокирует сохранение наружной трубы без скорости ветра и принимает 0 м/с', async () => {

@@ -21,6 +21,7 @@ import type { ReactElement, ReactNode } from 'react';
 import { TltForm } from '@/components/ui-kit';
 import UnitInputNumber from '@/components/common/UnitInputNumber';
 import {
+  heatCalcFieldRequired,
   heatCalcFormFieldRules,
   heatCalcNumberInputProps,
 } from '@/utils/heatCalcWizardFieldRules';
@@ -30,9 +31,12 @@ import {
   getHeatCalcFieldInputConfig,
   getHeatCalcFieldLabel,
 } from '@/domain/heatCalcFields';
+import { isHeatCalcFieldRequired } from '@/domain/heatCalcFieldRules';
 import type { HeatCalcObjectType } from '@/types/project';
 import HelpedControl from './HelpedControl';
 import FieldLabel from './FieldLabel';
+import { FieldSourceExtra } from './FieldSourceTag';
+import { resolveFieldSource } from './fieldSourceModel';
 
 interface Props {
   /** Идентификатор поля в реестре: по нему берутся подпись, подсказка, правила. */
@@ -66,6 +70,8 @@ interface Props {
    * пользователя, а потому что системе не хватает соседнего значения».
    */
   extra?: ReactNode;
+  /** Явный источник значения; без него required direct-entry считается ручным. */
+  source?: unknown;
   /** Нестандартный контрол: справочник, селект, что угодно со своими данными. */
   children?: ReactElement;
 }
@@ -81,10 +87,24 @@ export default function HeatFormField({
   dependencies,
   rules,
   extra,
+  source,
   children,
 }: Props) {
   const form = TltForm.useFormInstance();
   const input = getHeatCalcFieldInputConfig(id, objectType);
+  const watchedRequired = TltForm.useWatch(
+    (values: Record<string, unknown>) => isHeatCalcFieldRequired(id, { objectType, values }),
+    form,
+  );
+  const required = watchedRequired ?? heatCalcFieldRequired(form, objectType, id);
+  const fieldSource = resolveFieldSource({
+    inputType: input?.type,
+    required,
+    source,
+  });
+  const fieldExtra = fieldSource || extra != null
+    ? <FieldSourceExtra source={fieldSource}>{extra}</FieldSourceExtra>
+    : undefined;
 
   const control = children ?? (
     <UnitInputNumber
@@ -96,7 +116,7 @@ export default function HeatFormField({
 
   return (
     <TltForm.Item
-      className={className}
+      className={`${className}${fieldSource ? ' field-source-form-item' : ''}`}
       label={
         <FieldLabel
           text={getHeatCalcFieldLabel(id, { context: 'form', objectType })}
@@ -105,7 +125,7 @@ export default function HeatFormField({
       name={name ?? id}
       preserve={preserve}
       dependencies={dependencies}
-      extra={extra}
+      extra={fieldExtra}
       rules={rules ?? heatCalcFormFieldRules(form, objectType, id)}
     >
       <HelpedControl hint={getHeatCalcFieldDescription(id, { objectType })}>

@@ -7,18 +7,6 @@ import type { HeatCalcObjectType } from '@/types/project';
 import HeatFormField from '../HeatFormField';
 import ReferencePicker, { type ReferencePickerOption } from '../ReferencePicker';
 
-/**
- * Откуда взято значение: климатический справочник или ручной ввод (кейс 1 §5,
- * «Источник температуры» — нужен, чтобы обосновать цифру перед заказчиком).
- * Метка рисуется только при известном источнике: пустой `.ant-form-item-extra`
- * резервирует ~24px и ломает ритм строк [label | control].
- */
-function sourceTag(source: unknown) {
-  if (source === 'climate') return <span className="field-source-tag">из климата</span>;
-  if (source === 'manual') return <span className="field-source-tag">вручную</span>;
-  return undefined;
-}
-
 interface Props {
   objectType: HeatCalcObjectType;
   /**
@@ -95,7 +83,7 @@ export default function TemperatureEnvironmentStep({
           testId="ambient-temperature-input"
           fieldInputSettings={fieldInputSettings}
           preserve={false}
-          extra={sourceTag(ambientSource)}
+          source={ambientSource}
         />
       )}
       {wants('process') && (
@@ -116,7 +104,7 @@ export default function TemperatureEnvironmentStep({
           testId="wind-speed-input"
           fieldInputSettings={fieldInputSettings}
           preserve={false}
-          extra={sourceTag(windSource)}
+          source={windSource}
         />
       )}
       {/* max_* и zone — не входы теплопотерь; round-trip в params.
