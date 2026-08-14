@@ -151,9 +151,9 @@ describe('ElectricalBatchActionBar', () => {
     expect(props.onCancelJob).not.toHaveBeenCalled();
   });
 
-  it('blocks recalculation until required project Iдоп is saved', () => {
+  it('blocks recalculation until required project I доп is saved', () => {
     const props = makeProps({
-      calculationBlockedReason: 'Сначала укажите и сохраните Iдоп проекта',
+      calculationBlockedReason: 'Сначала укажите и сохраните I доп проекта',
     });
 
     render(<ElectricalBatchActionBar {...props} />);
@@ -162,7 +162,7 @@ describe('ElectricalBatchActionBar', () => {
     expect(buttonByText(/Пересчитать все/)).toBeDisabled();
     expect(buttonByText(/Пересчитать выбранные/)).toHaveAttribute(
       'title',
-      'Сначала укажите и сохраните Iдоп проекта',
+      'Сначала укажите и сохраните I доп проекта',
     );
     expect(props.onRecalculateSelected).not.toHaveBeenCalled();
     expect(props.onRecalculateAll).not.toHaveBeenCalled();
