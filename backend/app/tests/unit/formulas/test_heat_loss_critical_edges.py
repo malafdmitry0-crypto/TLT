@@ -76,12 +76,11 @@ class TestPipeBoundaries:
 
     def test_min_pipe_length(self):
         """Полметра — техническая минимальная длина. Учтён safety_factor."""
-        r = calc_pipe_heat_loss(
-            _pipe(pipe_length=0.5),
-            coefficients={"safety_factor": 1.1},
-        )
+        r = calc_pipe_heat_loss(_pipe(pipe_length=0.5, safety_factor=1.1))
         # total = q × L × K  (safety_factor ≈1.1)
-        assert r.total_heat_loss_design == pytest.approx(r.heat_loss_per_meter_base * 0.5 * 1.1, rel=0.01)
+        assert r.total_heat_loss_design == pytest.approx(
+            r.heat_loss_per_meter_base * 0.5 * 1.1, rel=0.01
+        )
 
     def test_max_pipe_length_no_overflow(self):
         """200 км — верхняя граница ТНП. Не должно быть overflow."""
@@ -170,9 +169,9 @@ class TestPipePhysicalInvariants:
         assert r2.total_heat_loss_design == pytest.approx(r1.total_heat_loss_design * 2, rel=0.01)
 
     def test_safety_factor_increases_total(self):
-        """K из coefficients увеличивает total."""
-        r0 = calc_pipe_heat_loss(_pipe(), coefficients={"safety_factor": 1.0})
-        r1 = calc_pipe_heat_loss(_pipe(), coefficients={"safety_factor": 1.5})
+        """K на params увеличивает total."""
+        r0 = calc_pipe_heat_loss(_pipe(safety_factor=1.0))
+        r1 = calc_pipe_heat_loss(_pipe(safety_factor=1.5))
         assert r1.total_heat_loss_design > r0.total_heat_loss_design
 
     def test_higher_lambda_lowers_resistance(self):
@@ -183,13 +182,13 @@ class TestPipePhysicalInvariants:
         )
         pu = calc_pipe_heat_loss(
             _pipe(
-                insulation_layers=[
-                    InsulationLayer(thickness=0.05, material=LOW_LAMBDA_INSULATION)
-                ]
+                insulation_layers=[InsulationLayer(thickness=0.05, material=LOW_LAMBDA_INSULATION)]
             )
         )
         # ППУ изолирует лучше → меньше потерь
-        assert pu.heat_loss_per_meter_base < mw.heat_loss_per_meter_base, "ФИЗИКА СЛОМАНА: ППУ хуже минваты?"
+        assert (
+            pu.heat_loss_per_meter_base < mw.heat_loss_per_meter_base
+        ), "ФИЗИКА СЛОМАНА: ППУ хуже минваты?"
 
 
 class TestTankShapeBoundaries:
@@ -210,6 +209,7 @@ class TestTankShapeBoundaries:
             )
         )
         assert r.total_heat_loss_design > 0
+
 
 class TestTankPhysicalInvariants:
     def test_safety_factor_applies_to_tank(self):

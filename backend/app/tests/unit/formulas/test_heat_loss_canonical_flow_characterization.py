@@ -23,7 +23,10 @@ from app.formulas.heat_loss.catalog_preparation import HeatLossPreparationError
 from app.models.project_object import ProjectObject
 from app.reference_data import loader as reference_loader
 from app.schemas.calculation import InsulationLayer, PipeHeatLossParams, TankHeatLossParams
-from app.services.calculation_service import CalculationService
+from app.services.calculation_service import (
+    CalculationService,
+    pipe_params_with_effective_safety_factor,
+)
 
 MINERAL_WOOL = "mineral_wool_boards_120"
 
@@ -237,25 +240,35 @@ def test_pipe_facade_does_not_repeat_core_contract_validation(
 
 def test_pipe_user_safety_factor_wins_over_admin_coefficient() -> None:
     params = PipeHeatLossParams.model_validate(_pipe_payload(safety_factor=1.2))
-    result = pipe_facade.calc_pipe_heat_loss(params, coefficients={"safety_factor": 1.4})
+    formula_params = pipe_params_with_effective_safety_factor(params, {"safety_factor": 1.4})
+    result = pipe_facade.calc_pipe_heat_loss(formula_params)
+    assert formula_params is params
     assert result.safety_factor_applied == pytest.approx(1.2)
 
 
 def test_pipe_admin_zero_safety_factor_raises_user_facing_range_error() -> None:
     params = PipeHeatLossParams.model_validate(_pipe_payload(safety_factor=None))
+    formula_params = pipe_params_with_effective_safety_factor(params, {"safety_factor": 0.0})
+    assert params.safety_factor is None
     with pytest.raises(ValueError, match="safety_factor должно быть не меньше 1"):
-        pipe_facade.calc_pipe_heat_loss(params, coefficients={"safety_factor": 0.0})
+        pipe_facade.calc_pipe_heat_loss(formula_params)
 
 
 def test_pipe_admin_safety_factor_applies_only_when_user_value_is_absent() -> None:
     params = PipeHeatLossParams.model_validate(_pipe_payload(safety_factor=None))
-    result = pipe_facade.calc_pipe_heat_loss(params, coefficients={"safety_factor": 1.4})
+    formula_params = pipe_params_with_effective_safety_factor(params, {"safety_factor": 1.4})
+    result = pipe_facade.calc_pipe_heat_loss(formula_params)
+    assert params.safety_factor is None
+    assert formula_params is not params
+    assert formula_params.safety_factor == pytest.approx(1.4)
     assert result.safety_factor_applied == pytest.approx(1.4)
 
 
 def test_pipe_profile_default_applies_when_user_and_admin_are_absent() -> None:
     params = PipeHeatLossParams.model_validate(_pipe_payload(safety_factor=None))
-    result = pipe_facade.calc_pipe_heat_loss(params, coefficients={})
+    formula_params = pipe_params_with_effective_safety_factor(params, {})
+    result = pipe_facade.calc_pipe_heat_loss(formula_params)
+    assert formula_params is params
     assert result.safety_factor_applied == pytest.approx(1.1)
 
 
@@ -284,18 +297,27 @@ def test_admin_ground_conductivity_does_not_change_pipe_result() -> None:
         )
     )
     baseline = pipe_facade.calc_pipe_heat_loss(params)
-    overridden = pipe_facade.calc_pipe_heat_loss(params, coefficients={"ground_conductivity": 2.9})
+    overridden = pipe_facade.calc_pipe_heat_loss(
+        pipe_params_with_effective_safety_factor(params, {"ground_conductivity": 2.9})
+    )
     assert overridden.model_dump() == baseline.model_dump()
     assert overridden.ground_conductivity_applied == pytest.approx(1.5)
 
 
 def test_tank_ignores_admin_coefficients() -> None:
-    params = TankHeatLossParams.model_validate(_tank_payload(safety_factor=1.1))
-    result = tank_facade.calc_tank_heat_loss(
-        params,
-        coefficients={"safety_factor": 1.4, "ground_conductivity": 2.9},
+    payload = _tank_payload(safety_factor=1.1)
+    params = TankHeatLossParams.model_validate(payload)
+    facade_result = tank_facade.calc_tank_heat_loss(params)
+    assert facade_result.safety_factor_applied == pytest.approx(1.1)
+
+    service_result = CalculationService(AsyncMock())._calc_heat_loss_with_coefficients(
+        "tank",
+        payload,
+        {"safety_factor": 1.4, "ground_conductivity": 2.9},
+        apply_climate_policy=False,
     )
-    assert result.safety_factor_applied == pytest.approx(1.1)
+    assert service_result["safety_factor_applied"] == pytest.approx(1.1)
+    assert service_result["total_heat_loss_design"] == facade_result.total_heat_loss_design
 
 
 def test_tank_requires_safety_factor() -> None:
@@ -379,6 +401,7 @@ async def test_recalculate_keeps_climate_k_and_ignores_admin_when_k_already_set(
     assert obj.validation_errors is None
     assert obj.results is not None
     assert obj.results["safety_factor_applied"] == pytest.approx(1.1)
+    assert obj.params["safety_factor"] == pytest.approx(1.1)
 
 
 async def test_invalid_recalculate_clears_results_and_keeps_object() -> None:
