@@ -7,7 +7,10 @@ import type {
   ObjectQueryFieldCapability,
   ProjectObject,
 } from '@/types/project';
-import { applyInlineCellDraft } from '@/utils/heatCalcInlineEdit';
+import {
+  applyFormFieldDraft,
+  applyInlineCellDraft,
+} from '@/utils/heatCalcInlineEdit';
 import { getDefaultFieldInputSettings } from '@/utils/heatCalcFieldInputSettings';
 import type {
   HeatCalcColumnKey,
@@ -261,5 +264,47 @@ describe('useHeatCalcGridModel', () => {
 
     expect(result.current.selectedRowErrorMessages).toHaveLength(1);
     expect(result.current.selectedRowErrorMessages[0]).toContain('Минимальное значение');
+  });
+
+  it('defers newly required placement errors until the draft has been submitted', () => {
+    const record = makeObject();
+    const draft = applyFormFieldDraft(null, record, 'placement', 'underground')!;
+    const options = makeOptions({
+      draftRowsById: { [record.id]: draft },
+      wizardBaseObject: record,
+      wizardFormObject: record,
+    });
+    const { result, rerender } = renderHook(
+      (props: ReturnType<typeof makeOptions>) => useHeatCalcGridModel(props),
+      { initialProps: options },
+    );
+
+    expect(result.current.selectedRowErrorMessages).toEqual([]);
+
+    rerender({
+      ...options,
+      draftRowsById: {
+        [record.id]: { ...draft, validationAttempted: true },
+      },
+    });
+
+    expect(result.current.selectedRowErrorMessages.join(' ')).toContain('Глубина прокладки');
+    expect(result.current.selectedRowErrorMessages.join(' ')).toContain('Тип грунта');
+    expect(result.current.selectedRowErrorMessages.join(' ')).toContain('Температура грунта');
+  });
+
+  it('keeps persisted backend errors visible before a local draft submission', () => {
+    const record = makeObject({
+      is_valid: false,
+      validation_errors: { message: 'Сохранённая строка содержит ошибку' },
+    });
+    const draft = applyFormFieldDraft(null, record, 'name', 'Новое имя')!;
+    const { result } = renderHook(() => useHeatCalcGridModel(makeOptions({
+      draftRowsById: { [record.id]: draft },
+      wizardBaseObject: record,
+      wizardFormObject: record,
+    })));
+
+    expect(result.current.selectedRowErrorMessages).toContain('Сохранённая строка содержит ошибку');
   });
 });
