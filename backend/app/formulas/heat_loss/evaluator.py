@@ -7,7 +7,7 @@ pipe/tank facades; numeric equations live in ``heat_loss.core``.
 
 from app.formulas.heat_loss.pipe import calc_pipe_heat_loss
 from app.formulas.heat_loss.tank import calc_tank_heat_loss
-from app.schemas.calculation import (
+from app.schemas.heat_loss import (
     PipeHeatLossParams,
     PipeHeatLossResult,
     TankHeatLossParams,
