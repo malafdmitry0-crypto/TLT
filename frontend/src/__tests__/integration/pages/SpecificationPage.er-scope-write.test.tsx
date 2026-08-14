@@ -319,9 +319,11 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
     const user = (await import('@testing-library/user-event')).default.setup();
     const { generateSpecification, getSpecification } = await import('@/api/specifications');
     (getSpecification as ReturnType<typeof vi.fn>).mockResolvedValue(null);
-    (generateSpecification as ReturnType<typeof vi.fn>).mockRejectedValue(
-      new Error('Активный утверждённый каталог недоступен'),
-    );
+    (generateSpecification as ReturnType<typeof vi.fn>).mockRejectedValue({
+      detail: { code: 'SPEC_FORMULA_INPUT_INVALID', kind: 'blocking',
+        message: 'Backend contributing electrical results',
+        issues: [{ field: 'catalog_item_id', reason: 'catalog_unavailable' }], details: {} },
+    });
     useProjectStore.getState().setCurrentProject(mockProject);
     renderPage();
 
@@ -333,6 +335,12 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
     await user.click(generate);
 
     await waitFor(() => expect(generate).not.toBeDisabled());
+    await waitFor(() => expect(document.querySelector('.ant-message-notice-content'))
+      .toHaveTextContent('Проверьте настройки и состояние расчёта'));
+    const safeSurfaces = [document.querySelector('.ant-message-notice-content'),
+      settings.querySelector('.specification-settings-diagnostics')]
+      .map((node) => node?.textContent ?? '').join(' ');
+    expect(safeSurfaces).not.toMatch(/Backend|SPEC_[A-Z_]+|contributing electrical results/i);
     expect(generateSpecification).toHaveBeenCalledTimes(1);
   });
   it('routes selection, confirmation, mixed and blocked generation outcomes', async () => {
@@ -342,7 +350,8 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
     (getSpecification as ReturnType<typeof vi.fn>).mockResolvedValue(null);
     const fp = `sha256:${'a'.repeat(64)}`;
     const blocker = {
-      code: 'SPEC_VARIANT_NOT_READY', kind: 'blocking', message: 'ЭР1 не готов', issues: [], details: {},
+      code: 'SPEC_VARIANT_NOT_READY', kind: 'blocking',
+      message: 'Нет contributing electrical results для формирования BOM', issues: [], details: {},
     };
     const catalogBlocker = { ...blocker, code: 'SPEC_CATALOG_UNAVAILABLE', message: 'Каталог недоступен' };
     const waitingResults = [
@@ -449,7 +458,8 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
       name: 'Подтверждение исключения неназначенных объектов',
     });
     expect(screen.getAllByRole('dialog')).toHaveLength(1);
-    expect(within(confirmation).getByText(/SPEC_UNASSIGNED_CONFIRMATION_REQUIRED/)).toBeInTheDocument();
+    expect(confirmation).toHaveTextContent('Подтвердите их исключение');
+    expect(confirmation.textContent).not.toMatch(/SPEC_[A-Z_]+/);
     await user.click(within(confirmation).getByRole('button', { name: 'Подтвердить и сформировать' }));
     expect(generateSpecification).toHaveBeenNthCalledWith(
       3,
@@ -465,13 +475,15 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
       name: 'Подтверждение исключения неназначенных объектов',
     })).not.toBeInTheDocument());
     const terminalSettings = await screen.findByRole('dialog', { name: 'Настройки формирования спецификации' });
-    expect(within(terminalSettings).getByText('SPEC_VARIANT_NOT_READY')).toBeInTheDocument();
+    expect(within(terminalSettings).getByText('Электротехнический расчёт не готов')).toBeInTheDocument();
+    expect(terminalSettings.textContent).not.toMatch(/SPEC_[A-Z_]+|contributing electrical results/);
     expect(within(terminalSettings).getByRole('button', { name: 'Сформировать' })).toBeEnabled();
     expect(invalidateQueries).toHaveBeenCalledWith({
       queryKey: ['spec', mockProject.id, secondVariant.id], exact: false,
     });
     await user.click(within(terminalSettings).getByRole('button', { name: 'Сформировать' }));
-    expect(await within(terminalSettings).findByText('SPEC_CATALOG_UNAVAILABLE')).toBeInTheDocument();
+    expect(await within(terminalSettings).findByText('Формирование спецификации недоступно')).toBeInTheDocument();
+    expect(terminalSettings.textContent).not.toMatch(/SPEC_[A-Z_]+/);
     expect(screen.queryByText('Есть объекты без назначения в ЭР')).not.toBeInTheDocument();
   });
   it('не показывает write-actions сотруднику, который только читает чужой проект', async () => {

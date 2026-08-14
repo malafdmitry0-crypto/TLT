@@ -150,6 +150,10 @@ def test_contribution_matrix_prioritizes_no_contributing_over_confirmation(
     assert [diagnostic.code for diagnostic in result.diagnostics] == (
         [expected_code] if expected_code is not None else []
     )
+    if expected_code is SpecificationDiagnosticCode.VARIANT_NOT_READY:
+        assert result.diagnostics[0].message == (
+            "Нет результатов электротехнического расчёта для включения в спецификацию"
+        )
 
 
 def test_unknown_object_type_is_rejected_by_specification_preflight():

@@ -27,8 +27,11 @@ import {
   type SpecificationMutationScope,
 } from '@/pages/specification/specificationPageModelHelpers';
 import { buildSpecGenerationHydrate } from '@/pages/specification/specGenerationHydrateModel';
-import { formatPreflightSummary } from '@/domain/specification/specTableSectionModel';
 import { selectSpecificationGenerationOutcome } from '@/pages/specification/specificationGenerationOutcomeModel';
+import {
+  formatSpecificationConfirmationSummary,
+  presentSpecificationDiagnostic,
+} from '@/pages/specification/specificationDiagnosticPresentationModel';
 import { useSpecificationReadiness } from '@/pages/specification/useSpecificationReadiness';
 import { useSpecSettingsFormHydration } from '@/pages/specification/useSpecSettingsFormHydration';
 import {
@@ -95,7 +98,7 @@ export function useSpecificationPageModel() {
     form.setGenerationDiagnostics(outcome.blockingDiagnostics);
     form.setCandidateGroups(outcome.candidateGroups);
     form.setPreflightSummary(outcome.openConfirmation
-      ? formatPreflightSummary(outcome.confirmationDiagnostics)
+      ? formatSpecificationConfirmationSummary(outcome.confirmationDiagnostics)
       : '');
     form.setPreflightOpen(outcome.openConfirmation);
     if (outcome.clearDraftSelections) form.setDraftCatalogSelections({});
@@ -155,9 +158,7 @@ export function useSpecificationPageModel() {
           kind: 'blocking',
         }]);
       }
-      message.error(detail?.message ?? (
-        error instanceof Error ? error.message : 'Не удалось сформировать спецификацию'
-      ));
+      message.error(presentSpecificationDiagnostic(detail ?? { code: 'UNKNOWN' }).message);
     },
   });
   const mut = {
