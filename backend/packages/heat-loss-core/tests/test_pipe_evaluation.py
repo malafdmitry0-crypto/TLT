@@ -159,6 +159,29 @@ def test_layer_temperature_report_collects_all_issues_in_layer_order() -> None:
     )
 
 
+def test_layer_temperature_report_rejects_cold_boundary_below_material_minimum() -> None:
+    result = execute_prepared_pipe(
+        _input(
+            layers=(
+                PreparedPipeLayer(
+                    0.05,
+                    "manual",
+                    ConstantConductivity(0.04),
+                    (-10.0, 200.0),
+                ),
+            )
+        )
+    )
+
+    assert len(result.layer_temperature_report.issues) == 1
+    issue = result.layer_temperature_report.issues[0]
+    assert (issue.code, issue.path) == (
+        "temperature_outside_interval",
+        ("insulation_layers", 0),
+    )
+    assert issue.details_dict()["temperature_c"] < -10.0
+
+
 def test_evaluation_calls_each_law_and_low_level_branch_once(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

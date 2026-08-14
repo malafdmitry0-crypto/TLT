@@ -141,7 +141,7 @@ def _issue_message(
     layers: Sequence[_LayerWithMaterial],
 ) -> str:
     if issue.code == "temperature_outside_interval":
-        return _hot_side_message(issue, layers=layers)
+        return _layer_boundary_message(issue, layers=layers)
     if issue.code in _FIXED_PATHS:
         return _fixed_issue_message(issue)
     details = issue.details_dict()
@@ -180,15 +180,20 @@ def _fixed_issue_message(issue: FormulaValidationIssue) -> str:
     return issue.code
 
 
-def _hot_side_message(
+def _layer_boundary_message(
     issue: FormulaValidationIssue,
     *,
     layers: Sequence[_LayerWithMaterial],
 ) -> str:
     index = _layer_index(issue)
     details = issue.details_dict()
+    boundary_name = (
+        "холодной"
+        if float(details["temperature_c"]) < float(details["minimum_c"])
+        else "горячей"
+    )
     return (
-        f"Температура горячей стороны слоя изоляции #{index + 1} "
+        f"Температура {boundary_name} стороны слоя изоляции #{index + 1} "
         f"({_fmt_temp(float(details['temperature_c']))} °C) вне диапазона "
         f"материала '{layers[index].material}': "
         f"{_fmt_temp(float(details['minimum_c']))}…{_fmt_temp(float(details['maximum_c']))} °C"

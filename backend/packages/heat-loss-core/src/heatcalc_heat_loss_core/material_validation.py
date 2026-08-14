@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from .thermal import higher_temperature
+import math
+
+from .errors import FormulaDomainError
 from .validation import (
     VALID_FORMULA_VALIDATION_REPORT,
     FormulaValidationIssue,
@@ -57,7 +59,7 @@ def validate_temperature_in_interval(
     )
 
 
-def validate_hot_side_temperature_in_interval(
+def validate_layer_boundary_temperatures_in_interval(
     *,
     first_side_c: float,
     second_side_c: float,
@@ -65,11 +67,27 @@ def validate_hot_side_temperature_in_interval(
     maximum_c: float,
     path: FormulaValidationPath = (),
 ) -> FormulaValidationReport:
-    """Check the hotter of two layer boundaries against an inclusive interval."""
+    """Require the complete layer temperature span to fit an inclusive interval."""
 
-    return validate_temperature_in_interval(
-        temperature_c=higher_temperature(first_side_c, second_side_c),
-        minimum_c=minimum_c,
-        maximum_c=maximum_c,
-        path=path,
-    )
+    if not math.isfinite(first_side_c) or not math.isfinite(second_side_c):
+        raise FormulaDomainError("non_finite_result")
+
+    hotter_side_c = max(first_side_c, second_side_c)
+    if hotter_side_c > maximum_c:
+        return validate_temperature_in_interval(
+            temperature_c=hotter_side_c,
+            minimum_c=minimum_c,
+            maximum_c=maximum_c,
+            path=path,
+        )
+
+    colder_side_c = min(first_side_c, second_side_c)
+    if colder_side_c < minimum_c:
+        return validate_temperature_in_interval(
+            temperature_c=colder_side_c,
+            minimum_c=minimum_c,
+            maximum_c=maximum_c,
+            path=path,
+        )
+
+    return VALID_FORMULA_VALIDATION_REPORT
