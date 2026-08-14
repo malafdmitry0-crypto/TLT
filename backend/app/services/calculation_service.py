@@ -62,6 +62,7 @@ from app.schemas.calculation import (
 )
 from app.schemas.json_shapes import HeatLossResultDict
 from app.schemas.project import ProjectObjectsPageInfo
+from app.services import heat_loss_application
 from app.services.cable_snapshot import (
     build_cable_snapshot,
     compare_cable_snapshot,
@@ -91,21 +92,6 @@ from app.services.electrical_tt_pipeline import (
     TankElectricalLayout,
     calculate_electrical_tt,
     electrical_tt_catalog_eligibility,
-)
-from app.services.heat_loss_application import (
-    apply_climate_policy as apply_climate_policy,
-)
-from app.services.heat_loss_application import (
-    build_heat_loss_error_payload as build_heat_loss_error_payload,
-)
-from app.services.heat_loss_application import (
-    calc_heat_loss as run_heat_loss_application,
-)
-from app.services.heat_loss_application import (
-    effective_pipe_safety_factor as effective_pipe_safety_factor,
-)
-from app.services.heat_loss_application import (
-    pipe_params_with_effective_safety_factor as pipe_params_with_effective_safety_factor,
 )
 from app.services.project_object_params import (
     StoredHeatParams,
@@ -185,9 +171,6 @@ class ElectricalCandidateApplyError(CalculationError):
 def _clean_exception_message(exc: Exception) -> str:
     message = str(exc).strip()
     return message or type(exc).__name__
-
-
-_apply_climate_policy = apply_climate_policy
 
 
 @dataclass(frozen=True)
@@ -300,8 +283,6 @@ class CalculationService:
         self._tt_calculation_catalogs_cache: dict[str, dict[str, Any]] | None = None
         self._tt_calculation_catalogs_error: ElectricalFormulaError | None = None
         self._tt_error_catalog_snapshots_cache: dict[str, dict[str, Any]] | None = None
-
-    _apply_climate_policy = staticmethod(apply_climate_policy)
 
     async def electrical_calc_summaries(
         self,
@@ -813,7 +794,7 @@ class CalculationService:
         apply_climate_policy: bool = True,
         validated_params: StoredHeatParams | None = None,
     ) -> HeatLossResultDict:
-        return run_heat_loss_application(
+        return heat_loss_application.calc_heat_loss(
             object_type,
             data,
             coefficients=coefficients,
@@ -951,7 +932,7 @@ class CalculationService:
         """
         try:
             normalized = normalize_project_object_params(obj.object_type, obj.params)
-            resolved = apply_climate_policy(obj.object_type, normalized)
+            resolved = heat_loss_application.apply_climate_policy(obj.object_type, normalized)
             prepared = validate_and_canonicalize_project_object_params(
                 obj.object_type,
                 resolved,
@@ -961,7 +942,7 @@ class CalculationService:
                 validation_error = prepared.report.to_legacy_error()
                 obj.results = None
                 obj.is_valid = False
-                obj.validation_errors = build_heat_loss_error_payload(
+                obj.validation_errors = heat_loss_application.build_heat_loss_error_payload(
                     validation_error,
                     object_type=obj.object_type,
                 )
@@ -986,7 +967,7 @@ class CalculationService:
             message = _clean_exception_message(exc)
             obj.results = None
             obj.is_valid = False
-            obj.validation_errors = build_heat_loss_error_payload(
+            obj.validation_errors = heat_loss_application.build_heat_loss_error_payload(
                 exc,
                 object_type=obj.object_type,
             )
