@@ -7,6 +7,8 @@ import {
   hydratePendingGenerationContext,
   pendingGenerationContextStorageKey,
   rememberPendingGenerationContext,
+  resumePendingGenerationVariables,
+  settlePendingGenerationContext,
   type GenerateSpecificationVariables,
 } from '@/pages/specification/specPendingGenerationContext';
 import type { Specification } from '@/types/specification';
@@ -215,13 +217,13 @@ describe('pending specification generation session context', () => {
     expect(createPendingGenerationContextStore(storage).load('proj-1', erId)).toBeNull();
 
     storage.setItem(key, JSON.stringify({
-      ...buildPendingGenerationContext(pendingVariables(), {}),
+      ...buildPendingGenerationContext(pendingVariables()),
       version: 2,
     }));
     expect(createPendingGenerationContextStore(storage).load('proj-1', erId)).toBeNull();
 
     storage.setItem(key, JSON.stringify({
-      ...buildPendingGenerationContext(pendingVariables(), {}),
+      ...buildPendingGenerationContext(pendingVariables()),
       unexpected: true,
     }));
     expect(createPendingGenerationContextStore(storage).load('proj-1', erId)).toBeNull();
@@ -266,6 +268,25 @@ describe('pending specification generation session context', () => {
       erId,
       hydrate.generationStatus,
     )).toBeNull();
+  });
+
+  it('carries a catalog choice from selection through confirmation', () => {
+    const store = createPendingGenerationContextStore(memoryStorage());
+    const initial = pendingVariables();
+    rememberPendingGenerationContext(store, initial);
+    const afterChoice = resumePendingGenerationVariables(
+      store, initial, erId, false, { g1: 'catalog-item-2' },
+    );
+    expect(afterChoice?.catalogSelections).toEqual({ g1: 'catalog-item-2' });
+    if (!afterChoice) throw new Error('selection context was not resumed');
+    settlePendingGenerationContext(store, afterChoice, ['confirmation_required']);
+
+    const confirm = resumePendingGenerationVariables(store, initial, erId, true);
+    expect(confirm).toMatchObject({
+      excludeUnassignedConfirmed: true,
+      catalogSelections: { g1: 'catalog-item-2' },
+      options: completeOptions,
+    });
   });
 
   it.each(['generated', 'blocked'] as const)('clears context for terminal %s', (status) => {
