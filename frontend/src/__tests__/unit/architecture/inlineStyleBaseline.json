@@ -1,11 +1,11 @@
 {
   "version": 2,
-  "generatedAt": "2026-08-03",
-  "total": 53,
+  "generatedAt": "2026-08-14",
+  "total": 52,
   "byClass": {
     "static debt": 0,
     "runtime geometry": 31,
-    "third-party adapter": 22
+    "third-party adapter": 21
   },
   "fileCounts": {
     "src/components/common/PageSkeleton.tsx": 1,
@@ -27,7 +27,6 @@
     "src/components/ui-kit/CompactField.tsx": 1,
     "src/components/ui-kit/CompactFieldGrid.tsx": 1,
     "src/pages/electrical/ElecCalcCableMarkModal.tsx": 2,
-    "src/pages/electrical/ElecCalcCableSizingModal.tsx": 1,
     "src/pages/electrical/ElecCalcProject.tsx": 1,
     "src/pages/electrical/ElecCalcWorkspace.tsx": 1,
     "src/pages/electrical/ElectricalVariantTabs.tsx": 1,
@@ -100,9 +99,6 @@
     },
     "src/pages/electrical/ElecCalcCableMarkModal.tsx": {
       "third-party adapter": 2
-    },
-    "src/pages/electrical/ElecCalcCableSizingModal.tsx": {
-      "third-party adapter": 1
     },
     "src/pages/electrical/ElecCalcProject.tsx": {
       "third-party adapter": 1
@@ -457,15 +453,6 @@
       "tag": "Space",
       "owner": "electrical",
       "reason": "Ant Space style prop used for chrome geometry adapter"
-    },
-    {
-      "file": "src/pages/electrical/ElecCalcCableSizingModal.tsx",
-      "line": 98,
-      "class": "third-party adapter",
-      "text": "style={{ top: 0, maxWidth: 'none', paddingBottom: 0 }}",
-      "tag": "Modal",
-      "owner": "electrical",
-      "reason": "Ant Modal style prop used for chrome geometry adapter"
     },
     {
       "file": "src/pages/electrical/ElecCalcProject.tsx",
