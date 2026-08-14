@@ -24,7 +24,6 @@ from app.models.electrical_variant import ElectricalVariant
 from app.models.project import Project
 from app.models.project_object import ProjectObject
 from app.schemas.calculation import (
-    BatchCalcResponse,
     BatchElectricalResponse,
     CalculationTaskLinks,
     CalculationTaskProgress,
@@ -32,8 +31,8 @@ from app.schemas.calculation import (
     ElectricalBatchJobRequest,
     ElectricalCalcSummary,
     ElectricalObjectBatchOverride,
-    HeatLossBatchJobRequest,
 )
+from app.schemas.heat_loss import BatchCalcResponse, HeatLossBatchJobRequest
 from app.schemas.report import ReportExportJobRequest, ReportExportTaskResult
 from app.services.audit_service import AuditService
 from app.services.calculation_service import BatchCancelledError, BatchProgress, CalculationService

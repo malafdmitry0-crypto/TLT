@@ -15,7 +15,6 @@ from app.electrical_domain import ElectricalFormulaError
 from app.electrical_variant_limits import MAX_ELECTRICAL_VARIANTS
 from app.models.electrical_calculation import ElectricalCalculation
 from app.schemas.calculation import (
-    BatchCalcResponse,
     BatchElectricalResponse,
     CableOptionOut,
     ElectricalCalcSummary,
@@ -35,12 +34,11 @@ from app.schemas.calculation import (
     ElectricalQueryResponse,
     ElectricalRequest,
     ElectricalResponse,
-    HeatLossRequest,
-    HeatLossResponse,
     SelectionPolicy,
 )
 from app.schemas.electrical_catalog import ElectricalCatalogMetadataResponse
 from app.schemas.electrical_history import ElectricalCalculationHistoryResponse
+from app.schemas.heat_loss import BatchCalcResponse, HeatLossRequest, HeatLossResponse
 from app.services.audit_service import AuditService
 from app.services.calculation_service import (
     CalculationError,
