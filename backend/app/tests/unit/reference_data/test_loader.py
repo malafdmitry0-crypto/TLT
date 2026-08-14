@@ -7,6 +7,7 @@
 import pytest
 
 from app.reference_data.loader import (
+    ReferenceInsulationError,
     clear_cache,
     get_climate_by_city,
     get_climate_by_key,
@@ -25,6 +26,7 @@ from app.reference_data.loader import (
     list_soil_conductivity,
     list_tt_cables,
     preload_all,
+    resolve_reference_insulation,
 )
 
 
@@ -195,6 +197,57 @@ class TestGetInsulationConductivity:
             (-60.0, 400.0)
         )
         assert get_insulation_conductivity("mineral_wool_boards_120", 20) > 0
+
+
+class TestResolveReferenceInsulation:
+    def test_unknown_material_has_typed_code_and_exact_message(self):
+        message = "Неизвестный материал изоляции: missing"
+
+        with pytest.raises(ReferenceInsulationError) as caught:
+            resolve_reference_insulation("missing")
+
+        error = caught.value
+        assert isinstance(error, ValueError)
+        assert error.code == "unknown_insulation_material"
+        assert error.message == message
+        assert str(error) == message
+
+    def test_missing_interval_has_typed_code_and_exact_message(self, monkeypatch):
+        material = "without_range"
+        message = f"Для материала изоляции '{material}' не задан температурный диапазон"
+        entry = {
+            "material": material,
+            "conductivity_20_plus": 0.04,
+            "conductivity_19_minus": 0.04,
+        }
+        monkeypatch.setattr(
+            "app.reference_data.loader._insulation_by_material",
+            lambda: {material: entry},
+        )
+
+        with pytest.raises(ReferenceInsulationError) as caught:
+            resolve_reference_insulation(material)
+
+        error = caught.value
+        assert isinstance(error, ValueError)
+        assert error.code == "missing_insulation_interval"
+        assert error.message == message
+        assert str(error) == message
+
+    def test_unselectable_material_has_typed_code_and_exact_message(self):
+        material = "mineral_wool"
+        message = (
+            f"Уточните конкретный материал и плотность из справочника теплоизоляции: {material}"
+        )
+
+        with pytest.raises(ReferenceInsulationError) as caught:
+            resolve_reference_insulation(material)
+
+        error = caught.value
+        assert isinstance(error, ValueError)
+        assert error.code == "unselectable_insulation_material"
+        assert error.message == message
+        assert str(error) == message
 
 
 class TestGetPipeMaterialLambda:

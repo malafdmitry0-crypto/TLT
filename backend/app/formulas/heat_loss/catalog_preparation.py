@@ -12,7 +12,7 @@ from heatcalc_heat_loss_core.conductivity import ConductivityLaw
 from heatcalc_heat_loss_core.material_validation import validate_temperature_in_interval
 
 from app.reference_data.loader import (
-    INSULATION_MATERIAL_RESELECTION_MESSAGE,
+    ReferenceInsulationError,
     resolve_reference_insulation,
 )
 
@@ -44,10 +44,10 @@ def resolve_reference_layer(
 
     try:
         law, interval = resolve_reference_insulation(material)
-    except ValueError as exc:
+    except ReferenceInsulationError as exc:
         raise HeatLossPreparationError(
-            code=_catalog_error_code(str(exc)),
-            message=str(exc),
+            code=exc.code,
+            message=exc.message,
             path=layer_material_path(index),
         ) from exc
     report = validate_temperature_in_interval(
@@ -85,16 +85,6 @@ def unavailable_conductivity_error(
         ),
         path=layer_material_path(index),
     )
-
-
-def _catalog_error_code(message: str) -> str:
-    if message.startswith("Неизвестный материал изоляции:"):
-        return "unknown_insulation_material"
-    if message.startswith("Для материала изоляции ") and "не задан температурный диапазон" in message:
-        return "missing_insulation_interval"
-    if INSULATION_MATERIAL_RESELECTION_MESSAGE in message:
-        return "unselectable_insulation_material"
-    return "insulation_catalog_error"
 
 
 def _fmt_temp(value: float) -> str:
