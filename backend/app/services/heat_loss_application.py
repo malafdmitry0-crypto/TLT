@@ -35,6 +35,8 @@ from app.services.project_object_params import (
 
 CoefficientProvider = Callable[[], Awaitable[Mapping[str, Any]]]
 
+_PIPE_WALL_RELATION_MESSAGE = "Толщина стенки должна быть меньше половины наружного диаметра"
+
 
 @dataclass(frozen=True)
 class ProjectObjectHeatOutcome:
@@ -105,6 +107,16 @@ def build_heat_loss_error_payload(
             error_code = exc.reason
             field = "process_temperature"
             message = "Температура продукта должна быть выше температуры грунта."
+            hint = message
+        elif (
+            object_type == "pipe"
+            and exc.reason == "wall_exceeds_pipe_radius"
+            and structured_fields == ["wall_thickness"]
+        ):
+            error_code = exc.reason
+            field = "wall_thickness"
+            message = _PIPE_WALL_RELATION_MESSAGE
+            extra["fields"] = {field: message}
             hint = message
         elif exc.code == "OBJECT_TYPE_UNSUPPORTED":
             category = "unsupported"
