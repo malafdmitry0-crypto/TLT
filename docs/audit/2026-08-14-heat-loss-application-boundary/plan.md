@@ -1,8 +1,9 @@
 # Heat-loss application boundary — актуальная очередь
 
-**Статус:** ACTIVE — AF записан как FAIL (лишний electrical concurrency
-ID, не теплопотери). Housing A0–A5b + CalculationError extract сидят
-на `main`. Это не frontend-очередь и не повторный extract формул.
+**Статус:** SUPERSEDED — квартиру формул вынесли (A0–A6 + CalculationError).
+AF записан как FAIL из‑за electrical lock-race, не тепла. Дальше тепло
+не гостить в чужих сервисах:
+`docs/audit/2026-08-14-heat-loss-application-ownership/plan.md`.
 
 **Дата:** 2026-08-14
 
@@ -389,8 +390,6 @@ docker cp heatcalc_backend:/tmp/a0-facade-benchmark.json \
 
 ## NEXT
 
-**AF FAIL не закрывает очередь.** Повторить полный backend без live-worker
-на том же HEAD после решения по
-`test_concurrent_enqueue_and_delete_never_orphans_task`
-(`(202, 423)` = project calculation lock). Не чинить теплопотери «заодно»
-и не класть этот ID в baseline debt.
+Эта очередь больше не ACTIVE. Electrical `(202, 423)` не чинить отсюда.
+
+Дальше: `docs/audit/2026-08-14-heat-loss-application-ownership/plan.md`.
