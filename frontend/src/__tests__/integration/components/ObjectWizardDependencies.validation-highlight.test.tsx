@@ -394,6 +394,61 @@ describe('ObjectWizard dependencies — validation-highlight', () => {
     expect(screen.queryByTestId('heatcalc-object-diagnostic')).not.toBeInTheDocument();
   });
 
+  it.each([
+    {
+      draft: '-71',
+      message: 'Минимальное значение — -70',
+      boundary: '-70',
+      expected: -70,
+    },
+    {
+      draft: '71',
+      message: 'Максимальное значение — 70',
+      boundary: '70',
+      expected: 70,
+    },
+  ])('keeps ambient draft $draft, blocks Save, and submits corrected boundary', async ({
+    draft,
+    message,
+    boundary,
+    expected,
+  }) => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    renderWizard({ initialParams: basePipeParams, onSubmit });
+
+    const ambient = await screen.findByTestId('ambient-temperature-input');
+    await user.clear(ambient);
+    await user.type(ambient, draft);
+    await user.tab();
+
+    expect(ambient).toHaveValue(draft);
+    const error = await screen.findByText(message);
+    expect(formItemFor('ambient-temperature-input')).toHaveClass('ant-form-item-has-error');
+    expect(ambient).toHaveAttribute('aria-invalid', 'true');
+    const errorId = ambient.getAttribute('aria-describedby');
+    expect(errorId).toBeTruthy();
+    const descriptions = errorId!.split(/\s+/).map((id) => document.getElementById(id));
+    expect(descriptions.some((description) => description?.contains(error))).toBe(true);
+
+    await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
+    expect(onSubmit).not.toHaveBeenCalled();
+
+    await user.clear(ambient);
+    await user.type(ambient, boundary);
+    await user.tab();
+
+    await waitFor(() => expect(screen.queryByText(message)).not.toBeInTheDocument());
+    expect(ambient).toHaveValue(boundary);
+    expect(ambient).not.toHaveAttribute('aria-invalid');
+
+    await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit.mock.calls[0][0]).toEqual(expect.objectContaining({
+      ambient_temperature: expected,
+    }));
+  });
+
   it('подсвечивает поля первого слоя по расчётной ошибке диапазона температуры материала', async () => {
     const message = "Температура горячей стороны слоя изоляции #1 (0.999942 °C) вне диапазона материала 'other': 2...6 °C";
     renderWizard({
