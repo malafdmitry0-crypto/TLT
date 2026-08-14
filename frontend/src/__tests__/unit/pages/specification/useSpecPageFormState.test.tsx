@@ -4,6 +4,13 @@ import { describe, expect, it } from 'vitest';
 import { useSpecPageFormState } from '@/pages/specification/useSpecPageFormState';
 
 describe('useSpecPageFormState', () => {
+  it('starts required numeric specification settings at one', () => {
+    const { result } = renderHook(() => useSpecPageFormState());
+
+    expect(result.current.minLengthK2i).toBe('1');
+    expect(result.current.reserveCoeff).toBe('1');
+  });
+
   it('exposes the newest catalog selection synchronously for immediate submit', () => {
     const { result } = renderHook(() => useSpecPageFormState());
 
