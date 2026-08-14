@@ -7,6 +7,7 @@ HL-OWN slices may move the code, but must preserve the observed outcomes.
 from __future__ import annotations
 
 import ast
+import inspect
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
@@ -14,6 +15,7 @@ from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
+from fastapi import HTTPException
 from pydantic import ValidationError
 from pydantic_core import InitErrorDetails, PydanticCustomError
 
@@ -688,7 +690,7 @@ async def test_formula_and_catalog_exceptions_keep_canonical_params(
         pytest.param("tank", _tank(), TankHeatLossParams, id="tank"),
     ],
 )
-async def test_admin_heat_preview_calls_only_the_validated_evaluator(
+def test_application_heat_preview_calls_only_the_validated_evaluator(
     monkeypatch: pytest.MonkeyPatch,
     formula_type: str,
     payload: dict[str, object],
@@ -698,10 +700,55 @@ async def test_admin_heat_preview_calls_only_the_validated_evaluator(
     formula_result.model_dump.return_value = {"formula_model": f"{formula_type}_heat_loss"}
     evaluator = MagicMock(return_value=formula_result)
     climate = MagicMock(side_effect=AssertionError("admin preview applied climate"))
+    k_resolver = MagicMock(side_effect=AssertionError("admin preview resolved K"))
+    monkeypatch.setattr(heat_loss_application_module, "apply_climate_policy", climate)
+    monkeypatch.setattr(
+        heat_loss_application_module,
+        "pipe_params_with_effective_safety_factor",
+        k_resolver,
+    )
+    monkeypatch.setattr(heat_loss_application_module, "evaluate_validated_heat_loss", evaluator)
+
+    result = heat_loss_application_module.preview_validated_heat_formula(
+        cast(Any, formula_type),
+        payload,
+    )
+
+    assert result == {"formula_model": f"{formula_type}_heat_loss"}
+    assert tuple(
+        inspect.signature(heat_loss_application_module.preview_validated_heat_formula).parameters
+    ) == ("formula_type", "params")
+    evaluator.assert_called_once()
+    call = evaluator.call_args
+    assert call is not None
+    assert len(call.args) == 1
+    assert isinstance(call.args[0], params_type)
+    assert call.kwargs == {}
+    climate.assert_not_called()
+    k_resolver.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("formula_type", "payload"),
+    [
+        pytest.param("pipe", _pipe(), id="pipe"),
+        pytest.param("tank", _tank(), id="tank"),
+    ],
+)
+async def test_admin_heat_preview_delegates_to_application(
+    monkeypatch: pytest.MonkeyPatch,
+    formula_type: str,
+    payload: dict[str, object],
+) -> None:
+    dumped = {"formula_model": f"{formula_type}_heat_loss"}
+    preview = MagicMock(return_value=dumped)
     audit_service = MagicMock()
     audit_service.try_record = AsyncMock()
-    monkeypatch.setattr(admin_api, "evaluate_validated_heat_loss", evaluator)
-    monkeypatch.setattr(heat_loss_application_module, "apply_climate_policy", climate)
+    monkeypatch.setattr(
+        heat_loss_application_module,
+        "preview_validated_heat_formula",
+        preview,
+    )
     monkeypatch.setattr(admin_api, "AuditService", MagicMock(return_value=audit_service))
 
     result = await admin_api.formula_check(
@@ -710,15 +757,63 @@ async def test_admin_heat_preview_calls_only_the_validated_evaluator(
         db=MagicMock(),
     )
 
-    assert result == {"formula_model": f"{formula_type}_heat_loss"}
-    evaluator.assert_called_once()
-    call = evaluator.call_args
-    assert call is not None
-    assert len(call.args) == 1
-    assert isinstance(call.args[0], params_type)
-    assert call.kwargs == {}
-    climate.assert_not_called()
+    assert result == dumped
+    preview.assert_called_once_with(formula_type, payload)
     audit_service.try_record.assert_awaited_once()
+
+
+@pytest.mark.parametrize(
+    ("error", "expected_status", "expected_detail"),
+    [
+        pytest.param(
+            HeatLossPreparationError(
+                code="unknown_insulation_material",
+                message="Неизвестный материал изоляции: missing",
+                path="insulation_layers.0.material",
+            ),
+            422,
+            "Неизвестный материал изоляции: missing",
+            id="preparation",
+        ),
+        pytest.param(
+            _formula_validation_error(
+                "wall_exceeds_pipe_radius",
+                field="wall_thickness",
+                message="wall_thickness должна быть меньше половины outer_diameter",
+            ),
+            422,
+            "wall_thickness должна быть меньше половины outer_diameter",
+            id="pydantic",
+        ),
+        pytest.param(
+            RuntimeError("formula preview failed"),
+            400,
+            "formula preview failed",
+            id="generic",
+        ),
+    ],
+)
+async def test_admin_heat_preview_preserves_error_mapping(
+    monkeypatch: pytest.MonkeyPatch,
+    error: Exception,
+    expected_status: int,
+    expected_detail: str,
+) -> None:
+    monkeypatch.setattr(
+        heat_loss_application_module,
+        "preview_validated_heat_formula",
+        MagicMock(side_effect=error),
+    )
+
+    with pytest.raises(HTTPException) as caught:
+        await admin_api.formula_check(
+            admin_api.FormulaCheckRequest(formula_type="pipe", params=_pipe()),
+            principal=MagicMock(),
+            db=MagicMock(),
+        )
+
+    assert caught.value.status_code == expected_status
+    assert caught.value.detail == expected_detail
 
 
 @pytest.mark.parametrize(
