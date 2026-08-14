@@ -9,7 +9,7 @@ import pytest
 
 from app.formulas.heat_loss.evaluator import evaluate_validated_heat_loss
 from app.models.project_object import ProjectObject
-from app.schemas import calculation as calculation_schemas
+from app.schemas import heat_loss as heat_loss_schemas
 from app.schemas.calculation import (
     StoredPipeHeatParams,
     StoredTankHeatParams,
@@ -95,10 +95,10 @@ async def test_recalculate_runs_one_stored_model_and_reuses_that_instance(
         return instance
 
     constructor = MagicMock(side_effect=construct_once)
-    validator = MagicMock(wraps=getattr(calculation_schemas, validator_name))
+    validator = MagicMock(wraps=getattr(heat_loss_schemas, validator_name))
     evaluator_mock = MagicMock(side_effect=evaluate_validated_heat_loss)
     monkeypatch.setattr(project_params_module, constructor_name, constructor)
-    monkeypatch.setattr(calculation_schemas, validator_name, validator)
+    monkeypatch.setattr(heat_loss_schemas, validator_name, validator)
     monkeypatch.setattr(
         calculation_service_module,
         "evaluate_validated_heat_loss",
