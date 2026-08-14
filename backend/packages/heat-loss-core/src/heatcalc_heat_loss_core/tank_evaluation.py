@@ -8,6 +8,7 @@ from typing import Literal
 from .conductivity import (
     ConductivityLaw,
     InsulationConductivityTemperatures,
+    evaluate_conductivity,
     evaluate_insulation_conductivity,
 )
 from .errors import FormulaDomainError
@@ -176,7 +177,17 @@ def _conductivities(
     values: list[float] = []
     for index, layer in enumerate(layers):
         try:
-            values.append(evaluate_insulation_conductivity(layer.conductivity_law, temperatures))
+            if layer.source == "reference":
+                conductivity = evaluate_insulation_conductivity(
+                    layer.conductivity_law,
+                    temperatures,
+                )
+            else:
+                conductivity = evaluate_conductivity(
+                    layer.conductivity_law,
+                    temperatures.insulation_temperature_c,
+                )
+            values.append(conductivity)
         except FormulaDomainError as error:
             if error.code not in {"conductivity_law_unavailable", "conductivity_not_positive"}:
                 raise
