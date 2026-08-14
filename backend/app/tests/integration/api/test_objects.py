@@ -555,6 +555,45 @@ class TestObjectsLifecycle:
                 "min_switch_temperature",
         ]
 
+    async def test_pipe_wall_equal_to_radius_returns_actionable_field_error(
+        self, client: AsyncClient, guest_session: str
+    ):
+        pid = await _project(client, guest_session)
+        response = await client.post(
+            f"/api/v1/projects/{pid}/objects",
+            json={
+                "object_type": "pipe",
+                "params": {
+                    "outer_diameter": 0.012,
+                    "wall_thickness": 0.006,
+                    "pipe_material": "carbon_steel",
+                    "insulation_layers": [{"thickness": 0.05, "material": MINERAL_WOOL}],
+                    "insulation_temperature_basis": "outdoor_winter",
+                    "ambient_temperature": -20,
+                    "process_temperature": 80,
+                    "min_switch_temperature": -20,
+                    "pipe_length": 10,
+                    "placement": "outdoor",
+                    "wind_speed": 0,
+                },
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert response.status_code == 201, response.text
+        body = response.json()
+        relation_message = "Толщина стенки должна быть меньше половины наружного диаметра"
+        assert body["is_valid"] is False
+        assert body["results"] is None
+        assert body["validation_errors"] == {
+            "error_code": "wall_exceeds_pipe_radius",
+            "category": "validation",
+            "message": relation_message,
+            "field": "wall_thickness",
+            "fields": {"wall_thickness": relation_message},
+            "hint": relation_message,
+        }
+
     async def test_invalid_update_keeps_object_data_and_version(
         self, client: AsyncClient, guest_session: str
     ):
