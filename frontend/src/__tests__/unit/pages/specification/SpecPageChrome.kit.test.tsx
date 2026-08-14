@@ -129,8 +129,9 @@ describe('SpecPageChrome UI kit strangler (U2)', () => {
     expect(screen.getAllByLabelText('Параметр Ex').length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText('Параметр L К2i').length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'Выбрать все' })).toBeInTheDocument();
-    expect(screen.getByText('Не определена — backend разрешит при формировании'))
+    expect(screen.getByText('Может быть выбрана при формировании'))
       .toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/backend/i);
     expect(screen.queryByText('Стандартная активная версия')).not.toBeInTheDocument();
   });
 
@@ -435,12 +436,12 @@ describe('SpecPageChrome UI kit strangler (U2)', () => {
     renderChrome({
       readiness: { state: 'unavailable', blockers: [], primaryBlocker: null },
     });
-
     expect(screen.getByText('Не удалось проверить готовность к формированию спецификации'))
+      .toBeInTheDocument();
+    expect(screen.getByText(/перед расчётом данные будут проверены повторно/))
       .toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Сформировать' })).toBeEnabled();
   });
-
   const outcomeMatrix: Array<[GenerateStatus[], SpecificationGenerationUiState]> = [
     [['generated'], 'generated'],
     [['selection_required'], 'selection'],
