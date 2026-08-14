@@ -12,7 +12,7 @@ from .conductivity import (
     evaluate_insulation_conductivity,
 )
 from .errors import FormulaDomainError
-from .material_validation import validate_hot_side_temperature_in_interval
+from .material_validation import validate_layer_boundary_temperatures_in_interval
 from .profile import (
     CASE_1_PROFILE,
     ExternalAlphaPlacement,
@@ -226,7 +226,7 @@ def _result(
         if not boundaries:
             continue
         for index, (layer, boundary) in enumerate(zip(layers, boundaries, strict=True)):
-            issues += validate_hot_side_temperature_in_interval(
+            issues += validate_layer_boundary_temperatures_in_interval(
                 first_side_c=boundary.hot_side_c,
                 second_side_c=boundary.cold_side_c,
                 minimum_c=layer.temperature_min_c,

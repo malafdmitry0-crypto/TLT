@@ -149,6 +149,45 @@ def test_air_issues_precede_ground_issues_with_numeric_evidence() -> None:
     assert result.layer_temperature_report.issues[1].details_dict()["temperature_c"] < 100.0
 
 
+def test_air_cold_boundary_below_material_minimum_is_reported() -> None:
+    result = execute_prepared_tank(
+        _air(
+            layers=(
+                PreparedTankLayer(0.08, "manual", ConstantConductivity(0.04), -10.0, 200.0),
+            )
+        )
+    )
+
+    assert len(result.layer_temperature_report.issues) == 1
+    issue = result.layer_temperature_report.issues[0]
+    assert (issue.code, issue.path) == (
+        "temperature_outside_interval",
+        ("insulation_layers", 0),
+    )
+    assert issue.details_dict()["temperature_c"] < -10.0
+
+
+def test_buried_air_and_ground_cold_boundaries_below_minimum_are_reported() -> None:
+    result = execute_prepared_tank(
+        _buried(
+            layers=(
+                PreparedTankLayer(0.08, "manual", ConstantConductivity(0.04), 30.0, 200.0),
+            )
+        )
+    )
+
+    assert len(result.layer_temperature_report.issues) == 2
+    assert all(
+        (issue.code, issue.path)
+        == ("temperature_outside_interval", ("insulation_layers", 0))
+        for issue in result.layer_temperature_report.issues
+    )
+    assert all(
+        issue.details_dict()["temperature_c"] < 30.0
+        for issue in result.layer_temperature_report.issues
+    )
+
+
 def test_resolvers_and_low_level_branch_are_each_called_once() -> None:
     with (
         patch(
