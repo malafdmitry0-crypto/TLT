@@ -76,6 +76,63 @@ describe('ObjectWizard dependencies — validation-highlight', () => {
     expect(screen.getByTestId('outer-diameter-input').closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
   });
 
+  it('связывает structured wall_thickness с видимым полем толщины стенки', async () => {
+    const user = userEvent.setup();
+    const relationMessage = 'Толщина стенки должна быть меньше половины наружного диаметра';
+    renderWizard({
+      initialParams: {
+        ...basePipeParams,
+        outer_diameter: 0.012,
+        wall_thickness: 0.006,
+      },
+      validationErrors: {
+        error_code: 'wall_exceeds_pipe_radius',
+        category: 'validation',
+        field: 'wall_thickness',
+        fields: { wall_thickness: relationMessage },
+        message: 'Проверьте параметры объекта wall_thickness',
+      },
+    });
+
+    const wallThickness = await screen.findByTestId('wall-thickness-input');
+    await waitFor(() => {
+      expect(formItemFor('wall-thickness-input')).toHaveClass('ant-form-item-has-error');
+    });
+    const relationError = await screen.findByText(relationMessage);
+    expect(formItemFor('wall-thickness-input')).toContainElement(relationError);
+    expect(wallThickness).toHaveAttribute('aria-invalid', 'true');
+    expect(wallThickness).toHaveAttribute('aria-describedby');
+    expect(screen.queryByText(/wall_thickness/)).not.toBeInTheDocument();
+
+    await user.clear(wallThickness);
+    await user.type(wallThickness, '5.9');
+    await user.tab();
+
+    await waitFor(() => {
+      expect(formItemFor('wall-thickness-input')).not.toHaveClass('ant-form-item-has-error');
+    });
+    expect(screen.queryByText(relationMessage)).not.toBeInTheDocument();
+    expect(wallThickness).not.toHaveAttribute('aria-invalid');
+  });
+
+  it('не отправляет существующий элемент с очищенной толщиной изоляции', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    renderWizard({ initialParams: basePipeParams, onSubmit });
+
+    const insulationThickness = await screen.findByTestId('insulation-thickness-input');
+    await user.clear(insulationThickness);
+    await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
+
+    await waitFor(() => {
+      expect(formItemFor('insulation-thickness-input')).toHaveClass('ant-form-item-has-error');
+    });
+    expect(formItemFor('insulation-thickness-input')).toHaveTextContent('Укажите значение');
+    expect(insulationThickness).toHaveAttribute('aria-invalid', 'true');
+    expect(insulationThickness).toHaveAttribute('aria-describedby');
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
   it('помечает обязательные числовые поля новой трубы как required', async () => {
     renderWizard();
 

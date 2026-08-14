@@ -25,4 +25,17 @@ describe('objectWizardValidationModel canonical pipe fields', () => {
     }, 'pipe')).toHaveProperty('ground_temperature');
   });
 
+  it('keeps structured wall detail over the generic message-derived error', () => {
+    const relationMessage = 'Толщина стенки должна быть меньше половины наружного диаметра';
+
+    expect(buildCalculationFieldErrors({
+      error_code: 'wall_exceeds_pipe_radius',
+      field: 'wall_thickness',
+      fields: { wall_thickness: relationMessage },
+      message: 'Проверьте параметры объекта wall_thickness',
+    }, 'pipe')).toEqual({
+      wall_thickness_mm: { message: relationMessage },
+    });
+  });
+
 });
