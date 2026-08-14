@@ -503,3 +503,113 @@ paths are committed.
 incompatibility are independent blockers. This attempt cannot be called PASS or
 PASS WITH BASELINE DEBT. A separate corrective slice is required before a new
 BF run; this failed attempt does not repeat the full backend suite.
+
+---
+
+# HL-OWN-BC corrective proof
+
+**Slice:** `HL-OWN-BC`
+
+**Parent HEAD:** `2ec3bd12048a8b23ef450e717bf9a280fa549b36`
+(`docs(heat-loss): record application-ownership regression proof`)
+
+**Captured UTC:** `2026-08-14T12:22:57Z`
+
+**State:** corrective gates PASS; BF retry is next and was not started
+
+The blocked BF section above is historical evidence and remains unchanged.
+The unrelated staged file
+`docs/tnp/cases/case1-client-feedback-heat-decisions.md` remained outside the
+slice: it was not read, modified, unstaged, or included in any scoped check.
+
+## The two corrections
+
+1. `TestBatchRecalculate.test_mixed_success_and_failure` still injects the same
+   untyped message-only
+   `ValueError("process temperature ниже ambient")`. Its assertions now match
+   the approved B7 generic payload:
+   `heat_loss_formula_error` / `formula`, `field=None`, and the current formula
+   hint. No production code changed.
+2. `facade_behavior_probe.py` now imports `PipeHeatLossParams` and
+   `TankHeatLossParams` from their B8 owner, `app.schemas.heat_loss`. The complete
+   diff from the committed B0 oracle is **one deletion and one addition on that
+   import line**. `facade_benchmark.py` is byte-identical to B0. No shim,
+   monkeypatch, or probe-semantic change was used.
+
+## Focused and collection gates
+
+All Docker pytest commands used the explicit test secret, ran sequentially,
+and started after a `/proc` argv audit found no live pytest process:
+
+- exact blocked nodeid: **1 passed** in 0.35 s;
+- complete B7 focused suite: **113 passed** in 20.64 s;
+- complete `TestBatchRecalculate` class plus ownership characterization:
+  **70 passed** in 13.80 s;
+- canonical backend collect-only with both live-worker files ignored:
+  **2374 tests collected** in 4.29 s, exit 0, no collection error.
+
+Ruff check and `ruff format --check` passed for the changed batch test and both
+oracle scripts; all three files were already formatted.
+
+## Corrected behavior oracle and contract
+
+Host and container hashes matched exactly:
+
+| Oracle | B0 SHA-256 | HL-OWN-BC SHA-256 | Result |
+|---|---|---|---|
+| `facade_behavior_probe.py` | `daff97959029c91989bf46fb8492d712fbe1b5ef88d2b185d0d1b0bc85b158ec` | `9ab1a858a53663cd41adeb87b86382ed4b2b95b36e2cbe829b26515678b12e1e` | controlled owner-import-only change |
+| `facade_benchmark.py` | `2d708edd5cd7a48c060222877937a99aa1012d64e0ad44d7b03303881555952e` | `2d708edd5cd7a48c060222877937a99aa1012d64e0ad44d7b03303881555952e` | byte-identical |
+
+The corrected behavior probe completed with 186 insulation probes, 9 invalid
+cases, 81 pipe cases, and 90 tank cases. Its temporary JSON parsed successfully
+as the same eight-key object as B0 and produced:
+
+- size: **563849 bytes**, exactly B0;
+- SHA-256:
+  `e5d41eb04ea25d398d952fa93d789895115fb41f5945a037ce59f8d4b8465947`,
+  exactly B0;
+- binary `cmp` with the copied B0 contract: **PASS**, exit 0;
+- parsed JSON equality with B0: **PASS**.
+
+The corrected contract and B0 comparison copy existed only under container
+`/tmp`; no new large contract artifact was added to the repository.
+
+## Benchmark import smoke
+
+Immediately before the smoke, `docker stats --no-stream` reported backend CPU
+at **0.17%**. The unchanged benchmark oracle then completed 9 rounds × 20
+loops (3420 operations per round) through the corrected transitive import:
+
+```text
+0.19833391599240713
+0.19061079202219844
+0.15087379200849682
+0.19350875000236556
+0.20442470902344212
+0.16935749998083338
+0.582354749989463
+0.17856595900957473
+0.19178891699993983
+```
+
+- median: **0.19178891699993983 s**;
+- minimum: **0.15087379200849682 s**;
+- median: **56.07863070173679 µs/operation**;
+- B0 median: **0.16819650001707487 s**;
+- BC/B0 ratio: **1.1402669911708623** (**+14.026699117086228%**).
+
+This is a transitive-import smoke only. It does not replace the benchmark in
+the next BF attempt and does not overwrite either B0 benchmark evidence or the
+blocked BF history. Its JSON remained only under container `/tmp`.
+
+## Scope and next gate
+
+Full backend: **NOT RUN**. Frontend: **NOT TOUCHED / NOT RUN**. Backend
+production, package code, package metadata, and `facade_benchmark.py`:
+**NOT TOUCHED**. Only the one backend test, the one behavior-oracle import, and
+the ownership plan/prompts/snapshot belong to this corrective commit.
+
+**NEXT:** commit HL-OWN-BC with
+`test(heat-loss): align final proofs with ownership contracts`, then start a
+fresh BF retry. That retry has exactly one full backend run; the completed
+blocked-BF full above remains preserved and is not rerun inside BC.

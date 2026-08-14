@@ -37,7 +37,7 @@ from app.reference_data.loader import (
     pipe_heat_loss_materials_version,
     tank_heat_loss_materials_version,
 )
-from app.schemas.calculation import PipeHeatLossParams, TankHeatLossParams
+from app.schemas.heat_loss import PipeHeatLossParams, TankHeatLossParams
 
 
 def call_pipe(params: PipeHeatLossParams, coefficients: dict[str, float] | None) -> Any:

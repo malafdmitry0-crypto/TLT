@@ -1,6 +1,7 @@
 # Heat-loss application ownership — актуальная очередь
 
-**Статус:** ACTIVE — выносим оставшееся владение теплом из чужих сервисов
+**Статус:** ACTIVE — blocked BF исправлен в HL-OWN-BC,
+впереди повторный BF
 
 **Дата:** 2026-08-14
 
@@ -197,8 +198,22 @@ Message-only `Exception`, включая текст про неподдержи�
 versions; у ошибок — `status`, `message`, pydantic `errors`.
 Не входят сигнатуры, JSON Schema, `exception_type`.
 
-B0 фиксирует SHA скриптов. BF до запуска сверяет те же SHA.
-Расхождение скрипта — FAIL, не новый baseline.
+B0 фиксирует SHA обоих скриптов. Benchmark oracle остаётся
+байт-в-байт как в B0. После B8 behavior oracle не может импортировать
+удалённый formula re-export из `app.schemas.calculation`. В HL-OWN-BC
+разрешена ровно одна semantic-neutral замена owner import на
+`app.schemas.heat_loss`; ни одна другая строка oracle не меняется.
+
+Новый SHA behavior oracle — динамическое доказательство и живёт
+только в `snapshot.md`. Повторный BF до запуска probes проверяет:
+
+- behavior oracle SHA точно равен HL-OWN-BC SHA из snapshot;
+- diff behavior oracle от B0 состоит ровно из одной замены
+  `app.schemas.calculation` → `app.schemas.heat_loss`;
+- benchmark oracle SHA точно равен B0 SHA;
+- созданный behavior contract байт-в-байт равен B0 contract.
+
+Любое другое расхождение скрипта или contract — FAIL, не новый baseline.
 
 Benchmark: медиана > `1.15 × B0.median` на том же контейнере — FAIL.
 
@@ -211,12 +226,16 @@ B0 служебно сравнивается с предыдущим AF: есл�
 
 ### Full backend и debt
 
-Полный backend запускается только в двух опорных точках очереди: B0
-(baseline) и BF (финальная регрессия). B1 использует characterization focused;
-B2–B8 — свой focused proof, canonical collect-only и статические gates.
-После уже выполненного B0 остаётся ровно один full — в BF. Промежуточный full
-не добавляет новой приёмочной информации до BF, но повторно занимает около
-18 минут и конфликтует за состояние тестовой БД с другими pytest-процессами.
+Полный backend запускается в baseline B0 и ровно один раз в каждой
+финальной BF-попытке. B1 использует characterization focused;
+B2–B8 и corrective HL-OWN-BC — свой focused proof, canonical collect-only
+и статические gates. Промежуточный full запрещён.
+
+Первая BF-попытка завершила свой единственный full и сохранена как FAIL;
+это историческое доказательство не перезаписывается. HL-OWN-BC не запускает
+full. После committed BC следующая BF-попытка имеет ровно один новый
+full. Это не повтор промежуточного gate, а новая финальная попытка после
+точечной коррекции двух доказанных блокеров.
 
 Если full был прерван, до следующего pytest обязательно убедиться, что его
 процесс действительно завершён. Закрытая exec-сессия сама по себе этого не
@@ -266,10 +285,50 @@ npm --prefix frontend run test:run -- --project integration \
 | **B6** | Catalog code | Loader → typed `code`; prefix-parse удалён | focused + collect-only |
 | **B7** | Payload leftover | Нет русских маркеров на unknown Exception | focused + collect-only |
 | **B8** | Снять formula re-export | `calculation.py` без восьми formula-имён | focused + collect-only |
-| **BF** | Финальная регрессия | Сравнение с B0 | один финальный full |
+| **BF (blocked)** | Первая финальная попытка | FAIL сохранён: stale test + B8-incompatible behavior import | один completed full, не повторять |
+| **BC** | Corrective proof | Ожидание B7 в batch-тесте + owner import в behavior oracle | focused + collect-only, без full |
+| **BF retry** | Финальная регрессия | Сравнение с B0 после committed BC | ровно один новый full |
 
 Слайсы строго по порядку. B4 и B4b — отдельные коммиты. B6 не смешивать
-с B7. B2 не смешивать с B3.
+с B7. B2 не смешивать с B3. После B8 первая BF-попытка закрыта FAIL;
+её доказательства не переписывать. Дальше разрешен только HL-OWN-BC, затем
+BF retry.
+
+### HL-OWN-BC — corrective slice после blocked BF
+
+Precondition: blocked BF закоммичен и его FAIL-evidence сохранён.
+
+Разрешённый scope:
+
+- `backend/app/tests/unit/services/test_calculation_service_unit.py` — только
+  `test_mixed_success_and_failure`: untyped message-only `ValueError` ожидает
+  утверждённый B7 payload `heat_loss_formula_error` / `formula`;
+- `evidence/facade_behavior_probe.py` — только owner import
+  `app.schemas.calculation` → `app.schemas.heat_loss` для двух formula-моделей;
+- `plan.md`, `prompts.md`, `snapshot.md` — контракт, очередь и
+  corrective proof.
+
+Production, frontend, package, `facade_benchmark.py`, runtime shim,
+monkeypatch и новый baseline запрещены. Крупные contract-копии в repo
+не создаются.
+
+Обязательные gates без full backend:
+
+1. Exact failing nodeid, B7 focused suite и batch/ownership regression проходят.
+2. Canonical backend collect-only завершается без collection errors.
+3. Ruff check/format проходят для изменённого теста и обоих
+   oracle-скриптов.
+4. Diff behavior oracle от B0 — ровно одна owner-import строка;
+   benchmark oracle байт-в-байт равен B0. Host/container SHA совпадают.
+5. Corrected behavior probe создаёт в `/tmp` contract размером и SHA
+   как в B0; `cmp` с B0 contract проходит.
+6. Benchmark 9×20 на idle CPU проходит как smoke транзитивного
+   import; result/ratio записаны в snapshot. Это не заменяет BF benchmark.
+7. `git diff --check` только по explicit slice paths, scope proof; frontend
+   **NOT TOUCHED / NOT RUN**. Full backend: **NOT RUN**.
+
+Commit: `test(heat-loss): align final proofs with ownership contracts`.
+BF retry может начаться только после committed HL-OWN-BC.
 
 ## Инварианты
 
@@ -300,8 +359,9 @@ npm --prefix frontend run test:run -- --project integration \
 6. `build_heat_loss_error_payload` не классифицирует leftover
    Exception русскими маркерами.
 7. Восемь formula-имён не реэкспортируются из `calculation.py`.
-8. BF contract SHA = B0; SHA oracle-скриптов = B0; failed IDs ⊆ B0;
-   error/collection пусты; benchmark ≤ +15%.
+8. BF contract SHA = B0; benchmark oracle SHA = B0; behavior oracle SHA =
+   HL-OWN-BC snapshot, а его diff от B0 ровно owner-import строка;
+   failed IDs ⊆ B0; error/collection пусты; benchmark ≤ +15%.
 9. Frontend backlog не менялся.
 
 ## Канонические команды
@@ -329,7 +389,7 @@ docker exec \
     --ignore=app/tests/integration/worker/test_worker_sigkill_live.py
 ```
 
-Full backend (только B0 и BF):
+Full backend (только B0 и ровно один на BF-попытку; не BC):
 
 ```text
 docker exec \
@@ -364,7 +424,7 @@ docker exec -e PYTHONPATH= heatcalc_backend \
     'import heatcalc_heat_loss_core as core; import heatcalc_heat_loss_core.api as api; removed={"evaluate_pipe","evaluate_resolved_air_tank","evaluate_resolved_buried_tank","resolve_safety_factor"}; assert core.__all__ == api.__all__; assert all(hasattr(core, name) for name in core.__all__); assert all(not hasattr(core, name) for name in removed)'
 ```
 
-Behavior probe + benchmark (B0/BF):
+Behavior probe + benchmark (B0/BC/BF):
 
 ```text
 docker cp docs/audit/2026-08-14-heat-loss-application-ownership/evidence/facade_behavior_probe.py \
@@ -389,11 +449,13 @@ docker cp heatcalc_backend:/tmp/b0-facade-benchmark.json \
   docs/audit/2026-08-14-heat-loss-application-ownership/evidence/b0-facade-benchmark.json
 ```
 
-Для BF имена `bf-facade-*.json`; оба результата также копируются из
-контейнера в `evidence/` перед сравнением и commit.
+Для HL-OWN-BC output остаётся только в `/tmp`: в repo записываются
+только хеши и итоги в snapshot. Для BF retry имена
+`bf-facade-*.json`; оба результата копируются из контейнера в `evidence/`
+перед сравнением и commit.
 
 ## NEXT
 
-**B0 — снять snapshot на committed HEAD без чужого WIP.**
-Документы этой очереди, `.gitignore` и SUPERSEDED предыдущей папки
-входят в B0.
+**BF retry — повторить финальную регрессию после committed HL-OWN-BC.**
+Начать с проверки BC SHA/diff oracle и чистого pytest-процесса. В этой
+попытке разрешён ровно один full backend; failed BF evidence сохраняется.

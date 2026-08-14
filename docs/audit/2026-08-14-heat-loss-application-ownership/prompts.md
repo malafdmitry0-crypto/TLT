@@ -9,7 +9,7 @@
 
 ---
 
-## Общий префикс для B0–BF
+## Общий префикс для B0–BF retry
 
 ```text
 Работай из корня TLT.
@@ -45,9 +45,12 @@ DECISION NEEDED. Не используй git add .; только адресны�
 Незапущенная проверка = NOT RUN, не PASS.
 Без frontend-diff: frontend NOT TOUCHED / NOT RUN.
 
-Полный backend — только B0 и BF. B1–B8 не запускают промежуточный full:
-B1 использует characterization focused; B2–B8 — свой focused proof,
-canonical collect-only и статические gates.
+Полный backend — baseline B0 и ровно один запуск в каждой BF-попытке.
+B1–B8 и corrective HL-OWN-BC не запускают промежуточный full:
+B1 использует characterization focused; B2–B8 и BC — свой focused proof,
+canonical collect-only и статические gates. Завершённый full первой blocked
+BF-попытки сохраняется как FAIL и не повторяется в BC. После BC
+следующая BF-попытка имеет ровно один full.
 Для collect-only и full всегда --ignore live-worker файлов из plan.md.
 Если pytest был прерван, до следующего прогона проверь, что процесс
 действительно завершён, а не только закрылась exec-сессия.
@@ -58,7 +61,9 @@ Failed nodeids сравниваются с B0 snapshot ЭТОЙ папки, не
 
 Ищи так: --glob '!**/mutants/**' --glob '!**/.git/**'
 
-Перед commit: git diff --check, git status --short, полный diff слайса.
+Перед commit: git diff --check только по explicit путям слайса,
+git status --short, полный diff слайса. Глобальные ошибки чужого WIP
+не исправлять и не включать в свой commit.
 ```
 
 ---
@@ -599,12 +604,99 @@ COMMIT: refactor(heat-loss): drop formula reexports from calculation
 
 ---
 
-## BF — финальная регрессия
+## HL-OWN-BC — corrective slice после blocked BF
+
+```text
+SLICE_ID: HL-OWN-BC
+OWNER: backend tests / audit oracle
+PRECONDITION: blocked BF закоммичен; FAIL и все bf-blocked evidence
+сохранены. В worktree может оставаться чужой staged
+docs/tnp/cases/case1-client-feedback-heat-decisions.md: не читать,
+не менять, не unstaging, не включать. Add/commit только
+с explicit pathspec.
+GOAL: Устранить ровно два доказанных BF blocker без production,
+frontend и package changes. BF retry не начинать в этом слайсе.
+
+ALLOWED_SCOPE:
+  backend/app/tests/unit/services/test_calculation_service_unit.py
+    (только TestBatchRecalculate.test_mixed_success_and_failure)
+  docs/audit/2026-08-14-heat-loss-application-ownership/evidence/
+    facade_behavior_probe.py
+      (только app.schemas.calculation → app.schemas.heat_loss)
+  docs/audit/2026-08-14-heat-loss-application-ownership/plan.md
+  docs/audit/2026-08-14-heat-loss-application-ownership/prompts.md
+  docs/audit/2026-08-14-heat-loss-application-ownership/snapshot.md
+NON-GOALS: production, frontend, package, facade_benchmark.py, shim,
+temporary monkeypatch, правка behavior semantics, новый baseline,
+новые крупные contract JSON в repo.
+
+Исправь только:
+1. test_mixed_success_and_failure инжектит untyped message-only
+   ValueError. Ожидание должно быть утверждённым B7 payload:
+   error_code=heat_loss_formula_error, category=formula, field=None и
+   текущий formula hint. Production не менять.
+2. facade_behavior_probe.py импортирует PipeHeatLossParams и
+   TankHeatLossParams из app.schemas.heat_loss. Это единственная
+   semantic-neutral oracle-правка. facade_benchmark.py не менять
+   ни байта.
+3. plan/prompts явно вставляют BC между blocked BF и BF retry.
+   Удали противоречивое требование идентичности обоих oracle SHA их
+   B0-значениям: исторический
+   behavior SHA остаётся B0 baseline; benchmark SHA обязан
+   остаться B0; post-B8 behavior SHA фиксируется только в
+   snapshot. BF retry проверяет exact BC behavior SHA, ровно
+   одну owner-import строку diff от B0 и byte-identical B0 contract.
+4. snapshot не переписывает FAIL-раздел. Добавь после него
+   BC correction proof, behavior SHA, contract/hash/cmp, benchmark smoke,
+   focused/collect и scope/status.
+
+GATES — FULL BACKEND НЕ ЗАПУСКАТЬ:
+1. Проверь, что в контейнере нет другого pytest-процесса.
+2. Exact blocked nodeid:
+   app/tests/unit/services/test_calculation_service_unit.py::
+     TestBatchRecalculate::test_mixed_success_and_failure
+3. B7 focused suite:
+   app/tests/unit/services/test_heat_loss_error_payload_characterization.py
+   app/tests/unit/formulas/test_heat_loss_structured_error_channel.py
+   app/tests/unit/services/test_heat_loss_ownership_characterization.py
+   app/tests/unit/test_pipe_slice2_contract.py
+4. Разумный batch/ownership regression: весь
+   TestBatchRecalculate и ownership characterization. Не запускай Docker
+   pytest параллельно.
+5. Canonical collect-only без live-worker из plan.md.
+6. Ruff check и ruff format --check для изменённого теста,
+   facade_behavior_probe.py и неизменённого facade_benchmark.py.
+7. Git diff behavior oracle от B0 содержит ровно
+   calculation→heat_loss import-owner замену. Benchmark SHA равен
+   B0 snapshot. Новый behavior SHA записать только в snapshot.
+8. Скопируй corrected behavior и unchanged benchmark scripts в
+   container, проверь host/container SHA. Behavior probe должен
+   создать temp contract с exact B0 size/SHA из snapshot;
+   cmp с B0 contract байт-в-байт PASS. Конкретные числа и хеши
+   повтора записываются только в snapshot.
+9. На idle CPU запусти benchmark 9×20 как smoke транзитивного
+   import. Запиши медиану, samples и ratio к B0 в snapshot;
+   это не заменяет финальный BF benchmark.
+10. Self-review docs: нет старого взаимоисключающего
+    требования обоих B0 oracle SHA; queue, closure и NEXT
+    согласованы.
+11. git diff --check и полный diff только по explicit
+    ALLOWED_SCOPE paths; глобальный foreign-WIP diff/check не трогать.
+    Frontend: NOT TOUCHED / NOT RUN. Full backend: NOT RUN.
+
+COMMIT: test(heat-loss): align final proofs with ownership contracts
+```
+
+---
+
+## BF retry — финальная регрессия
 
 ```text
 SLICE_ID: HL-OWN-BF
 OWNER: qa / formulas
-PRECONDITION: B8 committed; clean worktree.
+PRECONDITION: HL-OWN-BC committed после blocked BF; нет своего
+ownership/backend WIP. Чужой staged docs WIP, если он остался,
+не читать, не менять, не unstaging и не включать в commit.
 GOAL: Доказать критерии закрытия plan.md на final HEAD.
 Production/test code не менять; только snapshot/evidence.
 
@@ -629,10 +721,14 @@ corrective slice, затем повторить BF.
    - calc_* без coefficients.
 3. Package pytest / ruff / mypy + isolated wheel + __all__ import.
 4. Focused heat suite как в B0 плюс ownership / ratchet.
-5. Full backend командой B0. Failed IDs ⊆ B0. Новый failed —
+5. Убедиться, что в контейнере нет pytest-процесса, затем
+   запустить ровно один full backend командой B0. Не перезапускать
+   его в этой BF-попытке. Failed IDs ⊆ B0. Новый failed —
    BLOCKER. error/collection — FAIL, не debt.
-6. Oracle SHA = B0 до запуска probes. Contract size+SHA = B0.
-   Benchmark: все раунды, обе медианы, отношение BF/B0.
+6. До запуска probes: behavior oracle SHA = exact HL-OWN-BC SHA
+   из snapshot; его diff от B0 ровно одна owner-import строка;
+   benchmark oracle SHA = B0. Contract size+SHA = B0 и `cmp`
+   byte-identical. Benchmark: все раунды, обе медианы, отношение BF/B0.
    BF.median > 1.15 × B0.median — FAIL.
 7. Persist 201/200 invalid pipe; admin 422; hot-side литерал;
    K matrix characterization.
