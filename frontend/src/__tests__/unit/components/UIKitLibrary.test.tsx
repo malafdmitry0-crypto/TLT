@@ -94,4 +94,39 @@ describe('UI component library', () => {
     expect(input).toBeTruthy();
     expect(unit).toHaveTextContent('°C');
   });
+
+  it('keeps accessible range metadata and interaction states in draft-preserving mode', () => {
+    render(
+      <>
+        <TltNumberField
+          aria-invalid
+          aria-label="Недоступная температура"
+          disabled
+          min={-70}
+          max={70}
+          preserveOutOfRangeDraft
+        />
+        <TltNumberField
+          aria-label="Температура только для чтения"
+          min={-70}
+          max={70}
+          preserveOutOfRangeDraft
+          readOnly
+        />
+      </>,
+    );
+
+    const disabled = screen.getByRole('spinbutton', { name: 'Недоступная температура' });
+    expect(disabled).toBeDisabled();
+    expect(disabled).toHaveAttribute('aria-invalid', 'true');
+    expect(disabled).toHaveAttribute('aria-valuemin', '-70');
+    expect(disabled).toHaveAttribute('aria-valuemax', '70');
+
+    const readOnly = screen.getByRole('spinbutton', {
+      name: 'Температура только для чтения',
+    });
+    expect(readOnly).toHaveAttribute('readonly');
+    expect(readOnly).toHaveAttribute('aria-valuemin', '-70');
+    expect(readOnly).toHaveAttribute('aria-valuemax', '70');
+  });
 });
