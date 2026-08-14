@@ -104,6 +104,7 @@ class TestObjectQuery:
         assert resp.status_code == 200, resp.text
         fields = {field["key"]: field for field in resp.json()["fields"]}
         assert "pipe_dn" not in fields
+        assert "max_ambient_temperature" not in fields
         assert fields["pipe_outer_diameter"]["filter"]["ops"] == ["range"]
         assert fields["pipe_outer_diameter"]["sort"]["enabled"] is True
         assert fields["heat_loss_per_meter_base"]["filter"]["ops"] == ["range"]

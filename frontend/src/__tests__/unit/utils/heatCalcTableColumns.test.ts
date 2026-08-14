@@ -141,26 +141,46 @@ describe('heatCalcTableColumns', () => {
     expect(allTank).toContain('vapor_temperature');
   });
 
-  it('не отдаёт служебные колонки в таблицу и настройки даже из сохранённых пользовательских настроек', () => {
+  it('не отдаёт удалённые и служебные колонки даже из сохранённых настроек', () => {
     const settings = normalizeTableColumnSettings({
       version: HEATCALC_TABLE_COLUMNS_VERSION,
       types: {
         pipe: {
-          visibleOrder: ['index', 'name', 'pipe_dn', 'ground_type', 'climate_key'],
-          columns: { pipe_dn: { widthPct: 12 }, ground_type: { widthPct: 24 }, climate_key: { widthPct: 24 } },
+          visibleOrder: [
+            'index', 'name', 'pipe_dn', 'max_ambient_temperature', 'ground_type', 'climate_key',
+          ],
+          columns: {
+            pipe_dn: { widthPct: 12 },
+            max_ambient_temperature: { widthPct: 9.8 },
+            ground_type: { widthPct: 24 },
+            climate_key: { widthPct: 24 },
+          },
         },
         tank: {
-          visibleOrder: ['index', 'name', 'ground_type', 'climate_key'],
-          columns: { ground_type: { widthPct: 24 }, climate_key: { widthPct: 24 } },
+          visibleOrder: ['index', 'name', 'max_ambient_temperature', 'ground_type', 'climate_key'],
+          columns: {
+            max_ambient_temperature: { widthPct: 9.8 },
+            ground_type: { widthPct: 24 },
+            climate_key: { widthPct: 24 },
+          },
         },
         all: {
-          visibleOrder: ['index', 'type', 'name', 'pipe_dn', 'ground_type', 'climate_key'],
-          columns: { pipe_dn: { widthPct: 12 }, ground_type: { widthPct: 24 }, climate_key: { widthPct: 24 } },
+          visibleOrder: [
+            'index', 'type', 'name', 'pipe_dn', 'max_ambient_temperature', 'ground_type', 'climate_key',
+          ],
+          columns: {
+            pipe_dn: { widthPct: 12 },
+            max_ambient_temperature: { widthPct: 9.8 },
+            ground_type: { widthPct: 24 },
+            climate_key: { widthPct: 24 },
+          },
         },
       },
     });
 
-    const hiddenServiceColumns = ['pipe_dn', 'ground_type', 'climate_key'];
+    const hiddenServiceColumns = [
+      'pipe_dn', 'max_ambient_temperature', 'ground_type', 'climate_key',
+    ];
     for (const type of ['pipe', 'tank', 'all'] as const) {
       const visibleKeys = getVisibleTableColumnMetas(type, settings).map((column) => column.key);
       const allKeys = getAllTableColumnMetas(type, settings).map((column) => column.key);

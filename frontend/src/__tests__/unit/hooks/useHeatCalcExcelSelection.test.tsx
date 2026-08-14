@@ -27,7 +27,6 @@ function makePipe(id: string): ProjectObject {
       insulation_material: 'mineral_wool',
       process_temperature: 60,
       ambient_temperature: -20,
-      max_ambient_temperature: 35,
       max_process_temperature: 110,
       environment: 'normal',
       zone_classification: 'safe',
@@ -149,4 +148,3 @@ describe('useHeatCalcExcelSelection', () => {
     expect(result.current.selectedCell).toEqual({ objectId: 'row-2', columnKey: 'supply_voltage' });
   });
 });
-

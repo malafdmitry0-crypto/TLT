@@ -37,7 +37,6 @@ function makePipe(id: string, pipeLength = 25): ProjectObject {
       insulation_material: 'mineral_wool',
       process_temperature: 60,
       ambient_temperature: -20,
-      max_ambient_temperature: 35,
       max_process_temperature: 110,
       environment: 'normal',
       zone_classification: 'safe',

@@ -49,6 +49,7 @@ from app.services.project_object_params import (
     UnsupportedTankShapeError,
     reject_legacy_specification_object_params,
     reject_unsupported_tank_shape,
+    strip_retired_project_object_params,
 )
 from app.services.project_service import (
     ProjectAccessError,
@@ -239,7 +240,7 @@ def _dump_project_to_writer(
             obj.object_type,
             obj_name,
             obj.sort_order,
-            json.dumps(obj.params or {}, ensure_ascii=False),
+            json.dumps(strip_retired_project_object_params(obj.params), ensure_ascii=False),
             json.dumps(obj.results, ensure_ascii=False) if obj.results is not None else "",
             "true" if obj.is_valid else "false",
             json.dumps(obj.validation_errors, ensure_ascii=False)
@@ -1337,6 +1338,7 @@ async def _apply_project_data(
     obj_by_key: dict[str, ProjectObject] = {}
     for idx, row in enumerate(objects_rows):
         params = _parse_json_or_empty(row.get("params", ""), {})
+        params = strip_retired_project_object_params(params)
         _reject_imported_legacy_specification_params(params)
         object_type = _normalize_object_type(row.get("type", ""))
         _reject_imported_tank_shape(object_type, params)
@@ -1608,6 +1610,7 @@ async def _apply_project_data_v3(
     obj_by_key: dict[str, ProjectObject] = {}
     for idx, row in enumerate(objects_rows):
         params = _parse_json_or_empty(row.get("params", ""), {})
+        params = strip_retired_project_object_params(params)
         _reject_imported_legacy_specification_params(params)
         object_type = _normalize_object_type(row.get("type", ""))
         _reject_imported_tank_shape(object_type, params)
