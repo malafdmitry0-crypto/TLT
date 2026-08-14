@@ -25,6 +25,10 @@ class AdminError(Exception):
     pass
 
 
+class CoefficientNotFoundError(AdminError):
+    pass
+
+
 class AdminService:
     _RETIRED_HEAT_LOSS_COEFFICIENTS: ClassVar[set[str]] = {
         "wind_factor",
@@ -92,7 +96,7 @@ class AdminService:
         )
         return list(result.scalars().all())
 
-    async def upsert_coefficient(
+    async def update_coefficient(
         self, key: str, data: CoefficientUpdate, user_id: UUID | None
     ) -> CorrectionCoefficient:
         if key in self._RETIRED_HEAT_LOSS_COEFFICIENTS:
@@ -102,12 +106,10 @@ class AdminService:
         )
         coeff = result.scalar_one_or_none()
         if coeff is None:
-            coeff = CorrectionCoefficient(key=key, value=data.value, description=data.description)
-            self.db.add(coeff)
-        else:
-            coeff.value = data.value
-            if data.description is not None:
-                coeff.description = data.description
+            raise CoefficientNotFoundError(f"Коэффициент {key} не найден")
+        coeff.value = data.value
+        if data.description is not None:
+            coeff.description = data.description
         coeff.updated_by = user_id
         await self.db.commit()
         await self.db.refresh(coeff)
@@ -120,11 +122,26 @@ class AdminService:
     async def create_coefficient(
         self, data: CoefficientCreate, user_id: UUID | None
     ) -> CorrectionCoefficient:
-        return await self.upsert_coefficient(
-            data.key,
-            CoefficientUpdate(value=data.value, description=data.description),
-            user_id,
+        if data.key in self._RETIRED_HEAT_LOSS_COEFFICIENTS:
+            raise AdminError(f"Коэффициент {data.key} выведен из расчётного контура ТНП")
+        result = await self.db.execute(
+            select(CorrectionCoefficient).where(CorrectionCoefficient.key == data.key)
         )
+        if result.scalar_one_or_none() is not None:
+            raise AdminError(f"Коэффициент {data.key} уже существует")
+        coeff = CorrectionCoefficient(
+            key=data.key,
+            value=data.value,
+            description=data.description,
+            updated_by=user_id,
+        )
+        self.db.add(coeff)
+        await self.db.commit()
+        await self.db.refresh(coeff)
+        from app.core.cache import cache
+
+        await cache.ainvalidate("coefficients")
+        return coeff
 
     # ---- Cables ----
 
