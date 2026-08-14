@@ -1,5 +1,5 @@
 import type { ProjectObject } from '@/types/project';
-import type { ElectricalCalcSummary } from '@/types/calculation';
+import type { ElectricalCalcSummary } from './calculationElectricalSummary';
 
 export type ElectricalSystemType =
   | 'self_regulating'
