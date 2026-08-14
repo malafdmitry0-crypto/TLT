@@ -5,6 +5,39 @@ import {
 } from '@/utils/objectWizardUtils';
 
 describe('applyObjectFormDefaults', () => {
+  it.each(['pipe', 'tank'] as const)(
+    'prefills electrical defaults for a new %s object',
+    (objectType) => {
+      expect(applyObjectFormDefaults(objectType)).toMatchObject({
+        safety_factor: 1.1,
+        safety_factor_source: 'default',
+        min_switch_temperature: -20,
+      });
+    },
+  );
+
+  it('preserves stored electrical values and does not reclassify legacy manual input', () => {
+    const legacyPipe = applyObjectFormDefaults('pipe', {
+      safety_factor: 1.2,
+      min_switch_temperature: -35,
+    });
+    expect(legacyPipe).toMatchObject({
+      safety_factor: 1.2,
+      min_switch_temperature: -35,
+    });
+    expect(legacyPipe).not.toHaveProperty('safety_factor_source');
+
+    expect(applyObjectFormDefaults('tank', {
+      safety_factor: 1.15,
+      safety_factor_source: 'manual',
+      min_switch_temperature: 0,
+    })).toMatchObject({
+      safety_factor: 1.15,
+      safety_factor_source: 'manual',
+      min_switch_temperature: 0,
+    });
+  });
+
   it('restores empty string defaults without clobbering provided values', () => {
     const pipe = applyObjectFormDefaults('pipe', {
       // Runtime empty values must fall back to defaults (form may clear selects).

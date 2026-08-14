@@ -22,6 +22,38 @@ describe('ObjectWizard dependencies — payload-fields', () => {
     await mockReferences();
   });
 
+  it.each(['pipe', 'tank'] as const)(
+    'предзаполняет коэффициент запаса и температуру включения для нового объекта %s',
+    async (objectType) => {
+      renderWizard({ objectType });
+
+      expect(await screen.findByTestId('safety-factor-input')).toHaveValue('1,1');
+      expect(screen.getByTestId('min-switch-temperature-input')).toHaveValue('-20');
+    },
+  );
+
+  it('отправляет предзаполненные значения с источником коэффициента default', async () => {
+    const onSubmit = vi.fn();
+    const user = userEvent.setup();
+    renderWizard({
+      onSubmit,
+      initialParams: {
+        ...basePipeParams,
+        min_switch_temperature: undefined,
+        safety_factor: undefined,
+      },
+    });
+
+    await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({
+      min_switch_temperature: -20,
+      safety_factor: 1.1,
+      safety_factor_source: 'default',
+    });
+  });
+
   it('Q_доп: показывается только для резервуара и сохраняется в payload', async () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
