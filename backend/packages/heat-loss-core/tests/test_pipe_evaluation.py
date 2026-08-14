@@ -10,6 +10,7 @@ import pytest
 from heatcalc_heat_loss_core.conductivity import (
     AffineConductivity,
     ConstantConductivity,
+    PiecewiseConductivity,
     UnavailableConductivity,
 )
 from heatcalc_heat_loss_core.errors import FormulaDomainError
@@ -26,6 +27,27 @@ from heatcalc_heat_loss_core.pipe_evaluation import (
     UndergroundPipeEvaluationInput,
     execute_prepared_pipe,
 )
+
+
+def mineral_wool_boards_120_law() -> PiecewiseConductivity:
+    return PiecewiseConductivity(
+        threshold_c=20.0,
+        at_or_above=AffineConductivity(0.045, 0.00021),
+        below=PiecewiseConductivity(
+            threshold_c=-60.0,
+            at_or_above=ConstantConductivity(0.044),
+            below=ConstantConductivity(0.035),
+        ),
+    )
+
+
+def _reference_layer() -> PreparedPipeLayer:
+    return PreparedPipeLayer(
+        0.05,
+        "reference",
+        mineral_wool_boards_120_law(),
+        (-60.0, 400.0),
+    )
 
 
 def _input(**changes: object) -> PreparedPipeCalculation:
@@ -143,16 +165,19 @@ def test_evaluation_calls_each_law_and_low_level_branch_once(
     from heatcalc_heat_loss_core import pipe_evaluation
 
     implementation = cast(Any, pipe_evaluation)
-    conductivity_spy = MagicMock(wraps=implementation.evaluate_conductivity)
+    wall_conductivity_spy = MagicMock(wraps=implementation.evaluate_conductivity)
+    layer_conductivity_spy = MagicMock(wraps=implementation.evaluate_insulation_conductivity)
     calculate_spy = MagicMock(wraps=implementation.calculate_aboveground_pipe)
     underground_spy = MagicMock(wraps=implementation.calculate_underground_pipe)
-    monkeypatch.setattr(pipe_evaluation, "evaluate_conductivity", conductivity_spy)
+    monkeypatch.setattr(pipe_evaluation, "evaluate_conductivity", wall_conductivity_spy)
+    monkeypatch.setattr(pipe_evaluation, "evaluate_insulation_conductivity", layer_conductivity_spy)
     monkeypatch.setattr(pipe_evaluation, "calculate_aboveground_pipe", calculate_spy)
     monkeypatch.setattr(pipe_evaluation, "calculate_underground_pipe", underground_spy)
 
     execute_prepared_pipe(_input())
 
-    assert conductivity_spy.call_count == 2
+    assert wall_conductivity_spy.call_count == 1
+    assert layer_conductivity_spy.call_count == 1
     calculate_spy.assert_called_once()
     underground_spy.assert_not_called()
 
@@ -195,3 +220,56 @@ def test_unavailable_layer_law_reports_layer_and_temperature() -> None:
         )
 
     assert exc_info.value.details == {"layer_index": 0, "temperature_c": 40.0}
+
+
+@pytest.mark.parametrize(
+    (
+        "process_temperature_c",
+        "basis",
+        "ambient_temperature_c",
+        "expected_tm",
+        "expected_lambda",
+    ),
+    [
+        (80.0, "outdoor_winter", -20.0, 40.0, 0.0534),
+        (30.0, "outdoor_winter", -20.0, 15.0, 0.04815),
+        (10.0, "indoor", -20.0, 25.0, 0.044),
+        (20.0, "outdoor_winter", -20.0, 10.0, 0.0471),
+        (19.0, "outdoor_winter", -20.0, 9.5, 0.044),
+        (-60.0, "outdoor_winter", -70.0, -30.0, 0.044),
+    ],
+)
+def test_prepared_pipe_uses_process_temperature_to_select_reference_branch(
+    process_temperature_c: float,
+    basis: str,
+    ambient_temperature_c: float,
+    expected_tm: float,
+    expected_lambda: float,
+) -> None:
+    result = execute_prepared_pipe(
+        _input(
+            layers=(_reference_layer(),),
+            process_temperature_c=process_temperature_c,
+            insulation_temperature_basis=basis,
+            environment=AirPipeEvaluationInput(
+                "indoor" if basis == "indoor" else "outdoor",
+                ambient_temperature_c,
+                None if basis == "indoor" else 3.0,
+            ),
+        )
+    )
+
+    assert result.insulation_temperature_c == pytest.approx(expected_tm)
+    assert result.layer_results[0].conductivity_w_mk == pytest.approx(expected_lambda)
+
+
+def test_prepared_pipe_keeps_manual_constant_conductivity() -> None:
+    result = execute_prepared_pipe(
+        _input(
+            layers=(PreparedPipeLayer(0.05, "manual", ConstantConductivity(0.04), (-90.0, 600.0)),),
+            process_temperature_c=30.0,
+        )
+    )
+
+    assert result.insulation_temperature_c == pytest.approx(15.0)
+    assert result.layer_results[0].conductivity_w_mk == 0.04

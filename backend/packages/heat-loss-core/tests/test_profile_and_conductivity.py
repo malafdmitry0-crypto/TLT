@@ -9,9 +9,11 @@ import pytest
 from heatcalc_heat_loss_core.conductivity import (
     AffineConductivity,
     ConstantConductivity,
+    InsulationConductivityTemperatures,
     PiecewiseConductivity,
     UnavailableConductivity,
     evaluate_conductivity,
+    evaluate_insulation_conductivity,
 )
 from heatcalc_heat_loss_core.errors import FormulaDomainError
 from heatcalc_heat_loss_core.profile import (
@@ -29,20 +31,43 @@ def test_case_1_profile_is_frozen_and_has_legacy_defaults() -> None:
         CASE_1_PROFILE.default_safety_factor = 2.0  # type: ignore[misc]
 
 
-@pytest.mark.parametrize(
-    "basis",
-    [
-        "indoor",
-        "outdoor_summer",
-        "channel",
-        "tunnel",
-        "technical_subfloor",
-        "attic",
-        "basement",
-    ],
+WARM_INSULATION_BASES = (
+    "indoor",
+    "outdoor_summer",
+    "channel",
+    "tunnel",
+    "technical_subfloor",
+    "attic",
+    "basement",
 )
-def test_warm_bases_use_profile_reference(basis: str) -> None:
-    assert resolve_insulation_temperature(80.0, basis=basis) == 60.0  # type: ignore[arg-type]
+
+
+def mineral_wool_boards_120_law() -> PiecewiseConductivity:
+    return PiecewiseConductivity(
+        threshold_c=20.0,
+        at_or_above=AffineConductivity(0.045, 0.00021),
+        below=PiecewiseConductivity(
+            threshold_c=-60.0,
+            at_or_above=ConstantConductivity(0.044),
+            below=ConstantConductivity(0.035),
+        ),
+    )
+
+
+@pytest.mark.parametrize("basis", WARM_INSULATION_BASES)
+@pytest.mark.parametrize("process_temperature_c", [10.0, 19.0, 20.0, 30.0, 80.0])
+def test_warm_bases_use_profile_reference(basis: str, process_temperature_c: float) -> None:
+    assert resolve_insulation_temperature(
+        process_temperature_c,
+        basis=basis,  # type: ignore[arg-type]
+    ) == pytest.approx((process_temperature_c + 40.0) / 2.0)
+
+
+@pytest.mark.parametrize("process_temperature_c", [10.0, 19.0, 20.0, 30.0, 80.0, -60.0])
+def test_outdoor_winter_uses_half_process_formula(process_temperature_c: float) -> None:
+    assert resolve_insulation_temperature(
+        process_temperature_c, basis="outdoor_winter"
+    ) == pytest.approx(process_temperature_c / 2.0)
 
 
 def test_outdoor_winter_is_half_process_and_preserves_signed_zero() -> None:
@@ -213,3 +238,39 @@ def test_non_finite_temperature_or_law_result_raises(value: float) -> None:
         evaluate_conductivity(ConstantConductivity(0.04), value)
     with pytest.raises(FormulaDomainError, match="non_finite_result"):
         evaluate_conductivity(ConstantConductivity(value), 20.0)
+
+
+@pytest.mark.parametrize(
+    ("process_temperature_c", "insulation_temperature_c", "expected"),
+    [
+        (80.0, 40.0, 0.0534),
+        (30.0, 15.0, 0.04815),
+        (10.0, 25.0, 0.044),
+        (20.0, 10.0, 0.0471),
+        (19.0, 9.5, 0.044),
+        (-60.0, -30.0, 0.044),
+        (-80.0, -40.0, 0.035),
+    ],
+)
+def test_reference_law_selects_by_process_temperature_and_evaluates_tm(
+    process_temperature_c: float,
+    insulation_temperature_c: float,
+    expected: float,
+) -> None:
+    value = evaluate_insulation_conductivity(
+        mineral_wool_boards_120_law(),
+        InsulationConductivityTemperatures(
+            process_temperature_c=process_temperature_c,
+            insulation_temperature_c=insulation_temperature_c,
+        ),
+    )
+
+    assert value == pytest.approx(expected)
+
+
+def test_single_temperature_helper_keeps_shared_selector_and_formula_temperature() -> None:
+    law = mineral_wool_boards_120_law()
+
+    assert evaluate_conductivity(law, 15.0) == pytest.approx(0.044)
+    assert evaluate_conductivity(law, 30.0) == pytest.approx(0.045 + 0.00021 * 30.0)
+    assert evaluate_conductivity(law, -80.0) == pytest.approx(0.035)
