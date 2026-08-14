@@ -52,16 +52,6 @@ def _pipe_payload(**overrides: object) -> dict[str, object]:
     return payload
 
 
-def _reconstructed_value_error_payload(message: str) -> dict[str, Any]:
-    return {
-        "error_code": "invalid_object_params",
-        "category": "validation",
-        "message": message,
-        "field": None,
-        "hint": DEFAULT_VALIDATION_HINT,
-    }
-
-
 def test_process_temperature_error_payload_uses_path_without_parsing_message() -> None:
     params = PipeHeatLossParams.model_validate(_pipe_payload(process_temperature=500.0))
 
@@ -93,7 +83,7 @@ def test_process_temperature_error_payload_uses_path_without_parsing_message() -
     }
 
 
-def test_hot_side_value_error_payload_is_reconstructed_from_message_as_is() -> None:
+def test_hot_side_error_payload_is_structured_without_parsing_message() -> None:
     params = PipeHeatLossParams.model_validate(
         _pipe_payload(
             insulation_layers=[
@@ -112,38 +102,52 @@ def test_hot_side_value_error_payload_is_reconstructed_from_message_as_is() -> N
         )
     )
 
-    with pytest.raises(ValueError) as caught:
+    with pytest.raises(HeatLossPreparationError) as caught:
         calc_pipe_heat_loss(params)
 
     error = caught.value
-    assert type(error) is ValueError
-    assert not isinstance(error, HeatLossPreparationError)
+    assert type(error) is HeatLossPreparationError
+    assert error.code == "temperature_outside_interval"
+    assert error.path == "insulation_layers.0"
     assert str(error) == HOT_SIDE_PIPE_LITERAL
 
     payload = build_heat_loss_error_payload(error, object_type="pipe")
-    assert payload == _reconstructed_value_error_payload(HOT_SIDE_PIPE_LITERAL)
-    assert "fields" not in payload
+    assert payload == {
+        "error_code": "temperature_outside_interval",
+        "category": "validation",
+        "message": HOT_SIDE_PIPE_LITERAL,
+        "field": "insulation_layers.0",
+        "fields": {"insulation_layers.0": HOT_SIDE_PIPE_LITERAL},
+        "hint": DEFAULT_VALIDATION_HINT,
+    }
 
 
-def test_facade_range_value_error_payload_is_reconstructed_from_message_as_is() -> None:
+def test_facade_range_error_payload_is_structured_without_parsing_message() -> None:
     params = PipeHeatLossParams.model_validate(_pipe_payload(safety_factor=None))
 
-    with pytest.raises(ValueError) as caught:
+    with pytest.raises(HeatLossPreparationError) as caught:
         calc_pipe_heat_loss(
             pipe_params_with_effective_safety_factor(params, {"safety_factor": 0.0})
         )
 
     error = caught.value
-    assert type(error) is ValueError
-    assert not isinstance(error, HeatLossPreparationError)
+    assert type(error) is HeatLossPreparationError
+    assert error.code == "below_min_inclusive"
+    assert error.path == "safety_factor"
     assert str(error) == RANGE_SAFETY_FACTOR_LITERAL
 
     payload = build_heat_loss_error_payload(error, object_type="pipe")
-    assert payload == _reconstructed_value_error_payload(RANGE_SAFETY_FACTOR_LITERAL)
-    assert "fields" not in payload
+    assert payload == {
+        "error_code": "below_min_inclusive",
+        "category": "validation",
+        "message": RANGE_SAFETY_FACTOR_LITERAL,
+        "field": "safety_factor",
+        "fields": {"safety_factor": RANGE_SAFETY_FACTOR_LITERAL},
+        "hint": DEFAULT_VALIDATION_HINT,
+    }
 
 
-def test_facade_domain_value_error_payload_is_reconstructed_from_message_as_is(
+def test_facade_domain_error_payload_is_structured_without_parsing_message(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     params = PipeHeatLossParams.model_validate(_pipe_payload())
@@ -159,14 +163,21 @@ def test_facade_domain_value_error_payload_is_reconstructed_from_message_as_is(
         ),
     )
 
-    with pytest.raises(ValueError) as caught:
+    with pytest.raises(HeatLossPreparationError) as caught:
         calc_pipe_heat_loss(params)
 
     error = caught.value
-    assert type(error) is ValueError
-    assert not isinstance(error, HeatLossPreparationError)
+    assert type(error) is HeatLossPreparationError
+    assert error.code == "wall_exceeds_pipe_radius"
+    assert error.path == "wall_thickness"
     assert str(error) == WALL_EXCEEDS_LITERAL
 
     payload = build_heat_loss_error_payload(error, object_type="pipe")
-    assert payload == _reconstructed_value_error_payload(WALL_EXCEEDS_LITERAL)
-    assert "fields" not in payload
+    assert payload == {
+        "error_code": "wall_exceeds_pipe_radius",
+        "category": "validation",
+        "message": WALL_EXCEEDS_LITERAL,
+        "field": "wall_thickness",
+        "fields": {"wall_thickness": WALL_EXCEEDS_LITERAL},
+        "hint": DEFAULT_VALIDATION_HINT,
+    }
