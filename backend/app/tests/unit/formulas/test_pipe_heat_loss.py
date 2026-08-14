@@ -14,10 +14,10 @@
 import math
 
 import pytest
+from heatcalc_heat_loss_core.profile import resolve_external_alpha
 from pydantic import ValidationError
 
 from app.formulas.heat_loss.pipe import (
-    calc_alpha_vnesh,
     calc_pipe_heat_loss,
     pipe_material_lambda,
 )
@@ -567,30 +567,33 @@ class TestTnpGoldenFormula:
 
 class TestAlphaVnesh:
     def test_zero_wind_indoor(self):
-        alpha = calc_alpha_vnesh(wind_speed=0, placement="indoor")
-        assert alpha == pytest.approx(9.0)
+        result = calc_pipe_heat_loss(_params(placement="indoor"))
+        assert result.alpha_vnesh_applied == pytest.approx(9.0)
 
     def test_zero_wind_outdoor(self):
         # α = 11,6 + 7·√v, при v=0 → 11,6  (SNiP 41-03-2003)
-        alpha = calc_alpha_vnesh(wind_speed=0, placement="outdoor")
-        assert alpha == pytest.approx(11.6)
+        result = calc_pipe_heat_loss(_params(wind_speed=0, placement="outdoor"))
+        assert result.alpha_vnesh_applied == pytest.approx(11.6)
 
     def test_low_wind_linear(self):
-        alpha = calc_alpha_vnesh(wind_speed=3.0, placement="outdoor")
-        assert alpha == pytest.approx(11.6 + 7.0 * math.sqrt(3.0), rel=1e-3)
+        result = calc_pipe_heat_loss(_params(wind_speed=3.0, placement="outdoor"))
+        assert result.alpha_vnesh_applied == pytest.approx(11.6 + 7.0 * math.sqrt(3.0), rel=1e-3)
 
     def test_high_wind_follows_primary_formula_without_cap(self):
-        alpha = calc_alpha_vnesh(wind_speed=34.0, placement="outdoor")
+        # 34 м/с выше диапазона схемы (0…20); ядро не режет формулу сверху.
+        alpha = resolve_external_alpha(placement="outdoor", wind_speed_m_s=34.0)
         assert alpha == pytest.approx(11.6 + 7.0 * math.sqrt(34.0))
 
     def test_alpha_in_range(self):
         for v in [0, 1, 5, 10, 20]:
-            alpha = calc_alpha_vnesh(wind_speed=v, placement="outdoor")
-            assert 11.6 <= alpha <= 52.0
+            result = calc_pipe_heat_loss(_params(wind_speed=v, placement="outdoor"))
+            assert result.alpha_vnesh_applied is not None
+            assert 11.6 <= result.alpha_vnesh_applied <= 52.0
 
     def test_higher_wind_higher_alpha(self):
-        a1 = calc_alpha_vnesh(wind_speed=2.0, placement="outdoor")
-        a2 = calc_alpha_vnesh(wind_speed=8.0, placement="outdoor")
+        a1 = calc_pipe_heat_loss(_params(wind_speed=2.0, placement="outdoor")).alpha_vnesh_applied
+        a2 = calc_pipe_heat_loss(_params(wind_speed=8.0, placement="outdoor")).alpha_vnesh_applied
+        assert a1 is not None and a2 is not None
         assert a2 > a1
 
     def test_explicit_alpha_is_rejected(self):

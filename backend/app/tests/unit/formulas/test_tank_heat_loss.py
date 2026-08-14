@@ -4,7 +4,7 @@ import math
 
 import pytest
 
-from app.formulas.heat_loss.tank import _calc_alpha, calc_tank_heat_loss
+from app.formulas.heat_loss.tank import calc_tank_heat_loss
 from app.schemas.calculation import InsulationLayer, TankHeatLossParams
 
 
@@ -46,9 +46,17 @@ def test_areal_external_resistance_uses_wind_alpha():
 
 
 def test_auto_alpha_indoor_and_outdoor():
-    assert _calc_alpha(_cyl(placement="indoor", ambient_temperature=20, wind_speed=None,
-                            insulation_temperature_basis="indoor")) == 9.0
-    assert _calc_alpha(_cyl(wind_speed=4.0)) == pytest.approx(25.6)
+    indoor = calc_tank_heat_loss(
+        _cyl(
+            placement="indoor",
+            ambient_temperature=20,
+            wind_speed=None,
+            insulation_temperature_basis="indoor",
+        )
+    )
+    outdoor = calc_tank_heat_loss(_cyl(wind_speed=4.0))
+    assert indoor.alpha_vnesh_applied == pytest.approx(9.0)
+    assert outdoor.alpha_vnesh_applied == pytest.approx(25.6)
 
 
 def test_partly_buried_tank_uses_distinct_boundary_temperatures_and_areas():
