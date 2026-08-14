@@ -141,6 +141,7 @@ function renderPage(initialEntry = '/workspace/specification') {
 describe('SpecificationPage (integration) — er-scope-write', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.sessionStorage.clear();
     listElectricalVariantsMock.mockResolvedValue([firstVariant, fifthVariant]);
     useProjectStore.getState().setCurrentProject(null);
     useAuthStore.setState({
@@ -420,6 +421,14 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
     const settings = await screen.findByRole('dialog', { name: 'Настройки формирования спецификации' });
     await user.click(within(settings).getByRole('checkbox', { name: 'ЭР1' }));
     await user.click(within(settings).getByRole('checkbox', { name: 'ЭР2' }));
+    await user.type(
+      within(settings).getByRole('spinbutton', { name: 'Параметр L К2i' }),
+      '0',
+    );
+    await user.type(
+      within(settings).getByRole('spinbutton', { name: 'Параметр R гр' }),
+      '1',
+    );
     await user.click(within(settings).getByRole('button', { name: 'Сформировать' }));
 
     await waitFor(() => {
@@ -574,27 +583,66 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
       updated_at: '2026-08-04T10:00:00Z',
     };
     listElectricalVariantsMock.mockResolvedValue([firstVariant, secondVariant]);
+    let selectionAvailable = false;
     (getSpecification as ReturnType<typeof vi.fn>).mockImplementation(
       async (_projectId: string, electricalVariantId?: string) => (
-        electricalVariantId === firstVariant.id ? selectionRequiredSpec : null
+        selectionAvailable && electricalVariantId === firstVariant.id
+          ? selectionRequiredSpec
+          : null
       ),
     );
-    (generateSpecification as ReturnType<typeof vi.fn>).mockResolvedValue({
-      project_id: mockProject.id,
-      settings_version: 1,
-      results: [],
-    });
+    (generateSpecification as ReturnType<typeof vi.fn>)
+      .mockImplementationOnce(async () => {
+        selectionAvailable = true;
+        return {
+          project_id: mockProject.id,
+          settings_version: 1,
+          results: [{
+            electrical_variant_id: firstVariant.id,
+            status: 'selection_required',
+            items: [],
+            excluded_unassigned_object_ids: [],
+            diagnostics: selectionRequiredSpec.generation_diagnostics,
+            candidate_groups: selectionRequiredSpec.generation_candidate_groups,
+            snapshot: null,
+          }],
+        };
+      })
+      .mockResolvedValueOnce({
+        project_id: mockProject.id,
+        settings_version: 1,
+        results: [],
+      });
     useProjectStore.getState().setCurrentProject(mockProject);
     useCalculationVariantStore.getState().setSelectedVariantId(
       mockProject.id,
       firstVariant.id,
     );
 
-    renderPage();
+    const firstRender = renderPage();
+
+    await user.click(await screen.findByRole('button', { name: 'Сформировать' }));
+    const settings = await screen.findByRole('dialog', {
+      name: 'Настройки формирования спецификации',
+    });
+    await user.click(within(settings).getByRole('checkbox', { name: 'ЭР1' }));
+    await user.type(
+      within(settings).getByRole('spinbutton', { name: 'Параметр L К2i' }),
+      '12.5',
+    );
+    await user.type(
+      within(settings).getByRole('spinbutton', { name: 'Параметр R гр' }),
+      '1.25',
+    );
+    await user.click(within(settings).getByRole('button', { name: 'Сформировать' }));
+    expect(await screen.findByRole('button', { name: /Комплект F5 B/i })).toBeInTheDocument();
+
+    firstRender.unmount();
+    const reloadRender = renderPage();
 
     // GET restores persisted selection diagnostics after F5; it never starts a command.
     expect(await screen.findByRole('button', { name: /Комплект F5 B/i })).toBeInTheDocument();
-    expect(generateSpecification).not.toHaveBeenCalled();
+    expect(generateSpecification).toHaveBeenCalledTimes(1);
 
     const er1Tab = screen.getByRole('tab', { name: /Спецификация ЭР1/i });
     const er2Tab = screen.getByRole('tab', { name: /Спецификация ЭР2/i });
@@ -615,9 +663,23 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
       expect(generateSpecification).toHaveBeenCalledWith(
         mockProject.id,
         expect.objectContaining({
+          options: expect.objectContaining({
+            L_K2i_m: '12.5',
+            R_gr: '1.25',
+          }),
           catalog_selections: { 'opaque:er-1:connection': 'item-b' },
         }),
       );
     });
+
+    reloadRender.unmount();
+    window.sessionStorage.clear();
+    renderPage();
+    await user.click(await screen.findByRole('button', { name: /Комплект F5 A/i }));
+    await user.click(screen.getByRole('button', { name: /Применить выбор и сформировать/i }));
+    expect(generateSpecification).toHaveBeenCalledTimes(2);
+    expect(await screen.findByRole('dialog', {
+      name: 'Настройки формирования спецификации',
+    })).toBeInTheDocument();
   });
 });
