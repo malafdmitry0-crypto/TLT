@@ -180,10 +180,22 @@ def test_resolvers_and_low_level_branch_are_each_called_once() -> None:
             wraps=calculate_buried_tank_heat_loss,
         ) as buried_branch,
     ):
-        execute_prepared_tank(_air())
+        execute_prepared_tank(
+            _air(
+                layers=(
+                    PreparedTankLayer(
+                        0.08,
+                        "reference",
+                        mineral_wool_boards_120_law(),
+                        -60.0,
+                        400.0,
+                    ),
+                )
+            )
+        )
 
     tm.assert_called_once()
-    assert conductivity.call_count == 2
+    assert conductivity.call_count == 1
     alpha.assert_called_once()
     air_branch.assert_called_once()
     buried_branch.assert_not_called()
@@ -289,3 +301,27 @@ def test_prepared_tank_keeps_manual_constant_conductivity() -> None:
 
     assert result.insulation_temperature_c == pytest.approx(15.0)
     assert result.layer_conductivities_w_mk == (0.04, 0.05)
+
+
+def test_prepared_tank_keeps_manual_piecewise_tm_semantics() -> None:
+    result = execute_prepared_tank(
+        _air(
+            layers=(
+                PreparedTankLayer(
+                    0.08,
+                    "manual",
+                    PiecewiseConductivity(
+                        threshold_c=20.0,
+                        at_or_above=ConstantConductivity(0.05),
+                        below=ConstantConductivity(0.04),
+                    ),
+                    -90.0,
+                    600.0,
+                ),
+            ),
+            process_temperature_c=30.0,
+        )
+    )
+
+    assert result.insulation_temperature_c == pytest.approx(15.0)
+    assert result.layer_conductivities_w_mk == (0.04,)

@@ -150,14 +150,22 @@ def test_prepared_pipe_evaluates_tm_lambda_alpha_and_branch_once(
     implementation = cast(Any, pipe_evaluation)
     layers = (_pipe_layer(), _pipe_layer(thickness_m=0.03), _pipe_layer(thickness_m=0.02))
     tm = MagicMock(wraps=implementation.resolve_insulation_temperature)
-    wall_conductivity = MagicMock(wraps=implementation.evaluate_conductivity)
-    layer_conductivity = MagicMock(wraps=implementation.evaluate_insulation_conductivity)
+    shared_temperature_conductivity = MagicMock(wraps=implementation.evaluate_conductivity)
+    reference_conductivity = MagicMock(wraps=implementation.evaluate_insulation_conductivity)
     alpha = MagicMock(wraps=implementation.resolve_external_alpha)
     aboveground = MagicMock(wraps=implementation.calculate_aboveground_pipe)
     underground = MagicMock(wraps=implementation.calculate_underground_pipe)
     monkeypatch.setattr(pipe_evaluation, "resolve_insulation_temperature", tm)
-    monkeypatch.setattr(pipe_evaluation, "evaluate_conductivity", wall_conductivity)
-    monkeypatch.setattr(pipe_evaluation, "evaluate_insulation_conductivity", layer_conductivity)
+    monkeypatch.setattr(
+        pipe_evaluation,
+        "evaluate_conductivity",
+        shared_temperature_conductivity,
+    )
+    monkeypatch.setattr(
+        pipe_evaluation,
+        "evaluate_insulation_conductivity",
+        reference_conductivity,
+    )
     monkeypatch.setattr(pipe_evaluation, "resolve_external_alpha", alpha)
     monkeypatch.setattr(pipe_evaluation, "calculate_aboveground_pipe", aboveground)
     monkeypatch.setattr(pipe_evaluation, "calculate_underground_pipe", underground)
@@ -168,8 +176,8 @@ def test_prepared_pipe_evaluates_tm_lambda_alpha_and_branch_once(
     alpha.assert_called_once()
     aboveground.assert_called_once()
     underground.assert_not_called()
-    assert wall_conductivity.call_count == 1
-    assert layer_conductivity.call_count == len(layers)
+    assert shared_temperature_conductivity.call_count == 1 + len(layers)
+    reference_conductivity.assert_not_called()
 
 
 def test_underground_prepared_pipe_skips_alpha_and_uses_one_buried_branch(
@@ -225,12 +233,18 @@ def test_prepared_tank_evaluates_tm_lambda_alpha_and_one_branch(
     implementation = cast(Any, tank_evaluation)
     layers = (_tank_layer(), _tank_layer(thickness_m=0.04), _tank_layer(thickness_m=0.03))
     tm = MagicMock(wraps=implementation.resolve_insulation_temperature)
-    conductivity = MagicMock(wraps=implementation.evaluate_insulation_conductivity)
+    manual_conductivity = MagicMock(wraps=implementation.evaluate_conductivity)
+    reference_conductivity = MagicMock(wraps=implementation.evaluate_insulation_conductivity)
     alpha = MagicMock(wraps=implementation.resolve_external_alpha)
     air = MagicMock(wraps=implementation.calculate_air_tank_heat_loss)
     buried = MagicMock(wraps=implementation.calculate_buried_tank_heat_loss)
     monkeypatch.setattr(tank_evaluation, "resolve_insulation_temperature", tm)
-    monkeypatch.setattr(tank_evaluation, "evaluate_insulation_conductivity", conductivity)
+    monkeypatch.setattr(tank_evaluation, "evaluate_conductivity", manual_conductivity)
+    monkeypatch.setattr(
+        tank_evaluation,
+        "evaluate_insulation_conductivity",
+        reference_conductivity,
+    )
     monkeypatch.setattr(tank_evaluation, "resolve_external_alpha", alpha)
     monkeypatch.setattr(tank_evaluation, "calculate_air_tank_heat_loss", air)
     monkeypatch.setattr(tank_evaluation, "calculate_buried_tank_heat_loss", buried)
@@ -241,4 +255,5 @@ def test_prepared_tank_evaluates_tm_lambda_alpha_and_one_branch(
     alpha.assert_called_once()
     air.assert_called_once()
     buried.assert_not_called()
-    assert conductivity.call_count == len(layers)
+    assert manual_conductivity.call_count == len(layers)
+    reference_conductivity.assert_not_called()
