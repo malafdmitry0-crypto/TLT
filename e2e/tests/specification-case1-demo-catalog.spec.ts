@@ -113,7 +113,7 @@ async function prepareReadyElectricalVariant(
   return variant;
 }
 
-async function selectRequiredSetting(page: Page, label: string, option: string) {
+async function selectRequiredDropdownSetting(page: Page, label: string, option: string) {
   const input = page.getByRole('combobox', { name: label, exact: true });
   await input
     .locator('xpath=ancestor::*[contains(concat(" ", normalize-space(@class), " "), " ant-select ")][1]')
@@ -122,6 +122,28 @@ async function selectRequiredSetting(page: Page, label: string, option: string) 
   const dropdown = page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').last();
   await expect(dropdown).toBeVisible();
   await dropdown.getByText(option, { exact: true }).click();
+}
+
+async function selectRequiredBooleanSetting(
+  page: Page,
+  label: string,
+  option: 'Да' | 'Нет',
+) {
+  const group = page.getByRole('group', { name: label, exact: true });
+  const selected = group.getByRole('button', { name: option, exact: true });
+  const unselectedOption = option === 'Да' ? 'Нет' : 'Да';
+
+  await selected.click();
+  await expect(group.getByRole('button', {
+    name: option,
+    exact: true,
+    pressed: true,
+  })).toBeVisible();
+  await expect(group.getByRole('button', {
+    name: unselectedOption,
+    exact: true,
+    pressed: false,
+  })).toBeVisible();
 }
 
 test.describe('Case 1 demo catalog: desktop specification', () => {
@@ -175,13 +197,13 @@ test.describe('Case 1 demo catalog: desktop specification', () => {
     await expect(dialog.getByText('Объединить одинаковые (base+код)')).toHaveCount(0);
 
     await dialog.getByRole('button', { name: 'Выбрать все' }).click();
-    await selectRequiredSetting(
+    await selectRequiredDropdownSetting(
       page,
       'Группировка строк при формировании',
       'Разделять по типам объектов',
     );
     for (const label of ['Параметр Ex', 'Параметр К1i', 'Параметр К2i', 'Параметр Кiu']) {
-      await selectRequiredSetting(page, label, 'Нет');
+      await selectRequiredBooleanSetting(page, label, 'Нет');
     }
     await dialog.getByRole('spinbutton', { name: 'Параметр L К2i' }).fill('0');
     await dialog.getByRole('spinbutton', { name: 'Параметр R гр' }).fill('1');
