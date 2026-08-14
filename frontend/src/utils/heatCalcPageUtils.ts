@@ -373,7 +373,7 @@ export function draftErrorMessages(
   return Object.entries(errors).map(([fieldId, message]) => {
     if (fieldId === '_row') return message;
     const label = getHeatCalcFieldLabel(fieldId, {
-      context: 'settings',
+      context: fieldId === 'insulation_thickness_mm' ? 'form' : 'settings',
       objectType,
       variant: 'full',
     });
