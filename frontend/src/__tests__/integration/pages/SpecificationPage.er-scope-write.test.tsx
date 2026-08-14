@@ -334,7 +334,7 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
     await waitFor(() => expect(generate).not.toBeDisabled());
     expect(generateSpecification).toHaveBeenCalledTimes(1);
   });
-  it('keeps multi-ER catalog choices opaque and asks for unassigned confirmation separately', async () => {
+  it('carries multi-ER catalog choices through unassigned confirmation to generated', async () => {
     const user = (await import('@testing-library/user-event')).default.setup();
     const { generateSpecification, getSpecification } = await import('@/api/specifications');
     listElectricalVariantsMock.mockResolvedValue([firstVariant, secondVariant]);
@@ -375,16 +375,16 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
           {
             electrical_variant_id: secondVariant.id,
             status: 'confirmation_required',
-            total_objects: 1,
-            contributing_objects: 0,
+            total_objects: 2,
+            contributing_objects: 1,
             unassigned_object_ids: ['object-er2'],
-            excluded_unassigned_object_ids: ['object-er2'],
+            excluded_unassigned_object_ids: [],
             diagnostics: [{
               code: 'SPEC_UNASSIGNED_CONFIRMATION_REQUIRED',
               kind: 'confirmable',
               message: 'ЭР2 содержит неназначенный объект',
               issues: [],
-              details: {},
+              details: { unassigned_object_ids: ['object-er2'] },
             }],
             candidate_groups: [{
               group_key: 'opaque:er-2:repair',
@@ -413,7 +413,10 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
     (generateSpecification as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce({ project_id: mockProject.id, settings_version: 1, results: waitingResults })
       .mockResolvedValueOnce({ project_id: mockProject.id, settings_version: 1, results: [waitingResults[1]] })
-      .mockResolvedValueOnce({ project_id: mockProject.id, settings_version: 1, results: [] });
+      .mockResolvedValueOnce({ project_id: mockProject.id, settings_version: 1, results: [{
+        ...waitingResults[1], status: 'generated', diagnostics: [], candidate_groups: [],
+        excluded_unassigned_object_ids: ['object-er2'],
+      }] });
     useProjectStore.getState().setCurrentProject(mockProject);
     renderPage();
 
@@ -470,9 +473,15 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
       mockProject.id,
       expect.objectContaining({
         exclude_unassigned_confirmed: true,
-        catalog_selections: {},
+        catalog_selections: {
+          'opaque:er-1:connection': 'item-er1-b',
+          'opaque:er-2:repair': 'item-er2-a',
+        },
       }),
     );
+    await waitFor(() => expect(screen.queryByRole('dialog', {
+      name: 'Подтверждение исключения неназначенных объектов',
+    })).not.toBeInTheDocument());
   });
   it('не показывает write-actions сотруднику, который только читает чужой проект', async () => {
     const { getSpecification } = await import('@/api/specifications');
