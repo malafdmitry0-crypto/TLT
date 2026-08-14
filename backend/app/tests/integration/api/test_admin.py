@@ -1,14 +1,18 @@
 """Integration-тесты админки: users + coefficients + accessories."""
 
+from unittest.mock import AsyncMock
 from uuid import UUID
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.electrical_input_validation import PROCESS_TEMPERATURE_REQUIRED_MESSAGE
 from app.models.background_task import BackgroundTask
+from app.models.coefficient import CorrectionCoefficient
 from app.models.user import User
+from app.services.audit_service import AuditService
 from app.services.task_service import TASK_ELECTRICAL_BATCH
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
@@ -189,15 +193,69 @@ class TestAdminCoefficients:
         )
         assert resp.status_code == 400
 
-    async def test_create_new_coefficient(self, client: AsyncClient, admin_token: str):
-        # PUT для нового ключа должен создавать запись
+    async def test_update_unknown_coefficient_does_not_create_or_audit(
+        self,
+        client: AsyncClient,
+        admin_token: str,
+        db_session: AsyncSession,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        audit = AsyncMock()
+        monkeypatch.setattr(AuditService, "try_record", audit)
+        before_count = await db_session.scalar(
+            select(func.count()).select_from(CorrectionCoefficient)
+        )
+
         resp = await client.put(
-            "/api/v1/admin/coefficients/new_test_factor",
+            "/api/v1/admin/coefficients/typo_test_factor",
             json={"value": 0.95, "description": "Тестовый коэф"},
             headers={"Authorization": f"Bearer {admin_token}"},
         )
-        assert resp.status_code == 200
-        assert resp.json()["key"] == "new_test_factor"
+        after_count = await db_session.scalar(
+            select(func.count()).select_from(CorrectionCoefficient)
+        )
+
+        assert resp.status_code == 404, resp.text
+        assert after_count == before_count
+        audit.assert_not_awaited()
+
+    async def test_update_existing_coefficient_keeps_key_and_count(
+        self,
+        client: AsyncClient,
+        admin_token: str,
+        db_session: AsyncSession,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        coefficient = CorrectionCoefficient(
+            key="safety_factor",
+            value=1.1,
+            description="Старое описание",
+        )
+        db_session.add(coefficient)
+        await db_session.commit()
+        await db_session.refresh(coefficient)
+        before_count = await db_session.scalar(
+            select(func.count()).select_from(CorrectionCoefficient)
+        )
+        audit = AsyncMock()
+        monkeypatch.setattr(AuditService, "try_record", audit)
+
+        resp = await client.put(
+            "/api/v1/admin/coefficients/safety_factor",
+            json={"value": 1.25, "description": "Новое описание"},
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        after_count = await db_session.scalar(
+            select(func.count()).select_from(CorrectionCoefficient)
+        )
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["id"] == str(coefficient.id)
+        assert resp.json()["key"] == "safety_factor"
+        assert resp.json()["value"] == pytest.approx(1.25)
+        assert resp.json()["description"] == "Новое описание"
+        assert after_count == before_count
+        audit.assert_awaited_once()
 
     async def test_list_coefficients(self, client: AsyncClient, admin_token: str):
         resp = await client.get(
