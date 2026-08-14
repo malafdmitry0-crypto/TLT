@@ -10,7 +10,7 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 
-import app.services.calculation_service as calculation_service_module
+import app.services.heat_loss_application as heat_loss_application_module
 from app.schemas.calculation import PipeHeatLossParams, TankHeatLossParams
 from app.services.calculation_service import CalculationService
 
@@ -249,7 +249,7 @@ async def test_invalid_raw_input_is_rejected_before_formula_facade(
         schema.model_validate(payload)
 
     evaluator = MagicMock(name="evaluate_validated_heat_loss")
-    monkeypatch.setattr(calculation_service_module, "evaluate_validated_heat_loss", evaluator)
+    monkeypatch.setattr(heat_loss_application_module, "evaluate_validated_heat_loss", evaluator)
 
     project_payload = deepcopy(payload)
     project_payload["min_switch_temperature"] = -20.0
@@ -285,7 +285,7 @@ def test_zero_values_allowed_by_the_contract_still_reach_facades(
     tank_result = MagicMock()
     tank_result.model_dump.return_value = {"kind": "tank"}
     evaluator = MagicMock(side_effect=[pipe_result, tank_result])
-    monkeypatch.setattr(calculation_service_module, "evaluate_validated_heat_loss", evaluator)
+    monkeypatch.setattr(heat_loss_application_module, "evaluate_validated_heat_loss", evaluator)
     service = CalculationService(AsyncMock())
 
     pipe_payload = _pipe(num_local_elements=0, wind_speed=0.0)

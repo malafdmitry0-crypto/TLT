@@ -14,7 +14,7 @@ from app.schemas.calculation import (
     StoredPipeHeatParams,
     StoredTankHeatParams,
 )
-from app.services import calculation_service as calculation_service_module
+from app.services import heat_loss_application as heat_loss_application_module
 from app.services import project_object_params as project_params_module
 from app.services.calculation_service import CalculationService
 from app.services.project_object_params import (
@@ -100,7 +100,7 @@ async def test_recalculate_runs_one_stored_model_and_reuses_that_instance(
     monkeypatch.setattr(project_params_module, constructor_name, constructor)
     monkeypatch.setattr(heat_loss_schemas, validator_name, validator)
     monkeypatch.setattr(
-        calculation_service_module,
+        heat_loss_application_module,
         "evaluate_validated_heat_loss",
         evaluator_mock,
     )
@@ -216,7 +216,7 @@ async def test_core_domain_report_preserves_all_fields_and_stops_formula(
     ]
 
     evaluator = MagicMock(name="evaluate_validated_heat_loss")
-    monkeypatch.setattr(calculation_service_module, "evaluate_validated_heat_loss", evaluator)
+    monkeypatch.setattr(heat_loss_application_module, "evaluate_validated_heat_loss", evaluator)
     obj = cast(
         ProjectObject,
         SimpleNamespace(
@@ -274,7 +274,7 @@ async def test_climate_policy_finishes_before_the_only_stored_validation(
     evaluator_mock = MagicMock(side_effect=evaluate_validated_heat_loss)
     monkeypatch.setattr(project_params_module, "StoredPipeHeatParams", constructor)
     monkeypatch.setattr(
-        calculation_service_module,
+        heat_loss_application_module,
         "evaluate_validated_heat_loss",
         evaluator_mock,
     )
