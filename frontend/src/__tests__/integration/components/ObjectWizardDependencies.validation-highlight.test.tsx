@@ -181,7 +181,7 @@ describe('ObjectWizard dependencies — validation-highlight', () => {
     expect(screen.queryByTestId('wind-speed-input')).not.toBeInTheDocument();
   });
 
-  it('не помечает необязательные числовые поля резервуара как ручные', async () => {
+  it('помечает обязательные прямые числовые поля резервуара как ручные', async () => {
     const user = userEvent.setup();
     renderWizard({ objectType: 'tank' });
 
@@ -193,7 +193,7 @@ describe('ObjectWizard dependencies — validation-highlight', () => {
     expectFieldSource('insulation-thickness-input', 'вручную');
     expectFieldSource('tank-wall-thickness-input');
     expectFieldSource('tank-wall-lambda-input');
-    expectFieldSource('wind-speed-input');
+    expectFieldSource('wind-speed-input', 'вручную');
     expectFieldSource('tank-shape-select');
 
     await user.type(screen.getByTestId('tank-wall-thickness-input'), '12');
@@ -219,6 +219,49 @@ describe('ObjectWizard dependencies — validation-highlight', () => {
     const windField = windSpeed.closest('.ant-form-item');
     expect(windSpeed).toHaveAttribute('aria-required', 'true');
     expect(windSpeed.closest('.tlt-number-field')).toHaveAttribute('data-required', 'true');
+
+    await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
+
+    await waitFor(() => expect(windField).toHaveClass('ant-form-item-has-error'));
+    expect(windField).toHaveTextContent('Укажите значение');
+    expect(onSubmit).not.toHaveBeenCalled();
+
+    await user.type(windSpeed, '0');
+    await waitFor(() => expect(windField).not.toHaveClass('ant-form-item-has-error'));
+    await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit.mock.calls[0][0]).toEqual(expect.objectContaining({ wind_speed: 0 }));
+  });
+
+  it('блокирует сохранение наружного резервуара без скорости ветра и принимает 0 м/с', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    renderWizard({
+      objectType: 'tank',
+      onSubmit,
+      initialParams: {
+        name: 'Бак',
+        shape: 'cylindrical',
+        diameter: 2,
+        height: 3,
+        insulation_layers: [{ thickness: 0.08, material: 'mineral_wool' }],
+        insulation_temperature_basis: 'outdoor_winter',
+        ambient_temperature: -20,
+        process_temperature: 70,
+        min_switch_temperature: -20,
+        heating_height: 2,
+        laying_step: 0.2,
+        placement: 'outdoor',
+        wind_speed: undefined,
+      },
+    });
+
+    const windSpeed = await screen.findByTestId('wind-speed-input');
+    const windField = formItemFor('wind-speed-input');
+    expect(windSpeed).toHaveAttribute('aria-required', 'true');
+    expect(windSpeed.closest('.tlt-number-field')).toHaveAttribute('data-required', 'true');
+    expectFieldSource('wind-speed-input', 'вручную');
 
     await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
 
