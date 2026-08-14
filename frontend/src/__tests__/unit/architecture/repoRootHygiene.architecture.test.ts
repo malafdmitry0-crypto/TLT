@@ -35,6 +35,7 @@ const ALLOWED_ROOT_FILES = new Set([
   'docker-compose.e2e.yml',
   'docker-compose.observability.yml',
   'docker-compose.prod.yml',
+  'docker-compose.worker-chaos.yml',
   'docker-compose.yml',
 ]);
 
