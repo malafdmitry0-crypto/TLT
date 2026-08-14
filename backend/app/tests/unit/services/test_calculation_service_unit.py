@@ -854,8 +854,12 @@ class TestBatchRecalculate:
         assert len(errors) == 1
         assert errors[0]["object_id"] == str(objects[1].id)
         assert errors[0]["error"]["message"] == "process temperature ниже ambient"
-        assert errors[0]["error"]["error_code"] == "invalid_object_params"
-        assert errors[0]["error"]["category"] == "validation"
+        assert errors[0]["error"]["error_code"] == "heat_loss_formula_error"
+        assert errors[0]["error"]["category"] == "formula"
+        assert errors[0]["error"]["field"] is None
+        assert errors[0]["error"]["hint"] == (
+            "Расчётная формула завершилась ошибкой; проверьте исходные данные."
+        )
         assert db.execute.query_names == ["project_lock", "object_count", "object_chunk"]
         db.commit.assert_awaited_once()
 
