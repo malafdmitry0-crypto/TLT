@@ -4657,7 +4657,8 @@
             "placement",
             "tank_buried_height",
             "ground_type",
-            "ground_conductivity"
+            "ground_conductivity",
+            "ground_temperature"
           ]
         },
         {
