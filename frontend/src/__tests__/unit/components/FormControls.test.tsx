@@ -60,6 +60,121 @@ describe('form controls', () => {
     expect(handleChange).toHaveBeenLastCalledWith(12);
   });
 
+  it('keeps the default min/max clamp on blur', async () => {
+    const user = userEvent.setup();
+    const handleChange = vi.fn();
+
+    render(
+      <TltNumberField
+        aria-label="Температура по умолчанию"
+        min={-70}
+        max={70}
+        onChange={handleChange}
+      />,
+    );
+
+    const input = screen.getByRole('spinbutton', { name: 'Температура по умолчанию' });
+    await user.type(input, '999');
+    expect(input).toHaveValue('999');
+
+    fireEvent.blur(input);
+
+    expect(input).toHaveValue('70');
+    expect(handleChange).toHaveBeenLastCalledWith(70);
+
+    await user.clear(input);
+    await user.type(input, '-999');
+    fireEvent.blur(input);
+
+    expect(input).toHaveValue('-70');
+    expect(handleChange).toHaveBeenLastCalledWith(-70);
+  });
+
+  it('keeps an opted-in out-of-range draft controlled after blur', async () => {
+    const user = userEvent.setup();
+    const handleChange = vi.fn();
+    const handlePressEnter = vi.fn();
+
+    function ControlledDraftField() {
+      const [value, setValue] = useState<number | null>(null);
+      return (
+        <TltNumberField
+          aria-label="Температура без автокоррекции"
+          min={-70}
+          max={70}
+          onChange={(nextValue) => {
+            setValue(nextValue);
+            handleChange(nextValue);
+          }}
+          onPressEnter={handlePressEnter}
+          preserveOutOfRangeDraft
+          value={value}
+        />
+      );
+    }
+
+    render(<ControlledDraftField />);
+
+    const input = screen.getByRole('spinbutton', { name: 'Температура без автокоррекции' });
+    await user.type(input, '999');
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(handlePressEnter).toHaveBeenCalledTimes(1);
+    expect(input).toHaveValue('999');
+    fireEvent.blur(input);
+
+    expect(input).toHaveValue('999');
+    expect(handleChange).toHaveBeenLastCalledWith(999);
+
+    await user.clear(input);
+    await user.type(input, '-999');
+    fireEvent.blur(input);
+    expect(input).toHaveValue('-999');
+    expect(handleChange).toHaveBeenLastCalledWith(-999);
+
+    await user.clear(input);
+    await user.type(input, '-70');
+    fireEvent.blur(input);
+    expect(input).toHaveValue('-70');
+    expect(handleChange).toHaveBeenLastCalledWith(-70);
+
+    await user.clear(input);
+    await user.type(input, '70');
+    fireEvent.blur(input);
+    expect(input).toHaveValue('70');
+    expect(handleChange).toHaveBeenLastCalledWith(70);
+
+    await user.clear(input);
+    await user.type(input, '12,5');
+    fireEvent.blur(input);
+    expect(input).toHaveValue('12,5');
+    expect(handleChange).toHaveBeenLastCalledWith(12.5);
+
+    await user.clear(input);
+    fireEvent.blur(input);
+    expect(input).toHaveValue('');
+    expect(handleChange).toHaveBeenLastCalledWith(null);
+  });
+
+  it('passes the out-of-range draft contract through UnitInputNumber', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <UnitInputNumber
+        aria-label="Температура с единицей"
+        min={-70}
+        max={70}
+        preserveOutOfRangeDraft
+        unit="°C"
+      />,
+    );
+
+    const input = screen.getByRole('spinbutton', { name: 'Температура с единицей' });
+    await user.type(input, '999');
+    fireEvent.blur(input);
+
+    expect(input).toHaveValue('999');
+  });
+
   it('preserves AntD-compatible onPressEnter behavior for number fields', () => {
     const handlePressEnter = vi.fn();
 
