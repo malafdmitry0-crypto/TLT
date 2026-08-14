@@ -232,6 +232,19 @@ def _formula_validation_error(
     )
 
 
+def _message_only_validation_error(*, field: str, message: str) -> ValidationError:
+    return ValidationError.from_exception_data(
+        "HeatLossParams",
+        [
+            InitErrorDetails(
+                type=PydanticCustomError("message_only", message),
+                loc=(field,),
+                input=0.0,
+            )
+        ],
+    )
+
+
 @pytest.mark.parametrize(
     "name",
     [
@@ -1090,54 +1103,85 @@ def test_ordinary_validation_error_uses_schema_payload() -> None:
 
 
 @pytest.mark.parametrize(
-    ("message", "expected"),
+    "message",
     [
         pytest.param(
             "Неподдерживаемый тип объекта: pump",
-            {
-                "error_code": "unsupported_object_type",
-                "category": "unsupported",
-                "message": "Неподдерживаемый тип объекта: pump",
-                "field": "object_type",
-                "hint": "Выберите поддерживаемый тип или форму объекта.",
-            },
             id="unsupported-object",
         ),
         pytest.param(
             "Неизвестная форма резервуара: sphere",
-            {
-                "error_code": "unsupported_shape",
-                "category": "unsupported",
-                "message": "Неизвестная форма резервуара: sphere",
-                "field": "shape",
-                "hint": "Выберите поддерживаемый тип или форму объекта.",
-            },
             id="unknown-shape",
         ),
-        pytest.param(
-            "Диаметр должен быть положительным",
-            {
-                "error_code": "invalid_object_params",
-                "category": "validation",
-                "message": "Диаметр должен быть положительным",
-                "field": None,
-                "hint": DEFAULT_VALIDATION_HINT,
-            },
-            id="russian-marker",
-        ),
+        pytest.param("Слой требует материал", id="requires-singular"),
+        pytest.param("Для слоёв требуются материалы", id="requires-plural"),
+        pytest.param("Требуется значение", id="required"),
+        pytest.param("Диаметр должен быть положительным", id="must-positive"),
+        pytest.param("Значение вне диапазона", id="range"),
+        pytest.param("Ожидается положительное значение", id="positive"),
+        pytest.param("Температура выше предела", id="above"),
+        pytest.param("Температура ниже предела", id="below"),
+        pytest.param("Толщина превышает радиус", id="exceeds"),
+        pytest.param("Значение не может быть нулевым", id="cannot"),
     ],
 )
-def test_generic_exception_payload_branches_are_frozen(
-    message: str,
-    expected: dict[str, object],
+def test_generic_exception_messages_use_formula_payload(message: str) -> None:
+    assert heat_loss_application_module.build_heat_loss_error_payload(
+        Exception(message),
+        object_type="pipe",
+    ) == {
+        "error_code": "heat_loss_formula_error",
+        "category": "formula",
+        "message": message,
+        "field": None,
+        "hint": FORMULA_ERROR_HINT,
+    }
+
+
+@pytest.mark.parametrize(
+    "formula_code",
+    [
+        "process_temperature_not_above_ambient",
+        "process_temperature_not_above_ground",
+    ],
+)
+def test_process_temperature_message_without_formula_code_uses_schema_payload(
+    formula_code: str,
 ) -> None:
-    assert (
-        heat_loss_application_module.build_heat_loss_error_payload(
-            Exception(message),
-            object_type="pipe",
-        )
-        == expected
+    error = _message_only_validation_error(
+        field="process_temperature",
+        message=f"{formula_code}: совпадающий текст без structured context",
     )
+    assert "formula_code" not in error.errors()[0].get("ctx", {})
+
+    payload = heat_loss_application_module.build_heat_loss_error_payload(
+        error,
+        object_type="pipe",
+    )
+
+    assert payload == {
+        "error_code": "schema_validation_error",
+        "category": "validation",
+        "message": str(error),
+        "field": "process_temperature",
+        "hint": "Проверьте формат и диапазоны значений.",
+    }
+
+
+def test_project_object_params_message_does_not_replace_missing_typed_code() -> None:
+    message = "Неподдерживаемый тип объекта: message-only"
+    error = ProjectObjectParamsError(message, fields=("object_type",))
+
+    assert heat_loss_application_module.build_heat_loss_error_payload(
+        error,
+        object_type="pipe",
+    ) == {
+        "error_code": "invalid_object_params",
+        "category": "validation",
+        "message": message,
+        "field": None,
+        "hint": DEFAULT_VALIDATION_HINT,
+    }
 
 
 def test_heat_loss_application_has_no_orm_or_calculation_service_imports() -> None:

@@ -56,13 +56,6 @@ def _clean_exception_message(exc: Exception) -> str:
     return message or type(exc).__name__
 
 
-def _missing_fields_from_message(message: str) -> list[str]:
-    prefix = "Не заполнены обязательные поля объекта:"
-    if prefix not in message:
-        return []
-    return [field.strip() for field in message.split(prefix, 1)[1].split(",") if field.strip()]
-
-
 def _first_validation_field(exc: ValidationError) -> str | None:
     errors = exc.errors()
     if not errors:
@@ -83,12 +76,7 @@ def build_heat_loss_error_payload(
     """Structured `project_objects.validation_errors`."""
 
     message = _clean_exception_message(exc)
-    lower_message = message.lower()
-    category = "validation"
-    error_code = "invalid_object_params"
-    field: str | None = None
     hint: str | None = "Проверьте параметры объекта и повторите расчёт."
-    extra: dict[str, Any] = {}
 
     if isinstance(exc, HeatLossPreparationError):
         if not exc.path:
@@ -102,16 +90,11 @@ def build_heat_loss_error_payload(
             "hint": hint,
         }
 
-    if "process_temperature_not_above_ambient" in message:
-        error_code = "process_temperature_not_above_ambient"
-        field = "process_temperature"
-        hint = "Температура продукта должна быть выше температуры воздуха."
-    elif "process_temperature_not_above_ground" in message:
-        error_code = "process_temperature_not_above_ground"
-        field = "process_temperature"
-        hint = "Температура продукта должна быть выше температуры грунта."
     if isinstance(exc, ProjectObjectParamsError):
-        missing_fields = _missing_fields_from_message(message)
+        category = "validation"
+        error_code = "invalid_object_params"
+        field: str | None = None
+        extra: dict[str, Any] = {}
         structured_fields = list(exc.fields)
         if exc.reason == "process_temperature_not_above_ambient":
             error_code = exc.reason
@@ -123,6 +106,11 @@ def build_heat_loss_error_payload(
             field = "process_temperature"
             message = "Температура продукта должна быть выше температуры грунта."
             hint = message
+        elif exc.code == "OBJECT_TYPE_UNSUPPORTED":
+            category = "unsupported"
+            error_code = "unsupported_object_type"
+            field = "object_type"
+            hint = "Для теплорасчёта поддерживаются только трубопроводы и резервуары."
         elif exc.code == "OBJECT_REQUIRED_FIELDS_MISSING":
             error_code = "missing_required_fields"
             field = structured_fields[0] if len(structured_fields) == 1 else None
@@ -135,63 +123,53 @@ def build_heat_loss_error_payload(
                     validation_field: message for validation_field in structured_fields
                 }
             hint = "Проверьте формат и диапазоны значений."
-        elif "неподдерживаемый тип объекта" in lower_message:
-            category = "unsupported"
-            error_code = "unsupported_object_type"
-            field = "object_type"
-            hint = "Для теплорасчёта поддерживаются только трубопроводы и резервуары."
-        elif "режим tm" in lower_message or "режим температуры изоляции" in lower_message:
-            field = "insulation_temperature_basis"
-            hint = "Выберите режим tm, соответствующий размещению объекта."
-        elif missing_fields:
-            error_code = "missing_required_fields"
-            field = missing_fields[0] if len(missing_fields) == 1 else None
-            extra["missing_fields"] = missing_fields
-            hint = "Заполните обязательные поля объекта."
-    elif isinstance(exc, ValidationError):
-        if "process_temperature_not_above_ambient" not in message and (
-            "process_temperature_not_above_ground" not in message
-        ):
-            error_code = "schema_validation_error"
-        if error_code == "schema_validation_error":
-            field = _first_validation_field(exc)
-        if error_code == "schema_validation_error":
+        return {
+            "error_code": error_code,
+            "category": category,
+            "message": message,
+            "field": field,
+            "hint": hint,
+            **extra,
+        }
+
+    if isinstance(exc, ValidationError):
+        process_temperature_code = next(
+            (
+                str(context["formula_code"])
+                for error in exc.errors()
+                if isinstance((context := error.get("ctx")), dict)
+                and context.get("formula_code")
+                in (
+                    "process_temperature_not_above_ambient",
+                    "process_temperature_not_above_ground",
+                )
+            ),
+            None,
+        )
+        if process_temperature_code == "process_temperature_not_above_ambient":
+            hint = "Температура продукта должна быть выше температуры воздуха."
+        elif process_temperature_code == "process_temperature_not_above_ground":
+            hint = "Температура продукта должна быть выше температуры грунта."
+        else:
             hint = "Проверьте формат и диапазоны значений."
-    elif "неподдерживаемый тип объекта" in lower_message or "неизвестная форма" in lower_message:
-        category = "unsupported"
-        error_code = (
-            "unsupported_object_type" if "тип объекта" in lower_message else "unsupported_shape"
-        )
-        field = "object_type" if "тип объекта" in lower_message else "shape"
-        hint = "Выберите поддерживаемый тип или форму объекта."
-    elif any(
-        marker in lower_message
-        for marker in (
-            "требует",
-            "требуются",
-            "требуется",
-            "долж",
-            "диапазон",
-            "положитель",
-            "выше",
-            "ниже",
-            "превыш",
-            "не может",
-        )
-    ):
-        error_code = "invalid_object_params"
-    else:
-        category = "formula"
-        error_code = "heat_loss_formula_error"
-        hint = "Расчётная формула завершилась ошибкой; проверьте исходные данные."
+        return {
+            "error_code": process_temperature_code or "schema_validation_error",
+            "category": "validation",
+            "message": message,
+            "field": (
+                "process_temperature"
+                if process_temperature_code is not None
+                else _first_validation_field(exc)
+            ),
+            "hint": hint,
+        }
 
     return {
-        "error_code": error_code,
-        "category": category,
+        "error_code": "heat_loss_formula_error",
+        "category": "formula",
         "message": message,
-        "field": field,
-        "hint": hint,
-        **extra,
+        "field": None,
+        "hint": "Расчётная формула завершилась ошибкой; проверьте исходные данные.",
     }
 
 
