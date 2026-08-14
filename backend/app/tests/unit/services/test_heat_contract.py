@@ -1,6 +1,6 @@
 """Characterization and contract tests for heat-owned JSON fields."""
 
-from app.schemas.calculation import PipeHeatLossResult, TankHeatLossParams, TankHeatLossResult
+from app.schemas.heat_loss import PipeHeatLossResult, TankHeatLossParams, TankHeatLossResult
 from app.services.heat_contract import (
     CANONICAL_HEAT_RESULT_KEYS,
     DEPRECATED_HEAT_PARAM_KEYS,

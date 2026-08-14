@@ -9,7 +9,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.formulas.heat_loss.pipe import calc_pipe_heat_loss
-from app.schemas.calculation import PipeHeatLossParams, StoredPipeHeatParams
+from app.schemas.heat_loss import PipeHeatLossParams, StoredPipeHeatParams
 from app.schemas.project import ProjectObjectCreate, ProjectObjectUpdate
 from app.services.calculation_service import CalculationService
 from app.services.heat_contract import replace_heat_owned_params

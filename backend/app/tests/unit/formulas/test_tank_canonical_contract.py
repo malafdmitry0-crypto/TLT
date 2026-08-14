@@ -3,7 +3,7 @@ import math
 import pytest
 
 from app.formulas.heat_loss.tank import calc_tank_heat_loss
-from app.schemas.calculation import TankHeatLossParams
+from app.schemas.heat_loss import TankHeatLossParams
 
 
 def _tank(**overrides: object) -> TankHeatLossParams:

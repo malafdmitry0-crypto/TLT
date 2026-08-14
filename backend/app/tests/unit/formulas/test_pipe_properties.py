@@ -25,7 +25,7 @@ from app.formulas.heat_loss.pipe import (
     calc_pipe_heat_loss,
     pipe_material_lambda,
 )
-from app.schemas.calculation import InsulationLayer, PipeHeatLossParams
+from app.schemas.heat_loss import InsulationLayer, PipeHeatLossParams
 
 MINERAL_WOOL = "mineral_wool_boards_120"
 LOW_LAMBDA_INSULATION = "polyurethane_products_40"

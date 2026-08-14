@@ -22,7 +22,7 @@ from app.formulas.heat_loss import tank as tank_facade
 from app.formulas.heat_loss.catalog_preparation import HeatLossPreparationError
 from app.models.project_object import ProjectObject
 from app.reference_data import loader as reference_loader
-from app.schemas.calculation import InsulationLayer, PipeHeatLossParams, TankHeatLossParams
+from app.schemas.heat_loss import InsulationLayer, PipeHeatLossParams, TankHeatLossParams
 from app.services.calculation_service import CalculationService
 from app.services.heat_loss_application import pipe_params_with_effective_safety_factor
 

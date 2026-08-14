@@ -11,7 +11,7 @@ from pydantic import ValidationError
 from app.formulas.heat_loss import pipe as pipe_facade
 from app.reference_data import loader as reference_loader
 from app.schemas import heat_loss as heat_loss_schemas
-from app.schemas.calculation import PipeHeatLossParams, TankHeatLossParams
+from app.schemas.heat_loss import PipeHeatLossParams, TankHeatLossParams
 
 MINERAL_WOOL = "mineral_wool_boards_120"
 
