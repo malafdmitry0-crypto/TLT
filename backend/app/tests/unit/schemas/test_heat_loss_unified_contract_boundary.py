@@ -10,7 +10,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.schemas import heat_loss as heat_loss_schemas
-from app.schemas.calculation import (
+from app.schemas.heat_loss import (
     InsulationLayer,
     PipeHeatLossParams,
     StoredPipeHeatParams,

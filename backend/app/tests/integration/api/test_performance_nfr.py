@@ -407,7 +407,7 @@ class TestStress1000Objects:
         # объекты идентичны, так что результат один. is_valid=True, чтобы
         # batch_calc_electrical не отфильтровал их.
         from app.formulas.heat_loss.pipe import calc_pipe_heat_loss
-        from app.schemas.calculation import PipeHeatLossParams
+        from app.schemas.heat_loss import PipeHeatLossParams
 
         electrical_only_fields = {"min_switch_temperature"}
         pipe_params_api = {

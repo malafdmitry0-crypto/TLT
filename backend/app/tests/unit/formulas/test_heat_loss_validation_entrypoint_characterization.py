@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from app.formulas.heat_loss.evaluator import evaluate_validated_heat_loss
-from app.schemas.calculation import PipeHeatLossParams, TankHeatLossParams
+from app.schemas.heat_loss import PipeHeatLossParams, TankHeatLossParams
 from app.services import heat_loss_application
 
 

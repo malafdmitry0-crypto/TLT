@@ -16,14 +16,6 @@ from app.schemas.heat_loss import BatchCalcResponse as BatchCalcResponse
 from app.schemas.heat_loss import HeatLossBatchJobRequest as HeatLossBatchJobRequest
 from app.schemas.heat_loss import HeatLossRequest as HeatLossRequest
 from app.schemas.heat_loss import HeatLossResponse as HeatLossResponse
-from app.schemas.heat_loss import InsulationLayer as InsulationLayer
-from app.schemas.heat_loss import InsulationLayerApplied as InsulationLayerApplied
-from app.schemas.heat_loss import PipeHeatLossParams as PipeHeatLossParams
-from app.schemas.heat_loss import PipeHeatLossResult as PipeHeatLossResult
-from app.schemas.heat_loss import StoredPipeHeatParams as StoredPipeHeatParams
-from app.schemas.heat_loss import StoredTankHeatParams as StoredTankHeatParams
-from app.schemas.heat_loss import TankHeatLossParams as TankHeatLossParams
-from app.schemas.heat_loss import TankHeatLossResult as TankHeatLossResult
 from app.schemas.project import (
     ObjectQueryDefaultSort,
     ObjectQueryFieldCapability,

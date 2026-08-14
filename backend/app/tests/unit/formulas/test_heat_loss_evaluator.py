@@ -7,7 +7,7 @@ import pytest
 
 from app.formulas.heat_loss import evaluator as evaluator_module
 from app.formulas.heat_loss.evaluator import evaluate_validated_heat_loss
-from app.schemas.calculation import (
+from app.schemas.heat_loss import (
     PipeHeatLossParams,
     PipeHeatLossResult,
     TankHeatLossParams,
