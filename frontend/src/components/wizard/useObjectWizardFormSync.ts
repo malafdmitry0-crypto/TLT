@@ -24,7 +24,7 @@ import {
   isHeatCalcFieldVisible,
   heatCalcRequiredFieldMessage,
 } from '@/domain/heatCalcFieldRules';
-import type { ClimateBasis } from './objectWizardClimateModel';
+import { climateKey, type ClimateBasis } from './objectWizardClimateModel';
 import {
   isEmptyFormValue,
   type CalculationFieldError,
@@ -96,6 +96,7 @@ export function useObjectWizardFormSync({
   const localRequiredFieldErrorNamesRef = useRef<string[]>([]);
   const requiredFieldSyncTimerRef = useRef<number | null>(null);
   const prevSuggestedRef = useRef<string>('');
+  const pendingClimateSelectionKeyRef = useRef<string | null>(null);
 
   useEffect(() => () => {
     if (requiredFieldSyncTimerRef.current != null) {
@@ -192,11 +193,21 @@ export function useObjectWizardFormSync({
 
   useEffect(() => {
     if (!selectedClimate) return;
-    // Ручной ввод климат не перебивает — то же правило, что у бэкенда.
-    const nextValues = buildClimateSyncValues(selectedClimate, climateBasis, {
-      ambient: form.getFieldValue('ambient_temperature_source') === 'manual',
-      wind: form.getFieldValue('wind_speed_source') === 'manual',
-    });
+    const selectedKey = climateKey(selectedClimate);
+    const pendingKey = pendingClimateSelectionKeyRef.current;
+    if (pendingKey && pendingKey !== selectedKey) return;
+    const explicitlySelected = pendingKey === selectedKey;
+    const nextValues = buildClimateSyncValues(
+      selectedClimate,
+      climateBasis,
+      explicitlySelected
+        ? {}
+        : {
+            ambient: form.getFieldValue('ambient_temperature_source') === 'manual',
+            wind: form.getFieldValue('wind_speed_source') === 'manual',
+          },
+    );
+    if (explicitlySelected) pendingClimateSelectionKeyRef.current = null;
     form.setFieldsValue(nextValues);
     onDraftValuesChange?.(nextValues, form.getFieldsValue(true) as Record<string, unknown>);
   }, [climateBasis, form, onDraftValuesChange, selectedClimate]);
@@ -290,8 +301,13 @@ export function useObjectWizardFormSync({
       );
       if (placementSync) setSyncedFields(placementSync);
     }
-    if (Object.prototype.hasOwnProperty.call(changed, 'climate_key') && !changed.climate_key) {
-      setSyncedFields(buildClearedClimateKeySync(form));
+    if (Object.prototype.hasOwnProperty.call(changed, 'climate_key')) {
+      if (changed.climate_key) {
+        pendingClimateSelectionKeyRef.current = String(changed.climate_key);
+      } else {
+        pendingClimateSelectionKeyRef.current = null;
+        setSyncedFields(buildClearedClimateKeySync(form));
+      }
     }
     if (Object.prototype.hasOwnProperty.call(changed, 'ambient_temperature')) {
       setSyncedFields({ ambient_temperature_source: 'manual' });

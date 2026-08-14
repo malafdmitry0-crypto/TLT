@@ -332,6 +332,74 @@ describe('useObjectWizardFormSync', () => {
     expect(onDraftValuesChange).toHaveBeenCalled();
   });
 
+  it('overwrites manual climate fields on explicit selection and preserves later manual edits', () => {
+    const moscowClimate = {
+      city: 'Москва',
+      region: 'Москва',
+      t_0_92: -25,
+      t_0_98: -28,
+      t_abs_min: -42,
+      wind_avg_cold: 4.2,
+    };
+    const omskClimate = {
+      city: 'Омск',
+      region: 'Омская область',
+      t_0_92: -31,
+      t_0_98: -34,
+      t_abs_min: -45,
+      wind_avg_cold: 5.1,
+    };
+    const { result, rerender, getForm } = renderFormSync();
+
+    act(() => {
+      getForm().setFieldsValue({
+        ambient_temperature: 12,
+        ambient_temperature_source: 'manual',
+        wind_speed: 9,
+        wind_speed_source: 'manual',
+        climate_key: 'Москва|||Москва',
+      });
+      result.current.handleValuesChange({ climate_key: 'Москва|||Москва' });
+    });
+    rerender({ selectedClimate: moscowClimate, climateBasis: 't_0_92' });
+
+    expect(getForm().getFieldsValue([
+      'ambient_temperature',
+      'ambient_temperature_source',
+      'wind_speed',
+      'wind_speed_source',
+    ])).toEqual({
+      ambient_temperature: -25,
+      ambient_temperature_source: 'climate',
+      wind_speed: 4.2,
+      wind_speed_source: 'climate',
+    });
+
+    act(() => {
+      getForm().setFieldsValue({ ambient_temperature: 10 });
+      result.current.handleValuesChange({ ambient_temperature: 10 });
+    });
+    rerender({
+      selectedClimate: moscowClimate,
+      climateBasis: 't_0_92',
+      onDraftValuesChange: vi.fn(),
+    });
+
+    expect(getForm().getFieldValue('ambient_temperature')).toBe(10);
+    expect(getForm().getFieldValue('ambient_temperature_source')).toBe('manual');
+
+    act(() => {
+      getForm().setFieldsValue({ climate_key: 'Омская область|||Омск' });
+      result.current.handleValuesChange({ climate_key: 'Омская область|||Омск' });
+    });
+    rerender({ selectedClimate: omskClimate, climateBasis: 't_0_92' });
+
+    expect(getForm().getFieldValue('ambient_temperature')).toBe(-31);
+    expect(getForm().getFieldValue('ambient_temperature_source')).toBe('climate');
+    expect(getForm().getFieldValue('wind_speed')).toBe(5.1);
+    expect(getForm().getFieldValue('wind_speed_source')).toBe('climate');
+  });
+
   it('syncs ground conductivity from soil options when ground type is set', () => {
     const { rerender, getForm } = renderFormSync();
 
