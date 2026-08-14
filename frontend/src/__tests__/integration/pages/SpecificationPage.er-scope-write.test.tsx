@@ -129,13 +129,14 @@ const fifthVariant: ElectricalVariant = {
 
 function renderPage(initialEntry = '/workspace/specification') {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  const rendered = render(
     <QueryClientProvider client={qc}>
       <TestMemoryRouter initialEntries={[initialEntry]}>
         <SpecificationPage />
       </TestMemoryRouter>
     </QueryClientProvider>
   );
+  return { ...rendered, queryClient: qc };
 }
 
 describe('SpecificationPage (integration) — er-scope-write', () => {
@@ -334,12 +335,16 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
     await waitFor(() => expect(generate).not.toBeDisabled());
     expect(generateSpecification).toHaveBeenCalledTimes(1);
   });
-  it('carries multi-ER catalog choices through unassigned confirmation to generated', async () => {
+  it('routes selection, confirmation, mixed and blocked generation outcomes', async () => {
     const user = (await import('@testing-library/user-event')).default.setup();
     const { generateSpecification, getSpecification } = await import('@/api/specifications');
     listElectricalVariantsMock.mockResolvedValue([firstVariant, secondVariant]);
     (getSpecification as ReturnType<typeof vi.fn>).mockResolvedValue(null);
     const fp = `sha256:${'a'.repeat(64)}`;
+    const blocker = {
+      code: 'SPEC_VARIANT_NOT_READY', kind: 'blocking', message: 'ЭР1 не готов', issues: [], details: {},
+    };
+    const catalogBlocker = { ...blocker, code: 'SPEC_CATALOG_UNAVAILABLE', message: 'Каталог недоступен' };
     const waitingResults = [
           {
             electrical_variant_id: firstVariant.id,
@@ -386,39 +391,24 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
               issues: [],
               details: { unassigned_object_ids: ['object-er2'] },
             }],
-            candidate_groups: [{
-              group_key: 'opaque:er-2:repair',
-              electrical_variant_id: secondVariant.id,
-              category: 'repair_kit',
-              conditions: {},
-              selection_source: 'none',
-              candidate_set_fingerprint: fp,
-              candidates: [
-                {
-                  catalog_item_id: 'item-er2-a', catalog_id: 'catalog-1', catalog_version: 'v1',
-                  category: 'repair_kit', name: 'Ремкомплект ЭР2 A', mark: 'RA',
-                  nomenclature_code: '003', supply_unit: 'шт.',
-                },
-                {
-                  catalog_item_id: 'item-er2-b', catalog_id: 'catalog-1', catalog_version: 'v1',
-                  category: 'repair_kit', name: 'Ремкомплект ЭР2 B', mark: 'RB',
-                  nomenclature_code: '004', supply_unit: 'шт.',
-                },
-              ],
-              selected_catalog_item_id: null,
-            }],
+            candidate_groups: [],
             catalog_selections: {},
           },
         ];
     (generateSpecification as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce({ project_id: mockProject.id, settings_version: 1, results: waitingResults })
       .mockResolvedValueOnce({ project_id: mockProject.id, settings_version: 1, results: [waitingResults[1]] })
-      .mockResolvedValueOnce({ project_id: mockProject.id, settings_version: 1, results: [{
-        ...waitingResults[1], status: 'generated', diagnostics: [], candidate_groups: [],
-        excluded_unassigned_object_ids: ['object-er2'],
-      }] });
+      .mockResolvedValueOnce({ project_id: mockProject.id, settings_version: 1, results: [
+        { ...waitingResults[1], status: 'generated', diagnostics: [], candidate_groups: [],
+          excluded_unassigned_object_ids: ['object-er2'] },
+        { ...waitingResults[0], status: 'blocked', diagnostics: [blocker], candidate_groups: [] },
+      ] })
+      .mockResolvedValueOnce({ project_id: mockProject.id, settings_version: 1, results: [
+        { ...waitingResults[0], status: 'blocked', diagnostics: [catalogBlocker], candidate_groups: [] },
+      ] });
     useProjectStore.getState().setCurrentProject(mockProject);
-    renderPage();
+    const { queryClient } = renderPage();
+    const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries');
 
     await user.click(await screen.findByRole('button', { name: 'Сформировать' }));
     const settings = await screen.findByRole('dialog', { name: 'Настройки формирования спецификации' });
@@ -434,22 +424,13 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
     );
     await user.click(within(settings).getByRole('button', { name: 'Сформировать' }));
 
-    await waitFor(() => {
-      for (const button of screen.getAllByRole('button', { name: 'Сформировать' })) {
-        expect(button).toBeDisabled();
-      }
-      expect(screen.getByRole('button', { name: 'Настройки' })).toBeDisabled();
-    });
-
-    // A selection_required response must keep every required choice inside the
-    // active workflow dialog. Rendering the panel behind the modal makes the
-    // backend's fail-closed response impossible to resolve from the UI.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Настройки' })).toBeDisabled());
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(screen.queryByText('ЭР2 содержит неназначенный объект')).not.toBeInTheDocument();
     expect(within(settings).getByTestId('spec-candidate-selection')).toBeInTheDocument();
     expect(within(settings).getByRole('button', { name: /Комплект ЭР1 B/i })).toBeInTheDocument();
-    expect(within(settings).getByRole('button', { name: /Ремкомплект ЭР2 A/i })).toBeInTheDocument();
 
     await user.click(await screen.findByRole('button', { name: /Комплект ЭР1 B/i }));
-    await user.click(screen.getByRole('button', { name: /Ремкомплект ЭР2 A/i }));
     await user.click(screen.getByRole('button', { name: /Применить выбор и сформировать/i }));
 
     await waitFor(() => {
@@ -459,15 +440,17 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
         expect.objectContaining({
           catalog_selections: {
             'opaque:er-1:connection': 'item-er1-b',
-            'opaque:er-2:repair': 'item-er2-a',
           },
         }),
       );
     });
     expect(generateSpecification).toHaveBeenCalledTimes(2);
-
-    await screen.findByText('Подтверждение исключения неназначенных объектов');
-    await user.click(screen.getByRole('button', { name: 'Подтвердить и сформировать' }));
+    const confirmation = await screen.findByRole('dialog', {
+      name: 'Подтверждение исключения неназначенных объектов',
+    });
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(within(confirmation).getByText(/SPEC_UNASSIGNED_CONFIRMATION_REQUIRED/)).toBeInTheDocument();
+    await user.click(within(confirmation).getByRole('button', { name: 'Подтвердить и сформировать' }));
     expect(generateSpecification).toHaveBeenNthCalledWith(
       3,
       mockProject.id,
@@ -475,13 +458,21 @@ describe('SpecificationPage (integration) — er-scope-write', () => {
         exclude_unassigned_confirmed: true,
         catalog_selections: {
           'opaque:er-1:connection': 'item-er1-b',
-          'opaque:er-2:repair': 'item-er2-a',
         },
       }),
     );
     await waitFor(() => expect(screen.queryByRole('dialog', {
       name: 'Подтверждение исключения неназначенных объектов',
     })).not.toBeInTheDocument());
+    const terminalSettings = await screen.findByRole('dialog', { name: 'Настройки формирования спецификации' });
+    expect(within(terminalSettings).getByText('SPEC_VARIANT_NOT_READY')).toBeInTheDocument();
+    expect(within(terminalSettings).getByRole('button', { name: 'Сформировать' })).toBeEnabled();
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['spec', mockProject.id, secondVariant.id], exact: false,
+    });
+    await user.click(within(terminalSettings).getByRole('button', { name: 'Сформировать' }));
+    expect(await within(terminalSettings).findByText('SPEC_CATALOG_UNAVAILABLE')).toBeInTheDocument();
+    expect(screen.queryByText('Есть объекты без назначения в ЭР')).not.toBeInTheDocument();
   });
   it('не показывает write-actions сотруднику, который только читает чужой проект', async () => {
     const { getSpecification } = await import('@/api/specifications');

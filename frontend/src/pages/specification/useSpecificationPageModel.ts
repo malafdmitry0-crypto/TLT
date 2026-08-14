@@ -28,7 +28,7 @@ import {
 } from '@/pages/specification/specificationPageModelHelpers';
 import { buildSpecGenerationHydrate } from '@/pages/specification/specGenerationHydrateModel';
 import { formatPreflightSummary } from '@/domain/specification/specTableSectionModel';
-import { deduplicateSpecificationDiagnostics } from '@/pages/specification/specificationReadinessModel';
+import { selectSpecificationGenerationOutcome } from '@/pages/specification/specificationGenerationOutcomeModel';
 import { useSpecificationReadiness } from '@/pages/specification/useSpecificationReadiness';
 import { useSpecSettingsFormHydration } from '@/pages/specification/useSpecSettingsFormHydration';
 import {
@@ -91,42 +91,40 @@ export function useSpecificationPageModel() {
     variables: GenerateSpecificationVariables,
   ) => {
     settlePendingGenerationContext(pendingContextStore, variables, result.results.map((item) => item.status));
-    const diagnostics = deduplicateSpecificationDiagnostics(
-      result.results.flatMap((item) => item.diagnostics),
-    );
-    const groups = result.results.flatMap((item) => item.candidate_groups ?? []);
-    const unresolved = result.results.filter((item) => item.status !== 'generated');
-    form.setGenerationDiagnostics(diagnostics);
-    form.setCandidateGroups(groups);
-    form.setPreflightSummary(formatPreflightSummary(diagnostics));
-    if (unresolved.length > 0) {
+    const outcome = selectSpecificationGenerationOutcome(result.results);
+    form.setGenerationDiagnostics(outcome.blockingDiagnostics);
+    form.setCandidateGroups(outcome.candidateGroups);
+    form.setPreflightSummary(outcome.openConfirmation
+      ? formatPreflightSummary(outcome.confirmationDiagnostics)
+      : '');
+    form.setPreflightOpen(outcome.openConfirmation);
+    if (outcome.clearDraftSelections) form.setDraftCatalogSelections({});
+    for (const id of outcome.generatedVariantIds) {
+      qc.invalidateQueries({ queryKey: ['spec', variables.projectId, id], exact: false });
+    }
+    if (outcome.generatedCount > 0) {
+      qc.invalidateQueries({ queryKey: ['spec-readiness', variables.projectId], exact: false });
+    }
+    if (outcome.pendingTransition === 'retain') {
       form.setPendingGenerate({
         generateVariantIds: [...variables.generateVariantIds],
         options: variables.options,
       });
-      const selectionRequired = unresolved.some((item) => item.status === 'selection_required');
-      form.setPreflightOpen(!selectionRequired);
-      if (selectionRequired) {
-        form.setDraftCatalogSelections({});
+      if (outcome.openSelection) {
         message.warning('Требуется выбор комплектующих из каталога');
       }
       return;
     }
     form.setPendingGenerate(null);
-    form.setPreflightOpen(false);
-    form.setCandidateGroups([]);
-    form.setDraftCatalogSelections({});
-    form.setCatalogSelections({});
-    toggleSettings(false);
-    for (const id of variables.generateVariantIds) {
-      qc.invalidateQueries({ queryKey: ['spec', variables.projectId, id], exact: false });
+    if (outcome.clearCatalogSelections) form.setCatalogSelections({});
+    if (outcome.closeSettings) toggleSettings(false);
+    if (outcome.generatedCount > 0 || outcome.closeSettings) {
+      message.success(buildSpecificationGeneratedToast({
+        hasUnresolved: outcome.hasUnresolved,
+        generatedCount: outcome.generatedCount,
+        electricalVariantName: variables.electricalVariantName,
+      }));
     }
-    qc.invalidateQueries({ queryKey: ['spec-readiness', variables.projectId], exact: false });
-    message.success(buildSpecificationGeneratedToast({
-      hasUnresolved: false,
-      generatedCount: result.results.length,
-      electricalVariantName: variables.electricalVariantName,
-    }));
   };
   const generateMut = useMutation({
     mutationFn: (variables: GenerateSpecificationVariables) => {
