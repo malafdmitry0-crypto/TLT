@@ -1,0 +1,47 @@
+HL-OWN-BF facade attempts on 7cf5ec459ff1335b73d9716fb57e6d99df855b57
+
+Pre-run host SHA-256:
+daff97959029c91989bf46fb8492d712fbe1b5ef88d2b185d0d1b0bc85b158ec  evidence/facade_behavior_probe.py
+2d708edd5cd7a48c060222877937a99aa1012d64e0ad44d7b03303881555952e  evidence/facade_benchmark.py
+
+Container SHA-256 after docker cp:
+daff97959029c91989bf46fb8492d712fbe1b5ef88d2b185d0d1b0bc85b158ec  /tmp/facade_behavior_probe.py
+2d708edd5cd7a48c060222877937a99aa1012d64e0ad44d7b03303881555952e  /tmp/facade_benchmark.py
+
+ruff check /tmp/facade_behavior_probe.py /tmp/facade_benchmark.py
+All checks passed!
+
+ruff format --check /tmp/facade_behavior_probe.py /tmp/facade_benchmark.py
+2 files already formatted
+
+Behavior command:
+docker exec -e SECRET_KEY=codex-test-secret-key-at-least-32-chars -e PYTHONPATH=/app:/app/packages/heat-loss-core/src -w /tmp heatcalc_backend python facade_behavior_probe.py /tmp/bf-facade-contract.json
+
+Behavior result: NOT COMPLETED (exit 1)
+Traceback (most recent call last):
+  File "/tmp/facade_behavior_probe.py", line 40, in <module>
+    from app.schemas.calculation import PipeHeatLossParams, TankHeatLossParams
+ImportError: cannot import name 'PipeHeatLossParams' from 'app.schemas.calculation' (/app/app/schemas/calculation.py)
+
+The locked oracle at line 40 imports the compatibility formula-model
+re-export which B8 was required to remove. No runtime shim, monkeypatch, or
+oracle edit was applied. /tmp/bf-facade-contract.json was not created.
+
+Idle check before benchmark attempt:
+docker stats --no-stream --format '{{.Name}} CPU={{.CPUPerc}} MEM={{.MemUsage}}' heatcalc_backend
+heatcalc_backend CPU=0.23% MEM=225MiB / 7.75GiB
+
+Benchmark command:
+docker exec -e SECRET_KEY=codex-test-secret-key-at-least-32-chars -e PYTHONPATH=/app:/app/packages/heat-loss-core/src -w /tmp heatcalc_backend python facade_benchmark.py /tmp/bf-facade-benchmark.json --rounds 9 --loops 20
+
+Benchmark result: NOT COMPLETED (exit 1)
+Traceback (most recent call last):
+  File "/tmp/facade_benchmark.py", line 15, in <module>
+    from facade_behavior_probe import call_pipe, call_tank, pipe_cases, tank_cases
+  File "/tmp/facade_behavior_probe.py", line 40, in <module>
+    from app.schemas.calculation import PipeHeatLossParams, TankHeatLossParams
+ImportError: cannot import name 'PipeHeatLossParams' from 'app.schemas.calculation' (/app/app/schemas/calculation.py)
+
+/tmp/bf-facade-benchmark.json was not created. There are no samples, median,
+or BF/B0 ratio to report. The 0.19342597501963608-second threshold was not
+evaluated and is not reported as PASS.

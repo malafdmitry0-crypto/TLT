@@ -1,0 +1,81 @@
+{
+  "head": "7cf5ec459ff1335b73d9716fb57e6d99df855b57",
+  "started_utc": "2026-08-14T11:48:02Z",
+  "finished_utc": "2026-08-14T12:05:28Z",
+  "completed": true,
+  "exit_code": 1,
+  "full_runs_in_bf": 1,
+  "command": "docker exec -e SECRET_KEY=codex-test-secret-key-at-least-32-chars -e TEST_DATABASE_URL=postgresql+asyncpg://heatcalc:heatcalc_pass@db:5432/heatcalc_test -w /app heatcalc_backend pytest app/tests --no-cov -q --tb=no --override-ini='addopts=' --ignore=app/tests/integration/worker/test_worker_redis_live.py --ignore=app/tests/integration/worker/test_worker_sigkill_live.py",
+  "capture_note": "The same environment, working directory, pytest executable, and argv were run through container sh -c only to redirect complete stdout/stderr to /tmp/hl-own-bf-backend-suite.log and write start/finish/exit metadata. No pytest argument differs from the canonical command.",
+  "result": {
+    "failed": 11,
+    "passed": 2362,
+    "skipped": 1,
+    "errors": 0,
+    "collection_errors": 0,
+    "warnings": 265,
+    "duration_seconds": 1041.05,
+    "wrapper_elapsed_seconds": 1046
+  },
+  "failed_nodeids": [
+    "app/tests/integration/api/test_idempotency.py::TestSpecGenerateIdempotency::test_blocked_generate_repeats_without_duplicate_rows",
+    "app/tests/integration/db/test_query_counts.py::test_electrical_query_search_uses_sql_page_not_python_project_fallback",
+    "app/tests/integration/db/test_query_counts.py::test_electrical_query_assignment_projection_is_one_bounded_query",
+    "app/tests/integration/db/test_query_counts.py::test_electrical_query_sorted_next_page_uses_keyset_without_offset",
+    "app/tests/unit/api/test_reports_helpers.py::test_preview_maps_project_errors",
+    "app/tests/unit/api/test_reports_helpers.py::test_preview_maps_report_errors",
+    "app/tests/unit/api/test_reports_helpers.py::test_preview_records_audit_on_success",
+    "app/tests/unit/api/test_reports_helpers.py::test_preview_requires_variant_after_project_access",
+    "app/tests/unit/services/test_calculation_service_unit.py::TestBatchRecalculate::test_mixed_success_and_failure",
+    "app/tests/unit/services/test_task_service_unit.py::TestTaskCreation::test_enqueue_guards_then_locks_project_before_variant_resolution",
+    "app/tests/unit/services/test_task_service_unit.py::TestTaskCreation::test_create_electrical_batch_task_enqueues_and_persists_payload"
+  ],
+  "error_nodeids": [],
+  "collection_errors": [],
+  "skipped_nodeids": [
+    "app/tests/integration/api/test_performance_nfr.py::TestImportPerformance::test_import_100_csv_under_15s"
+  ],
+  "live_worker_ignored": [
+    "app/tests/integration/worker/test_worker_redis_live.py",
+    "app/tests/integration/worker/test_worker_sigkill_live.py"
+  ],
+  "b0_comparison": {
+    "baseline_failed_count": 10,
+    "matched_baseline_failed_nodeids": [
+      "app/tests/integration/api/test_idempotency.py::TestSpecGenerateIdempotency::test_blocked_generate_repeats_without_duplicate_rows",
+      "app/tests/integration/db/test_query_counts.py::test_electrical_query_search_uses_sql_page_not_python_project_fallback",
+      "app/tests/integration/db/test_query_counts.py::test_electrical_query_assignment_projection_is_one_bounded_query",
+      "app/tests/integration/db/test_query_counts.py::test_electrical_query_sorted_next_page_uses_keyset_without_offset",
+      "app/tests/unit/api/test_reports_helpers.py::test_preview_maps_project_errors",
+      "app/tests/unit/api/test_reports_helpers.py::test_preview_maps_report_errors",
+      "app/tests/unit/api/test_reports_helpers.py::test_preview_records_audit_on_success",
+      "app/tests/unit/api/test_reports_helpers.py::test_preview_requires_variant_after_project_access",
+      "app/tests/unit/services/test_task_service_unit.py::TestTaskCreation::test_enqueue_guards_then_locks_project_before_variant_resolution",
+      "app/tests/unit/services/test_task_service_unit.py::TestTaskCreation::test_create_electrical_batch_task_enqueues_and_persists_payload"
+    ],
+    "new_failed_nodeids": [
+      "app/tests/unit/services/test_calculation_service_unit.py::TestBatchRecalculate::test_mixed_success_and_failure"
+    ],
+    "missing_baseline_failed_nodeids": [],
+    "failed_ids_subset_of_b0": false,
+    "errors_empty": true,
+    "collection_errors_empty": true,
+    "classification": "BLOCKER"
+  },
+  "targeted_failure_confirmation": {
+    "command": "docker exec -e SECRET_KEY=codex-test-secret-key-at-least-32-chars -w /app heatcalc_backend pytest app/tests/unit/services/test_calculation_service_unit.py::TestBatchRecalculate::test_mixed_success_and_failure -q --tb=short --no-cov --override-ini='addopts='",
+    "exit_code": 1,
+    "assertion_location": "app/tests/unit/services/test_calculation_service_unit.py:857",
+    "expected": "invalid_object_params",
+    "actual": "heat_loss_formula_error",
+    "source_exception": "ValueError('process temperature ниже ambient')",
+    "contract_note": "The B7 contract intentionally classifies an untyped message-only exception as heat_loss_formula_error/formula; this test still asserts the pre-B7 payload. BF does not fix it."
+  },
+  "raw_log": {
+    "path": "evidence/bf-blocked-backend-suite.log",
+    "sha256": "c1f89ad7a0f10f979a08dd5b069baf0ffeae226a30706be4a2fafaca8e14a393",
+    "bytes": 6663,
+    "lines": 82
+  },
+  "verdict": "FAIL"
+}
