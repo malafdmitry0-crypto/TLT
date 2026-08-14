@@ -1,12 +1,12 @@
 """Build a pipe preparation input from a validated backend facade payload.
 
-InsulationLayer.model_validate() stays catalog-free. This adapter chooses
-the effective K and resolves each reference material once.
+InsulationLayer.model_validate() stays catalog-free. This adapter reads K
+from params and resolves each reference material once.
 """
 
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import cast
 
 from heatcalc_heat_loss_core.conductivity import ConstantConductivity
 from heatcalc_heat_loss_core.pipe_formula import (
@@ -24,35 +24,16 @@ from app.reference_data.loader import get_pipe_material_conductivity_law
 from app.schemas.calculation import InsulationLayer, PipeHeatLossParams
 
 
-def effective_pipe_safety_factor(
-    params: PipeHeatLossParams,
-    coefficients: dict[str, Any] | None,
-) -> float | None:
-    """User/climate K wins; admin K is used only when the first value is absent."""
-
-    if params.safety_factor is not None:
-        return params.safety_factor
-    if coefficients is not None and "safety_factor" in coefficients:
-        return cast(float, coefficients["safety_factor"])
-    return None
-
-
-def run_validated_pipe_formula(
-    params: PipeHeatLossParams,
-    coefficients: dict[str, Any] | None = None,
-) -> PipeFormulaOutcome:
+def run_validated_pipe_formula(params: PipeHeatLossParams) -> PipeFormulaOutcome:
     """Calculate a Pydantic-validated pipe without repeating the core contract."""
 
-    prepared = assemble_prepared_pipe(build_pipe_preparation(params, coefficients))
+    prepared = assemble_prepared_pipe(build_pipe_preparation(params))
     if isinstance(prepared, FormulaValidationReport):
         return PipeFormulaOutcome(result=None, report=prepared)
     return evaluate_prepared_pipe(prepared)
 
 
-def build_pipe_preparation(
-    params: PipeHeatLossParams,
-    coefficients: dict[str, Any] | None = None,
-) -> PipePreparationInput:
+def build_pipe_preparation(params: PipeHeatLossParams) -> PipePreparationInput:
     return PipePreparationInput(
         outer_diameter=params.outer_diameter,
         wall_thickness=params.wall_thickness,
@@ -71,7 +52,7 @@ def build_pipe_preparation(
         wind_speed=params.wind_speed,
         ground_conductivity=params.ground_conductivity,
         ground_temperature=params.ground_temperature,
-        safety_factor=effective_pipe_safety_factor(params, coefficients),
+        safety_factor=params.safety_factor,
         placement=params.placement,
         insulation_temperature_basis=cast(
             InsulationTemperatureBasis, params.insulation_temperature_basis

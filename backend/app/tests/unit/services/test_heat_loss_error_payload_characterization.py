@@ -19,7 +19,10 @@ from app.formulas.heat_loss import pipe as pipe_facade
 from app.formulas.heat_loss.catalog_preparation import HeatLossPreparationError
 from app.formulas.heat_loss.pipe import calc_pipe_heat_loss
 from app.schemas.calculation import PipeHeatLossParams
-from app.services.calculation_service import build_heat_loss_error_payload
+from app.services.calculation_service import (
+    build_heat_loss_error_payload,
+    pipe_params_with_effective_safety_factor,
+)
 
 MINERAL_WOOL = "mineral_wool_boards_120"
 HOT_SIDE_PIPE_LITERAL = (
@@ -126,7 +129,9 @@ def test_facade_range_value_error_payload_is_reconstructed_from_message_as_is() 
     params = PipeHeatLossParams.model_validate(_pipe_payload(safety_factor=None))
 
     with pytest.raises(ValueError) as caught:
-        calc_pipe_heat_loss(params, coefficients={"safety_factor": 0.0})
+        calc_pipe_heat_loss(
+            pipe_params_with_effective_safety_factor(params, {"safety_factor": 0.0})
+        )
 
     error = caught.value
     assert type(error) is ValueError

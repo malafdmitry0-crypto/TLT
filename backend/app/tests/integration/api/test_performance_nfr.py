@@ -416,8 +416,7 @@ class TestStress1000Objects:
             if key != "name" and key not in electrical_only_fields
         }
         heat_result = calc_pipe_heat_loss(
-            PipeHeatLossParams(**pipe_params_api),
-            coefficients={"safety_factor": 1.0},
+            PipeHeatLossParams(**pipe_params_api, safety_factor=1.0),
         )
         shared_results = {
             "heat_loss_per_meter_base": heat_result.heat_loss_per_meter_base,
