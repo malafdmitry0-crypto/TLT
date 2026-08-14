@@ -142,12 +142,14 @@ export function setupHeatCalcPageTest() {
 
   beforeEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
     useAuthStore.getState().logout();
     useProjectStore.getState().setCurrentProject(null);
     useWorkspaceHeaderStore.getState().setContext(null);
     vi.unstubAllEnvs();
     vi.stubEnv('VITE_COMMERCIAL_FEATURES_ENABLED', 'false');
     vi.clearAllMocks();
+    const taskCreatedAt = new Date().toISOString();
     const originalConsoleError = console.error;
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation((message?: unknown, ...args: unknown[]) => {
       const text = typeof message === 'string' ? message : '';
@@ -171,7 +173,7 @@ export function setupHeatCalcPageTest() {
       result: null,
       error_message: null,
       cancel_requested: false,
-      created_at: '2026-01-01T00:00:00Z',
+      created_at: taskCreatedAt,
       started_at: null,
       finished_at: null,
       links: {
@@ -189,7 +191,7 @@ export function setupHeatCalcPageTest() {
       result: null,
       error_message: null,
       cancel_requested: false,
-      created_at: '2026-01-01T00:00:00Z',
+      created_at: taskCreatedAt,
       started_at: null,
       finished_at: null,
       links: {
@@ -207,9 +209,9 @@ export function setupHeatCalcPageTest() {
       result: null,
       error_message: null,
       cancel_requested: true,
-      created_at: '2026-01-01T00:00:00Z',
+      created_at: taskCreatedAt,
       started_at: null,
-      finished_at: '2026-01-01T00:00:01Z',
+      finished_at: taskCreatedAt,
       links: {
         status: '/api/v1/calc/jobs/heat-task-1',
         result: '/api/v1/calc/jobs/heat-task-1/result',
