@@ -1,0 +1,37 @@
+{
+  "head": "14bbb3fdaa09ba91c0e633be3e297f06a7aaad85",
+  "utc": "2026-08-14T02:57:06Z",
+  "completed": true,
+  "command": "docker exec -e SECRET_KEY=codex-test-secret-key-at-least-32-chars -e TEST_DATABASE_URL=postgresql+asyncpg://heatcalc:heatcalc_pass@db:5432/heatcalc_test -w /app heatcalc_backend pytest app/tests --no-cov -q --tb=no --override-ini='addopts=' --ignore=app/tests/integration/worker/test_worker_redis_live.py --ignore=app/tests/integration/worker/test_worker_sigkill_live.py",
+  "result": {
+    "failed": 10,
+    "passed": 2289,
+    "skipped": 1,
+    "errors": 0,
+    "collection_errors": 0,
+    "warnings": 266,
+    "duration_seconds": 981.44
+  },
+  "failed_nodeids": [
+    "app/tests/integration/api/test_idempotency.py::TestSpecGenerateIdempotency::test_blocked_generate_repeats_without_duplicate_rows",
+    "app/tests/integration/db/test_query_counts.py::test_electrical_query_search_uses_sql_page_not_python_project_fallback",
+    "app/tests/integration/db/test_query_counts.py::test_electrical_query_assignment_projection_is_one_bounded_query",
+    "app/tests/integration/db/test_query_counts.py::test_electrical_query_sorted_next_page_uses_keyset_without_offset",
+    "app/tests/unit/api/test_reports_helpers.py::test_preview_maps_project_errors",
+    "app/tests/unit/api/test_reports_helpers.py::test_preview_maps_report_errors",
+    "app/tests/unit/api/test_reports_helpers.py::test_preview_records_audit_on_success",
+    "app/tests/unit/api/test_reports_helpers.py::test_preview_requires_variant_after_project_access",
+    "app/tests/unit/services/test_task_service_unit.py::TestTaskCreation::test_enqueue_guards_then_locks_project_before_variant_resolution",
+    "app/tests/unit/services/test_task_service_unit.py::TestTaskCreation::test_create_electrical_batch_task_enqueues_and_persists_payload"
+  ],
+  "error_nodeids": [],
+  "collection_errors": [],
+  "skipped_nodeids": [
+    "app/tests/integration/api/test_performance_nfr.py::TestImportPerformance::test_import_100_csv_under_15s"
+  ],
+  "live_worker_ignored": [
+    "app/tests/integration/worker/test_worker_redis_live.py",
+    "app/tests/integration/worker/test_worker_sigkill_live.py"
+  ],
+  "note": "HL-OWN comparison set is failed_nodeids only. All failures are outside heat-loss. The electrical (202, 423) concurrency nodeid did not fail in this run and is not in the B0 set. Setup/error/collection sets are empty. The one skip is sample_import.csv missing in the container."
+}
