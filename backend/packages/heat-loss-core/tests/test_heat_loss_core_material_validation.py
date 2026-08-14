@@ -5,7 +5,7 @@ import math
 import pytest
 from heatcalc_heat_loss_core.errors import FormulaDomainError
 from heatcalc_heat_loss_core.material_validation import (
-    validate_hot_side_temperature_in_interval,
+    validate_layer_boundary_temperatures_in_interval,
     validate_temperature_in_interval,
     validate_temperature_interval,
 )
@@ -68,8 +68,8 @@ def test_temperature_outside_interval_returns_numeric_evidence() -> None:
     ]
 
 
-def test_hot_side_validation_uses_the_higher_boundary_temperature() -> None:
-    report = validate_hot_side_temperature_in_interval(
+def test_layer_boundary_validation_uses_the_higher_temperature_above_maximum() -> None:
+    report = validate_layer_boundary_temperatures_in_interval(
         first_side_c=40.0,
         second_side_c=80.0,
         minimum_c=-60.0,
@@ -79,9 +79,29 @@ def test_hot_side_validation_uses_the_higher_boundary_temperature() -> None:
     assert report.issues[0].details_dict()["temperature_c"] == 80.0
 
 
-def test_hot_side_validation_keeps_core_finite_result_guard() -> None:
+def test_layer_boundary_validation_uses_the_lower_temperature_below_minimum() -> None:
+    report = validate_layer_boundary_temperatures_in_interval(
+        first_side_c=-70.0,
+        second_side_c=40.0,
+        minimum_c=-60.0,
+        maximum_c=60.0,
+    )
+
+    assert report.issues[0].details_dict()["temperature_c"] == -70.0
+
+
+def test_layer_boundary_validation_is_inclusive_on_both_sides() -> None:
+    assert validate_layer_boundary_temperatures_in_interval(
+        first_side_c=-60.0,
+        second_side_c=60.0,
+        minimum_c=-60.0,
+        maximum_c=60.0,
+    ).is_valid
+
+
+def test_layer_boundary_validation_keeps_core_finite_result_guard() -> None:
     with pytest.raises(FormulaDomainError, match="non_finite_result"):
-        validate_hot_side_temperature_in_interval(
+        validate_layer_boundary_temperatures_in_interval(
             first_side_c=math.inf,
             second_side_c=20.0,
             minimum_c=-60.0,
