@@ -13,6 +13,7 @@ import type { HeatCalcFieldInputSettings } from '@/utils/heatCalcFieldInputSetti
 import type { HeatCalcObjectType } from '@/types/project';
 import type { InsulationEntry } from '@/types/reference';
 import FieldLabel from './FieldLabel';
+import { FieldSourceTag } from './FieldSourceTag';
 import HelpedControl from './HelpedControl';
 
 function withHelp(control: ReactElement, hint: string) {
@@ -55,10 +56,11 @@ export default function InsulationConductivityField({
   if (material === 'other') {
     return (
       <Form.Item
-        className="numeric-form-item coefficient-form-item helped-form-item"
+        className="numeric-form-item coefficient-form-item helped-form-item field-source-form-item"
         label={label}
         name={name}
         preserve={false}
+        extra={<FieldSourceTag source="manual" />}
         rules={heatCalcFormFieldRules(form, objectType, labelFieldId)}
       >
         {withHelp(
