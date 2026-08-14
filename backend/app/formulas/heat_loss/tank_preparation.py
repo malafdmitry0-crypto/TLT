@@ -19,7 +19,7 @@ from heatcalc_heat_loss_core.tank_formula import (
 from heatcalc_heat_loss_core.validation import FormulaValidationReport
 
 from app.formulas.heat_loss.catalog_preparation import resolve_reference_layer
-from app.schemas.calculation import InsulationLayer, TankHeatLossParams
+from app.schemas.heat_loss import InsulationLayer, TankHeatLossParams
 
 
 def run_validated_tank_formula(params: TankHeatLossParams) -> TankFormulaOutcome:
