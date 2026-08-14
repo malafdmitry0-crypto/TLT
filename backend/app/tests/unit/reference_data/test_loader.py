@@ -5,6 +5,14 @@
 """
 
 import pytest
+from heatcalc_heat_loss_core.conductivity import (
+    AffineConductivity,
+    ConstantConductivity,
+    InsulationConductivityTemperatures,
+    PiecewiseConductivity,
+    evaluate_conductivity,
+    evaluate_insulation_conductivity,
+)
 
 from app.reference_data.loader import (
     ReferenceInsulationError,
@@ -197,6 +205,66 @@ class TestGetInsulationConductivity:
             (-60.0, 400.0)
         )
         assert get_insulation_conductivity("mineral_wool_boards_120", 20) > 0
+
+    def test_legacy_helper_uses_one_temperature_for_branch_and_formula(self):
+        assert get_insulation_conductivity("mineral_wool_boards_120", 15) == pytest.approx(0.044)
+        assert get_insulation_conductivity("mineral_wool_boards_120", 30) == pytest.approx(
+            0.045 + 0.00021 * 30
+        )
+        assert evaluate_conductivity(
+            get_insulation_conductivity_law("mineral_wool_boards_120"), 15.0
+        ) == pytest.approx(0.044)
+
+    def test_mineral_wool_boards_120_law_keeps_catalog_thresholds_and_coefficients(self):
+        law = get_insulation_conductivity_law("mineral_wool_boards_120")
+
+        assert law == PiecewiseConductivity(
+            threshold_c=20.0,
+            at_or_above=AffineConductivity(0.045, 0.00021),
+            below=PiecewiseConductivity(
+                threshold_c=-60.0,
+                at_or_above=ConstantConductivity(0.044),
+                below=ConstantConductivity(0.035),
+            ),
+        )
+        assert get_insulation_temperature_range("mineral_wool_boards_120") == pytest.approx(
+            (-60.0, 400.0)
+        )
+
+    def test_superfine_basalt_fiber_80_keeps_catalog_cold_value(self):
+        law = get_insulation_conductivity_law("superfine_basalt_fiber_80")
+
+        assert isinstance(law, PiecewiseConductivity)
+        assert isinstance(law.below, PiecewiseConductivity)
+        assert law.below.below == ConstantConductivity(0.024)
+
+    @pytest.mark.parametrize(
+        ("process_temperature_c", "insulation_temperature_c", "expected"),
+        [
+            (80.0, 40.0, 0.0534),
+            (30.0, 15.0, 0.04815),
+            (10.0, 25.0, 0.044),
+            (20.0, 10.0, 0.0471),
+            (19.0, 9.5, 0.044),
+            (-60.0, -30.0, 0.044),
+            (-80.0, -40.0, 0.035),
+        ],
+    )
+    def test_catalog_law_selects_by_process_temperature(
+        self,
+        process_temperature_c: float,
+        insulation_temperature_c: float,
+        expected: float,
+    ):
+        value = evaluate_insulation_conductivity(
+            get_insulation_conductivity_law("mineral_wool_boards_120"),
+            InsulationConductivityTemperatures(
+                process_temperature_c=process_temperature_c,
+                insulation_temperature_c=insulation_temperature_c,
+            ),
+        )
+
+        assert value == pytest.approx(expected)
 
 
 class TestResolveReferenceInsulation:

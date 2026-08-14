@@ -3,7 +3,12 @@
 from unittest.mock import patch
 
 import pytest
-from heatcalc_heat_loss_core.conductivity import ConstantConductivity, UnavailableConductivity
+from heatcalc_heat_loss_core.conductivity import (
+    AffineConductivity,
+    ConstantConductivity,
+    PiecewiseConductivity,
+    UnavailableConductivity,
+)
 from heatcalc_heat_loss_core.errors import FormulaDomainError
 from heatcalc_heat_loss_core.tank import (
     AirTankHeatLossInput,
@@ -20,6 +25,18 @@ from heatcalc_heat_loss_core.tank_evaluation import (
     PreparedTankLayer,
     execute_prepared_tank,
 )
+
+
+def mineral_wool_boards_120_law() -> PiecewiseConductivity:
+    return PiecewiseConductivity(
+        threshold_c=20.0,
+        at_or_above=AffineConductivity(0.045, 0.00021),
+        below=PiecewiseConductivity(
+            threshold_c=-60.0,
+            at_or_above=ConstantConductivity(0.044),
+            below=ConstantConductivity(0.035),
+        ),
+    )
 
 
 def _layers() -> tuple[PreparedTankLayer, ...]:
@@ -142,10 +159,11 @@ def test_resolvers_and_low_level_branch_are_each_called_once() -> None:
             ).resolve_insulation_temperature,
         ) as tm,
         patch(
-            "heatcalc_heat_loss_core.tank_evaluation.evaluate_conductivity",
+            "heatcalc_heat_loss_core.tank_evaluation.evaluate_insulation_conductivity",
             wraps=__import__(
-                "heatcalc_heat_loss_core.tank_evaluation", fromlist=["evaluate_conductivity"]
-            ).evaluate_conductivity,
+                "heatcalc_heat_loss_core.tank_evaluation",
+                fromlist=["evaluate_insulation_conductivity"],
+            ).evaluate_insulation_conductivity,
         ) as conductivity,
         patch(
             "heatcalc_heat_loss_core.tank_evaluation.resolve_external_alpha",
@@ -214,3 +232,60 @@ def test_unavailable_layer_law_reports_layer_and_temperature() -> None:
         )
 
     assert exc_info.value.details == {"layer_index": 0, "temperature_c": 40.0}
+
+
+@pytest.mark.parametrize(
+    (
+        "process_temperature_c",
+        "basis",
+        "ambient_temperature_c",
+        "expected_tm",
+        "expected_lambda",
+    ),
+    [
+        (80.0, "outdoor_winter", -20.0, 40.0, 0.0534),
+        (30.0, "outdoor_winter", -20.0, 15.0, 0.04815),
+        (10.0, "indoor", -20.0, 25.0, 0.044),
+        (20.0, "outdoor_winter", -20.0, 10.0, 0.0471),
+        (19.0, "outdoor_winter", -20.0, 9.5, 0.044),
+        (-60.0, "outdoor_winter", -70.0, -30.0, 0.044),
+    ],
+)
+def test_prepared_tank_uses_process_temperature_to_select_reference_branch(
+    process_temperature_c: float,
+    basis: str,
+    ambient_temperature_c: float,
+    expected_tm: float,
+    expected_lambda: float,
+) -> None:
+    placement = "indoor" if basis == "indoor" else "outdoor"
+    result = execute_prepared_tank(
+        _air(
+            layers=(
+                PreparedTankLayer(
+                    0.08,
+                    "reference",
+                    mineral_wool_boards_120_law(),
+                    -60.0,
+                    400.0,
+                ),
+            ),
+            process_temperature_c=process_temperature_c,
+            insulation_temperature_basis=basis,
+            environment=AirTankFormulaEnvironment(
+                placement,  # type: ignore[arg-type]
+                ambient_temperature_c,
+                None if basis == "indoor" else 4.0,
+            ),
+        )
+    )
+
+    assert result.insulation_temperature_c == pytest.approx(expected_tm)
+    assert result.layer_conductivities_w_mk[0] == pytest.approx(expected_lambda)
+
+
+def test_prepared_tank_keeps_manual_constant_conductivity() -> None:
+    result = execute_prepared_tank(_air(process_temperature_c=30.0))
+
+    assert result.insulation_temperature_c == pytest.approx(15.0)
+    assert result.layer_conductivities_w_mk == (0.04, 0.05)
