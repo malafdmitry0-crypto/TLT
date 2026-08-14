@@ -223,8 +223,6 @@ PIPE_HEADERS: dict[str, str] = {
     "t3, °c": "maintain_temperature",
     "t3 поддержания": "maintain_temperature",
     "температура поддержания t3": "maintain_temperature",
-    "макс. t° окр. среды": "max_ambient_temperature",
-    "макс t° окр. среды": "max_ambient_temperature",
     "макс. допуст. t° продукта": "max_process_temperature",
     "макс допуст t° продукта": "max_process_temperature",
     "толщина стенки, мм": "wall_thickness_mm",
@@ -328,8 +326,6 @@ TANK_HEADERS: dict[str, str] = {
     "t3, °c": "maintain_temperature",
     "t3 поддержания": "maintain_temperature",
     "температура поддержания t3": "maintain_temperature",
-    "макс. t° окр. среды": "max_ambient_temperature",
-    "макс t° окр. среды": "max_ambient_temperature",
     "макс. допуст. t° продукта": "max_process_temperature",
     "макс допуст t° продукта": "max_process_temperature",
     "количество слоёв изоляции": "insulation_layer_count",
@@ -546,9 +542,6 @@ def _apply_common_srs_params(params: dict[str, Any], row: dict[str, Any]) -> Non
     maintain_temperature = _to_float(row.get("maintain_temperature"))
     if maintain_temperature is not None:
         params["maintain_temperature"] = maintain_temperature
-    max_ambient = _to_float(row.get("max_ambient_temperature"))
-    if max_ambient is not None:
-        params["max_ambient_temperature"] = max_ambient
     max_process = _to_float(row.get("max_process_temperature"))
     if max_process is not None:
         params["max_process_temperature"] = max_process

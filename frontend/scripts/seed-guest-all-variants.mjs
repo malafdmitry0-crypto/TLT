@@ -174,7 +174,6 @@ function common(overrides = {}) {
   return {
     ambient_temperature: -20,
     process_temperature: 65,
-    max_ambient_temperature: 35,
     max_process_temperature: 110,
     environment: 'normal',
     zone_classification: 'safe',
