@@ -20,6 +20,8 @@ export function makePipe(): ProjectObject {
       aggressive_product: false,
       steam_tracing: 'no',
       placement: 'outdoor',
+      wind_speed: 3,
+      wind_speed_source: 'manual',
       min_switch_temperature: -20,
       supply_voltage: 220,
       safety_factor: 1.2,
