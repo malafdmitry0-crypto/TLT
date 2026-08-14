@@ -5,7 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-from .conductivity import ConductivityLaw, evaluate_conductivity
+from .conductivity import (
+    ConductivityLaw,
+    InsulationConductivityTemperatures,
+    evaluate_insulation_conductivity,
+)
 from .errors import FormulaDomainError
 from .material_validation import validate_hot_side_temperature_in_interval
 from .profile import (
@@ -110,7 +114,13 @@ def execute_prepared_tank(data: PreparedTankCalculation) -> TankFormulaResult:
         basis=data.insulation_temperature_basis,
         profile=data.profile,
     )
-    conductivities = _conductivities(data.layers, insulation_temperature)
+    conductivities = _conductivities(
+        data.layers,
+        InsulationConductivityTemperatures(
+            process_temperature_c=data.process_temperature_c,
+            insulation_temperature_c=insulation_temperature,
+        ),
+    )
     alpha = resolve_external_alpha(
         placement=data.environment.placement,
         wind_speed_m_s=data.environment.wind_speed_m_s,
@@ -160,19 +170,20 @@ def execute_prepared_tank(data: PreparedTankCalculation) -> TankFormulaResult:
 
 
 def _conductivities(
-    layers: tuple[PreparedTankLayer, ...], temperature_c: float
+    layers: tuple[PreparedTankLayer, ...],
+    temperatures: InsulationConductivityTemperatures,
 ) -> tuple[float, ...]:
     values: list[float] = []
     for index, layer in enumerate(layers):
         try:
-            values.append(evaluate_conductivity(layer.conductivity_law, temperature_c))
+            values.append(evaluate_insulation_conductivity(layer.conductivity_law, temperatures))
         except FormulaDomainError as error:
             if error.code not in {"conductivity_law_unavailable", "conductivity_not_positive"}:
                 raise
             raise FormulaDomainError(
                 error.code,
                 layer_index=index,
-                temperature_c=temperature_c,
+                temperature_c=temperatures.insulation_temperature_c,
                 **{key: value for key, value in error.details.items() if key != "temperature_c"},
             ) from error
     return tuple(values)

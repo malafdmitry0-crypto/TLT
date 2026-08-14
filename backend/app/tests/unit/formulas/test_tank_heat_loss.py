@@ -102,3 +102,58 @@ def test_multiple_layers_and_wall_pair_are_supported():
     ))
     assert len(result.insulation_layers_applied) == 2
     assert result.wall_resistance_areal_bare == pytest.approx(0.008 / 50.0)
+
+
+@pytest.mark.parametrize(
+    ("process_temperature", "basis", "ambient_temperature", "expected_tm", "expected_lambda"),
+    [
+        (80.0, "outdoor_winter", -20.0, 40.0, 0.0534),
+        (30.0, "outdoor_winter", -20.0, 15.0, 0.04815),
+        (10.0, "indoor", -20.0, 25.0, 0.044),
+        (20.0, "outdoor_winter", -20.0, 10.0, 0.0471),
+        (19.0, "outdoor_winter", -20.0, 9.5, 0.044),
+    ],
+)
+def test_tank_facade_selects_catalog_branch_by_process_temperature(
+    process_temperature: float,
+    basis: str,
+    ambient_temperature: float,
+    expected_tm: float,
+    expected_lambda: float,
+):
+    placement = "indoor" if basis == "indoor" else "outdoor"
+    result = calc_tank_heat_loss(
+        _cyl(
+            process_temperature=process_temperature,
+            insulation_temperature_basis=basis,
+            ambient_temperature=ambient_temperature,
+            placement=placement,
+            wind_speed=None if placement == "indoor" else 0.0,
+        )
+    )
+    layer = result.insulation_layers_applied[0]
+
+    assert layer.conductivity_temperature_applied == pytest.approx(expected_tm)
+    assert layer.conductivity_applied == pytest.approx(expected_lambda)
+    assert layer.conductivity_source == "reference_data"
+
+
+def test_tank_manual_constant_lambda_is_unchanged():
+    result = calc_tank_heat_loss(
+        _cyl(
+            process_temperature=30.0,
+            insulation_layers=[
+                InsulationLayer(
+                    thickness=0.1,
+                    material="other",
+                    conductivity=0.04,
+                    temperature_range=(-90.0, 600.0),
+                )
+            ],
+        )
+    )
+    layer = result.insulation_layers_applied[0]
+
+    assert layer.conductivity_applied == 0.04
+    assert layer.conductivity_source == "manual"
+    assert layer.conductivity_temperature_applied == pytest.approx(15.0)
