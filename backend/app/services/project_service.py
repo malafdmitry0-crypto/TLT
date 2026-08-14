@@ -30,6 +30,7 @@ from app.services.heat_contract import (
     TANK_FORBIDDEN_HEAT_PARAM_KEYS,
     replace_heat_owned_params,
 )
+from app.services.heat_loss_application import evaluate_project_object_heat
 from app.services.project_calculation_guard import ProjectCalculationGuard
 from app.services.project_object_params import (
     LegacySpecificationObjectParamsError,
@@ -733,9 +734,24 @@ class ProjectService:
                     merged.pop("alpha_vnesh", None)
                     if param != "alpha_vnesh":
                         merged[param] = value
-                    prepared_params[obj.id] = normalize_project_object_params(
-                        obj.object_type, merged
+                    normalized = normalize_project_object_params(obj.object_type, merged)
+                    outcome = await evaluate_project_object_heat(
+                        obj.object_type,
+                        normalized,
                     )
+                    if not outcome.is_valid:
+                        problems.append(
+                            {
+                                "object_id": str(obj.id),
+                                "name": str(obj_name) if obj_name is not None else None,
+                                "error": outcome.error_message
+                                or "Проверьте параметры объекта",
+                            }
+                        )
+                        continue
+                    if outcome.params_to_persist is None:  # pragma: no cover - outcome invariant
+                        raise RuntimeError("Валидный теплорасчёт не содержит параметры")
+                    prepared_params[obj.id] = outcome.params_to_persist
                 else:
                     merged = {**(obj.params or {}), param: value}
                     prepared_params[obj.id] = normalize_project_object_params(
