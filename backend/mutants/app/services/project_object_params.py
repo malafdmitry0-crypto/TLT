@@ -23,7 +23,6 @@ class ProjectObjectParamsError(ValueError):
 
 COMMON_OBJECT_DEFAULTS: dict[str, Any] = {
     "insulation_cover_material": "none",
-    "max_ambient_temperature": 30,
     "max_process_temperature": 90,
     "environment": "normal",
     "zone_classification": "safe",

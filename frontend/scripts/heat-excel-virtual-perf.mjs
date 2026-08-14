@@ -105,7 +105,6 @@ function makePipe(index) {
       insulation_temperature_basis: 'outdoor_winter',
       process_temperature: 80,
       ambient_temperature: -30,
-      max_ambient_temperature: 35,
       max_process_temperature: 110,
       environment: 'normal',
       zone_classification: 'safe',

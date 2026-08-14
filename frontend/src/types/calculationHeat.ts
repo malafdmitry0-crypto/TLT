@@ -51,7 +51,6 @@ export interface PipeParams {
   insulation_layers: InsulationLayerParams[];
   ambient_temperature?: number | null;
   process_temperature: number;
-  max_ambient_temperature?: number | null;
   max_process_temperature?: number | null;
   pipe_length: number;
   placement: 'indoor' | 'outdoor' | 'underground';
@@ -108,7 +107,6 @@ export interface TankParams {
   insulation_layers: InsulationLayerParams[];
   ambient_temperature: number;
   process_temperature: number;
-  max_ambient_temperature?: number | null;
   max_process_temperature?: number | null;
   placement: 'indoor' | 'outdoor' | 'underground';
   tank_buried_height?: number | null;
