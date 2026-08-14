@@ -6,7 +6,7 @@ import pytest
 from heatcalc_heat_loss_core.tank_contract import validate_tank_contract
 from pydantic import ValidationError
 
-from app.schemas import calculation as calculation_schemas
+from app.schemas import heat_loss as heat_loss_schemas
 from app.schemas.calculation import StoredTankHeatParams, TankHeatLossParams
 
 MINERAL_WOOL = "mineral_wool_boards_120"
@@ -36,7 +36,7 @@ def test_tank_and_stored_tank_call_the_unified_core_contract_once(
     model: type[TankHeatLossParams] | type[StoredTankHeatParams],
 ) -> None:
     contract_spy = MagicMock(wraps=validate_tank_contract)
-    monkeypatch.setattr(calculation_schemas, "validate_tank_contract", contract_spy)
+    monkeypatch.setattr(heat_loss_schemas, "validate_tank_contract", contract_spy)
 
     params = model.model_validate(_tank())
 
@@ -48,7 +48,7 @@ def test_tank_range_failure_runs_the_unified_contract_once(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     contract_spy = MagicMock(wraps=validate_tank_contract)
-    monkeypatch.setattr(calculation_schemas, "validate_tank_contract", contract_spy)
+    monkeypatch.setattr(heat_loss_schemas, "validate_tank_contract", contract_spy)
 
     with pytest.raises(ValidationError):
         TankHeatLossParams.model_validate(_tank(diameter=0.0))
@@ -60,7 +60,7 @@ def test_tank_parse_failure_never_calls_the_unified_core_contract(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     contract_spy = MagicMock(wraps=validate_tank_contract)
-    monkeypatch.setattr(calculation_schemas, "validate_tank_contract", contract_spy)
+    monkeypatch.setattr(heat_loss_schemas, "validate_tank_contract", contract_spy)
 
     with pytest.raises(ValidationError) as exc_info:
         TankHeatLossParams.model_validate(_tank(diameter="not-a-number"))

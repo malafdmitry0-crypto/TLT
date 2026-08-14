@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 import pytest
 from pydantic import ValidationError
 
-from app.schemas import calculation as calculation_schemas
+from app.schemas import heat_loss as heat_loss_schemas
 from app.schemas.calculation import (
     InsulationLayer,
     PipeHeatLossParams,
@@ -19,7 +19,7 @@ from app.schemas.calculation import (
 )
 
 MINERAL_WOOL = "mineral_wool_boards_120"
-_CALCULATION_SCHEMA_PATH = Path(calculation_schemas.__file__)
+_HEAT_LOSS_SCHEMA_PATH = Path(heat_loss_schemas.__file__)
 
 
 def _pipe(**updates: object) -> dict[str, object]:
@@ -76,9 +76,9 @@ def test_models_call_their_unified_core_contract_once(
     payload: object,
     validator_name: str,
 ) -> None:
-    validator = getattr(calculation_schemas, validator_name)
+    validator = getattr(heat_loss_schemas, validator_name)
     spy = MagicMock(wraps=validator)
-    monkeypatch.setattr(calculation_schemas, validator_name, spy)
+    monkeypatch.setattr(heat_loss_schemas, validator_name, spy)
 
     model.model_validate(payload())  # type: ignore[operator]
 
@@ -99,9 +99,9 @@ def test_parse_failure_skips_unified_contract(
     invalid_field: str,
     validator_name: str,
 ) -> None:
-    validator = getattr(calculation_schemas, validator_name)
+    validator = getattr(heat_loss_schemas, validator_name)
     spy = MagicMock(wraps=validator)
-    monkeypatch.setattr(calculation_schemas, validator_name, spy)
+    monkeypatch.setattr(heat_loss_schemas, validator_name, spy)
 
     with pytest.raises(ValidationError):
         model.model_validate(payload(**{invalid_field: "not-a-number"}))  # type: ignore[operator]
@@ -123,14 +123,14 @@ def test_prebuilt_layer_is_reused_and_each_public_contract_runs_once(
     validator_name: str,
 ) -> None:
     layer = InsulationLayer(thickness=0.05, material=MINERAL_WOOL)
-    insulation_contract_spy = MagicMock(wraps=calculation_schemas.validate_insulation_contract)
-    contract_spy = MagicMock(wraps=getattr(calculation_schemas, validator_name))
+    insulation_contract_spy = MagicMock(wraps=heat_loss_schemas.validate_insulation_contract)
+    contract_spy = MagicMock(wraps=getattr(heat_loss_schemas, validator_name))
     monkeypatch.setattr(
-        calculation_schemas,
+        heat_loss_schemas,
         "validate_insulation_contract",
         insulation_contract_spy,
     )
-    monkeypatch.setattr(calculation_schemas, validator_name, contract_spy)
+    monkeypatch.setattr(heat_loss_schemas, validator_name, contract_spy)
 
     params = model.model_validate(payload(insulation_layers=[layer]))  # type: ignore[operator]
 
@@ -140,7 +140,7 @@ def test_prebuilt_layer_is_reused_and_each_public_contract_runs_once(
 
 
 def _class_calls(class_name: str) -> list[str]:
-    module = ast.parse(_CALCULATION_SCHEMA_PATH.read_text())
+    module = ast.parse(_HEAT_LOSS_SCHEMA_PATH.read_text())
     class_node = next(
         node for node in module.body if isinstance(node, ast.ClassDef) and node.name == class_name
     )
