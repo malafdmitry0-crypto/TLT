@@ -27,6 +27,8 @@ export interface TltNumberFieldProps {
   min?: number | string;
   max?: number | string;
   step?: number | string;
+  /** Keep a typed value outside min/max as owner-managed draft instead of clamping on blur. */
+  preserveOutOfRangeDraft?: boolean;
   disabled?: boolean;
   readOnly?: boolean;
   required?: boolean;
@@ -83,6 +85,7 @@ export default function TltNumberField({
   min,
   max,
   step,
+  preserveOutOfRangeDraft,
   disabled,
   readOnly,
   required,
@@ -108,6 +111,9 @@ export default function TltNumberField({
   const defaultNum = typeof defaultValue === 'string'
     ? toFiniteNumber(defaultValue)
     : defaultValue;
+  const minNum = toFiniteNumber(min);
+  const maxNum = toFiniteNumber(max);
+  const keepsOutOfRangeDraft = preserveOutOfRangeDraft === true;
 
   const numberInput = (
     <InputNumber
@@ -115,9 +121,10 @@ export default function TltNumberField({
       name={name}
       value={controlled === undefined ? undefined : controlled}
       defaultValue={defaultNum}
-      min={toFiniteNumber(min)}
-      max={toFiniteNumber(max)}
+      min={keepsOutOfRangeDraft ? undefined : minNum}
+      max={keepsOutOfRangeDraft ? undefined : maxNum}
       step={toFiniteNumber(step) ?? 1}
+      changeOnBlur={keepsOutOfRangeDraft ? false : undefined}
       disabled={disabled}
       readOnly={readOnly}
       required={isRequired}
@@ -133,6 +140,8 @@ export default function TltNumberField({
       aria-required={isRequired || undefined}
       aria-invalid={isInvalid || undefined}
       aria-describedby={ariaDescribedBy}
+      aria-valuemin={minNum}
+      aria-valuemax={maxNum}
       // Comma as decimal separator (RU locale).
       // Empty input must return '' (not NaN) so rc-input-number commits null on clear.
       parser={(display) => {
