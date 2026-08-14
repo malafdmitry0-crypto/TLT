@@ -215,7 +215,6 @@ function applyCommonObjectParams(
     params.wind_speed_source = v.wind_speed_source;
   }
   if (v.insulation_cover_material) params.insulation_cover_material = v.insulation_cover_material;
-  if (v.max_ambient_temperature != null) params.max_ambient_temperature = v.max_ambient_temperature;
   if (v.max_process_temperature != null) params.max_process_temperature = v.max_process_temperature;
   if (v.environment) params.environment = v.environment;
   if (v.zone_classification) params.zone_classification = v.zone_classification;

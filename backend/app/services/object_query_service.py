@@ -577,18 +577,6 @@ def _common_fields(object_type: str) -> list[FieldDef]:
             else []
         ),
         FieldDef(
-            "max_ambient_temperature",
-            "Макс. T окружающей среды",
-            "Макс. T окр.",
-            (object_type,),
-            "number",
-            _param("max_ambient_temperature"),
-            unit="°C",
-            filter_ops=("range",),
-            sortable=True,
-            sort_type="number",
-        ),
-        FieldDef(
             "max_process_temperature",
             "Макс. допуст. T продукта",
             "Макс. T прод.",
@@ -1124,7 +1112,6 @@ OBJECT_SQL_EXPRESSIONS: dict[str, SqlExprFactory] = {
     "ambient_temperature": lambda: _sql_param_number("ambient_temperature"),
     "ground_temperature": lambda: _sql_param_number("ground_temperature"),
     "ambient_temperature_source": lambda: _sql_param_text("ambient_temperature_source"),
-    "max_ambient_temperature": lambda: _sql_param_number("max_ambient_temperature"),
     "max_process_temperature": lambda: _sql_param_number("max_process_temperature"),
     "wind_speed": lambda: _sql_param_number("wind_speed"),
     "wind_speed_source": lambda: _sql_param_text("wind_speed_source"),

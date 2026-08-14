@@ -222,8 +222,6 @@ PIPE_HEADERS: dict[str, str] = {
     "t3, °c": "maintain_temperature",
     "t3 поддержания": "maintain_temperature",
     "температура поддержания t3": "maintain_temperature",
-    "макс. t° окр. среды": "max_ambient_temperature",
-    "макс t° окр. среды": "max_ambient_temperature",
     "макс. допуст. t° продукта": "max_process_temperature",
     "макс допуст t° продукта": "max_process_temperature",
     "толщина стенки, мм": "wall_thickness_mm",
@@ -336,8 +334,6 @@ TANK_HEADERS: dict[str, str] = {
     "t3, °c": "maintain_temperature",
     "t3 поддержания": "maintain_temperature",
     "температура поддержания t3": "maintain_temperature",
-    "макс. t° окр. среды": "max_ambient_temperature",
-    "макс t° окр. среды": "max_ambient_temperature",
     "макс. допуст. t° продукта": "max_process_temperature",
     "макс допуст t° продукта": "max_process_temperature",
     "материал 2-го слоя": "second_insulation_material",
@@ -755,7 +751,6 @@ def _build_pipe_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
     for field in (
         "vapor_temperature",
         "maintain_temperature",
-        "max_ambient_temperature",
         "max_process_temperature",
         "min_switch_temperature",
         "supply_voltage",
@@ -881,7 +876,6 @@ def _build_tank_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
     for field in (
         "vapor_temperature",
         "maintain_temperature",
-        "max_ambient_temperature",
         "max_process_temperature",
         "min_switch_temperature",
         "heating_height",

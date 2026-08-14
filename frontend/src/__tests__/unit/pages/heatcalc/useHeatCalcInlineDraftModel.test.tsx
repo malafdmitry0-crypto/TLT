@@ -29,7 +29,6 @@ function makeObject(overrides: Partial<ProjectObject> = {}): ProjectObject {
       wind_speed: 3,
       process_temperature: 60,
       ambient_temperature: -20,
-      max_ambient_temperature: 35,
       max_process_temperature: 110,
       environment: 'normal',
       zone_classification: 'safe',

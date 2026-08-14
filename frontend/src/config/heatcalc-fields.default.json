@@ -1110,51 +1110,6 @@
         "type": "computed"
       }
     },
-    "max_ambient_temperature": {
-      "service_name": "max_ambient_temperature",
-      "object_types": [
-        "pipe",
-        "tank"
-      ],
-      "group": "Температура и среда",
-      "labels": {
-        "full": "Макс. T окружающей среды",
-        "short": "Макс. T окр.",
-        "compact": "T окр. max"
-      },
-      "contexts": {
-        "table_by_key": {
-          "max_ambient_temperature": {
-            "label": "Макс. T окр.",
-            "full_label": "Макс. T окружающей среды",
-            "tooltip": "Макс. T окружающей среды"
-          }
-        },
-        "settings_by_key": {
-          "max_ambient_temperature": {
-            "label": "Макс. T окружающей среды"
-          }
-        },
-        "form": {
-          "label": "Максимальная температура окружающей среды"
-        }
-      },
-      "table_keys": {
-        "pipe": "max_ambient_temperature",
-        "tank": "max_ambient_temperature"
-      },
-      "input": {
-        "type": "number",
-        "unit": "°C",
-        "min": -70,
-        "max": 70,
-        "default_step": 0.1,
-        "configurable_step": false,
-        "input_unit": "raw",
-        "display_digits": 0
-      },
-      "description": "Максимальная температура окружающей среды, °C. Сохраняется в параметрах объекта для проверки условий эксплуатации."
-    },
     "max_process_temperature": {
       "service_name": "max_process_temperature",
       "object_types": [
@@ -3545,18 +3500,6 @@
           "field": "ambient_temperature_source"
         },
         {
-          "key": "max_ambient_temperature",
-          "group": "Температура и среда",
-          "defaultWidthPct": 9.8,
-          "minWidthPx": 64,
-          "valueType": "number",
-          "defaultVisible": false,
-          "sortable": true,
-          "filterable": true,
-          "resizable": true,
-          "field": "max_ambient_temperature"
-        },
-        {
           "key": "max_process_temperature",
           "group": "Температура и среда",
           "defaultWidthPct": 10.2,
@@ -4241,18 +4184,6 @@
           "field": "ambient_temperature_source"
         },
         {
-          "key": "max_ambient_temperature",
-          "group": "Температура и среда",
-          "defaultWidthPct": 9.8,
-          "minWidthPx": 64,
-          "valueType": "number",
-          "defaultVisible": false,
-          "sortable": true,
-          "filterable": true,
-          "resizable": true,
-          "field": "max_ambient_temperature"
-        },
-        {
           "key": "max_process_temperature",
           "group": "Температура и среда",
           "defaultWidthPct": 10.2,
@@ -4690,7 +4621,6 @@
             "ground_temperature",
             "process_temperature",
             "wind_speed",
-            "max_ambient_temperature",
             "max_process_temperature",
             "environment",
             "zone_classification",
@@ -4760,7 +4690,6 @@
             "ambient_temperature",
             "process_temperature",
             "wind_speed",
-            "max_ambient_temperature",
             "max_process_temperature",
             "environment",
             "zone_classification",
