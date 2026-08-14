@@ -16,6 +16,10 @@ import {
   spinValue,
 } from './ObjectWizardDependencies.test-harness';
 
+function fieldSource(testId: string) {
+  return screen.getByTestId(testId).closest('.ant-form-item')?.querySelector('.field-source-tag');
+}
+
 describe('ObjectWizard dependencies — climate-cable-refs', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -60,7 +64,8 @@ describe('ObjectWizard dependencies — climate-cable-refs', () => {
 
     expect(await screen.findByTestId('ambient-temperature-input')).toHaveValue('12');
     expect(screen.getByTestId('wind-speed-input')).toHaveValue('9');
-    expect(screen.getAllByText('вручную')).toHaveLength(2);
+    expect(fieldSource('ambient-temperature-input')).toHaveTextContent('вручную');
+    expect(fieldSource('wind-speed-input')).toHaveTextContent('вручную');
 
     await user.click(screen.getByTestId('climate-select'));
     const dialog = await screen.findByRole('dialog', { name: 'Климат' });
@@ -70,7 +75,8 @@ describe('ObjectWizard dependencies — climate-cable-refs', () => {
       expect(spinValue('ambient-temperature-input')).toHaveValue('-25');
       expect(spinValue('wind-speed-input')).toHaveValue('4,2');
     });
-    expect(screen.getAllByText('из климата')).toHaveLength(2);
+    expect(fieldSource('ambient-temperature-input')).toHaveTextContent('из климата');
+    expect(fieldSource('wind-speed-input')).toHaveTextContent('из климата');
 
     const ambientTemperature = spinValue('ambient-temperature-input');
     await user.clear(ambientTemperature);
@@ -79,8 +85,8 @@ describe('ObjectWizard dependencies — climate-cable-refs', () => {
 
     await waitFor(() => expect(ambientTemperature).toHaveValue('10'));
     expect(screen.getByTestId('wind-speed-input')).toHaveValue('4,2');
-    expect(screen.getByText('вручную')).toBeVisible();
-    expect(screen.getByText('из климата')).toBeVisible();
+    expect(fieldSource('ambient-temperature-input')).toHaveTextContent('вручную');
+    expect(fieldSource('wind-speed-input')).toHaveTextContent('из климата');
   });
 
   it('сохраняет климатическую обеспеченность как расчётное hidden-значение по алгоритму', async () => {
@@ -164,6 +170,8 @@ describe('ObjectWizard dependencies — climate-cable-refs', () => {
 
     await waitFor(() => expect(materialPicker).toHaveTextContent('Другое'));
     expect(screen.getByTestId('first-insulation-temperature-range-button')).toBeVisible();
+    expect(fieldSource('first-insulation-lambda-input')).toHaveTextContent('вручную');
+    expect(fieldSource('first-insulation-temperature-range-button')).toHaveTextContent('вручную');
     await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
