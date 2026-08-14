@@ -36,6 +36,15 @@ INSULATION_MATERIAL_RESELECTION_MESSAGE = (
 )
 
 
+class ReferenceInsulationError(ValueError):
+    """Expected insulation-catalog failure with a stable application code."""
+
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code
+        self.message = message
+
+
 def _load_json(name: str) -> dict[str, Any]:
     path = _BASE_DIR / name
     with path.open(encoding="utf-8") as f:
@@ -420,20 +429,38 @@ def resolve_reference_insulation(material: str) -> tuple[ConductivityLaw, tuple[
 
     raw = _insulation_by_material().get(material)
     if raw is None:
-        raise ValueError(f"Неизвестный материал изоляции: {material}")
+        raise ReferenceInsulationError(
+            "unknown_insulation_material",
+            f"Неизвестный материал изоляции: {material}",
+        )
     entry = _with_insulation_catalog_flags(raw)
-    _ensure_selectable_insulation_material(entry)
+    reselection_message = _insulation_material_reselection_message(entry)
+    if reselection_message is not None:
+        raise ReferenceInsulationError(
+            "unselectable_insulation_material",
+            reselection_message,
+        )
     value = entry.get("temperature_range")
     if not isinstance(value, Sequence) or isinstance(value, str | bytes) or len(value) < 2:
-        raise ValueError(f"Для материала изоляции '{material}' не задан температурный диапазон")
+        raise ReferenceInsulationError(
+            "missing_insulation_interval",
+            f"Для материала изоляции '{material}' не задан температурный диапазон",
+        )
     return _insulation_conductivity_law(entry), (float(value[0]), float(value[1]))
 
 
 def _ensure_selectable_insulation_material(entry: dict[str, Any]) -> None:
+    message = _insulation_material_reselection_message(entry)
+    if message is not None:
+        raise ValueError(message)
+
+
+def _insulation_material_reselection_message(entry: dict[str, Any]) -> str | None:
     if entry.get("selectable") is False or entry.get("deprecated") is True:
         material = entry.get("material", "")
         message = entry.get("reselection_message") or INSULATION_MATERIAL_RESELECTION_MESSAGE
-        raise ValueError(f"{message}: {material}")
+        return f"{message}: {material}"
+    return None
 
 
 def _positive_reference_lambda(value: float | None, material: str, temperature: float) -> float:

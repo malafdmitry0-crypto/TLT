@@ -23,6 +23,7 @@ from app.api.v1 import admin as admin_api
 from app.formulas.heat_loss import catalog_preparation
 from app.formulas.heat_loss.catalog_preparation import HeatLossPreparationError
 from app.models.project_object import ProjectObject
+from app.reference_data.loader import ReferenceInsulationError
 from app.schemas import calculation as calculation_schemas
 from app.schemas import heat_loss as heat_loss_schemas
 from app.schemas.heat_loss import PipeHeatLossParams, TankHeatLossParams
@@ -855,13 +856,13 @@ def test_heat_http_envelopes_are_defined_in_heat_loss_schema(schema_name: str) -
         ),
     ],
 )
-def test_catalog_valueerror_prefix_maps_to_current_structured_error(
+def test_catalog_typed_error_maps_to_current_structured_error(
     monkeypatch: pytest.MonkeyPatch,
     material: str,
     loader_message: str,
     expected_code: str,
 ) -> None:
-    resolver = MagicMock(side_effect=ValueError(loader_message))
+    resolver = MagicMock(side_effect=ReferenceInsulationError(expected_code, loader_message))
     monkeypatch.setattr(catalog_preparation, "resolve_reference_insulation", resolver)
 
     with pytest.raises(HeatLossPreparationError) as caught:
@@ -877,7 +878,38 @@ def test_catalog_valueerror_prefix_maps_to_current_structured_error(
     assert error.path == "insulation_layers.1.material"
     assert error.message == loader_message
     assert str(error) == loader_message
+    payload = heat_loss_application_module.build_heat_loss_error_payload(
+        error,
+        object_type="pipe",
+    )
+    assert payload == {
+        "error_code": expected_code,
+        "category": "validation",
+        "message": loader_message,
+        "field": "insulation_layers.1.material",
+        "fields": {"insulation_layers.1.material": loader_message},
+        "hint": DEFAULT_VALIDATION_HINT,
+    }
     resolver.assert_called_once_with(material)
+
+
+def test_catalog_does_not_guess_code_from_untyped_valueerror(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    message = "Неизвестный материал изоляции: missing"
+    resolver = MagicMock(side_effect=ValueError(message))
+    monkeypatch.setattr(catalog_preparation, "resolve_reference_insulation", resolver)
+
+    with pytest.raises(ValueError) as caught:
+        catalog_preparation.resolve_reference_layer(
+            material="missing",
+            index=1,
+            process_temperature=80.0,
+        )
+
+    assert type(caught.value) is ValueError
+    assert str(caught.value) == message
+    resolver.assert_called_once_with("missing")
 
 
 @pytest.mark.parametrize(
