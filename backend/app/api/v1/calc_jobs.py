@@ -10,12 +10,11 @@ from app.core.dependencies import CurrentPrincipal, require_any
 from app.core.rate_limit import enforce_principal_rate_limit, job_enqueue_limiter
 from app.core.worker_dependency import require_worker_ready
 from app.schemas.calculation import (
-    BatchCalcResponse,
     BatchElectricalResponse,
     CalculationTaskResponse,
     ElectricalBatchJobRequest,
-    HeatLossBatchJobRequest,
 )
+from app.schemas.heat_loss import BatchCalcResponse, HeatLossBatchJobRequest
 from app.schemas.report import ReportExportTaskResult
 from app.services.audit_service import AuditService
 from app.services.electrical_variant_service import ElectricalVariantServiceError
