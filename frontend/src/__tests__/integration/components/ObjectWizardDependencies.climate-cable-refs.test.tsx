@@ -46,6 +46,43 @@ describe('ObjectWizard dependencies — climate-cable-refs', () => {
     expect(screen.queryByText('Грунт')).not.toBeInTheDocument();
   });
 
+  it('явный выбор климата заменяет ручные температуру и ветер', async () => {
+    const user = userEvent.setup();
+    renderWizard({
+      initialParams: {
+        ...basePipeParams,
+        ambient_temperature: 12,
+        ambient_temperature_source: 'manual',
+        wind_speed: 9,
+        wind_speed_source: 'manual',
+      },
+    });
+
+    expect(await screen.findByTestId('ambient-temperature-input')).toHaveValue('12');
+    expect(screen.getByTestId('wind-speed-input')).toHaveValue('9');
+    expect(screen.getAllByText('вручную')).toHaveLength(2);
+
+    await user.click(screen.getByTestId('climate-select'));
+    const dialog = await screen.findByRole('dialog', { name: 'Климат' });
+    await user.click(within(dialog).getByRole('option', { name: 'Москва · Москва' }));
+
+    await waitFor(() => {
+      expect(spinValue('ambient-temperature-input')).toHaveValue('-25');
+      expect(spinValue('wind-speed-input')).toHaveValue('4,2');
+    });
+    expect(screen.getAllByText('из климата')).toHaveLength(2);
+
+    const ambientTemperature = spinValue('ambient-temperature-input');
+    await user.clear(ambientTemperature);
+    await user.type(ambientTemperature, '10');
+    await user.type(screen.getByTestId('object-name-input'), ' A');
+
+    await waitFor(() => expect(ambientTemperature).toHaveValue('10'));
+    expect(screen.getByTestId('wind-speed-input')).toHaveValue('4,2');
+    expect(screen.getByText('вручную')).toBeVisible();
+    expect(screen.getByText('из климата')).toBeVisible();
+  });
+
   it('сохраняет климатическую обеспеченность как расчётное hidden-значение по алгоритму', async () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
