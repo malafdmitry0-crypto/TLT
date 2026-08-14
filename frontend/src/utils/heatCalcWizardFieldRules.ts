@@ -8,7 +8,6 @@ import {
   allowedInsulationTemperatureBasisValues,
   heatCalcRequiredFieldMessage,
   isHeatCalcFieldRequired,
-  isHeatCalcFieldVisible,
   normalizeHeatCalcFieldValue,
   validateHeatCalcField,
 } from '@/domain/heatCalcFieldRules';
@@ -150,17 +149,8 @@ export function heatCalcNumberRangeError(
   const aboveMax = fieldInput.max != null && normalizedValue > fieldInput.max;
   if (!belowMin && !aboveMax) return null;
 
-  // Never surface a false visibility/relation error from a context-free batch.
-  // For visible numeric fields the domain validator checks bounds before any
-  // relation, and therefore remains the sole owner of the displayed message.
-  const normalizedContext = {
-    objectType,
-    values: { [fieldId]: normalizedValue },
-  };
-  if (!isHeatCalcFieldVisible(fieldId, normalizedContext)) return null;
-  return validateHeatCalcField(fieldId, normalizedValue, normalizedContext, {
-    enforceRequired: false,
-  });
+  if (belowMin) return `Минимальное значение — ${fieldInput.min}`;
+  return `Максимальное значение — ${fieldInput.max}`;
 }
 
 export function heatCalcTextInputProps(objectType: HeatCalcObjectType, fieldId: string) {
