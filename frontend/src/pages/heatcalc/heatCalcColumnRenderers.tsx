@@ -138,10 +138,6 @@ export function buildHeatCalcColumnRenderers({
       render: (_: unknown, r: ProjectObject) => sourceText(r.params?.ambient_temperature_source),
       copyValue: (r) => sourceText(r.params?.ambient_temperature_source),
     },
-    max_ambient_temperature: {
-      render: (_: unknown, r: ProjectObject) => formatParamNumber(r, 'max_ambient_temperature', 0),
-      copyValue: (r) => formatParamNumber(r, 'max_ambient_temperature', 0),
-    },
     max_process_temperature: {
       render: (_: unknown, r: ProjectObject) => formatParamNumber(r, 'max_process_temperature', 0),
       copyValue: (r) => formatParamNumber(r, 'max_process_temperature', 0),

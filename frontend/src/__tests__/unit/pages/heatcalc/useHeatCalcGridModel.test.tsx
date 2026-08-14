@@ -37,7 +37,6 @@ function makeObject(overrides: Partial<ProjectObject> = {}): ProjectObject {
       maintain_temperature: 15,
       aggressive_product: false,
       ambient_temperature: -20,
-      max_ambient_temperature: 35,
       max_process_temperature: 110,
       environment: 'normal',
       zone_classification: 'safe',

@@ -45,6 +45,9 @@ class ProjectDisplaySettingsTooLargeError(Exception):
         self.limit_bytes = limit_bytes
 
 
+RETIRED_HEATCALC_COLUMN_KEYS = frozenset({"pipe_dn", "max_ambient_temperature"})
+
+
 def strip_retired_heatcalc_columns(settings: dict[str, Any]) -> dict[str, Any]:
     """Remove retired table keys while preserving every unrelated display setting."""
     canonical = copy.deepcopy(settings)
@@ -62,10 +65,13 @@ def strip_retired_heatcalc_columns(settings: dict[str, Any]) -> dict[str, Any]:
             continue
         visible_order = type_settings.get("visibleOrder")
         if isinstance(visible_order, list):
-            type_settings["visibleOrder"] = [key for key in visible_order if key != "pipe_dn"]
+            type_settings["visibleOrder"] = [
+                key for key in visible_order if key not in RETIRED_HEATCALC_COLUMN_KEYS
+            ]
         columns = type_settings.get("columns")
         if isinstance(columns, dict):
-            columns.pop("pipe_dn", None)
+            for key in RETIRED_HEATCALC_COLUMN_KEYS:
+                columns.pop(key, None)
     return canonical
 
 
