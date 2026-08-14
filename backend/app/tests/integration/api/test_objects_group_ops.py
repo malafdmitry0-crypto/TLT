@@ -8,11 +8,18 @@
 """
 
 from datetime import datetime
+from unittest.mock import AsyncMock
+from uuid import UUID
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.models.audit_event import AuditEvent
+from app.services.audit_service import AuditService
+from app.services.calculation_service import CalculationService
 from app.tests.heat_fixtures import canonical_pipe_params, canonical_tank_params
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
@@ -49,6 +56,47 @@ async def _add_object(
     )
     assert resp.status_code == 201, resp.text
     return resp.json()
+
+
+async def _object_snapshots(
+    client: AsyncClient,
+    project_id: str,
+    headers: dict,
+    object_ids: list[str],
+) -> dict[str, dict]:
+    response = await client.get(
+        f"/api/v1/projects/{project_id}/objects",
+        headers=headers,
+    )
+    assert response.status_code == 200, response.text
+    selected = {item["id"]: item for item in response.json() if item["id"] in object_ids}
+    assert set(selected) == set(object_ids)
+    return {
+        object_id: {
+            "params": selected[object_id]["params"],
+            "version": selected[object_id]["version"],
+            "results": selected[object_id]["results"],
+            "is_valid": selected[object_id]["is_valid"],
+            "validation_errors": selected[object_id]["validation_errors"],
+            "updated_at": selected[object_id]["updated_at"],
+        }
+        for object_id in object_ids
+    }
+
+
+async def _group_update_audit_count(
+    db_session: AsyncSession,
+    project_id: str,
+) -> int:
+    return int(
+        await db_session.scalar(
+            select(func.count(AuditEvent.id)).where(
+                AuditEvent.event_type == "object.group_updated",
+                AuditEvent.project_id == UUID(project_id),
+            )
+        )
+        or 0
+    )
 
 
 class TestDuplicateBatch:
@@ -165,8 +213,12 @@ class TestGroupUpdate:
         assert updated[first["id"]]["params"]["name"] == "ГК Труба 1"
         assert updated[second["id"]]["params"]["pipe_length"] == 75.0
 
-    async def test_invalid_value_is_persisted_with_structured_validation_state(
-        self, client: AsyncClient, guest_session: str
+    async def test_out_of_range_value_is_rejected_without_mutating_any_object(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        guest_session: str,
+        monkeypatch: pytest.MonkeyPatch,
     ):
         headers = _headers(guest_session)
         project = await _guest_project(client, guest_session)
@@ -174,25 +226,82 @@ class TestGroupUpdate:
         second = await _add_object(
             client, project["id"], headers, name="Тоже валидная", sort_order=1
         )
+        object_ids = [first["id"], second["id"]]
+        before = await _object_snapshots(client, project["id"], headers, object_ids)
+        project_updated_at_before = (await _guest_project(client, guest_session))["updated_at"]
+        audit_count_before = await _group_update_audit_count(db_session, project["id"])
+        stale_spy = AsyncMock()
+        audit_spy = AsyncMock()
+        monkeypatch.setattr(CalculationService, "mark_electrical_calculations_stale", stale_spy)
+        monkeypatch.setattr(AuditService, "stage", audit_spy)
 
         resp = await client.post(
             f"/api/v1/projects/{project['id']}/objects/group-update",
             json={
-                "object_ids": [first["id"], second["id"]],
-                "param": "pipe_length",
-                "value": -5,
+                "object_ids": object_ids,
+                "param": "ambient_temperature",
+                "value": 999,
             },
             headers=headers,
         )
-        assert resp.status_code == 200, resp.text
-        by_id = {item["id"]: item for item in resp.json()["objects"]}
-        for source in (first, second):
-            updated = by_id[source["id"]]
-            assert updated["params"]["pipe_length"] == -5
-            assert updated["version"] == source["version"] + 1
-            assert updated["is_valid"] is False
-            assert updated["validation_errors"]["error_code"] == "invalid_object_params"
-            assert updated["validation_errors"]["field"] == "pipe_length"
+        assert resp.status_code == 422, resp.text
+        detail = resp.json()["detail"]
+        assert {item["object_id"] for item in detail["objects"]} == set(object_ids)
+        assert all(item["error"] for item in detail["objects"])
+
+        after = await _object_snapshots(client, project["id"], headers, object_ids)
+        assert after == before
+        assert (await _guest_project(client, guest_session))["updated_at"] == (
+            project_updated_at_before
+        )
+        assert await _group_update_audit_count(db_session, project["id"]) == audit_count_before
+        stale_spy.assert_not_awaited()
+        audit_spy.assert_not_awaited()
+
+    async def test_relation_invalid_for_one_object_rolls_back_compatible_object(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        guest_session: str,
+    ):
+        headers = _headers(guest_session)
+        project = await _guest_project(client, guest_session)
+        compatible = await _add_object(
+            client,
+            project["id"],
+            headers,
+            name="Большой диаметр",
+        )
+        incompatible = await _add_object(
+            client,
+            project["id"],
+            headers,
+            name="Малый диаметр",
+            sort_order=1,
+            outer_diameter=0.02,
+            wall_thickness=0.004,
+        )
+        object_ids = [compatible["id"], incompatible["id"]]
+        before = await _object_snapshots(client, project["id"], headers, object_ids)
+        audit_count_before = await _group_update_audit_count(db_session, project["id"])
+
+        resp = await client.post(
+            f"/api/v1/projects/{project['id']}/objects/group-update",
+            json={
+                "object_ids": object_ids,
+                "param": "wall_thickness",
+                "value": 0.01,
+            },
+            headers=headers,
+        )
+        assert resp.status_code == 422, resp.text
+        detail = resp.json()["detail"]
+        assert {item["object_id"] for item in detail["objects"]} == {incompatible["id"]}
+        assert detail["objects"][0]["name"] == "Малый диаметр"
+
+        after = await _object_snapshots(client, project["id"], headers, object_ids)
+        assert after == before
+        assert await _group_update_audit_count(db_session, project["id"]) == audit_count_before
 
     async def test_wrong_type_param_lists_problem_objects(
         self, client: AsyncClient, guest_session: str
