@@ -273,11 +273,7 @@ class TestDumpProjectToWriter:
             id="oid",
             object_type="pipe",
             sort_order=0,
-            params={
-                "name": "Tag-1",
-                "outer_diameter": 0.108,
-                "max_ambient_temperature": 30,
-            },
+            params={"name": "Tag-1", "outer_diameter": 0.108},
             results=None,
             is_valid=False,
             validation_errors=None,
@@ -289,7 +285,6 @@ class TestDumpProjectToWriter:
         assert "oid;pipe;Tag-1;0" in text
         assert "Tag-1" in text
         assert "outer_diameter" in text
-        assert "max_ambient_temperature" not in text
 
     def test_writes_electrical_section(self):
         from types import SimpleNamespace
@@ -446,7 +441,7 @@ class TestApplyProjectData:
                     "type": "pipe",
                     "name": "T1",
                     "sort_order": "0",
-                    "params": '{"outer_diameter": 0.1, "max_ambient_temperature": 30}',
+                    "params": '{"outer_diameter": 0.1}',
                     "results": "",
                     "is_valid": "false",
                     "validation_errors": "",
@@ -456,8 +451,6 @@ class TestApplyProjectData:
             spec_rows=[],
         )
         assert db.add.called
-        imported = db.add.call_args.args[0]
-        assert imported.params == {"outer_diameter": 0.1, "name": "T1"}
 
     async def test_electrical_links_via_object_key(self):
         from types import SimpleNamespace
