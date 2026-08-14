@@ -1,6 +1,8 @@
 # Heat-loss cleanup — актуальная очередь
 
-**Статус:** ACTIVE — backend/formula cleanup; это не frontend-очередь
+**Статус:** CLOSED — формульный cleanup завершён (CF PASS WITH BASELINE DEBT).
+Дальше теплопотери ведутся в
+`docs/audit/2026-08-14-heat-loss-application-boundary/plan.md`.
 
 **Дата:** 2026-08-13
 
@@ -203,4 +205,7 @@ frontend refactor; обновлять frontend backlog.
 
 ## NEXT
 
-**C0 — переснять snapshot на фактическом execution HEAD.**
+Очередь закрыта. Не начинать C0 заново.
+
+Следующая работа по теплопотерям:
+`docs/audit/2026-08-14-heat-loss-application-boundary/plan.md` — слайс A0.
