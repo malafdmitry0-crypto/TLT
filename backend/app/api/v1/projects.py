@@ -27,6 +27,7 @@ from app.services.electrical_variant_service import (
 )
 from app.services.project_io_service import (
     ProjectImportError,
+    ProjectImportNameConflictError,
     export_project,
     export_projects_bulk,
     import_project,
@@ -139,6 +140,8 @@ async def import_project_csv_top(
     raw = await read_upload_with_limit(file)
     try:
         project = await import_project(db, raw, principal)
+    except ProjectImportNameConflictError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except ProjectImportError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except ProjectAccessError as exc:
