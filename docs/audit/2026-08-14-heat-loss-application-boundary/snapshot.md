@@ -388,3 +388,11 @@ Protocol: 9 rounds × 20 loops, 3420 ops/round.
 
 AF speed gate on the same environment: fail if
 `AF.median_seconds > 1.15 × 0.16814633400645107` (= 0.19336828410741873).
+
+## A1 housing tests (added after this baseline)
+
+These freeze current housing; they do not change A0 failed IDs.
+
+- `test_heat_loss_error_payload_characterization.py`
+- `test_heat_loss_application_housing_characterization.py`
+- `test_heat_loss_schema_housing_characterization.py`
