@@ -93,7 +93,22 @@ def evaluate_specification_preflight(
                 row_diagnostics[row.object_id] = _assignment_diagnostics(row, catalog)
                 diagnostics.extend(row_diagnostics[row.object_id])
 
+    contributing = sum(
+        row.assignment_state != "unassigned"
+        and row.object_id in row_diagnostics
+        and not row_diagnostics[row.object_id]
+        for row in assignments
+    )
     if any(item.kind is SpecificationIssueKind.BLOCKING for item in diagnostics):
+        status = SpecificationPreflightStatus.BLOCKED
+    elif assignments and contributing == 0:
+        diagnostics.append(
+            _diagnostic(
+                SpecificationDiagnosticCode.VARIANT_NOT_READY,
+                SpecificationIssueKind.BLOCKING,
+                "Нет contributing electrical results для формирования BOM",
+            )
+        )
         status = SpecificationPreflightStatus.BLOCKED
     elif unassigned and not exclude_unassigned_confirmed:
         diagnostics.append(
@@ -108,12 +123,6 @@ def evaluate_specification_preflight(
     else:
         status = SpecificationPreflightStatus.READY
 
-    contributing = sum(
-        row.assignment_state != "unassigned"
-        and row.object_id in row_diagnostics
-        and not row_diagnostics[row.object_id]
-        for row in assignments
-    )
     fingerprint: str | None = None
     if status is SpecificationPreflightStatus.READY:
         try:
