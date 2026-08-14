@@ -112,6 +112,8 @@ tmp/
 !/docs/audit/2026-08-14-heat-loss-application-ownership/**
 /docs/audit/2026-08-14-heat-loss-application-ownership/**/__pycache__/
 /docs/audit/2026-08-14-heat-loss-application-ownership/**/*.py[cod]
+!/docs/audit/2026-08-14-client-feedback-09-20/
+!/docs/audit/2026-08-14-client-feedback-09-20/**
 /demo-doc/
 /reports/
 /codex-workspace/
