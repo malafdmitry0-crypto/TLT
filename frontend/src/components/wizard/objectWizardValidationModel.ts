@@ -272,10 +272,10 @@ export function buildCalculationFieldErrors(
     };
   }
   return {
-    ...structuredErrors,
     ...Object.fromEntries(fieldNamesFromValidationMessage(message, objectType).map((fieldName) => [
       fieldName,
       { message },
     ])),
+    ...structuredErrors,
   };
 }
