@@ -255,32 +255,30 @@ async def duplicate_project(
     except ProjectLimitError as exc:
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(exc)) from exc
 
+    duplicated_project_id = new_project.id
     calc_service = CalculationService(db)
-    await calc_service.batch_recalculate(new_project.id)
+    await calc_service.batch_recalculate(duplicated_project_id)
     variant_service = ElectricalVariantService(db)
-    electrical_readiness = await variant_service.get_readiness(new_project.id, principal)
+    electrical_readiness = await variant_service.get_readiness(duplicated_project_id, principal)
     electrical_variant = None
     if electrical_readiness.ready:
         try:
             electrical_variant = await variant_service.prepare_legacy_variant_for_write(
-                new_project.id,
+                duplicated_project_id,
                 principal,
                 1,
             )
         except ElectricalVariantServiceError as exc:
             raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
-    project = await service.get_project_summary(new_project.id, principal)
     await AuditService(db).try_record(
         event_type="project.duplicated",
         category="project",
         principal=principal,
-        project_id=project.id,
+        project_id=duplicated_project_id,
         details={
             "source_project_id": str(project_id),
             "electrical_status": (
-                "initialized_unassigned"
-                if electrical_variant is not None
-                else "skipped_not_ready"
+                "initialized_unassigned" if electrical_variant is not None else "skipped_not_ready"
             ),
             "electrical_variant_id": (
                 str(electrical_variant.id) if electrical_variant is not None else None
@@ -292,7 +290,7 @@ async def duplicate_project(
         },
         message="Проект скопирован с теплорасчётом и неназначенным ЭР1",
     )
-    return project
+    return await service.get_project_summary(duplicated_project_id, principal)
 
 
 @router.get(
