@@ -22,6 +22,7 @@ from app.services.heat_loss_application import (
     build_heat_loss_error_payload,
     pipe_params_with_effective_safety_factor,
 )
+from app.services.project_object_params import ProjectObjectParamsError
 
 MINERAL_WOOL = "mineral_wool_boards_120"
 HOT_SIDE_PIPE_LITERAL = (
@@ -31,6 +32,7 @@ HOT_SIDE_PIPE_LITERAL = (
 WALL_EXCEEDS_LITERAL = "Толщина стенки (40.0 мм) превышает радиус трубы (5.4 мм)"
 RANGE_SAFETY_FACTOR_LITERAL = "safety_factor должно быть не меньше 1 (получено 0)"
 DEFAULT_VALIDATION_HINT = "Проверьте параметры объекта и повторите расчёт."
+WALL_RELATION_MESSAGE = "Толщина стенки должна быть меньше половины наружного диаметра"
 
 
 def _pipe_payload(**overrides: object) -> dict[str, object]:
@@ -179,4 +181,24 @@ def test_facade_domain_error_payload_is_structured_without_parsing_message(
         "field": "wall_thickness",
         "fields": {"wall_thickness": WALL_EXCEEDS_LITERAL},
         "hint": DEFAULT_VALIDATION_HINT,
+    }
+
+
+def test_project_object_wall_relation_keeps_actionable_structured_payload() -> None:
+    error = ProjectObjectParamsError(
+        "Проверьте параметры объекта",
+        code="OBJECT_PARAMS_INVALID",
+        fields=("wall_thickness",),
+        reason="wall_exceeds_pipe_radius",
+    )
+
+    payload = build_heat_loss_error_payload(error, object_type="pipe")
+
+    assert payload == {
+        "error_code": "wall_exceeds_pipe_radius",
+        "category": "validation",
+        "message": WALL_RELATION_MESSAGE,
+        "field": "wall_thickness",
+        "fields": {"wall_thickness": WALL_RELATION_MESSAGE},
+        "hint": WALL_RELATION_MESSAGE,
     }
