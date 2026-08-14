@@ -108,6 +108,10 @@ tmp/
 !/docs/audit/2026-08-14-heat-loss-application-boundary/**
 /docs/audit/2026-08-14-heat-loss-application-boundary/**/__pycache__/
 /docs/audit/2026-08-14-heat-loss-application-boundary/**/*.py[cod]
+!/docs/audit/2026-08-14-heat-loss-application-ownership/
+!/docs/audit/2026-08-14-heat-loss-application-ownership/**
+/docs/audit/2026-08-14-heat-loss-application-ownership/**/__pycache__/
+/docs/audit/2026-08-14-heat-loss-application-ownership/**/*.py[cod]
 /demo-doc/
 /reports/
 /codex-workspace/
