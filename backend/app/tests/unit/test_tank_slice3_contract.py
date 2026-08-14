@@ -10,7 +10,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.formulas.heat_loss.tank import calc_tank_heat_loss
-from app.schemas.calculation import InsulationLayer, TankHeatLossParams
+from app.schemas.heat_loss import InsulationLayer, TankHeatLossParams
 from app.services.heat_contract import replace_heat_owned_params
 
 

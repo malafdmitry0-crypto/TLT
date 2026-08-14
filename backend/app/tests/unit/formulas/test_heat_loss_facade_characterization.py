@@ -9,7 +9,7 @@ from app.formulas.heat_loss.catalog_preparation import HeatLossPreparationError
 from app.formulas.heat_loss.insulation import resolve_insulation_tm
 from app.formulas.heat_loss.pipe import calc_pipe_heat_loss
 from app.formulas.heat_loss.tank import calc_tank_heat_loss
-from app.schemas.calculation import PipeHeatLossParams, TankHeatLossParams
+from app.schemas.heat_loss import PipeHeatLossParams, TankHeatLossParams
 
 
 def test_outdoor_winter_tm_preserves_legacy_signed_zero() -> None:

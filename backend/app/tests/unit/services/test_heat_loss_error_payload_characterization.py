@@ -17,7 +17,7 @@ from heatcalc_heat_loss_core.errors import FormulaDomainError
 from app.formulas.heat_loss import pipe as pipe_facade
 from app.formulas.heat_loss.catalog_preparation import HeatLossPreparationError
 from app.formulas.heat_loss.pipe import calc_pipe_heat_loss
-from app.schemas.calculation import PipeHeatLossParams
+from app.schemas.heat_loss import PipeHeatLossParams
 from app.services.heat_loss_application import (
     build_heat_loss_error_payload,
     pipe_params_with_effective_safety_factor,

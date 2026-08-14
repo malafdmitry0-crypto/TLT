@@ -21,7 +21,7 @@ from app.formulas.heat_loss.pipe import (
     calc_pipe_heat_loss,
     pipe_material_lambda,
 )
-from app.schemas.calculation import InsulationLayer, PipeHeatLossParams
+from app.schemas.heat_loss import InsulationLayer, PipeHeatLossParams
 from app.services.heat_loss_application import pipe_params_with_effective_safety_factor
 
 # ---------------------------------------------------------------------------
