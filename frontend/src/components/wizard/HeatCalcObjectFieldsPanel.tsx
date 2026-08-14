@@ -73,6 +73,7 @@ import type { HeatCalcObjectType } from '@/types/project';
 import type { ObjectWizardLayoutVariant } from './ObjectWizardPanelTypes';
 /** CSS island — only styles under .heat-object-fields (see WIZARD-CSS-ISLANDS.md) */
 import './heat-object-fields.css';
+import './heat-object-field-source.css';
 import './heat-object-fields-narrow-container.css';
 
 export interface HeatCalcObjectFieldsPanelProps {
