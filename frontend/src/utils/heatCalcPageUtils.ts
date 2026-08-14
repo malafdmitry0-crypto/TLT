@@ -1,5 +1,9 @@
 import type { BatchHeatLossResponse } from '@/types/calculation';
-import { getHeatCalcFieldLabel } from '@/domain/heatCalcFields';
+import {
+  getHeatCalcFieldByColumn,
+  getHeatCalcFieldConfig,
+  getHeatCalcFieldLabel,
+} from '@/domain/heatCalcFields';
 import type {
   ObjectQueryCapabilities,
   ObjectQueryFieldCapability,
@@ -96,6 +100,55 @@ const ENUM_FILTER_COLUMNS = new Set<HeatCalcColumnKey>([
   'tank_shape',
 ]);
 
+const BACKEND_STORAGE_PATH_TO_HEAT_FIELD_ID: Record<string, string> = {
+  wall_thickness: 'wall_thickness_mm',
+};
+
+function heatCalcFieldIdFromBackendPath(
+  fieldPath: string,
+  objectType?: HeatCalcObjectType,
+): string | null {
+  const normalizedPath = fieldPath.trim().replace(/^params[.\s]+/, '');
+  if (!normalizedPath || normalizedPath === '_row') return null;
+  const mappedFieldId = BACKEND_STORAGE_PATH_TO_HEAT_FIELD_ID[normalizedPath];
+  if (mappedFieldId && getHeatCalcFieldConfig(mappedFieldId)) {
+    return mappedFieldId;
+  }
+  if (getHeatCalcFieldConfig(normalizedPath)) return normalizedPath;
+  if (objectType) return getHeatCalcFieldByColumn(objectType, normalizedPath)?.id ?? null;
+  return null;
+}
+
+function heatCalcValidationFieldLabel(
+  fieldPath: string,
+  objectType?: HeatCalcObjectType,
+) {
+  const fieldId = heatCalcFieldIdFromBackendPath(fieldPath, objectType);
+  if (!fieldId) return null;
+  return getHeatCalcFieldLabel(fieldId, {
+    context: 'form',
+    objectType,
+    variant: 'full',
+  });
+}
+
+function safeStructuredValidationMessage(
+  message: unknown,
+  rawField: string | undefined,
+  fallback = 'Проверьте значение',
+) {
+  if (typeof message !== 'string' || !message.trim()) return fallback;
+  const trimmed = message.trim();
+  const storagePath = rawField?.trim().replace(/^params[.\s]+/, '');
+  if (
+    (rawField && trimmed.includes(rawField))
+    || (storagePath && storagePath !== rawField && trimmed.includes(storagePath))
+  ) {
+    return fallback;
+  }
+  return trimmed;
+}
+
 export function isBatchHeatLossResponse(result: unknown): result is BatchHeatLossResponse {
   return typeof result === 'object' && result !== null && 'updated' in result && 'failed' in result;
 }
@@ -136,37 +189,55 @@ export function heatLossErrorText(record: ProjectObject) {
   if (!errors) return 'Ошибка расчёта';
   if (typeof errors === 'object' && errors !== null) {
     const payload = errors as {
+      field?: unknown;
       message?: unknown;
       missing_fields?: unknown;
       fields?: unknown;
     };
     const message = payload.message;
+    const objectType = record.object_type === 'pipe' || record.object_type === 'tank'
+      ? record.object_type
+      : undefined;
+    const structuredField = typeof payload.field === 'string' && payload.field.trim()
+      ? payload.field.trim()
+      : undefined;
+    const structuredFields = typeof payload.fields === 'object'
+      && payload.fields !== null
+      && !Array.isArray(payload.fields)
+      ? payload.fields as Record<string, unknown>
+      : null;
+    const hasStructuredError = structuredField != null || structuredFields != null;
+    if (hasStructuredError) {
+      const fieldMessages = structuredFields
+        ? Object.entries(structuredFields)
+          .filter((entry): entry is [string, string] => typeof entry[1] === 'string')
+          .map(([field, fieldMessage]) => {
+            const label = heatCalcValidationFieldLabel(field, objectType) ?? 'Параметр объекта';
+            return `${label}: ${safeStructuredValidationMessage(fieldMessage, field)}`;
+          })
+        : [];
+      if (fieldMessages.length > 0) return uniqueErrorMessages(fieldMessages).join('\n');
+
+      const label = structuredField
+        ? heatCalcValidationFieldLabel(structuredField, objectType) ?? 'Параметр объекта'
+        : 'Параметры объекта';
+      return `${label}: ${safeStructuredValidationMessage(message, structuredField)}`;
+    }
     if (typeof message === 'string' && message.trim()) {
       const formattedMessage = formatInsulationHotSideTemperatureError(message) ?? message;
-      const objectType = record.object_type === 'pipe' || record.object_type === 'tank'
-        ? record.object_type
-        : undefined;
       const details: string[] = [];
       if (Array.isArray(payload.missing_fields)) {
         const labels = payload.missing_fields
           .filter((field): field is string => typeof field === 'string')
-          .map((field) => getHeatCalcFieldLabel(field, {
-            context: 'form',
-            objectType,
-            variant: 'full',
-          }));
+          .map((field) => heatCalcValidationFieldLabel(field, objectType) ?? field);
         if (labels.length > 0) details.push(`Не заполнено: ${labels.join(', ')}`);
       }
       if (typeof payload.fields === 'object' && payload.fields !== null && !Array.isArray(payload.fields)) {
         const fieldMessages = Object.entries(payload.fields as Record<string, unknown>)
           .filter((entry): entry is [string, string] => typeof entry[1] === 'string')
           .map(([field, fieldMessage]) => {
-            const label = getHeatCalcFieldLabel(field, {
-              context: 'form',
-              objectType,
-              variant: 'full',
-            });
-            return `${label}: ${fieldMessage}`;
+            const label = heatCalcValidationFieldLabel(field, objectType) ?? 'Параметр объекта';
+            return `${label}: ${safeStructuredValidationMessage(fieldMessage, field)}`;
           });
         details.push(...fieldMessages);
       }
