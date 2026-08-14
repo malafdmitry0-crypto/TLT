@@ -106,7 +106,7 @@ def evaluate_specification_preflight(
             _diagnostic(
                 SpecificationDiagnosticCode.VARIANT_NOT_READY,
                 SpecificationIssueKind.BLOCKING,
-                "Нет contributing electrical results для формирования BOM",
+                "Нет результатов электротехнического расчёта для включения в спецификацию",
             )
         )
         status = SpecificationPreflightStatus.BLOCKED
