@@ -4,8 +4,8 @@ K-matrix results and unused-key result equality already live in
 test_heat_loss_canonical_flow_characterization. Evaluator dispatch to the
 facades is already in test_heat_loss_evaluator. This module freezes the
 remaining housing: signatures, which coefficient keys the pipe facade
-reads, and that calc_heat_loss plus admin formula-check call the same
-evaluate_validated_heat_loss.
+reads, and that calc_heat_loss plus the application-owned admin preview call
+the same evaluate_validated_heat_loss.
 """
 
 from __future__ import annotations
@@ -113,8 +113,9 @@ def test_application_applies_admin_safety_factor_when_user_k_absent() -> None:
     assert set(coefficients.read_keys) == {"safety_factor"}
 
 
-def test_calc_heat_loss_and_admin_formula_check_import_the_same_evaluator() -> None:
-    assert admin_api.evaluate_validated_heat_loss is evaluate_validated_heat_loss
+def test_admin_formula_check_uses_the_heat_loss_application_boundary() -> None:
+    assert admin_api.heat_loss_application is heat_loss_application_module
+    assert not hasattr(admin_api, "evaluate_validated_heat_loss")
     assert heat_loss_application_module.evaluate_validated_heat_loss is evaluate_validated_heat_loss
 
 
@@ -125,7 +126,6 @@ async def test_calc_heat_loss_and_admin_formula_check_call_evaluate_validated_he
     result = MagicMock()
     result.model_dump.return_value = dumped
     evaluator = MagicMock(return_value=result)
-    monkeypatch.setattr(admin_api, "evaluate_validated_heat_loss", evaluator)
     monkeypatch.setattr(heat_loss_application_module, "evaluate_validated_heat_loss", evaluator)
 
     coefficients = {"safety_factor": 1.2}

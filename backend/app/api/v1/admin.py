@@ -22,8 +22,6 @@ from app.electrical_input_validation import (
 )
 from app.formulas.electrical.cable_geometry import compute_tank_cable_length
 from app.formulas.electrical.self_regulating import calc_self_regulating_tt
-from app.formulas.heat_loss.catalog_preparation import HeatLossPreparationError
-from app.formulas.heat_loss.evaluator import evaluate_validated_heat_loss
 from app.models.background_task import BackgroundTask
 from app.schemas.calculation import (
     CalculationTaskResponse,
@@ -36,7 +34,6 @@ from app.schemas.electrical_catalog import (
     ElectricalCatalogKind,
     ElectricalCatalogVersionResponse,
 )
-from app.schemas.heat_loss import PipeHeatLossParams, TankHeatLossParams
 from app.schemas.reference import (
     AccessoryExtendedCreate,
     AccessoryExtendedResponse,
@@ -46,6 +43,7 @@ from app.schemas.reference import (
     CableExtendedUpdate,
 )
 from app.schemas.user import UserCreate, UserResponse, UserUpdate
+from app.services import heat_loss_application
 from app.services.admin_service import AdminError, AdminService
 from app.services.audit_service import AuditService
 from app.services.electrical_catalog_service import (
@@ -715,11 +713,9 @@ async def formula_check(
         if data.formula_type in PROCESS_TEMPERATURE_REQUIRED_FORMULA_TYPES:
             ensure_process_temperature(params_data)
         if data.formula_type == "pipe":
-            pipe_params = PipeHeatLossParams(**params_data)
-            result = evaluate_validated_heat_loss(pipe_params).model_dump()
+            result = heat_loss_application.preview_validated_heat_formula("pipe", params_data)
         elif data.formula_type == "tank":
-            tank_params = TankHeatLossParams(**params_data)
-            result = evaluate_validated_heat_loss(tank_params).model_dump()
+            result = heat_loss_application.preview_validated_heat_formula("tank", params_data)
         elif data.formula_type == "electrical_tt":
             params = SelfRegulatingTTParams(**params_data)
             result = calc_self_regulating_tt(params).model_dump()
@@ -737,7 +733,7 @@ async def formula_check(
             message="Администратор выполнил пробный расчёт формулы",
         )
         return result
-    except HeatLossPreparationError as exc:
+    except heat_loss_application.HeatLossPreparationError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except PydanticValidationError as exc:
         # exc.errors() содержит ctx["error"] = ValueError — не сериализуется напрямую
