@@ -1,7 +1,7 @@
 # Heat-loss application ownership — актуальная очередь
 
-**Статус:** ACTIVE — blocked BF исправлен в HL-OWN-BC,
-впереди повторный BF
+**Статус:** COMPLETE — BF retry закрыт с verdict
+`PASS WITH BASELINE DEBT`
 
 **Дата:** 2026-08-14
 
@@ -456,6 +456,6 @@ docker cp heatcalc_backend:/tmp/b0-facade-benchmark.json \
 
 ## NEXT
 
-**BF retry — повторить финальную регрессию после committed HL-OWN-BC.**
-Начать с проверки BC SHA/diff oracle и чистого pytest-процесса. В этой
-попытке разрешён ровно один full backend; failed BF evidence сохраняется.
+**Очередь закрыта.** Финальный verdict и baseline debt зафиксированы в
+`snapshot.md` и canonical `evidence/bf-*`. Новая работа должна начинаться
+отдельной очередью, а не продолжать этот audit-план.
