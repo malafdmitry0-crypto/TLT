@@ -311,29 +311,28 @@ async def test_try_recalculate_orders_climate_canonicalization_and_formula(
     def calculate(
         object_type: str,
         params: dict[str, object],
-        supplied_coefficients: dict[str, float],
         **kwargs: object,
     ) -> dict[str, object]:
         events.append("formula")
         assert object_type == "pipe"
         assert params is canonical
-        assert supplied_coefficients is coefficients
         assert kwargs == {
-            "apply_climate_policy": False,
-            "validated_params": prepared.heat_params,
+            "coefficients": coefficients,
+            "apply_climate": False,
+            "stored": prepared.heat_params,
         }
         return {"formula_model": "pipe_heat_loss"}
 
-    monkeypatch.setattr(calculation_service_module, "normalize_project_object_params", normalize)
+    monkeypatch.setattr(heat_loss_application_module, "normalize_project_object_params", normalize)
     monkeypatch.setattr(heat_loss_application_module, "apply_climate_policy", apply_climate)
     monkeypatch.setattr(
-        calculation_service_module,
+        heat_loss_application_module,
         "validate_and_canonicalize_project_object_params",
         canonicalize,
     )
+    monkeypatch.setattr(heat_loss_application_module, "calc_heat_loss", calculate)
     service = CalculationService(AsyncMock())
     service.get_coefficients = AsyncMock(side_effect=AssertionError("provider must stay lazy"))  # type: ignore[method-assign]
-    service._calc_heat_loss_with_coefficients = MagicMock(side_effect=calculate)  # type: ignore[method-assign]
     obj = _object(original)
 
     outcome = await service.try_recalculate(obj, coefficients=coefficients)
@@ -353,6 +352,75 @@ async def test_try_recalculate_orders_climate_canonicalization_and_formula(
     assert obj.is_valid is True
     assert obj.validation_errors is None
     service.get_coefficients.assert_not_awaited()
+
+
+async def test_application_loads_coefficients_after_canonical_validation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    events: list[str] = []
+    canonical = {"stage": "canonical"}
+    prepared = _valid_prepared(canonical)
+    coefficients = {"safety_factor": 1.4}
+
+    def normalize(object_type: str, params: object) -> dict[str, str]:
+        events.append("normalize")
+        return {"stage": "normalized"}
+
+    def climate(object_type: str, params: object) -> dict[str, str]:
+        events.append("climate")
+        return {"stage": "climate"}
+
+    def canonicalize(object_type: str, params: object) -> PreparedProjectObjectParams:
+        events.append("canonicalize")
+        return prepared
+
+    async def load_coefficients() -> dict[str, float]:
+        events.append("provider")
+        return coefficients
+
+    def calculate(object_type: str, params: object, **kwargs: object) -> dict[str, bool]:
+        events.append("formula")
+        assert params is canonical
+        assert kwargs["coefficients"] is coefficients
+        return {"ok": True}
+
+    monkeypatch.setattr(heat_loss_application_module, "normalize_project_object_params", normalize)
+    monkeypatch.setattr(heat_loss_application_module, "apply_climate_policy", climate)
+    monkeypatch.setattr(
+        heat_loss_application_module,
+        "validate_and_canonicalize_project_object_params",
+        canonicalize,
+    )
+    monkeypatch.setattr(heat_loss_application_module, "calc_heat_loss", calculate)
+
+    outcome = await heat_loss_application_module.evaluate_project_object_heat(
+        "pipe",
+        {},
+        load_coefficients=load_coefficients,
+    )
+
+    assert type(outcome) is heat_loss_application_module.ProjectObjectHeatOutcome
+    assert outcome.is_valid is True
+    assert outcome.params_to_persist is canonical
+    assert outcome.results == {"ok": True}
+    assert outcome.validation_errors is None
+    assert outcome.error_message is None
+    assert events == ["normalize", "climate", "canonicalize", "provider", "formula"]
+
+
+async def test_application_explicit_coefficients_take_priority_over_provider() -> None:
+    provider = AsyncMock(side_effect=AssertionError("explicit coefficients lost"))
+
+    outcome = await heat_loss_application_module.evaluate_project_object_heat(
+        "pipe",
+        _pipe(min_switch_temperature=-20.0),
+        coefficients={},
+        load_coefficients=provider,
+    )
+
+    assert outcome.is_valid is True
+    assert outcome.error_message is None
+    provider.assert_not_awaited()
 
 
 async def test_try_recalculate_persists_current_climate_k_snapshot() -> None:
@@ -413,7 +481,7 @@ async def test_invalid_report_stops_before_coefficients_and_formula(
         heat_params=None,
     )
     monkeypatch.setattr(
-        calculation_service_module,
+        heat_loss_application_module,
         "normalize_project_object_params",
         MagicMock(return_value={"stage": "normalized"}),
     )
@@ -423,15 +491,14 @@ async def test_invalid_report_stops_before_coefficients_and_formula(
         MagicMock(return_value={"stage": "climate"}),
     )
     monkeypatch.setattr(
-        calculation_service_module,
+        heat_loss_application_module,
         "validate_and_canonicalize_project_object_params",
         MagicMock(return_value=prepared),
     )
+    formula = MagicMock(side_effect=AssertionError("invalid input reaches formula"))
+    monkeypatch.setattr(heat_loss_application_module, "calc_heat_loss", formula)
     service = CalculationService(AsyncMock())
     service.get_coefficients = AsyncMock(side_effect=AssertionError("invalid input reads DB"))  # type: ignore[method-assign]
-    service._calc_heat_loss_with_coefficients = MagicMock(  # type: ignore[method-assign]
-        side_effect=AssertionError("invalid input reaches formula")
-    )
     obj = _object(_pipe())
 
     outcome = await service.try_recalculate(obj)
@@ -450,7 +517,7 @@ async def test_invalid_report_stops_before_coefficients_and_formula(
         "missing_fields": ["outer_diameter"],
     }
     service.get_coefficients.assert_not_awaited()
-    service._calc_heat_loss_with_coefficients.assert_not_called()
+    formula.assert_not_called()
 
 
 async def test_coefficient_provider_exception_is_an_invalid_canonical_outcome(
@@ -458,7 +525,7 @@ async def test_coefficient_provider_exception_is_an_invalid_canonical_outcome(
 ) -> None:
     canonical = {"stage": "canonical", "safety_factor": 1.1}
     monkeypatch.setattr(
-        calculation_service_module,
+        heat_loss_application_module,
         "normalize_project_object_params",
         MagicMock(return_value={"stage": "normalized"}),
     )
@@ -468,13 +535,14 @@ async def test_coefficient_provider_exception_is_an_invalid_canonical_outcome(
         MagicMock(return_value={"stage": "climate"}),
     )
     monkeypatch.setattr(
-        calculation_service_module,
+        heat_loss_application_module,
         "validate_and_canonicalize_project_object_params",
         MagicMock(return_value=_valid_prepared(canonical)),
     )
+    formula = MagicMock()
+    monkeypatch.setattr(heat_loss_application_module, "calc_heat_loss", formula)
     service = CalculationService(AsyncMock())
     service.get_coefficients = AsyncMock(side_effect=RuntimeError("coefficient cache unavailable"))  # type: ignore[method-assign]
-    service._calc_heat_loss_with_coefficients = MagicMock()  # type: ignore[method-assign]
     obj = _object(_pipe())
 
     outcome = await service.try_recalculate(obj)
@@ -492,7 +560,7 @@ async def test_coefficient_provider_exception_is_an_invalid_canonical_outcome(
         "hint": FORMULA_ERROR_HINT,
     }
     service.get_coefficients.assert_awaited_once_with()
-    service._calc_heat_loss_with_coefficients.assert_not_called()
+    formula.assert_not_called()
 
 
 @pytest.mark.parametrize("failing_stage", ["normalize", "climate"])
@@ -510,16 +578,17 @@ async def test_early_preparation_exception_keeps_original_params(
         side_effect=RuntimeError("climate exploded") if failing_stage == "climate" else None
     )
     canonicalize = MagicMock()
-    monkeypatch.setattr(calculation_service_module, "normalize_project_object_params", normalize)
+    monkeypatch.setattr(heat_loss_application_module, "normalize_project_object_params", normalize)
     monkeypatch.setattr(heat_loss_application_module, "apply_climate_policy", climate)
     monkeypatch.setattr(
-        calculation_service_module,
+        heat_loss_application_module,
         "validate_and_canonicalize_project_object_params",
         canonicalize,
     )
+    formula = MagicMock()
+    monkeypatch.setattr(heat_loss_application_module, "calc_heat_loss", formula)
     service = CalculationService(AsyncMock())
     service.get_coefficients = AsyncMock()  # type: ignore[method-assign]
-    service._calc_heat_loss_with_coefficients = MagicMock()  # type: ignore[method-assign]
     obj = _object(original)
 
     outcome = await service.try_recalculate(obj)
@@ -541,7 +610,7 @@ async def test_early_preparation_exception_keeps_original_params(
         climate.assert_not_called()
     canonicalize.assert_not_called()
     service.get_coefficients.assert_not_awaited()
-    service._calc_heat_loss_with_coefficients.assert_not_called()
+    formula.assert_not_called()
 
 
 @pytest.mark.parametrize(
@@ -585,7 +654,7 @@ async def test_formula_and_catalog_exceptions_keep_canonical_params(
 ) -> None:
     canonical = {"stage": "canonical", "safety_factor": 1.1}
     monkeypatch.setattr(
-        calculation_service_module,
+        heat_loss_application_module,
         "normalize_project_object_params",
         MagicMock(return_value={"stage": "normalized"}),
     )
@@ -595,13 +664,14 @@ async def test_formula_and_catalog_exceptions_keep_canonical_params(
         MagicMock(return_value={"stage": "climate"}),
     )
     monkeypatch.setattr(
-        calculation_service_module,
+        heat_loss_application_module,
         "validate_and_canonicalize_project_object_params",
         MagicMock(return_value=_valid_prepared(canonical)),
     )
+    formula = MagicMock(side_effect=error)
+    monkeypatch.setattr(heat_loss_application_module, "calc_heat_loss", formula)
     service = CalculationService(AsyncMock())
     service.get_coefficients = AsyncMock(side_effect=AssertionError("explicit coefficients lost"))  # type: ignore[method-assign]
-    service._calc_heat_loss_with_coefficients = MagicMock(side_effect=error)  # type: ignore[method-assign]
     obj = _object(_pipe())
 
     outcome = await service.try_recalculate(obj, coefficients={})
@@ -942,10 +1012,10 @@ def test_generic_exception_payload_branches_are_frozen(
     )
 
 
-def test_heat_loss_application_has_no_model_or_calculation_service_imports() -> None:
+def test_heat_loss_application_has_no_orm_or_calculation_service_imports() -> None:
     source_path = Path(heat_loss_application_module.__file__)
     tree = ast.parse(source_path.read_text(encoding="utf-8"), filename=str(source_path))
-    forbidden_roots = ("app.models", "app.services.calculation_service")
+    forbidden_roots = ("app.models", "app.services.calculation_service", "sqlalchemy")
     imported: list[str] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom) and node.module:

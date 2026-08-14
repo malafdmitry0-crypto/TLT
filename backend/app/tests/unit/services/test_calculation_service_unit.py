@@ -26,6 +26,7 @@ from app.models.electrical_variant import ElectricalVariantObject
 from app.models.project import Project
 from app.models.project_object import ProjectObject
 from app.schemas.calculation import ElectricalRequest
+from app.services import heat_loss_application as heat_loss_application_module
 from app.services.calculation_service import (
     BatchCancelChecker,
     BatchCancelledError,
@@ -806,7 +807,7 @@ class TestBatchRecalculate:
         assert sleep.await_count == 3
         assert all(item.args == (0,) for item in sleep.await_args_list)
 
-    async def test_mixed_success_and_failure(self):
+    async def test_mixed_success_and_failure(self, monkeypatch: pytest.MonkeyPatch):
         """Один валидный + один невалидный — счётчики и список ошибок правильные."""
         db = AsyncMock()
         project_id = uuid.uuid4()
@@ -838,12 +839,13 @@ class TestBatchRecalculate:
         service = CalculationService(db)
         _disable_stale_mark(service)
         service.get_coefficients = AsyncMock(return_value={})  # type: ignore[method-assign]
-        service._calc_heat_loss_with_coefficients = MagicMock(  # type: ignore[method-assign]
+        formula = MagicMock(
             side_effect=[
                 {"heat_loss_per_meter_base": 10},
                 ValueError("process temperature ниже ambient"),
             ]
         )
+        monkeypatch.setattr(heat_loss_application_module, "calc_heat_loss", formula)
 
         updated, failed, errors = await service.batch_recalculate(project_id)
 
@@ -857,7 +859,7 @@ class TestBatchRecalculate:
         assert db.execute.query_names == ["project_lock", "object_count", "object_chunk"]
         db.commit.assert_awaited_once()
 
-    async def test_loads_coefficients_once_for_batch(self):
+    async def test_loads_coefficients_once_for_batch(self, monkeypatch: pytest.MonkeyPatch):
         project_id = uuid.uuid4()
         objects = [
             SimpleNamespace(
@@ -880,9 +882,8 @@ class TestBatchRecalculate:
         _disable_stale_mark(service)
         coefficients = {"safety_factor": 1.0}
         service.get_coefficients = AsyncMock(return_value=coefficients)  # type: ignore[method-assign]
-        service._calc_heat_loss_with_coefficients = MagicMock(  # type: ignore[method-assign]
-            return_value={"heat_loss_per_meter_base": 10}
-        )
+        formula = MagicMock(return_value={"heat_loss_per_meter_base": 10})
+        monkeypatch.setattr(heat_loss_application_module, "calc_heat_loss", formula)
 
         updated, failed, errors = await service.batch_recalculate(project_id)
 
@@ -890,11 +891,8 @@ class TestBatchRecalculate:
         assert failed == 0
         assert errors == []
         service.get_coefficients.assert_awaited_once()
-        assert service._calc_heat_loss_with_coefficients.call_count == 3
-        assert all(
-            call.args[2] is coefficients
-            for call in service._calc_heat_loss_with_coefficients.call_args_list
-        )
+        assert formula.call_count == 3
+        assert all(call.kwargs["coefficients"] is coefficients for call in formula.call_args_list)
         assert db.execute.query_names == ["project_lock", "object_count", "object_chunk"]
 
     async def test_climate_lookup_is_indexed_for_late_and_unknown_city_batch(
@@ -967,7 +965,7 @@ class TestBatchRecalculate:
             f"{elapsed_s:.3f}s for {object_count} objects"
         )
 
-    async def test_reports_progress(self):
+    async def test_reports_progress(self, monkeypatch: pytest.MonkeyPatch):
         project_id = uuid.uuid4()
         obj = SimpleNamespace(
             id=uuid.uuid4(),
@@ -986,9 +984,8 @@ class TestBatchRecalculate:
         service = CalculationService(db)
         _disable_stale_mark(service)
         service.get_coefficients = AsyncMock(return_value={})  # type: ignore[method-assign]
-        service._calc_heat_loss_with_coefficients = MagicMock(  # type: ignore[method-assign]
-            return_value={"heat_loss_per_meter_base": 10}
-        )
+        formula = MagicMock(return_value={"heat_loss_per_meter_base": 10})
+        monkeypatch.setattr(heat_loss_application_module, "calc_heat_loss", formula)
         progress = []
 
         updated, failed, errors = await service.batch_recalculate(
