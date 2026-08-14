@@ -22,6 +22,7 @@ from app.formulas.heat_loss.pipe import (
     pipe_material_lambda,
 )
 from app.schemas.calculation import InsulationLayer, PipeHeatLossParams
+from app.services.calculation_service import pipe_params_with_effective_safety_factor
 
 # ---------------------------------------------------------------------------
 # Фабрика параметров по умолчанию
@@ -507,13 +508,12 @@ class TestSafetyFactor:
 
 class TestLegacyFactorsIgnored:
     def test_location_coefficients_do_not_change_total(self):
+        params = _params(placement="indoor")
         base = calc_pipe_heat_loss(
-            _params(placement="indoor"),
-            coefficients={"location_indoor": 1.0},
+            pipe_params_with_effective_safety_factor(params, {"location_indoor": 1.0})
         )
         adjusted = calc_pipe_heat_loss(
-            _params(placement="indoor"),
-            coefficients={"location_indoor": 0.9},
+            pipe_params_with_effective_safety_factor(params, {"location_indoor": 0.9})
         )
 
         assert adjusted.heat_loss_per_meter_base == pytest.approx(base.heat_loss_per_meter_base, rel=1e-6)
@@ -521,8 +521,11 @@ class TestLegacyFactorsIgnored:
         assert "location_factor" not in adjusted.model_dump()
 
     def test_legacy_wind_factor_does_not_change_alpha_or_total(self):
-        base = calc_pipe_heat_loss(_params(wind_speed=4.0))
-        legacy = calc_pipe_heat_loss(_params(wind_speed=4.0), coefficients={"wind_factor": 0.5})
+        params = _params(wind_speed=4.0)
+        base = calc_pipe_heat_loss(params)
+        legacy = calc_pipe_heat_loss(
+            pipe_params_with_effective_safety_factor(params, {"wind_factor": 0.5})
+        )
         assert legacy.alpha_vnesh_applied == pytest.approx(base.alpha_vnesh_applied)
         assert legacy.total_heat_loss_design == pytest.approx(base.total_heat_loss_design)
 

@@ -1,12 +1,11 @@
 """Build a tank preparation input from a validated backend facade payload.
 
-Admin coefficients are intentionally ignored: tank K stays the required
-value from the validated params.
+Tank K is the required value from the validated params.
 """
 
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import cast
 
 from heatcalc_heat_loss_core.conductivity import ConstantConductivity
 from heatcalc_heat_loss_core.profile import InsulationTemperatureBasis
@@ -23,11 +22,7 @@ from app.formulas.heat_loss.catalog_preparation import resolve_reference_layer
 from app.schemas.calculation import InsulationLayer, TankHeatLossParams
 
 
-def run_validated_tank_formula(
-    params: TankHeatLossParams,
-    coefficients: dict[str, Any] | None = None,
-) -> TankFormulaOutcome:
-    del coefficients
+def run_validated_tank_formula(params: TankHeatLossParams) -> TankFormulaOutcome:
     prepared = assemble_prepared_tank(build_tank_preparation(params))
     if isinstance(prepared, FormulaValidationReport):
         return TankFormulaOutcome(result=None, report=prepared)

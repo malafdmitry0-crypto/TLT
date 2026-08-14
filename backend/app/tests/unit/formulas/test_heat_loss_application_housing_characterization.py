@@ -80,21 +80,20 @@ def _tank(**overrides: object) -> dict[str, object]:
     return payload
 
 
-def _assert_coefficients_kwarg(function: Any) -> None:
+def _assert_params_only(function: Any) -> None:
     signature = inspect.signature(function)
-    assert tuple(signature.parameters) == ("params", "coefficients")
-    coefficients = signature.parameters["coefficients"]
-    assert coefficients.kind is inspect.Parameter.POSITIONAL_OR_KEYWORD
-    assert coefficients.default is None
+    assert tuple(signature.parameters) == ("params",)
 
 
-def test_facade_and_evaluator_signatures_accept_optional_coefficients() -> None:
-    _assert_coefficients_kwarg(calc_pipe_heat_loss)
-    _assert_coefficients_kwarg(calc_tank_heat_loss)
-    _assert_coefficients_kwarg(evaluate_validated_heat_loss)
+def test_facade_and_evaluator_signatures_are_params_only() -> None:
+    _assert_params_only(calc_pipe_heat_loss)
+    _assert_params_only(calc_tank_heat_loss)
+    _assert_params_only(evaluate_validated_heat_loss)
 
 
-def test_pipe_facade_reads_only_safety_factor_from_coefficients() -> None:
+def test_application_applies_admin_safety_factor_when_user_k_absent() -> None:
+    from app.services.calculation_service import pipe_params_with_effective_safety_factor
+
     params = PipeHeatLossParams.model_validate(_pipe(safety_factor=None))
     coefficients = _KeyReadDict(
         {
@@ -104,7 +103,9 @@ def test_pipe_facade_reads_only_safety_factor_from_coefficients() -> None:
         }
     )
 
-    result = calc_pipe_heat_loss(params, coefficients=coefficients)
+    result = calc_pipe_heat_loss(
+        pipe_params_with_effective_safety_factor(params, coefficients)
+    )
 
     assert result.safety_factor_applied == 1.4
     assert set(coefficients.read_keys) == {"safety_factor"}
@@ -144,17 +145,16 @@ async def test_calc_heat_loss_and_admin_formula_check_call_evaluate_validated_he
     assert evaluator.call_count == 2
     service_call, admin_call = evaluator.call_args_list
     assert isinstance(service_call.args[0], PipeHeatLossParams)
-    assert service_call.kwargs == {"coefficients": coefficients}
+    assert service_call.args[0].safety_factor == 1.1
+    assert service_call.kwargs == {}
     assert isinstance(admin_call.args[0], PipeHeatLossParams)
     assert admin_call.kwargs == {}
     audit_service.try_record.assert_awaited_once()
 
 
-def test_tank_facade_signature_still_accepts_coefficients() -> None:
+def test_tank_facade_ignores_admin_coefficients() -> None:
     params = TankHeatLossParams.model_validate(_tank())
-    coefficients = _KeyReadDict({"safety_factor": 1.4, "ground_conductivity": 2.9})
 
-    result = calc_tank_heat_loss(params, coefficients=coefficients)
+    result = calc_tank_heat_loss(params)
 
     assert result.safety_factor_applied == 1.1
-    assert coefficients.read_keys == []

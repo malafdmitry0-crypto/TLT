@@ -4,7 +4,7 @@ import asyncio
 import copy
 import math
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from inspect import isawaitable
@@ -62,6 +62,7 @@ from app.schemas.calculation import (
     ElectricalCableSelectionRequest,
     ElectricalCalcSummary,
     ElectricalRequest,
+    PipeHeatLossParams,
     StoredPipeHeatParams,
     StoredTankHeatParams,
 )
@@ -393,6 +394,31 @@ def _chunked_rows(
     chunk_size: int,
 ) -> list[list[dict[str, Any]]]:
     return [rows[index : index + chunk_size] for index in range(0, len(rows), chunk_size)]
+
+
+def effective_pipe_safety_factor(
+    params: PipeHeatLossParams,
+    coefficients: Mapping[str, Any] | None,
+) -> float | None:
+    """User/climate K wins; admin K is used only when the first value is absent."""
+
+    if params.safety_factor is not None:
+        return params.safety_factor
+    if coefficients is not None and "safety_factor" in coefficients:
+        return cast(float, coefficients["safety_factor"])
+    return None
+
+
+def pipe_params_with_effective_safety_factor(
+    params: PipeHeatLossParams,
+    coefficients: Mapping[str, Any] | None,
+) -> PipeHeatLossParams:
+    """Copy params only when admin K fills a missing user/climate value."""
+
+    chosen = effective_pipe_safety_factor(params, coefficients)
+    if chosen == params.safety_factor:
+        return params
+    return params.model_copy(update={"safety_factor": chosen})
 
 
 class BatchCancelChecker:
@@ -963,7 +989,8 @@ class CalculationService:
             )
             if not isinstance(stored, StoredPipeHeatParams):
                 raise CalculationError("Тип валидированных параметров не соответствует pipe")
-            pipe_result = evaluate_validated_heat_loss(stored, coefficients=coefficients)
+            formula_params = pipe_params_with_effective_safety_factor(stored, coefficients)
+            pipe_result = evaluate_validated_heat_loss(formula_params)
             result = pipe_result.model_dump()
             return cast(PipeHeatLossResultDict, result)
         elif object_type == "tank":
@@ -977,7 +1004,7 @@ class CalculationService:
             )
             if not isinstance(stored_tank, StoredTankHeatParams):
                 raise CalculationError("Тип валидированных параметров не соответствует tank")
-            tank_result = evaluate_validated_heat_loss(stored_tank, coefficients=coefficients)
+            tank_result = evaluate_validated_heat_loss(stored_tank)
             result = tank_result.model_dump()
             return cast(TankHeatLossResultDict, result)
         else:

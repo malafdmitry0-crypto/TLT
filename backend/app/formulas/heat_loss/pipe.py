@@ -10,7 +10,7 @@ q_total  = q_linear · L_eff · K  [Вт]
 Источник: спецификация параметров теплотехнических расчётов, таблица 1–2.
 """
 
-from typing import Any, cast
+from typing import cast
 
 from heatcalc_heat_loss_core.errors import FormulaDomainError
 from heatcalc_heat_loss_core.validation import FormulaValidationReport
@@ -117,10 +117,7 @@ def _raise_pipe_core_error(
 # ---------------------------------------------------------------------------
 
 
-def calc_pipe_heat_loss(
-    params: PipeHeatLossParams,
-    coefficients: dict[str, Any] | None = None,
-) -> PipeHeatLossResult:
+def calc_pipe_heat_loss(params: PipeHeatLossParams) -> PipeHeatLossResult:
     """Расчёт тепловых потерь трубопровода (многослойная цилиндрическая стенка).
 
     Формула: закон Фурье для установившейся теплопроводности в цилиндрических
@@ -139,10 +136,8 @@ def calc_pipe_heat_loss(
 
     Args:
         params: валидированные параметры трубопровода. Инварианты: наличие
-            insulation_layers (1–3 слоя), ΔT > 0, L > 0.
-        coefficients: опциональный admin-словарь. Используется только ключ
-            `safety_factor` как fallback, если `params.safety_factor` не задан.
-            `ground_conductivity` и прочие ключи из этого dict не применяются.
+            insulation_layers (1–3 слоя), ΔT > 0, L > 0. Читает только
+            `params.safety_factor`; выбор K делает application-слой.
 
     Returns:
         PipeHeatLossResult: base/design values for q and Q, `effective_length`
@@ -158,7 +153,7 @@ def calc_pipe_heat_loss(
     """
     layers = _resolve_layers(params)
     try:
-        outcome = run_validated_pipe_formula(params, coefficients)
+        outcome = run_validated_pipe_formula(params)
     except FormulaDomainError as exc:
         _raise_pipe_core_error(exc, layers=layers)
         raise

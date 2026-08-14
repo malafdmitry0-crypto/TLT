@@ -70,13 +70,12 @@ def test_evaluator_dispatches_same_validated_instance_without_revalidation(
 ) -> None:
     result = MagicMock(spec=result_type)
     facade = MagicMock(return_value=result)
-    coefficients = {"safety_factor": 1.2}
     monkeypatch.setattr(evaluator_module, facade_name, facade)
 
-    actual = evaluate_validated_heat_loss(params, coefficients=coefficients)
+    actual = evaluate_validated_heat_loss(params)
 
     assert actual is result
-    facade.assert_called_once_with(params, coefficients=coefficients)
+    facade.assert_called_once_with(params)
 
 
 def test_evaluator_rejects_unknown_model_type() -> None:
