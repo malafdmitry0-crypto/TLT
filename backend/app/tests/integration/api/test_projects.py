@@ -3,14 +3,18 @@
 from uuid import UUID, uuid4
 
 import pytest
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.core.database import get_db
+from app.main import app
 from app.models.audit_event import AuditEvent
 from app.models.electrical_calculation import ElectricalCalculation
 from app.models.electrical_variant import ElectricalVariant, ElectricalVariantObject
+from app.models.project import Project
 from app.models.project_object import ProjectObject
+from app.services.audit_service import AuditService
 from app.tests.heat_fixtures import canonical_pipe_params
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
@@ -336,6 +340,123 @@ class TestProjectDuplicate:
         assert duplicate_audit.details["electrical_variant_id"] == str(variant.id)
         assert duplicate_audit.details["legacy_variant_number"] == 1
         assert duplicate_audit.details["electrical_readiness_issue_codes"] == []
+
+    async def test_duplicate_response_serializes_after_project_timestamp_update(
+        self,
+        employee_token: str,
+        test_engine,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Regression: response serialization must not lazy-load updated_at."""
+        headers = {"Authorization": f"Bearer {employee_token}"}
+        original_get_db_override = app.dependency_overrides[get_db]
+        request_sessions = async_sessionmaker(test_engine, expire_on_commit=False)
+        original_try_record = AuditService.try_record
+
+        async def expire_server_updated_timestamp(
+            audit_service: AuditService,
+            **kwargs,
+        ):
+            event = await original_try_record(audit_service, **kwargs)
+            if kwargs.get("event_type") != "project.duplicated":
+                return event
+            project_id = kwargs.get("project_id")
+            for instance in audit_service.db.identity_map.values():
+                if isinstance(instance, Project) and instance.id == project_id:
+                    # Production PostgreSQL can leave the server-onupdate value
+                    # expired after the final commit. Make that response-boundary
+                    # state deterministic in the metadata-created test schema.
+                    audit_service.db.expire(instance, ["updated_at"])
+            return event
+
+        monkeypatch.setattr(AuditService, "try_record", expire_server_updated_timestamp)
+
+        async def override_get_db_per_request():
+            async with request_sessions() as session:
+                yield session
+
+        app.dependency_overrides[get_db] = override_get_db_per_request
+        try:
+            async with AsyncClient(
+                transport=ASGITransport(app=app, raise_app_exceptions=False),
+                base_url="http://test",
+            ) as production_client:
+                source = (
+                    await production_client.post(
+                        "/api/v1/projects",
+                        json={"name": "Источник с полным расчётом"},
+                        headers=headers,
+                    )
+                ).json()
+                created_object = await production_client.post(
+                    f"/api/v1/projects/{source['id']}/objects",
+                    json={
+                        "object_type": "pipe",
+                        "sort_order": 0,
+                        "params": canonical_pipe_params(
+                            name="Готовая труба",
+                            ambient_temperature=-20.0,
+                        ),
+                    },
+                    headers=headers,
+                )
+                assert created_object.status_code == 201, created_object.text
+
+                invalid_params = canonical_pipe_params(
+                    name="Труба без ветра",
+                    ambient_temperature=-20.0,
+                )
+                invalid_params.pop("wind_speed")
+                invalid_params.pop("wind_speed_source", None)
+                invalid_object = await production_client.post(
+                    f"/api/v1/projects/{source['id']}/objects",
+                    json={
+                        "object_type": "pipe",
+                        "sort_order": 1,
+                        "params": invalid_params,
+                    },
+                    headers=headers,
+                )
+                assert invalid_object.status_code == 201, invalid_object.text
+                assert invalid_object.json()["is_valid"] is False
+
+                settings_response = await production_client.get(
+                    f"/api/v1/projects/{source['id']}/electrical-settings",
+                    headers=headers,
+                )
+                assert settings_response.status_code == 200, settings_response.text
+                settings = settings_response.json()
+                updated_settings = await production_client.patch(
+                    f"/api/v1/projects/{source['id']}/electrical-settings",
+                    json={
+                        "expected_version": settings["version"],
+                        "max_section_start_current_a": 25,
+                    },
+                    headers=headers,
+                )
+                assert updated_settings.status_code == 200, updated_settings.text
+
+                response = await production_client.post(
+                    f"/api/v1/projects/{source['id']}/duplicate",
+                    headers=headers,
+                )
+
+                assert response.status_code == 201, response.text
+                duplicate = response.json()
+                assert duplicate["name"] == "Источник с полным расчётом (копия)"
+                assert duplicate["created_at"]
+                assert duplicate["updated_at"]
+
+                listing = (await production_client.get("/api/v1/projects", headers=headers)).json()
+                matching_copies = [
+                    project
+                    for project in listing
+                    if project["name"] == "Источник с полным расчётом (копия)"
+                ]
+                assert len(matching_copies) == 1
+                assert matching_copies[0]["id"] == duplicate["id"]
+        finally:
+            app.dependency_overrides[get_db] = original_get_db_override
 
     async def test_employee_duplicate_not_ready_initializes_unassigned_er_container(
         self,
