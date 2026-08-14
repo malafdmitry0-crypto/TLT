@@ -294,3 +294,212 @@ no payload `field`/`fields` and no frontend file.
 **CAPTURED.** This slice records the current comparison set and evidence;
 it does not claim `PASS WITH BASELINE DEBT`. The next allowed slice is B1
 after this B0 commit.
+
+---
+
+# BF final regression attempt — FAIL
+
+**Slice:** `HL-OWN-BF`
+
+**Final parent HEAD:** `7cf5ec459ff1335b73d9716fb57e6d99df855b57`
+(`refactor(heat-loss): drop formula reexports from calculation`)
+
+**Evidence captured through UTC:** `2026-08-14T12:10:54Z`
+
+**Environment:** Darwin 23.6.0 arm64 · `heatcalc_backend` running/healthy ·
+Python 3.11.16
+
+BF started from a clean worktree on the committed B8 HEAD. The container
+`/proc` audit found no pytest before focused validation and again immediately
+before the only final full backend run.
+
+## Architecture closing proof
+
+The final focused suite ran the repository's AST ratchets, and a separate
+read-only AST audit inspected the final function/import trees. A narrow eleven-
+test architecture command then passed in 5.33 s. The combined proof establishes:
+
+1. No production import of application climate/payload/K helpers from
+   `calculation_service`; production imports the owner module at
+   `backend/app/services/calculation_service.py:65`, and the production-wide
+   AST ratchet is at
+   `backend/app/tests/unit/services/test_heat_loss_ownership_characterization.py:262`.
+2. `try_recalculate` at
+   `backend/app/services/calculation_service.py:908-950` calls only
+   `heat_loss_application.evaluate_project_object_heat` before assigning ORM
+   fields. Its AST call inventory contains no normalize, climate, payload, or
+   formula call.
+3. HTTP envelopes are owned by `backend/app/schemas/heat_loss.py:73-99`.
+   Production imports them from that module at
+   `backend/app/api/v1/calculations.py:41`,
+   `backend/app/api/v1/calc_jobs.py:17`,
+   `backend/app/api/v1/objects.py:403`, and
+   `backend/app/services/task_service.py:35`.
+4. Admin imports the application at `backend/app/api/v1/admin.py:46`; its heat
+   calls are at 715-718, and its AST has no `app.formulas.heat_loss` import.
+5. The typed loader error lives at
+   `backend/app/reference_data/loader.py:39-45`, with typed resolution at
+   427-449 and typed consumption at
+   `backend/app/formulas/heat_loss/catalog_preparation.py:45-52`.
+   `_catalog_error_code` is absent.
+6. `build_heat_loss_error_payload` at
+   `backend/app/services/heat_loss_application.py:71-173` has typed branches
+   followed by a generic formula outcome. Its AST has no lower/casefold or
+   membership comparison against message text.
+7. `backend/app/schemas/calculation.py:15-18` binds only the four HTTP
+   compatibility envelopes; the eight formula names are absent. The dedicated
+   module-scope AST ratchet at
+   `backend/app/tests/unit/formulas/test_heat_loss_schema_import_ratchet.py:221-228`
+   passed.
+8. The import block at
+   `backend/app/services/heat_loss_application.py:3-34` contains no ORM,
+   `CalculationService`, or SQLAlchemy dependency; the AST forbidden set is
+   empty.
+9. The package declares `dependencies = []` at
+   `backend/packages/heat-loss-core/pyproject.toml:10`; package import and shim
+   AST ratchets passed, and `app/formulas/heat_loss/core` is absent.
+10. Public calculation facades remain params-only at
+    `backend/app/formulas/heat_loss/pipe.py:51`,
+    `backend/app/formulas/heat_loss/tank.py:30`, and
+    `backend/app/formulas/heat_loss/evaluator.py:18-20`; runtime signature tests
+    confirm no `coefficients` argument.
+
+The exact AST inventory, ratchet context, and file citations are retained in
+`evidence/bf-blocked-gates.md`.
+
+## Package gate and isolated wheel
+
+The exact `plan.md` commands ran in `/app/packages/heat-loss-core`:
+
+- pytest: **315 passed** in 0.41 s;
+- Ruff: **PASS**;
+- mypy: **PASS**, 43 source files;
+- fresh `heatcalc_heat_loss_core-0.2.0-py3-none-any.whl`: built only in
+  `/tmp/hl-own-wheel` (35,876 bytes);
+- clean `/tmp/hl-own-venv` install and isolated `python -I`: **PASS**;
+- `core.__all__ == api.__all__`, all 29 public names present, all four removed
+  internals absent.
+
+## Focused heat suite and protected contracts
+
+The canonical B0 heat suite plus the final ownership/schema/package/shim/
+loader/persist/facade-input ratchets completed with exit 0. Matching
+collect-only reported **456 tests**, so the result is **456 passed**.
+
+An additional **12-case protected-contract proof passed**:
+
+- invalid pipe create remains HTTP **201** and persists invalid state;
+- invalid pipe update remains HTTP **200** and persists invalid state;
+- invalid admin pipe and pipe/tank hot-side previews remain HTTP **422**;
+- hot-side field/message literals remain exact;
+- all six selected K-matrix cases pass (user/admin/profile precedence,
+  unrelated-key invariance, tank policy, and climate K precedence).
+
+No payload `field`/`fields` contract changed in BF. Frontend validation is
+therefore correctly **NOT TOUCHED / NOT RUN**.
+
+## The one final full backend run
+
+Immediately before this run, HEAD/worktree were clean and the container had no
+pytest process. BF started exactly one full run with the two live-worker files
+ignored. It completed normally; it was not interrupted and was not repeated.
+
+```text
+docker exec \
+  -e SECRET_KEY=codex-test-secret-key-at-least-32-chars \
+  -e TEST_DATABASE_URL=postgresql+asyncpg://heatcalc:heatcalc_pass@db:5432/heatcalc_test \
+  -w /app heatcalc_backend \
+  pytest app/tests --no-cov -q --tb=no --override-ini='addopts=' \
+    --ignore=app/tests/integration/worker/test_worker_redis_live.py \
+    --ignore=app/tests/integration/worker/test_worker_sigkill_live.py
+```
+
+Run window: `2026-08-14T11:48:02Z`–`2026-08-14T12:05:28Z`.
+Pytest result in **1041.05 s**:
+
+- **11 failed**;
+- **2362 passed**;
+- **1 skipped**;
+- **265 warnings**;
+- **0 errors**;
+- **0 setup errors**;
+- **0 collection errors**.
+
+Ten failed nodeids match all ten B0 debt IDs. There is one new nodeid, so the
+required subset relation is false:
+
+```text
+app/tests/unit/services/test_calculation_service_unit.py::TestBatchRecalculate::test_mixed_success_and_failure
+```
+
+A targeted confirmation, not another full, reproduces the exact assertion at
+`app/tests/unit/services/test_calculation_service_unit.py:857`:
+
+```text
+assert 'heat_loss_formula_error' == 'invalid_object_params'
+```
+
+The test injects the untyped message-only
+`ValueError("process temperature ниже ambient")` but still expects the pre-B7
+`invalid_object_params` / `validation` payload. The approved B7 contract maps
+that input to `heat_loss_formula_error` / `formula`. BF does not change the
+stale test.
+
+The single skip was confirmed as
+`test_import_100_csv_under_15s` because `sample_import.csv` is unavailable.
+Machine record: `evidence/bf-blocked-backend-suite.json`; full raw output:
+`evidence/bf-blocked-backend-suite.log`.
+
+## Facade oracle and benchmark blocker
+
+Before either attempt, host and container SHA-256 values exactly matched B0:
+
+| Oracle | SHA-256 | Static gate |
+|---|---|---|
+| `facade_behavior_probe.py` | `daff97959029c91989bf46fb8492d712fbe1b5ef88d2b185d0d1b0bc85b158ec` | Ruff + format PASS |
+| `facade_benchmark.py` | `2d708edd5cd7a48c060222877937a99aa1012d64e0ad44d7b03303881555952e` | Ruff + format PASS |
+
+The locked behavior oracle itself imports
+`PipeHeatLossParams` / `TankHeatLossParams` from
+`app.schemas.calculation` at `evidence/facade_behavior_probe.py:40`.
+B8 was required to remove precisely those formula re-exports. Therefore the
+exact behavior command exits 1 with `ImportError` before creating
+`/tmp/bf-facade-contract.json`.
+
+The idle check before benchmark recorded backend CPU **0.23%**. The exact
+9-round × 20-loop benchmark attempt exits 1 on the same import before creating
+`/tmp/bf-facade-benchmark.json`. No runtime shim, monkeypatch, altered command,
+or oracle edit was used.
+
+Consequently all of the following are **NOT COMPLETED**, not PASS:
+
+- BF contract size/SHA and byte comparison with B0's 563,849-byte contract;
+- benchmark samples, median, BF/B0 ratio;
+- comparison with the **0.19342597501963608 s** ceiling.
+
+The exact tracebacks are in `evidence/bf-blocked-facade-attempts.log`.
+Canonical `bf-facade-*.json` names remain free for the corrected BF rerun.
+
+## Frontend, scope, and external WIP
+
+Both final-parent diffs from B0 parent
+`14bbb3fdaa09ba91c0e633be3e297f06a7aaad85` are empty:
+
+```text
+git diff --name-only 14bbb3fdaa09ba91c0e633be3e297f06a7aaad85..7cf5ec459ff1335b73d9716fb57e6d99df855b57 -- frontend
+git diff --name-only 14bbb3fdaa09ba91c0e633be3e297f06a7aaad85..7cf5ec459ff1335b73d9716fb57e6d99df855b57 -- docs/frontend/refactor-backlog.md
+```
+
+Frontend: **NOT TOUCHED / NOT RUN**. The frontend backlog is unchanged.
+
+The BF preflight was clean. After the full run, an unrelated staged file
+`docs/tnp/cases/case1-client-feedback-heat-decisions.md` appeared. It was not
+read, modified, unstaged, or included in the BF commit; only explicit BF audit
+paths are committed.
+
+## BF verdict
+
+**FAIL.** The new full-suite failed nodeid and the locked-oracle/B8 import
+incompatibility are independent blockers. This attempt cannot be called PASS or
+PASS WITH BASELINE DEBT. A separate corrective slice is required before a new
+BF run; this failed attempt does not repeat the full backend suite.
