@@ -161,7 +161,7 @@ test.describe('сквозной расчёт: теплопотери → эле�
     // --- 3. Электрорасчёт ---
     await page.getByTestId('elec-idop-input').fill('80');
     await page.getByTestId('elec-idop-save').click();
-    await expect(page.getByText('Iдоп не задан')).toHaveCount(0);
+    await expect(page.getByText('Не задан I доп проекта')).toHaveCount(0);
 
     await assignToSelfRegulating(page, variantId, pipe.id);
     await page.reload({ waitUntil: 'domcontentloaded' });

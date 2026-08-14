@@ -25,7 +25,7 @@ export function ElectricalSectionHierarchy({ calc }: ElectricalSectionHierarchyP
         <strong>Нагревательные секции</strong>
         <div>
           Секции появятся после успешного электрорасчёта с каталогом
-          секционирования (Lмакс / Iдоп / Iст.уд).
+          секционирования (Lмакс / I доп / Iст.уд).
         </div>
       </div>
     );

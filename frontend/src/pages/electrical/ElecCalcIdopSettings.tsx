@@ -1,5 +1,5 @@
 /**
- * Project Iдоп (max section start current) — required for sectioning (E2 / FE-27).
+ * Project I доп (max section start current) — required for sectioning (E2 / FE-27).
  */
 import type { ReactNode } from 'react';
 import { TltAlert, TltButton, TltNumberField } from '@/components/ui-kit';
@@ -57,11 +57,11 @@ export function ElecCalcIdopSettings({
         <div className="elec-idop-settings__fields">
           <div className="elec-idop-settings__field">
             <span className="workflow-params-label elec-idop-settings__label">
-              Iдоп проекта — допустимый стартовый ток одной секции, А
+              I доп проекта — допустимый стартовый ток одной секции, А
             </span>
             <TltNumberField
               id={`${formId}-input`}
-              aria-label="Iдоп проекта — допустимый стартовый ток одной секции, А"
+              aria-label="I доп проекта — допустимый стартовый ток одной секции, А"
               data-testid="elec-idop-input"
               disabled={!canMutate || isLoading || saving}
               required
@@ -85,7 +85,7 @@ export function ElecCalcIdopSettings({
               onClick={save}
               data-testid="elec-idop-save"
             >
-              Сохранить Iдоп
+              Сохранить I доп
             </TltButton>
           )}
         </div>
