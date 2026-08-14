@@ -34,8 +34,11 @@ describe('HeatCalcPage actions', () => {
       await waitFor(() => {
         expect(getCalcTask).toHaveBeenCalledWith('heat-task-1');
       });
-      expect(await screen.findByText(/Пересчёт теплопотерь выполняется · 1\/2 \(50%\)/i))
-        .toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByRole('status')).toHaveTextContent(
+          'Пересчёт теплопотерь выполняется · 1/2 (50%)',
+        );
+      });
 
       await user.click(screen.getByRole('button', { name: 'Отменить пересчёт теплопотерь' }));
       await waitFor(() => {
