@@ -335,15 +335,13 @@ def test_structured_payload_does_not_classify_by_russian_substrings() -> None:
     assert payload["fields"] == {error.path: error.message}
 
 
-def test_payload_builder_returns_before_substring_markers_for_heat_errors() -> None:
+def test_payload_builder_has_no_message_substring_classification() -> None:
     source = getsource(build_heat_loss_error_payload)
-    structured_index = source.index("isinstance(exc, HeatLossPreparationError)")
-    return_index = source.index("return {", structured_index)
-    marker_index = source.index('"долж"', structured_index)
-    hot_side_index = source.find("Температура горячей стороны")
-    assert return_index < marker_index
-    assert '"диапазон"' in source[marker_index:]
-    assert hot_side_index == -1
+    assert "lower_message" not in source
+    assert "marker in" not in source
+    assert " in message" not in source
+    assert "_missing_fields_from_message" not in source
+    assert "Температура горячей стороны" not in source
 
 
 def test_pydantic_validation_error_branch_is_preserved() -> None:
