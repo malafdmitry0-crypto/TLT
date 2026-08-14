@@ -134,3 +134,4 @@ def test_confirmation_and_selection_keep_their_status_semantics() -> None:
     assert _status_for([confirmable]).value == "confirmation_required"
     assert _status_for([selection]).value == "selection_required"
     assert _status_for([confirmable, selection]).value == "selection_required"
+    assert _status_for([confirmable, _diagnostic()]).value == "blocked"
