@@ -58,5 +58,5 @@ export function resolveSpecificationCatalogLabel(
       return `${key} · ${record.version}`;
     }
   }
-  return 'Не определена — backend разрешит при формировании';
+  return 'Может быть выбрана при формировании';
 }

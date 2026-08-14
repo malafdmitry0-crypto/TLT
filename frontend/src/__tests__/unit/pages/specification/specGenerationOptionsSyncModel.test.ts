@@ -68,7 +68,8 @@ describe('buildSpecSettingsFormSnapshot (B7)', () => {
     expect(resolveSpecificationCatalogLabel({
       catalog: { catalog_key: 'tnp-approved', version: '2026.08' },
     })).toBe('tnp-approved · 2026.08');
-    expect(resolveSpecificationCatalogLabel(null))
-      .toBe('Не определена — backend разрешит при формировании');
+    const fallback = resolveSpecificationCatalogLabel(null);
+    expect(fallback).toBe('Может быть выбрана при формировании');
+    expect(fallback).not.toMatch(/backend/i);
   });
 });
