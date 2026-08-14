@@ -28,6 +28,7 @@ export interface DraftRowState {
   draftFormValues: Record<string, unknown>;
   dirtyFields: Record<string, unknown>;
   errors: Record<string, string>;
+  validationAttempted?: boolean;
   saving: boolean;
   sourceParams: Record<string, unknown>;
 }
@@ -61,6 +62,7 @@ export function createDraftRow(record: ProjectObject): DraftRowState | null {
     draftFormValues: baseFormValues,
     dirtyFields: {},
     errors: {},
+    validationAttempted: false,
     saving: false,
     sourceParams: record.params,
   };

@@ -152,13 +152,17 @@ export function useHeatCalcGridModel({
 
   const selectedRowErrorMessages = useMemo(() => {
     if (!wizardFormObject) return [];
+    let draftMessages: string[] = [];
     if (wizardBaseObject) {
       const draftRow = draftRowsById[wizardBaseObject.id];
       if (draftRow) {
-        return uniqueErrorMessages(draftErrorMessages(
+        draftMessages = draftErrorMessages(
           draftRow.objectType,
-          getDraftRowValidationErrors(draftRow, { enforceRequired: true }),
-        ));
+          getDraftRowValidationErrors(draftRow, {
+            enforceRequired: excelModeEnabled || draftRow.validationAttempted === true,
+          }),
+        );
+        if (excelModeEnabled) return uniqueErrorMessages(draftMessages);
       }
     }
     if (excelModeEnabled) {
@@ -170,7 +174,7 @@ export function useHeatCalcGridModel({
     const message = heatLossCalcStatus(wizardFormObject) === 'error' || hasBackendValidationErrors
       ? heatLossErrorText(wizardFormObject)
       : '';
-    return uniqueErrorMessages([message]);
+    return uniqueErrorMessages([...draftMessages, message]);
   }, [draftRowsById, excelModeEnabled, excelTableErrors, wizardBaseObject, wizardFormObject]);
 
   const excelCellDisplayValue = useCallback((

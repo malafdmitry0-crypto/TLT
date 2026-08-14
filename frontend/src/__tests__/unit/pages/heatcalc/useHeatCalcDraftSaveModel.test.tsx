@@ -276,6 +276,7 @@ describe('useHeatCalcDraftSaveModel', () => {
     expect(createObjectRequest).not.toHaveBeenCalled();
     expect(updateObjectRequest).not.toHaveBeenCalled();
     expect(result.current.draftRowsById[source.id].errors.outer_diameter_mm).toBe('Минимальное значение — 10.8');
+    expect(result.current.draftRowsById[source.id].validationAttempted).toBe(true);
     expect(notifyError).toHaveBeenCalledWith('Исправьте ошибки в строках перед сохранением');
   });
 
