@@ -27,7 +27,7 @@ describe('heatCalcFieldRules', () => {
     })).toBe(true);
   });
 
-  it('требует скорость ветра только у наружной трубы и принимает нулевое значение', () => {
+  it('требует скорость ветра у наружных трубы и резервуара и принимает нулевое значение', () => {
     const outdoorPipe = {
       objectType: 'pipe' as const,
       values: { placement: 'outdoor' },
@@ -47,9 +47,19 @@ describe('heatCalcFieldRules', () => {
       objectType: 'pipe',
       values: { placement: 'underground' },
     })).toBe(false);
-    expect(isHeatCalcFieldRequired('wind_speed', {
+    const outdoorTank = {
       objectType: 'tank',
       values: { placement: 'outdoor' },
+    } as const;
+    expect(isHeatCalcFieldRequired('wind_speed', outdoorTank)).toBe(true);
+    expect(validateHeatCalcField('wind_speed', undefined, outdoorTank)).toBe('Укажите значение');
+    expect(isHeatCalcFieldRequired('wind_speed', {
+      objectType: 'tank',
+      values: { placement: 'underground' },
+    })).toBe(true);
+    expect(isHeatCalcFieldRequired('wind_speed', {
+      objectType: 'tank',
+      values: { placement: 'indoor' },
     })).toBe(false);
   });
 
