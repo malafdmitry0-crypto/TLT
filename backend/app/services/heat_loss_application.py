@@ -260,6 +260,13 @@ def _climate_temperature(entry: dict[str, Any] | None, key: str) -> float | None
     return float(value)
 
 
+def _climate_wind(entry: dict[str, Any] | None) -> float | None:
+    cold_period_average = _climate_temperature(entry, "wind_avg_cold")
+    if cold_period_average is not None:
+        return cold_period_average
+    return _climate_temperature(entry, "wind_max_jan")
+
+
 def _climate_entry(data: dict[str, Any]) -> dict[str, Any] | None:
     return get_climate_entry(
         climate_key=str(data["climate_key"]) if data.get("climate_key") else None,
@@ -268,12 +275,50 @@ def _climate_entry(data: dict[str, Any]) -> dict[str, Any] | None:
     )
 
 
-def apply_climate_policy(object_type: str, data: dict[str, Any]) -> dict[str, Any]:
-    """Применяет VSDX climate policy к K и расчетной температуре.
+def _apply_climate_wind_policy(
+    object_type: str,
+    normalized: dict[str, Any],
+    climate: dict[str, Any] | None,
+) -> None:
+    placement = normalized.get("placement")
+    wind_source = normalized.get("wind_speed_source")
+    explicit_manual_wind = "wind_speed" in normalized and wind_source != "climate"
+    uses_climate_wind = (object_type == "pipe" and placement == "outdoor") or (
+        object_type == "tank" and placement in {"outdoor", "underground"}
+    )
 
-    Если город не задан или справочник не содержит нужной температуры,
-    ambient_temperature остается пользовательским. safety_factor заполняется
-    по типу объекта и диаметру трубы только если он не задан явно.
+    if object_type == "pipe" and placement == "underground":
+        normalized.pop("wind_speed", None)
+        normalized.pop("wind_speed_source", None)
+        return
+
+    if not uses_climate_wind:
+        if wind_source == "climate":
+            normalized.pop("wind_speed", None)
+            normalized.pop("wind_speed_source", None)
+        elif explicit_manual_wind and wind_source is None:
+            normalized["wind_speed_source"] = "manual"
+        return
+
+    climate_wind = _climate_wind(climate)
+    if climate_wind is not None and not explicit_manual_wind:
+        normalized["wind_speed"] = climate_wind
+        normalized["wind_speed_source"] = "climate"
+    elif wind_source == "climate":
+        normalized.pop("wind_speed", None)
+        normalized.pop("wind_speed_source", None)
+    elif explicit_manual_wind and wind_source is None:
+        normalized["wind_speed_source"] = "manual"
+
+
+def apply_climate_policy(object_type: str, data: dict[str, Any]) -> dict[str, Any]:
+    """Применяет VSDX climate policy к K, температуре воздуха и ветру.
+
+    Климатический ветер заполняется только для размещений, где он участвует в
+    формуле, и не перезаписывает ручное значение. Если город не задан или
+    справочник не содержит нужной температуры, ambient_temperature остается
+    пользовательским. safety_factor заполняется по типу объекта и диаметру
+    трубы только если он не задан явно.
     """
     normalized = dict(data)
     climate = _climate_entry(normalized)
@@ -295,6 +340,7 @@ def apply_climate_policy(object_type: str, data: dict[str, Any]) -> dict[str, An
             diameter = None
         if diameter is None or diameter <= 0:
             normalized.pop("climate_temperature_basis", None)
+            _apply_climate_wind_policy(object_type, normalized, climate)
             return normalized
         diameter_mm = diameter * 1000.0
         if diameter_mm >= 100.0:
@@ -336,6 +382,7 @@ def apply_climate_policy(object_type: str, data: dict[str, Any]) -> dict[str, An
         if not uses_air_temperature:
             normalized.pop("ambient_temperature", None)
             normalized.pop("ambient_temperature_source", None)
+    _apply_climate_wind_policy(object_type, normalized, climate)
     normalized["climate_policy_rule"] = rule
     if safety_factor_from_policy:
         normalized["safety_factor_source"] = "climate_policy"

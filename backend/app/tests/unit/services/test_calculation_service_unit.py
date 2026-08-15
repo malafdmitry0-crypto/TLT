@@ -564,6 +564,146 @@ class TestClimatePolicy:
         assert hmao["ambient_temperature"] == pytest.approx(-56.0)
         assert chelyabinsk["ambient_temperature"] == pytest.approx(-44.0)
 
+    def test_outdoor_pipe_fills_missing_wind_from_cold_period_average(self):
+        normalized = apply_climate_policy(
+            "pipe",
+            {
+                "outer_diameter": 0.108,
+                "placement": "outdoor",
+                "climate_key": "Алтайский край|||Славгород",
+            },
+        )
+
+        assert normalized["wind_speed"] == pytest.approx(4.0)
+        assert normalized["wind_speed_source"] == "climate"
+
+    def test_climate_wind_falls_back_to_january_maximum(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr(
+            heat_loss_application_module,
+            "_climate_entry",
+            lambda _data: {
+                "t_0_92": -35.0,
+                "wind_avg_cold": None,
+                "wind_max_jan": 5.0,
+            },
+        )
+
+        normalized = apply_climate_policy(
+            "pipe",
+            {"outer_diameter": 0.108, "placement": "outdoor", "climate_key": "test"},
+        )
+
+        assert normalized["wind_speed"] == pytest.approx(5.0)
+        assert normalized["wind_speed_source"] == "climate"
+
+    def test_backend_preserves_manual_wind_and_recomputes_climate_wind(self):
+        manual = apply_climate_policy(
+            "pipe",
+            {
+                "outer_diameter": 0.108,
+                "placement": "outdoor",
+                "climate_key": "Алтайский край|||Славгород",
+                "wind_speed": 7.0,
+                "wind_speed_source": "manual",
+            },
+        )
+        climate = apply_climate_policy(
+            "pipe",
+            {
+                "outer_diameter": 0.108,
+                "placement": "outdoor",
+                "climate_key": "Алтайский край|||Славгород",
+                "wind_speed": 99.0,
+                "wind_speed_source": "climate",
+            },
+        )
+
+        assert manual["wind_speed"] == pytest.approx(7.0)
+        assert manual["wind_speed_source"] == "manual"
+        assert climate["wind_speed"] == pytest.approx(4.0)
+        assert climate["wind_speed_source"] == "climate"
+
+    def test_source_less_wind_is_preserved_as_explicit_input(self):
+        normalized = apply_climate_policy(
+            "pipe",
+            {
+                "outer_diameter": 0.108,
+                "placement": "outdoor",
+                "climate_key": "Алтайский край|||Славгород",
+                "wind_speed": 6.0,
+            },
+        )
+
+        assert normalized["wind_speed"] == pytest.approx(6.0)
+        assert normalized["wind_speed_source"] == "manual"
+
+    def test_missing_climate_clears_only_stale_climate_wind(self):
+        climate = apply_climate_policy(
+            "pipe",
+            {
+                "outer_diameter": 0.108,
+                "placement": "outdoor",
+                "climate_city": "Атлантида",
+                "wind_speed": 4.0,
+                "wind_speed_source": "climate",
+            },
+        )
+        manual = apply_climate_policy(
+            "pipe",
+            {
+                "outer_diameter": 0.108,
+                "placement": "outdoor",
+                "climate_city": "Атлантида",
+                "wind_speed": 6.0,
+                "wind_speed_source": "manual",
+            },
+        )
+
+        assert "wind_speed" not in climate
+        assert "wind_speed_source" not in climate
+        assert manual["wind_speed"] == pytest.approx(6.0)
+        assert manual["wind_speed_source"] == "manual"
+
+    def test_wind_is_not_injected_where_pipe_contract_does_not_use_it(self):
+        indoor = apply_climate_policy(
+            "pipe",
+            {
+                "outer_diameter": 0.108,
+                "placement": "indoor",
+                "climate_key": "Алтайский край|||Славгород",
+            },
+        )
+        underground = apply_climate_policy(
+            "pipe",
+            {
+                "outer_diameter": 0.108,
+                "placement": "underground",
+                "climate_key": "Алтайский край|||Славгород",
+                "wind_speed": 6.0,
+                "wind_speed_source": "manual",
+            },
+        )
+
+        assert "wind_speed" not in indoor
+        assert "wind_speed_source" not in indoor
+        assert "wind_speed" not in underground
+        assert "wind_speed_source" not in underground
+
+    def test_underground_tank_receives_climate_wind(self):
+        normalized = apply_climate_policy(
+            "tank",
+            {
+                "placement": "underground",
+                "climate_key": "Алтайский край|||Славгород",
+            },
+        )
+
+        assert normalized["wind_speed"] == pytest.approx(4.0)
+        assert normalized["wind_speed_source"] == "climate"
+
 
 class TestCableLayoutMapping:
     def test_tank_q_additional_is_not_safetied_twice_for_electrical_input(self):
