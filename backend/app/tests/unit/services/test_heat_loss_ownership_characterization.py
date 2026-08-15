@@ -882,7 +882,6 @@ def test_catalog_typed_error_maps_to_current_structured_error(
         catalog_preparation.resolve_reference_layer(
             material=material,
             index=1,
-            process_temperature=80.0,
         )
 
     error = caught.value
@@ -917,7 +916,6 @@ def test_catalog_does_not_guess_code_from_untyped_valueerror(
         catalog_preparation.resolve_reference_layer(
             material="missing",
             index=1,
-            process_temperature=80.0,
         )
 
     assert type(caught.value) is ValueError
