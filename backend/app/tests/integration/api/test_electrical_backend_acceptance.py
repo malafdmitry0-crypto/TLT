@@ -262,6 +262,44 @@ async def test_ac_be_25_batch_persists_success_and_typed_object_error(
     )
 
 
+async def test_null_project_idop_is_derived_from_selected_section_catalog_row(
+    client: AsyncClient,
+    guest_session: str,
+) -> None:
+    headers = _headers(session_id=guest_session)
+    project = await _guest_project(client, guest_session)
+    settings = await client.get(
+        f"/api/v1/projects/{project['id']}/electrical-settings",
+        headers=headers,
+    )
+    assert settings.status_code == 200, settings.text
+    assert settings.json()["max_section_start_current_a"] is None
+    obj = await _add_ready_pipe(
+        client,
+        project["id"],
+        headers,
+        name="Catalog-derived Iдоп",
+    )
+    await _assign_objects(client, project["id"], [obj["id"]], headers)
+
+    body = await _run_strict_tt_batch(client, project["id"], headers)
+
+    assert body["calculated"] == 1, body
+    assert body["errors"] == []
+    result = body["results"][0]["results"]
+    section_plan = result["section_plan"]
+    assert section_plan["max_start_current_a"] == pytest.approx(
+        section_plan["l_max_m"] * section_plan["specific_start_current_a_per_m"],
+        abs=0.001,
+    )
+    assert section_plan["max_start_current_source"] == "section_catalog_derived"
+    assert section_plan["start_current_per_section_a"] <= section_plan["max_start_current_a"]
+    assert result["provenance"]["section_current_limit"] == {
+        "value_a": section_plan["max_start_current_a"],
+        "source": "section_catalog_derived",
+    }
+
+
 @pytest.mark.parametrize("field,value", [("winding_coefficient", 1.2), ("connection_type", "star")])
 async def test_batch_query_rejects_retired_tt_inputs_instead_of_ignoring_them(
     client: AsyncClient,

@@ -1,41 +1,14 @@
 /* OWNER: ElecCalcIdopSettings — project-level current-limit form. */
 
-.elec-idop-settings__fields {
+.elec-idop-settings__mode-buttons {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
+  gap: 4px;
 }
 
-/* Лейбл и поле остаются рядом, пока для них достаточно места. */
-.elec-idop-settings__field {
-  display: flex;
-  flex: 0 1 500px;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  max-width: 100%;
-}
-
-.elec-idop-settings__fields .elec-idop-settings__label {
-  flex: 1 1 280px;
-  min-width: 0;
-  margin-bottom: 0;
+.elec-idop-settings__auto-copy {
+  margin: 6px 0 0;
+  color: var(--color-text-secondary);
   font-size: 12px;
-  white-space: normal;
-}
-
-.elec-idop-settings__field .tlt-number-field {
-  flex: 0 0 118px;
-}
-
-.elec-idop-settings__error {
-  color: var(--color-danger);
-}
-
-.elec-idop-settings__error {
-  display: block;
-  font-size: 12px;
-  line-height: 20px;
+  line-height: 1.4;
 }

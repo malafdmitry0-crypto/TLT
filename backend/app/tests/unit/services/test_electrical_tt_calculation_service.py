@@ -127,6 +127,29 @@ async def test_second_calculation_resolves_persisted_assignment_voltage_without_
     assert result["current"] == pytest.approx(result["total_power"] / 380, abs=0.001)
 
 
+async def test_null_project_idop_uses_catalog_limit_without_blocking_calculation() -> None:
+    obj = _pipe()
+    service, variant_id = _service(obj)
+    service._tt_project_settings_cache[obj.project_id].max_section_start_current_a = None
+    request = ElectricalRequest(
+        object_id=obj.id,
+        cable_type="self_regulating_tt",
+        data={"_tt_explicit_overrides": {"selection_policy": "technical_minimum"}},
+    )
+
+    await service._prepare_self_regulating_tt_request(
+        request,
+        obj,
+        electrical_variant_id=variant_id,
+    )
+    _mark, result = service._calculate_electrical_result(request)
+
+    assert result["section_plan"]["max_start_current_a"] == 28.997
+    assert result["section_plan"]["max_start_current_source"] == "section_catalog_derived"
+    assert request.data["max_section_start_current_a"] == 28.997
+    assert request.data["max_start_current_per_section"] == 28.997
+
+
 async def test_snapshot_uses_exact_custom_database_row_selected_by_pipeline() -> None:
     obj = _pipe()
     service, variant_id = _service(obj)

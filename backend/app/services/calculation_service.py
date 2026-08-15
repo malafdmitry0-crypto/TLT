@@ -1747,6 +1747,7 @@ class CalculationService:
                 },
             )
         values = resolved.values
+        applied_current_limit = float(result_dict["section_plan"]["max_start_current_a"])
         preserved = {
             key: value
             for key, value in request.data.items()
@@ -1759,7 +1760,7 @@ class CalculationService:
             "process_temperature": float(values.product_temperature_c),
             "ambient_temperature": float(values.ambient_temperature_c),
             "supply_voltage": float(values.nominal_voltage_v),
-            "max_start_current_per_section": float(values.max_section_start_current_a),
+            "max_start_current_per_section": applied_current_limit,
             "winding_coefficient": result_dict["winding_coefficient"],
             "number_of_threads": values.thread_count,
             "requested_number_of_threads": values.thread_count,
@@ -1770,7 +1771,7 @@ class CalculationService:
             "selection_policy": values.selection_policy,
             "safety_factor": float(values.safety_factor),
             "cold_start_temperature_c": float(values.cold_start_temperature_c),
-            "max_section_start_current_a": float(values.max_section_start_current_a),
+            "max_section_start_current_a": applied_current_limit,
             "_tt_pipeline_result": result_dict,
         }
         if isinstance(layout_contract, PipeElectricalLayout):

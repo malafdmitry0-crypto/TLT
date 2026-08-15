@@ -36,7 +36,7 @@ class CanonicalElectricalInputs(BaseModel):
     winding_pitch_mm: Decimal | None
     thread_count: int | None
     manual_cable_model: str | None
-    max_section_start_current_a: Decimal
+    max_section_start_current_a: Decimal | None
     selection_policy: str
     safety_factor: Decimal
     base_length_m: Decimal
