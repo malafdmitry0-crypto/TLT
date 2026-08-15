@@ -149,8 +149,8 @@ class SelfRegulatingTTParams(BaseModel):
         default=None,
         gt=0,
         description=(
-            "Iдоп — обязательный downstream-вход для расчёта секций; "
-            "pure подбор марки §6.13 его не использует"
+            "Ручной Iдоп для расчёта секций; null — вывести предел из "
+            "Lмакс × Iст.уд выбранной строки каталога"
         ),
     )
     outer_diameter_mm: float | None = Field(

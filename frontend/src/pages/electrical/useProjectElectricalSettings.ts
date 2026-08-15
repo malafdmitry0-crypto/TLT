@@ -14,7 +14,8 @@ import {
 } from '@/api/electricalSettings';
 
 export const IDOP_REQUIRED_MESSAGE = 'Укажите I доп проекта';
-export const IDOP_CALCULATION_BLOCKED_MESSAGE = 'Сначала укажите и сохраните I доп проекта';
+
+export type ProjectIdopMode = 'auto' | 'manual';
 
 export function useProjectElectricalSettings(
   projectId: string | undefined,
@@ -22,6 +23,7 @@ export function useProjectElectricalSettings(
 ) {
   const queryClient = useQueryClient();
   const [draftIdop, setDraftIdop] = useState<number | null>(null);
+  const [draftMode, setDraftMode] = useState<ProjectIdopMode>('auto');
   const [draftTouched, setDraftTouched] = useState(false);
 
   const query = useQuery({
@@ -35,12 +37,14 @@ export function useProjectElectricalSettings(
     () => parseIdopAmps(query.data?.max_section_start_current_a),
     [query.data?.max_section_start_current_a],
   );
+  const savedMode: ProjectIdopMode = savedIdop == null ? 'auto' : 'manual';
 
   useEffect(() => {
     if (!draftTouched) {
       setDraftIdop(savedIdop);
+      setDraftMode(savedMode);
     }
-  }, [savedIdop, draftTouched]);
+  }, [savedIdop, savedMode, draftTouched]);
 
   const mutation = useMutation({
     mutationFn: async (nextIdop: number | null) => {
@@ -60,10 +64,12 @@ export function useProjectElectricalSettings(
         data,
       );
       setDraftTouched(false);
-      setDraftIdop(parseIdopAmps(data.max_section_start_current_a));
+      const nextSavedIdop = parseIdopAmps(data.max_section_start_current_a);
+      setDraftIdop(nextSavedIdop);
+      setDraftMode(nextSavedIdop == null ? 'auto' : 'manual');
       message.success(
         data.max_section_start_current_a == null
-          ? 'I доп сброшен'
+          ? 'Автоматический режим I доп сохранён'
           : 'I доп сохранён',
       );
     },
@@ -85,29 +91,39 @@ export function useProjectElectricalSettings(
     setDraftIdop(value);
   }, []);
 
-  const validationError = query.isLoading || query.isError
+  const onModeChange = useCallback((mode: ProjectIdopMode) => {
+    setDraftTouched(true);
+    setDraftMode(mode);
+  }, []);
+
+  const validationError = query.isLoading || query.isError || draftMode === 'auto'
     ? null
     : draftIdop == null
-    ? IDOP_REQUIRED_MESSAGE
-    : draftIdop > 0
-      ? null
-      : 'I доп должен быть больше 0';
+      ? IDOP_REQUIRED_MESSAGE
+      : draftIdop > 0
+        ? null
+        : 'I доп должен быть больше 0';
 
   const save = useCallback(() => {
     if (!canMutate || validationError) return;
-    mutation.mutate(draftIdop);
-  }, [canMutate, draftIdop, mutation, validationError]);
+    mutation.mutate(draftMode === 'auto' ? null : draftIdop);
+  }, [canMutate, draftIdop, draftMode, mutation, validationError]);
 
-  const idopMissing = savedIdop == null;
-  const isDirty = draftTouched && draftIdop !== savedIdop;
-  const canSave = canMutate && !query.isLoading && !mutation.isPending && isDirty && !validationError;
+  const isDirty = draftTouched && (
+    draftMode !== savedMode
+    || (draftMode === 'manual' && draftIdop !== savedIdop)
+  );
+  const canSave = canMutate
+    && !query.isLoading
+    && !query.isError
+    && !mutation.isPending
+    && isDirty
+    && !validationError;
   const calculationBlockedReason = query.isLoading
     ? 'Дождитесь загрузки I доп проекта'
     : query.isError
       ? 'Сначала загрузите электрические настройки проекта'
-      : idopMissing
-        ? IDOP_CALCULATION_BLOCKED_MESSAGE
-        : null;
+      : null;
 
   return {
     settings: query.data,
@@ -117,10 +133,12 @@ export function useProjectElectricalSettings(
     refetch: query.refetch,
     savedIdop,
     draftIdop,
+    savedMode,
+    draftMode,
+    onModeChange,
     onDraftChange,
     save,
     saving: mutation.isPending,
-    idopMissing,
     isDirty,
     validationError,
     canSave,

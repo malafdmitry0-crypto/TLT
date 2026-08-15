@@ -52,6 +52,7 @@ class SectionPlan:
     catalog_version: str
     voltage_v: float
     cold_start_temp_c: float
+    i_dop_source: str = "manual_input"
 
 
 @lru_cache
@@ -172,6 +173,7 @@ def compute_section_plan(
     voltage_v: float,
     cold_start_temp_c: float,
     max_start_current_per_section_a: float | None = None,
+    max_start_current_source: str | None = None,
     catalog_rows: Sequence[Mapping[str, Any]] | None = None,
     catalog_metadata: Mapping[str, Any] | None = None,
 ) -> SectionPlan:
@@ -201,18 +203,19 @@ def compute_section_plan(
         raise ElectricalFormulaError(
             "ELECTRICAL_SECTION_PLAN_INVALID", "Параметры строки секционирования неположительны"
         )
+    specific_start = decimal_value(row.i_st_ud_a_per_m)
     if max_start_current_per_section_a is None:
-        raise ElectricalFormulaError(
-            "SECTION_CURRENT_LIMIT_REQUIRED", "Требуется допустимый стартовый ток секции Iдоп"
-        )
-    current_limit = decimal_value(max_start_current_per_section_a)
+        current_limit = decimal_value(row.l_max_m) * specific_start
+        current_limit_source = "section_catalog_derived"
+    else:
+        current_limit = decimal_value(max_start_current_per_section_a)
+        current_limit_source = max_start_current_source or "manual_input"
     if current_limit <= 0:
         raise ElectricalFormulaError(
             "SECTION_CURRENT_LIMIT_REQUIRED",
             "Допустимый стартовый ток секции должен быть положительным",
         )
 
-    specific_start = decimal_value(row.i_st_ud_a_per_m)
     l_tok = current_limit / specific_start
     l_ogr_limit = min(decimal_value(row.l_max_m), l_tok)
     l_ogr = round_down(l_ogr_limit)
@@ -247,7 +250,8 @@ def compute_section_plan(
         l_ogr_m=float(l_ogr),
         l_required_m=float(round_result(l_req)),
         l_fact_m=float(round_result(l_fact)),
-        i_dop_a=float(current_limit),
+        i_dop_a=float(round_result(current_limit)),
+        i_dop_source=current_limit_source,
         i_st_ud_a_per_m=row.i_st_ud_a_per_m,
         start_current_a=float(round_result(start_total)),
         working_current_a=float(round_result(working_total)),
@@ -287,6 +291,8 @@ def section_plan_to_result_fields(plan: SectionPlan) -> dict[str, Any]:
         "total_power": plan.total_power_w,
         "section_catalog_source": plan.catalog_source,
         "section_catalog_version": plan.catalog_version,
+        "section_max_start_current_a": plan.i_dop_a,
+        "section_max_start_current_source": plan.i_dop_source,
         "sections": [
             {
                 "index": i + 1,

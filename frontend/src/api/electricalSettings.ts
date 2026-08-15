@@ -9,7 +9,7 @@ export const PROJECT_ELECTRICAL_SETTINGS_QUERY_KEY = 'project-electrical-setting
 export type ProjectElectricalSettings = {
   project_id: string;
   nominal_voltage_v: number;
-  /** Project-level I доп (A). null = not set → sectioning blocked. */
+  /** Project-level I доп (A). null = automatic catalog mode; number = manual override. */
   max_section_start_current_a: number | string | null;
   version: number;
   updated_by: string | null;

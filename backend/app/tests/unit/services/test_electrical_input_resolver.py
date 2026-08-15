@@ -72,7 +72,6 @@ def test_strict_case1_resolution_has_exact_current_fields_and_no_mock() -> None:
         ("object_heat", "cold_start_temperature_c", "ELECTRICAL_INPUT_REQUIRED"),
         ("object_heat", "ambient_temperature_c", "ELECTRICAL_INPUT_REQUIRED"),
         ("project_settings", "nominal_voltage_v", "ELECTRICAL_INPUT_REQUIRED"),
-        ("project_settings", "max_section_start_current_a", "SECTION_CURRENT_LIMIT_REQUIRED"),
         ("object_heat", "base_length_m", "ELECTRICAL_HEAT_LOSS_REQUIRED"),
         ("object_heat", "heat_loss_per_meter_w", "ELECTRICAL_HEAT_LOSS_REQUIRED"),
         ("project_settings", "safety_factor", "ELECTRICAL_REQUIRED_POWER_INVALID"),
@@ -91,6 +90,16 @@ def test_required_case1_input_never_uses_an_implicit_fallback(
 
     assert raised.value.code == code
     assert raised.value.details == {"field": field}
+
+
+def test_null_project_current_limit_defers_to_section_catalog() -> None:
+    sources = _sources()
+    sources["project_settings"]["max_section_start_current_a"] = None
+
+    result = ElectricalInputResolver().resolve(**sources)
+
+    assert result.values.max_section_start_current_a is None
+    assert result.sources["max_section_start_current_a"] == "section_catalog_derived"
 
 
 def test_missing_selection_policy_has_an_actionable_user_message() -> None:
