@@ -1,6 +1,4 @@
-/**
- * Project I доп: catalog-derived automatic mode or a numeric manual override.
- */
+/** Project I доп: empty uses the catalog; a number is a project override. */
 import type { ReactNode } from 'react';
 import {
   CompactField,
@@ -38,6 +36,16 @@ export function ElecCalcIdopSettings({
   } = settings;
   const controlsDisabled = !canMutate || isLoading || isError || saving;
   const settingsReady = !isLoading && !isError;
+  const helpId = `${formId}-help`;
+  const errorId = `${formId}-error`;
+  const helpText = draftMode === 'auto'
+    ? 'По каталогу для каждого объекта: I доп = Lмакс × Iст.уд. Введите число для единого предела.'
+    : 'Ручной предел применяется ко всем объектам проекта. Очистите поле и сохраните, чтобы вернуться к каталогу.';
+
+  const handleDraftChange = (value: number | null) => {
+    onDraftChange(value);
+    onModeChange(value == null ? 'auto' : 'manual');
+  };
 
   return (
     <div
@@ -68,93 +76,60 @@ export function ElecCalcIdopSettings({
         {settingsReady && (
           <CompactFieldGrid
             className="elec-idop-settings__grid"
-            columns={3}
+            columns={2}
             flow="rows"
             sizing="content"
             density="compact"
           >
             <CompactField
-              label="Режим I доп проекта"
-              labelWidth="110px"
+              label={(
+                <span
+                  className="elec-idop-settings__label"
+                  data-field-help={helpText}
+                >
+                  I доп проекта — допустимый стартовый ток одной секции, А
+                </span>
+              )}
+              labelWidth="300px"
               controlWidth="260px"
+              error={validationError
+                ? <span id={errorId} role="alert">{validationError}</span>
+                : undefined}
             >
-              <div
-                className="elec-idop-settings__mode-buttons"
-                role="group"
-                aria-label="Режим I доп проекта"
-              >
-                <TltButton
-                  size="compact"
-                  variant={draftMode === 'auto' ? 'primary' : 'secondary'}
-                  aria-pressed={draftMode === 'auto'}
-                  aria-controls={`${formId}-mode-content`}
-                  disabled={controlsDisabled}
-                  onClick={() => onModeChange('auto')}
-                >
-                  Автоматически по каталогу
-                </TltButton>
-                <TltButton
-                  size="compact"
-                  variant={draftMode === 'manual' ? 'primary' : 'secondary'}
-                  aria-pressed={draftMode === 'manual'}
-                  aria-controls={`${formId}-mode-content`}
-                  disabled={controlsDisabled}
-                  onClick={() => onModeChange('manual')}
-                >
-                  Вручную
-                </TltButton>
-              </div>
+              <TltNumberField
+                id={`${formId}-input`}
+                aria-label="I доп проекта — допустимый стартовый ток одной секции, А"
+                data-testid="elec-idop-input"
+                disabled={controlsDisabled}
+                status={validationError ? 'error' : ''}
+                aria-invalid={Boolean(validationError)}
+                aria-describedby={validationError ? errorId : helpId}
+                min={0.001}
+                step={0.1}
+                value={draftMode === 'auto' ? null : draftIdop}
+                onChange={handleDraftChange}
+                placeholder={draftMode === 'auto' ? 'По каталогу' : undefined}
+              />
             </CompactField>
-            {draftMode === 'manual' && (
-              <CompactField
-                label="I доп проекта — допустимый стартовый ток одной секции, А"
-                labelWidth="280px"
-                controlWidth="118px"
-                required
-                error={validationError
-                  ? <span id={`${formId}-error`} role="alert">{validationError}</span>
-                  : undefined}
-              >
-                <TltNumberField
-                  id={`${formId}-input`}
-                  aria-label="I доп проекта — допустимый стартовый ток одной секции, А"
-                  data-testid="elec-idop-input"
-                  disabled={controlsDisabled}
-                  required
-                  status={validationError ? 'error' : ''}
-                  aria-invalid={Boolean(validationError)}
-                  aria-describedby={validationError ? `${formId}-error` : undefined}
-                  min={0.001}
-                  step={0.1}
-                  value={draftIdop}
-                  onChange={onDraftChange}
-                  placeholder="например 13"
-                />
-              </CompactField>
-            )}
-            {canMutate && (
-              <TltButton
-                variant="primary"
-                size="compact"
-                loading={saving}
-                disabled={!canSave}
-                onClick={save}
-                data-testid="elec-idop-save"
-              >
-                Сохранить I доп
-              </TltButton>
-            )}
+            <TltButton
+              variant="primary"
+              size="compact"
+              loading={saving}
+              disabled={!canMutate || !canSave}
+              title={canMutate
+                ? undefined
+                : 'Только владелец проекта или администратор может изменить I доп'}
+              onClick={save}
+              data-testid="elec-idop-save"
+            >
+              Сохранить I доп
+            </TltButton>
           </CompactFieldGrid>
         )}
         {settingsReady && (
-          <div id={`${formId}-mode-content`} aria-live="polite">
-            {draftMode === 'auto' && (
-              <p className="elec-idop-settings__auto-copy">
-                Применяемый I доп рассчитывается отдельно для каждого объекта по выбранной
-                строке каталога: I доп = Lмакс × Iст.уд.
-              </p>
-            )}
-          </div>
+          <span id={helpId} className="elec-idop-settings__sr-only">
+            {helpText}
+          </span>
         )}
       </div>
     </div>
