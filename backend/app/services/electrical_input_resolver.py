@@ -204,7 +204,9 @@ class ElectricalInputResolver:
                     values[field] = project_value
                     sources[field] = "project_setting"
                     continue
-                self._raise_missing(field)
+                values[field] = None
+                sources[field] = "section_catalog_derived"
+                continue
 
             explicit_present = field in explicit_fields
             if explicit_present and (
@@ -304,6 +306,8 @@ class ElectricalInputResolver:
     @staticmethod
     def _validate(values: dict[str, Any]) -> None:
         for field in _POSITIVE_FIELDS:
+            if field == "max_section_start_current_a" and values[field] is None:
+                continue
             try:
                 valid = Decimal(str(values[field])) > 0
             except (ValueError, TypeError):

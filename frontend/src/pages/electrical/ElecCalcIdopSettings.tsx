@@ -1,8 +1,14 @@
 /**
- * Project I доп (max section start current) — required for sectioning (E2 / FE-27).
+ * Project I доп: catalog-derived automatic mode or a numeric manual override.
  */
 import type { ReactNode } from 'react';
-import { TltAlert, TltButton, TltNumberField } from '@/components/ui-kit';
+import {
+  CompactField,
+  CompactFieldGrid,
+  TltAlert,
+  TltButton,
+  TltNumberField,
+} from '@/components/ui-kit';
 import type { ProjectElectricalSettingsController } from '@/pages/electrical/useProjectElectricalSettings';
 import './ElecCalcIdopSettings.css';
 
@@ -21,6 +27,8 @@ export function ElecCalcIdopSettings({
     isError,
     refetch,
     draftIdop,
+    draftMode,
+    onModeChange,
     onDraftChange,
     save,
     saving,
@@ -28,6 +36,8 @@ export function ElecCalcIdopSettings({
     canSave,
     canMutate,
   } = settings;
+  const controlsDisabled = !canMutate || isLoading || isError || saving;
+  const settingsReady = !isLoading && !isError;
 
   return (
     <div
@@ -54,45 +64,97 @@ export function ElecCalcIdopSettings({
         className="elec-idop-settings__form"
         data-testid="elec-idop-settings-form"
       >
-        <div className="elec-idop-settings__fields">
-          <div className="elec-idop-settings__field">
-            <span className="workflow-params-label elec-idop-settings__label">
-              I доп проекта — допустимый стартовый ток одной секции, А
-            </span>
-            <TltNumberField
-              id={`${formId}-input`}
-              aria-label="I доп проекта — допустимый стартовый ток одной секции, А"
-              data-testid="elec-idop-input"
-              disabled={!canMutate || isLoading || saving}
-              required
-              status={validationError ? 'error' : ''}
-              aria-invalid={Boolean(validationError)}
-              aria-describedby={validationError ? `${formId}-error` : undefined}
-              min={0.001}
-              step={0.1}
-              value={draftIdop}
-              onChange={onDraftChange}
-              placeholder="например 13"
-              className="electrical-type-control electrical-type-control--w118"
-            />
-          </div>
-          {canMutate && (
-            <TltButton
-              variant="primary"
-              size="compact"
-              loading={saving}
-              disabled={!canSave}
-              onClick={save}
-              data-testid="elec-idop-save"
+        {isLoading && <span role="status">Загрузка настроек I доп…</span>}
+        {settingsReady && (
+          <CompactFieldGrid
+            className="elec-idop-settings__grid"
+            columns={3}
+            flow="rows"
+            sizing="content"
+            density="compact"
+          >
+            <CompactField
+              label="Режим I доп проекта"
+              labelWidth="110px"
+              controlWidth="260px"
             >
-              Сохранить I доп
-            </TltButton>
-          )}
-        </div>
-        {validationError && (
-          <span id={`${formId}-error`} className="elec-idop-settings__error" role="alert">
-            {validationError}
-          </span>
+              <div
+                className="elec-idop-settings__mode-buttons"
+                role="group"
+                aria-label="Режим I доп проекта"
+              >
+                <TltButton
+                  size="compact"
+                  variant={draftMode === 'auto' ? 'primary' : 'secondary'}
+                  aria-pressed={draftMode === 'auto'}
+                  aria-controls={`${formId}-mode-content`}
+                  disabled={controlsDisabled}
+                  onClick={() => onModeChange('auto')}
+                >
+                  Автоматически по каталогу
+                </TltButton>
+                <TltButton
+                  size="compact"
+                  variant={draftMode === 'manual' ? 'primary' : 'secondary'}
+                  aria-pressed={draftMode === 'manual'}
+                  aria-controls={`${formId}-mode-content`}
+                  disabled={controlsDisabled}
+                  onClick={() => onModeChange('manual')}
+                >
+                  Вручную
+                </TltButton>
+              </div>
+            </CompactField>
+            {draftMode === 'manual' && (
+              <CompactField
+                label="I доп проекта — допустимый стартовый ток одной секции, А"
+                labelWidth="280px"
+                controlWidth="118px"
+                required
+                error={validationError
+                  ? <span id={`${formId}-error`} role="alert">{validationError}</span>
+                  : undefined}
+              >
+                <TltNumberField
+                  id={`${formId}-input`}
+                  aria-label="I доп проекта — допустимый стартовый ток одной секции, А"
+                  data-testid="elec-idop-input"
+                  disabled={controlsDisabled}
+                  required
+                  status={validationError ? 'error' : ''}
+                  aria-invalid={Boolean(validationError)}
+                  aria-describedby={validationError ? `${formId}-error` : undefined}
+                  min={0.001}
+                  step={0.1}
+                  value={draftIdop}
+                  onChange={onDraftChange}
+                  placeholder="например 13"
+                />
+              </CompactField>
+            )}
+            {canMutate && (
+              <TltButton
+                variant="primary"
+                size="compact"
+                loading={saving}
+                disabled={!canSave}
+                onClick={save}
+                data-testid="elec-idop-save"
+              >
+                Сохранить I доп
+              </TltButton>
+            )}
+          </CompactFieldGrid>
+        )}
+        {settingsReady && (
+          <div id={`${formId}-mode-content`} aria-live="polite">
+            {draftMode === 'auto' && (
+              <p className="elec-idop-settings__auto-copy">
+                Применяемый I доп рассчитывается отдельно для каждого объекта по выбранной
+                строке каталога: I доп = Lмакс × Iст.уд.
+              </p>
+            )}
+          </div>
         )}
       </div>
     </div>
