@@ -72,6 +72,8 @@ interface Props {
   extra?: ReactNode;
   /** Явный источник значения; без него required direct-entry считается ручным. */
   source?: unknown;
+  /** Точечное отключение подписи источника для полей, где она не нужна по UX. */
+  showSourceTag?: boolean;
   /** Нестандартный контрол: справочник, селект, что угодно со своими данными. */
   children?: ReactElement;
 }
@@ -88,6 +90,7 @@ export default function HeatFormField({
   rules,
   extra,
   source,
+  showSourceTag = true,
   children,
 }: Props) {
   const form = TltForm.useFormInstance();
@@ -97,11 +100,13 @@ export default function HeatFormField({
     form,
   );
   const required = watchedRequired ?? heatCalcFieldRequired(form, objectType, id);
-  const fieldSource = resolveFieldSource({
-    inputType: input?.type,
-    required,
-    source,
-  });
+  const fieldSource = showSourceTag
+    ? resolveFieldSource({
+        inputType: input?.type,
+        required,
+        source,
+      })
+    : undefined;
   const fieldExtra = fieldSource || extra != null
     ? <FieldSourceExtra source={fieldSource}>{extra}</FieldSourceExtra>
     : undefined;
