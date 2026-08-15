@@ -1,14 +1,14 @@
-from decimal import Decimal
+from inspect import getsource
 
 from app.reference_data.loader import list_insulation_materials, list_tt_cables
 from app.schemas.electrical_assignment import ElectricalAssignmentOverridesPatch
 from app.schemas.project import ProjectObjectCreate
 from app.seeds import (
-    _ELECTRICAL_SEED_MAX_SECTION_START_CURRENT_A,
     _HEAT_SEED_CONFIGS,
     _electrical_seed_overrides,
     _insulation_seed_row,
     _project_seed_plans,
+    seed_objects_and_calculations,
 )
 from app.services.heat_contract import (
     DEPRECATED_HEAT_PARAM_KEYS,
@@ -144,8 +144,8 @@ def test_tank_seed_matrix_covers_shapes_placements_and_special_cases():
     assert metadata_volume["volume"] == 24.5
 
 
-def test_electrical_seed_matrix_uses_project_idop_and_supported_assignment_overrides():
-    assert Decimal("13.065") == _ELECTRICAL_SEED_MAX_SECTION_START_CURRENT_A
+def test_electrical_seed_matrix_leaves_project_idop_unset_for_catalog_derivation():
+    assert "max_section_start_current_a" not in getsource(seed_objects_and_calculations)
     planned = [
         (config, _electrical_seed_overrides(config["object_type"], config["params"]))
         for config in _HEAT_SEED_CONFIGS

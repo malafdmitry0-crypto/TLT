@@ -37,16 +37,49 @@ def test_lookup_never_falls_back_to_warmer_row(monkeypatch):
     assert lookup_section_row(mark="25ТТН2", cold_start_temp_c=-20) is None
 
 
-def test_missing_current_limit_is_fail_closed():
-    with pytest.raises(ElectricalFormulaError) as exc:
-        compute_section_plan(
-            mark="25ТТН2-СТ",
-            installed_cable_length_m=200,
-            power_per_meter_w=25,
-            voltage_v=230,
-            cold_start_temp_c=-20,
-        )
-    assert exc.value.code == "SECTION_CURRENT_LIMIT_REQUIRED"
+def test_missing_current_limit_is_derived_from_nearest_colder_catalog_row(monkeypatch):
+    rows = [
+        SectionCatalogRow("25ТТН2", 230, -10, 118, None, 0.246),
+        SectionCatalogRow("25ТТН2", 230, -20, 112, None, 0.259),
+    ]
+    monkeypatch.setattr("app.formulas.electrical.sections._parse_rows", lambda: rows)
+
+    plan = compute_section_plan(
+        mark="25ТТН2-СТ",
+        installed_cable_length_m=200,
+        power_per_meter_w=25,
+        voltage_v=230,
+        cold_start_temp_c=-17,
+    )
+
+    assert plan.cold_start_temp_c == -20
+    assert plan.i_dop_a == 29.008
+    assert plan.i_dop_source == "section_catalog_derived"
+    assert plan.l_tok_m == 112
+    assert plan.l_ogr_m == 112
+    assert plan.start_current_per_section_a == 29.008
+    assert plan.start_current_per_section_a <= plan.i_dop_a
+
+
+def test_manual_current_limit_precedes_catalog_derived_limit(monkeypatch):
+    row = SectionCatalogRow("25ТТН2", 230, -20, 112, None, 0.259)
+    monkeypatch.setattr("app.formulas.electrical.sections._parse_rows", lambda: [row])
+
+    plan = compute_section_plan(
+        mark="25ТТН2-СТ",
+        installed_cable_length_m=200,
+        power_per_meter_w=25,
+        voltage_v=230,
+        cold_start_temp_c=-20,
+        max_start_current_per_section_a=13.065,
+        max_start_current_source="project_setting",
+    )
+
+    assert plan.i_dop_a == 13.065
+    assert plan.i_dop_source == "project_setting"
+    assert plan.l_tok_m == 50.444
+    assert plan.l_ogr_m == 50.444
+    assert plan.start_current_per_section_a == 13.065
 
 
 def test_non_positive_current_limit_is_fail_closed():
