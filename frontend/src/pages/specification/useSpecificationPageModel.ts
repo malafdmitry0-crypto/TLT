@@ -165,6 +165,15 @@ export function useSpecificationPageModel() {
     isPending: generateMut.isPending,
     isError: generateMut.isError,
   };
+  const buildGenerateOptions = () => buildSpecGenerateOptions({
+    exZone: form.exZone,
+    reserveCoeff: form.reserveCoeff,
+    indicationOnBoxes: form.indicationOnBoxes,
+    endSectionIndication: form.endSectionIndication,
+    topIndication: form.topIndication,
+    minLengthK2i: form.minLengthK2i,
+    groupingMode: form.groupingMode,
+  });
   const hydratedErRef = useRef<string | null>(null);
   useEffect(() => {
     if (mut.isPending) return;
@@ -172,16 +181,7 @@ export function useSpecificationPageModel() {
     const erChanged = hydratedErRef.current !== erId;
     hydratedErRef.current = erId;
 
-    const options = buildSpecGenerateOptions({
-      exZone: form.exZone,
-      reserveCoeff: form.reserveCoeff,
-      indicationOnBoxes: form.indicationOnBoxes,
-      endSectionIndication: form.endSectionIndication,
-      topIndication: form.topIndication,
-      minLengthK2i: form.minLengthK2i,
-      groupingMode: form.groupingMode,
-    });
-    const hydrate = buildSpecGenerationHydrate(spec, erId, options);
+    const hydrate = buildSpecGenerationHydrate(spec, erId, buildGenerateOptions());
 
     if (!hydrate.hasOutcome) {
       // Clear only on ER switch without a GET outcome. Do not wipe in-memory
@@ -215,20 +215,9 @@ export function useSpecificationPageModel() {
     spec?.generation_at,
     project?.id,
     selectedElectricalVariant?.id,
-    mut.isPending,
   ]);
 
   const isSpecStale = spec?.is_stale === true;
-  const buildGenerateOptions = () => buildSpecGenerateOptions({
-    exZone: form.exZone,
-    reserveCoeff: form.reserveCoeff,
-    indicationOnBoxes: form.indicationOnBoxes,
-    endSectionIndication: form.endSectionIndication,
-    topIndication: form.topIndication,
-    minLengthK2i: form.minLengthK2i,
-    groupingMode: form.groupingMode,
-  });
-
   const runGenerate = (
     excludeUnassignedConfirmed = false,
     nextCatalogSelections?: Record<string, string>,
