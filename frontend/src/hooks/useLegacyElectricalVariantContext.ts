@@ -18,8 +18,14 @@ function asCalculationVariant(value: number | null): CalculationVariant | null {
  * Selection, URL canonicalization and the authoritative-after-mount gate are
  * deliberately delegated to the same UUID-first controller as ElecCalcPage.
  */
-export function useLegacyElectricalVariantContext(projectId: string | null | undefined) {
-  const controller = useElectricalVariantSelection({ projectId });
+export function useLegacyElectricalVariantContext(
+  projectId: string | null | undefined,
+  options: { syncRouteSelection?: boolean } = {},
+) {
+  const controller = useElectricalVariantSelection({
+    projectId,
+    syncRouteSelection: options.syncRouteSelection,
+  });
   const setLegacyVariant = useCalculationVariantStore((state) => state.setVariant);
   const clearLegacyVariant = useCalculationVariantStore((state) => state.clearVariant);
   const legacyVariantNumber = asCalculationVariant(
