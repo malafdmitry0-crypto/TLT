@@ -257,7 +257,11 @@ def calculate_electrical_tt(
         process_temperature=float(values.product_temperature_c),
         ambient_temperature=float(values.ambient_temperature_c),
         supply_voltage=float(values.nominal_voltage_v),
-        max_start_current_per_section=float(values.max_section_start_current_a),
+        max_start_current_per_section=(
+            float(values.max_section_start_current_a)
+            if values.max_section_start_current_a is not None
+            else None
+        ),
         outer_diameter_mm=(
             float(values.outer_diameter_mm) if values.outer_diameter_mm is not None else None
         ),
@@ -294,7 +298,12 @@ def calculate_electrical_tt(
         power_per_meter_w=float(power_exact),
         voltage_v=float(values.nominal_voltage_v),
         cold_start_temp_c=float(values.cold_start_temperature_c),
-        max_start_current_per_section_a=float(values.max_section_start_current_a),
+        max_start_current_per_section_a=(
+            float(values.max_section_start_current_a)
+            if values.max_section_start_current_a is not None
+            else None
+        ),
+        max_start_current_source=resolved.sources.get("max_section_start_current_a"),
         catalog_rows=section_rows,
         catalog_metadata=section_metadata if section_rows is not None else None,
     )
@@ -334,10 +343,17 @@ def calculate_electrical_tt(
     warnings = list(dict.fromkeys(warnings))
     production_eligible = resolved.production_eligible and catalog_production_eligible
     resolved_values = values.model_dump(mode="json")
+    if values.max_section_start_current_a is None:
+        resolved_values["max_section_start_current_a"] = str(
+            decimal_value(plan.i_dop_a)
+        )
+    applied_input_sources = dict(resolved.sources)
+    applied_input_sources["max_section_start_current_a"] = plan.i_dop_source
     calculation_fingerprint = _stable_hash(
         {
             "formula": ELECTRICAL_TT_FORMULA_FINGERPRINT,
             "inputs": resolved_values,
+            "input_sources": applied_input_sources,
             "source_provenance": source_provenance,
             "power_catalog": power_catalog,
             "section_catalog": section_catalog,
@@ -425,6 +441,7 @@ def calculate_electrical_tt(
             "l_tok_m": plan.l_tok_m,
             "l_ogr_m": plan.l_ogr_m,
             "max_start_current_a": plan.i_dop_a,
+            "max_start_current_source": plan.i_dop_source,
             "specific_start_current_a_per_m": plan.i_st_ud_a_per_m,
             "start_current_per_section_a": plan.start_current_per_section_a,
             "working_current_per_section_a": plan.working_current_per_section_a,
@@ -447,7 +464,11 @@ def calculate_electrical_tt(
                 if key not in {"power_catalog", "section_catalog", "bom_catalog"}
             },
             "resolved_inputs": resolved_values,
-            "input_sources": dict(resolved.sources),
+            "input_sources": applied_input_sources,
+            "section_current_limit": {
+                "value_a": plan.i_dop_a,
+                "source": plan.i_dop_source,
+            },
             "mocked_fields": list(resolved.mocked_fields),
             "legacy_aliases": list(resolved.legacy_aliases),
             "warnings": warnings,
@@ -491,7 +512,7 @@ def calculate_electrical_tt(
         "start_current": plan.start_current_a,
         "working_current": plan.working_current_a,
         "resolved_inputs": resolved_values,
-        "input_sources": dict(resolved.sources),
+        "input_sources": applied_input_sources,
         "mocked_fields": list(resolved.mocked_fields),
         "legacy_aliases": list(resolved.legacy_aliases),
         "warnings": warnings,
