@@ -41,7 +41,7 @@ def build_tank_preparation(params: TankHeatLossParams) -> TankPreparationInput:
         length=params.length,
         width=params.width,
         layers=tuple(
-            _preparation_layer(layer, index, params.process_temperature)
+            _preparation_layer(layer, index)
             for index, layer in enumerate(params.insulation_layers)
         ),
         ambient_temperature=params.ambient_temperature,
@@ -65,7 +65,6 @@ def build_tank_preparation(params: TankHeatLossParams) -> TankPreparationInput:
 def _preparation_layer(
     layer: InsulationLayer,
     index: int,
-    process_temperature: float,
 ) -> TankPreparationLayer:
     manual = layer.material == "other"
     if manual:
@@ -80,7 +79,6 @@ def _preparation_layer(
     law, interval = resolve_reference_layer(
         material=layer.material,
         index=index,
-        process_temperature=process_temperature,
     )
     return TankPreparationLayer(
         thickness_m=layer.thickness,
