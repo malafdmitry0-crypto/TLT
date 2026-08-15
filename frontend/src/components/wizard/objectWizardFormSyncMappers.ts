@@ -105,7 +105,16 @@ export function collectInsulationLayerSyncValues(args: {
 }): Record<string, unknown> {
   const { form, changed, insulationMaterials } = args;
   const nextValues: Record<string, unknown> = {};
-  INSULATION_LAYER_FORM_FIELDS.forEach((layer) => {
+  const rawLayerCount = Object.prototype.hasOwnProperty.call(changed, 'insulation_layer_count')
+    ? changed.insulation_layer_count
+    : form.getFieldValue('insulation_layer_count');
+  const parsedLayerCount = Number(rawLayerCount);
+  const activeLayerCount = Number.isFinite(parsedLayerCount)
+    ? Math.min(INSULATION_LAYER_FORM_FIELDS.length, Math.max(1, Math.trunc(parsedLayerCount)))
+    : INSULATION_LAYER_FORM_FIELDS.length;
+
+  INSULATION_LAYER_FORM_FIELDS.forEach((layer, index) => {
+    if (index >= activeLayerCount) return;
     if (Object.prototype.hasOwnProperty.call(changed, layer.material)) {
       const material = changed[layer.material];
       if (isReferenceInsulationMaterial(material)) {

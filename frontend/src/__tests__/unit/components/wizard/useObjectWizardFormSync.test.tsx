@@ -445,4 +445,67 @@ describe('useObjectWizardFormSync', () => {
 
     expect(getForm().getFieldValue('first_insulation_lambda')).toBe(0.045);
   });
+
+  it('does not mark removed outer insulation layers as manual materials', () => {
+    const { result, getForm, onDraftValuesChange } = renderFormSync();
+    const clearedOuterLayerFields = {
+      second_insulation_material: undefined,
+      second_insulation_lambda: undefined,
+      second_insulation_temperature_min: undefined,
+      second_insulation_temperature_max: undefined,
+      third_insulation_material: undefined,
+      third_insulation_lambda: undefined,
+      third_insulation_temperature_min: undefined,
+      third_insulation_temperature_max: undefined,
+    };
+
+    act(() => {
+      getForm().setFieldsValue({ insulation_layer_count: '2' });
+      result.current.syncProgrammaticValuesChange({ insulation_layer_count: '2' });
+
+      getForm().setFieldsValue({
+        insulation_layer_count: '1',
+        ...clearedOuterLayerFields,
+      });
+      result.current.syncProgrammaticValuesChange({
+        insulation_layer_count: '1',
+        ...clearedOuterLayerFields,
+      });
+    });
+
+    expect(getForm().getFieldValue('second_insulation_material')).toBeUndefined();
+    expect(getForm().getFieldValue('third_insulation_material')).toBeUndefined();
+    expect(onDraftValuesChange).toHaveBeenLastCalledWith(
+      {
+        insulation_layer_count: '1',
+        ...clearedOuterLayerFields,
+      },
+      expect.objectContaining({ insulation_layer_count: '1' }),
+    );
+  });
+
+  it('keeps converting a manual field edit on an active layer to material other', () => {
+    const { result, getForm, onDraftValuesChange } = renderFormSync();
+
+    act(() => {
+      getForm().setFieldsValue({
+        insulation_layer_count: '2',
+        second_insulation_material: 'mineral_wool',
+        second_insulation_lambda: 0.045,
+      });
+      result.current.syncProgrammaticValuesChange({ second_insulation_lambda: 0.05 });
+    });
+
+    expect(getForm().getFieldValue('second_insulation_material')).toBe('other');
+    expect(onDraftValuesChange).toHaveBeenLastCalledWith(
+      {
+        second_insulation_lambda: 0.05,
+        second_insulation_material: 'other',
+      },
+      expect.objectContaining({
+        insulation_layer_count: '2',
+        second_insulation_material: 'other',
+      }),
+    );
+  });
 });
