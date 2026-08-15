@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "columns": {
     "index": {
       "labels": { "short": "#", "full": "Номер строки", "compact": "#" },
@@ -35,6 +35,34 @@
       "source": "electrical_calculations",
       "valueType": "service",
       "description": "Показывает, рассчитан ли объект, есть ли ошибка, статус не применимо или расчёт ещё не выполнен."
+    },
+    "pipe_outer_diameter": {
+      "labels": { "short": "D, мм", "full": "Наружный диаметр D, мм", "compact": "D" },
+      "group": "Диагностика",
+      "source": "error_context/resolved_inputs/project_objects.params",
+      "valueType": "input",
+      "description": "Наружный диаметр трубы, переданный в подбор кабеля."
+    },
+    "ambient_temperature": {
+      "labels": { "short": "T среды, °C", "full": "Температура среды, °C", "compact": "T среды" },
+      "group": "Диагностика",
+      "source": "error_context/resolved_inputs/project_objects.params",
+      "valueType": "input",
+      "description": "Фактическая температура среды, использованная электрорасчётом."
+    },
+    "min_switch_temperature": {
+      "labels": { "short": "Tвкл, °C", "full": "Минимальная температура включения, °C", "compact": "Tвкл" },
+      "group": "Диагностика",
+      "source": "error_context/resolved_inputs/project_objects.params",
+      "valueType": "input",
+      "description": "Температура холодного пуска, использованная при проверке секций."
+    },
+    "climate_temperature_basis": {
+      "labels": { "short": "Климат", "full": "Город и климатическое правило", "compact": "Климат" },
+      "group": "Диагностика",
+      "source": "error_context/project_objects.params",
+      "valueType": "input",
+      "description": "Город и выбранная климатической политикой температура: t_abs_min или t_0_92."
     },
     "cable_type": {
       "labels": { "short": "Тип кабеля", "full": "Тип греющего кабеля", "compact": "Тип каб." },
@@ -280,6 +308,10 @@
       "index",
       "object_name",
       "electrical_status",
+      "pipe_outer_diameter",
+      "ambient_temperature",
+      "min_switch_temperature",
+      "climate_temperature_basis",
       "cable_mark",
       "power_per_meter",
       "applied_selection_policy",
@@ -299,6 +331,10 @@
       { "key": "object_type", "defaultWidthPct": 8, "minWidthPx": 80 },
       { "key": "heat_loss_status", "defaultWidthPct": 10, "minWidthPx": 90 },
       { "key": "electrical_status", "defaultWidthPct": 5.6, "minWidthPx": 56 },
+      { "key": "pipe_outer_diameter", "defaultWidthPct": 7, "minWidthPx": 72 },
+      { "key": "ambient_temperature", "defaultWidthPct": 8, "minWidthPx": 88 },
+      { "key": "min_switch_temperature", "defaultWidthPct": 7, "minWidthPx": 78 },
+      { "key": "climate_temperature_basis", "defaultWidthPct": 15, "minWidthPx": 140 },
       { "key": "cable_type", "defaultWidthPct": 13, "minWidthPx": 120 },
       { "key": "cable_mark", "defaultWidthPct": 18, "minWidthPx": 140, "required": true },
       { "key": "power_per_meter", "defaultWidthPct": 10, "minWidthPx": 86 },
