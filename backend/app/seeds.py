@@ -57,12 +57,10 @@ from app.schemas.electrical_assignment import (
     ElectricalAssignmentOverridesPatch,
 )
 from app.schemas.project import ProjectObjectCreate
-from app.schemas.project_electrical_settings import ProjectElectricalSettingsPatch
 from app.services.calculation_service import CalculationService
 from app.services.electrical_assignment_service import ElectricalAssignmentService
 from app.services.electrical_catalog_service import ElectricalCatalogService
 from app.services.electrical_variant_service import ElectricalVariantService
-from app.services.project_electrical_settings_service import ProjectElectricalSettingsService
 from app.services.project_service import ProjectService
 from app.services.specification_catalog_service import SpecificationCatalogService
 
@@ -1282,7 +1280,6 @@ _PERLITE = "expanded_perlite_sand_225"
 _ELECTRICAL_SEED_COLD_START_TEMPERATURE_C = -20.0
 _ELECTRICAL_SEED_SUPPLY_VOLTAGE_V = Decimal("230")
 _ELECTRICAL_SEED_TANK_LAYING_STEP_M = 0.2
-_ELECTRICAL_SEED_MAX_SECTION_START_CURRENT_A = Decimal("13.065")
 
 
 def _electrical_seed_overrides(
@@ -1967,16 +1964,6 @@ async def seed_objects_and_calculations(
     await seed_heat_objects(db, projects, principal)
 
     for project in projects:
-        settings_service = ProjectElectricalSettingsService(db)
-        electrical_settings = await settings_service.get(project.id, principal)
-        await settings_service.patch(
-            project.id,
-            ProjectElectricalSettingsPatch(
-                expected_version=electrical_settings.version,
-                max_section_start_current_a=_ELECTRICAL_SEED_MAX_SECTION_START_CURRENT_A,
-            ),
-            principal,
-        )
         object_result = await db.execute(
             select(ProjectObject).where(
                 ProjectObject.project_id == project.id,

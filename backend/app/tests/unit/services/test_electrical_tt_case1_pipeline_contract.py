@@ -102,6 +102,55 @@ def test_pipeline_selection_is_stable_across_voltage() -> None:
         assert removed not in changed["resolved_inputs"]
 
 
+def test_pipeline_derives_idop_from_selected_nearest_colder_section_row() -> None:
+    resolved = _resolved(
+        cold_start_temperature_c=Decimal("-17"),
+        max_section_start_current_a=None,
+    )
+    resolved.sources["max_section_start_current_a"] = "section_catalog_derived"
+
+    result = _calculate(resolved, calculation_catalogs=_catalogs())
+
+    assert result["catalogs"]["section"]["row"]["cold_start_temperature_c"] == -20
+    assert result["section_plan"]["l_max_m"] == 112
+    assert result["section_plan"]["specific_start_current_a_per_m"] == 0.259
+    assert result["section_plan"]["max_start_current_a"] == 29.008
+    assert result["section_plan"]["max_start_current_source"] == "section_catalog_derived"
+    assert result["section_plan"]["l_tok_m"] == 112
+    assert result["section_plan"]["start_current_per_section_a"] == 29.008
+    assert result["resolved_inputs"]["max_section_start_current_a"] == "29.008"
+    assert result["input_sources"]["max_section_start_current_a"] == (
+        "section_catalog_derived"
+    )
+    assert result["provenance"]["input_sources"]["max_section_start_current_a"] == (
+        "section_catalog_derived"
+    )
+    assert result["provenance"]["section_current_limit"] == {
+        "value_a": 29.008,
+        "source": "section_catalog_derived",
+    }
+
+
+def test_pipeline_keeps_non_null_project_idop_as_manual_authority() -> None:
+    resolved = _resolved(max_section_start_current_a=Decimal("13.065"))
+    resolved.sources["max_section_start_current_a"] = "project_setting"
+
+    result = _calculate(resolved, calculation_catalogs=_catalogs())
+
+    assert result["section_plan"]["max_start_current_a"] == 13.065
+    assert result["section_plan"]["max_start_current_source"] == "project_setting"
+    assert result["section_plan"]["l_tok_m"] == 50.444
+    assert result["section_plan"]["start_current_per_section_a"] == 13.065
+    assert result["resolved_inputs"]["max_section_start_current_a"] == "13.065"
+    assert result["provenance"]["input_sources"]["max_section_start_current_a"] == (
+        "project_setting"
+    )
+    assert result["provenance"]["section_current_limit"] == {
+        "value_a": 13.065,
+        "source": "project_setting",
+    }
+
+
 def test_pipeline_fails_closed_when_power_model_has_no_section_temperature_rows() -> None:
     catalogs = _catalogs()
     section_rows = catalogs["section"]["payload"]["rows"]
