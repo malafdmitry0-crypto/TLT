@@ -1,6 +1,8 @@
 import type { ElectricalCalcSummary } from '@/types/calculation';
 import type { ProjectObject } from '@/types/project';
 import type { ElectricalColumnKey } from '@/utils/electricalTableColumns';
+import { formatNumber } from '@/utils/formatters';
+import { isRecord } from '@/utils/typeGuards';
 import {
   electricalCalcError,
   isElectricalCalcStale,
@@ -76,6 +78,99 @@ export type MainElectricalColumnCopyContext = {
   windingCoefficient: unknown;
 };
 
+export type ElectricalDiagnosticValues = {
+  outerDiameterMm: number | null;
+  ambientTemperatureC: number | null;
+  coldStartTemperatureC: number | null;
+  climateCity: string | null;
+  climateTemperatureBasis: string | null;
+  climatePolicyRule: string | null;
+};
+
+function diagnosticNumber(value: unknown): number | null {
+  if (value == null || value === '') return null;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+function diagnosticText(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function electricalDiagnosticContext(calc: ElectricalCalcSummary | undefined) {
+  if (!calc || isElectricalCalcStale(calc) || !isRecord(calc.results)) return null;
+  if (isRecord(calc.results.error_context)) return calc.results.error_context;
+  if (isRecord(calc.results.resolved_inputs)) return calc.results.resolved_inputs;
+  return null;
+}
+
+function objectAmbientTemperatureC(obj: ProjectObject) {
+  const ambient = diagnosticNumber(obj.params?.ambient_temperature);
+  const ground = diagnosticNumber(obj.params?.ground_temperature);
+  if (obj.params?.placement !== 'underground') return ambient ?? ground;
+  if (obj.object_type === 'tank') {
+    const available = [ambient, ground].filter((value): value is number => value != null);
+    return available.length > 0 ? Math.min(...available) : null;
+  }
+  return ground ?? ambient;
+}
+
+function objectOuterDiameterMm(obj: ProjectObject) {
+  if (obj.object_type !== 'pipe') return null;
+  const diameterM = diagnosticNumber(obj.params?.outer_diameter);
+  return diameterM == null ? null : diameterM * 1000;
+}
+
+export function electricalDiagnosticValues(
+  obj: ProjectObject,
+  calc?: ElectricalCalcSummary,
+): ElectricalDiagnosticValues {
+  const exact = electricalDiagnosticContext(calc);
+  return {
+    outerDiameterMm:
+      diagnosticNumber(exact?.outer_diameter_mm) ?? objectOuterDiameterMm(obj),
+    ambientTemperatureC:
+      diagnosticNumber(exact?.ambient_temperature_c) ?? objectAmbientTemperatureC(obj),
+    coldStartTemperatureC:
+      diagnosticNumber(exact?.cold_start_temperature_c)
+      ?? diagnosticNumber(obj.params?.min_switch_temperature),
+    climateCity:
+      diagnosticText(exact?.climate_city) ?? diagnosticText(obj.params?.climate_city),
+    climateTemperatureBasis:
+      diagnosticText(exact?.climate_temperature_basis)
+      ?? diagnosticText(obj.params?.climate_temperature_basis),
+    climatePolicyRule:
+      diagnosticText(exact?.climate_policy_rule) ?? diagnosticText(obj.params?.climate_policy_rule),
+  };
+}
+
+export function electricalClimateDiagnosticLabel(
+  values: Pick<ElectricalDiagnosticValues, 'climateCity' | 'climateTemperatureBasis'>,
+) {
+  return [values.climateCity, values.climateTemperatureBasis].filter(Boolean).join(' · ') || '—';
+}
+
+export function electricalDiagnosticNumberLabel(value: number) {
+  return formatNumber(value, Number.isInteger(value) ? 0 : 1);
+}
+
+export function electricalErrorDiagnosticLabels(context: Record<string, unknown> | null) {
+  if (!context) return [];
+  const diameter = diagnosticNumber(context.outer_diameter_mm);
+  const ambient = diagnosticNumber(context.ambient_temperature_c);
+  const coldStart = diagnosticNumber(context.cold_start_temperature_c);
+  const climate = electricalClimateDiagnosticLabel({
+    climateCity: diagnosticText(context.climate_city),
+    climateTemperatureBasis: diagnosticText(context.climate_temperature_basis),
+  });
+  return [
+    diameter == null ? null : `D ${electricalDiagnosticNumberLabel(diameter)} мм`,
+    ambient == null ? null : `T среды ${electricalDiagnosticNumberLabel(ambient)} °C`,
+    coldStart == null ? null : `Tвкл ${electricalDiagnosticNumberLabel(coldStart)} °C`,
+    climate === '—' ? null : climate,
+  ].filter((label): label is string => label != null);
+}
+
 export function objectDisplayName(obj: ProjectObject) {
   const named = obj.params?.name;
   if (typeof named === 'string' && named.trim()) return named.trim();
@@ -139,6 +234,7 @@ export function mainElectricalColumnCopyValue(
 ) {
   const calc = context.calcByObjectId[obj.id];
   const currentCalc = currentElectricalCalc(calc);
+  const diagnostics = electricalDiagnosticValues(obj, calc);
   switch (key) {
     case 'index':
       return context.electricalDisplayOffset + index + 1;
@@ -164,6 +260,14 @@ export function mainElectricalColumnCopyValue(
             : electricalCalcError(calc)
               ? 'Ошибка'
               : 'Не рассчитан';
+    case 'pipe_outer_diameter':
+      return valueText(diagnostics.outerDiameterMm);
+    case 'ambient_temperature':
+      return valueText(diagnostics.ambientTemperatureC);
+    case 'min_switch_temperature':
+      return valueText(diagnostics.coldStartTemperatureC);
+    case 'climate_temperature_basis':
+      return electricalClimateDiagnosticLabel(diagnostics);
     case 'cable_type':
       {
         const type = context.getCableTypeForObject(obj.id);

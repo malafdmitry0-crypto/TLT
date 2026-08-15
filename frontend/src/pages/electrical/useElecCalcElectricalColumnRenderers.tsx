@@ -10,6 +10,9 @@ import {
   OBJECT_TYPE_LABEL,
   objectDisplayName,
   cableSnapshotStatusTag,
+  electricalClimateDiagnosticLabel,
+  electricalDiagnosticNumberLabel,
+  electricalDiagnosticValues,
   type CableTypeKey,
 } from '@/domain/electrical/elecCalcMainTableModel';
 import type { ElectricalColumnRenderSpec } from '@/pages/electrical/elecCalcPageModel';
@@ -77,6 +80,39 @@ export function useElecCalcElectricalColumnRenderers({
       render: (_: unknown, obj) => OBJECT_TYPE_LABEL[obj.object_type] ?? obj.object_type,
     },
     ...buildElecCalcStatusColumnRenderers(calcByObjectId),
+    pipe_outer_diameter: {
+      align: 'right',
+      render: (_: unknown, obj) => {
+        const value = electricalDiagnosticValues(obj, calcByObjectId[obj.id]).outerDiameterMm;
+        return value == null ? <Text type="secondary">—</Text> : electricalDiagnosticNumberLabel(value);
+      },
+    },
+    ambient_temperature: {
+      align: 'right',
+      render: (_: unknown, obj) => {
+        const value = electricalDiagnosticValues(obj, calcByObjectId[obj.id]).ambientTemperatureC;
+        return value == null ? <Text type="secondary">—</Text> : electricalDiagnosticNumberLabel(value);
+      },
+    },
+    min_switch_temperature: {
+      align: 'right',
+      render: (_: unknown, obj) => {
+        const value = electricalDiagnosticValues(obj, calcByObjectId[obj.id]).coldStartTemperatureC;
+        return value == null ? <Text type="secondary">—</Text> : electricalDiagnosticNumberLabel(value);
+      },
+    },
+    climate_temperature_basis: {
+      render: (_: unknown, obj) => {
+        const values = electricalDiagnosticValues(obj, calcByObjectId[obj.id]);
+        const label = electricalClimateDiagnosticLabel(values);
+        if (label === '—') return <Text type="secondary">—</Text>;
+        return (
+          <Tooltip title={values.climatePolicyRule ?? undefined}>
+            <TltBadge className="electrical-inline-tag">{label}</TltBadge>
+          </Tooltip>
+        );
+      },
+    },
     cable_type: {
       render: (_: unknown, obj) => {
         const type = getCalculatedCableTypeForObject(obj.id);

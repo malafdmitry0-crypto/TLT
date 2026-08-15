@@ -282,3 +282,42 @@ def test_typed_temperature_error_exposes_specific_actions():
         "ambient_below_minimum",
         "product_above_maximum",
     ]
+
+
+def test_temperature_error_context_normalizes_object_diagnostics_and_climate_rule():
+    error = ElectricalFormulaError(
+        "ELECTRICAL_CABLE_TEMPERATURE_LIMIT_EXCEEDED",
+        "Температуры объекта находятся вне допустимого диапазона кабелей",
+        details={
+            "ambient_temperature_c": -43,
+            "minimum_supported_ambient_temperature_c": -40,
+            "violations": ["ambient_below_minimum"],
+        },
+    )
+
+    payload = build_electrical_error_payload(
+        error,
+        object_type="pipe",
+        cable_type="self_regulating_tt",
+        request_data={
+            "outer_diameter": 0.089,
+            "ambient_temperature": -43,
+            "min_switch_temperature": -20,
+            "climate_city": "Москва",
+            "climate_temperature_basis": "t_abs_min",
+            "climate_policy_rule": "pipe_diameter_lt_100",
+        },
+    )
+
+    assert payload["error_context"] == {
+        "cable_type": "self_regulating_tt",
+        "outer_diameter_mm": 89,
+        "ambient_temperature_c": -43,
+        "cold_start_temperature_c": -20,
+        "climate_city": "Москва",
+        "climate_temperature_basis": "t_abs_min",
+        "climate_policy_rule": "pipe_diameter_lt_100",
+        "object_type": "pipe",
+        "minimum_supported_ambient_temperature_c": -40,
+        "violations": ["ambient_below_minimum"],
+    }

@@ -7,6 +7,7 @@ from uuid import uuid4
 
 import pytest
 
+from app.electrical_domain import ElectricalFormulaError
 from app.schemas.calculation import ElectricalRequest
 from app.services.calculation_service import CalculationService
 from app.services.electrical_catalog_service import ElectricalCatalogService
@@ -306,6 +307,41 @@ def test_object_adapter_keeps_ambient_and_cold_start_as_distinct_case1_inputs() 
     assert values["ambient_temperature_c"] == -15
     assert values["cold_start_temperature_c"] == -30
     assert not {"steam_temperature_c", "maintain_temperature_c", "aggressive_product"} & set(values)
+
+
+async def test_temperature_selection_error_keeps_resolved_diagnostics_and_climate_rule() -> None:
+    obj = _pipe()
+    obj.params.update(
+        {
+            "outer_diameter": 0.089,
+            "ambient_temperature": -43,
+            "min_switch_temperature": -20,
+            "climate_city": "Москва",
+            "climate_temperature_basis": "t_abs_min",
+            "climate_policy_rule": "pipe_diameter_lt_100",
+        }
+    )
+    service, variant_id = _service(obj)
+    request = ElectricalRequest(
+        object_id=obj.id,
+        cable_type="self_regulating_tt",
+        data={"_tt_explicit_overrides": {"selection_policy": "technical_minimum"}},
+    )
+
+    with pytest.raises(ElectricalFormulaError) as raised:
+        await service._prepare_self_regulating_tt_request(
+            request,
+            obj,
+            electrical_variant_id=variant_id,
+        )
+
+    assert raised.value.code == "ELECTRICAL_CABLE_TEMPERATURE_LIMIT_EXCEEDED"
+    assert raised.value.details["outer_diameter_mm"] == 89
+    assert raised.value.details["ambient_temperature_c"] == -43
+    assert raised.value.details["cold_start_temperature_c"] == -20
+    assert raised.value.details["climate_city"] == "Москва"
+    assert raised.value.details["climate_temperature_basis"] == "t_abs_min"
+    assert raised.value.details["climate_policy_rule"] == "pipe_diameter_lt_100"
 
 
 async def test_tank_uses_same_selector_after_geometry_and_forces_direct_layout() -> None:
