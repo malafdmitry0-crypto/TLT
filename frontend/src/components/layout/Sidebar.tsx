@@ -12,7 +12,10 @@ import { useProjectStore } from '@/store/projectStore';
 import { useQuery } from '@tanstack/react-query';
 import { getObjectsSummary } from '@/api/projects';
 import { useLegacyElectricalVariantContext } from '@/hooks/useLegacyElectricalVariantContext';
-import { isSidebarElectricalVariantRouteOwner } from '@/domain/electricalVariantRouteModel';
+import {
+  buildElectricalVariantRoute,
+  isSidebarElectricalVariantRouteOwner,
+} from '@/domain/electricalVariantRouteModel';
 import './layout-chrome.css';
 
 function StepLabel({
@@ -115,7 +118,7 @@ export default function Sidebar() {
       mode="horizontal"
       selectedKeys={[location.pathname]}
       items={items}
-      onClick={(e) => navigate(e.key)}
+      onClick={(e) => navigate(buildElectricalVariantRoute(e.key, selectedElectricalVariantId))}
       className="sidebar-menu"
     />
   );
