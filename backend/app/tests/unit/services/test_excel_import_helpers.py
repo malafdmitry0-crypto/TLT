@@ -36,6 +36,7 @@ from app.services.excel_import_service import (
     import_objects_from_csv,
     import_objects_from_excel,
 )
+from app.services.heat_loss_application import apply_climate_policy
 
 
 class TestNorm:
@@ -182,6 +183,75 @@ class TestBuildObjectsXlsxSafety:
             for header in headers
             for forbidden in ("location", "burial_depth", "количество слоёв")
         )
+
+    @pytest.mark.parametrize(
+        ("ambient_source", "expected_temperature"),
+        [("manual", -7.0), ("climate", -23.0)],
+    )
+    def test_pipe_export_roundtrip_preserves_ambient_temperature_source(
+        self,
+        ambient_source: str,
+        expected_temperature: float,
+    ):
+        from types import SimpleNamespace
+
+        source = {
+            "name": "Pipe climate provenance",
+            "outer_diameter": 0.108,
+            "pipe_length": 50.0,
+            "ambient_temperature": -7.0,
+            "ambient_temperature_source": ambient_source,
+            "process_temperature": 80.0,
+            "placement": "outdoor",
+            "climate_key": "Москва|||Москва",
+            "climate_region": "Москва",
+            "climate_city": "Москва",
+            "climate_temperature_basis": "t_0_92",
+        }
+
+        content = build_objects_xlsx([SimpleNamespace(object_type="pipe", params=source)])
+        [(_label, _object_type, rows)] = [
+            parsed for parsed in _parse_excel_workbook(content) if parsed[1] == "pipe"
+        ]
+        params, err = _build_pipe_params(rows[0])
+
+        assert err is None
+        assert params is not None
+        assert params["ambient_temperature_source"] == ambient_source
+        after_policy = apply_climate_policy("pipe", params)
+        assert after_policy["ambient_temperature"] == pytest.approx(expected_temperature)
+        assert after_policy["ambient_temperature_source"] == ambient_source
+
+    def test_tank_export_roundtrip_preserves_manual_ambient_temperature(self):
+        from types import SimpleNamespace
+
+        source = {
+            "name": "Tank climate provenance",
+            "shape": "cylindrical",
+            "diameter": 2.0,
+            "height": 3.0,
+            "ambient_temperature": -7.0,
+            "ambient_temperature_source": "manual",
+            "process_temperature": 80.0,
+            "placement": "outdoor",
+            "climate_key": "Москва|||Москва",
+            "climate_region": "Москва",
+            "climate_city": "Москва",
+            "climate_temperature_basis": "t_0_92",
+        }
+
+        content = build_objects_xlsx([SimpleNamespace(object_type="tank", params=source)])
+        [(_label, _object_type, rows)] = [
+            parsed for parsed in _parse_excel_workbook(content) if parsed[1] == "tank"
+        ]
+        params, err = _build_tank_params(rows[0])
+
+        assert err is None
+        assert params is not None
+        assert params["ambient_temperature_source"] == "manual"
+        after_policy = apply_climate_policy("tank", params)
+        assert after_policy["ambient_temperature"] == pytest.approx(-7.0)
+        assert after_policy["ambient_temperature_source"] == "manual"
 
     def test_pipe_export_round_trips_canonical_underground_layers(self):
         from types import SimpleNamespace
@@ -352,6 +422,62 @@ class TestBuildObjectsXlsxSafety:
 
 
 class TestExtendedRoundtripFields:
+    @pytest.mark.parametrize("builder", [_build_pipe_params, _build_tank_params])
+    @pytest.mark.parametrize(
+        ("source_value", "expected_source"),
+        [
+            ("manual", "manual"),
+            ("Вручную", "manual"),
+            ("climate", "climate"),
+            ("Климат", "climate"),
+        ],
+    )
+    def test_parser_reads_ambient_temperature_source_aliases(
+        self,
+        builder,
+        source_value: str,
+        expected_source: str,
+    ):
+        params, err = builder(
+            {
+                "ambient_temperature": -7,
+                "ambient_temperature_source": source_value,
+            }
+        )
+
+        assert err is None
+        assert params is not None
+        assert params["ambient_temperature_source"] == expected_source
+
+    @pytest.mark.parametrize("builder", [_build_pipe_params, _build_tank_params])
+    def test_parser_rejects_unknown_ambient_temperature_source(self, builder):
+        params, err = builder(
+            {
+                "ambient_temperature": -7,
+                "ambient_temperature_source": "automatic",
+            }
+        )
+
+        assert params is None
+        assert err == "Не распознан источник температуры среды: automatic"
+
+    def test_legacy_pipe_without_source_keeps_previous_climate_behavior(self):
+        params, err = _build_pipe_params(
+            {
+                "outer_diameter_mm": 108,
+                "ambient_temperature": -7,
+                "climate_key": "Московская область|||Москва",
+                "placement": "outdoor",
+            }
+        )
+
+        assert err is None
+        assert params is not None
+        assert "ambient_temperature_source" not in params
+        after_policy = apply_climate_policy("pipe", params)
+        assert after_policy["ambient_temperature"] == pytest.approx(-23.0)
+        assert after_policy["ambient_temperature_source"] == "climate"
+
     @pytest.mark.parametrize(
         ("ground_type", "expected_source"),
         [(None, "manual"), ("custom", "manual"), ("clay", "reference")],
@@ -842,6 +968,9 @@ class TestTemplateBuilders:
         assert "Резервуары" in wb.sheetnames
         # Есть хотя бы одна строка с примером данных
         assert wb["Трубопроводы"].max_row >= 2
+        for sheet_name in ("Трубопроводы", "Резервуары"):
+            headers = [cell.value for cell in wb[sheet_name][1]]
+            assert "Источник T° среды" in headers
 
     def test_csv_starts_with_type_header(self):
         data = build_template_csv()
