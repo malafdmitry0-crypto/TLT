@@ -359,6 +359,7 @@ describe('useElectricalBatchJobTracker', () => {
       expect(result.current.completionByVariant[ER_TWO]?.status).toBe('cancelled');
     });
 
+    expect(result.current.trackedJobs).toHaveLength(0);
     expect(message.error).toHaveBeenCalledWith(
       'Основной ЭР · электрорасчёт выбранных объектов (1) '
       + 'завершился ошибкой: Каталог недоступен',

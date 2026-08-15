@@ -129,6 +129,7 @@ export default function ElecCalcProject({
             electricalVariant={selectedVariant}
             electricalVariants={controller.variants}
             canMutate={canMutate}
+            projectActiveJob={trackedJobs[0] ?? null}
             trackedJob={trackedJobs.find(
               (job) => job.electricalVariantId === selectedVariant.id,
             ) ?? null}

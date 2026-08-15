@@ -29,6 +29,7 @@ import './elec-workspace.css';
 import '@/components/electrical/CablePickerCharacteristics.css';
 
 export type ElecCalcWorkspaceProps = ElecCalcWorkspaceModelProps & {
+  projectActiveJob: ElecCalcWorkspaceModelProps['trackedJob'];
   onAssignmentReadinessChange?: ElectricalAssignmentPanelProps['onAssignmentReadinessChange'];
 };
 
@@ -39,11 +40,16 @@ export function ElecCalcWorkspace(props: ElecCalcWorkspaceProps) {
     canMutate,
     projectId,
     electricalVariant,
+    projectActiveJob,
     onAssignmentsChanged,
     onAssignmentReadinessChange,
   } = props;
   const electricalSettings = useProjectElectricalSettings(projectId, canMutate);
-  const calculationBlockedReason = electricalSettings.calculationBlockedReason;
+  const projectCalculationMessage = projectActiveJob
+    ? `Сейчас рассчитывается ${projectActiveJob.electricalVariantName}`
+    : null;
+  const recalculationBlockedReason =
+    projectCalculationMessage ?? electricalSettings.calculationBlockedReason;
   const staleObjectIds = useMemo(
     () => listStaleObjectIds(
       m.scopedObjects.map((obj) => obj.id),
@@ -83,10 +89,10 @@ export function ElecCalcWorkspace(props: ElecCalcWorkspaceProps) {
             canMutate={canMutate}
             isJobActive={m.isJobActive}
             batchPending={m.batchMut.isPending}
-            recalculationBlockedReason={calculationBlockedReason}
+            recalculationBlockedReason={recalculationBlockedReason}
             onSelectStale={() => m.setSelectedRowKeys(staleObjectIds)}
             onRecalculateStale={() => {
-              if (!calculationBlockedReason) m.onRecalculateObjectIds(staleObjectIds, true);
+              if (!recalculationBlockedReason) m.onRecalculateObjectIds(staleObjectIds, true);
             }}
           />
 
@@ -102,7 +108,7 @@ export function ElecCalcWorkspace(props: ElecCalcWorkspaceProps) {
             onAssignmentsChanged={onAssignmentsChanged}
             onAssignmentReadinessChange={onAssignmentReadinessChange}
             onAssignedNeedCalc={(systemType, objectIds) => {
-              if (!canMutate || calculationBlockedReason) return;
+              if (!canMutate || recalculationBlockedReason) return;
               const payload = buildAssignAutoCalcBatchPayload({ systemType, objectIds });
               if (!payload) return;
               m.setSystemView(payload.nextSystemView);
@@ -142,7 +148,7 @@ export function ElecCalcWorkspace(props: ElecCalcWorkspaceProps) {
             overwriteManualChoices={m.overwriteManualChoices}
             selectedRecalcDisabled={m.selectedRecalcDisabled}
             selectedRecalcTooltip={m.selectedRecalcTooltip}
-            calculationBlockedReason={calculationBlockedReason}
+            calculationBlockedReason={recalculationBlockedReason}
             selectedRecalcCountLabel={m.selectedRecalcCountLabel}
             batchPending={m.batchMut.isPending}
             validObjectsCount={m.validObjectsCount}
@@ -153,20 +159,22 @@ export function ElecCalcWorkspace(props: ElecCalcWorkspaceProps) {
             renderManualOverwriteControl={m.renderManualOverwriteControl}
             onManualOverwritePromptOpen={() => m.setOverwriteManualChoices(false)}
             onRecalculateSelected={(skipManual) => {
-              if (!calculationBlockedReason) m.onRecalculateSelected(skipManual);
+              if (!recalculationBlockedReason) m.onRecalculateSelected(skipManual);
             }}
             onRecalculateAll={(skipManual) => {
-              if (!calculationBlockedReason) m.onRecalculateAll(skipManual);
+              if (!recalculationBlockedReason) m.onRecalculateAll(skipManual);
             }}
             onCancelJob={m.onCancelJob}
             onOpenColumnSettings={m.openColumnSettings}
             onResetFilters={m.resetCurrentTableViewState}
           />
 
-          {m.isJobActive && (
+          {projectActiveJob && projectCalculationMessage && (
             <TltAlert
               tone="info"
-              title={`Электрорасчёт выполняется · ${m.jobProgressLabel}`}
+              title={projectActiveJob.electricalVariantId === electricalVariant.id
+                ? `${projectCalculationMessage} · ${m.jobProgressLabel}`
+                : projectCalculationMessage}
             />
           )}
 
