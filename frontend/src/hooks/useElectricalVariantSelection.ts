@@ -19,70 +19,50 @@ import {
   routeElectricalVariantSignature,
   sortVariants,
 } from '@/domain/electricalVariantSelectionModel';
+import { isElectricalVariantRoutePath } from '@/domain/electricalVariantRouteModel';
+import { isBrowserRouteCommitPending } from '@/hooks/electricalVariantBrowserRouteModel';
 import {
   normalizeElectricalVariantId,
   useCalculationVariantStore,
 } from '@/store/calculationVariantStore';
+import { useElectricalVariantCommandsController } from '@/hooks/useElectricalVariantCommandsController';
 import type {
-  ElectricalReadinessResponse,
-  ElectricalVariant,
-} from '@/types/electricalVariant';
-import {
-  useElectricalVariantCommandsController,
-  type ElectricalVariantPendingOperation,
-} from '@/hooks/useElectricalVariantCommandsController';
+  ElectricalVariantSelectionController,
+  UseElectricalVariantSelectionOptions,
+} from '@/hooks/useElectricalVariantSelection.types';
 
-export type { ElectricalVariantPendingOperation };
-
-export interface UseElectricalVariantSelectionOptions {
-  projectId: string | null | undefined;
-  enabled?: boolean;
-}
-
-export interface ElectricalVariantSelectionController {
-  projectId: string | null;
-  variants: ElectricalVariant[];
-  selectedVariantId: string | null;
-  selectedVariant: ElectricalVariant | null;
-  activeVariant: ElectricalVariant | null;
-  isLoading: boolean;
-  isFetching: boolean;
-  isError: boolean;
-  listError: unknown;
-  isEmpty: boolean;
-  readiness: ElectricalReadinessResponse | null;
-  isReadinessLoading: boolean;
-  isReadinessFetching: boolean;
-  readinessError: unknown;
-  mutationError: unknown;
-  mutationNotice?: string | null;
-  isMutating: boolean;
-  pendingOperation: ElectricalVariantPendingOperation;
-  selectVariant: (variantId: string) => void;
-  /** Select tab and sync backend is_active (current tab = working ER). */
-  selectAndActivateVariant: (variantId: string) => Promise<ElectricalVariant | void>;
-  retryList: () => Promise<void>;
-  retryReadiness: () => Promise<void>;
-  initializeVariant: () => Promise<ElectricalVariant>;
-  createVariant: (name?: string) => Promise<ElectricalVariant>;
-  copySelectedVariant: (name?: string) => Promise<ElectricalVariant>;
-  renameVariant: (variantId: string, name: string) => Promise<ElectricalVariant>;
-  activateVariant: (
-    variantId: string,
-    options?: { silent?: boolean },
-  ) => Promise<ElectricalVariant>;
-  deleteVariant: (variantId: string) => Promise<void>;
-  clearMutationError: () => void;
-}
+export type { ElectricalVariantPendingOperation } from '@/hooks/useElectricalVariantCommandsController';
+export type {
+  ElectricalVariantSelectionController,
+  UseElectricalVariantSelectionOptions,
+} from '@/hooks/useElectricalVariantSelection.types';
 
 export function useElectricalVariantSelection({
   projectId,
   enabled = true,
+  syncRouteSelection = true,
 }: UseElectricalVariantSelectionOptions): ElectricalVariantSelectionController {
   const normalizedProjectId = projectId || null;
   const queryEnabled = enabled && normalizedProjectId !== null;
   const location = useLocation();
   const navigate = useNavigate();
+  const routeSelectionSupported = isElectricalVariantRoutePath(location.pathname);
+  const canWriteRouteSelection = routeSelectionSupported && syncRouteSelection;
+  const routeRuntimeRef = useRef({
+    projectId: normalizedProjectId,
+    location,
+    canWriteRouteSelection,
+  });
+  routeRuntimeRef.current = {
+    projectId: normalizedProjectId,
+    location,
+    canWriteRouteSelection,
+  };
+  const mountedRef = useRef(false);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
   const persistedSelectedId = useCalculationVariantStore((state) =>
     normalizedProjectId ? state.selectedVariantIdByProject[normalizedProjectId] ?? null : null,
   );
@@ -93,8 +73,10 @@ export function useElectricalVariantSelection({
     (state) => state.clearSelectedVariantId,
   );
   const routeSelectionSignature = useMemo(
-    () => routeElectricalVariantSignature(location.search),
-    [location.search],
+    () => routeSelectionSupported
+      ? routeElectricalVariantSignature(location.search)
+      : 'er:none',
+    [location.search, routeSelectionSupported],
   );
   const [validatedRouteSelectionSignature, setValidatedRouteSelectionSignature] = useState(
     routeSelectionSignature,
@@ -116,6 +98,7 @@ export function useElectricalVariantSelection({
     [listQuery.data],
   );
   const routeSelectionNeedsValidation = queryEnabled
+    && routeSelectionSupported
     && listQuery.isFetchedAfterMount
     && !listQuery.isError
     && routeSelectionSignature !== validatedRouteSelectionSignature
@@ -160,7 +143,8 @@ export function useElectricalVariantSelection({
     () => new URLSearchParams(location.search),
     [location.search],
   );
-  const urlHasElectricalVariant = searchParams.has(ELECTRICAL_VARIANT_URL_PARAM);
+  const urlHasElectricalVariant = routeSelectionSupported
+    && searchParams.has(ELECTRICAL_VARIANT_URL_PARAM);
   const urlSelectedId = searchParams.get(ELECTRICAL_VARIANT_URL_PARAM);
   const normalizedUrlSelectedId = normalizeElectricalVariantId(urlSelectedId);
   const urlSelectedVariant = findVariant(variants, normalizedUrlSelectedId);
@@ -194,9 +178,24 @@ export function useElectricalVariantSelection({
   ]);
   const selectedVariantId = selectedVariant ? normalizedVariantId(selectedVariant) : null;
 
-  const replaceRouteSelection = useCallback((variantId: string | null) => {
+  const replaceRouteSelection = useCallback((
+    variantId: string | null,
+    expectedProjectId: string,
+  ) => {
+    const runtime = routeRuntimeRef.current;
+    if (
+      !mountedRef.current
+      || runtime.projectId !== expectedProjectId
+      || !runtime.canWriteRouteSelection
+    ) return;
+
+    // BrowserRouter changes window.history before React commits a suspended
+    // route. A controller still rendered for the old location must not cancel
+    // that transition with a late replace() call.
+    if (isBrowserRouteCommitPending(runtime.location)) return;
+
     const nextRouteSignature = variantId ? `er:${variantId}` : 'er:none';
-    const params = new URLSearchParams(location.search);
+    const params = new URLSearchParams(runtime.location.search);
     const currentValue = params.get(ELECTRICAL_VARIANT_URL_PARAM);
     if (variantId) {
       if (currentValue === variantId) {
@@ -215,38 +214,42 @@ export function useElectricalVariantSelection({
     const nextSearch = params.toString();
     navigate(
       {
-        pathname: location.pathname,
+        pathname: runtime.location.pathname,
         search: nextSearch ? `?${nextSearch}` : '',
-        hash: location.hash,
+        hash: runtime.location.hash,
       },
       { replace: true },
     );
-  }, [location.hash, location.pathname, location.search, navigate]);
+  }, [navigate]);
 
-  const commitSelection = useCallback((variantId: string | null) => {
-    if (!normalizedProjectId) return;
+  const commitSelection = useCallback((variantId: string | null, expectedProjectId: string) => {
+    if (
+      !expectedProjectId
+      || !mountedRef.current
+      || routeRuntimeRef.current.projectId !== expectedProjectId
+    ) return;
     const normalizedId = normalizeElectricalVariantId(variantId);
     if (normalizedId) {
-      setPersistedSelectedId(normalizedProjectId, normalizedId);
-      replaceRouteSelection(normalizedId);
+      setPersistedSelectedId(expectedProjectId, normalizedId);
+      replaceRouteSelection(normalizedId, expectedProjectId);
       return;
     }
-    clearPersistedSelectedId(normalizedProjectId);
-    replaceRouteSelection(null);
+    clearPersistedSelectedId(expectedProjectId);
+    replaceRouteSelection(null, expectedProjectId);
   }, [
     clearPersistedSelectedId,
-    normalizedProjectId,
     replaceRouteSelection,
     setPersistedSelectedId,
   ]);
 
   useEffect(() => {
     if (!queryEnabled || !listQuery.isSuccess || isAwaitingAuthoritativeList) return;
-    commitSelection(selectedVariantId);
+    commitSelection(selectedVariantId, normalizedProjectId);
   }, [
     commitSelection,
     isAwaitingAuthoritativeList,
     listQuery.isSuccess,
+    normalizedProjectId,
     queryEnabled,
     selectedVariantId,
   ]);
@@ -261,7 +264,7 @@ export function useElectricalVariantSelection({
   const selectVariant = useCallback((variantId: string) => {
     const target = findVariant(variants, variantId);
     if (!target) return;
-    commitSelection(target.id);
+    commitSelection(target.id, target.project_id);
   }, [commitSelection, variants]);
 
   const retryList = useCallback(async () => {
