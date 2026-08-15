@@ -998,7 +998,19 @@ ELECTRICAL_SQL_EXPRESSIONS: dict[str, SqlExprFactory] = {
     "message": _sql_calc_error,
 }
 
-ELECTRICAL_OBJECT_PARAM_KEYS = frozenset({"name"})
+ELECTRICAL_OBJECT_PARAM_KEYS = frozenset(
+    {
+        "name",
+        "outer_diameter",
+        "ambient_temperature",
+        "ground_temperature",
+        "placement",
+        "min_switch_temperature",
+        "climate_city",
+        "climate_temperature_basis",
+        "climate_policy_rule",
+    }
+)
 ELECTRICAL_OBJECT_RESULT_KEYS = frozenset(
     {
         "heat_loss_per_meter_base",
@@ -1044,6 +1056,7 @@ ELECTRICAL_CALC_RESULT_KEYS = frozenset(
         "hint",
         "suggested_actions",
         "error_context",
+        "resolved_inputs",
         "commercial",
         "layout",
         "section_plan",

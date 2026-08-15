@@ -172,6 +172,15 @@ def _add_context_value(context: dict[str, Any], key: str, value: Any) -> None:
         context[key] = value
 
 
+def _number_or_none(value: Any) -> float | None:
+    if value is None or value == "":
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def _context_str(context: dict[str, Any], key: str) -> str | None:
     value = context.get(key)
     return str(value) if value is not None and value != "" else None
@@ -285,8 +294,28 @@ def build_electrical_error_context(
         "diameter",
         "length",
         "width",
+        "climate_city",
+        "climate_temperature_basis",
+        "climate_policy_rule",
     ):
         _add_context_value(context, key, data.get(key))
+
+    outer_diameter_mm = _number_or_none(data.get("outer_diameter_mm"))
+    if outer_diameter_mm is None:
+        outer_diameter_m = _number_or_none(data.get("outer_diameter"))
+        if outer_diameter_m is not None:
+            outer_diameter_mm = outer_diameter_m * 1000
+    _add_context_value(context, "outer_diameter_mm", outer_diameter_mm)
+    _add_context_value(
+        context,
+        "ambient_temperature_c",
+        data.get("ambient_temperature_c", data.get("ambient_temperature")),
+    )
+    _add_context_value(
+        context,
+        "cold_start_temperature_c",
+        data.get("cold_start_temperature_c", data.get("min_switch_temperature")),
+    )
 
     _add_context_value(
         context,
