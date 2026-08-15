@@ -1293,6 +1293,30 @@ class CalculationService:
                 values["outer_diameter_mm"] = outer_diameter_m * 1000.0
         return values
 
+    @staticmethod
+    def _tt_resolved_error_context(
+        obj: ProjectObject,
+        values: Any,
+    ) -> dict[str, Any]:
+        """Keep the exact resolved selector inputs beside a failed TT result."""
+
+        params = obj.params if isinstance(obj.params, dict) else {}
+        context: dict[str, Any] = {
+            "ambient_temperature_c": float(values.ambient_temperature_c),
+            "cold_start_temperature_c": float(values.cold_start_temperature_c),
+        }
+        if values.outer_diameter_mm is not None:
+            context["outer_diameter_mm"] = float(values.outer_diameter_mm)
+        for key in (
+            "climate_city",
+            "climate_temperature_basis",
+            "climate_policy_rule",
+        ):
+            value = params.get(key)
+            if value is not None and value != "":
+                context[key] = value
+        return context
+
     def _tt_tank_layout(
         self,
         obj: ProjectObject,
@@ -1726,12 +1750,19 @@ class CalculationService:
             )
         else:
             layout_contract = PipeElectricalLayout()
-        result_dict = calculate_electrical_tt(
-            resolved,
-            layout=layout_contract,
-            provenance=provenance,
-            calculation_catalogs=calculation_catalogs,
-        )
+        try:
+            result_dict = calculate_electrical_tt(
+                resolved,
+                layout=layout_contract,
+                provenance=provenance,
+                calculation_catalogs=calculation_catalogs,
+            )
+        except ElectricalFormulaError as exc:
+            exc.details = {
+                **self._tt_resolved_error_context(obj, resolved.values),
+                **exc.details,
+            }
+            raise
         catalogs = result_dict.get("catalogs", {})
         catalogs_eligible, invalid_catalogs = electrical_tt_catalog_eligibility(catalogs)
         if app_settings.is_production and not catalogs_eligible:
