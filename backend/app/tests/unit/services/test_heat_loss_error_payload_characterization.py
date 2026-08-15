@@ -2,9 +2,9 @@
 
 Catalog unknown-material → HeatLossPreparationError + structured payload is
 already covered by test_unknown_second_layer_has_structured_path. This module
-adds the remaining housing: process-T structured payload, exact hot-side
-ValueError type, facade range/domain ValueError, and as-is reconstruction
-of code/field from a plain ValueError message.
+adds the remaining housing: reference-boundary structured payload, exact
+hot-side ValueError type, facade range/domain ValueError, and as-is
+reconstruction of code/field from a plain ValueError message.
 """
 
 from __future__ import annotations
@@ -53,7 +53,7 @@ def _pipe_payload(**overrides: object) -> dict[str, object]:
     return payload
 
 
-def test_process_temperature_error_payload_uses_path_without_parsing_message() -> None:
+def test_reference_boundary_error_payload_uses_path_without_parsing_message() -> None:
     params = PipeHeatLossParams.model_validate(_pipe_payload(process_temperature=500.0))
 
     with pytest.raises(HeatLossPreparationError) as caught:
@@ -61,23 +61,23 @@ def test_process_temperature_error_payload_uses_path_without_parsing_message() -
 
     error = caught.value
     assert type(error) is HeatLossPreparationError
-    assert error.code == "process_temperature_outside_interval"
-    assert error.path == "insulation_layers.0.material"
+    assert error.code == "temperature_outside_interval"
+    assert error.path == "insulation_layers.0"
     assert "диапазон" in error.message
 
     payload = build_heat_loss_error_payload(error, object_type="pipe")
     assert payload == {
-        "error_code": "process_temperature_outside_interval",
+        "error_code": "temperature_outside_interval",
         "category": "validation",
         "message": (
-            "Температура продукта 500 °C вне диапазона материала "
-            "изоляции #1 'mineral_wool_boards_120': -60…400 °C"
+            "Температура горячей стороны слоя изоляции #1 (499.834 °C) вне диапазона "
+            "материала 'mineral_wool_boards_120': -60…400 °C"
         ),
-        "field": "insulation_layers.0.material",
+        "field": "insulation_layers.0",
         "fields": {
-            "insulation_layers.0.material": (
-                "Температура продукта 500 °C вне диапазона материала "
-                "изоляции #1 'mineral_wool_boards_120': -60…400 °C"
+            "insulation_layers.0": (
+                "Температура горячей стороны слоя изоляции #1 (499.834 °C) вне "
+                "диапазона материала 'mineral_wool_boards_120': -60…400 °C"
             )
         },
         "hint": DEFAULT_VALIDATION_HINT,
