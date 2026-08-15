@@ -19,7 +19,6 @@ import {
 import HelpedControl from './HelpedControl';
 import FieldLabel from './FieldLabel';
 import InsulationConductivityField from './InsulationConductivityField';
-import { FieldSourceTag } from './FieldSourceTag';
 import InsulationTemperatureRangeField from './InsulationTemperatureRangeField';
 import ReferencePicker, { type ReferencePickerOption } from './ReferencePicker';
 import type { OuterInsulationLayerConfig } from './insulationOuterLayerConfig';
@@ -119,11 +118,10 @@ export function InsulationOuterLayerRow({
       </Cell>
       <Cell role="thickness">
         <Form.Item
-          className={`${config.thicknessClassName} field-source-form-item`}
+          className={config.thicknessClassName}
           label={fieldLabel(config.thicknessField, objectType)}
           name={config.thicknessField}
           preserve={false}
-          extra={<FieldSourceTag source="manual" />}
           rules={heatCalcFormFieldRules(form, objectType, config.thicknessField)}
         >
           {withHelp(
