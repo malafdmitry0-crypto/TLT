@@ -1,12 +1,15 @@
 """Integration-тесты импорта объектов из Excel."""
 
 import io
+from uuid import UUID
 
 import pytest
 from httpx import AsyncClient
 from openpyxl import Workbook
+from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.services.excel_import_service import build_template_csv, build_template_xlsx
+from app.services.task_service import TaskService
 
 MINERAL_WOOL = "mineral_wool_boards_120"
 POLYURETHANE = "polyurethane_products_50"
@@ -137,7 +140,10 @@ class TestExcelRoundTrip:
         assert body["heat_loss_task"]["type"] == "heat_loss_batch"
 
     async def test_roundtrip_preserves_material_and_dimensions(
-        self, client: AsyncClient, employee_token: str
+        self,
+        client: AsyncClient,
+        employee_token: str,
+        test_engine,
     ):
         """Проверяем не только count — params после round-trip совпадают."""
         headers = {"Authorization": f"Bearer {employee_token}"}
@@ -158,13 +164,15 @@ class TestExcelRoundTrip:
                 {"thickness": 0.04, "material": MINERAL_WOOL},
             ],
             "insulation_temperature_basis": "outdoor_winter",
-            "ambient_temperature": -42.0,
+            "ambient_temperature": -7.0,
+            "ambient_temperature_source": "manual",
             "process_temperature": 150.0,
             "pipe_length": 200.5,
             "placement": "outdoor",
             "wind_speed": 2.5,
-            "climate_region": "ХМАО",
-            "climate_city": "Сургут",
+            "climate_region": "Москва",
+            "climate_city": "Москва",
+            "climate_key": "Москва|||Москва",
             "climate_temperature_basis": "t_0_92",
             "safety_factor": 1.2,
             "min_switch_temperature": -35,
@@ -189,7 +197,7 @@ class TestExcelRoundTrip:
                 headers=headers,
             )
         ).json()
-        await client.post(
+        imported = await client.post(
             f"/api/v1/projects/{p2['id']}/objects/import-excel",
             files={
                 "file": (
@@ -200,8 +208,16 @@ class TestExcelRoundTrip:
             },
             headers=headers,
         )
+        assert imported.status_code == 200, imported.text
+        task_id = UUID(imported.json()["heat_loss_task"]["id"])
+        session_factory = async_sessionmaker(test_engine, expire_on_commit=False)
+        async with session_factory() as worker_db:
+            await TaskService(worker_db, session_factory=session_factory).run_task(
+                task_id,
+                worker_id="test-worker",
+            )
 
-        # Проверяем восстановленные параметры
+        # Проверяем финальные параметры после фонового пересчёта, а не сырой импорт.
         objs = (
             await client.get(
                 f"/api/v1/projects/{p2['id']}/objects",
@@ -213,9 +229,10 @@ class TestExcelRoundTrip:
         assert p["insulation_layers"] == src_params["insulation_layers"]
         assert abs(p["outer_diameter"] - 0.273) < 1e-6
         assert p["pipe_length"] == 200.5
-        assert p["ambient_temperature"] == -42.0
+        assert p["ambient_temperature"] == -7.0
+        assert p["ambient_temperature_source"] == "manual"
         assert p["process_temperature"] == 150.0
-        assert p["climate_key"] == "ХМАО|||Сургут"
+        assert p["climate_key"] == "Москва|||Москва"
         assert p["climate_temperature_basis"] == "t_0_92"
         assert p["safety_factor"] == 1.2
         assert p["min_switch_temperature"] == -35
