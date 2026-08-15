@@ -10,6 +10,7 @@ interface AuthState {
   refreshToken: string | null;
   setGuest: (sessionId: string) => void;
   setEmployee: (user: CurrentUser, tokens: { access: string; refresh?: string | null }) => void;
+  restoreEmployeeIdentity: (user: CurrentUser) => void;
   setAccessToken: (accessToken: string | null) => void;
   logout: () => void;
 }
@@ -75,6 +76,16 @@ export const useAuthStore = create<AuthState>((set) => ({
       sessionId: null,
       accessToken: tokens.access,
       refreshToken: null,
+    });
+  },
+
+  restoreEmployeeIdentity: (user) => {
+    localStorage.setItem('role', user.role);
+    localStorage.removeItem('session_id');
+    set({
+      role: user.role,
+      user,
+      sessionId: null,
     });
   },
 
