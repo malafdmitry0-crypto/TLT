@@ -8,7 +8,12 @@ describe('ElecCalcErrorSummary I доп guidance', () => {
   it('shows concrete cable temperature limits instead of formula symbols', () => {
     const backendError = 'Температуры объекта находятся вне допустимого диапазона кабелей';
     const errorContext = {
+      outer_diameter_mm: 89,
       ambient_temperature_c: -41,
+      cold_start_temperature_c: -20,
+      climate_city: 'Москва',
+      climate_temperature_basis: 't_abs_min',
+      climate_policy_rule: 'pipe_diameter_lt_100',
       minimum_supported_ambient_temperature_c: -40,
       product_temperature_c: 151,
       maximum_supported_product_temperature_c: 150,
@@ -45,6 +50,11 @@ describe('ElecCalcErrorSummary I доп guidance', () => {
     expect(region).toHaveTextContent('минимум -40 °C');
     expect(region).toHaveTextContent('Температура продукта 151 °C');
     expect(region).toHaveTextContent('максимум 150 °C');
+    const diagnostics = screen.getByLabelText('Диагностические параметры электрорасчёта');
+    expect(diagnostics).toHaveTextContent('D 89 мм');
+    expect(diagnostics).toHaveTextContent('T среды -41 °C');
+    expect(diagnostics).toHaveTextContent('Tвкл -20 °C');
+    expect(diagnostics).toHaveTextContent('Москва · t_abs_min');
     expect(region).not.toHaveTextContent('T_env');
     expect(region).not.toHaveTextContent('T_product');
   });
