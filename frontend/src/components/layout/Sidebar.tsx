@@ -12,6 +12,7 @@ import { useProjectStore } from '@/store/projectStore';
 import { useQuery } from '@tanstack/react-query';
 import { getObjectsSummary } from '@/api/projects';
 import { useLegacyElectricalVariantContext } from '@/hooks/useLegacyElectricalVariantContext';
+import { isSidebarElectricalVariantRouteOwner } from '@/domain/electricalVariantRouteModel';
 import './layout-chrome.css';
 
 function StepLabel({
@@ -43,7 +44,9 @@ export default function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const project = useProjectStore((s) => s.currentProject);
-  const variantContext = useLegacyElectricalVariantContext(project?.id);
+  const variantContext = useLegacyElectricalVariantContext(project?.id, {
+    syncRouteSelection: isSidebarElectricalVariantRouteOwner(location.pathname),
+  });
   const selectedElectricalVariantId = variantContext.selectedVariant?.id ?? null;
 
   const { data: summary } = useQuery({

@@ -25,7 +25,7 @@ import type { MutableRefObject } from 'react';
 export type ElectricalVariantMutationTransportArgs = {
   normalizedProjectId: string | null;
   selectedVariantId: string | null;
-  commitSelection: (variantId: string | null) => void;
+  commitSelection: (variantId: string | null, projectId: string) => void;
   updateVariantList: (
     updater: (current: ElectricalVariant[] | undefined) => ElectricalVariant[],
   ) => void;
@@ -54,9 +54,15 @@ export function useElectricalVariantMutationTransport({
 
   const initializeMutation = useMutation({
     mutationFn: () => initializeElectricalVariants(normalizedProjectId as string),
-    onSuccess: (response) => {
+    onMutate: () => ({ projectId: normalizedProjectId }),
+    onSuccess: (response, _variables, context) => {
+      if (
+        !context?.projectId
+        || context.projectId !== normalizedProjectId
+        || context.projectId !== response.variant.project_id
+      ) return;
       updateVariantList((current) => mergeVariant(current, response.variant));
-      commitSelection(response.variant.id);
+      commitSelection(response.variant.id, response.variant.project_id);
       if (normalizedProjectId) {
         void queryClient.invalidateQueries({
           queryKey: electricalVariantQueryKeys.readiness(normalizedProjectId),
@@ -65,10 +71,10 @@ export function useElectricalVariantMutationTransport({
       }
       refreshVariantList();
     },
-    onError: () => {
-      if (!normalizedProjectId) return;
+    onError: (_error, _variables, context) => {
+      if (!context?.projectId) return;
       void queryClient.invalidateQueries({
-        queryKey: electricalVariantQueryKeys.readiness(normalizedProjectId),
+        queryKey: electricalVariantQueryKeys.readiness(context.projectId),
         exact: true,
       });
     },
@@ -92,9 +98,15 @@ export function useElectricalVariantMutationTransport({
         return request();
       });
     },
-    onSuccess: (created) => {
+    onMutate: () => ({ projectId: normalizedProjectId }),
+    onSuccess: (created, _variables, context) => {
+      if (
+        !context?.projectId
+        || context.projectId !== normalizedProjectId
+        || context.projectId !== created.project_id
+      ) return;
       updateVariantList((current) => mergeVariant(current, created));
-      commitSelection(created.id);
+      commitSelection(created.id, created.project_id);
       createIntentRef.current = null;
       refreshVariantList();
     },
@@ -121,9 +133,15 @@ export function useElectricalVariantMutationTransport({
         return request();
       });
     },
-    onSuccess: (created) => {
+    onMutate: () => ({ projectId: normalizedProjectId }),
+    onSuccess: (created, _variables, context) => {
+      if (
+        !context?.projectId
+        || context.projectId !== normalizedProjectId
+        || context.projectId !== created.project_id
+      ) return;
       updateVariantList((current) => mergeVariant(current, created));
-      commitSelection(created.id);
+      commitSelection(created.id, created.project_id);
       copyIntentRef.current = null;
       refreshVariantList();
     },
@@ -132,7 +150,13 @@ export function useElectricalVariantMutationTransport({
   const renameMutation = useMutation({
     mutationFn: ({ variantId, name }: { variantId: string; name: string }) =>
       renameElectricalVariant(normalizedProjectId as string, variantId, { name }),
-    onSuccess: (renamed) => {
+    onMutate: () => ({ projectId: normalizedProjectId }),
+    onSuccess: (renamed, _variables, context) => {
+      if (
+        !context?.projectId
+        || context.projectId !== normalizedProjectId
+        || context.projectId !== renamed.project_id
+      ) return;
       updateVariantList((current) => mergeVariant(current, renamed));
       refreshVariantList();
     },
@@ -141,8 +165,14 @@ export function useElectricalVariantMutationTransport({
   const activateMutation = useMutation({
     mutationFn: (variantId: string) =>
       activateElectricalVariant(normalizedProjectId as string, variantId),
-    onSuccess: (activated) => {
+    onMutate: () => ({ projectId: normalizedProjectId }),
+    onSuccess: (activated, _variables, context) => {
       if (!activated?.id) return;
+      if (
+        !context?.projectId
+        || context.projectId !== normalizedProjectId
+        || context.projectId !== activated.project_id
+      ) return;
       updateVariantList((current = []) => sortVariants(current.map((variant) =>
         variant.id === activated.id
           ? activated
@@ -155,7 +185,13 @@ export function useElectricalVariantMutationTransport({
   const deleteMutation = useMutation({
     mutationFn: (variantId: string) =>
       deleteElectricalVariant(normalizedProjectId as string, variantId),
-    onSuccess: (response, deletedVariantId) => {
+    onMutate: () => ({ projectId: normalizedProjectId }),
+    onSuccess: (response, deletedVariantId, context) => {
+      if (
+        !context?.projectId
+        || context.projectId !== normalizedProjectId
+        || context.projectId !== response.project_id
+      ) return;
       if (normalizedProjectId) {
         queryClient.removeQueries({
           queryKey: electricalDataQueryKeys.variant(normalizedProjectId, deletedVariantId),
@@ -168,7 +204,7 @@ export function useElectricalVariantMutationTransport({
           is_active: variant.id === response.active_variant_id,
         }))));
       if (selectedVariantId === normalizeElectricalVariantId(deletedVariantId)) {
-        commitSelection(response.active_variant_id);
+        commitSelection(response.active_variant_id, response.project_id);
       }
       refreshVariantList();
     },
