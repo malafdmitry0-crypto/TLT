@@ -135,6 +135,13 @@ CLIMATE_BASIS_ALIASES: dict[str, str] = {
     "t_abs_min": "t_abs_min",
 }
 
+AMBIENT_TEMPERATURE_SOURCE_ALIASES: dict[str, str] = {
+    "manual": "manual",
+    "вручную": "manual",
+    "climate": "climate",
+    "климат": "climate",
+}
+
 INSULATION_TEMPERATURE_BASIS_ALIASES: dict[str, str] = {
     "indoor": "indoor",
     "помещение": "indoor",
@@ -202,6 +209,10 @@ PIPE_HEADERS: dict[str, str] = {
     "t° среды": "ambient_temperature",
     "t среды": "ambient_temperature",
     "температура среды": "ambient_temperature",
+    "источник t° среды": "ambient_temperature_source",
+    "источник т° среды": "ambient_temperature_source",
+    "источник температуры среды": "ambient_temperature_source",
+    "ambient_temperature_source": "ambient_temperature_source",
     "т° продукта": "process_temperature",
     "т продукта": "process_temperature",
     "t° продукта": "process_temperature",
@@ -314,6 +325,10 @@ TANK_HEADERS: dict[str, str] = {
     "t° среды": "ambient_temperature",
     "t среды": "ambient_temperature",
     "температура среды": "ambient_temperature",
+    "источник t° среды": "ambient_temperature_source",
+    "источник т° среды": "ambient_temperature_source",
+    "источник температуры среды": "ambient_temperature_source",
+    "ambient_temperature_source": "ambient_temperature_source",
     "т° продукта": "process_temperature",
     "т продукта": "process_temperature",
     "t° продукта": "process_temperature",
@@ -623,6 +638,15 @@ def _build_pipe_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
     material_resolution = _resolve_material_entry(row.get("insulation_material"))
     t_a = _to_float(row.get("ambient_temperature"))
     t_p = _to_float(row.get("process_temperature"))
+    ambient_source_raw = row.get("ambient_temperature_source")
+    ambient_source = _resolve_alias(
+        ambient_source_raw,
+        AMBIENT_TEMPERATURE_SOURCE_ALIASES,
+    )
+    if ambient_source_raw not in (None, "") and ambient_source is None:
+        return None, f"Не распознан источник температуры среды: {ambient_source_raw}"
+    if ambient_source is not None and t_a is None:
+        return None, "Источник температуры среды указан без T° среды"
 
     placement_raw = row.get("placement")
     placement = _resolve_alias(placement_raw, PLACEMENT_ALIASES)
@@ -735,6 +759,8 @@ def _build_pipe_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
             )
     elif t_a is not None:
         params["ambient_temperature"] = t_a
+        if ambient_source is not None:
+            params["ambient_temperature_source"] = ambient_source
 
     wind_speed = _to_float(row.get("wind_speed"))
     if wind_speed is not None:
@@ -787,6 +813,15 @@ def _build_tank_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
     material_resolution = _resolve_material_entry(row.get("insulation_material"))
     t_a = _to_float(row.get("ambient_temperature"))
     t_p = _to_float(row.get("process_temperature"))
+    ambient_source_raw = row.get("ambient_temperature_source")
+    ambient_source = _resolve_alias(
+        ambient_source_raw,
+        AMBIENT_TEMPERATURE_SOURCE_ALIASES,
+    )
+    if ambient_source_raw not in (None, "") and ambient_source is None:
+        return None, f"Не распознан источник температуры среды: {ambient_source_raw}"
+    if ambient_source is not None and t_a is None:
+        return None, "Источник температуры среды указан без T° среды"
 
     placement_raw = row.get("placement")
     placement = _resolve_alias(placement_raw, PLACEMENT_ALIASES)
@@ -800,6 +835,8 @@ def _build_tank_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
         params["shape"] = shape
     if t_a is not None:
         params["ambient_temperature"] = t_a
+        if ambient_source is not None:
+            params["ambient_temperature_source"] = ambient_source
     if t_p is not None:
         params["process_temperature"] = t_p
 
@@ -1488,6 +1525,7 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
         "λ 3-го слоя",
         "Диапазон температур 3-го слоя, °C",
         "T° среды",
+        "Источник T° среды",
         "Температура грунта",
         "T° продукта",
         "T проп., °C",
@@ -1526,6 +1564,7 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
         "Статус материала изоляции",
         "Комментарий материала изоляции",
         "T° среды",
+        "Источник T° среды",
         "T° продукта",
         "T проп., °C",
         "Размещение",
@@ -1601,6 +1640,7 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
                     layer_value(2, "conductivity"),
                     _format_temperature_range(layer_value(2, "temperature_range")),
                     params.get("ambient_temperature", ""),
+                    params.get("ambient_temperature_source", ""),
                     params.get("ground_temperature", ""),
                     params.get("process_temperature", ""),
                     params.get("vapor_temperature", ""),
@@ -1648,6 +1688,7 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
                     "Конкретный материал" if material_code else "",
                     "",
                     params.get("ambient_temperature", ""),
+                    params.get("ambient_temperature_source", ""),
                     params.get("process_temperature", ""),
                     params.get("vapor_temperature", ""),
                     params.get("placement", ""),
@@ -1722,6 +1763,7 @@ def build_template_xlsx() -> bytes:
         "λ 3-го слоя",
         "Диапазон температур 3-го слоя, °C",
         "T° среды",
+        "Источник T° среды",
         "Температура грунта",
         "T° продукта",
         "T проп., °C",
@@ -1755,6 +1797,7 @@ def build_template_xlsx() -> bytes:
             "Толщина изоляции, мм": 50,
             "Код материала изоляции": "mineral_wool_boards_120",
             "T° среды": -20,
+            "Источник T° среды": "manual",
             "T° продукта": 80,
             "Размещение": "outdoor",
             "Скорость ветра, м/с": 0,
@@ -1773,6 +1816,7 @@ def build_template_xlsx() -> bytes:
             "Толщина изоляции, мм": 40,
             "Код материала изоляции": "polyurethane_products_50",
             "T° среды": -30,
+            "Источник T° среды": "manual",
             "T° продукта": 60,
             "Размещение": "outdoor",
             "Скорость ветра, м/с": 0,
@@ -1801,6 +1845,7 @@ def build_template_xlsx() -> bytes:
         "Статус материала изоляции",
         "Комментарий материала изоляции",
         "T° среды",
+        "Источник T° среды",
         "T° продукта",
         "T проп., °C",
         "Размещение",
@@ -1832,6 +1877,7 @@ def build_template_xlsx() -> bytes:
             "Материал изоляции": "Плиты минераловатные прошивные",
             "Код материала изоляции": "mineral_wool_boards_120",
             "T° среды": -20,
+            "Источник T° среды": "manual",
             "T° продукта": 80,
             "Размещение": "outdoor",
             "Скорость ветра, м/с": 0,
@@ -1852,6 +1898,7 @@ def build_template_xlsx() -> bytes:
             "Материал изоляции": "Плиты минераловатные прошивные",
             "Код материала изоляции": "mineral_wool_boards_120",
             "T° среды": -20,
+            "Источник T° среды": "manual",
             "T° продукта": 80,
             "Размещение": "outdoor",
             "Скорость ветра, м/с": 0,
@@ -1870,6 +1917,7 @@ def build_template_xlsx() -> bytes:
             "Материал изоляции": "Изделия из ППУ",
             "Код материала изоляции": "polyurethane_products_50",
             "T° среды": -20,
+            "Источник T° среды": "manual",
             "T° продукта": 60,
             "Размещение": "outdoor",
             "Скорость ветра, м/с": 0,
@@ -1906,6 +1954,7 @@ def build_template_xlsx() -> bytes:
     ws_info["A12"] = "Цилиндр — требуются Диаметр и Высота"
     ws_info["A13"] = "Параллелепипед — требуются Длина, Ширина, Высота"
     ws_info["A14"] = "Шар — требуется Диаметр"
+    ws_info["A16"] = "Источник T° среды: manual — введено вручную, climate — из климата."
     ws_info.column_dimensions["A"].width = 60
 
     buf = io.BytesIO()
