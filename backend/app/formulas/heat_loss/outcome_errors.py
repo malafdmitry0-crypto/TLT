@@ -33,7 +33,6 @@ _LAYER_MATERIAL_CODES = frozenset(
         "missing_insulation_interval",
         "unselectable_insulation_material",
         "insulation_catalog_error",
-        "process_temperature_outside_interval",
         "unavailable_conductivity_branch",
     }
 )
