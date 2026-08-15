@@ -435,3 +435,9 @@ def test_json_schema_keeps_numeric_range_keywords_and_optional_anyof_branches() 
     assert tank_schema["properties"]["insulation_layers"]["maxItems"] == 3
     assert tank_schema["properties"]["q_additional"]["minimum"] == 0.0
     assert "maximum" not in tank_schema["properties"]["q_additional"]
+    assert tank_schema["properties"]["q_additional"]["description"] == (
+        "Q_доп, Вт — дополнительные потери, не учтённые поверхностями резервуара "
+        "(например, штуцера, опоры и фланцы). Днище уже учтено в площади резервуара; "
+        "значение прибавляется после коэффициента запаса и увеличивает проектные "
+        "удельные теплопотери."
+    )
