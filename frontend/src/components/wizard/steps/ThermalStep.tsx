@@ -93,6 +93,7 @@ export default function ThermalStep({
       className="numeric-form-item short-number-form-item helped-form-item"
       testId="insulation-thickness-input"
       fieldInputSettings={fieldInputSettings}
+      showSourceTag={false}
     />
   );
 

@@ -142,7 +142,8 @@ describe('ObjectWizard dependencies — validation-highlight', () => {
     expect(screen.getByTestId('local-elements-count-input')).not.toHaveAttribute('aria-required');
   });
 
-  it('связывает «вручную» с каждым обязательным прямым полем наружной трубы', async () => {
+  it('не помечает толщину изоляции источником «вручную»', async () => {
+    const user = userEvent.setup();
     renderWizard();
 
     await screen.findByTestId('outer-diameter-input');
@@ -153,8 +154,13 @@ describe('ObjectWizard dependencies — validation-highlight', () => {
       'ambient-temperature-input',
       'process-temperature-input',
       'wind-speed-input',
-      'insulation-thickness-input',
     ].forEach((testId) => expectFieldSource(testId, 'вручную'));
+
+    expectFieldSource('insulation-thickness-input');
+    await user.click(screen.getByTestId('insulation-layer-add'));
+    expectFieldSource('second-insulation-thickness-input');
+    await user.click(screen.getByTestId('insulation-layer-add'));
+    expectFieldSource('third-insulation-thickness-input');
 
     expectFieldSource('local-elements-count-input');
     expectFieldSource('placement-select');
@@ -190,7 +196,7 @@ describe('ObjectWizard dependencies — validation-highlight', () => {
     expectFieldSource('tank-height-input', 'вручную');
     expectFieldSource('ambient-temperature-input', 'вручную');
     expectFieldSource('process-temperature-input', 'вручную');
-    expectFieldSource('insulation-thickness-input', 'вручную');
+    expectFieldSource('insulation-thickness-input');
     expectFieldSource('tank-wall-thickness-input');
     expectFieldSource('tank-wall-lambda-input');
     expectFieldSource('wind-speed-input', 'вручную');
