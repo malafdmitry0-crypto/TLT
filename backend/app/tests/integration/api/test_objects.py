@@ -1085,6 +1085,8 @@ class TestObjectsLifecycle:
         body = resp.json()
         assert body["is_valid"] is True
         assert body["params"]["climate_city"] == "Москва"
+        assert body["params"]["wind_speed"] == pytest.approx(1.7)
+        assert body["params"]["wind_speed_source"] == "climate"
         assert "alpha_vnesh" not in body["params"]
         assert len(body["params"]["insulation_layers"]) == 3
 
@@ -1095,9 +1097,9 @@ class TestObjectsLifecycle:
         assert results["insulation_resistance"] > 0
         assert results["external_resistance"] > 0
         assert results["alpha_vnesh_applied"] == pytest.approx(
-            round(11.6 + 7 * math.sqrt(4.2), 3)
+            round(11.6 + 7 * math.sqrt(1.7), 3)
         )
-        assert results["wind_speed_applied"] == pytest.approx(4.2)
+        assert results["wind_speed_applied"] == pytest.approx(1.7)
         assert results["safety_factor_applied"] == 1.2
         assert results["local_elements_count_applied"] == 3
         assert results["local_element_equiv_length_applied"] == 1.1
@@ -1140,6 +1142,40 @@ class TestObjectsLifecycle:
         assert body["params"]["ambient_temperature_source"] == "climate"
         assert body["params"]["safety_factor"] == pytest.approx(1.12)
         assert body["results"]["safety_factor_applied"] == pytest.approx(1.12)
+
+    async def test_backend_fills_climate_wind_when_api_omits_it(
+        self, client: AsyncClient, guest_session: str
+    ):
+        pid = await _project(client, guest_session)
+        resp = await client.post(
+            f"/api/v1/projects/{pid}/objects",
+            json={
+                "object_type": "pipe",
+                "params": {
+                    "name": "Pipe with backend climate wind",
+                    "outer_diameter": 0.108,
+                    "wall_thickness": 0.004,
+                    "pipe_material": "carbon_steel",
+                    "pipe_length": 35,
+                    "insulation_layers": [{"thickness": 0.04, "material": MINERAL_WOOL}],
+                    "insulation_temperature_basis": "outdoor_winter",
+                    "process_temperature": 80,
+                    "min_switch_temperature": -20,
+                    "climate_key": "Алтайский край|||Славгород",
+                    "climate_city": "Славгород",
+                    "climate_region": "Алтайский край",
+                    "placement": "outdoor",
+                },
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert resp.status_code == 201, resp.text
+        body = resp.json()
+        assert body["is_valid"] is True
+        assert body["params"]["wind_speed"] == pytest.approx(4.0)
+        assert body["params"]["wind_speed_source"] == "climate"
+        assert body["results"]["wind_speed_applied"] == pytest.approx(4.0)
 
     async def test_underground_tank_returns_air_ground_split(
         self, client: AsyncClient, guest_session: str
