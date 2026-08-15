@@ -7,6 +7,7 @@ import {
 import { Space } from 'antd';
 import { useLocation } from 'react-router-dom';
 import { TltAlert } from '@/components/ui-kit';
+import PageSkeleton from '@/components/common/PageSkeleton';
 
 import {
   useCalculationVariantStore,
@@ -92,6 +93,25 @@ export default function ElecCalcProject({
     && assignmentReadinessReport.electricalVariantId === selectedVariant?.id
     ? assignmentReadinessReport.snapshot
     : null;
+
+  if (controller.isLoading) {
+    return (
+      <div data-testid="electrical-workspace-loading-shell">
+        <ElectricalVariantTabs
+          controller={controller}
+          canMutate={canMutate}
+          assignmentReadiness={null}
+        />
+        <div
+          data-testid="electrical-workspace-loading-skeleton"
+          aria-busy="true"
+          aria-label="Загружается рабочая область электротехнического расчёта"
+        >
+          <PageSkeleton rows={10} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Space direction="vertical" size={4} style={{ width: '100%' }}>
