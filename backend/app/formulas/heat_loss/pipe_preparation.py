@@ -40,7 +40,7 @@ def build_pipe_preparation(params: PipeHeatLossParams) -> PipePreparationInput:
         pipe_lambda=params.pipe_lambda,
         has_pipe_material=params.pipe_material is not None,
         layers=tuple(
-            _preparation_layer(layer, index, params.process_temperature)
+            _preparation_layer(layer, index)
             for index, layer in enumerate(params.insulation_layers)
         ),
         ambient_temperature=params.ambient_temperature,
@@ -68,7 +68,6 @@ def build_pipe_preparation(params: PipeHeatLossParams) -> PipePreparationInput:
 def _preparation_layer(
     layer: InsulationLayer,
     index: int,
-    process_temperature: float,
 ) -> PipePreparationLayer:
     manual = layer.material == "other"
     if manual:
@@ -83,7 +82,6 @@ def _preparation_layer(
     law, interval = resolve_reference_layer(
         material=layer.material,
         index=index,
-        process_temperature=process_temperature,
     )
     return PipePreparationLayer(
         thickness_m=layer.thickness,
