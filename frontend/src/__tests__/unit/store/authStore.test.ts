@@ -31,6 +31,26 @@ describe('authStore', () => {
     expect(localStorage.getItem('refresh_token')).toBeNull();
   });
 
+  it('restores employee identity without replacing the refreshed access token', () => {
+    useAuthStore.setState({
+      role: 'employee',
+      user: null,
+      sessionId: null,
+      accessToken: 'refreshed-access',
+      refreshToken: null,
+    });
+    useAuthStore.getState().restoreEmployeeIdentity({
+      id: 'employee-1',
+      email: 'employee@example.test',
+      full_name: null,
+      role: 'employee',
+      is_active: true,
+    });
+
+    expect(useAuthStore.getState().user?.id).toBe('employee-1');
+    expect(useAuthStore.getState().accessToken).toBe('refreshed-access');
+  });
+
   it('logout clears state', () => {
     useAuthStore.getState().setGuest('abc');
     useAuthStore.getState().logout();
