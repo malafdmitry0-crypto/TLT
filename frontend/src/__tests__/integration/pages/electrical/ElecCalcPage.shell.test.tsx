@@ -6,6 +6,7 @@ import { getCalcJobRefetchInterval } from '@/utils/calcJobPolling';
 import { electricalDataQueryKeys } from '@/api/electricalQueryKeys';
 import { mockProject, makeObject, makeElectricalPage, makeCalcTask, renderPage } from '@/__tests__/integration/pages/electrical/elecCalcPageHarness';
 import {
+  apiMocks,
   electricalAssignmentPanelMock,
   electricalVariantApiMocks,
   resetElecCalcIntegrationState,
@@ -110,6 +111,47 @@ describe('ElecCalcPage shell / variants / polling', () => {
         '22222222-2222-4222-8222-222222222222',
       ),
     });
+  });
+
+  it('блокирует пересчёт во всех ЭР, пока рассчитывается другой ЭР', async () => {
+    const { getCalcTask, getElectricalPage } = await import('@/api/calculations');
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(
+      makeElectricalPage([makeObject()]),
+    );
+    (getCalcTask as ReturnType<typeof vi.fn>).mockResolvedValue(makeCalcTask(
+      'task-er-1',
+      '11111111-1111-4111-8111-111111111111',
+      'running',
+      { created_at: new Date().toISOString() },
+    ));
+    useProjectStore.getState().setCurrentProject(mockProject);
+    const user = (await import('@testing-library/user-event')).default.setup();
+
+    renderPage({ activeJobId: 'task-er-1' });
+
+    await waitFor(() => {
+      expect(getCalcTask).toHaveBeenCalledWith('task-er-1');
+    });
+    await user.click(screen.getByRole('tab', { name: 'ЭР2' }));
+    await screen.findByText('Система обогрева · ЭР2');
+    const assignmentPanelProps = electricalAssignmentPanelMock.props as (
+      NonNullable<typeof electricalAssignmentPanelMock.props> & {
+        onSelectedObjectIdsChange?: (ids: string[]) => void;
+      }
+    ) | null;
+    act(() => assignmentPanelProps?.onSelectedObjectIdsChange?.(['o-1']));
+
+    const selectedButton = await screen.findByRole('button', {
+      name: /Пересчитать выбранные \(1\)/i,
+    });
+    const allButton = screen.getByRole('button', { name: /Пересчитать все · ЭР2/i });
+    expect(selectedButton).toBeDisabled();
+    expect(allButton).toBeDisabled();
+    expect(screen.getByText('Сейчас рассчитывается ЭР1')).toBeInTheDocument();
+
+    await user.click(selectedButton);
+    await user.click(allButton);
+    expect(apiMocks.enqueueVariantBatch).not.toHaveBeenCalled();
   });
 
   it('использует редкий polling для очереди и фоновой вкладки', () => {
