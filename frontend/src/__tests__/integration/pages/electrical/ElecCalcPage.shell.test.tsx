@@ -31,6 +31,11 @@ describe('ElecCalcPage shell / variants / polling', () => {
     renderPage();
 
     expect(screen.getByText('Загружаем список ЭР…')).toBeInTheDocument();
+    expect(screen.getByTestId('electrical-workspace-loading-shell')).toBeInTheDocument();
+    expect(screen.getByTestId('electrical-workspace-loading-skeleton')).toHaveAttribute(
+      'aria-busy',
+      'true',
+    );
     expect(screen.queryByText(/Cannot read properties of null/i)).not.toBeInTheDocument();
   });
 

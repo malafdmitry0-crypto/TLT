@@ -11,6 +11,7 @@ import { appMessage as antdMessage } from '@/feedback/appFeedback';
 import type { NavigateFunction } from 'react-router-dom';
 
 import { initializeElectricalVariants } from '@/api/electricalVariants';
+import { buildElectricalVariantRoute } from '@/domain/electricalVariantRouteModel';
 import { ROUTES } from '@/routes/routes';
 import {
   getHeatCalcElectricalContinueBlockMessage,
@@ -46,14 +47,16 @@ export function useHeatCalcContinueToElectrical({
     }
     // PDF-HEAT-10: first transition creates ЭР1 with objects unassigned.
     void (async () => {
+      let electricalVariantId: string | null = null;
       if (projectId) {
         try {
-          await initializeElectricalVariants(projectId);
+          const initialization = await initializeElectricalVariants(projectId);
+          electricalVariantId = initialization.variant.id;
         } catch {
           // Already initialized or not ready — still open electrical page.
         }
       }
-      navigate(ROUTES.elecCalc);
+      navigate(buildElectricalVariantRoute(ROUTES.elecCalc, electricalVariantId));
     })();
   }, [continueState, navigate, projectId]);
 

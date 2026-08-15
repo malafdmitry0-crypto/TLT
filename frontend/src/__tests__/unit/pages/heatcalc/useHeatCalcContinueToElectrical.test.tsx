@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const initializeElectricalVariants = vi.hoisted(() => vi.fn());
 const warning = vi.hoisted(() => vi.fn());
 const error = vi.hoisted(() => vi.fn());
+const ER_ID = '3ff35ec0-4500-4df2-bf63-3bae84819099';
 
 vi.mock('@/api/electricalVariants', () => ({
   initializeElectricalVariants,
@@ -20,7 +21,7 @@ vi.mock('@/feedback/appFeedback', async () => {
 });
 
 vi.mock('@/routes/routes', () => ({
-  ROUTES: { elecCalc: '/workspace/elec' },
+  ROUTES: { elecCalc: '/workspace/elec-calc' },
 }));
 
 import { useHeatCalcContinueToElectrical } from '@/pages/heatcalc/useHeatCalcContinueToElectrical';
@@ -30,7 +31,7 @@ describe('useHeatCalcContinueToElectrical', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    initializeElectricalVariants.mockResolvedValue(undefined);
+    initializeElectricalVariants.mockResolvedValue({ variant: { id: ER_ID } });
   });
 
   it('warns and does not navigate when project has no objects', async () => {
@@ -82,7 +83,7 @@ describe('useHeatCalcContinueToElectrical', () => {
     });
 
     expect(initializeElectricalVariants).toHaveBeenCalledWith('p1');
-    expect(navigate).toHaveBeenCalledWith('/workspace/elec');
+    expect(navigate).toHaveBeenCalledWith(`/workspace/elec-calc?er=${ER_ID}`);
   });
 
   it('still navigates when initialize fails', async () => {
@@ -100,6 +101,6 @@ describe('useHeatCalcContinueToElectrical', () => {
       await Promise.resolve();
     });
 
-    expect(navigate).toHaveBeenCalledWith('/workspace/elec');
+    expect(navigate).toHaveBeenCalledWith('/workspace/elec-calc');
   });
 });

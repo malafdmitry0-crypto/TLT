@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
+  buildElectricalVariantRoute,
   isElectricalVariantRoutePath,
   isSidebarElectricalVariantRouteOwner,
 } from '@/domain/electricalVariantRouteModel';
@@ -42,6 +43,16 @@ describe('electricalVariantRouteModel', () => {
     expect(isSidebarElectricalVariantRouteOwner('/workspace')).toBe(false);
     expect(isSidebarElectricalVariantRouteOwner('/workspace/report')).toBe(false);
     expect(isSidebarElectricalVariantRouteOwner('/projects')).toBe(false);
+  });
+
+  it('carries the selected ER directly into another workspace route', () => {
+    expect(buildElectricalVariantRoute('/workspace/elec-calc', 'er/with space')).toBe(
+      '/workspace/elec-calc?er=er%2Fwith+space',
+    );
+    expect(buildElectricalVariantRoute('/workspace/elec-calc', null)).toBe(
+      '/workspace/elec-calc',
+    );
+    expect(buildElectricalVariantRoute('/projects', 'er-1')).toBe('/projects');
   });
 
   it('detects when BrowserRouter history is ahead of the committed React location', () => {
