@@ -33,7 +33,7 @@ export type UseElectricalVariantCommandsControllerArgs = {
   projectId: string | null;
   variants: ElectricalVariant[];
   selectedVariantId: string | null;
-  commitSelection: (variantId: string | null) => void;
+  commitSelection: (variantId: string | null, projectId: string) => void;
 };
 
 export type ElectricalVariantCommandsController = {
@@ -171,7 +171,7 @@ export function useElectricalVariantCommandsController({
       }),
       'Первый ЭР создан; результат подтверждён после сверки с сервером.',
     );
-    commitSelection(initialized.id);
+    commitSelection(initialized.id, initialized.project_id);
     return initialized;
   }, [commitSelection, ensureProject, initializeMutation, runMutation]);
 
@@ -192,7 +192,7 @@ export function useElectricalVariantCommandsController({
       'Пустой ЭР создан; результат подтверждён после сверки с сервером.',
     );
     createIntentRef.current = null;
-    commitSelection(created.id);
+    commitSelection(created.id, created.project_id);
     // Opened ER is the working ER — keep is_active aligned with selection.
     if (!created.is_active) {
       await runMutation(
@@ -230,7 +230,7 @@ export function useElectricalVariantCommandsController({
       'Копия ЭР создана; результат подтверждён после сверки с сервером.',
     );
     copyIntentRef.current = null;
-    commitSelection(created.id);
+    commitSelection(created.id, created.project_id);
     if (!created.is_active) {
       await runMutation(
         () => activateMutation.mutateAsync(created.id),
@@ -293,7 +293,7 @@ export function useElectricalVariantCommandsController({
   const selectAndActivateVariant = useCallback(async (variantId: string) => {
     const target = findVariant(variants, variantId);
     if (!target) return;
-    commitSelection(target.id);
+    commitSelection(target.id, target.project_id);
     if (target.is_active) return target;
     return activateVariant(target.id, { silent: true });
   }, [activateVariant, commitSelection, variants]);
@@ -333,7 +333,6 @@ export function useElectricalVariantCommandsController({
               : deleteMutation.isPending ? 'delete'
                 : isReconciling ? 'reconcile'
                   : null;
-
   return {
     mutationError,
     mutationNotice,
