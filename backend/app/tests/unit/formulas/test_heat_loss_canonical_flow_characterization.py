@@ -139,7 +139,7 @@ def test_insulation_layer_manual_and_reference_contract_errors_are_frozen() -> N
     ]
 
 
-def test_process_temperature_outside_material_range_fails_before_formula(
+def test_reference_material_range_is_checked_against_calculated_boundary(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from heatcalc_heat_loss_core import pipe_evaluation
@@ -152,13 +152,13 @@ def test_process_temperature_outside_material_range_fails_before_formula(
     with pytest.raises(HeatLossPreparationError) as caught:
         pipe_facade.calc_pipe_heat_loss(params)
 
-    assert caught.value.code == "process_temperature_outside_interval"
-    assert caught.value.path == "insulation_layers.0.material"
+    assert caught.value.code == "temperature_outside_interval"
+    assert caught.value.path == "insulation_layers.0"
     assert str(caught.value) == (
-        "Температура продукта 500 °C вне диапазона материала "
-        "изоляции #1 'mineral_wool_boards_120': -60…400 °C"
+        "Температура горячей стороны слоя изоляции #1 (499.834 °C) вне диапазона "
+        "материала 'mineral_wool_boards_120': -60…400 °C"
     )
-    calculate_spy.assert_not_called()
+    calculate_spy.assert_called_once()
 
 
 def test_air_pipe_domain_check_receives_empty_insulation_thicknesses(
