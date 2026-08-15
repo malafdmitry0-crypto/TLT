@@ -164,6 +164,60 @@ describe('elecCalcMainTableModel', () => {
     )).toBe('—');
   });
 
+  it('copies the exact electrical diagnostic inputs and climate basis', () => {
+    const object = projectObject({
+      params: {
+        name: 'Труба 89',
+        outer_diameter: 0.089,
+        ambient_temperature: -43,
+        min_switch_temperature: -20,
+        climate_city: 'Москва',
+        climate_temperature_basis: 't_abs_min',
+      },
+    });
+    const context = copyContext({});
+
+    expect(mainElectricalColumnCopyValue('pipe_outer_diameter', object, 0, context)).toBe('89');
+    expect(mainElectricalColumnCopyValue('ambient_temperature', object, 0, context)).toBe('-43');
+    expect(mainElectricalColumnCopyValue('min_switch_temperature', object, 0, context)).toBe('-20');
+    expect(mainElectricalColumnCopyValue('climate_temperature_basis', object, 0, context))
+      .toBe('Москва · t_abs_min');
+  });
+
+  it('uses persisted error diagnostics as the exact failed-calculation inputs', () => {
+    const object = projectObject({
+      params: {
+        name: 'Труба 89',
+        outer_diameter: 0.108,
+        ambient_temperature: -23,
+        min_switch_temperature: -15,
+        climate_city: 'Москва',
+        climate_temperature_basis: 't_0_92',
+      },
+    });
+    const failed = calc({
+      cable_mark: null,
+      results: {
+        category: 'formula',
+        message: 'Температуры вне диапазона',
+        error_context: {
+          outer_diameter_mm: 89,
+          ambient_temperature_c: -43,
+          cold_start_temperature_c: -20,
+          climate_city: 'Москва',
+          climate_temperature_basis: 't_abs_min',
+        },
+      },
+    });
+    const context = copyContext({ [object.id]: failed });
+
+    expect(mainElectricalColumnCopyValue('pipe_outer_diameter', object, 0, context)).toBe('89');
+    expect(mainElectricalColumnCopyValue('ambient_temperature', object, 0, context)).toBe('-43');
+    expect(mainElectricalColumnCopyValue('min_switch_temperature', object, 0, context)).toBe('-20');
+    expect(mainElectricalColumnCopyValue('climate_temperature_basis', object, 0, context))
+      .toBe('Москва · t_abs_min');
+  });
+
   it('copies calculation, layout, defaults and commercial values', () => {
     const object = projectObject();
     const row = calc({

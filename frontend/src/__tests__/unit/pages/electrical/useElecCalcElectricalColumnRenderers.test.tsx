@@ -168,6 +168,53 @@ describe('useElecCalcElectricalColumnRenderers', () => {
     expect(screen.getByText('ручн.')).toBeInTheDocument();
   });
 
+  it('renders compact electrical diagnostics from the failed calculation context', () => {
+    const row = projectObject({
+      params: {
+        outer_diameter: 0.108,
+        ambient_temperature: -23,
+        min_switch_temperature: -15,
+        climate_city: 'Москва',
+        climate_temperature_basis: 't_0_92',
+      },
+    });
+    const { result } = setup({
+      calcByObjectId: {
+        'object-1': calc({
+          cable_mark: null,
+          results: {
+            category: 'formula',
+            message: 'Температуры вне диапазона',
+            error_context: {
+              outer_diameter_mm: 89,
+              ambient_temperature_c: -43,
+              cold_start_temperature_c: -20,
+              climate_city: 'Москва',
+              climate_temperature_basis: 't_abs_min',
+            },
+          },
+        }),
+      },
+    });
+
+    const diameter = render(<>{result.current.pipe_outer_diameter.render(undefined, row, 0)}</>);
+    expect(screen.getByText('89')).toBeInTheDocument();
+    diameter.unmount();
+
+    const ambient = render(<>{result.current.ambient_temperature.render(undefined, row, 0)}</>);
+    expect(screen.getByText('-43')).toBeInTheDocument();
+    ambient.unmount();
+
+    const switchTemperature = render(
+      <>{result.current.min_switch_temperature.render(undefined, row, 0)}</>,
+    );
+    expect(screen.getByText('-20')).toBeInTheDocument();
+    switchTemperature.unmount();
+
+    render(<>{result.current.climate_temperature_basis.render(undefined, row, 0)}</>);
+    expect(screen.getByText('Москва · t_abs_min')).toBeInTheDocument();
+  });
+
   it('renders tank layout only from the row calculation params', () => {
     const row = projectObject({ object_type: 'tank' });
     const { result } = setup({
