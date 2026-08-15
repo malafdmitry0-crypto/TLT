@@ -1,14 +1,49 @@
 /* OWNER: ElecCalcIdopSettings — project-level current-limit form. */
 
-.elec-idop-settings__mode-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+.elec-idop-settings__label {
+  position: relative;
+  cursor: help;
 }
 
-.elec-idop-settings__auto-copy {
-  margin: 6px 0 0;
-  color: var(--color-text-secondary);
+.elec-idop-settings__label::after {
+  position: absolute;
+  z-index: 30;
+  bottom: calc(100% + 6px);
+  left: 0;
+  width: max-content;
+  max-width: min(320px, 70vw);
+  padding: 5px 7px;
+  border-radius: 2px;
+  background: var(--color-alpha-a8b89137);
+  box-shadow: 0 4px 14px var(--color-alpha-dde98fe3);
+  color: var(--color-surface);
+  content: attr(data-field-help);
   font-size: 12px;
-  line-height: 1.4;
+  font-weight: 400;
+  line-height: 1.35;
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  white-space: normal;
+  transition:
+    opacity 0.12s ease 0.35s,
+    visibility 0s linear 0.47s;
+}
+
+.elec-idop-settings__label:hover::after {
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 0.35s, 0s;
+}
+
+.elec-idop-settings__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+  white-space: nowrap;
 }
