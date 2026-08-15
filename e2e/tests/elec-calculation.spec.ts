@@ -180,7 +180,7 @@ async function showElectricalColumns(
 }
 
 test.describe('4.4 Электротехнический расчёт', () => {
-  test('требует сохранить проектный I доп до запуска пересчёта', async ({ page }) => {
+  test('использует каталожный I доп по умолчанию и принимает ручное значение', async ({ page }) => {
     await loginAsGuest(page);
     const pipe = await createCleanCase1Pipe(page, `E2E required I доп ${Date.now()}`);
 
@@ -190,13 +190,17 @@ test.describe('4.4 Электротехнический расчёт', () => {
     await page.reload({ waitUntil: 'domcontentloaded' });
 
     const idop = page.getByTestId('elec-idop-input');
-    await expect(idop).toHaveAttribute('aria-required', 'true');
-    await expect(idop).toHaveAttribute('aria-invalid', 'true');
-    await expect(page.getByRole('alert').filter({ hasText: 'Укажите I доп проекта' })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Пересчитать все · ЭР1/i })).toBeDisabled();
+    await expect(idop).toHaveAttribute('placeholder', 'По каталогу');
+    await expect(idop).not.toHaveAttribute('aria-required');
+    await expect(idop).not.toHaveAttribute('aria-invalid');
+    await expect(page.locator('.elec-idop-settings__label'))
+      .toHaveAttribute('data-field-help', /По каталогу для каждого объекта/);
+    await expect(page.getByRole('button', { name: /Пересчитать все · ЭР1/i })).toBeEnabled();
     await expect(page.getByRole('button', { name: /Пересчитать выбранные ЭР/i })).toHaveCount(0);
 
     await idop.fill('13');
+    await expect(page.locator('.elec-idop-settings__label'))
+      .toHaveAttribute('data-field-help', /Очистите поле и сохраните/);
     await page.getByTestId('elec-idop-save').click();
 
     await expect(idop).not.toHaveAttribute('aria-invalid');
