@@ -631,11 +631,13 @@ class TestTaskCreation:
                 legacy_variant_number=None,
             )
 
-    async def test_enqueue_guards_then_locks_project_before_variant_resolution(
+    async def test_enqueue_locks_and_guards_project_before_variant_resolution(
         self,
         mock_db,
         guest_principal: CurrentPrincipal,
+        monkeypatch: pytest.MonkeyPatch,
     ):
+        monkeypatch.setattr(ProjectService, "get_project_for_write", _allow_project_write)
         project_id = uuid.uuid4()
         events: list[str] = []
         existing = BackgroundTask(
@@ -678,7 +680,7 @@ class TestTaskCreation:
         )
 
         assert result is existing
-        assert events == ["guard", "lock", "resolve", "lock"]
+        assert events == ["lock", "guard", "lock", "resolve", "lock"]
 
     async def test_create_electrical_batch_task_enqueues_and_persists_payload(
         self,
@@ -732,7 +734,7 @@ class TestTaskCreation:
             electrical_variant_id=requested_variant_id,
             legacy_variant_number=None,
         )
-        assert service._lock_project_for_electrical_task.await_count == 2  # type: ignore[attr-defined]
+        assert service._lock_project_for_electrical_task.await_count == 3  # type: ignore[attr-defined]
         service._lock_project_for_electrical_task.assert_any_await(project_id)  # type: ignore[attr-defined]
         mock_db.add.assert_called_once()
 
