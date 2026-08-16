@@ -213,6 +213,47 @@ class TestGroupUpdate:
         assert updated[first["id"]]["params"]["name"] == "ГК Труба 1"
         assert updated[second["id"]]["params"]["pipe_length"] == 75.0
 
+    async def test_safety_factor_update_becomes_manual_and_is_not_reverted(
+        self, client: AsyncClient, guest_session: str
+    ):
+        headers = _headers(guest_session)
+        project = await _guest_project(client, guest_session)
+        first = await _add_object(
+            client,
+            project["id"],
+            headers,
+            name="Кзап Труба 1",
+            safety_factor=1.1,
+            safety_factor_source="climate_policy",
+        )
+        second = await _add_object(
+            client,
+            project["id"],
+            headers,
+            name="Кзап Труба 2",
+            sort_order=1,
+            safety_factor=1.1,
+            safety_factor_source="climate_policy",
+        )
+
+        resp = await client.post(
+            f"/api/v1/projects/{project['id']}/objects/group-update",
+            json={
+                "object_ids": [first["id"], second["id"]],
+                "param": "safety_factor",
+                "value": 1.15,
+            },
+            headers=headers,
+        )
+
+        assert resp.status_code == 200, resp.text
+        payload = resp.json()
+        assert payload["count"] == 2
+        for obj in payload["objects"]:
+            assert obj["params"]["safety_factor"] == pytest.approx(1.15)
+            assert obj["params"]["safety_factor_source"] == "manual"
+            assert obj["results"]["safety_factor_applied"] == pytest.approx(1.15)
+
     async def test_out_of_range_value_is_rejected_without_mutating_any_object(
         self,
         client: AsyncClient,
