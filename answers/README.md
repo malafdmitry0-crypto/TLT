@@ -15,6 +15,7 @@
 | 2 | Коэффициент наружной теплоотдачи | [02-external-heat-transfer](02-external-heat-transfer/) |
 | 3 | Режим температуры изоляции (`tm`) | [03-insulation-temperature-mode](03-insulation-temperature-mode/) |
 | 4 | Сферический резервуар снят из расчёта | [04-spherical-tank-removed](04-spherical-tank-removed/) |
+| 5 | Границы температуры окружающей среды | [05-ambient-temperature-bounds](05-ambient-temperature-bounds/) |
 
 В ответ включаются только сформулированные замечания. Разговорные реплики без
 конкретного требования, перечня расхождений или ожидаемого результата в ответ
