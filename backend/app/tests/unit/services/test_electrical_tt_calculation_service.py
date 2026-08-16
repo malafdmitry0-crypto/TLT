@@ -253,6 +253,26 @@ async def test_snapshot_status_uses_current_resolved_catalog_identity() -> None:
     assert "catalog.payload_checksum" in statuses[calc_id]["changed_fields"]
 
 
+async def test_snapshot_status_skips_tt_catalog_resolution_without_tt_snapshots() -> None:
+    db = AsyncMock()
+    service = CalculationService(db)
+    calc_id = uuid4()
+
+    statuses = await service.cable_snapshot_statuses(
+        [
+            SimpleNamespace(
+                id=calc_id,
+                cable_type="self_regulating",
+                cable_mark="HTM",
+                cable_snapshot={"schema_version": 1},
+            )
+        ]
+    )
+
+    assert statuses[calc_id]["technical_status"] == "missing"
+    db.execute.assert_not_awaited()
+
+
 def test_tt_snapshot_is_not_partially_built_without_resolved_catalog_row() -> None:
     service = CalculationService(AsyncMock())
     request = ElectricalRequest(
