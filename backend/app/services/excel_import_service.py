@@ -142,6 +142,22 @@ AMBIENT_TEMPERATURE_SOURCE_ALIASES: dict[str, str] = {
     "климат": "climate",
 }
 
+WIND_SPEED_SOURCE_ALIASES: dict[str, str] = {
+    "manual": "manual",
+    "вручную": "manual",
+    "climate": "climate",
+    "климат": "climate",
+}
+
+SAFETY_FACTOR_SOURCE_ALIASES: dict[str, str] = {
+    "default": "default",
+    "по умолчанию": "default",
+    "manual": "manual",
+    "вручную": "manual",
+    "climate_policy": "climate_policy",
+    "климатическая политика": "climate_policy",
+}
+
 INSULATION_TEMPERATURE_BASIS_ALIASES: dict[str, str] = {
     "indoor": "indoor",
     "помещение": "indoor",
@@ -265,9 +281,15 @@ PIPE_HEADERS: dict[str, str] = {
     "t° грунта": "ground_temperature",
     "скорость ветра, м/с": "wind_speed",
     "скорость ветра": "wind_speed",
+    "источник скорости ветра": "wind_speed_source",
+    "источник ветра": "wind_speed_source",
+    "wind_speed_source": "wind_speed_source",
     "kзап": "safety_factor",
     "k зап": "safety_factor",
     "коэффициент запаса": "safety_factor",
+    "источник kзап": "safety_factor_source",
+    "источник коэффициента запаса": "safety_factor_source",
+    "safety_factor_source": "safety_factor_source",
     "рабочее напряжение": "supply_voltage",
     "мин. t включения, °c": "min_switch_temperature",
     "мин t включения": "min_switch_temperature",
@@ -374,9 +396,15 @@ TANK_HEADERS: dict[str, str] = {
     "t° грунта": "ground_temperature",
     "скорость ветра, м/с": "wind_speed",
     "скорость ветра": "wind_speed",
+    "источник скорости ветра": "wind_speed_source",
+    "источник ветра": "wind_speed_source",
+    "wind_speed_source": "wind_speed_source",
     "kзап": "safety_factor",
     "k зап": "safety_factor",
     "коэффициент запаса": "safety_factor",
+    "источник kзап": "safety_factor_source",
+    "источник коэффициента запаса": "safety_factor_source",
+    "safety_factor_source": "safety_factor_source",
     "рабочее напряжение": "supply_voltage",
     "мин. t включения, °c": "min_switch_temperature",
     "мин t включения": "min_switch_temperature",
@@ -527,6 +555,25 @@ def _resolve_alias(v: Any, aliases: dict[str, str]) -> str | None:
     if not key:
         return None
     return aliases.get(key)
+
+
+def _resolve_value_source(
+    row: dict[str, Any],
+    *,
+    source_field: str,
+    value: float | None,
+    aliases: dict[str, str],
+    source_label: str,
+    value_label: str,
+) -> tuple[str | None, str | None]:
+    raw = row.get(source_field)
+    source = _resolve_alias(raw, aliases)
+    if raw not in (None, "") and source is None:
+        return None, f"Не распознан {source_label}: {raw}"
+    if source is not None and value is None:
+        display_source_label = source_label[:1].upper() + source_label[1:]
+        return None, f"{display_source_label} указан без {value_label}"
+    return source, None
 
 
 def _resolve_climate_basis(v: Any) -> str | None:
@@ -763,11 +810,35 @@ def _build_pipe_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
             params["ambient_temperature_source"] = ambient_source
 
     wind_speed = _to_float(row.get("wind_speed"))
+    wind_speed_source, source_error = _resolve_value_source(
+        row,
+        source_field="wind_speed_source",
+        value=wind_speed,
+        aliases=WIND_SPEED_SOURCE_ALIASES,
+        source_label="источник скорости ветра",
+        value_label="скорости ветра",
+    )
+    if source_error is not None:
+        return None, source_error
     if wind_speed is not None:
         params["wind_speed"] = wind_speed
+        if wind_speed_source is not None:
+            params["wind_speed_source"] = wind_speed_source
     safety_factor = _to_float(row.get("safety_factor"))
+    safety_factor_source, source_error = _resolve_value_source(
+        row,
+        source_field="safety_factor_source",
+        value=safety_factor,
+        aliases=SAFETY_FACTOR_SOURCE_ALIASES,
+        source_label="источник Kзап",
+        value_label="Kзап",
+    )
+    if source_error is not None:
+        return None, source_error
     if safety_factor is not None:
         params["safety_factor"] = safety_factor
+        if safety_factor_source is not None:
+            params["safety_factor_source"] = safety_factor_source
     basis = _resolve_alias(
         row.get("insulation_temperature_basis"), INSULATION_TEMPERATURE_BASIS_ALIASES
     )
@@ -892,13 +963,33 @@ def _build_tank_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
             )
 
     wind_speed = _to_float(row.get("wind_speed"))
+    wind_speed_source, source_error = _resolve_value_source(
+        row,
+        source_field="wind_speed_source",
+        value=wind_speed,
+        aliases=WIND_SPEED_SOURCE_ALIASES,
+        source_label="источник скорости ветра",
+        value_label="скорости ветра",
+    )
+    if source_error is not None:
+        return None, source_error
     if wind_speed is not None:
         params["wind_speed"] = wind_speed
-        params["wind_speed_source"] = "manual"
+        params["wind_speed_source"] = wind_speed_source or "manual"
     safety_factor = _to_float(row.get("safety_factor"))
+    safety_factor_source, source_error = _resolve_value_source(
+        row,
+        source_field="safety_factor_source",
+        value=safety_factor,
+        aliases=SAFETY_FACTOR_SOURCE_ALIASES,
+        source_label="источник Kзап",
+        value_label="Kзап",
+    )
+    if source_error is not None:
+        return None, source_error
     if safety_factor is not None:
         params["safety_factor"] = safety_factor
-        params["safety_factor_source"] = "manual"
+        params["safety_factor_source"] = safety_factor_source or "manual"
     basis = _resolve_alias(
         row.get("insulation_temperature_basis"), INSULATION_TEMPERATURE_BASIS_ALIASES
     )
@@ -1534,6 +1625,7 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
         "Грунт",
         "λ грунта",
         "Скорость ветра, м/с",
+        "Источник скорости ветра",
         "Режим температуры изоляции",
         "Материал покрытия",
         "Климатический регион",
@@ -1541,6 +1633,7 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
         "Ключ климата",
         "Обеспеченность климата",
         "Kзап",
+        "Источник Kзап",
         "Мин. T включения, °C",
         "Количество локальных элементов",
         "L экв., м",
@@ -1574,6 +1667,7 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
         "Ключ климата",
         "Обеспеченность климата",
         "Kзап",
+        "Источник Kзап",
         "Мин. T включения, °C",
         "Высота обогрева, м",
         "Шаг укладки, м",
@@ -1585,6 +1679,7 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
         "Грунт",
         "λ грунта",
         "Скорость ветра, м/с",
+        "Источник скорости ветра",
         "λ 1-го слоя",
         "Диапазон температур 1-го слоя, °C",
         "Толщина 2-го слоя, мм",
@@ -1649,6 +1744,7 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
                     params.get("ground_type", ""),
                     params.get("ground_conductivity", ""),
                     params.get("wind_speed", ""),
+                    params.get("wind_speed_source", ""),
                     params.get("insulation_temperature_basis", ""),
                     params.get("insulation_cover_material", ""),
                     params.get("climate_region", ""),
@@ -1656,6 +1752,7 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
                     params.get("climate_key", ""),
                     params.get("climate_temperature_basis", ""),
                     params.get("safety_factor", ""),
+                    params.get("safety_factor_source", ""),
                     params.get("min_switch_temperature", ""),
                     params.get("num_local_elements", ""),
                     params.get("local_element_equiv_length", ""),
@@ -1698,6 +1795,7 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
                     params.get("climate_key", ""),
                     params.get("climate_temperature_basis", ""),
                     params.get("safety_factor", ""),
+                    params.get("safety_factor_source", ""),
                     params.get("min_switch_temperature", ""),
                     params.get("heating_height", ""),
                     params.get("laying_step", ""),
@@ -1709,6 +1807,7 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
                     params.get("ground_type", ""),
                     params.get("ground_conductivity", ""),
                     params.get("wind_speed", ""),
+                    params.get("wind_speed_source", ""),
                     tank_layer_value(0, "conductivity"),
                     _format_temperature_range(tank_layer_value(0, "temperature_range")),
                     _to_export_mm(tank_layer_value(1, "thickness")),
@@ -1772,6 +1871,7 @@ def build_template_xlsx() -> bytes:
         "Грунт",
         "λ грунта",
         "Скорость ветра, м/с",
+        "Источник скорости ветра",
         "Режим температуры изоляции",
         "Материал покрытия",
         "Климатический регион",
@@ -1779,6 +1879,7 @@ def build_template_xlsx() -> bytes:
         "Ключ климата",
         "Обеспеченность климата",
         "Kзап",
+        "Источник Kзап",
         "Мин. T включения, °C",
         "Количество локальных элементов",
         "L экв., м",
@@ -1801,8 +1902,10 @@ def build_template_xlsx() -> bytes:
             "T° продукта": 80,
             "Размещение": "outdoor",
             "Скорость ветра, м/с": 0,
+            "Источник скорости ветра": "manual",
             "Режим температуры изоляции": "outdoor_winter",
             "Kзап": 1.1,
+            "Источник Kзап": "manual",
             "Мин. T включения, °C": -20,
             "Количество локальных элементов": 6,
             "L экв., м": 1.5,
@@ -1820,8 +1923,10 @@ def build_template_xlsx() -> bytes:
             "T° продукта": 60,
             "Размещение": "outdoor",
             "Скорость ветра, м/с": 0,
+            "Источник скорости ветра": "manual",
             "Режим температуры изоляции": "outdoor_winter",
             "Kзап": 1.1,
+            "Источник Kзап": "manual",
             "Мин. T включения, °C": -20,
             "Количество локальных элементов": 0,
         },
@@ -1852,12 +1957,14 @@ def build_template_xlsx() -> bytes:
         # Без скорости ветра размещение outdoor не рассчитывается, поэтому
         # колонка обязана быть и в шаблоне резервуаров — как у труб.
         "Скорость ветра, м/с",
+        "Источник скорости ветра",
         "Режим температуры изоляции",
         "Климатический регион",
         "Климатический город",
         "Ключ климата",
         "Обеспеченность климата",
         "Kзап",
+        "Источник Kзап",
         "Мин. T включения, °C",
         "Высота обогрева, м",
         "Шаг укладки, м",
@@ -1881,8 +1988,10 @@ def build_template_xlsx() -> bytes:
             "T° продукта": 80,
             "Размещение": "outdoor",
             "Скорость ветра, м/с": 0,
+            "Источник скорости ветра": "manual",
             "Режим температуры изоляции": "outdoor_winter",
             "Kзап": 1.1,
+            "Источник Kзап": "manual",
             "Мин. T включения, °C": -20,
             "Высота обогрева, м": 3,
             "Шаг укладки, м": 0.2,
@@ -1902,8 +2011,10 @@ def build_template_xlsx() -> bytes:
             "T° продукта": 80,
             "Размещение": "outdoor",
             "Скорость ветра, м/с": 0,
+            "Источник скорости ветра": "manual",
             "Режим температуры изоляции": "outdoor_winter",
             "Kзап": 1.1,
+            "Источник Kзап": "manual",
             "Мин. T включения, °C": -20,
             "Высота обогрева, м": 4,
             "Шаг укладки, м": 0.2,
@@ -1921,8 +2032,10 @@ def build_template_xlsx() -> bytes:
             "T° продукта": 60,
             "Размещение": "outdoor",
             "Скорость ветра, м/с": 0,
+            "Источник скорости ветра": "manual",
             "Режим температуры изоляции": "outdoor_winter",
             "Kзап": 1.1,
+            "Источник Kзап": "manual",
             "Мин. T включения, °C": -20,
             "Q доп., Вт": 0,
         },
@@ -1955,7 +2068,9 @@ def build_template_xlsx() -> bytes:
     ws_info["A13"] = "Параллелепипед — требуются Длина, Ширина, Высота"
     ws_info["A14"] = "Шар — требуется Диаметр"
     ws_info["A16"] = "Источник T° среды: manual — введено вручную, climate — из климата."
-    ws_info.column_dimensions["A"].width = 60
+    ws_info["A17"] = "Источник скорости ветра: manual — вручную, climate — из климата."
+    ws_info["A18"] = "Источник Kзап: manual — вручную, default/climate_policy — автоматически."
+    ws_info.column_dimensions["A"].width = 80
 
     buf = io.BytesIO()
     wb.save(buf)
