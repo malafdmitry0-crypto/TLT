@@ -318,19 +318,26 @@ class CalculationService:
     ) -> dict[UUID, dict[str, Any]]:
         statuses: dict[UUID, dict[str, Any]] = {}
         _ = catalog_source  # TT authority is resolved from DB, then bundled fallback.
-        catalogs = await self._tt_calculation_catalogs()
-        power_catalog = catalogs.get("power")
+        power_catalog: dict[str, Any] | None = None
+        tt_catalogs_loaded = False
         for calc in calculations:
             snapshot = calc.cable_snapshot
             if not isinstance(snapshot, dict):
                 statuses[calc.id] = compare_cable_snapshot(None, None)
                 continue
             mark = calc.cable_mark or snapshot.get("cable_mark")
-            current_row = (
-                self._snapshot_row_from_power_catalog(power_catalog, mark, snapshot=snapshot)
-                if calc.cable_type == "self_regulating_tt"
-                else None
-            )
+            current_row = None
+            if calc.cable_type == "self_regulating_tt":
+                if not tt_catalogs_loaded:
+                    catalogs = await self._tt_calculation_catalogs()
+                    resolved_power = catalogs.get("power")
+                    power_catalog = resolved_power if isinstance(resolved_power, dict) else None
+                    tt_catalogs_loaded = True
+                current_row = self._snapshot_row_from_power_catalog(
+                    power_catalog,
+                    mark,
+                    snapshot=snapshot,
+                )
             statuses[calc.id] = compare_cable_snapshot(snapshot, current_row)
         return statuses
 
