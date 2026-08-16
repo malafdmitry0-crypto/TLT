@@ -91,6 +91,17 @@ def test_changed_formula_and_missing_catalog_fingerprint_are_stale():
     )
 
 
+def test_previous_r5_formula_snapshot_is_stale_after_dec19_selection_change():
+    previous = _current_result()
+    previous["provenance"]["formula_version"] = "electrical-tt-v3-case1-r5"
+
+    visible = electrical_result_with_lifecycle("25ТТН2-СР", previous)
+
+    assert ELECTRICAL_TT_FORMULA_VERSION == "electrical-tt-v3-case1-r6"
+    assert visible["stale"] is True
+    assert visible["stale_reason"] == "formula_version_changed"
+
+
 def test_typed_formula_error_remains_error_not_derived_stale():
     result = {
         "cable_type": "self_regulating_tt",

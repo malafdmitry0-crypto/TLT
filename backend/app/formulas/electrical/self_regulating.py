@@ -23,6 +23,21 @@ from app.schemas.calculation import (
 
 MAX_SELF_REG_AUTO_THREADS = 3
 
+# DEC-19: ничьи при полном техническом равенстве кандидатов разрешаются явно,
+# а не порядком байтов full_mark: сначала более низкий температурный класс
+# серии, затем стандартное исполнение «-СТ». По VSDX «Алгоритм Самрег. трубы»
+# исполнение «-СР» предназначено для агрессивной среды и в Case 1 выбирается
+# только вручную полным маркоразмером.
+_SERIES_TIE_RANK = {"ТТН": 0, "ТТВ": 1, "ТТХ": 2}
+_EXECUTION_TIE_RANK = {"-СТ": 0, "-СР": 1}
+
+
+def _execution_tie_rank(full_mark: str) -> int:
+    for suffix, rank in _EXECUTION_TIE_RANK.items():
+        if full_mark.endswith(suffix):
+            return rank
+    return len(_EXECUTION_TIE_RANK)
+
 
 # ---------------------------------------------------------------------------
 # Расчёт кабелей серии ТТН / ТТВ / ТТХ
@@ -371,12 +386,8 @@ def calc_self_regulating_tt(
         and product_temperature <= item.max_product_temperature
     ]
     if not temperature_eligible:
-        minimum_supported_ambient = min(
-            item.min_ambient_temperature for item in selected_rows
-        )
-        maximum_supported_product = max(
-            item.max_product_temperature for item in selected_rows
-        )
+        minimum_supported_ambient = min(item.min_ambient_temperature for item in selected_rows)
+        maximum_supported_product = max(item.max_product_temperature for item in selected_rows)
         violations: list[str] = []
         if ambient_temperature < minimum_supported_ambient:
             violations.append("ambient_below_minimum")
@@ -392,12 +403,8 @@ def calc_self_regulating_tt(
             details={
                 "product_temperature_c": float(product_temperature),
                 "ambient_temperature_c": float(ambient_temperature),
-                "minimum_supported_ambient_temperature_c": float(
-                    minimum_supported_ambient
-                ),
-                "maximum_supported_product_temperature_c": float(
-                    maximum_supported_product
-                ),
+                "minimum_supported_ambient_temperature_c": float(minimum_supported_ambient),
+                "maximum_supported_product_temperature_c": float(maximum_supported_product),
                 "violations": violations,
                 "manual_cable_model": params.cable_mark,
             },
@@ -430,8 +437,14 @@ def calc_self_regulating_tt(
             item[0],
             item[1].passport_power,
             item[1].passport_power * item[0],
+            _SERIES_TIE_RANK.get(item[1].series, len(_SERIES_TIE_RANK)),
+            _execution_tie_rank(item[1].full_mark),
             item[1].full_mark,
         ),
+    )
+    execution_defaulted = params.cable_mark is None and any(
+        item.base_model == selected.base_model and item.full_mark != selected.full_mark
+        for item in temperature_eligible
     )
     passport_power = selected.passport_power
     cable = selected.power_row
@@ -473,4 +486,5 @@ def calc_self_regulating_tt(
         voltage=float(applied_voltage),
         winding_pitch=round(params.winding_pitch or 0.0, 3),
         winding_coefficient=float(round_result(winding_factor, SIX_PLACES)),
+        execution_defaulted=execution_defaulted,
     )

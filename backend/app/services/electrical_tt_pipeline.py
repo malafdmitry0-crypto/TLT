@@ -28,6 +28,8 @@ from app.schemas.calculation import SelfRegulatingTTParams
 from app.schemas.electrical_inputs import ResolvedElectricalInputs
 
 ELECTRICAL_POWER_CATALOG_PROVISIONAL = "ELECTRICAL_POWER_CATALOG_PROVISIONAL"
+# DEC-19: исполнение выбрано правилом по умолчанию («-СТ»), а не пользователем.
+ELECTRICAL_EXECUTION_DEFAULTED = "ELECTRICAL_EXECUTION_DEFAULTED"
 _PRODUCTION_CATALOG_STATUSES = {
     "power": {"active"},
     "section": {"active", "registered"},
@@ -340,13 +342,13 @@ def calculate_electrical_tt(
     warnings = list(resolved.warnings)
     if not catalog_production_eligible:
         warnings.append(ELECTRICAL_POWER_CATALOG_PROVISIONAL)
+    if preliminary.execution_defaulted:
+        warnings.append(ELECTRICAL_EXECUTION_DEFAULTED)
     warnings = list(dict.fromkeys(warnings))
     production_eligible = resolved.production_eligible and catalog_production_eligible
     resolved_values = values.model_dump(mode="json")
     if values.max_section_start_current_a is None:
-        resolved_values["max_section_start_current_a"] = str(
-            decimal_value(plan.i_dop_a)
-        )
+        resolved_values["max_section_start_current_a"] = str(decimal_value(plan.i_dop_a))
     applied_input_sources = dict(resolved.sources)
     applied_input_sources["max_section_start_current_a"] = plan.i_dop_source
     calculation_fingerprint = _stable_hash(
@@ -431,6 +433,13 @@ def calculate_electrical_tt(
             "nomenclature_code": bom_entry["nomenclature_code"],
             "passport_power_w_per_m": float(round_result(power_exact)),
             "selection_source": "manual" if values.manual_cable_model else "auto",
+            "execution_source": (
+                "manual"
+                if values.manual_cable_model
+                else "default"
+                if preliminary.execution_defaulted
+                else "single"
+            ),
             "selection_policy": values.selection_policy,
         },
         "layout": layout_result,

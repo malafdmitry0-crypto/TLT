@@ -121,6 +121,59 @@ def test_manual_mark_without_threads_means_exactly_one_thread_without_fallback()
     assert raised.value.code == "ELECTRICAL_CABLE_POWER_INSUFFICIENT"
 
 
+def test_execution_tie_defaults_to_standard_st_and_is_flagged() -> None:
+    # DEC-19: у 10ТТН2 в BOM два исполнения; автоподбор берёт «-СТ».
+    result = _calculate(required_power_per_meter=10)
+
+    assert result.cable_mark == "10ТТН2-СТ"
+    assert result.execution_defaulted is True
+
+
+def test_manual_sr_execution_is_respected_and_not_flagged() -> None:
+    result = _calculate(cable_mark="10ТТН2-СР", required_power_per_meter=8)
+
+    assert result.cable_mark == "10ТТН2-СР"
+    assert result.execution_defaulted is False
+
+
+def test_single_execution_selection_is_not_flagged_as_default() -> None:
+    # У 25ТТН2 в BOM только «-СТ» — правило по умолчанию не применялось.
+    result = _calculate(required_power_per_meter=20)
+
+    assert result.cable_mark == "25ТТН2-СТ"
+    assert result.execution_defaulted is False
+
+
+def test_equal_power_series_tie_prefers_lower_temperature_class() -> None:
+    power_rows = [
+        *deepcopy(POWER_ROWS),
+        {"model": "60ТТХ2", "series": "ТТХ", "nominal_power": 60, "max_product_temp": 150},
+    ]
+    section_rows = [
+        *deepcopy(SECTION_ROWS),
+        {
+            "mark": "60ТТХ2",
+            "cold_start_temp_c": -40,
+            "l_max_m": 100,
+            "i_st_ud_a_per_m": 0.1,
+            "voltage_v": 230,
+        },
+    ]
+    bom_rows = [
+        *deepcopy(BOM_ROWS),
+        {"full_mark": "60ТТХ2-СР", "nomenclature_code": "CASE1-60X-SR"},
+    ]
+
+    result = calc_self_regulating_tt(
+        _params(required_power_per_meter=55),
+        catalog_rows=power_rows,
+        section_catalog_rows=section_rows,
+        bom_catalog_rows=bom_rows,
+    )
+
+    assert result.cable_model == "60ТТВ2"
+
+
 def test_t2_t3_and_aggressiveness_are_not_case1_selector_parameters() -> None:
     assert "maintain_temperature" not in SelfRegulatingTTParams.model_fields
     assert "vapor_temperature" not in SelfRegulatingTTParams.model_fields
