@@ -88,7 +88,16 @@ async def test_preview_maps_project_errors(monkeypatch: pytest.MonkeyPatch):
         def __init__(self, db) -> None:
             self.db = db
 
-        async def preview(self, project_id, sections, *, principal, variant_number=1):
+        async def preview(
+            self,
+            project_id,
+            sections,
+            *,
+            principal,
+            variant_number=1,
+            electrical_variant_id=None,
+            electrical_variant_name=None,
+        ):
             raise ProjectNotFoundError("missing project")
 
     monkeypatch.setattr(reports_api, "ReportService", FakeReportService)
@@ -98,6 +107,9 @@ async def test_preview_maps_project_errors(monkeypatch: pytest.MonkeyPatch):
             uuid.uuid4(),
             _request(),
             sections=None,
+            variant_number=1,
+            electrical_variant_id=None,
+            electrical_variant_ids=None,
             principal=CurrentPrincipal(role="guest", session_id="sid"),
             db=object(),
         )
@@ -111,7 +123,16 @@ async def test_preview_maps_report_errors(monkeypatch: pytest.MonkeyPatch):
         def __init__(self, db) -> None:
             self.db = db
 
-        async def preview(self, project_id, sections, *, principal, variant_number=1):
+        async def preview(
+            self,
+            project_id,
+            sections,
+            *,
+            principal,
+            variant_number=1,
+            electrical_variant_id=None,
+            electrical_variant_name=None,
+        ):
             raise ReportError("bad report")
 
     monkeypatch.setattr(reports_api, "ReportService", FakeReportService)
@@ -121,6 +142,9 @@ async def test_preview_maps_report_errors(monkeypatch: pytest.MonkeyPatch):
             uuid.uuid4(),
             _request(),
             sections=None,
+            variant_number=1,
+            electrical_variant_id=None,
+            electrical_variant_ids=None,
             principal=CurrentPrincipal(role="guest", session_id="sid"),
             db=object(),
         )
@@ -140,7 +164,16 @@ async def test_preview_records_audit_on_success(monkeypatch: pytest.MonkeyPatch)
         def __init__(self, db) -> None:
             self.db = db
 
-        async def preview(self, project_id, sections, *, principal, variant_number=1):
+        async def preview(
+            self,
+            project_id,
+            sections,
+            *,
+            principal,
+            variant_number=1,
+            electrical_variant_id=None,
+            electrical_variant_name=None,
+        ):
             return {
                 "project_id": str(project_id),
                 "html": "<html></html>",
@@ -164,6 +197,8 @@ async def test_preview_records_audit_on_success(monkeypatch: pytest.MonkeyPatch)
         _request(),
         sections=["summary"],
         variant_number=2,
+        electrical_variant_id=None,
+        electrical_variant_ids=None,
         principal=CurrentPrincipal(role="guest", session_id="sid"),
         db=object(),
     )
@@ -172,7 +207,11 @@ async def test_preview_records_audit_on_success(monkeypatch: pytest.MonkeyPatch)
     assert response.sections == ["summary"]
     assert response.variant_number == 2
     assert recorded["event_type"] == "report.previewed"
-    assert recorded["details"] == {"sections": ["summary"], "variant_number": 2}
+    assert recorded["details"] == {
+        "sections": ["summary"],
+        "variant_number": 2,
+        "electrical_variant_id": None,
+    }
 
 
 async def test_preview_requires_variant_after_project_access(monkeypatch: pytest.MonkeyPatch):
@@ -198,6 +237,8 @@ async def test_preview_requires_variant_after_project_access(monkeypatch: pytest
             _request(),
             sections=None,
             variant_number=None,
+            electrical_variant_id=None,
+            electrical_variant_ids=None,
             principal=CurrentPrincipal(role="guest", session_id="sid"),
             db=object(),
         )
