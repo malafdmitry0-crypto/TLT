@@ -173,7 +173,7 @@ async def test_snapshot_uses_exact_custom_database_row_selected_by_pipeline() ->
         result_dict=result,
     )
 
-    assert cable_mark == "25ТТН2-СР"
+    assert cable_mark == "25ТТН2-СТ"
     assert result["power_per_meter"] == 26
     assert snapshot is not None
     assert snapshot["technical"]["nominal_power"] == 26

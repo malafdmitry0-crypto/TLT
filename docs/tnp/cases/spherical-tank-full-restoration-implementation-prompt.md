@@ -36,7 +36,7 @@
 - Существующие цилиндр/параллелепипед сохраняют
   `formula_model = "tank_heat_loss"`, version `"3"`.
 - Общий TT selector/section contract
-  `electrical-tt-v3-case1-r5` не меняй: он получает уже разрешённый
+  `electrical-tt-v3-case1-r6` не меняй: он получает уже разрешённый
   `base_length_m`. Новую layout identity включи в tank layout provenance и
   тем самым в calculation fingerprint сферического результата.
 - `layout_formula_model` и `layout_formula_version` добавляются **только** в
@@ -455,7 +455,7 @@ qa-agent/e2e/browser gate выполняется один раз на финал
 
 - зафиксируй текущие численные goldens cylinder/rectangular Heat;
 - зафиксируй текущие cylinder/rectangular cable lengths;
-- зафиксируй `electrical-tt-v3-case1-r5` и section/order outputs;
+- зафиксируй `electrical-tt-v3-case1-r6` и section/order outputs;
 - сохрани unknown-shape fail-closed test;
 - найди все текущие assertions «sphere unsupported» и классифицируй: заменить
   на positive sphere coverage либо перенести rejection на действительно
