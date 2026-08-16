@@ -169,12 +169,14 @@ class TestExcelRoundTrip:
             "process_temperature": 150.0,
             "pipe_length": 200.5,
             "placement": "outdoor",
-            "wind_speed": 2.5,
-            "climate_region": "Москва",
-            "climate_city": "Москва",
-            "climate_key": "Москва|||Москва",
+            "wind_speed": 4.0,
+            "wind_speed_source": "climate",
+            "climate_region": "Алтайский край",
+            "climate_city": "Славгород",
+            "climate_key": "Алтайский край|||Славгород",
             "climate_temperature_basis": "t_0_92",
-            "safety_factor": 1.2,
+            "safety_factor": 1.1,
+            "safety_factor_source": "climate_policy",
             "min_switch_temperature": -35,
             "num_local_elements": 6,
             "local_element_equiv_length": 2.4,
@@ -232,9 +234,12 @@ class TestExcelRoundTrip:
         assert p["ambient_temperature"] == -7.0
         assert p["ambient_temperature_source"] == "manual"
         assert p["process_temperature"] == 150.0
-        assert p["climate_key"] == "Москва|||Москва"
+        assert p["climate_key"] == "Алтайский край|||Славгород"
         assert p["climate_temperature_basis"] == "t_0_92"
-        assert p["safety_factor"] == 1.2
+        assert p["wind_speed"] == pytest.approx(4.0)
+        assert p["wind_speed_source"] == "climate"
+        assert p["safety_factor"] == pytest.approx(1.1)
+        assert p["safety_factor_source"] == "climate_policy"
         assert p["min_switch_temperature"] == -35
         assert p["num_local_elements"] == 6
         assert p["local_element_equiv_length"] == 2.4
@@ -246,6 +251,22 @@ class TestExcelRoundTrip:
             "insulation_layer_count",
         ):
             assert forbidden not in p
+
+        changed_climate_params = {
+            **p,
+            "climate_key": "Алтайский край|||Солонешное",
+            "climate_region": "Алтайский край",
+            "climate_city": "Солонешное",
+        }
+        changed = await client.put(
+            f"/api/v1/projects/{p2['id']}/objects/{objs[0]['id']}",
+            json={"version": objs[0]["version"], "params": changed_climate_params},
+            headers=headers,
+        )
+        assert changed.status_code == 200, changed.text
+        changed_params = changed.json()["params"]
+        assert changed_params["wind_speed"] == pytest.approx(1.2)
+        assert changed_params["wind_speed_source"] == "climate"
 
 
 def _build_xlsx(pipes: list[list] | None = None, tanks: list[list] | None = None) -> bytes:
