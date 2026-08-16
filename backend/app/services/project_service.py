@@ -97,6 +97,11 @@ class ProjectElectricalVariantNotFoundError(Exception):
     """UUID ЭР не существует в указанном проекте."""
 
 
+_GROUP_MANUAL_SOURCE_FIELDS: dict[str, str] = {
+    "safety_factor": "safety_factor_source",
+}
+
+
 class ProjectService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
@@ -734,6 +739,9 @@ class ProjectService:
                     merged.pop("alpha_vnesh", None)
                     if param != "alpha_vnesh":
                         merged[param] = value
+                        source_field = _GROUP_MANUAL_SOURCE_FIELDS.get(param)
+                        if source_field is not None:
+                            merged[source_field] = "manual"
                     normalized = normalize_project_object_params(obj.object_type, merged)
                     outcome = await evaluate_project_object_heat(
                         obj.object_type,
