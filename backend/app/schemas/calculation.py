@@ -221,6 +221,9 @@ class SelfRegulatingTTResult(BaseModel):
     voltage: float
     winding_pitch: float
     winding_coefficient: float
+    # DEC-19: у базовой модели было несколько исполнений, и выбор «-СТ»
+    # сделан правилом по умолчанию, а не пользователем.
+    execution_defaulted: bool = False
 
 
 class ResistiveSingleCoreParams(BaseModel):

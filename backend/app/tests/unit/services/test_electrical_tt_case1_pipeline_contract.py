@@ -6,9 +6,14 @@ from decimal import Decimal
 import pytest
 
 from app.electrical_domain import ElectricalFormulaError
+from app.formulas.electrical.tt_contract import ELECTRICAL_TT_FORMULA_VERSION
 from app.schemas.electrical_inputs import CanonicalElectricalInputs, ResolvedElectricalInputs
 from app.services.electrical_catalog_service import ElectricalCatalogService
-from app.services.electrical_tt_pipeline import PipeElectricalLayout, calculate_electrical_tt
+from app.services.electrical_tt_pipeline import (
+    ELECTRICAL_EXECUTION_DEFAULTED,
+    PipeElectricalLayout,
+    calculate_electrical_tt,
+)
 
 
 def _catalogs() -> dict[str, dict]:
@@ -100,6 +105,29 @@ def test_pipeline_selection_is_stable_across_voltage() -> None:
     ]
     for removed in ("steam_temperature_c", "maintain_temperature_c", "aggressive_product"):
         assert removed not in changed["resolved_inputs"]
+
+
+@pytest.mark.parametrize(
+    ("updates", "expected_mark", "expected_source", "expected_default_warning"),
+    [
+        ({}, "25ТТН2-СТ", "default", True),
+        ({"manual_cable_model": "25ТТН2-СР"}, "25ТТН2-СР", "manual", False),
+        ({"heat_loss_per_meter_w": Decimal("27.5")}, "30ТТВ2-СР", "single", False),
+    ],
+)
+def test_pipeline_exposes_execution_selection_provenance(
+    updates: dict[str, object],
+    expected_mark: str,
+    expected_source: str,
+    expected_default_warning: bool,
+) -> None:
+    result = _calculate(_resolved(**updates), calculation_catalogs=_catalogs())
+
+    assert result["cable"]["mark"] == expected_mark
+    assert result["cable"]["execution_source"] == expected_source
+    assert (ELECTRICAL_EXECUTION_DEFAULTED in result["warnings"]) is expected_default_warning
+    assert result["provenance"]["warnings"] == result["warnings"]
+    assert result["provenance"]["formula_version"] == ELECTRICAL_TT_FORMULA_VERSION
 
 
 def test_pipeline_derives_idop_from_selected_nearest_colder_section_row() -> None:
