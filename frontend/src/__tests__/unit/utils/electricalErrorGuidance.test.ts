@@ -145,6 +145,28 @@ describe('electricalErrorGuidance', () => {
     expect(guidance?.suggestions).toContain('Проверить температуру продукта');
   });
 
+  it('passes through the backend message for a rejected manual cable mark', () => {
+    const backendMessage = (
+      'Выбранная марка 10ТТН2-СТ не подходит: температура продукта 66 °C '
+      + 'выше допустимого максимума 65 °C'
+    );
+    const guidance = getElectricalErrorGuidance({
+      errorCode: 'ELECTRICAL_CABLE_TEMPERATURE_LIMIT_EXCEEDED',
+      error: backendMessage,
+      errorContext: {
+        manual_cable_model: '10ТТН2-СТ',
+        ambient_temperature_c: -20,
+        minimum_supported_ambient_temperature_c: -40,
+        product_temperature_c: 66,
+        maximum_supported_product_temperature_c: 65,
+        violations: ['product_above_maximum'],
+      },
+    });
+
+    expect(guidance?.message).toBe(backendMessage);
+    expect(guidance?.message).not.toContain('доступных марок');
+  });
+
   it('shows both independent temperature violations', () => {
     const guidance = getElectricalErrorGuidance({
       errorCode: 'ELECTRICAL_CABLE_TEMPERATURE_LIMIT_EXCEEDED',

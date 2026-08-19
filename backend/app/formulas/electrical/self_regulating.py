@@ -32,6 +32,40 @@ _SERIES_TIE_RANK = {"ТТН": 0, "ТТВ": 1, "ТТХ": 2}
 _EXECUTION_TIE_RANK = {"-СТ": 0, "-СР": 1}
 
 
+def _format_decimal(value: Decimal) -> str:
+    return format(value.normalize(), "f")
+
+
+def _temperature_limit_message(
+    *,
+    manual_cable_model: str | None,
+    ambient_temperature: Decimal,
+    minimum_supported_ambient: Decimal,
+    product_temperature: Decimal,
+    maximum_supported_product: Decimal,
+    violations: Sequence[str],
+) -> str:
+    if manual_cable_model is None:
+        return "Температуры объекта находятся вне допустимого диапазона кабелей"
+
+    reasons: list[str] = []
+    if "ambient_below_minimum" in violations:
+        reasons.append(
+            "температура окружающей среды "
+            f"{_format_decimal(ambient_temperature)} °C ниже допустимого минимума "
+            f"{_format_decimal(minimum_supported_ambient)} °C"
+        )
+    if "product_above_maximum" in violations:
+        reasons.append(
+            f"температура продукта {_format_decimal(product_temperature)} °C "
+            "выше допустимого максимума "
+            f"{_format_decimal(maximum_supported_product)} °C"
+        )
+    if not reasons:
+        reasons.append("заданное сочетание температур не поддерживается")
+    return f"Выбранная марка {manual_cable_model} не подходит: {'; '.join(reasons)}"
+
+
 def _execution_tie_rank(full_mark: str) -> int:
     for suffix, rank in _EXECUTION_TIE_RANK.items():
         if full_mark.endswith(suffix):
@@ -376,6 +410,7 @@ def calc_self_regulating_tt(
             )
     else:
         selected_rows = catalog
+    manual_cable_model = selected_rows[0].full_mark if params.cable_mark is not None else None
 
     product_temperature = decimal_value(params.process_temperature)
     ambient_temperature = decimal_value(params.ambient_temperature)
@@ -399,14 +434,21 @@ def calc_self_regulating_tt(
             violations.append("temperature_combination_unsupported")
         raise ElectricalFormulaError(
             "ELECTRICAL_CABLE_TEMPERATURE_LIMIT_EXCEEDED",
-            "Температуры объекта находятся вне допустимого диапазона кабелей",
+            _temperature_limit_message(
+                manual_cable_model=manual_cable_model,
+                ambient_temperature=ambient_temperature,
+                minimum_supported_ambient=minimum_supported_ambient,
+                product_temperature=product_temperature,
+                maximum_supported_product=maximum_supported_product,
+                violations=violations,
+            ),
             details={
                 "product_temperature_c": float(product_temperature),
                 "ambient_temperature_c": float(ambient_temperature),
                 "minimum_supported_ambient_temperature_c": float(minimum_supported_ambient),
                 "maximum_supported_product_temperature_c": float(maximum_supported_product),
                 "violations": violations,
-                "manual_cable_model": params.cable_mark,
+                "manual_cable_model": manual_cable_model,
             },
         )
 
@@ -422,13 +464,24 @@ def calc_self_regulating_tt(
             if catalog_candidate.passport_power * winding_factor * threads >= q_required:
                 candidates.append((threads, catalog_candidate))
     if not candidates:
+        maximum_available_power = max(
+            item.passport_power * winding_factor * threads
+            for threads in requested_threads
+            for item in temperature_eligible
+        )
         raise ElectricalFormulaError(
             "ELECTRICAL_CABLE_POWER_INSUFFICIENT",
-            "Ни одна допустимая марка не обеспечивает требуемую мощность",
+            (
+                f"Выбранная марка {manual_cable_model} не обеспечивает требуемую мощность "
+                f"{_format_decimal(q_required)} Вт/м"
+                if manual_cable_model is not None
+                else "Ни одна допустимая марка не обеспечивает требуемую мощность"
+            ),
             details={
                 "required_power_per_meter_w": float(q_required),
+                "maximum_available_power_per_meter_w": float(maximum_available_power),
                 "maximum_threads": requested_threads[-1],
-                "manual_cable_model": params.cable_mark,
+                "manual_cable_model": manual_cable_model,
             },
         )
     num_circuits, selected = min(
