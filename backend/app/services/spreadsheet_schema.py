@@ -183,7 +183,18 @@ CSV_ORDER = (
     "insulation_temperature_basis", "climate_region", "climate_city", "climate_key", "climate_temperature_basis", "safety_factor",
     "min_switch_temperature", "heating_height", "laying_step", "wall_thickness_mm", "pipe_material", "wind_speed", "num_local_elements",
     "local_element_equiv_length", "q_additional",
+    # Keep the legacy prefix above stable; these columns complete the union
+    # of the pipe/tank XLSX export fields for mixed CSV rows.
+    "pipe_lambda", "first_insulation_lambda", "first_insulation_temperature_range",
+    "second_insulation_thickness_mm", "second_insulation_material", "second_insulation_lambda",
+    "second_insulation_temperature_range", "third_insulation_thickness_mm", "third_insulation_material",
+    "third_insulation_lambda", "third_insulation_temperature_range", "ambient_temperature_source",
+    "ground_temperature", "pipe_centerline_depth", "tank_buried_height", "ground_type", "ground_conductivity",
+    "wind_speed_source", "insulation_cover_material", "safety_factor_source", "wall_lambda",
 )
+# ``maintain_temperature``, ``max_process_temperature`` and ``supply_voltage``
+# remain import-only legacy aliases: neither XLSX export emits them, so they
+# are intentionally excluded from this CSV union as well.
 
 
 def _index_fields(fields: tuple[SpreadsheetField, ...]) -> dict[str, SpreadsheetField]:
