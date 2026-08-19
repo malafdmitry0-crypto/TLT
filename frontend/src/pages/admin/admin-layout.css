@@ -9,11 +9,9 @@
   margin: 0;
 }
 
-.admin-layout-logout {
-  color: var(--color-surface);
-  margin-left: auto;
-  cursor: pointer;
-}
+.admin-layout-logout { margin-left: auto; padding: 4px 8px; border: 1px solid transparent; border-radius: 4px; background: transparent; color: var(--color-primary); font: inherit; cursor: pointer; }
+.admin-layout-logout:hover { border-color: currentColor; background: var(--color-info-soft); }
+.admin-layout-logout:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 
 .admin-layout-content {
   padding: 24px;
