@@ -165,6 +165,7 @@ class TestExcelRoundTrip:
             ],
             "insulation_temperature_basis": "outdoor_winter",
             "ambient_temperature": -7.0,
+            "max_ambient_temperature": 0.0,
             "ambient_temperature_source": "manual",
             "process_temperature": 150.0,
             "pipe_length": 200.5,
@@ -187,6 +188,7 @@ class TestExcelRoundTrip:
             headers=headers,
         )
         assert created.status_code == 201, created.text
+        source_results = created.json()["results"]
 
         exp = await client.get(
             f"/api/v1/projects/{p1['id']}/objects/export-excel",
@@ -232,6 +234,7 @@ class TestExcelRoundTrip:
         assert abs(p["outer_diameter"] - 0.273) < 1e-6
         assert p["pipe_length"] == 200.5
         assert p["ambient_temperature"] == -7.0
+        assert p["max_ambient_temperature"] == 0.0
         assert p["ambient_temperature_source"] == "manual"
         assert p["process_temperature"] == 150.0
         assert p["climate_key"] == "Алтайский край|||Славгород"
@@ -243,6 +246,7 @@ class TestExcelRoundTrip:
         assert p["min_switch_temperature"] == -35
         assert p["num_local_elements"] == 6
         assert p["local_element_equiv_length"] == 2.4
+        assert objs[0]["results"] == source_results
         for forbidden in (
             "location",
             "burial_depth",
