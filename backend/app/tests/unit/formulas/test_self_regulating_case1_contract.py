@@ -81,6 +81,7 @@ def test_ambient_below_model_section_catalog_minimum_is_typed_temperature_error(
         _calculate(ambient_temperature=-41)
 
     assert raised.value.code == "ELECTRICAL_CABLE_TEMPERATURE_LIMIT_EXCEEDED"
+    assert raised.value.message == "Температуры объекта находятся вне допустимого диапазона кабелей"
     assert raised.value.details == {
         "product_temperature_c": 20.0,
         "ambient_temperature_c": -41.0,
@@ -89,6 +90,41 @@ def test_ambient_below_model_section_catalog_minimum_is_typed_temperature_error(
         "violations": ["ambient_below_minimum"],
         "manual_cable_model": None,
     }
+
+
+@pytest.mark.parametrize(
+    ("updates", "expected_message", "expected_violation"),
+    [
+        (
+            {"ambient_temperature": -41},
+            (
+                "Выбранная марка 10ТТН2-СТ не подходит: температура окружающей среды "
+                "-41 °C ниже допустимого минимума -40 °C"
+            ),
+            "ambient_below_minimum",
+        ),
+        (
+            {"process_temperature": 66},
+            (
+                "Выбранная марка 10ТТН2-СТ не подходит: температура продукта 66 °C "
+                "выше допустимого максимума 65 °C"
+            ),
+            "product_above_maximum",
+        ),
+    ],
+)
+def test_manual_mark_temperature_error_names_mark_actual_value_and_limit(
+    updates: dict[str, int],
+    expected_message: str,
+    expected_violation: str,
+) -> None:
+    with pytest.raises(ElectricalFormulaError) as raised:
+        _calculate(cable_mark="10ТТН2-СТ", **updates)
+
+    assert raised.value.code == "ELECTRICAL_CABLE_TEMPERATURE_LIMIT_EXCEEDED"
+    assert raised.value.message == expected_message
+    assert raised.value.details["manual_cable_model"] == "10ТТН2-СТ"
+    assert raised.value.details["violations"] == [expected_violation]
 
 
 def test_product_above_catalog_maximum_exposes_supported_limit() -> None:
@@ -115,10 +151,33 @@ def test_manual_mark_without_threads_means_exactly_one_thread_without_fallback()
         _calculate(
             cable_mark="10ТТН2-СТ",
             number_of_threads=None,
-            required_power_per_meter=15,
+            required_power_per_meter=45,
         )
 
     assert raised.value.code == "ELECTRICAL_CABLE_POWER_INSUFFICIENT"
+    assert raised.value.message == (
+        "Выбранная марка 10ТТН2-СТ не обеспечивает требуемую мощность 45 Вт/м"
+    )
+    assert raised.value.details == {
+        "required_power_per_meter_w": 45.0,
+        "maximum_available_power_per_meter_w": 10.0,
+        "maximum_threads": 1,
+        "manual_cable_model": "10ТТН2-СТ",
+    }
+
+
+def test_auto_power_error_keeps_catalog_wide_message() -> None:
+    with pytest.raises(ElectricalFormulaError) as raised:
+        _calculate(required_power_per_meter=181)
+
+    assert raised.value.code == "ELECTRICAL_CABLE_POWER_INSUFFICIENT"
+    assert raised.value.message == "Ни одна допустимая марка не обеспечивает требуемую мощность"
+    assert raised.value.details == {
+        "required_power_per_meter_w": 181.0,
+        "maximum_available_power_per_meter_w": 180.0,
+        "maximum_threads": 3,
+        "manual_cable_model": None,
+    }
 
 
 def test_execution_tie_defaults_to_standard_st_and_is_flagged() -> None:
