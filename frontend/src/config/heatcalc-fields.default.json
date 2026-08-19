@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "fields": {
     "index": {
       "service_name": "index",
@@ -1034,25 +1034,25 @@
       ],
       "group": "Температура и среда",
       "labels": {
-        "full": "Температура окружающей среды",
-        "short": "T окр.",
-        "compact": "T окр."
+        "full": "Минимальная температура окружающей среды",
+        "short": "T окр. min",
+        "compact": "T окр. min"
       },
       "contexts": {
         "table_by_key": {
           "ambient_temperature": {
-            "label": "T окр.",
-            "full_label": "Температура окружающей среды",
-            "tooltip": "Температура окружающей среды"
+            "label": "T окр. min",
+            "full_label": "Минимальная температура окружающей среды",
+            "tooltip": "Минимальная температура окружающей среды"
           }
         },
         "settings_by_key": {
           "ambient_temperature": {
-            "label": "Температура окружающей среды"
+            "label": "Минимальная температура окружающей среды"
           }
         },
         "form": {
-          "label": "Температура окружающей среды"
+          "label": "Минимальная температура окружающей среды"
         }
       },
       "table_keys": {
@@ -1070,11 +1070,40 @@
         "input_unit": "raw",
         "display_digits": 0
       },
-      "description": "Расчётная температура окружающей среды. Диапазон ТНП: −70°C … +70°C. Может заполняться из климатического справочника.",
+      "description": "Расчётная минимальная температура окружающей среды. Диапазон ТНП: −70°C … +70°C. Может заполняться из климатического справочника.",
       "definition_object_types": [
         "pipe",
         "tank"
       ]
+    },
+    "max_ambient_temperature": {
+      "service_name": "max_ambient_temperature",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Температура и среда",
+      "labels": {
+        "full": "Максимальная температура окружающей среды",
+        "short": "T окр. max",
+        "compact": "T окр. max"
+      },
+      "contexts": {
+        "form": {
+          "label": "Максимальная температура окружающей среды"
+        }
+      },
+      "input": {
+        "type": "number",
+        "unit": "°C",
+        "min": -70,
+        "max": 70,
+        "default_step": 0.1,
+        "configurable_step": false,
+        "input_unit": "raw",
+        "display_digits": 1
+      },
+      "description": "Справочное значение; в текущем расчёте не используется"
     },
     "ambient_temperature_source": {
       "service_name": "ambient_temperature_source",
@@ -4618,6 +4647,7 @@
             "climate_temperature_basis",
             "insulation_temperature_basis",
             "ambient_temperature",
+            "max_ambient_temperature",
             "ground_temperature",
             "process_temperature",
             "wind_speed",
@@ -4689,6 +4719,7 @@
             "climate_temperature_basis",
             "insulation_temperature_basis",
             "ambient_temperature",
+            "max_ambient_temperature",
             "process_temperature",
             "wind_speed",
             "max_process_temperature",
