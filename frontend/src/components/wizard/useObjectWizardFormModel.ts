@@ -62,6 +62,7 @@ const OBJECT_WIZARD_WATCH_FIELDS = [
   'climate_temperature_basis',
   'diameter_mm',
   'ground_type',
+  'ground_temperature',
   'height_mm',
   'insulation_layer_count',
   'insulation_material',
