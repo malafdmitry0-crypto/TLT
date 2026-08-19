@@ -38,6 +38,11 @@ function outerDiameterMm(record: ProjectObject) {
   return Number.isFinite(value) ? value : null;
 }
 
+function formatAmbientMaximum(record: ProjectObject) {
+  if (record.object_type === 'pipe' && record.params?.placement === 'underground') return '—';
+  return formatParamNumber(record, 'max_ambient_temperature', 1);
+}
+
 export function buildHeatCalcColumnRenderers({
   insulationLabel,
 }: HeatCalcColumnRendererDeps): Record<HeatCalcColumnKey, HeatCalcTableColumnRenderSpec> {
@@ -133,6 +138,10 @@ export function buildHeatCalcColumnRenderers({
     ambient_temperature: {
       render: (_: unknown, r: ProjectObject) => formatParamNumber(r, 'ambient_temperature', 0),
       copyValue: (r) => formatParamNumber(r, 'ambient_temperature', 0),
+    },
+    max_ambient_temperature: {
+      render: (_: unknown, r: ProjectObject) => formatAmbientMaximum(r),
+      copyValue: (r) => formatAmbientMaximum(r),
     },
     ambient_temperature_source: {
       render: (_: unknown, r: ProjectObject) => sourceText(r.params?.ambient_temperature_source),
