@@ -1230,6 +1230,16 @@ class TestParseCsv:
         assert "Трубопроводы" in label
         assert len(rows) == 1
 
+    def test_blank_material_code_does_not_erase_material_alias(self):
+        csv_data = (
+            "Тип;Материал изоляции;Код материала изоляции;Размещение;Глубина заложения оси трубы, м;Грунт\n"
+            "труба;other;;подземно;1.5;глина\n"
+        ).encode()
+        [(_label, rows)] = _parse_csv(csv_data)
+        assert rows[0]["insulation_material"] == "other"
+        assert rows[0]["pipe_centerline_depth"] == "1.5"
+        assert rows[0]["ground_type"] == "глина"
+
     def test_comma_delimiter_autodetected(self):
         csv_data = (
             "Тип,Наименование,Форма,Диаметр, мм,Длина, мм,Ширина, мм,"
