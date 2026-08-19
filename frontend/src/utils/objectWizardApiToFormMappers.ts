@@ -77,6 +77,12 @@ export function pipeApiParamsToForm(p: Record<string, unknown>): Partial<PipeFor
     third_insulation_temperature_min: thirdRange.temperature_min,
     third_insulation_temperature_max: thirdRange.temperature_max,
     ambient_temperature: p.ambient_temperature as number | undefined,
+    ...(Object.prototype.hasOwnProperty.call(p, 'max_ambient_temperature')
+      ? {
+          max_ambient_temperature:
+            p.max_ambient_temperature == null ? undefined : p.max_ambient_temperature as number,
+        }
+      : {}),
     process_temperature: p.process_temperature as number | undefined,
     max_process_temperature: p.max_process_temperature as number | undefined,
     environment: p.environment as PipeFormValues['environment'],
@@ -157,6 +163,12 @@ export function tankApiParamsToForm(p: Record<string, unknown>): Partial<TankFor
     third_insulation_temperature_min: thirdRange.temperature_min,
     third_insulation_temperature_max: thirdRange.temperature_max,
     ambient_temperature: p.ambient_temperature as number | undefined,
+    ...(Object.prototype.hasOwnProperty.call(p, 'max_ambient_temperature')
+      ? {
+          max_ambient_temperature:
+            p.max_ambient_temperature == null ? undefined : p.max_ambient_temperature as number,
+        }
+      : {}),
     process_temperature: p.process_temperature as number | undefined,
     max_process_temperature: p.max_process_temperature as number | undefined,
     environment: p.environment as TankFormValues['environment'],

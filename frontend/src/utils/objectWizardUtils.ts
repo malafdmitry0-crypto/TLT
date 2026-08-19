@@ -123,6 +123,7 @@ export interface PipeFormValues {
   third_insulation_temperature_min?: number;
   third_insulation_temperature_max?: number;
   ambient_temperature: number;
+  max_ambient_temperature?: number;
   process_temperature: number;
   max_process_temperature?: number;
   environment?: 'normal' | 'aggressive';
@@ -181,6 +182,7 @@ export interface TankFormValues {
   third_insulation_temperature_min?: number;
   third_insulation_temperature_max?: number;
   ambient_temperature: number;
+  max_ambient_temperature?: number;
   process_temperature: number;
   max_process_temperature?: number;
   environment?: 'normal' | 'aggressive';
