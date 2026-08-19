@@ -76,15 +76,27 @@ export default function TemperatureEnvironmentStep({
         </HeatFormField>
       )}
       {wants('ambient') && !isUndergroundPipe && (
-        <HeatFormField
-          id="ambient_temperature"
-          objectType={objectType}
-          className="numeric-form-item temperature-number-form-item ambient-temperature-form-item helped-form-item"
-          testId="ambient-temperature-input"
-          fieldInputSettings={fieldInputSettings}
-          preserve={false}
-          source={ambientSource}
-        />
+        <>
+          <HeatFormField
+            id="ambient_temperature"
+            objectType={objectType}
+            className="numeric-form-item temperature-number-form-item ambient-temperature-form-item helped-form-item"
+            testId="ambient-temperature-input"
+            fieldInputSettings={fieldInputSettings}
+            preserve={false}
+            dependencies={['max_ambient_temperature']}
+            source={ambientSource}
+          />
+          <HeatFormField
+            id="max_ambient_temperature"
+            objectType={objectType}
+            className="numeric-form-item temperature-number-form-item max-ambient-temperature-form-item helped-form-item"
+            testId="max-ambient-temperature-input"
+            fieldInputSettings={fieldInputSettings}
+            preserve={false}
+            dependencies={['ambient_temperature']}
+          />
+        </>
       )}
       {wants('process') && (
         <HeatFormField
