@@ -38,6 +38,22 @@ describe('heatCalcInlineEdit draft and errors', () => {
     expect(buildDraftRowParams(draft!).pipe_length).toBe(12.5);
   });
 
+  it('сохраняет form alias глубины подземной трубы в canonical API поле', () => {
+    const record = makePipe();
+    let draft = applyFormFieldDraft(null, record, 'placement', 'underground');
+    draft = applyFormFieldDraft(draft, record, 'ground_temperature', 5);
+    draft = applyFormFieldDraft(draft, record, 'ground_type', 'dry_sand:na:0');
+    draft = applyFormFieldDraft(draft, record, 'ground_conductivity', 0.8);
+    draft = applyFormFieldDraft(draft, record, 'burial_depth', 1);
+    draft = applyFormFieldDraft(draft, record, 'name', 'Подземная труба');
+
+    expect(draft?.draftFormValues.burial_depth).toBe(1);
+    expect(draft?.dirtyFields.burial_depth).toBe(1);
+    const params = buildDraftRowParams(draft!, { enforceRequired: true });
+    expect(params.pipe_centerline_depth).toBe(1);
+    expect(params).not.toHaveProperty('burial_depth');
+  });
+
   it('синхронизирует справочные и скрытые поля формы с черновиком Excel-строки', () => {
     const record = makePipe();
     let draft = applyFormFieldDraft(null, record, 'climate_key', 'Алтайский край|||Тогул');
