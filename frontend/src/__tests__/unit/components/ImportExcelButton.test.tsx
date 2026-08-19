@@ -12,10 +12,13 @@ vi.mock('@/api/projects', () => ({
   downloadImportTemplate: vi.fn(),
   importObjectsExcel: vi.fn().mockResolvedValue({
     created: 0,
+    valid: 0,
+    invalid: 0,
     skipped_duplicates: 1,
     skipped_limit: 0,
     mode: 'merge',
     errors: [],
+    validation_errors: [],
   }),
 }));
 
@@ -59,10 +62,13 @@ describe('ImportExcelButton', () => {
     const { importObjectsExcel } = await import('@/api/projects');
     (importObjectsExcel as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       created: 1,
+      valid: 1,
+      invalid: 0,
       skipped_duplicates: 0,
       skipped_limit: 149,
       mode: 'merge',
       errors: [{ sheet: 'Трубопроводы', row: 52, message: 'Достигнут лимит' }],
+      validation_errors: [],
     });
     const { container } = render(
       <ImportExcelButton projectId="p1" existingObjectCount={0} />,
@@ -76,10 +82,69 @@ describe('ImportExcelButton', () => {
     expect(
       await screen.findByText('Пропущено из-за лимита проекта:')
     ).toBeInTheDocument();
+    expect(screen.getByText('Ошибки разбора:')).toBeInTheDocument();
     expect(screen.getByText('149')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'OK' }));
     await waitFor(() => {
       expect(screen.queryByRole('dialog', { name: 'Результат импорта' })).not.toBeInTheDocument();
     });
+  });
+
+  it('characterizes validation rejections separately from parse errors', async () => {
+    const { importObjectsExcel } = await import('@/api/projects');
+    (importObjectsExcel as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      created: 1,
+      invalid: 1,
+      skipped_duplicates: 0,
+      skipped_limit: 0,
+      mode: 'merge',
+      errors: [],
+      validation_errors: [{
+        sheet: 'Трубопроводы',
+        row: 3,
+        field: 'outer_diameter',
+        code: 'out_of_range',
+        message: 'Наружный диаметр должен быть от 10,8 до 3000 мм',
+      }],
+    });
+    const { container } = render(
+      <ImportExcelButton projectId="p1" existingObjectCount={0} />,
+      { wrapper }
+    );
+
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, {
+      target: { files: [new File([''], 'objects.csv', { type: 'text/csv' })] },
+    });
+
+    expect(await screen.findByText('Не прошло проверку:')).toBeInTheDocument();
+    expect(screen.getByText(/Трубопроводы · стр. 3 · outer_diameter/)).toBeInTheDocument();
+    expect(screen.getByText('Наружный диаметр должен быть от 10,8 до 3000 мм')).toBeInTheDocument();
+    expect(screen.queryByText('Все строки импортированы без ошибок ✓')).not.toBeInTheDocument();
+  });
+
+  it('shows a complete import only when every problem count is zero', async () => {
+    const { importObjectsExcel } = await import('@/api/projects');
+    (importObjectsExcel as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      created: 1,
+      valid: 1,
+      invalid: 0,
+      skipped_duplicates: 0,
+      skipped_limit: 0,
+      mode: 'merge',
+      errors: [],
+      validation_errors: [],
+    });
+    const { container } = render(
+      <ImportExcelButton projectId="p1" existingObjectCount={0} />,
+      { wrapper }
+    );
+
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, {
+      target: { files: [new File([''], 'objects.csv', { type: 'text/csv' })] },
+    });
+
+    expect(await screen.findByText('Все строки импортированы без ошибок ✓')).toBeInTheDocument();
   });
 });
