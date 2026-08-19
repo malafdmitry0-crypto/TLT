@@ -1,7 +1,7 @@
 import { Steps, Typography, Divider } from 'antd';
 import { TltAlert, TltBadge, TltButton, TltCard } from '@/components/ui-kit';
 import { MAX_ELECTRICAL_VARIANTS } from '@/config/electricalVariantLimits';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   CalculatorOutlined,
   FileTextOutlined,
@@ -18,12 +18,25 @@ const { Title, Paragraph, Text } = Typography;
 
 export default function GuestHelpPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const handleBack = () => {
+    const historyIndex = window.history.state?.idx;
+    const hasAppHistory = typeof historyIndex === 'number' ? historyIndex > 0 : location.key !== 'default';
+
+    if (hasAppHistory) {
+      navigate(-1);
+      return;
+    }
+
+    navigate('/workspace/heat-calc', { replace: true });
+  };
 
   return (
     <div className="help-page">
       <div className="help-page-inner help-page-inner--guest">
-        <TltButton icon={<ArrowLeftOutlined />} onClick={() => navigate('/')} className="help-page-back">
-          На главную
+        <TltButton aria-label="Назад" icon={<ArrowLeftOutlined />} onClick={handleBack} className="help-page-back">
+          Назад
         </TltButton>
 
         <TltCard>
