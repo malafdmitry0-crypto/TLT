@@ -131,6 +131,9 @@ class LegacySpecificationObjectParamsError(ProjectObjectParamsError):
 
 
 SUPPORTED_TANK_SHAPES = frozenset({"cylindrical", "rectangular"})
+AMBIENT_TEMPERATURE_MINIMUM = -70.0
+AMBIENT_TEMPERATURE_MAXIMUM = 70.0
+MAX_AMBIENT_TEMPERATURE_FIELD = "max_ambient_temperature"
 
 
 class UnsupportedTankShapeError(ProjectObjectParamsError):
@@ -201,6 +204,7 @@ def normalize_project_object_params(
     if object_type not in ("pipe", "tank"):
         return normalized
 
+    _validate_ambient_temperature_maximum(normalized)
     reject_unsupported_tank_shape(object_type, normalized)
 
     _apply_defaults(normalized, COMMON_OBJECT_DEFAULTS)
@@ -217,6 +221,45 @@ def normalize_project_object_params(
         _apply_defaults(normalized, TANK_OBJECT_DEFAULTS)
 
     return normalized
+
+
+def _validate_ambient_temperature_maximum(params: Mapping[str, Any]) -> None:
+    if MAX_AMBIENT_TEMPERATURE_FIELD not in params:
+        return
+    value = params[MAX_AMBIENT_TEMPERATURE_FIELD]
+    if value is None:
+        return
+
+    numeric = _finite_real(value)
+    if (
+        numeric is None
+        or numeric < AMBIENT_TEMPERATURE_MINIMUM
+        or numeric > AMBIENT_TEMPERATURE_MAXIMUM
+    ):
+        raise ProjectObjectParamsError(
+            "Максимальная температура окружающей среды должна быть конечным числом "
+            "в диапазоне −70…70 °C",
+            code="OBJECT_PARAMS_INVALID",
+            fields=(MAX_AMBIENT_TEMPERATURE_FIELD,),
+        )
+
+    minimum = _finite_real(params.get("ambient_temperature"))
+    if minimum is not None and numeric < minimum:
+        raise ProjectObjectParamsError(
+            "Максимальная температура окружающей среды не может быть ниже минимальной",
+            code="OBJECT_PARAMS_INVALID",
+            fields=(MAX_AMBIENT_TEMPERATURE_FIELD,),
+        )
+
+
+def _finite_real(value: object) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, Real):
+        return None
+    try:
+        numeric = float(value)
+    except (OverflowError, ValueError):
+        return None
+    return numeric if math.isfinite(numeric) else None
 
 
 def prepare_project_object_params(
