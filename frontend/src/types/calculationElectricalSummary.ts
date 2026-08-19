@@ -1,3 +1,18 @@
+/** Canonical source of the applied per-section start-current limit. */
+export type ElectricalMaxStartCurrentSource =
+  | 'section_catalog_derived'
+  | 'project_setting'
+  | 'manual_input';
+
+export interface ElectricalSectionPlanResult extends Record<string, unknown> {
+  max_start_current_a?: number | null;
+  max_start_current_source?: ElectricalMaxStartCurrentSource | null;
+}
+
+export interface ElectricalCalculationResults extends Record<string, unknown> {
+  section_plan?: ElectricalSectionPlanResult | null;
+}
+
 /** Pure electrical calculation summary shared by calculation and variant contracts. */
 export interface ElectricalCalcSummary {
   id: string;
@@ -17,7 +32,7 @@ export interface ElectricalCalcSummary {
   } | null;
   variant_number: number;
   params?: Record<string, unknown> | null;
-  results: Record<string, unknown> | null;
+  results: ElectricalCalculationResults | null;
   created_at?: string;
   updated_at?: string;
 }
