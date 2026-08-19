@@ -113,6 +113,38 @@ describe('pipeFormToApiParams', () => {
     expect(api.num_local_elements).toBeUndefined();
   });
 
+  it('сохраняет presence максимума температуры среды без значения по умолчанию', () => {
+    const base = {
+      outer_diameter_mm: 108,
+      pipe_length: 50,
+      insulation_thickness_mm: 50,
+      insulation_material: 'mineral_wool',
+      ambient_temperature: -20,
+      process_temperature: 80,
+      placement: 'outdoor' as const,
+    };
+
+    const absent = pipeFormToApiParams(base);
+    const clearedUndefined = pipeFormToApiParams({
+      ...base,
+      max_ambient_temperature: undefined,
+    });
+    const clearedNullValues = { ...base };
+    Object.defineProperty(clearedNullValues, 'max_ambient_temperature', {
+      enumerable: true,
+      value: null,
+    });
+    const clearedNull = pipeFormToApiParams(clearedNullValues);
+    const zero = pipeFormToApiParams({ ...base, max_ambient_temperature: 0 });
+    const number = pipeFormToApiParams({ ...base, max_ambient_temperature: 35 });
+
+    expect(absent).not.toHaveProperty('max_ambient_temperature');
+    expect(clearedUndefined.max_ambient_temperature).toBeNull();
+    expect(clearedNull.max_ambient_temperature).toBeNull();
+    expect(zero.max_ambient_temperature).toBe(0);
+    expect(number.max_ambient_temperature).toBe(35);
+  });
+
   it('подставляет зимний режим tm изоляции для наружного объекта', () => {
     const api = pipeFormToApiParams({
       outer_diameter_mm: 108,
@@ -166,6 +198,7 @@ describe('pipeFormToApiParams', () => {
       insulation_material: 'mineral_wool',
       insulation_cover_material: 'none',
       ambient_temperature: -20,
+      max_ambient_temperature: 30,
       process_temperature: 80,
       max_process_temperature: 90,
       placement: 'underground',
@@ -212,7 +245,7 @@ describe('pipeFormToApiParams', () => {
     expect(api.steam_tracing).toBe('yes');
     expect(api.vapor_temperature).toBe(140);
     expect(api.insulation_cover_material).toBe('none');
-    expect(api).not.toHaveProperty('max_ambient_temperature');
+    expect(api.max_ambient_temperature).toBeNull();
     expect(api.max_process_temperature).toBe(90);
     expect(api.num_local_elements).toBe(6);
     expect(api.local_element_equiv_length).toBe(1.5);
