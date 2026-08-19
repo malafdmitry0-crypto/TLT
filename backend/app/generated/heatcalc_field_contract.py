@@ -6,7 +6,7 @@ Regenerate: python3 scripts/sync-heatcalc-field-contract.py
 
 from __future__ import annotations
 
-HEATCALC_FIELD_REGISTRY_VERSION = 3
+HEATCALC_FIELD_REGISTRY_VERSION = 4
 HEATCALC_TABLE_COLUMNS_VERSION = 9
 HEATCALC_FIELD_INPUT_VERSION = 2
 
@@ -36,6 +36,7 @@ HEATCALC_TABLE_COLUMN_KEYS: dict[str, frozenset[str]] = {
         "insulation_temperature_basis",
         "insulation_thickness",
         "local_element_equiv_length",
+        "max_ambient_temperature",
         "max_process_temperature",
         "min_switch_temperature",
         "name",
@@ -92,6 +93,7 @@ HEATCALC_TABLE_COLUMN_KEYS: dict[str, frozenset[str]] = {
         "insulation_resistance",
         "insulation_temperature_basis",
         "insulation_thickness",
+        "max_ambient_temperature",
         "max_process_temperature",
         "min_switch_temperature",
         "name",
@@ -154,6 +156,7 @@ HEATCALC_TABLE_COLUMN_KEYS: dict[str, frozenset[str]] = {
         "insulation_temperature_basis",
         "insulation_thickness",
         "local_element_equiv_length",
+        "max_ambient_temperature",
         "max_process_temperature",
         "min_switch_temperature",
         "name",
