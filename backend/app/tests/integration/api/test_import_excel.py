@@ -5,7 +5,7 @@ from uuid import UUID
 
 import pytest
 from httpx import AsyncClient
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.services.excel_import_service import build_template_csv, build_template_xlsx
@@ -26,6 +26,95 @@ async def _create_project(client: AsyncClient, session_id: str) -> str:
 @pytest.mark.asyncio(loop_scope="session")
 class TestExcelRoundTrip:
     """Экспорт в Excel → импорт этого же файла (same project или новый)."""
+
+    async def test_export_edit_ambient_temperature_survives_recalculation(
+        self, client: AsyncClient, employee_token: str, test_engine
+    ):
+        headers = {"Authorization": f"Bearer {employee_token}"}
+        source_project = (
+            await client.post(
+                "/api/v1/projects",
+                json={"name": "RT-climate-source"},
+                headers=headers,
+            )
+        ).json()
+        source_params = {
+            "name": "Тогул edited ambient",
+            "outer_diameter": 0.108,
+            "wall_thickness": 0.004,
+            "pipe_material": "carbon_steel",
+            "insulation_layers": [{"thickness": 0.05, "material": MINERAL_WOOL}],
+            "insulation_temperature_basis": "outdoor_winter",
+            "ambient_temperature": -33.0,
+            "ambient_temperature_source": "climate",
+            "process_temperature": 80.0,
+            "min_switch_temperature": -20.0,
+            "pipe_length": 50.0,
+            "placement": "outdoor",
+            "climate_key": "Алтайский край|||Тогул",
+            "climate_region": "Алтайский край",
+            "climate_city": "Тогул",
+            "climate_temperature_basis": "t_0_92",
+            "wind_speed": 3.1,
+            "wind_speed_source": "climate",
+            "num_local_elements": 0,
+        }
+        created = await client.post(
+            f"/api/v1/projects/{source_project['id']}/objects",
+            json={"object_type": "pipe", "sort_order": 0, "params": source_params},
+            headers=headers,
+        )
+        assert created.status_code == 201, created.text
+
+        exported = await client.get(
+            f"/api/v1/projects/{source_project['id']}/objects/export-excel",
+            headers=headers,
+        )
+        assert exported.status_code == 200, exported.text
+        workbook = load_workbook(io.BytesIO(exported.content))
+        worksheet = workbook["Трубопроводы"]
+        headers_by_name = {cell.value: cell.column for cell in worksheet[1]}
+        worksheet.cell(row=2, column=headers_by_name["Мин. T° окр. среды"], value=-10.0)
+        edited = io.BytesIO()
+        workbook.save(edited)
+
+        target_project = (
+            await client.post(
+                "/api/v1/projects",
+                json={"name": "RT-climate-edited"},
+                headers=headers,
+            )
+        ).json()
+        imported = await client.post(
+            f"/api/v1/projects/{target_project['id']}/objects/import-excel",
+            files={
+                "file": (
+                    "edited.xlsx",
+                    edited.getvalue(),
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                )
+            },
+            headers=headers,
+        )
+        assert imported.status_code == 200, imported.text
+        task_id = UUID(imported.json()["heat_loss_task"]["id"])
+        session_factory = async_sessionmaker(test_engine, expire_on_commit=False)
+        async with session_factory() as worker_db:
+            await TaskService(worker_db, session_factory=session_factory).run_task(
+                task_id,
+                worker_id="test-worker",
+            )
+
+        objects = (
+            await client.get(
+                f"/api/v1/projects/{target_project['id']}/objects",
+                headers=headers,
+            )
+        ).json()
+        assert len(objects) == 1
+        params = objects[0]["params"]
+        assert params["ambient_temperature"] == -10.0
+        assert params["ambient_temperature_source"] == "manual"
 
     async def test_export_then_reimport_matches_count(
         self, client: AsyncClient, employee_token: str
