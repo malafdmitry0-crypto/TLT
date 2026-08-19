@@ -220,11 +220,15 @@ PIPE_HEADERS: dict[str, str] = {
     "материал изоляции": "insulation_material",
     "код материала изоляции": "insulation_material",
     "материал": "insulation_material",
+    "мин. t° окр. среды": "ambient_temperature",
+    "мин t° окр. среды": "ambient_temperature",
     "т° среды": "ambient_temperature",
     "т среды": "ambient_temperature",
     "t° среды": "ambient_temperature",
     "t среды": "ambient_temperature",
     "температура среды": "ambient_temperature",
+    "макс. t° окр. среды": "max_ambient_temperature",
+    "макс t° окр. среды": "max_ambient_temperature",
     "источник t° среды": "ambient_temperature_source",
     "источник т° среды": "ambient_temperature_source",
     "источник температуры среды": "ambient_temperature_source",
@@ -342,11 +346,15 @@ TANK_HEADERS: dict[str, str] = {
     "материал изоляции": "insulation_material",
     "код материала изоляции": "insulation_material",
     "материал": "insulation_material",
+    "мин. t° окр. среды": "ambient_temperature",
+    "мин t° окр. среды": "ambient_temperature",
     "т° среды": "ambient_temperature",
     "т среды": "ambient_temperature",
     "t° среды": "ambient_temperature",
     "t среды": "ambient_temperature",
     "температура среды": "ambient_temperature",
+    "макс. t° окр. среды": "max_ambient_temperature",
+    "макс t° окр. среды": "max_ambient_temperature",
     "источник t° среды": "ambient_temperature_source",
     "источник т° среды": "ambient_temperature_source",
     "источник температуры среды": "ambient_temperature_source",
@@ -684,6 +692,7 @@ def _build_pipe_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
     ins_mm = _to_float(row.get("insulation_thickness_mm"))
     material_resolution = _resolve_material_entry(row.get("insulation_material"))
     t_a = _to_float(row.get("ambient_temperature"))
+    t_a_max = _to_float(row.get("max_ambient_temperature"))
     t_p = _to_float(row.get("process_temperature"))
     ambient_source_raw = row.get("ambient_temperature_source")
     ambient_source = _resolve_alias(
@@ -699,6 +708,11 @@ def _build_pipe_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
     placement = _resolve_alias(placement_raw, PLACEMENT_ALIASES)
     if placement_raw not in (None, "") and placement is None:
         return None, f"Не распознано размещение трубопровода: {placement_raw}"
+    if placement != "underground" and t_a_max is not None and t_a is not None and t_a_max < t_a:
+        return (
+            None,
+            "Макс. T° окр. среды (max_ambient_temperature) не может быть ниже минимальной",
+        )
 
     pipe_material_raw = row.get("pipe_material")
     pipe_material = _resolve_pipe_material(pipe_material_raw)
@@ -808,6 +822,8 @@ def _build_pipe_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
         params["ambient_temperature"] = t_a
         if ambient_source is not None:
             params["ambient_temperature_source"] = ambient_source
+    if placement != "underground" and t_a_max is not None:
+        params["max_ambient_temperature"] = t_a_max
 
     wind_speed = _to_float(row.get("wind_speed"))
     wind_speed_source, source_error = _resolve_value_source(
@@ -883,7 +899,13 @@ def _build_tank_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
     ins_mm = _to_float(row.get("insulation_thickness_mm"))
     material_resolution = _resolve_material_entry(row.get("insulation_material"))
     t_a = _to_float(row.get("ambient_temperature"))
+    t_a_max = _to_float(row.get("max_ambient_temperature"))
     t_p = _to_float(row.get("process_temperature"))
+    if t_a_max is not None and t_a is not None and t_a_max < t_a:
+        return (
+            None,
+            "Макс. T° окр. среды (max_ambient_temperature) не может быть ниже минимальной",
+        )
     ambient_source_raw = row.get("ambient_temperature_source")
     ambient_source = _resolve_alias(
         ambient_source_raw,
@@ -908,6 +930,8 @@ def _build_tank_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
         params["ambient_temperature"] = t_a
         if ambient_source is not None:
             params["ambient_temperature_source"] = ambient_source
+    if t_a_max is not None:
+        params["max_ambient_temperature"] = t_a_max
     if t_p is not None:
         params["process_temperature"] = t_p
 
@@ -1615,7 +1639,8 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
         "Материал 3-го слоя",
         "λ 3-го слоя",
         "Диапазон температур 3-го слоя, °C",
-        "T° среды",
+        "Мин. T° окр. среды",
+        "Макс. T° окр. среды",
         "Источник T° среды",
         "Температура грунта",
         "T° продукта",
@@ -1656,7 +1681,8 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
         "Код материала изоляции",
         "Статус материала изоляции",
         "Комментарий материала изоляции",
-        "T° среды",
+        "Мин. T° окр. среды",
+        "Макс. T° окр. среды",
         "Источник T° среды",
         "T° продукта",
         "T проп., °C",
@@ -1705,6 +1731,7 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
         material_code = first_layer.get("material", "")
         material = _material_label(material_code)
         if obj.object_type == "pipe":
+            has_ambient_bounds = params.get("placement") != "underground"
             layers = params.get("insulation_layers")
             layer_list = layers if isinstance(layers, list) else []
 
@@ -1734,8 +1761,9 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
                     layer_value(2, "material"),
                     layer_value(2, "conductivity"),
                     _format_temperature_range(layer_value(2, "temperature_range")),
-                    params.get("ambient_temperature", ""),
-                    params.get("ambient_temperature_source", ""),
+                    params.get("ambient_temperature", "") if has_ambient_bounds else "",
+                    params.get("max_ambient_temperature", "") if has_ambient_bounds else "",
+                    params.get("ambient_temperature_source", "") if has_ambient_bounds else "",
                     params.get("ground_temperature", ""),
                     params.get("process_temperature", ""),
                     params.get("vapor_temperature", ""),
@@ -1785,6 +1813,7 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
                     "Конкретный материал" if material_code else "",
                     "",
                     params.get("ambient_temperature", ""),
+                    params.get("max_ambient_temperature", ""),
                     params.get("ambient_temperature_source", ""),
                     params.get("process_temperature", ""),
                     params.get("vapor_temperature", ""),
@@ -1861,7 +1890,8 @@ def build_template_xlsx() -> bytes:
         "Материал 3-го слоя",
         "λ 3-го слоя",
         "Диапазон температур 3-го слоя, °C",
-        "T° среды",
+        "Мин. T° окр. среды",
+        "Макс. T° окр. среды",
         "Источник T° среды",
         "Температура грунта",
         "T° продукта",
@@ -1897,7 +1927,7 @@ def build_template_xlsx() -> bytes:
             "Материал трубы": "carbon_steel",
             "Толщина изоляции, мм": 50,
             "Код материала изоляции": "mineral_wool_boards_120",
-            "T° среды": -20,
+            "Мин. T° окр. среды": -20,
             "Источник T° среды": "manual",
             "T° продукта": 80,
             "Размещение": "outdoor",
@@ -1918,7 +1948,7 @@ def build_template_xlsx() -> bytes:
             "Материал трубы": "carbon_steel",
             "Толщина изоляции, мм": 40,
             "Код материала изоляции": "polyurethane_products_50",
-            "T° среды": -30,
+            "Мин. T° окр. среды": -30,
             "Источник T° среды": "manual",
             "T° продукта": 60,
             "Размещение": "outdoor",
@@ -1949,7 +1979,8 @@ def build_template_xlsx() -> bytes:
         "Код материала изоляции",
         "Статус материала изоляции",
         "Комментарий материала изоляции",
-        "T° среды",
+        "Мин. T° окр. среды",
+        "Макс. T° окр. среды",
         "Источник T° среды",
         "T° продукта",
         "T проп., °C",
@@ -1983,7 +2014,7 @@ def build_template_xlsx() -> bytes:
             "Толщина изоляции, мм": 80,
             "Материал изоляции": "Плиты минераловатные прошивные",
             "Код материала изоляции": "mineral_wool_boards_120",
-            "T° среды": -20,
+            "Мин. T° окр. среды": -20,
             "Источник T° среды": "manual",
             "T° продукта": 80,
             "Размещение": "outdoor",
@@ -2006,7 +2037,7 @@ def build_template_xlsx() -> bytes:
             "Толщина изоляции, мм": 80,
             "Материал изоляции": "Плиты минераловатные прошивные",
             "Код материала изоляции": "mineral_wool_boards_120",
-            "T° среды": -20,
+            "Мин. T° окр. среды": -20,
             "Источник T° среды": "manual",
             "T° продукта": 80,
             "Размещение": "outdoor",
@@ -2027,7 +2058,7 @@ def build_template_xlsx() -> bytes:
             "Толщина изоляции, мм": 60,
             "Материал изоляции": "Изделия из ППУ",
             "Код материала изоляции": "polyurethane_products_50",
-            "T° среды": -20,
+            "Мин. T° окр. среды": -20,
             "Источник T° среды": "manual",
             "T° продукта": 60,
             "Размещение": "outdoor",
@@ -2097,7 +2128,8 @@ def build_template_csv() -> bytes:
         "Код материала изоляции",
         "Статус материала изоляции",
         "Комментарий материала изоляции",
-        "T° среды",
+        "Мин. T° окр. среды",
+        "Макс. T° окр. среды",
         "T° продукта",
         "T проп., °C",
         "Размещение",
@@ -2130,7 +2162,7 @@ def build_template_csv() -> bytes:
             "Толщина изоляции, мм": 50,
             "Материал изоляции": "Плиты минераловатные прошивные",
             "Код материала изоляции": "mineral_wool_boards_120",
-            "T° среды": -20,
+            "Мин. T° окр. среды": -20,
             "T° продукта": 80,
             "Размещение": "outdoor",
             "Режим температуры изоляции": "outdoor_winter",
@@ -2150,7 +2182,7 @@ def build_template_csv() -> bytes:
             "Толщина изоляции, мм": 40,
             "Материал изоляции": "Теплоизоляционные изделия из пенополиуретана",
             "Код материала изоляции": "polyurethane_products_50",
-            "T° среды": -30,
+            "Мин. T° окр. среды": -30,
             "T° продукта": 60,
             "Размещение": "outdoor",
             "Режим температуры изоляции": "outdoor_winter",
@@ -2171,7 +2203,7 @@ def build_template_csv() -> bytes:
             "Толщина изоляции, мм": 80,
             "Материал изоляции": "Плиты минераловатные прошивные",
             "Код материала изоляции": "mineral_wool_boards_120",
-            "T° среды": -20,
+            "Мин. T° окр. среды": -20,
             "T° продукта": 80,
             "Размещение": "outdoor",
             "Режим температуры изоляции": "outdoor_winter",
@@ -2192,7 +2224,7 @@ def build_template_csv() -> bytes:
             "Толщина изоляции, мм": 80,
             "Материал изоляции": "Теплоизоляционные изделия из пенополиуретана",
             "Код материала изоляции": "polyurethane_products_50",
-            "T° среды": -20,
+            "Мин. T° окр. среды": -20,
             "T° продукта": 60,
             "Размещение": "outdoor",
             "Режим температуры изоляции": "outdoor_winter",
@@ -2211,7 +2243,7 @@ def build_template_csv() -> bytes:
             "Толщина изоляции, мм": 60,
             "Материал изоляции": "Теплоизоляционные изделия из пенополиуретана",
             "Код материала изоляции": "polyurethane_products_50",
-            "T° среды": -20,
+            "Мин. T° окр. среды": -20,
             "T° продукта": 50,
             "Размещение": "outdoor",
             "Режим температуры изоляции": "outdoor_winter",

@@ -68,6 +68,99 @@ class TestXlsxArchiveGuard:
 
 
 class TestBuildObjectsXlsxSafety:
+    @pytest.mark.parametrize(
+        ("object_type", "placement", "minimum", "maximum", "expected_maximum"),
+        [
+            ("pipe", "outdoor", -20.0, 0.0, 0.0),
+            ("pipe", "indoor", -20.0, -5.0, -5.0),
+            ("pipe", "underground", -20.0, 15.0, None),
+            ("tank", "outdoor", -20.0, 0.0, 0.0),
+            ("tank", "underground", -20.0, 15.0, 15.0),
+        ],
+    )
+    def test_objects_xlsx_roundtrips_distinct_ambient_bounds(
+        self,
+        object_type: str,
+        placement: str,
+        minimum: float,
+        maximum: float,
+        expected_maximum: float | None,
+    ):
+        from types import SimpleNamespace
+
+        from openpyxl import load_workbook
+
+        source = {
+            "name": "Ambient bounds",
+            "shape": "cylindrical",
+            "ambient_temperature": minimum,
+            "max_ambient_temperature": maximum,
+            "ambient_temperature_source": "manual",
+            "placement": placement,
+        }
+        content = build_objects_xlsx([SimpleNamespace(object_type=object_type, params=source)])
+        sheet_name = "Трубопроводы" if object_type == "pipe" else "Резервуары"
+        worksheet = load_workbook(io.BytesIO(content), data_only=True)[sheet_name]
+        exported_row = dict(
+            zip(
+                [cell.value for cell in worksheet[1]],
+                [cell.value for cell in worksheet[2]],
+                strict=True,
+            )
+        )
+        if placement == "underground" and object_type == "pipe":
+            assert exported_row["Мин. T° окр. среды"] is None
+            assert exported_row["Макс. T° окр. среды"] is None
+            assert exported_row["Источник T° среды"] is None
+        else:
+            assert exported_row["Мин. T° окр. среды"] == minimum
+            assert exported_row["Макс. T° окр. среды"] == maximum
+            assert exported_row["Источник T° среды"] == "manual"
+        [(label, parsed_type, rows)] = [
+            parsed for parsed in _parse_excel_workbook(content) if parsed[1] == object_type
+        ]
+        builder = _build_pipe_params if object_type == "pipe" else _build_tank_params
+        params, err = builder(rows[0])
+
+        assert label in {"Трубопроводы", "Резервуары"}
+        assert parsed_type == object_type
+        assert err is None
+        assert params is not None
+        if placement == "underground" and object_type == "pipe":
+            assert "ambient_temperature" not in params
+        else:
+            assert params["ambient_temperature"] == minimum
+        if expected_maximum is None:
+            assert "max_ambient_temperature" not in params
+        else:
+            assert params["max_ambient_temperature"] == expected_maximum
+
+    @pytest.mark.parametrize("object_type", ["pipe", "tank"])
+    def test_objects_xlsx_keeps_blank_ambient_maximum_absent(self, object_type: str):
+        from types import SimpleNamespace
+
+        content = build_objects_xlsx(
+            [
+                SimpleNamespace(
+                    object_type=object_type,
+                    params={
+                        "shape": "cylindrical",
+                        "ambient_temperature": -20.0,
+                        "placement": "outdoor",
+                    },
+                )
+            ]
+        )
+        [(_label, _parsed_type, rows)] = [
+            parsed for parsed in _parse_excel_workbook(content) if parsed[1] == object_type
+        ]
+        builder = _build_pipe_params if object_type == "pipe" else _build_tank_params
+        params, err = builder(rows[0])
+
+        assert err is None
+        assert params is not None
+        assert "max_ambient_temperature" not in params
+
     def test_dangerous_object_strings_are_not_exported_as_formulas(self):
         from types import SimpleNamespace
 
@@ -100,7 +193,7 @@ class TestBuildObjectsXlsxSafety:
             "Наименование",
             "Длина, м",
             "Код материала изоляции",
-            "T° среды",
+            "Мин. T° окр. среды",
             "T° продукта",
             "T проп., °C",
         ):
@@ -1082,6 +1175,9 @@ class TestTemplateBuilders:
         assert wb["Трубопроводы"].max_row >= 2
         for sheet_name in ("Трубопроводы", "Резервуары"):
             headers = [cell.value for cell in wb[sheet_name][1]]
+            assert "Мин. T° окр. среды" in headers
+            assert "Макс. T° окр. среды" in headers
+            assert "T° среды" not in headers
             assert "Источник T° среды" in headers
             assert "Источник скорости ветра" in headers
             assert "Источник Kзап" in headers
@@ -1091,6 +1187,109 @@ class TestTemplateBuilders:
         text = data.decode("utf-8-sig")
         assert text.splitlines()[0].startswith("Тип")
         assert "T проп., °C" in text.splitlines()[0]
+        assert "Мин. T° окр. среды" in text.splitlines()[0]
+        assert "Макс. T° окр. среды" in text.splitlines()[0]
+        assert ";T° среды;" not in text.splitlines()[0]
+
+
+class TestAmbientBoundsImport:
+    @pytest.mark.parametrize(
+        "minimum_header",
+        ["Мин. T° окр. среды", "T° среды", "Т° среды", "температура среды"],
+    )
+    @pytest.mark.parametrize(
+        "maximum_header",
+        ["Макс. T° окр. среды", "Макс T° окр. среды"],
+    )
+    def test_csv_accepts_canonical_and_legacy_ambient_headers(
+        self,
+        minimum_header: str,
+        maximum_header: str,
+    ):
+        csv_data = (
+            f"Тип;{minimum_header};{maximum_header};Размещение\n"
+            "труба;-20;-5;outdoor\n"
+        ).encode()
+
+        [(_label, rows)] = _parse_csv(csv_data)
+        params, err = _build_pipe_params(rows[0])
+
+        assert err is None
+        assert params is not None
+        assert params["ambient_temperature"] == -20
+        assert params["max_ambient_temperature"] == -5
+
+    @pytest.mark.parametrize("builder", [_build_pipe_params, _build_tank_params])
+    def test_blank_maximum_is_absent_and_zero_is_preserved(self, builder):
+        blank, blank_error = builder(
+            {
+                "_row": 2,
+                "ambient_temperature": -20,
+                "max_ambient_temperature": None,
+                "placement": "outdoor",
+            }
+        )
+        zero, zero_error = builder(
+            {
+                "_row": 3,
+                "ambient_temperature": -20,
+                "max_ambient_temperature": 0,
+                "placement": "outdoor",
+            }
+        )
+
+        assert blank_error is None
+        assert blank is not None
+        assert "max_ambient_temperature" not in blank
+        assert zero_error is None
+        assert zero is not None
+        assert zero["max_ambient_temperature"] == 0
+
+    @pytest.mark.parametrize("builder", [_build_pipe_params, _build_tank_params])
+    def test_negative_maximum_is_preserved(self, builder):
+        params, err = builder(
+            {
+                "_row": 2,
+                "ambient_temperature": -30,
+                "max_ambient_temperature": -10,
+                "placement": "outdoor",
+            }
+        )
+
+        assert err is None
+        assert params is not None
+        assert params["max_ambient_temperature"] == -10
+
+    @pytest.mark.parametrize("builder", [_build_pipe_params, _build_tank_params])
+    def test_maximum_below_minimum_returns_field_aware_error(self, builder):
+        params, err = builder(
+            {
+                "_row": 2,
+                "ambient_temperature": -10,
+                "max_ambient_temperature": -20,
+                "placement": "outdoor",
+            }
+        )
+
+        assert params is None
+        assert err is not None
+        assert "max_ambient_temperature" in err
+        assert "ниже минимальной" in err
+
+    def test_underground_pipe_ignores_inapplicable_ambient_bounds(self):
+        params, err = _build_pipe_params(
+            {
+                "_row": 2,
+                "ambient_temperature": -10,
+                "max_ambient_temperature": -20,
+                "placement": "underground",
+            }
+        )
+
+        assert err is None
+        assert params is not None
+        assert "ambient_temperature" not in params
+        assert "max_ambient_temperature" not in params
 
 
 class TestAliasTables:
