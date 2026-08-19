@@ -60,6 +60,70 @@ def test_pipe_normalization_preserves_required_downstream_inputs_without_inventi
     ]
 
 
+def test_ambient_maximum_is_optional_without_a_backend_default():
+    absent = normalize_project_object_params("pipe", _outdoor_pipe())
+    cleared = normalize_project_object_params(
+        "pipe",
+        _outdoor_pipe(max_ambient_temperature=None),
+    )
+
+    assert "max_ambient_temperature" not in absent
+    assert cleared["max_ambient_temperature"] is None
+
+
+@pytest.mark.parametrize(
+    ("minimum", "maximum"),
+    [(-70, -70), (-20, -20), (-20, 0), (-20, 70)],
+)
+def test_ambient_maximum_accepts_inclusive_bounds_and_equality(minimum, maximum):
+    params = normalize_project_object_params(
+        "tank",
+        {
+            "ambient_temperature": minimum,
+            "max_ambient_temperature": maximum,
+        },
+    )
+
+    assert params["max_ambient_temperature"] == maximum
+
+
+@pytest.mark.parametrize(
+    "maximum",
+    [
+        pytest.param(True, id="bool"),
+        pytest.param("30", id="string"),
+        pytest.param(float("nan"), id="nan"),
+        pytest.param(float("inf"), id="positive-infinity"),
+        pytest.param(float("-inf"), id="negative-infinity"),
+        pytest.param(-70.1, id="below-range"),
+        pytest.param(70.1, id="above-range"),
+    ],
+)
+def test_ambient_maximum_rejects_invalid_metadata_with_stable_field(maximum):
+    with pytest.raises(ProjectObjectParamsError) as exc:
+        normalize_project_object_params(
+            "pipe",
+            _outdoor_pipe(max_ambient_temperature=maximum),
+        )
+
+    assert exc.value.code == "OBJECT_PARAMS_INVALID"
+    assert exc.value.fields == ("max_ambient_temperature",)
+
+
+def test_ambient_maximum_cannot_be_below_minimum():
+    with pytest.raises(ProjectObjectParamsError) as exc:
+        normalize_project_object_params(
+            "pipe",
+            _outdoor_pipe(
+                ambient_temperature=-20,
+                max_ambient_temperature=-20.1,
+            ),
+        )
+
+    assert exc.value.code == "OBJECT_PARAMS_INVALID"
+    assert exc.value.fields == ("max_ambient_temperature",)
+
+
 def test_explicit_aggressive_product_is_preserved():
     params = normalize_project_object_params(
         "pipe",
