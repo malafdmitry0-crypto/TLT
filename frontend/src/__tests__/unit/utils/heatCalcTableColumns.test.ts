@@ -44,8 +44,8 @@ describe('heatCalcTableColumns', () => {
         unit: '°C',
         valueType: 'number',
         defaultVisible: true,
-        sortable: false,
-        filterable: false,
+        sortable: true,
+        filterable: true,
         defaultWidthPct: 8.2,
       });
     }
