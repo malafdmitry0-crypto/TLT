@@ -13,20 +13,19 @@ export default function AdminLayout() {
   const location = useLocation();
   const logout = useAuthStore((s) => s.logout);
 
+  const handleLogout = async () => {
+    await logoutApi().catch(() => undefined);
+    logout();
+    navigate('/');
+  };
+
   return (
     <Layout className="admin-layout">
       <Header className="heatcalc-header">
         <h2 className="admin-layout-title">Alfa Heat Desin — Администрирование</h2>
-        <a
-          onClick={async () => {
-            await logoutApi().catch(() => undefined);
-            logout();
-            navigate('/');
-          }}
-          className="admin-layout-logout"
-        >
+        <button type="button" onClick={handleLogout} className="admin-layout-logout">
           Выход
-        </a>
+        </button>
       </Header>
       <Layout>
         <Sider width={220} theme="light">
