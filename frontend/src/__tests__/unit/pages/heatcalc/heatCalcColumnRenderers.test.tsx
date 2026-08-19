@@ -82,20 +82,31 @@ describe('heatCalcColumnRenderers', () => {
     expect(renderers.thermal_resistance.copyValue(record, 0)).toBe('2,3579');
   });
 
-  it('показывает и копирует максимум воздуха, кроме подземной трубы', () => {
+  it('показывает и копирует границы воздуха, кроме подземной трубы', () => {
     const outdoorPipe = makeObject({
-      params: { placement: 'outdoor', max_ambient_temperature: 35 },
+      params: { placement: 'outdoor', ambient_temperature: -30, max_ambient_temperature: 35 },
     });
     const undergroundPipe = makeObject({
-      params: { placement: 'underground', max_ambient_temperature: 35 },
+      params: { placement: 'underground', ambient_temperature: -30, max_ambient_temperature: 35 },
     });
     const undergroundTank = makeObject({
       object_type: 'tank',
-      params: { placement: 'underground', max_ambient_temperature: 35 },
+      params: { placement: 'underground', ambient_temperature: -20, max_ambient_temperature: 35 },
     });
     const emptyTank = makeObject({ object_type: 'tank', params: { placement: 'outdoor' } });
+    const clearedTank = makeObject({
+      object_type: 'tank',
+      params: { placement: 'outdoor', ambient_temperature: -20, max_ambient_temperature: null },
+    });
+    const minimum = renderers.ambient_temperature;
     const maximum = renderers.max_ambient_temperature;
 
+    expect(minimum.render?.(null, outdoorPipe, 0)).toBe('-30');
+    expect(minimum.copyValue(outdoorPipe, 0)).toBe('-30');
+    expect(minimum.render?.(null, undergroundPipe, 0)).toBe('—');
+    expect(minimum.copyValue(undergroundPipe, 0)).toBe('—');
+    expect(minimum.render?.(null, undergroundTank, 0)).toBe('-20');
+    expect(minimum.copyValue(undergroundTank, 0)).toBe('-20');
     expect(maximum.render?.(null, outdoorPipe, 0)).toBe('35,0');
     expect(maximum.copyValue(outdoorPipe, 0)).toBe('35,0');
     expect(maximum.render?.(null, undergroundPipe, 0)).toBe('—');
@@ -103,6 +114,8 @@ describe('heatCalcColumnRenderers', () => {
     expect(maximum.render?.(null, undergroundTank, 0)).toBe('35,0');
     expect(maximum.copyValue(undergroundTank, 0)).toBe('35,0');
     expect(maximum.copyValue(emptyTank, 0)).toBe('—');
+    expect(maximum.render?.(null, clearedTank, 0)).toBe('—');
+    expect(maximum.copyValue(clearedTank, 0)).toBe('—');
   });
 
   it('сохраняет статус, render aria-label и диагностический текст ошибок', () => {
