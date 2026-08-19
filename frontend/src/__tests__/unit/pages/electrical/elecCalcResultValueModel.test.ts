@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  appliedIdopProjection,
   calcLayoutValues,
   cablePowerPerMeterValue,
   compactProvenanceValue,
@@ -60,6 +61,58 @@ function projectObject(overrides: Partial<ProjectObject> = {}): ProjectObject {
 }
 
 describe('elecCalcResultValueModel', () => {
+  it('projects the canonical applied I dop value and authority', () => {
+    expect(appliedIdopProjection(calc({ results: {
+      section_plan: {
+        max_start_current_a: 18.5,
+        max_start_current_source: 'section_catalog_derived',
+      },
+    } }))).toEqual({ state: 'value', valueA: 18.5, source: 'catalog' });
+
+    expect(appliedIdopProjection(calc({ results: {
+      section_plan: {
+        max_start_current_a: 13.065,
+        max_start_current_source: 'project_setting',
+      },
+    } }))).toEqual({ state: 'value', valueA: 13.065, source: 'project' });
+
+    expect(appliedIdopProjection(calc({ results: {
+      section_plan: {
+        max_start_current_a: 12,
+        max_start_current_source: 'manual_input',
+      },
+    } }))).toEqual({ state: 'value', valueA: 12, source: 'manual' });
+  });
+
+  it('keeps applied I dop lifecycle states explicit and never invents zero', () => {
+    expect(appliedIdopProjection(undefined, 'pending')).toEqual({
+      state: 'pending', valueA: null, source: null,
+    });
+    expect(appliedIdopProjection(undefined, 'error')).toEqual({
+      state: 'error', valueA: null, source: null,
+    });
+    expect(appliedIdopProjection(calc({ results: {
+      stale: true,
+      section_plan: {
+        max_start_current_a: 18.5,
+        max_start_current_source: 'section_catalog_derived',
+      },
+    } }))).toEqual({ state: 'stale', valueA: null, source: null });
+    expect(appliedIdopProjection(calc({ results: {
+      error_code: 'SECTION_CURRENT_LIMIT_REQUIRED',
+    } }))).toEqual({ state: 'error', valueA: null, source: null });
+    expect(appliedIdopProjection(undefined)).toEqual({
+      state: 'missing', valueA: null, source: null,
+    });
+    expect(appliedIdopProjection(calc({ results: {} }))).toEqual({
+      state: 'missing', valueA: null, source: null,
+    });
+    expect(appliedIdopProjection(calc({
+      params: { max_section_start_current_a: 25 },
+      results: {},
+    }))).toEqual({ state: 'missing', valueA: null, source: null });
+  });
+
   it('reads cable mark from explicit field or selected_cable fallback', () => {
     expect(getCableMark(calc({ cable_mark: 'ТЛТ-30', results: { selected_cable: 'ТЛТ-25' } }))).toBe('ТЛТ-30');
     expect(getCableMark(calc({ cable_mark: null, results: { selected_cable: 'ТЛТ-25' } }))).toBe('ТЛТ-25');
