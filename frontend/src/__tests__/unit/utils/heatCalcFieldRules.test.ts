@@ -8,6 +8,19 @@ import {
 } from '@/domain/heatCalcFieldRules';
 
 describe('heatCalcFieldRules', () => {
+  it('валидирует глубину подземной трубы по form alias burial_depth', () => {
+    const errors = validateHeatCalcFormValues({
+      objectType: 'pipe',
+      values: { placement: 'underground', burial_depth: 1 },
+    });
+
+    expect(errors).not.toHaveProperty('pipe_centerline_depth');
+    expect(validateHeatCalcFormValues({
+      objectType: 'pipe',
+      values: { placement: 'underground' },
+    })).toHaveProperty('pipe_centerline_depth', 'Укажите значение');
+  });
+
   it('делает грунт обязательным только для подземного размещения и λ грунта только для ручного грунта', () => {
     expect(isHeatCalcFieldVisible('ground_type', {
       objectType: 'pipe',
