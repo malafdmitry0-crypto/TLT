@@ -3539,8 +3539,8 @@
           "minWidthPx": 64,
           "valueType": "number",
           "defaultVisible": true,
-          "sortable": false,
-          "filterable": false,
+          "sortable": true,
+          "filterable": true,
           "resizable": true,
           "field": "max_ambient_temperature"
         },
@@ -4235,8 +4235,8 @@
           "minWidthPx": 64,
           "valueType": "number",
           "defaultVisible": true,
-          "sortable": false,
-          "filterable": false,
+          "sortable": true,
+          "filterable": true,
           "resizable": true,
           "field": "max_ambient_temperature"
         },
