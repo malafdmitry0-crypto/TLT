@@ -6,6 +6,26 @@ import {
 } from '@/utils/objectWizardUtils';
 
 describe('pipeApiParamsToForm и tankApiParamsToForm', () => {
+  it('сохраняет числовой максимум температуры среды, включая ноль', () => {
+    const pipe = pipeApiParamsToForm({ max_ambient_temperature: 0 });
+    const tank = tankApiParamsToForm({ max_ambient_temperature: 35 });
+
+    expect(pipe.max_ambient_temperature).toBe(0);
+    expect(tank.max_ambient_temperature).toBe(35);
+  });
+
+  it('различает отсутствующий и явно очищенный максимум температуры среды', () => {
+    const pipeAbsent = pipeApiParamsToForm({});
+    const tankAbsent = tankApiParamsToForm({});
+    const pipeCleared = pipeApiParamsToForm({ max_ambient_temperature: null });
+    const tankCleared = tankApiParamsToForm({ max_ambient_temperature: null });
+
+    expect(pipeAbsent).not.toHaveProperty('max_ambient_temperature');
+    expect(tankAbsent).not.toHaveProperty('max_ambient_temperature');
+    expect(pipeCleared).toHaveProperty('max_ambient_temperature', undefined);
+    expect(tankCleared).toHaveProperty('max_ambient_temperature', undefined);
+  });
+
   it('обратная конвертация м → мм', () => {
     const form = pipeApiParamsToForm({
       outer_diameter: 0.108,
