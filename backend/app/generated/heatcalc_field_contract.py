@@ -6,7 +6,7 @@ Regenerate: python3 scripts/sync-heatcalc-field-contract.py
 
 from __future__ import annotations
 
-HEATCALC_FIELD_REGISTRY_VERSION = 2
+HEATCALC_FIELD_REGISTRY_VERSION = 3
 HEATCALC_TABLE_COLUMNS_VERSION = 9
 HEATCALC_FIELD_INPUT_VERSION = 2
 
