@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Form } from 'antd';
 import type { ObjectType } from '@/constants/objectTypes';
 import type { HeatCalcFieldInputSettings } from '@/utils/heatCalcFieldInputSettings';
@@ -106,6 +107,19 @@ export default function ObjectWizard({
     requestSoilReference: model.requestSoilReference,
     syncProgrammaticValuesChange: model.syncProgrammaticValuesChange,
   });
+  const dependentGeometrySignature = Form.useWatch((values: Record<string, unknown>) => JSON.stringify([
+    values.placement,
+    values.outer_diameter_mm,
+    values.height_mm,
+    values.insulation_layer_count,
+    values.insulation_thickness_mm,
+    values.second_insulation_thickness_mm,
+    values.third_insulation_thickness_mm,
+  ]), form);
+  useEffect(() => {
+    const depthField = objectType === 'pipe' ? 'burial_depth' : 'tank_buried_height';
+    void form.validateFields([depthField], { dirty: true }).catch(() => undefined);
+  }, [dependentGeometrySignature, form, objectType]);
 
   return (
     <Form
@@ -144,6 +158,14 @@ export default function ObjectWizard({
           data-testid="heatcalc-form-validation-summary"
         >
           Исправьте ошибки в форме
+          <Form.Item noStyle shouldUpdate>
+            {() => {
+              const messages = [...new Set(
+                form.getFieldsError().flatMap((field) => field.errors).filter(Boolean),
+              )];
+              return messages.length > 0 ? `: ${messages.join('; ')}` : '';
+            }}
+          </Form.Item>
         </div>
       ) : null}
       {layoutVariant === 'side' ? (
