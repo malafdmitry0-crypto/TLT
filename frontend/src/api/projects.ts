@@ -191,12 +191,26 @@ export async function groupUpdateObjects(
 
 export type ImportMode = 'append' | 'merge' | 'replace';
 
+export interface ImportRowError {
+  sheet: string;
+  row: number;
+  message: string;
+}
+
+export interface ImportValidationError extends ImportRowError {
+  field: string | null;
+  code: string;
+}
+
 export interface ImportResult {
   created: number;
+  valid: number;
+  invalid: number;
   skipped_duplicates: number;
   skipped_limit: number;
   mode: ImportMode;
-  errors: { sheet: string; row: number; message: string }[];
+  errors: ImportRowError[];
+  validation_errors: ImportValidationError[];
   heat_loss_task?: CalculationTaskResponse;
 }
 
