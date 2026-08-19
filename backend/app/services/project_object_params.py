@@ -204,7 +204,7 @@ def normalize_project_object_params(
     if object_type not in ("pipe", "tank"):
         return normalized
 
-    _validate_ambient_temperature_maximum(normalized)
+    validate_ambient_temperature_maximum(normalized)
     reject_unsupported_tank_shape(object_type, normalized)
 
     _apply_defaults(normalized, COMMON_OBJECT_DEFAULTS)
@@ -223,7 +223,9 @@ def normalize_project_object_params(
     return normalized
 
 
-def _validate_ambient_temperature_maximum(params: Mapping[str, Any]) -> None:
+def validate_ambient_temperature_maximum(params: Mapping[str, Any]) -> None:
+    """Validate optional ambient metadata against the resolved minimum."""
+
     if MAX_AMBIENT_TEMPERATURE_FIELD not in params:
         return
     value = params[MAX_AMBIENT_TEMPERATURE_FIELD]

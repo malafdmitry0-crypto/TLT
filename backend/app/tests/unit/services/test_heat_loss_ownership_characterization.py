@@ -495,6 +495,39 @@ async def test_ambient_maximum_metadata_is_preserved_but_does_not_change_formula
     assert with_metadata.results == baseline.results
 
 
+async def test_ambient_maximum_is_revalidated_after_climate_resolution(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    evaluator = MagicMock(name="evaluate_validated_heat_loss")
+    monkeypatch.setattr(heat_loss_application_module, "evaluate_validated_heat_loss", evaluator)
+
+    outcome = await heat_loss_application_module.evaluate_project_object_heat(
+        "pipe",
+        _pipe(
+            min_switch_temperature=-20.0,
+            ambient_temperature=-10.0,
+            max_ambient_temperature=-5.0,
+            climate_key="Краснодарский Край|||Сочи",
+            climate_city="Сочи",
+            climate_region="Краснодарский Край",
+        ),
+        coefficients={},
+    )
+
+    assert outcome.is_valid is False
+    assert outcome.params_to_persist is not None
+    assert outcome.params_to_persist["ambient_temperature"] == pytest.approx(-2.0)
+    assert outcome.params_to_persist["max_ambient_temperature"] == pytest.approx(-5.0)
+    assert outcome.validation_errors is not None
+    assert outcome.validation_errors["field"] == "max_ambient_temperature"
+    assert outcome.validation_errors["fields"] == {
+        "max_ambient_temperature": (
+            "Максимальная температура окружающей среды не может быть ниже минимальной"
+        )
+    }
+    evaluator.assert_not_called()
+
+
 async def test_try_recalculate_persists_current_climate_k_snapshot() -> None:
     params = _pipe(
         outer_diameter=0.099,

@@ -30,6 +30,7 @@ from app.services.project_object_params import (
     StoredHeatParams,
     build_stored_heat_params,
     normalize_project_object_params,
+    validate_ambient_temperature_maximum,
     validate_and_canonicalize_project_object_params,
 )
 
@@ -449,6 +450,15 @@ async def evaluate_project_object_heat(
             exc,
             object_type=object_type,
             params_to_persist=None,
+        )
+
+    try:
+        validate_ambient_temperature_maximum(climate_resolved)
+    except ProjectObjectParamsError as exc:
+        return _invalid_project_object_heat_outcome(
+            exc,
+            object_type=object_type,
+            params_to_persist=climate_resolved,
         )
 
     try:
