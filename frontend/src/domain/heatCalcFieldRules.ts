@@ -228,15 +228,35 @@ export function validateHeatCalcFormValues(
   context: HeatCalcFieldContext,
   options: HeatCalcFieldValidationOptions = {},
 ): Record<string, string> {
+  // The registry owns the API key, while the pipe wizard stores this value
+  // under its long-standing form alias. Validate the user's current draft.
+  const values = context.objectType === 'pipe'
+    && Object.prototype.hasOwnProperty.call(context.values, 'burial_depth')
+    ? {
+        ...context.values,
+        pipe_centerline_depth: context.values.burial_depth,
+      }
+    : context.values;
+  const validationContext = values === context.values
+    ? context
+    : { ...context, values };
   const errors: Record<string, string> = {};
   const fieldIds = new Set([
     ...getHeatCalcFormFieldIds(context.objectType),
-    ...Object.keys(context.values),
+    ...Object.keys(values),
   ]);
   for (const fieldId of fieldIds) {
     if (RANGE_BOUND_FIELDS.has(fieldId)) continue;
-    if (!fieldExistsForContext(fieldId, context) || !isHeatCalcFieldVisible(fieldId, context)) continue;
-    const error = validateHeatCalcField(fieldId, context.values[fieldId], context, options);
+    if (
+      !fieldExistsForContext(fieldId, validationContext)
+      || !isHeatCalcFieldVisible(fieldId, validationContext)
+    ) continue;
+    const error = validateHeatCalcField(
+      fieldId,
+      values[fieldId],
+      validationContext,
+      options,
+    );
     if (error) errors[fieldId] = error;
   }
   return errors;
