@@ -29,8 +29,8 @@ import {
 } from './ObjectWizardDependencies.test-harness';
 
 describe('HeatCalc ambient temperature registry contract', () => {
-  it('registers an explicit minimum and a form-only optional maximum', () => {
-    expect(HEATCALC_FIELD_REGISTRY_VERSION).toBe(3);
+  it('registers an explicit minimum and an optional maximum in form and table', () => {
+    expect(HEATCALC_FIELD_REGISTRY_VERSION).toBe(4);
     expect(getHeatCalcTableSettingsVersion()).toBe(9);
     expect(getHeatCalcFieldInputSettingsVersion()).toBe(2);
 
@@ -66,7 +66,10 @@ describe('HeatCalc ambient temperature registry contract', () => {
         compact: 'T окр. max',
       },
     });
-    expect(getHeatCalcFieldConfig('max_ambient_temperature')?.table_keys).toBeUndefined();
+    expect(getHeatCalcFieldConfig('max_ambient_temperature')?.table_keys).toEqual({
+      pipe: 'max_ambient_temperature',
+      tank: 'max_ambient_temperature',
+    });
     expect(getHeatCalcFieldDefinition('max_ambient_temperature', 'pipe')).toBeNull();
     expect(getHeatCalcFieldDefinition('max_ambient_temperature', 'tank')).toBeNull();
 
@@ -94,12 +97,12 @@ describe('HeatCalc ambient temperature registry contract', () => {
       expect(ambientIndex).toBeGreaterThanOrEqual(0);
       expect(formFields[ambientIndex + 1]).toBe('max_ambient_temperature');
       expect(getHeatCalcTableColumnRegistry(objectType).map(({ key }) => key))
-        .not.toContain('max_ambient_temperature');
+        .toContain('max_ambient_temperature');
       expect(getHeatCalcDefaultVisibleTableKeys(objectType))
-        .not.toContain('max_ambient_temperature');
+        .toContain('max_ambient_temperature');
     }
     expect(getHeatCalcDefaultVisibleTableKeys('all'))
-      .not.toContain('max_ambient_temperature');
+      .toContain('max_ambient_temperature');
   });
 });
 
