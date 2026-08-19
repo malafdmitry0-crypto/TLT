@@ -267,6 +267,15 @@ function normalizeColumns(
   return columns;
 }
 
+function newDefaultVisibleKeys(
+  type: HeatCalcTableColumnScope,
+  rawColumns: unknown,
+) {
+  const catalogSnapshot = isRecord(rawColumns) ? rawColumns : {};
+  return defaultVisibleKeys(type)
+    .filter((key) => !Object.prototype.hasOwnProperty.call(catalogSnapshot, key));
+}
+
 function normalizeTypeSettingsFromStructuredValue(
   type: HeatCalcTableColumnScope,
   rawType: unknown,
@@ -275,7 +284,10 @@ function normalizeTypeSettingsFromStructuredValue(
   const source = isRecord(rawType) ? rawType : {};
   const rawColumns = source.columns;
   const visibleOrder = Array.isArray(source.visibleOrder)
-    ? normalizeVisibleOrder(type, source.visibleOrder)
+    ? normalizeVisibleOrder(type, [
+      ...source.visibleOrder,
+      ...newDefaultVisibleKeys(type, rawColumns),
+    ])
     : defaults.visibleOrder;
 
   return {
