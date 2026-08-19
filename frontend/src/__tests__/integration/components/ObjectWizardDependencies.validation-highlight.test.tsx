@@ -34,9 +34,10 @@ function expectFieldSource(testId: string, source?: string) {
   expect(tag).toBeVisible();
 }
 
-describe('HeatCalc ambient temperature domain validation', () => {
-  const relationError = 'Максимальная температура окружающей среды не может быть ниже минимальной';
+const ambientBoundsRelationError =
+  'Максимальная температура окружающей среды не может быть ниже минимальной';
 
+describe('HeatCalc ambient temperature domain validation', () => {
   it.each(['pipe', 'tank'] as const)('keeps maximum optional and rejects %s maximum below minimum', (objectType) => {
     const context = {
       objectType,
@@ -47,9 +48,9 @@ describe('HeatCalc ambient temperature domain validation', () => {
       expect(validateHeatCalcField('max_ambient_temperature', maximum, context)).toBeNull();
     }
     expect(validateHeatCalcField('max_ambient_temperature', -20, context)).toBeNull();
-    expect(validateHeatCalcField('max_ambient_temperature', -20.1, context)).toBe(relationError);
+    expect(validateHeatCalcField('max_ambient_temperature', -20.1, context)).toBe(ambientBoundsRelationError);
     expect(validateHeatCalcFormValues(context, { enforceRequired: false }))
-      .toMatchObject({ max_ambient_temperature: relationError });
+      .toMatchObject({ max_ambient_temperature: ambientBoundsRelationError });
   });
 
   it('preserves zero, equality, registry range, and existing ambient/process semantics', () => {
@@ -58,7 +59,7 @@ describe('HeatCalc ambient temperature domain validation', () => {
       values: { placement: 'outdoor', ambient_temperature, max_ambient_temperature, process_temperature: 20 },
     });
     expect(validateHeatCalcField('max_ambient_temperature', 0, context(-1, 0))).toBeNull();
-    expect(validateHeatCalcField('max_ambient_temperature', 0, context(1, 0))).toBe(relationError);
+    expect(validateHeatCalcField('max_ambient_temperature', 0, context(1, 0))).toBe(ambientBoundsRelationError);
     expect(validateHeatCalcField('max_ambient_temperature', -71, context(-70, -71))).toBe('Минимальное значение — -70');
     expect(validateHeatCalcField('max_ambient_temperature', 71, context(-70, 71))).toBe('Максимальное значение — 70');
     expect(validateHeatCalcField('ambient_temperature', 20, context(20, 70))).toBe('Ниже T объекта');
@@ -71,6 +72,26 @@ describe('ObjectWizard dependencies — validation-highlight', () => {
     vi.clearAllMocks();
     window.HTMLElement.prototype.scrollIntoView = vi.fn();
     await mockReferences();
+  });
+
+  it('blocks maximum below minimum, revalidates reciprocal edits, and accepts empty maximum', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    renderWizard({ initialParams: { ...basePipeParams, max_ambient_temperature: -30 }, onSubmit });
+    const minimum = await screen.findByTestId('ambient-temperature-input');
+    const maximum = screen.getByTestId('max-ambient-temperature-input');
+    expect(maximum).not.toHaveAttribute('aria-required');
+    await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
+    expect(await screen.findByText(ambientBoundsRelationError)).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
+    await user.clear(maximum); await user.type(maximum, '-25'); await user.tab();
+    await waitFor(() => expect(screen.queryByText(ambientBoundsRelationError)).not.toBeInTheDocument());
+    await user.clear(minimum); await user.type(minimum, '-10'); await user.tab();
+    expect(await screen.findByText(ambientBoundsRelationError)).toBeInTheDocument();
+    await user.clear(maximum); await user.tab();
+    await waitFor(() => expect(screen.queryByText(ambientBoundsRelationError)).not.toBeInTheDocument());
+    await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
   });
 
   it('показывает ошибки Excel-черновика прямо в форме параметров', async () => {
