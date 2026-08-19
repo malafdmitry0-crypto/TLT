@@ -153,6 +153,15 @@ function applyCommonObjectParams(
   const placement = v.placement ?? null;
   params.placement = placement;
   const isPipe = options.objectType === 'pipe';
+  const hasMaxAmbientTemperature = Object.prototype.hasOwnProperty.call(
+    v,
+    'max_ambient_temperature',
+  );
+  if (isPipe && placement === 'underground') {
+    params.max_ambient_temperature = null;
+  } else if (hasMaxAmbientTemperature) {
+    params.max_ambient_temperature = numberOrNull(v.max_ambient_temperature);
+  }
   if (!isPipe && placement !== 'underground' && v.ambient_temperature != null) {
     params.ambient_temperature = v.ambient_temperature;
   }
