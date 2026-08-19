@@ -42,6 +42,7 @@ async def _seed_objects(db_session: AsyncSession, project_id: str) -> list[Proje
                 pipe_length=10.0,
                 process_temperature=65.0,
                 ambient_temperature=-25.0,
+                max_ambient_temperature=None,
                 climate_region="ЯНАО",
                 climate_city="Салехард",
                 climate_key="ЯНАО|||Салехард",
@@ -64,6 +65,7 @@ async def _seed_objects(db_session: AsyncSession, project_id: str) -> list[Proje
                 insulation_layers=[{"thickness": 0.05, "material": PERLITE}],
                 process_temperature=95.0,
                 ambient_temperature=-20.0,
+                max_ambient_temperature=35.0,
                 climate_region="ХМАО",
                 climate_city="Сургут",
                 climate_key="ХМАО|||Сургут",
@@ -82,6 +84,7 @@ async def _seed_objects(db_session: AsyncSession, project_id: str) -> list[Proje
             params=canonical_tank_params(
                 name="Резервуар Юг",
                 ambient_temperature=-25.0,
+                max_ambient_temperature=30.0,
             ),
         ),
     ]
@@ -104,7 +107,11 @@ class TestObjectQuery:
         assert resp.status_code == 200, resp.text
         fields = {field["key"]: field for field in resp.json()["fields"]}
         assert "pipe_dn" not in fields
-        assert "max_ambient_temperature" not in fields
+        assert fields["max_ambient_temperature"]["data_type"] == "number"
+        assert fields["max_ambient_temperature"]["unit"] == "°C"
+        assert fields["max_ambient_temperature"]["filter"]["ops"] == ["range"]
+        assert fields["max_ambient_temperature"]["sort"]["enabled"] is True
+        assert fields["max_ambient_temperature"]["sort"]["type"] == "number"
         assert fields["pipe_outer_diameter"]["filter"]["ops"] == ["range"]
         assert fields["pipe_outer_diameter"]["sort"]["enabled"] is True
         assert fields["heat_loss_per_meter_base"]["filter"]["ops"] == ["range"]
@@ -117,6 +124,69 @@ class TestObjectQuery:
         assert fields["index"]["filter"]["reason"] == "display_only"
         assert fields["type"]["sort"]["enabled"] is False
         assert fields["insulation_material"]["options"]["items"]
+
+        tank_resp = await client.get(
+            f"/api/v1/projects/{pid}/objects/query-capabilities",
+            params={"object_type": "tank"},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert tank_resp.status_code == 200, tank_resp.text
+        tank_fields = {field["key"]: field for field in tank_resp.json()["fields"]}
+        assert tank_fields["max_ambient_temperature"]["data_type"] == "number"
+        assert tank_fields["max_ambient_temperature"]["filter"]["ops"] == ["range"]
+        assert tank_fields["max_ambient_temperature"]["sort"]["type"] == "number"
+
+    async def test_query_projects_filters_and_sorts_ambient_maximum_as_number(
+        self, client: AsyncClient, guest_session: str, db_session: AsyncSession
+    ):
+        pid = await _project(client, guest_session)
+        await _seed_objects(db_session, pid)
+
+        filtered_response = await client.post(
+            f"/api/v1/projects/{pid}/objects/query",
+            json={
+                "object_type": "pipe",
+                "filters": [
+                    {
+                        "key": "max_ambient_temperature",
+                        "op": "range",
+                        "min": 30,
+                    }
+                ],
+                "sort": {"key": "max_ambient_temperature", "dir": "desc"},
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+        assert filtered_response.status_code == 200, filtered_response.text
+        filtered = filtered_response.json()
+        assert filtered["counts"]["filtered"] == 1
+        assert filtered["items"][0]["params"]["name"] == "Труба Юг"
+        assert filtered["items"][0]["params"]["max_ambient_temperature"] == pytest.approx(35.0)
+
+        sorted_response = await client.post(
+            f"/api/v1/projects/{pid}/objects/query",
+            json={
+                "object_type": "pipe",
+                "sort": {"key": "max_ambient_temperature", "dir": "asc"},
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+        assert sorted_response.status_code == 200, sorted_response.text
+        sorted_items = sorted_response.json()["items"]
+        assert [item["params"]["name"] for item in sorted_items] == [
+            "Труба Юг",
+            "Труба Север",
+        ]
+        assert sorted_items[-1]["params"]["max_ambient_temperature"] is None
+
+        tank_response = await client.post(
+            f"/api/v1/projects/{pid}/objects/query",
+            json={"object_type": "tank"},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert tank_response.status_code == 200, tank_response.text
+        tank_items = tank_response.json()["items"]
+        assert tank_items[0]["params"]["max_ambient_temperature"] == pytest.approx(30.0)
 
     async def test_query_filters_sorts_and_paginates_on_backend(
         self, client: AsyncClient, guest_session: str, db_session: AsyncSession
