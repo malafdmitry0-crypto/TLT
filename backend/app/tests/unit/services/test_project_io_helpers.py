@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import json
 
 import pytest
 
@@ -273,7 +274,12 @@ class TestDumpProjectToWriter:
             id="oid",
             object_type="pipe",
             sort_order=0,
-            params={"name": "Tag-1", "outer_diameter": 0.108},
+            params={
+                "name": "Tag-1",
+                "outer_diameter": 0.108,
+                "ambient_temperature": -20.0,
+                "max_ambient_temperature": 0.0,
+            },
             results=None,
             is_valid=False,
             validation_errors=None,
@@ -285,6 +291,10 @@ class TestDumpProjectToWriter:
         assert "oid;pipe;Tag-1;0" in text
         assert "Tag-1" in text
         assert "outer_diameter" in text
+        object_rows = _rows_to_dicts(_parse_sections(text.encode())["objects"])
+        exported_params = json.loads(object_rows[0]["params"])
+        assert exported_params["ambient_temperature"] == -20.0
+        assert exported_params["max_ambient_temperature"] == 0.0
 
     def test_writes_electrical_section(self):
         from types import SimpleNamespace
