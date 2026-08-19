@@ -226,7 +226,12 @@ def test_admin_zero_safety_factor_range_error_is_structured() -> None:
             (),
             {"centerline_depth_m": 0.2, "outer_radius_m": 0.25},
         ),
-        ("invalid_buried_height", "tank_buried_height", (), {}),
+        (
+            "invalid_buried_height",
+            "tank_buried_height",
+            (),
+            {"buried_height_m": 10.0, "height_m": 4.0},
+        ),
         (
             "below_min_inclusive",
             "safety_factor",
@@ -294,7 +299,7 @@ def test_unknown_domain_code_stops_instead_of_generic_fallback() -> None:
         raise_heat_formula_domain_error(FormulaDomainError("non_finite_result"), layers=())
 
 
-def test_pipe_wall_and_ground_domain_errors_keep_current_russian_texts() -> None:
+def test_pipe_wall_and_ground_domain_errors_include_geometry_values() -> None:
     wall = heat_loss_error_from_domain(
         FormulaDomainError(
             "wall_exceeds_pipe_radius",
@@ -310,28 +315,56 @@ def test_pipe_wall_and_ground_domain_errors_keep_current_russian_texts() -> None
     ground = heat_loss_error_from_domain(
         FormulaDomainError(
             "ground_centerline_inside_pipe",
-            centerline_depth_m=0.2,
-            outer_radius_m=0.154,
+            centerline_depth_m=0.1,
+            outer_radius_m=0.104,
         ),
         layers=(),
     )
     assert ground.code == "ground_centerline_inside_pipe"
     assert ground.path == "pipe_centerline_depth"
     assert ground.message == (
-        "Глубина оси H=0.20 м меньше наружного радиуса изоляции "
-        "r=0.154 м — труба не помещается в грунт"
+        "Глубина оси H=0.10 м меньше наружного радиуса изоляции "
+        "r=0.104 м — труба не помещается в грунт"
     )
 
 
-def test_tank_domain_codes_keep_current_valueerror_texts() -> None:
+def test_tank_buried_height_domain_error_includes_geometry_values() -> None:
     buried = heat_loss_error_from_domain(
-        FormulaDomainError("invalid_buried_height", buried_height_m=4.0, height_m=3.0),
+        FormulaDomainError("invalid_buried_height", buried_height_m=10.0, height_m=4.0),
         layers=(),
     )
     assert buried.code == "invalid_buried_height"
     assert buried.path == "tank_buried_height"
-    assert buried.message == "invalid_buried_height"
+    assert buried.message == (
+        "Высота подземной части 10 м не может быть больше высоты резервуара 4 м"
+    )
 
+
+def test_nonpositive_tank_buried_height_has_specific_message() -> None:
+    buried = heat_loss_error_from_domain(
+        FormulaDomainError("invalid_buried_height", buried_height_m=-1.0, height_m=4.0),
+        layers=(),
+    )
+
+    assert buried.message == "Высота подземной части -1 м должна быть больше 0 м"
+
+
+def test_tank_buried_height_report_error_includes_geometry_values() -> None:
+    issue = FormulaValidationIssue.with_details(
+        "invalid_buried_height",
+        buried_height_m=10.0,
+        height_m=4.0,
+    )
+    buried = heat_loss_error_from_report(FormulaValidationReport((issue,)), layers=())
+
+    assert buried.code == "invalid_buried_height"
+    assert buried.path == "tank_buried_height"
+    assert buried.message == (
+        "Высота подземной части 10 м не может быть больше высоты резервуара 4 м"
+    )
+
+
+def test_other_tank_domain_code_keeps_current_valueerror_text() -> None:
     process = heat_loss_error_from_domain(
         FormulaDomainError("process_temperature_not_above_ambient"),
         layers=(),

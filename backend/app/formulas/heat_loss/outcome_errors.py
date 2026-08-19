@@ -113,6 +113,12 @@ def heat_loss_error_from_domain(
             message=_ground_centerline_message(error.details),
             path=_FIXED_PATHS[error.code],
         )
+    if error.code == "invalid_buried_height":
+        return HeatLossPreparationError(
+            code=error.code,
+            message=_invalid_buried_height_message(error.details),
+            path=_FIXED_PATHS[error.code],
+        )
     try:
         path = _FIXED_PATHS[error.code]
     except KeyError as exc:
@@ -176,6 +182,8 @@ def _fixed_issue_message(issue: FormulaValidationIssue) -> str:
         return _wall_exceeds_pipe_message(details)
     if issue.code == "ground_centerline_inside_pipe":
         return _ground_centerline_message(details)
+    if issue.code == "invalid_buried_height":
+        return _invalid_buried_height_message(details)
     return issue.code
 
 
@@ -187,9 +195,7 @@ def _layer_boundary_message(
     index = _layer_index(issue)
     details = issue.details_dict()
     boundary_name = (
-        "холодной"
-        if float(details["temperature_c"]) < float(details["minimum_c"])
-        else "горячей"
+        "холодной" if float(details["temperature_c"]) < float(details["minimum_c"]) else "горячей"
     )
     return (
         f"Температура {boundary_name} стороны слоя изоляции #{index + 1} "
@@ -224,6 +230,17 @@ def _ground_centerline_message(details: Mapping[str, float | int]) -> str:
     return (
         f"Глубина оси H={centerline_depth:.2f} м меньше наружного радиуса изоляции "
         f"r={outer_radius:.3f} м — труба не помещается в грунт"
+    )
+
+
+def _invalid_buried_height_message(details: Mapping[str, float | int]) -> str:
+    buried_height = float(details["buried_height_m"])
+    height = float(details["height_m"])
+    if buried_height <= 0:
+        return f"Высота подземной части {buried_height:g} м должна быть больше 0 м"
+    return (
+        f"Высота подземной части {buried_height:g} м не может быть больше "
+        f"высоты резервуара {height:g} м"
     )
 
 
