@@ -74,6 +74,29 @@ export {
   equivalentFormValue,
 } from './objectWizardFormSyncMappers';
 
+function syncSuggestedObjectName({
+  form,
+  suggestedName,
+  previousSuggestedName,
+  onDraftValuesChange,
+}: {
+  form: FormInstance;
+  suggestedName: string;
+  previousSuggestedName: string;
+  onDraftValuesChange?: UseObjectWizardFormSyncInput['onDraftValuesChange'];
+}): boolean {
+  const currentName = form.getFieldValue('name') as string | undefined;
+  if (!suggestedName || (currentName && currentName !== previousSuggestedName)) return false;
+  if (currentName === suggestedName) return false;
+
+  form.setFieldsValue({ name: suggestedName });
+  onDraftValuesChange?.(
+    { name: suggestedName },
+    form.getFieldsValue(true) as Record<string, unknown>,
+  );
+  return true;
+}
+
 export function useObjectWizardFormSync({
   form,
   objectType,
@@ -247,16 +270,16 @@ export function useObjectWizardFormSync({
         objectType === 'pipe'
           ? generatePipeName(nameFields)
           : generateTankName(nameFields);
-      if (!suggestedName) return;
-      const current = form.getFieldValue('name') as string | undefined;
-      if (!current || current === prevSuggestedRef.current) {
-        prevSuggestedRef.current = suggestedName;
-        form.setFieldsValue({ name: suggestedName });
-      }
+      if (syncSuggestedObjectName({
+        form,
+        suggestedName,
+        previousSuggestedName: prevSuggestedRef.current,
+        onDraftValuesChange,
+      })) prevSuggestedRef.current = suggestedName;
     } catch {
       // Пока форма заполнена частично, автонаименование может быть недоступно.
     }
-  }, [form, objectType, watchedValues]);
+  }, [form, objectType, onDraftValuesChange, watchedValues]);
 
   function clearCalculationFieldErrors(changedFieldNames?: string[]) {
     const currentFieldNames = calculationFieldErrorNamesRef.current;

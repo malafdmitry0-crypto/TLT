@@ -54,6 +54,49 @@ describe('ObjectWizard dependencies — payload-fields', () => {
     });
   });
 
+  it.each(['pipe', 'tank'] as const)('сохраняет сгенерированное имя подземного %s в payload', async (objectType) => {
+    const onSubmit = vi.fn();
+    const user = userEvent.setup();
+    const initialParams = objectType === 'pipe'
+      ? {
+          ...basePipeParams,
+          name: undefined,
+          placement: 'underground',
+          ground_temperature: 5,
+          ground_type: 'dry_sand',
+          ground_conductivity: 0.8,
+          pipe_centerline_depth: 1.2,
+        }
+      : {
+          name: undefined,
+          shape: 'cylindrical' as const,
+          diameter: 2,
+          height: 3,
+          insulation_layers: [{ thickness: 0.08, material: 'mineral_wool' }],
+          insulation_temperature_basis: 'channel',
+          ambient_temperature: -20,
+          ground_temperature: 5,
+          ground_type: 'dry_sand',
+          ground_conductivity: 0.8,
+          process_temperature: 70,
+          min_switch_temperature: -20,
+          heating_height: 2,
+          laying_step: 0.2,
+          placement: 'underground',
+          tank_buried_height: 2,
+          wind_speed: 0,
+        };
+
+    renderWizard({ objectType, onSubmit, initialParams });
+    await screen.findByTestId('placement-select');
+    await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    const payload = onSubmit.mock.calls[0][0] as Record<string, unknown>;
+    expect(payload.name).toEqual(expect.stringContaining('→'));
+    expect(payload.name).not.toBe('');
+  });
+
   it('Q_доп: показывается только для резервуара и сохраняется в payload', async () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
