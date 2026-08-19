@@ -3,24 +3,24 @@ import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { loginAsGuest } from './helpers/workspace';
+import { selectOption } from './helpers/inline-form-dependencies';
 
 const OUT_DIR = 'test-results/ui-proof-heat-ground-underground';
 const TABLE_VIEW_STORAGE_KEY = 'heatcalc.tableView.v2.guest';
 const undergroundFields = [
   'placement-select',
   'climate-select',
-  'ambient-temperature-input',
   'process-temperature-input',
   'ground-type-select',
   'burial-depth-input',
+  'ground-temperature-input',
   'ground-conductivity-input',
 ] as const;
 
 type UndergroundField = typeof undergroundFields[number];
 
 async function selectPlacement(page: Page, label: string) {
-  await page.getByTestId('placement-select').click();
-  await page.getByRole('option', { name: label, exact: true }).click();
+  await selectOption(page, 'placement-select', label);
 }
 
 async function openTopForm(page: Page) {
@@ -39,6 +39,8 @@ async function openTopForm(page: Page) {
   await page.reload({ waitUntil: 'networkidle' });
   await expect(page.locator('.inline-object-form--wide')).toBeVisible();
   await selectPlacement(page, 'Подземно');
+  await expect(page.getByTestId('ambient-temperature-input')).toHaveCount(0);
+  await expect(page.getByTestId('max-ambient-temperature-input')).toHaveCount(0);
   await expect(page.getByTestId('ground-type-select')).toBeVisible();
 }
 
@@ -65,8 +67,7 @@ async function assertUndergroundGeometry(page: Page) {
       Math.min(left.bottom, right.bottom) - Math.max(left.top, right.top),
     );
 
-    const climatePanel = document.querySelector('.form-col-srs--climate');
-    const panelRect = rectFor(climatePanel);
+    const panelRect = rectFor(document.querySelector('[data-testid="heat-object-fields"]'));
     const fields = Object.fromEntries(ids.map((id) => {
       const field = document.querySelector(`[data-testid="${id}"]`);
       return [id, rectFor(field?.closest('.ant-form-item') ?? null)];
@@ -80,17 +81,19 @@ async function assertUndergroundGeometry(page: Page) {
     const centerHit = groundRect
       ? document.elementFromPoint(groundRect.left + groundRect.width / 2, groundRect.top + groundRect.height / 2)
       : null;
-    const sectionVisuals = Array.from(document.querySelectorAll<HTMLElement>('.pdf-form-column')).map((section) => {
-      const title = section.querySelector<HTMLElement>('.pdf-form-column-title');
-      const titleRect = title?.getBoundingClientRect();
-      const sectionStyle = getComputedStyle(section);
-      const titleStyle = title && getComputedStyle(title);
-      return {
-        borderWidth: sectionStyle.borderWidth,
-        titleHeight: titleRect?.height ?? 0,
-        titlePosition: titleStyle?.position ?? null,
-      };
-    });
+    const zoneIds = [
+      'wizard-zone-heat-object-fields',
+      'wizard-zone-insulation-layers',
+      'wizard-zone-cable-algorithm',
+    ] as const;
+    const zones = Object.fromEntries(zoneIds.map((id) => [
+      id,
+      rectFor(document.querySelector(`[data-testid="${id}"]`)),
+    ])) as Record<typeof zoneIds[number], Rect | null>;
+    const zoneOverlaps = Object.fromEntries(zoneIds.flatMap((id, index) => zoneIds.slice(index + 1).map((other) => [
+      `${id}__${other}`,
+      zones[id] && zones[other] ? overlapArea(zones[id]!, zones[other]!) : null,
+    ])));
 
     return {
       viewport: { width: innerWidth, height: innerHeight },
@@ -99,7 +102,8 @@ async function assertUndergroundGeometry(page: Page) {
       fields,
       overlaps,
       centerHitTestId: centerHit?.closest('[data-testid]')?.getAttribute('data-testid') ?? null,
-      sectionVisuals,
+      zones,
+      zoneOverlaps,
     };
   }, undergroundFields);
 
@@ -110,19 +114,21 @@ async function assertUndergroundGeometry(page: Page) {
     expect(rect, `${field} is rendered`).not.toBeNull();
     expect(rect!.width, `${field} has width`).toBeGreaterThan(0);
     expect(rect!.height, `${field} has height`).toBeGreaterThan(0);
-    expect(rect!.left, `${field} stays inside the climate panel`).toBeGreaterThanOrEqual(result.panelRect!.left - 1);
-    expect(rect!.right, `${field} stays inside the climate panel`).toBeLessThanOrEqual(result.panelRect!.right + 1);
-    expect(rect!.top, `${field} stays inside the climate panel`).toBeGreaterThanOrEqual(result.panelRect!.top - 1);
-    expect(rect!.bottom, `${field} stays inside the climate panel`).toBeLessThanOrEqual(result.panelRect!.bottom + 1);
+    expect(rect!.left, `${field} stays inside the fields panel`).toBeGreaterThanOrEqual(result.panelRect!.left - 1);
+    expect(rect!.right, `${field} stays inside the fields panel`).toBeLessThanOrEqual(result.panelRect!.right + 1);
+    expect(rect!.top, `${field} stays inside the fields panel`).toBeGreaterThanOrEqual(result.panelRect!.top - 1);
+    expect(rect!.bottom, `${field} stays inside the fields panel`).toBeLessThanOrEqual(result.panelRect!.bottom + 1);
   }
   expect(result.overlaps).toEqual(Object.fromEntries(Object.keys(result.overlaps).map((key) => [key, 0])));
   expect(result.centerHitTestId).toBe('ground-type-select');
-  expect(result.sectionVisuals).toHaveLength(3);
-  for (const section of result.sectionVisuals) {
-    expect(section.borderWidth).toBe('0px');
-    expect(section.titlePosition).toBe('absolute');
-    expect(section.titleHeight).toBeLessThanOrEqual(1);
+  for (const [zoneId, rect] of Object.entries(result.zones)) {
+    expect(rect, `${zoneId} is rendered`).not.toBeNull();
+    expect(rect!.width, `${zoneId} has width`).toBeGreaterThan(0);
+    expect(rect!.height, `${zoneId} has height`).toBeGreaterThan(0);
   }
+  expect(result.zoneOverlaps).toEqual(
+    Object.fromEntries(Object.keys(result.zoneOverlaps).map((key) => [key, 0])),
+  );
 }
 
 test('подземное размещение: поля не пересекаются, а справочники открываются своими контролами', async ({ page }) => {
@@ -162,9 +168,15 @@ test('подземное размещение: поля не пересекаю�
   await expect(climateDialog).toHaveCount(0);
 
   await selectPlacement(page, 'На открытом воздухе');
+  await expect(page.getByTestId('ambient-temperature-input')).toBeVisible();
+  await expect(page.getByTestId('max-ambient-temperature-input')).toBeVisible();
   await expect(page.getByTestId('wind-speed-input')).toBeVisible();
   await expect(page.getByTestId('ground-type-select')).toHaveCount(0);
+  await expect(page.getByTestId('ground-temperature-input')).toHaveCount(0);
   await selectPlacement(page, 'В помещении');
+  await expect(page.getByTestId('ambient-temperature-input')).toBeVisible();
+  await expect(page.getByTestId('max-ambient-temperature-input')).toBeVisible();
   await expect(page.getByTestId('wind-speed-input')).toHaveCount(0);
   await expect(page.getByTestId('ground-type-select')).toHaveCount(0);
+  await expect(page.getByTestId('ground-temperature-input')).toHaveCount(0);
 });
