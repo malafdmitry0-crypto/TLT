@@ -37,7 +37,9 @@ export type PipeNameFields = Partial<{
   pipe_length: number;
   insulation_thickness_mm: number;
   insulation_material: string;
+  placement: string;
   ambient_temperature: number;
+  ground_temperature: number;
   process_temperature: number;
 }>;
 
@@ -49,33 +51,73 @@ export type TankNameFields = Partial<{
   width_mm: number;
   insulation_thickness_mm: number;
   insulation_material: string;
+  placement: string;
   ambient_temperature: number;
+  ground_temperature: number;
   process_temperature: number;
 }>;
 
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function environmentTemperature({ placement, ambient_temperature, ground_temperature }: Pick<PipeNameFields, 'placement' | 'ambient_temperature' | 'ground_temperature'>): number | undefined {
+  return placement === 'underground' ? ground_temperature : ambient_temperature;
+}
+
 export function generatePipeName(v: PipeNameFields): string {
-  const mat = shortMaterial(v.insulation_material ?? '');
-  const tAmb = tempSign(v.ambient_temperature!);
-  const tProc = tempSign(v.process_temperature!);
-  return `Труба Ø${formatWizardNameNumber(v.outer_diameter_mm!)} мм, δ=${formatWizardNameNumber(v.insulation_thickness_mm!)} мм, ${mat}, L=${formatWizardNameNumber(v.pipe_length!, 1)} м, ${tAmb}→${tProc}°C`;
+  const environmentTemperatureValue = environmentTemperature(v);
+  const {
+    outer_diameter_mm: outerDiameter,
+    pipe_length: pipeLength,
+    insulation_thickness_mm: insulationThickness,
+    insulation_material: insulationMaterial,
+    process_temperature: processTemperature,
+  } = v;
+  if (
+    !insulationMaterial ||
+    !isFiniteNumber(outerDiameter) ||
+    !isFiniteNumber(pipeLength) ||
+    !isFiniteNumber(insulationThickness) ||
+    !isFiniteNumber(environmentTemperatureValue) ||
+    !isFiniteNumber(processTemperature)
+  ) {
+    return '';
+  }
+
+  const mat = shortMaterial(insulationMaterial);
+  return `Труба Ø${formatWizardNameNumber(outerDiameter)} мм, δ=${formatWizardNameNumber(insulationThickness)} мм, ${mat}, L=${formatWizardNameNumber(pipeLength, 1)} м, ${tempSign(environmentTemperatureValue)}→${tempSign(processTemperature)}°C`;
 }
 
 export function generateTankName(v: TankNameFields): string {
-  const mat = shortMaterial(v.insulation_material ?? '');
-  const tAmb = tempSign(v.ambient_temperature!);
-  const tProc = tempSign(v.process_temperature!);
-  const ins = `δ=${formatWizardNameNumber(v.insulation_thickness_mm!)} мм, ${mat}`;
+  const environmentTemperatureValue = environmentTemperature(v);
+  const {
+    insulation_thickness_mm: insulationThickness,
+    insulation_material: insulationMaterial,
+    process_temperature: processTemperature,
+  } = v;
+  if (
+    !insulationMaterial ||
+    !isFiniteNumber(insulationThickness) ||
+    !isFiniteNumber(environmentTemperatureValue) ||
+    !isFiniteNumber(processTemperature)
+  ) {
+    return '';
+  }
+
+  const mat = shortMaterial(insulationMaterial);
+  const ins = `δ=${formatWizardNameNumber(insulationThickness)} мм, ${mat}`;
+  const temperatures = `${tempSign(environmentTemperatureValue)}→${tempSign(processTemperature)}°C`;
   if (v.shape === 'cylindrical') {
-    const d = v.diameter_mm ? `Ø${formatWizardNameNumber(v.diameter_mm)} мм` : '';
-    const h = v.height_mm ? `×H${formatWizardNameNumber(v.height_mm)} мм` : '';
-    return `Бак цил. ${d}${h}, ${ins}, ${tAmb}→${tProc}°C`;
+    const { diameter_mm: diameter, height_mm: height } = v;
+    if (!isFiniteNumber(diameter) || !isFiniteNumber(height)) return '';
+    return `Бак цил. Ø${formatWizardNameNumber(diameter)} мм×H${formatWizardNameNumber(height)} мм, ${ins}, ${temperatures}`;
   }
   if (v.shape === 'rectangular') {
-    const dims = [v.length_mm, v.width_mm, v.height_mm]
-      .filter(Boolean)
-      .map((x) => formatWizardNameNumber(x!))
-      .join('×');
-    return `Бак прям. ${dims} мм, ${ins}, ${tAmb}→${tProc}°C`;
+    const { length_mm: length, width_mm: width, height_mm: height } = v;
+    if (!isFiniteNumber(length) || !isFiniteNumber(width) || !isFiniteNumber(height)) return '';
+    const dims = [length, width, height].map((value) => formatWizardNameNumber(value)).join('×');
+    return `Бак прям. ${dims} мм, ${ins}, ${temperatures}`;
   }
-  return `Бак, ${ins}, ${tAmb}→${tProc}°C`;
+  return '';
 }
