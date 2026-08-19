@@ -107,6 +107,10 @@ class TestObjectQuery:
         assert resp.status_code == 200, resp.text
         fields = {field["key"]: field for field in resp.json()["fields"]}
         assert "pipe_dn" not in fields
+        assert fields["ambient_temperature"]["label"] == (
+            "Минимальная температура окружающей среды"
+        )
+        assert fields["ambient_temperature"]["title"] == "Мин. T окр."
         assert fields["max_ambient_temperature"]["data_type"] == "number"
         assert fields["max_ambient_temperature"]["unit"] == "°C"
         assert fields["max_ambient_temperature"]["filter"]["ops"] == ["range"]
@@ -132,6 +136,10 @@ class TestObjectQuery:
         )
         assert tank_resp.status_code == 200, tank_resp.text
         tank_fields = {field["key"]: field for field in tank_resp.json()["fields"]}
+        assert tank_fields["ambient_temperature"]["label"] == (
+            "Минимальная температура окружающей среды"
+        )
+        assert tank_fields["ambient_temperature"]["title"] == "Мин. T окр."
         assert tank_fields["max_ambient_temperature"]["data_type"] == "number"
         assert tank_fields["max_ambient_temperature"]["filter"]["ops"] == ["range"]
         assert tank_fields["max_ambient_temperature"]["sort"]["type"] == "number"

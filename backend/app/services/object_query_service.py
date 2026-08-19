@@ -536,8 +536,8 @@ def _common_fields(object_type: str) -> list[FieldDef]:
         ),
         FieldDef(
             "ambient_temperature",
-            "Температура окружающей среды",
-            "T окр.",
+            "Минимальная температура окружающей среды",
+            "Мин. T окр.",
             (object_type,),
             "number",
             _param("ambient_temperature"),
