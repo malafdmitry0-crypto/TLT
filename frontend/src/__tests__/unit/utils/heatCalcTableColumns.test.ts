@@ -19,6 +19,10 @@ describe('heatCalcTableColumns', () => {
   it('берёт названия и дефолтные размеры колонок из JSON registry', () => {
     const outerDiameter = HEATCALC_TABLE_COLUMN_CATALOG.pipe
       .find((column) => column.key === 'pipe_outer_diameter');
+    const pipeMaximum = HEATCALC_TABLE_COLUMN_CATALOG.pipe
+      .find((column) => column.key === 'max_ambient_temperature');
+    const tankMaximum = HEATCALC_TABLE_COLUMN_CATALOG.tank
+      .find((column) => column.key === 'max_ambient_temperature');
 
     expect(outerDiameter).toMatchObject({
       labels: { short: 'Ø, мм', full: 'Наружный диаметр', compact: 'Ø' },
@@ -29,10 +33,34 @@ describe('heatCalcTableColumns', () => {
     expect(outerDiameter?.minWidthPx).toBeGreaterThan(0);
     expect(HEATCALC_TABLE_COLUMN_CATALOG.pipe.map((column) => column.key))
       .not.toContain('pipe_dn');
-    expect(HEATCALC_TABLE_COLUMN_CATALOG.pipe.map((column) => column.key))
-      .not.toContain('max_ambient_temperature');
-    expect(HEATCALC_TABLE_COLUMN_CATALOG.tank.map((column) => column.key))
-      .not.toContain('max_ambient_temperature');
+    expect(HEATCALC_TABLE_COLUMNS_VERSION).toBe(9);
+    for (const maximum of [pipeMaximum, tankMaximum]) {
+      expect(maximum).toMatchObject({
+        labels: {
+          short: 'T окр. max',
+          full: 'Максимальная температура окружающей среды',
+          compact: 'T окр. max',
+        },
+        unit: '°C',
+        valueType: 'number',
+        defaultVisible: true,
+        sortable: false,
+        filterable: false,
+        defaultWidthPct: 8.2,
+      });
+    }
+    expect(HEATCALC_TABLE_COLUMN_CATALOG.all
+      .filter((column) => column.key === 'max_ambient_temperature')).toHaveLength(1);
+  });
+
+  it('показывает maximum по умолчанию сразу после minimum', () => {
+    const settings = getDefaultTableColumnSettings();
+
+    for (const type of ['pipe', 'tank', 'all'] as const) {
+      const visible = settings.types[type].visibleOrder;
+      expect(visible.indexOf('max_ambient_temperature'))
+        .toBe(visible.indexOf('ambient_temperature') + 1);
+    }
   });
 
   it('подставляет выбранный формат названия без изменения настроек колонок', () => {
@@ -72,17 +100,64 @@ describe('heatCalcTableColumns', () => {
   });
 
   it('не возвращает размещение трубопровода после ручного скрытия в новой версии', () => {
+    const columns = getDefaultTableColumnSettings().types.pipe.columns;
     const settings = normalizeTableColumnSettings({
       version: HEATCALC_TABLE_COLUMNS_VERSION,
       types: {
         pipe: {
           visibleOrder: ['index', 'name', 'pipe_outer_diameter'],
-          columns: {},
+          columns,
         },
       },
     });
 
     expect(settings.types.pipe.visibleOrder).not.toContain('placement');
+  });
+
+  it('добавляет только новую default-visible колонку, сохраняя order и widths', () => {
+    const defaultColumns = getDefaultTableColumnSettings().types.pipe.columns;
+    const legacyColumns = { ...defaultColumns };
+    delete legacyColumns.max_ambient_temperature;
+    legacyColumns.pipe_length = { widthPct: 12.5 };
+    legacyColumns.ambient_temperature = { widthPct: 17.5 };
+    const previousVisibleOrder = ['pipe_length', 'name', 'ambient_temperature'];
+
+    const settings = normalizeTableColumnSettings({
+      version: HEATCALC_TABLE_COLUMNS_VERSION,
+      types: {
+        pipe: { visibleOrder: previousVisibleOrder, columns: legacyColumns },
+      },
+    });
+
+    expect(settings.types.pipe.visibleOrder).toEqual([
+      ...previousVisibleOrder,
+      'max_ambient_temperature',
+    ]);
+    expect(settings.types.pipe.columns.pipe_length.widthPct).toBe(12.5);
+    expect(settings.types.pipe.columns.ambient_temperature.widthPct).toBe(17.5);
+    expect(settings.types.pipe.columns.max_ambient_temperature.widthPct).toBe(8.2);
+  });
+
+  it('сохраняет явно скрытый maximum и его width при повторной нормализации', () => {
+    const columns = {
+      ...getDefaultTableColumnSettings().types.pipe.columns,
+      max_ambient_temperature: { widthPct: 13.5 },
+    };
+    const hidden = normalizeTableColumnSettings({
+      version: HEATCALC_TABLE_COLUMNS_VERSION,
+      types: {
+        pipe: {
+          visibleOrder: ['name', 'ambient_temperature'],
+          columns,
+        },
+      },
+    });
+    const reloaded = normalizeTableColumnSettings(hidden);
+
+    expect(hidden.types.pipe.visibleOrder).not.toContain('max_ambient_temperature');
+    expect(hidden.types.pipe.columns.max_ambient_temperature.widthPct).toBe(13.5);
+    expect(reloaded.types.pipe.visibleOrder).not.toContain('max_ambient_temperature');
+    expect(reloaded.types.pipe.columns.max_ambient_temperature.widthPct).toBe(13.5);
   });
 
   it('нормализует порядок без дублей и перемещает колонку по номеру', () => {

@@ -82,6 +82,29 @@ describe('heatCalcColumnRenderers', () => {
     expect(renderers.thermal_resistance.copyValue(record, 0)).toBe('2,3579');
   });
 
+  it('показывает и копирует максимум воздуха, кроме подземной трубы', () => {
+    const outdoorPipe = makeObject({
+      params: { placement: 'outdoor', max_ambient_temperature: 35 },
+    });
+    const undergroundPipe = makeObject({
+      params: { placement: 'underground', max_ambient_temperature: 35 },
+    });
+    const undergroundTank = makeObject({
+      object_type: 'tank',
+      params: { placement: 'underground', max_ambient_temperature: 35 },
+    });
+    const emptyTank = makeObject({ object_type: 'tank', params: { placement: 'outdoor' } });
+    const maximum = renderers.max_ambient_temperature;
+
+    expect(maximum.render?.(null, outdoorPipe, 0)).toBe('35,0');
+    expect(maximum.copyValue(outdoorPipe, 0)).toBe('35,0');
+    expect(maximum.render?.(null, undergroundPipe, 0)).toBe('—');
+    expect(maximum.copyValue(undergroundPipe, 0)).toBe('—');
+    expect(maximum.render?.(null, undergroundTank, 0)).toBe('35,0');
+    expect(maximum.copyValue(undergroundTank, 0)).toBe('35,0');
+    expect(maximum.copyValue(emptyTank, 0)).toBe('—');
+  });
+
   it('сохраняет статус, render aria-label и диагностический текст ошибок', () => {
     const unsupported = makeObject({
       validation_errors: { category: 'unsupported', message: 'Не применимо для выбранной формы' },
