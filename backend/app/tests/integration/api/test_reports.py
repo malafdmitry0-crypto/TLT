@@ -1,5 +1,7 @@
 """Integration-тесты отчётов."""
 
+import html as html_lib
+import re
 from uuid import UUID, uuid4
 
 import pytest
@@ -12,7 +14,7 @@ from app.models.audit_event import AuditEvent
 from app.models.background_task import BackgroundTask
 from app.models.user import User
 from app.services.report_artifact_service import write_report_artifact
-from app.tests.heat_fixtures import canonical_pipe_params
+from app.tests.heat_fixtures import canonical_pipe_params, canonical_tank_params
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -20,6 +22,23 @@ pytestmark = pytest.mark.asyncio(loop_scope="session")
 class FakeTaskQueue:
     async def enqueue(self, task_id, task_type: str) -> str:
         return f"stream:{task_id}:{task_type}"
+
+
+def _report_row_cells(report_html: str, object_name: str) -> list[str]:
+    row_html = next(
+        (
+            row
+            for row in re.findall(r"<tr>.*?</tr>", report_html, flags=re.DOTALL)
+            if re.search(rf"<td>{re.escape(object_name)}</td>", row)
+        ),
+        None,
+    )
+    assert row_html is not None, f"Report row not found: {object_name}"
+    cells = re.findall(r"<td[^>]*>(.*?)</td>", row_html, flags=re.DOTALL)
+    return [
+        " ".join(html_lib.unescape(re.sub(r"<[^>]+>", " ", cell)).split())
+        for cell in cells
+    ]
 
 
 async def _project_with_object(client: AsyncClient, session_id: str) -> str:
@@ -157,6 +176,7 @@ class TestReports:
                 "object_type": "pipe",
                 "params": canonical_pipe_params(
                     ambient_temperature=-30,
+                    max_ambient_temperature=25,
                     pipe_length=50,
                 ),
             },
@@ -183,6 +203,7 @@ class TestReports:
                 ("electrical_variant_ids", er1["id"]),
                 ("electrical_variant_ids", er2["id"]),
                 ("sections", "summary"),
+                ("sections", "pipes"),
             ],
             headers=headers,
         )
@@ -194,6 +215,119 @@ class TestReports:
         assert er1["name"] in names
         assert er2["name"] in names
         assert "Глава:" in body["html"] or er1["name"] in body["html"]
+        assert body["html"].count("Tокр. min, °C") == 2
+        assert body["html"].count("Tокр. max, °C") == 2
+        assert body["html"].count(
+            "Tокр. max — справочное значение; в текущем расчёте не используется."
+        ) == 2
+
+    async def test_preview_distinguishes_ambient_bounds_by_object_context(
+        self,
+        client: AsyncClient,
+        employee_token: str,
+    ):
+        headers = {"Authorization": f"Bearer {employee_token}"}
+        project = (
+            await client.post(
+                "/api/v1/projects",
+                json={"name": "Ambient bounds report"},
+                headers=headers,
+            )
+        ).json()
+        pid = project["id"]
+        fixtures = [
+            (
+                "pipe",
+                canonical_pipe_params(
+                    name="Pipe filled maximum",
+                    ambient_temperature=-30,
+                    max_ambient_temperature=25,
+                ),
+            ),
+            (
+                "pipe",
+                canonical_pipe_params(
+                    name="Pipe empty maximum",
+                    ambient_temperature=-20,
+                ),
+            ),
+            (
+                "pipe",
+                canonical_pipe_params(
+                    name="Pipe zero maximum",
+                    ambient_temperature=-10,
+                    max_ambient_temperature=0,
+                ),
+            ),
+            (
+                "pipe",
+                canonical_pipe_params(
+                    name="Pipe underground stale air",
+                    placement="underground",
+                    insulation_temperature_basis="channel",
+                    ambient_temperature=-60,
+                    max_ambient_temperature=35,
+                    pipe_centerline_depth=0.4,
+                    ground_temperature=0,
+                    ground_type="sand_1600_w238",
+                    ground_conductivity=2.02,
+                ),
+            ),
+            (
+                "tank",
+                canonical_tank_params(
+                    name="Tank underground bounds",
+                    placement="underground",
+                    insulation_temperature_basis="channel",
+                    ambient_temperature=-15,
+                    max_ambient_temperature=30,
+                    ground_temperature=5,
+                    tank_buried_height=1,
+                    ground_type="dry_sand",
+                    ground_conductivity=0.8,
+                ),
+            ),
+        ]
+        for object_type, params in fixtures:
+            created = await client.post(
+                f"/api/v1/projects/{pid}/objects",
+                json={"object_type": object_type, "params": params},
+                headers=headers,
+            )
+            assert created.status_code == 201, created.text
+
+        preview = await client.get(
+            f"/api/v1/reports/{pid}/preview",
+            params=[
+                ("variant_number", "1"),
+                ("sections", "pipes"),
+                ("sections", "tanks"),
+            ],
+            headers=headers,
+        )
+        assert preview.status_code == 200, preview.text
+        report_html = preview.json()["html"]
+        assert report_html.count("Tокр. min, °C") == 2
+        assert report_html.count("Tокр. max, °C") == 2
+        assert report_html.count(
+            "Tокр. max — справочное значение; в текущем расчёте не используется."
+        ) == 2
+
+        filled_pipe = _report_row_cells(report_html, "Pipe filled maximum")
+        empty_pipe = _report_row_cells(report_html, "Pipe empty maximum")
+        zero_pipe = _report_row_cells(report_html, "Pipe zero maximum")
+        underground_pipe = _report_row_cells(report_html, "Pipe underground stale air")
+        underground_tank = _report_row_cells(report_html, "Tank underground bounds")
+        assert filled_pipe[6:9] == ["-30.0", "25.0", "80.0"]
+        assert empty_pipe[6:9] == ["-20.0", "—", "80.0"]
+        assert zero_pipe[6:9] == ["-10.0", "0.0", "80.0"]
+        assert underground_pipe[6:9] == ["—", "—", "80.0"]
+        assert underground_tank[6:9] == ["-15.0", "30.0", "70.0"]
+        for row in (filled_pipe, empty_pipe, zero_pipe, underground_pipe):
+            assert row[9] != "—"
+            assert row[10] != "—"
+        assert underground_tank[12] != "—"
+        assert underground_tank[13] != "—"
 
     async def test_preview_returns_html(self, client: AsyncClient, guest_session: str):
         pid = await _project_with_object(client, guest_session)

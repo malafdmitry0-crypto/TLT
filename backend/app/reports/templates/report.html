@@ -36,6 +36,7 @@
   <meta charset="utf-8">
   <title>Отчёт HeatCalc — {{ project.name }}</title>
   <style>
+    @page { size: A4 landscape; margin: 10mm; }
     .tlt-report { font-family: 'DejaVu Sans', Arial, sans-serif; color: #1a1a1a; font-size: 13px; line-height: 1.45; }
     .tlt-report h1 { color: #1a5276; font-size: 22px; margin: 0 0 4px; }
     .tlt-report h2 { color: #2e86c1; font-size: 16px; border-bottom: 2px solid #aed6f1; padding-bottom: 4px; margin: 22px 0 10px; }
@@ -57,6 +58,18 @@
     .tlt-report .object-card { border: 1px solid #d5dbdb; border-radius: 4px; padding: 10px 14px; margin: 10px 0; }
     .tlt-report .object-title { font-size: 14px; font-weight: 600; color: #1a5276; margin-bottom: 6px; }
     .tlt-report .section-empty { color: #999; font-style: italic; padding: 8px 0; }
+    @media print {
+      .tlt-report .report-data-table th,
+      .tlt-report .report-data-table td {
+        padding: 4px 5px;
+        font-size: 10px;
+        line-height: 1.25;
+        overflow-wrap: anywhere;
+        hyphens: auto;
+      }
+      .tlt-report .report-data-table th:last-child,
+      .tlt-report .report-data-table td:last-child { white-space: nowrap; }
+    }
   </style>
 </head>
 <body>
@@ -112,13 +125,14 @@
   {% set pipes = objects | selectattr('object_type', 'equalto', 'pipe') | list %}
   <h2>Трубопроводы ({{ pipes|length }})</h2>
   {% if pipes %}
-  <table>
+  <p class="muted">Tокр. max — справочное значение; в текущем расчёте не используется.</p>
+  <table class="report-data-table">
     <thead>
       <tr>
         <th>#</th><th>Наименование</th>
         <th class="num">Ø, мм</th><th class="num">Длина, м</th>
         <th class="num">δ изол., мм</th><th>Материал</th>
-        <th class="num">T₀, °C</th><th class="num">Tподд., °C</th>
+        <th class="num">Tокр. min, °C</th><th class="num">Tокр. max, °C</th><th class="num">Tподд., °C</th>
         <th class="num">q base, Вт/м</th><th class="num">Q design, Вт</th>
         <th>Статус</th>
       </tr>
@@ -133,7 +147,8 @@
         <td class="num">{{ fmt(o.params.get('pipe_length'), 1) }}</td>
         <td class="num">{{ mm(insulation.get('thickness')) }}</td>
         <td>{{ MATERIALS.get(insulation.get('material'), insulation.get('material') or '—') }}</td>
-        <td class="num">{{ fmt(o.params.get('ambient_temperature'), 1) }}</td>
+        <td class="num">{% if o.params.get('placement') == 'underground' %}—{% else %}{{ fmt(o.params.get('ambient_temperature'), 1) }}{% endif %}</td>
+        <td class="num">{% if o.params.get('placement') == 'underground' %}—{% else %}{{ fmt(o.params.get('max_ambient_temperature'), 1) }}{% endif %}</td>
         <td class="num">{{ fmt(o.params.get('process_temperature'), 1) }}</td>
         <td class="num">{% if o.results %}{{ fmt(o.results.get('heat_loss_per_meter_base'), 1) }}{% else %}—{% endif %}</td>
         <td class="num">{% if o.results %}{{ fmt(o.results.get('total_heat_loss_design'), 0) }}{% else %}—{% endif %}</td>
@@ -152,13 +167,14 @@
   {% set tanks = objects | selectattr('object_type', 'equalto', 'tank') | list %}
   <h2>Резервуары ({{ tanks|length }})</h2>
   {% if tanks %}
-  <table>
+  <p class="muted">Tокр. max — справочное значение; в текущем расчёте не используется.</p>
+  <table class="report-data-table">
     <thead>
       <tr>
         <th>#</th><th>Наименование</th><th>Форма</th>
         <th>Габариты</th>
         <th class="num">δ изол., мм</th><th>Материал</th>
-        <th class="num">T₀, °C</th><th class="num">Tподд., °C</th>
+        <th class="num">Tокр. min, °C</th><th class="num">Tокр. max, °C</th><th class="num">Tподд., °C</th>
         <th class="num">S bare, м²</th><th class="num">RΣ, м²·К/Вт</th><th class="num">q base, Вт/м²</th><th class="num">Qдоп, Вт</th><th class="num">Q design, Вт</th>
         <th>Статус</th>
       </tr>
@@ -181,6 +197,7 @@
         <td class="num">{{ mm(insulation.get('thickness')) }}</td>
         <td>{{ MATERIALS.get(insulation.get('material'), insulation.get('material') or '—') }}</td>
         <td class="num">{{ fmt(o.params.get('ambient_temperature'), 1) }}</td>
+        <td class="num">{{ fmt(o.params.get('max_ambient_temperature'), 1) }}</td>
         <td class="num">{{ fmt(o.params.get('process_temperature'), 1) }}</td>
         <td class="num">{% if o.results %}{{ fmt(o.results.get('surface_area_bare'), 2) }}{% else %}—{% endif %}</td>
         <td class="num">
@@ -368,13 +385,14 @@
   {% set pipes = objects | selectattr('object_type', 'equalto', 'pipe') | list %}
   <h2>Трубопроводы ({{ pipes|length }})</h2>
   {% if pipes %}
-  <table>
+  <p class="muted">Tокр. max — справочное значение; в текущем расчёте не используется.</p>
+  <table class="report-data-table">
     <thead>
       <tr>
         <th>#</th><th>Наименование</th>
         <th class="num">Ø, мм</th><th class="num">Длина, м</th>
         <th class="num">δ изол., мм</th><th>Материал</th>
-        <th class="num">T₀, °C</th><th class="num">Tподд., °C</th>
+        <th class="num">Tокр. min, °C</th><th class="num">Tокр. max, °C</th><th class="num">Tподд., °C</th>
         <th class="num">q base, Вт/м</th><th class="num">Q design, Вт</th>
         <th>Статус</th>
       </tr>
@@ -389,7 +407,8 @@
         <td class="num">{{ fmt(o.params.get('pipe_length'), 1) }}</td>
         <td class="num">{{ mm(insulation.get('thickness')) }}</td>
         <td>{{ MATERIALS.get(insulation.get('material'), insulation.get('material') or '—') }}</td>
-        <td class="num">{{ fmt(o.params.get('ambient_temperature'), 1) }}</td>
+        <td class="num">{% if o.params.get('placement') == 'underground' %}—{% else %}{{ fmt(o.params.get('ambient_temperature'), 1) }}{% endif %}</td>
+        <td class="num">{% if o.params.get('placement') == 'underground' %}—{% else %}{{ fmt(o.params.get('max_ambient_temperature'), 1) }}{% endif %}</td>
         <td class="num">{{ fmt(o.params.get('process_temperature'), 1) }}</td>
         <td class="num">{% if o.results %}{{ fmt(o.results.get('heat_loss_per_meter_base'), 1) }}{% else %}—{% endif %}</td>
         <td class="num">{% if o.results %}{{ fmt(o.results.get('total_heat_loss_design'), 0) }}{% else %}—{% endif %}</td>
@@ -408,13 +427,14 @@
   {% set tanks = objects | selectattr('object_type', 'equalto', 'tank') | list %}
   <h2>Резервуары ({{ tanks|length }})</h2>
   {% if tanks %}
-  <table>
+  <p class="muted">Tокр. max — справочное значение; в текущем расчёте не используется.</p>
+  <table class="report-data-table">
     <thead>
       <tr>
         <th>#</th><th>Наименование</th><th>Форма</th>
         <th>Габариты</th>
         <th class="num">δ изол., мм</th><th>Материал</th>
-        <th class="num">T₀, °C</th><th class="num">Tподд., °C</th>
+        <th class="num">Tокр. min, °C</th><th class="num">Tокр. max, °C</th><th class="num">Tподд., °C</th>
         <th class="num">S bare, м²</th><th class="num">RΣ, м²·К/Вт</th><th class="num">q base, Вт/м²</th><th class="num">Qдоп, Вт</th><th class="num">Q design, Вт</th>
         <th>Статус</th>
       </tr>
@@ -437,6 +457,7 @@
         <td class="num">{{ mm(insulation.get('thickness')) }}</td>
         <td>{{ MATERIALS.get(insulation.get('material'), insulation.get('material') or '—') }}</td>
         <td class="num">{{ fmt(o.params.get('ambient_temperature'), 1) }}</td>
+        <td class="num">{{ fmt(o.params.get('max_ambient_temperature'), 1) }}</td>
         <td class="num">{{ fmt(o.params.get('process_temperature'), 1) }}</td>
         <td class="num">{% if o.results %}{{ fmt(o.results.get('surface_area_bare'), 2) }}{% else %}—{% endif %}</td>
         <td class="num">
