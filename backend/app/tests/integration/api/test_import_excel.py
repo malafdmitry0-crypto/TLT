@@ -1,5 +1,6 @@
 """Integration-тесты импорта объектов из Excel."""
 
+import csv
 import io
 from uuid import UUID
 
@@ -9,6 +10,7 @@ from openpyxl import Workbook, load_workbook
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.services.excel_import_service import build_template_csv, build_template_xlsx
+from app.services.spreadsheet_schema import CSV_HEADERS
 from app.services.task_service import TaskService
 
 MINERAL_WOOL = "mineral_wool_boards_120"
@@ -906,6 +908,71 @@ class TestCsvImport:
         assert body["created"] == 2, body
         assert body["errors"] == []
         assert body["heat_loss_task"]["type"] == "heat_loss_batch"
+
+    async def test_csv_import_preserves_underground_ground_and_three_layers(
+        self, client: AsyncClient, guest_session: str
+    ):
+        pid = await _create_project(client, guest_session)
+        row = {
+            "Тип": "труба",
+            "Наименование": "CSV underground three layers",
+            "Диаметр, мм": 108,
+            "Длина, м": 25,
+            "Толщина изоляции, мм": 30,
+            "Материал изоляции": "other",
+            "T° продукта": 80,
+            "Размещение": "подземно",
+            "Глубина заложения оси трубы, м": 1.5,
+            "Грунт": "глина",
+            "Температура грунта": 5,
+            "λ грунта": 1.7,
+            "Толщина стенки, мм": 4,
+            "λ трубы": 45,
+            "Режим температуры изоляции": "channel",
+            "Мин. T включения, °C": -20,
+            "λ 1-го слоя": 0.04,
+            "Диапазон температур 1-го слоя, °C": "-30..120",
+            "Толщина 2-го слоя, мм": 20,
+            "Материал 2-го слоя": "other",
+            "λ 2-го слоя": 0.039,
+            "Диапазон температур 2-го слоя, °C": "-40..180",
+            "Толщина 3-го слоя, мм": 10,
+            "Материал 3-го слоя": POLYURETHANE,
+            "Материал покрытия": "aluminum",
+            "Количество локальных элементов": 0,
+        }
+        buffer = io.StringIO()
+        writer = csv.DictWriter(buffer, fieldnames=CSV_HEADERS, delimiter=";", extrasaction="ignore")
+        writer.writeheader()
+        writer.writerow(row)
+        resp = await client.post(
+            f"/api/v1/projects/{pid}/objects/import-excel",
+            files={"file": ("underground.csv", buffer.getvalue().encode(), "text/csv")},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["created"] == 1
+
+        objects = (
+            await client.get(
+                f"/api/v1/projects/{pid}/objects",
+                headers={"X-Session-Id": guest_session},
+            )
+        ).json()
+        assert len(objects) == 1
+        params = objects[0]["params"]
+        assert params["pipe_centerline_depth"] == 1.5
+        assert params["ground_type"] == "clay"
+        assert params["ground_temperature"] == 5
+        assert params["ground_conductivity"] == 1.7
+        assert params["ground_conductivity_source"] == "reference"
+        assert params["pipe_lambda"] == 45
+        assert params["insulation_cover_material"] == "aluminum"
+        assert params["insulation_layers"] == [
+            {"thickness": 0.03, "material": "other", "conductivity": 0.04, "temperature_range": [-30.0, 120.0]},
+            {"thickness": 0.02, "material": "other", "conductivity": 0.039, "temperature_range": [-40.0, 180.0]},
+            {"thickness": 0.01, "material": POLYURETHANE},
+        ]
 
     async def test_csv_import_default_merge_skips_repeated_file(
         self, client: AsyncClient, guest_session: str

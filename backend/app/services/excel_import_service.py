@@ -938,7 +938,12 @@ def _parse_csv(content: bytes) -> list[tuple[str, list[dict[str, Any]]]]:
                 if idx < len(row):
                     val = row[idx]
                     # Пустые строки — None
-                    item[key] = val if (val is not None and str(val).strip() != "") else None
+                    normalized_value = val if (val is not None and str(val).strip() != "") else None
+                    # «Материал изоляции» and its code are both aliases of
+                    # one semantic field. Keep a meaningful earlier alias
+                    # when a later optional display/code column is blank.
+                    if normalized_value is not None or item.get(key) in (None, ""):
+                        item[key] = normalized_value
             out.append(item)
         return out
 
