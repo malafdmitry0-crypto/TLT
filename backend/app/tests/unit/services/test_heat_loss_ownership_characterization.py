@@ -26,7 +26,12 @@ from app.models.project_object import ProjectObject
 from app.reference_data.loader import ReferenceInsulationError
 from app.schemas import calculation as calculation_schemas
 from app.schemas import heat_loss as heat_loss_schemas
-from app.schemas.heat_loss import PipeHeatLossParams, TankHeatLossParams
+from app.schemas.heat_loss import (
+    PipeHeatLossParams,
+    StoredPipeHeatParams,
+    StoredTankHeatParams,
+    TankHeatLossParams,
+)
 from app.services import calculation_service as calculation_service_module
 from app.services import heat_loss_application as heat_loss_application_module
 from app.services.calculation_service import CalculationService
@@ -35,6 +40,7 @@ from app.services.project_object_params import (
     ProjectObjectParamsError,
     ValidationIssue,
     ValidationReport,
+    validate_and_canonicalize_project_object_params,
 )
 
 MINERAL_WOOL = "mineral_wool_boards_120"
@@ -433,6 +439,60 @@ async def test_application_explicit_coefficients_take_priority_over_provider() -
     assert outcome.is_valid is True
     assert outcome.error_message is None
     provider.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    ("object_type", "payload", "stored_type"),
+    [
+        pytest.param(
+            "pipe",
+            _pipe(min_switch_temperature=-20.0),
+            StoredPipeHeatParams,
+            id="pipe",
+        ),
+        pytest.param(
+            "tank",
+            _tank(
+                min_switch_temperature=-20.0,
+                heating_height=1.0,
+                laying_step=0.2,
+            ),
+            StoredTankHeatParams,
+            id="tank",
+        ),
+    ],
+)
+async def test_ambient_maximum_metadata_is_preserved_but_does_not_change_formula_result(
+    object_type: str,
+    payload: dict[str, object],
+    stored_type: type[StoredPipeHeatParams] | type[StoredTankHeatParams],
+) -> None:
+    maximum = 45.0
+    with_maximum = {**payload, "max_ambient_temperature": maximum}
+
+    prepared = validate_and_canonicalize_project_object_params(object_type, with_maximum)
+
+    assert prepared.report.is_valid is True
+    assert prepared.params["max_ambient_temperature"] == maximum
+    assert isinstance(prepared.heat_params, stored_type)
+    assert "max_ambient_temperature" not in prepared.heat_params.model_dump()
+
+    baseline = await heat_loss_application_module.evaluate_project_object_heat(
+        object_type,
+        payload,
+        coefficients={},
+    )
+    with_metadata = await heat_loss_application_module.evaluate_project_object_heat(
+        object_type,
+        with_maximum,
+        coefficients={},
+    )
+
+    assert baseline.is_valid is True
+    assert with_metadata.is_valid is True
+    assert with_metadata.params_to_persist is not None
+    assert with_metadata.params_to_persist["max_ambient_temperature"] == maximum
+    assert with_metadata.results == baseline.results
 
 
 async def test_try_recalculate_persists_current_climate_k_snapshot() -> None:
