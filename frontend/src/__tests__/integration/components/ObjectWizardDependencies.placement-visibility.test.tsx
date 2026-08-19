@@ -1,5 +1,18 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
+import {
+  HEATCALC_FIELD_REGISTRY_VERSION,
+  getHeatCalcDefaultVisibleTableKeys,
+  getHeatCalcFieldConfig,
+  getHeatCalcFieldDefinition,
+  getHeatCalcFieldDescription,
+  getHeatCalcFieldInputConfig,
+  getHeatCalcFieldInputSettingsVersion,
+  getHeatCalcFieldLabel,
+  getHeatCalcFormFieldIds,
+  getHeatCalcTableColumnRegistry,
+  getHeatCalcTableSettingsVersion,
+} from '@/domain/heatCalcFields';
 
 vi.mock('@/api/references', () => ({
   getClimate: vi.fn(),
@@ -13,6 +26,81 @@ import {
   renderWizard,
   basePipeParams,
 } from './ObjectWizardDependencies.test-harness';
+
+describe('HeatCalc ambient temperature registry contract', () => {
+  it('registers an explicit minimum and a form-only optional maximum', () => {
+    expect(HEATCALC_FIELD_REGISTRY_VERSION).toBe(3);
+    expect(getHeatCalcTableSettingsVersion()).toBe(9);
+    expect(getHeatCalcFieldInputSettingsVersion()).toBe(2);
+
+    expect(getHeatCalcFieldConfig('ambient_temperature')?.labels).toEqual({
+      full: 'Минимальная температура окружающей среды',
+      short: 'T окр. min',
+      compact: 'T окр. min',
+    });
+    expect(getHeatCalcFieldLabel('ambient_temperature', {
+      context: 'table',
+      tableKey: 'ambient_temperature',
+    })).toBe('T окр. min');
+    expect(getHeatCalcFieldLabel('ambient_temperature', {
+      context: 'table',
+      tableKey: 'ambient_temperature',
+      variant: 'full',
+    })).toBe('Минимальная температура окружающей среды');
+    expect(getHeatCalcFieldLabel('ambient_temperature', {
+      context: 'settings',
+      tableKey: 'ambient_temperature',
+    })).toBe('Минимальная температура окружающей среды');
+    expect(getHeatCalcFieldLabel('ambient_temperature', {
+      context: 'form',
+      objectType: 'pipe',
+    })).toBe('Минимальная температура окружающей среды');
+
+    expect(getHeatCalcFieldConfig('max_ambient_temperature')).toMatchObject({
+      service_name: 'max_ambient_temperature',
+      object_types: ['pipe', 'tank'],
+      labels: {
+        full: 'Максимальная температура окружающей среды',
+        short: 'T окр. max',
+        compact: 'T окр. max',
+      },
+    });
+    expect(getHeatCalcFieldConfig('max_ambient_temperature')?.table_keys).toBeUndefined();
+    expect(getHeatCalcFieldDefinition('max_ambient_temperature', 'pipe')).toBeNull();
+    expect(getHeatCalcFieldDefinition('max_ambient_temperature', 'tank')).toBeNull();
+
+    const maximumInput = getHeatCalcFieldInputConfig('max_ambient_temperature', 'pipe');
+    expect(maximumInput).toEqual({
+      type: 'number',
+      unit: '°C',
+      min: -70,
+      max: 70,
+      default_step: 0.1,
+      configurable_step: false,
+      input_unit: 'raw',
+      display_digits: 1,
+    });
+    expect(maximumInput).not.toHaveProperty('required');
+    expect(maximumInput).not.toHaveProperty('default');
+    expect(getHeatCalcFieldInputConfig('max_ambient_temperature', 'tank')).toEqual(maximumInput);
+    expect(getHeatCalcFieldDescription('max_ambient_temperature')).toBe(
+      'Справочное значение; в текущем расчёте не используется',
+    );
+
+    for (const objectType of ['pipe', 'tank'] as const) {
+      const formFields = getHeatCalcFormFieldIds(objectType);
+      const ambientIndex = formFields.indexOf('ambient_temperature');
+      expect(ambientIndex).toBeGreaterThanOrEqual(0);
+      expect(formFields[ambientIndex + 1]).toBe('max_ambient_temperature');
+      expect(getHeatCalcTableColumnRegistry(objectType).map(({ key }) => key))
+        .not.toContain('max_ambient_temperature');
+      expect(getHeatCalcDefaultVisibleTableKeys(objectType))
+        .not.toContain('max_ambient_temperature');
+    }
+    expect(getHeatCalcDefaultVisibleTableKeys('all'))
+      .not.toContain('max_ambient_temperature');
+  });
+});
 
 describe('ObjectWizard dependencies — placement-visibility', () => {
   beforeEach(async () => {
