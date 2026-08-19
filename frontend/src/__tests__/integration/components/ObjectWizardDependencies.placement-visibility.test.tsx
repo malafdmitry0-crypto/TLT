@@ -123,6 +123,20 @@ describe('ObjectWizard dependencies — placement-visibility', () => {
     await mockReferences();
   });
 
+  it.each(['pipe', 'tank'] as const)('shows explicit accessible ambient bounds for outdoor %s', async (objectType) => {
+    renderWizard({
+      objectType,
+      initialParams: objectType === 'pipe' ? basePipeParams : { placement: 'outdoor' },
+    });
+
+    const minimum = await screen.findByTestId('ambient-temperature-input');
+    const maximum = screen.getByTestId('max-ambient-temperature-input');
+    expect(minimum).toBeVisible();
+    expect(maximum).toBeVisible();
+    expect(minimum).toHaveAccessibleName('Минимальная температура окружающей среды');
+    expect(maximum).toHaveAccessibleName('Максимальная температура окружающей среды');
+  });
+
   it('для подземной трубы показывает грунт и скрывает ветер; alpha отсутствует во всей форме', async () => {
     renderWizard({
       initialParams: {
@@ -139,6 +153,7 @@ describe('ObjectWizard dependencies — placement-visibility', () => {
     expect(screen.getByTestId('ground-conductivity-input')).toBeVisible();
     expect(screen.getByTestId('ground-conductivity-input')).not.toHaveAttribute('aria-required');
     expect(screen.queryByTestId('ambient-temperature-input')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('max-ambient-temperature-input')).not.toBeInTheDocument();
     expect(screen.queryByTestId('wind-speed-input')).not.toBeInTheDocument();
     expect(screen.queryByTestId('alpha-vnesh-input')).not.toBeInTheDocument();
   });
@@ -163,6 +178,8 @@ describe('ObjectWizard dependencies — placement-visibility', () => {
 
     expect(await screen.findByTestId('burial-depth-input')).toBeVisible();
     expect(screen.getByTestId('ground-type-select')).toBeVisible();
+    expect(screen.getByTestId('ambient-temperature-input')).toBeVisible();
+    expect(screen.getByTestId('max-ambient-temperature-input')).toBeVisible();
     expect(screen.getByTestId('wind-speed-input')).toBeVisible();
     expect(screen.queryByTestId('alpha-vnesh-input')).not.toBeInTheDocument();
   });
