@@ -186,6 +186,12 @@ export function validateHeatCalcField(
   if (fieldInput.min != null && numberValue < fieldInput.min) return `Минимальное значение — ${fieldInput.min}`;
   if (fieldInput.max != null && numberValue > fieldInput.max) return `Максимальное значение — ${fieldInput.max}`;
 
+  if (fieldId === 'max_ambient_temperature') {
+    const minimum = numericValue(context.values.ambient_temperature);
+    if (typeof minimum === 'number' && Number.isFinite(minimum) && numberValue < minimum) {
+      return 'Максимальная температура окружающей среды не может быть ниже минимальной';
+    }
+  }
   if (fieldId === 'process_temperature') {
     const boundaries = context.values.placement === 'underground' && context.objectType === 'tank'
       ? [context.values.ambient_temperature, context.values.ground_temperature]

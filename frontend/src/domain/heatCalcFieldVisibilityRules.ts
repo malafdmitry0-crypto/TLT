@@ -163,6 +163,12 @@ export function materialFieldForLambda(fieldId: string) {
 export function isHeatCalcFieldVisible(fieldId: string, context: HeatCalcFieldContext): boolean {
   if (RANGE_BOUND_FIELDS.has(fieldId)) return false;
   if (!fieldExistsForContext(fieldId, context)) return false;
+  if (
+    (fieldId === 'ambient_temperature' || fieldId === 'max_ambient_temperature')
+    && context.objectType === 'pipe'
+  ) {
+    return context.values.placement !== 'underground';
+  }
   if (fieldId === 'pipe_material') return context.objectType === 'pipe';
   if (fieldId === 'pipe_lambda') return context.objectType === 'pipe' && context.values.pipe_material === 'other';
   if (fieldId === 'burial_depth' || fieldId === 'pipe_centerline_depth' || fieldId === 'tank_buried_height' || fieldId === 'ground_temperature' || fieldId === 'ground_type' || fieldId === 'ground_conductivity') {

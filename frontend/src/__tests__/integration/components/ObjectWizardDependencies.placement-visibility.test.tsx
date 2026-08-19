@@ -13,6 +13,7 @@ import {
   getHeatCalcTableColumnRegistry,
   getHeatCalcTableSettingsVersion,
 } from '@/domain/heatCalcFields';
+import { isHeatCalcFieldVisible } from '@/domain/heatCalcFieldRules';
 
 vi.mock('@/api/references', () => ({
   getClimate: vi.fn(),
@@ -99,6 +100,19 @@ describe('HeatCalc ambient temperature registry contract', () => {
     }
     expect(getHeatCalcDefaultVisibleTableKeys('all'))
       .not.toContain('max_ambient_temperature');
+  });
+});
+
+describe('HeatCalc ambient temperature domain visibility', () => {
+  it.each([
+    ['pipe', 'outdoor', true],
+    ['pipe', 'underground', false],
+    ['tank', 'outdoor', true],
+    ['tank', 'underground', true],
+  ] as const)('%s with %s placement exposes both air bounds: %s', (objectType, placement, visible) => {
+    const context = { objectType, values: { placement } };
+    expect(isHeatCalcFieldVisible('ambient_temperature', context)).toBe(visible);
+    expect(isHeatCalcFieldVisible('max_ambient_temperature', context)).toBe(visible);
   });
 });
 
