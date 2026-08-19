@@ -52,18 +52,46 @@ describe('tankFormToApiParams', () => {
     expect(api.height).toBeCloseTo(4.0);
   });
 
+  it('отличает отсутствующий максимум температуры среды от явной очистки', () => {
+    const base = {
+      shape: 'cylindrical' as const,
+      diameter_mm: 2000,
+      height_mm: 3000,
+      insulation_thickness_mm: 80,
+      insulation_material: 'mineral_wool',
+      ambient_temperature: -20,
+      process_temperature: 80,
+    };
+
+    const absent = tankFormToApiParams(base);
+    const clearedUndefined = tankFormToApiParams({
+      ...base,
+      max_ambient_temperature: undefined,
+    });
+    const clearedNullValues = { ...base };
+    Object.defineProperty(clearedNullValues, 'max_ambient_temperature', {
+      enumerable: true,
+      value: null,
+    });
+    const clearedNull = tankFormToApiParams(clearedNullValues);
+
+    expect(absent).not.toHaveProperty('max_ambient_temperature');
+    expect(clearedUndefined.max_ambient_temperature).toBeNull();
+    expect(clearedNull.max_ambient_temperature).toBeNull();
+  });
+
   it('uses the canonical underground payload and round-trips mm, layers, and temperatures', () => {
     const api = tankFormToApiParams({
       shape: 'rectangular', length_mm: 5000, width_mm: 3000, height_mm: 4000,
       wall_thickness_mm: 12, wall_lambda: 45,
       insulation_thickness_mm: 80, insulation_material: 'mineral_wool',
       insulation_layer_count: '2', second_insulation_thickness_mm: 40, second_insulation_material: 'other',
-      second_insulation_lambda: 0.04, ambient_temperature: 15, ground_temperature: 4,
+      second_insulation_lambda: 0.04, ambient_temperature: 15, max_ambient_temperature: 0, ground_temperature: 4,
       process_temperature: 80, placement: 'underground', tank_buried_height: 1.5,
       ground_conductivity: 1.2, wind_speed: 4, q_additional: 0,
     });
     expect(api).toMatchObject({
-      placement: 'underground', ambient_temperature: 15, ground_temperature: 4,
+      placement: 'underground', ambient_temperature: 15, max_ambient_temperature: 0, ground_temperature: 4,
       tank_buried_height: 1.5, insulation_layers: [
         { thickness: 0.08, material: 'mineral_wool' },
         { thickness: 0.04, material: 'other', conductivity: 0.04 },
@@ -75,7 +103,7 @@ describe('tankFormToApiParams', () => {
     expect(api).not.toHaveProperty('insulation_material');
     expect(tankApiParamsToForm(api)).toMatchObject({
       length_mm: 5000, width_mm: 3000, height_mm: 4000, wall_thickness_mm: 12,
-      tank_buried_height: 1.5, ambient_temperature: 15, ground_temperature: 4,
+      tank_buried_height: 1.5, ambient_temperature: 15, max_ambient_temperature: 0, ground_temperature: 4,
       insulation_thickness_mm: 80, second_insulation_thickness_mm: 40, q_additional: 0,
     });
   });
