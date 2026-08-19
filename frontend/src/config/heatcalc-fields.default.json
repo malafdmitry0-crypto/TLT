@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "fields": {
     "index": {
       "service_name": "index",
@@ -1089,9 +1089,25 @@
         "compact": "T окр. max"
       },
       "contexts": {
+        "table_by_key": {
+          "max_ambient_temperature": {
+            "label": "T окр. max",
+            "full_label": "Максимальная температура окружающей среды",
+            "tooltip": "Справочное значение; в текущем расчёте не используется"
+          }
+        },
+        "settings_by_key": {
+          "max_ambient_temperature": {
+            "label": "Максимальная температура окружающей среды"
+          }
+        },
         "form": {
           "label": "Максимальная температура окружающей среды"
         }
+      },
+      "table_keys": {
+        "pipe": "max_ambient_temperature",
+        "tank": "max_ambient_temperature"
       },
       "input": {
         "type": "number",
@@ -3517,6 +3533,18 @@
           "field": "ambient_temperature"
         },
         {
+          "key": "max_ambient_temperature",
+          "group": "Температура и среда",
+          "defaultWidthPct": 8.2,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": true,
+          "sortable": false,
+          "filterable": false,
+          "resizable": true,
+          "field": "max_ambient_temperature"
+        },
+        {
           "key": "ambient_temperature_source",
           "group": "Температура и среда",
           "defaultWidthPct": 9.4,
@@ -4201,6 +4229,18 @@
           "field": "ambient_temperature"
         },
         {
+          "key": "max_ambient_temperature",
+          "group": "Температура и среда",
+          "defaultWidthPct": 8.2,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": true,
+          "sortable": false,
+          "filterable": false,
+          "resizable": true,
+          "field": "max_ambient_temperature"
+        },
+        {
           "key": "ambient_temperature_source",
           "group": "Температура и среда",
           "defaultWidthPct": 9.4,
@@ -4555,6 +4595,7 @@
         "insulation_material",
         "process_temperature",
         "ambient_temperature",
+        "max_ambient_temperature",
         "num_local_elements",
         "local_element_equiv_length"
       ],
@@ -4572,6 +4613,7 @@
         "insulation_material",
         "process_temperature",
         "ambient_temperature",
+        "max_ambient_temperature",
         "q_additional"
       ],
       "all": [
@@ -4585,7 +4627,8 @@
         "insulation_thickness",
         "insulation_material",
         "process_temperature",
-        "ambient_temperature"
+        "ambient_temperature",
+        "max_ambient_temperature"
       ]
     },
     "export": {

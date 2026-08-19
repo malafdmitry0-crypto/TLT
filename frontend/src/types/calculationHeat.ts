@@ -50,6 +50,7 @@ export interface PipeParams {
   insulation_cover_material?: string | null;
   insulation_layers: InsulationLayerParams[];
   ambient_temperature?: number | null;
+  max_ambient_temperature?: number | null;
   process_temperature: number;
   max_process_temperature?: number | null;
   pipe_length: number;
@@ -106,6 +107,7 @@ export interface TankParams {
   insulation_cover_material?: string | null;
   insulation_layers: InsulationLayerParams[];
   ambient_temperature: number;
+  max_ambient_temperature?: number | null;
   process_temperature: number;
   max_process_temperature?: number | null;
   placement: 'indoor' | 'outdoor' | 'underground';
