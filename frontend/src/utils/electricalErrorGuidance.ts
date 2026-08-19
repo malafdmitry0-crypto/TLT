@@ -196,6 +196,9 @@ function formatTemperature(value: number): string {
 }
 
 function cableTemperatureLimitMessage(input: ElectricalErrorGuidanceInput): string | undefined {
+  const manualCableModel = contextString(input, 'manual_cable_model');
+  if (manualCableModel && input.error?.trim()) return input.error.trim();
+
   const ambient = contextNumber(input, 'ambient_temperature_c');
   const minimumAmbient = contextNumber(input, 'minimum_supported_ambient_temperature_c');
   const product = contextNumber(input, 'product_temperature_c');
