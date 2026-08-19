@@ -66,6 +66,46 @@
   overflow-wrap: anywhere;
 }
 
+/* Dependent geometry diagnostics are sentence-length. Keep them in the
+   depth field track at the 1000px functional boundary. */
+.inline-object-form .burial-depth-form-item .ant-form-item-row {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  grid-template-columns:
+    minmax(var(--compact-field-label-width, 84px), 1fr)
+    minmax(0, 75px);
+}
+
+.inline-object-form
+  .burial-depth-form-item.ant-form-item-has-error
+  .ant-form-item-row {
+  padding-bottom: 60px;
+}
+
+.inline-object-form
+  .fit-label-form-item.burial-depth-form-item
+  .ant-form-item-control,
+.inline-object-form .burial-depth-form-item .ant-form-item-control-input,
+.inline-object-form
+  .burial-depth-form-item
+  .ant-form-item-control-input-content {
+  position: static;
+  width: 100%;
+  min-width: 0;
+}
+
+.inline-object-form .burial-depth-form-item .ant-form-item-explain {
+  position: absolute;
+  top: var(--inline-control-height);
+  right: 0;
+  left: 0;
+  width: 100%;
+  max-width: 100%;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 768px) {
   .heatcalc-dual-forms--wide {
     --heatcalc-heat-pane-min: 0px;

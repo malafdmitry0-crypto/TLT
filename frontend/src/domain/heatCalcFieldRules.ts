@@ -109,6 +109,46 @@ function pairValidationError(fieldId: string, context: HeatCalcFieldContext) {
   return null;
 }
 
+function formatCompactNumber(value: number) {
+  return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(12)));
+}
+
+function dependentUndergroundGeometryError(
+  fieldId: string,
+  value: number,
+  context: HeatCalcFieldContext,
+) {
+  if (context.values.placement !== 'underground') return null;
+  if (context.objectType === 'tank' && fieldId === 'tank_buried_height') {
+    const heightMm = numericValue(context.values.height_mm);
+    if (heightMm == null || !Number.isFinite(heightMm)) return null;
+    const heightM = heightMm / 1000;
+    if (value <= heightM) return null;
+    return `Высота подземной части ${formatCompactNumber(value)} м не может быть больше `
+      + `высоты резервуара ${formatCompactNumber(heightM)} м`;
+  }
+  if (context.objectType !== 'pipe' || fieldId !== 'pipe_centerline_depth') return null;
+
+  const diameterMm = numericValue(context.values.outer_diameter_mm);
+  if (diameterMm == null || !Number.isFinite(diameterMm)) return null;
+  const count = layerCount(context);
+  const thicknessFields = [
+    'insulation_thickness_mm',
+    'second_insulation_thickness_mm',
+    'third_insulation_thickness_mm',
+  ];
+  const insulationThicknessMm = thicknessFields
+    .slice(0, count)
+    .reduce((sum, name) => {
+      const thickness = numericValue(context.values[name]);
+      return sum + (thickness != null && Number.isFinite(thickness) ? thickness : 0);
+    }, 0);
+  const outerRadiusM = (diameterMm / 2 + insulationThicknessMm) / 1000;
+  if (value >= outerRadiusM) return null;
+  return `Глубина оси H=${value.toFixed(2)} м меньше наружного радиуса изоляции `
+    + `r=${outerRadiusM.toFixed(3)} м — труба не помещается в грунт`;
+}
+
 export function isHeatCalcFieldRequired(fieldId: string, context: HeatCalcFieldContext): boolean {
   return fieldExistsForContext(fieldId, context) && fieldRequired(fieldId, context);
 }
@@ -185,6 +225,9 @@ export function validateHeatCalcField(
   if (!Number.isFinite(numberValue)) return 'Введите число';
   if (fieldInput.min != null && numberValue < fieldInput.min) return `Минимальное значение — ${fieldInput.min}`;
   if (fieldInput.max != null && numberValue > fieldInput.max) return `Максимальное значение — ${fieldInput.max}`;
+
+  const geometryError = dependentUndergroundGeometryError(fieldId, numberValue, context);
+  if (geometryError) return geometryError;
 
   if (fieldId === 'max_ambient_temperature') {
     const minimum = numericValue(context.values.ambient_temperature);
