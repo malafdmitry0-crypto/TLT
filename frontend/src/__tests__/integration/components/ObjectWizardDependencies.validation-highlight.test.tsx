@@ -74,6 +74,106 @@ describe('ObjectWizard dependencies — validation-highlight', () => {
     await mockReferences();
   });
 
+  it('blocks shallow underground pipe locally and revalidates diameter and insulation', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    const message =
+      'Глубина оси H=0.10 м меньше наружного радиуса изоляции r=0.104 м — труба не помещается в грунт';
+    renderWizard({
+      onSubmit,
+      initialParams: {
+        ...basePipeParams,
+        placement: 'underground',
+        pipe_centerline_depth: 0.1,
+        ground_temperature: 5,
+        ground_type: 'dry_sand:na:0',
+        ground_conductivity: 0.8,
+      },
+    });
+
+    const depth = await screen.findByTestId('burial-depth-input');
+    await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
+
+    expect(await screen.findByText(message)).toBeInTheDocument();
+    expect(depth.closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
+    expect(await screen.findByRole('alert')).toHaveTextContent(message);
+    expect(onSubmit).not.toHaveBeenCalled();
+
+    const insulation = screen.getByTestId('insulation-thickness-input');
+    await user.clear(insulation);
+    await user.type(insulation, '40');
+    await user.tab();
+    await waitFor(() => expect(screen.queryByText(message)).not.toBeInTheDocument());
+
+    const diameter = screen.getByTestId('outer-diameter-input');
+    await user.clear(diameter);
+    await user.type(diameter, '128');
+    await user.tab();
+    expect(await screen.findByText(
+      'Глубина оси H=0.10 м меньше наружного радиуса изоляции r=0.104 м — труба не помещается в грунт',
+    )).toBeInTheDocument();
+
+    await user.clear(depth);
+    await user.type(depth, '0.11');
+    await user.tab();
+    await waitFor(() => expect(depth.closest('.ant-form-item')).not.toHaveClass('ant-form-item-has-error'));
+    await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+  });
+
+  it('blocks tank buried height above total height and revalidates both fields', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    const message = 'Высота подземной части 10 м не может быть больше высоты резервуара 4 м';
+    renderWizard({
+      objectType: 'tank',
+      onSubmit,
+      initialParams: {
+        name: 'Подземный резервуар',
+        shape: 'cylindrical',
+        diameter: 2,
+        height: 4,
+        insulation_layers: [{ thickness: 0.05, material: 'mineral_wool' }],
+        insulation_temperature_basis: 'channel',
+        ambient_temperature: -20,
+        ground_temperature: 5,
+        process_temperature: 70,
+        min_switch_temperature: -20,
+        heating_height: 2,
+        laying_step: 0.2,
+        placement: 'underground',
+        tank_buried_height: 10,
+        ground_type: 'dry_sand:na:0',
+        ground_conductivity: 0.8,
+        wind_speed: 0,
+      },
+    });
+
+    const buriedHeight = await screen.findByTestId('burial-depth-input');
+    await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
+    expect(await screen.findByText(message)).toBeInTheDocument();
+    expect(await screen.findByRole('alert')).toHaveTextContent(message);
+    expect(onSubmit).not.toHaveBeenCalled();
+
+    const height = screen.getByTestId('tank-height-input');
+    await user.clear(height);
+    await user.type(height, '10000');
+    await user.tab();
+    await waitFor(() => expect(screen.queryByText(message)).not.toBeInTheDocument());
+
+    await user.clear(height);
+    await user.type(height, '4000');
+    await user.tab();
+    expect(await screen.findByText(message)).toBeInTheDocument();
+
+    await user.clear(buriedHeight);
+    await user.type(buriedHeight, '4');
+    await user.tab();
+    await waitFor(() => expect(buriedHeight.closest('.ant-form-item')).not.toHaveClass('ant-form-item-has-error'));
+    await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+  });
+
   it('blocks maximum below minimum, revalidates reciprocal edits, and accepts empty maximum', async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
