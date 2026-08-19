@@ -94,17 +94,20 @@ export default function ImportExcelButton({ projectId, existingObjectCount }: Pr
         qc.invalidateQueries({ queryKey: ['calc-job', res.heat_loss_task.id] });
         message.info('Пересчёт теплопотерь поставлен в очередь');
       }
-      if (res.errors.length === 0) {
+      const problemCount = res.invalid + res.errors.length + res.skipped_duplicates + res.skipped_limit;
+      if (problemCount === 0) {
+        message.success(`Импортировано объектов: ${res.created}`);
+      } else {
         const skippedText = res.skipped_duplicates
           ? `, дублей пропущено: ${res.skipped_duplicates}`
           : '';
         const limitText = res.skipped_limit
           ? `, по лимиту пропущено: ${res.skipped_limit}`
           : '';
-        message.success(`Импортировано объектов: ${res.created}${skippedText}${limitText}`);
-      } else {
+        const invalidText = res.invalid ? `, не прошло проверку: ${res.invalid}` : '';
+        const parseErrorsText = res.errors.length ? `, ошибок разбора: ${res.errors.length}` : '';
         message.warning(
-          `Импортировано: ${res.created}. Ошибок: ${res.errors.length}`
+          `Импортировано: ${res.created}${invalidText}${parseErrorsText}${skippedText}${limitText}`
         );
       }
     },
@@ -266,10 +269,28 @@ export default function ImportExcelButton({ projectId, existingObjectCount }: Pr
                 <Text type="secondary">Пересчёт теплопотерь поставлен в очередь.</Text>
               </p>
             )}
+            {result.invalid > 0 && (
+              <>
+                <p>
+                  <Text strong>Не прошло проверку: </Text>
+                  <Text type="danger">{result.invalid}</Text>
+                </p>
+                <div className="import-excel-errors">
+                  {result.validation_errors.map((err) => (
+                    <div key={`${err.sheet}-${err.row}-${err.field}-${err.code}`} className="import-excel-error-row">
+                      <Text code>
+                        {err.sheet} · стр. {err.row} · {err.field ?? 'строка'}
+                      </Text>{' '}
+                      <Text type="danger">{err.message}</Text>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
             {result.errors.length > 0 && (
               <>
                 <p>
-                  <Text strong>Пропущено строк: </Text>
+                  <Text strong>Ошибки разбора: </Text>
                   <Text type="danger">{result.errors.length}</Text>
                 </p>
                 <div className="import-excel-errors">
@@ -283,6 +304,7 @@ export default function ImportExcelButton({ projectId, existingObjectCount }: Pr
               </>
             )}
             {result.created > 0 &&
+              result.invalid === 0 &&
               result.errors.length === 0 &&
               result.skipped_duplicates === 0 &&
               result.skipped_limit === 0 && (
