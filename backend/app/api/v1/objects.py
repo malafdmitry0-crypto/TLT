@@ -5,7 +5,6 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -17,7 +16,6 @@ from app.core.dependencies import (
 from app.core.rate_limit import enforce_principal_rate_limit, import_limiter, report_limiter
 from app.core.uploads import read_upload_with_limit
 from app.core.worker_dependency import require_worker_ready
-from app.models.project_object import ProjectObject
 from app.schemas.project import (
     ObjectQueryCapabilitiesResponse,
     ObjectsBatchResponse,
@@ -427,25 +425,8 @@ async def import_excel(
         else:
             result = await import_objects_from_excel(db, project_id, principal, content, mode=mode)
         created_object_ids = result.pop("created_object_ids", [])
-        calculation_object_ids: list[UUID] = []
-        if created_object_ids:
-            validation_rows = await db.execute(
-                select(ProjectObject.id, ProjectObject.validation_errors).where(
-                    ProjectObject.project_id == project_id,
-                    ProjectObject.id.in_(created_object_ids),
-                )
-            )
-            validation_by_id = {
-                object_id: validation_errors
-                for object_id, validation_errors in validation_rows.all()
-            }
-            calculation_object_ids = [
-                object_id
-                for object_id in created_object_ids
-                if validation_by_id.get(object_id) is None
-            ]
-            result["valid"] = len(calculation_object_ids)
-            result["invalid"] = len(created_object_ids) - len(calculation_object_ids)
+        calculation_object_ids: list[UUID] = created_object_ids
+        result["valid"] = len(calculation_object_ids)
         if calculation_object_ids:
             # Imported objects are unassigned; no ER BOM is invalidated until assign.
             task = await TaskService(db).create_heat_loss_batch_task(
