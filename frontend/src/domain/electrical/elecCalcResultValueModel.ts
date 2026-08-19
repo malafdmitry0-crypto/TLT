@@ -5,6 +5,11 @@ export { selectionPolicyText } from '@/domain/electrical/elecCalcSelectionPolicy
 
 export type CableMarkSource = 'auto' | 'manual';
 export type ThreadSource = 'auto' | 'manual' | 'default' | 'previous_result';
+export type AppliedIdopSource = 'catalog' | 'project' | 'manual';
+export type AppliedIdopRequestState = 'ready' | 'pending' | 'error';
+export type AppliedIdopProjection =
+  | { state: 'value'; valueA: number; source: AppliedIdopSource }
+  | { state: 'pending' | 'stale' | 'error' | 'missing'; valueA: null; source: null };
 
 export type ThreadSourceTag = {
   color: 'purple' | 'blue' | 'gold' | 'default';
@@ -35,6 +40,54 @@ export function currentElectricalCalc(calc: ElectricalCalcSummary | undefined) {
     return undefined;
   }
   return getCableMark(calc) ? calc : undefined;
+}
+
+function emptyAppliedIdopProjection(
+  state: Exclude<AppliedIdopProjection['state'], 'value'>,
+): AppliedIdopProjection {
+  return { state, valueA: null, source: null };
+}
+
+/**
+ * Projects the limit that was actually applied to one calculated object.
+ * Project settings are intentionally not consulted: the calculation snapshot is authoritative.
+ */
+export function appliedIdopProjection(
+  calc: ElectricalCalcSummary | null | undefined,
+  requestState: AppliedIdopRequestState = 'ready',
+): AppliedIdopProjection {
+  if (requestState === 'pending') return emptyAppliedIdopProjection('pending');
+  if (requestState === 'error') return emptyAppliedIdopProjection('error');
+  if (!calc?.results) return emptyAppliedIdopProjection('missing');
+
+  const results = calc.results;
+  if (
+    results.category === 'stale'
+    || results.stale === true
+    || results.stale === 'true'
+  ) {
+    return emptyAppliedIdopProjection('stale');
+  }
+  if (results.error_code || results.category) {
+    return emptyAppliedIdopProjection('error');
+  }
+
+  const sectionPlan = results.section_plan;
+  if (!sectionPlan) return emptyAppliedIdopProjection('missing');
+  const valueA = sectionPlan.max_start_current_a;
+  if (valueA === null || valueA === undefined) return emptyAppliedIdopProjection('missing');
+  if (!Number.isFinite(valueA) || valueA <= 0) return emptyAppliedIdopProjection('error');
+
+  switch (sectionPlan.max_start_current_source) {
+    case 'section_catalog_derived':
+      return { state: 'value', valueA, source: 'catalog' };
+    case 'project_setting':
+      return { state: 'value', valueA, source: 'project' };
+    case 'manual_input':
+      return { state: 'value', valueA, source: 'manual' };
+    default:
+      return emptyAppliedIdopProjection('error');
+  }
 }
 
 export function getCableMarkSource(calc: ElectricalCalcSummary | undefined): CableMarkSource {
