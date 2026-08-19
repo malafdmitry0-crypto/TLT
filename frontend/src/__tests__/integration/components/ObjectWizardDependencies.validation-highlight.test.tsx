@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ObjectWizard from '@/components/wizard/ObjectWizard';
+import { isHeatCalcFieldRequired, validateHeatCalcField, validateHeatCalcFormValues } from '@/domain/heatCalcFieldRules';
 
 vi.mock('@/api/references', () => ({
   getClimate: vi.fn(),
@@ -32,6 +33,38 @@ function expectFieldSource(testId: string, source?: string) {
   expect(tag).toHaveTextContent(source);
   expect(tag).toBeVisible();
 }
+
+describe('HeatCalc ambient temperature domain validation', () => {
+  const relationError = 'Максимальная температура окружающей среды не может быть ниже минимальной';
+
+  it.each(['pipe', 'tank'] as const)('keeps maximum optional and rejects %s maximum below minimum', (objectType) => {
+    const context = {
+      objectType,
+      values: { placement: 'outdoor', ambient_temperature: -20, max_ambient_temperature: -20.1 },
+    };
+    expect(isHeatCalcFieldRequired('max_ambient_temperature', context)).toBe(false);
+    for (const maximum of [undefined, null, '']) {
+      expect(validateHeatCalcField('max_ambient_temperature', maximum, context)).toBeNull();
+    }
+    expect(validateHeatCalcField('max_ambient_temperature', -20, context)).toBeNull();
+    expect(validateHeatCalcField('max_ambient_temperature', -20.1, context)).toBe(relationError);
+    expect(validateHeatCalcFormValues(context, { enforceRequired: false }))
+      .toMatchObject({ max_ambient_temperature: relationError });
+  });
+
+  it('preserves zero, equality, registry range, and existing ambient/process semantics', () => {
+    const context = (ambient_temperature: number, max_ambient_temperature: unknown) => ({
+      objectType: 'pipe' as const,
+      values: { placement: 'outdoor', ambient_temperature, max_ambient_temperature, process_temperature: 20 },
+    });
+    expect(validateHeatCalcField('max_ambient_temperature', 0, context(-1, 0))).toBeNull();
+    expect(validateHeatCalcField('max_ambient_temperature', 0, context(1, 0))).toBe(relationError);
+    expect(validateHeatCalcField('max_ambient_temperature', -71, context(-70, -71))).toBe('Минимальное значение — -70');
+    expect(validateHeatCalcField('max_ambient_temperature', 71, context(-70, 71))).toBe('Максимальное значение — 70');
+    expect(validateHeatCalcField('ambient_temperature', 20, context(20, 70))).toBe('Ниже T объекта');
+    expect(validateHeatCalcField('process_temperature', 20, context(20, 70))).toBe('Выше T среды');
+  });
+});
 
 describe('ObjectWizard dependencies — validation-highlight', () => {
   beforeEach(async () => {
