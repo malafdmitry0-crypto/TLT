@@ -49,12 +49,25 @@ describe('generatePipeName', () => {
     expect(name).toContain('L=12.5 м');
   });
 
-  it('принимает partial/empty inputs без type assertion (runtime throws, callers catch)', () => {
+  it('использует температуру грунта для подземной трубы', () => {
+    expect(generatePipeName({
+      outer_diameter_mm: 114,
+      pipe_length: 50,
+      insulation_thickness_mm: 50,
+      insulation_material: 'mineral_wool',
+      placement: 'underground',
+      ambient_temperature: -20,
+      ground_temperature: 8,
+      process_temperature: 80,
+    })).toBe('Труба Ø114 мм, δ=50 мм, МВ, L=50 м, +8→+80°C');
+  });
+
+  it('возвращает пустое предложение для неполных значений', () => {
     // PipeNameFields is Partial — incomplete watches type-check at the call site.
     const partial = { outer_diameter_mm: 114, ambient_temperature: -20 };
     const empty = {};
-    expect(() => generatePipeName(partial)).toThrow(/toFixed/);
-    expect(() => generatePipeName(empty)).toThrow(/toFixed/);
+    expect(generatePipeName(partial)).toBe('');
+    expect(generatePipeName(empty)).toBe('');
   });
 });
 describe('generateTankName', () => {
@@ -90,10 +103,39 @@ describe('generateTankName', () => {
     expect(name).toContain('прям.');
   });
 
-  it('принимает partial/empty inputs без type assertion (runtime throws, callers catch)', () => {
+  it('форматирует десятичные размеры одинаково для каждого измерения', () => {
+    const name = generateTankName({
+      shape: 'rectangular',
+      length_mm: 100.6,
+      width_mm: 200.6,
+      height_mm: 300.6,
+      insulation_thickness_mm: 80,
+      insulation_material: 'mineral_wool',
+      ambient_temperature: -20,
+      process_temperature: 60,
+    });
+
+    expect(name).toContain('101×201×301 мм');
+  });
+
+  it('использует температуру грунта для подземного резервуара', () => {
+    expect(generateTankName({
+      shape: 'cylindrical',
+      diameter_mm: 2000,
+      height_mm: 3000,
+      insulation_thickness_mm: 80,
+      insulation_material: 'mineral_wool',
+      placement: 'underground',
+      ambient_temperature: -20,
+      ground_temperature: -5,
+      process_temperature: 80,
+    })).toBe('Бак цил. Ø2000 мм×H3000 мм, δ=80 мм, МВ, -5→+80°C');
+  });
+
+  it('возвращает пустое предложение для неполных значений', () => {
     const partial = { shape: 'cylindrical' as const, diameter_mm: 2000 };
     const empty = {};
-    expect(() => generateTankName(partial)).toThrow(/toFixed/);
-    expect(() => generateTankName(empty)).toThrow(/toFixed/);
+    expect(generateTankName(partial)).toBe('');
+    expect(generateTankName(empty)).toBe('');
   });
 });
