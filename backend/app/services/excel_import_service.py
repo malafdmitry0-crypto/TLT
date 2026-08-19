@@ -6,6 +6,7 @@ import asyncio
 import hashlib
 import io
 import json
+import math
 import re
 import zipfile
 from dataclasses import dataclass
@@ -25,6 +26,7 @@ from app.models.project import Project
 from app.models.project_object import ProjectObject
 from app.models.specification import Specification
 from app.reference_data.loader import list_insulation_materials
+from app.services.heat_loss_application import apply_climate_policy
 from app.services.project_object_params import (
     normalize_project_object_params,
     reject_legacy_specification_object_params,
@@ -599,6 +601,36 @@ def _resolve_climate_basis(v: Any) -> str | None:
     return CLIMATE_BASIS_ALIASES.get(key)
 
 
+def _mark_edited_climate_temperature_as_manual(
+    object_type: Literal["pipe", "tank"],
+    params: dict[str, Any],
+) -> None:
+    """Preserve an edited ambient value from an exported climate-backed row.
+
+    The export contains both the user-facing temperature and its provenance.
+    A climate provenance value is authoritative only while the temperature
+    still equals the value selected by the current climate policy.  Comparing
+    through ``apply_climate_policy`` keeps the import boundary aligned with
+    the canonical diameter/basis/placement rules and avoids duplicating the
+    reference-data lookup here.
+    """
+
+    if params.get("ambient_temperature_source") != "climate":
+        return
+    if "ambient_temperature" not in params:
+        return
+    if object_type == "pipe" and params.get("placement") == "underground":
+        return
+
+    policy_params = apply_climate_policy(object_type, params)
+    climate_temperature = _to_float(policy_params.get("ambient_temperature"))
+    imported_temperature = _to_float(params.get("ambient_temperature"))
+    if climate_temperature is None or imported_temperature is None:
+        return
+    if not math.isclose(imported_temperature, climate_temperature, rel_tol=0.0, abs_tol=1e-9):
+        params["ambient_temperature_source"] = "manual"
+
+
 def _resolve_shape(v: Any) -> str | None:
     key = _norm(v)
     if not key:
@@ -890,6 +922,7 @@ def _build_pipe_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
     name = row.get("name")
     if name and str(name).strip():
         params["name"] = str(name).strip()
+    _mark_edited_climate_temperature_as_manual("pipe", params)
     return params, None
 
 
@@ -1062,6 +1095,7 @@ def _build_tank_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
     name = row.get("name")
     if name and str(name).strip():
         params["name"] = str(name).strip()
+    _mark_edited_climate_temperature_as_manual("tank", params)
     return params, None
 
 
