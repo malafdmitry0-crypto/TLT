@@ -25,7 +25,6 @@ from app.models.project import Project
 from app.models.project_object import ProjectObject
 from app.models.specification import Specification
 from app.reference_data.loader import list_insulation_materials
-from app.services.heat_loss_application import build_heat_loss_error_payload
 from app.services.project_object_params import (
     normalize_project_object_params,
     reject_legacy_specification_object_params,
@@ -42,6 +41,15 @@ PIPE_SHEET_NAMES = {"трубопроводы", "трубы", "pipes"}
 TANK_SHEET_NAMES = {"резервуары", "ёмкости", "емкости", "tanks"}
 IMPORT_COMMIT_BATCH_SIZE = 25
 ImportMode = Literal["append", "merge", "replace"]
+
+
+@dataclass(frozen=True)
+class PreparedImportRows:
+    rows: list[tuple[dict[str, Any], dict[str, Any]]]
+    errors: list[dict[str, Any]]
+    validation_errors: list[dict[str, Any]]
+    invalid: int
+
 
 # Алиасы для колонки «Тип» в CSV (различает трубу/резервуар в одном файле)
 TYPE_ALIASES: dict[str, str] = {
@@ -736,9 +744,7 @@ def _build_pipe_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
     first_lambda = _to_float(row.get("first_insulation_lambda"))
     if first_lambda is not None:
         first_layer["conductivity"] = first_lambda
-    first_temperature_range = _to_temperature_range(
-        row.get("first_insulation_temperature_range")
-    )
+    first_temperature_range = _to_temperature_range(row.get("first_insulation_temperature_range"))
     if first_temperature_range is not None:
         first_layer["temperature_range"] = first_temperature_range
     if first_layer:
@@ -1191,9 +1197,7 @@ async def _existing_dedupe_keys(db: AsyncSession, project_id: UUID) -> set[str]:
 
 async def _touch_project_updated_at(db: AsyncSession, project_id: UUID) -> None:
     """Кейс §4.4/§4.6: импорт объектов обновляет «Последнее изменение» проекта."""
-    await db.execute(
-        update(Project).where(Project.id == project_id).values(updated_at=func.now())
-    )
+    await db.execute(update(Project).where(Project.id == project_id).values(updated_at=func.now()))
     await db.commit()
 
 
@@ -1286,7 +1290,8 @@ async def _add_rows(
     next_sort: int,
     current_count: int,
     dedupe_keys: set[str] | None = None,
-) -> tuple[int, int, int, list[dict[str, Any]], list[UUID], int, int]:
+    prepared_rows: PreparedImportRows | None = None,
+) -> tuple[int, int, int, list[dict[str, Any]], list[UUID], int, int, int, list[dict[str, Any]]]:
     """Создаёт объекты из распарсенных строк.
 
     Расчёт теплопотерь здесь намеренно не запускается: импорт должен быстро
@@ -1296,9 +1301,10 @@ async def _add_rows(
     skipped_duplicates = 0
     skipped_limit = 0
     created_object_ids: list[UUID] = []
-    errors: list[dict[str, Any]] = []
+    prepared = prepared_rows or _prepare_import_rows(sheet_label, rows, object_type)
+    errors = list(prepared.errors)
+    validation_errors = list(prepared.validation_errors)
     batch: list[tuple[ProjectObject, dict[str, Any]]] = []
-    builder = _build_pipe_params if object_type == "pipe" else _build_tank_params
 
     async def flush_batch() -> None:
         nonlocal batch, created, current_count
@@ -1314,9 +1320,9 @@ async def _add_rows(
         current_count -= attempted - batch_created
         batch = []
 
-    for row_index, row in enumerate(rows):
+    for row_index, (params, row) in enumerate(prepared.rows):
         if current_count >= settings.GUEST_MAX_OBJECTS_PER_PROJECT:
-            skipped_limit = len(rows) - row_index
+            skipped_limit = len(prepared.rows) - row_index
             errors.append(
                 {
                     "sheet": sheet_label,
@@ -1329,17 +1335,9 @@ async def _add_rows(
                 }
             )
             break
-        params, err = builder(row)
-        if err or params is None:
-            errors.append(
-                {"sheet": sheet_label, "row": row["_row"], "message": err or "Ошибка парсинга"}
-            )
-            continue
         try:
-            reject_legacy_specification_object_params(params)
-            normalized_params = normalize_project_object_params(object_type, params)
             if dedupe_keys is not None:
-                key = _dedupe_key(object_type, normalized_params)
+                key = _dedupe_key(object_type, params)
                 if key in dedupe_keys:
                     skipped_duplicates += 1
                     continue
@@ -1348,20 +1346,8 @@ async def _add_rows(
                 project_id=project_id,
                 object_type=object_type,
                 sort_order=next_sort,
-                params=normalized_params,
+                params=params,
             )
-            prepared = validate_and_canonicalize_project_object_params(
-                object_type,
-                normalized_params,
-            )
-            obj.params = prepared.params
-            if not prepared.report.is_valid:
-                validation_error = prepared.report.to_legacy_error()
-                obj.is_valid = False
-                obj.validation_errors = build_heat_loss_error_payload(
-                    validation_error,
-                    object_type=object_type,
-                )
             batch.append((obj, row))
             current_count += 1
             next_sort += 1
@@ -1384,7 +1370,78 @@ async def _add_rows(
         created_object_ids,
         skipped_duplicates,
         skipped_limit,
+        prepared.invalid,
+        validation_errors,
     )
+
+
+def _prepare_import_rows(
+    sheet_label: str,
+    rows: list[dict[str, Any]],
+    object_type: str,
+) -> PreparedImportRows:
+    """Normalize and validate every row before any import-side mutation."""
+
+    accepted: list[tuple[dict[str, Any], dict[str, Any]]] = []
+    errors: list[dict[str, Any]] = []
+    validation_errors: list[dict[str, Any]] = []
+    invalid = 0
+    builder = _build_pipe_params if object_type == "pipe" else _build_tank_params
+
+    for row in rows:
+        params, err = builder(row)
+        if err or params is None:
+            errors.append(
+                {"sheet": sheet_label, "row": row["_row"], "message": err or "Ошибка парсинга"}
+            )
+            continue
+        try:
+            reject_legacy_specification_object_params(params)
+            normalized_params = normalize_project_object_params(object_type, params)
+            prepared = validate_and_canonicalize_project_object_params(
+                object_type,
+                normalized_params,
+            )
+        except Exception as exc:
+            errors.append(
+                {
+                    "sheet": sheet_label,
+                    "row": row["_row"],
+                    "message": f"{type(exc).__name__}: {exc}",
+                }
+            )
+            continue
+        if not prepared.report.is_valid:
+            invalid += 1
+            validation_errors.extend(
+                {
+                    "sheet": sheet_label,
+                    "row": row["_row"],
+                    "field": issue.field,
+                    "code": issue.code,
+                    "message": _import_validation_message(issue.field, issue.message),
+                }
+                for issue in prepared.report.issues
+            )
+            continue
+        accepted.append((prepared.params, row))
+
+    return PreparedImportRows(
+        rows=accepted,
+        errors=errors,
+        validation_errors=validation_errors,
+        invalid=invalid,
+    )
+
+
+def _import_validation_message(field: str | None, message: str) -> str:
+    if field == "outer_diameter":
+        return "Наружный диаметр должен быть от 10,8 до 3000 мм"
+    if re.search(r"[А-Яа-яЁё]", message):
+        return message
+    if field is not None:
+        return f"Поле «{field}» содержит недопустимое значение"
+    return "Строка не прошла проверку параметров объекта"
 
 
 async def import_objects_from_csv(
@@ -1404,8 +1461,22 @@ async def import_objects_from_csv(
             "В CSV не найдено ни одной строки с распознанным типом (труба/резервуар)."
         )
 
+    prepared_sheets = []
+    for sheet_label, rows in sheets:
+        object_type = "pipe" if "Трубопровод" in sheet_label else "tank"
+        prepared_sheets.append(
+            (
+                sheet_label,
+                object_type,
+                rows,
+                _prepare_import_rows(sheet_label, rows, object_type),
+            )
+        )
+
+    replace_applied = import_mode == "replace" and any(
+        prepared.rows for _sheet, _type, _rows, prepared in prepared_sheets
+    )
     if import_mode == "replace":
-        await _replace_project_objects(db, project_id)
         current_count, next_sort = 0, 0
         dedupe_keys = None
     else:
@@ -1413,14 +1484,17 @@ async def import_objects_from_csv(
         dedupe_keys = (
             await _existing_dedupe_keys(db, project_id) if import_mode == "merge" else None
         )
+    if replace_applied:
+        await _replace_project_objects(db, project_id)
 
     total_created = 0
     skipped_duplicates = 0
     skipped_limit = 0
+    invalid = 0
     all_errors: list[dict[str, Any]] = []
+    all_validation_errors: list[dict[str, Any]] = []
     created_object_ids: list[UUID] = []
-    for sheet_label, rows in sheets:
-        obj_type = "pipe" if "Трубопровод" in sheet_label else "tank"
+    for sheet_label, obj_type, rows, prepared_rows in prepared_sheets:
         (
             created,
             next_sort,
@@ -1429,6 +1503,8 @@ async def import_objects_from_csv(
             object_ids,
             skipped,
             limit_skipped,
+            invalid_rows,
+            validation_errors,
         ) = await _add_rows(
             db,
             project_id,
@@ -1438,24 +1514,29 @@ async def import_objects_from_csv(
             next_sort,
             current_count,
             dedupe_keys=dedupe_keys,
+            prepared_rows=prepared_rows,
         )
         total_created += created
         skipped_duplicates += skipped
         skipped_limit += limit_skipped
+        invalid += invalid_rows
         all_errors.extend(errors)
+        all_validation_errors.extend(validation_errors)
         created_object_ids.extend(object_ids)
 
-    if import_mode == "replace" and not created_object_ids:
+    if replace_applied and not created_object_ids:
         await db.commit()
-    if created_object_ids or import_mode == "replace":
+    if created_object_ids or replace_applied:
         await _touch_project_updated_at(db, project_id)
 
     return {
         "created": total_created,
         "skipped_duplicates": skipped_duplicates,
         "skipped_limit": skipped_limit,
+        "invalid": invalid,
         "mode": import_mode,
         "errors": all_errors,
+        "validation_errors": all_validation_errors,
         "created_object_ids": created_object_ids,
     }
 
@@ -1522,8 +1603,15 @@ async def import_objects_from_excel(
             "Используйте шаблон (кнопка «Скачать шаблон»)."
         )
 
+    prepared_sheets = [
+        (sheet, object_type, rows, _prepare_import_rows(sheet, rows, object_type))
+        for sheet, object_type, rows in parsed_sheets
+    ]
+
+    replace_applied = import_mode == "replace" and any(
+        prepared.rows for _sheet, _type, _rows, prepared in prepared_sheets
+    )
     if import_mode == "replace":
-        await _replace_project_objects(db, project_id)
         current_count, next_sort = 0, 0
         dedupe_keys = None
     else:
@@ -1531,8 +1619,12 @@ async def import_objects_from_excel(
         dedupe_keys = (
             await _existing_dedupe_keys(db, project_id) if import_mode == "merge" else None
         )
+    if replace_applied:
+        await _replace_project_objects(db, project_id)
 
-    for sheet, object_type, rows in parsed_sheets:
+    invalid = 0
+    validation_errors: list[dict[str, Any]] = []
+    for sheet, object_type, rows, prepared_rows in prepared_sheets:
         (
             added,
             next_sort,
@@ -1541,6 +1633,8 @@ async def import_objects_from_excel(
             object_ids,
             skipped,
             limit_skipped,
+            invalid_rows,
+            row_validation_errors,
         ) = await _add_rows(
             db,
             project_id,
@@ -1550,24 +1644,29 @@ async def import_objects_from_excel(
             next_sort,
             current_count,
             dedupe_keys=dedupe_keys,
+            prepared_rows=prepared_rows,
         )
         created += added
         skipped_duplicates += skipped
         skipped_limit += limit_skipped
+        invalid += invalid_rows
         errors.extend(sheet_errors)
+        validation_errors.extend(row_validation_errors)
         created_object_ids.extend(object_ids)
 
-    if import_mode == "replace" and not created_object_ids:
+    if replace_applied and not created_object_ids:
         await db.commit()
-    if created_object_ids or import_mode == "replace":
+    if created_object_ids or replace_applied:
         await _touch_project_updated_at(db, project_id)
 
     return {
         "created": created,
         "skipped_duplicates": skipped_duplicates,
         "skipped_limit": skipped_limit,
+        "invalid": invalid,
         "mode": import_mode,
         "errors": errors,
+        "validation_errors": validation_errors,
         "created_object_ids": created_object_ids,
     }
 

@@ -174,9 +174,7 @@ class TestBuildObjectsXlsxSafety:
                 "pipe_length": "+SUM(1,1)",
                 "wall_thickness": 0.004,
                 "pipe_material": "carbon_steel",
-                "insulation_layers": [
-                    {"thickness": 0.05, "material": "+SUM(1,1)"}
-                ],
+                "insulation_layers": [{"thickness": 0.05, "material": "+SUM(1,1)"}],
                 "ambient_temperature": "-2+3",
                 "process_temperature": "=1+1",
                 "vapor_temperature": "@cmd",
@@ -215,9 +213,7 @@ class TestBuildObjectsXlsxSafety:
                 "length": "+SUM(1,1)",
                 "width": "-2+3",
                 "height": "@cmd",
-                "insulation_layers": [
-                    {"thickness": "=10", "material": "mineral_wool_boards_120"}
-                ],
+                "insulation_layers": [{"thickness": "=10", "material": "mineral_wool_boards_120"}],
                 "ambient_temperature": -20,
                 "process_temperature": 80,
             },
@@ -243,9 +239,7 @@ class TestBuildObjectsXlsxSafety:
                 "pipe_length": 50,
                 "wall_thickness": 0.004,
                 "pipe_material": "carbon_steel",
-                "insulation_layers": [
-                    {"thickness": 0.05, "material": "mineral_wool_boards_120"}
-                ],
+                "insulation_layers": [{"thickness": 0.05, "material": "mineral_wool_boards_120"}],
                 "ambient_temperature": -20,
                 "process_temperature": 80,
                 "placement": "outdoor",
@@ -915,8 +909,7 @@ class TestBuildPipeParams:
     def test_legacy_local_element_columns_are_not_imported(self):
         [(label, rows)] = _parse_csv(
             (
-                "Тип;Задвижки;Фланцы;Опоры;Количество локальных элементов\n"
-                "труба;1;2;3;4\n"
+                "Тип;Задвижки;Фланцы;Опоры;Количество локальных элементов\n" "труба;1;2;3;4\n"
             ).encode()
         )
 
@@ -1110,8 +1103,15 @@ class TestBuildTankParams:
         assert params["insulation_layers"] == [
             {"thickness": pytest.approx(0.08), "material": "mineral_wool_boards_120"}
         ]
-        for legacy_key in ("location", "burial_depth", "insulation_thickness", "insulation_material", "insulation_layer_count"):
+        for legacy_key in (
+            "location",
+            "burial_depth",
+            "insulation_thickness",
+            "insulation_material",
+            "insulation_layer_count",
+        ):
             assert legacy_key not in params
+
 
 class TestParseCsv:
     def test_rejects_empty(self):
@@ -1207,8 +1207,7 @@ class TestAmbientBoundsImport:
         maximum_header: str,
     ):
         csv_data = (
-            f"Тип;{minimum_header};{maximum_header};Размещение\n"
-            "труба;-20;-5;outdoor\n"
+            f"Тип;{minimum_header};{maximum_header};Размещение\n" "труба;-20;-5;outdoor\n"
         ).encode()
 
         [(_label, rows)] = _parse_csv(csv_data)
@@ -1314,6 +1313,99 @@ class TestAliasTables:
 class TestAddRowsHelper:
     """Прямые unit-тесты на _add_rows (внутренний helper import flow)."""
 
+    async def test_rejects_invalid_diameter_before_batch_state_and_dedupe(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        from unittest.mock import AsyncMock
+        from uuid import uuid4
+
+        from app.services import excel_import_service as mod
+        from app.services.excel_import_service import _add_rows
+
+        rows = [
+            {
+                "_row": 2,
+                "name": "Невалидная",
+                "outer_diameter_mm": 5000,
+                "pipe_length": 50,
+                "insulation_thickness_mm": 50,
+                "insulation_material": "mineral_wool_boards_120",
+                "insulation_temperature_basis": "outdoor_winter",
+                "ambient_temperature": -20,
+                "process_temperature": 80,
+                "min_switch_temperature": -20,
+                "wall_thickness_mm": 4,
+                "pipe_material": "carbon_steel",
+                "placement": "outdoor",
+                "wind_speed": 0,
+            },
+            {
+                "_row": 3,
+                "name": "Валидная",
+                "outer_diameter_mm": 108,
+                "pipe_length": 50,
+                "insulation_thickness_mm": 50,
+                "insulation_material": "mineral_wool_boards_120",
+                "insulation_temperature_basis": "outdoor_winter",
+                "ambient_temperature": -20,
+                "process_temperature": 80,
+                "min_switch_temperature": -20,
+                "wall_thickness_mm": 4,
+                "pipe_material": "carbon_steel",
+                "placement": "outdoor",
+                "wind_speed": 0,
+            },
+        ]
+        committed_rows: list[int] = []
+
+        async def fake_commit(db, batch, sheet_label):
+            committed_rows.extend(row["_row"] for _obj, row in batch)
+            return len(batch), [uuid4() for _obj, _row in batch], []
+
+        monkeypatch.setattr(mod, "_commit_object_batch", fake_commit)
+        dedupe_keys: set[str] = set()
+
+        (
+            created,
+            next_sort,
+            current_count,
+            errors,
+            object_ids,
+            skipped,
+            skipped_limit,
+            invalid,
+            validation_errors,
+        ) = await _add_rows(
+            AsyncMock(),
+            uuid4(),
+            "Трубопроводы",
+            rows,
+            "pipe",
+            next_sort=7,
+            current_count=3,
+            dedupe_keys=dedupe_keys,
+        )
+
+        assert created == 1
+        assert next_sort == 8
+        assert current_count == 4
+        assert len(object_ids) == 1
+        assert errors == []
+        assert skipped == 0
+        assert skipped_limit == 0
+        assert invalid == 1
+        assert committed_rows == [3]
+        assert len(dedupe_keys) == 1
+        assert validation_errors == [
+            {
+                "sheet": "Трубопроводы",
+                "row": 2,
+                "field": "outer_diameter",
+                "code": "OBJECT_PARAMS_INVALID",
+                "message": "Наружный диаметр должен быть от 10,8 до 3000 мм",
+            }
+        ]
+
     async def test_commits_rows_in_batches(self, monkeypatch: pytest.MonkeyPatch):
         from unittest.mock import AsyncMock
         from uuid import uuid4
@@ -1331,6 +1423,7 @@ class TestAddRowsHelper:
                 "insulation_temperature_basis": "outdoor_winter",
                 "ambient_temperature": -20,
                 "process_temperature": 80,
+                "min_switch_temperature": -20,
                 "wall_thickness_mm": 4,
                 "pipe_material": "carbon_steel",
                 "placement": "outdoor",
@@ -1357,6 +1450,8 @@ class TestAddRowsHelper:
             object_ids,
             skipped,
             skipped_limit,
+            invalid,
+            validation_errors,
         ) = await _add_rows(
             db,
             uuid4(),
@@ -1373,6 +1468,8 @@ class TestAddRowsHelper:
         assert len(object_ids) == 30
         assert skipped == 0
         assert skipped_limit == 0
+        assert invalid == 0
+        assert validation_errors == []
         assert errors == []
         assert batch_sizes == [25, 5]
         assert all(params["insulation_layers"] for params in stored_params)
@@ -1435,6 +1532,8 @@ class TestAddRowsHelper:
             object_ids,
             skipped,
             skipped_limit,
+            invalid,
+            validation_errors,
         ) = await _add_rows(
             AsyncMock(),
             uuid4(),
@@ -1453,6 +1552,8 @@ class TestAddRowsHelper:
         assert object_ids == []
         assert skipped == 1
         assert skipped_limit == 0
+        assert invalid == 0
+        assert validation_errors == []
 
     async def test_empty_batch_is_noop(self):
         from unittest.mock import AsyncMock
@@ -1595,10 +1696,11 @@ class TestAddRowsHelper:
             next_sort,
             current_count,
             dedupe_keys=None,
+            prepared_rows=None,
         ):
             calls.append((object_type, next_sort, current_count))
             object_id = first_id if object_type == "pipe" else second_id
-            return 1, next_sort + 1, current_count + 1, [], [object_id], 0, 0
+            return 1, next_sort + 1, current_count + 1, [], [object_id], 0, 0, 0, []
 
         monkeypatch.setattr(mod, "_ensure_import_access", fake_access)
         monkeypatch.setattr(mod, "_project_import_state", fake_state)
@@ -1619,8 +1721,10 @@ class TestAddRowsHelper:
             "created": 2,
             "skipped_duplicates": 0,
             "skipped_limit": 0,
+            "invalid": 0,
             "mode": "merge",
             "errors": [],
+            "validation_errors": [],
             "created_object_ids": [first_id, second_id],
         }
         assert calls == [("pipe", 4, 3), ("tank", 5, 4)]
@@ -1687,10 +1791,11 @@ class TestAddRowsHelper:
             next_sort,
             current_count,
             dedupe_keys=None,
+            prepared_rows=None,
         ):
             add_calls.append((object_type, next_sort, current_count))
             object_id = pipe_id if object_type == "pipe" else tank_id
-            return 1, next_sort + 1, current_count + 1, [], [object_id], 0, 0
+            return 1, next_sort + 1, current_count + 1, [], [object_id], 0, 0, 0, []
 
         monkeypatch.setattr(mod, "_validate_xlsx_archive", lambda content: None)
         monkeypatch.setattr(mod, "load_workbook", lambda *args, **kwargs: FakeWorkbook())
@@ -1706,8 +1811,10 @@ class TestAddRowsHelper:
             "created": 2,
             "skipped_duplicates": 0,
             "skipped_limit": 0,
+            "invalid": 0,
             "mode": "merge",
             "errors": [],
+            "validation_errors": [],
             "created_object_ids": [pipe_id, tank_id],
         }
         assert read_sheets == ["worksheet:Трубопроводы", "worksheet:Резервуары"]
@@ -1752,12 +1859,16 @@ class TestAddRowsHelper:
             {
                 "_row": 3,
                 "shape": "Цилиндр",
-                "diameter_mm": 108,
-                "height_mm": 50,
+                "diameter_mm": 2000,
+                "height_mm": 3000,
                 "insulation_thickness_mm": 50,
                 "insulation_material": "mineral_wool_boards_120",
                 "ambient_temperature": -20,
                 "process_temperature": 80,
+                "min_switch_temperature": -20,
+                "heating_height": 3,
+                "laying_step": 0.2,
+                "wind_speed": 0,
             },
         ]
 
@@ -1774,6 +1885,8 @@ class TestAddRowsHelper:
             object_ids,
             skipped,
             skipped_limit,
+            invalid,
+            validation_errors,
         ) = await _add_rows(
             db,
             uuid4(),
@@ -1790,6 +1903,8 @@ class TestAddRowsHelper:
         assert object_ids == ["oid"]
         assert skipped == 0
         assert skipped_limit == 0
+        assert invalid == 0
+        assert validation_errors == []
 
     async def test_project_limit_breaks_loop(self, monkeypatch: pytest.MonkeyPatch):
         from unittest.mock import AsyncMock
@@ -1806,6 +1921,12 @@ class TestAddRowsHelper:
                 "insulation_material": "mineral_wool_boards_120",
                 "ambient_temperature": -20,
                 "process_temperature": 80,
+                "min_switch_temperature": -20,
+                "wall_thickness_mm": 4,
+                "pipe_material": "carbon_steel",
+                "placement": "outdoor",
+                "wind_speed": 0,
+                "insulation_temperature_basis": "outdoor_winter",
             },
             {
                 "_row": 3,
@@ -1815,12 +1936,28 @@ class TestAddRowsHelper:
                 "insulation_material": "mineral_wool_boards_120",
                 "ambient_temperature": -20,
                 "process_temperature": 80,
+                "min_switch_temperature": -20,
+                "wall_thickness_mm": 4,
+                "pipe_material": "carbon_steel",
+                "placement": "outdoor",
+                "wind_speed": 0,
+                "insulation_temperature_basis": "outdoor_winter",
             },
         ]
 
         monkeypatch.setattr(settings, "GUEST_MAX_OBJECTS_PER_PROJECT", 0)
         db = AsyncMock()
-        created, _, current_count, errors, object_ids, skipped, skipped_limit = await _add_rows(
+        (
+            created,
+            _,
+            current_count,
+            errors,
+            object_ids,
+            skipped,
+            skipped_limit,
+            invalid,
+            validation_errors,
+        ) = await _add_rows(
             db,
             uuid4(),
             "Pipes",
@@ -1836,6 +1973,8 @@ class TestAddRowsHelper:
         assert object_ids == []
         assert skipped == 0
         assert skipped_limit == 2
+        assert invalid == 0
+        assert validation_errors == []
 
     async def test_unexpected_exception_logged_to_errors(self, monkeypatch: pytest.MonkeyPatch):
         from unittest.mock import AsyncMock
@@ -1861,7 +2000,17 @@ class TestAddRowsHelper:
 
         monkeypatch.setattr(mod, "validate_and_canonicalize_project_object_params", boom_prepare)
         db = AsyncMock()
-        created, _, current_count, errors, object_ids, skipped, skipped_limit = await _add_rows(
+        (
+            created,
+            _,
+            current_count,
+            errors,
+            object_ids,
+            skipped,
+            skipped_limit,
+            invalid,
+            validation_errors,
+        ) = await _add_rows(
             db,
             uuid4(),
             "X",
@@ -1876,6 +2025,8 @@ class TestAddRowsHelper:
         assert object_ids == []
         assert skipped == 0
         assert skipped_limit == 0
+        assert invalid == 0
+        assert validation_errors == []
 
 
 class TestParseCsvAdvanced:
