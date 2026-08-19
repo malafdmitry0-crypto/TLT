@@ -31,6 +31,7 @@ function FormHost({
       <Form.Item name="climate_region"><input /></Form.Item>
       <Form.Item name="climate_temperature_basis"><input /></Form.Item>
       <Form.Item name="ambient_temperature"><input /></Form.Item>
+      <Form.Item name="ground_temperature"><input /></Form.Item>
       <Form.Item name="ambient_temperature_source"><input /></Form.Item>
       <Form.Item name="wind_speed"><input /></Form.Item>
       <Form.Item name="wind_speed_source"><input /></Form.Item>
@@ -268,6 +269,81 @@ describe('useObjectWizardFormSync', () => {
       result.current.handleValuesChange({ ambient_temperature: 1 });
     });
     expect(getForm().getFieldValue('ambient_temperature_source')).toBe('manual');
+  });
+
+  it('syncs an underground name from the watched ground temperature and reports it to the draft', () => {
+    const { rerender, getForm, onDraftValuesChange } = renderFormSync({
+      watchedValues: {
+        outer_diameter_mm: 108,
+        pipe_length: 25,
+        placement: 'underground',
+        process_temperature: 80,
+        insulation_thickness_mm: 50,
+        insulation_material: 'mineral_wool',
+      },
+    });
+
+    rerender({
+      watchedValues: {
+        outer_diameter_mm: 108,
+        pipe_length: 25,
+        placement: 'underground',
+        process_temperature: 80,
+        insulation_thickness_mm: 50,
+        insulation_material: 'mineral_wool',
+        ground_temperature: 5,
+      },
+    });
+
+    expect(getForm().getFieldValue('name')).toContain('+5→+80°C');
+    expect(onDraftValuesChange).toHaveBeenCalledWith(
+      expect.objectContaining({ name: expect.stringContaining('+5→+80°C') }),
+      expect.objectContaining({ name: expect.stringContaining('+5→+80°C') }),
+    );
+  });
+
+  it('keeps a manual underground name when the ground temperature changes', () => {
+    const { result, rerender, getForm } = renderFormSync({
+      watchedValues: {
+        outer_diameter_mm: 108,
+        pipe_length: 25,
+        placement: 'underground',
+        process_temperature: 80,
+        insulation_thickness_mm: 50,
+        insulation_material: 'mineral_wool',
+      },
+    });
+
+    rerender({
+      watchedValues: {
+        outer_diameter_mm: 108,
+        pipe_length: 25,
+        placement: 'underground',
+        process_temperature: 80,
+        insulation_thickness_mm: 50,
+        insulation_material: 'mineral_wool',
+        ground_temperature: 5,
+      },
+    });
+    expect(getForm().getFieldValue('name')).toContain('+5→+80°C');
+
+    act(() => {
+      getForm().setFieldsValue({ name: 'Ручное имя' });
+      result.current.handleValuesChange({ name: 'Ручное имя' });
+    });
+    rerender({
+      watchedValues: {
+        outer_diameter_mm: 108,
+        pipe_length: 25,
+        placement: 'underground',
+        process_temperature: 80,
+        insulation_thickness_mm: 50,
+        insulation_material: 'mineral_wool',
+        ground_temperature: 6,
+      },
+    });
+
+    expect(getForm().getFieldValue('name')).toBe('Ручное имя');
   });
 
   it('syncs derived fields on values change (placement basis, climate clear, sources)', () => {
