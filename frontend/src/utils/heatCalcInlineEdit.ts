@@ -142,14 +142,21 @@ export function applyFormFieldDraft(
   const currentRow = draftRow ?? createDraftRow(record);
   if (!currentRow) return null;
 
-  const fieldConfig = getHeatCalcFieldConfig(fieldId);
+  // The pipe wizard keeps the depth under its form alias, while registry
+  // metadata and the API contract use pipe_centerline_depth. Keep the alias
+  // in draftFormValues so the existing form -> API projection can serialize
+  // it, but use the canonical id for registry-owned normalization.
+  const registryFieldId = currentRow.objectType === 'pipe' && fieldId === 'burial_depth'
+    ? 'pipe_centerline_depth'
+    : fieldId;
+  const fieldConfig = getHeatCalcFieldConfig(registryFieldId);
   if (!fieldConfig) return currentRow;
 
   const fieldContext = {
     objectType: currentRow.objectType,
     values: currentRow.draftFormValues,
   };
-  const normalizedValue = normalizeHeatCalcFieldValue(fieldId, value, fieldContext);
+  const normalizedValue = normalizeHeatCalcFieldValue(registryFieldId, value, fieldContext);
   const nextDraftValues = applyHeatCalcFieldValue(fieldId, normalizedValue, {
     objectType: currentRow.objectType,
     values: currentRow.draftFormValues,
