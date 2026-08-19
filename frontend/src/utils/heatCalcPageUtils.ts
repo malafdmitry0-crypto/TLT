@@ -53,6 +53,7 @@ const NUMBER_FILTER_COLUMNS = new Set<HeatCalcColumnKey>([
   'third_insulation_lambda',
   'process_temperature',
   'ambient_temperature',
+  'max_ambient_temperature',
   'max_process_temperature',
   'wind_speed',
   'tank_buried_height',

@@ -66,6 +66,12 @@ describe('HeatCalcPage settings — columns', () => {
       expect(within(dialog).queryByRole('button', { name: /^Сбросить шаг:/ })).not.toBeInTheDocument();
       expect(within(rowByKey('name')).getByText('Вводится')).toBeInTheDocument();
       expect(within(rowByKey('pipe_material')).getByText('Вводится')).toBeInTheDocument();
+      expect(within(dialog).getByRole('checkbox', {
+        name: 'Минимальная температура окружающей среды',
+      })).toBeInTheDocument();
+      expect(within(dialog).getByRole('checkbox', {
+        name: 'Максимальная температура окружающей среды',
+      })).toBeInTheDocument();
       expect(dialog.querySelector('.column-layout-row[data-column-key="pipe_dn"]')).toBeNull();
       expect(within(rowByKey('total_heat_loss_design')).getByText('Вычисляется')).toBeInTheDocument();
       expect(within(rowByKey('total_heat_loss_design')).getByText('Итог')).toBeInTheDocument();
@@ -77,6 +83,9 @@ describe('HeatCalcPage settings — columns', () => {
         expect(within(rowByKey(serviceKey)).queryByText('Вводится')).not.toBeInTheDocument();
         expect(within(rowByKey(serviceKey)).queryByText('Вычисляется')).not.toBeInTheDocument();
       }
+      expect(screen.getByRole('button', {
+        name: 'Фильтр Максимальная температура окружающей среды',
+      })).toBeInTheDocument();
       await user.click(within(dialog).getByRole('checkbox', { name: 'Длина трубопровода' }));
       await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
 

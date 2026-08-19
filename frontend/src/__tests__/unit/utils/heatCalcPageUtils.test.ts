@@ -371,6 +371,8 @@ describe('heatCalcPageUtils', () => {
 
   it('выбирает вид фильтра по capability или локальному fallback', () => {
     expect(filterKindForColumn('process_temperature')).toBe('numberRange');
+    expect(filterKindForColumn('ambient_temperature')).toBe('numberRange');
+    expect(filterKindForColumn('max_ambient_temperature')).toBe('numberRange');
     expect(filterKindForColumn('placement')).toBe('enum');
     expect(filterKindForColumn('climate_temperature_basis')).toBe('enum');
     expect(filterKindForColumn('name')).toBe('text');
@@ -386,6 +388,17 @@ describe('heatCalcPageUtils', () => {
       include_empty: true,
     });
     expect(backendFilterFromColumnFilter('name', { kind: 'text', value: '' })).toBeNull();
+    expect(backendFilterFromColumnFilter('max_ambient_temperature', {
+      kind: 'numberRange',
+      min: 0,
+      max: 0,
+    })).toEqual({
+      key: 'max_ambient_temperature',
+      op: 'range',
+      min: 0,
+      max: 0,
+      include_empty: false,
+    });
   });
 
   it('проверяет применимость колонок к типу объекта', () => {

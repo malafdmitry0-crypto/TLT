@@ -7,6 +7,7 @@ import {
   type PipeNameFields,
   type TankNameFields,
 } from '@/utils/objectWizardUtils';
+import { getHeatCalcFieldLabel } from '@/domain/heatCalcFields';
 import '../wizard-chrome.css';
 import { TltAlert, TltTextField } from '@/components/ui-kit';
 
@@ -15,10 +16,14 @@ interface Props {
 }
 
 /** Watched fields used only for auto-name preview (union of pipe/tank name inputs). */
-type ConfirmStepWatchedValues = PipeNameFields & TankNameFields;
+type ConfirmStepWatchedValues = PipeNameFields & TankNameFields & {
+  max_ambient_temperature?: number | null;
+  placement?: string;
+};
 
 const CONFIRM_STEP_WATCH_FIELDS = [
   'ambient_temperature',
+  'max_ambient_temperature',
   'diameter_mm',
   'height_mm',
   'insulation_material',
@@ -26,6 +31,7 @@ const CONFIRM_STEP_WATCH_FIELDS = [
   'length_mm',
   'outer_diameter_mm',
   'pipe_length',
+  'placement',
   'process_temperature',
   'shape',
   'width_mm',
@@ -69,6 +75,17 @@ function ConfirmStepInner({ objectType }: Props) {
   }, [suggestedName, form]);
 
   const getVal = (k: string) => form.getFieldValue(k) as unknown;
+  const maximumAmbientTemperature = getVal('max_ambient_temperature');
+  const showAmbientBounds = !(objectType === 'pipe' && getVal('placement') === 'underground');
+  const showMaximumAmbientTemperature = showAmbientBounds
+    && maximumAmbientTemperature != null
+    && maximumAmbientTemperature !== '';
+  const minimumAmbientLabel = getHeatCalcFieldLabel('ambient_temperature', {
+    context: 'form',
+  });
+  const maximumAmbientLabel = getHeatCalcFieldLabel('max_ambient_temperature', {
+    context: 'form',
+  });
 
   return (
     <>
@@ -86,7 +103,12 @@ function ConfirmStepInner({ objectType }: Props) {
           <Descriptions.Item label="Длина">{getVal('pipe_length') as number} м</Descriptions.Item>
           <Descriptions.Item label="Толщина изоляции">{getVal('insulation_thickness_mm') as number} мм</Descriptions.Item>
           <Descriptions.Item label="Материал изоляции">{getVal('insulation_material') as string}</Descriptions.Item>
-          <Descriptions.Item label="Т° среды">{getVal('ambient_temperature') as number}°C</Descriptions.Item>
+          {showAmbientBounds && (
+            <Descriptions.Item label={minimumAmbientLabel}>{getVal('ambient_temperature') as number}°C</Descriptions.Item>
+          )}
+          {showMaximumAmbientTemperature && (
+            <Descriptions.Item label={maximumAmbientLabel}>{maximumAmbientTemperature as number}°C</Descriptions.Item>
+          )}
           <Descriptions.Item label="Т° поддержания">{getVal('process_temperature') as number}°C</Descriptions.Item>
         </Descriptions>
       ) : (
@@ -108,7 +130,12 @@ function ConfirmStepInner({ objectType }: Props) {
           )}
           <Descriptions.Item label="Толщина изоляции">{getVal('insulation_thickness_mm') as number} мм</Descriptions.Item>
           <Descriptions.Item label="Материал изоляции">{getVal('insulation_material') as string}</Descriptions.Item>
-          <Descriptions.Item label="Т° среды">{getVal('ambient_temperature') as number}°C</Descriptions.Item>
+          {showAmbientBounds && (
+            <Descriptions.Item label={minimumAmbientLabel}>{getVal('ambient_temperature') as number}°C</Descriptions.Item>
+          )}
+          {showMaximumAmbientTemperature && (
+            <Descriptions.Item label={maximumAmbientLabel}>{maximumAmbientTemperature as number}°C</Descriptions.Item>
+          )}
           <Descriptions.Item label="Т° поддержания">{getVal('process_temperature') as number}°C</Descriptions.Item>
         </Descriptions>
       )}
