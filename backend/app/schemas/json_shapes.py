@@ -168,6 +168,7 @@ class PipeParamsDict(TypedDict, total=False):
     insulation_cover_material: str | None
     insulation_layers: list[dict[str, float | str | list[float] | None]]
     ambient_temperature: float | None
+    max_ambient_temperature: float | None
     ground_temperature: float | None
     process_temperature: float
     max_process_temperature: float | None
@@ -214,6 +215,7 @@ class TankParamsDict(TypedDict, total=False):
     insulation_cover_material: str | None
     insulation_layers: list[dict[str, float | str | list[float] | None]]
     ambient_temperature: float | None
+    max_ambient_temperature: float | None
     ground_temperature: float | None
     process_temperature: float
     max_process_temperature: float | None

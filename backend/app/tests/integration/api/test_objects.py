@@ -1,5 +1,6 @@
 """Integration-тесты объектов проекта с автопересчётом."""
 
+import json
 import math
 from uuid import UUID
 
@@ -10,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.project_object import ProjectObject
 from app.services.heat_contract import DEPRECATED_HEAT_RESULT_KEYS
+from app.tests.heat_fixtures import canonical_pipe_params, canonical_tank_params
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -178,6 +180,185 @@ class TestObjectsLifecycle:
         )
         assert recalculated_response.status_code == 200, recalculated_response.text
         assert recalculated_response.json()["results"] == results
+
+    async def test_pipe_ambient_maximum_survives_create_heat_update_recalculate_and_clear(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+    ):
+        pid = await _project(client, guest_session)
+        headers = {"X-Session-Id": guest_session}
+        created_response = await client.post(
+            f"/api/v1/projects/{pid}/objects",
+            json={
+                "object_type": "pipe",
+                "params": canonical_pipe_params(
+                    name="Pipe with ambient bounds",
+                    max_ambient_temperature=25.0,
+                ),
+            },
+            headers=headers,
+        )
+        assert created_response.status_code == 201, created_response.text
+        created = created_response.json()
+        assert created["is_valid"] is True
+        assert created["params"]["max_ambient_temperature"] == pytest.approx(25.0)
+
+        heat_update = {
+            key: value
+            for key, value in created["params"].items()
+            if key != "max_ambient_temperature"
+        }
+        heat_update["safety_factor"] = 1.2
+        heat_updated_response = await client.put(
+            f"/api/v1/projects/{pid}/objects/{created['id']}",
+            json={"version": created["version"], "params": heat_update},
+            headers=headers,
+        )
+        assert heat_updated_response.status_code == 200, heat_updated_response.text
+        heat_updated = heat_updated_response.json()
+        assert heat_updated["is_valid"] is True
+        assert heat_updated["params"]["max_ambient_temperature"] == pytest.approx(25.0)
+        assert heat_updated["results"]["safety_factor_applied"] == pytest.approx(1.2)
+
+        maximum_updated_response = await client.put(
+            f"/api/v1/projects/{pid}/objects/{created['id']}",
+            json={
+                "version": heat_updated["version"],
+                "params": {"max_ambient_temperature": 35.0},
+            },
+            headers=headers,
+        )
+        assert maximum_updated_response.status_code == 200, maximum_updated_response.text
+        maximum_updated = maximum_updated_response.json()
+        assert maximum_updated["params"]["max_ambient_temperature"] == pytest.approx(35.0)
+        assert maximum_updated["results"] == heat_updated["results"]
+
+        rejected_update = await client.put(
+            f"/api/v1/projects/{pid}/objects/{created['id']}",
+            json={
+                "version": maximum_updated["version"],
+                "params": {"max_ambient_temperature": -30.1},
+            },
+            headers=headers,
+        )
+        assert rejected_update.status_code == 422, rejected_update.text
+        assert rejected_update.json()["detail"]["fields"] == ["max_ambient_temperature"]
+
+        cleared_response = await client.put(
+            f"/api/v1/projects/{pid}/objects/{created['id']}",
+            json={
+                "version": maximum_updated["version"],
+                "params": {"max_ambient_temperature": None},
+            },
+            headers=headers,
+        )
+        assert cleared_response.status_code == 200, cleared_response.text
+        cleared = cleared_response.json()
+        assert "max_ambient_temperature" in cleared["params"]
+        assert cleared["params"]["max_ambient_temperature"] is None
+        assert cleared["results"] == heat_updated["results"]
+
+        reloaded_response = await client.get(
+            f"/api/v1/projects/{pid}/objects",
+            headers=headers,
+        )
+        assert reloaded_response.status_code == 200, reloaded_response.text
+        reloaded = next(item for item in reloaded_response.json() if item["id"] == created["id"])
+        assert "max_ambient_temperature" in reloaded["params"]
+        assert reloaded["params"]["max_ambient_temperature"] is None
+
+    async def test_underground_tank_preserves_ambient_maximum_during_recalculate(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+    ):
+        pid = await _project(client, guest_session)
+        headers = {"X-Session-Id": guest_session}
+        created_response = await client.post(
+            f"/api/v1/projects/{pid}/objects",
+            json={
+                "object_type": "tank",
+                "params": canonical_tank_params(
+                    name="Underground tank with ambient bounds",
+                    placement="underground",
+                    insulation_temperature_basis="channel",
+                    max_ambient_temperature=25.0,
+                    ground_temperature=5.0,
+                    tank_buried_height=1.0,
+                    ground_type="dry_sand",
+                    ground_conductivity=0.8,
+                ),
+            },
+            headers=headers,
+        )
+        assert created_response.status_code == 201, created_response.text
+        created = created_response.json()
+        assert created["is_valid"] is True
+        assert created["params"]["max_ambient_temperature"] == pytest.approx(25.0)
+
+        heat_update = {
+            key: value
+            for key, value in created["params"].items()
+            if key != "max_ambient_temperature"
+        }
+        heat_update["q_additional"] = 75.0
+        updated_response = await client.put(
+            f"/api/v1/projects/{pid}/objects/{created['id']}",
+            json={"version": created["version"], "params": heat_update},
+            headers=headers,
+        )
+        assert updated_response.status_code == 200, updated_response.text
+        updated = updated_response.json()
+        assert updated["is_valid"] is True
+        assert updated["params"]["max_ambient_temperature"] == pytest.approx(25.0)
+        assert updated["results"]["q_additional_applied"] == pytest.approx(75.0)
+
+    @pytest.mark.parametrize(
+        "maximum",
+        [
+            pytest.param(True, id="bool"),
+            pytest.param("30", id="string"),
+            pytest.param(float("nan"), id="nan"),
+            pytest.param(float("inf"), id="positive-infinity"),
+            pytest.param(float("-inf"), id="negative-infinity"),
+            pytest.param(-70.1, id="below-range"),
+            pytest.param(70.1, id="above-range"),
+            pytest.param(-20.1, id="below-minimum"),
+        ],
+    )
+    async def test_api_rejects_invalid_ambient_maximum_with_field_aware_error(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+        maximum: object,
+    ):
+        pid = await _project(client, guest_session)
+        headers = {"X-Session-Id": guest_session}
+        request_payload = {
+            "object_type": "pipe",
+            "params": canonical_pipe_params(
+                ambient_temperature=-20.0,
+                max_ambient_temperature=maximum,
+            ),
+        }
+        if isinstance(maximum, float) and not math.isfinite(maximum):
+            response = await client.post(
+                f"/api/v1/projects/{pid}/objects",
+                content=json.dumps(request_payload),
+                headers={**headers, "Content-Type": "application/json"},
+            )
+        else:
+            response = await client.post(
+                f"/api/v1/projects/{pid}/objects",
+                json=request_payload,
+                headers=headers,
+            )
+
+        assert response.status_code == 422, response.text
+        detail = response.json()["detail"]
+        assert detail["code"] == "OBJECT_PARAMS_INVALID"
+        assert detail["fields"] == ["max_ambient_temperature"]
 
     async def test_pipe_recalculation_keeps_only_canonical_result_keys(
         self,
