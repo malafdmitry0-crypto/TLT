@@ -22,8 +22,6 @@ def _prepared_section_rows(rows: Sequence[Mapping[str, object]]) -> list[dict[st
     for row in prepared:
         if "base_model" not in row and "mark" in row:
             row["base_model"] = row["mark"]
-        if "cold_start_temperature_c" not in row and "cold_start_temp_c" in row:
-            row["cold_start_temperature_c"] = row["cold_start_temp_c"]
         if "i_st_ud_a_per_m" not in row and "specific_start_current_a_per_m" in row:
             row["i_st_ud_a_per_m"] = row["specific_start_current_a_per_m"]
     return prepared

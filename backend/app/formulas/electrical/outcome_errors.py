@@ -175,6 +175,14 @@ def _catalog_message(details: Mapping[str, Any]) -> str:
         return "Строка power-каталога не содержит T_max"
     if invalid == {"max_product_temp"}:
         return "T_max строки power-каталога некорректна"
+    if (
+        invalid == {"cold_start_temperature_c"}
+        and details.get("reason") == "unsupported_legacy_field"
+    ):
+        return (
+            "Поле cold_start_temp_c больше не поддерживается; "
+            "используйте cold_start_temperature_c"
+        )
     if missing == {"min_temperature"}:
         return "Для модели отсутствует T_min из каталога секционирования"
     if missing == {"full_mark"}:

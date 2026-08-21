@@ -206,7 +206,7 @@ def test_payload_adapter_keeps_temperature_evidence_but_marks_invalid_planning_r
 ) -> None:
     row: dict[str, object] = {
         "mark": "20ТТН2",
-        "cold_start_temp_c": -40,
+        "cold_start_temperature_c": -40,
         "l_max_m": 100,
         "i_st_ud_a_per_m": "0.12",
         "voltage_v": 230,
@@ -229,8 +229,8 @@ def test_payload_adapter_keeps_temperature_evidence_but_marks_invalid_planning_r
     "updates",
     [
         {"mark": ""},
-        {"mark": "X", "cold_start_temp_c": "nope"},
-        {"mark": "X", "cold_start_temp_c": "Infinity"},
+        {"mark": "X", "cold_start_temperature_c": "nope"},
+        {"mark": "X", "cold_start_temperature_c": "Infinity"},
     ],
 )
 def test_payload_adapter_skips_sections_without_candidate_temperature_evidence(
@@ -238,7 +238,7 @@ def test_payload_adapter_skips_sections_without_candidate_temperature_evidence(
 ) -> None:
     row: dict[str, object] = {
         "mark": "20ТТН2",
-        "cold_start_temp_c": -40,
+        "cold_start_temperature_c": -40,
         "l_max_m": 100,
         "i_st_ud_a_per_m": "0.12",
         "voltage_v": 230,

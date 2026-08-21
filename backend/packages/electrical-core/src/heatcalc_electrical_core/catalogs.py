@@ -105,7 +105,14 @@ def catalog_bundle_from_payload(
     typed_sections: list[SectionCatalogRow] = []
     for row in section_rows:
         model = str(row.get("base_model") or row.get("mark") or "")
-        cold = _decimal(row.get("cold_start_temperature_c", row.get("cold_start_temp_c")))
+        if "cold_start_temp_c" in row:
+            return _catalog_issue(
+                row.get("base_model", row.get("mark")),
+                "cold_start_temperature_c",
+                invalid=True,
+                reason="unsupported_legacy_field",
+            )
+        cold = _decimal(row.get("cold_start_temperature_c"))
         # Keep valid model/temperature evidence for candidate T_min selection.  A
         # malformed planning payload is retained only as planning-ineligible, so
         # it can never win the nearest-temperature section lookup.

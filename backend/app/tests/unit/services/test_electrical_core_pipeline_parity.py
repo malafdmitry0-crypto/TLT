@@ -118,19 +118,18 @@ def test_tank_core_input_uses_the_resolved_base_length() -> None:
     assert result["layout"]["tank"]["base_length_m"] == 999.0
 
 
-def test_db_section_payload_aliases_retain_the_same_selection_and_sections() -> None:
-    aliased_catalogs = _catalogs()
-    canonical_catalogs = deepcopy(aliased_catalogs)
+def test_db_section_payload_supported_aliases_retain_the_same_selection_and_sections() -> None:
+    authority_catalogs = _catalogs()
+    canonical_catalogs = deepcopy(authority_catalogs)
     canonical_rows = canonical_catalogs["section"]["payload"]["rows"]
     for row in canonical_rows:
         row["base_model"] = row.pop("mark")
-        row["cold_start_temperature_c"] = row.pop("cold_start_temp_c")
         row["specific_start_current_a_per_m"] = row.pop("i_st_ud_a_per_m")
 
     canonical = calculate_electrical_tt(
         _resolved(),
         layout=PipeElectricalLayout(),
-        calculation_catalogs=aliased_catalogs,
+        calculation_catalogs=authority_catalogs,
     )
     aliased = calculate_electrical_tt(
         _resolved(),

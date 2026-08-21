@@ -110,11 +110,7 @@ def _parse_catalog_rows(raw: Any) -> list[SectionCatalogRow]:
         if not isinstance(item, dict):
             continue
         try:
-            cold_start = (
-                item["cold_start_temperature_c"]
-                if "cold_start_temperature_c" in item
-                else item["cold_start_temp_c"]
-            )
+            cold_start = item["cold_start_temperature_c"]
             specific_start_current = (
                 item["specific_start_current_a_per_m"]
                 if "specific_start_current_a_per_m" in item

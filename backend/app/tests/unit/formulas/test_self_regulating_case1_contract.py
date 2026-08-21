@@ -22,7 +22,7 @@ POWER_ROWS = [
 SECTION_ROWS = [
     {
         "mark": power_row["model"],
-        "cold_start_temp_c": -40,
+        "cold_start_temperature_c": -40,
         "l_max_m": 100,
         "i_st_ud_a_per_m": 0.1,
         "voltage_v": 230,
@@ -215,7 +215,7 @@ def test_equal_power_series_tie_prefers_lower_temperature_class() -> None:
         *deepcopy(SECTION_ROWS),
         {
             "mark": "60ТТХ2",
-            "cold_start_temp_c": -40,
+            "cold_start_temperature_c": -40,
             "l_max_m": 100,
             "i_st_ud_a_per_m": 0.1,
             "voltage_v": 230,

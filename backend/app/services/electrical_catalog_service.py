@@ -67,7 +67,7 @@ _BOM_MARKS = {
 _CATALOG_LOCK_KEYS = {"power": 3401, "section": 3402, "bom": 3403}
 _BUNDLED_CATALOG_ORDER: tuple[ElectricalCatalogKind, ...] = ("power", "section", "bom")
 _BUNDLED_POWER_VERSION = "tt-power-case1-r2-2026-08-05-2de59c70"
-_BUNDLED_SECTION_VERSION = "tt-section-case1-r2-2026-08-05-a7a37087"
+_BUNDLED_SECTION_VERSION = "tt-section-case1-r2-2026-08-05-6d8cbfa9"
 _BUNDLED_BOM_VERSION = "selfreg-spec-2026-05-29-3f1556a4"
 _BUNDLED_APPROVAL_REFERENCE = "case-1-review-10-2026-08-03"
 
@@ -244,7 +244,7 @@ def _validate_rows(kind: str, payload: Mapping[str, Any]) -> tuple[int, int, lis
             secondary = ""
         elif kind == "section":
             primary = str(row.get("base_model") or row.get("mark") or "").strip()
-            temperature = row.get("cold_start_temperature_c", row.get("cold_start_temp_c"))
+            temperature = row.get("cold_start_temperature_c")
             secondary = f"{primary}\x00{temperature}"
             if not primary or temperature is None:
                 errors.append("model_and_temperature_required")

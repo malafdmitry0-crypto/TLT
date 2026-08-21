@@ -13,7 +13,7 @@ def test_catalog_adapter_keeps_only_engineering_rows() -> None:
         section_rows=[
             {
                 "mark": "10ТТН2",
-                "cold_start_temp_c": -40,
+                "cold_start_temperature_c": -40,
                 "l_max_m": 100,
                 "i_st_ud_a_per_m": 0.1,
                 "voltage_v": 230,
@@ -24,6 +24,26 @@ def test_catalog_adapter_keeps_only_engineering_rows() -> None:
     assert not isinstance(value, TTFormulaReport)
     assert value.power_rows[0].nominal_power == Decimal("10")
     assert not hasattr(value.power_rows[0], "id")
+
+
+def test_catalog_adapter_rejects_legacy_cold_start_temperature_alias() -> None:
+    value = catalog_bundle_from_payload(
+        power_rows=[{"model": "10ТТН2", "nominal_power": 10, "max_product_temp": 65}],
+        section_rows=[
+            {
+                "mark": "10ТТН2",
+                "cold_start_temp_c": -40,
+                "l_max_m": 100,
+                "i_st_ud_a_per_m": 0.1,
+                "voltage_v": 230,
+            }
+        ],
+        bom_rows=[],
+    )
+
+    assert isinstance(value, TTFormulaReport)
+    assert value.issues[0].details["invalid_fields"] == ("cold_start_temperature_c",)
+    assert value.issues[0].details["reason"] == "unsupported_legacy_field"
 
 
 def test_catalog_adapter_reports_missing_and_malformed_evidence() -> None:
@@ -44,7 +64,7 @@ def test_catalog_adapter_reports_missing_and_malformed_evidence() -> None:
 def _raw_section(**updates: object) -> dict[str, object]:
     row: dict[str, object] = {
         "mark": "10ТТН2",
-        "cold_start_temp_c": -40,
+        "cold_start_temperature_c": -40,
         "l_max_m": 100,
         "i_st_ud_a_per_m": 0.1,
         "voltage_v": 230,
@@ -81,8 +101,8 @@ def test_warmer_malformed_section_does_not_hide_a_colder_valid_planning_row() ->
     bundle = catalog_bundle_from_payload(
         power_rows=[{"model": "10ТТН2", "nominal_power": 10, "max_product_temp": 65}],
         section_rows=[
-            _raw_section(cold_start_temp_c=-40),
-            _raw_section(cold_start_temp_c=-10, l_max_m="broken"),
+            _raw_section(cold_start_temperature_c=-40),
+            _raw_section(cold_start_temperature_c=-10, l_max_m="broken"),
         ],
         bom_rows=[{"full_mark": "10ТТН2-СТ", "nomenclature_code": "n"}],
     )

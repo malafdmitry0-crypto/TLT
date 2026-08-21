@@ -24,7 +24,7 @@ POWER_ROWS = [
 SECTION_ROWS = [
     {
         "mark": row["model"],
-        "cold_start_temp_c": -40,
+        "cold_start_temperature_c": -40,
         "l_max_m": 100,
         "i_st_ud_a_per_m": 0.1,
     }
@@ -101,7 +101,7 @@ def test_options_call_shared_catalog_adapter_and_root_selector_once(
             {
                 **row,
                 "base_model": row["mark"],
-                "cold_start_temperature_c": row["cold_start_temp_c"],
+                "cold_start_temperature_c": row["cold_start_temperature_c"],
             }
             for row in SECTION_ROWS
         ],
