@@ -75,11 +75,11 @@ describe('ObjectWizard dependencies — layout-defaults', () => {
     expect(screen.queryByText('Климат и температуры')).not.toBeInTheDocument();
   });
 
-  it('дефолтит однозначные select-поля новой трубы, но не подставляет числовые инженерные значения', async () => {
+  it('дефолтит однозначные поля новой трубы, но не подставляет размеры', async () => {
     renderWizard();
 
     expect(await screen.findByTestId('wall-thickness-input')).toHaveValue('');
-    expect(screen.getByTestId('min-switch-temperature-input')).toHaveValue('');
+    expect(screen.getByTestId('min-switch-temperature-input')).toHaveValue('-20');
     expect(screen.getByTestId('min-switch-temperature-input')).toHaveAttribute('aria-required', 'true');
     expect(screen.getByTestId('safety-factor-input')).toBeInTheDocument();
     expect(screen.getByTestId('heat-cable-algorithm-form')).toBeInTheDocument();
@@ -126,7 +126,7 @@ describe('ObjectWizard dependencies — layout-defaults', () => {
     expect(screen.getByTestId('tank-diameter-input')).toHaveValue('');
     expect(screen.getByTestId('tank-height-input')).toHaveValue('');
     expect(screen.getByTestId('q-additional-input')).toHaveValue('');
-    expect(screen.getByTestId('min-switch-temperature-input')).toHaveValue('');
+    expect(screen.getByTestId('min-switch-temperature-input')).toHaveValue('-20');
     expect(screen.getByTestId('min-switch-temperature-input')).toHaveAttribute('aria-required', 'true');
     expect(screen.getByTestId('tank-heating-height-input')).toHaveValue('');
     expect(screen.getByTestId('tank-laying-step-input')).toHaveValue('');
