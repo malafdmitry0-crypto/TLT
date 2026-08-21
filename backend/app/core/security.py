@@ -1,35 +1,30 @@
 """JWT-токены и хеширование паролей."""
 
 import uuid
-import warnings
 from datetime import UTC, datetime, timedelta
-from typing import Any, cast
+from typing import Any
 
+import bcrypt
 import jwt
 from anyio import CapacityLimiter, to_thread
 from jwt import InvalidTokenError
 
-with warnings.catch_warnings():
-    warnings.filterwarnings(
-        "ignore",
-        message="'crypt' is deprecated.*",
-        category=DeprecationWarning,
-        module="passlib.utils",
-    )
-    from passlib.context import CryptContext
-
 from app.core.config import settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 password_hash_limiter = CapacityLimiter(settings.AUTH_PASSWORD_HASH_MAX_CONCURRENCY)
 
 
 def hash_password(password: str) -> str:
-    return cast(str, pwd_context.hash(password))
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode("ascii")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return cast(bool, pwd_context.verify(plain_password, hashed_password))
+    if not hashed_password.startswith("$2b$"):
+        return False
+    try:
+        return bcrypt.checkpw(plain_password.encode(), hashed_password.encode("ascii"))
+    except (UnicodeEncodeError, ValueError):
+        return False
 
 
 async def hash_password_async(password: str) -> str:
