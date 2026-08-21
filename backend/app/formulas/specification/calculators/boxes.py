@@ -25,7 +25,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 
 from app.formulas.specification.calculators.common import (
     ceil_div,
@@ -123,9 +123,7 @@ def calculate_box_quantity(
 def _is_legacy_unused(value: Any) -> bool:
     if value is BOX_CONDITION_UNUSED:
         return True
-    if isinstance(value, str) and value.strip().lower() == BOX_CONDITION_UNUSED:
-        return True
-    return False
+    return isinstance(value, str) and value.strip().lower() == BOX_CONDITION_UNUSED
 
 
 def _reject_legacy_unused(value: Any, *, field: str, production: bool) -> None:
@@ -173,14 +171,15 @@ def _validate_ex_condition(value: Any, *, field: str = "Ex") -> None:
             field=field,
             value=value,
         )
-    if value.get("mode") == "match":
-        if value.get("operator") != "eq" or value.get("value") not in (True, False):
-            raise FormulaInputError(
-                SPEC_BOX_EX_RGR_MATRIX_MISSING,
-                "authoritative_Ex_condition_missing",
-                field=field,
-                value=value,
-            )
+    if value.get("mode") == "match" and (
+        value.get("operator") != "eq" or value.get("value") not in (True, False)
+    ):
+        raise FormulaInputError(
+            SPEC_BOX_EX_RGR_MATRIX_MISSING,
+            "authoritative_Ex_condition_missing",
+            field=field,
+            value=value,
+        )
 
 
 def _validate_r_gr_condition(value: Any, *, field: str = "R_gr") -> None:
@@ -353,16 +352,16 @@ def row_conditions_match(
     def _eval(raw: Any, *, field: str, kind: str, actual_bool: bool | None = None) -> bool:
         if raw is None:
             return True
-        _reject_legacy_unused(raw, field=field, production=require_ex_r_gr or field in {"Ex", "R_gr"})
+        _reject_legacy_unused(
+            raw, field=field, production=require_ex_r_gr or field in {"Ex", "R_gr"}
+        )
         # Bare bool still accepted only for non-production bool flags in unit fixtures.
         if isinstance(raw, bool) and kind == "bool":
             return raw is actual_bool
         try:
             if kind == "r_gr":
                 actual_decimal = (
-                    None
-                    if r_gr is None
-                    else to_non_negative_decimal(r_gr, name="r_gr")
+                    None if r_gr is None else to_non_negative_decimal(r_gr, name="r_gr")
                 )
                 outcome = evaluate_condition_for_match(
                     raw,
@@ -397,16 +396,15 @@ def row_conditions_match(
             return False
 
     ex_raw = _condition_value(conditions, "Ex")
-    if ex_raw is not None or require_ex_r_gr:
-        if not _eval(ex_raw, field="Ex", kind="ex", actual_bool=actual["Ex"]):
-            return False
+    if (ex_raw is not None or require_ex_r_gr) and not _eval(
+        ex_raw, field="Ex", kind="ex", actual_bool=actual["Ex"]
+    ):
+        return False
 
     r_gr_raw = _condition_value(conditions, "R_gr")
-    if r_gr_raw is not None or require_ex_r_gr:
-        if not _eval(r_gr_raw, field="R_gr", kind="r_gr"):
-            return False
-
-    return True
+    return not (r_gr_raw is not None or require_ex_r_gr) or _eval(
+        r_gr_raw, field="R_gr", kind="r_gr"
+    )
 
 
 def _coerce_row(row: BoxRowInput | Mapping[str, Any], *, index: int) -> BoxRowInput:
@@ -420,8 +418,12 @@ def _coerce_row(row: BoxRowInput | Mapping[str, Any], *, index: int) -> BoxRowIn
             value=row,
         )
 
-    formula = row.get("formula_parameters") if isinstance(row.get("formula_parameters"), Mapping) else {}
-    applicability = row.get("applicability") if isinstance(row.get("applicability"), Mapping) else None
+    formula = (
+        row.get("formula_parameters") if isinstance(row.get("formula_parameters"), Mapping) else {}
+    )
+    applicability = (
+        row.get("applicability") if isinstance(row.get("applicability"), Mapping) else None
+    )
     conditions_map = (
         applicability
         if applicability is not None
@@ -486,12 +488,18 @@ def evaluate_box_matrix(
     """
     if isinstance(pipe, Mapping):
         pipe = BoxPipeInput(
-            outer_diameter_mm=pipe.get("outer_diameter_mm"),
-            section_count=pipe.get("section_count") if pipe.get("section_count") is not None else pipe.get("N_sec"),
-            section_length_m=(
+            outer_diameter_mm=cast(Decimal | int | str | float, pipe.get("outer_diameter_mm")),
+            section_count=cast(
+                Decimal | int | str | float,
+                pipe.get("section_count")
+                if pipe.get("section_count") is not None
+                else pipe.get("N_sec"),
+            ),
+            section_length_m=cast(
+                Decimal | int | str | float,
                 pipe.get("section_length_m")
                 if pipe.get("section_length_m") is not None
-                else pipe.get("L_sec")
+                else pipe.get("L_sec"),
             ),
             k1i=bool(pipe.get("k1i", pipe.get("K1i", False))),
             k2i=bool(pipe.get("k2i", pipe.get("K2i", False))),
