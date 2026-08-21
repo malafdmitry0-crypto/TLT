@@ -190,13 +190,11 @@ class ElectricalBatchCalculationService:
         self,
         project_id: UUID,
         *,
-        variant_number: int | None,
         object_ids: list[UUID],
-        electrical_variant_id: UUID | None = None,
+        electrical_variant_id: UUID,
     ) -> dict[UUID, ElectricalCalculation]:
         return await self.repository.load_existing_by_object_id(
             project_id,
-            variant_number=variant_number,
             object_ids=object_ids,
             electrical_variant_id=electrical_variant_id,
         )
@@ -205,7 +203,6 @@ class ElectricalBatchCalculationService:
         self,
         project_id: UUID,
         cable_source: CableSource = "builtin",
-        variant_number: int | None = None,
         cable_type: str = "self_regulating_tt",
         electrical_params: dict[str, Any] | None = None,
         skip_manual: bool = True,
@@ -215,8 +212,8 @@ class ElectricalBatchCalculationService:
         object_ids: list[UUID] | None = None,
         object_overrides: list[dict[str, Any]] | None = None,
         force_cable_type: bool = False,
-        electrical_variant_id: UUID | None = None,
         *,
+        electrical_variant_id: UUID,
         commit: bool = True,
     ) -> tuple[int, int, int, list[dict[str, Any]], list[ElectricalCalculation]]:
         """Автоподбор кабеля для всех валидных объектов проекта (cable_mark=None)."""
@@ -228,7 +225,7 @@ class ElectricalBatchCalculationService:
         cancel_checker = BatchCancelChecker(should_cancel)
 
         assignment_service = ElectricalAssignmentService(self.db)
-        if electrical_variant_id is not None and object_ids is None:
+        if object_ids is None:
             object_ids = await assignment_service.assignment_object_ids_for_system(
                 project_id,
                 electrical_variant_id,
@@ -243,10 +240,9 @@ class ElectricalBatchCalculationService:
             object_overrides,
             object_ids=object_ids,
         )
-        if electrical_variant_id is not None and object_ids is not None:
+        if object_ids is not None:
             existing_scope = await self._load_existing_electrical_by_object_id(
                 project_id,
-                variant_number=variant_number,
                 object_ids=object_ids,
                 electrical_variant_id=electrical_variant_id,
             )
@@ -306,7 +302,6 @@ class ElectricalBatchCalculationService:
             last_id = objects[-1].id
             existing_by_object_id = await self._load_existing_electrical_by_object_id(
                 project_id,
-                variant_number=variant_number,
                 object_ids=[obj.id for obj in objects],
                 electrical_variant_id=electrical_variant_id,
             )
@@ -381,7 +376,6 @@ class ElectricalBatchCalculationService:
                             "id": existing_calc.id if existing_calc is not None else uuid.uuid4(),
                             "project_id": obj.project_id,
                             "object_id": obj.id,
-                            "variant_number": None,
                             "electrical_variant_id": electrical_variant_id,
                             "cable_type": request.cable_type,
                             "cable_type_source": cable_type_source,
@@ -415,7 +409,6 @@ class ElectricalBatchCalculationService:
                     await self.failures.upsert(
                         obj,
                         exc,
-                        variant_number,
                         object_cable_type,
                         cable_type_source=cable_type_source,
                         request_data=error_request_data,
@@ -500,7 +493,6 @@ class ElectricalBatchCalculationService:
         return await self.calculate(
             project_id,
             cable_source,
-            None,
             cable_type,
             electrical_params,
             skip_manual=skip_manual,

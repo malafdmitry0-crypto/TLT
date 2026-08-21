@@ -60,7 +60,6 @@ class ElectricalSingleCalculationService:
         request: ElectricalRequest,
         *,
         commit: bool = True,
-        electrical_variant_id: UUID | None = None,
     ) -> ElectricalCalculation:
         # Resolve the project first, then keep the shared project -> object lock
         # order used by ER/settings mutations.
@@ -92,7 +91,7 @@ class ElectricalSingleCalculationService:
                 "Теплопотери объекта не рассчитаны — электротехнический расчёт недоступен"
             )
 
-        resolved_variant_id = electrical_variant_id or request.electrical_variant_id
+        resolved_variant_id = request.electrical_variant_id
         await self.context._assert_expected_assignment_version(
             obj,
             electrical_variant_id=resolved_variant_id,
@@ -114,7 +113,6 @@ class ElectricalSingleCalculationService:
                 await self.failures.upsert(
                     obj,
                     exc,
-                    None,
                     request.cable_type,
                     cable_type_source=request.data.get("cable_type_source"),
                     cable_mark_source=request.data.get("cable_mark_source"),
@@ -136,7 +134,6 @@ class ElectricalSingleCalculationService:
             cable_mark=cable_mark,
             result_dict=result_dict,
             cable_snapshot=cable_snapshot,
-            electrical_variant_id=resolved_variant_id,
         )
         if not commit:
             return calc
@@ -150,11 +147,10 @@ class ElectricalSingleCalculationService:
         *,
         cable_mark: str | None,
         cable_source: CableSource,
-        variant_number: int | None,
         cable_type: str,
         electrical_params: dict[str, Any] | None,
         commit: bool,
-        electrical_variant_id: UUID | None = None,
+        electrical_variant_id: UUID,
     ) -> ElectricalCalculation:
         """Выбор/автоподбор кабеля для одной пары объект+СО."""
         data = self.inputs._build_electrical_data(
@@ -167,8 +163,6 @@ class ElectricalSingleCalculationService:
         data["cable_mark_source"] = (
             CABLE_MARK_SOURCE_MANUAL if cable_mark else CABLE_MARK_SOURCE_AUTO
         )
-        if electrical_variant_id is None:
-            raise CalculationError("electrical_variant_id is required")
         request = ElectricalRequest(
             object_id=obj.id,
             cable_type=cast(Any, cable_type),
@@ -178,7 +172,6 @@ class ElectricalSingleCalculationService:
         return await self.calculate(
             request,
             commit=commit,
-            electrical_variant_id=electrical_variant_id,
         )
 
     async def select_cable_for_assignment(
@@ -299,7 +292,6 @@ class ElectricalSingleCalculationService:
                 obj,
                 cable_mark=data.cable_mark if data.mode == "manual" else None,
                 cable_source=data.cable_source,
-                variant_number=None,
                 cable_type="self_regulating_tt",
                 electrical_params={"selection_policy": data.selection_policy},
                 commit=False,
@@ -332,12 +324,11 @@ class ElectricalSingleCalculationService:
         object_id: UUID,
         cable_mark: str,
         cable_source: CableSource = "builtin",
-        variant_number: int | None = None,
         cable_type: str = "self_regulating_tt",
         electrical_params: dict[str, Any] | None = None,
         *,
         commit: bool = True,
-        electrical_variant_id: UUID | None = None,
+        electrical_variant_id: UUID,
     ) -> ElectricalCalculation:
         """Ручной выбор кабеля: берёт параметры из объекта, пересчитывает, upsert."""
         obj = await self._load_selectable_object(object_id)
@@ -345,7 +336,6 @@ class ElectricalSingleCalculationService:
             obj,
             cable_mark=cable_mark,
             cable_source=cable_source,
-            variant_number=variant_number,
             cable_type=cable_type,
             electrical_params=electrical_params,
             commit=commit,

@@ -4,7 +4,7 @@ import math
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import Float, and_, case, func, or_, select
+from sqlalchemy import Float, and_, func, or_, select
 from sqlalchemy import cast as sa_cast
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,7 +19,6 @@ from app.schemas.calculation import ElectricalCalcSummary
 from app.schemas.project import ProjectObjectsPageInfo
 from app.services.calculation.electrical_snapshots import ElectricalSnapshotService
 from app.services.calculation.electrical_sources import CABLE_MARK_SOURCE_MANUAL
-from app.services.calculation_errors import CalculationError
 from app.services.electrical_result_lifecycle import current_tt_result_sql_predicate
 
 
@@ -65,8 +64,7 @@ class ElectricalSummaryQuery:
         self,
         project_id: UUID,
         *,
-        variant_number: int | None = None,
-        electrical_variant_id: UUID | None = None,
+        electrical_variant_id: UUID,
         page: int = 1,
         page_size: int = 50,
     ) -> tuple[
@@ -98,8 +96,6 @@ class ElectricalSummaryQuery:
         object_ids = [obj.id for obj in objects]
 
         calculation_scope = [ElectricalCalculation.project_id == project_id]
-        if electrical_variant_id is None:
-            raise CalculationError("Нужно указать electrical_variant_id")
         calculation_scope.append(ElectricalCalculation.electrical_variant_id == electrical_variant_id)
 
         if object_ids:
@@ -186,18 +182,6 @@ class ElectricalSummaryQuery:
             sa_cast(ElectricalCalculation.results["num_sections"].astext, Float),
             0.0,
         )
-        legacy_system_type = case(
-            (
-                ElectricalCalculation.cable_type.in_(("self_regulating", "self_regulating_tt")),
-                "self_regulating",
-            ),
-            (
-                ElectricalCalculation.cable_type.in_(("single_core", "three_core", "resistive")),
-                "resistive",
-            ),
-            (ElectricalCalculation.cable_type == "skin", "skin"),
-            else_=None,
-        )
         assignment_join = and_(
             ElectricalVariantObject.project_id == ElectricalCalculation.project_id,
             ElectricalVariantObject.object_id == ElectricalCalculation.object_id,
@@ -208,26 +192,11 @@ class ElectricalSummaryQuery:
             ElectricalVariantObject,
             assignment_join,
         )
-        if electrical_variant_id is not None:
-            system_type: Any = ElectricalVariantObject.system_type
-            ready_successful_calc = and_(
-                successful_calc,
-                ElectricalVariantObject.assignment_state == "ready",
-            )
-        else:
-            # Pre-UUID compatibility rows have no assignment identity. Bound
-            # rows must still obey their authoritative assignment state/type.
-            system_type = func.coalesce(
-                ElectricalVariantObject.system_type,
-                legacy_system_type,
-            )
-            ready_successful_calc = and_(
-                successful_calc,
-                or_(
-                    ElectricalVariantObject.id.is_(None),
-                    ElectricalVariantObject.assignment_state == "ready",
-                ),
-            )
+        system_type: Any = ElectricalVariantObject.system_type
+        ready_successful_calc = and_(
+            successful_calc,
+            ElectricalVariantObject.assignment_state == "ready",
+        )
 
         def system_totals(system: str) -> list[Any]:
             contributing = and_(ready_successful_calc, system_type == system)

@@ -1308,11 +1308,17 @@ class TestSaveFailedElectrical:
         }
         service.electrical_failures._bulk_upsert = AsyncMock(return_value=[SimpleNamespace()])
 
-        await service.electrical_failures.save(obj, "TestError")
+        electrical_variant_id = uuid.uuid4()
+        await service.electrical_failures.save(
+            obj,
+            "TestError",
+            electrical_variant_id=electrical_variant_id,
+        )
         rows = service.electrical_failures._bulk_upsert.await_args.args[0]
         assert rows[0]["project_id"] == obj.project_id
         assert rows[0]["object_id"] == obj.id
-        assert rows[0]["variant_number"] == 1
+        assert rows[0]["electrical_variant_id"] == electrical_variant_id
+        assert "variant_number" not in rows[0]
         assert rows[0]["cable_mark"] is None
         assert rows[0]["results"]["message"] == "TestError"
         db.commit.assert_awaited_once()
@@ -1335,7 +1341,11 @@ class TestSaveFailedElectrical:
         }
         service.electrical_failures._bulk_upsert = AsyncMock(return_value=[SimpleNamespace()])
 
-        await service.electrical_failures.save(obj, "Some error")
+        await service.electrical_failures.save(
+            obj,
+            "Some error",
+            electrical_variant_id=uuid.uuid4(),
+        )
         rows = service.electrical_failures._bulk_upsert.await_args.args[0]
         row = rows[0]
         # cable_mark обнуляется, results заменяются на structured failure payload.
@@ -1349,9 +1359,8 @@ class TestSaveFailedElectrical:
             "TRY_OTHER_CABLE_TYPE",
         ]
 
-    async def test_creates_record_with_given_variant_number(self):
-        """Regression: фейл электрорасчёта варианта 2 сохраняется с variant_number=2,
-        а не в дефолтный вариант 1 (иначе затирает успешный расчёт СО1)."""
+    async def test_creates_record_with_given_electrical_variant_id(self):
+        """A failed calculation stays in the exact UUID variant scope."""
         from app.services.calculation.container import CalculationContainer
 
         obj = SimpleNamespace(
@@ -1369,9 +1378,15 @@ class TestSaveFailedElectrical:
         }
         service.electrical_failures._bulk_upsert = AsyncMock(return_value=[SimpleNamespace()])
 
-        await service.electrical_failures.save(obj, "boom", variant_number=2)
+        electrical_variant_id = uuid.uuid4()
+        await service.electrical_failures.save(
+            obj,
+            "boom",
+            electrical_variant_id=electrical_variant_id,
+        )
         rows = service.electrical_failures._bulk_upsert.await_args.args[0]
-        assert rows[0]["variant_number"] == 2
+        assert rows[0]["electrical_variant_id"] == electrical_variant_id
+        assert "variant_number" not in rows[0]
 
 
 class TestGetCableOptions:
@@ -1499,7 +1514,11 @@ class TestSelectCableManual:
     async def test_object_not_found_raises(self):
         service = CalculationContainer(_mock_db_empty())
         with pytest.raises(CalculationError, match="не найден"):
-            await service.electrical_single.select_cable_manual(uuid.uuid4(), "ТЛТ-25")
+            await service.electrical_single.select_cable_manual(
+                uuid.uuid4(),
+                "ТЛТ-25",
+                electrical_variant_id=uuid.uuid4(),
+            )
 
     async def test_invalid_object_raises(self):
         """Если is_valid=False — нельзя выбрать кабель."""
@@ -1516,7 +1535,11 @@ class TestSelectCableManual:
         db.execute = AsyncMock(return_value=result)
         service = CalculationContainer(db)
         with pytest.raises(CalculationError, match="не рассчитан"):
-            await service.electrical_single.select_cable_manual(obj.id, "ТЛТ-25")
+            await service.electrical_single.select_cable_manual(
+                obj.id,
+                "ТЛТ-25",
+                electrical_variant_id=uuid.uuid4(),
+            )
 
     async def test_missing_heat_results_are_not_selectable(self):
         obj = SimpleNamespace(

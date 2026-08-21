@@ -37,13 +37,12 @@ class ElectricalFailureService:
         self,
         obj: ProjectObject,
         error_message: str | Exception,
-        variant_number: int | None,
         cable_type: str,
         *,
         cable_type_source: str | None = None,
         cable_mark_source: str | None = None,
         request_data: dict[str, Any] | None = None,
-        electrical_variant_id: UUID | None = None,
+        electrical_variant_id: UUID,
     ) -> ElectricalCalculation:
         normalized_source = normalize_cable_type_source(cable_type_source)
         normalized_mark_source = normalize_cable_mark_source(cable_mark_source)
@@ -71,7 +70,6 @@ class ElectricalFailureService:
                 {
                     "project_id": obj.project_id,
                     "object_id": obj.id,
-                    "variant_number": variant_number,
                     "electrical_variant_id": electrical_variant_id,
                     "cable_type": cable_type,
                     "cable_type_source": normalized_source,
@@ -90,8 +88,14 @@ class ElectricalFailureService:
         self,
         obj: ProjectObject,
         error_message: str,
-        variant_number: int = 1,
         cable_type: str = "self_regulating_tt",
+        *,
+        electrical_variant_id: UUID,
     ) -> None:
-        await self.upsert(obj, error_message, variant_number, cable_type)
+        await self.upsert(
+            obj,
+            error_message,
+            cable_type,
+            electrical_variant_id=electrical_variant_id,
+        )
         await self.db.commit()

@@ -38,15 +38,13 @@ class ElectricalCalculationRepository:
         cable_mark: str | None,
         result_dict: dict[str, Any],
         cable_snapshot: dict[str, Any] | None,
-        electrical_variant_id: UUID | None = None,
     ) -> ElectricalCalculation:
         rows = await self.bulk_upsert(
             [
                 {
                     "project_id": obj.project_id,
                     "object_id": obj.id,
-                    "variant_number": None,
-                    "electrical_variant_id": electrical_variant_id,
+                    "electrical_variant_id": request.electrical_variant_id,
                     "cable_type": request.cable_type,
                     "cable_type_source": normalize_cable_type_source(
                         request.data.get("cable_type_source")
@@ -87,9 +85,8 @@ class ElectricalCalculationRepository:
         self,
         project_id: UUID,
         *,
-        variant_number: int | None,
         object_ids: list[UUID],
-        electrical_variant_id: UUID | None = None,
+        electrical_variant_id: UUID,
     ) -> dict[UUID, ElectricalCalculation]:
         if not object_ids:
             return {}
@@ -97,8 +94,6 @@ class ElectricalCalculationRepository:
             ElectricalCalculation.project_id == project_id,
             ElectricalCalculation.object_id.in_(object_ids),
         ]
-        if electrical_variant_id is None:
-            raise ValueError("electrical_variant_id is required")
         filters.append(ElectricalCalculation.electrical_variant_id == electrical_variant_id)
         result = await self.db.execute(
             select(ElectricalCalculation)

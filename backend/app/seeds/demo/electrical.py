@@ -117,7 +117,6 @@ async def seed_electrical_calculations(
             )
             calculation = await calculations.electrical_single.calculate(
                 request,
-                electrical_variant_id=variant_id,
             )
             result = calculation.results or {}
             provenance = result.get("provenance")
