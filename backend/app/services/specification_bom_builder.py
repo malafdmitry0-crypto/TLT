@@ -9,6 +9,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 from uuid import UUID
 
+from heatcalc_specification_core import run_specification
 from heatcalc_specification_core.bom import (
     AssignmentRevision,
     CatalogIdentity,
@@ -24,7 +25,6 @@ from heatcalc_specification_core.bom import (
     SectionPlanRevision,
     SpecificationCatalog,
     SpecificationContribution,
-    run_specification,
 )
 from heatcalc_specification_core.bom import (
     CandidateGroup as CoreCandidateGroup,

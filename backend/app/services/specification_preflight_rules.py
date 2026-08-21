@@ -9,17 +9,14 @@ from decimal import Decimal, InvalidOperation
 from typing import Any, Literal, cast
 from uuid import UUID
 
+from heatcalc_specification_core import prepare_specification
 from heatcalc_specification_core.diagnostics import Diagnostic as CoreDiagnostic
-from heatcalc_specification_core.immutable_json import (
-    canonical_fingerprint as _canonical_fingerprint,
-)
 from heatcalc_specification_core.preflight import (
     CatalogIdentity,
     ElectricalResultSnapshot,
     PreflightAssignment,
     PreflightCatalog,
     PreflightCatalogItem,
-    prepare_specification,
 )
 
 from app.electrical_result_status import electrical_result_status
@@ -43,8 +40,11 @@ class ImmutableSpecificationCatalogItem:
 @dataclass(frozen=True)
 class ImmutableSpecificationCatalog:
     catalog_id: UUID | str
+    catalog_key: str
     version: str
-    checksum: str
+    source_checksum: str
+    payload_checksum: str
+    schema_version: int
     is_active: bool
     is_complete: bool
     authority: str
@@ -69,11 +69,6 @@ class SpecificationPreflightAssignment:
     assignment_object_version: int
     assignment_diagnostics: Mapping[str, Any] | None = None
     result: Mapping[str, Any] | None = None
-
-
-def canonical_fingerprint(payload: Any) -> str:
-    """Compatibility export while canonical serialization is owned by core."""
-    return _canonical_fingerprint(payload)
 
 
 def evaluate_specification_preflight(
@@ -113,11 +108,11 @@ def _core_catalog(catalog: ImmutableSpecificationCatalog | None) -> PreflightCat
     return PreflightCatalog(
         identity=CatalogIdentity(
             catalog_id=catalog.catalog_id,
-            catalog_key="legacy-preflight-adapter",
+            catalog_key=catalog.catalog_key,
             version=catalog.version,
-            source_checksum=catalog.checksum,
-            payload_checksum=catalog.checksum,
-            schema_version=1,
+            source_checksum=catalog.source_checksum,
+            payload_checksum=catalog.payload_checksum,
+            schema_version=catalog.schema_version,
         ),
         is_active=catalog.is_active,
         is_complete=catalog.is_complete,

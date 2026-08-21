@@ -14,7 +14,6 @@ from app.services.specification_preflight_rules import (
     ImmutableSpecificationCatalog,
     ImmutableSpecificationCatalogItem,
     SpecificationPreflightAssignment,
-    canonical_fingerprint,
     evaluate_specification_preflight,
 )
 
@@ -25,8 +24,11 @@ OBJECT_ID = uuid4()
 def _catalog(*, mark: str = "30ТТВ2-СР", code: str = "001-002", complete: bool = True):
     return ImmutableSpecificationCatalog(
         "catalog-id",
+        "case1-production",
         "2026.08",
         "sha256:" + "a" * 64,
+        "sha256:" + "b" * 64,
+        1,
         True,
         complete,
         "approved",
@@ -325,15 +327,3 @@ def test_fingerprint_is_stable_under_row_order_and_changes_with_revision():
 
     assert forward.input_fingerprint == reversed_result.input_fingerprint
     assert forward.input_fingerprint != changed_result.input_fingerprint
-
-
-def test_fingerprint_is_schema_scoped_stable_for_decimal_zero_and_rejects_floats():
-    first = canonical_fingerprint(
-        {"schema": "specification-preflight/v1", "value": Decimal("-0.000")}
-    )
-    second = canonical_fingerprint(
-        {"value": Decimal("0.0"), "schema": "specification-preflight/v1"}
-    )
-    assert first == second
-    with pytest.raises(ValueError, match="ambiguous float"):
-        canonical_fingerprint({"value": 1.0})

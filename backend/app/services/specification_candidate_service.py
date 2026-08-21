@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
 
+from heatcalc_specification_core import build_candidate_groups as build_core_candidate_groups
 from heatcalc_specification_core.candidates import (
     CandidateCatalog,
     CandidateCatalogItem,
@@ -18,9 +19,6 @@ from heatcalc_specification_core.candidates import (
 )
 from heatcalc_specification_core.candidates import (
     SpecificationCandidate as CoreCandidate,
-)
-from heatcalc_specification_core.candidates import (
-    build_candidate_groups as build_core_candidate_groups,
 )
 from heatcalc_specification_core.candidates import (
     candidate_groups_fingerprint_payload as core_groups_fingerprint_payload,

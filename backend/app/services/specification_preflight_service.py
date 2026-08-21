@@ -356,8 +356,11 @@ def _immutable_catalog(
     version = catalog.version
     return ImmutableSpecificationCatalog(
         catalog_id=version.id,
+        catalog_key=version.catalog_key,
         version=version.version,
-        checksum=version.payload_checksum,
+        source_checksum=version.source_checksum,
+        payload_checksum=version.payload_checksum,
+        schema_version=version.schema_version,
         is_active=version.status == "active",
         is_complete=version.is_complete,
         authority=version.authority,
