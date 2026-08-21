@@ -63,7 +63,6 @@ class ElectricalCandidateFolderService:
             "id": folder.id,
             "project_id": folder.project_id,
             "object_id": folder.object_id,
-            "variant_number": folder.variant_number,
             "electrical_variant_id": folder.electrical_variant_id,
             "name": folder.name,
             "color": folder.color,
@@ -78,11 +77,8 @@ class ElectricalCandidateFolderService:
         project_id: UUID,
         *,
         object_id: UUID,
-        variant_number: int | None,
-        electrical_variant_id: UUID | None = None,
+        electrical_variant_id: UUID,
     ) -> list[dict[str, Any]]:
-        if electrical_variant_id is None:
-            raise CalculationError("Нужно указать electrical_variant_id")
         filters = [
             ElectricalCandidateFolder.project_id == project_id,
             ElectricalCandidateFolder.object_id == object_id,
@@ -118,7 +114,6 @@ class ElectricalCandidateFolderService:
                 "id": folder.id,
                 "project_id": folder.project_id,
                 "object_id": folder.object_id,
-                "variant_number": folder.variant_number,
                 "electrical_variant_id": folder.electrical_variant_id,
                 "name": folder.name,
                 "color": folder.color,
@@ -135,19 +130,12 @@ class ElectricalCandidateFolderService:
         *,
         project_id: UUID,
         object_id: UUID,
-        variant_number: int | None,
-        electrical_variant_id: UUID | None = None,
+        electrical_variant_id: UUID,
         name: str,
         color: str | None,
         created_by_user_id: UUID | None,
         created_by_session_id: str | None,
     ) -> dict[str, Any]:
-        if electrical_variant_id is None:
-            raise ElectricalAssignmentServiceError(
-                "ELECTRICAL_ASSIGNMENT_REQUIRED",
-                "Для папки кандидатов требуется точный UUID ЭР",
-                status_code=409,
-            )
         await ElectricalAssignmentService(self.db).require_supported_assignment(
             project_id,
             electrical_variant_id,
@@ -165,7 +153,7 @@ class ElectricalCandidateFolderService:
         folder = ElectricalCandidateFolder(
             project_id=project_id,
             object_id=object_id,
-            variant_number=variant_number,
+            variant_number=None,
             electrical_variant_id=electrical_variant_id,
             name=self._normalize_candidate_folder_name(name),
             color=color,
@@ -234,7 +222,6 @@ class ElectricalCandidateFolderService:
         if (
             candidate.project_id != folder.project_id
             or candidate.object_id != folder.object_id
-            or candidate.variant_number != folder.variant_number
             or candidate.electrical_variant_id is None
             or folder.electrical_variant_id is None
             or candidate.electrical_variant_id != folder.electrical_variant_id

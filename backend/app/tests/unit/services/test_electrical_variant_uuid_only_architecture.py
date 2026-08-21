@@ -7,7 +7,9 @@ from app.schemas import calculation, electrical_history
 from app.services.calculation import (
     electrical_batch,
     electrical_candidate_apply,
+    electrical_candidate_folders,
     electrical_candidate_scope,
+    electrical_candidates,
     electrical_single,
 )
 from app.services.electrical_variant_service import ElectricalVariantService
@@ -69,3 +71,19 @@ def test_history_public_contract_is_uuid_only() -> None:
 
     assert "variant_number" not in fields
     assert fields["electrical_variant_id"].is_required()
+
+
+def test_candidate_and_folder_boundaries_use_uuid_as_the_only_scope() -> None:
+    sources = "\n".join(
+        inspect.getsource(module)
+        for module in (
+            electrical_candidates,
+            electrical_candidate_folders,
+            electrical_candidate_scope,
+        )
+    )
+
+    assert '"variant_number":' not in sources
+    assert "ElectricalCandidate.variant_number ==" not in sources
+    assert "ElectricalCandidateFolder.variant_number ==" not in sources
+    assert "candidate.variant_number != folder.variant_number" not in sources

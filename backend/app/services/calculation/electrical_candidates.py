@@ -104,8 +104,7 @@ class ElectricalCandidateService:
         project_id: UUID,
         object_id: UUID,
         object_type: str,
-        variant_number: int | None,
-        electrical_variant_id: UUID | None,
+        electrical_variant_id: UUID,
         cable_type: str,
         cable_source: CableSource,
         mode: str,
@@ -136,7 +135,7 @@ class ElectricalCandidateService:
         return ElectricalCandidate(
             project_id=project_id,
             object_id=object_id,
-            variant_number=variant_number,
+            variant_number=None,
             electrical_variant_id=electrical_variant_id,
             cable_type=cable_type,
             cable_source=cable_source,
@@ -171,7 +170,6 @@ class ElectricalCandidateService:
         self,
         *,
         object_id: UUID,
-        variant_number: int,
         electrical_variant_id: UUID,
         dedupe_key: str,
     ) -> ElectricalCandidate | None:
@@ -179,23 +177,12 @@ class ElectricalCandidateService:
             select(ElectricalCandidate)
             .where(
                 ElectricalCandidate.object_id == object_id,
-                ElectricalCandidate.variant_number == variant_number,
+                ElectricalCandidate.electrical_variant_id == electrical_variant_id,
                 ElectricalCandidate.dedupe_key == dedupe_key,
             )
             .with_for_update()
         )
         rows = list(result.scalars().all())
-        conflicts = [row for row in rows if row.electrical_variant_id != electrical_variant_id]
-        if conflicts:
-            raise ElectricalAssignmentServiceError(
-                "ELECTRICAL_ASSIGNMENT_DOWNSTREAM_SCOPE_CONFLICT",
-                "Кандидат с тем же ключом относится к другому или неопределённому ЭР",
-                status_code=409,
-                details={
-                    "electrical_variant_id": str(electrical_variant_id),
-                    "candidate_ids": [str(row.id) for row in conflicts],
-                },
-            )
         return rows[0] if rows else None
 
     @staticmethod
@@ -251,7 +238,6 @@ class ElectricalCandidateService:
             )
         existing = await self._find_electrical_candidate_by_dedupe(
             object_id=candidate.object_id,
-            variant_number=candidate.variant_number,
             electrical_variant_id=candidate.electrical_variant_id,
             dedupe_key=candidate.dedupe_key,
         )
@@ -288,7 +274,6 @@ class ElectricalCandidateService:
             await self.db.rollback()
             existing = await self._find_electrical_candidate_by_dedupe(
                 object_id=candidate.object_id,
-                variant_number=candidate.variant_number,
                 electrical_variant_id=candidate.electrical_variant_id,
                 dedupe_key=candidate.dedupe_key,
             )
@@ -318,8 +303,7 @@ class ElectricalCandidateService:
         *,
         project_id: UUID,
         object_id: UUID,
-        variant_number: int | None = None,
-        electrical_variant_id: UUID | None = None,
+        electrical_variant_id: UUID,
         cable_type: str = "self_regulating_tt",
         cable_source: CableSource = "builtin",
         mode: str = "auto",
@@ -333,12 +317,6 @@ class ElectricalCandidateService:
             raise CalculationError("Для ручного кандидата укажите cable_mark")
         if mode == "auto" and cable_mark:
             raise CalculationError("Авторасчёт кандидата запускается без cable_mark")
-        if electrical_variant_id is None:
-            raise ElectricalAssignmentServiceError(
-                "ELECTRICAL_ASSIGNMENT_REQUIRED",
-                "Для кандидата требуется точный UUID ЭР",
-                status_code=409,
-            )
         await ElectricalAssignmentService(self.db).require_supported_assignment(
             project_id,
             electrical_variant_id,
@@ -352,7 +330,6 @@ class ElectricalCandidateService:
                 project_id=project_id,
                 object_id=object_id,
                 object_type=object_type,
-                variant_number=variant_number,
                 electrical_variant_id=electrical_variant_id,
                 cable_type=cable_type,
                 cable_source=cable_source,
@@ -454,7 +431,7 @@ class ElectricalCandidateService:
         candidate = ElectricalCandidate(
             project_id=project_id,
             object_id=object_id,
-            variant_number=variant_number,
+            variant_number=None,
             electrical_variant_id=electrical_variant_id,
             cable_type=cable_type,
             cable_source=cable_source,

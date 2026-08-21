@@ -311,7 +311,6 @@ async def electrical_page(
         db
     ).electrical_summary.electrical_project_page(
         project_id,
-        variant_number=None,
         electrical_variant_id=electrical_variant_id,
         page=page,
         page_size=page_size,
@@ -414,7 +413,6 @@ async def list_electrical_candidates(
         candidates = await CalculationContainer(db).candidate_scope.list(
             project_id,
             object_id=object_id,
-        variant_number=None,
             electrical_variant_id=electrical_variant_id,
         )
         return [ElectricalCandidateResponse.model_validate(item) for item in candidates]
@@ -449,7 +447,6 @@ async def create_electrical_candidate(
         candidate, action = await service.electrical_candidates.create_electrical_candidate(
             project_id=data.project_id,
             object_id=data.object_id,
-        variant_number=None,
             electrical_variant_id=data.electrical_variant_id,
             cable_type=data.cable_type,
             cable_source=data.cable_source,
@@ -548,7 +545,6 @@ async def list_electrical_candidate_folders(
         ).candidate_folders.list_electrical_candidate_folders(
             project_id,
             object_id=object_id,
-        variant_number=None,
             electrical_variant_id=electrical_variant_id,
         )
         return [ElectricalCandidateFolderResponse.model_validate(item) for item in folders]
@@ -580,7 +576,6 @@ async def create_electrical_candidate_folder(
         ).candidate_folders.create_electrical_candidate_folder(
             project_id=data.project_id,
             object_id=data.object_id,
-        variant_number=None,
             electrical_variant_id=data.electrical_variant_id,
             name=data.name,
             color=data.color,
@@ -841,7 +836,6 @@ async def select_cable(
             object_id,
             cable_mark,
             cable_source,
-            None,
             cable_type,
             electrical_params,
             electrical_variant_id=electrical_variant_id,
@@ -954,7 +948,6 @@ async def batch_calc_electrical(
         ) = await service.electrical_batch.calculate(
             project_id,
             cable_source,
-            None,
             cable_type,
             electrical_params,
             skip_manual=skip_manual,
