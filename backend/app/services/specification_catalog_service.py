@@ -11,13 +11,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 from uuid import UUID
 
-from pydantic import ValidationError
-from sqlalchemy import func, select, update
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.core.config import settings as app_settings
-from app.core.dependencies import CurrentPrincipal
-from app.formulas.specification.catalog_conditions import (
+from heatcalc_specification_core.catalog_conditions import (
     BOX_BOOLEAN_CONDITION_KEYS,
     BOX_CONDITION_KEYS,
     BOX_EX_KEY,
@@ -26,6 +20,12 @@ from app.formulas.specification.catalog_conditions import (
     material_approval_reference_ok,
     validate_condition_shape,
 )
+from pydantic import ValidationError
+from sqlalchemy import func, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.config import settings as app_settings
+from app.core.dependencies import CurrentPrincipal
 from app.models.specification import (
     Specification,
     SpecificationCatalogItem,

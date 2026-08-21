@@ -38,19 +38,22 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
-pythonpath = ["packages/heat-loss-core/src"]
+pythonpath = [
+    "packages/heat-loss-core/src",
+    "packages/specification-core/src",
+]
 testpaths = ["app/tests"]
 python_files = ["test_*.py"]
 addopts = "-ra -q --cov=app --cov-fail-under=85 --cov-report=term-missing:skip-covered"
 
 [tool.mutmut]
 # Mutation testing — проверка качества тестов, не их количества.
-# Цель: backend-формулы электрического расчёта и спецификации.
+# Цель: backend-формулы электрического расчёта.
 # Canonical heat-loss core проверяется из собственного package workspace.
 # Запуск: scripts/formula-qa.sh mutation
 paths_to_mutate = [
     "app/formulas/electrical/",
-    "app/formulas/specification/",
+    "packages/specification-core/src/heatcalc_specification_core/",
 ]
 pytest_add_cli_args = [
     "--no-cov",
@@ -58,7 +61,11 @@ pytest_add_cli_args = [
     "--ignore=app/tests/unit/formulas/test_mutmut_score_gate.py",
 ]
 tests_dir = ["app/tests/unit/formulas"]
-also_copy = ["app", "packages/heat-loss-core/src"]
+also_copy = [
+    "app",
+    "packages/heat-loss-core/src",
+    "packages/specification-core/src",
+]
 backup = false
 
 [tool.bandit]

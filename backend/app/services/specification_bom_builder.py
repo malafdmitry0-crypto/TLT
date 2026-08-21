@@ -15,7 +15,7 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from app.formulas.specification.calculators import (
+from heatcalc_specification_core import (
     SPEC_BOX_EX_RGR_MATRIX_MISSING,
     AluminiumObjectInput,
     BoxPipeInput,
@@ -32,12 +32,13 @@ from app.formulas.specification.calculators import (
     calculate_sealant,
     evaluate_box_matrix,
 )
-from app.formulas.specification.calculators.common import normalize_temperature_group
-from app.formulas.specification.catalog_identity import temperature_group_from_result
-from app.formulas.specification.grouping import (
+from heatcalc_specification_core.catalog_identity import temperature_group_from_result
+from heatcalc_specification_core.common import normalize_temperature_group
+from heatcalc_specification_core.grouping import (
     MODE_MERGE_MATERIALS,
     merge_items,
 )
+
 from app.models.specification import SpecificationCatalogItem
 from app.schemas.specification import (
     SpecificationCandidateGroup,

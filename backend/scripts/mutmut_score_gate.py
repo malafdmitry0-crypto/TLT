@@ -9,7 +9,7 @@ from pathlib import Path
 
 BACKEND_MUTANT_ROOTS = (
     Path("mutants/app/formulas/electrical"),
-    Path("mutants/app/formulas/specification"),
+    Path("mutants/packages/specification-core/src/heatcalc_specification_core"),
 )
 CORE_MUTANT_ROOTS = (Path("packages/heat-loss-core/mutants/src/heatcalc_heat_loss_core"),)
 MUTANT_ROOTS = BACKEND_MUTANT_ROOTS + CORE_MUTANT_ROOTS

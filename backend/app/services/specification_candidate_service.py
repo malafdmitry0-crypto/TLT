@@ -14,9 +14,10 @@ from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
 
-from app.formulas.specification.calculators.common import normalize_temperature_group
-from app.formulas.specification.calculators.types import FormulaInputError, TemperatureGroup
-from app.formulas.specification.catalog_identity import temperature_group_from_result
+from heatcalc_specification_core.catalog_identity import temperature_group_from_result
+from heatcalc_specification_core.common import normalize_temperature_group
+from heatcalc_specification_core.types import FormulaInputError, TemperatureGroup
+
 from app.models.specification import SpecificationCatalogItem
 from app.schemas.specification import (
     SpecificationCandidate,

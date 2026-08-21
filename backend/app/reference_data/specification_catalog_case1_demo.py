@@ -12,7 +12,8 @@ import hashlib
 import json
 from typing import Any
 
-from app.formulas.specification.catalog_conditions import match_condition, not_applicable
+from heatcalc_specification_core.catalog_conditions import match_condition, not_applicable
+
 from app.schemas.specification_catalog import (
     SpecificationCatalogAuthority,
     SpecificationCatalogImportRequest,

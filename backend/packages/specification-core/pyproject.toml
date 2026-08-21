@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "heatcalc-specification-core"
+version = "0.1.0"
+description = "Pure specification calculation, catalog-condition, and grouping core"
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+
+[tool.setuptools.package-data]
+heatcalc_specification_core = ["py.typed"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
