@@ -454,11 +454,9 @@ def build_electrical_error_payload(
         if is_tank_pipe_layout:
             fields = details.get("fields")
             field = fields[0] if isinstance(fields, list) and fields else None
-        is_temperature_limit = (
-            typed_code == "ELECTRICAL_CABLE_TEMPERATURE_LIMIT_EXCEEDED"
-        )
+        is_temperature_limit = typed_code == "ELECTRICAL_CABLE_TEMPERATURE_LIMIT_EXCEEDED"
         temperature_violations = details.get("violations")
-        temperature_actions: list[str] = []
+        temperature_actions: list[ElectricalSuggestedAction] = []
         if is_temperature_limit and isinstance(temperature_violations, list):
             if "ambient_below_minimum" in temperature_violations:
                 temperature_actions.append("CHECK_AMBIENT_TEMPERATURE")
@@ -516,7 +514,7 @@ def build_electrical_error_payload(
     )
     _add_context_value(context, "object_type", object_type)
     error_code = _normalize_error_code_for_context(error_code, context)
-    payload: ElectricalErrorPayload = {
+    fallback_payload: ElectricalErrorPayload = {
         "error_code": error_code,
         "code": error_code,
         "category": _category_for_electrical_error(error_code),
@@ -529,6 +527,6 @@ def build_electrical_error_payload(
         "error_context": context,
     }
     if object_type is not None:
-        payload["object_type"] = object_type
-    payload["object_name"] = object_name
-    return payload
+        fallback_payload["object_type"] = object_type
+    fallback_payload["object_name"] = object_name
+    return fallback_payload

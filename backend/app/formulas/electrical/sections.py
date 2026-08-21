@@ -16,7 +16,7 @@ from typing import Any
 
 from app.electrical_domain import ElectricalFormulaError
 from app.formulas.electrical.decimal_math import decimal_value, round_down, round_result, round_up
-from app.reference_data.loader import _load_json  # type: ignore[attr-defined]
+from app.reference_data.loader import _load_json
 
 
 @dataclass(frozen=True, slots=True)
