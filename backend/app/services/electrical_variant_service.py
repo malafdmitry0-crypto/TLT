@@ -984,13 +984,9 @@ class ElectricalVariantService:
                     "created_at",
                     "updated_at",
                     "electrical_variant_id",
-                    "variant_number",
                 },
             )
-            values.update(
-                electrical_variant_id=target.id,
-                variant_number=None,
-            )
+            values.update(electrical_variant_id=target.id)
             self.db.add(ElectricalCalculation(**values))
 
         folder_id_map: dict[UUID, UUID] = {}
@@ -1002,13 +998,9 @@ class ElectricalVariantService:
                     "created_at",
                     "updated_at",
                     "electrical_variant_id",
-                    "variant_number",
                 },
             )
-            values.update(
-                electrical_variant_id=target.id,
-                variant_number=None,
-            )
+            values.update(electrical_variant_id=target.id)
             copied_folder = ElectricalCandidateFolder(**values)
             self.db.add(copied_folder)
             await self.db.flush()
@@ -1023,13 +1015,9 @@ class ElectricalVariantService:
                     "created_at",
                     "updated_at",
                     "electrical_variant_id",
-                    "variant_number",
                 },
             )
-            values.update(
-                electrical_variant_id=target.id,
-                variant_number=None,
-            )
+            values.update(electrical_variant_id=target.id)
             copied_candidate = ElectricalCandidate(**values)
             self.db.add(copied_candidate)
             await self.db.flush()

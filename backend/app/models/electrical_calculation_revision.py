@@ -10,7 +10,6 @@ from sqlalchemy import BigInteger, CheckConstraint, DateTime, ForeignKey, Index,
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.electrical_variant_limits import MAX_ELECTRICAL_VARIANTS
 from app.models.base import Base
 
 
@@ -22,10 +21,6 @@ class ElectricalCalculationRevision(Base):
         CheckConstraint(
             "revision_number >= 1",
             name="ck_electrical_calculation_revisions_number",
-        ),
-        CheckConstraint(
-            f"variant_number >= 1 AND variant_number <= {MAX_ELECTRICAL_VARIANTS}",
-            name="ck_electrical_calculation_revisions_variant_number",
         ),
         CheckConstraint(
             "status IN ('pending', 'success', 'error', 'stale')",
@@ -64,10 +59,7 @@ class ElectricalCalculationRevision(Base):
     # Scope identifiers are immutable snapshot values, not lifecycle-cascading relations.
     project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     object_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
-    variant_number: Mapped[int] = mapped_column(nullable=False)
-    electrical_variant_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), nullable=True
-    )
+    electrical_variant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     cable_type: Mapped[str] = mapped_column(String(64), nullable=False)
     cable_type_source: Mapped[str] = mapped_column(String(32), nullable=False)
     cable_mark: Mapped[str | None] = mapped_column(String(128), nullable=True)

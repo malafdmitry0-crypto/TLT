@@ -31,7 +31,6 @@ def test_revision_model_preserves_full_projection_without_mutable_timestamp():
         "supersedes_result_id",
         "project_id",
         "object_id",
-        "variant_number",
         "electrical_variant_id",
         "cable_type",
         "cable_type_source",
@@ -50,6 +49,7 @@ def test_revision_model_preserves_full_projection_without_mutable_timestamp():
     assert isinstance(table.c.cable_snapshot.type, JSONB)
     assert "updated_at" not in table.columns
     assert table.c.recorded_at.onupdate is None
+    assert table.c.electrical_variant_id.nullable is False
     for snapshot_id in (
         "electrical_calculation_id",
         "project_id",

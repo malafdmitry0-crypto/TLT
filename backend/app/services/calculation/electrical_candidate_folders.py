@@ -153,7 +153,6 @@ class ElectricalCandidateFolderService:
         folder = ElectricalCandidateFolder(
             project_id=project_id,
             object_id=object_id,
-            variant_number=None,
             electrical_variant_id=electrical_variant_id,
             name=self._normalize_candidate_folder_name(name),
             color=color,

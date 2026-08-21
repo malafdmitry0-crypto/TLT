@@ -3,7 +3,6 @@
 import uuid
 
 from sqlalchemy import (
-    CheckConstraint,
     ForeignKey,
     ForeignKeyConstraint,
     Index,
@@ -14,17 +13,12 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.electrical_variant_limits import MAX_ELECTRICAL_VARIANTS
 from app.models.base import Base, TimestampMixin
 
 
 class ElectricalCandidateFolder(Base, TimestampMixin):
     __tablename__ = "electrical_candidate_folders"
     __table_args__ = (
-        CheckConstraint(
-            f"variant_number >= 1 AND variant_number <= {MAX_ELECTRICAL_VARIANTS}",
-            name="ck_electrical_candidate_folders_variant_number",
-        ),
         ForeignKeyConstraint(
             ["electrical_variant_id", "project_id"],
             ["electrical_variants.id", "electrical_variants.project_id"],
@@ -39,13 +33,6 @@ class ElectricalCandidateFolder(Base, TimestampMixin):
             ],
             name="fk_electrical_candidate_folders_variant_object_assignment",
             ondelete="CASCADE",
-        ),
-        Index(
-            "ix_electrical_candidate_folders_scope",
-            "project_id",
-            "object_id",
-            "variant_number",
-            "sort_order",
         ),
         Index(
             "ix_electrical_candidate_folders_electrical_scope",
@@ -76,8 +63,6 @@ class ElectricalCandidateFolder(Base, TimestampMixin):
         ForeignKey("project_objects.id", ondelete="CASCADE"),
         nullable=False,
     )
-    # Transitional read contract; the database column is optional for UUID-only writers.
-    variant_number: Mapped[int] = mapped_column(Integer, nullable=True)
     electrical_variant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         nullable=False,

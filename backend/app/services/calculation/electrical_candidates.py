@@ -431,7 +431,6 @@ class ElectricalCandidateService:
         candidate = ElectricalCandidate(
             project_id=project_id,
             object_id=object_id,
-            variant_number=None,
             electrical_variant_id=electrical_variant_id,
             cable_type=cable_type,
             cable_source=cable_source,

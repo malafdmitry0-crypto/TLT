@@ -8,24 +8,18 @@ from sqlalchemy import (
     ForeignKey,
     ForeignKeyConstraint,
     Index,
-    Integer,
     String,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.electrical_variant_limits import MAX_ELECTRICAL_VARIANTS
 from app.models.base import Base, TimestampMixin
 
 
 class ElectricalCalculation(Base, TimestampMixin):
     __tablename__ = "electrical_calculations"
     __table_args__ = (
-        CheckConstraint(
-            f"variant_number >= 1 AND variant_number <= {MAX_ELECTRICAL_VARIANTS}",
-            name="ck_electrical_calculations_variant_number",
-        ),
         ForeignKeyConstraint(
             ["electrical_variant_id", "project_id"],
             ["electrical_variants.id", "electrical_variants.project_id"],
@@ -40,11 +34,6 @@ class ElectricalCalculation(Base, TimestampMixin):
             ],
             name="fk_electrical_calculations_variant_object_assignment",
             ondelete="CASCADE",
-        ),
-        Index(
-            "ix_electrical_calculations_project_variant",
-            "project_id",
-            "variant_number",
         ),
         Index(
             "ix_electrical_calculations_project_electrical_variant",
@@ -75,9 +64,6 @@ class ElectricalCalculation(Base, TimestampMixin):
         ForeignKey("project_objects.id", ondelete="CASCADE"),
         nullable=False,
     )
-    # Transitional read contract: existing services still consume populated legacy rows.
-    # UUID-only writers may leave the nullable database column empty after cutover.
-    variant_number: Mapped[int] = mapped_column(Integer, nullable=True)
     electrical_variant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         nullable=False,

@@ -44,12 +44,6 @@ class ElectricalVariant(Base, TimestampMixin):
             name="ck_electrical_variants_sort_order_nonnegative",
         ),
         CheckConstraint(
-            "legacy_variant_number IS NULL "
-            "OR (legacy_variant_number >= 1 AND "
-            f"legacy_variant_number <= {MAX_ELECTRICAL_VARIANTS})",
-            name="ck_electrical_variants_legacy_number",
-        ),
-        CheckConstraint(
             "creation_idempotency_key_hash IS NULL OR "
             "creation_idempotency_key_hash ~ '^[0-9a-f]{64}$'",
             name="ck_electrical_variants_creation_idempotency_hash",
@@ -70,11 +64,6 @@ class ElectricalVariant(Base, TimestampMixin):
             "project_id",
             "sort_order",
             name="uq_electrical_variants_project_sort_order",
-        ),
-        UniqueConstraint(
-            "project_id",
-            "legacy_variant_number",
-            name="uq_electrical_variants_project_legacy_number",
         ),
         UniqueConstraint(
             "project_id",
@@ -114,9 +103,6 @@ class ElectricalVariant(Base, TimestampMixin):
         UUID(as_uuid=True),
         nullable=True,
     )
-    # Temporary bridge for the expand/contract rollout. New UUID-only rows may
-    # leave this NULL after the legacy variant_number cutover.
-    legacy_variant_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
     creation_idempotency_key_hash: Mapped[str | None] = mapped_column(
         String(64),
         nullable=True,
@@ -244,61 +230,11 @@ class ElectricalVariantObject(Base, TimestampMixin):
     electrical_variant: Mapped[ElectricalVariant] = relationship(back_populates="assignments")
 
 
-_LEGACY_SYNC_TABLES = (
-    "electrical_calculations",
-    "electrical_candidates",
-    "electrical_candidate_folders",
-)
-
-
 def _postgresql_ddl(statement: str) -> Any:
     return DDL(statement).execute_if(dialect="postgresql")  # type: ignore[no-untyped-call]
 
 
-_CREATE_SYNC_TRIGGER_DDLS = [
-    _postgresql_ddl(
-        """
-        CREATE OR REPLACE FUNCTION tlt_0027_sync_legacy_electrical_variant_id()
-        RETURNS trigger
-        LANGUAGE plpgsql
-        AS $function$
-        BEGIN
-            IF NEW.electrical_variant_id IS NULL THEN
-                SELECT variant.id
-                INTO NEW.electrical_variant_id
-                FROM electrical_variants AS variant
-                WHERE variant.project_id = NEW.project_id
-                  AND variant.legacy_variant_number = NEW.variant_number;
-            END IF;
-            RETURN NEW;
-        END
-        $function$
-        """
-    ),
-]
-for _legacy_table in _LEGACY_SYNC_TABLES:
-    _CREATE_SYNC_TRIGGER_DDLS.extend(
-        (
-            _postgresql_ddl(
-                f"""
-                DROP TRIGGER IF EXISTS trg_0027_sync_electrical_variant_id
-                ON {_legacy_table}
-                """
-            ),
-            _postgresql_ddl(
-                f"""
-                CREATE TRIGGER trg_0027_sync_electrical_variant_id
-                BEFORE INSERT OR UPDATE OF
-                    project_id, variant_number, electrical_variant_id
-                ON {_legacy_table}
-                FOR EACH ROW
-                EXECUTE FUNCTION tlt_0027_sync_legacy_electrical_variant_id()
-                """
-            ),
-        )
-    )
-
-_CREATE_SYNC_TRIGGER_DDLS.extend(
+_CREATE_SYNC_TRIGGER_DDLS = list(
     (
         _postgresql_ddl(
             """
@@ -341,7 +277,6 @@ _CREATE_SYNC_TRIGGER_DDLS.extend(
                     NEW.version,
                     jsonb_strip_nulls(jsonb_build_object(
                         'migration_revision', '0027',
-                        'legacy_variant_number', variant.legacy_variant_number,
                         'legacy_success', false,
                         'sections_status', 'not_ready',
                         'sections_error_code', 'ELECTRICAL_SECTIONS_NOT_READY'
@@ -425,19 +360,6 @@ _DROP_SYNC_TRIGGER_DDLS = [
     ),
     _postgresql_ddl("DROP FUNCTION IF EXISTS tlt_0027_sync_project_object_assignments()"),
 ]
-for _legacy_table in _LEGACY_SYNC_TABLES:
-    _DROP_SYNC_TRIGGER_DDLS.append(
-        _postgresql_ddl(
-            f"""
-            DROP TRIGGER IF EXISTS trg_0027_sync_electrical_variant_id
-            ON {_legacy_table}
-            """
-        )
-    )
-_DROP_SYNC_TRIGGER_DDLS.append(
-    _postgresql_ddl("DROP FUNCTION IF EXISTS tlt_0027_sync_legacy_electrical_variant_id()")
-)
-
 for _ddl in _CREATE_SYNC_TRIGGER_DDLS:
     event.listen(Base.metadata, "after_create", _ddl)
 for _ddl in _DROP_SYNC_TRIGGER_DDLS:

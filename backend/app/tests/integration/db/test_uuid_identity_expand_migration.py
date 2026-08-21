@@ -27,11 +27,11 @@ def test_uuid_identity_expand_revision_is_linear() -> None:
     assert migration.down_revision == "0053"
 
 
-def test_models_require_uuid_and_allow_empty_numeric_compatibility_slot() -> None:
+def test_models_require_uuid_and_have_no_numeric_compatibility_slot() -> None:
     for model in (ElectricalCalculation, ElectricalCandidate, ElectricalCandidateFolder):
         table = model.__table__
         assert table.c.electrical_variant_id.nullable is False
-        assert table.c.variant_number.nullable is True
+        assert "variant_number" not in table.c
 
 
 def test_models_use_uuid_project_foreign_keys() -> None:
