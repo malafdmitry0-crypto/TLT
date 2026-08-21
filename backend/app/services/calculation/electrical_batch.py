@@ -190,7 +190,7 @@ class ElectricalBatchCalculationService:
         self,
         project_id: UUID,
         *,
-        variant_number: int,
+        variant_number: int | None,
         object_ids: list[UUID],
         electrical_variant_id: UUID | None = None,
     ) -> dict[UUID, ElectricalCalculation]:
@@ -205,7 +205,7 @@ class ElectricalBatchCalculationService:
         self,
         project_id: UUID,
         cable_source: CableSource = "builtin",
-        variant_number: int = 1,
+        variant_number: int | None = None,
         cable_type: str = "self_regulating_tt",
         electrical_params: dict[str, Any] | None = None,
         skip_manual: bool = True,
@@ -360,7 +360,6 @@ class ElectricalBatchCalculationService:
                         electrical_variant_id=electrical_variant_id,
                         data=request_data,
                     )
-                    request.bind_persistence_variant_number(variant_number)
                     prepared_tt_calculation = (
                         await self.preparation._prepare_self_regulating_tt_request(
                             request,
@@ -382,7 +381,7 @@ class ElectricalBatchCalculationService:
                             "id": existing_calc.id if existing_calc is not None else uuid.uuid4(),
                             "project_id": obj.project_id,
                             "object_id": obj.id,
-                            "variant_number": request.variant_number,
+                            "variant_number": None,
                             "electrical_variant_id": electrical_variant_id,
                             "cable_type": request.cable_type,
                             "cable_type_source": cable_type_source,
@@ -496,12 +495,12 @@ class ElectricalBatchCalculationService:
                 ElectricalVariant.project_id == project_id,
             )
         )
-        if variant is None or variant.legacy_variant_number is None:
+        if variant is None:
             raise CalculationError("ELECTRICAL_VARIANT_NOT_FOUND")
         return await self.calculate(
             project_id,
             cable_source,
-            variant.legacy_variant_number,
+            None,
             cable_type,
             electrical_params,
             skip_manual=skip_manual,

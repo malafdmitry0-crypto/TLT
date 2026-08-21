@@ -45,7 +45,7 @@ class ElectricalCalculationRepository:
                 {
                     "project_id": obj.project_id,
                     "object_id": obj.id,
-                    "variant_number": request.variant_number,
+                    "variant_number": None,
                     "electrical_variant_id": electrical_variant_id,
                     "cable_type": request.cable_type,
                     "cable_type_source": normalize_cable_type_source(
@@ -87,7 +87,7 @@ class ElectricalCalculationRepository:
         self,
         project_id: UUID,
         *,
-        variant_number: int,
+        variant_number: int | None,
         object_ids: list[UUID],
         electrical_variant_id: UUID | None = None,
     ) -> dict[UUID, ElectricalCalculation]:
@@ -95,11 +95,11 @@ class ElectricalCalculationRepository:
             return {}
         filters = [
             ElectricalCalculation.project_id == project_id,
-            ElectricalCalculation.variant_number == variant_number,
             ElectricalCalculation.object_id.in_(object_ids),
         ]
-        if electrical_variant_id is not None:
-            filters.append(ElectricalCalculation.electrical_variant_id == electrical_variant_id)
+        if electrical_variant_id is None:
+            raise ValueError("electrical_variant_id is required")
+        filters.append(ElectricalCalculation.electrical_variant_id == electrical_variant_id)
         result = await self.db.execute(
             select(ElectricalCalculation)
             .options(

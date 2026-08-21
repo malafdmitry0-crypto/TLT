@@ -16,15 +16,12 @@ from datetime import UTC, datetime
 from typing import Any, TypeVar
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import CurrentPrincipal
-from app.electrical_variant_limits import (
-    LEGACY_VARIANT_NUMBERS,
-    MAX_ELECTRICAL_VARIANTS,
-)
+from app.electrical_variant_limits import MAX_ELECTRICAL_VARIANTS
 from app.models.background_task import BackgroundTask
 from app.models.electrical_calculation import ElectricalCalculation
 from app.models.electrical_candidate import ElectricalCandidate
@@ -46,7 +43,6 @@ from app.schemas.electrical_variant import (
 from app.services.audit_service import AuditService
 from app.services.project_service import ProjectService
 
-_LEGACY_VARIANT_NUMBERS = LEGACY_VARIANT_NUMBERS
 _SUPPORTED_OBJECT_TYPES = {"pipe", "tank"}
 _T = TypeVar("_T")
 logger = logging.getLogger(__name__)
@@ -110,72 +106,6 @@ class ElectricalVariantService:
         principal: CurrentPrincipal,
     ) -> ElectricalVariantInitializeResponse:
         return await self._run_mutation(lambda: self._initialize(project_id, principal))
-
-    async def prepare_legacy_variant_for_write(
-        self,
-        project_id: UUID,
-        principal: CurrentPrincipal,
-        legacy_variant_number: int,
-        *,
-        expected_electrical_variant_id: UUID | None = None,
-    ) -> ElectricalVariant:
-        """Resolve the deprecated numeric selector, creating its UUID mapping if needed.
-
-        The caller owns the surrounding transaction and must commit its actual
-        calculation/task write.  Keeping this method commit-free makes creation
-        of the mapping and the first write atomic under the shared project lock.
-        """
-        variants = await self.prepare_legacy_variants_for_write(
-            project_id,
-            principal,
-            [legacy_variant_number],
-            expected_electrical_variant_ids=(
-                {legacy_variant_number: expected_electrical_variant_id}
-                if expected_electrical_variant_id is not None
-                else None
-            ),
-        )
-        return variants[legacy_variant_number]
-
-    async def prepare_legacy_variants_for_write(
-        self,
-        project_id: UUID,
-        principal: CurrentPrincipal,
-        legacy_variant_numbers: list[int],
-        *,
-        expected_electrical_variant_ids: dict[int, UUID] | None = None,
-    ) -> dict[int, ElectricalVariant]:
-        """Atomically prepare all deprecated numeric selectors under one lock."""
-        return await self._run_mutation(
-            lambda: self._prepare_legacy_variants_for_write(
-                project_id,
-                principal,
-                legacy_variant_numbers,
-                expected_electrical_variant_ids=expected_electrical_variant_ids,
-            )
-        )
-
-    async def validate_legacy_variant_for_read(
-        self,
-        project_id: UUID,
-        principal: CurrentPrincipal,
-        legacy_variant_number: int,
-        expected_electrical_variant_id: UUID,
-    ) -> ElectricalVariant:
-        """Pin a numeric read to the UUID identity observed by the client.
-
-        The project row lock serializes this validation with lifecycle delete/create
-        operations.  It remains held for the surrounding request transaction, so a
-        deleted ER slot cannot be reused between validation and the numeric read.
-        """
-        await ProjectService(self.db).get_project_basic(project_id, principal)
-        await self._locked_project(project_id)
-        variants = await self._load_variants(project_id)
-        return self._validate_expected_legacy_variant(
-            variants,
-            legacy_variant_number,
-            expected_electrical_variant_id,
-        )
 
     async def require_variant_for_read(
         self,
@@ -305,7 +235,6 @@ class ElectricalVariantService:
             assignments_created = 0
             for variant in variants:
                 assignments_created += await self._ensure_object_assignments(variant)
-                await self._bind_unmapped_legacy_rows(variant)
             project = await self._locked_project(project_id)
             if project.electrical_initialized_at is None:
                 project.electrical_initialized_at = datetime.now(UTC)
@@ -336,12 +265,11 @@ class ElectricalVariantService:
             name_normalized="ЭР1".casefold(),
             sort_order=0,
             is_active=True,
-            legacy_variant_number=1,
+            legacy_variant_number=None,
         )
         self.db.add(variant)
         await self.db.flush()
         assignments_created = await self._ensure_object_assignments(variant)
-        await self._bind_unmapped_legacy_rows(variant)
         project = await self._locked_project(project_id)
         project.electrical_initialized_at = datetime.now(UTC)
         await AuditService(self.db).stage(
@@ -368,121 +296,6 @@ class ElectricalVariantService:
                 await self._specification_state(project_id, variant.id),
             ),
         )
-
-    async def _prepare_legacy_variants_for_write(
-        self,
-        project_id: UUID,
-        principal: CurrentPrincipal,
-        legacy_variant_numbers: list[int],
-        *,
-        expected_electrical_variant_ids: dict[int, UUID] | None = None,
-    ) -> dict[int, ElectricalVariant]:
-        requested_numbers = list(dict.fromkeys(legacy_variant_numbers))
-        if not requested_numbers or any(
-            number not in _LEGACY_VARIANT_NUMBERS for number in requested_numbers
-        ):
-            raise ElectricalVariantServiceError(
-                "ELECTRICAL_VARIANT_LEGACY_SELECTOR_INVALID",
-                "Нужен хотя бы один устаревший номер ЭР от 1 до 4",
-                status_code=422,
-            )
-
-        project = await self._guard_and_lock_project(project_id, principal)
-        variants = await self._load_variants(project_id)
-        expected_ids = expected_electrical_variant_ids or {}
-        unexpected_numbers = set(expected_ids).difference(requested_numbers)
-        if unexpected_numbers:
-            raise ElectricalVariantServiceError(
-                "ELECTRICAL_VARIANT_SCOPE_INVALID",
-                "UUID-сопоставление содержит номер ЭР вне запрошенного набора",
-                status_code=422,
-            )
-        for legacy_variant_number, expected_id in expected_ids.items():
-            self._validate_expected_legacy_variant(
-                variants,
-                legacy_variant_number,
-                expected_id,
-            )
-        created: list[ElectricalVariant] = []
-        if not variants:
-            readiness = await self._evaluate_readiness(project_id)
-            if not readiness.ready:
-                raise ElectricalVariantServiceError(
-                    "ELECTRICAL_READINESS_FAILED",
-                    "Проект не готов к созданию первого электротехнического решения",
-                    status_code=409,
-                    issues=readiness.issues,
-                )
-            first = ElectricalVariant(
-                project_id=project_id,
-                name="ЭР1",
-                name_normalized="ЭР1".casefold(),
-                sort_order=0,
-                is_active=True,
-                legacy_variant_number=1,
-            )
-            self.db.add(first)
-            await self.db.flush()
-            await self._ensure_object_assignments(first)
-            variants.append(first)
-            created.append(first)
-
-        by_legacy_number = {
-            item.legacy_variant_number: item
-            for item in variants
-            if item.legacy_variant_number is not None
-        }
-        for legacy_variant_number in sorted(requested_numbers):
-            if legacy_variant_number in by_legacy_number:
-                continue
-            self._require_capacity(variants)
-            display_name = self._legacy_adapter_name(legacy_variant_number, variants)
-            variant = ElectricalVariant(
-                project_id=project_id,
-                name=display_name,
-                name_normalized=display_name.casefold(),
-                sort_order=self._next_sort_order(variants),
-                is_active=False,
-                legacy_variant_number=legacy_variant_number,
-            )
-            self.db.add(variant)
-            await self.db.flush()
-            await self._ensure_object_assignments(variant)
-            variants.append(variant)
-            created.append(variant)
-            by_legacy_number[legacy_variant_number] = variant
-
-        resolved = {number: by_legacy_number[number] for number in requested_numbers}
-        for variant in resolved.values():
-            await self._ensure_object_assignments(variant)
-        variants_to_bind = {variant.id: variant for variant in [*created, *resolved.values()]}
-        for variant in variants_to_bind.values():
-            if variant.legacy_variant_number in expected_ids:
-                await self._require_no_unmapped_legacy_rows(variant)
-            else:
-                await self._bind_unmapped_legacy_rows(variant)
-
-        project.electrical_initialized_at = project.electrical_initialized_at or datetime.now(UTC)
-        if created:
-            await AuditService(self.db).stage(
-                event_type="electrical_variant.legacy_adapter_prepared",
-                category="calculation",
-                principal=principal,
-                project_id=project_id,
-                requirement_refs=["PDL-ER-12"],
-                details={
-                    "requested_legacy_variant_numbers": requested_numbers,
-                    "resolved_electrical_variant_ids": {
-                        str(number): str(variant.id) for number, variant in resolved.items()
-                    },
-                    "created_electrical_variant_ids": [str(item.id) for item in created],
-                    "created_legacy_variant_numbers": [
-                        item.legacy_variant_number for item in created
-                    ],
-                },
-                message="Подготовлено UUID-сопоставление устаревших номеров ЭР",
-            )
-        return resolved
 
     async def _create_empty(
         self,
@@ -535,13 +348,12 @@ class ElectricalVariantService:
             name_normalized=display_name.casefold(),
             sort_order=self._next_sort_order(variants),
             is_active=False,
-            legacy_variant_number=self._next_legacy_variant_number(variants),
+            legacy_variant_number=None,
             creation_idempotency_key_hash=idempotency_key_hash,
         )
         self.db.add(variant)
         await self.db.flush()
         assignments_created = await self._ensure_object_assignments(variant)
-        bound_legacy_rows = await self._bind_unmapped_legacy_rows(variant)
         await AuditService(self.db).stage(
             event_type="electrical_variant.created",
             category="calculation",
@@ -552,7 +364,6 @@ class ElectricalVariantService:
                 "electrical_variant_id": str(variant.id),
                 "name": variant.name,
                 "assignments_created": assignments_created,
-                "bound_legacy_rows": bound_legacy_rows,
                 "idempotency_key_present": idempotency_key is not None,
             },
             message="Создан пустой ЭР",
@@ -605,14 +416,7 @@ class ElectricalVariantService:
 
         self._require_capacity(variants)
 
-        legacy_variant_number = self._next_legacy_variant_number(variants)
         graph = await self._load_copy_graph(source.id)
-        if legacy_variant_number is None and graph.has_legacy_scoped_rows:
-            raise ElectricalVariantServiceError(
-                "ELECTRICAL_VARIANT_COPY_REQUIRES_UUID_CUTOVER",
-                "Расчётный граф нельзя скопировать в ЭР без compatibility-слота",
-                status_code=409,
-            )
 
         display_name = self._prepare_name(name, variants)
         target = ElectricalVariant(
@@ -622,21 +426,13 @@ class ElectricalVariantService:
             sort_order=self._next_sort_order(variants),
             is_active=False,
             copied_from_id=source.id,
-            legacy_variant_number=legacy_variant_number,
+            legacy_variant_number=None,
             creation_idempotency_key_hash=idempotency_key_hash,
         )
         self.db.add(target)
         await self.db.flush()
 
         await self._ensure_object_assignments(target)
-        bound_legacy_rows = await self._bind_unmapped_legacy_rows(target)
-        if any(bound_legacy_rows.values()):
-            raise ElectricalVariantServiceError(
-                "ELECTRICAL_VARIANT_LEGACY_SLOT_OCCUPIED",
-                "Числовой compatibility-слот нового ЭР уже содержит legacy-данные",
-                status_code=409,
-            )
-
         copied_counts = await self._copy_graph(source, target, graph)
         await AuditService(self.db).stage(
             event_type="electrical_variant.copied",
@@ -649,7 +445,6 @@ class ElectricalVariantService:
                 "copied_from_id": str(source.id),
                 "name": target.name,
                 "idempotency_key_present": True,
-                "bound_legacy_rows": bound_legacy_rows,
                 "specification_state": "not_generated",
                 "copied_counts": copied_counts,
             },
@@ -941,74 +736,6 @@ class ElectricalVariantService:
             await self.db.flush()
         return created
 
-    async def _bind_unmapped_legacy_rows(
-        self,
-        variant: ElectricalVariant,
-    ) -> dict[str, int]:
-        """Bind expand-window legacy rows after assignment parents exist."""
-        if variant.legacy_variant_number is None:
-            return {
-                "electrical_calculations": 0,
-                "electrical_candidates": 0,
-                "electrical_candidate_folders": 0,
-                "specifications": 0,
-            }
-
-        # Specification исключена: она UUID-only (electrical_variant_id NOT NULL,
-        # variant_number удалён) — непривязанных legacy-строк не бывает по построению.
-        bound: dict[str, int] = {Specification.__tablename__: 0}
-        for model in (
-            ElectricalCalculation,
-            ElectricalCandidate,
-            ElectricalCandidateFolder,
-        ):
-            result = await self.db.execute(
-                update(model)
-                .where(
-                    model.project_id == variant.project_id,
-                    model.variant_number == variant.legacy_variant_number,
-                    model.electrical_variant_id.is_(None),
-                )
-                .values(electrical_variant_id=variant.id)
-            )
-            bound[model.__tablename__] = max(int(result.rowcount or 0), 0)
-        return bound
-
-    async def _require_no_unmapped_legacy_rows(
-        self,
-        variant: ElectricalVariant,
-    ) -> None:
-        """Exact UUID writes must never repair ambiguous numeric legacy rows."""
-        if variant.legacy_variant_number is None:
-            return
-        conflicts: dict[str, list[str]] = {}
-        # Specification исключена: UUID-only модель без legacy variant_number.
-        for model in (
-            ElectricalCalculation,
-            ElectricalCandidate,
-            ElectricalCandidateFolder,
-        ):
-            result = await self.db.execute(
-                select(model.id).where(
-                    model.project_id == variant.project_id,
-                    model.variant_number == variant.legacy_variant_number,
-                    model.electrical_variant_id.is_(None),
-                )
-            )
-            ids = [str(item) for item in result.scalars().all()]
-            if ids:
-                conflicts[model.__tablename__] = ids
-        if conflicts:
-            raise ElectricalVariantServiceError(
-                "ELECTRICAL_ASSIGNMENT_DOWNSTREAM_SCOPE_CONFLICT",
-                "Обнаружены данные без точной привязки к выбранному ЭР",
-                status_code=409,
-                details={
-                    "electrical_variant_id": str(variant.id),
-                    "conflicts": conflicts,
-                },
-            )
-
     async def _specification_states(self, project_id: UUID) -> dict[UUID, str]:
         result = await self.db.execute(
             select(Specification.electrical_variant_id, Specification.is_stale).where(
@@ -1059,25 +786,6 @@ class ElectricalVariantService:
                 status_code=404,
             )
         return variant
-
-    @staticmethod
-    def _validate_expected_legacy_variant(
-        variants: list[ElectricalVariant],
-        legacy_variant_number: int,
-        expected_electrical_variant_id: UUID,
-    ) -> ElectricalVariant:
-        """Reject a stale UUID -> numeric-slot assumption without falling back."""
-        by_number = next(
-            (item for item in variants if item.legacy_variant_number == legacy_variant_number),
-            None,
-        )
-        if by_number is None or by_number.id != expected_electrical_variant_id:
-            raise ElectricalVariantServiceError(
-                "ELECTRICAL_VARIANT_SCOPE_MISMATCH",
-                "Выбранный ЭР был удалён или его расчётный слот изменился; обновите список ЭР",
-                status_code=409,
-            )
-        return by_number
 
     @staticmethod
     def _require_initialized(project: Project, variants: list[ElectricalVariant]) -> None:
@@ -1150,24 +858,6 @@ class ElectricalVariantService:
         return f"ЭР{candidate_number}"
 
     @staticmethod
-    def _legacy_adapter_name(
-        legacy_variant_number: int,
-        variants: list[ElectricalVariant],
-    ) -> str:
-        """Choose a deterministic display name without treating it as slot identity."""
-        normalized = {item.name.strip().casefold() for item in variants}
-        base = f"ЭР{legacy_variant_number}"
-        if base.casefold() not in normalized:
-            return base
-        fallback = f"{base} (legacy)"
-        if fallback.casefold() not in normalized:
-            return fallback
-        suffix = 2
-        while f"{fallback} {suffix}".casefold() in normalized:
-            suffix += 1
-        return f"{fallback} {suffix}"
-
-    @staticmethod
     def _creation_idempotency_key_hash(idempotency_key: str) -> str:
         normalized = idempotency_key.strip()
         if not normalized or len(normalized) > 256:
@@ -1181,15 +871,6 @@ class ElectricalVariantService:
     @staticmethod
     def _next_sort_order(variants: list[ElectricalVariant]) -> int:
         return max((item.sort_order for item in variants), default=-1) + 1
-
-    @staticmethod
-    def _next_legacy_variant_number(variants: list[ElectricalVariant]) -> int | None:
-        used = {
-            item.legacy_variant_number
-            for item in variants
-            if item.legacy_variant_number is not None
-        }
-        return next((number for number in _LEGACY_VARIANT_NUMBERS if number not in used), None)
 
     @staticmethod
     def _column_values(instance: Any, *, exclude: set[str]) -> dict[str, Any]:
@@ -1299,7 +980,6 @@ class ElectricalVariantService:
         # scope before calculations/candidates/folders are flushed.
         await self.db.flush()
 
-        legacy_number = target.legacy_variant_number
         for calculation in graph.calculations:
             values = self._column_values(
                 calculation,
@@ -1313,7 +993,7 @@ class ElectricalVariantService:
             )
             values.update(
                 electrical_variant_id=target.id,
-                variant_number=legacy_number,
+                variant_number=None,
             )
             self.db.add(ElectricalCalculation(**values))
 
@@ -1331,7 +1011,7 @@ class ElectricalVariantService:
             )
             values.update(
                 electrical_variant_id=target.id,
-                variant_number=legacy_number,
+                variant_number=None,
             )
             copied_folder = ElectricalCandidateFolder(**values)
             self.db.add(copied_folder)
@@ -1352,7 +1032,7 @@ class ElectricalVariantService:
             )
             values.update(
                 electrical_variant_id=target.id,
-                variant_number=legacy_number,
+                variant_number=None,
             )
             copied_candidate = ElectricalCandidate(**values)
             self.db.add(copied_candidate)
@@ -1399,7 +1079,3 @@ class _CopyGraph:
         self.candidates = candidates
         self.folders = folders
         self.folder_items = folder_items
-
-    @property
-    def has_legacy_scoped_rows(self) -> bool:
-        return bool(self.calculations or self.candidates or self.folders)

@@ -641,6 +641,7 @@ class TestElectricalCalculationContinued:
         self,
         client: AsyncClient,
         guest_session: str,
+        db_session: AsyncSession,
         electrical_frontend_mock_mode: None,
     ):
         """self_regulating_tt: возвращает cable_mark с суффиксом -СР/-СТ."""
@@ -667,6 +668,14 @@ class TestElectricalCalculationContinued:
             headers={"X-Session-Id": guest_session},
         )
         assert resp.status_code == 200, resp.text
+        persisted = await db_session.scalar(
+            select(ElectricalCalculation).where(
+                ElectricalCalculation.object_id == UUID(obj["id"]),
+                ElectricalCalculation.electrical_variant_id == UUID(variant["id"]),
+            )
+        )
+        assert persisted is not None
+        assert persisted.variant_number is None
         result = resp.json()["result"]
         assert "cable_mark" in result
         assert result["cable_mark"].endswith(("-СР", "-СТ"))

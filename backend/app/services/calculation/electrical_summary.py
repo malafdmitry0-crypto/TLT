@@ -65,7 +65,7 @@ class ElectricalSummaryQuery:
         self,
         project_id: UUID,
         *,
-        variant_number: int | None = 1,
+        variant_number: int | None = None,
         electrical_variant_id: UUID | None = None,
         page: int = 1,
         page_size: int = 50,
@@ -98,14 +98,9 @@ class ElectricalSummaryQuery:
         object_ids = [obj.id for obj in objects]
 
         calculation_scope = [ElectricalCalculation.project_id == project_id]
-        if electrical_variant_id is not None:
-            calculation_scope.append(
-                ElectricalCalculation.electrical_variant_id == electrical_variant_id
-            )
-        elif variant_number is not None:
-            calculation_scope.append(ElectricalCalculation.variant_number == variant_number)
-        else:
-            raise CalculationError("Нужно указать electrical_variant_id или variant_number")
+        if electrical_variant_id is None:
+            raise CalculationError("Нужно указать electrical_variant_id")
+        calculation_scope.append(ElectricalCalculation.electrical_variant_id == electrical_variant_id)
 
         if object_ids:
             calculations_result = await self.db.execute(

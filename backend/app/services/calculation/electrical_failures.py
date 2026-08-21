@@ -37,7 +37,7 @@ class ElectricalFailureService:
         self,
         obj: ProjectObject,
         error_message: str | Exception,
-        variant_number: int,
+        variant_number: int | None,
         cable_type: str,
         *,
         cable_type_source: str | None = None,

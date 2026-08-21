@@ -103,24 +103,18 @@ def _reject_retired_tt_query_inputs(request: Request, cable_type: str) -> None:
         )
 
 
-async def _require_uuid_variant_number(
+async def _require_uuid_variant(
     db: AsyncSession,
     project_id: UUID,
     principal: CurrentPrincipal,
     electrical_variant_id: UUID = Query(),
-) -> int:
-    """Resolve the temporary persistence slot behind the UUID-only API boundary."""
-    variant = await ElectricalVariantService(db).require_variant_for_read(
+) -> None:
+    """Validate the project-scoped UUID without deriving a numeric selector."""
+    await ElectricalVariantService(db).require_variant_for_read(
         project_id,
         principal,
         electrical_variant_id,
     )
-    if variant.legacy_variant_number is None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Electrical variant has no persistence slot",
-        )
-    return variant.legacy_variant_number
 
 
 @router.get(
@@ -236,10 +230,9 @@ async def calc_electrical(
     service = CalculationContainer(db)
     try:
         obj = await ProjectService(db).get_object_for_write(request.object_id, principal)
-        variant_number = await _require_uuid_variant_number(
+        await _require_uuid_variant(
             db, obj.project_id, principal, request.electrical_variant_id
         )
-        request.bind_persistence_variant_number(variant_number)
         if idempotency_key:
             # Stash for audit / future short-TTL store; upsert already prevents dual rows.
             request.data = {
@@ -276,7 +269,6 @@ async def calc_electrical(
         details={
             "cable_type": calc.cable_type,
             "cable_mark": calc.cable_mark,
-            "variant_number": calc.variant_number,
             "electrical_variant_id": str(request.electrical_variant_id),
             "result_category": (calc.results or {}).get("category"),
             "error_code": (calc.results or {}).get("error_code"),
@@ -307,7 +299,7 @@ async def electrical_page(
         )
     try:
         await ProjectService(db).get_project_basic(project_id, principal)
-        variant_number = await _require_uuid_variant_number(
+        await _require_uuid_variant(
             db, project_id, principal, electrical_variant_id
         )
     except ProjectNotFoundError as exc:
@@ -319,7 +311,8 @@ async def electrical_page(
         db
     ).electrical_summary.electrical_project_page(
         project_id,
-        variant_number=variant_number,
+        variant_number=None,
+        electrical_variant_id=electrical_variant_id,
         page=page,
         page_size=page_size,
     )
@@ -347,12 +340,12 @@ async def electrical_query_capabilities(
     db: AsyncSession = Depends(get_db),
 ) -> ElectricalQueryCapabilitiesResponse:
     try:
-        variant_number = await _require_uuid_variant_number(
+        await _require_uuid_variant(
             db, project_id, principal, electrical_variant_id
         )
         return await ElectricalQueryService(db).capabilities(
             project_id,
-            variant_number,
+            None,
             principal,
             electrical_variant_id=electrical_variant_id,
         )
@@ -384,10 +377,9 @@ async def query_electrical(
             status_code=403, detail="Расширенный каталог доступен только сотрудникам"
         )
     try:
-        variant_number = await _require_uuid_variant_number(
+        await _require_uuid_variant(
             db, data.project_id, principal, data.electrical_variant_id
         )
-        data.bind_persistence_variant_number(variant_number)
         return await ElectricalQueryService(db).query(data, principal)
     except ElectricalVariantServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
@@ -416,13 +408,13 @@ async def list_electrical_candidates(
 ) -> list[ElectricalCandidateResponse]:
     try:
         await ProjectService(db).get_project_basic(project_id, principal)
-        variant_number = await _require_uuid_variant_number(
+        await _require_uuid_variant(
             db, project_id, principal, electrical_variant_id
         )
         candidates = await CalculationContainer(db).candidate_scope.list(
             project_id,
             object_id=object_id,
-            variant_number=variant_number,
+        variant_number=None,
             electrical_variant_id=electrical_variant_id,
         )
         return [ElectricalCandidateResponse.model_validate(item) for item in candidates]
@@ -451,14 +443,13 @@ async def create_electrical_candidate(
         obj = await ProjectService(db).get_object_for_write(data.object_id, principal)
         if obj.project_id != data.project_id:
             raise HTTPException(status_code=404, detail="Объект не найден в проекте")
-        variant_number = await _require_uuid_variant_number(
+        await _require_uuid_variant(
             db, data.project_id, principal, data.electrical_variant_id
         )
-        data.bind_persistence_variant_number(variant_number)
         candidate, action = await service.electrical_candidates.create_electrical_candidate(
             project_id=data.project_id,
             object_id=data.object_id,
-            variant_number=variant_number,
+        variant_number=None,
             electrical_variant_id=data.electrical_variant_id,
             cable_type=data.cable_type,
             cable_source=data.cable_source,
@@ -493,7 +484,6 @@ async def create_electrical_candidate(
             "candidate_id": str(candidate.id),
             "action": action,
             "dedupe_key": candidate.dedupe_key,
-            "variant_number": candidate.variant_number,
             "electrical_variant_id": str(data.electrical_variant_id),
             "cable_type": candidate.cable_type,
             "cable_mark": candidate.cable_mark,
@@ -550,7 +540,7 @@ async def list_electrical_candidate_folders(
 ) -> list[ElectricalCandidateFolderResponse]:
     try:
         await ProjectService(db).get_project_basic(project_id, principal)
-        variant_number = await _require_uuid_variant_number(
+        await _require_uuid_variant(
             db, project_id, principal, electrical_variant_id
         )
         folders = await CalculationContainer(
@@ -558,7 +548,7 @@ async def list_electrical_candidate_folders(
         ).candidate_folders.list_electrical_candidate_folders(
             project_id,
             object_id=object_id,
-            variant_number=variant_number,
+        variant_number=None,
             electrical_variant_id=electrical_variant_id,
         )
         return [ElectricalCandidateFolderResponse.model_validate(item) for item in folders]
@@ -582,16 +572,15 @@ async def create_electrical_candidate_folder(
         obj = await ProjectService(db).get_object_for_write(data.object_id, principal)
         if obj.project_id != data.project_id:
             raise HTTPException(status_code=404, detail="Объект не найден в проекте")
-        variant_number = await _require_uuid_variant_number(
+        await _require_uuid_variant(
             db, data.project_id, principal, data.electrical_variant_id
         )
-        data.bind_persistence_variant_number(variant_number)
         folder = await CalculationContainer(
             db
         ).candidate_folders.create_electrical_candidate_folder(
             project_id=data.project_id,
             object_id=data.object_id,
-            variant_number=variant_number,
+        variant_number=None,
             electrical_variant_id=data.electrical_variant_id,
             name=data.name,
             color=data.color,
@@ -747,7 +736,6 @@ async def apply_electrical_candidate(
         object_id=applied_candidate.object_id,
         details={
             "candidate_id": str(applied_candidate.id),
-            "variant_number": applied_candidate.variant_number,
             "cable_type": applied_candidate.cable_type,
             "cable_mark": applied_candidate.cable_mark,
         },
@@ -788,7 +776,6 @@ async def unapply_electrical_candidate(
         object_id=unapplied_candidate.object_id,
         details={
             "candidate_id": str(unapplied_candidate.id),
-            "variant_number": unapplied_candidate.variant_number,
             "cable_type": unapplied_candidate.cable_type,
             "cable_mark": unapplied_candidate.cable_mark,
         },
@@ -833,7 +820,7 @@ async def select_cable(
     service = CalculationContainer(db)
     try:
         obj = await ProjectService(db).get_object_for_write(object_id, principal)
-        variant_number = await _require_uuid_variant_number(
+        await _require_uuid_variant(
             db, obj.project_id, principal, electrical_variant_id
         )
         electrical_params: dict[str, float | int | str] = {
@@ -854,7 +841,7 @@ async def select_cable(
             object_id,
             cable_mark,
             cable_source,
-            variant_number,
+            None,
             cable_type,
             electrical_params,
             electrical_variant_id=electrical_variant_id,
@@ -880,7 +867,6 @@ async def select_cable(
             "cable_mark": cable_mark,
             "cable_source": cable_source,
             "cable_type": calc.cable_type,
-            "variant_number": variant_number,
             "electrical_variant_id": str(electrical_variant_id),
             "result_category": (calc.results or {}).get("category"),
             "error_code": (calc.results or {}).get("error_code"),
@@ -942,7 +928,7 @@ async def batch_calc_electrical(
     selected_object_ids = object_ids or object_ids_brackets
     service = CalculationContainer(db)
     try:
-        variant_number = await _require_uuid_variant_number(
+        await _require_uuid_variant(
             db, project_id, principal, electrical_variant_id
         )
         electrical_params: dict[str, float | int | str] = {
@@ -968,7 +954,7 @@ async def batch_calc_electrical(
         ) = await service.electrical_batch.calculate(
             project_id,
             cable_source,
-            variant_number,
+            None,
             cable_type,
             electrical_params,
             skip_manual=skip_manual,

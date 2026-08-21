@@ -8,7 +8,6 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.electrical_variant_limits import MAX_ELECTRICAL_VARIANTS
 from app.models.electrical_candidate import ElectricalCandidate
 from app.models.project_object import ProjectObject
 from app.schemas.calculation import ElectricalRequest
@@ -105,7 +104,7 @@ class ElectricalCandidateService:
         project_id: UUID,
         object_id: UUID,
         object_type: str,
-        variant_number: int,
+        variant_number: int | None,
         electrical_variant_id: UUID | None,
         cable_type: str,
         cable_source: CableSource,
@@ -319,7 +318,7 @@ class ElectricalCandidateService:
         *,
         project_id: UUID,
         object_id: UUID,
-        variant_number: int = 1,
+        variant_number: int | None = None,
         electrical_variant_id: UUID | None = None,
         cable_type: str = "self_regulating_tt",
         cable_source: CableSource = "builtin",
@@ -328,8 +327,6 @@ class ElectricalCandidateService:
         electrical_params: dict[str, Any] | None = None,
     ) -> tuple[ElectricalCandidate, str]:
         """Считает и upsert-ит кандидат кабеля, не применяя его в ElectricalCalculation."""
-        if variant_number < 1 or variant_number > MAX_ELECTRICAL_VARIANTS:
-            raise CalculationError(f"variant_number должен быть от 1 до {MAX_ELECTRICAL_VARIANTS}")
         if mode not in {"auto", "manual"}:
             raise CalculationError("mode должен быть auto или manual")
         if mode == "manual" and not cable_mark:
@@ -348,14 +345,6 @@ class ElectricalCandidateService:
             object_id,
             requested_cable_type=cable_type,
         )
-        await self.scope.require_clean(
-            project_id,
-            variant_number=variant_number,
-            electrical_variant_id=electrical_variant_id,
-            object_id=object_id,
-            include_folders=False,
-        )
-
         obj = await self._load_candidate_object(project_id, object_id)
         object_type = str(getattr(obj.object_type, "value", obj.object_type))
         if cable_type in {"mineral", "skin"}:
@@ -406,7 +395,6 @@ class ElectricalCandidateService:
                 electrical_variant_id=electrical_variant_id,
                 data=request_data,
             )
-            request.bind_persistence_variant_number(variant_number)
             self.inputs._hydrate_electrical_request_from_object(request, obj)
             prepared_tt_calculation = await self.preparation._prepare_self_regulating_tt_request(
                 request,

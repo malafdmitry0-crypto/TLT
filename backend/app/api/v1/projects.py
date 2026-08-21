@@ -267,11 +267,8 @@ async def duplicate_project(
     electrical_variant = None
     if electrical_readiness.ready:
         try:
-            electrical_variant = await variant_service.prepare_legacy_variant_for_write(
-                duplicated_project_id,
-                principal,
-                1,
-            )
+            initialized = await variant_service.initialize(duplicated_project_id, principal)
+            electrical_variant = initialized.variant
         except ElectricalVariantServiceError as exc:
             raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     await AuditService(db).try_record(
@@ -287,7 +284,6 @@ async def duplicate_project(
             "electrical_variant_id": (
                 str(electrical_variant.id) if electrical_variant is not None else None
             ),
-            "legacy_variant_number": 1 if electrical_variant is not None else None,
             "electrical_readiness_issue_codes": sorted(
                 {issue.code for issue in electrical_readiness.issues}
             ),

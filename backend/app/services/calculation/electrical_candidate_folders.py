@@ -9,7 +9,6 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.electrical_variant_limits import MAX_ELECTRICAL_VARIANTS
 from app.models.electrical_candidate import ElectricalCandidate
 from app.models.electrical_candidate_folder import (
     ElectricalCandidateFolder,
@@ -79,24 +78,16 @@ class ElectricalCandidateFolderService:
         project_id: UUID,
         *,
         object_id: UUID,
-        variant_number: int,
+        variant_number: int | None,
         electrical_variant_id: UUID | None = None,
     ) -> list[dict[str, Any]]:
-        if electrical_variant_id is not None:
-            await self.scope.require_clean(
-                project_id,
-                variant_number=variant_number,
-                electrical_variant_id=electrical_variant_id,
-                object_id=object_id,
-                include_candidates=False,
-            )
+        if electrical_variant_id is None:
+            raise CalculationError("Нужно указать electrical_variant_id")
         filters = [
             ElectricalCandidateFolder.project_id == project_id,
             ElectricalCandidateFolder.object_id == object_id,
-            ElectricalCandidateFolder.variant_number == variant_number,
+            ElectricalCandidateFolder.electrical_variant_id == electrical_variant_id,
         ]
-        if electrical_variant_id is not None:
-            filters.append(ElectricalCandidateFolder.electrical_variant_id == electrical_variant_id)
         result = await self.db.execute(
             select(ElectricalCandidateFolder)
             .where(*filters)
@@ -144,15 +135,13 @@ class ElectricalCandidateFolderService:
         *,
         project_id: UUID,
         object_id: UUID,
-        variant_number: int,
+        variant_number: int | None,
         electrical_variant_id: UUID | None = None,
         name: str,
         color: str | None,
         created_by_user_id: UUID | None,
         created_by_session_id: str | None,
     ) -> dict[str, Any]:
-        if variant_number < 1 or variant_number > MAX_ELECTRICAL_VARIANTS:
-            raise CalculationError(f"variant_number должен быть от 1 до {MAX_ELECTRICAL_VARIANTS}")
         if electrical_variant_id is None:
             raise ElectricalAssignmentServiceError(
                 "ELECTRICAL_ASSIGNMENT_REQUIRED",
@@ -164,18 +153,11 @@ class ElectricalCandidateFolderService:
             electrical_variant_id,
             object_id,
         )
-        await self.scope.require_clean(
-            project_id,
-            variant_number=variant_number,
-            electrical_variant_id=electrical_variant_id,
-            object_id=object_id,
-        )
         await self._load_object(project_id, object_id)
         max_sort_result = await self.db.execute(
             select(func.max(ElectricalCandidateFolder.sort_order)).where(
                 ElectricalCandidateFolder.project_id == project_id,
                 ElectricalCandidateFolder.object_id == object_id,
-                ElectricalCandidateFolder.variant_number == variant_number,
                 ElectricalCandidateFolder.electrical_variant_id == electrical_variant_id,
             )
         )

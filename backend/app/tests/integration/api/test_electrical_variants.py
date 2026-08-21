@@ -1899,7 +1899,7 @@ class TestElectricalVariantCopy:
         target = response.json()
         target_id = UUID(target["id"])
         assert target["copied_from_id"] == source["id"]
-        assert target["legacy_variant_number"] == 2
+        assert target["legacy_variant_number"] is None
         assert target["specification_state"] == "not_generated"
 
         copied_assignment = await db_session.scalar(
@@ -1934,12 +1934,14 @@ class TestElectricalVariantCopy:
         assert copied_assignment.diagnostics == {"source": "legacy-resistive"}
         assert copied_calculation is not None
         assert copied_calculation.id != calculation.id
-        assert copied_calculation.variant_number == 2
+        assert copied_calculation.variant_number is None
         assert copied_calculation.params == calculation.params
         assert copied_candidate is not None
         assert copied_candidate.id != candidate.id
+        assert copied_candidate.variant_number is None
         assert copied_folder is not None
         assert copied_folder.id != folder.id
+        assert copied_folder.variant_number is None
         copied_link = await db_session.scalar(
             select(ElectricalCandidateFolderItem).where(
                 ElectricalCandidateFolderItem.folder_id == copied_folder.id,

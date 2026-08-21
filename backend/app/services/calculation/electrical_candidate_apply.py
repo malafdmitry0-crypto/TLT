@@ -87,7 +87,7 @@ class ElectricalCandidateApplyService:
             )
             .where(
                 ElectricalVariant.project_id == candidate.project_id,
-                ElectricalVariant.legacy_variant_number == candidate.variant_number,
+                ElectricalVariant.id == candidate.electrical_variant_id,
                 ElectricalVariantObject.object_id == candidate.object_id,
             )
         )
@@ -117,22 +117,11 @@ class ElectricalCandidateApplyService:
                 requested_cable_type=candidate.cable_type,
                 lock_project=False,
             )
-            await self.scope.require_clean(
-                candidate.project_id,
-                variant_number=candidate.variant_number,
-                electrical_variant_id=variant.id,
-                object_id=candidate.object_id,
-                include_folders=False,
-            )
             if candidate.status != ELECTRICAL_CANDIDATE_STATUS_APPLICABLE:
                 raise CalculationError("Можно применить только применимый кандидат")
             if not candidate.cable_mark:
                 raise CalculationError("У кандидата нет выбранной марки кабеля")
 
-            # Legacy rows may still have a NULL UUID during the expand phase.
-            # Bind only to the mapping that already exists under the project lock;
-            # candidate apply must never recreate a lifecycle-deleted ER.
-            candidate.electrical_variant_id = variant.id
             # Кандидат хранит явные ТТ-входы вложенными в _tt_explicit_overrides;
             # select_cable_manual ждёт их плоскими — иначе строгий резолвер
             # теряет сохранённые значения и applicable-кандидат не применяется.
@@ -144,7 +133,7 @@ class ElectricalCandidateApplyService:
                 candidate.object_id,
                 candidate.cable_mark,
                 candidate.cable_source,
-                candidate.variant_number,
+                None,
                 candidate.cable_type,
                 apply_params,
                 commit=False,
@@ -155,7 +144,6 @@ class ElectricalCandidateApplyService:
                 .where(
                     ElectricalCandidate.project_id == candidate.project_id,
                     ElectricalCandidate.object_id == candidate.object_id,
-                    ElectricalCandidate.variant_number == candidate.variant_number,
                     ElectricalCandidate.electrical_variant_id == variant.id,
                 )
                 .values(is_applied=False)
@@ -181,14 +169,6 @@ class ElectricalCandidateApplyService:
             await self._lock_project_for_candidate_apply(candidate.project_id)
             candidate = await self._candidate_for_apply(candidate_id, candidate.project_id)
             variant = await self._existing_variant_for_candidate(candidate)
-            await self.scope.require_clean(
-                candidate.project_id,
-                variant_number=candidate.variant_number,
-                electrical_variant_id=variant.id,
-                object_id=candidate.object_id,
-                include_folders=False,
-            )
-            candidate.electrical_variant_id = variant.id
             candidate.is_applied = False
             await self.db.execute(
                 delete(ElectricalCalculation).where(

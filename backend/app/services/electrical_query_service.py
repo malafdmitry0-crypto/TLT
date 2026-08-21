@@ -1109,7 +1109,7 @@ class ElectricalQueryService:
                 self.db
             ).electrical_summary.electrical_project_page(
                 data.project_id,
-                variant_number=data.variant_number,
+                variant_number=None,
                 electrical_variant_id=data.electrical_variant_id,
                 page=page,
                 page_size=page_size,
@@ -1138,7 +1138,7 @@ class ElectricalQueryService:
         await self._ensure_python_fallback_size(data.project_id)
         rows = await self._load_rows(
             data.project_id,
-            data.variant_number,
+            None,
             electrical_variant_id=data.electrical_variant_id,
         )
         filtered_rows = self._apply_search(rows, data)
@@ -1154,7 +1154,7 @@ class ElectricalQueryService:
             self.db
         ).electrical_summary.electrical_project_page(
             data.project_id,
-            variant_number=data.variant_number,
+                variant_number=None,
             electrical_variant_id=data.electrical_variant_id,
             page=1,
             page_size=1,
@@ -1227,7 +1227,7 @@ class ElectricalQueryService:
             self.db
         ).electrical_summary.electrical_project_page(
             data.project_id,
-            variant_number=data.variant_number,
+                variant_number=None,
             electrical_variant_id=data.electrical_variant_id,
             page=1,
             page_size=1,
@@ -1267,16 +1267,7 @@ class ElectricalQueryService:
     @staticmethod
     def _calculation_scope_conditions(data: ElectricalQueryRequest) -> list[Any]:
         conditions: list[Any] = [ElectricalCalculation.project_id == data.project_id]
-        if data.electrical_variant_id is not None:
-            conditions.append(
-                ElectricalCalculation.electrical_variant_id == data.electrical_variant_id
-            )
-        elif data.variant_number is not None:
-            conditions.append(ElectricalCalculation.variant_number == data.variant_number)
-        else:
-            raise ElectricalQueryValidationError(
-                "Нужно указать electrical_variant_id или variant_number"
-            )
+        conditions.append(ElectricalCalculation.electrical_variant_id == data.electrical_variant_id)
         return conditions
 
     @classmethod
@@ -1289,7 +1280,7 @@ class ElectricalQueryService:
     @staticmethod
     def _query_echo(data: ElectricalQueryRequest) -> ElectricalQueryEcho:
         return ElectricalQueryEcho(
-            variant_number=data.variant_number,
+                variant_number=None,
             electrical_variant_id=data.electrical_variant_id,
             sort=data.sort,
         )
@@ -1497,16 +1488,11 @@ class ElectricalQueryService:
             ElectricalCalculation.project_id == project_id,
             ElectricalCalculation.object_id.in_(object_ids),
         ]
-        if electrical_variant_id is not None:
-            calculation_conditions.append(
-                ElectricalCalculation.electrical_variant_id == electrical_variant_id
-            )
-        elif variant_number is not None:
-            calculation_conditions.append(ElectricalCalculation.variant_number == variant_number)
-        else:
-            raise ElectricalQueryValidationError(
-                "Нужно указать electrical_variant_id или variant_number"
-            )
+        if electrical_variant_id is None:
+            raise ElectricalQueryValidationError("Нужно указать electrical_variant_id")
+        calculation_conditions.append(
+            ElectricalCalculation.electrical_variant_id == electrical_variant_id
+        )
         calculations_result = await self.db.execute(
             select(ElectricalCalculation).where(*calculation_conditions)
         )
@@ -1700,7 +1686,7 @@ class ElectricalQueryService:
             self.db
         ).electrical_summary.electrical_project_page(
             data.project_id,
-            variant_number=data.variant_number,
+                variant_number=None,
             electrical_variant_id=data.electrical_variant_id,
             page=1,
             page_size=1,
@@ -1788,7 +1774,7 @@ class ElectricalQueryService:
             self.db
         ).electrical_summary.electrical_project_page(
             data.project_id,
-            variant_number=data.variant_number,
+                variant_number=None,
             electrical_variant_id=data.electrical_variant_id,
             page=1,
             page_size=1,

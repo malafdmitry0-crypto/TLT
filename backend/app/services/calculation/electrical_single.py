@@ -114,7 +114,7 @@ class ElectricalSingleCalculationService:
                 await self.failures.upsert(
                     obj,
                     exc,
-                    request.variant_number,
+                    None,
                     request.cable_type,
                     cable_type_source=request.data.get("cable_type_source"),
                     cable_mark_source=request.data.get("cable_mark_source"),
@@ -150,7 +150,7 @@ class ElectricalSingleCalculationService:
         *,
         cable_mark: str | None,
         cable_source: CableSource,
-        variant_number: int,
+        variant_number: int | None,
         cable_type: str,
         electrical_params: dict[str, Any] | None,
         commit: bool,
@@ -175,7 +175,6 @@ class ElectricalSingleCalculationService:
             electrical_variant_id=electrical_variant_id,
             data=data,
         )
-        request.bind_persistence_variant_number(variant_number)
         return await self.calculate(
             request,
             commit=commit,
@@ -218,13 +217,6 @@ class ElectricalSingleCalculationService:
                     "ELECTRICAL_VARIANT_NOT_FOUND",
                     "ЭР не найден в указанном проекте",
                     status_code=404,
-                    details={"electrical_variant_id": str(electrical_variant_id)},
-                )
-            if variant.legacy_variant_number is None:
-                raise ElectricalAssignmentServiceError(
-                    "ELECTRICAL_VARIANT_LEGACY_SLOT_REQUIRED",
-                    "Текущий расчётный сервис требует compatibility-номер ЭР",
-                    status_code=409,
                     details={"electrical_variant_id": str(electrical_variant_id)},
                 )
             obj = (
@@ -307,7 +299,7 @@ class ElectricalSingleCalculationService:
                 obj,
                 cable_mark=data.cable_mark if data.mode == "manual" else None,
                 cable_source=data.cable_source,
-                variant_number=variant.legacy_variant_number,
+                variant_number=None,
                 cable_type="self_regulating_tt",
                 electrical_params={"selection_policy": data.selection_policy},
                 commit=False,
@@ -340,7 +332,7 @@ class ElectricalSingleCalculationService:
         object_id: UUID,
         cable_mark: str,
         cable_source: CableSource = "builtin",
-        variant_number: int = 1,
+        variant_number: int | None = None,
         cable_type: str = "self_regulating_tt",
         electrical_params: dict[str, Any] | None = None,
         *,
