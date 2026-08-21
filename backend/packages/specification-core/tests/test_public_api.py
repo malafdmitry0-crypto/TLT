@@ -11,6 +11,14 @@ def test_root_exports_exact_calculator_api() -> None:
     assert all(hasattr(core, name) for name in core.__all__)
 
 
+def test_high_level_pipeline_entrypoints_are_stable() -> None:
+    assert {
+        "build_candidate_groups",
+        "prepare_specification",
+        "run_specification",
+    }.issubset(public_api.__all__)
+
+
 def test_representative_calculations_work_without_backend() -> None:
     cable = core.calculate_cable_mark(
         core.CableMarkInput(

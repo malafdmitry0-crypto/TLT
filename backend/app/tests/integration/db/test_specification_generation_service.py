@@ -298,7 +298,9 @@ async def test_ready_complete_catalog_generates_and_persists_by_uuid(
     async def no_contributing(*_args, **_kwargs):  # type: ignore[no-untyped-def]
         return [], {}, []
 
-    monkeypatch.setattr(SpecificationGenerationService, "_load_contributing_context", no_contributing)
+    monkeypatch.setattr(
+        SpecificationGenerationService, "_load_contributing_context", no_contributing
+    )
     blocked = await SpecificationGenerationService(db_session).generate(
         project.id, _principal(employee_user), request
     )
@@ -351,7 +353,7 @@ async def test_ready_and_blocked_mixed_writes_ready_bom_and_blocked_outcome(
     assert persisted_by_id[blocked.id].generation_diagnostics
 
 
-async def test_exception_mid_er_rolls_back_only_that_savepoint(
+async def test_unexpected_exception_rolls_back_whole_request_and_bubbles(
     db_session: AsyncSession,
     employee_user: User,
     monkeypatch: pytest.MonkeyPatch,
@@ -438,34 +440,24 @@ async def test_exception_mid_er_rolls_back_only_that_savepoint(
         variant_ids=[variants[0].id, second.id],
         options=_generation_options(),
     )
-    response = await SpecificationGenerationService(db_session).generate(
-        project.id,
-        _principal(employee_user),
-        request,
-    )
-    by_id = {item.electrical_variant_id: item for item in response.results}
-    assert by_id[variants[0].id].status is SpecificationGenerationStatus.GENERATED
-    assert by_id[second.id].status is SpecificationGenerationStatus.BLOCKED
+    project_id = project.id
+    with pytest.raises(RuntimeError, match="simulated mid-ER failure"):
+        await SpecificationGenerationService(db_session).generate(
+            project_id,
+            _principal(employee_user),
+            request,
+        )
 
     rows = (
         (
             await db_session.execute(
-                select(Specification).where(Specification.project_id == project.id)
+                select(Specification).where(Specification.project_id == project_id)
             )
         )
         .scalars()
         .all()
     )
-    assert len(rows) == 2
-    persisted_by_id = {row.electrical_variant_id: row for row in rows}
-    assert persisted_by_id[variants[0].id].items
-    assert persisted_by_id[variants[0].id].generation_status == "generated"
-    assert persisted_by_id[second.id].items == []
-    assert persisted_by_id[second.id].snapshot is None
-    assert persisted_by_id[second.id].generation_status == "blocked"
-    assert persisted_by_id[second.id].generation_diagnostics[0]["code"] == (
-        SpecificationDiagnosticCode.FORMULA_INPUT_INVALID.value
-    )
+    assert rows == []
 
 
 async def test_fingerprint_race_returns_conflict_without_bom_write(

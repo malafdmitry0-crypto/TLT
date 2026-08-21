@@ -10,6 +10,7 @@ from uuid import UUID
 
 from app.formulas.specification.catalog_conditions import match_condition, not_applicable
 from app.schemas.specification import (
+    SpecificationCandidate,
     SpecificationCandidateGroup,
     SpecificationDiagnosticCode,
     SpecificationGroupingMode,
@@ -20,6 +21,8 @@ from app.services.specification_bom_builder import (
     BomBuildSuccess,
     materialize_specification_bom,
 )
+from app.services.specification_candidate_service import stable_group_key
+from app.services.specification_selection_service import candidate_set_fingerprint
 
 
 def _box_open_applicability(**overrides: object) -> dict[str, object]:
@@ -116,13 +119,30 @@ def _group(
     selected: UUID,
     conditions: dict[str, Any] | None = None,
 ) -> SpecificationCandidateGroup:
+    resolved_conditions = conditions or {}
     return SpecificationCandidateGroup(
-        group_key=f"{category}:{uuid.uuid4().hex[:8]}",
+        group_key=stable_group_key(
+            electrical_variant_id=electrical_variant_id,
+            category=category,
+            conditions=resolved_conditions,
+        ),
         electrical_variant_id=electrical_variant_id,
         category=category,
-        conditions=conditions or {},
-        candidates=[],
+        conditions=resolved_conditions,
+        candidates=[
+            SpecificationCandidate(
+                catalog_item_id=selected,
+                catalog_id=uuid.uuid4(),
+                catalog_version="v1",
+                category=category,
+                name=category,
+                mark=category,
+                nomenclature_code=f"test-{category}",
+                supply_unit="шт.",
+            )
+        ],
         selected_catalog_item_id=selected,
+        candidate_set_fingerprint=candidate_set_fingerprint([selected]),
     )
 
 

@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
-from datetime import UTC, datetime
-from decimal import Decimal, InvalidOperation
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
+from heatcalc_specification_core.preflight import CatalogIdentity as CoreCatalogIdentity
+from heatcalc_specification_core.preflight.fingerprint import preflight_fingerprint
 from pydantic import ValidationError
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -43,8 +43,8 @@ from app.services.specification_preflight_rules import (
     ImmutableSpecificationCatalog,
     ImmutableSpecificationCatalogItem,
     SpecificationPreflightAssignment,
-    canonical_fingerprint,
     evaluate_specification_preflight,
+    to_core_preflight_assignment,
 )
 
 _FINGERPRINT_SCHEMA = "specification-preflight/v1"
@@ -122,16 +122,6 @@ class SpecificationPreflightService:
                     if item.code != SpecificationDiagnosticCode.CATALOG_UNAVAILABLE
                 ]
                 diagnostics.insert(0, catalog_error)
-            if not rows:
-                diagnostics.append(
-                    _diagnostic(
-                        SpecificationDiagnosticCode.VARIANT_NOT_READY,
-                        SpecificationIssueKind.BLOCKING,
-                        "В выбранном ЭР нет assignment snapshot",
-                        issues=[{"reason": "variant_has_no_assignments"}],
-                        details={"electrical_variant_id": str(variant.id)},
-                    )
-                )
             if options_diagnostic is not None:
                 diagnostics.append(options_diagnostic)
 
@@ -204,7 +194,7 @@ class SpecificationPreflightService:
                 fingerprint = _input_fingerprint(
                     project_id=project_id,
                     variant_id=variant.id,
-                    rows=rows,
+                    assignments=assignments,
                     resolved_options=resolved_options,
                     catalog=catalog_snapshot,
                     catalog_selections=variant_catalog_selections,
@@ -466,145 +456,33 @@ def _input_fingerprint(
     *,
     project_id: UUID,
     variant_id: UUID,
-    rows: Sequence[tuple[ElectricalVariantObject, ProjectObject, ElectricalCalculation | None]],
+    assignments: Sequence[SpecificationPreflightAssignment],
     resolved_options: SpecificationResolvedOptions,
     catalog: SpecificationCatalogSnapshot,
     catalog_selections: Mapping[str, UUID],
     candidate_groups: Sequence[Any],
     excluded_unassigned_object_ids: Sequence[UUID],
 ) -> str:
-    assignments = [
-        _fingerprint_row(assignment, obj, calculation)
-        for assignment, obj, calculation in sorted(rows, key=lambda row: str(row[1].id))
-        if assignment.assignment_state != "unassigned"
-    ]
-    return canonical_fingerprint(
-        {
-            "fingerprint_schema": _FINGERPRINT_SCHEMA,
-            "project_id": project_id,
-            "electrical_variant_id": variant_id,
-            "resolved_options": resolved_options.model_dump(mode="json", by_alias=True),
-            "specification_catalog": catalog.model_dump(mode="json"),
-            "catalog_selections": {
-                key: str(value) for key, value in sorted(catalog_selections.items())
-            },
-            "candidate_groups": candidate_groups_fingerprint_payload(candidate_groups),
-            "excluded_unassigned_object_ids": sorted(
-                excluded_unassigned_object_ids,
-                key=str,
+    return cast(
+        str,
+        preflight_fingerprint(
+            project_id=project_id,
+            electrical_variant_id=variant_id,
+            assignments=tuple(to_core_preflight_assignment(row) for row in assignments),
+            catalog=CoreCatalogIdentity(
+                catalog_id=catalog.id,
+                catalog_key=catalog.catalog_key,
+                version=catalog.version,
+                source_checksum=catalog.source_checksum,
+                payload_checksum=catalog.payload_checksum,
+                schema_version=catalog.schema_version,
             ),
-            "assignments": assignments,
-        }
+            resolved_options=resolved_options.model_dump(mode="json", by_alias=True),
+            catalog_selections=catalog_selections,
+            candidate_groups=candidate_groups_fingerprint_payload(candidate_groups),
+            excluded_unassigned_object_ids=excluded_unassigned_object_ids,
+        ),
     )
-
-
-def _fingerprint_row(
-    assignment: ElectricalVariantObject,
-    obj: ProjectObject,
-    calculation: ElectricalCalculation | None,
-) -> dict[str, Any]:
-    result = calculation.results if calculation is not None else None
-    result = result if isinstance(result, Mapping) else {}
-    provenance = result.get("provenance")
-    provenance = provenance if isinstance(provenance, Mapping) else {}
-    cable = result.get("cable")
-    cable = cable if isinstance(cable, Mapping) else {}
-    section_plan = result.get("section_plan")
-    section_plan = section_plan if isinstance(section_plan, Mapping) else {}
-    layout = result.get("layout")
-    layout = layout if isinstance(layout, Mapping) else {}
-    return {
-        "assignment": {
-            "id": assignment.id,
-            "version": assignment.version,
-            "state": assignment.assignment_state,
-            "system_type": assignment.system_type,
-            "object_version_snapshot": assignment.object_version_snapshot,
-        },
-        "object": {
-            "id": obj.id,
-            "version": obj.version,
-            "object_type": str(getattr(obj.object_type, "value", obj.object_type)),
-            "is_valid": obj.is_valid,
-        },
-        "electrical_result": {
-            "id": calculation.id if calculation is not None else None,
-            "updated_at": _timestamp(calculation.updated_at if calculation else None),
-            "production_eligible": provenance.get(
-                "production_eligible",
-                result.get("production_eligible"),
-            ),
-            "mocked_fields": sorted(
-                str(item)
-                for item in (provenance.get("mocked_fields") or result.get("mocked_fields") or [])
-            ),
-            "cable": {
-                "mark": cable.get("mark"),
-                "nomenclature_code": cable.get("nomenclature_code"),
-            },
-            "section_plan": {
-                "count": _decimal(section_plan.get("count")),
-                "length_m": _decimal(section_plan.get("length_m")),
-                "origin": section_plan.get("origin", "automatic"),
-            },
-            "layout": {
-                "actual_installed_length_m": _decimal(layout.get("actual_installed_length_m")),
-                "required_order_length_m": _decimal(layout.get("required_order_length_m")),
-            },
-            "provenance": {
-                "formula_version": provenance.get("formula_version"),
-                "formula_fingerprint": provenance.get("formula_fingerprint"),
-                "calculation_fingerprint": provenance.get("calculation_fingerprint"),
-                "object_version": provenance.get("object_version"),
-                "heat_result_version": provenance.get("heat_result_version"),
-                "assignment_version": provenance.get("assignment_version"),
-                "catalogs": _catalog_result_fingerprints(
-                    provenance.get("catalogs") or result.get("catalogs")
-                ),
-            },
-        },
-    }
-
-
-def _decimal(value: Any) -> Decimal | None:
-    if value is None or isinstance(value, bool):
-        return None
-    try:
-        result = Decimal(str(value))
-    except (InvalidOperation, TypeError, ValueError):
-        return None
-    return result if result.is_finite() else None
-
-
-def _timestamp(value: datetime | None) -> str | None:
-    if value is None:
-        return None
-    if value.tzinfo is None or value.utcoffset() is None:
-        raise ValueError("calculation.updated_at must be timezone-aware")
-    return value.astimezone(UTC).isoformat().replace("+00:00", "Z")
-
-
-def _catalog_result_fingerprints(value: Any) -> dict[str, dict[str, Any]]:
-    catalogs = value if isinstance(value, Mapping) else {}
-    fingerprints: dict[str, dict[str, Any]] = {}
-    for kind in ("power", "section", "bom"):
-        item = catalogs.get(kind)
-        item = item if isinstance(item, Mapping) else {}
-        fingerprints[kind] = {
-            key: item.get(key)
-            for key in (
-                "id",
-                "catalog_id",
-                "catalog_key",
-                "version",
-                "status",
-                "source_checksum",
-                "payload_checksum",
-                "schema_version",
-            )
-            if item.get(key) is not None
-        }
-    return fingerprints
 
 
 def _status_for(

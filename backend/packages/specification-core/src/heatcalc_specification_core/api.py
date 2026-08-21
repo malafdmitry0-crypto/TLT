@@ -1,8 +1,7 @@
-"""Pure Decimal specification calculators (SPEC-CANON-04 / SPEC-CANON-05).
+"""Stable dependency-free specification API.
 
-Cable, connection kits, repair kits, sealant, fiberglass tape, aluminium tape,
-and approved data-driven junction boxes.
-No database, FastAPI, filesystem, or static JSON imports.
+High-level preflight, candidate, and BOM pipelines are canonical. Calculator
+exports remain as compatibility primitives for focused formula consumers.
 """
 
 from heatcalc_specification_core.aluminium_tape import (
@@ -11,6 +10,13 @@ from heatcalc_specification_core.aluminium_tape import (
     calculate_aluminium_reels_from_total,
     calculate_aluminium_tape,
     calculate_aluminium_tape_from_input,
+)
+from heatcalc_specification_core.bom import (
+    GenerationFailure,
+    GenerationInput,
+    GenerationOutcome,
+    GenerationSuccess,
+    run_specification,
 )
 from heatcalc_specification_core.boxes import (
     SPEC_BOX_EX_RGR_MATRIX_MISSING,
@@ -29,6 +35,11 @@ from heatcalc_specification_core.cable import (
     calculate_group_actual,
     calculate_mark_actual,
     calculate_mark_order,
+)
+from heatcalc_specification_core.candidates import (
+    CandidateBuildResult,
+    CandidateCatalog,
+    build_candidate_groups,
 )
 from heatcalc_specification_core.common import (
     FIBERGLASS_RESERVE,
@@ -50,6 +61,10 @@ from heatcalc_specification_core.fiberglass_tape import (
     calculate_fiberglass_reels_from_total,
     calculate_fiberglass_tape,
     calculate_fiberglass_tape_from_input,
+)
+from heatcalc_specification_core.preflight import (
+    PreflightOutcome,
+    prepare_specification,
 )
 from heatcalc_specification_core.repair_kit import (
     calculate_repair_kits,
@@ -113,6 +128,8 @@ __all__ = [
     "CableGroupResult",
     "CableMarkInput",
     "CableMarkResult",
+    "CandidateBuildResult",
+    "CandidateCatalog",
     "ConnectionKitInput",
     "ConnectionKitResult",
     "FIBERGLASS_RESERVE",
@@ -121,7 +138,12 @@ __all__ = [
     "FiberglassTapeInput",
     "FiberglassTapeResult",
     "FormulaInputError",
+    "GenerationFailure",
+    "GenerationInput",
+    "GenerationOutcome",
+    "GenerationSuccess",
     "PI",
+    "PreflightOutcome",
     "RepairKitInput",
     "RepairKitResult",
     "SPEC_BOX_EX_RGR_MATRIX_MISSING",
@@ -129,6 +151,7 @@ __all__ = [
     "SealantResult",
     "TemperatureGroup",
     "box_row_from_catalog_parts",
+    "build_candidate_groups",
     "calculate_aluminium_from_scalar",
     "calculate_aluminium_object_length",
     "calculate_aluminium_reels_from_total",
@@ -157,8 +180,10 @@ __all__ = [
     "evaluate_box_matrix_from_input",
     "floor_div",
     "normalize_box_rounding_mode",
+    "prepare_specification",
     "require_positive_divider",
     "row_conditions_match",
+    "run_specification",
     "to_decimal",
     "to_non_negative_decimal",
     "to_non_negative_int",

@@ -67,10 +67,7 @@ def _validate_generation_options(settings: SpecificationRequestedOptions) -> Non
             code=SpecificationDiagnosticCode.FORMULA_INPUT_INVALID,
             kind=SpecificationIssueKind.BLOCKING,
             message="Не заполнены обязательные настройки спецификации",
-            issues=[
-                {"reason": "required_option_unresolved", "field": field}
-                for field in missing
-            ],
+            issues=[{"reason": "required_option_unresolved", "field": field} for field in missing],
         )
     )
 
@@ -139,18 +136,12 @@ class SpecificationGenerationService:
                         await self._persist_outcome(project_id, outcome)
                     recorded_any = True
                     results.append(outcome)
-            except Exception as exc:
-                # Nested transaction rolled back; no partial auto rows for this ER.
-                outcome = self._blocked(
-                    item.electrical_variant_id,
-                    item.electrical_variant_name,
-                    SpecificationDiagnosticCode.FORMULA_INPUT_INVALID,
-                    f"Ошибка формирования BOM: {exc}",
-                    issues=[{"reason": "generation_exception", "error": type(exc).__name__}],
-                )
-                await self._persist_outcome(project_id, outcome)
-                recorded_any = True
-                results.append(outcome)
+            except Exception:
+                # Domain failures are typed outcomes. An unexpected programming,
+                # infrastructure, or persistence error must roll back the whole
+                # request and reach the HTTP exception boundary as a 500.
+                await self.db.rollback()
+                raise
 
         if recorded_any:
             if commit:
@@ -342,7 +333,9 @@ class SpecificationGenerationService:
                 "catalog_item_id": str(group.selected_catalog_item_id)
                 if group.selected_catalog_item_id is not None
                 else None,
-                "selection_source": getattr(group.selection_source, "value", group.selection_source),
+                "selection_source": getattr(
+                    group.selection_source, "value", group.selection_source
+                ),
                 "candidate_set_fingerprint": group.candidate_set_fingerprint,
                 "candidate_count": len(group.candidates),
             }
@@ -463,9 +456,7 @@ class SpecificationGenerationService:
                             "updated_at": _snapshot_value(calculation.updated_at),
                             "formula_version": provenance.get("formula_version"),
                             "formula_fingerprint": provenance.get("formula_fingerprint"),
-                            "calculation_fingerprint": provenance.get(
-                                "calculation_fingerprint"
-                            ),
+                            "calculation_fingerprint": provenance.get("calculation_fingerprint"),
                             "object_version": provenance.get("object_version"),
                             "heat_result_version": provenance.get("heat_result_version"),
                             "assignment_version": provenance.get("assignment_version"),
@@ -476,9 +467,7 @@ class SpecificationGenerationService:
                     "section_plan_revision": (
                         {
                             "payload": _snapshot_value(section_plan),
-                            "calculation_fingerprint": provenance.get(
-                                "calculation_fingerprint"
-                            ),
+                            "calculation_fingerprint": provenance.get("calculation_fingerprint"),
                             "result_updated_at": (
                                 _snapshot_value(calculation.updated_at)
                                 if calculation is not None
