@@ -289,6 +289,7 @@ class CsrfCookieMiddleware:
     EXEMPT_PATHS: ClassVar[set[str]] = {
         settings.API_V1_PREFIX + "/auth/login",
         settings.API_V1_PREFIX + "/auth/guest",
+        settings.API_V1_PREFIX + "/auth/guest/resolve",
         settings.API_V1_PREFIX + "/auth/refresh",
     }
 
@@ -305,9 +306,11 @@ class CsrfCookieMiddleware:
             return
         request = Request(scope, receive=receive)
         has_bearer = bool(request.headers.get("Authorization"))
-        has_auth_cookie = not has_bearer and bool(
+        has_explicit_guest_header = bool(request.headers.get("X-Session-Id"))
+        has_auth_cookie = not has_bearer and not has_explicit_guest_header and bool(
             request.cookies.get(settings.ACCESS_COOKIE_NAME)
             or request.cookies.get(settings.REFRESH_COOKIE_NAME)
+            or request.cookies.get(settings.GUEST_COOKIE_NAME)
         )
         if has_auth_cookie:
             csrf_cookie = request.cookies.get(settings.CSRF_COOKIE_NAME)

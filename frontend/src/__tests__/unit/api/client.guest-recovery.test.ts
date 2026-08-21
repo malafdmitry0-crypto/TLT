@@ -30,7 +30,7 @@ describe('apiClient guest recovery', () => {
     expect(useProjectStore.getState().currentProject).toBeNull();
   });
 
-  it('дедуплицирует параллельное восстановление guest session', async () => {
+  it('не заменяет истекшую guest session новой после 401', async () => {
     localStorage.setItem('session_id', 'sid-expired');
     localStorage.setItem('role', 'guest');
     useAuthStore.getState().setGuest('sid-expired');
@@ -39,30 +39,17 @@ describe('apiClient guest recovery', () => {
       data: { session_id: 'sid-new', project: recoveredProject },
     });
     const adapter = vi.fn(async (config) => {
-      if (getHeader(config.headers, 'X-Session-Id') === 'sid-new') {
-        return {
-          config,
-          data: { ok: true },
-          headers: {},
-          status: 200,
-          statusText: 'OK',
-        };
-      }
       throw unauthorized(config);
     });
     apiClient.defaults.adapter = adapter;
 
-    await Promise.all([
-      apiClient.get('/references/insulation'),
-      apiClient.get('/references/climate'),
-      apiClient.get('/references/pipe-materials'),
-    ]);
+    await expect(apiClient.get('/references/insulation')).rejects.toThrow('Unauthorized');
 
-    expect(postSpy).toHaveBeenCalledTimes(1);
-    expect(localStorage.getItem('session_id')).toBe('sid-new');
-    expect(useAuthStore.getState().sessionId).toBe('sid-new');
-    expect(useProjectStore.getState().currentProject?.id).toBe('p-new');
-    expect(adapter).toHaveBeenCalledTimes(6);
+    expect(postSpy).not.toHaveBeenCalled();
+    expect(localStorage.getItem('session_id')).toBeNull();
+    expect(useAuthStore.getState().sessionId).toBeNull();
+    expect(useProjectStore.getState().currentProject).toBeNull();
+    expect(adapter).toHaveBeenCalledOnce();
   });
 
   it('не запускает guest recovery для auth endpoints', async () => {

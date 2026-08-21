@@ -26,6 +26,87 @@ class TestGuestAuth:
         assert "project" in body
         assert body["project"]["session_id"] == body["session_id"]
         assert body["project"]["name"]
+        set_cookie = resp.headers.get_list("set-cookie")
+        assert any("guest_session_id=" in item and "HttpOnly" in item for item in set_cookie)
+        assert any("csrf_token=" in item and "HttpOnly" not in item for item in set_cookie)
+
+    async def test_resolve_guest_session_returns_existing_project(self, client: AsyncClient):
+        created = await client.post("/api/v1/auth/guest")
+        assert created.status_code == 201
+        original = created.json()
+
+        resolved = await client.post(
+            "/api/v1/auth/guest/resolve",
+            headers={
+                "Cookie": (
+                    f"{settings.GUEST_COOKIE_NAME}={original['session_id']}; "
+                    f"{settings.CSRF_COOKIE_NAME}={client.cookies[settings.CSRF_COOKIE_NAME]}"
+                ),
+                "X-CSRF-Token": client.cookies[settings.CSRF_COOKIE_NAME],
+            },
+        )
+
+        assert resolved.status_code == 200
+        assert resolved.json()["session_id"] == original["session_id"]
+        assert resolved.json()["project"]["id"] == original["project"]["id"]
+
+    async def test_resolve_migrates_legacy_header_to_cookie(
+        self, client: AsyncClient
+    ):
+        created = await client.post("/api/v1/auth/guest")
+        original = created.json()
+        client.cookies.clear()
+
+        resolved = await client.post(
+            "/api/v1/auth/guest/resolve",
+            headers={"X-Session-Id": original["session_id"]},
+        )
+
+        assert resolved.status_code == 200
+        assert resolved.json()["project"]["id"] == original["project"]["id"]
+        assert client.cookies[settings.GUEST_COOKIE_NAME] == original["session_id"]
+
+    async def test_current_restores_guest_when_browser_lost_local_storage(
+        self, client: AsyncClient
+    ):
+        created = await client.post("/api/v1/auth/guest")
+        original = created.json()
+
+        current = await client.get("/api/v1/auth/guest/current")
+
+        assert current.status_code == 200
+        assert current.json()["session_id"] == original["session_id"]
+        assert current.json()["project"]["id"] == original["project"]["id"]
+
+    async def test_explicit_guest_header_overrides_stale_guest_cookie(
+        self, client: AsyncClient
+    ):
+        original = (await client.post("/api/v1/auth/guest")).json()
+        replacement = (await client.post("/api/v1/auth/guest")).json()
+        assert client.cookies[settings.GUEST_COOKIE_NAME] == replacement["session_id"]
+
+        current = await client.get(
+            "/api/v1/auth/guest/current",
+            headers={"X-Session-Id": original["session_id"]},
+        )
+
+        assert current.status_code == 200
+        assert current.json()["session_id"] == original["session_id"]
+        assert current.json()["project"]["id"] == original["project"]["id"]
+        assert client.cookies[settings.GUEST_COOKIE_NAME] == original["session_id"]
+
+    async def test_current_does_not_create_session_without_identity(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
+        client.cookies.clear()
+        before = len((await db_session.execute(select(GuestSession))).scalars().all())
+
+        current = await client.get("/api/v1/auth/guest/current")
+
+        after = len((await db_session.execute(select(GuestSession))).scalars().all())
+        assert current.status_code == 200
+        assert current.json() is None
+        assert after == before
 
     async def test_guest_cannot_create_second_project(self, client: AsyncClient):
         session_id = (await client.post("/api/v1/auth/guest")).json()["session_id"]
