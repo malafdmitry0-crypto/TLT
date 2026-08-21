@@ -590,7 +590,7 @@ class TestUserPreferencesApi:
 
         assert resp.status_code == 422
 
-    async def test_heatcalc_table_view_accepts_legacy_four_section_weights(
+    async def test_heatcalc_table_view_rejects_legacy_four_section_weights(
         self,
         client: AsyncClient,
         employee_token: str,
@@ -603,8 +603,8 @@ class TestUserPreferencesApi:
             headers={"Authorization": f"Bearer {employee_token}"},
         )
 
-        assert resp.status_code == 200, resp.text
-        assert resp.json()["value"]["formSectionWeights"] == [1.095, 1.35, 1.2, 0.56]
+        assert resp.status_code == 422
+        assert "formSectionWeights must be a 3-item array" in resp.text
 
     async def test_heatcalc_table_view_rejects_invalid_section_weights_count(
         self,
