@@ -392,7 +392,7 @@ class ElectricalAssignmentService:
         await self._require_no_active_job_conflict(project_id, variant_id, selected_ids)
         await self._require_scoped_downstream_integrity(
             project_id,
-            variant,
+            variant_id,
             selected_ids,
         )
         before_assignments = {
@@ -543,7 +543,7 @@ class ElectricalAssignmentService:
         await self._require_no_active_job_conflict(project_id, variant_id, selected_ids)
         await self._require_scoped_downstream_integrity(
             project_id,
-            variant,
+            variant_id,
             selected_ids,
         )
         before_assignments = {
@@ -1312,33 +1312,11 @@ class ElectricalAssignmentService:
     async def _require_scoped_downstream_integrity(
         self,
         project_id: UUID,
-        variant: ElectricalVariant,
+        variant_id: UUID,
         object_ids: set[UUID],
     ) -> None:
-        """Reject legacy/null or mismatched rows; never clean them by numeric fallback."""
-        if variant.legacy_variant_number is None:
-            return
+        """Reject corrupt folder edges inside the exact UUID ER scope."""
         conflicts: dict[str, int] = {}
-        for model in (
-            ElectricalCalculation,
-            ElectricalCandidate,
-            ElectricalCandidateFolder,
-        ):
-            count = int(
-                (
-                    await self.db.execute(
-                        select(func.count(model.id)).where(
-                            model.project_id == project_id,
-                            model.object_id.in_(object_ids),
-                            model.variant_number == variant.legacy_variant_number,
-                            model.electrical_variant_id.is_distinct_from(variant.id),
-                        )
-                    )
-                ).scalar_one()
-                or 0
-            )
-            if count:
-                conflicts[model.__tablename__] = count
         # Folder-item has two independent foreign keys.  Reject a corrupt
         # cross-ER/cross-object edge before any exact-ER graph deletion.
         folder_item_count = int(
@@ -1359,27 +1337,24 @@ class ElectricalAssignmentService:
                             and_(
                                 ElectricalCandidateFolder.project_id == project_id,
                                 ElectricalCandidateFolder.object_id.in_(object_ids),
-                                ElectricalCandidateFolder.variant_number
-                                == variant.legacy_variant_number,
+                                ElectricalCandidateFolder.electrical_variant_id == variant_id,
                             ),
                             and_(
                                 ElectricalCandidate.project_id == project_id,
                                 ElectricalCandidate.object_id.in_(object_ids),
-                                ElectricalCandidate.variant_number == variant.legacy_variant_number,
+                                ElectricalCandidate.electrical_variant_id == variant_id,
                             ),
                         ),
                         or_(
                             ElectricalCandidateFolder.project_id != ElectricalCandidate.project_id,
                             ElectricalCandidateFolder.object_id != ElectricalCandidate.object_id,
-                            ElectricalCandidateFolder.variant_number
-                            != ElectricalCandidate.variant_number,
                             ElectricalCandidateFolder.electrical_variant_id.is_distinct_from(
                                 ElectricalCandidate.electrical_variant_id
                             ),
                             ElectricalCandidateFolder.electrical_variant_id.is_distinct_from(
-                                variant.id
+                                variant_id
                             ),
-                            ElectricalCandidate.electrical_variant_id.is_distinct_from(variant.id),
+                            ElectricalCandidate.electrical_variant_id.is_distinct_from(variant_id),
                         ),
                     )
                 )
