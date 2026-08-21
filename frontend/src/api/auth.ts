@@ -7,7 +7,12 @@ import type {
 } from '@/types/auth';
 
 export async function createGuestSession(): Promise<GuestSessionResponse> {
-  const { data } = await apiClient.post<GuestSessionResponse>('/auth/guest');
+  const { data } = await apiClient.post<GuestSessionResponse>('/auth/guest/resolve');
+  return data;
+}
+
+export async function getCurrentGuestSession(): Promise<GuestSessionResponse | null> {
+  const { data } = await apiClient.get<GuestSessionResponse | null>('/auth/guest/current');
   return data;
 }
 
