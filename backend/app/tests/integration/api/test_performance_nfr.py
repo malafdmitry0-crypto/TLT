@@ -194,7 +194,6 @@ class TestBatchRecalcLatency:
             "/api/v1/calc/electrical/batch",
             params={
                 "project_id": proj["id"],
-                "variant_number": 1,
                 "electrical_variant_id": variant_id,
             },
             headers=headers,
@@ -312,7 +311,6 @@ class TestStressLargeProjects:
             "/api/v1/calc/electrical/batch",
             params={
                 "project_id": proj["id"],
-                "variant_number": 1,
                 "electrical_variant_id": variant_id,
             },
             headers=headers,
@@ -494,7 +492,6 @@ class TestStress1000Objects:
             "/api/v1/calc/electrical/batch",
             params={
                 "project_id": str(proj.id),
-                "variant_number": 1,
                 "electrical_variant_id": variant_id,
             },
             headers=headers,
