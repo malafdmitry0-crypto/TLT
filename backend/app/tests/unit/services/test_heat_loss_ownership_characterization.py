@@ -532,8 +532,9 @@ async def test_try_recalculate_persists_current_climate_k_snapshot() -> None:
         min_switch_temperature=-20.0,
         ambient_temperature=-10.0,
         ambient_temperature_source="climate",
+        climate_key="Алтайский край|||Славгород",
         climate_city="Славгород",
-        climate_region="Могилёвская область",
+        climate_region="Алтайский край",
     )
     params.pop("safety_factor")
     service = CalculationContainer(AsyncMock()).heat
