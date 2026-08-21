@@ -7,24 +7,35 @@ import json
 from collections.abc import Mapping
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Any
+from typing import Any, Protocol
 
-from app.electrical_domain import ElectricalFormulaError
-from app.formulas.electrical.decimal_math import SIX_PLACES, decimal_value, round_result
-from app.formulas.electrical.sections import compute_section_plan, section_catalog_meta
-from app.formulas.electrical.self_regulating import calc_self_regulating_tt
-from app.formulas.electrical.tt_contract import (
+from heatcalc_electrical_core import (
     ELECTRICAL_TT_FORMULA_FINGERPRINT,
     ELECTRICAL_TT_FORMULA_VERSION,
+    PipeLayout,
+    TankLayout,
+    TTFormulaDomainError,
+    TTPreparationInput,
 )
-from app.formulas.electrical.tt_final_gate import assert_electrical_tt_ready
+from heatcalc_electrical_core import (
+    run_tt_formula as run_tt_formula,
+)
+
+from app.electrical_domain import ElectricalFormulaError
+from app.formulas.electrical.catalog_preparation import prepare_tt_catalog_bundle
+from app.formulas.electrical.decimal_math import SIX_PLACES, decimal_value, round_result
+from app.formulas.electrical.outcome_errors import (
+    raise_electrical_formula_domain_error,
+    raise_electrical_formula_report,
+)
+from app.formulas.electrical.sections import section_catalog_meta, section_catalog_payload_snapshot
 from app.reference_data.loader import (
     get_electrical_tt_bom_entry,
     get_tt_cable_by_model,
+    list_electrical_tt_bom_entries,
     list_tt_cables,
     tt_cables_source_checksum,
 )
-from app.schemas.calculation import SelfRegulatingTTParams
 from app.schemas.electrical_inputs import ResolvedElectricalInputs
 
 ELECTRICAL_POWER_CATALOG_PROVISIONAL = "ELECTRICAL_POWER_CATALOG_PROVISIONAL"
@@ -35,6 +46,19 @@ _PRODUCTION_CATALOG_STATUSES = {
     "section": {"active", "registered"},
     "bom": {"active"},
 }
+
+
+class _SectionPlanSnapshot(Protocol):
+    """Core section values retained in the legacy application snapshot."""
+
+    @property
+    def cold_start_temperature(self) -> Decimal: ...
+
+    @property
+    def l_max_m(self) -> Decimal: ...
+
+    @property
+    def i_st_ud_a_per_m(self) -> Decimal: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -99,7 +123,7 @@ def _power_catalog_snapshot(
 
 
 def _section_catalog_snapshot(
-    plan: Any,
+    plan: _SectionPlanSnapshot,
     base_model: str,
     override: Mapping[str, Any] | None,
     *,
@@ -108,9 +132,9 @@ def _section_catalog_snapshot(
     meta = section_catalog_meta() if use_static_default else {}
     row = {
         "base_model": base_model,
-        "cold_start_temperature_c": plan.cold_start_temp_c,
-        "l_max_m": plan.l_max_m,
-        "specific_start_current_a_per_m": plan.i_st_ud_a_per_m,
+        "cold_start_temperature_c": float(plan.cold_start_temperature),
+        "l_max_m": float(plan.l_max_m),
+        "specific_start_current_a_per_m": float(plan.i_st_ud_a_per_m),
     }
     default = {
         "kind": "section",
@@ -220,6 +244,32 @@ def electrical_tt_catalog_eligibility(
     return not invalid, invalid
 
 
+def _assert_catalog_snapshot_identity(catalogs: Mapping[str, Any]) -> None:
+    """Retain the former final-gate metadata rule in the application adapter.
+
+    The standalone core intentionally sees raw engineering rows only. Version
+    and checksum authority therefore remain an application responsibility.
+    """
+    for kind in ("power", "section", "bom"):
+        catalog = catalogs.get(kind)
+        if not isinstance(catalog, Mapping):
+            raise ElectricalFormulaError(
+                "ELECTRICAL_FINAL_GATE_FAILED",
+                f"Отсутствует snapshot каталога {kind}",
+                details={"check": "catalog_missing", "left": kind, "right": None},
+            )
+        checksum = catalog.get("source_checksum") or catalog.get("payload_checksum")
+        version = catalog.get("version")
+        if not (isinstance(checksum, str) and checksum.strip()) and not (
+            isinstance(version, str) and version.strip()
+        ):
+            raise ElectricalFormulaError(
+                "ELECTRICAL_FINAL_GATE_FAILED",
+                f"Каталог {kind} без version/checksum",
+                details={"check": "catalog_identity", "left": kind, "right": None},
+            )
+
+
 def calculate_electrical_tt(
     resolved: ResolvedElectricalInputs,
     *,
@@ -243,94 +293,102 @@ def calculate_electrical_tt(
         )
     source_provenance = dict(provenance or {})
     if calculation_catalogs is None:
-        power_rows = None
-        section_rows = None
-        bom_rows = None
+        static_fallback = True
+        power_rows = list_tt_cables()
+        section_payload = section_catalog_payload_snapshot()
+        raw_section_rows = section_payload.get("rows")
+        section_rows = (
+            [dict(row) for row in raw_section_rows if isinstance(row, Mapping)]
+            if isinstance(raw_section_rows, list)
+            else []
+        )
+        bom_rows = list_electrical_tt_bom_entries()
         power_metadata = _source_snapshot(source_provenance, "power_catalog")
         section_metadata = _source_snapshot(source_provenance, "section_catalog")
         bom_metadata = _source_snapshot(source_provenance, "bom_catalog")
     else:
+        static_fallback = False
         power_rows, power_metadata = _catalog_payload_rows(calculation_catalogs, "power")
         section_rows, section_metadata = _catalog_payload_rows(calculation_catalogs, "section")
         bom_rows, bom_metadata = _catalog_payload_rows(calculation_catalogs, "bom")
-    params = SelfRegulatingTTParams(
-        required_power_per_meter=float(values.heat_loss_per_meter_w),
-        pipe_length=float(values.base_length_m),
-        process_temperature=float(values.product_temperature_c),
-        ambient_temperature=float(values.ambient_temperature_c),
-        supply_voltage=float(values.nominal_voltage_v),
-        max_start_current_per_section=(
-            float(values.max_section_start_current_a)
-            if values.max_section_start_current_a is not None
-            else None
-        ),
-        outer_diameter_mm=(
-            float(values.outer_diameter_mm) if values.outer_diameter_mm is not None else None
-        ),
-        winding_pitch=(
-            float(values.winding_pitch_mm) if values.winding_pitch_mm is not None else None
-        ),
-        number_of_threads=values.thread_count,
-        cable_mark=values.manual_cable_model,
-        safety_factor=float(values.safety_factor),
-    ).model_copy(update={"selection_policy": values.selection_policy})
-    preliminary = calc_self_regulating_tt(
-        params,
-        catalog_rows=power_rows,
-        section_catalog_rows=section_rows,
-        bom_catalog_rows=bom_rows,
-    )
-    winding_factor = decimal_value(preliminary.winding_coefficient)
 
-    selected_model = preliminary.cable_model or preliminary.selected_cable
+    catalog_bundle = prepare_tt_catalog_bundle(
+        power_rows=power_rows,
+        section_rows=section_rows,
+        bom_rows=bom_rows,
+    )
+
+    core_layout: PipeLayout | TankLayout = (
+        PipeLayout(
+            base_length_m=values.base_length_m,
+            outer_diameter_mm=values.outer_diameter_mm,
+            winding_pitch_mm=values.winding_pitch_mm,
+        )
+        if isinstance(layout, PipeElectricalLayout)
+        else TankLayout(base_length_m=values.base_length_m)
+    )
+    preparation = TTPreparationInput(
+        required_power_per_meter_w=values.heat_loss_per_meter_w,
+        product_temperature_c=values.product_temperature_c,
+        ambient_temperature_c=values.ambient_temperature_c,
+        supply_voltage_v=values.nominal_voltage_v,
+        safety_factor=values.safety_factor,
+        cold_start_temperature_c=values.cold_start_temperature_c,
+        layout=core_layout,
+        catalogs=catalog_bundle,
+        max_start_current_per_section_a=values.max_section_start_current_a,
+        max_start_current_source=resolved.sources.get("max_section_start_current_a")
+        or "manual_input",
+        number_of_threads=values.thread_count,
+        manual_cable_mark=values.manual_cable_model,
+        selection_policy=values.selection_policy,
+    )
+    try:
+        outcome = run_tt_formula(preparation)
+    except TTFormulaDomainError as error:
+        raise_electrical_formula_domain_error(error)
+        raise AssertionError("core domain error mapping must raise") from error
+    if not outcome.is_success:
+        raise_electrical_formula_report(outcome.report)
+        raise AssertionError("blocking core outcome must raise")
+    formula_result = outcome.result
+    if formula_result is None:  # pragma: no cover - protected by TTFormulaOutcome invariant
+        raise AssertionError("successful core outcome must contain a result")
+
+    selected_model = formula_result.selected_cable
     cable_row = (
         _exact_row(power_rows, key="model", value=selected_model)
-        if power_rows is not None
+        if not static_fallback
         else get_tt_cable_by_model(selected_model)
     )
     if cable_row is None:  # defensive: the formula selected from this exact catalog
         raise ElectricalFormulaError(
             "ELECTRICAL_CABLE_NOT_FOUND", "Выбранная модель отсутствует в power-каталоге"
         )
-    power_exact = decimal_value(cable_row["nominal_power"])
-    required_length = values.base_length_m * winding_factor * Decimal(preliminary.num_circuits)
-    plan = compute_section_plan(
-        mark=preliminary.cable_mark,
-        installed_cable_length_m=float(required_length),
-        power_per_meter_w=float(power_exact),
-        voltage_v=float(values.nominal_voltage_v),
-        cold_start_temp_c=float(values.cold_start_temperature_c),
-        max_start_current_per_section_a=(
-            float(values.max_section_start_current_a)
-            if values.max_section_start_current_a is not None
-            else None
-        ),
-        max_start_current_source=resolved.sources.get("max_section_start_current_a"),
-        catalog_rows=section_rows,
-        catalog_metadata=section_metadata if section_rows is not None else None,
-    )
+    power_exact = formula_result.power_per_meter_w
+    plan = formula_result.section_plan
     bom_entry = (
-        _exact_row(bom_rows, key="full_mark", value=preliminary.cable_mark)
-        if bom_rows is not None
-        else get_electrical_tt_bom_entry(preliminary.cable_mark)
+        _exact_row(bom_rows, key="full_mark", value=formula_result.cable_mark)
+        if not static_fallback
+        else get_electrical_tt_bom_entry(formula_result.cable_mark)
     )
     if bom_entry is None or not str(bom_entry.get("nomenclature_code") or "").strip():
         raise ElectricalFormulaError(
             "SPEC_CABLE_NOMENCLATURE_MISSING",
             "Для полного маркоразмера отсутствует точная BOM-позиция",
-            details={"full_mark": preliminary.cable_mark},
+            details={"full_mark": formula_result.cable_mark},
         )
 
     power_catalog = _power_catalog_snapshot(
         cable_row,
         power_metadata,
-        catalog_rows=power_rows,
+        catalog_rows=None if static_fallback else power_rows,
     )
     section_catalog = _section_catalog_snapshot(
         plan,
         selected_model,
         section_metadata,
-        use_static_default=section_rows is None,
+        use_static_default=static_fallback,
     )
     bom_catalog = _bom_catalog_snapshot(bom_entry, bom_metadata)
     catalogs = {
@@ -338,11 +396,12 @@ def calculate_electrical_tt(
         "section": section_catalog,
         "bom": bom_catalog,
     }
+    _assert_catalog_snapshot_identity(catalogs)
     catalog_production_eligible, _invalid_catalogs = electrical_tt_catalog_eligibility(catalogs)
     warnings = list(resolved.warnings)
     if not catalog_production_eligible:
         warnings.append(ELECTRICAL_POWER_CATALOG_PROVISIONAL)
-    if preliminary.execution_defaulted:
+    if formula_result.execution_defaulted:
         warnings.append(ELECTRICAL_EXECUTION_DEFAULTED)
     warnings = list(dict.fromkeys(warnings))
     production_eligible = resolved.production_eligible and catalog_production_eligible
@@ -362,34 +421,22 @@ def calculate_electrical_tt(
             "bom_catalog": bom_catalog,
         }
     )
-    suffix = preliminary.cable_mark.rsplit("-", 1)[-1]
+    suffix = formula_result.cable_mark.rsplit("-", 1)[-1]
     sections = [
         {
             "index": index + 1,
-            "length_m": plan.section_length_m,
-            "power_w": plan.power_per_section_w,
-            "start_current_a": plan.start_current_per_section_a,
-            "working_current_a": plan.working_current_per_section_a,
-            "voltage_v": float(values.nominal_voltage_v),
+            "length_m": float(section.length_m),
+            "power_w": float(section.power_w),
+            "start_current_a": float(section.start_current_a),
+            "working_current_a": float(section.working_current_a),
+            "voltage_v": float(section.voltage_v),
         }
-        for index in range(plan.section_count)
+        for index, section in enumerate(formula_result.equal_sections)
     ]
-    applied_threads = preliminary.num_circuits
-    required_power = values.heat_loss_per_meter_w * values.safety_factor
-    installed_power = power_exact * winding_factor * Decimal(applied_threads)
-
-    # Case 1 §6.14: do not emit ready until final physical checks pass.
-    assert_electrical_tt_ready(
-        cable_mark=preliminary.cable_mark,
-        series=preliminary.series,
-        threads=int(applied_threads),
-        voltage_v=values.nominal_voltage_v,
-        required_power_per_meter_w=required_power,
-        installed_power_per_meter_w=installed_power,
-        plan=plan,
-        sections=sections,
-        catalogs=catalogs,
-    )
+    applied_threads = formula_result.num_circuits
+    winding_factor = formula_result.winding_factor
+    required_power = formula_result.required_power_per_meter_w
+    installed_power = formula_result.installed_power_per_meter_w
 
     layout_result: dict[str, Any] = {
         "requested_threads": values.thread_count,
@@ -402,10 +449,10 @@ def calculate_electrical_tt(
             else "auto"
         ),
         "winding_factor": float(round_result(winding_factor, SIX_PLACES)),
-        "required_installed_length_m": float(round_result(required_length)),
-        "actual_installed_length_m": plan.l_fact_m,
-        "excess_installed_length_m": plan.l_excess_m,
-        "required_order_length_m": plan.order_cable_length_m,
+        "required_installed_length_m": float(formula_result.required_cable_length_m),
+        "actual_installed_length_m": float(plan.l_fact_m),
+        "excess_installed_length_m": float(plan.l_excess_m),
+        "required_order_length_m": float(plan.order_cable_length_m),
     }
     if isinstance(layout, PipeElectricalLayout):
         layout_result["winding_pitch_mm"] = (
@@ -426,9 +473,9 @@ def calculate_electrical_tt(
         "inputs": resolved_values,
         "cable": {
             "type": "self_regulating_tt",
-            "series": preliminary.series,
-            "base_model": preliminary.cable_model,
-            "mark": preliminary.cable_mark,
+            "series": formula_result.series,
+            "base_model": formula_result.selected_cable,
+            "mark": formula_result.cable_mark,
             "suffix": suffix,
             "nomenclature_code": bom_entry["nomenclature_code"],
             "passport_power_w_per_m": float(round_result(power_exact)),
@@ -437,7 +484,7 @@ def calculate_electrical_tt(
                 "manual"
                 if values.manual_cable_model
                 else "default"
-                if preliminary.execution_defaulted
+                if formula_result.execution_defaulted
                 else "single"
             ),
             "selection_policy": values.selection_policy,
@@ -445,25 +492,25 @@ def calculate_electrical_tt(
         "layout": layout_result,
         "section_plan": {
             "count": plan.section_count,
-            "length_m": plan.section_length_m,
-            "l_max_m": plan.l_max_m,
-            "l_tok_m": plan.l_tok_m,
-            "l_ogr_m": plan.l_ogr_m,
-            "max_start_current_a": plan.i_dop_a,
+            "length_m": float(plan.section_length_m),
+            "l_max_m": float(plan.l_max_m),
+            "l_tok_m": float(plan.l_tok_m),
+            "l_ogr_m": float(plan.l_ogr_m),
+            "max_start_current_a": float(plan.i_dop_a),
             "max_start_current_source": plan.i_dop_source,
-            "specific_start_current_a_per_m": plan.i_st_ud_a_per_m,
-            "start_current_per_section_a": plan.start_current_per_section_a,
-            "working_current_per_section_a": plan.working_current_per_section_a,
-            "power_per_section_w": plan.power_per_section_w,
+            "specific_start_current_a_per_m": float(plan.i_st_ud_a_per_m),
+            "start_current_per_section_a": float(plan.start_current_per_section_a),
+            "working_current_per_section_a": float(plan.working_current_per_section_a),
+            "power_per_section_w": float(plan.power_per_section_w),
             "items": sections,
         },
         "electrical": {
             "nominal_voltage_v": float(values.nominal_voltage_v),
             "required_power_per_meter_w": float(round_result(required_power)),
             "installed_power_per_meter_w": float(round_result(installed_power)),
-            "total_power_w": plan.total_power_w,
-            "working_current_a": plan.working_current_a,
-            "start_current_a": plan.start_current_a,
+            "total_power_w": float(plan.total_power_w),
+            "working_current_a": float(plan.working_current_a),
+            "start_current_a": float(plan.start_current_a),
         },
         "catalogs": catalogs,
         "provenance": {
@@ -475,7 +522,7 @@ def calculate_electrical_tt(
             "resolved_inputs": resolved_values,
             "input_sources": applied_input_sources,
             "section_current_limit": {
-                "value_a": plan.i_dop_a,
+                "value_a": float(plan.i_dop_a),
                 "source": plan.i_dop_source,
             },
             "mocked_fields": list(resolved.mocked_fields),
@@ -490,36 +537,36 @@ def calculate_electrical_tt(
         },
         # Compatibility fields consumed by the current calculation/specification layer.
         "cable_type": "self_regulating_tt",
-        "selected_cable": preliminary.selected_cable,
-        "cable_model": preliminary.cable_model,
-        "cable_mark": preliminary.cable_mark,
+        "selected_cable": formula_result.selected_cable,
+        "cable_model": formula_result.selected_cable,
+        "cable_mark": formula_result.cable_mark,
         "nomenclature_code": bom_entry["nomenclature_code"],
-        "series": preliminary.series,
-        "temperature_group": preliminary.temperature_group,
+        "series": formula_result.series,
+        "temperature_group": formula_result.temperature_group,
         "num_circuits": applied_threads,
         "power_per_meter": float(round_result(power_exact)),
         "installed_power_per_meter": float(round_result(installed_power)),
-        "cable_length": plan.l_fact_m,
-        "installed_cable_length": plan.l_fact_m,
-        "order_cable_length": plan.order_cable_length_m,
-        "total_power": plan.total_power_w,
-        "current": plan.working_current_a,
+        "cable_length": float(plan.l_fact_m),
+        "installed_cable_length": float(plan.l_fact_m),
+        "order_cable_length": float(plan.order_cable_length_m),
+        "total_power": float(plan.total_power_w),
+        "current": float(plan.working_current_a),
         "voltage": float(values.nominal_voltage_v),
         "winding_coefficient": float(round_result(winding_factor, SIX_PLACES)),
         "num_sections": plan.section_count,
         "section_count": plan.section_count,
-        "section_length_m": plan.section_length_m,
-        "section_l_max_m": plan.l_max_m,
-        "section_l_tok_m": plan.l_tok_m,
-        "section_l_ogr_m": plan.l_ogr_m,
-        "section_l_fact_m": plan.l_fact_m,
-        "section_l_excess_m": plan.l_excess_m,
-        "section_start_current_a": plan.start_current_a,
-        "section_working_current_a": plan.working_current_a,
-        "section_power_w": plan.power_per_section_w,
+        "section_length_m": float(plan.section_length_m),
+        "section_l_max_m": float(plan.l_max_m),
+        "section_l_tok_m": float(plan.l_tok_m),
+        "section_l_ogr_m": float(plan.l_ogr_m),
+        "section_l_fact_m": float(plan.l_fact_m),
+        "section_l_excess_m": float(plan.l_excess_m),
+        "section_start_current_a": float(plan.start_current_a),
+        "section_working_current_a": float(plan.working_current_a),
+        "section_power_w": float(plan.power_per_section_w),
         "sections": sections,
-        "start_current": plan.start_current_a,
-        "working_current": plan.working_current_a,
+        "start_current": float(plan.start_current_a),
+        "working_current": float(plan.working_current_a),
         "resolved_inputs": resolved_values,
         "input_sources": applied_input_sources,
         "mocked_fields": list(resolved.mocked_fields),

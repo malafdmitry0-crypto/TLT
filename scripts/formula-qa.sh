@@ -10,8 +10,9 @@
 # Использование:
 #   scripts/formula-qa.sh quick      # быстрый локальный gate
 #   scripts/formula-qa.sh full       # quick + API/object integration
-#   scripts/formula-qa.sh mutation   # отдельные mutmut-прогоны backend и canonical heat-loss core
+#   scripts/formula-qa.sh mutation   # отдельные mutmut-прогоны backend и standalone cores
 #   scripts/formula-qa.sh heat-loss-core-mutation # только standalone heat-loss core
+#   scripts/formula-qa.sh electrical-core-mutation # только standalone electrical core
 #   scripts/formula-qa.sh all        # full + mutation
 # =====================================================================
 
@@ -54,12 +55,21 @@ run_heat_loss_core() {
     heatcalc_backend "$@"
 }
 
+run_electrical_core() {
+  docker exec \
+    -e SECRET_KEY="$TEST_SECRET_KEY" \
+    -w /app/packages/electrical-core \
+    heatcalc_backend "$@"
+}
+
 run_formula_unit() {
   ensure_dev_stack
   echo "▶ Backend formula unit/golden/metamorphic tests"
   run_backend pytest app/tests/unit/formulas -q --tb=short --no-cov
   echo "▶ Standalone heat-loss core tests"
   run_heat_loss_core python -m pytest tests -q --tb=short
+  echo "▶ Standalone electrical core tests"
+  run_electrical_core python -m pytest tests -q --tb=short
 }
 
 run_formula_service_guards() {
@@ -100,7 +110,8 @@ run_mutation() {
   # error. This prevents stale tests from participating without dirtying the
   # worktree.
   local backend_mutation_sandbox="$ROOT/backend/mutants"
-  local core_mutation_sandbox="$ROOT/backend/packages/heat-loss-core/mutants"
+  local heat_loss_core_mutation_sandbox="$ROOT/backend/packages/heat-loss-core/mutants"
+  local electrical_core_mutation_sandbox="$ROOT/backend/packages/electrical-core/mutants"
   local mutation_backup
   mutation_backup="$(mktemp -d "${TMPDIR:-/tmp}/heatcalc-mutmut.XXXXXX")"
 
@@ -108,14 +119,20 @@ run_mutation() {
     if [[ -e "$backend_mutation_sandbox" ]]; then
       mv "$backend_mutation_sandbox" "$mutation_backup/generated-backend"
     fi
-    if [[ -e "$core_mutation_sandbox" ]]; then
-      mv "$core_mutation_sandbox" "$mutation_backup/generated-core"
+    if [[ -e "$heat_loss_core_mutation_sandbox" ]]; then
+      mv "$heat_loss_core_mutation_sandbox" "$mutation_backup/generated-heat-loss-core"
+    fi
+    if [[ -e "$electrical_core_mutation_sandbox" ]]; then
+      mv "$electrical_core_mutation_sandbox" "$mutation_backup/generated-electrical-core"
     fi
     if [[ -e "$mutation_backup/original-backend" ]]; then
       mv "$mutation_backup/original-backend" "$backend_mutation_sandbox"
     fi
-    if [[ -e "$mutation_backup/original-core" ]]; then
-      mv "$mutation_backup/original-core" "$core_mutation_sandbox"
+    if [[ -e "$mutation_backup/original-heat-loss-core" ]]; then
+      mv "$mutation_backup/original-heat-loss-core" "$heat_loss_core_mutation_sandbox"
+    fi
+    if [[ -e "$mutation_backup/original-electrical-core" ]]; then
+      mv "$mutation_backup/original-electrical-core" "$electrical_core_mutation_sandbox"
     fi
     rm -rf "$mutation_backup"
   }
@@ -123,13 +140,17 @@ run_mutation() {
   if [[ -e "$backend_mutation_sandbox" ]]; then
     mv "$backend_mutation_sandbox" "$mutation_backup/original-backend"
   fi
-  if [[ -e "$core_mutation_sandbox" ]]; then
-    mv "$core_mutation_sandbox" "$mutation_backup/original-core"
+  if [[ -e "$heat_loss_core_mutation_sandbox" ]]; then
+    mv "$heat_loss_core_mutation_sandbox" "$mutation_backup/original-heat-loss-core"
+  fi
+  if [[ -e "$electrical_core_mutation_sandbox" ]]; then
+    mv "$electrical_core_mutation_sandbox" "$mutation_backup/original-electrical-core"
   fi
   trap restore_mutation_sandboxes EXIT
 
   run_backend mutmut run
   run_heat_loss_core mutmut run
+  run_electrical_core mutmut run
   run_backend python scripts/mutmut_score_gate.py
 
   restore_mutation_sandboxes
@@ -171,6 +192,41 @@ run_heat_loss_core_mutation() {
   trap - EXIT
 }
 
+run_electrical_core_mutation() {
+  ensure_dev_stack
+  echo "▶ Standalone electrical core mutation testing"
+  if ! run_backend python -c "import mutmut" >/dev/null 2>&1; then
+    echo "mutmut не установлен в backend-контейнере." >&2
+    echo "Пересоберите dev-образ после обновления requirements-dev.txt: make build" >&2
+    exit 2
+  fi
+
+  local core_mutation_sandbox="$ROOT/backend/packages/electrical-core/mutants"
+  local mutation_backup
+  mutation_backup="$(mktemp -d "${TMPDIR:-/tmp}/heatcalc-electrical-core-mutmut.XXXXXX")"
+
+  restore_core_mutation_sandbox() {
+    if [[ -e "$core_mutation_sandbox" ]]; then
+      mv "$core_mutation_sandbox" "$mutation_backup/generated-core"
+    fi
+    if [[ -e "$mutation_backup/original-core" ]]; then
+      mv "$mutation_backup/original-core" "$core_mutation_sandbox"
+    fi
+    rm -rf "$mutation_backup"
+  }
+
+  if [[ -e "$core_mutation_sandbox" ]]; then
+    mv "$core_mutation_sandbox" "$mutation_backup/original-core"
+  fi
+  trap restore_core_mutation_sandbox EXIT
+
+  run_electrical_core mutmut run
+  run_backend env MUTMUT_SCOPE=electrical-core python scripts/mutmut_score_gate.py
+
+  restore_core_mutation_sandbox
+  trap - EXIT
+}
+
 case "$TARGET" in
   quick)
     run_formula_unit
@@ -187,6 +243,9 @@ case "$TARGET" in
   heat-loss-core-mutation)
     run_heat_loss_core_mutation
     ;;
+  electrical-core-mutation)
+    run_electrical_core_mutation
+    ;;
   all)
     run_formula_unit
     run_formula_service_guards
@@ -195,7 +254,7 @@ case "$TARGET" in
     ;;
   *)
     echo "Неизвестная цель: $TARGET" >&2
-    echo "Доступно: quick | full | mutation | heat-loss-core-mutation | all" >&2
+    echo "Доступно: quick | full | mutation | heat-loss-core-mutation | electrical-core-mutation | all" >&2
     exit 1
     ;;
 esac

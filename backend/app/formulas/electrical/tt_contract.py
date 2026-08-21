@@ -1,20 +1,8 @@
-"""Version identity for the canonical ТТН/ТТВ/ТТХ calculation contract."""
+"""Compatibility re-exports for the canonical TT formula identity."""
 
-from __future__ import annotations
-
-import hashlib
-
-ELECTRICAL_TT_FORMULA_VERSION = "electrical-tt-v3-case1-r6"
-
-_FORMULA_CONTRACT = (
-    "case1-r6;P_req=q*K;P_cable=nominal_power;all-full-mark-candidates;"
-    "T_product<=T_max;T_env>=T_min;manual-missing-N=1;"
-    "sort=N,P_cable,P_cable*N,series(TTN<TTV<TTX),execution(ST<SR),full_mark;"
-    "execution-source-warning;user-U-downstream;"
-    "winding-pitch;Idop=project-setting??Lmax*Ist_ud;equal-sections;"
-    "Lfact-totals;order=ceil(Lfact*1.10,0.001)"
+from heatcalc_electrical_core import (
+    ELECTRICAL_TT_FORMULA_FINGERPRINT,
+    ELECTRICAL_TT_FORMULA_VERSION,
 )
 
-ELECTRICAL_TT_FORMULA_FINGERPRINT = (
-    "sha256:" + hashlib.sha256(_FORMULA_CONTRACT.encode("utf-8")).hexdigest()
-)
+__all__ = ["ELECTRICAL_TT_FORMULA_FINGERPRINT", "ELECTRICAL_TT_FORMULA_VERSION"]

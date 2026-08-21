@@ -1,11 +1,14 @@
 """Case 1 Revision 4, sections 6.13-6.14, selector characterisation tests."""
 
 from copy import deepcopy
+from decimal import Decimal
 
 import pytest
+from heatcalc_electrical_core import PipeLayout, TTPreparationInput, run_tt_formula
 from pydantic import ValidationError
 
 from app.electrical_domain import ElectricalFormulaError
+from app.formulas.electrical import self_regulating as self_regulating_adapter
 from app.formulas.electrical.self_regulating import calc_self_regulating_tt
 from app.schemas.calculation import SelfRegulatingTTParams
 
@@ -315,6 +318,14 @@ def test_winding_factor_is_computed_from_diameter_and_pitch_not_caller_coefficie
         _params(winding_coefficient=9)
 
 
+def test_winding_pitch_without_outer_diameter_keeps_legacy_error_text() -> None:
+    with pytest.raises(ElectricalFormulaError) as raised:
+        _calculate(winding_pitch=350)
+
+    assert raised.value.code == "ELECTRICAL_WINDING_PITCH_INVALID"
+    assert raised.value.message == "Для системного расчёта Kнав требуется наружный диаметр трубы"
+
+
 def test_tank_forces_unit_winding_factor() -> None:
     result = _calculate(
         pipe_length=1,
@@ -325,6 +336,62 @@ def test_tank_forces_unit_winding_factor() -> None:
     )
 
     assert result.winding_coefficient == 1
+
+
+def test_preview_adapter_executes_canonical_formula_once(monkeypatch) -> None:
+    calls = 0
+    original = self_regulating_adapter.run_tt_formula
+
+    def spy(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(self_regulating_adapter, "run_tt_formula", spy)
+
+    result = _calculate(required_power_per_meter=20)
+
+    assert result.cable_mark == "25ТТН2-СТ"
+    assert calls == 1
+
+
+def test_preview_projects_actual_core_section_totals_when_more_than_one_section() -> None:
+    section_rows = deepcopy(SECTION_ROWS)
+    for row in section_rows:
+        row["l_max_m"] = 5
+    params = _params(pipe_length=11, required_power_per_meter=20)
+
+    preview = calc_self_regulating_tt(
+        params,
+        catalog_rows=deepcopy(POWER_ROWS),
+        section_catalog_rows=section_rows,
+        bom_catalog_rows=deepcopy(BOM_ROWS),
+    )
+    outcome = run_tt_formula(
+        TTPreparationInput(
+            required_power_per_meter_w=Decimal("20"),
+            product_temperature_c=Decimal("20"),
+            ambient_temperature_c=Decimal("-20"),
+            supply_voltage_v=Decimal("230"),
+            safety_factor=Decimal("1"),
+            cold_start_temperature_c=Decimal("-20"),
+            layout=PipeLayout(Decimal("11")),
+            catalogs=self_regulating_adapter._catalog_bundle(
+                deepcopy(POWER_ROWS), section_rows, deepcopy(BOM_ROWS)
+            ),
+            max_start_current_per_section_a=None,
+            max_start_current_source="manual_input",
+        )
+    )
+    assert outcome.is_success and outcome.result is not None
+    result = outcome.result
+
+    assert result.section_plan.l_fact_m == Decimal("15.000")
+    assert preview.cable_length == float(result.installed_cable_length_m)
+    assert preview.installed_cable_length == float(result.installed_cable_length_m)
+    assert preview.order_cable_length == float(result.order_cable_length_m)
+    assert preview.total_power == float(result.total_power_w)
+    assert preview.current == float(result.current_a)
 
 
 @pytest.mark.parametrize(

@@ -3,6 +3,7 @@
 import pytest
 
 from app.electrical_domain import ElectricalFormulaError
+from app.formulas.electrical import sections as sections_adapter
 from app.formulas.electrical.sections import (
     SectionCatalogRow,
     clear_section_catalog_cache,
@@ -22,10 +23,7 @@ def test_catalog_registered_after_seeds():
 
 
 def test_lookup_exact_and_nearest_lower_temperature(monkeypatch):
-    rows = [
-        SectionCatalogRow("25ТТН2", 220, temp, 100, None, 0.2)
-        for temp in (-20, -10)
-    ]
+    rows = [SectionCatalogRow("25ТТН2", 220, temp, 100, None, 0.2) for temp in (-20, -10)]
     monkeypatch.setattr("app.formulas.electrical.sections._parse_rows", lambda: rows)
     assert lookup_section_row(mark="25ТТН2-СТ", cold_start_temp_c=-10).cold_start_temp_c == -10
     assert lookup_section_row(mark="25ТТН2", cold_start_temp_c=-17).cold_start_temp_c == -20
@@ -130,7 +128,12 @@ def test_short_object_still_gets_one_full_equal_section(monkeypatch):
         cold_start_temp_c=-20,
         max_start_current_per_section_a=67,
     )
-    assert (plan.section_count, plan.section_length_m, plan.l_fact_m, plan.l_excess_m) == (1, 67, 67, 57)
+    assert (plan.section_count, plan.section_length_m, plan.l_fact_m, plan.l_excess_m) == (
+        1,
+        67,
+        67,
+        57,
+    )
 
 
 def test_l_ogr_is_rounded_down_not_half_up(monkeypatch):
@@ -171,3 +174,28 @@ def test_section_plan_uses_positive_request_voltage_for_working_current(monkeypa
     assert at_230.total_power_w == at_380.total_power_w
     assert at_230.working_current_a == pytest.approx(at_230.total_power_w / 230, abs=0.001)
     assert at_380.working_current_a == pytest.approx(at_380.total_power_w / 380, abs=0.001)
+
+
+def test_section_adapter_owns_no_alternate_planning_algorithm(monkeypatch):
+    row = SectionCatalogRow("25ТТН2", 230, -20, 100, None, 1)
+    calls = 0
+    original = sections_adapter._core_compute_section_plan
+
+    def spy(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(sections_adapter, "_parse_rows", lambda: [row])
+    monkeypatch.setattr(sections_adapter, "_core_compute_section_plan", spy)
+
+    plan = compute_section_plan(
+        mark="25ТТН2-СТ",
+        installed_cable_length_m=10,
+        power_per_meter_w=25,
+        voltage_v=230,
+        cold_start_temp_c=-20,
+    )
+
+    assert plan.section_count == 1
+    assert calls == 1

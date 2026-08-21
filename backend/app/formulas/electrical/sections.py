@@ -10,12 +10,22 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from copy import deepcopy
 from dataclasses import dataclass
-from decimal import ROUND_CEILING, Decimal
+from decimal import Decimal
 from functools import lru_cache
 from typing import Any
 
+from heatcalc_electrical_core import (
+    SectionCatalogRow as CoreSectionCatalogRow,
+)
+from heatcalc_electrical_core import (
+    TTFormulaDomainError,
+)
+from heatcalc_electrical_core.sections import compute_section_plan as _core_compute_section_plan
+from heatcalc_electrical_core.sections import lookup_section_row as _core_lookup_section_row
+
 from app.electrical_domain import ElectricalFormulaError
-from app.formulas.electrical.decimal_math import decimal_value, round_down, round_result, round_up
+from app.formulas.electrical.decimal_math import decimal_value
+from app.formulas.electrical.outcome_errors import raise_electrical_formula_domain_error
 from app.reference_data.loader import _load_json
 
 
@@ -129,13 +139,32 @@ def _parse_rows() -> list[SectionCatalogRow]:
     return _parse_catalog_rows(_catalog_payload().get("rows") or [])
 
 
-def _mark_lookup_keys(mark: str) -> list[str]:
-    """Return exact TT model keys, accepting only its commercial suffix."""
-    raw = mark.strip()
-    for suffix in ("-СТ", "-СР"):
-        if raw.endswith(suffix):
-            return [raw[: -len(suffix)]]
-    return [raw]
+def _core_rows(rows: Sequence[SectionCatalogRow]) -> tuple[CoreSectionCatalogRow, ...]:
+    """Project app-owned parsed catalog rows to the immutable core DTO."""
+    return tuple(
+        CoreSectionCatalogRow(
+            base_model=row.mark,
+            cold_start_temperature=decimal_value(row.cold_start_temp_c),
+            l_max_m=decimal_value(row.l_max_m),
+            i_st_ud_a_per_m=decimal_value(row.i_st_ud_a_per_m),
+            voltage_v=decimal_value(row.voltage_v),
+            i_dop_a=decimal_value(row.i_dop_a) if row.i_dop_a is not None else None,
+        )
+        for row in rows
+    )
+
+
+def _legacy_row(row: CoreSectionCatalogRow | None) -> SectionCatalogRow | None:
+    if row is None:
+        return None
+    return SectionCatalogRow(
+        mark=row.base_model,
+        voltage_v=float(row.voltage_v or Decimal("230")),
+        cold_start_temp_c=float(row.cold_start_temperature),
+        l_max_m=float(row.l_max_m or Decimal("0")),
+        i_dop_a=float(row.i_dop_a) if row.i_dop_a is not None else None,
+        i_st_ud_a_per_m=float(row.i_st_ud_a_per_m or Decimal("0")),
+    )
 
 
 def lookup_section_row(
@@ -151,17 +180,15 @@ def lookup_section_row(
         all_rows = _parse_rows()
     else:
         all_rows = _parse_catalog_rows(list(catalog_rows))
-    for mark_key in _mark_lookup_keys(mark):
-        rows = [r for r in all_rows if r.mark == mark_key]
-        if not rows:
-            continue
-        # Case 1 §6.14 lookup is model + temperature based. Working voltage is
-        # downstream input for current calculation, not a catalog eligibility key.
-        colder = [r for r in rows if r.cold_start_temp_c <= cold_start_temp_c]
-        if not colder:
-            return None
-        return max(colder, key=lambda r: r.cold_start_temp_c)
-    return None
+    # Case 1 §6.14 lookup is model + temperature based. Working voltage is
+    # downstream input for current calculation, not a catalog eligibility key.
+    return _legacy_row(
+        _core_lookup_section_row(
+            mark=mark,
+            cold_start_temperature=decimal_value(cold_start_temp_c),
+            catalog_rows=_core_rows(all_rows),
+        )
+    )
 
 
 def compute_section_plan(
@@ -177,94 +204,59 @@ def compute_section_plan(
     catalog_rows: Sequence[Mapping[str, Any]] | None = None,
     catalog_metadata: Mapping[str, Any] | None = None,
 ) -> SectionPlan:
-    """Compute equal fail-closed sections and totals from physical installed length."""
-    del working_current_total_a  # preserved in the public signature; totals are authoritative here
+    """Legacy DTO adapter over the core equal-section planner."""
+    del working_current_total_a  # preserved public signature; core totals are authoritative
     if voltage_v <= 0:
         raise ElectricalFormulaError(
             "ELECTRICAL_NOMINAL_VOLTAGE_INVALID",
             "Рабочее напряжение должно быть положительным",
         )
-    if installed_cable_length_m <= 0 or power_per_meter_w <= 0:
-        raise ElectricalFormulaError(
-            "ELECTRICAL_SECTION_PLAN_INVALID", "Длина и мощность кабеля должны быть положительными"
-        )
-    row = lookup_section_row(
-        mark=mark,
-        cold_start_temp_c=cold_start_temp_c,
-        catalog_rows=catalog_rows,
-    )
-    if row is None:
-        raise ElectricalFormulaError(
-            "ELECTRICAL_SECTION_CATALOG_ROW_NOT_FOUND",
-            "Не найдена строка каталога секционирования для модели и температуры",
-            details={"mark": mark, "cold_start_temperature_c": cold_start_temp_c},
-        )
-    if row.i_st_ud_a_per_m <= 0 or row.l_max_m <= 0:
-        raise ElectricalFormulaError(
-            "ELECTRICAL_SECTION_PLAN_INVALID", "Параметры строки секционирования неположительны"
-        )
-    specific_start = decimal_value(row.i_st_ud_a_per_m)
-    if max_start_current_per_section_a is None:
-        current_limit = decimal_value(row.l_max_m) * specific_start
-        current_limit_source = "section_catalog_derived"
+    if catalog_rows is None:
+        all_rows = _parse_rows() if section_catalog_registered() else []
     else:
-        current_limit = decimal_value(max_start_current_per_section_a)
-        current_limit_source = max_start_current_source or "manual_input"
-    if current_limit <= 0:
-        raise ElectricalFormulaError(
-            "SECTION_CURRENT_LIMIT_REQUIRED",
-            "Допустимый стартовый ток секции должен быть положительным",
+        all_rows = _parse_catalog_rows(list(catalog_rows))
+    try:
+        plan = _core_compute_section_plan(
+            mark=mark,
+            installed_cable_length_m=decimal_value(installed_cable_length_m),
+            power_per_meter_w=decimal_value(power_per_meter_w),
+            voltage_v=decimal_value(voltage_v),
+            cold_start_temperature=decimal_value(cold_start_temp_c),
+            catalog_rows=_core_rows(all_rows),
+            max_start_current_per_section_a=(
+                decimal_value(max_start_current_per_section_a)
+                if max_start_current_per_section_a is not None
+                else None
+            ),
+            max_start_current_source=max_start_current_source or "manual_input",
         )
-
-    l_tok = current_limit / specific_start
-    l_ogr_limit = min(decimal_value(row.l_max_m), l_tok)
-    l_ogr = round_down(l_ogr_limit)
-    if l_ogr <= 0:
-        raise ElectricalFormulaError(
-            "ELECTRICAL_SECTION_PLAN_INVALID", "Расчётный предел длины секции неположителен"
-        )
-
-    l_req = decimal_value(installed_cable_length_m)
-    n = int((l_req / l_ogr).to_integral_value(rounding=ROUND_CEILING))
-    l_sec = l_ogr
-    l_fact = l_sec * n
-    l_excess = l_fact - l_req
-    order_length = round_up(l_fact * Decimal("1.10"))
-    start_per_section = specific_start * l_sec
-    if start_per_section > current_limit:
-        raise ElectricalFormulaError(
-            "ELECTRICAL_SECTION_PLAN_INVALID", "Стартовый ток секции превышает Iдоп"
-        )
-    start_total = start_per_section * n
-    power_per_section = decimal_value(power_per_meter_w) * l_sec
-    applied_voltage = decimal_value(voltage_v)
-    working_per_section = power_per_section / applied_voltage
-    working_total = working_per_section * n
+    except TTFormulaDomainError as error:
+        raise_electrical_formula_domain_error(error)
+        raise AssertionError("core section-plan error mapping must raise") from error
     meta = dict(catalog_metadata) if catalog_metadata is not None else section_catalog_meta()
-
     return SectionPlan(
-        section_count=n,
-        section_length_m=float(l_sec),
-        l_max_m=row.l_max_m,
-        l_tok_m=float(round_result(l_tok)),
-        l_ogr_m=float(l_ogr),
-        l_required_m=float(round_result(l_req)),
-        l_fact_m=float(round_result(l_fact)),
-        i_dop_a=float(round_result(current_limit)),
-        i_dop_source=current_limit_source,
-        i_st_ud_a_per_m=row.i_st_ud_a_per_m,
-        start_current_a=float(round_result(start_total)),
-        working_current_a=float(round_result(working_total)),
-        start_current_per_section_a=float(round_result(start_per_section)),
-        working_current_per_section_a=float(round_result(working_per_section)),
-        power_per_section_w=float(round_result(power_per_section)),
-        total_power_w=float(round_result(power_per_section * n)),
-        l_excess_m=float(round_result(l_excess)),
-        order_cable_length_m=float(order_length),
+        section_count=plan.section_count,
+        section_length_m=float(plan.section_length_m),
+        l_max_m=float(plan.l_max_m),
+        l_tok_m=float(plan.l_tok_m),
+        l_ogr_m=float(plan.l_ogr_m),
+        l_required_m=float(plan.l_required_m),
+        l_fact_m=float(plan.l_fact_m),
+        i_dop_a=float(plan.i_dop_a),
+        i_dop_source=plan.i_dop_source,
+        i_st_ud_a_per_m=float(plan.i_st_ud_a_per_m),
+        start_current_a=float(plan.start_current_a),
+        working_current_a=float(plan.working_current_a),
+        start_current_per_section_a=float(plan.start_current_per_section_a),
+        working_current_per_section_a=float(plan.working_current_per_section_a),
+        power_per_section_w=float(plan.power_per_section_w),
+        total_power_w=float(plan.total_power_w),
+        l_excess_m=float(plan.l_excess_m),
+        order_cable_length_m=float(plan.order_cable_length_m),
         catalog_source=str(meta.get("source") or ""),
         catalog_version=str(meta.get("version") or ""),
-        voltage_v=float(applied_voltage),
-        cold_start_temp_c=row.cold_start_temp_c,
+        voltage_v=float(plan.voltage_v),
+        cold_start_temp_c=float(plan.cold_start_temperature),
     )
 
 

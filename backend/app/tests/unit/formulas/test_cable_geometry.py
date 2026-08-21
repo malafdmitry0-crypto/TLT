@@ -5,10 +5,13 @@
   - rectangular: perimeter = 2 × (L + B)
 """
 
-import math
+import inspect
+from decimal import Decimal
 
+import heatcalc_electrical_core as core
 import pytest
 
+from app.formulas.electrical import cable_geometry
 from app.formulas.electrical.cable_geometry import compute_tank_cable_length
 
 
@@ -21,7 +24,7 @@ class TestCylinderPerimeter:
             heating_height=3.0,
             laying_step=0.1,
         )
-        assert n == pytest.approx(math.pi * 2.0 / 2.0 * (3.0 / 0.1), rel=1e-6)
+        assert n == pytest.approx(float(Decimal("94.247779607693")), rel=1e-6)
 
     def test_doubling_height_doubles_length(self):
         n1 = compute_tank_cable_length(
@@ -198,3 +201,49 @@ class TestHeightValidation:
                 heating_height=0.0,
                 laying_step=0.1,
             )
+
+
+def test_adapter_delegates_once_to_public_core_geometry(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[dict[str, object]] = []
+    root_geometry = core.compute_tank_cable_length
+
+    def spy(**kwargs: object) -> Decimal:
+        calls.append(kwargs)
+        return root_geometry(**kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(cable_geometry, "_core_compute_tank_cable_length", spy)
+
+    result = cable_geometry.compute_tank_cable_length(
+        shape="rectangular",
+        length=Decimal("4"),
+        width=Decimal("3"),
+        heating_height=Decimal("2"),
+        laying_step=Decimal("0.1"),
+    )
+
+    assert result == float(
+        root_geometry(
+            shape="rectangular",
+            length=Decimal("4"),
+            width=Decimal("3"),
+            heating_height=Decimal("2"),
+            laying_step=Decimal("0.1"),
+        )
+    )
+    assert calls == [
+        {
+            "shape": "rectangular",
+            "diameter": None,
+            "length": Decimal("4"),
+            "width": Decimal("3"),
+            "heating_height": Decimal("2"),
+            "laying_step": Decimal("0.1"),
+        }
+    ]
+
+
+def test_adapter_keeps_no_local_geometry_math() -> None:
+    source = inspect.getsource(cable_geometry)
+
+    assert "import math" not in source
+    assert "math." not in source

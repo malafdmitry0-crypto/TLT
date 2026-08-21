@@ -115,13 +115,14 @@ async def test_second_calculation_resolves_persisted_assignment_voltage_without_
         data={"_tt_explicit_overrides": {"selection_policy": "technical_minimum"}},
     )
 
-    await service._prepare_self_regulating_tt_request(
+    prepared = await service._prepare_self_regulating_tt_request(
         request,
         obj,
         electrical_variant_id=variant_id,
     )
-    _mark, result = service._calculate_electrical_result(request)
+    _mark, result = service._calculate_electrical_result(request, prepared)
 
+    assert "_tt_pipeline_result" not in request.data
     assert result["resolved_inputs"]["nominal_voltage_v"] == "380"
     assert result["input_sources"]["nominal_voltage_v"] == "assignment_override"
     assert result["voltage"] == 380
@@ -138,12 +139,12 @@ async def test_null_project_idop_uses_catalog_limit_without_blocking_calculation
         data={"_tt_explicit_overrides": {"selection_policy": "technical_minimum"}},
     )
 
-    await service._prepare_self_regulating_tt_request(
+    prepared = await service._prepare_self_regulating_tt_request(
         request,
         obj,
         electrical_variant_id=variant_id,
     )
-    _mark, result = service._calculate_electrical_result(request)
+    _mark, result = service._calculate_electrical_result(request, prepared)
 
     assert result["section_plan"]["max_start_current_a"] == 28.997
     assert result["section_plan"]["max_start_current_source"] == "section_catalog_derived"
@@ -161,12 +162,12 @@ async def test_snapshot_uses_exact_custom_database_row_selected_by_pipeline() ->
         data={"_tt_explicit_overrides": {"selection_policy": "technical_minimum"}},
     )
 
-    await service._prepare_self_regulating_tt_request(
+    prepared = await service._prepare_self_regulating_tt_request(
         request,
         obj,
         electrical_variant_id=variant_id,
     )
-    cable_mark, result = service._calculate_electrical_result(request)
+    cable_mark, result = service._calculate_electrical_result(request, prepared)
     snapshot = service._build_cable_snapshot_for_result(
         request=request,
         cable_mark=cable_mark,
@@ -191,12 +192,12 @@ async def test_snapshot_uses_builtin_row_when_database_catalog_is_absent() -> No
         data={"_tt_explicit_overrides": {"selection_policy": "technical_minimum"}},
     )
 
-    await service._prepare_self_regulating_tt_request(
+    prepared = await service._prepare_self_regulating_tt_request(
         request,
         obj,
         electrical_variant_id=variant_id,
     )
-    cable_mark, result = service._calculate_electrical_result(request)
+    cable_mark, result = service._calculate_electrical_result(request, prepared)
     snapshot = service._build_cable_snapshot_for_result(
         request=request,
         cable_mark=cable_mark,
@@ -218,12 +219,12 @@ async def test_snapshot_status_uses_current_resolved_catalog_identity() -> None:
         cable_type="self_regulating_tt",
         data={"_tt_explicit_overrides": {"selection_policy": "technical_minimum"}},
     )
-    await service._prepare_self_regulating_tt_request(
+    prepared = await service._prepare_self_regulating_tt_request(
         request,
         obj,
         electrical_variant_id=variant_id,
     )
-    cable_mark, result = service._calculate_electrical_result(request)
+    cable_mark, result = service._calculate_electrical_result(request, prepared)
     snapshot = service._build_cable_snapshot_for_result(
         request=request,
         cable_mark=cable_mark,
@@ -304,12 +305,12 @@ async def test_explicit_voltage_is_reflected_in_effective_assignment_provenance(
         },
     )
 
-    await service._prepare_self_regulating_tt_request(
+    prepared = await service._prepare_self_regulating_tt_request(
         request,
         obj,
         electrical_variant_id=variant_id,
     )
-    _mark, result = service._calculate_electrical_result(request)
+    _mark, result = service._calculate_electrical_result(request, prepared)
 
     assert result["input_sources"]["nominal_voltage_v"] == "explicit_request"
     assert result["provenance"]["assignment_version"] == 6
@@ -377,12 +378,12 @@ async def test_tank_uses_same_selector_after_geometry_and_forces_direct_layout()
         },
     )
 
-    await service._prepare_self_regulating_tt_request(
+    prepared = await service._prepare_self_regulating_tt_request(
         request,
         obj,
         electrical_variant_id=variant_id,
     )
-    _mark, result = service._calculate_electrical_result(request)
+    _mark, result = service._calculate_electrical_result(request, prepared)
 
     assert result["input_sources"]["ambient_temperature_c"] == "object_heat"
     assert result["resolved_inputs"]["ambient_temperature_c"] == "-30.0"

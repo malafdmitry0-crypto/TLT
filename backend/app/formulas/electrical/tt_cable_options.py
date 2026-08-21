@@ -3,16 +3,15 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from decimal import Decimal
 from typing import Any
 
-from app.formulas.electrical.self_regulating import build_tt_catalog_candidates
+from heatcalc_electrical_core import TTFormulaReport, list_tt_cable_options
+
+from app.formulas.electrical.catalog_preparation import prepare_tt_catalog_bundle
+from app.formulas.electrical.outcome_errors import raise_electrical_formula_report
 
 REASON_CATALOG_PROVISIONAL = "ELECTRICAL_POWER_CATALOG_PROVISIONAL"
-REASON_TEMPERATURE_LIMIT = "ELECTRICAL_CABLE_TEMPERATURE_LIMIT_EXCEEDED"
-
-
-def _temperature_group(series: str) -> str:
-    return "high" if series in {"ТТВ", "ТТХ"} else "low"
 
 
 def is_power_catalog_provisional(catalog_meta: Mapping[str, Any] | None) -> bool:
@@ -43,7 +42,7 @@ def build_tt_cable_options(
     catalog_meta: Mapping[str, Any] | None = None,
     strict_provisional: bool = False,
 ) -> list[dict[str, Any]]:
-    """Build exact full-mark options using the calculation selector's catalog join."""
+    """Build exact full-mark options through the standalone engineering core."""
     provisional = is_power_catalog_provisional(catalog_meta)
     metadata = catalog_meta or {}
     catalog_block = {
@@ -54,37 +53,40 @@ def build_tt_cable_options(
         "authority": metadata.get("authority"),
         "production_approved": not provisional,
     }
-    candidates = build_tt_catalog_candidates(
-        catalog_rows,
-        section_catalog_rows,
-        bom_catalog_rows,
+    bundle = prepare_tt_catalog_bundle(
+        power_rows=catalog_rows,
+        section_rows=section_catalog_rows,
+        bom_rows=bom_catalog_rows,
     )
+
+    outcome = list_tt_cable_options(
+        bundle,
+        product_temperature=Decimal(str(product_temperature_c)),
+        ambient_temperature=Decimal(str(ambient_temperature_c)),
+    )
+    if isinstance(outcome, TTFormulaReport):
+        raise_electrical_formula_report(outcome)
+        raise AssertionError("invalid options report must raise an application error")
+
+    provisional_blocked = provisional and strict_provisional
     options: list[dict[str, Any]] = []
-    for candidate in candidates:
-        temperature_eligible = ambient_temperature_c >= float(
-            candidate.min_ambient_temperature
-        ) and product_temperature_c <= float(candidate.max_product_temperature)
-        provisional_blocked = provisional and strict_provisional
+    for option in outcome:
         options.append(
             {
-                "model": candidate.full_mark,
-                "series": candidate.series,
-                "base_model": candidate.base_model,
-                "full_mark_preview": candidate.full_mark,
-                "eligible": temperature_eligible and not provisional_blocked,
+                "model": option.model,
+                "series": option.series,
+                "base_model": option.base_model,
+                "full_mark_preview": option.full_mark_preview,
+                "eligible": option.eligible and not provisional_blocked,
                 "unavailable_reason": (
-                    REASON_CATALOG_PROVISIONAL
-                    if provisional_blocked
-                    else None
-                    if temperature_eligible
-                    else REASON_TEMPERATURE_LIMIT
+                    REASON_CATALOG_PROVISIONAL if provisional_blocked else option.unavailable_reason
                 ),
-                "temperature_group": _temperature_group(candidate.series),
-                "nominal_power": float(candidate.passport_power),
-                "passport_power_w_per_m": float(candidate.passport_power),
-                "min_ambient_temperature_c": float(candidate.min_ambient_temperature),
-                "max_product_temperature_c": float(candidate.max_product_temperature),
-                "nomenclature_code": candidate.bom_row["nomenclature_code"],
+                "temperature_group": option.temperature_group,
+                "nominal_power": float(option.nominal_power),
+                "passport_power_w_per_m": float(option.passport_power_per_meter),
+                "min_ambient_temperature_c": float(option.min_ambient_temperature),
+                "max_product_temperature_c": float(option.max_product_temperature),
+                "nomenclature_code": option.nomenclature_code,
                 "catalog": catalog_block,
             }
         )

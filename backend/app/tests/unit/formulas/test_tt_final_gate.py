@@ -7,6 +7,7 @@ from dataclasses import replace
 import pytest
 
 from app.electrical_domain import ElectricalFormulaError
+from app.formulas.electrical import tt_final_gate as final_gate_adapter
 from app.formulas.electrical.sections import SectionPlan
 from app.formulas.electrical.tt_final_gate import assert_electrical_tt_ready
 
@@ -222,3 +223,29 @@ def test_ready_gate_passes_boundary_equal_power_and_length():
         sections=_sections(count=3, length=67.0),
         catalogs=_catalogs(),
     )
+
+
+def test_final_gate_adapter_owns_no_alternate_physical_validation(monkeypatch):
+    calls = 0
+    original = final_gate_adapter.validate_final_physical_gate
+
+    def spy(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(final_gate_adapter, "validate_final_physical_gate", spy)
+
+    assert_electrical_tt_ready(
+        cable_mark="30ТТВ2-СР",
+        series="ТТВ",
+        threads=1,
+        voltage_v=230,
+        required_power_per_meter_w=22.0,
+        installed_power_per_meter_w=30.59,
+        plan=_plan(),
+        sections=_sections(),
+        catalogs=_catalogs(),
+    )
+
+    assert calls == 1

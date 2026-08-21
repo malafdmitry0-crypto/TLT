@@ -15,6 +15,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import CurrentPrincipal, require_admin
 from app.core.uploads import read_upload_with_limit
+from app.electrical_domain import ElectricalFormulaError
 from app.electrical_input_validation import (
     PROCESS_TEMPERATURE_REQUIRED_FORMULA_TYPES,
     ProcessTemperatureInputError,
@@ -748,6 +749,8 @@ async def formula_check(
         raise HTTPException(status_code=422, detail=msgs) from exc
     except ProcessTemperatureInputError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except ElectricalFormulaError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     except HTTPException:
         raise
     except Exception as exc:

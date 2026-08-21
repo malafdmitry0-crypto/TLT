@@ -1,0 +1,1 @@
+"""Standalone electrical-core tests."""

@@ -2,10 +2,13 @@
 
 from copy import deepcopy
 from decimal import Decimal
+from typing import Any
 
 import pytest
 
+import app.services.electrical_tt_pipeline as electrical_tt_pipeline
 from app.electrical_domain import ElectricalFormulaError
+from app.formulas.electrical.tt_cable_options import build_tt_cable_options
 from app.formulas.electrical.tt_contract import ELECTRICAL_TT_FORMULA_VERSION
 from app.schemas.electrical_inputs import CanonicalElectricalInputs, ResolvedElectricalInputs
 from app.services.electrical_catalog_service import ElectricalCatalogService
@@ -16,7 +19,7 @@ from app.services.electrical_tt_pipeline import (
 )
 
 
-def _catalogs() -> dict[str, dict]:
+def _catalogs() -> dict[str, dict[str, Any]]:
     catalogs = {
         kind: deepcopy(ElectricalCatalogService._static_calculation_fallback(kind))
         for kind in ("power", "section", "bom")
@@ -65,8 +68,8 @@ def _resolved(**updates: object) -> ResolvedElectricalInputs:
 def _calculate(
     resolved: ResolvedElectricalInputs,
     *,
-    calculation_catalogs: dict[str, dict] | None = None,
-) -> dict:
+    calculation_catalogs: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     return calculate_electrical_tt(
         resolved,
         layout=PipeElectricalLayout(),
@@ -89,6 +92,22 @@ def test_pipeline_uses_passport_power_and_user_voltage_downstream() -> None:
     assert {section["voltage_v"] for section in result["sections"]} == {380}
 
 
+def test_pipeline_calls_the_package_formula_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[object] = []
+    package_run = electrical_tt_pipeline.run_tt_formula
+
+    def spy(preparation: object) -> object:
+        calls.append(preparation)
+        return package_run(preparation)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(electrical_tt_pipeline, "run_tt_formula", spy)
+
+    result = _calculate(_resolved(), calculation_catalogs=_catalogs())
+
+    assert result["status"] == "ready"
+    assert len(calls) == 1
+
+
 def test_pipeline_selection_is_stable_across_voltage() -> None:
     baseline = _calculate(
         _resolved(
@@ -100,9 +119,7 @@ def test_pipeline_selection_is_stable_across_voltage() -> None:
 
     assert baseline["cable"]["base_model"] == changed["cable"]["base_model"]
     assert baseline["layout"]["threads"] == changed["layout"]["threads"]
-    assert baseline["cable"]["passport_power_w_per_m"] == changed["cable"][
-        "passport_power_w_per_m"
-    ]
+    assert baseline["cable"]["passport_power_w_per_m"] == changed["cable"]["passport_power_w_per_m"]
     for removed in ("steam_temperature_c", "maintain_temperature_c", "aggressive_product"):
         assert removed not in changed["resolved_inputs"]
 
@@ -147,9 +164,7 @@ def test_pipeline_derives_idop_from_selected_nearest_colder_section_row() -> Non
     assert result["section_plan"]["l_tok_m"] == 112
     assert result["section_plan"]["start_current_per_section_a"] == 29.008
     assert result["resolved_inputs"]["max_section_start_current_a"] == "29.008"
-    assert result["input_sources"]["max_section_start_current_a"] == (
-        "section_catalog_derived"
-    )
+    assert result["input_sources"]["max_section_start_current_a"] == ("section_catalog_derived")
     assert result["provenance"]["input_sources"]["max_section_start_current_a"] == (
         "section_catalog_derived"
     )
@@ -157,6 +172,39 @@ def test_pipeline_derives_idop_from_selected_nearest_colder_section_row() -> Non
         "value_a": 29.008,
         "source": "section_catalog_derived",
     }
+
+
+def test_canonical_section_current_alias_matches_legacy_options_and_feeds_pipeline() -> None:
+    legacy_catalogs = _catalogs()
+    canonical_catalogs = deepcopy(legacy_catalogs)
+    canonical_rows = canonical_catalogs["section"]["payload"]["rows"]
+    for row in canonical_rows:
+        row["specific_start_current_a_per_m"] = row.pop("i_st_ud_a_per_m")
+
+    power_rows = legacy_catalogs["power"]["payload"]["rows"]
+    legacy_section_rows = legacy_catalogs["section"]["payload"]["rows"]
+    bom_rows = legacy_catalogs["bom"]["payload"]["entries"]
+    legacy_options = build_tt_cable_options(
+        power_rows,
+        product_temperature_c=65,
+        ambient_temperature_c=-20,
+        section_catalog_rows=legacy_section_rows,
+        bom_catalog_rows=bom_rows,
+        catalog_meta=legacy_catalogs["power"],
+    )
+    canonical_options = build_tt_cable_options(
+        power_rows,
+        product_temperature_c=65,
+        ambient_temperature_c=-20,
+        section_catalog_rows=canonical_rows,
+        bom_catalog_rows=bom_rows,
+        catalog_meta=canonical_catalogs["power"],
+    )
+
+    assert [(option["model"], option["eligible"]) for option in canonical_options] == [
+        (option["model"], option["eligible"]) for option in legacy_options
+    ]
+    assert _calculate(_resolved(), calculation_catalogs=canonical_catalogs)["status"] == "ready"
 
 
 def test_pipeline_keeps_non_null_project_idop_as_manual_authority() -> None:
@@ -179,13 +227,28 @@ def test_pipeline_keeps_non_null_project_idop_as_manual_authority() -> None:
     }
 
 
+def test_pipeline_fails_closed_when_catalog_snapshot_has_no_identity() -> None:
+    catalogs = _catalogs()
+    for key in ("version", "source_checksum", "payload_checksum"):
+        catalogs["section"].pop(key, None)
+
+    with pytest.raises(ElectricalFormulaError) as raised:
+        _calculate(_resolved(), calculation_catalogs=catalogs)
+
+    assert raised.value.code == "ELECTRICAL_FINAL_GATE_FAILED"
+    assert raised.value.message == "Каталог section без version/checksum"
+    assert raised.value.details == {
+        "check": "catalog_identity",
+        "left": "section",
+        "right": None,
+    }
+
+
 def test_pipeline_fails_closed_when_power_model_has_no_section_temperature_rows() -> None:
     catalogs = _catalogs()
     section_rows = catalogs["section"]["payload"]["rows"]
     catalogs["section"]["payload"]["rows"] = [
-        row
-        for row in section_rows
-        if (row.get("base_model") or row.get("mark")) != "10ТТН2"
+        row for row in section_rows if (row.get("base_model") or row.get("mark")) != "10ТТН2"
     ]
 
     with pytest.raises(ElectricalFormulaError) as raised:

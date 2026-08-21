@@ -40,6 +40,7 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
 pythonpath = [
     "packages/heat-loss-core/src",
+    "packages/electrical-core/src",
     "packages/specification-core/src",
 ]
 testpaths = ["app/tests"]
@@ -58,12 +59,15 @@ paths_to_mutate = [
 pytest_add_cli_args = [
     "--no-cov",
     "--ignore=app/tests/unit/formulas/test_heat_loss_core_import_boundary.py",
+    "--ignore=app/tests/unit/formulas/test_electrical_core_import_boundary.py",
+    "--ignore=app/tests/unit/formulas/test_electrical_core_package_imports.py",
     "--ignore=app/tests/unit/formulas/test_mutmut_score_gate.py",
 ]
 tests_dir = ["app/tests/unit/formulas"]
 also_copy = [
     "app",
     "packages/heat-loss-core/src",
+    "packages/electrical-core/src",
     "packages/specification-core/src",
 ]
 backup = false

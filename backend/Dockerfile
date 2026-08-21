@@ -31,6 +31,7 @@ RUN pip install --no-cache-dir --upgrade pip wheel
 WORKDIR /build
 COPY requirements.txt .
 COPY packages/heat-loss-core /build/packages/heat-loss-core
+COPY packages/electrical-core /build/packages/electrical-core
 COPY packages/specification-core /build/packages/specification-core
 # Собираем wheel-кэш — не оставляем gcc и build-essential в финальном образе.
 # BuildKit cache mount: pip-кэш переживает пересборки и параллелится между арками.
@@ -38,6 +39,8 @@ RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked,id=pip-${TARGETARC
     pip wheel --wheel-dir /build/wheels -r requirements.txt \
     && pip wheel --no-deps --no-build-isolation --wheel-dir /build/wheels \
         /build/packages/heat-loss-core \
+    && pip wheel --no-deps --no-build-isolation --wheel-dir /build/wheels \
+        /build/packages/electrical-core \
     && pip wheel --no-deps --no-build-isolation --wheel-dir /build/wheels \
         /build/packages/specification-core
 
@@ -92,6 +95,7 @@ COPY requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked,id=pip-runtime-${TARGETARCH} \
     pip install --no-index --find-links=/tmp/wheels -r requirements.txt \
     && pip install --no-index --find-links=/tmp/wheels heatcalc-heat-loss-core==0.2.0 \
+    && pip install --no-index --find-links=/tmp/wheels heatcalc-electrical-core==0.1.0 \
     && pip install --no-index --find-links=/tmp/wheels heatcalc-specification-core==0.1.0 \
     && rm -rf /tmp/wheels
 

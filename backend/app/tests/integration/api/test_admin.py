@@ -671,6 +671,28 @@ class TestFormulaCheck:
         assert data["selected_cable"]
         assert data["cable_length"] > 0
 
+    async def test_electrical_tt_formula_check_returns_structured_core_error(
+        self, client: AsyncClient, admin_token: str
+    ):
+        resp = await client.post(
+            "/api/v1/admin/formula-check",
+            json={
+                "formula_type": "electrical_tt",
+                "params": {
+                    "required_power_per_meter": 20.0,
+                    "pipe_length": 50.0,
+                    "process_temperature": 60.0,
+                    "ambient_temperature": -26.0,
+                    "supply_voltage": 230.0,
+                    "selection_policy": "unsupported",
+                },
+            },
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+
+        assert resp.status_code == 422
+        assert resp.json()["detail"]["code"] == "ELECTRICAL_SELECTION_POLICY_UNSUPPORTED"
+
     @pytest.mark.parametrize(
         ("formula_type", "params"),
         [

@@ -41,6 +41,40 @@ jobs:
           MUTMUT_SCOPE: core
         run: python scripts/mutmut_score_gate.py
 
+  electrical-core:
+    name: Electrical core package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install package test tools
+        run: python -m pip install 'setuptools>=68' pytest==9.0.3 ruff==0.6.9 mypy==1.11.2 mutmut==3.5.0
+      - name: Build wheel
+        working-directory: backend/packages/electrical-core
+        run: python -m pip wheel --no-deps --no-build-isolation --wheel-dir dist .
+      - name: Install wheel in an isolated environment and import public API
+        run: |
+          python -m venv /tmp/electrical-core-venv
+          /tmp/electrical-core-venv/bin/pip install --no-deps backend/packages/electrical-core/dist/*.whl
+          env -u PYTHONPATH /tmp/electrical-core-venv/bin/python -I -c 'import heatcalc_electrical_core as core; import heatcalc_electrical_core.api as api; expected = {"BomCatalogRow", "CableOption", "CatalogBundle", "ELECTRICAL_TT_FORMULA_FINGERPRINT", "ELECTRICAL_TT_FORMULA_VERSION", "EqualSection", "OptionsOutcome", "PipeLayout", "PowerCatalogRow", "SectionCatalogRow", "TTFormulaDomainError", "TTFormulaIssue", "TTFormulaOutcome", "TTFormulaReport", "TTFormulaResult", "TTPreparationInput", "TankLayout", "catalog_bundle_from_payload", "compute_tank_cable_length", "list_tt_cable_options", "run_tt_formula"}; assert set(core.__all__) == expected; assert core.__all__ == api.__all__; assert all(hasattr(core, name) for name in expected)'
+      - name: Package tests, lint, and types
+        working-directory: backend/packages/electrical-core
+        run: |
+          python -m pip install -e .
+          python -m pytest tests
+          ruff check src tests
+          mypy src tests
+      - name: Standalone electrical core mutation score
+        working-directory: backend/packages/electrical-core
+        run: mutmut run
+      - name: Enforce standalone electrical core mutation floor
+        working-directory: backend
+        env:
+          MUTMUT_SCOPE: electrical-core
+        run: python scripts/mutmut_score_gate.py
+
   specification-core:
     name: Specification core package
     runs-on: ubuntu-latest

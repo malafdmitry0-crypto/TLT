@@ -3,7 +3,7 @@ FROM python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    PYTHONPATH=/app:/app/packages/heat-loss-core/src:/app/packages/specification-core/src
+    PYTHONPATH=/app:/app/packages/heat-loss-core/src:/app/packages/electrical-core/src:/app/packages/specification-core/src
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \

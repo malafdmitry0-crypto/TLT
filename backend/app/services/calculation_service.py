@@ -180,6 +180,14 @@ class BatchProgress:
     object_id: UUID | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class PreparedElectricalTTCalculation:
+    """Prepared TT result kept separate from persisted request parameters."""
+
+    cable_mark: str
+    result: dict[str, Any]
+
+
 ProgressCallback = Callable[[BatchProgress], Awaitable[None] | None]
 CancelChecker = Callable[[], Awaitable[bool] | bool]
 
@@ -695,12 +703,12 @@ class CalculationService:
             "replacement_group": getattr(c, "replacement_group", None),
             "price_updated_at": (
                 price_updated_at.isoformat()
-                if (price_updated_at := c.price_updated_at) is not None
+                if (price_updated_at := getattr(c, "price_updated_at", None)) is not None
                 else None
             ),
             "stock_updated_at": (
                 stock_updated_at.isoformat()
-                if (stock_updated_at := c.stock_updated_at) is not None
+                if (stock_updated_at := getattr(c, "stock_updated_at", None)) is not None
                 else None
             ),
             "commercial_data_source": getattr(c, "commercial_data_source", None),
@@ -1177,12 +1185,15 @@ class CalculationService:
         )
         try:
             self._hydrate_electrical_request_from_object(request, obj)
-            await self._prepare_self_regulating_tt_request(
+            prepared_tt_calculation = await self._prepare_self_regulating_tt_request(
                 request,
                 obj,
                 electrical_variant_id=resolved_variant_id,
             )
-            cable_mark, result_dict = self._calculate_electrical_result(request)
+            cable_mark, result_dict = self._calculate_electrical_result(
+                request,
+                prepared_tt_calculation,
+            )
         except (ElectricalFormulaError, ElectricalInputResolutionError) as exc:
             if request.cable_type == "self_regulating_tt":
                 await self._upsert_failed_electrical(
@@ -1594,10 +1605,10 @@ class CalculationService:
         obj: ProjectObject,
         *,
         electrical_variant_id: UUID | None,
-    ) -> None:
+    ) -> PreparedElectricalTTCalculation | None:
         """Resolve canonical TT inputs once and run the shared pure pipeline."""
         if request.cable_type != "self_regulating_tt":
-            return
+            return None
         if not obj.is_valid or not obj.results or obj.results.get("stale"):
             raise ElectricalInputResolutionError(
                 "ELECTRICAL_HEAT_LOSS_REQUIRED",
@@ -1814,7 +1825,6 @@ class CalculationService:
             "safety_factor": float(values.safety_factor),
             "cold_start_temperature_c": float(values.cold_start_temperature_c),
             "max_section_start_current_a": applied_current_limit,
-            "_tt_pipeline_result": result_dict,
         }
         if isinstance(layout_contract, PipeElectricalLayout):
             request_data["winding_pitch"] = (
@@ -1824,6 +1834,10 @@ class CalculationService:
                 float(values.outer_diameter_mm) if values.outer_diameter_mm is not None else None
             )
         request.data = request_data
+        return PreparedElectricalTTCalculation(
+            cable_mark=str(result_dict["cable_mark"]),
+            result=result_dict,
+        )
 
     def _hydrate_electrical_request_from_object(
         self,
@@ -1841,7 +1855,9 @@ class CalculationService:
             raise CalculationError(str(exc)) from exc
 
     def _calculate_electrical_result(
-        self, request: ElectricalRequest
+        self,
+        request: ElectricalRequest,
+        prepared_tt_calculation: PreparedElectricalTTCalculation | None = None,
     ) -> tuple[str | None, dict[str, Any]]:
         cable_type = request.cable_type
         if cable_type in LEGACY_CABLE_TYPES:
@@ -1855,14 +1871,11 @@ class CalculationService:
                 details={"cable_type": cable_type},
             )
         if cable_type == "self_regulating_tt":
-            prepared_result = request.data.pop("_tt_pipeline_result", None)
-            if not isinstance(prepared_result, dict):
+            if prepared_tt_calculation is None:
                 raise CalculationError(
                     "TT calculation must be prepared by the canonical input pipeline"
                 )
-            result_dict = prepared_result
-            cable_mark = str(result_dict["cable_mark"])
-            return cable_mark, result_dict
+            return prepared_tt_calculation.cable_mark, prepared_tt_calculation.result
         raise CalculationError(f"Для типа кабеля «{cable_type}» расчётная формула не реализована")
 
     def _build_cable_snapshot_for_result(
@@ -3187,12 +3200,15 @@ class CalculationService:
                 data=request_data,
             )
             self._hydrate_electrical_request_from_object(request, obj)
-            await self._prepare_self_regulating_tt_request(
+            prepared_tt_calculation = await self._prepare_self_regulating_tt_request(
                 request,
                 obj,
                 electrical_variant_id=electrical_variant_id,
             )
-            selected_mark, result_dict = self._calculate_electrical_result(request)
+            selected_mark, result_dict = self._calculate_electrical_result(
+                request,
+                prepared_tt_calculation,
+            )
             cable_snapshot = self._build_cable_snapshot_for_result(
                 request=request,
                 cable_mark=selected_mark,
@@ -3609,11 +3625,13 @@ class CalculationService:
                     code="ELECTRICAL_ASSIGNMENT_VERSION_CONFLICT",
                     message="Assignment был изменён другим запросом; обновите данные",
                     details={
-                        "conflicts": [{
-                            "object_id": str(object_id),
-                            "expected_version": data.expected_assignment_version,
-                            "current_version": assignment.version,
-                        }]
+                        "conflicts": [
+                            {
+                                "object_id": str(object_id),
+                                "expected_version": data.expected_assignment_version,
+                                "current_version": assignment.version,
+                            }
+                        ]
                     },
                 )
             if assignment.system_type != "self_regulating":
@@ -4032,12 +4050,15 @@ class CalculationService:
                         variant_number=variant_number,
                         data=request_data,
                     )
-                    await self._prepare_self_regulating_tt_request(
+                    prepared_tt_calculation = await self._prepare_self_regulating_tt_request(
                         request,
                         obj,
                         electrical_variant_id=electrical_variant_id,
                     )
-                    cable_mark, result_dict = self._calculate_electrical_result(request)
+                    cable_mark, result_dict = self._calculate_electrical_result(
+                        request,
+                        prepared_tt_calculation,
+                    )
                     cable_snapshot = self._build_cable_snapshot_for_result(
                         request=request,
                         cable_mark=cable_mark,
