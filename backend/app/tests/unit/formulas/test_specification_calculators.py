@@ -153,7 +153,7 @@ class TestGoldenAluminiumTape:
 
 def test_all_required_golden_ids_present() -> None:
     present = set(_cases_by_id())
-    assert GOLDEN_CASE_IDS <= present
+    assert present >= GOLDEN_CASE_IDS
 
 
 # ---------------------------------------------------------------------------
@@ -224,7 +224,7 @@ class TestFiberglassFormula:
         d_mm = Decimal("108")
         length = Decimal("100")
         pi = Decimal("3.141592653589793238462643383279502884197")
-        raw = ((pi * d_mm * Decimal("2.5") / Decimal("1000")) * (length / Decimal("0.3")))
+        raw = (pi * d_mm * Decimal("2.5") / Decimal("1000")) * (length / Decimal("0.3"))
         expected_once = raw * FIBERGLASS_RESERVE
         result = calculate_fiberglass_object_length(d_mm, length)
         assert result.required_length_m == expected_once
@@ -239,9 +239,7 @@ class TestFiberglassFormula:
         result = calculate_fiberglass_tape(objects, reel_length_m="30")
         manual_total = sum(result.object_lengths_m, Decimal("0"))
         assert result.total_required_length_m == manual_total
-        expected_qty = int(
-            (manual_total / Decimal("30")).to_integral_value(rounding=ROUND_CEILING)
-        )
+        expected_qty = int((manual_total / Decimal("30")).to_integral_value(rounding=ROUND_CEILING))
         assert result.quantity == expected_qty
         assert result.quantity == ceil_div(manual_total, Decimal("30"))
 
@@ -365,10 +363,7 @@ class TestPureLayerImports:
         import ast
 
         calc_dir = (
-            Path(__file__).resolve().parents[3]
-            / "formulas"
-            / "specification"
-            / "calculators"
+            Path(__file__).resolve().parents[3] / "formulas" / "specification" / "calculators"
         )
         assert calc_dir.is_dir()
 

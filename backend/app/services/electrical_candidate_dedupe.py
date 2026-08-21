@@ -64,6 +64,11 @@ def _normalize_number(value: Any, *, decimals: int) -> float | int | None:
     return round(number, decimals)
 
 
+def _normalize_int(value: Any) -> int | None:
+    normalized = _normalize_number(value, decimals=0)
+    return normalized if isinstance(normalized, int) else None
+
+
 def normalize_object_type(object_type: Any) -> str:
     value = getattr(object_type, "value", object_type)
     normalized = str(value or "").strip().lower()
@@ -134,13 +139,13 @@ def normalize_variant_laying_step(
 def normalize_threads(results: dict[str, Any] | None, params: dict[str, Any] | None) -> int | None:
     applied = _resolve(results, params, "applied_number_of_threads")
     if applied is not None:
-        return _normalize_number(applied, decimals=0)
+        return _normalize_int(applied)
     num = _resolve(results, params, "num_circuits")
     if num is not None:
-        return _normalize_number(num, decimals=0)
+        return _normalize_int(num)
     requested = _resolve(results, params, "number_of_threads")
     if requested is not None:
-        return _normalize_number(requested, decimals=0)
+        return _normalize_int(requested)
     return None
 
 
@@ -148,8 +153,8 @@ def normalize_resistive_scheme(
     results: dict[str, Any] | None,
     params: dict[str, Any] | None,
 ) -> dict[str, int | None]:
-    scheme_count = _normalize_number(_resolve(results, params, "scheme_count"), decimals=0)
-    scheme_threads = _normalize_number(_resolve(results, params, "scheme_threads"), decimals=0)
+    scheme_count = _normalize_int(_resolve(results, params, "scheme_count"))
+    scheme_threads = _normalize_int(_resolve(results, params, "scheme_threads"))
     threads = normalize_threads(results, params)
 
     if scheme_count is None and scheme_threads is None and threads is not None:
@@ -320,9 +325,7 @@ def build_identity_payload(
     )
     # Error with a resolved mark is still an engineering variant attempt (manual cable check).
     use_diagnostic = (
-        cable_type in UNSUPPORTED_CABLE_TYPES
-        or mark is None
-        or status == "not_applicable"
+        cable_type in UNSUPPORTED_CABLE_TYPES or mark is None or status == "not_applicable"
     )
     if use_diagnostic:
         controls: dict[str, Any] = {}
@@ -423,7 +426,7 @@ def merge_engineer_comments(*comments: str | None) -> str | None:
 def pick_survivor_index(rows: list[Any]) -> int:
     """Pick row index to keep when collapsing duplicates (higher priority first)."""
 
-    def sort_key(index: int) -> tuple:
+    def sort_key(index: int) -> tuple[int, int, float, float]:
         row = rows[index]
         updated = getattr(row, "updated_at", None)
         created = getattr(row, "created_at", None)
