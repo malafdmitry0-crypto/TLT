@@ -88,7 +88,6 @@ async def test_cable_options_accepts_electrical_variant_id_query(
     headers = _headers(guest_session)
     project = await _guest_project(client, guest_session)
     pipe = await _add_ready_pipe(client, project["id"], headers)
-
     init = await client.post(
         f"/api/v1/projects/{project['id']}/electrical-variants/initialize",
         headers=headers,
@@ -113,12 +112,21 @@ async def test_electrical_query_filter_stale_status(
     headers = _headers(guest_session)
     project = await _guest_project(client, guest_session)
     pipe = await _add_ready_pipe(client, project["id"], headers)
+    initialized = await client.post(
+        f"/api/v1/projects/{project['id']}/electrical-variants/initialize",
+        headers=headers,
+    )
+    assert initialized.status_code == 200, initialized.text
+    variant_id = initialized.json()["variant"]["id"]
 
     # Ensure capabilities expose stale option.
     caps = await client.get(
         "/api/v1/calc/electrical/query-capabilities",
         headers=headers,
-        params={"project_id": project["id"], "variant_number": 1},
+        params={
+            "project_id": project["id"],
+            "electrical_variant_id": variant_id,
+        },
     )
     assert caps.status_code == 200, caps.text
     fields = {item["key"]: item for item in caps.json()["fields"]}
@@ -131,7 +139,7 @@ async def test_electrical_query_filter_stale_status(
         headers=headers,
         json={
             "project_id": project["id"],
-            "variant_number": 1,
+            "electrical_variant_id": variant_id,
             "filters": [
                 {"key": "electrical_status", "op": "in", "values": ["stale"]},
             ],
@@ -149,7 +157,7 @@ async def test_electrical_query_filter_stale_status(
         headers=headers,
         json={
             "project_id": project["id"],
-            "variant_number": 1,
+            "electrical_variant_id": variant_id,
             "filters": [
                 {"key": "electrical_status", "op": "in", "values": ["not_calculated"]},
             ],
