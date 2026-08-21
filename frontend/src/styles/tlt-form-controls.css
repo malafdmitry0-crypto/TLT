@@ -1,0 +1,204 @@
+/* Tlt / unit form controls — moved from styles.css (C21) */
+
+.tlt-number-field,
+.tlt-text-field,
+.tlt-select {
+  display: inline-flex;
+  align-items: stretch;
+  min-width: 0;
+  max-width: 100%;
+  vertical-align: top;
+}
+.tlt-number-field__input,
+.tlt-text-field__input,
+.tlt-select__trigger {
+  box-sizing: border-box;
+  height: var(--tlt-field-control-height);
+  min-height: var(--tlt-field-control-height);
+  min-width: 0;
+  padding: 0 var(--tlt-field-control-padding-inline, 3px);
+  color: var(--color-text);
+  font-size: var(--tlt-field-control-font-size);
+  line-height: calc(var(--tlt-field-control-height) - 2px);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--tlt-field-radius);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+.tlt-number-field__input {
+  font-size: var(--tlt-field-number-font-size, 10px);
+}
+.tlt-number-field__input:hover,
+.tlt-text-field__input:hover,
+.tlt-select__trigger:hover {
+  border-color: var(--color-swatch-4096ff);
+}
+.tlt-number-field__input:focus,
+.tlt-text-field__input:focus,
+.tlt-select__trigger:focus,
+.tlt-select__trigger.ant-select-focused {
+  border-color: var(--color-swatch-1f4e69);
+  box-shadow: 0 0 0 2px var(--color-alpha-9873d7bf);
+}
+.tlt-number-field[data-disabled] .tlt-number-field__input,
+.tlt-text-field[data-disabled] .tlt-text-field__input,
+.tlt-select-shell[data-disabled] .tlt-select__trigger,
+.tlt-number-field__input:disabled,
+.tlt-text-field__input:disabled,
+.tlt-select__trigger:disabled {
+  color: var(--color-alpha-dde99046);
+  background: var(--color-page-canvas);
+  cursor: not-allowed;
+}
+/* Required chrome. Post-Ant the trigger IS the .ant-select root and the shell
+   carries data-required; painting the trigger keeps the bar flush with its
+   border (the inner .ant-select-selector is a transparent filler, see below). */
+.tlt-number-field[data-required] .tlt-number-field__input,
+.tlt-text-field[data-required] .tlt-text-field__input,
+.tlt-select-shell[data-required] .tlt-select__trigger {
+  box-shadow: inset 2px 0 0 var(--color-swatch-d48806);
+  background-color: var(--color-swatch-fffdf6);
+}
+.tlt-number-field[data-invalid] .tlt-number-field__input,
+.tlt-text-field[data-invalid] .tlt-text-field__input,
+.tlt-select-shell[data-invalid] .tlt-select__trigger {
+  border-color: var(--color-danger);
+  background-color: var(--color-danger-bg);
+}
+/* Space.Compact replaces deprecated InputNumber addonAfter */
+.tlt-number-field__compact { display: inline-flex; align-items: stretch; width: 100%; max-width: 100%; min-width: 0; }
+.tlt-number-field--with-unit .tlt-number-field__input { border-end-end-radius: 0; border-start-end-radius: 0; flex: 1 1 auto; min-width: 0; }
+.tlt-number-field__unit {
+  display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; min-width: 0; flex: 0 0 auto;
+  height: var(--tlt-field-control-height); padding: 0 var(--tlt-field-control-padding-inline, 3px);
+  color: var(--color-alpha-dde9aa2f); font-size: var(--tlt-field-unit-font-size, 9px);
+  line-height: calc(var(--tlt-field-control-height) - 2px); white-space: nowrap;
+  background: var(--color-alpha-dde98761); border: 1px solid var(--color-border); border-inline-start: 0;
+  border-radius: 0 var(--tlt-field-radius) var(--tlt-field-radius) 0;
+}
+.tlt-number-field[data-disabled] .tlt-number-field__unit { color: var(--color-swatch-5f6b76); background: var(--color-alpha-dde987a3); }
+.tlt-select {
+  width: 100%;
+  flex: 1;
+}
+.tlt-select__trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  cursor: pointer;
+  text-align: start;
+}
+/* Ant renders its own bordered .ant-select-selector INSIDE the trigger; all
+   chrome (border, background, required bar) lives on the trigger, so the
+   selector must stay a transparent full-height filler — otherwise the paint
+   lands inset by the trigger's border+padding and overflows its height.
+   (0,5,0) outranks inline-object-form (0,4,0) and compact-field (0,2,0). */
+.tlt-select-shell .tlt-select.tlt-select__trigger.ant-select .ant-select-selector {
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  box-shadow: none;
+}
+/* Value/placeholder metrics — same (0,5,0) so antd size variants (sm) lose too */
+.tlt-select-shell .tlt-select.tlt-select__trigger.ant-select .ant-select-selection-item,
+.tlt-select-shell .tlt-select.tlt-select__trigger.ant-select .ant-select-selection-placeholder {
+  font-size: var(--tlt-field-select-font-size, 9px);
+  line-height: calc(var(--tlt-field-control-height) - 2px);
+}
+/* Theming only for the ant dropdown root (`__popover`+`__listbox` are the same
+   element); никакого display/размеров здесь — show/hide и скролл владеет antd. */
+.tlt-select__popover {
+  z-index: 1070;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  box-shadow: 0 6px 16px var(--color-alpha-dde98ba2);
+}
+.tlt-select-shell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  width: 100%;
+}
+
+.tlt-select-shell .tlt-select {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+}
+
+.tlt-select__clear {
+  position: absolute;
+  right: 18px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-formula-muted);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.tlt-select__clear:hover {
+  color: var(--color-text-heading);
+  background: var(--color-alpha-3447a5a6);
+}
+
+.unit-input-number {
+  display: inline-flex;
+  width: max-content;
+  min-width: 0;
+  vertical-align: top;
+}
+.tlt-number-field__unit,
+.unit-input-number__addon {
+  flex: 0 0 auto;
+}
+.unit-input-number .ant-input-number {
+  border-start-end-radius: 0;
+  border-end-end-radius: 0;
+}
+.unit-input-number .tlt-number-field__input {
+  border-start-end-radius: 0;
+  border-end-end-radius: 0;
+}
+.unit-input-number__addon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 0;
+  height: 32px;
+  padding: 0 11px;
+  color: var(--color-alpha-dde9aa2f);
+  font-size: 14px;
+  line-height: 1;
+  white-space: nowrap;
+  background: var(--color-alpha-dde98761);
+  border: 1px solid var(--color-border);
+  border-inline-start: 0;
+  border-radius: 0 6px 6px 0;
+  transition: all 0.2s;
+}
+.unit-input-number .ant-input-number-disabled + .unit-input-number__addon,
+.unit-input-number .ant-input-number[disabled] + .unit-input-number__addon {
+  color: var(--color-swatch-5f6b76);
+  background: var(--color-alpha-dde987a3);
+}
+body .ant-form-item-has-error .unit-input-number__addon {
+  border-color: var(--color-danger);
+}

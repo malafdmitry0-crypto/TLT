@@ -1,0 +1,6 @@
+/**
+ * Entry: shared Heat + Electrical spreadsheet chrome.
+ * Load order: base sheet rules, then excel virtualization / context menu.
+ */
+@import './calc-spreadsheet-base.css';
+@import './calc-spreadsheet-excel.css';

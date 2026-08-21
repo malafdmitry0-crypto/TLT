@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "description": "G3 dependency/cycle ratchet allowlists. Shrink only \u2014 do not grow. Each edge has a shrink note.",
+  "layerToPagesAllowlist": [],
+  "crossFeatureAllowlist": [],
+  "featurePagesOutsiderAllowlist": []
+}

@@ -1,0 +1,22 @@
+/* OWNER: ImportExcelButton — static chrome */
+
+.import-excel-file-input {
+  display: none;
+}
+
+.import-excel-created {
+  color: var(--color-success);
+}
+
+.import-excel-errors {
+  max-height: 280px;
+  overflow: auto;
+  border: 1px solid var(--color-border);
+  padding: 8px;
+  background: var(--color-surface-muted);
+}
+
+.import-excel-error-row {
+  font-size: 12px;
+  margin-bottom: 4px;
+}

@@ -1,0 +1,58 @@
+/* Кадры кейса 1 — additive-слой поверх heatcalc-shared.css (R1: базовый файл не тронут).
+   Значения цветов, скруглений и шрифтов сняты с шейпов Penpot «Формы TLT». */
+body { margin: 0; background: #eef2f7; }
+.page { padding: 24px; }
+.frame-title {
+  font: 600 13px/1.3 -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  color: #26364a; margin: 26px 0 6px; display: flex; gap: 10px; align-items: baseline;
+}
+.frame-title .size { font-weight: 400; color: #7b8794; font-size: 12px; }
+.frame {
+  position: relative; background: #fff; overflow: hidden;
+  border: 1px solid #cfd8e3; box-shadow: 0 1px 3px rgba(20,30,50,.08);
+}
+.frame > * { position: absolute; box-sizing: border-box; }
+.t {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  line-height: 1.2; white-space: nowrap; overflow: visible;
+}
+.b { box-sizing: border-box; }
+.t.t-wrap { white-space: normal; line-height: 1.35 !important; }
+.panel-slot { background: #fff; border: 1px solid #e7e9ec; border-radius: 8px; overflow: hidden; }
+.panel-slot { border-color: #e3e9f0; }
+.panel-slot .panel-title {
+  padding: 9px 12px; font: 700 11px/1.2 -apple-system, Arial, sans-serif;
+  letter-spacing: .4px; color: #26364a; border-bottom: 1px solid #eef2f7;
+  background: #fbfcfe;
+}
+.panel-slot .fields { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px 16px; padding: 12px; }
+.panel-slot.narrow .fields { grid-template-columns: repeat(2, 1fr); gap: 8px 12px; }
+.panel-slot.narrow .f { grid-template-columns: 86px 1fr; gap: 6px; }
+.panel-slot.narrow .f label { font-size: 10.5px; }
+.panel-slot.narrow .f .ctl { font-size: 11px; }
+.panel-slot .f { display: grid; grid-template-columns: 104px 1fr; gap: 8px; align-items: center; }
+.panel-slot .f label { font: 600 11px/1.25 -apple-system, Arial, sans-serif; color: #26364a; }
+/* поле ввода: значение слева, единица отдельной ячейкой справа —
+   обязательные поля с кремовой заливкой и оранжевой полосой (как в продукте) */
+.panel-slot .f .ctl {
+  height: 30px; display: flex; align-items: stretch;
+  border: 1px solid #e3e9f0; border-radius: 6px; overflow: hidden; background: #fff;
+  font: 400 11.5px/1 -apple-system, Arial, sans-serif; color: #26364a;
+}
+.panel-slot .f .ctl .v { flex: 1; display: flex; align-items: center; padding: 0 8px; }
+.panel-slot .f .ctl.filled .v { background: #fffdf6; border-left: 3px solid #d48806; }
+.panel-slot .f .ctl .u {
+  display: flex; align-items: center; padding: 0 8px; color: #26364a;
+  border-left: 1px solid #e3e9f0; background: #fff; font-size: 11px;
+}
+/* Навигация по набору */
+.nav-index { font: 400 13px/1.5 -apple-system, Arial, sans-serif; color: #26364a; }
+.nav-index h1 { font-size: 20px; margin: 0 0 4px; }
+.nav-index h2 { font-size: 14px; margin: 22px 0 8px; color: #1a5276; }
+.nav-index a { color: #1a5276; }
+.nav-index .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; }
+.nav-index .card {
+  background: #fff; border: 1px solid #cfd8e3; border-radius: 8px; padding: 10px 12px;
+}
+.nav-index .card .meta { color: #7b8794; font-size: 12px; }
+.nav-index .card .note { color: #55606d; font-size: 11.5px; margin-top: 4px; }

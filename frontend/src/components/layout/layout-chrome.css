@@ -1,0 +1,27 @@
+/* OWNER: layout chrome — MainLayout / Sidebar / ProjectMenu static styles */
+
+.main-layout {
+  min-height: 100vh;
+}
+
+.project-menu-hint {
+  margin-bottom: 0;
+}
+
+.project-menu-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+}
+
+.project-menu-file-input {
+  display: none;
+}
+
+.sidebar-menu {
+  background: transparent;
+  border: 0;
+  min-width: 0;
+  flex: 1;
+}

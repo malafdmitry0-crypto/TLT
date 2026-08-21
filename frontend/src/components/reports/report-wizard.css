@@ -1,0 +1,21 @@
+/* OWNER: ReportWizard modal — static chrome */
+
+.report-wizard-intro {
+  font-size: 12px;
+  display: block;
+  margin-bottom: 12px;
+}
+
+.report-wizard-label {
+  font-size: 12px;
+}
+
+.report-wizard-select-all {
+  padding: 0;
+}
+
+.report-wizard-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}

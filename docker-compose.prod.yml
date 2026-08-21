@@ -1,0 +1,74 @@
+# Production overrides — применяются поверх docker-compose.yml.
+# Запуск: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Отличия от dev/базового compose:
+#   - PostgreSQL не публикует порт наружу (доступен только из Docker-сети)
+#   - Backend не публикует порт наружу (доступен только через Caddy)
+#   - Frontend не публикует порт наружу (доступен только через Caddy)
+#   - Caddy — единственный публичный сервис: 80 + 443 с автоматическим HTTPS
+#     (Let's Encrypt). Настраивается через SITE_DOMAIN в .env.
+#   - Перезапуск always (вместо unless-stopped) — для критичных сервисов
+
+services:
+  db:
+    # Не публикуем порт наружу в проде
+    ports: !reset []
+    restart: always
+
+  redis:
+    restart: always
+
+  backend:
+    image: heatcalc-backend:${IMAGE_TAG:-1.3.0-prod}
+    restart: always
+    environment:
+      # Жёсткий лимит создания гостевых сессий на IP в проде (10/час)
+      APP_ENV: production
+      GUEST_MAX_SESSIONS_PER_IP: ${GUEST_MAX_SESSIONS_PER_IP:-10}
+      TRUSTED_PROXY_IPS: ${TRUSTED_PROXY_IPS:-}
+      AUTH_COOKIE_SECURE: "true"
+      # CORS — обязательно прописать SITE_DOMAIN в .env (без https:// нельзя)
+      CORS_ORIGINS: https://${SITE_DOMAIN}
+    # В проде backend ходит только через nginx-фронтенд, не пробрасываем наружу
+    ports: !reset []
+
+  frontend:
+    image: heatcalc-frontend:${IMAGE_TAG:-1.3.0-prod}
+    restart: always
+    # Frontend закрыт за Caddy — не публикуем порт наружу
+    ports: !reset []
+    healthcheck:
+      # 127.0.0.1 явно вместо localhost — иначе wget пытается IPv6 (::1),
+      # а nginx:alpine слушает только IPv4 → healthcheck вечно unhealthy
+      test: ["CMD-SHELL", "wget --quiet --spider http://127.0.0.1/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: heatcalc_caddy
+    restart: always
+    ports:
+      - "80:80"      # HTTP (редирект на HTTPS + ACME challenge)
+      - "443:443"    # HTTPS
+      - "443:443/udp"  # HTTP/3
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN:?SITE_DOMAIN must be set in .env (e.g. example.ru)}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data       # сертификаты Let's Encrypt + ключи
+      - caddy_config:/config   # автогенерируемая конфигурация
+    depends_on:
+      frontend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "--no-check-certificate", "https://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s   # Let's Encrypt может выпускаться до минуты при первом старте
+
+volumes:
+  caddy_data:
+  caddy_config:

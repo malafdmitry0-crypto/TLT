@@ -1,0 +1,136 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+.tox/
+.nox/
+.hypothesis/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+
+# Node
+node_modules/
+dist/
+build/
+.vite/
+.agent-proof/
+coverage/
+.nyc_output/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Env
+.env
+.env.local
+.env.*.local
+!.env.example
+!.env.*.example
+.envrc
+
+# Local pip --user installs
+.local/
+
+# Logs and runtime files
+*.log
+*.pid
+*.seed
+*.sqlite
+*.sqlite3
+*.db
+
+# Build/package artifacts
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+*.7z
+
+# Демо-поставка (compose, README, образы) — собирается локально, не нужна в репо
+demo/
+demo*.zip
+
+# Nested WIP / separate checkout (has its own .git)
+frontend1/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store?
+
+# OS
+.DS_Store
+**/.DS_Store
+Thumbs.db
+
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+.playwright-mcp/
+
+# QA agent generated reports
+qa-agent/reports/
+frontend/storybook-static/
+
+# Run artifacts: screenshots, console/network dumps, scratch PDFs.
+tmp/
+/*.png
+/*.jpg
+/*.jpeg
+# mockups и снимки current-state — ценные артефакты кейса 1, отслеживаются
+# (после случайного удаления папки 2026-08-05 восстановление шло из логов)
+
+# ---------------------------------------------------------------------------
+# Documentation (not product code) — keep local, do not ship in git
+# ---------------------------------------------------------------------------
+/docs/
+/demo-doc/
+/reports/
+/codex-workspace/
+/Внутренние справочники/
+/ТНП/
+/AGENTS.md
+**/AGENTS.md
+
+# ---------------------------------------------------------------------------
+# Hidden / local tooling (root-only blanket + known nested junk)
+# Keep: .gitignore, .github, .env*.example, .dockerignore, .nvmrc, .node-version
+# ---------------------------------------------------------------------------
+/.*
+!/.gitignore
+!/.github/
+!/.github/**
+!/.dockerignore
+!/.env.example
+!/.env.*.example
+!/.node-version
+!/.nvmrc
+
+# Nested local/tooling hidden dirs (not product config like .storybook / .eslintrc)
+**/.claude/
+**/.grok/
+**/.agent-proof/
+**/.playwright-mcp/
+**/.vite/
+**/.DS_Store
+**/.mcp.json
+.claude/
+.grok/
+.mcp.json
+.agent-proof/

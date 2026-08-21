@@ -1,0 +1,111 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  frontend-dod:
+    name: Frontend full DoD (test:agent-dod:dual-safe)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Full frontend DoD
+        working-directory: frontend
+        # Canonical command only — same one AGENTS.md and the standard name.
+        # Do not reassemble from partial scripts.
+        run: npm run test:agent-dod:dual-safe
+
+  build-and-smoke:
+    name: Build demo stack + smoke/UI gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+      - name: Сборка образов
+        run: docker compose build backend frontend
+      - name: Тегирование под demo-версию
+        run: |
+          docker tag heatcalc-backend:latest  heatcalc-backend:1.2.1-demo
+          docker tag heatcalc-frontend:latest heatcalc-frontend:1.2.1-demo
+      - name: Запуск demo-стека
+        run: |
+          cd demo
+          docker compose up -d
+          # ждём backend healthy до 2 минут
+          for i in {1..60}; do
+            docker compose ps backend --format "{{.Status}}" | grep -q healthy && exit 0
+            sleep 2
+          done
+          echo "Backend не стал healthy за 2 минуты" >&2
+          docker compose logs backend
+          exit 1
+      - name: Smoke-тесты против http://localhost:8080
+        run: scripts/smoke.sh http://localhost:8080
+      - name: DB-инварианты после smoke
+        run: scripts/codex-functional-audit.sh db-invariants
+      - name: Установить Playwright
+        run: |
+          npm ci --prefix e2e
+          npm --prefix e2e exec playwright install --with-deps chromium
+      - name: Layout regression против demo stack
+        env:
+          CI: 'true'
+          E2E_BASE_URL: http://localhost:8080
+          E2E_API_BASE: http://localhost:8080
+        run: scripts/codex-functional-audit.sh layout
+      - name: Accessibility gate против demo stack
+        env:
+          CI: 'true'
+          E2E_BASE_URL: http://localhost:8080
+          E2E_API_BASE: http://localhost:8080
+        run: scripts/codex-functional-audit.sh accessibility
+      - name: User flows против demo stack
+        env:
+          CI: 'true'
+          E2E_BASE_URL: http://localhost:8080
+          E2E_API_BASE: http://localhost:8080
+        run: scripts/codex-functional-audit.sh user-flows
+      - name: Загрузить Playwright artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts
+          path: |
+            e2e/test-results
+            e2e/playwright-report
+          if-no-files-found: ignore
+      - name: Логи при падении
+        if: failure()
+        run: |
+          cd demo
+          docker compose logs --tail=200
+
+  formula-mutation:
+    name: Formula mutation testing
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Сборка dev backend с mutmut
+        run: docker compose -f docker-compose.yml -f docker-compose.dev.yml build backend
+      - name: Mutation testing формул
+        run: scripts/codex-functional-audit.sh mutation
+      - name: Логи при падении
+        if: failure()
+        run: docker compose -f docker-compose.yml -f docker-compose.dev.yml logs --tail=200 backend db redis

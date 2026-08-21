@@ -1,0 +1,91 @@
+/* OWNER: ReportWizardPage — static chrome moved from ReportWizardPage.tsx */
+
+.report-wizard-page {
+  padding: 16px;
+  min-height: 100vh;
+  background: var(--color-page-canvas-alt);
+}
+
+.report-wizard-page-card {
+  margin: 24px;
+}
+
+.report-wizard-page-main .ant-card-body {
+  padding: 16px;
+}
+
+.report-wizard-page-steps {
+  margin-bottom: 16px;
+}
+
+.report-wizard-page-hint {
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.report-wizard-page-label {
+  font-size: 12px;
+}
+
+.report-wizard-page-variant-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  margin: 4px 0 10px;
+}
+
+.report-wizard-page-select-all {
+  padding: 0;
+  margin-bottom: 8px;
+}
+
+.report-wizard-page-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.report-wizard-page-next {
+  margin-top: 12px;
+}
+
+.report-wizard-page-block {
+  margin-bottom: 8px;
+}
+
+.report-wizard-page-block--lg {
+  margin-bottom: 12px;
+}
+
+.report-wizard-page-tags {
+  margin-top: 4px;
+}
+
+.report-wizard-page-tag {
+  margin-bottom: 4px;
+}
+
+.report-wizard-page-back {
+  margin-top: 8px;
+}
+
+.report-wizard-page-back--sm {
+  margin-top: 4px;
+}
+
+.report-wizard-page-preview-col {
+  min-width: 0;
+}
+
+.report-wizard-page-preview {
+  max-height: calc(100vh - 260px);
+  overflow: auto;
+}
+
+.report-wizard-page-footnote {
+  margin-top: 16px;
+  color: var(--color-text-tertiary);
+}
+
+.report-wizard-page-footnote-text {
+  font-size: 11px;
+}

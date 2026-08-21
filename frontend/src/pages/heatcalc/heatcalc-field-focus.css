@@ -1,0 +1,9 @@
+/* OWNER: dual-form select focus — suppress duplicate inner Ant ring. */
+
+.inline-object-form.inline-object-form .ant-select-focused .ant-select-selector,
+.inline-object-form.inline-object-form .ant-select-selector:focus,
+.inline-object-form.inline-object-form .ant-select-selector:focus-within {
+  outline: none;
+  box-shadow: none;
+  border-color: inherit;
+}

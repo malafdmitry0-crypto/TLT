@@ -1,0 +1,290 @@
+/**
+ * App shell layout hooks (main layout chrome).
+ * Layer 3 of global CSS import order.
+ * Feature shells (Heat workspace, Elec) live under pages/* owners.
+ */
+
+.heatcalc-main-layout {
+  min-width: 0;
+}
+
+/* --- was app-header.css (shell chrome) --- */
+/* App header / primary nav shell — moved from styles.css (C15) */
+
+.heatcalc-header {
+  background: var(--color-surface);
+  color: var(--color-swatch-213244);
+  height: auto;
+  line-height: 1;
+  padding: 0 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-bottom: 1px solid var(--color-swatch-dfe7f1);
+  box-shadow: 0 1px 5px var(--color-alpha-48ed076d);
+  min-width: 0;
+}
+.heatcalc-primary-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-width: 0;
+  min-height: 25px;
+}
+.heatcalc-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+.heatcalc-brand-icon {
+  color: var(--color-swatch-2457d6);
+  font-size: 15px;
+  line-height: 1;
+}
+.heatcalc-title {
+  color: var(--color-swatch-162234);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
+  margin: 0;
+  flex: 0 0 auto;
+}
+.heatcalc-primary-nav {
+  flex: 1 1 auto;
+  min-width: 320px;
+}
+.heatcalc-primary-nav .ant-menu-horizontal {
+  line-height: 24px;
+  min-width: 0;
+}
+.heatcalc-primary-nav .ant-menu-horizontal::before,
+.heatcalc-primary-nav .ant-menu-horizontal::after {
+  display: none;
+}
+.heatcalc-primary-nav .ant-menu-item,
+.heatcalc-primary-nav .ant-menu-submenu-title {
+  height: 24px;
+  line-height: 24px;
+  margin: 0 2px;
+  padding-inline: 8px;
+  border-radius: 5px;
+  color: var(--color-swatch-26364a);
+  font-size: 12px;
+  font-weight: 600;
+}
+.heatcalc-primary-nav .ant-menu-item::after,
+.heatcalc-primary-nav .ant-menu-submenu::after {
+  display: none;
+}
+.heatcalc-primary-nav .ant-menu-item-selected {
+  background: var(--color-swatch-eef4ff);
+  color: var(--color-swatch-2457d6);
+  box-shadow: inset 0 0 0 1px var(--color-swatch-c9d9ff);
+}
+.heatcalc-primary-nav .ant-menu-item .anticon {
+  font-size: 12px;
+}
+.heatcalc-primary-nav .ant-menu-title-content {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1;
+}
+.heatcalc-step-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  white-space: nowrap;
+  font-size: 12px;
+  line-height: 1;
+}
+.heatcalc-step-done {
+  color: var(--color-success);
+  font-size: 10px;
+}
+.heatcalc-step-label .ant-badge-count {
+  min-width: 24px;
+  height: 15px;
+  padding: 0 5px;
+  border-radius: 999px;
+  font-size: 10px;
+  line-height: 15px;
+  box-shadow: none;
+}
+.heatcalc-primary-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.project-menu {
+  min-width: 0;
+  flex: 0 1 auto;
+}
+.project-menu-current {
+  margin-right: 4px;
+  min-width: 0;
+}
+.project-menu-current-icon {
+  color: var(--color-swatch-6a7a8e);
+  font-size: 10px;
+}
+.project-menu-current-name {
+  color: var(--color-swatch-26364a);
+  max-width: 140px;
+  font-size: 10px;
+  line-height: 22px;
+}
+.project-menu .ant-btn,
+.project-menu .tlt-ui-button {
+  height: 22px;
+  padding-inline: 7px;
+  font-size: 10px;
+  line-height: 1;
+  border-radius: 5px;
+}
+.project-menu .ant-btn .anticon,
+.project-menu .tlt-ui-button .anticon,
+.project-menu .tlt-ui-button__icon {
+  font-size: 11px;
+  line-height: 1;
+}
+.header-actions {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+.header-actions .ant-btn,
+.header-actions .tlt-ui-button {
+  height: 22px;
+  padding-inline: 7px;
+  font-size: 10px;
+  line-height: 1;
+  border-radius: 5px;
+}
+.header-actions .ant-btn .anticon,
+.header-actions .tlt-ui-button .anticon,
+.header-actions .tlt-ui-button__icon {
+  font-size: 11px;
+  line-height: 1;
+}
+@media (max-width: 1200px) {
+  .heatcalc-primary-row {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 3px 6px;
+    padding: 2px 0;
+  }
+
+  .heatcalc-primary-nav {
+    order: 3;
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .heatcalc-primary-actions {
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 3px;
+  }
+
+  .project-menu,
+  .project-menu-current,
+  .header-actions {
+    flex-wrap: wrap;
+  }
+
+  .header-actions {
+    margin-left: 0;
+  }
+
+  .project-menu-current-name {
+    max-width: min(140px, 38vw);
+  }
+}
+@media (max-width: 768px) {
+  .heatcalc-header {
+    padding-inline: 6px;
+  }
+
+  .heatcalc-brand {
+    flex: 1 1 120px;
+  }
+
+  .heatcalc-primary-actions {
+    flex-basis: 100%;
+  }
+
+  .project-menu .ant-btn,
+  .project-menu .tlt-ui-button,
+  .header-actions .ant-btn,
+  .header-actions .tlt-ui-button {
+    padding-inline: 6px;
+  }
+}
+/* min-width + clip: ant Row gutters must not grow document scrollWidth */
+.heatcalc-content {
+  flex: 1;
+  min-width: 0;
+  padding: 2px 6px 8px;
+  background: var(--color-surface);
+  overflow-x: clip;
+}
+.workspace-header-context {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex: 1 1 auto;
+  min-width: 240px;
+  max-width: none;
+  height: 16px;
+  padding: 0 2px;
+  color: var(--color-swatch-3b4a5d);
+  font-size: 9px;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.workspace-header-context-icon {
+  flex: 0 0 auto;
+  color: var(--color-swatch-2457d6);
+  font-size: 10px;
+}
+.workspace-header-context-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+}
+.workspace-header-context-mode {
+  flex: 0 0 auto;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--color-swatch-eef3f6);
+  color: var(--color-swatch-607080);
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 14px;
+}
+.workspace-header-context-mode.edit {
+  background: var(--color-swatch-fff3cd);
+  color: var(--color-swatch-7a4d00);
+}
+.workspace-header-context-mode.new {
+  background: var(--color-formula-hint-bg);
+  color: var(--color-swatch-1f6f3e);
+}
+@media (max-width: 1200px) {
+  
+
+  .workspace-header-context {
+    display: none;
+  }
+}

@@ -1,0 +1,14 @@
+/* OWNER: ReportPage — static chrome moved from ReportPage.tsx */
+
+.report-page-icon { margin-right: 8px; }
+.report-page-actions-hint { margin-bottom: 8px; }
+.report-page-er-selector { margin-bottom: 12px; }
+.report-page-label { font-size: 12px; margin-right: 8px; }
+.report-page-er-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.report-page-er-checkbox-group { min-width: 280px; max-width: 100%; }
+.report-page-sections { margin-bottom: 12px; }

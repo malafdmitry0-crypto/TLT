@@ -1,0 +1,282 @@
+/**
+ * CSS island: HeatCalcObjectFieldsPanel. Wide DOM = три слота в порядке чтения:
+ * wide text/select → geometry numeric → environment numeric.
+ */
+
+.heat-object-fields.heat-object-fields--wide {
+  --dual-form-banner-size: 9px;
+  --dual-form-label-size: var(--tlt-field-label-font-size, 8.5px);
+  --dual-form-label-line-height: var(--tlt-field-label-line-height, 1);
+  --dual-form-label-color: var(--tlt-field-label-color);
+  --dual-form-control-height: var(--tlt-field-control-height, 26px);
+  --dual-form-control-font: var(--tlt-field-control-font-size, 12px);
+  --dual-form-hint-size: 10px;
+  /* колонки подписей — кадр ishodnye-truba-zapolneno: текст 118, числа 132 */
+  --hof-wide-label-width: 100px;
+  --hof-geometry-label-width: 100px;
+  --hof-environment-label-width: 120px;
+  --hof-label-control-gap: 8px;
+  --hof-geometry-control-width: minmax(0, 1fr);
+  --hof-environment-control-width: 92px;
+  --field-input-min-width: 0px;
+  --tlt-field-control-height: 36px;
+  --form-label-size: 9px;
+  --tlt-field-label-font-size: 9px;
+  --tlt-field-unit-font-size: 12px;
+  --tlt-field-radius: 6px;
+  --inline-control-height: var(--tlt-field-control-height, 26px);
+  --tlt-field-gap: var(--hof-label-control-gap);
+
+  isolation: isolate;
+  display: grid;
+  /* одна равномерная сетка: поля идут подряд, зон нет */
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px 24px; /* шаг рядов как в панели кабеля */
+  align-items: start;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.heat-object-fields .ant-input-number-input,
+.heat-object-fields .ant-input { font-size: 12px; /* кадр: значение 12px */ }
+.heat-object-fields--wide .ant-form-item-control { max-width: 95%; } /* поля −5% */
+
+.heat-object-fields.heat-object-fields--wide [data-slot="wide"] .ant-form-item-control { max-width: 240px; } /* текст: уже кадра, решение владельца; двойной класс — перебить max-width:100% соседа той же длины */
+
+.heat-object-fields.heat-object-fields--wide[data-object-type="tank"] {
+  --hof-wide-label-width: 100px;
+  --hof-geometry-label-width: 100px;
+}
+
+/* Each slot owns its vertical flow; hidden fields compact only that slot. */
+.heat-object-fields.heat-object-fields--wide > .heat-object-fields__geometry,
+.heat-object-fields.heat-object-fields--wide > .heat-object-fields__climate,
+.heat-object-fields.heat-object-fields--wide > .heat-object-fields__settings {
+  display: grid;
+  grid-auto-flow: row;
+  grid-auto-rows: minmax(28px, auto);
+  gap: 4px 16px;
+  align-items: start; min-width: 0;
+}
+
+/* кадр: текст и селекты в 2 колонки, числовые в 3, заполнение построчно */
+.heat-object-fields.heat-object-fields--wide > .heat-object-fields__geometry,
+.heat-object-fields.heat-object-fields--wide > .heat-object-fields__climate {
+  display: contents;
+}
+
+.heat-object-fields.heat-object-fields--wide .field-source-tag {
+  height: auto;
+  margin: 0;
+  padding: 0;
+  font-size: 7px;
+  line-height: 1.3;
+}
+
+/* Размер текста метки источника и подсказки «чего не хватает» */
+.heat-object-fields.heat-object-fields--wide .ambient-temperature-form-item .ant-form-item-extra,
+.heat-object-fields.heat-object-fields--wide .wind-speed-form-item .ant-form-item-extra {
+  font-size: 7px;
+  line-height: 1.2;
+}
+
+
+
+.heat-object-fields.heat-object-fields--wide > .heat-object-fields__settings {
+  grid-template-columns: minmax(0, 1fr);
+  width: max-content;
+}
+
+.heat-object-fields.heat-object-fields--wide .ant-form-item-hidden,
+.heat-object-fields.heat-object-fields--wide .ant-form-item[hidden],
+.heat-object-fields.heat-object-fields--wide .ant-form-item.ant-form-item-hidden {
+  display: none;
+}
+
+.heat-object-fields.heat-object-fields--wide [data-slot="wide"] {
+  --tlt-compact-label-width: var(--hof-wide-label-width);
+  --tlt-compact-control-width: 100%;
+}
+
+.heat-object-fields.heat-object-fields--wide [data-slot="geometry-numeric"] {
+  --tlt-compact-label-width: var(--hof-geometry-label-width);
+  --tlt-compact-control-width: var(--hof-geometry-control-width);
+}
+
+.heat-object-fields.heat-object-fields--wide [data-slot="wide"] .ant-form-item-row {
+  grid-template-columns: var(--hof-wide-label-width) minmax(0, 1fr);
+  column-gap: var(--hof-label-control-gap);
+  width: 100%;
+}
+
+.heat-object-fields.heat-object-fields--wide [data-slot="geometry-numeric"] .ant-form-item-row {
+  grid-template-columns: var(--hof-geometry-label-width) minmax(0, 1fr);
+  column-gap: var(--hof-label-control-gap);
+  width: max-content;
+}
+
+.heat-object-fields.heat-object-fields--wide [data-slot="wide"] .ant-form-item-control,
+.heat-object-fields.heat-object-fields--wide [data-slot="wide"] .ant-form-item-control-input,
+.heat-object-fields.heat-object-fields--wide [data-slot="wide"] .ant-form-item-control-input-content,
+.heat-object-fields.heat-object-fields--wide [data-slot="wide"] .field-control-with-help,
+.heat-object-fields.heat-object-fields--wide [data-slot="wide"] .tlt-text-field,
+.heat-object-fields.heat-object-fields--wide [data-slot="wide"] .tlt-select,
+.heat-object-fields.heat-object-fields--wide [data-slot="wide"] .tlt-select__trigger,
+.heat-object-fields.heat-object-fields--wide [data-slot="wide"] .reference-picker-control,
+.heat-object-fields.heat-object-fields--wide [data-slot="wide"] .ant-input,
+.heat-object-fields.heat-object-fields--wide [data-slot="wide"] .ant-select {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.heat-object-fields.heat-object-fields--wide [data-slot="geometry-numeric"] .ant-form-item-control {
+  width: 100%;
+}
+
+.heat-object-fields.heat-object-fields--wide .insulation-settings-row {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.heat-object-fields.heat-object-fields--wide .insulation-settings-row > .ant-form-item {
+  flex: none;
+  width: 100%;
+  min-width: 100%;
+  max-width: 100%;
+}
+
+/*
+ * Side layout remains one 12-column page grid. Slot wrappers are transparent;
+ * the UI-kit labels-top variant owns field anatomy.
+ */
+.heat-object-fields.heat-object-fields--side {
+  display: contents;
+}
+
+.heat-object-fields.heat-object-fields--side > .heat-object-fields__geometry,
+.heat-object-fields.heat-object-fields--side > .heat-object-fields__climate,
+.heat-object-fields.heat-object-fields--side > .heat-object-fields__settings,
+.heat-object-fields.heat-object-fields--side .insulation-settings-row {
+  display: contents;
+}
+
+.heat-object-fields.heat-object-fields--side .ant-form-item-hidden,
+.heat-object-fields.heat-object-fields--side .ant-form-item[hidden],
+.heat-object-fields.heat-object-fields--side .ant-form-item.ant-form-item-hidden {
+  display: none;
+}
+
+.heat-object-fields.heat-object-fields--side .numeric-form-item {
+  --tlt-field-span: 3;
+}
+
+.heat-object-fields.heat-object-fields--side .tank-shape-form-item,
+.heat-object-fields.heat-object-fields--side .placement-form-item,
+.heat-object-fields.heat-object-fields--side .ground-type-form-item,
+.heat-object-fields.heat-object-fields--side .insulation-layer-count-form-item {
+  --tlt-field-span: 6;
+}
+
+.heat-object-fields.heat-object-fields--side .name-form-item,
+.heat-object-fields.heat-object-fields--side .pipe-material-form-item,
+.heat-object-fields.heat-object-fields--side .climate-form-item,
+.heat-object-fields.heat-object-fields--side .insulation-temperature-basis-form-item {
+  --tlt-field-span: 12;
+}
+
+.heat-object-fields.heat-object-fields--side .heat-object-fields__climate .ant-form-item {
+  order: 2;
+}
+
+/* Shared settings-row fill for the legacy side composition path. */
+.heat-object-fields .insulation-settings-row .ant-form-item-control,
+.heat-object-fields .insulation-settings-row .ant-form-item-control-input,
+.heat-object-fields .insulation-settings-row .ant-form-item-control-input-content,
+.heat-object-fields .insulation-settings-row .tlt-select,
+.heat-object-fields .insulation-settings-row .tlt-select__trigger,
+.heat-object-fields .insulation-settings-row .field-control-with-help,
+.heat-object-fields .insulation-settings-row .ant-input,
+.heat-object-fields .insulation-settings-row .ant-select {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.heat-object-fields .insulation-settings-row .ant-input,
+.heat-object-fields .insulation-settings-row .ant-select {
+  min-height: var(--dual-form-control-height, var(--tlt-field-control-height, 26px));
+  font-size: var(--dual-form-control-font, var(--tlt-field-control-font-size, 12px));
+  line-height: 1.2;
+}
+
+.heat-object-fields .insulation-settings-row .tlt-select__trigger {
+  display: flex;
+  align-items: center;
+}
+
+/*
+ * Wide layout adapts to the ACTUAL pane width (container `heat-fields` on the
+ * fields zone, declared in heatcalc-dual-form-shell.css), not the viewport —
+ * so browser zoom picks the right mode too. Three slot columns survive as
+ * long as they physically fit; below the comfortable width the tiers first
+ * SQUEEZE (narrower labels, tighter gaps) and only then restack:
+ *   ≥646px (pipe) / ≥694px (tank) — three columns at full label widths;
+ *   squeeze tier down to ~610px (pipe) / 640px (tank) — still three columns,
+ *   labels trimmed to their longest word, wide controls flex down;
+ *   tank <640px — two columns: wide fields with tighter 240px controls on
+ *   the left, geometry group over environment group on the right (pipe skips
+ *   this tier — its squeeze floor nearly touches the single-column cut);
+ *   <600px — single column, wide controls capped at 380px.
+ * Tank tiers name [data-object-type] directly to OUT-specify the base tank
+ * override above (0,3,0 — it re-sets label widths); they never touch
+ * `display`, so the <600px flex tier still restacks everything. Pipe tiers
+ * keep :where() — nothing outranks them, order decides.
+ */
+@container heat-fields (width < 694px) {
+  .heat-object-fields.heat-object-fields--wide[data-object-type="tank"] {
+    --hof-wide-label-width: 104px;
+    --hof-geometry-label-width: 104px;
+    --hof-environment-label-width: 96px;
+    gap: 4px 6px;
+  }
+}
+
+@container heat-fields (width < 646px) {
+  .heat-object-fields.heat-object-fields--wide:where([data-object-type="pipe"]) {
+    --hof-geometry-label-width: 80px;
+    --hof-environment-label-width: 100px;
+    gap: 4px 6px;
+  }
+}
+
+@container heat-fields (width < 640px) {
+  .heat-object-fields.heat-object-fields--wide[data-object-type="tank"] {
+    grid-template-columns: max-content max-content;
+    grid-template-areas:
+      "wide geo"
+      "wide env";
+    gap: 4px 24px;
+  }
+
+  .heat-object-fields.heat-object-fields--wide[data-object-type="tank"] > .heat-object-fields__geometry {
+    grid-area: wide;
+  }
+
+  .heat-object-fields.heat-object-fields--wide[data-object-type="tank"] > .heat-object-fields__climate {
+    grid-area: geo;
+  }
+
+  .heat-object-fields.heat-object-fields--wide[data-object-type="tank"] > .heat-object-fields__settings {
+    grid-area: env;
+  }
+
+  /* :where() so the <600px tier's 380px control cap still wins by order. */
+  .heat-object-fields.heat-object-fields--wide:where([data-object-type="tank"]) [data-slot="wide"] .ant-form-item-row {
+    grid-template-columns: var(--hof-wide-label-width) var(--hof-wide-control-tight, 240px);
+  }
+}

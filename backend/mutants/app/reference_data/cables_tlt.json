@@ -1,0 +1,14 @@
+{
+  "cables": [
+    {"brand": "ТЛТ", "model": "ТЛТ-10",  "power_per_meter": 10, "max_temperature": 65,  "min_temperature": -40, "voltage": 220},
+    {"brand": "ТЛТ", "model": "ТЛТ-15",  "power_per_meter": 15, "max_temperature": 65,  "min_temperature": -40, "voltage": 220},
+    {"brand": "ТЛТ", "model": "ТЛТ-20",  "power_per_meter": 20, "max_temperature": 65,  "min_temperature": -40, "voltage": 220},
+    {"brand": "ТЛТ", "model": "ТЛТ-25",  "power_per_meter": 25, "max_temperature": 85,  "min_temperature": -50, "voltage": 220},
+    {"brand": "ТЛТ", "model": "ТЛТ-30",  "power_per_meter": 30, "max_temperature": 85,  "min_temperature": -50, "voltage": 220},
+    {"brand": "ТЛТ", "model": "ТЛТ-40",  "power_per_meter": 40, "max_temperature": 110, "min_temperature": -50, "voltage": 220},
+    {"brand": "ТЛТ", "model": "ТЛТ-50",  "power_per_meter": 50, "max_temperature": 110, "min_temperature": -50, "voltage": 220},
+    {"brand": "ТЛТ", "model": "ТЛТ-60",  "power_per_meter": 60, "max_temperature": 120, "min_temperature": -55, "voltage": 220},
+    {"brand": "ТЛТ", "model": "ТЛТ-75",  "power_per_meter": 75, "max_temperature": 120, "min_temperature": -55, "voltage": 220},
+    {"brand": "ТЛТ", "model": "ТЛТ-100", "power_per_meter": 100,"max_temperature": 150, "min_temperature": -60, "voltage": 220}
+  ]
+}

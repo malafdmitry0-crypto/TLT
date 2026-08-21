@@ -1,0 +1,101 @@
+{
+  "basePath": "/api/v1",
+  "endpoints": [
+    {
+      "id": "admin_formula_check",
+      "method": "POST",
+      "path": "/api/v1/admin/formula-check",
+      "auth": "admin",
+      "purpose": "Direct formula smoke endpoint for admin-controlled checks.",
+      "requestShape": {
+        "formula_type": "pipe | tank | electrical | electrical_tt | resistive_single | resistive_three | tank_cable_geometry",
+        "params": "schema matching selected formula_type"
+      },
+      "resultPaths": {
+        "pipe": ["heat_loss_per_meter_base", "total_heat_loss_design", "effective_length", "thermal_resistance"],
+        "tank": ["heat_loss_per_m2_bare_base", "total_heat_loss_design", "surface_area_bare"],
+        "electrical": ["selected_cable", "cable_length", "total_power", "current"],
+        "electrical_tt": ["selected_cable", "series", "power_per_meter", "cable_length", "total_power"],
+        "resistive_single": ["selected_cable", "required_cross_section", "conductor_cross_section", "total_power"],
+        "resistive_three": ["selected_cable", "required_cross_section", "conductor_cross_section", "total_power"],
+        "tank_cable_geometry": ["cable_length"]
+      },
+      "qaAgentMetadata": {
+        "endpoint": "/api/v1/admin/formula-check",
+        "backendFormulaType": "tank_cable_geometry",
+        "resultPath": "cable_length"
+      }
+    },
+    {
+      "id": "calc_heat_loss",
+      "method": "POST",
+      "path": "/api/v1/calc/heat-loss",
+      "auth": "guest",
+      "purpose": "User-facing heat-loss calculation for one object.",
+      "requestShape": {
+        "object_type": "pipe | tank",
+        "data": "PipeHeatLossParams | TankHeatLossParams"
+      },
+      "resultPaths": ["result.heat_loss_per_meter_base", "result.heat_loss_per_m2_bare_base", "result.total_heat_loss_design"]
+    },
+    {
+      "id": "calc_electrical",
+      "method": "POST",
+      "path": "/api/v1/calc/electrical",
+      "auth": "guest",
+      "purpose": "User-facing electrical calculation for one object.",
+      "requestShape": "ElectricalRequest",
+      "resultPaths": ["result.selected_cable", "result.cable_length", "result.total_power", "result.current"]
+    },
+    {
+      "id": "calc_electrical_select_cable",
+      "method": "POST",
+      "path": "/api/v1/calc/electrical/select-cable",
+      "auth": "guest",
+      "purpose": "Manual cable selection and recalculation.",
+      "requestShape": "query params: object_id, cable_mark, cable_source, variant_number, cable_type, overrides",
+      "resultPaths": ["cable_mark", "params", "results"]
+    },
+    {
+      "id": "calc_electrical_batch",
+      "method": "POST",
+      "path": "/api/v1/calc/electrical/batch",
+      "auth": "guest",
+      "purpose": "Project-level electrical batch calculation.",
+      "requestShape": "query params: project_id, cable_source, cable_type, variant_number, overrides",
+      "resultPaths": ["calculated", "skipped", "heat_loss_failed", "errors", "results"],
+      "postConditions": [
+        "ElectricalCalculation rows are upserted for calculated objects.",
+        "Manual selections are preserved unless skip_manual/force flags say otherwise.",
+        "DB invariants should validate cable lengths, total power and status counts."
+      ]
+    },
+    {
+      "id": "calc_heat_loss_batch_jobs",
+      "method": "POST",
+      "path": "/api/v1/calc/heat-loss/batch/jobs",
+      "auth": "guest",
+      "purpose": "Async heat-loss batch job creation.",
+      "requestShape": "HeatLossBatchJobRequest"
+    },
+    {
+      "id": "calc_electrical_batch_jobs",
+      "method": "POST",
+      "path": "/api/v1/calc/electrical/batch/jobs",
+      "auth": "guest",
+      "purpose": "Async electrical batch job creation.",
+      "requestShape": "ElectricalBatchJobRequest"
+    },
+    {
+      "id": "specification_generate",
+      "method": "POST",
+      "path": "/api/v1/specifications/{project_id}/generate",
+      "auth": "guest",
+      "purpose": "Generate specification from electrical calculation results.",
+      "postConditions": [
+        "Cable items are grouped by mark and summed by length.",
+        "Accessory quantities are based on total project object count."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "authority": "test_fixture_only",
+  "source_sections": ["7.9", "7.10", "7.11", "7.12", "7.13", "7.14", "7.15"],
+  "cases": [
+    {
+      "id": "SPEC-GOLDEN-CABLE-ACTUAL",
+      "category": "cable",
+      "inputs": {"section_length_m": "60", "section_count": 2},
+      "expected": {"actual_installed_length_m": "120"}
+    },
+    {
+      "id": "SPEC-BE-12",
+      "category": "connection_kit",
+      "inputs": {"section_count": 9, "sections_per_kit": 2},
+      "expected": {"quantity": 5, "rounding": "up"}
+    },
+    {
+      "id": "SPEC-BE-13",
+      "category": "repair_kit",
+      "inputs": {"actual_installed_length_m": "729", "cable_length_per_kit_m": "150"},
+      "expected": {"quantity": 5, "rounding": "up"}
+    },
+    {
+      "id": "SPEC-BE-14",
+      "category": "sealant",
+      "inputs": {"connection_kits": 9, "repair_kits": 5, "kits_per_unit": 7},
+      "expected": {"quantity": 2, "rounding": "up"}
+    },
+    {
+      "id": "SPEC-BE-15",
+      "category": "fiberglass_tape",
+      "inputs": {"total_required_length_m": "8939", "reel_length_m": "30"},
+      "expected": {"quantity": 298, "rounding": "up"}
+    },
+    {
+      "id": "SPEC-BE-16",
+      "category": "aluminium_tape",
+      "inputs": {
+        "actual_installed_length_m": "729",
+        "consumption_m_per_cable_m": "1",
+        "reel_length_m": "50"
+      },
+      "expected": {"quantity": 15, "rounding": "up"}
+    },
+    {
+      "id": "SPEC-BE-19",
+      "category": "box_diameter_boundary",
+      "inputs": {"outer_diameter_mm": "57"},
+      "expected": {"d_ge_57": true}
+    },
+    {
+      "id": "SPEC-BE-20-UP",
+      "category": "box",
+      "inputs": {"section_count": 5, "section_divider": "3", "rounding": "up"},
+      "expected": {"quantity": 2}
+    },
+    {
+      "id": "SPEC-BE-20-DOWN",
+      "category": "box",
+      "inputs": {"section_count": 5, "section_divider": "3", "rounding": "down"},
+      "expected": {"quantity": 1}
+    },
+    {
+      "id": "SPEC-BE-21",
+      "category": "box",
+      "inputs": {
+        "section_count": 2,
+        "section_divider": "3",
+        "rounding": "down",
+        "min_quantity": 1
+      },
+      "expected": {"quantity": 1}
+    }
+  ],
+  "production_blockers": [
+    "sealant.nomenclature_code",
+    "fiberglass_tape.nomenclature_code",
+    "aluminium_tape.identity",
+    "box.condition_Ex",
+    "box.condition_R_gr"
+  ]
+}

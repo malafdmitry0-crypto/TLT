@@ -1,0 +1,65 @@
+/* Shared Tlt field layout modifiers — static presentation (not runtime geometry). */
+
+.tlt-field--fill {
+  width: 100%;
+  max-width: 100%;
+  display: flex;
+}
+
+.tlt-field--fill.tlt-number-field .tlt-number-field__input,
+.tlt-field--fill.tlt-text-field .tlt-text-field__input {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+}
+
+.tlt-field--fill-mt {
+  width: 100%;
+  max-width: 100%;
+  margin-top: 4px;
+}
+
+.tlt-field--min-w160 { min-width: 160px; }
+.tlt-field--min-w190 { min-width: 190px; flex: 1 1 auto; }
+.tlt-field--min-w220 { min-width: 220px; }
+.tlt-field--min-w280 { min-width: 280px; }
+.tlt-field--min-w300 { min-width: 300px; }
+
+.tlt-field--w90 { width: 90px; }
+.tlt-field--w100 { width: 100px; }
+.tlt-field--w110 { width: 110px; }
+.tlt-field--w120 { width: 120px; }
+.tlt-field--w128 { width: 128px; }
+.tlt-field--w130 { width: 130px; }
+.tlt-field--w140 { width: 140px; }
+.tlt-field--w150 { width: 150px; }
+.tlt-field--w160 { width: 160px; }
+.tlt-field--w180 { width: 180px; }
+.tlt-field--w190 { width: 190px; }
+.tlt-field--w200 { width: 200px; }
+.tlt-field--w210 { width: 210px; }
+.tlt-field--w260 { width: 260px; }
+
+/* Width modifiers on TltSelect root (className lands on .tlt-select / shell). */
+.tlt-select.tlt-field--min-w160,
+.tlt-select-shell.tlt-field--min-w160 { min-width: 160px; width: auto; max-width: 100%; }
+.tlt-select.tlt-field--min-w190,
+.tlt-select-shell.tlt-field--min-w190 { min-width: 190px; width: auto; max-width: 100%; flex: 1 1 auto; }
+.tlt-select.tlt-field--min-w220,
+.tlt-select-shell.tlt-field--min-w220 { min-width: 220px; width: auto; max-width: 100%; }
+.tlt-select.tlt-field--min-w280,
+.tlt-select-shell.tlt-field--min-w280 { min-width: 280px; width: auto; max-width: 100%; }
+.tlt-select.tlt-field--min-w300,
+.tlt-select-shell.tlt-field--min-w300 { min-width: 300px; width: auto; max-width: 100%; }
+.tlt-select.tlt-field--fill,
+.tlt-select.tlt-field--fill-mt,
+.tlt-select-shell.tlt-field--fill,
+.tlt-select-shell.tlt-field--fill-mt { width: 100%; max-width: 100%; }
+.tlt-select.tlt-field--w128,
+.tlt-select-shell.tlt-field--w128 { width: 128px; }
+.tlt-select.tlt-field--w180,
+.tlt-select-shell.tlt-field--w180 { width: 180px; }
+.tlt-select.tlt-field--w130,
+.tlt-select-shell.tlt-field--w130 { width: 130px; }
+.tlt-select.tlt-field--w210,
+.tlt-select-shell.tlt-field--w210 { width: 210px; }

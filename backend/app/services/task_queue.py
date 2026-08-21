@@ -1,0 +1,160 @@
+"""Redis Stream transport for durable background tasks."""
+
+import logging
+from collections.abc import Sequence
+from uuid import UUID
+
+from redis.asyncio import Redis
+from redis.exceptions import ResponseError
+
+from app.core.config import settings
+
+logger = logging.getLogger("heatcalc.task_queue")
+
+
+class TaskQueueError(RuntimeError):
+    pass
+
+
+class TaskQueue:
+    """Small Redis Streams wrapper.
+
+    Postgres is the source of truth for task state and recovery. Redis only
+    carries task IDs to worker processes, so losing a stream message does not
+    lose the task itself.
+    """
+
+    def __init__(self, redis_url: str | None = None) -> None:
+        self.redis_url = redis_url or settings.REDIS_URL
+        if not self.redis_url:
+            raise TaskQueueError("REDIS_URL is required for background task queue")
+        self.stream = settings.WORKER_QUEUE_STREAM
+        self.group = settings.WORKER_QUEUE_GROUP
+        self._redis: Redis | None = None
+
+    @property
+    def redis(self) -> Redis:
+        if self._redis is None:
+            self._redis = Redis.from_url(self.redis_url, decode_responses=True)
+        return self._redis
+
+    async def close(self) -> None:
+        if self._redis is not None:
+            await self._redis.aclose()
+            self._redis = None
+
+    async def ensure_group(self) -> None:
+        try:
+            await self.redis.xgroup_create(self.stream, self.group, id="0", mkstream=True)
+        except ResponseError as exc:
+            if "BUSYGROUP" not in str(exc):
+                raise
+
+    async def enqueue(self, task_id: UUID, task_type: str) -> str:
+        await self.ensure_group()
+        stream_id = await self.redis.xadd(
+            self.stream,
+            {"task_id": str(task_id), "type": task_type},
+            maxlen=settings.WORKER_QUEUE_MAXLEN,
+            approximate=True,
+        )
+        return str(stream_id)
+
+    async def read(
+        self,
+        *,
+        consumer: str,
+        count: int = 1,
+        block_ms: int | None = None,
+    ) -> Sequence[tuple[str, list[tuple[str, dict[str, str]]]]]:
+        await self.ensure_group()
+        return await self.redis.xreadgroup(
+            self.group,
+            consumer,
+            streams={self.stream: ">"},
+            count=count,
+            block=block_ms or settings.WORKER_POLL_TIMEOUT_MS,
+        )
+
+    async def ack(self, stream_id: str) -> None:
+        await self.redis.xack(self.stream, self.group, stream_id)
+
+    async def reclaim_pending(
+        self,
+        *,
+        consumer: str,
+        min_idle_ms: int,
+        start_id: str = "0-0",
+        count: int = 10,
+    ) -> tuple[str, list[tuple[str, dict[str, str]]]]:
+        """Claim stale pending entries from dead or crashed consumers."""
+        await self.ensure_group()
+        response = await self.redis.xautoclaim(
+            self.stream,
+            self.group,
+            consumer,
+            min_idle_ms,
+            start_id=start_id,
+            count=count,
+        )
+        next_start_id = str(response[0])
+        entries = list(response[1] or [])
+        return next_start_id, entries
+
+    async def dead_letter(
+        self,
+        stream_id: str,
+        fields: dict[str, str],
+        *,
+        reason: str,
+    ) -> str:
+        payload = dict(fields)
+        payload["original_stream_id"] = stream_id
+        payload["dead_letter_reason"] = reason
+        dead_id = await self.redis.xadd(
+            settings.WORKER_DEAD_LETTER_STREAM,
+            payload,
+            maxlen=settings.WORKER_DEAD_LETTER_MAXLEN,
+            approximate=True,
+        )
+        logger.warning(
+            "Task moved to dead-letter stream",
+            extra={
+                "task_id": payload.get("task_id"),
+                "task_type": payload.get("type"),
+                "original_stream_id": stream_id,
+                "dead_letter_stream_id": str(dead_id),
+                "dead_letter_stream": settings.WORKER_DEAD_LETTER_STREAM,
+                "reason": reason,
+            },
+        )
+        return str(dead_id)
+
+    async def dead_letter_count(self) -> int:
+        return int(await self.redis.xlen(settings.WORKER_DEAD_LETTER_STREAM))
+
+    async def list_dead_letters(
+        self,
+        *,
+        count: int = 100,
+        start: str = "+",
+        end: str = "-",
+    ) -> Sequence[tuple[str, dict[str, str]]]:
+        return await self.redis.xrevrange(
+            settings.WORKER_DEAD_LETTER_STREAM,
+            max=start,
+            min=end,
+            count=count,
+        )
+
+    async def get_dead_letter(self, stream_id: str) -> tuple[str, dict[str, str]] | None:
+        entries = await self.redis.xrange(
+            settings.WORKER_DEAD_LETTER_STREAM,
+            min=stream_id,
+            max=stream_id,
+            count=1,
+        )
+        return entries[0] if entries else None
+
+    async def delete_dead_letter(self, stream_id: str) -> int:
+        return int(await self.redis.xdel(settings.WORKER_DEAD_LETTER_STREAM, stream_id))
