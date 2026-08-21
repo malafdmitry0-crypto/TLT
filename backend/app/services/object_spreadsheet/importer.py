@@ -1,4 +1,4 @@
-"""Импорт объектов проекта из Excel."""
+"""Orchestration for CSV and XLSX object imports."""
 
 from __future__ import annotations
 
@@ -30,9 +30,6 @@ from app.services.project_service import (
 )
 
 ImportMode = Literal["append", "merge", "replace"]
-
-
-# Алиасы для колонки «Тип» в CSV (различает трубу/резервуар в одном файле)
 
 
 def _validate_import_mode(mode: str) -> ImportMode:
@@ -243,3 +240,4 @@ async def import_objects_from_excel(
         "validation_errors": validation_errors,
         "created_object_ids": created_object_ids,
     }
+

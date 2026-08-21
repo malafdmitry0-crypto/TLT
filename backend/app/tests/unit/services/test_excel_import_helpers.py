@@ -1,4 +1,4 @@
-"""Unit-тесты чистых функций-парсеров excel_import_service.
+"""Unit tests for object spreadsheet import owners.
 
 Методология: table-driven testing. Эти функции получают произвольные строки
 из Excel (локалями, запятыми, unicode) и должны корректно превращать их в
@@ -13,13 +13,13 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.config import settings
 from app.models.project_object import ProjectObject
-from app.services.excel_import_service import (
-    import_objects_from_csv,
-    import_objects_from_excel,
-)
 from app.services.heat_loss_application import apply_climate_policy
 from app.services.object_spreadsheet import persistence, preparation
 from app.services.object_spreadsheet.export import build_objects_xlsx
+from app.services.object_spreadsheet.importer import (
+    import_objects_from_csv,
+    import_objects_from_excel,
+)
 from app.services.object_spreadsheet.mapping import (
     GENERIC_MATERIAL_ALIASES,
     SHAPE_ALIASES,
@@ -1776,7 +1776,7 @@ class TestAddRowsHelper:
         from unittest.mock import AsyncMock
         from uuid import uuid4
 
-        from app.services import excel_import_service as mod
+        from app.services.object_spreadsheet import importer as mod
 
         project_id = uuid4()
         first_id = uuid4()
@@ -1842,7 +1842,7 @@ class TestAddRowsHelper:
         from unittest.mock import AsyncMock
         from uuid import uuid4
 
-        from app.services import excel_import_service as mod
+        from app.services.object_spreadsheet import importer as mod
 
         async def fake_access(db, checked_project_id, principal):
             return None
@@ -1861,7 +1861,7 @@ class TestAddRowsHelper:
         from unittest.mock import AsyncMock
         from uuid import uuid4
 
-        from app.services import excel_import_service as mod
+        from app.services.object_spreadsheet import importer as mod
         from app.services.object_spreadsheet import parsing
 
         class FakeWorkbook:
@@ -1934,7 +1934,7 @@ class TestAddRowsHelper:
         from unittest.mock import AsyncMock
         from uuid import uuid4
 
-        from app.services import excel_import_service as mod
+        from app.services.object_spreadsheet import importer as mod
         from app.services.object_spreadsheet import parsing
 
         class FakeWorkbook:

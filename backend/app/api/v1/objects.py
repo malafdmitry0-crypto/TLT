@@ -399,7 +399,7 @@ async def import_excel(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, object]:
     from app.schemas.heat_loss import HeatLossBatchJobRequest
-    from app.services.excel_import_service import (
+    from app.services.object_spreadsheet.importer import (
         import_objects_from_csv,
         import_objects_from_excel,
     )
