@@ -96,7 +96,7 @@ async def _assign_objects(
     project_id: str,
     object_ids: list[str],
     headers: dict[str, str],
-) -> None:
+) -> str:
     initialized = await client.post(
         f"/api/v1/projects/{project_id}/electrical-variants/initialize",
         headers=headers,
@@ -124,17 +124,23 @@ async def _assign_objects(
         },
     )
     assert response.status_code == 200, response.text
+    return variant["id"]
 
 
 async def _run_strict_tt_batch(
     client: AsyncClient,
     project_id: str,
+    electrical_variant_id: str,
     headers: dict[str, str],
 ) -> dict[str, Any]:
     response = await client.post(
         "/api/v1/calc/electrical/batch",
         headers=headers,
-        params={"project_id": project_id, **STRICT_TT_BATCH_PARAMS},
+        params={
+            "project_id": project_id,
+            "electrical_variant_id": electrical_variant_id,
+            **STRICT_TT_BATCH_PARAMS,
+        },
     )
     assert response.status_code == 200, response.text
     return response.json()
@@ -143,15 +149,19 @@ async def _run_strict_tt_batch(
 async def _list_calculations(
     client: AsyncClient,
     project_id: str,
+    electrical_variant_id: str,
     headers: dict[str, str],
 ) -> list[dict[str, Any]]:
-    response = await client.get(
-        "/api/v1/calc/electrical",
+    response = await client.post(
+        "/api/v1/calc/electrical/query",
         headers=headers,
-        params={"project_id": project_id, "variant_number": 1},
+        json={
+            "project_id": project_id,
+            "electrical_variant_id": electrical_variant_id,
+        },
     )
     assert response.status_code == 200, response.text
-    return response.json()
+    return response.json()["calculations"]
 
 
 async def test_ac_be_25_batch_persists_success_and_typed_object_error(
@@ -174,9 +184,11 @@ async def test_ac_be_25_batch_persists_success_and_typed_object_error(
         process_temperature=151.0,
     )
     await _set_project_current_limit(client, project["id"], headers)
-    await _assign_objects(client, project["id"], [successful["id"], failed["id"]], headers)
+    variant_id = await _assign_objects(
+        client, project["id"], [successful["id"], failed["id"]], headers
+    )
 
-    body = await _run_strict_tt_batch(client, project["id"], headers)
+    body = await _run_strict_tt_batch(client, project["id"], variant_id, headers)
 
     assert body["calculated"] == 1, body
     assert body["skipped"] == 1
@@ -204,14 +216,12 @@ async def test_ac_be_25_batch_persists_success_and_typed_object_error(
         "climate_policy_rule": "pipe_diameter_ge_100",
     }
 
-    persisted = await _list_calculations(client, project["id"], headers)
+    persisted = await _list_calculations(client, project["id"], variant_id, headers)
     assert {item["object_id"] for item in persisted} == {successful["id"], failed["id"]}
     persisted_by_object = {item["object_id"]: item for item in persisted}
-    assert persisted_by_object[successful["id"]]["results"]["status"] == "ready"
-    assert persisted_by_object[failed["id"]]["results"]["code"] == error["code"]
+    assert persisted_by_object[successful["id"]]["cable_mark"] == body["results"][0]["cable_mark"]
+    assert persisted_by_object[failed["id"]]["results"]["error_code"] == error["code"]
     assert persisted_by_object[failed["id"]]["results"]["message"] == error["message"]
-    assert persisted_by_object[failed["id"]]["results"]["issues"] == error["issues"]
-    assert persisted_by_object[failed["id"]]["results"]["details"] == error["details"]
     failed_result = persisted_by_object[failed["id"]]["results"]
     assert "voltage" not in failed_result
     assert "normalized_voltage_v" not in failed_result
@@ -231,6 +241,7 @@ async def test_ac_be_25_batch_persists_success_and_typed_object_error(
         headers=headers,
         params={
             "project_id": project["id"],
+            "electrical_variant_id": variant_id,
             "cable_source": "builtin",
             "cable_type": "self_regulating_tt",
             "selection_policy": "technical_minimum",
@@ -250,6 +261,7 @@ async def test_ac_be_25_batch_persists_success_and_typed_object_error(
         headers=headers,
         params={
             "object_id": successful["id"],
+            "electrical_variant_id": variant_id,
             "cable_type": "self_regulating_tt",
             "cable_mark": body["results"][0]["cable_mark"],
         },
@@ -280,9 +292,9 @@ async def test_null_project_idop_is_derived_from_selected_section_catalog_row(
         headers,
         name="Catalog-derived Iдоп",
     )
-    await _assign_objects(client, project["id"], [obj["id"]], headers)
+    variant_id = await _assign_objects(client, project["id"], [obj["id"]], headers)
 
-    body = await _run_strict_tt_batch(client, project["id"], headers)
+    body = await _run_strict_tt_batch(client, project["id"], variant_id, headers)
 
     assert body["calculated"] == 1, body
     assert body["errors"] == []
@@ -308,12 +320,23 @@ async def test_batch_query_rejects_retired_tt_inputs_instead_of_ignoring_them(
     value: object,
 ) -> None:
     project = await _guest_project(client, guest_session)
+    headers = _headers(session_id=guest_session)
+    obj = await _add_ready_pipe(
+        client,
+        project["id"],
+        headers,
+        name="Retired input contract",
+    )
+    variant_id = await _assign_objects(
+        client, project["id"], [obj["id"]], headers
+    )
 
     response = await client.post(
         "/api/v1/calc/electrical/batch",
-        headers=_headers(session_id=guest_session),
+        headers=headers,
         params={
             "project_id": project["id"],
+            "electrical_variant_id": variant_id,
             "cable_type": "self_regulating_tt",
             field: value,
         },
@@ -350,17 +373,23 @@ async def test_ac_be_28_guest_employee_canonical_tt_parity(
         employee_headers,
         name="Canonical TT parity",
     )
+    variant_ids: list[str] = []
     for project, obj, headers in (
         (guest_project, guest_object, guest_headers),
         (employee_project, employee_object, employee_headers),
     ):
         await _set_project_current_limit(client, project["id"], headers)
-        await _assign_objects(client, project["id"], [obj["id"]], headers)
+        variant_ids.append(
+            await _assign_objects(client, project["id"], [obj["id"]], headers)
+        )
 
-    guest_body = await _run_strict_tt_batch(client, guest_project["id"], guest_headers)
+    guest_body = await _run_strict_tt_batch(
+        client, guest_project["id"], variant_ids[0], guest_headers
+    )
     employee_body = await _run_strict_tt_batch(
         client,
         employee_project["id"],
+        variant_ids[1],
         employee_headers,
     )
     assert guest_body["calculated"] == employee_body["calculated"] == 1
