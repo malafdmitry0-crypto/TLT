@@ -50,7 +50,7 @@ class TestGuestAuth:
         assert resolved.json()["session_id"] == original["session_id"]
         assert resolved.json()["project"]["id"] == original["project"]["id"]
 
-    async def test_resolve_migrates_legacy_header_to_cookie(self, client: AsyncClient):
+    async def test_resolve_rejects_legacy_header_identity(self, client: AsyncClient):
         created = await client.post("/api/v1/auth/guest")
         original = created.json()
         client.cookies.clear()
@@ -60,9 +60,22 @@ class TestGuestAuth:
             headers={"X-Session-Id": original["session_id"]},
         )
 
-        assert resolved.status_code == 200
-        assert resolved.json()["project"]["id"] == original["project"]["id"]
-        assert client.cookies[settings.GUEST_COOKIE_NAME] == original["session_id"]
+        assert resolved.status_code == 401
+        assert resolved.json()["detail"] == "Сессия не найдена или истекла"
+        assert settings.GUEST_COOKIE_NAME not in client.cookies
+
+    async def test_current_rejects_legacy_header_identity(self, client: AsyncClient):
+        created = await client.post("/api/v1/auth/guest")
+        session_id = created.json()["session_id"]
+        client.cookies.clear()
+
+        current = await client.get(
+            "/api/v1/auth/guest/current",
+            headers={"X-Session-Id": session_id},
+        )
+
+        assert current.status_code == 401
+        assert current.json()["detail"] == "Сессия не найдена или истекла"
 
     async def test_current_restores_guest_when_browser_lost_local_storage(
         self, client: AsyncClient
@@ -76,7 +89,7 @@ class TestGuestAuth:
         assert current.json()["session_id"] == original["session_id"]
         assert current.json()["project"]["id"] == original["project"]["id"]
 
-    async def test_explicit_guest_header_overrides_stale_guest_cookie(self, client: AsyncClient):
+    async def test_current_ignores_legacy_header_in_favor_of_cookie(self, client: AsyncClient):
         original = (await client.post("/api/v1/auth/guest")).json()
         replacement = (await client.post("/api/v1/auth/guest")).json()
         assert client.cookies[settings.GUEST_COOKIE_NAME] == replacement["session_id"]
@@ -87,9 +100,29 @@ class TestGuestAuth:
         )
 
         assert current.status_code == 200
-        assert current.json()["session_id"] == original["session_id"]
-        assert current.json()["project"]["id"] == original["project"]["id"]
-        assert client.cookies[settings.GUEST_COOKIE_NAME] == original["session_id"]
+        assert current.json()["session_id"] == replacement["session_id"]
+        assert current.json()["project"]["id"] == replacement["project"]["id"]
+        assert client.cookies[settings.GUEST_COOKIE_NAME] == replacement["session_id"]
+
+    async def test_resolve_rejects_unknown_persisted_session(self, client: AsyncClient):
+        client.cookies.set(settings.GUEST_COOKIE_NAME, "expired-session")
+        client.cookies.set(settings.CSRF_COOKIE_NAME, "csrf-token")
+
+        resolved = await client.post(
+            "/api/v1/auth/guest/resolve",
+            headers={"X-CSRF-Token": "csrf-token"},
+        )
+
+        assert resolved.status_code == 401
+        assert resolved.json()["detail"] == "Сессия не найдена или истекла"
+
+    async def test_current_rejects_unknown_persisted_session(self, client: AsyncClient):
+        client.cookies.set(settings.GUEST_COOKIE_NAME, "expired-session")
+
+        current = await client.get("/api/v1/auth/guest/current")
+
+        assert current.status_code == 401
+        assert current.json()["detail"] == "Сессия не найдена или истекла"
 
     async def test_current_does_not_create_session_without_identity(
         self, client: AsyncClient, db_session: AsyncSession

@@ -110,6 +110,29 @@ async def _guest_project(db: AsyncSession, session_id: str) -> Project | None:
     )
 
 
+def _session_not_found() -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Сессия не найдена или истекла",
+    )
+
+
+async def _persisted_guest_session(
+    db: AsyncSession,
+    request: Request,
+) -> GuestSession | None:
+    """Resolve only the canonical persisted-cookie guest identity."""
+    session_id = request.cookies.get(settings.GUEST_COOKIE_NAME)
+    if session_id is None:
+        if request.headers.get("X-Session-Id") is not None:
+            raise _session_not_found()
+        return None
+    session = await db.scalar(select(GuestSession).where(GuestSession.session_id == session_id))
+    if session is None:
+        raise _session_not_found()
+    return session
+
+
 @router.post(
     "/guest",
     response_model=GuestSessionResponse,
@@ -166,16 +189,8 @@ async def resolve_guest_session(
     response: Response,
     db: AsyncSession = Depends(get_db),
 ) -> GuestSessionResponse:
-    """Return the authoritative project for a persisted or legacy guest session."""
-    session = None
-    candidates = [
-        request.headers.get("X-Session-Id"),
-        request.cookies.get(settings.GUEST_COOKIE_NAME),
-    ]
-    for session_id in dict.fromkeys(candidate for candidate in candidates if candidate):
-        session = await db.scalar(select(GuestSession).where(GuestSession.session_id == session_id))
-        if session is not None:
-            break
+    """Return the authoritative project for the persisted guest session."""
+    session = await _persisted_guest_session(db, request)
 
     created = session is None
     if created:
@@ -225,22 +240,16 @@ async def current_guest_session(
     db: AsyncSession = Depends(get_db),
 ) -> GuestSessionResponse | None:
     """Probe persisted guest identity without creating anonymous server data."""
-    candidates = [
-        request.headers.get("X-Session-Id"),
-        request.cookies.get(settings.GUEST_COOKIE_NAME),
-    ]
-    for session_id in dict.fromkeys(candidate for candidate in candidates if candidate):
-        session = await db.scalar(select(GuestSession).where(GuestSession.session_id == session_id))
-        if session is None:
-            continue
-        project = await _guest_project(db, session.session_id)
-        if project is None:
-            continue
-        session.last_activity = datetime.now(UTC)
-        await db.commit()
-        _set_guest_cookies(response, session.session_id)
-        return GuestSessionResponse(session_id=session.session_id, project=project)
-    return None
+    session = await _persisted_guest_session(db, request)
+    if session is None:
+        return None
+    project = await _guest_project(db, session.session_id)
+    if project is None:
+        raise _session_not_found()
+    session.last_activity = datetime.now(UTC)
+    await db.commit()
+    _set_guest_cookies(response, session.session_id)
+    return GuestSessionResponse(session_id=session.session_id, project=project)
 
 
 @router.post(
