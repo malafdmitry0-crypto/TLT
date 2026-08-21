@@ -24,7 +24,6 @@ def _revision(calculation_id: uuid.UUID, project_id: uuid.UUID, number: int):
         supersedes_result_id=None,
         project_id=project_id,
         object_id=uuid.uuid4(),
-        variant_number=1,
         electrical_variant_id=uuid.uuid4(),
         cable_type="self_regulating_tt",
         cable_type_source="auto",

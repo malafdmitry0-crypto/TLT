@@ -259,7 +259,7 @@ async def test_activation_stales_calculation_assignment_and_exact_variant_specif
     assert refreshed_spec is not None and refreshed_spec.is_stale is True
 
 
-async def test_legacy_tt_snapshot_is_readable_but_excluded_from_ready_summary(
+async def test_stale_tt_snapshot_is_readable_but_excluded_from_ready_summary(
     client: AsyncClient,
     employee_token: str,
     db_session: AsyncSession,
@@ -295,10 +295,9 @@ async def test_legacy_tt_snapshot_is_readable_but_excluded_from_ready_summary(
     )
     assert assigned.status_code == 200, assigned.text
 
-    legacy = ElectricalCalculation(
+    calculation = ElectricalCalculation(
         project_id=UUID(project["id"]),
         object_id=UUID(obj["id"]),
-        variant_number=variant["legacy_variant_number"],
         electrical_variant_id=UUID(variant["id"]),
         cable_type="self_regulating_tt",
         cable_type_source="auto",
@@ -315,27 +314,26 @@ async def test_legacy_tt_snapshot_is_readable_but_excluded_from_ready_summary(
             "current": 13.64,
         },
     )
-    db_session.add(legacy)
+    db_session.add(calculation)
     await db_session.commit()
     db_session.add(
         ElectricalCalculationRevision(
-            electrical_calculation_id=legacy.id,
+            electrical_calculation_id=calculation.id,
             revision_number=999,
             supersedes_result_id=None,
-            project_id=legacy.project_id,
-            object_id=legacy.object_id,
-            variant_number=legacy.variant_number,
-            electrical_variant_id=legacy.electrical_variant_id,
-            cable_type=legacy.cable_type,
-            cable_type_source=legacy.cable_type_source,
-            cable_mark=legacy.cable_mark,
-            cable_mark_source=legacy.cable_mark_source,
-            cable_snapshot=legacy.cable_snapshot,
-            params=legacy.params,
-            results=legacy.results,
+            project_id=calculation.project_id,
+            object_id=calculation.object_id,
+            electrical_variant_id=calculation.electrical_variant_id,
+            cable_type=calculation.cable_type,
+            cable_type_source=calculation.cable_type_source,
+            cable_mark=calculation.cable_mark,
+            cable_mark_source=calculation.cable_mark_source,
+            cable_snapshot=calculation.cable_snapshot,
+            params=calculation.params,
+            results=calculation.results,
             status="stale",
-            source_created_at=legacy.created_at,
-            source_updated_at=legacy.updated_at,
+            source_created_at=calculation.created_at,
+            source_updated_at=calculation.updated_at,
         )
     )
     await db_session.commit()
@@ -360,12 +358,12 @@ async def test_legacy_tt_snapshot_is_readable_but_excluded_from_ready_summary(
     assert body["summary"]["total_current"] == 0
 
     history = await client.get(
-        f"/api/v1/calc/electrical/history/{legacy.id}",
+        f"/api/v1/calc/electrical/history/{calculation.id}",
         headers=headers,
     )
     assert history.status_code == 200, history.text
     history_body = history.json()
-    assert history_body["calculation_id"] == str(legacy.id)
+    assert history_body["calculation_id"] == str(calculation.id)
     assert history_body["total"] >= 1
     assert history_body["items"][0]["revision_number"] == 999
     assert history_body["items"][0]["status"] == "stale"
