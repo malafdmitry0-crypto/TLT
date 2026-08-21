@@ -148,7 +148,6 @@ async def test_current_limit_change_stales_all_dependent_ers_and_identical_patch
             name=f"ЭР {index}",
             name_normalized=f"эр {index}",
             sort_order=index,
-            legacy_variant_number=index,
             is_active=index == 1,
         )
         for index in (1, 2)
@@ -199,11 +198,6 @@ async def test_current_limit_change_stales_all_dependent_ers_and_identical_patch
                 project_id=project.id,
                 object_id=obj.id,
                 electrical_variant_id=assignment.electrical_variant_id,
-                variant_number=next(
-                    variant.legacy_variant_number
-                    for variant in variants
-                    if variant.id == assignment.electrical_variant_id
-                ),
                 cable_type="self_regulating_tt",
                 cable_mark="30ТТВ2-СР",
                 params={},
