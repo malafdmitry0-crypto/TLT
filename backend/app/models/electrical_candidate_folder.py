@@ -9,7 +9,6 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
-    UniqueConstraint,
     text,
 )
 from sqlalchemy.dialects.postgresql import UUID
@@ -27,13 +26,9 @@ class ElectricalCandidateFolder(Base, TimestampMixin):
             name="ck_electrical_candidate_folders_variant_number",
         ),
         ForeignKeyConstraint(
-            ["electrical_variant_id", "project_id", "variant_number"],
-            [
-                "electrical_variants.id",
-                "electrical_variants.project_id",
-                "electrical_variants.legacy_variant_number",
-            ],
-            name="fk_electrical_candidate_folders_variant_project_legacy",
+            ["electrical_variant_id", "project_id"],
+            ["electrical_variants.id", "electrical_variants.project_id"],
+            name="fk_electrical_candidate_folders_variant_project",
             ondelete="CASCADE",
         ),
         ForeignKeyConstraint(
@@ -44,13 +39,6 @@ class ElectricalCandidateFolder(Base, TimestampMixin):
             ],
             name="fk_electrical_candidate_folders_variant_object_assignment",
             ondelete="CASCADE",
-        ),
-        UniqueConstraint(
-            "project_id",
-            "object_id",
-            "variant_number",
-            "name",
-            name="uq_electrical_candidate_folders_scope_name",
         ),
         Index(
             "ix_electrical_candidate_folders_scope",
@@ -88,10 +76,11 @@ class ElectricalCandidateFolder(Base, TimestampMixin):
         ForeignKey("project_objects.id", ondelete="CASCADE"),
         nullable=False,
     )
-    variant_number: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
-    electrical_variant_id: Mapped[uuid.UUID | None] = mapped_column(
+    # Transitional read contract; the database column is optional for UUID-only writers.
+    variant_number: Mapped[int] = mapped_column(Integer, nullable=True)
+    electrical_variant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        nullable=True,
+        nullable=False,
     )
     name: Mapped[str] = mapped_column(String(64), nullable=False)
     color: Mapped[str | None] = mapped_column(String(32), nullable=True)

@@ -67,12 +67,6 @@ class ElectricalVariant(Base, TimestampMixin):
             name="uq_electrical_variants_id_project",
         ),
         UniqueConstraint(
-            "id",
-            "project_id",
-            "legacy_variant_number",
-            name="uq_electrical_variants_id_project_legacy",
-        ),
-        UniqueConstraint(
             "project_id",
             "sort_order",
             name="uq_electrical_variants_project_sort_order",

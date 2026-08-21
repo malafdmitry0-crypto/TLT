@@ -29,13 +29,9 @@ class ElectricalCandidate(Base, TimestampMixin):
             name="ck_electrical_candidates_variant_number",
         ),
         ForeignKeyConstraint(
-            ["electrical_variant_id", "project_id", "variant_number"],
-            [
-                "electrical_variants.id",
-                "electrical_variants.project_id",
-                "electrical_variants.legacy_variant_number",
-            ],
-            name="fk_electrical_candidates_variant_project_legacy",
+            ["electrical_variant_id", "project_id"],
+            ["electrical_variants.id", "electrical_variants.project_id"],
+            name="fk_electrical_candidates_variant_project",
             ondelete="CASCADE",
         ),
         ForeignKeyConstraint(
@@ -60,20 +56,6 @@ class ElectricalCandidate(Base, TimestampMixin):
             "project_id",
             "object_id",
             "variant_number",
-        ),
-        Index(
-            "ux_electrical_candidates_applied_object_variant",
-            "object_id",
-            "variant_number",
-            unique=True,
-            postgresql_where=text("is_applied"),
-        ),
-        Index(
-            "ux_electrical_candidates_object_variant_dedupe",
-            "object_id",
-            "variant_number",
-            "dedupe_key",
-            unique=True,
         ),
         Index(
             "ix_electrical_candidates_project_object_electrical_variant",
@@ -109,10 +91,11 @@ class ElectricalCandidate(Base, TimestampMixin):
         ForeignKey("project_objects.id", ondelete="CASCADE"),
         nullable=False,
     )
-    variant_number: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
-    electrical_variant_id: Mapped[uuid.UUID | None] = mapped_column(
+    # Transitional read contract; the database column is optional for UUID-only writers.
+    variant_number: Mapped[int] = mapped_column(Integer, nullable=True)
+    electrical_variant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        nullable=True,
+        nullable=False,
     )
     cable_type: Mapped[str] = mapped_column(String(64), nullable=False)
     cable_source: Mapped[str] = mapped_column(String(32), default="builtin", nullable=False)

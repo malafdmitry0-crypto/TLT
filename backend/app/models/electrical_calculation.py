@@ -27,13 +27,9 @@ class ElectricalCalculation(Base, TimestampMixin):
             name="ck_electrical_calculations_variant_number",
         ),
         ForeignKeyConstraint(
-            ["electrical_variant_id", "project_id", "variant_number"],
-            [
-                "electrical_variants.id",
-                "electrical_variants.project_id",
-                "electrical_variants.legacy_variant_number",
-            ],
-            name="fk_electrical_calculations_variant_project_legacy",
+            ["electrical_variant_id", "project_id"],
+            ["electrical_variants.id", "electrical_variants.project_id"],
+            name="fk_electrical_calculations_variant_project",
             ondelete="CASCADE",
         ),
         ForeignKeyConstraint(
@@ -49,12 +45,6 @@ class ElectricalCalculation(Base, TimestampMixin):
             "ix_electrical_calculations_project_variant",
             "project_id",
             "variant_number",
-        ),
-        Index(
-            "ix_electrical_calculations_object_variant",
-            "object_id",
-            "variant_number",
-            unique=True,
         ),
         Index(
             "ix_electrical_calculations_project_electrical_variant",
@@ -85,10 +75,12 @@ class ElectricalCalculation(Base, TimestampMixin):
         ForeignKey("project_objects.id", ondelete="CASCADE"),
         nullable=False,
     )
-    variant_number: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
-    electrical_variant_id: Mapped[uuid.UUID | None] = mapped_column(
+    # Transitional read contract: existing services still consume populated legacy rows.
+    # UUID-only writers may leave the nullable database column empty after cutover.
+    variant_number: Mapped[int] = mapped_column(Integer, nullable=True)
+    electrical_variant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        nullable=True,
+        nullable=False,
     )
     cable_type: Mapped[str] = mapped_column(String(64), nullable=False)
     cable_type_source: Mapped[str] = mapped_column(String(32), default="auto", nullable=False)
