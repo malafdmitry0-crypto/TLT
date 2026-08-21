@@ -43,8 +43,7 @@ def _normalize_mode(mode: Any) -> str:
     text = str(value)
     if text not in _VALID_MODES:
         raise ValueError(
-            f"unknown grouping mode: {mode!r}; "
-            f"expected one of {sorted(_VALID_MODES)}"
+            f"unknown grouping mode: {mode!r}; " f"expected one of {sorted(_VALID_MODES)}"
         )
     return text
 
@@ -58,7 +57,7 @@ def grouping_key(
     object_type_section: Any,
     nomenclature_code: Any,
     supply_unit: Any,
-) -> tuple:
+) -> tuple[Any, ...]:
     """Return the exact immutable grouping key for the given mode.
 
     Parameters are intentionally untyped so callers can pass domain IDs without
@@ -67,14 +66,10 @@ def grouping_key(
     """
     mode_value = _normalize_mode(mode)
     identity = {
-        "electrical_variant_id": _require_identity(
-            "electrical_variant_id", electrical_variant_id
-        ),
+        "electrical_variant_id": _require_identity("electrical_variant_id", electrical_variant_id),
         "catalog_id": _require_identity("catalog_id", catalog_id),
         "catalog_version": _require_identity("catalog_version", catalog_version),
-        "nomenclature_code": _require_identity(
-            "nomenclature_code", nomenclature_code
-        ),
+        "nomenclature_code": _require_identity("nomenclature_code", nomenclature_code),
         "supply_unit": _require_identity("supply_unit", supply_unit),
     }
     if mode_value == MODE_SEPARATE_BY_OBJECT_TYPE:
@@ -152,8 +147,8 @@ def merge_items(
     * Output order is first-seen key order.
     """
     mode_value = _normalize_mode(mode)
-    order: list[tuple] = []
-    buckets: dict[tuple, dict[str, Any]] = {}
+    order: list[tuple[Any, ...]] = []
+    buckets: dict[tuple[Any, ...], dict[str, Any]] = {}
 
     for item in items:
         fields = _item_grouping_fields(item)
