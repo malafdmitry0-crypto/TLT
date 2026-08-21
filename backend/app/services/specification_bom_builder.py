@@ -1141,8 +1141,10 @@ def _temperature_group_key(result: Mapping[str, Any]) -> str | None:
 
 
 def _section_facts(result: Mapping[str, Any]) -> tuple[Any, Any]:
-    section_plan = result.get("section_plan") if isinstance(result.get("section_plan"), Mapping) else {}
-    sections = result.get("sections") if isinstance(result.get("sections"), Mapping) else {}
+    raw_section_plan = result.get("section_plan")
+    section_plan = raw_section_plan if isinstance(raw_section_plan, Mapping) else {}
+    raw_sections = result.get("sections")
+    sections = raw_sections if isinstance(raw_sections, Mapping) else {}
     count = (
         section_plan.get("count")
         or result.get("section_count")
@@ -1166,7 +1168,8 @@ def _section_facts(result: Mapping[str, Any]) -> tuple[Any, Any]:
 
 
 def _actual_length(result: Mapping[str, Any]) -> Any:
-    layout = result.get("layout") if isinstance(result.get("layout"), Mapping) else {}
+    raw_layout = result.get("layout")
+    layout = raw_layout if isinstance(raw_layout, Mapping) else {}
     return (
         layout.get("actual_installed_length_m")
         or result.get("actual_installed_length_m")
@@ -1177,8 +1180,10 @@ def _actual_length(result: Mapping[str, Any]) -> Any:
 
 
 def _order_length(result: Mapping[str, Any]) -> Any:
-    layout = result.get("layout") if isinstance(result.get("layout"), Mapping) else {}
-    commercial = result.get("commercial") if isinstance(result.get("commercial"), Mapping) else {}
+    raw_layout = result.get("layout")
+    layout = raw_layout if isinstance(raw_layout, Mapping) else {}
+    raw_commercial = result.get("commercial")
+    commercial = raw_commercial if isinstance(raw_commercial, Mapping) else {}
     return (
         layout.get("required_order_length_m")
         or commercial.get("required_order_length")
@@ -1191,7 +1196,8 @@ def _outer_diameter_mm(obj: Mapping[str, Any]) -> Decimal:
     """ProjectObject stores outer_diameter in metres; calculators use mm."""
     raw = obj.get("outer_diameter")
     if raw is None:
-        params = obj.get("params") if isinstance(obj.get("params"), Mapping) else {}
+        raw_params = obj.get("params")
+        params = raw_params if isinstance(raw_params, Mapping) else {}
         raw = params.get("outer_diameter") or params.get("diameter")
     if raw is None:
         raise FormulaInputError(

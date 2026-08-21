@@ -1,10 +1,10 @@
 """Сервис генерации отчётов."""
 
 import asyncio
-from typing import ClassVar
+from typing import Any, ClassVar
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import false, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import CurrentPrincipal
@@ -31,7 +31,7 @@ def specification_report_projection(
     spec: Specification | None,
     *,
     electrical_variant_id: UUID | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Canonical report projection for one ER specification (SPEC-FINAL-01).
 
     ``state`` is the only branch selector for templates and procurement totals:
@@ -103,16 +103,17 @@ class ReportService:
         variant_number: int | None = 1,
         electrical_variant_id: UUID | None = None,
         electrical_variant_name: str | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         enabled_sections = self._normalize_sections(sections)
 
         if principal is not None:
             project = await ProjectService(self.db).get_project_basic(project_id, principal)
         else:
             result = await self.db.execute(select(Project).where(Project.id == project_id))
-            project = result.scalar_one_or_none()
-            if project is None:
+            loaded_project = result.scalar_one_or_none()
+            if loaded_project is None:
                 raise ReportError("Проект не найден")
+            project = loaded_project
 
         needs_objects = bool(
             {"summary", "pipes", "tanks", "electrical"}.intersection(enabled_sections)
@@ -145,7 +146,7 @@ class ReportService:
             else:
                 # Specification data plane is UUID-only. A numeric report selector
                 # may still scope legacy electrical sections, never a BOM.
-                spec_stmt = spec_stmt.where(False)
+                spec_stmt = spec_stmt.where(false())
             spec_result = await self.db.execute(spec_stmt)
             spec = spec_result.scalars().first()
             # Blocked generate attempts never create a specification row, so
@@ -167,7 +168,7 @@ class ReportService:
             elif variant_number is not None:
                 elec_stmt = elec_stmt.where(ElectricalCalculation.variant_number == variant_number)
             else:
-                elec_stmt = elec_stmt.where(False)
+                elec_stmt = elec_stmt.where(false())
             elec_result = await self.db.execute(elec_stmt)
             elec_rows = list(elec_result.scalars().all())
             for e in elec_rows:
@@ -204,7 +205,7 @@ class ReportService:
         cls,
         obj: ProjectObject,
         latest_by_object: dict[str, ElectricalCalculation],
-    ) -> dict:
+    ) -> dict[str, Any]:
         calc = latest_by_object.get(str(obj.id))
         return {
             "id": str(obj.id),
@@ -216,7 +217,7 @@ class ReportService:
         }
 
     @classmethod
-    def _electrical_payload(cls, calc: ElectricalCalculation) -> dict:
+    def _electrical_payload(cls, calc: ElectricalCalculation) -> dict[str, Any]:
         raw_results = calc.results or {}
         results = raw_results if isinstance(raw_results, dict) else {}
         cable_type = getattr(calc, "cable_type", None)
@@ -231,11 +232,13 @@ class ReportService:
         }
 
     @classmethod
-    def _build_electrical_context(cls, objects: list[dict]) -> dict:
-        valid: list[dict] = []
-        failed: list[dict] = []
-        unsupported: list[dict] = []
-        stale: list[dict] = []
+    def _build_electrical_context(
+        cls, objects: list[dict[str, Any]]
+    ) -> dict[str, Any]:
+        valid: list[dict[str, Any]] = []
+        failed: list[dict[str, Any]] = []
+        unsupported: list[dict[str, Any]] = []
+        stale: list[dict[str, Any]] = []
 
         for obj in objects:
             electrical = obj.get("electrical")
@@ -269,18 +272,18 @@ class ReportService:
         }
 
     @classmethod
-    def _electrical_status(cls, cable_mark: str | None, results: dict) -> str:
+    def _electrical_status(cls, cable_mark: str | None, results: dict[str, Any]) -> str:
         return electrical_result_status(cable_mark, results)
 
     @staticmethod
     def _is_successful_electrical_calculation(
         cable_mark: str | None,
-        results: dict | None,
+        results: dict[str, Any] | None,
     ) -> bool:
         return is_successful_electrical_result(cable_mark, results)
 
     @classmethod
-    def _sum_electrical_result(cls, objects: list[dict], key: str) -> float:
+    def _sum_electrical_result(cls, objects: list[dict[str, Any]], key: str) -> float:
         total = 0.0
         for obj in objects:
             electrical = obj.get("electrical")
@@ -298,6 +301,8 @@ class ReportService:
             return 0.0
         if isinstance(value, int | float):
             return float(value)
+        if not isinstance(value, str):
+            return 0.0
         try:
             return float(value)
         except (TypeError, ValueError):
@@ -312,7 +317,7 @@ class ReportService:
         variant_number: int | None = 1,
         electrical_variant_id: UUID | None = None,
         electrical_variant_name: str | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         ctx = await self._load_context(
             project_id,
             sections,
@@ -334,13 +339,13 @@ class ReportService:
     async def preview_multi(
         self,
         project_id: UUID,
-        chapters: list[dict],
+        chapters: list[dict[str, Any]],
         sections: list[str] | None = None,
         *,
         principal: CurrentPrincipal,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """PDL-ER-39: one report with independent chapter per ER UUID; no cross-sums."""
-        built: list[dict] = []
+        built: list[dict[str, Any]] = []
         for chapter in chapters:
             ctx = await self._load_context(
                 project_id,

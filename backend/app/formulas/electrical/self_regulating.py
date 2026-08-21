@@ -505,13 +505,21 @@ def calc_self_regulating_tt(
     cable_mark = selected.full_mark
 
     if is_tank:
+        tank_shape = params.tank_shape
+        heating_height = params.heating_height
+        laying_step = params.laying_step
+        if tank_shape is None or heating_height is None or laying_step is None:
+            raise ElectricalFormulaError(
+                "ELECTRICAL_TANK_LAYOUT_REQUIRED",
+                "Для резервуара обязательны форма, высота обогрева и шаг укладки",
+            )
         base_length = compute_tank_cable_length(
-            shape=params.tank_shape,
+            shape=tank_shape,
             diameter=params.tank_diameter,
             length=params.tank_length,
             width=params.tank_width,
-            heating_height=params.heating_height,
-            laying_step=params.laying_step,
+            heating_height=heating_height,
+            laying_step=laying_step,
         )
     else:
         base_length = params.pipe_length

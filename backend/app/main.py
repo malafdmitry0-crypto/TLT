@@ -5,14 +5,16 @@ import logging
 import re
 import time
 import uuid
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager, suppress
 from typing import ClassVar
 
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, ORJSONResponse
+from fastapi.responses import JSONResponse, ORJSONResponse, Response
 from sqlalchemy import select
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.api.v1.router import api_router
 from app.core.config import settings
@@ -128,7 +130,7 @@ async def _periodic_task_recovery() -> None:
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Инициализация при старте: справочники, первый админ, cleanup сессий.
 
     Миграции Alembic применяются в entrypoint контейнера до запуска uvicorn
@@ -167,7 +169,9 @@ app = FastAPI(
 
 
 @app.middleware("http")
-async def request_logging_middleware(request: Request, call_next):
+async def request_logging_middleware(
+    request: Request, call_next: Callable[[Request], Awaitable[Response]]
+) -> Response:
     request_id = _safe_request_id(request.headers.get("X-Request-Id"))
     token = set_request_id(request_id)
     started = time.perf_counter()
@@ -219,7 +223,7 @@ class PayloadTooLargeError(Exception):
     pass
 
 
-async def _send_payload_too_large(send) -> None:
+async def _send_payload_too_large(send: Send) -> None:
     response = JSONResponse(
         status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
         content={
@@ -228,7 +232,7 @@ async def _send_payload_too_large(send) -> None:
         },
     )
 
-    async def empty_receive():
+    async def empty_receive() -> Message:
         return {"type": "http.disconnect"}
 
     await response({"type": "http", "method": "POST", "path": ""}, empty_receive, send)
@@ -237,10 +241,10 @@ async def _send_payload_too_large(send) -> None:
 class MaxBodySizeMiddleware:
     """Rejects oversized requests both by Content-Length and by streamed body bytes."""
 
-    def __init__(self, app):
+    def __init__(self, app: ASGIApp) -> None:
         self.app = app
 
-    async def __call__(self, scope, receive, send):
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
@@ -260,13 +264,13 @@ class MaxBodySizeMiddleware:
         seen = 0
         response_started = False
 
-        async def send_wrapper(message):
+        async def send_wrapper(message: Message) -> None:
             nonlocal response_started
             if message["type"] == "http.response.start":
                 response_started = True
             await send(message)
 
-        async def receive_wrapper():
+        async def receive_wrapper() -> Message:
             nonlocal seen
             message = await receive()
             if message["type"] == "http.request":
@@ -293,10 +297,10 @@ class CsrfCookieMiddleware:
         settings.API_V1_PREFIX + "/auth/refresh",
     }
 
-    def __init__(self, app):
+    def __init__(self, app: ASGIApp) -> None:
         self.app = app
 
-    async def __call__(self, scope, receive, send):
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http" or scope.get("method") in self.SAFE_METHODS:
             await self.app(scope, receive, send)
             return

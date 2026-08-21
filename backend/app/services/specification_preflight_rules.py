@@ -388,8 +388,10 @@ def _revisions_match(row: SpecificationPreflightAssignment, result: Mapping[str,
 
 
 def _section_plan_issue(result: Mapping[str, Any]) -> dict[str, Any] | None:
-    layout = result.get("layout") if isinstance(result.get("layout"), Mapping) else {}
-    plan = result.get("section_plan") if isinstance(result.get("section_plan"), Mapping) else {}
+    raw_layout = result.get("layout")
+    layout = raw_layout if isinstance(raw_layout, Mapping) else {}
+    raw_plan = result.get("section_plan")
+    plan = raw_plan if isinstance(raw_plan, Mapping) else {}
     origin = plan.get("origin", "automatic")
     if origin != "automatic":
         return {"section_plan_origin": origin}

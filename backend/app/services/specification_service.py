@@ -331,7 +331,8 @@ class SpecificationService:
             .from_statement(upsert_stmt)
             .execution_options(populate_existing=True)
         )
-        return result.scalar_one()
+        specification: Specification = result.scalar_one()
+        return specification
 
 
 def _validated_auto_items(existing: Specification | None) -> list[SpecificationItem]:

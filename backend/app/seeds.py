@@ -32,9 +32,10 @@ import re
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Literal, TypedDict
+from typing import Any, Literal, TypedDict
 
 from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import AsyncSessionLocal
 from app.core.dependencies import CurrentPrincipal
@@ -73,7 +74,9 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 # ---------------------------------------------------------------------------
 
 
-async def _get_or_create_user(db, email: str, **kwargs) -> User:
+async def _get_or_create_user(
+    db: AsyncSession, email: str, **kwargs: Any
+) -> User:
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
     if user is None:
@@ -144,7 +147,7 @@ def _commercial_seed_is_allowed(existing: CableExtended) -> bool:
 def _apply_demo_commercial(existing: CableExtended, data: dict[str, object]) -> None:
     """Updates seed/demo-managed rows, but leaves real production data alone."""
     if _commercial_seed_is_allowed(existing):
-        update_keys = (
+        update_keys: tuple[str, ...] = (
             "power_per_meter",
             "max_temperature",
             "min_temperature",
@@ -175,7 +178,7 @@ def _apply_demo_commercial(existing: CableExtended, data: dict[str, object]) -> 
             setattr(existing, key, data[key])
 
 
-async def _upsert_demo_cable(db, data: dict[str, object]) -> None:
+async def _upsert_demo_cable(db: AsyncSession, data: dict[str, object]) -> None:
     result = await db.execute(
         select(CableExtended).where(
             CableExtended.model == data["model"],
@@ -200,7 +203,9 @@ def _resistive_demo_cable(
     now: datetime,
 ) -> dict[str, object]:
     section = _resistive_section(cable)
-    resistance_ohm_km = float(cable.get("resistance_ohm_km") or (17.5 / section))
+    resistance_ohm_km = float(
+        str(cable.get("resistance_ohm_km") or (17.5 / section))
+    )
     price_per_meter = 95.0 + section * 22.0 + max(0.0, 900.0 - resistance_ohm_km) * 0.018
     stock_quantity_m = max(120.0, 2400.0 - index * 38.0)
     brand = str(cable.get("brand") or ("ТТ Р1" if cable_type == "single_core" else "ТТ Р3"))
@@ -249,7 +254,7 @@ def _resistive_demo_cable(
 def _resistive_section(cable: dict[str, object]) -> float:
     raw = cable.get("conductor_section_mm2") or cable.get("conductor_cross_section")
     if raw is not None:
-        return float(raw)
+        return float(str(raw))
     match = re.search(r"х\s*(\d+(?:[,.]\d+)?)\s*-", str(cable.get("model", "")))
     if match:
         return float(match.group(1).replace(",", "."))
@@ -293,7 +298,7 @@ def _insulation_seed_row(entry: dict[str, object]) -> dict[str, object]:
     }
 
 
-async def seed_demo_commercial_catalog(db) -> None:
+async def seed_demo_commercial_catalog(db: AsyncSession) -> None:
     """Заполняет DB commercial projection для встроенных ТТ Р1/ТТ Р3 справочников.
 
     Значения намеренно помечены `commercial_data_source=demo_seed`: это тестовые
@@ -305,7 +310,7 @@ async def seed_demo_commercial_catalog(db) -> None:
     return None
 
 
-async def purge_legacy_tlt_seed_cables(db) -> int:
+async def purge_legacy_tlt_seed_cables(db: AsyncSession) -> int:
     """Удаляет только старые demo/test-строки ТЛТ перед повторным seed."""
     result = await db.execute(
         delete(CableExtended).where(
@@ -320,7 +325,7 @@ async def purge_legacy_tlt_seed_cables(db) -> int:
     return deleted
 
 
-async def purge_unsupported_mvp_seed_cables(db) -> int:
+async def purge_unsupported_mvp_seed_cables(db: AsyncSession) -> int:
     """Remove only demo/seed cable rows outside the current TT-only MVP."""
     result = await db.execute(
         delete(CableExtended).where(
@@ -339,8 +344,8 @@ async def purge_unsupported_mvp_seed_cables(db) -> int:
 # ---------------------------------------------------------------------------
 
 
-async def seed_users(db) -> list[User]:
-    users_data = [
+async def seed_users(db: AsyncSession) -> list[User]:
+    users_data: list[dict[str, Any]] = [
         dict(
             email="admin2@heatcalc.io",
             hashed_password=hash_password("Admin2pass!"),
@@ -384,7 +389,7 @@ async def seed_users(db) -> list[User]:
             is_active=True,
         ),
     ]
-    users = []
+    users: list[User] = []
     for data in users_data:
         email = data.pop("email")
         user = await _get_or_create_user(db, email, **data)
@@ -393,7 +398,9 @@ async def seed_users(db) -> list[User]:
     return users
 
 
-async def seed_electrical_catalogs(db, principal: CurrentPrincipal) -> None:
+async def seed_electrical_catalogs(
+    db: AsyncSession, principal: CurrentPrincipal
+) -> None:
     """Register the shipped approved TT catalog set before demo calculations."""
     active = await ElectricalCatalogService(db).ensure_bundled_catalogs_active(
         principal,
@@ -405,7 +412,9 @@ async def seed_electrical_catalogs(db, principal: CurrentPrincipal) -> None:
     )
 
 
-async def seed_specification_catalog(db, principal: CurrentPrincipal) -> None:
+async def seed_specification_catalog(
+    db: AsyncSession, principal: CurrentPrincipal
+) -> None:
     """Bootstrap the immutable Case 1 demo catalog outside production only."""
     from app.core.config import settings as app_settings
     from app.reference_data.specification_catalog_case1_demo import (
@@ -439,7 +448,7 @@ async def seed_specification_catalog(db, principal: CurrentPrincipal) -> None:
         )
 
 
-async def _existing_admin_principal(db) -> CurrentPrincipal:
+async def _existing_admin_principal(db: AsyncSession) -> CurrentPrincipal:
     admin = await db.scalar(select(User).where(User.role == "admin").limit(1))
     if admin is None:
         raise RuntimeError("Electrical catalog registration requires an admin principal")
@@ -472,7 +481,9 @@ async def run_specification_catalog_seed() -> None:
         logger.info("=== Case 1 DEMO specification catalog seed complete ===")
 
 
-async def seed_coefficients(db, admin_id: uuid.UUID) -> list[CorrectionCoefficient]:
+async def seed_coefficients(
+    db: AsyncSession, admin_id: uuid.UUID
+) -> list[CorrectionCoefficient]:
     from app.core.cache import cache
 
     coefficients = [
@@ -577,8 +588,8 @@ async def seed_coefficients(db, admin_id: uuid.UUID) -> list[CorrectionCoefficie
             db.add(coeff)
             logger.info("  + coefficient %s = %s", data["key"], data["value"])
         elif str(data["key"]).startswith(("commercial_", "resistive_")):
-            coeff.value = data["value"]
-            coeff.description = data["description"]
+            coeff.value = float(str(data["value"]))
+            coeff.description = str(data["description"])
             coeff.updated_by = admin_id
             logger.info("  ~ coefficient %s = %s", data["key"], data["value"])
         created.append(coeff)
@@ -587,7 +598,7 @@ async def seed_coefficients(db, admin_id: uuid.UUID) -> list[CorrectionCoefficie
     return created
 
 
-async def seed_insulation_materials(db) -> None:
+async def seed_insulation_materials(db: AsyncSession) -> None:
     """Syncs runtime DB insulation catalog from versioned reference JSON.
 
     Rows seeded from JSON are managed by `data_source=builtin_json`. Production
@@ -675,7 +686,7 @@ def _accessory_params(base: dict[str, object], *, price_rub: float) -> dict[str,
     }
 
 
-async def seed_cables(db) -> None:
+async def seed_cables(db: AsyncSession) -> None:
     """Keep the database free of synthetic cable catalog rows.
 
     The active TT technical passport lives in ``cables_tt.json`` and
@@ -1088,7 +1099,7 @@ async def seed_cables(db) -> None:
     await db.flush()
 
 
-async def seed_accessories(db) -> None:
+async def seed_accessories(db: AsyncSession) -> None:
     accessories_data = [
         dict(
             category="end_sleeve",
@@ -1162,12 +1173,15 @@ async def seed_accessories(db) -> None:
         else:
             params = existing.params if isinstance(existing.params, dict) else {}
             if params.get("commercial_data_source") in (None, "seed", "demo_seed", "test"):
-                existing.params = data["params"]
+                seeded_params = data["params"]
+                if not isinstance(seeded_params, dict):
+                    raise TypeError("Seeded accessory params must be a mapping")
+                existing.params = seeded_params
                 logger.info("  ~ accessory commercial %s", data["article"])
     await db.flush()
 
 
-async def seed_projects(db, users: list[User]) -> list[Project]:
+async def seed_projects(db: AsyncSession, users: list[User]) -> list[Project]:
     projects_data = [
         dict(
             name="Трубопровод ДНС-1 (обогрев)",
@@ -1896,7 +1910,7 @@ def _project_seed_plans() -> tuple[ProjectSeedPlan, ...]:
 
 
 async def seed_heat_objects(
-    db,
+    db: AsyncSession,
     projects: list[Project],
     principal: CurrentPrincipal,
 ) -> None:
@@ -1956,7 +1970,7 @@ async def seed_heat_objects(
 
 
 async def seed_objects_and_calculations(
-    db,
+    db: AsyncSession,
     projects: list[Project],
     principal: CurrentPrincipal,
 ) -> None:

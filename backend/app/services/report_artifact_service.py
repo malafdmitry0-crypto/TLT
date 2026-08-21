@@ -3,10 +3,16 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TypedDict
 from uuid import UUID
 
 from app.core.config import settings
 from app.schemas.report import ReportFormat
+
+
+class ReportArtifactMetadata(TypedDict):
+    artifact_name: str
+    size_bytes: int
 
 
 def report_artifact_name(task_id: UUID, fmt: ReportFormat, *, attempt: int | None = None) -> str:
@@ -28,7 +34,7 @@ def write_report_artifact(
     data: bytes,
     *,
     attempt: int | None = None,
-) -> dict:
+) -> ReportArtifactMetadata:
     artifact_name = report_artifact_name(task_id, fmt, attempt=attempt)
     path = report_artifact_path(artifact_name)
     path.parent.mkdir(parents=True, exist_ok=True)

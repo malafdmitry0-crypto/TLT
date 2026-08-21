@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from decimal import Decimal
-from typing import Any
+from typing import Any, Never
 
 from app.electrical_domain import ElectricalFormulaError
 from app.formulas.electrical.decimal_math import decimal_value
@@ -19,7 +19,7 @@ _POWER_EPS = Decimal("0.01")
 _CURRENT_EPS = Decimal("0.001")
 
 
-def _fail(check: str, message: str, *, left: Any = None, right: Any = None) -> None:
+def _fail(check: str, message: str, *, left: Any = None, right: Any = None) -> Never:
     raise ElectricalFormulaError(
         "ELECTRICAL_FINAL_GATE_FAILED",
         message,
@@ -144,8 +144,16 @@ def assert_electrical_tt_ready(
     }
     for index, item in enumerate(sections, start=1):
         for field, (expected, tolerance) in expected_section_values.items():
+            raw_actual = item.get(field)
+            if raw_actual is None:
+                _fail(
+                    "equal_sections",
+                    "Секция содержит отсутствующее расчётное поле",
+                    left={"index": index, "field": field},
+                    right=float(expected),
+                )
             try:
-                actual = decimal_value(item.get(field))
+                actual = decimal_value(raw_actual)
             except (ArithmeticError, TypeError, ValueError):
                 _fail(
                     "equal_sections",

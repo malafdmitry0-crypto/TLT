@@ -3,7 +3,7 @@
 import hashlib
 import json
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any, Literal, Never
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
@@ -22,6 +22,7 @@ from app.electrical_input_validation import (
 )
 from app.formulas.electrical.cable_geometry import compute_tank_cable_length
 from app.formulas.electrical.self_regulating import calc_self_regulating_tt
+from app.formulas.heat_loss.catalog_preparation import HeatLossPreparationError
 from app.models.background_task import BackgroundTask
 from app.schemas.calculation import (
     CalculationTaskResponse,
@@ -108,7 +109,7 @@ class DeadLetterDeleteResponse(BaseModel):
 router = APIRouter()
 
 
-def _raise_electrical_catalog_error(exc: ElectricalCatalogServiceError) -> None:
+def _raise_electrical_catalog_error(exc: ElectricalCatalogServiceError) -> Never:
     raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
 
 
@@ -142,7 +143,7 @@ async def _dead_letter_entry_response(
     )
 
 
-def _raise_dead_letter_error(exc: Exception) -> None:
+def _raise_dead_letter_error(exc: Exception) -> Never:
     if isinstance(exc, TaskQueueError):
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -164,8 +165,9 @@ def _raise_dead_letter_error(exc: Exception) -> None:
 async def list_users(
     _: CurrentPrincipal = Depends(require_admin()),
     db: AsyncSession = Depends(get_db),
-):
-    return await AdminService(db).list_users()
+) -> list[UserResponse]:
+    users = await AdminService(db).list_users()
+    return [UserResponse.model_validate(user) for user in users]
 
 
 @router.post(
@@ -178,7 +180,7 @@ async def create_user(
     data: UserCreate,
     principal: CurrentPrincipal = Depends(require_admin()),
     db: AsyncSession = Depends(get_db),
-):
+) -> UserResponse:
     try:
         user = await AdminService(db).create_user(data)
     except AdminError as exc:
@@ -190,7 +192,7 @@ async def create_user(
         details={"user_id": str(user.id), "role": user.role, "is_active": user.is_active},
         message="Администратор создал пользователя",
     )
-    return user
+    return UserResponse.model_validate(user)
 
 
 @router.put("/users/{user_id}", response_model=UserResponse, summary="Обновить пользователя")
@@ -199,7 +201,7 @@ async def update_user(
     data: UserUpdate,
     principal: CurrentPrincipal = Depends(require_admin()),
     db: AsyncSession = Depends(get_db),
-):
+) -> UserResponse:
     try:
         user = await AdminService(db).update_user(user_id, data)
     except AdminError as exc:
@@ -216,7 +218,7 @@ async def update_user(
         },
         message="Администратор обновил пользователя",
     )
-    return user
+    return UserResponse.model_validate(user)
 
 
 @router.delete(
@@ -228,7 +230,7 @@ async def deactivate_user(
     user_id: UUID,
     principal: CurrentPrincipal = Depends(require_admin()),
     db: AsyncSession = Depends(get_db),
-):
+) -> UserResponse:
     try:
         user = await AdminService(db).deactivate_user(user_id)
     except AdminError as exc:
@@ -241,7 +243,7 @@ async def deactivate_user(
         details={"user_id": str(user_id), "role": user.role},
         message="Администратор деактивировал пользователя",
     )
-    return user
+    return UserResponse.model_validate(user)
 
 
 # ---- Coefficients ----
@@ -255,8 +257,9 @@ async def deactivate_user(
 async def list_coefficients(
     _: CurrentPrincipal = Depends(require_admin()),
     db: AsyncSession = Depends(get_db),
-):
-    return await AdminService(db).list_coefficients()
+) -> list[CoefficientResponse]:
+    coefficients = await AdminService(db).list_coefficients()
+    return [CoefficientResponse.model_validate(item) for item in coefficients]
 
 
 @router.put(
@@ -269,7 +272,7 @@ async def update_coefficient(
     data: CoefficientUpdate,
     principal: CurrentPrincipal = Depends(require_admin()),
     db: AsyncSession = Depends(get_db),
-):
+) -> CoefficientResponse:
     try:
         coefficient = await AdminService(db).update_coefficient(key, data, principal.user_id)
     except CoefficientNotFoundError as exc:
@@ -284,7 +287,7 @@ async def update_coefficient(
         after_state={"key": coefficient.key, "value": coefficient.value},
         message="Администратор обновил коэффициент расчёта",
     )
-    return coefficient
+    return CoefficientResponse.model_validate(coefficient)
 
 
 # ---- Cables ----
@@ -298,8 +301,9 @@ async def update_coefficient(
 async def list_cables(
     _: CurrentPrincipal = Depends(require_admin()),
     db: AsyncSession = Depends(get_db),
-):
-    return await AdminService(db).list_cables()
+) -> list[CableExtendedResponse]:
+    cables = await AdminService(db).list_cables()
+    return [CableExtendedResponse.model_validate(cable) for cable in cables]
 
 
 @router.post(
@@ -312,7 +316,7 @@ async def create_cable(
     data: CableExtendedCreate,
     principal: CurrentPrincipal = Depends(require_admin()),
     db: AsyncSession = Depends(get_db),
-):
+) -> CableExtendedResponse:
     cable = await AdminService(db).create_cable(data)
     await AuditService(db).try_record(
         event_type="admin.cable.created",
@@ -321,7 +325,7 @@ async def create_cable(
         details={"cable_id": str(cable.id), "cable_type": cable.cable_type, "model": cable.model},
         message="Администратор добавил кабель во внешнюю БД",
     )
-    return cable
+    return CableExtendedResponse.model_validate(cable)
 
 
 @router.put(
@@ -334,7 +338,7 @@ async def update_cable(
     data: CableExtendedUpdate,
     principal: CurrentPrincipal = Depends(require_admin()),
     db: AsyncSession = Depends(get_db),
-):
+) -> CableExtendedResponse:
     try:
         cable = await AdminService(db).update_cable(cable_id, data)
     except AdminError as exc:
@@ -351,7 +355,7 @@ async def update_cable(
         },
         message="Администратор обновил кабель во внешней БД",
     )
-    return cable
+    return CableExtendedResponse.model_validate(cable)
 
 
 @router.delete(
@@ -389,8 +393,9 @@ async def delete_cable(
 async def list_accessories(
     _: CurrentPrincipal = Depends(require_admin()),
     db: AsyncSession = Depends(get_db),
-):
-    return await AdminService(db).list_accessories()
+) -> list[AccessoryExtendedResponse]:
+    accessories = await AdminService(db).list_accessories()
+    return [AccessoryExtendedResponse.model_validate(item) for item in accessories]
 
 
 @router.post(
@@ -403,7 +408,7 @@ async def create_accessory(
     data: AccessoryExtendedCreate,
     principal: CurrentPrincipal = Depends(require_admin()),
     db: AsyncSession = Depends(get_db),
-):
+) -> AccessoryExtendedResponse:
     accessory = await AdminService(db).create_accessory(data)
     await AuditService(db).try_record(
         event_type="admin.accessory.created",
@@ -416,7 +421,7 @@ async def create_accessory(
         },
         message="Администратор добавил аксессуар во внешнюю БД",
     )
-    return accessory
+    return AccessoryExtendedResponse.model_validate(accessory)
 
 
 @router.put(
@@ -429,7 +434,7 @@ async def update_accessory(
     data: AccessoryExtendedUpdate,
     principal: CurrentPrincipal = Depends(require_admin()),
     db: AsyncSession = Depends(get_db),
-):
+) -> AccessoryExtendedResponse:
     try:
         accessory = await AdminService(db).update_accessory(acc_id, data)
     except AdminError as exc:
@@ -446,7 +451,7 @@ async def update_accessory(
         },
         message="Администратор обновил аксессуар во внешней БД",
     )
-    return accessory
+    return AccessoryExtendedResponse.model_validate(accessory)
 
 
 @router.delete(
@@ -719,11 +724,11 @@ async def formula_check(
         elif data.formula_type == "tank":
             result = heat_loss_application.preview_validated_heat_formula("tank", params_data)
         elif data.formula_type == "electrical_tt":
-            params = SelfRegulatingTTParams(**params_data)
-            result = calc_self_regulating_tt(params).model_dump()
+            tt_params = SelfRegulatingTTParams(**params_data)
+            result = calc_self_regulating_tt(tt_params).model_dump()
         elif data.formula_type == "tank_cable_geometry":
-            params = TankCableGeometryCheckParams(**params_data)
-            cable_length = compute_tank_cable_length(**params.model_dump())
+            geometry_params = TankCableGeometryCheckParams(**params_data)
+            cable_length = compute_tank_cable_length(**geometry_params.model_dump())
             result = {"cable_length": round(cable_length, 3)}
         else:
             raise HTTPException(status_code=422, detail="Неподдерживаемый тип формулы")
@@ -735,7 +740,7 @@ async def formula_check(
             message="Администратор выполнил пробный расчёт формулы",
         )
         return result
-    except heat_loss_application.HeatLossPreparationError as exc:
+    except HeatLossPreparationError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except PydanticValidationError as exc:
         # exc.errors() содержит ctx["error"] = ValueError — не сериализуется напрямую

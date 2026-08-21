@@ -5,19 +5,20 @@
 - Environment: development backend Docker image, Python 3.11, strict mypy
 - Command: `mypy app --exclude app/tests/ --no-pretty`
 
-Initial measurement before Wave 1 was 389 production errors. Typing the core
-dependency guards removed 98 downstream API errors in addition to the 16 core
-errors. The active shrink-only baseline after Wave 1 is:
+Initial measurement before Wave 1 was 389 production errors. The staged
+migration (core, services/infrastructure, API, reports/specification, then the
+remaining production modules) has reduced the strict result to zero. The
+active shrink-only baseline is now also the global zero-error gate:
 
 | Zone | Maximum errors |
 |---|---:|
 | core | 0 |
 | services_infrastructure | 0 |
-| api | 92 |
-| reports_specification | 36 |
-| other | 39 |
+| api | 0 |
+| reports_specification | 0 |
+| other | 0 |
 
-<!-- mypy-ratchet-baseline: {"core": 0, "services_infrastructure": 0, "api": 92, "reports_specification": 36, "other": 39} -->
+<!-- mypy-ratchet-baseline: {"core": 0, "services_infrastructure": 0, "api": 0, "reports_specification": 0, "other": 0} -->
 
-The executable gate reads the marker above. A wave may only reduce its value;
-raising any zone limit is not an accepted way to make the gate green.
+The executable gate reads the marker above. Every production zone must remain
+at zero; raising a zone limit is not an accepted way to make the gate green.

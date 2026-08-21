@@ -140,7 +140,7 @@ async def calc_heat_loss(
     request: HeatLossRequest,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> HeatLossResponse:
     service = CalculationService(db)
     try:
         await ProjectService(db).get_project_basic(request.project_id, principal)
@@ -174,7 +174,7 @@ async def batch_recalculate(
     request: Request,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> BatchCalcResponse:
     await enforce_principal_rate_limit(
         batch_limiter,
         principal,
@@ -215,7 +215,7 @@ async def calc_electrical(
         description="Optional double-click guard (E8); same key replays via upsert semantics",
         max_length=256,
     ),
-):
+) -> ElectricalResponse:
     service = CalculationService(db)
     try:
         obj = await ProjectService(db).get_object_for_write(request.object_id, principal)
@@ -285,7 +285,7 @@ async def list_electrical(
     page_size: int = Query(200, ge=1, le=200),
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> list[ElectricalCalcSummary]:
     if cable_source in ("extended", "all") and principal.role not in ("employee", "admin"):
         raise HTTPException(
             status_code=403, detail="Расширенный каталог доступен только сотрудникам"
@@ -326,7 +326,7 @@ async def electrical_page(
     page_size: int = 50,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> ElectricalPageResponse:
     if cable_source in ("extended", "all") and principal.role not in ("employee", "admin"):
         raise HTTPException(
             status_code=403, detail="Расширенный каталог доступен только сотрудникам"
@@ -369,7 +369,7 @@ async def electrical_query_capabilities(
     electrical_variant_id: UUID | None = None,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> ElectricalQueryCapabilitiesResponse:
     try:
         if electrical_variant_id is not None:
             variant = await ElectricalVariantService(db).require_variant_for_read(
@@ -406,7 +406,7 @@ async def query_electrical(
     data: ElectricalQueryRequest,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> ElectricalQueryResponse:
     if data.cable_source in ("extended", "all") and principal.role not in ("employee", "admin"):
         raise HTTPException(
             status_code=403, detail="Расширенный каталог доступен только сотрудникам"
@@ -447,7 +447,7 @@ async def list_electrical_candidates(
     electrical_variant_id: UUID | None = None,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> list[ElectricalCandidateResponse]:
     try:
         await ProjectService(db).get_project_basic(project_id, principal)
         if electrical_variant_id is not None:
@@ -462,12 +462,13 @@ async def list_electrical_candidates(
                 variant_number,
                 electrical_variant_id,
             )
-        return await CalculationService(db).list_electrical_candidates(
+        candidates = await CalculationService(db).list_electrical_candidates(
             project_id,
             object_id=object_id,
             variant_number=variant_number,
             electrical_variant_id=electrical_variant_id,
         )
+        return [ElectricalCandidateResponse.model_validate(item) for item in candidates]
     except ElectricalVariantServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     except (ProjectNotFoundError, ProjectAccessError) as exc:
@@ -483,7 +484,7 @@ async def create_electrical_candidate(
     data: ElectricalCandidateCreateRequest,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> ElectricalCandidateUpsertResponse:
     if data.cable_source in ("extended", "all") and principal.role not in ("employee", "admin"):
         raise HTTPException(
             status_code=403, detail="Расширенный каталог доступен только сотрудникам"
@@ -564,15 +565,16 @@ async def update_electrical_candidate(
     data: ElectricalCandidateUpdateRequest,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> ElectricalCandidateResponse:
     service = CalculationService(db)
     try:
         candidate = await service.get_electrical_candidate(candidate_id)
         await ProjectService(db).get_project_for_write(candidate.project_id, principal)
-        return await service.update_electrical_candidate(
+        candidate = await service.update_electrical_candidate(
             candidate_id,
             **data.model_dump(exclude_unset=True),
         )
+        return ElectricalCandidateResponse.model_validate(candidate)
     except (ProjectNotFoundError, ProjectAccessError) as exc:
         _raise_project_error(exc)
     except CalculationError as exc:
@@ -591,7 +593,7 @@ async def list_electrical_candidate_folders(
     electrical_variant_id: UUID | None = None,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> list[ElectricalCandidateFolderResponse]:
     try:
         await ProjectService(db).get_project_basic(project_id, principal)
         if electrical_variant_id is not None:
@@ -601,12 +603,13 @@ async def list_electrical_candidate_folders(
                 variant_number,
                 electrical_variant_id,
             )
-        return await CalculationService(db).list_electrical_candidate_folders(
+        folders = await CalculationService(db).list_electrical_candidate_folders(
             project_id,
             object_id=object_id,
             variant_number=variant_number,
             electrical_variant_id=electrical_variant_id,
         )
+        return [ElectricalCandidateFolderResponse.model_validate(item) for item in folders]
     except ElectricalVariantServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     except (ProjectNotFoundError, ProjectAccessError) as exc:
@@ -622,7 +625,7 @@ async def create_electrical_candidate_folder(
     data: ElectricalCandidateFolderCreateRequest,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> ElectricalCandidateFolderResponse:
     try:
         obj = await ProjectService(db).get_object_for_write(data.object_id, principal)
         if obj.project_id != data.project_id:
@@ -633,7 +636,7 @@ async def create_electrical_candidate_folder(
             data.variant_number,
             expected_electrical_variant_id=data.electrical_variant_id,
         )
-        return await CalculationService(db).create_electrical_candidate_folder(
+        folder = await CalculationService(db).create_electrical_candidate_folder(
             project_id=data.project_id,
             object_id=data.object_id,
             variant_number=data.variant_number,
@@ -643,6 +646,7 @@ async def create_electrical_candidate_folder(
             created_by_user_id=principal.user_id,
             created_by_session_id=principal.session_id,
         )
+        return ElectricalCandidateFolderResponse.model_validate(folder)
     except ElectricalVariantServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     except (ProjectNotFoundError, ProjectAccessError) as exc:
@@ -661,15 +665,16 @@ async def update_electrical_candidate_folder(
     data: ElectricalCandidateFolderUpdateRequest,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> ElectricalCandidateFolderResponse:
     service = CalculationService(db)
     try:
         folder = await service.get_electrical_candidate_folder(folder_id)
         await ProjectService(db).get_project_for_write(folder.project_id, principal)
-        return await service.update_electrical_candidate_folder(
+        updated_folder = await service.update_electrical_candidate_folder(
             folder_id,
             **data.model_dump(exclude_unset=True),
         )
+        return ElectricalCandidateFolderResponse.model_validate(updated_folder)
     except (ProjectNotFoundError, ProjectAccessError) as exc:
         _raise_project_error(exc)
     except CalculationError as exc:
@@ -685,7 +690,7 @@ async def delete_electrical_candidate_folder(
     folder_id: UUID,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> None:
     service = CalculationService(db)
     try:
         folder = await service.get_electrical_candidate_folder(folder_id)
@@ -707,15 +712,16 @@ async def add_electrical_candidate_folder_item(
     data: ElectricalCandidateFolderItemRequest,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> ElectricalCandidateFolderResponse:
     service = CalculationService(db)
     try:
         folder = await service.get_electrical_candidate_folder(folder_id)
         await ProjectService(db).get_project_for_write(folder.project_id, principal)
-        return await service.add_electrical_candidate_to_folder(
+        updated_folder = await service.add_electrical_candidate_to_folder(
             folder_id=folder_id,
             candidate_id=data.candidate_id,
         )
+        return ElectricalCandidateFolderResponse.model_validate(updated_folder)
     except ElectricalVariantServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     except (ProjectNotFoundError, ProjectAccessError) as exc:
@@ -734,15 +740,16 @@ async def remove_electrical_candidate_folder_item(
     candidate_id: UUID,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> ElectricalCandidateFolderResponse:
     service = CalculationService(db)
     try:
         folder = await service.get_electrical_candidate_folder(folder_id)
         await ProjectService(db).get_project_for_write(folder.project_id, principal)
-        return await service.remove_electrical_candidate_from_folder(
+        updated_folder = await service.remove_electrical_candidate_from_folder(
             folder_id=folder_id,
             candidate_id=candidate_id,
         )
+        return ElectricalCandidateFolderResponse.model_validate(updated_folder)
     except (ProjectNotFoundError, ProjectAccessError) as exc:
         _raise_project_error(exc)
     except CalculationError as exc:
@@ -758,7 +765,7 @@ async def apply_electrical_candidate(
     candidate_id: UUID,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> ElectricalCandidateApplyResponse:
     service = CalculationService(db)
     try:
         candidate = await service.get_electrical_candidate(candidate_id)
@@ -802,7 +809,7 @@ async def unapply_electrical_candidate(
     candidate_id: UUID,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> ElectricalCandidateResponse:
     service = CalculationService(db)
     try:
         candidate = await service.get_electrical_candidate(candidate_id)
@@ -829,7 +836,7 @@ async def unapply_electrical_candidate(
         },
         message="Кандидат подбора снят с электрорасчёта",
     )
-    return unapplied_candidate
+    return ElectricalCandidateResponse.model_validate(unapplied_candidate)
 
 
 @router.post(
@@ -854,7 +861,7 @@ async def select_cable(
     selection_policy: SelectionPolicy = "technical_minimum",
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> ElectricalCalcSummary:
     """Перезапускает электрорасчёт с указанной маркой кабеля.
 
     Параметры объекта (мощность, температуры, длина) берутся из текущих
@@ -875,7 +882,7 @@ async def select_cable(
             variant_number,
             expected_electrical_variant_id=electrical_variant_id,
         )
-        electrical_params = {
+        electrical_params: dict[str, float | int | str] = {
             key: value
             for key, value in {
                 "winding_pitch": winding_pitch,
@@ -964,7 +971,7 @@ async def batch_calc_electrical(
         alias="Idempotency-Key",
         max_length=256,
     ),
-):
+) -> BatchElectricalResponse:
     """Подбирает кабель только в exact UUID scope выбранного ЭР.
 
     Без `object_ids` обрабатывает объекты, явно назначенные в совместимую
@@ -991,7 +998,7 @@ async def batch_calc_electrical(
             variant_number,
             expected_electrical_variant_id=electrical_variant_id,
         )
-        electrical_params = {
+        electrical_params: dict[str, float | int | str] = {
             key: value
             for key, value in {
                 "winding_pitch": winding_pitch,
@@ -1068,13 +1075,14 @@ async def cable_options(
     ),
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> list[CableOptionOut]:
     try:
         await ProjectService(db).get_object_for_read(object_id, principal)
-        return await CalculationService(db).get_cable_options(
+        options = await CalculationService(db).get_cable_options(
             object_id,
             electrical_variant_id=electrical_variant_id,
         )
+        return [CableOptionOut.model_validate(option) for option in options]
     except (ProjectNotFoundError, ProjectAccessError) as exc:
         _raise_project_error(exc)
     except (ElectricalFormulaError, ElectricalInputResolutionError) as exc:

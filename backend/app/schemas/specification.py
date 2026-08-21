@@ -355,7 +355,10 @@ class SpecificationVariantPreflightResult(BaseModel):
         has_fingerprint_schema = self.fingerprint_schema is not None
         if has_fingerprint != has_fingerprint_schema:
             raise ValueError("fingerprint_schema and input_fingerprint must be set together")
-        if has_fingerprint and not re.fullmatch(r"sha256:[0-9a-f]{64}", self.input_fingerprint):
+        input_fingerprint = self.input_fingerprint
+        if input_fingerprint is not None and not re.fullmatch(
+            r"sha256:[0-9a-f]{64}", input_fingerprint
+        ):
             raise ValueError("input_fingerprint must be SHA-256")
 
         kinds = {diagnostic.kind for diagnostic in self.diagnostics}

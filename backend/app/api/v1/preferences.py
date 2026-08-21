@@ -1,6 +1,6 @@
 """Endpoints пользовательских UI-настроек."""
 
-from typing import Annotated
+from typing import Annotated, Never
 
 from fastapi import APIRouter, Depends, HTTPException, Path
 from sqlalchemy import select
@@ -131,7 +131,7 @@ PreferenceKey = Annotated[
 ]
 
 
-def _preference_validation_error(message: str) -> None:
+def _preference_validation_error(message: str) -> Never:
     raise HTTPException(status_code=422, detail=message)
 
 

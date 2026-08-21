@@ -14,6 +14,7 @@ from app.core.dependencies import (
     require_employee,
 )
 from app.core.uploads import read_upload_with_limit
+from app.models.project import Project
 from app.schemas.project import (
     ProjectCreate,
     ProjectResponse,
@@ -58,7 +59,7 @@ router = APIRouter()
 async def list_projects(
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> list[Project]:
     service = ProjectService(db)
     return await service.list_projects(principal)
 
@@ -73,7 +74,7 @@ async def create_project(
     data: ProjectCreate,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> Project:
     service = ProjectService(db)
     try:
         project = await service.create_project(data, principal)
@@ -99,7 +100,7 @@ async def export_projects_csv_bulk_top(
     ids: str = Query(..., description="UUID проектов через запятую"),
     principal: CurrentPrincipal = Depends(require_employee()),
     db: AsyncSession = Depends(get_db),
-):
+) -> Response:
     try:
         parsed = [UUID(x.strip()) for x in ids.split(",") if x.strip()]
     except ValueError as exc:
@@ -136,7 +137,7 @@ async def import_project_csv_top(
     file: UploadFile = File(...),
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> Project:
     raw = await read_upload_with_limit(file)
     try:
         project = await import_project(db, raw, principal)
@@ -165,7 +166,7 @@ async def import_projects_csv_bulk_top(
     file: UploadFile = File(...),
     principal: CurrentPrincipal = Depends(require_employee()),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, object]:
     raw = await read_upload_with_limit(file)
     try:
         result = await import_projects_bulk(db, raw, principal)
@@ -192,7 +193,7 @@ async def get_project(
     project_id: UUID,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> Project:
     service = ProjectService(db)
     try:
         return await service.get_project_summary(project_id, principal)
@@ -212,7 +213,7 @@ async def update_project(
     data: ProjectUpdate,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> Project:
     service = ProjectService(db)
     try:
         project = await service.update_project(project_id, data, principal)
@@ -247,7 +248,7 @@ async def duplicate_project(
     project_id: UUID,
     principal: CurrentPrincipal = Depends(require_employee()),
     db: AsyncSession = Depends(get_db),
-):
+) -> Project:
     service = ProjectService(db)
     try:
         new_project = await service.duplicate_project(project_id, principal)
@@ -305,7 +306,7 @@ async def export_project_csv(
     project_id: UUID,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> Response:
     try:
         filename, payload = await export_project(db, project_id, principal)
     except ProjectNotFoundError as exc:

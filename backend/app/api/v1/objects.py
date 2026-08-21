@@ -16,6 +16,7 @@ from app.core.dependencies import (
 from app.core.rate_limit import enforce_principal_rate_limit, import_limiter, report_limiter
 from app.core.uploads import read_upload_with_limit
 from app.core.worker_dependency import require_worker_ready
+from app.models.project_object import ProjectObject
 from app.schemas.project import (
     ObjectQueryCapabilitiesResponse,
     ObjectsBatchResponse,
@@ -60,7 +61,7 @@ async def list_objects(
     project_id: UUID,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> list[ProjectObject]:
     try:
         return await ProjectService(db).list_objects(project_id, principal)
     except ProjectNotFoundError as exc:
@@ -79,7 +80,7 @@ async def objects_summary(
     electrical_variant_id: UUID | None = None,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, object]:
     try:
         return await ProjectService(db).objects_summary(
             project_id,
@@ -110,7 +111,7 @@ async def object_query_capabilities(
     object_type: str,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> ObjectQueryCapabilitiesResponse:
     try:
         return await ObjectQueryService(db).capabilities(project_id, object_type, principal)
     except ObjectQueryValidationError as exc:
@@ -134,7 +135,7 @@ async def query_objects(
     data: ProjectObjectsQueryRequest,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> ProjectObjectsQueryResponse:
     try:
         return await ObjectQueryService(db).query(project_id, data, principal)
     except ObjectQueryValidationError as exc:
@@ -158,7 +159,7 @@ async def add_object(
     data: ProjectObjectCreate,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> ProjectObject:
     try:
         project_service = ProjectService(db)
         obj = await project_service.add_object(project_id, data, principal)
@@ -212,7 +213,7 @@ async def reorder_objects(
     data: ReorderRequest,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> list[ProjectObject]:
     try:
         objects = await ProjectService(db).reorder_objects(project_id, data.order, principal)
     except ProjectValidationError as exc:
@@ -243,7 +244,7 @@ async def duplicate_objects_batch(
     data: ObjectsDuplicateRequest,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, object]:
     """Создаёт копию каждого выбранного объекта и пересчитывает теплопотери.
 
     Каждой копии присваивается собственный идентификатор, все параметры
@@ -291,7 +292,7 @@ async def group_update_objects(
     data: ObjectsGroupUpdateRequest,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, object]:
     """Меняет один общий параметр у выбранных объектов (всё-или-ничего).
 
     Если значение недопустимо хотя бы для одного объекта — данные не
@@ -354,7 +355,7 @@ async def import_template(
     format: str = "xlsx",
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> StreamingResponse:
     from app.services.excel_import_service import build_template_csv, build_template_xlsx
 
     try:
@@ -397,7 +398,7 @@ async def import_excel(
     mode: str = Form("merge"),
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, object]:
     from app.schemas.heat_loss import HeatLossBatchJobRequest
     from app.services.excel_import_service import (
         ExcelImportError,
@@ -478,7 +479,7 @@ async def export_excel(
     request: Request,
     principal: CurrentPrincipal = Depends(require_employee()),
     db: AsyncSession = Depends(get_db),
-):
+) -> StreamingResponse:
     await enforce_principal_rate_limit(
         report_limiter,
         principal,
@@ -524,7 +525,7 @@ async def update_object(
     data: ProjectObjectUpdate,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> ProjectObject:
     try:
         project_service = ProjectService(db)
         params_changed = "params" in data.model_fields_set

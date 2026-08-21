@@ -51,7 +51,10 @@ class CalculationWorker:
             await self._probe_runtime_dependencies()
             await mark_worker_ready(self.queue.redis, self.consumer)
             readiness_published = True
-            heartbeat = WorkerHeartbeat(self.queue.redis_url, self.consumer)
+            redis_url = self.queue.redis_url
+            if redis_url is None:  # TaskQueue rejects this during construction.
+                raise RuntimeError("REDIS_URL is required for worker heartbeat")
+            heartbeat = WorkerHeartbeat(redis_url, self.consumer)
             heartbeat.start()
             event_loop_heartbeat = asyncio.create_task(self._tick_event_loop(heartbeat))
             logger.info("Calculation worker started as %s", self.consumer)

@@ -83,14 +83,12 @@ async def preview(
     project_id: UUID,
     request: Request,
     sections: list[str] | None = Query(default=None),
-    variant_number: int | None = Query(
-        default=None, ge=1, le=MAX_ELECTRICAL_VARIANTS
-    ),
+    variant_number: int | None = Query(default=None, ge=1, le=MAX_ELECTRICAL_VARIANTS),
     electrical_variant_id: UUID | None = Query(default=None),
     electrical_variant_ids: list[UUID] | None = Query(default=None),
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> ReportPreviewResponse:
     await enforce_principal_rate_limit(
         report_limiter,
         principal,
@@ -111,19 +109,15 @@ async def preview(
         if len(requested_ids) > MAX_ELECTRICAL_VARIANTS:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail=(
-                    f"Можно выбрать не более {MAX_ELECTRICAL_VARIANTS} ЭР для отчёта"
-                ),
+                detail=(f"Можно выбрать не более {MAX_ELECTRICAL_VARIANTS} ЭР для отчёта"),
             )
 
         # PDL-ER-39: multi-ЭР → independent chapters, no cross-sums.
         if len(requested_ids) > 1:
             variant_svc = ElectricalVariantService(db)
-            chapters: list[dict] = []
+            chapters: list[dict[str, object]] = []
             for er_id in requested_ids:
-                variant = await variant_svc.require_variant_for_read(
-                    project_id, principal, er_id
-                )
+                variant = await variant_svc.require_variant_for_read(project_id, principal, er_id)
                 chapters.append(
                     {
                         "electrical_variant_id": variant.id,
@@ -159,9 +153,7 @@ async def preview(
                 sections,
                 principal=principal,
                 variant_number=variant_number,
-                electrical_variant_id=(
-                    variant.id if variant is not None else None
-                ),
+                electrical_variant_id=(variant.id if variant is not None else None),
                 electrical_variant_name=(variant.name if variant is not None else None),
             )
     except ElectricalVariantServiceError as exc:
@@ -202,7 +194,7 @@ async def export(
     electrical_variant_id: UUID | None = Query(default=None),
     principal: CurrentPrincipal = Depends(require_employee()),
     db: AsyncSession = Depends(get_db),
-):
+) -> StreamingResponse:
     await enforce_principal_rate_limit(
         report_limiter,
         principal,
@@ -230,9 +222,7 @@ async def export(
             sections,
             principal=principal,
             variant_number=variant_number,
-            electrical_variant_id=(
-                variant.id if variant is not None else electrical_variant_id
-            ),
+            electrical_variant_id=(variant.id if variant is not None else electrical_variant_id),
             electrical_variant_name=(variant.name if variant is not None else None),
         )
     except ElectricalVariantServiceError as exc:
@@ -283,7 +273,7 @@ async def enqueue_export_job(
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     principal: CurrentPrincipal = Depends(require_employee()),
     db: AsyncSession = Depends(get_db),
-):
+) -> CalculationTaskResponse:
     await enforce_principal_rate_limit(
         job_enqueue_limiter,
         principal,
@@ -363,7 +353,7 @@ async def get_report_task(
     task_id: UUID,
     principal: CurrentPrincipal = Depends(require_employee()),
     db: AsyncSession = Depends(get_db),
-):
+) -> CalculationTaskResponse:
     try:
         task = await TaskService(db).get_task_for_principal(task_id, principal)
     except Exception as exc:
@@ -380,7 +370,7 @@ async def cancel_report_task(
     task_id: UUID,
     principal: CurrentPrincipal = Depends(require_employee()),
     db: AsyncSession = Depends(get_db),
-):
+) -> CalculationTaskResponse:
     try:
         task = await TaskService(db).cancel_task(task_id, principal)
     except Exception as exc:
@@ -407,7 +397,7 @@ async def download_report_task_result(
     task_id: UUID,
     principal: CurrentPrincipal = Depends(require_employee()),
     db: AsyncSession = Depends(get_db),
-):
+) -> FileResponse:
     try:
         task = await TaskService(db).get_task_for_principal(task_id, principal)
     except Exception as exc:
@@ -420,10 +410,12 @@ async def download_report_task_result(
     path = report_artifact_path(str(artifact_name))
     if not path.exists():
         raise HTTPException(status_code=410, detail="Артефакт отчёта удалён или недоступен")
-    fmt = task.result_payload.get("format")
-    media_type = task.result_payload.get("media_type") or MEDIA_TYPES.get(
-        fmt, "application/octet-stream"
+    raw_format = task.result_payload.get("format")
+    fmt = raw_format if isinstance(raw_format, str) else None
+    default_media_type = (
+        MEDIA_TYPES.get(fmt, "application/octet-stream") if fmt else "application/octet-stream"
     )
+    media_type = task.result_payload.get("media_type") or default_media_type
     filename = task.result_payload.get("filename") or f"report.{fmt}"
     await AuditService(db).try_record(
         event_type="report.artifact.downloaded",
