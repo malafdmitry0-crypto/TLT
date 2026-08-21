@@ -1,5 +1,7 @@
 from inspect import getsource
+from unittest.mock import AsyncMock
 
+import app.seeds as seeds
 from app.reference_data.loader import list_insulation_materials, list_tt_cables
 from app.schemas.electrical_assignment import ElectricalAssignmentOverridesPatch
 from app.schemas.project import ProjectObjectCreate
@@ -8,6 +10,7 @@ from app.seeds import (
     _electrical_seed_overrides,
     _insulation_seed_row,
     _project_seed_plans,
+    seed_cables,
     seed_objects_and_calculations,
 )
 from app.services.heat_contract import (
@@ -60,6 +63,24 @@ def test_tt_catalog_uses_the_supported_product_line():
         "75ТТХ2",
         "90ТТХ2",
     ]
+
+
+async def test_seed_cables_only_purges_retired_synthetic_rows(monkeypatch):
+    db = AsyncMock()
+    purge_legacy = AsyncMock(return_value=2)
+    purge_unsupported = AsyncMock(return_value=3)
+    monkeypatch.setattr(seeds, "purge_legacy_tlt_seed_cables", purge_legacy)
+    monkeypatch.setattr(seeds, "purge_unsupported_mvp_seed_cables", purge_unsupported)
+
+    await seed_cables(db)
+
+    purge_legacy.assert_awaited_once_with(db)
+    purge_unsupported.assert_awaited_once_with(db)
+    db.flush.assert_awaited_once_with()
+    source = getsource(seed_cables)
+    assert "cables_data" not in source
+    assert "seed_demo_commercial_catalog" not in source
+    assert "\n    return" not in source
 
 
 def test_heat_seed_matrix_is_exact_and_traceable():
