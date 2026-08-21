@@ -19,6 +19,8 @@ htmlcov/
 .coverage
 .coverage.*
 coverage.xml
+# mutmut generates disposable source sandboxes for the backend and core packages.
+**/mutants/
 
 # Node
 node_modules/
