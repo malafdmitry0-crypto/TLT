@@ -1,4 +1,4 @@
-"""Translate dependency-free TT core failures to the legacy app error contract."""
+"""Translate dependency-free TT failures to the application domain contract."""
 
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ _FINAL_GATE_MESSAGES = {
 
 
 def raise_electrical_formula_report(report: TTFormulaReport) -> None:
-    """Raise the legacy application error for a blocking core report."""
+    """Raise the application domain error for a blocking core report."""
 
     if report.is_valid:
         return
@@ -39,13 +39,13 @@ def raise_electrical_formula_report(report: TTFormulaReport) -> None:
 
 
 def raise_electrical_formula_issue(issue: TTFormulaIssue) -> Never:
-    """Raise the legacy application error for one blocking core issue."""
+    """Raise the application domain error for one blocking core issue."""
 
     raise electrical_error_from_issue(issue)
 
 
 def raise_electrical_formula_domain_error(error: TTFormulaDomainError) -> Never:
-    """Raise the legacy application error while retaining the core exception cause."""
+    """Raise the application domain error while retaining the core cause."""
 
     raise electrical_error_from_domain(error) from error
 
@@ -63,29 +63,39 @@ def electrical_error_from_issue(issue: TTFormulaIssue) -> ElectricalFormulaError
 
     details_method = getattr(issue, "details_dict", None)
     raw_details = details_method() if callable(details_method) else issue.details
-    details = _legacy_details(raw_details)
-    if issue.code in {"ELECTRICAL_INPUT_NOT_FINITE", "ELECTRICAL_INPUT_OUT_OF_RANGE"}:
-        # The legacy error has no separate path field; retain the immutable core
-        # path in details for clients to identify the rejected public DTO field.
-        details["path"] = list(issue.path)
-    return _electrical_error(issue.code, details)
+    details = _canonical_details(raw_details)
+    return _electrical_error(issue.code, path=issue.path, details=details)
 
 
 def electrical_error_from_domain(error: TTFormulaDomainError) -> ElectricalFormulaError:
     """Build an application error from an exceptional TT core domain failure."""
 
-    return _electrical_error(error.code, _legacy_details(error.details))
+    return _electrical_error(error.code, path=(), details=_canonical_details(error.details))
 
 
-def _electrical_error(code: str, details: dict[str, Any]) -> ElectricalFormulaError:
-    return ElectricalFormulaError(code, _message_for(code, details), details=details)
+def _electrical_error(
+    code: str,
+    *,
+    path: tuple[str | int, ...],
+    details: dict[str, Any],
+) -> ElectricalFormulaError:
+    return ElectricalFormulaError(
+        code,
+        _message_for(code, path, details),
+        path=path,
+        details=details,
+    )
 
 
-def _message_for(code: str, details: Mapping[str, Any]) -> str:
+def _message_for(
+    code: str,
+    path: tuple[str | int, ...],
+    details: Mapping[str, Any],
+) -> str:
     if code == "ELECTRICAL_INPUT_NOT_FINITE":
-        return f"Параметр «{_input_path(details)}» должен быть конечным числом"
+        return f"Параметр «{_input_path(path)}» должен быть конечным числом"
     if code == "ELECTRICAL_INPUT_OUT_OF_RANGE":
-        return _input_range_message(details)
+        return _input_range_message(path, details)
     if code == "ELECTRICAL_CATALOG_ROW_INVALID":
         return _catalog_message(details)
     if code == "ELECTRICAL_SELECTION_POLICY_UNSUPPORTED":
@@ -132,19 +142,17 @@ def _message_for(code: str, details: Mapping[str, Any]) -> str:
     raise RuntimeError(f"Нет backend-маппинга для core-ошибки {code!r}")
 
 
-def _input_path(details: Mapping[str, Any]) -> str:
-    path = details.get("path")
-    if (
-        not isinstance(path, list)
-        or not path
-        or not all(isinstance(item, str | int) for item in path)
-    ):
+def _input_path(path: tuple[str | int, ...]) -> str:
+    if not path:
         raise RuntimeError("В core-ошибке отсутствует корректный path входного параметра")
     return ".".join(str(item) for item in path)
 
 
-def _input_range_message(details: Mapping[str, Any]) -> str:
-    path = _input_path(details)
+def _input_range_message(
+    issue_path: tuple[str | int, ...],
+    details: Mapping[str, Any],
+) -> str:
+    path = _input_path(issue_path)
     minimum = details.get("minimum")
     maximum = details.get("maximum")
     if minimum is not None and maximum is not None:
@@ -236,9 +244,7 @@ def _final_gate_message(details: Mapping[str, Any]) -> str:
     return message
 
 
-def _legacy_details(value: object) -> dict[str, Any]:
-    if isinstance(value, tuple) and not value:
-        return {}
+def _canonical_details(value: object) -> dict[str, Any]:
     thawed = _thaw(value)
     if not isinstance(thawed, dict):
         raise RuntimeError("details core-ошибки должны быть отображением")

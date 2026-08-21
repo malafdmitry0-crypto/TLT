@@ -10,6 +10,7 @@ from heatcalc_electrical_core.errors import TTFormulaDomainError
 from heatcalc_electrical_core.validation import TTFormulaIssue, TTFormulaReport
 
 from app.electrical_domain import ElectricalFormulaError
+from app.formulas.electrical import outcome_errors
 from app.formulas.electrical.outcome_errors import (
     electrical_error_from_domain,
     electrical_error_from_report,
@@ -17,7 +18,7 @@ from app.formulas.electrical.outcome_errors import (
 )
 
 
-def test_temperature_report_restores_legacy_message_and_json_friendly_details() -> None:
+def test_temperature_report_keeps_canonical_message_and_json_friendly_details() -> None:
     issue = TTFormulaIssue.with_details(
         "ELECTRICAL_CABLE_TEMPERATURE_LIMIT_EXCEEDED",
         product_temperature_c=Decimal("66"),
@@ -161,9 +162,20 @@ def test_input_reports_keep_path_russian_message_and_strict_json_details(
     error = electrical_error_from_report(TTFormulaReport((issue,)))
 
     assert error.message == message
-    assert error.details["path"] == ["supply_voltage_v"]
+    assert error.path == ("supply_voltage_v",)
+    assert "path" not in error.details
     assert error.details["value"] == ("NaN" if value.is_nan() else 0.0)
+    assert error.as_detail() == {
+        "code": code,
+        "message": message,
+        "path": ["supply_voltage_v"],
+        "details": error.details,
+    }
     json.dumps(error.as_detail(), allow_nan=False)
+
+
+def test_legacy_detail_shape_adapter_is_removed() -> None:
+    assert not hasattr(outcome_errors, "_legacy_details")
 
 
 @pytest.mark.parametrize(

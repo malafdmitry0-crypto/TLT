@@ -6,19 +6,21 @@ from typing import Any
 
 
 class ElectricalFormulaError(ValueError):
-    """Stable formula error which remains compatible with legacy ValueError handlers."""
+    """Canonical structured electrical formula failure."""
 
     def __init__(
         self,
         code: str,
         message: str,
         *,
+        path: tuple[str | int, ...] = (),
         details: dict[str, Any] | None = None,
         status_code: int = 422,
     ) -> None:
         super().__init__(message)
         self.code = code
         self.message = message
+        self.path = path
         self.details = details or {}
         self.status_code = status_code
 
@@ -26,6 +28,6 @@ class ElectricalFormulaError(ValueError):
         return {
             "code": self.code,
             "message": self.message,
-            "issues": [],
+            "path": list(self.path),
             "details": self.details,
         }
