@@ -14,6 +14,7 @@ from app.electrical_domain import ElectricalFormulaError
 from app.schemas.calculation import (
     BatchElectricalResponse,
     CableOptionOut,
+    ElectricalCableQueryType,
     ElectricalCalcSummary,
     ElectricalCandidateApplyResponse,
     ElectricalCandidateCreateRequest,
@@ -241,7 +242,6 @@ async def calc_electrical(
             }
         calc = await service.electrical_single.calculate(
             request,
-            electrical_variant_id=request.electrical_variant_id,
         )
     except ElectricalVariantServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
@@ -344,9 +344,8 @@ async def electrical_query_capabilities(
         )
         return await ElectricalQueryService(db).capabilities(
             project_id,
-            None,
+            electrical_variant_id,
             principal,
-            electrical_variant_id=electrical_variant_id,
         )
     except ElectricalVariantServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
@@ -790,7 +789,7 @@ async def select_cable(
     request: Request,
     cable_source: str = "builtin",
     electrical_variant_id: UUID = Query(),
-    cable_type: str = "self_regulating_tt",
+    cable_type: ElectricalCableQueryType = "self_regulating_tt",
     connection_type: str | None = None,
     winding_pitch: float | None = None,
     number_of_threads: int | None = None,
@@ -880,7 +879,7 @@ async def batch_calc_electrical(
     request: Request,
     cable_source: str = "builtin",
     electrical_variant_id: UUID = Query(description="UUID ЭР"),
-    cable_type: str = "self_regulating_tt",
+    cable_type: ElectricalCableQueryType = "self_regulating_tt",
     force_cable_type: bool = False,
     connection_type: str | None = None,
     winding_pitch: float | None = None,

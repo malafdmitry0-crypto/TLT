@@ -6,7 +6,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-ElectricalSystemType = Literal["self_regulating", "resistive", "skin", "mineral"]
+ElectricalSystemType = Literal["self_regulating", "resistive"]
 ElectricalAssignmentState = Literal["unassigned", "ready", "unsupported", "stale", "error"]
 ElectricalSpecificationState = Literal["not_generated", "generated", "stale"]
 
@@ -55,7 +55,6 @@ class ElectricalVariantResponse(BaseModel):
     sort_order: int
     is_active: bool
     copied_from_id: UUID | None = None
-    legacy_variant_number: int | None = None
     specification_state: ElectricalSpecificationState = "not_generated"
     created_at: datetime
     updated_at: datetime

@@ -4,6 +4,8 @@ import inspect
 
 from app.api.v1 import calculations
 from app.schemas import calculation, electrical_history
+from app.schemas.electrical_variant import ElectricalVariantResponse
+from app.services import electrical_query_service
 from app.services.calculation import (
     electrical_batch,
     electrical_candidate_apply,
@@ -36,7 +38,7 @@ def test_new_variant_writes_leave_transitional_numeric_column_null() -> None:
 
     assert "legacy_variant_number=1" not in source
     assert "variant_number=legacy_number" not in source
-    assert source.count("legacy_variant_number=None") == 3
+    assert "legacy_variant_number=" not in source
     assert source.count("\n                variant_number=None") == 3
 
 
@@ -87,3 +89,10 @@ def test_candidate_and_folder_boundaries_use_uuid_as_the_only_scope() -> None:
     assert "ElectricalCandidate.variant_number ==" not in sources
     assert "ElectricalCandidateFolder.variant_number ==" not in sources
     assert "candidate.variant_number != folder.variant_number" not in sources
+
+
+def test_query_and_variant_response_do_not_publish_numeric_identity() -> None:
+    query_source = inspect.getsource(electrical_query_service)
+
+    assert "variant_number" not in query_source
+    assert "legacy_variant_number" not in ElectricalVariantResponse.model_fields

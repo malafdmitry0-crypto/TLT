@@ -265,7 +265,6 @@ class ElectricalVariantService:
             name_normalized="ЭР1".casefold(),
             sort_order=0,
             is_active=True,
-            legacy_variant_number=None,
         )
         self.db.add(variant)
         await self.db.flush()
@@ -348,7 +347,6 @@ class ElectricalVariantService:
             name_normalized=display_name.casefold(),
             sort_order=self._next_sort_order(variants),
             is_active=False,
-            legacy_variant_number=None,
             creation_idempotency_key_hash=idempotency_key_hash,
         )
         self.db.add(variant)
@@ -426,7 +424,6 @@ class ElectricalVariantService:
             sort_order=self._next_sort_order(variants),
             is_active=False,
             copied_from_id=source.id,
-            legacy_variant_number=None,
             creation_idempotency_key_hash=idempotency_key_hash,
         )
         self.db.add(target)
@@ -766,7 +763,6 @@ class ElectricalVariantService:
                 "sort_order": variant.sort_order,
                 "is_active": variant.is_active,
                 "copied_from_id": variant.copied_from_id,
-                "legacy_variant_number": variant.legacy_variant_number,
                 "specification_state": specification_state,
                 "created_at": variant.created_at,
                 "updated_at": variant.updated_at,
