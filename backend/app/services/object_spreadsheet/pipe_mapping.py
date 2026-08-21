@@ -198,10 +198,7 @@ def _build_pipe_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
 
     for field in (
         "vapor_temperature",
-        "maintain_temperature",
-        "max_process_temperature",
         "min_switch_temperature",
-        "supply_voltage",
     ):
         value = _to_float(row.get(field))
         if value is not None:

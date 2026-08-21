@@ -162,12 +162,9 @@ def _build_tank_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
         }[params["placement"]]
     for field in (
         "vapor_temperature",
-        "maintain_temperature",
-        "max_process_temperature",
         "min_switch_temperature",
         "heating_height",
         "laying_step",
-        "supply_voltage",
     ):
         value = _to_float(row.get(field))
         if value is not None:

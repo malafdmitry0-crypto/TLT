@@ -9,13 +9,16 @@ import io
 import zipfile
 
 import pytest
+from openpyxl import Workbook
 
 from app.core.config import settings
 from app.services.object_spreadsheet.parsing import (
     ExcelImportError,
     _parse_csv,
+    _read_sheet,
     _validate_xlsx_archive,
 )
+from app.services.spreadsheet_schema import PIPE_HEADERS
 
 
 class TestXlsxArchiveGuard:
@@ -38,6 +41,24 @@ class TestParseCsv:
     def test_rejects_missing_type_column(self):
         with pytest.raises(ExcelImportError, match="Тип"):
             _parse_csv(b"name;value\nfoo;1\n")
+
+    @pytest.mark.parametrize(
+        "header",
+        [
+            "T3",
+            "T3, °C",
+            "T3 поддержания",
+            "Температура поддержания T3",
+            "Макс. допуст. T° продукта",
+            "Макс допуст T° продукта",
+            "Рабочее напряжение",
+        ],
+    )
+    def test_rejects_retired_object_headers(self, header):
+        content = f"Тип;{header}\nтруба;1\n".encode()
+
+        with pytest.raises(ExcelImportError, match="Устаревшие столбцы"):
+            _parse_csv(content)
 
     def test_semicolon_delimiter(self):
         csv_data = (
@@ -112,3 +133,13 @@ class TestParseCsvAdvanced:
         labels = [label for label, _ in result]
         assert "Трубопроводы (CSV)" in labels
         assert "Резервуары (CSV)" in labels
+
+
+def test_xlsx_sheet_rejects_retired_object_headers():
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.append(["Наименование", "Рабочее напряжение"])
+    sheet.append(["P1", 230])
+
+    with pytest.raises(ExcelImportError, match="Рабочее напряжение"):
+        _read_sheet(sheet, PIPE_HEADERS)

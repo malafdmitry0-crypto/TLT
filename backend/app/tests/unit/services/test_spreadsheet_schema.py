@@ -11,6 +11,7 @@ from app.services.spreadsheet_schema import (
     PIPE_ORDER,
     PIPE_TEMPLATE_HEADERS,
     PIPE_XLSX_HEADERS,
+    RETIRED_IMPORT_HEADERS,
     TANK_HEADERS,
     TANK_TEMPLATE_HEADERS,
     TANK_XLSX_HEADERS,
@@ -199,9 +200,9 @@ CSV_GOLDEN = (
     "λ стенки",
 )
 
-LEGACY_ALIAS_MAPS = {
-    "pipe": (116, "4d857d0c5d1e6f3c9383f541125e3c086a4ce2b88945443f2c5dda3d7e9df523"),
-    "tank": (117, "321f48ce2b4a59079f11aa5ef18b6c0421ca7d8219a1cb99aca49b82ea030e00"),
+CURRENT_ALIAS_MAPS = {
+    "pipe": (109, "3d258a551de69cbe74b4a1cd8348787234854ff2fc393cab6063fc314e6376a5"),
+    "tank": (110, "3fa301cfd8ff92ce7a5c33005c793e8b6105513ef293adc69417466113abf27c"),
 }
 
 
@@ -214,7 +215,7 @@ def _alias_map_digest(value: dict[str, str]) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
-def test_import_maps_preserve_the_legacy_alias_contract():
+def test_import_maps_preserve_the_current_alias_contract():
     assert PIPE_HEADERS["имя"] == "name"
     assert PIPE_HEADERS["глубина прокладки"] == "pipe_centerline_depth"
     assert "имя" not in TANK_HEADERS
@@ -226,10 +227,15 @@ def test_import_maps_preserve_the_legacy_alias_contract():
     ("object_type", "actual"),
     [("pipe", PIPE_HEADERS), ("tank", TANK_HEADERS)],
 )
-def test_import_maps_preserve_every_legacy_alias(object_type, actual):
-    expected_count, expected_digest = LEGACY_ALIAS_MAPS[object_type]
+def test_import_maps_preserve_every_current_alias(object_type, actual):
+    expected_count, expected_digest = CURRENT_ALIAS_MAPS[object_type]
     assert len(actual) == expected_count
     assert _alias_map_digest(actual) == expected_digest
+
+
+def test_retired_import_headers_are_not_mapped_to_object_params():
+    assert RETIRED_IMPORT_HEADERS.isdisjoint(PIPE_HEADERS)
+    assert RETIRED_IMPORT_HEADERS.isdisjoint(TANK_HEADERS)
 
 
 @pytest.mark.parametrize(

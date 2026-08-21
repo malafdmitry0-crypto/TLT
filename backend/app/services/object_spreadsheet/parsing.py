@@ -10,7 +10,12 @@ from openpyxl import load_workbook
 
 from app.core.config import settings
 from app.services.object_spreadsheet.mapping import TYPE_ALIASES, _norm
-from app.services.spreadsheet_schema import PIPE_HEADERS, TANK_HEADERS, TYPE_HEADERS
+from app.services.spreadsheet_schema import (
+    PIPE_HEADERS,
+    RETIRED_IMPORT_HEADERS,
+    TANK_HEADERS,
+    TYPE_HEADERS,
+)
 
 PIPE_SHEET_NAMES = {"трубопроводы", "трубы", "pipes"}
 TANK_SHEET_NAMES = {"резервуары", "ёмкости", "емкости", "tanks"}
@@ -18,6 +23,20 @@ TANK_SHEET_NAMES = {"резервуары", "ёмкости", "емкости", 
 
 class ExcelImportError(Exception):
     """Ошибка импорта Excel/CSV."""
+
+
+def _reject_retired_headers(headers: list[Any] | tuple[Any, ...]) -> None:
+    retired = sorted(
+        {
+            str(header).strip()
+            for header in headers
+            if header is not None and _norm(header) in RETIRED_IMPORT_HEADERS
+        }
+    )
+    if retired:
+        raise ExcelImportError(
+            "Устаревшие столбцы больше не поддерживаются: " + ", ".join(retired)
+        )
 
 
 def _validate_xlsx_archive(content: bytes) -> None:
@@ -52,6 +71,7 @@ def _read_sheet(ws: Any, header_map: dict[str, str]) -> list[dict[str, Any]]:
         header_row = next(rows_iter)
     except StopIteration:
         return []
+    _reject_retired_headers(header_row)
     mapped_cols: list[tuple[int, str]] = []
     for idx, h in enumerate(header_row):
         key = header_map.get(_norm(h))
@@ -107,6 +127,7 @@ def _parse_csv(content: bytes) -> list[tuple[str, list[dict[str, Any]]]]:
         raise ExcelImportError(f"Превышен лимит строк импорта: {settings.MAX_IMPORT_ROWS}")
 
     header = all_rows[0]
+    _reject_retired_headers(header)
     # Индекс колонки «Тип»
     type_idx = next((i for i, h in enumerate(header) if _norm(h) in TYPE_HEADERS), None)
     if type_idx is None:

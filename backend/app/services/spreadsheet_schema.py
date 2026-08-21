@@ -16,6 +16,16 @@ ObjectType = Literal["pipe", "tank"]
 Format = Literal["xlsx", "csv"]
 OBJECTS: frozenset[ObjectType] = frozenset({"pipe", "tank"})
 
+_RETIRED_IMPORT_HEADER_ALIASES = (
+    "t3",
+    "t3, °c",
+    "t3 поддержания",
+    "температура поддержания t3",
+    "макс. допуст. t° продукта",
+    "макс допуст t° продукта",
+    "рабочее напряжение",
+)
+
 
 def normalize_header(value: object) -> str:
     """Match the import service's stable header normalization contract."""
@@ -23,6 +33,11 @@ def normalize_header(value: object) -> str:
     if value is None:
         return ""
     return re.sub(r"\s+", " ", str(value).strip().lower())
+
+
+RETIRED_IMPORT_HEADERS = frozenset(
+    normalize_header(alias) for alias in _RETIRED_IMPORT_HEADER_ALIASES
+)
 
 
 @dataclass(frozen=True)
@@ -249,18 +264,6 @@ FIELDS: tuple[SpreadsheetField, ...] = (
         unit="°C",
     ),
     _field(
-        "maintain_temperature",
-        None,
-        "t3|t3, °c|t3 поддержания|температура поддержания t3",
-        unit="°C",
-    ),
-    _field(
-        "max_process_temperature",
-        None,
-        "макс. допуст. t° продукта|макс допуст t° продукта",
-        unit="°C",
-    ),
-    _field(
         "placement",
         "Размещение",
         "размещение",
@@ -299,7 +302,6 @@ FIELDS: tuple[SpreadsheetField, ...] = (
         "Источник Kзап",
         "источник kзап|источник коэффициента запаса|safety_factor_source",
     ),
-    _field("supply_voltage", None, "рабочее напряжение"),
     _field(
         "min_switch_temperature",
         "Мин. T включения, °C",
@@ -524,11 +526,6 @@ CSV_ORDER = (
     "safety_factor_source",
     "wall_lambda",
 )
-# ``maintain_temperature``, ``max_process_temperature`` and ``supply_voltage``
-# remain import-only legacy aliases: neither XLSX export emits them, so they
-# are intentionally excluded from this CSV union as well.
-
-
 def _index_fields(fields: tuple[SpreadsheetField, ...]) -> dict[str, SpreadsheetField]:
     indexed: dict[str, SpreadsheetField] = {}
     for descriptor in fields:

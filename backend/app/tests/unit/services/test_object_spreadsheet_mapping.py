@@ -232,6 +232,24 @@ class TestBuildPipeParams:
         assert err is None
         assert params["vapor_temperature"] == 140
 
+    def test_retired_spreadsheet_fields_are_not_projected(self):
+        params, err = _build_pipe_params(
+            {
+                "_row": 2,
+                "maintain_temperature": 15,
+                "max_process_temperature": 90,
+                "supply_voltage": 230,
+            }
+        )
+
+        assert err is None
+        assert params is not None
+        assert not {
+            "maintain_temperature",
+            "max_process_temperature",
+            "supply_voltage",
+        }.intersection(params)
+
     def test_russian_decimal_comma_works(self):
         """Пользователи часто пишут 108,5 вместо 108.5 — должно работать."""
         row = {
