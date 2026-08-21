@@ -5,7 +5,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import func, select, text, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.dependencies import CurrentPrincipal
@@ -591,11 +591,10 @@ class TestElectricalAssignmentApi:
         assert final_assignment.assignment_state == "unassigned"
         assert final_assignment.version == 3
 
-    async def test_unsupported_and_dirty_legacy_scope_fail_without_mutation(
+    async def test_unsupported_system_fails_without_mutation(
         self,
         client: AsyncClient,
         guest_session: str,
-        db_session: AsyncSession,
     ):
         project = await _guest_project(client, guest_session)
         headers = {"X-Session-Id": guest_session}
@@ -613,72 +612,6 @@ class TestElectricalAssignmentApi:
         )
         assert unsupported.status_code == 409
         assert unsupported.json()["detail"]["code"] == "ELECTRICAL_SYSTEM_UNSUPPORTED"
-
-        legacy_calculation = ElectricalCalculation(
-            project_id=UUID(project["id"]),
-            object_id=UUID(obj["id"]),
-            variant_number=1,
-            electrical_variant_id=None,
-            cable_type="self_regulating",
-            cable_type_source="auto",
-            cable_mark=None,
-            cable_mark_source="auto",
-            params={},
-            results={"category": "stale"},
-        )
-        db_session.add(legacy_calculation)
-        await db_session.commit()
-        # 0027's expand-window trigger normally backfills this UUID.  Recreate
-        # a genuinely dirty legacy row to prove Phase 3 rejects, rather than
-        # numerically cleaning, pre-existing NULL scope.
-        await db_session.execute(
-            text(
-                "ALTER TABLE electrical_calculations DISABLE TRIGGER "
-                "trg_0027_sync_electrical_variant_id"
-            )
-        )
-        try:
-            await db_session.execute(
-                update(ElectricalCalculation)
-                .where(ElectricalCalculation.id == legacy_calculation.id)
-                .values(electrical_variant_id=None)
-            )
-        finally:
-            await db_session.execute(
-                text(
-                    "ALTER TABLE electrical_calculations ENABLE TRIGGER "
-                    "trg_0027_sync_electrical_variant_id"
-                )
-            )
-        await db_session.commit()
-        assert (
-            await db_session.scalar(
-                select(ElectricalCalculation.electrical_variant_id).where(
-                    ElectricalCalculation.id == legacy_calculation.id
-                )
-            )
-            is None
-        )
-        dirty = await _patch_assignments(
-            client,
-            project["id"],
-            variant["id"],
-            headers,
-            system_type="self_regulating",
-            items=[{"object_id": obj["id"], "expected_version": row["version"]}],
-        )
-        assert dirty.status_code == 409
-        assert dirty.json()["detail"]["code"] == ("ELECTRICAL_ASSIGNMENT_DOWNSTREAM_SCOPE_CONFLICT")
-        assignment = await db_session.scalar(
-            select(ElectricalVariantObject).where(
-                ElectricalVariantObject.electrical_variant_id == UUID(variant["id"]),
-                ElectricalVariantObject.object_id == UUID(obj["id"]),
-            )
-        )
-        assert assignment is not None
-        assert assignment.system_type is None
-        assert assignment.assignment_state == "unassigned"
-        assert assignment.version == 1
 
     async def test_active_target_er_task_blocks_assignment_even_when_cancel_requested(
         self,
@@ -1040,7 +973,6 @@ class TestElectricalAssignmentApi:
             assert response.status_code == 201, response.text
             variants.append(response.json())
         fourth = variants[-1]
-        assert fourth["legacy_variant_number"] == 4
 
         assigned = await _patch_assignments(
             client,
@@ -1094,7 +1026,6 @@ class TestElectricalAssignmentApi:
         candidate_payload = {
             "project_id": project["id"],
             "object_id": obj["id"],
-            "variant_number": 1,
             "electrical_variant_id": variant["id"],
             "cable_type": "self_regulating_tt",
             "cable_source": "builtin",
@@ -1103,7 +1034,6 @@ class TestElectricalAssignmentApi:
         folder_payload = {
             "project_id": project["id"],
             "object_id": obj["id"],
-            "variant_number": 1,
             "electrical_variant_id": variant["id"],
             "name": "Guarded",
         }
@@ -1178,11 +1108,10 @@ class TestElectricalAssignmentApi:
             == 0
         )
 
-    async def test_candidate_and_folder_exact_uuid_reads_fail_closed_on_dirty_rows(
+    async def test_candidate_and_folder_exact_uuid_reads(
         self,
         client: AsyncClient,
         guest_session: str,
-        db_session: AsyncSession,
     ):
         project = await _guest_project(client, guest_session)
         headers = {"X-Session-Id": guest_session}
@@ -1206,7 +1135,6 @@ class TestElectricalAssignmentApi:
                 json={
                     "project_id": project["id"],
                     "object_id": obj["id"],
-                    "variant_number": 1,
                     "electrical_variant_id": variant["id"],
                     "cable_type": "self_regulating_tt",
                     "cable_source": "builtin",
@@ -1225,7 +1153,6 @@ class TestElectricalAssignmentApi:
             json={
                 "project_id": project["id"],
                 "object_id": obj["id"],
-                "variant_number": 1,
                 "electrical_variant_id": variant["id"],
                 "name": "Exact folder",
             },
@@ -1240,7 +1167,6 @@ class TestElectricalAssignmentApi:
             params={
                 "project_id": project["id"],
                 "object_id": obj["id"],
-                "variant_number": 1,
                 "electrical_variant_id": variant["id"],
             },
         )
@@ -1254,124 +1180,11 @@ class TestElectricalAssignmentApi:
             params={
                 "project_id": project["id"],
                 "object_id": obj["id"],
-                "variant_number": 1,
                 "electrical_variant_id": variant["id"],
             },
         )
         assert exact_folders.status_code == 200, exact_folders.text
         assert [item["id"] for item in exact_folders.json()] == [folder["id"]]
-
-        await db_session.execute(
-            text(
-                "ALTER TABLE electrical_candidates DISABLE TRIGGER "
-                "trg_0027_sync_electrical_variant_id"
-            )
-        )
-        try:
-            await db_session.execute(
-                update(ElectricalCandidate)
-                .where(ElectricalCandidate.id == UUID(candidates[1]["id"]))
-                .values(electrical_variant_id=None, is_applied=True)
-            )
-        finally:
-            await db_session.execute(
-                text(
-                    "ALTER TABLE electrical_candidates ENABLE TRIGGER "
-                    "trg_0027_sync_electrical_variant_id"
-                )
-            )
-        await db_session.execute(
-            text(
-                "ALTER TABLE electrical_candidate_folders DISABLE TRIGGER "
-                "trg_0027_sync_electrical_variant_id"
-            )
-        )
-        try:
-            await db_session.execute(
-                update(ElectricalCandidateFolder)
-                .where(ElectricalCandidateFolder.id == UUID(folder["id"]))
-                .values(electrical_variant_id=None)
-            )
-        finally:
-            await db_session.execute(
-                text(
-                    "ALTER TABLE electrical_candidate_folders ENABLE TRIGGER "
-                    "trg_0027_sync_electrical_variant_id"
-                )
-            )
-        await db_session.commit()
-
-        dirty_candidate_list = await client.get(
-            "/api/v1/calc/electrical/candidates",
-            headers=headers,
-            params={
-                "project_id": project["id"],
-                "object_id": obj["id"],
-                "variant_number": 1,
-                "electrical_variant_id": variant["id"],
-            },
-        )
-        assert dirty_candidate_list.status_code == 409
-        assert dirty_candidate_list.json()["detail"]["code"] == (
-            "ELECTRICAL_ASSIGNMENT_DOWNSTREAM_SCOPE_CONFLICT"
-        )
-        assert dirty_candidate_list.json()["detail"]["details"]["candidate_ids"] == [
-            candidates[1]["id"]
-        ]
-        dirty_folder_list = await client.get(
-            "/api/v1/calc/electrical/candidate-folders",
-            headers=headers,
-            params={
-                "project_id": project["id"],
-                "object_id": obj["id"],
-                "variant_number": 1,
-                "electrical_variant_id": variant["id"],
-            },
-        )
-        assert dirty_folder_list.status_code == 409
-        assert dirty_folder_list.json()["detail"]["details"]["folder_ids"] == [folder["id"]]
-
-        dirty_dedupe = await client.post(
-            "/api/v1/calc/electrical/candidates",
-            headers=headers,
-            json={
-                "project_id": project["id"],
-                "object_id": obj["id"],
-                "variant_number": 1,
-                "electrical_variant_id": variant["id"],
-                "cable_type": "self_regulating_tt",
-                "cable_source": "builtin",
-                "mode": "manual",
-                "cable_mark": "45ТТВ2-СР",
-            },
-        )
-        assert dirty_dedupe.status_code == 409
-        assert dirty_dedupe.json()["detail"]["code"] == (
-            "ELECTRICAL_ASSIGNMENT_DOWNSTREAM_SCOPE_CONFLICT"
-        )
-
-        apply_exact = await client.post(
-            f"/api/v1/calc/electrical/candidates/{candidates[0]['id']}/apply",
-            headers=headers,
-        )
-        assert apply_exact.status_code == 409
-        assert apply_exact.json()["detail"]["code"] == (
-            "ELECTRICAL_ASSIGNMENT_DOWNSTREAM_SCOPE_CONFLICT"
-        )
-        persisted = list(
-            (
-                await db_session.execute(
-                    select(ElectricalCandidate)
-                    .where(ElectricalCandidate.id.in_([UUID(item["id"]) for item in candidates]))
-                    .order_by(ElectricalCandidate.cable_mark)
-                )
-            ).scalars()
-        )
-        by_mark = {item.cable_mark: item for item in persisted}
-        assert by_mark["30ТТВ2-СР"].is_applied is False
-        assert by_mark["30ТТВ2-СР"].electrical_variant_id == UUID(variant["id"])
-        assert by_mark["45ТТВ2-СР"].is_applied is True
-        assert by_mark["45ТТВ2-СР"].electrical_variant_id is None
 
     async def test_post_project_lock_loaders_refresh_prelock_object_identity(
         self,
@@ -1589,7 +1402,7 @@ class TestElectricalAssignmentApi:
             headers=headers,
             params={
                 "project_id": project["id"],
-                "variant_number": 1,
+                "electrical_variant_id": variant["id"],
                 "cable_type": "self_regulating",
                 "include_results": False,
             },
@@ -1620,7 +1433,7 @@ class TestElectricalAssignmentApi:
             headers=headers,
             params=[
                 ("project_id", project["id"]),
-                ("variant_number", "1"),
+                ("electrical_variant_id", variant["id"]),
                 ("cable_type", "self_regulating"),
                 ("object_ids", unassigned_obj["id"]),
             ],
