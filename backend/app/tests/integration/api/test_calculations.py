@@ -620,11 +620,15 @@ class TestElectricalCalculationContinued:
         """Типы без поставленных формул/каталогов → 400."""
         project = await _create_project(client, guest_session)
         obj = await _create_pipe_object(client, project["id"], guest_session)
+        variant = await _assign_electrical_object(
+            client, project["id"], obj["id"], guest_session
+        )
 
         resp = await client.post(
             "/api/v1/calc/electrical",
             json={
                 "object_id": obj["id"],
+                "electrical_variant_id": variant["id"],
                 "cable_type": "mineral",
                 "data": {},
             },
@@ -643,12 +647,15 @@ class TestElectricalCalculationContinued:
         project = await _create_project(client, guest_session)
         await _set_project_current_limit(client, project["id"], guest_session)
         obj = await _create_pipe_object(client, project["id"], guest_session)
-        await _assign_electrical_object(client, project["id"], obj["id"], guest_session)
+        variant = await _assign_electrical_object(
+            client, project["id"], obj["id"], guest_session
+        )
 
         resp = await client.post(
             "/api/v1/calc/electrical",
             json={
                 "object_id": obj["id"],
+                "electrical_variant_id": variant["id"],
                 "cable_type": "self_regulating_tt",
                 "data": {
                     "required_power_per_meter": 18.0,
