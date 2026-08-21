@@ -36,6 +36,19 @@ async def _guest_project_with_object(client: AsyncClient) -> tuple[str, dict, di
     return sid, project, obj_resp.json()
 
 
+async def _initialize_electrical_variant(
+    client: AsyncClient,
+    project_id: str,
+    session_id: str,
+) -> str:
+    response = await client.post(
+        f"/api/v1/projects/{project_id}/electrical-variants/initialize",
+        headers={"X-Session-Id": session_id},
+    )
+    assert response.status_code == 200, response.text
+    return response.json()["variant"]["id"]
+
+
 class TestGuestIsolation:
     """Пользователь A никак не должен видеть/изменять данные пользователя B."""
 
@@ -130,25 +143,31 @@ class TestGuestIsolation:
         assert resp.status_code in (403, 404)
 
     async def test_guest_b_cannot_list_guest_a_electrical_calcs(self, client: AsyncClient):
-        _, project, _ = await _guest_project_with_object(client)
+        sid_a, project, _ = await _guest_project_with_object(client)
+        variant_id = await _initialize_electrical_variant(client, project["id"], sid_a)
         sid_b = (await client.post("/api/v1/auth/guest")).json()["session_id"]
 
-        resp = await client.get(
-            f"/api/v1/calc/electrical?project_id={project['id']}",
+        resp = await client.post(
+            "/api/v1/calc/electrical/query",
+            json={
+                "project_id": project["id"],
+                "electrical_variant_id": variant_id,
+            },
             headers={"X-Session-Id": sid_b},
         )
         assert resp.status_code in (403, 404)
 
     async def test_guest_b_cannot_calc_guest_a_object_electrical(self, client: AsyncClient):
-        _, _, obj = await _guest_project_with_object(client)
+        sid_a, project, obj = await _guest_project_with_object(client)
+        variant_id = await _initialize_electrical_variant(client, project["id"], sid_a)
         sid_b = (await client.post("/api/v1/auth/guest")).json()["session_id"]
 
         resp = await client.post(
             "/api/v1/calc/electrical",
             json={
                 "object_id": obj["id"],
+                "electrical_variant_id": variant_id,
                 "cable_type": "self_regulating_tt",
-                "variant_number": 1,
                 "data": {},
             },
             headers={"X-Session-Id": sid_b},
