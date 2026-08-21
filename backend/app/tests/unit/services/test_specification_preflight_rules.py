@@ -4,11 +4,11 @@ from decimal import Decimal
 from uuid import uuid4
 
 import pytest
-
-from app.formulas.electrical.tt_contract import (
+from heatcalc_electrical_core import (
     ELECTRICAL_TT_FORMULA_FINGERPRINT,
     ELECTRICAL_TT_FORMULA_VERSION,
 )
+
 from app.schemas.specification import SpecificationDiagnosticCode, SpecificationPreflightStatus
 from app.services.specification_preflight_rules import (
     ImmutableSpecificationCatalog,
