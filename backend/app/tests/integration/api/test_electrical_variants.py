@@ -944,7 +944,6 @@ class TestElectricalVariantConcurrency:
             name_normalized="uuid-only read",
             sort_order=0,
             is_active=True,
-            legacy_variant_number=None,
         )
         db_session.add(variant)
         await db_session.flush()
@@ -965,7 +964,6 @@ class TestElectricalVariantConcurrency:
             "/api/v1/calc/electrical/query-capabilities",
             params={
                 "project_id": project["id"],
-                "variant_number": 1,
                 "electrical_variant_id": str(variant.id),
             },
             headers=headers,
@@ -976,7 +974,6 @@ class TestElectricalVariantConcurrency:
             "/api/v1/calc/electrical/query",
             json={
                 "project_id": project["id"],
-                "variant_number": 1,
                 "electrical_variant_id": str(variant.id),
             },
             headers=headers,
@@ -986,7 +983,6 @@ class TestElectricalVariantConcurrency:
         assert body["calculations"] == []
         assert body["summary"]["calculated_count"] == 0
         assert body["query"] == {
-            "variant_number": None,
             "electrical_variant_id": str(variant.id),
             "sort": None,
         }
