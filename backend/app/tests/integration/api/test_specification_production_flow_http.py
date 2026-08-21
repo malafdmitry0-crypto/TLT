@@ -198,7 +198,6 @@ async def _seed_http_ready_project(
         name="ЭР ready",
         name_normalized="эр ready",
         sort_order=0,
-        legacy_variant_number=1,
         is_active=True,
     )
     variants = [ready]
@@ -210,7 +209,6 @@ async def _seed_http_ready_project(
             name="ЭР other",
             name_normalized="эр other",
             sort_order=1,
-            legacy_variant_number=2,
             is_active=False,
         )
         variants.append(other)
@@ -259,7 +257,6 @@ async def _seed_http_ready_project(
         id=uuid.uuid4(),
         project_id=project.id,
         object_id=obj.id,
-        variant_number=1,
         electrical_variant_id=ready.id,
         cable_type="self_regulating_tt",
         cable_mark="30ТТВ2-СР",
@@ -462,7 +459,6 @@ async def test_http_real_electrical_recalculation_unlocks_specification_generati
         headers=headers,
         params={
             "project_id": project["id"],
-            "variant_number": 1,
             "electrical_variant_id": variant["id"],
         },
     )
