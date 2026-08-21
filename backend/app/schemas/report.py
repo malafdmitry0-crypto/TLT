@@ -5,21 +5,16 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from app.electrical_variant_limits import MAX_ELECTRICAL_VARIANTS
-
 
 class ReportChapterMeta(BaseModel):
-    electrical_variant_id: UUID | None = None
-    electrical_variant_name: str | None = None
-    variant_number: int | None = Field(default=None, ge=1, le=MAX_ELECTRICAL_VARIANTS)
+    electrical_variant_id: UUID
+    electrical_variant_name: str
 
 
 class ReportPreviewResponse(BaseModel):
     project_id: str
     html: str
     sections: list[str]
-    # Legacy slot may be null for dynamic ЭР without expand mapping (Phase 5).
-    variant_number: int | None = Field(default=None, ge=1, le=MAX_ELECTRICAL_VARIANTS)
     electrical_variant_id: UUID | None = None
     electrical_variant_name: str | None = None
     chapters: list[ReportChapterMeta] | None = None

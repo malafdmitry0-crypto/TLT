@@ -88,7 +88,9 @@ class TestLoadContext:
         result.scalar_one_or_none = lambda: None
         db.execute = AsyncMock(return_value=result)
         with pytest.raises(ReportError, match="не найден"):
-            await ReportService(db)._load_context(uuid.uuid4(), principal=None)
+            await ReportService(db)._load_context(
+                uuid.uuid4(), principal=None, electrical_variant_id=uuid.uuid4()
+            )
 
     async def test_returns_full_context(self):
         """Проект + объекты + спецификация + elec-расчёты — собираются в dict."""
@@ -110,7 +112,6 @@ class TestLoadContext:
         spec = SimpleNamespace(items=[{"name": "Кабель"}])
         elec = SimpleNamespace(
             object_id=oid,
-            variant_number=1,
             cable_mark="30ТТВ2-СР",
             results={
                 "selected_cable": "30ТТВ2-СР",
@@ -126,10 +127,12 @@ class TestLoadContext:
         ]
         db = AsyncMock()
         db.execute = AsyncMock(side_effect=results_stack)
-        ctx = await ReportService(db)._load_context(pid, principal=None)
+        ctx = await ReportService(db)._load_context(
+            pid, principal=None, electrical_variant_id=uuid.uuid4()
+        )
         assert ctx["project"]["id"] == str(pid)
         assert ctx["project"]["name"] == "P"
-        assert ctx["variant_number"] == 1
+        assert "variant_number" not in ctx
         assert len(ctx["objects"]) == 1
         assert ctx["objects"][0]["electrical"]["cable_mark"] == "30ТТВ2-СР"
         assert ctx["electrical"]["summary"]["successful"] == 1
@@ -206,7 +209,9 @@ class TestLoadContext:
             ]
         )
 
-        ctx = await ReportService(db)._load_context(pid, principal=None)
+        ctx = await ReportService(db)._load_context(
+            pid, principal=None, electrical_variant_id=uuid.uuid4()
+        )
 
         assert [o["params"]["name"] for o in ctx["electrical"]["valid"]] == ["OK"]
         assert [o["params"]["name"] for o in ctx["electrical"]["failed"]] == ["BAD"]
@@ -235,7 +240,9 @@ class TestLoadContext:
                 _r(all_=[]),
             ]
         )
-        ctx = await ReportService(db)._load_context(pid, principal=None)
+        ctx = await ReportService(db)._load_context(
+            pid, principal=None, electrical_variant_id=uuid.uuid4()
+        )
         assert ctx["specification"]["items"] == []
         assert ctx["specification"]["state"] == "absent"
         assert "is_stale" not in ctx["specification"]
@@ -262,7 +269,6 @@ class TestLoadContext:
         )
         new = SimpleNamespace(
             object_id=oid,
-            variant_number=2,
             cable_mark="ТЛТ-50",
             results={"selected_cable": "ТЛТ-50"},
         )
@@ -275,7 +281,9 @@ class TestLoadContext:
                 _r(all_=[new]),
             ]
         )
-        ctx = await ReportService(db)._load_context(pid, principal=None, variant_number=2)
+        ctx = await ReportService(db)._load_context(
+            pid, principal=None, electrical_variant_id=uuid.uuid4()
+        )
         assert ctx["objects"][0]["electrical"]["cable_mark"] == "ТЛТ-50"
 
     async def test_specification_only_skips_objects_and_electrical(self):
@@ -294,7 +302,12 @@ class TestLoadContext:
                 _r(first=spec),
             ]
         )
-        ctx = await ReportService(db)._load_context(pid, ["specification"], principal=None)
+        ctx = await ReportService(db)._load_context(
+            pid,
+            ["specification"],
+            principal=None,
+            electrical_variant_id=spec.electrical_variant_id,
+        )
         assert ctx["sections"] == ["specification"]
         assert ctx["objects"] == []
         assert ctx["specification"]["items"] == [{"name": "Кабель"}]
@@ -372,10 +385,10 @@ class TestLoadContext:
             pid,
             ["pipes"],
             principal=SimpleNamespace(role="admin", user_id=uuid.uuid4(), session_id=None),
-            variant_number=2,
+            electrical_variant_id=uuid.uuid4(),
         )
         assert response["sections"] == ["pipes"]
-        assert response["variant_number"] == 2
+        assert "variant_number" not in response
         assert "data" not in response
 
 
@@ -389,6 +402,7 @@ class TestExport:
                 pid,
                 "txt",
                 principal=SimpleNamespace(role="admin", user_id=uuid.uuid4(), session_id=None),
+                electrical_variant_id=uuid.uuid4(),
             )
         db.execute.assert_not_called()
 
@@ -412,13 +426,16 @@ class TestExport:
         )
         principal = SimpleNamespace(role="admin", user_id=uuid.uuid4(), session_id=None)
 
-        assert await service.export(pid, fmt, principal=principal) == expected
+        variant_id = uuid.uuid4()
+        assert (
+            await service.export(pid, fmt, principal=principal, electrical_variant_id=variant_id)
+            == expected
+        )
         service._load_context.assert_awaited_once_with(
             pid,
             None,
             principal=principal,
-            variant_number=1,
-            electrical_variant_id=None,
+            electrical_variant_id=variant_id,
             electrical_variant_name=None,
         )
 
@@ -428,13 +445,18 @@ class TestExport:
         service._load_context = AsyncMock(return_value={"sections": ["summary"]})
         monkeypatch.setattr("app.services.report_service.generate_pdf", lambda ctx: b"pdf")
 
-        assert await service.export_trusted(pid, "pdf", ["summary"]) == b"pdf"
+        variant_id = uuid.uuid4()
+        assert (
+            await service.export_trusted(
+                pid, "pdf", ["summary"], electrical_variant_id=variant_id
+            )
+            == b"pdf"
+        )
         service._load_context.assert_awaited_once_with(
             pid,
             ["summary"],
             principal=None,
-            variant_number=1,
-            electrical_variant_id=None,
+            electrical_variant_id=variant_id,
             electrical_variant_name=None,
         )
 
@@ -458,7 +480,6 @@ class TestExport:
             project_id,
             ["summary"],
             principal=None,
-            variant_number=None,
             electrical_variant_id=variant_id,
             electrical_variant_name=None,
         )
@@ -669,7 +690,6 @@ def _electrical(
 ) -> SimpleNamespace:
     return SimpleNamespace(
         object_id=object_id,
-        variant_number=1,
         cable_mark=cable_mark,
         results=results,
     )

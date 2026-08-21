@@ -1,10 +1,10 @@
 """Сервис генерации отчётов."""
 
 import asyncio
-from typing import Any, ClassVar
+from typing import Any, ClassVar, cast
 from uuid import UUID
 
-from sqlalchemy import false, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import CurrentPrincipal
@@ -100,8 +100,7 @@ class ReportService:
         sections: list[str] | None = None,
         *,
         principal: CurrentPrincipal | None,
-        variant_number: int | None = 1,
-        electrical_variant_id: UUID | None = None,
+        electrical_variant_id: UUID,
         electrical_variant_name: str | None = None,
     ) -> dict[str, Any]:
         enabled_sections = self._normalize_sections(sections)
@@ -139,14 +138,9 @@ class ReportService:
         )
         if "specification" in enabled_sections:
             spec_stmt = select(Specification).where(Specification.project_id == project_id)
-            if electrical_variant_id is not None:
-                spec_stmt = spec_stmt.where(
-                    Specification.electrical_variant_id == electrical_variant_id
-                )
-            else:
-                # Specification data plane is UUID-only. A numeric report selector
-                # may still scope legacy electrical sections, never a BOM.
-                spec_stmt = spec_stmt.where(false())
+            spec_stmt = spec_stmt.where(
+                Specification.electrical_variant_id == electrical_variant_id
+            )
             spec_result = await self.db.execute(spec_stmt)
             spec = spec_result.scalars().first()
             # Blocked generate attempts never create a specification row, so
@@ -161,14 +155,9 @@ class ReportService:
             elec_stmt = select(ElectricalCalculation).where(
                 ElectricalCalculation.project_id == project_id
             )
-            if electrical_variant_id is not None:
-                elec_stmt = elec_stmt.where(
-                    ElectricalCalculation.electrical_variant_id == electrical_variant_id
-                )
-            elif variant_number is not None:
-                elec_stmt = elec_stmt.where(ElectricalCalculation.variant_number == variant_number)
-            else:
-                elec_stmt = elec_stmt.where(false())
+            elec_stmt = elec_stmt.where(
+                ElectricalCalculation.electrical_variant_id == electrical_variant_id
+            )
             elec_result = await self.db.execute(elec_stmt)
             elec_rows = list(elec_result.scalars().all())
             for e in elec_rows:
@@ -188,10 +177,7 @@ class ReportService:
             "electrical": electrical_context,
             "specification": specification_context,
             "sections": enabled_sections,
-            "variant_number": variant_number,
-            "electrical_variant_id": (
-                str(electrical_variant_id) if electrical_variant_id is not None else None
-            ),
+            "electrical_variant_id": str(electrical_variant_id),
             "electrical_variant_name": electrical_variant_name,
         }
 
@@ -312,15 +298,13 @@ class ReportService:
         sections: list[str] | None = None,
         *,
         principal: CurrentPrincipal,
-        variant_number: int | None = 1,
-        electrical_variant_id: UUID | None = None,
+        electrical_variant_id: UUID,
         electrical_variant_name: str | None = None,
     ) -> dict[str, Any]:
         ctx = await self._load_context(
             project_id,
             sections,
             principal=principal,
-            variant_number=variant_number,
             electrical_variant_id=electrical_variant_id,
             electrical_variant_name=electrical_variant_name,
         )
@@ -329,7 +313,6 @@ class ReportService:
             "project_id": str(project_id),
             "html": html,
             "sections": ctx["sections"],
-            "variant_number": variant_number,
             "electrical_variant_id": ctx.get("electrical_variant_id"),
             "electrical_variant_name": electrical_variant_name,
         }
@@ -343,21 +326,23 @@ class ReportService:
         principal: CurrentPrincipal,
     ) -> dict[str, Any]:
         """PDL-ER-39: one report with independent chapter per ER UUID; no cross-sums."""
+        if not chapters:
+            raise ReportError("Для отчёта требуется хотя бы один ЭР")
         built: list[dict[str, Any]] = []
         for chapter in chapters:
+            variant_id = cast(UUID, chapter["electrical_variant_id"])
+            variant_name = cast(str, chapter["electrical_variant_name"])
             ctx = await self._load_context(
                 project_id,
                 sections,
                 principal=principal,
-                variant_number=chapter.get("variant_number"),
-                electrical_variant_id=chapter.get("electrical_variant_id"),
-                electrical_variant_name=chapter.get("electrical_variant_name"),
+                electrical_variant_id=variant_id,
+                electrical_variant_name=variant_name,
             )
             built.append(
                 {
-                    "electrical_variant_id": chapter.get("electrical_variant_id"),
-                    "electrical_variant_name": chapter.get("electrical_variant_name"),
-                    "variant_number": chapter.get("variant_number"),
+                    "electrical_variant_id": variant_id,
+                    "electrical_variant_name": variant_name,
                     "objects": ctx["objects"],
                     "electrical": ctx["electrical"],
                     "specification": ctx["specification"],
@@ -368,8 +353,7 @@ class ReportService:
             project_id,
             ["summary"],
             principal=principal,
-            variant_number=chapters[0].get("variant_number") if chapters else None,
-            electrical_variant_id=chapters[0].get("electrical_variant_id") if chapters else None,
+            electrical_variant_id=cast(UUID, chapters[0]["electrical_variant_id"]),
         )
         multi_ctx = {
             "project": first["project"],
@@ -386,7 +370,6 @@ class ReportService:
                 "summary": {},
             },
             "specification": specification_report_projection(None),
-            "variant_number": None,
             "electrical_variant_id": None,
             "electrical_variant_name": None,
         }
@@ -395,14 +378,12 @@ class ReportService:
             "project_id": str(project_id),
             "html": html,
             "sections": multi_ctx["sections"],
-            "variant_number": None,
             "electrical_variant_id": None,
             "electrical_variant_name": None,
             "chapters": [
                 {
                     "electrical_variant_id": c.get("electrical_variant_id"),
                     "electrical_variant_name": c.get("electrical_variant_name"),
-                    "variant_number": c.get("variant_number"),
                 }
                 for c in built
             ],
@@ -415,8 +396,7 @@ class ReportService:
         sections: list[str] | None = None,
         *,
         principal: CurrentPrincipal,
-        variant_number: int | None = 1,
-        electrical_variant_id: UUID | None = None,
+        electrical_variant_id: UUID,
         electrical_variant_name: str | None = None,
     ) -> bytes:
         return await self._export(
@@ -424,7 +404,6 @@ class ReportService:
             fmt,
             sections,
             principal=principal,
-            variant_number=variant_number,
             electrical_variant_id=electrical_variant_id,
             electrical_variant_name=electrical_variant_name,
         )
@@ -435,8 +414,7 @@ class ReportService:
         fmt: str,
         sections: list[str] | None = None,
         *,
-        variant_number: int | None = 1,
-        electrical_variant_id: UUID | None = None,
+        electrical_variant_id: UUID,
         electrical_variant_name: str | None = None,
     ) -> bytes:
         return await self._export(
@@ -444,7 +422,6 @@ class ReportService:
             fmt,
             sections,
             principal=None,
-            variant_number=variant_number,
             electrical_variant_id=electrical_variant_id,
             electrical_variant_name=electrical_variant_name,
         )
@@ -462,7 +439,6 @@ class ReportService:
             fmt,
             sections,
             principal=None,
-            variant_number=None,
             electrical_variant_id=electrical_variant_id,
         )
 
@@ -473,8 +449,7 @@ class ReportService:
         sections: list[str] | None = None,
         *,
         principal: CurrentPrincipal | None,
-        variant_number: int | None = 1,
-        electrical_variant_id: UUID | None = None,
+        electrical_variant_id: UUID,
         electrical_variant_name: str | None = None,
     ) -> bytes:
         if fmt not in {"pdf", "docx", "xlsx"}:
@@ -484,7 +459,6 @@ class ReportService:
             project_id,
             sections,
             principal=principal,
-            variant_number=variant_number,
             electrical_variant_id=electrical_variant_id,
             electrical_variant_name=electrical_variant_name,
         )

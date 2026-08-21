@@ -83,7 +83,6 @@ async def preview(
     project_id: UUID,
     request: Request,
     sections: list[str] | None = Query(default=None),
-    variant_number: int | None = Query(default=None, ge=1, le=MAX_ELECTRICAL_VARIANTS),
     electrical_variant_id: UUID | None = Query(default=None),
     electrical_variant_ids: list[UUID] | None = Query(default=None),
     principal: CurrentPrincipal = Depends(require_any()),
@@ -100,11 +99,11 @@ async def preview(
         requested_ids = list(dict.fromkeys(electrical_variant_ids or []))
         if electrical_variant_id is not None and electrical_variant_id not in requested_ids:
             requested_ids = [electrical_variant_id, *requested_ids]
-        if not requested_ids and variant_number is None:
+        if not requested_ids:
             await ProjectService(db).get_project_basic(project_id, principal)
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail="electrical_variant_id(s) or variant_number is required",
+                detail="electrical_variant_id(s) is required",
             )
         if len(requested_ids) > MAX_ELECTRICAL_VARIANTS:
             raise HTTPException(
@@ -122,7 +121,6 @@ async def preview(
                     {
                         "electrical_variant_id": variant.id,
                         "electrical_variant_name": variant.name,
-                        "variant_number": variant.legacy_variant_number,
                     }
                 )
             result = await service.preview_multi(
@@ -132,29 +130,17 @@ async def preview(
                 principal=principal,
             )
         else:
-            variant = None
-            if requested_ids and variant_number is not None:
-                variant = await ElectricalVariantService(db).validate_legacy_variant_for_read(
-                    project_id,
-                    principal,
-                    variant_number,
-                    requested_ids[0],
-                )
-            elif requested_ids:
-                variant = await ElectricalVariantService(db).require_variant_for_read(
-                    project_id,
-                    principal,
-                    requested_ids[0],
-                )
-                if variant.legacy_variant_number is not None:
-                    variant_number = variant.legacy_variant_number
+            variant = await ElectricalVariantService(db).require_variant_for_read(
+                project_id,
+                principal,
+                requested_ids[0],
+            )
             result = await service.preview(
                 project_id,
                 sections,
                 principal=principal,
-                variant_number=variant_number,
-                electrical_variant_id=(variant.id if variant is not None else None),
-                electrical_variant_name=(variant.name if variant is not None else None),
+                electrical_variant_id=variant.id,
+                electrical_variant_name=variant.name,
             )
     except ElectricalVariantServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
@@ -169,7 +155,6 @@ async def preview(
         project_id=project_id,
         details={
             "sections": sections,
-            "variant_number": variant_number,
             "electrical_variant_id": (
                 str(result.get("electrical_variant_id"))
                 if result.get("electrical_variant_id") is not None
@@ -190,8 +175,7 @@ async def export(
     format: str,
     request: Request,
     sections: list[str] | None = Query(default=None),
-    variant_number: int = Query(..., ge=1, le=MAX_ELECTRICAL_VARIANTS),
-    electrical_variant_id: UUID | None = Query(default=None),
+    electrical_variant_id: UUID = Query(...),
     principal: CurrentPrincipal = Depends(require_employee()),
     db: AsyncSession = Depends(get_db),
 ) -> StreamingResponse:
@@ -208,22 +192,18 @@ async def export(
         )
     service = ReportService(db)
     try:
-        variant = None
-        if electrical_variant_id is not None:
-            variant = await ElectricalVariantService(db).validate_legacy_variant_for_read(
-                project_id,
-                principal,
-                variant_number,
-                electrical_variant_id,
-            )
+        variant = await ElectricalVariantService(db).require_variant_for_read(
+            project_id,
+            principal,
+            electrical_variant_id,
+        )
         data = await service.export(
             project_id,
             format,
             sections,
             principal=principal,
-            variant_number=variant_number,
-            electrical_variant_id=(variant.id if variant is not None else electrical_variant_id),
-            electrical_variant_name=(variant.name if variant is not None else None),
+            electrical_variant_id=variant.id,
+            electrical_variant_name=variant.name,
         )
     except ElectricalVariantServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
@@ -239,7 +219,7 @@ async def export(
         details={
             "format": format,
             "sections": sections,
-            "variant_number": variant_number,
+            "electrical_variant_id": str(variant.id),
             "size_bytes": len(data),
         },
         message="Сформирован отчёт",

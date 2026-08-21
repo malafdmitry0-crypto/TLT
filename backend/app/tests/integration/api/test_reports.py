@@ -284,7 +284,15 @@ class TestReports:
         preview = await client.get(
             f"/api/v1/reports/{pid}/preview",
             params=[
-                ("variant_number", "1"),
+                (
+                    "electrical_variant_id",
+                    (
+                        await client.post(
+                            f"/api/v1/projects/{pid}/electrical-variants/initialize",
+                            headers=headers,
+                        )
+                    ).json()["variant"]["id"],
+                ),
                 ("sections", "pipes"),
                 ("sections", "tanks"),
             ],
@@ -317,9 +325,14 @@ class TestReports:
 
     async def test_preview_returns_html(self, client: AsyncClient, guest_session: str):
         pid = await _project_with_object(client, guest_session)
+        initialized = await client.post(
+            f"/api/v1/projects/{pid}/electrical-variants/initialize",
+            headers={"X-Session-Id": guest_session},
+        )
+        variant = initialized.json()["variant"]
         resp = await client.get(
             f"/api/v1/reports/{pid}/preview",
-            params={"variant_number": 1},
+            params={"electrical_variant_id": variant["id"]},
             headers={"X-Session-Id": guest_session},
         )
         assert resp.status_code == 200
@@ -333,14 +346,17 @@ class TestReports:
             "electrical",
             "specification",
         ]
-        assert body["variant_number"] == 1
+        assert body["electrical_variant_id"] == variant["id"]
+        assert body["electrical_variant_name"] == variant["name"]
+        assert "variant_number" not in body
 
-    async def test_preview_requires_explicit_variant_number(
+    async def test_preview_requires_explicit_variant_uuid(
         self, client: AsyncClient, guest_session: str
     ):
         pid = await _project_with_object(client, guest_session)
         resp = await client.get(
             f"/api/v1/reports/{pid}/preview",
+            params={"variant_number": 1},
             headers={"X-Session-Id": guest_session},
         )
         assert resp.status_code == 422
@@ -431,7 +447,7 @@ class TestReports:
     async def test_preview_by_electrical_variant_id_alone(
         self, client: AsyncClient, guest_session: str
     ):
-        """Phase 5: UUID is sufficient; legacy variant_number is optional."""
+        """UUID is the only supported report identity."""
         headers = {"X-Session-Id": guest_session}
         pid = await _project_with_object(client, guest_session)
         init = await client.post(
@@ -462,15 +478,34 @@ class TestReports:
 
     async def test_employee_export_xlsx(self, client: AsyncClient, employee_token: str):
         pid = await _employee_project_with_object(client, employee_token)
+        headers = {"Authorization": f"Bearer {employee_token}"}
+        initialized = await client.post(
+            f"/api/v1/projects/{pid}/electrical-variants/initialize",
+            headers=headers,
+        )
         resp = await client.get(
             f"/api/v1/reports/{pid}/export/xlsx",
-            params={"variant_number": 1},
-            headers={"Authorization": f"Bearer {employee_token}"},
+            params={"electrical_variant_id": initialized.json()["variant"]["id"]},
+            headers=headers,
         )
         assert resp.status_code == 200
         assert resp.headers["content-type"].startswith(
             "application/vnd.openxmlformats-officedocument.spreadsheetml"
         )
+
+    async def test_employee_export_rejects_numeric_only_selector(
+        self, client: AsyncClient, employee_token: str
+    ):
+        pid = await _employee_project_with_object(client, employee_token)
+
+        response = await client.get(
+            f"/api/v1/reports/{pid}/export/xlsx",
+            params={"variant_number": 1},
+            headers={"Authorization": f"Bearer {employee_token}"},
+        )
+
+        assert response.status_code == 422
+        assert "electrical_variant_id" in response.text
 
     async def test_employee_can_enqueue_report_export_job(
         self,
@@ -698,9 +733,13 @@ class TestReports:
     ):
         """Отчёт доступен после Шага 1 (только теплопотери), не падает без электрорасчёта и спецификации."""
         pid = await _project_with_object(client, guest_session)
+        initialized = await client.post(
+            f"/api/v1/projects/{pid}/electrical-variants/initialize",
+            headers={"X-Session-Id": guest_session},
+        )
         resp = await client.get(
             f"/api/v1/reports/{pid}/preview",
-            params={"variant_number": 1},
+            params={"electrical_variant_id": initialized.json()["variant"]["id"]},
             headers={"X-Session-Id": guest_session},
         )
         assert resp.status_code == 200
