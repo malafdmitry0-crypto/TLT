@@ -96,7 +96,6 @@ async def _seed_sparse_current_export_graph(
         name_normalized="эр1",
         sort_order=0,
         is_active=True,
-        legacy_variant_number=1,
     )
     er4 = ElectricalVariant(
         project_id=project.id,
@@ -104,7 +103,6 @@ async def _seed_sparse_current_export_graph(
         name_normalized="эр4",
         sort_order=1,
         is_active=False,
-        legacy_variant_number=4,
     )
     db_session.add_all([er1, er4])
     await db_session.flush()
@@ -135,7 +133,6 @@ async def _seed_sparse_current_export_graph(
             ElectricalCalculation(
                 project_id=project.id,
                 object_id=first.id,
-                variant_number=1,
                 electrical_variant_id=er1.id,
                 cable_type="self_regulating_tt",
                 cable_type_source="manual",
@@ -147,7 +144,6 @@ async def _seed_sparse_current_export_graph(
             ElectricalCalculation(
                 project_id=project.id,
                 object_id=first.id,
-                variant_number=4,
                 electrical_variant_id=er4.id,
                 cable_type="mineral",
                 cable_type_source="manual",
@@ -162,7 +158,6 @@ async def _seed_sparse_current_export_graph(
             ElectricalCalculation(
                 project_id=project.id,
                 object_id=second.id,
-                variant_number=4,
                 electrical_variant_id=er4.id,
                 cable_type="single_core",
                 cable_type_source="manual",
@@ -259,14 +254,13 @@ async def _assert_sparse_imported_graph(
                 select(ElectricalCalculation)
                 .where(ElectricalCalculation.project_id == project_id)
                 .order_by(
-                    ElectricalCalculation.variant_number,
+                    ElectricalCalculation.electrical_variant_id,
                     ElectricalCalculation.object_id,
                 )
             )
         ).scalars()
     )
     assert all(calculation.electrical_variant_id is not None for calculation in calculations)
-    assert all(calculation.variant_number is None for calculation in calculations)
     calculation_by_scope = {
         (calculation.object_id, calculation.electrical_variant_id): calculation
         for calculation in calculations
@@ -619,7 +613,6 @@ class TestSingleExportImport:
                 "cable_mark": "30ТТВ2-СР",
                 "number_of_threads": 3,
                 "electrical_variant_id": er["id"],
-                "variant_number": er.get("legacy_variant_number") or 1,
             },
             headers=headers,
         )
