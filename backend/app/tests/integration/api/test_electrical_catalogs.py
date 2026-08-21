@@ -211,7 +211,6 @@ async def test_activation_stales_calculation_assignment_and_exact_variant_specif
     calc = ElectricalCalculation(
         project_id=UUID(project["id"]),
         object_id=UUID(obj["id"]),
-        variant_number=variant["legacy_variant_number"],
         electrical_variant_id=UUID(variant["id"]),
         cable_type="self_regulating_tt",
         cable_type_source="auto",
@@ -346,7 +345,7 @@ async def test_legacy_tt_snapshot_is_readable_but_excluded_from_ready_summary(
         headers=headers,
         params={
             "project_id": project["id"],
-            "variant_number": variant["legacy_variant_number"],
+            "electrical_variant_id": variant["id"],
         },
     )
 
