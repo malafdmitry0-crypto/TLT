@@ -879,7 +879,6 @@ class TestElectricalCalculationContinued:
             "/api/v1/calc/electrical/query",
             json={
                 "project_id": project["id"],
-                "variant_number": first_variant["legacy_variant_number"],
                 "electrical_variant_id": first_variant["id"],
                 "page": 1,
                 "page_size": 2,
@@ -896,7 +895,6 @@ class TestElectricalCalculationContinued:
             "/api/v1/calc/electrical/query",
             json={
                 "project_id": project["id"],
-                "variant_number": first_variant["legacy_variant_number"],
                 "electrical_variant_id": first_variant["id"],
                 "page": 2,
                 "page_size": 2,
@@ -941,8 +939,6 @@ class TestElectricalCalculationContinued:
             "/api/v1/calc/electrical/query",
             json={
                 "project_id": project["id"],
-                # Deliberately stale/mismatched legacy selector: exact UUID wins.
-                "variant_number": first_variant["legacy_variant_number"],
                 "electrical_variant_id": second_variant["id"],
                 "page": 1,
                 "page_size": 3,
@@ -954,7 +950,6 @@ class TestElectricalCalculationContinued:
         assert {item["version"] for item in isolated_body["assignments"]} == {9}
         assert {item["assignment_state"] for item in isolated_body["assignments"]} == {"error"}
         assert isolated_body["query"] == {
-            "variant_number": second_variant["legacy_variant_number"],
             "electrical_variant_id": second_variant["id"],
             "sort": None,
         }
@@ -964,7 +959,6 @@ class TestElectricalCalculationContinued:
             "/api/v1/calc/electrical/query",
             json={
                 "project_id": project["id"],
-                "variant_number": first_variant["legacy_variant_number"],
                 "electrical_variant_id": second_variant["id"],
                 "filters": [{"key": "cable_mark", "op": "in", "values": ["UUID-SECOND"]}],
             },
@@ -977,7 +971,6 @@ class TestElectricalCalculationContinued:
             "/api/v1/calc/electrical/query",
             json={
                 "project_id": project["id"],
-                "variant_number": first_variant["legacy_variant_number"],
                 "electrical_variant_id": second_variant["id"],
                 "sort": {"key": "object_name", "dir": "asc"},
                 "page": 2,
@@ -993,7 +986,6 @@ class TestElectricalCalculationContinued:
             "/api/v1/calc/electrical/query-capabilities",
             params={
                 "project_id": project["id"],
-                "variant_number": first_variant["legacy_variant_number"],
                 "electrical_variant_id": second_variant["id"],
             },
             headers={"X-Session-Id": guest_session},
@@ -1008,7 +1000,6 @@ class TestElectricalCalculationContinued:
             "/api/v1/calc/electrical/query",
             json={
                 "project_id": project["id"],
-                "variant_number": first_variant["legacy_variant_number"],
                 "electrical_variant_id": second_variant["id"],
                 "search": {"text": "uuid-second", "columns": ["provenance"]},
             },

@@ -403,9 +403,10 @@ class ElectricalCandidateService:
             request = ElectricalRequest(
                 object_id=object_id,
                 cable_type=cast(Any, cable_type),
-                variant_number=variant_number,
+                electrical_variant_id=electrical_variant_id,
                 data=request_data,
             )
+            request.bind_persistence_variant_number(variant_number)
             self.inputs._hydrate_electrical_request_from_object(request, obj)
             prepared_tt_calculation = await self.preparation._prepare_self_regulating_tt_request(
                 request,

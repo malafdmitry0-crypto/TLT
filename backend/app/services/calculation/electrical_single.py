@@ -167,12 +167,15 @@ class ElectricalSingleCalculationService:
         data["cable_mark_source"] = (
             CABLE_MARK_SOURCE_MANUAL if cable_mark else CABLE_MARK_SOURCE_AUTO
         )
+        if electrical_variant_id is None:
+            raise CalculationError("electrical_variant_id is required")
         request = ElectricalRequest(
             object_id=obj.id,
             cable_type=cast(Any, cable_type),
-            variant_number=variant_number,
+            electrical_variant_id=electrical_variant_id,
             data=data,
         )
+        request.bind_persistence_variant_number(variant_number)
         return await self.calculate(
             request,
             commit=commit,

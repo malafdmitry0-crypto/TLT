@@ -46,7 +46,7 @@ class ElectricalSummaryQuery:
                 cable_mark_source=calc.cable_mark_source,
                 cable_snapshot=calc.cable_snapshot,
                 cable_snapshot_status=statuses.get(calc.id),
-                variant_number=calc.variant_number,
+                electrical_variant_id=calc.electrical_variant_id,
                 params=calc.params,
                 results=electrical_result_with_lifecycle(
                     calc.cable_mark,

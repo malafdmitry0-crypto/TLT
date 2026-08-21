@@ -357,9 +357,10 @@ class ElectricalBatchCalculationService:
                     request = ElectricalRequest(
                         object_id=obj.id,
                         cable_type=cast(Any, object_cable_type),
-                        variant_number=variant_number,
+                        electrical_variant_id=electrical_variant_id,
                         data=request_data,
                     )
+                    request.bind_persistence_variant_number(variant_number)
                     prepared_tt_calculation = (
                         await self.preparation._prepare_self_regulating_tt_request(
                             request,

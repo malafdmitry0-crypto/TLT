@@ -130,7 +130,6 @@ async def test_query_projection_includes_persisted_supply_voltage_override() -> 
     db.execute.return_value = query_result
     data = ElectricalQueryRequest(
         project_id=assignment.project_id,
-        variant_number=None,
         electrical_variant_id=assignment.electrical_variant_id,
     )
 

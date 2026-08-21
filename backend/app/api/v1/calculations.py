@@ -236,12 +236,10 @@ async def calc_electrical(
     service = CalculationContainer(db)
     try:
         obj = await ProjectService(db).get_object_for_write(request.object_id, principal)
-        variant = await ElectricalVariantService(db).prepare_legacy_variant_for_write(
-            obj.project_id,
-            principal,
-            request.variant_number,
-            expected_electrical_variant_id=request.electrical_variant_id,
+        variant_number = await _require_uuid_variant_number(
+            db, obj.project_id, principal, request.electrical_variant_id
         )
+        request.bind_persistence_variant_number(variant_number)
         if idempotency_key:
             # Stash for audit / future short-TTL store; upsert already prevents dual rows.
             request.data = {
@@ -250,7 +248,7 @@ async def calc_electrical(
             }
         calc = await service.electrical_single.calculate(
             request,
-            electrical_variant_id=variant.id,
+            electrical_variant_id=request.electrical_variant_id,
         )
     except ElectricalVariantServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
@@ -279,7 +277,7 @@ async def calc_electrical(
             "cable_type": calc.cable_type,
             "cable_mark": calc.cable_mark,
             "variant_number": calc.variant_number,
-            "electrical_variant_id": str(variant.id),
+            "electrical_variant_id": str(request.electrical_variant_id),
             "result_category": (calc.results or {}).get("category"),
             "error_code": (calc.results or {}).get("error_code"),
         },
@@ -386,13 +384,10 @@ async def query_electrical(
             status_code=403, detail="Расширенный каталог доступен только сотрудникам"
         )
     try:
-        if data.electrical_variant_id is not None:
-            variant = await ElectricalVariantService(db).require_variant_for_read(
-                data.project_id,
-                principal,
-                data.electrical_variant_id,
-            )
-            data = data.model_copy(update={"variant_number": variant.legacy_variant_number})
+        variant_number = await _require_uuid_variant_number(
+            db, data.project_id, principal, data.electrical_variant_id
+        )
+        data.bind_persistence_variant_number(variant_number)
         return await ElectricalQueryService(db).query(data, principal)
     except ElectricalVariantServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
@@ -456,17 +451,15 @@ async def create_electrical_candidate(
         obj = await ProjectService(db).get_object_for_write(data.object_id, principal)
         if obj.project_id != data.project_id:
             raise HTTPException(status_code=404, detail="Объект не найден в проекте")
-        variant = await ElectricalVariantService(db).prepare_legacy_variant_for_write(
-            data.project_id,
-            principal,
-            data.variant_number,
-            expected_electrical_variant_id=data.electrical_variant_id,
+        variant_number = await _require_uuid_variant_number(
+            db, data.project_id, principal, data.electrical_variant_id
         )
+        data.bind_persistence_variant_number(variant_number)
         candidate, action = await service.electrical_candidates.create_electrical_candidate(
             project_id=data.project_id,
             object_id=data.object_id,
-            variant_number=data.variant_number,
-            electrical_variant_id=variant.id,
+            variant_number=variant_number,
+            electrical_variant_id=data.electrical_variant_id,
             cable_type=data.cable_type,
             cable_source=data.cable_source,
             mode=data.mode,
@@ -501,7 +494,7 @@ async def create_electrical_candidate(
             "action": action,
             "dedupe_key": candidate.dedupe_key,
             "variant_number": candidate.variant_number,
-            "electrical_variant_id": str(variant.id),
+            "electrical_variant_id": str(data.electrical_variant_id),
             "cable_type": candidate.cable_type,
             "cable_mark": candidate.cable_mark,
             "mode": candidate.mode,
@@ -589,19 +582,17 @@ async def create_electrical_candidate_folder(
         obj = await ProjectService(db).get_object_for_write(data.object_id, principal)
         if obj.project_id != data.project_id:
             raise HTTPException(status_code=404, detail="Объект не найден в проекте")
-        variant = await ElectricalVariantService(db).prepare_legacy_variant_for_write(
-            data.project_id,
-            principal,
-            data.variant_number,
-            expected_electrical_variant_id=data.electrical_variant_id,
+        variant_number = await _require_uuid_variant_number(
+            db, data.project_id, principal, data.electrical_variant_id
         )
+        data.bind_persistence_variant_number(variant_number)
         folder = await CalculationContainer(
             db
         ).candidate_folders.create_electrical_candidate_folder(
             project_id=data.project_id,
             object_id=data.object_id,
-            variant_number=data.variant_number,
-            electrical_variant_id=variant.id,
+            variant_number=variant_number,
+            electrical_variant_id=data.electrical_variant_id,
             name=data.name,
             color=data.color,
             created_by_user_id=principal.user_id,

@@ -1970,7 +1970,7 @@ class ElectricalQueryService:
             cable_mark_source=calc.cable_mark_source,
             cable_snapshot=calc.cable_snapshot,
             cable_snapshot_status=cable_snapshot_status,
-            variant_number=calc.variant_number,
+            electrical_variant_id=calc.electrical_variant_id,
             params=self._prune_dict(calc.params, ELECTRICAL_CALC_PARAM_KEYS),
             results=self._prune_dict(calc.results, ELECTRICAL_CALC_RESULT_KEYS),
         )

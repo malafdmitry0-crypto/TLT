@@ -4,9 +4,8 @@ from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, model_validator
 
-from app.electrical_variant_limits import MAX_ELECTRICAL_VARIANTS
 from app.schemas.electrical_assignment import ElectricalAssignmentResponse
 from app.schemas.electrical_variant import (
     ElectricalAssignmentState,
@@ -506,13 +505,22 @@ ElectricalCableSource = Literal["builtin", "commercial", "extended", "all"]
 
 
 class ElectricalRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     object_id: UUID
     cable_type: ElectricalCableType
     data: dict[str, Any]
-    variant_number: int = 1
-    electrical_variant_id: UUID | None = None
+    electrical_variant_id: UUID
     # Optimistic concurrency token for the object's ER assignment (E8 / B6).
     expected_assignment_version: int | None = None
+    _variant_number: int = PrivateAttr(default=1)
+
+    @property
+    def variant_number(self) -> int:
+        return self._variant_number
+
+    def bind_persistence_variant_number(self, value: int) -> None:
+        self._variant_number = value
 
 
 class ElectricalResponse(BaseModel):
@@ -570,7 +578,7 @@ class TaskElectricalCalcSummary(BaseModel):
 class ElectricalCalcSummary(TaskElectricalCalcSummary):
     """Краткая информация синхронного электрорасчёта объекта."""
 
-    variant_number: int
+    electrical_variant_id: UUID
 
 
 ElectricalCableSelectionMode = Literal["auto", "manual"]
@@ -614,15 +622,24 @@ ElectricalCandidateStatus = Literal["applicable", "error", "not_applicable", "ex
 class ElectricalCandidateCreateRequest(BaseModel):
     """Создание кандидата подбора кабеля без применения в основной расчёт."""
 
+    model_config = ConfigDict(extra="forbid")
+
     project_id: UUID
     object_id: UUID
-    variant_number: int = Field(default=1, ge=1, le=MAX_ELECTRICAL_VARIANTS)
-    electrical_variant_id: UUID | None = None
+    electrical_variant_id: UUID
     cable_type: ElectricalCableType = "self_regulating_tt"
     cable_source: ElectricalCableSource = "builtin"
     mode: ElectricalCandidateMode = "auto"
     cable_mark: str | None = None
     electrical_params: dict[str, Any] = Field(default_factory=dict)
+    _variant_number: int = PrivateAttr(default=1)
+
+    @property
+    def variant_number(self) -> int:
+        return self._variant_number
+
+    def bind_persistence_variant_number(self, value: int) -> None:
+        self._variant_number = value
 
     @model_validator(mode="after")
     def check_manual_mark(self) -> "ElectricalCandidateCreateRequest":
@@ -651,8 +668,7 @@ class ElectricalCandidateResponse(BaseModel):
     id: UUID
     project_id: UUID
     object_id: UUID
-    variant_number: int
-    electrical_variant_id: UUID | None = None
+    electrical_variant_id: UUID
     cable_type: str
     cable_source: str
     cable_mark: str | None
@@ -693,12 +709,21 @@ class ElectricalCandidateApplyResponse(BaseModel):
 class ElectricalCandidateFolderCreateRequest(BaseModel):
     """Создание пользовательской папки вариантов подбора."""
 
+    model_config = ConfigDict(extra="forbid")
+
     project_id: UUID
     object_id: UUID
-    variant_number: int = Field(default=1, ge=1, le=MAX_ELECTRICAL_VARIANTS)
-    electrical_variant_id: UUID | None = None
+    electrical_variant_id: UUID
     name: str = Field(min_length=1, max_length=64)
     color: str | None = Field(default=None, max_length=32)
+    _variant_number: int = PrivateAttr(default=1)
+
+    @property
+    def variant_number(self) -> int:
+        return self._variant_number
+
+    def bind_persistence_variant_number(self, value: int) -> None:
+        self._variant_number = value
 
 
 class ElectricalCandidateFolderUpdateRequest(BaseModel):
@@ -717,8 +742,7 @@ class ElectricalCandidateFolderResponse(BaseModel):
     id: UUID
     project_id: UUID
     object_id: UUID
-    variant_number: int
-    electrical_variant_id: UUID | None = None
+    electrical_variant_id: UUID
     name: str
     color: str | None = None
     sort_order: int
@@ -783,9 +807,10 @@ class ElectricalPageResponse(BaseModel):
 class ElectricalQueryRequest(BaseModel):
     """Backend-query таблицы электрорасчёта."""
 
+    model_config = ConfigDict(extra="forbid")
+
     project_id: UUID
-    variant_number: int | None = 1
-    electrical_variant_id: UUID | None = None
+    electrical_variant_id: UUID
     cable_source: ElectricalCableSource = "builtin"
     page: int = Field(default=1, ge=1)
     page_size: int = Field(default=50, ge=1, le=200)
@@ -798,11 +823,14 @@ class ElectricalQueryRequest(BaseModel):
     filters: list[ObjectQueryFilter] = Field(default_factory=list, max_length=20)
     sort: ObjectQuerySort | None = None
 
-    @model_validator(mode="after")
-    def require_variant_selector(self) -> "ElectricalQueryRequest":
-        if self.electrical_variant_id is None and self.variant_number is None:
-            raise ValueError("Нужно указать electrical_variant_id или variant_number")
-        return self
+    _variant_number: int | None = PrivateAttr(default=None)
+
+    @property
+    def variant_number(self) -> int | None:
+        return self._variant_number
+
+    def bind_persistence_variant_number(self, value: int) -> None:
+        self._variant_number = value
 
 
 class ElectricalQueryCounts(BaseModel):
@@ -815,8 +843,7 @@ class ElectricalQueryCounts(BaseModel):
 class ElectricalQueryEcho(BaseModel):
     """Нормализованный query, применённый к таблице электрорасчёта."""
 
-    variant_number: int | None
-    electrical_variant_id: UUID | None = None
+    electrical_variant_id: UUID
     sort: ObjectQuerySort | None = None
 
 

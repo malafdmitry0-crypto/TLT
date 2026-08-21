@@ -1453,7 +1453,6 @@ class TestElectricalAssignmentApi:
                     request = ElectricalRequest(
                         object_id=object_id,
                         cable_type="self_regulating_tt",
-                        variant_number=1,
                         electrical_variant_id=variant_id,
                         data={
                             "required_power_per_meter": 20,

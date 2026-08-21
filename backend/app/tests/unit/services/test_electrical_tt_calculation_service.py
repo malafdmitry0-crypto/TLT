@@ -115,6 +115,7 @@ async def test_second_calculation_resolves_persisted_assignment_voltage_without_
     service, variant_id = _service(obj, overrides={"supply_voltage_v": "380"})
     request = ElectricalRequest(
         object_id=obj.id,
+        electrical_variant_id=variant_id,
         cable_type="self_regulating_tt",
         data={"_tt_explicit_overrides": {"selection_policy": "technical_minimum"}},
     )
@@ -141,6 +142,7 @@ async def test_null_project_idop_uses_catalog_limit_without_blocking_calculation
     ].max_section_start_current_a = None
     request = ElectricalRequest(
         object_id=obj.id,
+        electrical_variant_id=variant_id,
         cable_type="self_regulating_tt",
         data={"_tt_explicit_overrides": {"selection_policy": "technical_minimum"}},
     )
@@ -164,6 +166,7 @@ async def test_snapshot_uses_exact_custom_database_row_selected_by_pipeline() ->
     service.tt_context._tt_calculation_catalogs_cache = _database_catalogs_with_custom_power(26)
     request = ElectricalRequest(
         object_id=obj.id,
+        electrical_variant_id=variant_id,
         cable_type="self_regulating_tt",
         data={"_tt_explicit_overrides": {"selection_policy": "technical_minimum"}},
     )
@@ -194,6 +197,7 @@ async def test_snapshot_uses_builtin_row_when_database_catalog_is_absent() -> No
     service, variant_id = _service(obj)
     request = ElectricalRequest(
         object_id=obj.id,
+        electrical_variant_id=variant_id,
         cable_type="self_regulating_tt",
         data={"_tt_explicit_overrides": {"selection_policy": "technical_minimum"}},
     )
@@ -222,6 +226,7 @@ async def test_snapshot_status_uses_current_resolved_catalog_identity() -> None:
     service.tt_context._tt_calculation_catalogs_cache = _database_catalogs_with_custom_power(26)
     request = ElectricalRequest(
         object_id=obj.id,
+        electrical_variant_id=variant_id,
         cable_type="self_regulating_tt",
         data={"_tt_explicit_overrides": {"selection_policy": "technical_minimum"}},
     )
@@ -284,6 +289,7 @@ def test_tt_snapshot_is_not_partially_built_without_resolved_catalog_row() -> No
     service = CalculationContainer(AsyncMock())
     request = ElectricalRequest(
         object_id=uuid4(),
+        electrical_variant_id=uuid4(),
         cable_type="self_regulating_tt",
         data={"cable_mark_source": "manual"},
     )
@@ -302,6 +308,7 @@ async def test_explicit_voltage_is_reflected_in_effective_assignment_provenance(
     service, variant_id = _service(obj)
     request = ElectricalRequest(
         object_id=obj.id,
+        electrical_variant_id=variant_id,
         cable_type="self_regulating_tt",
         data={
             "_tt_explicit_overrides": {
@@ -351,6 +358,7 @@ async def test_temperature_selection_error_keeps_resolved_diagnostics_and_climat
     service, variant_id = _service(obj)
     request = ElectricalRequest(
         object_id=obj.id,
+        electrical_variant_id=variant_id,
         cable_type="self_regulating_tt",
         data={"_tt_explicit_overrides": {"selection_policy": "technical_minimum"}},
     )
@@ -376,6 +384,7 @@ async def test_tank_uses_same_selector_after_geometry_and_forces_direct_layout()
     service, variant_id = _service(obj)
     request = ElectricalRequest(
         object_id=obj.id,
+        electrical_variant_id=variant_id,
         cable_type="self_regulating_tt",
         data={
             "_tt_explicit_overrides": {
@@ -407,6 +416,7 @@ async def test_tank_rejects_explicit_pipe_winding_instead_of_silently_ignoring_i
     service, variant_id = _service(obj)
     request = ElectricalRequest(
         object_id=obj.id,
+        electrical_variant_id=variant_id,
         cable_type="self_regulating_tt",
         data={
             "_tt_explicit_overrides": {
@@ -440,6 +450,7 @@ async def test_tank_rejects_saved_pipe_winding_instead_of_silently_ignoring_it(
     service, variant_id = _service(obj, overrides=overrides)
     request = ElectricalRequest(
         object_id=obj.id,
+        electrical_variant_id=variant_id,
         cable_type="self_regulating_tt",
         data={"_tt_explicit_overrides": {"selection_policy": "technical_minimum"}},
     )
@@ -478,6 +489,7 @@ async def test_generic_electrical_request_rejects_retired_tt_input() -> None:
     service, variant_id = _service(obj)
     request = ElectricalRequest(
         object_id=obj.id,
+        electrical_variant_id=variant_id,
         cable_type="self_regulating_tt",
         data={
             "_tt_explicit_overrides": {
