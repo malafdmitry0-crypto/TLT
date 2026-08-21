@@ -1,7 +1,7 @@
 """Live Redis contracts for worker recovery and readiness.
 
-These tests intentionally fail when WORKER_LIVE_REDIS_URL is unavailable. They
-belong to the explicit chaos gate, not to the dependency-free unit suite.
+These tests run only when WORKER_LIVE_REDIS_URL is configured. They belong to
+the explicit chaos gate, not to the dependency-free default backend suite.
 """
 
 import asyncio
