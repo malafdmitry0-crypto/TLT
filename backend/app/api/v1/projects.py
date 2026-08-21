@@ -26,7 +26,7 @@ from app.services.electrical_variant_service import (
     ElectricalVariantService,
     ElectricalVariantServiceError,
 )
-from app.services.project_io_service import (
+from app.services.project_io import (
     ProjectImportError,
     ProjectImportNameConflictError,
     export_project,

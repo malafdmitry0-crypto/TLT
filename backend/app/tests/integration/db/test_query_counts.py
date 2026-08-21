@@ -25,7 +25,7 @@ from app.services.calculation.container import CalculationContainer
 from app.services.electrical_query_service import ElectricalQueryService
 from app.services.object_query_service import ObjectQueryService
 from app.services.project_display_settings_service import ProjectDisplaySettingsService
-from app.services.project_io_service import export_projects_bulk
+from app.services.project_io import export_projects_bulk
 from app.services.project_service import ProjectService
 from app.tests.heat_fixtures import canonical_pipe_params, canonical_tank_params
 
