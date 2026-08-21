@@ -80,6 +80,7 @@ async def get_current_user_or_guest(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     access_cookie: str | None = Cookie(default=None, alias=settings.ACCESS_COOKIE_NAME),
     x_session_id: str | None = Header(default=None, alias="X-Session-Id"),
+    guest_cookie: str | None = Cookie(default=None, alias=settings.GUEST_COOKIE_NAME),
     db: AsyncSession = Depends(get_db),
 ) -> CurrentPrincipal:
     """JWT → Employee/Admin, иначе X-Session-Id → Guest."""
@@ -92,11 +93,18 @@ async def get_current_user_or_guest(
             user_id=user.id,
             email=user.email,
         )
-    if x_session_id:
-        result = await db.execute(
-            select(GuestSession).where(GuestSession.session_id == x_session_id)
-        )
-        session = result.scalar_one_or_none()
+    guest_session_ids = dict.fromkeys(
+        session_id for session_id in (x_session_id, guest_cookie) if session_id
+    )
+    if guest_session_ids:
+        session = None
+        for guest_session_id in guest_session_ids:
+            result = await db.execute(
+                select(GuestSession).where(GuestSession.session_id == guest_session_id)
+            )
+            session = result.scalar_one_or_none()
+            if session is not None:
+                break
         if session is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,

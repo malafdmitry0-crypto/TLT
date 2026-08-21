@@ -1,9 +1,11 @@
 """Endpoints авторизации."""
 
 import secrets
+from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -11,6 +13,7 @@ from app.core.database import get_db
 from app.core.dependencies import CurrentPrincipal, get_current_user
 from app.core.rate_limit import client_ip, enforce_rate_limit, guest_session_limiter, login_limiter
 from app.core.security import decode_token
+from app.models.guest_session import GuestSession
 from app.models.project import Project
 from app.models.user import User
 from app.schemas.auth import (
@@ -27,6 +30,7 @@ router = APIRouter()
 
 
 def _set_auth_cookies(response: Response, tokens: TokenPair) -> None:
+    response.delete_cookie(settings.GUEST_COOKIE_NAME, path="/")
     csrf_token = secrets.token_urlsafe(32)
     response.set_cookie(
         settings.ACCESS_COOKIE_NAME,
@@ -62,6 +66,39 @@ def _clear_auth_cookies(response: Response) -> None:
     response.delete_cookie(settings.ACCESS_COOKIE_NAME, path="/")
     response.delete_cookie(settings.REFRESH_COOKIE_NAME, path=settings.API_V1_PREFIX + "/auth")
     response.delete_cookie(settings.CSRF_COOKIE_NAME, path="/")
+    response.delete_cookie(settings.GUEST_COOKIE_NAME, path="/")
+
+
+def _set_guest_cookies(response: Response, session_id: str) -> None:
+    """Persist guest identity server-side while keeping CSRF protection explicit."""
+    max_age = settings.GUEST_SESSION_TTL_MINUTES * 60
+    response.set_cookie(
+        settings.GUEST_COOKIE_NAME,
+        session_id,
+        max_age=max_age,
+        httponly=True,
+        secure=settings.auth_cookie_secure,
+        samesite=settings.AUTH_COOKIE_SAMESITE,
+        path="/",
+    )
+    response.set_cookie(
+        settings.CSRF_COOKIE_NAME,
+        secrets.token_urlsafe(32),
+        max_age=max_age,
+        httponly=False,
+        secure=settings.auth_cookie_secure,
+        samesite=settings.AUTH_COOKIE_SAMESITE,
+        path="/",
+    )
+
+
+async def _guest_project(db: AsyncSession, session_id: str) -> Project | None:
+    return await db.scalar(
+        select(Project)
+        .where(Project.session_id == session_id)
+        .order_by(Project.created_at.asc())
+        .limit(1)
+    )
 
 
 @router.post(
@@ -72,6 +109,7 @@ def _clear_auth_cookies(response: Response) -> None:
 )
 async def create_guest_session(
     request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db),
 ) -> GuestSessionResponse:
     """Создать анонимную гостевую сессию. Возвращает `session_id` для X-Session-Id.
@@ -96,6 +134,7 @@ async def create_guest_session(
     db.add(project)
     await db.commit()
     await db.refresh(project)
+    _set_guest_cookies(response, session.session_id)
     auth_response = GuestSessionResponse(session_id=session.session_id, project=project)
     await AuditService(db).try_record(
         event_type="auth.guest_session.created",
@@ -106,6 +145,94 @@ async def create_guest_session(
         message="Создана гостевая сессия и авто-проект",
     )
     return auth_response
+
+
+@router.post(
+    "/guest/resolve",
+    response_model=GuestSessionResponse,
+    summary="Восстановить или создать гостевую сессию",
+)
+async def resolve_guest_session(
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+) -> GuestSessionResponse:
+    """Return the authoritative project for a persisted or legacy guest session."""
+    session = None
+    candidates = [
+        request.headers.get("X-Session-Id"),
+        request.cookies.get(settings.GUEST_COOKIE_NAME),
+    ]
+    for session_id in dict.fromkeys(candidate for candidate in candidates if candidate):
+        session = await db.scalar(
+            select(GuestSession).where(GuestSession.session_id == session_id)
+        )
+        if session is not None:
+            break
+
+    created = session is None
+    if created:
+        ip = client_ip(request)
+        if not await guest_session_limiter.ais_allowed(ip):
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Превышен лимит создания пользовательских сессий. Повторите через час.",
+                headers={"Retry-After": "3600"},
+            )
+        session = await AuthService(db).create_guest_session()
+
+    project = await _guest_project(db, session.session_id)
+    if project is None:
+        project = Project(name="Мой проект", session_id=session.session_id)
+        db.add(project)
+        await db.commit()
+        await db.refresh(project)
+    else:
+        session.last_activity = datetime.now(UTC)
+        await db.commit()
+
+    _set_guest_cookies(response, session.session_id)
+    if created:
+        await AuditService(db).try_record(
+            event_type="auth.guest_session.created",
+            category="auth",
+            principal=CurrentPrincipal(role="guest", session_id=session.session_id),
+            project_id=project.id,
+            details={"project_id": str(project.id), "client_ip": client_ip(request)},
+            message="Создана гостевая сессия через resolve",
+        )
+    return GuestSessionResponse(session_id=session.session_id, project=project)
+
+
+@router.get(
+    "/guest/current",
+    response_model=GuestSessionResponse | None,
+    summary="Получить текущую гостевую сессию",
+)
+async def current_guest_session(
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+) -> GuestSessionResponse | None:
+    """Probe persisted guest identity without creating anonymous server data."""
+    candidates = [
+        request.headers.get("X-Session-Id"),
+        request.cookies.get(settings.GUEST_COOKIE_NAME),
+    ]
+    for session_id in dict.fromkeys(candidate for candidate in candidates if candidate):
+        session = await db.scalar(
+            select(GuestSession).where(GuestSession.session_id == session_id)
+        )
+        if session is None:
+            continue
+        project = await _guest_project(db, session.session_id)
+        if project is None:
+            continue
+        session.last_activity = datetime.now(UTC)
+        await db.commit()
+        _set_guest_cookies(response, session.session_id)
+        return GuestSessionResponse(session_id=session.session_id, project=project)
+    return None
 
 
 @router.post(
