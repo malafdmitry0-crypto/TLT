@@ -138,26 +138,6 @@ def _insulation_by_material() -> dict[str, dict[str, Any]]:
 
 
 @lru_cache
-def _cables_tlt() -> list[dict[str, Any]]:
-    """Legacy TLT catalog (archived for tests only; not used by TT calc path).
-
-    E9 / №8: production electrical path uses ``cables_tt.json`` via
-    ``list_tt_cables``. Do not wire new product features to TLT.
-    """
-    return cast(list[dict[str, Any]], _load_json("cables_tlt.json")["cables"])
-
-
-@lru_cache
-def _tlt_cables_by_mark() -> dict[str, dict[str, Any]]:
-    by_mark: dict[str, dict[str, Any]] = {}
-    for cable in _cables_tlt():
-        model = str(cable["model"])
-        by_mark.setdefault(model, cable)
-        by_mark.setdefault(model.replace("ТЛТ-", ""), cable)
-    return by_mark
-
-
-@lru_cache
 def _accessories() -> list[dict[str, Any]]:
     return cast(list[dict[str, Any]], _load_json("accessories.json")["accessories"])
 
@@ -309,10 +289,6 @@ def get_insulation_temperature_range(material: str) -> tuple[float, float]:
             raise ValueError(f"Для материала изоляции '{material}' не задан температурный диапазон")
         return float(value[0]), float(value[1])
     raise ValueError(f"Неизвестный материал изоляции: {material}")
-
-
-def list_tlt_cables() -> list[dict[str, Any]]:
-    return list(_cables_tlt())
 
 
 def list_basic_accessories() -> list[dict[str, Any]]:
@@ -563,13 +539,6 @@ def get_pipe_material_conductivity_law(material: str | None) -> ConductivityLaw:
     raise ValueError(f"Неизвестный материал трубы: '{material}'. Допустимые: {allowed}")
 
 
-def get_tlt_cable_by_mark(mark: str | None) -> dict[str, Any] | None:
-    if mark is None:
-        return None
-    cable = _tlt_cables_by_mark().get(mark)
-    return dict(cable) if cable is not None else None
-
-
 def clear_cache() -> None:
     _section_catalog_payload.cache_clear()
     _climate.cache_clear()
@@ -578,8 +547,6 @@ def clear_cache() -> None:
     _insulation.cache_clear()
     _insulation_by_material.cache_clear()
     get_insulation_conductivity_law.cache_clear()
-    _cables_tlt.cache_clear()
-    _tlt_cables_by_mark.cache_clear()
     _accessories.cache_clear()
     _pipe_materials.cache_clear()
     get_pipe_material_conductivity_law.cache_clear()
@@ -602,8 +569,6 @@ def preload_all() -> None:
     _climate_by_city_region()
     _insulation()
     _insulation_by_material()
-    _cables_tlt()
-    _tlt_cables_by_mark()
     _accessories()
     _pipe_materials()
     _soil_conductivity()

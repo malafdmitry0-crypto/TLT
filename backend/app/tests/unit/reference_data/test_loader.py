@@ -14,6 +14,7 @@ from heatcalc_heat_loss_core.conductivity import (
     evaluate_insulation_conductivity,
 )
 
+from app.reference_data import loader as loader_module
 from app.reference_data.loader import (
     ReferenceInsulationError,
     clear_cache,
@@ -36,6 +37,17 @@ from app.reference_data.loader import (
     preload_all,
     resolve_reference_insulation,
 )
+
+
+def test_archived_tlt_catalog_has_no_runtime_loader_api() -> None:
+    retired_names = {
+        "_cables_tlt",
+        "_tlt_cables_by_mark",
+        "list_tlt_cables",
+        "get_tlt_cable_by_mark",
+    }
+
+    assert retired_names.isdisjoint(vars(loader_module))
 
 
 class TestListFunctions:
