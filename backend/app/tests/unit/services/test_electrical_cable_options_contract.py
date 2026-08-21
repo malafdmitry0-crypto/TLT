@@ -6,7 +6,8 @@ from uuid import uuid4
 
 import pytest
 
-from app.services.calculation_service import CalculationService
+from app.services.calculation.container import CalculationContainer
+from app.services.calculation.electrical_options import ElectricalCableOptionsService
 from app.services.electrical_catalog_service import ElectricalCatalogService
 from app.services.electrical_input_resolver import ElectricalInputResolutionError
 
@@ -34,22 +35,22 @@ def _object(*, ambient: float | None = -20) -> SimpleNamespace:
     )
 
 
-def _service(obj: SimpleNamespace) -> CalculationService:
+def _service(obj: SimpleNamespace) -> ElectricalCableOptionsService:
     db = AsyncMock()
     object_result = MagicMock()
     object_result.scalar_one_or_none.return_value = obj
     db.execute.return_value = object_result
-    service = CalculationService(db)
-    service._tt_context._tt_calculation_catalogs_cache = {
+    container = CalculationContainer(db)
+    container.tt_context._tt_calculation_catalogs_cache = {
         kind: ElectricalCatalogService._static_calculation_fallback(kind)
         for kind in ("power", "section", "bom")
     }
-    return service
+    return container.cable_options
 
 
 async def test_service_options_expose_exact_bom_marks_and_case1_metadata() -> None:
     obj = _object()
-    options = await _service(obj).get_cable_options(obj.id)
+    options = await _service(obj).get(obj.id)
 
     eligible = [option for option in options if option["eligible"]]
     assert eligible
@@ -65,15 +66,15 @@ async def test_voltage_override_in_an_exact_er_does_not_change_candidate_options
     first_variant = uuid4()
     second_variant = uuid4()
     service = _service(obj)
-    service._tt_context._tt_assignment_cache[(obj.project_id, first_variant, obj.id)] = (
+    service.context._tt_assignment_cache[(obj.project_id, first_variant, obj.id)] = (
         SimpleNamespace(electrical_overrides={"supply_voltage_v": 230})
     )
-    service._tt_context._tt_assignment_cache[(obj.project_id, second_variant, obj.id)] = (
+    service.context._tt_assignment_cache[(obj.project_id, second_variant, obj.id)] = (
         SimpleNamespace(electrical_overrides={"supply_voltage_v": 380})
     )
 
-    at_230 = await service.get_cable_options(obj.id, electrical_variant_id=first_variant)
-    at_380 = await service.get_cable_options(obj.id, electrical_variant_id=second_variant)
+    at_230 = await service.get(obj.id, electrical_variant_id=first_variant)
+    at_380 = await service.get(obj.id, electrical_variant_id=second_variant)
 
     assert at_230 == at_380
 
@@ -82,6 +83,6 @@ async def test_options_fail_closed_without_ambient_temperature() -> None:
     obj = _object(ambient=None)
 
     with pytest.raises(ElectricalInputResolutionError) as raised:
-        await _service(obj).get_cable_options(obj.id)
+        await _service(obj).get(obj.id)
 
     assert raised.value.details["field"] == "ambient_temperature_c"
