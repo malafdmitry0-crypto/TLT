@@ -78,3 +78,8 @@ def test_legacy_excel_import_service_is_absent_and_not_imported() -> None:
             ):
                 offenders.append(str(path))
     assert offenders == []
+
+
+def test_legacy_spreadsheet_test_monolith_is_absent() -> None:
+    tests_root = Path(__file__).resolve().parent
+    assert not (tests_root / "test_excel_import_helpers.py").exists()
