@@ -126,7 +126,7 @@ async def _assign_electrical_object_with_headers(
     object_id: str,
     headers: dict[str, str],
     *,
-    variant_number: int = 1,
+    electrical_variant_id: str | None = None,
     system_type: str = "self_regulating",
 ) -> dict:
     variants_response = await client.get(
@@ -142,15 +142,11 @@ async def _assign_electrical_object_with_headers(
         )
         assert initialized.status_code == 200, initialized.text
         variants = [initialized.json()["variant"]]
-    while not any(item["legacy_variant_number"] == variant_number for item in variants):
-        created = await client.post(
-            f"/api/v1/projects/{project_id}/electrical-variants",
-            headers=headers,
-            json={"name": f"ЭР{len(variants) + 1} test"},
-        )
-        assert created.status_code == 201, created.text
-        variants.append(created.json())
-    variant = next(item for item in variants if item["legacy_variant_number"] == variant_number)
+    variant = (
+        next(item for item in variants if item["id"] == electrical_variant_id)
+        if electrical_variant_id is not None
+        else variants[0]
+    )
     assignments = await client.get(
         f"/api/v1/projects/{project_id}/electrical-variants/" f"{variant['id']}/assignments",
         headers=headers,
@@ -183,7 +179,7 @@ async def _assign_electrical_object(
     object_id: str,
     session_id: str,
     *,
-    variant_number: int = 1,
+    electrical_variant_id: str | None = None,
     system_type: str = "self_regulating",
 ) -> dict:
     return await _assign_electrical_object_with_headers(
@@ -191,7 +187,7 @@ async def _assign_electrical_object(
         project_id,
         object_id,
         {"X-Session-Id": session_id},
-        variant_number=variant_number,
+        electrical_variant_id=electrical_variant_id,
         system_type=system_type,
     )
 
@@ -201,7 +197,7 @@ async def _calc_pipe_electrical(
     object_id: str,
     session_id: str,
     *,
-    variant_number: int = 1,
+    electrical_variant_id: str | None = None,
     cable_mark: str = "ТЛТ-25",
 ) -> dict:
     project = await _create_project(client, session_id)
@@ -211,14 +207,13 @@ async def _calc_pipe_electrical(
         project["id"],
         object_id,
         session_id,
-        variant_number=variant_number,
+        electrical_variant_id=electrical_variant_id,
     )
     resp = await client.post(
         "/api/v1/calc/electrical",
         json={
             "object_id": object_id,
             "cable_type": "self_regulating_tt",
-            "variant_number": variant_number,
             "electrical_variant_id": variant["id"],
             "data": {
                 "required_power_per_meter": 20,
@@ -425,29 +420,38 @@ class TestHeatLossCalculation:
 
 class TestElectricalCalculation:
     async def test_list_electrical_empty_project(self, client: AsyncClient, guest_session: str):
-        """Пустой проект возвращает пустой список расчётов."""
+        """Пустой UUID-scope возвращает пустую выборку расчётов."""
         project = await _create_project(client, guest_session)
-        resp = await client.get(
-            "/api/v1/calc/electrical",
-            params={"project_id": project["id"]},
+        obj = await _create_pipe_object(client, project["id"], guest_session)
+        variant = await _assign_electrical_object(
+            client, project["id"], obj["id"], guest_session
+        )
+        resp = await client.post(
+            "/api/v1/calc/electrical/query",
+            json={
+                "project_id": project["id"],
+                "electrical_variant_id": variant["id"],
+            },
             headers={"X-Session-Id": guest_session},
         )
         assert resp.status_code == 200, resp.text
-        assert resp.json() == []
+        assert resp.json()["items"] == []
 
     async def test_electrical_candidate_unsupported_type_is_rejected(
         self, client: AsyncClient, guest_session: str
     ):
         project = await _create_project(client, guest_session)
         obj = await _create_pipe_object(client, project["id"], guest_session)
-        await _assign_electrical_object(client, project["id"], obj["id"], guest_session)
+        variant = await _assign_electrical_object(
+            client, project["id"], obj["id"], guest_session
+        )
 
         resp = await client.post(
             "/api/v1/calc/electrical/candidates",
             json={
                 "project_id": project["id"],
                 "object_id": obj["id"],
-                "variant_number": 1,
+                "electrical_variant_id": variant["id"],
                 "cable_type": "mineral",
                 "cable_source": "builtin",
                 "mode": "auto",
@@ -464,13 +468,13 @@ class TestElectricalCandidateDedupe:
         self,
         db_session: AsyncSession,
         object_id: str,
-        variant_number: int,
+        electrical_variant_id: str,
     ) -> int:
         return (
             await db_session.execute(
                 select(func.count(ElectricalCandidate.id)).where(
                     ElectricalCandidate.object_id == UUID(object_id),
-                    ElectricalCandidate.variant_number == variant_number,
+                    ElectricalCandidate.electrical_variant_id == UUID(electrical_variant_id),
                 )
             )
         ).scalar_one()
@@ -478,19 +482,21 @@ class TestElectricalCandidateDedupe:
     async def _post_candidate(self, client, session_id, project_id, object_id, payload: dict):
         requested_type = payload.get("cable_type")
         if requested_type in {"self_regulating", "self_regulating_tt", "single_core"}:
-            await _assign_electrical_object(
+            variant = await _assign_electrical_object(
                 client,
                 project_id,
                 object_id,
                 session_id,
                 system_type=("resistive" if requested_type == "single_core" else "self_regulating"),
             )
+        else:
+            variant = await _assign_electrical_object(client, project_id, object_id, session_id)
         resp = await client.post(
             "/api/v1/calc/electrical/candidates",
             json={
                 "project_id": project_id,
                 "object_id": object_id,
-                "variant_number": 1,
+                "electrical_variant_id": variant["id"],
                 **payload,
             },
             headers={"X-Session-Id": session_id},
@@ -499,12 +505,13 @@ class TestElectricalCandidateDedupe:
         return _candidate_upsert_payload(resp)
 
     async def _create_candidate_folder(self, client, session_id, project_id, object_id, name: str):
+        variant = await _assign_electrical_object(client, project_id, object_id, session_id)
         resp = await client.post(
             "/api/v1/calc/electrical/candidate-folders",
             json={
                 "project_id": project_id,
                 "object_id": object_id,
-                "variant_number": 1,
+                "electrical_variant_id": variant["id"],
                 "name": name,
             },
             headers={"X-Session-Id": session_id},
@@ -517,14 +524,16 @@ class TestElectricalCandidateDedupe:
     ):
         project = await _create_project(client, guest_session)
         obj = await _create_pipe_object(client, project["id"], guest_session)
-        await _assign_electrical_object(client, project["id"], obj["id"], guest_session)
+        variant = await _assign_electrical_object(
+            client, project["id"], obj["id"], guest_session
+        )
         for _ in range(2):
             response = await client.post(
                 "/api/v1/calc/electrical/candidates",
                 json={
                     "project_id": project["id"],
                     "object_id": obj["id"],
-                    "variant_number": 1,
+                    "electrical_variant_id": variant["id"],
                     "cable_type": "mineral",
                     "cable_source": "builtin",
                     "mode": "auto",
@@ -533,21 +542,40 @@ class TestElectricalCandidateDedupe:
             )
             assert response.status_code == 409, response.text
             assert response.json()["detail"]["code"] == "ELECTRICAL_SYSTEM_UNSUPPORTED"
-        assert await self._count_candidates(db_session, obj["id"], 1) == 0
+        assert await self._count_candidates(db_session, obj["id"], variant["id"]) == 0
 
 
 class TestElectricalCalculationContinued:
-    async def test_legacy_sync_batch_prepares_only_er1_and_requested_er4(
+    async def test_batch_uses_only_requested_uuid_variant(
         self,
         client: AsyncClient,
         guest_session: str,
     ):
         project = await _create_project(client, guest_session)
-        await _create_pipe_object(client, project["id"], guest_session)
+        obj = await _create_pipe_object(client, project["id"], guest_session)
+        first_variant = await _assign_electrical_object(
+            client, project["id"], obj["id"], guest_session
+        )
+        created = await client.post(
+            f"/api/v1/projects/{project['id']}/electrical-variants",
+            headers={"X-Session-Id": guest_session},
+            json={"name": "Второй UUID variant"},
+        )
+        assert created.status_code == 201, created.text
+        second_variant = await _assign_electrical_object(
+            client,
+            project["id"],
+            obj["id"],
+            guest_session,
+            electrical_variant_id=created.json()["id"],
+        )
 
         response = await client.post(
             "/api/v1/calc/electrical/batch",
-            params={"project_id": project["id"], "variant_number": 4},
+            params={
+                "project_id": project["id"],
+                "electrical_variant_id": second_variant["id"],
+            },
             headers={"X-Session-Id": guest_session},
         )
 
@@ -557,7 +585,10 @@ class TestElectricalCalculationContinued:
             headers={"X-Session-Id": guest_session},
         )
         assert variants.status_code == 200, variants.text
-        assert [item["legacy_variant_number"] for item in variants.json()] == [1, 4]
+        assert {item["id"] for item in variants.json()} == {
+            first_variant["id"],
+            second_variant["id"],
+        }
 
     async def test_retired_cross_er_calculation_routes_are_not_registered(
         self, client: AsyncClient, guest_session: str
@@ -644,11 +675,17 @@ class TestElectricalCalculationContinued:
         self, client: AsyncClient, guest_session: str
     ):
         project = await _create_project(client, guest_session)
-        await _create_pipe_object(client, project["id"], guest_session)
+        obj = await _create_pipe_object(client, project["id"], guest_session)
+        variant = await _assign_electrical_object(
+            client, project["id"], obj["id"], guest_session
+        )
 
         resp = await client.get(
             "/api/v1/calc/electrical/query-capabilities",
-            params={"project_id": project["id"], "variant_number": 1},
+            params={
+                "project_id": project["id"],
+                "electrical_variant_id": variant["id"],
+            },
             headers={"X-Session-Id": guest_session},
         )
 
@@ -688,11 +725,22 @@ class TestElectricalCalculationContinued:
         long = await _create_pipe_object(
             client, project["id"], guest_session, {"name": "Long engineering length"}
         )
-        for obj in (short, long):
-            await _assign_electrical_object(client, project["id"], obj["id"], guest_session)
+        variant = await _assign_electrical_object(
+            client, project["id"], short["id"], guest_session
+        )
+        await _assign_electrical_object(
+            client,
+            project["id"],
+            long["id"],
+            guest_session,
+            electrical_variant_id=variant["id"],
+        )
         batch = await client.post(
             "/api/v1/calc/electrical/batch",
-            params={"project_id": project["id"]},
+            params={
+                "project_id": project["id"],
+                "electrical_variant_id": variant["id"],
+            },
             headers={"X-Session-Id": guest_session},
         )
         assert batch.status_code == 200, batch.text
@@ -722,6 +770,7 @@ class TestElectricalCalculationContinued:
             "/api/v1/calc/electrical/query",
             json={
                 "project_id": project["id"],
+                "electrical_variant_id": variant["id"],
                 "filters": [
                     {
                         "key": "required_installed_length_m",
@@ -746,7 +795,10 @@ class TestElectricalCalculationContinued:
         guest_session: str,
     ):
         project = await _create_project(client, guest_session)
-        await _create_pipe_object(client, project["id"], guest_session)
+        obj = await _create_pipe_object(client, project["id"], guest_session)
+        variant = await _assign_electrical_object(
+            client, project["id"], obj["id"], guest_session
+        )
 
         before_count = (
             await db_session.execute(
@@ -758,12 +810,17 @@ class TestElectricalCalculationContinued:
 
         resp = await client.post(
             "/api/v1/calc/electrical/query",
-            json={"project_id": project["id"], "page": 1, "page_size": 50},
+            json={
+                "project_id": project["id"],
+                "electrical_variant_id": variant["id"],
+                "page": 1,
+                "page_size": 50,
+            },
             headers={"X-Session-Id": guest_session},
         )
 
         assert resp.status_code == 200, resp.text
-        assert resp.json()["calculations"] == []
+        assert resp.json()["items"] == []
         after_count = (
             await db_session.execute(
                 select(func.count(ElectricalCalculation.id)).where(
@@ -846,7 +903,6 @@ class TestElectricalCalculationContinued:
                 ElectricalCalculation(
                     project_id=UUID(project["id"]),
                     object_id=UUID(objects[0]["id"]),
-                    variant_number=first_variant["legacy_variant_number"],
                     electrical_variant_id=UUID(first_variant["id"]),
                     cable_type="self_regulating_tt",
                     cable_mark="UUID-FIRST",
@@ -860,7 +916,6 @@ class TestElectricalCalculationContinued:
                 ElectricalCalculation(
                     project_id=UUID(project["id"]),
                     object_id=UUID(objects[0]["id"]),
-                    variant_number=second_variant["legacy_variant_number"],
                     electrical_variant_id=UUID(second_variant["id"]),
                     cable_type="self_regulating_tt",
                     cable_mark="UUID-SECOND",
@@ -1040,12 +1095,31 @@ class TestElectricalCalculationContinued:
         self, client: AsyncClient, guest_session: str
     ):
         project = await _create_project(client, guest_session)
-        await _create_pipe_object(client, project["id"], guest_session, {"name": "First"})
-        await _create_pipe_object(client, project["id"], guest_session, {"name": "Second"})
+        first = await _create_pipe_object(
+            client, project["id"], guest_session, {"name": "First"}
+        )
+        second = await _create_pipe_object(
+            client, project["id"], guest_session, {"name": "Second"}
+        )
+        variant = await _assign_electrical_object(
+            client, project["id"], first["id"], guest_session
+        )
+        await _assign_electrical_object(
+            client,
+            project["id"],
+            second["id"],
+            guest_session,
+            electrical_variant_id=variant["id"],
+        )
 
         first_page = await client.post(
             "/api/v1/calc/electrical/query",
-            json={"project_id": project["id"], "page": 1, "page_size": 1},
+            json={
+                "project_id": project["id"],
+                "electrical_variant_id": variant["id"],
+                "page": 1,
+                "page_size": 1,
+            },
             headers={"X-Session-Id": guest_session},
         )
         assert first_page.status_code == 200, first_page.text
@@ -1056,6 +1130,7 @@ class TestElectricalCalculationContinued:
             "/api/v1/calc/electrical/query",
             json={
                 "project_id": project["id"],
+                "electrical_variant_id": variant["id"],
                 "page": 2,
                 "page_size": 1,
                 "after_sort_order": cursor["sort_order"],
@@ -1074,13 +1149,28 @@ class TestElectricalCalculationContinued:
         self, client: AsyncClient, guest_session: str
     ):
         project = await _create_project(client, guest_session)
-        await _create_pipe_object(client, project["id"], guest_session, {"name": "Beta"})
-        await _create_pipe_object(client, project["id"], guest_session, {"name": "Alpha"})
+        beta = await _create_pipe_object(
+            client, project["id"], guest_session, {"name": "Beta"}
+        )
+        alpha = await _create_pipe_object(
+            client, project["id"], guest_session, {"name": "Alpha"}
+        )
+        variant = await _assign_electrical_object(
+            client, project["id"], beta["id"], guest_session
+        )
+        await _assign_electrical_object(
+            client,
+            project["id"],
+            alpha["id"],
+            guest_session,
+            electrical_variant_id=variant["id"],
+        )
 
         first_page = await client.post(
             "/api/v1/calc/electrical/query",
             json={
                 "project_id": project["id"],
+                "electrical_variant_id": variant["id"],
                 "page": 1,
                 "page_size": 1,
                 "sort": {"key": "object_name", "dir": "asc"},
@@ -1098,6 +1188,7 @@ class TestElectricalCalculationContinued:
             "/api/v1/calc/electrical/query",
             json={
                 "project_id": project["id"],
+                "electrical_variant_id": variant["id"],
                 "page": 2,
                 "page_size": 1,
                 "sort": {"key": "object_name", "dir": "asc"},
@@ -1119,13 +1210,16 @@ class TestElectricalCalculationContinued:
         self, client: AsyncClient, guest_session: str
     ):
         project = await _create_project(client, guest_session)
-        await _create_pipe_object(client, project["id"], guest_session)
+        obj = await _create_pipe_object(client, project["id"], guest_session)
+        variant = await _assign_electrical_object(
+            client, project["id"], obj["id"], guest_session
+        )
 
         resp = await client.post(
             "/api/v1/calc/electrical/query",
             json={
                 "project_id": project["id"],
-                "variant_number": 1,
+                "electrical_variant_id": variant["id"],
                 "filters": [
                     {
                         "key": "electrical_status",
@@ -1150,12 +1244,15 @@ class TestElectricalCalculationContinued:
             guest_session,
             {"process_temperature": 170},
         )
-        await _assign_electrical_object(client, project["id"], obj["id"], guest_session)
+        variant = await _assign_electrical_object(
+            client, project["id"], obj["id"], guest_session
+        )
 
         resp = await client.post(
             "/api/v1/calc/electrical/batch",
             params={
                 "project_id": project["id"],
+                "electrical_variant_id": variant["id"],
                 "include_errors": False,
             },
             headers={"X-Session-Id": guest_session},
@@ -1167,13 +1264,16 @@ class TestElectricalCalculationContinued:
         assert body["skipped"] == 1
         assert body["errors"] == []
 
-        listing = (
-            await client.get(
-                "/api/v1/calc/electrical",
-                params={"project_id": project["id"]},
-                headers={"X-Session-Id": guest_session},
-            )
-        ).json()
+        listing_response = await client.post(
+            "/api/v1/calc/electrical/query",
+            json={
+                "project_id": project["id"],
+                "electrical_variant_id": variant["id"],
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+        assert listing_response.status_code == 200, listing_response.text
+        listing = listing_response.json()["items"]
         assert len(listing) == 1
         assert listing[0]["results"]["error_code"]
         assert listing[0]["results"]["category"] == "validation"
@@ -1253,73 +1353,67 @@ class TestNoDoubleSafetyFactor:
 
 
 class TestVariantIsolation:
-    """Regression: фейлы электрорасчёта варианта N не должны затирать
-    успешные расчёты варианта M (M != N). И список расчётов должен
-    корректно фильтроваться по variant_number.
+    """Calculations in one UUID variant must not overwrite another variant.
 
     Реальный баг из прод: при прогоне СО2 для 100 объектов 7 падают с
-    ошибкой подбора кабеля. Из-за пропущенного variant_number в вызове
-    _save_failed_electrical фейл писался в variant=1 — затирая успешный
-    расчёт СО1 по тем же 7 объектам.
+    ошибкой подбора кабеля. Фейл другого scope затирал успешный расчёт.
     """
 
-    async def test_list_filters_by_variant_number(self, client: AsyncClient, guest_session: str):
-        """GET /calc/electrical?variant_number=N возвращает только расчёты этого варианта."""
+    async def test_query_filters_by_electrical_variant_id(
+        self, client: AsyncClient, guest_session: str
+    ):
         project = await _create_project(client, guest_session)
         obj = await _create_pipe_object(client, project["id"], guest_session)
-        for variant_number in (1, 2):
-            await _assign_electrical_object(
-                client,
-                project["id"],
-                obj["id"],
-                guest_session,
-                variant_number=variant_number,
-            )
+        first_variant = await _assign_electrical_object(
+            client, project["id"], obj["id"], guest_session
+        )
+        created = await client.post(
+            f"/api/v1/projects/{project['id']}/electrical-variants",
+            json={"name": "Isolation B"},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert created.status_code == 201, created.text
+        second_variant = await _assign_electrical_object(
+            client,
+            project["id"],
+            obj["id"],
+            guest_session,
+            electrical_variant_id=created.json()["id"],
+        )
 
-        # СО1 — автоподбор
         r1 = await client.post(
             "/api/v1/calc/electrical/batch",
-            params={"project_id": project["id"], "variant_number": 1},
+            params={
+                "project_id": project["id"],
+                "electrical_variant_id": first_variant["id"],
+            },
             headers={"X-Session-Id": guest_session},
         )
         assert r1.status_code == 200
-        # СО2 — автоподбор на тот же объект
         r2 = await client.post(
             "/api/v1/calc/electrical/batch",
-            params={"project_id": project["id"], "variant_number": 2},
+            params={
+                "project_id": project["id"],
+                "electrical_variant_id": second_variant["id"],
+            },
             headers={"X-Session-Id": guest_session},
         )
         assert r2.status_code == 200
 
-        # Без фильтра — обе записи
-        all_calcs = (
-            await client.get(
-                "/api/v1/calc/electrical",
-                params={"project_id": project["id"]},
+        async def query_variant(variant_id: str) -> list[dict[str, object]]:
+            response = await client.post(
+                "/api/v1/calc/electrical/query",
+                json={
+                    "project_id": project["id"],
+                    "electrical_variant_id": variant_id,
+                },
                 headers={"X-Session-Id": guest_session},
             )
-        ).json()
-        assert len(all_calcs) == 2
+            assert response.status_code == 200, response.text
+            return response.json()["items"]
 
-        # Каждый фильтр возвращает собственную запись; номер варианта больше
-        # не дублируется в UUID-only response DTO.
-        only_v1 = (
-            await client.get(
-                "/api/v1/calc/electrical",
-                params={"project_id": project["id"], "variant_number": 1},
-                headers={"X-Session-Id": guest_session},
-            )
-        ).json()
-        only_v2 = (
-            await client.get(
-                "/api/v1/calc/electrical",
-                params={"project_id": project["id"], "variant_number": 2},
-                headers={"X-Session-Id": guest_session},
-            )
-        ).json()
+        only_v1 = await query_variant(first_variant["id"])
+        only_v2 = await query_variant(second_variant["id"])
         assert len(only_v1) == 1
         assert len(only_v2) == 1
         assert only_v1[0]["id"] != only_v2[0]["id"]
-        assert {only_v1[0]["id"], only_v2[0]["id"]} == {
-            calculation["id"] for calculation in all_calcs
-        }
