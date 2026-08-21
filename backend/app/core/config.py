@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     ACCESS_COOKIE_NAME: str = "access_token"
     REFRESH_COOKIE_NAME: str = "refresh_token"
     CSRF_COOKIE_NAME: str = "csrf_token"
+    GUEST_COOKIE_NAME: str = "guest_session_id"
     # None → авто: secure-cookie включается в production и выключается в
     # dev/demo (локальный HTTP). Явный bool в env переопределяет автоматику.
     AUTH_COOKIE_SECURE: bool | None = None

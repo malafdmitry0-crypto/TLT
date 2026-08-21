@@ -287,7 +287,7 @@ class TestBatchCalcIdempotency:
 class TestSpecGenerateIdempotency:
     """Повторный blocked generate обновляет один F5 outcome-row, не append."""
 
-    async def test_blocked_generate_repeats_without_duplicate_rows(
+    async def test_selection_required_generate_repeats_without_duplicate_rows(
         self,
         client: AsyncClient,
         employee_token: str,
@@ -334,16 +334,17 @@ class TestSpecGenerateIdempotency:
             },
         }
 
-        # The calculation fixture is intentionally not production-ready; repeat
-        # the canonical blocked request and prove F5 outcome upsert semantics.
+        # The demo catalog intentionally has multiple matching connection kits;
+        # repeat the canonical selection-required request and prove F5 outcome
+        # upsert semantics.
         for _ in range(3):
             resp = await client.post(
                 f"/api/v1/specifications/{proj['id']}/generate",
                 json=generate_payload,
                 headers=headers,
             )
-            assert resp.status_code == 422, resp.text
-            assert resp.json()["results"][0]["status"] == "blocked"
+            assert resp.status_code == 409, resp.text
+            assert resp.json()["results"][0]["status"] == "selection_required"
 
         rows = (
             (
@@ -360,7 +361,7 @@ class TestSpecGenerateIdempotency:
         assert len(rows) == 1
         first_id = rows[0].id
         assert rows[0].items == []
-        assert rows[0].generation_status == "blocked"
+        assert rows[0].generation_status == "selection_required"
 
         for _ in range(3):
             resp = await client.post(
@@ -368,7 +369,7 @@ class TestSpecGenerateIdempotency:
                 json=generate_payload,
                 headers=headers,
             )
-            assert resp.status_code == 422, resp.text
+            assert resp.status_code == 409, resp.text
 
         repeated_rows = (
             (

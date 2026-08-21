@@ -14,10 +14,11 @@ export default function App() {
   // AntdAppShell binds appMessage/appModal to ConfigProvider theme context.
   return (
     <AntdAppShell>
-      <AuthIdentityHydrator />
-      <ErrorBoundary boundaryName="root">
-        <AppRoutes />
-      </ErrorBoundary>
+      <AuthIdentityHydrator>
+        <ErrorBoundary boundaryName="root">
+          <AppRoutes />
+        </ErrorBoundary>
+      </AuthIdentityHydrator>
     </AntdAppShell>
   );
 }
