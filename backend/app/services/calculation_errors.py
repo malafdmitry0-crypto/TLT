@@ -1,6 +1,6 @@
 """Shared calculation exceptions.
 
-Heat-loss application and CalculationService both raise this type.
+Heat-loss and electrical calculation use cases raise this type.
 Keeping it here avoids a module cycle between those two owners.
 """
 
