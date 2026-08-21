@@ -2,16 +2,16 @@
 
 from copy import deepcopy
 
+from heatcalc_electrical_core import (
+    ELECTRICAL_TT_FORMULA_FINGERPRINT,
+    ELECTRICAL_TT_FORMULA_VERSION,
+)
 from sqlalchemy.dialects import postgresql
 
 from app.electrical_result_status import (
     electrical_result_status,
     electrical_result_with_lifecycle,
     is_successful_electrical_result,
-)
-from app.formulas.electrical.tt_contract import (
-    ELECTRICAL_TT_FORMULA_FINGERPRINT,
-    ELECTRICAL_TT_FORMULA_VERSION,
 )
 from app.services.electrical_result_lifecycle import current_tt_result_sql_predicate
 

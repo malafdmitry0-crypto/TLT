@@ -3,12 +3,11 @@
 from typing import Any
 
 import pytest
-from httpx import AsyncClient
-
-from app.formulas.electrical.tt_contract import (
+from heatcalc_electrical_core import (
     ELECTRICAL_TT_FORMULA_FINGERPRINT,
     ELECTRICAL_TT_FORMULA_VERSION,
 )
+from httpx import AsyncClient
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 

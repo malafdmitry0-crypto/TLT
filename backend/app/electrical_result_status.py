@@ -3,7 +3,7 @@
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
-from app.formulas.electrical.tt_contract import (
+from heatcalc_electrical_core import (
     ELECTRICAL_TT_FORMULA_FINGERPRINT,
     ELECTRICAL_TT_FORMULA_VERSION,
 )

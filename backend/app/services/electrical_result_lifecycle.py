@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from sqlalchemy import and_, func, or_
-from sqlalchemy.sql.elements import ColumnElement
-
-from app.formulas.electrical.tt_contract import (
+from heatcalc_electrical_core import (
     ELECTRICAL_TT_FORMULA_FINGERPRINT,
     ELECTRICAL_TT_FORMULA_VERSION,
 )
+from sqlalchemy import and_, func, or_
+from sqlalchemy.sql.elements import ColumnElement
+
 from app.models.electrical_calculation import ElectricalCalculation
 
 

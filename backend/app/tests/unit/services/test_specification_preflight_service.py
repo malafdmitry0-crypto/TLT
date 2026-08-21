@@ -7,12 +7,12 @@ from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
-from app.core.dependencies import CurrentPrincipal
-from app.formulas.electrical.tt_contract import (
+from heatcalc_electrical_core import (
     ELECTRICAL_TT_FORMULA_FINGERPRINT,
     ELECTRICAL_TT_FORMULA_VERSION,
 )
+
+from app.core.dependencies import CurrentPrincipal
 from app.models.electrical_calculation import ElectricalCalculation
 from app.models.electrical_variant import ElectricalVariant, ElectricalVariantObject
 from app.models.project import Project

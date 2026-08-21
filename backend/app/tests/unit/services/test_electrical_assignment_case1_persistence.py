@@ -4,10 +4,11 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
-from app.formulas.electrical.tt_contract import (
+from heatcalc_electrical_core import (
     ELECTRICAL_TT_FORMULA_FINGERPRINT,
     ELECTRICAL_TT_FORMULA_VERSION,
 )
+
 from app.schemas.calculation import ElectricalQueryRequest
 from app.services.electrical_assignment_service import ElectricalAssignmentService
 from app.services.electrical_query_service import ElectricalQueryService

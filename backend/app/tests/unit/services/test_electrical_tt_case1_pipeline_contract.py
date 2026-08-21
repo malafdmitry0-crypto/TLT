@@ -5,11 +5,11 @@ from decimal import Decimal
 from typing import Any
 
 import pytest
+from heatcalc_electrical_core import ELECTRICAL_TT_FORMULA_VERSION
 
 import app.services.electrical_tt_pipeline as electrical_tt_pipeline
 from app.electrical_domain import ElectricalFormulaError
 from app.formulas.electrical.tt_cable_options import build_tt_cable_options
-from app.formulas.electrical.tt_contract import ELECTRICAL_TT_FORMULA_VERSION
 from app.schemas.electrical_inputs import CanonicalElectricalInputs, ResolvedElectricalInputs
 from app.services.electrical_catalog_service import ElectricalCatalogService
 from app.services.electrical_tt_pipeline import (

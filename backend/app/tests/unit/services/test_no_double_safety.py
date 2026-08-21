@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.services.calculation_service import CalculationService
+from app.services.calculation.container import CalculationContainer
 
 MINERAL_WOOL = "mineral_wool_boards_120"
 
@@ -21,7 +21,7 @@ async def test_heat_loss_per_meter_base_never_includes_safety_factor():
     """
     db = AsyncMock()
     db.execute = AsyncMock(return_value=MagicMock(scalars=lambda: MagicMock(all=lambda: [])))
-    service = CalculationService(db)
+    service = CalculationContainer(db).heat
 
     pipe_params = {
         "outer_diameter": 0.108,
@@ -37,8 +37,8 @@ async def test_heat_loss_per_meter_base_never_includes_safety_factor():
         "wind_speed": 0,
     }
 
-    r1 = await service.calc_heat_loss("pipe", {**pipe_params, "safety_factor": 1.1})
-    r2 = await service.calc_heat_loss("pipe", {**pipe_params, "safety_factor": 1.5})
+    r1 = await service.calculate("pipe", {**pipe_params, "safety_factor": 1.1})
+    r2 = await service.calculate("pipe", {**pipe_params, "safety_factor": 1.5})
 
     # q_linear — инвариант: НЕ зависит от safety_factor
     assert r1["heat_loss_per_meter_base"] == pytest.approx(

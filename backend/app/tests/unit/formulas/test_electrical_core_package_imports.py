@@ -8,7 +8,11 @@ from pathlib import Path
 
 BACKEND_ROOT = Path(__file__).resolve().parents[4]
 SHIM_DIRECTORY = BACKEND_ROOT / "app" / "formulas" / "electrical" / "core"
-FORBIDDEN_PREFIX = "app.formulas.electrical.core"
+REMOVED_TT_CONTRACT = BACKEND_ROOT / "app" / "formulas" / "electrical" / "tt_contract.py"
+FORBIDDEN_PREFIXES = {
+    "app.formulas.electrical.core",
+    "app.formulas.electrical.tt_contract",
+}
 SCAN_SKIP_PARTS = {".git", "mutants", "__pycache__", ".venv", "dist", "build"}
 
 # Keep this explicit facade synchronized with the approved root integration.
@@ -40,7 +44,10 @@ EXPECTED_PUBLIC_API = {
 def _is_forbidden_module(module: str | None) -> bool:
     if module is None:
         return False
-    return module == FORBIDDEN_PREFIX or module.startswith(f"{FORBIDDEN_PREFIX}.")
+    return any(
+        module == prefix or module.startswith(f"{prefix}.")
+        for prefix in FORBIDDEN_PREFIXES
+    )
 
 
 def _shim_import_violations(source: Path) -> list[str]:
@@ -77,6 +84,7 @@ def _executable_python_files() -> list[Path]:
 
 def test_backend_core_shim_directory_is_absent() -> None:
     assert not SHIM_DIRECTORY.exists()
+    assert not REMOVED_TT_CONTRACT.exists()
 
 
 def test_executable_python_does_not_import_electrical_core_shim() -> None:

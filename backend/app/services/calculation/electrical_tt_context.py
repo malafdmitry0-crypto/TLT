@@ -4,14 +4,14 @@ import copy
 from typing import Any
 from uuid import UUID
 
+from heatcalc_electrical_core import (
+    ELECTRICAL_TT_FORMULA_FINGERPRINT,
+    ELECTRICAL_TT_FORMULA_VERSION,
+)
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.electrical_domain import ElectricalFormulaError
-from app.formulas.electrical.tt_contract import (
-    ELECTRICAL_TT_FORMULA_FINGERPRINT,
-    ELECTRICAL_TT_FORMULA_VERSION,
-)
 from app.models.electrical_variant import ElectricalVariantObject
 from app.models.project_electrical_settings import ProjectElectricalSettings
 from app.models.project_object import ProjectObject

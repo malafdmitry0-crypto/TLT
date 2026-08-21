@@ -5,14 +5,14 @@ from __future__ import annotations
 import uuid
 
 import pytest
+from heatcalc_electrical_core import (
+    ELECTRICAL_TT_FORMULA_FINGERPRINT,
+    ELECTRICAL_TT_FORMULA_VERSION,
+)
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import CurrentPrincipal
-from app.formulas.electrical.tt_contract import (
-    ELECTRICAL_TT_FORMULA_FINGERPRINT,
-    ELECTRICAL_TT_FORMULA_VERSION,
-)
 from app.models.electrical_calculation import ElectricalCalculation
 from app.models.electrical_variant import ElectricalVariant, ElectricalVariantObject
 from app.models.project import Project
