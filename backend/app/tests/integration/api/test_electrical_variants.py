@@ -146,33 +146,44 @@ async def _assign_variant_object(
     assert response.status_code == 200, response.text
 
 
-async def _prepare_and_assign_legacy_variant(
+async def _create_and_assign_variant(
     client: AsyncClient,
     project_id: str,
     object_id: str,
-    variant_number: int,
+    target_count: int,
     headers: dict[str, str],
 ) -> dict:
-    prepared = await client.post(
-        "/api/v1/calc/electrical/batch",
-        params={"project_id": project_id, "variant_number": variant_number},
-        headers=headers,
-    )
-    assert prepared.status_code == 200, prepared.text
+    setup_headers = {
+        key: value for key, value in headers.items() if key.lower() != "idempotency-key"
+    }
     variants = await client.get(
         f"/api/v1/projects/{project_id}/electrical-variants",
-        headers=headers,
+        headers=setup_headers,
     )
     assert variants.status_code == 200, variants.text
-    variant = next(
-        item for item in variants.json() if item["legacy_variant_number"] == variant_number
-    )
+    items = variants.json()
+    if not items:
+        initialized = await client.post(
+            f"/api/v1/projects/{project_id}/electrical-variants/initialize",
+            headers=setup_headers,
+        )
+        assert initialized.status_code == 200, initialized.text
+        items = [initialized.json()["variant"]]
+    while len(items) < target_count:
+        created = await client.post(
+            f"/api/v1/projects/{project_id}/electrical-variants",
+            json={"name": f"ЭР UUID {len(items) + 1}"},
+            headers=setup_headers,
+        )
+        assert created.status_code == 201, created.text
+        items.append(created.json())
+    variant = items[target_count - 1]
     await _assign_variant_object(
         client,
         project_id,
         variant["id"],
         object_id,
-        headers,
+        setup_headers,
     )
     return variant
 
@@ -199,13 +210,13 @@ async def _set_project_section_current_limit(
     assert response.status_code == 200, response.text
 
 
-async def _create_slot_two_candidate(
+async def _create_second_variant_candidate(
     client: AsyncClient,
     project_id: str,
     object_id: str,
     headers: dict[str, str],
 ) -> dict:
-    await _prepare_and_assign_legacy_variant(
+    variant = await _create_and_assign_variant(
         client,
         project_id,
         object_id,
@@ -217,7 +228,7 @@ async def _create_slot_two_candidate(
         json={
             "project_id": project_id,
             "object_id": object_id,
-            "variant_number": 2,
+            "electrical_variant_id": variant["id"],
             "cable_type": "self_regulating_tt",
             "cable_source": "builtin",
             "mode": "manual",
@@ -655,7 +666,6 @@ class TestElectricalVariantLifecycle:
                 ElectricalCalculation(
                     project_id=UUID(project["id"]),
                     object_id=UUID(obj["id"]),
-                    variant_number=1,
                     electrical_variant_id=UUID(first["id"]),
                     cable_type="self_regulating",
                     cable_mark="HTM",
@@ -664,7 +674,6 @@ class TestElectricalVariantLifecycle:
                 ElectricalCalculation(
                     project_id=UUID(project["id"]),
                     object_id=UUID(obj["id"]),
-                    variant_number=2,
                     electrical_variant_id=UUID(second["id"]),
                     cable_type="self_regulating",
                     cable_mark="HTM",
@@ -684,7 +693,6 @@ class TestElectricalVariantLifecycle:
             name_normalized="чужой эр",
             sort_order=0,
             is_active=True,
-            legacy_variant_number=1,
         )
         db_session.add(foreign_variant)
         await db_session.commit()
@@ -987,7 +995,7 @@ class TestElectricalVariantConcurrency:
             "sort": None,
         }
 
-    async def test_stale_uuid_precondition_blocks_reused_legacy_slot_without_write(
+    async def test_stale_uuid_precondition_blocks_deleted_variant_without_write(
         self,
         client: AsyncClient,
         guest_session: str,
@@ -1004,7 +1012,6 @@ class TestElectricalVariantConcurrency:
         )
         assert stale_variant_response.status_code == 201, stale_variant_response.text
         stale_variant = stale_variant_response.json()
-        assert stale_variant["legacy_variant_number"] == 2
 
         deleted = await client.delete(
             f"/api/v1/projects/{project['id']}/electrical-variants/{stale_variant['id']}",
@@ -1018,14 +1025,12 @@ class TestElectricalVariantConcurrency:
         )
         assert replacement_response.status_code == 201, replacement_response.text
         replacement = replacement_response.json()
-        assert replacement["legacy_variant_number"] == 2
         assert replacement["id"] != stale_variant["id"]
 
         stale_read = await client.get(
             "/api/v1/calc/electrical/query-capabilities",
             params={
                 "project_id": project["id"],
-                "variant_number": 2,
                 "electrical_variant_id": stale_variant["id"],
             },
             headers=headers,
@@ -1037,7 +1042,6 @@ class TestElectricalVariantConcurrency:
         stale_report_read = await client.get(
             f"/api/v1/reports/{project['id']}/preview",
             params={
-                "variant_number": 2,
                 "electrical_variant_id": stale_variant["id"],
             },
             headers=headers,
@@ -1047,7 +1051,6 @@ class TestElectricalVariantConcurrency:
             json={
                 "project_id": project["id"],
                 "object_id": obj["id"],
-                "variant_number": 2,
                 "electrical_variant_id": stale_variant["id"],
                 "cable_type": "self_regulating_tt",
                 "cable_source": "builtin",
@@ -1061,11 +1064,12 @@ class TestElectricalVariantConcurrency:
         assert stale_specification_read.status_code == 404, stale_specification_read.text
         assert stale_specification_read.json()["detail"]["code"] == ("ELECTRICAL_VARIANT_NOT_FOUND")
         for response in (
+            stale_read,
             stale_report_read,
             stale_write,
         ):
-            assert response.status_code == 409, response.text
-            assert response.json()["detail"]["code"] == ("ELECTRICAL_VARIANT_SCOPE_MISMATCH")
+            assert response.status_code == 404, response.text
+            assert response.json()["detail"]["code"] == "ELECTRICAL_VARIANT_NOT_FOUND"
         candidates_for_replacement = await db_session.scalar(
             select(func.count(ElectricalCandidate.id)).where(
                 ElectricalCandidate.electrical_variant_id == UUID(replacement["id"])
@@ -1083,14 +1087,13 @@ class TestElectricalVariantConcurrency:
             "/api/v1/calc/electrical/query-capabilities",
             params={
                 "project_id": project["id"],
-                "variant_number": 2,
                 "electrical_variant_id": replacement["id"],
             },
             headers=headers,
         )
         assert current_read.status_code == 200, current_read.text
 
-    async def test_legacy_row_is_bound_before_write_and_cascades_on_slot_reuse(
+    async def test_uuid_row_cascades_on_variant_delete_and_recreation(
         self,
         client: AsyncClient,
         guest_session: str,
@@ -1101,70 +1104,59 @@ class TestElectricalVariantConcurrency:
         obj = await _add_ready_pipe(client, project["id"], headers)
         project_id = UUID(project["id"])
         object_id = UUID(obj["id"])
-        legacy_row = ElectricalCalculation(
+        variant_four = await _create_and_assign_variant(
+            client,
+            project["id"],
+            obj["id"],
+            4,
+            headers,
+        )
+        calculation = ElectricalCalculation(
             project_id=project_id,
             object_id=object_id,
-            variant_number=4,
-            electrical_variant_id=None,
+            electrical_variant_id=UUID(variant_four["id"]),
             cable_type="self_regulating",
-            params={"source": "pre-mapping-legacy-row"},
-            results={"category": "legacy"},
+            params={"source": "uuid-row"},
+            results={"category": "stale"},
         )
-        db_session.add(legacy_row)
+        db_session.add(calculation)
         await db_session.commit()
-        legacy_row_id = legacy_row.id
-
-        calculated = await client.post(
-            "/api/v1/calc/electrical/batch",
-            params={"project_id": project["id"], "variant_number": 4},
-            headers=headers,
-        )
-        assert calculated.status_code == 200, calculated.text
-
-        variant_four = await db_session.scalar(
-            select(ElectricalVariant).where(
-                ElectricalVariant.project_id == project_id,
-                ElectricalVariant.legacy_variant_number == 4,
-            )
-        )
-        assert variant_four is not None
-        await db_session.refresh(legacy_row)
-        assert legacy_row.electrical_variant_id == variant_four.id
+        calculation_id = calculation.id
 
         deleted = await client.delete(
-            f"/api/v1/projects/{project['id']}/electrical-variants/{variant_four.id}",
+            f"/api/v1/projects/{project['id']}/electrical-variants/{variant_four['id']}",
             headers=headers,
         )
         assert deleted.status_code == 200, deleted.text
         deleted_row_count = await db_session.scalar(
             select(func.count())
             .select_from(ElectricalCalculation)
-            .where(ElectricalCalculation.id == legacy_row_id)
+            .where(ElectricalCalculation.id == calculation_id)
         )
         assert deleted_row_count == 0
 
-        recreated_by_slot: dict[int, dict] = {}
-        for expected_slot in (2, 3, 4):
-            created = await client.post(
-                f"/api/v1/projects/{project['id']}/electrical-variants",
-                json={"name": f"Новый ЭР {expected_slot}"},
-                headers=headers,
-            )
-            assert created.status_code == 201, created.text
-            recreated_by_slot[expected_slot] = created.json()
-            assert created.json()["legacy_variant_number"] == expected_slot
+        created = await client.post(
+            f"/api/v1/projects/{project['id']}/electrical-variants",
+            json={"name": "Новый ЭР после удаления"},
+            headers=headers,
+        )
+        assert created.status_code == 201, created.text
+        replacement = created.json()
 
         await _assign_variant_object(
             client,
             project["id"],
-            recreated_by_slot[4]["id"],
+            replacement["id"],
             obj["id"],
             headers,
         )
 
         recalculated = await client.post(
             "/api/v1/calc/electrical/batch",
-            params={"project_id": project["id"], "variant_number": 4},
+            params={
+                "project_id": project["id"],
+                "electrical_variant_id": replacement["id"],
+            },
             headers=headers,
         )
         assert recalculated.status_code == 200, recalculated.text
@@ -1173,7 +1165,8 @@ class TestElectricalVariantConcurrency:
                 await db_session.execute(
                     select(ElectricalCalculation).where(
                         ElectricalCalculation.project_id == project_id,
-                        ElectricalCalculation.variant_number == 4,
+                        ElectricalCalculation.electrical_variant_id
+                        == UUID(replacement["id"]),
                     )
                 )
             )
@@ -1181,10 +1174,10 @@ class TestElectricalVariantConcurrency:
             .all()
         )
         assert len(replacement_rows) == 1
-        assert replacement_rows[0].id != legacy_row_id
-        assert replacement_rows[0].electrical_variant_id == UUID(recreated_by_slot[4]["id"])
+        assert replacement_rows[0].id != calculation_id
+        assert replacement_rows[0].electrical_variant_id == UUID(replacement["id"])
 
-    async def test_concurrent_assigned_legacy_four_enqueue_is_idempotent(
+    async def test_concurrent_assigned_fourth_variant_enqueue_is_idempotent(
         self,
         client: AsyncClient,
         guest_session: str,
@@ -1196,10 +1189,10 @@ class TestElectricalVariantConcurrency:
         project = await _guest_project(client, guest_session)
         headers = {
             "X-Session-Id": guest_session,
-            "Idempotency-Key": "concurrent-legacy-four",
+            "Idempotency-Key": "concurrent-fourth-variant",
         }
         obj = await _add_ready_pipe(client, project["id"], headers)
-        variant = await _prepare_and_assign_legacy_variant(
+        variant = await _create_and_assign_variant(
             client,
             project["id"],
             obj["id"],
@@ -1240,7 +1233,8 @@ class TestElectricalVariantConcurrency:
             .scalars()
             .all()
         )
-        assert [variant.legacy_variant_number for variant in variants] == [1, 4]
+        assert len(variants) == 4
+        assert variants[-1].id == UUID(variant["id"])
 
     async def test_concurrent_enqueue_and_delete_never_orphans_task(
         self,
@@ -1322,7 +1316,7 @@ class TestElectricalVariantConcurrency:
         project_id = UUID(project["id"])
         headers = {"X-Session-Id": guest_session}
         obj = await _add_ready_pipe(client, project["id"], headers)
-        candidate = await _create_slot_two_candidate(
+        candidate = await _create_second_variant_candidate(
             client,
             project["id"],
             obj["id"],
@@ -1388,7 +1382,7 @@ class TestElectricalVariantConcurrency:
             await db_session.scalar(
                 select(func.count(ElectricalVariant.id)).where(
                     ElectricalVariant.project_id == project_id,
-                    ElectricalVariant.legacy_variant_number == 2,
+                    ElectricalVariant.id == target_variant_id,
                 )
             )
             == 0
@@ -1397,7 +1391,7 @@ class TestElectricalVariantConcurrency:
             await db_session.scalar(
                 select(func.count(ElectricalCalculation.id)).where(
                     ElectricalCalculation.project_id == project_id,
-                    ElectricalCalculation.variant_number == 2,
+                    ElectricalCalculation.electrical_variant_id == target_variant_id,
                 )
             )
             == 0
@@ -1415,7 +1409,7 @@ class TestElectricalVariantConcurrency:
         project_id = UUID(project["id"])
         headers = {"X-Session-Id": guest_session}
         obj = await _add_ready_pipe(client, project["id"], headers)
-        await _prepare_and_assign_legacy_variant(
+        first = await _create_and_assign_variant(
             client,
             project["id"],
             obj["id"],
@@ -1428,7 +1422,7 @@ class TestElectricalVariantConcurrency:
             json={
                 "project_id": project["id"],
                 "object_id": obj["id"],
-                "variant_number": 1,
+                "electrical_variant_id": first["id"],
                 "cable_type": "self_regulating_tt",
                 "cable_source": "builtin",
                 "mode": "manual",
@@ -1448,7 +1442,7 @@ class TestElectricalVariantConcurrency:
             headers=headers,
         )
         assert baseline_apply.status_code == 200, baseline_apply.text
-        candidate = await _create_slot_two_candidate(
+        candidate = await _create_second_variant_candidate(
             client,
             project["id"],
             obj["id"],
@@ -1844,7 +1838,6 @@ class TestElectricalVariantCopy:
         calculation = ElectricalCalculation(
             project_id=project_id,
             object_id=object_id,
-            variant_number=1,
             electrical_variant_id=source_id,
             cable_type="single_core",
             cable_type_source="manual",
@@ -1856,7 +1849,6 @@ class TestElectricalVariantCopy:
         candidate = ElectricalCandidate(
             project_id=project_id,
             object_id=object_id,
-            variant_number=1,
             electrical_variant_id=source_id,
             cable_type="single_core",
             cable_mark="R-1",
@@ -1868,7 +1860,6 @@ class TestElectricalVariantCopy:
         folder = ElectricalCandidateFolder(
             project_id=project_id,
             object_id=object_id,
-            variant_number=1,
             electrical_variant_id=source_id,
             name="Выбранные",
             color="blue",
@@ -1895,7 +1886,6 @@ class TestElectricalVariantCopy:
         target = response.json()
         target_id = UUID(target["id"])
         assert target["copied_from_id"] == source["id"]
-        assert target["legacy_variant_number"] is None
         assert target["specification_state"] == "not_generated"
 
         copied_assignment = await db_session.scalar(
@@ -1930,14 +1920,11 @@ class TestElectricalVariantCopy:
         assert copied_assignment.diagnostics == {"source": "legacy-resistive"}
         assert copied_calculation is not None
         assert copied_calculation.id != calculation.id
-        assert copied_calculation.variant_number is None
         assert copied_calculation.params == calculation.params
         assert copied_candidate is not None
         assert copied_candidate.id != candidate.id
-        assert copied_candidate.variant_number is None
         assert copied_folder is not None
         assert copied_folder.id != folder.id
-        assert copied_folder.variant_number is None
         copied_link = await db_session.scalar(
             select(ElectricalCandidateFolderItem).where(
                 ElectricalCandidateFolderItem.folder_id == copied_folder.id,
@@ -1966,13 +1953,13 @@ class TestElectricalVariantCopy:
         await db_session.refresh(copied_variant)
         assert copied_variant.copied_from_id is None
 
-    async def test_fourth_graph_copy_uses_legacy_slot_four(
+    async def test_fourth_graph_copy_preserves_max_count_and_complete_graph(
         self,
         client: AsyncClient,
         guest_session: str,
         db_session: AsyncSession,
     ):
-        """The fourth ER receives slot 4 and can copy the complete graph."""
+        """The fourth ER can copy the complete graph at the count limit."""
         project = await _guest_project(client, guest_session)
         headers = {"X-Session-Id": guest_session}
         obj = await _add_ready_pipe(client, project["id"], headers)
@@ -1981,7 +1968,6 @@ class TestElectricalVariantCopy:
             ElectricalCalculation(
                 project_id=UUID(project["id"]),
                 object_id=UUID(obj["id"]),
-                variant_number=1,
                 electrical_variant_id=UUID(source["id"]),
                 cable_type="self_regulating",
                 params={"required_heat_loss": 100.0},
@@ -2004,7 +1990,6 @@ class TestElectricalVariantCopy:
         )
         assert response.status_code == 201, response.text
         body = response.json()
-        assert body["legacy_variant_number"] == 4
         count = await db_session.scalar(
             select(func.count())
             .select_from(ElectricalVariant)
